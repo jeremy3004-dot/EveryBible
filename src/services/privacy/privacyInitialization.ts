@@ -1,11 +1,11 @@
-import type { StoredPrivacySettings } from '../../types';
+import type { PrivacySettingsRecord } from './privacyService';
 
 export const DEFAULT_PRIVACY_INITIALIZATION_TIMEOUT_MS = 3_500;
 
-export type PrivacySettingsLoader = () => Promise<StoredPrivacySettings>;
+export type PrivacySettingsLoader = () => Promise<PrivacySettingsRecord>;
 
 export type PrivacyInitializationResult =
-  | { status: 'ready'; settings: StoredPrivacySettings }
+  | { status: 'ready'; settings: PrivacySettingsRecord }
   | { status: 'timeout' }
   | { status: 'unavailable'; error: unknown };
 

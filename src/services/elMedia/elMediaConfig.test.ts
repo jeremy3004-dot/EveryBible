@@ -17,6 +17,28 @@ test('returns null when the base URL is missing, blank, or wrong scheme', () => 
   assert.equal(resolveElCatalogUrl({ baseUrl: 'example.com', isFlagEnabled: true }), null);
 });
 
+test('plaintext http base URLs are rejected in dev and in production', () => {
+  // The catalog bytes are fetched before the signature is verified, so an http origin
+  // hands a network attacker the input to the verifier. https only, always.
+  for (const isDev of [true, false]) {
+    assert.equal(
+      resolveElCatalogUrl({ baseUrl: 'http://lqd-media.example.test', isDev, isFlagEnabled: true }),
+      null
+    );
+    assert.equal(
+      resolveElCatalogUrl({ baseUrl: 'http://localhost:8787', isDev, isFlagEnabled: true }),
+      null
+    );
+  }
+});
+
+test('accepts an uppercase HTTPS scheme', () => {
+  assert.equal(
+    resolveElCatalogUrl({ baseUrl: 'HTTPS://example.test', isDev: false, isFlagEnabled: true }),
+    'HTTPS://example.test/catalog.json'
+  );
+});
+
 test('appends /catalog.dev.json in dev when flag enabled and base URL valid', () => {
   assert.equal(
     resolveElCatalogUrl({ baseUrl: BASE, isDev: true, isFlagEnabled: true }),

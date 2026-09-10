@@ -100,10 +100,6 @@ export async function clearBibleNowPlaying(): Promise<void> {
   nativeModule.clearBibleNowPlaying();
 }
 
-export function getBibleNowPlayingSnapshot(): BibleNowPlayingPayload | null {
-  return currentBibleNowPlayingPayload;
-}
-
 export function subscribeBibleNowPlayingRemoteCommands(
   listener: (command: BibleNowPlayingRemoteCommand) => void
 ): () => void {

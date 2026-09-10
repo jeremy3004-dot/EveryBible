@@ -1,22 +1,40 @@
 import { QueryClient, focusManager, onlineManager } from '@tanstack/react-query';
 import { AppState, type AppStateStatus } from 'react-native';
-import NetInfo from '@react-native-community/netinfo';
 
 // Re-fetch stale queries when app returns to foreground
 function onAppStateChange(status: AppStateStatus) {
   focusManager.setFocused(status === 'active');
 }
 
-// Track online/offline status via NetInfo (already installed)
-onlineManager.setEventListener((setOnline) => {
-  return NetInfo.addEventListener((state) => {
-    setOnline(!!state.isConnected);
-  });
-});
+let listenersInstalled = false;
 
-// Listen for app state changes — cleans up automatically when the module is
-// garbage-collected, but in practice this module lives for the app lifetime.
-AppState.addEventListener('change', onAppStateChange);
+/**
+ * Wires react-query's focus/online managers to AppState and NetInfo.
+ *
+ * Deliberately NOT run at module scope: this module is on App.tsx's static boot
+ * graph (the QueryClientProvider needs the client), and registering the
+ * listeners there pulled @react-native-community/netinfo — plus a native
+ * bridge call — into cold start before the first frame. AppRuntimeEffects
+ * (loaded after interactions) calls this instead. Idempotent.
+ */
+export function installQueryClientListeners(): void {
+  if (listenersInstalled) {
+    return;
+  }
+  listenersInstalled = true;
+
+  // Track online/offline status via NetInfo (already installed)
+  onlineManager.setEventListener((setOnline) => {
+    const NetInfo = require('@react-native-community/netinfo')
+      .default as typeof import('@react-native-community/netinfo').default;
+    return NetInfo.addEventListener((state) => {
+      setOnline(!!state.isConnected);
+    });
+  });
+
+  // Listen for app state changes — the subscription lives for the app lifetime.
+  AppState.addEventListener('change', onAppStateChange);
+}
 
 export const queryClient = new QueryClient({
   defaultOptions: {

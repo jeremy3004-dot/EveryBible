@@ -4,6 +4,7 @@ import * as Localization from 'expo-localization';
 import { en } from './locales/en';
 import { localeLoaders } from './localeLoaders';
 import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES, type LanguageCode } from '../constants/languages';
+import { getPersistedLanguagePreference } from '../stores/mmkvStorage';
 
 type DeferredLanguageCode = Exclude<LanguageCode, 'en'>;
 
@@ -16,8 +17,20 @@ const resources = {
 const supportedLanguages = SUPPORTED_LANGUAGES.map((language) => language.code);
 const languageResourceLoads = new Map<LanguageCode, Promise<void>>();
 
-// Get initial language from device locale
+// The language the app should boot in: whatever the user last chose, and only
+// otherwise the device locale.
+//
+// This used to always resolve to the device locale, which meant boot eagerly
+// loaded that locale module (90-190KB) and App.tsx then called
+// changeLanguage(preferences.language) once auth hydrated — loading a second
+// module and throwing the first away whenever the two differed. Reading the
+// persisted preference straight out of MMKV costs one synchronous string read.
 const getInitialLanguage = (): LanguageCode => {
+  const persistedLanguage = getPersistedLanguagePreference();
+  if (persistedLanguage && supportedLanguages.includes(persistedLanguage as LanguageCode)) {
+    return persistedLanguage as LanguageCode;
+  }
+
   const deviceLocale = Localization.getLocales()[0]?.languageCode;
   if (deviceLocale && supportedLanguages.includes(deviceLocale as LanguageCode)) {
     return deviceLocale as LanguageCode;

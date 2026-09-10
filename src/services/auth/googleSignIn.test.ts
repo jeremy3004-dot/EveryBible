@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import * as googleSignIn from './googleSignIn';
 
 const { createGoogleSignInInitializer, resolveGoogleSignInConfig } = googleSignIn;
@@ -69,5 +71,41 @@ test('resolveGoogleSignInAvailability flags android-only client ID configuration
       available: false,
       reason: 'android_client_id_only',
     }
+  );
+});
+
+test('the Android Google sign-in catch names DEVELOPER_ERROR instead of falling through to a generic failure', () => {
+  // authService pulls in the React Native runtime, so assert on its source: the
+  // native status 10 (no matching Android OAuth client) must reach
+  // mapGoogleAuthError with its own code and leave a line in logcat.
+  const source = readFileSync(
+    fileURLToPath(new URL('./authService.ts', import.meta.url).href),
+    'utf8'
+  );
+
+  // The native module rejects with Android's raw CommonStatusCodes value, and
+  // `statusCodes` from the library does not expose DEVELOPER_ERROR at all.
+  assert.match(
+    source,
+    /const GOOGLE_ANDROID_DEVELOPER_ERROR_CODE = '10';/,
+    'the Android DEVELOPER_ERROR status number should be named, not inlined'
+  );
+
+  assert.match(
+    source,
+    /case GOOGLE_ANDROID_DEVELOPER_ERROR_CODE:/,
+    'signInWithGoogle should branch on the Android DEVELOPER_ERROR status code'
+  );
+
+  assert.match(
+    source,
+    /console\.error\(\s*'\[Auth\] Google DEVELOPER_ERROR/,
+    'the DEVELOPER_ERROR branch should log so the failure is diagnosable in logcat'
+  );
+
+  assert.match(
+    source,
+    /code: 'DEVELOPER_ERROR',/,
+    'the DEVELOPER_ERROR branch should forward a canonical code to mapGoogleAuthError'
   );
 });

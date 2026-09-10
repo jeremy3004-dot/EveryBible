@@ -1,8 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { zustandStorage } from './mmkvStorage';
-import { supabase, isSupabaseConfigured } from '../services/supabase';
-import { getCurrentSession, signOut as authSignOut } from '../services/auth';
 import type { User, UserPreferences } from '../types';
 import type { Session, Subscription } from '@supabase/supabase-js';
 import {
@@ -44,6 +42,16 @@ interface AuthState {
 }
 
 let authSubscription: Subscription | null = null;
+
+// @supabase/supabase-js (~520KB) and the native sign-in SDKs (google-signin,
+// expo-apple-authentication) are only ever touched inside async actions, but a
+// static import would evaluate all of them on every cold start — authStore is
+// on App.tsx's static boot graph. Load them lazily at the call site, the same
+// way the cross-store resets below do. `import type` stays static (erased).
+const getSupabaseModule = (): typeof import('../services/supabase') =>
+  require('../services/supabase');
+
+const getAuthModule = (): typeof import('../services/auth') => require('../services/auth');
 
 // Minimal structural view of a store that exposes resetForSignOut. Used so this
 // module does not depend on the full (and still-evolving) types of the sibling
@@ -253,7 +261,7 @@ export const useAuthStore = create<AuthState>()(
           }
         }
 
-        await authSignOut();
+        await getAuthModule().signOut();
 
         // Clear all per-user local stores so the next account on this device
         // never inherits or merges this account's reading data (H2).
@@ -296,9 +304,10 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true });
 
         try {
+          const { isSupabaseConfigured } = getSupabaseModule();
           const hasSupabaseConfig = isSupabaseConfigured();
           const restoredState = hasSupabaseConfig
-            ? resolveInitializedAuthState(await getCurrentSession())
+            ? resolveInitializedAuthState(await getAuthModule().getCurrentSession())
             : resolveInitializedAuthState({ session: null, user: null });
 
           // Route restored sessions through the same synchronous boundary as
@@ -309,6 +318,7 @@ export const useAuthStore = create<AuthState>()(
           if (hasSupabaseConfig) {
             // Get current session
             if (!authSubscription) {
+              const { supabase } = getSupabaseModule();
               const { data } = supabase.auth.onAuthStateChange((_event, session) => {
                 if (session?.user) {
                   // Route auth callbacks through the same boundary-aware action

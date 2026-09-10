@@ -829,6 +829,9 @@ export const es = {
     "resetPasswordSubmit": "Actualizar contraseña",
     "resetPasswordSuccess": "Tu contraseña ha sido actualizada",
     "resetPasswordError": "No se pudo actualizar tu contraseña",
+    "resetLinkConfirmTitle": "¿Establecer una nueva contraseña?",
+    "resetLinkConfirmBody": "Este enlace establecerá una nueva contraseña para {{email}}. ¿Continuar?",
+    "resetLinkDifferentAccount": "Este enlace de restablecimiento pertenece a otra cuenta. Cierra sesión en esta cuenta y vuelve a abrir el enlace.",
     "resetPasswordInvalidSession": "Este enlace de restablecimiento no es válido o ha caducado. Solicita uno nuevo."
   },
   "profile": {
@@ -1435,34 +1438,6 @@ export const es = {
         "l8": "Dios con nosotros"
       }
     }
-  },
-  "harvestStudies": {
-    "christologyTitle": "Cristología",
-    "christologyDesc": "Estudios sostenidos por capítulos sobre quién es Jesús, su misión, muerte, resurrección y reinado.",
-    "gospelTitle": "El Evangelio",
-    "gospelDesc": "Estudios por capítulos sobre el pecado, la gracia, la justificación y la salvación en Cristo.",
-    "prayerTitle": "Oración",
-    "prayerDesc": "Modelos y enseñanzas que fortalecen la vida de oración diaria.",
-    "loveAndChristianLivingTitle": "El amor y la vida cristiana",
-    "loveAndChristianLivingDesc": "Capítulos prácticos para caminar en amor, santidad y obediencia guiada por el Espíritu.",
-    "discipleshipTitle": "Discipulado",
-    "discipleshipDesc": "Enseñanzas sobre seguir a Jesús con obediencia, rendición y prioridades del reino.",
-    "churchTitle": "La Iglesia",
-    "churchDesc": "La identidad, unidad y misión de la iglesia en acción.",
-    "missionHarvestTitle": "Misión / Cosecha",
-    "missionHarvestDesc": "Capítulos clave sobre evangelismo, testimonio y la Gran Comisión.",
-    "groupEternalChrist": "El Cristo eterno (Preexistencia)",
-    "groupBirthOfJesus": "El nacimiento de Jesús (Encarnación)",
-    "groupMissionOfJesus": "La misión de Jesús",
-    "groupDeathOfJesus": "La muerte de Jesús (Expiación)",
-    "groupResurrectionOfJesus": "La resurrección de Jesús",
-    "groupExaltedChrist": "El Cristo exaltado",
-    "groupGospelSalvation": "El Evangelio (Salvación)",
-    "groupPrayerCore": "Oración",
-    "groupLoveAndLivingCore": "El amor y la vida cristiana",
-    "groupDiscipleshipCore": "Discipulado",
-    "groupChurchCore": "La Iglesia",
-    "groupMissionHarvestCore": "Misión / Cosecha"
   },
   "readingPlans": {
     "activeCount": "{{count}} activos",

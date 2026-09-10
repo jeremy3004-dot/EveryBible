@@ -3,8 +3,7 @@ import { sha256HexSync } from './elEs256';
 import { isElVerificationRuntimeSupported } from './elRuntimeSupport';
 import type { ElJwk, ElSignedEnvelope } from './elEnvelope';
 import { isElEnvelopeShape, verifyElEnvelope } from './elEnvelope';
-import { getElKeys, refreshElJwksForUnknownKeyId } from './elJwks';
-import type { ElJwksDeps } from './elJwks';
+import { getElKeys } from './elJwks';
 import type { ElAudioManifest } from './elManifestModel';
 import { parseElManifestPayload } from './elManifestModel';
 
@@ -17,6 +16,9 @@ export interface ElManifestStorage {
 export interface ElManifestServiceDeps {
   fetchFn?: typeof fetch;
   storage?: ElManifestStorage;
+  // Resolves the trust store for a given envelope keyId. The production implementation
+  // ignores the keyId and always returns the pinned trust store (there is no runtime key
+  // discovery — see elJwks.ts). Injectable so tests can supply the dev fixture keys.
   getKeys?: (keyId: string) => Promise<ElJwk[]>;
   // Digest seam for the integrity pre-check. Defaults to the pure-JS hasher, which always
   // resolves. Callers inject `async () => null` to skip the check when the catalog entry
@@ -30,7 +32,10 @@ export interface ElManifestServiceDeps {
 }
 
 const DISK_KEY_PREFIX = 'el-media:manifest:';
-const HTTP_URL_RE = /^https?:\/\//;
+// Absolute manifest URLs must be https. Plaintext http (and any other scheme) is rejected
+// outright rather than being treated as a relative path — see resolveManifestUrl.
+const HTTPS_URL_RE = /^https:\/\//i;
+const ABSOLUTE_URL_RE = /^[a-z][a-z0-9+.-]*:\/\//i;
 
 // Ceiling on the manifest network fetch so a stalled socket cannot pin the warmup path forever.
 const DEFAULT_FETCH_TIMEOUT_MS = 10_000;
@@ -67,15 +72,21 @@ function defaultStorage(): ElManifestStorage {
   };
 }
 
-// Default trust-store resolver: pinned keys + cached JWKS, refetching once for an unknown kid.
-async function defaultGetKeys(keyId: string, jwksDeps: ElJwksDeps): Promise<ElJwk[]> {
-  const keys = await getElKeys(jwksDeps);
-  if (keys.some((key) => key.kid === keyId)) return keys;
-  return refreshElJwksForUnknownKeyId(keyId, jwksDeps);
+// Default trust-store resolver: the pinned keys, always. An envelope whose keyId is not
+// pinned simply fails verification — no network discovery, no cache (see elJwks.ts).
+async function defaultGetKeys(): Promise<ElJwk[]> {
+  return getElKeys();
 }
 
-function resolveManifestUrl(manifestUrl: string, catalogBaseUrl: string): string {
-  if (HTTP_URL_RE.test(manifestUrl)) return manifestUrl;
+// Returns the absolute https manifest URL, or null when the catalog advertises a URL we
+// refuse to fetch: an absolute non-https URL, or a relative URL against a non-https base.
+// A plaintext origin is never fetched — the signature check happens after the bytes land,
+// so http would let a network attacker feed us the bytes in the first place.
+function resolveManifestUrl(manifestUrl: string, catalogBaseUrl: string): string | null {
+  if (ABSOLUTE_URL_RE.test(manifestUrl)) {
+    return HTTPS_URL_RE.test(manifestUrl) ? manifestUrl : null;
+  }
+  if (!HTTPS_URL_RE.test(catalogBaseUrl)) return null;
   const base = catalogBaseUrl.replace(/\/+$/, '');
   return `${base}${manifestUrl}`;
 }
@@ -142,18 +153,13 @@ export async function getElManifest(
   const storage = deps.storage ?? defaultStorage();
   const fetchFn = deps.fetchFn ?? fetch;
   const timeoutMs = deps.timeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
-  const getKeys =
-    deps.getKeys ??
-    ((keyId: string) =>
-      defaultGetKeys(keyId, {
-        baseUrl: catalogBaseUrl,
-        fetchFn,
-        storage,
-        timeoutMs,
-      }));
+  const getKeys = deps.getKeys ?? defaultGetKeys;
   const computeSha256Hex = deps.computeSha256Hex ?? sha256Hex;
 
   const url = resolveManifestUrl(entry.manifestUrl, catalogBaseUrl);
+  // A non-https manifest URL is inert: no fetch, and no cache lookup either (a cached copy
+  // keyed off a plaintext URL should never have been written in the first place).
+  if (url === null) return null;
 
   const cachedInMemory = memoryCache.get(url);
   if (cachedInMemory && matchesManifestEntry(cachedInMemory, entry)) return cachedInMemory;

@@ -7,6 +7,12 @@ export interface AvatarProps {
   name?: string;
   imageUri?: string | null;
   size?: number;
+  /**
+   * What the avatar stands for. Defaults to `name` when one is given. An avatar
+   * with no label is marked decorative rather than left as an unnamed focus
+   * stop — the row beside it already carries the person's name.
+   */
+  accessibilityLabel?: string;
 }
 
 // Two-stop gradients drawn from the Every Language field data series, in the
@@ -46,8 +52,14 @@ function initialsFrom(name?: string): string {
   return letters.join('');
 }
 
-export function Avatar({ name, imageUri, size = 44 }: AvatarProps) {
+export function Avatar({ name, imageUri, size = 44, accessibilityLabel }: AvatarProps) {
   const dimension = { width: size, height: size, borderRadius: size / 2 } as const;
+  const label = accessibilityLabel ?? name;
+  // Either the avatar is named and is one element, or it is decorative and is
+  // no element at all. An unlabelled focus stop is the one thing it must not be.
+  const a11y = label
+    ? ({ accessible: true, accessibilityLabel: label, accessibilityRole: 'image' } as const)
+    : ({ accessible: false, importantForAccessibility: 'no-hide-descendants' } as const);
 
   if (imageUri) {
     return (
@@ -55,6 +67,7 @@ export function Avatar({ name, imageUri, size = 44 }: AvatarProps) {
         source={{ uri: imageUri }}
         style={[styles.base, dimension]}
         accessibilityIgnoresInvertColors
+        {...a11y}
       />
     );
   }
@@ -68,9 +81,15 @@ export function Avatar({ name, imageUri, size = 44 }: AvatarProps) {
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={[styles.base, styles.center, dimension]}
+      {...a11y}
     >
+      {/* The initials/glyph are the picture, not a second element to read: the
+          container above carries the whole label. */}
       {initials ? (
-        <Text style={[styles.initials, { fontSize: size * 0.4, color: INITIALS_COLOR }]}>
+        <Text
+          accessible={false}
+          style={[styles.initials, { fontSize: size * 0.4, color: INITIALS_COLOR }]}
+        >
           {initials}
         </Text>
       ) : (

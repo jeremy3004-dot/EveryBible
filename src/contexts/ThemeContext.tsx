@@ -1,6 +1,7 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { resolveThemeMode, type ThemeMode } from '../design/themeMode';
+import { hexWithAlpha } from '../utils/color';
 import type { AppearancePaletteId } from '../constants/appearancePalettes';
 import {
   APPEARANCE_PALETTES,
@@ -41,6 +42,14 @@ export interface ThemeColors {
   warning: string;
   /** EL `--warning-soft`: a missed-day fill, always paired with a `warning` border. */
   warningSoft: string;
+  /**
+   * The foreground for warning copy — the `--warning-soft` counterpart to
+   * `onSuccessSoft`. `warning` itself is a saturated mid-tone that only reaches
+   * 2.83:1 on vellum, so it may tint a fill or draw a border but must never be
+   * the colour of words. This token clears 4.5:1 on `warningSoft`,
+   * `background` and `cardBackground` in both scopes.
+   */
+  onWarningSoft: string;
   overlay: string;
   tabActive: string;
   tabInactive: string;
@@ -56,6 +65,12 @@ export interface ThemeColors {
    *  the warm page far better than a warm grey of the same darkness, and keeps
    *  the accent for controls rather than competing with scripture. */
   bibleFollowHighlight: string;
+  /**
+   * Verse numbers sitting on `bibleFollowHighlight`. `bibleSecondaryText` only
+   * reaches 3.18:1 on the light band, so the follow band gets its own quiet
+   * foreground rather than borrowing the page's.
+   */
+  bibleFollowVerseNumber: string;
 }
 
 interface ThemeContextValue {
@@ -81,17 +96,6 @@ const defaultPaletteSwatches = defaultPalette.swatches;
 const onAccentDark = '#1A140F';
 const onAccentLight = '#FFFFFF';
 
-// Convert a #RRGGBB hex to an rgba() string at the given alpha. Used for the
-// soft tinted accent fill (accentSoft) so a single accent hue drives both solid
-// and 12–14% wash treatments without shipping a second token per palette.
-const withAlpha = (hex: string, alpha: number): string => {
-  const normalized = hex.replace('#', '');
-  const red = parseInt(normalized.slice(0, 2), 16);
-  const green = parseInt(normalized.slice(2, 4), 16);
-  const blue = parseInt(normalized.slice(4, 6), 16);
-  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
-};
-
 const ACCENT_SOFT_ALPHA = 0.13;
 
 // Placeholder accent fill for the base palette literals below — every value here
@@ -102,7 +106,7 @@ const defaultPaletteColors = {
   accentSecondary: defaultPaletteSwatches.secondary,
   accentGreen: defaultPaletteSwatches.primary,
   accentTertiary: defaultPaletteSwatches.tertiary,
-  accentSoft: withAlpha(defaultPaletteSwatches.primary, ACCENT_SOFT_ALPHA),
+  accentSoft: hexWithAlpha(defaultPaletteSwatches.primary, ACCENT_SOFT_ALPHA),
   onAccent: onAccentDark,
   bibleAccent: defaultPaletteSwatches.primary,
 } as const;
@@ -126,6 +130,7 @@ const baseDarkColors: ThemeColors = {
   onSuccessSoft: '#8FD8A6', // --success-soft-foreground 140 47% 71%
   warning: '#E9A23F', // --warning 35 79% 58%
   warningSoft: '#3A2A12', // --warning-soft 36 53% 15%
+  onWarningSoft: '#EFBF7B', // --warning-soft-foreground 35 79% 71%
   overlay: 'rgba(17, 17, 13, 0.62)',
   // accentSurface/onAccentSurface are the terracotta defaults; createThemeColors
   // replaces both with the active palette's dark pair.
@@ -145,6 +150,7 @@ const baseDarkColors: ThemeColors = {
   // pair it with `bibleBackground` as the label colour, so it must stay inverted.
   bibleControlBackground: '#EFEBE1',
   bibleFollowHighlight: '#334152', // 1.8:1 against the near-black page
+  bibleFollowVerseNumber: '#B7B1A4', // 4.87:1 on the follow band
 };
 
 // Vellum — the canonical EL canvas. Warm paper, never white; lit-paper panels on
@@ -165,6 +171,7 @@ const baseLightColors: ThemeColors = {
   onSuccessSoft: '#1F6A3F', // --success-soft-foreground 147 55% 27%
   warning: '#D27519', // --warning 30 79% 46%
   warningSoft: '#F6E3CC', // --warning-soft 36 68% 88%
+  onWarningSoft: '#8D4F11', // --warning-soft-foreground 30 79% 31%
   overlay: 'rgba(26, 25, 20, 0.34)',
   // accentSurface/onAccentSurface are the terracotta defaults; createThemeColors
   // replaces both with the active palette's light pair.
@@ -182,6 +189,7 @@ const baseLightColors: ThemeColors = {
   bibleSecondaryText: '#69624F',
   bibleControlBackground: '#1A1914',
   bibleFollowHighlight: '#B2BDC9', // 1.6:1 against vellum; text stays 9:1
+  bibleFollowVerseNumber: '#494437', // 5.09:1 on the follow band
 };
 
 // The vellum scope uses the deep accent so terracotta reads on warm paper; Field
@@ -207,7 +215,7 @@ const createThemeColors = (mode: ThemeMode, paletteId: AppearancePaletteId): The
     accentSecondary: isLightFamily ? palette.secondaryDeep : palette.secondary,
     accentGreen: accentBase,
     accentTertiary: palette.tertiary,
-    accentSoft: withAlpha(accentBase, ACCENT_SOFT_ALPHA),
+    accentSoft: hexWithAlpha(accentBase, ACCENT_SOFT_ALPHA),
     accentSurface,
     onAccentSurface,
     onAccent: isLightFamily ? onAccentLight : onAccentDark,

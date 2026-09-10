@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import { config } from '../../constants';
 import { useTheme } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
+import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { warningHaptic } from '../../utils';
 import type { LearnStackParamList } from '../../navigation/types';
 import { useFourFieldsStore } from '../../stores/fourFieldsStore';
@@ -41,6 +42,9 @@ export function GroupDetailScreen() {
   const { groupId } = route.params;
   const { colors } = useTheme();
   const { t, i18n } = useTranslation();
+  // Pushed inside the Learn tab stack: the floating tab capsule (and the Android
+  // navigation bar under it) overlaps the end of this scroll.
+  const { contentClearance } = useTabBarHeight();
 
   const groups = useFourFieldsStore((state) => state.groups);
   const groupProgress = useFourFieldsStore((state) => state.groupProgress);
@@ -278,7 +282,10 @@ export function GroupDetailScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[styles.content, { paddingBottom: contentClearance }]}
+      >
         {/* Join Code Card */}
         <TouchableOpacity
           style={[styles.codeCard, { backgroundColor: colors.cardBackground }]}

@@ -835,6 +835,9 @@ export const ru = {
     "resetPasswordSubmit": "Обновить пароль",
     "resetPasswordSuccess": "Ваш пароль обновлён",
     "resetPasswordError": "Не удалось обновить пароль",
+    "resetLinkConfirmTitle": "Задать новый пароль?",
+    "resetLinkConfirmBody": "Эта ссылка задаст новый пароль для {{email}}. Продолжить?",
+    "resetLinkDifferentAccount": "Эта ссылка для сброса относится к другому аккаунту. Сначала выйдите из текущего аккаунта, затем откройте ссылку снова.",
     "resetPasswordInvalidSession": "Эта ссылка для сброса недействительна или истекла. Пожалуйста, запросите новую.",
   },
   "profile": {
@@ -1864,34 +1867,6 @@ export const ru = {
         "l8": "Бог с нами"
       }
     }
-  },
-  "harvestStudies": {
-    "christologyTitle": "Христология",
-    "christologyDesc": "Продолжительные изучения глав о том, кто такой Иисус, Его миссии, смерти, воскресении и царствовании.",
-    "gospelTitle": "Евангелие",
-    "gospelDesc": "Изучения глав о грехе, благодати, оправдании и спасении через Христа.",
-    "prayerTitle": "Молитва",
-    "prayerDesc": "Модели и учения, укрепляющие ежедневную молитвенную жизнь.",
-    "loveAndChristianLivingTitle": "Любовь и христианская жизнь",
-    "loveAndChristianLivingDesc": "Практические главы для жизни в любви, святости и послушании Духу.",
-    "discipleshipTitle": "Ученичество",
-    "discipleshipDesc": "Учения о следовании за Иисусом с послушанием, самоотречением и приоритетами Царства.",
-    "churchTitle": "Церковь",
-    "churchDesc": "Идентичность, единство и миссия церкви в действии.",
-    "missionHarvestTitle": "Миссия / Жатва",
-    "missionHarvestDesc": "Основные главы об евангелизации, свидетельстве и Великом поручении.",
-    "groupEternalChrist": "Вечный Христос (предсуществование)",
-    "groupBirthOfJesus": "Рождение Иисуса (воплощение)",
-    "groupMissionOfJesus": "Миссия Иисуса",
-    "groupDeathOfJesus": "Смерть Иисуса (искупление)",
-    "groupResurrectionOfJesus": "Воскресение Иисуса",
-    "groupExaltedChrist": "Превознесённый Христос",
-    "groupGospelSalvation": "Евангелие (спасение)",
-    "groupPrayerCore": "Молитва",
-    "groupLoveAndLivingCore": "Любовь и христианская жизнь",
-    "groupDiscipleshipCore": "Ученичество",
-    "groupChurchCore": "Церковь",
-    "groupMissionHarvestCore": "Миссия / Жатва"
   },
   "learn": {
     "sectionTabs": "Разделы урока",

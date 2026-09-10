@@ -31,18 +31,11 @@ test('BibleReaderScreen no longer renders a duplicate chapter rail under the pla
 
 test('Bible listen surfaces leave breathing room above the bottom edge instead of clipping the player controls', () => {
   const readerSource = readRelativeSource('./BibleReaderScreen.tsx');
-  const audioFirstSource = readRelativeSource('../../components/audio/AudioFirstChapterCard.tsx');
 
   assert.match(
     readerSource,
     /listenColumn:\s*{[\s\S]*flex:\s*1,[\s\S]*justifyContent:\s*'flex-start'/,
     'Listen-mode reader layout should top-align the chapter stack so the controls sit higher on screen'
-  );
-
-  assert.match(
-    audioFirstSource,
-    /card:\s*{[\s\S]*flex:\s*1,[\s\S]*paddingBottom:\s*20,[\s\S]*justifyContent:\s*'flex-start'/,
-    'Audio-first chapter card should top-align its content and add breathing room below the player'
   );
 });
 
@@ -875,17 +868,32 @@ test('BibleReaderScreen removes the legacy header arrows so the session rail sta
 
 test('BibleReaderScreen resets follow-along scroll when repeated chapter playback restarts', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
+  // Restart detection moved into the position-tick leaf so the screen itself no
+  // longer re-renders ~4x/second; the behavior it guards is unchanged.
+  const bridgeSource = readRelativeSource('./ReaderAudioPositionParts.tsx');
 
   assert.match(
-    source,
-    /hasAudioPositionRestarted\(\{[\s\S]*currentPosition,[\s\S]*previousPosition:\s*previousFollowAlongPositionRef\.current,[\s\S]*duration,[\s\S]*\}\)/s,
-    'BibleReaderScreen should detect a real end-to-start audio position wrap during chapter repeat'
+    bridgeSource,
+    /hasAudioPositionRestarted\(\{[\s\S]*currentPosition,[\s\S]*previousPosition:\s*previousPositionRef\.current,[\s\S]*duration,[\s\S]*\}\)/s,
+    'The reader audio position bridge should detect a real end-to-start audio position wrap during chapter repeat'
+  );
+
+  assert.match(
+    bridgeSource,
+    /if \(didRestart\) \{[\s\S]*lastVerseRef\.current = null;[\s\S]*\}/s,
+    'The reader audio position bridge should clear monotonic follow-along state when repeat playback returns to verse one'
+  );
+
+  assert.match(
+    bridgeSource,
+    /onFollowAlongChange\(next\);/,
+    'The reader audio position bridge should report the restart back to BibleReaderScreen'
   );
 
   assert.match(
     source,
-    /if \(didRestart\) \{[\s\S]*lastFollowAlongVerseRef\.current = null;[\s\S]*\}/s,
-    'BibleReaderScreen should clear monotonic follow-along state when repeat playback returns to verse one'
+    /const didRestartFollowAlongPlayback = followAlongPlaybackState\.didRestart;/,
+    'BibleReaderScreen should read the restart flag from the bridge-reported follow-along state'
   );
 
   assert.match(
@@ -1542,5 +1550,104 @@ test('editorial section titles render in the bold reading face', () => {
     readerSource,
     /sectionHeading:[\s\S]*fontWeight: '700'/,
     'sectionHeading keeps fontWeight for the platform-serif fallback used by non-Latin scripts'
+  );
+});
+
+test('BibleReaderScreen keeps its sheet backdrops out of the screen reader', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  for (const backdrop of [
+    'styles.feedbackModalBackdrop',
+    'styles.modalBackdrop}',
+    'styles.verseImageSheetBackdrop',
+  ]) {
+    const index = source.indexOf(backdrop);
+    assert.notEqual(index, -1, `${backdrop} should still be rendered`);
+    const region = source.slice(index, index + 400);
+    assert.match(
+      region,
+      /importantForAccessibility="no-hide-descendants"/,
+      `${backdrop} is a dismiss target duplicating a visible Close, so it should be hidden from the reader`
+    );
+  }
+
+  // The font sheet has no visible Close button, so its backdrop IS the close
+  // affordance and has to be named rather than hidden.
+  const fontBackdrop = source.slice(source.indexOf('styles.fontSheetBackdrop'));
+  assert.match(
+    fontBackdrop.slice(0, 400),
+    /accessibilityRole="button"[\s\S]*accessibilityLabel=\{t\('interface\.close'\)\}/,
+    'The font sheet backdrop is the only way out of that sheet, so it should be a labelled button'
+  );
+
+  const translucentModals = source.match(/^\s*statusBarTranslucent$/gm) ?? [];
+  assert.equal(
+    translucentModals.length,
+    9,
+    'Every reader modal should draw under the Android system bars instead of leaving an edge-to-edge seam'
+  );
+});
+
+test('BibleReaderScreen keeps the audio position tick out of its own render body', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+  const bridgeSource = readRelativeSource('./ReaderAudioPositionParts.tsx');
+
+  // `useAudioPosition` fires ~4x/second for the whole chapter. Consuming it in
+  // BibleReaderScreen re-ran the entire 8k-line component on every tick, so the
+  // subscription must live only in the small leaves of ReaderAudioPositionParts.
+  assert.equal(
+    source.includes('useAudioPosition'),
+    false,
+    'BibleReaderScreen must not subscribe to the audio position tick; extracted leaves own it'
+  );
+
+  assert.match(
+    bridgeSource,
+    /useAudioPosition\(track\)/,
+    'The extracted reader audio leaves should be the ones subscribing to the position tick'
+  );
+
+  for (const leaf of [
+    'ReaderAudioPositionBridge',
+    'ReaderListenProgress',
+    'ReaderAudioPortionPreviewGuard',
+    'ReaderAudioPositionValue',
+  ]) {
+    assert.match(
+      bridgeSource,
+      new RegExp(`export const ${leaf} = memo\\(`),
+      `${leaf} should be a memoized leaf so a position tick cannot escape it`
+    );
+    assert.match(
+      source,
+      new RegExp(`<${leaf}`),
+      `BibleReaderScreen should render ${leaf} instead of reading the position itself`
+    );
+  }
+
+  // Async handlers still need a one-shot read of position/duration; they take it
+  // from the ref the bridge mirrors rather than from a render-time subscription.
+  assert.match(
+    source,
+    /audioPositionRef\.current/,
+    'One-shot position reads should come from the mirrored ref'
+  );
+});
+
+test('BibleReaderScreen hands the active verse to the paragraph list without per-tick work', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  // The renderItem closure is compared by readerParagraphBlockPropsAreEqual via
+  // its props, so it must be stable across renders that change neither input.
+  assert.match(
+    source,
+    /const renderParagraphBlock = useCallback\([\s\S]*\[premiumParagraphRenderSignature, readerInlineActiveVerse\]\s*\)/,
+    'The FlatList renderItem should be a useCallback keyed on exactly what the cell comparator checks'
+  );
+
+  assert.match(
+    source,
+    /const \{ selectedHighlightColors, selectedNoteAnnotation \} = useMemo\(/,
+    'Selected-annotation derivation should be memoized instead of re-filtering every render'
   );
 });

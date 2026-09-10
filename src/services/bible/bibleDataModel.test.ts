@@ -1,8 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Buffer } from 'node:buffer';
-import { generateKeyPairSync } from 'node:crypto';
-import { CompactSign, importPKCS8 } from 'jose';
 import type { BibleTranslation } from '../../types';
 import {
   activateTranslationPackCandidate,
@@ -11,102 +8,7 @@ import {
   parseTranslationCatalogManifest,
   rollbackTranslationPack,
   stageTranslationPackCandidate,
-  verifySignedCatalogManifest,
-  type SignedCatalogEnvelope,
-  type TranslationCatalogManifest,
 } from './bibleDataModel';
-
-const { privateKey: TEST_PRIVATE_KEY, publicKey: TEST_PUBLIC_KEY } = generateKeyPairSync('ec', {
-  namedCurve: 'P-256',
-  privateKeyEncoding: {
-    format: 'pem',
-    type: 'pkcs8',
-  },
-  publicKeyEncoding: {
-    format: 'pem',
-    type: 'spki',
-  },
-});
-
-async function createSignedEnvelope(
-  manifest: TranslationCatalogManifest
-): Promise<SignedCatalogEnvelope> {
-  const privateKey = await importPKCS8(TEST_PRIVATE_KEY, 'ES256');
-  const compactJws = await new CompactSign(Buffer.from(JSON.stringify(manifest)))
-    .setProtectedHeader({ alg: 'ES256', kid: 'catalog-key-1' })
-    .sign(privateKey);
-
-  return {
-    keyId: 'catalog-key-1',
-    algorithm: 'ES256',
-    compactJws,
-  };
-}
-
-test('verifySignedCatalogManifest returns the parsed manifest for a valid signed envelope', async () => {
-  const manifest: TranslationCatalogManifest = {
-    manifestVersion: '2026.03.21',
-    issuedAt: '2026-03-21T10:00:00.000Z',
-    translations: [
-      {
-        id: 'niv',
-        name: 'New International Version',
-        abbreviation: 'NIV',
-        language: 'English',
-        description: 'Runtime translation from backend catalog',
-        copyright: 'Example License',
-        hasText: true,
-        hasAudio: true,
-        audioGranularity: 'chapter',
-        totalBooks: 66,
-        sizeInMB: 5.2,
-        text: {
-          format: 'sqlite',
-          version: '2026.03.21',
-          downloadUrl: 'https://cdn.example.com/niv.sqlite',
-          sha256: 'sha256-text',
-        },
-        audio: {
-          strategy: 'stream-template',
-          baseUrl: 'https://cdn.example.com/audio/niv',
-          chapterPathTemplate: '{bookId}/{chapter}.mp3',
-        },
-      },
-    ],
-  };
-
-  const envelope = await createSignedEnvelope(manifest);
-
-  const verifiedManifest = await verifySignedCatalogManifest(envelope, TEST_PUBLIC_KEY);
-
-  assert.deepEqual(verifiedManifest, manifest);
-});
-
-test('verifySignedCatalogManifest rejects a tampered signed envelope payload', async () => {
-  const manifest: TranslationCatalogManifest = {
-    manifestVersion: '2026.03.21',
-    issuedAt: '2026-03-21T10:00:00.000Z',
-    translations: [],
-  };
-
-  const envelope = await createSignedEnvelope(manifest);
-  const [header, , signature] = envelope.compactJws.split('.');
-  const tamperedPayload = Buffer.from(
-    JSON.stringify({ ...manifest, manifestVersion: 'tampered' })
-  ).toString('base64url');
-
-  await assert.rejects(
-    () =>
-      verifySignedCatalogManifest(
-        {
-          ...envelope,
-          compactJws: `${header}.${tamperedPayload}.${signature}`,
-        },
-        TEST_PUBLIC_KEY
-      ),
-    /signature verification failed|JWS Protected Header is invalid|signature/i
-  );
-});
 
 test('parseTranslationCatalogManifest preserves a valid el-manifest audio block', () => {
   const parsed = parseTranslationCatalogManifest({

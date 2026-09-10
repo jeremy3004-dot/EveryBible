@@ -137,43 +137,58 @@ test('an explicit translation name wins over the bundled catalog name', async ()
     canSkipPrevious: false,
   });
 
-  assert.deepEqual(mod.getBibleNowPlayingSnapshot(), {
-    title: 'Genesis 1',
-    artist: 'Ahirani New Testament',
-    albumTitle: 'Every Bible',
-    elapsedSeconds: 30,
-    durationSeconds: 600,
-    playbackRate: 1,
-    isPlaying: true,
-    artworkUri: 'everybible://artwork/default',
-    canSkipNext: false,
-    canSkipPrevious: false,
-  });
+  assert.deepEqual(nativeCalls, [
+    {
+      method: 'syncBibleNowPlaying',
+      args: [
+        {
+          title: 'Genesis 1',
+          artist: 'Ahirani New Testament',
+          albumTitle: 'Every Bible',
+          elapsedSeconds: 30,
+          durationSeconds: 600,
+          playbackRate: 1,
+          isPlaying: true,
+          artworkUri: 'everybible://artwork/default',
+          canSkipNext: false,
+          canSkipPrevious: false,
+        },
+      ],
+    },
+  ]);
 });
 
-test('the last synced payload is cached for later readers', async () => {
+test('every sync pushes a freshly built payload rather than replaying the previous one', async () => {
   await mod.syncBibleNowPlaying(genesisOne);
+  await mod.syncBibleNowPlaying({ ...genesisOne, positionMs: 90_000, isPlaying: false });
 
-  assert.equal(mod.getBibleNowPlayingSnapshot()?.title, 'Genesis 1');
+  assert.deepEqual(
+    nativeCalls.map((call) => {
+      const payload = call.args[0] as { elapsedSeconds: number; isPlaying: boolean };
+      return { elapsed: payload.elapsedSeconds, playing: payload.isPlaying };
+    }),
+    [
+      { elapsed: 30, playing: true },
+      { elapsed: 90, playing: false },
+    ]
+  );
 });
 
-test('syncing a chapter the app does not know clears the lock screen instead of caching junk', async () => {
+test('syncing a chapter the app does not know clears the lock screen instead of pushing junk', async () => {
   await mod.syncBibleNowPlaying(genesisOne);
   nativeCalls.length = 0;
 
   await mod.syncBibleNowPlaying({ ...genesisOne, bookId: 'NOT-A-BOOK' });
 
-  assert.equal(mod.getBibleNowPlayingSnapshot(), null);
   assert.deepEqual(nativeCalls, [{ method: 'clearBibleNowPlaying', args: [] }]);
 });
 
-test('clearing drops the cached payload and the native lock-screen entry', async () => {
+test('clearing removes the native lock-screen entry', async () => {
   await mod.syncBibleNowPlaying(genesisOne);
   nativeCalls.length = 0;
 
   await mod.clearBibleNowPlaying();
 
-  assert.equal(mod.getBibleNowPlayingSnapshot(), null);
   assert.deepEqual(nativeCalls, [{ method: 'clearBibleNowPlaying', args: [] }]);
 });
 
@@ -287,12 +302,12 @@ test('a dev build warns exactly once about the missing native module', async () 
   assert.match(String(warnings[0][0]), /EveryBibleAudioNowPlayingModule is missing/);
 });
 
-test('the payload is still cached on a platform with no lock-screen bridge', async () => {
+test('a platform with no lock-screen bridge is a silent no-op even when the module exists', async () => {
   rn.Platform.OS = 'android';
 
-  await mod.syncBibleNowPlaying(genesisOne);
+  await assert.doesNotReject(() => mod.syncBibleNowPlaying(genesisOne));
+  await assert.doesNotReject(() => mod.clearBibleNowPlaying());
 
-  assert.equal(mod.getBibleNowPlayingSnapshot()?.title, 'Genesis 1');
   assert.deepEqual(nativeCalls, []);
 });
 

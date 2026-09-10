@@ -87,10 +87,19 @@ test('reader scopes progress to its visible translation and chapter', () => {
     new URL('../screens/bible/BibleReaderScreen.tsx', import.meta.url),
     'utf8'
   );
+  // The tick is consumed by the memoized leaves in ReaderAudioPositionParts, never by
+  // the 8,000-line screen itself; the screen only builds the scoped track once and
+  // hands it down, so every leaf ignores ticks from other chapters.
   assert.match(
     reader,
-    /useAudioPosition\(\{\s*translationId: currentTranslation,\s*bookId,\s*chapter,\s*\}\)/
+    /const readerAudioTrack = useMemo\(\s*\(\) => \(\{ translationId: currentTranslation, bookId, chapter \}\)/
   );
+  assert.doesNotMatch(reader, /useAudioPosition\(/);
+  const leaves = readFileSync(
+    new URL('../screens/bible/ReaderAudioPositionParts.tsx', import.meta.url),
+    'utf8'
+  );
+  assert.ok((leaves.match(/useAudioPosition\(track\)/g) ?? []).length >= 4);
 });
 
 test('reader prefetches text only after accepting a successful nonempty chapter load', () => {

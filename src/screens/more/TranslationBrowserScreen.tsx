@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { layout, spacing, typography } from '../../design/system';
+import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { refreshRuntimeCatalog } from '../../services/translations/runtimeCatalogRefresh';
 import type { MoreStackParamList } from '../../navigation/types';
 import { TranslationPickerList } from '../bible/TranslationPickerList';
@@ -18,6 +19,9 @@ export function TranslationBrowserScreen() {
   const { colors } = useTheme();
   const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(true);
+  // Pushed tab-stack screen: the shared picker list has no bottom-inset story of
+  // its own, so end it above the floating tab capsule and the Android nav bar.
+  const { contentClearance } = useTabBarHeight();
 
   const loadCatalog = useCallback(async () => {
     setIsLoading(true);
@@ -62,7 +66,9 @@ export function TranslationBrowserScreen() {
           <ActivityIndicator size="large" color={colors.accentPrimary} />
         </View>
       ) : (
-        <TranslationPickerList onTranslationActivated={() => navigation.goBack()} />
+        <View style={[styles.listContainer, { paddingBottom: contentClearance }]}>
+          <TranslationPickerList onTranslationActivated={() => navigation.goBack()} />
+        </View>
       )}
     </SafeAreaView>
   );
@@ -89,6 +95,9 @@ const styles = StyleSheet.create({
   },
   headerSpacer: {
     width: 32,
+  },
+  listContainer: {
+    flex: 1,
   },
   loader: {
     flex: 1,

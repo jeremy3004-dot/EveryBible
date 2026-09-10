@@ -48,7 +48,7 @@ import {
   type CurrentPlanDaySummary,
 } from '../../services/plans/readingPlanActivity';
 import { readingPlanEntriesByPlanId } from '../../data/readingPlans.generated';
-import { useLibraryStore } from '../../stores';
+import { useLibraryStore } from '../../stores/libraryStore';
 import { useReadingPlansStore } from '../../stores/readingPlansStore';
 import { isMultiSessionPlan } from '../../services/plans/readingPlanModel';
 import type { ListeningHistoryEntry } from '../../stores/libraryModel';
@@ -127,7 +127,15 @@ function CoverImage({
   if (source) {
     // RN injects the asset's intrinsic 320×180 size into the style unless the
     // style states its own frame, so absoluteFill alone would draw a fixed tile.
-    return <Image source={source} style={coverStyles.image} resizeMode="cover" />;
+    return (
+      <Image
+        source={source}
+        style={coverStyles.image}
+        resizeMode="cover"
+        accessible={false}
+        importantForAccessibility="no-hide-descendants"
+      />
+    );
   }
   // No artwork: a warm accent gradient with the plan's serif initial — a cover,
   // distinct from the icon-led empty state.
@@ -359,7 +367,11 @@ function MyPlansSection({
               ) : null}
             </View>
           </View>
-          <ProgressBar progress={progressRatio} style={styles.progressBar} />
+          <ProgressBar
+            progress={progressRatio}
+            style={styles.progressBar}
+            accessibilityLabel={t('readingPlans.progress')}
+          />
           <View style={styles.cardFooter}>
             <Text style={[typography.mono, displayFont.regular, { color: colors.secondaryText }]}>
               {formatProgressPercent(progressRatio)}

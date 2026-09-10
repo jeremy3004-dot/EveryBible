@@ -143,8 +143,8 @@ test('TabNavigator uses the base tab bar height instead of adding the bottom saf
 
   assert.match(
     source,
-    /import \{ useTabBarHeight, TAB_BAR_CAPSULE_RADIUS \} from '\.\.\/hooks';/,
-    'TabNavigator should source its bar height from the shared useTabBarHeight hook'
+    /import \{ useTabBarHeight, TAB_BAR_CAPSULE_RADIUS \} from '\.\.\/hooks\/useTabBarHeight';/,
+    'TabNavigator should source its bar height from the shared useTabBarHeight hook, imported directly so the app shell does not evaluate the whole hooks barrel at boot'
   );
 
   assert.equal(
@@ -170,12 +170,12 @@ test('TabNavigator fills the floating capsule with liquid glass, not opaque pape
   assert.match(source, /<BlurView[\s\S]*?tint=\{isDark \? 'dark' : 'light'\}/);
   assert.match(
     source,
-    /const capsuleFill = useMemo\(\s*\(\) => withAlpha\(colors\.cardBackground, 0\.62\)/,
+    /const capsuleFill = useMemo\(\s*\(\) => hexWithAlpha\(colors\.cardBackground, 0\.62\)/,
     'the capsule tint should be the card surface at partial alpha'
   );
   assert.match(
     source,
-    /const readerCapsuleFill = useMemo\(\s*\(\) => withAlpha\(colors\.bibleSurface, 0\.62\)/,
+    /const readerCapsuleFill = useMemo\(\s*\(\) => hexWithAlpha\(colors\.bibleSurface, 0\.62\)/,
     'the reader variant should tint off the reading surface'
   );
   assert.match(
@@ -414,7 +414,7 @@ test('the selected tab is a neutral ink pill inside the capsule padding', () => 
   // Primary text at low alpha: a grey that belongs to the scope, never the accent.
   assert.match(
     source,
-    /const pillColor = withAlpha\(isReader \? colors\.biblePrimaryText : colors\.primaryText, 0\.1\);/,
+    /const pillColor = hexWithAlpha\(isReader \? colors\.biblePrimaryText : colors\.primaryText, 0\.1\);/,
     'the sliding selection pill should be a neutral ink wash, not the accent surface'
   );
   assert.doesNotMatch(source, /pillColor = colors\.accentSurface/);
@@ -471,7 +471,23 @@ test('tab glyphs are 22pt Lucide strokes taken from the manifest', () => {
 test('tab labels are 11pt semibold on top of the shared tabLabel token', () => {
   const source = readRelativeSource('./TabNavigator.tsx');
 
-  assert.match(source, /tabBarLabelStyle: styles\.tabLabel,/);
+  // The navigator renders the label itself (instead of handing BottomTabItem a
+  // string) so it can cap font scaling inside the fixed-height capsule.
+  assert.match(
+    source,
+    /maxFontSizeMultiplier=\{TAB_BAR_LABEL_MAX_FONT_SCALE\}\s*style=\{\[styles\.tabLabel, \{ color \}\]\}/,
+    'the tab label should be drawn from the shared tabLabel token with a capped font multiplier'
+  );
+  assert.match(
+    source,
+    /const TAB_BAR_LABEL_MAX_FONT_SCALE = 1\.6;/,
+    'a 64pt capsule cannot absorb an unbounded accessibility text scale'
+  );
+  assert.match(
+    source,
+    /tabBarAccessibilityLabel:/,
+    'a function label drops the librarys synthesized iOS tab announcement, so the navigator must restate it'
+  );
   assert.match(
     source,
     /tabLabel:\s*\{\s*\.\.\.typography\.tabLabel,\s*fontSize: 11,\s*lineHeight: 14,\s*fontWeight: '600',\s*\}/,

@@ -44,8 +44,7 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "android.permission.RECORD_AUDIO",
-        "android.permission.FOREGROUND_SERVICE"
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {

@@ -1,4 +1,5 @@
 import type { BibleBook } from '../../constants/books';
+import { assertSafeAssetId } from '../bible/assetIdentifiers';
 import { buildAudioChapterTargets } from './audioDownloads';
 import { getRemoteAudioFileExtension } from './audioRemote';
 
@@ -81,6 +82,11 @@ export interface AudioFileSystemAdapter {
   writeTextFile?: (fileUri: string, contents: string) => Promise<void>;
   deleteFile?: (fileUri: string) => Promise<void>;
   getFileSize?: (fileUri: string) => Promise<number | null>;
+  // Base64 payload of a downloaded chapter, used only for sha256 verification. Optional so
+  // adapters without it simply fall back to size-only validation.
+  readBase64File?: (fileUri: string) => Promise<string | null>;
+  // Free bytes on the volume holding the audio root, for the pre-flight in (N25).
+  getFreeDiskBytes?: () => Promise<number | null>;
 }
 
 export interface AudioDownloadTransport {
@@ -92,6 +98,12 @@ export interface AudioDownloadTransport {
 export interface RemoteAudioAsset {
   url: string;
   duration: number;
+  // Integrity metadata when the source publishes it (EL manifests do). When present these
+  // replace the crude 1KB floor: an exact byte count and/or a sha256 is the only way to tell a
+  // truncated/interrupted transfer apart from a complete chapter, since nothing here resumes
+  // partials — see verifyDownloadedChapterAudio. (N23)
+  bytes?: number;
+  sha256?: string;
 }
 
 export type ResolveRemoteAudio = (
@@ -99,6 +111,8 @@ export type ResolveRemoteAudio = (
   bookId: string,
   chapter: number
 ) => Promise<RemoteAudioAsset | null>;
+
+export const AUDIO_DOWNLOAD_JOB_ID_PREFIX = 'audio-download:';
 
 export function createAudioDownloadJobId({
   translationId,
@@ -110,6 +124,24 @@ export function createAudioDownloadJobId({
   bookId?: string;
 }): string {
   return `audio-download:${translationId}:${scope}:${scope === 'book' ? (bookId ?? 'unknown') : 'all'}`;
+}
+
+// Native background-downloader task ids are always `${bookJobId}:${bookId}:${chapter}` — even for
+// chapters spawned by a TRANSLATION-scope job, whose id shares only the
+// `audio-download:<translationId>:` namespace with them. Matching a translation job by its own id
+// prefix therefore found zero tasks, so cancelling/reattaching a whole-Bible download did nothing
+// on the native side. A book-scope job still matches only its own tasks. (N22)
+export function audioDownloadTaskIdMatchesJob(taskId: string, jobId: string): boolean {
+  if (taskId === jobId || taskId.startsWith(`${jobId}:`)) {
+    return true;
+  }
+
+  const segments = jobId.split(':');
+  if (segments.length < 4 || segments[2] !== 'translation') {
+    return false;
+  }
+
+  return taskId.startsWith(`${segments[0]}:${segments[1]}:`);
 }
 
 // Keyed by job id so a caller holding only the id (e.g. bibleStore's cancelDownload) can
@@ -144,6 +176,9 @@ interface DownloadAudioBookParams extends DownloadContext {
   resolveRemoteAudio: ResolveRemoteAudio;
   fileSystem: AudioFileSystemAdapter;
   signal?: AbortSignal;
+  // Set by the translation-scope path: the collection already ran one pre-flight for every book,
+  // and its own lifecycle hooks own the UI-visible job id.
+  skipFreeSpacePreflight?: boolean;
 }
 
 interface DownloadAudioTranslationParams extends DownloadContext {
@@ -368,12 +403,18 @@ export async function completeAudioDownloadJob({
   return completed;
 }
 
+// Translation and book ids reach here from a remote catalog / manifest, and this URI is
+// the base for every download, delete and directory-listing call below. A `../` segment in
+// either id would walk out of the audio root, so both are validated before interpolation.
 export function getBookAudioDirectoryUri(
   translationId: string,
   bookId: string,
   rootUri: string = DEFAULT_AUDIO_ROOT_URI
 ): string {
-  return `${rootUri}${translationId}/${bookId}/`;
+  return `${rootUri}${assertSafeAssetId(translationId, 'translation id')}/${assertSafeAssetId(
+    bookId,
+    'book id'
+  )}/`;
 }
 
 export function getChapterAudioFileUri(
@@ -653,6 +694,24 @@ export class AudioDownloadCancelledError extends Error {
   }
 }
 
+// Thrown BEFORE any job record is created so a refused download leaves nothing behind. The
+// message is user-facing: the translation picker surfaces `error.message` verbatim. (N25)
+export class AudioDownloadInsufficientSpaceError extends Error {
+  readonly requiredBytes: number;
+  readonly freeBytes: number;
+
+  constructor(requiredBytes: number, freeBytes: number) {
+    super(
+      `Not enough free space for this audio download. It needs about ${formatBytes(
+        requiredBytes
+      )} but only ${formatBytes(freeBytes)} is free. Free up space and try again.`
+    );
+    this.name = 'AudioDownloadInsufficientSpaceError';
+    this.requiredBytes = requiredBytes;
+    this.freeBytes = freeBytes;
+  }
+}
+
 export class AudioDownloadStopError extends Error {
   constructor(error: unknown) {
     super(`Audio download stop failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -662,6 +721,117 @@ export class AudioDownloadStopError extends Error {
 
 export function isAudioDownloadCancellation(error: unknown): boolean {
   return error instanceof AudioDownloadCancelledError;
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
+  if (bytes >= 1024 ** 2) return `${Math.round(bytes / 1024 ** 2)} MB`;
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
+// Average size of one compressed chapter of narration, used only when the source publishes no real
+// byte counts. Deliberately on the optimistic side: a whole-Bible download is ~1,189 chapters, so
+// an inflated estimate would refuse downloads that would actually have succeeded. The point of the
+// pre-flight is to catch a genuinely full device, not to be an accurate size predictor. Pass an
+// exact manifest total through `estimateTotalBytes` when one is available.
+export const AUDIO_DOWNLOAD_ESTIMATED_CHAPTER_BYTES = 2 * 1024 * 1024;
+// A little room for the OS on top of the payload itself.
+const AUDIO_DOWNLOAD_FREE_SPACE_HEADROOM = 1.05;
+
+// Refuses a 100MB+ download up front instead of failing chapter-by-chapter on a full device. A
+// filesystem adapter without `getFreeDiskBytes` (or a volume that cannot report free space) simply
+// skips the check. (N25)
+async function assertEnoughFreeSpaceForAudioDownload({
+  fileSystem,
+  chapterCount,
+  estimateTotalBytes,
+}: {
+  fileSystem: AudioFileSystemAdapter;
+  chapterCount: number;
+  estimateTotalBytes?: () => Promise<number | null>;
+}): Promise<void> {
+  if (!fileSystem.getFreeDiskBytes || chapterCount === 0) {
+    return;
+  }
+
+  let freeBytes: number | null = null;
+  try {
+    freeBytes = await fileSystem.getFreeDiskBytes();
+  } catch {
+    return;
+  }
+  if (freeBytes == null || !Number.isFinite(freeBytes)) {
+    return;
+  }
+
+  let totalBytes: number | null = null;
+  if (estimateTotalBytes) {
+    try {
+      totalBytes = await estimateTotalBytes();
+    } catch {
+      totalBytes = null;
+    }
+  }
+  if (totalBytes == null || !Number.isFinite(totalBytes) || totalBytes <= 0) {
+    totalBytes = chapterCount * AUDIO_DOWNLOAD_ESTIMATED_CHAPTER_BYTES;
+  }
+
+  const requiredBytes = Math.ceil(totalBytes * AUDIO_DOWNLOAD_FREE_SPACE_HEADROOM);
+  if (freeBytes < requiredBytes) {
+    throw new AudioDownloadInsufficientSpaceError(requiredBytes, freeBytes);
+  }
+}
+
+// Post-download validation. Preference order: an exact byte count, then a sha256, then the crude
+// 1KB floor as the last-resort fallback when the source publishes neither. A failure deletes the
+// file (nothing resumes partials) and throws a plain Error so the chapter retry loop can try
+// again. (N23)
+async function verifyDownloadedChapterAudio({
+  fileSystem,
+  fileUri,
+  expected,
+}: {
+  fileSystem: AudioFileSystemAdapter;
+  fileUri: string;
+  expected: { bytes?: number; sha256?: string };
+}): Promise<void> {
+  const discard = async () => {
+    await fileSystem.deleteFile?.(fileUri);
+  };
+
+  if (fileSystem.getFileSize) {
+    const size = await fileSystem.getFileSize(fileUri);
+    if (expected.bytes != null) {
+      if (size !== expected.bytes) {
+        await discard();
+        throw new Error(
+          `Downloaded audio size mismatch (expected ${expected.bytes} bytes, got ${
+            size ?? 0
+          }): ${fileUri}`
+        );
+      }
+    } else if (size == null || !Number.isFinite(size) || size < AUDIO_DOWNLOAD_MIN_VALID_BYTES) {
+      await discard();
+      throw new Error(`Downloaded audio is missing or incomplete: ${fileUri}`);
+    }
+  }
+
+  // Hermes has no Web Crypto, so this reuses the same pure-JS hasher as text-pack verification.
+  if (expected.sha256 && fileSystem.readBase64File) {
+    const [{ base64UrlToBytes, sha256HexSync }, base64] = await Promise.all([
+      import('../elMedia/elEs256'),
+      fileSystem.readBase64File(fileUri),
+    ]);
+    const bytes = base64 ? base64UrlToBytes(base64.replace(/\+/g, '-').replace(/\//g, '_')) : null;
+    if (!bytes) {
+      await discard();
+      throw new Error(`Downloaded audio could not be read for verification: ${fileUri}`);
+    }
+    if (sha256HexSync(bytes) !== expected.sha256.toLowerCase()) {
+      await discard();
+      throw new Error(`Downloaded audio failed integrity verification (checksum): ${fileUri}`);
+    }
+  }
 }
 
 function clampProgress(progress: number): number {
@@ -682,6 +852,7 @@ export async function downloadAudioBook({
   hooks,
   transport,
   signal: externalSignal,
+  skipFreeSpacePreflight,
 }: DownloadAudioBookParams): Promise<{ bookId: string; chapterCount: number }> {
   const resolvedRootUri = rootUri ?? DEFAULT_AUDIO_ROOT_URI;
   const activeJobStore = jobStore ?? (await resolveJobStore(fileSystem, resolvedRootUri));
@@ -689,6 +860,14 @@ export async function downloadAudioBook({
   const directoryUri = getBookAudioDirectoryUri(translationId, book.id, resolvedRootUri);
   const chapterTargets = buildAudioChapterTargets([book]);
   const chapterProgressByNumber = new Map<number, number>();
+
+  if (!skipFreeSpacePreflight) {
+    await assertEnoughFreeSpaceForAudioDownload({
+      fileSystem,
+      chapterCount: chapterTargets.length,
+    });
+  }
+
   const job = await startAudioDownloadJob({
     translationId,
     scope: 'book',
@@ -697,11 +876,18 @@ export async function downloadAudioBook({
     hooks,
   });
 
-  // A translation-level download passes its own signal down so cancelling the parent
-  // job also stops every in-progress book's chapter loop. A standalone book download
-  // registers its own controller keyed by this job's id, and cancelDownload() targets it.
-  const ownAbortController = externalSignal ? null : registerAudioDownloadAbortController(job.id);
-  const signal = externalSignal ?? ownAbortController!.signal;
+  // EVERY book job registers its own controller, including nested ones. Previously a nested book
+  // job reused the parent's signal and was absent from the registry, so anything holding a book
+  // job id (the native transport's task namespace, a reattach, a stale downloadProgress.jobId)
+  // could not abort it. The parent signal is chained into the child so cancelling the translation
+  // still stops every book. (N22)
+  const ownAbortController = registerAudioDownloadAbortController(job.id);
+  const signal = ownAbortController.signal;
+  const onExternalAbort = () => ownAbortController.abort();
+  if (externalSignal) {
+    if (externalSignal.aborted) ownAbortController.abort();
+    else externalSignal.addEventListener('abort', onExternalAbort);
+  }
 
   let lastEmittedProgress = -1;
   let lastEmittedCompletedChapters = -1;
@@ -785,9 +971,11 @@ export async function downloadAudioBook({
             },
           });
           if (attemptSignal.aborted) throw new AudioDownloadCancelledError();
-          if (fileSystem.getFileSize && !(await isValidDownloadedAudioFile(fileSystem, fileUri))) {
-            throw new Error(`Downloaded audio is missing or incomplete: ${fileUri}`);
-          }
+          await verifyDownloadedChapterAudio({
+            fileSystem,
+            fileUri,
+            expected: { bytes: remoteAudio.bytes, sha256: remoteAudio.sha256 },
+          });
         }, signal);
 
         if (signal.aborted) throw new AudioDownloadCancelledError();
@@ -819,9 +1007,8 @@ export async function downloadAudioBook({
     });
     throw failure;
   } finally {
-    if (ownAbortController) {
-      releaseAudioDownloadAbortController(job.id);
-    }
+    externalSignal?.removeEventListener('abort', onExternalAbort);
+    releaseAudioDownloadAbortController(job.id);
   }
 
   await completeAudioDownloadJob({
@@ -847,6 +1034,10 @@ export async function downloadAudioTranslation({
   const activeJobStore = jobStore ?? (await resolveJobStore(fileSystem, resolvedRootUri));
   const activeTransport = transport ?? { downloadFile: fileSystem.downloadFile };
   const downloadedBookIds: string[] = [];
+  const totalChapters = buildAudioChapterTargets(books).length;
+
+  await assertEnoughFreeSpaceForAudioDownload({ fileSystem, chapterCount: totalChapters });
+
   const translationJob = await startAudioDownloadJob({
     translationId,
     scope: 'translation',
@@ -858,6 +1049,46 @@ export async function downloadAudioTranslation({
   // translation job also stops whichever book's chapter loop is currently in flight.
   const ownAbortController = registerAudioDownloadAbortController(translationJob.id);
   const signal = ownAbortController.signal;
+
+  // Book-scope lifecycle events must NOT reach the caller: startAudioDownloadJob fires onStart for
+  // each nested BOOK job, which used to overwrite the UI's downloadProgress.jobId with a job id
+  // that cancelDownload could not act on. The collection's own hooks stay authoritative. (N22)
+  const completedChaptersByBook = new Map<string, number>();
+  let lastEmittedProgress = -1;
+  let lastEmittedCompletedChapters = -1;
+  const bookHooks: AudioDownloadLifecycleHooks = {
+    // Aggregate chapters across every book so a whole-Bible download reports real progress instead
+    // of sitting at 0% until an entire book finishes. Coalesced exactly like the per-book emitter
+    // so the set() rate stays where the June ANR fix put it. (N25)
+    onProgress: hooks?.onProgress
+      ? (event) => {
+          completedChaptersByBook.set(event.bookId, event.completedChapters);
+          if (totalChapters === 0) return;
+          let completedChapters = 0;
+          completedChaptersByBook.forEach((count) => {
+            completedChapters += count;
+          });
+          const progress = clampProgress((completedChapters / totalChapters) * 100);
+          if (
+            progress === lastEmittedProgress &&
+            completedChapters === lastEmittedCompletedChapters
+          ) {
+            return;
+          }
+          lastEmittedProgress = progress;
+          lastEmittedCompletedChapters = completedChapters;
+          hooks.onProgress?.({
+            translationId,
+            bookId: event.bookId,
+            chapter: event.chapter,
+            progress,
+            completedChapters,
+            totalChapters,
+            jobId: translationJob.id,
+          });
+        }
+      : undefined,
+  };
 
   try {
     try {
@@ -872,9 +1103,10 @@ export async function downloadAudioTranslation({
             resolveRemoteAudio,
             fileSystem,
             jobStore: activeJobStore,
-            hooks,
+            hooks: bookHooks,
             transport: activeTransport,
             signal,
+            skipFreeSpacePreflight: true,
           });
           downloadedBookIds.push(result.bookId);
           hooks?.onBookComplete?.({

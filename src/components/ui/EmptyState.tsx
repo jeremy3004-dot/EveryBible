@@ -30,10 +30,19 @@ export function EmptyState({ icon, title, body, cta, style }: EmptyStateProps) {
 
   return (
     <View style={[styles.container, style]}>
-      <View style={[styles.iconCircle, { backgroundColor: colors.accentSoft }]}>
+      {/* Decorative: the icon repeats the title it sits above, so it must not
+          be a focus stop of its own. */}
+      <View
+        style={[styles.iconCircle, { backgroundColor: colors.accentSoft }]}
+        accessible={false}
+        importantForAccessibility="no-hide-descendants"
+      >
         <Ionicons name={icon} size={30} color={colors.accentPrimary} />
       </View>
       <Text
+        // An empty state replaces a screen's content, so its title is the
+        // heading a rotor user lands on.
+        accessibilityRole="header"
         style={[
           typography.eyebrow,
           displayFont.regular,

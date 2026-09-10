@@ -1,8 +1,6 @@
 import type { PathConfigMap } from '@react-navigation/native';
 import type { RootTabParamList } from './types';
 import { parseBibleDeepLink } from '../services/bible/deepLinkParser';
-import { parsePassageReferenceLocale } from '../services/bible/referenceParser';
-import type { PassageReferenceTarget } from '../services/bible/referenceParser';
 
 type StateRoute = {
   name: string;
@@ -65,20 +63,3 @@ export const buildBibleNavState = (
   return defaultParser(path, options);
 };
 
-/**
- * Resolve a natural-language Bible reference string (e.g. "John 3:16", "Juan 3:16")
- * into a navigation state tree. Useful for share-to-app text intents that pass a
- * plain-text reference rather than a URL deep link.
- *
- * Returns undefined when the text is not a recognizable Bible reference.
- */
-export const resolveTextReferenceNavState = (
-  text: string,
-  locale?: string
-): NavigationState | undefined => {
-  const ref: PassageReferenceTarget | null = parsePassageReferenceLocale(text, locale ?? 'en');
-  if (!ref) {
-    return undefined;
-  }
-  return buildBibleReaderState(ref.bookId, ref.chapter, ref.focusVerse);
-};

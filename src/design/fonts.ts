@@ -1,4 +1,3 @@
-import { Platform } from 'react-native';
 import {
   NON_LATIN_READING_SCRIPTS,
   displayFamily,
@@ -39,15 +38,6 @@ export function serifFamily(weight: SerifWeight = 400, italic = false): string {
   }
   return LORA_BY_WEIGHT[weight] ?? LORA_BY_WEIGHT[400];
 }
-
-// Platform serif fallback for scripts Lora cannot render. Returning `undefined`
-// from getReadingFontFamily lets React Native pick the platform serif, which has
-// the correct glyphs (Lora would show tofu for Devanagari and other scripts).
-export const systemSerifFamily = Platform.select({
-  ios: 'Georgia',
-  android: 'serif',
-  default: 'Georgia',
-});
 
 
 /**

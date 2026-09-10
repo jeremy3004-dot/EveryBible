@@ -22,6 +22,9 @@ export interface ElResolvedChapter {
   mimeType: string;
   fileExt: string;
   bytes: number;
+  // Validated by parseElManifestChapter; the audio download service verifies completed chapter
+  // files against it, so it must not be dropped here. (N23)
+  sha256: string;
   durationMs?: number;
 }
 
@@ -127,6 +130,7 @@ export function resolveElChapterFromManifest(
     mimeType: manifest.mimeType,
     fileExt: manifest.fileExt,
     bytes: match.bytes,
+    sha256: match.sha256,
   };
   if (match.durationMs !== undefined) resolved.durationMs = match.durationMs;
   return resolved;

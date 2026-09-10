@@ -64,6 +64,10 @@ const ICON_STROKE = 2;
 // action never flashes it for a single frame.
 const MIN_SPINNER_MS = 400;
 
+// Labels still scale with the user's text size, but stop short of the extreme
+// accessibility sizes where a CTA would eat the screen.
+const LABEL_MAX_FONT_SCALE = 1.6;
+
 export function AppButton({
   label,
   onPress,
@@ -141,7 +145,9 @@ export function AppButton({
       hitSlop={Math.max(0, Math.round((layout.minTouchTarget - height) / 2))}
       style={[
         styles.base,
-        { height, borderRadius: height / 2, backgroundColor },
+        // minHeight, not height: the pill keeps its 50/40pt stature at every
+        // normal text size and only grows when a wrapped label needs the room.
+        { minHeight: height, borderRadius: height / 2, backgroundColor },
         borderStyle,
         variant === 'secondary' ? shadows.card : null,
         fullWidth && styles.fullWidth,
@@ -158,7 +164,15 @@ export function AppButton({
             style={styles.leadingIcon}
           />
         ) : null}
-        <Text style={[typography.bodyStrong, { color: contentColor }]} numberOfLines={1}>
+        {/* `styles.base` is min-height, not a fixed height, so a long translated
+            label wraps to a second line and grows the pill rather than being
+            truncated. The multiplier cap keeps that growth bounded at the top
+            of the Dynamic Type range. */}
+        <Text
+          style={[typography.bodyStrong, { color: contentColor }]}
+          numberOfLines={2}
+          maxFontSizeMultiplier={LABEL_MAX_FONT_SCALE}
+        >
           {label}
         </Text>
         {TrailingIcon ? (
@@ -182,6 +196,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.xl,
+    // Inert at every normal text size (the label is far shorter than the pill's
+    // minHeight); it only earns its keep once a wrapped label outgrows the pill
+    // and would otherwise run into the rounded edge.
+    paddingVertical: spacing.xs,
   },
   fullWidth: {
     alignSelf: 'stretch',

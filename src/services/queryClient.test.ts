@@ -15,18 +15,21 @@ const netInfoListeners = new Set<NetInfoListener>();
 let netInfoSubscribeCount = 0;
 let netInfoUnsubscribeCount = 0;
 
-mockModule(mock, '@react-native-community/netinfo', {
-  default: {
-    addEventListener: (listener: NetInfoListener) => {
-      netInfoSubscribeCount += 1;
-      netInfoListeners.add(listener);
-      return () => {
-        netInfoUnsubscribeCount += 1;
-        netInfoListeners.delete(listener);
-      };
-    },
+// installQueryClientListeners() reaches NetInfo through a lazy CommonJS
+// `require(...).default`, so the fake carries a self-reference: it answers
+// whether the loader hands back the namespace or the interop default.
+const netInfoFake: Record<string, unknown> = {
+  addEventListener: (listener: NetInfoListener) => {
+    netInfoSubscribeCount += 1;
+    netInfoListeners.add(listener);
+    return () => {
+      netInfoUnsubscribeCount += 1;
+      netInfoListeners.delete(listener);
+    };
   },
-});
+};
+netInfoFake.default = netInfoFake;
+mockModule(mock, '@react-native-community/netinfo', netInfoFake);
 
 const emitNetInfo = (isConnected: boolean | null) => {
   for (const listener of netInfoListeners) {
@@ -38,9 +41,22 @@ let queryClient: import('@tanstack/react-query').QueryClient;
 let focusManager: (typeof import('@tanstack/react-query'))['focusManager'];
 let onlineManager: (typeof import('@tanstack/react-query'))['onlineManager'];
 
+/** Native subscriptions observed straight after the import, before installing. */
+const atImport = { appStateListeners: -1, netInfoSubscribes: -1 };
+
 before(async () => {
-  // Importing the module is what performs the wiring under test.
-  ({ queryClient } = await import('./queryClient'));
+  // Importing the module must NOT wire anything up: this module is on App.tsx's
+  // static boot graph, and subscribing here dragged NetInfo into cold start.
+  const { queryClient: client, installQueryClientListeners } = await import('./queryClient');
+  queryClient = client;
+  atImport.appStateListeners = rn.AppState.listenerCount();
+  atImport.netInfoSubscribes = netInfoSubscribeCount;
+
+  // AppRuntimeEffects calls this after interactions; call it twice to pin the
+  // idempotence the caller relies on.
+  installQueryClientListeners();
+  installQueryClientListeners();
+
   // @tanstack/react-query ships separate `import` and `require` builds, each
   // with its own focusManager/onlineManager singleton. This repo has no
   // `"type": "module"`, so the module under test loads the `require` build —
@@ -62,11 +78,15 @@ test('the shared client garbage-collects inactive queries after ten minutes', ()
   assert.equal(queryClient.getDefaultOptions().queries?.gcTime, 10 * 60 * 1000);
 });
 
-test('importing the module subscribes to app state exactly once', () => {
+test('importing the module touches neither AppState nor NetInfo, keeping them off cold start', () => {
+  assert.deepEqual(atImport, { appStateListeners: 0, netInfoSubscribes: 0 });
+});
+
+test('installing the listeners subscribes to app state exactly once, however often it is called', () => {
   assert.equal(rn.AppState.listenerCount(), 1);
 });
 
-test('importing the module subscribes to NetInfo exactly once', () => {
+test('installing the listeners subscribes to NetInfo exactly once, however often it is called', () => {
   assert.equal(netInfoSubscribeCount, 1);
   assert.equal(netInfoListeners.size, 1);
 });
@@ -128,7 +148,7 @@ test('an unknown connection state (null) is treated as offline', () => {
 
 // The three tests below run in order: react-query releases its event listener
 // when the last subscriber goes away, so they must come after the tests that
-// rely on the initial NetInfo subscription being live.
+// rely on the NetInfo subscription installed in before() being live.
 test('an online change notifies react-query subscribers', () => {
   emitNetInfo(true);
   const seen: boolean[] = [];
@@ -146,7 +166,7 @@ test('dropping the last online subscriber releases the native NetInfo listener',
   assert.equal(netInfoListeners.size, 0);
 });
 
-test('a new online subscriber re-attaches the NetInfo listener registered at import', () => {
+test('a new online subscriber re-attaches the NetInfo listener registered at install', () => {
   const unsubscribe = onlineManager.subscribe(() => {});
 
   assert.equal(netInfoSubscribeCount, 2);

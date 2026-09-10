@@ -42,6 +42,11 @@ import { installGlobalErrorHandlers } from './src/services/diagnostics/globalErr
 import { enforceLtrLayoutPolicy } from './src/services/startup/rtlPolicy';
 import { rootNavigationRef } from './src/navigation/rootNavigation';
 
+// KEEP THIS UNGUARDED. scripts/benchmark-android-startup.py and
+// scripts/android_startup_metrics.py parse `[EB-T] App:module-start` (and
+// `Home:interaction-ready` from HomeScreen) out of release logcat to compute
+// cold-start timings; guarding it behind __DEV__ silently breaks those tools.
+// Every other [EB-T] sentinel in this file is dev-only.
 console.log('[EB-T] App:module-start', Date.now());
 
 // Keep the splash screen visible while we fetch resources
@@ -106,7 +111,9 @@ function PrivacyInitializationRetryScreen({ onRetry }: { onRetry: () => Promise<
 }
 
 function LoadingScreen() {
-  console.log('[EB-T] LoadingScreen:render', Date.now());
+  if (typeof __DEV__ !== 'undefined' && __DEV__) {
+    console.log('[EB-T] LoadingScreen:render', Date.now());
+  }
   const { colors } = useTheme();
   const [fontsLoaded, fontError] = useFonts({
     Lora_400Regular,
@@ -123,6 +130,7 @@ function LoadingScreen() {
   const [isReady, setIsReady] = useState(Platform.OS === 'android');
   const [fontLoadTimedOut, setFontLoadTimedOut] = useState(false);
   const [shouldRenderNavigator, setShouldRenderNavigator] = useState(false);
+  const [RootNavigator, setRootNavigator] = useState<RootNavigatorComponent | null>(null);
   const warmupCancelRef = useRef<(() => void) | null>(null);
   const initializeAuth = useAuthStore((state) => state.initialize);
   const initializePrivacy = usePrivacyStore((state) => state.initialize);
@@ -188,6 +196,33 @@ function LoadingScreen() {
     [initializeAuthAfterStorage, initializePrivacy]
   );
 
+  // The navigator module is ~670KB of import closure. A synchronous require()
+  // in the render body evaluated all of it inside a commit; load it the same
+  // async way OnboardingHost and AppRuntimeEffectsHost load theirs.
+  useEffect(() => {
+    if (!shouldRenderNavigator || RootNavigator) {
+      return;
+    }
+
+    let isCancelled = false;
+    void import('./src/navigation/RootNavigator')
+      .then(({ RootNavigator: Component }) => {
+        if (!isCancelled) {
+          setRootNavigator(() => Component);
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to load the root navigator:', error);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [RootNavigator, shouldRenderNavigator]);
+
+  const shouldWaitForFonts =
+    Platform.OS !== 'android' && !fontsLoaded && !fontError && !fontLoadTimedOut;
+
   useEffect(() => {
     if (fontsLoaded || fontError) {
       setFontLoadTimedOut(false);
@@ -237,15 +272,19 @@ function LoadingScreen() {
     };
   }, [startupCoordinator]);
 
+  // Hiding the splash the instant `isReady` flips, while the render below is
+  // still withholding content for fonts, leaves iOS staring at a blank shell for
+  // up to FONT_LOAD_TIMEOUT_MS. Keep the splash up until there is real content
+  // to hand over.
   useEffect(() => {
-    if (!isReady) {
+    if (!isReady || shouldWaitForFonts) {
       return;
     }
 
     void SplashScreen.hideAsync().catch((error) => {
       console.error('Failed to hide splash screen:', error);
     });
-  }, [isReady]);
+  }, [isReady, shouldWaitForFonts]);
 
   useEffect(() => {
     if (!isReady || !preferences.onboardingCompleted || warmupCancelRef.current) {
@@ -329,9 +368,6 @@ function LoadingScreen() {
     };
   }, [isPrivacyInitialized, isPrivacyLocked, isReady, preferences.onboardingCompleted]);
 
-  const shouldWaitForFonts =
-    Platform.OS !== 'android' && !fontsLoaded && !fontError && !fontLoadTimedOut;
-
   if (privacyInitializationError) {
     return <PrivacyInitializationRetryScreen onRetry={retryPrivacyAndAuth} />;
   }
@@ -352,15 +388,14 @@ function LoadingScreen() {
     );
   }
 
-  if (!shouldRenderNavigator) {
+  if (!shouldRenderNavigator || !RootNavigator) {
     return <View style={[styles.bootShell, { backgroundColor: colors.background }]} />;
   }
 
-  const { RootNavigator } =
-    require('./src/navigation/RootNavigator') as typeof import('./src/navigation/RootNavigator');
-
   return <RootNavigator />;
 }
+
+type RootNavigatorComponent = (typeof import('./src/navigation/RootNavigator'))['RootNavigator'];
 
 type LocaleSetupFlowComponent =
   (typeof import('./src/screens/onboarding/LocaleSetupFlow'))['LocaleSetupFlow'];
@@ -375,6 +410,13 @@ function OnboardingHost() {
     let isCancelled = false;
     void import('./src/screens/onboarding/LocaleSetupFlow')
       .then(({ LocaleSetupFlow: Component }) => {
+        // Build the locale Fuse index before the flow mounts, so the first
+        // keystroke in the language picker is not paying for it mid-render.
+        void import('./src/services/onboarding/localeSelection')
+          .then(({ prewarmLocaleSearchEngine }) => prewarmLocaleSearchEngine())
+          .catch((error) => {
+            console.warn('Failed to pre-warm the locale search engine:', error);
+          });
         if (!isCancelled) {
           setLocaleSetupFlow(() => Component);
         }
@@ -514,9 +556,11 @@ function AppContent() {
   // Set up Android notification channels on mount (idempotent, no-op on iOS).
   useEffect(() => {
     const handle = InteractionManager.runAfterInteractions(() => {
-      void import('./src/services/notifications').then(({ setupAndroidChannels }) =>
-        setupAndroidChannels()
-      );
+      void import('./src/services/notifications')
+        .then(({ setupAndroidChannels }) => setupAndroidChannels())
+        .catch((error) => {
+          console.warn('Failed to set up Android notification channels:', error);
+        });
     });
 
     return () => {
@@ -616,7 +660,10 @@ function AppContent() {
     const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
       const data = response.notification.request.content.data;
       // Future: navigate based on data.screen, data.groupId, etc.
-      console.log('[Notifications] Tapped notification:', data);
+      // Guarded: the payload can carry user content, so never log it in release builds.
+      if (typeof __DEV__ !== 'undefined' && __DEV__) {
+        console.log('[Notifications] Tapped notification:', data);
+      }
     });
     return () => subscription.remove();
   }, []);

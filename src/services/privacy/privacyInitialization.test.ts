@@ -5,7 +5,10 @@ import { initializePrivacyWithTimeout, type PrivacySettingsLoader } from './priv
 
 const settings = {
   mode: 'standard' as const,
-  pin: null,
+  pinCredential: null,
+  legacyPin: null,
+  failedPinAttempts: 0,
+  pinLockedUntil: null,
 };
 
 test('privacy initialization times out instead of waiting forever', async () => {

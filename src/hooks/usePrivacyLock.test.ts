@@ -1,6 +1,6 @@
 import test, { afterEach, before, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { mockModule, sourcePath } from '../testing/mockModules';
+import { mockExpoCrypto, mockModule, sourcePath } from '../testing/mockModules';
 import { createReactHookRuntime } from '../testing/reactHookRuntime';
 import { createReactNativeStub } from '../testing/reactNativeStub';
 
@@ -15,6 +15,9 @@ mockModule(mock, 'react', runtime.react);
 
 const rn = createReactNativeStub({ nativeModules: {} });
 mockModule(mock, 'react-native', rn);
+
+// The privacy store's service layer hashes the secure code with expo-crypto.
+mockExpoCrypto(mock);
 
 const secureStore = new Map<string, string>();
 mockModule(mock, 'expo-secure-store', {

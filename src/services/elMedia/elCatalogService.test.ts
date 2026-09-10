@@ -345,7 +345,10 @@ test('default getKeys (un-injected) verifies the pinned-kid catalog with ZERO JW
   __resetElJwksRuntimeForTests();
 });
 
-test('default getKeys discovers an unknown catalog kid from the catalog origin using injected deps', async () => {
+test('a catalog signed by a valid-but-unpinned key is REJECTED with zero JWKS fetches', async () => {
+  // The whole point of pinning: the attacker controls the media origin, so they can serve
+  // both a self-signed catalog AND a matching /.well-known/keys.json. Discovery is gone, so
+  // the unpinned kid must simply fail verification — and the JWKS URL must never be fetched.
   __resetElJwksRuntimeForTests();
   const storage = createMemoryStorage();
   const unknownKid = 'lqd-rotated-2027-a';
@@ -373,48 +376,44 @@ test('default getKeys discovers an unknown catalog kid from the catalog origin u
     storage,
     isVerificationSupported: supported,
   });
-  assert.ok(catalog, 'a discovered rotated key must verify a signed catalog');
-  assert.equal(catalog.sequence, 1);
-  assert.equal(jwksFetches, 1, 'unknown catalog kids must trigger origin-scoped JWKS discovery');
-  assert.ok(storage.raw.has('el-media:jwks-cache'), 'JWKS discovery must use the service storage');
+
+  assert.equal(catalog, null, 'an unpinned kid must never verify');
+  assert.equal(jwksFetches, 0, 'an unknown kid must not trigger JWKS discovery');
+  assert.ok(
+    !storage.raw.has('el-media:jwks-cache'),
+    'no remote key material may ever be persisted'
+  );
+  assert.ok(!storage.raw.has(LAST_CATALOG_KEY), 'a rejected catalog must not be persisted');
 
   __resetElJwksRuntimeForTests();
 });
 
-test('default catalog key discovery is bounded after the catalog fetch succeeds', async () => {
+test('an unpinned kid on an otherwise valid envelope keeps the last-good catalog', async () => {
   __resetElJwksRuntimeForTests();
-  const storage = createMemoryStorage();
-  const unknownKid = 'lqd-rotated-hanging-a';
+  const storage = createMemoryStorage({ [LAST_CATALOG_KEY]: storedCatalogState(3) });
+  const unknownKid = 'lqd-rotated-2027-a';
   const catalogUrl = 'https://example.test/media/catalog.dev.json';
-  const jwksUrl = 'https://example.test/.well-known/keys.json';
-  let observedSignal: AbortSignal | undefined;
+  let jwksFetches = 0;
 
-  const fetchFn = (async (url: string, init?: RequestInit) => {
-    if (url === jwksUrl) {
-      observedSignal = init?.signal ?? undefined;
-      return new Promise<Response>((_resolve, reject) => {
-        init?.signal?.addEventListener('abort', () => reject(new Error('aborted')));
-      });
+  const fetchFn = (async (url: string) => {
+    if (url.includes('/.well-known/keys.json')) {
+      jwksFetches += 1;
+      return { ok: true, json: async () => ({ keys: [] }) } as unknown as Response;
     }
     return {
       ok: true,
       json: async () => ({ ...catalogEnvelope, keyId: unknownKid }),
     } as unknown as Response;
-  }) as typeof fetch;
+  }) as unknown as typeof fetch;
 
-  const deadline = Symbol('deadline');
-  const result = await Promise.race([
-    refreshElCatalog(catalogUrl, {
-      fetchFn,
-      storage,
-      isVerificationSupported: supported,
-      timeoutMs: 5,
-    }),
-    new Promise<typeof deadline>((resolve) => setTimeout(() => resolve(deadline), 500)),
-  ]);
+  const catalog = await refreshElCatalog(catalogUrl, {
+    fetchFn,
+    storage,
+    isVerificationSupported: supported,
+  });
 
-  assert.notEqual(result, deadline, 'catalog key discovery must not hang');
-  assert.equal(result, null);
-  assert.ok(observedSignal, 'catalog key discovery should receive an abort signal');
+  assert.ok(catalog, 'the previously verified catalog must survive a rejected refresh');
+  assert.equal(catalog.sequence, 3);
+  assert.equal(jwksFetches, 0);
   __resetElJwksRuntimeForTests();
 });

@@ -19,6 +19,7 @@ import { useTranslation } from 'react-i18next';
 import { formatRelativeTime } from '../../i18n/interfaceFormatting';
 import { useTheme } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
+import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { lightHaptic, successHaptic } from '../../utils';
 import type { LearnStackParamList } from '../../navigation/types';
 import { openAuthFlow } from '../../navigation/rootNavigation';
@@ -44,6 +45,9 @@ export function PrayerWallScreen() {
   const { groupId, groupName } = route.params;
   const { t } = useTranslation();
   const { colors } = useTheme();
+  // Prayer wall is pushed inside the Learn tab stack, so the last card has to
+  // clear the floating tab capsule and the Android navigation bar beneath it.
+  const { contentClearance } = useTabBarHeight();
   const user = useAuthStore((state) => state.user);
   const currentUserId = user?.uid ?? null;
 
@@ -292,8 +296,8 @@ export function PrayerWallScreen() {
             </View>
             {item.is_answered && (
               <View style={[styles.answeredBadge, { backgroundColor: colors.success + '25' }]}>
-                <Ionicons name="checkmark-circle" size={14} color={colors.success} />
-                <Text style={[styles.answeredText, { color: colors.success }]}>
+                <Ionicons name="checkmark-circle" size={14} color={colors.onSuccessSoft} />
+                <Text style={[styles.answeredText, { color: colors.onSuccessSoft }]}>
                   {t('prayer.answered')}
                 </Text>
               </View>
@@ -562,6 +566,7 @@ export function PrayerWallScreen() {
           contentContainerStyle={[
             styles.listContent,
             requests.length === 0 && styles.listContentEmpty,
+            { paddingBottom: contentClearance },
           ]}
           ListEmptyComponent={ListEmptyComponent}
           refreshControl={

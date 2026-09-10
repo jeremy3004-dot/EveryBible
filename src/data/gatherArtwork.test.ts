@@ -38,7 +38,7 @@ test('every Gather artwork key has generated SVG markup', () => {
   }
 });
 
-test('generated Gather artwork registry is sourced from gather-svg assets', () => {
+test('generated Gather artwork registry is sourced from the scripts/gather-svg sources', () => {
   const registrySource = gatherArtworkXml['foundation-1'];
 
   assert.ok(registrySource.includes('<svg'), 'registry should contain inline svg markup');

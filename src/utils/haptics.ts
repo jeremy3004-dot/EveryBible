@@ -29,14 +29,6 @@ export const mediumHaptic = () => {
 };
 
 /**
- * Heavy haptic feedback for important interactions
- * Use for: completing tasks, significant state changes
- */
-export const heavyHaptic = () => {
-  safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy));
-};
-
-/**
  * Success haptic feedback
  * Use for: successful completion of actions
  */

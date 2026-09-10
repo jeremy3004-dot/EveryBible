@@ -202,14 +202,7 @@ test('PlaybackControls gives the chapter-only transport a stronger Dwell-inspire
 });
 
 test('Bible listen surfaces opt into the chapter-only transport variant', () => {
-  const audioFirstSource = readRelativeSource('./AudioFirstChapterCard.tsx');
   const readerSource = readRelativeSource('../../screens/bible/BibleReaderScreen.tsx');
-
-  assert.match(
-    audioFirstSource,
-    /<PlaybackControls[\s\S]*variant="chapter-only"/,
-    'AudioFirstChapterCard should use the simplified chapter-only player transport'
-  );
 
   assert.match(
     readerSource,
@@ -221,5 +214,34 @@ test('Bible listen surfaces opt into the chapter-only transport variant', () => 
     readerSource,
     /<PlaybackControls[\s\S]*variant="chapter-only"[\s\S]*showUtilityRow=\{false\}/,
     'BibleReaderScreen audio-only mode should keep the chapter transport visible while moving utilities to the top audio menu'
+  );
+});
+
+test('PlaybackControls names its transport buttons for the screen reader', () => {
+  const source = readRelativeSource('./PlaybackControls.tsx');
+
+  assert.match(
+    source,
+    /onPress=\{onPreviousChapter\}[\s\S]{0,240}accessibilityLabel=\{t\('audio\.previousChapter'\)\}/,
+    'The previous-chapter button is an icon, so it needs its own label'
+  );
+
+  assert.match(
+    source,
+    /accessibilityLabel=\{t\(\s*isPlaying \? 'interface\.pauseChapterAudio' : 'interface\.playChapterAudio'\s*\)\}/,
+    'The play/pause button should announce which action it performs, mirroring ReaderPlaybackDock'
+  );
+
+  assert.match(
+    source,
+    /onPress=\{onNextChapter\}[\s\S]{0,240}accessibilityLabel=\{t\('audio\.nextChapter'\)\}/,
+    'The next-chapter button is an icon, so it needs its own label'
+  );
+
+  const translucentModals = source.match(/^\s*statusBarTranslucent$/gm) ?? [];
+  assert.equal(
+    translucentModals.length,
+    3,
+    'Every option sheet should draw under the Android system bars instead of leaving an edge-to-edge seam'
   );
 });

@@ -12,7 +12,7 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parent.parent
 ICON_REGISTRY_PATH = ROOT / "src" / "data" / "gatherIcons.ts"
-SOURCE_DIR = ROOT / "assets" / "icons" / "gather-svg"
+SOURCE_DIR = ROOT / "scripts" / "gather-svg"
 REGISTRY_OUTPUT_PATH = ROOT / "src" / "data" / "gatherArtwork.ts"
 
 
@@ -84,7 +84,7 @@ def write_registry(entries: list[tuple[str, str]]) -> None:
         "/**",
         " * Auto-generated Gather artwork registry.",
         " *",
-        " * Generated from assets/icons/gather-svg/*.svg by scripts/generate_gather_artwork_svgs.py.",
+        " * Generated from scripts/gather-svg/*.svg by scripts/generate_gather_artwork_svgs.py.",
         " */",
         "",
         "export const gatherArtworkXml: Record<string, string> = {",

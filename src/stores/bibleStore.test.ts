@@ -682,25 +682,26 @@ test('persisting a bundled translation writes only its install state, not the ca
   const bsb = persisted.state.translations.find(
     (translation: { id: string }) => translation.id === 'bsb'
   );
+  // Null pack fields are elided: JSON.stringify drops undefined, and hydration
+  // restores an absent key as null anyway.
   assert.deepEqual(bsb, {
     id: 'bsb',
+    source: 'bundled',
     isDownloaded: true,
     downloadedBooks: [],
     downloadedAudioBooks: [],
     installState: 'seeded',
-    activeTextPackVersion: null,
-    pendingTextPackVersion: null,
-    pendingTextPackLocalPath: null,
-    textPackLocalPath: null,
-    rollbackTextPackVersion: null,
-    rollbackTextPackLocalPath: null,
-    lastInstallError: null,
-    activeDownloadJob: null,
   });
 });
 
-test('persisting a runtime translation keeps its full catalog for offline use', () => {
-  const runtime = makeRuntimeTranslation({ id: 'esv1' });
+test('persisting a runtime translation writes the delta only, never its static metadata', () => {
+  const runtime = makeRuntimeTranslation({
+    id: 'esv1',
+    isDownloaded: true,
+    installState: 'installed',
+    textPackLocalPath: 'file:///packs/esv1.db',
+    activeTextPackVersion: '3',
+  });
   withTranslations([runtime]);
 
   useBibleStore.getState().setCurrentChapter(4);
@@ -709,7 +710,46 @@ test('persisting a runtime translation keeps its full catalog for offline use', 
   const stored = persisted.state.translations.find(
     (translation: { id: string }) => translation.id === 'esv1'
   );
-  assert.deepEqual(stored, JSON.parse(JSON.stringify(runtime)));
+  assert.deepEqual(stored, {
+    id: 'esv1',
+    source: 'runtime',
+    isDownloaded: true,
+    downloadedBooks: [],
+    downloadedAudioBooks: [],
+    installState: 'installed',
+    activeTextPackVersion: '3',
+    textPackLocalPath: 'file:///packs/esv1.db',
+  });
+});
+
+test('the persisted blob is stamped with the delta-format version', () => {
+  useBibleStore.getState().setCurrentChapter(5);
+
+  assert.equal(JSON.parse(mmkv.store.get('bible-storage') ?? '{}').version, 1);
+});
+
+test('navigating a chapter never rewrites the runtime catalog metadata cache', () => {
+  useBibleStore.getState().applyRuntimeCatalog([makeRuntimeTranslation({ id: 'esv1' })]);
+  const snapshotAfterCatalog = mmkv.store.get('bible-runtime-catalog-v1');
+
+  useBibleStore.getState().setCurrentChapter(6);
+
+  assert.equal(mmkv.store.get('bible-runtime-catalog-v1'), snapshotAfterCatalog);
+});
+
+test('a runtime catalog refresh caches the static metadata under its own key', () => {
+  useBibleStore.getState().applyRuntimeCatalog([makeRuntimeTranslation({ id: 'esv1' })]);
+
+  const snapshot = JSON.parse(mmkv.store.get('bible-runtime-catalog-v1') ?? '[]');
+  const cached = snapshot.find((entry: { id: string }) => entry.id === 'esv1');
+  const expected = makeRuntimeTranslation({ id: 'esv1' });
+  assert.equal(cached?.name, expected.name);
+  assert.equal(cached?.language, expected.language);
+  assert.equal(
+    'isDownloaded' in (cached ?? {}),
+    false,
+    'the metadata cache holds no user state; that lives in the delta'
+  );
 });
 
 test('persisting the store keeps the reading position and translation preferences', () => {

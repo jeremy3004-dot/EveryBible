@@ -16,6 +16,7 @@ import { config } from '../../constants';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useDisplayFont } from '../../hooks';
 import { layout, radius, spacing, typography } from '../../design/system';
+import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import type { LearnStackParamList } from '../../navigation/types';
 import { openAuthFlow } from '../../navigation/rootNavigation';
 import {
@@ -34,6 +35,9 @@ export function GroupListScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { colors } = useTheme();
   const { t } = useTranslation();
+  // Pushed inside the Learn tab stack: the floating tab capsule (and the Android
+  // navigation bar under it) overlaps the end of this scroll.
+  const { contentClearance } = useTabBarHeight();
   // The eyebrow badges below are translated copy in the Latin-only display face.
   const displayFont = useDisplayFont();
   const user = useAuthStore((state) => state.user);
@@ -153,7 +157,10 @@ export function GroupListScreen() {
         <View style={styles.headerRight} />
       </View>
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[styles.content, { paddingBottom: contentClearance }]}
+      >
         <View
           style={[
             styles.heroCard,

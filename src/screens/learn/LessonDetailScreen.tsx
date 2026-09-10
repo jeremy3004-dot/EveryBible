@@ -685,7 +685,11 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
               accessibilityRole="adjustable"
               accessibilityLabel={t('bible.listen')}
             >
-              <ProgressBar progress={progressFraction} height={4} />
+              <ProgressBar
+                progress={progressFraction}
+                height={4}
+                accessibilityLabel={t('bible.listen')}
+              />
             </Pressable>
           </View>
 
@@ -840,9 +844,9 @@ function CompleteToggle({ isComplete, onPress, colors }: CompleteToggleProps) {
       onPress={onPress}
       pressEffect="translate"
       haptic="light"
-      accessibilityRole="button"
+      accessibilityRole="checkbox"
       accessibilityState={{ checked: isComplete }}
-      accessibilityLabel={isComplete ? t('gather.markIncomplete') : t('gather.markComplete')}
+      accessibilityLabel={t('gather.markComplete')}
       style={[
         styles.completeToggle,
         {
@@ -881,7 +885,11 @@ function StorySection({
   const { t } = useTranslation();
   if (isLoading) {
     return (
-      <View style={styles.centerContainer}>
+      <View
+        style={styles.centerContainer}
+        accessibilityState={{ busy: true }}
+        accessibilityLabel={t('common.loading')}
+      >
         <ActivityIndicator color={colors.accentPrimary} />
       </View>
     );

@@ -8,6 +8,7 @@ import {
   resolveCloudTextTranslationId,
   shouldContinueCloudTranslationFetch,
 } from './cloudTranslationModel';
+import { assertSafeAssetId } from './assetIdentifiers';
 import { resolveBibleAssetUrl } from './bibleAssetBaseUrl';
 import { serializeVerseFormatting } from './verseFormatting';
 import { base64UrlToBytes, sha256HexSync } from '../elMedia/elEs256';
@@ -34,12 +35,19 @@ function getTranslationsDirectory(): string {
   return `${base.replace(/\/$/, '')}/translations`;
 }
 
+// Translation ids come from a remote catalog, so they are validated before they are
+// interpolated into a path — `../…` would otherwise escape the translations directory and
+// point the move/delete calls below at arbitrary files. The catalog parsers already drop
+// unsafe ids; this is the second gate so no other caller can slip one past them.
 function getTranslationDbPath(translationId: string): string {
-  return `${getTranslationsDirectory()}/${translationId}.db`;
+  return `${getTranslationsDirectory()}/${assertSafeAssetId(translationId, 'translation id')}.db`;
 }
 
 function getStagingTranslationDbPath(translationId: string): string {
-  return `${getTranslationsDirectory()}/${translationId}.staging.db`;
+  return `${getTranslationsDirectory()}/${assertSafeAssetId(
+    translationId,
+    'translation id'
+  )}.staging.db`;
 }
 
 async function ensureTranslationsDirectoryExists(): Promise<void> {

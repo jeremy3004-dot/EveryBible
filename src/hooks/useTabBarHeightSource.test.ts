@@ -21,8 +21,16 @@ test('useTabBarHeight derives the bottom gutter from the device safe area instea
   // indicator is a hairline); without one it falls back to the design gutter.
   assert.match(
     source,
-    /const bottomPadding = insets\.bottom > 0 \? 22 : spacing\.lg;/,
+    /const bottomPadding =\s*Platform\.OS === 'android'\s*\? Math\.max\(insets\.bottom, spacing\.lg\)\s*: insets\.bottom > 0\s*\? 22\s*: spacing\.lg;/,
     'useTabBarHeight should derive the capsule gap from the real bottom inset, not a fixed constant'
+  );
+
+  // 22pt is tuned to the iOS home indicator hairline. Android's bottom inset is
+  // a 24-48dp navigation bar, so the capsule has to clear the whole thing.
+  assert.match(
+    source,
+    /Platform\.OS === 'android'/,
+    'useTabBarHeight should treat the Android navigation-bar inset differently from the iOS home indicator'
   );
 
   // `height` must stay "space content has to clear" — every docked surface

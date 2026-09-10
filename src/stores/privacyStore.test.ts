@@ -1,20 +1,24 @@
 import test, { before, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { mockModule, sourcePath } from '../testing/mockModules';
+import { createHash } from 'node:crypto';
+import { mockExpoCrypto, mockModule, sourcePath } from '../testing/mockModules';
 import { createReactNativeStub } from '../testing/reactNativeStub';
 import type { PrivacyAppIconMode } from '../types';
 
 /**
  * The whole privacy dependency graph is real here (privacyService,
  * privacyMode, privacyInitialization, privacyInstallation and its adapter);
- * only the four native edges are replaced: SecureStore, the app-icon native
- * module, MMKV and AsyncStorage.
+ * only the native edges are replaced: SecureStore, expo-crypto (the secure code
+ * is a salted SHA-256 credential now), the app-icon native module, MMKV and
+ * AsyncStorage.
  */
 const PRIVACY_SETTINGS_KEY = 'everybible.privacy.settings';
 const PRIVACY_INSTALLATION_MARKER_KEY = 'everybible.privacy.installation.v1';
 
 const secureStore = new Map<string, string>();
 const secureStoreReads: string[] = [];
+/** Every options object SecureStore was called with, to pin keychain accessibility. */
+const secureStoreOptions: unknown[] = [];
 type Deferred = { promise: Promise<string | null>; resolve: (value: string | null) => void };
 let pendingRead: Deferred | null = null;
 let readFailure: Error | null = null;
@@ -27,9 +31,13 @@ const createDeferred = (): Deferred => {
   return { promise, resolve };
 };
 
+mockExpoCrypto(mock);
+
 mockModule(mock, 'expo-secure-store', {
-  getItemAsync: (key: string) => {
+  WHEN_UNLOCKED_THIS_DEVICE_ONLY: 'whenUnlockedThisDeviceOnly',
+  getItemAsync: (key: string, options?: unknown) => {
     secureStoreReads.push(key);
+    secureStoreOptions.push(options);
     if (readFailure) {
       return Promise.reject(readFailure);
     }
@@ -38,10 +46,12 @@ mockModule(mock, 'expo-secure-store', {
     }
     return Promise.resolve(secureStore.get(key) ?? null);
   },
-  setItemAsync: async (key: string, value: string) => {
+  setItemAsync: async (key: string, value: string, options?: unknown) => {
+    secureStoreOptions.push(options);
     secureStore.set(key, value);
   },
-  deleteItemAsync: async (key: string) => {
+  deleteItemAsync: async (key: string, options?: unknown) => {
+    secureStoreOptions.push(options);
     secureStore.delete(key);
   },
 });
@@ -92,7 +102,11 @@ let usePrivacyStore: typeof import('./privacyStore').usePrivacyStore;
 
 const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
 const store = () => usePrivacyStore.getState();
-const storedSettings = () => JSON.parse(secureStore.get(PRIVACY_SETTINGS_KEY) ?? 'null');
+const storedSettings = () =>
+  JSON.parse(secureStore.get(PRIVACY_SETTINGS_KEY) ?? 'null') as Record<string, unknown> | null;
+/** The hash privacyService derives for a code: SHA-256 of `${salt}:${pin}`. */
+const expectedHash = (salt: string, pin: string) =>
+  createHash('sha256').update(`${salt}:${pin}`).digest('hex');
 
 before(async () => {
   ({ usePrivacyStore } = await import('./privacyStore'));
@@ -102,6 +116,7 @@ beforeEach(() => {
   usePrivacyStore.setState(usePrivacyStore.getInitialState(), true);
   secureStore.clear();
   secureStoreReads.length = 0;
+  secureStoreOptions.length = 0;
   iconCalls.length = 0;
   mmkv.clear();
   // Default to an upgraded install so reconciliation is a no-op; the reinstall
@@ -341,7 +356,21 @@ test('saving a discreet pin persists the normalized pin and unlocks the app', as
     const result = await store().saveConfiguration({ mode: 'discreet', pinInput: '12 x 4' });
 
     assert.deepEqual(result, { success: true, errorKey: null });
-    assert.deepEqual(storedSettings(), { mode: 'discreet', pin: '12*4' });
+    // The code is stored as a salted hash, never in the clear.
+    const stored = storedSettings() ?? {};
+    const credential = stored.pinCredential as { salt: string; hash: string };
+    assert.equal('pin' in stored, false);
+    assert.equal(JSON.stringify(stored).includes('12*4'), false);
+    assert.match(credential.salt, /^[0-9a-f]{32}$/);
+    assert.equal(credential.hash, expectedHash(credential.salt, '12*4'));
+    assert.deepEqual(
+      {
+        mode: stored.mode,
+        failedPinAttempts: stored.failedPinAttempts,
+        pinLockedUntil: stored.pinLockedUntil,
+      },
+      { mode: 'discreet', failedPinAttempts: 0, pinLockedUntil: null }
+    );
     assert.equal(store().mode, 'discreet');
     assert.equal(store().hasPin, true);
     assert.equal(store().isLocked, false);
@@ -367,7 +396,12 @@ test('switching back to standard mode drops the stored pin and restores the stan
     const result = await store().saveConfiguration({ mode: 'standard' });
 
     assert.deepEqual(result, { success: true, errorKey: null });
-    assert.deepEqual(storedSettings(), { mode: 'standard', pin: null });
+    assert.deepEqual(storedSettings(), {
+      mode: 'standard',
+      pinCredential: null,
+      failedPinAttempts: 0,
+      pinLockedUntil: null,
+    });
     assert.equal(store().hasPin, false);
     assert.equal(store().isLocked, false);
 
@@ -465,11 +499,95 @@ test('the correct pin unlocks the app', async () => {
   assert.equal(store().isLocked, false);
 });
 
-test('a well-formed pin entered on a standard install does not unlock anything', async () => {
+test('every keychain access is pinned to this device and to an unlocked screen', async () => {
+  mock.timers.enable({ apis: ['setTimeout'] });
+  try {
+    await store().initialize();
+    await store().saveConfiguration({ mode: 'discreet', pinInput: '1234' });
+  } finally {
+    mock.timers.reset();
+  }
+
+  // Device-only accessibility keeps the code out of iCloud/Keychain backups, so a
+  // restored install comes back in standard mode rather than locked with a lost code.
+  assert.ok(secureStoreOptions.length > 0);
+  assert.deepEqual(
+    [...new Set(secureStoreOptions.map((options) => JSON.stringify(options)))],
+    [JSON.stringify({ keychainAccessible: 'whenUnlockedThisDeviceOnly' })]
+  );
+});
+
+test('a correct code upgrades a legacy cleartext record to a salted hash in place', async () => {
+  secureStore.set(PRIVACY_SETTINGS_KEY, JSON.stringify({ mode: 'discreet', pin: '1234' }));
   await store().initialize();
 
+  assert.equal(await store().unlock('1234'), true);
+
+  const stored = storedSettings() ?? {};
+  const credential = stored.pinCredential as { salt: string; hash: string };
+  assert.equal('pin' in stored, false, 'the cleartext code is gone once it can be hashed');
+  assert.equal(credential.hash, expectedHash(credential.salt, '1234'));
+});
+
+test('repeated wrong codes trip an exponential lockout that refuses further attempts', async () => {
+  secureStore.set(PRIVACY_SETTINGS_KEY, JSON.stringify({ mode: 'discreet', pin: '1234' }));
+  await store().initialize();
+
+  for (let attempt = 1; attempt <= 4; attempt += 1) {
+    assert.equal(await store().unlock('9999'), false);
+    assert.equal(store().pinLockedUntil, null, `attempt ${attempt} is below the threshold`);
+  }
+
+  assert.equal(await store().unlock('9999'), false);
+  const lockedUntil = store().pinLockedUntil;
+  assert.ok(typeof lockedUntil === 'number' && lockedUntil > Date.now());
+  assert.equal(storedSettings()?.failedPinAttempts, 5);
+
+  // While throttled even the CORRECT code is refused, without a keychain round trip.
+  secureStoreReads.length = 0;
   assert.equal(await store().unlock('1234'), false);
-  assert.equal(store().isLocked, false, 'a standard install was never locked to begin with');
+  assert.deepEqual(secureStoreReads, []);
+  assert.equal(store().isLocked, true);
+});
+
+test('a persisted lockout survives a cold start', async () => {
+  const lockedUntil = Date.now() + 60_000;
+  secureStore.set(
+    PRIVACY_SETTINGS_KEY,
+    JSON.stringify({
+      mode: 'discreet',
+      pin: '1234',
+      failedPinAttempts: 6,
+      pinLockedUntil: lockedUntil,
+    })
+  );
+
+  await store().initialize();
+
+  assert.equal(store().pinLockedUntil, lockedUntil);
+  assert.equal(await store().unlock('1234'), false);
+  assert.equal(store().isLocked, true);
+});
+
+test('a batch of candidates from one key sequence counts as a single failed attempt', async () => {
+  secureStore.set(PRIVACY_SETTINGS_KEY, JSON.stringify({ mode: 'discreet', pin: '1234' }));
+  await store().initialize();
+
+  // The lock screen derives 4/5/6-character readings of the same taps.
+  assert.equal(await store().unlock(['9999', '99999', '999999']), false);
+
+  assert.equal(storedSettings()?.failedPinAttempts, 1, 'one sequence, one attempt');
+});
+
+test('a batch containing the right reading of the taps unlocks the app', async () => {
+  secureStore.set(PRIVACY_SETTINGS_KEY, JSON.stringify({ mode: 'discreet', pin: '1234' }));
+  await store().initialize();
+
+  assert.equal(await store().unlock(['9999', '1234', '123456']), true);
+
+  assert.equal(store().isLocked, false);
+  assert.equal(storedSettings()?.failedPinAttempts, 0);
+  assert.equal(store().pinLockedUntil, null);
 });
 
 test('disabling privacy erases the keychain settings and reopens the app', async () => {
@@ -500,12 +618,21 @@ test('disabling privacy from an unavailable state still leaves the app usable', 
   assert.equal(store().isLocked, false);
 });
 
-// A refused icon restore must not destroy the credential: the pin is what unlocks
-// the app, so it is only deleted once the visible state change has succeeded.
+test('a well-formed code entered on a standard install does not unlock anything', async () => {
+  await store().initialize();
+
+  assert.equal(await store().unlock('1234'), false);
+  assert.equal(store().isLocked, false, 'a standard install was never locked to begin with');
+});
+
+// A refused icon restore must not destroy the credential: the stored code is what
+// unlocks the app, so it is only deleted once the visible state change succeeded.
 test('a refused icon restore leaves privacy switched on with the pin still able to unlock', async () => {
-  secureStore.set(PRIVACY_SETTINGS_KEY, JSON.stringify({ mode: 'discreet', pin: '1234' }));
+  await store().saveConfiguration({ mode: 'discreet', pinInput: '1234' });
+  usePrivacyStore.setState(usePrivacyStore.getInitialState(), true);
   await store().initialize();
   usePrivacyStore.setState({ isLocked: false });
+  iconCalls.length = 0;
   setAppIconResult = false;
 
   await assert.rejects(
@@ -518,9 +645,10 @@ test('a refused icon restore leaves privacy switched on with the pin still able 
   assert.equal(
     secureStore.has(PRIVACY_SETTINGS_KEY),
     true,
-    'the stored pin survives a refused icon restore so the app stays unlockable'
+    'the stored hashed code survives a refused icon restore so the app stays unlockable'
   );
   store().lock();
   assert.equal(store().isLocked, true);
   assert.equal(await store().unlock('1234'), true);
+  assert.equal(store().isLocked, false);
 });

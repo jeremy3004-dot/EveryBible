@@ -315,38 +315,6 @@ export function parseTranslationCatalogManifest(value: unknown): TranslationCata
   };
 }
 
-export function isManifestVerificationRuntimeSupported(): boolean {
-  return typeof globalThis.TextDecoder === 'function' && Boolean(globalThis.crypto?.subtle);
-}
-
-async function loadJose() {
-  return import('jose');
-}
-
-export async function verifySignedCatalogManifest(
-  envelope: SignedCatalogEnvelope,
-  publicKeyPem: string
-): Promise<TranslationCatalogManifest> {
-  if (!isManifestVerificationRuntimeSupported()) {
-    throw new Error(
-      'Signed manifest verification requires TextDecoder and WebCrypto subtle support on this runtime'
-    );
-  }
-
-  const { compactVerify, importSPKI } = await loadJose();
-  const publicKey = await importSPKI(publicKeyPem, envelope.algorithm);
-  const { protectedHeader, payload } = await compactVerify(envelope.compactJws, publicKey, {
-    algorithms: [envelope.algorithm],
-  });
-
-  if (protectedHeader.kid && protectedHeader.kid !== envelope.keyId) {
-    throw new Error('Signed manifest key ID mismatch');
-  }
-
-  const decoded = new globalThis.TextDecoder().decode(payload);
-  return parseTranslationCatalogManifest(JSON.parse(decoded));
-}
-
 export function stageTranslationPackCandidate(
   translation: BibleTranslation,
   candidate: { version: string; localPath: string }

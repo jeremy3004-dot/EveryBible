@@ -18,6 +18,12 @@ export interface ProgressBarProps {
   fillColor?: string;
   /** Render the fill as a two-stop accent gradient. */
   gradient?: boolean;
+  /**
+   * Names what is progressing ("Plan progress", "Download"). Optional: a bar
+   * that sits directly under its own labelled row does not need one, but a
+   * standalone bar announces only a bare percentage without it.
+   */
+  accessibilityLabel?: string;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -35,6 +41,7 @@ export function ProgressBar({
   trackColor,
   fillColor,
   gradient = false,
+  accessibilityLabel,
   style,
 }: ProgressBarProps) {
   const { colors } = useTheme();
@@ -56,6 +63,7 @@ export function ProgressBar({
     <View
       style={[styles.track, { height, backgroundColor: trackColor ?? colors.borderStrong }, style]}
       accessibilityRole="progressbar"
+      accessibilityLabel={accessibilityLabel}
       accessibilityValue={{ now: Math.round(clamp01(progress) * 100), min: 0, max: 100 }}
     >
       <Animated.View style={[styles.fill, { height }, fillStyle]}>

@@ -54,6 +54,7 @@ const channels: Array<{ id: string; options: Record<string, unknown> }> = [];
 const autoRegistration: boolean[] = [];
 const tokenCalls: TokenOptions[] = [];
 let cancelFailure: Error | null = null;
+let channelFailure: Error | null = null;
 let getToken: (options: TokenOptions) => Promise<{ data: string }> = async () => ({
   data: 'expo-token',
 });
@@ -87,6 +88,9 @@ mockModule(mock, 'expo-notifications', {
     schedules.push(request);
   },
   setNotificationChannelAsync: async (id: string, options: Record<string, unknown>) => {
+    if (channelFailure) {
+      throw channelFailure;
+    }
     channels.push({ id, options });
   },
 });
@@ -149,6 +153,7 @@ beforeEach(() => {
   permission.current = 'granted';
   permission.requested = 'granted';
   cancelFailure = null;
+  channelFailure = null;
   authState.throws = false;
   expoConfig.extra = { eas: { projectId: 'project-id' } };
   rn.Platform.OS = 'ios';
@@ -165,17 +170,59 @@ test('iOS creates no Android notification channels', async () => {
   assert.deepEqual(channels, []);
 });
 
-test('Android creates the reminder and group channels with translated names', async () => {
+// The three tests below run in order and share one module-scoped memo: the
+// setup promise is cached for the whole launch, so the failure case has to be
+// the first Android caller in this file and the memo case the last.
+
+test('a failed channel setup is not cached, so the next caller retries', async () => {
+  rn.Platform.OS = 'android';
+  channelFailure = new Error('channel service unavailable');
+
+  await assert.rejects(() => notifications.setupAndroidChannels(), {
+    message: 'channel service unavailable',
+  });
+  assert.equal(channels.length, 0);
+
+  channelFailure = null;
+  await notifications.setupAndroidChannels();
+
+  assert.deepEqual(
+    channels.map(({ id, options }) => [id, options.name, options.importance, options.sound]),
+    [['daily-reminder', 'notifications.channelDailyReminder', 3, 'default']]
+  );
+});
+
+test('Android creates only the daily reminder channel, the one a trigger names', async () => {
   rn.Platform.OS = 'android';
 
   await notifications.setupAndroidChannels();
 
   assert.deepEqual(
-    channels.map(({ id, options }) => [id, options.name, options.importance, options.sound]),
-    [
-      ['daily-reminder', 'notifications.channelDailyReminder', 3, 'default'],
-      ['group-alerts', 'notifications.channelGroupAlerts', 4, 'default'],
-    ]
+    channels.filter(({ id }) => id !== 'daily-reminder'),
+    [],
+    'group-alerts was dead weight: nothing ever posted to it'
+  );
+});
+
+test('the channel setup is memoized per launch, so repeated callers configure it once', async () => {
+  rn.Platform.OS = 'android';
+
+  await notifications.setupAndroidChannels();
+  await Promise.all([notifications.setupAndroidChannels(), notifications.setupAndroidChannels()]);
+
+  assert.deepEqual(channels, [], 'the first successful setup is the only one');
+});
+
+test('scheduling a reminder on Android waits for the channel its trigger names', async () => {
+  rn.Platform.OS = 'android';
+
+  await notifications.scheduleDailyReminder(8, 30);
+
+  assert.equal(schedules.length, 1);
+  assert.equal(
+    (schedules[0].trigger as { channelId: string }).channelId,
+    'daily-reminder',
+    'a trigger naming a channel Android has not been told about is dropped'
   );
 });
 

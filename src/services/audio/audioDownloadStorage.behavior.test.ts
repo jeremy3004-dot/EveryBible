@@ -202,12 +202,18 @@ const makeTask = (id: string): FakeTask => {
     },
     resume: () => {
       backgroundCalls.push({ method: 'resume', args: [id] });
+      if (resumeErrors.has(id)) {
+        throw new Error(`cannot resume ${id}`);
+      }
     },
   };
   return task;
 };
 
-let ensureDownloadsAreRunningError: unknown = null;
+/** Task ids whose resume() throws, to prove one bad task does not stop the rest. */
+const resumeErrors = new Set<string>();
+/** Set to make the native task listing itself fail (no native module in Expo Go). */
+let existingTasksError: unknown = null;
 
 mockModule(mock, '@kesha-antonov/react-native-background-downloader', {
   createDownloadTask: (options: { id: string; url: string; destination: string }) => {
@@ -219,13 +225,10 @@ mockModule(mock, '@kesha-antonov/react-native-background-downloader', {
   },
   getExistingDownloadTasks: async (): Promise<FakeTask[]> => {
     backgroundCalls.push({ method: 'getExistingDownloadTasks', args: [] });
-    return existingTasks;
-  },
-  ensureDownloadsAreRunning: async (): Promise<void> => {
-    backgroundCalls.push({ method: 'ensureDownloadsAreRunning', args: [] });
-    if (ensureDownloadsAreRunningError) {
-      throw ensureDownloadsAreRunningError;
+    if (existingTasksError) {
+      throw existingTasksError;
     }
+    return existingTasks;
   },
 });
 
@@ -268,7 +271,8 @@ beforeEach(() => {
   downloadScript = { writeSize: VALID_AUDIO_BYTES };
   taskScript = { outcome: 'done' };
   lastTaskHandlers = {};
-  ensureDownloadsAreRunningError = null;
+  resumeErrors.clear();
+  existingTasksError = null;
   deleteError = null;
   lastOnProgress = undefined;
 });
@@ -778,16 +782,56 @@ test('cancelling a job stops the exact task and its per-chapter children', async
 // Resuming background downloads on launch
 // ---------------------------------------------------------------------------
 
-test('ensuring background downloads are running asks the native downloader to resume', async () => {
+test('every audio task the OS still holds is resumed on launch', async () => {
+  existingTasks = [makeTask('audio-download:job-1'), makeTask('audio-download:job-2')];
+
   await mod.ensureBackgroundAudioDownloadsRunning();
 
-  assert.deepEqual(backgroundCalls, [{ method: 'ensureDownloadsAreRunning', args: [] }]);
+  assert.deepEqual(backgroundCalls, [
+    { method: 'getExistingDownloadTasks', args: [] },
+    { method: 'resume', args: ['audio-download:job-1'] },
+    { method: 'resume', args: ['audio-download:job-2'] },
+  ]);
 });
 
-test('a native downloader that cannot resume never breaks startup', async () => {
-  ensureDownloadsAreRunningError = new Error('no native module');
+test('tasks belonging to another feature are left alone', async () => {
+  existingTasks = [makeTask('bible-pack:swahili'), makeTask('audio-download:job-1')];
+
+  await mod.ensureBackgroundAudioDownloadsRunning();
+
+  assert.deepEqual(
+    backgroundCalls.filter((call) => call.method === 'resume'),
+    [{ method: 'resume', args: ['audio-download:job-1'] }]
+  );
+});
+
+test('one task that refuses to resume does not strand the tasks after it', async () => {
+  existingTasks = [makeTask('audio-download:job-1'), makeTask('audio-download:job-2')];
+  resumeErrors.add('audio-download:job-1');
 
   await assert.doesNotReject(() => mod.ensureBackgroundAudioDownloadsRunning());
+
+  assert.deepEqual(
+    backgroundCalls.filter((call) => call.method === 'resume'),
+    [
+      { method: 'resume', args: ['audio-download:job-1'] },
+      { method: 'resume', args: ['audio-download:job-2'] },
+    ]
+  );
+  assert.equal(warnings.length, 1);
+  assert.match(String(warnings[0][0]), /Failed to resume background task/);
+});
+
+test('an unavailable native downloader never breaks startup', async () => {
+  existingTasksError = new Error('no native module');
+
+  await assert.doesNotReject(() => mod.ensureBackgroundAudioDownloadsRunning());
+});
+
+test('nothing is resumed when the OS holds no tasks at all', async () => {
+  await mod.ensureBackgroundAudioDownloadsRunning();
+
+  assert.deepEqual(backgroundCalls, [{ method: 'getExistingDownloadTasks', args: [] }]);
 });
 
 // ---------------------------------------------------------------------------
@@ -837,10 +881,13 @@ test('the persistent job store can be pointed at another root', async () => {
 });
 
 // ---------------------------------------------------------------------------
-// Cancellation leaves a resumable partial file behind
+// Cancellation
 // ---------------------------------------------------------------------------
 
-test('a cancelled download keeps its partial file instead of deleting it', async () => {
+// Nothing in the app resumes a partial, so one left above the 1KB validity floor
+// would read as a complete chapter forever. Cancelling therefore discards it —
+// but only once the native cancel has resolved and the path is safe to touch.
+test('a cancelled download discards its partial file once the native cancel resolves', async () => {
   downloadScript = { gate: new Promise<void>(() => {}) };
   const controller = new AbortController();
 
@@ -853,10 +900,11 @@ test('a cancelled download keeps its partial file instead of deleting it', async
   controller.abort();
 
   await assert.rejects(pending, (error: unknown) => service.isAudioDownloadCancellation(error));
-  assert.equal(fsMethods().includes('deleteAsync'), false);
+  assert.equal(fsMethods().includes('deleteAsync'), true);
+  assert.deepEqual(cancelCalls, ['file:///documents/everybible-audio/bsb/GEN/1.m4a']);
 });
 
-test('a cancel that fails still leaves the partial file alone', async () => {
+test('a cancel that fails leaves the partial file alone rather than racing the native task', async () => {
   downloadScript = {
     gate: new Promise<void>(() => {}),
     cancelError: new Error('native cancel exploded'),

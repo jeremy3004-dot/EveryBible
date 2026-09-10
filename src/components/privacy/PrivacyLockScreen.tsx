@@ -219,7 +219,7 @@ export function PrivacyLockScreen() {
       // --- check PIN on = press ---
       if (rawKey === '=') {
         // Small delay so state updates first
-        setTimeout(async () => {
+        setTimeout(() => {
           setCalc((current) => {
             // Extract only digits and basic operator chars from the sequence
             const pinCandidate = current.rawKeySequence
@@ -227,19 +227,39 @@ export function PrivacyLockScreen() {
               .replace(/×/g, '*')
               .replace(/÷/g, '/');
 
-            // Try the last 4-6 chars as a PIN
+            // Try the last 4-6 chars as a PIN. All candidates go in together so
+            // one '=' press costs one throttled attempt, not three.
+            const candidates: string[] = [];
             for (let len = 4; len <= 6; len++) {
               if (pinCandidate.length >= len) {
                 const attempt = pinCandidate.slice(-len);
                 const validation = validatePrivacyPin(attempt);
                 if (validation.isValid) {
-                  void unlock(validation.normalized).then((success) => {
-                    if (success) {
-                      // Will unmount — no state update needed
-                    }
-                  });
+                  candidates.push(validation.normalized);
                 }
               }
+            }
+
+            if (candidates.length > 0) {
+              void unlock(candidates).then((success) => {
+                if (success) {
+                  // Will unmount — no state update needed
+                  return;
+                }
+
+                // While throttled, fall back to the calculator's own generic
+                // failure output. Nothing here may hint that a code exists.
+                if (usePrivacyStore.getState().pinLockedUntil !== null) {
+                  setCalc((state) => ({
+                    ...state,
+                    display: 'Error',
+                    previousValue: null,
+                    operator: null,
+                    waitingForOperand: true,
+                    rawKeySequence: '',
+                  }));
+                }
+              });
             }
 
             return current;
@@ -252,9 +272,7 @@ export function PrivacyLockScreen() {
 
   // Dynamic font size for display
   const displayFontSize =
-    calc.display.length > 9
-      ? Math.max(32, 72 - (calc.display.length - 9) * 6)
-      : 72;
+    calc.display.length > 9 ? Math.max(32, 72 - (calc.display.length - 9) * 6) : 72;
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -264,6 +282,8 @@ export function PrivacyLockScreen() {
           style={[styles.displayText, { fontSize: displayFontSize }]}
           numberOfLines={1}
           adjustsFontSizeToFit
+          accessibilityLiveRegion="polite"
+          accessibilityLabel={calc.display}
         >
           {calc.display}
         </Text>

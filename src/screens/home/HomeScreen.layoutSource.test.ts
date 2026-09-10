@@ -180,8 +180,8 @@ test('HomeScreen renders the sheet cards at the spec geometry', () => {
 
   assert.match(
     source,
-    /<ProgressBar progress=\{featuredPlanFraction\} style=\{styles\.planProgressBar\} \/>/,
-    'the plan card should draw its progress as the shared 4pt rule'
+    /<ProgressBar\s+progress=\{featuredPlanFraction\}\s+style=\{styles\.planProgressBar\}\s+accessibilityLabel=\{t\('readingPlans\.progress'\)\}\s*\/>/,
+    'the plan card should draw its progress as the shared 4pt rule, named for the screen reader'
   );
 });
 

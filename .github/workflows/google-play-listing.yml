@@ -24,9 +24,15 @@ jobs:
         run: npm ci
 
       - name: Write Google Play service account key
+        # S18: pass the secret through the step environment instead of interpolating it into
+        # the script text. `${{ }}` is substituted before bash parses the line, so a quote
+        # inside the JSON would break out of the single-quoted string and the remainder of the
+        # key would be executed as shell. A quoted "$VAR" expansion is never re-parsed.
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
         run: |
           set -euo pipefail
-          printf '%s' '${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}' > ./google-play-service-account.json
+          printf '%s' "$GOOGLE_PLAY_SERVICE_ACCOUNT_JSON" > ./google-play-service-account.json
 
       - name: Publish listing text and images
         run: npm run play:publish-listing

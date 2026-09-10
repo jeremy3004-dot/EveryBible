@@ -516,3 +516,37 @@ test('filterInstallableCatalogEntries keeps text-backed runtime rows when they c
 
   assert.deepEqual(filtered.map((entry) => entry.translation_id), ['npiulb']);
 });
+
+test('normalizeCatalogEntries drops rows whose translation_id is unsafe in a file path', () => {
+  // Catalog rows are remote data and the id is interpolated into on-device paths
+  // (translation .db files, audio directories) — a `../` id must never get that far.
+  const normalized = normalizeCatalogEntries([
+    { ...baseEntry, id: 'row-evil', translation_id: '../../Library/Preferences' },
+    { ...baseEntry, id: 'row-slash', translation_id: 'foo/bar' },
+    { ...baseEntry, id: 'row-dot', translation_id: '..' },
+    { ...baseEntry, id: 'row-good', translation_id: 'KJV' },
+  ]);
+
+  assert.deepEqual(
+    normalized.map((entry) => entry.translation_id),
+    ['kjv']
+  );
+});
+
+test('filterInstallableCatalogEntries never surfaces a path-unsafe translation id', () => {
+  const filtered = filterInstallableCatalogEntries(
+    [
+      {
+        ...baseEntry,
+        id: 'row-evil',
+        translation_id: '../../evil',
+        is_bundled: false,
+        has_text: true,
+        catalog: { text: { downloadUrl: 'https://example.test/evil.db' } },
+      } as TranslationCatalogEntry,
+    ],
+    new Set<string>()
+  );
+
+  assert.equal(filtered.length, 0);
+});

@@ -257,6 +257,12 @@ test('both scopes declare the EL status and muted tokens the redesign added', ()
     successSoft: ['#C9EBD3', '#12321E'],
     onSuccessSoft: ['#1F6A3F', '#8FD8A6'],
     warningSoft: ['#F6E3CC', '#3A2A12'],
+    // The `warningSoft` counterpart to `onSuccessSoft`, added by the a11y pass:
+    // `warning` itself is only 2.83:1 on vellum, so amber *words* use this.
+    onWarningSoft: ['#8D4F11', '#EFBF7B'],
+    // Verse numbers on the audio follow band; `bibleSecondaryText` was 3.18:1
+    // on the light band.
+    bibleFollowVerseNumber: ['#494437', '#B7B1A4'],
     onAccentSurface: ['#9F503B', '#F0C8B8'],
   };
 

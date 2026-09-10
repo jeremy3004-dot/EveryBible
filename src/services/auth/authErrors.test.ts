@@ -29,6 +29,26 @@ test('mapGoogleAuthError maps in-progress to a stable code', () => {
   assert.equal(result.error, 'Already in progress');
 });
 
+test('mapGoogleAuthError names the Android DEVELOPER_ERROR configuration failure', () => {
+  const result = mapGoogleAuthError({ code: 'DEVELOPER_ERROR' });
+
+  // Android status 10 means no Android OAuth client matches this build. Before it
+  // had a case it fell through to a bare 'unknown' failure the user could not act on.
+  assert.equal(result.code, 'provider_unavailable');
+  assert.match(result.error, /DEVELOPER_ERROR/);
+  assert.equal(isSilentAuthError(result.code), false);
+});
+
+test('mapGoogleAuthError keeps the native DEVELOPER_ERROR message when one is present', () => {
+  const result = mapGoogleAuthError({
+    code: 'DEVELOPER_ERROR',
+    message: 'DEVELOPER_ERROR (status 10)',
+  });
+
+  assert.equal(result.code, 'provider_unavailable');
+  assert.equal(result.error, 'DEVELOPER_ERROR (status 10)');
+});
+
 test('mapAppleAuthError maps request cancellation to cancelled', () => {
   const result = mapAppleAuthError({
     code: 'ERR_REQUEST_CANCELED',

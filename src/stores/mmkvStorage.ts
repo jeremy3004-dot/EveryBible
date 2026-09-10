@@ -34,3 +34,32 @@ export const zustandStorage: StateStorage = {
     mmkvInstance.delete(name);
   },
 };
+
+/** MMKV key the auth store persists under (see authStore's persist config). */
+export const AUTH_STORAGE_KEY = 'auth-storage';
+
+/**
+ * Reads the persisted interface-language preference straight out of MMKV.
+ *
+ * i18n bootstraps before any store hydrates, so it cannot ask useAuthStore
+ * which language the user chose. Without this it preloaded the *device* locale
+ * (a 90-190KB module) and App.tsx then switched to the persisted preference,
+ * throwing the first load away. MMKV reads are synchronous and this payload is
+ * just the preferences slice, so the parse is cheap next to a locale module.
+ *
+ * Returns null when nothing is persisted or the blob is unreadable — callers
+ * must fall back to their own default.
+ */
+export function getPersistedLanguagePreference(): string | null {
+  try {
+    const raw = mmkvInstance.getString(AUTH_STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+    const parsed = JSON.parse(raw) as { state?: { preferences?: { language?: unknown } } };
+    const language = parsed?.state?.preferences?.language;
+    return typeof language === 'string' && language.length > 0 ? language : null;
+  } catch {
+    return null;
+  }
+}

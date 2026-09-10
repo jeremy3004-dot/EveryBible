@@ -8,7 +8,6 @@ import {
 } from './audioRemote';
 import { AUDIO_DOWNLOAD_ROOT_URI, expoAudioFileSystemAdapter } from './audioDownloadStorage';
 import {
-  clearRemoteAudioCache,
   fetchRemoteChapterAudio,
   prefetchRemoteChapterAudio,
 } from './audioRemote';
@@ -43,10 +42,6 @@ export async function getChapterAudioUrl(
 
 export function isAudioAvailable(translationId: string): boolean {
   return hasConfiguredTranslationAudio(translationId);
-}
-
-export function clearAudioCache(): void {
-  clearRemoteAudioCache();
 }
 
 export async function prefetchChapterAudio(

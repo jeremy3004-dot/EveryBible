@@ -246,6 +246,7 @@ test('el-manifest audio resolves a chapter URL through the injected manifest-ser
         mimeType: 'audio/mpeg',
         fileExt: 'mp3',
         bytes: 2703104,
+        sha256: 'b'.repeat(64),
         durationMs: 225000,
       };
     }
@@ -254,9 +255,12 @@ test('el-manifest audio resolves a chapter URL through the injected manifest-ser
 
   const audio = await fetchRemoteChapterAudio('lqdtest', 'JHN', 1);
 
+  // The download service verifies a chapter against these, so both must survive the hop.
   assert.deepEqual(audio, {
     url: 'https://media.example.test/audio/lqdtest/v2026-07-20-1/chapters/JHN/1.mp3',
     duration: 225000,
+    bytes: 2703104,
+    sha256: 'b'.repeat(64),
   });
   assert.equal(calls.length, 1);
   assert.equal(getRemoteAudioFileExtension('lqdtest'), 'mp3');

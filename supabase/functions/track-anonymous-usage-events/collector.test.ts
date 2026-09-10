@@ -79,3 +79,44 @@ test('matching event-time identity is attributed only after token verification',
   await h.send([{ ...h.event, attribution_user_id: id }]);
   assert.equal([...h.stored.values()][0].user_id, id);
 });
+
+test('an oversized event_properties bag is dropped without failing the rest of the batch (S5)', async () => {
+  const h = collector();
+  const oversized = { ...h.event, event_id: '11111111-1111-4111-8111-111111111111', event_properties: { blob: 'x'.repeat(5000) } };
+  const response = await h.send([oversized, h.event]);
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.rejected, 1);
+  assert.equal(body.inserted, 1);
+  assert.equal(h.stored.size, 1);
+  assert.equal([...h.stored.values()][0].event_properties.blob, undefined);
+});
+
+test('events queued more than 30 days ago cannot backdate the rollups (S5)', async () => {
+  const h = collector();
+  const stale = { ...h.event, event_id: '22222222-2222-4222-8222-222222222222', queued_at: new Date(Date.now() - 31 * 24 * 60 * 60 * 1000).toISOString() };
+  const fresh = { ...h.event, event_id: '33333333-3333-4333-8333-333333333333', queued_at: new Date(Date.now() - 29 * 24 * 60 * 60 * 1000).toISOString() };
+  const body = await (await h.send([stale, fresh])).json();
+  assert.equal(body.rejected, 1);
+  assert.equal(body.inserted, 1);
+  assert.equal([...h.stored.values()][0].id, '33333333-3333-4333-8333-333333333333');
+});
+
+test('a batch whose every event is dropped is acknowledged so the client stops retrying (S5)', async () => {
+  const h = collector();
+  const response = await h.send([{ ...h.event, event_properties: { blob: 'x'.repeat(5000) } }]);
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.inserted, 0);
+  assert.equal(body.rejected, 1);
+  assert.equal(body.ok, true);
+  assert.equal(h.stored.size, 0);
+  assert.equal(h.geoLookups(), 0, 'a fully-rejected batch must not spend an external geo lookup');
+});
+
+test('a batch above the 500-event ceiling is refused outright (S5)', async () => {
+  const h = collector();
+  const batch = Array.from({ length: 501 }, () => ({ ...h.event, event_id: crypto.randomUUID() }));
+  assert.equal((await h.send(batch)).status, 400);
+  assert.equal(h.stored.size, 0);
+});

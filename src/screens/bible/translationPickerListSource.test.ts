@@ -356,8 +356,8 @@ test('translation picker shows live download progress on the row itself', () => 
 
   assert.match(
     rowSource,
-    /activeDownloadProgress != null[\s\S]*downloadProgressFill[\s\S]*\{activeDownloadProgress\}%/,
-    'A downloading row should show a progress bar and percentage in place of its status glyph'
+    /activeDownloadProgress != null[\s\S]*<ProgressBar[\s\S]*accessibilityLabel=\{t\('translations\.downloading'\)\}[\s\S]*\{activeDownloadProgress\}%/,
+    'A downloading row should show a labelled progress bar and percentage in place of its status glyph'
   );
 
   assert.match(
@@ -408,6 +408,69 @@ test('translation picker keeps search results reachable above the on-screen keyb
     source,
     /keyboardShouldPersistTaps="handled"/,
     'TranslationPickerList should keep single-tap row activation while the keyboard is up'
+  );
+
+  assert.match(
+    source,
+    /useKeyboardBottomInset\(\{ surfaceRef: listSurfaceRef \}\)/,
+    'TranslationPickerList should hand the hook its own surface so Android can measure the overlap — edge-to-edge means this sheet is never resized for the IME'
+  );
+
+  assert.match(
+    source,
+    /<View ref=\{listSurfaceRef\} style=\{styles\.container\} collapsable=\{false\}>/,
+    'the measured surface should be the picker container itself, and it must not be collapsed away on Android or there is nothing to measure'
+  );
+});
+
+test('translation picker keeps the search field mounted while the results re-filter', () => {
+  const source = readRelativeSource('./TranslationPickerList.tsx');
+
+  assert.match(
+    source,
+    /ListHeaderComponent=\{searchHeader\}/,
+    'the search field should be a list header, not a recycled row: scrolling far enough would unmount a row and drop the keyboard mid-query'
+  );
+
+  assert.match(
+    source,
+    /const searchHeader = \(\s*<View/,
+    'the header should be a plain element of a stable type — an inline component would be remounted on every keystroke and steal focus'
+  );
+
+  assert.doesNotMatch(
+    source,
+    /type: 'search'/,
+    'the search field should no longer be part of the recycled row data'
+  );
+});
+
+test('translation picker sheet keeps its bottom rows clear of the Android navigation bar', () => {
+  const source = readRelativeSource('./TranslationPickerList.tsx');
+
+  assert.match(
+    source,
+    /paddingBottom: insets\.bottom,/,
+    'the manage sheet is a bare Modal, so it has to reserve the bottom safe-area inset itself'
+  );
+});
+
+test('translation picker surfaces the real download failure instead of swallowing it', () => {
+  const source = readRelativeSource('./TranslationPickerList.tsx');
+
+  const matches = source.match(
+    /downloadError instanceof Error \? downloadError\.message : t\('bible\.audioDownloadFailed'\)/g
+  );
+  assert.equal(
+    matches?.length,
+    2,
+    'both audio download paths should report the underlying error message, with the translated string only as the fallback'
+  );
+
+  assert.doesNotMatch(
+    source,
+    /\} catch \{\s*Alert\.alert\(t\('common\.error'\), t\('bible\.audioDownloadFailed'\)\);/,
+    'no audio download path should discard the error it caught'
   );
 });
 

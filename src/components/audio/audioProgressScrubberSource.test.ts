@@ -9,8 +9,7 @@ function readRelativeSource(relativePath: string): string {
 
 test('audio progress uses a shared draggable scrubber component', () => {
   const scrubberSource = readRelativeSource('./AudioProgressScrubber.tsx');
-  const playerBarSource = readRelativeSource('./AudioPlayerBar.tsx');
-  const audioFirstSource = readRelativeSource('./AudioFirstChapterCard.tsx');
+  const readerSource = readRelativeSource('../../screens/bible/ReaderAudioPositionParts.tsx');
 
   assert.match(
     scrubberSource,
@@ -31,14 +30,8 @@ test('audio progress uses a shared draggable scrubber component', () => {
   );
 
   assert.match(
-    playerBarSource,
-    /<AudioProgressScrubber[\s\S]*onSeek=\{handleSeek\}/,
-    'AudioPlayerBar should render the shared draggable scrubber'
-  );
-
-  assert.match(
-    audioFirstSource,
-    /<AudioProgressScrubber[\s\S]*onSeek=\{handleSeek\}/,
-    'AudioFirstChapterCard should render the shared draggable scrubber'
+    readerSource,
+    /<AudioProgressScrubber[\s\S]*onSeek=\{/,
+    'The Bible reader audio position surface should render the shared draggable scrubber'
   );
 });

@@ -3,11 +3,8 @@ import assert from 'node:assert/strict';
 import {
   aggregateInteractionCounts,
   attachCountsToPrayerRequests,
-  validatePrayerContent,
-  sortPrayerRequests,
 } from './prayerModel';
 import type { PrayerRequest } from '../supabase/types';
-import type { PrayerRequestWithCounts } from './prayerService';
 
 // ---------------------------------------------------------------------------
 // aggregateInteractionCounts
@@ -121,109 +118,4 @@ test('attachCountsToPrayerRequests preserves all original request fields', () =>
   assert.equal(result[0]?.content, 'Healing prayer');
   assert.equal(result[0]?.is_answered, true);
   assert.equal(result[0]?.answered_at, '2026-03-22T09:00:00.000Z');
-});
-
-// ---------------------------------------------------------------------------
-// validatePrayerContent
-// ---------------------------------------------------------------------------
-
-test('validatePrayerContent returns null for non-empty content', () => {
-  assert.equal(validatePrayerContent('Please pray for me'), null);
-});
-
-test('validatePrayerContent returns an error message for empty string', () => {
-  const error = validatePrayerContent('');
-  assert.ok(error !== null);
-  assert.equal(typeof error, 'string');
-});
-
-test('validatePrayerContent rejects whitespace-only content', () => {
-  const error = validatePrayerContent('   \t\n  ');
-  assert.ok(error !== null);
-});
-
-test('validatePrayerContent accepts content with leading/trailing spaces', () => {
-  // Trimmed content has characters, so it is valid
-  assert.equal(validatePrayerContent('  pray for me  '), null);
-});
-
-// ---------------------------------------------------------------------------
-// sortPrayerRequests
-// ---------------------------------------------------------------------------
-
-const makeWithCounts = (
-  overrides: Partial<PrayerRequest & { prayed_count: number; encouraged_count: number }>
-): PrayerRequestWithCounts => ({
-  ...makePrayerRequest(overrides),
-  prayed_count: overrides.prayed_count ?? 0,
-  encouraged_count: overrides.encouraged_count ?? 0,
-});
-
-test('sortPrayerRequests places unanswered requests before answered ones', () => {
-  const answered = makeWithCounts({
-    id: 'answered',
-    is_answered: true,
-    created_at: '2026-03-22T12:00:00.000Z',
-  });
-  const unanswered = makeWithCounts({
-    id: 'unanswered',
-    is_answered: false,
-    created_at: '2026-03-20T12:00:00.000Z',
-  });
-
-  const sorted = sortPrayerRequests([answered, unanswered]);
-
-  assert.equal(sorted[0]?.id, 'unanswered');
-  assert.equal(sorted[1]?.id, 'answered');
-});
-
-test('sortPrayerRequests orders unanswered requests newest-first within the group', () => {
-  const older = makeWithCounts({
-    id: 'older',
-    is_answered: false,
-    created_at: '2026-03-18T00:00:00.000Z',
-  });
-  const newer = makeWithCounts({
-    id: 'newer',
-    is_answered: false,
-    created_at: '2026-03-22T00:00:00.000Z',
-  });
-
-  const sorted = sortPrayerRequests([older, newer]);
-
-  assert.equal(sorted[0]?.id, 'newer');
-  assert.equal(sorted[1]?.id, 'older');
-});
-
-test('sortPrayerRequests orders answered requests newest-first within the answered group', () => {
-  const olderAnswered = makeWithCounts({
-    id: 'old-ans',
-    is_answered: true,
-    created_at: '2026-03-10T00:00:00.000Z',
-  });
-  const newerAnswered = makeWithCounts({
-    id: 'new-ans',
-    is_answered: true,
-    created_at: '2026-03-15T00:00:00.000Z',
-  });
-
-  const sorted = sortPrayerRequests([olderAnswered, newerAnswered]);
-
-  assert.equal(sorted[0]?.id, 'new-ans');
-  assert.equal(sorted[1]?.id, 'old-ans');
-});
-
-test('sortPrayerRequests does not mutate the input array', () => {
-  const requests = [
-    makeWithCounts({ id: 'a', is_answered: true, created_at: '2026-03-22T00:00:00.000Z' }),
-    makeWithCounts({ id: 'b', is_answered: false, created_at: '2026-03-20T00:00:00.000Z' }),
-  ];
-  const originalOrder = requests.map((r) => r.id);
-
-  sortPrayerRequests(requests);
-
-  assert.deepEqual(
-    requests.map((r) => r.id),
-    originalOrder
-  );
 });

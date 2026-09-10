@@ -12,6 +12,7 @@ import { getBookById, getTranslatedBookName } from '../../constants';
 import { CompanionSection } from '../../components/bible/CompanionSection';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useDisplayFont } from '../../hooks';
+import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useProgressStore } from '../../stores/progressStore';
 import type { BibleStackParamList, ChapterSelectorScreenProps } from '../../navigation/types';
@@ -54,6 +55,18 @@ export function ChapterSelectorScreen() {
 
   const { width } = useWindowDimensions();
   const itemSize = useMemo(() => getChapterGridItemSize(width), [width]);
+
+  // The chapter grid is a tab-stack screen under the floating tab capsule, so the
+  // last row (and the companion footer) has to clear it plus the Android nav bar.
+  // FlashList wants a plain ContentStyle object, not a StyleSheet reference.
+  const { contentClearance } = useTabBarHeight();
+  const listContentStyle = useMemo(
+    () => ({
+      paddingHorizontal: layout.screenPadding,
+      paddingBottom: layout.sectionGap + contentClearance,
+    }),
+    [contentClearance]
+  );
 
   const book = getBookById(bookId);
   if (!book) {
@@ -169,7 +182,7 @@ export function ChapterSelectorScreen() {
         renderItem={renderChapterRow}
         keyExtractor={(_, index) => `row-${index}`}
         estimatedItemSize={itemSize + CHAPTER_GRID_ROW_GAP}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={listContentStyle}
         showsVerticalScrollIndicator={false}
         extraData={{
           colors,
@@ -246,10 +259,6 @@ export function ChapterSelectorScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  listContent: {
-    paddingHorizontal: layout.screenPadding,
-    paddingBottom: layout.sectionGap,
   },
   headerContent: {
     paddingTop: spacing.md,

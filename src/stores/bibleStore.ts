@@ -1,7 +1,10 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { zustandStorage } from './mmkvStorage';
-import { bibleBooks, config, getBookById } from '../constants';
+// Direct module imports, not the '../constants' barrel: the barrel re-exports bookIcons, which
+// drags a ~298KB vector JSON into the store's startup graph. (P3)
+import { bibleBooks, getBookById } from '../constants/books';
+import { config } from '../constants/config';
 import type {
   Verse,
   BibleTranslation,
@@ -33,6 +36,13 @@ import {
   getDefaultBibleTranslations,
   sanitizePersistedBibleState,
 } from './persistedStateSanitizers';
+import {
+  BIBLE_PERSISTED_STATE_VERSION,
+  migrateBiblePersistedState,
+  readRuntimeCatalogSnapshot,
+  toPersistedTranslation,
+  writeRuntimeCatalogSnapshot,
+} from './bibleTranslationPersistence';
 import { setUserTranslationPreferences } from '../services/translations';
 import {
   mergeRuntimeCatalogTranslations,
@@ -88,6 +98,19 @@ function trackBibleStoreEvent(
       trackAnonymousUsageEvent(eventName, properties);
     })
     .catch(() => {});
+}
+
+// Module-eval used to call syncRemoteAudioMetadataResolverWithTranslations synchronously, adding
+// a full pass over the catalog to the startup JS thread. Deferred the same way verse-timestamp
+// metadata already is. (P19)
+function syncRemoteAudioMetadataDeferred(translations: BibleTranslation[]): void {
+  void import('../services/audio/audioRemote')
+    .then(({ syncRemoteAudioMetadataResolverWithTranslations }) => {
+      syncRemoteAudioMetadataResolverWithTranslations(translations);
+    })
+    .catch(() => {
+      // Audio metadata is a best-effort enrichment; a failure here must not block startup.
+    });
 }
 
 function syncVerseTimestampMetadata(translations: BibleTranslation[]): void {
@@ -190,11 +213,7 @@ function mapAudioDownloadProgress(job: AudioDownloadJobRecord): TranslationDownl
     bookId: job.bookId,
     progress: job.status === 'completed' ? 100 : 0,
     status:
-      job.status === 'completed'
-        ? 'completed'
-        : job.status === 'failed'
-          ? 'error'
-          : 'downloading',
+      job.status === 'completed' ? 'completed' : job.status === 'failed' ? 'error' : 'downloading',
     error: job.error,
   };
 }
@@ -257,55 +276,6 @@ function getLatestPersistedAudioJobByTranslation(
   return jobsByTranslation;
 }
 
-// Bundled translations' catalog-static fields (name, description, catalog, etc.) always come
-// from the live `bibleTranslations` constant on read — see hydrateSeededTranslation in
-// persistedStateSanitizers.ts, which only reads those fields from persisted data for runtime
-// translations — and nothing in this store ever mutates them at runtime. Persisting them anyway
-// meant every set() call (including routine chapter navigation) re-serialized the full static
-// payload for every bundled translation to MMKV. Runtime (downloaded-language) translations still
-// persist in full: their catalog has no separate offline cache, so trimming them risks losing
-// offline access to a downloaded translation if the live catalog re-fetch fails on boot.
-type PersistedBundledTranslationDelta = Pick<
-  BibleTranslation,
-  | 'id'
-  | 'isDownloaded'
-  | 'downloadedBooks'
-  | 'downloadedAudioBooks'
-  | 'installState'
-  | 'activeTextPackVersion'
-  | 'pendingTextPackVersion'
-  | 'pendingTextPackLocalPath'
-  | 'textPackLocalPath'
-  | 'rollbackTextPackVersion'
-  | 'rollbackTextPackLocalPath'
-  | 'lastInstallError'
-  | 'activeDownloadJob'
->;
-
-function toPersistedTranslation(
-  translation: BibleTranslation
-): BibleTranslation | PersistedBundledTranslationDelta {
-  if (translation.source === 'runtime') {
-    return translation;
-  }
-
-  return {
-    id: translation.id,
-    isDownloaded: translation.isDownloaded,
-    downloadedBooks: translation.downloadedBooks,
-    downloadedAudioBooks: translation.downloadedAudioBooks,
-    installState: translation.installState,
-    activeTextPackVersion: translation.activeTextPackVersion,
-    pendingTextPackVersion: translation.pendingTextPackVersion,
-    pendingTextPackLocalPath: translation.pendingTextPackLocalPath,
-    textPackLocalPath: translation.textPackLocalPath,
-    rollbackTextPackVersion: translation.rollbackTextPackVersion,
-    rollbackTextPackLocalPath: translation.rollbackTextPackLocalPath,
-    lastInstallError: translation.lastInstallError,
-    activeDownloadJob: translation.activeDownloadJob,
-  };
-}
-
 if (typeof __DEV__ !== 'undefined' && __DEV__) {
   console.log('[EB-T] bible:pre-create', Date.now());
 }
@@ -354,7 +324,8 @@ export const useBibleStore = create<BibleState>()(
         const preferredTranslationLanguage = translation.language?.trim() || null;
 
         const hasInstalledTextPack = Boolean(translation.textPackLocalPath);
-        const hasReadableText = translation.hasText && (translation.source !== 'runtime' || hasInstalledTextPack);
+        const hasReadableText =
+          translation.hasText && (translation.source !== 'runtime' || hasInstalledTextPack);
 
         if (translation.isDownloaded || hasReadableText) {
           set({ currentTranslation: translationId, preferredTranslationLanguage, error: null });
@@ -404,11 +375,11 @@ export const useBibleStore = create<BibleState>()(
                 downloadedBooks:
                   translation.downloadedBooks.length > 0
                     ? translation.downloadedBooks
-                    : existing?.downloadedBooks ?? [],
+                    : (existing?.downloadedBooks ?? []),
                 downloadedAudioBooks:
                   translation.downloadedAudioBooks.length > 0
                     ? translation.downloadedAudioBooks
-                    : existing?.downloadedAudioBooks ?? [],
+                    : (existing?.downloadedAudioBooks ?? []),
                 installState: existing?.installState ?? translation.installState,
                 activeTextPackVersion:
                   existing?.activeTextPackVersion ?? translation.activeTextPackVersion,
@@ -429,9 +400,7 @@ export const useBibleStore = create<BibleState>()(
             nextRuntimeTranslations
           );
           nextTranslationsSnapshot = nextTranslations;
-          const nextTranslationIds = new Set(
-            nextTranslations.map((translation) => translation.id)
-          );
+          const nextTranslationIds = new Set(nextTranslations.map((translation) => translation.id));
 
           return {
             translations: nextTranslations,
@@ -441,13 +410,18 @@ export const useBibleStore = create<BibleState>()(
           };
         });
 
+        // The only place runtime catalog metadata enters the store, and therefore the only place
+        // the offline metadata cache needs refreshing. Deliberately off the download/navigation
+        // hot path, and a no-op write when the catalog has not actually changed.
+        writeRuntimeCatalogSnapshot(nextTranslationsSnapshot);
         syncRemoteAudioMetadataResolverWithTranslations(nextTranslationsSnapshot);
         syncVerseTimestampMetadata(nextTranslationsSnapshot);
       },
 
       reconcileTranslationPacks: async () => {
         const runtimeTranslations = get().translations.filter(
-          (translation) => translation.source === 'runtime' && Boolean(translation.textPackLocalPath)
+          (translation) =>
+            translation.source === 'runtime' && Boolean(translation.textPackLocalPath)
         );
 
         if (runtimeTranslations.length === 0) {
@@ -498,7 +472,11 @@ export const useBibleStore = create<BibleState>()(
           try {
             await invalidateInstalledBibleDatabaseAtPath(localPath);
           } catch (error) {
-            console.warn('[Bible] Failed to invalidate missing installed pack:', translationId, error);
+            console.warn(
+              '[Bible] Failed to invalidate missing installed pack:',
+              translationId,
+              error
+            );
           }
         }
 
@@ -602,7 +580,9 @@ export const useBibleStore = create<BibleState>()(
       failTranslationPack: (translationId, error) => {
         set((state) => ({
           translations: state.translations.map((translation) =>
-            translation.id === translationId ? failTranslationPackCandidate(translation, error) : translation
+            translation.id === translationId
+              ? failTranslationPackCandidate(translation, error)
+              : translation
           ),
         }));
       },
@@ -667,7 +647,8 @@ export const useBibleStore = create<BibleState>()(
           }));
 
           const textPack = translation?.catalog?.text;
-          const { downloadCatalogTextPack } = await import('../services/bible/cloudTranslationService');
+          const { downloadCatalogTextPack } =
+            await import('../services/bible/cloudTranslationService');
 
           const handleProgress = (progress: {
             error?: string;
@@ -711,7 +692,8 @@ export const useBibleStore = create<BibleState>()(
 
           // Activate the installed pack — sets textPackLocalPath, isDownloaded, installState
           set((state) => ({
-            currentTranslation: state.currentTranslation === translationId ? translationId : state.currentTranslation,
+            currentTranslation:
+              state.currentTranslation === translationId ? translationId : state.currentTranslation,
             downloadProgress: null,
             error: null,
             translations: state.translations.map((t) =>
@@ -885,6 +867,28 @@ export const useBibleStore = create<BibleState>()(
             downloadProgress: mapAudioDownloadProgress(job),
           }));
         };
+        // Chapter-level aggregate across every book in the collection, so a whole-Bible download
+        // moves instead of sitting at 0% until a book finishes. The service already coalesces
+        // these events. (N25)
+        const handleAudioCollectionProgress = ({
+          jobId,
+          progress,
+          translationId: progressTranslationId,
+        }: AudioDownloadBookProgress) => {
+          set((state) => ({
+            translations: state.translations.map((item) =>
+              item.id === progressTranslationId
+                ? updateTranslationAudioJobProgress(item, progress)
+                : item
+            ),
+            downloadProgress: {
+              translationId: progressTranslationId,
+              jobId,
+              progress: clampPercent(progress),
+              status: 'downloading',
+            },
+          }));
+        };
         const handleAudioBookComplete = ({
           bookId: completedBookId,
           completedBooks,
@@ -893,22 +897,31 @@ export const useBibleStore = create<BibleState>()(
           jobId,
         }: AudioDownloadCollectionProgress) => {
           const collectionProgress = clampPercent((completedBooks / totalBooks) * 100);
-          set((state) => ({
-            translations: state.translations.map((item) =>
-              item.id === completedTranslationId
-                ? updateTranslationAudioJobProgress(
-                    mergeDownloadedAudioBook(item, completedBookId),
-                    collectionProgress
-                  )
-                : item
-            ),
-            downloadProgress: {
-              translationId: completedTranslationId,
-              progress: collectionProgress,
-              status: 'downloading',
-              jobId,
-            },
-          }));
+          set((state) => {
+            // Never walk backwards: the chapter aggregate above is always >= this book fraction.
+            const nextProgress = Math.max(
+              state.downloadProgress?.translationId === completedTranslationId
+                ? (state.downloadProgress.progress ?? 0)
+                : 0,
+              collectionProgress
+            );
+            return {
+              translations: state.translations.map((item) =>
+                item.id === completedTranslationId
+                  ? updateTranslationAudioJobProgress(
+                      mergeDownloadedAudioBook(item, completedBookId),
+                      nextProgress
+                    )
+                  : item
+              ),
+              downloadProgress: {
+                translationId: completedTranslationId,
+                jobId,
+                progress: nextProgress,
+                status: 'downloading',
+              },
+            };
+          });
         };
 
         let result: { downloadedBookIds: string[] };
@@ -926,6 +939,7 @@ export const useBibleStore = create<BibleState>()(
               onReattach: handleAudioJobUpdate,
               onFailure: (job) => handleAudioJobUpdate(job),
               onComplete: handleAudioJobUpdate,
+              onProgress: handleAudioCollectionProgress,
               onBookComplete: handleAudioBookComplete,
             },
           });
@@ -985,8 +999,17 @@ export const useBibleStore = create<BibleState>()(
       cancelDownload: () => {
         const progress = get().downloadProgress;
         const cancelledTranslationId = progress?.translationId;
-        if (progress?.jobId) {
-          const jobId = progress.jobId;
+        // The authoritative id is the one on the translation's active job. downloadProgress.jobId
+        // is a best-effort mirror, and during a collection download a book-scope event could once
+        // leave a nested book job id there — which requestAudioDownloadCancellation could not
+        // resolve, so cancel silently did nothing while chapters kept downloading. (N22)
+        const activeJobId = cancelledTranslationId
+          ? (get().translations.find((item) => item.id === cancelledTranslationId)
+              ?.activeDownloadJob?.id ?? null)
+          : null;
+        const resolvedJobId = activeJobId ?? progress?.jobId;
+        if (resolvedJobId) {
+          const jobId = resolvedJobId;
           // Stop the in-JS scheduling loop (runWithConcurrency) immediately, ask the native
           // background transport to stop any in-flight task for the same real job id, AND remove
           // the persisted registry record so the cancelled job can't resurrect as a phantom
@@ -1050,7 +1073,12 @@ export const useBibleStore = create<BibleState>()(
               await invalidateInstalledBibleDatabaseAtPath(localPath);
               await deleteFileSystemPath(localPath);
             } catch (error) {
-              console.warn('[Bible] Failed to remove translation text pack:', translationId, localPath, error);
+              console.warn(
+                '[Bible] Failed to remove translation text pack:',
+                translationId,
+                localPath,
+                error
+              );
             }
           })
         );
@@ -1059,7 +1087,11 @@ export const useBibleStore = create<BibleState>()(
           const audio = await loadAudioDownloadModules();
           await deleteFileSystemPath(`${audio.AUDIO_DOWNLOAD_ROOT_URI}${translationId}/`);
         } catch (error) {
-          console.warn('[Bible] Failed to remove translation audio downloads:', translationId, error);
+          console.warn(
+            '[Bible] Failed to remove translation audio downloads:',
+            translationId,
+            error
+          );
         }
 
         try {
@@ -1146,7 +1178,18 @@ export const useBibleStore = create<BibleState>()(
     }),
     {
       name: 'bible-storage',
+      version: BIBLE_PERSISTED_STATE_VERSION,
       storage: createJSONStorage(() => zustandStorage),
+      // Version 0 blobs inline every runtime translation's static catalog metadata. Migration
+      // moves that metadata into its own MMKV key and leaves only the user-mutable delta here.
+      // Zustand runs migrate BEFORE merge, and MMKV is synchronous, so the snapshot written here
+      // is already readable by the time merge re-joins the two halves.
+      migrate: (persistedState, version) =>
+        migrateBiblePersistedState(persistedState, version) as BibleState,
+      // Only the fields the store itself mutates. Everything static is re-seeded on hydration —
+      // bundled translations from the `bibleTranslations` constant, runtime translations from the
+      // catalog snapshot — so routine set() calls (chapter navigation, download progress ticks)
+      // no longer re-serialize 200+ full catalog objects to MMKV.
       partialize: (state) => ({
         currentBook: state.currentBook,
         currentChapter: state.currentChapter,
@@ -1160,7 +1203,11 @@ export const useBibleStore = create<BibleState>()(
         if (typeof __DEV__ !== 'undefined' && __DEV__) {
           console.log('[EB-T] bible:merge-start', Date.now());
         }
-        const result = { ...currentState, ...sanitizePersistedBibleState(persistedState) };
+        // Single read + single pass over the cached catalog; the deltas then join against it by id.
+        const result = {
+          ...currentState,
+          ...sanitizePersistedBibleState(persistedState, readRuntimeCatalogSnapshot()),
+        };
         if (typeof __DEV__ !== 'undefined' && __DEV__) {
           console.log('[EB-T] bible:merge-done', Date.now());
         }
@@ -1185,7 +1232,7 @@ setBibleDatabaseSourceResolver((translationId) => {
 if (typeof __DEV__ !== 'undefined' && __DEV__) {
   console.log('[EB-T] bible:post-create', Date.now());
 }
-syncRemoteAudioMetadataResolverWithTranslations(useBibleStore.getState().translations);
+syncRemoteAudioMetadataDeferred(useBibleStore.getState().translations);
 syncVerseTimestampMetadata(useBibleStore.getState().translations);
 if (typeof __DEV__ !== 'undefined' && __DEV__) {
   console.log('[EB-T] bible:module-done', Date.now());

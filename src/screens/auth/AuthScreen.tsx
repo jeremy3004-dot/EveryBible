@@ -110,7 +110,12 @@ function GoogleButton({
         disabled && googleStyles.disabled,
       ]}
     >
-      <Image source={GOOGLE_MARK} style={googleStyles.mark} />
+      <Image
+        source={GOOGLE_MARK}
+        style={googleStyles.mark}
+        accessible={false}
+        importantForAccessibility="no-hide-descendants"
+      />
       <Text style={[typography.bodyStrong, { color: colors.primaryText }]} numberOfLines={1}>
         {label}
       </Text>
@@ -343,7 +348,13 @@ export function AuthScreen() {
           </View>
 
           <View style={styles.content}>
-            <Image source={APP_ICON} style={styles.appIcon} accessibilityIgnoresInvertColors />
+            <Image
+              source={APP_ICON}
+              style={styles.appIcon}
+              accessibilityIgnoresInvertColors
+              accessible={false}
+              importantForAccessibility="no-hide-descendants"
+            />
 
             <Text style={[styles.title, displayFont.bold]}>{copy.title}</Text>
             <Text style={styles.subtitle}>{copy.subtitle}</Text>
@@ -427,10 +438,22 @@ export function AuthScreen() {
                   returnKeyType="next"
                   onSubmitEditing={() => passwordInputRef.current?.focus()}
                   blurOnSubmit={false}
+                  accessibilityLabel={
+                    errors.email ? `${t('auth.email')}, ${errors.email}` : t('auth.email')
+                  }
                 />
                 {errors.email ? (
-                  <Animated.View entering={errorEntering} style={styles.errorRow}>
-                    <CircleAlert size={14} color={colors.error} strokeWidth={2} />
+                  <Animated.View
+                    entering={errorEntering}
+                    style={styles.errorRow}
+                    accessibilityLiveRegion="polite"
+                  >
+                    <CircleAlert
+                      size={14}
+                      color={colors.error}
+                      strokeWidth={2}
+                      accessible={false}
+                    />
                     <Text style={styles.errorText}>{errors.email}</Text>
                   </Animated.View>
                 ) : null}
@@ -476,6 +499,11 @@ export function AuthScreen() {
                     editable={!isLoading}
                     returnKeyType={mode === 'signUp' ? 'next' : 'go'}
                     onSubmitEditing={handleEmailSubmit}
+                    accessibilityLabel={
+                      errors.password
+                        ? `${t('auth.password')}, ${errors.password}`
+                        : t('auth.password')
+                    }
                   />
                   <PressableScale
                     style={styles.eyeButton}
@@ -487,6 +515,7 @@ export function AuthScreen() {
                     accessibilityLabel={
                       showPassword ? t('auth.hidePassword') : t('auth.showPassword')
                     }
+                    accessibilityState={{ disabled: isLoading }}
                   >
                     {showPassword ? (
                       <EyeOff size={18} color={colors.secondaryText} strokeWidth={2} />
@@ -496,8 +525,17 @@ export function AuthScreen() {
                   </PressableScale>
                 </View>
                 {errors.password ? (
-                  <Animated.View entering={errorEntering} style={styles.errorRow}>
-                    <CircleAlert size={14} color={colors.error} strokeWidth={2} />
+                  <Animated.View
+                    entering={errorEntering}
+                    style={styles.errorRow}
+                    accessibilityLiveRegion="polite"
+                  >
+                    <CircleAlert
+                      size={14}
+                      color={colors.error}
+                      strokeWidth={2}
+                      accessible={false}
+                    />
                     <Text style={styles.errorText}>{errors.password}</Text>
                   </Animated.View>
                 ) : null}

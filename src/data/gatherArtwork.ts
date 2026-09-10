@@ -1,7 +1,7 @@
 /**
  * Auto-generated Gather artwork registry.
  *
- * Generated from assets/icons/gather-svg/*.svg by scripts/generate_gather_artwork_svgs.py.
+ * Generated from scripts/gather-svg/*.svg by scripts/generate_gather_artwork_svgs.py.
  */
 
 export const gatherArtworkXml: Record<string, string> = {

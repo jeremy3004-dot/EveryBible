@@ -5,6 +5,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// S5: same ceiling as track-anonymous-usage-events/parseBatchRequest.
+const MAX_EVENTS_PER_BATCH = 500;
+
 interface QueuedAnalyticsEvent {
   app_version: string;
   device_platform: string;
@@ -341,6 +344,17 @@ Deno.serve(async (req) => {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+
+    // S5: match the 500-event batch ceiling that track-anonymous-usage-events already
+    // enforces (parseBatchRequest). This endpoint requires a verified user token, so the
+    // exposure is smaller, but a single authenticated account could still drive an unbounded
+    // service-role insert from one request. The app batches far below this in practice.
+    if (events.length > MAX_EVENTS_PER_BATCH) {
+      return new Response(
+        JSON.stringify({ success: false, error: `A batch may contain at most ${MAX_EVENTS_PER_BATCH} events` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const payloadGeos = events.map((event) => resolveEventGeo(event));

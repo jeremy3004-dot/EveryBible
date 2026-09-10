@@ -204,12 +204,6 @@ test('audio availability is answered by the configured-translation check', async
   ]);
 });
 
-test('clearing the audio cache clears the remote url cache', async () => {
-  mod.clearAudioCache();
-
-  assert.deepEqual(calls, [{ method: 'clearRemoteAudioCache', args: [] }]);
-});
-
 test('prefetching defaults to the next three chapters', async () => {
   await mod.prefetchChapterAudio('bsb', 'GEN', 4);
 

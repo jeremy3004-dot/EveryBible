@@ -547,6 +547,9 @@ export const ne = {
     "resetPasswordSubmit": "पासवर्ड अपडेट गर्नुहोस्",
     "resetPasswordSuccess": "तपाईंको पासवर्ड अपडेट भयो",
     "resetPasswordError": "पासवर्ड अपडेट गर्न असफल भयो",
+    "resetLinkConfirmTitle": "नयाँ पासवर्ड सेट गर्ने?",
+    "resetLinkConfirmBody": "यो लिंकले {{email}} का लागि नयाँ पासवर्ड सेट गर्नेछ। जारी राख्ने?",
+    "resetLinkDifferentAccount": "यो रिसेट लिंक अर्को खाताको हो। पहिले यो खाताबाट साइन आउट गर्नुहोस्, त्यसपछि लिंक फेरि खोल्नुहोस्।",
     "resetPasswordInvalidSession": "यो रिसेट लिङ्क अमान्य छ वा म्याद सकिएको छ। कृपया नयाँ अनुरोध गर्नुहोस्।"
   },
   "profile": {
@@ -1153,34 +1156,6 @@ export const ne = {
         "l8": "हामीसँग परमेश्वर"
       }
     }
-  },
-  "harvestStudies": {
-    "christologyTitle": "ख्रीष्टविज्ञान",
-    "christologyDesc": "येशू को हुनुहुन्छ, उहाँको मिशन, मृत्यु, पुनरुत्थान र राज्यको बारेमा निरन्तर अध्याय अध्ययनहरू।",
-    "gospelTitle": "सुसमाचार",
-    "gospelDesc": "पाप, अनुग्रह, न्यायीकरण र ख्रीष्टद्वारा मुक्तिको बारेमा अध्याय-आधारित अध्ययनहरू।",
-    "prayerTitle": "प्रार्थना",
-    "prayerDesc": "दैनिक प्रार्थना जीवनलाई बलियो बनाउने आदर्श र शिक्षाहरू।",
-    "loveAndChristianLivingTitle": "प्रेम र ख्रीष्टिय जीवन",
-    "loveAndChristianLivingDesc": "प्रेम, पवित्रता र आत्माको अगुवाइमा चल्नको लागि व्यावहारिक अध्यायहरू।",
-    "discipleshipTitle": "चेलापन",
-    "discipleshipDesc": "आज्ञाकारिता, समर्पण र राज्यको प्राथमिकतासहित येशूको अनुसरण गर्ने शिक्षाहरू।",
-    "churchTitle": "मण्डली",
-    "churchDesc": "कार्यमा मण्डलीको पहिचान, एकता र मिशन।",
-    "missionHarvestTitle": "मिशन / कटनी",
-    "missionHarvestDesc": "सुसमाचार प्रचार, साक्षी र महान आयोगका मूल अध्यायहरू।",
-    "groupEternalChrist": "अनन्त ख्रीष्ट (पूर्व-अस्तित्व)",
-    "groupBirthOfJesus": "येशूको जन्म (अवतार)",
-    "groupMissionOfJesus": "येशूको मिशन",
-    "groupDeathOfJesus": "येशूको मृत्यु (प्रायश्चित)",
-    "groupResurrectionOfJesus": "येशूको पुनरुत्थान",
-    "groupExaltedChrist": "उच्च पारिएको ख्रीष्ट",
-    "groupGospelSalvation": "सुसमाचार (मुक्ति)",
-    "groupPrayerCore": "प्रार्थना",
-    "groupLoveAndLivingCore": "प्रेम र ख्रीष्टिय जीवन",
-    "groupDiscipleshipCore": "चेलापन",
-    "groupChurchCore": "मण्डली",
-    "groupMissionHarvestCore": "मिशन / कटनी"
   },
   "readingPlans": {
     "activeCount": "{{count}} सक्रिय",

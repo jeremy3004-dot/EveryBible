@@ -11,7 +11,7 @@ mockReactNative(mock, { os: 'web' });
 const hapticCalls: string[] = [];
 
 mockModule(mock, 'expo-haptics', {
-  ImpactFeedbackStyle: { Light: 'impact-light', Medium: 'impact-medium', Heavy: 'impact-heavy' },
+  ImpactFeedbackStyle: { Light: 'impact-light', Medium: 'impact-medium' },
   NotificationFeedbackType: {
     Success: 'notify-success',
     Warning: 'notify-warning',
@@ -33,7 +33,6 @@ test('no helper touches the native haptics API on a platform without haptics', a
 
   haptics.lightHaptic();
   haptics.mediumHaptic();
-  haptics.heavyHaptic();
   haptics.successHaptic();
   haptics.warningHaptic();
   haptics.errorHaptic();

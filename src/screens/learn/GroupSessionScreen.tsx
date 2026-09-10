@@ -407,7 +407,7 @@ export function GroupSessionScreen() {
             </View>
 
             <View style={[styles.tipCard, { backgroundColor: colors.warning + '15' }]}>
-              <Ionicons name="bulb-outline" size={18} color={colors.warning} />
+              <Ionicons name="bulb-outline" size={18} color={colors.onWarningSoft} />
               <Text style={[styles.tipText, { color: colors.primaryText }]}>
                 {t('groups.session.lookBackTip')}
               </Text>
@@ -532,7 +532,7 @@ export function GroupSessionScreen() {
             </Text>
 
             <View style={[styles.takeawayCard, { backgroundColor: colors.warning + '15' }]}>
-              <Text style={[styles.takeawayLabel, { color: colors.warning }]}>
+              <Text style={[styles.takeawayLabel, { color: colors.onWarningSoft }]}>
                 {t('groups.session.keyTakeaway')}
               </Text>
               <Text style={[styles.takeawayText, { color: colors.primaryText }]}>

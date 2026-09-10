@@ -51,10 +51,20 @@ test('LocaleSetupFlow initial onboarding shows Bible search and the full list im
     'Initial onboarding should not require a Bible language preference tap before browsing'
   );
 
-  assert.equal(
-    flowSource.includes('onboardingLanguageSections.map'),
-    true,
-    'Initial onboarding should render the grouped Bible language sections in the default view'
+  // The grouped sections used to be mapped straight into the ScrollView. They
+  // are now flattened into the virtualized list's item array instead, but the
+  // intent is unchanged: the full grouped Bible language list is in the default
+  // view, not behind a toggle.
+  assert.match(
+    flowSource,
+    /buildBibleLanguageListItems\(\{[\s\S]*?sections: onboardingLanguageSections/,
+    'Initial onboarding should feed the grouped Bible language sections into the default list'
+  );
+
+  assert.match(
+    flowSource,
+    /showsFullList: bibleLanguageListState\.showsFullList/,
+    'The full Bible language list should still be gated only by the list-state model'
   );
 
   assert.equal(
@@ -315,5 +325,245 @@ test('LocaleSetupFlow renders the Every Language nation step: step rail, suggest
     flowSource,
     /import \{ useKeyboardBottomInset \} from '\.\.\/\.\.\/hooks\/useKeyboardBottomInset';/,
     'The pinned footer should lift clear of the keyboard, and the hook must be imported directly rather than through the hooks barrel (which pulls Supabase onto this screen)'
+  );
+});
+
+test('LocaleSetupFlow virtualizes its list-heavy steps instead of mapping every row into a ScrollView', () => {
+  const flowSource = readRelativeSource('./LocaleSetupFlow.tsx');
+  const listSource = readRelativeSource('./LocaleSetupList.tsx');
+
+  // The regression this guards: rendering the Bible language catalog (hundreds
+  // of rows), the ~249 nations and the language search results with `.map()`
+  // inside one ScrollView mounted every row at once, saturating the JS thread on
+  // Hermes. Each step now feeds one virtualized list.
+  // Comments may still explain what was replaced; what must be gone is the
+  // import and the element.
+  assert.equal(
+    /^import[\s\S]*?\bScrollView\b[\s\S]*?from 'react-native';/m.test(flowSource),
+    false,
+    'LocaleSetupFlow should no longer import ScrollView'
+  );
+
+  assert.equal(
+    flowSource.includes('<ScrollView'),
+    false,
+    'LocaleSetupFlow should no longer render its steps inside a ScrollView'
+  );
+
+  assert.equal(
+    flowSource.includes('onboardingLanguageSections.map'),
+    false,
+    'The Bible language sections should be flattened into list items, not mapped into the scroll body'
+  );
+
+  assert.equal(
+    flowSource.includes('listedCountries.map((country, index)'),
+    false,
+    'The nation list should be flattened into list items, not mapped into the scroll body'
+  );
+
+  assert.equal(
+    flowSource.includes('languageResults.recommended.map'),
+    false,
+    'The language search results should be flattened into list items, not mapped into the scroll body'
+  );
+
+  assert.match(
+    flowSource,
+    /<LocaleSetupList[\s\S]*data=\{stepItems\}[\s\S]*renderItem=\{renderStepItem\}/,
+    'Every step body should render through the shared virtualized list'
+  );
+
+  assert.match(
+    listSource,
+    /from '@shopify\/flash-list'/,
+    'The shared onboarding list should be backed by FlashList'
+  );
+
+  assert.match(
+    listSource,
+    /keyExtractor=\{keyExtractor\}[\s\S]*getItemType=\{getItemType\}[\s\S]*estimatedItemSize=/,
+    'The virtualized list needs stable keys, per-type cell pools and a size estimate'
+  );
+
+  assert.match(
+    listSource,
+    /const keyExtractor = \(item: LocaleSetupListItemBase\): string => item\.id;/,
+    'Rows must key off a stable id, never the list index'
+  );
+
+  assert.match(
+    listSource,
+    /keyboardShouldPersistTaps="handled"[\s\S]*keyboardDismissMode="on-drag"/,
+    'The virtualized list should keep the ScrollView keyboard behaviour it replaced'
+  );
+
+  assert.match(
+    listSource,
+    /scrollToOffset\(\{ offset: 0, animated: false \}\)/,
+    'Changing step or search query should scroll the list back to the top'
+  );
+
+  assert.match(
+    flowSource,
+    /contentPaddingBottom=\{\(showFooter \? footerHeight : 0\) \+ keyboardOffset \+ spacing\.xxl\}/,
+    'The list must reserve the same bottom padding the ScrollView did for the pinned footer and keyboard'
+  );
+});
+
+test('LocaleSetupFlow keeps the search field out of the recycled item array', () => {
+  const flowSource = readRelativeSource('./LocaleSetupFlow.tsx');
+
+  // Recycled cells can unmount while the results below re-filter, which would
+  // drop focus and dismiss the keyboard mid-word. The search field rides in the
+  // list header instead, where it is re-rendered in place.
+  assert.match(
+    flowSource,
+    /const listHeader = \(\s*<View>/,
+    'The list header should be an element of a stable component type, not an inline function component'
+  );
+
+  assert.match(
+    flowSource,
+    /const listHeader = \([\s\S]*'onboarding-translation-search'[\s\S]*'onboarding-country-search'[\s\S]*'onboarding-language-search'[\s\S]*\);/,
+    'Every step search field should live in the list header'
+  );
+
+  assert.equal(
+    /type: 'search'/.test(flowSource),
+    false,
+    'The search field should not be a recycled list item'
+  );
+
+  assert.match(
+    flowSource,
+    /header=\{listHeader\}/,
+    'The virtualized list should receive the header element'
+  );
+});
+
+test('LocaleSetupFlow rows draw their own grouped-card edges', () => {
+  const flowSource = readRelativeSource('./LocaleSetupFlow.tsx');
+  const listSource = readRelativeSource('./LocaleSetupList.tsx');
+
+  // A virtualized group can no longer be wrapped in one AppCard, so each row
+  // paints the slice of the card it occupies.
+  assert.match(
+    listSource,
+    /export function GroupedRowCard\(\{ position, children \}: GroupedRowCardProps\)/,
+    'There should be a per-row grouped card shell'
+  );
+
+  assert.match(
+    listSource,
+    /first: \{\s*borderTopWidth: 1,\s*borderTopLeftRadius: radius\.lg,\s*borderTopRightRadius: radius\.lg,/,
+    'The first row of a group should draw the card top edge and radius'
+  );
+
+  assert.match(
+    listSource,
+    /last: \{\s*borderBottomWidth: 1,\s*borderBottomLeftRadius: radius\.lg,\s*borderBottomRightRadius: radius\.lg,/,
+    'The last row of a group should draw the card bottom edge and radius'
+  );
+
+  assert.match(
+    listSource,
+    /only: \{\s*borderTopWidth: 1,\s*borderBottomWidth: 1,\s*borderRadius: radius\.lg,/,
+    'A single-row group should draw all four card edges'
+  );
+
+  assert.match(
+    flowSource,
+    /isLast=\{isLastInLocaleSetupGroup\(position\)\}/,
+    'Rows should keep the isLast separator semantics they had inside an AppCard'
+  );
+});
+
+test('LocaleSetupFlow never resolves the locale search engine while rendering its first frame', () => {
+  const flowSource = readRelativeSource('./LocaleSetupFlow.tsx');
+
+  // Everything above the step gate runs unconditionally on the very first
+  // render. Touching the engine there costs the 129 KB catalog require plus two
+  // ICU sorts before anything is on screen — and the initial flow opens on the
+  // translation step, which needs none of it.
+  const componentStart = flowSource.indexOf('export function LocaleSetupFlow(');
+  const gateIndex = flowSource.indexOf('const needsLocaleSelection =');
+  assert.ok(componentStart > 0 && gateIndex > componentStart);
+  const renderPrologue = flowSource.slice(componentStart, gateIndex);
+
+  assert.doesNotMatch(
+    renderPrologue,
+    /localeSearchEngine\./,
+    'no value read on every first render may come from the locale search engine'
+  );
+
+  assert.match(
+    flowSource,
+    /const needsLocaleSelection = step === 'country' \|\| step === 'contentLanguage';/,
+    'the engine-backed selection should be gated on the steps that actually display it'
+  );
+
+  assert.match(
+    flowSource,
+    /const selectedCountry = useMemo\([\s\S]{0,80}needsLocaleSelection \? localeSearchEngine\.getCountryByCode\(selectedCountryCode\)\s*: null,?\s*\)?,/,
+    'the selected country should be memoized behind the step gate rather than resolved in the render body'
+  );
+
+  assert.match(
+    flowSource,
+    /const selectedLanguage = useMemo\([\s\S]{0,80}needsLocaleSelection \? localeSearchEngine\.getLanguageByCode\(selectedLanguageCode\)\s*: null,?\s*\)?,/,
+    'the selected content language should be memoized behind the same gate'
+  );
+
+  assert.match(
+    flowSource,
+    /const \[selectedCountryDisplayName, setSelectedCountryDisplayName\] = useState\(''\);/,
+    'the localized nation name should start empty and be filled in later — building Intl.DisplayNames and walking 249 countries must never happen during a render'
+  );
+
+  assert.match(
+    flowSource,
+    /useEffect\(\(\) => \{[\s\S]{0,400}setSelectedCountryDisplayName\(\s*localeSearchEngine\.getCountryDisplayName\(selectedCountryCode, selectedInterfaceLanguageCode\)\s*\);/,
+    'the localized nation name should be resolved from an effect'
+  );
+
+  assert.match(
+    flowSource,
+    /useState<string \| null>\(\s*\(\) => \(preferences\.countryCode \|\| deviceCountryCode\)\?\.toUpperCase\(\) \?\? null\s*\)/,
+    'the stored nation code should seed state directly instead of being resolved through the engine on first render'
+  );
+
+  assert.match(
+    flowSource,
+    /const canonicalCode = localeSearchEngine\.getLanguageByCode\(selectedLanguageCode\)\?\.code;/,
+    'the stored content-language code should still be canonicalized against the catalog — just from an effect, once a step needs the engine'
+  );
+
+  assert.match(
+    flowSource,
+    /InteractionManager\.runAfterInteractions\(\(\) => \{\s*prewarmLocaleSearchEngine\(\);/,
+    'the off-critical-path pre-warm should stay: the engine is still needed, just not during a render'
+  );
+});
+
+test('LocaleSetupFlow lifts its footer by the measured keyboard overlap', () => {
+  const flowSource = readRelativeSource('./LocaleSetupFlow.tsx');
+
+  assert.match(
+    flowSource,
+    /useKeyboardBottomInset\(\{\s*surfaceRef: listSurfaceRef,\s*safeAreaBottomInset: insets\.bottom,\s*\}\)/,
+    'the flow should hand the hook the surface to measure and the inset its own layout reserves — Android cannot derive the overlap from the keyboard frame alone under edge-to-edge'
+  );
+
+  assert.match(
+    flowSource,
+    /<View ref=\{listSurfaceRef\} style=\{styles\.listSurface\} collapsable=\{false\}>/,
+    'the measured surface should be the list wrapper, whose bottom edge is where the pinned footer sits at rest — and it must not be collapsed away on Android'
+  );
+
+  assert.match(
+    flowSource,
+    /const keyboardOffset = keyboardBottomInset;/,
+    'the safe-area correction now lives in the hook, so the flow must not subtract it a second time'
   );
 });

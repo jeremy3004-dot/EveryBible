@@ -240,18 +240,24 @@ Deno.serve(async (request) => {
         return jsonResponse(400, { success: false, error: 'feedbackId is required' });
       }
 
+      // translationId is REQUIRED for mutations (S4). The passcode is a single shared secret
+      // across all translations, so without this scope any passcode holder could resolve or
+      // reopen another translation's feedback by guessing/replaying a feedback UUID. Making it
+      // mandatory (rather than an optional extra filter) means a mutation always has to name
+      // the translation it is acting on. The app already sends it on both actions
+      // (src/services/feedback/chapterFeedbackReviewService.ts resolve/reopen bodies).
+      if (!translationId) {
+        return jsonResponse(400, { success: false, error: 'translationId is required' });
+      }
+
       // Confirm the row exists and belongs to the requested translation before mutating.
-      let existingQuery = service
+      const { data: existing, error: existingError } = await service
         .from('chapter_feedback_submissions')
         .select('id, translation_id')
         .eq('id', feedbackId)
-        .limit(1);
-
-      if (translationId) {
-        existingQuery = existingQuery.eq('translation_id', translationId);
-      }
-
-      const { data: existing, error: existingError } = await existingQuery.maybeSingle();
+        .eq('translation_id', translationId)
+        .limit(1)
+        .maybeSingle();
 
       if (existingError) {
         return jsonResponse(500, { success: false, error: existingError.message });
@@ -270,7 +276,8 @@ Deno.serve(async (request) => {
             scripture_council_fixed_by: null,
             scripture_council_fixed_note: null,
           })
-          .eq('id', feedbackId);
+          .eq('id', feedbackId)
+          .eq('translation_id', translationId);
 
         if (reopenError) {
           return jsonResponse(500, { success: false, error: reopenError.message });
@@ -301,7 +308,8 @@ Deno.serve(async (request) => {
           scripture_council_fixed_by: fixedBy,
           scripture_council_fixed_note: note.length > 0 ? note : null,
         })
-        .eq('id', feedbackId);
+        .eq('id', feedbackId)
+        .eq('translation_id', translationId);
 
       if (resolveError) {
         return jsonResponse(500, { success: false, error: resolveError.message });
@@ -450,11 +458,13 @@ Deno.serve(async (request) => {
         participantName: row.participant_name,
         participantRole: row.participant_role,
         // Legacy rows stored the raw Supabase UUID here; never surface it to translators (S4).
+        // row.user_id is selected ONLY for this comparison and is deliberately not emitted:
+        // translators authenticate with a shared passcode, so anything in this payload is
+        // readable by every passcode holder, and the submitter's auth UUID is not theirs to see.
         participantIdNumber:
           row.participant_id_number && row.participant_id_number === row.user_id
             ? null
             : row.participant_id_number,
-        userId: row.user_id,
         sourceScreen: row.source_screen,
         resolution: row.scripture_council_resolution,
         resolvedAt: row.scripture_council_fixed_at,

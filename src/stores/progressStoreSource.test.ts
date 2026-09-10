@@ -30,3 +30,35 @@ test('progress store avoids a static sync-service import so startup does not for
     'progress sync identity should be read synchronously without a startup import cycle'
   );
 });
+
+test('progress store persists only the restored fields and skips unchanged writes', () => {
+  assert.match(
+    source,
+    /const selectPersistedProgressState = \(state: ProgressState\) => \(\{[\s\S]*chaptersRead: state\.chaptersRead,[\s\S]*chaptersListened: state\.chaptersListened,[\s\S]*listeningMsByDate: state\.listeningMsByDate,[\s\S]*streakDays: state\.streakDays,[\s\S]*lastReadDate: state\.lastReadDate,[\s\S]*\}\);/,
+    'progressStore should partialize down to exactly the fields sanitizePersistedProgressState restores'
+  );
+
+  assert.match(
+    source,
+    /partialize: selectPersistedProgressState,/,
+    'the persist config should use the projection rather than serializing the whole store (computed getters included)'
+  );
+
+  assert.match(
+    source,
+    /storage: progressStorage,/,
+    'the persist config should use the diffing storage adapter, not a bare createJSONStorage'
+  );
+
+  assert.match(
+    source,
+    /setItem: \(name, value\) => \{[\s\S]*hasSameSavedProgress\(lastSavedProgress\.state, value\.state\)[\s\S]*return;/,
+    'an unchanged persisted payload should short-circuit before JSON serialization, so a chapter turn does not re-stringify the whole read ledger'
+  );
+
+  assert.match(
+    source,
+    /lastSavedProgress = result === undefined \? value : undefined;/,
+    'only synchronous saves may be remembered — an async adapter must not suppress a write before it has finished'
+  );
+});

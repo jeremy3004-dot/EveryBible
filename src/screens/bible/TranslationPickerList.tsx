@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { FlashList } from '@shopify/flash-list';
 import { bibleBooks, config, getTranslatedBookName, newTestamentBooks } from '../../constants';
@@ -25,8 +26,9 @@ import {
   getFirstAvailableAudioBook,
   isRemoteAudioAvailable,
 } from '../../services/audio/audioRemote';
+import { ProgressBar } from '../../components/ui';
 import { layout, radius, spacing, typography } from '../../design/system';
-import { hexWithAlpha } from '../../utils';
+import { announceForAccessibility, hexWithAlpha } from '../../utils';
 import type { BibleTranslation } from '../../types';
 import {
   ensureRuntimeCatalogLoaded,
@@ -67,7 +69,6 @@ type TranslationLanguageSearchResult = ReturnType<
 type GroupPosition = 'only' | 'first' | 'middle' | 'last';
 
 type TranslationPickerRow =
-  | { type: 'search'; id: string }
   | { type: 'language-search-result'; id: string; language: TranslationLanguageSearchResult }
   | { type: 'preference'; id: string }
   | { type: 'section-header'; id: string; label: string }
@@ -89,9 +90,14 @@ export function TranslationPickerList({
 }: TranslationPickerListProps) {
   const { colors } = useTheme();
   const { t } = useI18n();
-  const keyboardBottomInset = useKeyboardBottomInset();
+  const insets = useSafeAreaInsets();
+  // Android cannot get the overlap from the keyboard frame alone — edge-to-edge
+  // means this surface is never resized for the IME — so the picker measures its
+  // own bottom edge against the keyboard top instead.
+  const listSurfaceRef = useRef<View>(null);
+  const keyboardBottomInset = useKeyboardBottomInset({ surfaceRef: listSurfaceRef });
 
-  // The search box lives inside this list, and the picker's own sheet is a plain
+  // The search box sits above this list, and the picker's own sheet is a plain
   // Modal that iOS never resizes for the keyboard. Growing the scrollable extent
   // by the keyboard height is what lets the bottom rows reach above it.
   // FlashList wants a plain ContentStyle object, not a StyleSheet reference.
@@ -396,7 +402,7 @@ export function TranslationPickerList({
   };
 
   const translationRows = useMemo<TranslationPickerRow[]>(() => {
-    const rows: TranslationPickerRow[] = [{ type: 'search', id: 'search' }];
+    const rows: TranslationPickerRow[] = [];
 
     if (hasActiveSearchQuery) {
       languageSearchResults.forEach((language) => {
@@ -464,42 +470,47 @@ export function TranslationPickerList({
     t,
   ]);
 
-  const renderTranslationRow = ({ item }: { item: TranslationPickerRow }) => {
-    if (item.type === 'search') {
-      return (
-        <View
-          style={[
-            styles.searchInputShell,
-            { backgroundColor: colors.bibleElevatedSurface, borderColor: colors.bibleDivider },
-          ]}
+  // The search field is deliberately NOT a row: rows are recycled cells, so a
+  // scroll far enough down would unmount the focused TextInput and drop the
+  // keyboard mid-query. FlashList re-renders a header element in place, which
+  // keeps focus — the same shape the onboarding locale list uses. It has to be
+  // an element of a stable type (never an inline component) or React remounts
+  // it on every keystroke and steals focus anyway.
+  const searchHeader = (
+    <View
+      style={[
+        styles.searchInputShell,
+        { backgroundColor: colors.bibleElevatedSurface, borderColor: colors.bibleDivider },
+      ]}
+    >
+      <Ionicons name="search" size={18} color={colors.bibleSecondaryText} />
+      <TextInput
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+        testID="translation-picker-search"
+        accessibilityLabel={t('common.search')}
+        placeholder={t('common.search')}
+        placeholderTextColor={colors.bibleSecondaryText}
+        style={[styles.searchInput, { color: colors.biblePrimaryText }]}
+        autoCapitalize="none"
+        autoCorrect={false}
+        returnKeyType="search"
+      />
+      {searchQuery.length > 0 ? (
+        <TouchableOpacity
+          style={styles.clearSearchButton}
+          onPress={() => setSearchQuery('')}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel={t('settings.clear')}
         >
-          <Ionicons name="search" size={18} color={colors.bibleSecondaryText} />
-          <TextInput
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            testID="translation-picker-search"
-            accessibilityLabel={t('common.search')}
-            placeholder={t('common.search')}
-            placeholderTextColor={colors.bibleSecondaryText}
-            style={[styles.searchInput, { color: colors.biblePrimaryText }]}
-            autoCapitalize="none"
-            autoCorrect={false}
-            returnKeyType="search"
-          />
-          {searchQuery.length > 0 ? (
-            <TouchableOpacity
-              style={styles.clearSearchButton}
-              onPress={() => setSearchQuery('')}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              accessibilityRole="button"
-            >
-              <Ionicons name="close-circle" size={18} color={colors.bibleSecondaryText} />
-            </TouchableOpacity>
-          ) : null}
-        </View>
-      );
-    }
+          <Ionicons name="close-circle" size={18} color={colors.bibleSecondaryText} />
+        </TouchableOpacity>
+      ) : null}
+    </View>
+  );
 
+  const renderTranslationRow = ({ item }: { item: TranslationPickerRow }) => {
     if (item.type === 'language-search-result') {
       const isSelected = resolvedPreferredLanguage === item.language.value;
 
@@ -585,7 +596,7 @@ export function TranslationPickerList({
   };
 
   return (
-    <View style={styles.container}>
+    <View ref={listSurfaceRef} style={styles.container} collapsable={false}>
       {isHydratingRuntimeCatalog && !hasHydratedRuntimeCatalog ? (
         <View style={styles.catalogHydrationRow}>
           <ActivityIndicator size="small" color={colors.bibleAccent} />
@@ -658,6 +669,7 @@ export function TranslationPickerList({
           style={styles.translationList}
           data={translationRows}
           renderItem={renderTranslationRow}
+          ListHeaderComponent={searchHeader}
           keyExtractor={(item) => item.id}
           contentContainerStyle={translationListContentStyle}
           showsVerticalScrollIndicator={false}
@@ -678,6 +690,8 @@ export function TranslationPickerList({
       <Modal
         visible={manageTranslation != null}
         transparent
+        statusBarTranslucent
+        navigationBarTranslucent
         animationType="slide"
         onRequestClose={() => setManageTranslationId(null)}
       >
@@ -692,7 +706,13 @@ export function TranslationPickerList({
           <View
             style={[
               styles.modalContent,
-              { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
+              {
+                backgroundColor: colors.bibleSurface,
+                borderColor: colors.bibleDivider,
+                // The sheet is a bare Modal, so nothing else keeps its last
+                // rows clear of the Android navigation bar.
+                paddingBottom: insets.bottom,
+              },
             ]}
           >
             {manageTranslation ? (
@@ -752,6 +772,23 @@ const TranslationRow = memo(function TranslationRow({
       ? (downloadProgress?.progress ?? 0)
       : null;
   const isTextDownloaded = translation.isDownloaded || Boolean(translation.textPackLocalPath);
+
+  // A download's only visible signal is a silently growing rule, so speak the
+  // same status words the row already shows when it starts and when it settles.
+  const wasDownloadingRef = useRef(false);
+  useEffect(() => {
+    const isDownloading = activeDownloadProgress != null;
+    if (isDownloading === wasDownloadingRef.current) return;
+    wasDownloadingRef.current = isDownloading;
+    if (isDownloading) {
+      announceForAccessibility(t('translations.downloading'));
+    } else {
+      announceForAccessibility(
+        isTextDownloaded ? t('translations.installed') : t('translations.available')
+      );
+    }
+  }, [activeDownloadProgress, isTextDownloaded, t]);
+
   const needsTextDownload =
     !isTextDownloaded && Boolean(translation.catalog?.text?.downloadUrl) && !translation.hasAudio;
 
@@ -809,16 +846,14 @@ const TranslationRow = memo(function TranslationRow({
           ) : null}
           {activeDownloadProgress != null ? (
             <View style={styles.rowProgress}>
-              <View
-                style={[styles.downloadProgressTrack, { backgroundColor: colors.bibleDivider }]}
-              >
-                <View
-                  style={[
-                    styles.downloadProgressFill,
-                    { backgroundColor: colors.bibleAccent, width: `${activeDownloadProgress}%` },
-                  ]}
-                />
-              </View>
+              <ProgressBar
+                progress={activeDownloadProgress / 100}
+                height={DOWNLOAD_PROGRESS_HEIGHT}
+                trackColor={colors.bibleDivider}
+                fillColor={colors.bibleAccent}
+                style={styles.downloadProgressTrack}
+                accessibilityLabel={t('translations.downloading')}
+              />
             </View>
           ) : null}
         </View>
@@ -949,8 +984,10 @@ function TranslationManageSheet({
       } else {
         await downloadAudioForTranslation(translation.id);
       }
-    } catch {
-      Alert.alert(t('common.error'), t('bible.audioDownloadFailed'));
+    } catch (downloadError) {
+      const message =
+        downloadError instanceof Error ? downloadError.message : t('bible.audioDownloadFailed');
+      Alert.alert(t('common.error'), message);
     } finally {
       setActiveAudioDownloadKey(null);
     }
@@ -965,8 +1002,10 @@ function TranslationManageSheet({
 
     try {
       await downloadAudioForBook(translation.id, bookId);
-    } catch {
-      Alert.alert(t('common.error'), t('bible.audioDownloadFailed'));
+    } catch (downloadError) {
+      const message =
+        downloadError instanceof Error ? downloadError.message : t('bible.audioDownloadFailed');
+      Alert.alert(t('common.error'), message);
     } finally {
       setActiveAudioDownloadKey(null);
     }
@@ -1204,16 +1243,14 @@ function TranslationManageSheet({
                   {row.label}
                 </Text>
                 {row.progress != null ? (
-                  <View
-                    style={[styles.downloadProgressTrack, { backgroundColor: colors.bibleDivider }]}
-                  >
-                    <View
-                      style={[
-                        styles.downloadProgressFill,
-                        { backgroundColor: colors.bibleAccent, width: `${row.progress}%` },
-                      ]}
-                    />
-                  </View>
+                  <ProgressBar
+                    progress={row.progress / 100}
+                    height={DOWNLOAD_PROGRESS_HEIGHT}
+                    trackColor={colors.bibleDivider}
+                    fillColor={colors.bibleAccent}
+                    style={styles.downloadProgressTrack}
+                    accessibilityLabel={t('translations.downloading')}
+                  />
                 ) : null}
               </View>
               {row.progress != null ? (
@@ -1311,6 +1348,10 @@ function TranslationManageSheet({
     </>
   );
 }
+
+// The download rule keeps its original 3pt hairline; ProgressBar owns the
+// radius, clipping, and the animated fill.
+const DOWNLOAD_PROGRESS_HEIGHT = 3;
 
 const styles = StyleSheet.create({
   container: {
@@ -1495,14 +1536,7 @@ const styles = StyleSheet.create({
     marginRight: spacing.xs,
   },
   downloadProgressTrack: {
-    height: 3,
-    borderRadius: 2,
     marginTop: 6,
-    overflow: 'hidden',
-  },
-  downloadProgressFill: {
-    height: 3,
-    borderRadius: 2,
   },
 });
 

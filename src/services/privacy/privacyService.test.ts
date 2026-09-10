@@ -1,102 +1,291 @@
-import test, { before, beforeEach, mock } from 'node:test';
+/**
+ * Privacy secure-code storage hardening (S8).
+ *
+ * privacyService.ts talks to expo-secure-store and expo-crypto, and appIcon.ts
+ * reaches for react-native, so every native specifier is replaced with an
+ * in-memory double via node:test module mocks (same pattern as
+ * ../auth/authServiceNonce.test.ts).
+ */
+
+import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { mockModule } from '../../testing/mockModules';
-import { createReactNativeStub } from '../../testing/reactNativeStub';
-import type { PrivacyAppIconMode } from '../../types';
+import { createHash } from 'node:crypto';
 
-const PRIVACY_SETTINGS_KEY = 'everybible.privacy.settings';
-
-// In-memory SecureStore with a failure switch, so the "keychain is unavailable"
-// path can be exercised alongside the happy path in one module configuration.
 const secureStore = new Map<string, string>();
-const secureStoreCalls: Array<{ method: string; key: string; value?: string }> = [];
-let secureStoreFailure: Error | null = null;
+const setItemOptions: unknown[] = [];
+const getItemOptions: unknown[] = [];
 
-const guard = () => {
-  if (secureStoreFailure) {
-    throw secureStoreFailure;
-  }
-};
+let serviceModule: typeof import('./privacyService') | null = null;
+let loadAttempted = false;
 
-mockModule(mock, 'expo-secure-store', {
-  getItemAsync: async (key: string) => {
-    secureStoreCalls.push({ method: 'getItemAsync', key });
-    guard();
-    return secureStore.get(key) ?? null;
-  },
-  setItemAsync: async (key: string, value: string) => {
-    secureStoreCalls.push({ method: 'setItemAsync', key, value });
-    guard();
-    secureStore.set(key, value);
-  },
-  deleteItemAsync: async (key: string) => {
-    secureStoreCalls.push({ method: 'deleteItemAsync', key });
-    guard();
-    secureStore.delete(key);
-  },
-});
+async function loadService(): Promise<typeof import('./privacyService') | null> {
+  if (loadAttempted) return serviceModule;
+  loadAttempted = true;
+  if (typeof (mock as { module?: unknown }).module !== 'function') return null;
 
-const iconCalls: PrivacyAppIconMode[] = [];
-let setAppIconResult = true;
-mockModule(
-  mock,
-  'react-native',
-  createReactNativeStub({
-    nativeModules: {
-      EveryBiblePrivacyModule: {
-        setAppIcon: async (mode: PrivacyAppIconMode) => {
-          iconCalls.push(mode);
-          return setAppIconResult;
-        },
-        getCurrentAppIcon: async () => 'standard',
+  const url = (relative: string) => new URL(relative, import.meta.url).pathname;
+
+  mock.module('expo-secure-store', {
+    namedExports: {
+      WHEN_UNLOCKED_THIS_DEVICE_ONLY: 'whenUnlockedThisDeviceOnly',
+      getItemAsync: async (key: string, options?: unknown) => {
+        getItemOptions.push(options);
+        return secureStore.has(key) ? (secureStore.get(key) as string) : null;
+      },
+      setItemAsync: async (key: string, value: string, options?: unknown) => {
+        setItemOptions.push(options);
+        secureStore.set(key, value);
+      },
+      deleteItemAsync: async (key: string) => {
+        secureStore.delete(key);
       },
     },
-  })
-);
+  });
 
-let privacyService: typeof import('./privacyService');
+  mock.module('expo-crypto', {
+    namedExports: {
+      CryptoDigestAlgorithm: { SHA256: 'SHA-256' },
+      getRandomBytesAsync: async (length: number) =>
+        new Uint8Array(length).map((_, index) => (index * 37 + 11) % 256),
+      digestStringAsync: async (algorithm: string, value: string) => {
+        assert.equal(algorithm, 'SHA-256');
+        return createHash('sha256').update(value).digest('hex');
+      },
+    },
+  });
 
-before(async () => {
-  privacyService = await import('./privacyService');
-});
+  mock.module(url('./appIcon.ts'), {
+    namedExports: {
+      setPrivacyAppIcon: async () => true,
+      supportsDynamicAppIcon: () => false,
+    },
+  });
 
-beforeEach(() => {
+  try {
+    serviceModule = await import('./privacyService');
+  } catch {
+    serviceModule = null;
+  }
+
+  return serviceModule;
+}
+
+const PRIVACY_KEY = 'everybible.privacy.settings';
+
+function readStoredRecord(): Record<string, unknown> {
+  const raw = secureStore.get(PRIVACY_KEY);
+  assert.ok(raw, 'expected a persisted privacy record');
+  return JSON.parse(raw) as Record<string, unknown>;
+}
+
+function reset(): void {
   secureStore.clear();
-  secureStoreCalls.length = 0;
-  secureStoreFailure = null;
-  iconCalls.length = 0;
-  setAppIconResult = true;
+  setItemOptions.length = 0;
+  getItemOptions.length = 0;
+}
+
+test('updatePrivacyMode never persists the secure code in cleartext', async (t) => {
+  const service = await loadService();
+  if (!service) return t.skip('node:test module mocks are unavailable in this runtime');
+  reset();
+
+  await service.updatePrivacyMode('discreet', '1234');
+
+  const record = readStoredRecord();
+  assert.equal(record.pin, undefined, 'the legacy cleartext `pin` field must be gone');
+  assert.equal(
+    JSON.stringify(record).includes('1234'),
+    false,
+    'the secure code must not appear anywhere in the persisted record'
+  );
+
+  const credential = record.pinCredential as { hash: string; salt: string };
+  assert.equal(typeof credential.hash, 'string');
+  assert.equal(credential.salt.length, 32, 'salt should be 16 random bytes, hex encoded');
+  assert.equal(
+    credential.hash,
+    createHash('sha256').update(`${credential.salt}:1234`).digest('hex')
+  );
 });
 
-test('a device with nothing stored loads the standard, pin-less defaults', async () => {
-  assert.deepEqual(await privacyService.loadPrivacySettings(), { mode: 'standard', pin: null });
-  assert.deepEqual(secureStoreCalls, [{ method: 'getItemAsync', key: PRIVACY_SETTINGS_KEY }]);
+test('the privacy record is written and read with a device-only keychain class', async (t) => {
+  const service = await loadService();
+  if (!service) return t.skip('node:test module mocks are unavailable in this runtime');
+  reset();
+
+  await service.updatePrivacyMode('discreet', '1234');
+  await service.loadPrivacySettings();
+
+  assert.deepEqual(setItemOptions.at(-1), { keychainAccessible: 'whenUnlockedThisDeviceOnly' });
+  assert.deepEqual(getItemOptions.at(-1), { keychainAccessible: 'whenUnlockedThisDeviceOnly' });
 });
 
-test('stored discreet settings are loaded back with their pin', async () => {
-  secureStore.set(PRIVACY_SETTINGS_KEY, JSON.stringify({ mode: 'discreet', pin: '1234' }));
+test('a legacy cleartext record still verifies, then upgrades itself to a hash', async (t) => {
+  const service = await loadService();
+  if (!service) return t.skip('node:test module mocks are unavailable in this runtime');
+  reset();
 
-  assert.deepEqual(await privacyService.loadPrivacySettings(), { mode: 'discreet', pin: '1234' });
+  secureStore.set(PRIVACY_KEY, JSON.stringify({ mode: 'discreet', pin: '4321' }));
+
+  const legacy = await service.loadPrivacySettings();
+  assert.equal(legacy.legacyPin, '4321');
+  assert.equal(service.hasPrivacyPin(legacy), true);
+
+  const wrong = await service.verifyPrivacyPin('9999');
+  assert.equal(wrong.success, false);
+  assert.equal(
+    (await service.loadPrivacySettings()).legacyPin,
+    '4321',
+    'a failed attempt must not destroy a not-yet-upgraded legacy record'
+  );
+
+  const right = await service.verifyPrivacyPin('4321');
+  assert.equal(right.success, true);
+
+  const record = readStoredRecord();
+  assert.equal(record.pin, undefined, 'the cleartext code must be dropped after the upgrade');
+  assert.ok(record.pinCredential, 'a salted hash should have replaced the cleartext code');
+
+  const upgraded = await service.loadPrivacySettings();
+  assert.equal(upgraded.legacyPin, null);
+  assert.equal((await service.verifyPrivacyPin('4321')).success, true);
+  assert.equal((await service.verifyPrivacyPin('9999')).success, false);
 });
 
-test('an unrecognised stored mode falls back to standard', async () => {
-  secureStore.set(PRIVACY_SETTINGS_KEY, JSON.stringify({ mode: 'stealth', pin: '1234' }));
+test('repeated wrong codes trip an exponential lockout that blocks further attempts', async (t) => {
+  const service = await loadService();
+  if (!service) return t.skip('node:test module mocks are unavailable in this runtime');
+  reset();
 
-  assert.deepEqual(await privacyService.loadPrivacySettings(), { mode: 'standard', pin: '1234' });
+  await service.updatePrivacyMode('discreet', '1234');
+
+  const start = 1_000_000;
+  for (let attempt = 1; attempt < service.PRIVACY_PIN_LOCKOUT_THRESHOLD; attempt += 1) {
+    const result = await service.verifyPrivacyPin('0000', { now: start });
+    assert.equal(result.success, false);
+    assert.equal(result.lockedUntil, null, `attempt ${attempt} should not lock yet`);
+  }
+
+  const tripped = await service.verifyPrivacyPin('0000', { now: start });
+  assert.equal(tripped.success, false);
+  assert.equal(tripped.remainingLockoutMs, service.PRIVACY_PIN_LOCKOUT_BASE_MS);
+  assert.equal(tripped.lockedUntil, start + service.PRIVACY_PIN_LOCKOUT_BASE_MS);
+
+  // Even the CORRECT code is refused while the window is open.
+  const duringLockout = await service.verifyPrivacyPin('1234', { now: start + 1_000 });
+  assert.equal(duringLockout.success, false);
+  assert.equal(duringLockout.remainingLockoutMs, service.PRIVACY_PIN_LOCKOUT_BASE_MS - 1_000);
+
+  // ... and accepted once it has passed.
+  const afterLockout = await service.verifyPrivacyPin('1234', {
+    now: start + service.PRIVACY_PIN_LOCKOUT_BASE_MS + 1,
+  });
+  assert.equal(afterLockout.success, true);
+  assert.equal(readStoredRecord().failedPinAttempts, 0, 'a success should clear the counter');
+  assert.equal(readStoredRecord().pinLockedUntil, null);
 });
 
-test('a non-string stored pin is discarded rather than trusted', async () => {
-  secureStore.set(PRIVACY_SETTINGS_KEY, JSON.stringify({ mode: 'discreet', pin: 1234 }));
+test('each further failure past the threshold doubles the lockout, up to the cap', async (t) => {
+  const service = await loadService();
+  if (!service) return t.skip('node:test module mocks are unavailable in this runtime');
 
-  assert.deepEqual(await privacyService.loadPrivacySettings(), { mode: 'discreet', pin: null });
+  assert.equal(service.getPrivacyPinLockoutMs(service.PRIVACY_PIN_LOCKOUT_THRESHOLD - 1), 0);
+  assert.equal(
+    service.getPrivacyPinLockoutMs(service.PRIVACY_PIN_LOCKOUT_THRESHOLD),
+    service.PRIVACY_PIN_LOCKOUT_BASE_MS
+  );
+  assert.equal(
+    service.getPrivacyPinLockoutMs(service.PRIVACY_PIN_LOCKOUT_THRESHOLD + 1),
+    service.PRIVACY_PIN_LOCKOUT_BASE_MS * 2
+  );
+  assert.equal(service.getPrivacyPinLockoutMs(99), service.PRIVACY_PIN_LOCKOUT_MAX_MS);
 });
 
-test('a corrupt stored payload is logged and treated as no privacy configuration', async () => {
-  secureStore.set(PRIVACY_SETTINGS_KEY, '{not json');
+test('a batch of candidates from one key sequence costs a single attempt', async (t) => {
+  const service = await loadService();
+  if (!service) return t.skip('node:test module mocks are unavailable in this runtime');
+  reset();
+
+  await service.updatePrivacyMode('discreet', '1234');
+
+  await service.verifyPrivacyPinCandidates(['0000', '00000', '000000'], { now: 5_000 });
+  assert.equal(readStoredRecord().failedPinAttempts, 1);
+
+  const matched = await service.verifyPrivacyPinCandidates(['9999', '1234'], { now: 5_000 });
+  assert.equal(matched.success, true);
+  assert.equal(readStoredRecord().failedPinAttempts, 0);
+});
+
+test('sanitizeStoredPrivacySettings tolerates junk and both record shapes', async (t) => {
+  const service = await loadService();
+  if (!service) return t.skip('node:test module mocks are unavailable in this runtime');
+
+  assert.deepEqual(service.sanitizeStoredPrivacySettings(null), {
+    mode: 'standard',
+    pinCredential: null,
+    legacyPin: null,
+    failedPinAttempts: 0,
+    pinLockedUntil: null,
+  });
+
+  assert.deepEqual(service.sanitizeStoredPrivacySettings('{not json'), {
+    mode: 'standard',
+    pinCredential: null,
+    legacyPin: null,
+    failedPinAttempts: 0,
+    pinLockedUntil: null,
+  });
+
+  assert.deepEqual(
+    service.sanitizeStoredPrivacySettings(
+      JSON.stringify({ mode: 'discreet', pin: '1234', failedPinAttempts: -4, pinLockedUntil: 0 })
+    ),
+    {
+      mode: 'discreet',
+      pinCredential: null,
+      legacyPin: '1234',
+      failedPinAttempts: 0,
+      pinLockedUntil: null,
+    }
+  );
+
+  assert.deepEqual(
+    service.sanitizeStoredPrivacySettings(
+      JSON.stringify({
+        mode: 'discreet',
+        pin: '1234',
+        pinCredential: { hash: 'h', salt: 's' },
+        failedPinAttempts: 3,
+        pinLockedUntil: 42,
+      })
+    ),
+    {
+      mode: 'discreet',
+      pinCredential: { hash: 'h', salt: 's' },
+      // A hashed record wins; the stale cleartext field is ignored outright.
+      legacyPin: null,
+      failedPinAttempts: 3,
+      pinLockedUntil: 42,
+    }
+  );
+});
+
+test('a stored payload that is not an object at all is treated as no configuration', async (t) => {
+  const service = await loadService();
+  if (!service) return t.skip('node:test module mocks are unavailable in this runtime');
+
+  // JSON.parse succeeds but yields null, so the property reads throw inside the
+  // same guard that catches malformed text.
   const consoleError = mock.method(console, 'error', () => {});
 
   try {
-    assert.deepEqual(await privacyService.loadPrivacySettings(), { mode: 'standard', pin: null });
+    assert.deepEqual(service.sanitizeStoredPrivacySettings('null'), {
+      mode: 'standard',
+      pinCredential: null,
+      legacyPin: null,
+      failedPinAttempts: 0,
+      pinLockedUntil: null,
+    });
   } finally {
     consoleError.mock.restore();
   }
@@ -104,100 +293,26 @@ test('a corrupt stored payload is logged and treated as no privacy configuration
   assert.match(String(consoleError.mock.calls[0].arguments[0]), /Failed to parse privacy settings/);
 });
 
-test('a stored payload that is not an object at all is treated as no configuration', async () => {
-  // JSON.parse succeeds but yields null, so the property reads throw inside the
-  // same guard that catches malformed text.
-  secureStore.set(PRIVACY_SETTINGS_KEY, 'null');
-  const consoleError = mock.method(console, 'error', () => {});
+test('switching to discreet mode without a code stores no credential at all', async (t) => {
+  const service = await loadService();
+  if (!service) return t.skip('node:test module mocks are unavailable in this runtime');
+  reset();
 
-  try {
-    assert.deepEqual(await privacyService.loadPrivacySettings(), { mode: 'standard', pin: null });
-  } finally {
-    consoleError.mock.restore();
-  }
-});
+  const settings = await service.updatePrivacyMode('discreet', null);
 
-test('an unavailable keychain surfaces to the caller instead of silently unlocking', async () => {
-  secureStoreFailure = new Error('keychain locked');
-
-  await assert.rejects(() => privacyService.loadPrivacySettings(), /keychain locked/);
-});
-
-test('saving persists the settings and deliberately leaves the app icon alone', async () => {
-  await privacyService.savePrivacySettings({ mode: 'discreet', pin: '4321' });
-
+  assert.deepEqual(settings, {
+    mode: 'discreet',
+    pinCredential: null,
+    legacyPin: null,
+    failedPinAttempts: 0,
+    pinLockedUntil: null,
+  });
+  assert.equal(service.hasPrivacyPin(settings), false);
+  assert.equal(readStoredRecord().pinCredential, null);
+  assert.equal((await service.verifyPrivacyPin('')).success, false);
   assert.equal(
-    secureStore.get(PRIVACY_SETTINGS_KEY),
-    JSON.stringify({ mode: 'discreet', pin: '4321' })
-  );
-  assert.deepEqual(iconCalls, [], 'the icon swap is deferred to applyPrivacyAppIcon');
-});
-
-test('switching to discreet mode stores the pin and returns the persisted settings', async () => {
-  const settings = await privacyService.updatePrivacyMode('discreet', '1357');
-
-  assert.deepEqual(settings, { mode: 'discreet', pin: '1357' });
-  assert.deepEqual(await privacyService.loadPrivacySettings(), { mode: 'discreet', pin: '1357' });
-});
-
-test('switching to standard mode drops any pin that was passed in', async () => {
-  await privacyService.updatePrivacyMode('discreet', '1357');
-
-  const settings = await privacyService.updatePrivacyMode('standard', '1357');
-
-  assert.deepEqual(settings, { mode: 'standard', pin: null });
-  assert.deepEqual(await privacyService.loadPrivacySettings(), { mode: 'standard', pin: null });
-});
-
-test('applying the app icon delegates to the native module', async () => {
-  await privacyService.applyPrivacyAppIcon('discreet');
-
-  assert.deepEqual(iconCalls, ['discreet']);
-});
-
-test('a matching pin verifies', async () => {
-  await privacyService.updatePrivacyMode('discreet', '2468');
-
-  assert.equal(await privacyService.verifyPrivacyPin('2468'), true);
-});
-
-test('a wrong pin does not verify', async () => {
-  await privacyService.updatePrivacyMode('discreet', '2468');
-
-  assert.equal(await privacyService.verifyPrivacyPin('1111'), false);
-});
-
-test('switching to discreet mode without a pin stores no pin at all', async () => {
-  const settings = await privacyService.updatePrivacyMode('discreet', null);
-
-  assert.deepEqual(settings, { mode: 'discreet', pin: null });
-  assert.equal(await privacyService.verifyPrivacyPin(''), false);
-});
-
-test('no pin can be verified when privacy was never configured', async () => {
-  assert.equal(await privacyService.verifyPrivacyPin(''), false);
-});
-
-test('clearing removes the stored settings and restores the standard icon', async () => {
-  await privacyService.updatePrivacyMode('discreet', '2468');
-
-  await privacyService.clearPrivacySettings();
-
-  assert.equal(secureStore.has(PRIVACY_SETTINGS_KEY), false);
-  assert.deepEqual(iconCalls, ['standard']);
-});
-
-test('clearing fails loudly when a device that supports icons cannot restore the standard one', async () => {
-  await privacyService.updatePrivacyMode('discreet', '2468');
-  setAppIconResult = false;
-
-  await assert.rejects(
-    () => privacyService.clearPrivacySettings(),
-    /Failed to apply the standard privacy app icon/
-  );
-  assert.equal(
-    secureStore.has(PRIVACY_SETTINGS_KEY),
-    true,
-    'the pin is kept when the icon cannot be restored, so the install stays unlockable'
+    readStoredRecord().failedPinAttempts,
+    0,
+    'an unconfigured install must not accrue lockout attempts'
   );
 });

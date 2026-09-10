@@ -1,5 +1,10 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import {
+  persist,
+  createJSONStorage,
+  type PersistStorage,
+  type StorageValue,
+} from 'zustand/middleware';
 import { zustandStorage } from './mmkvStorage';
 import { sanitizePersistedProgressState } from './persistedStateSanitizers';
 
@@ -122,6 +127,64 @@ const getStartOfYear = (date: Date): number => {
   d.setMonth(0, 1);
   d.setHours(0, 0, 0, 0);
   return d.getTime();
+};
+
+// Only these five fields are ever restored (see sanitizePersistedProgressState).
+// Without a partialize, zustand serialized the whole store — the four computed
+// getters included — on every single mutation.
+const selectPersistedProgressState = (state: ProgressState) => ({
+  chaptersRead: state.chaptersRead,
+  chaptersListened: state.chaptersListened,
+  listeningMsByDate: state.listeningMsByDate,
+  streakDays: state.streakDays,
+  lastReadDate: state.lastReadDate,
+});
+
+type PersistedProgressState = ReturnType<typeof selectPersistedProgressState>;
+const progressJsonStorage = createJSONStorage<PersistedProgressState>(() => zustandStorage)!;
+let lastSavedProgress: StorageValue<PersistedProgressState> | undefined;
+
+function hasSameSavedProgress(
+  left: PersistedProgressState,
+  right: PersistedProgressState
+): boolean {
+  // Every persisted field is either a primitive or a map replaced wholesale by
+  // an immutable `set`, so reference equality is a sound "nothing changed"
+  // check and costs nothing next to serializing chaptersRead.
+  for (const key in right) {
+    const field = key as keyof PersistedProgressState;
+    if (!Object.is(left[field], right[field])) return false;
+  }
+  return true;
+}
+
+// zustand calls storage after every mutation, even ones partialize excludes
+// (updateStreak's no-op early return is the common case). Diff before
+// serializing so a chapter turn does not re-stringify the whole read ledger
+// and cross the native storage boundary for an unchanged payload.
+const progressStorage: PersistStorage<PersistedProgressState> = {
+  getItem: (name) => {
+    lastSavedProgress = undefined;
+    return progressJsonStorage.getItem(name);
+  },
+  removeItem: (name) => {
+    lastSavedProgress = undefined;
+    return progressJsonStorage.removeItem(name);
+  },
+  setItem: (name, value) => {
+    if (
+      lastSavedProgress?.version === value.version &&
+      lastSavedProgress &&
+      hasSameSavedProgress(lastSavedProgress.state, value.state)
+    ) {
+      return;
+    }
+    const result = progressJsonStorage.setItem(name, value);
+    // MMKV is synchronous. Only remember successful synchronous saves; an async
+    // adapter still works, but must not suppress a write before it has finished.
+    lastSavedProgress = result === undefined ? value : undefined;
+    return result;
+  },
 };
 
 export const useProgressStore = create<ProgressState>()(
@@ -253,7 +316,8 @@ export const useProgressStore = create<ProgressState>()(
     }),
     {
       name: 'progress-storage',
-      storage: createJSONStorage(() => zustandStorage),
+      storage: progressStorage,
+      partialize: selectPersistedProgressState,
       merge: (persistedState, currentState) => ({
         ...currentState,
         ...sanitizePersistedProgressState(persistedState),

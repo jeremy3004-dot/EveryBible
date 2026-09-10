@@ -22,7 +22,9 @@ mockModule(mock, sourcePath('services/supabase/client.ts'), supabaseExports);
 const files = new Map<string, string>();
 const reads: Array<{ uri: string; options: unknown }> = [];
 let readFailure: Error | null = null;
-mockModule(mock, 'expo-file-system', {
+// storageService imports the SDK 54 legacy entry point (the root export dropped
+// readAsStringAsync/getInfoAsync), so that is the specifier to intercept.
+mockModule(mock, 'expo-file-system/legacy', {
   readAsStringAsync: async (uri: string, options: unknown) => {
     reads.push({ uri, options });
     if (readFailure) {
@@ -195,84 +197,6 @@ test('a rejected avatar upload surfaces the storage error message', async () => 
   });
 });
 
-// ─── Avatar delete ───────────────────────────────────────────────────────────
-
-test('deleting an avatar removes every file variant in the user folder', async () => {
-  fake.storage.respond('avatars', 'list', () => ({
-    data: [{ name: 'avatar.jpg' }, { name: 'avatar.png' }],
-    error: null,
-  }));
-
-  assert.deepEqual(await storage.deleteAvatar(), { success: true });
-  const list = fake.storageCalls.find((call) => call.method === 'list');
-  assert.deepEqual(list?.args, ['user-1'], 'only the signed-in user folder is listed');
-  const remove = fake.storageCalls.find((call) => call.method === 'remove');
-  assert.deepEqual(remove?.args[0], ['user-1/avatar.jpg', 'user-1/avatar.png']);
-});
-
-test('deleting an avatar that does not exist succeeds without a remove call', async () => {
-  fake.storage.respond('avatars', 'list', () => ({ data: [], error: null }));
-
-  assert.deepEqual(await storage.deleteAvatar(), { success: true });
-  assert.equal(
-    fake.storageCalls.some((call) => call.method === 'remove'),
-    false
-  );
-});
-
-test('a null listing is treated as nothing to delete', async () => {
-  fake.storage.respond('avatars', 'list', () => ({ data: null, error: null }));
-
-  assert.deepEqual(await storage.deleteAvatar(), { success: true });
-});
-
-test('a failed listing surfaces the storage error instead of removing anything', async () => {
-  fake.storage.respond('avatars', 'list', () => ({
-    data: null,
-    error: { message: 'Not authorized' },
-  }));
-
-  assert.deepEqual(await storage.deleteAvatar(), { success: false, error: 'Not authorized' });
-  assert.equal(
-    fake.storageCalls.some((call) => call.method === 'remove'),
-    false
-  );
-});
-
-test('a failed removal surfaces the storage error', async () => {
-  fake.storage.respond('avatars', 'list', () => ({ data: [{ name: 'avatar.jpg' }], error: null }));
-  fake.storage.respond('avatars', 'remove', () => ({
-    data: null,
-    error: { message: 'Object not found' },
-  }));
-
-  assert.deepEqual(await storage.deleteAvatar(), { success: false, error: 'Object not found' });
-});
-
-test('an exception while deleting an avatar is reported rather than thrown', async () => {
-  fake.storage.respond('avatars', 'list', () => {
-    throw new Error('offline');
-  });
-
-  assert.deepEqual(await storage.deleteAvatar(), { success: false, error: 'offline' });
-});
-
-test('deleting an avatar without a backend reports that Supabase is unconfigured', async () => {
-  backend.configured = false;
-
-  assert.deepEqual(await storage.deleteAvatar(), {
-    success: false,
-    error: 'Supabase not configured',
-  });
-});
-
-test('deleting an avatar while signed out is refused', async () => {
-  backend.userId = null;
-
-  assert.deepEqual(await storage.deleteAvatar(), { success: false, error: 'Not signed in' });
-  assert.deepEqual(fake.storageCalls, []);
-});
-
 test('a re-upload with a different extension writes a second object under the same folder', async () => {
   files.set('file:///tmp/first.png', base64('one'));
   files.set('file:///tmp/second.jpg', base64('two'));
@@ -283,23 +207,8 @@ test('a re-upload with a different extension writes a second object under the sa
   assert.deepEqual(
     uploadsTo('avatars').map((call) => call.args[0]),
     ['user-1/avatar.png', 'user-1/avatar.jpg'],
-    'stale variants are why deleteAvatar lists the folder instead of guessing'
+    'the extension comes from the source file, so a re-upload leaves a stale variant behind'
   );
-});
-
-// ─── Avatar URL ──────────────────────────────────────────────────────────────
-
-test('the avatar URL is derived from the storage path convention without a round trip', () => {
-  assert.equal(
-    storage.getAvatarUrl('user-9'),
-    `${fake.storage.publicUrlBase}/avatars/user-9/avatar.jpg`
-  );
-});
-
-test('the avatar URL is null without a backend so callers can show a placeholder', () => {
-  backend.configured = false;
-
-  assert.equal(storage.getAvatarUrl('user-9'), null);
 });
 
 // ─── Group images ────────────────────────────────────────────────────────────

@@ -3,10 +3,11 @@ import type { PrivacyAppIconMode } from '../types';
 import {
   applyPrivacyAppIcon,
   clearPrivacySettings,
+  hasPrivacyPin,
   loadPrivacySettings,
   updatePrivacyMode,
   validatePrivacyPin,
-  verifyPrivacyPin,
+  verifyPrivacyPinCandidates,
 } from '../services/privacy';
 import { initializePrivacyWithTimeout } from '../services/privacy/privacyInitialization';
 import { initializePrivacyInstallationOnStartup } from '../services/privacy/privacyInstallationAdapter';
@@ -28,13 +29,15 @@ interface PrivacyState {
   mode: PrivacyAppIconMode;
   hasPin: boolean;
   isLocked: boolean;
+  /** Epoch ms until which unlock attempts are refused after repeated failures. */
+  pinLockedUntil: number | null;
   initialize: () => Promise<void>;
   retryInitialize: () => Promise<void>;
   saveConfiguration: (
     input: SavePrivacyConfigurationInput
   ) => Promise<SavePrivacyConfigurationResult>;
   lock: () => void;
-  unlock: (pinInput: string) => Promise<boolean>;
+  unlock: (pinInput: string | string[]) => Promise<boolean>;
   disablePrivacy: () => Promise<void>;
 }
 
@@ -63,7 +66,7 @@ export const usePrivacyStore = create<PrivacyState>()((set, get) => {
     }
 
     if (result.status === 'ready') {
-      const hasPin = Boolean(result.settings.pin);
+      const hasPin = hasPrivacyPin(result.settings);
       const shouldStartLocked = result.settings.mode === 'discreet' && hasPin;
 
       set({
@@ -73,6 +76,7 @@ export const usePrivacyStore = create<PrivacyState>()((set, get) => {
         mode: result.settings.mode,
         hasPin,
         isLocked: shouldStartLocked,
+        pinLockedUntil: result.settings.pinLockedUntil,
       });
       return;
     }
@@ -98,6 +102,7 @@ export const usePrivacyStore = create<PrivacyState>()((set, get) => {
     mode: 'standard',
     hasPin: false,
     isLocked: true,
+    pinLockedUntil: null,
 
     initialize,
 
@@ -134,6 +139,7 @@ export const usePrivacyStore = create<PrivacyState>()((set, get) => {
           mode: 'discreet',
           hasPin: true,
           isLocked: false,
+          pinLockedUntil: null,
         });
 
         // Defer icon change until after navigation and re-renders complete to
@@ -178,19 +184,32 @@ export const usePrivacyStore = create<PrivacyState>()((set, get) => {
         return false;
       }
 
-      const validation = validatePrivacyPin(pinInput);
-
-      if (!validation.isValid) {
+      const lockedUntil = get().pinLockedUntil;
+      if (lockedUntil !== null && Date.now() < lockedUntil) {
         return false;
       }
 
-      const matches = await verifyPrivacyPin(validation.normalized);
+      const rawCandidates = Array.isArray(pinInput) ? pinInput : [pinInput];
+      const candidates = rawCandidates
+        .map((candidate) => validatePrivacyPin(candidate))
+        .filter((validation) => validation.isValid)
+        .map((validation) => validation.normalized);
 
-      if (matches) {
+      if (candidates.length === 0) {
+        return false;
+      }
+
+      // A whole batch of candidates derived from one key sequence counts as a
+      // single attempt, so the backoff tracks real guesses rather than taps.
+      const result = await verifyPrivacyPinCandidates(candidates);
+
+      set({ pinLockedUntil: result.lockedUntil });
+
+      if (result.success) {
         set({ isLocked: false });
       }
 
-      return matches;
+      return result.success;
     },
 
     disablePrivacy: async () => {
@@ -201,6 +220,7 @@ export const usePrivacyStore = create<PrivacyState>()((set, get) => {
         mode: 'standard',
         hasPin: false,
         isLocked: false,
+        pinLockedUntil: null,
       });
     },
   };

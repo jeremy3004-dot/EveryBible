@@ -547,6 +547,9 @@ export const hi = {
     "resetPasswordSubmit": "पासवर्ड अपडेट करें",
     "resetPasswordSuccess": "आपका पासवर्ड अपडेट कर दिया गया है",
     "resetPasswordError": "आपका पासवर्ड अपडेट करने में विफल",
+    "resetLinkConfirmTitle": "नया पासवर्ड सेट करें?",
+    "resetLinkConfirmBody": "यह लिंक {{email}} के लिए नया पासवर्ड सेट करेगा। जारी रखें?",
+    "resetLinkDifferentAccount": "यह रीसेट लिंक किसी दूसरे खाते का है। पहले इस खाते से साइन आउट करें, फिर लिंक दोबारा खोलें।",
     "resetPasswordInvalidSession": "यह रीसेट लिंक अमान्य है या समाप्त हो गया है। कृपया एक नया अनुरोध करें।"
   },
   "profile": {
@@ -1568,34 +1571,6 @@ export const hi = {
         "l8": "परमेश्वर हमारे साथ"
       }
     }
-  },
-  "harvestStudies": {
-    "christologyTitle": "मसीहविज्ञान",
-    "christologyDesc": "यीशु कौन हैं, उनका मिशन, मृत्यु, पुनरुत्थान और राज्य पर निरंतर अध्याय अध्ययन।",
-    "gospelTitle": "सुसमाचार",
-    "gospelDesc": "पाप, अनुग्रह, धर्मीकरण और मसीह के द्वारा उद्धार पर अध्याय-आधारित अध्ययन।",
-    "prayerTitle": "प्रार्थना",
-    "prayerDesc": "दैनिक प्रार्थना जीवन को मजबूत करने वाले आदर्श और शिक्षाएं।",
-    "loveAndChristianLivingTitle": "प्रेम और मसीही जीवन",
-    "loveAndChristianLivingDesc": "प्रेम, पवित्रता और आत्मा-नेतृत्व में चलने के लिए व्यावहारिक अध्याय।",
-    "discipleshipTitle": "शिष्यता",
-    "discipleshipDesc": "आज्ञाकारिता, समर्पण और राज्य की प्राथमिकताओं के साथ यीशु का अनुसरण करने की शिक्षाएं।",
-    "churchTitle": "कलीसिया",
-    "churchDesc": "कार्य में कलीसिया की पहचान, एकता और मिशन।",
-    "missionHarvestTitle": "मिशन / फसल",
-    "missionHarvestDesc": "सुसमाचार प्रचार, गवाही और महान आदेश पर मुख्य अध्याय।",
-    "groupEternalChrist": "अनन्त मसीह (पूर्व-अस्तित्व)",
-    "groupBirthOfJesus": "यीशु का जन्म (अवतार)",
-    "groupMissionOfJesus": "यीशु का मिशन",
-    "groupDeathOfJesus": "यीशु की मृत्यु (प्रायश्चित)",
-    "groupResurrectionOfJesus": "यीशु का पुनरुत्थान",
-    "groupExaltedChrist": "उच्च किया गया मसीह",
-    "groupGospelSalvation": "सुसमाचार (उद्धार)",
-    "groupPrayerCore": "प्रार्थना",
-    "groupLoveAndLivingCore": "प्रेम और मसीही जीवन",
-    "groupDiscipleshipCore": "शिष्यता",
-    "groupChurchCore": "कलीसिया",
-    "groupMissionHarvestCore": "मिशन / फसल"
   },
   "learn": {
     "sectionTabs": "पाठ के भाग",

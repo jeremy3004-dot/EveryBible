@@ -77,7 +77,7 @@ export function MyFeedbackScreen() {
 
   const getStatusColors = (status: MyChapterFeedbackItem['status']) => {
     if (status === 'fixed') {
-      return { background: hexWithAlpha(colors.success, 0.16), text: colors.success };
+      return { background: hexWithAlpha(colors.success, 0.16), text: colors.onSuccessSoft };
     }
     if (status === 'no_change_needed') {
       return { background: colors.cardBackground, text: colors.secondaryText };
@@ -141,7 +141,11 @@ export function MyFeedbackScreen() {
   const renderEmptyState = () => {
     if (loading) {
       return (
-        <View style={styles.emptyState}>
+        <View
+          style={styles.emptyState}
+          accessibilityState={{ busy: true }}
+          accessibilityLabel={t('common.loading')}
+        >
           <ActivityIndicator size="large" color={colors.accentPrimary} />
         </View>
       );

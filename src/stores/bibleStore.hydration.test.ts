@@ -243,14 +243,48 @@ test('a corrupt persisted payload hydrates to the default translation list', asy
   assert.equal(useBibleStore.getState().currentTranslation, 'bsb');
 });
 
-test('a persisted payload from a newer store version is discarded rather than migrated', async (t) => {
+test('a persisted payload from a newer store version is kept, not thrown away', async (t) => {
   const error = t.mock.method(console, 'error', () => {});
 
+  // The migration only steps a payload forward; anything at or past the current
+  // version is already in the delta format and is handed through untouched, so a
+  // downgraded build does not wipe the reading position.
   await rehydrateWith({ currentBook: 'REV', currentChapter: 22 }, 7);
 
-  assert.equal(useBibleStore.getState().currentBook, 'GEN');
-  assert.equal(useBibleStore.getState().currentChapter, 1);
-  assert.ok(error.mock.callCount() >= 1);
+  assert.equal(useBibleStore.getState().currentBook, 'REV');
+  assert.equal(useBibleStore.getState().currentChapter, 22);
+  assert.equal(error.mock.callCount(), 0);
+});
+
+test('a legacy version 0 payload moves its inline catalog metadata into the snapshot key', async () => {
+  mmkv.store.delete('bible-runtime-catalog-v1');
+
+  await rehydrateWith(
+    {
+      currentBook: 'JHN',
+      currentChapter: 3,
+      translations: [
+        makeRuntimeTranslation({
+          id: 'esv1',
+          isDownloaded: true,
+          installState: 'installed',
+          textPackLocalPath: 'file:///packs/esv1.db',
+        }),
+      ],
+    },
+    0
+  );
+
+  // The download survives the upgrade with its real name, not a placeholder.
+  const restored = findTranslation('esv1');
+  assert.equal(restored?.name, makeRuntimeTranslation({ id: 'esv1' }).name);
+  assert.equal(restored?.textPackLocalPath, 'file:///packs/esv1.db');
+
+  const snapshot = JSON.parse(mmkv.store.get('bible-runtime-catalog-v1') ?? '[]');
+  assert.deepEqual(
+    snapshot.map((entry: { id: string }) => entry.id),
+    ['esv1']
+  );
 });
 
 test('rehydrating mid-session keeps the loaded chapter text, which is never persisted', async () => {

@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { GlassView, isGlassEffectAPIAvailable, isLiquidGlassAvailable } from 'expo-glass-effect';
 import type { ViewStyle } from 'react-native';
@@ -30,13 +30,18 @@ import type { RootTabIconName } from './tabManifest';
 import { shouldHideTabBarOnNestedRoute } from './tabBarVisibility';
 import { buildTabBarCapsuleStyle } from './tabBarCapsuleStyle';
 import { typography } from '../design/system';
-import { useTabBarHeight, TAB_BAR_CAPSULE_RADIUS } from '../hooks';
-import { lightHaptic } from '../utils';
+import { useTabBarHeight, TAB_BAR_CAPSULE_RADIUS } from '../hooks/useTabBarHeight';
+import { lightHaptic } from '../utils/haptics';
+import { hexWithAlpha } from '../utils/color';
 
 // Lucide ships one stroke weight per glyph, so the selected state is carried by
 // the sliding accent pill behind the icon rather than a filled variant.
 const TAB_BAR_ICON_SIZE = 22;
 const TAB_BAR_ICON_STROKE_WIDTH = 2;
+// The capsule is a fixed 64pt tall, so an unbounded accessibility text scale
+// clips the label against the glyph. Cap the label's own scaling instead of
+// letting it grow past the capsule.
+const TAB_BAR_LABEL_MAX_FONT_SCALE = 1.6;
 
 // Binds each glyph the manifest names to its Lucide component.
 const TAB_BAR_ICONS: Record<RootTabIconName, LucideIcon> = {
@@ -84,19 +89,6 @@ function TabBarBackground({
       <View style={[StyleSheet.absoluteFill, styles.capsuleStroke, { borderColor: stroke }]} />
     </View>
   );
-}
-
-// Hex -> rgba, so a theme token can carry the capsule's translucency and the
-// neutral selection pill without a second palette entry per scope.
-function withAlpha(hex: string, alpha: number): string {
-  const value = hex.replace('#', '');
-  if (value.length !== 6) {
-    return hex;
-  }
-  const red = parseInt(value.slice(0, 2), 16);
-  const green = parseInt(value.slice(2, 4), 16);
-  const blue = parseInt(value.slice(4, 6), 16);
-  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
 }
 
 // Keep React Navigation semantics, test IDs, links, and all press callbacks intact.
@@ -248,7 +240,43 @@ function ReaderAwareTabBar(props: BottomTabBarProps) {
   // The selected tab is a neutral ink pill — the scope's own text colour at a
   // low alpha — so the accent stays reserved for content, not chrome.
   const isReader = activeRoute.name === 'Bible' && nestedRouteName === 'BibleReader';
-  const pillColor = withAlpha(isReader ? colors.biblePrimaryText : colors.primaryText, 0.1);
+  const pillColor = hexWithAlpha(isReader ? colors.biblePrimaryText : colors.primaryText, 0.1);
+
+  // Rebuilding the descriptor map inline handed BottomTabBar a brand-new
+  // `descriptors` object (and a new tabBarBackground closure) on every render,
+  // including the per-frame ones the reader drives.
+  const selectionIndex = props.state.index;
+  const routeCount = props.state.routes.length;
+  const descriptors = useMemo(
+    () => ({
+      ...props.descriptors,
+      [activeRoute.key]: {
+        ...descriptor,
+        options: {
+          ...descriptor.options,
+          tabBarBackground: () => (
+            <>
+              {originalBackground?.()}
+              <TabBarSelection
+                selectedIndex={selectionIndex}
+                count={routeCount}
+                color={pillColor}
+              />
+            </>
+          ),
+        },
+      },
+    }),
+    [
+      activeRoute.key,
+      descriptor,
+      originalBackground,
+      pillColor,
+      props.descriptors,
+      routeCount,
+      selectionIndex,
+    ]
+  );
 
   return (
     <Animated.View
@@ -257,28 +285,7 @@ function ReaderAwareTabBar(props: BottomTabBarProps) {
       accessibilityElementsHidden={interactionHidden}
       importantForAccessibility={interactionHidden ? 'no-hide-descendants' : 'auto'}
     >
-      <BottomTabBar
-        {...props}
-        descriptors={{
-          ...props.descriptors,
-          [activeRoute.key]: {
-            ...descriptor,
-            options: {
-              ...descriptor.options,
-              tabBarBackground: () => (
-                <>
-                  {originalBackground?.()}
-                  <TabBarSelection
-                    selectedIndex={props.state.index}
-                    count={props.state.routes.length}
-                    color={pillColor}
-                  />
-                </>
-              ),
-            },
-          },
-        }}
-      />
+      <BottomTabBar {...props} descriptors={descriptors} />
     </Animated.View>
   );
 }
@@ -302,11 +309,11 @@ export function TabNavigator() {
   // Translucent paper tint over the glass. The reader variant tints off the
   // reading surface so the bar sits on the same material as the page behind it.
   const capsuleFill = useMemo(
-    () => withAlpha(colors.cardBackground, 0.62),
+    () => hexWithAlpha(colors.cardBackground, 0.62),
     [colors.cardBackground]
   );
   const readerCapsuleFill = useMemo(
-    () => withAlpha(colors.bibleSurface, 0.62),
+    () => hexWithAlpha(colors.bibleSurface, 0.62),
     [colors.bibleSurface]
   );
   const {
@@ -339,89 +346,122 @@ export function TabNavigator() {
     [tabBarSideInset, tabBarBottomPadding, tabBarBarHeight]
   );
 
-  return (
-    <Tab.Navigator
-      id="RootTab"
-      tabBar={(props) => <ReaderAwareTabBar {...props} />}
-      screenOptions={({ route }) => {
-        // Resolve the active nested route once per invocation rather than three
-        // times across the tint/style callbacks below.
-        const nestedRouteState = route as {
-          state?: NestedTabRouteState;
-          params?: NestedTabRouteParams;
-        };
-        const { nestedRouteName, nestedRouteParams } = resolveActiveNestedRoute(nestedRouteState);
-        const isBibleReader = route.name === 'Bible' && nestedRouteName === 'BibleReader';
+  // A fresh screenOptions closure per render makes React Navigation recompute
+  // every tab's options; the reader drives this component often enough for that
+  // to matter. Same for the tabBar renderer.
+  const renderTabBar = useCallback(
+    (props: BottomTabBarProps) => <ReaderAwareTabBar {...props} />,
+    []
+  );
+  const screenOptions = useCallback(
+    ({ route }: { route: { name: string } }) => {
+      // Resolve the active nested route once per invocation rather than three
+      // times across the tint/style callbacks below.
+      const nestedRouteState = route as {
+        state?: NestedTabRouteState;
+        params?: NestedTabRouteParams;
+      };
+      const { nestedRouteName, nestedRouteParams } = resolveActiveNestedRoute(nestedRouteState);
+      const isBibleReader = route.name === 'Bible' && nestedRouteName === 'BibleReader';
 
-        const tabBarStyle = (() => {
-          if (route.name === 'Home') {
-            return defaultTabBarStyle;
+      const tabBarStyle = (() => {
+        if (route.name === 'Home') {
+          return defaultTabBarStyle;
+        }
+
+        const shouldHideNestedBibleScreen =
+          (route.name === 'Bible' ||
+            route.name === 'Learn' ||
+            route.name === 'Plans' ||
+            route.name === 'More') &&
+          shouldHideTabBarOnNestedRoute(nestedRouteName, nestedRouteParams);
+        const routeCollapseProgress =
+          typeof nestedRouteParams?.tabBarCollapseProgress === 'number'
+            ? Math.max(0, Math.min(nestedRouteParams.tabBarCollapseProgress, 1))
+            : 0;
+        const tabBarCollapseProgress = shouldHideNestedBibleScreen
+          ? Math.max(routeCollapseProgress, 1)
+          : routeCollapseProgress;
+
+        return tabBarCollapseProgress > 0
+          ? getCollapsingTabBarStyle(tabBarCollapseProgress)
+          : isBibleReader
+            ? readerTabBarStyle
+            : defaultTabBarStyle;
+      })();
+
+      const tab = rootTabManifest.find((entry) => entry.name === route.name);
+      const tabLabel = tab ? t(tab.labelKey) : route.name;
+      const tabIndex = rootTabManifest.findIndex((entry) => entry.name === route.name);
+
+      return {
+        headerShown: false,
+        freezeOnBlur: true,
+        // The selected glyph sits on a neutral ink pill, so it reads in the
+        // scope's primary text rather than the accent.
+        tabBarActiveTintColor: isBibleReader ? colors.biblePrimaryText : colors.primaryText,
+        // Inactive glyphs are full ink too; the neutral pill alone carries selection.
+        tabBarInactiveTintColor: isBibleReader ? colors.biblePrimaryText : colors.primaryText,
+        tabBarStyle,
+        tabBarItemStyle: styles.tabItem,
+        // Rendered here rather than left to the library so the label can cap
+        // its own font scaling inside the fixed-height capsule.
+        tabBarLabel: ({ color }: { color: string }) => (
+          <Text
+            numberOfLines={1}
+            maxFontSizeMultiplier={TAB_BAR_LABEL_MAX_FONT_SCALE}
+            style={[styles.tabLabel, { color }]}
+          >
+            {tabLabel}
+          </Text>
+        ),
+        // A function label makes BottomTabBar drop the positional announcement
+        // it synthesizes for string labels on iOS; restate it so VoiceOver
+        // users keep "Home, tab, 1 of 5".
+        tabBarAccessibilityLabel:
+          Platform.OS === 'ios' && tabIndex >= 0
+            ? `${tabLabel}, tab, ${tabIndex + 1} of ${rootTabManifest.length}`
+            : tabLabel,
+        // The glass capsule. In the reader it tints off the reading surface so
+        // the bar sits on the same material as the page behind it.
+        tabBarBackground: () => (
+          <TabBarBackground
+            isDark={isDark}
+            fill={isBibleReader ? readerCapsuleFill : capsuleFill}
+            stroke={isBibleReader ? colors.bibleDivider : colors.cardBorder}
+          />
+        ),
+        tabBarButton: (props: BottomTabBarButtonProps) => <TabBarButton {...props} />,
+        tabBarIcon: ({ color }: { color: string }) => {
+          if (!tab) {
+            return null;
           }
 
-          const shouldHideNestedBibleScreen =
-            (route.name === 'Bible' ||
-              route.name === 'Learn' ||
-              route.name === 'Plans' ||
-              route.name === 'More') &&
-            shouldHideTabBarOnNestedRoute(nestedRouteName, nestedRouteParams);
-          const routeCollapseProgress =
-            typeof nestedRouteParams?.tabBarCollapseProgress === 'number'
-              ? Math.max(0, Math.min(nestedRouteParams.tabBarCollapseProgress, 1))
-              : 0;
-          const tabBarCollapseProgress = shouldHideNestedBibleScreen
-            ? Math.max(routeCollapseProgress, 1)
-            : routeCollapseProgress;
+          return <TabBarIcon icon={TAB_BAR_ICONS[tab.iconName]} color={color} />;
+        },
+      };
+    },
+    [
+      capsuleFill,
+      colors.bibleDivider,
+      colors.biblePrimaryText,
+      colors.cardBorder,
+      colors.primaryText,
+      defaultTabBarStyle,
+      getCollapsingTabBarStyle,
+      isDark,
+      readerCapsuleFill,
+      readerTabBarStyle,
+      t,
+    ]
+  );
 
-          return tabBarCollapseProgress > 0
-            ? getCollapsingTabBarStyle(tabBarCollapseProgress)
-            : isBibleReader
-              ? readerTabBarStyle
-              : defaultTabBarStyle;
-        })();
-
-        return {
-          headerShown: false,
-          freezeOnBlur: true,
-          // The selected glyph sits on a neutral ink pill, so it reads in the
-          // scope's primary text rather than the accent.
-          tabBarActiveTintColor: isBibleReader ? colors.biblePrimaryText : colors.primaryText,
-          // Inactive glyphs are full ink too; the neutral pill alone carries selection.
-          tabBarInactiveTintColor: isBibleReader ? colors.biblePrimaryText : colors.primaryText,
-          tabBarStyle,
-          tabBarLabelStyle: styles.tabLabel,
-          tabBarItemStyle: styles.tabItem,
-          // The glass capsule. In the reader it tints off the reading surface so
-          // the bar sits on the same material as the page behind it.
-          tabBarBackground: () => (
-            <TabBarBackground
-              isDark={isDark}
-              fill={isBibleReader ? readerCapsuleFill : capsuleFill}
-              stroke={isBibleReader ? colors.bibleDivider : colors.cardBorder}
-            />
-          ),
-          tabBarButton: (props: BottomTabBarButtonProps) => <TabBarButton {...props} />,
-          tabBarIcon: ({ color }) => {
-            const tab = rootTabManifest.find((entry) => entry.name === route.name);
-
-            if (!tab) {
-              return null;
-            }
-
-            return <TabBarIcon icon={TAB_BAR_ICONS[tab.iconName]} color={color} />;
-          },
-        };
-      }}
-    >
-      <Tab.Screen
-        name="Home"
-        component={HomeStack}
-        options={{ tabBarLabel: t('tabs.home') }}
-        listeners={{ tabPress: () => lightHaptic() }}
-      />
+  return (
+    <Tab.Navigator id="RootTab" tabBar={renderTabBar} screenOptions={screenOptions}>
+      <Tab.Screen name="Home" component={HomeStack} listeners={{ tabPress: () => lightHaptic() }} />
       <Tab.Screen
         name="Bible"
         component={BibleStack}
-        options={{ tabBarLabel: t('tabs.bible') }}
         listeners={({ navigation, route }) => ({
           tabPress: (event) => {
             lightHaptic();
@@ -462,13 +502,11 @@ export function TabNavigator() {
       <Tab.Screen
         name="Learn"
         component={LearnStack}
-        options={{ tabBarLabel: t('tabs.gather') }}
         listeners={{ tabPress: () => lightHaptic() }}
       />
       <Tab.Screen
         name="Plans"
         component={PlansStack}
-        options={{ tabBarLabel: t('tabs.plans') }}
         listeners={({ navigation }) => ({
           tabPress: (event) => {
             lightHaptic();
@@ -479,12 +517,7 @@ export function TabNavigator() {
           },
         })}
       />
-      <Tab.Screen
-        name="More"
-        component={MoreStack}
-        options={{ tabBarLabel: t('tabs.more') }}
-        listeners={{ tabPress: () => lightHaptic() }}
-      />
+      <Tab.Screen name="More" component={MoreStack} listeners={{ tabPress: () => lightHaptic() }} />
     </Tab.Navigator>
   );
 }

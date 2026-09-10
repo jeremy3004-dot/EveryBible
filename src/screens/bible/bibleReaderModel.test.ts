@@ -17,6 +17,7 @@ import {
   READER_TOP_CHROME_DISMISS_DISTANCE,
   READER_BOTTOM_CHROME_COLLAPSE_DISTANCE,
   getEstimatedFollowAlongVerse,
+  getSortedTimestampVerseNumbers,
   getReaderAutoScrollTarget,
   getReaderInlineActiveVerse,
   getReaderVerseContentOffset,
@@ -1030,4 +1031,75 @@ test('buildReaderParagraphs gives every paragraph a distinct key', () => {
   ]);
   const keys = paragraphs.map((p) => p.key);
   assert.equal(new Set(keys).size, keys.length, `keys must be unique, got ${keys.join(', ')}`);
+});
+
+test('sorts a timestamps object into verse order exactly once per object', () => {
+  // getEstimatedFollowAlongVerse runs on every ~250ms audio position tick, so
+  // re-keying and re-sorting the timestamps map per call was pure waste.
+  let sortComparisons = 0;
+  const timestamps: Record<number, number> = {};
+  for (const verse of [3, 1, 2, 5, 4]) {
+    Object.defineProperty(timestamps, String(verse), {
+      configurable: true,
+      enumerable: true,
+      get: () => {
+        sortComparisons += 1;
+        return verse * 10;
+      },
+    });
+  }
+
+  const first = getSortedTimestampVerseNumbers(timestamps);
+  assert.deepEqual(first, [1, 2, 3, 4, 5]);
+
+  const second = getSortedTimestampVerseNumbers(timestamps);
+  assert.equal(second, first, 'the same timestamps object should reuse its cached verse order');
+
+  const verses = [
+    { id: 1, bookId: 'MAT', chapter: 1, verse: 1, text: 'One' },
+    { id: 2, bookId: 'MAT', chapter: 1, verse: 2, text: 'Two' },
+    { id: 3, bookId: 'MAT', chapter: 1, verse: 3, text: 'Three' },
+    { id: 4, bookId: 'MAT', chapter: 1, verse: 4, text: 'Four' },
+    { id: 5, bookId: 'MAT', chapter: 1, verse: 5, text: 'Five' },
+  ];
+  const readsBeforeTicks = sortComparisons;
+  for (let positionMs = 0; positionMs < 50000; positionMs += 250) {
+    getEstimatedFollowAlongVerse({
+      verses,
+      currentPosition: positionMs,
+      duration: 60000,
+      timestamps,
+    });
+  }
+
+  assert.ok(
+    sortComparisons > readsBeforeTicks,
+    'ticks still read timestamp values while walking the sorted verse list'
+  );
+
+  // A different timestamps object (a new chapter) sorts again.
+  const other = getSortedTimestampVerseNumbers({ 2: 1, 1: 0 });
+  assert.deepEqual(other, [1, 2]);
+});
+
+test('follow-along timestamps still select the latest verse at or before the playhead', () => {
+  const verses = [
+    { id: 1, bookId: 'MAT', chapter: 1, verse: 1, text: 'One' },
+    { id: 2, bookId: 'MAT', chapter: 1, verse: 2, text: 'Two' },
+    { id: 3, bookId: 'MAT', chapter: 1, verse: 3, text: 'Three' },
+  ];
+  const timestamps = { 3: 20, 1: 0, 2: 10 };
+
+  assert.equal(
+    getEstimatedFollowAlongVerse({ verses, currentPosition: 0, duration: 30000, timestamps }),
+    1
+  );
+  assert.equal(
+    getEstimatedFollowAlongVerse({ verses, currentPosition: 11000, duration: 30000, timestamps }),
+    2
+  );
+  assert.equal(
+    getEstimatedFollowAlongVerse({ verses, currentPosition: 25000, duration: 30000, timestamps }),
+    3
+  );
 });

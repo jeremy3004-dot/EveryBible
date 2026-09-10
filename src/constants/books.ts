@@ -149,10 +149,7 @@ export const getBookById = (id: string): BibleBook | undefined => bookByIdMap.ge
  * Returns the localized name for a Bible book using the i18n translation function.
  * Falls back to the hardcoded English name if the translation key is missing.
  */
-export const getTranslatedBookName = (
-  bookId: string,
-  t: (key: string) => string,
-): string => {
+export const getTranslatedBookName = (bookId: string, t: (key: string) => string): string => {
   const key = `bible.books.${bookId}`;
   const translated = t(key);
   // i18next returns the key itself when no translation is found
@@ -171,11 +168,18 @@ const formatCompactBookAbbreviation = (fullName: string, abbreviation: string): 
   }
 
   const firstWord = fullName.trim().split(/\s+/)[0] ?? '';
+  // Case-insensitive but accent-sensitive comparison. This used to go through
+  // ICU `localeCompare(..., { sensitivity: 'accent' })`, which is orders of
+  // magnitude more expensive and runs per render from the app shell (the audio
+  // return tab). Lowercasing gives the same answer here: it folds case, and
+  // leaves accented characters distinct, which is exactly 'accent' sensitivity.
+  const lowerAbbreviation = trimmedAbbreviation.toLowerCase();
+  const lowerFirstWord = firstWord.toLowerCase();
   if (
     firstWord &&
     !trimmedAbbreviation.includes(' ') &&
-    firstWord.localeCompare(trimmedAbbreviation, undefined, { sensitivity: 'accent' }) !== 0 &&
-    firstWord.toLowerCase().startsWith(trimmedAbbreviation.toLowerCase())
+    lowerFirstWord !== lowerAbbreviation &&
+    lowerFirstWord.startsWith(lowerAbbreviation)
   ) {
     return `${trimmedAbbreviation}.`;
   }
@@ -186,7 +190,7 @@ const formatCompactBookAbbreviation = (fullName: string, abbreviation: string): 
 export const getCompactTranslatedBookName = (
   bookId: string,
   t: (key: string) => string,
-  maxLength = COMPACT_BOOK_NAME_MAX_LENGTH,
+  maxLength = COMPACT_BOOK_NAME_MAX_LENGTH
 ): string => {
   const translatedName = getTranslatedBookName(bookId, t);
   if (translatedName.length <= maxLength) {
