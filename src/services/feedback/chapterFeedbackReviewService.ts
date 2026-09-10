@@ -131,9 +131,11 @@ async function readEdgeFunctionErrorMessage(
     // Fall back to the Supabase wrapper message below.
   }
 
-  return error.message === 'Edge Function returned a non-2xx status code'
-    ? fallback
-    : (error.message ?? fallback);
+  if (!error.message?.trim() || error.message === 'Edge Function returned a non-2xx status code') {
+    return fallback;
+  }
+
+  return error.message;
 }
 
 async function resolveDefaultClient(): Promise<ChapterFeedbackReviewFunctionClient | null> {
