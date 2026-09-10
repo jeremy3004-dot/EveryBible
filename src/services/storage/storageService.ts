@@ -1,4 +1,7 @@
-import * as FileSystem from 'expo-file-system';
+// SDK 54's root expo-file-system export throws for the legacy helpers (readAsStringAsync,
+// getInfoAsync); the legacy entry point keeps them working. Guarded by
+// src/expoFileSystemImports.test.ts so this cannot silently regress again.
+import * as FileSystem from 'expo-file-system/legacy';
 import { supabase, isSupabaseConfigured, getCurrentUserId } from '../supabase';
 
 export interface StorageResult<T = void> {
