@@ -188,6 +188,13 @@ export function PrivacyPreferencesScreen() {
                 returnKeyType="next"
                 onSubmitEditing={() => pinConfirmationInputRef.current?.focus()}
                 blurOnSubmit={false}
+                accessibilityLabel={
+                  errorKey
+                    ? `${t('onboarding.pinPlaceholder')}, ${t(errorKey)}`
+                    : t('onboarding.pinPlaceholder')
+                }
+                autoComplete="off"
+                textContentType="oneTimeCode"
               />
 
               <TextInput
@@ -205,11 +212,22 @@ export function PrivacyPreferencesScreen() {
                 maxLength={6}
                 returnKeyType="done"
                 onSubmitEditing={() => void handleSave()}
+                accessibilityLabel={
+                  errorKey
+                    ? `${t('onboarding.pinConfirmPlaceholder')}, ${t(errorKey)}`
+                    : t('onboarding.pinConfirmPlaceholder')
+                }
+                autoComplete="off"
+                textContentType="oneTimeCode"
               />
 
               <Text style={styles.pinLegend}>{t('onboarding.pinLegend')}</Text>
 
-              {errorKey ? <Text style={styles.errorText}>{t(errorKey)}</Text> : null}
+              {errorKey ? (
+                <Text style={styles.errorText} accessibilityLiveRegion="polite">
+                  {t(errorKey)}
+                </Text>
+              ) : null}
             </View>
           ) : null}
         </ScrollView>
@@ -248,8 +266,18 @@ function PrivacyModeOption({
       ]}
       onPress={onPress}
       activeOpacity={0.85}
+      accessibilityRole="radio"
+      accessibilityLabel={title}
+      accessibilityHint={body}
+      accessibilityState={{ selected: isSelected }}
     >
-      <Image source={iconSource} style={styles.optionIconImage} resizeMode="cover" />
+      <Image
+        source={iconSource}
+        style={styles.optionIconImage}
+        resizeMode="cover"
+        accessible={false}
+        importantForAccessibility="no-hide-descendants"
+      />
       <View style={styles.optionCopy}>
         <Text style={styles.optionTitle}>{title}</Text>
         <Text style={styles.optionBody}>{body}</Text>

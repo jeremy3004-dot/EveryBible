@@ -823,6 +823,9 @@ export const vi = {
     "resetPasswordSubmit": "Cập nhật mật khẩu",
     "resetPasswordSuccess": "Mật khẩu của bạn đã được cập nhật",
     "resetPasswordError": "Không thể cập nhật mật khẩu của bạn",
+    "resetLinkConfirmTitle": "Đặt mật khẩu mới?",
+    "resetLinkConfirmBody": "Liên kết này sẽ đặt mật khẩu mới cho {{email}}. Tiếp tục?",
+    "resetLinkDifferentAccount": "Liên kết đặt lại này thuộc về một tài khoản khác. Hãy đăng xuất khỏi tài khoản này trước, rồi mở lại liên kết.",
     "resetPasswordInvalidSession": "Liên kết đặt lại này không hợp lệ hoặc đã hết hạn. Vui lòng yêu cầu một liên kết mới.",
   },
   "profile": {

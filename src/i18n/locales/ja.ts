@@ -823,6 +823,9 @@ export const ja = {
     "resetPasswordSubmit": "パスワードを更新",
     "resetPasswordSuccess": "パスワードが更新されました",
     "resetPasswordError": "パスワードの更新に失敗しました",
+    "resetLinkConfirmTitle": "新しいパスワードを設定しますか？",
+    "resetLinkConfirmBody": "このリンクは {{email}} の新しいパスワードを設定します。続行しますか？",
+    "resetLinkDifferentAccount": "このリセットリンクは別のアカウントのものです。まず現在のアカウントからサインアウトしてから、リンクをもう一度開いてください。",
     "resetPasswordInvalidSession": "このリセットリンクは無効か期限切れです。新しいリンクをリクエストしてください。",
   },
   "profile": {

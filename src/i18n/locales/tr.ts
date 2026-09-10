@@ -823,6 +823,9 @@ export const tr = {
     "resetPasswordSubmit": "Parolayı güncelle",
     "resetPasswordSuccess": "Parolanız güncellendi",
     "resetPasswordError": "Parolanız güncellenemedi",
+    "resetLinkConfirmTitle": "Yeni bir parola belirlensin mi?",
+    "resetLinkConfirmBody": "Bu bağlantı {{email}} için yeni bir parola belirleyecek. Devam edilsin mi?",
+    "resetLinkDifferentAccount": "Bu sıfırlama bağlantısı başka bir hesaba ait. Önce bu hesaptan çıkış yapın, sonra bağlantıyı yeniden açın.",
     "resetPasswordInvalidSession": "Bu sıfırlama bağlantısı geçersiz veya süresi dolmuş. Lütfen yeni bir tane isteyin.",
   },
   "profile": {

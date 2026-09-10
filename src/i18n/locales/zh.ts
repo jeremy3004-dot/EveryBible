@@ -823,6 +823,9 @@ export const zh = {
     "resetPasswordSubmit": "更新密码",
     "resetPasswordSuccess": "您的密码已更新",
     "resetPasswordError": "无法更新您的密码",
+    "resetLinkConfirmTitle": "设置新密码？",
+    "resetLinkConfirmBody": "此链接将为 {{email}} 设置新密码。要继续吗？",
+    "resetLinkDifferentAccount": "此重置链接属于其他账号。请先退出当前账号，然后重新打开该链接。",
     "resetPasswordInvalidSession": "此重置链接无效或已过期。请重新申请一个。",
   },
   "profile": {

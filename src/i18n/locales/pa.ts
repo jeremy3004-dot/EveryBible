@@ -547,6 +547,9 @@ export const pa = {
     "resetPasswordSubmit": "ਪਾਸਵਰਡ ਅੱਪਡੇਟ ਕਰੋ",
     "resetPasswordSuccess": "ਤੁਹਾਡਾ ਪਾਸਵਰਡ ਅੱਪਡੇਟ ਹੋ ਗਿਆ ਹੈ",
     "resetPasswordError": "ਤੁਹਾਡਾ ਪਾਸਵਰਡ ਅੱਪਡੇਟ ਕਰਨ ਵਿੱਚ ਅਸਫਲ",
+    "resetLinkConfirmTitle": "ਨਵਾਂ ਪਾਸਵਰਡ ਸੈੱਟ ਕਰਨਾ ਹੈ?",
+    "resetLinkConfirmBody": "ਇਹ ਲਿੰਕ {{email}} ਲਈ ਨਵਾਂ ਪਾਸਵਰਡ ਸੈੱਟ ਕਰੇਗਾ। ਜਾਰੀ ਰੱਖਣਾ ਹੈ?",
+    "resetLinkDifferentAccount": "ਇਹ ਰੀਸੈੱਟ ਲਿੰਕ ਕਿਸੇ ਹੋਰ ਖਾਤੇ ਦਾ ਹੈ। ਪਹਿਲਾਂ ਇਸ ਖਾਤੇ ਵਿੱਚੋਂ ਸਾਈਨ ਆਊਟ ਕਰੋ, ਫਿਰ ਲਿੰਕ ਦੁਬਾਰਾ ਖੋਲ੍ਹੋ।",
     "resetPasswordInvalidSession": "ਇਹ ਰੀਸੈੱਟ ਲਿੰਕ ਅਵੈਧ ਹੈ ਜਾਂ ਮਿਆਦ ਪੁੱਗ ਗਈ ਹੈ। ਕਿਰਪਾ ਕਰਕੇ ਨਵਾਂ ਲਿੰਕ ਮੰਗੋ।",
   },
   "profile": {

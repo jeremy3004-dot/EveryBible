@@ -547,6 +547,9 @@ export const ne = {
     "resetPasswordSubmit": "पासवर्ड अपडेट गर्नुहोस्",
     "resetPasswordSuccess": "तपाईंको पासवर्ड अपडेट भयो",
     "resetPasswordError": "पासवर्ड अपडेट गर्न असफल भयो",
+    "resetLinkConfirmTitle": "नयाँ पासवर्ड सेट गर्ने?",
+    "resetLinkConfirmBody": "यो लिंकले {{email}} का लागि नयाँ पासवर्ड सेट गर्नेछ। जारी राख्ने?",
+    "resetLinkDifferentAccount": "यो रिसेट लिंक अर्को खाताको हो। पहिले यो खाताबाट साइन आउट गर्नुहोस्, त्यसपछि लिंक फेरि खोल्नुहोस्।",
     "resetPasswordInvalidSession": "यो रिसेट लिङ्क अमान्य छ वा म्याद सकिएको छ। कृपया नयाँ अनुरोध गर्नुहोस्।"
   },
   "profile": {

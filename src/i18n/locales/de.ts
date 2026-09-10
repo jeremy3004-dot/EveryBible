@@ -823,6 +823,9 @@ export const de = {
     "resetPasswordSubmit": "Passwort aktualisieren",
     "resetPasswordSuccess": "Ihr Passwort wurde aktualisiert",
     "resetPasswordError": "Passwort konnte nicht aktualisiert werden",
+    "resetLinkConfirmTitle": "Neues Passwort festlegen?",
+    "resetLinkConfirmBody": "Dieser Link legt ein neues Passwort für {{email}} fest. Fortfahren?",
+    "resetLinkDifferentAccount": "Dieser Zurücksetzen-Link gehört zu einem anderen Konto. Melde dich zuerst von diesem Konto ab und öffne den Link erneut.",
     "resetPasswordInvalidSession": "Dieser Link zum Zurücksetzen ist ungültig oder abgelaufen. Bitte fordern Sie einen neuen an.",
   },
   "profile": {

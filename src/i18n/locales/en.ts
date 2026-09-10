@@ -862,6 +862,9 @@ export const en = {
     resetPasswordSubmit: 'Update Password',
     resetPasswordSuccess: 'Your password has been updated',
     resetPasswordError: 'Failed to update your password',
+    resetLinkConfirmTitle: 'Set a new password?',
+    resetLinkConfirmBody: 'This link sets a new password for {{email}}. Continue?',
+    resetLinkDifferentAccount: 'This reset link belongs to a different account. Sign out of this account first, then open the link again.',
     resetPasswordInvalidSession:
       'This reset link is invalid or has expired. Please request a new one.',
   },

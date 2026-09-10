@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -20,7 +20,13 @@ import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
 import { useDisplayFont } from '../../hooks';
 import { radius, spacing, typography } from '../../design/system';
 import type { AuthStackParamList } from '../../navigation/types';
-import { getCurrentSession, updatePassword, type AuthResult } from '../../services/auth';
+import { getCurrentSession, signOut, updatePassword, type AuthResult } from '../../services/auth';
+import {
+  activatePendingPasswordRecovery,
+  clearPendingPasswordRecovery,
+  getPendingPasswordRecovery,
+} from '../../services/auth/authDeepLink';
+import { resolveRecoveryLinkAudience } from '../../services/auth/authRecoveryLink';
 import { pullFromCloud } from '../../services/sync';
 import { useAuthStore } from '../../stores/authStore';
 
@@ -31,6 +37,11 @@ interface FormErrors {
   confirmPassword?: string;
 }
 
+// The screen is only reachable from a password-reset deep link, and the link's
+// tokens are parked (never exchanged) until the user confirms here — see
+// ../../services/auth/authDeepLink.ts.
+type ResetPhase = 'confirm' | 'form';
+
 export function ResetPasswordScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { t } = useTranslation();
@@ -40,15 +51,72 @@ export function ResetPasswordScreen() {
   const setSession = useAuthStore((state) => state.setSession);
   const confirmPasswordInputRef = useRef<TextInput>(null);
 
+  // Captured once: everything below reasons about the state of the app at the
+  // moment the reset link was opened, not about the recovery session it creates.
+  const [pendingRecovery] = useState(() => getPendingPasswordRecovery());
+  const [signedInUserId] = useState<string | null>(() => useAuthStore.getState().user?.uid ?? null);
+
+  const [phase, setPhase] = useState<ResetPhase>('confirm');
+  const [isActivating, setIsActivating] = useState(false);
+  const [linkError, setLinkError] = useState<string | null>(null);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [errors, setErrors] = useState<FormErrors>({});
+
+  const didActivateRef = useRef(false);
+  const didUpdatePasswordRef = useRef(false);
+
+  const audience = useMemo(
+    () => resolveRecoveryLinkAudience(pendingRecovery?.subject ?? null, signedInUserId),
+    [pendingRecovery, signedInUserId]
+  );
+
+  // Leaving the screen must never strand a live recovery session on a device
+  // that was signed out before the link was opened.
+  useEffect(() => {
+    return () => {
+      clearPendingPasswordRecovery();
+      if (didActivateRef.current && !didUpdatePasswordRef.current && !signedInUserId) {
+        void signOut();
+      }
+    };
+  }, [signedInUserId]);
 
   const dismiss = () => {
     navigation.getParent()?.goBack();
   };
+
+  const handleCancel = useCallback(() => {
+    clearPendingPasswordRecovery();
+    dismiss();
+    // dismiss is a stable navigation call; re-creating it would not change behavior.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigation]);
+
+  const handleConfirmAccount = useCallback(async () => {
+    setLinkError(null);
+    setIsActivating(true);
+    try {
+      const result = await activatePendingPasswordRecovery();
+
+      if (result.status === 'activated') {
+        didActivateRef.current = true;
+        setPhase('form');
+        return;
+      }
+
+      setLinkError(
+        result.status === 'configuration'
+          ? t('auth.backendNotConfigured')
+          : t('auth.resetPasswordInvalidSession')
+      );
+    } finally {
+      setIsActivating(false);
+    }
+  }, [t]);
 
   // result.error is always raw, untranslated English from the auth service layer.
   // Never surface it directly — map by code instead so every locale shows translated text.
@@ -87,13 +155,16 @@ export function ResetPasswordScreen() {
     }
 
     setIsLoading(true);
+    setFormError(null);
     try {
       const result = await updatePassword(password);
 
       if (!result.success) {
-        Alert.alert(t('common.error'), getFailureMessage(result));
+        setFormError(getFailureMessage(result));
         return;
       }
+
+      didUpdatePasswordRef.current = true;
 
       const { session } = await getCurrentSession();
       if (session) {
@@ -105,11 +176,21 @@ export function ResetPasswordScreen() {
         { text: t('common.ok'), onPress: dismiss },
       ]);
     } catch {
-      Alert.alert(t('common.error'), t('auth.resetPasswordError'));
+      setFormError(t('auth.resetPasswordError'));
     } finally {
       setIsLoading(false);
     }
   };
+
+  const canContinue = Boolean(pendingRecovery) && audience === 'match';
+
+  const confirmBody = !pendingRecovery
+    ? t('auth.resetPasswordInvalidSession')
+    : audience === 'different-account'
+      ? t('auth.resetLinkDifferentAccount')
+      : pendingRecovery.email
+        ? t('auth.resetLinkConfirmBody', { email: pendingRecovery.email })
+        : t('auth.resetPasswordSubtitle');
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -117,98 +198,188 @@ export function ResetPasswordScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
           <View style={styles.header}>
             <View style={styles.headerSpacer} />
             <TouchableOpacity
               style={styles.closeButton}
-              onPress={dismiss}
+              onPress={handleCancel}
               hitSlop={8}
               accessibilityRole="button"
+              accessibilityLabel={t('interface.close')}
             >
               <Ionicons name="close" size={28} color={colors.primaryText} />
             </TouchableOpacity>
           </View>
 
           <View style={styles.content}>
-            <Text style={[styles.title, displayFont.bold]}>{t('auth.resetPasswordTitle')}</Text>
-            <Text style={styles.subtitle}>{t('auth.resetPasswordSubtitle')}</Text>
+            {phase === 'confirm' ? (
+              <>
+                <Text style={[styles.title, displayFont.bold]}>
+                  {t('auth.resetLinkConfirmTitle')}
+                </Text>
+                <Text style={styles.subtitle}>{confirmBody}</Text>
 
-            <View style={styles.form}>
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>{t('auth.newPassword')}</Text>
-                <View style={styles.passwordContainer}>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      styles.passwordInput,
-                      errors.password && styles.inputError,
-                    ]}
-                    value={password}
-                    onChangeText={(text) => {
-                      setPassword(text);
-                      setErrors((current) => ({ ...current, password: undefined }));
-                    }}
-                    placeholder={t('auth.newPasswordPlaceholder')}
-                    placeholderTextColor={colors.secondaryText}
-                    secureTextEntry={!showPassword}
-                    editable={!isLoading}
-                    returnKeyType="next"
-                    onSubmitEditing={() => confirmPasswordInputRef.current?.focus()}
-                    blurOnSubmit={false}
-                  />
+                {linkError ? (
+                  <Text style={styles.errorText} accessibilityLiveRegion="polite">
+                    {linkError}
+                  </Text>
+                ) : null}
+
+                <View style={styles.form}>
+                  {canContinue ? (
+                    <TouchableOpacity
+                      style={[styles.primaryButton, isActivating && styles.buttonDisabled]}
+                      onPress={() => void handleConfirmAccount()}
+                      disabled={isActivating}
+                      activeOpacity={0.85}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('common.continue')}
+                      accessibilityState={{ disabled: isActivating }}
+                    >
+                      {isActivating ? (
+                        <ActivityIndicator color={colors.bibleBackground} />
+                      ) : (
+                        <Text style={styles.primaryButtonText}>{t('common.continue')}</Text>
+                      )}
+                    </TouchableOpacity>
+                  ) : null}
+
                   <TouchableOpacity
-                    style={styles.eyeButton}
-                    onPress={() => setShowPassword((current) => !current)}
-                    disabled={isLoading}
-                    hitSlop={8}
+                    style={styles.secondaryButton}
+                    onPress={handleCancel}
+                    disabled={isActivating}
+                    activeOpacity={0.85}
                     accessibilityRole="button"
+                    accessibilityLabel={t('common.cancel')}
+                    accessibilityState={{ disabled: isActivating }}
                   >
-                    <Ionicons
-                      name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                      size={22}
-                      color={colors.secondaryText}
-                    />
+                    <Text style={styles.secondaryButtonText}>{t('common.cancel')}</Text>
                   </TouchableOpacity>
                 </View>
-                {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
-              </View>
+              </>
+            ) : (
+              <>
+                <Text style={[styles.title, displayFont.bold]}>{t('auth.resetPasswordTitle')}</Text>
+                <Text style={styles.subtitle}>{t('auth.resetPasswordSubtitle')}</Text>
 
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>{t('auth.confirmNewPassword')}</Text>
-                <TextInput
-                  ref={confirmPasswordInputRef}
-                  style={[styles.input, errors.confirmPassword && styles.inputError]}
-                  value={confirmPassword}
-                  onChangeText={(text) => {
-                    setConfirmPassword(text);
-                    setErrors((current) => ({ ...current, confirmPassword: undefined }));
-                  }}
-                  placeholder={t('auth.confirmPasswordPlaceholder')}
-                  placeholderTextColor={colors.secondaryText}
-                  secureTextEntry={!showPassword}
-                  editable={!isLoading}
-                  returnKeyType="done"
-                  onSubmitEditing={handleSubmit}
-                />
-                {errors.confirmPassword ? (
-                  <Text style={styles.errorText}>{errors.confirmPassword}</Text>
-                ) : null}
-              </View>
+                <View style={styles.form}>
+                  <View style={styles.inputContainer}>
+                    <Text style={styles.label}>{t('auth.newPassword')}</Text>
+                    <View style={styles.passwordContainer}>
+                      <TextInput
+                        style={[
+                          styles.input,
+                          styles.passwordInput,
+                          errors.password && styles.inputError,
+                        ]}
+                        value={password}
+                        onChangeText={(text) => {
+                          setPassword(text);
+                          setFormError(null);
+                          setErrors((current) => ({ ...current, password: undefined }));
+                        }}
+                        placeholder={t('auth.newPasswordPlaceholder')}
+                        placeholderTextColor={colors.secondaryText}
+                        secureTextEntry={!showPassword}
+                        autoCapitalize="none"
+                        autoComplete="new-password"
+                        textContentType="newPassword"
+                        editable={!isLoading}
+                        returnKeyType="next"
+                        onSubmitEditing={() => confirmPasswordInputRef.current?.focus()}
+                        blurOnSubmit={false}
+                        accessibilityLabel={
+                          errors.password
+                            ? `${t('auth.newPassword')}, ${errors.password}`
+                            : t('auth.newPassword')
+                        }
+                      />
+                      <TouchableOpacity
+                        style={styles.eyeButton}
+                        onPress={() => setShowPassword((current) => !current)}
+                        disabled={isLoading}
+                        hitSlop={8}
+                        accessibilityRole="button"
+                        accessibilityLabel={
+                          showPassword ? t('auth.hidePassword') : t('auth.showPassword')
+                        }
+                        accessibilityState={{ disabled: isLoading }}
+                      >
+                        <Ionicons
+                          name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                          size={22}
+                          color={colors.secondaryText}
+                        />
+                      </TouchableOpacity>
+                    </View>
+                    {errors.password ? (
+                      <Text style={styles.errorText} accessibilityLiveRegion="polite">
+                        {errors.password}
+                      </Text>
+                    ) : null}
+                  </View>
 
-              <TouchableOpacity
-                style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
-                onPress={handleSubmit}
-                disabled={isLoading}
-                activeOpacity={0.85}
-              >
-                {isLoading ? (
-                  <ActivityIndicator color={colors.bibleBackground} />
-                ) : (
-                  <Text style={styles.primaryButtonText}>{t('auth.resetPasswordSubmit')}</Text>
-                )}
-              </TouchableOpacity>
-            </View>
+                  <View style={styles.inputContainer}>
+                    <Text style={styles.label}>{t('auth.confirmNewPassword')}</Text>
+                    <TextInput
+                      ref={confirmPasswordInputRef}
+                      style={[styles.input, errors.confirmPassword && styles.inputError]}
+                      value={confirmPassword}
+                      onChangeText={(text) => {
+                        setConfirmPassword(text);
+                        setFormError(null);
+                        setErrors((current) => ({ ...current, confirmPassword: undefined }));
+                      }}
+                      placeholder={t('auth.confirmPasswordPlaceholder')}
+                      placeholderTextColor={colors.secondaryText}
+                      secureTextEntry={!showPassword}
+                      autoCapitalize="none"
+                      autoComplete="new-password"
+                      textContentType="newPassword"
+                      editable={!isLoading}
+                      returnKeyType="done"
+                      onSubmitEditing={handleSubmit}
+                      accessibilityLabel={
+                        errors.confirmPassword
+                          ? `${t('auth.confirmNewPassword')}, ${errors.confirmPassword}`
+                          : t('auth.confirmNewPassword')
+                      }
+                    />
+                    {errors.confirmPassword ? (
+                      <Text style={styles.errorText} accessibilityLiveRegion="polite">
+                        {errors.confirmPassword}
+                      </Text>
+                    ) : null}
+                  </View>
+
+                  {formError ? (
+                    <Text style={styles.errorText} accessibilityLiveRegion="polite">
+                      {formError}
+                    </Text>
+                  ) : null}
+
+                  <TouchableOpacity
+                    style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
+                    onPress={handleSubmit}
+                    disabled={isLoading}
+                    activeOpacity={0.85}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('auth.resetPasswordSubmit')}
+                    accessibilityState={{ disabled: isLoading }}
+                  >
+                    {isLoading ? (
+                      <ActivityIndicator color={colors.bibleBackground} />
+                    ) : (
+                      <Text style={styles.primaryButtonText}>{t('auth.resetPasswordSubmit')}</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -307,6 +478,18 @@ const createStyles = (colors: ThemeColors) =>
     primaryButtonText: {
       ...typography.button,
       color: colors.bibleBackground,
+    },
+    secondaryButton: {
+      alignItems: 'center',
+      borderColor: colors.cardBorder,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      justifyContent: 'center',
+      paddingVertical: spacing.lg,
+    },
+    secondaryButtonText: {
+      ...typography.button,
+      color: colors.primaryText,
     },
     buttonDisabled: {
       opacity: 0.7,

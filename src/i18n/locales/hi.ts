@@ -547,6 +547,9 @@ export const hi = {
     "resetPasswordSubmit": "पासवर्ड अपडेट करें",
     "resetPasswordSuccess": "आपका पासवर्ड अपडेट कर दिया गया है",
     "resetPasswordError": "आपका पासवर्ड अपडेट करने में विफल",
+    "resetLinkConfirmTitle": "नया पासवर्ड सेट करें?",
+    "resetLinkConfirmBody": "यह लिंक {{email}} के लिए नया पासवर्ड सेट करेगा। जारी रखें?",
+    "resetLinkDifferentAccount": "यह रीसेट लिंक किसी दूसरे खाते का है। पहले इस खाते से साइन आउट करें, फिर लिंक दोबारा खोलें।",
     "resetPasswordInvalidSession": "यह रीसेट लिंक अमान्य है या समाप्त हो गया है। कृपया एक नया अनुरोध करें।"
   },
   "profile": {

@@ -823,6 +823,9 @@ export const ko = {
     "resetPasswordSubmit": "비밀번호 업데이트",
     "resetPasswordSuccess": "비밀번호가 업데이트되었습니다",
     "resetPasswordError": "비밀번호 업데이트에 실패했습니다",
+    "resetLinkConfirmTitle": "새 비밀번호를 설정할까요?",
+    "resetLinkConfirmBody": "이 링크는 {{email}}의 새 비밀번호를 설정합니다. 계속할까요?",
+    "resetLinkDifferentAccount": "이 재설정 링크는 다른 계정의 것입니다. 먼저 현재 계정에서 로그아웃한 뒤 링크를 다시 여세요.",
     "resetPasswordInvalidSession": "이 재설정 링크는 유효하지 않거나 만료되었습니다. 새 링크를 요청하세요.",
   },
   "profile": {

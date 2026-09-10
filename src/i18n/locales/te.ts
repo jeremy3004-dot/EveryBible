@@ -547,6 +547,9 @@ export const te = {
     "resetPasswordSubmit": "పాస్‌వర్డ్‌ను నవీకరించండి",
     "resetPasswordSuccess": "మీ పాస్‌వర్డ్ నవీకరించబడింది",
     "resetPasswordError": "మీ పాస్‌వర్డ్‌ను నవీకరించడంలో విఫలమైంది",
+    "resetLinkConfirmTitle": "కొత్త పాస్‌వర్డ్ సెట్ చేయాలా?",
+    "resetLinkConfirmBody": "ఈ లింక్ {{email}} కోసం కొత్త పాస్‌వర్డ్ సెట్ చేస్తుంది. కొనసాగించాలా?",
+    "resetLinkDifferentAccount": "ఈ రీసెట్ లింక్ వేరే ఖాతాకు చెందినది. ముందుగా ఈ ఖాతా నుండి సైన్ అవుట్ చేసి, ఆపై లింక్‌ను మళ్లీ తెరవండి.",
     "resetPasswordInvalidSession": "ఈ రీసెట్ లింక్ చెల్లదు లేదా గడువు ముగిసింది. దయచేసి కొత్తదాన్ని అభ్యర్థించండి.",
   },
   "profile": {

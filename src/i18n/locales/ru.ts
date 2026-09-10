@@ -835,6 +835,9 @@ export const ru = {
     "resetPasswordSubmit": "Обновить пароль",
     "resetPasswordSuccess": "Ваш пароль обновлён",
     "resetPasswordError": "Не удалось обновить пароль",
+    "resetLinkConfirmTitle": "Задать новый пароль?",
+    "resetLinkConfirmBody": "Эта ссылка задаст новый пароль для {{email}}. Продолжить?",
+    "resetLinkDifferentAccount": "Эта ссылка для сброса относится к другому аккаунту. Сначала выйдите из текущего аккаунта, затем откройте ссылку снова.",
     "resetPasswordInvalidSession": "Эта ссылка для сброса недействительна или истекла. Пожалуйста, запросите новую.",
   },
   "profile": {

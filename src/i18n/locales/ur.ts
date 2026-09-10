@@ -823,6 +823,9 @@ export const ur = {
     "resetPasswordSubmit": "پاس ورڈ اپ ڈیٹ کریں",
     "resetPasswordSuccess": "آپ کا پاس ورڈ اپ ڈیٹ ہو گیا ہے",
     "resetPasswordError": "آپ کا پاس ورڈ اپ ڈیٹ کرنے میں ناکام",
+    "resetLinkConfirmTitle": "نیا پاس ورڈ سیٹ کریں؟",
+    "resetLinkConfirmBody": "یہ لنک {{email}} کے لیے نیا پاس ورڈ سیٹ کرے گا۔ جاری رکھیں؟",
+    "resetLinkDifferentAccount": "یہ ری سیٹ لنک کسی دوسرے اکاؤنٹ کا ہے۔ پہلے اس اکاؤنٹ سے سائن آؤٹ کریں، پھر لنک دوبارہ کھولیں۔",
     "resetPasswordInvalidSession": "یہ ری سیٹ لنک غلط ہے یا اس کی میعاد ختم ہو چکی ہے۔ براہ کرم نیا لنک طلب کریں۔",
   },
   "profile": {

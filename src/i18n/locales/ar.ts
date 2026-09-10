@@ -847,6 +847,9 @@ export const ar = {
     "resetPasswordSubmit": "تحديث كلمة المرور",
     "resetPasswordSuccess": "تم تحديث كلمة المرور الخاصة بك",
     "resetPasswordError": "فشل تحديث كلمة المرور",
+    "resetLinkConfirmTitle": "تعيين كلمة مرور جديدة؟",
+    "resetLinkConfirmBody": "سيعيّن هذا الرابط كلمة مرور جديدة لـ {{email}}. هل تريد المتابعة؟",
+    "resetLinkDifferentAccount": "رابط إعادة التعيين هذا يخص حسابًا آخر. سجّل الخروج من هذا الحساب أولًا ثم افتح الرابط مرة أخرى.",
     "resetPasswordInvalidSession": "رابط إعادة التعيين هذا غير صالح أو انتهت صلاحيته. يرجى طلب رابط جديد.",
   },
   "profile": {

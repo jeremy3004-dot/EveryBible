@@ -823,6 +823,9 @@ export const id = {
     "resetPasswordSubmit": "Perbarui Kata Sandi",
     "resetPasswordSuccess": "Kata sandi Anda telah diperbarui",
     "resetPasswordError": "Gagal memperbarui kata sandi Anda",
+    "resetLinkConfirmTitle": "Atur kata sandi baru?",
+    "resetLinkConfirmBody": "Tautan ini akan mengatur kata sandi baru untuk {{email}}. Lanjutkan?",
+    "resetLinkDifferentAccount": "Tautan setel ulang ini milik akun lain. Keluar dari akun ini dulu, lalu buka tautannya lagi.",
     "resetPasswordInvalidSession": "Tautan setel ulang ini tidak valid atau telah kedaluwarsa. Silakan minta yang baru.",
   },
   "profile": {

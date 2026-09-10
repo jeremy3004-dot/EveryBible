@@ -547,6 +547,9 @@ export const bn = {
     "resetPasswordSubmit": "পাসওয়ার্ড আপডেট করুন",
     "resetPasswordSuccess": "আপনার পাসওয়ার্ড আপডেট করা হয়েছে",
     "resetPasswordError": "আপনার পাসওয়ার্ড আপডেট করতে ব্যর্থ",
+    "resetLinkConfirmTitle": "নতুন পাসওয়ার্ড সেট করবেন?",
+    "resetLinkConfirmBody": "এই লিঙ্কটি {{email}}-এর জন্য নতুন পাসওয়ার্ড সেট করবে। চালিয়ে যাবেন?",
+    "resetLinkDifferentAccount": "এই রিসেট লিঙ্কটি অন্য একটি অ্যাকাউন্টের। আগে এই অ্যাকাউন্ট থেকে সাইন আউট করুন, তারপর লিঙ্কটি আবার খুলুন।",
     "resetPasswordInvalidSession": "এই রিসেট লিঙ্কটি অবৈধ বা মেয়াদোত্তীর্ণ। দয়া করে একটি নতুন লিঙ্কের অনুরোধ করুন।",
   },
   "profile": {
