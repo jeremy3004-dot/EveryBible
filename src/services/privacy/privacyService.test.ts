@@ -3,72 +3,54 @@
  *
  * privacyService.ts talks to expo-secure-store and expo-crypto, and appIcon.ts
  * reaches for react-native, so every native specifier is replaced with an
- * in-memory double via node:test module mocks (same pattern as
+ * in-memory double via the shared `mockModule` helper (same pattern as
  * ../auth/authServiceNonce.test.ts).
  */
 
-import test, { mock } from 'node:test';
+import test, { before, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { mockModule, sourcePath } from '../../testing/mockModules';
 
 const secureStore = new Map<string, string>();
 const setItemOptions: unknown[] = [];
 const getItemOptions: unknown[] = [];
 
-let serviceModule: typeof import('./privacyService') | null = null;
-let loadAttempted = false;
+mockModule(mock, 'expo-secure-store', {
+  WHEN_UNLOCKED_THIS_DEVICE_ONLY: 'whenUnlockedThisDeviceOnly',
+  getItemAsync: async (key: string, options?: unknown) => {
+    getItemOptions.push(options);
+    return secureStore.has(key) ? (secureStore.get(key) as string) : null;
+  },
+  setItemAsync: async (key: string, value: string, options?: unknown) => {
+    setItemOptions.push(options);
+    secureStore.set(key, value);
+  },
+  deleteItemAsync: async (key: string) => {
+    secureStore.delete(key);
+  },
+});
 
-async function loadService(): Promise<typeof import('./privacyService') | null> {
-  if (loadAttempted) return serviceModule;
-  loadAttempted = true;
-  if (typeof (mock as { module?: unknown }).module !== 'function') return null;
+mockModule(mock, 'expo-crypto', {
+  CryptoDigestAlgorithm: { SHA256: 'SHA-256' },
+  getRandomBytesAsync: async (length: number) =>
+    new Uint8Array(length).map((_, index) => (index * 37 + 11) % 256),
+  digestStringAsync: async (algorithm: string, value: string) => {
+    assert.equal(algorithm, 'SHA-256');
+    return createHash('sha256').update(value).digest('hex');
+  },
+});
 
-  const url = (relative: string) => new URL(relative, import.meta.url).pathname;
+mockModule(mock, sourcePath('services/privacy/appIcon.ts'), {
+  setPrivacyAppIcon: async () => true,
+  supportsDynamicAppIcon: () => false,
+});
 
-  mock.module('expo-secure-store', {
-    namedExports: {
-      WHEN_UNLOCKED_THIS_DEVICE_ONLY: 'whenUnlockedThisDeviceOnly',
-      getItemAsync: async (key: string, options?: unknown) => {
-        getItemOptions.push(options);
-        return secureStore.has(key) ? (secureStore.get(key) as string) : null;
-      },
-      setItemAsync: async (key: string, value: string, options?: unknown) => {
-        setItemOptions.push(options);
-        secureStore.set(key, value);
-      },
-      deleteItemAsync: async (key: string) => {
-        secureStore.delete(key);
-      },
-    },
-  });
+let service: typeof import('./privacyService');
 
-  mock.module('expo-crypto', {
-    namedExports: {
-      CryptoDigestAlgorithm: { SHA256: 'SHA-256' },
-      getRandomBytesAsync: async (length: number) =>
-        new Uint8Array(length).map((_, index) => (index * 37 + 11) % 256),
-      digestStringAsync: async (algorithm: string, value: string) => {
-        assert.equal(algorithm, 'SHA-256');
-        return createHash('sha256').update(value).digest('hex');
-      },
-    },
-  });
-
-  mock.module(url('./appIcon.ts'), {
-    namedExports: {
-      setPrivacyAppIcon: async () => true,
-      supportsDynamicAppIcon: () => false,
-    },
-  });
-
-  try {
-    serviceModule = await import('./privacyService');
-  } catch {
-    serviceModule = null;
-  }
-
-  return serviceModule;
-}
+before(async () => {
+  service = await import('./privacyService');
+});
 
 const PRIVACY_KEY = 'everybible.privacy.settings';
 
@@ -84,9 +66,7 @@ function reset(): void {
   getItemOptions.length = 0;
 }
 
-test('updatePrivacyMode never persists the secure code in cleartext', async (t) => {
-  const service = await loadService();
-  if (!service) return t.skip('node:test module mocks are unavailable in this runtime');
+test('updatePrivacyMode never persists the secure code in cleartext', async () => {
   reset();
 
   await service.updatePrivacyMode('discreet', '1234');
@@ -108,9 +88,7 @@ test('updatePrivacyMode never persists the secure code in cleartext', async (t) 
   );
 });
 
-test('the privacy record is written and read with a device-only keychain class', async (t) => {
-  const service = await loadService();
-  if (!service) return t.skip('node:test module mocks are unavailable in this runtime');
+test('the privacy record is written and read with a device-only keychain class', async () => {
   reset();
 
   await service.updatePrivacyMode('discreet', '1234');
@@ -120,9 +98,7 @@ test('the privacy record is written and read with a device-only keychain class',
   assert.deepEqual(getItemOptions.at(-1), { keychainAccessible: 'whenUnlockedThisDeviceOnly' });
 });
 
-test('a legacy cleartext record still verifies, then upgrades itself to a hash', async (t) => {
-  const service = await loadService();
-  if (!service) return t.skip('node:test module mocks are unavailable in this runtime');
+test('a legacy cleartext record still verifies, then upgrades itself to a hash', async () => {
   reset();
 
   secureStore.set(PRIVACY_KEY, JSON.stringify({ mode: 'discreet', pin: '4321' }));
@@ -152,9 +128,7 @@ test('a legacy cleartext record still verifies, then upgrades itself to a hash',
   assert.equal((await service.verifyPrivacyPin('9999')).success, false);
 });
 
-test('repeated wrong codes trip an exponential lockout that blocks further attempts', async (t) => {
-  const service = await loadService();
-  if (!service) return t.skip('node:test module mocks are unavailable in this runtime');
+test('repeated wrong codes trip an exponential lockout that blocks further attempts', async () => {
   reset();
 
   await service.updatePrivacyMode('discreet', '1234');
@@ -185,10 +159,7 @@ test('repeated wrong codes trip an exponential lockout that blocks further attem
   assert.equal(readStoredRecord().pinLockedUntil, null);
 });
 
-test('each further failure past the threshold doubles the lockout, up to the cap', async (t) => {
-  const service = await loadService();
-  if (!service) return t.skip('node:test module mocks are unavailable in this runtime');
-
+test('each further failure past the threshold doubles the lockout, up to the cap', async () => {
   assert.equal(service.getPrivacyPinLockoutMs(service.PRIVACY_PIN_LOCKOUT_THRESHOLD - 1), 0);
   assert.equal(
     service.getPrivacyPinLockoutMs(service.PRIVACY_PIN_LOCKOUT_THRESHOLD),
@@ -201,9 +172,7 @@ test('each further failure past the threshold doubles the lockout, up to the cap
   assert.equal(service.getPrivacyPinLockoutMs(99), service.PRIVACY_PIN_LOCKOUT_MAX_MS);
 });
 
-test('a batch of candidates from one key sequence costs a single attempt', async (t) => {
-  const service = await loadService();
-  if (!service) return t.skip('node:test module mocks are unavailable in this runtime');
+test('a batch of candidates from one key sequence costs a single attempt', async () => {
   reset();
 
   await service.updatePrivacyMode('discreet', '1234');
@@ -216,10 +185,7 @@ test('a batch of candidates from one key sequence costs a single attempt', async
   assert.equal(readStoredRecord().failedPinAttempts, 0);
 });
 
-test('sanitizeStoredPrivacySettings tolerates junk and both record shapes', async (t) => {
-  const service = await loadService();
-  if (!service) return t.skip('node:test module mocks are unavailable in this runtime');
-
+test('sanitizeStoredPrivacySettings tolerates junk and both record shapes', async () => {
   assert.deepEqual(service.sanitizeStoredPrivacySettings(null), {
     mode: 'standard',
     pinCredential: null,
@@ -270,10 +236,7 @@ test('sanitizeStoredPrivacySettings tolerates junk and both record shapes', asyn
   );
 });
 
-test('a stored payload that is not an object at all is treated as no configuration', async (t) => {
-  const service = await loadService();
-  if (!service) return t.skip('node:test module mocks are unavailable in this runtime');
-
+test('a stored payload that is not an object at all is treated as no configuration', async () => {
   // JSON.parse succeeds but yields null, so the property reads throw inside the
   // same guard that catches malformed text.
   const consoleError = mock.method(console, 'error', () => {});
@@ -293,9 +256,7 @@ test('a stored payload that is not an object at all is treated as no configurati
   assert.match(String(consoleError.mock.calls[0].arguments[0]), /Failed to parse privacy settings/);
 });
 
-test('switching to discreet mode without a code stores no credential at all', async (t) => {
-  const service = await loadService();
-  if (!service) return t.skip('node:test module mocks are unavailable in this runtime');
+test('switching to discreet mode without a code stores no credential at all', async () => {
   reset();
 
   const settings = await service.updatePrivacyMode('discreet', null);

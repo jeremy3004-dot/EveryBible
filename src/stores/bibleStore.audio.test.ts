@@ -447,6 +447,49 @@ test('each completed book in a collection download is marked downloaded as it fi
   ]);
 });
 
+// A translation-scope download also subscribes to chapter-level aggregate progress, not
+// only to whole-book completions, and that event carries the translation-scope job id.
+test('a collection download reports chapter-level aggregate progress under its job id', async () => {
+  const snapshots: unknown[] = [];
+  doubles.audio.runTranslationDownload = async (call) => {
+    call.hooks.onStart?.(
+      makeAudioJob({
+        id: 'job-1',
+        translationId: 'bsb',
+        scope: 'translation',
+        status: 'downloading',
+      })
+    );
+    call.hooks.onProgress?.({
+      translationId: 'bsb',
+      bookId: 'GEN',
+      jobId: 'job-1',
+      progress: 25,
+      completedChapters: 2,
+      totalChapters: 8,
+    });
+    snapshots.push({
+      jobProgress: activeJobOf('bsb')?.progress,
+      progress: useBibleStore.getState().downloadProgress,
+    });
+    return { downloadedBookIds: ['GEN'] };
+  };
+
+  await useBibleStore.getState().downloadAudioForBooks('bsb', ['GEN']);
+
+  assert.deepEqual(snapshots, [
+    {
+      jobProgress: 25,
+      progress: {
+        translationId: 'bsb',
+        jobId: 'job-1',
+        progress: 25,
+        status: 'downloading',
+      },
+    },
+  ]);
+});
+
 test('a collection download records every downloaded book once and clears the banner', async () => {
   useBibleStore.setState((state) => ({
     translations: state.translations.map((translation) =>

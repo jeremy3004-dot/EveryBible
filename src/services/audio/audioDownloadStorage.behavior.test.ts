@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import test, { before, beforeEach, mock } from 'node:test';
 import { mockModule } from '../../testing/mockModules';
 import type { AudioDownloadJobRecord, AudioFileSystemAdapter } from './audioDownloadService';
@@ -781,6 +783,28 @@ test('cancelling a job stops the exact task and its per-chapter children', async
 // ---------------------------------------------------------------------------
 // Resuming background downloads on launch
 // ---------------------------------------------------------------------------
+
+// Fixture fidelity: the double above mirrors the real 4.5.4 export surface. A previous
+// build guarded a call to `ensureDownloadsAreRunning`, which the package has never
+// exported, so resume was a permanent silent no-op. Resume goes through
+// `getExistingDownloadTasks` instead, and this keeps the double honest about that.
+test('the background downloader package exports task listing, and no ensureDownloadsAreRunning', () => {
+  const packageSource = readFileSync(
+    fileURLToPath(
+      new URL(
+        '../../../node_modules/@kesha-antonov/react-native-background-downloader/src/index.ts',
+        import.meta.url
+      ).href
+    ),
+    'utf8'
+  );
+
+  assert.equal(
+    /export\s+(?:const|function)\s+ensureDownloadsAreRunning\b/.test(packageSource),
+    false
+  );
+  assert.match(packageSource, /export const getExistingDownloadTasks/);
+});
 
 test('every audio task the OS still holds is resumed on launch', async () => {
   existingTasks = [makeTask('audio-download:job-1'), makeTask('audio-download:job-2')];

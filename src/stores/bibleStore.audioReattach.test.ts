@@ -22,7 +22,8 @@ test('audio download recovery reattaches background tasks and kicks stuck downlo
   assert.match(storageSource, /ensureBackgroundAudioDownloadsRunning/);
   // ensureDownloadsAreRunning does not exist in @kesha-antonov/react-native-background-downloader
   // 4.5.4 — calling it was a permanent silent no-op. Resume must use the real export surface, and
-  // the behaviour is covered by audioDownloadLifecycle.test.ts against a mock of that surface. (N24)
+  // the behaviour is covered by audioDownloadStorage.behavior.test.ts against a mock of that
+  // surface. (N24)
   assert.equal(storageSource.includes('ensureDownloadsAreRunning'), false);
   assert.match(storageSource, /getExistingDownloadTasks\(\)/);
 });

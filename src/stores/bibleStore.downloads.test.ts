@@ -353,6 +353,39 @@ test('cancelDownload stops the native job and removes it from the persisted regi
   assert.deepEqual(doubles.audio.removedJobIds, ['job-1']);
 });
 
+// The translation's own activeDownloadJob is authoritative and downloadProgress.jobId is
+// only its mirror, so a banner left behind by an earlier job must never redirect the cancel.
+test('cancelDownload targets the running job on the translation, not a stale banner id', async () => {
+  withTranslations([
+    makeRuntimeTranslation({
+      id: 'esv1',
+      activeDownloadJob: {
+        id: 'job-live',
+        kind: 'audio-book',
+        state: 'running',
+        progress: 30,
+        startedAt: 1,
+        updatedAt: 2,
+      },
+    }),
+  ]);
+  useBibleStore.setState({
+    downloadProgress: {
+      translationId: 'esv1',
+      jobId: 'job-stale',
+      progress: 30,
+      status: 'downloading',
+    },
+  });
+
+  useBibleStore.getState().cancelDownload();
+  await flushAsyncWork();
+
+  assert.deepEqual(doubles.audio.cancellationRequests, ['job-live']);
+  assert.deepEqual(doubles.audio.cancelledJobIds, ['job-live']);
+  assert.deepEqual(doubles.audio.removedJobIds, ['job-live']);
+});
+
 test('cancelDownload still clears the registry when the native transport cannot cancel', async () => {
   useBibleStore.setState({
     downloadProgress: { translationId: 'bsb', jobId: 'job-1', progress: 30, status: 'downloading' },

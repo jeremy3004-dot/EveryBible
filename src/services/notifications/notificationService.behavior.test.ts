@@ -174,6 +174,23 @@ test('iOS creates no Android notification channels', async () => {
 // setup promise is cached for the whole launch, so the failure case has to be
 // the first Android caller in this file and the memo case the last.
 
+// Proves the dependency the ordering rests on: on Android a trigger naming a channel the
+// OS has not been told about is dropped, so scheduling must await the channel setup and
+// must not schedule at all when that setup fails. Runs before any successful Android
+// setup, while the memo is still empty.
+test('a reminder is never scheduled when its Android channel cannot be created', async () => {
+  rn.Platform.OS = 'android';
+  channelFailure = new Error('channel service unavailable');
+
+  await assert.rejects(() => notifications.scheduleDailyReminder(7, 30), {
+    message: 'channel service unavailable',
+  });
+
+  assert.deepEqual(channels, []);
+  assert.deepEqual(schedules, [], 'a trigger must not be registered ahead of its channel');
+  assert.deepEqual(cancellations, []);
+});
+
 test('a failed channel setup is not cached, so the next caller retries', async () => {
   rn.Platform.OS = 'android';
   channelFailure = new Error('channel service unavailable');

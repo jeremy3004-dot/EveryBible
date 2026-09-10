@@ -11,5 +11,5 @@ If filesystem restoration itself fails, the error identifies the preserved rollb
 Behavioral tests execute the real installer with native filesystem, SQLite, and Supabase boundaries replaced by small fixtures. They seed an existing Bible and cover failure preservation, staging-first validation, closed handles, replacement/rollback, and hashing without browser globals:
 
 ```bash
-node --test --import tsx src/services/bible/cloudTranslationInstall.test.ts src/services/bible/cloudTranslationService.test.ts
+node --test --experimental-test-module-mocks --import tsx src/services/bible/cloudTranslationService.behavior.test.ts
 ```
