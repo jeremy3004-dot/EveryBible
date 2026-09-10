@@ -231,16 +231,19 @@ test('sanitizePersistedBibleState preserves valid runtime translations alongside
   assert.ok(sanitized.translations.some((translation) => translation.id === 'bsb'));
 });
 
-test('sanitizePersistedBibleState treats bundled Hindi text as preloaded and readable', () => {
+test('sanitizePersistedBibleState treats bundled text as preloaded and readable', () => {
+  // Nepali is genuinely built into bible-bsb-v2.db, so a stale persisted row calling it
+  // remote-only must be corrected back to installed. Hindi used to stand in here, but it was
+  // never actually bundled — see src/constants/bundledTranslations.test.ts.
   const sanitized = sanitizePersistedBibleState({
-    currentTranslation: 'hincv',
+    currentTranslation: 'npiulb',
     translations: [
       {
-        id: 'hincv',
-        name: 'Hindi Contemporary Version Bible',
-        abbreviation: 'HCV',
-        language: 'Hindi',
-        description: 'Hindi remote catalog entry',
+        id: 'npiulb',
+        name: 'Nepali Bible',
+        abbreviation: 'NPB',
+        language: 'Nepali',
+        description: 'Nepali remote catalog entry',
         copyright: 'Public Domain',
         isDownloaded: false,
         downloadedBooks: [],
@@ -256,15 +259,53 @@ test('sanitizePersistedBibleState treats bundled Hindi text as preloaded and rea
     ],
   });
 
-  const hincv = sanitized.translations.find((translation) => translation.id === 'hincv');
+  const npiulb = sanitized.translations.find((translation) => translation.id === 'npiulb');
 
-  assert.equal(sanitized.currentTranslation, 'hincv');
+  assert.equal(sanitized.currentTranslation, 'npiulb');
+  assert.ok(npiulb);
+  assert.equal(npiulb.source, 'bundled');
+  assert.equal(npiulb.hasText, true);
+  assert.equal(npiulb.isDownloaded, true);
+  assert.equal(npiulb.description, 'Unlocked Literal Bible — सार्वजनिक डोमेन');
+  assert.equal(npiulb.installState, 'seeded');
+});
+
+test('sanitizePersistedBibleState does not resurrect Hindi as a preloaded bundled text', () => {
+  // The bundled database has no Hindi verses. If a device still carries the old persisted
+  // row that called it bundled, sanitizing must not mark it downloaded — that is what made
+  // every HCV chapter render empty with no way to recover.
+  const sanitized = sanitizePersistedBibleState({
+    currentTranslation: 'bsb',
+    translations: [
+      {
+        id: 'hincv',
+        name: 'Hindi Contemporary Version',
+        abbreviation: 'HCV',
+        language: 'Hindi',
+        description: 'stale persisted row',
+        copyright: 'Public Domain',
+        isDownloaded: true,
+        downloadedBooks: [],
+        downloadedAudioBooks: [],
+        totalBooks: 66,
+        sizeInMB: 4.5,
+        hasText: true,
+        hasAudio: false,
+        audioGranularity: 'none',
+        source: 'bundled',
+        installState: 'seeded',
+      },
+    ],
+  });
+
+  const hincv = sanitized.translations.find((translation) => translation.id === 'hincv');
   assert.ok(hincv);
-  assert.equal(hincv.source, 'bundled');
-  assert.equal(hincv.hasText, true);
-  assert.equal(hincv.isDownloaded, true);
-  assert.equal(hincv.description, 'हिंदी समकालीन संस्करण — सार्वजनिक डोमेन');
-  assert.equal(hincv.installState, 'seeded');
+  assert.equal(hincv.source, 'runtime');
+  // What matters is that it is not treated as locally readable: no local pack means not
+  // downloaded, so the app offers a download instead of opening empty chapters.
+  assert.equal(hincv.isDownloaded, false);
+  assert.equal(hincv.textPackLocalPath ?? null, null);
+  assert.notEqual(hincv.installState, 'seeded');
 });
 
 test('sanitizePersistedBibleState drops runtime aliases that collapse onto bundled translations', () => {

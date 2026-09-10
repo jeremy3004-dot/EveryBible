@@ -138,16 +138,22 @@ export const bibleTranslations: BibleTranslation[] = [
     language: 'Hindi',
     description: 'हिंदी समकालीन संस्करण — सार्वजनिक डोमेन',
     copyright: 'Public Domain',
-    isDownloaded: true,
+    // Declared bundled-with-text when it was added, but its verses were never added to
+    // scripts/build_bible_db.py, so the database has none. The app therefore believed it was
+    // already installed, never downloaded it, and rendered "does not have written text yet"
+    // for every chapter. The real text (and audio) lives in the cloud catalog, so this is a
+    // remote entry like every other cloud translation; the runtime catalog replaces it with
+    // the true flags and download URL once translation_catalog marks it available.
+    isDownloaded: false,
     downloadedBooks: [],
     downloadedAudioBooks: [],
     totalBooks: 66,
     sizeInMB: 4.5,
-    hasText: true,
+    hasText: false,
     hasAudio: false,
     audioGranularity: 'none',
-    source: 'bundled' as const,
-    installState: 'seeded' as const,
+    source: 'runtime' as const,
+    installState: 'remote-only' as const,
   },
   {
     id: 'npiulb',

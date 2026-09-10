@@ -439,13 +439,17 @@ const hydrateSeededTranslation = (
     }
   }
 
-  if (
-    hydrated.source === 'runtime' &&
-    !hydrated.textPackLocalPath &&
-    hydrated.installState === 'installed'
-  ) {
+  // A runtime translation is readable only when its text pack is actually on disk —
+  // isTranslationReadableLocally encodes the same rule. Any persisted row that claims to be
+  // downloaded without a local path is stale and must be walked back, or the reader treats it
+  // as installed and renders empty chapters with no way to recover. This deliberately covers
+  // 'seeded' as well as 'installed': devices that ran an earlier build still carry a Hindi row
+  // seeded as bundled text, which was never in the bundled database.
+  if (hydrated.source === 'runtime' && !hydrated.textPackLocalPath) {
     hydrated.isDownloaded = false;
-    hydrated.installState = 'remote-only';
+    if (hydrated.installState === 'installed' || hydrated.installState === 'seeded') {
+      hydrated.installState = 'remote-only';
+    }
   }
 
   return hydrated;
