@@ -132,13 +132,18 @@ test('storage buckets record calls and build public URLs', async () => {
   );
 });
 
-test('reset clears recordings and responders but keeps auth state', async () => {
+test('reset clears recordings, responders, and auth handler overrides but keeps auth state', async () => {
   const fake = createSupabaseFake();
   fake.auth.setSession(makeFakeSession());
   fake.respondTo('profiles', () => ({ data: [{ id: 1 }] }));
+  fake.auth.handlers.getUser = async () => ({ data: { user: null }, error: { message: 'down' } });
   await fake.client.from('profiles').select();
 
   fake.reset();
+
+  const restored = await fake.client.auth.getUser();
+  assert.equal(restored.error, null, 'overridden handler is restored');
+  assert.equal(restored.data.user?.id, fake.auth.user?.id);
 
   assert.equal(fake.calls.length, 0);
   assert.notEqual(fake.auth.session, null);

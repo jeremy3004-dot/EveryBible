@@ -307,6 +307,8 @@ export function createSupabaseFake() {
     stopAutoRefresh: async () => undefined,
   };
 
+  const defaultAuthHandlers = { ...authHandlers };
+
   const auth = new Proxy({} as Record<string, unknown>, {
     get(_target, property: string) {
       if (property === 'onAuthStateChange') {
@@ -466,8 +468,9 @@ export function createSupabaseFake() {
         return listeners.size;
       },
     },
-    /** Forget recorded calls and scripted responders, keep auth state. */
+    /** Forget recorded calls, scripted responders, and auth handler overrides; keep auth state. */
     reset: () => {
+      Object.assign(authHandlers, defaultAuthHandlers);
       calls.length = 0;
       storageCalls.length = 0;
       authCalls.length = 0;
