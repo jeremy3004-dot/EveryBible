@@ -500,15 +500,9 @@ test('disabling privacy from an unavailable state still leaves the app usable', 
   assert.equal(store().isLocked, false);
 });
 
-// QUESTION for review: is this the right failure mode? clearPrivacySettings
-// deletes the keychain entry BEFORE it restores the standard icon, so an icon
-// restore that a supported device refuses leaves the app believing privacy is
-// still on (mode discreet, hasPin true) while the pin that would unlock it no
-// longer exists. The next background lock is then unopenable until reinstall.
-// Documented rather than fixed: it needs a product call on whether the store
-// should fall back to the standard state anyway, or the service should restore
-// the icon first. No production change made.
-test('a refused icon restore leaves disablePrivacy rejecting with privacy still switched on', async () => {
+// A refused icon restore must not destroy the credential: the pin is what unlocks
+// the app, so it is only deleted once the visible state change has succeeded.
+test('a refused icon restore leaves privacy switched on with the pin still able to unlock', async () => {
   secureStore.set(PRIVACY_SETTINGS_KEY, JSON.stringify({ mode: 'discreet', pin: '1234' }));
   await store().initialize();
   usePrivacyStore.setState({ isLocked: false });
@@ -523,8 +517,10 @@ test('a refused icon restore leaves disablePrivacy rejecting with privacy still 
   assert.equal(store().hasPin, true);
   assert.equal(
     secureStore.has(PRIVACY_SETTINGS_KEY),
-    false,
-    'the stored pin is already gone even though the store still believes in it'
+    true,
+    'the stored pin survives a refused icon restore so the app stays unlockable'
   );
-  assert.equal(await store().unlock('1234'), false);
+  store().lock();
+  assert.equal(store().isLocked, true);
+  assert.equal(await store().unlock('1234'), true);
 });

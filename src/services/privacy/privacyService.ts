@@ -47,11 +47,14 @@ export const applyPrivacyAppIcon = async (mode: PrivacyAppIconMode): Promise<voi
 };
 
 export const clearPrivacySettings = async (): Promise<void> => {
-  await SecureStore.deleteItemAsync(privacySettingsKey);
+  // Restore the icon before deleting the pin: the pin is the only thing that can
+  // unlock a discreet install, so it must survive a refused icon restore or the
+  // next background lock becomes unopenable.
   const didApplyStandardIcon = await setPrivacyAppIcon('standard');
   if (!didApplyStandardIcon && supportsDynamicAppIcon()) {
     throw new Error('Failed to apply the standard privacy app icon');
   }
+  await SecureStore.deleteItemAsync(privacySettingsKey);
 };
 
 export const verifyPrivacyPin = async (pin: string): Promise<boolean> => {

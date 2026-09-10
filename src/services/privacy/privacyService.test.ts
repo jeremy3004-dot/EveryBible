@@ -197,7 +197,7 @@ test('clearing fails loudly when a device that supports icons cannot restore the
   );
   assert.equal(
     secureStore.has(PRIVACY_SETTINGS_KEY),
-    false,
-    'the credentials are still cleared before the icon is restored'
+    true,
+    'the pin is kept when the icon cannot be restored, so the install stays unlockable'
   );
 });
