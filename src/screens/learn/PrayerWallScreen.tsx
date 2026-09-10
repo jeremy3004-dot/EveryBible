@@ -292,8 +292,8 @@ export function PrayerWallScreen() {
             </View>
             {item.is_answered && (
               <View style={[styles.answeredBadge, { backgroundColor: colors.success + '25' }]}>
-                <Ionicons name="checkmark-circle" size={14} color={colors.success} />
-                <Text style={[styles.answeredText, { color: colors.success }]}>
+                <Ionicons name="checkmark-circle" size={14} color={colors.onSuccessSoft} />
+                <Text style={[styles.answeredText, { color: colors.onSuccessSoft }]}>
                   {t('prayer.answered')}
                 </Text>
               </View>

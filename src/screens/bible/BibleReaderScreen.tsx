@@ -129,6 +129,7 @@ import { useDisplayFont } from '../../hooks/useDisplayFont';
 import { useShallow } from 'zustand/react/shallow';
 import { lightHaptic, selectionHaptic } from '../../utils/haptics';
 import { hexWithAlpha } from '../../utils/color';
+import { announceForAccessibility } from '../../utils/a11y';
 import { AudioProgressScrubber } from '../../components/audio/AudioProgressScrubber';
 import { ReaderPlaybackDock } from '../../components/audio/ReaderPlaybackDock';
 import { PlaybackControls } from '../../components/audio/PlaybackControls';
@@ -1955,6 +1956,15 @@ export function BibleReaderScreen() {
   const handleSwipeNavigation = (direction: 'next' | 'prev') => {
     if (swipeInFlightRef.current) return;
     swipeInFlightRef.current = true;
+
+    // The swipe repaints the page silently; a screen reader would otherwise
+    // land in a new chapter with no signal that the reference changed.
+    const swipeTarget = direction === 'next' ? nextNavigationTarget : previousNavigationTarget;
+    if (swipeTarget) {
+      announceForAccessibility(
+        `${getTranslatedBookName(swipeTarget.bookId, t)} ${swipeTarget.chapter}`
+      );
+    }
 
     if (direction === 'next') {
       void handleNextReadChapter().finally(() => {
@@ -4314,7 +4324,10 @@ export function BibleReaderScreen() {
         ) : null}
 
         {translatorFeedbackError ? (
-          <Text style={[styles.feedbackErrorText, { color: colors.error }]}>
+          <Text
+            accessibilityLiveRegion="polite"
+            style={[styles.feedbackErrorText, { color: colors.error }]}
+          >
             {translatorFeedbackError}
           </Text>
         ) : null}
@@ -4358,7 +4371,6 @@ export function BibleReaderScreen() {
           const participantLabel =
             [item.participantName, item.participantRole].filter(Boolean).join(' / ') ||
             item.participantIdNumber ||
-            item.userId ||
             t('bible.translatorReviewUnknownUser');
 
           return (
@@ -4772,6 +4784,7 @@ export function BibleReaderScreen() {
                   maxLength={2000}
                   placeholder={t('bible.chapterFeedbackPlaceholder')}
                   placeholderTextColor={colors.bibleSecondaryText}
+                  accessibilityLabel={t('bible.chapterFeedbackPlaceholder')}
                   style={[
                     styles.listenFeedbackInput,
                     {
@@ -4796,6 +4809,9 @@ export function BibleReaderScreen() {
                   onPress={() => {
                     void handleSubmitChapterFeedback('listener');
                   }}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('bible.chapterFeedbackSubmit')}
+                  accessibilityState={{ disabled: !canSubmitFeedback, busy: isSubmittingFeedback }}
                   disabled={!canSubmitFeedback}
                 >
                   {isSubmittingFeedback ? (
@@ -4819,7 +4835,10 @@ export function BibleReaderScreen() {
             )}
 
             {feedbackSubmitError ? (
-              <Text style={[styles.feedbackErrorText, { color: colors.error }]}>
+              <Text
+                accessibilityLiveRegion="polite"
+                style={[styles.feedbackErrorText, { color: colors.error }]}
+              >
                 {feedbackSubmitError}
               </Text>
             ) : null}
@@ -4863,6 +4882,9 @@ export function BibleReaderScreen() {
         color: colors.bibleSecondaryText,
       },
     ];
+    // `bibleSecondaryText` only reaches 3.18:1 on the follow band, so a verse
+    // number sitting on it swaps to the band's own quiet foreground.
+    const followVerseNumberStyle = [...verseNumberStyle, { color: colors.bibleFollowVerseNumber }];
     const structuredVerseIndentSize = scaleValue(spacing.lg);
 
     const getVersePresentation = (verse: Verse) => {
@@ -4992,7 +5014,7 @@ export function BibleReaderScreen() {
               isFocused ? { backgroundColor: colors.bibleFollowHighlight } : null,
             ]}
           >
-            <Text style={verseNumberStyle}>{verse.verse}</Text>
+            <Text style={isFocused ? followVerseNumberStyle : verseNumberStyle}>{verse.verse}</Text>
             {'\u00A0'}
             {verse.text}
           </Text>
@@ -5072,7 +5094,12 @@ export function BibleReaderScreen() {
                       verseBackgroundColor ? { backgroundColor: verseBackgroundColor } : null,
                     ]}
                   >
-                    <Text style={[verseNumberStyle, styles.premiumInlineVerseNumber]}>
+                    <Text
+                      style={[
+                        isFocused ? followVerseNumberStyle : verseNumberStyle,
+                        styles.premiumInlineVerseNumber,
+                      ]}
+                    >
                       {verse.verse}
                     </Text>
                     {'\u00A0'}
@@ -5512,6 +5539,8 @@ export function BibleReaderScreen() {
       <Modal
         visible={showAudioOptionsSheet}
         transparent
+        statusBarTranslucent
+        navigationBarTranslucent
         animationType="fade"
         onRequestClose={() => setShowAudioOptionsSheet(false)}
       >
@@ -5594,6 +5623,8 @@ export function BibleReaderScreen() {
         <Modal
           visible={showFontSizeSheet && canAdjustFontSize}
           transparent
+          statusBarTranslucent
+          navigationBarTranslucent
           animationType="fade"
           onRequestClose={handleCloseFontSizeSheet}
         >
@@ -5601,6 +5632,8 @@ export function BibleReaderScreen() {
             <TouchableOpacity
               style={styles.fontSheetBackdrop}
               activeOpacity={1}
+              accessibilityRole="button"
+              accessibilityLabel={t('interface.close')}
               onPress={handleCloseFontSizeSheet}
             />
             <View
@@ -5626,7 +5659,7 @@ export function BibleReaderScreen() {
                 style={[styles.readerFontPreview, { backgroundColor: colors.bibleElevatedSurface }]}
               >
                 <Text
-                  allowFontScaling={false}
+                  maxFontSizeMultiplier={1.4}
                   style={[
                     styles.readerFontPreviewSpecimen,
                     {
@@ -5791,6 +5824,8 @@ export function BibleReaderScreen() {
       <Modal
         visible={showChapterActionsSheet}
         transparent
+        statusBarTranslucent
+        navigationBarTranslucent
         animationType="fade"
         onRequestClose={() => setShowChapterActionsSheet(false)}
       >
@@ -5906,6 +5941,8 @@ export function BibleReaderScreen() {
       <Modal
         visible={showFeedbackModal}
         transparent
+        statusBarTranslucent
+        navigationBarTranslucent
         animationType="fade"
         onRequestClose={handleCloseFeedbackModal}
       >
@@ -5917,6 +5954,8 @@ export function BibleReaderScreen() {
           <TouchableOpacity
             style={styles.feedbackModalBackdrop}
             activeOpacity={1}
+            accessible={false}
+            importantForAccessibility="no-hide-descendants"
             onPress={handleCloseFeedbackModal}
           />
           <View
@@ -6036,6 +6075,7 @@ export function BibleReaderScreen() {
                 maxLength={2000}
                 placeholder={t('bible.chapterFeedbackPlaceholder')}
                 placeholderTextColor={colors.bibleSecondaryText}
+                accessibilityLabel={t('bible.chapterFeedbackPlaceholder')}
                 style={[
                   styles.feedbackCommentInput,
                   {
@@ -6052,7 +6092,10 @@ export function BibleReaderScreen() {
               {renderChapterFeedbackAudioControls()}
 
               {feedbackSubmitError ? (
-                <Text style={[styles.feedbackErrorText, { color: colors.error }]}>
+                <Text
+                  accessibilityLiveRegion="polite"
+                  style={[styles.feedbackErrorText, { color: colors.error }]}
+                >
                   {feedbackSubmitError}
                 </Text>
               ) : null}
@@ -6117,6 +6160,8 @@ export function BibleReaderScreen() {
       <Modal
         visible={showChapterAudioShareSheet}
         transparent
+        statusBarTranslucent
+        navigationBarTranslucent
         animationType="fade"
         onRequestClose={() => setShowChapterAudioShareSheet(false)}
       >
@@ -6227,6 +6272,8 @@ export function BibleReaderScreen() {
       <Modal
         visible={audioPortionShareDraft !== null}
         transparent
+        statusBarTranslucent
+        navigationBarTranslucent
         animationType="fade"
         onRequestClose={handleCloseAudioPortionSheet}
       >
@@ -6234,6 +6281,8 @@ export function BibleReaderScreen() {
           <TouchableOpacity
             style={styles.feedbackModalBackdrop}
             activeOpacity={1}
+            accessible={false}
+            importantForAccessibility="no-hide-descendants"
             onPress={handleCloseAudioPortionSheet}
           />
           <View
@@ -6387,6 +6436,8 @@ export function BibleReaderScreen() {
         <Modal
           visible={showTranslationSheet}
           transparent
+          statusBarTranslucent
+          navigationBarTranslucent
           animationType="slide"
           onRequestClose={handleCloseTranslationSheet}
         >
@@ -6394,6 +6445,8 @@ export function BibleReaderScreen() {
             <TouchableOpacity
               style={styles.modalBackdrop}
               activeOpacity={1}
+              accessible={false}
+              importantForAccessibility="no-hide-descendants"
               onPress={handleCloseTranslationSheet}
             />
             <View
@@ -6406,7 +6459,11 @@ export function BibleReaderScreen() {
                 <Text style={[styles.modalTitle, { color: colors.biblePrimaryText }]}>
                   {t('bible.selectTranslation')}
                 </Text>
-                <TouchableOpacity onPress={handleCloseTranslationSheet}>
+                <TouchableOpacity
+                  onPress={handleCloseTranslationSheet}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('interface.close')}
+                >
                   <Ionicons name="close" size={22} color={colors.bibleSecondaryText} />
                 </TouchableOpacity>
               </View>
@@ -6422,6 +6479,8 @@ export function BibleReaderScreen() {
       <Modal
         visible={showFollowAlongText}
         transparent
+        statusBarTranslucent
+        navigationBarTranslucent
         animationType="none"
         onRequestClose={() => setShowFollowAlongText(false)}
       >
@@ -6547,6 +6606,8 @@ export function BibleReaderScreen() {
       <Modal
         visible={showVerseImageSheet}
         transparent
+        statusBarTranslucent
+        navigationBarTranslucent
         animationType="fade"
         onRequestClose={() => setShowVerseImageSheet(false)}
       >
@@ -6554,6 +6615,8 @@ export function BibleReaderScreen() {
           <TouchableOpacity
             style={styles.verseImageSheetBackdrop}
             activeOpacity={1}
+            accessible={false}
+            importantForAccessibility="no-hide-descendants"
             onPress={() => setShowVerseImageSheet(false)}
           />
           <View
@@ -6586,6 +6649,8 @@ export function BibleReaderScreen() {
                   },
                 ]}
                 activeOpacity={0.88}
+                accessibilityRole="button"
+                accessibilityLabel={t('interface.close')}
                 onPress={() => setShowVerseImageSheet(false)}
               >
                 <Ionicons name="close" size={18} color={colors.bibleSecondaryText} />

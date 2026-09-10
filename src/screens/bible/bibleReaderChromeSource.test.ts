@@ -1544,3 +1544,38 @@ test('editorial section titles render in the bold reading face', () => {
     'sectionHeading keeps fontWeight for the platform-serif fallback used by non-Latin scripts'
   );
 });
+
+test('BibleReaderScreen keeps its sheet backdrops out of the screen reader', () => {
+  const source = readRelativeSource('./BibleReaderScreen.tsx');
+
+  for (const backdrop of [
+    'styles.feedbackModalBackdrop',
+    'styles.modalBackdrop}',
+    'styles.verseImageSheetBackdrop',
+  ]) {
+    const index = source.indexOf(backdrop);
+    assert.notEqual(index, -1, `${backdrop} should still be rendered`);
+    const region = source.slice(index, index + 400);
+    assert.match(
+      region,
+      /importantForAccessibility="no-hide-descendants"/,
+      `${backdrop} is a dismiss target duplicating a visible Close, so it should be hidden from the reader`
+    );
+  }
+
+  // The font sheet has no visible Close button, so its backdrop IS the close
+  // affordance and has to be named rather than hidden.
+  const fontBackdrop = source.slice(source.indexOf('styles.fontSheetBackdrop'));
+  assert.match(
+    fontBackdrop.slice(0, 400),
+    /accessibilityRole="button"[\s\S]*accessibilityLabel=\{t\('interface\.close'\)\}/,
+    'The font sheet backdrop is the only way out of that sheet, so it should be a labelled button'
+  );
+
+  const translucentModals = source.match(/^\s*statusBarTranslucent$/gm) ?? [];
+  assert.equal(
+    translucentModals.length,
+    9,
+    'Every reader modal should draw under the Android system bars instead of leaving an edge-to-edge seam'
+  );
+});

@@ -169,6 +169,9 @@ export function PlaybackControls({
               onPress={onPreviousChapter}
               disabled={!hasPreviousChapter || isLoading}
               hitSlop={{ top: 4, bottom: 4, left: 2, right: 2 }}
+              accessibilityRole="button"
+              accessibilityLabel={t('audio.previousChapter')}
+              accessibilityState={{ disabled: !hasPreviousChapter || isLoading }}
             >
               <Ionicons
                 name="play-skip-back"
@@ -205,6 +208,10 @@ export function PlaybackControls({
             }}
             disabled={isLoading}
             accessibilityRole="button"
+            accessibilityLabel={t(
+              isPlaying ? 'interface.pauseChapterAudio' : 'interface.playChapterAudio'
+            )}
+            accessibilityState={{ busy: isLoading, disabled: isLoading }}
           >
             {isLoading ? (
               <ActivityIndicator size="small" color={colors.bibleBackground} />
@@ -243,6 +250,9 @@ export function PlaybackControls({
               onPress={onNextChapter}
               disabled={!hasNextChapter || isLoading}
               hitSlop={{ top: 4, bottom: 4, left: 2, right: 2 }}
+              accessibilityRole="button"
+              accessibilityLabel={t('audio.nextChapter')}
+              accessibilityState={{ disabled: !hasNextChapter || isLoading }}
             >
               <Ionicons
                 name="play-skip-forward"
@@ -373,6 +383,8 @@ export function PlaybackControls({
       <Modal
         visible={showBackgroundMusicModal}
         transparent
+        statusBarTranslucent
+        navigationBarTranslucent
         animationType="fade"
         onRequestClose={() => setShowBackgroundMusicModal(false)}
       >
@@ -446,6 +458,8 @@ export function PlaybackControls({
       <Modal
         visible={showSpeedModal}
         transparent
+        statusBarTranslucent
+        navigationBarTranslucent
         animationType="fade"
         onRequestClose={() => setShowSpeedModal(false)}
       >
@@ -498,6 +512,8 @@ export function PlaybackControls({
       <Modal
         visible={showTimerModal}
         transparent
+        statusBarTranslucent
+        navigationBarTranslucent
         animationType="fade"
         onRequestClose={() => setShowTimerModal(false)}
       >

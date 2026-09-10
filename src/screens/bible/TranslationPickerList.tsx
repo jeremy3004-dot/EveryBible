@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -25,8 +25,9 @@ import {
   getFirstAvailableAudioBook,
   isRemoteAudioAvailable,
 } from '../../services/audio/audioRemote';
+import { ProgressBar } from '../../components/ui';
 import { layout, radius, spacing, typography } from '../../design/system';
-import { hexWithAlpha } from '../../utils';
+import { announceForAccessibility, hexWithAlpha } from '../../utils';
 import type { BibleTranslation } from '../../types';
 import {
   ensureRuntimeCatalogLoaded,
@@ -492,6 +493,7 @@ export function TranslationPickerList({
               onPress={() => setSearchQuery('')}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityRole="button"
+              accessibilityLabel={t('settings.clear')}
             >
               <Ionicons name="close-circle" size={18} color={colors.bibleSecondaryText} />
             </TouchableOpacity>
@@ -678,6 +680,8 @@ export function TranslationPickerList({
       <Modal
         visible={manageTranslation != null}
         transparent
+        statusBarTranslucent
+        navigationBarTranslucent
         animationType="slide"
         onRequestClose={() => setManageTranslationId(null)}
       >
@@ -752,6 +756,23 @@ const TranslationRow = memo(function TranslationRow({
       ? (downloadProgress?.progress ?? 0)
       : null;
   const isTextDownloaded = translation.isDownloaded || Boolean(translation.textPackLocalPath);
+
+  // A download's only visible signal is a silently growing rule, so speak the
+  // same status words the row already shows when it starts and when it settles.
+  const wasDownloadingRef = useRef(false);
+  useEffect(() => {
+    const isDownloading = activeDownloadProgress != null;
+    if (isDownloading === wasDownloadingRef.current) return;
+    wasDownloadingRef.current = isDownloading;
+    if (isDownloading) {
+      announceForAccessibility(t('translations.downloading'));
+    } else {
+      announceForAccessibility(
+        isTextDownloaded ? t('translations.installed') : t('translations.available')
+      );
+    }
+  }, [activeDownloadProgress, isTextDownloaded, t]);
+
   const needsTextDownload =
     !isTextDownloaded && Boolean(translation.catalog?.text?.downloadUrl) && !translation.hasAudio;
 
@@ -809,16 +830,14 @@ const TranslationRow = memo(function TranslationRow({
           ) : null}
           {activeDownloadProgress != null ? (
             <View style={styles.rowProgress}>
-              <View
-                style={[styles.downloadProgressTrack, { backgroundColor: colors.bibleDivider }]}
-              >
-                <View
-                  style={[
-                    styles.downloadProgressFill,
-                    { backgroundColor: colors.bibleAccent, width: `${activeDownloadProgress}%` },
-                  ]}
-                />
-              </View>
+              <ProgressBar
+                progress={activeDownloadProgress / 100}
+                height={DOWNLOAD_PROGRESS_HEIGHT}
+                trackColor={colors.bibleDivider}
+                fillColor={colors.bibleAccent}
+                style={styles.downloadProgressTrack}
+                accessibilityLabel={t('translations.downloading')}
+              />
             </View>
           ) : null}
         </View>
@@ -1204,16 +1223,14 @@ function TranslationManageSheet({
                   {row.label}
                 </Text>
                 {row.progress != null ? (
-                  <View
-                    style={[styles.downloadProgressTrack, { backgroundColor: colors.bibleDivider }]}
-                  >
-                    <View
-                      style={[
-                        styles.downloadProgressFill,
-                        { backgroundColor: colors.bibleAccent, width: `${row.progress}%` },
-                      ]}
-                    />
-                  </View>
+                  <ProgressBar
+                    progress={row.progress / 100}
+                    height={DOWNLOAD_PROGRESS_HEIGHT}
+                    trackColor={colors.bibleDivider}
+                    fillColor={colors.bibleAccent}
+                    style={styles.downloadProgressTrack}
+                    accessibilityLabel={t('translations.downloading')}
+                  />
                 ) : null}
               </View>
               {row.progress != null ? (
@@ -1311,6 +1328,10 @@ function TranslationManageSheet({
     </>
   );
 }
+
+// The download rule keeps its original 3pt hairline; ProgressBar owns the
+// radius, clipping, and the animated fill.
+const DOWNLOAD_PROGRESS_HEIGHT = 3;
 
 const styles = StyleSheet.create({
   container: {
@@ -1495,14 +1516,7 @@ const styles = StyleSheet.create({
     marginRight: spacing.xs,
   },
   downloadProgressTrack: {
-    height: 3,
-    borderRadius: 2,
     marginTop: 6,
-    overflow: 'hidden',
-  },
-  downloadProgressFill: {
-    height: 3,
-    borderRadius: 2,
   },
 });
 

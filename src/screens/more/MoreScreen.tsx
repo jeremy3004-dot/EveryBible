@@ -222,6 +222,8 @@ export function MoreScreen() {
                 source={{ uri: user.photoURL }}
                 style={styles.avatar}
                 accessibilityIgnoresInvertColors
+                accessible={false}
+                importantForAccessibility="no-hide-descendants"
               />
             ) : (
               <View style={[styles.avatar, { backgroundColor: colors.accentSurface }]}>

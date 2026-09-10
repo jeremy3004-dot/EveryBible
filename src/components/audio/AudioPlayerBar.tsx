@@ -124,6 +124,7 @@ export function AudioPlayerBar({ bookId, chapter, onChapterChange }: AudioPlayer
           onPress={() => setShowPlayer(false)}
           hitSlop={8}
           accessibilityRole="button"
+          accessibilityLabel={t('interface.close')}
         >
           <Ionicons name="close" size={18} color={colors.bibleSecondaryText} />
         </TouchableOpacity>

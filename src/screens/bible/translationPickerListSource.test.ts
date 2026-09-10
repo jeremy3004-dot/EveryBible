@@ -356,8 +356,8 @@ test('translation picker shows live download progress on the row itself', () => 
 
   assert.match(
     rowSource,
-    /activeDownloadProgress != null[\s\S]*downloadProgressFill[\s\S]*\{activeDownloadProgress\}%/,
-    'A downloading row should show a progress bar and percentage in place of its status glyph'
+    /activeDownloadProgress != null[\s\S]*<ProgressBar[\s\S]*accessibilityLabel=\{t\('translations\.downloading'\)\}[\s\S]*\{activeDownloadProgress\}%/,
+    'A downloading row should show a labelled progress bar and percentage in place of its status glyph'
   );
 
   assert.match(

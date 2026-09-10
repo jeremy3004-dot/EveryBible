@@ -630,6 +630,7 @@ export function BibleBrowserScreen() {
                 onPress={() => navigation.goBack()}
                 activeOpacity={0.85}
                 accessibilityRole="button"
+                accessibilityLabel={t('interface.close')}
               >
                 <Ionicons name="close" size={18} color={colors.biblePrimaryText} />
               </TouchableOpacity>
@@ -692,6 +693,7 @@ export function BibleBrowserScreen() {
             ref={searchInputRef}
             value={searchQuery}
             onChangeText={setSearchQuery}
+            accessibilityLabel={t('common.search')}
             placeholder={t('common.search')}
             placeholderTextColor={colors.bibleSecondaryText}
             style={[styles.searchInput, { color: colors.biblePrimaryText }]}
@@ -706,6 +708,7 @@ export function BibleBrowserScreen() {
               onPress={() => setSearchQuery('')}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               accessibilityRole="button"
+              accessibilityLabel={t('settings.clear')}
             >
               <Ionicons name="close-circle" size={18} color={colors.bibleSecondaryText} />
             </TouchableOpacity>
@@ -795,6 +798,8 @@ export function BibleBrowserScreen() {
         <Modal
           visible={showTranslationModal}
           transparent
+          statusBarTranslucent
+          navigationBarTranslucent
           animationType="slide"
           onRequestClose={() => setShowTranslationModal(false)}
         >
@@ -813,6 +818,7 @@ export function BibleBrowserScreen() {
                   onPress={() => setShowTranslationModal(false)}
                   hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                   accessibilityRole="button"
+                  accessibilityLabel={t('interface.close')}
                 >
                   <Ionicons name="close" size={22} color={colors.bibleSecondaryText} />
                 </TouchableOpacity>

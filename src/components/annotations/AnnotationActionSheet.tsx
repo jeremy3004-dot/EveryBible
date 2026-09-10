@@ -167,7 +167,7 @@ function AnnotationActionSheetContent({
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       pointerEvents="box-none"
-      style={[styles.overlay, { paddingBottom: bottomInset }]}
+      style={styles.overlay}
     >
       <View
         style={[
@@ -287,7 +287,10 @@ function AnnotationActionSheetContent({
             <Text style={[styles.noteReference, { color: colors.bibleSecondaryText }]}>
               {referenceLabel}
             </Text>
-            <Text style={[styles.notePreview, { color: colors.bibleSecondaryText }]} numberOfLines={3}>
+            <Text
+              style={[styles.notePreview, { color: colors.bibleSecondaryText }]}
+              numberOfLines={3}
+            >
               {selectedText}
             </Text>
             <TextInput
@@ -301,6 +304,7 @@ function AnnotationActionSheetContent({
               ]}
               placeholder={t('annotations.noteHint')}
               placeholderTextColor={colors.bibleSecondaryText}
+              accessibilityLabel={t('annotations.noteHint')}
               value={noteText}
               onChangeText={setNoteText}
               multiline

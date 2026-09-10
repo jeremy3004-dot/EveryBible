@@ -54,6 +54,8 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
           ]}
           onPress={() => navigation.goBack()}
           activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.back')}
         >
           <Ionicons name="arrow-back" size={24} color={colors.primaryText} />
         </TouchableOpacity>

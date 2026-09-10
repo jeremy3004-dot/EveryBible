@@ -27,3 +27,5 @@ export {
 export { hexWithAlpha } from './color';
 
 export { formatPlaybackTime } from './time';
+
+export { announceForAccessibility } from './a11y';

@@ -654,6 +654,7 @@ export function HomeScreen() {
         source={verseBackgroundSource}
         style={[styles.heroPhoto, { height: homeLayout.heroPhotoHeight }]}
         resizeMode="cover"
+        accessible={false}
       >
         <LinearGradient
           colors={heroScrimColors}
@@ -868,7 +869,11 @@ export function HomeScreen() {
                         {`/${featuredPlanDuration}`}
                       </Text>
                     </View>
-                    <ProgressBar progress={featuredPlanFraction} style={styles.planProgressBar} />
+                    <ProgressBar
+                      progress={featuredPlanFraction}
+                      style={styles.planProgressBar}
+                      accessibilityLabel={t('readingPlans.progress')}
+                    />
                   </View>
                 </>
               ) : (

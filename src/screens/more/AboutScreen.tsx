@@ -51,7 +51,13 @@ export function AboutScreen() {
         {/* App Logo/Title */}
         <View style={styles.appSection}>
           <View style={styles.appIcon}>
-            <Image source={ABOUT_APP_ICON} style={styles.appIconImage} resizeMode="cover" />
+            <Image
+              source={ABOUT_APP_ICON}
+              style={styles.appIconImage}
+              resizeMode="cover"
+              accessible={false}
+              importantForAccessibility="no-hide-descendants"
+            />
           </View>
           <Text style={styles.appName}>{config.appName}</Text>
           <Text style={styles.appVersion}>{t('about.version', { version: config.version })}</Text>

@@ -288,7 +288,15 @@ function PlanCoverImage({
       </View>
     );
   }
-  return <Image source={source} style={{ width, height, borderRadius }} resizeMode="cover" />;
+  return (
+    <Image
+      source={source}
+      style={{ width, height, borderRadius }}
+      resizeMode="cover"
+      accessible={false}
+      importantForAccessibility="no-hide-descendants"
+    />
+  );
 }
 
 const coverImageStyles = StyleSheet.create({
@@ -1294,7 +1302,13 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
       {/* ------------------------------------------------------------------ */}
       <View style={styles.cover}>
         {heroCoverSource ? (
-          <Image source={heroCoverSource} style={styles.coverImage} resizeMode="cover" />
+          <Image
+            source={heroCoverSource}
+            style={styles.coverImage}
+            resizeMode="cover"
+            accessible={false}
+            importantForAccessibility="no-hide-descendants"
+          />
         ) : (
           <View
             style={[
@@ -1338,7 +1352,7 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
             <Text
               style={[styles.coverEyebrow, displayFont.regular]}
               numberOfLines={1}
-              allowFontScaling={false}
+              maxFontSizeMultiplier={1.4}
             >
               {heroEyebrow}
             </Text>
@@ -1443,7 +1457,11 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
             accessibilityLabel={t('common.back')}
           />
         </View>
-        <View style={styles.loadingContainer}>
+        <View
+          style={styles.loadingContainer}
+          accessibilityState={{ busy: true }}
+          accessibilityLabel={t('common.loading')}
+        >
           <ActivityIndicator size="large" color={colors.accentPrimary} />
         </View>
       </View>
