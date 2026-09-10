@@ -23,8 +23,11 @@ jobs:
     name: Build Android app bundle
     needs: verify
     runs-on: ubuntu-latest
+    # S19: EXPO_TOKEN is deliberately NOT job-level. A job-level env var is exported into
+    # every step's process, including `npm ci` (which runs arbitrary lifecycle scripts from
+    # the dependency tree) and the third-party setup actions. It is set only on the two steps
+    # that actually shell out to eas-cli.
     env:
-      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
     steps:
@@ -47,7 +50,10 @@ jobs:
           java-version: 17
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        # S19: pinned to the commit v3 resolved to on 2026-09-10. A mutable tag can be
+        # repointed by the action owner (or anyone who compromises that repo) at any time,
+        # and this job holds the Play service account key and the Expo token.
+        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
 
       - name: Install Android SDK packages
         run: |
@@ -60,10 +66,12 @@ jobs:
 
       - name: Build production AAB locally
         id: build
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           set -euo pipefail
           rm -f build-*.aab
-          npx -y eas-cli build --platform android --profile production --local --non-interactive
+          npx -y eas-cli@18.4.0 build --platform android --profile production --local --non-interactive
           AAB_FILES=("$PWD"/build-*.aab)
           if [[ ${#AAB_FILES[@]} -ne 1 || ! -f "${AAB_FILES[0]}" ]]; then
             echo "Expected exactly one newly built Android app bundle" >&2
@@ -82,12 +90,21 @@ jobs:
 
       - name: Write Google Play service account key
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.submit }}
+        # S18: the secret is passed through the step environment, NOT interpolated into the
+        # script body. `${{ }}` substitution happens before bash ever sees the line, so a
+        # single quote anywhere in the JSON would terminate the shell quoting and turn the
+        # rest of the key into shell words — command injection, with the key itself as the
+        # payload. A quoted "$VAR" expansion cannot be re-parsed that way.
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
         run: |
           set -euo pipefail
-          printf '%s' '${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}' > ./google-play-service-account.json
+          printf '%s' "$GOOGLE_PLAY_SERVICE_ACCOUNT_JSON" > ./google-play-service-account.json
 
       - name: Submit build to Google Play
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.submit }}
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           set -euo pipefail
-          npx -y eas-cli submit --platform android --profile production --path "${{ steps.build.outputs.aab_path }}" --non-interactive --wait
+          npx -y eas-cli@18.4.0 submit --platform android --profile production --path "${{ steps.build.outputs.aab_path }}" --non-interactive --wait

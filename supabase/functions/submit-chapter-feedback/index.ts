@@ -58,6 +58,7 @@ interface ChapterFeedbackInsert {
   source_screen: string;
   app_platform: string | null;
   app_version: string | null;
+  client_ip_hash: string | null;
   export_status: 'pending' | 'exported' | 'failed';
 }
 
@@ -161,6 +162,30 @@ const decodeBase64 = (base64Data: string): Uint8Array => {
   }
 
   return bytes;
+};
+
+// S6: stable identity for the anonymous submission rate limit. Copied from
+// review-chapter-feedback/index.ts:90-129 so both credential-free feedback endpoints key
+// their throttles on the same value.
+const getClientIp = (request: Request): string => {
+  // Prefer cf-connecting-ip: on Supabase's Cloudflare edge this is stamped by the proxy and
+  // cannot be spoofed by the client, unlike the first x-forwarded-for entry (which the client
+  // controls — trusted proxies append the real IP, they do not prepend it).
+  const cfIp = request.headers.get('cf-connecting-ip')?.trim();
+  if (cfIp) return cfIp;
+  const forwardedFor = request.headers.get('x-forwarded-for') ?? '';
+  const first = forwardedFor.split(',')[0]?.trim();
+  return first || request.headers.get('x-real-ip')?.trim() || 'unknown';
+};
+
+// Only the digest is ever persisted — chapter_feedback_submissions.client_ip_hash stores no
+// raw address, and review-chapter-feedback never returns the column to translators.
+const hashClientIp = async (request: Request): Promise<string> => {
+  const data = new TextEncoder().encode(getClientIp(request));
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('');
 };
 
 const getRequiredSecret = (name: string): string => {
@@ -277,6 +302,14 @@ const validateRequest = (
         sizeBytes: audioResponse.sizeBytes ?? null,
       };
     } else if (userId && preuploadedAudioPath) {
+      // Reject traversal / separator tricks BEFORE the prefix check: a path such as
+      // `<uid>/../<other-uid>/clip.m4a` passes startsWith but escapes the caller's own
+      // storage prefix, and a backslash is a legal object-key byte that some clients and
+      // path normalizers fold into a separator (S6).
+      if (preuploadedAudioPath.includes('..') || preuploadedAudioPath.includes('\\')) {
+        return { error: 'audio response path is invalid for this user' };
+      }
+
       if (!preuploadedAudioPath.startsWith(`${userId}/`)) {
         return { error: 'audio response path is invalid for this user' };
       }
@@ -315,6 +348,8 @@ const validateRequest = (
       source_screen: requireNonEmptyString(body.sourceScreen) ?? 'reader',
       app_platform: trimOptionalText(body.appPlatform),
       app_version: trimOptionalText(body.appVersion),
+      // Filled in by the handler, which owns the Request and therefore the client IP.
+      client_ip_hash: null,
       export_status: 'exported',
     },
     pendingAudioUpload,
@@ -366,8 +401,12 @@ Deno.serve(async (req) => {
       return jsonResponse(400, { success: false, error: validation.error });
     }
 
-    // Keep the flood guard for signed-in participants and scope anonymous participants
-    // by the name + role identity that is required for every submission.
+    // S6: the anonymous branch used to be scoped by participant_name + participant_role —
+    // two free-text fields straight from the request body, so rotating a name reset the
+    // counter and the limit was a formality. Anonymous submitters are now scoped by a hash of
+    // the client IP (cf-connecting-ip, which the Cloudflare edge stamps and the client cannot
+    // forge). Signed-in submitters keep the user_id scope, which was already un-spoofable.
+    const clientIpHash = await hashClientIp(req);
     const rateWindowStart = new Date(Date.now() - 60 * 60 * 1000).toISOString();
     const rateQuery = supabase
       .from('chapter_feedback_submissions')
@@ -375,13 +414,23 @@ Deno.serve(async (req) => {
       .gte('created_at', rateWindowStart);
     const scopedRateQuery = userId
       ? rateQuery.eq('user_id', userId)
-      : rateQuery
-          .is('user_id', null)
-          .eq('participant_name', validation.value.participant_name)
-          .eq('participant_role', validation.value.participant_role);
+      : rateQuery.is('user_id', null).eq('client_ip_hash', clientIpHash);
     const { count: recentCount, error: rateError } = await scopedRateQuery;
 
-    if (!rateError && (recentCount ?? 0) >= SUBMISSION_RATE_LIMIT_PER_HOUR) {
+    // S6: fail CLOSED. This endpoint runs with verify_jwt = false, so if the counter query is
+    // the only thing standing between an anonymous caller and unbounded service-role inserts,
+    // an error on that query must not wave the request through. The message stays generic so a
+    // caller cannot tell a counter outage apart from being throttled.
+    if (rateError) {
+      return jsonResponse(503, {
+        success: false,
+        saved: false,
+        exported: false,
+        error: 'Unable to accept feedback right now. Please try again later.',
+      });
+    }
+
+    if ((recentCount ?? 0) >= SUBMISSION_RATE_LIMIT_PER_HOUR) {
       return jsonResponse(429, {
         success: false,
         saved: false,
@@ -418,6 +467,7 @@ Deno.serve(async (req) => {
     const insertPayload: ChapterFeedbackInsert = {
       ...validation.value,
       user_id: userId,
+      client_ip_hash: clientIpHash,
     };
 
     const { data: insertedRow, error: insertError } = await supabase

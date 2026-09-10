@@ -41,3 +41,26 @@ test('track-analytics-events edge function prefers explicit geo from the event p
   assert.match(source, /resolveEventGeo/);
   assert.match(source, /mergeGeo/);
 });
+
+test('track-analytics-events caps a batch at the same 500 events as the anonymous collector (S5)', async () => {
+  const source = await readFile(
+    path.join(repoRoot, 'supabase/functions/track-analytics-events/index.ts'),
+    'utf8'
+  );
+
+  assert.match(
+    source,
+    /MAX_EVENTS_PER_BATCH = 500/,
+    'the authenticated collector must declare the same 500-event ceiling'
+  );
+  assert.match(
+    source,
+    /events\.length > MAX_EVENTS_PER_BATCH/,
+    'the ceiling must actually be checked against the parsed batch'
+  );
+  assert.match(
+    source,
+    /events\.length > MAX_EVENTS_PER_BATCH[\s\S]{0,400}status: 400/,
+    'an oversized batch must be refused with 400 before any service-role insert'
+  );
+});

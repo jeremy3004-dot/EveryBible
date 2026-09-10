@@ -26,7 +26,6 @@ export interface ChapterFeedbackReviewItem {
   participantName: string | null;
   participantRole: string | null;
   participantIdNumber: string | null;
-  userId: string | null;
   sourceScreen: string;
   resolution: TranslatorFeedbackResolution | null;
   resolvedAt: string | null;

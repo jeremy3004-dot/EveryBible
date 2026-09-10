@@ -27,6 +27,8 @@ interface AnonymousUsageEvent {
 
 interface AnonymousUsageRequestBody {
   events: AnonymousUsageEvent[];
+  /** S5: how many events in this batch were dropped for being oversized or too old. */
+  rejected: number;
 }
 
 interface GeoResult {
@@ -312,12 +314,37 @@ async function resolveUserId(
   }
 }
 
+// S5: hard ceiling on a single event's properties blob. This endpoint is verify_jwt = false,
+// so event_properties was the one unbounded field a credential-free caller could use to push
+// arbitrary megabytes into analytics_events. 4 KB is ~40x the largest property bag the app
+// actually sends (a reading_ended event is well under 200 bytes).
+const MAX_EVENT_PROPERTIES_BYTES = 4096;
+
+// S5: floor on queued_at. EveryBible is offline-first — a device can genuinely sit offline for
+// weeks before its queue drains — so this is deliberately generous at 30 days rather than the
+// 7 a purely online product would use. Anything older is backdated junk that would silently
+// rewrite historical rollups. The UPPER bound (clamp to now) is applied per-event below.
+const MAX_QUEUED_AT_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+
+const eventPropertiesWithinLimit = (properties: Record<string, unknown>): boolean => {
+  try {
+    return JSON.stringify(properties).length <= MAX_EVENT_PROPERTIES_BYTES;
+  } catch {
+    // Unserializable (circular / BigInt) property bags are rejected the same way.
+    return false;
+  }
+};
+
 function parseBatchRequest(body: unknown): AnonymousUsageRequestBody | null {
   if (!body || typeof body !== 'object') return null;
   const events = (body as { events?: unknown }).events;
   if (!Array.isArray(events) || events.length === 0 || events.length > 500) return null;
 
   const normalizedEvents: AnonymousUsageEvent[] = [];
+  // S5: oversized / too-old events are DROPPED individually rather than failing the batch.
+  // Failing the batch would punish a device for one bad event by making it retry the whole
+  // queue forever; dropping keeps the good events and reports the count back to the client.
+  let rejected = 0;
   for (const event of events) {
     if (!event || typeof event !== 'object') return null;
     const raw = event as Partial<AnonymousUsageEvent>;
@@ -328,16 +355,25 @@ function parseBatchRequest(body: unknown): AnonymousUsageRequestBody | null {
     if (!eventName || !devicePlatform || !appVersion || !queuedAt || !Number.isFinite(Date.parse(queuedAt))) return null;
     const eventId = getText(raw.event_id);
     if (eventId && !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(eventId)) return null;
+    if (Date.parse(queuedAt) < Date.now() - MAX_QUEUED_AT_AGE_MS) {
+      rejected += 1;
+      continue;
+    }
+    const eventProperties =
+      raw.event_properties && typeof raw.event_properties === 'object' && !Array.isArray(raw.event_properties)
+        ? (raw.event_properties as Record<string, unknown>)
+        : {};
+    if (!eventPropertiesWithinLimit(eventProperties)) {
+      rejected += 1;
+      continue;
+    }
     normalizedEvents.push({
       event_id: eventId ?? undefined,
       attribution_user_id: raw.attribution_user_id === undefined ? undefined : getText(raw.attribution_user_id),
       app_version: appVersion,
       device_platform: devicePlatform,
       event_name: eventName as AnonymousUsageEvent['event_name'],
-      event_properties:
-        raw.event_properties && typeof raw.event_properties === 'object' && !Array.isArray(raw.event_properties)
-          ? (raw.event_properties as Record<string, unknown>)
-          : {},
+      event_properties: eventProperties,
       geo_accuracy_km:
         raw.geo_accuracy_km == null ? null : normalizeAccuracyKm(raw.geo_accuracy_km),
       geo_country_code:
@@ -353,7 +389,7 @@ function parseBatchRequest(body: unknown): AnonymousUsageRequestBody | null {
       session_id: raw.session_id === null || getText(raw.session_id) === null ? null : getText(raw.session_id),
     });
   }
-  return { events: normalizedEvents };
+  return { events: normalizedEvents, rejected };
 }
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -379,6 +415,13 @@ Deno.serve(async (request) => {
 
     const batch = parseBatchRequest(await request.json().catch(() => null));
     if (!batch) return jsonResponse({ error: 'Request body must include analytics events' }, 400);
+
+    // S5: the whole batch may have been dropped by the per-event caps. Nothing to write, and
+    // no reason to spend a geo lookup — acknowledge so the client clears its queue instead of
+    // retrying the same rejected events forever.
+    if (batch.events.length === 0) {
+      return jsonResponse({ inserted: 0, rejected: batch.rejected, ok: true, attributed: false, geo: null, geo_source: null });
+    }
 
     const supabase = createClient(supabaseUrl, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
@@ -421,6 +464,7 @@ Deno.serve(async (request) => {
 
     return jsonResponse({
       inserted: rows.length,
+      rejected: batch.rejected,
       ok: true,
       attributed: userId != null,
       geo: requestGeo.countryCode,
