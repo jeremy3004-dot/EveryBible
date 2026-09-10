@@ -145,7 +145,10 @@ test('a persisted payload missing one list keeps the in-memory default for it', 
   assert.deepEqual(useTranslationPreferenceStore.getState().hiddenIds, []);
 });
 
-test('unparseable storage is ignored and the store falls back to the defaults', () => {
+// Named for what actually happens: zustand's persist swallows the parse error
+// and never calls setState, so the live lists stay exactly as they were. It does
+// not reset them to the defaults — the pin below proves the difference.
+test('unparseable storage is ignored and leaves the in-memory lists untouched', () => {
   useTranslationPreferenceStore.getState().pin('bsb');
 
   rehydrateFrom('} not json {');

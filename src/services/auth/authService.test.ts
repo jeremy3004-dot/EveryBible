@@ -329,6 +329,27 @@ test('signInWithEmail dates an account with no created_at from the current clock
   assert.equal(result.user?.createdAt, 1_800_000_000_000);
 });
 
+// Apple's "Hide My Email" and Supabase phone accounts both mint users with no
+// `email` at all. The app User type says `email: string | null`, so the mapper
+// has to produce null rather than leaving the field undefined.
+test('signInWithApple maps an account Supabase minted without an email to a null email', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: 1_800_000_000_000 });
+  supabaseFake.auth.setSession(
+    makeFakeSession({ user: signedInUser({ email: undefined }) as never })
+  );
+
+  const result = await authService.signInWithApple();
+
+  assert.deepEqual(result.user, {
+    uid: 'user-42',
+    email: null,
+    displayName: null,
+    photoURL: null,
+    createdAt: Date.parse('2026-02-03T04:05:06.000Z'),
+    lastActive: 1_800_000_000_000,
+  });
+});
+
 test('signInWithEmail turns a network failure into a service-unavailable failure', async () => {
   authHandlers.signInWithPassword = async () => ({
     data: { user: null, session: null },

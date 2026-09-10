@@ -665,6 +665,61 @@ test('a device with no local preference stamp adopts the cloud preferences', asy
   assert.deepEqual(callsFor('user_preferences', 'upsert'), []);
 });
 
+// The `merged` flag is what useSync reports upward as "this cycle brought
+// something down", so its false case has to be pinned too: with only the
+// merged-true cases covered, hard-coding `merged: true` on the remote branch
+// passed the whole suite.
+test('a cloud row that matches the local preferences exactly reports nothing merged', async () => {
+  script.user_preferences = {
+    select: {
+      data: remotePreferenceRow({
+        font_size: 'medium',
+        theme: 'light',
+        appearance_palette: DEFAULT_APPEARANCE_PALETTE,
+        language: 'en',
+        country_code: null,
+        country_name: null,
+        content_language_code: null,
+        content_language_name: null,
+        content_language_native_name: null,
+        chapter_feedback_name: null,
+        chapter_feedback_role: null,
+        onboarding_completed: true,
+        chapter_feedback_enabled: false,
+        hide_play_button_from_reading_tab: false,
+        notifications_enabled: false,
+        reminder_time: null,
+        // An unstamped row: the remote branch is taken because the device has no
+        // local stamp either, so both the values and the stamp are unchanged.
+        // The generated row type says `synced_at: string`, but the column is
+        // nullable in practice and mergePreferences reads it as `?? null`.
+        synced_at: undefined,
+      }),
+    },
+  };
+
+  const result = await syncPreferences(USER_A);
+
+  assert.deepEqual(result, { success: true, merged: false });
+  assert.deepEqual(authStore.getState().preferences, LOCAL_PREFERENCES);
+  assert.deepEqual(callsFor('user_preferences', 'upsert'), []);
+});
+
+// Sibling of the case above: same unstamped row, but the values differ. Only
+// the value comparison can report this one as merged, so this pins the
+// `changed` half of the flag that the stamp comparison would otherwise hide.
+test('an unstamped cloud row whose values differ is adopted and reported as merged', async () => {
+  script.user_preferences = {
+    select: { data: remotePreferenceRow({ synced_at: undefined }) },
+  };
+
+  const result = await syncPreferences(USER_A);
+
+  assert.deepEqual(result, { success: true, merged: true });
+  assert.equal(authStore.getState().preferences.fontSize, 'large');
+  assert.equal(authStore.getState().preferencesUpdatedAt, null);
+});
+
 test('a retired accent palette from an old row is normalised before it reaches the app', async () => {
   script.user_preferences = {
     select: { data: remotePreferenceRow({ appearance_palette: 'ember' }) },
@@ -1102,6 +1157,14 @@ test('pullFromCloud never writes anything back to the cloud', async () => {
   assert.deepEqual(callsFor('user_preferences', 'upsert'), []);
 });
 
+// QUESTION for the lead (raised with commit 133c6321, still open): pullFromCloud
+// hard-codes `merged: true` on every success, including this one where nothing
+// came down at all. Because of that, `pullReadingPlansFromCloud`'s own
+// `merged: Boolean(result.data?.length)` is discarded at the call site and
+// cannot be observed through any exported function — replacing it with a
+// constant `false` leaves the whole suite green. Both are documented here rather
+// than changed; if `merged` is meant to mean "something arrived", pullFromCloud
+// should be computing it from the branches instead of asserting it.
 test('pullFromCloud on an account with no cloud rows leaves the local stores untouched', async () => {
   const result = await pullFromCloud(USER_A);
 

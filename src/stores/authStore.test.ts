@@ -499,6 +499,55 @@ test('a newer sync timestamp is adopted even when the preference values match', 
   assert.equal(useAuthStore.getState().preferencesUpdatedAt, '2026-07-01T00:00:00.000Z');
 });
 
+// applySyncedPreferences decides "did anything actually change?" by comparing
+// every preference field by hand. Testing two or three of them leaves the rest
+// unpinned: dropping any single comparison (e.g. reminderTime) from the chain
+// still passed the whole suite. This table is checked against the real key set
+// below, so a preference added to UserPreferences without being added to the
+// comparison chain fails here instead of silently never syncing.
+const OTHER_PREFERENCE_VALUES: UserPreferences = {
+  fontSize: 'large',
+  theme: 'dark',
+  appearancePalette: 'el-blue-brand',
+  language: 'es',
+  countryCode: 'ES',
+  countryName: 'Spain',
+  contentLanguageCode: 'es',
+  contentLanguageName: 'Spanish',
+  contentLanguageNativeName: 'Espanol',
+  chapterFeedbackName: 'Ada',
+  chapterFeedbackRole: 'translator',
+  onboardingCompleted: true,
+  chapterFeedbackEnabled: true,
+  hidePlayButtonFromReadingTab: true,
+  notificationsEnabled: true,
+  reminderTime: '07:30',
+};
+
+test('every preference in the table differs from its default, so each case below is a real change', () => {
+  assert.deepEqual(
+    Object.keys(OTHER_PREFERENCE_VALUES).sort(),
+    Object.keys(defaultAuthPreferences).sort()
+  );
+  for (const key of Object.keys(defaultAuthPreferences) as (keyof UserPreferences)[]) {
+    assert.notEqual(OTHER_PREFERENCE_VALUES[key], defaultAuthPreferences[key], key);
+  }
+});
+
+for (const key of Object.keys(OTHER_PREFERENCE_VALUES) as (keyof UserPreferences)[]) {
+  test(`a cloud change to ${key} alone is adopted, timestamp unchanged`, () => {
+    const stamp = '2026-06-01T00:00:00.000Z';
+    useAuthStore.getState().applySyncedPreferences({ ...defaultAuthPreferences }, stamp);
+
+    const incoming = { ...defaultAuthPreferences, [key]: OTHER_PREFERENCE_VALUES[key] };
+    // Same stamp as the settled state, so only the field comparison can carry
+    // this update through.
+    useAuthStore.getState().applySyncedPreferences(incoming, stamp);
+
+    assert.deepEqual(useAuthStore.getState().preferences, incoming);
+  });
+}
+
 // ---------------------------------------------------------------------------
 // signOut
 // ---------------------------------------------------------------------------

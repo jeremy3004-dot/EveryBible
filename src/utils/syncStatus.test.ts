@@ -192,10 +192,19 @@ test('the eyebrow and footer describe the same relative moment', () => {
   });
 });
 
-test('now defaults to the wall clock when the caller does not pass one', () => {
+test('now defaults to the wall clock when the caller does not pass one', (t2) => {
+  // Pinned rather than read from the real clock: with a live Date.now() the only
+  // assertion this test could make is "less than a minute has elapsed", which
+  // holds for a stub too. Freezing the clock lets it assert the exact bucket.
+  t2.mock.timers.enable({ apis: ['Date'], now: NOW });
   const { t, calls } = createRecordingT();
 
-  describeSyncStatus({ isAuthenticated: true, lastSyncedAt: new Date().toISOString(), t });
+  const status = describeSyncStatus({
+    isAuthenticated: true,
+    lastSyncedAt: isoAgo(3 * HOUR_MS),
+    t,
+  });
 
-  assert.equal(calls[0]?.key, 'more.sync.relativeNow');
+  assert.deepEqual(calls[0], { key: 'more.sync.relativeHours', options: { hours: 3 } });
+  assert.equal(status.isSynced, true);
 });
