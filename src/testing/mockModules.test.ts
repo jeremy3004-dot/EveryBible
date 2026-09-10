@@ -19,7 +19,8 @@ const mmkv = mockMmkvStorage(mock, {
 });
 const rn = mockReactNative(mock, { os: 'android', version: 34, width: 360, height: 800 });
 const supabaseFake = createSupabaseFake();
-mockSupabaseModule(mock, supabaseFake);
+let backendConfigured = true;
+mockSupabaseModule(mock, supabaseFake, { configured: () => backendConfigured });
 // expo-* packages pull in expo-modules-core, which reads __DEV__ at import time.
 // Always replace them; never let the real package load under Node.
 mockModule(mock, 'expo-file-system', {
@@ -68,4 +69,15 @@ test('services importing the supabase barrel talk to the fake', async () => {
     `${supabaseFake.storage.publicUrlBase}/avatars/user-9/avatar.jpg`
   );
   assert.equal(supabaseFake.storageCalls[0]?.method, 'getPublicUrl');
+});
+
+test('a configured getter lets one file flip the backend off without re-mocking', async () => {
+  const { getCurrentUserId, isSupabaseConfigured } = await import('../services/supabase');
+  backendConfigured = false;
+
+  assert.equal(isSupabaseConfigured(), false);
+  assert.equal(await getCurrentUserId(), null);
+
+  backendConfigured = true;
+  assert.equal(isSupabaseConfigured(), true);
 });

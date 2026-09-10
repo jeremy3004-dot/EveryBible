@@ -107,6 +107,33 @@ default to the production implementation.
 | `mockMmkvStorage(mock, seed?)`                                                      | In-memory MMKV so persisted Zustand stores hydrate. Returns the backing `Map` for seeding/inspection.                                                                                                                                                                                           |
 | `mockReactNative(mock, { os, version, width, height })` / `createReactNativeStub()` | `Platform`, `AppState.emit()`, `Keyboard.emit()`, `Linking`, `Alert`, `I18nManager`, `NativeEventEmitter`, `NativeModules`; recorded side effects under `__recorded`. Add fields to the stub before mocking if a module needs more.                                                             |
 
+### Gotchas the first wave hit
+
+- **`mock.timers.tick(ms)` advances the clock by the whole span before running
+  any due callback.** An interval polling every second, ticked by 300 s, fires
+  300 times all seeing the post-expiry time. Step the clock in interval-sized
+  increments (a `tickSeconds(n)` helper) when the callback reads the time.
+- **Hooks that own intervals must be unmounted, or the file never exits.**
+  Track every mounted harness instance and unmount in `afterEach`; wrap
+  `setInterval`/`clearInterval` at module scope and assert nothing leaked.
+  `useAudioPlayer.test.ts` is the reference implementation.
+- **Calendar logic needs a pinned zone.** Set `process.env.TZ` at the top of a
+  dedicated test file (each file is its own process). `progressStore.timezone.test.ts`
+  covers day boundaries and DST that way.
+- **Import-time constants need one file per scenario** (`utils/platform.*.test.ts`,
+  `supabase/client.*.behavior.test.ts`).
+- **Hook harnesses trip `react-hooks/rules-of-hooks`.** Put
+  `/* eslint-disable react-hooks/rules-of-hooks -- harness invokes the hook outside React by design */`
+  at the top of that test file.
+- **`@supabase/supabase-js` is a dual package.** Under tsx the importer may
+  `require` it, so mock both the bare specifier and
+  `createRequire(import.meta.url).resolve('@supabase/supabase-js')`.
+- **A `require()` of JSON data is intercepted by path**, not by stubbing
+  `globalThis.require`: `mockModule(mock, fileURLToPath(new URL('../../../data/x.json', import.meta.url).href), { default: fixture })`.
+- **Coverage line lists are approximate.** Node maps V8 ranges through tsx's
+  source maps and often reports blank lines, comments, and signatures as
+  uncovered. Trust the percentages and verify a named gap by reading the source.
+
 Zustand stores: after loading, reset between tests with
 `useStore.setState(useStore.getInitialState(), true)` or the store's own reset
 action, and clear the MMKV map.
@@ -117,8 +144,11 @@ onto a `DatabaseSync` gives real SQL execution in tests.
 
 React hooks: there is no renderer installed. Test the logic hooks delegate to
 (models, coordinators, stores). Where a hook must be exercised, mock `react`
-with identity `useCallback` / `useMemo` and a `useEffect` that runs immediately,
-as `useAudioPlayerErrors.test.ts` does.
+with a small deterministic runtime: per-render state slots for `useState`,
+stable `useRef`, dependency-comparing `useMemo` / `useCallback`, and a
+`useEffect` queue that runs (with the previous cleanup) when the test calls a
+`flushEffects()` / `commit()` helper that also drains microtasks. See
+`useSync.behavior.test.ts` and `useAudioPlayer.test.ts`.
 
 ## Bug fixes
 

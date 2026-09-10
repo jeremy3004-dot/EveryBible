@@ -73,8 +73,11 @@ export function mockMmkvStorage(mocker: MockTracker, seed?: Record<string, strin
 }
 
 export interface MockSupabaseOptions {
-  /** What `isSupabaseConfigured()` reports. Default true. */
-  configured?: boolean;
+  /**
+   * What `isSupabaseConfigured()` reports. Default true. Pass a getter to flip
+   * the backend on and off between tests without re-mocking.
+   */
+  configured?: boolean | (() => boolean);
   /**
    * What `getCurrentUserId()` resolves to. Default: the fake's current auth
    * user id (or null when unconfigured / signed out).
@@ -91,11 +94,13 @@ export function mockSupabaseModule(
   fake: SupabaseFake,
   options: MockSupabaseOptions = {}
 ) {
-  const configured = options.configured ?? true;
+  const configuredOption = options.configured ?? true;
+  const isConfigured = () =>
+    typeof configuredOption === 'function' ? configuredOption() : configuredOption;
   const getCurrentUserId =
     options.currentUserId ??
     (async () => {
-      if (!configured) {
+      if (!isConfigured()) {
         return null;
       }
       const { data } = await fake.client.auth.getUser();
@@ -103,7 +108,7 @@ export function mockSupabaseModule(
     });
   const exports = {
     supabase: fake.client,
-    isSupabaseConfigured: () => configured,
+    isSupabaseConfigured: isConfigured,
     getCurrentUserId,
   };
   mockModule(mocker, sourcePath('services/supabase/index.ts'), exports);
