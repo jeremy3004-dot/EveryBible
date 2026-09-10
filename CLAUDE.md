@@ -30,6 +30,7 @@ EveryBible is a mobile Bible study app built with Expo/React Native. It provides
 ## Architecture Decisions
 
 ### File Structure
+
 ```
 /src
   /components     - Reusable UI components (audio, buttons, cards, fourfields, skeleton, typography)
@@ -52,6 +53,7 @@ EveryBible is a mobile Bible study app built with Expo/React Native. It provides
 ```
 
 ### Patterns We Use
+
 - **State Management:** Zustand with AsyncStorage persistence (authStore, bibleStore, audioStore, progressStore, fourFieldsStore)
 - **Navigation:** React Navigation v7 (Bottom Tabs + Native Stack navigators)
 - **Styling:** StyleSheet.create() with ThemeContext colors - no inline styles
@@ -62,6 +64,7 @@ EveryBible is a mobile Bible study app built with Expo/React Native. It provides
 - **Routing:** Tab-based with nested stacks (Home, Bible, Harvest/Learn, More)
 
 ### Patterns We AVOID
+
 - ❌ No inline styles - use StyleSheet.create() with theme colors
 - ❌ No hardcoded colors - use colors from useTheme()
 - ❌ No hardcoded strings - use t('translation.key') from react-i18next
@@ -76,6 +79,7 @@ EveryBible is a mobile Bible study app built with Expo/React Native. It provides
 ## Commands & Workflow
 
 ### Development
+
 ```bash
 npm start              # Start Expo dev server (press 'i' for iOS, 'a' for Android)
 npm run ios            # Build and run on iOS simulator (requires Xcode)
@@ -91,6 +95,7 @@ npm run format:check   # Check code formatting
 ```
 
 ### EAS Build & Deploy
+
 ```bash
 eas build --platform ios --profile development    # Dev build with dev client (launches via Metro)
 eas build --platform ios --profile preview        # Internal distribution build with embedded JS bundle
@@ -100,9 +105,11 @@ eas submit --platform android --profile production # Submit Android to Play Stor
 ```
 
 ### iOS Release Credential Rule
+
 ```bash
 eas build --platform ios --profile production --local
 ```
+
 - Default to a local EAS production build first for TestFlight releases.
 - Let EAS use remote Expo-managed iOS credentials when they are configured for the project.
 - Do not treat absent local signing artifacts (`credentials.json`, `.p12`, `.mobileprovision`) as a blocker unless the release explicitly requires manual local credentials.
@@ -111,6 +118,7 @@ eas build --platform ios --profile production --local
 - If TestFlight verification shows `tester_has_build=true` but `group_has_build=false`, attach the build to the beta group with `asc builds add-groups` or let the verify script do it automatically; a tester-only attachment is not enough to call the release done.
 
 ### Supabase
+
 ```bash
 supabase start       # Start local Supabase (requires Docker)
 supabase db reset    # Reset local database
@@ -119,6 +127,7 @@ supabase status      # Check local Supabase status
 ```
 
 ### Common Tasks
+
 ```bash
 # Clear Expo cache (fixes weird Metro bundler issues)
 npx expo start -c
@@ -137,9 +146,11 @@ npx expo-bundle-analyzer
 ```
 
 ### Before Committing
+
 ```bash
 npm run lint && npm run format:check
 ```
+
 Why: Ensures code quality and consistent formatting before PR review
 
 ---
@@ -147,6 +158,7 @@ Why: Ensures code quality and consistent formatting before PR review
 ## Code Style & Conventions
 
 ### Naming
+
 - **Components:** PascalCase with descriptive names (e.g., `AudioPlayerControls.tsx`, `BibleVerseCard.tsx`)
 - **Screens:** PascalCase ending in "Screen" (e.g., `BibleReaderScreen.tsx`, `CourseDetailScreen.tsx`)
 - **Hooks:** camelCase starting with "use" (e.g., `useAudioPlayer.ts`, `useFontSize.ts`)
@@ -157,6 +169,7 @@ Why: Ensures code quality and consistent formatting before PR review
 - **Types:** PascalCase for interfaces/types (e.g., `User`, `BibleVerse`, `Course`)
 
 ### Imports Order
+
 ```typescript
 // 1. React and React Native
 import React, { useState, useEffect } from 'react';
@@ -182,6 +195,7 @@ import { BOOKS } from '../constants';
 ```
 
 ### Prettier Configuration
+
 - Single quotes for strings
 - Semicolons required
 - Print width: 100 characters
@@ -189,11 +203,13 @@ import { BOOKS } from '../constants';
 - Trailing commas: ES5 style
 
 ### ESLint Rules
+
 - No unused variables (warn for underscore-prefixed like `_event`)
 - No explicit return types required on functions
 - React import not required in JSX scope (React 17+)
 
 ### Comments
+
 - Document WHY, not WHAT (code should be self-documenting)
 - Explain business logic and Four Fields concepts
 - Document Supabase schema relationships
@@ -205,6 +221,7 @@ import { BOOKS } from '../constants';
 ## Domain-Specific Context
 
 ### Business Rules
+
 - **Bible Text:** Berean Standard Bible (BSB) is the default translation, stored in SQLite for offline access
 - **Four Fields:** Discipleship training method (Entry, Gospel, Discipleship, Kingdom Growth) - core feature
 - **Groups:** Users can create study groups, track progress, conduct sessions
@@ -215,7 +232,9 @@ import { BOOKS } from '../constants';
 - **User Preferences:** Font size, theme, language, notifications - persist via AsyncStorage
 
 ### Four Fields Model
+
 The app implements the "Four Fields" discipleship method:
+
 1. **Entry** (Field 1): Sharing stories, building relationships
 2. **Gospel** (Field 2): Teaching Bible stories, salvation message
 3. **Discipleship** (Field 3): One-on-one mentoring, spiritual growth
@@ -224,6 +243,7 @@ The app implements the "Four Fields" discipleship method:
 Each field has lessons, courses, and tracking. Groups conduct sessions following this model.
 
 ### External Dependencies
+
 - **Supabase:** Backend (auth, profiles, progress, groups). Tables: profiles, user_progress, groups, group_members, group_sessions
 - **Bible.is API:** Optional streaming source only for any future translations that still use Bible.is filesets
 - **Google OAuth:** Sign in with Google (uses the supported web + iOS client IDs)
@@ -232,6 +252,7 @@ Each field has lessons, courses, and tracking. Groups conduct sessions following
 - **SQLite:** Local Bible database (bibleDatabase.ts manages this)
 
 ### Known Issues & Workarounds
+
 - **iOS Audio Playback:** Requires UIBackgroundModes: ['audio'] in app.json for background play
 - **Android Edge-to-Edge:** predictiveBackGestureEnabled: false to avoid nav issues
 - **Google Sign-In:** Uses the supported web + iOS client IDs; Android-only client ID setup is not supported here
@@ -245,35 +266,42 @@ Each field has lessons, courses, and tracking. Groups conduct sessions following
 ## State Management
 
 ### Zustand Stores
+
 All stores use zustand with AsyncStorage persistence:
 
 **authStore.ts**
+
 - User authentication state (user, session, isAuthenticated)
 - User preferences (fontSize, theme, language, notifications)
 - Actions: setUser, setSession, setPreferences, signOut, initialize
 - Persists: user, preferences (NOT session tokens for security)
 
 **bibleStore.ts**
+
 - Current reading state (book, chapter, verse)
 - Reading history and bookmarks
 - Font size and reading preferences
 - Actions: setCurrentBook, setCurrentChapter, addBookmark, etc.
 
 **audioStore.ts**
+
 - Audio playback state (isPlaying, currentChapter, position)
 - Playlist management
 - Actions: play, pause, seek, next, previous
 
 **progressStore.ts**
+
 - User progress tracking (verses read, courses completed, time)
 - Syncs to Supabase when online
 - Actions: trackProgress, syncProgress
 
 **fourFieldsStore.ts**
+
 - Four Fields group state (groups, group progress/notes)
 - Actions: createGroup, joinGroup, leaveGroup, updateGroupLesson, markGroupLessonComplete, addGroupNote, resetForSignOut
 
 ### When to Use Zustand vs React State
+
 - **Zustand:** Global state, needs persistence, shared across screens
 - **React State:** Component-local state, temporary UI state, forms
 
@@ -282,6 +310,7 @@ All stores use zustand with AsyncStorage persistence:
 ## Navigation Architecture
 
 ### Structure
+
 ```
 RootNavigator (NavigationContainer)
 └── TabNavigator (Bottom Tabs)
@@ -309,7 +338,9 @@ RootNavigator (NavigationContainer)
 ```
 
 ### Navigation Types
+
 All navigation types are defined in `/src/navigation/types.ts`. Use proper typing:
+
 ```typescript
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { BibleStackParamList } from '../navigation/types';
@@ -318,6 +349,7 @@ type Props = NativeStackScreenProps<BibleStackParamList, 'BibleReader'>;
 ```
 
 ### Authentication Flow
+
 - Unauthenticated users can browse Bible, learn content (limited)
 - Auth required for: progress tracking, groups, syncing, personalization
 - No separate AuthStack - auth screens in MoreStack
@@ -328,9 +360,11 @@ type Props = NativeStackScreenProps<BibleStackParamList, 'BibleReader'>;
 ## Internationalization (i18n)
 
 ### Supported Languages
+
 `SUPPORTED_LANGUAGES` in `src/constants/languages.ts` defines 21 interface languages: English (`en`, default), Simplified Chinese (`zh`), Hindi (`hi`), Spanish (`es`), Arabic (`ar`), French (`fr`), Bengali (`bn`), Portuguese (`pt`), Russian (`ru`), Urdu (`ur`), Indonesian (`id`), German (`de`), Japanese (`ja`), Punjabi (`pa`), Marathi (`mr`), Telugu (`te`), Turkish (`tr`), Tamil (`ta`), Vietnamese (`vi`), Korean (`ko`), and Nepali (`ne`). Bible translation availability is separate from interface language support.
 
 ### Usage
+
 ```typescript
 import { useTranslation } from 'react-i18next';
 
@@ -340,13 +374,16 @@ const { t } = useTranslation();
 ```
 
 ### Translation Files
+
 Located in `/src/i18n/locales/`:
+
 - `en.ts` - English (source of truth)
 - `{code}.ts` - One exported translation object for each supported language
 
 English loads initially; the other bundled locale objects load on demand through `localeLoaders.ts`. Interface translations do not require a network request.
 
 ### Adding New Translations
+
 1. Add key to `en.ts` first
 2. Add translations to all language files
 3. Use dot notation for nested keys: `bible.chapter`, `settings.notifications.enabled`
@@ -354,6 +391,7 @@ English loads initially; the other bundled locale objects load on demand through
 5. Preserve interpolation tokens exactly, including `{{count}}` and `{{name}}`. Keep every English key and add the locale's required plural variants for existing `_other` stems. Valid additional suffixes come from `Intl.PluralRules(code).resolvedOptions().pluralCategories` (for example, Russian `_few` and `_many`); unrelated extra keys are rejected.
 
 ### Translation Verification
+
 Run the locale, source coverage, and runtime rendering checks after updating translations:
 
 ```bash
@@ -364,6 +402,7 @@ npm run typecheck
 These checks require the full English keyset, exact interpolation tokens, all language-specific plural forms, nonblank text without translation artifacts, and no unintended English copies. Legitimate shared words and proper names need explicit exceptions in the coverage test. Source checks catch missing translation keys and hardcoded JSX/accessibility text; rendering checks exercise all bundled locales without English fallback or unresolved tokens.
 
 ### Native Permission Messages
+
 Translate camera, microphone, photo-library, and Face ID explanations under `interface.nativePermissions` in every locale. After changing them, regenerate and check the native resources:
 
 ```bash
@@ -374,6 +413,7 @@ npm run i18n:native:check
 `scripts/sync-native-localizations.mjs` updates `src/i18n/native/{code}.json`, the Expo locale configuration in `app.json`, and the iOS `InfoPlist.strings` resources/project references. Chinese uses the native locale code `zh-Hans`. Review these generated changes with the source translations. iOS chooses system permission prompt translations from the device or per-app OS language, independently of the language selected inside EveryBible. Permission-message changes require a rebuilt and installed native app; changing the in-app language or refreshing JavaScript does not replace them.
 
 ### Language Detection
+
 App automatically detects device language via expo-localization. Falls back to English if unsupported.
 
 ---
@@ -381,7 +421,9 @@ App automatically detects device language via expo-localization. Falls back to E
 ## Theming & Styling
 
 ### Theme Context
+
 Use `useTheme()` hook for all colors:
+
 ```typescript
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -398,7 +440,9 @@ const styles = StyleSheet.create({
 ```
 
 ### Available Colors
+
 See `/src/constants/colors.ts` for full palette:
+
 - `background` - Main background
 - `cardBackground` - Card/section backgrounds
 - `primaryText` - Main text color
@@ -409,7 +453,9 @@ See `/src/constants/colors.ts` for full palette:
 - And many more...
 
 ### Font Sizes
+
 Use `useFontSize()` hook for responsive text:
+
 ```typescript
 import { useFontSize } from '../hooks';
 
@@ -418,6 +464,7 @@ const fontSize = useFontSize();
 ```
 
 ### Style Guidelines
+
 - Always use StyleSheet.create() at component bottom
 - Never inline styles (performance + maintainability)
 - Theme-aware colors only (no hardcoded hex values)
@@ -428,7 +475,9 @@ const fontSize = useFontSize();
 ## Authentication & Security
 
 ### Supabase Configuration
+
 Requires environment variables in `.env`:
+
 ```
 EXPO_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=xxx
@@ -437,11 +486,13 @@ EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=xxx
 ```
 
 ### Auth Methods
+
 1. **Email/Password:** Standard Supabase auth
 2. **Apple Sign-In:** iOS only (requires app.json config)
 3. **Google Sign-In:** Cross-platform (requires OAuth client IDs)
 
 ### Auth Flow
+
 ```typescript
 // Sign in
 import { signInWithGoogle } from '../services/auth';
@@ -457,6 +508,7 @@ await signOut();
 ```
 
 ### Security Rules
+
 - Never log session tokens or user credentials
 - All Supabase operations use Row Level Security (RLS)
 - User can only access their own data (profiles, progress, groups they're in)
@@ -468,6 +520,7 @@ await signOut();
 ## Data Management
 
 ### SQLite Bible Database
+
 - Located in app's document directory
 - Managed by `/src/services/bible/bibleDatabase.ts`
 - Contains BSB text, searchable
@@ -475,25 +528,32 @@ await signOut();
 - Fully offline, no network required
 
 ### Supabase Schema
+
 **profiles table:**
+
 - User profile data (display_name, avatar_url, preferences)
 - One-to-one with auth.users
 
 **user_progress table:**
+
 - Reading progress, course completion, time tracking
 - JSON fields for flexible progress tracking
 
 **groups table:**
+
 - Study groups (name, description, leader_id)
 - Four Fields group management
 
 **group_members table:**
+
 - Group membership (many-to-many)
 
 **group_sessions table:**
+
 - Session records (date, field, notes, attendance)
 
 ### Sync Strategy
+
 - App works offline by default
 - Periodic sync when online (via useSync hook)
 - Conflict resolution: last-write-wins
@@ -504,25 +564,22 @@ await signOut();
 ## Audio Features
 
 ### Audio Bible
+
 - World English Bible chapter audio streams directly from eBible.org and can be downloaded for offline playback
 - Bible.is streaming remains supported for configured translations when `EXPO_PUBLIC_BIBLE_IS_API_KEY` is present
 - Background playback supported (iOS: UIBackgroundModes)
 - Managed by `useAudioPlayer` hook and `audioStore`
 
 ### Audio Player Controls
+
 ```typescript
 import { useAudioPlayer } from '../hooks';
 
-const {
-  isPlaying,
-  currentChapter,
-  play,
-  pause,
-  seek
-} = useAudioPlayer();
+const { isPlaying, currentChapter, play, pause, seek } = useAudioPlayer();
 ```
 
 ### Audio Issues
+
 - iOS: Must configure background modes in app.json
 - Android: Foreground service permission required
 - Remote streaming requires network, but downloaded chapter audio is available offline
@@ -532,37 +589,39 @@ const {
 
 ## Testing Strategy
 
-### Manual Testing Checklist
+Read `docs/testing.md` before writing or changing tests. Summary:
+
+- Tests run on Node's built-in runner (no Jest, no Metro) and are discovered
+  automatically: any `*.test.ts` under `src/`, `scripts/`, `apps/`, `packages/`,
+  or `supabase/functions`.
+- Every service, store, util, and hook under `src/` has behavioral unit tests
+  that load the real module through the loader with `mock.module` replacing
+  native packages. Shared fakes live in `src/testing/` (Supabase, React Native,
+  MMKV, `mockModule`).
+- Do not add source-text tests (`readFileSync` + regex) or `vm` transpile tests
+  for behaviour; the older ones that remain guard startup import graphs only.
+- Bug fixes are test-first: failing test, minimal fix, passing test, same commit.
+
+```bash
+npm test                                   # whole workspace, ~20s
+node --test --experimental-test-module-mocks --import tsx src/path/to/file.test.ts
+npm run typecheck                          # tests are type-checked too
+```
+
+### Manual Testing Checklist (device behaviour tests cannot cover)
+
 - Test on both iOS and Android simulators
 - Test offline mode (airplane mode)
 - Test OAuth on physical devices (doesn't work in Expo Go)
 - Test audio playback in background
-- Test language switching
-- Test theme switching (dark mode)
-- Test font size adjustments
-
-### Platform-Specific Testing
-**iOS:**
-- Apple Sign-In (device only)
-- Background audio playback
-- Push notifications
-
-**Android:**
-- Google Sign-In
-- Edge-to-edge display
-- Back gesture handling
-
-### Future: Automated Tests
-- No test suite currently
-- Good candidates: Utility functions, data parsing, stores
-- React Native Testing Library for components
-- Jest for unit tests
+- Test language switching, theme switching, font size adjustments
 
 ---
 
 ## Performance Considerations
 
 ### Optimization Rules
+
 - Use React.memo for expensive components
 - FlatList for long lists (Bible chapters, courses)
 - Lazy load screens (already done via React Navigation)
@@ -571,12 +630,14 @@ const {
 - Avoid re-renders (proper Zustand selectors)
 
 ### Bundle Size
+
 - Current app is Expo managed workflow (smaller than bare)
 - Avoid large dependencies without good reason
 - Use tree-shaking where possible
 - expo-bundle-analyzer to check size
 
 ### Database Performance
+
 - SQLite Bible database has indexes on book/chapter/verse
 - Keep Supabase queries lean (only fetch needed data)
 - Pagination for group lists, sessions
@@ -586,12 +647,15 @@ const {
 ## Deployment
 
 ### EAS Configuration
+
 See `eas.json` for build profiles:
+
 - **development:** Dev client, internal distribution, expects Metro on launch
 - **preview:** Internal distribution builds (not TestFlight) with embedded JS bundle
 - **production:** App Store/Play Store builds with embedded JS bundle
 
 ### Build Process
+
 ```bash
 # Pre-build release guard for local iOS signing and branch sync
 npm run release:prepare
@@ -611,18 +675,22 @@ eas submit --platform android --profile production
 ```
 
 ### App Store Configuration
+
 **iOS:**
+
 - Bundle ID: com.everybible.app
 - Apple ID: curryj@protonmail.com
 - Team ID: NVC9N47PRH
 - App Store ID: 6758254335
 
 **Android:**
+
 - Package: com.everybible.app
 - Service account: google-play-service-account.json
 - Uploads to production track as draft
 
 ### Release Checklist
+
 1. Update version in app.json
 2. Test on both platforms
 3. Run `npm run release:prepare` in a clean release worktree
@@ -646,9 +714,10 @@ This mistake has been made 4 times (builds 113, 115, 138, 142). Do not skip.
 
 **Step 1 — Poll until `processingState=VALID`** (~5-10 min after upload)
 **Step 2 — Attach to the Internal Testers beta group** via POST `/v1/builds/<id>/relationships/betaGroups`
-  - Internal: `3a75b4d5-cae0-4c9a-8880-890f486f605a`
-**Step 3 — Verify** the build appears in the Internal Testers group before telling user anything
-**Step 4 — Only if the user explicitly wants external testers:** attach the external beta group and submit for external review
+
+- Internal: `3a75b4d5-cae0-4c9a-8880-890f486f605a`
+  **Step 3 — Verify** the build appears in the Internal Testers group before telling user anything
+  **Step 4 — Only if the user explicitly wants external testers:** attach the external beta group and submit for external review
 
 Use the Python JWT script in `~/.claude/projects/-Users-dev-Projects-EveryBible/memory/feedback_testflight_distribution.md`.
 ASC key: `~/.asc/AuthKey_766CTDMG96.p8` | App ID: `6758254335`
@@ -660,38 +729,46 @@ ASC key: `~/.asc/AuthKey_766CTDMG96.p8` | App ID: `6758254335`
 ### Common Issues
 
 **Metro bundler cache issues:**
+
 ```bash
 npx expo start -c
 ```
 
 **iOS build fails:**
+
 ```bash
 cd ios && pod install && cd ..
 # Or clear derived data in Xcode
 ```
 
 **Android build fails:**
+
 - Check Java version (needs 17)
 - Clear gradle cache: `cd android && ./gradlew clean`
 
 **Supabase not configured error:**
+
 - Check .env file exists and has valid credentials
-- Verify EXPO_PUBLIC_ prefix on all env vars
+- Verify EXPO*PUBLIC* prefix on all env vars
 
 **Audio doesn't play in background (iOS):**
+
 - Verify UIBackgroundModes: ['audio'] in app.json
 
 **Google Sign-In fails:**
+
 - Need the supported client IDs (web and iOS)
 - Android-only Google client ID setup is not supported in this repo
 - Web client ID must be configured in Supabase
 
 **TypeScript errors after dependency update:**
+
 ```bash
 rm -rf node_modules && npm install
 ```
 
 **Expo Go doesn't support feature:**
+
 - Create development build: `eas build --profile development`
 
 ---
@@ -709,6 +786,7 @@ rm -rf node_modules && npm install
 ## Dependencies
 
 ### Key Dependencies
+
 - **expo:** ~54.0.32 - Platform and build system
 - **react-native:** 0.81.5 - UI framework
 - **@supabase/supabase-js:** ^2.91.0 - Backend client
@@ -721,6 +799,7 @@ rm -rf node_modules && npm install
 - **@react-native-google-signin/google-signin:** ^16.1.1 - Google Sign-In
 
 ### Adding Dependencies
+
 1. Check bundle size impact first
 2. Verify Expo compatibility (use expo install when possible)
 3. Test on both platforms
@@ -732,14 +811,18 @@ rm -rf node_modules && npm install
 ## Four Fields Implementation Notes
 
 ### Course Structure
+
 Courses are organized by fields (1-4) with lessons:
+
 - Field 1 (Entry): Relationship building, storytelling
 - Field 2 (Gospel): Bible stories, salvation
 - Field 3 (Discipleship): One-on-one growth
 - Field 4 (Kingdom): Multiplication, leadership
 
 ### Group Sessions
+
 Groups conduct sessions following Four Fields model:
+
 1. Look Back (review progress)
 2. Look Up (Bible study)
 3. Look Forward (application, goals)
@@ -747,6 +830,7 @@ Groups conduct sessions following Four Fields model:
 Sessions tracked in Supabase with attendance, notes, progress.
 
 ### Progress Tracking
+
 - Individual course progress (fourFieldsStore)
 - Group progress (via Supabase)
 - Visualized with progress indicators in UI

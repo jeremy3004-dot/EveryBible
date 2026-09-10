@@ -182,9 +182,17 @@ export const signInWithApple = async (): Promise<AuthResult> => {
         const fullName = [credential.fullName.givenName, credential.fullName.familyName]
           .filter(Boolean)
           .join(' ');
-        await supabase.auth.updateUser({
-          data: { display_name: fullName },
-        });
+        try {
+          // Best-effort: the account already exists and the session is live, so a
+          // failed display-name write must not turn a successful sign-in into an
+          // error the user sees. An error *returned* here is already ignored;
+          // a thrown one (transport failure) has to be ignored the same way.
+          await supabase.auth.updateUser({
+            data: { display_name: fullName },
+          });
+        } catch {
+          // Ignored on purpose — see above.
+        }
       }
 
       return { success: true, user: mapSupabaseUser(data.user) };
