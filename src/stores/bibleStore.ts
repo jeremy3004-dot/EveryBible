@@ -33,6 +33,13 @@ import {
   getDefaultBibleTranslations,
   sanitizePersistedBibleState,
 } from './persistedStateSanitizers';
+import {
+  BIBLE_PERSISTED_STATE_VERSION,
+  migrateBiblePersistedState,
+  readRuntimeCatalogSnapshot,
+  toPersistedTranslation,
+  writeRuntimeCatalogSnapshot,
+} from './bibleTranslationPersistence';
 import { setUserTranslationPreferences } from '../services/translations';
 import {
   mergeRuntimeCatalogTranslations,
@@ -257,55 +264,6 @@ function getLatestPersistedAudioJobByTranslation(
   return jobsByTranslation;
 }
 
-// Bundled translations' catalog-static fields (name, description, catalog, etc.) always come
-// from the live `bibleTranslations` constant on read — see hydrateSeededTranslation in
-// persistedStateSanitizers.ts, which only reads those fields from persisted data for runtime
-// translations — and nothing in this store ever mutates them at runtime. Persisting them anyway
-// meant every set() call (including routine chapter navigation) re-serialized the full static
-// payload for every bundled translation to MMKV. Runtime (downloaded-language) translations still
-// persist in full: their catalog has no separate offline cache, so trimming them risks losing
-// offline access to a downloaded translation if the live catalog re-fetch fails on boot.
-type PersistedBundledTranslationDelta = Pick<
-  BibleTranslation,
-  | 'id'
-  | 'isDownloaded'
-  | 'downloadedBooks'
-  | 'downloadedAudioBooks'
-  | 'installState'
-  | 'activeTextPackVersion'
-  | 'pendingTextPackVersion'
-  | 'pendingTextPackLocalPath'
-  | 'textPackLocalPath'
-  | 'rollbackTextPackVersion'
-  | 'rollbackTextPackLocalPath'
-  | 'lastInstallError'
-  | 'activeDownloadJob'
->;
-
-function toPersistedTranslation(
-  translation: BibleTranslation
-): BibleTranslation | PersistedBundledTranslationDelta {
-  if (translation.source === 'runtime') {
-    return translation;
-  }
-
-  return {
-    id: translation.id,
-    isDownloaded: translation.isDownloaded,
-    downloadedBooks: translation.downloadedBooks,
-    downloadedAudioBooks: translation.downloadedAudioBooks,
-    installState: translation.installState,
-    activeTextPackVersion: translation.activeTextPackVersion,
-    pendingTextPackVersion: translation.pendingTextPackVersion,
-    pendingTextPackLocalPath: translation.pendingTextPackLocalPath,
-    textPackLocalPath: translation.textPackLocalPath,
-    rollbackTextPackVersion: translation.rollbackTextPackVersion,
-    rollbackTextPackLocalPath: translation.rollbackTextPackLocalPath,
-    lastInstallError: translation.lastInstallError,
-    activeDownloadJob: translation.activeDownloadJob,
-  };
-}
-
 if (typeof __DEV__ !== 'undefined' && __DEV__) {
   console.log('[EB-T] bible:pre-create', Date.now());
 }
@@ -441,6 +399,10 @@ export const useBibleStore = create<BibleState>()(
           };
         });
 
+        // The only place runtime catalog metadata enters the store, and therefore the only place
+        // the offline metadata cache needs refreshing. Deliberately off the download/navigation
+        // hot path, and a no-op write when the catalog has not actually changed.
+        writeRuntimeCatalogSnapshot(nextTranslationsSnapshot);
         syncRemoteAudioMetadataResolverWithTranslations(nextTranslationsSnapshot);
         syncVerseTimestampMetadata(nextTranslationsSnapshot);
       },
@@ -1146,7 +1108,18 @@ export const useBibleStore = create<BibleState>()(
     }),
     {
       name: 'bible-storage',
+      version: BIBLE_PERSISTED_STATE_VERSION,
       storage: createJSONStorage(() => zustandStorage),
+      // Version 0 blobs inline every runtime translation's static catalog metadata. Migration
+      // moves that metadata into its own MMKV key and leaves only the user-mutable delta here.
+      // Zustand runs migrate BEFORE merge, and MMKV is synchronous, so the snapshot written here
+      // is already readable by the time merge re-joins the two halves.
+      migrate: (persistedState, version) =>
+        migrateBiblePersistedState(persistedState, version) as BibleState,
+      // Only the fields the store itself mutates. Everything static is re-seeded on hydration —
+      // bundled translations from the `bibleTranslations` constant, runtime translations from the
+      // catalog snapshot — so routine set() calls (chapter navigation, download progress ticks)
+      // no longer re-serialize 200+ full catalog objects to MMKV.
       partialize: (state) => ({
         currentBook: state.currentBook,
         currentChapter: state.currentChapter,
@@ -1160,7 +1133,11 @@ export const useBibleStore = create<BibleState>()(
         if (typeof __DEV__ !== 'undefined' && __DEV__) {
           console.log('[EB-T] bible:merge-start', Date.now());
         }
-        const result = { ...currentState, ...sanitizePersistedBibleState(persistedState) };
+        // Single read + single pass over the cached catalog; the deltas then join against it by id.
+        const result = {
+          ...currentState,
+          ...sanitizePersistedBibleState(persistedState, readRuntimeCatalogSnapshot()),
+        };
         if (typeof __DEV__ !== 'undefined' && __DEV__) {
           console.log('[EB-T] bible:merge-done', Date.now());
         }
