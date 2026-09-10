@@ -1,6 +1,59 @@
 import type { Verse } from '../../types';
 import type { PlanSessionKey, RhythmSessionContext } from '../../services/plans/types';
 
+export interface ReaderParagraph {
+  key: string;
+  heading: string | null;
+  verses: Verse[];
+}
+
+/**
+ * Group a chapter's verses into rendered paragraphs, starting a new one at every section
+ * heading.
+ *
+ * The premium reader used to suppress the chapter's *first* heading, because the original
+ * premium design (f7f4c8ba) also painted it in the chapter header as `primarySectionHeading`
+ * and did not want it twice. That header render was later deleted (de5ef757) but the
+ * suppression stayed behind, so the opening heading of 1,189 BSB chapters — "Salvation
+ * Confirmed" over Hebrews 2:1, for instance — was silently dropped, in every translation.
+ * Headings are now treated uniformly: whichever verse carries one opens a paragraph.
+ */
+export function buildReaderParagraphs(verses: Verse[]): ReaderParagraph[] {
+  const paragraphs: ReaderParagraph[] = [];
+  let currentParagraph: ReaderParagraph = {
+    key: 'paragraph-0',
+    heading: null,
+    verses: [],
+  };
+
+  for (const verse of verses) {
+    const shouldRenderHeading = Boolean(verse.heading);
+
+    if (shouldRenderHeading && currentParagraph.verses.length > 0) {
+      paragraphs.push(currentParagraph);
+      currentParagraph = {
+        key: `${String(verse.id)}-heading-${paragraphs.length}`,
+        heading: verse.heading ?? null,
+        verses: [verse],
+      };
+    } else {
+      if (shouldRenderHeading) {
+        currentParagraph.heading = verse.heading ?? null;
+      }
+      currentParagraph.verses.push(verse);
+    }
+  }
+
+  if (currentParagraph.verses.length > 0) {
+    paragraphs.push({
+      ...currentParagraph,
+      key: currentParagraph.verses.map((verse) => String(verse.id)).join(':'),
+    });
+  }
+
+  return paragraphs;
+}
+
 export type FontSizeSheetAction =
   | 'toggleButton'
   | 'readerContentTap'

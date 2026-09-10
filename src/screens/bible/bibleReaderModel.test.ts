@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import type { Verse } from '../../types';
 import {
   buildReaderChapterRouteParams,
+  buildReaderParagraphs,
   FOLLOW_ALONG_VERSE_LINE_HEIGHT,
   getNextBibleTabBarVisibility,
   getListenCountedNoticeViewModel,
@@ -121,14 +123,11 @@ test('builds a deterministic listen-counted notice view model only when notice c
   assert.equal(getListenCountedNoticeViewModel(null), null);
   assert.equal(getListenCountedNoticeViewModel('   '), null);
 
-  assert.deepEqual(
-    getListenCountedNoticeViewModel('Matthew 16 counted for today\'s plan'),
-    {
-      testID: LISTEN_COUNTED_NOTICE_TEST_ID,
-      accessibilityLabel: 'Matthew 16 counted for today\'s plan',
-      text: 'Matthew 16 counted for today\'s plan',
-    }
-  );
+  assert.deepEqual(getListenCountedNoticeViewModel("Matthew 16 counted for today's plan"), {
+    testID: LISTEN_COUNTED_NOTICE_TEST_ID,
+    accessibilityLabel: "Matthew 16 counted for today's plan",
+    text: "Matthew 16 counted for today's plan",
+  });
 });
 
 test('keeps listen-mode plan progress exposed behind a stable simulator selector', () => {
@@ -507,9 +506,21 @@ test('uses the focused verse as a graceful follow-along fallback when timing is 
 
 test('uses exact timestamps instead of word-weight estimation when provided', () => {
   const verses = [
-    { id: 1, bookId: 'GEN', chapter: 1, verse: 1, text: 'In the beginning God created the heavens and the earth.' },
+    {
+      id: 1,
+      bookId: 'GEN',
+      chapter: 1,
+      verse: 1,
+      text: 'In the beginning God created the heavens and the earth.',
+    },
     { id: 2, bookId: 'GEN', chapter: 1, verse: 2, text: 'The earth was formless and empty.' },
-    { id: 3, bookId: 'GEN', chapter: 1, verse: 3, text: 'God said let there be light and there was light.' },
+    {
+      id: 3,
+      bookId: 'GEN',
+      chapter: 1,
+      verse: 3,
+      text: 'God said let there be light and there was light.',
+    },
   ];
   // NOTE: timestamps are stored in seconds, while currentPosition is milliseconds.
   const timestamps = { 1: 0, 2: 5, 3: 12 };
@@ -581,7 +592,13 @@ test('timestamp follow-along nudges the verse highlight just ahead of audio boun
 test('falls back to word-weight estimation when timestamps are null', () => {
   const verses = [
     { id: 1, bookId: 'GEN', chapter: 1, verse: 1, text: 'Short' },
-    { id: 2, bookId: 'GEN', chapter: 1, verse: 2, text: 'A much longer verse with many more words in it' },
+    {
+      id: 2,
+      bookId: 'GEN',
+      chapter: 1,
+      verse: 2,
+      text: 'A much longer verse with many more words in it',
+    },
   ];
 
   // With null timestamps, should use word-weight fallback (verse 2 occupies most of the timeline)
@@ -595,9 +612,7 @@ test('falls back to word-weight estimation when timestamps are null', () => {
 });
 
 test('timestamps with a single verse return that verse for any position', () => {
-  const verses = [
-    { id: 1, bookId: 'OBA', chapter: 1, verse: 1, text: 'The vision of Obadiah.' },
-  ];
+  const verses = [{ id: 1, bookId: 'OBA', chapter: 1, verse: 1, text: 'The vision of Obadiah.' }];
   const timestamps = { 1: 0 };
 
   assert.equal(
@@ -948,4 +963,71 @@ test('keeps the playing verse on screen once follow-along passes the trigger lin
     }),
     null
   );
+});
+
+const headingVerse = (id: number, verse: number, heading: string | null): Verse =>
+  ({
+    id,
+    bookId: 'HEB',
+    chapter: 2,
+    verse,
+    text: `verse ${verse}`,
+    heading: heading ?? undefined,
+  }) as Verse;
+
+test('buildReaderParagraphs keeps the section heading that opens a chapter', () => {
+  // Hebrews 2 opens with "Salvation Confirmed" on verse 1 and has "Jesus like His Brothers"
+  // on verse 5. The premium reader used to suppress the first one, so 1,189 BSB chapters
+  // silently lost their opening heading.
+  const paragraphs = buildReaderParagraphs([
+    headingVerse(1, 1, 'Salvation Confirmed'),
+    headingVerse(2, 2, null),
+    headingVerse(3, 5, 'Jesus like His Brothers'),
+    headingVerse(4, 6, null),
+  ]);
+
+  assert.deepEqual(
+    paragraphs.map((paragraph) => paragraph.heading),
+    ['Salvation Confirmed', 'Jesus like His Brothers']
+  );
+  assert.deepEqual(
+    paragraphs.map((paragraph) => paragraph.verses.map((verse) => verse.verse)),
+    [
+      [1, 2],
+      [5, 6],
+    ]
+  );
+});
+
+test('buildReaderParagraphs starts a new paragraph at every heading', () => {
+  const paragraphs = buildReaderParagraphs([
+    headingVerse(1, 1, 'One'),
+    headingVerse(2, 2, 'Two'),
+    headingVerse(3, 3, 'Three'),
+  ]);
+  assert.deepEqual(
+    paragraphs.map((p) => p.heading),
+    ['One', 'Two', 'Three']
+  );
+  assert.equal(paragraphs.length, 3);
+});
+
+test('buildReaderParagraphs groups a chapter with no headings into one paragraph', () => {
+  const paragraphs = buildReaderParagraphs([headingVerse(1, 1, null), headingVerse(2, 2, null)]);
+  assert.equal(paragraphs.length, 1);
+  assert.equal(paragraphs[0].heading, null);
+  assert.deepEqual(
+    paragraphs[0].verses.map((v) => v.verse),
+    [1, 2]
+  );
+});
+
+test('buildReaderParagraphs gives every paragraph a distinct key', () => {
+  const paragraphs = buildReaderParagraphs([
+    headingVerse(1, 1, 'One'),
+    headingVerse(2, 2, null),
+    headingVerse(3, 3, 'Two'),
+  ]);
+  const keys = paragraphs.map((p) => p.key);
+  assert.equal(new Set(keys).size, keys.length, `keys must be unique, got ${keys.join(', ')}`);
 });

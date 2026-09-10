@@ -1034,13 +1034,13 @@ test('premium read mode virtualizes paragraph rows and throttles JS scroll work'
 
   assert.match(
     source,
-    /interface ReaderParagraph/,
+    /import type \{ ReaderParagraph \} from '\.\/bibleReaderModel';/,
     'BibleReaderScreen should model paragraph rows for virtualized reader rendering'
   );
 
   assert.match(
     source,
-    /buildReaderParagraphs\(verses, true, firstHeadingVerseId\)/,
+    /const premiumReaderParagraphs = useMemo\(\(\) => buildReaderParagraphs\(verses\), \[verses\]\)/,
     'BibleReaderScreen should precompute premium reader paragraph rows'
   );
 

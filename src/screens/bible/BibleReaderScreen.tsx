@@ -150,6 +150,7 @@ import { HOME_VERSE_BACKGROUND_SOURCES } from '../../data/homeVerseBackgrounds';
 import { SHARE_VERSE_BACKGROUND_SOURCES } from '../../data/shareVerseBackgrounds';
 import { getHomeVerseBackgroundIndex } from '../../data/homeVerseBackgroundSelection';
 import {
+  buildReaderParagraphs,
   FOLLOW_ALONG_VERSE_LINE_HEIGHT,
   buildReaderChapterRouteParams,
   getListenCountedNoticeViewModel,
@@ -172,6 +173,7 @@ import {
   shouldSyncReaderToActiveAudioChapter,
   shouldShowChapterLoadSkeleton,
 } from './bibleReaderModel';
+import type { ReaderParagraph } from './bibleReaderModel';
 import {
   normalizeChapterFeedbackComment,
   shouldEnableChapterFeedbackSubmit,
@@ -199,12 +201,6 @@ interface AudioPortionShareDraft {
   durationMs: number;
 }
 
-interface ReaderParagraph {
-  key: string;
-  heading: string | null;
-  verses: Verse[];
-}
-
 const AUDIO_PORTION_MIN_DURATION_MS = 1000;
 const AUDIO_PORTION_DEFAULT_DURATION_MS = 30000;
 const AUDIO_PORTION_HANDLE_WIDTH = 20;
@@ -216,47 +212,6 @@ const FEEDBACK_AUDIO_COUNTDOWN_RADIUS =
   (FEEDBACK_AUDIO_COUNTDOWN_SIZE - FEEDBACK_AUDIO_COUNTDOWN_STROKE_WIDTH) / 2;
 const FEEDBACK_AUDIO_COUNTDOWN_CIRCUMFERENCE = 2 * Math.PI * FEEDBACK_AUDIO_COUNTDOWN_RADIUS;
 const READER_SCROLL_JS_UPDATE_INTERVAL_PX = 48;
-
-function buildReaderParagraphs(
-  verses: Verse[],
-  usePremiumTypography: boolean,
-  firstHeadingVerseId: number | null
-): ReaderParagraph[] {
-  const paragraphs: ReaderParagraph[] = [];
-  let currentParagraph: ReaderParagraph = {
-    key: 'paragraph-0',
-    heading: null,
-    verses: [],
-  };
-
-  for (const verse of verses) {
-    const shouldRenderHeading =
-      Boolean(verse.heading) && (!usePremiumTypography || verse.id !== firstHeadingVerseId);
-
-    if (shouldRenderHeading && currentParagraph.verses.length > 0) {
-      paragraphs.push(currentParagraph);
-      currentParagraph = {
-        key: `${String(verse.id)}-heading-${paragraphs.length}`,
-        heading: verse.heading ?? null,
-        verses: [verse],
-      };
-    } else {
-      if (shouldRenderHeading) {
-        currentParagraph.heading = verse.heading ?? null;
-      }
-      currentParagraph.verses.push(verse);
-    }
-  }
-
-  if (currentParagraph.verses.length > 0) {
-    paragraphs.push({
-      ...currentParagraph,
-      key: currentParagraph.verses.map((verse) => String(verse.id)).join(':'),
-    });
-  }
-
-  return paragraphs;
-}
 
 interface ReaderParagraphBlockProps {
   paragraph: ReaderParagraph;
@@ -1743,16 +1698,12 @@ export function BibleReaderScreen() {
   });
   const showPremiumReadMode =
     chapterPresentationMode === 'text' && verses.length > 0 && !isLoading && error == null;
-  const firstHeadingVerseId = verses.find((verse) => verse.heading?.trim())?.id ?? null;
   const premiumBottomInset = 18;
   const sharedTopChromeTop = safeInsets.top;
   const readerContentTopPadding = sharedTopChromeTop + 98;
   const lastReaderScrollJsOffset = useSharedValue(0);
   const lastReaderScrollJsAtBottom = useSharedValue(false);
-  const premiumReaderParagraphs = useMemo(
-    () => buildReaderParagraphs(verses, true, firstHeadingVerseId),
-    [firstHeadingVerseId, verses]
-  );
+  const premiumReaderParagraphs = useMemo(() => buildReaderParagraphs(verses), [verses]);
   const scrollReaderToOffset = useCallback(
     (offsetY: number, animated: boolean) => {
       const y = Math.max(offsetY, 0);
@@ -4890,7 +4841,7 @@ export function BibleReaderScreen() {
 
     const paragraphs = usePremiumTypography
       ? premiumReaderParagraphs
-      : buildReaderParagraphs(verses, false, firstHeadingVerseId);
+      : buildReaderParagraphs(verses);
 
     const textStyle = [
       styles.verseText,
