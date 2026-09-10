@@ -7,8 +7,11 @@ export interface ResolveElCatalogUrlDeps {
   isFlagEnabled?: boolean;
 }
 
-// Only http(s) origins are trusted for the signed catalog fetch; anything else is inert.
-const HTTP_URL_RE = /^https?:\/\//;
+// Only https origins are trusted for the signed catalog fetch; anything else is inert.
+// Plaintext http is rejected even in dev: every configured EL origin (see eas.json) is
+// https, and allowing http would hand a network attacker the catalog bytes to tamper with
+// before signature verification ever runs. Mirrors the check in services/supabase/client.ts.
+const HTTPS_URL_RE = /^https:\/\//i;
 
 // Guarded because node --test has no __DEV__; the flag-off default keeps EL inert in tests.
 const defaultIsDev = (): boolean => typeof __DEV__ !== 'undefined' && __DEV__;
@@ -32,7 +35,7 @@ export function resolveElCatalogUrl(deps: ResolveElCatalogUrlDeps = {}): string 
   }
 
   const trimmed = baseUrl.trim();
-  if (trimmed.length === 0 || !HTTP_URL_RE.test(trimmed)) {
+  if (trimmed.length === 0 || !HTTPS_URL_RE.test(trimmed)) {
     return null;
   }
 

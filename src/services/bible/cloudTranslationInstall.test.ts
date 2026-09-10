@@ -9,6 +9,7 @@ import * as cloudTranslationModel from './cloudTranslationModel';
 import * as bibleAssetBaseUrl from './bibleAssetBaseUrl';
 import * as verseFormatting from './verseFormatting';
 import * as elEs256 from '../elMedia/elEs256';
+import * as assetIdentifiers from './assetIdentifiers';
 import type { CloudDownloadProgress } from './cloudTranslationService';
 
 const directory = 'file:///documents/translations';
@@ -192,6 +193,8 @@ function loadInstaller(
     './bibleAssetBaseUrl': bibleAssetBaseUrl,
     './verseFormatting': verseFormatting,
     '../elMedia/elEs256': elEs256,
+    // Real module, not a stub: the path builders must actually reject unsafe ids.
+    './assetIdentifiers': assetIdentifiers,
   };
   const { outputText } = ts.transpileModule(
     readFileSync(

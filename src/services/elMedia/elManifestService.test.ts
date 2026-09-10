@@ -484,7 +484,10 @@ test('relative manifest URL resolves against catalogBaseUrl (trailing slash stri
   assert.equal(seenUrl, 'https://media.example.test/manifests/audio/lqdtest/v2026-07-20-1.json');
 });
 
-test('default getKeys discovers an unknown manifest kid from catalogBaseUrl using injected deps', async () => {
+test('an unpinned manifest kid is REJECTED with zero JWKS fetches', async () => {
+  // The attacker controls the media origin, so they can serve both a self-signed manifest
+  // AND a matching /.well-known/keys.json. Discovery is gone: the unpinned kid must fail
+  // verification, the JWKS URL must never be fetched, and nothing may be cached.
   __resetElManifestRuntimeForTests();
   __resetElJwksRuntimeForTests();
   const storage = createMemoryStorage();
@@ -513,8 +516,6 @@ test('default getKeys discovers an unknown manifest kid from catalogBaseUrl usin
     } as unknown as Response;
   }) as unknown as typeof fetch;
 
-  // The fixture's signed header still has the pinned kid, so verification is expected to fail;
-  // this regression is specifically about reaching JWKS discovery with the right URL and deps.
   assert.equal(
     await getElManifest(baseEntry({ manifestSha256: '' }), CATALOG_BASE_URL, {
       fetchFn,
@@ -523,53 +524,41 @@ test('default getKeys discovers an unknown manifest kid from catalogBaseUrl usin
     }),
     null
   );
-  assert.equal(jwksFetches, 1, 'unknown manifest kids must trigger base-URL JWKS discovery');
-  assert.ok(storage.raw.has('el-media:jwks-cache'), 'JWKS discovery must use the service storage');
+  assert.equal(jwksFetches, 0, 'an unknown manifest kid must not trigger JWKS discovery');
+  assert.ok(
+    !storage.raw.has('el-media:jwks-cache'),
+    'no remote key material may ever be persisted'
+  );
 
   __resetElJwksRuntimeForTests();
 });
 
-test('default manifest key discovery is bounded after the manifest fetch succeeds', async () => {
+test('a plaintext http manifest URL is inert — no fetch at all', async () => {
   __resetElManifestRuntimeForTests();
   __resetElJwksRuntimeForTests();
   const storage = createMemoryStorage();
-  const unknownKid = 'lqd-rotated-hanging-a';
-  const jwksUrl = `${CATALOG_BASE_URL}/.well-known/keys.json`;
-  const rotatedManifestBytes = new TextEncoder().encode(
-    JSON.stringify({ ...readJson('manifest-lqdtest.json'), keyId: unknownKid })
+  let fetches = 0;
+  const fetchFn = (async () => {
+    fetches += 1;
+    throw new Error('no fetch expected');
+  }) as unknown as typeof fetch;
+
+  assert.equal(
+    await getElManifest(
+      baseEntry({ manifestUrl: 'http://media.example.test/manifests/audio/lqdtest/v1.json' }),
+      CATALOG_BASE_URL,
+      { fetchFn, storage, getKeys }
+    ),
+    null
   );
-  let observedSignal: AbortSignal | undefined;
+  assert.equal(fetches, 0, 'an http manifest URL must never be fetched');
 
-  const fetchFn = (async (url: string, init?: RequestInit) => {
-    if (url === jwksUrl) {
-      observedSignal = init?.signal ?? undefined;
-      return new Promise<Response>((_resolve, reject) => {
-        init?.signal?.addEventListener('abort', () => reject(new Error('aborted')));
-      });
-    }
-    return {
-      ok: true,
-      arrayBuffer: async () =>
-        rotatedManifestBytes.buffer.slice(
-          rotatedManifestBytes.byteOffset,
-          rotatedManifestBytes.byteOffset + rotatedManifestBytes.byteLength
-        ),
-    } as unknown as Response;
-  }) as typeof fetch;
+  // A relative manifest URL against a plaintext catalog base is equally inert.
+  assert.equal(
+    await getElManifest(baseEntry(), 'http://media.example.test', { fetchFn, storage, getKeys }),
+    null
+  );
+  assert.equal(fetches, 0);
 
-  const deadline = Symbol('deadline');
-  const result = await Promise.race([
-    getElManifest(baseEntry({ manifestSha256: '' }), CATALOG_BASE_URL, {
-      fetchFn,
-      storage,
-      computeSha256Hex: async () => null,
-      timeoutMs: 5,
-    }),
-    new Promise<typeof deadline>((resolve) => setTimeout(() => resolve(deadline), 500)),
-  ]);
-
-  assert.notEqual(result, deadline, 'manifest key discovery must not hang');
-  assert.equal(result, null);
-  assert.ok(observedSignal, 'manifest key discovery should receive an abort signal');
   __resetElJwksRuntimeForTests();
 });

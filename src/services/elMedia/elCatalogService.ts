@@ -3,8 +3,7 @@ import { isElVerificationRuntimeSupported } from './elRuntimeSupport';
 import { parseElCatalogPayload } from './elCatalogModel';
 import type { ElJwk, ElSignedEnvelope } from './elEnvelope';
 import { isElEnvelopeShape, verifyElEnvelope } from './elEnvelope';
-import { getElKeys, refreshElJwksForUnknownKeyId } from './elJwks';
-import type { ElJwksDeps } from './elJwks';
+import { getElKeys } from './elJwks';
 
 // AsyncStorage-shaped adapter. Mirrors the convention in elJwks.ts so tests can inject an
 // in-memory double while production lazily wraps MMKV.
@@ -16,8 +15,9 @@ export interface ElCatalogStorage {
 export interface ElCatalogServiceDeps {
   fetchFn?: typeof fetch;
   storage?: ElCatalogStorage;
-  // Resolves the trust store for a given envelope keyId (pinned + cached JWKS, refetching
-  // once on an unknown kid). Injectable so tests can supply the dev fixture keys directly.
+  // Resolves the trust store for a given envelope keyId. The production implementation
+  // ignores the keyId and always returns the pinned trust store (there is no runtime key
+  // discovery — see elJwks.ts). Injectable so tests can supply the dev fixture keys.
   getKeys?: (keyId: string) => Promise<ElJwk[]>;
   isVerificationSupported?: () => boolean;
   // Network fetch timeout in ms. Injectable so tests can exercise the abort path. Aborting is
@@ -66,16 +66,10 @@ function defaultStorage(): ElCatalogStorage {
   };
 }
 
-// Default trust-store resolver: pinned keys + cached JWKS, refetching once for an unknown kid.
-async function defaultGetKeys(keyId: string, jwksDeps: ElJwksDeps): Promise<ElJwk[]> {
-  const keys = await getElKeys(jwksDeps);
-  if (keys.some((key) => key.kid === keyId)) return keys;
-  return refreshElJwksForUnknownKeyId(keyId, jwksDeps);
-}
-
-function resolveCatalogOrigin(catalogUrl: string): string | null {
-  const match = catalogUrl.match(/^https?:\/\/[^/]+/i);
-  return match?.[0] ?? null;
+// Default trust-store resolver: the pinned keys, always. An envelope whose keyId is not
+// pinned simply fails verification — no network discovery, no cache (see elJwks.ts).
+async function defaultGetKeys(): Promise<ElJwk[]> {
+  return getElKeys();
 }
 
 async function readStoredRecord(storage: ElCatalogStorage): Promise<StoredCatalogRecord | null> {
@@ -143,15 +137,7 @@ export async function refreshElCatalog(
 
   const fetchFn = deps.fetchFn ?? fetch;
   const timeoutMs = deps.timeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
-  const getKeys =
-    deps.getKeys ??
-    ((keyId: string) =>
-      defaultGetKeys(keyId, {
-        baseUrl: resolveCatalogOrigin(catalogUrl),
-        fetchFn,
-        storage,
-        timeoutMs,
-      }));
+  const getKeys = deps.getKeys ?? defaultGetKeys;
 
   // AbortController + setTimeout(abort) mirrors the repo's existing fetch-timeout pattern
   // (see verseTimestamps.ts / audioRemote.ts). We deliberately do NOT use AbortSignal.timeout,

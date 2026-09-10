@@ -1,5 +1,6 @@
 import type { BibleTranslation } from '../../types';
 import type { TranslationCatalogEntry } from '../supabase/types';
+import { isSafeAssetId } from '../bible/assetIdentifiers';
 import { resolveCloudTextTranslationId } from '../bible/cloudTranslationModel';
 import { isHiddenTranslationId } from './translationCatalogVisibility';
 
@@ -34,6 +35,21 @@ export function normalizeCatalogEntries(
 
   for (const entry of entries) {
     const normalizedId = normalizeCatalogTranslationId(entry.translation_id);
+
+    // The catalog is remote data and this id is interpolated into on-device file paths
+    // (translation .db files, audio directories). Drop the row rather than let a `../`
+    // id reach a download/move/delete target. See services/bible/assetIdentifiers.ts.
+    if (!isSafeAssetId(normalizedId)) {
+      if (typeof __DEV__ !== 'undefined' && __DEV__) {
+        console.warn(
+          `[translationCatalog] dropped catalog entry with unsafe translation_id: ${JSON.stringify(
+            entry.translation_id
+          )}`
+        );
+      }
+      continue;
+    }
+
     const existing = normalizedById.get(normalizedId);
 
     if (

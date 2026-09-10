@@ -23,6 +23,7 @@ export interface ElCatalog {
   translations: ElCatalogTranslation[];
 }
 
+import { isSafeAssetId } from '../bible/assetIdentifiers';
 import { isNonEmptyString, isNonNegativeInteger, isSha256Hex } from './elParseGuards';
 
 const EL_CATALOG_SCHEMA_PREFIX = 'lqd-catalog/v1';
@@ -39,9 +40,14 @@ function parseElCatalogTranslation(raw: unknown): ElCatalogTranslation | null {
   const entry = raw as Record<string, unknown>;
   // Unknown delivery modes (e.g. a future "segment") are skipped, not fatal.
   if (entry.delivery_mode !== 'chapter') return null;
+  // isSafeAssetId is redundant against EL_TRANSLATION_ID_RE today, but the translation id
+  // is interpolated into on-device file paths (see services/bible/assetIdentifiers.ts), so
+  // the path-safety guard is asserted here explicitly rather than being an accident of the
+  // EL id shape — if EL_TRANSLATION_ID_RE is ever loosened, this still holds the line.
   if (
     !isNonEmptyString(entry.translation_id) ||
     !EL_TRANSLATION_ID_RE.test(entry.translation_id) ||
+    !isSafeAssetId(entry.translation_id) ||
     !isNonEmptyString(entry.language_iso639_3) ||
     !isNonEmptyString(entry.language_name) ||
     !isNonEmptyString(entry.translation_name) ||

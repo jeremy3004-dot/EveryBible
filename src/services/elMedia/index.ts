@@ -2,10 +2,10 @@
 //
 // Import cost note: this barrel is intended for STATIC/light imports (e.g. elMediaConfig,
 // which only reads a feature flag + runtime config). The HEAVY modules — elCatalogService,
-// elManifestService, elTranslationMapping — pull in `jose` (via elEnvelope) and the JWKS
-// trust store. Startup-critical callers must reach those through a lazy dynamic `import()`
+// elManifestService, elTranslationMapping — pull in the pure-JS ES256 verifier (via
+// elEnvelope) and the pinned-key trust store. Startup-critical callers must reach those through a lazy dynamic `import()`
 // of the specific module (e.g. `import('./elCatalogService')`) rather than through this
-// barrel, so a flag-off launch never loads the EL/jose graph. See runtimeTranslationBootstrap.
+// barrel, so a flag-off launch never loads the EL verification graph. See runtimeTranslationBootstrap.
 
 // Config resolution (light — flag + runtime config only, safe to import statically).
 export { resolveElCatalogUrl } from './elMediaConfig';

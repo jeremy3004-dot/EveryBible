@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from '../supabase';
 import * as AppleAuthentication from 'expo-apple-authentication';
+import * as Crypto from 'expo-crypto';
 import { GoogleSignin, isErrorWithCode, statusCodes } from '@react-native-google-signin/google-signin';
 import { Platform } from 'react-native';
 import type { User } from '../../types';
@@ -13,6 +14,7 @@ import {
   mapProviderIdTokenAuthError,
   mapSupabaseAuthError,
   providerUnavailableAuthError,
+  serviceUnavailableAuthError,
   unknownAuthError,
 } from './authErrors';
 
@@ -31,35 +33,24 @@ export interface AuthResult {
 }
 
 // A nonce pair for OIDC replay hardening: the raw value is sent to the identity
-// provider (Supabase) and the SHA-256 hash is embedded in the token request to
-// the OAuth provider (Apple). expo-crypto is not a dependency here, so we use the
-// WebCrypto primitives the runtime already exposes (same source bibleDataModel.ts
-// relies on for signed-manifest verification). Returns null when WebCrypto is
-// unavailable so sign-in still proceeds without the extra hardening.
-const generateNoncePair = async (): Promise<{ raw: string; hashed: string } | null> => {
-  const webCrypto = globalThis.crypto as
-    | (Crypto & { subtle?: SubtleCrypto })
-    | undefined;
-
-  if (
-    !webCrypto ||
-    typeof webCrypto.getRandomValues !== 'function' ||
-    !webCrypto.subtle ||
-    typeof webCrypto.subtle.digest !== 'function'
-  ) {
-    return null;
-  }
-
-  const randomBytes = webCrypto.getRandomValues(new Uint8Array(32));
+// provider (Supabase) and the SHA-256 hash is embedded in the token request to the
+// OAuth provider (Apple), so an identity token minted for someone else's request
+// cannot be replayed against us.
+//
+// This uses expo-crypto rather than WebCrypto: Hermes exposes no `globalThis.crypto`,
+// so the previous WebCrypto implementation returned null on every real device and
+// Apple Sign-In always ran WITHOUT a nonce — the hardening existed only on paper.
+// The nonce is mandatory now: a generation failure aborts sign-in (see signInWithApple)
+// instead of silently degrading to a nonce-less request.
+const generateNoncePair = async (): Promise<{ raw: string; hashed: string }> => {
+  const randomBytes = await Crypto.getRandomBytesAsync(32);
   const raw = Array.from(randomBytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+  // digestStringAsync defaults to hex output, which is the encoding Apple expects.
+  const hashed = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, raw);
 
-  const digest = await webCrypto.subtle.digest(
-    'SHA-256',
-    new globalThis.TextEncoder().encode(raw)
-  );
-  const hashed = Array.from(new Uint8Array(digest), (byte) =>
-    byte.toString(16).padStart(2, '0')
-  ).join('');
+  if (!raw || !hashed) {
+    throw new Error('Failed to generate a sign-in nonce');
+  }
 
   return { raw, hashed };
 };
@@ -154,14 +145,21 @@ export const signInWithApple = async (): Promise<AuthResult> => {
   try {
     // Replay-hardening: hand Apple the SHA-256 of a random nonce and give Supabase
     // the raw value so it can verify the token was minted for this exact request.
-    const nonce = await generateNoncePair();
+    // The nonce is required — if it cannot be generated we fail the sign-in rather
+    // than fall back to an unhardened request.
+    let nonce: { raw: string; hashed: string };
+    try {
+      nonce = await generateNoncePair();
+    } catch (e) {
+      return serviceUnavailableAuthError(e);
+    }
 
     const credential = await AppleAuthentication.signInAsync({
       requestedScopes: [
         AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
         AppleAuthentication.AppleAuthenticationScope.EMAIL,
       ],
-      ...(nonce ? { nonce: nonce.hashed } : {}),
+      nonce: nonce.hashed,
     });
 
     if (!credential.identityToken) {
@@ -171,7 +169,7 @@ export const signInWithApple = async (): Promise<AuthResult> => {
     const { data, error } = await supabase.auth.signInWithIdToken({
       provider: 'apple',
       token: credential.identityToken,
-      ...(nonce ? { nonce: nonce.raw } : {}),
+      nonce: nonce.raw,
     });
 
     if (error) {

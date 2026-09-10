@@ -208,3 +208,15 @@ test('returns null for non-object payloads', () => {
   assert.equal(parseElCatalogPayload(null), null);
   assert.equal(parseElCatalogPayload('nope'), null);
 });
+
+test('drops a translation_id that is unsafe to interpolate into a file path', () => {
+  // Belt-and-braces with EL_TRANSLATION_ID_RE: the id ends up in on-device paths
+  // (translation .db files, audio directories), so path-escape shapes must never survive.
+  for (const translationId of ['el-../../evil', 'lq/../../evil', '../el-evil', 'el-a/b']) {
+    const catalog = parseElCatalogPayload(
+      validCatalog({ translations: [{ ...validEntry(), translation_id: translationId }] })
+    );
+    assert.ok(catalog);
+    assert.equal(catalog.translations.length, 0, `${translationId} must be dropped`);
+  }
+});
