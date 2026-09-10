@@ -493,7 +493,14 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
   const { t } = useTranslation();
   const displayFont = useDisplayFont();
   const insets = useSafeAreaInsets();
-  const keyboardBottomInset = useKeyboardBottomInset();
+  // Android cannot learn the keyboard overlap from the keyboard frame alone
+  // (edge-to-edge clears decorFitsSystemWindows, so adjustResize never shrinks
+  // this surface), so the list wrapper measures its own bottom edge instead.
+  const listSurfaceRef = useRef<View>(null);
+  const keyboardBottomInset = useKeyboardBottomInset({
+    surfaceRef: listSurfaceRef,
+    safeAreaBottomInset: insets.bottom,
+  });
   const preferences = useAuthStore((state) => state.preferences);
   const setPreferences = useAuthStore((state) => state.setPreferences);
   const translations = useBibleStore((state) => state.translations);
@@ -508,9 +515,6 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
   const deviceLocale = Localization.getLocales()[0];
   const deviceCountryCode = deviceLocale?.regionCode ?? null;
   const deviceLanguageCode = deviceLocale?.languageCode as LanguageCode | undefined;
-  const initialCountry =
-    localeSearchEngine.getCountryByCode(preferences.countryCode || deviceCountryCode) ?? null;
-  const initialLanguage = localeSearchEngine.getLanguageByCode(preferences.contentLanguageCode);
   const totalSteps = steps.length;
   const initialInterfaceLanguageCode =
     mode === 'initial' && deviceLanguageCode && LANGUAGES[deviceLanguageCode]
@@ -524,11 +528,18 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
   const [selectedInterfaceLanguageCode, setSelectedInterfaceLanguageCode] = useState<LanguageCode>(
     initialInterfaceLanguageCode
   );
+  // Seeded straight from the stored preference rather than from the locale
+  // search engine: resolving a code through the engine pulls in the 129 KB
+  // catalog require plus two ICU sorts, and the initial onboarding flow opens
+  // on the translation step, which never reads either value. getCountryByCode
+  // upper-cases what it is given, so pre-normalizing here keeps the resolved
+  // country — and the selected-row comparison against catalog codes — identical.
+  // An unknown code still resolves to null below, exactly as it did before.
   const [selectedCountryCode, setSelectedCountryCode] = useState<string | null>(
-    initialCountry?.code ?? null
+    () => (preferences.countryCode || deviceCountryCode)?.toUpperCase() ?? null
   );
   const [selectedLanguageCode, setSelectedLanguageCode] = useState<string | null>(
-    initialLanguage?.code ?? null
+    () => preferences.contentLanguageCode?.toLowerCase() ?? null
   );
   const [isHydratingRuntimeCatalog, setIsHydratingRuntimeCatalog] = useState(mode === 'initial');
   const [runtimeCatalogLoadFailed, setRuntimeCatalogLoadFailed] = useState(false);
@@ -544,12 +555,25 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
   const debouncedCountryQuery = useDebouncedValue(countryQuery, SEARCH_DEBOUNCE_MS);
   const debouncedLanguageQuery = useDebouncedValue(languageQuery, SEARCH_DEBOUNCE_MS);
 
-  const selectedCountry = localeSearchEngine.getCountryByCode(selectedCountryCode);
-  const selectedLanguage = localeSearchEngine.getLanguageByCode(selectedLanguageCode);
+  // Only the nation and content-language steps show a resolved selection, so
+  // nothing here may touch the engine until one of them is on screen.
+  const needsLocaleSelection = step === 'country' || step === 'contentLanguage';
+  const selectedCountry = useMemo(
+    () => (needsLocaleSelection ? localeSearchEngine.getCountryByCode(selectedCountryCode) : null),
+    [needsLocaleSelection, selectedCountryCode]
+  );
+  const selectedLanguage = useMemo(
+    () =>
+      needsLocaleSelection ? localeSearchEngine.getLanguageByCode(selectedLanguageCode) : null,
+    [needsLocaleSelection, selectedLanguageCode]
+  );
   const selectedInterfaceLanguage = LANGUAGES[selectedInterfaceLanguageCode];
-  const selectedCountryDisplayName = selectedCountry
-    ? localeSearchEngine.getCountryDisplayName(selectedCountry.code, selectedInterfaceLanguageCode)
-    : '';
+  // Filled by an effect, never during render: getCountryDisplayName builds an
+  // Intl.DisplayNames formatter and walks all 249 countries the first time it
+  // sees an interface language, which is far too much to put in front of a
+  // first paint. Until it lands the label is empty, which the two call sites
+  // below already handle.
+  const [selectedCountryDisplayName, setSelectedCountryDisplayName] = useState('');
   const currentStepNumber = Math.max(steps.indexOf(step) + 1, 1);
   const isFinalStep = step === steps[steps.length - 1];
   const hasHydratedRuntimeCatalog = useMemo(
@@ -838,6 +862,32 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
 
     return () => task.cancel();
   }, []);
+
+  // A stored content-language code may be an ISO-639-1/3 alias of the catalog's
+  // canonical code. Canonicalizing it keeps the matching row marked as selected,
+  // which the old render-time resolution did for free — but this waits until a
+  // step that needs the engine is actually showing.
+  useEffect(() => {
+    if (!needsLocaleSelection || !selectedLanguageCode) {
+      return;
+    }
+
+    const canonicalCode = localeSearchEngine.getLanguageByCode(selectedLanguageCode)?.code;
+    if (canonicalCode && canonicalCode !== selectedLanguageCode) {
+      setSelectedLanguageCode(canonicalCode);
+    }
+  }, [needsLocaleSelection, selectedLanguageCode]);
+
+  useEffect(() => {
+    if (!needsLocaleSelection || !selectedCountryCode) {
+      setSelectedCountryDisplayName('');
+      return;
+    }
+
+    setSelectedCountryDisplayName(
+      localeSearchEngine.getCountryDisplayName(selectedCountryCode, selectedInterfaceLanguageCode)
+    );
+  }, [needsLocaleSelection, selectedCountryCode, selectedInterfaceLanguageCode]);
 
   useEffect(() => {
     if (mode !== 'initial' || hasHydratedRuntimeCatalog) {
@@ -1283,9 +1333,10 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     : isFinalStep
       ? t('onboarding.finish')
       : t('common.continue');
-  // The iOS keyboard frame includes the home-indicator inset that SafeAreaView
-  // already reserves, so subtract it or the footer floats too high.
-  const keyboardOffset = Math.max(0, keyboardBottomInset - insets.bottom);
+  // Already net of what this surface reserves: the hook discounts the
+  // home-indicator inset on iOS and measures the list's own bottom edge on
+  // Android, so the footer lifts by exactly what the keyboard covers.
+  const keyboardOffset = keyboardBottomInset;
   const showFooter = mode === 'settings';
 
   const activeSearchQuery =
@@ -1623,36 +1674,38 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
         </View>
       </View>
 
-      <LocaleSetupList
-        // Remounting per step keeps recycled cells from one step's item types
-        // out of the next step's list, and resets the scroll offset for free.
-        key={step}
-        data={stepItems}
-        renderItem={renderStepItem}
-        header={listHeader}
-        contentPaddingBottom={(showFooter ? footerHeight : 0) + keyboardOffset + spacing.xxl}
-        scrollResetKey={scrollResetKey}
-        // FlashList compares extraData by reference and only re-renders the
-        // header and the visible cells when it changes, so this is deliberately
-        // a fresh object per render: the search field's value and the rows'
-        // selection marks/download progress have to stay current on every
-        // keystroke. The memoized row components are what keep that cheap — a
-        // re-render of ~10 visible cells whose props did not change costs
-        // nothing beyond creating the elements.
-        extraData={{
-          colors,
-          countryQuery,
-          displayFont,
-          downloadProgress,
-          installingTranslationId,
-          languageQuery,
-          selectedCountryCode,
-          selectedInterfaceLanguageCode,
-          selectedLanguageCode,
-          showInterfaceLanguagePicker,
-          translationQuery,
-        }}
-      />
+      <View ref={listSurfaceRef} style={styles.listSurface} collapsable={false}>
+        <LocaleSetupList
+          // Remounting per step keeps recycled cells from one step's item types
+          // out of the next step's list, and resets the scroll offset for free.
+          key={step}
+          data={stepItems}
+          renderItem={renderStepItem}
+          header={listHeader}
+          contentPaddingBottom={(showFooter ? footerHeight : 0) + keyboardOffset + spacing.xxl}
+          scrollResetKey={scrollResetKey}
+          // FlashList compares extraData by reference and only re-renders the
+          // header and the visible cells when it changes, so this is deliberately
+          // a fresh object per render: the search field's value and the rows'
+          // selection marks/download progress have to stay current on every
+          // keystroke. The memoized row components are what keep that cheap — a
+          // re-render of ~10 visible cells whose props did not change costs
+          // nothing beyond creating the elements.
+          extraData={{
+            colors,
+            countryQuery,
+            displayFont,
+            downloadProgress,
+            installingTranslationId,
+            languageQuery,
+            selectedCountryCode,
+            selectedInterfaceLanguageCode,
+            selectedLanguageCode,
+            showInterfaceLanguagePicker,
+            translationQuery,
+          }}
+        />
+      </View>
 
       {showFooter ? (
         <View
@@ -1702,6 +1755,12 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  // The list's own bottom edge is the reference the Android keyboard overlap is
+  // measured against: it ends where the safe-area padding starts, which is
+  // exactly where the pinned footer sits at rest.
+  listSurface: {
     flex: 1,
   },
   header: {

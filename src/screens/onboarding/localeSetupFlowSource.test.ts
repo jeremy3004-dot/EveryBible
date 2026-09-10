@@ -478,3 +478,92 @@ test('LocaleSetupFlow rows draw their own grouped-card edges', () => {
     'Rows should keep the isLast separator semantics they had inside an AppCard'
   );
 });
+
+test('LocaleSetupFlow never resolves the locale search engine while rendering its first frame', () => {
+  const flowSource = readRelativeSource('./LocaleSetupFlow.tsx');
+
+  // Everything above the step gate runs unconditionally on the very first
+  // render. Touching the engine there costs the 129 KB catalog require plus two
+  // ICU sorts before anything is on screen — and the initial flow opens on the
+  // translation step, which needs none of it.
+  const componentStart = flowSource.indexOf('export function LocaleSetupFlow(');
+  const gateIndex = flowSource.indexOf('const needsLocaleSelection =');
+  assert.ok(componentStart > 0 && gateIndex > componentStart);
+  const renderPrologue = flowSource.slice(componentStart, gateIndex);
+
+  assert.doesNotMatch(
+    renderPrologue,
+    /localeSearchEngine\./,
+    'no value read on every first render may come from the locale search engine'
+  );
+
+  assert.match(
+    flowSource,
+    /const needsLocaleSelection = step === 'country' \|\| step === 'contentLanguage';/,
+    'the engine-backed selection should be gated on the steps that actually display it'
+  );
+
+  assert.match(
+    flowSource,
+    /const selectedCountry = useMemo\([\s\S]{0,80}needsLocaleSelection \? localeSearchEngine\.getCountryByCode\(selectedCountryCode\)\s*: null,?\s*\)?,/,
+    'the selected country should be memoized behind the step gate rather than resolved in the render body'
+  );
+
+  assert.match(
+    flowSource,
+    /const selectedLanguage = useMemo\([\s\S]{0,80}needsLocaleSelection \? localeSearchEngine\.getLanguageByCode\(selectedLanguageCode\)\s*: null,?\s*\)?,/,
+    'the selected content language should be memoized behind the same gate'
+  );
+
+  assert.match(
+    flowSource,
+    /const \[selectedCountryDisplayName, setSelectedCountryDisplayName\] = useState\(''\);/,
+    'the localized nation name should start empty and be filled in later — building Intl.DisplayNames and walking 249 countries must never happen during a render'
+  );
+
+  assert.match(
+    flowSource,
+    /useEffect\(\(\) => \{[\s\S]{0,400}setSelectedCountryDisplayName\(\s*localeSearchEngine\.getCountryDisplayName\(selectedCountryCode, selectedInterfaceLanguageCode\)\s*\);/,
+    'the localized nation name should be resolved from an effect'
+  );
+
+  assert.match(
+    flowSource,
+    /useState<string \| null>\(\s*\(\) => \(preferences\.countryCode \|\| deviceCountryCode\)\?\.toUpperCase\(\) \?\? null\s*\)/,
+    'the stored nation code should seed state directly instead of being resolved through the engine on first render'
+  );
+
+  assert.match(
+    flowSource,
+    /const canonicalCode = localeSearchEngine\.getLanguageByCode\(selectedLanguageCode\)\?\.code;/,
+    'the stored content-language code should still be canonicalized against the catalog — just from an effect, once a step needs the engine'
+  );
+
+  assert.match(
+    flowSource,
+    /InteractionManager\.runAfterInteractions\(\(\) => \{\s*prewarmLocaleSearchEngine\(\);/,
+    'the off-critical-path pre-warm should stay: the engine is still needed, just not during a render'
+  );
+});
+
+test('LocaleSetupFlow lifts its footer by the measured keyboard overlap', () => {
+  const flowSource = readRelativeSource('./LocaleSetupFlow.tsx');
+
+  assert.match(
+    flowSource,
+    /useKeyboardBottomInset\(\{\s*surfaceRef: listSurfaceRef,\s*safeAreaBottomInset: insets\.bottom,\s*\}\)/,
+    'the flow should hand the hook the surface to measure and the inset its own layout reserves — Android cannot derive the overlap from the keyboard frame alone under edge-to-edge'
+  );
+
+  assert.match(
+    flowSource,
+    /<View ref=\{listSurfaceRef\} style=\{styles\.listSurface\} collapsable=\{false\}>/,
+    'the measured surface should be the list wrapper, whose bottom edge is where the pinned footer sits at rest — and it must not be collapsed away on Android'
+  );
+
+  assert.match(
+    flowSource,
+    /const keyboardOffset = keyboardBottomInset;/,
+    'the safe-area correction now lives in the hook, so the flow must not subtract it a second time'
+  );
+});

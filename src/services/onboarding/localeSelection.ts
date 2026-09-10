@@ -35,8 +35,30 @@ interface CountrySearchEntry {
   country: LocaleCountry;
   displayName: string;
   searchNames: string[];
+  /** `searchNames`, normalized once at index time. See NORMALIZED_HAYSTACK_NOTE. */
+  normalizedSearchNames: string[];
+  /** The country code, normalized once at index time. */
+  normalizedCode: string;
 }
 
+// NORMALIZED_HAYSTACK_NOTE
+// Every haystack a filter compares against is normalized once, when its index
+// is built, never per call. normalizeSearchText runs an ICU NFD normalization
+// plus a regex strip, and the language filters alone walk ~4,000 haystacks —
+// which the debounced search field would otherwise re-normalize on every
+// keystroke, on Hermes, without a JIT. Only the query is normalized per call.
+interface LanguageSearchEntry {
+  language: LocaleLanguage;
+  /**
+   * Identity haystacks — codes and every name form — compared for equality.
+   * Empty strings are kept deliberately: they are what a language with no
+   * ISO-639-1/3 code contributed before, and dropping them would change which
+   * entries an equality pass can match.
+   */
+  exactHaystacks: string[];
+  /** Name forms only, compared by substring in either direction. */
+  nameHaystacks: string[];
+}
 
 export const COUNTRY_DISPLAY_LOCALES: Record<LanguageCode, string[]> = {
   en: ['en'],
@@ -90,6 +112,29 @@ export function createLocaleSearchEngine(catalog: LocaleCatalog) {
     .slice()
     .sort((left, right) => left.name.localeCompare(right.name));
   const countryDisplayNameCache = new Map<LanguageCode, Map<string, string>>();
+  // See NORMALIZED_HAYSTACK_NOTE. Built on first search rather than here so
+  // engine construction stays as cheap as it is today.
+  let _languageSearchEntries: LanguageSearchEntry[] | null = null;
+  const getLanguageSearchEntries = (): LanguageSearchEntry[] => {
+    if (!_languageSearchEntries) {
+      _languageSearchEntries = languages.map((language) => ({
+        language,
+        exactHaystacks: [
+          language.code,
+          language.iso6391 ?? '',
+          language.iso6393 ?? '',
+          language.name,
+          language.nativeName,
+          ...language.aliases,
+        ].map(normalizeSearchText),
+        nameHaystacks: [language.name, language.nativeName, ...language.aliases].map(
+          normalizeSearchText
+        ),
+      }));
+    }
+
+    return _languageSearchEntries;
+  };
   const countrySearchCache = new Map<
     LanguageCode,
     { entries: CountrySearchEntry[]; fuse: Fuse<CountrySearchEntry> }
@@ -145,15 +190,17 @@ export function createLocaleSearchEngine(catalog: LocaleCatalog) {
       // Hermes may not provide DisplayNames. Load the offline CLDR names only
       // when the native formatter cannot supply this country name.
       if (!localizedName || localizedName === country.code) {
-        offlineNames ??= (require('../../data/countryDisplayNames.generated.json') as {
-          names: Record<LanguageCode, Record<string, string>>;
-        }).names[languageCode];
+        offlineNames ??= (
+          require('../../data/countryDisplayNames.generated.json') as {
+            names: Record<LanguageCode, Record<string, string>>;
+          }
+        ).names[languageCode];
       }
       names.set(
         country.code,
         localizedName && localizedName !== country.code
           ? localizedName
-          : offlineNames?.[country.code] ?? country.name
+          : (offlineNames?.[country.code] ?? country.name)
       );
     });
 
@@ -190,6 +237,8 @@ export function createLocaleSearchEngine(catalog: LocaleCatalog) {
           country,
           displayName,
           searchNames,
+          normalizedSearchNames: searchNames.map(normalizeSearchText),
+          normalizedCode: normalizeSearchText(country.code),
         };
       })
       .sort((left, right) => left.displayName.localeCompare(right.displayName, languageCode));
@@ -234,14 +283,9 @@ export function createLocaleSearchEngine(catalog: LocaleCatalog) {
     }
 
     const normalizedQuery = normalizeSearchText(trimmedQuery);
-    const exactCodeMatches = entries.filter(
-      (entry) => normalizeSearchText(entry.country.code) === normalizedQuery
-    );
+    const exactCodeMatches = entries.filter((entry) => entry.normalizedCode === normalizedQuery);
     const prefixMatches = entries.filter((entry) =>
-      entry.searchNames.some((searchName) => {
-        const haystack = normalizeSearchText(searchName);
-        return haystack.includes(normalizedQuery);
-      })
+      entry.normalizedSearchNames.some((haystack) => haystack.includes(normalizedQuery))
     );
 
     const fuzzyMatches = fuse.search(trimmedQuery).map((result) => result.item);
@@ -280,28 +324,21 @@ export function createLocaleSearchEngine(catalog: LocaleCatalog) {
     }
 
     const normalizedQuery = normalizeSearchText(trimmedQuery);
-    const exactMatches = languages.filter((language) => {
-      const haystacks = [
-        language.code,
-        language.iso6391 ?? '',
-        language.iso6393 ?? '',
-        language.name,
-        language.nativeName,
-        ...language.aliases,
-      ].map(normalizeSearchText);
+    const searchEntries = getLanguageSearchEntries();
+    const exactMatches = searchEntries
+      .filter((entry) => entry.exactHaystacks.some((haystack) => haystack === normalizedQuery))
+      .map((entry) => entry.language);
+    const prefixMatches = searchEntries
+      .filter((entry) =>
+        entry.nameHaystacks.some(
+          (haystack) => haystack.includes(normalizedQuery) || normalizedQuery.includes(haystack)
+        )
+      )
+      .map((entry) => entry.language);
 
-      return haystacks.some((haystack) => haystack === normalizedQuery);
-    });
-    const prefixMatches = languages.filter((language) => {
-      const haystacks = [language.name, language.nativeName, ...language.aliases].map(
-        normalizeSearchText
-      );
-      return haystacks.some(
-        (haystack) => haystack.includes(normalizedQuery) || normalizedQuery.includes(haystack)
-      );
-    });
-
-    const fuzzyMatches = getLanguageFuse().search(trimmedQuery).map((result) => result.item);
+    const fuzzyMatches = getLanguageFuse()
+      .search(trimmedQuery)
+      .map((result) => result.item);
     const allMatches = uniqueByCode([...exactMatches, ...prefixMatches, ...fuzzyMatches]).slice(
       0,
       limit * 2
@@ -404,14 +441,20 @@ export function prewarmLocaleSearchEngine(): void {
 }
 
 export const localeSearchEngine: ReturnType<typeof createLocaleSearchEngine> = {
-  get countries() { return resolveLocaleSearchEngine().countries; },
-  get languages() { return resolveLocaleSearchEngine().languages; },
+  get countries() {
+    return resolveLocaleSearchEngine().countries;
+  },
+  get languages() {
+    return resolveLocaleSearchEngine().languages;
+  },
   getCountryByCode: (...args) => resolveLocaleSearchEngine().getCountryByCode(...args),
   getCountryDisplayName: (...args) => resolveLocaleSearchEngine().getCountryDisplayName(...args),
   getLanguageByCode: (...args) => resolveLocaleSearchEngine().getLanguageByCode(...args),
   getLanguageByName: (...args) => resolveLocaleSearchEngine().getLanguageByName(...args),
   searchCountries: (...args) => resolveLocaleSearchEngine().searchCountries(...args),
-  getRecommendedLanguages: (...args) => resolveLocaleSearchEngine().getRecommendedLanguages(...args),
+  getRecommendedLanguages: (...args) =>
+    resolveLocaleSearchEngine().getRecommendedLanguages(...args),
   searchLanguages: (...args) => resolveLocaleSearchEngine().searchLanguages(...args),
-  mapLanguageToAppLanguage: (...args) => resolveLocaleSearchEngine().mapLanguageToAppLanguage(...args),
+  mapLanguageToAppLanguage: (...args) =>
+    resolveLocaleSearchEngine().mapLanguageToAppLanguage(...args),
 };

@@ -150,3 +150,49 @@ test('recommended languages are returned when there is no query', () => {
   );
   assert.deepEqual(results.global, []);
 });
+
+// The haystacks these filters compare against are normalized once at index
+// time rather than on every (debounced) keystroke, so the cases that depend on
+// that normalization are pinned here: accents must still fold away, and the
+// results must not change with how many times a query has already been run.
+test('accented queries still match through the precomputed haystacks', () => {
+  assert.equal(engine.searchLanguages('Español', null).global[0]?.code, 'es');
+  assert.equal(engine.searchLanguages('espanol', null).global[0]?.code, 'es');
+  assert.equal(engine.searchLanguages('ESPAÑOL', null).global[0]?.code, 'es');
+});
+
+test('accented country queries fold to the same result as their unaccented form', () => {
+  const accented = createLocaleSearchEngine(localeCatalog).searchCountries('côte', 'fr');
+  const plain = createLocaleSearchEngine(localeCatalog).searchCountries('cote', 'fr');
+
+  assert.ok(accented.length > 0);
+  assert.deepEqual(
+    accented.map((country) => country.code),
+    plain.map((country) => country.code)
+  );
+});
+
+test('repeated searches return identical results from the reused index', () => {
+  const first = engine.searchLanguages('nepalee', 'NP');
+  const second = engine.searchLanguages('nepalee', 'NP');
+
+  assert.deepEqual(
+    second.recommended.map((language) => language.code),
+    first.recommended.map((language) => language.code)
+  );
+  assert.deepEqual(
+    second.global.map((language) => language.code),
+    first.global.map((language) => language.code)
+  );
+  assert.deepEqual(
+    engine.searchCountries('nep', 'en').map((country) => country.code),
+    engine.searchCountries('nep', 'en').map((country) => country.code)
+  );
+});
+
+test('language codes match exactly while name fragments match by substring', () => {
+  assert.equal(engine.searchLanguages('nep', null).global[0]?.code, 'ne', 'ISO 639-3 code');
+  assert.equal(engine.searchLanguages('pan', null).global[0]?.code, 'pa', 'ISO 639-3 code');
+  assert.equal(engine.searchLanguages('panj', null).global[0]?.code, 'pa', 'name fragment');
+  assert.equal(engine.searchLanguages('Punjabi', null).global[0]?.code, 'pa', 'alias');
+});
