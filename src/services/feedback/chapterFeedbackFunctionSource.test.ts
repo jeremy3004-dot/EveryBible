@@ -159,3 +159,51 @@ test('submit-chapter-feedback disables the legacy edge JWT gate and enriches aut
     'Expected submit-chapter-feedback not to block participants who do not have an account'
   );
 });
+
+test('submit-chapter-feedback rate-limits anonymous submitters on an un-spoofable identity and fails closed (S6)', () => {
+  const source = readFileSync(FUNCTION_PATH, 'utf8');
+  const migration = readFileSync(
+    path.join(REPO_ROOT, 'supabase/migrations/20260910094000_add_client_ip_hash_to_chapter_feedback.sql'),
+    'utf8'
+  );
+
+  // The counter is scoped by a hash of the Cloudflare-stamped client IP, not by the
+  // free-text participant fields the caller controls.
+  assert.match(source, /cf-connecting-ip/, 'Expected the client IP to be read from cf-connecting-ip first');
+  assert.match(source, /crypto\.subtle\.digest\('SHA-256'/, 'Expected the IP to be hashed, never stored raw');
+  assert.match(
+    source,
+    /\.is\('user_id', null\)\.eq\('client_ip_hash', clientIpHash\)/,
+    'Expected the anonymous rate scope to key on the IP hash'
+  );
+  assert.doesNotMatch(
+    source,
+    /\.eq\('participant_name', validation\.value\.participant_name\)/,
+    'Expected the attacker-controlled participant_name rate scope to be gone'
+  );
+
+  // Fail CLOSED: this endpoint runs with verify_jwt = false, so a counter outage must not
+  // wave anonymous callers through to unbounded service-role inserts.
+  assert.match(
+    source,
+    /if \(rateError\) \{[\s\S]{0,300}jsonResponse\(503/,
+    'Expected a counter error to reject the submission rather than skip the limit'
+  );
+  assert.doesNotMatch(
+    source,
+    /!rateError && \(recentCount/,
+    'Expected the fail-open guard to be removed'
+  );
+
+  // Traversal / separator tricks are rejected before the storage prefix check.
+  assert.match(
+    source,
+    /preuploadedAudioPath\.includes\('\.\.'\) \|\| preuploadedAudioPath\.includes\('\\\\'\)/,
+    'Expected preuploaded audio paths containing .. or a backslash to be rejected'
+  );
+
+  // The column the guard depends on is added by a migration, nullable, with a matching index.
+  assert.match(migration, /ADD COLUMN IF NOT EXISTS client_ip_hash TEXT NULL/);
+  assert.match(migration, /CREATE INDEX IF NOT EXISTS idx_chapter_feedback_client_ip_hash_created_at/);
+  assert.match(source, /client_ip_hash: clientIpHash/, 'Expected the hash to be persisted with the row');
+});

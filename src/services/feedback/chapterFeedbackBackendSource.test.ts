@@ -301,3 +301,45 @@ test('chapter feedback function and ops doc preserve the Supabase admin review c
     'Expected the ops doc to describe audio response storage and review'
   );
 });
+
+test('review-chapter-feedback never leaks the submitter auth UUID and scopes mutations by translation (S4)', () => {
+  const reviewFunction = readRepoFile('supabase/functions/review-chapter-feedback/index.ts');
+  const reviewClient = readRepoFile('src/services/feedback/chapterFeedbackReviewService.ts');
+  const reader = readRepoFile('src/screens/bible/BibleReaderScreen.tsx');
+
+  // Translators authenticate with one shared passcode, so anything in this payload is
+  // readable by every passcode holder. The raw Supabase user id is not theirs to see.
+  assert.doesNotMatch(
+    reviewFunction,
+    /userId:\s*row\.user_id/,
+    'Expected the review payload to stop emitting the submitter auth UUID'
+  );
+  assert.doesNotMatch(
+    reviewClient,
+    /^\s*userId:/m,
+    'Expected the review item type/parser to drop the userId field'
+  );
+  assert.doesNotMatch(
+    reader,
+    /item\.userId/,
+    'Expected the reader participant label to stop falling back to the raw UUID'
+  );
+
+  // A mutation must always name the translation it acts on, so a passcode holder cannot
+  // resolve or reopen another translation's feedback by replaying a feedback UUID.
+  assert.match(
+    reviewFunction,
+    /if \(!translationId\)[\s\S]{0,200}translationId is required/,
+    'Expected translationId to be mandatory for resolve/reopen'
+  );
+  const mutationScopes = reviewFunction.match(/\.eq\('translation_id', translationId\)/g) ?? [];
+  assert.ok(
+    mutationScopes.length >= 3,
+    'Expected the existence check and both the resolve and reopen updates to filter on translation_id'
+  );
+  assert.doesNotMatch(
+    reviewFunction,
+    /if \(translationId\) \{[\s\S]{0,120}existingQuery/,
+    'Expected translation scoping to no longer be an optional extra filter'
+  );
+});
