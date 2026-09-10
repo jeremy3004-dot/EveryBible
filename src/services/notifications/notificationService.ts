@@ -67,9 +67,16 @@ function getDevicePushTokenKey(devicePushToken?: DevicePushToken): string | null
   return `${devicePushToken.type}:${typeof devicePushToken.data === 'string' ? devicePushToken.data : JSON.stringify(devicePushToken.data)}`;
 }
 
+// One in-flight/completed channel setup per launch. Startup fires this and the
+// reminder scheduler awaits it, so without memoization the two racing callers
+// would configure the channels twice — and a scheduled reminder could still name
+// a channel Android has not been told about yet.
+let androidChannelSetup: Promise<void> | null = null;
+
 /**
  * Create Android notification channels required for scheduled notifications.
- * Channels are idempotent — safe to call on every app launch.
+ * Memoized per launch and idempotent — safe to call on every app launch and
+ * before every schedule. A failed attempt is not cached, so the next caller retries.
  * No-ops on iOS.
  */
 export async function setupAndroidChannels(): Promise<void> {
@@ -77,17 +84,20 @@ export async function setupAndroidChannels(): Promise<void> {
     return;
   }
 
-  await Notifications.setNotificationChannelAsync('daily-reminder', {
-    name: i18n.t('notifications.channelDailyReminder'),
-    importance: Notifications.AndroidImportance.DEFAULT,
-    sound: 'default',
-  });
+  if (!androidChannelSetup) {
+    androidChannelSetup = (async () => {
+      await Notifications.setNotificationChannelAsync('daily-reminder', {
+        name: i18n.t('notifications.channelDailyReminder'),
+        importance: Notifications.AndroidImportance.DEFAULT,
+        sound: 'default',
+      });
+    })().catch((error) => {
+      androidChannelSetup = null;
+      throw error;
+    });
+  }
 
-  await Notifications.setNotificationChannelAsync('group-alerts', {
-    name: i18n.t('notifications.channelGroupAlerts'),
-    importance: Notifications.AndroidImportance.HIGH,
-    sound: 'default',
-  });
+  await androidChannelSetup;
 }
 
 /**
@@ -113,6 +123,13 @@ export async function requestNotificationPermissions(): Promise<boolean> {
  * replace the existing schedule rather than accumulating duplicate notifications.
  */
 export async function scheduleDailyReminder(hour: number, minute: number): Promise<void> {
+  // The trigger below names the 'daily-reminder' channel. On Android a trigger
+  // pointing at a channel that does not exist yet is dropped, and startup's
+  // channel setup is fire-and-forget — so make sure it has finished first.
+  if (Platform.OS === 'android') {
+    await setupAndroidChannels();
+  }
+
   // Cancel the existing scheduled notification first (if any).
   // Use catch() so that a missing notification does not throw.
   await Notifications.cancelScheduledNotificationAsync('daily-reading-reminder').catch(() => {});

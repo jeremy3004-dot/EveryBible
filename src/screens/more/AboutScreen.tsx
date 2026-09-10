@@ -15,6 +15,7 @@ import {
   EVERYBIBLE_TERMS_URL,
 } from '../../constants';
 import { radius, layout, spacing, typography } from '../../design/system';
+import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 
 const ABOUT_WEBSITE_LABEL = 'everybible.app';
 const ABOUT_APP_ICON = require('../../../assets/icon.png');
@@ -26,6 +27,9 @@ export function AboutScreen() {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = createStyles(colors);
+  // About sits inside the tab navigator, so the last row has to clear the
+  // floating capsule (and, on Android edge-to-edge, the navigation bar under it).
+  const { contentClearance } = useTabBarHeight();
 
   const handleLink = (url: string) => {
     Linking.openURL(url);
@@ -47,7 +51,10 @@ export function AboutScreen() {
         <View style={{ width: 32 }} />
       </View>
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[styles.content, { paddingBottom: contentClearance }]}
+      >
         {/* App Logo/Title */}
         <View style={styles.appSection}>
           <View style={styles.appIcon}>

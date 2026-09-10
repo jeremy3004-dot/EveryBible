@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
 import { radius, layout, spacing, typography } from '../../design/system';
+import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import {
   getCrashLogs,
   clearCrashLogs,
@@ -64,6 +65,10 @@ export function DiagnosticsScreen() {
   }, [t]);
 
   const hasEntries = entries.length > 0;
+  // Diagnostics is a pushed tab-stack screen, so whichever element ends the
+  // screen — the action bar when there are logs, the scroll content otherwise —
+  // has to clear the floating tab capsule and the Android navigation bar.
+  const { contentClearance } = useTabBarHeight();
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -80,7 +85,13 @@ export function DiagnosticsScreen() {
         <View style={{ width: 32 }} />
       </View>
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[
+          styles.content,
+          hasEntries ? null : { paddingBottom: contentClearance },
+        ]}
+      >
         <Text style={styles.intro}>{t('settings.diagnostics.description')}</Text>
 
         {hasEntries ? (
@@ -137,7 +148,7 @@ export function DiagnosticsScreen() {
       </ScrollView>
 
       {hasEntries ? (
-        <View style={styles.actionBar}>
+        <View style={[styles.actionBar, { paddingBottom: contentClearance }]}>
           <TouchableOpacity style={[styles.actionButton, styles.shareButton]} onPress={handleShare}>
             <Ionicons name="share-outline" size={20} color={colors.onAccent} />
             <Text style={styles.shareButtonText}>{t('interface.share')}</Text>

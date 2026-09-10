@@ -34,6 +34,10 @@ function notificationHarness() {
   const cancellations: string[] = [];
   const schedules: Array<Record<string, unknown>> = [];
   const channels: Array<{ id: string; options: Record<string, unknown> }> = [];
+  // Ordering matters: a trigger naming a channel Android has not been told about
+  // yet is dropped, so the channel call has to land before the schedule call.
+  const order: string[] = [];
+  let failNextChannel = false;
   const autoRegistration: boolean[] = [];
   const tokenCalls: TokenOptions[] = [];
   const upserts: Array<{ table: string; row: DeviceWrite; options: Record<string, unknown> }> = [];
@@ -78,12 +82,19 @@ function notificationHarness() {
           },
           cancelScheduledNotificationAsync: async (id: string) => {
             cancellations.push(id);
+            order.push(`cancel:${id}`);
           },
           scheduleNotificationAsync: async (request: Record<string, unknown>) => {
             schedules.push(request);
+            order.push('schedule');
           },
           setNotificationChannelAsync: async (id: string, options: Record<string, unknown>) => {
+            if (failNextChannel) {
+              failNextChannel = false;
+              throw new Error('channel setup failed');
+            }
             channels.push({ id, options });
+            order.push(`channel:${id}`);
           },
         };
       if (name === '../supabase')
@@ -120,6 +131,10 @@ function notificationHarness() {
     cancellations,
     schedules,
     channels,
+    order,
+    setFailNextChannel: (value: boolean) => {
+      failNextChannel = value;
+    },
     autoRegistration,
     tokenCalls,
     upserts,
@@ -168,7 +183,7 @@ test('permissions reuse a grant and otherwise return the requested permission re
   assert.deepEqual(h.permissionCalls, ['get', 'get', 'request', 'get', 'request']);
 });
 
-test('Android channels retain their translated names and importance and skip iOS', async () => {
+test('Android channels retain their translated names and importance, skip iOS and set up once', async () => {
   const h = notificationHarness();
   await h.api.setupAndroidChannels();
   assert.equal(h.channels.length, 0);
@@ -176,11 +191,40 @@ test('Android channels retain their translated names and importance and skip iOS
   await h.api.setupAndroidChannels();
   assert.deepEqual(
     h.channels.map(({ id, options }) => [id, options.name, options.importance]),
-    [
-      ['daily-reminder', 'notifications.channelDailyReminder', 3],
-      ['group-alerts', 'notifications.channelGroupAlerts', 4],
-    ]
+    [['daily-reminder', 'notifications.channelDailyReminder', 3]]
   );
+
+  // Memoized per launch: startup and the reminder scheduler both call this.
+  await h.api.setupAndroidChannels();
+  assert.equal(h.channels.length, 1);
+});
+
+test('a failed Android channel setup is not cached, so the next caller retries', async () => {
+  const h = notificationHarness();
+  h.platform.OS = 'android';
+  h.setFailNextChannel(true);
+  await assert.rejects(h.api.setupAndroidChannels());
+  assert.equal(h.channels.length, 0);
+
+  await h.api.setupAndroidChannels();
+  assert.deepEqual(
+    h.channels.map(({ id }) => id),
+    ['daily-reminder']
+  );
+});
+
+test('scheduling the daily reminder ensures its Android channel exists before the trigger names it', async () => {
+  const h = notificationHarness();
+  h.platform.OS = 'android';
+  await h.api.scheduleDailyReminder(7, 30);
+
+  assert.deepEqual(
+    h.channels.map(({ id }) => id),
+    ['daily-reminder'],
+    'the channel the trigger names must be created before the notification is scheduled'
+  );
+  assert.equal(h.order[0], 'channel:daily-reminder');
+  assert.equal(h.order[h.order.length - 1], 'schedule');
 });
 
 test('registration forwards the native token, disables auto registration and caches a successful upsert', async () => {

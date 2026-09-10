@@ -48,7 +48,7 @@ import {
 import { useAuthStore } from '../../stores/authStore';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useTranslatorReviewStore } from '../../stores/translatorReviewStore';
-import { mmkvInstance } from '../../stores';
+import { mmkvInstance } from '../../stores/mmkvStorage';
 import { useDisplayFont, useFontSize, useI18n, useTabBarHeight } from '../../hooks';
 import { syncPreferences } from '../../services/sync';
 import { validateTranslatorReviewPasscode } from '../../services/feedback';
@@ -682,6 +682,8 @@ export function SettingsScreen() {
         <Modal
           visible={showChapterFeedbackIdentityModal}
           transparent
+          statusBarTranslucent
+          navigationBarTranslucent
           animationType="fade"
           onRequestClose={closeChapterFeedbackIdentityModal}
         >
@@ -795,6 +797,8 @@ export function SettingsScreen() {
         <Modal
           visible={showTranslatorAccessModal}
           transparent
+          statusBarTranslucent
+          navigationBarTranslucent
           animationType="fade"
           onRequestClose={() => setShowTranslatorAccessModal(false)}
         >
@@ -1019,6 +1023,8 @@ export function SettingsScreen() {
       <Modal
         visible={showTimePicker}
         transparent
+        statusBarTranslucent
+        navigationBarTranslucent
         animationType="fade"
         onRequestClose={() => setShowTimePicker(false)}
       >
@@ -1125,6 +1131,8 @@ export function SettingsScreen() {
       <Modal
         visible={showLanguagePicker}
         transparent
+        statusBarTranslucent
+        navigationBarTranslucent
         animationType="fade"
         onRequestClose={() => setShowLanguagePicker(false)}
       >
@@ -1198,6 +1206,8 @@ export function SettingsScreen() {
       <Modal
         visible={showDeleteConfirm}
         transparent
+        statusBarTranslucent
+        navigationBarTranslucent
         animationType="fade"
         onRequestClose={() => !isDeleting && setShowDeleteConfirm(false)}
       >

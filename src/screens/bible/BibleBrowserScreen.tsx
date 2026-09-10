@@ -12,7 +12,7 @@ import {
   Platform,
   type TextInput as TextInputType,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -52,6 +52,7 @@ import {
   resolveBibleSearchIntent,
 } from './bibleSearchModel';
 import { layout, radius, spacing, typography } from '../../design/system';
+import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { BookIcon } from '../../components/bible/BookIcon';
 import { VersesSkeleton } from '../../components/skeleton/VersesSkeleton';
 
@@ -123,6 +124,29 @@ export function BibleBrowserScreen() {
   const isPickerModal = route.name === 'BiblePicker';
   const canDismissModal = isPickerModal;
   const canOpenTranslationPicker = !isPickerModal && config.features.multipleTranslations;
+  // As a tab-stack screen the browser sits under the floating tab capsule; as the
+  // BiblePicker modal the capsule is hidden, so only the Android navigation bar
+  // is in the way. FlashList wants plain ContentStyle objects, not StyleSheet refs.
+  const insets = useSafeAreaInsets();
+  const { contentClearance } = useTabBarHeight();
+  const listBottomClearance = isPickerModal ? insets.bottom : contentClearance;
+  const listContentStyle = useMemo(
+    () => ({
+      paddingHorizontal: layout.screenPadding,
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.xl + listBottomClearance,
+    }),
+    [listBottomClearance]
+  );
+  const searchResultsContentStyle = useMemo(
+    () => ({
+      paddingHorizontal: layout.screenPadding,
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.xl + listBottomClearance,
+      gap: spacing.md,
+    }),
+    [listBottomClearance]
+  );
   const parseRef = useCallback(
     (q: string) => parsePassageReferenceLocale(q, currentLanguage),
     [currentLanguage]
@@ -741,7 +765,7 @@ export function BibleBrowserScreen() {
               data={searchResults}
               renderItem={renderSearchResult}
               keyExtractor={(item) => String(item.id)}
-              contentContainerStyle={styles.searchResultsContent}
+              contentContainerStyle={searchResultsContentStyle}
               showsVerticalScrollIndicator={false}
               estimatedItemSize={SEARCH_RESULT_ESTIMATED_SIZE}
             />
@@ -779,7 +803,7 @@ export function BibleBrowserScreen() {
           renderItem={renderRow}
           ListHeaderComponent={renderTranslatorSummaryBanner}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={listContentStyle}
           showsVerticalScrollIndicator={false}
           estimatedItemSize={BIBLE_BROWSER_ROW_ESTIMATED_SIZE}
           getItemType={(item) => item.type}
@@ -910,11 +934,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  listContent: {
-    paddingHorizontal: layout.screenPadding,
-    paddingBottom: spacing.xl,
-    paddingTop: spacing.sm,
-  },
   searchInputShell: {
     minHeight: 48,
     borderRadius: radius.md,
@@ -946,12 +965,6 @@ const styles = StyleSheet.create({
     top: spacing.sm,
     right: layout.screenPadding,
     zIndex: 1,
-  },
-  searchResultsContent: {
-    paddingHorizontal: layout.screenPadding,
-    paddingBottom: spacing.xl,
-    paddingTop: spacing.sm,
-    gap: spacing.md,
   },
   searchResultCard: {
     borderWidth: 1,

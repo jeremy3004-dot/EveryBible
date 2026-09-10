@@ -28,6 +28,7 @@ import { useProgressStore } from '../../stores/progressStore';
 import type { MoreStackParamList } from '../../navigation/types';
 import { openAuthFlow } from '../../navigation/rootNavigation';
 import { layout, radius, spacing, typography } from '../../design/system';
+import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 
 type NavigationProp = NativeStackNavigationProp<MoreStackParamList>;
 
@@ -44,6 +45,9 @@ export function ProfileScreen() {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  // Pushed inside the More tab stack: the floating tab capsule (and the Android
+  // navigation bar under it) overlaps the end of this scroll.
+  const { contentClearance } = useTabBarHeight();
   const user = useAuthStore((state) => state.user);
   const setUser = useAuthStore((state) => state.setUser);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -161,7 +165,10 @@ export function ProfileScreen() {
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[styles.content, { paddingBottom: contentClearance }]}
+      >
         <View style={styles.avatarSection}>
           <TouchableOpacity
             style={styles.avatarTouchable}

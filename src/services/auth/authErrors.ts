@@ -149,6 +149,16 @@ export const mapGoogleAuthError = (error: unknown): AuthFailure => {
       return authFailure('in_progress', error, 'Sign in already in progress');
     case 'PLAY_SERVICES_NOT_AVAILABLE':
       return authFailure('provider_unavailable', error, 'Play services not available');
+    // Android status 10. Play Services rejects the sign-in before any account
+    // picker appears when the build's package name + signing certificate has no
+    // matching Android OAuth client — which is this project's state. Without its
+    // own case it fell through to a bare 'unknown' failure with nothing to go on.
+    case 'DEVELOPER_ERROR':
+      return authFailure(
+        'provider_unavailable',
+        error,
+        'Google sign in is not configured for this Android build (DEVELOPER_ERROR).'
+      );
     default:
       return unknownAuthError(error);
   }

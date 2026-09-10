@@ -197,6 +197,11 @@ export const signInWithApple = async (): Promise<AuthResult> => {
 };
 
 // Google Sign-In
+// Android's CommonStatusCodes.DEVELOPER_ERROR (10). The native module rejects with
+// the raw status number as the error code, and `statusCodes` does not expose it, so
+// the literal is the only handle on "no Android OAuth client matches this build".
+const GOOGLE_ANDROID_DEVELOPER_ERROR_CODE = '10';
+
 export const signInWithGoogle = async (): Promise<AuthResult> => {
   if (!isSupabaseConfigured()) {
     return configurationAuthError();
@@ -262,6 +267,18 @@ export const signInWithGoogle = async (): Promise<AuthResult> => {
         case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
           return mapGoogleAuthError({
             code: 'PLAY_SERVICES_NOT_AVAILABLE',
+            message: error.message,
+          });
+        case GOOGLE_ANDROID_DEVELOPER_ERROR_CODE:
+          // Android status 10: no Android OAuth client matches this build's
+          // package name + signing certificate. It is indistinguishable from a
+          // generic failure in the UI, so name it in logcat.
+          console.error(
+            '[Auth] Google DEVELOPER_ERROR — no Android OAuth client matches this build (package name / SHA-1 mismatch)',
+            error.code
+          );
+          return mapGoogleAuthError({
+            code: 'DEVELOPER_ERROR',
             message: error.message,
           });
         default:

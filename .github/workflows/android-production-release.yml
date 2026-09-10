@@ -59,7 +59,7 @@ jobs:
         run: |
           set -euo pipefail
           yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
 
       - name: Install dependencies
         run: npm ci
@@ -80,6 +80,11 @@ jobs:
           AAB_PATH="${AAB_FILES[0]}"
           echo "aab_path=$AAB_PATH" >> "$GITHUB_OUTPUT"
           echo "Built AAB: $AAB_PATH"
+
+      # Play rejects bundles whose native libraries are not 16KB-aligned. The gate
+      # existed but nothing ran it, so it could only ever fail at submission time.
+      - name: Verify 16KB page-size alignment
+        run: node scripts/check_android_page_size.mjs "${{ steps.build.outputs.aab_path }}"
 
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v4
