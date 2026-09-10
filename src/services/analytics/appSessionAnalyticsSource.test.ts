@@ -1,3 +1,5 @@
+// Startup-path guard by design: App.tsx cannot be loaded under Node, so its
+// session wiring is asserted on source shape. Not a behaviour test.
 /**
  * Regression test for session-event single-emission + attribution (P1 S4).
  *
@@ -34,7 +36,10 @@ function readAppSource(): string {
 function foregroundBlock(source: string): string {
   const start = source.indexOf('const startAnalyticsSessions');
   const end = source.indexOf('const endAndFlushAnalyticsSessions');
-  assert.ok(start >= 0 && end > start, 'App.tsx must define the session foreground/background closures');
+  assert.ok(
+    start >= 0 && end > start,
+    'App.tsx must define the session foreground/background closures'
+  );
   return source.slice(start, end);
 }
 
@@ -53,8 +58,16 @@ test('foreground emits exactly one session_started — auth path never calls the
 
   // Authenticated foreground: establish the anon session_id context WITHOUT an
   // event, then emit the single authenticated session_started.
-  assert.match(authBranch, /initAnonymousSessionContext\(\)/, 'auth path must set the anon session id context');
-  assert.match(authBranch, /startSession\(sessionId\)/, 'auth path must emit exactly one authenticated session_started');
+  assert.match(
+    authBranch,
+    /initAnonymousSessionContext\(\)/,
+    'auth path must set the anon session id context'
+  );
+  assert.match(
+    authBranch,
+    /startSession\(sessionId\)/,
+    'auth path must emit exactly one authenticated session_started'
+  );
   assert.ok(
     !/startAnonymousUsageSession\(/.test(authBranch),
     'auth path must NOT call startAnonymousUsageSession — that re-introduces the duplicate session_started bug'
@@ -75,8 +88,16 @@ test('background ends exactly one session — auth path never calls the anonymou
 
   // Authenticated background: reset the anon id context (no event) and emit the
   // single authenticated session_ended.
-  assert.match(authBranch, /clearAnonymousSessionContext\(\)/, 'auth path must clear the anon session id context');
-  assert.match(authBranch, /endSession\(\)/, 'auth path must emit exactly one authenticated session_ended');
+  assert.match(
+    authBranch,
+    /clearAnonymousSessionContext\(\)/,
+    'auth path must clear the anon session id context'
+  );
+  assert.match(
+    authBranch,
+    /endSession\(\)/,
+    'auth path must emit exactly one authenticated session_ended'
+  );
   assert.ok(
     !/endAnonymousUsageSession\(/.test(authBranch),
     'auth path must NOT call endAnonymousUsageSession — that emits a duplicate session_ended'

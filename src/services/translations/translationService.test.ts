@@ -1,10 +1,8 @@
 /**
  * Behavioural tests for the translation catalog / preference service.
  *
- * `translationPreferences.test.ts` covers three preference-merge cases through a `vm`
- * transpile; this file loads the shipped module through the real loader against the shared
- * Supabase fake, and covers every exported function including the unconfigured-backend and
- * signed-out paths.
+ * Loads the shipped module through the real loader against the shared Supabase fake, and
+ * covers every exported function including the unconfigured-backend and signed-out paths.
  */
 import test, { afterEach, mock } from 'node:test';
 import assert from 'node:assert/strict';

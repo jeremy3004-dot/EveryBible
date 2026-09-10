@@ -10,10 +10,9 @@ import {
 } from '../../testing/mockModules';
 import { createSupabaseFake, makeFakeSession } from '../../testing/supabaseFake';
 
-// Behaviour tests that load the real queue through the loader. The existing
-// usageQueue.test.ts (source shape) and usageQueueDelivery.test.ts (vm harness)
-// stay as they are. Restore-from-disk paths need their own module cache and live
-// in usageQueue.restore*.test.ts.
+// Behaviour tests that load the real queue through the loader. Restore-from-disk
+// paths need their own module cache and live in usageQueue.restore*.test.ts;
+// usageQueueSource.test.ts guards the module's static import graph.
 
 // setTimeout is faked so the queue's 30s flush timer is deterministic and does
 // not hold the process open after the file finishes.
@@ -559,4 +558,58 @@ test('generateUUID falls back to a Math.random v4 when crypto.randomUUID is miss
       Object.defineProperty(globalThis, 'crypto', original);
     }
   }
+});
+
+// ── attribution is captured at enqueue, not at delivery ────────────────────
+
+test('a guest event stays unattributed even when a reader signs in before delivery', async () => {
+  supabase.respondToFunction(() => ({ data: { ok: true }, error: null }));
+  queue.enqueueUsageEvent('reading_started', {}, null);
+  currentUid = 'user-later';
+
+  await queue.flushUsageQueue();
+
+  assert.equal(sentBatches()[0][0].attribution_user_id, null);
+});
+
+test('a queued event keeps its uid when the reader switches accounts before delivery', async () => {
+  supabase.respondToFunction(() => ({ data: { ok: true }, error: null }));
+  currentUid = 'user-first';
+  queue.enqueueUsageEvent('reading_started', {}, null);
+  currentUid = 'user-second';
+
+  await queue.flushUsageQueue();
+
+  assert.equal(sentBatches()[0][0].attribution_user_id, 'user-first');
+});
+
+test('a queued event keeps its uid when the reader signs out before delivery', async () => {
+  supabase.respondToFunction(() => ({ data: { ok: true }, error: null }));
+  currentUid = 'user-first';
+  queue.enqueueUsageEvent('reading_started', {}, null);
+  currentUid = null;
+
+  await queue.flushUsageQueue();
+
+  assert.equal(sentBatches()[0][0].attribution_user_id, 'user-first');
+});
+
+test('a batch being delivered stays on disk until the server acknowledges it', async () => {
+  let acknowledge!: () => void;
+  supabase.respondToFunction(
+    () =>
+      new Promise((resolve) => {
+        acknowledge = () => resolve({ data: { ok: true }, error: null });
+      })
+  );
+  queue.enqueueUsageEvent('reading_started', {}, null);
+  const flushing = queue.flushUsageQueue();
+  await settle();
+
+  assert.equal(persisted().length, 1, 'a force-kill mid-delivery must not lose the batch');
+
+  acknowledge();
+  await flushing;
+
+  assert.equal(persisted().length, 0);
 });

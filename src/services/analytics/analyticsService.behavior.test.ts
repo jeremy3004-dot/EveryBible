@@ -13,8 +13,7 @@ import { createSupabaseFake, makeFakeSession, makeFakeUser } from '../../testing
 // Behaviour tests for the authenticated analytics facade. The facade owns only
 // the session id and the engagement queries; queueing and delivery belong to
 // usageQueue, which is loaded for real here so the seam between them is
-// exercised rather than mocked. The existing analyticsService.test.ts checks
-// source shape and stays as it is.
+// exercised rather than mocked.
 
 // The queue schedules a 30s flush timer; faking setTimeout keeps this file
 // deterministic and stops the timer holding the process open.

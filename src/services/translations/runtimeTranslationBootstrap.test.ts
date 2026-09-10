@@ -250,6 +250,21 @@ test('ensureRuntimeCatalogLoaded retries after a refresh that produced no rows',
   );
 });
 
+test('a launch with persisted runtime rows still refreshes the catalog once', async () => {
+  reset();
+  const { ensureRuntimeCatalogLoaded } = await loadModule();
+  // A previous launch left catalog-backed rows in the persisted picker. Stopping
+  // there would hide translations added to the remote catalog since that launch.
+  storeState.translations = [
+    makeTranslation({ id: 'web', source: 'runtime', catalog: downloadableCatalog }),
+  ];
+  listResult = async () => ({ success: true, data: [] });
+
+  await ensureRuntimeCatalogLoaded();
+
+  assert.equal(listCallCount, 1, 'persisted runtime rows must not short-circuit the refresh');
+});
+
 test('concurrent ensureRuntimeCatalogLoaded callers share one in-flight refresh', async () => {
   reset();
   const { ensureRuntimeCatalogLoaded } = await loadModule();
