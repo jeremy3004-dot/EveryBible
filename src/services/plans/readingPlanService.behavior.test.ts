@@ -1139,6 +1139,48 @@ test('syncPlanProgress retries an unconfirmed unenroll delete before pushing pro
   );
 });
 
+// QUESTION: shouldSyncPlanProgressRemotely (readingPlanService.ts:186) reads
+// `planId ? canSyncReadingPlanRemotely(planId) : true`, so an EMPTY-string plan id
+// short-circuits to `true` and is pushed with `plan_slug: ''` — the guard only bites
+// for a whitespace-only id, which is what these two tests exercise. Reaching it needs
+// a progress row whose plan_id never came from the bundled catalog, so this looks
+// defensive rather than a live defect; left as-is pending an owner's call.
+
+test('syncPlanProgress keeps a row with an unsyncable plan id local instead of pushing it', async () => {
+  signIn('user-a', 2);
+  const localOnly = localProgress('   ', { id: 'local-unsyncable' });
+
+  const result = await service.syncPlanProgress([localOnly]);
+
+  // canSyncReadingPlanRemotely rejects a blank slug, so there is nothing to push.
+  assert.deepEqual(supabaseFake.callsFor('user_reading_plan_progress'), []);
+  assert.deepEqual(result, { success: true, data: [localOnly] });
+  assert.equal(storeModule.readingPlansStore.getState().getProgress('   ')?.id, 'local-unsyncable');
+});
+
+test('syncPlanProgress pushes only the syncable rows and returns the unsyncable ones alongside the server copies', async () => {
+  signIn('user-a', 2);
+  const localOnly = localProgress('   ', { id: 'local-unsyncable' });
+  supabaseFake.respondTo('user_reading_plan_progress', () => ({
+    data: [remoteRow({ id: 'server-1' })],
+  }));
+
+  const result = await service.syncPlanProgress([localOnly, localProgress('psalms-30-days')]);
+
+  assert.equal(result.success, true);
+  const [write] = supabaseFake.callsFor('user_reading_plan_progress');
+  assert.equal(write?.operation, 'upsert');
+  assert.deepEqual(
+    (write?.payload as Array<{ plan_slug: string }>).map((row) => row.plan_slug),
+    ['psalms-30-days']
+  );
+  // The unsyncable row is not dropped from the result just because it never left the device.
+  assert.deepEqual(
+    result.data?.map((progress) => progress.id),
+    ['local-unsyncable', 'server-1']
+  );
+});
+
 test('syncPlanProgress keeps the local rows when the remote upsert errors', async () => {
   signIn('user-a', 2);
   const rows = [localProgress('psalms-30-days')];

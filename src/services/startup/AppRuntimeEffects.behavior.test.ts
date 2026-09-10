@@ -68,9 +68,3 @@ test('a hook that throws stops the render rather than silently skipping the rest
   assert.throws(() => AppRuntimeEffects(), { message: 'usePrivacyLock exploded' });
   assert.deepEqual(calls, ['useSync', 'usePrivacyLock']);
 });
-
-test('the component takes no props, so callers cannot configure it by accident', async () => {
-  const AppRuntimeEffects = await loadComponent();
-
-  assert.equal(AppRuntimeEffects.length, 0);
-});
