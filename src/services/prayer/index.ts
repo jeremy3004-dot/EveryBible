@@ -6,7 +6,6 @@ export {
   deletePrayerRequest,
   addInteraction,
   removeInteraction,
-  getInteractionCounts,
   type PrayerServiceResult,
   type PrayerRequestWithCounts,
   type InteractionCounts,

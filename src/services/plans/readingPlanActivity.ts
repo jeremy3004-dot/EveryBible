@@ -468,12 +468,6 @@ export function mergeTodayCompletedChapterActivity(
   return mergeChapterActivityRecords(input).map((record) => record.chapterKey);
 }
 
-export function getTrackedChapterKeysForDate(
-  input: MergeTodayChapterActivityInput
-): Set<string> {
-  return new Set(mergeTodayCompletedChapterActivity(input));
-}
-
 export function isPlanDaySatisfied(
   targetChapterKeys: Iterable<string>,
   completedChapterKeys: Iterable<string>

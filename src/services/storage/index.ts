@@ -1,7 +1,5 @@
 export {
   uploadAvatar,
-  deleteAvatar,
-  getAvatarUrl,
   uploadGroupImage,
   deleteGroupImage,
   getGroupImageUrl,

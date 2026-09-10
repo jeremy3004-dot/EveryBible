@@ -60,6 +60,7 @@ import {
   getReminderEnablePlan,
   getReminderPickerState,
 } from '../../services/preferences/reminderPreferences';
+import { resolveLocaleSummary } from './settingsLocaleSummaryModel';
 import { getChapterFeedbackPreferenceSummary } from './settingsPreferenceModel';
 import {
   scheduleDailyReminder,
@@ -359,17 +360,15 @@ export function SettingsScreen() {
     }
   };
 
-  const localeSummary = (() => {
-    const localizedCountryName = preferences.countryCode
-      ? localeSearchEngine.getCountryDisplayName(preferences.countryCode, currentLanguage)
-      : preferences.countryName;
-
-    if (localizedCountryName && preferences.contentLanguageNativeName) {
-      return `${localizedCountryName} • ${preferences.contentLanguageNativeName}`;
-    }
-
-    return localizedCountryName || preferences.contentLanguageNativeName || t('common.notSet');
-  })();
+  const localeSummary = resolveLocaleSummary({
+    countryCode: preferences.countryCode ?? null,
+    countryName: preferences.countryName ?? null,
+    contentLanguageNativeName: preferences.contentLanguageNativeName ?? null,
+    currentLanguage,
+    resolveCountryDisplayName: (countryCode, languageCode) =>
+      localeSearchEngine.getCountryDisplayName(countryCode, languageCode as LanguageCode),
+    fallbackLabel: t('common.notSet'),
+  });
 
   const handleTimeSelect = async () => {
     const parsedMinute = parseInt(selectedMinute, 10);

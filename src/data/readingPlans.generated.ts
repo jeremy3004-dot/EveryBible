@@ -1010,7 +1010,6 @@ export const readingPlanEntries = [
   });
 
 export const readingPlansById = new Map(readingPlans.map((plan) => [plan.id, plan] as const));
-export const readingPlansBySlug = new Map(readingPlans.map((plan) => [plan.slug, plan] as const));
 
 export const readingPlanEntriesByPlanId = readingPlanEntries.reduce<
   Record<string, ReadingPlanEntry[]>
@@ -1022,6 +1021,4 @@ export const readingPlanEntriesByPlanId = readingPlanEntries.reduce<
   return accumulator;
 }, {});
 
-export const READING_PLANS = readingPlans;
-export const READING_PLAN_BY_ID = readingPlansById;
 export const READING_PLAN_ENTRIES_BY_PLAN_ID = new Map(Object.entries(readingPlanEntriesByPlanId));

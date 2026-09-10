@@ -660,7 +660,10 @@ function AppContent() {
     const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
       const data = response.notification.request.content.data;
       // Future: navigate based on data.screen, data.groupId, etc.
-      console.log('[Notifications] Tapped notification:', data);
+      // Guarded: the payload can carry user content, so never log it in release builds.
+      if (typeof __DEV__ !== 'undefined' && __DEV__) {
+        console.log('[Notifications] Tapped notification:', data);
+      }
     });
     return () => subscription.remove();
   }, []);

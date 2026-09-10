@@ -417,25 +417,25 @@ test('src/stores/index.ts is not a store barrel', () => {
   );
 });
 
-test('Root navigator does not mount the retired global mini-player host', () => {
+test('Root navigator mounts AudioReturnTab directly instead of a barrel-imported player host', () => {
   const rootNavigatorSource = readRelativeSource('../../navigation/RootNavigator.tsx');
 
-  assert.equal(
-    rootNavigatorSource.includes("import { MiniPlayer } from '../components';"),
-    false,
-    'RootNavigator should not eagerly import MiniPlayer during boot'
+  assert.match(
+    rootNavigatorSource,
+    /import \{ AudioReturnTab \} from '\.\.\/components\/audio\/AudioReturnTab';/,
+    'RootNavigator should import AudioReturnTab from its concrete module, not the components barrel'
+  );
+
+  assert.match(
+    rootNavigatorSource,
+    /<AudioReturnTab currentRouteName=\{currentRouteName\} \/>/,
+    'RootNavigator should render the audio return tab as the app-shell playback affordance'
   );
 
   assert.equal(
-    rootNavigatorSource.includes("require('../components/audio/MiniPlayer')"),
+    rootNavigatorSource.includes("from '../components';"),
     false,
-    'RootNavigator should not mount the retired global mini-player anywhere in the app shell'
-  );
-
-  assert.equal(
-    rootNavigatorSource.includes('MiniPlayerHost'),
-    false,
-    'RootNavigator should not keep the old mini-player host helper around after the floating bar removal'
+    'RootNavigator should not pull the whole components barrel into the boot path'
   );
 });
 

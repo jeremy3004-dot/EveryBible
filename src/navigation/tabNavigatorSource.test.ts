@@ -170,12 +170,12 @@ test('TabNavigator fills the floating capsule with liquid glass, not opaque pape
   assert.match(source, /<BlurView[\s\S]*?tint=\{isDark \? 'dark' : 'light'\}/);
   assert.match(
     source,
-    /const capsuleFill = useMemo\(\s*\(\) => withAlpha\(colors\.cardBackground, 0\.62\)/,
+    /const capsuleFill = useMemo\(\s*\(\) => hexWithAlpha\(colors\.cardBackground, 0\.62\)/,
     'the capsule tint should be the card surface at partial alpha'
   );
   assert.match(
     source,
-    /const readerCapsuleFill = useMemo\(\s*\(\) => withAlpha\(colors\.bibleSurface, 0\.62\)/,
+    /const readerCapsuleFill = useMemo\(\s*\(\) => hexWithAlpha\(colors\.bibleSurface, 0\.62\)/,
     'the reader variant should tint off the reading surface'
   );
   assert.match(
@@ -414,7 +414,7 @@ test('the selected tab is a neutral ink pill inside the capsule padding', () => 
   // Primary text at low alpha: a grey that belongs to the scope, never the accent.
   assert.match(
     source,
-    /const pillColor = withAlpha\(isReader \? colors\.biblePrimaryText : colors\.primaryText, 0\.1\);/,
+    /const pillColor = hexWithAlpha\(isReader \? colors\.biblePrimaryText : colors\.primaryText, 0\.1\);/,
     'the sliding selection pill should be a neutral ink wash, not the accent surface'
   );
   assert.doesNotMatch(source, /pillColor = colors\.accentSurface/);

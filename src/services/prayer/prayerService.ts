@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from '../supabase';
 import type { PrayerInteraction, PrayerRequest } from '../supabase/types';
+import { aggregateInteractionCounts, attachCountsToPrayerRequests } from './prayerModel';
 
 export interface PrayerServiceResult<T = void> {
   success: boolean;
@@ -65,26 +66,8 @@ export async function listPrayerRequests(
       return { success: false, error: interactionsError.message };
     }
 
-    const countMap: Record<string, InteractionCounts> = {};
-    for (const id of requestIds) {
-      countMap[id] = { prayed: 0, encouraged: 0 };
-    }
-
-    for (const interaction of interactions ?? []) {
-      const counts = countMap[interaction.request_id];
-      if (!counts) continue;
-      if (interaction.type === 'prayed') {
-        counts.prayed += 1;
-      } else if (interaction.type === 'encouraged') {
-        counts.encouraged += 1;
-      }
-    }
-
-    const data: PrayerRequestWithCounts[] = (requests as PrayerRequest[]).map((request) => ({
-      ...request,
-      prayed_count: countMap[request.id]?.prayed ?? 0,
-      encouraged_count: countMap[request.id]?.encouraged ?? 0,
-    }));
+    const countMap = aggregateInteractionCounts(requestIds, interactions ?? []);
+    const data = attachCountsToPrayerRequests(requests as PrayerRequest[], countMap);
 
     return { success: true, data };
   } catch (error) {
@@ -361,39 +344,3 @@ export async function removeInteraction(
   }
 }
 
-// Returns the aggregated prayed/encouraged counts for a single prayer request.
-export async function getInteractionCounts(
-  requestId: string
-): Promise<PrayerServiceResult<InteractionCounts>> {
-  if (!isSupabaseConfigured()) {
-    return { success: true, data: { prayed: 0, encouraged: 0 } };
-  }
-
-  try {
-    const { data, error } = await supabase
-      .from('prayer_interactions')
-      .select('type')
-      .eq('request_id', requestId);
-
-    if (error) {
-      return { success: false, error: error.message };
-    }
-
-    const counts: InteractionCounts = { prayed: 0, encouraged: 0 };
-
-    for (const row of data ?? []) {
-      if (row.type === 'prayed') {
-        counts.prayed += 1;
-      } else if (row.type === 'encouraged') {
-        counts.encouraged += 1;
-      }
-    }
-
-    return { success: true, data: counts };
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-    };
-  }
-}

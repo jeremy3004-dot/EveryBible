@@ -107,75 +107,6 @@ export const uploadAvatar = async (imageUri: string): Promise<StorageResult<stri
   }
 };
 
-/**
- * Delete the current user's avatar from storage.
- * Attempts to remove both .jpg and .png variants so stale files are cleaned up
- * even when the extension has changed between uploads.
- */
-export const deleteAvatar = async (): Promise<StorageResult> => {
-  if (!isSupabaseConfigured()) {
-    return { success: false, error: 'Supabase not configured' };
-  }
-
-  const userId = await getCurrentUserId();
-  if (!userId) {
-    return { success: false, error: 'Not signed in' };
-  }
-
-  try {
-    // List all files in the user's avatar folder so we delete whatever extension is there
-    const { data: files, error: listError } = await supabase.storage
-      .from(AVATAR_BUCKET)
-      .list(userId);
-
-    if (listError) {
-      return { success: false, error: listError.message };
-    }
-
-    if (!files || files.length === 0) {
-      // Nothing to delete – treat as success
-      return { success: true };
-    }
-
-    const paths = files.map((f) => `${userId}/${f.name}`);
-    const { error: removeError } = await supabase.storage.from(AVATAR_BUCKET).remove(paths);
-
-    if (removeError) {
-      return { success: false, error: removeError.message };
-    }
-
-    return { success: true };
-  } catch (err) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : 'Unknown error',
-    };
-  }
-};
-
-/**
- * Derive the public URL for a user's avatar without a network round-trip.
- * The URL is constructed from the known storage path convention; if the user
- * has no avatar the URL will 404 gracefully when rendered in an <Image>.
- *
- * Falls back to null when Supabase is not configured so callers can show a
- * placeholder avatar without crashing.
- */
-export const getAvatarUrl = (userId: string): string | null => {
-  if (!isSupabaseConfigured()) {
-    return null;
-  }
-
-  // We don't know the extension without an extra list call, so we check jpg
-  // which is the most common output from image pickers.  Callers that stored
-  // the URL from uploadAvatar should prefer that cached value instead.
-  const { data } = supabase.storage
-    .from(AVATAR_BUCKET)
-    .getPublicUrl(`${userId}/avatar.jpg`);
-
-  return data.publicUrl;
-};
-
 // ─── Group Images ─────────────────────────────────────────────────────────────
 
 /**
@@ -270,7 +201,7 @@ export const deleteGroupImage = async (groupId: string): Promise<StorageResult> 
 
 /**
  * Derive the public URL for a group's cover image without a network round-trip.
- * Same caveat as getAvatarUrl: callers with a cached URL from uploadGroupImage
+ * Same caveat as the upload helper: callers with a cached URL from uploadGroupImage
  * should use that value instead to avoid the extension assumption.
  */
 export const getGroupImageUrl = (groupId: string): string | null => {

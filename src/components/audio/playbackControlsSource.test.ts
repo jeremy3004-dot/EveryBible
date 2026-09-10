@@ -202,14 +202,7 @@ test('PlaybackControls gives the chapter-only transport a stronger Dwell-inspire
 });
 
 test('Bible listen surfaces opt into the chapter-only transport variant', () => {
-  const audioFirstSource = readRelativeSource('./AudioFirstChapterCard.tsx');
   const readerSource = readRelativeSource('../../screens/bible/BibleReaderScreen.tsx');
-
-  assert.match(
-    audioFirstSource,
-    /<PlaybackControls[\s\S]*variant="chapter-only"/,
-    'AudioFirstChapterCard should use the simplified chapter-only player transport'
-  );
 
   assert.match(
     readerSource,

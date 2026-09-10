@@ -90,7 +90,7 @@ export async function migrateFromAsyncStorage(): Promise<void> {
     (key, value) => mmkvInstance.set(key, value)
   );
 
-  if (didMigrate) {
+  if (didMigrate && typeof __DEV__ !== 'undefined' && __DEV__) {
     console.log('[MMKV Migration] Complete');
   }
 }

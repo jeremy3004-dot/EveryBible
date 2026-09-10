@@ -32,6 +32,7 @@ import { buildTabBarCapsuleStyle } from './tabBarCapsuleStyle';
 import { typography } from '../design/system';
 import { useTabBarHeight, TAB_BAR_CAPSULE_RADIUS } from '../hooks/useTabBarHeight';
 import { lightHaptic } from '../utils/haptics';
+import { hexWithAlpha } from '../utils/color';
 
 // Lucide ships one stroke weight per glyph, so the selected state is carried by
 // the sliding accent pill behind the icon rather than a filled variant.
@@ -88,19 +89,6 @@ function TabBarBackground({
       <View style={[StyleSheet.absoluteFill, styles.capsuleStroke, { borderColor: stroke }]} />
     </View>
   );
-}
-
-// Hex -> rgba, so a theme token can carry the capsule's translucency and the
-// neutral selection pill without a second palette entry per scope.
-function withAlpha(hex: string, alpha: number): string {
-  const value = hex.replace('#', '');
-  if (value.length !== 6) {
-    return hex;
-  }
-  const red = parseInt(value.slice(0, 2), 16);
-  const green = parseInt(value.slice(2, 4), 16);
-  const blue = parseInt(value.slice(4, 6), 16);
-  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
 }
 
 // Keep React Navigation semantics, test IDs, links, and all press callbacks intact.
@@ -252,7 +240,7 @@ function ReaderAwareTabBar(props: BottomTabBarProps) {
   // The selected tab is a neutral ink pill — the scope's own text colour at a
   // low alpha — so the accent stays reserved for content, not chrome.
   const isReader = activeRoute.name === 'Bible' && nestedRouteName === 'BibleReader';
-  const pillColor = withAlpha(isReader ? colors.biblePrimaryText : colors.primaryText, 0.1);
+  const pillColor = hexWithAlpha(isReader ? colors.biblePrimaryText : colors.primaryText, 0.1);
 
   // Rebuilding the descriptor map inline handed BottomTabBar a brand-new
   // `descriptors` object (and a new tabBarBackground closure) on every render,
@@ -321,11 +309,11 @@ export function TabNavigator() {
   // Translucent paper tint over the glass. The reader variant tints off the
   // reading surface so the bar sits on the same material as the page behind it.
   const capsuleFill = useMemo(
-    () => withAlpha(colors.cardBackground, 0.62),
+    () => hexWithAlpha(colors.cardBackground, 0.62),
     [colors.cardBackground]
   );
   const readerCapsuleFill = useMemo(
-    () => withAlpha(colors.bibleSurface, 0.62),
+    () => hexWithAlpha(colors.bibleSurface, 0.62),
     [colors.bibleSurface]
   );
   const {

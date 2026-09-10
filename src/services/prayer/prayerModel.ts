@@ -49,31 +49,3 @@ export function attachCountsToPrayerRequests(
     encouraged_count: countMap[request.id]?.encouraged ?? 0,
   }));
 }
-
-/**
- * Validates that prayer request content is non-empty after trimming.
- * Returns null when valid, or an error message string when invalid.
- */
-export function validatePrayerContent(content: string): string | null {
-  if (content.trim().length === 0) {
-    return 'Prayer request cannot be empty';
-  }
-  return null;
-}
-
-/**
- * Sorts PrayerRequestWithCounts by answered status (unanswered first) then by
- * creation date descending (newest first within each group).
- *
- * Returns a new array — the input is not mutated.
- */
-export function sortPrayerRequests(requests: PrayerRequestWithCounts[]): PrayerRequestWithCounts[] {
-  return [...requests].sort((a, b) => {
-    // Unanswered (is_answered=false) sorts before answered (is_answered=true)
-    if (a.is_answered !== b.is_answered) {
-      return a.is_answered ? 1 : -1;
-    }
-    // Within the same answered status, newest created_at first
-    return b.created_at.localeCompare(a.created_at);
-  });
-}

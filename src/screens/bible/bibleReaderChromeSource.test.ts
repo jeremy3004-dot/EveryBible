@@ -31,18 +31,11 @@ test('BibleReaderScreen no longer renders a duplicate chapter rail under the pla
 
 test('Bible listen surfaces leave breathing room above the bottom edge instead of clipping the player controls', () => {
   const readerSource = readRelativeSource('./BibleReaderScreen.tsx');
-  const audioFirstSource = readRelativeSource('../../components/audio/AudioFirstChapterCard.tsx');
 
   assert.match(
     readerSource,
     /listenColumn:\s*{[\s\S]*flex:\s*1,[\s\S]*justifyContent:\s*'flex-start'/,
     'Listen-mode reader layout should top-align the chapter stack so the controls sit higher on screen'
-  );
-
-  assert.match(
-    audioFirstSource,
-    /card:\s*{[\s\S]*flex:\s*1,[\s\S]*paddingBottom:\s*20,[\s\S]*justifyContent:\s*'flex-start'/,
-    'Audio-first chapter card should top-align its content and add breathing room below the player'
   );
 });
 

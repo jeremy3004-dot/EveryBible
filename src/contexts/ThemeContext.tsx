@@ -1,6 +1,7 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { resolveThemeMode, type ThemeMode } from '../design/themeMode';
+import { hexWithAlpha } from '../utils/color';
 import type { AppearancePaletteId } from '../constants/appearancePalettes';
 import {
   APPEARANCE_PALETTES,
@@ -95,17 +96,6 @@ const defaultPaletteSwatches = defaultPalette.swatches;
 const onAccentDark = '#1A140F';
 const onAccentLight = '#FFFFFF';
 
-// Convert a #RRGGBB hex to an rgba() string at the given alpha. Used for the
-// soft tinted accent fill (accentSoft) so a single accent hue drives both solid
-// and 12–14% wash treatments without shipping a second token per palette.
-const withAlpha = (hex: string, alpha: number): string => {
-  const normalized = hex.replace('#', '');
-  const red = parseInt(normalized.slice(0, 2), 16);
-  const green = parseInt(normalized.slice(2, 4), 16);
-  const blue = parseInt(normalized.slice(4, 6), 16);
-  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
-};
-
 const ACCENT_SOFT_ALPHA = 0.13;
 
 // Placeholder accent fill for the base palette literals below — every value here
@@ -116,7 +106,7 @@ const defaultPaletteColors = {
   accentSecondary: defaultPaletteSwatches.secondary,
   accentGreen: defaultPaletteSwatches.primary,
   accentTertiary: defaultPaletteSwatches.tertiary,
-  accentSoft: withAlpha(defaultPaletteSwatches.primary, ACCENT_SOFT_ALPHA),
+  accentSoft: hexWithAlpha(defaultPaletteSwatches.primary, ACCENT_SOFT_ALPHA),
   onAccent: onAccentDark,
   bibleAccent: defaultPaletteSwatches.primary,
 } as const;
@@ -225,7 +215,7 @@ const createThemeColors = (mode: ThemeMode, paletteId: AppearancePaletteId): The
     accentSecondary: isLightFamily ? palette.secondaryDeep : palette.secondary,
     accentGreen: accentBase,
     accentTertiary: palette.tertiary,
-    accentSoft: withAlpha(accentBase, ACCENT_SOFT_ALPHA),
+    accentSoft: hexWithAlpha(accentBase, ACCENT_SOFT_ALPHA),
     accentSurface,
     onAccentSurface,
     onAccent: isLightFamily ? onAccentLight : onAccentDark,
