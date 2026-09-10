@@ -22,19 +22,16 @@ const prefix = Linking.createURL('/');
 export const linkingConfig: LinkingOptions<RootTabParamList> = {
   prefixes: [prefix, 'com.everybible.app://'],
   config: {
+    // No `bible/...` template lives here on purpose. Bible paths are owned entirely
+    // by getStateFromPath below (slug→bookId via buildBibleNavState). A template of
+    // the shape `bible/:bookSlug/:chapter/:verse?` would catch every path that
+    // parseBibleDeepLink rejects — an unknown or misspelled book slug, a non-numeric
+    // chapter — and push BibleReader with { bookSlug, chapter: '3' } instead of its
+    // real params (bookId, numeric chapter), leaving the reader with no bookId and
+    // no BibleBrowser backstop. If an outbound share-URL feature is added, give it a
+    // getPathFromState that maps bookId→slug rather than a param-shape-mismatched
+    // inbound template.
     screens: {
-      Bible: {
-        screens: {
-          // INBOUND-ONLY template. The path params (bookSlug/chapter/verse) do NOT
-          // match BibleReader's actual param shape (bookId/chapter/focusVerse), so
-          // this template must never be used to build outbound URLs — the custom
-          // getStateFromPath below owns inbound parsing (slug→bookId via
-          // buildBibleNavState). There is no getPathFromState; if a share-URL
-          // feature is added, provide one that maps bookId→slug rather than relying
-          // on this template (which would emit `bible/undefined/...`).
-          BibleReader: 'bible/:bookSlug/:chapter/:verse?',
-        },
-      },
       More: {
         screens: {
           Auth: {
