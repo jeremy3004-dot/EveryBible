@@ -510,10 +510,12 @@ async function fetchBibleIsChapterAudio(
     return null;
   }
 
+  const bibleIsBookId = bookId;
+  const controller = new AbortController();
+  // Cleared in `finally` so a failed request never leaves the abort budget armed.
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+
   try {
-    const bibleIsBookId = bookId;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
     const response = await fetch(
       `${BIBLE_IS_API_BASE}/bibles/filesets/${filesetId}/${bibleIsBookId}/${chapter}?v=4&key=${BIBLE_IS_API_KEY}`,
       {
@@ -523,7 +525,6 @@ async function fetchBibleIsChapterAudio(
         signal: controller.signal,
       }
     );
-    clearTimeout(timeoutId);
 
     if (!response.ok) {
       throw new Error(`API request failed: ${response.status}`);
@@ -547,6 +548,8 @@ async function fetchBibleIsChapterAudio(
   } catch (error) {
     console.error('Error fetching audio URL:', error);
     return null;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
