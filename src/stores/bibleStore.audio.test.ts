@@ -14,6 +14,7 @@ import {
   makeRuntimeTranslation,
   type BibleStoreDoubles,
 } from './__tests__/bibleStoreDoubles';
+import type { AudioDownloadJobRecord } from '../services/audio/audioDownloadService';
 import type { BibleTranslation, TranslationDownloadJob } from '../types';
 
 mockMmkvStorage(mock);
@@ -253,6 +254,35 @@ test('a failed audio job is surfaced with its error before the failure propagate
       error: 'chapter 3 unreachable',
     },
   });
+});
+
+test('a job status this build does not model is shown as failed, never as running', async () => {
+  let job: TranslationDownloadJob | null | undefined;
+  let progress: unknown;
+  doubles.audio.runBookDownload = async (call) => {
+    // The audio job registry is untyped JSON on disk, so a record written by another build can
+    // carry a status outside this build's union. The reader must never render it as an active
+    // download — that is the phantom "Loading… 0%" the status mapping exists to prevent.
+    call.hooks.onStart?.(
+      makeAudioJob({
+        id: 'job-1',
+        translationId: 'bsb',
+        bookId: 'GEN',
+        status: 'cancelled' as AudioDownloadJobRecord['status'],
+      })
+    );
+    job = activeJobOf('bsb');
+    progress = useBibleStore.getState().downloadProgress;
+  };
+
+  await useBibleStore.getState().downloadAudioForBook('bsb', 'GEN');
+
+  assert.equal(job?.state, 'failed');
+  // QUESTION: the job is mapped to 'failed' but the banner below still says 'downloading',
+  // because mapAudioDownloadProgress only special-cases the exact strings 'completed'/'failed'.
+  // Unreachable through AudioDownloadJobStatus today, so this records the behaviour rather than
+  // changing it; worth aligning if the status union ever grows a terminal state.
+  assert.equal((progress as { status: string }).status, 'downloading');
 });
 
 test('a completed audio job clears the running job rather than leaving it at 100%', async () => {

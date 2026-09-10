@@ -377,6 +377,25 @@ test('cancelDownload tolerates a registry that refuses to drop the job', async (
   assert.equal(useBibleStore.getState().downloadProgress, null);
 });
 
+test('cancelDownload still clears the registry on a transport with no cancel support at all', async () => {
+  useBibleStore.setState({
+    downloadProgress: { translationId: 'bsb', jobId: 'job-1', progress: 30, status: 'downloading' },
+  });
+  // Older Expo/dev contexts hand back a transport object without a cancelJob member.
+  doubles.audio.supportsCancel = false;
+
+  useBibleStore.getState().cancelDownload();
+  await flushAsyncWork();
+
+  assert.deepEqual(doubles.audio.cancelledJobIds, []);
+  assert.deepEqual(
+    doubles.audio.cancellationRequests,
+    ['job-1'],
+    'the in-JS scheduling loop is stopped even when nothing native can be cancelled'
+  );
+  assert.deepEqual(doubles.audio.removedJobIds, ['job-1']);
+});
+
 test('cancelDownload leaves the audio subsystem alone when no job id is in flight', async () => {
   useBibleStore.setState({
     downloadProgress: { translationId: 'esv1', progress: 10, status: 'downloading' },

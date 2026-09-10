@@ -383,6 +383,23 @@ test('a runtime primary with a local text pack counts as readable without downlo
   assert.deepEqual(events, ['preferences', 'current:web']);
 });
 
+test('a bundled primary is readable from the app database without any download', async () => {
+  reset();
+  const { reconcilePrimaryTranslationPreference } = await loadModule();
+  storeState.translations = [
+    makeTranslation({ id: 'asv', source: 'bundled', hasText: true, isDownloaded: false }),
+  ];
+  preferencesResult = async () => ({ success: true, data: makePreferences('asv') });
+
+  await reconcilePrimaryTranslationPreference();
+
+  assert.deepEqual(
+    events,
+    ['preferences', 'current:asv'],
+    'bundled text ships inside the app, so an un-downloaded flag is not a reason to fetch it'
+  );
+});
+
 test('a saved primary that is not installed is downloaded and then selected', async () => {
   reset();
   const { reconcilePrimaryTranslationPreference } = await loadModule();

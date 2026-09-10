@@ -29,6 +29,7 @@ import {
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { mockModule } from '../../testing/mockModules';
+import { BUNDLED_BIBLE_SCHEMA_VERSION } from './bibleDataModel';
 import type { Verse } from '../../types';
 
 // ─── Temp filesystem ──────────────────────────────────────────────────────────
@@ -185,7 +186,7 @@ function writeSeedDatabase(path: string, options: SeedOptions = {}): void {
   if (options.searchIndex !== false) {
     database.exec("INSERT INTO verses_fts(verses_fts) VALUES ('rebuild')");
   }
-  database.exec(`PRAGMA user_version = ${options.schemaVersion ?? 7}`);
+  database.exec(`PRAGMA user_version = ${options.schemaVersion ?? BUNDLED_BIBLE_SCHEMA_VERSION}`);
   database.close();
 }
 
@@ -372,7 +373,7 @@ test('initDatabase imports the bundled asset on first launch and reports what it
   const status = await initDatabase(READY_VERSE_COUNT);
 
   assert.equal(status.verseCount, READY_VERSE_COUNT);
-  assert.equal(status.schemaVersion, 7);
+  assert.equal(status.schemaVersion, BUNDLED_BIBLE_SCHEMA_VERSION);
   assert.equal(status.hasSearchIndex, true);
   assert.equal(status.formattedVerseCount, 1);
   assert.deepEqual(
@@ -423,16 +424,43 @@ test('initDatabase reuses an already-open ready database instead of re-importing
   assert.deepEqual(opens, [], 'a healthy open handle must not be reopened');
 });
 
+test('initDatabase reloads from the asset when the open handle can no longer be inspected', async (t) => {
+  const { initDatabase } = await loadModule();
+  const warn = t.mock.method(console, 'warn', () => {});
+  await resetBundledDatabase();
+  await initDatabase(READY_VERSE_COUNT);
+  // The shared handle is healthy, then the schema underneath it goes away — the shape of an OS
+  // storage sweep or a half-applied replacement on a device mid-session.
+  const sideChannel = new DatabaseSync(bundledDatabasePath);
+  sideChannel.exec('DROP TABLE verses');
+  sideChannel.close();
+  resetRecorders();
+
+  const status = await initDatabase(READY_VERSE_COUNT);
+
+  assert.equal(status.verseCount, READY_VERSE_COUNT, 'the reader is served a working database');
+  assert.deepEqual(
+    assetImports.map((entry) => entry.forceOverwrite),
+    [false, true],
+    'an uninspectable open handle must fall through to the recovery import, not be trusted'
+  );
+  assert.ok(
+    warn.mock.calls.some((call) =>
+      String(call.arguments[0]).includes('Failed to inspect open bundled database')
+    )
+  );
+});
+
 test('initDatabase re-imports the asset when the installed copy has an older schema version', async () => {
   const { initDatabase } = await loadModule();
   await resetBundledDatabase();
   // The exact regression from CLAUDE.md rule 11: an existing install whose user_version is
   // below BUNDLED_BIBLE_SCHEMA_VERSION must be replaced, not silently kept.
-  writeSeedDatabase(bundledDatabasePath, { schemaVersion: 6 });
+  writeSeedDatabase(bundledDatabasePath, { schemaVersion: BUNDLED_BIBLE_SCHEMA_VERSION - 1 });
 
   const status = await initDatabase(READY_VERSE_COUNT);
 
-  assert.equal(status.schemaVersion, 7);
+  assert.equal(status.schemaVersion, BUNDLED_BIBLE_SCHEMA_VERSION);
   assert.equal(status.verseCount, READY_VERSE_COUNT);
   assert.deepEqual(
     assetImports.map((entry) => entry.forceOverwrite),
@@ -521,7 +549,7 @@ test('a journal cleanup that fails does not stop the forced re-import', async ()
     const status = await initDatabase(READY_VERSE_COUNT);
     assert.equal(
       status.schemaVersion,
-      7,
+      BUNDLED_BIBLE_SCHEMA_VERSION,
       'recovery must proceed even when the sidecars cannot be removed'
     );
   } finally {

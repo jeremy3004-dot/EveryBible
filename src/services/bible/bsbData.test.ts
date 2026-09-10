@@ -46,14 +46,6 @@ test('the processed BSB payload is loaded from the bundled JSON file', async () 
   assert.deepEqual(await loadBSBData(), payload);
 });
 
-test('the first load reads the bundled JSON exactly once', async () => {
-  const { loadBSBData } = await import('./bsbData');
-
-  await loadBSBData();
-
-  assert.equal(bundleReads, 1);
-});
-
 test('a second load is served from memory rather than re-read', async () => {
   const { loadBSBData } = await import('./bsbData');
 
