@@ -4,8 +4,7 @@ import assert from 'node:assert/strict';
 import { mockModule, sourcePath } from '../../testing/mockModules';
 
 // AppRuntimeEffects renders nothing; its whole job is to mount three effect
-// hooks, so the three hook modules are replaced with recorders. (The older
-// appRuntimeEffects.test.ts source guard stays and is a different file.)
+// hooks, so the three hook modules are replaced with recorders.
 const calls: string[] = [];
 let failingHook: string | null = null;
 

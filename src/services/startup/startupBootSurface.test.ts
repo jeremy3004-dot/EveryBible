@@ -1,3 +1,5 @@
+// Import-graph guard by design: reads source text to protect the cold-start
+// import closure, which runtime tests cannot observe.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';

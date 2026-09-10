@@ -4,8 +4,7 @@ import assert from 'node:assert/strict';
 import { mockReactNative } from '../../testing/mockModules';
 
 // The stub records every I18nManager call, which is the whole observable
-// surface of this policy. (rtlPolicy.test.ts is the older source-shape guard and
-// stays.)
+// surface of this policy.
 const rn = mockReactNative(mock, { os: 'ios', isRTL: false });
 
 beforeEach(() => {
