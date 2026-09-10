@@ -1,15 +1,29 @@
+import { View, Text, StyleSheet, Share } from 'react-native';
+import {
+  Bookmark,
+  BookOpen,
+  CheckCircle2,
+  Circle,
+  Download,
+  FileText,
+  Link,
+  Volume2,
+} from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { FOUNDATION_LESSON_TITLE_KEYS } from '../../data/gatherFoundations';
 import { WISDOM_LESSON_TITLE_KEYS } from '../../data/gatherWisdom';
-import React from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, Share } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
-import { layout, radius, spacing, typography } from '../../design/system';
+import { useDisplayFont } from '../../hooks';
+import { spacing, typography } from '../../design/system';
+import { AppButton, ListRow, Sheet } from '../ui';
 import { getTranslatedBookName } from '../../constants';
 import { formatBibleReferenceLabel } from '../../services/gather/gatherReferenceLabel';
 import type { GatherLesson } from '../../types/gather';
+
+const HEADER_ICON_SIZE = 20;
+const ICON_STROKE = 2;
+/** Rows that only advertise a future capability read as inert paper. */
+const COMING_SOON_OPACITY = 0.4;
 
 interface LessonBottomSheetProps {
   visible: boolean;
@@ -28,8 +42,8 @@ export function LessonBottomSheet({
   onToggleComplete,
 }: LessonBottomSheetProps) {
   const { colors } = useTheme();
+  const displayFont = useDisplayFont();
   const { t } = useTranslation();
-  const insets = useSafeAreaInsets();
   const titleKey = FOUNDATION_LESSON_TITLE_KEYS[lesson.id] ?? WISDOM_LESSON_TITLE_KEYS[lesson.id];
   const lessonTitle = titleKey ? t(titleKey) : lesson.title;
   const resolveBookName = (bookId: string) => getTranslatedBookName(bookId, t);
@@ -67,184 +81,134 @@ export function LessonBottomSheet({
     onClose();
   };
 
+  const completeLabel = isComplete ? t('gather.markIncomplete') : t('gather.markComplete');
+
   return (
-    <Modal transparent animationType="slide" visible={visible} onRequestClose={onClose}>
-      {/* Backdrop overlay */}
-      <TouchableOpacity
-        style={[styles.overlay, { backgroundColor: colors.overlay }]}
-        activeOpacity={1}
-        onPress={onClose}
+    <Sheet visible={visible} onClose={onClose} closeLabel={t('interface.close')}>
+      {/* Header: the lesson names itself, the reference is its metadata line. */}
+      <View style={styles.headerRow}>
+        <BookOpen
+          size={HEADER_ICON_SIZE}
+          color={colors.secondaryText}
+          strokeWidth={ICON_STROKE}
+          style={styles.headerIcon}
+        />
+        <View style={styles.headerTextColumn}>
+          <Text
+            style={[typography.sectionHeading, displayFont.bold, { color: colors.primaryText }]}
+            numberOfLines={2}
+          >
+            {lessonTitle}
+          </Text>
+          <Text
+            style={[typography.eyebrowPlain, displayFont.regular, { color: colors.secondaryText }]}
+            numberOfLines={1}
+          >
+            {referenceLabel}
+          </Text>
+        </View>
+      </View>
+
+      <View style={[styles.divider, { backgroundColor: colors.borderStrong }]} />
+
+      <ListRow
+        title={t('gather.shareAudio')}
+        leadingIcon={Volume2}
+        onPress={() => {
+          void handleShareAudio();
+        }}
+        accessibilityLabel={t('gather.shareAudio')}
+      />
+
+      <ListRow
+        title={t('gather.shareText')}
+        leadingIcon={FileText}
+        onPress={() => {
+          void handleShareText();
+        }}
+        accessibilityLabel={t('gather.shareText')}
+      />
+
+      <ListRow
+        title={t('gather.shareLink')}
+        leadingIcon={Link}
+        onPress={() => {
+          void handleShareLink();
+        }}
+        accessibilityLabel={t('gather.shareLink')}
+      />
+
+      {/* Not wired yet: the row states that plainly instead of failing on tap.
+          Marking the wrapper disabled makes React Native swallow presses, which
+          is exactly right here — these rows carry no handler. */}
+      <View
+        style={styles.comingSoonRow}
+        accessible
+        accessibilityRole="button"
+        accessibilityState={{ disabled: true }}
+        accessibilityLabel={t('gather.download')}
       >
-        {/* Inner sheet — prevent backdrop close from bubbling through the sheet */}
-        <TouchableOpacity
-          style={[
-            styles.sheet,
-            {
-              backgroundColor: colors.cardBackground,
-              paddingBottom: Math.max(insets.bottom, spacing.lg) + spacing.md,
-            },
-          ]}
-          activeOpacity={1}
-          onPress={() => {
-            // Intentionally empty — absorb tap to avoid closing on sheet tap
-          }}
-        >
-          {/* Grab handle */}
-          <View style={[styles.grabHandle, { backgroundColor: colors.cardBorder }]} />
-          {/* Header row: icon + lesson title + reference */}
-          <View style={styles.headerRow}>
-            <View
-              style={[styles.headerIconContainer, { backgroundColor: colors.accentPrimary + '18' }]}
-            >
-              <Ionicons name="book-outline" size={20} color={colors.accentPrimary} />
-            </View>
-            <View style={styles.headerTextColumn}>
-              <Text style={[styles.lessonTitle, { color: colors.primaryText }]}>{lessonTitle}</Text>
-              <Text style={[styles.lessonReference, { color: colors.secondaryText }]}>
-                {referenceLabel}
-              </Text>
-            </View>
-          </View>
+        <ListRow
+          title={t('gather.download')}
+          leadingIcon={Download}
+          value={t('common.comingSoon')}
+        />
+      </View>
 
-          {/* Divider */}
-          <View style={[styles.divider, { backgroundColor: colors.cardBorder }]} />
+      <ListRow
+        title={completeLabel}
+        leadingIcon={isComplete ? CheckCircle2 : Circle}
+        onPress={handleToggle}
+        accessibilityLabel={completeLabel}
+      />
 
-          {/* Action rows */}
-          <TouchableOpacity style={styles.actionRow} onPress={handleShareAudio} activeOpacity={0.7}>
-            <Ionicons name="volume-medium-outline" size={24} color={colors.secondaryText} />
-            <Text style={[styles.actionText, { color: colors.primaryText }]}>
-              {t('gather.shareAudio')}
-            </Text>
-          </TouchableOpacity>
+      <View
+        style={styles.comingSoonRow}
+        accessible
+        accessibilityRole="button"
+        accessibilityState={{ disabled: true }}
+        accessibilityLabel={t('gather.manageBookmarks')}
+      >
+        <ListRow
+          title={t('gather.manageBookmarks')}
+          leadingIcon={Bookmark}
+          value={t('common.comingSoon')}
+          isLast
+        />
+      </View>
 
-          <TouchableOpacity style={styles.actionRow} onPress={handleShareText} activeOpacity={0.7}>
-            <Ionicons name="document-text-outline" size={24} color={colors.secondaryText} />
-            <Text style={[styles.actionText, { color: colors.primaryText }]}>
-              {t('gather.shareText')}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionRow} onPress={handleShareLink} activeOpacity={0.7}>
-            <Ionicons name="link-outline" size={24} color={colors.secondaryText} />
-            <Text style={[styles.actionText, { color: colors.primaryText }]}>
-              {t('gather.shareLink')}
-            </Text>
-          </TouchableOpacity>
-
-          <View style={[styles.actionRow, styles.actionRowDisabled]}>
-            <Ionicons name="download-outline" size={24} color={colors.secondaryText} />
-            <Text style={[styles.actionText, { color: colors.primaryText }]}>
-              {t('gather.download')}
-            </Text>
-            <Text style={[styles.comingSoonLabel, { color: colors.secondaryText }]}>
-              {t('common.comingSoon')}
-            </Text>
-          </View>
-
-          <TouchableOpacity style={styles.actionRow} onPress={handleToggle} activeOpacity={0.7}>
-            <Ionicons
-              name={isComplete ? 'checkmark-circle' : 'checkmark-circle-outline'}
-              size={24}
-              color={colors.secondaryText}
-            />
-            <Text style={[styles.actionText, { color: colors.primaryText }]}>
-              {isComplete ? t('gather.markIncomplete') : t('gather.markComplete')}
-            </Text>
-          </TouchableOpacity>
-
-          <View style={[styles.actionRow, styles.actionRowDisabled]}>
-            <Ionicons name="bookmark-outline" size={24} color={colors.secondaryText} />
-            <Text style={[styles.actionText, { color: colors.primaryText }]}>
-              {t('gather.manageBookmarks')}
-            </Text>
-            <Text style={[styles.comingSoonLabel, { color: colors.secondaryText }]}>
-              {t('common.comingSoon')}
-            </Text>
-          </View>
-
-          {/* Close button */}
-          <TouchableOpacity style={[styles.closeButton]} onPress={onClose} activeOpacity={0.7}>
-            <Text style={[styles.closeButtonText, { color: colors.accentPrimary }]}>
-              {t('common.done')}
-            </Text>
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </TouchableOpacity>
-    </Modal>
+      <AppButton
+        label={t('common.done')}
+        variant="ghost"
+        onPress={onClose}
+        style={styles.doneButton}
+      />
+    </Sheet>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    borderTopLeftRadius: radius.xl,
-    borderTopRightRadius: radius.xl,
-    paddingTop: spacing.md,
-    paddingHorizontal: layout.screenPadding,
-  },
-  grabHandle: {
-    alignSelf: 'center',
-    width: 36,
-    height: 4,
-    borderRadius: radius.pill,
-    marginBottom: spacing.md,
-  },
-  // Header
   headerRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: spacing.md,
     marginBottom: spacing.md,
   },
-  headerIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
+  headerIcon: {
+    marginTop: spacing.xs,
   },
   headerTextColumn: {
     flex: 1,
-    gap: 2,
+    gap: spacing.sm,
   },
-  lessonTitle: {
-    ...typography.bodyStrong,
-  },
-  lessonReference: {
-    ...typography.micro,
-  },
-  // Divider
   divider: {
     height: 1,
-    marginVertical: spacing.md,
+    marginBottom: spacing.xs,
   },
-  // Action rows
-  actionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 48,
-    gap: spacing.md,
+  comingSoonRow: {
+    opacity: COMING_SOON_OPACITY,
   },
-  actionRowDisabled: {
-    opacity: 0.4,
-  },
-  actionText: {
-    ...typography.body,
-  },
-  comingSoonLabel: {
-    ...typography.micro,
-    marginLeft: 'auto',
-  },
-  // Close button
-  closeButton: {
-    alignItems: 'center',
-    paddingVertical: spacing.md,
+  doneButton: {
     marginTop: spacing.md,
-  },
-  closeButtonText: {
-    ...typography.button,
   },
 });

@@ -7,8 +7,20 @@ function readRelativeSource(relativePath: string): string {
   return readFileSync(fileURLToPath(new URL(relativePath, import.meta.url).href), 'utf8');
 }
 
+// The shortcut row is now a ListRow, so its glyph and affordance are props
+// rather than nested <Ionicons> elements — the guarantees are unchanged.
+function findListRow(source: string, titleExpression: string): string {
+  const pattern = new RegExp(
+    `<ListRow\\s+title=\\{${titleExpression.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\}[\\s\\S]*?\\/>`
+  );
+  const match = source.match(pattern);
+  assert.ok(match, `expected a ListRow titled ${titleExpression}`);
+  return match[0];
+}
+
 test('SettingsScreen keeps the calculator disguise shortcut visible from More settings', () => {
   const source = readRelativeSource('./SettingsScreen.tsx');
+  const shortcutRow = findListRow(source, "t('onboarding.privacyTitle')");
 
   assert.equal(
     source.includes("navigation.navigate('PrivacyPreferences')"),
@@ -16,16 +28,34 @@ test('SettingsScreen keeps the calculator disguise shortcut visible from More se
     'SettingsScreen should keep routing the disguise shortcut into PrivacyPreferences'
   );
 
-  assert.equal(
-    source.includes("name=\"calculator-outline\""),
-    true,
+  assert.match(
+    shortcutRow,
+    /navigation\.navigate\('PrivacyPreferences'\)/,
+    'the disguise shortcut row itself should be the thing that opens PrivacyPreferences'
+  );
+
+  assert.match(
+    shortcutRow,
+    /leadingIcon=\{Calculator\}/,
     'SettingsScreen should use a calculator icon so the disguise setting is easy to spot'
   );
 
-  assert.equal(
-    source.includes("name=\"chevron-forward\""),
-    true,
+  assert.match(
+    source,
+    /import \{[\s\S]*?\bCalculator,[\s\S]*?\} from 'lucide-react-native';/,
+    'the calculator glyph should come from the Lucide set the redesign standardised on'
+  );
+
+  assert.match(
+    shortcutRow,
+    /showChevron/,
     'SettingsScreen should keep only the chevron affordance on the shortcut row'
+  );
+
+  assert.equal(
+    /value=/.test(shortcutRow),
+    false,
+    'the shortcut row should carry no trailing value text beside its chevron'
   );
 
   assert.equal(
@@ -38,6 +68,22 @@ test('SettingsScreen keeps the calculator disguise shortcut visible from More se
     source.includes("t('onboarding.discreetIconTitle')"),
     false,
     'SettingsScreen should not repeat the discreet icon label in the shortcut row'
+  );
+});
+
+test('SettingsScreen draws Lucide glyphs rather than the retired Ionicons set', () => {
+  const source = readRelativeSource('./SettingsScreen.tsx');
+
+  assert.equal(
+    source.includes('Ionicons'),
+    false,
+    'SettingsScreen should render Lucide glyphs, not the retired Ionicons set'
+  );
+
+  assert.match(
+    source,
+    /from 'lucide-react-native';/,
+    'SettingsScreen should take its glyphs from lucide-react-native'
   );
 });
 
@@ -113,22 +159,33 @@ test('SettingsScreen keeps the locale preferences row labeled as Nation and Bibl
   );
 });
 
+// The row no longer styles itself: it hands the summary to ListRow's `value`
+// slot, so the three guarantees this test protects — one line, a bounded value
+// column, a stable row height — now live in the shared primitive and are
+// asserted there, at the call site and in ListRow together.
 test('SettingsScreen keeps long locale labels truncated inside a bounded row', () => {
   const source = readRelativeSource('./SettingsScreen.tsx');
+  const listRowSource = readRelativeSource('../../components/ui/ListRow.tsx');
+  const localeRow = findListRow(source, "t('settings.nationAndLanguage')");
 
   assert.match(
-    source,
-    /t\('settings\.nationAndLanguage'\)[\s\S]*numberOfLines=\{1\}[\s\S]*ellipsizeMode="tail"/,
-    'The locale summary should truncate long language names with an ellipsis'
+    localeRow,
+    /value=\{localeSummary\}/,
+    'The locale row should pass its summary through the shared value slot'
   );
   assert.match(
-    source,
-    /settingRight: \{[\s\S]*maxWidth: '46%'[\s\S]*minWidth: 0/,
-    'The value side of settings rows should stay bounded'
+    listRowSource,
+    /numberOfLines=\{1\}\s*>\s*\{value\}/,
+    'The locale summary should truncate long language names to a single line'
   );
   assert.match(
-    source,
-    /settingItem: \{[\s\S]*minHeight: 68/,
+    listRowSource,
+    /textColumn: \{\s*flex: 1/,
+    'The value side of settings rows should stay bounded by a flexing text column'
+  );
+  assert.match(
+    listRowSource,
+    /const ROW_MIN_HEIGHT = 52;[\s\S]*minHeight: ROW_MIN_HEIGHT/,
     'Settings rows should keep a stable height instead of expanding for long values'
   );
 });

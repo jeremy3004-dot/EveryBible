@@ -1,4 +1,4 @@
-import { useEffect, useState, type ComponentProps } from 'react';
+import { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -8,22 +8,48 @@ import {
   Switch,
   Modal,
   Alert,
-  ActivityIndicator,
   TextInput,
 } from 'react-native';
-import { layout, radius, spacing } from '../../design/system';
+import { layout, radius, spacing, typography } from '../../design/system';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
+import {
+  Bell,
+  Bug,
+  Calculator,
+  CheckCircle2,
+  Clock,
+  CloudDownload,
+  Globe,
+  KeyRound,
+  Layers,
+  MapPin,
+  MessageSquare,
+  Moon,
+  Sun,
+  Trash2,
+  TriangleAlert,
+  Type,
+  User,
+  UserX,
+  type LucideIcon,
+} from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme, type ThemeMode } from '../../contexts/ThemeContext';
-import { AppButton } from '../../components/ui';
+import {
+  AppButton,
+  AppCard,
+  BackArrowIcon,
+  IconButton,
+  ListRow,
+  TabSwitch,
+} from '../../components/ui';
 import { useAuthStore } from '../../stores/authStore';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useTranslatorReviewStore } from '../../stores/translatorReviewStore';
 import { mmkvInstance } from '../../stores';
-import { useFontSize, useI18n, useTabBarHeight } from '../../hooks';
+import { useDisplayFont, useFontSize, useI18n, useTabBarHeight } from '../../hooks';
 import { syncPreferences } from '../../services/sync';
 import { validateTranslatorReviewPasscode } from '../../services/feedback';
 import { normalizeChapterFeedbackIdentity } from '../../services/feedback/chapterFeedbackIdentity';
@@ -41,30 +67,43 @@ import {
   requestNotificationPermissions,
 } from '../../services/notifications';
 import type { MoreStackParamList } from '../../navigation/types';
-import { hexWithAlpha, lightHaptic, selectionHaptic } from '../../utils';
+import { hexWithAlpha, lightHaptic } from '../../utils';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const MINUTES = ['00', '15', '30', '45'];
 type NavigationProp = NativeStackNavigationProp<MoreStackParamList, 'Settings'>;
 
+/** Matches ListRow's own leading glyph so block rows line up with list rows. */
+const ROW_ICON_SIZE = 18;
+const ICON_STROKE = 2;
+/** ListRow insets its separator past the glyph; blocks in the card must match. */
+const ROW_SEPARATOR_INSET = ROW_ICON_SIZE + spacing.md;
+/** iOS switch off-track: the old `+ '55'` alpha suffix, expressed as a ratio. */
+const SWITCH_OFF_ALPHA = 0.33;
+/** The stepper's A-/A+ glyphs when the size is already at the end of the scale. */
+const STEPPER_DISABLED_ALPHA = 0.4;
+/** A row that cannot act yet still has to be legible, just clearly inert. */
+const DISABLED_ROW_OPACITY = 0.45;
+
 // The EL system ships two scopes, so the selector is a two-up segment carrying a
 // sun and a moon rather than five labelled swatch chips.
 const THEME_SEGMENTS: ReadonlyArray<{
   mode: ThemeMode;
-  icon: ComponentProps<typeof Ionicons>['name'];
+  icon: LucideIcon;
   labelKey: string;
 }> = [
-  { mode: 'light', icon: 'sunny', labelKey: 'settings.themeLight' },
-  { mode: 'dark', icon: 'moon', labelKey: 'settings.themeDark' },
+  { mode: 'light', icon: Sun, labelKey: 'settings.themeLight' },
+  { mode: 'dark', icon: Moon, labelKey: 'settings.themeDark' },
 ];
 
 export function SettingsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { colors, themeMode, setTheme } = useTheme();
-  const settingSwitchOffColor = colors.secondaryText + '55';
+  const displayFont = useDisplayFont();
+  const settingSwitchOffColor = hexWithAlpha(colors.secondaryText, SWITCH_OFF_ALPHA);
   const settingSwitchTrackColor = {
     false: settingSwitchOffColor,
-    true: colors.accentGreen,
+    true: colors.accentPrimary,
   };
   const { t, currentLanguage, setLanguage, availableLanguages } = useI18n();
   const preferences = useAuthStore((state) => state.preferences);
@@ -72,7 +111,7 @@ export function SettingsScreen() {
   const { label: fontSizeLabel, increase, decrease, canIncrease, canDecrease } = useFontSize();
   // Absolute tab bar overlays the bottom of nested More screens; pad the scroll
   // content so the last row (Clear Cache) clears it.
-  const { height: tabBarHeight } = useTabBarHeight();
+  const { contentClearance } = useTabBarHeight();
   const chapterFeedbackEnabled = preferences.chapterFeedbackEnabled;
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
@@ -130,10 +169,21 @@ export function SettingsScreen() {
     setShowTimePicker(true);
   };
 
+  // TabSwitch already plays the selection haptic when a segment changes; a second call
+  // here produced a double tick after the EL migration, so the handler stays silent.
   const handleThemeChange = (mode: ThemeMode) => {
-    selectionHaptic();
     setTheme(mode);
     syncPreferences().catch(() => {});
+  };
+
+  // TabSwitch hands back the segment key as a plain string; resolve it against
+  // the segment table rather than casting, so an unknown key is simply ignored.
+  const handleThemeSegmentChange = (key: string) => {
+    const segment = THEME_SEGMENTS.find((candidate) => candidate.mode === key);
+    if (!segment) {
+      return;
+    }
+    handleThemeChange(segment.mode);
   };
 
   const handleNotificationToggle = async () => {
@@ -413,334 +463,221 @@ export function SettingsScreen() {
     ? `${savedChapterFeedbackIdentity.name} • ${savedChapterFeedbackIdentity.role}`
     : t('settings.chapterFeedbackIdentitySummaryOff');
 
+  // The A-/A+ stepper stays a bespoke control: it is a three-stop scale, not a
+  // switch or a picker, and the label between the buttons is the value.
+  const fontSizeStepper = (
+    <View style={styles.fontSizeControls}>
+      <TouchableOpacity
+        style={[
+          styles.fontSizeButton,
+          { backgroundColor: colors.muted },
+          !canDecrease && [
+            styles.fontSizeButtonDisabled,
+            { backgroundColor: colors.cardBackground, borderColor: colors.borderStrong },
+          ],
+        ]}
+        onPress={decrease}
+        disabled={!canDecrease}
+        activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: !canDecrease }}
+      >
+        <Text
+          style={[
+            styles.fontSizeText,
+            { color: colors.primaryText },
+            !canDecrease && { color: hexWithAlpha(colors.secondaryText, STEPPER_DISABLED_ALPHA) },
+          ]}
+        >
+          A-
+        </Text>
+      </TouchableOpacity>
+      <Text
+        style={[styles.fontSizeValue, displayFont.regular, { color: colors.secondaryText }]}
+        numberOfLines={1}
+      >
+        {fontSizeLabel}
+      </Text>
+      <TouchableOpacity
+        style={[
+          styles.fontSizeButton,
+          { backgroundColor: colors.muted },
+          !canIncrease && [
+            styles.fontSizeButtonDisabled,
+            { backgroundColor: colors.cardBackground, borderColor: colors.borderStrong },
+          ],
+        ]}
+        onPress={increase}
+        disabled={!canIncrease}
+        activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: !canIncrease }}
+      >
+        <Text
+          style={[
+            styles.fontSizeText,
+            { color: colors.primaryText },
+            !canIncrease && { color: hexWithAlpha(colors.secondaryText, STEPPER_DISABLED_ALPHA) },
+          ]}
+        >
+          A+
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: colors.background }]}
       edges={['top']}
     >
-      <View style={[styles.header, { borderBottomColor: colors.cardBorder }]}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel={t('common.back')}
-        >
-          <Ionicons name="arrow-back" size={24} color={colors.primaryText} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.primaryText }]}>
-          {t('settings.title')}
-        </Text>
-        <View style={{ width: 32 }} />
-      </View>
-
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[styles.content, { paddingBottom: tabBarHeight + spacing.xl }]}
+        contentContainerStyle={[styles.content, { paddingBottom: contentClearance }]}
       >
-        {/* Reading Settings */}
-        <Text style={[styles.sectionTitle, { color: colors.secondaryText }]}>
-          {t('settings.reading')}
-        </Text>
-        <View
-          style={[
-            styles.settingsGroup,
-            { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
-          ]}
-        >
-          <View style={[styles.settingItem, { borderBottomColor: colors.cardBorder }]}>
-            <View style={styles.settingLeft}>
-              <Ionicons name="text-outline" size={24} color={colors.secondaryText} />
-              <Text style={[styles.settingLabel, { color: colors.primaryText }]}>
-                {t('settings.fontSize')}
-              </Text>
-            </View>
-            <View style={styles.fontSizeControls}>
-              <TouchableOpacity
-                style={[
-                  styles.fontSizeButton,
-                  { backgroundColor: colors.cardBorder },
-                  !canDecrease && [
-                    styles.fontSizeButtonDisabled,
-                    { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
-                  ],
-                ]}
-                onPress={decrease}
-                disabled={!canDecrease}
-                activeOpacity={0.85}
-              >
-                <Text
-                  style={[
-                    styles.fontSizeText,
-                    { color: colors.primaryText },
-                    !canDecrease && { color: hexWithAlpha(colors.secondaryText, 0.4) },
-                  ]}
-                >
-                  A-
-                </Text>
-              </TouchableOpacity>
-              <Text style={[styles.fontSizeValue, { color: colors.secondaryText }]}>
-                {fontSizeLabel}
-              </Text>
-              <TouchableOpacity
-                style={[
-                  styles.fontSizeButton,
-                  { backgroundColor: colors.cardBorder },
-                  !canIncrease && [
-                    styles.fontSizeButtonDisabled,
-                    { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
-                  ],
-                ]}
-                onPress={increase}
-                disabled={!canIncrease}
-                activeOpacity={0.85}
-              >
-                <Text
-                  style={[
-                    styles.fontSizeText,
-                    { color: colors.primaryText },
-                    !canIncrease && { color: hexWithAlpha(colors.secondaryText, 0.4) },
-                  ]}
-                >
-                  A+
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View style={[styles.themeSettingBlock, { borderBottomColor: colors.cardBorder }]}>
-            <View style={styles.settingLeft}>
-              <Ionicons name="moon-outline" size={24} color={colors.secondaryText} />
-              <Text style={[styles.settingLabel, { color: colors.primaryText }]}>
-                {t('settings.themeMode')}
-              </Text>
-            </View>
-            <View style={[styles.themeSegment, { borderColor: colors.cardBorder }]}>
-              {THEME_SEGMENTS.map(({ mode, icon, labelKey }) => {
-                const isActive = themeMode === mode;
-                return (
-                  <TouchableOpacity
-                    key={mode}
-                    style={[
-                      styles.themeSegmentItem,
-                      { backgroundColor: isActive ? colors.accentSoft : colors.cardBackground },
-                    ]}
-                    onPress={() => handleThemeChange(mode)}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: isActive }}
-                    accessibilityLabel={t(labelKey)}
-                  >
-                    <Ionicons
-                      name={isActive ? icon : (`${icon}-outline` as typeof icon)}
-                      size={20}
-                      color={isActive ? colors.accentPrimary : colors.secondaryText}
-                    />
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-
-          <TouchableOpacity
-            style={[styles.settingItem, { borderBottomColor: colors.cardBorder }]}
-            onPress={() => setShowLanguagePicker(true)}
+        <View style={styles.header}>
+          <IconButton
+            icon={BackArrowIcon}
+            onPress={() => navigation.goBack()}
+            accessibilityLabel={t('common.back')}
+          />
+          <Text
+            style={[styles.headerEyebrow, displayFont.regular, { color: colors.secondaryText }]}
+            numberOfLines={1}
           >
-            <View style={styles.settingLeft}>
-              <Ionicons name="globe-outline" size={24} color={colors.secondaryText} />
-              <Text style={[styles.settingLabel, { color: colors.primaryText }]}>
-                {t('settings.language')}
-              </Text>
-            </View>
-            <View style={styles.settingRight}>
-              <Text
-                style={[styles.settingValue, { color: colors.secondaryText }]}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-              >
-                {availableLanguages[currentLanguage].nativeName}
-              </Text>
-              <Ionicons name="chevron-forward" size={20} color={colors.secondaryText} />
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.settingItem, { borderBottomColor: colors.cardBorder }]}
-            onPress={() => navigation.navigate('LocalePreferences')}
-          >
-            <View style={styles.settingLeft}>
-              <Ionicons name="location-outline" size={24} color={colors.secondaryText} />
-              <Text style={[styles.settingLabel, { color: colors.primaryText }]}>
-                {t('settings.nationAndLanguage')}
-              </Text>
-            </View>
-            <View style={styles.settingRight}>
-              <Text
-                style={[styles.settingValue, { color: colors.secondaryText }]}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-              >
-                {localeSummary}
-              </Text>
-              <Ionicons name="chevron-forward" size={20} color={colors.secondaryText} />
-            </View>
-          </TouchableOpacity>
-
-          <View style={[styles.settingItem, { borderBottomColor: colors.cardBorder }]}>
-            <View style={styles.settingLeft}>
-              <Ionicons name="chatbox-ellipses-outline" size={24} color={colors.secondaryText} />
-              <View style={styles.settingCopy}>
-                <Text
-                  style={[
-                    styles.settingLabel,
-                    styles.settingLabelNoMargin,
-                    { color: colors.primaryText },
-                  ]}
-                >
-                  {t('settings.chapterFeedback')}
-                </Text>
-                <Text style={[styles.settingSubLabel, { color: colors.secondaryText }]}>
-                  {chapterFeedbackSummary}
-                </Text>
-              </View>
-            </View>
-            <Switch
-              value={chapterFeedbackEnabled}
-              onValueChange={handleChapterFeedbackToggle}
-              trackColor={settingSwitchTrackColor}
-              ios_backgroundColor={settingSwitchOffColor}
-              thumbColor={colors.cardBackground}
-              accessibilityLabel={t('settings.chapterFeedback')}
-            />
-          </View>
-
-          <TouchableOpacity
-            style={[styles.settingItem, { borderBottomColor: colors.cardBorder }]}
-            onPress={() => handleTranslatorReviewToggle(!translatorReviewEnabled)}
-            accessible={false}
-          >
-            <View style={styles.settingLeft}>
-              <Ionicons name="keypad-outline" size={24} color={colors.secondaryText} />
-              <View style={styles.settingCopy}>
-                <Text
-                  style={[
-                    styles.settingLabel,
-                    styles.settingLabelNoMargin,
-                    { color: colors.primaryText },
-                  ]}
-                >
-                  {t('settings.translatorAccess')}
-                </Text>
-                <Text style={[styles.settingSubLabel, { color: colors.secondaryText }]}>
-                  {translatorReviewEnabled
-                    ? t('settings.translatorAccessSummaryOn')
-                    : t('settings.translatorAccessSummaryOff')}
-                </Text>
-              </View>
-            </View>
-            <Switch
-              value={translatorReviewEnabled}
-              onValueChange={handleTranslatorReviewToggle}
-              trackColor={settingSwitchTrackColor}
-              ios_backgroundColor={settingSwitchOffColor}
-              thumbColor={colors.cardBackground}
-              accessibilityLabel={t('settings.translatorAccess')}
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.settingItem,
-              styles.feedbackIdentityRow,
-              chapterFeedbackEnabled ? null : styles.lastItem,
-            ]}
-            onPress={handleOpenChapterFeedbackIdentityEditor}
-          >
-            <View style={styles.settingLeft}>
-              <Ionicons name="person-outline" size={24} color={colors.secondaryText} />
-              <View style={styles.settingCopy}>
-                <Text
-                  style={[
-                    styles.settingLabel,
-                    styles.settingLabelNoMargin,
-                    { color: colors.primaryText },
-                  ]}
-                >
-                  {t('settings.chapterFeedbackIdentity')}
-                </Text>
-                <Text style={[styles.settingSubLabel, { color: colors.secondaryText }]}>
-                  {chapterFeedbackIdentitySummary}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.settingRight}>
-              <Text style={[styles.settingValue, { color: colors.secondaryText }]}>
-                {savedChapterFeedbackIdentity ? t('common.edit') : t('common.notSet')}
-              </Text>
-              <Ionicons name="chevron-forward" size={20} color={colors.secondaryText} />
-            </View>
-          </TouchableOpacity>
-
-          {chapterFeedbackEnabled ? (
-            <TouchableOpacity
-              style={[styles.settingItem, styles.lastItem]}
-              onPress={() => navigation.navigate('MyFeedback')}
-            >
-              <View style={styles.settingLeft}>
-                <Ionicons name="albums-outline" size={24} color={colors.secondaryText} />
-                <View style={styles.settingCopy}>
-                  <Text
-                    style={[
-                      styles.settingLabel,
-                      styles.settingLabelNoMargin,
-                      { color: colors.primaryText },
-                    ]}
-                  >
-                    {t('myFeedback.settingsRow')}
-                  </Text>
-                  <Text style={[styles.settingSubLabel, { color: colors.secondaryText }]}>
-                    {t('myFeedback.settingsRowSummary')}
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.settingRight}>
-                <Ionicons name="chevron-forward" size={20} color={colors.secondaryText} />
-              </View>
-            </TouchableOpacity>
-          ) : null}
+            {t('settings.title')}
+          </Text>
         </View>
 
-        <View
-          style={[
-            styles.settingsGroup,
-            { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
-          ]}
-        >
-          <TouchableOpacity
-            style={[styles.settingItem, styles.lastItem]}
-            onPress={() => navigation.navigate('PrivacyPreferences')}
-          >
-            <View style={styles.settingLeft}>
-              <Ionicons name="calculator-outline" size={24} color={colors.secondaryText} />
-              <View style={styles.settingCopy}>
-                <Text
-                  style={[
-                    styles.settingLabel,
-                    styles.settingLabelNoMargin,
-                    { color: colors.primaryText },
-                  ]}
-                >
-                  {t('onboarding.privacyTitle')}
+        {/* Reading Settings */}
+        <View style={styles.group}>
+          <Text style={[styles.groupEyebrow, displayFont.regular, { color: colors.secondaryText }]}>
+            {t('settings.reading')}
+          </Text>
+          <AppCard padding={0} style={styles.groupCard}>
+            <ListRow title={t('settings.fontSize')} leadingIcon={Type} trailing={fontSizeStepper} />
+
+            {/* Appearance is a block, not a row: the segment needs the full width
+                of the card, so the label sits above it rather than beside it. */}
+            <View style={styles.themeBlock}>
+              <View style={styles.blockHeader}>
+                <Moon
+                  size={ROW_ICON_SIZE}
+                  color={colors.secondaryText}
+                  strokeWidth={ICON_STROKE}
+                  style={styles.blockIcon}
+                />
+                <Text style={[typography.rowTitle, { color: colors.primaryText }]}>
+                  {t('settings.themeMode')}
                 </Text>
               </View>
+              <TabSwitch
+                segments={THEME_SEGMENTS.map(({ mode, icon, labelKey }) => ({
+                  key: mode,
+                  label: t(labelKey),
+                  icon,
+                }))}
+                value={themeMode}
+                onChange={handleThemeSegmentChange}
+                fullWidth
+                accessibilityLabel={t('settings.themeMode')}
+              />
             </View>
-            <View style={styles.settingRight}>
-              <Ionicons name="chevron-forward" size={20} color={colors.secondaryText} />
-            </View>
-          </TouchableOpacity>
+            <View style={[styles.blockSeparator, { backgroundColor: colors.borderStrong }]} />
+
+            <ListRow
+              title={t('settings.language')}
+              leadingIcon={Globe}
+              value={availableLanguages[currentLanguage].nativeName}
+              showChevron
+              onPress={() => setShowLanguagePicker(true)}
+            />
+
+            <ListRow
+              title={t('settings.nationAndLanguage')}
+              leadingIcon={MapPin}
+              value={localeSummary}
+              showChevron
+              onPress={() => navigation.navigate('LocalePreferences')}
+            />
+
+            <ListRow
+              title={t('settings.chapterFeedback')}
+              subtitle={chapterFeedbackSummary}
+              leadingIcon={MessageSquare}
+              trailing={
+                <Switch
+                  value={chapterFeedbackEnabled}
+                  onValueChange={handleChapterFeedbackToggle}
+                  trackColor={settingSwitchTrackColor}
+                  ios_backgroundColor={settingSwitchOffColor}
+                  thumbColor={colors.cardBackground}
+                  accessibilityLabel={t('settings.chapterFeedback')}
+                />
+              }
+            />
+
+            {/* Tapping anywhere on this row toggles review mode, exactly as it
+                did before the redesign — the switch is the visible state. */}
+            <ListRow
+              title={t('settings.translatorAccess')}
+              subtitle={
+                translatorReviewEnabled
+                  ? t('settings.translatorAccessSummaryOn')
+                  : t('settings.translatorAccessSummaryOff')
+              }
+              leadingIcon={KeyRound}
+              onPress={() => handleTranslatorReviewToggle(!translatorReviewEnabled)}
+              accessibilityLabel={t('settings.translatorAccess')}
+              trailing={
+                <Switch
+                  value={translatorReviewEnabled}
+                  onValueChange={handleTranslatorReviewToggle}
+                  trackColor={settingSwitchTrackColor}
+                  ios_backgroundColor={settingSwitchOffColor}
+                  thumbColor={colors.cardBackground}
+                  accessibilityLabel={t('settings.translatorAccess')}
+                />
+              }
+            />
+
+            <ListRow
+              title={t('settings.chapterFeedbackIdentity')}
+              subtitle={chapterFeedbackIdentitySummary}
+              leadingIcon={User}
+              value={savedChapterFeedbackIdentity ? t('common.edit') : t('common.notSet')}
+              showChevron
+              onPress={handleOpenChapterFeedbackIdentityEditor}
+              isLast={!chapterFeedbackEnabled}
+            />
+
+            {chapterFeedbackEnabled ? (
+              <ListRow
+                title={t('myFeedback.settingsRow')}
+                subtitle={t('myFeedback.settingsRowSummary')}
+                leadingIcon={Layers}
+                showChevron
+                onPress={() => navigation.navigate('MyFeedback')}
+                isLast
+              />
+            ) : null}
+          </AppCard>
+        </View>
+
+        <View style={styles.group}>
+          <AppCard padding={0} style={styles.groupCard}>
+            <ListRow
+              title={t('onboarding.privacyTitle')}
+              leadingIcon={Calculator}
+              showChevron
+              onPress={() => navigation.navigate('PrivacyPreferences')}
+              isLast
+            />
+          </AppCard>
         </View>
 
         {/* Accent-palette picker removed — ember is the sole accent palette; the
-            5 theme modes above remain the appearance control. */}
+            2 theme scopes above remain the appearance control. */}
 
         <Modal
           visible={showChapterFeedbackIdentityModal}
@@ -758,10 +695,10 @@ export function SettingsScreen() {
               style={[
                 styles.modalContent,
                 styles.chapterFeedbackIdentityModalContent,
-                { backgroundColor: colors.cardBackground },
+                { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
               ]}
             >
-              <Text style={[styles.modalTitle, { color: colors.primaryText }]}>
+              <Text style={[styles.modalTitle, displayFont.bold, { color: colors.primaryText }]}>
                 {t('settings.chapterFeedbackIdentityTitle')}
               </Text>
               <Text style={[styles.chapterFeedbackIdentityBody, { color: colors.secondaryText }]}>
@@ -788,7 +725,7 @@ export function SettingsScreen() {
                       styles.feedbackIdentityInput,
                       {
                         color: colors.primaryText,
-                        borderColor: colors.cardBorder,
+                        borderColor: colors.borderStrong,
                         backgroundColor: colors.background,
                       },
                     ]}
@@ -814,7 +751,7 @@ export function SettingsScreen() {
                       styles.feedbackIdentityInput,
                       {
                         color: colors.primaryText,
-                        borderColor: colors.cardBorder,
+                        borderColor: colors.borderStrong,
                         backgroundColor: colors.background,
                       },
                     ]}
@@ -829,41 +766,27 @@ export function SettingsScreen() {
               ) : null}
 
               <View style={styles.modalButtons}>
-                <TouchableOpacity
-                  style={[
-                    styles.modalButton,
-                    {
-                      backgroundColor: colors.cardBorder,
-                    },
-                  ]}
-                  onPress={closeChapterFeedbackIdentityModal}
+                <AppButton
+                  label={t('common.cancel')}
+                  variant="secondary"
+                  size="md"
+                  fullWidth={false}
                   disabled={isSavingChapterFeedbackIdentity}
-                >
-                  <Text style={[styles.modalButtonTextCancel, { color: colors.primaryText }]}>
-                    {t('common.cancel')}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.modalButton,
-                    styles.modalButtonPrimary,
-                    {
-                      backgroundColor: colors.accentPrimary,
-                    },
-                  ]}
+                  onPress={closeChapterFeedbackIdentityModal}
+                  style={styles.modalButtonFlex}
+                />
+                <AppButton
+                  label={t('common.save')}
+                  variant="primary"
+                  size="md"
+                  fullWidth={false}
+                  loading={isSavingChapterFeedbackIdentity}
+                  disabled={isSavingChapterFeedbackIdentity}
                   onPress={() => {
                     void handleSaveChapterFeedbackIdentity();
                   }}
-                  disabled={isSavingChapterFeedbackIdentity}
-                >
-                  {isSavingChapterFeedbackIdentity ? (
-                    <ActivityIndicator size="small" color={colors.onAccent} />
-                  ) : (
-                    <Text style={[styles.modalButtonText, { color: colors.onAccent }]}>
-                      {t('common.save')}
-                    </Text>
-                  )}
-                </TouchableOpacity>
+                  style={styles.modalButtonFlex}
+                />
               </View>
             </View>
           </View>
@@ -881,8 +804,13 @@ export function SettingsScreen() {
               activeOpacity={1}
               onPress={() => setShowTranslatorAccessModal(false)}
             />
-            <View style={[styles.modalContent, { backgroundColor: colors.cardBackground }]}>
-              <Text style={[styles.modalTitle, { color: colors.primaryText }]}>
+            <View
+              style={[
+                styles.modalContent,
+                { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
+              ]}
+            >
+              <Text style={[styles.modalTitle, displayFont.bold, { color: colors.primaryText }]}>
                 {t('settings.translatorAccessTitle')}
               </Text>
               <Text style={[styles.translatorAccessBody, { color: colors.secondaryText }]}>
@@ -899,7 +827,7 @@ export function SettingsScreen() {
                   styles.translatorAccessInput,
                   {
                     color: colors.primaryText,
-                    borderColor: colors.cardBorder,
+                    borderColor: colors.borderStrong,
                     backgroundColor: colors.background,
                   },
                 ]}
@@ -924,10 +852,11 @@ export function SettingsScreen() {
                           {
                             backgroundColor:
                               key === 'clear' || key === 'delete'
-                                ? colors.cardBorder
+                                ? colors.muted
                                 : colors.background,
                           },
                         ]}
+                        accessibilityRole="button"
                         onPress={() => {
                           if (key === 'clear') {
                             setTranslatorAccessPasscode('');
@@ -957,178 +886,132 @@ export function SettingsScreen() {
                 ))}
               </View>
               <View style={styles.modalButtons}>
-                <TouchableOpacity
-                  style={[styles.modalButton, { backgroundColor: colors.cardBorder }]}
+                <AppButton
+                  label={t('common.cancel')}
+                  variant="secondary"
+                  size="md"
+                  fullWidth={false}
                   onPress={() => setShowTranslatorAccessModal(false)}
-                >
-                  <Text style={[styles.modalButtonTextCancel, { color: colors.primaryText }]}>
-                    {t('common.cancel')}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.modalButton,
-                    styles.modalButtonPrimary,
-                    {
-                      backgroundColor:
-                        translatorAccessPasscode.length > 0 && !isCheckingTranslatorAccess
-                          ? colors.accentPrimary
-                          : colors.cardBorder,
-                    },
-                  ]}
+                  style={styles.modalButtonFlex}
+                />
+                <AppButton
+                  label={t('settings.translatorAccessUnlock')}
+                  variant="primary"
+                  size="md"
+                  fullWidth={false}
+                  loading={isCheckingTranslatorAccess}
+                  disabled={translatorAccessPasscode.length === 0 || isCheckingTranslatorAccess}
                   onPress={() => {
                     void handleTranslatorAccessSubmit();
                   }}
-                  disabled={translatorAccessPasscode.length === 0 || isCheckingTranslatorAccess}
-                >
-                  {isCheckingTranslatorAccess ? (
-                    <ActivityIndicator size="small" color={colors.onAccent} />
-                  ) : (
-                    <Text
-                      style={[
-                        styles.modalButtonText,
-                        {
-                          color:
-                            translatorAccessPasscode.length > 0
-                              ? colors.onAccent
-                              : colors.secondaryText,
-                        },
-                      ]}
-                    >
-                      {t('settings.translatorAccessUnlock')}
-                    </Text>
-                  )}
-                </TouchableOpacity>
+                  style={styles.modalButtonFlex}
+                />
               </View>
             </View>
           </View>
         </Modal>
 
         {/* Notifications */}
-        <Text style={[styles.sectionTitle, { color: colors.secondaryText }]}>
-          {t('settings.notifications')}
-        </Text>
-        <View
-          style={[
-            styles.settingsGroup,
-            { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
-          ]}
-        >
-          <View style={[styles.settingItem, { borderBottomColor: colors.cardBorder }]}>
-            <View style={styles.settingLeft}>
-              <Ionicons name="notifications-outline" size={24} color={colors.secondaryText} />
-              <Text style={[styles.settingLabel, { color: colors.primaryText }]}>
-                {t('settings.dailyReminder')}
-              </Text>
-            </View>
-            <Switch
-              value={preferences.notificationsEnabled}
-              onValueChange={handleNotificationToggle}
-              trackColor={settingSwitchTrackColor}
-              ios_backgroundColor={settingSwitchOffColor}
-              thumbColor={colors.cardBackground}
-              accessibilityLabel={t('settings.dailyReminder')}
+        <View style={styles.group}>
+          <Text style={[styles.groupEyebrow, displayFont.regular, { color: colors.secondaryText }]}>
+            {t('settings.notifications')}
+          </Text>
+          <AppCard padding={0} style={styles.groupCard}>
+            <ListRow
+              title={t('settings.dailyReminder')}
+              leadingIcon={Bell}
+              trailing={
+                <Switch
+                  value={preferences.notificationsEnabled}
+                  onValueChange={handleNotificationToggle}
+                  trackColor={settingSwitchTrackColor}
+                  ios_backgroundColor={settingSwitchOffColor}
+                  thumbColor={colors.cardBackground}
+                  accessibilityLabel={t('settings.dailyReminder')}
+                />
+              }
             />
-          </View>
 
-          <TouchableOpacity
-            style={[styles.settingItem, styles.lastItem]}
-            onPress={() => preferences.notificationsEnabled && openTimePicker()}
-            disabled={!preferences.notificationsEnabled}
-          >
-            <View style={styles.settingLeft}>
-              <Ionicons
-                name="time-outline"
-                size={24}
-                color={preferences.notificationsEnabled ? colors.secondaryText : colors.cardBorder}
+            {preferences.notificationsEnabled ? (
+              <ListRow
+                title={t('settings.reminderTime')}
+                leadingIcon={Clock}
+                value={formatTime(preferences.reminderTime)}
+                onPress={openTimePicker}
+                isLast
               />
-              <Text
-                style={[
-                  styles.settingLabel,
-                  { color: colors.primaryText },
-                  !preferences.notificationsEnabled && { color: colors.cardBorder },
-                ]}
+            ) : (
+              // Without a reminder there is no time to set: the row stays legible
+              // but inert, and announces itself as disabled rather than silent.
+              <View
+                style={styles.disabledRow}
+                accessible
+                accessibilityRole="button"
+                accessibilityState={{ disabled: true }}
+                accessibilityLabel={t('settings.reminderTime')}
               >
-                {t('settings.reminderTime')}
-              </Text>
-            </View>
-            <Text
-              style={[
-                styles.settingValue,
-                { color: colors.secondaryText },
-                !preferences.notificationsEnabled && { color: colors.cardBorder },
-              ]}
-            >
-              {formatTime(preferences.reminderTime)}
-            </Text>
-          </TouchableOpacity>
+                <ListRow
+                  title={t('settings.reminderTime')}
+                  leadingIcon={Clock}
+                  value={formatTime(preferences.reminderTime)}
+                  isLast
+                />
+              </View>
+            )}
+          </AppCard>
         </View>
 
         {/* Data */}
-        <Text style={[styles.sectionTitle, { color: colors.secondaryText }]}>
-          {t('settings.data')}
-        </Text>
-        <View
-          style={[
-            styles.settingsGroup,
-            { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
-          ]}
-        >
-          <TouchableOpacity
-            style={[styles.settingItem, { borderBottomColor: colors.cardBorder }]}
-            onPress={() => navigation.navigate('Diagnostics')}
-          >
-            <View style={styles.settingLeft}>
-              <Ionicons name="bug-outline" size={24} color={colors.secondaryText} />
-              <Text style={[styles.settingLabel, { color: colors.primaryText }]}>
-                {t('settings.diagnostics.title')}
-              </Text>
-            </View>
-            <View style={styles.settingRight}>
-              <Ionicons name="chevron-forward" size={20} color={colors.secondaryText} />
-            </View>
-          </TouchableOpacity>
+        <View style={styles.group}>
+          <Text style={[styles.groupEyebrow, displayFont.regular, { color: colors.secondaryText }]}>
+            {t('settings.data')}
+          </Text>
+          <AppCard padding={0} style={styles.groupCard}>
+            <ListRow
+              title={t('settings.diagnostics.title')}
+              leadingIcon={Bug}
+              showChevron
+              onPress={() => navigation.navigate('Diagnostics')}
+            />
 
-          <View style={[styles.settingItem, { borderBottomColor: colors.cardBorder }]}>
-            <View style={styles.settingLeft}>
-              <Ionicons name="cloud-download-outline" size={24} color={colors.secondaryText} />
-              <Text style={[styles.settingLabel, { color: colors.primaryText }]}>
-                {t('settings.downloadForOffline')}
-              </Text>
-            </View>
-            <View style={styles.settingRight}>
-              <Text style={[styles.settingValue, { color: colors.secondaryText }]}>
-                {t('common.available')}
-              </Text>
-              <Ionicons name="checkmark-circle" size={20} color={colors.success} />
-            </View>
-          </View>
+            <ListRow
+              title={t('settings.downloadForOffline')}
+              leadingIcon={CloudDownload}
+              trailing={
+                <View style={styles.statusTrailing}>
+                  <Text
+                    style={[typography.mono, displayFont.regular, { color: colors.secondaryText }]}
+                    numberOfLines={1}
+                  >
+                    {t('common.available')}
+                  </Text>
+                  <CheckCircle2
+                    size={ROW_ICON_SIZE}
+                    color={colors.success}
+                    strokeWidth={ICON_STROKE}
+                  />
+                </View>
+              }
+            />
 
-          <TouchableOpacity
-            style={[styles.settingItem, { borderBottomColor: colors.cardBorder }]}
-            onPress={handleClearCache}
-          >
-            <View style={styles.settingLeft}>
-              <Ionicons name="trash-outline" size={24} color={colors.error} />
-              <Text style={[styles.settingLabel, { color: colors.error }]}>
-                {t('settings.clearCache')}
-              </Text>
-            </View>
-          </TouchableOpacity>
+            <ListRow
+              title={t('settings.clearCache')}
+              leadingIcon={Trash2}
+              destructive
+              onPress={handleClearCache}
+              isLast={!user}
+            />
 
-          {user && (
-            <TouchableOpacity
-              style={[styles.settingItem, styles.lastItem]}
-              onPress={() => setShowDeleteConfirm(true)}
-            >
-              <View style={styles.settingLeft}>
-                <Ionicons name="person-remove-outline" size={24} color={colors.error} />
-                <Text style={[styles.settingLabel, { color: colors.error }]}>
-                  {t('settings.deleteAccount')}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          )}
+            {user ? (
+              <ListRow
+                title={t('settings.deleteAccount')}
+                leadingIcon={UserX}
+                destructive
+                onPress={() => setShowDeleteConfirm(true)}
+                isLast
+              />
+            ) : null}
+          </AppCard>
         </View>
       </ScrollView>
 
@@ -1140,8 +1023,13 @@ export function SettingsScreen() {
         onRequestClose={() => setShowTimePicker(false)}
       >
         <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
-          <View style={[styles.modalContent, { backgroundColor: colors.cardBackground }]}>
-            <Text style={[styles.modalTitle, { color: colors.primaryText }]}>
+          <View
+            style={[
+              styles.modalContent,
+              { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
+            ]}
+          >
+            <Text style={[styles.modalTitle, displayFont.bold, { color: colors.primaryText }]}>
               {t('settings.setReminderTime')}
             </Text>
 
@@ -1156,11 +1044,10 @@ export function SettingsScreen() {
                     key={hour}
                     style={[
                       styles.timeOption,
-                      selectedHour === hour && [
-                        styles.timeOptionSelected,
-                        { backgroundColor: colors.accentGreen },
-                      ],
+                      selectedHour === hour && { backgroundColor: colors.accentPrimary },
                     ]}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: selectedHour === hour }}
                     onPress={() => setSelectedHour(hour)}
                   >
                     <Text
@@ -1169,7 +1056,6 @@ export function SettingsScreen() {
                         { color: colors.secondaryText },
                         selectedHour === hour && {
                           color: colors.onAccent,
-                          fontWeight: '700',
                         },
                       ]}
                     >
@@ -1191,11 +1077,10 @@ export function SettingsScreen() {
                     key={minute}
                     style={[
                       styles.timeOption,
-                      selectedMinute === minute && [
-                        styles.timeOptionSelected,
-                        { backgroundColor: colors.accentGreen },
-                      ],
+                      selectedMinute === minute && { backgroundColor: colors.accentPrimary },
                     ]}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: selectedMinute === minute }}
                     onPress={() => setSelectedMinute(minute)}
                   >
                     <Text
@@ -1204,7 +1089,6 @@ export function SettingsScreen() {
                         { color: colors.secondaryText },
                         selectedMinute === minute && {
                           color: colors.onAccent,
-                          fontWeight: '700',
                         },
                       ]}
                     >
@@ -1216,26 +1100,22 @@ export function SettingsScreen() {
             </View>
 
             <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: colors.cardBorder }]}
+              <AppButton
+                label={t('common.cancel')}
+                variant="secondary"
+                size="md"
+                fullWidth={false}
                 onPress={() => setShowTimePicker(false)}
-              >
-                <Text style={[styles.modalButtonTextCancel, { color: colors.secondaryText }]}>
-                  {t('common.cancel')}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.modalButton,
-                  styles.modalButtonPrimary,
-                  { backgroundColor: colors.accentGreen },
-                ]}
+                style={styles.modalButtonFlex}
+              />
+              <AppButton
+                label={t('settings.setTime')}
+                variant="primary"
+                size="md"
+                fullWidth={false}
                 onPress={handleTimeSelect}
-              >
-                <Text style={[styles.modalButtonText, { color: colors.onAccent }]}>
-                  {t('settings.setTime')}
-                </Text>
-              </TouchableOpacity>
+                style={styles.modalButtonFlex}
+              />
             </View>
           </View>
         </View>
@@ -1249,8 +1129,13 @@ export function SettingsScreen() {
         onRequestClose={() => setShowLanguagePicker(false)}
       >
         <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
-          <View style={[styles.modalContent, { backgroundColor: colors.cardBackground }]}>
-            <Text style={[styles.modalTitle, { color: colors.primaryText }]}>
+          <View
+            style={[
+              styles.modalContent,
+              { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
+            ]}
+          >
+            <Text style={[styles.modalTitle, displayFont.bold, { color: colors.primaryText }]}>
               {t('settings.selectLanguage')}
             </Text>
 
@@ -1264,11 +1149,13 @@ export function SettingsScreen() {
                   key={language.code}
                   style={[
                     styles.languageOption,
-                    { borderBottomColor: colors.cardBorder },
+                    { borderBottomColor: colors.borderStrong },
                     currentLanguage === language.code && {
-                      backgroundColor: colors.accentGreen + '20',
+                      backgroundColor: colors.accentSoft,
                     },
                   ]}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: currentLanguage === language.code }}
                   onPress={() => handleLanguageSelect(language.code)}
                 >
                   <View style={styles.languageInfo}>
@@ -1286,20 +1173,23 @@ export function SettingsScreen() {
                     </Text>
                   </View>
                   {currentLanguage === language.code && (
-                    <Ionicons name="checkmark-circle" size={24} color={colors.accentGreen} />
+                    <CheckCircle2
+                      size={22}
+                      color={colors.accentPrimary}
+                      strokeWidth={ICON_STROKE}
+                    />
                   )}
                 </TouchableOpacity>
               ))}
             </ScrollView>
 
-            <TouchableOpacity
-              style={[styles.modalButton, { backgroundColor: colors.cardBorder, marginTop: 16 }]}
+            <AppButton
+              label={t('common.cancel')}
+              variant="secondary"
+              size="md"
               onPress={() => setShowLanguagePicker(false)}
-            >
-              <Text style={[styles.modalButtonTextCancel, { color: colors.secondaryText }]}>
-                {t('common.cancel')}
-              </Text>
-            </TouchableOpacity>
+              style={styles.languageCancelButton}
+            />
           </View>
         </View>
       </Modal>
@@ -1312,14 +1202,19 @@ export function SettingsScreen() {
         onRequestClose={() => !isDeleting && setShowDeleteConfirm(false)}
       >
         <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
-          <View style={[styles.modalContent, { backgroundColor: colors.cardBackground }]}>
-            <Ionicons
-              name="warning"
-              size={48}
+          <View
+            style={[
+              styles.modalContent,
+              { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
+            ]}
+          >
+            <TriangleAlert
+              size={44}
               color={colors.error}
-              style={{ alignSelf: 'center', marginBottom: 16 }}
+              strokeWidth={ICON_STROKE}
+              style={styles.deleteWarningIcon}
             />
-            <Text style={[styles.modalTitle, { color: colors.primaryText }]}>
+            <Text style={[styles.modalTitle, displayFont.bold, { color: colors.primaryText }]}>
               {t('settings.deleteAccount')}
             </Text>
             <Text style={[styles.deleteWarningText, { color: colors.secondaryText }]}>
@@ -1355,143 +1250,75 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    borderBottomWidth: 1,
-  },
-  backButton: {
-    padding: 4,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
   scrollView: {
     flex: 1,
   },
   content: {
-    padding: 20,
+    paddingHorizontal: layout.screenPadding,
+    paddingTop: spacing.sm,
   },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    marginBottom: 12,
-    marginTop: 8,
-  },
-  sectionDescription: {
-    fontSize: 13,
-    lineHeight: 18,
-    marginTop: -6,
-    marginBottom: 12,
-  },
-  settingsGroup: {
-    borderRadius: radius.md,
-    borderWidth: 1,
-    marginBottom: 24,
-  },
-  settingItem: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    minHeight: 68,
-    borderBottomWidth: 1,
+    gap: spacing.lg,
+    marginBottom: spacing.xl,
   },
-  lastItem: {
-    borderBottomWidth: 0,
-  },
-  feedbackIdentityRow: {
-    marginTop: 4,
-  },
-  settingLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    minWidth: 0,
-  },
-  settingCopy: {
-    marginLeft: 12,
-    gap: 2,
-    flexShrink: 1,
-    paddingRight: 12,
-  },
-  settingRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    maxWidth: '46%',
-    flexShrink: 1,
-    minWidth: 0,
-  },
-  settingLabel: {
-    fontSize: 16,
-    marginLeft: 12,
+  headerEyebrow: {
+    ...typography.eyebrow,
     flexShrink: 1,
   },
-  settingLabelNoMargin: {
-    marginLeft: 0,
+  group: {
+    marginBottom: spacing.xl,
   },
-  settingSubLabel: {
-    fontSize: 13,
+  groupEyebrow: {
+    ...typography.eyebrow,
+    marginBottom: spacing.md,
   },
-  settingValue: {
-    fontSize: 14,
-    maxWidth: '100%',
-    flexShrink: 1,
+  groupCard: {
+    paddingHorizontal: layout.cardPadding,
   },
-  appearanceOption: {
+  themeBlock: {
+    paddingVertical: spacing.md,
+    gap: spacing.md,
+  },
+  blockHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
   },
-  appearancePreviewRow: {
+  blockIcon: {
+    marginRight: spacing.md,
+  },
+  blockSeparator: {
+    height: 1,
+    marginLeft: ROW_SEPARATOR_INSET,
+  },
+  disabledRow: {
+    opacity: DISABLED_ROW_OPACITY,
+  },
+  statusTrailing: {
     flexDirection: 'row',
-    gap: 8,
     alignItems: 'center',
-  },
-  appearanceSwatch: {
-    width: 14,
-    height: 14,
-    borderRadius: radius.pill,
-  },
-  appearanceCopy: {
-    flex: 1,
-    gap: 2,
-  },
-  appearanceTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  appearanceDescription: {
-    fontSize: 13,
-    lineHeight: 18,
+    gap: spacing.sm,
   },
   fontSizeControls: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   fontSizeButton: {
-    padding: 8,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     borderRadius: radius.sm,
   },
   fontSizeButtonDisabled: {
     borderWidth: 1,
   },
   fontSizeText: {
-    fontSize: 14,
-    fontWeight: '600',
+    ...typography.captionStrong,
   },
   fontSizeValue: {
-    fontSize: 14,
-    marginHorizontal: 12,
-    minWidth: 60,
+    ...typography.mono,
+    marginHorizontal: spacing.md,
+    minWidth: 58,
     textAlign: 'center',
   },
   // Modal styles
@@ -1504,8 +1331,9 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
   },
   modalContent: {
-    borderRadius: radius.md,
-    padding: 24,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    padding: spacing.xl,
     width: '80%',
     maxWidth: 320,
   },
@@ -1514,82 +1342,74 @@ const styles = StyleSheet.create({
     maxWidth: 360,
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    ...typography.pageTitle,
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: spacing.lg,
   },
   chapterFeedbackIdentityBody: {
-    fontSize: 14,
-    lineHeight: 21,
+    ...typography.caption,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   feedbackIdentityFields: {
-    gap: 12,
-    marginBottom: 16,
+    gap: spacing.md,
+    marginBottom: spacing.lg,
   },
   feedbackIdentityField: {
-    gap: 8,
+    gap: spacing.sm,
   },
   feedbackIdentityLabel: {
-    fontSize: 14,
-    fontWeight: '600',
+    ...typography.captionStrong,
   },
   feedbackIdentityInput: {
+    ...typography.body,
     borderWidth: 1,
-    borderRadius: radius.sm,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontSize: 15,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
   },
   feedbackIdentityError: {
-    fontSize: 13,
-    lineHeight: 18,
-    marginBottom: 12,
+    ...typography.caption,
+    marginBottom: spacing.md,
   },
   translatorAccessBody: {
-    fontSize: 14,
-    lineHeight: 20,
+    ...typography.caption,
     textAlign: 'center',
-    marginTop: -8,
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   translatorAccessInput: {
+    ...typography.sectionTitle,
     borderWidth: 1,
-    borderRadius: radius.sm,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontSize: 20,
-    letterSpacing: 0,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
     textAlign: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   translatorKeypad: {
-    gap: 6,
-    marginBottom: 16,
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
   },
   translatorKeyRow: {
     flexDirection: 'row',
-    gap: 6,
+    gap: spacing.sm,
   },
   translatorKey: {
     flex: 1,
-    minHeight: 44,
-    borderRadius: radius.sm,
+    minHeight: layout.minTouchTarget,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   translatorKeyText: {
-    fontSize: 16,
-    fontWeight: '700',
+    ...typography.button,
   },
   timePickerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     height: 200,
-    marginBottom: 20,
+    marginBottom: spacing.lg,
   },
   timeColumn: {
     flex: 1,
@@ -1600,97 +1420,71 @@ const styles = StyleSheet.create({
     paddingVertical: 60,
   },
   timeOption: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: radius.sm,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+    borderRadius: radius.md,
     marginVertical: 2,
   },
-  timeOptionSelected: {},
+  // ASCII digits only, so these keep the display face without a locale fallback.
   timeOptionText: {
+    ...typography.numeralRow,
     fontSize: 20,
-    fontWeight: '500',
+    lineHeight: 24,
+    letterSpacing: -0.8,
   },
   timeSeparator: {
-    fontSize: 28,
-    fontWeight: '700',
-    marginHorizontal: 8,
+    ...typography.numeralRow,
+    marginHorizontal: spacing.sm,
   },
   modalButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: spacing.md,
   },
   modalButtonFlex: {
     flex: 1,
   },
-  modalButton: {
-    flex: 1,
-    padding: 14,
-    borderRadius: radius.sm,
-    alignItems: 'center',
-  },
-  modalButtonPrimary: {},
-  modalButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  modalButtonTextCancel: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
   languageList: {
-    marginBottom: 8,
+    marginBottom: spacing.sm,
     maxHeight: 420,
   },
   languageListContent: {
-    paddingBottom: 4,
+    paddingBottom: spacing.xs,
+  },
+  languageCancelButton: {
+    marginTop: spacing.lg,
   },
   languageOption: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 16,
-    paddingHorizontal: 12,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.md,
     borderBottomWidth: 1,
-    borderRadius: radius.sm,
-    marginBottom: 4,
+    borderRadius: radius.md,
+    marginBottom: spacing.xs,
   },
   languageInfo: {
     flex: 1,
   },
   languageNative: {
-    fontSize: 18,
-    fontWeight: '600',
+    ...typography.cardTitle,
     marginBottom: 2,
   },
   languageName: {
-    fontSize: 14,
+    ...typography.caption,
   },
   languageHint: {
-    fontSize: 12,
-    marginTop: 4,
+    ...typography.micro,
+    marginTop: spacing.xs,
+  },
+  deleteWarningIcon: {
+    alignSelf: 'center',
+    marginBottom: spacing.lg,
   },
   deleteWarningText: {
-    fontSize: 14,
+    ...typography.caption,
     textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 20,
-  },
-  themeSettingBlock: {
-    padding: 16,
-    borderBottomWidth: 1,
-    gap: spacing.md,
-  },
-  themeSegment: {
-    flexDirection: 'row',
-    borderWidth: 1,
-    borderRadius: radius.md,
-    overflow: 'hidden',
-  },
-  themeSegmentItem: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: layout.minTouchTarget,
+    marginBottom: spacing.lg,
   },
 });
