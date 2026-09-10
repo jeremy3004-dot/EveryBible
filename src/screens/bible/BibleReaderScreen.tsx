@@ -123,15 +123,25 @@ import { useReadingPlansStore } from '../../stores/readingPlansStore';
 import { useTranslatorReviewStore } from '../../stores/translatorReviewStore';
 import { getAdjacentAudioPlaybackSequenceEntry } from '../../stores/audioPlaybackSequenceModel';
 import { useAudioPlayer } from '../../hooks/useAudioPlayer';
-import { useAudioPosition } from '../../hooks/useAudioPosition';
 import { useFontSize } from '../../hooks/useFontSize';
 import { useDisplayFont } from '../../hooks/useDisplayFont';
 import { useShallow } from 'zustand/react/shallow';
 import { lightHaptic, selectionHaptic } from '../../utils/haptics';
 import { hexWithAlpha } from '../../utils/color';
 import { announceForAccessibility } from '../../utils/a11y';
-import { AudioProgressScrubber } from '../../components/audio/AudioProgressScrubber';
 import { ReaderPlaybackDock } from '../../components/audio/ReaderPlaybackDock';
+import {
+  ReaderAudioPortionPreviewGuard,
+  ReaderAudioPositionBridge,
+  ReaderAudioPositionValue,
+  ReaderListenProgress,
+  formatClockTime,
+} from './ReaderAudioPositionParts';
+import type {
+  ReaderAudioPositionBridgeHandle,
+  ReaderAudioPositionSnapshot,
+  ReaderFollowAlongPlaybackState,
+} from './ReaderAudioPositionParts';
 import { PlaybackControls } from '../../components/audio/PlaybackControls';
 import { AnnotationActionSheet } from '../../components/annotations/AnnotationActionSheet';
 import { HighlightedVerseText } from '../../components/bible/HighlightedVerseText';
@@ -157,7 +167,6 @@ import {
   getListenCountedNoticeViewModel,
   getPlanSessionTrailingActionState,
   getNextBibleTabBarVisibility,
-  getEstimatedFollowAlongVerse,
   getReaderAutoScrollTarget,
   getReaderInlineActiveVerse,
   getReaderVerseContentOffset,
@@ -165,7 +174,6 @@ import {
   LISTEN_COUNTED_NOTICE_TEST_ID,
   getReaderVerseLineHeight,
   resolveSwipeChapterNavigation,
-  hasAudioPositionRestarted,
   isActiveAudioTrackMatch,
   getNextFontSizeSheetVisibility,
   getNextTranslationSheetVisibility,
@@ -650,11 +658,25 @@ export function BibleReaderScreen() {
   // down by their measured height.
   const readerListHeaderHeightRef = useRef(0);
   const followAlongOffsetsRef = useRef<Record<number, number>>({});
-  // Monotonic follow-along: verse index only advances forward, never retreats.
-  // Prevents highlight flickering caused by interpolated position noise.
-  const lastFollowAlongVerseRef = useRef<number | null>(null);
-  const previousFollowAlongPositionRef = useRef<number | null>(null);
-  const previousFollowAlongTrackKeyRef = useRef<string | null>(null);
+  // The live audio position is consumed exclusively by the leaf components in
+  // ReaderAudioPositionParts so the ~250ms tick never re-renders this screen.
+  // The bridge mirrors it here for the async handlers that need a one-shot read,
+  // and owns the monotonic follow-along clamp behind its imperative handle.
+  const audioPositionRef = useRef<ReaderAudioPositionSnapshot>({
+    currentPosition: 0,
+    duration: 0,
+  });
+  const followAlongBridgeRef = useRef<ReaderAudioPositionBridgeHandle | null>(null);
+  const resetFollowAlongClamp = useCallback(() => {
+    followAlongBridgeRef.current?.reset();
+  }, []);
+  const [followAlongPlaybackState, setFollowAlongPlaybackState] =
+    useState<ReaderFollowAlongPlaybackState>({ verse: null, didRestart: false });
+  const handleFollowAlongPlaybackChange = useCallback((next: ReaderFollowAlongPlaybackState) => {
+    setFollowAlongPlaybackState((current) =>
+      current.verse === next.verse && current.didRestart === next.didRestart ? current : next
+    );
+  }, []);
   const [verses, setVerses] = useState<Verse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1037,11 +1059,10 @@ export function BibleReaderScreen() {
     startSleepTimer,
     changeBackgroundMusicChoice,
   } = useAudioPlayer(currentTranslation);
-  const { currentPosition, duration } = useAudioPosition({
-    translationId: currentTranslation,
-    bookId,
-    chapter,
-  });
+  const readerAudioTrack = useMemo(
+    () => ({ translationId: currentTranslation, bookId, chapter }),
+    [currentTranslation, bookId, chapter]
+  );
 
   const book = getBookById(bookId);
   // isRemoteAudioAvailable() can only say the manifest is addressable, not that this
@@ -1618,27 +1639,35 @@ export function BibleReaderScreen() {
     [colors.bibleAccent]
   );
   const selectedVerseSet = useMemo(() => new Set(selectedVerses), [selectedVerses]);
-  const selectedVerseAnnotations =
-    selectedVerseRanges.length > 0
-      ? annotations.filter(
-          (annotation) =>
-            annotation.deleted_at == null &&
-            selectedVerseRanges.some((range) => annotationOverlapsSelectionRange(annotation, range))
+  // One pass over the annotation list per selection change instead of three
+  // chained filters on every render (this used to run on every position tick).
+  const { selectedHighlightColors, selectedNoteAnnotation } = useMemo(() => {
+    const matching =
+      selectedVerseRanges.length > 0
+        ? annotations.filter(
+            (annotation) =>
+              annotation.deleted_at == null &&
+              selectedVerseRanges.some((range) =>
+                annotationOverlapsSelectionRange(annotation, range)
+              )
+          )
+        : [];
+    const highlights = matching.filter((annotation) => annotation.type === 'highlight');
+    return {
+      selectedHighlightColors: Array.from(
+        new Set(
+          highlights
+            .map((annotation) => annotation.color)
+            .filter(
+              (color): color is string => typeof color === 'string' && color.trim().length > 0
+            )
         )
-      : [];
-  const selectedHighlightAnnotations = selectedVerseAnnotations.filter(
-    (annotation) => annotation.type === 'highlight'
-  );
-  const selectedHighlightColors = Array.from(
-    new Set(
-      selectedHighlightAnnotations
-        .map((annotation) => annotation.color)
-        .filter((color): color is string => typeof color === 'string' && color.trim().length > 0)
-    )
-  );
-  const selectedNoteAnnotation = selectedVerseAnnotations.find(
-    (annotation) => annotation.type === 'note'
-  );
+      ),
+      selectedNoteAnnotation: matching.find((annotation) => annotation.type === 'note'),
+    };
+    // annotationOverlapsSelectionRange is a pure local helper over its arguments.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [annotations, selectedVerseRanges]);
   const isCurrentAudioChapter = isActiveAudioTrackMatch({
     translationId: currentTranslation,
     bookId,
@@ -1647,49 +1676,13 @@ export function BibleReaderScreen() {
     activeAudioBookId,
     activeAudioChapter,
   });
-  const rawFollowAlongVerse = getEstimatedFollowAlongVerse({
-    verses,
-    currentPosition,
-    duration,
-    fallbackVerse: focusVerse,
-    timestamps: chapterTimestamps,
-  });
-  // Clamp to monotonic advancement: never let the highlight go backward.
-  // This prevents flickering when interpolated position briefly overshoots
-  // a verse boundary and snaps back on the next real poll.
-  // Reset when the chapter changes (lastFollowAlongVerseRef is cleared in the
-  // chapter-change useEffect below via followAlongOffsetsRef reset).
-  const followAlongPlaybackState = (() => {
-    const activeTrackKey = isCurrentAudioChapter
-      ? `${activeAudioTranslationId ?? currentTranslation}:${activeAudioBookId}:${activeAudioChapter}`
-      : null;
-    if (previousFollowAlongTrackKeyRef.current !== activeTrackKey) {
-      previousFollowAlongTrackKeyRef.current = activeTrackKey;
-      previousFollowAlongPositionRef.current = null;
-      lastFollowAlongVerseRef.current = null;
-    }
-
-    const didRestart =
-      activeTrackKey != null &&
-      hasAudioPositionRestarted({
-        currentPosition,
-        previousPosition: previousFollowAlongPositionRef.current,
-        duration,
-      });
-    if (didRestart) {
-      lastFollowAlongVerseRef.current = null;
-    }
-    previousFollowAlongPositionRef.current = activeTrackKey != null ? currentPosition : null;
-
-    if (rawFollowAlongVerse == null) {
-      lastFollowAlongVerseRef.current = null;
-      return { verse: null, didRestart };
-    }
-    const last = lastFollowAlongVerseRef.current;
-    const next = last != null && rawFollowAlongVerse < last ? last : rawFollowAlongVerse;
-    lastFollowAlongVerseRef.current = next;
-    return { verse: next, didRestart };
-  })();
+  // The follow-along verse is resolved inside <ReaderAudioPositionBridge/>, which
+  // owns the position subscription and the monotonic clamp. It calls back here
+  // only when the resolved verse (or a playback restart) actually changes, so
+  // this screen re-renders roughly once per verse instead of ~4x per second.
+  const followAlongActiveTrackKey = isCurrentAudioChapter
+    ? `${activeAudioTranslationId ?? currentTranslation}:${activeAudioBookId}:${activeAudioChapter}`
+    : null;
   const activeFollowAlongVerse = followAlongPlaybackState.verse;
   const didRestartFollowAlongPlayback = followAlongPlaybackState.didRestart;
   const readerInlineActiveVerse = getReaderInlineActiveVerse({
@@ -2054,11 +2047,11 @@ export function BibleReaderScreen() {
     followAlongOffsetsRef.current = {};
     setSelectedVerses([]);
     // Reset monotonic follow-along state on chapter change
-    lastFollowAlongVerseRef.current = null;
+    resetFollowAlongClamp();
     if (focusVerse == null) {
       scrollReaderToOffset(0, false);
     }
-  }, [bookId, chapter, focusVerse, scrollReaderToOffset]);
+  }, [bookId, chapter, focusVerse, resetFollowAlongClamp, scrollReaderToOffset]);
 
   useEffect(() => {
     if (isLoading) {
@@ -2338,27 +2331,22 @@ export function BibleReaderScreen() {
 
     if (status !== 'playing') {
       setIsPreviewingAudioPortion(false);
-      return;
     }
+  }, [audioPortionShareDraft, isCurrentAudioChapter, isPreviewingAudioPortion, status]);
 
-    if (currentPosition < audioPortionEndMs) {
-      return;
-    }
-
+  // Reaching the end of the previewed range is a position-tick concern, so it
+  // lives in <ReaderAudioPortionPreviewGuard/> and is mounted only while a
+  // preview is actually running.
+  const isWatchingAudioPortionPreview =
+    isPreviewingAudioPortion &&
+    audioPortionShareDraft != null &&
+    isCurrentAudioChapter &&
+    status === 'playing';
+  const handleAudioPortionPreviewEnd = useCallback(() => {
     void togglePlayPause();
     void seekTo(audioPortionStartMs);
     setIsPreviewingAudioPortion(false);
-  }, [
-    audioPortionEndMs,
-    audioPortionShareDraft,
-    audioPortionStartMs,
-    currentPosition,
-    isCurrentAudioChapter,
-    isPreviewingAudioPortion,
-    seekTo,
-    status,
-    togglePlayPause,
-  ]);
+  }, [audioPortionStartMs, seekTo, togglePlayPause]);
 
   async function loadChapter() {
     const requestId = ++chapterLoadRequestIdRef.current;
@@ -2678,13 +2666,6 @@ export function BibleReaderScreen() {
       rootNavigationRef.navigate('More', { screen: 'Settings' });
     }
   };
-  const formatTime = (milliseconds: number) => {
-    const totalSeconds = Math.floor(milliseconds / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-  };
-
   const handleOpenBookPicker = () => {
     navigation.push('BiblePicker', {
       initialBookId: bookId,
@@ -2964,7 +2945,10 @@ export function BibleReaderScreen() {
         validationResult != null && typeof validationResult !== 'boolean'
           ? (validationResult as { duration?: number } | null | undefined)?.duration
           : null;
-      const fallbackDurationMs = isCurrentAudioChapter && duration > 0 ? Math.round(duration) : 0;
+      const { currentPosition: livePositionMs, duration: liveDurationMs } =
+        audioPositionRef.current;
+      const fallbackDurationMs =
+        isCurrentAudioChapter && liveDurationMs > 0 ? Math.round(liveDurationMs) : 0;
       const resolvedDurationMs = Math.max(
         validatedDurationMs ?? fallbackDurationMs,
         AUDIO_PORTION_MIN_DURATION_MS
@@ -2972,7 +2956,7 @@ export function BibleReaderScreen() {
       const initialStartMs = Math.max(
         0,
         Math.min(
-          isCurrentAudioChapter ? currentPosition : 0,
+          isCurrentAudioChapter ? livePositionMs : 0,
           resolvedDurationMs - AUDIO_PORTION_MIN_DURATION_MS
         )
       );
@@ -3039,7 +3023,8 @@ export function BibleReaderScreen() {
   };
 
   const handleToggleAudioPortionPreview = () => {
-    if (!audioPortionShareDraft || !isCurrentAudioChapter || duration <= 0) {
+    const { duration: liveDurationMs } = audioPositionRef.current;
+    if (!audioPortionShareDraft || !isCurrentAudioChapter || liveDurationMs <= 0) {
       return;
     }
 
@@ -3051,8 +3036,8 @@ export function BibleReaderScreen() {
       return;
     }
 
-    const nextStartMs = Math.max(0, Math.min(audioPortionStartMs, duration));
-    lastFollowAlongVerseRef.current = null;
+    const nextStartMs = Math.max(0, Math.min(audioPortionStartMs, liveDurationMs));
+    resetFollowAlongClamp();
     void seekTo(nextStartMs);
     if (status !== 'playing') {
       void togglePlayPause();
@@ -3762,15 +3747,19 @@ export function BibleReaderScreen() {
     void togglePlayPause();
   };
 
-  const handleListenModeSeek = (positionMs: number) => {
-    if (duration <= 0 || !isCurrentAudioChapter) {
-      return;
-    }
+  const handleListenModeSeek = useCallback(
+    (positionMs: number) => {
+      const { duration: liveDurationMs } = audioPositionRef.current;
+      if (liveDurationMs <= 0 || !isCurrentAudioChapter) {
+        return;
+      }
 
-    // Allow the verse highlight to jump backward after a user seek
-    lastFollowAlongVerseRef.current = null;
-    void seekTo(Math.max(0, Math.min(duration, positionMs)));
-  };
+      // Allow the verse highlight to jump backward after a user seek
+      resetFollowAlongClamp();
+      void seekTo(Math.max(0, Math.min(liveDurationMs, positionMs)));
+    },
+    [isCurrentAudioChapter, resetFollowAlongClamp, seekTo]
+  );
 
   const handlePreviousListenChapter = async () => {
     if (isCurrentAudioChapter) {
@@ -4578,9 +4567,6 @@ export function BibleReaderScreen() {
 
   const renderListenMode = () => {
     const listenStatus = isCurrentAudioChapter ? status : 'idle';
-    const listenPosition = isCurrentAudioChapter ? currentPosition : 0;
-    const listenDuration = isCurrentAudioChapter ? duration : 0;
-    const remainingDuration = Math.max(listenDuration - listenPosition, 0);
     const listenCountedNoticeViewModel = getListenCountedNoticeViewModel(listenCountedNotice);
 
     return (
@@ -4606,49 +4592,43 @@ export function BibleReaderScreen() {
             },
           ]}
         >
-          <AudioProgressScrubber
-            position={listenPosition}
-            duration={listenDuration}
+          <ReaderListenProgress
+            track={readerAudioTrack}
+            isCurrentAudioChapter={isCurrentAudioChapter}
             onSeek={handleListenModeSeek}
             trackColor={colors.bibleDivider}
             fillColor={colors.bibleAccent}
+            timeTextColor={colors.bibleSecondaryText}
             containerStyle={styles.listenProgressTouch}
             trackStyle={styles.listenProgressTrack}
             fillStyle={styles.listenProgressFill}
-          />
-
-          {listenCountedNoticeViewModel ? (
-            <Animated.View
-              testID={LISTEN_COUNTED_NOTICE_TEST_ID}
-              accessibilityLabel={listenCountedNoticeViewModel.accessibilityLabel}
-              entering={SlideInDown.springify().damping(20).stiffness(220)}
-              exiting={SlideOutDown.duration(180)}
-              style={[
-                styles.listenCountedNoticeCard,
-                {
-                  backgroundColor: colors.bibleSurface,
-                  borderColor: colors.accentGreen,
-                },
-              ]}
-            >
-              <Ionicons name="checkmark-circle" size={16} color={colors.accentGreen} />
-              <Text
-                style={[styles.listenCountedNoticeText, { color: colors.biblePrimaryText }]}
-                numberOfLines={2}
+            timeRowStyle={styles.listenTimeRow}
+            timeTextStyle={styles.listenTimeText}
+          >
+            {listenCountedNoticeViewModel ? (
+              <Animated.View
+                testID={LISTEN_COUNTED_NOTICE_TEST_ID}
+                accessibilityLabel={listenCountedNoticeViewModel.accessibilityLabel}
+                entering={SlideInDown.springify().damping(20).stiffness(220)}
+                exiting={SlideOutDown.duration(180)}
+                style={[
+                  styles.listenCountedNoticeCard,
+                  {
+                    backgroundColor: colors.bibleSurface,
+                    borderColor: colors.accentGreen,
+                  },
+                ]}
               >
-                {listenCountedNoticeViewModel.text}
-              </Text>
-            </Animated.View>
-          ) : null}
-
-          <View style={styles.listenTimeRow}>
-            <Text style={[styles.listenTimeText, { color: colors.bibleSecondaryText }]}>
-              {formatTime(listenPosition)}
-            </Text>
-            <Text style={[styles.listenTimeText, { color: colors.bibleSecondaryText }]}>
-              -{formatTime(remainingDuration)}
-            </Text>
-          </View>
+                <Ionicons name="checkmark-circle" size={16} color={colors.accentGreen} />
+                <Text
+                  style={[styles.listenCountedNoticeText, { color: colors.biblePrimaryText }]}
+                  numberOfLines={2}
+                >
+                  {listenCountedNoticeViewModel.text}
+                </Text>
+              </Animated.View>
+            ) : null}
+          </ReaderListenProgress>
 
           <PlaybackControls
             variant="chapter-only"
@@ -4847,6 +4827,43 @@ export function BibleReaderScreen() {
       </View>
     );
   };
+
+  // The virtualized reader always uses premium typography, so its render signature
+  // and FlatList renderItem can be hoisted here and kept stable across renders.
+  // Only the inputs `readerParagraphBlockPropsAreEqual` actually compares appear.
+  const premiumParagraphRenderSignature = useMemo(
+    () =>
+      [
+        '1',
+        scaleValue(typography.readingBody.fontSize),
+        getReaderVerseLineHeight(scaleValue(typography.readingBody.fontSize)),
+        scaleValue(typography.readingVerseNumber.fontSize),
+        scaleValue(typography.readingHeading.fontSize),
+        colors.biblePrimaryText,
+        colors.bibleAccent,
+        selectedVerseSet.size,
+        annotations.length,
+      ].join('|'),
+    [
+      annotations.length,
+      colors.bibleAccent,
+      colors.biblePrimaryText,
+      scaleValue,
+      selectedVerseSet.size,
+    ]
+  );
+  const renderParagraphBlock = useCallback(
+    ({ item, index }: { item: ReaderParagraph; index: number }): ReactElement => (
+      <ReaderParagraphBlock
+        paragraph={item}
+        index={index}
+        renderSignature={premiumParagraphRenderSignature}
+        activeVerse={readerInlineActiveVerse}
+        renderParagraphRef={renderParagraphRef}
+      />
+    ),
+    [premiumParagraphRenderSignature, readerInlineActiveVerse]
+  );
 
   const renderReaderVerses = (usePremiumTypography: boolean, renderVirtualized = false) => {
     const verseFontSize = usePremiumTypography
@@ -5120,33 +5137,20 @@ export function BibleReaderScreen() {
     // Signature of every non-position input that affects paragraph output. When
     // this changes we let memoized cells re-render; raw position ticks are absent
     // here, so ticks alone never invalidate cells.
-    const paragraphRenderSignature = [
-      usePremiumTypography ? '1' : '0',
-      verseFontSize,
-      verseLineHeight,
-      verseNumberSize,
-      headingFontSize,
-      colors.biblePrimaryText,
-      colors.bibleAccent,
-      selectedVerseSet.size,
-      annotations.length,
-    ].join('|');
+    const paragraphRenderSignature = usePremiumTypography
+      ? premiumParagraphRenderSignature
+      : [
+          '0',
+          verseFontSize,
+          verseLineHeight,
+          verseNumberSize,
+          headingFontSize,
+          colors.biblePrimaryText,
+          colors.bibleAccent,
+          selectedVerseSet.size,
+          annotations.length,
+        ].join('|');
     const premiumReaderListExtraData = `${readerInlineActiveVerse ?? 'none'}|${paragraphRenderSignature}`;
-    const renderParagraphBlock = ({
-      item,
-      index,
-    }: {
-      item: ReaderParagraph;
-      index: number;
-    }): ReactElement => (
-      <ReaderParagraphBlock
-        paragraph={item}
-        index={index}
-        renderSignature={paragraphRenderSignature}
-        activeVerse={readerInlineActiveVerse}
-        renderParagraphRef={renderParagraphRef}
-      />
-    );
 
     if (renderVirtualized) {
       return (
@@ -5533,6 +5537,23 @@ export function BibleReaderScreen() {
         },
       ]}
     >
+      <ReaderAudioPositionBridge
+        handleRef={followAlongBridgeRef}
+        track={readerAudioTrack}
+        verses={verses}
+        focusVerse={focusVerse}
+        timestamps={chapterTimestamps}
+        activeTrackKey={followAlongActiveTrackKey}
+        positionRef={audioPositionRef}
+        onFollowAlongChange={handleFollowAlongPlaybackChange}
+      />
+      {isWatchingAudioPortionPreview ? (
+        <ReaderAudioPortionPreviewGuard
+          track={readerAudioTrack}
+          endMs={audioPortionEndMs}
+          onReachEnd={handleAudioPortionPreviewEnd}
+        />
+      ) : null}
       {showPremiumReadMode ? renderPremiumReadLayout() : renderLegacyReaderLayout()}
       {renderPlanSessionBottomBar()}
 
@@ -6309,7 +6330,7 @@ export function BibleReaderScreen() {
                   color={colors.bibleSecondaryText}
                 />
                 <Text style={[styles.audioPortionRangeTime, { color: colors.biblePrimaryText }]}>
-                  {formatTime(audioPortionStartMs)}
+                  {formatClockTime(audioPortionStartMs)}
                 </Text>
               </View>
               <View style={styles.audioPortionRangeLabelWrap}>
@@ -6319,26 +6340,33 @@ export function BibleReaderScreen() {
                   color={colors.bibleSecondaryText}
                 />
                 <Text style={[styles.audioPortionRangeTime, { color: colors.biblePrimaryText }]}>
-                  {formatTime(audioPortionEndMs)}
+                  {formatClockTime(audioPortionEndMs)}
                 </Text>
               </View>
             </View>
 
-            <AudioRangeSelector
-              durationMs={audioPortionShareDraft?.durationMs ?? 0}
-              startMs={audioPortionStartMs}
-              endMs={audioPortionEndMs}
-              minRangeMs={AUDIO_PORTION_MIN_DURATION_MS}
-              previewPositionMs={isCurrentAudioChapter ? currentPosition : audioPortionStartMs}
-              trackColor={colors.bibleDivider}
-              selectionColor={colors.bibleElevatedSurface}
-              waveColor={colors.bibleDivider}
-              selectedWaveColor={colors.bibleSecondaryText}
-              playedWaveColor={colors.bibleAccent}
-              handleColor={colors.bibleAccent}
-              handleGripColor={colors.bibleSurface}
-              onStartChange={handleAudioPortionStartSeek}
-              onEndChange={handleAudioPortionEndSeek}
+            <ReaderAudioPositionValue
+              track={readerAudioTrack}
+              enabled={isCurrentAudioChapter}
+              fallbackMs={audioPortionStartMs}
+              render={(previewPositionMs) => (
+                <AudioRangeSelector
+                  durationMs={audioPortionShareDraft?.durationMs ?? 0}
+                  startMs={audioPortionStartMs}
+                  endMs={audioPortionEndMs}
+                  minRangeMs={AUDIO_PORTION_MIN_DURATION_MS}
+                  previewPositionMs={previewPositionMs}
+                  trackColor={colors.bibleDivider}
+                  selectionColor={colors.bibleElevatedSurface}
+                  waveColor={colors.bibleDivider}
+                  selectedWaveColor={colors.bibleSecondaryText}
+                  playedWaveColor={colors.bibleAccent}
+                  handleColor={colors.bibleAccent}
+                  handleGripColor={colors.bibleSurface}
+                  onStartChange={handleAudioPortionStartSeek}
+                  onEndChange={handleAudioPortionEndSeek}
+                />
+              )}
             />
 
             <TouchableOpacity
@@ -6359,7 +6387,7 @@ export function BibleReaderScreen() {
                 color={colors.biblePrimaryText}
               />
               <Text style={[styles.audioPortionPreviewLabel, { color: colors.biblePrimaryText }]}>
-                {formatTime(audioPortionRangeDurationMs)}
+                {formatClockTime(audioPortionRangeDurationMs)}
               </Text>
             </TouchableOpacity>
 

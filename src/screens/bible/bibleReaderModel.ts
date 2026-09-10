@@ -405,6 +405,27 @@ export const getNextChapterSessionMode = (
   return requestedMode;
 };
 
+/**
+ * `getEstimatedFollowAlongVerse` runs on every audio position tick (~250ms), so the
+ * ascending verse list is derived once per timestamps object and cached against that
+ * object identity instead of re-keying/sorting on every call. A WeakMap keeps the
+ * cache bounded: it disappears with the timestamps object itself.
+ */
+const sortedTimestampVerseNumbersCache = new WeakMap<Record<number, number>, number[]>();
+
+export const getSortedTimestampVerseNumbers = (timestamps: Record<number, number>): number[] => {
+  const cached = sortedTimestampVerseNumbersCache.get(timestamps);
+  if (cached) {
+    return cached;
+  }
+
+  const verseNums = Object.keys(timestamps)
+    .map(Number)
+    .sort((a, b) => a - b);
+  sortedTimestampVerseNumbersCache.set(timestamps, verseNums);
+  return verseNums;
+};
+
 export const getEstimatedFollowAlongVerse = ({
   verses,
   currentPosition,
@@ -423,7 +444,7 @@ export const getEstimatedFollowAlongVerse = ({
   // When exact timestamps are available, use them directly instead of word-weight estimation.
   // NOTE: timestamps are in SECONDS; currentPosition from expo-av is in MILLISECONDS.
   if (timestamps) {
-    const verseNums = (Object.keys(timestamps) as string[]).map(Number).sort((a, b) => a - b);
+    const verseNums = getSortedTimestampVerseNumbers(timestamps);
     if (verseNums.length > 0) {
       const currentPositionSeconds = (currentPosition + FOLLOW_ALONG_TIMESTAMP_LEAD_MS) / 1000;
       let current = verseNums[0];
