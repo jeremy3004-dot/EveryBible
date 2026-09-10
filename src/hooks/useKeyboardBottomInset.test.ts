@@ -1,66 +1,37 @@
-/* eslint-disable react-hooks/rules-of-hooks -- harness invokes the hook outside React by design */
-import test, { beforeEach, mock } from 'node:test';
+import test, { afterEach, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { mockModule, mockReactNative } from '../testing/mockModules';
+import { createReactHookRuntime, type MountedHook } from '../testing/reactHookRuntime';
 
 // iOS branch (utils/../useKeyboardBottomInset.android.test.ts covers the other).
 const rn = mockReactNative(mock, { os: 'ios' });
 
-// There is no renderer, so `react` is replaced with the smallest thing the hook
-// needs: numbered state slots that survive a re-render, and a useEffect that
-// runs its effect immediately and hands the cleanup back to the harness.
-let stateSlots: unknown[] = [];
-let slotIndex = 0;
-let cleanups: Array<() => void> = [];
-let runEffects = true;
+// There is no renderer, so `react` is the shared hook runtime: state slots that
+// survive a re-render, and effects that run when the harness commits them.
+const runtime = createReactHookRuntime();
+mockModule(mock, 'react', runtime.react);
 
-mockModule(mock, 'react', {
-  useState: <T>(initial: T | (() => T)) => {
-    const index = slotIndex++;
-    if (!(index in stateSlots)) {
-      stateSlots[index] = typeof initial === 'function' ? (initial as () => T)() : initial;
-    }
-    const setState = (next: T | ((previous: T) => T)) => {
-      stateSlots[index] =
-        typeof next === 'function' ? (next as (p: T) => T)(stateSlots[index] as T) : next;
-    };
-    return [stateSlots[index] as T, setState];
-  },
-  useEffect: (effect: () => void | (() => void)) => {
-    if (!runEffects) {
-      return;
-    }
-    const cleanup = effect();
-    if (typeof cleanup === 'function') {
-      cleanups.push(cleanup);
-    }
-  },
-});
+let view: MountedHook<[], number> | null = null;
 
-/** First render of a fresh component: fresh state slots, effects run. */
+/** First render of a fresh component: fresh state slots, effects committed. */
 async function mountHook(): Promise<number> {
-  stateSlots = [];
-  cleanups = [];
-  slotIndex = 0;
-  runEffects = true;
   const { useKeyboardBottomInset } = await import('./useKeyboardBottomInset');
-  return useKeyboardBottomInset();
+  view = runtime.mount(useKeyboardBottomInset);
+  view.flushEffects();
+  return view.result;
 }
 
 /** A re-render after state changed: same slots, mount effect does not re-run. */
 async function rerenderHook(): Promise<number> {
-  slotIndex = 0;
-  runEffects = false;
-  const { useKeyboardBottomInset } = await import('./useKeyboardBottomInset');
-  return useKeyboardBottomInset();
+  return view!.rerender();
 }
 
 const unmountHook = () => {
-  for (const cleanup of cleanups.splice(0)) {
-    cleanup();
-  }
+  runtime.unmountAll();
 };
+
+afterEach(unmountHook);
 
 beforeEach(() => {
   rn.Keyboard.removeAllListeners('keyboardWillShow');

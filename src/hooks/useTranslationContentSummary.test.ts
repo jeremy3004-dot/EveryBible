@@ -3,89 +3,42 @@
  * translation's coarse catalog coverage or the exact per-chapter coverage
  * resolved from an Every Language signed manifest.
  *
- * There is no renderer in this workspace, so `react` is replaced with a tiny
- * hook runtime: `useState` slots that survive a re-render, `useMemo` with real
- * dependency comparison, and `useEffect` queued until `commit()` runs it
- * (with the previous cleanup). That keeps the async manifest resolution, the
- * unmount guard, and the re-fetch-on-change behaviour observable exactly as
- * React would sequence them.
+ * There is no renderer in this workspace, so `react` is the shared hook runtime
+ * from `src/testing/reactHookRuntime.ts`: `useState` slots that survive a
+ * re-render, `useMemo` with real dependency comparison, and `useEffect` queued
+ * until `commit()` runs it (with the previous cleanup) and drains microtasks.
+ * That keeps the async manifest resolution, the unmount guard, and the
+ * re-fetch-on-change behaviour observable exactly as React would sequence them.
  */
 import test, { before, mock, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { mockModule, sourcePath } from '../testing/mockModules';
+import { createReactHookRuntime, type MountedHook } from '../testing/reactHookRuntime';
 import type { ElAudioManifest } from '../services/elMedia/elManifestModel';
 import type { BibleTranslation } from '../types';
 
 // ---------------------------------------------------------------------------
-// Minimal React hook runtime
+// React hook runtime
 // ---------------------------------------------------------------------------
 
-type Deps = readonly unknown[] | undefined;
+const runtime = createReactHookRuntime();
+mockModule(mock, 'react', runtime.react);
 
-interface EffectSlot {
-  deps: Deps;
-  cleanup?: (() => void) | void;
-}
+type Summary = ReturnType<
+  typeof import('./useTranslationContentSummary').useTranslationContentSummary
+>;
 
-interface MemoSlot {
-  deps: Deps;
-  value: unknown;
-}
-
-const stateSlots: unknown[] = [];
-const memoSlots: (MemoSlot | undefined)[] = [];
-const effectSlots: (EffectSlot | undefined)[] = [];
-let pendingEffects: { index: number; run: () => (() => void) | void; deps: Deps }[] = [];
-let stateCursor = 0;
-let memoCursor = 0;
-let effectCursor = 0;
+let view: MountedHook<[BibleTranslation | undefined], Summary> | null = null;
 let renderCount = 0;
 
-function depsChanged(previous: Deps, next: Deps): boolean {
-  if (!previous || !next || previous.length !== next.length) {
-    return true;
-  }
-  return previous.some((value, index) => !Object.is(value, next[index]));
-}
-
-const react = {
-  useState<S>(initial: S | (() => S)): [S, (next: S | ((current: S) => S)) => void] {
-    const index = stateCursor++;
-    if (!(index in stateSlots)) {
-      stateSlots[index] = typeof initial === 'function' ? (initial as () => S)() : initial;
-    }
-    const setState = (next: S | ((current: S) => S)) => {
-      stateSlots[index] =
-        typeof next === 'function' ? (next as (current: S) => S)(stateSlots[index] as S) : next;
-    };
-    return [stateSlots[index] as S, setState];
-  },
-  useMemo<T>(factory: () => T, deps: Deps): T {
-    const index = memoCursor++;
-    const slot = memoSlots[index];
-    if (!slot || depsChanged(slot.deps, deps)) {
-      memoSlots[index] = { deps, value: factory() };
-    }
-    return memoSlots[index]!.value as T;
-  },
-  useEffect(run: () => (() => void) | void, deps: Deps): void {
-    const index = effectCursor++;
-    const slot = effectSlots[index];
-    if (!slot || depsChanged(slot.deps, deps)) {
-      pendingEffects.push({ index, run, deps });
-    }
-  },
-};
-
-mockModule(mock, 'react', { ...react, default: react });
-
-/** Run the hook once, as one React render pass. Effects stay queued until flushed. */
-function render(translation: BibleTranslation | undefined) {
-  stateCursor = 0;
-  memoCursor = 0;
-  effectCursor = 0;
+/** Run the hook once, as one React render pass. Effects stay queued until committed. */
+function render(translation: BibleTranslation | undefined): Summary {
   renderCount += 1;
-  return hook(translation);
+  if (!view) {
+    view = runtime.mount(hook, translation);
+    return view.result;
+  }
+  return view.rerender(translation);
 }
 
 /** Let queued microtasks — including the hook's dynamic import — run to completion. */
@@ -97,31 +50,17 @@ const tick = () => new Promise((resolve) => setImmediate(resolve));
  * lazy `import()`, so the request is made a tick after the effect body runs.
  */
 async function commit(): Promise<void> {
-  const queued = pendingEffects;
-  pendingEffects = [];
-  for (const effect of queued) {
-    effectSlots[effect.index]?.cleanup?.();
-    effectSlots[effect.index] = { deps: effect.deps, cleanup: effect.run() };
-  }
-  await tick();
+  await view!.commit();
 }
 
 /** Tear the component down, as React does when the screen unmounts. */
 function unmount(): void {
-  for (const slot of effectSlots) {
-    slot?.cleanup?.();
-  }
-  effectSlots.length = 0;
-  stateSlots.length = 0;
-  memoSlots.length = 0;
-  pendingEffects = [];
+  runtime.unmountAll();
 }
 
 function resetHookRuntime(): void {
-  effectSlots.length = 0;
-  stateSlots.length = 0;
-  memoSlots.length = 0;
-  pendingEffects = [];
+  runtime.unmountAll();
+  view = null;
   renderCount = 0;
 }
 
@@ -398,13 +337,20 @@ test('a manifest that arrives after unmount is discarded', async () => {
       deliver = resolve;
     });
 
-  render(makeElTranslation());
+  const translation = makeElTranslation();
+  const beforeUnmount = render(translation);
   await commit();
   unmount();
   deliver(makeManifest({ PSA: [117] }));
   await tick();
 
-  assert.deepEqual(stateSlots, [], 'no state may be written after the cleanup ran');
+  // A state write after the cleanup would change the memo's inputs, so an
+  // identical summary on the next pass is proof nothing was written.
+  assert.equal(
+    view!.rerender(translation),
+    beforeUnmount,
+    'no state may be written after the cleanup ran'
+  );
 });
 
 test('switching translation re-requests the manifest for the new one', async () => {

@@ -1,84 +1,94 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import test from 'node:test';
-import { URL } from 'node:url';
-import { runInNewContext } from 'node:vm';
-import ts from 'typescript';
-import { createSyncCoordinator } from './syncCoordinator';
+import test, { afterEach, before, beforeEach, mock } from 'node:test';
+import { mockModule, mockReactNative, sourcePath } from '../testing/mockModules';
+import { createReactHookRuntime } from '../testing/reactHookRuntime';
 
 type Connectivity = { isConnected: boolean | null; isInternetReachable: boolean | null };
 
+// Focused on one thing: the NetInfo subscriber inside useSync, and which
+// connectivity transitions it treats as a reconnect worth syncing. The rest of
+// the hook's lifecycle lives in useSync.behavior.test.ts.
+const runtime = createReactHookRuntime();
+mockModule(mock, 'react', runtime.react);
+mockReactNative(mock, { os: 'ios' });
+
+let listener: ((state: Connectivity) => void) | null = null;
+let unsubscribed = false;
+mockModule(mock, '@react-native-community/netinfo', {
+  default: {
+    addEventListener: (next: (state: Connectivity) => void) => {
+      listener = next;
+      return () => {
+        unsubscribed = true;
+        listener = null;
+      };
+    },
+  },
+});
+
+mockModule(mock, sourcePath('services/supabase/index.ts'), {
+  supabase: { auth: { startAutoRefresh: () => {}, stopAutoRefresh: () => {} } },
+  isSupabaseConfigured: () => true,
+  getCurrentUserId: async () => auth.user?.uid ?? null,
+});
+
+let syncCalls = 0;
+mockModule(mock, sourcePath('services/sync/index.ts'), {
+  syncAll: async () => {
+    syncCalls += 1;
+  },
+  pullFromCloud: async () => ({ success: true }),
+});
+
+const auth = {
+  user: { uid: 'A' } as { uid: string } | null,
+  authGeneration: 1,
+  isAuthenticated: true,
+  isInitialized: true,
+  reconcileUserBoundary: () => {},
+};
+const useAuthStore = Object.assign(<T>(selector: (state: typeof auth) => T): T => selector(auth), {
+  getState: () => auth,
+});
+mockModule(mock, sourcePath('stores/authStore.ts'), { useAuthStore });
+
+let useSync: typeof import('./useSync').useSync;
+
+before(async () => {
+  ({ useSync } = await import('./useSync'));
+});
+
+beforeEach(() => {
+  listener = null;
+  unsubscribed = false;
+  syncCalls = 0;
+  auth.user = { uid: 'A' };
+  auth.authGeneration = 1;
+  auth.isAuthenticated = true;
+  auth.isInitialized = true;
+});
+
+afterEach(() => {
+  runtime.unmountAll();
+});
+
+/**
+ * Mount with nobody signed in so the initial-sync effect stays quiet, then
+ * restore the session: what follows is only what the network subscriber does.
+ */
 function mountNetworkEffect() {
-  const effects: Array<() => void | (() => void)> = [];
-  let listener!: (state: Connectivity) => void;
-  let syncCalls = 0;
-  let unsubscribed = false;
-  const auth = {
-    user: { uid: 'A' },
-    authGeneration: 1,
-    isAuthenticated: true,
-    isInitialized: true,
-    reconcileUserBoundary: () => {},
-  };
-  const useAuthStore = Object.assign(
-    (selector: (state: typeof auth) => unknown) => selector(auth),
-    {
-      getState: () => auth,
-    }
-  );
-  const dependencies: Record<string, unknown> = {
-    react: {
-      useEffect: (effect: () => void | (() => void)) => effects.push(effect),
-      useRef: (current: unknown) => ({ current }),
-      useCallback: (callback: unknown) => callback,
-      useMemo: (factory: () => unknown) => factory(),
-    },
-    'react-native': { AppState: { currentState: 'active' } },
-    '@react-native-community/netinfo': {
-      default: {
-        addEventListener: (next: typeof listener) => {
-          listener = next;
-          return () => {
-            unsubscribed = true;
-          };
-        },
-      },
-    },
-    '../services/supabase': { supabase: {} },
-    '../services/sync': {
-      syncAll: async () => {
-        syncCalls += 1;
-      },
-      pullFromCloud: async () => ({ success: true }),
-    },
-    '../stores/authStore': { useAuthStore },
-    './syncCoordinator': { createSyncCoordinator },
-  };
-  const compiled = ts.transpileModule(
-    readFileSync(new URL('./useSync.ts', import.meta.url), 'utf8'),
-    {
-      compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-    }
-  ).outputText;
-  const exports = {};
-  runInNewContext(compiled, {
-    exports,
-    require: (name: string) => {
-      assert.ok(Object.hasOwn(dependencies, name), `Unexpected dependency: ${name}`);
-      return dependencies[name];
-    },
-  });
-  (exports as { useSync: () => unknown }).useSync();
-  // Exercise the network effect itself; the independent initial/auth lifecycle
-  // effects are not mounted in this focused subscriber test.
-  const cleanup = effects[1]();
+  auth.isAuthenticated = false;
+  const view = runtime.mount(useSync);
+  view.flushEffects();
+  auth.isAuthenticated = true;
+
   return {
     emit: async (state: Connectivity) => {
-      listener(state);
+      listener?.(state);
       await new Promise<void>((resolve) => setImmediate(resolve));
     },
     calls: () => syncCalls,
-    cleanup,
+    cleanup: view.unmount,
     unsubscribed: () => unsubscribed,
   };
 }
@@ -95,7 +105,7 @@ test('network details updates do not repeat cloud sync while still online', asyn
   await network.emit(online);
   for (let index = 0; index < 10; index += 1) await network.emit(online);
   assert.equal(network.calls(), 1, 'one reconnect should cause one cloud sync');
-  if (network.cleanup) network.cleanup();
+  network.cleanup();
   assert.equal(network.unsubscribed(), true);
 });
 

@@ -8,6 +8,11 @@ import { createInstance } from 'i18next';
 import ts from 'typescript';
 import { zh } from '../i18n/locales/zh';
 import type { useAudioStore as AudioStore } from '../stores/audioStore';
+import { createReactHookRuntime } from '../testing/reactHookRuntime';
+
+// `react` is the shared hook runtime rather than a stub written here; effects
+// stay queued (these cases never commit them), state slots behave properly.
+const runtime = createReactHookRuntime();
 
 function loadModule<T>(path: string, dependencies: Record<string, unknown>, allowLocal = false): T {
   const url = new URL(path, import.meta.url);
@@ -49,13 +54,7 @@ async function mountPlayer(failure: 'unavailable' | 'lookup' | 'playback') {
   const { useAudioPlayer: invokePlayerHook } = loadModule<{
     useAudioPlayer: () => { playChapter: (bookId: string, chapter: number) => Promise<void> };
   }>('./useAudioPlayer.ts', {
-    react: {
-      useCallback: (callback: unknown) => callback,
-      useEffect: () => {},
-      useMemo: (factory: () => unknown) => factory(),
-      useRef: (current: unknown) => ({ current }),
-      useState: (initial: () => unknown) => [initial(), () => {}],
-    },
+    react: runtime.react,
     'react-i18next': { useTranslation: () => ({ t: i18n.t.bind(i18n) }) },
     'zustand/react/shallow': { useShallow: (selector: unknown) => selector },
     '../stores/audioStore': { useAudioStore },
@@ -103,7 +102,7 @@ async function mountPlayer(failure: 'unavailable' | 'lookup' | 'playback') {
     '../stores/audioPlaybackCompletionModel': {},
     '../stores/audioPlaybackSequenceModel': {},
   });
-  await invokePlayerHook().playChapter('GEN', 1);
+  await runtime.mount(invokePlayerHook).result.playChapter('GEN', 1);
   return { state: store.getState(), clearedNowPlaying, playbackAttempts };
 }
 

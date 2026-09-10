@@ -1,115 +1,23 @@
-/* eslint-disable react-hooks/rules-of-hooks -- harness invokes the hook outside React by design */
 import test, { after, afterEach, before, beforeEach, mock } from 'node:test';
 import type { MockTimers } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { mockMmkvStorage, mockModule, sourcePath } from '../testing/mockModules';
+import { createReactHookRuntime } from '../testing/reactHookRuntime';
 import type { AudioChapterMap } from '../services/bible/contentAvailability';
 
 // ---------------------------------------------------------------------------
 // A deterministic hook harness.
 //
-// No React renderer is installed, so `react` itself is replaced with hook
-// implementations backed by per-instance slot arrays: useState keeps its value
-// in a slot, useRef hands back a stable object, useMemo/useCallback compare
-// deps with Object.is, and useEffect collects work that runs when a test calls
-// `flushEffects()` (cleanups first, then effects, as React commits them).
-// Re-renders are explicit: nothing re-runs until a test asks for it.
+// No React renderer is installed, so `react` itself is replaced with the shared
+// runtime from `src/testing/reactHookRuntime.ts`: per-instance slots for
+// useState / useRef / useMemo / useCallback, dependency comparison with
+// Object.is, and effects that only run when a test commits them (cleanups
+// first, then effects, as React commits them). Re-renders are explicit:
+// nothing re-runs until a test asks for it.
 // ---------------------------------------------------------------------------
 
-interface EffectRecord {
-  deps: unknown[] | undefined;
-  effect: () => void | (() => void);
-  cleanup?: () => void;
-  pending: boolean;
-}
-
-interface HookInstance {
-  slots: unknown[];
-  cursor: number;
-  effects: EffectRecord[];
-  effectCursor: number;
-}
-
-let activeInstance: HookInstance | null = null;
-
-const requireInstance = (): HookInstance => {
-  if (!activeInstance) {
-    throw new Error('A hook was called outside of a render pass');
-  }
-  return activeInstance;
-};
-
-const depsChanged = (previous: unknown[] | undefined, next: unknown[] | undefined): boolean =>
-  !previous ||
-  !next ||
-  previous.length !== next.length ||
-  previous.some((value, index) => !Object.is(value, next[index]));
-
-const useStateMock = <T>(initial: T | (() => T)): [T, (next: T | ((prev: T) => T)) => void] => {
-  const instance = requireInstance();
-  const index = instance.cursor++;
-  if (!instance.slots[index]) {
-    instance.slots[index] = {
-      value: typeof initial === 'function' ? (initial as () => T)() : initial,
-    };
-  }
-  const slot = instance.slots[index] as { value: T };
-  const setState = (next: T | ((prev: T) => T)) => {
-    slot.value = typeof next === 'function' ? (next as (prev: T) => T)(slot.value) : next;
-  };
-  return [slot.value, setState];
-};
-
-const useRefMock = <T>(initial: T): { current: T } => {
-  const instance = requireInstance();
-  const index = instance.cursor++;
-  if (!instance.slots[index]) {
-    instance.slots[index] = { current: initial };
-  }
-  return instance.slots[index] as { current: T };
-};
-
-const useMemoMock = <T>(factory: () => T, deps?: unknown[]): T => {
-  const instance = requireInstance();
-  const index = instance.cursor++;
-  const slot = instance.slots[index] as { deps: unknown[] | undefined; value: T } | undefined;
-  if (!slot || depsChanged(slot.deps, deps)) {
-    const value = factory();
-    instance.slots[index] = { deps, value };
-    return value;
-  }
-  return slot.value;
-};
-
-const useCallbackMock = <T>(callback: T, deps?: unknown[]): T => useMemoMock(() => callback, deps);
-
-const useEffectMock = (effect: () => void | (() => void), deps?: unknown[]): void => {
-  const instance = requireInstance();
-  const index = instance.effectCursor++;
-  const slot = instance.effects[index];
-  if (!slot) {
-    instance.effects[index] = { deps, effect, pending: true };
-    return;
-  }
-  if (depsChanged(slot.deps, deps)) {
-    slot.pending = true;
-  }
-  slot.deps = deps;
-  slot.effect = effect;
-};
-
-const useSyncExternalStoreMock = <T>(_subscribe: unknown, getSnapshot: () => T): T => getSnapshot();
-
-const reactExports = {
-  useState: useStateMock,
-  useRef: useRefMock,
-  useMemo: useMemoMock,
-  useCallback: useCallbackMock,
-  useEffect: useEffectMock,
-  useSyncExternalStore: useSyncExternalStoreMock,
-  useDebugValue: () => {},
-};
+const runtime = createReactHookRuntime();
 
 // ---------------------------------------------------------------------------
 // Recording doubles for every native-backed collaborator
@@ -268,7 +176,7 @@ const mockPackage = (specifier: string, exports: Record<string, unknown>) => {
   }
 };
 
-mockPackage('react', { ...reactExports, default: reactExports });
+mockPackage('react', runtime.react);
 mockPackage('react-i18next', { useTranslation: () => ({ t: translate }) });
 mockPackage('zustand/react/shallow', { useShallow: (selector: unknown) => selector });
 
@@ -361,7 +269,7 @@ before(async () => {
 });
 
 interface MountedPlayer {
-  api: PlayerApi;
+  readonly api: PlayerApi;
   rerender: () => PlayerApi;
   flushEffects: () => void;
   unmount: () => void;
@@ -371,58 +279,21 @@ interface MountedPlayer {
 // The hook owns three `setInterval`s (position interpolation, listening
 // telemetry, sleep timer) that only stop when React unmounts the effects; a
 // test that leaves one running keeps the whole runner process alive.
-const mountedPlayers = new Set<MountedPlayer>();
-
 const mountPlayer = (translationId = 'bsb'): MountedPlayer => {
-  const instance: HookInstance = { slots: [], cursor: 0, effects: [], effectCursor: 0 };
-
-  const render = () => {
-    const previous = activeInstance;
-    activeInstance = instance;
-    instance.cursor = 0;
-    instance.effectCursor = 0;
-    try {
-      mounted.api = useAudioPlayer(translationId);
-    } finally {
-      activeInstance = previous;
-    }
-  };
-
-  const flushEffects = () => {
-    const pending = instance.effects.filter((record) => record.pending);
-    for (const record of pending) {
-      record.cleanup?.();
-      record.cleanup = undefined;
-    }
-    for (const record of pending) {
-      record.pending = false;
-      const cleanup = record.effect();
-      record.cleanup = typeof cleanup === 'function' ? cleanup : undefined;
-    }
-  };
-
-  const mounted: MountedPlayer = {
-    api: undefined as unknown as PlayerApi,
+  const view = runtime.mount(useAudioPlayer, translationId);
+  view.flushEffects();
+  return {
+    get api() {
+      return view.result;
+    },
     rerender: () => {
-      render();
-      flushEffects();
-      return mounted.api;
+      view.rerender();
+      view.flushEffects();
+      return view.result;
     },
-    flushEffects,
-    unmount: () => {
-      for (const record of instance.effects) {
-        record.cleanup?.();
-        record.cleanup = undefined;
-      }
-      instance.effects.length = 0;
-      mountedPlayers.delete(mounted);
-    },
+    flushEffects: view.flushEffects,
+    unmount: view.unmount,
   };
-
-  mountedPlayers.add(mounted);
-  render();
-  flushEffects();
-  return mounted;
 };
 
 const store = () => useAudioStore.getState();
@@ -453,24 +324,10 @@ const BASE_TIME = 1_700_000_000_000;
 // enables `mock.timers`, and a leaked one keeps the runner process alive
 // forever instead of failing. Recording live handles turns that hang into an
 // ordinary assertion failure naming the test that leaked.
-const liveIntervals = new Set<ReturnType<typeof setInterval>>();
-const realSetInterval = globalThis.setInterval;
-const realClearInterval = globalThis.clearInterval;
-globalThis.setInterval = ((...args: Parameters<typeof setInterval>) => {
-  const handle = realSetInterval(...args);
-  liveIntervals.add(handle);
-  return handle;
-}) as typeof setInterval;
-globalThis.clearInterval = ((handle?: ReturnType<typeof setInterval>) => {
-  if (handle !== undefined) {
-    liveIntervals.delete(handle);
-  }
-  return realClearInterval(handle);
-}) as typeof clearInterval;
+const intervalLeakGuard = runtime.installIntervalLeakGuard();
 
 after(() => {
-  globalThis.setInterval = realSetInterval;
-  globalThis.clearInterval = realClearInterval;
+  intervalLeakGuard.restore();
 });
 
 beforeEach(() => {
@@ -505,15 +362,8 @@ beforeEach(() => {
 
 afterEach(() => {
   // React unmounts the hook between screens; the harness has to do it by hand.
-  for (const player of Array.from(mountedPlayers)) {
-    player.unmount();
-  }
-
-  const leaked = liveIntervals.size;
-  for (const handle of Array.from(liveIntervals)) {
-    clearInterval(handle);
-  }
-  assert.equal(leaked, 0, 'the test left a real setInterval running');
+  runtime.unmountAll();
+  intervalLeakGuard.assertNoLeaks();
 });
 
 // ---------------------------------------------------------------------------

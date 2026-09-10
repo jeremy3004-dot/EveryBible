@@ -1,30 +1,17 @@
-/* eslint-disable react-hooks/rules-of-hooks -- harness invokes the hook outside React by design */
-import test, { before, beforeEach, mock } from 'node:test';
+import test, { afterEach, before, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { mockModule, sourcePath } from '../testing/mockModules';
+import { createReactHookRuntime } from '../testing/reactHookRuntime';
 import { createReactNativeStub } from '../testing/reactNativeStub';
 
 /**
- * There is no React renderer installed, so `react` is replaced with the
- * smallest host that makes the hook run: effects fire immediately and their
- * cleanups are collected, refs persist per mount, and `useSyncExternalStore`
- * reads the Zustand snapshot directly. The privacy store itself is real.
+ * There is no React renderer installed, so `react` is the shared hook runtime:
+ * refs persist per mount, effects run when the harness commits them, and
+ * `useSyncExternalStore` reads the Zustand snapshot directly. The privacy store
+ * itself is real.
  */
-const cleanups: Array<() => void> = [];
-const reactStub = {
-  useEffect: (effect: () => void | (() => void)) => {
-    const cleanup = effect();
-    if (typeof cleanup === 'function') {
-      cleanups.push(cleanup);
-    }
-  },
-  useRef: <T>(initial: T) => ({ current: initial }),
-  useCallback: <T>(callback: T) => callback,
-  useMemo: <T>(factory: () => T) => factory(),
-  useDebugValue: () => {},
-  useSyncExternalStore: <T>(_subscribe: unknown, getSnapshot: () => T): T => getSnapshot(),
-};
-mockModule(mock, 'react', { ...reactStub, default: reactStub });
+const runtime = createReactHookRuntime();
+mockModule(mock, 'react', runtime.react);
 
 const rn = createReactNativeStub({ nativeModules: {} });
 mockModule(mock, 'react-native', rn);
@@ -68,13 +55,9 @@ let usePrivacyStore: typeof import('../stores/privacyStore').usePrivacyStore;
 
 /** Mounts the hook and returns its unmount function. */
 const mountPrivacyLock = () => {
-  const before = cleanups.length;
-  usePrivacyLock();
-  return () => {
-    for (const cleanup of cleanups.splice(before)) {
-      cleanup();
-    }
-  };
+  const view = runtime.mount(usePrivacyLock);
+  view.flushEffects();
+  return view.unmount;
 };
 
 before(async () => {
@@ -82,9 +65,12 @@ before(async () => {
   ({ usePrivacyStore } = await import('../stores/privacyStore'));
 });
 
+afterEach(() => {
+  runtime.unmountAll();
+});
+
 beforeEach(() => {
   usePrivacyStore.setState(usePrivacyStore.getInitialState(), true);
-  cleanups.length = 0;
   rn.AppState.currentState = 'active';
 });
 

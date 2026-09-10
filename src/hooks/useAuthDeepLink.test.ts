@@ -1,16 +1,12 @@
-import test, { before, beforeEach, mock } from 'node:test';
+import test, { afterEach, before, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { mockModule, sourcePath } from '../testing/mockModules';
+import { createReactHookRuntime } from '../testing/reactHookRuntime';
 
-// There is no React renderer in this workspace, so `react` is replaced with a
-// useEffect that runs its effect immediately and hands back the cleanup — that
-// is the whole surface this hook uses.
-const effectCleanups: Array<(() => void) | void> = [];
-mockModule(mock, 'react', {
-  useEffect: (effect: () => void | (() => void)) => {
-    effectCleanups.push(effect());
-  },
-});
+// There is no React renderer in this workspace, so `react` is the shared hook
+// runtime: the hook is mounted by hand and its effects run at commit time.
+const runtime = createReactHookRuntime();
+mockModule(mock, 'react', runtime.react);
 
 type UrlListener = (event: { url: string }) => void;
 
@@ -53,8 +49,11 @@ before(async () => {
   ({ useAuthDeepLink } = await import('./useAuthDeepLink'));
 });
 
+afterEach(() => {
+  runtime.unmountAll();
+});
+
 beforeEach(() => {
-  effectCleanups.length = 0;
   handledUrls.length = 0;
   linking.getInitialURL = async () => null;
   linking.listeners = [];
@@ -63,13 +62,15 @@ beforeEach(() => {
 
 /** Runs the hook's effect and returns the unmount handler React would call. */
 const mountHook = (): (() => void) => {
-  // There is no renderer here: `react` is mocked with a useEffect that runs the
-  // effect inline, so calling the hook directly is how it gets exercised.
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  useAuthDeepLink();
-  const cleanup = effectCleanups[effectCleanups.length - 1];
-  assert.equal(typeof cleanup, 'function', 'the effect must return a cleanup function');
-  return cleanup as () => void;
+  const subscriptions = linking.listeners.length;
+  const view = runtime.mount(useAuthDeepLink);
+  view.flushEffects();
+  assert.equal(
+    linking.listeners.length,
+    subscriptions + 1,
+    'the effect must subscribe, so unmounting it has something to clean up'
+  );
+  return view.unmount;
 };
 
 /** Lets already-resolved promise chains inside the effect run to completion. */

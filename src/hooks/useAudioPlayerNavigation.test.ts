@@ -6,6 +6,11 @@ import { URL } from 'node:url';
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
 import type { useAudioStore as AudioStore } from '../stores/audioStore';
+import { createReactHookRuntime } from '../testing/reactHookRuntime';
+
+// `react` is the shared hook runtime rather than a stub written here; effects
+// stay queued (these cases never commit them), state slots behave properly.
+const runtime = createReactHookRuntime();
 
 function loadModule<T>(path: string, dependencies: Record<string, unknown>, allowLocal = false): T {
   const url = new URL(path, import.meta.url);
@@ -43,16 +48,10 @@ function mountPlayer() {
   let plays = 0;
   let loads = 0;
   let loaded = false;
-  const { useAudioPlayer: render } = loadModule<{ useAudioPlayer: PlayerHook }>(
+  const { useAudioPlayer: playerHook } = loadModule<{ useAudioPlayer: PlayerHook }>(
     './useAudioPlayer.ts',
     {
-      react: {
-        useCallback: (callback: unknown) => callback,
-        useEffect: () => {},
-        useMemo: (factory: () => unknown) => factory(),
-        useRef: (current: unknown) => ({ current }),
-        useState: (initial: () => unknown) => [initial(), () => {}],
-      },
+      react: runtime.react,
       'react-i18next': { useTranslation: () => ({ t: (key: string) => key }) },
       'zustand/react/shallow': { useShallow: (selector: unknown) => selector },
       '../stores/audioStore': { useAudioStore },
@@ -128,6 +127,9 @@ function mountPlayer() {
       },
     }
   );
+  // Every `render()` is a fresh mount: this hook's navigation surface reads the
+  // store on each pass, and these cases never commit its effects.
+  const render = () => runtime.mount(playerHook).result;
   return { render, store, counts: () => ({ plays, loads }) };
 }
 

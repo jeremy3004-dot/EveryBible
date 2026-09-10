@@ -106,6 +106,7 @@ default to the production implementation.
 | `mockSupabaseModule(mock, fake, { configured })`                                    | Points `../supabase` and `../supabase/client` at the fake.                                                                                                                                                                                                                                      |
 | `mockMmkvStorage(mock, seed?)`                                                      | In-memory MMKV so persisted Zustand stores hydrate. Returns the backing `Map` for seeding/inspection.                                                                                                                                                                                           |
 | `mockReactNative(mock, { os, version, width, height })` / `createReactNativeStub()` | `Platform`, `AppState.emit()`, `Keyboard.emit()`, `Linking`, `Alert`, `I18nManager`, `NativeEventEmitter`, `NativeModules`; recorded side effects under `__recorded`. Add fields to the stub before mocking if a module needs more.                                                             |
+| `createReactHookRuntime()`                                                          | A `react` replacement (`runtime.react`) plus `mount(hook, ...args)` → `{ result, renderCount, cleanupCount, rerender, flushEffects, commit, unmount }`, `mountedInstances` / `unmountAll()` for `afterEach`, `setContextValue()`, and `installIntervalLeakGuard()`.                             |
 
 ### Gotchas the first wave hit
 
@@ -114,17 +115,19 @@ default to the production implementation.
   300 times all seeing the post-expiry time. Step the clock in interval-sized
   increments (a `tickSeconds(n)` helper) when the callback reads the time.
 - **Hooks that own intervals must be unmounted, or the file never exits.**
-  Track every mounted harness instance and unmount in `afterEach`; wrap
-  `setInterval`/`clearInterval` at module scope and assert nothing leaked.
-  `useAudioPlayer.test.ts` is the reference implementation.
+  `runtime.unmountAll()` in `afterEach`, followed by
+  `installIntervalLeakGuard().assertNoLeaks()`. `useAudioPlayer.test.ts` is the
+  reference implementation.
 - **Calendar logic needs a pinned zone.** Set `process.env.TZ` at the top of a
   dedicated test file (each file is its own process). `progressStore.timezone.test.ts`
   covers day boundaries and DST that way.
 - **Import-time constants need one file per scenario** (`utils/platform.*.test.ts`,
   `supabase/client.*.behavior.test.ts`).
-- **Hook harnesses trip `react-hooks/rules-of-hooks`.** Put
+- **Hook harnesses trip `react-hooks/rules-of-hooks`.** Going through
+  `runtime.mount(useThing)` avoids it, because the hook is passed as a value
+  rather than called. A file that still calls a hook by name needs
   `/* eslint-disable react-hooks/rules-of-hooks -- harness invokes the hook outside React by design */`
-  at the top of that test file.
+  at the top.
 - **`@supabase/supabase-js` is a dual package.** Under tsx the importer may
   `require` it, so mock both the bare specifier and
   `createRequire(import.meta.url).resolve('@supabase/supabase-js')`.
@@ -142,13 +145,40 @@ SQLite: `bibleDatabase.ts` talks to `expo-sqlite`. Node 26 ships `node:sqlite`;
 an adapter that maps `execAsync` / `getAllAsync` / `getFirstAsync` / `runAsync`
 onto a `DatabaseSync` gives real SQL execution in tests.
 
-React hooks: there is no renderer installed. Test the logic hooks delegate to
-(models, coordinators, stores). Where a hook must be exercised, mock `react`
-with a small deterministic runtime: per-render state slots for `useState`,
-stable `useRef`, dependency-comparing `useMemo` / `useCallback`, and a
-`useEffect` queue that runs (with the previous cleanup) when the test calls a
-`flushEffects()` / `commit()` helper that also drains microtasks. See
-`useSync.behavior.test.ts` and `useAudioPlayer.test.ts`.
+React hooks: there is no renderer installed. Prefer testing the logic hooks
+delegate to (models, coordinators, stores). Where a hook itself must be
+exercised, use `createReactHookRuntime()` from `src/testing/reactHookRuntime.ts`
+instead of writing another harness:
+
+```ts
+const runtime = createReactHookRuntime();
+mockModule(mock, 'react', runtime.react);
+afterEach(() => runtime.unmountAll());
+
+const view = runtime.mount(useThing, 'bsb');
+await view.commit(); // run queued effects, then drain microtasks
+view.result.play(); // `result` is a getter: always the latest render
+view.rerender(); // re-render with the previous arguments
+view.unmount(); // run every live cleanup
+```
+
+Two things it is easy to get wrong on your own:
+
+- **Effects only run at commit.** `mount()` and `rerender()` queue them.
+  `flushEffects()` runs them synchronously; `commit()` runs them and then
+  drains microtasks, which is what a hook needs when it reaches a collaborator
+  through a lazy `import()` — the call is made a tick after the effect body.
+  `useTranslationContentSummary.test.ts` depends on that.
+- **A hook that owns an interval must be unmounted, or the file never exits.**
+  `runtime.installIntervalLeakGuard()` wraps `setInterval` / `clearInterval`;
+  call `assertNoLeaks()` in `afterEach` (after `unmountAll()`) to turn a hang
+  into an ordinary failure naming the test that leaked, and `restore()` in
+  `after()`. `useAudioPlayer.test.ts` is the reference use.
+
+`setState` writes its slot — functional updaters see the newest value — but does
+not schedule a render; rendering is explicit. That is the one deliberate
+divergence from React. See `useSync.behavior.test.ts` for the re-render and
+subscription lifecycle, and `reactHookRuntime.test.ts` for the exact contract.
 
 ## Bug fixes
 

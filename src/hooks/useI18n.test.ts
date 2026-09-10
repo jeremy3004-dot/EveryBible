@@ -1,23 +1,19 @@
-import test, { before, beforeEach, mock } from 'node:test';
+import test, { afterEach, before, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { mockModule, sourcePath } from '../testing/mockModules';
+import { createReactHookRuntime } from '../testing/reactHookRuntime';
 import { LANGUAGES, type LanguageCode } from '../constants/languages';
 import type { UserPreferences } from '../types';
 import type { useI18n as UseI18n } from './useI18n';
 
 // ---------------------------------------------------------------------------
-// Mocks. `useEffect` runs its effect immediately so one call of useI18n() is one
-// mount; `useCallback` is the identity so the returned setLanguage is the real
-// implementation.
+// Mocks. `react` is the shared hook runtime; one `mountI18n()` is one mount,
+// render plus the commit that runs the language-applying effect.
 // ---------------------------------------------------------------------------
 
-mockModule(mock, 'react', {
-  useEffect: (effect: () => void | (() => void)) => {
-    effect();
-  },
-  useCallback: <T>(callback: T) => callback,
-});
+const runtime = createReactHookRuntime();
+mockModule(mock, 'react', runtime.react);
 
 // react-i18next resolves to dist/es for `import` but to dist/commonjs for the
 // `require` tsx emits here, so the bare specifier alone would not intercept it.
@@ -68,8 +64,19 @@ let useI18n: typeof UseI18n;
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 
+/** Mount the hook: one render pass, then the commit that runs its effects. */
+const mountI18n = () => {
+  const view = runtime.mount(useI18n);
+  view.flushEffects();
+  return view.result;
+};
+
 before(async () => {
   ({ useI18n } = await import('./useI18n'));
+});
+
+afterEach(() => {
+  runtime.unmountAll();
 });
 
 beforeEach(() => {
@@ -83,7 +90,7 @@ beforeEach(() => {
 });
 
 test('mounting with the preference already active does not re-apply the language', () => {
-  useI18n();
+  mountI18n();
 
   assert.deepEqual(changeLanguageCalls, []);
 });
@@ -91,7 +98,7 @@ test('mounting with the preference already active does not re-apply the language
 test('mounting with a stored preference i18n has not applied yet switches the language', () => {
   authState.preferences = { language: 'es' };
 
-  useI18n();
+  mountI18n();
 
   assert.deepEqual(changeLanguageCalls, ['es']);
 });
@@ -99,7 +106,7 @@ test('mounting with a stored preference i18n has not applied yet switches the la
 test('mounting with no stored language preference leaves i18n alone', () => {
   authState.preferences = { language: '' };
 
-  useI18n();
+  mountI18n();
 
   assert.deepEqual(changeLanguageCalls, []);
 });
@@ -107,7 +114,7 @@ test('mounting with no stored language preference leaves i18n alone', () => {
 test('the hook reports the stored language and its descriptor', () => {
   authState.preferences = { language: 'ar' };
 
-  const i18n = useI18n();
+  const i18n = mountI18n();
 
   assert.equal(i18n.currentLanguage, 'ar');
   assert.equal(i18n.languageInfo, LANGUAGES.ar);
@@ -117,25 +124,25 @@ test('the hook reports the stored language and its descriptor', () => {
 test('a reader with no stored language preference falls back to English', () => {
   authState.preferences = { language: '' };
 
-  const i18n = useI18n();
+  const i18n = mountI18n();
 
   assert.equal(i18n.currentLanguage, 'en');
   assert.equal(i18n.languageInfo, LANGUAGES.en);
 });
 
 test('the hook exposes the whole supported-language catalogue for pickers', () => {
-  assert.equal(useI18n().availableLanguages, LANGUAGES);
+  assert.equal(mountI18n().availableLanguages, LANGUAGES);
 });
 
 test('the hook passes through the translator and the i18next instance', () => {
-  const i18n = useI18n();
+  const i18n = mountI18n();
 
   assert.equal(i18n.t('tabs.home'), 't:tabs.home');
   assert.equal(i18n.i18n, i18nInstance);
 });
 
 test('choosing a language applies it, stores it and pushes it to the cloud', async () => {
-  await useI18n().setLanguage('fr');
+  await mountI18n().setLanguage('fr');
 
   assert.deepEqual(changeLanguageCalls, ['fr']);
   assert.deepEqual(preferenceWrites, [{ language: 'fr' }]);
@@ -153,7 +160,7 @@ test('choosing a language applies it to i18n before the preference is stored', a
   };
 
   try {
-    await useI18n().setLanguage('de');
+    await mountI18n().setLanguage('de');
   } finally {
     authState.setPreferences = (prefs) => {
       preferenceWrites.push(prefs);
@@ -168,7 +175,7 @@ test('a language that fails to load is not stored as the preference', async () =
     throw new Error('locale bundle missing');
   };
 
-  await assert.rejects(() => useI18n().setLanguage('ja'), /locale bundle missing/);
+  await assert.rejects(() => mountI18n().setLanguage('ja'), /locale bundle missing/);
   assert.deepEqual(preferenceWrites, []);
   assert.equal(syncPreferenceCalls, 0);
 });
@@ -178,7 +185,7 @@ test('a failing preference sync never surfaces as an unhandled rejection', async
     throw new Error('offline');
   };
 
-  await useI18n().setLanguage('ko');
+  await mountI18n().setLanguage('ko');
   await flush();
 
   assert.deepEqual(preferenceWrites, [{ language: 'ko' }]);
@@ -186,11 +193,11 @@ test('a failing preference sync never surfaces as an unhandled rejection', async
 
 test('a remount after the language has been applied does not apply it a second time', async () => {
   authState.preferences = { language: 'es' };
-  useI18n();
+  mountI18n();
   assert.deepEqual(changeLanguageCalls, ['es']);
   await flush();
 
-  useI18n();
+  mountI18n();
 
   assert.deepEqual(changeLanguageCalls, ['es']);
 });

@@ -179,13 +179,13 @@ test('useAudioPlayer does not subscribe to the live position/duration ticks, so 
   assert.doesNotMatch(
     source,
     /currentPosition: state\.currentPosition,/,
-    'useAudioPlayer\'s own useShallow selector should not subscribe to currentPosition — audioStore.setPosition fires every ~250ms during playback, and every screen calling useAudioPlayer would re-render at that rate. Components that need live position should use the dedicated useAudioPosition() leaf hook instead.'
+    "useAudioPlayer's own useShallow selector should not subscribe to currentPosition — audioStore.setPosition fires every ~250ms during playback, and every screen calling useAudioPlayer would re-render at that rate. Components that need live position should use the dedicated useAudioPosition() leaf hook instead."
   );
 
   assert.doesNotMatch(
     source,
     /duration: state\.duration,/,
-    'useAudioPlayer\'s own useShallow selector should not subscribe to duration for the same reason as currentPosition'
+    "useAudioPlayer's own useShallow selector should not subscribe to duration for the same reason as currentPosition"
   );
 
   assert.doesNotMatch(

@@ -1,14 +1,14 @@
-/* eslint-disable react-hooks/rules-of-hooks -- harness invokes the hook outside React by design */
-import test, { mock } from 'node:test';
+import test, { afterEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 import { mockModule, mockReactNative } from '../testing/mockModules';
+import { createReactHookRuntime } from '../testing/reactHookRuntime';
 
-// There is no renderer under node --test, so `react` is replaced with an
-// identity `useMemo` (the factory runs on every call) and `react-i18next` with a
-// stub whose language this file drives. `design/fonts` imports react-native for
-// its Platform.select serif fallback, so the RN stub has to be installed too.
+// There is no renderer under node --test, so `react` is the shared hook runtime
+// and `react-i18next` a stub whose language this file drives. `design/fonts`
+// imports react-native for its Platform.select serif fallback, so the RN stub
+// has to be installed too.
 mockReactNative(mock, { os: 'ios' });
 
 const requireFromHere = createRequire(import.meta.url);
@@ -28,8 +28,11 @@ function mockDualEntryPackage(specifier: string, exports: Record<string, unknown
 }
 
 let activeLanguage = 'en';
-mockModule(mock, 'react', {
-  useMemo: <T>(factory: () => T) => factory(),
+const runtime = createReactHookRuntime();
+mockModule(mock, 'react', runtime.react);
+
+afterEach(() => {
+  runtime.unmountAll();
 });
 mockDualEntryPackage('react-i18next', {
   useTranslation: () => ({ i18n: { language: activeLanguage } }),
@@ -42,7 +45,7 @@ const FALLBACK = { fontFamily: undefined, letterSpacing: 0, lineHeight: undefine
 const displayFontFor = async (language: string) => {
   activeLanguage = language;
   const { useDisplayFont } = await import('./useDisplayFont');
-  return useDisplayFont();
+  return runtime.mount(useDisplayFont).result;
 };
 
 test('English gets the Alte Haas display faces at both weights', async () => {

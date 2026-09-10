@@ -1,77 +1,17 @@
 import test, { afterEach, before, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { mockModule, mockReactNative, sourcePath } from '../testing/mockModules';
+import { createReactHookRuntime } from '../testing/reactHookRuntime';
 import { createSupabaseFake } from '../testing/supabaseFake';
 import type { useSync as UseSync } from './useSync';
 
-// ---------------------------------------------------------------------------
-// A minimal React harness. There is no renderer installed, so this mock keeps
-// per-instance ref / memo / callback slots and runs effects (with dependency
-// comparison and cleanups) at commit time. That is what makes it possible to
-// re-render the hook when auth changes and to assert that subscriptions are
-// added on mount and removed on unmount.
-// ---------------------------------------------------------------------------
-
-type Deps = readonly unknown[] | undefined;
-interface Slot {
-  deps: Deps;
-  value: unknown;
-}
-interface EffectSlot {
-  deps: Deps;
-  cleanup?: () => void;
-}
-interface Instance {
-  refs: Array<{ current: unknown }>;
-  memos: Slot[];
-  callbacks: Slot[];
-  effects: EffectSlot[];
-}
-
-const sameDeps = (left: Deps, right: Deps): boolean =>
-  left !== undefined &&
-  right !== undefined &&
-  left.length === right.length &&
-  left.every((value, index) => Object.is(value, right[index]));
-
-let instance: Instance | null = null;
-let refCursor = 0;
-let memoCursor = 0;
-let callbackCursor = 0;
-let effectCursor = 0;
-let pendingEffects: Array<{ index: number; effect: () => void | (() => void); deps: Deps }> = [];
-
-mockModule(mock, 'react', {
-  useRef: <T>(initial: T) => {
-    const index = refCursor;
-    refCursor += 1;
-    instance!.refs[index] ??= { current: initial };
-    return instance!.refs[index] as { current: T };
-  },
-  useMemo: <T>(factory: () => T, deps: Deps): T => {
-    const index = memoCursor;
-    memoCursor += 1;
-    const slot = instance!.memos[index];
-    if (!slot || !sameDeps(slot.deps, deps)) {
-      instance!.memos[index] = { deps, value: factory() };
-    }
-    return instance!.memos[index].value as T;
-  },
-  useCallback: <T>(callback: T, deps: Deps): T => {
-    const index = callbackCursor;
-    callbackCursor += 1;
-    const slot = instance!.callbacks[index];
-    if (!slot || !sameDeps(slot.deps, deps)) {
-      instance!.callbacks[index] = { deps, value: callback };
-    }
-    return instance!.callbacks[index].value as T;
-  },
-  useEffect: (effect: () => void | (() => void), deps: Deps) => {
-    const index = effectCursor;
-    effectCursor += 1;
-    pendingEffects.push({ index, effect, deps });
-  },
-});
+// There is no renderer installed, so `react` is the shared hook runtime: it
+// keeps per-instance ref / memo / callback slots and runs effects (with
+// dependency comparison and cleanups) at commit time. That is what makes it
+// possible to re-render the hook when auth changes and to assert that
+// subscriptions are added on mount and removed on unmount.
+const runtime = createReactHookRuntime();
+mockModule(mock, 'react', runtime.react);
 
 const rn = mockReactNative(mock, { os: 'ios' });
 
@@ -133,57 +73,20 @@ mockModule(mock, sourcePath('stores/authStore.ts'), { useAuthStore });
 // ---------------------------------------------------------------------------
 
 let useSync: typeof UseSync;
-let mounted: Array<() => void> = [];
 
-const commit = () => {
-  for (const pending of pendingEffects) {
-    const slot = instance!.effects[pending.index];
-    if (slot && sameDeps(slot.deps, pending.deps)) {
-      continue;
-    }
-    slot?.cleanup?.();
-    const cleanup = pending.effect();
-    instance!.effects[pending.index] = {
-      deps: pending.deps,
-      cleanup: typeof cleanup === 'function' ? cleanup : undefined,
-    };
-  }
-  pendingEffects = [];
-};
-
-const renderInto = (target: Instance) => {
-  instance = target;
-  refCursor = 0;
-  memoCursor = 0;
-  callbackCursor = 0;
-  effectCursor = 0;
-  pendingEffects = [];
-  // This harness is the renderer: it drives the hook by hand against the slot
-  // bookkeeping above, so the rule-of-hooks name check does not apply.
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const value = useSync();
-  commit();
-  return value;
-};
-
+/** Mount the hook: one render pass, then the commit that runs its effects. */
 const mountSync = () => {
-  const target: Instance = { refs: [], memos: [], callbacks: [], effects: [] };
-  let api = renderInto(target);
-  const unmount = () => {
-    for (const slot of target.effects) {
-      slot?.cleanup?.();
-    }
-    target.effects = [];
-  };
-  mounted.push(unmount);
+  const view = runtime.mount(useSync);
+  view.flushEffects();
   return {
     get sync() {
-      return api.sync;
+      return view.result.sync;
     },
     rerender: () => {
-      api = renderInto(target);
+      view.rerender();
+      view.flushEffects();
     },
-    unmount,
+    unmount: view.unmount,
   };
 };
 
@@ -216,10 +119,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  for (const unmount of mounted) {
-    unmount();
-  }
-  mounted = [];
+  runtime.unmountAll();
 });
 
 /** Mount with nobody signed in, then restore the session, so the initial-sync

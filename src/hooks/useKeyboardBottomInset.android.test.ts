@@ -1,42 +1,29 @@
-/* eslint-disable react-hooks/rules-of-hooks -- harness invokes the hook outside React by design */
-import test, { mock } from 'node:test';
+import test, { afterEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { mockModule, mockReactNative } from '../testing/mockModules';
+import { createReactHookRuntime, type MountedHook } from '../testing/reactHookRuntime';
 
 // Android branch. Platform.OS is read inside the effect, but a whole-file stub
 // keeps the two platforms from sharing mutable module state
 // (useKeyboardBottomInset.test.ts covers iOS).
 const rn = mockReactNative(mock, { os: 'android' });
 
-let stateSlots: unknown[] = [];
-let slotIndex = 0;
-const cleanups: Array<() => void> = [];
+const runtime = createReactHookRuntime();
+mockModule(mock, 'react', runtime.react);
 
-mockModule(mock, 'react', {
-  useState: <T>(initial: T | (() => T)) => {
-    const index = slotIndex++;
-    if (!(index in stateSlots)) {
-      stateSlots[index] = typeof initial === 'function' ? (initial as () => T)() : initial;
-    }
-    const setState = (next: T) => {
-      stateSlots[index] = next;
-    };
-    return [stateSlots[index] as T, setState];
-  },
-  useEffect: (effect: () => void | (() => void)) => {
-    const cleanup = effect();
-    if (typeof cleanup === 'function') {
-      cleanups.push(cleanup);
-    }
-  },
+let view: MountedHook<[], number> | null = null;
+
+afterEach(() => {
+  runtime.unmountAll();
+  view = null;
 });
 
 async function mountHook(): Promise<number> {
-  stateSlots = [];
-  slotIndex = 0;
   const { useKeyboardBottomInset } = await import('./useKeyboardBottomInset');
-  return useKeyboardBottomInset();
+  view = runtime.mount(useKeyboardBottomInset);
+  view.flushEffects();
+  return view.result;
 }
 
 test('Android reports a zero inset and holds existing layout behaviour', async () => {
@@ -60,7 +47,7 @@ test('Android registers no keyboard listeners at all', async () => {
 test('Android registers no cleanup, because it subscribed to nothing', async () => {
   await mountHook();
 
-  assert.equal(cleanups.length, 0);
+  assert.equal(view!.cleanupCount, 0);
 });
 
 test('an Android keyboard event cannot move the inset', async () => {
