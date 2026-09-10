@@ -61,3 +61,47 @@ test('auth boundaries reset per-user stores and preferences and advance the gene
     'production auth boundaries must consume only guest unenroll tombstones'
   );
 });
+
+test('auth store keeps supabase-js and the native sign-in SDKs off the cold-start path', () => {
+  assert.equal(
+    source.includes("import { supabase, isSupabaseConfigured } from '../services/supabase';"),
+    false,
+    'authStore is on App.tsx static boot graph — a static supabase import evaluates ~520KB of supabase-js on every cold start'
+  );
+  assert.equal(
+    source.includes(
+      "import { getCurrentSession, signOut as authSignOut } from '../services/auth';"
+    ),
+    false,
+    'a static services/auth import pulls google-signin and expo-apple-authentication into cold start'
+  );
+
+  assert.match(
+    source,
+    /const getSupabaseModule = \(\): typeof import\('\.\.\/services\/supabase'\) =>\s*require\('\.\.\/services\/supabase'\);/,
+    'the supabase module should be required lazily at the call site, keeping only the erased import type static'
+  );
+  assert.match(
+    source,
+    /const getAuthModule = \(\): typeof import\('\.\.\/services\/auth'\) => require\('\.\.\/services\/auth'\);/,
+    'the auth service should be required lazily at the call site'
+  );
+
+  // Behaviour must be unchanged: initialize() still reads the restored session
+  // and still subscribes to auth state changes.
+  assert.match(
+    source,
+    /await getAuthModule\(\)\.getCurrentSession\(\)/,
+    'initialize() should still restore the current session'
+  );
+  assert.match(
+    source,
+    /const \{ supabase \} = getSupabaseModule\(\);\s*const \{ data \} = supabase\.auth\.onAuthStateChange\(/,
+    'initialize() should still subscribe to supabase auth state changes'
+  );
+  assert.match(
+    source,
+    /await getAuthModule\(\)\.signOut\(\);/,
+    'signOut() should still call through to the auth service'
+  );
+});

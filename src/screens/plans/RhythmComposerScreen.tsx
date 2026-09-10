@@ -30,7 +30,7 @@ import {
 } from '../../services/plans/rhythmPresets';
 import type { RhythmSlot } from '../../services/plans/types';
 import { RHYTHM_MUTATION_ERROR_CODES } from '../../stores/readingPlansStore';
-import { useReadingPlansStore } from '../../stores';
+import { useReadingPlansStore } from '../../stores/readingPlansStore';
 import { mediumHaptic, successHaptic } from '../../utils';
 
 type SlotFilter = 'all' | 'anytime' | RhythmSlot;

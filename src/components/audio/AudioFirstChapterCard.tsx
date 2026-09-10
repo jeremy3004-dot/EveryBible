@@ -1,10 +1,10 @@
 import { BookIcon } from '../bible/BookIcon';
 import { StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
-import { useAudioPlayer } from '../../hooks';
+import { useAudioPlayer } from '../../hooks/useAudioPlayer';
 import { useAudioPosition } from '../../hooks/useAudioPosition';
-import { getBookById } from '../../constants';
-import { useBibleStore } from '../../stores';
+import { getBookById } from '../../constants/books';
+import { useBibleStore } from '../../stores/bibleStore';
 import { getAdjacentAudioPlaybackSequenceEntry } from '../../stores/audioPlaybackSequenceModel';
 import { formatPlaybackTime } from '../../utils';
 import { AudioProgressScrubber } from './AudioProgressScrubber';

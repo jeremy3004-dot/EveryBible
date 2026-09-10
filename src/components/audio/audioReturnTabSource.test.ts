@@ -102,8 +102,8 @@ test('AudioReturnTab docks above the real tab bar height instead of a fixed base
 
   assert.match(
     source,
-    /import \{ useTabBarHeight \} from '\.\.\/\.\.\/hooks';/,
-    'AudioReturnTab should source its docking height from the shared useTabBarHeight hook so it stays above the tab bar on every device'
+    /import \{ useTabBarHeight \} from '\.\.\/\.\.\/hooks\/useTabBarHeight';/,
+    'AudioReturnTab should source its docking height from the shared useTabBarHeight hook (imported directly, not through the hooks barrel) so it stays above the tab bar on every device'
   );
 
   assert.match(

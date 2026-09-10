@@ -61,3 +61,33 @@ test('changeLanguage loads locale resources before switching languages', () => {
     'changeLanguage should wait for resources before switching languages'
   );
 });
+
+test('i18n boots in the persisted language rather than eagerly loading the device locale', () => {
+  const source = readRelativeSource('./index.ts');
+
+  assert.match(
+    source,
+    /const persistedLanguage = getPersistedLanguagePreference\(\);/,
+    'i18n should consult the persisted interface-language preference before falling back to the device locale'
+  );
+  assert.match(
+    source,
+    /import \{ getPersistedLanguagePreference \} from '\.\.\/stores\/mmkvStorage';/,
+    'the preference should be read straight out of MMKV, without hydrating the auth store'
+  );
+
+  const persistedIndex = source.indexOf(
+    'const persistedLanguage = getPersistedLanguagePreference()'
+  );
+  const deviceLocaleIndex = source.indexOf('Localization.getLocales()');
+  assert.ok(
+    persistedIndex !== -1 && deviceLocaleIndex !== -1 && persistedIndex < deviceLocaleIndex,
+    'the persisted preference must win over the device locale, otherwise boot loads a locale module App.tsx immediately discards'
+  );
+
+  assert.match(
+    source,
+    /if \(initialLanguage !== DEFAULT_LANGUAGE\) \{\s*void ensureLanguageResources\(initialLanguage\)/,
+    'i18n should still preload exactly one non-English locale module, and only when one is actually needed'
+  );
+});

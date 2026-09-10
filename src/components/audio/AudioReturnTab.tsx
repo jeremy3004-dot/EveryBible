@@ -1,11 +1,11 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
 import Animated, { SlideInRight, SlideOutRight } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
-import { getCompactTranslatedBookName } from '../../constants';
+import { getCompactTranslatedBookName } from '../../constants/books';
 import { useTheme } from '../../contexts/ThemeContext';
 import { radius, shadows, spacing, typography } from '../../design/system';
-import { hexWithAlpha } from '../../utils';
-import { useTabBarHeight } from '../../hooks';
+import { hexWithAlpha } from '../../utils/color';
+import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
 import { useAudioStore } from '../../stores/audioStore';
 import { useBibleStore } from '../../stores/bibleStore';

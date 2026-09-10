@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { spacing } from '../design/system';
 
@@ -33,10 +34,18 @@ export const TAB_BAR_CONTENT_GAP = spacing.lg;
 
 export function useTabBarHeight(): TabBarHeightMetrics {
   const insets = useSafeAreaInsets();
-  // On a device with a home indicator the capsule tucks into the safe area — the
-  // indicator is a hairline, so 22pt reads as a deliberate gap rather than a
-  // collision. Without one, fall back to the standard gutter.
-  const bottomPadding = insets.bottom > 0 ? 22 : spacing.lg;
+  // On iOS a non-zero bottom inset means a home indicator — a hairline — so the
+  // capsule tucks into the safe area and 22pt reads as a deliberate gap.
+  //
+  // Android's bottom inset is a different animal: a three-button navigation bar
+  // is 24-48dp of real chrome, and 22pt would park the capsule underneath it.
+  // Clear the whole inset there, never less than the standard gutter.
+  const bottomPadding =
+    Platform.OS === 'android'
+      ? Math.max(insets.bottom, spacing.lg)
+      : insets.bottom > 0
+        ? 22
+        : spacing.lg;
 
   return {
     bottomPadding,

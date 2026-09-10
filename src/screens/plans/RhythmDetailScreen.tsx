@@ -21,12 +21,10 @@ import { layout, radius, spacing, typography } from '../../design/system';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
 import type { RhythmDetailScreenProps } from '../../navigation/types';
 import { inferRhythmSlotFromTitle, RHYTHM_SLOT_META } from '../../services/plans/rhythmSlots';
-import {
-  useBibleStore,
-  useLibraryStore,
-  useProgressStore,
-  useReadingPlansStore,
-} from '../../stores';
+import { useBibleStore } from '../../stores/bibleStore';
+import { useLibraryStore } from '../../stores/libraryStore';
+import { useProgressStore } from '../../stores/progressStore';
+import { useReadingPlansStore } from '../../stores/readingPlansStore';
 import {
   buildRhythmReaderSession,
   getCurrentPlanDaySummary,

@@ -48,7 +48,7 @@ import {
   type CurrentPlanDaySummary,
 } from '../../services/plans/readingPlanActivity';
 import { readingPlanEntriesByPlanId } from '../../data/readingPlans.generated';
-import { useLibraryStore } from '../../stores';
+import { useLibraryStore } from '../../stores/libraryStore';
 import { useReadingPlansStore } from '../../stores/readingPlansStore';
 import { isMultiSessionPlan } from '../../services/plans/readingPlanModel';
 import type { ListeningHistoryEntry } from '../../stores/libraryModel';

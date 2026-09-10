@@ -143,8 +143,8 @@ test('TabNavigator uses the base tab bar height instead of adding the bottom saf
 
   assert.match(
     source,
-    /import \{ useTabBarHeight, TAB_BAR_CAPSULE_RADIUS \} from '\.\.\/hooks';/,
-    'TabNavigator should source its bar height from the shared useTabBarHeight hook'
+    /import \{ useTabBarHeight, TAB_BAR_CAPSULE_RADIUS \} from '\.\.\/hooks\/useTabBarHeight';/,
+    'TabNavigator should source its bar height from the shared useTabBarHeight hook, imported directly so the app shell does not evaluate the whole hooks barrel at boot'
   );
 
   assert.equal(
@@ -471,7 +471,23 @@ test('tab glyphs are 22pt Lucide strokes taken from the manifest', () => {
 test('tab labels are 11pt semibold on top of the shared tabLabel token', () => {
   const source = readRelativeSource('./TabNavigator.tsx');
 
-  assert.match(source, /tabBarLabelStyle: styles\.tabLabel,/);
+  // The navigator renders the label itself (instead of handing BottomTabItem a
+  // string) so it can cap font scaling inside the fixed-height capsule.
+  assert.match(
+    source,
+    /maxFontSizeMultiplier=\{TAB_BAR_LABEL_MAX_FONT_SCALE\}\s*style=\{\[styles\.tabLabel, \{ color \}\]\}/,
+    'the tab label should be drawn from the shared tabLabel token with a capped font multiplier'
+  );
+  assert.match(
+    source,
+    /const TAB_BAR_LABEL_MAX_FONT_SCALE = 1\.6;/,
+    'a 64pt capsule cannot absorb an unbounded accessibility text scale'
+  );
+  assert.match(
+    source,
+    /tabBarAccessibilityLabel:/,
+    'a function label drops the librarys synthesized iOS tab announcement, so the navigator must restate it'
+  );
   assert.match(
     source,
     /tabLabel:\s*\{\s*\.\.\.typography\.tabLabel,\s*fontSize: 11,\s*lineHeight: 14,\s*fontWeight: '600',\s*\}/,
