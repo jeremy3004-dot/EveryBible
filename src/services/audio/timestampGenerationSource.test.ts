@@ -3,10 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
-const source = readFileSync(
-  path.join(process.cwd(), 'scripts', 'generate_timestamps.py'),
-  'utf8'
-);
+const source = readFileSync(path.join(process.cwd(), 'scripts', 'generate_timestamps.py'), 'utf8');
 
 test('timestamp generation preserves the original verse line breaks during alignment', () => {
   assert.match(

@@ -28,7 +28,10 @@ test('isTranslationAudioDownloaded requires every book in the scope', () => {
 
   assert.equal(isTranslationAudioDownloaded(['MAT', 'MRK'], newTestamentBooks), false);
   assert.equal(
-    isTranslationAudioDownloaded(newTestamentBooks.map((book) => book.id), newTestamentBooks),
+    isTranslationAudioDownloaded(
+      newTestamentBooks.map((book) => book.id),
+      newTestamentBooks
+    ),
     true
   );
 });

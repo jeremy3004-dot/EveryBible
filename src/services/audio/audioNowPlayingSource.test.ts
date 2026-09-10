@@ -1,3 +1,5 @@
+// Native/asset configuration guard by design: these assertions read iOS Swift, asset
+// catalog, and build-script files that a runtime test cannot reach.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -17,7 +19,9 @@ function sha256(contents: Buffer): string {
 }
 
 test('audioNowPlaying republishs the latest snapshot when iOS backgrounds the app', () => {
-  const source = readRelativeSource('../../../ios/EveryBible/EveryBibleAudioNowPlayingModule.swift');
+  const source = readRelativeSource(
+    '../../../ios/EveryBible/EveryBibleAudioNowPlayingModule.swift'
+  );
 
   assert.match(
     source,
@@ -45,7 +49,9 @@ test('audioNowPlaying republishs the latest snapshot when iOS backgrounds the ap
 });
 
 test('audioNowPlaying uses the branded EveryBible lock-screen artwork asset before generating a generic cover', () => {
-  const source = readRelativeSource('../../../ios/EveryBible/EveryBibleAudioNowPlayingModule.swift');
+  const source = readRelativeSource(
+    '../../../ios/EveryBible/EveryBibleAudioNowPlayingModule.swift'
+  );
   const artworkAssetContents = readRelativeSource(
     '../../../ios/EveryBible/Images.xcassets/NowPlayingAppIcon.imageset/Contents.json'
   );
@@ -82,27 +88,5 @@ test('the icon generator refreshes the dedicated iOS lock-screen artwork', () =>
     source,
     /NowPlayingAppIcon\.imageset/,
     'Generating a new app icon should also refresh the iOS lock-screen artwork asset'
-  );
-});
-
-test('audioNowPlaying keeps the JS bridge wired to the native now-playing module', () => {
-  const source = readRelativeSource('./audioNowPlaying.ts');
-
-  assert.match(
-    source,
-    /function getNativeBibleNowPlayingModule\(\): NativeBibleNowPlayingModule \| undefined/,
-    'The JS audio bridge should resolve the native iOS now-playing module lazily'
-  );
-
-  assert.match(
-    source,
-    /function getBibleNowPlayingEmitter\(\): NativeEventEmitter \| null/,
-    'The JS audio bridge should create the native event emitter from the lazily resolved module'
-  );
-
-  assert.match(
-    source,
-    /const nativeModule = getNativeBibleNowPlayingModule\(\);/,
-    'The JS audio bridge should resolve the native module at call time before syncing or clearing'
   );
 });

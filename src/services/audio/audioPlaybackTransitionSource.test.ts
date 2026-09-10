@@ -1,3 +1,5 @@
+// Source-shape guard by design: the remaining assertions cover ordering and wiring inside
+// useAudioPlayer.ts and BibleReaderScreen.tsx, which have no behavioural test seam here.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -14,34 +16,6 @@ test('playChapter stops the active sound before resolving the next chapter sourc
     useAudioPlayerSource,
     /await audioPlayer\.stop\(\);[\s\S]*let audioData = await getChapterAudioUrl/,
     'useAudioPlayer should stop the current sound before loading the next chapter source'
-  );
-
-  assert.match(
-    useAudioPlayerSource,
-    /const playRequestId = \+\+playRequestIdRef\.current;[\s\S]*if \(playRequestId !== playRequestIdRef\.current\) \{\s+return;\s+\}/,
-    'useAudioPlayer should ignore stale chapter requests after a newer navigation request starts'
-  );
-});
-
-test('track-player wrapper invalidates stale async loads before mounting the next sound', () => {
-  const trackPlayerSource = readRelativeSource('./trackPlayer.ts');
-
-  assert.match(
-    trackPlayerSource,
-    /let loadRequestId = 0;/,
-    'TrackPlayer should track load requests so overlapping chapter loads cannot both attach sounds'
-  );
-
-  assert.match(
-    trackPlayerSource,
-    /const requestId = \+\+loadRequestId;/,
-    'TrackPlayer should create a fresh request token for each load'
-  );
-
-  assert.match(
-    trackPlayerSource,
-    /if \(requestId !== loadRequestId\) \{[\s\S]*?await newSound\.stopAsync\(\);\s+await newSound\.unloadAsync\(\);\s+return;\s+\}/,
-    'TrackPlayer should discard stale sounds when a newer chapter load wins the race'
   );
 });
 

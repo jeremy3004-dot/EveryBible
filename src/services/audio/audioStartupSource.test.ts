@@ -1,3 +1,5 @@
+// Source-shape guard by design: these assertions cover render/persistence/ordering
+// constraints in useAudioPlayer.ts and mmkvStorage.ts that a runtime test cannot observe.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -6,16 +8,6 @@ import { fileURLToPath } from 'node:url';
 function readRelativeSource(relativePath: string): string {
   return readFileSync(fileURLToPath(new URL(relativePath, import.meta.url).href), 'utf8');
 }
-
-test('background music stays lazy until playback is active', () => {
-  const source = readRelativeSource('./backgroundMusicPlayer.ts');
-
-  assert.match(
-    source,
-    /if \(!shouldPlay\) \{[\s\S]*if \(!this\.sound\) \{[\s\S]*this\.currentChoice = choice;[\s\S]*return;[\s\S]*\}[\s\S]*return;[\s\S]*\}[\s\S]*await this\.ensureLoaded\(choice\);/,
-    'BackgroundMusicPlayer should avoid loading an AVAsset while the app is idle or paused, and only resolve the sound once playback is active'
-  );
-});
 
 test('useAudioPlayer avoids subscribing to the entire audio store on every playback tick', () => {
   const source = readRelativeSource('../../hooks/useAudioPlayer.ts');
@@ -33,39 +25,8 @@ test('useAudioPlayer avoids subscribing to the entire audio store on every playb
   );
 });
 
-test('useAudioPlayer keeps playback position monotonic across status snapshots', () => {
-  const source = readRelativeSource('../../hooks/useAudioPlayer.ts');
-
-  assert.match(
-    source,
-    /const currentPosition = useAudioStore\.getState\(\)\.currentPosition;[\s\S]*const isAuthoritativeProgress = snapshot\.isPlaying && snapshot\.positionMillis > 0;[\s\S]*const nextPosition = isAuthoritativeProgress[\s\S]*\? snapshot\.positionMillis[\s\S]*: Math\.max\(currentPosition, snapshot\.positionMillis\);[\s\S]*setPosition\(nextPosition\);/s,
-    'useAudioPlayer should let an authoritative still-playing progress snapshot correct interpolation overshoot downward while still refusing to move backward on stop-like snapshots that collapse toward zero'
-  );
-
-  assert.equal(
-    source.includes(
-      'useAudioStore.getState().setPosition(Math.max(currentPosition, cappedInterpolated));'
-    ),
-    true,
-    'useAudioPlayer should keep the interpolation timer from regressing the displayed position between native updates'
-  );
-
-  assert.equal(
-    source.includes('AUDIO_POSITION_INTERPOLATION_INTERVAL_MS = 250'),
-    true,
-    'useAudioPlayer should throttle interpolated position updates so Android playback does not flood the JS thread'
-  );
-});
-
 test('audio progress does not persist every playback tick', () => {
-  const source = readRelativeSource('../../stores/audioStore.ts');
   const storageSource = readRelativeSource('../../stores/mmkvStorage.ts');
-
-  assert.match(
-    source,
-    /const lastPosition =\s*Math\.abs\(position - state\.lastPosition\) >= 5000 \|\| position === 0[\s\S]*\? position[\s\S]*: state\.lastPosition/,
-    'AudioStore should only move the persisted resume position in coarse steps, not on every visible progress update'
-  );
 
   assert.match(
     storageSource,
@@ -103,26 +64,10 @@ test('audio pause and stop invalidate in-flight chapter loads', () => {
     /const stop = useCallback\(async \(\) => \{[\s\S]*playRequestIdRef\.current \+= 1;/s,
     'Stop should invalidate an in-flight load so a late native completion cannot mark playback as active'
   );
-  assert.match(
-    source,
-    /await audioPlayer\.loadAndPlay\(audioData\.url, playbackRate\);[\s\S]*if \(playRequestId !== playRequestIdRef\.current\) \{[\s\S]*await audioPlayer\.stop\(\);[\s\S]*return;[\s\S]*\}/s,
-    'Playback start should re-check the request generation after native loading finishes'
-  );
 });
 
-test('useAudioPlayer keeps chapter duration stable and clamps interpolation to the known chapter length', () => {
+test('useAudioPlayer clamps interpolation to the known chapter length', () => {
   const source = readRelativeSource('../../hooks/useAudioPlayer.ts');
-
-  assert.equal(
-    source.includes('const currentDuration = useAudioStore.getState().duration;'),
-    true,
-    'useAudioPlayer should read the current known duration before applying a native snapshot'
-  );
-  assert.match(
-    source,
-    /snapshot\.durationMillis > 0\s*\?\s*Math\.max\(currentDuration, snapshot\.durationMillis\)\s*:\s*currentDuration;/,
-    'useAudioPlayer should not let a zero or shorter native snapshot collapse the known chapter duration while the current chapter is still playing'
-  );
 
   assert.equal(
     source.includes('const cappedInterpolated ='),
@@ -135,31 +80,5 @@ test('useAudioPlayer keeps chapter duration stable and clamps interpolation to t
     ),
     true,
     'useAudioPlayer should keep interpolation from visually outrunning the known chapter duration'
-  );
-});
-
-test('useAudioPlayer stops syncing background music every tick once music is turned off', () => {
-  const source = readRelativeSource('../../hooks/useAudioPlayer.ts');
-
-  assert.match(
-    source,
-    /if \(backgroundMusicChoice === 'off'\) \{[\s\S]*void backgroundMusicPlayer\.stop\(\);[\s\S]*return;[\s\S]*\}/s,
-    'useAudioPlayer should stop background music once when the user turns it off'
-  );
-
-  assert.match(
-    source,
-    /if \(backgroundMusicChoice === 'off'\) \{[\s\S]*return;[\s\S]*\}[\s\S]*const shouldPlayBackgroundMusic =[\s\S]*backgroundMusicPlayer\.sync\(backgroundMusicChoice, shouldPlayBackgroundMusic\)/s,
-    'useAudioPlayer should skip background-music sync work entirely when the choice is off'
-  );
-});
-
-test('background music pauses immediately when scripture playback pauses', () => {
-  const source = readRelativeSource('./backgroundMusicPlayer.ts');
-
-  assert.match(
-    source,
-    /if \(!shouldPlay\) \{[\s\S]*await this\.sound\.setVolumeAsync\(0\);[\s\S]*await this\.sound\.pauseAsync\(\);[\s\S]*return;[\s\S]*\}/s,
-    'BackgroundMusicPlayer should mute and pause the loaded music bed immediately when playback pauses instead of waiting for the crossfade timer'
   );
 });

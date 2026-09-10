@@ -38,6 +38,8 @@ interface DownloadScript {
   /** Bytes the download leaves at the destination. */
   writeSize?: number;
   cancelError?: unknown;
+  /** Held open so a test can observe that cancellation is awaited before the reject. */
+  cancelGate?: Promise<void>;
 }
 
 let downloadScript: DownloadScript = {};
@@ -77,6 +79,9 @@ const createDownloadResumable = (
     },
     cancelAsync: async (): Promise<void> => {
       cancelCalls.push(to);
+      if (script.cancelGate) {
+        await script.cancelGate;
+      }
       if (script.cancelError) {
         throw script.cancelError;
       }
@@ -146,6 +151,13 @@ let taskScript: TaskScript = { outcome: 'done' };
 const backgroundCalls: RecordedCall[] = [];
 let existingTasks: FakeTask[] = [];
 
+/** Handlers the last created native task registered, so late callbacks can be replayed. */
+let lastTaskHandlers: {
+  progress?: (progress: { bytesDownloaded: number; bytesTotal: number }) => void;
+  done?: () => void;
+  error?: (payload: { error: string }) => void;
+} = {};
+
 const makeTask = (id: string): FakeTask => {
   let onDone: (() => void) | null = null;
   let onError: ((payload: { error: string }) => void) | null = null;
@@ -156,14 +168,17 @@ const makeTask = (id: string): FakeTask => {
     id,
     progress: (handler) => {
       onProgress = handler;
+      lastTaskHandlers.progress = handler;
       return task;
     },
     done: (handler) => {
       onDone = handler;
+      lastTaskHandlers.done = handler;
       return task;
     },
     error: (handler) => {
       onError = handler;
+      lastTaskHandlers.error = handler;
       return task;
     },
     start: () => {
@@ -252,6 +267,7 @@ beforeEach(() => {
   existingTasks = [];
   downloadScript = { writeSize: VALID_AUDIO_BYTES };
   taskScript = { outcome: 'done' };
+  lastTaskHandlers = {};
   ensureDownloadsAreRunningError = null;
   deleteError = null;
   lastOnProgress = undefined;
@@ -818,4 +834,111 @@ test('the persistent job store can be pointed at another root', async () => {
 
   await store.removeJob('job-9');
   assert.deepEqual(await store.listJobs(), []);
+});
+
+// ---------------------------------------------------------------------------
+// Cancellation leaves a resumable partial file behind
+// ---------------------------------------------------------------------------
+
+test('a cancelled download keeps its partial file instead of deleting it', async () => {
+  downloadScript = { gate: new Promise<void>(() => {}) };
+  const controller = new AbortController();
+
+  const pending = mod.expoAudioFileSystemAdapter.downloadFile(
+    'https://media.test/GEN/1.m4a',
+    'file:///documents/everybible-audio/bsb/GEN/1.m4a',
+    { signal: controller.signal }
+  );
+  await flush();
+  controller.abort();
+
+  await assert.rejects(pending, (error: unknown) => service.isAudioDownloadCancellation(error));
+  assert.equal(fsMethods().includes('deleteAsync'), false);
+});
+
+test('a cancel that fails still leaves the partial file alone', async () => {
+  downloadScript = {
+    gate: new Promise<void>(() => {}),
+    cancelError: new Error('native cancel exploded'),
+  };
+  const controller = new AbortController();
+
+  const pending = mod.expoAudioFileSystemAdapter.downloadFile(
+    'https://media.test/GEN/1.m4a',
+    'file:///documents/everybible-audio/bsb/GEN/1.m4a',
+    { signal: controller.signal }
+  );
+  await flush();
+  controller.abort();
+
+  await assert.rejects(
+    pending,
+    (error: unknown) => error instanceof service.AudioDownloadStopError
+  );
+  assert.equal(fsMethods().includes('deleteAsync'), false);
+});
+
+test('a cancelled download does not settle until the native cancel has finished', async () => {
+  const cancelGate = { resolve: () => {} };
+  downloadScript = {
+    gate: new Promise<void>(() => {}),
+    cancelGate: new Promise<void>((resolve) => {
+      cancelGate.resolve = resolve;
+    }),
+  };
+  const controller = new AbortController();
+  let settled = false;
+
+  const pending = mod.expoAudioFileSystemAdapter
+    .downloadFile(
+      'https://media.test/GEN/1.m4a',
+      'file:///documents/everybible-audio/bsb/GEN/1.m4a',
+      {
+        signal: controller.signal,
+      }
+    )
+    .catch(() => {
+      settled = true;
+    });
+  await flush();
+  controller.abort();
+  await flush();
+
+  assert.deepEqual(cancelCalls, ['file:///documents/everybible-audio/bsb/GEN/1.m4a']);
+  assert.equal(settled, false);
+
+  cancelGate.resolve();
+  await pending;
+
+  assert.equal(settled, true);
+});
+
+test('native callbacks that arrive after a stopped background download are ignored', async () => {
+  const transport = await mod.createBackgroundAudioDownloadTransport();
+  taskScript = { outcome: 'hang' };
+  const controller = new AbortController();
+  const progress: Array<{ bytesDownloaded: number; bytesTotal: number }> = [];
+
+  const pending = transport.downloadFile(
+    'https://media.test/GEN/1.m4a',
+    'file:///documents/a.m4a',
+    {
+      taskId: 'job-1:GEN:1',
+      signal: controller.signal,
+      onProgress: (update) => progress.push(update),
+    }
+  );
+  await flush();
+  controller.abort();
+  lastTaskHandlers.progress?.({ bytesDownloaded: 100, bytesTotal: 100 });
+  lastTaskHandlers.done?.();
+  lastTaskHandlers.error?.({ error: 'too late' });
+
+  await assert.rejects(pending, (error: unknown) => service.isAudioDownloadCancellation(error));
+  assert.deepEqual(progress, []);
+  assert.deepEqual(
+    backgroundCalls.filter((call) => call.method === 'completeHandler'),
+    []
+  );
+  assert.deepEqual(downloadCalls, []);
 });
