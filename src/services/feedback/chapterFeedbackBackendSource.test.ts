@@ -176,9 +176,8 @@ test('review-chapter-feedback persists translator resolutions server-side', () =
   );
 });
 
-test('chapter feedback backend contract is wired into Supabase types and synced preferences', () => {
+test('chapter feedback backend contract is wired into the Supabase row types', () => {
   const supabaseTypes = readRepoFile('src/services/supabase/types.ts');
-  const syncService = readRepoFile('src/services/sync/syncService.ts');
 
   assert.match(
     supabaseTypes,
@@ -194,21 +193,6 @@ test('chapter feedback backend contract is wired into Supabase types and synced 
     supabaseTypes,
     /audio_response_path/,
     'Expected Supabase feedback types to expose audio response metadata'
-  );
-  assert.match(
-    syncService,
-    /chapter_feedback_enabled/,
-    'Expected syncPreferences to read and write the chapter feedback flag'
-  );
-  assert.match(
-    syncService,
-    /chapterFeedbackName|chapterFeedbackRole/,
-    'Expected syncPreferences to preserve the chapter feedback reviewer name and role fields'
-  );
-  assert.doesNotMatch(
-    syncService,
-    /chapter_feedback_id_number|chapterFeedbackIdNumber/,
-    'Expected syncPreferences to stop persisting a manual feedback ID number field'
   );
 });
 

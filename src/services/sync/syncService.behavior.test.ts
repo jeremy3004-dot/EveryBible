@@ -1269,3 +1269,251 @@ test('pullFromCloud without an expected account pulls for the signed-in reader',
   assert.equal(result.success, true);
   assert.equal(callsFor('user_progress', 'select')[0]?.steps[1]?.args[1], USER_A);
 });
+
+// ---------------------------------------------------------------------------
+// In-flight local edits and the per-account write queue
+// (ported from syncService.races.test.ts and syncServiceSource.test.ts)
+// ---------------------------------------------------------------------------
+
+const createDeferred = () => {
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+};
+
+/** Drains the microtask queue enough times for every queued sync to settle in. */
+const drain = async (rounds = 20) => {
+  for (let round = 0; round < rounds; round += 1) {
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+};
+
+const NO_ROWS = { data: null, error: { code: 'PGRST116', message: 'no rows' } };
+
+test('a preference edit made while the cloud row is read is the one pushed to the cloud', async () => {
+  authStore.setState({ preferencesUpdatedAt: '2026-09-09T00:00:00.000Z' });
+  supabaseFake.respondTo('user_preferences', async (call) => {
+    if (call.operation !== 'select') {
+      return { error: null };
+    }
+    authStore.setState({
+      preferences: { ...LOCAL_PREFERENCES, fontSize: 'large' },
+      preferencesUpdatedAt: '2026-09-09T00:00:05.000Z',
+    });
+    return NO_ROWS;
+  });
+
+  const result = await syncPreferences(USER_A);
+
+  assert.equal(result.success, true);
+  assert.equal(payloadOf('user_preferences').font_size, 'large');
+  assert.equal(authStore.getState().preferences.fontSize, 'large');
+});
+
+test('a chapter finished while the cloud progress row is read is merged into the push', async () => {
+  progressStore.setState({ chaptersRead: { GEN_1: 100 } });
+  supabaseFake.respondTo('user_progress', async (call) => {
+    if (call.operation !== 'select') {
+      return { error: null };
+    }
+    progressStore.setState({
+      chaptersRead: { ...progressStore.getState().chaptersRead, GEN_2: 300 },
+    });
+    return { data: remoteProgressRow({ chapters_read: { MAT_1: 200 } }), error: null };
+  });
+
+  const result = await syncProgress(USER_A);
+
+  assert.equal(result.success, true);
+  assert.deepEqual(payloadOf('user_progress').chapters_read, {
+    GEN_1: 100,
+    GEN_2: 300,
+    MAT_1: 200,
+  });
+  assert.deepEqual(progressStore.getState().chaptersRead, {
+    GEN_1: 100,
+    GEN_2: 300,
+    MAT_1: 200,
+  });
+});
+
+test('preference syncs queued behind an active write collapse into one follow-up carrying the newest edit', async () => {
+  authStore.setState({ preferencesUpdatedAt: '2026-09-09T00:00:00.000Z' });
+  const release = createDeferred();
+  const started = createDeferred();
+  let writes = 0;
+  supabaseFake.respondTo('user_preferences', async (call) => {
+    if (call.operation !== 'upsert') {
+      return NO_ROWS;
+    }
+    writes += 1;
+    if (writes === 1) {
+      started.resolve();
+      await release.promise;
+    }
+    return { error: null };
+  });
+
+  const initial = syncPreferences(USER_A);
+  await started.promise;
+  authStore.setState({
+    preferences: { ...LOCAL_PREFERENCES, fontSize: 'large' },
+    preferencesUpdatedAt: '2026-09-09T00:00:05.000Z',
+  });
+  const followups = Array.from({ length: 10 }, () => syncPreferences(USER_A));
+  await drain();
+
+  assert.equal(writes, 1, 'a newer sync must wait for the active write');
+  release.resolve();
+  const results = await Promise.all([initial, ...followups]);
+
+  assert.equal(
+    results.every((result) => result.success),
+    true
+  );
+  assert.equal(writes, 2, 'ten queued requests need only one follow-up write');
+  assert.equal(payloadOf('user_preferences', 1).font_size, 'large');
+});
+
+test('a failing active preference write does not poison the queued follow-up or a later sync', async () => {
+  authStore.setState({ preferencesUpdatedAt: '2026-09-09T00:00:00.000Z' });
+  const release = createDeferred();
+  const started = createDeferred();
+  let writes = 0;
+  supabaseFake.respondTo('user_preferences', async (call) => {
+    if (call.operation !== 'upsert') {
+      return NO_ROWS;
+    }
+    writes += 1;
+    if (writes === 1) {
+      started.resolve();
+      await release.promise;
+      throw new Error('offline');
+    }
+    return { error: null };
+  });
+
+  const first = syncPreferences(USER_A);
+  await started.promise;
+  authStore.setState({
+    preferences: { ...LOCAL_PREFERENCES, fontSize: 'large' },
+    preferencesUpdatedAt: '2026-09-09T00:00:05.000Z',
+  });
+  const queued = syncPreferences(USER_A);
+  await drain();
+  release.resolve();
+
+  assert.equal((await first).success, false);
+  assert.equal((await queued).success, true);
+  assert.equal((await syncPreferences(USER_A)).success, true);
+  assert.equal(writes, 3);
+  assert.equal(payloadOf('user_preferences', 1).font_size, 'large');
+});
+
+test('a progress follow-up pushes the chapters finished while the active write was in flight', async () => {
+  progressStore.setState({ chaptersRead: { GEN_1: 100 } });
+  const release = createDeferred();
+  const started = createDeferred();
+  let writes = 0;
+  supabaseFake.respondTo('user_progress', async (call) => {
+    if (call.operation !== 'upsert') {
+      return NO_ROWS;
+    }
+    writes += 1;
+    if (writes === 1) {
+      started.resolve();
+      await release.promise;
+    }
+    return { error: null };
+  });
+
+  const first = syncProgress(USER_A);
+  await started.promise;
+  progressStore.setState({ chaptersRead: { GEN_1: 100, GEN_2: 300 } });
+  bibleStore.setState({ currentChapter: 2 });
+  const queued = syncProgress(USER_A);
+  await drain();
+
+  assert.equal(writes, 1);
+  release.resolve();
+  await Promise.all([first, queued]);
+
+  assert.equal(writes, 2);
+  assert.deepEqual(payloadOf('user_progress', 1).chapters_read, { GEN_1: 100, GEN_2: 300 });
+  assert.equal(payloadOf('user_progress', 1).current_chapter, 2);
+});
+
+test('a preference sync queued behind an account switch neither applies nor uploads', async () => {
+  const release = createDeferred();
+  const started = createDeferred();
+  supabaseFake.respondTo('user_preferences', async (call) => {
+    if (call.operation !== 'select') {
+      return { error: null };
+    }
+    started.resolve();
+    await release.promise;
+    return NO_ROWS;
+  });
+
+  const first = syncPreferences(USER_A);
+  await started.promise;
+  const queued = syncPreferences(USER_A);
+  await drain();
+  authStore.setState({ user: { uid: USER_B }, authGeneration: 2 });
+  supabaseFake.auth.setUser(makeFakeUser({ id: USER_B, user_metadata: {} }));
+  release.resolve();
+
+  const results = await Promise.all([first, queued]);
+
+  assert.deepEqual(
+    results.map((result) => result.success),
+    [false, false]
+  );
+  assert.deepEqual(callsFor('user_preferences', 'upsert'), []);
+  assert.deepEqual(appliedPreferences, []);
+});
+
+test('a pull keeps the chapters and preferences edited while the cloud rows were read', async () => {
+  progressStore.setState({ chaptersRead: { GEN_1: 100 } });
+  authStore.setState({ preferencesUpdatedAt: '2026-09-09T00:00:00.000Z' });
+  supabaseFake.respondTo('user_progress', async () => {
+    progressStore.setState({
+      chaptersRead: { ...progressStore.getState().chaptersRead, GEN_2: 300 },
+    });
+    return { data: remoteProgressRow({ chapters_read: { MAT_1: 200 } }), error: null };
+  });
+  supabaseFake.respondTo('user_preferences', async () => {
+    authStore.setState({
+      preferences: { ...LOCAL_PREFERENCES, fontSize: 'large' },
+      preferencesUpdatedAt: '2099-01-01T00:00:00.000Z',
+    });
+    return { data: remotePreferenceRow(), error: null };
+  });
+
+  const result = await pullFromCloud(USER_A);
+
+  assert.equal(result.success, true);
+  assert.deepEqual(progressStore.getState().chaptersRead, {
+    GEN_1: 100,
+    GEN_2: 300,
+    MAT_1: 200,
+  });
+  assert.equal(authStore.getState().preferences.fontSize, 'large');
+  assert.deepEqual(callsFor('user_progress', 'upsert'), []);
+  assert.deepEqual(callsFor('user_preferences', 'upsert'), []);
+});
+
+test('one syncAll cycle asks the auth server to confirm the account exactly once', async () => {
+  let remoteChecks = 0;
+  resolveRemoteUserId = async () => {
+    remoteChecks += 1;
+    return USER_A;
+  };
+
+  const result = await syncAll(USER_A, 1);
+
+  assert.equal(result.success, true);
+  assert.equal(remoteChecks, 1, 'continuation checks must not re-read Supabase auth');
+});

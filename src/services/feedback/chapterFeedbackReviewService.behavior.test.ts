@@ -495,3 +495,25 @@ test('reopenTranslatorFeedbackOnServer uses generic copy when a non-Error value 
 
   assert.equal(result.error, 'Unable to reopen this feedback.');
 });
+
+test('validateTranslatorReviewPasscode omits the translation when the caller names none', async () => {
+  const bodies: Array<Record<string, unknown>> = [];
+
+  const result = await review.validateTranslatorReviewPasscode(' 123456 ', undefined, {
+    invoke: async (_name, options) => {
+      bodies.push((options as { body: Record<string, unknown> }).body);
+      return { data: { success: true }, error: null };
+    },
+  });
+
+  assert.equal(result.success, true);
+  assert.deepEqual(bodies, [{ passcode: '123456', translationId: undefined, validateOnly: true }]);
+});
+
+test('fetchChapterFeedbackForTranslatorReview reports an empty queue as a success, not a failure', async () => {
+  supabaseFake.respondToFunction(() => ({ data: { success: true, feedback: [] } }));
+
+  const result = await review.fetchChapterFeedbackForTranslatorReview(reviewInput);
+
+  assert.deepEqual(result, { success: true, feedback: [] });
+});

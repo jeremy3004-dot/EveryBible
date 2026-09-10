@@ -1542,3 +1542,34 @@ test('the injectable service syncs progress into its own store without Supabase'
   );
   assert.deepEqual(supabaseFake.callsFor('user_reading_plan_progress'), []);
 });
+
+// ---------------------------------------------------------------------------
+// Local-first guarantees (ported from readingPlanServiceSource.test.ts)
+// ---------------------------------------------------------------------------
+
+test('the bundled catalog and its day entries are served without querying Supabase', async () => {
+  signIn('user-a', 4);
+
+  const plans = await service.listReadingPlans();
+  const entries = await service.getPlanEntries('psalms-30-days');
+
+  assert.equal(plans.success, true);
+  assert.ok((plans.data?.length ?? 0) > 0);
+  assert.equal(entries.success, true);
+  assert.ok((entries.data?.length ?? 0) > 0);
+  assert.deepEqual(supabaseFake.calls, []);
+});
+
+test('markPlanSessionComplete stays local for a signed-in reader instead of writing to the cloud', async () => {
+  signIn('user-a', 4);
+  await service.enrollInPlan('kathisma-weekly');
+  await flushBackgroundWork();
+  supabaseFake.reset();
+
+  const result = await service.markPlanSessionComplete('kathisma-weekly', 2, 'morning');
+  await flushBackgroundWork();
+
+  assert.equal(result.success, true);
+  assert.equal(result.data?.current_session, 'evening');
+  assert.deepEqual(supabaseFake.callsFor('user_reading_plan_progress'), []);
+});

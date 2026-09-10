@@ -1,3 +1,4 @@
+// Import-graph guard by design: the behavioural suite is chapterFeedbackAudio.test.ts.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -18,30 +19,5 @@ test('chapter feedback audio upload uses the Expo FileSystem legacy API for SDK 
     source,
     /from 'expo-file-system';/,
     'SDK 54 top-level expo-file-system throws for deprecated getInfoAsync/readAsStringAsync calls'
-  );
-});
-
-test('chapter feedback audio upload always uses the Edge Function storage path', () => {
-  const source = readFileSync(AUDIO_SERVICE_PATH, 'utf8');
-
-  assert.doesNotMatch(
-    source,
-    /Please sign in before sending an audio response/,
-    'anonymous audio feedback should not be blocked by the mobile upload helper'
-  );
-  assert.match(
-    source,
-    /base64Data/,
-    'audio feedback should send encoded upload data to the Edge Function'
-  );
-  assert.match(
-    source,
-    /path:\s*null/,
-    'audio feedback should let the Edge Function assign the private storage path'
-  );
-  assert.doesNotMatch(
-    source,
-    /getCurrentUserId|supabase\.storage|\.upload\(/,
-    'mobile audio feedback should not bypass the Edge Function with direct storage uploads'
   );
 });

@@ -2,7 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { ListeningHistoryEntry } from '../../stores/libraryModel';
-import type { ReadingPlan, ReadingPlanEntry, ReadingPlanRhythm, UserReadingPlanProgress } from './types';
+import type {
+  ReadingPlan,
+  ReadingPlanEntry,
+  ReadingPlanRhythm,
+  UserReadingPlanProgress,
+} from './types';
 import {
   buildPlanDayPlaybackSequenceEntries,
   buildPlanDayCompletionSummary,
@@ -93,21 +98,60 @@ const rhythm: ReadingPlanRhythm = {
 
 const rhythmPlanEntriesById: Record<string, ReadingPlanEntry[]> = {
   'plan-a': [
-    makeEntry({ id: 'plan-a-day-1', plan_id: 'plan-a', day_number: 1, book: 'GEN', chapter_start: 1, chapter_end: 1 }),
-    makeEntry({ id: 'plan-a-day-2', plan_id: 'plan-a', day_number: 2, book: 'GEN', chapter_start: 2, chapter_end: 3 }),
+    makeEntry({
+      id: 'plan-a-day-1',
+      plan_id: 'plan-a',
+      day_number: 1,
+      book: 'GEN',
+      chapter_start: 1,
+      chapter_end: 1,
+    }),
+    makeEntry({
+      id: 'plan-a-day-2',
+      plan_id: 'plan-a',
+      day_number: 2,
+      book: 'GEN',
+      chapter_start: 2,
+      chapter_end: 3,
+    }),
   ],
   'plan-b': [
-    makeEntry({ id: 'plan-b-day-1', plan_id: 'plan-b', day_number: 1, book: 'EXO', chapter_start: 1, chapter_end: 1 }),
+    makeEntry({
+      id: 'plan-b-day-1',
+      plan_id: 'plan-b',
+      day_number: 1,
+      book: 'EXO',
+      chapter_start: 1,
+      chapter_end: 1,
+    }),
   ],
   'plan-c': [
-    makeEntry({ id: 'plan-c-day-1', plan_id: 'plan-c', day_number: 1, book: 'PSA', chapter_start: 1, chapter_end: 1 }),
-    makeEntry({ id: 'plan-c-day-2', plan_id: 'plan-c', day_number: 2, book: 'PSA', chapter_start: 2, chapter_end: 3 }),
+    makeEntry({
+      id: 'plan-c-day-1',
+      plan_id: 'plan-c',
+      day_number: 1,
+      book: 'PSA',
+      chapter_start: 1,
+      chapter_end: 1,
+    }),
+    makeEntry({
+      id: 'plan-c-day-2',
+      plan_id: 'plan-c',
+      day_number: 2,
+      book: 'PSA',
+      chapter_start: 2,
+      chapter_end: 3,
+    }),
   ],
 };
 
 const rhythmProgressByPlanId: Record<string, UserReadingPlanProgress> = {
   'plan-a': makeProgress('plan-a', { current_day: 2, is_completed: false }),
-  'plan-b': makeProgress('plan-b', { current_day: 2, is_completed: true, completed_at: '2026-04-07T09:00:00.000Z' }),
+  'plan-b': makeProgress('plan-b', {
+    current_day: 2,
+    is_completed: true,
+    completed_at: '2026-04-07T09:00:00.000Z',
+  }),
   'plan-c': makeProgress('plan-c', { current_day: 2, is_completed: false }),
 };
 
@@ -263,7 +307,10 @@ test('buildPlanDayCompletionSummary combines target chapters and todays activity
   });
 
   assert.deepEqual(summary.targetChapterKeys, ['GEN_1', 'GEN_2', 'GEN_3', 'GEN_4', 'EXO_1']);
-  assert.deepEqual(new Set(summary.completedChapterKeys), new Set(['GEN_1', 'GEN_2', 'GEN_3', 'EXO_1']));
+  assert.deepEqual(
+    new Set(summary.completedChapterKeys),
+    new Set(['GEN_1', 'GEN_2', 'GEN_3', 'EXO_1'])
+  );
   assert.equal(summary.completedChapters, 4);
   assert.equal(summary.totalChapters, 5);
   assert.equal(summary.isComplete, false);
@@ -302,7 +349,10 @@ test('buildPlanDayCompletionSummary marks the day complete once every target cha
   });
 
   assert.equal(summary.isComplete, true);
-  assert.deepEqual(new Set(summary.completedChapterKeys), new Set(['GEN_1', 'GEN_2', 'GEN_3', 'GEN_4', 'EXO_1']));
+  assert.deepEqual(
+    new Set(summary.completedChapterKeys),
+    new Set(['GEN_1', 'GEN_2', 'GEN_3', 'GEN_4', 'EXO_1'])
+  );
   assert.equal(summary.completedChapters, 5);
 });
 
@@ -817,7 +867,8 @@ test('resolveFirstIncompleteRhythmSessionSegment prefers a resumable plan before
   });
 
   assert.equal(
-    resolveFirstIncompleteRhythmSessionSegment(session.sessionContext, rhythmProgressByPlanId)?.planId,
+    resolveFirstIncompleteRhythmSessionSegment(session.sessionContext, rhythmProgressByPlanId)
+      ?.planId,
     'plan-a'
   );
   assert.equal(
@@ -855,10 +906,7 @@ test('rhythm session helpers resolve playback indexes and segment ownership with
   });
 
   assert.equal(psaIndex, 5);
-  assert.equal(
-    getRhythmSessionSegmentAtIndex(session.sessionContext, psaIndex)?.planId,
-    'plan-c'
-  );
+  assert.equal(getRhythmSessionSegmentAtIndex(session.sessionContext, psaIndex)?.planId, 'plan-c');
 });
 
 test('reading plan rhythm summary reports completed and remaining plans from existing progress', () => {

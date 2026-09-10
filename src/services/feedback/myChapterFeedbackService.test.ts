@@ -1,9 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  fetchMyChapterFeedback,
-  mapMyChapterFeedbackRow,
-} from './myChapterFeedbackService';
+import { fetchMyChapterFeedback, mapMyChapterFeedbackRow } from './myChapterFeedbackService';
 
 test('mapMyChapterFeedbackRow derives status and audio presence from the row', () => {
   assert.deepEqual(

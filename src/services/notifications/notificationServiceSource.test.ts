@@ -1,3 +1,4 @@
+// Startup-path guard by design: exercises App.tsx's push-registration effects, which no behavioural suite can mount.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

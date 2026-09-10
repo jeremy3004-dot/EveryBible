@@ -1,14 +1,23 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildPresetRhythmItems, RHYTHM_PRESET_LIBRARY, RHYTHM_PRESET_TRADITIONS } from './rhythmPresets';
+import {
+  buildPresetRhythmItems,
+  RHYTHM_PRESET_LIBRARY,
+  RHYTHM_PRESET_TRADITIONS,
+} from './rhythmPresets';
 
 test('rhythm preset library ships twenty curated starter rhythms', () => {
   assert.equal(RHYTHM_PRESET_LIBRARY.length, 20);
-  assert.deepEqual(
-    RHYTHM_PRESET_TRADITIONS,
-    ['Catholic', 'Anglican', 'Orthodox', 'Benedictine', 'Taize', 'Lutheran', 'Puritan']
-  );
+  assert.deepEqual(RHYTHM_PRESET_TRADITIONS, [
+    'Catholic',
+    'Anglican',
+    'Orthodox',
+    'Benedictine',
+    'Taize',
+    'Lutheran',
+    'Puritan',
+  ]);
 });
 
 test('rhythm presets cover morning, midday, evening, and anytime use cases', () => {
@@ -30,8 +39,14 @@ test('each rhythm preset expands into valid rhythm items', () => {
       if (item.type === 'passage') {
         assert.ok(item.title.length > 0, `${preset.id} passage items should have titles`);
         assert.ok(item.bookId.length > 0, `${preset.id} passage items should include a book id`);
-        assert.ok(item.startChapter > 0, `${preset.id} passage items should include a start chapter`);
-        assert.ok(item.endChapter >= item.startChapter, `${preset.id} passage ranges should be valid`);
+        assert.ok(
+          item.startChapter > 0,
+          `${preset.id} passage items should include a start chapter`
+        );
+        assert.ok(
+          item.endChapter >= item.startChapter,
+          `${preset.id} passage ranges should be valid`
+        );
       }
     }
   }
