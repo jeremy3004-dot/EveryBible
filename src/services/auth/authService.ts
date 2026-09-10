@@ -1,6 +1,10 @@
 import { supabase, isSupabaseConfigured } from '../supabase';
 import * as AppleAuthentication from 'expo-apple-authentication';
-import { GoogleSignin, isErrorWithCode, statusCodes } from '@react-native-google-signin/google-signin';
+import {
+  GoogleSignin,
+  isErrorWithCode,
+  statusCodes,
+} from '@react-native-google-signin/google-signin';
 import { Platform } from 'react-native';
 import type { User } from '../../types';
 import { publicRuntimeConfig } from '../startup/publicRuntimeConfig';
@@ -37,9 +41,7 @@ export interface AuthResult {
 // relies on for signed-manifest verification). Returns null when WebCrypto is
 // unavailable so sign-in still proceeds without the extra hardening.
 const generateNoncePair = async (): Promise<{ raw: string; hashed: string } | null> => {
-  const webCrypto = globalThis.crypto as
-    | (Crypto & { subtle?: SubtleCrypto })
-    | undefined;
+  const webCrypto = globalThis.crypto as (Crypto & { subtle?: SubtleCrypto }) | undefined;
 
   if (
     !webCrypto ||
@@ -53,10 +55,7 @@ const generateNoncePair = async (): Promise<{ raw: string; hashed: string } | nu
   const randomBytes = webCrypto.getRandomValues(new Uint8Array(32));
   const raw = Array.from(randomBytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
 
-  const digest = await webCrypto.subtle.digest(
-    'SHA-256',
-    new globalThis.TextEncoder().encode(raw)
-  );
+  const digest = await webCrypto.subtle.digest('SHA-256', new globalThis.TextEncoder().encode(raw));
   const hashed = Array.from(new Uint8Array(digest), (byte) =>
     byte.toString(16).padStart(2, '0')
   ).join('');
@@ -184,9 +183,17 @@ export const signInWithApple = async (): Promise<AuthResult> => {
         const fullName = [credential.fullName.givenName, credential.fullName.familyName]
           .filter(Boolean)
           .join(' ');
-        await supabase.auth.updateUser({
-          data: { display_name: fullName },
-        });
+        try {
+          // Best-effort: the account already exists and the session is live, so a
+          // failed display-name write must not turn a successful sign-in into an
+          // error the user sees. An error *returned* here is already ignored;
+          // a thrown one (transport failure) has to be ignored the same way.
+          await supabase.auth.updateUser({
+            data: { display_name: fullName },
+          });
+        } catch {
+          // Ignored on purpose — see above.
+        }
       }
 
       return { success: true, user: mapSupabaseUser(data.user) };
