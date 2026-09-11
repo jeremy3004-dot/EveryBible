@@ -103,6 +103,9 @@ export function TranslationPickerList({
   // FlashList wants a plain ContentStyle object, not a StyleSheet reference.
   const translationListContentStyle = useMemo(
     () => ({
+      // FlashList ignores `style`, so the screen gutter has to live here or the
+      // rows render edge-to-edge against the sheet.
+      paddingHorizontal: layout.screenPadding,
       paddingTop: spacing.sm,
       paddingBottom: layout.sectionGap + keyboardBottomInset,
     }),
@@ -1401,9 +1404,9 @@ const styles = StyleSheet.create({
   translationList: {
     flex: 1,
     minHeight: 0,
-    paddingHorizontal: layout.screenPadding,
   },
   translationListContent: {
+    paddingHorizontal: layout.screenPadding,
     paddingTop: spacing.sm,
     paddingBottom: layout.sectionGap,
   },
