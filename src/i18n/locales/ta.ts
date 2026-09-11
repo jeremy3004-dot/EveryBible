@@ -84,7 +84,7 @@ export const ta = {
     "ledgerSince_other": "{{date}} முதல் · {{count}} அத்தியாயங்கள்",
     "ledgerThisMonth": "{{month}} · {{total}} நாட்களில் {{active}}",
     "ledgerThisWeek": "இந்த வாரம் · {{total}} நாட்களில் {{active}}",
-    "streakUnitLabel": "நாள் தொடர்ச்சி",
+    "streakUnitLabel": "நாள் தொடர்",
     "dayEyebrow": "நாள்",
     "lessonsProgress": "{{completed}} / {{total}} பாடங்கள்",
     "nextLesson": "அடுத்தது · {{title}}",
