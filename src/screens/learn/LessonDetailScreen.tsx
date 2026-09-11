@@ -1026,9 +1026,11 @@ const styles = StyleSheet.create({
     paddingVertical: 22,
   },
   heroNumeral: {
-    // The 0.85 optical line-height clips the cap slightly; nudge it back down so
-    // the numeral's top aligns with the title's.
-    marginTop: 2,
+    // `numeralHero` sets lineHeight (61) below fontSize (72) for optical tightness.
+    // On iOS that shrinks the line box below the glyph and clips the top of the
+    // digits, so give it a box at least as tall as the font and re-align by hand.
+    lineHeight: 72,
+    marginTop: 0,
   },
   heroColumn: {
     flex: 1,

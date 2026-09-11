@@ -1694,7 +1694,10 @@ export function BibleReaderScreen() {
     chapterPresentationMode === 'text' && verses.length > 0 && !isLoading && error == null;
   const premiumBottomInset = 18;
   const sharedTopChromeTop = safeInsets.top;
-  const readerContentTopPadding = sharedTopChromeTop + 98;
+  // The floating top chrome is one `minTouchTarget`-tall pill pinned at
+  // `sharedTopChromeTop`, so content only needs to clear that plus a gap. The old
+  // flat 98 left ~54pt of dead space above the first line.
+  const readerContentTopPadding = sharedTopChromeTop + layout.minTouchTarget + spacing.xl;
   const lastReaderScrollJsOffset = useSharedValue(0);
   const lastReaderScrollJsAtBottom = useSharedValue(false);
   const premiumReaderParagraphs = useMemo(() => buildReaderParagraphs(verses), [verses]);
