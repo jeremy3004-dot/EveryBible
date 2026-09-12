@@ -8,6 +8,16 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const source = readFileSync(resolve(__dirname, 'BibleReaderScreen.tsx'), 'utf8');
 
+test('plan completion navigation follows remaining sessions instead of their time-of-day order', () => {
+  assert.match(source, /activePlanIsMultiSession && Boolean\(completionResult.data\?\.current_session\)/);
+  assert.doesNotMatch(source, /activePlanSessionIndex < \(activePlanDaySummary/);
+});
+
+test('verse-based plans focus the assigned passage in the reader', () => {
+  assert.match(source, /getPlanChapterFocusVerse\(activePlanSessionEntries, bookId, chapter\)/);
+  assert.match(source, /const shouldRecordReadCompletion =[\s\S]*?!activePlanSessionEntries\.some\(\(entry\) => entry\.verse_start != null \|\| entry\.verse_end != null\)/);
+});
+
 test('BibleReaderScreen uses plan-day activity helpers to detect when todays target is complete', () => {
   assert.match(
     source,

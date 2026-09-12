@@ -111,8 +111,13 @@ import {
   resolvePlaybackSequenceIndex,
 } from '../../services/plans/readingPlanActivity';
 import { markDayComplete, markPlanSessionComplete } from '../../services/plans/readingPlanService';
+import { getPlanChapterFocusVerse } from '../../services/plans';
 import { formatLocalDateKey } from '../../services/progress/readingActivity';
-import { getDaySessionEntries, isMultiSessionPlan } from '../../services/plans/readingPlanModel';
+import {
+  buildPlanSessionCompletionKey,
+  getDaySessionEntries,
+  isMultiSessionPlan,
+} from '../../services/plans/readingPlanModel';
 import { syncPreferences } from '../../services/sync';
 import { useAudioStore } from '../../stores/audioStore';
 import { useAuthStore } from '../../stores/authStore';
@@ -623,7 +628,7 @@ export function BibleReaderScreen() {
     chapter,
     autoplayAudio,
     preferredMode,
-    focusVerse,
+    focusVerse: requestedFocusVerse,
     playbackSequenceEntries = [],
     planId: activePlanId,
     planDayNumber,
@@ -1286,15 +1291,20 @@ export function BibleReaderScreen() {
         : null,
     [activePlanDaySummary, activePlanSessionKey]
   );
-  const activePlanSessionIndex = useMemo(() => {
-    if (!activePlanSessionKey || !activePlanDaySummary?.sessionSummaries.length) {
-      return -1;
-    }
-
-    return activePlanDaySummary.sessionSummaries.findIndex(
-      (session) => session.sessionKey === activePlanSessionKey
+  const focusVerse =
+    requestedFocusVerse ??
+    getPlanChapterFocusVerse(activePlanSessionEntries, bookId, chapter);
+  const hasOtherIncompletePlanSessions =
+    activePlanRecord != null &&
+    planDayNumber != null &&
+    activePlanIsMultiSession &&
+    activePlanSessionGroups.some(
+      (group) =>
+        group.sessionKey !== activePlanSessionKey &&
+        !activePlanProgress?.completed_sessions?.[
+          buildPlanSessionCompletionKey(activePlanRecord, planDayNumber, group.sessionKey)
+        ]
     );
-  }, [activePlanDaySummary?.sessionSummaries, activePlanSessionKey]);
   const activePlanSessionTitle = activePlanSessionKey
     ? t(
         activePlanSessionKey === 'morning'
@@ -2429,7 +2439,10 @@ export function BibleReaderScreen() {
       return;
     }
 
-    const shouldRecordReadCompletion = chapterSessionMode === 'read' && activePlanChapterIndex >= 0;
+    const shouldRecordReadCompletion =
+      chapterSessionMode === 'read' &&
+      activePlanChapterIndex >= 0 &&
+      !activePlanSessionEntries.some((entry) => entry.verse_start != null || entry.verse_end != null);
     if (activePlanChapterIndex < 0 || !isLastPlanChapter) {
       return;
     }
@@ -2458,9 +2471,7 @@ export function BibleReaderScreen() {
       }
 
       const shouldReturnToPlanDetail =
-        activePlanIsMultiSession &&
-        activePlanSessionIndex >= 0 &&
-        activePlanSessionIndex < (activePlanDaySummary?.sessionSummaries.length ?? 0) - 1;
+        activePlanIsMultiSession && Boolean(completionResult.data?.current_session);
 
       await stop();
       clearAudioPlaybackSequence();
@@ -2489,11 +2500,10 @@ export function BibleReaderScreen() {
   }, [
     activeChapterKey,
     activePlanChapterIndex,
-    activePlanDaySummary?.sessionSummaries.length,
     activePlanId,
     activePlanProgress,
     activePlanIsMultiSession,
-    activePlanSessionIndex,
+    activePlanSessionEntries,
     activePlanSessionKey,
     bookId,
     chapter,
@@ -3867,11 +3877,7 @@ export function BibleReaderScreen() {
     planReadDockTrailingActionState?.showCompletionAction &&
     planReadDockTrailingActionState.isEnabled
   );
-  const showPlanReadDockSessionCompletionCopy =
-    activePlanIsMultiSession &&
-    Boolean(activePlanDaySummary?.sessionSummaries.length) &&
-    activePlanSessionIndex >= 0 &&
-    activePlanSessionIndex < (activePlanDaySummary?.sessionSummaries.length ?? 0) - 1;
+  const showPlanReadDockSessionCompletionCopy = hasOtherIncompletePlanSessions;
   const readerPlaybackDockNextIconName =
     planReadDockTrailingActionState?.iconName ?? 'chevron-forward';
   const readerPlaybackDockNextButtonColor =
@@ -4122,11 +4128,7 @@ export function BibleReaderScreen() {
     });
     const showPlanCompletionAction = trailingActionState.showCompletionAction;
     const trailingActionEnabled = trailingActionState.isEnabled;
-    const showSessionCompletionCopy =
-      activePlanIsMultiSession &&
-      Boolean(activePlanDaySummary?.sessionSummaries.length) &&
-      activePlanSessionIndex >= 0 &&
-      activePlanSessionIndex < (activePlanDaySummary?.sessionSummaries.length ?? 0) - 1;
+    const showSessionCompletionCopy = hasOtherIncompletePlanSessions;
     const trailingActionLabel = showPlanCompletionAction
       ? showSessionCompletionCopy
         ? t('readingPlans.completeSessionCta', {

@@ -1054,7 +1054,7 @@ export const zh = {
     "dailyTargetCompleteBody": "你已完成今天的计划阅读。我们这就带你回到计划页，看看你的进度。",
     "bibleIn1Year": {
       "title": "一年读完圣经",
-      "description": "每天阅读旧约和新约，在 365 天内通读整本圣经。"
+      "description": "用365天读完整本圣经，从创世记到启示录。"
     },
     "newTestament90": {
       "title": "90 天读完新约",
@@ -1077,8 +1077,8 @@ export const zh = {
       "description": "按一周中的每一天，读完早晚指定的诗篇组（即 Kathisma），每周循环。"
     },
     "chronological": {
-      "title": "按事件顺序读圣经",
-      "description": "按照事件发生的顺序阅读圣经，从创世记到启示录。"
+      "title": "整本圣经：逐卷阅读",
+      "description": "用365天读完全部66卷书，从创世记、约伯记和出埃及记开始。"
     },
     "epistles30": {
       "title": "30 天读完使徒书信",
@@ -1188,7 +1188,7 @@ export const zh = {
       "title": "聆听神的声音",
       "description": "透过先知、诗篇、耶稣和早期教会，聆听神的声音。"
     },
-    "categoryChronological": "按时间顺序",
+    "categoryChronological": "整本圣经",
     "categoryBookStudy": "书卷研读",
     "categoryTopical": "主题",
     "categoryDevotional": "灵修",

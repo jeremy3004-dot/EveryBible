@@ -304,7 +304,11 @@ export function createReadingPlanService(store: ReadingPlansStoreApi): ReadingPl
         return { success: false, error: 'Plan session not found' };
       }
 
-      const nextSessionKey = sessionGroups[sessionIndex + 1]?.sessionKey ?? null;
+      const completedSessions = store.getState().getProgress(planId)?.completed_sessions ?? {};
+      const nextSessionKey = sessionGroups.find(
+        (group) => group.sessionKey !== sessionKey &&
+          !completedSessions[buildPlanSessionCompletionKey(plan, dayNumber, group.sessionKey)]
+      )?.sessionKey ?? null;
       const updated = store.getState().markSessionComplete(planId, dayNumber, sessionKey, {
         completionKey: buildPlanSessionCompletionKey(plan, dayNumber, sessionKey),
         dayCompletionKey: getPlanCompletionEntryKey(plan, dayNumber),
@@ -470,7 +474,12 @@ export async function markPlanSessionComplete(
     return { success: false, error: 'Plan session not found' };
   }
 
-  const nextSessionKey = sessionGroups[sessionIndex + 1]?.sessionKey ?? null;
+  const completedSessions =
+    readingPlansStore.getState().getProgress(planId)?.completed_sessions ?? {};
+  const nextSessionKey = sessionGroups.find(
+    (group) => group.sessionKey !== sessionKey &&
+      !completedSessions[buildPlanSessionCompletionKey(plan, dayNumber, group.sessionKey)]
+  )?.sessionKey ?? null;
   const localUpdated = readingPlansStore
     .getState()
     .markSessionComplete(planId, dayNumber, sessionKey, {

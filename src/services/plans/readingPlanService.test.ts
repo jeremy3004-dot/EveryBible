@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import type { StateStorage } from 'zustand/middleware';
 import { createSyncIdentityBoundary } from '../sync/syncIdentity';
 import { resolvePlanSyncIdentity, retryPlanTombstonesWithIdentity } from './readingPlanService';
+import { readingPlans } from '../../data/readingPlans.generated';
+import { getDaySessionEntries, isRecurringPlan } from './readingPlanModel';
 
 function createMemoryStorage(): StateStorage {
   const store = new Map<string, string>();
@@ -16,6 +18,37 @@ function createMemoryStorage(): StateStorage {
       store.delete(name);
     },
   };
+}
+
+for (const plan of readingPlans) {
+  test(`${plan.id}: offline enrollment, every day, persistence, and removal`, async () => {
+    const { createReadingPlansStore } = await import('../../stores/readingPlansStore');
+    const { createReadingPlanService } = await import('./readingPlanService');
+    const storage = createMemoryStorage();
+    const store = createReadingPlansStore(storage);
+    const api = createReadingPlanService(store);
+    assert.equal((await api.enrollInPlan(plan.id)).success, true);
+    const entries = (await api.getPlanEntries(plan.id)).data!;
+    for (let day = 1; day <= plan.duration_days; day++) {
+      const sessions = getDaySessionEntries(entries, day);
+      if (sessions.length > 0) {
+        for (const session of [...sessions].reverse()) {
+          assert.equal(
+            (await api.markPlanSessionComplete(plan.id, day, session.sessionKey)).success,
+            true
+          );
+        }
+      } else {
+        assert.equal((await api.markDayComplete(plan.id, day)).success, true);
+      }
+      const progress = store.getState().getProgress(plan.id)!;
+      assert.equal(progress.is_completed, !isRecurringPlan(plan) && day === plan.duration_days);
+      const restored = createReadingPlansStore(storage);
+      assert.deepEqual(restored.getState().getProgress(plan.id), progress);
+    }
+    await api.unenrollFromPlan(plan.id);
+    assert.equal(createReadingPlansStore(storage).getState().getProgress(plan.id), null);
+  });
 }
 
 test('reading plan service serves bundled plans and local plan entries', async () => {

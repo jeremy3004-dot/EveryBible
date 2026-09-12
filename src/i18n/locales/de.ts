@@ -1053,7 +1053,7 @@ export const de = {
     "dailyTargetCompleteBody": "Du hast die heutige Lesung deines Plans geschafft. Wir bringen dich zurück zu deinem Plan, damit du deinen Fortschritt sehen kannst.",
     "bibleIn1Year": {
       "title": "Bibel in einem Jahr",
-      "description": "Lies die ganze Bibel in 365 Tagen mit täglichen Lesungen aus dem Alten und Neuen Testament."
+      "description": "Lies die gesamte Bibel von 1. Mose bis zur Offenbarung in 365 Tagen."
     },
     "newTestament90": {
       "title": "Neues Testament in 90 Tagen",
@@ -1076,8 +1076,8 @@ export const de = {
       "description": "Lies die vorgesehenen Kathismata für Morgen und Abend an jedem Wochentag, Woche für Woche."
     },
     "chronological": {
-      "title": "Chronologische Bibel",
-      "description": "Lies die Bibel in der Reihenfolge der Ereignisse, von 1. Mose bis zur Offenbarung."
+      "title": "Die ganze Bibel: Buch für Buch",
+      "description": "Lies alle 66 Bücher in 365 Tagen, beginnend mit 1. Mose, Hiob und 2. Mose."
     },
     "epistles30": {
       "title": "Briefe in 30 Tagen",
@@ -1173,7 +1173,7 @@ export const de = {
       "title": "Gottes Stimme hören",
       "description": "Höre Gottes Stimme in den Propheten, den Psalmen, bei Jesus und in der frühen Kirche."
     },
-    "categoryChronological": "Chronologisch",
+    "categoryChronological": "Die ganze Bibel",
     "categoryBookStudy": "Buchstudium",
     "categoryTopical": "Thematisch",
     "categoryDevotional": "Andacht",

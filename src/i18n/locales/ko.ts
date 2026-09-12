@@ -1053,7 +1053,7 @@ export const ko = {
     "dailyTargetCompleteBody": "오늘의 계획 읽기를 마쳤습니다. 진행 상황을 볼 수 있도록 계획 화면으로 돌아갑니다.",
     "bibleIn1Year": {
       "title": "1년 성경 통독",
-      "description": "매일 구약과 신약을 함께 읽으며 365일 동안 성경 전체를 통독합니다."
+      "description": "창세기부터 요한계시록까지 성경 전체를 365일 동안 읽습니다."
     },
     "newTestament90": {
       "title": "90일 신약 통독",
@@ -1076,8 +1076,8 @@ export const ko = {
       "description": "요일마다 정해진 아침·저녁 카티스마(시편 구분)를 읽고 매주 반복합니다."
     },
     "chronological": {
-      "title": "연대순 성경",
-      "description": "창세기부터 요한계시록까지 사건이 일어난 순서대로 성경을 읽습니다."
+      "title": "성경 전체: 한 권씩 읽기",
+      "description": "창세기, 욥기, 출애굽기부터 시작하여 66권 전체를 365일 동안 읽습니다."
     },
     "epistles30": {
       "title": "30일 서신서 통독",
@@ -1173,7 +1173,7 @@ export const ko = {
       "title": "하나님의 음성 듣기",
       "description": "선지자와 시편, 예수님과 초대교회를 통해 하나님의 음성에 귀 기울여 보세요."
     },
-    "categoryChronological": "연대순",
+    "categoryChronological": "성경 전체",
     "categoryBookStudy": "책별 공부",
     "categoryTopical": "주제별",
     "categoryDevotional": "묵상",

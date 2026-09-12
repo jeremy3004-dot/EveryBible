@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readingPlanEntriesByPlanId } from '../../data/readingPlans.generated';
 
 import type { ListeningHistoryEntry } from '../../stores/libraryModel';
 import type {
@@ -25,6 +26,84 @@ import {
   resolvePlaybackSequenceIndex,
   resolveFirstIncompleteRhythmSessionSegment,
 } from './readingPlanActivity';
+
+test('every plan day preserves the catalog passage order in targets and rhythm playback', () => {
+  for (const [planId, entries] of Object.entries(readingPlanEntriesByPlanId)) {
+    for (const dayNumber of new Set(entries.map((entry) => entry.day_number))) {
+      const expected = buildPlanDayPlaybackSequenceEntries(
+        entries.filter((entry) => entry.day_number === dayNumber)
+      );
+      assert.deepEqual(
+        getPlanDayTargetChapterKeys(entries, dayNumber),
+        expected.map((entry) => `${entry.bookId}_${entry.chapter}`),
+        `${planId} day ${dayNumber}`
+      );
+      const session = buildRhythmReaderSession({
+        rhythm: {
+          id: 'audit',
+          title: 'Audit',
+          items: [{ id: 'item', type: 'plan', planId }],
+          createdAt: '',
+          updatedAt: '',
+        },
+        planEntriesById: { [planId]: entries },
+        progressByPlanId: { [planId]: makeProgress(planId, { current_day: dayNumber }) },
+        today:
+          planId === 'kathisma-weekly'
+            ? new Date(2026, 0, dayNumber + 3, 12)
+            : new Date(2026, 0, dayNumber, 12),
+      });
+      assert.deepEqual(
+        session.playbackSequenceEntries,
+        expected,
+        `${planId} rhythm day ${dayNumber}`
+      );
+    }
+  }
+});
+
+test('combined rhythms use the current calendar assignment for recurring plans', () => {
+  for (const [planId, expectedBook, expectedChapter] of [
+    ['proverbs-31-days', 'PRO', 12],
+    ['kathisma-weekly', 'PSA', 110],
+  ] as const) {
+    const session = buildRhythmReaderSession({
+      rhythm: {
+        id: 'audit',
+        title: 'Audit',
+        items: [{ id: 'item', type: 'plan', planId }],
+        createdAt: '',
+        updatedAt: '',
+      },
+      planEntriesById: readingPlanEntriesByPlanId,
+      progressByPlanId: { [planId]: makeProgress(planId, { current_day: 1 }) },
+      today: new Date(2026, 8, 12, 12),
+    });
+    assert.deepEqual(session.startEntry, { bookId: expectedBook, chapter: expectedChapter });
+  }
+});
+
+test('completing one Sermon passage does not satisfy another day in the same chapter', () => {
+  const planId = 'sermon-on-the-mount-7-days';
+  const now = new Date(2026, 8, 12, 12);
+  const progress = makeProgress(planId, {
+    current_day: 3,
+    completed_entries: { '2': now.toISOString() },
+  });
+  const input = {
+    entries: readingPlanEntriesByPlanId[planId],
+    progress,
+    chaptersRead: { MAT_5: now.getTime() },
+    listeningHistory: [],
+    today: now,
+  };
+  const nextDay = getCurrentPlanDaySummary(input);
+  assert.equal(nextDay.isComplete, false);
+  assert.equal(nextDay.completedChapterCount, 0);
+  const completedDay = getCurrentPlanDaySummary({ ...input, dayNumber: 2 });
+  assert.equal(completedDay.isComplete, true);
+  assert.equal(completedDay.completedChapterCount, 1);
+});
 
 const makeEntry = (
   overrides: Partial<ReadingPlanEntry> &

@@ -167,7 +167,8 @@ export function getActivePlanDayNumber(
     return Math.min(Math.max(recurringDayNumber, 1), maxDay);
   }
 
-  return Math.max(progress?.current_day ?? 1, 1);
+  const currentDay = Math.max(progress?.current_day ?? 1, 1);
+  return plan.duration_days > 0 ? Math.min(currentDay, plan.duration_days) : currentDay;
 }
 
 export function getVisiblePlanDayNumbers(
@@ -188,12 +189,37 @@ export function getVisiblePlanDayNumbers(
   return uniqueDayNumbers.includes(activeDayNumber) ? [activeDayNumber] : uniqueDayNumbers;
 }
 
+export function getPlanLedgerDayNumbers(
+  plan: Pick<ReadingPlan, 'scheduleMode'> | null,
+  entries: ReadingPlanEntry[],
+  today: Date = new Date()
+): number[] {
+  const lastDay = isCalendarDayOfMonthPlan(plan)
+    ? new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()
+    : Infinity;
+  return [...new Set(entries.map((entry) => entry.day_number))]
+    .filter((day) => day <= lastDay)
+    .sort((left, right) => left - right);
+}
+
 export function getPlanCompletionEntryKey(
   plan: Pick<ReadingPlan, 'scheduleMode'>,
   dayNumber: number,
   today: Date = new Date()
 ): string {
-  return isRecurringPlan(plan) ? formatLocalDateKey(today) : String(dayNumber);
+  if (isCalendarDayOfMonthPlan(plan)) {
+    return formatLocalDateKey(new Date(today.getFullYear(), today.getMonth(), dayNumber));
+  }
+  if (isCalendarDayOfWeekPlan(plan)) {
+    return formatLocalDateKey(
+      new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate() + dayNumber - 1 - today.getDay()
+      )
+    );
+  }
+  return String(dayNumber);
 }
 
 /** The four states a plan day can hold in the ledger. Cells and rows share them. */

@@ -1549,7 +1549,7 @@ export const es = {
     "deleteRhythmConfirmBody": "Los planes incluidos seguirán en Mis planes, pero este ritmo se eliminará.",
     "bibleIn1Year": {
       "title": "La Biblia en un año",
-      "description": "Lee toda la Biblia en 365 días con lecturas diarias del Antiguo y Nuevo Testamento."
+      "description": "Lee toda la Biblia, de Génesis a Apocalipsis, en 365 días."
     },
     "newTestament90": {
       "title": "El Nuevo Testamento en 90 días",
@@ -1572,8 +1572,8 @@ export const es = {
       "description": "Lee los kathismata matutinos y vespertinos señalados para cada día de la semana, que se repiten cada semana."
     },
     "chronological": {
-      "title": "Biblia cronológica",
-      "description": "Lee la Biblia en el orden en que ocurrieron los eventos, de Génesis a Apocalipsis."
+      "title": "Toda la Biblia: libro por libro",
+      "description": "Lee los 66 libros en 365 días, comenzando con Génesis, Job y Éxodo."
     },
     "epistles30": {
       "title": "Las epístolas en 30 días",
@@ -1621,7 +1621,7 @@ export const es = {
       "title": "Escuchar la voz de Dios",
       "description": "Escucha a Dios a través de los profetas, los salmos, Jesús y la iglesia primitiva."
     },
-    "categoryChronological": "Cronológico",
+    "categoryChronological": "Toda la Biblia",
     "categoryBookStudy": "Estudio de libro",
     "categoryTopical": "Temático",
     "categoryDevotional": "Devocional",

@@ -22,9 +22,7 @@ import type { SupabaseFake } from './supabaseFake';
 type ModuleMockOptions = Parameters<MockTracker['module']>[1];
 
 /**
- * `mock.module(specifier, { exports })` with the Node 26 option shape. The
- * installed `@types/node` only knows the deprecated `namedExports` form, so
- * this wrapper carries the one cast every test would otherwise repeat.
+ * Keep CI's Node 22 option shape compatible with Node 26's exports API.
  * `exports` may include a `default` key for default-import consumers.
  */
 export function mockModule(
@@ -32,6 +30,13 @@ export function mockModule(
   specifier: string,
   exports: Record<string, unknown>
 ): ReturnType<MockTracker['module']> {
+  if (Number(process.versions.node.split('.')[0]) < 26) {
+    const { default: defaultExport, ...namedExports } = exports;
+    return mocker.module(specifier, {
+      namedExports,
+      ...('default' in exports ? { defaultExport } : {}),
+    });
+  }
   return mocker.module(specifier, { exports } as unknown as ModuleMockOptions);
 }
 

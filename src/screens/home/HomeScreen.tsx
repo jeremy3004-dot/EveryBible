@@ -60,7 +60,10 @@ import { isChapterAudioCovered } from '../../services/bible/contentAvailability'
 import { getAudioAvailability } from '../../services/audio/audioAvailability';
 import { isRemoteAudioAvailable } from '../../services/audio/audioRemote';
 import { listReadingPlans } from '../../services/plans/readingPlanService';
-import { getVisibleCompletedEntryCount } from '../../services/plans/readingPlanModel';
+import {
+  getActivePlanDayNumber,
+  getVisibleCompletedEntryCount,
+} from '../../services/plans/readingPlanModel';
 import type { ReadingPlan } from '../../services/plans/types';
 import { AppCard } from '../../components/ui/AppCard';
 import { IconButton } from '../../components/ui/IconButton';
@@ -257,8 +260,9 @@ export function HomeScreen() {
         defaultValue: featuredPlan.title_key,
       })
     : t('readingPlans.title');
-  const featuredPlanDay =
-    featuredPlanProgress?.progress.current_day ?? (featuredPlan?.duration_days ? 1 : 0);
+  const featuredPlanDay = featuredPlan
+    ? getActivePlanDayNumber(featuredPlan, featuredPlanProgress?.progress)
+    : 0;
   const featuredPlanDuration = featuredPlan?.duration_days ?? 0;
   const featuredPlanCompletedCount = featuredPlanProgress
     ? getVisibleCompletedEntryCount(

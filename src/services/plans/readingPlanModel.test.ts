@@ -9,6 +9,7 @@ import {
   getPlanSessionOrder,
   getActivePlanDayNumber,
   getPlanCompletionEntryKey,
+  getPlanLedgerDayNumbers,
   getVisibleCompletedEntryCount,
   isCalendarDayOfWeekPlan,
   isCalendarDayOfMonthPlan,
@@ -157,6 +158,11 @@ test('getActivePlanDayNumber uses todays date for calendar-day plans', () => {
   assert.equal(getActivePlanDayNumber(plan, progress, new Date(2026, 11, 2, 12)), 2);
 });
 
+test('completed sequential plans display their final day instead of a nonexistent extra day', () => {
+  const plan = makePlan({ duration_days: 7 });
+  assert.equal(getActivePlanDayNumber(plan, { current_day: 8 }), 7);
+});
+
 test('getActivePlanDayNumber uses todays weekday for weekly calendar plans', () => {
   const plan = makePlan({
     duration_days: 7,
@@ -300,6 +306,46 @@ test('getPlanCompletionEntryKey stays date-based for calendar-day plans', () => 
     '2026-04-13'
   );
   assert.equal(getPlanCompletionEntryKey(sequentialPlan, 5, new Date(2026, 3, 5, 12)), '5');
+});
+
+test('catching up a recurring plan records the selected date instead of completing today', () => {
+  assert.equal(
+    getPlanCompletionEntryKey(
+      makePlan({ scheduleMode: 'calendar-day-of-month' }),
+      5,
+      new Date(2026, 8, 12, 12)
+    ),
+    '2026-09-05'
+  );
+  assert.equal(
+    getPlanCompletionEntryKey(
+      makePlan({ scheduleMode: 'calendar-day-of-week' }),
+      2,
+      new Date(2026, 8, 12, 12)
+    ),
+    '2026-09-07'
+  );
+});
+
+test('the Proverbs ledger excludes dates that do not exist in the current month', () => {
+  const plan = makePlan({ scheduleMode: 'calendar-day-of-month', duration_days: 31 });
+  const entries = Array.from({ length: 31 }, (_, index) => ({
+    id: `day-${index + 1}`,
+    plan_id: plan.id,
+    day_number: index + 1,
+    book: 'PRO',
+    chapter_start: index + 1,
+    chapter_end: null,
+  }));
+  for (const [year, month, days] of [
+    [2024, 1, 29],
+    [2025, 1, 28],
+    [2026, 8, 30],
+    [2026, 9, 31],
+  ]) {
+    assert.equal(getPlanLedgerDayNumbers(plan, entries, new Date(year, month, 1)).length, days);
+  }
+  assert.equal(getPlanLedgerDayNumbers(makePlan(), entries, new Date(2025, 1, 1)).length, 31);
 });
 
 test('getVisibleCompletedEntryCount resets monthly recurring completion counts at a new month', () => {

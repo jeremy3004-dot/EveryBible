@@ -303,7 +303,7 @@ test('BibleReaderScreen avoids auto-completing plan chapters on open and returns
   );
   assert.match(
     handleCompletePlanDaySource,
-    /const shouldReturnToPlanDetail =[\s\S]*activePlanSessionIndex <[\s\S]*sessionSummaries\.length[\s\S]*- 1[\s\S]*await stop\(\);[\s\S]*clearAudioPlaybackSequence\(\);[\s\S]*setAudioTrack\(null,\s*null,\s*null\);[\s\S]*clearPlanDayResume\(activePlanId, planDayNumber\);[\s\S]*rootNavigationRef\.navigate\(\s*'Plans',\s*shouldReturnToPlanDetail[\s\S]*screen:\s*'PlanDetail',[\s\S]*params:\s*\{\s*planId:\s*activePlanId\s*\}[\s\S]*screen:\s*'PlansHome'[\s\S]*\);/s,
+    /const shouldReturnToPlanDetail =[\s\S]*completionResult.data\?\.current_session[\s\S]*await stop\(\);[\s\S]*clearAudioPlaybackSequence\(\);[\s\S]*setAudioTrack\(null,\s*null,\s*null\);[\s\S]*clearPlanDayResume\(activePlanId, planDayNumber\);[\s\S]*rootNavigationRef\.navigate\(\s*'Plans',\s*shouldReturnToPlanDetail[\s\S]*screen:\s*'PlanDetail',[\s\S]*params:\s*\{\s*planId:\s*activePlanId\s*\}[\s\S]*screen:\s*'PlansHome'[\s\S]*\);/s,
     'BibleReaderScreen should fully tear down playback, then return non-final multi-session completion to plan detail while final completion still falls back to My Plans'
   );
 });

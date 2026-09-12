@@ -1,5 +1,6 @@
 import type { ListeningHistoryEntry } from '../../stores/libraryModel';
 import type { AudioPlaybackSequenceEntry } from '../../types';
+import { readingPlansById } from '../../data/readingPlans.generated';
 import type {
   PlanSessionKey,
   ReadingPlanDayResume,
@@ -16,6 +17,7 @@ import {
   getActivePlanDayNumber,
   buildPlanSessionCompletionKey,
   getDaySessionEntries,
+  getPlanCompletionEntryKey,
   isRecurringPlan,
   isMultiSessionPlan,
 } from './readingPlanModel';
@@ -82,6 +84,7 @@ export interface BuildRhythmReaderSessionInput {
   progressByPlanId?: Record<string, UserReadingPlanProgress | null | undefined>;
   planTitlesById?: Record<string, string>;
   getPlanDayResume?: (planId: string, dayNumber: number) => ReadingPlanDayResume | null;
+  today?: Date;
 }
 
 export interface BuildRhythmReaderSessionResult {
@@ -158,9 +161,8 @@ export function resolvePlanDayPlaybackStartEntry(
 }
 
 const getUniqueDayEntries = (entries: ReadingPlanEntry[], dayNumber: number): ReadingPlanEntry[] =>
-  entries
-    .filter((entry) => entry.day_number === dayNumber)
-    .sort((a, b) => a.id.localeCompare(b.id));
+  // Catalog order is intentional; lexical ids put part-10 before part-2.
+  entries.filter((entry) => entry.day_number === dayNumber);
 
 export function getPlanDayTargetChapterKeys(
   entries: ReadingPlanEntry[],
@@ -203,6 +205,7 @@ export function buildRhythmReaderSession({
   progressByPlanId = {},
   planTitlesById = {},
   getPlanDayResume,
+  today = new Date(),
 }: BuildRhythmReaderSessionInput): BuildRhythmReaderSessionResult {
   const segments: ReadingPlanRhythmSessionSegment[] = [];
   const chapterKeys: string[] = [];
@@ -221,7 +224,10 @@ export function buildRhythmReaderSession({
         continue;
       }
 
-      const dayNumber = getRhythmDayNumber(entries, progress ?? undefined);
+      const plan = readingPlansById.get(planId);
+      const dayNumber = plan && isRecurringPlan(plan)
+        ? getActivePlanDayNumber(plan, progress, today)
+        : getRhythmDayNumber(entries, progress ?? undefined);
       const dayEntries = getUniqueDayEntries(entries, dayNumber);
       const segmentChapterKeys = expandPlanDayChapterKeys(dayEntries);
       if (segmentChapterKeys.length === 0) {
@@ -489,7 +495,19 @@ export function buildPlanDayCompletionSummary(
   input: MergeTodayChapterActivityInput
 ): PlanDayCompletionSummary {
   const targetChapterKeys = getPlanDayTargetChapterKeys(entries, dayNumber);
-  const completedActivity = mergeChapterActivityRecords(input);
+  // Chapter activity cannot identify which verse assignment was completed.
+  // Partial-chapter days require their own explicit completion record.
+  const partialChapterKeys = new Set(
+    expandPlanDayChapterKeys(
+      entries.filter(
+        (entry) =>
+          entry.day_number === dayNumber && (entry.verse_start != null || entry.verse_end != null)
+      )
+    )
+  );
+  const completedActivity = mergeChapterActivityRecords(input).filter(
+    (record) => !partialChapterKeys.has(record.chapterKey)
+  );
   const completedChapterKeys = completedActivity.map((record) => record.chapterKey);
 
   return {
@@ -549,7 +567,7 @@ function getPlanDayDateKey(
   today: Date
 ): string {
   if (isRecurringPlan(plan)) {
-    return formatLocalDateKey(today);
+    return getPlanCompletionEntryKey(plan!, dayNumber, today);
   }
 
   return getScheduledPlanDayDateKey(progress.started_at, dayNumber);
@@ -584,9 +602,16 @@ export function getCurrentPlanDaySummary({
     listenCompletionThreshold,
   });
 
-  const completedChapterCount = summary.completedActivity.filter((record) =>
-    summary.targetChapterKeys.includes(record.chapterKey)
-  ).length;
+  const completionKey = plan
+    ? getPlanCompletionEntryKey(plan, resolvedDayNumber, today)
+    : String(resolvedDayNumber);
+  const isPersistedDayComplete = Boolean(progress.completed_entries[completionKey]);
+
+  const completedChapterCount = isPersistedDayComplete
+    ? summary.targetChapterKeys.length
+    : summary.completedActivity.filter((record) =>
+        summary.targetChapterKeys.includes(record.chapterKey)
+      ).length;
   const sessionSummaries = buildPlanDaySessionSummaries({
     plan,
     progress,
@@ -606,20 +631,21 @@ export function getCurrentPlanDaySummary({
     dayNumber: resolvedDayNumber,
     dateKey: getPlanDayDateKey(plan, progress, resolvedDayNumber, today),
     targetChapterKeys: summary.targetChapterKeys,
-    completedChapterKeys: summary.completedChapterKeys.filter((chapterKey) =>
-      summary.targetChapterKeys.includes(chapterKey)
-    ),
+    completedChapterKeys: isPersistedDayComplete
+      ? summary.targetChapterKeys
+      : summary.completedChapterKeys.filter((chapterKey) =>
+          summary.targetChapterKeys.includes(chapterKey)
+        ),
     targetChapterCount: summary.targetChapterKeys.length,
     completedChapterCount,
     remainingChapterCount: Math.max(summary.targetChapterKeys.length - completedChapterCount, 0),
-    isComplete: summary.isComplete,
+    isComplete: isPersistedDayComplete || summary.isComplete,
     sessionSummaries: isMultiSessionPlan(plan) ? sessionSummaries : [],
     totalSessionCount: isMultiSessionPlan(plan) ? sessionSummaries.length : 0,
     completedSessionCount: isMultiSessionPlan(plan) ? completedSessionCount : 0,
-    nextIncompleteSessionKey:
-      isMultiSessionPlan(plan)
-        ? sessionSummaries.find((session) => !session.isComplete)?.sessionKey ?? null
-        : null,
+    nextIncompleteSessionKey: isMultiSessionPlan(plan)
+      ? (sessionSummaries.find((session) => !session.isComplete)?.sessionKey ?? null)
+      : null,
   };
 }
 

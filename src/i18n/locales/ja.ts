@@ -1053,7 +1053,7 @@ export const ja = {
     "dailyTargetCompleteBody": "今日のプランの読書を終えました。プラン画面に戻って進捗を確認しましょう。",
     "bibleIn1Year": {
       "title": "1年で聖書通読",
-      "description": "毎日、旧約聖書と新約聖書を読み、365日で聖書全体を通読します。"
+      "description": "創世記からヨハネの黙示録まで、聖書全体を365日で読みます。"
     },
     "newTestament90": {
       "title": "90日で新約聖書",
@@ -1076,8 +1076,8 @@ export const ja = {
       "description": "平日ごとに定められた朝と晩のカフィズマを読み、毎週繰り返します。"
     },
     "chronological": {
-      "title": "年代順の聖書通読",
-      "description": "創世記から黙示録まで、出来事が起きた順に聖書を読みます。"
+      "title": "聖書全体：一書ずつ読む",
+      "description": "創世記、ヨブ記、出エジプト記から始めて、全66書を365日で読みます。"
     },
     "epistles30": {
       "title": "30日で書簡",
@@ -1173,7 +1173,7 @@ export const ja = {
       "title": "神の声を聞く",
       "description": "預言者、詩篇、イエス、そして初代教会を通して神の声に耳を傾けます。"
     },
-    "categoryChronological": "年代順",
+    "categoryChronological": "聖書全体",
     "categoryBookStudy": "書巻の学び",
     "categoryTopical": "テーマ別",
     "categoryDevotional": "デボーション",

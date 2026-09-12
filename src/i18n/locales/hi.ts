@@ -791,7 +791,7 @@ export const hi = {
     "listenChapterCounted": "{{reference}} आज की योजना में गिना गया",
     "dailyTargetCompleteTitle": "आज की पढ़ाई पूरी हुई",
     "dailyTargetCompleteBody": "आपने आज की योजना पढ़ना पूरा कर लिया है। अब हम आपको वापस आपकी योजना पर ले चलेंगे ताकि आप अपनी प्रगति देख सकें।",
-    "categoryChronological": "कालक्रमानुसार",
+    "categoryChronological": "पूरी बाइबल",
     "categoryBookStudy": "पुस्तक अध्ययन",
     "categoryTopical": "विषयगत",
     "categoryDevotional": "भक्तिपूर्ण",
@@ -925,7 +925,7 @@ export const hi = {
     "deleteRhythmConfirmBody": "शामिल योजनाएँ “मेरी योजनाएँ” में बनी रहेंगी, पर यह लय हट जाएगी।",
     "bibleIn1Year": {
       "title": "एक वर्ष में बाइबल",
-      "description": "हर दिन पुराने और नए नियम के पाठों के साथ 365 दिनों में पूरी बाइबल पढ़ें।"
+      "description": "365 दिनों में उत्पत्ति से प्रकाशितवाक्य तक पूरी बाइबल पढ़ें।"
     },
     "newTestament90": {
       "title": "90 दिनों में नया नियम",
@@ -948,8 +948,8 @@ export const hi = {
       "description": "हर सप्ताह दोहराते हुए, कार्यदिवसों के लिए निर्धारित सुबह और शाम के भजन-संहिता खंड पढ़ें।"
     },
     "chronological": {
-      "title": "कालानुक्रमिक बाइबल",
-      "description": "उत्पत्ति से प्रकाशितवाक्य तक, घटनाओं के घटित होने के क्रम में बाइबल पढ़ें।"
+      "title": "पूरी बाइबल: एक-एक पुस्तक करके",
+      "description": "उत्पत्ति, अय्यूब और निर्गमन से शुरू करके 365 दिनों में सभी 66 पुस्तकें पढ़ें।"
     },
     "epistles30": {
       "title": "30 दिनों में पत्रियाँ",

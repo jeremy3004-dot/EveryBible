@@ -1053,7 +1053,7 @@ export const vi = {
     "dailyTargetCompleteBody": "Bạn đã đọc xong phần của kế hoạch hôm nay. Chúng tôi sẽ đưa bạn về lại kế hoạch để xem tiến độ.",
     "bibleIn1Year": {
       "title": "Kinh Thánh trong một năm",
-      "description": "Đọc trọn bộ Kinh Thánh trong 365 ngày với các bài đọc Cựu Ước và Tân Ước mỗi ngày."
+      "description": "Đọc toàn bộ Kinh Thánh từ Sáng Thế Ký đến Khải Huyền trong 365 ngày."
     },
     "newTestament90": {
       "title": "Tân Ước trong 90 ngày",
@@ -1076,8 +1076,8 @@ export const vi = {
       "description": "Đọc các phần Thi Thiên được chỉ định vào sáng và tối mỗi ngày trong tuần, lặp lại hằng tuần."
     },
     "chronological": {
-      "title": "Kinh Thánh theo niên đại",
-      "description": "Đọc Kinh Thánh theo thứ tự các sự kiện đã xảy ra, từ Sáng Thế Ký đến Khải Huyền."
+      "title": "Toàn bộ Kinh Thánh: từng sách một",
+      "description": "Đọc cả 66 sách trong 365 ngày, bắt đầu với Sáng Thế Ký, Gióp và Xuất Ê-díp-tô Ký."
     },
     "epistles30": {
       "title": "Các thư tín trong 30 ngày",
@@ -1173,7 +1173,7 @@ export const vi = {
       "title": "Nghe tiếng Chúa",
       "description": "Lắng nghe Chúa qua các tiên tri, Thi Thiên, Chúa Giê-su và Hội Thánh đầu tiên."
     },
-    "categoryChronological": "Theo niên đại",
+    "categoryChronological": "Toàn bộ Kinh Thánh",
     "categoryBookStudy": "Học theo sách",
     "categoryTopical": "Theo chủ đề",
     "categoryDevotional": "Tĩnh nguyện",

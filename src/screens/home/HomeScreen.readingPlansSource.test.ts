@@ -7,6 +7,11 @@ function readRelativeSource(relativePath: string): string {
   return readFileSync(fileURLToPath(new URL(relativePath, import.meta.url).href), 'utf8');
 }
 
+test('HomeScreen resolves the featured recurring plan against the current calendar day', () => {
+  const source = readRelativeSource('./HomeScreen.tsx');
+  assert.match(source, /getActivePlanDayNumber\(featuredPlan, featuredPlanProgress\?\.progress/);
+});
+
 test('HomeScreen renders a compact continue-plan card below the verse card', () => {
   const source = readRelativeSource('./HomeScreen.tsx');
 

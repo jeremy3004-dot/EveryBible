@@ -1215,7 +1215,7 @@ export const ne = {
     "listenChapterCounted": "{{reference}} आजको योजनामा गणना भयो",
     "dailyTargetCompleteTitle": "आजको पठन पूरा भयो",
     "dailyTargetCompleteBody": "तपाईंले आजको योजनाको पठन पूरा गर्नुभयो। आफ्नो प्रगति हेर्न सकियोस् भनेर हामी तपाईंलाई योजनामै फर्काउँछौँ।",
-    "categoryChronological": "कालक्रमिक",
+    "categoryChronological": "सम्पूर्ण बाइबल",
     "categoryBookStudy": "पुस्तक अध्ययन",
     "categoryTopical": "विषयगत",
     "categoryDevotional": "भक्ति",
@@ -1349,7 +1349,7 @@ export const ne = {
     "deleteRhythmConfirmBody": "समावेश गरिएका योजना मेरा योजनामै रहनेछन्, तर यो लय हटाइनेछ।",
     "bibleIn1Year": {
       "title": "एक वर्षमा बाइबल",
-      "description": "दैनिक पुरानो र नयाँ नियमका पठनसहित 365 दिनमा सम्पूर्ण बाइबल पढ्नुहोस्।"
+      "description": "३६५ दिनमा उत्पत्तिदेखि प्रकाशसम्म सम्पूर्ण बाइबल पढ्नुहोस्।"
     },
     "newTestament90": {
       "title": "90 दिनमा नयाँ नियम",
@@ -1372,8 +1372,8 @@ export const ne = {
       "description": "हरेक हप्ता दोहोरिने गरी, हप्ताको हरेक दिनका लागि तोकिएका बिहान र साँझका काथिस्मा पढ्नुहोस्।"
     },
     "chronological": {
-      "title": "कालक्रमिक बाइबल",
-      "description": "उत्पत्तिदेखि प्रकाशसम्म घटनाहरू घटेकै क्रममा बाइबल पढ्नुहोस्।"
+      "title": "सम्पूर्ण बाइबल: एक-एक पुस्तक गरी",
+      "description": "उत्पत्ति, अय्यूब र प्रस्थानबाट सुरु गरेर ३६५ दिनमा सबै ६६ पुस्तक पढ्नुहोस्।"
     },
     "epistles30": {
       "title": "30 दिनमा पत्रहरू",

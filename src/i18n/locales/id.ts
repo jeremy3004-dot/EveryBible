@@ -1053,7 +1053,7 @@ export const id = {
     "dailyTargetCompleteBody": "Anda sudah menyelesaikan bacaan rencana hari ini. Kami akan membawa Anda kembali ke rencana agar bisa melihat kemajuan Anda.",
     "bibleIn1Year": {
       "title": "Alkitab dalam Satu Tahun",
-      "description": "Baca seluruh Alkitab dalam 365 hari dengan bacaan Perjanjian Lama dan Baru setiap hari."
+      "description": "Baca seluruh Alkitab dari Kejadian sampai Wahyu dalam 365 hari."
     },
     "newTestament90": {
       "title": "Perjanjian Baru dalam 90 Hari",
@@ -1076,8 +1076,8 @@ export const id = {
       "description": "Baca bagian Mazmur yang ditetapkan setiap pagi dan sore pada hari kerja, diulang setiap minggu."
     },
     "chronological": {
-      "title": "Alkitab Kronologis",
-      "description": "Bacalah Alkitab sesuai urutan terjadinya peristiwa, dari Kejadian hingga Wahyu."
+      "title": "Seluruh Alkitab: Kitab demi Kitab",
+      "description": "Baca seluruh 66 kitab dalam 365 hari, dimulai dari Kejadian, Ayub, dan Keluaran."
     },
     "epistles30": {
       "title": "Surat-Surat Rasuli dalam 30 Hari",
@@ -1173,7 +1173,7 @@ export const id = {
       "title": "Mendengar Suara Tuhan",
       "description": "Dengarkan suara Tuhan melalui para nabi, mazmur, Yesus, dan gereja mula-mula."
     },
-    "categoryChronological": "Kronologis",
+    "categoryChronological": "Seluruh Alkitab",
     "categoryBookStudy": "Studi kitab",
     "categoryTopical": "Tematik",
     "categoryDevotional": "Renungan",

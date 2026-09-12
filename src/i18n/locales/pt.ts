@@ -1062,7 +1062,7 @@ export const pt = {
     "dailyTargetCompleteBody": "Você terminou a leitura do plano de hoje. Vamos levar você de volta ao seu plano para ver seu progresso.",
     "bibleIn1Year": {
       "title": "Bíblia em um ano",
-      "description": "Leia toda a Bíblia em 365 dias com leituras diárias do Antigo e do Novo Testamento."
+      "description": "Leia toda a Bíblia, de Gênesis a Apocalipse, em 365 dias."
     },
     "newTestament90": {
       "title": "Novo Testamento em 90 dias",
@@ -1085,8 +1085,8 @@ export const pt = {
       "description": "Leia os kathismata matinais e vespertinos designados para cada dia da semana, repetindo a cada semana."
     },
     "chronological": {
-      "title": "Bíblia cronológica",
-      "description": "Leia a Bíblia na ordem em que os eventos ocorreram, de Gênesis a Apocalipse."
+      "title": "Toda a Bíblia: livro por livro",
+      "description": "Leia os 66 livros em 365 dias, começando por Gênesis, Jó e Êxodo."
     },
     "epistles30": {
       "title": "Epístolas em 30 dias",
@@ -1182,7 +1182,7 @@ export const pt = {
       "title": "Ouvindo a voz de Deus",
       "description": "Ouça a Deus por meio dos profetas, dos salmos, de Jesus e da igreja primitiva."
     },
-    "categoryChronological": "Cronológico",
+    "categoryChronological": "Toda a Bíblia",
     "categoryBookStudy": "Estudo de livro",
     "categoryTopical": "Temático",
     "categoryDevotional": "Devocional",

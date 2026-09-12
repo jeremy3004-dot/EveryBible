@@ -1053,7 +1053,7 @@ export const tr = {
     "dailyTargetCompleteBody": "Bugünün plan okumasını tamamladınız. İlerlemenizi görebilmeniz için sizi planınıza geri götüreceğiz.",
     "bibleIn1Year": {
       "title": "Bir Yılda Kutsal Kitap",
-      "description": "Her gün Eski ve Yeni Antlaşma’dan okumalarla Kutsal Kitap’ın tamamını 365 günde okuyun."
+      "description": "Kutsal Kitap’ın tamamını Yaratılış’tan Vahiy’e kadar 365 günde okuyun."
     },
     "newTestament90": {
       "title": "90 Günde Yeni Antlaşma",
@@ -1076,8 +1076,8 @@ export const tr = {
       "description": "Her hafta içi gün için belirlenen sabah ve akşam kathismalarını okuyun; her hafta tekrarlanır."
     },
     "chronological": {
-      "title": "Kronolojik Kutsal Kitap",
-      "description": "Kutsal Kitap’ı Yaratılış’tan Vahiy’e, olayların gerçekleşme sırasına göre okuyun."
+      "title": "Kutsal Kitap’ın Tamamı: Kitap Kitap",
+      "description": "Yaratılış, Eyüp ve Mısır’dan Çıkış ile başlayarak 66 kitabın tamamını 365 günde okuyun."
     },
     "epistles30": {
       "title": "30 Günde Mektuplar",
@@ -1173,7 +1173,7 @@ export const tr = {
       "title": "Tanrı’nın Sesini Duymak",
       "description": "Tanrı’yı peygamberler, mezmurlar, İsa ve ilk kilise aracılığıyla dinleyin."
     },
-    "categoryChronological": "Kronolojik",
+    "categoryChronological": "Kutsal Kitap’ın Tamamı",
     "categoryBookStudy": "Kitap çalışması",
     "categoryTopical": "Konulu",
     "categoryDevotional": "Adanmışlık",

@@ -1167,7 +1167,7 @@ export const en = {
     bibleIn1Year: {
       title: 'Bible in One Year',
       description:
-        'Read through the entire Bible in 365 days with daily Old and New Testament readings.',
+        "Read through the entire Bible from Genesis to Revelation in 365 days.",
     },
     newTestament90: {
       title: 'New Testament in 90 Days',
@@ -1192,8 +1192,8 @@ export const en = {
         'Read the appointed morning and evening kathismata for each weekday, repeating every week.',
     },
     chronological: {
-      title: 'Chronological Bible',
-      description: 'Read the Bible in the order events occurred, from Genesis to Revelation.',
+      title: "Whole Bible: Book by Book",
+      description: "Read all 66 books in 365 days, beginning with Genesis, Job, and Exodus.",
     },
     epistles30: {
       title: 'Epistles in 30 Days',
@@ -1249,7 +1249,7 @@ export const en = {
       title: 'Hearing God’s Voice',
       description: 'Listen for God through the prophets, the psalms, Jesus, and the early church.',
     },
-    categoryChronological: 'Chronological',
+    categoryChronological: "Whole Bible",
     categoryBookStudy: 'Book study',
     categoryTopical: 'Topical',
     categoryDevotional: 'Devotional',

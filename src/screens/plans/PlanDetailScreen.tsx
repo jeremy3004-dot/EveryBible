@@ -13,6 +13,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { FlashList } from '@shopify/flash-list';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
@@ -34,6 +35,7 @@ import { useBibleStore } from '../../stores/bibleStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { useProgressStore } from '../../stores/progressStore';
 import { useReadingPlansStore } from '../../stores/readingPlansStore';
+import { formatPlanPassageReference } from '../../services/plans';
 import {
   enrollInPlan,
   getPlansByCategory,
@@ -52,6 +54,7 @@ import { getReadingPlanCoverSource } from '../../services/plans/readingPlanAsset
 import {
   getActivePlanDayNumber,
   getDaySessionEntries,
+  getPlanLedgerDayNumbers,
   isCalendarDayOfMonthPlan,
   isCalendarDayOfWeekPlan,
   isRecurringPlan,
@@ -124,11 +127,7 @@ function formatChapterRef(
   entry: ReadingPlanEntry,
   t: ReturnType<typeof useTranslation>['t']
 ): string {
-  const bookName = getTranslatedBookName(entry.book, t);
-  if (entry.chapter_end && entry.chapter_end !== entry.chapter_start) {
-    return `${bookName} ${entry.chapter_start}–${entry.chapter_end}`;
-  }
-  return `${bookName} ${entry.chapter_start}`;
+  return formatPlanPassageReference(entry, getTranslatedBookName(entry.book, t));
 }
 
 function groupEntriesByDay(entries: ReadingPlanEntry[]): Map<number, ReadingPlanEntry[]> {
@@ -148,12 +147,6 @@ function groupEntriesByDay(entries: ReadingPlanEntry[]): Map<number, ReadingPlan
  * thirty-one days whether or not you are standing on day thirty — so the ledger
  * lists the cycle even though navigation only ever resumes today's chapter.
  */
-function getLedgerDayNumbers(entries: ReadingPlanEntry[]): number[] {
-  return Array.from(new Set(entries.map((entry) => entry.day_number))).sort(
-    (left, right) => left - right
-  );
-}
-
 /**
  * The local date a recurring plan's day falls on, or `null` for a sequential
  * plan (whose days are scheduled from the enrolment date instead).
@@ -891,10 +884,16 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
   const [error, setError] = useState<string | null>(null);
 
   const entriesByDay = React.useMemo(() => groupEntriesByDay(entries), [entries]);
-  const today = React.useMemo(() => new Date(), []);
-  // The ledger accounts for the whole plan, recurring rhythms included: the
-  // reference design lists a 31-day Proverbs cycle even on day 30.
-  const ledgerDayNumbers = React.useMemo(() => getLedgerDayNumbers(entries), [entries]);
+  const [today, setToday] = useState(() => new Date());
+  useFocusEffect(
+    useCallback(() => {
+      setToday(new Date());
+    }, [])
+  );
+  const ledgerDayNumbers = React.useMemo(
+    () => getPlanLedgerDayNumbers(plan, entries, today),
+    [plan, entries, today]
+  );
 
   const load = useCallback(async () => {
     setLoading(true);

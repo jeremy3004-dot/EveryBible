@@ -64,13 +64,13 @@ test('PlanDetailScreen derives scheduled labels from the plan start date', () =>
 test('PlanDetailScreen lists the whole plan in the ledger, recurring rhythms included', () => {
   assert.match(
     source,
-    /function getLedgerDayNumbers\(entries: ReadingPlanEntry\[\]\): number\[\]/,
-    'PlanDetailScreen should derive the ledger day universe from every day the plan has entries for'
+    /getPlanLedgerDayNumbers/,
+    'PlanDetailScreen should derive the ledger days from the shared calendar-aware model'
   );
   assert.match(
     source,
-    /const ledgerDayNumbers = React\.useMemo\(\(\) => getLedgerDayNumbers\(entries\), \[entries\]\);/,
-    'PlanDetailScreen should build the ledger from the plan-wide day list'
+    /getPlanLedgerDayNumbers\(plan, entries, today\)/,
+    'PlanDetailScreen should show only real dates in the current recurring cycle'
   );
   assert.doesNotMatch(
     source,

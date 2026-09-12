@@ -277,11 +277,19 @@ test('enrollInPlan enrols a signed-out reader locally without touching Supabase'
 
 test('enrollInPlan pushes the new enrolment to Supabase in the background', async () => {
   signIn('user-a', 4);
-  supabaseFake.respondTo('user_reading_plan_progress', () => ({
-    data: remoteRow({ plan_slug: 'psalms-30-days', current_day: 1, completed_entries: {} }),
-  }));
+  const remoteWrite = new Promise<void>((resolve) => {
+    supabaseFake.respondTo('user_reading_plan_progress', () => {
+      resolve();
+      return {
+        data: remoteRow({ plan_slug: 'psalms-30-days', current_day: 1, completed_entries: {} }),
+      };
+    });
+  });
 
   const result = await service.enrollInPlan('psalms-30-days');
+  // A first dynamic import can outlive setImmediate on Node 22. Wait for the
+  // actual background write before checking its payload and persisted result.
+  await remoteWrite;
   await flushBackgroundWork();
 
   assert.equal(result.success, true);
@@ -457,6 +465,25 @@ test('markPlanSessionComplete completes the day once its final session is done',
   assert.equal(result.data?.current_day, 2);
   assert.equal(result.data?.is_completed, false);
 });
+
+for (const implementation of ['singleton', 'injected'] as const) {
+  test(`${implementation}: Kathisma requires both sessions even when evening is read first`, async () => {
+    const api =
+      implementation === 'singleton'
+        ? service
+        : service.createReadingPlanService(
+            storeModule.createReadingPlansStore(createMemoryStorage())
+          );
+    await api.enrollInPlan('kathisma-weekly');
+    const evening = await api.markPlanSessionComplete('kathisma-weekly', 2, 'evening');
+    assert.deepEqual(evening.data?.completed_entries, {});
+    assert.equal(evening.data?.current_session, 'morning');
+    const morning = await api.markPlanSessionComplete('kathisma-weekly', 2, 'morning');
+    assert.equal(Object.keys(morning.data?.completed_entries ?? {}).length, 1);
+    assert.equal(morning.data?.current_session, null);
+    assert.equal(morning.data?.is_completed, false);
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Completed plans
