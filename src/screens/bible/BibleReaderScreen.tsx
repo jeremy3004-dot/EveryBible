@@ -215,6 +215,11 @@ interface AudioPortionShareDraft {
   durationMs: number;
 }
 
+// The squared top controls are 40pt so they match the reference pill; the slop
+// restores the 44pt touch floor without growing the visible square.
+const TOP_ACTION_HIT_SLOP = 2;
+const TOP_ACTION_ICON_SIZE = 20;
+
 const AUDIO_PORTION_MIN_DURATION_MS = 1000;
 const AUDIO_PORTION_DEFAULT_DURATION_MS = 30000;
 const AUDIO_PORTION_HANDLE_WIDTH = 20;
@@ -1703,7 +1708,10 @@ export function BibleReaderScreen() {
   const showPremiumReadMode =
     chapterPresentationMode === 'text' && verses.length > 0 && !isLoading && error == null;
   const premiumBottomInset = 18;
-  const sharedTopChromeTop = safeInsets.top;
+  // The squared controls carry a visible surface, so a bare inset let them butt
+  // against the status bar / Dynamic Island. This restores the breathing gap the
+  // capsule used to get from its own 6pt inset inside the row.
+  const sharedTopChromeTop = safeInsets.top + spacing.xs;
   // The floating top chrome is one `minTouchTarget`-tall pill pinned at
   // `sharedTopChromeTop`, so content only needs to clear that plus a gap. The old
   // flat 98 left ~54pt of dead space above the first line.
@@ -5362,7 +5370,7 @@ export function BibleReaderScreen() {
             pointerEvents="none"
             style={[
               styles.floatingReaderReferencePillBackground,
-              { backgroundColor: colors.bibleElevatedSurface },
+              { backgroundColor: colors.bibleElevatedSurface, borderColor: colors.bibleDivider },
             ]}
           />
           <TouchableOpacity
@@ -5419,8 +5427,12 @@ export function BibleReaderScreen() {
       <View style={styles.floatingReaderTopActionGroup}>
         {audioEnabled ? (
           <TouchableOpacity
-            style={styles.floatingReaderMenuButton}
+            style={[
+              styles.floatingReaderMenuButton,
+              { backgroundColor: colors.bibleElevatedSurface, borderColor: colors.bibleDivider },
+            ]}
             activeOpacity={0.85}
+            hitSlop={TOP_ACTION_HIT_SLOP}
             onPress={() => {
               setShowFontSizeSheet(false);
               setShowTranslationSheet(false);
@@ -5431,40 +5443,60 @@ export function BibleReaderScreen() {
             accessibilityLabel={t('audio.nowPlaying')}
           >
             <View style={styles.floatingReaderMenuButtonContent}>
-              <Ionicons name="volume-medium-outline" size={26} color={colors.biblePrimaryText} />
+              <Ionicons
+                name="volume-medium-outline"
+                size={TOP_ACTION_ICON_SIZE}
+                color={colors.biblePrimaryText}
+              />
             </View>
           </TouchableOpacity>
         ) : null}
 
         <TouchableOpacity
-          style={styles.floatingReaderMenuButton}
+          style={[
+            styles.floatingReaderMenuButton,
+            { backgroundColor: colors.bibleElevatedSurface, borderColor: colors.bibleDivider },
+          ]}
           activeOpacity={0.85}
+          hitSlop={TOP_ACTION_HIT_SLOP}
           onPress={handleOpenBibleSearch}
           accessibilityRole="button"
           accessibilityLabel={t('common.search')}
         >
           <View style={styles.floatingReaderMenuButtonContent}>
-            <Ionicons name="search" size={26} color={colors.biblePrimaryText} />
+            <Ionicons name="search" size={TOP_ACTION_ICON_SIZE} color={colors.biblePrimaryText} />
           </View>
         </TouchableOpacity>
 
         {chapterFeedbackEnabled ? (
           <TouchableOpacity
-            style={styles.floatingReaderMenuButton}
+            style={[
+              styles.floatingReaderMenuButton,
+              { backgroundColor: colors.bibleElevatedSurface, borderColor: colors.bibleDivider },
+            ]}
             activeOpacity={0.85}
+            hitSlop={TOP_ACTION_HIT_SLOP}
             onPress={handleOpenChapterFeedback}
             accessibilityRole="button"
             accessibilityLabel={t('bible.chapterFeedback')}
           >
             <View style={styles.floatingReaderMenuButtonContent}>
-              <Ionicons name="chatbox-ellipses-outline" size={26} color={colors.biblePrimaryText} />
+              <Ionicons
+                name="chatbox-ellipses-outline"
+                size={TOP_ACTION_ICON_SIZE}
+                color={colors.biblePrimaryText}
+              />
             </View>
           </TouchableOpacity>
         ) : null}
 
         <TouchableOpacity
-          style={styles.floatingReaderMenuButton}
+          style={[
+            styles.floatingReaderMenuButton,
+            { backgroundColor: colors.bibleElevatedSurface, borderColor: colors.bibleDivider },
+          ]}
           activeOpacity={0.85}
+          hitSlop={TOP_ACTION_HIT_SLOP}
           onPress={() => {
             setShowAudioOptionsSheet(false);
             setShowFontSizeSheet(false);
@@ -5476,8 +5508,8 @@ export function BibleReaderScreen() {
         >
           <View style={styles.floatingReaderMenuButtonContent}>
             <Ionicons
-              name="ellipsis-horizontal-circle-outline"
-              size={28}
+              name="ellipsis-horizontal"
+              size={TOP_ACTION_ICON_SIZE}
               color={colors.biblePrimaryText}
             />
           </View>
@@ -6903,7 +6935,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
-    gap: 0,
+    gap: spacing.xs,
     flexShrink: 0,
   },
   floatingReaderPlanExitButton: {
@@ -6932,9 +6964,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    top: 6,
-    height: 32,
-    borderRadius: radius.pill,
+    top: 2,
+    height: layout.iconButton,
+    borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
   },
   floatingReaderReferencePillSegment: {
@@ -6970,8 +7003,10 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   floatingReaderMenuButton: {
-    width: layout.minTouchTarget,
-    height: layout.minTouchTarget,
+    width: layout.iconButton,
+    height: layout.iconButton,
+    borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',

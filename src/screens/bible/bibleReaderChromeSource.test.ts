@@ -398,7 +398,7 @@ test('top audio button opens the shared utility controls', () => {
 
   assert.match(
     source,
-    /Ionicons name="volume-medium-outline"/,
+    /Ionicons\s+name="volume-medium-outline"/,
     'BibleReaderScreen should expose a compact speaker button in the top chrome'
   );
 
@@ -448,7 +448,7 @@ test('reader top chrome places search between audio and overflow actions', () =>
 
   assert.match(
     source,
-    /Ionicons name="volume-medium-outline"[\s\S]*Ionicons name="search"[\s\S]*Ionicons\s+name="ellipsis-horizontal-circle-outline"/s,
+    /Ionicons\s+name="volume-medium-outline"[\s\S]*Ionicons\s+name="search"[\s\S]*Ionicons\s+name="ellipsis-horizontal"/s,
     'BibleReaderScreen should render the search button between the audio button and the overflow button'
   );
 });
@@ -1158,7 +1158,7 @@ test('premium read mode keeps the three-dot overflow menu on the right while rem
 
   assert.match(
     source,
-    /accessibilityLabel=\{t\('tabs.more'\)\}[\s\S]*name="ellipsis-horizontal-circle-outline"/,
+    /accessibilityLabel=\{t\('tabs.more'\)\}[\s\S]*name="ellipsis-horizontal"/,
     'BibleReaderScreen should keep the overflow menu icon on the right side of the premium read chrome'
   );
 
@@ -1199,7 +1199,7 @@ test('premium read mode uses flat segmented top buttons with separate chapter an
 
   assert.match(
     source,
-    /const sharedTopChromeTop = safeInsets\.top;/,
+    /const sharedTopChromeTop = safeInsets\.top \+ spacing\.xs;/,
     'BibleReaderScreen should compute the top chrome offset once from the safe area and reuse it in both modes'
   );
 
