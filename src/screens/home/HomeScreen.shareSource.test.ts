@@ -85,7 +85,7 @@ test('HomeScreen captures a verse image and falls back to text sharing', () => {
   assert.match(
     source,
     /styles\.heroActionRow[\s\S]*\{renderVerseShareButton\(\)\}/,
-    'The hero should render the share button at the end of the action row when showActions is true'
+    'The hero should render the share button at the end of the action row in the on-screen variant'
   );
 
   assert.equal(
@@ -102,13 +102,13 @@ test('HomeScreen captures a verse image and falls back to text sharing', () => {
 
   assert.match(
     source,
-    /renderVerseOfTheDayCard\(false\)/,
+    /renderVerseOfTheDayCard\('share'\)/,
     'HomeScreen should render a capture-only share preview without the visible button'
   );
 
   assert.match(
     source,
-    /renderVerseOfTheDayCard\(true\)/,
+    /renderVerseOfTheDayCard\('screen'\)/,
     'HomeScreen should render the visible verse card with actions'
   );
 
@@ -166,5 +166,39 @@ test('HomeScreen renders the rotating daily verse rather than a hardcoded passag
     source,
     /\{verseShareReferenceLabel\}/,
     'The visible verse card should render the dynamic daily verse reference'
+  );
+});
+
+test('The shared verse image carries only the photograph and the Scripture', () => {
+  const source = readRelativeSource('./HomeScreen.tsx');
+
+  // Regression: the share sheet captured the live hero, so every shared image
+  // carried the reader's own name, the greeting and today's date. A shared
+  // verse belongs to whoever receives it — it should be the photograph and the
+  // Scripture, nothing personal.
+  assert.match(
+    source,
+    /const renderVerseOfTheDayCard = \(variant: HomeHeroVariant\) => \{/,
+    'The hero card should render by variant so the share capture can drop the personal header'
+  );
+
+  assert.match(
+    source,
+    /const isScreenVariant = variant === 'screen';/,
+    'HomeScreen should name the on-screen variant so the header and actions key off it'
+  );
+
+  const headerBlock = source.match(
+    /\{isScreenVariant \? \([\s\S]*?\) : null\}\s*<View style=\{\[styles\.heroFooter/
+  );
+  assert.ok(
+    headerBlock,
+    'The hero date and greeting should render only in the on-screen variant, above the footer'
+  );
+  assert.match(headerBlock[0], /\{todayLabel\}/, 'The date belongs to the on-screen header');
+  assert.match(
+    headerBlock[0],
+    /\{greetingLabel\}/,
+    'The personal greeting belongs to the on-screen header'
   );
 });

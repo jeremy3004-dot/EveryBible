@@ -101,6 +101,13 @@ const HERO_SCRIM_LOCATIONS = [0, 0.28, 0.55, 0.78, 1] as const;
 // already dissolved to the page colour there, so the overlap is invisible and
 // the sheet's 20pt top padding is measured from the pills, as in the reference.
 const HERO_ACTION_OVERHANG = 9;
+/**
+ * The hero renders twice: once on screen, and once off screen for the share
+ * sheet. The shared image is the photograph and the Scripture only — the date,
+ * the greeting and the reader's own name stay on their device.
+ */
+type HomeHeroVariant = 'screen' | 'share';
+
 /** Gap between the status bar and the date eyebrow over the photograph. */
 const HERO_TOP_PADDING = 14;
 const HERO_PILL_HEIGHT = 36;
@@ -641,128 +648,134 @@ export function HomeScreen() {
     }
   };
 
-  const renderVerseOfTheDayCard = (showActions: boolean) => (
-    <View
-      style={[
-        styles.hero,
-        {
-          height: homeLayout.heroPhotoHeight + (showActions ? HERO_ACTION_OVERHANG : 0),
-        },
-      ]}
-    >
-      <ImageBackground
-        source={verseBackgroundSource}
-        style={[styles.heroPhoto, { height: homeLayout.heroPhotoHeight }]}
-        resizeMode="cover"
-        accessible={false}
+  const renderVerseOfTheDayCard = (variant: HomeHeroVariant) => {
+    const isScreenVariant = variant === 'screen';
+
+    return (
+      <View
+        style={[
+          styles.hero,
+          {
+            height: homeLayout.heroPhotoHeight + (isScreenVariant ? HERO_ACTION_OVERHANG : 0),
+          },
+        ]}
       >
-        <LinearGradient
-          colors={heroScrimColors}
-          locations={HERO_SCRIM_LOCATIONS}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-          style={styles.heroScrim}
-        />
-      </ImageBackground>
+        <ImageBackground
+          source={verseBackgroundSource}
+          style={[styles.heroPhoto, { height: homeLayout.heroPhotoHeight }]}
+          resizeMode="cover"
+          accessible={false}
+        >
+          <LinearGradient
+            colors={heroScrimColors}
+            locations={HERO_SCRIM_LOCATIONS}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={styles.heroScrim}
+          />
+        </ImageBackground>
 
-      <View style={[styles.heroContent, { paddingTop: insets.top + HERO_TOP_PADDING }]}>
-        <View style={styles.heroHeaderRow}>
-          <View style={styles.heroHeaderCopy}>
-            <Text style={[styles.heroDate, displayFont.regular]} numberOfLines={1}>
-              {todayLabel}
-            </Text>
-            <Text
-              style={[
-                styles.heroGreeting,
-                displayFont.bold,
-                {
-                  fontSize: homeLayout.greetingFontSize,
-                  lineHeight: homeLayout.greetingLineHeight,
-                },
-              ]}
-              numberOfLines={2}
-            >
-              {greetingLabel}
-            </Text>
-          </View>
-        </View>
-
-        <View style={[styles.heroFooter, showActions ? null : styles.heroFooterCapture]}>
-          {isLoadingVerse && !dailyScripture ? (
-            <View style={styles.heroPlaceholder}>
-              <View style={[styles.heroPlaceholderBar, styles.heroPlaceholderEyebrow]} />
-              <View style={styles.heroPlaceholderBar} />
-              <View style={[styles.heroPlaceholderBar, styles.heroPlaceholderBarShort]} />
+        <View style={[styles.heroContent, { paddingTop: insets.top + HERO_TOP_PADDING }]}>
+          {isScreenVariant ? (
+            <View style={styles.heroHeaderRow}>
+              <View style={styles.heroHeaderCopy}>
+                <Text style={[styles.heroDate, displayFont.regular]} numberOfLines={1}>
+                  {todayLabel}
+                </Text>
+                <Text
+                  style={[
+                    styles.heroGreeting,
+                    displayFont.bold,
+                    {
+                      fontSize: homeLayout.greetingFontSize,
+                      lineHeight: homeLayout.greetingLineHeight,
+                    },
+                  ]}
+                  numberOfLines={2}
+                >
+                  {greetingLabel}
+                </Text>
+              </View>
             </View>
-          ) : (
-            <>
-              <Text style={[styles.heroEyebrow, displayFont.regular]} numberOfLines={1}>
-                {verseScriptureEyebrow}
-              </Text>
-              <Text
-                style={[
-                  styles.verseText,
-                  {
-                    fontFamily: verseFontFamily,
-                    fontSize: homeLayout.verseTextFontSize,
-                    lineHeight: homeLayout.verseTextLineHeight,
-                  },
-                ]}
-                numberOfLines={homeLayout.verseTextLines}
-                adjustsFontSizeToFit
-                minimumFontScale={0.72}
-              >
-                {verseShareBodyText}
-              </Text>
-            </>
-          )}
-          {showActions ? (
-            <View style={styles.heroActionRow}>
-              {canListenToDailyScripture ? (
+          ) : null}
+
+          <View style={[styles.heroFooter, isScreenVariant ? null : styles.heroFooterCapture]}>
+            {isLoadingVerse && !dailyScripture ? (
+              <View style={styles.heroPlaceholder}>
+                <View style={[styles.heroPlaceholderBar, styles.heroPlaceholderEyebrow]} />
+                <View style={styles.heroPlaceholderBar} />
+                <View style={[styles.heroPlaceholderBar, styles.heroPlaceholderBarShort]} />
+              </View>
+            ) : (
+              <>
+                <Text style={[styles.heroEyebrow, displayFont.regular]} numberOfLines={1}>
+                  {verseScriptureEyebrow}
+                </Text>
+                <Text
+                  style={[
+                    styles.verseText,
+                    {
+                      fontFamily: verseFontFamily,
+                      fontSize: homeLayout.verseTextFontSize,
+                      lineHeight: homeLayout.verseTextLineHeight,
+                    },
+                  ]}
+                  numberOfLines={homeLayout.verseTextLines}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.72}
+                >
+                  {verseShareBodyText}
+                </Text>
+              </>
+            )}
+            {isScreenVariant ? (
+              <View style={styles.heroActionRow}>
+                {canListenToDailyScripture ? (
+                  <PressableScale
+                    onPress={handlePlayDailyAudio}
+                    pressEffect="translate"
+                    haptic="light"
+                    accessibilityRole="button"
+                    accessibilityLabel={t('bible.listen')}
+                    style={styles.heroPill}
+                  >
+                    <Play
+                      size={14}
+                      color={ON_PHOTO_PILL_INK}
+                      fill={ON_PHOTO_PILL_INK}
+                      strokeWidth={2}
+                    />
+                    <Text style={styles.heroPillLabel} numberOfLines={1}>
+                      {t('bible.listen')}
+                    </Text>
+                  </PressableScale>
+                ) : null}
                 <PressableScale
-                  onPress={handlePlayDailyAudio}
+                  onPress={handleReadDailyScripture}
                   pressEffect="translate"
                   haptic="light"
                   accessibilityRole="button"
-                  accessibilityLabel={t('bible.listen')}
+                  accessibilityLabel={
+                    dailyPassageLabel
+                      ? t('home.readPassage', { passage: dailyPassageLabel })
+                      : t('bible.read')
+                  }
                   style={styles.heroPill}
                 >
-                  <Play
-                    size={14}
-                    color={ON_PHOTO_PILL_INK}
-                    fill={ON_PHOTO_PILL_INK}
-                    strokeWidth={2}
-                  />
                   <Text style={styles.heroPillLabel} numberOfLines={1}>
-                    {t('bible.listen')}
+                    {dailyPassageLabel
+                      ? t('home.readPassage', { passage: dailyPassageLabel })
+                      : t('bible.read')}
                   </Text>
                 </PressableScale>
-              ) : null}
-              <PressableScale
-                onPress={handleReadDailyScripture}
-                pressEffect="translate"
-                haptic="light"
-                accessibilityRole="button"
-                accessibilityLabel={
-                  dailyPassageLabel
-                    ? t('home.readPassage', { passage: dailyPassageLabel })
-                    : t('bible.read')
-                }
-                style={styles.heroPill}
-              >
-                <Text style={styles.heroPillLabel} numberOfLines={1}>
-                  {dailyPassageLabel
-                    ? t('home.readPassage', { passage: dailyPassageLabel })
-                    : t('bible.read')}
-                </Text>
-              </PressableScale>
-              {renderVerseShareButton()}
-            </View>
-          ) : null}
+                {renderVerseShareButton()}
+              </View>
+            ) : null}
+          </View>
         </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -784,7 +797,7 @@ export function HomeScreen() {
         overScrollMode="always"
         contentInsetAdjustmentBehavior="never"
       >
-        {renderVerseOfTheDayCard(true)}
+        {renderVerseOfTheDayCard('screen')}
 
         <View style={styles.sheet}>
           <Animated.View entering={sectionEntering(0)} style={styles.sheetCardRow}>
@@ -1060,7 +1073,7 @@ export function HomeScreen() {
         pointerEvents="none"
         style={[styles.sharePreviewMount, { width: screenWidth }]}
       >
-        {renderVerseOfTheDayCard(false)}
+        {renderVerseOfTheDayCard('share')}
       </View>
     </View>
   );
