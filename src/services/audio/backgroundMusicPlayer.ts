@@ -159,6 +159,9 @@ class BackgroundMusicPlayer {
         newSound.setOnPlaybackStatusUpdate(null);
         newSound.stopAsync().catch(() => {});
         newSound.unloadAsync().catch(() => {});
+        if (this.sound === oldSound) {
+          oldSound.setOnPlaybackStatusUpdate(this.handlePlaybackStatus);
+        }
         return;
       }
 
@@ -174,6 +177,12 @@ class BackgroundMusicPlayer {
       newSound.setOnPlaybackStatusUpdate(this.handlePlaybackStatus);
       this.fadeVolume(newSound, 0, this.targetVolume);
     } catch {
+      if (capturedRequestId !== this.loadRequestId) {
+        if (this.sound === oldSound) {
+          oldSound.setOnPlaybackStatusUpdate(this.handlePlaybackStatus);
+        }
+        return;
+      }
       // If crossfade fails, fall back to simple restart (only if still valid)
       if (capturedRequestId === this.loadRequestId) {
         try {
@@ -186,12 +195,18 @@ class BackgroundMusicPlayer {
     }
   }
 
-  private async ensureLoaded(choice: Exclude<BackgroundMusicChoice, 'off'>): Promise<void> {
+  private async ensureLoaded(
+    choice: Exclude<BackgroundMusicChoice, 'off'>,
+    requestId: number
+  ): Promise<void> {
     if (this.currentChoice === choice && this.sound) {
       return;
     }
 
     await this.configure();
+    if (requestId !== this.loadRequestId) {
+      return;
+    }
 
     const source = getBackgroundMusicSource(choice);
     const option = getBackgroundMusicOption(choice);
@@ -199,10 +214,12 @@ class BackgroundMusicPlayer {
       return;
     }
 
-    const requestId = ++this.loadRequestId;
     this.targetVolume = option.defaultVolume;
 
     await this.unloadCurrentSound();
+    if (requestId !== this.loadRequestId) {
+      return;
+    }
 
     const { sound } = await Audio.Sound.createAsync(source, {
       shouldPlay: false,
@@ -222,10 +239,22 @@ class BackgroundMusicPlayer {
   }
 
   async sync(choice: BackgroundMusicChoice, shouldPlay: boolean): Promise<void> {
+    if (
+      choice !== 'off' &&
+      shouldPlay &&
+      this.shouldBePlaying &&
+      this.currentChoice === choice &&
+      this.sound
+    ) {
+      return;
+    }
+
+    // Capture the user's command before any async work, including configuration.
+    // Pause must cancel pending loads and crossfades as well as playing sounds.
+    const requestId = ++this.loadRequestId;
     if (choice === 'off') {
       this.shouldBePlaying = false;
       this.currentChoice = null;
-      this.loadRequestId += 1;
       await this.unloadCurrentSound();
       return;
     }
@@ -247,41 +276,43 @@ class BackgroundMusicPlayer {
       this.currentChoice = choice;
 
       if (choiceChanged) {
-        this.loadRequestId += 1;
         await this.unloadCurrentSound();
         return;
       }
 
       try {
+        const sound = this.sound;
         this.clearFadeTimers();
         await this.unloadRetiringSounds();
-        await this.sound.setVolumeAsync(0);
-        await this.sound.pauseAsync();
+        if (requestId !== this.loadRequestId || this.sound !== sound) return;
+        await sound.setVolumeAsync(0);
+        if (requestId !== this.loadRequestId || this.sound !== sound) return;
+        await sound.pauseAsync();
       } catch {
         // Ignore pause races; the next sync pass will reconcile.
       }
       return;
     }
 
-    const wasAlreadyPlayingChoice =
-      this.shouldBePlaying && this.currentChoice === choice && this.sound != null;
+    this.shouldBePlaying = false;
+    await this.ensureLoaded(choice, requestId);
 
-    await this.ensureLoaded(choice);
-
-    if (!this.sound) {
-      return;
-    }
-
-    if (wasAlreadyPlayingChoice) {
+    if (requestId !== this.loadRequestId || !this.sound) {
       return;
     }
 
     this.shouldBePlaying = true;
+    const sound = this.sound;
 
     try {
-      await this.sound.playAsync();
-      this.fadeVolume(this.sound, 0, this.targetVolume);
+      await sound.playAsync();
+      if (requestId === this.loadRequestId && this.sound === sound) {
+        this.fadeVolume(sound, 0, this.targetVolume);
+      }
     } catch {
+      if (requestId === this.loadRequestId) {
+        this.shouldBePlaying = false;
+      }
       // Ignore play races; the next sync pass will reconcile.
     }
   }

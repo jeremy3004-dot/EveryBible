@@ -42,6 +42,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
   const AUDIO_POSITION_INTERPOLATION_INTERVAL_MS = 250;
   const sleepTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const playRequestIdRef = useRef(0);
+  const playbackErrorIdRef = useRef(0);
   const isChapterTransitioningRef = useRef(false);
   const backgroundMusicOffHandledRef = useRef(false);
   const playChapterForTranslationRef = useRef<
@@ -347,6 +348,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       emitAudioPlaybackProgress('chapter-change', true);
       stopAudioProgressTelemetryTimer();
       await audioPlayer.stop();
+      if (playRequestId !== playRequestIdRef.current) return;
       setStatus('loading');
       setCurrentTrack(targetTranslationId, bookId, chapter);
       syncQueueToTrackInStore(targetTranslationId, bookId, chapter);
@@ -373,8 +375,13 @@ export function useAudioPlayer(translationId: string = 'bsb') {
         }
 
         try {
+          const errorId = playbackErrorIdRef.current;
           await audioPlayer.loadAndPlay(audioData.url, playbackRate);
+          if (errorId !== playbackErrorIdRef.current) {
+            throw new Error('Native playback failed');
+          }
         } catch (initialLoadError) {
+          if (playRequestId !== playRequestIdRef.current) return;
           const shouldRetryWithRemoteFallback = audioData.url.startsWith('file://');
           if (!shouldRetryWithRemoteFallback) {
             throw initialLoadError;
@@ -386,12 +393,18 @@ export function useAudioPlayer(translationId: string = 'bsb') {
             chapter,
             verse
           );
+          if (playRequestId !== playRequestIdRef.current) return;
 
           if (!remoteFallback || remoteFallback.url === audioData.url) {
             throw initialLoadError;
           }
 
+          const fallbackErrorId = playbackErrorIdRef.current;
           await audioPlayer.loadAndPlay(remoteFallback.url, playbackRate);
+          if (fallbackErrorId !== playbackErrorIdRef.current) {
+            throw new Error('Native playback failed');
+          }
+          if (playRequestId !== playRequestIdRef.current) return;
           audioData = remoteFallback;
 
           // If a downloaded chapter file can no longer be decoded, remove it so
@@ -403,14 +416,14 @@ export function useAudioPlayer(translationId: string = 'bsb') {
         }
 
         if (playRequestId !== playRequestIdRef.current) {
-          await audioPlayer.stop();
+          // The native player disposes superseded sounds. Stopping its singleton
+          // here would stop whichever newer chapter now owns it.
           return;
         }
 
         if (startPositionMs > 0) {
           await audioPlayer.seekTo(startPositionMs);
           if (playRequestId !== playRequestIdRef.current) {
-            await audioPlayer.stop();
             return;
           }
           setPosition(startPositionMs);
@@ -709,7 +722,13 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     audioPlayer.setCallbacks({
       onStatusUpdate: handleStatusUpdate,
       onPlaybackFinished: handlePlaybackFinished,
-      onError: () => setError(t('interface.audioPlayFailed')),
+      onError: () => {
+        // Some native commands report through this callback and still resolve.
+        // Their callers must not replace this error with a successful status.
+        playbackErrorIdRef.current += 1;
+        isChapterTransitioningRef.current = false;
+        setError(t('interface.audioPlayFailed'));
+      },
     });
 
     return () => {
@@ -774,36 +793,6 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     void backgroundMusicPlayer.sync(backgroundMusicChoice, shouldPlayBackgroundMusic);
   }, [backgroundMusicChoice, status]);
 
-  // Sleep timer check and remaining time calculation
-  useEffect(() => {
-    // Always clear any stale interval from a prior render before potentially
-    // starting a new one, so only one interval is ever active at a time.
-    if (sleepTimerRef.current) {
-      clearInterval(sleepTimerRef.current);
-      sleepTimerRef.current = null;
-    }
-
-    if (sleepTimerEndTime && status === 'playing') {
-      sleepTimerRef.current = setInterval(() => {
-        const now = Date.now();
-        setSleepTimerNow(now);
-
-        if (now >= sleepTimerEndTime) {
-          // Timer expired - stop playback
-          audioPlayer.pause();
-          clearSleepTimer();
-        }
-      }, 1000);
-    }
-
-    return () => {
-      if (sleepTimerRef.current) {
-        clearInterval(sleepTimerRef.current);
-        sleepTimerRef.current = null;
-      }
-    };
-  }, [sleepTimerEndTime, status, clearSleepTimer]);
-
   const sleepTimerRemaining = useMemo(() => {
     if (!sleepTimerEndTime) {
       return null;
@@ -815,6 +804,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
   // Pause playback
   const pause = useCallback(async () => {
     playRequestIdRef.current += 1;
+    isChapterTransitioningRef.current = false;
     // Stop interpolation immediately so position freezes at pause point
     if (interpolationTimerRef.current) {
       clearInterval(interpolationTimerRef.current);
@@ -848,8 +838,42 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     syncCurrentNowPlaying,
   ]);
 
+  // Sleep timer check and remaining time calculation
+  useEffect(() => {
+    // Always clear any stale interval from a prior render before potentially
+    // starting a new one, so only one interval is ever active at a time.
+    if (sleepTimerRef.current) {
+      clearInterval(sleepTimerRef.current);
+      sleepTimerRef.current = null;
+    }
+
+    if (sleepTimerEndTime && (status === 'playing' || status === 'loading')) {
+      sleepTimerRef.current = setInterval(() => {
+        const now = Date.now();
+        setSleepTimerNow(now);
+
+        if (now >= sleepTimerEndTime) {
+          // Expire once and use the same cancellation/status path as Pause.
+          if (sleepTimerRef.current) clearInterval(sleepTimerRef.current);
+          sleepTimerRef.current = null;
+          clearSleepTimer();
+          void pause();
+        }
+      }, 1000);
+    }
+
+    return () => {
+      if (sleepTimerRef.current) {
+        clearInterval(sleepTimerRef.current);
+        sleepTimerRef.current = null;
+      }
+    };
+  }, [sleepTimerEndTime, status, clearSleepTimer, pause]);
+
   // Resume playback
   const resume = useCallback(async () => {
+    const requestId = ++playRequestIdRef.current;
+    const errorId = playbackErrorIdRef.current;
     const store = useAudioStore.getState();
     // Live resume: the loaded player already holds the true offset, and
     // currentPosition reflects any scrubs made while paused. Using
@@ -867,10 +891,12 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     if (isLoaded && resumePosition > 0) {
       await audioPlayer.seekTo(resumePosition);
     }
+    if (requestId !== playRequestIdRef.current || errorId !== playbackErrorIdRef.current) return;
 
     lastPollPositionRef.current = resumePosition;
     lastPollTimeRef.current = Date.now();
     await audioPlayer.resume();
+    if (requestId !== playRequestIdRef.current || errorId !== playbackErrorIdRef.current) return;
     setStatus('playing');
     syncCurrentNowPlaying(
       {
@@ -885,6 +911,8 @@ export function useAudioPlayer(translationId: string = 'bsb') {
   // Stop playback completely
   const stop = useCallback(async () => {
     playRequestIdRef.current += 1;
+    const requestId = playRequestIdRef.current;
+    isChapterTransitioningRef.current = false;
     if (interpolationTimerRef.current) {
       clearInterval(interpolationTimerRef.current);
       interpolationTimerRef.current = null;
@@ -901,6 +929,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     clearAudioReturnTarget();
     resetPlayback();
     await audioPlayer.stop();
+    if (requestId !== playRequestIdRef.current) return;
     await backgroundMusicPlayer.stop();
   }, [
     clearAudioReturnTarget,

@@ -253,24 +253,27 @@ async function setupPlayer(_options?: SetupOptions): Promise<void> {
   });
 
   isSetup = true;
-  setState(State.Ready);
+  if (currentState === State.None) setState(State.Ready);
 }
 
-async function add(track: Track | Track[]): Promise<void> {
+async function add(track: Track | Track[]): Promise<number | undefined> {
   const tracks = Array.isArray(track) ? track : [track];
   if (tracks.length === 0) return;
 
   // Only supports single-track loading; queue managed by audioStore
   const target = tracks[0];
 
-  await setupPlayer();
   const requestId = ++loadRequestId;
+  await setupPlayer();
+  if (requestId !== loadRequestId) return;
 
   setState(State.Loading);
 
   await unloadSound();
+  if (requestId !== loadRequestId) return;
 
   try {
+    let loadedSound: Audio.Sound | null = null;
     const { sound: newSound } = await Audio.Sound.createAsync(
       { uri: target.url },
       {
@@ -279,8 +282,15 @@ async function add(track: Track | Track[]): Promise<void> {
         shouldCorrectPitch: true,
         progressUpdateIntervalMillis: 1000,
       },
-      handleAVStatus
+      (status) => {
+        // Ignore pending sounds superseded by another load or transport command.
+        // A loaded sound keeps reporting after pause/resume while it remains active.
+        if (requestId === loadRequestId || (loadedSound !== null && sound === loadedSound)) {
+          handleAVStatus(status);
+        }
+      }
     );
+    loadedSound = newSound;
 
     if (requestId !== loadRequestId) {
       // Detach before tearing down: expo-av reports a final loaded status from
@@ -295,6 +305,7 @@ async function add(track: Track | Track[]): Promise<void> {
     activeTrack = target;
     setState(State.Ready);
     emit(Event.PlaybackActiveTrackChanged, { track: target });
+    return requestId;
   } catch (error) {
     if (requestId !== loadRequestId) return;
     setState(State.Error);
@@ -305,32 +316,44 @@ async function add(track: Track | Track[]): Promise<void> {
 }
 
 async function play(): Promise<void> {
-  if (!sound) return;
+  const ref = sound;
+  if (!ref) return;
+  const requestId = ++loadRequestId;
 
   try {
-    await sound.playAsync();
+    await ref.playAsync();
+    if (ref !== sound || requestId !== loadRequestId) return;
     setState(State.Playing);
   } catch (error) {
+    if (ref !== sound || requestId !== loadRequestId) return;
     const message = error instanceof Error ? error.message : 'Failed to play';
     emit(Event.PlaybackError, { code: 'PLAY_ERROR', message });
   }
 }
 
 async function pause(): Promise<void> {
-  if (!sound) return;
+  const requestId = ++loadRequestId;
+  const ref = sound;
+  if (!ref) {
+    if (currentState === State.Loading) setState(State.Paused);
+    return;
+  }
 
   try {
-    await sound.pauseAsync();
+    await ref.pauseAsync();
+    if (ref !== sound || requestId !== loadRequestId) return;
     setState(State.Paused);
   } catch (error) {
+    if (ref !== sound || requestId !== loadRequestId) return;
     const message = error instanceof Error ? error.message : 'Failed to pause';
     emit(Event.PlaybackError, { code: 'PAUSE_ERROR', message });
   }
 }
 
 async function stop(): Promise<void> {
-  loadRequestId += 1;
+  const requestId = ++loadRequestId;
   await unloadSound();
+  if (requestId !== loadRequestId) return;
   activeTrack = null;
   setState(State.Stopped);
   emit(Event.PlaybackActiveTrackChanged, { track: null });
@@ -423,7 +446,8 @@ function addEventListener<E extends Event>(event: E, listener: EventListener<E>)
 async function loadAndPlay(url: string, rate: PlaybackRate = 1.0): Promise<void> {
   currentRate = rate;
   const trackId = `${Date.now()}`;
-  await add({ id: trackId, url });
+  const requestId = await add({ id: trackId, url });
+  if (requestId === undefined || requestId !== loadRequestId) return;
   // Explicitly apply rate + pitch correction via setRateAsync after load.
   // createAsync's `rate` option doesn't reliably enable pitch correction on iOS;
   // setRateAsync(rate, true) is the authoritative call that prevents the chipmunk
@@ -431,6 +455,7 @@ async function loadAndPlay(url: string, rate: PlaybackRate = 1.0): Promise<void>
   if (sound && rate !== 1.0) {
     await sound.setRateAsync(rate, true);
   }
+  if (requestId !== loadRequestId) return;
   await play();
 }
 

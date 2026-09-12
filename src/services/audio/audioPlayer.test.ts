@@ -47,6 +47,7 @@ type Listener = (data: unknown) => void;
 
 const trackPlayerCalls: RecordedCall[] = [];
 const failures = new Map<string, unknown>();
+const gates = new Map<string, Promise<void>>();
 const listeners = new Map<EventName, Set<Listener>>();
 
 let progressResult = { position: 0, duration: 0, buffered: 0 };
@@ -55,7 +56,7 @@ let playbackStateResult: { state: string } = { state: State.None };
 function record(method: string, args: unknown[] = []): Promise<void> {
   trackPlayerCalls.push({ method, args });
   const failure = failures.get(method);
-  return failure ? Promise.reject(failure) : Promise.resolve();
+  return failure ? Promise.reject(failure) : (gates.get(method) ?? Promise.resolve());
 }
 
 /** Push an event the way trackPlayer would. */
@@ -133,6 +134,7 @@ before(async () => {
 
 beforeEach(async () => {
   failures.clear();
+  gates.clear();
   progressResult = { position: 0, duration: 0, buffered: 0 };
   playbackStateResult = { state: State.None };
   if (mod) {
@@ -523,4 +525,57 @@ test('getStatus returns null when the wrapper cannot report progress', async () 
   failures.set('getProgress', new Error('sound released'));
 
   assert.equal(await mod.audioPlayer.getStatus(), null);
+});
+
+function deferOperation() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+const flushOperations = () => new Promise((resolve) => setImmediate(resolve));
+
+test('pause reaches a pending native load and keeps the facade unloaded after cancellation', async () => {
+  const gate = deferOperation();
+  gates.set('loadAndPlay', gate.promise);
+  const pending = mod.audioPlayer.loadAndPlay('https://audio.test/pending.mp3');
+  await flushOperations();
+
+  await mod.audioPlayer.pause();
+  gate.resolve();
+  await pending;
+
+  assert.equal(
+    trackPlayerCalls.some((call) => call.method === 'pause'),
+    true
+  );
+  assert.equal(mod.audioPlayer.isLoaded(), false);
+});
+
+test('a stopped load cannot mark the facade loaded when it completes late', async () => {
+  const gate = deferOperation();
+  gates.set('loadAndPlay', gate.promise);
+  const pending = mod.audioPlayer.loadAndPlay('https://audio.test/pending.mp3');
+  await flushOperations();
+
+  await mod.audioPlayer.stop();
+  gate.resolve();
+  await pending;
+
+  assert.equal(mod.audioPlayer.isLoaded(), false);
+});
+
+test('a delayed stop cannot clear the loaded flag of a newer chapter', async () => {
+  await mod.audioPlayer.loadAndPlay('https://audio.test/old.mp3');
+  const gate = deferOperation();
+  gates.set('stop', gate.promise);
+  const stopping = mod.audioPlayer.stop();
+  gates.clear();
+  await mod.audioPlayer.loadAndPlay('https://audio.test/new.mp3');
+
+  gate.resolve();
+  await stopping;
+
+  assert.equal(mod.audioPlayer.isLoaded(), true);
 });

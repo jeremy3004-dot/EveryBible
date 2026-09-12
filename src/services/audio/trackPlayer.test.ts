@@ -31,6 +31,7 @@ interface FakeStatus {
 class FakeSound {
   readonly calls: RecordedCall[] = [];
   readonly rejections = new Map<string, unknown>();
+  readonly gates = new Map<string, Promise<void>>();
   /**
    * Statuses expo-av pushes as a side effect of a transport call. Real
    * `stopAsync()` on a loaded sound reports one last loaded status (position
@@ -86,7 +87,7 @@ class FakeSound {
       this.emitStatus(emitted);
     }
     const failure = this.rejections.get(method);
-    return failure ? Promise.reject(failure) : Promise.resolve();
+    return failure ? Promise.reject(failure) : (this.gates.get(method) ?? Promise.resolve());
   }
 }
 
@@ -826,4 +827,130 @@ test('loadAndPlay stamps the loaded track with the current clock', async (t) => 
     id: '1700000000000',
     url: 'https://audio.test/john3.mp3',
   });
+});
+
+test('an old loadAndPlay completion cannot resume a newer paused track', async () => {
+  const gate = createDeferred();
+  nextCreateGate = gate.promise;
+  const stale = mod.default.loadAndPlay('https://audio.test/old.mp3', 1.5);
+  await flush();
+  nextCreateGate = null;
+  await mod.default.loadAndPlay('https://audio.test/new.mp3');
+  await mod.default.pause();
+  const current = soundInstances[1];
+  const callsAtPause = current.calls.length;
+
+  gate.resolve();
+  await stale;
+
+  assert.deepEqual(current.methods().slice(callsAtPause), []);
+  assert.deepEqual(await mod.default.getPlaybackState(), { state: mod.State.Paused });
+});
+
+test('pause cancels an in-flight chapter load before it can autoplay', async () => {
+  const gate = createDeferred();
+  nextCreateGate = gate.promise;
+  const pending = mod.default.loadAndPlay('https://audio.test/pending.mp3');
+  await flush();
+
+  await mod.default.pause();
+  gate.resolve();
+  await pending;
+
+  assert.equal(soundInstances[0].methods().includes('playAsync'), false);
+  assert.equal(await mod.default.getActiveTrack(), null);
+});
+
+test('an immediate stop cancels a chapter waiting for audio-session setup', async () => {
+  const pending = mod.default.loadAndPlay('https://audio.test/pending.mp3');
+  await mod.default.stop();
+  await pending;
+
+  assert.equal(await mod.default.getActiveTrack(), null);
+  assert.equal(createCalls.length, 0);
+  assert.deepEqual(await mod.default.getPlaybackState(), { state: mod.State.Stopped });
+});
+
+test('a superseded loading sound cannot publish stale progress or errors', async () => {
+  const gate = createDeferred();
+  nextCreateGate = gate.promise;
+  const stale = mod.default.add(track('old'));
+  await flush();
+  nextCreateGate = null;
+  await mod.default.loadAndPlay('https://audio.test/new.mp3');
+  const events = recordEvents();
+
+  soundInstances[0].emitStatus({ isLoaded: true, positionMillis: 9000, isPlaying: false });
+  soundInstances[0].emitStatus({ isLoaded: false, error: 'old load failed' });
+  gate.resolve();
+  await stale;
+
+  assert.deepEqual(events, []);
+  assert.deepEqual(await mod.default.getPlaybackState(), { state: mod.State.Playing });
+});
+
+test('a delayed stop cannot clear a newer loaded track', async () => {
+  await mod.default.loadAndPlay('https://audio.test/old.mp3');
+  const gate = createDeferred();
+  soundInstances[0].gates.set('stopAsync', gate.promise);
+  const stopping = mod.default.stop();
+  await flush();
+  await mod.default.loadAndPlay('https://audio.test/new.mp3');
+
+  gate.resolve();
+  await stopping;
+
+  assert.equal((await mod.default.getActiveTrack())?.url, 'https://audio.test/new.mp3');
+  assert.deepEqual(await mod.default.getPlaybackState(), { state: mod.State.Playing });
+});
+
+test('a delayed pause cannot replace the state of a newer resume', async () => {
+  await mod.default.loadAndPlay('https://audio.test/chapter.mp3');
+  const gate = createDeferred();
+  soundInstances[0].gates.set('pauseAsync', gate.promise);
+  const pausing = mod.default.pause();
+  await mod.default.play();
+
+  gate.resolve();
+  await pausing;
+
+  assert.deepEqual(await mod.default.getPlaybackState(), { state: mod.State.Playing });
+});
+
+test('a stale play failure cannot report an error for the newer chapter', async () => {
+  await mod.default.loadAndPlay('https://audio.test/old.mp3');
+  let reject!: (error: Error) => void;
+  soundInstances[0].gates.set(
+    'playAsync',
+    new Promise((_, fail) => {
+      reject = fail;
+    })
+  );
+  const pending = mod.default.play();
+  await mod.default.loadAndPlay('https://audio.test/new.mp3');
+  const events = recordEvents();
+
+  reject(new Error('old sound released'));
+  await pending;
+
+  assert.deepEqual(events, []);
+});
+
+test('a stale pause failure cannot report an error for the newer chapter', async () => {
+  await mod.default.loadAndPlay('https://audio.test/old.mp3');
+  let reject!: (error: Error) => void;
+  soundInstances[0].gates.set(
+    'pauseAsync',
+    new Promise((_, fail) => {
+      reject = fail;
+    })
+  );
+  const pending = mod.default.pause();
+  await mod.default.loadAndPlay('https://audio.test/new.mp3');
+  const events = recordEvents();
+
+  reject(new Error('old sound released'));
+  await pending;
+
+  assert.deepEqual(events, []);
 });

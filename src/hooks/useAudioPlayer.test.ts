@@ -58,6 +58,7 @@ const recorded = {
 };
 
 const DEFAULT_DURATION_MS = 600_000;
+const playerGates = new Map<string, Promise<void>>();
 
 const defaultChapterAudio = async (
   translationId: string,
@@ -115,6 +116,8 @@ const audioPlayerDouble: AudioPlayerDouble = {
     if (scenario.failLoadUrls.has(url)) {
       throw new Error(`decode failed: ${url}`);
     }
+    const gate = playerGates.get(`load:${url}`);
+    if (gate) await gate;
     audioPlayerDouble.loaded = true;
   },
   async pause() {
@@ -122,13 +125,19 @@ const audioPlayerDouble: AudioPlayerDouble = {
   },
   async resume() {
     recorded.player.push({ method: 'resume', args: [] });
+    const gate = playerGates.get('resume');
+    if (gate) await gate;
   },
   async stop() {
     recorded.player.push({ method: 'stop', args: [] });
     audioPlayerDouble.loaded = false;
+    const gate = playerGates.get('stop');
+    if (gate) await gate;
   },
   async seekTo(positionMs: number) {
     recorded.player.push({ method: 'seekTo', args: [positionMs] });
+    const gate = playerGates.get('seek');
+    if (gate) await gate;
   },
   async setRate(rate: number) {
     recorded.player.push({ method: 'setRate', args: [rate] });
@@ -348,6 +357,7 @@ beforeEach(() => {
   recorded.remoteLookups.length = 0;
   recorded.remoteUnsubscribes = 0;
 
+  playerGates.clear();
   scenario.availableTranslations = new Set(['bsb', 'web']);
   scenario.chapterAudio = defaultChapterAudio;
   scenario.remoteFallback = async () => null;
@@ -602,6 +612,92 @@ test('the player reporting an error surfaces the playback failure message', () =
 
   assert.equal(store().status, 'error');
   assert.equal(store().error, 'interface.audioPlayFailed');
+});
+
+test('a native error callback during a resolved load is not overwritten by playing status', async () => {
+  let release!: () => void;
+  playerGates.set(
+    'load:https://cdn.example/bsb/GEN/1.mp3',
+    new Promise((resolve) => {
+      release = resolve;
+    })
+  );
+  const player = mountPlayer();
+  const pending = player.api.playChapter('GEN', 1);
+  for (let turn = 0; turn < 10; turn += 1) await Promise.resolve();
+  audioPlayerDouble.callbacks.onError?.('audio session busy');
+  release();
+  await pending;
+  assert.equal(store().status, 'error');
+  assert.equal(
+    recorded.nowPlaying.some((entry) => entry.isPlaying === true),
+    false
+  );
+});
+
+test('a native error callback during resume does not publish playing status', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  await player.api.pause();
+  recorded.nowPlaying.length = 0;
+  let release!: () => void;
+  playerGates.set(
+    'resume',
+    new Promise((resolve) => {
+      release = resolve;
+    })
+  );
+  const pending = player.api.resume();
+  audioPlayerDouble.callbacks.onError?.('audio session busy');
+  release();
+  await pending;
+  assert.equal(store().status, 'error');
+  assert.equal(
+    recorded.nowPlaying.some((entry) => entry.isPlaying === true),
+    false
+  );
+});
+
+test('a delayed stop cannot stop background music belonging to a newer chapter', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  let release!: () => void;
+  playerGates.set(
+    'stop',
+    new Promise((resolve) => {
+      release = resolve;
+    })
+  );
+  const stopping = player.api.stop();
+  playerGates.delete('stop');
+  await player.api.playChapter('GEN', 2);
+  recorded.backgroundMusic.length = 0;
+  release();
+  await stopping;
+  assert.equal(store().currentChapter, 2);
+  assert.equal(store().status, 'playing');
+  assert.deepEqual(recorded.backgroundMusic, []);
+});
+
+test('a native error callback from a downloaded load still permits a healthy remote fallback', async () => {
+  scenario.chapterAudio = async () => ({ url: 'file:///audio/GEN-1.m4a', duration: 100 });
+  scenario.remoteFallback = async () => ({ url: 'https://cdn.example/GEN-1.mp3', duration: 900 });
+  let release!: () => void;
+  playerGates.set(
+    'load:file:///audio/GEN-1.m4a',
+    new Promise((resolve) => {
+      release = resolve;
+    })
+  );
+  const player = mountPlayer();
+  const pending = player.api.playChapter('GEN', 1);
+  for (let turn = 0; turn < 10; turn += 1) await Promise.resolve();
+  audioPlayerDouble.callbacks.onError?.('native decoder failed');
+  release();
+  await pending;
+  assert.equal(store().status, 'playing');
+  assert.equal(store().duration, 900);
+  assert.equal(playerCalls('loadAndPlay').length, 2);
 });
 
 test('an undecodable download falls back to the streamed copy', async () => {
@@ -1831,4 +1927,138 @@ test('the remote next and previous commands change chapter', async () => {
   player.rerender();
   await remoteCommandListener?.({ command: 'previous' });
   assert.equal(store().currentChapter, 2);
+});
+
+function deferPlayerOperation() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+const flushPlayerOperations = () => new Promise((resolve) => setImmediate(resolve));
+
+test('pausing during the initial stop prevents the pending chapter from starting', async () => {
+  const player = mountPlayer();
+  const gate = deferPlayerOperation();
+  playerGates.set('stop', gate.promise);
+  const pending = player.api.playChapter('GEN', 1);
+  await flushPlayerOperations();
+  await player.api.pause();
+  gate.resolve();
+  await pending;
+
+  assert.equal(store().status, 'paused');
+  assert.deepEqual(recorded.audioLookups, []);
+  assert.deepEqual(playerCalls('loadAndPlay'), []);
+});
+
+test('a stale completed load never stops the newer chapter', async () => {
+  const player = mountPlayer();
+  const gate = deferPlayerOperation();
+  playerGates.set('load:https://cdn.example/bsb/GEN/1.mp3', gate.promise);
+  const pending = player.api.playChapter('GEN', 1);
+  await flushPlayerOperations();
+  await player.api.playChapter('GEN', 2);
+  const stops = playerCalls('stop').length;
+
+  gate.resolve();
+  await pending;
+
+  assert.equal(store().currentChapter, 2);
+  assert.equal(store().status, 'playing');
+  assert.equal(playerCalls('stop').length, stops);
+});
+
+test('a remote fallback arriving after pause is never loaded', async () => {
+  const player = mountPlayer();
+  scenario.chapterAudio = async () => ({ url: 'file:///broken.mp3', duration: 120_000 });
+  scenario.failLoadUrls.add('file:///broken.mp3');
+  let deliver!: (value: AudioAsset) => void;
+  scenario.remoteFallback = () =>
+    new Promise((resolve) => {
+      deliver = resolve;
+    });
+  const pending = player.api.playChapter('GEN', 1);
+  await flushPlayerOperations();
+  await player.api.pause();
+
+  deliver({ url: 'https://cdn.example/replacement.mp3', duration: 120_000 });
+  await pending;
+
+  assert.equal(store().status, 'paused');
+  assert.deepEqual(
+    playerCalls('loadAndPlay').map((call) => call.args[0]),
+    ['file:///broken.mp3']
+  );
+  assert.deepEqual(recorded.deletedFiles, []);
+});
+
+test('a sleep timer expires once and updates paused state without waiting for native events', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: BASE_TIME });
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setSleepTimer(5);
+  player.rerender();
+  recorded.player.length = 0;
+
+  tickSeconds(t.mock.timers, 6 * 60);
+
+  assert.equal(playerCalls('pause').length, 1);
+  assert.equal(store().status, 'paused');
+  assert.equal(recorded.nowPlaying.at(-1)?.isPlaying, false);
+});
+
+test('a sleep timer also stops a chapter still buffering at expiry', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: BASE_TIME });
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setSleepTimer(5);
+  store().setStatus('loading');
+  player.rerender();
+  recorded.player.length = 0;
+
+  tickSeconds(t.mock.timers, 5 * 60);
+
+  assert.equal(playerCalls('pause').length, 1);
+  assert.equal(store().status, 'paused');
+  assert.equal(store().sleepTimerEndTime, null);
+});
+
+test('pause supersedes a resume still waiting to restore its position', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setPosition(10_000);
+  await player.api.pause();
+  const gate = deferPlayerOperation();
+  playerGates.set('seek', gate.promise);
+  const resuming = player.api.resume();
+  await flushPlayerOperations();
+
+  await player.api.pause();
+  gate.resolve();
+  await resuming;
+
+  assert.equal(store().status, 'paused');
+  assert.equal(playerCalls('resume').length, 0);
+});
+
+test('a stale resume cannot publish its old position over a new chapter', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setPosition(10_000);
+  await player.api.pause();
+  const gate = deferPlayerOperation();
+  playerGates.set('resume', gate.promise);
+  const resuming = player.api.resume();
+  await flushPlayerOperations();
+  await player.api.playChapter('GEN', 2);
+  const published = recorded.nowPlaying.length;
+
+  gate.resolve();
+  await resuming;
+
+  assert.equal(store().currentChapter, 2);
+  assert.equal(recorded.nowPlaying.length, published);
+  assert.equal(recorded.nowPlaying.at(-1)?.positionMs, 0);
 });

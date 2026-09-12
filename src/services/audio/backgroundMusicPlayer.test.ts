@@ -46,6 +46,7 @@ const soundDefaultRejections = new Map<string, unknown>();
 class FakeSound {
   readonly calls: RecordedCall[] = [];
   readonly rejections = new Map<string, unknown>(soundDefaultRejections);
+  readonly gates = new Map<string, Promise<void>>();
   statusListener: ((status: FakeStatus) => void) | null = null;
 
   playAsync = (): Promise<void> => this.record('playAsync', []);
@@ -79,7 +80,7 @@ class FakeSound {
   private record(method: string, args: unknown[]): Promise<void> {
     this.calls.push({ method, args });
     const failure = this.rejections.get(method);
-    return failure ? Promise.reject(failure) : Promise.resolve();
+    return failure ? Promise.reject(failure) : (this.gates.get(method) ?? Promise.resolve());
   }
 }
 
@@ -577,4 +578,129 @@ test('a load superseded before it finishes is unloaded and never becomes the act
   await pending;
 
   assert.deepEqual(sounds[0].methods(), ['unloadAsync']);
+});
+
+test('pausing before the first preset finishes loading never starts the music', async () => {
+  const gate = createDeferred();
+  nextCreateGate = gate.promise;
+  const pending = mod.backgroundMusicPlayer.sync('ambient', true);
+  await flush();
+
+  await mod.backgroundMusicPlayer.sync('ambient', false);
+  nextCreateGate = null;
+  gate.resolve();
+  await pending;
+  runFade();
+
+  assert.equal(sounds[0].methods().includes('playAsync'), false);
+  assert.equal(
+    sounds[0].volumes().some((volume) => volume > 0),
+    false
+  );
+});
+
+test('pausing while a crossfade replacement loads keeps both loops silent', async () => {
+  await mod.backgroundMusicPlayer.sync('ambient', true);
+  runFade();
+  const gate = createDeferred();
+  nextCreateGate = gate.promise;
+  sounds[0].emitStatus(nearEndOfLoop());
+  await flush();
+
+  await mod.backgroundMusicPlayer.sync('ambient', false);
+  nextCreateGate = null;
+  gate.resolve();
+  await flush();
+  runFade();
+
+  assert.equal(
+    sounds[1].volumes().some((volume) => volume > 0),
+    false
+  );
+  assert.equal(sounds[1].methods().includes('unloadAsync'), true);
+});
+
+test('a superseded preset load cannot restart the newer paused preset', async () => {
+  const gate = createDeferred();
+  nextCreateGate = gate.promise;
+  const oldLoad = mod.backgroundMusicPlayer.sync('ambient', true);
+  await flush();
+  nextCreateGate = null;
+
+  await mod.backgroundMusicPlayer.sync('piano', true);
+  await mod.backgroundMusicPlayer.sync('piano', false);
+  const newSound = sounds[1];
+  const callsAtPause = newSound.calls.length;
+  gate.resolve();
+  await oldLoad;
+  runFade();
+
+  assert.equal(newSound.methods().slice(callsAtPause).includes('playAsync'), false);
+  assert.equal(
+    newSound.volumes(callsAtPause).some((volume) => volume > 0),
+    false
+  );
+});
+
+test('an immediate stop supersedes a preset before audio configuration finishes', async () => {
+  const pending = mod.backgroundMusicPlayer.sync('ambient', true);
+  await mod.backgroundMusicPlayer.stop();
+  await pending;
+  runFade();
+
+  assert.equal(
+    sounds.some((sound) => sound.methods().includes('playAsync')),
+    false
+  );
+});
+
+test('a failed play can be retried for the same preset', async () => {
+  soundDefaultRejections.set('playAsync', new Error('audio focus denied'));
+  await mod.backgroundMusicPlayer.sync('ambient', true);
+  sounds[0].rejections.delete('playAsync');
+
+  await mod.backgroundMusicPlayer.sync('ambient', true);
+  runFade();
+
+  assert.equal(sounds[0].methods().filter((method) => method === 'playAsync').length, 2);
+  assert.equal(sounds[0].volumes().at(-1), AMBIENT_VOLUME);
+});
+
+test('a delayed pause cannot pause a subsequently resumed loop', async () => {
+  await mod.backgroundMusicPlayer.sync('ambient', true);
+  runFade();
+  const gate = createDeferred();
+  sounds[0].gates.set('setVolumeAsync', gate.promise);
+  const pause = mod.backgroundMusicPlayer.sync('ambient', false);
+  await flush();
+  sounds[0].gates.clear();
+
+  await mod.backgroundMusicPlayer.sync('ambient', true);
+  const callsAtResume = sounds[0].calls.length;
+  gate.resolve();
+  await pause;
+
+  assert.equal(sounds[0].methods().slice(callsAtResume).includes('pauseAsync'), false);
+});
+
+test('a cancelled crossfade that fails still permits looping after resume', async () => {
+  await mod.backgroundMusicPlayer.sync('ambient', true);
+  runFade();
+  const gate = createDeferred();
+  nextCreateGate = gate.promise;
+  nextCreateFailure = new Error('load interrupted');
+  const current = sounds[0];
+  current.emitStatus(nearEndOfLoop());
+  await flush();
+  await mod.backgroundMusicPlayer.sync('ambient', false);
+  nextCreateGate = null;
+  nextCreateFailure = null;
+  gate.resolve();
+  await flush();
+
+  await mod.backgroundMusicPlayer.sync('ambient', true);
+  current.emitStatus(nearEndOfLoop());
+  await flush();
+
+  assert.equal(createCalls.length, 3);
 });

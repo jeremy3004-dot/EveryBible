@@ -73,6 +73,8 @@ class AudioPlayer {
   private isConfigured = false;
   private subscriptions: Subscription[] = [];
   private loaded = false;
+  private loadRequestId = 0;
+  private pendingLoadRequestId: number | null = null;
 
   // Merged state — progress and playback-state arrive as separate events from
   // the track-player wrapper. We merge them here so onStatusUpdate always
@@ -124,8 +126,7 @@ class AudioPlayer {
     this.subscriptions.push(
       TrackPlayer.addEventListener(Event.PlaybackState, (data: PlaybackStateEvent) => {
         this.lastIsPlaying = data.state === State.Playing;
-        this.lastIsBuffering =
-          data.state === State.Buffering || data.state === State.Loading;
+        this.lastIsBuffering = data.state === State.Buffering || data.state === State.Loading;
         this.emitSnapshot();
       })
     );
@@ -146,14 +147,22 @@ class AudioPlayer {
   // -- playback controls ---------------------------------------------------
 
   async loadAndPlay(url: string, rate: PlaybackRate = 1.0): Promise<void> {
-    await this.configure();
-    // Reset merged state for new track
-    this.lastPositionMillis = 0;
-    this.lastDurationMillis = 0;
-    this.lastIsPlaying = false;
-    this.lastIsBuffering = true;
-    await TrackPlayer.loadAndPlay(url, rate);
-    this.loaded = true;
+    const requestId = ++this.loadRequestId;
+    this.pendingLoadRequestId = requestId;
+    this.loaded = false;
+    try {
+      await this.configure();
+      if (requestId !== this.loadRequestId) return;
+      // Reset merged state for new track
+      this.lastPositionMillis = 0;
+      this.lastDurationMillis = 0;
+      this.lastIsPlaying = false;
+      this.lastIsBuffering = true;
+      await TrackPlayer.loadAndPlay(url, rate);
+      if (requestId === this.loadRequestId) this.loaded = true;
+    } finally {
+      if (this.pendingLoadRequestId === requestId) this.pendingLoadRequestId = null;
+    }
   }
 
   async play(): Promise<void> {
@@ -167,7 +176,9 @@ class AudioPlayer {
   }
 
   async pause(): Promise<void> {
-    if (!this.loaded) return;
+    if (!this.loaded && this.pendingLoadRequestId === null) return;
+    this.loadRequestId += 1;
+    this.pendingLoadRequestId = null;
     try {
       await TrackPlayer.pause();
     } catch (error) {
@@ -181,12 +192,14 @@ class AudioPlayer {
   }
 
   async stop(): Promise<void> {
-    await TrackPlayer.stop();
+    this.loadRequestId += 1;
+    this.pendingLoadRequestId = null;
     this.loaded = false;
     this.lastPositionMillis = 0;
     this.lastDurationMillis = 0;
     this.lastIsPlaying = false;
     this.lastIsBuffering = false;
+    await TrackPlayer.stop();
   }
 
   async seekTo(positionMs: number): Promise<void> {
