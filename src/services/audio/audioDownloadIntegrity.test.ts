@@ -28,6 +28,7 @@ function integrityRuntime(remote: Partial<service.RemoteAudioAsset>) {
     },
   };
   const deleted: string[] = [];
+  const discardWaiters = new Map<number, () => void>();
   let written: Uint8Array = CHAPTER_BYTES;
   let attempts = 0;
   const fileSystem: service.AudioFileSystemAdapter = {
@@ -37,6 +38,8 @@ function integrityRuntime(remote: Partial<service.RemoteAudioAsset>) {
     readBase64File: async () => (attempts === 0 ? null : toBase64(written)),
     deleteFile: async (fileUri) => {
       deleted.push(fileUri);
+      discardWaiters.get(deleted.length)?.();
+      discardWaiters.delete(deleted.length);
     },
     downloadFile: async () => {
       attempts += 1;
@@ -57,6 +60,12 @@ function integrityRuntime(remote: Partial<service.RemoteAudioAsset>) {
   return {
     start,
     deleted,
+    waitForDiscards: (count: number): Promise<void> => {
+      if (deleted.length >= count) return Promise.resolve();
+      return new Promise((resolve) => {
+        discardWaiters.set(count, resolve);
+      });
+    },
     attemptCount: () => attempts,
     setWritten: (bytes: Uint8Array) => {
       written = bytes;
@@ -70,8 +79,10 @@ test('a manifest byte count is enforced exactly instead of the 1KB floor', async
   // 2048 bytes clears the legacy 1KB floor but is a truncated transfer.
   runtime.setWritten(new Uint8Array(2048).fill(7));
   const rejected = assert.rejects(runtime.start(), /size mismatch/i);
+  await runtime.waitForDiscards(1);
   await flush();
   t.mock.timers.tick(1000);
+  await runtime.waitForDiscards(2);
   await flush();
   t.mock.timers.tick(2000);
   await rejected;
@@ -86,8 +97,10 @@ test('a manifest sha256 is verified at completion and a mismatch deletes the fil
     sha256: 'a'.repeat(64),
   });
   const rejected = assert.rejects(runtime.start(), /checksum|integrity/i);
+  await runtime.waitForDiscards(1);
   await flush();
   t.mock.timers.tick(1000);
+  await runtime.waitForDiscards(2);
   await flush();
   t.mock.timers.tick(2000);
   await rejected;
@@ -109,8 +122,10 @@ test('with neither bytes nor sha256 known the 1KB floor still guards the downloa
   const runtime = integrityRuntime({});
   runtime.setWritten(new Uint8Array(12));
   const rejected = assert.rejects(runtime.start(), /missing or incomplete/);
+  await runtime.waitForDiscards(1);
   await flush();
   t.mock.timers.tick(1000);
+  await runtime.waitForDiscards(2);
   await flush();
   t.mock.timers.tick(2000);
   await rejected;

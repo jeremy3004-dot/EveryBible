@@ -371,6 +371,15 @@ export function installBibleStoreDoubles(mocker: MockTracker): BibleStoreDoubles
  * and any chained promises settle. Macrotask ticks, never wall-clock sleeps.
  */
 export async function flushAsyncWork(ticks = 4): Promise<void> {
+  // Await the actual mocked module loads; Node 22 may need more than a few
+  // event-loop turns to resolve the loader thread even when nothing does I/O.
+  await Promise.all([
+    import('../../services/audio/audioDownloadService'),
+    import('../../services/audio/audioDownloadStorage'),
+    import('../../services/audio/audioRemote'),
+    import('../../services/bible/verseTimestamps'),
+    import('../../services/analytics/anonymousUsageAnalytics'),
+  ]);
   for (let index = 0; index < ticks; index += 1) {
     await new Promise((resolve) => {
       setImmediate(resolve);

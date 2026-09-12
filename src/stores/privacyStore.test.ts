@@ -19,16 +19,25 @@ const secureStore = new Map<string, string>();
 const secureStoreReads: string[] = [];
 /** Every options object SecureStore was called with, to pin keychain accessibility. */
 const secureStoreOptions: unknown[] = [];
-type Deferred = { promise: Promise<string | null>; resolve: (value: string | null) => void };
+type Deferred = {
+  promise: Promise<string | null>;
+  resolve: (value: string | null) => void;
+  started: Promise<void>;
+  markStarted: () => void;
+};
 let pendingRead: Deferred | null = null;
 let readFailure: Error | null = null;
 
 const createDeferred = (): Deferred => {
   let resolve!: (value: string | null) => void;
+  let markStarted!: () => void;
+  const started = new Promise<void>((done) => {
+    markStarted = done;
+  });
   const promise = new Promise<string | null>((done) => {
     resolve = done;
   });
-  return { promise, resolve };
+  return { promise, resolve, started, markStarted };
 };
 
 mockExpoCrypto(mock);
@@ -42,6 +51,7 @@ mockModule(mock, 'expo-secure-store', {
       return Promise.reject(readFailure);
     }
     if (pendingRead) {
+      pendingRead.markStarted();
       return pendingRead.promise;
     }
     return Promise.resolve(secureStore.get(key) ?? null);
@@ -283,7 +293,7 @@ test('pressing retry again while an attempt is in flight joins it instead of res
   secureStoreReads.length = 0;
 
   const retry = store().retryInitialize();
-  await flush();
+  await pendingRead.started;
   await store().retryInitialize();
 
   assert.deepEqual(secureStoreReads, [PRIVACY_SETTINGS_KEY]);

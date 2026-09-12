@@ -11,11 +11,11 @@ const mmkv = mockMmkvStorage(mock);
 // real auth/sync graphs. Local helper: `syncCalls` + the mutable `authState`
 // stand in for a shared "recorder" fake we do not have yet.
 const syncCalls: Array<[string | undefined, number | undefined]> = [];
-let syncResult: Promise<unknown> = Promise.resolve({ success: true });
+let syncFailure: Error | null = null;
 mockModule(mock, sourcePath('services/sync/index.ts'), {
   syncProgress: (userId: string | undefined, generation: number | undefined) => {
     syncCalls.push([userId, generation]);
-    return syncResult;
+    return syncFailure ? Promise.reject(syncFailure) : Promise.resolve({ success: true });
   },
 });
 
@@ -41,6 +41,12 @@ before(async () => {
   ({ useProgressStore } = await import('./progressStore'));
 });
 
+// Wait for the loader operation scheduled by the fake timer before asserting.
+const flushSync = async () => {
+  await import('../services/sync');
+  await new Promise((resolve) => setImmediate(resolve));
+};
+
 const state = () => useProgressStore.getState();
 const readPersisted = () => JSON.parse(mmkv.store.get('progress-storage') ?? '{}');
 
@@ -57,7 +63,7 @@ beforeEach(() => {
   useProgressStore.setState(useProgressStore.getInitialState(), true);
   mmkv.store.clear();
   syncCalls.length = 0;
-  syncResult = Promise.resolve({ success: true });
+  syncFailure = null;
   authState = { user: { uid: 'user-1' }, authGeneration: 3 };
   authStoreThrows = false;
 });
@@ -439,7 +445,7 @@ test('marking a chapter read schedules a sync two seconds later with the signed-
   assert.deepEqual(syncCalls, []);
 
   t.mock.timers.tick(2000);
-  await new Promise((resolve) => setImmediate(resolve));
+  await flushSync();
 
   assert.deepEqual(syncCalls, [['user-1', 3]]);
 });
@@ -453,7 +459,7 @@ test('rapid navigation debounces down to a single sync', async (t) => {
   t.mock.timers.tick(1500);
   state().markChapterRead('GEN', 3);
   t.mock.timers.tick(2000);
-  await new Promise((resolve) => setImmediate(resolve));
+  await flushSync();
 
   assert.equal(syncCalls.length, 1);
 });
@@ -464,7 +470,7 @@ test('a guest read never schedules a sync', async (t) => {
 
   state().markChapterRead('GEN', 1);
   t.mock.timers.tick(10_000);
-  await new Promise((resolve) => setImmediate(resolve));
+  await flushSync();
 
   assert.deepEqual(syncCalls, []);
 });
@@ -476,7 +482,7 @@ test('a guest read still cancels a sync already queued by a signed-in session', 
   authState = { user: null, authGeneration: undefined };
   state().markChapterRead('GEN', 2);
   t.mock.timers.tick(10_000);
-  await new Promise((resolve) => setImmediate(resolve));
+  await flushSync();
 
   assert.deepEqual(syncCalls, []);
 });
@@ -487,7 +493,7 @@ test('an unavailable auth store degrades to no sync instead of throwing', async 
 
   state().markChapterRead('GEN', 1);
   t.mock.timers.tick(10_000);
-  await new Promise((resolve) => setImmediate(resolve));
+  await flushSync();
 
   assert.deepEqual(state().chaptersRead, { GEN_1: localNoon(2026, 9, 8) });
   assert.deepEqual(syncCalls, []);
@@ -495,12 +501,12 @@ test('an unavailable auth store degrades to no sync instead of throwing', async 
 
 test('a rejected sync is swallowed so a background failure never surfaces', async (t) => {
   t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 8) });
-  syncResult = Promise.reject(new Error('network down'));
+  syncFailure = new Error('network down');
 
   state().markChapterRead('GEN', 1);
   t.mock.timers.tick(2000);
-  await new Promise((resolve) => setImmediate(resolve));
-  await new Promise((resolve) => setImmediate(resolve));
+  await flushSync();
+  await flushSync();
 
   assert.equal(syncCalls.length, 1);
 });
@@ -511,7 +517,7 @@ test('the identity is captured when the read happens, not when the debounce fire
   state().markChapterRead('GEN', 1);
   authState = { user: { uid: 'someone-else' }, authGeneration: 99 };
   t.mock.timers.tick(2000);
-  await new Promise((resolve) => setImmediate(resolve));
+  await flushSync();
 
   assert.deepEqual(syncCalls, [['user-1', 3]]);
 });
@@ -561,7 +567,7 @@ test('resetForSignOut cancels a sync that was already queued for the old account
 
   state().resetForSignOut();
   t.mock.timers.tick(10_000);
-  await new Promise((resolve) => setImmediate(resolve));
+  await flushSync();
 
   assert.deepEqual(syncCalls, []);
 });
@@ -744,7 +750,7 @@ test('applying synced progress never schedules another sync, so pulls cannot loo
     lastReadDate: '2026-09-08',
   });
   t.mock.timers.tick(10_000);
-  await new Promise((resolve) => setImmediate(resolve));
+  await flushSync();
 
   assert.deepEqual(syncCalls, []);
 });
@@ -753,11 +759,11 @@ test('re-reading a chapter already recorded today still schedules a sync', async
   t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 8) });
   state().markChapterRead('GEN', 1);
   t.mock.timers.tick(2000);
-  await new Promise((resolve) => setImmediate(resolve));
+  await flushSync();
 
   state().markChapterRead('GEN', 1);
   t.mock.timers.tick(2000);
-  await new Promise((resolve) => setImmediate(resolve));
+  await flushSync();
 
   assert.equal(syncCalls.length, 2);
 });
@@ -770,7 +776,7 @@ test('a sync queued before sign-out is not revived by the next reader', async (t
   authState = { user: { uid: 'user-2' }, authGeneration: 4 };
   state().markChapterRead('GEN', 2);
   t.mock.timers.tick(2000);
-  await new Promise((resolve) => setImmediate(resolve));
+  await flushSync();
 
   assert.deepEqual(syncCalls, [['user-2', 4]]);
 });

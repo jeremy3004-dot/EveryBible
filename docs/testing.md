@@ -26,6 +26,11 @@ Any `*.test.ts` under `src/`, `scripts/`, `apps/`, `packages/`, or
   a pile of `assert.equal` calls.
 - Deterministic: no wall-clock sleeps, no network, no randomness without a seed.
   Use `mock.timers` from `node:test` for time-dependent code.
+- A lazy `import()` may cross Node 22's loader thread; draining promises or a fixed
+  number of `setImmediate` callbacks does not prove it finished. Await an observable
+  fixture event (a manifest request, native read, or discarded invalid download)
+  before asserting or advancing the next fake timer. Create rejected promises when
+  the mocked operation is called, rather than before a lazy caller can handle them.
 
 Do not write source-text tests (`readFileSync` + regex on the code shape) for
 behaviour. They exist in this repo for startup-import-graph guards only and
