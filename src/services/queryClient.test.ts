@@ -7,9 +7,12 @@ import { mockModule, mockReactNative } from '../testing/mockModules';
 // The real @tanstack/react-query is used: focusManager and onlineManager are the
 // singletons the module wires up, so the assertions here are about the state
 // those managers end up in. Only the two native edges are replaced.
-const rn = mockReactNative(mock, { os: 'ios', appState: 'active' });
+const rn = mockReactNative(mock, { os: 'ios', appState: 'background' });
 
-type NetInfoListener = (state: { isConnected: boolean | null }) => void;
+type NetInfoListener = (state: {
+  isConnected: boolean | null;
+  isInternetReachable: boolean | null;
+}) => void;
 
 const netInfoListeners = new Set<NetInfoListener>();
 let netInfoSubscribeCount = 0;
@@ -31,9 +34,12 @@ const netInfoFake: Record<string, unknown> = {
 netInfoFake.default = netInfoFake;
 mockModule(mock, '@react-native-community/netinfo', netInfoFake);
 
-const emitNetInfo = (isConnected: boolean | null) => {
+const emitNetInfo = (
+  isConnected: boolean | null,
+  isInternetReachable: boolean | null = isConnected
+) => {
   for (const listener of netInfoListeners) {
-    listener({ isConnected });
+    listener({ isConnected, isInternetReachable });
   }
 };
 
@@ -64,6 +70,10 @@ before(async () => {
   ({ focusManager, onlineManager } = createRequire(import.meta.url)(
     '@tanstack/react-query'
   ) as typeof import('@tanstack/react-query'));
+});
+
+test('installing after the app backgrounds immediately pauses focus-driven work', () => {
+  assert.equal(focusManager.isFocused(), false);
 });
 
 test('the shared client retries a failed query twice', () => {
@@ -146,6 +156,22 @@ test('an unknown connection state (null) is treated as offline', () => {
   assert.equal(onlineManager.isOnline(), false);
 });
 
+test('connected Wi-Fi without internet pauses query retries', () => {
+  emitNetInfo(true, true);
+
+  emitNetInfo(true, false);
+
+  assert.equal(onlineManager.isOnline(), false);
+});
+
+test('a pending internet probe does not block a connected network', () => {
+  emitNetInfo(false, false);
+
+  emitNetInfo(true, null);
+
+  assert.equal(onlineManager.isOnline(), true);
+});
+
 // The three tests below run in order: react-query releases its event listener
 // when the last subscriber goes away, so they must come after the tests that
 // rely on the NetInfo subscription installed in before() being live.
@@ -174,4 +200,22 @@ test('a new online subscriber re-attaches the NetInfo listener registered at ins
   emitNetInfo(false);
   assert.equal(onlineManager.isOnline(), false);
   unsubscribe();
+});
+
+test('internet recovery on the same Wi-Fi connection resumes queries once', () => {
+  const seen: boolean[] = [];
+  const unsubscribe = onlineManager.subscribe((online) => seen.push(online));
+  try {
+    emitNetInfo(true, true);
+    seen.length = 0;
+
+    emitNetInfo(true, false);
+    emitNetInfo(true, false);
+    emitNetInfo(true, true);
+    emitNetInfo(true, true);
+
+    assert.deepEqual(seen, [false, true]);
+  } finally {
+    unsubscribe();
+  }
 });

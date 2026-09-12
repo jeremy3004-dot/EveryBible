@@ -28,12 +28,16 @@ export function installQueryClientListeners(): void {
     const NetInfo = require('@react-native-community/netinfo')
       .default as typeof import('@react-native-community/netinfo').default;
     return NetInfo.addEventListener((state) => {
-      setOnline(!!state.isConnected);
+      // A Wi-Fi link can stay connected while its internet connection is down.
+      // Unknown reachability is still usable while NetInfo finishes its probe.
+      setOnline(state.isConnected === true && state.isInternetReachable !== false);
     });
   });
 
   // Listen for app state changes — the subscription lives for the app lifetime.
   AppState.addEventListener('change', onAppStateChange);
+  // Installation is deferred; the app may have backgrounded before this ran.
+  onAppStateChange(AppState.currentState);
 }
 
 export const queryClient = new QueryClient({

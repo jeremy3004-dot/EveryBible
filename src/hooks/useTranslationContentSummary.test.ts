@@ -49,8 +49,10 @@ const tick = () => new Promise((resolve) => setImmediate(resolve));
  * first, then drain microtasks: the hook reaches the manifest service through a
  * lazy `import()`, so the request is made a tick after the effect body runs.
  */
-async function commit(): Promise<void> {
+async function commit(expectedCalls?: number): Promise<void> {
   await view!.commit();
+  if (expectedCalls !== undefined) await waitForManifestCalls(expectedCalls);
+  await tick();
 }
 
 /** Tear the component down, as React does when the screen unmounts. */
@@ -76,11 +78,20 @@ interface ManifestRef {
 }
 
 const manifestCalls: ManifestRef[] = [];
+const manifestWaiters = new Map<number, () => void>();
+function waitForManifestCalls(count: number): Promise<void> {
+  if (manifestCalls.length >= count) return Promise.resolve();
+  return new Promise((resolve) => {
+    manifestWaiters.set(count, resolve);
+  });
+}
 let respondWithManifest: (ref: ManifestRef) => Promise<ElAudioManifest | null> = async () => null;
 
 mockModule(mock, sourcePath('services/elMedia/elManifestService.ts'), {
   getElManifestForAudioCatalog: (ref: ManifestRef) => {
     manifestCalls.push(ref);
+    manifestWaiters.get(manifestCalls.length)?.();
+    manifestWaiters.delete(manifestCalls.length);
     return respondWithManifest(ref);
   },
 });
@@ -151,9 +162,9 @@ function makeElTranslation(overrides: Partial<BibleTranslation> = {}): BibleTran
 }
 
 /** Render, commit effects, let the manifest promise chain settle, render again. */
-async function settle(translation: BibleTranslation | undefined) {
+async function settle(translation: BibleTranslation | undefined, expectedCalls = 1) {
   render(translation);
-  await commit();
+  await commit(expectedCalls);
   await tick();
   return render(translation);
 }
@@ -161,6 +172,7 @@ async function settle(translation: BibleTranslation | undefined) {
 beforeEach(() => {
   resetHookRuntime();
   manifestCalls.length = 0;
+  manifestWaiters.clear();
   respondWithManifest = async () => null;
 });
 
@@ -182,7 +194,7 @@ test('no manifest is fetched while the translation is still unknown', async () =
 test('a translation without an Every Language manifest is passed straight through', async () => {
   const translation = makeTranslation();
 
-  assert.equal(await settle(translation), translation);
+  assert.equal(await settle(translation, 0), translation);
 });
 
 test('a stream-template audio strategy never reaches the manifest service', async () => {
@@ -193,7 +205,8 @@ test('a stream-template audio strategy never reaches the manifest service', asyn
         updatedAt: '2026-01-01',
         audio: { strategy: 'stream-template', baseUrl: 'https://media.everybible.app' },
       },
-    })
+    }),
+    0
   );
 
   assert.deepEqual(manifestCalls, []);
@@ -212,7 +225,7 @@ test('an el-manifest entry missing its manifest URL is treated as having no mani
     },
   });
 
-  assert.equal(await settle(translation), translation);
+  assert.equal(await settle(translation, 0), translation);
   assert.deepEqual(manifestCalls, []);
 });
 
@@ -228,7 +241,8 @@ test('an el-manifest entry missing its audio version is treated as having no man
           catalogBaseUrl: 'https://catalog.everylanguage.org',
         },
       },
-    })
+    }),
+    0
   );
 
   assert.deepEqual(manifestCalls, []);
@@ -246,7 +260,8 @@ test('an el-manifest entry missing its catalog base URL is treated as having no 
           audioVersion: '2026-01-01',
         },
       },
-    })
+    }),
+    0
   );
 
   assert.deepEqual(manifestCalls, []);
@@ -254,7 +269,7 @@ test('an el-manifest entry missing its catalog base URL is treated as having no 
 
 test('the manifest is requested with the catalog coordinates of the translation', async () => {
   render(makeElTranslation());
-  await commit();
+  await commit(1);
 
   assert.deepEqual(manifestCalls, [
     {
@@ -271,7 +286,7 @@ test('the plain translation is returned while the manifest is still resolving', 
   respondWithManifest = () => new Promise(() => {});
 
   render(translation);
-  await commit();
+  await commit(1);
 
   assert.equal(render(translation), translation);
 });
@@ -339,7 +354,7 @@ test('a manifest that arrives after unmount is discarded', async () => {
 
   const translation = makeElTranslation();
   const beforeUnmount = render(translation);
-  await commit();
+  await commit(1);
   unmount();
   deliver(makeManifest({ PSA: [117] }));
   await tick();
@@ -371,7 +386,7 @@ test('switching translation re-requests the manifest for the new one', async () 
     },
   });
   render(other);
-  await commit();
+  await commit(2);
 
   assert.deepEqual(
     manifestCalls.map((call) => call.translationId),
@@ -397,7 +412,7 @@ test('a new audio version for the same translation re-requests the manifest', as
       },
     })
   );
-  await commit();
+  await commit(2);
 
   assert.deepEqual(
     manifestCalls.map((call) => call.audioVersion),
@@ -411,7 +426,7 @@ test('re-rendering an unchanged translation does not re-request the manifest', a
 
   await settle(translation);
   render(translation);
-  await commit();
+  await commit(1);
 
   assert.equal(manifestCalls.length, 1);
 });
@@ -435,7 +450,7 @@ test('coverage resolved for the previous translation is not applied to the next 
   });
   respondWithManifest = () => new Promise(() => {});
   const summary = render(other);
-  await commit();
+  await commit(2);
 
   assert.equal(summary?.audioChapters, undefined);
 });
@@ -449,4 +464,23 @@ test('the summary is recomputed only when its inputs change', async () => {
 
   assert.equal(second, first, 'a re-render with the same inputs reuses the memoised summary');
   assert.ok(renderCount > 1);
+});
+
+test('moving the catalog host drops coverage from the previous host while reloading', async () => {
+  respondWithManifest = async () => makeManifest({ PSA: [117] });
+  const translation = makeElTranslation();
+  await settle(translation);
+  const moved = makeElTranslation({
+    catalog: {
+      ...translation.catalog!,
+      audio: { ...translation.catalog!.audio!, catalogBaseUrl: 'https://new-catalog.example' },
+    },
+  });
+  respondWithManifest = () => new Promise(() => {});
+
+  const summary = render(moved);
+  await commit(2);
+
+  assert.equal(summary?.audioChapters, undefined);
+  assert.equal(manifestCalls.at(-1)?.catalogBaseUrl, 'https://new-catalog.example');
 });

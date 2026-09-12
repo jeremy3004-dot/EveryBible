@@ -33,7 +33,7 @@ export function useTranslationContentSummary(
   const catalogBaseUrl = isElManifest ? audio?.catalogBaseUrl : undefined;
   const key =
     translationId && manifestUrl && audioVersion && catalogBaseUrl
-      ? `${translationId}:${audioVersion}:${manifestUrl}`
+      ? JSON.stringify([translationId, audioVersion, manifestUrl, catalogBaseUrl])
       : null;
   const [resolved, setResolved] = useState<ResolvedChapterMap | null>(null);
 

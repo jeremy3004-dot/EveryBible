@@ -162,6 +162,11 @@ import {
   getBibleSelectionShareTranslationLabel,
   toggleBibleSelectionVerse,
 } from './bibleSelectionModel';
+import {
+  buildReaderHighlightIndex,
+  buildReaderParagraphRenderSignature,
+} from './bibleReaderRenderModel';
+import { createReaderFocusScroll } from './readerFocusScroll';
 import { HOME_VERSE_BACKGROUND_SOURCES } from '../../data/homeVerseBackgrounds';
 import { SHARE_VERSE_BACKGROUND_SOURCES } from '../../data/shareVerseBackgrounds';
 import { getHomeVerseBackgroundIndex } from '../../data/homeVerseBackgroundSelection';
@@ -659,6 +664,8 @@ export function BibleReaderScreen() {
   const followAlongScrollViewRef = useRef<ScrollView | null>(null);
   const verseImageSharePreviewRef = useRef<View | null>(null);
   const verseOffsetsRef = useRef<Record<number, number>>({});
+  const readerFocusScrollRef = useRef(createReaderFocusScroll());
+  const measuredChapterKeyRef = useRef<string | null>(null);
   const renderParagraphRef = useRef<(paragraph: ReaderParagraph, index: number) => ReactElement>(
     () => null as never
   );
@@ -1505,8 +1512,10 @@ export function BibleReaderScreen() {
           selectedText: selectedVerseText,
         })
       : '';
-  const selectedVerseRanges =
-    selectedVerses.length > 0 ? buildBibleSelectionVerseRanges(selectedVerses) : [];
+  const selectedVerseRanges = useMemo(
+    () => buildBibleSelectionVerseRanges(selectedVerses),
+    [selectedVerses]
+  );
 
   const loadTranslatorFeedback = useCallback(async () => {
     if (!translatorReviewEnabled || !translatorReviewPasscode) {
@@ -1634,10 +1643,6 @@ export function BibleReaderScreen() {
   );
   const getAnnotationVerseEnd = (annotation: Pick<UserAnnotation, 'verse_start' | 'verse_end'>) =>
     annotation.verse_end ?? annotation.verse_start;
-  const annotationOverlapsVerse = (
-    annotation: Pick<UserAnnotation, 'verse_start' | 'verse_end'>,
-    verse: number
-  ) => verse >= annotation.verse_start && verse <= getAnnotationVerseEnd(annotation);
   const annotationOverlapsSelectionRange = (
     annotation: Pick<UserAnnotation, 'verse_start' | 'verse_end'>,
     range: (typeof selectedVerseRanges)[number]
@@ -1654,6 +1659,14 @@ export function BibleReaderScreen() {
     [colors.bibleAccent]
   );
   const selectedVerseSet = useMemo(() => new Set(selectedVerses), [selectedVerses]);
+  const highlightByVerse = useMemo(
+    () =>
+      buildReaderHighlightIndex(
+        annotations,
+        verses.reduce((lastVerse, verse) => Math.max(lastVerse, verse.verse), 0)
+      ),
+    [annotations, verses]
+  );
   // One pass over the annotation list per selection change instead of three
   // chained filters on every render (this used to run on every position tick).
   const { selectedHighlightColors, selectedNoteAnnotation } = useMemo(() => {
@@ -1806,8 +1819,16 @@ export function BibleReaderScreen() {
     },
     [getReaderVerseOffset, readerContentTopPadding, scrollReaderToOffset]
   );
+  const flushPendingReaderFocus = useCallback(
+    () =>
+      readerFocusScrollRef.current.flush(getReaderVerseOffset, (offset) =>
+        scrollReaderToOffset(offset - readerContentTopPadding, false)
+      ),
+    [getReaderVerseOffset, readerContentTopPadding, scrollReaderToOffset]
+  );
   const flushPendingReaderAutoScroll = useCallback(
     (animated: boolean) => {
+      if (flushPendingReaderFocus()) return;
       const pendingVerse = pendingReaderAutoScrollVerseRef.current;
       if (
         pendingVerse == null ||
@@ -1821,6 +1842,7 @@ export function BibleReaderScreen() {
       scrollReaderToMeasuredVerse(pendingVerse, animated);
     },
     [
+      flushPendingReaderFocus,
       isCurrentAudioChapter,
       readerInlineActiveVerse,
       scrollReaderToMeasuredVerse,
@@ -2061,18 +2083,30 @@ export function BibleReaderScreen() {
   }, [activePlanId, bookId, chapter, planDayNumber, returnToPlanOnComplete, setPlanDayResume]);
 
   useEffect(() => {
-    verseOffsetsRef.current = {};
+    const chapterKey = `${currentTranslation}:${bookId}:${chapter}`;
+    if (measuredChapterKeyRef.current !== chapterKey) {
+      measuredChapterKeyRef.current = chapterKey;
+      verseOffsetsRef.current = {};
+      paragraphHeightsRef.current = {};
+      readerListHeaderHeightRef.current = 0;
+      followAlongOffsetsRef.current = {};
+    }
+    readerFocusScrollRef.current.request(focusVerse ?? null);
     pendingReaderAutoScrollVerseRef.current = null;
-    paragraphHeightsRef.current = {};
-    readerListHeaderHeightRef.current = 0;
-    followAlongOffsetsRef.current = {};
     setSelectedVerses([]);
     // Reset monotonic follow-along state on chapter change
     resetFollowAlongClamp();
     if (focusVerse == null) {
       scrollReaderToOffset(0, false);
     }
-  }, [bookId, chapter, focusVerse, resetFollowAlongClamp, scrollReaderToOffset]);
+  }, [
+    bookId,
+    chapter,
+    currentTranslation,
+    focusVerse,
+    resetFollowAlongClamp,
+    scrollReaderToOffset,
+  ]);
 
   useEffect(() => {
     if (isLoading) {
@@ -2135,13 +2169,10 @@ export function BibleReaderScreen() {
       return;
     }
 
-    const verseOffset = getReaderVerseOffset(focusVerse);
-    if (verseOffset == null) {
-      return;
+    if (!flushPendingReaderFocus() && readerFocusScrollRef.current.pendingVerse != null) {
+      scrollReaderToVerseParagraph(focusVerse, false);
     }
-
-    scrollReaderToOffset(verseOffset - 24, false);
-  }, [focusVerse, getReaderVerseOffset, isLoading, scrollReaderToOffset, verses]);
+  }, [focusVerse, flushPendingReaderFocus, isLoading, scrollReaderToVerseParagraph, verses]);
 
   useEffect(() => {
     if (!showFollowAlongText || activeFollowAlongVerse == null) {
@@ -4846,24 +4877,19 @@ export function BibleReaderScreen() {
   // Only the inputs `readerParagraphBlockPropsAreEqual` actually compares appear.
   const premiumParagraphRenderSignature = useMemo(
     () =>
-      [
-        '1',
-        scaleValue(typography.readingBody.fontSize),
-        getReaderVerseLineHeight(scaleValue(typography.readingBody.fontSize)),
-        scaleValue(typography.readingVerseNumber.fontSize),
-        scaleValue(typography.readingHeading.fontSize),
-        colors.biblePrimaryText,
-        colors.bibleAccent,
-        selectedVerseSet.size,
-        annotations.length,
-      ].join('|'),
-    [
-      annotations.length,
-      colors.bibleAccent,
-      colors.biblePrimaryText,
-      scaleValue,
-      selectedVerseSet.size,
-    ]
+      buildReaderParagraphRenderSignature({
+        premium: true,
+        verseFontSize: scaleValue(typography.readingBody.fontSize),
+        verseLineHeight: getReaderVerseLineHeight(scaleValue(typography.readingBody.fontSize)),
+        verseNumberSize: scaleValue(typography.readingVerseNumber.fontSize),
+        headingFontSize: scaleValue(typography.readingHeading.fontSize),
+        readingFontFamily,
+        readingFontFamilyBold,
+        colors,
+        selectedVerses,
+        annotations,
+      }),
+    [annotations, colors, readingFontFamily, readingFontFamilyBold, scaleValue, selectedVerses]
   );
   const renderParagraphBlock = useCallback(
     ({ item, index }: { item: ReaderParagraph; index: number }): ReactElement => (
@@ -4918,12 +4944,7 @@ export function BibleReaderScreen() {
     const structuredVerseIndentSize = scaleValue(spacing.lg);
 
     const getVersePresentation = (verse: Verse) => {
-      const verseAnnotations = annotations.filter(
-        (annotation) => !annotation.deleted_at && annotationOverlapsVerse(annotation, verse.verse)
-      );
-      const highlightAnnotation = verseAnnotations.find(
-        (annotation) => annotation.type === 'highlight'
-      );
+      const highlightAnnotation = highlightByVerse.get(verse.verse);
       const isFocused = verse.verse === readerInlineActiveVerse;
       const verseBackgroundColor = isFocused
         ? colors.bibleFollowHighlight
@@ -5152,17 +5173,18 @@ export function BibleReaderScreen() {
     // here, so ticks alone never invalidate cells.
     const paragraphRenderSignature = usePremiumTypography
       ? premiumParagraphRenderSignature
-      : [
-          '0',
+      : buildReaderParagraphRenderSignature({
+          premium: false,
           verseFontSize,
           verseLineHeight,
           verseNumberSize,
           headingFontSize,
-          colors.biblePrimaryText,
-          colors.bibleAccent,
-          selectedVerseSet.size,
-          annotations.length,
-        ].join('|');
+          readingFontFamily,
+          readingFontFamilyBold,
+          colors,
+          selectedVerses,
+          annotations,
+        });
     const premiumReaderListExtraData = `${readerInlineActiveVerse ?? 'none'}|${paragraphRenderSignature}`;
 
     if (renderVirtualized) {
@@ -5183,13 +5205,18 @@ export function BibleReaderScreen() {
             flushPendingReaderAutoScroll(false);
           }}
           onScrollToIndexFailed={(info) => {
-            pendingReaderAutoScrollVerseRef.current = readerInlineActiveVerse;
+            const focusTarget = readerFocusScrollRef.current.pendingVerse;
             premiumReaderListRef.current?.scrollToOffset({
               offset: Math.max(info.averageItemLength * info.index - sharedTopChromeTop, 0),
               animated: true,
             });
             requestAnimationFrame(() => {
-              if (readerInlineActiveVerse != null) {
+              if (focusTarget != null) {
+                pendingReaderAutoScrollVerseRef.current = null;
+                scrollReaderToVerseParagraph(focusTarget, false);
+                flushPendingReaderFocus();
+              } else if (readerInlineActiveVerse != null) {
+                pendingReaderAutoScrollVerseRef.current = readerInlineActiveVerse;
                 scrollReaderToVerseParagraph(readerInlineActiveVerse, true);
                 flushPendingReaderAutoScroll(true);
               }
