@@ -26,6 +26,8 @@ Pull requests run the reusable **Verify Workspace** workflow. Main pushes and ma
 - Verify email create-account shows the expected in-flow success behavior when verification is required.
 - Verify Apple sign-in on iOS and Google sign-in on a supported build path, and confirm the shared auth screen dismisses correctly after success.
 - Read scripture offline, restore reading position, and confirm daily scripture still degrades gracefully when optional content is unavailable.
+- Download a runtime text translation on a slow or metered connection, verify byte/indeterminate progress, cancel it, retry it, and confirm a late completion cannot change the selected Bible. Kill and relaunch during installation, then confirm the saved Bible or the last good copy opens offline before catalog refresh.
+- Delete a text translation while a download is active, relaunch offline, and confirm the deleted translation does not reappear from a rollback file. Download text while audio is active and confirm the text Cancel control does not stop audio.
 - Stream audio, pause/seek, and confirm offline download playback still works after reconnects and app backgrounding.
 - Start a chapter on a slow connection, then Pause or Stop before it loads. Switch chapters rapidly and confirm an older load cannot restart audio, stop the current chapter, or replace its error/status.
 - Enable background music, then pause during a loop transition or change its preset while a load is pending. Confirm paused playback stays silent and resumes with the selected preset.

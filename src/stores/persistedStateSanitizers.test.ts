@@ -29,6 +29,30 @@ test('sanitizePersistedBibleState falls back when translations are malformed', (
   assert.ok(sanitized.translations.some((translation) => translation.id === 'bsb'));
 });
 
+test('sanitizePersistedBibleState preserves a valid text pack verse count for recovery validation', () => {
+  const sanitized = sanitizePersistedBibleState({
+    translations: [
+      {
+        id: 'bsb',
+        catalog: {
+          version: '2026.09.12',
+          updatedAt: '2026-09-12T00:00:00.000Z',
+          text: {
+            format: 'sqlite',
+            version: '2026.09.12',
+            downloadUrl: 'https://cdn.example.test/bsb.db',
+            sha256: 'abc123',
+            verseCount: 31102,
+          },
+        },
+      },
+    ],
+  });
+
+  const bsb = sanitized.translations.find((translation) => translation.id === 'bsb');
+  assert.equal(bsb?.catalog?.text?.verseCount, 31102);
+});
+
 test('sanitizePersistedBibleState preserves valid downloaded audio books only', () => {
   const sanitized = sanitizePersistedBibleState({
     preferredChapterLaunchMode: 'listen',

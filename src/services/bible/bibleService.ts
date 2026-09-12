@@ -67,11 +67,12 @@ export async function initBibleData(): Promise<void> {
 let foregroundChapterReads = 0;
 let prefetchInProgress = false;
 
-function readCachedChapter(
+async function readCachedChapter(
   translationId: string,
   bookId: string,
   chapter: number
 ): Promise<Verse[]> {
+  await bibleDb.ensureTranslationReady(translationId);
   const key = () =>
     JSON.stringify([bibleDb.getChapterSourceKey(translationId), translationId, bookId, chapter]);
   return chapterCache.get(key, () => bibleDb.getChapter(translationId, bookId, chapter));
@@ -85,6 +86,7 @@ export async function getChapter(
   foregroundChapterReads++;
   try {
     await initBibleData();
+    await bibleDb.ensureTranslationReady(translationId);
     return await readCachedChapter(translationId, bookId, chapter);
   } finally {
     foregroundChapterReads--;
@@ -115,6 +117,7 @@ export async function prefetchNextChapter(
 
 export async function searchBible(translationId: string, query: string): Promise<Verse[]> {
   await initBibleData();
+  await bibleDb.ensureTranslationReady(translationId);
   return bibleDb.searchVerses(translationId, query);
 }
 

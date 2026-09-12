@@ -59,6 +59,7 @@ export type BibleDatabaseSource =
     };
 
 export type BibleDatabaseSourceResolver = (translationId: string) => BibleDatabaseSource | null;
+export type BibleTranslationReadinessResolver = (translationId: string) => Promise<void>;
 
 const bundledBibleDatabaseSource: BibleDatabaseSource = {
   kind: 'bundled',
@@ -67,10 +68,21 @@ const bundledBibleDatabaseSource: BibleDatabaseSource = {
 };
 
 let bibleDatabaseSourceResolver: BibleDatabaseSourceResolver = () => null;
+let bibleTranslationReadinessResolver: BibleTranslationReadinessResolver | null = null;
 
 export function setBibleDatabaseSourceResolver(resolver: BibleDatabaseSourceResolver | null): void {
   chapterCache.clear();
   bibleDatabaseSourceResolver = resolver ?? (() => null);
+}
+
+export function setBibleTranslationReadinessResolver(
+  resolver: BibleTranslationReadinessResolver | null
+): void {
+  bibleTranslationReadinessResolver = resolver;
+}
+
+export async function ensureTranslationReady(translationId: string): Promise<void> {
+  await bibleTranslationReadinessResolver?.(translationId);
 }
 
 function resolveBibleDatabaseSource(translationId: string): BibleDatabaseSource {
@@ -367,6 +379,7 @@ export async function inspectBundledDatabaseStatus(
 }
 
 export async function getDatabase(translationId: string = 'bsb'): Promise<SQLite.SQLiteDatabase> {
+  await ensureTranslationReady(translationId);
   const source = resolveBibleDatabaseSource(translationId);
 
   if (source.kind === 'bundled') {

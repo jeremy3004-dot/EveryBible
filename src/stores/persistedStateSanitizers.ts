@@ -168,6 +168,12 @@ const sanitizeTranslationTextCatalog = (value: unknown): TranslationTextCatalog 
   const version = sanitizeRequiredString(value.version);
   const downloadUrl = sanitizeUrlString(value.downloadUrl);
   const sha256 = sanitizeRequiredString(value.sha256);
+  const verseCount =
+    typeof value.verseCount === 'number' &&
+    Number.isSafeInteger(value.verseCount) &&
+    value.verseCount > 0
+      ? value.verseCount
+      : undefined;
 
   if (value.format !== 'sqlite' || !version || !downloadUrl || !sha256) {
     return null;
@@ -178,6 +184,7 @@ const sanitizeTranslationTextCatalog = (value: unknown): TranslationTextCatalog 
     version,
     downloadUrl,
     sha256,
+    ...(verseCount !== undefined ? { verseCount } : {}),
     signature: sanitizeOptionalString(value.signature) ?? undefined,
   };
 };

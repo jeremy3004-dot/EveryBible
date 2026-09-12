@@ -84,6 +84,7 @@ mockModule(mock, sourcePath('services/bible/bibleDatabase.ts'), {
   },
   getChapterSourceKey: (translationId: string) =>
     `source:${translationId}:${db.sourceKeyGeneration}`,
+  ensureTranslationReady: async () => {},
   getChapter: async (translationId: string, bookId: string, chapter: number) => {
     const read = { translationId, bookId, chapter };
     db.chapterReads.push(read);
@@ -567,7 +568,7 @@ test('a read whose source changes while it is in flight is retried against the n
   const gate = defer<Verse[]>();
   db.chapterImpl = () => gate.promise;
   const pending = service.getChapter('bsb', 'ROM', 8);
-  await Promise.resolve();
+  await new Promise<void>((resolve) => setImmediate(resolve));
 
   db.sourceKeyGeneration += 1;
   db.chapterImpl = (read) =>

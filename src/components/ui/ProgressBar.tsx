@@ -18,6 +18,8 @@ export interface ProgressBarProps {
   fillColor?: string;
   /** Render the fill as a two-stop accent gradient. */
   gradient?: boolean;
+  /** Render a moving-sized fill when the total is not known yet. */
+  indeterminate?: boolean;
   /**
    * Names what is progressing ("Plan progress", "Download"). Optional: a bar
    * that sits directly under its own labelled row does not need one, but a
@@ -41,6 +43,7 @@ export function ProgressBar({
   trackColor,
   fillColor,
   gradient = false,
+  indeterminate = false,
   accessibilityLabel,
   style,
 }: ProgressBarProps) {
@@ -54,7 +57,7 @@ export function ProgressBar({
   }, [progress, reduceMotion, value]);
 
   const fillStyle = useAnimatedStyle(() => ({
-    width: `${value.value * 100}%`,
+    width: indeterminate ? '35%' : `${value.value * 100}%`,
   }));
 
   const resolvedFill = fillColor ?? colors.accentPrimary;
@@ -64,7 +67,9 @@ export function ProgressBar({
       style={[styles.track, { height, backgroundColor: trackColor ?? colors.borderStrong }, style]}
       accessibilityRole="progressbar"
       accessibilityLabel={accessibilityLabel}
-      accessibilityValue={{ now: Math.round(clamp01(progress) * 100), min: 0, max: 100 }}
+      accessibilityValue={
+        indeterminate ? undefined : { now: Math.round(clamp01(progress) * 100), min: 0, max: 100 }
+      }
     >
       <Animated.View style={[styles.fill, { height }, fillStyle]}>
         {gradient ? (

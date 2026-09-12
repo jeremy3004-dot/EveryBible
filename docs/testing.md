@@ -11,6 +11,12 @@ npm test                                   # whole workspace (~10s)
 node --test --experimental-test-module-mocks --import tsx src/path/to/file.test.ts
 npm run typecheck                          # tests are type-checked too
 npx eslint src/path/to/file.test.ts && npx prettier --check src/path/to/file.test.ts
+
+# Offline text-pack lifecycle checks
+node --test --experimental-test-module-mocks --import tsx \
+  src/services/bible/cloudTranslationService.behavior.test.ts \
+  src/services/bible/textPackInstallJournalModel.test.ts \
+  src/stores/bibleStore.downloads.test.ts
 ```
 
 Any `*.test.ts` under `src/`, `scripts/`, `apps/`, `packages/`, or

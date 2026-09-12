@@ -105,6 +105,33 @@ test('downloading a cloud translation installs its pack and records the install 
   );
 });
 
+test('a New Testament-only pack is read back using its validated representative chapter', async () => {
+  withTranslations([
+    makeRuntimeTranslation({
+      id: 'nt-only',
+      totalBooks: 27,
+      catalog: {
+        version: '3',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+        text: {
+          format: 'sqlite',
+          version: '3',
+          downloadUrl: 'https://media.example/nt-only.db',
+          sha256: 'a'.repeat(64),
+        },
+      },
+    }),
+  ]);
+  doubles.cloud.validationBookId = 'MAT';
+  doubles.cloud.validationChapter = 1;
+  doubles.database.readbackBookId = 'MAT';
+  doubles.database.readbackChapter = 1;
+
+  await useBibleStore.getState().downloadTranslation('nt-only');
+
+  assert.equal(findTranslation('nt-only')?.installState, 'installed');
+});
+
 test('downloading a cloud translation asks the download service for the catalog pack', async () => {
   withTranslations([makeRuntimeTranslation({ id: 'esv1' })]);
 
@@ -114,6 +141,25 @@ test('downloading a cloud translation asks the download service for the catalog 
   assert.equal(doubles.cloud.calls[0]?.translationId, 'esv1');
   assert.equal(doubles.cloud.calls[0]?.downloadUrl, 'https://media.example/esv1.db');
   assert.equal(doubles.cloud.calls[0]?.expectedSha256, 'a'.repeat(64));
+});
+
+test('duplicate text download taps keep one owner and do not replace its install', async () => {
+  withTranslations([makeRuntimeTranslation({ id: 'esv1' })]);
+  let resolveDownload!: (path: string) => void;
+  doubles.cloud.run = () => new Promise<string>((resolve) => {
+    resolveDownload = resolve;
+  });
+
+  const first = useBibleStore.getState().downloadTranslation('esv1');
+  const second = useBibleStore.getState().downloadTranslation('esv1');
+  await flushAsyncWork();
+
+  assert.equal(doubles.cloud.calls.length, 1);
+
+  resolveDownload('file:///packs/esv1.db');
+  assert.equal(await first, 'installed');
+  assert.equal(await second, 'installed');
+  assert.equal(findTranslation('esv1')?.installState, 'installed');
 });
 
 test('downloading a cloud translation invalidates the cached database for the new pack', async () => {
@@ -439,6 +485,18 @@ test('cancelDownload leaves the audio subsystem alone when no job id is in fligh
 
   assert.deepEqual(doubles.audio.cancellationRequests, []);
   assert.equal(doubles.audio.transportCreations, 0);
+  assert.equal(useBibleStore.getState().downloadProgress, null);
+});
+
+test('cancelDownload stops an in-flight text pack transfer', async () => {
+  useBibleStore.setState({
+    downloadProgress: { translationId: 'esv1', progress: 10, status: 'downloading' },
+  });
+
+  useBibleStore.getState().cancelDownload();
+  await flushAsyncWork();
+
+  assert.equal(doubles.cloud.textCancellationRequests, 1);
   assert.equal(useBibleStore.getState().downloadProgress, null);
 });
 

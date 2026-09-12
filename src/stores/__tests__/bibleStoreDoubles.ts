@@ -64,11 +64,14 @@ export interface RecordedTextPackDownload {
   translationId: string;
   downloadUrl: string;
   expectedSha256?: string;
+  expectedVerseCount?: number;
   onProgress?: (progress: {
     error?: string;
     phase: 'fetching' | 'writing' | 'indexing' | 'complete' | 'error';
     totalVerses: number;
     versesDownloaded: number;
+    bytesDownloaded?: number;
+    bytesTotal?: number;
   }) => void;
 }
 
@@ -80,6 +83,8 @@ export interface BibleStoreDoubles {
     invalidateError: Error | null;
     resolverRegistrations: number;
     resolver: ((translationId: string) => unknown) | null;
+    readbackBookId: string;
+    readbackChapter: number;
   };
   translations: {
     preferenceCalls: Array<Record<string, unknown>>;
@@ -98,6 +103,9 @@ export interface BibleStoreDoubles {
   };
   cloud: {
     calls: RecordedTextPackDownload[];
+    textCancellationRequests: number;
+    validationBookId: string;
+    validationChapter: number;
     /** Resolve with the installed pack path, or throw to fail the install. */
     run: (call: RecordedTextPackDownload) => Promise<string>;
   };
@@ -144,6 +152,8 @@ export function installBibleStoreDoubles(mocker: MockTracker): BibleStoreDoubles
       invalidateError: null,
       resolverRegistrations: 0,
       resolver: null,
+      readbackBookId: 'GEN',
+      readbackChapter: 1,
     },
     translations: { preferenceCalls: [], preferenceError: null },
     remote: { availableAudioIds: new Set<string>(), syncedTranslationIds: [] },
@@ -151,6 +161,9 @@ export function installBibleStoreDoubles(mocker: MockTracker): BibleStoreDoubles
     analytics: { events: [] },
     cloud: {
       calls: [],
+      textCancellationRequests: 0,
+      validationBookId: 'GEN',
+      validationChapter: 1,
       run: async (call) => `file:///packs/${call.translationId}.db`,
     },
     fileSystem: {
@@ -190,6 +203,8 @@ export function installBibleStoreDoubles(mocker: MockTracker): BibleStoreDoubles
     reset: () => {
       doubles.database.invalidatedPaths.length = 0;
       doubles.database.invalidateError = null;
+      doubles.database.readbackBookId = 'GEN';
+      doubles.database.readbackChapter = 1;
       doubles.translations.preferenceCalls.length = 0;
       doubles.translations.preferenceError = null;
       doubles.remote.availableAudioIds.clear();
@@ -197,6 +212,9 @@ export function installBibleStoreDoubles(mocker: MockTracker): BibleStoreDoubles
       doubles.timestamps.syncedTranslationIds.length = 0;
       doubles.analytics.events.length = 0;
       doubles.cloud.calls.length = 0;
+      doubles.cloud.textCancellationRequests = 0;
+      doubles.cloud.validationBookId = 'GEN';
+      doubles.cloud.validationChapter = 1;
       doubles.cloud.run = async (call) => `file:///packs/${call.translationId}.db`;
       doubles.fileSystem.deleted.length = 0;
       doubles.fileSystem.deleteError = null;
@@ -240,6 +258,11 @@ export function installBibleStoreDoubles(mocker: MockTracker): BibleStoreDoubles
       doubles.database.resolverRegistrations += 1;
       doubles.database.resolver = resolver;
     },
+    setBibleTranslationReadinessResolver: () => {},
+    getChapter: async (_translationId: string, bookId: string, chapter: number) =>
+      bookId === doubles.database.readbackBookId && chapter === doubles.database.readbackChapter
+        ? [{ id: 1, bookId, chapter, verse: 1, text: 'fixture' }]
+        : [],
   });
 
   mockModule(mocker, sourcePath('services/translations/index.ts'), {
@@ -275,6 +298,25 @@ export function installBibleStoreDoubles(mocker: MockTracker): BibleStoreDoubles
   });
 
   mockModule(mocker, sourcePath('services/bible/cloudTranslationService.ts'), {
+    cancelActiveCatalogTextPackDownload: (_translationId?: string) => {
+      doubles.cloud.textCancellationRequests += 1;
+      return true;
+    },
+    waitForActiveCatalogTextPackDownload: async () => {},
+    isTextPackDownloadCancelled: () => false,
+    getCatalogTextPackPaths: () => undefined,
+    deleteCatalogTextPackArtifacts: async () => {},
+    recoverInterruptedCatalogTextPack: async () => {},
+    validateCatalogTextPack: async (
+      _path: string,
+      _expectedVerseCount?: number,
+      _expectedSha256?: string,
+      expectedTranslationId?: string
+    ) => ({
+      translationId: expectedTranslationId ?? 'fixture',
+      bookId: doubles.cloud.validationBookId,
+      chapter: doubles.cloud.validationChapter,
+    }),
     downloadCatalogTextPack: async (call: RecordedTextPackDownload) => {
       doubles.cloud.calls.push(call);
       return doubles.cloud.run(call);

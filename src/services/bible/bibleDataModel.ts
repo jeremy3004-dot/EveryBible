@@ -101,6 +101,12 @@ const parseTextCatalog = (value: unknown): TranslationTextCatalog | null => {
   const version = sanitizeRequiredString(value.version);
   const downloadUrl = sanitizeUrlString(value.downloadUrl);
   const sha256 = sanitizeRequiredString(value.sha256);
+  const verseCount =
+    typeof value.verseCount === 'number' &&
+    Number.isSafeInteger(value.verseCount) &&
+    value.verseCount > 0
+      ? value.verseCount
+      : undefined;
 
   if (value.format !== 'sqlite' || !version || !downloadUrl || !sha256) {
     return null;
@@ -111,6 +117,7 @@ const parseTextCatalog = (value: unknown): TranslationTextCatalog | null => {
     version,
     downloadUrl,
     sha256,
+    ...(verseCount !== undefined ? { verseCount } : {}),
     ...(sanitizeRequiredString(value.signature)
       ? { signature: sanitizeRequiredString(value.signature) ?? undefined }
       : {}),

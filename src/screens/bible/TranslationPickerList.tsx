@@ -96,6 +96,7 @@ export function TranslationPickerList({
   // own bottom edge against the keyboard top instead.
   const listSurfaceRef = useRef<View>(null);
   const keyboardBottomInset = useKeyboardBottomInset({ surfaceRef: listSurfaceRef });
+  const selectionRequestRef = useRef(0);
 
   // The search box sits above this list, and the picker's own sheet is a plain
   // Modal that iOS never resizes for the keyboard. Growing the scrollable extent
@@ -240,14 +241,25 @@ export function TranslationPickerList({
     };
   }, []);
 
+  useEffect(() => {
+    return () => {
+      selectionRequestRef.current += 1;
+    };
+  }, []);
+
   const handleDownloadTextTranslation = useCallback(
     async (translation: BibleTranslation) => {
       if (!translation.catalog?.text?.downloadUrl) {
         return;
       }
 
+      const requestId = ++selectionRequestRef.current;
+
       try {
-        await downloadTranslation(translation.id);
+        const result = await downloadTranslation(translation.id);
+        if (result === 'cancelled' || requestId !== selectionRequestRef.current) {
+          return;
+        }
         setPreferredTranslationLanguage(normalizeTranslationLanguage(translation.language));
         setCurrentTranslation(translation.id);
         onRequestClose?.();
@@ -272,6 +284,7 @@ export function TranslationPickerList({
 
   const handleTranslationSelect = useCallback(
     async (translation: BibleTranslation) => {
+      selectionRequestRef.current += 1;
       let nextTranslation = translation;
 
       if (!hasHydratedRuntimeCatalog && !translation.isDownloaded) {
@@ -774,6 +787,9 @@ const TranslationRow = memo(function TranslationRow({
     : isTextDownloadActive
       ? (downloadProgress?.progress ?? 0)
       : null;
+  const isTextDownloadIndeterminate = Boolean(
+    isTextDownloadActive && downloadProgress?.isIndeterminate
+  );
   const isTextDownloaded = translation.isDownloaded || Boolean(translation.textPackLocalPath);
 
   // A download's only visible signal is a silently growing rule, so speak the
@@ -851,6 +867,7 @@ const TranslationRow = memo(function TranslationRow({
             <View style={styles.rowProgress}>
               <ProgressBar
                 progress={activeDownloadProgress / 100}
+                indeterminate={isTextDownloadIndeterminate}
                 height={DOWNLOAD_PROGRESS_HEIGHT}
                 trackColor={colors.bibleDivider}
                 fillColor={colors.bibleAccent}
@@ -865,7 +882,7 @@ const TranslationRow = memo(function TranslationRow({
           {activeDownloadProgress != null ? (
             <>
               <Text style={[styles.rowProgressLabel, { color: colors.bibleAccent }]}>
-                {activeDownloadProgress}%
+                {isTextDownloadIndeterminate ? '…' : `${activeDownloadProgress}%`}
               </Text>
               <TouchableOpacity
                 accessibilityRole="button"
@@ -1145,6 +1162,7 @@ function TranslationManageSheet({
             meta?: string;
             state: 'done' | 'download' | 'unavailable' | 'busy';
             progress?: number | null;
+            indeterminate?: boolean;
             onPress?: () => void;
           };
           const textRows: DownloadRow[] = [];
@@ -1161,6 +1179,7 @@ function TranslationManageSheet({
                   : undefined,
               state: isTextDownloadActive ? 'busy' : isTextDownloaded ? 'done' : 'download',
               progress: isTextDownloadActive ? (downloadProgress?.progress ?? 0) : null,
+              indeterminate: isTextDownloadActive && downloadProgress?.isIndeterminate,
               onPress:
                 isTextDownloaded || isBusy || !translation.catalog?.text?.downloadUrl
                   ? undefined
@@ -1248,6 +1267,7 @@ function TranslationManageSheet({
                 {row.progress != null ? (
                   <ProgressBar
                     progress={row.progress / 100}
+                    indeterminate={row.indeterminate}
                     height={DOWNLOAD_PROGRESS_HEIGHT}
                     trackColor={colors.bibleDivider}
                     fillColor={colors.bibleAccent}
@@ -1259,7 +1279,7 @@ function TranslationManageSheet({
               {row.progress != null ? (
                 <>
                   <Text style={[styles.rowProgressLabel, { color: colors.bibleAccent }]}>
-                    {row.progress}%
+                    {row.indeterminate ? '…' : `${row.progress}%`}
                   </Text>
                   <TouchableOpacity
                     accessibilityRole="button"

@@ -75,7 +75,10 @@ export async function reconcilePrimaryTranslationPreference(): Promise<void> {
   if (!preferredTranslation || !isReadableLocally(preferredTranslation)) {
     if (preferredTranslation?.catalog?.text?.downloadUrl) {
       try {
-        await state.downloadTranslation(preferredId);
+        const downloadResult = await state.downloadTranslation(preferredId);
+        if (downloadResult === 'cancelled') {
+          return;
+        }
         useBibleStore.getState().setCurrentTranslation(preferredId);
       } catch (error) {
         const fallbackTranslation = resolveRegionalFallbackTranslation(

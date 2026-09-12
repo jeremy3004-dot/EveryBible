@@ -52,6 +52,7 @@ export interface UpstreamTranslationRecord {
       downloadUrl: string;
       format: 'sqlite';
       sha256: string;
+      verseCount: number;
       version: string;
     };
     updatedAt: string;
@@ -263,6 +264,7 @@ function buildCatalogPayload(textPack: TextPackManifestItem | null) {
       downloadUrl: buildBibleMediaUrl(textPack.downloadUrl),
       format: 'sqlite' as const,
       sha256: textPack.sha256,
+      verseCount: textPack.verseCount,
       version: textPack.version,
     },
     updatedAt: textPack.updatedAt,

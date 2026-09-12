@@ -82,6 +82,7 @@ export interface TranslationTextCatalog {
   version: string;
   downloadUrl: string;
   sha256: string;
+  verseCount?: number;
   signature?: string;
 }
 
@@ -201,10 +202,14 @@ export interface BibleTranslation {
 
 export interface TranslationDownloadProgress {
   translationId: string;
+  operationId?: string;
   jobId?: string;
   bookId?: string;
   progress: number; // 0-100
   status: 'idle' | 'downloading' | 'verifying' | 'installing' | 'completed' | 'error';
+  bytesDownloaded?: number;
+  bytesTotal?: number;
+  isIndeterminate?: boolean;
   error?: string;
 }
 

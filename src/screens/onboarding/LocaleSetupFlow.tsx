@@ -992,7 +992,10 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     if (selectionState.reason === 'download-required') {
       try {
         setInstallingTranslationId(translation.id);
-        await downloadTranslation(translation.id);
+        const downloadResult = await downloadTranslation(translation.id);
+        if (downloadResult === 'cancelled') {
+          return;
+        }
         const installedTranslation =
           useBibleStore
             .getState()

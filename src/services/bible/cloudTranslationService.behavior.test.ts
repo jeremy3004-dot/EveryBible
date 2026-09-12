@@ -178,6 +178,11 @@ const download = {
   bytes: buildPackBytes(),
   error: null as Error | null,
 };
+const resumable = {
+  enabled: false,
+  cancelled: false,
+  resolve: null as (() => void) | null,
+};
 const fileSystemFaults = {
   failMove: null as ((from: string, to: string) => boolean) | null,
   unreadableBytes: false,
@@ -217,6 +222,34 @@ mockModule(mock, 'expo-file-system/legacy', {
     mkdirSync(path.slice(0, path.lastIndexOf('/')), { recursive: true });
     writeFileSync(path, download.bytes);
     return { uri: path, status: download.status };
+  },
+  get createDownloadResumable() {
+    return resumable.enabled
+      ? (
+          _url: string,
+          path: string,
+          _options: unknown,
+          _callback: (progress: {
+            totalBytesWritten: number;
+            totalBytesExpectedToWrite: number;
+          }) => void
+        ) => ({
+        downloadAsync: async () => {
+          await new Promise<void>((resolve) => {
+            resumable.resolve = resolve;
+          });
+          if (resumable.cancelled) {
+            return undefined;
+          }
+          mkdirSync(path.slice(0, path.lastIndexOf('/')), { recursive: true });
+          writeFileSync(path, download.bytes);
+          return { uri: path, status: download.status };
+        },
+        cancelAsync: async () => {
+          resumable.cancelled = true;
+        },
+        })
+      : undefined;
   },
   readAsStringAsync: async (path: string) =>
     fileSystemFaults.unreadableBytes
@@ -331,6 +364,9 @@ afterEach(() => {
   download.status = 200;
   download.error = null;
   download.bytes = buildPackBytes();
+  resumable.enabled = false;
+  resumable.cancelled = false;
+  resumable.resolve = null;
   fileSystemFaults.failMove = null;
   fileSystemFaults.unreadableBytes = false;
   sqliteFaults.failOpen = false;
@@ -558,6 +594,39 @@ test('downloadCatalogTextPack installs a downloaded pack and reports progress', 
   assert.equal(readVerseCount(installedPath), 3);
   assert.deepEqual(progress.phases, ['fetching', 'indexing', 'complete']);
   assert.ok(fileSystemCalls.includes('download:https://media.example.test/catalog.db'));
+});
+
+test('cancelActiveCatalogTextPackDownload prevents a late native completion from installing', async () => {
+  const { cancelActiveCatalogTextPackDownload, downloadCatalogTextPack, isTextPackDownloadCancelled } =
+    await loadModule();
+  resumable.enabled = true;
+
+  const promise = downloadCatalogTextPack({
+    translationId: 'cancelled',
+    downloadUrl: 'https://media.example.test/cancelled.db',
+    expectedVerseCount: 3,
+  });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+
+  cancelActiveCatalogTextPackDownload();
+  resumable.resolve?.();
+
+  await assert.rejects(promise, (error: unknown) => isTextPackDownloadCancelled(error));
+  assert.equal(existsSync(packPath('cancelled')), false);
+});
+
+test('recoverInterruptedCatalogTextPack restores a complete legacy rollback set', async () => {
+  const { recoverInterruptedCatalogTextPack, getCatalogTextPackPaths } = await loadModule();
+  const paths = getCatalogTextPackPaths('legacy-recovery');
+  mkdirSync(translationsDirectory, { recursive: true });
+  writeFileSync(paths.rollbackPath, buildPackBytes({ translationId: 'legacy-recovery' }));
+  writeFileSync(`${paths.finalPath}-wal`, Buffer.from('stale sidecar'));
+
+  await recoverInterruptedCatalogTextPack(paths);
+
+  assert.equal(readVerseCount(paths.finalPath), 3);
+  assert.equal(existsSync(`${paths.finalPath}-wal`), false);
+  assert.equal(existsSync(paths.rollbackPath), false);
 });
 
 test('downloadCatalogTextPack resolves a relative download path against the asset base URL', async () => {
