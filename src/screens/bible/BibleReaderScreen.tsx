@@ -1698,7 +1698,10 @@ export function BibleReaderScreen() {
   const showPremiumReadMode =
     chapterPresentationMode === 'text' && verses.length > 0 && !isLoading && error == null;
   const premiumBottomInset = 18;
-  const sharedTopChromeTop = safeInsets.top;
+  // The squared controls carry a visible surface, so a bare inset let them butt
+  // against the status bar / Dynamic Island. This restores the breathing gap the
+  // capsule used to get from its own 6pt inset inside the row.
+  const sharedTopChromeTop = safeInsets.top + spacing.xs;
   // The floating top chrome is one `minTouchTarget`-tall pill pinned at
   // `sharedTopChromeTop`, so content only needs to clear that plus a gap. The old
   // flat 98 left ~54pt of dead space above the first line.
@@ -6961,7 +6964,7 @@ const styles = StyleSheet.create({
     right: 0,
     top: 2,
     height: layout.iconButton,
-    borderRadius: radius.xl,
+    borderRadius: radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
   },
@@ -7000,7 +7003,7 @@ const styles = StyleSheet.create({
   floatingReaderMenuButton: {
     width: layout.iconButton,
     height: layout.iconButton,
-    borderRadius: radius.xl,
+    borderRadius: radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center',

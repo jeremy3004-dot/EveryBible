@@ -1199,7 +1199,7 @@ test('premium read mode uses flat segmented top buttons with separate chapter an
 
   assert.match(
     source,
-    /const sharedTopChromeTop = safeInsets\.top;/,
+    /const sharedTopChromeTop = safeInsets\.top \+ spacing\.xs;/,
     'BibleReaderScreen should compute the top chrome offset once from the safe area and reuse it in both modes'
   );
 
