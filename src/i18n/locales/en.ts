@@ -1,4 +1,33 @@
 export const en = {
+  feedback: {
+    title: 'Chapter feedback',
+    community: 'Community',
+    council: 'Scripture Council',
+    councilCodeRequired: 'Council code required',
+    councilAccessBody: 'Enter your Scripture Council code to submit council feedback.',
+    incorrectCode: 'Incorrect code. Please try again.',
+    submittingCommunity: 'Submitting as Community',
+    submittingCouncil: 'Submitting as Scripture Council',
+    complete: 'All current feedback reviewed',
+    reviewFeedback: 'Review feedback',
+    markReviewed: 'Mark reviewed',
+    reviewed: 'Reviewed',
+    markAddressed: 'Mark addressed',
+    addressed: 'Addressed',
+    noChange: 'No change needed',
+    needsReview: 'Needs review',
+    awaitingReview: 'Awaiting review',
+    all: 'All',
+    positiveCount: 'Positive responses: {{count}}',
+    positive: 'Positive feedback',
+    viewPositive: 'View positive responses',
+    showComments: 'Show comments and concerns',
+    reviewPositive: 'Review positive responses',
+    bulkConfirm: 'Mark these {{count}} positive responses reviewed?',
+    explanation: 'Explain the decision (required)',
+    legacy: 'Historical attribution unavailable',
+    noMatching: 'No responses match these filters.',
+  },
   interface: {
     nativePermissions: {
       NSCameraUsageDescription:

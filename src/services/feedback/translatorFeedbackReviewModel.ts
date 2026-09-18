@@ -22,6 +22,9 @@ export interface TranslatorFeedbackChapterSummary {
   bookId: string;
   chapter: number;
   total: number;
+  community?: number;
+  council?: number;
+  unattributed?: number;
   unresolvedDown: number;
   unresolvedUp: number;
 }

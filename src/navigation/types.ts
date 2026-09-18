@@ -40,6 +40,7 @@ export type BibleStackParamList = {
     bookId: string;
   };
   TranslatorQueue: undefined;
+  ChapterFeedbackReview: { translationId: string; bookId: string; chapter: number };
 };
 
 // Learn Stack
@@ -159,10 +160,7 @@ export type TranslationBrowserScreenProps = NativeStackScreenProps<
 >;
 export type AboutScreenProps = NativeStackScreenProps<MoreStackParamList, 'About'>;
 
-export type ResetPasswordScreenProps = NativeStackScreenProps<
-  AuthStackParamList,
-  'ResetPassword'
->;
+export type ResetPasswordScreenProps = NativeStackScreenProps<AuthStackParamList, 'ResetPassword'>;
 
 // Tab screen props
 export type HomeTabProps = BottomTabScreenProps<RootTabParamList, 'Home'>;

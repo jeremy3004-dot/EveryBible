@@ -598,6 +598,7 @@ test('signing out deletes the translator review passcode from the OS keystore', 
   useAuthStore.getState().setUser(appUser('user-a'));
   seedPerUserData();
   secureStore.store.set('everybible.translatorReview.passcode', 'Secret-1');
+  secureStore.store.set('everybible.feedback.councilPasscode', 'Council-secret');
   secureStore.calls.length = 0;
 
   await useAuthStore.getState().signOut();
@@ -607,9 +608,10 @@ test('signing out deletes the translator review passcode from the OS keystore', 
   assert.equal(useTranslatorReviewStore.getState().accessPasscode, null);
   assert.deepEqual(
     secureStore.calls.map((call) => `${call.op} ${call.key}`),
-    ['delete everybible.translatorReview.passcode']
+    ['delete everybible.feedback.councilPasscode', 'delete everybible.translatorReview.passcode']
   );
   assert.equal(secureStore.store.has('everybible.translatorReview.passcode'), false);
+  assert.equal(secureStore.store.has('everybible.feedback.councilPasscode'), false);
 });
 
 test('signing out still clears local data when Supabase is unreachable', async () => {

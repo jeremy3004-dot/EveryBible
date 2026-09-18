@@ -22,6 +22,12 @@ export async function markChapterFeedbackScriptureCouncilFixedAction(formData: F
   const returnTo = normalizeReturnTo(normalizeOptionalString(formData.get('returnTo')));
   const note = normalizeOptionalString(formData.get('note'));
 
+  if (!note || note.length > 1000) {
+    redirect(
+      `${returnTo}${returnTo.includes('?') ? '&' : '?'}error=An explanation of at most 1000 characters is required`
+    );
+  }
+
   if (!feedbackId) {
     redirect(`${returnTo}${returnTo.includes('?') ? '&' : '?'}error=Missing feedback id`);
   }
@@ -31,6 +37,7 @@ export async function markChapterFeedbackScriptureCouncilFixedAction(formData: F
   const { data, error } = await service
     .from('chapter_feedback_submissions')
     .update({
+      scripture_council_resolution: 'fixed',
       scripture_council_fixed_at: fixedAt,
       scripture_council_fixed_by: admin.id,
       scripture_council_fixed_note: note,

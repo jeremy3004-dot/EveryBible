@@ -3,7 +3,11 @@
 // user, so no edge function is required. Closes the product loop by surfacing whether a
 // translator has acted on each submission (F3).
 
-export type ChapterFeedbackResolutionStatus = 'received' | 'fixed' | 'no_change_needed';
+export type ChapterFeedbackResolutionStatus =
+  | 'received'
+  | 'reviewed'
+  | 'fixed'
+  | 'no_change_needed';
 
 export interface MyChapterFeedbackItem {
   id: string;
@@ -14,6 +18,7 @@ export interface MyChapterFeedbackItem {
   hasAudio: boolean;
   createdAt: string;
   status: ChapterFeedbackResolutionStatus;
+  resolutionNote: string | null;
 }
 
 export interface MyChapterFeedbackRow {
@@ -24,6 +29,7 @@ export interface MyChapterFeedbackRow {
   comment: string | null;
   audio_response_path: string | null;
   created_at: string;
+  scripture_council_fixed_note?: string | null;
   scripture_council_resolution: 'fixed' | 'no_change_needed' | null;
 }
 
@@ -51,7 +57,11 @@ export function mapMyChapterFeedbackRow(row: MyChapterFeedbackRow): MyChapterFee
     comment: row.comment,
     hasAudio: row.audio_response_path != null,
     createdAt: row.created_at,
-    status: row.scripture_council_resolution ?? 'received',
+    status:
+      row.sentiment === 'up' && row.scripture_council_resolution === 'no_change_needed'
+        ? 'reviewed'
+        : (row.scripture_council_resolution ?? 'received'),
+    resolutionNote: row.scripture_council_fixed_note ?? null,
   };
 }
 
@@ -67,7 +77,7 @@ async function resolveDefaultClient(): Promise<MyChapterFeedbackQueryClient | nu
       const { data, error } = await supabase
         .from('chapter_feedback_submissions')
         .select(
-          'id, book_id, chapter, sentiment, comment, audio_response_path, created_at, scripture_council_resolution'
+          'id, book_id, chapter, sentiment, comment, audio_response_path, created_at, scripture_council_resolution, scripture_council_fixed_note'
         )
         .order('created_at', { ascending: false })
         .limit(MY_FEEDBACK_ROW_LIMIT);

@@ -1,4 +1,5 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { verifyCouncilAccess } from '../_shared/councilAccess.ts';
+import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -8,19 +9,28 @@ const corsHeaders = {
 type ReviewResolution = 'fixed' | 'no_change_needed';
 
 interface ReviewRequest {
+  apiVersion?: number;
+  accessRole?: 'scripture_council';
+  category?: 'all' | 'community' | 'scripture_council';
+  status?: 'pending' | 'reviewed' | 'all';
+  cursor?: { snapshot: number; sequence: number; sentiment: string };
+  positiveOnly?: boolean;
+  summaryOnly?: boolean;
+  feedbackIds?: string[];
   passcode?: string;
   validateOnly?: boolean;
   translationId?: string;
   bookId?: string;
   chapter?: number;
   // Resolution mutation mode (Phase 1: server-backed translator mark-offs).
-  action?: 'resolve' | 'reopen';
+  action?: 'audioUrl' | 'resolve' | 'reopen' | 'positivePreview' | 'reviewPositiveIds';
   feedbackId?: string;
   resolution?: ReviewResolution;
   note?: string;
 }
 
 interface ChapterFeedbackReviewRow {
+  contributor_category: 'community' | 'scripture_council' | null;
   id: string;
   created_at: string;
   translation_id: string;
@@ -129,7 +139,7 @@ const hashClientIp = async (request: Request): Promise<string> => {
 };
 
 const isPasscodeLockedOut = async (
-  service: ReturnType<typeof createClient>,
+  service: SupabaseClient,
   ipHash: string
 ): Promise<boolean> => {
   const windowStart = new Date(Date.now() - LOCKOUT_WINDOW_MINUTES * 60 * 1000).toISOString();
@@ -149,7 +159,7 @@ const isPasscodeLockedOut = async (
 };
 
 const recordPasscodeAttempt = async (
-  service: ReturnType<typeof createClient>,
+  service: SupabaseClient,
   ipHash: string,
   succeeded: boolean
 ): Promise<void> => {
@@ -161,7 +171,7 @@ const recordPasscodeAttempt = async (
 // translators (no JWT) resolve to null, which the column allows.
 const resolveActingUserId = async (
   request: Request,
-  service: ReturnType<typeof createClient>
+  service: SupabaseClient
 ): Promise<string | null> => {
   const authHeader = request.headers.get('Authorization');
   const token = authHeader?.replace(/^Bearer\s+/i, '').trim();
@@ -198,6 +208,13 @@ Deno.serve(async (request) => {
     const service = createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false },
     });
+
+    if (body.accessRole === 'scripture_council') {
+      if (body.validateOnly !== true) return jsonResponse(403, { success: false, error: 'Translator access required' });
+      const denied = await verifyCouncilAccess(service, request, body.passcode);
+      return denied ? jsonResponse(denied.status, { success: false, error: denied.error })
+        : jsonResponse(200, { success: true });
+    }
 
     const ipHash = await hashClientIp(request);
 
@@ -253,7 +270,7 @@ Deno.serve(async (request) => {
       // Confirm the row exists and belongs to the requested translation before mutating.
       const { data: existing, error: existingError } = await service
         .from('chapter_feedback_submissions')
-        .select('id, translation_id')
+        .select('id, translation_id, sentiment')
         .eq('id', feedbackId)
         .eq('translation_id', translationId)
         .limit(1)
@@ -294,6 +311,9 @@ Deno.serve(async (request) => {
       }
 
       const note = typeof body.note === 'string' ? body.note.trim() : '';
+      if (body.apiVersion === 2 && existing.sentiment === 'down' && !note) {
+        return jsonResponse(400, { success: false, error: 'An explanation is required.' });
+      }
       if (note.length > 1000) {
         return jsonResponse(400, { success: false, error: 'note must be 1000 characters or fewer' });
       }
@@ -341,7 +361,52 @@ Deno.serve(async (request) => {
       });
     }
 
-    if (!hasChapter) {
+    if (body.apiVersion === 2 && body.action === 'audioUrl') {
+      if (!hasChapter || !trimRequiredText(body.feedbackId)) {
+        return jsonResponse(400, { success: false, error: 'Chapter and feedbackId required' });
+      }
+      const { data: audio, error } = await service.from('chapter_feedback_submissions')
+        .select('audio_response_bucket, audio_response_path').eq('id', body.feedbackId)
+        .eq('translation_id', translationId).eq('book_id', bookId).eq('chapter', body.chapter)
+        .maybeSingle();
+      if (error) return jsonResponse(500, { success: false, error: error.message });
+      if (!audio?.audio_response_path || !audio.audio_response_bucket) {
+        return jsonResponse(404, { success: false, error: 'Recording not found' });
+      }
+      const signed = await service.storage.from(audio.audio_response_bucket)
+        .createSignedUrl(audio.audio_response_path, 3600);
+      return signed.error ? jsonResponse(500, { success: false, error: 'Recording unavailable' })
+        : jsonResponse(200, { success: true, playbackUrl: signed.data.signedUrl });
+    }
+
+    if (body.apiVersion === 2) {
+      const category = body.category ?? 'all';
+      const status = body.status ?? 'pending';
+      if (!['all', 'community', 'scripture_council'].includes(category)
+          || !['pending', 'reviewed', 'all'].includes(status)) {
+        return jsonResponse(400, { success: false, error: 'Invalid feedback filter' });
+      }
+      if (body.action === 'positivePreview' || body.action === 'reviewPositiveIds') {
+        if (!hasChapter) return jsonResponse(400, { success: false, error: 'Chapter required' });
+        if (body.action === 'reviewPositiveIds' && (!Array.isArray(body.feedbackIds)
+            || body.feedbackIds.length > 500 || !body.feedbackIds.every(id => typeof id === 'string'))) {
+          return jsonResponse(400, { success: false, error: 'Invalid response selection' });
+        }
+        const { data, error } = body.action === 'positivePreview'
+          ? await service.rpc('chapter_feedback_positive_preview', {
+              p_translation: translationId, p_book: bookId, p_chapter: body.chapter, p_category: category,
+            })
+          : await service.rpc('chapter_feedback_review_positive_ids', {
+              p_translation: translationId, p_book: bookId, p_chapter: body.chapter,
+              p_ids: body.feedbackIds, p_actor: await resolveActingUserId(request, service),
+            });
+        if (error) return jsonResponse(500, { success: false, error: error.message });
+        return jsonResponse(200, { success: true, feedbackIds: body.action === 'positivePreview' ? data : undefined,
+          reviewedCount: body.action === 'reviewPositiveIds' ? data : undefined });
+      }
+    }
+
+    if (!hasChapter && body.apiVersion !== 2) {
       let summaryQuery = service
         .from('chapter_feedback_submissions')
         .select('id, book_id, chapter, sentiment, scripture_council_resolution, audio_response_path')
@@ -410,10 +475,10 @@ Deno.serve(async (request) => {
       });
     }
 
-    const { data, error } = await service
+    const legacyQuery = service
       .from('chapter_feedback_submissions')
       .select(
-        'id, created_at, translation_id, translation_language, book_id, chapter, sentiment, comment, participant_name, participant_role, participant_id_number, user_id, source_screen, audio_response_bucket, audio_response_path, audio_response_mime_type, audio_response_size_bytes, audio_response_duration_ms, audio_response_created_at, scripture_council_resolution, scripture_council_fixed_at, scripture_council_fixed_note'
+        'id, created_at, translation_id, translation_language, book_id, chapter, sentiment, comment, participant_name, participant_role, participant_id_number, user_id, source_screen, audio_response_bucket, audio_response_path, audio_response_mime_type, audio_response_size_bytes, audio_response_duration_ms, audio_response_created_at, contributor_category, scripture_council_resolution, scripture_council_fixed_at, scripture_council_fixed_note'
       )
       .eq('translation_id', translationId)
       .eq('book_id', bookId)
@@ -421,11 +486,23 @@ Deno.serve(async (request) => {
       .order('created_at', { ascending: false })
       .limit(200);
 
+    const { data, error } = body.apiVersion === 2
+      ? await service.rpc('chapter_feedback_review_v2', {
+          p_translation: translationId, p_book: bookId, p_chapter: body.chapter ?? null,
+          p_category: body.category ?? 'all', p_status: body.status ?? 'pending',
+          p_cursor: body.cursor ?? null, p_positive_only: body.positiveOnly ?? false,
+          p_summary_only: body.summaryOnly ?? false,
+        })
+      : await legacyQuery;
+
     if (error) {
       return jsonResponse(500, { success: false, error: error.message });
     }
 
-    const rows = (data ?? []) as ChapterFeedbackReviewRow[];
+    if (body.apiVersion === 2 && (!hasChapter || body.summaryOnly)) {
+      return jsonResponse(200, { success: true, chapters: data.chapters });
+    }
+    const rows = (body.apiVersion === 2 ? data.rows : data ?? []) as ChapterFeedbackReviewRow[];
     const signedAudioUrls = await Promise.all(
       rows.map(async (row) => {
         if (!row.audio_response_bucket || !row.audio_response_path) {
@@ -446,7 +523,9 @@ Deno.serve(async (request) => {
 
     return jsonResponse(200, {
       success: true,
+      ...(body.apiVersion === 2 ? { summary: data.chapters[0] ?? null, nextCursor: data.nextCursor, positiveCount: data.positiveCount } : {}),
       feedback: rows.map((row, index) => ({
+        contributorCategory: row.contributor_category ?? null,
         id: row.id,
         createdAt: row.created_at,
         translationId: row.translation_id,

@@ -10,7 +10,15 @@ import {
   type TranslatorFeedbackReviewMarkers,
 } from '../services/feedback/translatorFeedbackReviewModel';
 
+export type FeedbackParticipationMode = 'reader' | 'community' | 'scripture_council' | 'translator';
+
 interface TranslatorReviewState {
+  // Null only during upgrade: retain the legacy contributor preference until an explicit choice.
+  mode: FeedbackParticipationMode | null;
+  councilPasscode: string | null;
+  enableCommunityFeedback: () => void;
+  enableCouncilWithPasscode: (passcode: string) => boolean;
+  disableFeedback: () => void;
   enabled: boolean;
   accessPasscode: string | null;
   // Per-device UX state only (audio listened). Resolution lives on the server (D1).
@@ -29,6 +37,7 @@ interface TranslatorReviewState {
 // (see services/privacy/privacyService.ts). `enabled` stays in MMKV so translator mode still
 // renders synchronously on a cold start; the passcode itself arrives one tick later from the
 // async SecureStore read below, and every consumer reads it through a store selector.
+const COUNCIL_PASSCODE_SECURE_KEY = 'everybible.feedback.councilPasscode';
 const TRANSLATOR_REVIEW_PASSCODE_SECURE_KEY = 'everybible.translatorReview.passcode';
 
 // S10: `process.env.EXPO_PUBLIC_*` is inlined at BUILD time by Expo's Babel transform, so a
@@ -90,7 +99,28 @@ function deletePasscodeFromSecureStore(): void {
 
 export const useTranslatorReviewStore = create<TranslatorReviewState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
+      mode: developmentTranslatorReviewPasscode ? 'translator' : null,
+      councilPasscode: null,
+      enableCommunityFeedback: () => {
+        if (get().enabled) deletePasscodeFromSecureStore();
+        if (get().councilPasscode)
+          void SecureStore.deleteItemAsync(COUNCIL_PASSCODE_SECURE_KEY).catch(() => {});
+        set({ mode: 'community', enabled: false, accessPasscode: null, councilPasscode: null });
+      },
+      enableCouncilWithPasscode: (passcode) => {
+        const councilPasscode = normalizeTranslatorReviewPasscode(passcode);
+        if (!councilPasscode) return false;
+        if (get().enabled) deletePasscodeFromSecureStore();
+        set({ mode: 'scripture_council', enabled: false, accessPasscode: null, councilPasscode });
+        void SecureStore.setItemAsync(COUNCIL_PASSCODE_SECURE_KEY, councilPasscode).catch(() => {});
+        return true;
+      },
+      disableFeedback: () => {
+        if (get().enabled) return;
+        set({ mode: 'reader', councilPasscode: null });
+        void SecureStore.deleteItemAsync(COUNCIL_PASSCODE_SECURE_KEY).catch(() => {});
+      },
       enabled: developmentTranslatorReviewPasscode !== null,
       accessPasscode: developmentTranslatorReviewPasscode,
       feedbackMarkers: {},
@@ -98,7 +128,9 @@ export const useTranslatorReviewStore = create<TranslatorReviewState>()(
         const accessPasscode = normalizeTranslatorReviewPasscode(passcode);
 
         if (accessPasscode) {
-          set({ enabled: true, accessPasscode });
+          if (get().councilPasscode)
+            void SecureStore.deleteItemAsync(COUNCIL_PASSCODE_SECURE_KEY).catch(() => {});
+          set({ mode: 'translator', enabled: true, accessPasscode, councilPasscode: null });
           persistPasscodeToSecureStore(accessPasscode);
           return true;
         }
@@ -106,11 +138,18 @@ export const useTranslatorReviewStore = create<TranslatorReviewState>()(
         return false;
       },
       disable: () => {
-        set({ enabled: false, accessPasscode: null });
+        set({ mode: 'reader', enabled: false, accessPasscode: null });
         deletePasscodeFromSecureStore();
       },
       resetForSignOut: () => {
-        set({ enabled: false, accessPasscode: null, feedbackMarkers: {} });
+        set({
+          mode: 'reader',
+          enabled: false,
+          accessPasscode: null,
+          councilPasscode: null,
+          feedbackMarkers: {},
+        });
+        void SecureStore.deleteItemAsync(COUNCIL_PASSCODE_SECURE_KEY).catch(() => {});
         deletePasscodeFromSecureStore();
       },
       markListened: (feedbackId) =>
@@ -128,7 +167,7 @@ export const useTranslatorReviewStore = create<TranslatorReviewState>()(
       // migrate below moves an already-persisted plaintext passcode into SecureStore and
       // scrubs it from the MMKV snapshot, so upgrading installs neither lose translator
       // mode nor keep the secret on disk in the clear.
-      version: 4,
+      version: 5,
       storage: createJSONStorage(() => zustandStorage),
       migrate: (persistedState, version) => {
         const state = persistedState as Partial<TranslatorReviewState>;
@@ -145,9 +184,21 @@ export const useTranslatorReviewStore = create<TranslatorReviewState>()(
 
         // The passcode is kept in the in-memory state (so the current session keeps
         // working) but partialize no longer writes it back to MMKV.
-        return { ...state, accessPasscode, feedbackMarkers };
+        return {
+          ...state,
+          mode: state.enabled ? 'translator' : null,
+          councilPasscode: null,
+          accessPasscode,
+          feedbackMarkers,
+        };
+      },
+      merge: (persisted, current) => {
+        const saved = persisted as Partial<TranslatorReviewState>;
+        const mode = saved.mode ?? (saved.enabled ? 'translator' : null);
+        return { ...current, ...saved, mode, enabled: mode === 'translator' };
       },
       partialize: (state) => ({
+        mode: state.mode,
         enabled: state.enabled,
         feedbackMarkers: state.feedbackMarkers,
       }),
@@ -168,7 +219,11 @@ export async function hydrateTranslatorReviewPasscode(): Promise<void> {
     const stored = await SecureStore.getItemAsync(TRANSLATOR_REVIEW_PASSCODE_SECURE_KEY);
     const accessPasscode = normalizeTranslatorReviewPasscode(stored ?? '');
     if (!accessPasscode) return;
-    if (useTranslatorReviewStore.getState().accessPasscode) return;
+    if (
+      !useTranslatorReviewStore.getState().enabled ||
+      useTranslatorReviewStore.getState().accessPasscode
+    )
+      return;
     useTranslatorReviewStore.setState({ accessPasscode });
   } catch (error) {
     console.warn('Failed to load translator review passcode:', error);
@@ -176,3 +231,28 @@ export async function hydrateTranslatorReviewPasscode(): Promise<void> {
 }
 
 void hydrateTranslatorReviewPasscode();
+
+export function getFeedbackParticipationMode(
+  state: Pick<TranslatorReviewState, 'mode' | 'enabled'>,
+  legacyFeedbackEnabled: boolean
+): FeedbackParticipationMode {
+  return (
+    state.mode ?? (state.enabled ? 'translator' : legacyFeedbackEnabled ? 'community' : 'reader')
+  );
+}
+
+export async function hydrateCouncilPasscode(): Promise<void> {
+  if (useTranslatorReviewStore.getState().mode !== 'scripture_council') return;
+  try {
+    const passcode = await SecureStore.getItemAsync(COUNCIL_PASSCODE_SECURE_KEY);
+    const current = useTranslatorReviewStore.getState();
+    if (current.mode === 'scripture_council' && !current.councilPasscode) {
+      useTranslatorReviewStore.setState({
+        councilPasscode: normalizeTranslatorReviewPasscode(passcode ?? ''),
+      });
+    }
+  } catch {
+    /* The next council submission asks the user to unlock again. */
+  }
+}
+void hydrateCouncilPasscode();

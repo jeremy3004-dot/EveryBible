@@ -14,7 +14,17 @@ export interface ChapterFeedbackReviewAudio {
   sizeBytes: number | null;
 }
 
+export type FeedbackContributorCategory = 'community' | 'scripture_council';
+export type FeedbackCategoryFilter = FeedbackContributorCategory | 'all';
+export type FeedbackStatusFilter = 'pending' | 'reviewed' | 'all';
+export interface FeedbackPageCursor {
+  snapshot: number;
+  sequence: number;
+  sentiment: string;
+}
+
 export interface ChapterFeedbackReviewItem {
+  contributorCategory?: FeedbackContributorCategory | null;
   id: string;
   createdAt: string;
   translationId: string;
@@ -34,6 +44,11 @@ export interface ChapterFeedbackReviewItem {
 }
 
 export interface ChapterFeedbackReviewInput {
+  apiVersion?: 2;
+  category?: FeedbackCategoryFilter;
+  status?: FeedbackStatusFilter;
+  cursor?: FeedbackPageCursor | null;
+  positiveOnly?: boolean;
   translationId: string;
   bookId: string;
   chapter: number;
@@ -41,6 +56,7 @@ export interface ChapterFeedbackReviewInput {
 }
 
 export interface TranslatorFeedbackResolveInput {
+  apiVersion?: 2;
   passcode: string;
   translationId: string;
   feedbackId: string;
@@ -49,24 +65,37 @@ export interface TranslatorFeedbackResolveInput {
 }
 
 export interface TranslatorFeedbackReopenInput {
+  apiVersion?: 2;
   passcode: string;
   translationId: string;
   feedbackId: string;
 }
 
+export interface FeedbackAudioUrlResponse {
+  success: boolean;
+  playbackUrl?: string;
+  error?: string;
+}
+
 export interface TranslatorFeedbackResolveResponse {
+  feedbackIds?: string[];
+  reviewedCount?: number;
   success: boolean;
   resolution?: TranslatorFeedbackResolution | null;
   error?: string;
 }
 
 export interface ChapterFeedbackReviewSummaryInput {
+  apiVersion?: 2;
   translationId: string;
   bookId?: string;
   passcode: string;
 }
 
 export interface ChapterFeedbackReviewResponse {
+  nextCursor?: FeedbackPageCursor | null;
+  summary?: TranslatorFeedbackChapterSummary | null;
+  positiveCount?: number;
   success: boolean;
   feedback: ChapterFeedbackReviewItem[];
   error?: string;
@@ -84,6 +113,7 @@ export interface TranslatorReviewPasscodeValidationResponse {
 }
 
 type ChapterFeedbackReviewResolveBody = {
+  apiVersion?: 2;
   passcode: string;
   translationId: string;
   feedbackId: string;
@@ -97,10 +127,15 @@ interface ChapterFeedbackReviewFunctionClient {
     functionName: string,
     options: {
       body:
+        | (ChapterFeedbackReviewInput & {
+            action: 'positivePreview' | 'reviewPositiveIds';
+            feedbackIds?: string[];
+          })
+        | (ChapterFeedbackReviewInput & { action: 'audioUrl'; feedbackId: string })
         | ChapterFeedbackReviewInput
         | ChapterFeedbackReviewSummaryInput
         | ChapterFeedbackReviewResolveBody
-        | { passcode: string; validateOnly: true };
+        | { passcode: string; validateOnly: true; accessRole?: 'scripture_council' };
     }
   ) => Promise<{
     data:
@@ -108,6 +143,7 @@ interface ChapterFeedbackReviewFunctionClient {
       | ChapterFeedbackReviewSummaryResponse
       | TranslatorReviewPasscodeValidationResponse
       | TranslatorFeedbackResolveResponse
+      | FeedbackAudioUrlResponse
       | null;
     error: { message?: string; context?: { json?: () => Promise<unknown> } } | null;
   }>;
@@ -150,7 +186,8 @@ async function resolveDefaultClient(): Promise<ChapterFeedbackReviewFunctionClie
 export async function validateTranslatorReviewPasscode(
   passcode: string,
   translationId?: string,
-  client?: ChapterFeedbackReviewFunctionClient
+  client?: ChapterFeedbackReviewFunctionClient,
+  accessRole?: 'scripture_council'
 ): Promise<TranslatorReviewPasscodeValidationResponse> {
   const normalizedPasscode = normalizeTranslatorReviewPasscode(passcode);
 
@@ -173,6 +210,7 @@ export async function validateTranslatorReviewPasscode(
         passcode: normalizedPasscode,
         translationId,
         validateOnly: true,
+        ...(accessRole ? { accessRole } : {}),
       },
     });
 
@@ -195,6 +233,13 @@ export async function validateTranslatorReviewPasscode(
       error: error instanceof Error ? error.message : 'Unable to verify translator access.',
     };
   }
+}
+
+export function validateScriptureCouncilPasscode(
+  passcode: string,
+  client?: ChapterFeedbackReviewFunctionClient
+): Promise<TranslatorReviewPasscodeValidationResponse> {
+  return validateTranslatorReviewPasscode(passcode, undefined, client, 'scripture_council');
 }
 
 export async function fetchChapterFeedbackForTranslatorReview(
@@ -221,6 +266,7 @@ export async function fetchChapterFeedbackForTranslatorReview(
     const { data, error } = await resolvedClient.invoke('review-chapter-feedback', {
       body: {
         ...input,
+        apiVersion: 2,
         passcode,
       },
     });
@@ -274,6 +320,7 @@ export async function fetchChapterFeedbackReviewSummaryForTranslation(
     const { data, error } = await resolvedClient.invoke('review-chapter-feedback', {
       body: {
         ...input,
+        apiVersion: 2,
         passcode,
       },
     });
@@ -329,6 +376,7 @@ export async function resolveTranslatorFeedbackOnServer(
         translationId: input.translationId,
         feedbackId: input.feedbackId,
         action: 'resolve',
+        apiVersion: 2,
         resolution: input.resolution,
         note: input.note,
       },
@@ -387,6 +435,7 @@ export async function reopenTranslatorFeedbackOnServer(
         translationId: input.translationId,
         feedbackId: input.feedbackId,
         action: 'reopen',
+        apiVersion: 2,
       },
     });
 
@@ -410,5 +459,49 @@ export async function reopenTranslatorFeedbackOnServer(
       success: false,
       error: error instanceof Error ? error.message : 'Unable to reopen this feedback.',
     };
+  }
+}
+
+export async function reviewPositiveFeedbackBatch(
+  input: ChapterFeedbackReviewInput,
+  feedbackIds?: string[],
+  client?: ChapterFeedbackReviewFunctionClient
+): Promise<TranslatorFeedbackResolveResponse> {
+  const resolvedClient = client ?? (await resolveDefaultClient());
+  if (!resolvedClient || !input.passcode.trim())
+    return { success: false, error: 'Translator access denied' };
+  try {
+    const { data, error } = await resolvedClient.invoke('review-chapter-feedback', {
+      body: {
+        ...input,
+        apiVersion: 2,
+        action: feedbackIds ? 'reviewPositiveIds' : 'positivePreview',
+        feedbackIds,
+      },
+    });
+    if (error)
+      return {
+        success: false,
+        error: await readEdgeFunctionErrorMessage(error, 'Unable to review feedback'),
+      };
+    return (data as TranslatorFeedbackResolveResponse) ?? { success: false };
+  } catch {
+    return { success: false, error: 'Unable to review feedback' };
+  }
+}
+
+export async function refreshFeedbackAudioUrl(
+  input: ChapterFeedbackReviewInput & { feedbackId: string },
+  client?: ChapterFeedbackReviewFunctionClient
+): Promise<FeedbackAudioUrlResponse> {
+  const resolvedClient = client ?? (await resolveDefaultClient());
+  if (!resolvedClient || !input.passcode.trim()) return { success: false };
+  try {
+    const { data, error } = await resolvedClient.invoke('review-chapter-feedback', {
+      body: { ...input, apiVersion: 2, action: 'audioUrl' },
+    });
+    return error ? { success: false } : ((data as FeedbackAudioUrlResponse) ?? { success: false });
+  } catch {
+    return { success: false };
   }
 }

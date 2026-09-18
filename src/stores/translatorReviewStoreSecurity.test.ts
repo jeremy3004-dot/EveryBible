@@ -176,7 +176,9 @@ test('disable() and resetForSignOut() delete the stored passcode', async (t) => 
       `${action} must delete the keystore entry`
     );
     assert.deepEqual(
-      secureStoreCalls.map((call) => call.op),
+      secureStoreCalls
+        .filter((call) => call.key === 'everybible.translatorReview.passcode')
+        .map((call) => call.op),
       ['delete']
     );
   }
@@ -245,7 +247,7 @@ test('the v4 migration moves a persisted plaintext passcode into SecureStore', (
   // The persisted snapshot below is what a pre-v4 install has on disk. Rather than
   // re-importing the store under a second module registry, exercise the exported migrate
   // contract structurally: version bumped, migration hook present, partialize passcode-free.
-  assert.match(storeSource, /version: 4,/);
+  assert.match(storeSource, /version: 5,/);
   assert.match(
     storeSource,
     /if \(version < 4 && accessPasscode\) \{\s*persistPasscodeToSecureStore\(accessPasscode\);/

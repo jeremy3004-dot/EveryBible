@@ -37,6 +37,12 @@ export function BibleStack() {
           require('../screens/bible/TranslatorReviewQueueScreen').TranslatorReviewQueueScreen
         }
       />
+      <Stack.Screen
+        name="ChapterFeedbackReview"
+        getComponent={() =>
+          require('../screens/bible/ChapterFeedbackReviewScreen').ChapterFeedbackReviewScreen
+        }
+      />
     </Stack.Navigator>
   );
 }

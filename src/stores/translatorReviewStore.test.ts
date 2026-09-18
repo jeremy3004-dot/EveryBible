@@ -47,6 +47,36 @@ test('a release build starts with translator review off and no passcode', () => 
   assert.deepEqual(state().feedbackMarkers, {});
 });
 
+test('community feedback and translator review are mutually exclusive', () => {
+  state().enableWithPasscode('translator-test');
+  state().enableCommunityFeedback();
+  assert.equal(state().mode, 'community');
+  assert.equal(state().enabled, false);
+  assert.equal(state().accessPasscode, null);
+  state().enableWithPasscode('translator-test');
+  assert.equal(state().mode, 'translator');
+});
+
+test('council access replaces the mode only after a nonempty validated credential', () => {
+  state().enableCommunityFeedback();
+  assert.equal(state().enableCouncilWithPasscode(' '), false);
+  assert.equal(state().mode, 'community');
+  assert.equal(state().enableCouncilWithPasscode('council-test'), true);
+  assert.equal(state().mode, 'scripture_council');
+  assert.equal(state().enabled, false);
+  assert.equal(mmkv.store.get('translator-review-storage')?.includes('council-test'), false);
+  state().enableWithPasscode('translator-test');
+  assert.equal(state().mode, 'translator');
+  assert.equal(state().councilPasscode, null);
+});
+
+test('participation mode survives hydration independently of synced legacy preferences', async () => {
+  state().enableCommunityFeedback();
+  await useTranslatorReviewStore.persist.rehydrate();
+  assert.equal(state().mode, 'community');
+  assert.equal(state().enabled, false);
+});
+
 // ---------------------------------------------------------------------------
 // enableWithPasscode
 // ---------------------------------------------------------------------------
@@ -97,8 +127,12 @@ test('enabling persists the enabled flag to MMKV and the passcode to the keystor
   await flushSecureStore();
 
   // `enabled` stays in MMKV so translator mode renders synchronously on a cold start.
-  assert.deepEqual(readPersisted().state, { enabled: true, feedbackMarkers: {} });
-  assert.equal(readPersisted().version, 4);
+  assert.deepEqual(readPersisted().state, {
+    mode: 'translator',
+    enabled: true,
+    feedbackMarkers: {},
+  });
+  assert.equal(readPersisted().version, 5);
   // The passcode is a credential: it must never appear in the plaintext MMKV file.
   assert.equal(mmkv.store.get('translator-review-storage')?.includes('let-me-in'), false);
   assert.deepEqual(
@@ -234,7 +268,7 @@ test('resetForSignOut wipes the persisted snapshot so translator mode cannot ble
   state().resetForSignOut();
   await flushSecureStore();
 
-  assert.deepEqual(readPersisted().state, { enabled: false, feedbackMarkers: {} });
+  assert.deepEqual(readPersisted().state, { mode: 'reader', enabled: false, feedbackMarkers: {} });
   // The credential is deleted from the keystore too, not just forgotten in memory.
   assert.equal(secureStore.store.has(PASSCODE_KEY), false);
   assert.deepEqual(secureStore.calls.at(-1), {
@@ -273,7 +307,7 @@ test('a current-version snapshot hydrates the enabled flag and markers, and the 
 });
 
 test('cold-start hydration leaves the keystore alone when translator mode is off', async () => {
-  seedStorage({ enabled: false, feedbackMarkers: {} }, 4);
+  seedStorage({ mode: 'reader', enabled: false, feedbackMarkers: {} }, 4);
   secureStore.store.set(PASSCODE_KEY, 'stored-code');
 
   await useTranslatorReviewStore.persist.rehydrate();
@@ -401,7 +435,7 @@ test('a legacy marker whose listenedAt is not a string migrates to an explicit n
 });
 
 test('a legacy snapshot with no accessPasscode key at all migrates without throwing', async () => {
-  seedStorage({ enabled: true, feedbackMarkers: {} }, 2);
+  seedStorage({ mode: 'translator', enabled: true, feedbackMarkers: {} }, 2);
 
   await useTranslatorReviewStore.persist.rehydrate();
 
@@ -444,8 +478,12 @@ test('migration rewrites the stored snapshot at the current version, passcode-fr
 
   await useTranslatorReviewStore.persist.rehydrate();
 
-  assert.equal(readPersisted().version, 4);
-  assert.deepEqual(readPersisted().state, { enabled: true, feedbackMarkers: {} });
+  assert.equal(readPersisted().version, 5);
+  assert.deepEqual(readPersisted().state, {
+    mode: 'translator',
+    enabled: true,
+    feedbackMarkers: {},
+  });
   assert.equal(state().accessPasscode, 'code');
 });
 
@@ -458,7 +496,7 @@ test('an empty storage slot leaves translator review off', async () => {
 });
 
 test('hydration keeps the actions callable', async () => {
-  seedStorage({ enabled: true, feedbackMarkers: {} }, 4);
+  seedStorage({ mode: 'translator', enabled: true, feedbackMarkers: {} }, 4);
 
   await useTranslatorReviewStore.persist.rehydrate();
   state().disable();

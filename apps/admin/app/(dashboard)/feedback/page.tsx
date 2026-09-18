@@ -305,13 +305,22 @@ export default async function FeedbackPage({ searchParams }: FeedbackPageProps) 
                   </td>
                   <td>
                     {item.participantLabel}
-                    {item.reviewerDisplayName && item.reviewerDisplayName !== item.participantLabel ? (
+                    <p className="table-note">
+                      {item.contributorCategory === 'scripture_council'
+                        ? 'Scripture Council'
+                        : item.contributorCategory === 'community'
+                          ? 'Community'
+                          : 'Historical attribution unavailable'}
+                    </p>
+                    {item.reviewerDisplayName &&
+                    item.reviewerDisplayName !== item.participantLabel ? (
                       <p className="table-note" title={item.userId ?? undefined}>
                         {item.reviewerDisplayName}
                       </p>
                     ) : (
                       <p className="table-note" title={item.userId ?? undefined}>
-                        {item.reviewerDisplayName ?? (item.userId ? 'Account on file' : 'No user id')}
+                        {item.reviewerDisplayName ??
+                          (item.userId ? 'Account on file' : 'No user id')}
                       </p>
                     )}
                   </td>
@@ -339,7 +348,13 @@ export default async function FeedbackPage({ searchParams }: FeedbackPageProps) 
                   <td>
                     {item.scriptureCouncilFix ? (
                       <div>
-                        <StatusPill tone="success">Fixed</StatusPill>
+                        <StatusPill tone="success">
+                          {item.resolution === 'no_change_needed'
+                            ? item.sentiment === 'up'
+                              ? 'Reviewed'
+                              : 'No change needed'
+                            : 'Addressed'}
+                        </StatusPill>
                         <p className="table-note">
                           {formatDateTime(item.scriptureCouncilFix.fixedAt)}
                         </p>
@@ -360,15 +375,17 @@ export default async function FeedbackPage({ searchParams }: FeedbackPageProps) 
                         <input
                           type="text"
                           name="note"
-                          placeholder="Optional fix note"
+                          placeholder="Explain the correction"
+                          required
+                          maxLength={1000}
                           aria-label={`Fix note for ${item.bookId} ${item.chapter}`}
                         />
                         <button type="submit" className="button button-secondary">
-                          Mark fixed
+                          Mark addressed
                         </button>
                       </form>
                     ) : (
-                      <StatusPill tone="success">Confirmed accurate</StatusPill>
+                      <StatusPill tone="default">Awaiting review</StatusPill>
                     )}
                   </td>
                   <td>

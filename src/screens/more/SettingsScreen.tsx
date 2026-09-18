@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   View,
+  KeyboardAvoidingView,
+  Platform,
   Text,
   StyleSheet,
   ScrollView,
@@ -47,11 +49,17 @@ import {
 } from '../../components/ui';
 import { useAuthStore } from '../../stores/authStore';
 import { useBibleStore } from '../../stores/bibleStore';
-import { useTranslatorReviewStore } from '../../stores/translatorReviewStore';
+import {
+  getFeedbackParticipationMode,
+  useTranslatorReviewStore,
+} from '../../stores/translatorReviewStore';
 import { mmkvInstance } from '../../stores/mmkvStorage';
 import { useDisplayFont, useFontSize, useI18n, useTabBarHeight } from '../../hooks';
 import { syncPreferences } from '../../services/sync';
-import { validateTranslatorReviewPasscode } from '../../services/feedback';
+import {
+  validateScriptureCouncilPasscode,
+  validateTranslatorReviewPasscode,
+} from '../../services/feedback';
 import { normalizeChapterFeedbackIdentity } from '../../services/feedback/chapterFeedbackIdentity';
 import { SUPPORTED_LANGUAGES, type LanguageCode } from '../../constants/languages';
 import { deleteCurrentAccount } from '../../services/account';
@@ -113,7 +121,22 @@ export function SettingsScreen() {
   // Absolute tab bar overlays the bottom of nested More screens; pad the scroll
   // content so the last row (Clear Cache) clears it.
   const { contentClearance } = useTabBarHeight();
-  const chapterFeedbackEnabled = preferences.chapterFeedbackEnabled;
+  const participationState = useTranslatorReviewStore((state) => state.mode);
+  const legacyTranslatorEnabled = useTranslatorReviewStore((state) => state.enabled);
+  const participationMode = getFeedbackParticipationMode(
+    { mode: participationState, enabled: legacyTranslatorEnabled },
+    preferences.chapterFeedbackEnabled
+  );
+  const chapterFeedbackEnabled =
+    participationMode === 'community' || participationMode === 'scripture_council';
+  const accessAttempt = useRef(0);
+  useEffect(
+    () => () => {
+      accessAttempt.current += 1;
+    },
+    []
+  );
+  const [accessKind, setAccessKind] = useState<'translator' | 'scripture_council'>('translator');
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -276,6 +299,8 @@ export function SettingsScreen() {
         return;
       }
 
+      if (pendingChapterFeedbackEnabled)
+        useTranslatorReviewStore.getState().enableCommunityFeedback();
       setShowChapterFeedbackIdentityModal(false);
       setPendingChapterFeedbackEnabled(false);
     } finally {
@@ -285,28 +310,38 @@ export function SettingsScreen() {
 
   const handleChapterFeedbackToggle = (enabled: boolean) => {
     if (!enabled) {
+      useTranslatorReviewStore.getState().disableFeedback();
       setPreferences({ chapterFeedbackEnabled: false });
       syncPreferences().catch(() => {});
       return;
     }
 
-    if (savedChapterFeedbackIdentity) {
-      setPreferences({ chapterFeedbackEnabled: true });
-      syncPreferences().catch(() => {});
-      return;
-    }
-
-    openChapterFeedbackIdentityModal(true);
+    // Participation is a Settings choice. Identity remains editable separately and is
+    // required only when the person sends a response.
+    useTranslatorReviewStore.getState().enableCommunityFeedback();
+    setPreferences({ chapterFeedbackEnabled: true });
+    syncPreferences().catch(() => {});
   };
 
   const handleOpenChapterFeedbackIdentityEditor = () => {
     openChapterFeedbackIdentityModal(false);
   };
 
-  const openTranslatorAccessModal = () => {
+  const openTranslatorAccessModal = (kind: 'translator' | 'scripture_council' = 'translator') => {
+    accessAttempt.current += 1;
+    setIsCheckingTranslatorAccess(false);
+    setAccessKind(kind);
     setTranslatorAccessPasscode('');
     setTranslatorAccessError(null);
     setShowTranslatorAccessModal(true);
+  };
+
+  const closeTranslatorAccessModal = () => {
+    accessAttempt.current += 1;
+    setShowTranslatorAccessModal(false);
+    setIsCheckingTranslatorAccess(false);
+    setTranslatorAccessPasscode('');
+    setTranslatorAccessError(null);
   };
 
   const handleTranslatorReviewToggle = (enabled: boolean) => {
@@ -333,30 +368,47 @@ export function SettingsScreen() {
       return;
     }
 
+    const attempt = ++accessAttempt.current;
     setIsCheckingTranslatorAccess(true);
     setTranslatorAccessError(null);
 
     try {
-      const result = await validateTranslatorReviewPasscode(
-        translatorAccessPasscode,
-        currentTranslation
-      );
+      const result =
+        accessKind === 'scripture_council'
+          ? await validateScriptureCouncilPasscode(translatorAccessPasscode)
+          : await validateTranslatorReviewPasscode(translatorAccessPasscode, currentTranslation);
 
+      if (attempt !== accessAttempt.current) return;
       if (!result.success) {
         setTranslatorAccessError(
-          result.error === 'Translator access denied'
-            ? t('settings.translatorAccessIncorrect')
+          result.error === 'Translator access denied' || result.error === 'Council access denied'
+            ? t('feedback.incorrectCode')
             : t('common.unexpectedError')
         );
         return;
       }
 
-      enableTranslatorReviewMode(translatorAccessPasscode);
+      if (accessKind === 'scripture_council') {
+        const enabled = useTranslatorReviewStore
+          .getState()
+          .enableCouncilWithPasscode(translatorAccessPasscode);
+        if (!enabled) {
+          setTranslatorAccessError(t('feedback.incorrectCode'));
+          return;
+        }
+      } else {
+        const enabled = enableTranslatorReviewMode(translatorAccessPasscode);
+        if (!enabled) {
+          setTranslatorAccessError(t('feedback.incorrectCode'));
+          return;
+        }
+      }
+      setPreferences({ chapterFeedbackEnabled: accessKind === 'scripture_council' });
+      void syncPreferences();
       setShowTranslatorAccessModal(false);
       setTranslatorAccessPasscode('');
-      Alert.alert(t('settings.translatorAccessEnabled'), t('settings.translatorAccessEnabledBody'));
     } finally {
-      setIsCheckingTranslatorAccess(false);
+      if (attempt === accessAttempt.current) setIsCheckingTranslatorAccess(false);
     }
   };
 
@@ -454,10 +506,14 @@ export function SettingsScreen() {
     }
   };
 
-  const chapterFeedbackSummary = getChapterFeedbackPreferenceSummary(chapterFeedbackEnabled, {
-    enabledLabel: t('settings.chapterFeedbackSummaryOn'),
-    disabledLabel: t('settings.chapterFeedbackSummaryOff'),
-  });
+  const chapterFeedbackSummary = chapterFeedbackEnabled
+    ? `${t('settings.chapterFeedbackSummaryOn')} · ${
+        participationMode === 'scripture_council' ? t('feedback.council') : t('feedback.community')
+      }`
+    : getChapterFeedbackPreferenceSummary(false, {
+        enabledLabel: t('settings.chapterFeedbackSummaryOn'),
+        disabledLabel: t('settings.chapterFeedbackSummaryOff'),
+      });
   const chapterFeedbackIdentitySummary = savedChapterFeedbackIdentity
     ? `${savedChapterFeedbackIdentity.name} • ${savedChapterFeedbackIdentity.role}`
     : t('settings.chapterFeedbackIdentitySummaryOff');
@@ -531,6 +587,7 @@ export function SettingsScreen() {
       edges={['top']}
     >
       <ScrollView
+        keyboardShouldPersistTaps="handled"
         style={styles.scrollView}
         contentContainerStyle={[styles.content, { paddingBottom: contentClearance }]}
       >
@@ -618,6 +675,29 @@ export function SettingsScreen() {
 
             {/* Tapping anywhere on this row toggles review mode, exactly as it
                 did before the redesign — the switch is the visible state. */}
+            {chapterFeedbackEnabled ? (
+              <>
+                <ListRow
+                  title={t('feedback.community')}
+                  leadingIcon={User}
+                  value={participationMode === 'community' ? '✓' : undefined}
+                  accessibilityLabel={t('feedback.community')}
+                  onPress={() => useTranslatorReviewStore.getState().enableCommunityFeedback()}
+                />
+                <ListRow
+                  title={t('feedback.council')}
+                  leadingIcon={KeyRound}
+                  subtitle={t('feedback.councilCodeRequired')}
+                  value={participationMode === 'scripture_council' ? '✓' : undefined}
+                  accessibilityLabel={t('feedback.council')}
+                  onPress={() => {
+                    if (participationMode !== 'scripture_council')
+                      openTranslatorAccessModal('scripture_council');
+                  }}
+                />
+              </>
+            ) : null}
+
             <ListRow
               title={t('settings.translatorAccess')}
               subtitle={
@@ -686,7 +766,10 @@ export function SettingsScreen() {
           animationType="fade"
           onRequestClose={closeChapterFeedbackIdentityModal}
         >
-          <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}
+          >
             <TouchableOpacity
               style={styles.modalBackdrop}
               activeOpacity={1}
@@ -703,7 +786,7 @@ export function SettingsScreen() {
                 {t('settings.chapterFeedbackIdentityTitle')}
               </Text>
               <Text style={[styles.chapterFeedbackIdentityBody, { color: colors.secondaryText }]}>
-                {t('settings.chapterFeedbackIdentityBody')}
+                {t('settings.chapterFeedbackIdentityRequired')}
               </Text>
 
               <View style={styles.feedbackIdentityFields}>
@@ -713,6 +796,7 @@ export function SettingsScreen() {
                   </Text>
                   <TextInput
                     value={chapterFeedbackIdentityName}
+                    accessibilityLabel={t('auth.name')}
                     onChangeText={(value) => {
                       setChapterFeedbackIdentityName(value);
                       if (chapterFeedbackIdentityError) {
@@ -739,6 +823,7 @@ export function SettingsScreen() {
                   </Text>
                   <TextInput
                     value={chapterFeedbackIdentityRole}
+                    accessibilityLabel={t('settings.chapterFeedbackIdentityRole')}
                     onChangeText={(value) => {
                       setChapterFeedbackIdentityRole(value);
                       if (chapterFeedbackIdentityError) {
@@ -790,7 +875,7 @@ export function SettingsScreen() {
                 />
               </View>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
 
         <Modal
@@ -799,13 +884,13 @@ export function SettingsScreen() {
           statusBarTranslucent
           navigationBarTranslucent
           animationType="fade"
-          onRequestClose={() => setShowTranslatorAccessModal(false)}
+          onRequestClose={closeTranslatorAccessModal}
         >
           <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
             <TouchableOpacity
               style={styles.modalBackdrop}
               activeOpacity={1}
-              onPress={() => setShowTranslatorAccessModal(false)}
+              onPress={closeTranslatorAccessModal}
             />
             <View
               style={[
@@ -814,10 +899,14 @@ export function SettingsScreen() {
               ]}
             >
               <Text style={[styles.modalTitle, displayFont.bold, { color: colors.primaryText }]}>
-                {t('settings.translatorAccessTitle')}
+                {accessKind === 'scripture_council'
+                  ? t('feedback.council')
+                  : t('settings.translatorAccessTitle')}
               </Text>
               <Text style={[styles.translatorAccessBody, { color: colors.secondaryText }]}>
-                {t('settings.translatorAccessBody')}
+                {accessKind === 'scripture_council'
+                  ? t('feedback.councilAccessBody')
+                  : t('settings.translatorAccessBody')}
               </Text>
               <TextInput
                 value={translatorAccessPasscode}
@@ -894,7 +983,7 @@ export function SettingsScreen() {
                   variant="secondary"
                   size="md"
                   fullWidth={false}
-                  onPress={() => setShowTranslatorAccessModal(false)}
+                  onPress={closeTranslatorAccessModal}
                   style={styles.modalButtonFlex}
                 />
                 <AppButton

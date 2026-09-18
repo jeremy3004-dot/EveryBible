@@ -74,7 +74,7 @@ test('fetchMyChapterFeedback reads the newest submissions the RLS policy allows'
   assert.equal(query?.operation, 'select');
   assert.equal(
     query?.columns,
-    'id, book_id, chapter, sentiment, comment, audio_response_path, created_at, scripture_council_resolution'
+    'id, book_id, chapter, sentiment, comment, audio_response_path, created_at, scripture_council_resolution, scripture_council_fixed_note'
   );
   assert.deepEqual(query?.steps.find((step) => step.method === 'order')?.args, [
     'created_at',
@@ -181,6 +181,7 @@ test('mapMyChapterFeedbackRow reports a council resolution as the submission sta
       hasAudio: true,
       createdAt: '2026-05-01T00:00:00.000Z',
       status: 'no_change_needed',
+      resolutionNote: null,
     }
   );
 });

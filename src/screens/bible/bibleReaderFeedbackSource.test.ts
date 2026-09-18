@@ -164,11 +164,11 @@ test('BibleReaderScreen restores speaker playback mode after feedback recording 
   const stopRecordingBlock =
     source.match(/const stopFeedbackAudioRecording = async \(\) => \{[\s\S]*?\n {2}\};/)?.[0] ?? '';
   const startRecordingBlock =
-    source.match(/const startFeedbackAudioRecording = async \(\) => \{[\s\S]*?\n {2}\};/)?.[0] ?? '';
+    source.match(/const startFeedbackAudioRecording = async \(\) => \{[\s\S]*?\n {2}\};/)?.[0] ??
+    '';
   const previewBlock =
     source.match(/const playFeedbackAudioPreview = async \(\) => \{[\s\S]*?\n {2}\};/)?.[0] ?? '';
-  const translatorPlaybackBlock =
-    source.match(/const startTranslatorAudioPlayback = async \([\s\S]*?\n {2}\};/)?.[0] ?? '';
+  const translatorPlaybackBlock = readRelativeSource('./ChapterFeedbackReviewScreen.tsx');
   const unmountCleanupBlock =
     source.match(
       /const recording = feedbackAudioRecordingRef\.current;[\s\S]*?void \(async \(\) => \{[\s\S]*?\n {6}\}\)\(\);/
@@ -196,7 +196,7 @@ test('BibleReaderScreen restores speaker playback mode after feedback recording 
   );
   assert.match(
     translatorPlaybackBlock,
-    /restoreFeedbackAudioPlaybackMode\(\)/,
+    /setAudioModeAsync\(\{ allowsRecordingIOS: false[\s\S]*Audio\.Sound\.createAsync/,
     'Translator review playback should restore speaker playback mode before loading reviewer audio'
   );
   assert.match(

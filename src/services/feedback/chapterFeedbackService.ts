@@ -8,6 +8,8 @@ export type ChapterFeedbackSentiment = 'up' | 'down';
 export type ChapterFeedbackSourceScreen = 'reader' | 'listener';
 
 export interface ChapterFeedbackSubmissionInput {
+  contributorCategory?: 'community' | 'scripture_council';
+  councilPasscode?: string | null;
   translationId: string;
   translationLanguage: string;
   bookId: string;

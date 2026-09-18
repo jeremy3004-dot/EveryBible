@@ -1,3 +1,4 @@
+import { verifyCouncilAccess } from '../_shared/councilAccess.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
@@ -8,6 +9,8 @@ const corsHeaders = {
 type Sentiment = 'up' | 'down';
 
 interface ChapterFeedbackRequest {
+  contributorCategory?: 'community' | 'scripture_council';
+  councilPasscode?: string;
   translationId?: string;
   translationLanguage?: string;
   bookId?: string;
@@ -36,6 +39,7 @@ interface ChapterFeedbackAudioRequest {
 }
 
 interface ChapterFeedbackInsert {
+  contributor_category?: 'community' | 'scripture_council';
   user_id: string | null;
   translation_id: string;
   translation_language: string;
@@ -342,7 +346,7 @@ const validateRequest = (
       audio_response_duration_ms: audioResponse?.durationMs ?? null,
       audio_response_created_at: audioResponse?.createdAt ?? null,
       book_id: normalizedBookId,
-      chapter: body.chapter,
+      chapter: body.chapter!,
       sentiment: body.sentiment,
       comment,
       source_screen: requireNonEmptyString(body.sourceScreen) ?? 'reader',
@@ -399,6 +403,19 @@ Deno.serve(async (req) => {
 
     if (!validation.value) {
       return jsonResponse(400, { success: false, error: validation.error });
+    }
+
+    if (
+      requestBody.contributorCategory != null &&
+      !['community', 'scripture_council'].includes(requestBody.contributorCategory)
+    ) {
+      return jsonResponse(400, { success: false, error: 'Invalid contributor category' });
+    }
+    if (requestBody.contributorCategory === 'scripture_council') {
+      const denied = await verifyCouncilAccess(supabase, req, requestBody.councilPasscode);
+      if (denied) {
+        return jsonResponse(denied.status, { success: false, saved: false, error: denied.error });
+      }
     }
 
     // S6: the anonymous branch used to be scoped by participant_name + participant_role —
@@ -466,6 +483,7 @@ Deno.serve(async (req) => {
 
     const insertPayload: ChapterFeedbackInsert = {
       ...validation.value,
+      contributor_category: requestBody.contributorCategory ?? 'community',
       user_id: userId,
       client_ip_hash: clientIpHash,
     };

@@ -1,3 +1,4 @@
+import { ChapterFeedbackSummary } from '../../components/feedback';
 import { BookIcon } from '../../components/bible/BookIcon';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { RefObject } from 'react';
@@ -85,15 +86,7 @@ import { useTranslationContentSummary } from '../../hooks/useTranslationContentS
 import { isRemoteAudioAvailable } from '../../services/audio/audioRemote';
 import { getAudioAvailability } from '../../services/audio/audioAvailability';
 import { READING_PLAN_ENTRIES_BY_PLAN_ID, readingPlans } from '../../data/readingPlans.generated';
-import {
-  fetchChapterFeedbackForTranslatorReview,
-  getTranslatorFeedbackReviewStatus,
-  reopenTranslatorFeedbackOnServer,
-  resolveTranslatorFeedbackOnServer,
-  submitChapterFeedback,
-  type ChapterFeedbackReviewItem,
-  type TranslatorFeedbackResolution,
-} from '../../services/feedback';
+import { submitChapterFeedback } from '../../services/feedback';
 import {
   CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS,
   CHAPTER_FEEDBACK_AUDIO_MIME_TYPE,
@@ -125,7 +118,10 @@ import { useBibleStore } from '../../stores/bibleStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { useProgressStore } from '../../stores/progressStore';
 import { useReadingPlansStore } from '../../stores/readingPlansStore';
-import { useTranslatorReviewStore } from '../../stores/translatorReviewStore';
+import {
+  getFeedbackParticipationMode,
+  useTranslatorReviewStore,
+} from '../../stores/translatorReviewStore';
 import { getAdjacentAudioPlaybackSequenceEntry } from '../../stores/audioPlaybackSequenceModel';
 import { useAudioPlayer } from '../../hooks/useAudioPlayer';
 import { useFontSize } from '../../hooks/useFontSize';
@@ -726,28 +722,16 @@ export function BibleReaderScreen() {
   const [feedbackAudioPermissionDenied, setFeedbackAudioPermissionDenied] = useState(false);
   const [isSharingVerseImage, setIsSharingVerseImage] = useState(false);
   const [feedbackSubmitError, setFeedbackSubmitError] = useState<string | null>(null);
-  const [translatorFeedbackItems, setTranslatorFeedbackItems] = useState<
-    ChapterFeedbackReviewItem[]
-  >([]);
-  const [isLoadingTranslatorFeedback, setIsLoadingTranslatorFeedback] = useState(false);
-  const [translatorFeedbackError, setTranslatorFeedbackError] = useState<string | null>(null);
-  const [translatorReviewPlayingFeedbackId, setTranslatorReviewPlayingFeedbackId] = useState<
-    string | null
-  >(null);
   const feedbackAudioRecordingRef = useRef<Audio.Recording | null>(null);
   const feedbackAudioStartedAtRef = useRef<number | null>(null);
   const feedbackAudioTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const feedbackAudioPreviewSoundRef = useRef<Audio.Sound | null>(null);
-  const translatorReviewAudioSoundRef = useRef<Audio.Sound | null>(null);
-  const translatorFeedbackRequestIdRef = useRef(0);
   useEffect(() => {
     return () => {
       if (feedbackAudioTimerRef.current) {
         clearInterval(feedbackAudioTimerRef.current);
       }
       void feedbackAudioPreviewSoundRef.current?.unloadAsync();
-      void translatorReviewAudioSoundRef.current?.unloadAsync();
-      setTranslatorReviewPlayingFeedbackId(null);
       const recording = feedbackAudioRecordingRef.current;
       void (async () => {
         try {
@@ -996,7 +980,15 @@ export function BibleReaderScreen() {
     setSelectedVerses([]);
   }, []);
 
-  const chapterFeedbackEnabled = useAuthStore((state) => state.preferences.chapterFeedbackEnabled);
+  const legacyFeedbackEnabled = useAuthStore((state) => state.preferences.chapterFeedbackEnabled);
+  const storedMode = useTranslatorReviewStore((state) => state.mode);
+  const participationMode = getFeedbackParticipationMode(
+    { mode: storedMode, enabled: useTranslatorReviewStore((state) => state.enabled) },
+    legacyFeedbackEnabled
+  );
+  const chapterFeedbackEnabled =
+    participationMode === 'community' || participationMode === 'scripture_council';
+  const councilPasscode = useTranslatorReviewStore((state) => state.councilPasscode);
   const chapterFeedbackName = useAuthStore((state) => state.preferences.chapterFeedbackName);
   const chapterFeedbackRole = useAuthStore((state) => state.preferences.chapterFeedbackRole);
   const contentLanguageCode = useAuthStore((state) => state.preferences.contentLanguageCode);
@@ -1004,10 +996,6 @@ export function BibleReaderScreen() {
   const hidePlayButtonFromReadingTab = useAuthStore(
     (state) => state.preferences.hidePlayButtonFromReadingTab
   );
-  const translatorReviewEnabled = useTranslatorReviewStore((state) => state.enabled);
-  const translatorReviewPasscode = useTranslatorReviewStore((state) => state.accessPasscode);
-  const translatorFeedbackMarkers = useTranslatorReviewStore((state) => state.feedbackMarkers);
-  const markTranslatorFeedbackListened = useTranslatorReviewStore((state) => state.markListened);
   const markChapterRead = useProgressStore((state) => state.markChapterRead);
   const chaptersRead = useProgressStore((state) => state.chaptersRead);
   const setCurrentBook = useBibleStore((state) => state.setCurrentBook);
@@ -1304,8 +1292,7 @@ export function BibleReaderScreen() {
     [activePlanDaySummary, activePlanSessionKey]
   );
   const focusVerse =
-    requestedFocusVerse ??
-    getPlanChapterFocusVerse(activePlanSessionEntries, bookId, chapter);
+    requestedFocusVerse ?? getPlanChapterFocusVerse(activePlanSessionEntries, bookId, chapter);
   const hasOtherIncompletePlanSessions =
     activePlanRecord != null &&
     planDayNumber != null &&
@@ -1483,17 +1470,6 @@ export function BibleReaderScreen() {
     config.features.chapterFeedbackInlineComposer &&
     chapterFeedbackEnabled &&
     showMinimalListenChrome;
-  const translatorFeedbackNeedingReviewCount = translatorFeedbackItems.filter(
-    (item) =>
-      getTranslatorFeedbackReviewStatus(
-        {
-          id: item.id,
-          hasAudio: item.audioResponse?.playbackUrl != null,
-          resolution: item.resolution,
-        },
-        translatorFeedbackMarkers
-      ).needsReview
-  ).length;
   const selectedVerseReferenceLabel =
     selectedVerses.length > 0
       ? formatBibleSelectionReference({
@@ -1517,130 +1493,6 @@ export function BibleReaderScreen() {
     [selectedVerses]
   );
 
-  const loadTranslatorFeedback = useCallback(async () => {
-    if (!translatorReviewEnabled || !translatorReviewPasscode) {
-      translatorFeedbackRequestIdRef.current += 1;
-      setTranslatorFeedbackItems([]);
-      setTranslatorFeedbackError(null);
-      return;
-    }
-
-    // Guard against out-of-order responses when the reader navigates chapters quickly:
-    // only the latest request is allowed to write state.
-    const requestId = translatorFeedbackRequestIdRef.current + 1;
-    translatorFeedbackRequestIdRef.current = requestId;
-
-    setIsLoadingTranslatorFeedback(true);
-    setTranslatorFeedbackError(null);
-
-    const result = await fetchChapterFeedbackForTranslatorReview({
-      translationId: currentTranslation,
-      bookId,
-      chapter,
-      passcode: translatorReviewPasscode,
-    });
-
-    if (translatorFeedbackRequestIdRef.current !== requestId) {
-      return;
-    }
-
-    setIsLoadingTranslatorFeedback(false);
-
-    if (!result.success) {
-      setTranslatorFeedbackError(t('common.unexpectedError'));
-      setTranslatorFeedbackItems([]);
-      return;
-    }
-
-    setTranslatorFeedbackItems(result.feedback);
-  }, [bookId, chapter, currentTranslation, t, translatorReviewEnabled, translatorReviewPasscode]);
-
-  useEffect(() => {
-    void loadTranslatorFeedback();
-  }, [loadTranslatorFeedback]);
-
-  const applyLocalTranslatorResolution = useCallback(
-    (feedbackId: string, resolution: TranslatorFeedbackResolution | null) => {
-      setTranslatorFeedbackItems((items) =>
-        items.map((item) =>
-          item.id === feedbackId
-            ? {
-                ...item,
-                resolution,
-                resolvedAt: resolution ? new Date().toISOString() : null,
-              }
-            : item
-        )
-      );
-    },
-    []
-  );
-
-  const handleResolveTranslatorFeedback = useCallback(
-    async (feedbackId: string, resolution: TranslatorFeedbackResolution) => {
-      if (!translatorReviewPasscode) {
-        return;
-      }
-
-      const priorResolution =
-        translatorFeedbackItems.find((item) => item.id === feedbackId)?.resolution ?? null;
-
-      // Optimistic: reflect the mark-off immediately, roll back if the server rejects it.
-      setTranslatorFeedbackError(null);
-      applyLocalTranslatorResolution(feedbackId, resolution);
-
-      const result = await resolveTranslatorFeedbackOnServer({
-        passcode: translatorReviewPasscode,
-        translationId: currentTranslation,
-        feedbackId,
-        resolution,
-      });
-
-      if (!result.success) {
-        applyLocalTranslatorResolution(feedbackId, priorResolution);
-        setTranslatorFeedbackError(t('common.unexpectedError'));
-      }
-    },
-    [
-      applyLocalTranslatorResolution,
-      currentTranslation,
-      t,
-      translatorFeedbackItems,
-      translatorReviewPasscode,
-    ]
-  );
-
-  const handleReopenTranslatorFeedback = useCallback(
-    async (feedbackId: string) => {
-      if (!translatorReviewPasscode) {
-        return;
-      }
-
-      const priorResolution =
-        translatorFeedbackItems.find((item) => item.id === feedbackId)?.resolution ?? null;
-
-      setTranslatorFeedbackError(null);
-      applyLocalTranslatorResolution(feedbackId, null);
-
-      const result = await reopenTranslatorFeedbackOnServer({
-        passcode: translatorReviewPasscode,
-        translationId: currentTranslation,
-        feedbackId,
-      });
-
-      if (!result.success) {
-        applyLocalTranslatorResolution(feedbackId, priorResolution);
-        setTranslatorFeedbackError(t('common.unexpectedError'));
-      }
-    },
-    [
-      applyLocalTranslatorResolution,
-      currentTranslation,
-      t,
-      translatorFeedbackItems,
-      translatorReviewPasscode,
-    ]
-  );
   const getAnnotationVerseEnd = (annotation: Pick<UserAnnotation, 'verse_start' | 'verse_end'>) =>
     annotation.verse_end ?? annotation.verse_start;
   const annotationOverlapsSelectionRange = (
@@ -3269,119 +3121,6 @@ export function BibleReaderScreen() {
     feedbackAudioPreviewSoundRef.current = null;
   };
 
-  // Mark an audio item listened only once the translator has heard most of it (B7),
-  // not the instant playback starts.
-  const TRANSLATOR_AUDIO_LISTENED_FRACTION = 0.6;
-
-  const startTranslatorAudioPlayback = async (
-    feedbackId: string,
-    playbackUrl: string
-  ): Promise<boolean> => {
-    try {
-      await restoreFeedbackAudioPlaybackMode();
-      const { sound } = await Audio.Sound.createAsync({ uri: playbackUrl }, { shouldPlay: true });
-      translatorReviewAudioSoundRef.current = sound;
-      setTranslatorReviewPlayingFeedbackId(feedbackId);
-
-      let hasMarkedListened = false;
-      sound.setOnPlaybackStatusUpdate((playbackStatus) => {
-        if (!playbackStatus.isLoaded) {
-          if (translatorReviewAudioSoundRef.current === sound) {
-            translatorReviewAudioSoundRef.current = null;
-            setTranslatorReviewPlayingFeedbackId(null);
-          }
-          return;
-        }
-
-        if (
-          !hasMarkedListened &&
-          playbackStatus.durationMillis &&
-          playbackStatus.positionMillis / playbackStatus.durationMillis >=
-            TRANSLATOR_AUDIO_LISTENED_FRACTION
-        ) {
-          hasMarkedListened = true;
-          markTranslatorFeedbackListened(feedbackId);
-        }
-
-        if (playbackStatus.didJustFinish) {
-          if (!hasMarkedListened) {
-            hasMarkedListened = true;
-            markTranslatorFeedbackListened(feedbackId);
-          }
-          if (translatorReviewAudioSoundRef.current === sound) {
-            translatorReviewAudioSoundRef.current = null;
-            setTranslatorReviewPlayingFeedbackId(null);
-          }
-          void sound.unloadAsync().catch(() => undefined);
-        }
-      });
-
-      return true;
-    } catch {
-      return false;
-    }
-  };
-
-  // Signed audio URLs expire after ~1h; if playback fails, refetch this chapter's
-  // feedback to obtain fresh URLs and return the new one for this item (B2).
-  const refreshTranslatorFeedbackAudioUrl = async (feedbackId: string): Promise<string | null> => {
-    if (!translatorReviewPasscode) {
-      return null;
-    }
-
-    const result = await fetchChapterFeedbackForTranslatorReview({
-      translationId: currentTranslation,
-      bookId,
-      chapter,
-      passcode: translatorReviewPasscode,
-    });
-
-    if (!result.success) {
-      return null;
-    }
-
-    setTranslatorFeedbackItems(result.feedback);
-    return (
-      result.feedback.find((item) => item.id === feedbackId)?.audioResponse?.playbackUrl ?? null
-    );
-  };
-
-  const playTranslatorFeedbackAudio = async (feedbackId: string, playbackUrl: string | null) => {
-    if (!playbackUrl) {
-      return;
-    }
-
-    if (translatorReviewPlayingFeedbackId === feedbackId && translatorReviewAudioSoundRef.current) {
-      await translatorReviewAudioSoundRef.current?.pauseAsync().catch(() => undefined);
-      setTranslatorReviewPlayingFeedbackId(null);
-      return;
-    }
-
-    await translatorReviewAudioSoundRef.current?.unloadAsync().catch(() => undefined);
-    setTranslatorReviewPlayingFeedbackId(null);
-
-    if (await startTranslatorAudioPlayback(feedbackId, playbackUrl)) {
-      return;
-    }
-
-    const refreshedUrl = await refreshTranslatorFeedbackAudioUrl(feedbackId);
-    if (refreshedUrl && (await startTranslatorAudioPlayback(feedbackId, refreshedUrl))) {
-      return;
-    }
-
-    setTranslatorFeedbackError(t('bible.translatorReviewAudioError'));
-  };
-
-  const formatTranslatorFeedbackSubmittedAt = (submittedAt: string) => {
-    const parsedDate = new Date(submittedAt);
-
-    if (Number.isNaN(parsedDate.getTime())) {
-      return submittedAt;
-    }
-
-    return parsedDate.toLocaleString(i18n.language);
-  };
-
   const stopFeedbackAudioRecording = async () => {
     const recording = feedbackAudioRecordingRef.current;
     if (!recording) {
@@ -3526,7 +3265,6 @@ export function BibleReaderScreen() {
     }
 
     setShowFeedbackModal(false);
-    resetFeedbackDraft();
   };
 
   const handleOpenChapterFeedback = () => {
@@ -3537,7 +3275,7 @@ export function BibleReaderScreen() {
   };
 
   const handleSubmitChapterFeedback = async (sourceScreen: ChapterFeedbackSourceScreen) => {
-    if (!feedbackSentiment || isSubmittingFeedback) {
+    if (!chapterFeedbackEnabled || !feedbackSentiment || isSubmittingFeedback) {
       return;
     }
 
@@ -3574,6 +3312,9 @@ export function BibleReaderScreen() {
       contentLanguageName,
       participantName: savedChapterFeedbackIdentity?.name ?? null,
       participantRole: savedChapterFeedbackIdentity?.role ?? null,
+      contributorCategory:
+        participationMode === 'scripture_council' ? 'scripture_council' : 'community',
+      councilPasscode: participationMode === 'scripture_council' ? councilPasscode : undefined,
       audioResponse: audioUploadResult?.data ?? null,
       sourceScreen,
       appPlatform: Platform.OS,
@@ -4296,318 +4037,9 @@ export function BibleReaderScreen() {
     );
   };
 
-  const renderTranslatorFeedbackReviewTools = () => {
-    if (!translatorReviewEnabled) {
-      return null;
-    }
-
-    return (
-      <View
-        onLayout={(event) => {
-          readerListHeaderHeightRef.current = event.nativeEvent.layout.height;
-          flushPendingReaderAutoScroll(true);
-        }}
-        style={[
-          styles.translatorReviewCard,
-          {
-            backgroundColor: colors.bibleSurface,
-            borderColor: colors.bibleDivider,
-          },
-        ]}
-      >
-        <View style={styles.translatorReviewHeader}>
-          <View style={styles.translatorReviewHeaderCopy}>
-            <Text style={[styles.translatorReviewTitle, { color: colors.biblePrimaryText }]}>
-              {t('bible.translatorReviewTitle')}
-            </Text>
-            <Text style={[styles.translatorReviewMeta, { color: colors.bibleSecondaryText }]}>
-              {translatorFeedbackItems.length > 0 && translatorFeedbackNeedingReviewCount === 0
-                ? t('bible.translatorReviewSummaryComplete')
-                : t('bible.translatorReviewSummary', {
-                    count: translatorFeedbackItems.length,
-                    pending: translatorFeedbackNeedingReviewCount,
-                  })}
-            </Text>
-          </View>
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel={t('common.retry')}
-            style={[
-              styles.translatorReviewRefreshButton,
-              {
-                backgroundColor: colors.bibleElevatedSurface,
-                borderColor: colors.bibleDivider,
-              },
-            ]}
-            onPress={() => {
-              void loadTranslatorFeedback();
-            }}
-          >
-            <Ionicons name="refresh-outline" size={16} color={colors.biblePrimaryText} />
-          </TouchableOpacity>
-        </View>
-
-        {isLoadingTranslatorFeedback ? (
-          <View style={styles.translatorReviewLoadingRow}>
-            <ActivityIndicator size="small" color={colors.accentPrimary} />
-            <Text style={[styles.translatorReviewMeta, { color: colors.bibleSecondaryText }]}>
-              {t('bible.translatorReviewLoading')}
-            </Text>
-          </View>
-        ) : null}
-
-        {translatorFeedbackError ? (
-          <Text
-            accessibilityLiveRegion="polite"
-            style={[styles.feedbackErrorText, { color: colors.error }]}
-          >
-            {translatorFeedbackError}
-          </Text>
-        ) : null}
-
-        {!isLoadingTranslatorFeedback &&
-        !translatorFeedbackError &&
-        translatorFeedbackItems.length === 0 ? (
-          <Text style={[styles.translatorReviewMeta, { color: colors.bibleSecondaryText }]}>
-            {t('bible.translatorReviewEmpty')}
-          </Text>
-        ) : null}
-
-        {translatorFeedbackItems.map((item) => {
-          const status = getTranslatorFeedbackReviewStatus(
-            {
-              id: item.id,
-              hasAudio: item.audioResponse?.playbackUrl != null,
-              resolution: item.resolution,
-            },
-            translatorFeedbackMarkers
-          );
-          const isTranslatorFeedbackAudioPlaying = translatorReviewPlayingFeedbackId === item.id;
-          const isAccurateReview = item.sentiment === 'up';
-          const isFixed = status.resolution === 'fixed';
-          const isReviewed = status.resolution === 'no_change_needed';
-          const isConfirmedAccurate = isAccurateReview && !status.needsReview;
-          const itemAccentColor = status.needsReview
-            ? colors.accentPrimary
-            : isFixed || isConfirmedAccurate
-              ? colors.success
-              : colors.bibleDivider;
-          const badgeBackgroundColor = status.needsReview
-            ? colors.accentPrimary
-            : isFixed || isConfirmedAccurate
-              ? colors.success
-              : colors.bibleSurface;
-          const badgeTextColor =
-            status.needsReview || isFixed || isConfirmedAccurate
-              ? colors.onAccent
-              : colors.biblePrimaryText;
-          const participantLabel =
-            [item.participantName, item.participantRole].filter(Boolean).join(' / ') ||
-            item.participantIdNumber ||
-            t('bible.translatorReviewUnknownUser');
-
-          return (
-            <View
-              key={item.id}
-              style={[
-                styles.translatorReviewItem,
-                {
-                  backgroundColor: colors.bibleElevatedSurface,
-                  borderColor: itemAccentColor,
-                },
-              ]}
-            >
-              <View style={styles.translatorReviewItemHeader}>
-                <View style={styles.translatorReviewSentimentRow}>
-                  <Ionicons
-                    name={
-                      item.sentiment === 'up' ? 'checkmark-circle-outline' : 'close-circle-outline'
-                    }
-                    size={17}
-                    color={item.sentiment === 'up' ? colors.success : colors.accentPrimary}
-                  />
-                  <Text
-                    style={[styles.translatorReviewItemTitle, { color: colors.biblePrimaryText }]}
-                  >
-                    {isAccurateReview
-                      ? t('bible.chapterFeedbackThumbsUp')
-                      : t('bible.chapterFeedbackThumbsDown')}
-                  </Text>
-                </View>
-                <View
-                  style={[
-                    styles.translatorReviewBadge,
-                    {
-                      backgroundColor: badgeBackgroundColor,
-                      borderColor: itemAccentColor,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.translatorReviewBadgeText, { color: badgeTextColor }]}>
-                    {status.needsReview
-                      ? t('bible.translatorReviewUnread')
-                      : isAccurateReview
-                        ? t('bible.translatorReviewConfirmedAccurate')
-                        : isFixed
-                          ? t('bible.translatorReviewFixed')
-                          : t('bible.translatorReviewReviewed')}
-                  </Text>
-                </View>
-              </View>
-
-              <Text style={[styles.translatorReviewMeta, { color: colors.bibleSecondaryText }]}>
-                {t('bible.translatorReviewSubmittedAt', {
-                  date: formatTranslatorFeedbackSubmittedAt(item.createdAt),
-                })}
-              </Text>
-              <Text style={[styles.translatorReviewMeta, { color: colors.bibleSecondaryText }]}>
-                {t('bible.translatorReviewSubmittedBy', { name: participantLabel })}
-              </Text>
-
-              {item.comment ? (
-                <Text style={[styles.translatorReviewComment, { color: colors.biblePrimaryText }]}>
-                  {item.comment}
-                </Text>
-              ) : (
-                <Text style={[styles.translatorReviewMeta, { color: colors.bibleSecondaryText }]}>
-                  {t('bible.translatorReviewNoComment')}
-                </Text>
-              )}
-
-              <View style={styles.translatorReviewActionRow}>
-                {status.needsReview ? (
-                  isAccurateReview ? (
-                    <TouchableOpacity
-                      style={[
-                        styles.translatorReviewActionButton,
-                        {
-                          borderColor: colors.success,
-                          backgroundColor: colors.success,
-                        },
-                      ]}
-                      onPress={() => handleResolveTranslatorFeedback(item.id, 'no_change_needed')}
-                    >
-                      <Text
-                        style={[styles.translatorReviewActionLabel, { color: colors.onAccent }]}
-                      >
-                        {t('bible.translatorReviewConfirmAccurate')}
-                      </Text>
-                    </TouchableOpacity>
-                  ) : (
-                    <>
-                      <TouchableOpacity
-                        style={[
-                          styles.translatorReviewActionButton,
-                          {
-                            borderColor: colors.success,
-                            backgroundColor: colors.success,
-                          },
-                        ]}
-                        onPress={() => handleResolveTranslatorFeedback(item.id, 'fixed')}
-                      >
-                        <Text
-                          style={[styles.translatorReviewActionLabel, { color: colors.onAccent }]}
-                        >
-                          {t('bible.translatorReviewMarkFixed')}
-                        </Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={[
-                          styles.translatorReviewActionButton,
-                          {
-                            borderColor: colors.bibleDivider,
-                            backgroundColor: colors.bibleSurface,
-                          },
-                        ]}
-                        onPress={() => handleResolveTranslatorFeedback(item.id, 'no_change_needed')}
-                      >
-                        <Text
-                          style={[
-                            styles.translatorReviewActionLabel,
-                            { color: colors.biblePrimaryText },
-                          ]}
-                        >
-                          {t('bible.translatorReviewNoActionNeeded')}
-                        </Text>
-                      </TouchableOpacity>
-                    </>
-                  )
-                ) : (
-                  <TouchableOpacity
-                    style={[
-                      styles.translatorReviewActionButton,
-                      {
-                        borderColor: itemAccentColor,
-                        backgroundColor: colors.bibleSurface,
-                      },
-                    ]}
-                    onPress={() => handleReopenTranslatorFeedback(item.id)}
-                  >
-                    <Text
-                      style={[
-                        styles.translatorReviewActionLabel,
-                        { color: isReviewed ? colors.biblePrimaryText : itemAccentColor },
-                      ]}
-                    >
-                      {t('bible.translatorReviewReopen')}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-
-                {item.audioResponse ? (
-                  <TouchableOpacity
-                    style={[
-                      styles.translatorReviewActionButton,
-                      {
-                        borderColor: colors.bibleDivider,
-                        backgroundColor:
-                          status.isListened && !isTranslatorFeedbackAudioPlaying
-                            ? colors.bibleSurface
-                            : colors.accentPrimary,
-                      },
-                    ]}
-                    disabled={!item.audioResponse.playbackUrl}
-                    onPress={() => {
-                      void playTranslatorFeedbackAudio(
-                        item.id,
-                        item.audioResponse?.playbackUrl ?? null
-                      );
-                    }}
-                  >
-                    <Ionicons
-                      name={isTranslatorFeedbackAudioPlaying ? 'pause-outline' : 'play-outline'}
-                      size={15}
-                      color={
-                        status.isListened && !isTranslatorFeedbackAudioPlaying
-                          ? colors.biblePrimaryText
-                          : colors.onAccent
-                      }
-                    />
-                    <Text
-                      style={[
-                        styles.translatorReviewActionLabel,
-                        {
-                          color:
-                            status.isListened && !isTranslatorFeedbackAudioPlaying
-                              ? colors.biblePrimaryText
-                              : colors.onAccent,
-                        },
-                      ]}
-                    >
-                      {isTranslatorFeedbackAudioPlaying
-                        ? t('bible.translatorReviewPause')
-                        : t('bible.translatorReviewListen')}
-                    </Text>
-                  </TouchableOpacity>
-                ) : null}
-              </View>
-            </View>
-          );
-        })}
-      </View>
-    );
-  };
+  const renderTranslatorFeedbackReviewTools = () => (
+    <ChapterFeedbackSummary translationId={currentTranslation} bookId={bookId} chapter={chapter} />
+  );
 
   const renderListenMode = () => {
     const listenStatus = isCurrentAudioChapter ? status : 'idle';
@@ -4711,9 +4143,19 @@ export function BibleReaderScreen() {
               <View style={styles.listenFeedbackCopy}>
                 <Text style={[styles.listenFeedbackTitle, { color: colors.biblePrimaryText }]}>
                   {t('bible.chapterFeedbackTitle')}
+                  {' · '}
+                  {t(
+                    participationMode === 'scripture_council'
+                      ? 'feedback.council'
+                      : 'feedback.community'
+                  )}
                 </Text>
                 <Text style={[styles.listenFeedbackBody, { color: colors.bibleSecondaryText }]}>
-                  {t('bible.chapterFeedbackBody')}
+                  {t(
+                    participationMode === 'scripture_council'
+                      ? 'feedback.submittingCouncil'
+                      : 'feedback.submittingCommunity'
+                  )}
                 </Text>
               </View>
               <View
@@ -6061,12 +5503,22 @@ export function BibleReaderScreen() {
             >
               <Text style={[styles.feedbackModalTitle, { color: colors.biblePrimaryText }]}>
                 {t('bible.chapterFeedbackTitle')}
+                {' · '}
+                {t(
+                  participationMode === 'scripture_council'
+                    ? 'feedback.council'
+                    : 'feedback.community'
+                )}
               </Text>
               <Text style={[styles.feedbackModalReference, { color: colors.bibleSecondaryText }]}>
                 {getTranslatedBookName(bookId, t)} {chapter}
               </Text>
               <Text style={[styles.feedbackModalBody, { color: colors.bibleSecondaryText }]}>
-                {t('bible.chapterFeedbackBody')}
+                {t(
+                  participationMode === 'scripture_council'
+                    ? 'feedback.submittingCouncil'
+                    : 'feedback.submittingCommunity'
+                )}
               </Text>
 
               <View style={styles.feedbackSentimentRow}>

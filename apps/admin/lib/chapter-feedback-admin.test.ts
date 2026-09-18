@@ -38,11 +38,19 @@ test('admin backend exposes chapter feedback submissions', async () => {
   assert.match(page, /Feedback by translation/);
   assert.match(page, /fixStatus/);
   assert.match(page, /Open needs-work fixes/);
-  assert.match(page, /Mark fixed/);
-  assert.match(page, /Confirmed accurate/);
+  assert.match(page, /Mark addressed/);
+  assert.match(page, /Awaiting review/);
   assert.match(page, /Chapter feedback/);
   assert.match(page, /<audio/);
   assert.match(actions, /markChapterFeedbackScriptureCouncilFixedAction/);
   assert.match(actions, /scripture_council_fixed_at/);
   assert.match(actions, /chapter_feedback\.scripture_council_fix\.mark_fixed/);
+});
+
+test('admin resolution writes the same durable outcome as mobile', async () => {
+  const actions = await readFile(
+    path.join(repoRoot, 'apps/admin/app/(dashboard)/feedback/actions.ts'),
+    'utf8'
+  );
+  assert.match(actions, /scripture_council_resolution: 'fixed'/);
 });

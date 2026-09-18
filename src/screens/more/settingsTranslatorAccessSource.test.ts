@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { URL } from 'node:url';
 
 const source = readFileSync('src/screens/more/SettingsScreen.tsx', 'utf8');
 
@@ -20,7 +21,7 @@ test('SettingsScreen unlocks translator review mode through a numeric passcode m
     /validateTranslatorReviewPasscode\(\s*translatorAccessPasscode,\s*currentTranslation\s*\)/
   );
   assert.match(source, /enableTranslatorReviewMode\(translatorAccessPasscode\)/);
-  assert.match(source, /translatorAccessIncorrect/);
+  assert.match(source, /feedback\.incorrectCode/);
 });
 
 test('SettingsScreen lets translators toggle review mode off and requires passcode to turn it back on', () => {
@@ -46,4 +47,12 @@ test('SettingsScreen lets translators toggle review mode off and requires passco
     /value=\{translatorReviewEnabled\}[\s\S]*trackColor=\{settingSwitchTrackColor\}[\s\S]*ios_backgroundColor=\{settingSwitchOffColor\}/,
     'Translator Access should use the shared higher-contrast settings switch colors'
   );
+});
+
+test('community and council Settings choices use their own localized labels', () => {
+  const source = readFileSync(new URL('./SettingsScreen.tsx', import.meta.url), 'utf8');
+  assert.match(source, /title=\{t\('feedback.community'\)\}/);
+  assert.match(source, /title=\{t\('feedback.council'\)\}/);
+  assert.match(source, /t\('feedback.councilAccessBody'\)/);
+  assert.doesNotMatch(source, /defaultValue: 'Scripture Council/);
 });

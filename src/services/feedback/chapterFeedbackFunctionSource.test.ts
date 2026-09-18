@@ -207,3 +207,12 @@ test('submit-chapter-feedback rate-limits anonymous submitters on an un-spoofabl
   assert.match(migration, /CREATE INDEX IF NOT EXISTS idx_chapter_feedback_client_ip_hash_created_at/);
   assert.match(source, /client_ip_hash: clientIpHash/, 'Expected the hash to be persisted with the row');
 });
+
+test('submit-chapter-feedback validates council attribution from the parsed request body', () => {
+  const source = readFileSync(FUNCTION_PATH, 'utf8');
+
+  assert.match(source, /const requestBody = \(await req\.json\(\)/);
+  assert.match(source, /requestBody\.contributorCategory/);
+  assert.match(source, /verifyCouncilAccess\(supabase, req, requestBody\.councilPasscode\)/);
+  assert.doesNotMatch(source, /if \(body\.contributorCategory/);
+});

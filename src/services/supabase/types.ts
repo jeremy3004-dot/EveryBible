@@ -60,6 +60,7 @@ export interface ChapterFeedbackSubmission {
   participant_name: string | null;
   participant_role: string | null;
   participant_id_number: string | null;
+  contributor_category?: 'community' | 'scripture_council' | null;
   audio_response_bucket: string | null;
   audio_response_path: string | null;
   audio_response_mime_type: string | null;

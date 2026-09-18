@@ -65,13 +65,15 @@ export function MyFeedbackScreen() {
 
   const getStatusCopy = (status: MyChapterFeedbackItem['status']): string => {
     switch (status) {
+      case 'reviewed':
+        return t('feedback.reviewed');
       case 'fixed':
-        return t('myFeedback.statusFixed');
+        return t('feedback.addressed');
       case 'no_change_needed':
-        return t('myFeedback.statusNoChange');
+        return t('feedback.noChange');
       case 'received':
       default:
-        return t('myFeedback.statusReceived');
+        return t('feedback.awaitingReview');
     }
   };
 
@@ -119,6 +121,9 @@ export function MyFeedbackScreen() {
           </Text>
         ) : null}
 
+        {item.resolutionNote ? (
+          <Text style={[styles.comment, { color: colors.primaryText }]}>{item.resolutionNote}</Text>
+        ) : null}
         <View style={styles.cardFooter}>
           {item.hasAudio ? (
             <View style={styles.audioRow}>

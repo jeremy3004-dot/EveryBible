@@ -23,6 +23,7 @@ test('mapMyChapterFeedbackRow derives status and audio presence from the row', (
       hasAudio: true,
       createdAt: '2026-05-22T01:00:00Z',
       status: 'fixed',
+      resolutionNote: null,
     }
   );
 });
@@ -79,4 +80,19 @@ test('fetchMyChapterFeedback surfaces query errors without throwing', async () =
   assert.equal(result.success, false);
   assert.equal(result.feedback.length, 0);
   assert.equal(result.error, 'permission denied');
+});
+test('positive feedback is reviewed rather than declared accurate, and retains the explanation', () => {
+  const result = mapMyChapterFeedbackRow({
+    id: 'positive',
+    book_id: 'GEN',
+    chapter: 1,
+    sentiment: 'up',
+    comment: null,
+    audio_response_path: null,
+    created_at: '2026-09-17T00:00:00Z',
+    scripture_council_resolution: 'no_change_needed',
+    scripture_council_fixed_note: 'Thank you',
+  });
+  assert.equal(result.status, 'reviewed');
+  assert.equal(result.resolutionNote, 'Thank you');
 });

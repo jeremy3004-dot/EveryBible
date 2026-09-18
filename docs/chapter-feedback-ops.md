@@ -1,145 +1,106 @@
 # Chapter Feedback Ops
 
-## Source Of Truth
+## Source of truth
 
-`public.chapter_feedback_submissions` in Supabase is the durable system of record and the admin backend review source.
+`public.chapter_feedback_submissions` is the durable record. The former Google Sheets
+export is retired. The mobile translator queue and existing admin `/feedback` page
+read and update these same records.
 
-The old Google Sheets export path is retired. Operators review new submissions in the admin app at `/feedback`.
+## Participation and access
 
-## Admin Review Fields
+Settings owns the persistent active mode: reader, community, Scripture Council, or
+translator. Community participation is open, including signed-out submissions.
+Council and translator access are verified before changing modes. A failed,
+cancelled, or offline attempt leaves the previous mode active. There are no role
+controls in chapters. Closing the composer or changing modes preserves its current
+draft while the reader remains mounted; sending successfully clears it.
 
-The admin backend shows the fixed submission contract:
+Configure the separate `SCRIPTURE_COUNCIL_PASSCODE` secret on the server. Keep the
+existing `TRANSLATOR_REVIEW_PASSCODE` unchanged. Never put either expected code in
+mobile public environment variables or tracked files. The app stores entered access
+codes in SecureStore, with only the active mode in preference storage. Sign-out and
+account-switch cleanup clear both credentials. Failed council attempts share the
+existing attempt table under a separate hashed-IP namespace (10 failures/15 minutes).
 
-1. `id`
-2. `created_at`
-3. `translation_language`
-4. `translation_id`
-5. `book_id`
-6. `chapter`
-7. `sentiment`
-8. `comment`
-9. `participant_name`
-10. `participant_role`
-11. `participant_id_number`
-12. `interface_language`
-13. `content_language_code`
-14. `content_language_name`
-15. `source_screen`
-16. `app_platform`
-17. `app_version`
-18. `user_id`
-19. `audio_response_bucket`
-20. `audio_response_path`
-21. `audio_response_mime_type`
-22. `audio_response_size_bytes`
-23. `audio_response_duration_ms`
-24. `audio_response_created_at`
-25. `scripture_council_fixed_at`
-26. `scripture_council_fixed_by`
-27. `scripture_council_fixed_note`
+`submit-chapter-feedback` verifies the council code for each council submission.
+`contributor_category` snapshots `community` or `scripture_council` at submission;
+subsequent changes cannot relabel it. Older rows remain NULL, displayed as historical
+attribution unavailable. A self-reported `participant_role` never verifies council
+membership. Council attribution does not confer chapter approval or voting rights.
 
-`participant_name` and `participant_role` are required for every submission. They are self-reported in the app and are accepted whether or not the participant has an EveryBible account. When the app has a valid authenticated Supabase session, the Edge Function also fills `user_id`; anonymous submissions are allowed and store `user_id` as `null`. `participant_id_number` is not user-entered and remains `null`.
+Participant name and project role remain required self-reported fields. Authentication
+is optional; a valid session supplies `user_id`, otherwise it is NULL.
+`participant_id_number` remains NULL for new submissions. Contributor history is
+available only for the authenticated author's own records through existing RLS.
 
-Audio-message responses are stored in the private Supabase Storage bucket `chapter-feedback-audio`. The mobile app accepts M4A audio (`audio/mp4`) with a 1 minute and 5 MB limit. Authenticated submissions upload to a user-scoped path (`{user_id}/...`) before submitting the feedback row. Anonymous submissions send the encoded recording to the Edge Function, which verifies the encoded payload before uploading it with the service-role client under an `anonymous/...` path and saving the row. The admin backend creates short-lived signed playback URLs so reviewers can listen from `/feedback` without using the mobile app.
+## Review and completion
 
-## How To Review Feedback
+A chapter shows one compact summary and a Review feedback entry. The dedicated
+screen defaults to All / Needs review, with Council and Community filters and a
+Reviewed view. Concerns sort before positive responses. Pages contain 40 records,
+ordered by sentiment and immutable sequence, anchored to the first page's snapshot.
+Refresh includes later arrivals. Counts aggregate in Postgres across the entire
+chapter, independently of the loaded page or category filter.
 
-Use the admin backend feedback page at `/feedback`, or query Supabase directly.
+Positive responses without a comment or recording form a compact group. Originals
+remain accessible. Bulk review previews an exact set of up to 500 pending IDs, asks
+for confirmation with that count, and updates only eligible IDs in that set. New
+responses arriving after the preview remain pending. Repeat for larger groups.
+Positive responses with a comment or recording stay individually reviewable.
 
-Translator reviewers can also use the hidden mobile review mode for chapter-level checks:
+- Positive response: **Mark reviewed**.
+- Concern corrected: **Mark addressed**, with an explanation.
+- Concern requiring no correction: **No change needed**, with a reason.
+- Handled response: **Reopen**, clearing its outcome and explanation.
 
-1. Open Settings.
-2. Tap `Translator Access` directly below `Chapter Feedback`.
-3. Enter the translator passcode.
-4. Open a chapter to review that chapter's submitted feedback, including text, sentiment, submitter identity when available, and signed audio playback.
+The compatibility columns remain `scripture_council_resolution` (`fixed` or
+`no_change_needed`), `scripture_council_fixed_at`, `_fixed_by`, and `_fixed_note`.
+A positive `no_change_needed` outcome displays Reviewed. A concern's `fixed` outcome
+displays Addressed. New v2 clients require a reason for either concern outcome;
+older client request contracts remain accepted. The existing admin address action
+writes the resolution together with its required note and timestamp. History shows
+the outcome and explanation. Book/chapter badges and queues use server outcomes,
+not local audio-listening markers.
 
-The translator passcode is validated by the `review-chapter-feedback` Edge Function using the `TRANSLATOR_REVIEW_PASSCODE` Supabase secret. Do not hardcode the passcode in the mobile app bundle. The mobile review mode stores the unlock flag, the reviewer-entered passcode, and read/listened markers locally on the device. It does not sync reviewer state across devices. The feedback rows and private audio URLs still come from Supabase through the `review-chapter-feedback` Edge Function.
+“All current feedback reviewed” means there are responses and none remain pending.
+An empty chapter has its own empty state. New feedback restores pending status and
+leaves prior outcomes intact. Neither sentiment nor completion indicates formal
+accuracy approval.
 
-When mobile translator review mode is enabled, the Bible book picker shows feedback badges for
-books and chapters in the active translation. A red exclamation badge means at least one feedback
-item still needs review on that device. A green check badge means that feedback exists and every
-known item has been marked read, and listened to when it has audio. If a newer feedback row arrives
-for the same book or chapter, that item has no local marker yet, so the badge returns to red until
-the translator reviews it. These badges are not rendered for normal readers.
+## Recordings
 
-On chapter screens, translator review tools appear above the chapter content so translators can see
-new feedback before reading or listening through the chapter. Normal readers do not see this panel.
+Recordings stay in the private `chapter-feedback-audio` bucket, as M4A (`audio/mp4`),
+up to one minute and 5 MB. Authenticated uploads use the existing user-scoped path;
+anonymous uploads go through the submit function to an `anonymous/` path. Failed
+submission preserves the draft for retry. Translator playback refreshes a scoped,
+one-hour signed URL before loading audio, supports pause/resume, and restores the
+iOS speaker playback mode after recording. Raw auth UUIDs are not exposed to the
+passcode-based review API.
 
-The admin page is organized for review by:
+## Backend rollout
 
-- language
-- translation
-- book
-- chapter
-- accuracy review result
-- response type, including audio-only submissions
-- resolution status
+Apply `20260917120000_feedback_participation_and_review.sql` before deploying the
+updated submit and review functions, including their `_shared/councilAccess.ts`
+dependency. It adds immutable attribution/sequence and service-role-only aggregate,
+page, preview, and exact-ID review RPCs. Deploy the mobile client after the backend.
+Existing records and audio objects are retained. Existing non-v2 review requests
+keep their old response shape for installed clients.
 
-The coverage table summarizes the recent feedback volume by language, including how many books,
-chapters, and audio responses are represented. Click a language in that table to jump into the
-filtered review list.
+## Verification
 
-The feedback-by-translation table highlights open needs-work fixes for `Needs work` feedback.
-When a translator has applied the requested fix, an admin can mark the feedback fixed from `/feedback`.
-That writes `scripture_council_fixed_at`, `scripture_council_fixed_by`, and an optional
-`scripture_council_fixed_note` on the original feedback row so the backend shows when the fix was
-completed and who recorded it. `Accurate` feedback shows as confirmed accurate in the admin review
-table because it does not need the fix workflow.
+Run `npm run release:verify` and `deno check --no-config` for both changed functions.
+`scripts/verify-chapter-feedback-local.ts` exercises a real isolated local backend,
+including 320 mixed responses, pagination beyond 200, concurrent inserts, filtering,
+forged council rejection, immutable attribution, outcomes/reopening, exact-ID bulk
+review, private contributor history, audio, and new feedback after completion.
 
-```sql
-select
-  id,
-  created_at,
-  translation_language,
-  translation_id,
-  book_id,
-  chapter,
-  sentiment,
-  comment,
-  scripture_council_fixed_at,
-  scripture_council_fixed_by,
-  audio_response_path,
-  audio_response_duration_ms
-from public.chapter_feedback_submissions
-order by created_at desc;
-```
+Provide `FEEDBACK_QA_STATUS_FILE` (local `supabase status -o json`),
+`FEEDBACK_QA_TRANSLATOR_CODE`, `FEEDBACK_QA_COUNCIL_CODE`, optionally
+`FEEDBACK_QA_AUDIO_FILE`, and a private `FEEDBACK_QA_CREDENTIALS_FILE` for simulator
+login. Run with `node --import tsx scripts/verify-chapter-feedback-local.ts` on a
+fresh isolated database. The script refuses remote hosts and retains labeled QA
+fixtures for simulator checks. Never seed a live project with this fixture set.
 
-## Support Expectations
-
-- A successful submit means the row was saved in Supabase.
-- Support should reassure the user that feedback is available for admin review when the client reports a saved result.
-- Operators should use the admin backend first and Supabase SQL for deeper audits.
-
-## Manual QA Checklist
-
-1. Enable chapter feedback in Settings, submit thumbs up while signed out, and confirm:
-   - the chapter action appears in the reader
-   - a new Supabase row is created
-   - `user_id` and `participant_id_number` are `null`
-   - the row appears in the admin backend feedback page
-2. Submit thumbs down plus comment with reviewer name and role saved and confirm:
-   - the comment persists in Supabase
-   - the reviewer name and role persist in Supabase and the admin backend
-   - `participant_id_number` matches the authenticated Supabase user UUID when signed in, or remains `null` when signed out
-   - the same comment text appears in the admin backend row
-3. Disable the feature in Settings and confirm the reader action disappears.
-4. Confirm the feedback page filters find rows by language, translation, book, chapter, reviewer,
-   comment, sentiment, and audio/text response type.
-5. While signed out, record an audio-only response and confirm:
-   - microphone permission prompts gracefully
-   - stop, preview, re-record, and submit all work
-   - upload failure leaves the recording available to retry
-   - the Supabase row includes audio bucket/path/duration/mime/created metadata
-   - `user_id` and `participant_id_number` remain `null`
-   - the audio path starts with `anonymous/`
-   - the admin backend `/feedback` row plays the audio in the browser
-6. While signed in, record an audio-only response and confirm:
-   - upload failure leaves the recording available to retry
-   - the Supabase row includes audio bucket/path/duration/mime/created metadata
-   - `participant_id_number` matches the authenticated Supabase user UUID
-   - the admin backend `/feedback` row plays the audio in the browser
-7. Deny microphone permission and confirm typed feedback can still be submitted.
-8. From `/feedback`, filter to `Open needs-work fixes`, mark a `Needs work` feedback item fixed, and confirm:
-   - the row shows `Fixed` with a timestamp
-   - the feedback-by-translation table moves that item out of open needs-work fixes
-   - `scripture_council_fixed_at` and `scripture_council_fixed_by` are saved in Supabase
+The implementation checklist records the actual simulator/backend evidence and
+any environment limitations. The older revamp plan is historical, not the current
+participation or authentication contract.

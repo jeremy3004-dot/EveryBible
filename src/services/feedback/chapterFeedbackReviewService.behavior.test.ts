@@ -123,6 +123,20 @@ test('validateTranslatorReviewPasscode asks the default client for a validate-on
   });
 });
 
+test('validateScriptureCouncilPasscode uses the separate council access gate', async () => {
+  supabaseFake.respondToFunction(() => ({ data: { success: true } }));
+
+  const result = await review.validateScriptureCouncilPasscode('council-test');
+
+  assert.deepEqual(result, { success: true, error: undefined });
+  assert.deepEqual(sentBody().body, {
+    passcode: 'council-test',
+    accessRole: 'scripture_council',
+    translationId: undefined,
+    validateOnly: true,
+  });
+});
+
 test('validateTranslatorReviewPasscode surfaces a lockout message from the server', async () => {
   supabaseFake.respondToFunction(() =>
     edgeError({
@@ -241,6 +255,7 @@ test('fetchChapterFeedbackForTranslatorReview returns the server queue for one c
 
   assert.deepEqual(result, { success: true, feedback });
   assert.deepEqual(sentBody().body, {
+    apiVersion: 2,
     translationId: 'bsb',
     bookId: 'JHN',
     chapter: 3,
@@ -302,6 +317,7 @@ test('fetchChapterFeedbackReviewSummaryForTranslation returns the per-chapter co
 
   assert.deepEqual(result, { success: true, chapters });
   assert.deepEqual(sentBody().body, {
+    apiVersion: 2,
     translationId: 'bsb',
     bookId: 'JHN',
     passcode: '123456',
@@ -316,7 +332,7 @@ test('fetchChapterFeedbackReviewSummaryForTranslation asks for a whole translati
     passcode: '123456',
   });
 
-  assert.deepEqual(sentBody().body, { translationId: 'bsb', passcode: '123456' });
+  assert.deepEqual(sentBody().body, { translationId: 'bsb', passcode: '123456', apiVersion: 2 });
 });
 
 test('fetchChapterFeedbackReviewSummaryForTranslation reports a server error without counts', async () => {
@@ -374,6 +390,7 @@ test('resolveTranslatorFeedbackOnServer sends the resolution and note through th
 
   assert.deepEqual(result, { success: true, resolution: 'fixed', error: undefined });
   assert.deepEqual(sentBody().body, {
+    apiVersion: 2,
     passcode: '123456',
     translationId: 'bsb',
     feedbackId: 'feedback-1',
@@ -441,6 +458,7 @@ test('reopenTranslatorFeedbackOnServer sends a reopen action through the default
 
   assert.deepEqual(result, { success: true, resolution: null, error: undefined });
   assert.deepEqual(sentBody().body, {
+    apiVersion: 2,
     passcode: '123456',
     translationId: 'bsb',
     feedbackId: 'feedback-1',
@@ -516,4 +534,15 @@ test('fetchChapterFeedbackForTranslatorReview reports an empty queue as a succes
   const result = await review.fetchChapterFeedbackForTranslatorReview(reviewInput);
 
   assert.deepEqual(result, { success: true, feedback: [] });
+});
+
+
+test('refreshes an expired recording URL within the selected chapter scope', async () => {
+  supabaseFake.respondToFunction(() => ({ data: { success: true, playbackUrl: 'https://audio.test/fresh' } }));
+  const result = await review.refreshFeedbackAudioUrl({ ...reviewInput, feedbackId: 'audio-1' });
+  assert.equal(result.playbackUrl, 'https://audio.test/fresh');
+  assert.equal(sentBody().body.action, 'audioUrl');
+  assert.equal(sentBody().body.feedbackId, 'audio-1');
+  assert.equal(sentBody().body.translationId, 'bsb');
+  assert.equal(sentBody().body.bookId, 'JHN');
 });

@@ -133,6 +133,8 @@ interface ChapterFeedbackRow {
   participant_role: string | null;
   sentiment: 'up' | 'down';
   source_screen: string;
+  contributor_category?: 'community' | 'scripture_council' | null;
+  scripture_council_resolution?: 'fixed' | 'no_change_needed' | null;
   scripture_council_fixed_at: string | null;
   scripture_council_fixed_by: string | null;
   scripture_council_fixed_note: string | null;
@@ -226,6 +228,8 @@ export interface ChapterFeedbackListItem {
   // Resolved from the reviewer's profile (display name → email local-part), so
   // the UI shows a human name instead of a raw UUID. Null when unresolvable.
   reviewerDisplayName: string | null;
+  contributorCategory?: 'community' | 'scripture_council' | null;
+  resolution?: 'fixed' | 'no_change_needed' | null;
   scriptureCouncilFix: {
     fixedAt: string;
     fixedBy: string | null;
@@ -539,6 +543,8 @@ const chapterFeedbackSelectColumns = [
   'chapter',
   'sentiment',
   'comment',
+  'contributor_category',
+  'scripture_council_resolution',
   'scripture_council_fixed_at',
   'scripture_council_fixed_by',
   'scripture_council_fixed_note',
@@ -606,6 +612,8 @@ function mapChapterFeedbackRows(
       if (profile?.email) return profile.email.split('@')[0] ?? null;
       return null;
     })(),
+    contributorCategory: row.contributor_category ?? null,
+    resolution: row.scripture_council_resolution ?? null,
     scriptureCouncilFix: row.scripture_council_fixed_at
       ? {
           fixedAt: row.scripture_council_fixed_at,
@@ -621,7 +629,9 @@ function mapChapterFeedbackRows(
   }));
 }
 
-async function signChapterFeedbackAudioRows(rows: ChapterFeedbackRow[]): Promise<Array<string | null>> {
+async function signChapterFeedbackAudioRows(
+  rows: ChapterFeedbackRow[]
+): Promise<Array<string | null>> {
   const service = await getAuthorizedAdminServiceClient();
 
   return Promise.all(

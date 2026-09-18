@@ -98,7 +98,10 @@ export function TranslatorReviewQueueScreen() {
       accessibilityLabel={t('translatorQueue.openLabel', {
         reference: `${getTranslatedBookName(item.bookId, t)} ${item.chapter}`,
       })}
-      style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder }]}
+      style={[
+        styles.card,
+        { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
+      ]}
       onPress={() =>
         navigation.navigate('BibleReader', {
           bookId: item.bookId,
@@ -112,15 +115,20 @@ export function TranslatorReviewQueueScreen() {
           {`${getTranslatedBookName(item.bookId, t)} ${item.chapter}`}
         </Text>
         <Text style={[styles.counts, { color: colors.secondaryText }]}>
-          {t('translatorQueue.chapterCounts', {
-            down: item.unresolvedDown,
-            up: item.unresolvedUp,
+          {t('bible.translatorReviewSummary', {
+            count: item.total,
+            pending: item.unresolvedDown + item.unresolvedUp,
           })}
         </Text>
       </View>
       <View style={styles.cardRight}>
         {item.unresolvedDown > 0 ? (
-          <View style={[styles.countPill, { backgroundColor: hexWithAlpha(colors.accentPrimary, 0.16) }]}>
+          <View
+            style={[
+              styles.countPill,
+              { backgroundColor: hexWithAlpha(colors.accentPrimary, 0.16) },
+            ]}
+          >
             <Text style={[styles.countPillText, { color: colors.accentPrimary }]}>
               {item.unresolvedDown}
             </Text>
@@ -180,7 +188,9 @@ export function TranslatorReviewQueueScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+    <View
+      style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}
+    >
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}

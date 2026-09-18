@@ -107,7 +107,7 @@ test('SettingsScreen exposes an opt-in chapter feedback toggle that syncs prefer
   );
 });
 
-test('SettingsScreen asks for a feedback identity before enabling chapter feedback and exposes an edit row', () => {
+test('SettingsScreen allows community participation immediately and exposes a feedback identity editor', () => {
   const source = readRelativeSource('./SettingsScreen.tsx');
 
   assert.match(
@@ -117,8 +117,8 @@ test('SettingsScreen asks for a feedback identity before enabling chapter feedba
   );
   assert.match(
     source,
-    /openChapterFeedbackIdentityModal\(true\)/,
-    'SettingsScreen should prompt for identity before enabling chapter feedback when the identity is missing'
+    /enableCommunityFeedback\(\)/,
+    'Anyone can enable community feedback without an access code'
   );
   assert.match(
     source,

@@ -12,7 +12,11 @@ const SUPABASE_PUBLIC_KEY =
 
 // Avoid the WHATWG `new URL()` polyfill here — it is pure JS on Hermes (no JIT)
 // and this runs at module-eval on every cold start. A scheme check is all we need.
-const hasValidSupabaseUrl = (value: string): boolean => /^https:\/\//i.test(value.trim());
+const hasValidSupabaseUrl = (value: string): boolean =>
+  /^https:\/\//i.test(value.trim()) ||
+  (typeof __DEV__ !== 'undefined' &&
+    __DEV__ &&
+    /^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?(?:\/|$)/i.test(value.trim()));
 
 const HAS_SUPABASE_CONFIG = hasValidSupabaseUrl(SUPABASE_URL) && Boolean(SUPABASE_PUBLIC_KEY);
 
