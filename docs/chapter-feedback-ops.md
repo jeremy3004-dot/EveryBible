@@ -28,6 +28,12 @@ subsequent changes cannot relabel it. Older rows remain NULL, displayed as histo
 attribution unavailable. A self-reported `participant_role` never verifies council
 membership. Council attribution does not confer chapter approval or voting rights.
 
+An explicit owner-requested correction on September 18 classified 16 historical BSB
+submissions belonging to the verified Jeremy Curry account as Community. It preserved
+all review outcomes and recordings; the immutability trigger remains enabled. This
+was a scoped administrative data correction, not automatic attribution of other
+historical submissions.
+
 Participant name and project role remain required self-reported fields. Authentication
 is optional; a valid session supplies `user_id`, otherwise it is NULL.
 `participant_id_number` remains NULL for new submissions. Contributor history is

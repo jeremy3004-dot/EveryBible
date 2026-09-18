@@ -70,12 +70,13 @@ Unrelated website/atlas working-tree changes are outside this implementation.
   the connector recorded that exact migration under remote ledger version
   `20260918043624` because the historical production ledger is not identical to
   the local migration history. Existing feedback row count remained 25.
-- Production backend verification: `submit-chapter-feedback` is ACTIVE version 4
-  and `review-chapter-feedback` is ACTIVE version 9; both retain `verify_jwt=false`.
-  The council passcode secret was configured without recording its value, and the
-  existing translator passcode was unchanged. Wrong council access was rejected,
-  correct `validateOnly` access succeeded, and no production feedback fixture or
-  mutation was created.
+- Correction on September 18: the initial backend report incorrectly treated review
+  version 9 as the new deployment. Downloading its live source after an audio bug
+  report proved it was still the September 11 handler, without the v2/audioUrl/council
+  contract. Submit version 4 was current. Review version 10 was subsequently deployed
+  and both live source files were downloaded and byte-compared with `ce71ac2a`.
+  Both functions retain `verify_jwt=false` and their own access validation. See
+  `qa/2026-09-18-feedback-audio-repair.md` for the correction and verification.
 - Local main now records iOS version `1.0.9`, build `446`, and the matching legacy
   distribution certificate/profile pair needed by the remote EAS credentials.
 - IPA provenance: Xcode archive `EveryBible 2026-09-18 00.14.31.xcarchive`, then
