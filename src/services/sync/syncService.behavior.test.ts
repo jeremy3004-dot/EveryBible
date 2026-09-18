@@ -16,6 +16,8 @@ import type {
 } from '../supabase/types';
 import type * as SyncService from './syncService';
 
+const realSetTimeout = setTimeout;
+
 const USER_A = 'user-a';
 const USER_B = 'user-b';
 
@@ -273,10 +275,11 @@ const withoutBackoffDelay = async <T>(start: () => Promise<T>): Promise<T> => {
     const running = start().finally(() => {
       settled = true;
     });
-    for (let attempt = 0; attempt < 200 && !settled; attempt += 1) {
-      await new Promise((resolve) => setImmediate(resolve));
+    for (let attempt = 0; attempt < 1000 && !settled; attempt += 1) {
+      await new Promise((resolve) => realSetTimeout(resolve, 5));
       mock.timers.tick(1000);
     }
+    assert.ok(settled, 'sync operation must settle while advancing retry timers');
     return await running;
   } finally {
     mock.timers.reset();

@@ -182,12 +182,21 @@ const resumable = {
   enabled: false,
   cancelled: false,
   resolve: null as (() => void) | null,
+  started: null as (() => void) | null,
 };
 const fileSystemFaults = {
   failMove: null as ((from: string, to: string) => boolean) | null,
   unreadableBytes: false,
 };
 const fileSystemCalls: string[] = [];
+
+const fakeDownload = async (url: string, path: string) => {
+  fileSystemCalls.push(`download:${url}`);
+  if (download.error) throw download.error;
+  mkdirSync(path.slice(0, path.lastIndexOf('/')), { recursive: true });
+  writeFileSync(path, download.bytes);
+  return { uri: path, status: download.status };
+};
 
 mockModule(mock, 'expo-file-system/legacy', {
   documentDirectory,
@@ -214,43 +223,22 @@ mockModule(mock, 'expo-file-system/legacy', {
     }
     renameSync(from, to);
   },
-  downloadAsync: async (url: string, path: string) => {
-    fileSystemCalls.push(`download:${url}`);
-    if (download.error) {
-      throw download.error;
-    }
-    mkdirSync(path.slice(0, path.lastIndexOf('/')), { recursive: true });
-    writeFileSync(path, download.bytes);
-    return { uri: path, status: download.status };
-  },
-  get createDownloadResumable() {
-    return resumable.enabled
-      ? (
-          _url: string,
-          path: string,
-          _options: unknown,
-          _callback: (progress: {
-            totalBytesWritten: number;
-            totalBytesExpectedToWrite: number;
-          }) => void
-        ) => ({
-        downloadAsync: async () => {
-          await new Promise<void>((resolve) => {
-            resumable.resolve = resolve;
-          });
-          if (resumable.cancelled) {
-            return undefined;
-          }
-          mkdirSync(path.slice(0, path.lastIndexOf('/')), { recursive: true });
-          writeFileSync(path, download.bytes);
-          return { uri: path, status: download.status };
-        },
-        cancelAsync: async () => {
-          resumable.cancelled = true;
-        },
-        })
-      : undefined;
-  },
+  downloadAsync: async (url: string, path: string) => fakeDownload(url, path),
+  createDownloadResumable: (url: string, path: string) => ({
+    downloadAsync: async () => {
+      if (resumable.enabled) {
+        await new Promise<void>((resolve) => {
+          resumable.resolve = resolve;
+          resumable.started?.();
+        });
+        if (resumable.cancelled) return undefined;
+      }
+      return fakeDownload(url, path);
+    },
+    cancelAsync: async () => {
+      resumable.cancelled = true;
+    },
+  }),
   readAsStringAsync: async (path: string) =>
     fileSystemFaults.unreadableBytes
       ? 'not base64 at all!%'
@@ -367,6 +355,7 @@ afterEach(() => {
   resumable.enabled = false;
   resumable.cancelled = false;
   resumable.resolve = null;
+  resumable.started = null;
   fileSystemFaults.failMove = null;
   fileSystemFaults.unreadableBytes = false;
   sqliteFaults.failOpen = false;
@@ -597,16 +586,22 @@ test('downloadCatalogTextPack installs a downloaded pack and reports progress', 
 });
 
 test('cancelActiveCatalogTextPackDownload prevents a late native completion from installing', async () => {
-  const { cancelActiveCatalogTextPackDownload, downloadCatalogTextPack, isTextPackDownloadCancelled } =
-    await loadModule();
+  const {
+    cancelActiveCatalogTextPackDownload,
+    downloadCatalogTextPack,
+    isTextPackDownloadCancelled,
+  } = await loadModule();
   resumable.enabled = true;
+  const started = new Promise<void>((resolve) => {
+    resumable.started = resolve;
+  });
 
   const promise = downloadCatalogTextPack({
     translationId: 'cancelled',
     downloadUrl: 'https://media.example.test/cancelled.db',
     expectedVerseCount: 3,
   });
-  await new Promise<void>((resolve) => setImmediate(resolve));
+  await started;
 
   cancelActiveCatalogTextPackDownload();
   resumable.resolve?.();

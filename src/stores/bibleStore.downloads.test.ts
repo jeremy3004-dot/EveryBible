@@ -146,13 +146,19 @@ test('downloading a cloud translation asks the download service for the catalog 
 test('duplicate text download taps keep one owner and do not replace its install', async () => {
   withTranslations([makeRuntimeTranslation({ id: 'esv1' })]);
   let resolveDownload!: (path: string) => void;
-  doubles.cloud.run = () => new Promise<string>((resolve) => {
-    resolveDownload = resolve;
+  let signalStarted!: () => void;
+  const started = new Promise<void>((resolve) => {
+    signalStarted = resolve;
   });
+  doubles.cloud.run = () =>
+    new Promise<string>((resolve) => {
+      resolveDownload = resolve;
+      signalStarted();
+    });
 
   const first = useBibleStore.getState().downloadTranslation('esv1');
   const second = useBibleStore.getState().downloadTranslation('esv1');
-  await flushAsyncWork();
+  await started;
 
   assert.equal(doubles.cloud.calls.length, 1);
 
