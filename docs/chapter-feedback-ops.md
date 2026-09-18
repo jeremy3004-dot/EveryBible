@@ -78,6 +78,9 @@ accuracy approval.
 Recordings stay in the private `chapter-feedback-audio` bucket, as M4A (`audio/mp4`),
 up to one minute and 5 MB. Authenticated uploads use the existing user-scoped path;
 anonymous uploads go through the submit function to an `anonymous/` path. Failed
+uploads with invalid or incomplete MP4/M4A containers are rejected on the server
+for both paths, regardless of their declared MIME type. The container check is
+structural, not a full codec decode. Failed
 submission preserves the draft for retry. Translator playback refreshes a scoped,
 one-hour signed URL before loading audio, supports pause/resume, and restores the
 iOS speaker playback mode after recording. Raw auth UUIDs are not exposed to the

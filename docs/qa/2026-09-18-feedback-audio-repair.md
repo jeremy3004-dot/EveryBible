@@ -84,3 +84,40 @@ with the normal public API environment, `FEEDBACK_REVIEW_PASSCODE`, and
 The check requires the v2 review response, correct attribution, a fresh playback
 URL, a successful download, and matching byte count. It never prints credentials
 or signed recording URLs. An old handler returning HTTP 200 is still a failure.
+
+## Follow-up: the specific John 3 TestFlight error
+
+The user subsequently identified BSB John 3. Its sole submission was an anonymous
+May 22 automated smoke fixture with comment `server smoke audio` and a 45-byte
+object whose contents were plain test text, not audio. It had no participant name
+or account. This independently explains both Unknown contributor / historical
+attribution and a decoder error even after repairing the review endpoint. The
+earlier eight-record audit covered Jeremy's account and missed this unrelated
+synthetic record; a valid signed URL alone is not proof of playable media.
+
+- Saved the exact row and object to ignored
+  `qa-evidence/feedback-audio-repair-2026-09-18/` for recovery. Removed only that
+  exact synthetic row with ID, chapter, comment, NULL identity, and byte-count
+  predicates; the original storage object remains intact.
+- Verified production has 24 remaining feedback rows, no BSB John 3 review rows,
+  and all 16 Jeremy-account submissions retain Community attribution.
+- Downloaded and fully decoded all 11 remaining production recordings, not just
+  Jeremy's eight. Every object matched its recorded byte count.
+- Added an MP4/M4A container check for both base64 submissions and authenticated
+  pre-uploaded objects. It rejects plain text, truncated containers, missing media
+  or metadata, and mismatched upload size. This structural check is not a codec
+  decoder. The read-only live smoke check now also checks the downloaded container.
+- Regression tests cover the exact 45-byte fixture and valid box arrangements.
+  Real isolated backend tests covered all eight combinations of Community/Council,
+  anonymous/authenticated uploads, and valid/invalid bytes. The four valid notes
+  produced byte-identical playable downloads; the four invalid submissions created
+  no feedback rows. All eight original iOS recordings pass the new validation.
+- Full release gate: 4,501 tests passed, lint/typechecks/Expo config passed. Deno
+  checked the submit function successfully.
+- Direct deployment, without delegation: source `a8b2bfa8`, submit function version
+  5 ACTIVE at `2026-09-18T10:27:54.230Z`, preserving custom auth and `verify_jwt=false`.
+  Downloaded all three live source files and byte-compared them with the checkout.
+  Production rejected the exact invalid bytes with HTTP 400 and the new error;
+  feedback count remained 24. Review version 10 remained unchanged.
+- No mobile binary change or new TestFlight build was required for this cleanup
+  and server-side validation. Leaving and reopening the chapter reloads its queue.
