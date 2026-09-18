@@ -48,6 +48,13 @@ ordered by sentiment and immutable sequence, anchored to the first page's snapsh
 Refresh includes later arrivals. Counts aggregate in Postgres across the entire
 chapter, independently of the loaded page or category filter.
 
+Every individual feedback card always shows the contributor's rating, even when
+there is a written comment or recording. Accurate responses have a full soft-green
+card and checkmark; Needs work responses have a full soft-amber card and exclamation
+mark. Existing translated rating labels and accessible light/dark theme colors are
+used. Contributor category and processing status are separate neutral text. A
+positive response can still need translator review; that does not make it negative.
+
 Positive responses without a comment or recording form a compact group. Originals
 remain accessible. Bulk review previews an exact set of up to 500 pending IDs, asks
 for confirmation with that count, and updates only eligible IDs in that set. New

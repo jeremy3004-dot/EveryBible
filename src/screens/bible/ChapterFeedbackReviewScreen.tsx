@@ -309,6 +309,10 @@ export function ChapterFeedbackReviewScreen({ route, navigation }: Props) {
   );
   const renderItem = ({ item }: { item: ChapterFeedbackReviewItem }) => {
     const isExpanded = expanded === item.id;
+    const isPositive = item.sentiment === 'up';
+    const ratingLabel = t(
+      isPositive ? 'bible.chapterFeedbackThumbsUp' : 'bible.chapterFeedbackThumbsDown'
+    );
     const outcome = !item.resolution
       ? 'feedback.needsReview'
       : item.resolution === 'fixed'
@@ -327,7 +331,12 @@ export function ChapterFeedbackReviewScreen({ route, navigation }: Props) {
       <View
         style={[
           styles.card,
-          { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
+          {
+            backgroundColor: isPositive ? colors.successSoft : colors.warningSoft,
+            borderColor: isPositive ? colors.success : colors.warning,
+            borderLeftWidth: 4,
+            borderLeftColor: isPositive ? colors.success : colors.warning,
+          },
         ]}
       >
         <TouchableOpacity
@@ -336,12 +345,25 @@ export function ChapterFeedbackReviewScreen({ route, navigation }: Props) {
           onPress={() => setExpanded(isExpanded ? null : item.id)}
           style={styles.row}
         >
+          <View style={styles.wrap}>
+            <Text
+              accessibilityLabel={ratingLabel}
+              style={[
+                styles.rating,
+                {
+                  color: isPositive ? colors.onSuccessSoft : colors.onWarningSoft,
+                  backgroundColor: isPositive ? colors.successSoft : colors.warningSoft,
+                },
+              ]}
+            >
+              {isPositive ? '✓' : '!'} {ratingLabel}
+            </Text>
+          </View>
           <Text style={[styles.name, { color: colors.primaryText }]}>
             {item.participantName || t('bible.translatorReviewUnknownUser')}
           </Text>
-          <Text style={{ color: colors.accentPrimary }}>
-            {t(source)} · {t(outcome)}
-          </Text>
+          <Text style={{ color: colors.secondaryText }}>{t(source)}</Text>
+          <Text style={{ color: colors.secondaryText }}>{t(outcome)}</Text>
           <Text style={{ color: colors.secondaryText }}>
             {new Date(item.createdAt).toLocaleDateString(i18n.language)}
           </Text>
@@ -491,6 +513,13 @@ const styles = StyleSheet.create({
   section: { paddingVertical: 16, gap: 12 },
   title: { fontSize: 20, fontWeight: '600' },
   name: { fontSize: 16, fontWeight: '600' },
+  rating: {
+    fontSize: 14,
+    fontWeight: '600',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   row: { gap: 8, paddingVertical: 8 },
   card: { borderWidth: 1, borderRadius: 14, padding: 14, gap: 8 },
