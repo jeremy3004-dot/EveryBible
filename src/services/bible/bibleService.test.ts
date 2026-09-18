@@ -393,17 +393,30 @@ test('getAllBooks lists all 66 books in canonical order', () => {
   assert.equal(books.at(-1)?.id, 'REV');
 });
 
-test('the verse of the day is the verse named by the daily reference', async () => {
-  const reference = dailyScripture.getDailyScriptureReference();
-  seedChapter({ translationId: 'bsb', bookId: reference.bookId, chapter: reference.chapter }, [
-    makeVerse(reference.bookId, reference.chapter, 1, 'First verse'),
-    makeVerse(reference.bookId, reference.chapter, reference.verse ?? 1, 'The daily verse'),
-  ]);
+for (const day of [17, 18]) {
+  test(`the verse of the day matches its daily reference on September ${day}`, async (t) => {
+    t.mock.timers.enable({ apis: ['Date'], now: new Date(2026, 8, day, 12) });
+    const reference = dailyScripture.getDailyScriptureReference();
+    const targetVerse = reference.verse ?? 1;
+    // Keep verse numbers unique, including dates whose daily reference is verse 1.
+    seedChapter(
+      { translationId: 'bsb', bookId: reference.bookId, chapter: reference.chapter },
+      Array.from({ length: targetVerse }, (_, index) =>
+        makeVerse(
+          reference.bookId,
+          reference.chapter,
+          index + 1,
+          index + 1 === targetVerse ? 'The daily verse' : 'Earlier verse'
+        )
+      )
+    );
 
-  const verse = await service.getVerseOfTheDay();
+    const verse = await service.getVerseOfTheDay();
 
-  assert.equal(verse?.text, 'The daily verse');
-});
+    assert.equal(verse?.verse, targetVerse);
+    assert.equal(verse?.text, 'The daily verse');
+  });
+}
 
 test('the verse of the day falls back to the first verse of the chapter', async () => {
   const reference = dailyScripture.getDailyScriptureReference();

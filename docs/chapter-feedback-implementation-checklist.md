@@ -16,7 +16,7 @@ contributor follow-up. Council participation does not confer chapter approval.
 - [x] Save intended changes to local main and verify TestFlight group distribution.
 
 The initial deployment task was archived to stop overlapping implementation. A fresh
-project-scoped deployment task will receive the verified revision.
+project-scoped deployment task completed the verified backend and TestFlight release.
 Unrelated website/atlas working-tree changes are outside this implementation.
 
 ## Evidence
@@ -88,3 +88,13 @@ Unrelated website/atlas working-tree changes are outside this implementation.
   to the existing `Internal Testers` group (`3a75b4d5-cae0-4c9a-8880-890f486f605a`),
   and the intended internal tester relationship was read back successfully.
 - No website or admin deployment was performed.
+
+## Final local-main verification
+
+- iOS and Android tracked build metadata are aligned at 446; only iOS was distributed.
+- The post-release full suite exposed a pre-existing date-dependent fixture that seeded
+  duplicate verse 1 rows on September 18. The test now freezes both September 17 and 18
+  and seeds unique verse numbers. This changes tests only, not the distributed app.
+- Final `npm run release:verify`: lint, workspace typechecks, Expo config, and all
+  4,497 tests passed. Log: `qa-evidence/chapter-feedback-2026-09-17/final-release-verify.log`.
+- All 14 unrelated tracked website/atlas WIP files remain byte-for-byte unchanged.
