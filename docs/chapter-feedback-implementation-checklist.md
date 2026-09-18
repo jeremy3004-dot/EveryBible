@@ -12,8 +12,8 @@ contributor follow-up. Council participation does not confer chapter approval.
 - [x] Add compact chapter entry and dedicated review screen; align history/admin.
 - [x] Add regression coverage and run the full relevant verification gate.
 - [x] Exercise at least 300 isolated responses on iPhone 17 Pro Max; inspect evidence.
-- [ ] Hand verified source and backend requirements to the deployment task.
-- [ ] Save intended changes to local main and verify TestFlight group distribution.
+- [x] Hand verified source and backend requirements to the deployment task.
+- [x] Save intended changes to local main and verify TestFlight group distribution.
 
 The initial deployment task was archived to stop overlapping implementation. A fresh
 project-scoped deployment task will receive the verified revision.
@@ -61,3 +61,30 @@ Unrelated website/atlas working-tree changes are outside this implementation.
 - Signed into the isolated test account through the real UI. My feedback showed only
   its own submission, Addressed status, and the saved explanation; see `own-history.png`.
   Cross-account visibility was separately denied in the real backend integration test.
+
+## Production deployment evidence
+
+- Feature source revision: `7272e37bd8e6471431def78877bb2720fa5c2c23`.
+- Production Supabase target: project `ganmududzdzpruvdulkg` (EveryBible). Only the
+  checked-in `20260917120000_feedback_participation_and_review.sql` was applied;
+  the connector recorded that exact migration under remote ledger version
+  `20260918043624` because the historical production ledger is not identical to
+  the local migration history. Existing feedback row count remained 25.
+- Production backend verification: `submit-chapter-feedback` is ACTIVE version 4
+  and `review-chapter-feedback` is ACTIVE version 9; both retain `verify_jwt=false`.
+  The council passcode secret was configured without recording its value, and the
+  existing translator passcode was unchanged. Wrong council access was rejected,
+  correct `validateOnly` access succeeded, and no production feedback fixture or
+  mutation was created.
+- Local main now records iOS version `1.0.9`, build `446`, and the matching legacy
+  distribution certificate/profile pair needed by the remote EAS credentials.
+- IPA provenance: Xcode archive `EveryBible 2026-09-18 00.14.31.xcarchive`, then
+  explicit manual export using the matching profile UUID and certificate SHA-1.
+  `bash scripts/testflight_precheck.sh` passed for build `446`; the IPA contains
+  the embedded JS bundle, no Expo dev bundles, and a valid code signature. IPA
+  SHA-256: `4dbc13c25bdd1b3ea396da289d7c3c9ec11d1e27fe0e8ad3aba41373d789a4b2`.
+- App Store Connect: build `446` / version `1.0.9`, build ID
+  `364d52ac-77e7-439b-b263-9fbdf7e3660f`, processing state `VALID`. It is attached
+  to the existing `Internal Testers` group (`3a75b4d5-cae0-4c9a-8880-890f486f605a`),
+  and the intended internal tester relationship was read back successfully.
+- No website or admin deployment was performed.
