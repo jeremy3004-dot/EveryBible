@@ -1,4 +1,5 @@
 import { verifyCouncilAccess } from '../_shared/councilAccess.ts';
+import { isFeedbackAudioContainer } from '../_shared/feedbackAudio.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
@@ -298,6 +299,10 @@ const validateRequest = (
         return { error: 'audio response size does not match upload data' };
       }
 
+      if (!isFeedbackAudioContainer(decodeBase64(base64Data))) {
+        return { error: 'Audio response is not a complete M4A recording. Please record it again.' };
+      }
+
       audioResponsePath = buildStoredAudioPath(body, userId);
       pendingAudioUpload = {
         base64Data,
@@ -457,6 +462,23 @@ Deno.serve(async (req) => {
     }
 
     let uploadedAudioPath: string | null = null;
+    if (!validation.pendingAudioUpload && validation.value.audio_response_path) {
+      const { data: recording, error: recordingError } = await supabase.storage
+        .from('chapter-feedback-audio')
+        .download(validation.value.audio_response_path);
+      if (recordingError || !recording) {
+        return jsonResponse(400, { success: false, error: 'Uploaded recording is unavailable.' });
+      }
+      if (recording.size > AUDIO_RESPONSE_MAX_SIZE_BYTES ||
+          (validation.value.audio_response_size_bytes != null &&
+           recording.size !== validation.value.audio_response_size_bytes) ||
+          !isFeedbackAudioContainer(new Uint8Array(await recording.arrayBuffer()))) {
+        return jsonResponse(400, {
+          success: false,
+          error: 'Audio response is not a complete M4A recording. Please record it again.',
+        });
+      }
+    }
     if (validation.pendingAudioUpload) {
       const { error: uploadError } = await supabase.storage
         .from('chapter-feedback-audio')

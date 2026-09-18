@@ -6,6 +6,7 @@
 import assert from 'node:assert/strict';
 import console from 'node:console';
 import process from 'node:process';
+import { isFeedbackAudioContainer } from '../supabase/functions/_shared/feedbackAudio.ts';
 
 const { fetch } = globalThis;
 
@@ -48,6 +49,7 @@ for (const check of checks) {
   assert.equal(download.status, 200, 'Signed recording could not be downloaded');
   const bytes = new Uint8Array(await download.arrayBuffer());
   assert.ok(bytes.length > 32, 'Recording is empty or truncated');
+  assert.ok(isFeedbackAudioContainer(bytes), 'Downloaded object is not a complete M4A container');
   if (item.audioResponse.sizeBytes) assert.equal(bytes.length, item.audioResponse.sizeBytes);
   console.log(
     `PASS ${translationId}/${bookId}/${chapter}: v2 attribution, fresh URL, ${bytes.length} audio bytes`
