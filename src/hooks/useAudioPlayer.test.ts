@@ -2,7 +2,7 @@ import test, { after, afterEach, before, beforeEach, mock } from 'node:test';
 import type { MockTimers } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { mockMmkvStorage, mockModule, sourcePath } from '../testing/mockModules';
+import { mockMmkvStorage, mockModule, mockReactNative, sourcePath } from '../testing/mockModules';
 import { createReactHookRuntime } from '../testing/reactHookRuntime';
 import type { AudioChapterMap } from '../services/bible/contentAvailability';
 
@@ -18,6 +18,7 @@ import type { AudioChapterMap } from '../services/bible/contentAvailability';
 // ---------------------------------------------------------------------------
 
 const runtime = createReactHookRuntime();
+const rn = mockReactNative(mock);
 
 // ---------------------------------------------------------------------------
 // Recording doubles for every native-backed collaborator
@@ -340,6 +341,7 @@ after(() => {
 });
 
 beforeEach(() => {
+  rn.AppState.emit('active');
   useAudioStore.setState(useAudioStore.getInitialState(), true);
   useAudioStore.persist.clearStorage();
   mmkv.store.clear();
@@ -2061,4 +2063,81 @@ test('a stale resume cannot publish its old position over a new chapter', async 
   assert.equal(store().currentChapter, 2);
   assert.equal(recorded.nowPlaying.length, published);
   assert.equal(recorded.nowPlaying.at(-1)?.positionMs, 0);
+});
+
+test('background playback uses native positions without visual interpolation', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: BASE_TIME });
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  emitStatus({ isPlaying: true, positionMillis: 1000, durationMillis: DEFAULT_DURATION_MS });
+  rn.AppState.emit('inactive');
+  t.mock.timers.tick(250);
+  assert.equal(store().currentPosition, 1000);
+  rn.AppState.emit('background');
+  emitStatus({ isPlaying: true, positionMillis: 6000, durationMillis: DEFAULT_DURATION_MS });
+  t.mock.timers.tick(1000);
+  assert.equal(store().currentPosition, 6000);
+  assert.equal(store().lastPosition, 6000);
+  assert.equal(playerCalls('pause').length, 0);
+  rn.AppState.emit('active');
+  t.mock.timers.tick(250);
+  assert.equal(store().currentPosition, 6000);
+  emitStatus({ isPlaying: true, positionMillis: 7000, durationMillis: DEFAULT_DURATION_MS });
+  t.mock.timers.tick(250);
+  assert.equal(store().currentPosition, 7250);
+});
+
+test('native callbacks after unmount preserve progress and next chapter without interpolation', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: BASE_TIME });
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setAutoAdvanceChapter(true);
+  player.unmount();
+  assert.equal(rn.AppState.listenerCount(), 0);
+  emitStatus({ isPlaying: true, positionMillis: 6000, durationMillis: DEFAULT_DURATION_MS });
+  t.mock.timers.tick(250);
+  assert.equal(store().currentPosition, 6000);
+  await finishPlayback();
+  assert.equal(store().currentChapter, 2);
+  emitStatus({ isPlaying: true, positionMillis: 1000, durationMillis: DEFAULT_DURATION_MS });
+  t.mock.timers.tick(250);
+  assert.equal(store().currentPosition, 1000);
+  // Stop the retained playback session's coarse telemetry before ending the test.
+  emitStatus({ isPlaying: false, positionMillis: 1000 });
+});
+
+test('a replacement hook interpolates and old cleanup does not disable it', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: BASE_TIME });
+  const old = mountPlayer();
+  await old.api.playChapter('GEN', 1);
+  mountPlayer();
+  old.unmount();
+  emitStatus({ isPlaying: true, positionMillis: 1000, durationMillis: DEFAULT_DURATION_MS });
+  t.mock.timers.tick(250);
+  assert.equal(store().currentPosition, 1250);
+  rn.AppState.emit('background');
+  t.mock.timers.tick(250);
+  assert.equal(store().currentPosition, 1250);
+});
+
+test('background playback keeps next chapters, lock screen commands and sleep expiry', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: BASE_TIME });
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setAutoAdvanceChapter(true);
+  rn.AppState.emit('background');
+  await finishPlayback();
+  assert.equal(store().currentChapter, 2);
+  player.rerender();
+  await remoteCommandListener?.({ command: 'pause' });
+  assert.equal(store().status, 'paused');
+  player.rerender();
+  await remoteCommandListener?.({ command: 'play' });
+  assert.equal(store().status, 'playing');
+  store().setSleepTimer(5);
+  player.rerender();
+  recorded.player.length = 0;
+  tickSeconds(t.mock.timers, 5 * 60);
+  assert.equal(playerCalls('pause').length, 1);
+  assert.equal(store().sleepTimerEndTime, null);
 });

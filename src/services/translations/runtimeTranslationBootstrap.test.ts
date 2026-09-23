@@ -174,7 +174,12 @@ const loadModule = async (): Promise<BootstrapModule> => {
   return bootstrapModule;
 };
 
+// Each fixture starts beyond the process-local catalog TTL; calls within a test share time.
+let catalogTime = 0;
+mock.method(Date, 'now', () => catalogTime);
+
 function reset() {
+  catalogTime += 5 * 60 * 1000;
   events.length = 0;
   appliedCatalogs.length = 0;
   listCallCount = 0;

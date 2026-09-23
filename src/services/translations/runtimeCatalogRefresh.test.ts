@@ -3,7 +3,14 @@ import assert from 'node:assert/strict';
 import type { BibleTranslation } from '../../types';
 import type { TranslationCatalogEntry } from '../supabase/types';
 import { mergeRuntimeCatalogTranslations } from '../../stores/bibleStoreModel';
-import { refreshRuntimeCatalog, shouldMarkRuntimeCatalogHydrated } from './runtimeCatalogRefresh';
+import {
+  createRuntimeCatalogRefresher,
+  shouldMarkRuntimeCatalogHydrated,
+  type RefreshRuntimeCatalogDeps,
+} from './runtimeCatalogRefresh';
+
+const refreshRuntimeCatalog = (deps: RefreshRuntimeCatalogDeps) =>
+  createRuntimeCatalogRefresher(deps)();
 import type { ElBootstrapStep } from './runtimeElCatalog';
 import { mapCatalogEntryToBibleTranslation } from './translationCatalogModel';
 
@@ -404,4 +411,130 @@ test('both failed sources retain all last-good rows without marking hydration co
   });
   assert.deepEqual(store.translations, [previous, oldEl]);
   assert.equal(shouldMarkRuntimeCatalogHydrated(result), false);
+});
+
+test('catalog opens reuse a successful refresh for five minutes and force bypasses freshness', async () => {
+  let now = 0;
+  let requests = 0;
+  const store = makeFakeStore([]);
+  const refresh = createRuntimeCatalogRefresher({
+    ...store,
+    now: () => now,
+    resolveUrl: () => null,
+    listTranslations: async () => {
+      requests += 1;
+      return { success: true, data: [makeCatalogEntry('eng')] };
+    },
+  });
+  await refresh();
+  now = 299999;
+  await refresh();
+  await refresh();
+  assert.equal(requests, 1);
+  now = 300000;
+  await refresh();
+  assert.equal(requests, 2);
+  await refresh({ force: true });
+  assert.equal(requests, 3);
+});
+
+test('concurrent catalog opens and a forced refresh share the pending request', async () => {
+  let requests = 0;
+  let release!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const refresh = createRuntimeCatalogRefresher({
+    ...makeFakeStore([]),
+    resolveUrl: () => null,
+    listTranslations: async () => {
+      requests += 1;
+      await pending;
+      return { success: true, data: [makeCatalogEntry('eng')] };
+    },
+  });
+  const first = refresh();
+  const second = refresh();
+  const forced = refresh({ force: true });
+  release();
+  await Promise.all([first, second, forced]);
+  assert.equal(requests, 1);
+});
+
+for (const failure of ['offline', 'empty', 'el'] as const) {
+  test(`a ${failure} refresh stays retryable and preserves available rows`, async () => {
+    let requests = 0;
+    let elRequests = 0;
+    const downloaded = mapCatalogEntryToBibleTranslation(makeCatalogEntry('installed'));
+    downloaded.isDownloaded = true;
+    const store = makeFakeStore([downloaded, makeElRuntime('el-retained')]);
+    const refresh = createRuntimeCatalogRefresher({
+      ...store,
+      resolveUrl: () => 'https://catalog.example.test',
+      listTranslations: async () => {
+        requests += 1;
+        if (requests === 1 && failure === 'offline') throw new Error('offline');
+        return {
+          success: true,
+          data: requests === 1 && failure === 'empty' ? [] : [makeCatalogEntry('eng')],
+        };
+      },
+      elStep: async () => {
+        elRequests += 1;
+        if (elRequests === 1 && failure === 'el') throw new Error('offline');
+        return [makeElRuntime('el-retained')];
+      },
+    });
+    const first = await refresh();
+    assert.equal(shouldMarkRuntimeCatalogHydrated(first), false);
+    assert.ok(store.translations.some((row) => row.id === 'installed' && row.isDownloaded));
+    assert.ok(store.translations.some((row) => row.id === 'el-retained'));
+    assert.equal(shouldMarkRuntimeCatalogHydrated(await refresh()), true);
+    await refresh();
+    assert.equal(requests, 2);
+    assert.equal(elRequests, 2);
+  });
+}
+
+test('fresh opens do not reapply stale download state and changed EL configuration refreshes', async () => {
+  let url: string | null = null;
+  let requests = 0;
+  const store = makeFakeStore([]);
+  const refresh = createRuntimeCatalogRefresher({
+    ...store,
+    resolveUrl: () => url,
+    listTranslations: async () => {
+      requests += 1;
+      return { success: true, data: [makeCatalogEntry('eng')] };
+    },
+    elStep: async () => [makeElRuntime('el-new')],
+  });
+  await refresh();
+  store.translations[0].isDownloaded = true;
+  const applies = store.applyCount;
+  await refresh();
+  assert.equal(store.applyCount, applies);
+  assert.equal(store.translations[0].isDownloaded, true);
+  url = 'https://catalog.example.test';
+  await refresh();
+  assert.equal(requests, 2);
+  assert.ok(store.translations.some((row) => row.id === 'el-new'));
+});
+
+test('failed forced refresh invalidates freshness so an ordinary open retries', async () => {
+  let requests = 0;
+  const refresh = createRuntimeCatalogRefresher({
+    ...makeFakeStore([]),
+    resolveUrl: () => null,
+    listTranslations: async () => {
+      requests += 1;
+      return requests === 2
+        ? { success: false }
+        : { success: true, data: [makeCatalogEntry('eng')] };
+    },
+  });
+  await refresh();
+  assert.equal(shouldMarkRuntimeCatalogHydrated(await refresh({ force: true })), false);
+  assert.equal(shouldMarkRuntimeCatalogHydrated(await refresh()), true);
+  assert.equal(requests, 3);
 });

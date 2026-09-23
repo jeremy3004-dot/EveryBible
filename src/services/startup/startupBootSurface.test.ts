@@ -376,8 +376,8 @@ test('deferred runtime effects own sync and privacy hooks after boot', () => {
   );
   assert.match(
     source,
-    /useEffect\(\(\) => \{\s*installQueryClientListeners\(\);\s*\}, \[\]\);/,
-    'the listeners should be installed once, after boot'
+    /useEffect\(\(\) => \{\s*installQueryClientListeners\(\);\s*return installUsageQueueReporting\(\);\s*\}, \[\]\);/,
+    'the listeners should install after boot, with optional reporting cleanup returned'
   );
 
   const queryClientSource = readRelativeSource('../queryClient.ts');

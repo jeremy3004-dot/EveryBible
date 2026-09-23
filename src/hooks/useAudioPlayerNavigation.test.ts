@@ -1,3 +1,4 @@
+import { createReactNativeStub } from '../testing/reactNativeStub';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -52,6 +53,7 @@ function mountPlayer() {
     './useAudioPlayer.ts',
     {
       react: runtime.react,
+      'react-native': createReactNativeStub(),
       'react-i18next': { useTranslation: () => ({ t: (key: string) => key }) },
       'zustand/react/shallow': { useShallow: (selector: unknown) => selector },
       '../stores/audioStore': { useAudioStore },

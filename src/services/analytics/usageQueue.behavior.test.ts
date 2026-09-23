@@ -20,6 +20,10 @@ mock.timers.enable({ apis: ['setTimeout'] });
 
 const mmkv = mockMmkvStorage(mock);
 mockReactNative(mock, { os: 'ios' });
+mockModule(mock, sourcePath('services/analytics/reportingPolicy.ts'), {
+  canReportUsage: () => true,
+  installReportingPolicy: () => () => {},
+});
 
 const supabase = createSupabaseFake();
 /** Mutable so the "backend not configured" branch can be driven in-file. */

@@ -14,6 +14,7 @@ interface CatalogListResult {
 }
 
 export interface RefreshRuntimeCatalogDeps {
+  now?: () => number;
   // Supabase catalog fetch. Defaults to translationService.listAvailableTranslations, resolved
   // through a lazy `import()` so this module stays loadable outside the React Native runtime
   // (and so tests can drive it without the Supabase client graph).
@@ -89,7 +90,7 @@ async function resolveStoreBridge(
  * neither set prunes the other. When the EL flag is off, resolveElCatalogUrl() returns null and
  * the EL path costs nothing — the heavy EL module graph is never loaded.
  */
-export async function refreshRuntimeCatalog(
+async function fetchRuntimeCatalog(
   deps: RefreshRuntimeCatalogDeps = {}
 ): Promise<RefreshRuntimeCatalogResult> {
   const listTranslations =
@@ -178,3 +179,41 @@ export function shouldMarkRuntimeCatalogHydrated({
 }: RefreshRuntimeCatalogResult): boolean {
   return appliedSupabaseCatalog && (!isElActive || appliedElCatalog);
 }
+
+// Freshness is process-local: persisted rows alone never suppress this launch's hydration.
+const RUNTIME_CATALOG_TTL_MS = 5 * 60 * 1000;
+
+export function createRuntimeCatalogRefresher(deps: RefreshRuntimeCatalogDeps = {}) {
+  const now = deps.now ?? Date.now;
+  let freshResult: RefreshRuntimeCatalogResult | null = null;
+  let freshUntil = 0;
+  let freshUrl: string | null = null;
+  let inFlight: Promise<RefreshRuntimeCatalogResult> | null = null;
+
+  return (options: { force?: boolean } = {}): Promise<RefreshRuntimeCatalogResult> => {
+    // Forced requests bypass the TTL, but still share work already in progress.
+    if (inFlight) return inFlight;
+    const catalogUrl = (deps.resolveUrl ?? resolveElCatalogUrl)();
+    if (!options.force && freshResult && freshUrl === catalogUrl && now() < freshUntil) {
+      return Promise.resolve(freshResult);
+    }
+
+    // A failed forced refresh must also leave the next ordinary attempt retryable.
+    freshResult = null;
+    inFlight = fetchRuntimeCatalog({ ...deps, resolveUrl: () => catalogUrl })
+      .then((result) => {
+        if (shouldMarkRuntimeCatalogHydrated(result)) {
+          freshResult = result;
+          freshUrl = catalogUrl;
+          freshUntil = now() + RUNTIME_CATALOG_TTL_MS;
+        }
+        return result;
+      })
+      .finally(() => {
+        inFlight = null;
+      });
+    return inFlight;
+  };
+}
+
+export const refreshRuntimeCatalog = createRuntimeCatalogRefresher();

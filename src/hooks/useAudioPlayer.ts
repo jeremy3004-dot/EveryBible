@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { AppState } from 'react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAudioStore } from '../stores/audioStore';
@@ -58,9 +59,10 @@ export function useAudioPlayer(translationId: string = 'bsb') {
   const [sleepTimerNow, setSleepTimerNow] = useState(() => Date.now());
 
   // Interpolation refs — track the last real poll so we can estimate position
-  // between 100ms ticks using wall-clock time. Cleared on seek/pause/stop.
+  // between native snapshots using wall-clock time. Cleared on seek/pause/stop.
   const lastPollPositionRef = useRef<number>(0);
   const lastPollTimeRef = useRef<number>(0);
+  const isMountedRef = useRef(false);
   const interpolationTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const audioProgressTelemetryTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const audioProgressTelemetryLastEmittedAtRef = useRef<number>(0);
@@ -486,6 +488,27 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     playChapterForTranslationRef.current = playChapterForTranslation;
   }, [playChapterForTranslation]);
 
+  // Native callbacks intentionally outlive the reader screen so playback can
+  // advance chapters. Only a mounted reader in the foreground needs UI ticks.
+  useEffect(() => {
+    isMountedRef.current = true;
+    const stopInterpolation = () => {
+      if (interpolationTimerRef.current) {
+        clearInterval(interpolationTimerRef.current);
+        interpolationTimerRef.current = null;
+      }
+    };
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') stopInterpolation();
+      // On foreground, wait for the next native snapshot to re-anchor the UI.
+    });
+    return () => {
+      isMountedRef.current = false;
+      subscription.remove();
+      stopInterpolation();
+    };
+  }, []);
+
   // Handle playback status updates from track-player wrapper
   const handleStatusUpdate = useCallback(
     (snapshot: TrackPlayerProgressSnapshot) => {
@@ -530,7 +553,11 @@ export function useAudioPlayer(translationId: string = 'bsb') {
         // Keep interpolation lightweight on Android. This updates the visible
         // progress often enough for controls without turning playback into a
         // high-frequency persisted-store write loop.
-        if (!interpolationTimerRef.current) {
+        if (
+          isMountedRef.current &&
+          AppState.currentState === 'active' &&
+          !interpolationTimerRef.current
+        ) {
           interpolationTimerRef.current = setInterval(() => {
             const playbackRate = useAudioStore.getState().playbackRate ?? 1.0;
             // Bound the elapsed used for interpolation to one interval. Without

@@ -18,14 +18,26 @@ const recorder = (name: string) => () => {
 };
 
 /** Effects queued by the render, in registration order, with their dep arrays. */
-const effects: Array<{ run: () => void; deps: unknown }> = [];
+type Effect = () => void | (() => void);
+const effects: Array<{ run: Effect; deps: unknown }> = [];
+const cleanups: Array<() => void> = [];
 mockModule(mock, 'react', {
-  useEffect: (run: () => void, deps: unknown) => {
+  useEffect: (run: Effect, deps: unknown) => {
     effects.push({ run, deps });
   },
 });
 
 let installCount = 0;
+let reportingInstallCount = 0;
+let reportingCleanupCount = 0;
+mockModule(mock, sourcePath('services/analytics/usageQueue.ts'), {
+  installUsageQueueReporting: () => {
+    reportingInstallCount += 1;
+    return () => {
+      reportingCleanupCount += 1;
+    };
+  },
+});
 mockModule(mock, sourcePath('services/queryClient.ts'), {
   queryClient: {},
   installQueryClientListeners: () => {
@@ -37,7 +49,8 @@ mockModule(mock, sourcePath('services/queryClient.ts'), {
 const commit = () => {
   const queued = effects.splice(0, effects.length);
   for (const effect of queued) {
-    effect.run();
+    const cleanup = effect.run();
+    if (cleanup) cleanups.push(cleanup);
   }
 };
 
@@ -55,6 +68,9 @@ beforeEach(() => {
   calls.length = 0;
   effects.length = 0;
   installCount = 0;
+  reportingInstallCount = 0;
+  reportingCleanupCount = 0;
+  cleanups.length = 0;
   failingHook = null;
 });
 
@@ -129,4 +145,16 @@ test('a hook that throws leaves the install effect unqueued', async () => {
 
   assert.deepEqual(effects, []);
   assert.equal(installCount, 0);
+});
+
+test('optional reporting listeners install only after commit and clean up on unmount', async () => {
+  const AppRuntimeEffects = await loadComponent();
+  AppRuntimeEffects();
+  assert.equal(reportingInstallCount, 0);
+  commit();
+  assert.equal(reportingInstallCount, 1);
+  assert.equal(reportingCleanupCount, 0);
+  assert.equal(cleanups.length, 1);
+  cleanups[0]();
+  assert.equal(reportingCleanupCount, 1);
 });

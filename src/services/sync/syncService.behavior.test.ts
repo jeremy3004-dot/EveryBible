@@ -510,22 +510,80 @@ test('a fresh device adopts the cloud reading position and progress', async () =
   assert.deepEqual(appliedPositions, [{ bookId: 'JHN', chapter: 3 }]);
 });
 
-test('a fresh device writes the merged cloud state straight back to user_progress', async () => {
+test('a fresh device adopts cloud progress without writing identical content back', async () => {
+  script.user_progress = { select: { data: remoteProgressRow() } };
+
+  const result = await syncProgress(USER_A);
+
+  assert.deepEqual(result, { success: true, merged: true });
+  assert.deepEqual(progressStore.getState().chaptersRead, { JHN_3: 1000 });
+  assert.deepEqual(callsFor('user_progress', 'upsert'), []);
+});
+
+test('repeated unchanged progress syncs skip writes regardless of chapter key order', async () => {
+  progressStore.setState({
+    chaptersRead: { JHN_3: 1000, GEN_1: 500 },
+    streakDays: 4,
+    lastReadDate: '2026-09-01',
+  });
+  bibleStore.setState({ currentBook: 'JHN', currentChapter: 3 });
+  script.user_progress = {
+    select: { data: remoteProgressRow({ chapters_read: { GEN_1: 500, JHN_3: 1000 } }) },
+  };
+
+  for (let cycle = 0; cycle < 3; cycle++) await syncProgress(USER_A);
+
+  assert.equal(callsFor('user_progress', 'select').length, 3);
+  assert.equal(callsFor('user_progress', 'upsert').length, 0);
+});
+
+test('a newer timestamp for an existing chapter is still uploaded', async () => {
+  progressStore.setState({
+    chaptersRead: { JHN_3: 2000 },
+    streakDays: 4,
+    lastReadDate: '2026-09-01',
+  });
+  bibleStore.setState({ currentBook: 'JHN', currentChapter: 3 });
   script.user_progress = { select: { data: remoteProgressRow() } };
 
   await syncProgress(USER_A);
 
-  const { synced_at: syncedAt, ...row } = payloadOf('user_progress');
-  assert.deepEqual(row, {
-    user_id: USER_A,
-    chapters_read: { JHN_3: 1000 },
-    streak_days: 4,
-    last_read_date: '2026-09-01',
-    current_book: 'JHN',
-    current_chapter: 3,
+  assert.equal(callsFor('user_progress', 'upsert').length, 1);
+  assert.deepEqual(payloadOf('user_progress').chapters_read, { JHN_3: 2000 });
+});
+
+test('a legacy null chapter map is repaired rather than failing the unchanged-content check', async () => {
+  script.user_progress = {
+    select: {
+      data: remoteProgressRow({
+        // The database column is nullable, despite the generated client interface.
+        chapters_read: null as unknown as Record<string, number>,
+        streak_days: 0,
+        last_read_date: null,
+        current_book: 'GEN',
+        current_chapter: 1,
+      }),
+    },
+  };
+
+  const result = await syncProgress(USER_A);
+
+  assert.equal(result.success, true);
+  assert.deepEqual(payloadOf('user_progress').chapters_read, {});
+});
+
+test('a locally reset streak is uploaded even when chapters and position match', async () => {
+  progressStore.setState({
+    chaptersRead: { JHN_3: 1000 },
+    streakDays: 0,
+    lastReadDate: '2026-09-01',
   });
-  assert.ok(Number.isFinite(Date.parse(String(syncedAt))));
-  assert.deepEqual(callsFor('user_progress', 'upsert')[0]?.options, { onConflict: 'user_id' });
+  bibleStore.setState({ currentBook: 'JHN', currentChapter: 3 });
+  script.user_progress = { select: { data: remoteProgressRow() } };
+
+  await syncProgress(USER_A);
+
+  assert.equal(payloadOf('user_progress').streak_days, 0);
 });
 
 test('a device that has read more recently keeps its own position and pushes it up', async () => {
@@ -576,6 +634,8 @@ test('a real fetch error on user_progress is reported and nothing is written', a
 });
 
 test('a failing progress upsert is reported after the local merge already happened', async () => {
+  // A new local chapter makes an upload necessary after the cloud merge.
+  progressStore.setState({ chaptersRead: { GEN_1: 500 } });
   script.user_progress = {
     select: { data: remoteProgressRow() },
     write: { error: { message: 'upsert conflict' } },
@@ -656,7 +716,11 @@ test('syncProgress without an expected account uses the currently signed-in read
   const result = await syncProgress();
 
   assert.deepEqual(result, { success: true, merged: true });
-  assert.equal(payloadOf('user_progress').user_id, USER_A);
+  assert.deepEqual(
+    callsFor('user_progress', 'select')[0]?.steps.find((step) => step.method === 'eq')?.args,
+    ['user_id', USER_A]
+  );
+  assert.deepEqual(callsFor('user_progress', 'upsert'), []);
 });
 
 // ---------------------------------------------------------------------------

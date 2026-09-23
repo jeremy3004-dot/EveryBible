@@ -23,7 +23,7 @@ const doubles: BibleStoreDoubles = installBibleStoreDoubles(mock);
 let useBibleStore: typeof import('./bibleStore').useBibleStore;
 let defaultTranslations: () => BibleTranslation[];
 let sanitizePersistedBibleState: typeof import('./persistedStateSanitizers').sanitizePersistedBibleState;
-let refreshRuntimeCatalog: typeof import('../services/translations/runtimeCatalogRefresh').refreshRuntimeCatalog;
+let createRuntimeCatalogRefresher: typeof import('../services/translations/runtimeCatalogRefresh').createRuntimeCatalogRefresher;
 let mapElCatalogToBibleTranslations: typeof import('../services/elMedia/elTranslationMapping').mapElCatalogToBibleTranslations;
 /** Recorded before any test runs, so import-time side effects stay assertable. */
 let importTimeAudioSyncs: string[][] = [];
@@ -33,7 +33,8 @@ before(async () => {
   const sanitizers = await import('./persistedStateSanitizers');
   defaultTranslations = sanitizers.getDefaultBibleTranslations;
   sanitizePersistedBibleState = sanitizers.sanitizePersistedBibleState;
-  ({ refreshRuntimeCatalog } = await import('../services/translations/runtimeCatalogRefresh'));
+  ({ createRuntimeCatalogRefresher } =
+    await import('../services/translations/runtimeCatalogRefresh'));
   ({ mapElCatalogToBibleTranslations } = await import('../services/elMedia/elTranslationMapping'));
   useBibleStore = (await import('./bibleStore')).useBibleStore;
   await flushAsyncWork();
@@ -1004,7 +1005,7 @@ for (const legacy of [false, true]) {
     );
     useBibleStore.setState({ ...useBibleStore.getInitialState(), ...restored }, true);
 
-    await refreshRuntimeCatalog({
+    await createRuntimeCatalogRefresher({
       listTranslations: async () => ({ success: false, error: 'offline' }),
       getStoreTranslations: () => useBibleStore.getState().translations,
       applyRuntimeCatalog: (translations) =>
@@ -1017,7 +1018,7 @@ for (const legacy of [false, true]) {
           catalog: { ...mapped.catalog!, updatedAt: '2026-09-06T00:00:00.000Z' },
         },
       ],
-    });
+    })();
 
     const afterRestart = sanitizePersistedBibleState(
       JSON.parse(JSON.stringify(useBibleStore.getState()))

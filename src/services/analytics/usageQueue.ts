@@ -1,3 +1,4 @@
+import { canReportUsage, installReportingPolicy } from './reportingPolicy';
 import { Platform } from 'react-native';
 import { supabase, isSupabaseConfigured } from '../supabase';
 import { attachGeoContext, getCachedGeoContext, resolveGeoContext } from './geoContext';
@@ -39,6 +40,7 @@ export interface QueuedEvent {
 export interface UsageFlushResult {
   success: boolean;
   error?: string;
+  deferred?: boolean;
 }
 
 // The single unified ingestion endpoint. All analytics events flow here.
@@ -74,11 +76,23 @@ function hasAllRequiredFields(event: unknown): event is QueuedEvent {
 }
 
 function scheduleFlush(delay = FLUSH_INTERVAL_MS): void {
-  if (flushTimer || eventQueue.length === 0 || !isSupabaseConfigured()) return;
+  if (!canReportUsage() || flushTimer || eventQueue.length === 0 || !isSupabaseConfigured()) return;
   flushTimer = setTimeout(() => {
     flushTimer = null;
     void flushUsageQueue();
   }, delay);
+}
+
+/** Owned by AppRuntimeEffects; cleanup stops future optional network work. */
+export function installUsageQueueReporting(): () => void {
+  return installReportingPolicy(() => {
+    if (!canReportUsage()) {
+      if (flushTimer) clearTimeout(flushTimer);
+      flushTimer = null;
+      return;
+    }
+    void flushUsageQueue();
+  });
 }
 
 // Write-through persistence via a guarded require() so this module's static
@@ -228,6 +242,7 @@ export async function flushUsageQueue(): Promise<UsageFlushResult> {
   ensureQueueRestored();
   if (flushPromise) return flushPromise;
   if (!isSupabaseConfigured() || eventQueue.length === 0) return { success: true };
+  if (!canReportUsage()) return { success: true, deferred: true };
   if (flushTimer) clearTimeout(flushTimer);
   flushTimer = null;
   const snapshot = eventQueue.slice(0, MAX_BATCH_SIZE);
@@ -236,6 +251,7 @@ export async function flushUsageQueue(): Promise<UsageFlushResult> {
   flushPromise = (async (): Promise<UsageFlushResult> => {
     try {
       const geoContext = await resolveGeoContext();
+      if (!canReportUsage()) return { success: true, deferred: true };
       // Event-time geo wins over the current upload network for delayed events.
       const enrichedSnapshot = snapshot.map((event) =>
         event.geo_source ? event : attachGeoContext(event, geoContext)
@@ -243,6 +259,7 @@ export async function flushUsageQueue(): Promise<UsageFlushResult> {
       const {
         data: { session },
       } = await supabase.auth.getSession();
+      if (!canReportUsage()) return { success: true, deferred: true };
       const accessToken = session?.access_token?.trim();
       const { error } = await supabase.functions.invoke(UNIFIED_USAGE_ENDPOINT, {
         body: { events: enrichedSnapshot },

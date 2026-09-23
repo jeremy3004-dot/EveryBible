@@ -19,6 +19,10 @@ const QUEUE_CACHE_KEY = 'analytics-usage-queue-v1';
 
 const mmkv = mockMmkvStorage(mock, { [QUEUE_CACHE_KEY]: '{ this is not json' });
 mockReactNative(mock, { os: 'ios' });
+mockModule(mock, sourcePath('services/analytics/reportingPolicy.ts'), {
+  canReportUsage: () => true,
+  installReportingPolicy: () => () => {},
+});
 
 const supabase = createSupabaseFake();
 const supabaseExports = {

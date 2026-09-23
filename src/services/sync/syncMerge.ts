@@ -167,8 +167,28 @@ export const mergeReadingSnapshot = (
       progress.streakDays !== localState.streakDays ||
       progress.lastReadDate !== localState.lastReadDate ||
       Object.keys(progress.chaptersRead).length !== Object.keys(localState.chaptersRead).length ||
-      Object.entries(progress.chaptersRead).some(([key, value]) => localState.chaptersRead[key] !== value),
+      Object.entries(progress.chaptersRead).some(
+        ([key, value]) => localState.chaptersRead[key] !== value
+      ),
   };
+};
+
+/** Compare content rather than synced_at or chapter-map insertion order. */
+export const readingMatchesRemote = (
+  reading: ReadingMergeResult,
+  remote: RemoteUserProgress | null
+): boolean => {
+  // Older rows may have NULL here; keep the existing upload that repairs them.
+  if (!remote?.chapters_read) return false;
+  const chapters = remote.chapters_read;
+  return (
+    reading.progress.streakDays === remote.streak_days &&
+    reading.progress.lastReadDate === remote.last_read_date &&
+    reading.readingPosition.bookId === remote.current_book &&
+    reading.readingPosition.chapter === remote.current_chapter &&
+    Object.keys(reading.progress.chaptersRead).length === Object.keys(chapters).length &&
+    Object.entries(reading.progress.chaptersRead).every(([key, value]) => chapters[key] === value)
+  );
 };
 
 // The profiles row can still hold a theme retired by the EL reskin ('low-light',

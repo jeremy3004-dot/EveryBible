@@ -1,7 +1,12 @@
 import { supabase, isSupabaseConfigured, getCurrentUserId } from '../supabase';
 import { useAuthStore } from '../../stores/authStore';
 import type { UserProgress, UserPreferences } from '../supabase/types';
-import { mergePreferences, mergeReadingSnapshot, type LocalPreferenceSnapshot } from './syncMerge';
+import {
+  mergePreferences,
+  mergeReadingSnapshot,
+  readingMatchesRemote,
+  type LocalPreferenceSnapshot,
+} from './syncMerge';
 import {
   createSyncIdentityBoundary,
   createSyncCycleCache,
@@ -281,6 +286,12 @@ const syncProgressForIdentityImpl = async (identity: SyncIdentityBoundary): Prom
     const mergedReading = await applyMergedReadingState(remoteData, identity);
     if (!mergedReading) {
       return staleSyncResult();
+    }
+
+    if (readingMatchesRemote(mergedReading, remoteData)) {
+      return (await identity.isCurrent())
+        ? { success: true, merged: mergedReading.changed }
+        : staleSyncResult();
     }
 
     const write = await identity.runIfCurrent(() =>

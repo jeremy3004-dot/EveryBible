@@ -52,6 +52,10 @@ const SEEDED = [
 
 mockMmkvStorage(mock, { [QUEUE_CACHE_KEY]: JSON.stringify(SEEDED) });
 mockReactNative(mock, { os: 'ios' });
+mockModule(mock, sourcePath('services/analytics/reportingPolicy.ts'), {
+  canReportUsage: () => true,
+  installReportingPolicy: () => () => {},
+});
 
 const supabase = createSupabaseFake();
 const supabaseExports = {

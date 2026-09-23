@@ -1,3 +1,4 @@
+import { installUsageQueueReporting } from '../analytics/usageQueue';
 import { useEffect } from 'react';
 import { useAuthDeepLink } from '../../hooks/useAuthDeepLink';
 import { usePrivacyLock } from '../../hooks/usePrivacyLock';
@@ -14,6 +15,7 @@ export function AppRuntimeEffects() {
   // deferred until after the first interactions, so it is the right owner.
   useEffect(() => {
     installQueryClientListeners();
+    return installUsageQueueReporting();
   }, []);
 
   return null;
