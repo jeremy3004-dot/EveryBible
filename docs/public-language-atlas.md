@@ -15,8 +15,7 @@ land-checked geographic presentation positions instead of collapsing onto source
 anchors. The layout refreshes once the camera and coastline tiles are ready;
 source coordinates are unchanged.
 
-The public
-collection includes languages and dialects only; people groups remain in the admin atlas. Filtered totals
+The public collection includes languages and dialects only; people groups remain in the admin atlas. Filtered totals
 count source records; unresolved source identities may remain separate.
 
 At desktop widths (1024px and above), transparent 48–80px hit areas cover the
@@ -27,7 +26,7 @@ The edge hit areas sit below the search and other interactive website controls.
 ## Mobile controls
 
 At widths up to 760px, the default view keeps overlapping dots, a slim search
-bar, and collapsed Legend and Settings buttons. Focusing search reveals Records;
+bar, and collapsed Legend and Settings buttons. Focusing search reveals Browse all;
 typing opens the filtered record list. Legend contains Scripture filters and
 About the data. Settings contains projection,
 Dots and Clusters controls. Zoom buttons, Fit results, and Reset view are omitted
@@ -75,6 +74,13 @@ approximate-location and app-availability caveats, and collapsed Sources & credi
 Source attribution and license text remain available there. Import details,
 registry totals, retrieval metadata, and internal research notes are omitted from
 this visitor-facing panel; the underlying source metadata is unchanged.
+
+Public copy uses “languages,” “results,” and “map locations” in exploration
+panels. The homepage explains colors and links to source credits; About and
+Support give brief mission, download, and contact information. “No known
+Scripture” also appears in the homepage introduction and filter action.
+Project progress retains the report date and unaudited status, and explains
+that recordings may still need review and approval before publication.
 
 ## Public data boundary
 

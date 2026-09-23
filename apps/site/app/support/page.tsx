@@ -18,8 +18,8 @@ export default function SupportPage() {
   return (
     <StaticPageLayout
       eyebrow="Support"
-      title="Get help, install the app, and contact the EveryBible team."
-      intro="Use the links below for downloads, legal information, and direct support questions."
+      title="How can we help?"
+      intro="Contact the EveryBible team for help with the app, your account, or privacy questions."
     >
       <section>
         <h2>Download EveryBible</h2>
@@ -36,8 +36,8 @@ export default function SupportPage() {
       <section>
         <h2>Need support?</h2>
         <p>
-          For account issues, privacy questions, or ministry-related support, email the team and
-          include as much context as you can about your device, language, and what went wrong.
+          Email us for app or ministry questions. If something went wrong, include your device,
+          language, and a description of the problem.
         </p>
         <p>
           <a href={supportChannels.supportEmail}>{EVERYBIBLE_SUPPORT_EMAIL_ADDRESS}</a>

@@ -5,8 +5,7 @@ import { EVERYBIBLE_APP_STORE_URL, EVERYBIBLE_GOOGLE_PLAY_URL } from '../lib/sit
 
 const PROMISES = ['Free, forever', 'No ads, no purchases', 'Works offline'];
 
-/* Data partners credited on the homepage. The atlas sources panel carries
-   the full registry, versions, and reuse notes. */
+/* Data partners credited on the homepage and in the atlas source credits. */
 const DATA_PARTNERS = [
   { label: 'Joshua Project', href: 'https://joshuaproject.net' },
   { label: 'Global Recordings Network', href: 'https://globalrecordings.net/en/rolv' },
@@ -36,8 +35,7 @@ export function HomeBelowAtlas() {
             <p className="eyebrow">The app</p>
             <h2>Built for the heart of Africa and the heights of the Himalayas.</h2>
             <p className="home-band__lede">
-              Read and listen to Scripture in the language you understand best. Download it once and
-              it works wherever you are, even without a signal.
+              Read or listen in your language. Download Scripture to use it without a signal.
             </p>
             <div className="home-band__pills">
               {PROMISES.map((promise) => (
@@ -96,13 +94,12 @@ export function HomeBelowAtlas() {
       <section className="home-band" id="data" aria-label="About the atlas data">
         <div className="wrap">
           <p className="eyebrow">About the data</p>
-          <h2>A research atlas, read with care.</h2>
+          <h2>Explore the map</h2>
           <div className="home-data">
             <div>
               <h3>Where it comes from</h3>
               <p>
-                Language and dialect records, locations, and Scripture status are brought together
-                from{' '}
+                Language and Scripture information comes from{' '}
                 {DATA_PARTNERS.map((partner, position) => (
                   <span key={partner.label}>
                     {position > 0 && (position === DATA_PARTNERS.length - 1 ? ', and ' : ', ')}
@@ -112,7 +109,7 @@ export function HomeBelowAtlas() {
                   </span>
                 ))}
                 . Basemap by CARTO and OpenStreetMap contributors.{' '}
-                <a href="/#atlas-sources">Full source notes</a>
+                <a href="/#atlas-sources">Sources & credits</a>
               </p>
             </div>
             <div>
@@ -123,15 +120,15 @@ export function HomeBelowAtlas() {
               </div>
               <h3>What the colors mean</h3>
               <p>
-                Each dot is a language record. Teal has a full Bible, gold a New Testament, and
-                copper has portions. Red means our sources have no documented Scripture.
+                Each dot represents a language or dialect. Teal means a full Bible, gold a New
+                Testament, copper portions, and red no known Scripture.
               </p>
             </div>
             <div>
-              <h3>Atlas versus app</h3>
+              <h3>Read and listen</h3>
               <p>
-                The atlas is a research collection. The translations you can read and listen to in
-                EveryBible are a separate, smaller set. <a href="#app">See the app languages</a>.
+                The map covers more languages than the app currently offers.{' '}
+                <a href="#app">Get EveryBible</a> to read and listen.
               </p>
             </div>
           </div>

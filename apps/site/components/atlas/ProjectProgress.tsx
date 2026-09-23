@@ -23,7 +23,7 @@ export function ProjectProgress({
       {projects.map((project) => (
         <div className="pa-project" key={project.name}>
           <h3>{project.name}</h3>
-          {project.languageName !== project.name && <p>Project language: {project.languageName}</p>}
+          {project.languageName !== project.name && <p>Language: {project.languageName}</p>}
           <div className="pa-project-total">
             <strong>
               {projectPercentage(project)}
@@ -70,18 +70,18 @@ export function ProjectProgress({
             <p>
               Last active{' '}
               {project.lastActivityDaysAgo === 0
-                ? 'on the snapshot date'
-                : `${project.lastActivityDaysAgo} ${project.lastActivityDaysAgo === 1 ? 'day' : 'days'} before the snapshot`}
+                ? `on ${projectSnapshot.asOf}`
+                : `${project.lastActivityDaysAgo} ${project.lastActivityDaysAgo === 1 ? 'day' : 'days'} before ${projectSnapshot.asOf}`}
               .
             </p>
           </details>
         </div>
       ))}
       <p className="pa-project-note">
-        Recording progress is separate from review, approval, and Scripture publication.
+        Recorded chapters may still need review and approval before publication.
       </p>
       <small className="pa-project-source">
-        LangQuest dashboard · Unaudited snapshot {projectSnapshot.asOf}
+        Project report: {projectSnapshot.asOf} · Figures not audited
       </small>
     </section>
   );
@@ -109,7 +109,7 @@ export function UnmappedProjectProfile({
       <h2 tabIndex={-1} ref={title}>
         {project.name}
       </h2>
-      <p className="pa-project-note">Map location awaiting confirmation.</p>
+      <p className="pa-project-note">Location not yet confirmed.</p>
       <ProjectProgress projectName={project.name} />
     </article>
   );

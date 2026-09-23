@@ -16,8 +16,7 @@ test('getOperatorLauncherConfig returns launcher copy when the chat url is valid
 
   assert.deepEqual(config, {
     chatUrl: 'https://t.me/everybible_global_bot',
-    description:
-      'Start a guided chat with the EveryBible AI operator for questions, prayer, and trusted follow-up.',
+    description: 'Ask EveryBible AI a question or request prayer.',
     primaryActionLabel: 'Open chat',
     title: 'Chat with EveryBible AI',
   });

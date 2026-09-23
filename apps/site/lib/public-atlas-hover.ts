@@ -42,9 +42,9 @@ export function publicAtlasHover(
       'small',
       ['parent-language', 'country', 'related-people-group'].includes(location.precision)
         ? 'Approximate map location'
-        : 'Mapped reference area'
+        : 'Map location'
     );
   }
-  append('small', 'Click the dot to explore →', 'pa-hover-explore');
+  append('small', 'Select the dot to learn more', 'pa-hover-explore');
   return node;
 }

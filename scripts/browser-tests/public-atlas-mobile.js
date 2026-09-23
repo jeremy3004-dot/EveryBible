@@ -27,8 +27,8 @@ async function verifyPublicAtlasMobile(page, baseUrl = 'http://127.0.0.1:3100') 
     'Legend starts closed'
   );
   check(
-    !(await page.getByRole('button', { name: 'Records', exact: true }).isVisible()),
-    'Records starts inside search'
+    !(await page.getByRole('button', { name: 'Browse all', exact: true }).isVisible()),
+    'Browse all starts inside search'
   );
   check(
     !(await page.getByRole('button', { name: 'Fit results', exact: true }).isVisible()),
@@ -81,12 +81,15 @@ async function verifyPublicAtlasMobile(page, baseUrl = 'http://127.0.0.1:3100') 
   await page.getByRole('button', { name: 'Globe', exact: true }).click();
   await page.getByRole('button', { name: 'Clusters', exact: true }).click();
   check(
-    (await page.getByRole('button', { name: 'Clusters', exact: true }).getAttribute('aria-pressed')) === 'true',
+    (await page
+      .getByRole('button', { name: 'Clusters', exact: true })
+      .getAttribute('aria-pressed')) === 'true',
     'Clusters can be selected'
   );
   await page.getByRole('button', { name: 'Dots', exact: true }).click();
   check(
-    (await page.getByRole('button', { name: 'Dots', exact: true }).getAttribute('aria-pressed')) === 'true',
+    (await page.getByRole('button', { name: 'Dots', exact: true }).getAttribute('aria-pressed')) ===
+      'true',
     'Dots can be restored'
   );
   await page.getByRole('button', { name: 'Close settings', exact: true }).click();
@@ -96,11 +99,11 @@ async function verifyPublicAtlasMobile(page, baseUrl = 'http://127.0.0.1:3100') 
   );
   await search.click();
   check(
-    await page.getByRole('button', { name: 'Records', exact: true }).isVisible(),
-    'Search reveals Records'
+    await page.getByRole('button', { name: 'Browse all', exact: true }).isVisible(),
+    'Search reveals Browse all'
   );
-  await page.getByRole('button', { name: 'Records', exact: true }).click();
-  const collection = page.getByLabel('Collection');
+  await page.getByRole('button', { name: 'Browse all', exact: true }).click();
+  const collection = page.getByLabel('Show', { exact: true });
   check(
     (await collection.locator('option').allTextContents()).join('|') ===
       'Languages & dialects|Languages|Dialects / varieties',
@@ -110,14 +113,14 @@ async function verifyPublicAtlasMobile(page, baseUrl = 'http://127.0.0.1:3100') 
   await search.blur();
   await search.focus();
   check(
-    await page.getByRole('button', { name: 'Records', exact: true }).isVisible(),
+    await page.getByRole('button', { name: 'Browse all', exact: true }).isVisible(),
     'Keyboard focus reopens search after Escape'
   );
   await search.fill('Phu');
-  await page.getByRole('heading', { name: 'Explore records' }).waitFor();
+  await page.getByRole('region', { name: 'Records', exact: true }).waitFor();
   await page.getByRole('button', { name: 'Legend', exact: true }).click();
   check(
-    !(await page.getByRole('heading', { name: 'Explore records' }).isVisible()),
+    !(await page.getByRole('region', { name: 'Records', exact: true }).isVisible()),
     'Legend replaces search results'
   );
   await page.keyboard.press('Escape');
@@ -157,7 +160,7 @@ async function verifyPublicAtlasMobile(page, baseUrl = 'http://127.0.0.1:3100') 
     'Desktop spread record-count caption stays hidden'
   );
   check(
-    await page.getByRole('button', { name: 'Records', exact: true }).isVisible(),
+    await page.getByRole('button', { name: 'Browse all', exact: true }).isVisible(),
     'Desktop Records stays accessible'
   );
   check(
@@ -166,10 +169,7 @@ async function verifyPublicAtlasMobile(page, baseUrl = 'http://127.0.0.1:3100') 
   );
   const atlasBounds = await page.locator('.public-atlas').boundingBox();
   check(atlasBounds.x === 0, 'Desktop map remains visually full-width');
-  check(
-    atlasBounds.width === 1440,
-    'Invisible scroll gutters do not inset the map'
-  );
+  check(atlasBounds.width === 1440, 'Invisible scroll gutters do not inset the map');
   for (const x of [24, 1416]) {
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.mouse.move(x, 450);

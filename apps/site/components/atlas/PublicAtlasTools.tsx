@@ -115,7 +115,7 @@ export function AtlasGroupRecords({
   return (
     <section className="pa-records" aria-label="Selected map records">
       <div className="pa-section-top">
-        <h2>{formatCount(ids.length)} nearby records</h2>
+        <h2>{formatCount(ids.length)} nearby results</h2>
         <button type="button" onClick={onClose} aria-label="Close map records">
           ×
         </button>

@@ -370,9 +370,9 @@ export function PublicLanguageAtlas() {
                   ×
                 </button>
               </div>
-              <p className="pa-empty">Search by name, or browse the collection.</p>
+              <p className="pa-empty">Search by name or browse languages.</p>
               <button type="button" className="pa-browse" onClick={() => openPanel('records')}>
-                Records
+                Browse all
               </button>
             </section>
           ) : mobile && panel === 'group' ? (
@@ -407,14 +407,14 @@ export function PublicLanguageAtlas() {
           ) : showRecords ? (
             <section className="pa-records" aria-label="Records">
               <div className="pa-section-top">
-                <h2>Explore records</h2>
+                <h2>Explore languages</h2>
                 <button type="button" onClick={() => closePanel()} aria-label="Close records">
                   ×
                 </button>
               </div>
               <div className="pa-filters">
                 <label>
-                  <span>Collection</span>
+                  <span>Show</span>
                   <select
                     value={filters.kind}
                     onChange={(event) =>
@@ -442,7 +442,7 @@ export function PublicLanguageAtlas() {
                 </label>
               </div>
               <p className="pa-result-count" role="status">
-                {index ? `${formatCount(records.length)} records` : 'Loading records…'}{' '}
+                {index ? `${formatCount(records.length)} results` : 'Loading languages…'}{' '}
                 {filters !== deferredFilters && ' · Searching…'}
               </p>
               <div className="pa-record-list">
@@ -507,7 +507,7 @@ export function PublicLanguageAtlas() {
           ) : null}
           {loadError && (
             <div className="pa-load-error" role="alert">
-              The collection could not load.{' '}
+              The map could not load.{' '}
               <button
                 type="button"
                 onClick={() => {
@@ -521,7 +521,7 @@ export function PublicLanguageAtlas() {
           )}
           {!index && !loadError && (
             <p className="pa-loading" role="status">
-              Gathering the language collection…
+              Loading languages…
             </p>
           )}
         </div>
@@ -538,8 +538,8 @@ export function PublicLanguageAtlas() {
             <em>In your heart language.</em>
           </h1>
           <p className="pa-story-copy">
-            Explore the languages of the world and what is known about Scripture in each. Red marks
-            the ones still waiting.
+            Explore the world’s languages and their Scripture availability. Red means no known
+            Scripture.
           </p>
           <div className="pa-story-actions">
             <a className="pa-button pa-button--primary" href="/download">
@@ -559,7 +559,7 @@ export function PublicLanguageAtlas() {
             >
               {filters.scripture === 'no-scripture'
                 ? 'Show all languages'
-                : 'Show languages without Scripture'}
+                : 'Show no known Scripture'}
             </button>
           </div>
         </div>

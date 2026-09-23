@@ -26,7 +26,7 @@ export function ProjectList({
           : `${projects.length} of ${projectSnapshot.projects.length}`}{' '}
         active projects · Sep 7, 2026
       </p>
-      <p className="pa-project-note">Select a language to explore recording progress.</p>
+      <p className="pa-project-note">Select a language to see recording progress.</p>
       <div className="pa-record-list">
         {projects.map((project) => (
           <button type="button" key={project.name} onClick={() => onSelect(project)}>
@@ -35,7 +35,7 @@ export function ProjectList({
               <small>
                 {project.recordId
                   ? `${project.chaptersRecorded.toLocaleString('en-US')} chapters recorded`
-                  : 'Map location awaiting confirmation'}
+                  : 'Location not yet confirmed'}
               </small>
             </span>
             <span className="pa-project-row-value">

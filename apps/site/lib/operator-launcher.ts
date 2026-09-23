@@ -8,8 +8,7 @@ export interface OperatorLauncherConfig {
 export type OperatorLauncherEnv = Record<string, string | undefined>;
 
 const defaultLauncherCopy = {
-  description:
-    'Start a guided chat with the EveryBible AI operator for questions, prayer, and trusted follow-up.',
+  description: 'Ask EveryBible AI a question or request prayer.',
   primaryActionLabel: 'Open chat',
   title: 'Chat with EveryBible AI',
 } as const;

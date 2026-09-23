@@ -5,11 +5,11 @@ interface ErrorPageScreenProps {
 const errorCopy: Record<number, { title: string; intro: string }> = {
   404: {
     title: 'Page not found',
-    intro: 'The page you were looking for could not be found.',
+    intro: 'Check the address or return to the homepage.',
   },
   500: {
     title: 'Something went wrong',
-    intro: 'We hit an unexpected problem while loading this page.',
+    intro: 'Please try loading this page again.',
   },
 };
 
@@ -27,7 +27,6 @@ export function ErrorPageScreen({ statusCode }: ErrorPageScreenProps) {
 
         <article className="static-page__content">
           <section>
-            <p>You can return to the homepage, or visit the support page if you need help getting back on track.</p>
             <p>
               <a href="/">Go home</a>
               {' · '}

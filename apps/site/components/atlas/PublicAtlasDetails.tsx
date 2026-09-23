@@ -164,8 +164,8 @@ export function AtlasRecordProfile({
         )}
       </dl>
       <details className="pa-detail-section">
-        <summary>Reference locations · {formatCount(locations.length)}</summary>
-        <p>Points show reference areas, not exact community boundaries.</p>
+        <summary>Map locations · {formatCount(locations.length)}</summary>
+        <p>Map points do not show community boundaries.</p>
         {locations.length ? (
           locations.map((location, index) => (
             <div className="pa-location" key={`${location.sourceId}-${index}`}>
@@ -177,11 +177,11 @@ export function AtlasRecordProfile({
             </div>
           ))
         ) : (
-          <p>No supported map placement is recorded.</p>
+          <p>Location unavailable.</p>
         )}
       </details>
       <div className="pa-profile-sources">
-        <h3>Source records</h3>
+        <h3>Sources</h3>
         {index.sources
           .filter((source) => record.sourceIds.includes(source.id))
           .map((source) => (
