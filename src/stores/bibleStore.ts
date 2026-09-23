@@ -944,7 +944,8 @@ export const useBibleStore = create<BibleState>()(
           return 'installed';
         }
 
-        // Cloud download from Supabase bible_verses table
+        // Download and install the catalog text pack (a prebuilt SQLite file). The app no
+        // longer reads the Supabase bible_verses table.
         let isTextPackDownloadCancelled: ((error: unknown) => boolean) | null = null;
         const operationId = nextTextDownloadOperationId(translationId);
         let resolveDownload!: (result: 'installed' | 'cancelled') => void;
@@ -982,7 +983,7 @@ export const useBibleStore = create<BibleState>()(
 
           const handleProgress = (progress: {
             error?: string;
-            phase: 'fetching' | 'writing' | 'indexing' | 'complete' | 'error';
+            phase: 'fetching' | 'indexing' | 'complete' | 'error';
             totalVerses: number;
             versesDownloaded: number;
             bytesDownloaded?: number;

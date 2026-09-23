@@ -1,6 +1,7 @@
 // Contract guard: checks the shape of the Supabase migration, the generated row types and the
-// text-pack export script — real config/data files, not app logic. Behaviour lives in
-// cloudTranslationService.behavior.test.ts.
+// text-pack export script — real config/data files, not app logic. The app installs prebuilt
+// text packs (cloudTranslationService.behavior.test.ts); export behaviour is covered by
+// scripts/test_export_translation_text_packs.py.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
