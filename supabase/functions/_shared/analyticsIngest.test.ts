@@ -139,6 +139,19 @@ test('the client key is a salted digest that never contains the raw IP', async (
   assert.notEqual(key, await ingest.hashIngestClientKey(request, 'salt-b'));
 });
 
+test('a caller-chosen x-forwarded-for cannot mint a fresh throttle key', async () => {
+  const spoofed = (forwarded: string) =>
+    new Request('https://collector.example', { headers: { 'x-forwarded-for': forwarded } });
+  assert.equal(
+    await ingest.hashIngestClientKey(spoofed('198.51.100.1'), 'salt'),
+    await ingest.hashIngestClientKey(spoofed('198.51.100.2'), 'salt')
+  );
+  const stamped = new Request('https://collector.example', {
+    headers: { 'x-real-ip': '203.0.113.9', 'x-forwarded-for': '198.51.100.1' },
+  });
+  assert.equal(ingest.getClientIp(stamped), '203.0.113.9');
+});
+
 test('the budget RPC is charged with this request’s events and bytes', async () => {
   const fake = rpcFake({
     data: [{ allowed: true, retry_after_seconds: 0, cached_geo: null, claim_geo_lookup: true }],

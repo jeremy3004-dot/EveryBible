@@ -91,12 +91,14 @@ export function resolveQueuedAt(
 }
 
 export function getClientIp(request: Request): string {
-  // Same precedence as the feedback endpoints: cf-connecting-ip is stamped by the edge proxy;
-  // the first x-forwarded-for entry is client-controlled and only a fallback.
-  const cfIp = request.headers.get('cf-connecting-ip')?.trim();
-  if (cfIp) return cfIp;
-  const forwarded = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
-  return forwarded || request.headers.get('x-real-ip')?.trim() || 'unknown';
+  // Same trust rule as _shared/passcodeAttempts.ts: cf-connecting-ip and x-real-ip are
+  // stamped by the edge, but a client-sent x-forwarded-for reaches the function verbatim, so
+  // it would let a flood mint a new throttle key per request. It is never used here.
+  return (
+    request.headers.get('cf-connecting-ip')?.trim() ||
+    request.headers.get('x-real-ip')?.trim() ||
+    'unknown'
+  );
 }
 
 async function sha256Hex(value: string): Promise<string> {
