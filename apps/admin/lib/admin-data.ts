@@ -899,6 +899,17 @@ export async function getHealthIssues(): Promise<HealthIssue[]> {
     });
   }
 
+  // A check that could not run is not a passed check; without this a failed
+  // catalog query still produced "All tracked ... checks are green".
+  if (translations.error) {
+    issues.push({
+      description: `The translation catalog check could not run: ${translations.error.message}`,
+      href: '/translations',
+      severity: 'warning',
+      title: 'Health check incomplete',
+    });
+  }
+
   const hiddenPublishedTranslations = (translations.data ?? []).filter((row) => {
     return row.distribution_state === 'published' && row.is_available === false;
   });
@@ -993,7 +1004,7 @@ export async function listSupportUsers(queryText?: string): Promise<SupportUserS
 
 export async function getSupportUserDetail(userId: string): Promise<SupportUserDetail | null> {
   const service = await getAuthorizedAdminServiceClient();
-  const [profile, preferences, progress, engagement, plans, feedback, events, audits] =
+  const [profile, preferences, progress, engagement, plans, feedback, sessionCount, audits] =
     await Promise.all([
       service
         .from('profiles')
@@ -1027,11 +1038,10 @@ export async function getSupportUserDetail(userId: string): Promise<SupportUserD
         .from('chapter_feedback_submissions')
         .select('id', { count: 'exact', head: true })
         .eq('user_id', userId),
-      service
-        .from('analytics_events')
-        .select('session_id')
-        .eq('user_id', userId)
-        .not('session_id', 'is', null),
+      // METRICS.md: a session is a distinct `session_started.session_id`.
+      // Selecting event rows and de-duping here counted every event type and
+      // was silently truncated by PostgREST's row cap, so SQL counts it.
+      service.rpc('count_user_sessions', { p_user_id: userId }),
       service
         .from('admin_audit_logs')
         .select('id, action, actor_email, entity_type, entity_id, summary, created_at')
@@ -1044,10 +1054,6 @@ export async function getSupportUserDetail(userId: string): Promise<SupportUserD
     return null;
   }
 
-  const sessionIds = new Set(
-    (events.data ?? []).map((row) => row.session_id as string).filter(Boolean)
-  );
-
   return {
     engagement: (engagement.data ?? null) as UserEngagementRow | null,
     feedbackCount: feedback.count ?? 0,
@@ -1056,7 +1062,7 @@ export async function getSupportUserDetail(userId: string): Promise<SupportUserD
     profile: profile.data,
     progress: (progress.data ?? null) as UserProgressRow | null,
     recentAuditLogs: (audits.data ?? []) as AuditLogRow[],
-    sessionCount: sessionIds.size,
+    sessionCount: Math.max(0, Math.round(Number(sessionCount.data) || 0)),
   };
 }
 
