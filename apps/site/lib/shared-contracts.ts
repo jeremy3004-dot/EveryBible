@@ -30,52 +30,6 @@ export interface MobileContentOverridePayload {
   }>;
 }
 
-export interface HomepageActionLink {
-  label: string;
-  href: string;
-}
-
-export interface HomepageStoreLink extends HomepageActionLink {
-  eyebrow: string;
-  platform: 'google-play' | 'app-store';
-}
-
-export interface HomepageHeroContentOverride {
-  title: string;
-  description: string;
-  visual: {
-    src: string;
-    alt: string;
-  };
-  storeLinks: HomepageStoreLink[];
-  inlineLink: HomepageActionLink;
-}
-
-export interface HomepageFeatureCardOverride {
-  title: string;
-  description: string;
-  href: string;
-  actionLabel: string;
-  iconSrc: string;
-  iconAlt: string;
-}
-
-export interface HomepageVerseOfDayOverride {
-  label: string;
-  verse: string;
-  reference: string;
-  imageSrc: string;
-  imageAlt: string;
-  primaryAction: HomepageActionLink;
-  secondaryAction: HomepageActionLink;
-}
-
-export interface HomepageContentOverridePayload {
-  hero: HomepageHeroContentOverride;
-  featureCards: HomepageFeatureCardOverride[];
-  verseOfDay: HomepageVerseOfDayOverride;
-}
-
 export interface OperatorAuditMetadata {
   actorSource?: string;
   channel?: string | null;
