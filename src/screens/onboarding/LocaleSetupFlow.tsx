@@ -233,7 +233,9 @@ function OptionRow({
       ]}
     >
       <View style={styles.optionRowCopy}>
-        <Text style={[styles.optionRowTitle, { color: colors.primaryText }]} numberOfLines={1}>
+        {/* Two lines, not one: long country and language names otherwise lose
+            their ending under large Dynamic Type. */}
+        <Text style={[styles.optionRowTitle, { color: colors.primaryText }]} numberOfLines={2}>
           {title}
         </Text>
         {subtitle ? (
@@ -1374,7 +1376,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
             <View style={styles.optionRowCopy}>
               <Text
                 style={[styles.suggestedTitle, { color: colors.primaryText }]}
-                numberOfLines={1}
+                numberOfLines={2}
               >
                 {countryName}
               </Text>
