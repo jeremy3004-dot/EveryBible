@@ -432,6 +432,7 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
           </TouchableOpacity>
           <View style={styles.headerCopy}>
             <Text
+              accessibilityRole="header"
               style={[styles.title, displayFont.bold, { color: colors.primaryText }]}
               numberOfLines={2}
             >

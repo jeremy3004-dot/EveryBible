@@ -161,7 +161,7 @@ export function ProfileScreen() {
         >
           <Ionicons name="arrow-back" size={24} color={colors.primaryText} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('more.profile')}</Text>
+        <Text accessibilityRole="header" style={styles.headerTitle}>{t('more.profile')}</Text>
         <View style={styles.headerSpacer} />
       </View>
 

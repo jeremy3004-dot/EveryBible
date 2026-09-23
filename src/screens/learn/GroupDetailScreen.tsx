@@ -274,7 +274,12 @@ export function GroupDetailScreen() {
         >
           <Ionicons name="arrow-back" size={24} color={colors.primaryText} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.primaryText }]}>{group.name}</Text>
+        <Text
+          accessibilityRole="header"
+          style={[styles.headerTitle, { color: colors.primaryText }]}
+        >
+          {group.name}
+        </Text>
         <TouchableOpacity
           style={styles.moreButton}
           onPress={handleShareCode}

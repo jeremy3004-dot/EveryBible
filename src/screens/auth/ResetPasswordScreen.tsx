@@ -218,7 +218,7 @@ export function ResetPasswordScreen() {
           <View style={styles.content}>
             {phase === 'confirm' ? (
               <>
-                <Text style={[styles.title, displayFont.bold]}>
+                <Text accessibilityRole="header" style={[styles.title, displayFont.bold]}>
                   {t('auth.resetLinkConfirmTitle')}
                 </Text>
                 <Text style={styles.subtitle}>{confirmBody}</Text>
@@ -263,7 +263,9 @@ export function ResetPasswordScreen() {
               </>
             ) : (
               <>
-                <Text style={[styles.title, displayFont.bold]}>{t('auth.resetPasswordTitle')}</Text>
+                <Text accessibilityRole="header" style={[styles.title, displayFont.bold]}>
+                  {t('auth.resetPasswordTitle')}
+                </Text>
                 <Text style={styles.subtitle}>{t('auth.resetPasswordSubtitle')}</Text>
 
                 <View style={styles.form}>

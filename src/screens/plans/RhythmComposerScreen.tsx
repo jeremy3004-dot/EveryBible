@@ -359,7 +359,10 @@ export function RhythmComposerScreen({ navigation, route }: RhythmComposerScreen
             <Ionicons name="arrow-back" size={20} color={colors.primaryText} />
           </TouchableOpacity>
           <View style={styles.headerCopy}>
-            <Text style={[styles.screenTitle, displayFont.bold, { color: colors.primaryText }]}>
+            <Text
+              accessibilityRole="header"
+              style={[styles.screenTitle, displayFont.bold, { color: colors.primaryText }]}
+            >
               {isEditing ? t('readingPlans.editRhythm') : t('readingPlans.createRhythm')}
             </Text>
             <Text style={[styles.screenSubtitle, { color: colors.secondaryText }]}>
@@ -377,7 +380,10 @@ export function RhythmComposerScreen({ navigation, route }: RhythmComposerScreen
           <Text style={[styles.heroEyebrow, { color: colors.accentPrimary }]}>
             {t('plans.rhythmComposer.heroEyebrow')}
           </Text>
-          <Text style={[styles.heroTitle, { color: colors.primaryText }]}>
+          <Text
+            accessibilityRole="header"
+            style={[styles.heroTitle, { color: colors.primaryText }]}
+          >
             {t('plans.rhythmComposer.heroTitle')}
           </Text>
           <Text style={[styles.heroBody, { color: colors.secondaryText }]}>

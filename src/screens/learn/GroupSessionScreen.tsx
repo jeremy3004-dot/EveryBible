@@ -282,7 +282,10 @@ export function GroupSessionScreen() {
           <Ionicons name="close" size={24} color={colors.primaryText} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={[styles.headerTitle, { color: colors.primaryText }]}>
+          <Text
+            accessibilityRole="header"
+            style={[styles.headerTitle, { color: colors.primaryText }]}
+          >
             {t('groups.session.title')}
           </Text>
           <Text style={[styles.headerSubtitle, { color: colors.secondaryText }]}>{group.name}</Text>

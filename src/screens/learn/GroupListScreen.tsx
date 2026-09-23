@@ -151,7 +151,10 @@ export function GroupListScreen() {
         >
           <Ionicons name="arrow-back" size={24} color={colors.primaryText} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.primaryText }]}>
+        <Text
+          accessibilityRole="header"
+          style={[styles.headerTitle, { color: colors.primaryText }]}
+        >
           {t('harvest.groupPreviewTitle')}
         </Text>
         <View style={styles.headerRight} />
@@ -177,7 +180,10 @@ export function GroupListScreen() {
               >
                 {t('harvest.groupPreviewBadge')}
               </Text>
-              <Text style={[styles.heroTitle, { color: colors.primaryText }]}>
+              <Text
+                accessibilityRole="header"
+                style={[styles.heroTitle, { color: colors.primaryText }]}
+              >
                 {t('harvest.groupPreviewTitle')}
               </Text>
             </View>

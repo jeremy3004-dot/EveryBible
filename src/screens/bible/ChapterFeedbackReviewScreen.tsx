@@ -242,7 +242,7 @@ export function ChapterFeedbackReviewScreen({ route, navigation }: Props) {
   const pending = (summary?.unresolvedDown ?? 0) + (summary?.unresolvedUp ?? 0);
   const header = (
     <View style={styles.section}>
-      <Text style={[styles.title, { color: colors.primaryText }]}>
+      <Text accessibilityRole="header" style={[styles.title, { color: colors.primaryText }]}>
         {getTranslatedBookName(bookId, t)} {chapter}
       </Text>
       <Text style={{ color: colors.secondaryText }}>
@@ -458,7 +458,9 @@ export function ChapterFeedbackReviewScreen({ route, navigation }: Props) {
     >
       <View style={styles.top}>
         {button(t('common.back'), () => navigation.goBack())}
-        <Text style={[styles.title, { color: colors.primaryText }]}>{t('feedback.title')}</Text>
+        <Text accessibilityRole="header" style={[styles.title, { color: colors.primaryText }]}>
+          {t('feedback.title')}
+        </Text>
       </View>
       {enabled ? (
         <FlatList

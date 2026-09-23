@@ -55,7 +55,10 @@ export function TranslationBrowserScreen() {
         >
           <Ionicons name="arrow-back" size={24} color={colors.primaryText} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.primaryText }]}>
+        <Text
+          accessibilityRole="header"
+          style={[styles.headerTitle, { color: colors.primaryText }]}
+        >
           {t('translations.title')}
         </Text>
         <View style={styles.headerSpacer} />

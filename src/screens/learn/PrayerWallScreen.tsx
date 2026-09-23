@@ -443,7 +443,10 @@ export function PrayerWallScreen() {
           <Ionicons name="arrow-back" size={24} color={colors.primaryText} />
         </TouchableOpacity>
         <View style={styles.headerTitleWrapper}>
-          <Text style={[styles.headerTitle, { color: colors.primaryText }]}>
+          <Text
+            accessibilityRole="header"
+            style={[styles.headerTitle, { color: colors.primaryText }]}
+          >
             {t('prayer.title')}
           </Text>
           <Text style={[styles.headerSubtitle, { color: colors.secondaryText }]} numberOfLines={1}>

@@ -47,7 +47,9 @@ export function AboutScreen() {
         >
           <Ionicons name="arrow-back" size={24} color={colors.primaryText} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('about.title')}</Text>
+        <Text accessibilityRole="header" style={styles.headerTitle}>
+          {t('about.title')}
+        </Text>
         <View style={{ width: 32 }} />
       </View>
 

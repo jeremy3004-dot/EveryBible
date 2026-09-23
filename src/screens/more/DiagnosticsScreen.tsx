@@ -81,7 +81,9 @@ export function DiagnosticsScreen() {
         >
           <Ionicons name="arrow-back" size={24} color={colors.primaryText} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('settings.diagnostics.title')}</Text>
+        <Text accessibilityRole="header" style={styles.headerTitle}>
+          {t('settings.diagnostics.title')}
+        </Text>
         <View style={{ width: 32 }} />
       </View>
 

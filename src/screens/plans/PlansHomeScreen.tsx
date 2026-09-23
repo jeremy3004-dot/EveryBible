@@ -1301,7 +1301,9 @@ export function PlansHomeScreen() {
               {headerEyebrow}
             </Text>
           ) : null}
-          <Text style={[styles.title, displayFont.bold]}>{t('readingPlans.plans')}</Text>
+          <Text accessibilityRole="header" style={[styles.title, displayFont.bold]}>
+            {t('readingPlans.plans')}
+          </Text>
         </View>
         {tabStrip}
 
