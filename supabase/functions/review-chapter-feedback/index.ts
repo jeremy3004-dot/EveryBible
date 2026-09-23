@@ -4,14 +4,20 @@ import {
   readPasscodeLockout,
   recordFailedPasscodeAttempt,
 } from '../_shared/passcodeAttempts.ts';
+import {
+  AUDIO_URL_TTL_SECONDS,
+  type ChapterFeedbackReviewRow,
+  LEGACY_LIST_AUDIO_URL_TTL_SECONDS,
+  type ReviewResolution,
+  signsListAudio,
+  toReviewFeedbackItem,
+} from './reviewPayload.ts';
 import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-type ReviewResolution = 'fixed' | 'no_change_needed';
 
 interface ReviewRequest {
   apiVersion?: number;
@@ -32,32 +38,6 @@ interface ReviewRequest {
   feedbackId?: string;
   resolution?: ReviewResolution;
   note?: string;
-}
-
-interface ChapterFeedbackReviewRow {
-  contributor_category: 'community' | 'scripture_council' | null;
-  id: string;
-  created_at: string;
-  translation_id: string;
-  translation_language: string;
-  book_id: string;
-  chapter: number;
-  sentiment: 'up' | 'down';
-  comment: string | null;
-  participant_name: string | null;
-  participant_role: string | null;
-  participant_id_number: string | null;
-  user_id: string | null;
-  source_screen: string;
-  audio_response_bucket: string | null;
-  audio_response_path: string | null;
-  audio_response_mime_type: string | null;
-  audio_response_size_bytes: number | null;
-  audio_response_duration_ms: number | null;
-  audio_response_created_at: string | null;
-  scripture_council_resolution: ReviewResolution | null;
-  scripture_council_fixed_at: string | null;
-  scripture_council_fixed_note: string | null;
 }
 
 interface ChapterFeedbackSummaryRow {
@@ -331,7 +311,7 @@ Deno.serve(async (request) => {
         return jsonResponse(404, { success: false, error: 'Recording not found' });
       }
       const signed = await service.storage.from(audio.audio_response_bucket)
-        .createSignedUrl(audio.audio_response_path, 3600);
+        .createSignedUrl(audio.audio_response_path, AUDIO_URL_TTL_SECONDS);
       return signed.error ? jsonResponse(500, { success: false, error: 'Recording unavailable' })
         : jsonResponse(200, { success: true, playbackUrl: signed.data.signedUrl });
     }
@@ -462,13 +442,13 @@ Deno.serve(async (request) => {
     const rows = (body.apiVersion === 2 ? data.rows : data ?? []) as ChapterFeedbackReviewRow[];
     const signedAudioUrls = await Promise.all(
       rows.map(async (row) => {
-        if (!row.audio_response_bucket || !row.audio_response_path) {
+        if (!signsListAudio(body.apiVersion) || !row.audio_response_bucket || !row.audio_response_path) {
           return null;
         }
 
         const { data: signedUrlData, error: signedUrlError } = await service.storage
           .from(row.audio_response_bucket)
-          .createSignedUrl(row.audio_response_path, 60 * 60);
+          .createSignedUrl(row.audio_response_path, LEGACY_LIST_AUDIO_URL_TTL_SECONDS);
 
         if (signedUrlError) {
           return null;
@@ -481,41 +461,9 @@ Deno.serve(async (request) => {
     return jsonResponse(200, {
       success: true,
       ...(body.apiVersion === 2 ? { summary: data.chapters[0] ?? null, nextCursor: data.nextCursor, positiveCount: data.positiveCount } : {}),
-      feedback: rows.map((row, index) => ({
-        contributorCategory: row.contributor_category ?? null,
-        id: row.id,
-        createdAt: row.created_at,
-        translationId: row.translation_id,
-        translationLanguage: row.translation_language,
-        bookId: row.book_id,
-        chapter: row.chapter,
-        sentiment: row.sentiment,
-        comment: row.comment,
-        participantName: row.participant_name,
-        participantRole: row.participant_role,
-        // Legacy rows stored the raw Supabase UUID here; never surface it to translators (S4).
-        // row.user_id is selected ONLY for this comparison and is deliberately not emitted:
-        // translators authenticate with a shared passcode, so anything in this payload is
-        // readable by every passcode holder, and the submitter's auth UUID is not theirs to see.
-        participantIdNumber:
-          row.participant_id_number && row.participant_id_number === row.user_id
-            ? null
-            : row.participant_id_number,
-        sourceScreen: row.source_screen,
-        resolution: row.scripture_council_resolution,
-        resolvedAt: row.scripture_council_fixed_at,
-        resolutionNote: row.scripture_council_fixed_note,
-        audioResponse:
-          row.audio_response_path && row.audio_response_duration_ms && row.audio_response_mime_type
-            ? {
-                createdAt: row.audio_response_created_at,
-                durationMs: row.audio_response_duration_ms,
-                mimeType: row.audio_response_mime_type,
-                playbackUrl: signedAudioUrls[index],
-                sizeBytes: row.audio_response_size_bytes,
-              }
-            : null,
-      })),
+      feedback: rows.map((row, index) =>
+        toReviewFeedbackItem(row, body.apiVersion, signedAudioUrls[index])
+      ),
     });
   } catch (error) {
     return jsonResponse(500, {
