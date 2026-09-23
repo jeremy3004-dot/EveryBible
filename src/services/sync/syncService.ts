@@ -229,8 +229,9 @@ const ensureCloudProfileImpl = async (identity: SyncIdentityBoundary): Promise<S
   const write = await identity.runIfCurrent(() =>
     supabase.from('profiles').upsert(
       {
+        // profiles.email is copied from auth.users by a database trigger; the client does not
+        // write it, so a profile cannot claim someone else's address.
         id: user.id,
-        email: user.email ?? null,
         display_name:
           user.user_metadata?.display_name ||
           user.user_metadata?.full_name ||
