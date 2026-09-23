@@ -61,7 +61,8 @@ export function AudioReturnTab({ currentRouteName }: AudioReturnTabProps) {
     >
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={referenceLabel}
+        // The rotated tab shows only the reference; say what it returns to.
+        accessibilityLabel={`${t('audio.nowPlaying')}, ${referenceLabel}`}
         hitSlop={8}
         onPress={() => {
           if (!rootNavigationRef.isReady()) {

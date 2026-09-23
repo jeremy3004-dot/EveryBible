@@ -168,7 +168,7 @@ export function PlaybackControls({
               ]}
               onPress={onPreviousChapter}
               disabled={!hasPreviousChapter || isLoading}
-              hitSlop={{ top: 4, bottom: 4, left: 2, right: 2 }}
+              hitSlop={4}
               accessibilityRole="button"
               accessibilityLabel={t('audio.previousChapter')}
               accessibilityState={{ disabled: !hasPreviousChapter || isLoading }}
@@ -190,6 +190,7 @@ export function PlaybackControls({
               onPress={onSkipBackward}
               disabled={isLoading}
               hitSlop={4}
+              accessibilityRole="button"
             >
               <Ionicons name="play-back" size={16} color={colors.biblePrimaryText} />
               <Text style={[styles.skipLabel, { color: colors.biblePrimaryText }]}>10</Text>
@@ -234,6 +235,7 @@ export function PlaybackControls({
               onPress={onSkipForward}
               disabled={isLoading}
               hitSlop={4}
+              accessibilityRole="button"
             >
               <Text style={[styles.skipLabel, { color: colors.biblePrimaryText }]}>10</Text>
               <Ionicons name="play-forward" size={16} color={colors.biblePrimaryText} />
@@ -249,7 +251,7 @@ export function PlaybackControls({
               ]}
               onPress={onNextChapter}
               disabled={!hasNextChapter || isLoading}
-              hitSlop={{ top: 4, bottom: 4, left: 2, right: 2 }}
+              hitSlop={4}
               accessibilityRole="button"
               accessibilityLabel={t('audio.nextChapter')}
               accessibilityState={{ disabled: !hasNextChapter || isLoading }}
@@ -277,6 +279,14 @@ export function PlaybackControls({
               onPress={() => setShowTimerModal(true)}
               hitSlop={{ top: 4, bottom: 4 }}
               accessibilityRole="button"
+              // Icon-only while no timer runs; the remaining minutes (when shown)
+              // are exposed as the value so the control is never an unnamed button.
+              accessibilityLabel={t('audio.sleepTimer')}
+              accessibilityValue={
+                sleepTimerRemaining
+                  ? { text: t('interface.minutesShort', { count: sleepTimerRemaining }) }
+                  : undefined
+              }
             >
               <Ionicons
                 name={sleepTimerRemaining ? 'timer' : 'timer-outline'}
@@ -334,6 +344,8 @@ export function PlaybackControls({
               onPress={() => setShowSpeedModal(true)}
               hitSlop={{ top: 4, bottom: 4 }}
               accessibilityRole="button"
+              accessibilityLabel={t('audio.playbackSpeed')}
+              accessibilityValue={{ text: `${playbackRate}x` }}
             >
               <Text style={[styles.utilityText, { color: colors.biblePrimaryText }]}>
                 {playbackRate}x
@@ -391,15 +403,23 @@ export function PlaybackControls({
         <Pressable
           style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}
           onPress={() => setShowBackgroundMusicModal(false)}
+          // The backdrop wraps the sheet; left accessible it would fold every
+          // option into one VoiceOver element that can only dismiss.
+          accessible={false}
         >
           <View
+            accessibilityViewIsModal
+            onAccessibilityEscape={() => setShowBackgroundMusicModal(false)}
             style={[
               styles.modalContent,
               styles.backgroundMusicModalContent,
               { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
             ]}
           >
-            <Text style={[styles.modalTitle, { color: colors.biblePrimaryText }]}>
+            <Text
+              accessibilityRole="header"
+              style={[styles.modalTitle, { color: colors.biblePrimaryText }]}
+            >
               {t('audio.musicAndSounds')}
             </Text>
             <Text style={[styles.modalSubtitle, { color: colors.bibleSecondaryText }]}>
@@ -424,6 +444,8 @@ export function PlaybackControls({
                     onChangeBackgroundMusicChoice(option.id);
                     setShowBackgroundMusicModal(false);
                   }}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: isSelected }}
                 >
                   <View style={styles.backgroundMusicCopy}>
                     <Text
@@ -466,14 +488,22 @@ export function PlaybackControls({
         <Pressable
           style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}
           onPress={() => setShowSpeedModal(false)}
+          // The backdrop wraps the sheet; left accessible it would fold every
+          // option into one VoiceOver element that can only dismiss.
+          accessible={false}
         >
           <View
+            accessibilityViewIsModal
+            onAccessibilityEscape={() => setShowSpeedModal(false)}
             style={[
               styles.modalContent,
               { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
             ]}
           >
-            <Text style={[styles.modalTitle, { color: colors.biblePrimaryText }]}>
+            <Text
+              accessibilityRole="header"
+              style={[styles.modalTitle, { color: colors.biblePrimaryText }]}
+            >
               {t('audio.playbackSpeed')}
             </Text>
             {PLAYBACK_RATES.map((rate) => (
@@ -489,6 +519,8 @@ export function PlaybackControls({
                   onChangePlaybackRate(rate);
                   setShowSpeedModal(false);
                 }}
+                accessibilityRole="button"
+                accessibilityState={{ selected: rate === playbackRate }}
               >
                 <Text
                   style={[
@@ -520,14 +552,22 @@ export function PlaybackControls({
         <Pressable
           style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}
           onPress={() => setShowTimerModal(false)}
+          // The backdrop wraps the sheet; left accessible it would fold every
+          // option into one VoiceOver element that can only dismiss.
+          accessible={false}
         >
           <View
+            accessibilityViewIsModal
+            onAccessibilityEscape={() => setShowTimerModal(false)}
             style={[
               styles.modalContent,
               { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
             ]}
           >
-            <Text style={[styles.modalTitle, { color: colors.biblePrimaryText }]}>
+            <Text
+              accessibilityRole="header"
+              style={[styles.modalTitle, { color: colors.biblePrimaryText }]}
+            >
               {t('audio.sleepTimer')}
             </Text>
             {SLEEP_TIMER_OPTIONS.map((option) => (
@@ -538,6 +578,7 @@ export function PlaybackControls({
                   onSetSleepTimer(option.value);
                   setShowTimerModal(false);
                 }}
+                accessibilityRole="button"
               >
                 <Text style={[styles.modalOptionText, { color: colors.biblePrimaryText }]}>
                   {option.value == null
@@ -598,7 +639,8 @@ const styles = StyleSheet.create({
   },
   utilityButton: {
     minWidth: 64,
-    height: 38,
+    // minHeight, not height: the sleep-timer and speed labels grow with Dynamic Type.
+    minHeight: 38,
     borderRadius: 999,
     borderWidth: 1,
     paddingHorizontal: 12,

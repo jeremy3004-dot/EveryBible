@@ -11,6 +11,7 @@ import type { MutableRefObject, ReactElement, ReactNode, Ref } from 'react';
 import { memo, useEffect, useImperativeHandle, useRef } from 'react';
 import type { StyleProp, TextStyle, ViewStyle } from 'react-native';
 import { Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { AudioProgressScrubber } from '../../components/audio/AudioProgressScrubber';
 import type { Verse } from '../../types';
@@ -190,6 +191,7 @@ export const ReaderListenProgress = memo(function ReaderListenProgress({
   timeTextStyle,
   children,
 }: ReaderListenProgressProps) {
+  const { t } = useTranslation();
   const { currentPosition, duration } = useAudioPosition(track);
   const listenPosition = isCurrentAudioChapter ? currentPosition : 0;
   const listenDuration = isCurrentAudioChapter ? duration : 0;
@@ -206,11 +208,18 @@ export const ReaderListenProgress = memo(function ReaderListenProgress({
         containerStyle={containerStyle}
         trackStyle={trackStyle}
         fillStyle={fillStyle}
+        accessibilityLabel={t('readingPlans.progress')}
       />
 
       {children}
 
-      <View style={timeRowStyle}>
+      {/* The scrubber already announces elapsed / total; these labels tick four
+          times a second and would only repeat it. */}
+      <View
+        style={timeRowStyle}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      >
         <Text style={[timeTextStyle, { color: timeTextColor }]}>
           {formatClockTime(listenPosition)}
         </Text>
