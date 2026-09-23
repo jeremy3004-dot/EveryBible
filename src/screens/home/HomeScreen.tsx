@@ -920,7 +920,14 @@ export function HomeScreen() {
               pressable
               padding={spacing.lg}
               style={styles.gatherCard}
-              accessibilityLabel={`${t('tabs.gather')} · ${foundationTitle}`}
+              accessibilityLabel={[
+                `${t('tabs.gather')} · ${foundationTitle}`,
+                t('home.lessonsProgress', {
+                  completed: foundationCompletedLessons.length,
+                  total: foundation.lessons.length,
+                }),
+                t('home.nextLesson', { title: nextLessonTitle }),
+              ].join(', ')}
               onPress={() =>
                 navigation.navigate('Learn', {
                   screen: 'FoundationDetail',
@@ -983,7 +990,8 @@ export function HomeScreen() {
           <Animated.View entering={sectionEntering(2)}>
             <AppCard padding={layout.cardPadding} style={styles.ledgerCard}>
               <View style={styles.ledgerHeader}>
-                <View style={styles.ledgerStreak}>
+                {/* One element: "12, day streak" rather than a bare number. */}
+                <View style={styles.ledgerStreak} accessible>
                   <Flame size={18} color={colors.accentPrimary} strokeWidth={2} />
                   <Text style={[styles.ledgerStreakCount, { color: colors.primaryText }]}>
                     {streakDays}
@@ -1009,7 +1017,10 @@ export function HomeScreen() {
                     listening were split until a listener with years of audio saw
                     a zero: the listen record only starts at this build, while the
                     union has always been populated by reading. */}
-                <View style={[styles.ledgerRow, { borderTopColor: colors.borderStrong }]}>
+                <View
+                  style={[styles.ledgerRow, { borderTopColor: colors.borderStrong }]}
+                  accessible
+                >
                   <BookOpen size={18} color={colors.secondaryText} strokeWidth={2} />
                   <View style={styles.ledgerRowCopy}>
                     <Text style={[styles.ledgerRowTitle, { color: colors.primaryText }]}>
@@ -1024,7 +1035,10 @@ export function HomeScreen() {
                   </Text>
                 </View>
 
-                <View style={[styles.ledgerRow, { borderTopColor: colors.borderStrong }]}>
+                <View
+                  style={[styles.ledgerRow, { borderTopColor: colors.borderStrong }]}
+                  accessible
+                >
                   <CircleCheck size={18} color={colors.success} strokeWidth={2} />
                   <View style={styles.ledgerRowCopy}>
                     <Text style={[styles.ledgerRowTitle, { color: colors.primaryText }]}>
