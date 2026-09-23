@@ -1,5 +1,6 @@
 import { verifyCouncilAccess } from '../_shared/councilAccess.ts';
 import { isFeedbackAudioContainer } from '../_shared/feedbackAudio.ts';
+import { hashPasscodeAttemptKey } from '../_shared/passcodeAttempts.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
@@ -167,30 +168,6 @@ const decodeBase64 = (base64Data: string): Uint8Array => {
   }
 
   return bytes;
-};
-
-// S6: stable identity for the anonymous submission rate limit. Copied from
-// review-chapter-feedback/index.ts:90-129 so both credential-free feedback endpoints key
-// their throttles on the same value.
-const getClientIp = (request: Request): string => {
-  // Prefer cf-connecting-ip: on Supabase's Cloudflare edge this is stamped by the proxy and
-  // cannot be spoofed by the client, unlike the first x-forwarded-for entry (which the client
-  // controls — trusted proxies append the real IP, they do not prepend it).
-  const cfIp = request.headers.get('cf-connecting-ip')?.trim();
-  if (cfIp) return cfIp;
-  const forwardedFor = request.headers.get('x-forwarded-for') ?? '';
-  const first = forwardedFor.split(',')[0]?.trim();
-  return first || request.headers.get('x-real-ip')?.trim() || 'unknown';
-};
-
-// Only the digest is ever persisted — chapter_feedback_submissions.client_ip_hash stores no
-// raw address, and review-chapter-feedback never returns the column to translators.
-const hashClientIp = async (request: Request): Promise<string> => {
-  const data = new TextEncoder().encode(getClientIp(request));
-  const digest = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(digest))
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('');
 };
 
 const getRequiredSecret = (name: string): string => {
@@ -426,9 +403,11 @@ Deno.serve(async (req) => {
     // S6: the anonymous branch used to be scoped by participant_name + participant_role —
     // two free-text fields straight from the request body, so rotating a name reset the
     // counter and the limit was a formality. Anonymous submitters are now scoped by a hash of
-    // the client IP (cf-connecting-ip, which the Cloudflare edge stamps and the client cannot
-    // forge). Signed-in submitters keep the user_id scope, which was already un-spoofable.
-    const clientIpHash = await hashClientIp(req);
+    // the client address (cf-connecting-ip, which the Cloudflare edge stamps and the client
+    // cannot forge; IPv6 by /64), the same key as the passcode lockouts. Only the digest is
+    // stored, and review-chapter-feedback never returns the column. Signed-in submitters keep
+    // the user_id scope, which was already un-spoofable.
+    const clientIpHash = await hashPasscodeAttemptKey(req);
     const rateWindowStart = new Date(Date.now() - 60 * 60 * 1000).toISOString();
     const rateQuery = supabase
       .from('chapter_feedback_submissions')

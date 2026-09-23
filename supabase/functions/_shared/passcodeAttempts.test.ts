@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createHash } from 'node:crypto';
 import {
   PASSCODE_LOCKOUT_THRESHOLD,
+  hashPasscodeAttemptKey,
+  passcodeAttemptClientKey,
   readPasscodeLockout,
   recordFailedPasscodeAttempt,
 } from './passcodeAttempts.ts';
@@ -68,4 +71,58 @@ test('recording a failed attempt reports whether the row was written', async () 
   assert.equal(await recordFailedPasscodeAttempt(ok.service, 'hash'), true);
   assert.deepEqual(ok.recorded.inserts, [{ ip_hash: 'hash', succeeded: false }]);
   assert.equal(await recordFailedPasscodeAttempt(broken.service, 'hash'), false);
+});
+
+const request = (headers: Record<string, string>) =>
+  new Request('https://example.test/functions/v1/review-chapter-feedback', { headers });
+
+test('the edge-stamped cf-connecting-ip is the attempt key, whatever else the client sends', () => {
+  assert.equal(
+    passcodeAttemptClientKey(
+      request({
+        'cf-connecting-ip': '192.0.2.10',
+        'x-real-ip': '192.0.2.11',
+        'x-forwarded-for': '198.51.100.1, 192.0.2.10',
+      })
+    ),
+    '192.0.2.10'
+  );
+});
+
+// Checked against the live project on 2026-09-24: a client-sent x-forwarded-for reaches the
+// function verbatim, so rotating it must not produce a fresh lockout bucket.
+test('a client-chosen x-forwarded-for never becomes the attempt key', () => {
+  assert.equal(passcodeAttemptClientKey(request({ 'x-forwarded-for': '198.51.100.1' })), 'unknown');
+  assert.equal(
+    passcodeAttemptClientKey(
+      request({ 'x-real-ip': '192.0.2.11', 'x-forwarded-for': '198.51.100.1' })
+    ),
+    '192.0.2.11'
+  );
+});
+
+test('IPv6 callers are bucketed by their /64, so rotating the interface id does not help', () => {
+  const a = passcodeAttemptClientKey(request({ 'cf-connecting-ip': '2001:db8:1:2:aaaa::1' }));
+  const b = passcodeAttemptClientKey(
+    request({ 'cf-connecting-ip': '2001:0DB8:0001:0002:ffff:ffff:ffff:ffff' })
+  );
+  const otherNetwork = passcodeAttemptClientKey(request({ 'cf-connecting-ip': '2001:db8:1:3::1' }));
+  assert.equal(a, '2001:db8:1:2::/64');
+  assert.equal(b, a);
+  assert.notEqual(otherNetwork, a);
+  assert.equal(
+    passcodeAttemptClientKey(request({ 'cf-connecting-ip': '2001:db8::1' })),
+    '2001:db8:0:0::/64'
+  );
+  assert.equal(
+    passcodeAttemptClientKey(request({ 'cf-connecting-ip': '::ffff:192.0.2.7' })),
+    '192.0.2.7'
+  );
+});
+
+test('attempt hashes keep their existing format so live lockout windows carry over', async () => {
+  const sha = (value: string) => createHash('sha256').update(value).digest('hex');
+  const caller = request({ 'cf-connecting-ip': '192.0.2.10' });
+  assert.equal(await hashPasscodeAttemptKey(caller), sha('192.0.2.10'));
+  assert.equal(await hashPasscodeAttemptKey(caller, 'council:'), sha('council:192.0.2.10'));
 });

@@ -1,5 +1,9 @@
 import { verifyCouncilAccess } from '../_shared/councilAccess.ts';
-import { readPasscodeLockout, recordFailedPasscodeAttempt } from '../_shared/passcodeAttempts.ts';
+import {
+  hashPasscodeAttemptKey,
+  readPasscodeLockout,
+  recordFailedPasscodeAttempt,
+} from '../_shared/passcodeAttempts.ts';
 import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
@@ -97,22 +101,9 @@ const isResolution = (value: unknown): value is ReviewResolution =>
   value === 'fixed' || value === 'no_change_needed';
 
 // Brute-force protection for the shared translator passcode (S2) lives in
-// _shared/passcodeAttempts.ts. The lockout check runs before the passcode comparison so it
+// _shared/passcodeAttempts.ts, keyed on the edge-stamped client address (never on the
+// caller's own x-forwarded-for). The lockout check runs before the passcode comparison so it
 // also covers `validateOnly` probes.
-
-const getClientIp = (request: Request): string => {
-  // Prefer cf-connecting-ip: on Supabase's Cloudflare edge this is stamped by the
-  // proxy and cannot be spoofed by the client, unlike the first x-forwarded-for
-  // entry (which the client controls — trusted proxies append the real IP, they
-  // do not prepend it). Mirrors track-anonymous-usage-events/getClientIp so the
-  // brute-force lockout keys on a stable identifier instead of an attacker-rotated
-  // XFF value.
-  const cfIp = request.headers.get('cf-connecting-ip')?.trim();
-  if (cfIp) return cfIp;
-  const forwardedFor = request.headers.get('x-forwarded-for') ?? '';
-  const first = forwardedFor.split(',')[0]?.trim();
-  return first || request.headers.get('x-real-ip')?.trim() || 'unknown';
-};
 
 // Constant-time string comparison so a wrong passcode cannot be recovered via
 // early-exit timing. Folds a length mismatch into the accumulator and always
@@ -127,14 +118,6 @@ const constantTimeEquals = (a: string, b: string): boolean => {
     mismatch |= (aBytes[i] ?? 0) ^ (bBytes[i] ?? 0);
   }
   return mismatch === 0;
-};
-
-const hashClientIp = async (request: Request): Promise<string> => {
-  const data = new TextEncoder().encode(getClientIp(request));
-  const digest = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(digest))
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('');
 };
 
 // Resolve the acting translator's user id from an optional bearer token so we can
@@ -187,7 +170,7 @@ Deno.serve(async (request) => {
         : jsonResponse(200, { success: true });
     }
 
-    const ipHash = await hashClientIp(request);
+    const ipHash = await hashPasscodeAttemptKey(request);
     const tooManyAttempts = () =>
       jsonResponse(429, { success: false, error: 'Too many attempts. Try again later.' });
     // Fail CLOSED: without a readable (and writable) attempt counter there is no brute-force
