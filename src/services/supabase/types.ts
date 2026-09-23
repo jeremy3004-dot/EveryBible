@@ -324,7 +324,8 @@ export interface Database {
         Args: {
           group_join_code: string;
         };
-        Returns: string;
+        /** NULL when no active group has that code (misses are rate-limited server-side). */
+        Returns: string | null;
       };
       leave_group: {
         Args: {
