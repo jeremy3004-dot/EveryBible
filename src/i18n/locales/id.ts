@@ -513,6 +513,8 @@ export const id = {
     "shareChapterReference": "Bagikan referensi pasal",
     "shareChapterAudio": "Bagikan audio pasal",
     "shareAudioPortion": "Bagikan potongan audio",
+    "audioClipStart": "Awal potongan",
+    "audioClipEnd": "Akhir potongan",
     "shareVerseImage": "Gambar",
     "chooseVerseImageBackground": "Pilih latar belakang",
     "books": {

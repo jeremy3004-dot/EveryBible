@@ -513,6 +513,8 @@ export const de = {
     "shareChapterReference": "Bibelstelle teilen",
     "shareChapterAudio": "Kapitel-Audio teilen",
     "shareAudioPortion": "Audioausschnitt teilen",
+    "audioClipStart": "Beginn des Ausschnitts",
+    "audioClipEnd": "Ende des Ausschnitts",
     "shareVerseImage": "Bild",
     "chooseVerseImageBackground": "Hintergrund auswählen",
     "books": {

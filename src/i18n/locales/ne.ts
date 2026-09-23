@@ -237,6 +237,8 @@ export const ne = {
     "shareChapterReference": "अध्याय सन्दर्भ साझा गर्नुहोस्",
     "shareChapterAudio": "अध्यायको अडियो साझा गर्नुहोस्",
     "shareAudioPortion": "अडियोको केही भाग साझा गर्नुहोस्",
+    "audioClipStart": "क्लिपको सुरुवात",
+    "audioClipEnd": "क्लिपको अन्त्य",
     "shareVerseImage": "तस्बिर",
     "chooseVerseImageBackground": "पृष्ठभूमि छान्नुहोस्",
     "chapterFeedback": "शुद्धता समीक्षा",

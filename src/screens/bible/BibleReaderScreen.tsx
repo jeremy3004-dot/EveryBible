@@ -3,7 +3,7 @@ import { BookIcon } from '../../components/bible/BookIcon';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import type { ReactElement } from 'react';
-import type { LayoutChangeEvent } from 'react-native';
+import type { AccessibilityActionEvent, LayoutChangeEvent } from 'react-native';
 import {
   ActivityIndicator,
   Alert,
@@ -224,6 +224,8 @@ const TOP_ACTION_ICON_SIZE = 20;
 const AUDIO_PORTION_MIN_DURATION_MS = 1000;
 const AUDIO_PORTION_DEFAULT_DURATION_MS = 30000;
 const AUDIO_PORTION_HANDLE_WIDTH = 20;
+// One screen-reader increment/decrement of a clip handle.
+const AUDIO_PORTION_A11Y_STEP_MS = 5000;
 const CHAPTER_FEEDBACK_AUDIO_TIMER_MS = 500;
 const CHAPTER_FEEDBACK_AUDIO_APP_ACTIVE_TIMEOUT_MS = 3000;
 const FEEDBACK_AUDIO_COUNTDOWN_SIZE = 58;
@@ -389,6 +391,8 @@ interface AudioRangeSelectorProps {
   handleGripColor: string;
   onStartChange: (nextStartMs: number) => void;
   onEndChange: (nextEndMs: number) => void;
+  startLabel: string;
+  endLabel: string;
 }
 
 function AudioRangeSelector({
@@ -406,6 +410,8 @@ function AudioRangeSelector({
   handleGripColor,
   onStartChange,
   onEndChange,
+  startLabel,
+  endLabel,
 }: AudioRangeSelectorProps) {
   const [trackWidth, setTrackWidth] = useState(0);
   const waveformSamples = useMemo(
@@ -477,6 +483,18 @@ function AudioRangeSelector({
   const isPreviewWithinSelection =
     previewPositionMs >= clampedStartMs && previewPositionMs <= clampedEndMs;
 
+  // The handles are drag-only; as adjustable elements a screen-reader user can
+  // move them with swipe up/down. The seek handlers clamp to the valid range.
+  const handleA11yActions = [{ name: 'increment' as const }, { name: 'decrement' as const }];
+  const onStartA11yAction = (event: AccessibilityActionEvent) => {
+    const direction = event.nativeEvent.actionName === 'increment' ? 1 : -1;
+    onStartChange(clampedStartMs + direction * AUDIO_PORTION_A11Y_STEP_MS);
+  };
+  const onEndA11yAction = (event: AccessibilityActionEvent) => {
+    const direction = event.nativeEvent.actionName === 'increment' ? 1 : -1;
+    onEndChange(clampedEndMs + direction * AUDIO_PORTION_A11Y_STEP_MS);
+  };
+
   return (
     <View style={styles.audioPortionRangeSelector} onLayout={onTrackLayout}>
       <View style={[styles.audioPortionRangeTrack, { backgroundColor: trackColor }]} />
@@ -536,6 +554,13 @@ function AudioRangeSelector({
             backgroundColor: handleColor,
           },
         ]}
+        hitSlop={{ left: 12, right: 12 }}
+        accessible
+        accessibilityRole="adjustable"
+        accessibilityLabel={startLabel}
+        accessibilityValue={{ text: formatClockTime(clampedStartMs) }}
+        accessibilityActions={handleA11yActions}
+        onAccessibilityAction={onStartA11yAction}
         {...startHandleResponder.panHandlers}
       >
         <View style={[styles.audioPortionHandleGrip, { backgroundColor: handleGripColor }]} />
@@ -550,6 +575,13 @@ function AudioRangeSelector({
             backgroundColor: handleColor,
           },
         ]}
+        hitSlop={{ left: 12, right: 12 }}
+        accessible
+        accessibilityRole="adjustable"
+        accessibilityLabel={endLabel}
+        accessibilityValue={{ text: formatClockTime(clampedEndMs) }}
+        accessibilityActions={handleA11yActions}
+        onAccessibilityAction={onEndA11yAction}
         {...endHandleResponder.panHandlers}
       >
         <View style={[styles.audioPortionHandleGrip, { backgroundColor: handleGripColor }]} />
@@ -3449,6 +3481,7 @@ export function BibleReaderScreen() {
                   backgroundColor: colors.bibleSurface,
                 },
               ]}
+              accessibilityRole="button"
               accessibilityLabel={t('bible.chapterFeedbackAudioRecord')}
               onPress={() => {
                 void startFeedbackAudioRecording();
@@ -3471,6 +3504,7 @@ export function BibleReaderScreen() {
                   backgroundColor: colors.accentPrimary,
                 },
               ]}
+              accessibilityRole="button"
               accessibilityLabel={t('bible.chapterFeedbackAudioStop')}
               onPress={() => {
                 void stopFeedbackAudioRecording();
@@ -3493,6 +3527,7 @@ export function BibleReaderScreen() {
                     backgroundColor: colors.bibleSurface,
                   },
                 ]}
+                accessibilityRole="button"
                 accessibilityLabel={t('bible.chapterFeedbackAudioPreview')}
                 onPress={() => {
                   void playFeedbackAudioPreview();
@@ -3509,6 +3544,7 @@ export function BibleReaderScreen() {
                     backgroundColor: colors.bibleSurface,
                   },
                 ]}
+                accessibilityRole="button"
                 accessibilityLabel={t('bible.chapterFeedbackAudioRerecord')}
                 onPress={discardFeedbackAudioDraft}
                 disabled={isSubmittingFeedback}
@@ -4181,7 +4217,9 @@ export function BibleReaderScreen() {
 
             <View style={styles.feedbackSentimentRow}>
               <TouchableOpacity
+                accessibilityRole="button"
                 accessibilityLabel={t('bible.chapterFeedbackThumbsUp')}
+                accessibilityState={{ selected: feedbackSentiment === 'up' }}
                 style={[
                   styles.listenSentimentButton,
                   {
@@ -4206,7 +4244,9 @@ export function BibleReaderScreen() {
               </TouchableOpacity>
 
               <TouchableOpacity
+                accessibilityRole="button"
                 accessibilityLabel={t('bible.chapterFeedbackThumbsDown')}
+                accessibilityState={{ selected: feedbackSentiment === 'down' }}
                 style={[
                   styles.listenSentimentButton,
                   {
@@ -4442,6 +4482,7 @@ export function BibleReaderScreen() {
           <Pressable
             key={`${verse.id}-formatted-${focusRenderKey}`}
             onPress={() => handleToggleVerseSelection(verse)}
+            accessibilityState={{ selected: isSelected }}
             style={[
               styles.readerVerse,
               styles.structuredVerse,
@@ -4488,6 +4529,7 @@ export function BibleReaderScreen() {
               verseNumberStyle={verseNumberStyle}
               selectedStyle={isSelected ? selectedVerseDecorationStyle : null}
               highlightColor={highlightAnnotation.color}
+              isSelected={isSelected}
               onPress={() => handleToggleVerseSelection(verse)}
             />
           </View>
@@ -4498,6 +4540,7 @@ export function BibleReaderScreen() {
         <Pressable
           key={`${verse.id}-${focusRenderKey}`}
           onPress={() => handleToggleVerseSelection(verse)}
+          accessibilityState={{ selected: isSelected }}
           style={styles.readerVerse}
         >
           <Text
@@ -4552,6 +4595,8 @@ export function BibleReaderScreen() {
       >
         {paragraph.heading ? (
           <Text
+            // Lets VoiceOver/TalkBack users jump between pericopes with the headings rotor.
+            accessibilityRole="header"
             style={[
               styles.sectionHeading,
               usePremiumTypography ? styles.premiumSectionHeading : null,
@@ -4729,6 +4774,7 @@ export function BibleReaderScreen() {
             style={[styles.feedbackButton, { backgroundColor: colors.bibleControlBackground }]}
             onPress={loadChapter}
             activeOpacity={0.85}
+            accessibilityRole="button"
           >
             <Text style={[styles.feedbackButtonText, { color: colors.bibleBackground }]}>
               {t('common.retry')}
@@ -5081,8 +5127,13 @@ export function BibleReaderScreen() {
           ]}
           activeOpacity={1}
           onPress={() => setShowAudioOptionsSheet(false)}
+          // Left accessible, this wrapping backdrop folds the whole sheet into one
+          // VoiceOver element whose only action is dismiss.
+          accessible={false}
         >
           <View
+            accessibilityViewIsModal
+            onAccessibilityEscape={() => setShowAudioOptionsSheet(false)}
             style={[
               styles.audioOptionsSheet,
               {
@@ -5094,12 +5145,16 @@ export function BibleReaderScreen() {
             <View style={styles.audioOptionsHeader}>
               <View style={styles.audioOptionsTitleRow}>
                 <Ionicons name="volume-medium-outline" size={18} color={colors.biblePrimaryText} />
-                <Text style={[styles.audioOptionsTitle, { color: colors.biblePrimaryText }]}>
+                <Text
+                  accessibilityRole="header"
+                  style={[styles.audioOptionsTitle, { color: colors.biblePrimaryText }]}
+                >
                   {t('audio.nowPlaying')}
                 </Text>
               </View>
               <TouchableOpacity
                 style={styles.sheetCloseButton}
+                hitSlop={6}
                 onPress={() => setShowAudioOptionsSheet(false)}
                 accessibilityRole="button"
                 accessibilityLabel={t('interface.close')}
@@ -5179,11 +5234,16 @@ export function BibleReaderScreen() {
                   { backgroundColor: colors.bibleSecondaryText + '55' },
                 ]}
               />
-              <Text style={[styles.fontSheetTitle, { color: colors.biblePrimaryText }]}>
+              <Text
+                accessibilityRole="header"
+                style={[styles.fontSheetTitle, { color: colors.biblePrimaryText }]}
+              >
                 {t('bible.fontsAndSettings')}
               </Text>
               <View
                 style={[styles.readerFontPreview, { backgroundColor: colors.bibleElevatedSurface }]}
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
               >
                 <Text
                   maxFontSizeMultiplier={1.4}
@@ -5210,6 +5270,8 @@ export function BibleReaderScreen() {
                   onPress={decrease}
                   disabled={!canDecrease}
                   activeOpacity={0.82}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('learn.decreaseTextSize')}
                 >
                   <Text
                     style={[
@@ -5235,6 +5297,8 @@ export function BibleReaderScreen() {
                   onPress={increase}
                   disabled={!canIncrease}
                   activeOpacity={0.82}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('learn.increaseTextSize')}
                 >
                   <Text
                     style={[
@@ -5269,6 +5333,7 @@ export function BibleReaderScreen() {
                         ]}
                         accessibilityRole="button"
                         accessibilityLabel={t(option.labelKey)}
+                        accessibilityState={{ selected: isActive }}
                         onPress={() => handleReaderThemeChange(option.mode)}
                         activeOpacity={0.85}
                       >
@@ -5322,6 +5387,9 @@ export function BibleReaderScreen() {
                         </View>
                       </TouchableOpacity>
                       <Text
+                        // Duplicates the tile's own label for sighted users only.
+                        accessibilityElementsHidden
+                        importantForAccessibility="no"
                         style={[
                           styles.readerThemeTileLabel,
                           { color: isActive ? colors.accentPrimary : colors.bibleSecondaryText },
@@ -5338,6 +5406,7 @@ export function BibleReaderScreen() {
                 style={styles.readerAllSettingsButton}
                 onPress={handleOpenAllSettings}
                 activeOpacity={0.82}
+                accessibilityRole="button"
               >
                 <Text style={[styles.readerAllSettingsLabel, { color: colors.biblePrimaryText }]}>
                   {t('bible.allSettings')}
@@ -5363,8 +5432,13 @@ export function BibleReaderScreen() {
           ]}
           activeOpacity={1}
           onPress={() => setShowChapterActionsSheet(false)}
+          // Left accessible, this wrapping backdrop folds the whole sheet into one
+          // VoiceOver element whose only action is dismiss.
+          accessible={false}
         >
           <View
+            accessibilityViewIsModal
+            onAccessibilityEscape={() => setShowChapterActionsSheet(false)}
             style={[
               styles.actionSheet,
               {
@@ -5373,7 +5447,10 @@ export function BibleReaderScreen() {
               },
             ]}
           >
-            <Text style={[styles.actionSheetTitle, { color: colors.biblePrimaryText }]}>
+            <Text
+              accessibilityRole="header"
+              style={[styles.actionSheetTitle, { color: colors.biblePrimaryText }]}
+            >
               {getTranslatedBookName(bookId, t)} {chapter}
             </Text>
 
@@ -5712,8 +5789,13 @@ export function BibleReaderScreen() {
           ]}
           activeOpacity={1}
           onPress={() => setShowChapterAudioShareSheet(false)}
+          // Left accessible, this wrapping backdrop folds the whole sheet into one
+          // VoiceOver element whose only action is dismiss.
+          accessible={false}
         >
           <View
+            accessibilityViewIsModal
+            onAccessibilityEscape={() => setShowChapterAudioShareSheet(false)}
             style={[
               styles.audioShareSheet,
               {
@@ -5735,13 +5817,17 @@ export function BibleReaderScreen() {
                 >
                   {t('groups.share')}
                 </Text>
-                <Text style={[styles.audioShareTitle, { color: colors.biblePrimaryText }]}>
+                <Text
+                  accessibilityRole="header"
+                  style={[styles.audioShareTitle, { color: colors.biblePrimaryText }]}
+                >
                   {chapterShareTitle}
                 </Text>
               </View>
               <TouchableOpacity
                 accessibilityRole="button"
                 accessibilityLabel={t('common.cancel')}
+                hitSlop={6}
                 onPress={() => setShowChapterAudioShareSheet(false)}
                 style={[
                   styles.audioShareCloseButton,
@@ -5784,6 +5870,7 @@ export function BibleReaderScreen() {
                 ]}
                 activeOpacity={0.9}
                 onPress={action.onPress}
+                accessibilityRole="button"
               >
                 <View
                   style={[
@@ -5831,7 +5918,10 @@ export function BibleReaderScreen() {
               },
             ]}
           >
-            <Text style={[styles.audioPortionTitle, { color: colors.biblePrimaryText }]}>
+            <Text
+              accessibilityRole="header"
+              style={[styles.audioPortionTitle, { color: colors.biblePrimaryText }]}
+            >
               {t('bible.shareAudioPortion')}
             </Text>
             <Text style={[styles.audioPortionReference, { color: colors.bibleSecondaryText }]}>
@@ -5881,6 +5971,8 @@ export function BibleReaderScreen() {
                   handleGripColor={colors.bibleSurface}
                   onStartChange={handleAudioPortionStartSeek}
                   onEndChange={handleAudioPortionEndSeek}
+                  startLabel={t('bible.audioClipStart')}
+                  endLabel={t('bible.audioClipEnd')}
                 />
               )}
             />
@@ -5896,6 +5988,13 @@ export function BibleReaderScreen() {
               activeOpacity={0.9}
               onPress={handleToggleAudioPortionPreview}
               disabled={!isCurrentAudioChapter || isSharingAudioPortion}
+              accessibilityRole="button"
+              accessibilityLabel={t(
+                isPreviewingAudioPortion
+                  ? 'interface.pauseChapterAudio'
+                  : 'interface.playChapterAudio'
+              )}
+              accessibilityValue={{ text: formatClockTime(audioPortionRangeDurationMs) }}
             >
               <Ionicons
                 name={isPreviewingAudioPortion ? 'pause' : 'play'}
@@ -5918,6 +6017,7 @@ export function BibleReaderScreen() {
                 ]}
                 onPress={handleCloseAudioPortionSheet}
                 disabled={isSharingAudioPortion}
+                accessibilityRole="button"
               >
                 <Text style={[styles.audioPortionActionLabel, { color: colors.biblePrimaryText }]}>
                   {t('common.cancel')}
@@ -5936,6 +6036,13 @@ export function BibleReaderScreen() {
                   void handleConfirmAudioPortionShare();
                 }}
                 disabled={isSharingAudioPortion}
+                accessibilityRole="button"
+                // The label text is swapped for a spinner while sharing.
+                accessibilityLabel={t('groups.share')}
+                accessibilityState={{
+                  disabled: isSharingAudioPortion,
+                  busy: isSharingAudioPortion,
+                }}
               >
                 {isSharingAudioPortion ? (
                   <ActivityIndicator size="small" color={colors.cardBackground} />
@@ -6050,6 +6157,7 @@ export function BibleReaderScreen() {
                 { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
               ]}
               onPress={() => setShowFollowAlongText(false)}
+              accessibilityRole="button"
             >
               <Ionicons name="chevron-back" size={20} color={colors.biblePrimaryText} />
               <Text style={[styles.followAlongCloseLabel, { color: colors.biblePrimaryText }]}>
@@ -6174,7 +6282,10 @@ export function BibleReaderScreen() {
           >
             <View style={styles.verseImageSheetHeader}>
               <View style={styles.verseImageSheetHeaderCopy}>
-                <Text style={[styles.verseImageSheetTitle, { color: colors.biblePrimaryText }]}>
+                <Text
+                  accessibilityRole="header"
+                  style={[styles.verseImageSheetTitle, { color: colors.biblePrimaryText }]}
+                >
                   {t('bible.chooseVerseImageBackground')}
                 </Text>
                 <Text
@@ -6276,6 +6387,7 @@ export function BibleReaderScreen() {
                 ]}
                 activeOpacity={0.88}
                 onPress={() => setShowVerseImageSheet(false)}
+                accessibilityRole="button"
               >
                 <Text
                   style={[styles.verseImageSheetActionText, { color: colors.biblePrimaryText }]}
@@ -6298,6 +6410,10 @@ export function BibleReaderScreen() {
                   void handleShareSelectedVerseImage();
                 }}
                 disabled={isSharingVerseImage}
+                accessibilityRole="button"
+                // The label text is swapped for a spinner while sharing.
+                accessibilityLabel={t('groups.share')}
+                accessibilityState={{ disabled: isSharingVerseImage, busy: isSharingVerseImage }}
               >
                 {isSharingVerseImage ? (
                   <ActivityIndicator size="small" color={colors.bibleBackground} />

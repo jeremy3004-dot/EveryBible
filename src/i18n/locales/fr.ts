@@ -518,6 +518,8 @@ export const fr = {
     "shareChapterReference": "Partager la référence du chapitre",
     "shareChapterAudio": "Partager l’audio du chapitre",
     "shareAudioPortion": "Partager la partie audio",
+    "audioClipStart": "Début de l’extrait",
+    "audioClipEnd": "Fin de l’extrait",
     "shareVerseImage": "Image du verset",
     "chooseVerseImageBackground": "Choisissez un arrière-plan",
     "books": {

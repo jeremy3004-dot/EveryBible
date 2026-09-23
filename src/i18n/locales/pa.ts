@@ -237,6 +237,8 @@ export const pa = {
     "shareChapterReference": "ਅਧਿਆਇ ਦਾ ਹਵਾਲਾ ਸਾਂਝਾ ਕਰੋ",
     "shareChapterAudio": "ਅਧਿਆਇ ਦੀ ਆਡੀਓ ਸਾਂਝੀ ਕਰੋ",
     "shareAudioPortion": "ਆਡੀਓ ਭਾਗ ਸਾਂਝਾ ਕਰੋ",
+    "audioClipStart": "ਕਲਿੱਪ ਦੀ ਸ਼ੁਰੂਆਤ",
+    "audioClipEnd": "ਕਲਿੱਪ ਦਾ ਅੰਤ",
     "shareVerseImage": "ਚਿੱਤਰ",
     "chooseVerseImageBackground": "ਇੱਕ ਪਿਛੋਕੜ ਚੁਣੋ",
     "books": {

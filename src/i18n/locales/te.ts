@@ -237,6 +237,8 @@ export const te = {
     "shareChapterReference": "అధ్యాయ సూచనను పంచుకోండి",
     "shareChapterAudio": "అధ్యాయ ఆడియోను పంచుకోండి",
     "shareAudioPortion": "ఆడియో భాగాన్ని పంచుకోండి",
+    "audioClipStart": "క్లిప్ ప్రారంభం",
+    "audioClipEnd": "క్లిప్ ముగింపు",
     "shareVerseImage": "చిత్రం",
     "chooseVerseImageBackground": "నేపథ్యాన్ని ఎంచుకోండి",
     "books": {

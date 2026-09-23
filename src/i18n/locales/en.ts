@@ -520,6 +520,8 @@ export const en = {
     shareChapterReference: 'Share chapter reference',
     shareChapterAudio: 'Share chapter audio',
     shareAudioPortion: 'Share audio portion',
+    audioClipStart: 'Clip start',
+    audioClipEnd: 'Clip end',
     shareVerseImage: 'Image',
     chooseVerseImageBackground: 'Choose a background',
     chapterFeedback: 'Accuracy review',

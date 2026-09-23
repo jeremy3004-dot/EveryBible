@@ -513,6 +513,8 @@ export const ja = {
     "shareChapterReference": "章の聖書箇所を共有",
     "shareChapterAudio": "章の音声を共有",
     "shareAudioPortion": "音声の一部を共有",
+    "audioClipStart": "切り取りの開始位置",
+    "audioClipEnd": "切り取りの終了位置",
     "shareVerseImage": "画像",
     "chooseVerseImageBackground": "背景を選ぶ",
     "books": {

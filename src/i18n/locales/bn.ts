@@ -237,6 +237,8 @@ export const bn = {
     "shareChapterReference": "অধ্যায়ের সূত্র শেয়ার করুন",
     "shareChapterAudio": "অধ্যায়ের অডিও শেয়ার করুন",
     "shareAudioPortion": "অডিওর অংশ শেয়ার করুন",
+    "audioClipStart": "ক্লিপের শুরু",
+    "audioClipEnd": "ক্লিপের শেষ",
     "shareVerseImage": "ছবি",
     "chooseVerseImageBackground": "একটি পটভূমি বেছে নিন",
     "books": {

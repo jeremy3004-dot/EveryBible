@@ -1,12 +1,5 @@
 import { memo, useState } from 'react';
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  type StyleProp,
-  type TextStyle,
-} from 'react-native';
+import { Pressable, StyleSheet, Text, View, type StyleProp, type TextStyle } from 'react-native';
 import { radius } from '../../design/system';
 import { hexWithAlpha } from '../../utils';
 import { getCompactHighlightVerticalInset } from './highlightMetrics';
@@ -18,6 +11,7 @@ interface HighlightedVerseTextProps {
   verseNumberStyle: StyleProp<TextStyle>;
   selectedStyle?: StyleProp<TextStyle>;
   highlightColor: string;
+  isSelected?: boolean;
   onPress: () => void;
 }
 
@@ -39,6 +33,7 @@ function HighlightedVerseTextComponent({
   verseNumberStyle,
   selectedStyle,
   highlightColor,
+  isSelected = false,
   onPress,
 }: HighlightedVerseTextProps) {
   const [lineTexts, setLineTexts] = useState<string[] | null>(null);
@@ -52,6 +47,10 @@ function HighlightedVerseTextComponent({
   return (
     <Pressable
       onPress={onPress}
+      // The verse is drawn as measured line fragments; announce it as one verse,
+      // the same way the unhighlighted verse rows read.
+      accessibilityLabel={`${verseNumber}\u00A0${verseText}`}
+      accessibilityState={{ selected: isSelected }}
       style={({ pressed }) => [styles.highlightVerse, pressed && styles.highlightVersePressed]}
     >
       <Text

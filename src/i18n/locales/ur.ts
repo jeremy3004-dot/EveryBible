@@ -513,6 +513,8 @@ export const ur = {
     "shareChapterReference": "باب کا حوالہ شیئر کریں",
     "shareChapterAudio": "باب کی آڈیو شیئر کریں",
     "shareAudioPortion": "آڈیو کا حصہ شیئر کریں",
+    "audioClipStart": "کلپ کا آغاز",
+    "audioClipEnd": "کلپ کا اختتام",
     "shareVerseImage": "تصویر",
     "chooseVerseImageBackground": "پس منظر منتخب کریں",
     "books": {

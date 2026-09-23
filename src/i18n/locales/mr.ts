@@ -237,6 +237,8 @@ export const mr = {
     "shareChapterReference": "अध्यायाचा संदर्भ शेअर करा",
     "shareChapterAudio": "अध्यायाचा ऑडिओ शेअर करा",
     "shareAudioPortion": "ऑडिओचा काही भाग शेअर करा",
+    "audioClipStart": "क्लिपची सुरुवात",
+    "audioClipEnd": "क्लिपचा शेवट",
     "shareVerseImage": "प्रतिमा",
     "chooseVerseImageBackground": "पार्श्वभूमी निवडा",
     "books": {

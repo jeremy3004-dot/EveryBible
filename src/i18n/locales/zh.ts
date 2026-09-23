@@ -513,6 +513,8 @@ export const zh = {
     "shareChapterReference": "分享章节出处",
     "shareChapterAudio": "分享章节音频",
     "shareAudioPortion": "分享音频片段",
+    "audioClipStart": "片段开始",
+    "audioClipEnd": "片段结束",
     "shareVerseImage": "图片",
     "chooseVerseImageBackground": "选择背景",
     "books": {
