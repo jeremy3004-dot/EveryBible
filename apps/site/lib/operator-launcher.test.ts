@@ -22,6 +22,50 @@ test('getOperatorLauncherConfig returns launcher copy when the chat url is valid
   });
 });
 
+test('getOperatorLauncherConfig trims the url and accepts Telegram deep links', () => {
+  assert.equal(
+    getOperatorLauncherConfig({
+      NEXT_PUBLIC_EVERYBIBLE_OPERATOR_CHAT_URL: '  https://t.me/everybible_global_bot  ',
+    })?.chatUrl,
+    'https://t.me/everybible_global_bot'
+  );
+  assert.equal(
+    getOperatorLauncherConfig({
+      NEXT_PUBLIC_EVERYBIBLE_OPERATOR_CHAT_URL: 'tg://resolve?domain=everybible_global_bot',
+    })?.chatUrl,
+    'tg://resolve?domain=everybible_global_bot'
+  );
+});
+
+test('getOperatorLauncherConfig hides the launcher for blank, malformed or unsafe urls', () => {
+  for (const value of [
+    '   ',
+    'not a url',
+    'http://t.me/everybible_global_bot',
+    'javascript:alert(1)',
+    'data:text/html,hi',
+  ]) {
+    assert.equal(
+      getOperatorLauncherConfig({ NEXT_PUBLIC_EVERYBIBLE_OPERATOR_CHAT_URL: value }),
+      null,
+      value
+    );
+  }
+});
+
+test('getOperatorLauncherConfig reads process.env by default', (t) => {
+  const original = process.env.NEXT_PUBLIC_EVERYBIBLE_OPERATOR_CHAT_URL;
+  t.after(() => {
+    if (original === undefined) delete process.env.NEXT_PUBLIC_EVERYBIBLE_OPERATOR_CHAT_URL;
+    else process.env.NEXT_PUBLIC_EVERYBIBLE_OPERATOR_CHAT_URL = original;
+  });
+
+  process.env.NEXT_PUBLIC_EVERYBIBLE_OPERATOR_CHAT_URL = 'https://t.me/from_env';
+  assert.equal(getOperatorLauncherConfig()?.chatUrl, 'https://t.me/from_env');
+  delete process.env.NEXT_PUBLIC_EVERYBIBLE_OPERATOR_CHAT_URL;
+  assert.equal(getOperatorLauncherConfig(), null);
+});
+
 test('RootLayout renders the operator launcher globally', () => {
   const source = readFileSync(new URL('../app/layout.tsx', import.meta.url), 'utf8');
 

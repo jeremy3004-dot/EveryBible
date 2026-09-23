@@ -28,6 +28,25 @@ test('parseTextPackObjectKey rejects non-db or malformed keys', () => {
   assert.equal(parseTextPackObjectKey('audio/npiulb/JHN/1.mp3'), null);
   assert.equal(parseTextPackObjectKey('text/npiulb/'), null);
   assert.equal(parseTextPackObjectKey('text/npiulb/readme.txt'), null);
+  assert.equal(parseTextPackObjectKey('text/npiulb/nested/npiulb.db'), null);
+  assert.equal(parseTextPackObjectKey('text/ /  .db'), null);
+});
+
+test('buildTextPackManifestItem keeps the whole file stem as the version when it lacks the id prefix', () => {
+  assert.equal(
+    buildTextPackManifestItem({
+      abbreviation: 'BSB',
+      fileName: 'bible-bsb-v2.db',
+      lastModified: '2026-04-02T13:59:32.983Z',
+      name: 'bsb',
+      objectKey: 'text/bsb/bible-bsb-v2.db',
+      sha256: 'sha-bsb',
+      sourceTranslationId: 'bsb',
+      translationId: 'bsb',
+      verseCount: 93270,
+    }).version,
+    'bible-bsb-v2'
+  );
 });
 
 test('buildTextPackManifestItem derives the manifest fields for direct and overridden translation ids', () => {
