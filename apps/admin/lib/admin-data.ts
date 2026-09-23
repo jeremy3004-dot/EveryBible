@@ -899,6 +899,17 @@ export async function getHealthIssues(): Promise<HealthIssue[]> {
     });
   }
 
+  // A check that could not run is not a passed check; without this a failed
+  // catalog query still produced "All tracked ... checks are green".
+  if (translations.error) {
+    issues.push({
+      description: `The translation catalog check could not run: ${translations.error.message}`,
+      href: '/translations',
+      severity: 'warning',
+      title: 'Health check incomplete',
+    });
+  }
+
   const hiddenPublishedTranslations = (translations.data ?? []).filter((row) => {
     return row.distribution_state === 'published' && row.is_available === false;
   });

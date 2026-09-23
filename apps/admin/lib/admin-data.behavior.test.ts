@@ -705,3 +705,41 @@ test('feedback filters narrow the query by language, translation, book, chapter 
   // Commas would split the PostgREST or() filter, so they are neutralised.
   assert.ok(String(stepArgs(call, 'or')[0][0]).includes('comment.ilike.%verse  wording%'));
 });
+
+// ---------------------------------------------------------------------------
+// Health
+// ---------------------------------------------------------------------------
+
+function recentSuccessfulSync() {
+  service.respondTo('translation_sync_runs', () => ({
+    data: [{ id: 'run-1', state: 'succeeded', started_at: new Date().toISOString() }],
+  }));
+}
+
+test('health is green only when every check actually ran and passed', async () => {
+  recentSuccessfulSync();
+  service.respondTo('translation_catalog', () => ({
+    data: [{ translation_id: 'bsb', distribution_state: 'published', is_available: true }],
+  }));
+  assert.deepEqual(
+    (await data.getHealthIssues()).map((issue) => [issue.severity, issue.title]),
+    [['info', 'No active health issues']]
+  );
+});
+
+test('a catalog check that could not run is reported instead of claiming all checks are green', async () => {
+  recentSuccessfulSync();
+  service.respondTo('translation_catalog', () => ({
+    data: null,
+    error: { message: 'permission denied for table translation_catalog' },
+  }));
+  assert.deepEqual(await data.getHealthIssues(), [
+    {
+      description:
+        'The translation catalog check could not run: permission denied for table translation_catalog',
+      href: '/translations',
+      severity: 'warning',
+      title: 'Health check incomplete',
+    },
+  ]);
+});
