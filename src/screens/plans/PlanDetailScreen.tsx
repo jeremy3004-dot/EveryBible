@@ -610,7 +610,7 @@ const DayRow = React.memo(function DayRow({
             </Text>
             <Text
               style={[dayRowStyles.todayTitle, { color: colors.primaryText }]}
-              numberOfLines={1}
+              numberOfLines={2}
             >
               {refs}
             </Text>
@@ -671,6 +671,30 @@ const DayRow = React.memo(function DayRow({
       testID={isCurrent ? CURRENT_PLAN_DAY_ROW_TEST_ID : undefined}
       accessibilityLabel={accessibilityLabel}
       accessibilityRole="button"
+      // Completion is otherwise only a tick glyph.
+      accessibilityValue={
+        isCompleted
+          ? { text: t('readingPlans.completed') }
+          : isNext
+            ? { text: t('readingPlans.tomorrow') }
+            : undefined
+      }
+      // The session buttons inside this row are not reachable by VoiceOver, so
+      // each one is also offered as a custom action.
+      accessibilityActions={
+        hasSessionActions && !isFuture
+          ? sessionActions.map((action) => ({
+              name: `session:${action.sessionKey}`,
+              label: t('interface.planSessionForDay', { session: action.label, day: dayNumber }),
+            }))
+          : undefined
+      }
+      onAccessibilityAction={(event) => {
+        const action = sessionActions.find(
+          (candidate) => `session:${candidate.sessionKey}` === event.nativeEvent.actionName
+        );
+        if (action) onPress(dayNumber, action.sessionKey);
+      }}
       style={[
         dayRowStyles.ledgerSlice,
         { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
@@ -698,7 +722,7 @@ const DayRow = React.memo(function DayRow({
             dayRowStyles.ledgerRef,
             { color: isFuture ? colors.textTertiary : colors.primaryText },
           ]}
-          numberOfLines={1}
+          numberOfLines={2}
         >
           {refs}
         </Text>
@@ -767,7 +791,9 @@ const dayRowStyles = StyleSheet.create({
   ledgerDay: {
     ...typography.mono,
     fontWeight: '600',
-    width: LEDGER_DAY_WIDTH,
+    // minWidth keeps the column aligned but lets "Day 12" grow with Dynamic Type
+    // instead of truncating.
+    minWidth: LEDGER_DAY_WIDTH,
   },
   ledgerRef: {
     ...typography.bodyMedium,
@@ -1354,7 +1380,11 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
               {heroEyebrow}
             </Text>
           ) : null}
-          <Text style={[styles.coverTitle, displayFont.bold]} numberOfLines={1}>
+          <Text
+            accessibilityRole="header"
+            style={[styles.coverTitle, displayFont.bold]}
+            numberOfLines={2}
+          >
             {planTitle}
           </Text>
         </View>

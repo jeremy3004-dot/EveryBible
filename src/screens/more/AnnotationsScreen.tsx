@@ -113,6 +113,7 @@ export function AnnotationsScreen() {
       ]}
       activeOpacity={0.7}
       onPress={() => navigateToBible(item)}
+      accessibilityRole="button"
     >
       <View style={styles.cardHeader}>
         <View style={styles.cardIconRow}>
@@ -161,7 +162,10 @@ export function AnnotationsScreen() {
         >
           <Ionicons name="arrow-back" size={24} color={colors.primaryText} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.primaryText }]}>
+        <Text
+          accessibilityRole="header"
+          style={[styles.headerTitle, { color: colors.primaryText }]}
+        >
           {t('annotations.title')}
         </Text>
         <View style={{ width: 32 }} />
@@ -180,6 +184,8 @@ export function AnnotationsScreen() {
               },
             ]}
             onPress={() => setFilter(fb.key)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: filter === fb.key }}
           >
             <Ionicons
               // eslint-disable-next-line @typescript-eslint/no-explicit-any

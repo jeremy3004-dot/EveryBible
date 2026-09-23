@@ -502,7 +502,10 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
             {padLessonNumber(lesson.number)}
           </Text>
           <View style={styles.heroColumn}>
-            <Text style={[styles.heroTitle, displayFont.bold, { color: colors.primaryText }]}>
+            <Text
+              accessibilityRole="header"
+              style={[styles.heroTitle, displayFont.bold, { color: colors.primaryText }]}
+            >
               {lessonTitle}
             </Text>
             <Text

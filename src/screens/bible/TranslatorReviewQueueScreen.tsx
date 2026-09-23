@@ -98,6 +98,13 @@ export function TranslatorReviewQueueScreen() {
       accessibilityLabel={t('translatorQueue.openLabel', {
         reference: `${getTranslatedBookName(item.bookId, t)} ${item.chapter}`,
       })}
+      // The label replaces the card's text, so the counts travel as its value.
+      accessibilityValue={{
+        text: t('bible.translatorReviewSummary', {
+          count: item.total,
+          pending: item.unresolvedDown + item.unresolvedUp,
+        }),
+      }}
       style={[
         styles.card,
         { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
@@ -200,7 +207,10 @@ export function TranslatorReviewQueueScreen() {
         >
           <Ionicons name="arrow-back" size={24} color={colors.primaryText} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.primaryText }]}>
+        <Text
+          accessibilityRole="header"
+          style={[styles.headerTitle, { color: colors.primaryText }]}
+        >
           {t('translatorQueue.title')}
         </Text>
         <View style={styles.headerSpacer} />

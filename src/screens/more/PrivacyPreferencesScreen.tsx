@@ -113,7 +113,9 @@ export function PrivacyPreferencesScreen() {
         >
           <Ionicons name="arrow-back" size={24} color={colors.primaryText} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('onboarding.privacyTitle')}</Text>
+        <Text accessibilityRole="header" style={styles.headerTitle}>
+          {t('onboarding.privacyTitle')}
+        </Text>
         <TouchableOpacity
           style={styles.headerButton}
           onPress={() => void handleSave()}

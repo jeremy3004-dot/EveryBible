@@ -277,9 +277,31 @@ export function PrayerWallScreen() {
           style={[styles.card, { backgroundColor: colors.cardBackground }]}
           onLongPress={isOwner ? () => handleLongPress(item) : undefined}
           activeOpacity={isOwner ? 0.7 : 1}
+          // The card is one VoiceOver element, which swallows the nested Prayed /
+          // Encouraged pills on iOS; they are offered again as custom actions and
+          // the label carries everything the card shows.
           accessible
-          accessibilityLabel={item.content}
+          accessibilityLabel={[
+            displayName,
+            formatRelativeTime(item.created_at, t),
+            item.is_answered ? t('prayer.answered') : null,
+            item.content,
+            t('prayer.prayedCount', { count: item.prayed_count }),
+            t('prayer.encouragedCount', { count: item.encouraged_count }),
+          ]
+            .filter(Boolean)
+            .join(', ')}
           accessibilityHint={isOwner ? t('prayer.ownerLongPressHint') : undefined}
+          accessibilityActions={[
+            { name: 'prayed', label: t('prayer.prayed') },
+            { name: 'encouraged', label: t('prayer.encouraged') },
+          ]}
+          onAccessibilityAction={(event) => {
+            const action = event.nativeEvent.actionName;
+            if (action === 'prayed' || action === 'encouraged') {
+              void handleInteraction(item.id, action);
+            }
+          }}
         >
           {/* Card header: avatar + meta */}
           <View style={styles.cardHeader}>
@@ -395,6 +417,7 @@ export function PrayerWallScreen() {
         <TouchableOpacity
           style={[styles.signInPromptButton, { backgroundColor: colors.accentPrimary }]}
           onPress={() => openAuthFlow('signIn')}
+          accessibilityRole="button"
         >
           <Text style={[styles.signInPromptButtonText, { color: colors.onAccent }]}>
             {t('auth.signIn')}
@@ -420,7 +443,10 @@ export function PrayerWallScreen() {
           <Ionicons name="arrow-back" size={24} color={colors.primaryText} />
         </TouchableOpacity>
         <View style={styles.headerTitleWrapper}>
-          <Text style={[styles.headerTitle, { color: colors.primaryText }]}>
+          <Text
+            accessibilityRole="header"
+            style={[styles.headerTitle, { color: colors.primaryText }]}
+          >
             {t('prayer.title')}
           </Text>
           <Text style={[styles.headerSubtitle, { color: colors.secondaryText }]} numberOfLines={1}>
@@ -451,6 +477,7 @@ export function PrayerWallScreen() {
           <TouchableOpacity
             style={[styles.signInInlineButton, { backgroundColor: colors.accentPrimary }]}
             onPress={() => openAuthFlow('signIn')}
+            accessibilityRole="button"
           >
             <Text style={[styles.signInInlineButtonText, { color: colors.onAccent }]}>
               {t('auth.signIn')}

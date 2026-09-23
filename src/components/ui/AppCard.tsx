@@ -1,5 +1,8 @@
 import { type ReactNode } from 'react';
 import {
+  type AccessibilityActionEvent,
+  type AccessibilityActionInfo,
+  type AccessibilityValue,
   type GestureResponderEvent,
   type StyleProp,
   StyleSheet,
@@ -30,6 +33,14 @@ export interface AppCardProps {
   haptic?: HapticFeedback;
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
+  /** Pressable cards only: state the label does not carry (progress, day). */
+  accessibilityValue?: AccessibilityValue;
+  /**
+   * Pressable cards only: gesture-only affordances (swipe to delete) and nested
+   * controls a screen reader cannot reach inside the card.
+   */
+  accessibilityActions?: readonly AccessibilityActionInfo[];
+  onAccessibilityAction?: (event: AccessibilityActionEvent) => void;
 }
 
 // EL atlas-paper: a lit-paper panel on the vellum ground, warm hairline border,
@@ -52,6 +63,9 @@ export function AppCard({
   haptic,
   style,
   accessibilityLabel,
+  accessibilityValue,
+  accessibilityActions,
+  onAccessibilityAction,
 }: AppCardProps) {
   const { colors, isDark } = useTheme();
 
@@ -96,6 +110,9 @@ export function AppCard({
         haptic={haptic}
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
+        accessibilityValue={accessibilityValue}
+        accessibilityActions={accessibilityActions}
+        onAccessibilityAction={onAccessibilityAction}
         style={cardStyle}
       >
         {edgeLight}

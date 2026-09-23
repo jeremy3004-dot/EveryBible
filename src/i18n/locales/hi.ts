@@ -237,6 +237,8 @@ export const hi = {
     "shareChapterReference": "अध्याय संदर्भ साझा करें",
     "shareChapterAudio": "अध्याय का ऑडियो साझा करें",
     "shareAudioPortion": "ऑडियो का हिस्सा साझा करें",
+    "audioClipStart": "क्लिप की शुरुआत",
+    "audioClipEnd": "क्लिप का अंत",
     "shareVerseImage": "चित्र",
     "chooseVerseImageBackground": "पृष्ठभूमि चुनें",
     "chapterFeedback": "सटीकता की समीक्षा",

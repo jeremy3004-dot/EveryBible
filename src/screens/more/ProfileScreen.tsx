@@ -161,7 +161,7 @@ export function ProfileScreen() {
         >
           <Ionicons name="arrow-back" size={24} color={colors.primaryText} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('more.profile')}</Text>
+        <Text accessibilityRole="header" style={styles.headerTitle}>{t('more.profile')}</Text>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -257,7 +257,11 @@ export function ProfileScreen() {
           </View>
         )}
 
-        <TouchableOpacity style={styles.activityCard} onPress={handleReadingActivity}>
+        <TouchableOpacity
+          style={styles.activityCard}
+          onPress={handleReadingActivity}
+          accessibilityRole="button"
+        >
           <View style={styles.activityIcon}>
             <Ionicons name="calendar-outline" size={24} color={colors.accentPrimary} />
           </View>
@@ -275,7 +279,11 @@ export function ProfileScreen() {
             <Text style={styles.signInDescription}>
               {t('auth.signInSubtitle')}
             </Text>
-            <TouchableOpacity style={styles.signInButton} onPress={handleSignIn}>
+            <TouchableOpacity
+              style={styles.signInButton}
+              onPress={handleSignIn}
+              accessibilityRole="button"
+            >
               <Text style={styles.signInButtonText}>{t('more.signInOrCreate')}</Text>
             </TouchableOpacity>
           </View>

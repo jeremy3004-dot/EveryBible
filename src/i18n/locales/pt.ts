@@ -519,6 +519,8 @@ export const pt = {
     "shareChapterReference": "Compartilhar a referência do capítulo",
     "shareChapterAudio": "Compartilhar o áudio do capítulo",
     "shareAudioPortion": "Compartilhar um trecho do áudio",
+    "audioClipStart": "Início do trecho",
+    "audioClipEnd": "Fim do trecho",
     "shareVerseImage": "Imagem",
     "chooseVerseImageBackground": "Escolha um plano de fundo",
     "books": {

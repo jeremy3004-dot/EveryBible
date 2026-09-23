@@ -534,7 +534,9 @@ export function SettingsScreen() {
         onPress={decrease}
         disabled={!canDecrease}
         activeOpacity={0.85}
+        hitSlop={6}
         accessibilityRole="button"
+        accessibilityLabel={t('learn.decreaseTextSize')}
         accessibilityState={{ disabled: !canDecrease }}
       >
         <Text
@@ -565,7 +567,9 @@ export function SettingsScreen() {
         onPress={increase}
         disabled={!canIncrease}
         activeOpacity={0.85}
+        hitSlop={6}
         accessibilityRole="button"
+        accessibilityLabel={t('learn.increaseTextSize')}
         accessibilityState={{ disabled: !canIncrease }}
       >
         <Text
@@ -598,6 +602,7 @@ export function SettingsScreen() {
             accessibilityLabel={t('common.back')}
           />
           <Text
+            accessibilityRole="header"
             style={[styles.headerEyebrow, displayFont.regular, { color: colors.secondaryText }]}
             numberOfLines={1}
           >
@@ -607,7 +612,10 @@ export function SettingsScreen() {
 
         {/* Reading Settings */}
         <View style={styles.group}>
-          <Text style={[styles.groupEyebrow, displayFont.regular, { color: colors.secondaryText }]}>
+          <Text
+            accessibilityRole="header"
+            style={[styles.groupEyebrow, displayFont.regular, { color: colors.secondaryText }]}
+          >
             {t('settings.reading')}
           </Text>
           <AppCard padding={0} style={styles.groupCard}>
@@ -774,6 +782,8 @@ export function SettingsScreen() {
               style={styles.modalBackdrop}
               activeOpacity={1}
               onPress={closeChapterFeedbackIdentityModal}
+              accessibilityRole="button"
+              accessibilityLabel={t('interface.close')}
             />
             <View
               style={[
@@ -782,7 +792,10 @@ export function SettingsScreen() {
                 { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
               ]}
             >
-              <Text style={[styles.modalTitle, displayFont.bold, { color: colors.primaryText }]}>
+              <Text
+                accessibilityRole="header"
+                style={[styles.modalTitle, displayFont.bold, { color: colors.primaryText }]}
+              >
                 {t('settings.chapterFeedbackIdentityTitle')}
               </Text>
               <Text style={[styles.chapterFeedbackIdentityBody, { color: colors.secondaryText }]}>
@@ -846,7 +859,10 @@ export function SettingsScreen() {
               </View>
 
               {chapterFeedbackIdentityError ? (
-                <Text style={[styles.feedbackIdentityError, { color: colors.error }]}>
+                <Text
+                  accessibilityLiveRegion="polite"
+                  style={[styles.feedbackIdentityError, { color: colors.error }]}
+                >
                   {chapterFeedbackIdentityError}
                 </Text>
               ) : null}
@@ -891,6 +907,8 @@ export function SettingsScreen() {
               style={styles.modalBackdrop}
               activeOpacity={1}
               onPress={closeTranslatorAccessModal}
+              accessibilityRole="button"
+              accessibilityLabel={t('interface.close')}
             />
             <View
               style={[
@@ -898,7 +916,10 @@ export function SettingsScreen() {
                 { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
               ]}
             >
-              <Text style={[styles.modalTitle, displayFont.bold, { color: colors.primaryText }]}>
+              <Text
+                accessibilityRole="header"
+                style={[styles.modalTitle, displayFont.bold, { color: colors.primaryText }]}
+              >
                 {accessKind === 'scripture_council'
                   ? t('feedback.council')
                   : t('settings.translatorAccessTitle')}
@@ -910,6 +931,7 @@ export function SettingsScreen() {
               </Text>
               <TextInput
                 value={translatorAccessPasscode}
+                accessibilityLabel={t('settings.translatorAccessPlaceholder')}
                 editable={false}
                 secureTextEntry
                 keyboardType="number-pad"
@@ -925,7 +947,10 @@ export function SettingsScreen() {
                 ]}
               />
               {translatorAccessError ? (
-                <Text style={[styles.feedbackIdentityError, { color: colors.error }]}>
+                <Text
+                  accessibilityLiveRegion="polite"
+                  style={[styles.feedbackIdentityError, { color: colors.error }]}
+                >
                   {translatorAccessError}
                 </Text>
               ) : null}
@@ -1005,7 +1030,10 @@ export function SettingsScreen() {
 
         {/* Notifications */}
         <View style={styles.group}>
-          <Text style={[styles.groupEyebrow, displayFont.regular, { color: colors.secondaryText }]}>
+          <Text
+            accessibilityRole="header"
+            style={[styles.groupEyebrow, displayFont.regular, { color: colors.secondaryText }]}
+          >
             {t('settings.notifications')}
           </Text>
           <AppCard padding={0} style={styles.groupCard}>
@@ -1055,7 +1083,10 @@ export function SettingsScreen() {
 
         {/* Data */}
         <View style={styles.group}>
-          <Text style={[styles.groupEyebrow, displayFont.regular, { color: colors.secondaryText }]}>
+          <Text
+            accessibilityRole="header"
+            style={[styles.groupEyebrow, displayFont.regular, { color: colors.secondaryText }]}
+          >
             {t('settings.data')}
           </Text>
           <AppCard padding={0} style={styles.groupCard}>
@@ -1123,7 +1154,10 @@ export function SettingsScreen() {
               { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
             ]}
           >
-            <Text style={[styles.modalTitle, displayFont.bold, { color: colors.primaryText }]}>
+            <Text
+              accessibilityRole="header"
+              style={[styles.modalTitle, displayFont.bold, { color: colors.primaryText }]}
+            >
               {t('settings.setReminderTime')}
             </Text>
 
@@ -1231,7 +1265,10 @@ export function SettingsScreen() {
               { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
             ]}
           >
-            <Text style={[styles.modalTitle, displayFont.bold, { color: colors.primaryText }]}>
+            <Text
+              accessibilityRole="header"
+              style={[styles.modalTitle, displayFont.bold, { color: colors.primaryText }]}
+            >
               {t('settings.selectLanguage')}
             </Text>
 
@@ -1312,7 +1349,10 @@ export function SettingsScreen() {
               strokeWidth={ICON_STROKE}
               style={styles.deleteWarningIcon}
             />
-            <Text style={[styles.modalTitle, displayFont.bold, { color: colors.primaryText }]}>
+            <Text
+              accessibilityRole="header"
+              style={[styles.modalTitle, displayFont.bold, { color: colors.primaryText }]}
+            >
               {t('settings.deleteAccount')}
             </Text>
             <Text style={[styles.deleteWarningText, { color: colors.secondaryText }]}>

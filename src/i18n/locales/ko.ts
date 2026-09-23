@@ -513,6 +513,8 @@ export const ko = {
     "shareChapterReference": "장 공유",
     "shareChapterAudio": "장 오디오 공유",
     "shareAudioPortion": "오디오 부분 공유",
+    "audioClipStart": "구간 시작",
+    "audioClipEnd": "구간 끝",
     "shareVerseImage": "이미지",
     "chooseVerseImageBackground": "배경을 선택하세요",
     "books": {

@@ -513,6 +513,8 @@ export const vi = {
     "shareChapterReference": "Chia sẻ địa chỉ chương",
     "shareChapterAudio": "Chia sẻ âm thanh chương",
     "shareAudioPortion": "Chia sẻ phần âm thanh",
+    "audioClipStart": "Điểm bắt đầu đoạn",
+    "audioClipEnd": "Điểm kết thúc đoạn",
     "shareVerseImage": "Hình ảnh",
     "chooseVerseImageBackground": "Chọn ảnh nền",
     "books": {

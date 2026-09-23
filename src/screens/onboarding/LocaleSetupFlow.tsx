@@ -233,7 +233,9 @@ function OptionRow({
       ]}
     >
       <View style={styles.optionRowCopy}>
-        <Text style={[styles.optionRowTitle, { color: colors.primaryText }]} numberOfLines={1}>
+        {/* Two lines, not one: long country and language names otherwise lose
+            their ending under large Dynamic Type. */}
+        <Text style={[styles.optionRowTitle, { color: colors.primaryText }]} numberOfLines={2}>
           {title}
         </Text>
         {subtitle ? (
@@ -1374,7 +1376,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
             <View style={styles.optionRowCopy}>
               <Text
                 style={[styles.suggestedTitle, { color: colors.primaryText }]}
-                numberOfLines={1}
+                numberOfLines={2}
               >
                 {countryName}
               </Text>
@@ -1489,7 +1491,10 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     <View>
       {step === 'interfaceLanguage' ? (
         <>
-          <Text style={[styles.heroTitle, displayFont.bold, { color: colors.primaryText }]}>
+          <Text
+            accessibilityRole="header"
+            style={[styles.heroTitle, displayFont.bold, { color: colors.primaryText }]}
+          >
             {t('onboarding.interfaceLanguageTitle')}
           </Text>
           <Text style={[styles.heroBody, { color: colors.secondaryText }]}>
@@ -1506,7 +1511,10 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
 
       {step === 'translation' ? (
         <>
-          <Text style={[styles.heroTitle, displayFont.bold, { color: colors.primaryText }]}>
+          <Text
+            accessibilityRole="header"
+            style={[styles.heroTitle, displayFont.bold, { color: colors.primaryText }]}
+          >
             {t('onboarding.languageTitle')}
           </Text>
 
@@ -1563,7 +1571,10 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
 
       {step === 'country' ? (
         <>
-          <Text style={[styles.heroTitle, displayFont.bold, { color: colors.primaryText }]}>
+          <Text
+            accessibilityRole="header"
+            style={[styles.heroTitle, displayFont.bold, { color: colors.primaryText }]}
+          >
             {t('onboarding.countryTitle')}
           </Text>
           <Text style={[styles.heroBody, { color: colors.secondaryText }]}>
@@ -1581,7 +1592,10 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
 
       {step === 'contentLanguage' ? (
         <>
-          <Text style={[styles.heroTitle, displayFont.bold, { color: colors.primaryText }]}>
+          <Text
+            accessibilityRole="header"
+            style={[styles.heroTitle, displayFont.bold, { color: colors.primaryText }]}
+          >
             {t('onboarding.languageTitle')}
           </Text>
           <Text style={[styles.heroBody, { color: colors.secondaryText }]}>

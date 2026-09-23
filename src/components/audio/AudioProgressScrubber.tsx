@@ -20,6 +20,8 @@ interface AudioProgressScrubberProps {
   containerStyle?: StyleProp<ViewStyle>;
   trackStyle?: StyleProp<ViewStyle>;
   fillStyle?: StyleProp<ViewStyle>;
+  /** Names the slider; without it VoiceOver announces only the bare time value. */
+  accessibilityLabel?: string;
 }
 
 function clampProgressPosition(value: number, duration: number): number {
@@ -39,6 +41,7 @@ export function AudioProgressScrubber({
   containerStyle,
   trackStyle,
   fillStyle,
+  accessibilityLabel,
 }: AudioProgressScrubberProps) {
   const [trackWidth, setTrackWidth] = useState(0);
   const [isScrubbing, setIsScrubbing] = useState(false);
@@ -104,6 +107,7 @@ export function AudioProgressScrubber({
       onLayout={handleLayout}
       hitSlop={{ top: 12, bottom: 12 }}
       accessibilityRole="adjustable"
+      accessibilityLabel={accessibilityLabel}
       accessibilityValue={{
         min: 0,
         max: Math.max(0, Math.floor(duration / 1000)),

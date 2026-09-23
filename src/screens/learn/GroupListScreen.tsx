@@ -151,7 +151,10 @@ export function GroupListScreen() {
         >
           <Ionicons name="arrow-back" size={24} color={colors.primaryText} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.primaryText }]}>
+        <Text
+          accessibilityRole="header"
+          style={[styles.headerTitle, { color: colors.primaryText }]}
+        >
           {t('harvest.groupPreviewTitle')}
         </Text>
         <View style={styles.headerRight} />
@@ -177,7 +180,10 @@ export function GroupListScreen() {
               >
                 {t('harvest.groupPreviewBadge')}
               </Text>
-              <Text style={[styles.heroTitle, { color: colors.primaryText }]}>
+              <Text
+                accessibilityRole="header"
+                style={[styles.heroTitle, { color: colors.primaryText }]}
+              >
                 {t('harvest.groupPreviewTitle')}
               </Text>
             </View>
@@ -204,6 +210,7 @@ export function GroupListScreen() {
               style={[styles.authPromptButton, { backgroundColor: colors.accentPrimary }]}
               onPress={() => openAuthFlow('signIn')}
               activeOpacity={0.85}
+              accessibilityRole="button"
             >
               <Text style={[styles.authPromptButtonText, { color: colors.onAccent }]}>
                 {t('auth.signIn')}
@@ -236,6 +243,7 @@ export function GroupListScreen() {
                   ]}
                   onPress={() => navigation.navigate('GroupDetail', { groupId: group.id })}
                   activeOpacity={0.85}
+                  accessibilityRole="button"
                 >
                   <View
                     style={[styles.groupIcon, { backgroundColor: colors.accentPrimary + '16' }]}
@@ -339,6 +347,7 @@ export function GroupListScreen() {
                     ]}
                     onPress={() => navigation.navigate('GroupDetail', { groupId: group.id })}
                     activeOpacity={0.85}
+                    accessibilityRole="button"
                   >
                     <View
                       style={[styles.groupIcon, { backgroundColor: colors.accentSecondary + '16' }]}

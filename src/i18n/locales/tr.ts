@@ -513,6 +513,8 @@ export const tr = {
     "shareChapterReference": "Bölüm referansını paylaş",
     "shareChapterAudio": "Bölüm sesini paylaş",
     "shareAudioPortion": "Ses kısmını paylaş",
+    "audioClipStart": "Klip başlangıcı",
+    "audioClipEnd": "Klip sonu",
     "shareVerseImage": "Görsel",
     "chooseVerseImageBackground": "Bir arka plan seçin",
     "books": {

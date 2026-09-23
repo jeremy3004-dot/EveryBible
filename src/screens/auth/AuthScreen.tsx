@@ -356,7 +356,9 @@ export function AuthScreen() {
               importantForAccessibility="no-hide-descendants"
             />
 
-            <Text style={[styles.title, displayFont.bold]}>{copy.title}</Text>
+            <Text accessibilityRole="header" style={[styles.title, displayFont.bold]}>
+              {copy.title}
+            </Text>
             <Text style={styles.subtitle}>{copy.subtitle}</Text>
 
             {verificationNotice ? (

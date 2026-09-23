@@ -237,6 +237,8 @@ export const ta = {
     "shareChapterReference": "அத்தியாயக் குறிப்பைப் பகிர்",
     "shareChapterAudio": "அத்தியாய ஆடியோவைப் பகிர்",
     "shareAudioPortion": "ஆடியோப் பகுதியைப் பகிர்",
+    "audioClipStart": "கிளிப் தொடக்கம்",
+    "audioClipEnd": "கிளிப் முடிவு",
     "shareVerseImage": "படம்",
     "chooseVerseImageBackground": "பின்னணியைத் தேர்ந்தெடுங்கள்",
     "books": {

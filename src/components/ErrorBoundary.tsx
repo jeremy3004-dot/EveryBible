@@ -48,6 +48,7 @@ function ErrorFallback({ onRetry }: { onRetry: () => void }) {
           style={[styles.retryButton, { backgroundColor: colors.accentPrimary }]}
           onPress={onRetry}
           activeOpacity={0.85}
+          accessibilityRole="button"
         >
           <Ionicons name="refresh" size={20} color={colors.onAccent} />
           <Text style={[styles.retryText, { color: colors.onAccent }]}>{retryLabel}</Text>

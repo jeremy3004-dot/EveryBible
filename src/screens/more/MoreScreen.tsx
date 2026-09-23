@@ -204,7 +204,10 @@ export function MoreScreen() {
         style={styles.scrollView}
         contentContainerStyle={[styles.content, { paddingBottom: contentClearance }]}
       >
-        <Text style={[styles.title, displayFont.bold, { color: colors.primaryText }]}>
+        <Text
+          accessibilityRole="header"
+          style={[styles.title, displayFont.bold, { color: colors.primaryText }]}
+        >
           {t('more.title')}
         </Text>
 

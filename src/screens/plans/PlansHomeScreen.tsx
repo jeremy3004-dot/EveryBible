@@ -335,6 +335,20 @@ function MyPlansSection({
           padding={12}
           onPress={() => onPlanPress(plan.id)}
           accessibilityLabel={t(plan.title_key as Parameters<typeof t>[0])}
+          accessibilityValue={{
+            text: [
+              t('readingPlans.dayOf', { current: currentDay, total: plan.duration_days }),
+              sessionStatus,
+              formatProgressPercent(progressRatio),
+            ]
+              .filter(Boolean)
+              .join(', '),
+          }}
+          // Delete is otherwise only reachable by swiping the row.
+          accessibilityActions={[{ name: 'delete', label: t('common.delete') }]}
+          onAccessibilityAction={(event) => {
+            if (event.nativeEvent.actionName === 'delete') onDeletePlan(plan.id);
+          }}
         >
           <View style={styles.cardTop}>
             <View style={styles.coverFrame}>
@@ -344,11 +358,7 @@ function MyPlansSection({
               <Text style={styles.cardTitle} numberOfLines={2}>
                 {t(plan.title_key as Parameters<typeof t>[0])}
               </Text>
-              <Text
-                style={[styles.cardEyebrow, displayFont.regular]}
-                numberOfLines={1}
-                allowFontScaling
-              >
+              <Text style={[styles.cardEyebrow, displayFont.regular]} numberOfLines={1}>
                 {t('readingPlans.dayOf', {
                   current: currentDay,
                   total: plan.duration_days,
@@ -635,6 +645,12 @@ function FindPlansSection({ allPlans, userProgress, onPlanPress, colors }: FindP
         accessibilityLabel={t(plan.title_key as Parameters<typeof t>[0], {
           defaultValue: plan.title_key,
         })}
+        // The tick marks enrolment visually; say it, with the cadence.
+        accessibilityValue={{
+          text: [metaLabel, isEnrolled ? t('readingPlans.enrolled') : null]
+            .filter(Boolean)
+            .join(', '),
+        }}
         style={styles.rhythmCard}
       >
         <View style={styles.rhythmCoverFrame}>
@@ -674,7 +690,9 @@ function FindPlansSection({ allPlans, userProgress, onPlanPress, colors }: FindP
         pressEffect="translate"
         onPress={() => onPlanPress(plan.id)}
         accessibilityRole="button"
-        accessibilityLabel={title}
+        accessibilityLabel={[title, ...metaParts, isEnrolled ? t('readingPlans.enrolled') : null]
+          .filter(Boolean)
+          .join(', ')}
         style={[styles.planRow, isFirst ? null : styles.planRowDivider]}
       >
         <View style={styles.rowCoverFrame}>
@@ -1283,7 +1301,9 @@ export function PlansHomeScreen() {
               {headerEyebrow}
             </Text>
           ) : null}
-          <Text style={[styles.title, displayFont.bold]}>{t('readingPlans.plans')}</Text>
+          <Text accessibilityRole="header" style={[styles.title, displayFont.bold]}>
+            {t('readingPlans.plans')}
+          </Text>
         </View>
         {tabStrip}
 

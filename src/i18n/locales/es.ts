@@ -519,6 +519,8 @@ export const es = {
     "shareChapterReference": "Compartir referencia del capítulo",
     "shareChapterAudio": "Compartir audio del capítulo",
     "shareAudioPortion": "Compartir parte del audio",
+    "audioClipStart": "Inicio del fragmento",
+    "audioClipEnd": "Fin del fragmento",
     "shareVerseImage": "Imagen",
     "chooseVerseImageBackground": "Elige un fondo",
     "chapterFeedback": "Revisión de precisión",

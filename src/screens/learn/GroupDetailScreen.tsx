@@ -196,7 +196,11 @@ export function GroupDetailScreen() {
           <Text style={[styles.errorText, { color: colors.secondaryText }]}>
             {loadError ?? t('groups.groupNotFound')}
           </Text>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            accessibilityRole="button"
+            hitSlop={12}
+          >
             <Text style={[styles.errorLink, { color: colors.accentGreen }]}>
               {t('groups.goBack')}
             </Text>
@@ -270,7 +274,12 @@ export function GroupDetailScreen() {
         >
           <Ionicons name="arrow-back" size={24} color={colors.primaryText} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.primaryText }]}>{group.name}</Text>
+        <Text
+          accessibilityRole="header"
+          style={[styles.headerTitle, { color: colors.primaryText }]}
+        >
+          {group.name}
+        </Text>
         <TouchableOpacity
           style={styles.moreButton}
           onPress={handleShareCode}
@@ -290,6 +299,7 @@ export function GroupDetailScreen() {
         <TouchableOpacity
           style={[styles.codeCard, { backgroundColor: colors.cardBackground }]}
           onPress={handleShareCode}
+          accessibilityRole="button"
         >
           <View style={styles.codeCardLeft}>
             <Text style={[styles.codeLabel, { color: colors.secondaryText }]}>
@@ -330,6 +340,7 @@ export function GroupDetailScreen() {
               <TouchableOpacity
                 style={[styles.startButton, { backgroundColor: colors.accentGreen }]}
                 onPress={handleStartSession}
+                accessibilityRole="button"
               >
                 <Ionicons name="play" size={20} color={colors.onAccent} />
                 <Text style={[styles.startButtonText, { color: colors.onAccent }]}>
@@ -495,7 +506,11 @@ export function GroupDetailScreen() {
 
         {/* Leave Group */}
         {isLocalGroup && userId ? (
-          <TouchableOpacity style={styles.leaveButton} onPress={handleLeaveGroup}>
+          <TouchableOpacity
+            style={styles.leaveButton}
+            onPress={handleLeaveGroup}
+            accessibilityRole="button"
+          >
             <Ionicons name="exit-outline" size={20} color={colors.error} />
             <Text style={[styles.leaveButtonText, { color: colors.error }]}>
               {t('groups.leaveGroup')}

@@ -178,7 +178,11 @@ export function GroupSessionScreen() {
           <Text style={[styles.errorText, { color: colors.secondaryText }]}>
             {loadError ?? t('groups.groupNotFound')}
           </Text>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            accessibilityRole="button"
+            hitSlop={12}
+          >
             <Text style={[styles.errorLink, { color: colors.accentGreen }]}>
               {t('groups.goBack')}
             </Text>
@@ -278,7 +282,10 @@ export function GroupSessionScreen() {
           <Ionicons name="close" size={24} color={colors.primaryText} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={[styles.headerTitle, { color: colors.primaryText }]}>
+          <Text
+            accessibilityRole="header"
+            style={[styles.headerTitle, { color: colors.primaryText }]}
+          >
             {t('groups.session.title')}
           </Text>
           <Text style={[styles.headerSubtitle, { color: colors.secondaryText }]}>{group.name}</Text>
@@ -594,7 +601,11 @@ export function GroupSessionScreen() {
       >
         <View style={styles.footerButtons}>
           {currentPhaseIndex > 0 && (
-            <TouchableOpacity style={styles.footerButtonSecondary} onPress={handlePreviousPhase}>
+            <TouchableOpacity
+              style={styles.footerButtonSecondary}
+              onPress={handlePreviousPhase}
+              accessibilityRole="button"
+            >
               <Ionicons name="arrow-back" size={20} color={colors.secondaryText} />
               <Text style={[styles.footerButtonSecondaryText, { color: colors.secondaryText }]}>
                 {t('common.previous')}
@@ -606,6 +617,7 @@ export function GroupSessionScreen() {
             <TouchableOpacity
               style={[styles.footerButtonPrimary, { backgroundColor: colors.accentGreen }]}
               onPress={handleNextPhase}
+              accessibilityRole="button"
             >
               <Text style={[styles.footerButtonPrimaryText, { color: colors.onAccent }]}>
                 {t('common.next')}
@@ -623,6 +635,8 @@ export function GroupSessionScreen() {
                 void handleComplete();
               }}
               disabled={isSavingSynced}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: isSavingSynced, busy: isSavingSynced }}
             >
               <Ionicons name="checkmark" size={20} color={colors.onAccent} />
               <Text style={[styles.footerButtonPrimaryText, { color: colors.onAccent }]}>

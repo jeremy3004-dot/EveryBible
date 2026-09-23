@@ -523,6 +523,8 @@ export const ru = {
     "shareChapterReference": "Поделиться ссылкой на главу",
     "shareChapterAudio": "Поделиться аудио главы",
     "shareAudioPortion": "Поделиться отрывком аудио",
+    "audioClipStart": "Начало фрагмента",
+    "audioClipEnd": "Конец фрагмента",
     "shareVerseImage": "Изображение",
     "chooseVerseImageBackground": "Выберите фон",
     "chapterFeedback": "Отзыв о точности",

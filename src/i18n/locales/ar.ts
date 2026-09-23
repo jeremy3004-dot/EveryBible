@@ -533,6 +533,8 @@ export const ar = {
     "shareChapterReference": "مشاركة مرجع الإصحاح",
     "shareChapterAudio": "مشاركة صوت الإصحاح",
     "shareAudioPortion": "مشاركة الجزء الصوتي",
+    "audioClipStart": "بداية المقطع",
+    "audioClipEnd": "نهاية المقطع",
     "shareVerseImage": "صورة",
     "chooseVerseImageBackground": "اختر خلفية",
     "books": {
