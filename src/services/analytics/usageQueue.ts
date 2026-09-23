@@ -210,11 +210,13 @@ function buildQueuedEvent(
   );
 }
 
-// Only a malformed payload is permanent. Auth expiry, throttling, timeouts,
-// relay faults, and unavailable collectors must keep their retryable events.
+// Only a malformed or oversized payload is permanent: resending the same bytes
+// can never succeed, so keeping it would wedge the queue. Auth expiry,
+// throttling (429), timeouts, relay faults, and unavailable collectors must keep
+// their retryable events.
 function isPermanentFlushError(error: unknown): boolean {
   const status = (error as { context?: { status?: number } } | null)?.context?.status;
-  return status === 400 || status === 422;
+  return status === 400 || status === 413 || status === 422;
 }
 
 export function enqueueUsageEvent(
