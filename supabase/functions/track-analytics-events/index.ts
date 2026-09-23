@@ -1,12 +1,21 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import {
+  consumeIngestBudget,
+  eventPropertiesWithinLimit,
+  hashIngestUserKey,
+  type IngestBudget,
+  MAX_EVENTS_PER_BATCH,
+  readBodyWithinLimit,
+  rememberIngestGeo,
+  resolveQueuedAt,
+  textFieldsWithinLimit,
+} from '../_shared/analyticsIngest.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Expose-Headers': 'retry-after',
 };
-
-// S5: same ceiling as track-anonymous-usage-events/parseBatchRequest.
-const MAX_EVENTS_PER_BATCH = 500;
 
 interface QueuedAnalyticsEvent {
   app_version: string;
@@ -251,22 +260,38 @@ function resolveEventGeo(event: QueuedAnalyticsEvent): GeoResult | null {
   };
 }
 
-async function resolveRequestGeo(req: Request): Promise<GeoResult> {
+function geoFromCache(cached: Record<string, unknown>): GeoResult {
+  return {
+    accuracyKm: null,
+    countryCode: normalizeCountryCode(cached.countryCode),
+    latitude: normalizeCoordinate(cached.latitude),
+    longitude: normalizeCoordinate(cached.longitude),
+    source: getText(cached.source),
+    timezone: getText(cached.timezone),
+    city: getText(cached.city),
+    region: getText(cached.region),
+    regionCode: getText(cached.regionCode),
+  };
+}
+
+// M1: external lookups (ipinfo is paid) only for the request that claimed this key's lookup;
+// otherwise the cached result, otherwise the free CF country.
+async function resolveRequestGeo(
+  req: Request,
+  budget: IngestBudget,
+  remember: (geo: GeoResult) => Promise<void>
+): Promise<GeoResult> {
   // Tier 1: country from Cloudflare header — free, always present.
   const cfCountry = normalizeCountryCode(req.headers.get('cf-ipcountry'));
+  if (budget.cachedGeo) {
+    const cached = geoFromCache(budget.cachedGeo);
+    return { ...cached, countryCode: cached.countryCode ?? cfCountry };
+  }
 
-  const clientIp = getClientIp(req);
-  if (clientIp) {
-    // Tier 3: ipinfo.io when paid token is configured.
-    const ipinfoToken = Deno.env.get('IPINFO_TOKEN')?.trim();
-    if (ipinfoToken) {
-      const result = await lookupViaIpinfo(clientIp, ipinfoToken);
-      if (result) return { ...result, accuracyKm: null, countryCode: result.countryCode ?? cfCountry };
-    }
-
-    // Tier 2: ipapi.co free fallback — always attempted when no paid token.
-    const result = await lookupViaIpapi(clientIp);
-    if (result) return { ...result, accuracyKm: null, countryCode: result.countryCode ?? cfCountry };
+  const resolved = budget.mayLookupGeo ? await lookupRequestGeo(req, cfCountry) : null;
+  if (resolved) {
+    await remember(resolved);
+    return resolved;
   }
 
   // Last resort: CF header country only (no lat/lng).
@@ -281,6 +306,55 @@ async function resolveRequestGeo(req: Request): Promise<GeoResult> {
     region: null,
     regionCode: null,
   };
+}
+
+async function lookupRequestGeo(req: Request, cfCountry: string | null): Promise<GeoResult | null> {
+  const clientIp = getClientIp(req);
+  if (clientIp) {
+    // Tier 3: ipinfo.io when paid token is configured.
+    const ipinfoToken = Deno.env.get('IPINFO_TOKEN')?.trim();
+    if (ipinfoToken) {
+      const result = await lookupViaIpinfo(clientIp, ipinfoToken);
+      if (result) return { ...result, accuracyKm: null, countryCode: result.countryCode ?? cfCountry };
+    }
+
+    // Tier 2: ipapi.co free fallback — always attempted when no paid token.
+    const result = await lookupViaIpapi(clientIp);
+    if (result) return { ...result, accuracyKm: null, countryCode: result.countryCode ?? cfCountry };
+  }
+  return null;
+}
+
+// M1: the same per-event contract as track-anonymous-usage-events. Previously this endpoint
+// stored `queued_at` verbatim (any date, any size), so a signed-in account could rewrite
+// historical rollups. Events that break a limit are dropped individually and counted.
+function acceptEvent(raw: unknown, now: number): QueuedAnalyticsEvent | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const event = raw as QueuedAnalyticsEvent;
+  const queuedAt =
+    typeof event.queued_at === 'string' && event.queued_at.trim().length > 0
+      ? resolveQueuedAt(event.queued_at, now)
+      : new Date(now).toISOString();
+  if (queuedAt === 'invalid' || queuedAt === 'too_old') return null;
+  const properties =
+    event.event_properties &&
+    typeof event.event_properties === 'object' &&
+    !Array.isArray(event.event_properties)
+      ? event.event_properties
+      : {};
+  if (!eventPropertiesWithinLimit(properties)) return null;
+  // Geo may also be read from event_properties (resolveEventGeo), so bound what will actually
+  // be stored, not just the top-level fields.
+  const geo = resolveEventGeo({ ...event, event_properties: properties });
+  if (
+    !textFieldsWithinLimit([
+      event.event_name, event.device_platform, event.app_version, event.session_id,
+      geo?.source, geo?.timezone, geo?.city, geo?.regionCode, geo?.region, geo?.countryCode,
+    ])
+  ) {
+    return null;
+  }
+  return { ...event, event_properties: properties, queued_at: queuedAt };
 }
 
 function mergeGeo(requestGeo: GeoResult, payloadGeo: GeoResult | null): GeoResult {
@@ -324,6 +398,15 @@ Deno.serve(async (req) => {
       });
     }
 
+    // M1: cap the body while streaming it, before verifying the token or parsing.
+    const body = await readBodyWithinLimit(req);
+    if (!body.ok) {
+      return new Response(JSON.stringify({ success: false, error: 'Request body is too large' }), {
+        status: 413,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const {
       data: { user },
       error: authError,
@@ -336,10 +419,15 @@ Deno.serve(async (req) => {
       });
     }
 
-    const body = (await req.json().catch(() => ({}))) as TrackAnalyticsRequestBody;
-    const events = Array.isArray(body.events) ? body.events : [];
+    let parsed: TrackAnalyticsRequestBody = {};
+    try {
+      parsed = (JSON.parse(body.text) ?? {}) as TrackAnalyticsRequestBody;
+    } catch {
+      parsed = {};
+    }
+    const rawEvents: unknown[] = Array.isArray(parsed.events) ? parsed.events : [];
 
-    if (events.length === 0) {
+    if (rawEvents.length === 0) {
       return new Response(JSON.stringify({ success: true, inserted: 0, geo: null }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -350,11 +438,44 @@ Deno.serve(async (req) => {
     // enforces (parseBatchRequest). This endpoint requires a verified user token, so the
     // exposure is smaller, but a single authenticated account could still drive an unbounded
     // service-role insert from one request. The app batches far below this in practice.
-    if (events.length > MAX_EVENTS_PER_BATCH) {
+    if (rawEvents.length > MAX_EVENTS_PER_BATCH) {
       return new Response(
         JSON.stringify({ success: false, error: `A batch may contain at most ${MAX_EVENTS_PER_BATCH} events` }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    const receivedAt = Date.now();
+    const events = rawEvents
+      .map((event) => acceptEvent(event, receivedAt))
+      .filter((event): event is QueuedAnalyticsEvent => event !== null);
+    const rejected = rawEvents.length - events.length;
+
+    // M1: per-account budget and geo cache, shared with the anonymous collector's limiter.
+    const clientKey = await hashIngestUserKey(user.id, serviceRoleKey);
+    const budget = await consumeIngestBudget(supabase, clientKey, {
+      events: events.length,
+      bytes: body.bytes,
+    });
+    if (!budget.allowed) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Too many analytics requests; retry later' }),
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+            'Retry-After': String(budget.retryAfterSeconds),
+          },
+        }
+      );
+    }
+
+    if (events.length === 0) {
+      return new Response(JSON.stringify({ success: true, inserted: 0, rejected, geo: null }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const payloadGeos = events.map((event) => resolveEventGeo(event));
@@ -371,8 +492,11 @@ Deno.serve(async (req) => {
         geo.timezone == null
       );
     });
-    const requestGeo = requiresRequestGeo ? await resolveRequestGeo(req) : null;
-    const now = new Date().toISOString();
+    const requestGeo = requiresRequestGeo
+      ? await resolveRequestGeo(req, budget, (geo) =>
+          rememberIngestGeo(supabase, clientKey, { ...geo }))
+      : null;
+    const now = new Date(receivedAt).toISOString();
 
     const rows = events.map((event, index) => {
       const payloadGeo = payloadGeos[index];
@@ -390,7 +514,7 @@ Deno.serve(async (req) => {
 
       return {
         app_version: event.app_version,
-        created_at: event.queued_at || now,
+        created_at: event.queued_at,
         received_at: now,
         device_platform: event.device_platform,
         event_name: event.event_name,
@@ -422,6 +546,7 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: true,
         inserted: rows.length,
+        rejected,
         geo: requestGeo?.countryCode ?? payloadGeos[0]?.countryCode ?? null,
         geo_source: requestGeo?.source ?? payloadGeos[0]?.source ?? null,
       }),
