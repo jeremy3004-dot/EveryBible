@@ -289,7 +289,11 @@ function mapToUpstreamRecord(
     isAvailable: Boolean(textPack),
     languageCode: row.languageCode || 'und',
     languageName: row.languageNameInEnglish,
-    licenseType: row.copyright ? 'copyright' : 'public-domain',
+    // eBible's Copyright column reads "public domain" for public-domain works.
+    licenseType:
+      row.copyright && !row.copyright.toLowerCase().includes('public domain')
+        ? 'copyright'
+        : 'public-domain',
     licenseUrl: `https://ebible.org/Scriptures/${row.translationId}`,
     name: title,
     sourceUrl: `https://ebible.org/Scriptures/${row.translationId}`,

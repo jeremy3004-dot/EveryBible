@@ -275,6 +275,31 @@ test('language names come from the known-code map, then the English name, then t
   );
 });
 
+test('eBible "public domain" copyright text is published as a public-domain licence', async () => {
+  // eBible's Copyright column literally says "public domain" for ASV, KJV and
+  // WEB; only real copyright notices should be classified as copyright.
+  respond = () =>
+    new Response(
+      [
+        HEADER,
+        csvRow({ translationId: 'eng-asv', Copyright: 'public domain' }),
+        csvRow({ translationId: 'engwebp', Copyright: 'Public Domain' }),
+        csvRow({ translationId: 'spabes', Copyright: 'Copyright © 2018, 2019 AudioBiblia.org' }),
+        csvRow({ translationId: 'eng-rv', Copyright: '' }),
+      ].join('\n')
+    );
+
+  assert.deepEqual(
+    (await fetchUpstreamTranslations()).map((record) => [record.translationId, record.licenseType]),
+    [
+      ['eng-asv', 'public-domain'],
+      ['engwebp', 'public-domain'],
+      ['spabes', 'copyright'],
+      ['eng-rv', 'public-domain'],
+    ]
+  );
+});
+
 test('a failed eBible response is reported with its status', async () => {
   respond = () => new Response('unavailable', { status: 503 });
 
