@@ -10,10 +10,9 @@ test.afterEach(() => {
 });
 
 test('GET redirects a valid asset path to the R2 custom domain', async () => {
-  const response = await GET(
-    new Request('https://everybible.app/api/media/audio/test.mp3'),
-    { params: Promise.resolve({ assetPath: ['audio', 'test.mp3'] }) }
-  );
+  const response = await GET(new Request('https://everybible.app/api/media/audio/test.mp3'), {
+    params: Promise.resolve({ assetPath: ['audio', 'test.mp3'] }),
+  });
 
   assert.equal(response.status, 302);
   assert.equal(response.headers.get('location'), 'https://media.everybible.app/audio/test.mp3');
@@ -51,10 +50,9 @@ test('HEAD redirects a valid asset path to the R2 custom domain', async () => {
 test('redirect base URL can be overridden via BIBLE_MEDIA_CDN_BASE_URL', async () => {
   process.env.BIBLE_MEDIA_CDN_BASE_URL = 'https://cdn.example.test/';
 
-  const response = await GET(
-    new Request('https://everybible.app/api/media/audio/test.mp3'),
-    { params: Promise.resolve({ assetPath: ['audio', 'test.mp3'] }) }
-  );
+  const response = await GET(new Request('https://everybible.app/api/media/audio/test.mp3'), {
+    params: Promise.resolve({ assetPath: ['audio', 'test.mp3'] }),
+  });
 
   assert.equal(response.status, 302);
   assert.equal(response.headers.get('location'), 'https://cdn.example.test/audio/test.mp3');
@@ -67,4 +65,14 @@ test('GET returns 404 for an unsafe asset path', async () => {
 
   assert.equal(response.status, 404);
   assert.equal(await response.text(), 'Not found');
+});
+
+test('GET returns 404 when a decoded %2F hides traversal inside one segment', async () => {
+  const response = await GET(
+    new Request('https://everybible.app/api/media/audio/..%2F..%2Fsecret.mp3'),
+    { params: Promise.resolve({ assetPath: ['audio', '../../secret.mp3'] }) }
+  );
+
+  assert.equal(response.status, 404);
+  assert.equal(response.headers.get('location'), null);
 });

@@ -26,9 +26,11 @@ function isUnsafeSegment(segment: string): boolean {
 }
 
 export function resolveBibleMediaObjectKey(assetPath: string | string[]): string | null {
-  const rawSegments = Array.isArray(assetPath)
-    ? assetPath
-    : assetPath.split('/');
+  // Split array entries too: a catch-all route segment can carry a decoded
+  // %2F, and '..' hidden inside it must still be rejected.
+  const rawSegments = (Array.isArray(assetPath) ? assetPath : [assetPath]).flatMap((segment) =>
+    segment.split('/')
+  );
 
   const segments = rawSegments
     .map((segment) => segment.trim())
