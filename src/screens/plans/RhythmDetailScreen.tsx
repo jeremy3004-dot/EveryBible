@@ -60,10 +60,16 @@ function StatusPill({
     variant === 'accent'
       ? colors.accentPrimary
       : variant === 'success'
-        ? colors.success
+        ? // White on the `success` fill is 4.09:1 on vellum; the soft status pair
+          // is the one audited for text (contrastAudit.test.ts).
+          colors.successSoft
         : colors.background;
   const textColor =
-    variant === 'accent' || variant === 'success' ? colors.onAccent : colors.secondaryText;
+    variant === 'accent'
+      ? colors.onAccent
+      : variant === 'success'
+        ? colors.onSuccessSoft
+        : colors.secondaryText;
   const borderColor = variant === 'neutral' ? colors.cardBorder : 'transparent';
 
   return (

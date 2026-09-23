@@ -5606,8 +5606,12 @@ export function BibleReaderScreen() {
                   style={[
                     styles.feedbackSentimentButton,
                     {
+                      // White on the `success` fill is 4.09:1 on vellum, short of AA
+                      // for this label; the soft tint pair clears it in both scopes.
                       backgroundColor:
-                        feedbackSentiment === 'up' ? colors.success : colors.bibleElevatedSurface,
+                        feedbackSentiment === 'up'
+                          ? colors.successSoft
+                          : colors.bibleElevatedSurface,
                       borderColor:
                         feedbackSentiment === 'up' ? colors.success : colors.bibleDivider,
                     },
@@ -5623,14 +5627,18 @@ export function BibleReaderScreen() {
                   <Ionicons
                     name="checkmark-circle-outline"
                     size={18}
-                    color={feedbackSentiment === 'up' ? colors.onAccent : colors.biblePrimaryText}
+                    color={
+                      feedbackSentiment === 'up' ? colors.onSuccessSoft : colors.biblePrimaryText
+                    }
                   />
                   <Text
                     style={[
                       styles.feedbackSentimentLabel,
                       {
                         color:
-                          feedbackSentiment === 'up' ? colors.onAccent : colors.biblePrimaryText,
+                          feedbackSentiment === 'up'
+                            ? colors.onSuccessSoft
+                            : colors.biblePrimaryText,
                       },
                     ]}
                   >

@@ -296,3 +296,19 @@ test('error text on a dark card is held at its current near-AA value', () => {
     `dark — error on cardBackground: ${ratio.toFixed(2)}:1 must not drop further`
   );
 });
+
+// A selected "Accurate" chip and the rhythm "done" pill used to set `onAccent`
+// (white) on a `success` fill, which is 4.09:1 on vellum — below AA for their
+// labels. They now use the successSoft / onSuccessSoft pair audited above. If
+// `success` is ever darkened far enough to carry white text, drop this guard and
+// the fills may go back to solid.
+test('white labels do not sit on the success fill in the light scope', () => {
+  const ratio = contrastRatio(
+    ON_ACCENT_LIGHT,
+    extractColorToken(source, 'baseLightColors', 'success')
+  );
+  assert.ok(
+    ratio < AA_TEXT,
+    `white on success now clears ${ratio.toFixed(2)}:1 — solid success fills may carry labels again`
+  );
+});
