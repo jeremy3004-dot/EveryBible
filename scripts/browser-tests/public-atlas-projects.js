@@ -3,9 +3,17 @@ async function verifyPublicAtlasProjects(page, baseUrl = 'http://127.0.0.1:3101'
   await page.setViewportSize({ width: 1440, height: 1000 });
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
+  // The project filter is labelled "EL Translations <count>".
+  const projectFocus = () => page.getByRole('button', { name: /^EL Translations\b/ });
+  // Desktop "Browse all" opens the list panel; with the project filter on it is
+  // the "EL Translations" project list (otherwise the "Records" region).
+  const browseProjects = async () => {
+    await page.getByRole('button', { name: 'Browse all', exact: true }).click();
+    await page.getByRole('region', { name: 'EL Translations', exact: true }).waitFor();
+  };
   await page.goto(baseUrl);
   await page.locator('.la-spread-canvas').waitFor({ timeout: 60000 });
-  await page.getByRole('button', { name: 'Our languages' }).click();
+  await projectFocus().click();
   await page.waitForFunction(
     () => document.querySelectorAll('.pa-record-list > button').length === 23
   );
@@ -13,7 +21,18 @@ async function verifyPublicAtlasProjects(page, baseUrl = 'http://127.0.0.1:3101'
   console.log('Desktop list', await page.locator('.pa-record-list').innerText());
   console.log('Visible project markers', await page.locator('.la-project-marker:visible').count());
   await page.screenshot({ path: '/tmp/everybible-our-projects-desktop.png' });
-  const marker = page.locator('.la-project-marker:visible').first();
+  // Some markers sit under the explorer panel or header; click one a visitor can reach.
+  const reachable = await page
+    .locator('.la-project-marker:visible')
+    .evaluateAll((markers) =>
+      markers.findIndex((element) => {
+        const box = element.getBoundingClientRect();
+        const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+        return Boolean(hit && element.contains(hit));
+      })
+    );
+  if (reachable < 0) throw Error('No project marker is reachable on the map');
+  const marker = page.locator('.la-project-marker:visible').nth(reachable);
   if (
     (await marker.evaluate((el) => getComputedStyle(el, '::after').animationName)) !==
     'project-pulse'
@@ -22,7 +41,7 @@ async function verifyPublicAtlasProjects(page, baseUrl = 'http://127.0.0.1:3101'
   await marker.click();
   await page.getByRole('region', { name: 'Every Language project progress' }).waitFor();
   await page.getByRole('button', { name: 'Close profile', exact: true }).click();
-  await page.getByRole('button', { name: 'Records', exact: true }).click();
+  await browseProjects();
 
   await page.locator('.pa-record-list > button').filter({ hasText: 'Bhujel' }).click();
   await page.getByRole('region', { name: 'Every Language project progress' }).waitFor();
@@ -59,20 +78,20 @@ async function verifyPublicAtlasProjects(page, baseUrl = 'http://127.0.0.1:3101'
   if (!unmapped.includes('12 chapters recorded') || !unmapped.includes('1%')) throw Error('Unmapped project must retain progress');
   await page.getByRole('button', { name: 'Close project', exact: true }).click();
   await search.fill('');
-  await page.getByRole('button', { name: 'Records', exact: true }).click();
+  await browseProjects();
   await page.locator('.pa-record-list > button').filter({ hasText: 'Bhujel' }).click();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole('button', { name: 'Close profile', exact: true }).click();
-  await page.getByRole('button', { name: 'Our languages' }).click();
-  await page.getByRole('button', { name: 'Our languages' }).click();
+  await projectFocus().click();
+  await projectFocus().click();
   await page.locator('.pa-record-list > button').filter({ hasText: 'Bhujel' }).click();
   await page.screenshot({ path: '/tmp/everybible-our-projects-mobile.png' });
   for (const width of [390, 320]) {
     await page.setViewportSize({ width, height: 844 });
     const boxes = await Promise.all(
-      ['Our languages', 'Legend', 'Settings'].map((name) =>
-        page.getByRole('button', { name, exact: name !== 'Our languages' }).boundingBox()
-      )
+      [projectFocus(), ...['Legend', 'Settings'].map((name) =>
+        page.getByRole('button', { name, exact: true })
+      )].map((button) => button.boundingBox())
     );
     if (boxes[0].x + boxes[0].width > boxes[1].x)
       throw Error('Mobile focus overlaps controls ' + width);
