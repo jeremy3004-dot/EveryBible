@@ -1,4 +1,5 @@
 import { verifyCouncilAccess } from '../_shared/councilAccess.ts';
+import { readPasscodeLockout, recordFailedPasscodeAttempt } from '../_shared/passcodeAttempts.ts';
 import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
@@ -95,11 +96,9 @@ const trimRequiredText = (value: unknown): string | null => {
 const isResolution = (value: unknown): value is ReviewResolution =>
   value === 'fixed' || value === 'no_change_needed';
 
-// Brute-force protection for the shared translator passcode (S2). A hashed client IP is
-// locked out after too many failed attempts in a short window; the check runs before the
-// passcode comparison so it also covers `validateOnly` probes.
-const LOCKOUT_THRESHOLD = 10;
-const LOCKOUT_WINDOW_MINUTES = 15;
+// Brute-force protection for the shared translator passcode (S2) lives in
+// _shared/passcodeAttempts.ts. The lockout check runs before the passcode comparison so it
+// also covers `validateOnly` probes.
 
 const getClientIp = (request: Request): string => {
   // Prefer cf-connecting-ip: on Supabase's Cloudflare edge this is stamped by the
@@ -136,34 +135,6 @@ const hashClientIp = async (request: Request): Promise<string> => {
   return Array.from(new Uint8Array(digest))
     .map((byte) => byte.toString(16).padStart(2, '0'))
     .join('');
-};
-
-const isPasscodeLockedOut = async (
-  service: SupabaseClient,
-  ipHash: string
-): Promise<boolean> => {
-  const windowStart = new Date(Date.now() - LOCKOUT_WINDOW_MINUTES * 60 * 1000).toISOString();
-  const { count, error } = await service
-    .from('translator_review_attempts')
-    .select('id', { count: 'exact', head: true })
-    .eq('ip_hash', ipHash)
-    .eq('succeeded', false)
-    .gte('created_at', windowStart);
-
-  if (error) {
-    // Fail open on the counter rather than lock every translator out on a transient error.
-    return false;
-  }
-
-  return (count ?? 0) >= LOCKOUT_THRESHOLD;
-};
-
-const recordPasscodeAttempt = async (
-  service: SupabaseClient,
-  ipHash: string,
-  succeeded: boolean
-): Promise<void> => {
-  await service.from('translator_review_attempts').insert({ ip_hash: ipHash, succeeded });
 };
 
 // Resolve the acting translator's user id from an optional bearer token so we can
@@ -217,13 +188,19 @@ Deno.serve(async (request) => {
     }
 
     const ipHash = await hashClientIp(request);
-
-    if (await isPasscodeLockedOut(service, ipHash)) {
-      return jsonResponse(429, {
+    const tooManyAttempts = () =>
+      jsonResponse(429, { success: false, error: 'Too many attempts. Try again later.' });
+    // Fail CLOSED: without a readable (and writable) attempt counter there is no brute-force
+    // limit, so the passcode is not checked at all.
+    const accessUnavailable = () =>
+      jsonResponse(503, {
         success: false,
-        error: 'Too many attempts. Try again later.',
+        error: 'Unable to verify translator access. Try again later.',
       });
-    }
+
+    const lockout = await readPasscodeLockout(service, ipHash);
+    if (lockout === 'unavailable') return accessUnavailable();
+    if (lockout === 'locked') return tooManyAttempts();
 
     const expectedPasscode = getRequiredSecret('TRANSLATOR_REVIEW_PASSCODE');
 
@@ -234,13 +211,10 @@ Deno.serve(async (request) => {
       // before any INSERT lands (each otherwise getting a fresh guess). Combined
       // with the un-spoofable cf-connecting-ip key, a burst can no longer exceed
       // the window budget.
-      await recordPasscodeAttempt(service, ipHash, false);
-      if (await isPasscodeLockedOut(service, ipHash)) {
-        return jsonResponse(429, {
-          success: false,
-          error: 'Too many attempts. Try again later.',
-        });
-      }
+      if (!(await recordFailedPasscodeAttempt(service, ipHash))) return accessUnavailable();
+      const afterFailure = await readPasscodeLockout(service, ipHash);
+      if (afterFailure === 'unavailable') return accessUnavailable();
+      if (afterFailure === 'locked') return tooManyAttempts();
       return jsonResponse(403, { success: false, error: 'Translator access denied' });
     }
 
