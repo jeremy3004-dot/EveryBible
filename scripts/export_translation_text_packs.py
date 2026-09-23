@@ -204,20 +204,26 @@ def fetch_translation_verses(
     *,
     page_size: int,
 ) -> list[dict[str, Any]]:
+    # Page with an id cursor, not OFFSET. OFFSET made Postgres fetch and sort every
+    # earlier row of the translation for each page, which spilled gigabytes of temp
+    # files on bible_verses. A cursor keeps each page's sort bounded by page_size.
     all_rows: list[dict[str, Any]] = []
-    offset = 0
+    last_id: int | None = None
 
     while True:
+        params = {
+            "select": "*",
+            "translation_id": f"eq.{translation_id}",
+            "order": "id.asc",
+            "limit": str(page_size),
+        }
+        if last_id is not None:
+            params["id"] = f"gt.{last_id}"
+
         payload = get_json(
             session,
             f"{rest_base_url}/bible_verses",
-            params={
-                "select": "*",
-                "translation_id": f"eq.{translation_id}",
-                "order": "id.asc",
-                "limit": str(page_size),
-                "offset": str(offset),
-            },
+            params=params,
             headers=headers,
             timeout=120,
         )
@@ -227,7 +233,7 @@ def fetch_translation_verses(
             break
 
         all_rows.extend(page)
-        offset += len(page)
+        last_id = int(page[-1]["id"])
 
         if len(page) < page_size:
             break
