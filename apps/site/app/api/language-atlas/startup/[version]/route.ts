@@ -6,13 +6,16 @@ export const dynamic = 'force-dynamic';
 
 const VERSION_PATTERN = /^[a-f0-9]{64}$/;
 
+/** An explicitly listed coding wins; otherwise "*" covers it (RFC 9110 12.5.3). */
 function acceptsEncoding(header: string, encoding: string) {
-  return header.split(',').some((part) => {
+  const qualities = new Map<string, number>();
+  for (const part of header.split(',')) {
     const [name, ...parameters] = part.trim().toLowerCase().split(';');
-    if (name !== encoding) return false;
     const quality = parameters.find((parameter) => parameter.trim().startsWith('q='));
-    return !quality || Number(quality.trim().slice(2)) > 0;
-  });
+    qualities.set(name.trim(), quality ? Number(quality.trim().slice(2)) : 1);
+  }
+  const quality = qualities.get(encoding) ?? qualities.get('*');
+  return quality !== undefined && quality > 0;
 }
 
 export async function GET(request: Request, { params }: { params: Promise<{ version: string }> }) {

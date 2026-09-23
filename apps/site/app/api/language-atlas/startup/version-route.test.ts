@@ -54,3 +54,48 @@ test('versioned public snapshots negotiate compression and cache only existing i
     await rm(temporary, { recursive: true, force: true });
   }
 });
+
+test('a wildcard Accept-Encoding is served, while explicit refusals still win over it', async () => {
+  const original = process.cwd();
+  const temporary = await mkdtemp(path.join(os.tmpdir(), 'everybible-startup-wildcard-'));
+  const version = 'b'.repeat(64);
+  const params = Promise.resolve({ version });
+  const body = Buffer.from('{"schemaVersion":2}');
+  try {
+    process.chdir(temporary);
+    const directory = path.join(temporary, 'data/language-atlas');
+    await mkdir(directory, { recursive: true });
+    await writeFile(path.join(directory, `startup-${version}.json.gz`), gzipSync(body));
+    await writeFile(path.join(directory, `startup-${version}.json.br`), brotliCompressSync(body));
+    // RFC 9110 12.5.3: "*" matches any coding not listed explicitly.
+    for (const [accept, expected] of [
+      ['*', 'br'],
+      ['identity, *;q=0.5', 'br'],
+      ['br;q=0, *', 'gzip'],
+      ['br;q=0, gzip;q=0, *', 406],
+      ['*;q=0', 406],
+      ['identity', 406],
+    ] as const) {
+      const response = await GET(
+        new Request('https://everybible.app/api/language-atlas/startup/' + version, {
+          headers: { 'Accept-Encoding': accept },
+        }),
+        { params }
+      );
+      if (expected === 406) {
+        assert.equal(response.status, 406, accept);
+        continue;
+      }
+      assert.equal(response.status, 200, accept);
+      assert.equal(response.headers.get('content-encoding'), expected, accept);
+      const compressed = Buffer.from(await response.arrayBuffer());
+      assert.deepEqual(
+        expected === 'br' ? brotliDecompressSync(compressed) : gunzipSync(compressed),
+        body
+      );
+    }
+  } finally {
+    process.chdir(original);
+    await rm(temporary, { recursive: true, force: true });
+  }
+});
