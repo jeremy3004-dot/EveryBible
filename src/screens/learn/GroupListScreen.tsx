@@ -204,6 +204,7 @@ export function GroupListScreen() {
               style={[styles.authPromptButton, { backgroundColor: colors.accentPrimary }]}
               onPress={() => openAuthFlow('signIn')}
               activeOpacity={0.85}
+              accessibilityRole="button"
             >
               <Text style={[styles.authPromptButtonText, { color: colors.onAccent }]}>
                 {t('auth.signIn')}
@@ -236,6 +237,7 @@ export function GroupListScreen() {
                   ]}
                   onPress={() => navigation.navigate('GroupDetail', { groupId: group.id })}
                   activeOpacity={0.85}
+                  accessibilityRole="button"
                 >
                   <View
                     style={[styles.groupIcon, { backgroundColor: colors.accentPrimary + '16' }]}
@@ -339,6 +341,7 @@ export function GroupListScreen() {
                     ]}
                     onPress={() => navigation.navigate('GroupDetail', { groupId: group.id })}
                     activeOpacity={0.85}
+                    accessibilityRole="button"
                   >
                     <View
                       style={[styles.groupIcon, { backgroundColor: colors.accentSecondary + '16' }]}

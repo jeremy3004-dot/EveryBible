@@ -131,7 +131,11 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
           <Ionicons name="arrow-back" size={18} color={colors.primaryText} />
         </TouchableOpacity>
 
-        <Text style={[styles.headerTitle, { color: colors.primaryText }]} numberOfLines={1}>
+        <Text
+          accessibilityRole="header"
+          style={[styles.headerTitle, { color: colors.primaryText }]}
+          numberOfLines={1}
+        >
           {FOUNDATION_TITLE_KEYS[foundation.id]
             ? t(FOUNDATION_TITLE_KEYS[foundation.id])
             : WISDOM_TITLE_KEYS[foundation.id]
@@ -162,7 +166,13 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
           />
 
           {/* Progress text */}
-          <Text style={[styles.progressText, { color: colors.secondaryText }]}>
+          <Text
+            accessibilityLabel={t('home.lessonsProgress', {
+              completed: completedCount,
+              total: totalLessons,
+            })}
+            style={[styles.progressText, { color: colors.secondaryText }]}
+          >
             {`${completedCount}/${totalLessons}`}
           </Text>
 
@@ -218,6 +228,7 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
             style={[styles.gatherButton, { backgroundColor: colors.accentPrimary }]}
             onPress={handleShareInvitation}
             activeOpacity={0.85}
+            accessibilityRole="button"
           >
             <Text style={[styles.gatherButtonText, { color: colors.onAccent }]}>
               {t('gather.gatherWithOthers')}
@@ -248,7 +259,14 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
               }
               activeOpacity={0.85}
               accessibilityRole="button"
-              accessibilityLabel={lessonTitle}
+              accessibilityLabel={`${lessonTitle}, ${formatBibleReferenceLabel(lesson.references, resolveBookName)}`}
+              accessibilityValue={complete ? { text: t('gather.completed') } : undefined}
+              // The nested "more" button is not reachable by VoiceOver inside this
+              // row, so it is also offered as a custom action.
+              accessibilityActions={[{ name: 'moreOptions', label: t('gather.moreOptions') }]}
+              onAccessibilityAction={(event) => {
+                if (event.nativeEvent.actionName === 'moreOptions') handleThreeDotPress(lesson);
+              }}
             >
               {/* Number badge */}
               <View
@@ -305,6 +323,7 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
             ]}
             onPress={() => navigation.push('FoundationDetail', { foundationId: nextFoundation.id })}
             activeOpacity={0.85}
+            accessibilityRole="button"
           >
             <GatherIconBadge
               artworkKey={nextFoundation.iconImage}
