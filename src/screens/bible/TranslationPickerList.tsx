@@ -546,6 +546,8 @@ export function TranslationPickerList({
           ]}
           onPress={() => handleLanguageSearchResultSelect(item.language.value)}
           activeOpacity={0.82}
+          accessibilityRole="button"
+          accessibilityState={{ selected: isSelected }}
         >
           <Ionicons name="globe-outline" size={18} color={colors.bibleSecondaryText} />
           <View style={styles.rowText}>
@@ -593,7 +595,10 @@ export function TranslationPickerList({
 
     if (item.type === 'section-header') {
       return (
-        <Text style={[styles.sectionEyebrow, { color: colors.bibleSecondaryText }]}>
+        <Text
+          accessibilityRole="header"
+          style={[styles.sectionEyebrow, { color: colors.bibleSecondaryText }]}
+        >
           {item.label}
         </Text>
       );
@@ -664,6 +669,8 @@ export function TranslationPickerList({
                   setPickerMode('translations');
                 }}
                 activeOpacity={0.82}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isSelected }}
               >
                 <View style={styles.rowText}>
                   <Text style={[styles.rowTitle, { color: colors.biblePrimaryText }]}>
@@ -842,7 +849,26 @@ const TranslationRow = memo(function TranslationRow({
         disabled={disabled || isTextDownloadActive}
         accessibilityRole="button"
         accessibilityState={{ selected: isSelected }}
-        accessibilityLabel={translation.name}
+        accessibilityLabel={[translation.name, meta].filter(Boolean).join(', ')}
+        accessibilityValue={
+          activeDownloadProgress != null
+            ? {
+                text: isTextDownloadIndeterminate
+                  ? t('translations.downloading')
+                  : `${activeDownloadProgress}%`,
+              }
+            : undefined
+        }
+        // The nested cancel button is not reachable by VoiceOver inside this
+        // row, so it is also offered as a custom action.
+        accessibilityActions={
+          activeDownloadProgress != null
+            ? [{ name: 'cancelDownload', label: t('translations.cancelDownload') }]
+            : undefined
+        }
+        onAccessibilityAction={(event) => {
+          if (event.nativeEvent.actionName === 'cancelDownload') cancelDownload();
+        }}
       >
         <View style={styles.rowText}>
           <Text
@@ -1101,7 +1127,11 @@ function TranslationManageSheet({
     <>
       <View style={styles.modalHeader}>
         <View style={styles.modalHeaderText}>
-          <Text style={[styles.modalTitle, { color: colors.biblePrimaryText }]} numberOfLines={1}>
+          <Text
+            accessibilityRole="header"
+            style={[styles.modalTitle, { color: colors.biblePrimaryText }]}
+            numberOfLines={1}
+          >
             {translation.name}
           </Text>
           <Text style={[styles.rowMeta, { color: colors.bibleSecondaryText }]} numberOfLines={2}>
@@ -1258,6 +1288,27 @@ function TranslationManageSheet({
               activeOpacity={row.onPress ? 0.82 : 1}
               accessibilityRole="button"
               accessibilityLabel={row.label}
+              // The status is otherwise only a glyph (tick, cloud, spinner).
+              accessibilityValue={{
+                text:
+                  row.state === 'busy'
+                    ? row.progress != null && !row.indeterminate
+                      ? `${row.progress}%`
+                      : t('translations.downloading')
+                    : row.state === 'done'
+                      ? t('translations.installed')
+                      : row.state === 'unavailable'
+                        ? t('bible.notAvailableYet')
+                        : [t('translations.download'), row.meta].filter(Boolean).join(', '),
+              }}
+              accessibilityActions={
+                row.progress != null
+                  ? [{ name: 'cancelDownload', label: t('translations.cancelDownload') }]
+                  : undefined
+              }
+              onAccessibilityAction={(event) => {
+                if (event.nativeEvent.actionName === 'cancelDownload') cancelDownload();
+              }}
             >
               <Ionicons name={row.icon} size={18} color={colors.bibleSecondaryText} />
               <View style={styles.rowText}>
@@ -1308,7 +1359,10 @@ function TranslationManageSheet({
               {textRows.map((row, index) => renderDownloadRow(row, index, textRows.length))}
               {audioRows.length > 0 ? (
                 <>
-                  <Text style={[styles.sectionEyebrow, { color: colors.bibleSecondaryText }]}>
+                  <Text
+                    accessibilityRole="header"
+                    style={[styles.sectionEyebrow, { color: colors.bibleSecondaryText }]}
+                  >
                     {t('bible.audioDownloads')}
                   </Text>
                   {audioRows.map((row, index) => renderDownloadRow(row, index, audioRows.length))}

@@ -477,6 +477,7 @@ export function BibleBrowserScreen() {
         <View style={styles.dividerRow}>
           <View style={[styles.dividerLine, { backgroundColor: colors.bibleDivider }]} />
           <Text
+            accessibilityRole="header"
             style={[styles.dividerLabel, displayFont.regular, { color: colors.bibleSecondaryText }]}
           >
             {t(item.testament === 'NT' ? 'bible.newTestament' : 'bible.oldTestament')}
@@ -506,6 +507,8 @@ export function BibleBrowserScreen() {
           ]}
           onPress={() => handleBookPress(book)}
           activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: isExpanded }}
           accessibilityHint={isBookAvailable ? undefined : t('bible.notAvailableYet')}
         >
           <View style={styles.bookRowLeft}>
@@ -564,6 +567,7 @@ export function BibleBrowserScreen() {
                     ]}
                     onPress={() => handleChapterPress(book.id, chapter)}
                     activeOpacity={0.7}
+                    accessibilityRole="button"
                     accessibilityHint={isChapterAvailable ? undefined : t('bible.notAvailableYet')}
                   >
                     <Text
@@ -611,6 +615,7 @@ export function BibleBrowserScreen() {
         ]}
         onPress={() => handleSearchResultPress(item)}
         activeOpacity={0.85}
+        accessibilityRole="button"
       >
         <View style={styles.searchResultHeader}>
           <Text style={[styles.searchReference, { color: colors.bibleAccent }]}>
@@ -660,7 +665,10 @@ export function BibleBrowserScreen() {
               </TouchableOpacity>
             ) : null}
             <View>
-              <Text style={[styles.title, displayFont.bold, { color: colors.biblePrimaryText }]}>
+              <Text
+                accessibilityRole="header"
+                style={[styles.title, displayFont.bold, { color: colors.biblePrimaryText }]}
+              >
                 {t('bible.title')}
               </Text>
               <Text style={[styles.subtitle, { color: colors.bibleSecondaryText }]}>
@@ -678,6 +686,7 @@ export function BibleBrowserScreen() {
                 ]}
                 onPress={() => navigation.navigate('TranslatorQueue')}
                 activeOpacity={0.85}
+                hitSlop={2}
                 accessibilityRole="button"
                 accessibilityLabel={t('translatorQueue.title')}
               >
@@ -695,6 +704,12 @@ export function BibleBrowserScreen() {
                   setShowTranslationModal(true);
                 }}
                 activeOpacity={0.85}
+                hitSlop={2}
+                accessibilityRole="button"
+                accessibilityLabel={t('bible.selectTranslation')}
+                accessibilityValue={{
+                  text: currentTranslationInfo?.name || t('about.bereanBible'),
+                }}
               >
                 <Ionicons name="book-outline" size={16} color={colors.bibleSecondaryText} />
                 <Text style={[styles.translationButtonText, { color: colors.biblePrimaryText }]}>
@@ -755,7 +770,10 @@ export function BibleBrowserScreen() {
               { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
             ]}
           >
-            <Text style={[styles.searchFeedbackText, { color: colors.biblePrimaryText }]}>
+            <Text
+              accessibilityLiveRegion="polite"
+              style={[styles.searchFeedbackText, { color: colors.biblePrimaryText }]}
+            >
               {searchError}
             </Text>
           </View>
@@ -782,6 +800,7 @@ export function BibleBrowserScreen() {
           ]}
           onPress={() => handleReferencePress(searchIntent.target)}
           activeOpacity={0.85}
+          accessibilityRole="button"
         >
           <View style={styles.searchResultHeader}>
             <Text style={[styles.searchReference, { color: colors.bibleAccent }]}>

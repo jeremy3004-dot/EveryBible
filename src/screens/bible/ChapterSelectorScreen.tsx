@@ -164,6 +164,14 @@ export function ChapterSelectorScreen() {
             activeOpacity={0.85}
             accessibilityRole="button"
             accessibilityLabel={`${getTranslatedBookName(bookId, t)} ${chapter}`}
+            // Read / continue state is otherwise carried by fill colour alone.
+            accessibilityValue={
+              isContinueChapter
+                ? { text: t('home.continueReading') }
+                : isRead
+                  ? { text: t('readingPlans.completed') }
+                  : undefined
+            }
           >
             <Text style={[styles.chapterNumber, { color: numberColor }]}>{chapter}</Text>
           </TouchableOpacity>
@@ -226,13 +234,19 @@ export function ChapterSelectorScreen() {
                 <BookIcon bookId={book.id} style={styles.bookIcon} />
               </View>
 
-              <Text style={[styles.title, displayFont.bold, { color: colors.biblePrimaryText }]}>
+              <Text
+                accessibilityRole="header"
+                style={[styles.title, displayFont.bold, { color: colors.biblePrimaryText }]}
+              >
                 {getTranslatedBookName(bookId, t)}
               </Text>
             </LinearGradient>
 
             <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: colors.biblePrimaryText }]}>
+              <Text
+                accessibilityRole="header"
+                style={[styles.sectionTitle, { color: colors.biblePrimaryText }]}
+              >
                 {t('bible.chapters')}
               </Text>
             </View>
