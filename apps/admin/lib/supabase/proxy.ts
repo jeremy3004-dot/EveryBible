@@ -46,12 +46,9 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (claims && request.nextUrl.pathname === '/login') {
-    const homeUrl = request.nextUrl.clone();
-    homeUrl.pathname = '/';
-    homeUrl.searchParams.delete('reason');
-    return NextResponse.redirect(homeUrl);
-  }
-
+  // A session alone does not make someone an admin, so signed-in visitors are
+  // not bounced off /login here: the dashboard sends non-admins to
+  // /login?reason=forbidden, and bouncing them back to "/" looped forever. The
+  // login page checks profiles.admin_role and forwards real admins itself.
   return response;
 }
