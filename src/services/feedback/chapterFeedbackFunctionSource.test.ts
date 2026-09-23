@@ -168,9 +168,13 @@ test('submit-chapter-feedback rate-limits anonymous submitters on an un-spoofabl
   );
 
   // The counter is scoped by a hash of the Cloudflare-stamped client IP, not by the
-  // free-text participant fields the caller controls.
-  assert.match(source, /cf-connecting-ip/, 'Expected the client IP to be read from cf-connecting-ip first');
-  assert.match(source, /crypto\.subtle\.digest\('SHA-256'/, 'Expected the IP to be hashed, never stored raw');
+  // free-text participant fields the caller controls. Which headers are trusted, and the
+  // hashing, are behaviour-tested in supabase/functions/_shared/passcodeAttempts.test.ts.
+  assert.match(
+    source,
+    /const clientIpHash = await hashPasscodeAttemptKey\(req\);/,
+    'Expected the anonymous scope to use the shared edge-stamped, hashed client key'
+  );
   assert.match(
     source,
     /\.is\('user_id', null\)\.eq\('client_ip_hash', clientIpHash\)/,

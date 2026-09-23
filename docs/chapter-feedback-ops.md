@@ -21,6 +21,8 @@ mobile public environment variables or tracked files. The app stores entered acc
 codes in SecureStore, with only the active mode in preference storage. Sign-out and
 account-switch cleanup clear both credentials. Failed council attempts share the
 existing attempt table under a separate hashed-IP namespace (10 failures/15 minutes).
+Both lockouts key on the edge-stamped `cf-connecting-ip` (then `x-real-ip`; IPv6 by /64),
+never on `x-forwarded-for`, and refuse with 503 if the attempt counter is unavailable.
 
 `submit-chapter-feedback` verifies the council code for each council submission.
 `contributor_category` snapshots `community` or `scripture_council` at submission;
@@ -89,7 +91,7 @@ uploads with invalid or incomplete MP4/M4A containers are rejected on the server
 for both paths, regardless of their declared MIME type. The container check is
 structural, not a full codec decode. Failed
 submission preserves the draft for retry. Translator playback refreshes a scoped,
-one-hour signed URL before loading audio, supports pause/resume, and restores the
+10-minute signed URL before loading audio, supports pause/resume, and restores the
 iOS speaker playback mode after recording. Raw auth UUIDs are not exposed to the
 passcode-based review API.
 

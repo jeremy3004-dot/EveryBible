@@ -1,12 +1,23 @@
 import { verifyCouncilAccess } from '../_shared/councilAccess.ts';
+import {
+  hashPasscodeAttemptKey,
+  readPasscodeLockout,
+  recordFailedPasscodeAttempt,
+} from '../_shared/passcodeAttempts.ts';
+import {
+  AUDIO_URL_TTL_SECONDS,
+  type ChapterFeedbackReviewRow,
+  LEGACY_LIST_AUDIO_URL_TTL_SECONDS,
+  type ReviewResolution,
+  signsListAudio,
+  toReviewFeedbackItem,
+} from './reviewPayload.ts';
 import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-type ReviewResolution = 'fixed' | 'no_change_needed';
 
 interface ReviewRequest {
   apiVersion?: number;
@@ -27,32 +38,6 @@ interface ReviewRequest {
   feedbackId?: string;
   resolution?: ReviewResolution;
   note?: string;
-}
-
-interface ChapterFeedbackReviewRow {
-  contributor_category: 'community' | 'scripture_council' | null;
-  id: string;
-  created_at: string;
-  translation_id: string;
-  translation_language: string;
-  book_id: string;
-  chapter: number;
-  sentiment: 'up' | 'down';
-  comment: string | null;
-  participant_name: string | null;
-  participant_role: string | null;
-  participant_id_number: string | null;
-  user_id: string | null;
-  source_screen: string;
-  audio_response_bucket: string | null;
-  audio_response_path: string | null;
-  audio_response_mime_type: string | null;
-  audio_response_size_bytes: number | null;
-  audio_response_duration_ms: number | null;
-  audio_response_created_at: string | null;
-  scripture_council_resolution: ReviewResolution | null;
-  scripture_council_fixed_at: string | null;
-  scripture_council_fixed_note: string | null;
 }
 
 interface ChapterFeedbackSummaryRow {
@@ -95,25 +80,10 @@ const trimRequiredText = (value: unknown): string | null => {
 const isResolution = (value: unknown): value is ReviewResolution =>
   value === 'fixed' || value === 'no_change_needed';
 
-// Brute-force protection for the shared translator passcode (S2). A hashed client IP is
-// locked out after too many failed attempts in a short window; the check runs before the
-// passcode comparison so it also covers `validateOnly` probes.
-const LOCKOUT_THRESHOLD = 10;
-const LOCKOUT_WINDOW_MINUTES = 15;
-
-const getClientIp = (request: Request): string => {
-  // Prefer cf-connecting-ip: on Supabase's Cloudflare edge this is stamped by the
-  // proxy and cannot be spoofed by the client, unlike the first x-forwarded-for
-  // entry (which the client controls — trusted proxies append the real IP, they
-  // do not prepend it). Mirrors track-anonymous-usage-events/getClientIp so the
-  // brute-force lockout keys on a stable identifier instead of an attacker-rotated
-  // XFF value.
-  const cfIp = request.headers.get('cf-connecting-ip')?.trim();
-  if (cfIp) return cfIp;
-  const forwardedFor = request.headers.get('x-forwarded-for') ?? '';
-  const first = forwardedFor.split(',')[0]?.trim();
-  return first || request.headers.get('x-real-ip')?.trim() || 'unknown';
-};
+// Brute-force protection for the shared translator passcode (S2) lives in
+// _shared/passcodeAttempts.ts, keyed on the edge-stamped client address (never on the
+// caller's own x-forwarded-for). The lockout check runs before the passcode comparison so it
+// also covers `validateOnly` probes.
 
 // Constant-time string comparison so a wrong passcode cannot be recovered via
 // early-exit timing. Folds a length mismatch into the accumulator and always
@@ -128,42 +98,6 @@ const constantTimeEquals = (a: string, b: string): boolean => {
     mismatch |= (aBytes[i] ?? 0) ^ (bBytes[i] ?? 0);
   }
   return mismatch === 0;
-};
-
-const hashClientIp = async (request: Request): Promise<string> => {
-  const data = new TextEncoder().encode(getClientIp(request));
-  const digest = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(digest))
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('');
-};
-
-const isPasscodeLockedOut = async (
-  service: SupabaseClient,
-  ipHash: string
-): Promise<boolean> => {
-  const windowStart = new Date(Date.now() - LOCKOUT_WINDOW_MINUTES * 60 * 1000).toISOString();
-  const { count, error } = await service
-    .from('translator_review_attempts')
-    .select('id', { count: 'exact', head: true })
-    .eq('ip_hash', ipHash)
-    .eq('succeeded', false)
-    .gte('created_at', windowStart);
-
-  if (error) {
-    // Fail open on the counter rather than lock every translator out on a transient error.
-    return false;
-  }
-
-  return (count ?? 0) >= LOCKOUT_THRESHOLD;
-};
-
-const recordPasscodeAttempt = async (
-  service: SupabaseClient,
-  ipHash: string,
-  succeeded: boolean
-): Promise<void> => {
-  await service.from('translator_review_attempts').insert({ ip_hash: ipHash, succeeded });
 };
 
 // Resolve the acting translator's user id from an optional bearer token so we can
@@ -216,14 +150,20 @@ Deno.serve(async (request) => {
         : jsonResponse(200, { success: true });
     }
 
-    const ipHash = await hashClientIp(request);
-
-    if (await isPasscodeLockedOut(service, ipHash)) {
-      return jsonResponse(429, {
+    const ipHash = await hashPasscodeAttemptKey(request);
+    const tooManyAttempts = () =>
+      jsonResponse(429, { success: false, error: 'Too many attempts. Try again later.' });
+    // Fail CLOSED: without a readable (and writable) attempt counter there is no brute-force
+    // limit, so the passcode is not checked at all.
+    const accessUnavailable = () =>
+      jsonResponse(503, {
         success: false,
-        error: 'Too many attempts. Try again later.',
+        error: 'Unable to verify translator access. Try again later.',
       });
-    }
+
+    const lockout = await readPasscodeLockout(service, ipHash);
+    if (lockout === 'unavailable') return accessUnavailable();
+    if (lockout === 'locked') return tooManyAttempts();
 
     const expectedPasscode = getRequiredSecret('TRANSLATOR_REVIEW_PASSCODE');
 
@@ -234,13 +174,10 @@ Deno.serve(async (request) => {
       // before any INSERT lands (each otherwise getting a fresh guess). Combined
       // with the un-spoofable cf-connecting-ip key, a burst can no longer exceed
       // the window budget.
-      await recordPasscodeAttempt(service, ipHash, false);
-      if (await isPasscodeLockedOut(service, ipHash)) {
-        return jsonResponse(429, {
-          success: false,
-          error: 'Too many attempts. Try again later.',
-        });
-      }
+      if (!(await recordFailedPasscodeAttempt(service, ipHash))) return accessUnavailable();
+      const afterFailure = await readPasscodeLockout(service, ipHash);
+      if (afterFailure === 'unavailable') return accessUnavailable();
+      if (afterFailure === 'locked') return tooManyAttempts();
       return jsonResponse(403, { success: false, error: 'Translator access denied' });
     }
 
@@ -374,7 +311,7 @@ Deno.serve(async (request) => {
         return jsonResponse(404, { success: false, error: 'Recording not found' });
       }
       const signed = await service.storage.from(audio.audio_response_bucket)
-        .createSignedUrl(audio.audio_response_path, 3600);
+        .createSignedUrl(audio.audio_response_path, AUDIO_URL_TTL_SECONDS);
       return signed.error ? jsonResponse(500, { success: false, error: 'Recording unavailable' })
         : jsonResponse(200, { success: true, playbackUrl: signed.data.signedUrl });
     }
@@ -505,13 +442,13 @@ Deno.serve(async (request) => {
     const rows = (body.apiVersion === 2 ? data.rows : data ?? []) as ChapterFeedbackReviewRow[];
     const signedAudioUrls = await Promise.all(
       rows.map(async (row) => {
-        if (!row.audio_response_bucket || !row.audio_response_path) {
+        if (!signsListAudio(body.apiVersion) || !row.audio_response_bucket || !row.audio_response_path) {
           return null;
         }
 
         const { data: signedUrlData, error: signedUrlError } = await service.storage
           .from(row.audio_response_bucket)
-          .createSignedUrl(row.audio_response_path, 60 * 60);
+          .createSignedUrl(row.audio_response_path, LEGACY_LIST_AUDIO_URL_TTL_SECONDS);
 
         if (signedUrlError) {
           return null;
@@ -524,41 +461,9 @@ Deno.serve(async (request) => {
     return jsonResponse(200, {
       success: true,
       ...(body.apiVersion === 2 ? { summary: data.chapters[0] ?? null, nextCursor: data.nextCursor, positiveCount: data.positiveCount } : {}),
-      feedback: rows.map((row, index) => ({
-        contributorCategory: row.contributor_category ?? null,
-        id: row.id,
-        createdAt: row.created_at,
-        translationId: row.translation_id,
-        translationLanguage: row.translation_language,
-        bookId: row.book_id,
-        chapter: row.chapter,
-        sentiment: row.sentiment,
-        comment: row.comment,
-        participantName: row.participant_name,
-        participantRole: row.participant_role,
-        // Legacy rows stored the raw Supabase UUID here; never surface it to translators (S4).
-        // row.user_id is selected ONLY for this comparison and is deliberately not emitted:
-        // translators authenticate with a shared passcode, so anything in this payload is
-        // readable by every passcode holder, and the submitter's auth UUID is not theirs to see.
-        participantIdNumber:
-          row.participant_id_number && row.participant_id_number === row.user_id
-            ? null
-            : row.participant_id_number,
-        sourceScreen: row.source_screen,
-        resolution: row.scripture_council_resolution,
-        resolvedAt: row.scripture_council_fixed_at,
-        resolutionNote: row.scripture_council_fixed_note,
-        audioResponse:
-          row.audio_response_path && row.audio_response_duration_ms && row.audio_response_mime_type
-            ? {
-                createdAt: row.audio_response_created_at,
-                durationMs: row.audio_response_duration_ms,
-                mimeType: row.audio_response_mime_type,
-                playbackUrl: signedAudioUrls[index],
-                sizeBytes: row.audio_response_size_bytes,
-              }
-            : null,
-      })),
+      feedback: rows.map((row, index) =>
+        toReviewFeedbackItem(row, body.apiVersion, signedAudioUrls[index])
+      ),
     });
   } catch (error) {
     return jsonResponse(500, {
