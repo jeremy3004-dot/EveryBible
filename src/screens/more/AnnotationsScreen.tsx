@@ -113,6 +113,7 @@ export function AnnotationsScreen() {
       ]}
       activeOpacity={0.7}
       onPress={() => navigateToBible(item)}
+      accessibilityRole="button"
     >
       <View style={styles.cardHeader}>
         <View style={styles.cardIconRow}>
@@ -180,6 +181,8 @@ export function AnnotationsScreen() {
               },
             ]}
             onPress={() => setFilter(fb.key)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: filter === fb.key }}
           >
             <Ionicons
               // eslint-disable-next-line @typescript-eslint/no-explicit-any

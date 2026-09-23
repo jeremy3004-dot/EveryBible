@@ -330,6 +330,7 @@ export function PrivacyLockScreen() {
                   ]}
                   activeOpacity={0.7}
                   onPress={() => void handlePress(key)}
+                  accessibilityRole="button"
                 >
                   <Text
                     style={[

@@ -149,11 +149,19 @@ export function DiagnosticsScreen() {
 
       {hasEntries ? (
         <View style={[styles.actionBar, { paddingBottom: contentClearance }]}>
-          <TouchableOpacity style={[styles.actionButton, styles.shareButton]} onPress={handleShare}>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.shareButton]}
+            onPress={handleShare}
+            accessibilityRole="button"
+          >
             <Ionicons name="share-outline" size={20} color={colors.onAccent} />
             <Text style={styles.shareButtonText}>{t('interface.share')}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.actionButton, styles.clearButton]} onPress={handleClear}>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.clearButton]}
+            onPress={handleClear}
+            accessibilityRole="button"
+          >
             <Ionicons name="trash-outline" size={20} color={colors.error} />
             <Text style={styles.clearButtonText}>{t('settings.diagnostics.clear')}</Text>
           </TouchableOpacity>
