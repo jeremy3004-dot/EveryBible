@@ -1,16 +1,54 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
-import path from 'node:path';
-import test from 'node:test';
-import { fileURLToPath } from 'node:url';
+import test, { beforeEach, mock } from 'node:test';
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../..');
+import {
+  captureRedirect,
+  createSupabaseFake,
+  formData,
+  mockModule,
+  mockNextServerRuntime,
+} from '../../../lib/testing/adminTestHarness';
 
-test('admin login redirects successful sign-ins to the analytics globe', async () => {
-  const actionSource = await readFile(
-    path.join(repoRoot, 'apps/admin/app/(auth)/login/actions.ts'),
-    'utf8'
+const session = createSupabaseFake();
+mockModule(mock, '@/lib/supabase/server', { createAdminServerClient: async () => session.client });
+mockNextServerRuntime(mock);
+
+const { loginAction, signOutAction } = await import('./actions');
+
+beforeEach(() => session.reset());
+
+test('signing in with a password opens the analytics globe', async () => {
+  const url = await captureRedirect(() =>
+    loginAction(formData({ email: 'ops@everybible.app', password: 'secret' }))
   );
+  assert.equal(url, '/analytics');
+  assert.deepEqual(session.authCalls, [
+    { method: 'signInWithPassword', args: [{ email: 'ops@everybible.app', password: 'secret' }] },
+  ]);
+});
 
-  assert.match(actionSource, /redirect\('\/analytics'\)/);
+test('a rejected sign-in returns to login with the reason', async () => {
+  session.auth.handlers.signInWithPassword = async () => ({
+    data: { user: null, session: null },
+    error: { message: 'Invalid login credentials' },
+  });
+  const url = await captureRedirect(() =>
+    loginAction(formData({ email: 'ops@everybible.app', password: 'wrong' }))
+  );
+  assert.equal(url, '/login?error=Invalid%20login%20credentials');
+});
+
+test('a sign-in without credentials does not reach Supabase', async () => {
+  const url = await captureRedirect(() => loginAction(formData({ email: 'ops@everybible.app' })));
+  assert.equal(url, '/login?error=Missing credentials');
+  assert.deepEqual(session.authCalls, []);
+});
+
+test('signing out ends the Supabase session and confirms it', async () => {
+  const url = await captureRedirect(() => signOutAction());
+  assert.deepEqual(
+    session.authCalls.map((call) => call.method),
+    ['signOut']
+  );
+  assert.equal(url, '/login?notice=Signed out successfully');
 });
