@@ -1,6 +1,6 @@
 -- Audit 2026-09-24 L3: client roles must not be able to issue HTTP requests through pg_net.
 -- Run against a local or linked database as postgres (read-only assertions).
--- Before 20260924150100_revoke_client_execute_on_pg_net.sql this fails: every net.*
+-- Before 20260923233714_revoke_client_execute_on_pg_net.sql this fails: every net.*
 -- function had a NULL ACL (implicit PUBLIC EXECUTE) and anon/authenticated had USAGE on net.
 BEGIN;
 

@@ -1,6 +1,6 @@
 -- Audit 2026-09-24 L2: service-only tables must carry no client-role grants.
 -- Run against a local or linked database as postgres (read-only assertions).
--- Before 20260924150000_revoke_client_grants_on_service_only_tables.sql this fails:
+-- Before 20260923233710_revoke_client_grants_on_service_only_tables.sql this fails:
 -- anon and authenticated held every table privilege on these RLS-without-policy tables.
 BEGIN;
 

@@ -21,7 +21,7 @@ const MIGRATIONS = [
   '20260704120000_fix_group_members_rls_recursion.sql',
   '20260711100100_revoke_group_membership_helpers_from_public.sql',
   '20260910093000_restrict_group_members_direct_insert.sql',
-  '20260924120000_pin_group_scope_and_harden_group_helpers.sql',
+  '20260923233220_pin_group_scope_and_harden_group_helpers.sql',
 ];
 
 const db = new PGlite();

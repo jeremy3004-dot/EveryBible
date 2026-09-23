@@ -1,6 +1,6 @@
 -- Audit 2026-09-24 L4: public buckets must not be listable by other users.
 -- Run against a local or linked database as postgres. Every fixture rolls back.
--- Before 20260924150200_restrict_public_bucket_listing.sql this fails: avatar_select
+-- Before 20260923233717_restrict_public_bucket_listing.sql this fails: avatar_select
 -- (role public) let anyone list avatars/, whose folders are user UUIDs, and
 -- content_images_public_read(_authenticated) let anyone list content-images/.
 -- Public object URLs (/storage/v1/object/public/...) do not consult RLS, so they keep working.

@@ -1,6 +1,6 @@
 -- Audit 2026-09-24 L8: profiles.email must mirror auth.users.email and created_at must not be
 -- client-writable. Run against a local or linked database as postgres. Every fixture rolls back.
--- Before 20260924150300_protect_profile_email.sql this fails: authenticated could set
+-- Before 20260923233721_protect_profile_email.sql this fails: authenticated could set
 -- profiles.email to any address (apps/admin support search and identity read that column).
 BEGIN;
 SET LOCAL statement_timeout = '10s';

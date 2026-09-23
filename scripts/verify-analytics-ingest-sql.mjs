@@ -1,5 +1,5 @@
 // An isolated in-memory Postgres check for the M1 analytics ingestion migrations
-// (20260924120000_analytics_ingest_throttle, 20260924120100_close_analytics_direct_insert).
+// (20260923233256_analytics_ingest_throttle, 20260923233653_close_analytics_direct_insert).
 // It never connects to Supabase. Install @electric-sql/pglite in a temporary folder and set
 // PGLITE_MODULE to its entrypoint, then: node scripts/verify-analytics-ingest-sql.mjs
 const { PGlite } = await import(process.env.PGLITE_MODULE || '@electric-sql/pglite');
@@ -63,8 +63,8 @@ const backdatedRpc = `select public.batch_track_events('[{"event_name":"y","crea
 assert.equal(await as('authenticated', backdatedInsert), 'ok');
 assert.equal(await as('authenticated', backdatedRpc), 'ok');
 
-await db.exec(await migration('20260924120000_analytics_ingest_throttle.sql'));
-await db.exec(await migration('20260924120100_close_analytics_direct_insert.sql'));
+await db.exec(await migration('20260923233256_analytics_ingest_throttle.sql'));
+await db.exec(await migration('20260923233653_close_analytics_direct_insert.sql'));
 
 // ── direct-insert bypass closed ────────────────────────────────────────────
 assert.match(await as('authenticated', backdatedInsert), /permission denied/);

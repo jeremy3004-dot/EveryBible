@@ -330,3 +330,22 @@ All queries were run read-only through MCP `execute_sql`:
 Not verified: whether Supabase's edge overwrites a client-supplied `cf-connecting-ip` (M2);
 whether the release JS bundle omits the dev passcode (L10); Auth dashboard settings beyond what
 the advisors report.
+
+## Status — remediation applied 2026-09-24
+
+Applied to production (versions as recorded in `supabase_migrations.schema_migrations`; repo files renamed to match):
+
+| Finding | Migration / deploy | Verified |
+|---|---|---|
+| H1 group storage policies | `20260923230718_fix_group_storage_policy_name_resolution` | policies reference `objects.name` |
+| M1 analytics ingest | `20260923233256_analytics_ingest_throttle`, `20260923233653_close_analytics_direct_insert`; `track-anonymous-usage-events` v12, `track-analytics-events` v13 | anon/authenticated INSERT on `analytics_events` = false; collectors answer probes |
+| M2 translator passcode | `review-chapter-feedback` v11, `submit-chapter-feedback` v6 | wrong passcode → 403 |
+| M3 catalog exposure | `20260923233258_restrict_translation_catalog_to_available_rows` | anon sees 2 rows (was 216) |
+| M4 / L1 / L5 groups | `20260923233220_pin_group_scope_and_harden_group_helpers` | no 2-arg helpers remain; 9 policies use 1-arg helpers |
+| L2 service-only grants | `20260923233710_revoke_client_grants_on_service_only_tables` | anon SELECT on `content_images` = false |
+| L3 pg_net | `20260923233714_revoke_client_execute_on_pg_net` | **not effective**: objects are owned by `supabase_admin`; anon still has EXECUTE. Needs a Supabase support request. |
+| L4 bucket listing | `20260923233717_restrict_public_bucket_listing` | applied |
+| L8 profile email | `20260923233721_protect_profile_email` | 0 profile/auth email mismatches |
+| L7 raw errors, L9 account deletion | edge deploys above; L9 ships with the next app release | — |
+
+Still open: per-team translator passcodes / contributor-name policy (see `translator-access-options-2026-09-24.md`), leaked-password protection and TOTP MFA (dashboard settings), and moving admin-only catalog columns to a side table.

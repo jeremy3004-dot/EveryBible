@@ -1,4 +1,4 @@
--- Security fix (audit 2026-09-24: M4, L1, L5): groups feature hardening. NOT APPLIED.
+-- Security fix (audit 2026-09-24: M4, L1, L5): groups feature hardening. Applied to production 2026-09-23 23:32 UTC.
 -- docs/research/supabase-security-audit-2026-09-24.md
 --
 -- M4 — UPDATE paths could move rows between groups or change who a row belongs to.
