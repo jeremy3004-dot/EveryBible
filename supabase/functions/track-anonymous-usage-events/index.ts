@@ -399,6 +399,13 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
+// This collector accepts unauthenticated traffic, so database and configuration details go to
+// the function log, never into the response (audit 2026-09-24 L7).
+function internalErrorResponse(context: string, detail: unknown): Response {
+  console.error(`[track-anonymous-usage-events] ${context}`, detail);
+  return jsonResponse({ error: 'Unable to record usage events right now.' }, 500);
+}
+
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (request.method === 'GET' || request.method === 'HEAD') {
@@ -410,7 +417,7 @@ Deno.serve(async (request) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     if (!supabaseUrl || !serviceRoleKey) {
-      return jsonResponse({ error: 'Collector environment is missing Supabase credentials' }, 500);
+      return internalErrorResponse('missing configuration', 'SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not set');
     }
 
     const batch = parseBatchRequest(await request.json().catch(() => null));
@@ -460,7 +467,7 @@ Deno.serve(async (request) => {
     });
 
     const { error } = await supabase.from('analytics_events').upsert(rows, { onConflict: 'id', ignoreDuplicates: true });
-    if (error) return jsonResponse({ error: error.message }, 500);
+    if (error) return internalErrorResponse('analytics_events write failed', error);
 
     return jsonResponse({
       inserted: rows.length,
@@ -471,9 +478,6 @@ Deno.serve(async (request) => {
       geo_source: requestGeo.source,
     });
   } catch (error) {
-    return jsonResponse(
-      { error: error instanceof Error ? error.message : 'Unknown anonymous usage collector error' },
-      500
-    );
+    return internalErrorResponse('unhandled error', error);
   }
 });

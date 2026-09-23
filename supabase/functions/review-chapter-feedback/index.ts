@@ -75,6 +75,15 @@ const jsonResponse = (status: number, body: Record<string, unknown>) =>
     },
   });
 
+// Passcode holders are not trusted operators, so database, storage, and configuration details
+// go to the function log, never into the response (audit 2026-09-24 L7).
+const INTERNAL_ERROR_MESSAGE = 'Unable to load feedback review. Please try again later.';
+
+const internalErrorResponse = (context: string, detail: unknown) => {
+  console.error(`[review-chapter-feedback] ${context}`, detail);
+  return jsonResponse(500, { success: false, error: INTERNAL_ERROR_MESSAGE });
+};
+
 const getRequiredSecret = (name: string): string => {
   const value = Deno.env.get(name)?.trim();
   if (!value) {
@@ -277,7 +286,7 @@ Deno.serve(async (request) => {
         .maybeSingle();
 
       if (existingError) {
-        return jsonResponse(500, { success: false, error: existingError.message });
+        return internalErrorResponse('feedback lookup failed', existingError);
       }
 
       if (!existing) {
@@ -297,7 +306,7 @@ Deno.serve(async (request) => {
           .eq('translation_id', translationId);
 
         if (reopenError) {
-          return jsonResponse(500, { success: false, error: reopenError.message });
+          return internalErrorResponse('reopen failed', reopenError);
         }
 
         return jsonResponse(200, { success: true, feedbackId, resolution: null });
@@ -332,7 +341,7 @@ Deno.serve(async (request) => {
         .eq('translation_id', translationId);
 
       if (resolveError) {
-        return jsonResponse(500, { success: false, error: resolveError.message });
+        return internalErrorResponse('resolve failed', resolveError);
       }
 
       return jsonResponse(200, {
@@ -369,7 +378,7 @@ Deno.serve(async (request) => {
         .select('audio_response_bucket, audio_response_path').eq('id', body.feedbackId)
         .eq('translation_id', translationId).eq('book_id', bookId).eq('chapter', body.chapter)
         .maybeSingle();
-      if (error) return jsonResponse(500, { success: false, error: error.message });
+      if (error) return internalErrorResponse('recording lookup failed', error);
       if (!audio?.audio_response_path || !audio.audio_response_bucket) {
         return jsonResponse(404, { success: false, error: 'Recording not found' });
       }
@@ -400,7 +409,7 @@ Deno.serve(async (request) => {
               p_translation: translationId, p_book: bookId, p_chapter: body.chapter,
               p_ids: body.feedbackIds, p_actor: await resolveActingUserId(request, service),
             });
-        if (error) return jsonResponse(500, { success: false, error: error.message });
+        if (error) return internalErrorResponse('positive feedback query failed', error);
         return jsonResponse(200, { success: true, feedbackIds: body.action === 'positivePreview' ? data : undefined,
           reviewedCount: body.action === 'reviewPositiveIds' ? data : undefined });
       }
@@ -422,7 +431,7 @@ Deno.serve(async (request) => {
       const { data: summaryData, error: summaryError } = await summaryQuery;
 
       if (summaryError) {
-        return jsonResponse(500, { success: false, error: summaryError.message });
+        return internalErrorResponse('summary query failed', summaryError);
       }
 
       const rows = (summaryData ?? []) as ChapterFeedbackSummaryRow[];
@@ -496,7 +505,7 @@ Deno.serve(async (request) => {
       : await legacyQuery;
 
     if (error) {
-      return jsonResponse(500, { success: false, error: error.message });
+      return internalErrorResponse('chapter review query failed', error);
     }
 
     if (body.apiVersion === 2 && (!hasChapter || body.summaryOnly)) {
@@ -561,9 +570,6 @@ Deno.serve(async (request) => {
       })),
     });
   } catch (error) {
-    return jsonResponse(500, {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unable to load feedback review.',
-    });
+    return internalErrorResponse('unhandled error', error);
   }
 });
