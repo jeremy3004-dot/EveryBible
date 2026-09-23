@@ -67,7 +67,7 @@ export interface RecordedTextPackDownload {
   expectedVerseCount?: number;
   onProgress?: (progress: {
     error?: string;
-    phase: 'fetching' | 'writing' | 'indexing' | 'complete' | 'error';
+    phase: 'fetching' | 'indexing' | 'complete' | 'error';
     totalVerses: number;
     versesDownloaded: number;
     bytesDownloaded?: number;

@@ -24,8 +24,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { mockModule, sourcePath } from '../../testing/mockModules';
-import { createSupabaseFake, type SupabaseQueryCall } from '../../testing/supabaseFake';
+import { mockModule } from '../../testing/mockModules';
 import type { CloudDownloadProgress } from './cloudTranslationService';
 
 // ─── Temp filesystem ──────────────────────────────────────────────────────────
@@ -90,28 +89,14 @@ const readVerseCount = (path: string): number => {
   }
 };
 
-const readUserVersion = (path: string): number => {
-  const database = new DatabaseSync(path);
-  try {
-    return Number(
-      (database.prepare('PRAGMA user_version').get() as { user_version: number }).user_version
-    );
-  } finally {
-    database.close();
-  }
-};
-
 // ─── expo-sqlite fake over node:sqlite ────────────────────────────────────────
 
 type SqlParam = string | number | bigint | null | Uint8Array;
 
 const opens: Array<{ name: string; directory: string; options: unknown }> = [];
-const closedPaths: string[] = [];
 const openHandles: Array<{ path: string; closed: boolean }> = [];
 
-// `walByDefault` mimics a platform whose SQLite opens databases in WAL mode: the installer
-// has to force DELETE journalling, or activation moves the main file and strands the sidecar.
-const sqliteFaults = { failOpen: false, walByDefault: false };
+const sqliteFaults = { failOpen: false };
 
 mockModule(mock, 'expo-sqlite', {
   openDatabaseAsync: async (name: string, options: unknown, directory?: string) => {
@@ -122,18 +107,11 @@ mockModule(mock, 'expo-sqlite', {
     mkdirSync(resolvedDirectory, { recursive: true });
     const path = `${resolvedDirectory}/${name}`;
     opens.push({ name, directory: resolvedDirectory, options });
-    const isNewFile = !existsSync(path);
     const handle = new DatabaseSync(path);
-    if (sqliteFaults.walByDefault && isNewFile) {
-      handle.exec('PRAGMA journal_mode = WAL');
-    }
     const record = { path, closed: false };
     openHandles.push(record);
 
-    const statements = {
-      async execAsync(sql: string): Promise<void> {
-        handle.exec(sql);
-      },
+    return {
       async getFirstAsync<T>(sql: string, params?: unknown[]): Promise<T | null> {
         return (
           (handle.prepare(sql).get(...((params ?? []) as SqlParam[])) as T | undefined) ?? null
@@ -142,26 +120,7 @@ mockModule(mock, 'expo-sqlite', {
       async getAllAsync<T>(sql: string, params?: unknown[]): Promise<T[]> {
         return handle.prepare(sql).all(...((params ?? []) as SqlParam[])) as T[];
       },
-      async runAsync(sql: string, params?: unknown[]) {
-        const result = handle.prepare(sql).run(...((params ?? []) as SqlParam[]));
-        return { changes: Number(result.changes), lastInsertRowId: Number(result.lastInsertRowid) };
-      },
-    };
-
-    return {
-      ...statements,
-      async withExclusiveTransactionAsync(callback: (txn: typeof statements) => Promise<unknown>) {
-        handle.exec('BEGIN IMMEDIATE');
-        try {
-          await callback(statements);
-          handle.exec('COMMIT');
-        } catch (error) {
-          handle.exec('ROLLBACK');
-          throw error;
-        }
-      },
       async closeAsync() {
-        closedPaths.push(path);
         if (!record.closed) {
           record.closed = true;
           handle.close();
@@ -245,79 +204,6 @@ mockModule(mock, 'expo-file-system/legacy', {
       : readFileSync(path).toString('base64'),
 });
 
-// ─── Supabase fake ────────────────────────────────────────────────────────────
-
-const supabaseFake = createSupabaseFake();
-const supabaseState = { configured: true };
-// mockSupabaseModule fixes `isSupabaseConfigured` for the whole file, and this module has an
-// "unconfigured backend" branch that must be reachable alongside the configured ones, so the
-// two supabase entry points are mocked directly with a mutable flag instead.
-const supabaseExports = {
-  supabase: supabaseFake.client,
-  isSupabaseConfigured: () => supabaseState.configured,
-  getCurrentUserId: async () => supabaseFake.auth.user?.id ?? null,
-};
-mockModule(mock, sourcePath('services/supabase/index.ts'), supabaseExports);
-mockModule(mock, sourcePath('services/supabase/client.ts'), supabaseExports);
-
-const isCountQuery = (call: SupabaseQueryCall): boolean =>
-  call.steps.some(
-    (step) =>
-      step.method === 'select' && (step.args[1] as { head?: boolean } | undefined)?.head === true
-  );
-
-const rangeOf = (call: SupabaseQueryCall): [number, number] => {
-  const range = call.steps.find((step) => step.method === 'range');
-  return [(range?.args[0] as number) ?? 0, (range?.args[1] as number) ?? 0];
-};
-
-const eqValue = (call: SupabaseQueryCall, column: string): unknown =>
-  call.steps.find((step) => step.method === 'eq' && step.args[0] === column)?.args[1];
-
-interface BackendScript {
-  catalogId?: string | null;
-  count?: number | null;
-  countError?: string;
-  pageError?: string;
-  verses?: number;
-  formatting?: unknown;
-}
-
-function scriptBackend(script: BackendScript): void {
-  supabaseFake.respondTo('translation_catalog', () => ({
-    data:
-      script.catalogId === undefined
-        ? null
-        : script.catalogId && { translation_id: script.catalogId },
-  }));
-  supabaseFake.respondTo('bible_verses', (call) => {
-    if (isCountQuery(call)) {
-      return script.countError
-        ? { data: null, error: { message: script.countError } }
-        : { data: null, count: script.count ?? null };
-    }
-    if (script.pageError) {
-      return { data: null, error: { message: script.pageError } };
-    }
-    const [from, to] = rangeOf(call);
-    const total = script.verses ?? 0;
-    const rows = [];
-    for (let index = from; index <= Math.min(to, total - 1); index += 1) {
-      rows.push({
-        id: index + 1,
-        translation_id: eqValue(call, 'translation_id'),
-        book_id: 'GEN',
-        chapter: Math.floor(index / 50) + 1,
-        verse: (index % 50) + 1,
-        text: `Verse number ${index + 1}`,
-        heading: index === 0 ? 'The Beginning' : null,
-        formatting: script.formatting ?? null,
-      });
-    }
-    return { data: rows };
-  });
-}
-
 // ─── Module under test ────────────────────────────────────────────────────────
 
 type CloudTranslationModule = typeof import('./cloudTranslationService');
@@ -348,7 +234,6 @@ function collectProgress(): {
 }
 
 afterEach(() => {
-  supabaseState.configured = true;
   download.status = 200;
   download.error = null;
   download.bytes = buildPackBytes();
@@ -359,211 +244,9 @@ afterEach(() => {
   fileSystemFaults.failMove = null;
   fileSystemFaults.unreadableBytes = false;
   sqliteFaults.failOpen = false;
-  sqliteFaults.walByDefault = false;
   fileSystemCalls.length = 0;
   opens.length = 0;
-  closedPaths.length = 0;
   openHandles.length = 0;
-  supabaseFake.reset();
-});
-
-// ─── getCloudTranslationVerseCount ────────────────────────────────────────────
-
-test('getCloudTranslationVerseCount refuses to run without a configured backend', async () => {
-  const { getCloudTranslationVerseCount } = await loadModule();
-  supabaseState.configured = false;
-
-  await assert.rejects(() => getCloudTranslationVerseCount('web'), /Supabase not configured/);
-  assert.deepEqual(supabaseFake.calls, [], 'an unconfigured backend must not be queried at all');
-});
-
-test('getCloudTranslationVerseCount counts rows under the aliased backend translation id', async () => {
-  const { getCloudTranslationVerseCount } = await loadModule();
-  scriptBackend({ catalogId: 'web', count: 31102 });
-
-  assert.equal(await getCloudTranslationVerseCount('web'), 31102);
-
-  const countCall = supabaseFake.callsFor('bible_verses')[0];
-  assert.equal(
-    eqValue(countCall, 'translation_id'),
-    'engwebp',
-    'the store id is mapped through the known backend aliases before counting'
-  );
-});
-
-test('getCloudTranslationVerseCount falls back to the catalog id for an unaliased translation', async () => {
-  const { getCloudTranslationVerseCount } = await loadModule();
-  scriptBackend({ catalogId: 'spaRV1909x', count: 12 });
-
-  assert.equal(await getCloudTranslationVerseCount('sparv1909x'), 12);
-  assert.equal(eqValue(supabaseFake.callsFor('bible_verses')[0], 'translation_id'), 'spaRV1909x');
-});
-
-test('getCloudTranslationVerseCount keeps the requested id when the catalog has no row', async () => {
-  const { getCloudTranslationVerseCount } = await loadModule();
-  scriptBackend({ catalogId: null, count: 5 });
-
-  assert.equal(await getCloudTranslationVerseCount('unknown'), 5);
-  assert.equal(eqValue(supabaseFake.callsFor('bible_verses')[0], 'translation_id'), 'unknown');
-});
-
-test('getCloudTranslationVerseCount surfaces the backend error message', async () => {
-  const { getCloudTranslationVerseCount } = await loadModule();
-  scriptBackend({ catalogId: 'web', countError: 'statement timeout' });
-
-  await assert.rejects(
-    () => getCloudTranslationVerseCount('web'),
-    /Failed to get verse count: statement timeout/
-  );
-});
-
-test('getCloudTranslationVerseCount reports zero when the backend returns no count', async () => {
-  const { getCloudTranslationVerseCount } = await loadModule();
-  scriptBackend({ catalogId: 'web', count: null });
-
-  assert.equal(await getCloudTranslationVerseCount('web'), 0);
-});
-
-// ─── downloadCloudTranslation ─────────────────────────────────────────────────
-
-test('downloadCloudTranslation refuses to run without a configured backend', async () => {
-  const { downloadCloudTranslation } = await loadModule();
-  supabaseState.configured = false;
-
-  await assert.rejects(() => downloadCloudTranslation('web'), /Supabase not configured/);
-});
-
-test('downloadCloudTranslation writes every fetched verse into a reader-compatible database', async () => {
-  const { downloadCloudTranslation } = await loadModule();
-  scriptBackend({ catalogId: 'demo', count: 7, verses: 7 });
-  const progress = collectProgress();
-
-  const installedPath = await downloadCloudTranslation('demo', progress.onProgress);
-
-  assert.equal(installedPath, packPath('demo'));
-  assert.equal(readVerseCount(installedPath), 7);
-  assert.equal(
-    readUserVersion(installedPath),
-    5,
-    'the pack declares the shared bundled schema version'
-  );
-
-  const database = new DatabaseSync(installedPath);
-  const indexes = database
-    .prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND name LIKE 'idx_%'")
-    .all()
-    .map((row) => (row as { name: string }).name)
-    .sort();
-  const ftsTables = database
-    .prepare("SELECT name FROM sqlite_master WHERE name = 'verses_fts'")
-    .all();
-  database.close();
-
-  assert.deepEqual(indexes, ['idx_verses_lookup', 'idx_verses_unique']);
-  assert.deepEqual(ftsTables, [], 'installed packs deliberately ship without an FTS index');
-  assert.equal(
-    existsSync(stagingPath('demo')),
-    false,
-    'the staging file is moved, never left behind'
-  );
-});
-
-test('downloadCloudTranslation reports fetching, writing, indexing and completion in order', async () => {
-  const { downloadCloudTranslation } = await loadModule();
-  scriptBackend({ catalogId: 'progress', count: 4, verses: 4 });
-  const progress = collectProgress();
-
-  await downloadCloudTranslation('progress', progress.onProgress);
-
-  assert.deepEqual(progress.phases, [
-    'fetching',
-    'fetching',
-    'writing',
-    'writing',
-    'indexing',
-    'complete',
-  ]);
-  assert.deepEqual(progress.entries[0], { phase: 'fetching', versesDownloaded: 0, totalVerses: 4 });
-  assert.deepEqual(progress.entries.at(-1), {
-    phase: 'complete',
-    versesDownloaded: 4,
-    totalVerses: 4,
-  });
-});
-
-test('downloadCloudTranslation reports an unavailable translation when the backend has no verses', async () => {
-  const { downloadCloudTranslation } = await loadModule();
-  scriptBackend({ catalogId: 'empty', count: 0, verses: 0 });
-  const progress = collectProgress();
-
-  await assert.rejects(
-    () => downloadCloudTranslation('empty', progress.onProgress),
-    /EMPTY is not currently available from the backend/
-  );
-  assert.equal(progress.phases.at(-1), 'error');
-  assert.equal(existsSync(packPath('empty')), false);
-});
-
-test('downloadCloudTranslation refuses to install a short download', async () => {
-  const { downloadCloudTranslation } = await loadModule();
-  scriptBackend({ catalogId: 'short', count: 9, verses: 4 });
-  const progress = collectProgress();
-
-  await assert.rejects(
-    () => downloadCloudTranslation('short', progress.onProgress),
-    /Incomplete backend download for SHORT: expected 9 verses, received 4/
-  );
-  assert.deepEqual(progress.entries.at(-1), {
-    phase: 'error',
-    versesDownloaded: 0,
-    totalVerses: 0,
-    error: 'Incomplete backend download for SHORT: expected 9 verses, received 4.',
-  });
-  assert.equal(existsSync(packPath('short')), false);
-});
-
-test('downloadCloudTranslation surfaces the offset of a failed page fetch', async () => {
-  const { downloadCloudTranslation } = await loadModule();
-  scriptBackend({ catalogId: 'broken', count: 10, pageError: 'connection reset' });
-
-  await assert.rejects(
-    () => downloadCloudTranslation('broken'),
-    /Failed to fetch verses at offset 0: connection reset/
-  );
-  assert.equal(
-    existsSync(stagingPath('broken')),
-    false,
-    'a failed fetch leaves no staging artifacts'
-  );
-});
-
-test('downloadCloudTranslation keeps the previously installed pack when the new install fails', async () => {
-  const { downloadCloudTranslation } = await loadModule();
-  mkdirSync(translationsDirectory, { recursive: true });
-  writeFileSync(packPath('keep'), buildPackBytes({ verses: 2 }));
-  scriptBackend({ catalogId: 'keep', count: 3, pageError: 'gateway timeout' });
-
-  await assert.rejects(() => downloadCloudTranslation('keep'));
-
-  assert.equal(
-    readVerseCount(packPath('keep')),
-    2,
-    'the working install survives a failed replacement'
-  );
-});
-
-test('downloadCloudTranslation closes its writer handle even when the install fails later', async () => {
-  const { downloadCloudTranslation } = await loadModule();
-  scriptBackend({ catalogId: 'closed', count: 3, verses: 3 });
-  fileSystemFaults.failMove = (from) => from.endsWith('closed.staging.db');
-
-  await assert.rejects(() => downloadCloudTranslation('closed'));
-
-  assert.ok(openHandles.length > 0);
-  assert.ok(
-    openHandles.every((handle) => handle.closed),
-    'every sqlite handle opened during a failed install must be closed'
-  );
 });
 
 // ─── downloadCatalogTextPack ──────────────────────────────────────────────────
@@ -756,6 +439,11 @@ test('downloadCatalogTextPack rejects a pack with no verses table', async () => 
     /missing the verses table/
   );
   assert.equal(existsSync(packPath('notadb')), false);
+  assert.ok(openHandles.length > 0);
+  assert.ok(
+    openHandles.every((handle) => handle.closed),
+    'the verification handle must be closed even when the pack is rejected'
+  );
 });
 
 test('downloadCatalogTextPack rejects a pack with fewer verses than the catalog promises', async () => {
@@ -912,60 +600,20 @@ test('an invalid pack is rejected before the working install is touched at all',
 // ─── Native-crash and Hermes guards ───────────────────────────────────────────
 
 test('every sqlite handle an install opens disables expo-sqlite auto-finalization', async () => {
-  const { downloadCloudTranslation, downloadCatalogTextPack } = await loadModule();
-  scriptBackend({ catalogId: 'finalize', count: 3, verses: 3 });
+  const { downloadCatalogTextPack } = await loadModule();
 
-  await downloadCloudTranslation('finalize');
   await downloadCatalogTextPack({
-    translationId: 'finalize2',
-    downloadUrl: 'https://media.example.test/finalize2.db',
+    translationId: 'finalize',
+    downloadUrl: 'https://media.example.test/finalize.db',
     expectedVerseCount: 3,
   });
 
-  assert.ok(opens.length >= 2);
+  assert.ok(opens.length >= 1);
   assert.deepEqual(
     [...new Set(opens.map((entry) => JSON.stringify(entry.options)))],
     [JSON.stringify({ finalizeUnusedStatementsBeforeClosing: false })],
     'expo-sqlite crashes natively in closeDatabase when it auto-finalizes statements'
   );
-});
-
-test('an installed pack is a self-contained file with no journal sidecar left beside it', async () => {
-  const { downloadCloudTranslation } = await loadModule();
-  scriptBackend({ catalogId: 'selfcontained', count: 3, verses: 3 });
-  sqliteFaults.walByDefault = true;
-
-  const installedPath = await downloadCloudTranslation('selfcontained');
-
-  assert.equal(existsSync(`${installedPath}-wal`), false);
-  assert.equal(existsSync(`${installedPath}-shm`), false);
-  const database = new DatabaseSync(installedPath, { readOnly: true });
-  const mode = (database.prepare('PRAGMA journal_mode').get() as { journal_mode: string })
-    .journal_mode;
-  database.close();
-  assert.equal(mode, 'delete', 'a WAL pack would strand its rows when only the main file moves');
-});
-
-test('a progress callback that throws mid-write closes the handle and keeps the old pack', async () => {
-  const { downloadCloudTranslation } = await loadModule();
-  mkdirSync(translationsDirectory, { recursive: true });
-  writeFileSync(packPath('throwing'), buildPackBytes({ verses: 2 }));
-  scriptBackend({ catalogId: 'throwing', count: 3, verses: 3 });
-
-  await assert.rejects(
-    () =>
-      downloadCloudTranslation('throwing', (progress) => {
-        if (progress.phase === 'writing' && progress.versesDownloaded > 0) {
-          throw new Error('the reporter blew up');
-        }
-      }),
-    /the reporter blew up/
-  );
-
-  assert.equal(readVerseCount(packPath('throwing')), 2);
-  assert.ok(openHandles.length > 0);
-  assert.ok(openHandles.every((handle) => handle.closed));
-  assert.equal(existsSync(stagingPath('throwing')), false);
 });
 
 test('an install whose sqlite open fails leaves the previous pack and no staging file', async () => {
@@ -1024,26 +672,4 @@ test('checksum verification runs on Hermes, where Web Crypto and atob do not exi
     if (savedCrypto) Object.defineProperty(globalThis, 'crypto', savedCrypto);
     if (savedAtob) Object.defineProperty(globalThis, 'atob', savedAtob);
   }
-});
-
-test('downloadCloudTranslation stores the verse formatting the backend sends', async () => {
-  const { downloadCloudTranslation } = await loadModule();
-  scriptBackend({
-    catalogId: 'formatted',
-    count: 1,
-    verses: 1,
-    formatting: { mode: 'poetry', lines: [{ text: 'Praise the LORD', indentLevel: 1 }] },
-  });
-
-  const installedPath = await downloadCloudTranslation('formatted');
-
-  const database = new DatabaseSync(installedPath, { readOnly: true });
-  const row = database.prepare('SELECT formatting FROM verses LIMIT 1').get() as {
-    formatting: string | null;
-  };
-  database.close();
-  assert.deepEqual(JSON.parse(row.formatting ?? 'null'), {
-    mode: 'poetry',
-    lines: [{ text: 'Praise the LORD', indentLevel: 1 }],
-  });
 });
