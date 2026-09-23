@@ -7,7 +7,15 @@ import {
   type SupabaseFakeResult,
   type SupabaseQueryCall,
 } from '../../testing/supabaseFake';
-import { DEFAULT_APPEARANCE_PALETTE } from '../../constants/appearancePalettes';
+import {
+  APPEARANCE_PALETTE_IDS,
+  DEFAULT_APPEARANCE_PALETTE,
+} from '../../constants/appearancePalettes';
+import {
+  checkAdmits,
+  readRepoMigrations,
+  replayTableMigrations,
+} from '../../testing/migrationSchema';
 import { STALE_SYNC_ERROR } from './syncIdentity';
 import type { UserPreferences } from '../../types';
 import type {
@@ -1519,4 +1527,48 @@ test('one syncAll cycle asks the auth server to confirm the account exactly once
 
   assert.equal(result.success, true);
   assert.equal(remoteChecks, 1, 'continuation checks must not re-read Supabase auth');
+});
+
+// ---------------------------------------------------------------------------
+// Schema contract. The Supabase fake accepts any row, so these replay the repo
+// migrations and hold the real upsert payload to the schema they produce.
+// Production rejected every preference upsert for a missing column (42703) and
+// for EL palette ids outside the legacy CHECK while this whole file was green.
+// ---------------------------------------------------------------------------
+
+const pushLocalPreferences = async (preferences: UserPreferences) => {
+  authStore.setState({ preferencesUpdatedAt: '2026-09-09T00:00:00.000Z', preferences });
+  script.user_preferences = { select: { data: remotePreferenceRow() } };
+  const result = await syncPreferences(USER_A);
+  assert.equal(result.success, true);
+  return payloadOf('user_preferences');
+};
+
+test('every column a preference upsert writes exists in the migrated user_preferences table', async () => {
+  const schema = replayTableMigrations('user_preferences', readRepoMigrations());
+
+  const payload = await pushLocalPreferences(LOCAL_PREFERENCES);
+
+  assert.deepEqual(
+    Object.keys(payload).filter((column) => !schema.columns.has(column)),
+    []
+  );
+});
+
+test('every current accent palette and retired row value passes the migrated palette check', async () => {
+  const schema = replayTableMigrations('user_preferences', readRepoMigrations());
+
+  for (const appearancePalette of APPEARANCE_PALETTE_IDS) {
+    supabaseFake.reset();
+    supabaseFake.setDefaultResponder(scriptedResponder);
+    const payload = await pushLocalPreferences({ ...LOCAL_PREFERENCES, appearancePalette });
+    const rejected = Object.entries(payload).filter(
+      ([column, value]) => value !== null && !checkAdmits(schema, column, value)
+    );
+    assert.deepEqual(rejected, [], `palette ${appearancePalette}`);
+  }
+  // Rows written before the EL reskin keep their value until the device syncs.
+  for (const retired of ['ember', 'sapphire', 'teal', 'olive']) {
+    assert.equal(checkAdmits(schema, 'appearance_palette', retired), true, retired);
+  }
 });
