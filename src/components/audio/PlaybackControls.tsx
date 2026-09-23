@@ -740,7 +740,7 @@ const styles = StyleSheet.create({
   },
   skipButton: {
     minWidth: 64,
-    height: 42,
+    minHeight: 42,
     borderRadius: 999,
     borderWidth: 1,
     paddingHorizontal: 12,

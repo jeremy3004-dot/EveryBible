@@ -579,8 +579,12 @@ export function TranslationPickerList({
             ]}
             onPress={() => setPickerMode('languages')}
             activeOpacity={0.82}
+            hitSlop={5}
             accessibilityRole="button"
             accessibilityLabel={t('translations.languagePreference')}
+            accessibilityValue={{
+              text: getTranslationLanguageDisplayLabel(resolvedPreferredLanguage),
+            }}
             testID="translation-picker-language-pill"
           >
             <Ionicons name="globe-outline" size={15} color={colors.bibleSecondaryText} />
@@ -1514,7 +1518,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     paddingLeft: spacing.md,
     paddingRight: 10,
-    height: 34,
+    // minHeight so the language name grows with Dynamic Type instead of clipping.
+    minHeight: 34,
   },
   languagePillLabel: {
     ...typography.label,
