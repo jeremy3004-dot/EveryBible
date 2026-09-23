@@ -79,6 +79,86 @@ const readPbxprojValue = (contents: string, key: string): string => {
   return matches[0];
 };
 
+interface NativeReleaseFiles {
+  appVersion: string;
+  infoPlist: string | null;
+  pbxproj: string;
+  androidGradle: string | null;
+}
+
+// Each platform's generated native metadata must agree with app.json and with
+// itself. The iOS CFBundleVersion and Android versionCode are independent
+// store counters (EAS remote versioning increments them per platform), so they
+// are deliberately not compared with each other.
+const checkNativeReleaseMetadata = ({
+  appVersion,
+  infoPlist,
+  pbxproj,
+  androidGradle,
+}: NativeReleaseFiles): void => {
+  if (infoPlist) {
+    const iosShortVersion = readPlistString(infoPlist, 'CFBundleShortVersionString');
+    const iosBuildNumber = readPlistString(infoPlist, 'CFBundleVersion');
+    const iosProjectVersion = readPbxprojValue(pbxproj, 'CURRENT_PROJECT_VERSION');
+
+    assert.equal(iosShortVersion, appVersion);
+    assert.match(iosBuildNumber, /^[1-9]\d*$/, 'CFBundleVersion must be a positive integer');
+    assert.equal(iosProjectVersion, iosBuildNumber);
+  }
+
+  if (androidGradle) {
+    const androidVersionName = readGradleString(androidGradle, 'versionName');
+    const androidVersionCode = readGradleNumber(androidGradle, 'versionCode');
+    assert.equal(androidVersionName, appVersion);
+    assert.match(androidVersionCode, /^[1-9]\d*$/, 'versionCode must be a positive integer');
+  }
+};
+
+interface NativeFixtureOptions {
+  iosBuild?: string;
+  iosProjectVersion?: string;
+  iosVersion?: string;
+  androidCode?: string;
+  androidName?: string;
+}
+
+const nativeFixture = ({
+  iosBuild = '441',
+  iosProjectVersion = iosBuild,
+  iosVersion = '1.0.9',
+  androidCode = '422',
+  androidName = '1.0.9',
+}: NativeFixtureOptions = {}): NativeReleaseFiles => ({
+  appVersion: '1.0.9',
+  infoPlist: `<dict>
+  <key>CFBundleShortVersionString</key>
+  <string>${iosVersion}</string>
+  <key>CFBundleVersion</key>
+  <string>${iosBuild}</string>
+</dict>`,
+  pbxproj: `MARKETING_VERSION = 1.0.9;
+CURRENT_PROJECT_VERSION = ${iosProjectVersion};
+MARKETING_VERSION = 1.0.9;
+CURRENT_PROJECT_VERSION = ${iosProjectVersion};`,
+  androidGradle: `defaultConfig {
+        versionCode ${androidCode}
+        versionName "${androidName}"
+    }`,
+});
+
+test('independent Android and iOS build counters are valid release metadata', () => {
+  // The 2026-09-15 audit state: both platforms at 1.0.9, Android 422, iOS 441.
+  assert.doesNotThrow(() => checkNativeReleaseMetadata(nativeFixture()));
+});
+
+test('per-platform release metadata inconsistencies are still rejected', () => {
+  assert.throws(() => checkNativeReleaseMetadata(nativeFixture({ iosProjectVersion: '440' })));
+  assert.throws(() => checkNativeReleaseMetadata(nativeFixture({ iosVersion: '1.0.8' })));
+  assert.throws(() => checkNativeReleaseMetadata(nativeFixture({ androidName: '1.0.8' })));
+  assert.throws(() => checkNativeReleaseMetadata(nativeFixture({ iosBuild: '0' })));
+  assert.throws(() => checkNativeReleaseMetadata(nativeFixture({ androidCode: '0' })));
+});
+
 test('release metadata stays aligned across tracked config and generated native outputs when present', () => {
   const packageJson = readRootJson<PackageJson>('package.json');
   const appConfig = readRootJson<AppConfig>('app.json');
@@ -112,24 +192,7 @@ test('release metadata stays aligned across tracked config and generated native 
     'Expected app.json expo.extra.termsOfServiceUrl to provide the canonical HTTPS terms reference'
   );
 
-  if (infoPlist) {
-    const iosShortVersion = readPlistString(infoPlist, 'CFBundleShortVersionString');
-    const iosBuildNumber = readPlistString(infoPlist, 'CFBundleVersion');
-    const iosProjectVersion = readPbxprojValue(pbxproj, 'CURRENT_PROJECT_VERSION');
-
-    assert.equal(iosShortVersion, appVersion);
-    assert.equal(iosProjectVersion, iosBuildNumber);
-
-    if (androidGradle) {
-      const androidVersionCode = readGradleNumber(androidGradle, 'versionCode');
-      assert.equal(androidVersionCode, iosBuildNumber);
-    }
-  }
-
-  if (androidGradle) {
-    const androidVersionName = readGradleString(androidGradle, 'versionName');
-    assert.equal(androidVersionName, appVersion);
-  }
+  checkNativeReleaseMetadata({ appVersion, infoPlist, pbxproj, androidGradle });
 });
 
 test('ios bundle phase canonicalizes the project root for local EAS workdirs', () => {
