@@ -34,7 +34,10 @@ async function handleRequest(_request: Request, context: RouteContext): Promise<
     return new Response('Not found', { status: 404 });
   }
 
-  const location = `${getMediaCdnBaseUrl()}/${objectKey}`;
+  // Params arrive decoded, so re-encode each segment: a raw non-Latin-1
+  // character cannot go in a header, and a raw '?' or '#' would cut the key.
+  const encodedKey = objectKey.split('/').map(encodeURIComponent).join('/');
+  const location = `${getMediaCdnBaseUrl()}/${encodedKey}`;
 
   return new Response(null, {
     headers: {

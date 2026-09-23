@@ -76,3 +76,37 @@ test('GET returns 404 when a decoded %2F hides traversal inside one segment', as
   assert.equal(response.status, 404);
   assert.equal(response.headers.get('location'), null);
 });
+
+test('GET percent-encodes decoded key segments so non-ASCII and reserved characters redirect', async () => {
+  // Route params arrive decoded; a raw non-Latin-1 character cannot be placed
+  // in a header, and a raw '?' or '#' would truncate the object key.
+  const response = await GET(
+    new Request('https://everybible.app/api/media/audio/%E0%A4%A8%E0%A5%87/a%20b%3F.mp3'),
+    { params: Promise.resolve({ assetPath: ['audio', 'ने', 'a b?.mp3'] }) }
+  );
+
+  assert.equal(response.status, 302);
+  assert.equal(
+    response.headers.get('location'),
+    'https://media.everybible.app/audio/%E0%A4%A8%E0%A5%87/a%20b%3F.mp3'
+  );
+});
+
+test('redirects are cacheable at the edge', async () => {
+  const response = await GET(new Request('https://everybible.app/api/media/audio/test.mp3'), {
+    params: Promise.resolve({ assetPath: ['audio', 'test.mp3'] }),
+  });
+
+  assert.equal(
+    response.headers.get('cache-control'),
+    'public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800'
+  );
+});
+
+test('GET returns 404 when the catch-all has no segments', async () => {
+  const response = await HEAD(new Request('https://everybible.app/api/media', { method: 'HEAD' }), {
+    params: Promise.resolve({}),
+  });
+
+  assert.equal(response.status, 404);
+});
