@@ -380,6 +380,16 @@ function coarseCoordinate(value: number | null, limit: number): number | null {
     ? Math.round(value * 10) / 10 : null;
 }
 
+// verify_jwt is off, so anyone can reach this handler. Database details go to the function
+// log, never into the response (audit 2026-09-24 L7).
+function internalErrorResponse(context: string, detail: unknown): Response {
+  console.error(`[track-analytics-events] ${context}`, detail);
+  return new Response(
+    JSON.stringify({ success: false, error: 'Unable to record analytics events right now.' }),
+    { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -413,7 +423,7 @@ Deno.serve(async (req) => {
     } = await supabase.auth.getUser(accessToken);
 
     if (authError || !user) {
-      return new Response(JSON.stringify({ success: false, error: authError?.message ?? 'Unauthorized' }), {
+      return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -536,10 +546,7 @@ Deno.serve(async (req) => {
     const { error } = await supabase.from('analytics_events').insert(rows);
 
     if (error) {
-      return new Response(JSON.stringify({ success: false, error: error.message }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return internalErrorResponse('analytics_events insert failed', error);
     }
 
     return new Response(
@@ -553,9 +560,6 @@ Deno.serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    return new Response(
-      JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Unknown error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return internalErrorResponse('unhandled error', error);
   }
 });

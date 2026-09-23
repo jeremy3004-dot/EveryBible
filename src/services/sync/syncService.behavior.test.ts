@@ -407,7 +407,7 @@ test('a sync asked for an auth generation the session has already left never run
 // ensureCloudProfile
 // ---------------------------------------------------------------------------
 
-test('the first sync of a session upserts the profile row from the auth user', async () => {
+test('the first sync of a session upserts the profile row from the auth user without its email', async () => {
   supabaseFake.auth.setUser(
     makeFakeUser({
       id: USER_A,
@@ -419,9 +419,10 @@ test('the first sync of a session upserts the profile row from the auth user', a
   await syncProgress(USER_A);
 
   const { updated_at: updatedAt, ...profile } = payloadOf('profiles');
+  // profiles.email is maintained from auth.users by a database trigger; the client never
+  // writes it (audit 2026-09-24 L8).
   assert.deepEqual(profile, {
     id: USER_A,
-    email: 'reader@example.com',
     display_name: 'Reader One',
     avatar_url: 'https://cdn.test/a.png',
   });
@@ -450,7 +451,7 @@ test('a profile for an account with no email at all stores nulls instead of thro
 
   await syncProgress(USER_A);
 
-  assert.equal(payloadOf('profiles').email, null);
+  assert.equal('email' in payloadOf('profiles'), false);
   assert.equal(payloadOf('profiles').display_name, null);
   assert.equal(payloadOf('profiles').avatar_url, null);
 });

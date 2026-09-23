@@ -110,6 +110,20 @@ const jsonResponse = (status: number, body: Record<string, unknown>) =>
     },
   });
 
+// Unauthenticated callers reach this endpoint, so database, storage, and configuration
+// details go to the function log, never into the response (audit 2026-09-24 L7).
+const INTERNAL_ERROR_MESSAGE = 'Unable to save feedback right now. Please try again later.';
+
+const internalErrorResponse = (context: string, detail: unknown) => {
+  console.error(`[submit-chapter-feedback] ${context}`, detail);
+  return jsonResponse(500, {
+    success: false,
+    saved: false,
+    exported: false,
+    error: INTERNAL_ERROR_MESSAGE,
+  });
+};
+
 const trimOptionalText = (value: unknown): string | null => {
   if (typeof value !== 'string') {
     return null;
@@ -471,12 +485,7 @@ Deno.serve(async (req) => {
         );
 
       if (uploadError) {
-        return jsonResponse(500, {
-          success: false,
-          saved: false,
-          exported: false,
-          error: uploadError.message,
-        });
+        return internalErrorResponse('audio upload failed', uploadError);
       }
 
       uploadedAudioPath = validation.pendingAudioUpload.path;
@@ -501,12 +510,7 @@ Deno.serve(async (req) => {
         await supabase.storage.from('chapter-feedback-audio').remove([uploadedAudioPath]);
       }
 
-      return jsonResponse(500, {
-        success: false,
-        saved: false,
-        exported: false,
-        error: insertError?.message ?? 'Failed to save chapter feedback',
-      });
+      return internalErrorResponse('insert failed', insertError ?? 'no row returned');
     }
 
     const feedbackRow = insertedRow as ChapterFeedbackRow;
@@ -518,11 +522,6 @@ Deno.serve(async (req) => {
       feedbackId: feedbackRow.id,
     });
   } catch (error) {
-    return jsonResponse(500, {
-      success: false,
-      saved: false,
-      exported: false,
-      error: error instanceof Error ? error.message : 'Unknown submit-chapter-feedback error',
-    });
+    return internalErrorResponse('unhandled error', error);
   }
 });
