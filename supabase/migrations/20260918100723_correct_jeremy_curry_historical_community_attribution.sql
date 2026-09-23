@@ -1,0 +1,7 @@
+-- Placeholder for a live-only history row (production version 20260918100723).
+--
+-- One-time, production-only data repair that re-attributed 16 historical BSB
+-- chapter_feedback_submissions rows to the 'community' contributor category.
+-- See docs/qa/2026-09-18-feedback-audio-repair.md. The original statements are
+-- kept in supabase_migrations.schema_migrations; they assert production-specific
+-- row counts and would raise on any other database, so this file is a no-op.

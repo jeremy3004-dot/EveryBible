@@ -18,7 +18,7 @@
 -- explicit aliases for the joined tables. Policy intent is unchanged (leader writes group
 -- images, members read them; any member uploads materials, only the leader deletes them).
 --
--- NOT APPLIED. Review, then apply with the normal migration flow.
+-- Applied to production 2026-09-23 23:07 UTC (version 20260923230718).
 
 begin;
 

@@ -272,3 +272,16 @@ drop-then-create).
 - **Advisors at report time:** security shows only expected INFO/WARN items (7 service-role-only
   tables with no policies, `pg_net` in public, 7 intentional authenticated SECURITY DEFINER
   RPCs, and the auth leaked-password and MFA settings). None of these indicate schema drift.
+
+## Update — actions taken 2026-09-24
+
+- Step 1 done: the three missing repo files were added (`20260910122849_count_user_sessions.sql`
+  with the live SQL, plus two comment-only placeholders).
+- Step 2 done directly in SQL rather than `migration repair`: the history table was first
+  copied to `backups.schema_migrations_20260924` (77 rows), then the 15 MCP-versioned rows were
+  relabelled to their repo versions (statements kept), and `20260612153524` was recorded as
+  applied with a comment-only statement. It was never run.
+- Two new migrations were applied the same day and their repo files renamed to the live
+  versions: `20260923230713_align_user_preferences_sync_contract` and
+  `20260923230718_fix_group_storage_policy_name_resolution`.
+- Step 3 (homepage contract): retire, per recommendation — tracked as follow-up work.
