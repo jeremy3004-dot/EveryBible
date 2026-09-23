@@ -486,6 +486,27 @@ test('a failed profile query is reported instead of an empty user list', async (
   });
 });
 
+test('user detail counts sessions with count_user_sessions, not a capped page of raw events', async () => {
+  service.respondTo('profiles', () => ({ data: { id: 'u1' } }));
+  // A busy account: far more sessions than PostgREST's 1,000-row page, and
+  // plenty of non-session events sharing each session id.
+  service.respondToRpc('count_user_sessions', () => ({ data: 2481 }));
+  service.respondTo('analytics_events', () => ({
+    data: Array.from({ length: 1000 }, (_, index) => ({ session_id: `s-${index % 40}` })),
+  }));
+
+  const detail = await data.getSupportUserDetail('u1');
+  assert.equal(detail?.sessionCount, 2481);
+  assert.deepEqual(onlyCall('rpc:count_user_sessions').payload, { p_user_id: 'u1' });
+  assert.deepEqual(service.callsFor('analytics_events'), []);
+});
+
+test('user detail shows zero sessions when the session count is unavailable', async () => {
+  service.respondTo('profiles', () => ({ data: { id: 'u1' } }));
+  service.respondToRpc('count_user_sessions', () => ({ data: null }));
+  assert.equal((await data.getSupportUserDetail('u1'))?.sessionCount, 0);
+});
+
 test('user detail is null for an unknown user', async () => {
   assert.equal(await data.getSupportUserDetail('missing-user'), null);
 });
