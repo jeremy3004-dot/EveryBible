@@ -422,6 +422,18 @@ test('a 422 rejection also drops the batch', async () => {
   await resetBackoff();
 });
 
+test('a 413 body-size rejection drops the batch instead of resending the same bytes forever', async () => {
+  supabase.respondToFunction(() => ({
+    error: { message: 'Payload too large', context: { status: 413 } } as never,
+  }));
+  queue.enqueueUsageEvent('reading_started', {}, null);
+
+  await queue.flushUsageQueue();
+
+  assert.equal(queue.getPendingUsageEventCount(), 0);
+  await resetBackoff();
+});
+
 test('a 500 from the collector is retryable and keeps the batch', async () => {
   supabase.respondToFunction(() => ({
     error: { message: 'Bad gateway', context: { status: 502 } } as never,

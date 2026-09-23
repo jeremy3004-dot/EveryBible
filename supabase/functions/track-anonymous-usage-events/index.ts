@@ -1,8 +1,20 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import {
+  consumeIngestBudget,
+  eventPropertiesWithinLimit,
+  hashIngestClientKey,
+  type IngestBudget,
+  MAX_EVENTS_PER_BATCH,
+  readBodyWithinLimit,
+  rememberIngestGeo,
+  resolveQueuedAt,
+  textFieldsWithinLimit,
+} from '../_shared/analyticsIngest.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Expose-Headers': 'retry-after',
 };
 
 interface AnonymousUsageEvent {
@@ -206,21 +218,39 @@ function resolveEventGeo(event: AnonymousUsageEvent): GeoResult | null {
   };
 }
 
-async function resolveRequestGeo(req: Request): Promise<GeoResult> {
+function geoFromCache(cached: Record<string, unknown>): GeoResult {
+  const text = (value: unknown) => getText(value);
+  return {
+    accuracyKm: null,
+    countryCode: normalizeCountryCode(cached.countryCode),
+    latitude: normalizeCoordinate(cached.latitude, 90),
+    longitude: normalizeCoordinate(cached.longitude, 180),
+    source: text(cached.source),
+    timezone: text(cached.timezone),
+    city: text(cached.city),
+    region: text(cached.region),
+    regionCode: text(cached.regionCode),
+  };
+}
+
+// M1: the external lookup is the one per-request cost a credential-free caller could multiply
+// (ipinfo is paid). The budget RPC returns this client's cached result, or grants exactly one
+// request per client key the right to look it up; everyone else gets the free CF country.
+async function resolveRequestGeo(
+  req: Request,
+  budget: IngestBudget,
+  remember: (geo: GeoResult) => Promise<void>
+): Promise<GeoResult> {
   const cfCountry = normalizeCountryCode(req.headers.get('cf-ipcountry'));
-
-  const clientIp = getClientIp(req);
-  if (clientIp) {
-    const ipinfoToken = Deno.env.get('IPINFO_TOKEN')?.trim();
-    if (ipinfoToken) {
-      const result = await lookupViaIpinfo(clientIp, ipinfoToken);
-      if (result) return { ...result, countryCode: result.countryCode ?? cfCountry };
-    }
-
-    const result = await lookupViaIpapi(clientIp);
-    if (result) return { ...result, countryCode: result.countryCode ?? cfCountry };
+  if (budget.cachedGeo) {
+    const cached = geoFromCache(budget.cachedGeo);
+    return { ...cached, countryCode: cached.countryCode ?? cfCountry };
   }
-
+  const resolved = budget.mayLookupGeo ? await lookupRequestGeo(req, cfCountry) : null;
+  if (resolved) {
+    await remember(resolved);
+    return resolved;
+  }
   return {
     accuracyKm: null,
     countryCode: cfCountry,
@@ -232,6 +262,21 @@ async function resolveRequestGeo(req: Request): Promise<GeoResult> {
     region: null,
     regionCode: null,
   };
+}
+
+async function lookupRequestGeo(req: Request, cfCountry: string | null): Promise<GeoResult | null> {
+  const clientIp = getClientIp(req);
+  if (clientIp) {
+    const ipinfoToken = Deno.env.get('IPINFO_TOKEN')?.trim();
+    if (ipinfoToken) {
+      const result = await lookupViaIpinfo(clientIp, ipinfoToken);
+      if (result) return { ...result, countryCode: result.countryCode ?? cfCountry };
+    }
+
+    const result = await lookupViaIpapi(clientIp);
+    if (result) return { ...result, countryCode: result.countryCode ?? cfCountry };
+  }
+  return null;
 }
 
 function mergeGeo(requestGeo: GeoResult, payloadGeo: GeoResult | null): GeoResult {
@@ -314,31 +359,14 @@ async function resolveUserId(
   }
 }
 
-// S5: hard ceiling on a single event's properties blob. This endpoint is verify_jwt = false,
-// so event_properties was the one unbounded field a credential-free caller could use to push
-// arbitrary megabytes into analytics_events. 4 KB is ~40x the largest property bag the app
-// actually sends (a reading_ended event is well under 200 bytes).
-const MAX_EVENT_PROPERTIES_BYTES = 4096;
-
-// S5: floor on queued_at. EveryBible is offline-first — a device can genuinely sit offline for
-// weeks before its queue drains — so this is deliberately generous at 30 days rather than the
-// 7 a purely online product would use. Anything older is backdated junk that would silently
-// rewrite historical rollups. The UPPER bound (clamp to now) is applied per-event below.
-const MAX_QUEUED_AT_AGE_MS = 30 * 24 * 60 * 60 * 1000;
-
-const eventPropertiesWithinLimit = (properties: Record<string, unknown>): boolean => {
-  try {
-    return JSON.stringify(properties).length <= MAX_EVENT_PROPERTIES_BYTES;
-  } catch {
-    // Unserializable (circular / BigInt) property bags are rejected the same way.
-    return false;
-  }
-};
+// S5/M1 limits (4 KB properties, 128-char text fields, 30-day queued_at floor clamped to now,
+// 500-event batches, 512 KB bodies) live in _shared/analyticsIngest.ts so the authenticated
+// track-analytics-events endpoint enforces exactly the same contract.
 
 function parseBatchRequest(body: unknown): AnonymousUsageRequestBody | null {
   if (!body || typeof body !== 'object') return null;
   const events = (body as { events?: unknown }).events;
-  if (!Array.isArray(events) || events.length === 0 || events.length > 500) return null;
+  if (!Array.isArray(events) || events.length === 0 || events.length > MAX_EVENTS_PER_BATCH) return null;
 
   const normalizedEvents: AnonymousUsageEvent[] = [];
   // S5: oversized / too-old events are DROPPED individually rather than failing the batch.
@@ -355,7 +383,17 @@ function parseBatchRequest(body: unknown): AnonymousUsageRequestBody | null {
     if (!eventName || !devicePlatform || !appVersion || !queuedAt || !Number.isFinite(Date.parse(queuedAt))) return null;
     const eventId = getText(raw.event_id);
     if (eventId && !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(eventId)) return null;
-    if (Date.parse(queuedAt) < Date.now() - MAX_QUEUED_AT_AGE_MS) {
+    const createdAt = resolveQueuedAt(queuedAt);
+    if (createdAt === 'invalid') return null;
+    // Oversized strings would otherwise fail the analytics_events CHECK constraints and turn
+    // the whole batch into a retried 500.
+    if (
+      createdAt === 'too_old' ||
+      !textFieldsWithinLimit([
+        raw.event_name, raw.device_platform, raw.app_version, raw.session_id, raw.attribution_user_id,
+        raw.geo_source, raw.geo_timezone, raw.geo_city, raw.geo_region_code, raw.geo_region_name,
+      ])
+    ) {
       rejected += 1;
       continue;
     }
@@ -385,7 +423,7 @@ function parseBatchRequest(body: unknown): AnonymousUsageRequestBody | null {
       geo_city: raw.geo_city == null ? null : getText(raw.geo_city),
       geo_region_code: raw.geo_region_code == null ? null : getText(raw.geo_region_code),
       geo_region_name: raw.geo_region_name == null ? null : getText(raw.geo_region_name),
-      queued_at: new Date(Math.min(Date.parse(queuedAt), Date.now())).toISOString(),
+      queued_at: createdAt,
       session_id: raw.session_id === null || getText(raw.session_id) === null ? null : getText(raw.session_id),
     });
   }
@@ -413,8 +451,40 @@ Deno.serve(async (request) => {
       return jsonResponse({ error: 'Collector environment is missing Supabase credentials' }, 500);
     }
 
-    const batch = parseBatchRequest(await request.json().catch(() => null));
+    // M1: cap the body while streaming it, before JSON parsing or any database work.
+    const body = await readBodyWithinLimit(request);
+    if (!body.ok) return jsonResponse({ error: 'Request body is too large' }, 413);
+    let parsed: unknown = null;
+    try {
+      parsed = JSON.parse(body.text);
+    } catch {
+      parsed = null;
+    }
+    const batch = parseBatchRequest(parsed);
     if (!batch) return jsonResponse({ error: 'Request body must include analytics events' }, 400);
+
+    const supabase = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
+    // M1: per-source budget (salted IP hash; this endpoint has no required credential). An
+    // over-budget request is refused before any write or geo lookup; the app keeps the batch
+    // queued and retries with backoff.
+    const clientKey = await hashIngestClientKey(request, serviceRoleKey);
+    const budget = await consumeIngestBudget(supabase, clientKey, {
+      events: batch.events.length,
+      bytes: body.bytes,
+    });
+    if (!budget.allowed) {
+      return new Response(JSON.stringify({ error: 'Too many analytics requests; retry later' }), {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json; charset=utf-8',
+          'Retry-After': String(budget.retryAfterSeconds),
+        },
+        status: 429,
+      });
+    }
 
     // S5: the whole batch may have been dropped by the per-event caps. Nothing to write, and
     // no reason to spend a geo lookup — acknowledge so the client clears its queue instead of
@@ -423,11 +493,11 @@ Deno.serve(async (request) => {
       return jsonResponse({ inserted: 0, rejected: batch.rejected, ok: true, attributed: false, geo: null, geo_source: null });
     }
 
-    const supabase = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
     const needsRequestGeo = batch.events.some(event => !resolveEventGeo(event)?.countryCode);
-    const requestGeo: GeoResult = needsRequestGeo ? await resolveRequestGeo(request) : {
+    const requestGeo: GeoResult = needsRequestGeo
+      ? await resolveRequestGeo(request, budget, (geo) =>
+          rememberIngestGeo(supabase, clientKey, { ...geo }))
+      : {
       accuracyKm: null, countryCode: null, latitude: null, longitude: null,
       source: null, timezone: null, city: null, region: null, regionCode: null,
     };
