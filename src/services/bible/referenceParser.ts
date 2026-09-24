@@ -319,6 +319,32 @@ const parseWithBookNames = (
 /**
  * Parse a Bible reference using the English parser (default, backward-compatible).
  */
+const warmedParserLocales = new Set<ReferenceParserLocale>();
+
+/**
+ * Builds and exercises the reference grammar for `locale` and for English, its fallback, so the
+ * first reference the user types does not pay for it: a grammar's first parses build and compile
+ * its patterns (about 40 ms on a desktop, several times that on a phone). Call it when search is
+ * about to be used, never at import or on the startup path. Returns the locales it prepared now;
+ * one already prepared is skipped.
+ */
+export const warmReferenceParser = (locale: string): ReferenceParserLocale[] => {
+  const parserLocale: ReferenceParserLocale = isSupportedParserLocale(locale) ? locale : 'en';
+  const prepared: ReferenceParserLocale[] = [];
+  for (const candidate of new Set<ReferenceParserLocale>([parserLocale, 'en'])) {
+    if (warmedParserLocales.has(candidate)) {
+      continue;
+    }
+    const parser = getParser(candidate);
+    // A reference and a plain word: the two take different paths through the grammar.
+    parseWithParser('John 3:16', parser);
+    parseWithParser('love', parser);
+    warmedParserLocales.add(candidate);
+    prepared.push(candidate);
+  }
+  return prepared;
+};
+
 export const parsePassageReference = (query: string): PassageReferenceTarget | null => {
   return parseWithParser(query, getParser('en'));
 };

@@ -220,6 +220,7 @@ export function BibleBrowserScreen() {
           onChangeText={search.setSearchQuery}
           onClear={search.clearSearch}
           onSubmit={handleSearchSubmit}
+          onFocus={search.prepareSearch}
         />
       </BibleBrowserHeader>
 

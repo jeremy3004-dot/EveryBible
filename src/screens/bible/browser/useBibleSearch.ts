@@ -3,6 +3,7 @@ import type { TFunction } from 'i18next';
 import { bibleBooks, getTranslatedBookName } from '../../../constants/books';
 import {
   parsePassageReferenceLocale,
+  warmReferenceParser,
   type LocalizedBookName,
 } from '../../../services/bible/referenceParser';
 import type { Verse } from '../../../types';
@@ -27,6 +28,8 @@ export interface BibleSearchState {
   hasNoResults: boolean;
   /** Resolves the live (not deferred) query, for a keyboard submit. */
   resolveSubmitIntent: () => BibleSearchIntent;
+  /** For the search field's focus: readies the reference parser before the first keystroke. */
+  prepareSearch: () => void;
 }
 
 /**
@@ -138,6 +141,12 @@ export function useBibleSearch(
     searchResults.length === 0;
 
   const clearSearch = useCallback(() => setSearchQuery(''), []);
+  // The reference parser's first parse costs tens of milliseconds and every keystroke runs it.
+  // Pay that when the field gains focus, after the focus handling, while the keyboard animates
+  // in, rather than on the first keystroke; users who never search never pay it.
+  const prepareSearch = useCallback(() => {
+    setTimeout(() => warmReferenceParser(language), 0);
+  }, [language]);
   const resolveSubmitIntent = useCallback(
     () => resolveBibleSearchIntent(searchQuery, parseRef),
     [parseRef, searchQuery]
@@ -153,6 +162,7 @@ export function useBibleSearch(
     searchError,
     hasNoResults,
     resolveSubmitIntent,
+    prepareSearch,
   };
 }
 

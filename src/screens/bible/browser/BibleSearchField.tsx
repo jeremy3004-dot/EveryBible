@@ -19,6 +19,7 @@ interface BibleSearchFieldProps {
   onChangeText: (text: string) => void;
   onClear: () => void;
   onSubmit: () => void;
+  onFocus?: () => void;
 }
 
 /** Search field for passage references and full-text queries, with a clear control. */
@@ -28,6 +29,7 @@ export function BibleSearchField({
   onChangeText,
   onClear,
   onSubmit,
+  onFocus,
 }: BibleSearchFieldProps) {
   const { colors } = useTheme();
   const { t } = useTranslation();
@@ -52,6 +54,7 @@ export function BibleSearchField({
         autoCorrect={false}
         returnKeyType="search"
         onSubmitEditing={onSubmit}
+        onFocus={onFocus}
       />
       {value.length > 0 ? (
         <TouchableOpacity
