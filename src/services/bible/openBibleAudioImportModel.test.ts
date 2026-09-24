@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   normalizeOpenBibleAudioEntryName,
+  normalizeOpenBibleTimingEntryName,
   parseOpenBibleArtifactManifest,
   parseOpenBibleTimingText,
 } from './openBibleAudioImportModel';
@@ -42,4 +43,53 @@ test('normalizeOpenBibleAudioEntryName maps chapter mp3 names onto book and chap
     chapter: 1,
   });
   assert.equal(normalizeOpenBibleAudioEntryName('metadata.xml'), null);
+});
+
+test('parseOpenBibleArtifactManifest unescapes the JSON-escaped slashes in the api base url', () => {
+  const html = String.raw`{\"artifacts\":[{\"id\":\"a\",\"bookCode\":\"JHN\",\"fileName\":\"JHN.zip\",\"sequence\":4}],\"apiBaseUrl\":\"https:\/\/api.example.test\/v1\"}`;
+
+  assert.deepEqual(parseOpenBibleArtifactManifest(html), {
+    apiBaseUrl: 'https://api.example.test/v1',
+    artifacts: [{ id: 'a', bookCode: 'JHN', fileName: 'JHN.zip', sequence: 4 }],
+  });
+});
+
+test('parseOpenBibleArtifactManifest rejects a page with no artifact manifest', () => {
+  assert.throws(
+    () => parseOpenBibleArtifactManifest('<html><body>Maintenance</body></html>'),
+    /artifact manifest not found/
+  );
+});
+
+test('parseOpenBibleArtifactManifest rejects a manifest with no api base url after it', () => {
+  const html = String.raw`{\"artifacts\":[{\"id\":\"a\",\"bookCode\":null,\"fileName\":\"a.zip\"}]}`;
+
+  assert.throws(() => parseOpenBibleArtifactManifest(html), /API base URL not found/);
+});
+
+test('parseOpenBibleArtifactManifest rejects an api base url cut off before its closing quote', () => {
+  const html = String.raw`{\"artifacts\":[],\"apiBaseUrl\":\"https://api.example.test`;
+
+  assert.throws(() => parseOpenBibleArtifactManifest(html), /API base URL was truncated/);
+});
+
+test('parseOpenBibleTimingText pads short fractions and skips rows that are not verse markers', () => {
+  const raw = 'Verse 3\t00:00:01,5\r\nVerse x\t00:00:09,1\r\nVerse 4\t0:00:02,1\r\n';
+
+  assert.deepEqual(parseOpenBibleTimingText(raw), { 3: 1.5 });
+});
+
+test('normalizeOpenBibleAudioEntryName upper-cases numbered book ids and rejects other extensions', () => {
+  assert.deepEqual(normalizeOpenBibleAudioEntryName('1co_013.MP3'), { bookId: '1CO', chapter: 13 });
+  assert.equal(normalizeOpenBibleAudioEntryName('1CO_013.txt'), null);
+});
+
+test('normalizeOpenBibleTimingEntryName maps chapter timing files onto book and chapter ids', () => {
+  assert.deepEqual(normalizeOpenBibleTimingEntryName('JHN_003.txt'), { bookId: 'JHN', chapter: 3 });
+  assert.deepEqual(normalizeOpenBibleTimingEntryName('2ki_025.TXT'), {
+    bookId: '2KI',
+    chapter: 25,
+  });
+  assert.equal(normalizeOpenBibleTimingEntryName('JHN_003.mp3'), null);
+  assert.equal(normalizeOpenBibleTimingEntryName('readme.txt'), null);
 });

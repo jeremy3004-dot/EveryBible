@@ -21,7 +21,10 @@ test('sanitizeBibleAssetReference accepts relative asset paths', () => {
 
 test('resolveBibleAssetUrl keeps absolute asset urls unchanged', () => {
   assert.equal(
-    resolveBibleAssetUrl('https://cdn.everybible.app/text/npiulb.sqlite', 'https://media.example.com'),
+    resolveBibleAssetUrl(
+      'https://cdn.everybible.app/text/npiulb.sqlite',
+      'https://media.example.com'
+    ),
     'https://cdn.everybible.app/text/npiulb.sqlite'
   );
 });
@@ -55,5 +58,53 @@ test('getBibleAudioAssetBaseUrl prefers the EveryBible media route even when Sup
   assert.equal(
     getBibleAudioAssetBaseUrl(undefined, 'https://ganmududzdzpruvdulkg.supabase.co'),
     'https://media.everybible.app/audio'
+  );
+});
+
+test('sanitizeBibleAssetReference rejects values that are not usable asset references', () => {
+  assert.equal(sanitizeBibleAssetReference(42), null);
+  assert.equal(sanitizeBibleAssetReference(null), null);
+  assert.equal(sanitizeBibleAssetReference('   '), null);
+});
+
+test('sanitizeBibleAssetReference refuses script, data, blob and file schemes', () => {
+  for (const value of [
+    'javascript:alert(1)',
+    'DATA:text/html;base64,AAAA',
+    'blob:https://x/1',
+    'file:///etc/passwd',
+  ]) {
+    assert.equal(sanitizeBibleAssetReference(value), null, value);
+  }
+});
+
+test('sanitizeBibleAssetReference trims padding and drops a leading ./ from relative paths', () => {
+  assert.equal(sanitizeBibleAssetReference('  ./audio/bsb  '), 'audio/bsb');
+  assert.equal(sanitizeBibleAssetReference(' HTTP://cdn.test/a '), 'HTTP://cdn.test/a');
+});
+
+test('resolveBibleAssetBaseUrl strips trailing slashes from absolute urls', () => {
+  assert.equal(
+    resolveBibleAssetBaseUrl('https://cdn.everybible.app/timing/bsb//', 'https://ignored.test'),
+    'https://cdn.everybible.app/timing/bsb'
+  );
+});
+
+test('resolveBibleAssetBaseUrl returns null for a missing reference or an unusable base', () => {
+  assert.equal(resolveBibleAssetBaseUrl(undefined, 'https://media.everybible.app'), null);
+  assert.equal(resolveBibleAssetBaseUrl('timing/bsb', '   '), null);
+  assert.equal(resolveBibleAssetBaseUrl('timing/bsb', ''), null);
+});
+
+test('resolveBibleAssetUrl returns null for a missing reference or an unusable base', () => {
+  assert.equal(resolveBibleAssetUrl(null, 'https://media.everybible.app'), null);
+  assert.equal(resolveBibleAssetUrl('javascript:alert(1)', 'https://media.everybible.app'), null);
+  assert.equal(resolveBibleAssetUrl('text/bsb.sqlite', '  '), null);
+});
+
+test('getBibleAudioAssetBaseUrl appends the audio prefix to a configured asset base', () => {
+  assert.equal(
+    getBibleAudioAssetBaseUrl('https://cdn.example.test'),
+    'https://cdn.example.test/audio'
   );
 });

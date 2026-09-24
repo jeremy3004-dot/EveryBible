@@ -115,6 +115,19 @@ test('a mutation that leaves the persisted ledgers unchanged does not rewrite st
   assert.equal(writes.mock.callCount(), 1);
 });
 
+test('after the stored ledger is cleared, the next unchanged mutation writes it back', async (t) => {
+  t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 8) });
+  state().markChapterRead('GEN', 1);
+
+  await useProgressStore.persist.clearStorage();
+  assert.equal(mmkv.store.has('progress-storage'), false);
+
+  // The in-memory ledger still holds GEN 1; the write-skip cache must not
+  // treat the cleared storage as already holding it.
+  useProgressStore.setState({});
+  assert.deepEqual(Object.keys(readPersisted().state.chaptersRead), ['GEN_1']);
+});
+
 test('re-reading a chapter overwrites its timestamp rather than adding a key', (t) => {
   t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 8) });
   state().markChapterRead('GEN', 1);

@@ -196,3 +196,140 @@ test('language codes match exactly while name fragments match by substring', () 
   assert.equal(engine.searchLanguages('panj', null).global[0]?.code, 'pa', 'name fragment');
   assert.equal(engine.searchLanguages('Punjabi', null).global[0]?.code, 'pa', 'alias');
 });
+
+test('country lookups ignore code case and return nothing for a missing or unknown code', () => {
+  assert.equal(engine.getCountryByCode('np')?.name, 'Nepal');
+  assert.equal(engine.getCountryByCode(null), null);
+  assert.equal(engine.getCountryByCode(''), null);
+  assert.equal(engine.getCountryByCode('ZZ'), null);
+  assert.equal(engine.getCountryDisplayName('ZZ', 'es'), '');
+  assert.equal(engine.getCountryDisplayName(undefined), '');
+});
+
+test('country display names use the offline labels when Intl.DisplayNames rejects the locale', (context) => {
+  const descriptor = Object.getOwnPropertyDescriptor(Intl, 'DisplayNames')!;
+  Object.defineProperty(Intl, 'DisplayNames', {
+    ...descriptor,
+    value: function ThrowingDisplayNames() {
+      throw new RangeError('Incorrect locale information provided');
+    },
+  });
+  context.after(() => Object.defineProperty(Intl, 'DisplayNames', descriptor));
+  const offlineEngine = createLocaleSearchEngine(localeCatalog);
+
+  assert.equal(offlineEngine.getCountryDisplayName('US', 'fr'), 'États-Unis');
+  assert.equal(offlineEngine.getCountryDisplayName('DE', 'es'), 'Alemania');
+});
+
+test('country search stops at the requested limit', () => {
+  assert.deepEqual(
+    engine.searchCountries('', 'en', 2).map((country) => country.code),
+    ['DE', 'IN']
+  );
+  assert.equal(engine.searchCountries('i', 'en', 1).length, 1);
+});
+
+test('language codes resolve by app code, ISO 639-1, or ISO 639-3 in any case', () => {
+  assert.equal(engine.getLanguageByCode('NE')?.name, 'Nepali');
+  assert.equal(engine.getLanguageByCode('HIN')?.code, 'hi');
+  assert.equal(engine.getLanguageByCode('cpe')?.code, 'cpe');
+  assert.equal(engine.getLanguageByCode('xx'), null);
+  assert.equal(engine.getLanguageByCode(null), null);
+  assert.equal(engine.getLanguageByCode(''), null);
+});
+
+test('recommended languages skip codes missing from the catalog and respect the limit', () => {
+  const sparseEngine = createLocaleSearchEngine({
+    countries: [{ code: 'CH', name: 'Switzerland', languageCodes: ['de', 'xx', 'deu', 'fr'] }],
+    languages: [
+      {
+        code: 'de',
+        iso6391: 'de',
+        iso6393: 'deu',
+        name: 'German',
+        nativeName: 'Deutsch',
+        aliases: [],
+        countryCodes: ['CH'],
+      },
+      {
+        code: 'fr',
+        iso6391: 'fr',
+        iso6393: 'fra',
+        name: 'French',
+        nativeName: 'Français',
+        aliases: [],
+        countryCodes: ['CH'],
+      },
+    ],
+  });
+
+  assert.deepEqual(
+    sparseEngine.getRecommendedLanguages('ch').map((language) => language.code),
+    ['de', 'fr']
+  );
+  assert.deepEqual(
+    sparseEngine.getRecommendedLanguages('CH', 1).map((language) => language.code),
+    ['de']
+  );
+  assert.deepEqual(sparseEngine.getRecommendedLanguages('ZZ'), []);
+  assert.deepEqual(sparseEngine.getRecommendedLanguages(undefined), []);
+});
+
+test('languages resolve by name, native name, or alias regardless of case and padding', () => {
+  assert.equal(engine.getLanguageByName('Nepali')?.code, 'ne');
+  assert.equal(engine.getLanguageByName('  नेपाली ')?.code, 'ne');
+  assert.equal(engine.getLanguageByName('PUNJABI')?.code, 'pa');
+  assert.equal(engine.getLanguageByName('Klingon'), null);
+  assert.equal(engine.getLanguageByName(null), null);
+  assert.equal(engine.getLanguageByName(''), null);
+});
+
+test('a name shared by two languages resolves to the one sorted first, and blank names never resolve', () => {
+  const collidingEngine = createLocaleSearchEngine({
+    countries: [],
+    languages: [
+      {
+        code: 'zh-hant',
+        iso6391: null,
+        iso6393: null,
+        name: 'Chinese Traditional',
+        nativeName: '繁體中文',
+        aliases: ['Chinese', ''],
+        countryCodes: [],
+      },
+      {
+        code: 'zh',
+        iso6391: 'zh',
+        iso6393: 'zho',
+        name: 'Chinese',
+        nativeName: '中文',
+        aliases: ['Chinese Simplified', '   '],
+        countryCodes: [],
+      },
+    ],
+  });
+
+  // 'Chinese' sorts before 'Chinese Traditional', so its own name wins the collision.
+  assert.equal(collidingEngine.getLanguageByName('chinese')?.code, 'zh');
+  assert.equal(collidingEngine.getLanguageByName('Chinese Simplified')?.code, 'zh');
+  assert.equal(collidingEngine.getLanguageByName('繁體中文')?.code, 'zh-hant');
+  assert.equal(collidingEngine.getLanguageByName('   '), null);
+});
+
+test('only languages with a supported ISO 639-1 code map to an app interface language', () => {
+  const welsh = {
+    code: 'cy',
+    iso6391: 'cy',
+    iso6393: 'cym',
+    name: 'Welsh',
+    nativeName: 'Cymraeg',
+    aliases: [],
+    countryCodes: ['GB'],
+  };
+
+  assert.equal(engine.mapLanguageToAppLanguage(engine.getLanguageByCode('ne')), 'ne');
+  assert.equal(engine.mapLanguageToAppLanguage(engine.getLanguageByCode('pa')), 'pa');
+  assert.equal(engine.mapLanguageToAppLanguage(welsh), null);
+  assert.equal(engine.mapLanguageToAppLanguage(engine.getLanguageByCode('cpe')), null);
+  assert.equal(engine.mapLanguageToAppLanguage(null), null);
+});

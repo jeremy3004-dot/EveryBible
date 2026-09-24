@@ -146,6 +146,63 @@ test('decodeRecoveryTokenClaims returns empty claims for malformed tokens', () =
   assert.deepEqual(decodeRecoveryTokenClaims(encodeJwtPayload({})), { email: null, subject: null });
 });
 
+// Builds a token whose payload segment is the given raw bytes (not JSON-encoded).
+function tokenWithPayloadBytes(bytes: number[] | string, padded = false): string {
+  const encoded = Buffer.from(typeof bytes === 'string' ? Buffer.from(bytes, 'utf8') : bytes)
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_');
+  return `header.${padded ? encoded : encoded.replace(/=+$/, '')}.signature`;
+}
+
+test('decodeRecoveryTokenClaims decodes three- and four-byte UTF-8 claims and tolerates base64 padding', () => {
+  const token = tokenWithPayloadBytes(
+    JSON.stringify({ email: '読者📖@example.com', sub: 'u' }),
+    true
+  );
+  assert.match(token, /=\.signature$/);
+
+  assert.deepEqual(decodeRecoveryTokenClaims(token), {
+    email: '読者📖@example.com',
+    subject: 'u',
+  });
+});
+
+test('decodeRecoveryTokenClaims rejects payloads that are not valid UTF-8', () => {
+  const invalid: Record<string, number[]> = {
+    'a stray continuation byte as a lead byte': [0x7b, 0x80, 0x7d],
+    'an overlong two-byte lead': [0x7b, 0xc0, 0x80, 0x7d],
+    'a sequence truncated at the end': [0x7b, 0xe3, 0x81],
+    'a lead byte followed by ASCII instead of a continuation': [0x7b, 0xe3, 0x41, 0x41, 0x7d],
+    'a code point above U+10FFFF': [0x7b, 0xf4, 0x90, 0x80, 0x80, 0x7d],
+  };
+
+  for (const [label, bytes] of Object.entries(invalid)) {
+    assert.deepEqual(
+      decodeRecoveryTokenClaims(tokenWithPayloadBytes(bytes)),
+      { email: null, subject: null },
+      label
+    );
+  }
+});
+
+test('decodeRecoveryTokenClaims returns empty claims when the payload is not a JSON object', () => {
+  for (const payload of ['null', '42', '"reader@example.com"', '{"email":']) {
+    assert.deepEqual(
+      decodeRecoveryTokenClaims(tokenWithPayloadBytes(payload)),
+      { email: null, subject: null },
+      payload
+    );
+  }
+});
+
+test('decodeRecoveryTokenClaims ignores empty and non-string claims', () => {
+  assert.deepEqual(decodeRecoveryTokenClaims(encodeJwtPayload({ email: '', sub: 42 })), {
+    email: null,
+    subject: null,
+  });
+});
+
 test('resolveRecoveryLinkAudience refuses a link issued for a different signed-in account', () => {
   assert.equal(resolveRecoveryLinkAudience('user-attacker', 'user-victim'), 'different-account');
 });

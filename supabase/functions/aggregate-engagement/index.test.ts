@@ -21,6 +21,7 @@ function load(
   options: {
     serviceRoleKey?: string;
     authorizationResult?: RpcResult;
+    refreshResult?: RpcResult;
   } = {}
 ) {
   const rpcCalls: Array<{ key: string; fn: string; args: unknown }> = [];
@@ -41,7 +42,7 @@ function load(
         );
       }
       if (key === SERVICE_KEY && fn === 'refresh_engagement_summaries') {
-        return { data: SUMMARY, error: null };
+        return options.refreshResult ?? { data: SUMMARY, error: null };
       }
       return { data: null, error: { message: `unexpected ${fn} with ${key}` } };
     },
@@ -133,6 +134,28 @@ for (const result of [
     assert.deepEqual(runtime.privilegedCalls(), []);
   });
 }
+
+test('a failing refresh is reported as a 500 with its message', async (t) => {
+  t.mock.method(console, 'error', () => {});
+  const runtime = load({
+    refreshResult: { data: null, error: new Error('statement timeout') },
+  });
+
+  const response = await runtime.request('POST', `Bearer ${SERVICE_KEY}`);
+
+  assert.equal(response.status, 500);
+  assert.deepEqual(await response.json(), { success: false, error: 'statement timeout' });
+});
+
+test('an unreadable body or a GET refreshes every user', async () => {
+  const runtime = load();
+  await runtime.request('POST', `Bearer ${SERVICE_KEY}`, 'not json');
+  await runtime.request('GET', `Bearer ${SERVICE_KEY}`);
+  assert.deepEqual(
+    runtime.privilegedCalls().map((call) => call.args),
+    [{ p_user_id: null }, { p_user_id: null }]
+  );
+});
 
 test('aggregate engagement CORS preflight never accesses data', async () => {
   const runtime = load();

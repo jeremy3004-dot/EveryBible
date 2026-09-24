@@ -870,6 +870,46 @@ test('a merge the server refuses is a failed push, never a blind upsert', async 
   assert.deepEqual(callsFor('user_progress', 'upsert'), []);
 });
 
+test('a merge that stores the row but returns nothing keeps the local state as pushed', async () => {
+  progressStore.setState({ chaptersRead: { GEN_1: 500 } });
+  script.user_progress = { select: { data: remoteProgressRow() } };
+  script[PROGRESS_MERGE_RPC_TABLE] = { write: { data: null } };
+
+  const result = await syncProgress(USER_A);
+
+  assert.equal(result.success, true);
+  assert.equal(progressMergeCalls().length, 1);
+  assert.equal(progressStore.getState().chaptersRead.GEN_1, 500);
+  assert.deepEqual(callsFor('user_progress', 'upsert'), []);
+});
+
+test('an account switch while an empty merge reply is in flight reports the sync as stale', async () => {
+  progressStore.setState({ chaptersRead: { GEN_1: 500 } });
+  script.user_progress = { select: { data: remoteProgressRow() } };
+  script[PROGRESS_MERGE_RPC_TABLE] = {
+    write: () => {
+      authStore.setState({ user: { uid: USER_B } });
+      return { data: null };
+    },
+  };
+
+  assert.deepEqual(await syncProgress(USER_A), { success: false, error: STALE_SYNC_ERROR });
+});
+
+test('an account switch before the fallback upsert of a server without the merge function skips it', async () => {
+  progressStore.setState({ chaptersRead: { GEN_1: 500 } });
+  script.user_progress = { select: { data: remoteProgressRow() } };
+  script[PROGRESS_MERGE_RPC_TABLE] = {
+    write: () => {
+      authStore.setState({ user: { uid: USER_B } });
+      return { data: null, error: { code: 'PGRST202', message: 'function not found' } };
+    },
+  };
+
+  assert.deepEqual(await syncProgress(USER_A), { success: false, error: STALE_SYNC_ERROR });
+  assert.deepEqual(callsFor('user_progress', 'upsert'), []);
+});
+
 test('a transient merge failure is retried by syncAll through the merge again', async () => {
   progressStore.setState({ chaptersRead: { GEN_1: 500 } });
   script.user_progress = { select: { data: remoteProgressRow() } };

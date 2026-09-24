@@ -748,6 +748,24 @@ test('reattaching audio downloads reports a resumed download that fails again', 
   assert.match(String(warn.mock.calls[0]?.arguments[0]), /Failed to resume audio book download/);
 });
 
+test('reattaching audio downloads reports a resumed translation-wide download that fails again', async (t) => {
+  const warn = t.mock.method(console, 'warn', () => {});
+  doubles.audio.jobs.push(
+    makeAudioJob({ id: 'job-1', translationId: 'bsb', scope: 'translation', status: 'queued' })
+  );
+  doubles.audio.runTranslationDownload = async () => {
+    throw new Error('still offline');
+  };
+
+  await useBibleStore.getState().reattachAudioDownloads();
+  await flushAsyncWork();
+
+  assert.deepEqual(
+    warn.mock.calls.map((call) => call.arguments.slice(0, 2)),
+    [['[Bible] Failed to resume audio translation download:', 'job-1']]
+  );
+});
+
 test('reattaching audio downloads attaches the revived job to its own translation only', async () => {
   withTranslations([
     makeRuntimeTranslation({ id: 'elx', hasAudio: true, audioGranularity: 'chapter' }),

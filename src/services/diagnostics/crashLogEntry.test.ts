@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { appendCrashLogEntry, toCrashLogEntry, type CrashLogEntry } from './crashLogEntry';
+import {
+  appendCrashLogEntry,
+  MAX_CRASH_LOG_ENTRIES,
+  toCrashLogEntry,
+  toRenderErrorCrashLogEntry,
+  type CrashLogEntry,
+} from './crashLogEntry';
 
 test('appendCrashLogEntry appends within the max size', () => {
   const existing: CrashLogEntry[] = [{ message: 'first', isFatal: false, timestamp: 1 }];
@@ -50,3 +56,60 @@ test('toCrashLogEntry stringifies non-Error values', () => {
   assert.equal(entry.stack, undefined);
   assert.equal(entry.isFatal, false);
 });
+
+test('appendCrashLogEntry keeps only the newest MAX_CRASH_LOG_ENTRIES entries by default', () => {
+  const existing: CrashLogEntry[] = Array.from({ length: MAX_CRASH_LOG_ENTRIES }, (_, index) => ({
+    message: `entry-${index}`,
+    isFatal: false,
+    timestamp: index,
+  }));
+  const entry: CrashLogEntry = { message: 'newest', isFatal: true, timestamp: 99 };
+
+  const result = appendCrashLogEntry(existing, entry);
+
+  assert.equal(result.length, MAX_CRASH_LOG_ENTRIES);
+  assert.equal(result[0].message, 'entry-1');
+  assert.deepEqual(result.at(-1), entry);
+});
+
+test('a render error entry is non-fatal, tagged with its boundary scope, and appends the component stack', () => {
+  const error = new Error('render failed');
+  error.stack = 'Error: render failed\n    at Reader';
+
+  const entry = toRenderErrorCrashLogEntry(
+    error,
+    'BibleReader',
+    '\n    in Verse\n    in Chapter',
+    7
+  );
+
+  assert.deepEqual(entry, {
+    message: '[BibleReader] render failed',
+    stack: 'Error: render failed\n    at Reader\nComponent stack:\n    in Verse\n    in Chapter',
+    isFatal: false,
+    timestamp: 7,
+  });
+});
+
+test('a render error entry without a JS stack falls back to the message before the component stack', () => {
+  const entry = toRenderErrorCrashLogEntry('thrown string', 'Home', '\n    in HomeScreen', 8);
+
+  assert.deepEqual(entry, {
+    message: '[Home] thrown string',
+    stack: 'thrown string\nComponent stack:\n    in HomeScreen',
+    isFatal: false,
+    timestamp: 8,
+  });
+});
+
+for (const componentStack of [null, undefined, '   \n  ']) {
+  test(`a render error entry omits the component stack section when it is ${JSON.stringify(componentStack)}`, () => {
+    const error = new Error('no trail');
+    error.stack = 'Error: no trail';
+
+    const entry = toRenderErrorCrashLogEntry(error, 'Plans', componentStack, 9);
+
+    assert.equal(entry.stack, 'Error: no trail');
+    assert.equal(entry.message, '[Plans] no trail');
+  });
+}
