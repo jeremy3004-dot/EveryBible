@@ -96,3 +96,44 @@ test('every daily passage exists in each bundled translation for offline use', a
     database.close();
   }
 });
+
+// The verse of the day is shown on its own, so each range must hold a whole sentence.
+// Allowed openers are reviewed ones that read as a complete promise without the verse before.
+const REVIEWED_LOWERCASE_OPENINGS = new Set(['PHP 1:6']);
+
+test('every daily passage reads as a complete thought in the default translation', async () => {
+  const { DatabaseSync } = await import('node:sqlite');
+  const database = new DatabaseSync(
+    fileURLToPath(new URL('../../../assets/databases/bible-bsb-v2.db', import.meta.url)),
+    { readOnly: true }
+  );
+  try {
+    const query = database.prepare(
+      "SELECT text FROM verses WHERE translation_id = 'bsb' AND book_id = ? AND chapter = ? AND verse BETWEEN ? AND ? ORDER BY verse"
+    );
+    const fragments: string[] = [];
+    for (const reference of POPULAR_VERSE_REFERENCES) {
+      const start = reference.verse!;
+      const rows = query.all(
+        reference.bookId,
+        reference.chapter,
+        start,
+        reference.verseEnd ?? start
+      ) as { text: string }[];
+      const passage = rows
+        .map((row) => row.text.trim())
+        .join(' ')
+        .trim();
+      const label = formatReference(reference);
+      if (!/[.!?]['’"”\s]*$/.test(passage)) {
+        fragments.push(`${label} ends mid-sentence: …${passage.slice(-40)}`);
+      }
+      if (/^['‘"“]?\p{Ll}/u.test(passage) && !REVIEWED_LOWERCASE_OPENINGS.has(label)) {
+        fragments.push(`${label} starts mid-sentence: ${passage.slice(0, 40)}…`);
+      }
+    }
+    assert.deepEqual(fragments, []);
+  } finally {
+    database.close();
+  }
+});
