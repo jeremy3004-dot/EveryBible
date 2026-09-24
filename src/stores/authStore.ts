@@ -10,6 +10,7 @@ import {
   shouldResetPerUserStateAtAuthBoundary,
 } from './authSessionState';
 import { defaultAuthPreferences, sanitizePersistedAuthState } from './persistedStateSanitizers';
+import { switchPrivateDataOwner } from './privateDataScope';
 
 interface AuthState {
   user: User | null;
@@ -88,7 +89,7 @@ const resetPerUserStores = (): void => {
     require('./bibleStore').useBibleStore,
     // Exported as `readingPlansStore` (not the use-prefixed name).
     require('./readingPlansStore').readingPlansStore,
-    require('./fourFieldsStore').useFourFieldsStore,
+    // Four Fields is local-only, so it is account-scoped below rather than reset.
     // Translator mode and per-device listened-markers must not bleed across
     // account switches (A1). The passcode is a shared secret but enabled state
     // and markers are per-session and should be cleared here.
@@ -99,6 +100,22 @@ const resetPerUserStores = (): void => {
     store.getState().resetForSignOut?.();
   }
 };
+
+// Private data that never leaves the device (highlights, notes, bookmarks, the
+// library, Gather and Four Fields) is not reset at a boundary: that would
+// delete the only copy. It is scoped per account instead (privateDataScope):
+// another account sees none of it and it returns when its owner signs in.
+// The stores are loaded only before a guest's data is adopted by a first
+// sign-in, so a store no screen has opened yet is adopted too.
+const loadPrivateDataStores = (): void => {
+  require('./annotationStore');
+  require('./libraryStore');
+  require('./gatherStore');
+  require('./fourFieldsStore');
+};
+
+const showPrivateDataOf = (userId: string | null): void =>
+  switchPrivateDataOwner(userId, { loadStores: loadPrivateDataStores });
 
 const preferencesDiffer = (left: UserPreferences, right: UserPreferences): boolean =>
   left.fontSize !== right.fontSize ||
@@ -195,6 +212,11 @@ export const useAuthStore = create<AuthState>()(
             }
           );
         }
+        // Any definitive sign-out hides the account's private data. (An offline
+        // launch that could not refresh never reaches here with a null session.)
+        if (!nextUserId) {
+          showPrivateDataOf(null);
+        }
       },
 
       setSession: (session) => {
@@ -237,6 +259,11 @@ export const useAuthStore = create<AuthState>()(
               clearGuestTombstones: clearGuestPlanTombstones,
             }
           );
+        }
+        // Any definitive sign-out hides the account's private data. (An offline
+        // launch that could not refresh never reaches here with a null session.)
+        if (!nextUserId) {
+          showPrivateDataOf(null);
         }
       },
 
@@ -286,6 +313,7 @@ export const useAuthStore = create<AuthState>()(
         // Clear all per-user local stores so the next account on this device
         // never inherits or merges this account's reading data (H2).
         resetPerUserStores();
+        showPrivateDataOf(null);
 
         set({
           user: null,
@@ -318,6 +346,7 @@ export const useAuthStore = create<AuthState>()(
             clearGuestTombstones: clearGuestPlanTombstones,
           }
         );
+        showPrivateDataOf(userId);
         if (lastSyncedUserId !== userId) {
           set({ lastSyncedUserId: userId });
         }
