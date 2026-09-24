@@ -17,7 +17,7 @@ import type {
 } from '../types';
 import { getAudioTrackId, syncAudioQueueToTrack, type AudioQueueEntry } from './audioQueueModel';
 import { getNextRepeatMode } from './audioPlaybackCompletionModel';
-import { sanitizePersistedAudioState } from './persistedStateSanitizers';
+import { sanitizePersistedAudioState } from './sanitizers/audioState';
 
 interface AudioState {
   // Playback state (not persisted)
