@@ -107,6 +107,29 @@ function trimHighlights(
 }
 
 /**
+ * The annotation store keeps one live highlight per first verse: writing a highlight that
+ * starts where a live one starts rewrites that row under the new id. Planned as a new row
+ * plus a delete, the delete then found nothing, the edit reported failure and any deletes
+ * after it never ran, leaving overlapping highlights. So a replacement that starts where a
+ * highlight it replaces started takes over that row (its id) and the row is not deleted.
+ */
+function reuseRowsOfReplacedHighlights(
+  edits: ReaderAnnotationEdits,
+  annotations: readonly UserAnnotation[]
+): ReaderAnnotationEdits {
+  const byId = new Map(annotations.map((annotation) => [annotation.id, annotation]));
+  const softDeleteIds = [...edits.softDeleteIds];
+  const upserts = edits.upserts.map((upsert) => {
+    if (upsert.type !== 'highlight' || byId.has(upsert.id)) return upsert;
+    const index = softDeleteIds.findIndex((id) => byId.get(id)?.verse_start === upsert.verse_start);
+    if (index < 0) return upsert;
+    const [id] = softDeleteIds.splice(index, 1);
+    return { ...upsert, id };
+  });
+  return { softDeleteIds, upserts };
+}
+
+/**
  * Paints the selected verses one colour. The reader shows one highlight per verse, so any
  * highlight already under the selection gives those verses up; a highlight covering exactly
  * one selected run is recoloured in place.
@@ -129,22 +152,25 @@ export function planReaderHighlightApply(
     () => true,
     new Set(reusedIds.filter((id): id is string => id != null))
   );
-  return {
-    softDeleteIds: trimmed.softDeleteIds,
-    upserts: [
-      ...trimmed.upserts,
-      ...runs.map((run, index) =>
-        draft(input, {
-          id: reusedIds[index] ?? input.createId(),
-          type: 'highlight',
-          color: input.color,
-          content: null,
-          verse_start: run.verse_start,
-          verse_end_inclusive: run.verse_end,
-        })
-      ),
-    ],
-  };
+  return reuseRowsOfReplacedHighlights(
+    {
+      softDeleteIds: trimmed.softDeleteIds,
+      upserts: [
+        ...trimmed.upserts,
+        ...runs.map((run, index) =>
+          draft(input, {
+            id: reusedIds[index] ?? input.createId(),
+            type: 'highlight',
+            color: input.color,
+            content: null,
+            verse_start: run.verse_start,
+            verse_end_inclusive: run.verse_end,
+          })
+        ),
+      ],
+    },
+    input.annotations
+  );
 }
 
 /**
@@ -154,7 +180,10 @@ export function planReaderHighlightApply(
 export function planReaderHighlightRemove(
   input: ReaderAnnotationEditInput & { color: string }
 ): ReaderAnnotationEdits {
-  return trimHighlights(input, (highlight) => highlight.color === input.color, new Set());
+  return reuseRowsOfReplacedHighlights(
+    trimHighlights(input, (highlight) => highlight.color === input.color, new Set()),
+    input.annotations
+  );
 }
 
 /**
