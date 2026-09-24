@@ -476,6 +476,36 @@ test('active plans split into Daily readings and Daily rhythms, each card announ
   assert.ok(within(kathisma).getByText(t('readingPlans.morningLabel')));
 });
 
+test('within a section, the most recently started plan comes first', async () => {
+  await seed(
+    progressRow(GOSPELS, { started_at: '2026-09-19T09:00:00.000Z' }),
+    progressRow(PSALMS, { started_at: '2026-09-22T09:00:00.000Z' }),
+    progressRow('epistles-30-days', { started_at: '2026-09-21T09:00:00.000Z' })
+  );
+  const view = await renderHome();
+
+  const readings = sectionOf(view, t('readingPlans.dailyReadings'));
+  assert.deepEqual(
+    within(readings)
+      .getAllByRole('button')
+      .map((node) => accessibilityLabelOf(node))
+      .filter((label) => label !== t('common.delete')),
+    [titleOf(PSALMS), titleOf('epistles-30-days'), titleOf(GOSPELS)]
+  );
+});
+
+test('an active single-session rhythm offers Continue and shows its percentage', async () => {
+  await seed(progressRow(PROVERBS, { started_at: '2026-09-21T09:00:00.000Z' }));
+  const view = await renderHome();
+
+  const proverbs = view.getByRole('button', { name: titleOf(PROVERBS) });
+  assert.ok(within(proverbs).getByText(t('common.continue')));
+  assert.ok(within(proverbs).getByText('77%'));
+  assert.ok(within(proverbs).getByText(t('readingPlans.dayOf', { current: 24, total: 31 })));
+  const bar = within(proverbs).getByLabelText(t('readingPlans.progress'));
+  assert.ok(bar);
+});
+
 test('a rhythm left on screen overnight moves to the new day when the app comes back', async () => {
   await seed(progressRow(PROVERBS, { started_at: '2026-09-21T09:00:00.000Z' }));
   const view = await renderHome();
@@ -771,6 +801,37 @@ test('search narrows the catalog by title, forgives typos, and has its own empty
   assert.ok(view.getByText(titleOf(PSALMS)), 'a blank query shows everything');
 });
 
+test('tapping a Daily rhythms card or the body of a browse row opens that plan', async () => {
+  const view = await renderHome();
+  await openTab(view, 'readingPlans.findPlans');
+
+  await view.press(view.getByRole('button', { name: titleOf(KATHISMA) }));
+  await view.press(
+    view.getByRole('button', {
+      name: `${titleOf(GOSPELS)}, ${t('readingPlans.daysCount', { count: 60 })}`,
+    })
+  );
+
+  assert.deepEqual(navigateCalls(), [
+    ['PlanDetail', { planId: KATHISMA }],
+    ['PlanDetail', { planId: GOSPELS }],
+  ]);
+});
+
+test('leaving Find plans and coming back starts a fresh search', async () => {
+  const view = await renderHome();
+  await openTab(view, 'readingPlans.findPlans');
+  const label = t('readingPlans.searchPlansCount', { count: CATALOG.length });
+  await view.changeText(view.getByLabelText(label), 'proverbs');
+  assert.equal(view.queryByText(titleOf(PSALMS)), null);
+
+  await openTab(view, 'readingPlans.myPlans');
+  await openTab(view, 'readingPlans.findPlans');
+
+  assert.equal(view.getByLabelText(label).props.value, '');
+  assert.ok(view.getByText(titleOf(PSALMS)));
+});
+
 test('the plans surface has no featured hero, challenges, saved or rhythm-builder entry points', async () => {
   const view = await renderHome();
   for (const tab of ['readingPlans.myPlans', 'readingPlans.findPlans', 'readingPlans.completed']) {
@@ -831,6 +892,34 @@ test('a finished plan is listed under Completed with its date and chip, opens it
   await view.flush();
   assert.deepEqual(service.unenrolled, [GOSPELS]);
   assert.ok(view.getByRole('header', { name: t('readingPlans.noCompletedPlans') }));
+});
+
+test('completed plans list the most recently started first, and a row without a finish date shows none', async () => {
+  await seed(
+    progressRow(GOSPELS, {
+      is_completed: true,
+      completed_at: '2026-09-20T10:00:00.000Z',
+      started_at: '2026-07-01T09:00:00.000Z',
+    }),
+    progressRow(PSALMS, {
+      is_completed: true,
+      completed_at: null,
+      started_at: '2026-08-01T09:00:00.000Z',
+    })
+  );
+  const view = await renderHome();
+  await openTab(view, 'readingPlans.completed');
+
+  const section = sectionOf(view, t('readingPlans.completed'));
+  const rows = within(section)
+    .getAllByRole('button')
+    .filter((node) => accessibilityLabelOf(node) !== t('common.delete'));
+  assert.deepEqual(
+    rows.map((node) => accessibilityLabelOf(node)),
+    [titleOf(PSALMS), titleOf(GOSPELS)]
+  );
+  assert.equal(within(rows[0]).queryByText(/\d{4}/), null);
+  assert.ok(within(rows[1]).getByText('Sep 20, 2026'));
 });
 
 // ---- Large text ------------------------------------------------------------------
