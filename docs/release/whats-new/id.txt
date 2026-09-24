@@ -1,16 +1,18 @@
-Pengaturan, rencana, dan catatan Anda kini tetap sama di semua perangkat, Rencana bacaan tampil baru, dan aplikasi terbuka lebih cepat.
+Pencarian yang lebih baik di semua bahasa, catatan dan rencana Anda tetap aman di semua perangkat, Rencana bacaan yang diperbarui, serta aplikasi yang lebih cepat dan stabil.
 
-• Pengaturan kini disinkronkan satu per satu, jadi perubahan di satu perangkat tidak lagi membatalkan perubahan di perangkat lain. Saat pertama kali masuk di sebuah perangkat, pilihan yang sudah Anda buat di sana tetap dipertahankan.
-• Jika Anda keluar dari sebuah rencana bacaan di satu perangkat, rencana itu tidak muncul lagi di perangkat lain. Sesi pagi, siang, dan malam kini juga disinkronkan.
-• Catatan, sorotan, penanda, dan perpustakaan Anda milik akun Anda. Jika orang lain masuk di perangkat yang sama, mereka tidak akan melihatnya, dan semuanya kembali saat Anda masuk lagi.
-• Rencana bacaan: hari-hari Anda tampil dalam kisi titik yang ringkas, judul tetap tersemat saat menggulir, dan Anda bisa menggeser untuk kembali dari bacaan ke rencananya. Membuka satu hari dalam rencana tidak lagi melanjutkan audio yang sedang Anda jeda.
-• Judul perikop di awal setiap pasal kembali tampil; sebelumnya hilang di lebih dari seribu pasal. Hasil pencarian kini langsung membawa Anda ke ayatnya.
-• Membagikan Ayat hari ini kini hanya membagikan ayat dan fotonya, tanpa nama atau sapaan Anda.
-• Teks aplikasi sudah ditinjau dan diperbaiki di semua bahasa, dan bahasa Rusia serta Arab kini memakai bentuk jamak yang benar.
-• Unduhan audio: membatalkan unduhan seluruh Alkitab kini benar-benar menghentikannya, pasal yang diunduh diperiksa agar tidak ada berkas rusak, dan Anda diberi tahu lebih dulu jika ruang penyimpanan tidak cukup.
-• Label VoiceOver yang lebih baik di seluruh aplikasi, dan teks pindah ke baris berikutnya alih-alih terpotong pada ukuran huruf besar. Di iOS 26, bilah tab tetap mudah dibaca di atas teks Alkitab.
-• Memperbaiki masalah ketika membuka aplikasi tanpa koneksi setelah lama tidak dipakai bisa menghapus kemajuan membaca dan rentetan hari yang belum tersinkron.
-• Untuk tim penerjemah: setiap tim kini punya kode peninjauan sendiri, dan aplikasi menunjukkan terjemahan mana saja yang dibuka oleh kode Anda.
-• Pembukaan lebih cepat, plus perbaikan kecil di berbagai tempat.
+• Pencarian kini menemukan kata utuh dalam bahasa Hindi, Nepali, dan bahasa lain beraksara India, serta menemukan kata dalam bahasa Mandarin, Jepang, Korea, dan Thai. Pencarian kini juga berfungsi di Alkitab yang Anda unduh. Mengetik kitab yang hanya punya satu pasal beserta nomor pasalnya kini langsung membuka pasal itu.
+• Pengaturan, rencana, dan kemajuan membaca tetap selaras di semua perangkat Anda. Perubahan di satu perangkat tidak lagi membatalkan perubahan di perangkat lain, dan saat pertama kali masuk, pilihan yang sudah Anda buat di perangkat itu tetap dipertahankan.
+• Catatan, sorotan, penanda, dan pustaka Anda menjadi milik akun Anda. Jika orang lain masuk di perangkat yang sama, mereka tidak akan melihatnya, dan semuanya kembali saat Anda masuk lagi.
+• Rencana bacaan: hari-hari Anda tampil sebagai kisi titik, judul tetap terlihat saat Anda menggulir, dan Anda bisa menggeser kembali dari bacaan ke rencananya. Menyelesaikan satu hari rencana kini menghitung semua pasal di dalamnya, dan rentetan hari lebih akurat.
+• Ketuk pengingat harian untuk langsung membuka rencana Anda. Pengingat mengikuti bahasa dan zona waktu Anda, dan Pengaturan memberi tahu jika notifikasi dimatikan.
+• Audio: kontrol layar kunci dan pengatur waktu tidur tetap berfungsi setelah Anda meninggalkan layar bacaan, dan pengatur waktu tidur ikut berhenti sejenak saat Anda menjeda audio. Membatalkan atau menghapus unduhan kini benar-benar menghentikannya.
+• Sorotan: Anda bisa mengubah atau menghapus warna pada sebagian sorotan, dan mengedit catatan tidak lagi membuat salinan.
+• Judul perikop di awal setiap pasal kembali muncul, dan setiap Ayat hari ini kini berupa kalimat lengkap. Membagikan Ayat hari ini hanya membagikan ayat dan fotonya.
+• Tautan atur ulang kata sandi kini lebih aman: tautan hanya berfungsi di perangkat yang memintanya.
+• Penyiapan tampil dalam bahasa Anda sejak layar pertama, dan memberi tahu dengan jelas jika ada yang tidak bisa diunduh.
+• Teks aplikasi telah ditinjau dalam semua bahasa, dan bahasa Rusia serta Arab kini memakai bentuk jamak yang benar.
+• Dukungan VoiceOver yang lebih baik di seluruh aplikasi, dan tata letak yang pindah baris alih-alih memotong kata pada ukuran teks besar.
+• Jika terjadi masalah di satu layar, bagian lain aplikasi tetap berjalan.
+• Aplikasi terbuka lebih cepat, ukurannya lebih kecil, dan ada banyak perbaikan kecil.
 
 Terima kasih telah membaca bersama kami.

@@ -485,8 +485,10 @@ B = `fda08d60..adac656b` (75 non-merge commits).
 The App Store text leaves out Android-only items. The Play text leads with lock-screen audio.
 
 **Update 2026-09-24 (A2):** only the English files (`en.txt` and `play/en.txt`) were
-rewritten to include the A2 changes. The other 20 locale files still describe the earlier
-draft and need a fresh translation before they are used.
+rewritten to include the A2 changes. es, fr, pt, ru, id, de, ja, tr, vi and ko were then
+re-translated from the new English (both App Store and Play). The remaining 10 locale files
+(zh, hi, ar, bn, ur, pa, mr, te, ta, ne) still describe the earlier draft and need a fresh
+translation before they are used.
 
 Locale mapping when a store localization exists:
 

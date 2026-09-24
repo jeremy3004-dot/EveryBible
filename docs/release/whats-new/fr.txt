@@ -1,16 +1,18 @@
-Vos réglages, plans et notes restent désormais synchronisés sur tous vos appareils, les plans de lecture font peau neuve et l’app démarre plus vite.
+Une recherche améliorée dans toutes les langues, vos notes et plans en sécurité sur tous vos appareils, des plans de lecture repensés et une app plus rapide et plus stable.
 
-• Les réglages se synchronisent désormais un par un : une modification sur un appareil n’annule plus celle faite sur un autre. La première fois que vous vous connectez sur un appareil, les choix que vous y aviez déjà faits sont conservés.
-• Si vous quittez un plan de lecture sur un appareil, il ne réapparaît plus sur vos autres appareils. Les séances du matin, de midi et du soir se synchronisent aussi.
-• Vos notes, surlignages, signets et votre bibliothèque sont liés à votre compte. Si quelqu’un d’autre se connecte sur le même appareil, il ne les verra pas, et ils reviendront quand vous vous reconnecterez.
-• Plans de lecture : vos jours s’affichent dans une grille de points compacte, le titre reste épinglé pendant le défilement, et vous pouvez balayer vers l’arrière depuis une lecture pour revenir au plan. Ouvrir un jour du plan ne relance plus l’audio que vous aviez mis en pause.
-• Le titre de section qui ouvre chaque chapitre est de retour ; il manquait dans plus de mille chapitres. Les résultats de recherche vous mènent maintenant directement au verset.
-• Partager le Verset du jour ne partage plus que le verset et la photo, sans votre nom ni votre message d’accueil.
-• Les textes de l’app ont été relus et corrigés dans toutes les langues, et le russe et l’arabe utilisent désormais les bonnes formes du pluriel.
-• Téléchargements audio : annuler le téléchargement de toute la Bible l’arrête vraiment, les chapitres téléchargés sont vérifiés pour écarter les fichiers endommagés, et vous êtes prévenu à l’avance si l’espace manque.
-• De meilleurs libellés VoiceOver partout, et un texte qui passe à la ligne au lieu d’être coupé en grande taille. Sous iOS 26, la barre d’onglets reste lisible au-dessus du texte biblique.
-• Correction d’un problème : ouvrir l’app hors ligne après une longue pause pouvait effacer la progression de lecture et les séries de jours pas encore synchronisées.
-• Pour les équipes de traduction : chaque équipe a désormais son propre code de relecture, et l’app indique quelles traductions votre code ouvre.
-• Démarrage plus rapide et petites corrections un peu partout.
+• La recherche trouve des mots entiers en hindi, en népalais et dans d’autres écritures indiennes, ainsi que des mots en chinois, japonais, coréen et thaï. Elle fonctionne désormais aussi dans les Bibles que vous téléchargez. Saisir « Jude 1 » ouvre directement le chapitre.
+• Paramètres, plans et progression de lecture restent synchronisés sur tous vos appareils. Une modification sur un appareil n’annule plus celle faite sur un autre, et lors de votre première connexion, les choix déjà faits sur cet appareil sont conservés.
+• Vos notes, surlignages, signets et votre bibliothèque sont liés à votre compte. Si quelqu’un d’autre se connecte sur le même appareil, il ne les verra pas, et vous les retrouverez en vous reconnectant.
+• Plans de lecture : vos jours s’affichent sous forme de grille de points, le titre reste visible pendant le défilement et vous pouvez balayer vers l’arrière pour revenir d’une lecture à son plan. Terminer un jour du plan compte désormais tous ses chapitres, et les séries de jours sont plus précises.
+• Touchez le rappel quotidien pour ouvrir directement votre plan. Le rappel suit votre langue et votre fuseau horaire, et les Paramètres vous signalent si les notifications sont désactivées.
+• Audio : les commandes de l’écran verrouillé et la minuterie de veille continuent de fonctionner quand vous quittez l’écran de lecture, et la minuterie se met en pause quand vous mettez l’audio en pause. Annuler ou supprimer un téléchargement l’arrête vraiment.
+• Surlignages : vous pouvez changer ou retirer la couleur d’une partie d’un surlignage, et modifier une note ne crée plus de doublon.
+• Le titre de section au début de chaque chapitre est de retour, et chaque Verset du jour est une phrase complète. Partager le Verset du jour ne partage que le verset et la photo.
+• Les liens de réinitialisation du mot de passe sont plus sûrs : un lien ne fonctionne que sur l’appareil qui l’a demandé.
+• La configuration s’affiche dans votre langue dès le premier écran et vous indique clairement si un élément ne peut pas être téléchargé.
+• Les textes de l’app ont été relus dans toutes les langues, et le russe et l’arabe utilisent les bonnes formes du pluriel.
+• Meilleure prise en charge de VoiceOver dans toute l’app, et des mises en page qui passent à la ligne au lieu de couper les mots en grande taille de texte.
+• Si un problème survient sur un écran, le reste de l’app continue de fonctionner.
+• Démarrage plus rapide, app plus légère et de nombreuses petites corrections.
 
 Merci de lire avec nous.
