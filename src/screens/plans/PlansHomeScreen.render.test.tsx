@@ -432,6 +432,9 @@ test('the skeleton shows only while the catalog itself is still loading', async 
   const view = await renderHome();
 
   assert.ok((await skeletonCount(view)) > 0);
+  const loading = view.getByLabelText(t('common.loading'));
+  assert.equal(loading.props.accessible, true, 'the skeleton is one element, read as loading');
+  assert.deepEqual(loading.props.accessibilityState, { busy: true });
   assert.equal(view.queryByText(t('readingPlans.noActivePlans')), null);
 
   service.catalogGate.open();
