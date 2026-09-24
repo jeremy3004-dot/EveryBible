@@ -1,12 +1,5 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Pressable,
-  type LayoutChangeEvent,
-} from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -35,7 +28,7 @@ import { AppCard, BackArrowIcon, IconButton } from '../../components/ui';
 import {
   buildReadingActivityGrid,
   buildWeekdayInitials,
-  CALENDAR_COLUMN_COUNT,
+  chunkCalendarWeeks,
   firstChapterOfDay,
   shiftMonth,
   summarizeDayChapters,
@@ -52,8 +45,6 @@ const SELECTED_RING_WIDTH = 1.5;
 const TODAY_BORDER_WIDTH = 1.5;
 const LEGEND_SWATCH = 12;
 const LEADING_DAY_OPACITY = 0.4;
-/** Pre-measurement cell size, so the card does not jump on first layout. */
-const ESTIMATED_CELL_SIZE = 40;
 const MINUTE_MS = 60_000;
 
 const getMonthSelectionKey = (
@@ -94,7 +85,6 @@ export function ReadingActivityScreen() {
   const today = useLocalToday();
   const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
   const [engagement, setEngagement] = useState<UserEngagementSummary | null>(null);
-  const [gridWidth, setGridWidth] = useState(0);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -166,17 +156,10 @@ export function ReadingActivityScreen() {
   const chapterTotal = engagement?.total_chapters_read ?? activitySummary.totalChapterReads;
   const listeningLabel = formatListeningTime(engagement?.total_listening_minutes ?? 0, t);
 
-  // Exact, not floored: the grid, the weekday headers and the card's right edge
-  // all have to line up, and 7 floored cells can leave a visible strip of slack.
-  const cellSize =
-    gridWidth > 0
-      ? (gridWidth - CELL_GAP * (CALENDAR_COLUMN_COUNT - 1)) / CALENDAR_COLUMN_COUNT
-      : 0;
-  const measuredCell = cellSize || ESTIMATED_CELL_SIZE;
-
-  const handleGridLayout = useCallback((event: LayoutChangeEvent) => {
-    setGridWidth(event.nativeEvent.layout.width);
-  }, []);
+  // Each week is its own row of seven flex slots, and the headers share that row
+  // shape: every column is a seventh of the card whatever its width, where cells
+  // sized width/7 from a measured width wrapped at six columns on device.
+  const weeks = useMemo(() => chunkCalendarWeeks(grid.cells), [grid.cells]);
 
   const goToMonth = (delta: number) => {
     setSelectedDateKey(null);
@@ -292,42 +275,39 @@ export function ReadingActivityScreen() {
 
           <View style={styles.weekdayRow}>
             {weekdayInitials.map((initial, index) => (
-              <Text
-                key={`weekday-${index}`}
-                style={[styles.weekday, displayFont.regular, { width: measuredCell }]}
-              >
+              <Text key={`weekday-${index}`} style={[styles.weekday, displayFont.regular]}>
                 {initial}
               </Text>
             ))}
           </View>
 
-          <View
-            testID="reading-activity-calendar"
-            style={[
-              styles.grid,
-              { minHeight: grid.rowCount * (measuredCell + CELL_GAP) - CELL_GAP },
-            ]}
-            onLayout={handleGridLayout}
-          >
-            {grid.cells.map((cell) => (
-              <CalendarCell
-                key={cell.dateKey}
-                cell={cell}
-                size={cellSize}
-                colors={colors}
-                styles={styles}
-                label={cellLabels.get(cell.dateKey) ?? formatDayEyebrow(cell.dateKey)}
-                // The fill is the only visual cue, so the state is spoken as the value.
-                stateLabel={
-                  [
-                    cell.state === 'read' ? t('readingActivity.legendRead') : null,
-                    cell.isToday ? t('readingActivity.legendToday') : null,
-                  ]
-                    .filter(Boolean)
-                    .join(', ') || undefined
-                }
-                onPress={() => setSelectedDateKey(cell.dateKey)}
-              />
+          <View testID="reading-activity-calendar" style={styles.grid}>
+            {weeks.map((week) => (
+              <View key={week[0]?.dateKey} style={styles.week}>
+                {week.map((cell, column) =>
+                  cell ? (
+                    <CalendarCell
+                      key={cell.dateKey}
+                      cell={cell}
+                      colors={colors}
+                      styles={styles}
+                      label={cellLabels.get(cell.dateKey) ?? formatDayEyebrow(cell.dateKey)}
+                      // The fill is the only visual cue, so the state is spoken as the value.
+                      stateLabel={
+                        [
+                          cell.state === 'read' ? t('readingActivity.legendRead') : null,
+                          cell.isToday ? t('readingActivity.legendToday') : null,
+                        ]
+                          .filter(Boolean)
+                          .join(', ') || undefined
+                      }
+                      onPress={() => setSelectedDateKey(cell.dateKey)}
+                    />
+                  ) : (
+                    <View key={`blank-${column}`} style={styles.cellSlot} />
+                  )
+                )}
+              </View>
             ))}
           </View>
 
@@ -402,7 +382,6 @@ export function ReadingActivityScreen() {
 
 interface CalendarCellProps {
   cell: ReadingActivityGridCell;
-  size: number;
   colors: ThemeColors;
   styles: ReturnType<typeof createStyles>;
   label: string;
@@ -414,22 +393,14 @@ interface CalendarCellProps {
 // accent hairline, everything else is an inert `muted` well. The selection ring
 // is drawn as two nested borders bleeding into the 6pt gutter so it never
 // changes the cell's own size.
-function CalendarCell({
-  cell,
-  size,
-  colors,
-  styles,
-  label,
-  stateLabel,
-  onPress,
-}: CalendarCellProps) {
+function CalendarCell({ cell, colors, styles, label, stateLabel, onPress }: CalendarCellProps) {
   const isRead = cell.state === 'read';
   const isToday = cell.state === 'today';
 
   return (
     <Pressable
       onPress={onPress}
-      style={[styles.cellSlot, { width: size, height: size }, !cell.inMonth && styles.cellLeading]}
+      style={[styles.cellSlot, !cell.inMonth && styles.cellLeading]}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityValue={stateLabel ? { text: stateLabel } : undefined}
@@ -582,17 +553,23 @@ const createStyles = (colors: ThemeColors) =>
       marginBottom: spacing.sm,
     },
     weekday: {
+      flex: 1,
       ...typography.eyebrow,
       letterSpacing: 0,
       color: colors.secondaryText,
       textAlign: 'center',
     },
     grid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
       gap: CELL_GAP,
     },
+    week: {
+      flexDirection: 'row',
+      gap: CELL_GAP,
+    },
+    // A seventh of the week row, square.
     cellSlot: {
+      flex: 1,
+      aspectRatio: 1,
       alignItems: 'stretch',
       justifyContent: 'center',
     },

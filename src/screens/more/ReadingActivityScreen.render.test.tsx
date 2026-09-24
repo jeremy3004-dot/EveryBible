@@ -5,6 +5,7 @@ import { create } from 'zustand';
 import { mockModule, sourcePath } from '../../testing/mockModules';
 import {
   accessibilityLabelOf,
+  flattenStyle,
   hostAncestors,
   installRenderHarness,
   textContent,
@@ -335,4 +336,78 @@ test('signed out, the totals come from this device and the cloud is not asked', 
   const streak = within(hostAncestors(view.getByText(t('readingActivity.currentStreak')))[0]);
   assert.ok(streak.getByText('2'));
   assert.ok(streak.getByText(t('readingActivity.streakUnit', { count: 2 })));
+});
+
+// On device the grid wrapped at six columns: seven cells sized width/7 from a measured
+// width did not fit one flex-wrapped line, so Sunday stood empty and every date sat
+// under the wrong weekday. Each week is now its own row of seven flex slots.
+const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+/** The grid's week rows, each as its seven slots in column order (null for a blank). */
+function weekRows(view: View) {
+  const grid = view.getByTestId('reading-activity-calendar');
+  const directChildren = (parent: ReactTestInstance) =>
+    ['View', 'Pressable']
+      .flatMap((type) => within(parent).queryAllByType(type))
+      .filter((node) => hostAncestors(node)[0] === parent);
+  const byTreeOrder = (parent: ReactTestInstance) => {
+    const order: ReactTestInstance[] = [];
+    const walk = (node: ReactTestInstance) => {
+      for (const child of node.children) {
+        if (typeof child === 'string') continue;
+        order.push(child);
+        walk(child);
+      }
+    };
+    walk(parent);
+    return (nodes: ReactTestInstance[]) =>
+      [...nodes].sort((left, right) => order.indexOf(left) - order.indexOf(right));
+  };
+  return byTreeOrder(grid)(directChildren(grid)).map((row) =>
+    byTreeOrder(row)(directChildren(row)).map((slot) =>
+      slot.props.accessibilityRole === 'button' ? slot : null
+    )
+  );
+}
+
+// No container width can wrap a column any more: nothing is sized from a measured
+// width (the grid has no onLayout), so 343pt (iPhone 13 mini/SE) and 382pt (Plus/Max)
+// grids lay out alike, as seven flex columns per week.
+test('every week is a row of seven columns, and each date sits under its weekday', async () => {
+  const view = await renderScreen();
+  const grid = view.getByTestId('reading-activity-calendar');
+  assert.equal(grid.props.onLayout, undefined, 'the layout does not wait for a measured width');
+
+  const rows = weekRows(view);
+  assert.equal(rows.length, 5, 'Monday 31 August to Wednesday 30 September is five weeks');
+  for (const [index, row] of rows.entries()) {
+    assert.equal(row.length, 7, `week ${index + 1} has seven columns`);
+    for (const slot of row) {
+      if (!slot) continue;
+      const style = flattenStyle(slot.props.style) ?? {};
+      assert.equal(style.flex, 1, 'a cell takes a seventh of its row');
+      assert.equal(style.width, undefined, 'no fixed cell width');
+    }
+  }
+
+  const labels = rows.map((row) => row.map((slot) => (slot ? accessibilityLabelOf(slot) : null)));
+  for (const row of labels) {
+    row.forEach((label, column) => {
+      if (label)
+        assert.ok(label.startsWith(`${WEEKDAYS[column]},`), `${label} in column ${column}`);
+    });
+  }
+  assert.equal(labels[3][3], 'Thursday, September 24');
+  assert.equal(labels[4][2], 'Wednesday, September 30');
+  assert.deepEqual(labels[4].slice(3), [null, null, null, null], 'the month ends mid-week');
+});
+
+test('the weekday headers share the week rows’ seven columns', async () => {
+  const view = await renderScreen();
+  const headers = view.getAllByText(/^[A-Z]$/);
+  assert.equal(headers.length, 7);
+  for (const header of headers) {
+    assert.equal(flattenStyle(header.props.style)?.flex, 1);
+    assert.equal(flattenStyle(header.props.style)?.width, undefined);
+  }
 });
