@@ -28,7 +28,8 @@ const defaultElStep: ElBootstrapStep = async (catalogUrl) => {
       import('../elMedia/elTranslationMapping'),
     ]);
 
-  const catalog = (await refreshElCatalog(catalogUrl)) ?? (await getLastVerifiedElCatalog());
+  const catalog =
+    (await refreshElCatalog(catalogUrl)) ?? (await getLastVerifiedElCatalog(catalogUrl));
   if (!catalog) {
     return [];
   }
