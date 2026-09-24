@@ -85,6 +85,7 @@ import {
 import { useTranslationContentSummary } from '../../hooks/useTranslationContentSummary';
 import { isRemoteAudioAvailable } from '../../services/audio/audioRemote';
 import { getAudioAvailability } from '../../services/audio/audioAvailability';
+import { describeAudioDownloadError } from '../../services/audio/audioDownloadErrorMessage';
 import { READING_PLAN_ENTRIES_BY_PLAN_ID, readingPlans } from '../../data/readingPlans.generated';
 import { submitChapterFeedback } from '../../services/feedback';
 import {
@@ -3126,9 +3127,7 @@ export function BibleReaderScreen() {
       });
       Alert.alert(t('common.ok'), t('bible.audioSavedOffline'));
     } catch (downloadError) {
-      const message =
-        downloadError instanceof Error ? downloadError.message : t('bible.audioDownloadFailed');
-      Alert.alert(t('common.error'), message);
+      Alert.alert(t('common.error'), describeAudioDownloadError(downloadError, t));
     }
   };
 
@@ -3212,13 +3211,10 @@ export function BibleReaderScreen() {
         mimeType: CHAPTER_FEEDBACK_AUDIO_MIME_TYPE,
       });
       setFeedbackAudioElapsedMs(Math.max(durationMs, feedbackAudioElapsedMs));
-    } catch (recordingError) {
+    } catch {
+      // The recorder's own error message is an English diagnostic, not reader copy.
       setFeedbackAudioState('error');
-      setFeedbackSubmitError(
-        recordingError instanceof Error
-          ? recordingError.message
-          : t('bible.chapterFeedbackAudioStopError')
-      );
+      setFeedbackSubmitError(t('bible.chapterFeedbackAudioStopError'));
     } finally {
       await restoreFeedbackAudioPlaybackMode();
     }

@@ -16,15 +16,16 @@ import {
   fourFieldsCourses,
   fieldInfo,
   FIELD_TITLE_KEYS,
-  FOUR_FIELDS_LESSON_TITLE_KEYS,
+  getFourFieldsLessonTitle,
 } from '../../data/fourFieldsCourses';
 import { LessonSectionRenderer } from '../../components/fourfields';
 import {
   buildGroupDetailSnapshot,
-  completeSyncedGroupSession,
   getSyncedGroup,
   getSyncedGroupServiceAvailability,
   loadGroupDetailSnapshot,
+  recordSyncedGroupSession,
+  updateSyncedGroupLesson,
 } from '../../services/groups';
 import { isSupabaseConfigured } from '../../services/supabase';
 import type { GroupDetailSnapshot } from '../../services/groups/groupRepository';
@@ -248,22 +249,18 @@ export function GroupSessionScreen() {
 
     try {
       setIsSavingSynced(true);
-      const { status } = await completeSyncedGroupSession({
+      await recordSyncedGroupSession({
         groupId,
         courseId: group.currentCourseId,
         lessonId: currentLesson.id,
-        isLeader: group.isLeader,
-        nextLesson:
-          nextLesson && currentCourse
-            ? { courseId: currentCourse.id, lessonId: nextLesson.id }
-            : null,
       });
-      successHaptic();
-      if (status === 'saved-lesson-unchanged') {
-        // The session is recorded; saying "could not be saved" would invite a
-        // retry that records it (and notifies every member) twice.
-        Alert.alert(t('groups.syncSession.savedLessonUnchanged'));
+      if (nextLesson && currentCourse) {
+        await updateSyncedGroupLesson(groupId, {
+          current_course_id: currentCourse.id,
+          current_lesson_id: nextLesson.id,
+        });
       }
+      successHaptic();
       navigation.goBack();
     } catch {
       const message = t('groups.syncSession.saveFailedDefault');
@@ -362,9 +359,7 @@ export function GroupSessionScreen() {
               </Text>
             </View>
             <Text style={[styles.lessonTitle, { color: colors.primaryText }]}>
-              {t(FOUR_FIELDS_LESSON_TITLE_KEYS[currentLesson.id], {
-                defaultValue: currentLesson.title,
-              })}
+              {getFourFieldsLessonTitle(currentLesson, t)}
             </Text>
           </View>
         )}

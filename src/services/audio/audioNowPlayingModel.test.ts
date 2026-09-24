@@ -60,3 +60,18 @@ test('buildBibleNowPlayingPayload falls back to album title when translationName
   assert.equal(payload?.title, 'John 3');
   assert.equal(payload?.artist, 'Every Bible');
 });
+
+test('the lock-screen title names the book in the interface language when one is supplied', () => {
+  const payload = buildBibleNowPlayingPayload({
+    translationId: 'bsb',
+    bookId: 'GEN',
+    bookName: 'Génesis',
+    chapter: 1,
+    positionMs: 0,
+    durationMs: 0,
+    isPlaying: true,
+    playbackRate: 1,
+  });
+
+  assert.equal(payload?.title, 'Génesis 1');
+});

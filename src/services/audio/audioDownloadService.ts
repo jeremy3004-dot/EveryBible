@@ -2,6 +2,7 @@ import type { BibleBook } from '../../constants/books';
 import { assertSafeAssetId } from '../bible/assetIdentifiers';
 import { buildAudioChapterTargets } from './audioDownloads';
 import { getRemoteAudioFileExtension } from './audioRemote';
+import { AudioDownloadInsufficientSpaceError } from './audioDownloadErrorMessage';
 
 const DEFAULT_AUDIO_ROOT_URI = 'file:///everybible-audio/';
 const DEFAULT_CHAPTER_DOWNLOAD_CONCURRENCY = 4;
@@ -695,23 +696,7 @@ export class AudioDownloadCancelledError extends Error {
   }
 }
 
-// Thrown BEFORE any job record is created so a refused download leaves nothing behind. The
-// message is user-facing: the translation picker surfaces `error.message` verbatim. (N25)
-export class AudioDownloadInsufficientSpaceError extends Error {
-  readonly requiredBytes: number;
-  readonly freeBytes: number;
-
-  constructor(requiredBytes: number, freeBytes: number) {
-    super(
-      `Not enough free space for this audio download. It needs about ${formatBytes(
-        requiredBytes
-      )} but only ${formatBytes(freeBytes)} is free. Free up space and try again.`
-    );
-    this.name = 'AudioDownloadInsufficientSpaceError';
-    this.requiredBytes = requiredBytes;
-    this.freeBytes = freeBytes;
-  }
-}
+export { AudioDownloadInsufficientSpaceError };
 
 export class AudioDownloadStopError extends Error {
   constructor(error: unknown) {
@@ -722,12 +707,6 @@ export class AudioDownloadStopError extends Error {
 
 export function isAudioDownloadCancellation(error: unknown): boolean {
   return error instanceof AudioDownloadCancelledError;
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
-  if (bytes >= 1024 ** 2) return `${Math.round(bytes / 1024 ** 2)} MB`;
-  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
 // Average size of one compressed chapter of narration, used only when the source publishes no real
