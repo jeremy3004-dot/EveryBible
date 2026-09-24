@@ -172,3 +172,49 @@ test('a same-uid continuation is stale after sign-out and sign-in creates a new 
   assert.equal((await continuation).applied, false);
   assert.deepEqual(writes, []);
 });
+
+test('sync-cycle cache forgets a failed cycle so the next attempt runs again', async () => {
+  const cache = createSyncCycleCache<string>();
+  let attempts = 0;
+  const failing = cache.getOrCreate('user-a', async () => {
+    attempts += 1;
+    throw new Error('offline');
+  });
+
+  // A caller joining while the cycle is still pending shares its failure.
+  assert.equal(
+    cache.getOrCreate('user-a', async () => 'unused'),
+    failing
+  );
+  await assert.rejects(failing, /offline/);
+
+  const retry = await cache.getOrCreate('user-a', async () => {
+    attempts += 1;
+    return 'synced';
+  });
+  assert.equal(retry, 'synced');
+  assert.equal(attempts, 2);
+});
+
+test('a failed cycle that was already replaced does not evict its replacement', async () => {
+  const cache = createSyncCycleCache<string>();
+  let rejectFirst!: (error: Error) => void;
+  const firstCycle = cache.getOrCreate(
+    'user-a',
+    () =>
+      new Promise<string>((_resolve, reject) => {
+        rejectFirst = reject;
+      })
+  );
+  cache.clear('user-a');
+  const replacement = cache.getOrCreate('user-a', async () => 'fresh');
+
+  rejectFirst(new Error('late failure'));
+  await assert.rejects(firstCycle, /late failure/);
+
+  assert.equal(
+    cache.getOrCreate('user-a', async () => 'should not run'),
+    replacement
+  );
+  assert.equal(await replacement, 'fresh');
+});

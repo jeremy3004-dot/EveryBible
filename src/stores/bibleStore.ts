@@ -244,6 +244,14 @@ async function recoverTextPackJournal(): Promise<void> {
         stagingPath: install.stagingPath,
         rollbackPath: install.rollbackPath,
       });
+      // Nothing reached the final or rollback path (the transfer was cancelled, failed, or the
+      // app was killed before activation), so there is no pack to adopt and any previous install
+      // was never touched. Retire the entry; validating the missing file would fail on every
+      // launch and keep every readiness check running a full recovery pass.
+      if (recoveryResult === 'none') {
+        completedInstalls.set(translationId, install.operationId);
+        continue;
+      }
       const representative = await validateCatalogTextPack(
         install.finalPath,
         install.expectedVerseCount ?? 1,

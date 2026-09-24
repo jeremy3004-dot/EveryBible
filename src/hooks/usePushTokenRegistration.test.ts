@@ -154,3 +154,34 @@ test('nothing registers while the session waits for its token refresh, and it re
 
   assert.deepEqual(registrations, [{ userId: 'user-a' }]);
 });
+
+test('a pending registration and token refresh are dropped if the session starts waiting for a token refresh', async () => {
+  mountApp();
+  tokenListener?.(TOKEN);
+  auth.awaitingTokenRefresh = true;
+  await settle();
+
+  assert.deepEqual(registrations, []);
+});
+
+test('a pending token refresh is dropped when the user is signed out on the same account id', async () => {
+  mountApp();
+  await settle();
+  registrations.length = 0;
+
+  tokenListener?.(TOKEN);
+  auth.isAuthenticated = false;
+  await settle();
+
+  assert.deepEqual(registrations, []);
+});
+
+test('pending registrations are dropped when the user record disappears before they run', async () => {
+  mountApp();
+  tokenListener?.(TOKEN);
+  // isAuthenticated is still set, but there is no account to register the token for.
+  auth.user = null;
+  await settle();
+
+  assert.deepEqual(registrations, []);
+});

@@ -97,6 +97,8 @@ test('queued_at keeps a 30-day offline replay window and is clamped to now', () 
     new Date(now).toISOString()
   );
   assert.equal(ingest.resolveQueuedAt('nonsense', now), 'invalid');
+  assert.equal(ingest.resolveQueuedAt(now, now), 'invalid', 'epoch numbers are not accepted');
+  assert.equal(ingest.resolveQueuedAt(undefined, now), 'invalid');
 });
 
 test('the client key is a salted digest that never contains the raw IP', async () => {
@@ -181,4 +183,109 @@ test('a resolved geo result is remembered against the client key', async () => {
   assert.equal(fake.updates[0].table, 'analytics_ingest_throttle');
   assert.equal(fake.updates[0].key, 'key');
   assert.deepEqual((fake.updates[0].values as { geo: unknown }).geo, geo);
+});
+
+test('a request with no body reads as empty text', async () => {
+  const request = new Request('https://collector.example', { method: 'POST' });
+  assert.deepEqual(await ingest.readBodyWithinLimit(request), { ok: true, text: '', bytes: 0 });
+});
+
+test('the user throttle key is a salted digest that never contains the user id', async () => {
+  const key = await ingest.hashIngestUserKey('user-123', 'salt-a');
+  assert.match(key, /^[0-9a-f]{64}$/);
+  assert.equal(key.includes('user-123'), false);
+  assert.equal(await ingest.hashIngestUserKey('user-123', 'salt-a'), key);
+  assert.notEqual(await ingest.hashIngestUserKey('user-123', 'salt-b'), key);
+  assert.notEqual(await ingest.hashIngestUserKey('user-456', 'salt-a'), key);
+  const request = new Request('https://collector.example', {
+    headers: { 'cf-connecting-ip': 'user-123' },
+  });
+  assert.notEqual(
+    await ingest.hashIngestClientKey(request, 'salt-a'),
+    key,
+    'user and IP keys live in separate namespaces'
+  );
+});
+
+test('a limiter that returns a single row object (not a set) is read the same way', async () => {
+  const fake = rpcFake({
+    data: { allowed: true, retry_after_seconds: 0, cached_geo: null, claim_geo_lookup: true },
+  });
+  const budget = await ingest.consumeIngestBudget(fake.client, 'key', { events: 1, bytes: 10 });
+  assert.equal(budget.allowed, true);
+  assert.equal(budget.mayLookupGeo, true);
+  assert.equal(budget.degraded, false);
+});
+
+test('a limiter row without a boolean verdict fails open and blocks paid lookups', async () => {
+  for (const data of [[], [{ allowed: 'yes', claim_geo_lookup: true }]]) {
+    const fake = rpcFake({ data });
+    const budget = await ingest.consumeIngestBudget(fake.client, 'key', { events: 1, bytes: 10 });
+    assert.deepEqual(budget, {
+      allowed: true,
+      retryAfterSeconds: 0,
+      cachedGeo: null,
+      mayLookupGeo: false,
+      degraded: true,
+    });
+  }
+});
+
+test('a limiter that throws fails open and blocks paid lookups', async () => {
+  const client = {
+    ...rpcFake({}).client,
+    rpc: async () => {
+      throw new Error('connection reset');
+    },
+  };
+  const budget = await ingest.consumeIngestBudget(client, 'key', { events: 1, bytes: 10 });
+  assert.deepEqual(budget, {
+    allowed: true,
+    retryAfterSeconds: 0,
+    cachedGeo: null,
+    mayLookupGeo: false,
+    degraded: true,
+  });
+});
+
+test('a refusal with a missing or invalid retry hint still asks the client to wait', async () => {
+  for (const retry of [null, 0, 'soon', -5]) {
+    const fake = rpcFake({ data: [{ allowed: false, retry_after_seconds: retry }] });
+    const budget = await ingest.consumeIngestBudget(fake.client, 'key', { events: 1, bytes: 10 });
+    assert.equal(budget.allowed, false);
+    assert.equal(budget.retryAfterSeconds, 1, `retry_after_seconds ${String(retry)}`);
+  }
+});
+
+test('a cached geo value that is not a plain object is ignored', async () => {
+  for (const cached of [['NP'], 'NP', 42]) {
+    const fake = rpcFake({
+      data: [{ allowed: true, cached_geo: cached, claim_geo_lookup: true }],
+    });
+    const budget = await ingest.consumeIngestBudget(fake.client, 'key', { events: 1, bytes: 10 });
+    assert.equal(budget.cachedGeo, null);
+    assert.equal(budget.mayLookupGeo, true);
+  }
+});
+
+test('a refused request never claims the paid geo lookup, even if the limiter offers it', async () => {
+  const fake = rpcFake({
+    data: [{ allowed: false, retry_after_seconds: 5, claim_geo_lookup: true }],
+  });
+  const budget = await ingest.consumeIngestBudget(fake.client, 'key', { events: 1, bytes: 10 });
+  assert.equal(budget.mayLookupGeo, false);
+});
+
+test('a failed geo cache write is swallowed', async () => {
+  const client = {
+    ...rpcFake({}).client,
+    from: () => ({
+      update: () => ({
+        eq: async () => {
+          throw new Error('permission denied');
+        },
+      }),
+    }),
+  };
+  await assert.doesNotReject(ingest.rememberIngestGeo(client, 'key', { countryCode: 'NP' }));
 });

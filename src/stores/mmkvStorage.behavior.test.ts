@@ -79,3 +79,25 @@ test('the stored language of an unfinished onboarding is the app default, not a 
   );
   assert.equal(getPersistedLanguagePreference(), 'fr');
 });
+
+test('an auth snapshot without a usable language string falls back to the caller default', async () => {
+  const { getPersistedLanguagePreference, AUTH_STORAGE_KEY } = await load();
+
+  backing.set(AUTH_STORAGE_KEY, '');
+  assert.equal(getPersistedLanguagePreference(), null);
+  backing.set(AUTH_STORAGE_KEY, 'null');
+  assert.equal(getPersistedLanguagePreference(), null);
+  backing.set(AUTH_STORAGE_KEY, JSON.stringify({ version: 3 }));
+  assert.equal(getPersistedLanguagePreference(), null);
+  backing.set(AUTH_STORAGE_KEY, JSON.stringify({ state: { preferences: { language: 42 } } }));
+  assert.equal(getPersistedLanguagePreference(), null);
+});
+
+test('every persisted store shares the one MMKV instance the adapter writes through', async () => {
+  const { mmkvInstance, zustandStorage } = await load();
+
+  zustandStorage.setItem('bible-storage', '{"state":{}}');
+
+  assert.ok(mmkvInstance instanceof FakeMMKV);
+  assert.equal(mmkvInstance.getString('bible-storage'), '{"state":{}}');
+});

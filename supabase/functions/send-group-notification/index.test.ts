@@ -28,6 +28,8 @@ function loadFunction(
     devices?: Array<{ user_id: string; push_token: string | null }>;
     tickets?: unknown;
     pushStatus?: number;
+    // Batch numbers (0-based) whose request to Expo throws, e.g. a network drop.
+    throwingBatches?: number[];
   } = {}
 ) {
   const authCalls: string[] = [];
@@ -108,6 +110,9 @@ function loadFunction(
       assert.equal(url, 'https://exp.host/--/api/v2/push/send');
       const batch = JSON.parse(String(init.body)) as Push[];
       pushes.push(batch);
+      if (options.throwingBatches?.includes(pushes.length - 1)) {
+        throw new TypeError('network connection lost');
+      }
       return new Response(
         JSON.stringify({
           data: options.tickets ?? batch.map(() => ({ status: 'ok', id: 'ticket' })),
@@ -412,6 +417,21 @@ test('pushes go out in batches of at most 100', async () => {
     runtime.pushes.map((batch) => batch.length),
     [100, 50]
   );
+});
+
+test('a batch whose Expo request throws counts as failed and later batches still go out', async () => {
+  const devices = Array.from({ length: 150 }, (_, index) => ({
+    user_id: recipientId,
+    push_token: `token-${index}`,
+  }));
+  const runtime = loadFunction({ devices, throwingBatches: [0] });
+
+  assert.deepEqual(await (await runtime.request()).json(), {
+    success: true,
+    sent: 50,
+    errors: 100,
+  });
+  assert.equal(runtime.pushes.length, 2);
 });
 
 for (const options of [{ tickets: [] }, { pushStatus: 500 }]) {

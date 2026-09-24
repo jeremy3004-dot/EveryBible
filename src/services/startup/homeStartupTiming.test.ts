@@ -44,6 +44,24 @@ test('unmounted Home cancels readiness and ignores an already queued callback', 
   assert.equal(reports, 0);
 });
 
+test('Home unmounted before its first layout never schedules or reports readiness', () => {
+  let schedules = 0;
+  let reports = 0;
+  const reporter = createHomeReadyReporter({
+    schedule: () => {
+      schedules += 1;
+      return () => {};
+    },
+    report: () => reports++,
+  });
+
+  reporter.cancel();
+  reporter.onLayout();
+
+  assert.equal(schedules, 0);
+  assert.equal(reports, 0);
+});
+
 // Startup import-graph guard: Home must not pull the hooks/components/constants/utils barrels
 // onto the cold-start path (plus the one onLayout hook-up, UI-only); allowed by docs/testing.md.
 test('Home startup imports only the hooks, components and constants it renders', () => {

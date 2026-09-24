@@ -442,3 +442,95 @@ test('an unpinned kid on an otherwise valid envelope keeps the last-good catalog
   assert.equal(jwksFetches, 0);
   __resetElJwksRuntimeForTests();
 });
+
+test('getLastVerifiedElCatalog ignores a stored record that is missing or mistyping its fields', async () => {
+  for (const raw of [
+    'null',
+    JSON.stringify({ sequence: '9', payloadJson: '{}', verifiedAt: 1 }),
+    JSON.stringify({ sequence: 9, payloadJson: {}, verifiedAt: 1 }),
+    JSON.stringify({ sequence: 9, payloadJson: '{}' }),
+  ]) {
+    const storage = createMemoryStorage({ [LAST_CATALOG_KEY]: raw });
+    assert.equal(await getLastVerifiedElCatalog({ storage }), null, raw);
+  }
+});
+
+test('getLastVerifiedElCatalog returns null when the stored payload bytes are not JSON', async () => {
+  const storage = createMemoryStorage({
+    [LAST_CATALOG_KEY]: JSON.stringify({ sequence: 2, payloadJson: '{"schema', verifiedAt: 1 }),
+  });
+
+  assert.equal(await getLastVerifiedElCatalog({ storage }), null);
+});
+
+test('a malformed stored record does not act as a rollback floor for a fresh catalog', async () => {
+  const storage = createMemoryStorage({
+    [LAST_CATALOG_KEY]: JSON.stringify({ sequence: '99', payloadJson: '{}', verifiedAt: 1 }),
+  });
+
+  const catalog = await refreshElCatalog(CATALOG_URL, {
+    fetchFn: makeFetch(catalogEnvelope).fetchFn,
+    storage,
+    getKeys,
+    isVerificationSupported: supported,
+  });
+
+  assert.equal(catalog?.sequence, 1);
+  const persisted = JSON.parse(storage.raw.get(LAST_CATALOG_KEY) as string) as {
+    sequence: number;
+  };
+  assert.equal(persisted.sequence, 1);
+});
+
+test('a trust-store lookup that throws keeps the last-good catalog', async () => {
+  const storage = createMemoryStorage({ [LAST_CATALOG_KEY]: storedCatalogState(4) });
+
+  const catalog = await refreshElCatalog(CATALOG_URL, {
+    fetchFn: makeFetch(catalogEnvelope).fetchFn,
+    storage,
+    getKeys: async () => {
+      throw new Error('keystore unavailable');
+    },
+    isVerificationSupported: supported,
+  });
+
+  assert.equal(catalog?.sequence, 4);
+  assert.equal(catalog?.translations.length, 0);
+});
+
+test('a failed persist still returns the freshly verified catalog', async () => {
+  const storage = {
+    getItem: async () => null,
+    setItem: async () => {
+      throw new Error('disk full');
+    },
+  };
+
+  const catalog = await refreshElCatalog(CATALOG_URL, {
+    fetchFn: makeFetch(catalogEnvelope).fetchFn,
+    storage,
+    getKeys,
+    isVerificationSupported: supported,
+  });
+
+  assert.equal(catalog?.sequence, 1);
+  assert.equal(catalog?.translations[0]?.translationId, 'lqdtest');
+});
+
+test('storage whose reads throw is treated as having no last-good catalog', async () => {
+  const storage = {
+    getItem: async (): Promise<string | null> => {
+      throw new Error('storage unavailable');
+    },
+    setItem: async () => {},
+  };
+
+  assert.equal(await getLastVerifiedElCatalog({ storage }), null);
+  const catalog = await refreshElCatalog(CATALOG_URL, {
+    fetchFn: makeFetch(catalogEnvelope, false).fetchFn,
+    storage,
+    getKeys,
+    isVerificationSupported: supported,
+  });
+  assert.equal(catalog, null);
+});
