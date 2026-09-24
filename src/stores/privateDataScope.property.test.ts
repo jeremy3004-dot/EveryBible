@@ -80,6 +80,8 @@ interface Bucket {
 interface Model {
   active: Owner;
   buckets: Map<Owner, Bucket>;
+  // The account a killed guest adoption was merging into, until it is finished.
+  pending: string | null;
 }
 
 const empty = (): Bucket => ({ notes: [], lessons: [] });
@@ -95,7 +97,8 @@ type Op =
   | { kind: 'relaunch' }
   | { kind: 'clearCache' }
   | { kind: 'deleteAccount' }
-  | { kind: 'killDuringAdoption'; uid: string };
+  | { kind: 'killDuringAdoption'; uid: string }
+  | { kind: 'killBeforeOwnerSaved'; uid: string };
 
 const opArb: fc.Arbitrary<Op> = fc.oneof(
   { weight: 3, arbitrary: fc.constant({ kind: 'note' as const }) },
@@ -115,6 +118,13 @@ const opArb: fc.Arbitrary<Op> = fc.oneof(
     weight: 1,
     arbitrary: fc.record({
       kind: fc.constant('killDuringAdoption' as const),
+      uid: fc.constantFrom(...ACCOUNTS),
+    }),
+  },
+  {
+    weight: 1,
+    arbitrary: fc.record({
+      kind: fc.constant('killBeforeOwnerSaved' as const),
       uid: fc.constantFrom(...ACCOUNTS),
     }),
   }
@@ -158,6 +168,7 @@ function runScopeScenario(start: LegacyStart, ops: Op[]) {
   const model: Model = {
     active: start.lastSyncedUserId,
     buckets: new Map([[start.lastSyncedUserId, { notes: [...start.notes], lessons: [] }]]),
+    pending: null,
   };
   // Where each item was created: an account, or the guest (null).
   const createdBy = new Map<string, Owner>(
@@ -199,7 +210,14 @@ function runScopeScenario(start: LegacyStart, ops: Op[]) {
           `${step}: ${item} leaked`
         );
       } else {
-        assert.ok(holders.length <= 1, `${step}: guest item ${item} copied into ${holders}`);
+        // A killed adoption leaves the guest copy next to the merged one, and only there.
+        const pendingCopy =
+          model.pending !== null &&
+          holders.every((owner) => owner === null || owner === model.pending);
+        assert.ok(
+          holders.length <= 1 || pendingCopy,
+          `${step}: guest item ${item} copied into ${holders}`
+        );
       }
     }
   };
@@ -225,10 +243,11 @@ function runScopeScenario(start: LegacyStart, ops: Op[]) {
       case 'signIn':
         scope.switchPrivateDataOwner(op.uid);
         if (model.active === null) {
-          adoptInModel(op.uid);
-        } else {
-          model.active = op.uid;
+          // An unfinished adoption is finished into its own account first.
+          adoptInModel(model.pending ?? op.uid);
+          model.pending = null;
         }
+        model.active = op.uid;
         break;
       case 'signOut':
         scope.switchPrivateDataOwner(null);
@@ -254,18 +273,60 @@ function runScopeScenario(start: LegacyStart, ops: Op[]) {
         if (model.active !== null) break;
         // The app dies after the merged state is written and the marker says
         // "clear the guest bucket", but before the guest keys are deleted.
+        const target = model.pending ?? op.uid;
         const guestKeys = [NOTES, LESSONS].map((name) => scope.privateDataStorageKey(name, null));
         const guestBefore = new Map(guestKeys.map((key) => [key, mmkv.store.get(key)]));
-        scope.switchPrivateDataOwner(op.uid);
+        scope.switchPrivateDataOwner(target);
         for (const [key, value] of guestBefore) {
           if (value !== undefined) mmkv.store.set(key, value);
         }
         mmkv.store.set(
           scope.PRIVATE_DATA_OWNER_KEY,
-          JSON.stringify({ owner: op.uid, clearGuest: true })
+          JSON.stringify({ owner: target, clearGuest: true })
         );
         relaunch();
-        adoptInModel(op.uid);
+        adoptInModel(target);
+        model.pending = null;
+        break;
+      }
+      case 'killBeforeOwnerSaved': {
+        if (model.active !== null) break;
+        // The app dies at the first owner-marker write after the account bucket took
+        // the merged guest data: nothing after the merge reached the disk.
+        const target = model.pending ?? op.uid;
+        const accountKeys = new Set(
+          [NOTES, LESSONS].map((name) => scope.privateDataStorageKey(name, target))
+        );
+        const write = mmkv.mmkvInstance.set;
+        let accountWritten = false;
+        const kill = mock.method(mmkv.mmkvInstance, 'set', (key: string, value: string) => {
+          if (accountWritten && key === scope.PRIVATE_DATA_OWNER_KEY) throw new Error('killed');
+          write(key, value);
+          if (accountKeys.has(key)) accountWritten = true;
+        });
+        let killed = false;
+        try {
+          scope.switchPrivateDataOwner(op.uid);
+        } catch {
+          killed = true;
+        } finally {
+          kill.mock.restore();
+        }
+        if (killed) {
+          relaunch();
+          const guest = bucketOf(model, null);
+          const account = bucketOf(model, target);
+          model.buckets.set(target, {
+            notes: union(account.notes, guest.notes),
+            lessons: union(account.lessons, guest.lessons),
+          });
+          model.pending = target;
+        } else {
+          // Nothing new to write, so nothing to kill: the switch simply ran.
+          adoptInModel(target);
+          model.pending = null;
+          model.active = op.uid;
+        }
         break;
       }
     }
