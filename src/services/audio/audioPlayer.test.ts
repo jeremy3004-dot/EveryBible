@@ -596,3 +596,66 @@ test('a delayed stop cannot clear the loaded flag of a newer chapter', async () 
 
   assert.equal(mod.audioPlayer.isLoaded(), true);
 });
+
+// expo-av unloads a sound itself when playback fails for good (a dropped stream, a decode
+// error) and rejects every later call with "sound is not loaded". The facade has to stop
+// treating it as loaded, or Play keeps resuming a dead sound and fails every time instead
+// of loading the chapter again.
+test('a fatal playback error leaves the facade unloaded so Play reloads the chapter', async () => {
+  await mod.audioPlayer.loadAndPlay('https://audio.test/gen1.mp3');
+  assert.equal(mod.audioPlayer.isLoaded(), true);
+
+  emit(Event.PlaybackError, { code: 'LOAD_ERROR', message: 'The network connection was lost.' });
+
+  assert.equal(mod.audioPlayer.isLoaded(), false);
+  trackPlayerCalls.length = 0;
+  await mod.audioPlayer.seekTo(30_000);
+  await mod.audioPlayer.resume();
+  assert.deepEqual(trackPlayerCalls, []);
+});
+
+test('an error from one transport command does not unload the chapter', async () => {
+  await mod.audioPlayer.loadAndPlay('https://audio.test/gen1.mp3');
+
+  emit(Event.PlaybackError, { code: 'SEEK_ERROR', message: 'Seeking interrupted.' });
+
+  assert.equal(mod.audioPlayer.isLoaded(), true);
+});
+
+test('a speed chosen while the chapter is still loading applies once it has loaded', async () => {
+  const gate = deferOperation();
+  gates.set('loadAndPlay', gate.promise);
+  const pending = mod.audioPlayer.loadAndPlay('https://audio.test/gen1.mp3', 1.0);
+  await flushOperations();
+
+  await mod.audioPlayer.setRate(1.5);
+  gate.resolve();
+  await pending;
+
+  assert.deepEqual(
+    trackPlayerCalls.filter((call) => call.method === 'loadAndPlay' || call.method === 'setRate'),
+    [
+      { method: 'loadAndPlay', args: ['https://audio.test/gen1.mp3', 1.0] },
+      { method: 'setRate', args: [1.5] },
+    ]
+  );
+});
+
+test('a speed chosen during a load that is then replaced does not carry to the next chapter', async () => {
+  const gate = deferOperation();
+  gates.set('loadAndPlay', gate.promise);
+  const first = mod.audioPlayer.loadAndPlay('https://audio.test/gen1.mp3', 1.0);
+  await flushOperations();
+  await mod.audioPlayer.setRate(1.5);
+  await mod.audioPlayer.stop();
+  gates.clear();
+  gate.resolve();
+  await first;
+
+  await mod.audioPlayer.loadAndPlay('https://audio.test/gen2.mp3', 1.25);
+
+  assert.deepEqual(
+    trackPlayerCalls.filter((call) => call.method === 'setRate'),
+    []
+  );
+});
