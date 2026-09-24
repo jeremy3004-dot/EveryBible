@@ -33,6 +33,12 @@ mockModule(mock, sourcePath('stores/authStore.ts'), {
   },
 });
 
+// Discreet (calculator icon) mode: every app-generated notification must stay neutral.
+const privacyState = { discreet: false };
+mockModule(mock, sourcePath('stores/privacyStore.ts'), {
+  isDiscreetModeActive: () => privacyState.discreet,
+});
+
 // `language` prefixes every string so a test can tell which language a reminder
 // was scheduled in; it stays empty for the tests that assert on bare keys.
 const i18nState = { language: '' };
@@ -197,6 +203,7 @@ beforeEach(() => {
   expoConfig.extra = { eas: { projectId: 'project-id' } };
   rn.Platform.OS = 'ios';
   i18nState.language = '';
+  privacyState.discreet = false;
   upsertResult = async () => ({ error: null });
   updateResult = async () => ({ error: null });
   getToken = async () => ({ data: 'expo-token' });
@@ -600,6 +607,84 @@ test('a reminder that failed to schedule is tried again on the next reconcile', 
   await notifications.reconcileDailyReminder(preference);
 
   assert.equal(schedules.length, 1);
+});
+
+// ─── Discreet mode ───────────────────────────────────────────────────────────
+
+const scheduledContent = () =>
+  schedules.map((request) => {
+    const content = request.content as { title: string; body: string };
+    return [content.title, content.body];
+  });
+
+test('in discreet mode the reminder is scheduled with neutral text, never the app or Bible', async () => {
+  await startWithNoReminder();
+  privacyState.discreet = true;
+
+  await notifications.scheduleDailyReminder(7, 30);
+
+  assert.deepEqual(scheduledContent(), [
+    ['privacy.discreetNotificationTitle', 'privacy.discreetNotificationBody'],
+  ]);
+});
+
+test('turning discreet mode on reschedules a reminder that is already scheduled with neutral text', async () => {
+  await startWithNoReminder();
+  const preference = { notificationsEnabled: true, reminderTime: '07:30' };
+  await notifications.reconcileDailyReminder(preference);
+
+  privacyState.discreet = true;
+  await notifications.reconcileDailyReminder(preference);
+
+  assert.deepEqual(scheduledContent(), [
+    ['settings.notificationTitle', 'settings.notificationBody'],
+    ['privacy.discreetNotificationTitle', 'privacy.discreetNotificationBody'],
+  ]);
+});
+
+test('turning discreet mode off restores the normal reminder text', async () => {
+  await startWithNoReminder();
+  const preference = { notificationsEnabled: true, reminderTime: '07:30' };
+  privacyState.discreet = true;
+  await notifications.reconcileDailyReminder(preference);
+
+  privacyState.discreet = false;
+  await notifications.reconcileDailyReminder(preference);
+
+  assert.deepEqual(scheduledContent().at(-1), [
+    'settings.notificationTitle',
+    'settings.notificationBody',
+  ]);
+});
+
+test('in discreet mode the Android reminder channel, shown in system settings, gets a neutral name', async () => {
+  rn.Platform.OS = 'android';
+  privacyState.discreet = true;
+
+  await notifications.setupAndroidChannels();
+
+  assert.deepEqual(
+    channels.map(({ id, options }) => [id, options.name]),
+    [['daily-reminder', 'privacy.discreetNotificationChannel']]
+  );
+});
+
+test('reconciling renames the Android channel when discreet mode changes, even with the reminder off', async () => {
+  rn.Platform.OS = 'android';
+  await startWithNoReminder();
+  const off = { notificationsEnabled: false, reminderTime: null };
+  privacyState.discreet = false;
+  await notifications.reconcileDailyReminder(off);
+  channels.length = 0;
+
+  privacyState.discreet = true;
+  await notifications.reconcileDailyReminder(off);
+
+  assert.deepEqual(
+    channels.map(({ options }) => options.name),
+    ['privacy.discreetNotificationChannel']
+  );
+  assert.deepEqual(schedules, []);
 });
 
 // ─── Push token registration ─────────────────────────────────────────────────

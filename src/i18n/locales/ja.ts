@@ -733,6 +733,9 @@ export const ja = {
     pinInvalidCharacters: '数字と電卓記号のみが使用できます。',
     pinMismatch: 'セキュリティコードがまだ一致していません。',
     incorrectPin: 'セキュリティコードが正しくありません。',
+    discreetNotificationTitle: 'リマインダー',
+    discreetNotificationBody: '今日のリマインダーがあります。',
+    discreetNotificationChannel: 'リマインダー',
   },
   settings: {
     title: '設定',

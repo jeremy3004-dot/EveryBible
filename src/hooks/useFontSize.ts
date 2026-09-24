@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../stores/authStore';
 import { syncPreferences } from '../services/sync';
@@ -23,9 +23,11 @@ export function useFontSize() {
     return t('settings.fontSizeMedium');
   }, [fontSize, t]);
 
-  const scaleValue = (baseSize: number): number => {
-    return Math.round(baseSize * scale);
-  };
+  // Stable per scale, so components that take it as a prop (the reader's verse list) can memoize.
+  const scaleValue = useCallback(
+    (baseSize: number): number => Math.round(baseSize * scale),
+    [scale]
+  );
 
   const increase = () => {
     const currentIndex = fontSizeOrder.indexOf(fontSize);

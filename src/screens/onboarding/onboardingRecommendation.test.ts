@@ -248,3 +248,31 @@ test('every seed name resolves exactly as the engine resolves it, and nothing el
 test('the checked-in seed matches the locale catalog', () => {
   assert.deepEqual(seed, generateOnboardingSeedLanguages());
 });
+
+// expo-localization reports languageCode null when the device language is unknown. Most
+// catalog languages have no ISO 639-1 code either, and null must not count as a match.
+test('an unknown device language gives no language a device-language bonus', () => {
+  const facts: Record<string, { iso6391: string | null; countryCodes: string[] }> = {
+    english: { iso6391: 'en', countryCodes: ['US'] },
+    achinese: { iso6391: null, countryCodes: ['ID'] },
+  };
+  const resolve = (name: string) => facts[name.trim().toLowerCase()] ?? null;
+  const option = (id: string, language: string) => ({
+    key: id,
+    label: `${language} Bible`,
+    primaryTranslation: { id, language, hasText: true },
+  });
+  const options = [option('ace', 'Achinese'), option('web', 'English')];
+  const context: RecommendationContext = {
+    deviceLanguageCode: null,
+    deviceCountryCode: null,
+    interfaceLanguageCode: 'en',
+  };
+
+  assert.deepEqual(
+    rankRecommendedOnboardingOptions(options, context, resolve).map((entry) => entry.key),
+    ['web', 'ace']
+  );
+  const pick = pickRecommendedOnboardingOption(options, context, resolve);
+  assert.equal(pick.status === 'ready' ? pick.option?.key : pick.status, 'web');
+});

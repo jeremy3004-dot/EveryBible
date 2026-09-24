@@ -749,6 +749,9 @@ export const id = {
     pinInvalidCharacters: 'Hanya angka dan simbol kalkulator yang diperbolehkan.',
     pinMismatch: 'Kode aman belum cocok.',
     incorrectPin: 'Kode aman salah.',
+    discreetNotificationTitle: 'Pengingat',
+    discreetNotificationBody: 'Anda punya pengingat untuk hari ini.',
+    discreetNotificationChannel: 'Pengingat',
   },
   settings: {
     title: 'Pengaturan',
