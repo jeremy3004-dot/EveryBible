@@ -40,6 +40,12 @@ const toAsciiDigitOrColon = (character: string): string => {
   return zero === undefined ? character : String(code - zero);
 };
 
+// A reference copied from a sentence keeps its full stop ("John 3:16.", "约翰福音3:16。").
+const TRAILING_SENTENCE_PUNCTUATION_PATTERN = /[.。．!?！？;；]+$/;
+
+const trimReferenceQuery = (query: string): string =>
+  query.trim().replace(TRAILING_SENTENCE_PUNCTUATION_PATTERN, '').trimEnd();
+
 const normalizeReferenceNumerals = (query: string): string =>
   query.replace(NATIVE_DIGIT_OR_COLON_PATTERN, toAsciiDigitOrColon);
 
@@ -153,7 +159,7 @@ export const isSupportedParserLocale = (code: string): code is ReferenceParserLo
  * Falls back to the English parser when the locale is not directly supported.
  */
 const parseWithParser = (query: string, parser: bcv_parser): PassageReferenceTarget | null => {
-  const normalizedQuery = normalizeReferenceNumerals(query.trim());
+  const normalizedQuery = normalizeReferenceNumerals(trimReferenceQuery(query));
   if (normalizedQuery.length === 0 || /[:,-]\s*$/.test(normalizedQuery)) {
     return null;
   }
@@ -272,7 +278,7 @@ const parseWithBookNames = (
   if (query.length > MAX_NAMED_REFERENCE_LENGTH) {
     return null;
   }
-  const normalizedQuery = foldForNameMatch(normalizeReferenceNumerals(query.trim()));
+  const normalizedQuery = foldForNameMatch(normalizeReferenceNumerals(trimReferenceQuery(query)));
   if (normalizedQuery.length === 0) {
     return null;
   }

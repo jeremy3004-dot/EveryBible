@@ -425,3 +425,13 @@ test('an interface book name reads chapter and verse separated by a space, like 
     16
   );
 });
+
+test('a reference copied with its sentence-ending punctuation still opens', () => {
+  const john316 = { bookId: 'JHN', chapter: 3, focusVerse: 16, label: 'John 3:16' };
+  assert.deepEqual(parsePassageReferenceLocale('John 3:16.', 'en'), john316);
+  assert.deepEqual(parsePassageReferenceLocale('Jean 3:16.', 'fr', frNames), john316);
+  assert.deepEqual(
+    parsePassageReferenceLocale('约翰福音3:16。', 'zh', interfaceBookNames(zh.bible.books)),
+    john316
+  );
+});
