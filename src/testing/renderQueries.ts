@@ -40,9 +40,23 @@ export function textContent(node: ReactTestInstance): string {
     .join('');
 }
 
+/**
+ * A failed `assert.equal(view.queryByText('x'), null)` makes node:assert print
+ * the element it got, walking its `_fiber` into the entire React tree: building
+ * that message takes minutes and the file looks hung. Hiding the field from
+ * enumeration keeps failure messages to the element's props.
+ */
+function hideFiber(node: ReactTestInstance) {
+  const descriptor = Object.getOwnPropertyDescriptor(node, '_fiber');
+  if (descriptor?.enumerable) {
+    Object.defineProperty(node, '_fiber', { ...descriptor, enumerable: false });
+  }
+}
+
 function hostDescendants(root: ReactTestInstance): ReactTestInstance[] {
   const found: ReactTestInstance[] = [];
   const visit = (node: ReactTestInstance) => {
+    hideFiber(node);
     if (isHost(node)) found.push(node);
     for (const child of node.children) {
       if (typeof child !== 'string') visit(child);

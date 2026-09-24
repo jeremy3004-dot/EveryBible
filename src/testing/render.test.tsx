@@ -185,3 +185,14 @@ test('the Android platform and hardware back button are driven from the harness'
   assert.equal(harness.rn.BackHandler.press(), false);
   assert.equal(handled, 1);
 });
+
+test('an assertion that fails on a found element reports promptly', { timeout: 5000 }, async () => {
+  const view = await harness.render(
+    <View>
+      <Text accessibilityRole="header">Plans</Text>
+    </View>
+  );
+
+  // Printing the element must not walk the whole React tree behind it.
+  assert.throws(() => assert.equal(view.getByRole('header'), null), assert.AssertionError);
+});

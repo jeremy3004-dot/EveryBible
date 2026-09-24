@@ -18,6 +18,7 @@
  * See docs/testing.md ("Rendering components") for the full contract.
  */
 import { createRequire } from 'node:module';
+import { inspect } from 'node:util';
 import { afterEach, type MockTracker } from 'node:test';
 import {
   createElement,
@@ -60,7 +61,13 @@ import {
   type ReanimatedFakeState,
   type NavigationFake,
 } from './nativePackageFakes';
-import { createQueries, findHandlerHost, isPressDisabled, type Queries } from './renderQueries';
+import {
+  createQueries,
+  findHandlerHost,
+  isPressDisabled,
+  textContent,
+  type Queries,
+} from './renderQueries';
 
 export { flattenStyle } from './reactNativeHost';
 export {
@@ -158,6 +165,27 @@ export function within(node: ReactTestInstance): Queries {
 }
 
 const mounted = new Set<ReactTestRenderer>();
+
+/**
+ * A failing `assert.equal(view.queryByText('x'), null)` makes node:assert inspect
+ * the element it got, and a test instance reaches the whole fiber graph: the
+ * message takes minutes to build and the file looks hung. Print instances as a
+ * one-line summary instead.
+ */
+function makeInstancesInspectable(instance: ReactTestInstance) {
+  const prototype = Object.getPrototypeOf(instance) as Record<symbol, unknown>;
+  if (prototype[inspect.custom]) return;
+  prototype[inspect.custom] = function (this: ReactTestInstance) {
+    const type =
+      typeof this.type === 'string'
+        ? this.type
+        : ((this.type as { displayName?: string; name?: string }).displayName ??
+          (this.type as { name?: string }).name ??
+          'Component');
+    const text = textContent(this);
+    return `<${type}${text ? ` "${text.slice(0, 80)}"` : ''}>`;
+  };
+}
 
 /** Unmount everything rendered so far. Registered as an afterEach by the harness. */
 export async function cleanup(): Promise<void> {
@@ -320,6 +348,7 @@ export function installRenderHarness(
       } as TestRendererOptions);
     });
     mounted.add(renderer);
+    makeInstancesInspectable(renderer.root);
 
     const call = async (node: ReactTestInstance, handler: string, args: unknown[]) => {
       const host = findHandlerHost(node, handler);
