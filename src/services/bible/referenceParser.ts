@@ -213,8 +213,9 @@ type PreparedBookName = { bookId: string; names: string[] };
 
 // After the book name: a chapter, an optional verse, and an optional range end, which is
 // ignored like the grammar's ranges are. Digits are already ASCII (normalizeReferenceNumerals).
+// Chinese, Japanese and Korean write "3章16节", "3章16節" and "3장 16절" (a psalm is 편/篇).
 const LOCALIZED_REFERENCE_NUMBERS_PATTERN =
-  /^\s*(\d{1,3})(?:\s*[:.]\s*(\d{1,3}))?(?:\s*[-–—]\s*\d{1,3}(?:\s*[:.]\s*\d{1,3})?)?\s*$/;
+  /^\s*(\d{1,3})(?:\s*[章장篇편](?:\s*(\d{1,3})\s*[节節절]?)?|\s*[:.]\s*(\d{1,3}))?(?:\s*[-–—~～]\s*\d{1,3}(?:\s*[:.]\s*\d{1,3})?\s*[章장篇편节節절]?)?\s*$/;
 const WHITESPACE_RUN_PATTERN = /\s+/g;
 
 const preparedBookNamesCache = new WeakMap<readonly LocalizedBookName[], PreparedBookName[]>();
@@ -261,7 +262,8 @@ const parseWithBookNames = (
     }
 
     const first = Number(numbers[1]);
-    const second = numbers[2] === undefined ? undefined : Number(numbers[2]);
+    const verseDigits = numbers[2] ?? numbers[3];
+    const second = verseDigits === undefined ? undefined : Number(verseDigits);
     // Like the grammar, a lone number after a one-chapter book is a verse ("3 John 5").
     const isVerseOfOnlyChapter = book.chapters === 1 && second === undefined && first > 1;
     const chapter = isVerseOfOnlyChapter ? 1 : first;

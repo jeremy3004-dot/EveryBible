@@ -4,6 +4,7 @@ import { bibleBooks } from '../../constants/books';
 import { ar } from '../../i18n/locales/ar';
 import { de } from '../../i18n/locales/de';
 import { fr } from '../../i18n/locales/fr';
+import { ja } from '../../i18n/locales/ja';
 import { ko } from '../../i18n/locales/ko';
 import { zh } from '../../i18n/locales/zh';
 import {
@@ -340,4 +341,23 @@ test('a single-chapter book named in the interface language reads a lone number 
     focusVerse: 5,
     label: 'Jude 1:5',
   });
+});
+
+test('reads the chapter-and-verse counters Chinese, Japanese and Korean references use', () => {
+  const john316 = { bookId: 'JHN', chapter: 3, focusVerse: 16, label: 'John 3:16' };
+  const zhNames = interfaceBookNames(zh.bible.books);
+  const koNames = interfaceBookNames(ko.bible.books);
+  const jaNames = interfaceBookNames(ja.bible.books);
+
+  assert.deepEqual(parsePassageReferenceLocale('约翰福音3章16节', 'zh', zhNames), john316);
+  assert.deepEqual(parsePassageReferenceLocale('约翰福音 3章', 'zh', zhNames), {
+    bookId: 'JHN',
+    chapter: 3,
+    focusVerse: undefined,
+    label: 'John 3',
+  });
+  assert.deepEqual(parsePassageReferenceLocale('ヨハネの福音書3章16節', 'ja', jaNames), john316);
+  assert.deepEqual(parsePassageReferenceLocale('요한복음 3장 16절', 'ko', koNames), john316);
+  assert.equal(parsePassageReferenceLocale('시편 23편', 'ko', koNames)?.chapter, 23);
+  assert.equal(parsePassageReferenceLocale('约翰福音 3节', 'zh', zhNames), null);
 });
