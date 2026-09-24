@@ -1,6 +1,7 @@
 import test, { afterEach, before, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { mockModule, sourcePath } from '../testing/mockModules';
+import { assertDefined } from '../utils/assertDefined';
 import { createReactHookRuntime } from '../testing/reactHookRuntime';
 import type { UserPreferences } from '../types';
 import {
@@ -55,14 +56,16 @@ const themeFor = (stored: Partial<UserPreferences>) => {
 
 function contrastRatio(foreground: string, background: string): number {
   const luminance = (hex: string) => {
-    const [r, g, b] = [...hex.matchAll(/[A-Fa-f0-9]{2}/g)]
+    const channels = [...hex.matchAll(/[A-Fa-f0-9]{2}/g)]
       .map(([channel]) => parseInt(channel, 16) / 255)
       .map((channel) =>
         channel <= 0.03928 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4)
       );
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    const channel = (index: number) => assertDefined(channels[index], `channel ${index} of ${hex}`);
+    return 0.2126 * channel(0) + 0.7152 * channel(1) + 0.0722 * channel(2);
   };
-  const [light, dark] = [luminance(foreground), luminance(background)].sort((a, b) => b - a);
+  const light = Math.max(luminance(foreground), luminance(background));
+  const dark = Math.min(luminance(foreground), luminance(background));
   return (light + 0.05) / (dark + 0.05);
 }
 

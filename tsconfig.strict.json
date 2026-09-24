@@ -12,7 +12,8 @@
     "src/hooks/**/*",
     "src/constants/**/*",
     "src/i18n/**/*",
-    "src/design/**/*"
+    "src/design/**/*",
+    "src/contexts/**/*"
   ],
   "exclude": [
     "src/services/audio/**",
