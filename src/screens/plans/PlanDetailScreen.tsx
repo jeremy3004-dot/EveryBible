@@ -1705,8 +1705,12 @@ const styles = StyleSheet.create({
   todayWrap: {
     marginTop: spacing.lg,
   },
+  // The content column rises COVER_CONTENT_OVERLAP into the hero's fade, which is
+  // right for the progress and today cards (they carry their own surface) but not
+  // for bare text: in the vellum scope the description's first line landed on the
+  // still-dark end of the scrim. Plain copy starts where the fade has finished.
   introBlock: {
-    marginTop: spacing.lg,
+    marginTop: COVER_CONTENT_OVERLAP,
     gap: spacing.lg,
   },
   description: {
