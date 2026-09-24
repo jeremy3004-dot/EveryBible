@@ -2450,6 +2450,40 @@ test('a single-plan push refused as another account (42501) is not retried as an
   );
 });
 
+test('a sync of more than 100 plans is sent to the merge RPC in batches it accepts', async () => {
+  signIn('user-a', 2);
+  const planIds = Array.from({ length: 150 }, (_, index) => `custom-plan-${index}`);
+  planIds.forEach((planId) => planStore().upsertProgress(localProgress(planId)));
+  serveRows([remoteRow({ completed_sessions: {}, current_session: null })]);
+  // merge_reading_plan_progress refuses a call naming more than 100 plans.
+  supabaseFake.respondToRpc(MERGE_RPC, (call) => {
+    const { p_rows: rows } = call.payload as MergeRpcArgs;
+    if (rows.length > 100) {
+      return {
+        data: null,
+        error: { code: '22023', message: 'p_rows holds more than 100 plans' },
+        status: 400,
+      };
+    }
+    return { data: rows.map((row) => remoteRow({ ...row, id: `server-${row.plan_slug}` })) };
+  });
+
+  const result = await service.syncPlanProgress(Object.values(planStore().progressByPlanId));
+
+  assert.equal(result.success, true);
+  const sent = mergeRpcCalls().map((call) => (call.payload as MergeRpcArgs).p_rows);
+  assert.ok(sent.every((rows) => rows.length <= 100));
+  assert.deepEqual(
+    sent
+      .flat()
+      .map((row) => row.plan_slug)
+      .sort(),
+    [...planIds].sort()
+  );
+  assert.equal(result.data?.length, 150);
+  assert.ok(planIds.every((planId) => planStore().getProgress(planId)?.id === `server-${planId}`));
+});
+
 test('every column the merge RPC is sent exists in the migrated table', async () => {
   const schema = replayTableMigrations('user_reading_plan_progress', readRepoMigrations());
   signIn('user-a', 2);

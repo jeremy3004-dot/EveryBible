@@ -559,6 +559,8 @@ type LivePlanUpsert =
   | { status: 'done'; data: unknown; error: { code?: string; message?: string } | null };
 
 const PLAN_PROGRESS_MERGE_RPC = 'merge_reading_plan_progress';
+/** The most plans merge_reading_plan_progress accepts in one call. */
+const PLAN_PROGRESS_MERGE_BATCH_SIZE = 100;
 
 /**
  * PostgREST (PGRST202, HTTP 404) or Postgres (42883) reporting that the merge
@@ -582,27 +584,42 @@ async function mergeLivePlanProgressOnServer(
   planIds: string[],
   single: boolean
 ): Promise<LivePlanUpsert | null> {
-  const write = await identity.runIfCurrent(() => {
-    const rows = getLivePushableProgress(planIds).map((progress) =>
-      buildRemoteReadingPlanProgressPayload(progress, identity.expectedUserId, true)
-    );
-    if (rows.length === 0) {
+  // The function refuses a call naming more than 100 plans (22023), which left a
+  // large sync silently local-only; send the rows in batches it accepts.
+  const merged: unknown[] = [];
+  let wrote = false;
+  for (let start = 0; start < planIds.length; start += PLAN_PROGRESS_MERGE_BATCH_SIZE) {
+    const batch = planIds.slice(start, start + PLAN_PROGRESS_MERGE_BATCH_SIZE);
+    const write = await identity.runIfCurrent(() => {
+      const rows = getLivePushableProgress(batch).map((progress) =>
+        buildRemoteReadingPlanProgressPayload(progress, identity.expectedUserId, true)
+      );
+      if (rows.length === 0) {
+        return null;
+      }
+      const query = supabase.rpc(PLAN_PROGRESS_MERGE_RPC, { p_rows: rows });
+      return single ? query.single() : query;
+    });
+    if (!write.applied) {
+      return { status: 'stale' };
+    }
+    if (!write.value) {
+      continue;
+    }
+    const { data, error, status } = await write.value;
+    if (isMergeRefusedForAccount(error)) {
+      return { status: 'stale' };
+    }
+    if (!wrote && isMissingMergeRpcError(error, status)) {
       return null;
     }
-    const query = supabase.rpc(PLAN_PROGRESS_MERGE_RPC, { p_rows: rows });
-    return single ? query.single() : query;
-  });
-  if (!write.applied) {
-    return { status: 'stale' };
+    if (error || single) {
+      return { status: 'done', data: single ? data : merged, error };
+    }
+    wrote = true;
+    merged.push(...(Array.isArray(data) ? data : []));
   }
-  if (!write.value) {
-    return { status: 'nothing' };
-  }
-  const { data, error, status } = await write.value;
-  if (isMergeRefusedForAccount(error)) {
-    return { status: 'stale' };
-  }
-  return isMissingMergeRpcError(error, status) ? null : { status: 'done', data, error };
+  return wrote ? { status: 'done', data: merged, error: null } : { status: 'nothing' };
 }
 
 /**
