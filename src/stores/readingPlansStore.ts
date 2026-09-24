@@ -73,8 +73,8 @@ const withoutKey = (record: Record<string, string>, key: string): Record<string,
 const buildPlanDayResumeKey = (planId: string, dayNumber: number): string =>
   `${planId}:${dayNumber}`;
 
-const createProgressRecord = (planId: string): ReadingPlanProgress => {
-  const now = new Date().toISOString();
+const createProgressRecord = (planId: string, notBeforeMs?: number): ReadingPlanProgress => {
+  const now = new Date(Math.max(Date.now(), notBeforeMs ?? 0)).toISOString();
 
   return {
     id: `reading-plan-progress-${planId}`,
@@ -694,13 +694,19 @@ export function createReadingPlansStore(
             ) ?? null,
 
         enrollPlan: (planId) => {
-          const progress = createProgressRecord(planId);
+          // A leave that has not reached the server yet stays queued: dropping it
+          // let the server's pre-leave row merge back into the re-join, reviving
+          // its start date and completed days. The sync sends the leave first
+          // (which deletes that row) and pushes this enrolment after it, so the
+          // re-join must start strictly after the leave or the leave would end it.
+          const leftAt = Date.parse(get().pendingUnenrollAtByPlanId[planId] ?? '');
+          const progress = createProgressRecord(
+            planId,
+            Number.isFinite(leftAt) ? leftAt + 1 : undefined
+          );
           set((state) => ({
             ...state,
             ...applyProgressUpdate(state, progress),
-            // Re-enrolling clears any pending unenroll tombstone (M12).
-            pendingUnenrollPlanIds: state.pendingUnenrollPlanIds.filter((id) => id !== planId),
-            pendingUnenrollAtByPlanId: withoutKey(state.pendingUnenrollAtByPlanId, planId),
           }));
           return progress;
         },

@@ -2038,6 +2038,91 @@ test('a pull with no tombstones visible keeps every local plan as before', async
   ]);
 });
 
+/**
+ * A server holding one enrolment row for psalms-30-days until a tombstone is
+ * written, the way apply_reading_plan_unenrollment deletes it (20260924023340).
+ */
+const serveEnrolmentUntilLeft = (row: Record<string, unknown>) => {
+  const server = { rows: [row], order: [] as string[] };
+  supabaseFake.respondTo(UNENROLLMENTS, (call) => {
+    server.order.push(`tombstone:${call.operation}`);
+    if (call.operation === 'upsert') {
+      server.rows = [];
+      return { data: null };
+    }
+    return { data: [] };
+  });
+  supabaseFake.respondTo('user_reading_plan_progress', (call) => {
+    server.order.push(`progress:${call.operation}`);
+    if (call.operation === 'select') {
+      return { data: server.rows };
+    }
+    const rows = (Array.isArray(call.payload) ? call.payload : [call.payload]) as PlanPayload[];
+    const echoed = rows.map((pushed) => remoteRow({ ...pushed, id: `server-${pushed.plan_slug}` }));
+    return { data: call.single ? echoed[0] : echoed };
+  });
+  return server;
+};
+
+test('leaving and re-joining a plan offline starts fresh instead of reviving the old enrolment', async () => {
+  signIn('user-a', 2);
+  const oldEnrolment = {
+    started_at: '2026-01-01T00:00:00.000Z',
+    completed_entries: { '1': '2026-01-01T00:00:00.000Z', '2': '2026-01-02T00:00:00.000Z' },
+    current_day: 3,
+  };
+  planStore().upsertProgress(localProgress('psalms-30-days', oldEnrolment));
+  // Offline: leave, then join again. Nothing reaches the server.
+  planStore().unenrollPlan('psalms-30-days');
+  const rejoined = planStore().enrollPlan('psalms-30-days');
+  const server = serveEnrolmentUntilLeft(remoteRow(oldEnrolment));
+
+  const result = await service.syncPlanProgress(Object.values(planStore().progressByPlanId));
+
+  assert.equal(result.success, true);
+  assert.equal(server.order[0], 'tombstone:upsert', 'the leave reaches the server first');
+  assert.deepEqual(planStore().pendingUnenrollPlanIds, []);
+  const [pushed] = upsertPayloads();
+  assert.equal(pushed?.started_at, rejoined.started_at);
+  assert.deepEqual(pushed?.completed_entries, {});
+  const live = planStore().getProgress('psalms-30-days');
+  assert.equal(live?.started_at, rejoined.started_at);
+  assert.deepEqual(live?.completed_entries, {});
+  assert.equal(live?.current_day, 1);
+});
+
+test('a re-join made while the leave is still unsent is pushed only after the leave', async () => {
+  signIn('user-a', 2);
+  const oldEnrolment = {
+    started_at: '2026-01-01T00:00:00.000Z',
+    completed_entries: { '1': '2026-01-01T00:00:00.000Z' },
+    current_day: 2,
+  };
+  planStore().upsertProgress(localProgress('psalms-30-days', oldEnrolment));
+  planStore().unenrollPlan('psalms-30-days');
+  const server = serveEnrolmentUntilLeft(remoteRow(oldEnrolment));
+  const pushed = new Promise<void>((resolve) => {
+    const original = server.order.push.bind(server.order);
+    server.order.push = (...entries: string[]) => {
+      const length = original(...entries);
+      if (entries.includes('progress:upsert')) resolve();
+      return length;
+    };
+  });
+
+  await service.enrollInPlan('psalms-30-days');
+  await pushed;
+  await flushBackgroundWork();
+
+  assert.deepEqual(
+    server.order.filter((entry) => entry !== 'tombstone:select'),
+    ['tombstone:upsert', 'progress:select', 'progress:upsert']
+  );
+  assert.deepEqual(planStore().pendingUnenrollPlanIds, []);
+  assert.deepEqual(upsertPayloads()[0]?.completed_entries, {});
+  assert.deepEqual(planStore().getProgress('psalms-30-days')?.completed_entries, {});
+});
+
 // ---------------------------------------------------------------------------
 // Session ticks follow the account (migration 20260924023342)
 // ---------------------------------------------------------------------------

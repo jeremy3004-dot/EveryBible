@@ -690,6 +690,20 @@ async function pushProgressToRemote(
       return;
     }
 
+    // A re-join made while its leave was still unsent: the leave goes first, so
+    // the server deletes the pre-leave row instead of merging it into this one.
+    if (readingPlansStore.getState().pendingUnenrollPlanIds.includes(progress.plan_id)) {
+      const left = await deleteRemotePlanProgress(
+        progress.plan_id,
+        identity.expectedUserId,
+        identity.expectedGeneration,
+        identity
+      );
+      if (!left) {
+        return;
+      }
+    }
+
     const preWrite = await mergeServerRowsBeforePush(supabase, identity, [progress.plan_id]);
     if (preWrite.outcome !== 'merged') {
       return;
