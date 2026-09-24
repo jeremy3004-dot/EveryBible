@@ -14,9 +14,11 @@ mockModule(mock, 'expo-notifications/build/NotificationsHandler', {
 });
 
 const responseListener = () => ({ remove: () => {} });
+const lastResponse = async () => null;
 const pushTokenListener = () => ({ remove: () => {} });
 mockModule(mock, 'expo-notifications/build/NotificationsEmitter', {
   addNotificationResponseReceivedListener: responseListener,
+  getLastNotificationResponseAsync: lastResponse,
 });
 mockModule(mock, 'expo-notifications/build/TokenEmitter', {
   addPushTokenListener: pushTokenListener,
@@ -66,8 +68,9 @@ test('foreground notifications show a banner and a list entry with sound but no 
   });
 });
 
-test('App.tsx gets the tap and push-token listeners from the same modules the package root re-exports', () => {
+test('App.tsx gets the tap listener, the launch tap and the push-token listener from the same modules the package root re-exports', () => {
   assert.equal(bootstrap.addNotificationResponseReceivedListener, responseListener);
+  assert.equal(bootstrap.getLastNotificationResponseAsync, lastResponse);
   assert.equal(bootstrap.addPushTokenListener, pushTokenListener);
 });
 

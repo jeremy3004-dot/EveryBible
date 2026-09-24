@@ -761,6 +761,8 @@ export const es = {
     "enableNotificationsMessage": "Activa las notificaciones en los ajustes de tu dispositivo para recibir recordatorios diarios.",
     "notificationTitle": "Lectura diaria de la Biblia",
     "notificationBody": "¡Es hora de tu lectura diaria de la Biblia!",
+    "notificationsBlockedNotice": "Las notificaciones de EveryBible están desactivadas en los ajustes de tu dispositivo, así que este recordatorio no puede aparecer.",
+    "openDeviceSettings": "Abrir ajustes",
     "selectLanguage": "Elige el idioma de la interfaz",
     "deleteAccount": "Eliminar cuenta",
     "deleteAccountWarning": "Esto eliminará de forma permanente tu cuenta y todos los datos asociados, incluidos el progreso de lectura, las preferencias y el contenido sincronizado. Esta acción no se puede deshacer.",

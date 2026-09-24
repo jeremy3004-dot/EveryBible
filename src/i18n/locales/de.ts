@@ -736,6 +736,8 @@ export const de = {
     "enableNotificationsMessage": "Bitte aktiviere Benachrichtigungen in deinen Geräteeinstellungen, um tägliche Erinnerungen zu erhalten.",
     "notificationTitle": "Tägliches Bibellesen",
     "notificationBody": "Zeit für dein tägliches Bibellesen!",
+    "notificationsBlockedNotice": "Mitteilungen für EveryBible sind in deinen Geräteeinstellungen ausgeschaltet, daher kann diese Erinnerung nicht erscheinen.",
+    "openDeviceSettings": "Einstellungen öffnen",
     "selectLanguage": "Anzeigesprache wählen",
     "deleteAccount": "Konto löschen",
     "deleteAccountWarning": "Dadurch werden dein Konto und alle damit verbundenen Daten dauerhaft gelöscht – auch Lesefortschritt, Einstellungen und synchronisierte Inhalte. Das lässt sich nicht rückgängig machen.",

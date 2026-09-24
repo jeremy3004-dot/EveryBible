@@ -5,6 +5,7 @@ import Constants from 'expo-constants';
 import i18n from '../../i18n';
 import { parseReminderTime } from '../preferences/reminderPreferences';
 import { supabase } from '../supabase';
+import { DAILY_REMINDER_NOTIFICATION_DATA } from './notificationTapRouting';
 export { setupNotificationHandler } from './notificationBootstrap';
 
 /**
@@ -128,6 +129,20 @@ export async function requestNotificationPermissionOutcome(): Promise<Notificati
   return canAskAgain === false ? 'blocked' : 'denied';
 }
 
+export type NotificationPermissionStatus = 'granted' | 'denied' | 'undetermined';
+
+/**
+ * The current notification permission, read without prompting. Settings uses it
+ * to warn when the daily reminder is on in the app but blocked by the system.
+ */
+export async function getNotificationPermissionStatus(): Promise<NotificationPermissionStatus> {
+  const { status } = await Notifications.getPermissionsAsync();
+  if (status === 'granted' || status === 'denied') {
+    return status;
+  }
+  return 'undetermined';
+}
+
 export async function requestNotificationPermissions(): Promise<boolean> {
   return (await requestNotificationPermissionOutcome()) === 'granted';
 }
@@ -183,6 +198,7 @@ export async function scheduleDailyReminder(hour: number, minute: number): Promi
       title: i18n.t('settings.notificationTitle'),
       body: i18n.t('settings.notificationBody'),
       sound: true,
+      data: { ...DAILY_REMINDER_NOTIFICATION_DATA },
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DAILY,

@@ -86,6 +86,7 @@ import {
   PLAN_LEDGER_DENSE_GAP,
   PLAN_LEDGER_ROOMY_GAP,
   getPlanLedgerDotPaint,
+  getPlanLedgerGridDayCount,
   getPlanLedgerGridMetrics,
   getPlanLedgerGridRows,
   type PlanLedgerDotPaint,
@@ -432,7 +433,8 @@ function ProgressCard({ plan, progress, currentDaySummary, today }: ProgressCard
   const displayFont = useDisplayFont();
   const { t } = useTranslation();
 
-  const totalDays = plan.duration_days;
+  // This month's length for a day-of-month plan, so September has no day-31 dot.
+  const totalDays = getPlanLedgerGridDayCount(plan, today);
   const currentDay = currentDaySummary?.dayNumber ?? getActivePlanDayNumber(plan, progress, today);
 
   const cellStates = useMemo<ReadingPlanLedgerDayState[]>(() => {

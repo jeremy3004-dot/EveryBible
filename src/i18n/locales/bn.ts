@@ -456,6 +456,8 @@ export const bn = {
     "enableNotificationsMessage": "দৈনিক অনুস্মারক পেতে আপনার ডিভাইসের সেটিংসে বিজ্ঞপ্তি চালু করুন।",
     "notificationTitle": "দৈনিক বাইবেল পাঠ",
     "notificationBody": "আপনার দৈনিক বাইবেল পাঠের সময় হয়েছে!",
+    "notificationsBlockedNotice": "আপনার ডিভাইসের সেটিংসে EveryBible-এর বিজ্ঞপ্তি বন্ধ আছে, তাই এই অনুস্মারক দেখা যাবে না।",
+    "openDeviceSettings": "সেটিংস খুলুন",
     "selectLanguage": "ইন্টারফেসের ভাষা বেছে নিন",
     "deleteAccount": "অ্যাকাউন্ট মুছুন",
     "deleteAccountWarning": "এতে আপনার অ্যাকাউন্ট এবং পড়ার অগ্রগতি, পছন্দ ও সিঙ্ক করা সব তথ্য স্থায়ীভাবে মুছে যাবে। এই কাজ আর ফেরানো যাবে না।",

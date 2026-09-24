@@ -736,6 +736,8 @@ export const zh = {
     "enableNotificationsMessage": "请在设备设置中开启通知，以便接收每日提醒。",
     "notificationTitle": "每日圣经阅读",
     "notificationBody": "每天读圣经的时间到了！",
+    "notificationsBlockedNotice": "设备设置中已关闭 EveryBible 的通知，因此此提醒无法显示。",
+    "openDeviceSettings": "打开设置",
     "selectLanguage": "选择界面语言",
     "deleteAccount": "删除账户",
     "deleteAccountWarning": "这会永久删除你的账户以及全部相关数据，包括阅读进度、偏好设置和已同步的内容。此操作无法撤销。",

@@ -780,6 +780,8 @@ export const ar = {
     "enableNotificationsMessage": "فعّل الإشعارات في إعدادات جهازك لتصلك التذكيرات اليومية.",
     "notificationTitle": "قراءة الكتاب المقدس اليومية",
     "notificationBody": "حان الوقت لقراءة الكتاب المقدس اليومية!",
+    "notificationsBlockedNotice": "إشعارات EveryBible متوقفة في إعدادات جهازك، لذلك لا يمكن أن يظهر هذا التذكير.",
+    "openDeviceSettings": "فتح الإعدادات",
     "selectLanguage": "اختر لغة الواجهة",
     "deleteAccount": "حذف الحساب",
     "deleteAccountWarning": "سيؤدي هذا إلى حذف حسابك نهائيًا وجميع البيانات المرتبطة به، بما فيها تقدّمك في القراءة وتفضيلاتك والمحتوى المتزامن. ولا يمكن التراجع عن هذا الإجراء.",

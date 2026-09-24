@@ -312,6 +312,21 @@ test('an existing grant is reported as granted', async () => {
   assert.equal(await notifications.requestNotificationPermissionOutcome(), 'granted');
 });
 
+test('reading the permission status never prompts', async () => {
+  permission.current = 'denied';
+
+  assert.equal(await notifications.getNotificationPermissionStatus(), 'denied');
+  assert.deepEqual(permissionCalls, ['get']);
+});
+
+test('the permission status reports a grant and an unasked state as they are', async () => {
+  permission.current = 'granted';
+  assert.equal(await notifications.getNotificationPermissionStatus(), 'granted');
+
+  permission.current = 'undetermined';
+  assert.equal(await notifications.getNotificationPermissionStatus(), 'undetermined');
+});
+
 test('a denied prompt reports that notifications are unavailable', async () => {
   permission.current = 'undetermined';
   permission.requested = 'denied';
@@ -337,6 +352,8 @@ test('scheduling a reminder replaces the previous one under a stable identifier'
     title: 'settings.notificationTitle',
     body: 'settings.notificationBody',
     sound: true,
+    // Lets a tap on the reminder open Plans (see notificationTapRouting).
+    data: { screen: 'plans' },
   });
 });
 

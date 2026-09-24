@@ -736,6 +736,8 @@ export const id = {
     "enableNotificationsMessage": "Harap aktifkan notifikasi di pengaturan perangkat Anda untuk menerima pengingat harian.",
     "notificationTitle": "Bacaan Alkitab harian",
     "notificationBody": "Saatnya membaca Alkitab hari ini!",
+    "notificationsBlockedNotice": "Notifikasi EveryBible dimatikan di pengaturan perangkat Anda, jadi pengingat ini tidak dapat muncul.",
+    "openDeviceSettings": "Buka Pengaturan",
     "selectLanguage": "Pilih bahasa antarmuka",
     "deleteAccount": "Hapus akun",
     "deleteAccountWarning": "Tindakan ini akan menghapus akun Anda beserta seluruh data terkait secara permanen, termasuk kemajuan membaca, preferensi, dan konten yang tersinkron. Tindakan ini tidak dapat dibatalkan.",

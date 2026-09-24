@@ -4,6 +4,8 @@ export {
   requestNotificationPermissions,
   requestNotificationPermissionOutcome,
   type NotificationPermissionOutcome,
+  getNotificationPermissionStatus,
+  type NotificationPermissionStatus,
   scheduleDailyReminder,
   cancelDailyReminder,
   reconcileDailyReminder,

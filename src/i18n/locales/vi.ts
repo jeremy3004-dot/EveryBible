@@ -736,6 +736,8 @@ export const vi = {
     "enableNotificationsMessage": "Vui lòng bật thông báo trong cài đặt thiết bị để nhận nhắc nhở hằng ngày.",
     "notificationTitle": "Đọc Kinh Thánh hằng ngày",
     "notificationBody": "Đã đến giờ đọc Kinh Thánh hằng ngày của bạn!",
+    "notificationsBlockedNotice": "Thông báo của EveryBible đang bị tắt trong cài đặt thiết bị, nên lời nhắc này không thể hiển thị.",
+    "openDeviceSettings": "Mở Cài đặt",
     "selectLanguage": "Chọn ngôn ngữ giao diện",
     "deleteAccount": "Xóa tài khoản",
     "deleteAccountWarning": "Thao tác này sẽ xóa vĩnh viễn tài khoản của bạn và toàn bộ dữ liệu liên quan, gồm tiến trình đọc, tùy chọn và nội dung đã đồng bộ. Không thể hoàn tác hành động này.",
