@@ -812,11 +812,11 @@ export const de = {
     notificationTitle: 'Tägliches Bibellesen',
     notificationBody: 'Zeit für dein tägliches Bibellesen!',
     notificationsBlockedNotice:
-      'Mitteilungen für Every Bible sind in deinen Geräteeinstellungen ausgeschaltet, daher kann diese Erinnerung nicht erscheinen.',
+      'Benachrichtigungen für Every Bible sind in deinen Geräteeinstellungen ausgeschaltet, daher kann diese Erinnerung nicht erscheinen.',
     openDeviceSettings: 'Einstellungen öffnen',
     notificationsNotAllowedNotice:
-      'Every Bible braucht deine Erlaubnis, auf diesem Gerät Mitteilungen zu senden, damit diese Erinnerung erscheinen kann.',
-    allowNotifications: 'Mitteilungen erlauben',
+      'Every Bible braucht deine Erlaubnis, auf diesem Gerät Benachrichtigungen zu senden, damit diese Erinnerung erscheinen kann.',
+    allowNotifications: 'Benachrichtigungen erlauben',
     selectLanguage: 'Anzeigesprache wählen',
     deleteAccount: 'Konto löschen',
     deleteAccountWarning:
