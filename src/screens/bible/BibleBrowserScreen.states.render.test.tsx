@@ -1,7 +1,7 @@
 import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { act } from 'react-test-renderer';
-import { flattenStyle, within } from '../../testing/render';
+import { flattenStyle, isHiddenFromAccessibility, within } from '../../testing/render';
 import { BIBLE_SEARCH_DEBOUNCE_MS } from './bibleSearchModel';
 import { installBrowserRenderFixture } from './BibleBrowserScreen.renderFixture';
 
@@ -132,6 +132,33 @@ test('an unavailable chapter explains itself in place instead of opening the rea
   await view.press(view.getByRole('button', { name: '3' }));
   assert.equal(view.queryByText(t('bible.fullBibleComingSoon')), null);
   assert.equal(harness.navigation.calls.length, 1);
+});
+
+test('an unavailable chapter tile carries a small lock, so it is not told apart by dimming alone', async () => {
+  content.summary = { hasText: false, hasAudio: true, audioChapters: { JHN: [1, 2, 3] } };
+  const view = await renderBrowser();
+  const icons = (tile: ReturnType<View['getByRole']>) =>
+    within(tile)
+      .queryAllByType('Icon')
+      .map((icon) => icon.props.name);
+
+  const four = view.getByRole('button', { name: '4' });
+  const three = view.getByRole('button', { name: '3' });
+  assert.deepEqual(icons(four), ['lock-closed']);
+  assert.deepEqual(icons(three), []);
+
+  // Pinned in the corner opposite the feedback badge, off the layout, so the
+  // tile keeps its size and the number stays centred at any text size.
+  const [lock] = within(four).queryAllByType('Icon');
+  const lockStyle = flattenStyle(lock.props.style);
+  assert.equal(lockStyle?.position, 'absolute');
+  assert.ok(lockStyle?.bottom !== undefined && lockStyle?.top === undefined);
+  assert.deepEqual(
+    [flattenStyle(four.props.style)?.width, flattenStyle(four.props.style)?.height],
+    [flattenStyle(three.props.style)?.width, flattenStyle(three.props.style)?.height]
+  );
+  // The tile's value already says "Not available yet"; the glyph is not a second stop.
+  assert.equal(isHiddenFromAccessibility(lock), true);
 });
 
 test('the coming-soon chapter note clears when the book collapses or the translation changes', async () => {
