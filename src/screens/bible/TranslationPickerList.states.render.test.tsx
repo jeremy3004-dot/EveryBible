@@ -436,3 +436,27 @@ test('the language list closes itself when the catalog drops to one language', a
   assert.ok(view.getByTestId('translation-picker-search'), 'back on the translation list');
   assert.equal(view.queryByTestId('translation-picker-language-pill'), null);
 });
+
+test('a host re-rendering with fresh callbacks leaves the rows alone, and the newest callbacks run', async () => {
+  // The reader re-renders on every audio position tick and passes new handler functions each
+  // time; the picker's rows must not redraw for that.
+  const { TranslationPickerList } = await import('./TranslationPickerList');
+  const picker = (generation: number) => (
+    <TranslationPickerList
+      onRequestClose={() => log.push(['close', generation])}
+      onTranslationActivated={(translation) => log.push(['activated', translation.id, generation])}
+    />
+  );
+  const view = await harness.render(picker(1));
+  await view.flush();
+
+  const mark = harness.renders.mark();
+  await view.rerender(picker(2));
+  assert.deepEqual(rowRenders(mark), {});
+
+  await view.press(rowOf(view, KJV));
+  assert.deepEqual(log.slice(-2), [
+    ['close', 2],
+    ['activated', 'kjv', 2],
+  ]);
+});

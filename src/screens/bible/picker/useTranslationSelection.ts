@@ -12,6 +12,7 @@ import type { BibleTranslation } from '../../../types';
 import { normalizeTranslationLanguage } from '../bibleTranslationModel';
 import type { TranslationPickerDownloadQueue } from '../translationPickerDownloadQueue';
 import { resolveTranslationSelection } from './translationSelectionModel';
+import { useLatestRef } from './useLatestRef';
 import type { TranslationPickerCallbacks } from './useTranslationPickerDownloads';
 
 interface TranslationSelectionOptions extends TranslationPickerCallbacks {
@@ -42,6 +43,9 @@ export function useTranslationSelection({
   const setPreferredTranslationLanguage = useBibleStore(
     (state) => state.setPreferredTranslationLanguage
   );
+  // Hosts (the reader re-renders on every audio tick) pass new handlers each render; reading
+  // them through a ref keeps this callback, and so every memoised row, stable.
+  const hostCallbacksRef = useLatestRef({ onRequestClose, onTranslationActivated });
 
   return useCallback(
     async (translation: BibleTranslation) => {
@@ -83,8 +87,8 @@ export function useTranslationSelection({
         }
 
         setCurrentTranslation(nextTranslation.id);
-        onRequestClose?.();
-        onTranslationActivated?.(nextTranslation);
+        hostCallbacksRef.current.onRequestClose?.();
+        hostCallbacksRef.current.onTranslationActivated?.(nextTranslation);
         return;
       }
 
@@ -127,8 +131,7 @@ export function useTranslationSelection({
       setCurrentBook,
       setCurrentChapter,
       setCurrentTranslation,
-      onRequestClose,
-      onTranslationActivated,
+      hostCallbacksRef,
       t,
       handleDownloadTextTranslation,
       downloadQueue,
