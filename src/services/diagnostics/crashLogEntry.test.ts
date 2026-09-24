@@ -130,3 +130,38 @@ test('toCrashLogEntry survives an Error whose message getter throws', () => {
   assert.equal(entry.message, '[unprintable value]');
   assert.equal(entry.isFatal, false);
 });
+
+test('toCrashLogEntry scrubs emails, bearer tokens and labelled passcodes from the message and stack', () => {
+  const secretText =
+    'sync failed for jane.doe@example.com with Bearer abc.def-ghi and passcode=4821';
+  const error = new Error(secretText);
+  error.stack = `Error: ${secretText}\n    at syncProfile (index.bundle:12:34)\n    at run`;
+
+  const entry = toCrashLogEntry(error, true, 10);
+
+  const scrubbed = 'sync failed for <email> with Bearer <token> and passcode=<redacted>';
+  assert.equal(entry.message, scrubbed);
+  assert.equal(
+    entry.stack,
+    `Error: ${scrubbed}\n    at syncProfile (index.bundle:12:34)\n    at run`
+  );
+});
+
+test('toCrashLogEntry scrubs a thrown non-Error value', () => {
+  const entry = toCrashLogEntry('reset failed for jane.doe@example.com', false, 11);
+
+  assert.equal(entry.message, 'reset failed for <email>');
+});
+
+test('a render error entry keeps the scrubbed message after its boundary scope', () => {
+  const error = new Error('pin=1234 rejected');
+  error.stack = 'Error: pin=1234 rejected\n    at Lock';
+
+  const entry = toRenderErrorCrashLogEntry(error, 'Privacy', '\n    in LockScreen', 12);
+
+  assert.equal(entry.message, '[Privacy] pin=<redacted> rejected');
+  assert.equal(
+    entry.stack,
+    'Error: pin=<redacted> rejected\n    at Lock\nComponent stack:\n    in LockScreen'
+  );
+});

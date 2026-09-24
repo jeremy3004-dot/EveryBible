@@ -750,6 +750,9 @@ export const vi = {
     pinInvalidCharacters: 'Chỉ cho phép số và ký hiệu máy tính.',
     pinMismatch: 'Mã bảo mật chưa khớp.',
     incorrectPin: 'Mã bảo mật đó không chính xác.',
+    discreetNotificationTitle: 'Nhắc nhở',
+    discreetNotificationBody: 'Bạn có một nhắc nhở cho hôm nay.',
+    discreetNotificationChannel: 'Nhắc nhở',
   },
   settings: {
     title: 'Cài đặt',

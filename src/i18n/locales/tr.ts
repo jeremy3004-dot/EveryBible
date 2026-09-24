@@ -749,6 +749,9 @@ export const tr = {
     pinInvalidCharacters: 'Yalnızca sayılara ve hesap makinesi simgelerine izin verilir.',
     pinMismatch: 'Güvenli kodlar henüz eşleşmiyor.',
     incorrectPin: 'Bu güvenli kod doğru değil.',
+    discreetNotificationTitle: 'Hatırlatma',
+    discreetNotificationBody: 'Bugün için bir hatırlatmanız var.',
+    discreetNotificationChannel: 'Hatırlatmalar',
   },
   settings: {
     title: 'Ayarlar',

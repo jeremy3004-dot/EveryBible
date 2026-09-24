@@ -733,6 +733,9 @@ export const ko = {
     pinInvalidCharacters: '숫자와 계산기 기호만 허용됩니다.',
     pinMismatch: '보안 코드가 아직 일치하지 않습니다.',
     incorrectPin: '보안 코드가 올바르지 않습니다.',
+    discreetNotificationTitle: '알림',
+    discreetNotificationBody: '오늘 확인할 알림이 있습니다.',
+    discreetNotificationChannel: '알림',
   },
   settings: {
     title: '설정',

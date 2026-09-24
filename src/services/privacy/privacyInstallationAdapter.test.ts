@@ -1,6 +1,6 @@
 import test, { before, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { mockModule, sourcePath } from '../../testing/mockModules';
+import { mockModule, mockSecureStore, sourcePath } from '../../testing/mockModules';
 import { LEGACY_AUTH_STORAGE_KEY, PRIVACY_INSTALLATION_MARKER_KEY } from './privacyInstallation';
 
 /**
@@ -65,6 +65,20 @@ mockModule(mock, sourcePath('services/privacy/privacyService.ts'), {
   },
 });
 
+// iOS keeps keychain items across uninstall; MMKV (the app container) does not.
+const SESSION_KEY = 'sb-abcdefghijklmnop-auth-token';
+const KEYCHAIN_RESIDUE = {
+  [SESSION_KEY]: '{"access_token":"a","refresh_token":"r"}',
+  [`${SESSION_KEY}-code-verifier`]: 'verifier',
+  [`${SESSION_KEY}-user`]: '{"user":{"id":"u"}}',
+  'everybible.translatorReview.passcode': '123456',
+  'everybible.feedback.councilPasscode': '654321',
+};
+const secureStore = mockSecureStore(mock);
+mockModule(mock, sourcePath('services/startup/publicRuntimeConfig.ts'), {
+  publicRuntimeConfig: { EXPO_PUBLIC_SUPABASE_URL: 'https://abcdefghijklmnop.supabase.co' },
+});
+
 let adapter: typeof import('./privacyInstallationAdapter');
 
 before(async () => {
@@ -78,6 +92,51 @@ beforeEach(() => {
   events.length = 0;
   migrateFailure = null;
   clearFailure = null;
+  secureStore.store.clear();
+  secureStore.calls.length = 0;
+  secureStore.state.failure = null;
+  for (const [key, value] of Object.entries(KEYCHAIN_RESIDUE)) {
+    secureStore.store.set(key, value);
+  }
+});
+
+test('a reinstall deletes the keychain session and passcodes before auth can restore them', async () => {
+  await adapter.initializePrivacyInstallationOnStartup();
+
+  assert.deepEqual(Array.from(secureStore.store.keys()), []);
+  assert.deepEqual(
+    secureStore.calls.map((call) => `${call.op}:${call.key}`).sort(),
+    Object.keys(KEYCHAIN_RESIDUE)
+      .map((key) => `delete:${key}`)
+      .sort()
+  );
+  assert.equal(mmkv.get(PRIVACY_INSTALLATION_MARKER_KEY), '1');
+});
+
+test('an upgraded install without the marker keeps its session and passcodes', async () => {
+  mmkv.set(LEGACY_AUTH_STORAGE_KEY, JSON.stringify({ state: { user: { uid: 'u' } } }));
+
+  await adapter.initializePrivacyInstallationOnStartup();
+
+  assert.deepEqual(Object.fromEntries(secureStore.store), KEYCHAIN_RESIDUE);
+  assert.deepEqual(secureStore.calls, []);
+  assert.equal(mmkv.get(PRIVACY_INSTALLATION_MARKER_KEY), '1');
+});
+
+test('a normal relaunch never touches the keychain', async () => {
+  mmkv.set(PRIVACY_INSTALLATION_MARKER_KEY, '1');
+
+  await adapter.initializePrivacyInstallationOnStartup();
+
+  assert.deepEqual(secureStore.calls, []);
+  assert.deepEqual(Object.fromEntries(secureStore.store), KEYCHAIN_RESIDUE);
+});
+
+test('a keychain that refuses the credential wipe leaves the marker unwritten so the next launch retries', async () => {
+  secureStore.state.failure = new Error('keychain locked');
+
+  await assert.rejects(() => adapter.initializePrivacyInstallationOnStartup(), /keychain locked/);
+  assert.equal(mmkv.has(PRIVACY_INSTALLATION_MARKER_KEY), false);
 });
 
 test('a genuinely empty app container is treated as a reinstall: privacy is reset and the marker seeded', async () => {
