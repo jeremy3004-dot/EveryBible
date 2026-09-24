@@ -435,6 +435,8 @@ export function isBundledBibleDatabaseReady(
 const BIBLE_SEARCH_WORD_PATTERN =
   /[\p{L}\p{N}][\p{L}\p{N}\p{M}\u200C\u200D]*(?:['’ʼ][\p{L}\p{N}][\p{L}\p{N}\p{M}\u200C\u200D]*)*/gu;
 
+const MAX_INDEXED_SEARCH_WORDS = 16;
+
 // NFC, like the stored verse text: a keyboard that types a composition exclusion (U+095B ज़)
 // or decomposed letters otherwise sends a token the index never saw.
 export function buildBibleSearchQuery(query: string): string | null {
@@ -443,7 +445,21 @@ export function buildBibleSearchQuery(query: string): string | null {
       .normalize('NFC')
       .match(BIBLE_SEARCH_WORD_PATTERN)
       ?.map((token) => token.trim()) ?? [];
-  const normalizedTokens = tokens.filter((token) => token.length > 0);
+  // Each word once (the index folds case), and no more than a verse's worth: a pasted chapter
+  // otherwise became thousands of phrases that took seconds to match nothing.
+  const seen = new Set<string>();
+  const normalizedTokens: string[] = [];
+  for (const token of tokens) {
+    const key = token.toLowerCase();
+    if (token.length === 0 || seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    normalizedTokens.push(token);
+    if (normalizedTokens.length === MAX_INDEXED_SEARCH_WORDS) {
+      break;
+    }
+  }
 
   if (normalizedTokens.length === 0) {
     return null;
