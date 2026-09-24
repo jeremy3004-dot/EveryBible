@@ -259,6 +259,36 @@ test('typing again inside the debounce window issues only the latest query', asy
   );
 });
 
+test('a trailing space does not search again or re-announce the same results', async (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout'] });
+  const view = await renderBrowser();
+  const input = view.getByLabelText(t('common.search'));
+  const announcement = t('interface.searchResultCount', { count: 1 });
+
+  await view.changeText(input, 'love');
+  await tickTimers(context, BIBLE_SEARCH_DEBOUNCE_MS);
+  await waitUntil(() => searches.length > 0);
+  await act(async () => searches[0].resolve([verse('1JN', 4, 8, 'God is love.')]));
+
+  // The space before the next word asks the same question; a screen reader heard the count
+  // again on every space, and the same query ran again.
+  await view.changeText(input, 'love ');
+  await tickTimers(context, BIBLE_SEARCH_DEBOUNCE_MS);
+  await view.changeText(input, 'love g');
+  await tickTimers(context, BIBLE_SEARCH_DEBOUNCE_MS);
+  await waitUntil(() => searches.length > 1);
+
+  assert.deepEqual(
+    searches.map(({ query }) => query),
+    ['love', 'love g']
+  );
+  assert.ok(view.getByRole('button', { name: /1 John 4:8/ }));
+  assert.equal(
+    harness.rn.__recorded.announcements.filter((text) => text === announcement).length,
+    1
+  );
+});
+
 test('a slower earlier search never overwrites the results of a newer one', async (context) => {
   context.mock.timers.enable({ apis: ['setTimeout'] });
   const view = await renderBrowser();

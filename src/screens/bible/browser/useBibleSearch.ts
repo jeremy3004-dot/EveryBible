@@ -60,10 +60,13 @@ export function useBibleSearch(
     (q: string) => parsePassageReferenceLocale(q, language, bookNames),
     [bookNames, language]
   );
-  // Memoised: the reference parser otherwise runs again on every unrelated re-render.
+  // Memoised on the trimmed query: the reference parser otherwise runs again on every unrelated
+  // re-render, and a new intent for the same words (the space typed before the next word)
+  // would run the same search again and re-announce its result count.
+  const trimmedDeferredQuery = deferredSearchQuery.trim();
   const searchIntent = useMemo(
-    () => resolveBibleSearchIntent(deferredSearchQuery, parseRef),
-    [deferredSearchQuery, parseRef]
+    () => resolveBibleSearchIntent(trimmedDeferredQuery, parseRef),
+    [trimmedDeferredQuery, parseRef]
   );
   const failedToLoadMessage = t('bible.failedToLoad');
   const searchUnavailableMessage = t('bible.searchUnavailable');
