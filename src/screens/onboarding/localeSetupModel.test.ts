@@ -1,5 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { bibleTranslations } from '../../constants/translations';
+import {
+  getTranslationSelectionState,
+  getVisibleTranslationsForPicker,
+} from '../bible/bibleTranslationModel';
 import {
   buildInitialOnboardingLanguageOptions,
   filterInitialOnboardingLanguageOptions,
@@ -104,6 +109,38 @@ test('runtime catalog hydration timeout still leaves bundled English BSB listabl
   assert.equal(englishOption?.primaryTranslation.id, 'bsb');
   assert.equal(englishOption?.primaryTranslation.isDownloaded, true);
   assert.equal(englishOption?.primaryTranslation.hasText, true);
+});
+
+test('when the Bible catalog cannot be reached, the Bibles shipped in the app stay listed and selectable', () => {
+  // Offline first run: hydration fails (or times out), so onboarding lists what the binary
+  // ships. Each of these must still finish onboarding without a download.
+  const visible = getVisibleTranslationsForPicker(bibleTranslations, {
+    isHydratingRuntimeCatalog: false,
+    hasHydratedRuntimeCatalog: false,
+  });
+  const listed = buildInitialOnboardingLanguageOptions(visible).flatMap((option) =>
+    option.translations.map((translation) => translation.id)
+  );
+
+  // WEB also ships in the app but is hidden from every picker by translationCatalogVisibility.
+  for (const id of ['bsb', 'asv', 'npiulb']) {
+    const translation = visible.find((candidate) => candidate.id === id);
+    assert.ok(translation, `${id} should be listed`);
+    assert.ok(listed.includes(id), `${id} should appear in the Bible language list`);
+    assert.deepEqual(
+      getTranslationSelectionState({
+        isDownloaded: translation.isDownloaded,
+        hasText: translation.hasText,
+        hasAudio: translation.hasAudio,
+        canPlayAudio: false,
+        hasDownloadableTextPack: Boolean(translation.catalog?.text?.downloadUrl),
+        source: translation.source,
+        textPackLocalPath: translation.textPackLocalPath,
+      }),
+      { isSelectable: true, reason: null },
+      `${id} should be selectable offline`
+    );
+  }
 });
 
 test('interface-language selection closes the picker even when language loading rejects', async () => {

@@ -56,6 +56,7 @@ import {
 } from './bibleTranslationModel';
 import { useTranslationPreferenceStore } from '../../stores/translationPreferenceStore';
 import { hasTranslationDownloadData } from '../../stores/bibleStoreModel';
+import { showTranslationDownloadFailedAlert } from './translationDownloadFailureAlert';
 
 interface TranslationPickerListProps {
   onRequestClose?: () => void;
@@ -235,24 +236,30 @@ export function TranslationPickerList({
         return;
       }
 
-      const requestId = ++selectionRequestRef.current;
+      const attemptDownload = async (): Promise<void> => {
+        const requestId = ++selectionRequestRef.current;
 
-      try {
-        const result = await downloadTranslation(translation.id);
-        if (result === 'cancelled' || requestId !== selectionRequestRef.current) {
-          return;
+        try {
+          const result = await downloadTranslation(translation.id);
+          if (result === 'cancelled' || requestId !== selectionRequestRef.current) {
+            return;
+          }
+          setPreferredTranslationLanguage(normalizeTranslationLanguage(translation.language));
+          setCurrentTranslation(translation.id);
+          onRequestClose?.();
+          onTranslationActivated?.(
+            useBibleStore
+              .getState()
+              .translations.find((candidate) => candidate.id === translation.id) ?? translation
+          );
+        } catch {
+          showTranslationDownloadFailedAlert(t, () => {
+            void attemptDownload();
+          });
         }
-        setPreferredTranslationLanguage(normalizeTranslationLanguage(translation.language));
-        setCurrentTranslation(translation.id);
-        onRequestClose?.();
-        onTranslationActivated?.(
-          useBibleStore
-            .getState()
-            .translations.find((candidate) => candidate.id === translation.id) ?? translation
-        );
-      } catch {
-        Alert.alert(t('common.error'), t('bible.failedToLoad'), [{ text: t('common.ok') }]);
-      }
+      };
+
+      await attemptDownload();
     },
     [
       downloadTranslation,

@@ -97,6 +97,7 @@ import {
   normalizeTranslationLanguage,
   searchTranslationIndex,
 } from '../bible/bibleTranslationModel';
+import { showTranslationDownloadFailedAlert } from '../bible/translationDownloadFailureAlert';
 import { getAudioAvailability } from '../../services/audio/audioAvailability';
 import { isRemoteAudioAvailable } from '../../services/audio/audioRemote';
 import { config } from '../../constants';
@@ -1032,7 +1033,9 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
         return;
       }
 
-      Alert.alert(t('common.error'), t('bible.failedToLoad'), [{ text: t('common.ok') }]);
+      showTranslationDownloadFailedAlert(t, () => {
+        void bibleSelectionQueue.chooseDownload(translation);
+      });
     },
     onStateChange: setBibleSelectionState,
   };
@@ -1475,10 +1478,12 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
               <ActivityIndicator color={colors.accentPrimary} />
             </View>
           );
+        // Usually the device is offline. The card sits above the list, so its body can point
+        // at the Bibles below it: they ship with the app and finish onboarding offline.
         case 'catalogError':
           return renderEmptyCard(
-            t('common.somethingWentWrong'),
-            t('onboarding.noLanguagesFoundBody'),
+            t('onboarding.catalogUnavailableTitle'),
+            t('onboarding.catalogUnavailableBody'),
             () => setRuntimeCatalogHydrationAttempt((currentAttempt) => currentAttempt + 1)
           );
         case 'primaryOption':
