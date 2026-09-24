@@ -283,6 +283,7 @@ export function BibleReaderScreen() {
   const { scaleValue, increase, decrease, canIncrease, canDecrease } = useFontSize();
   const {
     status,
+    error: audioError,
     currentTranslationId: activeAudioTranslationId,
     currentBookId: activeAudioBookId,
     currentChapter: activeAudioChapter,
@@ -941,6 +942,7 @@ export function BibleReaderScreen() {
             changeBackgroundMusicChoice={changeBackgroundMusicChoice}
             changePlaybackRate={changePlaybackRate}
             cycleRepeatMode={cycleRepeatMode}
+            errorMessage={audioError}
             feedback={feedback}
             handleListenModeSeek={handleListenModeSeek}
             handleNextListenChapter={handleNextListenChapter}
@@ -1113,6 +1115,7 @@ export function BibleReaderScreen() {
               isCollapsed={isReadBottomChromeCollapsed}
               isPlaying={isCurrentAudioChapter && status === 'playing'}
               isLoading={isCurrentAudioChapter && status === 'loading'}
+              errorMessage={isCurrentAudioChapter && status === 'error' ? audioError : null}
               hidePlayButton={showPlanSessionChrome ? false : hidePlayButtonFromReadingTab}
               hasPreviousChapter={hasPrevChapter}
               hasNextChapter={hasReaderPlaybackDockNextChapter}
