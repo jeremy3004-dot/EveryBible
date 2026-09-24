@@ -1,5 +1,5 @@
 import { mmkvInstance } from '../../stores/mmkvStorage';
-import { appendCrashLogEntry, type CrashLogEntry } from './crashLogEntry';
+import { appendCrashLogEntry, scrubCrashLogEntry, type CrashLogEntry } from './crashLogEntry';
 
 export type { CrashLogEntry } from './crashLogEntry';
 export { toCrashLogEntry } from './crashLogEntry';
@@ -39,7 +39,7 @@ export function getCrashLogs(): CrashLogEntry[] {
       return [];
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter(isCrashLogEntry) : [];
+    return Array.isArray(parsed) ? parsed.filter(isCrashLogEntry).map(scrubCrashLogEntry) : [];
   } catch {
     return [];
   }

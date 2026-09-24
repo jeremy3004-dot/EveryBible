@@ -45,6 +45,19 @@ function scrubStack(stack: string): string {
 }
 
 /**
+ * Scrubs a stored entry again on the way out. Builds before the on-device log was scrubbed
+ * stored messages and stacks as thrown, and those rows outlive the update; scrubbing is
+ * idempotent, so rows this build wrote come back unchanged.
+ */
+export function scrubCrashLogEntry(entry: CrashLogEntry): CrashLogEntry {
+  const scrubbed: CrashLogEntry = { ...entry, message: scrubErrorText(entry.message) };
+  if (entry.stack !== undefined) {
+    scrubbed.stack = scrubStack(entry.stack);
+  }
+  return scrubbed;
+}
+
+/**
  * Message and stack are scrubbed with `scrubErrorText` (emails, tokens, labelled passcodes).
  * Never throws: it runs inside the global error handler, where a throw would skip the
  * remote report and RN's own handler. `String(Object.create(null))`, a throwing

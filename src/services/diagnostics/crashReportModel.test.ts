@@ -252,3 +252,14 @@ test('a non-Error rejection reason with a message keeps that message', () => {
   assert.equal(report.error_name, 'NonError');
   assert.equal(report.message, 'Download failed for <email>');
 });
+
+test('scrubbing already scrubbed text changes nothing, so stored log rows can be re-scrubbed', () => {
+  for (const text of [
+    'GET https://x.supabase.co/rest/v1/profiles?select=*&access_token=abc#frag failed',
+    'reader@example.com sent Bearer abc123 with passcode=4821',
+    'https://user:pw@host.test/path?q=1 then 12345678',
+  ]) {
+    const once = scrubErrorText(text);
+    assert.equal(scrubErrorText(once), once);
+  }
+});
