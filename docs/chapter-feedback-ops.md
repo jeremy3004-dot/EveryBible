@@ -35,17 +35,44 @@ or changed, and does not count as a wrong guess.
   per-row random salt plus salted SHA-256 hash, never in plaintext.
 - Create, list, rotate, and revoke them at admin.everybible.app → **Translator Access**
   (`/translator-access`). Enter a team name and the translation IDs exactly as the app
-  uses them (case-sensitive; the page lists the IDs that already have feedback). The
-  six-digit code is shown once; give it to the team, then leave the page. A lost code
-  cannot be recovered, only rotated. Every change is in the admin audit log.
-- Codes are six digits because installed app builds have a keypad that stops at six.
-  Brute force is limited by the per-client lockout (10 failures per 15 minutes). Rotate
-  a team's code when someone leaves the team.
-- Unlocking (`validateOnly`) succeeds for any valid code and now also returns the
-  code's `translationIds` and, when the app sent one, `coversTranslation`. Current
-  builds ignore these fields. A translator whose code does not cover the translation
-  on screen can still unlock, but that translation's queue shows a load error until
-  they switch to one their code covers.
+  uses them (case-sensitive; the page lists the IDs that already have feedback), and pick a
+  code length. The code is shown once; give it to the team, then leave the page. A lost
+  code cannot be recovered, only rotated. Every change is in the admin audit log, with
+  the code length but never the code.
+- Code length: 6, 10 or 12 digits, default 6. App builds from before the 2026-09-24
+  keypad change stop at six digits, so they cannot type a longer code. The first release
+  after that change accepts up to 12 digits for both translator and council codes (still
+  digits only). Six digits leave guessing to the per-client lockout (10 failures per
+  15 minutes), which someone switching networks can spread out, so move to longer codes
+  once the new build is widely installed (see below). Rotate a team's code when someone
+  leaves the team.
+- Unlocking (`validateOnly`) succeeds for any valid code and also returns the code's
+  `translationIds` and, when the app sent one, `coversTranslation`. Builds from before
+  2026-09-24 ignore these fields, so a translator whose code does not cover the
+  translation on screen just sees the queue fail to load there.
+- Builds after that change handle it. Unlocking in Settings with such a code turns
+  translator mode on, then says the code does not cover the open translation, lists the
+  translations it does cover by their reader names, and offers to switch to one. The
+  queue, the chapter review screen, the reader's feedback card and the Bible browser show
+  the same message whenever the server answers `translation_not_covered`; the app then
+  asks the unlock check which translations the code covers (this never counts as a wrong
+  guess). A covered translation that is not downloaded on the device shows a prompt to
+  download it first. If the code covers no translations, the message says to ask
+  whoever gave out the code.
+
+### Moving teams to longer codes
+
+The server compares whole strings, so no backend change is needed. After the app release
+that raises the keypad limit is out:
+
+1. Wait until nearly every translator is on that release (check installs, or ask the
+   teams).
+2. In **Translator Access**, choose 10 or 12 digits when creating new team codes.
+3. Rotate each existing team, choosing 10 or 12 digits in the row's length menu, and
+   hand out the new code. A translator still on an old build cannot type it and has to
+   update the app first.
+4. Consider doing the same for `SCRIPTURE_COUNCIL_PASSCODE`: set a 10- or 12-digit value
+   with `supabase secrets set` once council members have updated.
 
 The old shared `TRANSLATOR_REVIEW_PASSCODE` keeps working during the transition, but
 only for the translations in `TRANSLATOR_REVIEW_PASSCODE_TRANSLATIONS`
@@ -141,8 +168,9 @@ passcode-based review API.
 Team passcodes: apply `20260924014137_add_translator_team_passcodes.sql`, then deploy
 `review-chapter-feedback`. No secret changes are needed for the shared code to keep
 working for `bsb`. If the function is deployed before the migration, the shared code
-still works and any other code gets 503 until the table exists. No app release is
-needed.
+still works and any other code gets 503 until the table exists. Six-digit team codes
+need no app release. Longer codes and the `translation_not_covered` message need the
+first app release after 2026-09-24, and the code-length option needs an admin deploy.
 
 Apply `20260917120000_feedback_participation_and_review.sql` before deploying the
 updated submit and review functions, including their `_shared/councilAccess.ts`
