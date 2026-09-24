@@ -5,7 +5,6 @@ import {
   Alert,
   BackHandler,
   FlatList,
-  LayoutAnimation,
   InteractionManager,
   Platform,
   ScrollView,
@@ -17,7 +16,6 @@ import {
 import * as Clipboard from 'expo-clipboard';
 import Animated, {
   useSharedValue,
-  useReducedMotion,
   useAnimatedScrollHandler,
   useAnimatedStyle,
   interpolate,
@@ -39,9 +37,6 @@ import { config } from '../../constants/config';
 import { useTheme, type ThemeMode } from '../../contexts/ThemeContext';
 import { layout, spacing, typography } from '../../design/system';
 import { getReadingFontFamily } from '../../design/fonts';
-import { useTabBarHeight } from '../../hooks/useTabBarHeight';
-import { buildTabBarCapsuleStyle } from '../../navigation/tabBarCapsuleStyle';
-import { useReaderChromeOwner, useReaderChromeProgress } from '../../stores/readerChromeStore';
 import { getNextReaderChromeProgress, READER_PLAY_COLLAPSE_TRAVEL } from './readerChromeMotion';
 import { trackBibleExperienceEvent } from '../../services/analytics/bibleExperienceAnalytics';
 import {
@@ -114,11 +109,8 @@ import {
   buildReaderParagraphs,
   buildReaderChapterRouteParams,
   getPlanSessionTrailingActionState,
-  getNextBibleTabBarVisibility,
-  getReaderAutoScrollTarget,
   getReaderInlineActiveVerse,
   getAnnotationsForDisplayedVerses,
-  getReaderVerseContentOffset,
   getReaderVerseLineHeight,
   resolveSwipeChapterNavigation,
   isActiveAudioTrackMatch,
@@ -164,8 +156,10 @@ import {
   useReaderFollowAlongScroll,
   useReaderPlanSession,
   useReaderReadingTimer,
+  useReaderScrollTargets,
+  useReaderTabBarMotion,
 } from './reader';
-import type { RootTabNavigationHandle, NavigationProp } from './reader';
+import type { NavigationProp } from './reader';
 
 type VerseTimestamps = import('../../services/bible/verseTimestamps').VerseTimestamps;
 
@@ -255,215 +249,39 @@ export function BibleReaderScreen() {
   const chapterPrefetchTaskRef = useRef<CancellableTask | null>(null);
   const annotationLoadRequestIdRef = useRef(0);
   const lastStableSessionModeRef = useRef(chapterSessionMode);
-  const readerBottomChromeCollapsedRef = useRef(false);
-  const rootTabBarCollapseProgressRef = useRef(0);
-  const selectedVersePreviousTabBarCollapseProgressRef = useRef<number | null>(null);
-  const readerLastScrollOffsetYRef = useRef(0);
-  const readerScrollViewportHeightRef = useRef(0);
-  const readerBottomChromeProgressShared = useSharedValue(0);
-  const rootTabBarScrollProgress = useReaderChromeProgress();
-  const readerChromeOwner = useReaderChromeOwner();
-  const readerChromeOffsetShared = useSharedValue(0);
-  const readerChromeChapterKeyRef = useRef('');
-  const readerChromeCollapsedShared = useSharedValue(false);
-  const reduceMotion = useReducedMotion();
-  const readerRouteKey = route.key;
-
-  // Retained readers keep local motion. Only the focused route may publish to
-  // the root bar; late scroll events and old cleanup cannot overwrite a new one.
-  useFocusEffect(
-    useCallback(() => {
-      readerBottomChromeProgressShared.value = 0;
-      const chapterKey = `${bookId}:${chapter}`;
-      if (readerChromeChapterKeyRef.current !== chapterKey) {
-        readerChromeChapterKeyRef.current = chapterKey;
-        readerChromeOffsetShared.value = 0;
-      }
-      readerChromeCollapsedShared.value = false;
-      readerBottomChromeCollapsedRef.current = false;
-      setIsReadBottomChromeCollapsed(false);
-      readerChromeOwner.value = readerRouteKey;
-      rootTabBarScrollProgress.value = 0;
-      return () => {
-        if (readerChromeOwner.value === readerRouteKey) {
-          readerChromeOwner.value = '';
-          rootTabBarScrollProgress.value = 0;
-        }
-      };
-    }, [
-      bookId,
-      chapter,
-      readerRouteKey,
-      readerBottomChromeProgressShared,
-      readerChromeOffsetShared,
-      readerChromeCollapsedShared,
-      readerChromeOwner,
-      rootTabBarScrollProgress,
-    ])
-  );
-  const rootTabBarVisibleRef = useRef<boolean | null>(null);
   const {
-    bottomPadding: rootTabBarBottomPadding,
-    barHeight: rootTabBarBarHeight,
-    sideInset: rootTabBarSideInset,
-    height: rootTabBarHeight,
-  } = useTabBarHeight();
-  const shouldForceHideRootTabBar =
-    Boolean(activePlanId) && typeof planDayNumber === 'number' && returnToPlanOnComplete;
-  const premiumReaderBaseBottomPadding =
-    rootTabBarHeight + layout.minTouchTarget + spacing.xxxl + spacing.lg;
-  const getRootTabNavigation = useCallback((): RootTabNavigationHandle => {
-    // Runtime contract: navigation.getParent('RootTab') ?? navigation.getParent()?.getParent()
-    const getParentById = navigation.getParent as unknown as (
-      id?: string
-    ) => RootTabNavigationHandle;
-
-    return (
-      getParentById('RootTab') ??
-      (navigation.getParent()?.getParent() as RootTabNavigationHandle | undefined) ??
-      null
-    );
-  }, [navigation]);
-  // The reader drives a scroll-linked collapse of the ROOT tab bar, so it has to
-  // rebuild that bar's style. It must be the same capsule the navigator draws —
-  // this used to be a second, full-width copy, which made the bar visibly change
-  // shape on entering and leaving the reader.
-  const getRootTabBarStyle = useCallback(
-    (collapseProgress: number) =>
-      buildTabBarCapsuleStyle({
-        sideInset: rootTabBarSideInset,
-        bottomPadding: rootTabBarBottomPadding,
-        barHeight: rootTabBarBarHeight,
-        collapseProgress,
-      }),
-    [rootTabBarSideInset, rootTabBarBottomPadding, rootTabBarBarHeight]
-  );
-  const rootTabBarStyleBuilderRef = useRef(getRootTabBarStyle);
-  rootTabBarStyleBuilderRef.current = getRootTabBarStyle;
-  // Keep the chapter content padding stable so dock taps do not reflow the
-  // ScrollView when the user is already pinned at the bottom of the chapter.
-  const premiumReaderBottomPadding = premiumReaderBaseBottomPadding;
-
-  const syncRootTabBarVisibility = useCallback(
-    (nextVisible: boolean) => {
-      if (rootTabBarVisibleRef.current === nextVisible) {
-        return;
-      }
-
-      if (rootTabBarVisibleRef.current != null) {
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      }
-
-      rootTabBarVisibleRef.current = nextVisible;
-      navigation.setParams({ tabBarVisible: nextVisible });
-    },
-    [navigation]
-  );
-
-  const syncRootTabBarCollapseProgress = useCallback(
-    (nextProgress: number) => {
-      const clampedProgress = Math.max(0, Math.min(nextProgress, 1));
-      if (
-        Math.abs(clampedProgress - rootTabBarCollapseProgressRef.current) < 0.02 &&
-        !(clampedProgress === 0 && rootTabBarCollapseProgressRef.current !== 0) &&
-        !(clampedProgress === 1 && rootTabBarCollapseProgressRef.current !== 1)
-      ) {
-        return;
-      }
-
-      rootTabBarCollapseProgressRef.current = clampedProgress;
-      const rootTabNavigation = getRootTabNavigation();
-      if (rootTabNavigation) {
-        rootTabNavigation.setOptions({
-          tabBarStyle: rootTabBarStyleBuilderRef.current(clampedProgress),
-        });
-      }
-      navigation.setParams({ tabBarCollapseProgress: clampedProgress });
-    },
-    [getRootTabNavigation, navigation]
-  );
-
-  useEffect(() => {
-    const rootTabNavigation = getRootTabNavigation();
-    if (!rootTabNavigation || shouldForceHideRootTabBar) {
-      return;
-    }
-
-    rootTabNavigation.setOptions({
-      tabBarStyle: getRootTabBarStyle(rootTabBarCollapseProgressRef.current),
-    });
-    navigation.setParams({ tabBarCollapseProgress: rootTabBarCollapseProgressRef.current });
-  }, [getRootTabBarStyle, getRootTabNavigation, navigation, shouldForceHideRootTabBar]);
-
-  useEffect(() => {
-    syncRootTabBarVisibility(
-      shouldForceHideRootTabBar
-        ? false
-        : getNextBibleTabBarVisibility({
-            sessionMode: chapterSessionMode,
-            action: 'enter',
-          })
-    );
-    syncRootTabBarCollapseProgress(shouldForceHideRootTabBar ? 1 : 0);
-  }, [
-    chapterSessionMode,
+    getRootTabBarStyle,
+    getRootTabNavigation,
+    handleReaderMomentumScrollEnd,
+    handleReaderScrollBeginDrag,
+    handleReaderScrollEndDrag,
+    premiumReaderBottomPadding,
+    readerBottomChromeCollapsedRef,
+    readerBottomChromeProgressShared,
+    readerChromeCollapsedShared,
+    readerChromeOffsetShared,
+    readerChromeOwner,
+    readerLastScrollOffsetYRef,
+    readerRouteKey,
+    readerScrollViewportHeightRef,
+    reduceMotion,
+    rootTabBarBottomPadding,
+    rootTabBarCollapseProgressRef,
+    rootTabBarHeight,
+    rootTabBarScrollProgress,
     shouldForceHideRootTabBar,
-    syncRootTabBarCollapseProgress,
-    syncRootTabBarVisibility,
-  ]);
-
-  useEffect(() => {
-    if (selectedVerses.length > 0) {
-      if (selectedVersePreviousTabBarCollapseProgressRef.current == null) {
-        selectedVersePreviousTabBarCollapseProgressRef.current =
-          rootTabBarCollapseProgressRef.current;
-      }
-
-      syncRootTabBarVisibility(!shouldForceHideRootTabBar);
-      syncRootTabBarCollapseProgress(1);
-      return;
-    }
-
-    const previousProgress = selectedVersePreviousTabBarCollapseProgressRef.current;
-    if (previousProgress == null) {
-      return;
-    }
-
-    selectedVersePreviousTabBarCollapseProgressRef.current = null;
-    syncRootTabBarVisibility(
-      shouldForceHideRootTabBar
-        ? false
-        : getNextBibleTabBarVisibility({
-            sessionMode: chapterSessionMode,
-            action: 'enter',
-          })
-    );
-    syncRootTabBarCollapseProgress(shouldForceHideRootTabBar ? 1 : previousProgress);
-  }, [
+  } = useReaderTabBarMotion({
+    activePlanId,
+    bookId,
+    chapter,
     chapterSessionMode,
-    selectedVerses.length,
-    shouldForceHideRootTabBar,
-    syncRootTabBarCollapseProgress,
-    syncRootTabBarVisibility,
-  ]);
-
-  const handleReaderScrollBeginDrag = useCallback(() => {
-    if (chapterSessionMode !== 'read') {
-      return;
-    }
-  }, [chapterSessionMode]);
-
-  const handleReaderScrollEndDrag = useCallback(() => {
-    if (chapterSessionMode !== 'read') {
-      return;
-    }
-  }, [chapterSessionMode]);
-
-  const handleReaderMomentumScrollEnd = useCallback(() => {
-    if (chapterSessionMode !== 'read') {
-      return;
-    }
-  }, [chapterSessionMode]);
+    navigation,
+    planDayNumber,
+    returnToPlanOnComplete,
+    route,
+    selectedVerses,
+    setIsReadBottomChromeCollapsed,
+  });
 
   const verseImageBackgroundCount = SHARE_VERSE_BACKGROUND_SOURCES.length;
   const selectedVerseImageBackground =
@@ -809,123 +627,29 @@ export function BibleReaderScreen() {
   const lastReaderScrollJsOffset = useSharedValue(0);
   const lastReaderScrollJsAtBottom = useSharedValue(false);
   const premiumReaderParagraphs = useMemo(() => buildReaderParagraphs(verses), [verses]);
-  const scrollReaderToOffset = useCallback(
-    (offsetY: number, animated: boolean) => {
-      const y = Math.max(offsetY, 0);
-      if (showPremiumReadMode) {
-        premiumReaderListRef.current?.scrollToOffset({ offset: y, animated });
-        return;
-      }
-
-      scrollViewRef.current?.scrollTo({
-        y,
-        animated,
-      });
-    },
-    [showPremiumReadMode]
-  );
-  const scrollReaderToVerseParagraph = useCallback(
-    (verseNumber: number, animated: boolean) => {
-      if (!showPremiumReadMode) {
-        return false;
-      }
-
-      const paragraphIndex = premiumReaderParagraphs.findIndex((paragraph) =>
-        paragraph.verses.some((verse) => verse.verse === verseNumber)
-      );
-      if (paragraphIndex < 0) {
-        return false;
-      }
-
-      try {
-        premiumReaderListRef.current?.scrollToIndex({
-          index: paragraphIndex,
-          animated,
-          viewPosition: 0,
-          viewOffset: sharedTopChromeTop + spacing.md,
-        });
-        return true;
-      } catch {
-        return false;
-      }
-    },
-    [premiumReaderParagraphs, sharedTopChromeTop, showPremiumReadMode]
-  );
-  // Scroll-content position of a verse. The premium reader is a virtualized
-  // FlatList, so a paragraph's own onLayout `y` is cell-relative and unusable as
-  // a scroll offset; offsets are accumulated from measured paragraph heights
-  // instead. Only the legacy ScrollView reader lays paragraphs out directly in
-  // content space, so only it can read verseOffsetsRef.
-  const getReaderVerseOffset = useCallback(
-    (verseNumber: number) => {
-      if (showPremiumReadMode) {
-        return getReaderVerseContentOffset({
-          paragraphs: premiumReaderParagraphs,
-          paragraphHeights: paragraphHeightsRef.current,
-          contentTopOffset: readerContentTopPadding + readerListHeaderHeightRef.current,
-          verseNumber,
-        });
-      }
-
-      return verseOffsetsRef.current[verseNumber] ?? null;
-    },
-    [premiumReaderParagraphs, readerContentTopPadding, showPremiumReadMode]
-  );
-  const scrollReaderToMeasuredVerse = useCallback(
-    (verseNumber: number, animated: boolean) => {
-      const verseOffset = getReaderVerseOffset(verseNumber);
-      if (verseOffset == null) {
-        return false;
-      }
-
-      const targetOffset = getReaderAutoScrollTarget({
-        currentScrollOffsetY: readerLastScrollOffsetYRef.current,
-        viewportHeight: readerScrollViewportHeightRef.current,
-        verseOffsetY: verseOffset,
-        triggerViewportFraction: 0.48,
-        targetTopOffset: readerContentTopPadding,
-      });
-
-      pendingReaderAutoScrollVerseRef.current = null;
-      if (targetOffset == null) {
-        return true;
-      }
-
-      scrollReaderToOffset(targetOffset, animated);
-      return true;
-    },
-    [getReaderVerseOffset, readerContentTopPadding, scrollReaderToOffset]
-  );
-  const flushPendingReaderFocus = useCallback(
-    () =>
-      readerFocusScrollRef.current.flush(getReaderVerseOffset, (offset) =>
-        scrollReaderToOffset(offset - readerContentTopPadding, false)
-      ),
-    [getReaderVerseOffset, readerContentTopPadding, scrollReaderToOffset]
-  );
-  const flushPendingReaderAutoScroll = useCallback(
-    (animated: boolean) => {
-      if (flushPendingReaderFocus()) return;
-      const pendingVerse = pendingReaderAutoScrollVerseRef.current;
-      if (
-        pendingVerse == null ||
-        !showPremiumReadMode ||
-        !isCurrentAudioChapter ||
-        pendingVerse !== readerInlineActiveVerse
-      ) {
-        return;
-      }
-
-      scrollReaderToMeasuredVerse(pendingVerse, animated);
-    },
-    [
-      flushPendingReaderFocus,
-      isCurrentAudioChapter,
-      readerInlineActiveVerse,
-      scrollReaderToMeasuredVerse,
-      showPremiumReadMode,
-    ]
-  );
+  const {
+    flushPendingReaderAutoScroll,
+    flushPendingReaderFocus,
+    scrollReaderToMeasuredVerse,
+    scrollReaderToOffset,
+    scrollReaderToVerseParagraph,
+  } = useReaderScrollTargets({
+    isCurrentAudioChapter,
+    paragraphHeightsRef,
+    pendingReaderAutoScrollVerseRef,
+    premiumReaderListRef,
+    premiumReaderParagraphs,
+    readerContentTopPadding,
+    readerFocusScrollRef,
+    readerInlineActiveVerse,
+    readerLastScrollOffsetYRef,
+    readerListHeaderHeightRef,
+    readerScrollViewportHeightRef,
+    scrollViewRef,
+    sharedTopChromeTop,
+    showPremiumReadMode,
+    verseOffsetsRef,
+  });
   const updateReaderBottomChromeState = useCallback(
     (offsetY: number, viewportHeight: number, nextCollapsed: boolean) => {
       if (readerChromeOwner.value !== readerRouteKey) return;
@@ -936,7 +660,13 @@ export function BibleReaderScreen() {
         setIsReadBottomChromeCollapsed(nextCollapsed);
       }
     },
-    [readerChromeOwner, readerRouteKey]
+    [
+      readerChromeOwner,
+      readerRouteKey,
+      readerBottomChromeCollapsedRef,
+      readerLastScrollOffsetYRef,
+      readerScrollViewportHeightRef,
+    ]
   );
 
   useEffect(() => {
@@ -969,6 +699,9 @@ export function BibleReaderScreen() {
     rootTabBarScrollProgress,
     showPremiumReadMode,
     shouldForceHideRootTabBar,
+    readerBottomChromeCollapsedRef,
+    readerLastScrollOffsetYRef,
+    rootTabBarCollapseProgressRef,
   ]);
 
   const scrollHandler = useAnimatedScrollHandler({

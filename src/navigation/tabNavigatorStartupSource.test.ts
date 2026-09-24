@@ -8,6 +8,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { readBibleReaderSource } from '../screens/bible/bibleReaderSourceFiles';
 
 function readRelativeSource(relativePath: string): string {
   return readFileSync(fileURLToPath(new URL(relativePath, import.meta.url).href), 'utf8');
@@ -45,13 +46,7 @@ test('the tab bar capsule geometry is defined in exactly one place', () => {
   // leaving the reader. Both must go through the shared builder.
   for (const [file, source] of [
     ['TabNavigator.tsx', readRelativeSource('./TabNavigator.tsx')],
-    [
-      'BibleReaderScreen.tsx',
-      readFileSync(
-        fileURLToPath(new URL('../screens/bible/BibleReaderScreen.tsx', import.meta.url).href),
-        'utf8'
-      ),
-    ],
+    ['BibleReaderScreen.tsx and screens/bible/reader/', readBibleReaderSource()],
   ] as const) {
     assert.match(
       source,
