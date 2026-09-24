@@ -1897,6 +1897,7 @@ export const id = {
     "playbackSpeed": "Kecepatan pemutaran",
     "fontSizeLabel": "Ukuran teks",
     "noPassageText": "Teks bacaan tidak tersedia",
+    "passageLoadFailed": "Bacaan ini tidak dapat dimuat.",
     "listenToStoryAgain": "Dengarkan kisahnya lagi",
     "shareApp": "Bagikan aplikasi",
   },

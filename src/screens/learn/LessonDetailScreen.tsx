@@ -41,7 +41,6 @@ import {
 } from '../../components/ui';
 import {
   getPassageText,
-  getPrimaryAudioReference,
   LESSON_FALLBACK_TRANSLATION_ID,
   type PassageBlock,
 } from '../../services/gather/gatherBibleService';
@@ -54,7 +53,16 @@ import { useBibleStore } from '../../stores/bibleStore';
 import { useGatherStore } from '../../stores/gatherStore';
 import { useFontSize } from '../../hooks/useFontSize';
 import { resolveFloatingBottomOffset } from '../../hooks/useTabBarHeight';
-import { buildStoryPassageView, type StoryPassageView } from './lessonPassageModel';
+import {
+  lessonAudioTranslationCandidates,
+  resolveLessonAudio,
+} from '../../services/gather/lessonAudioSource';
+import {
+  buildStoryPassageView,
+  resolveStoryStatus,
+  type StoryPassageView,
+  type StoryStatus,
+} from './lessonPassageModel';
 import { readLessonPlaybackStatus } from './lessonAudioModel';
 
 // ---------------------------------------------------------------------------
@@ -164,6 +172,9 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
   const [activeSection, setActiveSection] = useState<MeetingSectionType>('fellowship');
   const [passageBlocks, setPassageBlocks] = useState<PassageBlock[]>([]);
   const [isLoadingPassage, setIsLoadingPassage] = useState(false);
+  const [passageLoadFailed, setPassageLoadFailed] = useState(false);
+  // Bumped by Retry to run the passage load again.
+  const [passageLoadAttempt, setPassageLoadAttempt] = useState(0);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [audioPosition, setAudioPosition] = useState(0);
@@ -201,6 +212,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
     let cancelled = false;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsLoadingPassage(true);
+    setPassageLoadFailed(false);
     setPassageBlocks([]);
 
     getPassageText(lesson.references, currentTranslation, {
@@ -215,6 +227,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
       .catch(() => {
         if (!cancelled) {
           setPassageBlocks([]);
+          setPassageLoadFailed(true);
         }
       })
       .finally(() => {
@@ -226,29 +239,30 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
     return () => {
       cancelled = true;
     };
-  }, [currentTranslation, lesson, resolveBookName]);
+  }, [currentTranslation, lesson, resolveBookName, passageLoadAttempt]);
+
+  // Ask the reading translation for audio first; when the story on screen was
+  // borrowed from the bundled BSB, BSB audio is the next choice, so Play is not
+  // dead on (say) a New Testament-only translation's Genesis lesson.
+  const audioCandidateKey = lessonAudioTranslationCandidates(
+    passageBlocks,
+    currentTranslation
+  ).join('|');
 
   // Resolve audio URL
   useEffect(() => {
     if (!lesson) return;
 
-    const primaryRef = getPrimaryAudioReference(lesson.references);
     let cancelled = false;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     resetAudioPlaybackState();
     void soundRef.current?.unloadAsync().catch(() => undefined);
     soundRef.current = null;
 
-    if (!primaryRef) {
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    getChapterAudioUrl(currentTranslation, primaryRef.bookId, primaryRef.chapter)
-      .then((asset) => {
+    void resolveLessonAudio(lesson.references, audioCandidateKey.split('|'), getChapterAudioUrl)
+      .then((source) => {
         if (!cancelled) {
-          setAudioUrl(asset?.url ?? null);
+          setAudioUrl(source?.url ?? null);
         }
       })
       .catch(() => {
@@ -258,7 +272,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
     return () => {
       cancelled = true;
     };
-  }, [currentTranslation, lesson, resetAudioPlaybackState]);
+  }, [audioCandidateKey, lesson, resetAudioPlaybackState]);
 
   // Cleanup audio on unmount
   useEffect(() => {
@@ -619,7 +633,12 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
             ) : null}
           </View>
           <StorySection
-            isLoading={isLoadingPassage}
+            status={resolveStoryStatus({
+              isLoading: isLoadingPassage,
+              loadFailed: passageLoadFailed,
+              view: storyView,
+            })}
+            onRetry={() => setPassageLoadAttempt((attempt) => attempt + 1)}
             view={storyView}
             colors={colors}
             fontSizeMultiplier={fontSizeMultiplier}
@@ -911,7 +930,8 @@ function CompleteToggle({ isComplete, onPress, colors }: CompleteToggleProps) {
 }
 
 interface StorySectionProps {
-  isLoading: boolean;
+  status: StoryStatus;
+  onRetry: () => void;
   view: StoryPassageView | null;
   colors: ThemeColors;
   fontSizeMultiplier: number;
@@ -921,7 +941,8 @@ interface StorySectionProps {
 }
 
 function StorySection({
-  isLoading,
+  status,
+  onRetry,
   view,
   colors,
   fontSizeMultiplier,
@@ -930,7 +951,7 @@ function StorySection({
   displayFont,
 }: StorySectionProps) {
   const { t } = useTranslation();
-  if (isLoading) {
+  if (status === 'loading') {
     return (
       <View
         style={styles.centerContainer}
@@ -942,7 +963,24 @@ function StorySection({
     );
   }
 
-  if (!view) {
+  if (status === 'error') {
+    return (
+      <View style={styles.centerContainer} accessibilityLiveRegion="polite">
+        <Text style={[styles.emptyText, { color: colors.secondaryText }]}>
+          {t('learn.passageLoadFailed')}
+        </Text>
+        <AppButton
+          label={t('common.retry')}
+          variant="secondary"
+          size="md"
+          onPress={onRetry}
+          style={styles.retryButton}
+        />
+      </View>
+    );
+  }
+
+  if (status === 'empty' || !view) {
     return (
       <View style={styles.centerContainer}>
         <Text style={[styles.emptyText, { color: colors.secondaryText }]}>
@@ -1155,6 +1193,10 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     ...typography.body,
+    textAlign: 'center',
+  },
+  retryButton: {
+    marginTop: spacing.lg,
   },
   passageBlockGap: {
     marginTop: spacing.xl,

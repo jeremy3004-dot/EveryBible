@@ -1897,6 +1897,7 @@ export const tr = {
     "playbackSpeed": "Oynatma hızı",
     "fontSizeLabel": "Yazı boyutu",
     "noPassageText": "Bu pasajın metni yok",
+    "passageLoadFailed": "Bu pasaj yüklenemedi.",
     "listenToStoryAgain": "Hikâyeyi tekrar dinle",
     "shareApp": "Uygulamayı paylaş",
   },

@@ -24,12 +24,17 @@ test('LessonDetailScreen uses the active Bible translation for gather scripture 
     'LessonDetailScreen should load gather passage text in the currently selected translation and locale'
   );
 
-  assert.equal(
-    source.includes(
-      'getChapterAudioUrl(currentTranslation, primaryRef.bookId, primaryRef.chapter)'
-    ),
-    true,
-    'LessonDetailScreen should resolve gather lesson audio from the currently selected translation when available'
+  // The candidate order (reading translation, then the BSB the story borrowed)
+  // is behaviour, covered by services/gather/lessonAudioSource.test.ts.
+  assert.match(
+    source,
+    /lessonAudioTranslationCandidates\(\s*passageBlocks,\s*currentTranslation\s*\)/,
+    'LessonDetailScreen should ask the currently selected translation for audio first'
+  );
+  assert.match(
+    source,
+    /resolveLessonAudio\(lesson\.references, audioCandidateKey\.split\('\|'\), getChapterAudioUrl\)/,
+    'LessonDetailScreen should resolve lesson audio through the shared candidate resolver'
   );
 
   assert.equal(

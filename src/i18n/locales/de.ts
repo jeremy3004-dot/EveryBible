@@ -1897,6 +1897,7 @@ export const de = {
     "playbackSpeed": "Wiedergabegeschwindigkeit",
     "fontSizeLabel": "Schriftgröße",
     "noPassageText": "Kein Text für diesen Abschnitt verfügbar",
+    "passageLoadFailed": "Dieser Abschnitt konnte nicht geladen werden.",
     "listenToStoryAgain": "Geschichte erneut anhören",
     "shareApp": "App teilen",
   },

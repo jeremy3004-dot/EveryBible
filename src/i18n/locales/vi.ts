@@ -1897,6 +1897,7 @@ export const vi = {
     "playbackSpeed": "Tốc độ phát lại",
     "fontSizeLabel": "Cỡ chữ",
     "noPassageText": "Chưa có phần chữ cho phân đoạn này",
+    "passageLoadFailed": "Không thể tải phân đoạn này.",
     "listenToStoryAgain": "Nghe lại câu chuyện",
     "shareApp": "Chia sẻ ứng dụng",
   },

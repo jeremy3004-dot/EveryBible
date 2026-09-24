@@ -1617,6 +1617,7 @@ export const te = {
     "playbackSpeed": "ప్లేబ్యాక్ వేగం",
     "fontSizeLabel": "అక్షర పరిమాణం",
     "noPassageText": "ఈ భాగం పాఠ్యం అందుబాటులో లేదు",
+    "passageLoadFailed": "ఈ భాగాన్ని లోడ్ చేయలేకపోయాము.",
     "listenToStoryAgain": "కథను మళ్లీ వినండి",
     "shareApp": "యాప్‌ను పంచుకోండి",
   },

@@ -1617,6 +1617,7 @@ export const mr = {
     "playbackSpeed": "प्लेबॅकचा वेग",
     "fontSizeLabel": "मजकुराचा आकार",
     "noPassageText": "उताऱ्याचा मजकूर उपलब्ध नाही",
+    "passageLoadFailed": "हा उतारा लोड करता आला नाही.",
     "listenToStoryAgain": "कथा पुन्हा ऐका",
     "shareApp": "ॲप शेअर करा",
   },

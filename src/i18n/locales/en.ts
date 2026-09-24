@@ -1994,6 +1994,7 @@ export const en = {
     decreaseTextSize: 'Decrease text size',
     increaseTextSize: 'Increase text size',
     noPassageText: 'No passage text available',
+    passageLoadFailed: "We couldn't load this passage.",
     listenToStoryAgain: 'Listen to the story again',
     shareApp: 'Share app',
   },

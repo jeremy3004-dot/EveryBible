@@ -1617,6 +1617,7 @@ export const bn = {
     "playbackSpeed": "চালানোর গতি",
     "fontSizeLabel": "লেখার আকার",
     "noPassageText": "পাঠ্যাংশের কোনো লেখা নেই",
+    "passageLoadFailed": "এই পাঠ্যাংশটি লোড করা যায়নি।",
     "listenToStoryAgain": "গল্পটি আবার শুনুন",
     "shareApp": "অ্যাপ শেয়ার করুন",
   },

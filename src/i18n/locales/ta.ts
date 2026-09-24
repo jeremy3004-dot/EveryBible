@@ -1617,6 +1617,7 @@ export const ta = {
     "playbackSpeed": "இயக்க வேகம்",
     "fontSizeLabel": "எழுத்து அளவு",
     "noPassageText": "வேதப் பகுதியின் உரை கிடைக்கவில்லை",
+    "passageLoadFailed": "இந்த வேதப் பகுதியை ஏற்ற முடியவில்லை.",
     "listenToStoryAgain": "கதையை மீண்டும் கேளுங்கள்",
     "shareApp": "செயலியைப் பகிர்",
   },

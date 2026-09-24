@@ -1917,6 +1917,7 @@ export const fr = {
     "playbackSpeed": "Vitesse de lecture",
     "fontSizeLabel": "Taille du texte",
     "noPassageText": "Aucun texte de passage disponible",
+    "passageLoadFailed": "Impossible de charger ce passage.",
     "listenToStoryAgain": "Réécouter l’histoire",
     "shareApp": "Partager l’application",
   },

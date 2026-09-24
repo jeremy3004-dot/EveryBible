@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildStoryPassageView } from './lessonPassageModel';
+import { buildStoryPassageView, resolveStoryStatus } from './lessonPassageModel';
 import type { PassageBlock } from '../../services/gather/gatherBibleService';
 import type { Verse } from '../../types';
 
@@ -75,4 +75,21 @@ test('several blocks are headed by reference, and empty ones are left out of the
   );
   assert.equal(view?.verseCount, 4);
   assert.deepEqual(view?.translationNames, ['Berean Standard Bible', 'Hindi New Testament']);
+});
+
+test('a passage that failed to load is an error with a retry, not an empty passage', () => {
+  // Both used to show "No passage text available" with no way to try again.
+  assert.equal(resolveStoryStatus({ isLoading: false, loadFailed: true, view: null }), 'error');
+  assert.equal(resolveStoryStatus({ isLoading: false, loadFailed: false, view: null }), 'empty');
+});
+
+test('a retry in progress shows loading, and loaded verses show the passage', () => {
+  const view = buildStoryPassageView(
+    [{ label: 'Genesis 1', verses: verses('GEN', 1, 1), translationId: 'bsb' }],
+    'bsb',
+    translationName
+  );
+
+  assert.equal(resolveStoryStatus({ isLoading: true, loadFailed: true, view: null }), 'loading');
+  assert.equal(resolveStoryStatus({ isLoading: false, loadFailed: false, view }), 'ready');
 });

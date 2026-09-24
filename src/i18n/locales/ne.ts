@@ -1617,6 +1617,7 @@ export const ne = {
     "playbackSpeed": "बजाउने गति",
     "fontSizeLabel": "पाठको आकार",
     "noPassageText": "यस खण्डको पाठ उपलब्ध छैन",
+    "passageLoadFailed": "यो खण्ड लोड गर्न सकिएन।",
     "listenToStoryAgain": "कथा फेरि सुन्नुहोस्",
     "shareApp": "एप साझा गर्नुहोस्",
   },

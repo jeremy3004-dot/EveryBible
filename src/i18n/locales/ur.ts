@@ -1897,6 +1897,7 @@ export const ur = {
     "playbackSpeed": "پلے بیک کی رفتار",
     "fontSizeLabel": "متن کا سائز",
     "noPassageText": "اس حصے کا متن دستیاب نہیں",
+    "passageLoadFailed": "یہ حصہ لوڈ نہیں ہو سکا۔",
     "listenToStoryAgain": "کہانی دوبارہ سنیں",
     "shareApp": "ایپ شیئر کریں",
   },
