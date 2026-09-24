@@ -143,6 +143,36 @@ test('updating only the title keeps the items and slot', async () => {
   assert.deepEqual(updated.rhythm?.items, created.rhythm?.items);
 });
 
+test('updating only the items or slot keeps the custom title', async () => {
+  const { store } = await loadStore();
+  const created = store.getState().createRhythm({
+    title: 'Dawn',
+    slot: 'morning',
+    planIds: ['plan-a'],
+  });
+  const rhythmId = created.rhythm?.id ?? '';
+
+  const withItems = store.getState().updateRhythm(rhythmId, { planIds: ['plan-b'] });
+  const withSlot = store.getState().updateRhythm(rhythmId, { slot: 'evening' });
+
+  assert.equal(withItems.rhythm?.title, 'Dawn');
+  assert.equal(withSlot.rhythm?.title, 'Dawn');
+  assert.equal(store.getState().getRhythm(rhythmId)?.title, 'Dawn');
+});
+
+test('an explicitly blank title still falls back to the slot title', async () => {
+  const { store } = await loadStore();
+  const created = store.getState().createRhythm({
+    title: 'Dawn',
+    slot: 'morning',
+    planIds: ['plan-a'],
+  });
+
+  const updated = store.getState().updateRhythm(created.rhythm?.id ?? '', { title: '  ' });
+
+  assert.equal(updated.rhythm?.title, 'Morning Rhythm');
+});
+
 test('an untitled rhythm is numbered once every slot title is taken', async () => {
   const { store } = await loadStore();
   for (const [index, title] of [

@@ -127,7 +127,12 @@ export const createRhythmSlice: ReadingPlansSliceCreator<RhythmSlice> = (set, ge
     const slot = input.slot === undefined ? existingRhythm.slot : normalizeRhythmSlot(input.slot);
     const rhythm: ReadingPlanRhythm = {
       ...existingRhythm,
-      title: resolveRhythmTitle(input.title, state.rhythmsById, rhythmId, slot),
+      // An omitted title keeps the rhythm's own, as an omitted slot or item list does; only a
+      // title given blank falls back to a default.
+      title:
+        input.title === undefined
+          ? existingRhythm.title
+          : resolveRhythmTitle(input.title, state.rhythmsById, rhythmId, slot),
       slot,
       items: nextItems,
       updatedAt: new Date().toISOString(),
