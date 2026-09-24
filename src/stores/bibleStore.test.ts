@@ -908,6 +908,62 @@ test('recoverMissingInstalledPack drops the cached database and resets the broke
   assert.equal(useBibleStore.getState().currentTranslation, 'bsb');
 });
 
+test('recoverMissingInstalledPack deletes the damaged pack and its sidecars once it is closed', async () => {
+  withTranslations([
+    makeRuntimeTranslation({
+      id: 'esv1',
+      isDownloaded: true,
+      installState: 'installed',
+      textPackLocalPath: 'file:///packs/esv1.db',
+    }),
+  ]);
+
+  await useBibleStore.getState().recoverMissingInstalledPack('esv1');
+
+  assert.deepEqual(doubles.database.packLifecycle, [
+    'invalidate:file:///packs/esv1.db',
+    'delete:file:///packs/esv1.db',
+  ]);
+});
+
+test('recoverMissingInstalledPack leaves the pack on disk when it could not be closed', async (t) => {
+  t.mock.method(console, 'warn', () => {});
+  withTranslations([
+    makeRuntimeTranslation({
+      id: 'esv1',
+      isDownloaded: true,
+      installState: 'installed',
+      textPackLocalPath: 'file:///packs/esv1.db',
+    }),
+  ]);
+  doubles.database.invalidateError = new Error('database busy');
+
+  await useBibleStore.getState().recoverMissingInstalledPack('esv1');
+
+  assert.deepEqual(doubles.cloud.deletedArtifacts, []);
+  assert.equal(findTranslation('esv1')?.installState, 'remote-only');
+});
+
+test('recoverMissingInstalledPack still resets the translation when the delete fails', async (t) => {
+  const warn = t.mock.method(console, 'warn', () => {});
+  withTranslations([
+    makeRuntimeTranslation({
+      id: 'esv1',
+      isDownloaded: true,
+      installState: 'installed',
+      textPackLocalPath: 'file:///packs/esv1.db',
+    }),
+  ]);
+  doubles.cloud.deleteArtifacts = async () => {
+    throw new Error('disk busy');
+  };
+
+  await useBibleStore.getState().recoverMissingInstalledPack('esv1');
+
+  assert.equal(findTranslation('esv1')?.installState, 'remote-only');
+  assert.equal(warn.mock.callCount(), 1);
+});
+
 test('recoverMissingInstalledPack republishes the repaired list to the audio and timing resolvers', async () => {
   withTranslations([
     makeRuntimeTranslation({
