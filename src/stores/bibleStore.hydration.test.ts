@@ -292,6 +292,21 @@ test('an install the app was killed during is not restored as still in progress'
   assert.equal(findTranslation('esv1')?.textPackLocalPath, 'file:///packs/esv1.db');
 });
 
+test('a progress banner or error from a running download is never written to storage', () => {
+  useBibleStore.setState({
+    downloadProgress: { translationId: 'esv1', progress: 0, status: 'downloading' },
+    error: 'Translation download failed with HTTP 500.',
+  });
+
+  // A killed process must not bring "Loading… 0%" or a stale failure back on the next launch.
+  const persisted = JSON.parse(mmkv.store.get(STORAGE_KEY) ?? '{}') as {
+    state: Record<string, unknown>;
+  };
+  assert.equal('downloadProgress' in persisted.state, false);
+  assert.equal('error' in persisted.state, false);
+  useBibleStore.setState({ downloadProgress: null, error: null });
+});
+
 test('settled install states are restored exactly as persisted', async () => {
   await rehydrateWith({
     translations: [
