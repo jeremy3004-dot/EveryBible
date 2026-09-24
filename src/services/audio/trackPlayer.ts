@@ -215,6 +215,30 @@ function handleAVStatus(status: AVPlaybackStatus): void {
   }
 }
 
+/**
+ * Forgets a sound the native side has released. expo-av releases a sound whose
+ * stream fails mid-chapter: iOS reports an unloaded status carrying the error, and
+ * Android only rejects the next command ("Player does not exist"). Driving it again
+ * can only fail, so the caller has to load the chapter again.
+ */
+function dropReleasedSound(ref: Audio.Sound): void {
+  if (sound !== ref) return;
+  ref.setOnPlaybackStatusUpdate(null);
+  sound = null;
+  activeTrack = null;
+  setState(State.Error);
+}
+
+/** Whether a sound whose command just failed has been released by the native side. */
+async function isSoundReleased(ref: Audio.Sound): Promise<boolean> {
+  try {
+    const status = await ref.getStatusAsync();
+    return !status.isLoaded;
+  } catch {
+    return true;
+  }
+}
+
 async function unloadSound(): Promise<void> {
   if (!sound) return;
 
@@ -268,8 +292,10 @@ async function add(track: Track | Track[]): Promise<number | undefined> {
   if (tracks.length === 0) return;
 
   // Only supports single-track loading; queue managed by audioStore
-  const target = tracks[0];
+  return loadTrack(tracks[0]);
+}
 
+async function loadTrack(target: Track, startPositionMillis = 0): Promise<number | undefined> {
   const requestId = ++loadRequestId;
   await setupPlayer();
   if (requestId !== loadRequestId) return;
@@ -288,11 +314,18 @@ async function add(track: Track | Track[]): Promise<number | undefined> {
         rate: currentRate,
         shouldCorrectPitch: true,
         progressUpdateIntervalMillis: 1000,
+        // A resumed chapter starts where it left off rather than playing its
+        // opening before a seek, and a stream is not fetched from the top.
+        ...(startPositionMillis > 0 ? { positionMillis: startPositionMillis } : {}),
       },
       (status) => {
         // Ignore pending sounds superseded by another load or transport command.
         // A loaded sound keeps reporting after pause/resume while it remains active.
         if (requestId === loadRequestId || (loadedSound !== null && sound === loadedSound)) {
+          if (!status.isLoaded && status.error && loadedSound !== null) {
+            // A loaded sound that reports an error has been released natively.
+            dropReleasedSound(loadedSound);
+          }
           handleAVStatus(status);
         }
       }
@@ -333,6 +366,8 @@ async function play(): Promise<void> {
     setState(State.Playing);
   } catch (error) {
     if (ref !== sound || requestId !== loadRequestId) return;
+    if (await isSoundReleased(ref)) dropReleasedSound(ref);
+    if (requestId !== loadRequestId) return;
     const message = error instanceof Error ? error.message : 'Failed to play';
     emit(Event.PlaybackError, { code: 'PLAY_ERROR', message });
   }
@@ -352,6 +387,8 @@ async function pause(): Promise<void> {
     setState(State.Paused);
   } catch (error) {
     if (ref !== sound || requestId !== loadRequestId) return;
+    if (await isSoundReleased(ref)) dropReleasedSound(ref);
+    if (requestId !== loadRequestId) return;
     const message = error instanceof Error ? error.message : 'Failed to pause';
     emit(Event.PlaybackError, { code: 'PAUSE_ERROR', message });
   }
@@ -367,11 +404,14 @@ async function stop(): Promise<void> {
 }
 
 async function seekTo(positionSeconds: number): Promise<void> {
-  if (!sound) return;
+  const ref = sound;
+  if (!ref) return;
 
   try {
-    await sound.setPositionAsync(positionSeconds * 1000);
+    await ref.setPositionAsync(positionSeconds * 1000);
   } catch (error) {
+    if (ref !== sound) return;
+    if (await isSoundReleased(ref)) dropReleasedSound(ref);
     const message = error instanceof Error ? error.message : 'Failed to seek';
     emit(Event.PlaybackError, { code: 'SEEK_ERROR', message });
   }
@@ -414,6 +454,22 @@ async function getProgress(): Promise<Progress> {
   }
 }
 
+/**
+ * Checks that the active sound still exists natively. Android releases a sound whose
+ * stream fails while buffering without any event, which leaves it "buffering" for
+ * good; a released sound is dropped and reported as an error. Resolves whether the
+ * sound is still usable.
+ */
+async function verifyActiveTrack(): Promise<boolean> {
+  const ref = sound;
+  if (!ref) return false;
+  if (!(await isSoundReleased(ref))) return true;
+  if (ref !== sound) return false;
+  dropReleasedSound(ref);
+  emit(Event.PlaybackError, { code: 'PLAYER_RELEASED', message: 'The player was released' });
+  return false;
+}
+
 async function getActiveTrack(): Promise<Track | null> {
   return activeTrack;
 }
@@ -450,17 +506,22 @@ function addEventListener<E extends Event>(event: E, listener: EventListener<E>)
 // existing AudioPlayer.loadAndPlay usage for a smooth migration)
 // ---------------------------------------------------------------------------
 
-async function loadAndPlay(url: string, rate: PlaybackRate = 1.0): Promise<void> {
+async function loadAndPlay(
+  url: string,
+  rate: PlaybackRate = 1.0,
+  startPositionSeconds = 0
+): Promise<void> {
   currentRate = rate;
   const trackId = `${Date.now()}`;
-  const requestId = await add({ id: trackId, url });
+  const requestId = await loadTrack({ id: trackId, url }, Math.max(0, startPositionSeconds) * 1000);
   if (requestId === undefined || requestId !== loadRequestId) return;
   // Explicitly apply rate + pitch correction via setRateAsync after load.
   // createAsync's `rate` option doesn't reliably enable pitch correction on iOS;
   // setRateAsync(rate, true) is the authoritative call that prevents the chipmunk
-  // effect when advancing chapters at non-1x speed.
-  if (sound && rate !== 1.0) {
-    await sound.setRateAsync(rate, true);
+  // effect when advancing chapters at non-1x speed. `currentRate`, not `rate`: a
+  // speed picked while the chapter was loading belongs to this chapter too.
+  if (sound && (currentRate !== 1.0 || rate !== 1.0)) {
+    await sound.setRateAsync(currentRate, true);
   }
   if (requestId !== loadRequestId) return;
   await play();
@@ -481,6 +542,7 @@ const TrackPlayer = {
   getPlaybackState,
   getProgress,
   getActiveTrack,
+  verifyActiveTrack,
   reset,
   destroy,
   addEventListener,

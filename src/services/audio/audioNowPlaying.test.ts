@@ -214,6 +214,8 @@ test('every supported remote command reaches the listener', async () => {
     'seek-forward',
     'seek-backward',
     'seek-position',
+    'toggle',
+    'interruption-ended',
   ]) {
     emitters[0].emit(EVENT_NAME, { command });
   }
@@ -221,7 +223,18 @@ test('every supported remote command reaches the listener', async () => {
 
   assert.deepEqual(
     received.map((entry) => entry.command),
-    ['play', 'pause', 'stop', 'next', 'previous', 'seek-forward', 'seek-backward', 'seek-position']
+    [
+      'play',
+      'pause',
+      'stop',
+      'next',
+      'previous',
+      'seek-forward',
+      'seek-backward',
+      'seek-position',
+      'toggle',
+      'interruption-ended',
+    ]
   );
 });
 
