@@ -793,3 +793,54 @@ test('a finished plan is listed under Completed with its date and chip, opens it
   assert.deepEqual(service.unenrolled, [GOSPELS]);
   assert.ok(view.getByRole('header', { name: t('readingPlans.noCompletedPlans') }));
 });
+
+// ---- Large text ------------------------------------------------------------------
+
+/** The column that holds a row's title. */
+const titleColumnOf = (row: ReactTestInstance, title: string) =>
+  hostParent(within(row).getByText(title));
+
+test('at large text a browse row puts its Enrolled chip or Start button under the title', async () => {
+  await seed(progressRow(PSALMS, { current_day: 3 }));
+  harness.setFontScale(2);
+  const view = await renderHome();
+  await openTab(view, 'readingPlans.findPlans');
+
+  const psalms = view.getByRole('button', { name: new RegExp(`^${titleOf(PSALMS)}, `) });
+  assert.ok(within(titleColumnOf(psalms, titleOf(PSALMS))).getByText(t('readingPlans.enrolled')));
+  const gospels = view.getByRole('button', { name: new RegExp(`^${titleOf(GOSPELS)}, `) });
+  assert.ok(
+    within(titleColumnOf(gospels, titleOf(GOSPELS))).getByRole('button', {
+      name: `${t('readingPlans.start')} — ${titleOf(GOSPELS)}`,
+    })
+  );
+});
+
+test('at large text a completed row puts its chip under the title, and its date may wrap', async () => {
+  await seed(
+    progressRow(GOSPELS, { is_completed: true, completed_at: '2026-09-20T10:00:00.000Z' })
+  );
+  harness.setFontScale(2);
+  const view = await renderHome();
+  await openTab(view, 'readingPlans.completed');
+
+  const row = view.getByRole('button', { name: titleOf(GOSPELS) });
+  const column = titleColumnOf(row, titleOf(GOSPELS));
+  assert.ok(within(column).getByText(t('readingPlans.completed')));
+  assert.equal(within(column).getByText('Sep 20, 2026').props.numberOfLines, 2);
+});
+
+test('plan metadata that appears nowhere else may take two lines', async () => {
+  await seed(
+    progressRow(PSALMS, { current_day: 3, started_at: '2026-09-22T09:00:00.000Z' }),
+    progressRow(KATHISMA, { started_at: '2026-09-20T09:00:00.000Z' })
+  );
+  const view = await renderHome();
+
+  const dayOf = view.getByText(t('readingPlans.dayOf', { current: 3, total: 30 }));
+  assert.equal(dayOf.props.numberOfLines, 2);
+  const sessions = `${t('readingPlans.morningLabel')} ${t('readingPlans.sessionNext')} • ${t('readingPlans.eveningLabel')} ${t('readingPlans.sessionUpcoming')}`;
+  assert.equal(view.getByText(sessions).props.numberOfLines, 2);
+  const eyebrow = view.getByText(`${t('readingPlans.activeCount', { count: 2 })}`);
+  assert.equal(eyebrow.props.numberOfLines, 2);
+});

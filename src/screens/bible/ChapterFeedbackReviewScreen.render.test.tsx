@@ -1,7 +1,7 @@
 import test, { afterEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { create } from 'zustand';
-import { installRenderHarness, within } from '../../testing/render';
+import { flattenStyle, hostAncestors, installRenderHarness, within } from '../../testing/render';
 import { mockBarrel, mockModule, mockPackage, sourcePath } from '../../testing/mockModules';
 import type { ChapterFeedbackReviewItem } from '../../services/feedback/chapterFeedbackReviewService';
 
@@ -216,6 +216,22 @@ test('the list is for reading, with no review walkthrough to start', async () =>
 
   assert.equal(view.queryByText('Start review'), null);
   assert.equal(visibleSheet(view), null);
+});
+
+test('each source label may wrap under its verdict instead of truncating beside it', async () => {
+  const view = await renderReview();
+
+  const verdicts = [
+    ...view.queryAllByText(t('bible.chapterFeedbackThumbsUp')),
+    ...view.queryAllByText(t('bible.chapterFeedbackThumbsDown')),
+  ];
+  assert.ok(verdicts.length > 0);
+  for (const verdict of verdicts) {
+    const row = hostAncestors(verdict)[1];
+    assert.equal(flattenStyle(row.props.style)?.flexWrap, 'wrap');
+    const [, source] = within(row).queryAllByType('Text');
+    assert.equal(source.props.numberOfLines, 2);
+  }
 });
 
 test('a concern is marked addressed from its card with a written reason, saved on the server', async () => {

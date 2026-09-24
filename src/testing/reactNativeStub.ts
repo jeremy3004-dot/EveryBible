@@ -20,6 +20,8 @@ export interface ReactNativeStubOptions {
   isRTL?: boolean;
   appState?: 'active' | 'background' | 'inactive';
   nativeModules?: Record<string, unknown>;
+  /** OS text scale that `useWindowDimensions()` / `Dimensions.get()` report; read on every call. */
+  fontScale?: () => number;
 }
 
 type Listener = (...args: unknown[]) => void;
@@ -61,6 +63,7 @@ export function createReactNativeStub(options: ReactNativeStubOptions = {}) {
   const version = options.version ?? (os === 'ios' ? '18.0' : 34);
   const width = options.width ?? 390;
   const height = options.height ?? 844;
+  const fontScale = options.fontScale ?? (() => 1);
 
   const appStateRegistry = createRegistry();
   const keyboardRegistry = createRegistry();
@@ -98,7 +101,7 @@ export function createReactNativeStub(options: ReactNativeStubOptions = {}) {
   };
 
   const Dimensions = {
-    get: (_dimension: 'window' | 'screen') => ({ width, height, scale: 3, fontScale: 1 }),
+    get: (_dimension: 'window' | 'screen') => ({ width, height, scale: 3, fontScale: fontScale() }),
     addEventListener: (event: string, listener: Listener) =>
       dimensionsRegistry.add(event, listener),
     emit: (payload: unknown) => dimensionsRegistry.emit('change', payload),
@@ -191,7 +194,7 @@ export function createReactNativeStub(options: ReactNativeStubOptions = {}) {
     NativeModules: options.nativeModules ?? {},
     StyleSheet,
     PixelRatio,
-    useWindowDimensions: () => ({ width, height, scale: 3, fontScale: 1 }),
+    useWindowDimensions: () => ({ width, height, scale: 3, fontScale: fontScale() }),
     DeviceEventEmitter: new NativeEventEmitter(),
     /** Recorded side effects for assertions. */
     __recorded: { alerts, openedUrls, rtlCalls },

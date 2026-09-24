@@ -245,7 +245,7 @@ function SoftChip({ label, colors }: { label: string; colors: ThemeColors }) {
     <View style={[chipStyles.chip, { backgroundColor: colors.successSoft }]}>
       <Text
         style={[typography.monoSmall, displayFont.regular, { color: colors.onSuccessSoft }]}
-        numberOfLines={1}
+        numberOfLines={2}
       >
         {label}
       </Text>
@@ -259,6 +259,14 @@ const chipStyles = StyleSheet.create({
     paddingVertical: 5,
     paddingHorizontal: 9,
     flexShrink: 0,
+  },
+});
+
+// At large text a row's trailing chip or Start button squeezed its title to a word
+// per line; it moves under the title and meta instead, left-aligned with them.
+const belowTitleStyles = StyleSheet.create({
+  trailing: {
+    alignSelf: 'flex-start',
   },
 });
 
@@ -358,7 +366,7 @@ function MyPlansSection({
               <Text style={styles.cardTitle} numberOfLines={2}>
                 {t(plan.title_key as Parameters<typeof t>[0])}
               </Text>
-              <Text style={[styles.cardEyebrow, displayFont.regular]} numberOfLines={1}>
+              <Text style={[styles.cardEyebrow, displayFont.regular]} numberOfLines={2}>
                 {t('readingPlans.dayOf', {
                   current: currentDay,
                   total: plan.duration_days,
@@ -369,7 +377,7 @@ function MyPlansSection({
                   <Check size={12} color={colors.success} strokeWidth={2} />
                   <Text
                     style={[styles.cardEyebrow, displayFont.regular, styles.sessionSummary]}
-                    numberOfLines={1}
+                    numberOfLines={2}
                   >
                     {sessionStatus}
                   </Text>
@@ -690,6 +698,23 @@ function FindPlansSection({ allPlans, userProgress, onPlanPress, colors }: FindP
       metaParts.push(cadence);
     }
 
+    const trailing = isEnrolled ? (
+      <SoftChip label={t('readingPlans.enrolled')} colors={colors} />
+    ) : (
+      <PressableScale
+        pressEffect="translate"
+        hitSlop={12}
+        onPress={() => onPlanPress(plan.id)}
+        accessibilityRole="button"
+        accessibilityLabel={`${t('readingPlans.start')} — ${title}`}
+        style={[styles.startButton, { borderColor: colors.accentPrimary }]}
+      >
+        <Text style={[styles.startButtonText, { color: colors.accentPrimary }]}>
+          {t('readingPlans.start')}
+        </Text>
+      </PressableScale>
+    );
+
     return (
       <PressableScale
         key={plan.id}
@@ -711,23 +736,9 @@ function FindPlansSection({ allPlans, userProgress, onPlanPress, colors }: FindP
           <Text style={[styles.metaEyebrow, displayFont.regular]} numberOfLines={2}>
             {metaParts.join(' · ')}
           </Text>
+          {isLargeText ? <View style={belowTitleStyles.trailing}>{trailing}</View> : null}
         </View>
-        {isEnrolled ? (
-          <SoftChip label={t('readingPlans.enrolled')} colors={colors} />
-        ) : (
-          <PressableScale
-            pressEffect="translate"
-            hitSlop={12}
-            onPress={() => onPlanPress(plan.id)}
-            accessibilityRole="button"
-            accessibilityLabel={`${t('readingPlans.start')} — ${title}`}
-            style={[styles.startButton, { borderColor: colors.accentPrimary }]}
-          >
-            <Text style={[styles.startButtonText, { color: colors.accentPrimary }]}>
-              {t('readingPlans.start')}
-            </Text>
-          </PressableScale>
-        )}
+        {isLargeText ? null : trailing}
       </PressableScale>
     );
   };
@@ -949,6 +960,7 @@ function CompletedPlansSection({
 }: CompletedPlansSectionProps) {
   const { t, i18n } = useTranslation();
   const displayFont = useDisplayFont();
+  const { isLargeText } = useLargeText();
   const styles = createCompletedStyles(colors);
 
   if (completedPlans.length === 0) {
@@ -991,12 +1003,19 @@ function CompletedPlansSection({
                     {title}
                   </Text>
                   {completedDate ? (
-                    <Text style={[styles.rowEyebrow, displayFont.regular]} numberOfLines={1}>
+                    <Text style={[styles.rowEyebrow, displayFont.regular]} numberOfLines={2}>
                       {completedDate}
                     </Text>
                   ) : null}
+                  {isLargeText ? (
+                    <View style={belowTitleStyles.trailing}>
+                      <SoftChip label={t('readingPlans.completed')} colors={colors} />
+                    </View>
+                  ) : null}
                 </View>
-                <SoftChip label={t('readingPlans.completed')} colors={colors} />
+                {isLargeText ? null : (
+                  <SoftChip label={t('readingPlans.completed')} colors={colors} />
+                )}
               </PressableScale>
             </SwipeablePlanRow>
           );
@@ -1308,7 +1327,7 @@ export function PlansHomeScreen() {
       >
         <View style={styles.header}>
           {headerEyebrow ? (
-            <Text style={[styles.headerEyebrow, displayFont.regular]} numberOfLines={1}>
+            <Text style={[styles.headerEyebrow, displayFont.regular]} numberOfLines={2}>
               {headerEyebrow}
             </Text>
           ) : null}

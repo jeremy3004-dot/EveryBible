@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import type { ComponentProps } from 'react';
 import { act } from 'react-test-renderer';
 import { mockBarrel } from '../../testing/mockModules';
-import { installRenderHarness } from '../../testing/render';
+import { flattenStyle, installRenderHarness } from '../../testing/render';
 
 const harness = installRenderHarness(mock, { os: 'android' });
 mockBarrel(mock, 'utils/index.ts', { real: ['hexWithAlpha'] });
@@ -81,4 +81,29 @@ test('the sheet is drawn inline, not in a modal, so the Bible stays tappable aro
     'touches outside the sheet reach the Bible'
   );
   assert.ok(view.getByRole('button', { name: 'Close verse actions' }));
+});
+
+test('a wrapped sheet title stays clear of the close button pinned beside it', async () => {
+  const { AnnotationActionSheet } = await import('./AnnotationActionSheet');
+  const view = await harness.render(
+    <AnnotationActionSheet
+      {...sheetProps(() => {}, { referenceLabel: '1 Thessalonians 5:16-18' })}
+    />
+  );
+
+  const close = view.getByRole('button', { name: 'Close verse actions' });
+  const closeStyle =
+    flattenStyle(
+      typeof close.props.style === 'function'
+        ? close.props.style({ pressed: false })
+        : close.props.style
+    ) ?? {};
+  assert.equal(closeStyle.position, 'absolute');
+  const title = view.getByText(`${t('annotations.selected')}: 1 Thessalonians 5:16-18`);
+  const titleStyle = flattenStyle(title.props.style) ?? {};
+  const inset = Number(titleStyle.paddingHorizontal ?? titleStyle.paddingRight ?? 0);
+  assert.ok(
+    inset >= Number(closeStyle.width) + Number(closeStyle.right ?? 0),
+    `a ${inset}pt inset keeps a two-line title out from under the ${closeStyle.width}pt button`
+  );
 });

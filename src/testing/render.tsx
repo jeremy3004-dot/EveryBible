@@ -267,6 +267,12 @@ export interface RenderHarness {
   insets: Insets;
   /** Read by reanimated's `useReducedMotion` and `AccessibilityInfo`. Reset after each test. */
   setReduceMotion: (value: boolean) => void;
+  /**
+   * OS text scale (`useWindowDimensions().fontScale`, so `useLargeText`). Set it
+   * before `render`; a change does not re-render what is already mounted. Reset
+   * to 1 after each test.
+   */
+  setFontScale: (value: number) => void;
   render: (element: ReactElement, options?: RenderOptions) => Promise<RenderResult>;
 }
 
@@ -282,11 +288,13 @@ export function installRenderHarness(
   const width = options.width ?? 390;
   const height = options.height ?? 844;
   const motion: ReanimatedFakeState = { reduceMotion: false, animations: [] };
+  const text = { fontScale: 1 };
   const rn = createReactNativeRenderStub({
     os: options.os ?? 'ios',
     width,
     height,
     reduceMotion: () => motion.reduceMotion,
+    fontScale: () => text.fontScale,
   });
   const insets: Insets = { top: 47, right: 0, bottom: 34, left: 0, ...options.insets };
   const haptics: HapticsCall[] = [];
@@ -330,6 +338,7 @@ export function installRenderHarness(
     refCalls.length = 0;
     motion.animations.length = 0;
     motion.reduceMotion = false;
+    text.fontScale = 1;
     rn.__recorded.alerts.length = 0;
     rn.__recorded.announcements.length = 0;
     rn.__recorded.shares.length = 0;
@@ -411,6 +420,9 @@ export function installRenderHarness(
     insets,
     setReduceMotion: (value) => {
       motion.reduceMotion = value;
+    },
+    setFontScale: (value) => {
+      text.fontScale = value;
     },
     render,
   };

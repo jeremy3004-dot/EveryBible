@@ -249,3 +249,19 @@ test('imperative ref calls are recorded against their host element', async () =>
   );
   assert.deepEqual(harness.refCalls[0].props.data, [], 'the call carries the host props');
 });
+
+test('setFontScale drives the OS text scale that useLargeText reads, and resets after each test', async () => {
+  const { useLargeText } = await import('../hooks/useLargeText');
+  function Probe() {
+    const { fontScale, rowDirection } = useLargeText();
+    return <Text>{`${fontScale} ${rowDirection}`}</Text>;
+  }
+
+  assert.ok((await harness.render(<Probe />)).getByText('1 row'));
+  harness.setFontScale(2);
+  assert.ok((await harness.render(<Probe />)).getByText('2 column'));
+});
+
+test('the text scale is back to the default size in the next test', async () => {
+  assert.equal(harness.rn.useWindowDimensions().fontScale, 1);
+});

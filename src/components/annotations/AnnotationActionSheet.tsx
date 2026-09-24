@@ -366,6 +366,8 @@ export function AnnotationActionSheet(props: AnnotationActionSheetProps) {
   return <AnnotationActionSheetContent key={resetKey} {...props} />;
 }
 
+const CLOSE_BUTTON_SIZE = 32;
+
 const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
@@ -400,12 +402,15 @@ const styles = StyleSheet.create({
   title: {
     ...typography.label,
     textAlign: 'center',
+    // Clears the close button pinned to the right (and mirrors it on the left so
+    // the text stays centred): a title that wraps at large text ran under it.
+    paddingHorizontal: CLOSE_BUTTON_SIZE + spacing.sm,
   },
   closeButton: {
     position: 'absolute',
     right: 0,
-    width: 32,
-    height: 32,
+    width: CLOSE_BUTTON_SIZE,
+    height: CLOSE_BUTTON_SIZE,
     borderRadius: 16,
     borderWidth: 1,
     alignItems: 'center',

@@ -341,6 +341,28 @@ test('an option row subtitle wraps to two lines instead of truncating beside its
   assert.equal(subtitle.props.numberOfLines, 2);
 });
 
+/** The column that holds a row's title and subtitle. */
+const copyColumnOf = (view: RenderResult, subtitle: string) =>
+  hostAncestors(view.getByText(subtitle))[0];
+
+test('at large text a Bible row puts its status chip under the name, keeping the chevron beside it', async () => {
+  harness.setFontScale(2);
+  const view = await fakes.renderFlow();
+
+  const copy = copyColumnOf(view, 'Berean Standard Bible (BSB) · Text');
+  assert.ok(within(copy).getByText(t('onboarding.recommendedBadge')));
+  const row = view.getByRole('button', { name: /^English, Berean Standard Bible/ });
+  assert.equal(within(copy).queryAllByType('LucideIcon').length, 0);
+  assert.ok(within(row).queryAllByType('LucideIcon').length > 0, 'the chevron stays trailing');
+});
+
+test('at default size a Bible row keeps its status chip beside the name', async () => {
+  const view = await fakes.renderFlow();
+
+  const copy = copyColumnOf(view, 'Berean Standard Bible (BSB) · Text');
+  assert.equal(within(copy).queryByText(t('onboarding.recommendedBadge')), null);
+});
+
 test('with no footer on first run, the list only reserves the keyboard plus breathing room', async () => {
   const { spacing } = await design();
   const view = await fakes.renderFlow();
@@ -408,6 +430,16 @@ test('the device nation is suggested in an accent-rule card with a Suggested chi
     view.getAllByRole('button', { name: /languages?$/ }).map((row) => row.props.accessibilityLabel),
     ['India, 2 languages', 'Nepal, 1 language']
   );
+});
+
+test('at large text the suggested nation wraps its subtitle and drops its chip under the name', async () => {
+  harness.setFontScale(2);
+  const view = await renderSettings();
+
+  const card = view.getByRole('button', { name: 'United States, 2 languages, Suggested' });
+  const subtitle = within(card).getByText('2 languages');
+  assert.equal(subtitle.props.numberOfLines, 2);
+  assert.ok(within(hostAncestors(subtitle)[0]).getByText('Suggested'));
 });
 
 test('the footer fades the list out and its primary action names the chosen nation', async () => {

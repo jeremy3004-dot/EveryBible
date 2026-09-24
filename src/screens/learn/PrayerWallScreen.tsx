@@ -611,7 +611,8 @@ export function PrayerWallScreen() {
           >
             {t('prayer.title')}
           </Text>
-          <Text style={[styles.headerSubtitle, { color: colors.secondaryText }]} numberOfLines={1}>
+          {/* Two lines: the group name is not repeated anywhere else on the wall. */}
+          <Text style={[styles.headerSubtitle, { color: colors.secondaryText }]} numberOfLines={2}>
             {groupName}
           </Text>
         </View>
@@ -811,6 +812,7 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     ...typography.micro,
     marginTop: 1,
+    textAlign: 'center',
   },
   headerRight: {
     minWidth: layout.minTouchTarget,
