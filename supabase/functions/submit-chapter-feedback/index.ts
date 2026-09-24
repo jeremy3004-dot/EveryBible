@@ -218,6 +218,8 @@ const sanitizePathSegment = (value: string): string =>
     .replace(/[^a-z0-9_-]+/g, '-')
     .replace(/^-+|-+$/g, '') || 'unknown';
 
+const PREUPLOADED_AUDIO_SEGMENT = /^[A-Za-z0-9_-][A-Za-z0-9._-]*$/;
+
 const buildStoredAudioPath = (body: ChapterFeedbackRequest, userId: string | null): string => {
   const createdAt = Date.now();
   const randomSuffix = crypto.randomUUID();
@@ -410,6 +412,18 @@ const validateRequest = (
       }
 
       if (!preuploadedAudioPath.startsWith(`${userId}/`)) {
+        return { error: 'audio response path is invalid for this user' };
+      }
+
+      // Allowlist the rest: plain segments that cannot start with a dot, no empty segments,
+      // no percent-encoding (a storage URL could decode %2e%2e into a parent segment), and an
+      // .m4a object, which is all the server-built paths ever are.
+      const [, ...segments] = preuploadedAudioPath.split('/');
+      if (
+        segments.length === 0 ||
+        !segments.every((segment) => PREUPLOADED_AUDIO_SEGMENT.test(segment)) ||
+        !preuploadedAudioPath.endsWith('.m4a')
+      ) {
         return { error: 'audio response path is invalid for this user' };
       }
 

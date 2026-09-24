@@ -383,6 +383,14 @@ test('a preuploaded path outside the caller’s folder, or with traversal, is re
     'other-user/clip.m4a',
     'user-1/../other-user/clip.m4a',
     'user-1\\..\\x.m4a',
+    // Encoded or empty segments a storage URL or normaliser could resolve outside the folder.
+    'user-1/%2e%2e/other-user/clip.m4a',
+    'user-1//other-user/clip.m4a',
+    'user-1/./clip.m4a',
+    'user-1/.hidden.m4a',
+    'user-1/clip.m4a?download=other',
+    'user-1/clip.mp3',
+    'user-1/',
   ]) {
     const h = endpoint({ userId: 'user-1' });
     const response = await h.send(
