@@ -15,7 +15,7 @@ import { useTranslation } from 'react-i18next';
 import { formatListeningTime } from '../../i18n/interfaceFormatting';
 import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
 import { useDisplayFont, useTabBarHeight } from '../../hooks';
-import { useProgressStore } from '../../stores/progressStore';
+import { selectCurrentStreakDays, useProgressStore } from '../../stores/progressStore';
 import { useAuthStore } from '../../stores/authStore';
 import { getBookById, getTranslatedBookName } from '../../constants/books';
 import type { MoreStackParamList } from '../../navigation/types';
@@ -87,7 +87,7 @@ export function ReadingActivityScreen() {
   // The More tab's capsule floats over this screen, so the scroll has to clear it.
   const { contentClearance } = useTabBarHeight();
   const chaptersRead = useProgressStore((state) => state.chaptersRead);
-  const streakDays = useProgressStore((state) => state.streakDays);
+  const streakDays = useProgressStore(selectCurrentStreakDays);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const preferencesUpdatedAt = useAuthStore((state) => state.preferencesUpdatedAt);
   const [viewDate, setViewDate] = useState(() => new Date());
