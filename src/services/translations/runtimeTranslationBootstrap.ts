@@ -58,6 +58,13 @@ export async function ensureRuntimeCatalogLoaded(): Promise<void> {
   }
 
   await runtimeCatalogHydrationPromise;
+
+  // The refresh reports failure through its result rather than by throwing, and offline it
+  // fails at once instead of timing out. Callers (onboarding's "can't reach the Bible library"
+  // card and its retry) can only tell the catalog is missing if this rejects.
+  if (!hasHydratedRuntimeCatalogThisLaunch) {
+    throw new Error('[Translations] The runtime translation catalog could not be loaded');
+  }
 }
 
 export async function reconcilePrimaryTranslationPreference(): Promise<void> {

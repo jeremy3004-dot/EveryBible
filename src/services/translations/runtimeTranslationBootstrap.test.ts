@@ -240,13 +240,23 @@ test('bootstrapRuntimeTranslations survives a catalog fetch that throws', async 
 
 // ─── ensureRuntimeCatalogLoaded (order-sensitive: latches on success) ─────────
 
+test('ensureRuntimeCatalogLoaded rejects when the catalog cannot be fetched', async () => {
+  reset();
+  const { ensureRuntimeCatalogLoaded } = await loadModule();
+  // Offline, the request fails at once rather than timing out. Resolving here told onboarding
+  // the library had loaded, so its "can't reach the Bible library" card never appeared.
+  listResult = async () => ({ success: false, error: 'offline' });
+
+  await assert.rejects(ensureRuntimeCatalogLoaded());
+});
+
 test('ensureRuntimeCatalogLoaded retries after a refresh that produced no rows', async () => {
   reset();
   const { ensureRuntimeCatalogLoaded } = await loadModule();
   listResult = async () => ({ success: true, data: [] });
 
-  await ensureRuntimeCatalogLoaded();
-  await ensureRuntimeCatalogLoaded();
+  await assert.rejects(ensureRuntimeCatalogLoaded());
+  await assert.rejects(ensureRuntimeCatalogLoaded());
 
   assert.equal(
     listCallCount,
@@ -265,7 +275,7 @@ test('a launch with persisted runtime rows still refreshes the catalog once', as
   ];
   listResult = async () => ({ success: true, data: [] });
 
-  await ensureRuntimeCatalogLoaded();
+  await assert.rejects(ensureRuntimeCatalogLoaded());
 
   assert.equal(listCallCount, 1, 'persisted runtime rows must not short-circuit the refresh');
 });
@@ -285,7 +295,7 @@ test('concurrent ensureRuntimeCatalogLoaded callers share one in-flight refresh'
   const first = ensureRuntimeCatalogLoaded();
   const second = ensureRuntimeCatalogLoaded();
   release();
-  await Promise.all([first, second]);
+  await Promise.allSettled([first, second]);
 
   assert.equal(listCallCount, 1, 'two cold-start callers must not fire two catalog fetches');
 });
@@ -297,8 +307,8 @@ test('a rejected in-flight refresh still clears the shared promise for the next 
     throw new Error('transport exploded');
   };
 
-  await ensureRuntimeCatalogLoaded();
-  await ensureRuntimeCatalogLoaded();
+  await assert.rejects(ensureRuntimeCatalogLoaded());
+  await assert.rejects(ensureRuntimeCatalogLoaded());
 
   assert.equal(listCallCount, 2, 'a failed attempt must not wedge the single-flight gate shut');
 });
