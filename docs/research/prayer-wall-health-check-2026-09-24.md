@@ -71,4 +71,6 @@ Each **Fixed** item was fixed on this branch, test first.
 1. Apply `supabase/migrations/20260924042617_harden_prayer_wall.sql`. It changes no data
    (0 rows). Its header lists the post-apply checks.
 2. Before `studyGroupsSync` is turned on, add reporting, blocking and a content filter
-   (PW5), and settle PW9 and PW10.
+   (PW5), and settle PW9 and PW10. Reporting, blocking and the filter are now built; see
+   `docs/research/prayer-wall-moderation-2026-09-24.md` for what they do and what the owner
+   still has to do.
