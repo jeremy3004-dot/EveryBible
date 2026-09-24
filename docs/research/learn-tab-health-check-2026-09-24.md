@@ -19,14 +19,22 @@ Branch base: origin/main 195717e1. Nothing here was checked on a device or simul
 
 New data-integrity test `src/data/learnScripture.integrity.test.ts` checks every Foundations, Wisdom and Four Fields reference (every chapter:verse endpoint) against `assets/databases/bible-bsb-v2.db`, and checks each Wisdom `lessonCount` against the lessons it actually contains. **All current data passes.** Every reference resolves in the shipped BSB.
 
+## Fixed later on main (2026-09-24)
+
+These were open when this report was written. Each fix was checked in the code on
+`origin/main`; none was checked on a device.
+
+| Sev  | Finding                                                                                                    | Fixed in   | What main does now                                                                                                                                                                                                                          |
+| ---- | ---------------------------------------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| High | 19 of the 29 Four Fields key verses were NIV wording, which needs a copyright notice.                      | `8dbbad0c` | `fourFieldsCourses.ts` quotes the bundled BSB. `learnScripture.integrity.test.ts` compares every quotation with `bible-bsb-v2.db`, so NIV wording cannot return. Neither NIV phrase quoted in the original finding appears in the file now. |
+| Med  | LessonBottomSheet's Share audio, Share text and Share link all shared the same `title - reference` string. | `965bb5d1` | `services/gather/lessonShareService.ts`: audio shares the chapter recording (hidden when there is none), text shares the passage with its translation, link shares the reader deep link. Tested in `lessonShareService.test.ts`.            |
+| Low  | A passage that failed to load looked the same as an empty one and had no retry.                            | `36db50dc` | LessonDetail shows `learn.passageLoadFailed` (all 21 locales) with a Retry button.                                                                                                                                                          |
+| Low  | When the story fell back to BSB, audio still used the reading translation, so Play stayed disabled.        | `36db50dc` | `services/gather/lessonAudioSource.ts` tries the reading translation, then BSB. Tested in `lessonAudioSource.test.ts`.                                                                                                                      |
+| Low  | FoundationDetail counted stored ids no longer in the catalog, so it could show 11/10.                      | `4485038e` | `gatherPathModel.countCompletedLessons` counts from the catalog side. FoundationDetail, GatherScreen and Home's Gather card all use it.                                                                                                     |
+
 ## Not fixed (needs a decision or out of scope)
 
-- **High (licensing, latent):** 19 of the 29 Four Fields key verses in `fourFieldsCourses.ts` are NIV wording, not BSB (for example Col 3:16 "Let the message of Christ dwell among you richly", 1 Cor 14:26 "brothers and sisters"). Quoting NIV requires its copyright notice. Before anything renders this content, replace the text with BSB or read it from the bundled DB.
 - **Med (latent):** The Four Fields course content (section text, takeaways, discussion questions, practice activities, key-verse references) is English only and has no translation keys. It is rendered only by GroupDetail and GroupSession, and no screen navigates to `GroupList`, so users cannot reach it today. GroupSession also builds colours by concatenating hex strings (`colors.warning + '15'`).
-- **Med:** LessonBottomSheet's "Share audio", "Share text" and "Share link" all share the same `title - reference` string. None of them shares audio, the passage text or a link.
-- **Low:** A passage that fails to load shows the same "No passage text available" message as a passage that is genuinely empty, with no retry. The BSB fallback makes this rare.
-- **Low:** When the story falls back to BSB, audio still resolves for the reading translation, so Play stays disabled for a New Testament-only translation on an Old Testament lesson.
-- **Low:** FoundationDetail's `completed/total` counts every stored id, including ids no longer in the catalog, so it can show 11/10 (GatherScreen caps its count). Count only the lessons in the catalog.
 - **Info:** `FELLOWSHIP_QUESTIONS` and `APPLICATION_QUESTIONS` in `gatherFoundations.ts` are English copies used only by tests. The screen uses the `gather.*Q*` keys.
 - **Info:** No deep links go into lessons. `linkingConfig` covers only `bible/…` and `reset-password`. An unknown `lessonId`/`foundationId` shows a not-found state with a working Back button.
 
