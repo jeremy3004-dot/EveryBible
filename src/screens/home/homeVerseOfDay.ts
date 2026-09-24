@@ -74,6 +74,11 @@ export interface VerseOfDayRefresh {
   addAppStateListener: (listener: (nextAppState: string) => void) => { remove: () => void };
   runAfterInteractions: (task: () => void) => { cancel: () => void };
   msUntilNextLocalMidnight: () => number;
+  /**
+   * Called whenever the verse refreshes because time moved on (a return to the
+   * foreground, a local midnight), so the date, greeting and ledger follow it.
+   */
+  onClockAdvance?: () => void;
 }
 
 /**
@@ -84,6 +89,7 @@ export interface VerseOfDayRefresh {
 export function startVerseOfDayRefresh(refresh: VerseOfDayRefresh): () => void {
   const { midnightTimerRef, appStateRef } = refresh;
   const refreshVerseOfDay = () => {
+    refresh.onClockAdvance?.();
     void refresh.load({ silent: true });
   };
 

@@ -180,6 +180,108 @@ test('the hero shows the rotating daily verse and its reference, not a fixed pas
   assert.equal(next.queryByText(JOHN_3_16), null);
 });
 
+test('returning to Home the next evening shows the new date and an evening greeting', async () => {
+  const view = await renderHome();
+  assert.ok(heroes(view).screen.getByText('Thursday · September 17'));
+  assert.ok(heroes(view).screen.getByText(/^Good morning/));
+
+  harness.rn.AppState.emit('background');
+  setToday(new Date(2026, 8, 18, 20, 30));
+  harness.rn.AppState.emit('active');
+  await view.flush();
+  await view.flush();
+
+  const { screen } = heroes(view);
+  assert.ok(screen.getByText('Friday · September 18'));
+  assert.ok(screen.getByText(/^Good evening/));
+  assert.equal(screen.queryByText(/^Good morning/), null);
+});
+
+test('Scripture borrowed from the bundled BSB is attributed to it on the hero and in the share', async () => {
+  bibleStore.setState({ currentTranslation: 'npiulb' });
+  dailyScripture = verseOf({ fallbackTranslationId: 'bsb' });
+  const view = await renderHome();
+  const { screen, share } = heroes(view);
+
+  assert.ok(screen.getByText(verseEyebrow('John 3:16 · BSB')));
+  assert.ok(share.getByText(verseEyebrow('John 3:16 · BSB')));
+  // Latin text keeps the Latin reading face even under a Devanagari translation.
+  const { getReadingFontFamily } = await import('../../design/fonts');
+  assert.equal(
+    flattenStyle(screen.getByText(JOHN_3_16).props.style)?.fontFamily,
+    getReadingFontFamily('en')
+  );
+
+  await view.press(view.getByRole('button', { name: t('groups.share') }));
+  sharing.available = false;
+  await view.press(view.getByRole('button', { name: t('groups.share') }));
+  assert.deepEqual(harness.rn.__recorded.shares.at(-1), {
+    message: `${t('home.verseOfTheDay')}\nJohn 3:16 · BSB\n\n${JOHN_3_16}`,
+  });
+});
+
+test('the whole daily passage is drawn, never clipped mid-sentence, at default and large text', async () => {
+  // Real BSB text: today's passage (Romans 12:12) and the longest in the roster.
+  const { DatabaseSync } = await import('node:sqlite');
+  const { fileURLToPath, URL: NodeURL } = await import('node:url');
+  const database = new DatabaseSync(
+    fileURLToPath(new NodeURL('../../../assets/databases/bible-bsb-v2.db', import.meta.url)),
+    { readOnly: true }
+  );
+  const passage = (bookId: string, chapter: number, verse: number, verseEnd: number) =>
+    (
+      database
+        .prepare(
+          "SELECT text FROM verses WHERE translation_id = 'bsb' AND book_id = ? AND chapter = ? AND verse BETWEEN ? AND ? ORDER BY verse"
+        )
+        .all(bookId, chapter, verse, verseEnd) as { text: string }[]
+    )
+      .map((row) => row.text.trim())
+      .join(' ');
+  const cases = [
+    { bookId: 'ROM', chapter: 12, verse: 12, verseEnd: 12 },
+    { bookId: 'DEU', chapter: 30, verse: 19, verseEnd: 20 },
+  ];
+  try {
+    for (const scale of [1, 2]) {
+      for (const readingSize of ['medium', 'large'] as const) {
+        for (const reference of cases) {
+          const text = passage(
+            reference.bookId,
+            reference.chapter,
+            reference.verse,
+            reference.verseEnd
+          );
+          assert.match(text, /[.!?]['’"”]?$/);
+          dailyScripture = verseOf({ ...reference, text });
+          harness.setFontScale(scale);
+          harness.authStore.getState().setPreferences({ fontSize: readingSize });
+          const view = await renderHome();
+
+          const verse = heroes(view).screen.getByText(text);
+          assert.equal(verse.props.numberOfLines, undefined);
+          for (const host of [verse, ...hostAncestors(verse)]) {
+            const style = flattenStyle(host.props.style) ?? {};
+            assert.equal(style.height, undefined, `${host.type} fixes a height`);
+            assert.equal(style.maxHeight, undefined, `${host.type} caps its height`);
+          }
+          await view.unmount();
+        }
+      }
+    }
+  } finally {
+    database.close();
+    harness.authStore.getState().setPreferences({ fontSize: 'medium' });
+  }
+});
+
+test("the reader's own text carries no attribution", async () => {
+  const view = await renderHome();
+
+  assert.ok(heroes(view).screen.getByText(verseEyebrow('John 3:16')));
+  assert.equal(view.queryByText(/· BSB$/), null);
+});
+
 test('the shared verse image carries only the photograph and the Scripture', async () => {
   const view = await renderHome();
   const { screen, share } = heroes(view);
