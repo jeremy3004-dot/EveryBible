@@ -348,3 +348,26 @@ test('while sign-out is running, Sign out is announced busy and cannot start a s
     finishSignOut();
   });
 });
+
+test('an account photo that fails to load (offline, expired link) falls back to the initials', async () => {
+  harness.authStore.setState({
+    isAuthenticated: true,
+    user: {
+      uid: 'user-1',
+      displayName: 'Ruth Moab',
+      email: 'ruth@example.com',
+      photoURL: 'https://lh3.googleusercontent.test/expired',
+    },
+    preferencesUpdatedAt: null,
+  });
+  const view = await renderMore();
+  const card = view.getByRole('button', { name: 'Ruth Moab' });
+  const [photo] = within(card).queryAllByType('Image');
+  assert.ok(photo, 'the photo is shown while it can load');
+  assert.equal(within(card).queryByText('RM'), null);
+
+  await view.fire(photo, 'onError', { nativeEvent: { error: 'HTTP 403' } });
+
+  assert.equal(within(card).queryAllByType('Image').length, 0);
+  assert.ok(within(card).getByText('RM'));
+});

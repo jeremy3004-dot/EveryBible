@@ -117,6 +117,10 @@ export function MoreScreen() {
     : t('more.guestUser');
   const email = isAuthenticated && accountName && user?.email ? user.email : null;
   const initials = useMemo(() => initialsFrom(displayName), [displayName]);
+  // A photo that cannot load (offline, an expired provider link) would leave an empty
+  // circle; the initials stand in. Keyed by URL, so a new photo is tried again.
+  const [failedPhotoUrl, setFailedPhotoUrl] = useState<string | null>(null);
+  const photoUrl = user?.photoURL && user.photoURL !== failedPhotoUrl ? user.photoURL : null;
 
   const syncStatus = describeSyncStatus({
     isAuthenticated,
@@ -275,9 +279,10 @@ export function MoreScreen() {
           accessibilityLabel={displayName}
         >
           <View style={styles.accountRow}>
-            {user?.photoURL ? (
+            {photoUrl ? (
               <Image
-                source={{ uri: user.photoURL }}
+                source={{ uri: photoUrl }}
+                onError={() => setFailedPhotoUrl(photoUrl)}
                 style={styles.avatar}
                 accessibilityIgnoresInvertColors
                 accessible={false}

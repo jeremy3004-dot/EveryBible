@@ -208,7 +208,12 @@ export function ProfileScreen() {
           >
             <View style={styles.avatar}>
               {avatarUri ? (
-                <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
+                <Image
+                  source={{ uri: avatarUri }}
+                  // Offline or an expired provider link: the placeholder, not an empty circle.
+                  onError={() => setAvatarUri(null)}
+                  style={styles.avatarImage}
+                />
               ) : (
                 <Ionicons name="person" size={48} color={colors.secondaryText} />
               )}

@@ -387,6 +387,18 @@ test('a photo picker that fails to open tells the reader instead of failing sile
   assert.equal(picker.launches, 2);
 });
 
+test('an account photo that fails to load falls back to the placeholder instead of an empty circle', async () => {
+  signIn();
+  const view = await renderScreen();
+  const [photo] = view.queryAllByType('Image');
+  assert.ok(photo);
+
+  await view.fire(photo, 'onError', { nativeEvent: { error: 'HTTP 403' } });
+
+  assert.equal(avatarImageUri(view), null);
+  assert.ok(view.queryAllByType('Icon').some((icon) => icon.props.name === 'person'));
+});
+
 test('reading activity opens from the profile', async () => {
   const view = await renderScreen();
 
