@@ -158,7 +158,7 @@ interface ServerProgressRow {
  * as "in" and the locked row as "stored". `nowIso` stands in for now().
  * `rules`: 'live' is 20260924051658; 'proposed' adds the same-day tie rules of
  * 20260924111958 (applied live 2026-09-24); 'clock' adds the clock bound of
- * 20260924122045 (not applied yet): no date past UTC current_date + 1 and no
+ * 20260924122045 (applied live 2026-09-24): no date past UTC current_date + 1 and no
  * chapter time past now() + 1 day, on either side.
  */
 function serverMergeUserProgress(
