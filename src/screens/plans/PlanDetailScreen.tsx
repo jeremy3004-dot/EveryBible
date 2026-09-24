@@ -7,6 +7,8 @@ import {
   Image,
   type ColorValue,
   type LayoutChangeEvent,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   StyleSheet,
   Text,
   View,
@@ -16,7 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { FlashList } from '@shopify/flash-list';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut, useReducedMotion } from 'react-native-reanimated';
 import { BookOpen, Check, Ellipsis, Play } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 
@@ -73,6 +75,10 @@ import type {
 import type { PlanDetailScreenProps } from '../../navigation/types';
 import { getTranslatedBookName } from '../../constants';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
+import {
+  getPlanDetailCompactHeaderHeight,
+  isPlanDetailCompactHeaderVisible,
+} from './planDetailHeaderModel';
 import { lightHaptic, successHaptic } from '../../utils';
 
 // ---------------------------------------------------------------------------
@@ -896,6 +902,7 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
   const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   const tabBar = useTabBarHeight();
+  const reduceMotion = useReducedMotion();
   const progress = useReadingPlansStore((state) => state.progressByPlanId[planId] ?? null);
   const getPlanDayResume = useReadingPlansStore((state) => state.getPlanDayResume);
 
@@ -1313,6 +1320,20 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
     [colors.background]
   );
   const controlTop = Math.max(insets.top + spacing.sm, COVER_CONTROL_TOP);
+  const compactHeaderHeight = getPlanDetailCompactHeaderHeight(insets.top);
+  const [isCompactHeaderVisible, setIsCompactHeaderVisible] = useState(false);
+  const handleListScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const nextVisible = isPlanDetailCompactHeaderVisible({
+        scrollOffsetY: event.nativeEvent.contentOffset.y,
+        coverHeight: COVER_HEIGHT,
+        heroTextBottom: HERO_TEXT_BOTTOM,
+        headerHeight: compactHeaderHeight,
+      });
+      setIsCompactHeaderVisible((current) => (current === nextVisible ? current : nextVisible));
+    },
+    [compactHeaderHeight]
+  );
   const listContentStyle = React.useMemo(
     () => ({ paddingBottom: tabBar.contentClearance }),
     [tabBar.contentClearance]
@@ -1526,7 +1547,51 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
         showsVerticalScrollIndicator={false}
         estimatedItemSize={48}
         extraData={colors}
+        onScroll={handleListScroll}
+        scrollEventThrottle={16}
       />
+
+      {/* Once the hero has scrolled away, this keeps the status bar backed and the
+          page's title and back control in reach at any scroll offset. */}
+      {isCompactHeaderVisible ? (
+        <Animated.View
+          entering={reduceMotion ? undefined : FadeIn.duration(motion.duration.fast)}
+          exiting={reduceMotion ? undefined : FadeOut.duration(motion.duration.fast)}
+          style={[
+            styles.compactHeader,
+            {
+              height: compactHeaderHeight,
+              paddingTop: insets.top + spacing.sm,
+              backgroundColor: colors.background,
+              borderBottomColor: colors.borderStrong,
+            },
+          ]}
+        >
+          <IconButton
+            icon={BackArrowIcon}
+            variant="paper"
+            onPress={() => navigation.goBack()}
+            accessibilityLabel={t('common.back')}
+          />
+          <Text
+            accessibilityRole="header"
+            style={[styles.compactHeaderTitle, displayFont.bold, { color: colors.primaryText }]}
+            numberOfLines={1}
+          >
+            {planTitle}
+          </Text>
+          {isEnrolled ? (
+            <IconButton
+              icon={Ellipsis}
+              variant="paper"
+              onPress={handleLeavePlan}
+              accessibilityLabel={t('readingPlans.planOptions')}
+            />
+          ) : (
+            <View style={styles.compactHeaderSpacer} />
+          )}
+        </Animated.View>
+      ) : null}
     </View>
   );
 }
@@ -1602,6 +1667,27 @@ const styles = StyleSheet.create({
   coverTitle: {
     ...typography.screenTitle,
     color: ON_PHOTO_TEXT,
+  },
+
+  compactHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: layout.screenPadding,
+    paddingBottom: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  compactHeaderTitle: {
+    ...typography.rowTitle,
+    flex: 1,
+    textAlign: 'center',
+  },
+  compactHeaderSpacer: {
+    width: layout.iconButton,
   },
 
   // Content column
