@@ -81,11 +81,11 @@ const isStoredSession = (value: unknown): value is Session => {
 };
 
 /**
- * The session auth-js persisted, read without refreshing it, when its access
- * token has expired. Reading through the client's own storage and key keeps
- * this in step with auth-js. Null when there is none or it cannot be read.
+ * The session auth-js persisted, read without refreshing it and without waiting for
+ * auth-js's session lock. Reading through the client's own storage and key keeps this
+ * in step with auth-js. Null when there is none or it cannot be read.
  */
-const readExpiredStoredSession = async (): Promise<Session | null> => {
+export const readStoredSession = async (): Promise<Session | null> => {
   try {
     const { storage, storageKey } = supabase.auth as unknown as {
       storage?: { getItem: (key: string) => Promise<string | null> | string | null };
@@ -96,14 +96,20 @@ const readExpiredStoredSession = async (): Promise<Session | null> => {
     }
     const raw = await storage.getItem(storageKey);
     const stored: unknown = raw ? JSON.parse(raw) : null;
-    if (!isStoredSession(stored)) {
-      return null;
-    }
-    const expired = (stored.expires_at ?? 0) * 1000 - Date.now() < TOKEN_EXPIRY_MARGIN_MS;
-    return expired ? stored : null;
+    return isStoredSession(stored) ? stored : null;
   } catch {
     return null;
   }
+};
+
+/** Whether auth-js would refresh this session's access token before using it. */
+export const isAccessTokenExpired = (session: Pick<Session, 'expires_at'>): boolean =>
+  (session.expires_at ?? 0) * 1000 - Date.now() < TOKEN_EXPIRY_MARGIN_MS;
+
+/** The stored session when its access token has expired; null otherwise. */
+const readExpiredStoredSession = async (): Promise<Session | null> => {
+  const stored = await readStoredSession();
+  return stored && isAccessTokenExpired(stored) ? stored : null;
 };
 
 // The crash queue is loaded only when there is a failure to report, and reporting never

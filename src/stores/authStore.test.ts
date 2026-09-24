@@ -788,15 +788,14 @@ for (const key of Object.keys(OTHER_PREFERENCE_VALUES) as (keyof UserPreferences
 
 test('signing out deactivates the push token before the session is torn down', async () => {
   useAuthStore.getState().setUser(appUser('user-a'));
-  authHandlers.signOut = async () => {
-    events.push('supabase.signOut');
-    return { error: null };
+  authHandlers._removeSession = async () => {
+    events.push('supabase.endSession');
   };
 
   await useAuthStore.getState().signOut();
 
   assert.deepEqual(deactivatedTokensFor, ['user-a']);
-  assert.deepEqual(events.slice(0, 2), ['deactivatePushToken', 'supabase.signOut']);
+  assert.deepEqual(events.slice(0, 2), ['deactivatePushToken', 'supabase.endSession']);
 });
 
 test('signing out clears every per-user store and the local preferences', async () => {
@@ -837,8 +836,9 @@ test('signing out deletes the translator review passcode from the OS keystore', 
 
 test('signing out still clears local data when Supabase is unreachable', async () => {
   useAuthStore.getState().setUser(appUser('user-a'));
+  supabaseFake.auth.setSession(makeFakeSession({ user: makeFakeUser({ id: 'user-a' }) }));
   seedPerUserData();
-  authHandlers.signOut = async () => {
+  authHandlers.adminSignOut = async () => {
     throw new Error('Network request failed');
   };
 

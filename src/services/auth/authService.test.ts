@@ -882,60 +882,139 @@ test('signOut succeeds without a backend because there is no session to end', as
   assert.deepEqual(supabaseFake.authCalls, []);
 });
 
-test('signOut ends the Supabase session', async () => {
+// auth-js's own signOut() runs inside its session lock and refreshes an expired token
+// first; offline or on a dead connection that refresh retries for about 25 s, and a
+// signOut() abandoned by a timeout would still act later on whatever session is stored
+// by then (revoking and removing the next account's). So sign-out never calls it: it
+// ends the session on this device at once and revokes it on the server with the stored
+// access token, a request that cannot touch the stored session.
+const authMethods = () => supabaseFake.authCalls.map((call) => call.method);
+
+test('signOut ends the session on this device and revokes it on the server with its access token', async () => {
   supabaseFake.auth.setSession(makeFakeSession({ user: signedInUser() }));
 
   assert.deepEqual(await authService.signOut(), { success: true });
-  assert.equal(supabaseFake.authCalls[0]?.method, 'signOut');
+
   assert.equal(supabaseFake.auth.session, null);
+  const revoke = supabaseFake.authCalls.find((call) => call.method === 'admin.signOut');
+  assert.deepEqual(revoke?.args, ['access-token', 'global']);
+  assert.equal(authMethods().includes('signOut'), false, 'never the lock-bound auth-js signOut');
+  assert.equal(authMethods().includes('getSession'), false, 'nothing that could refresh');
 });
 
-test('signOut surfaces the Supabase error message', async () => {
-  authHandlers.signOut = async () => ({ error: { message: 'session already revoked' } });
-
-  assert.deepEqual(await authService.signOut(), {
-    success: false,
-    error: 'session already revoked',
-  });
-});
-
-test('signOut surfaces a thrown transport error', async () => {
-  authHandlers.signOut = async () => {
-    throw new Error('offline');
-  };
-
-  assert.deepEqual(await authService.signOut(), { success: false, error: 'offline' });
-});
-
-// auth-js keeps the session on disk when it cannot reach the server to end it
-// (offline, or an expired token it cannot refresh first). Its next token
-// refresh would then sign the reader back in after they had signed out.
-test('signOut ends the session on this device when the server cannot be reached', async () => {
+test('signOut ends the session on this device before it waits for the server', async () => {
   supabaseFake.auth.setSession(makeFakeSession({ user: signedInUser() }));
-  authHandlers.signOut = async () => ({
-    error: { name: 'AuthRetryableFetchError', message: 'Failed to fetch', status: 0 },
-  });
-
-  const result = await authService.signOut();
-
-  assert.equal(result.success, false);
-  assert.equal(supabaseFake.auth.session, null);
-});
-
-test('signOut ends the session on this device when the sign-out request throws', async () => {
-  supabaseFake.auth.setSession(makeFakeSession({ user: signedInUser() }));
-  authHandlers.signOut = async () => {
-    throw new Error('offline');
+  let sessionWhenRevoking: unknown = 'not asked';
+  authHandlers.adminSignOut = async () => {
+    sessionWhenRevoking = supabaseFake.auth.session;
+    return { data: null, error: null };
   };
 
   await authService.signOut();
 
+  assert.equal(sessionWhenRevoking, null);
+});
+
+test('signOut never waits for the server longer than the time limit', async (t) => {
+  supabaseFake.auth.setSession(makeFakeSession({ user: signedInUser() }));
+  authHandlers.adminSignOut = () => new Promise(() => {});
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+
+  let result: unknown = null;
+  const signingOut = authService.signOut().then((value) => {
+    result = value;
+  });
+  for (let i = 0; i < 20 && !authMethods().includes('admin.signOut'); i += 1) {
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+  assert.equal(supabaseFake.auth.session, null, 'signed out on this device before any wait');
+  t.mock.timers.tick(authService.AUTH_SIGN_OUT_TIMEOUT_MS - 1);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(result, null);
+
+  t.mock.timers.tick(1);
+  await signingOut;
+
+  assert.equal((result as { success: boolean } | null)?.success, false);
+});
+
+test('the sign-out time limit keeps sign-out within a few seconds', () => {
+  assert.ok(authService.AUTH_SIGN_OUT_TIMEOUT_MS <= 3_000);
+});
+
+test('signOut with an expired access token ends the session on this device without a refresh', async () => {
+  supabaseFake.auth.setSession(
+    makeFakeSession({ user: signedInUser(), expires_at: Math.floor(Date.now() / 1000) - 60 })
+  );
+
+  assert.deepEqual(await authService.signOut(), { success: true });
+
+  assert.equal(supabaseFake.auth.session, null);
+  assert.deepEqual(
+    authMethods().filter((method) => method !== '_removeSession'),
+    [],
+    'an expired token cannot revoke anything without a refresh, which is what hangs'
+  );
+});
+
+test('signOut fences the refresh token so a refresh already under way cannot save the session again', async () => {
+  const { createRefreshTokenFencedFetch } = await import('../supabase/authRequestFence');
+  supabaseFake.auth.setSession(
+    makeFakeSession({ user: signedInUser(), refresh_token: 'refresh-of-signed-out-reader' })
+  );
+  let reachedNetwork = false;
+  const fencedFetch = createRefreshTokenFencedFetch(async () => {
+    reachedNetwork = true;
+    return new Response('{}');
+  });
+
+  await authService.signOut();
+
+  await assert.rejects(
+    fencedFetch('https://project.supabase.co/auth/v1/token?grant_type=refresh_token', {
+      method: 'POST',
+      body: JSON.stringify({ refresh_token: 'refresh-of-signed-out-reader' }),
+    })
+  );
+  assert.equal(reachedNetwork, false);
+});
+
+test('signOut surfaces the server error message after ending the session on this device', async () => {
+  supabaseFake.auth.setSession(makeFakeSession({ user: signedInUser() }));
+  authHandlers.adminSignOut = async () => ({
+    data: null,
+    error: { message: 'server unavailable', status: 500 },
+  });
+
+  assert.deepEqual(await authService.signOut(), {
+    success: false,
+    error: 'server unavailable',
+  });
   assert.equal(supabaseFake.auth.session, null);
 });
 
-// Offline, auth-js refreshes the expired token before its sign-out request and
-// retries that refresh for about 25 s. The network call cannot succeed anyway, so
-// an offline sign-out ends the session on this device straight away.
+for (const status of [401, 403, 404]) {
+  test(`a session the server already ended (${status}) counts as signed out`, async () => {
+    supabaseFake.auth.setSession(makeFakeSession({ user: signedInUser() }));
+    authHandlers.adminSignOut = async () => ({
+      data: null,
+      error: { name: 'AuthApiError', message: 'invalid JWT', status },
+    });
+
+    assert.deepEqual(await authService.signOut(), { success: true });
+  });
+}
+
+test('signOut surfaces a thrown transport error after ending the session on this device', async () => {
+  supabaseFake.auth.setSession(makeFakeSession({ user: signedInUser() }));
+  authHandlers.adminSignOut = async () => {
+    throw new Error('offline');
+  };
+
+  assert.deepEqual(await authService.signOut(), { success: false, error: 'offline' });
+  assert.equal(supabaseFake.auth.session, null);
+});
+
 test('an offline signOut ends the session on this device without contacting the server', async () => {
   connectivity.isConnected = false;
   supabaseFake.auth.setSession(makeFakeSession({ user: signedInUser() }));
@@ -944,11 +1023,7 @@ test('an offline signOut ends the session on this device without contacting the 
 
   assert.deepEqual(result, { success: true });
   assert.equal(supabaseFake.auth.session, null);
-  assert.equal(
-    supabaseFake.authCalls.some((call) => call.method === 'signOut'),
-    false,
-    'the network sign-out is skipped'
-  );
+  assert.equal(authMethods().includes('admin.signOut'), false, 'the network sign-out is skipped');
 });
 
 test('signOut still asks the server when the connectivity check fails', async () => {
@@ -956,15 +1031,21 @@ test('signOut still asks the server when the connectivity check fails', async ()
   supabaseFake.auth.setSession(makeFakeSession({ user: signedInUser() }));
 
   assert.deepEqual(await authService.signOut(), { success: true });
-  assert.equal(supabaseFake.authCalls[0]?.method, 'signOut');
+  assert.equal(authMethods().includes('admin.signOut'), true);
 });
 
 test('signOut reports a generic message when something non-Error is thrown', async () => {
-  authHandlers.signOut = async () => {
+  supabaseFake.auth.setSession(makeFakeSession({ user: signedInUser() }));
+  authHandlers.adminSignOut = async () => {
     throw 'boom';
   };
 
   assert.deepEqual(await authService.signOut(), { success: false, error: 'Unknown error' });
+});
+
+test('signOut with no stored session just clears this device', async () => {
+  assert.deepEqual(await authService.signOut(), { success: true });
+  assert.equal(authMethods().includes('admin.signOut'), false);
 });
 
 test('resetPassword refuses to send mail when the backend is not configured', async () => {

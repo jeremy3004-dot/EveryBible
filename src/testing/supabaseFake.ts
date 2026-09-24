@@ -126,6 +126,11 @@ export interface SupabaseAuthHandlers {
   stopAutoRefresh: () => Promise<void>;
   /** auth-js's local-only session removal (not public API): storage cleared, SIGNED_OUT emitted. */
   _removeSession: () => Promise<void>;
+  /** `auth.admin.signOut(jwt, scope)`: the logout request alone; no session state changes. */
+  adminSignOut: (
+    jwt: string,
+    scope?: string
+  ) => Promise<{ data: null; error: SupabaseAuthErrorLike | null }>;
 }
 
 const FILTER_METHODS = [
@@ -319,6 +324,7 @@ export function createSupabaseFake() {
       fake.auth.setSession(null);
       emitAuth('SIGNED_OUT', null);
     },
+    adminSignOut: async () => ({ data: null, error: null }),
   };
 
   const defaultAuthHandlers = { ...authHandlers };
@@ -340,6 +346,14 @@ export function createSupabaseFake() {
       }
       if (property === 'storage') {
         return authStorage;
+      }
+      if (property === 'admin') {
+        return {
+          signOut: (...args: unknown[]) => {
+            recordAuth('admin.signOut', args);
+            return fake.auth.handlers.adminSignOut(...(args as [string, string?]));
+          },
+        };
       }
       if (property === 'onAuthStateChange') {
         return (listener: AuthListener) => {

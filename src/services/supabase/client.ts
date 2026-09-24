@@ -5,6 +5,7 @@ import { publicRuntimeConfig } from '../startup/publicRuntimeConfig';
 import { createAuthSessionStorage, type AuthSessionStorage } from './authSessionStorage';
 import { createLazyClientAccessor } from './lazyClient';
 import { createRequestTimeoutFetch } from './requestTimeoutFetch';
+import { createRefreshTokenFencedFetch } from './authRequestFence';
 import { installSecureRandomValues } from './secureRandomValues';
 
 const SUPABASE_URL = publicRuntimeConfig.EXPO_PUBLIC_SUPABASE_URL || '';
@@ -84,8 +85,11 @@ const getSupabaseClient = createLazyClientAccessor({
         flowType: 'pkce',
       },
       global: {
-        // Read global fetch per call so RN's (and any test's) fetch is used.
-        fetch: createRequestTimeoutFetch((input, init) => globalThis.fetch(input, init)),
+        // Read global fetch per call so RN's (and any test's) fetch is used. The fence
+        // sits inside the timeout so both can abort a request (see authRequestFence.ts).
+        fetch: createRequestTimeoutFetch(
+          createRefreshTokenFencedFetch((input, init) => globalThis.fetch(input, init))
+        ),
       },
     });
   },
