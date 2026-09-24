@@ -6,7 +6,9 @@ import {
   completeRecurringDay,
   completeSession,
   createProgressRecord,
+  getRejoinNotBeforeMs,
   replaceProgressCollections,
+  withoutKey,
 } from './planProgressModel';
 import type { ReadingPlansSliceCreator } from './readingPlansSliceTypes';
 
@@ -33,11 +35,18 @@ export const createProgressSlice: ReadingPlansSliceCreator<ProgressSlice> = (set
     // its start date and completed days. The sync sends the leave first
     // (which deletes that row) and pushes this enrolment after it, so the
     // re-join must start strictly after the leave or the leave would end it.
-    const leftAt = Date.parse(get().pendingUnenrollAtByPlanId[planId] ?? '');
-    const progress = createProgressRecord(planId, Number.isFinite(leftAt) ? leftAt + 1 : undefined);
+    // A leave the server already confirmed is judged as it stored it, on its
+    // clock: on a phone running slow, now can still be at or before it.
+    const { pendingUnenrollAtByPlanId, serverLeftAtByPlanId } = get();
+    const progress = createProgressRecord(
+      planId,
+      getRejoinNotBeforeMs(pendingUnenrollAtByPlanId[planId], serverLeftAtByPlanId[planId])
+    );
     set((state) => ({
       ...state,
       ...applyProgressUpdate(state, progress),
+      // Used up: the start now carries it.
+      serverLeftAtByPlanId: withoutKey(state.serverLeftAtByPlanId, planId),
     }));
     return progress;
   },

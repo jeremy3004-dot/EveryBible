@@ -77,9 +77,11 @@ export function endPlansLeftElsewhere(unenrollments: Map<string, string> | null)
 }
 
 /**
- * Keeps a re-join made after this phone's own leave from comparing as ended against that leave
- * as the server stored it (see rebaseRejoinPastStoredLeave). Call inside the identity boundary,
- * as the leave is confirmed.
+ * Keeps a re-join after this phone's own leave from comparing as ended against that leave as
+ * the server stored it. A re-join already made is moved past it (see
+ * rebaseRejoinPastStoredLeave); with none yet, the stored leave is remembered for the re-join
+ * to start after (see serverLeftAtByPlanId). Call inside the identity boundary, as the leave is
+ * confirmed.
  */
 export function keepRejoinPastStoredLeave(
   planId: string,
@@ -88,7 +90,11 @@ export function keepRejoinPastStoredLeave(
 ): void {
   const store = readingPlansStore.getState();
   const live = store.getProgress(planId);
-  const moved = live ? rebaseRejoinPastStoredLeave(live, leftAt, storedLeftAt) : null;
+  if (!live) {
+    store.rememberServerLeftAt(planId, storedLeftAt);
+    return;
+  }
+  const moved = rebaseRejoinPastStoredLeave(live, leftAt, storedLeftAt);
   if (moved) {
     store.upsertProgress(moved);
   }

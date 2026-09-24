@@ -16,6 +16,7 @@ type EnrollmentSlice = Pick<
   | 'addPendingUnenroll'
   | 'clearPendingUnenroll'
   | 'clearPendingUnenrolls'
+  | 'rememberServerLeftAt'
   | 'endPlanLeftElsewhere'
   | 'assignGroupPlan'
   | 'getGroupPlans'
@@ -63,6 +64,8 @@ export const createEnrollmentSlice: ReadingPlansSliceCreator<EnrollmentSlice> = 
         ...state.pendingUnenrollAtByPlanId,
         [planId]: new Date().toISOString(),
       },
+      // This leave supersedes an earlier one's stored time; its own replaces it once confirmed.
+      serverLeftAtByPlanId: withoutKey(state.serverLeftAtByPlanId, planId),
     }));
   },
 
@@ -94,6 +97,13 @@ export const createEnrollmentSlice: ReadingPlansSliceCreator<EnrollmentSlice> = 
       ...state,
       pendingUnenrollPlanIds: [],
       pendingUnenrollAtByPlanId: {},
+    }));
+  },
+
+  rememberServerLeftAt: (planId, storedLeftAt) => {
+    set((state) => ({
+      ...state,
+      serverLeftAtByPlanId: { ...state.serverLeftAtByPlanId, [planId]: storedLeftAt },
     }));
   },
 

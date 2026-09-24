@@ -40,8 +40,8 @@ const asRecordOfLists = <T>(value: unknown): Record<string, T[]> =>
     ])
   );
 
-// Persisted before leave times existed (or corrupted): keep only real timestamps.
-const normalizePendingUnenrollTimes = (value: unknown): Record<string, string> =>
+// Persisted before these leave times existed (or corrupted): keep only real timestamps.
+const normalizeLeaveTimes = (value: unknown): Record<string, string> =>
   value && typeof value === 'object' && !Array.isArray(value)
     ? Object.fromEntries(
         Object.entries(value as Record<string, unknown>).filter(
@@ -93,7 +93,10 @@ export const lazyDefaultStorage: StateStorage = {
   },
 };
 
-/** The persisted fields, in the key order every installed blob was written with. */
+/**
+ * The persisted fields, in the key order every installed blob was written with; fields added
+ * since go last, so an older blob keeps its bytes up to them.
+ */
 export const partializeReadingPlans = (
   state: ReadingPlansStoreState
 ): ReadingPlansPersistedState => ({
@@ -107,6 +110,7 @@ export const partializeReadingPlans = (
   rhythmOrder: state.rhythmOrder,
   pendingUnenrollPlanIds: state.pendingUnenrollPlanIds,
   pendingUnenrollAtByPlanId: state.pendingUnenrollAtByPlanId,
+  serverLeftAtByPlanId: state.serverLeftAtByPlanId,
 });
 
 /** Folds a stored blob into the fresh state, sanitising each field so corrupt data cannot throw. */
@@ -131,7 +135,8 @@ export const mergePersistedReadingPlans = (
       groupPlansByGroupId: (value) => asRecordOfLists<GroupReadingPlan>(value),
     }),
     progressByPlanId: normalizeProgressByPlanId(persisted.progressByPlanId),
-    pendingUnenrollAtByPlanId: normalizePendingUnenrollTimes(persisted.pendingUnenrollAtByPlanId),
+    pendingUnenrollAtByPlanId: normalizeLeaveTimes(persisted.pendingUnenrollAtByPlanId),
+    serverLeftAtByPlanId: normalizeLeaveTimes(persisted.serverLeftAtByPlanId),
     rhythmsById: normalizePersistedRhythmsById(
       persisted.rhythmsById as ReadingPlansPersistedState['rhythmsById'] | undefined
     ),

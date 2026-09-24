@@ -6,6 +6,10 @@
  * captured from the store before its actions were split into slice modules; any drift in the
  * persisted keys, their order, the partialize selection, the record shapes the actions build or
  * the merge/sanitize path fails here before it can reach a user's storage.
+ *
+ * serverLeftAtByPlanId was added after build 448 as the last persisted key: the blob now is
+ * that build's bytes with the one key appended, and a build 448 blob hydrates to itself plus an
+ * empty map.
  */
 import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
@@ -30,8 +34,13 @@ function createMemoryStorage(seed: Record<string, string> = {}) {
 
 mock.timers.enable({ apis: ['Date'], now: START });
 
-const PERSISTED_BLOB =
+// What build 448 writes for the representative state (before serverLeftAtByPlanId).
+const BUILD_448_BLOB =
   '{"state":{"enrolledPlanIds":["psalms-30-days","bible-in-1-year","sermon-on-the-mount-7-days","kathisma-weekly"],"savedPlanIds":["proverbs-31-days","gospels-30-days"],"completedPlanIds":["sermon-on-the-mount-7-days"],"progressByPlanId":{"psalms-30-days":{"id":"reading-plan-progress-psalms-30-days","plan_id":"psalms-30-days","started_at":"2026-09-01T12:00:00.000Z","completed_entries":{"1":"2026-09-01T12:00:01.000Z"},"completed_sessions":{},"current_day":2,"current_session":null,"is_completed":false,"completed_at":null,"synced_at":"2026-09-01T12:00:01.000Z"},"bible-in-1-year":{"id":"reading-plan-progress-bible-in-1-year","plan_id":"bible-in-1-year","started_at":"2026-09-01T12:00:02.000Z","completed_entries":{},"completed_sessions":{"1:morning":"2026-09-01T12:00:03.000Z"},"current_day":1,"current_session":"evening","is_completed":false,"completed_at":null,"synced_at":"2026-09-01T12:00:03.000Z"},"sermon-on-the-mount-7-days":{"id":"reading-plan-progress-sermon-on-the-mount-7-days","plan_id":"sermon-on-the-mount-7-days","started_at":"2026-09-01T12:00:04.000Z","completed_entries":{"1":"2026-09-01T12:00:05.000Z","2":"2026-09-01T12:00:06.000Z","3":"2026-09-01T12:00:07.000Z","4":"2026-09-01T12:00:08.000Z","5":"2026-09-01T12:00:09.000Z","6":"2026-09-01T12:00:10.000Z","7":"2026-09-01T12:00:11.000Z"},"completed_sessions":{},"current_day":8,"current_session":null,"is_completed":true,"completed_at":"2026-09-01T12:00:11.000Z","synced_at":"2026-09-01T12:00:11.000Z"},"kathisma-weekly":{"id":"reading-plan-progress-kathisma-weekly","plan_id":"kathisma-weekly","started_at":"2026-09-01T12:00:12.000Z","completed_entries":{"2026-09-01":"2026-09-01T12:00:13.000Z"},"completed_sessions":{},"current_day":3,"current_session":null,"is_completed":false,"completed_at":null,"synced_at":"2026-09-01T12:00:13.000Z"}},"planDayResumeByKey":{"psalms-30-days:2":{"bookId":"PSA","chapter":2}},"groupPlansByGroupId":{"group-1":[{"id":"group-plan-group-1-psalms-30-days-1788264014000","group_id":"group-1","plan_id":"psalms-30-days","assigned_by":"user-a","started_at":"2026-09-01T12:00:14.000Z"}]},"rhythmsById":{"reading-plan-rhythm-1788264015000-1":{"id":"reading-plan-rhythm-1788264015000-1","title":"Dawn","slot":"morning","items":[{"id":"item-plan","type":"plan","planId":"psalms-30-days"},{"id":"item-passage","type":"passage","title":"JHN 1-3","bookId":"JHN","startChapter":1,"endChapter":3}],"createdAt":"2026-09-01T12:00:15.000Z","updatedAt":"2026-09-01T12:00:19.000Z"},"reading-plan-rhythm-1788264016000-2":{"id":"reading-plan-rhythm-1788264016000-2","title":"Evening Rhythm","slot":"evening","items":[{"id":"reading-plan-rhythm-item-1788264016000-1","type":"plan","planId":"bible-in-1-year"}],"createdAt":"2026-09-01T12:00:16.000Z","updatedAt":"2026-09-01T12:00:16.000Z"}},"rhythmOrder":["reading-plan-rhythm-1788264016000-2","reading-plan-rhythm-1788264015000-1"],"pendingUnenrollPlanIds":["acts-28-days","nt-in-30-days"],"pendingUnenrollAtByPlanId":{"acts-28-days":"2026-09-01T12:00:19.000Z","nt-in-30-days":"2026-09-01T12:00:20.000Z"}},"version":0}';
+const PERSISTED_BLOB = BUILD_448_BLOB.replace(
+  '},"version":0}',
+  ',"serverLeftAtByPlanId":{"romans-16-days":"2026-09-01T12:10:21.000Z"}},"version":0}'
+);
 
 // A blob from an older release, with corrupt and pre-migration shapes: a rhythm stored as
 // planIds, a progress row without session fields, a null progress entry, an unparseable leave
@@ -74,7 +83,7 @@ const LEGACY_BLOB = JSON.stringify({
   version: 0,
 });
 const REHYDRATED_LEGACY_BLOB =
-  '{"state":{"enrolledPlanIds":["psalms-30-days"],"savedPlanIds":[],"completedPlanIds":[],"progressByPlanId":{"psalms-30-days":{"id":"legacy-row","plan_id":"psalms-30-days","started_at":"2026-01-01T00:00:00.000Z","completed_entries":{"1":"2026-01-02T00:00:00.000Z"},"current_day":2,"is_completed":false,"completed_at":null,"synced_at":"2026-01-02T00:00:00.000Z","completed_sessions":{},"current_session":null}},"planDayResumeByKey":{"psalms-30-days:2":{"bookId":"PSA","chapter":2}},"groupPlansByGroupId":{"group-1":[]},"rhythmsById":{"legacy-rhythm":{"id":"legacy-rhythm","title":"Old","planIds":["psalms-30-days"," psalms-30-days ",""],"createdAt":"2026-01-01T00:00:00.000Z","updatedAt":"2026-01-01T00:00:00.000Z","items":[{"id":"reading-plan-rhythm-item-1788264021000-2","type":"plan","planId":"psalms-30-days"}]}},"rhythmOrder":["legacy-rhythm"],"pendingUnenrollPlanIds":["acts-28-days"],"pendingUnenrollAtByPlanId":{}},"version":0}';
+  '{"state":{"enrolledPlanIds":["psalms-30-days"],"savedPlanIds":[],"completedPlanIds":[],"progressByPlanId":{"psalms-30-days":{"id":"legacy-row","plan_id":"psalms-30-days","started_at":"2026-01-01T00:00:00.000Z","completed_entries":{"1":"2026-01-02T00:00:00.000Z"},"current_day":2,"is_completed":false,"completed_at":null,"synced_at":"2026-01-02T00:00:00.000Z","completed_sessions":{},"current_session":null}},"planDayResumeByKey":{"psalms-30-days:2":{"bookId":"PSA","chapter":2}},"groupPlansByGroupId":{"group-1":[]},"rhythmsById":{"legacy-rhythm":{"id":"legacy-rhythm","title":"Old","planIds":["psalms-30-days"," psalms-30-days ",""],"createdAt":"2026-01-01T00:00:00.000Z","updatedAt":"2026-01-01T00:00:00.000Z","items":[{"id":"reading-plan-rhythm-item-1788264021000-2","type":"plan","planId":"psalms-30-days"}]}},"rhythmOrder":["legacy-rhythm"],"pendingUnenrollPlanIds":["acts-28-days"],"pendingUnenrollAtByPlanId":{},"serverLeftAtByPlanId":{}},"version":0}';
 
 const tickSecond = () => mock.timers.tick(1_000);
 
@@ -147,8 +156,25 @@ test('the persisted blob for a representative state is byte-identical to the pre
   tickSecond();
   actions().addPendingUnenroll('nt-in-30-days');
   actions().addPendingUnenroll('nt-in-30-days');
+  actions().rememberServerLeftAt('romans-16-days', '2026-09-01T12:10:21.000Z');
 
   assert.equal(memory.entries.get(STORAGE_KEY), PERSISTED_BLOB);
+});
+
+test('a build 448 blob hydrates intact and writes back its own bytes plus no stored leaves', async () => {
+  const { createReadingPlansStore } = await import('./readingPlansStore');
+  const memory = createMemoryStorage({ [STORAGE_KEY]: BUILD_448_BLOB });
+  const store = createReadingPlansStore(memory.storage);
+  memory.entries.delete(STORAGE_KEY);
+
+  store.setState({});
+
+  assert.deepEqual(store.getState().serverLeftAtByPlanId, {});
+  assert.deepEqual(store.getState().pendingUnenrollPlanIds, ['acts-28-days', 'nt-in-30-days']);
+  assert.equal(
+    memory.entries.get(STORAGE_KEY),
+    BUILD_448_BLOB.replace('},"version":0}', ',"serverLeftAtByPlanId":{}},"version":0}')
+  );
 });
 
 test('hydrating a legacy blob writes back the same bytes as the pre-split store', async () => {
