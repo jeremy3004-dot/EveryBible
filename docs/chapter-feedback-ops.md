@@ -15,14 +15,55 @@ cancelled, or offline attempt leaves the previous mode active. There are no role
 controls in chapters. Closing the composer or changing modes preserves its current
 draft while the reader remains mounted; sending successfully clears it.
 
-Configure the separate `SCRIPTURE_COUNCIL_PASSCODE` secret on the server. Keep the
-existing `TRANSLATOR_REVIEW_PASSCODE` unchanged. Never put either expected code in
-mobile public environment variables or tracked files. The app stores entered access
-codes in SecureStore, with only the active mode in preference storage. Sign-out and
-account-switch cleanup clear both credentials. Failed council attempts share the
-existing attempt table under a separate hashed-IP namespace (10 failures/15 minutes).
+Configure the separate `SCRIPTURE_COUNCIL_PASSCODE` secret on the server. Never put
+any expected code in mobile public environment variables or tracked files. The app
+stores entered access codes in SecureStore, with only the active mode in preference
+storage. Sign-out and account-switch cleanup clear both credentials. Failed council
+attempts share the existing attempt table under a separate hashed-IP namespace
+(10 failures/15 minutes).
 Both lockouts key on the edge-stamped `cf-connecting-ip` (then `x-real-ip`; IPv6 by /64),
 never on `x-forwarded-for`, and refuse with 503 if the attempt counter is unavailable.
+
+### Translator passcodes: one per team
+
+Each translation team has its own passcode (owner decision 2026-09-24). A passcode
+opens the review queue only for the translations its team covers; a request naming
+any other translation gets 403 `translation_not_covered` before any feedback is read
+or changed, and does not count as a wrong guess.
+
+- Team passcodes live in `public.translator_team_passcodes` (service role only) as a
+  per-row random salt plus salted SHA-256 hash, never in plaintext.
+- Create, list, rotate, and revoke them at admin.everybible.app → **Translator Access**
+  (`/translator-access`). Enter a team name and the translation IDs exactly as the app
+  uses them (case-sensitive; the page lists the IDs that already have feedback). The
+  six-digit code is shown once; give it to the team, then leave the page. A lost code
+  cannot be recovered, only rotated. Every change is in the admin audit log.
+- Codes are six digits because installed app builds have a keypad that stops at six.
+  Brute force is limited by the per-client lockout (10 failures per 15 minutes). Rotate
+  a team's code when someone leaves the team.
+- Unlocking (`validateOnly`) succeeds for any valid code and now also returns the
+  code's `translationIds` and, when the app sent one, `coversTranslation`. Current
+  builds ignore these fields. A translator whose code does not cover the translation
+  on screen can still unlock, but that translation's queue shows a load error until
+  they switch to one their code covers.
+
+The old shared `TRANSLATOR_REVIEW_PASSCODE` keeps working during the transition, but
+only for the translations in `TRANSLATOR_REVIEW_PASSCODE_TRANSLATIONS`
+(comma-separated). Unset, that defaults to `bsb`, the only translation with feedback
+when team passcodes shipped. If a team code and the shared code are ever the same
+digits, the team's narrower scope wins.
+
+To retire the shared passcode:
+
+1. Create a team passcode for every team that uses the shared one, and hand them out.
+2. Run `supabase secrets set TRANSLATOR_REVIEW_PASSCODE_TRANSLATIONS=none`. The shared
+   code now opens nothing and counts as a wrong guess, so anyone still using it hits
+   the lockout after 10 tries. Secrets apply without a redeploy.
+3. Once nobody reports problems, unset both secrets:
+
+   ```bash
+   supabase secrets unset TRANSLATOR_REVIEW_PASSCODE TRANSLATOR_REVIEW_PASSCODE_TRANSLATIONS
+   ```
 
 `submit-chapter-feedback` verifies the council code for each council submission.
 `contributor_category` snapshots `community` or `scripture_council` at submission;
@@ -96,6 +137,12 @@ iOS speaker playback mode after recording. Raw auth UUIDs are not exposed to the
 passcode-based review API.
 
 ## Backend rollout
+
+Team passcodes: apply `20260924120000_add_translator_team_passcodes.sql`, then deploy
+`review-chapter-feedback`. No secret changes are needed for the shared code to keep
+working for `bsb`. If the function is deployed before the migration, the shared code
+still works and any other code gets 503 until the table exists. No app release is
+needed.
 
 Apply `20260917120000_feedback_participation_and_review.sql` before deploying the
 updated submit and review functions, including their `_shared/councilAccess.ts`
