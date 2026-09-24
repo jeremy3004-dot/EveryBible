@@ -10,6 +10,7 @@ module.exports = function (api) {
 
   return {
     presets: [expoBabelPreset],
-    plugins: ['react-native-reanimated/plugin'],
+    // Reanimated's plugin must stay last.
+    plugins: ['./plugins/babel-lucide-deep-imports', 'react-native-reanimated/plugin'],
   };
 };
