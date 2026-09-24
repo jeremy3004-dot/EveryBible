@@ -20,10 +20,10 @@ export const parseAppleDistributionFingerprints = (securityOutput: string): stri
   const fingerprints = new Set<string>();
 
   for (const line of securityOutput.split(/\r?\n/)) {
-    const match = line.match(/^\s*\d+\)\s+([0-9a-f]{40})\s+"Apple Distribution:/i);
+    const fingerprint = line.match(/^\s*\d+\)\s+([0-9a-f]{40})\s+"Apple Distribution:/i)?.[1];
 
-    if (match) {
-      fingerprints.add(normalizeSha1Fingerprint(match[1]));
+    if (fingerprint) {
+      fingerprints.add(normalizeSha1Fingerprint(fingerprint));
     }
   }
 

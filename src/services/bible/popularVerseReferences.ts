@@ -1,6 +1,7 @@
 import type { DailyScriptureReference } from '../../types';
 
-export const POPULAR_VERSE_REFERENCES: DailyScriptureReference[] = [
+// Typed non-empty so the daily rotation always has a first entry to fall back on.
+export const POPULAR_VERSE_REFERENCES: [DailyScriptureReference, ...DailyScriptureReference[]] = [
   { bookId: 'JHN', chapter: 3, verse: 16 },
   { bookId: 'ROM', chapter: 8, verse: 28 },
   { bookId: 'PHP', chapter: 4, verse: 13 },

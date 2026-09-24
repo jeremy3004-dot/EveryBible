@@ -42,7 +42,10 @@ export const formatLocalDateKey = (date: Date): string => {
 };
 
 export const parseLocalDateKey = (dateKey: string): Date => {
-  const [year, month, day] = dateKey.split('-').map((part) => Number.parseInt(part, 10));
+  // A missing part behaves like an unparsable one: the result is an Invalid Date.
+  const [year = NaN, month = NaN, day = NaN] = dateKey
+    .split('-')
+    .map((part) => Number.parseInt(part, 10));
   return new Date(year, month - 1, day);
 };
 

@@ -101,6 +101,6 @@ export async function getPassageText(
 export function getPrimaryAudioReference(
   references: BibleReference[]
 ): { bookId: string; chapter: number } | null {
-  if (references.length === 0) return null;
-  return { bookId: references[0].bookId, chapter: references[0].chapter };
+  const [first] = references;
+  return first ? { bookId: first.bookId, chapter: first.chapter } : null;
 }

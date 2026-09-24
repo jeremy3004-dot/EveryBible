@@ -9,7 +9,8 @@ export function getDailyScriptureReference(date = new Date()) {
   const index =
     ((calendarDay % POPULAR_VERSE_REFERENCES.length) + POPULAR_VERSE_REFERENCES.length) %
     POPULAR_VERSE_REFERENCES.length;
-  return POPULAR_VERSE_REFERENCES[index];
+  // An invalid Date makes the index NaN; start of the rotation beats returning undefined.
+  return POPULAR_VERSE_REFERENCES[index] ?? POPULAR_VERSE_REFERENCES[0];
 }
 
 export function shouldLoadDailyScriptureText({
