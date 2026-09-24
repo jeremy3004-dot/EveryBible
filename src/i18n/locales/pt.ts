@@ -1446,7 +1446,9 @@ export const pt = {
     "groupMember": "Membro do grupo",
     "signInTitle": "Entre para orar com este grupo",
     "signInBody": "Entre para compartilhar pedidos, orar com outras pessoas e manter este grupo sincronizado.",
-    "ownerLongPressHint": "Pressione e segure para editar ou excluir"
+    "ownerLongPressHint": "Pressione e segure para editar ou excluir",
+    "leaderLongPressHint": "Pressione e segure para remover este pedido",
+    "rateLimited": "Você compartilhou vários pedidos de oração recentemente. Tente novamente mais tarde."
   },
   "engagement": {
     "title": "Sua jornada",

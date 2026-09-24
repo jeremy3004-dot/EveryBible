@@ -156,11 +156,39 @@ test('interactions are fetched only for the listed requests', async () => {
   await prayer.listPrayerRequests('group-1');
 
   const call = lastCall('prayer_interactions');
-  assert.equal(call.columns, 'request_id, type');
+  assert.equal(call.columns, 'request_id, type, user_id');
   assert.deepEqual(call.steps.find((step) => step.method === 'in')?.args, [
     'request_id',
     ['req-1', 'req-2'],
   ]);
+});
+
+test('each request says whether the viewer already prayed or encouraged, so a reopened wall shows it', async () => {
+  fake.respondTo('prayer_requests', () => ({
+    data: [request({ id: 'req-1' }), request({ id: 'req-2' })],
+  }));
+  fake.respondTo('prayer_interactions', () => ({
+    data: [
+      { request_id: 'req-1', type: 'prayed', user_id: 'user-1' },
+      { request_id: 'req-1', type: 'encouraged', user_id: 'someone-else' },
+      { request_id: 'req-2', type: 'encouraged', user_id: 'user-1' },
+      { request_id: 'req-2', type: 'prayed', user_id: 'someone-else' },
+    ],
+  }));
+
+  const result = await prayer.listPrayerRequests('group-1');
+
+  assert.deepEqual(
+    result.data?.map(({ id, viewer_prayed, viewer_encouraged }) => ({
+      id,
+      viewer_prayed,
+      viewer_encouraged,
+    })),
+    [
+      { id: 'req-1', viewer_prayed: true, viewer_encouraged: false },
+      { id: 'req-2', viewer_prayed: false, viewer_encouraged: true },
+    ]
+  );
 });
 
 test('a request with no interactions reports zero counts', async () => {
@@ -335,6 +363,19 @@ test('a rejected insert surfaces the database error', async () => {
   });
 });
 
+test('posting past the server rate limit is reported as rate_limited so the wall can explain it', async () => {
+  fake.respondTo('prayer_requests', () => ({
+    data: null,
+    error: { message: 'prayer_request_rate_limited', code: 'PT429' },
+  }));
+
+  assert.deepEqual(await prayer.createPrayerRequest('group-1', 'help'), {
+    success: false,
+    error: 'prayer_request_rate_limited',
+    code: 'rate_limited',
+  });
+});
+
 test('a network exception while submitting is reported with its message', async () => {
   fake.respondTo('prayer_requests', () => {
     throw new Error('Network request failed');
@@ -486,16 +527,24 @@ test('a network exception while marking a prayer answered is reported with its m
 
 // ─── Deleting ────────────────────────────────────────────────────────────────
 
-test('deleting a prayer request is scoped to its author', async () => {
-  fake.respondTo('prayer_requests', () => ({ data: null }));
+test('deleting a prayer request goes by id alone, so the group leader can remove any request', async () => {
+  // RLS (prayer_delete_creator_or_leader) decides who may delete: the author or the leader.
+  fake.respondTo('prayer_requests', () => ({ data: [{ id: 'req-1' }] }));
 
   assert.deepEqual(await prayer.deletePrayerRequest('req-1'), { success: true });
   const call = lastCall('prayer_requests');
   assert.equal(call.operation, 'delete');
-  assert.deepEqual(filtersOf(call), [
-    ['id', 'req-1'],
-    ['user_id', 'user-1'],
-  ]);
+  assert.deepEqual(filtersOf(call), [['id', 'req-1']]);
+  assert.equal(call.columns, 'id');
+});
+
+test('a delete that RLS lets remove nothing is reported as a failure, not a success', async () => {
+  fake.respondTo('prayer_requests', () => ({ data: [] }));
+
+  assert.deepEqual(await prayer.deletePrayerRequest('req-1'), {
+    success: false,
+    error: 'Prayer request was not deleted',
+  });
 });
 
 test('deleting a prayer request without a backend explains the build is not configured', async () => {

@@ -1425,7 +1425,9 @@ export const ja = {
     "groupMember": "グループメンバー",
     "signInTitle": "このグループで祈るにはログインしてください",
     "signInBody": "ログインすると、祈りの課題を分かち合い、ほかの人と祈り、このグループを同期できます。",
-    "ownerLongPressHint": "長押しして編集または削除します"
+    "ownerLongPressHint": "長押しして編集または削除します",
+    "leaderLongPressHint": "長押しするとこの課題を削除できます",
+    "rateLimited": "最近いくつもの祈りの課題を分かち合いました。しばらくしてからもう一度お試しください。"
   },
   "engagement": {
     "title": "あなたの旅",

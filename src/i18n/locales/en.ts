@@ -1506,6 +1506,8 @@ export const en = {
     you: 'You',
     groupMember: 'Group member',
     ownerLongPressHint: 'Long press to edit or delete',
+    leaderLongPressHint: 'Long press to remove this request',
+    rateLimited: 'You have shared several prayer requests recently. Please try again later.',
   },
   engagement: {
     title: 'Your Journey',

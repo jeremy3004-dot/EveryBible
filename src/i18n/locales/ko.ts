@@ -1425,7 +1425,9 @@ export const ko = {
     "groupMember": "그룹 멤버",
     "signInTitle": "이 그룹과 함께 기도하려면 로그인하세요",
     "signInBody": "기도 제목을 나누고 함께 기도하며 그룹을 동기화하려면 로그인하세요.",
-    "ownerLongPressHint": "길게 눌러 수정하거나 삭제하세요"
+    "ownerLongPressHint": "길게 눌러 수정하거나 삭제하세요",
+    "leaderLongPressHint": "길게 눌러 이 기도 제목을 삭제하세요",
+    "rateLimited": "최근에 기도 제목을 여러 개 나누셨습니다. 잠시 후 다시 시도해 주세요."
   },
   "engagement": {
     "title": "나의 여정",

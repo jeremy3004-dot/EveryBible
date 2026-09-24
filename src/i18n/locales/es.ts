@@ -1817,6 +1817,8 @@ export const es = {
     "prayedCount": "Han orado: {{count}}",
     "encouragedCount": "Han animado: {{count}}",
     "ownerLongPressHint": "Mantén presionado para editar o eliminar",
+    "leaderLongPressHint": "Mantén presionado para quitar esta petición",
+    "rateLimited": "Has compartido varias peticiones de oración recientemente. Inténtalo de nuevo más tarde.",
     "you": "Tú",
     "groupMember": "Miembro del grupo"
   },

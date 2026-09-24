@@ -1517,6 +1517,8 @@ export const ne = {
     "prayedCount": "{{count}} जनाले प्रार्थना गरे",
     "encouragedCount": "{{count}} जनाले प्रोत्साहन दिए",
     "ownerLongPressHint": "सम्पादन वा हटाउन लामो थिच्नुहोस्",
+    "leaderLongPressHint": "यो अनुरोध हटाउन लामो थिच्नुहोस्",
+    "rateLimited": "तपाईंले हालै धेरै प्रार्थना अनुरोध साझा गर्नुभएको छ। कृपया पछि फेरि प्रयास गर्नुहोस्।",
     "you": "तपाईं",
     "groupMember": "समूह सदस्य"
   },

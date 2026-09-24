@@ -1093,6 +1093,8 @@ export const hi = {
     "prayedCount": "{{count}} ने प्रार्थना की",
     "encouragedCount": "{{count}} ने प्रोत्साहित किया",
     "ownerLongPressHint": "संपादित करने या मिटाने के लिए देर तक दबाएँ",
+    "leaderLongPressHint": "इस अनुरोध को हटाने के लिए देर तक दबाएँ",
+    "rateLimited": "आपने हाल ही में कई प्रार्थना अनुरोध साझा किए हैं। कृपया बाद में फिर से कोशिश करें।",
     "you": "आप",
     "groupMember": "समूह सदस्य"
   },

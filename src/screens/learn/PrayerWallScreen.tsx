@@ -26,12 +26,13 @@ import { openAuthFlow } from '../../navigation/rootNavigation';
 import { useAuthStore } from '../../stores/authStore';
 import * as prayerService from '../../services/prayer/prayerService';
 import type { PrayerRequestWithCounts } from '../../services/prayer/prayerService';
+import { prayerRequestActions } from '../../services/prayer/prayerModel';
 
 type ScreenRouteProp = RouteProp<LearnStackParamList, 'PrayerWall'>;
 type NavigationProp = NativeStackNavigationProp<LearnStackParamList, 'PrayerWall'>;
 
-// Tracks which request IDs the current user has interacted with this session.
-// The backend enforces uniqueness; this mirrors it locally for instant UI feedback.
+// Tracks which request IDs the current user has prayed for / encouraged. Seeded from the
+// server on every load and updated optimistically on tap.
 interface LocalInteractions {
   prayed: Set<string>;
   encouraged: Set<string>;
@@ -42,7 +43,7 @@ const MAX_CHARS = 500;
 export function PrayerWallScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<ScreenRouteProp>();
-  const { groupId, groupName } = route.params;
+  const { groupId, groupName, isLeader = false } = route.params;
   const { t } = useTranslation();
   const { colors } = useTheme();
   // Prayer wall is pushed inside the Learn tab stack, so the last card has to
@@ -68,7 +69,12 @@ export function PrayerWallScreen() {
   const loadRequests = useCallback(async () => {
     const result = await prayerService.listPrayerRequests(groupId);
     if (result.success && result.data) {
-      setRequests(result.data);
+      const loaded = result.data;
+      setRequests(loaded);
+      setLocalInteractions({
+        prayed: new Set(loaded.filter((r) => r.viewer_prayed).map((r) => r.id)),
+        encouraged: new Set(loaded.filter((r) => r.viewer_encouraged).map((r) => r.id)),
+      });
       setLoadError(false);
     } else {
       // Distinguish a genuine load failure (offline / server error) from an
@@ -105,13 +111,18 @@ export function PrayerWallScreen() {
         ...result.data,
         prayed_count: 0,
         encouraged_count: 0,
+        viewer_prayed: false,
+        viewer_encouraged: false,
       };
       setRequests((prev) => [newRequest, ...prev]);
       setSubmitText('');
       inputRef.current?.blur();
       successHaptic();
     } else {
-      Alert.alert(t('common.error'), t('common.retry'));
+      Alert.alert(
+        t('common.error'),
+        result.code === 'rate_limited' ? t('prayer.rateLimited') : t('common.somethingWentWrong')
+      );
     }
 
     setIsSubmitting(false);
@@ -169,42 +180,53 @@ export function PrayerWallScreen() {
 
   const handleLongPress = useCallback(
     (request: PrayerRequestWithCounts) => {
-      if (request.user_id !== currentUserId) return;
+      const actions = prayerRequestActions({
+        isOwner: request.user_id === currentUserId,
+        isLeader,
+        isAnswered: request.is_answered,
+        // Edit relies on Alert.prompt, which only exists on iOS.
+        canEdit: Platform.OS === 'ios',
+      });
+      if (actions.length === 0) return;
+
+      const labels = {
+        edit: t('common.edit'),
+        markAnswered: t('prayer.markAnswered'),
+        delete: t('common.delete'),
+      };
+      const run = (action: (typeof actions)[number]) => {
+        if (action === 'edit') handleEdit(request);
+        else if (action === 'markAnswered') handleMarkAnswered(request.id);
+        else handleDelete(request.id);
+      };
 
       if (Platform.OS === 'ios') {
-        // Edit relies on Alert.prompt, which only exists on iOS. Keep it here only.
-        const options = [
-          t('common.edit'),
-          t('prayer.markAnswered'),
-          t('common.delete'),
-          t('common.cancel'),
-        ];
-
+        const options = [...actions.map((action) => labels[action]), t('common.cancel')];
         ActionSheetIOS.showActionSheetWithOptions(
-          { options, destructiveButtonIndex: 2, cancelButtonIndex: 3 },
+          {
+            options,
+            destructiveButtonIndex: actions.indexOf('delete'),
+            cancelButtonIndex: actions.length,
+          },
           (buttonIndex) => {
-            if (buttonIndex === 0) handleEdit(request);
-            else if (buttonIndex === 1) handleMarkAnswered(request.id);
-            else if (buttonIndex === 2) handleDelete(request.id);
+            const action = actions[buttonIndex];
+            if (action) run(action);
           }
         );
       } else {
-        // Android has no Alert.prompt, so Edit is omitted rather than shipped as a
-        // no-op option.
         Alert.alert(t('prayer.title'), undefined, [
-          { text: t('prayer.markAnswered'), onPress: () => handleMarkAnswered(request.id) },
-          {
-            text: t('common.delete'),
-            style: 'destructive',
-            onPress: () => handleDelete(request.id),
-          },
-          { text: t('common.cancel'), style: 'cancel' },
+          ...actions.map((action) => ({
+            text: labels[action],
+            style: action === 'delete' ? ('destructive' as const) : ('default' as const),
+            onPress: () => run(action),
+          })),
+          { text: t('common.cancel'), style: 'cancel' as const },
         ]);
       }
     },
     // handleEdit/handleMarkAnswered/handleDelete defined below; deps added via useCallback chain
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [currentUserId, t]
+    [currentUserId, isLeader, t]
   );
 
   const handleEdit = useCallback(
@@ -219,6 +241,8 @@ export function PrayerWallScreen() {
             setRequests((prev) =>
               prev.map((r) => (r.id === request.id ? { ...r, content: result.data!.content } : r))
             );
+          } else {
+            Alert.alert(t('common.error'), t('common.somethingWentWrong'));
           }
         },
         'plain-text',
@@ -228,18 +252,23 @@ export function PrayerWallScreen() {
     [t]
   );
 
-  const handleMarkAnswered = useCallback(async (requestId: string) => {
-    const result = await prayerService.markPrayerAnswered(requestId);
-    if (result.success && result.data) {
-      setRequests((prev) =>
-        prev.map((r) =>
-          r.id === requestId
-            ? { ...r, is_answered: true, answered_at: result.data!.answered_at }
-            : r
-        )
-      );
-    }
-  }, []);
+  const handleMarkAnswered = useCallback(
+    async (requestId: string) => {
+      const result = await prayerService.markPrayerAnswered(requestId);
+      if (result.success && result.data) {
+        setRequests((prev) =>
+          prev.map((r) =>
+            r.id === requestId
+              ? { ...r, is_answered: true, answered_at: result.data!.answered_at }
+              : r
+          )
+        );
+      } else {
+        Alert.alert(t('common.error'), t('common.somethingWentWrong'));
+      }
+    },
+    [t]
+  );
 
   const handleDelete = useCallback(
     (requestId: string) => {
@@ -252,6 +281,8 @@ export function PrayerWallScreen() {
             const result = await prayerService.deletePrayerRequest(requestId);
             if (result.success) {
               setRequests((prev) => prev.filter((r) => r.id !== requestId));
+            } else {
+              Alert.alert(t('common.error'), t('common.somethingWentWrong'));
             }
           },
         },
@@ -263,6 +294,8 @@ export function PrayerWallScreen() {
   const renderItem = useCallback(
     ({ item }: { item: PrayerRequestWithCounts }) => {
       const isOwner = item.user_id === currentUserId;
+      // The leader's only action on others' requests is removing them (moderation).
+      const hasActions = isOwner || isLeader;
       const hasPrayed = localInteractions.prayed.has(item.id);
       const hasEncouraged = localInteractions.encouraged.has(item.id);
       const displayName = isOwner
@@ -275,8 +308,8 @@ export function PrayerWallScreen() {
       return (
         <TouchableOpacity
           style={[styles.card, { backgroundColor: colors.cardBackground }]}
-          onLongPress={isOwner ? () => handleLongPress(item) : undefined}
-          activeOpacity={isOwner ? 0.7 : 1}
+          onLongPress={hasActions ? () => handleLongPress(item) : undefined}
+          activeOpacity={hasActions ? 0.7 : 1}
           // The card is one VoiceOver element, which swallows the nested Prayed /
           // Encouraged pills on iOS; they are offered again as custom actions and
           // the label carries everything the card shows.
@@ -291,7 +324,13 @@ export function PrayerWallScreen() {
           ]
             .filter(Boolean)
             .join(', ')}
-          accessibilityHint={isOwner ? t('prayer.ownerLongPressHint') : undefined}
+          accessibilityHint={
+            isOwner
+              ? t('prayer.ownerLongPressHint')
+              : isLeader
+                ? t('prayer.leaderLongPressHint')
+                : undefined
+          }
           accessibilityActions={[
             { name: 'prayed', label: t('prayer.prayed') },
             { name: 'encouraged', label: t('prayer.encouraged') },
@@ -398,6 +437,7 @@ export function PrayerWallScreen() {
       currentUserId,
       handleInteraction,
       handleLongPress,
+      isLeader,
       localInteractions,
       t,
       user?.displayName,
