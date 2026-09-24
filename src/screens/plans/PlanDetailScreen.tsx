@@ -33,6 +33,7 @@ import {
   PressableScale,
   SectionHeader,
 } from '../../components/ui';
+import { useAudioStore } from '../../stores/audioStore';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { useProgressStore } from '../../stores/progressStore';
@@ -48,6 +49,7 @@ import {
 import {
   getCurrentPlanDaySummary,
   buildPlanDayPlaybackSequenceEntries,
+  shouldAutoplayPlanDayLaunch,
   formatScheduledPlanDayLabel,
   resolvePlanDayPlaybackStartEntry,
   type CurrentPlanDaySummary,
@@ -1046,13 +1048,18 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
       if (!launch) return;
 
       const { playbackSequenceEntries, playbackStartEntry } = launch;
+      const autoplayAudio = shouldAutoplayPlanDayLaunch({
+        trigger: 'open',
+        preferredMode: preferredChapterLaunchMode,
+        audioStatus: useAudioStore.getState().status,
+      });
 
       rootNavigationRef.navigate('Bible', {
         screen: 'BibleReader',
         params: {
           bookId: playbackStartEntry.bookId,
           chapter: playbackStartEntry.chapter,
-          ...(preferredChapterLaunchMode === 'listen' ? { autoplayAudio: true } : {}),
+          ...(autoplayAudio ? { autoplayAudio: true } : {}),
           preferredMode: preferredChapterLaunchMode,
           playbackSequenceEntries,
           planId,

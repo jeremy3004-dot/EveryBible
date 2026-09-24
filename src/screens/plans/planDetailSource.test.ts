@@ -28,7 +28,7 @@ test('PlanDetailScreen always passes plan-day context into BibleReader launches'
   );
   assert.match(
     source,
-    /chapter:\s*playbackStartEntry\.chapter,\s*\n\s*\.\.\.\(preferredChapterLaunchMode === 'listen' \? \{ autoplayAudio: true \} : \{\}\),\s*\n\s*preferredMode:\s*preferredChapterLaunchMode,\s*\n\s*playbackSequenceEntries,\s*\n\s*planId,\s*\n\s*planDayNumber:\s*dayNumber,\s*\n\s*(?:\.\.\.\(sessionKey \? \{ planSessionKey: sessionKey \} : \{\}\),\s*\n\s*)?returnToPlanOnComplete:\s*true/s,
+    /chapter:\s*playbackStartEntry\.chapter,\s*\n\s*\.\.\.\(autoplayAudio \? \{ autoplayAudio: true \} : \{\}\),\s*\n\s*preferredMode:\s*preferredChapterLaunchMode,\s*\n\s*playbackSequenceEntries,\s*\n\s*planId,\s*\n\s*planDayNumber:\s*dayNumber,\s*\n\s*(?:\.\.\.\(sessionKey \? \{ planSessionKey: sessionKey \} : \{\}\),\s*\n\s*)?returnToPlanOnComplete:\s*true/s,
     'PlanDetailScreen should pass the plan day playback sequence and day context into BibleReader so next stays inside the plan'
   );
   assert.doesNotMatch(

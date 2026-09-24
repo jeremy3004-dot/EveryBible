@@ -21,6 +21,7 @@ import { layout, radius, spacing, typography } from '../../design/system';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
 import type { RhythmDetailScreenProps } from '../../navigation/types';
 import { inferRhythmSlotFromTitle, RHYTHM_SLOT_META } from '../../services/plans/rhythmSlots';
+import { useAudioStore } from '../../stores/audioStore';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { useProgressStore } from '../../stores/progressStore';
@@ -28,6 +29,7 @@ import { useReadingPlansStore } from '../../stores/readingPlansStore';
 import {
   buildRhythmReaderSession,
   getCurrentPlanDaySummary,
+  shouldAutoplayPlanDayLaunch,
 } from '../../services/plans/readingPlanActivity';
 import { getPlanEntries, listReadingPlans } from '../../services/plans/readingPlanService';
 import type {
@@ -353,13 +355,18 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
     }
 
     lightHaptic();
+    const autoplayAudio = shouldAutoplayPlanDayLaunch({
+      trigger: 'open',
+      preferredMode: preferredChapterLaunchMode,
+      audioStatus: useAudioStore.getState().status,
+    });
 
     rootNavigationRef.navigate('Bible', {
       screen: 'BibleReader',
       params: {
         bookId: session.startEntry.bookId,
         chapter: session.startEntry.chapter,
-        ...(preferredChapterLaunchMode === 'listen' ? { autoplayAudio: true } : {}),
+        ...(autoplayAudio ? { autoplayAudio: true } : {}),
         preferredMode: preferredChapterLaunchMode,
         playbackSequenceEntries: session.playbackSequenceEntries,
         planId: session.startSegment.type === 'plan' ? session.startSegment.planId : undefined,

@@ -31,8 +31,8 @@ test('RhythmDetailScreen builds a rhythm session and resumes the reader with ses
   );
   assert.match(
     source,
-    /\.\.\.\(preferredChapterLaunchMode === 'listen' \? \{ autoplayAudio: true \} : \{\}\),/,
-    'RhythmDetailScreen should request autoplay when the persisted launch preference is listen'
+    /shouldAutoplayPlanDayLaunch\(\{\s*trigger: 'open',\s*preferredMode: preferredChapterLaunchMode,[\s\S]*?\.\.\.\(autoplayAudio \? \{ autoplayAudio: true \} : \{\}\),/,
+    'RhythmDetailScreen should request autoplay under the listen preference through the shared rule that keeps a paused listener paused'
   );
   assert.match(
     source,
