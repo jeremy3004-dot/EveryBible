@@ -222,6 +222,38 @@ test('a council submission is sent with the passcode held at send time', async (
   assert.equal(h.submissions[0].contributorCategory, 'scripture_council');
 });
 
+// The passcode is gone from the device after a sign-out and back in, a switch to community
+// mode, or an unreadable keychain. The server would refuse a council submission without it
+// (and count a wrong guess against the network), which is no verdict on the feedback.
+test('a council submission waits while the device holds no council passcode', async () => {
+  h.offline = true;
+  await outbox.submitChapterFeedbackOrQueue(
+    { ...baseInput, contributorCategory: 'scripture_council', councilPasscode: 'secret-9' },
+    h.deps
+  );
+  await outbox.submitChapterFeedbackOrQueue({ ...baseInput, chapter: 4 }, h.deps);
+  h.passcode = null;
+  h.respond = () =>
+    h.submissions.at(-1)?.contributorCategory === 'scripture_council' ? refused() : sent();
+
+  const result = await outbox.flushChapterFeedbackOutbox('user-a', h.deps);
+
+  assert.deepEqual(result, { sent: 1, remaining: 1 });
+  assert.deepEqual(
+    h.submissions.map((input) => input.chapter),
+    [4],
+    'only the community response was sent'
+  );
+
+  h.passcode = 'secret-9';
+  h.respond = sent;
+  assert.deepEqual(await outbox.flushChapterFeedbackOutbox('user-a', h.deps), {
+    sent: 1,
+    remaining: 0,
+  });
+  assert.equal(h.submissions.at(-1)?.councilPasscode, 'secret-9');
+});
+
 test('a flush that still cannot reach the server stops and keeps everything for next time', async () => {
   h.offline = true;
   await outbox.submitChapterFeedbackOrQueue(baseInput, h.deps);

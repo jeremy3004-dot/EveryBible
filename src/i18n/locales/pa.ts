@@ -441,6 +441,9 @@ export const pa = {
     pinInvalidCharacters: 'ਸਿਰਫ਼ ਅੰਕ ਅਤੇ ਕੈਲਕੁਲੇਟਰ ਦੇ ਚਿੰਨ੍ਹ ਹੀ ਵਰਤੇ ਜਾ ਸਕਦੇ ਹਨ।',
     pinMismatch: 'ਸੁਰੱਖਿਅਤ ਕੋਡ ਅਜੇ ਮੇਲ ਨਹੀਂ ਖਾਂਦੇ।',
     incorrectPin: 'ਉਹ ਸੁਰੱਖਿਅਤ ਕੋਡ ਸਹੀ ਨਹੀਂ ਹੈ।',
+    discreetNotificationTitle: 'ਰੀਮਾਈਂਡਰ',
+    discreetNotificationBody: 'ਅੱਜ ਲਈ ਤੁਹਾਡਾ ਇੱਕ ਰੀਮਾਈਂਡਰ ਹੈ।',
+    discreetNotificationChannel: 'ਰੀਮਾਈਂਡਰ',
   },
   settings: {
     title: 'ਸੈਟਿੰਗਾਂ',

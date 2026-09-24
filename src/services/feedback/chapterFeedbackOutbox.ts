@@ -183,11 +183,19 @@ async function runFlush(
       break;
     }
 
+    const councilPasscode =
+      entry.input.contributorCategory === 'scripture_council' ? getCouncilPasscode() : undefined;
+    if (councilPasscode === null) {
+      // No passcode on the device (signed out and back in, left council mode, unreadable
+      // keychain). The server would refuse it and count a wrong guess, which says nothing
+      // about the feedback, so it waits until the council is unlocked again.
+      continue;
+    }
+
     const result = await submit({
       ...entry.input,
       audioResponse: null,
-      councilPasscode:
-        entry.input.contributorCategory === 'scripture_council' ? getCouncilPasscode() : undefined,
+      councilPasscode,
     });
 
     if (result.success) {

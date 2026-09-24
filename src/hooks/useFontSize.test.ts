@@ -116,6 +116,20 @@ test('scaleValue rounds the scaled size to a whole point value', () => {
   assert.equal(scaleValue(0), 0);
 });
 
+test('scaleValue keeps its identity across re-renders until the size changes', () => {
+  authState.preferences = { fontSize: 'medium' };
+  const mounted = runtime.mount(useFontSize);
+  const first = mounted.result.scaleValue;
+
+  // Memoized children (the reader's verse list) take it as a prop.
+  assert.equal(mounted.rerender().scaleValue, first);
+
+  authState.preferences = { fontSize: 'large' };
+  const afterChange = mounted.rerender().scaleValue;
+  assert.notEqual(afterChange, first);
+  assert.equal(afterChange(10), 12);
+});
+
 test('increasing from medium moves one step up and pushes the preference to the cloud', () => {
   renderFontSize().increase();
 

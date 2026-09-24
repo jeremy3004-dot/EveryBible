@@ -768,6 +768,9 @@ export const ru = {
     pinInvalidCharacters: 'Разрешены только цифры и символы калькулятора.',
     pinMismatch: 'Секретные коды пока не совпадают.',
     incorrectPin: 'Неверный секретный код.',
+    discreetNotificationTitle: 'Напоминание',
+    discreetNotificationBody: 'У вас есть напоминание на сегодня.',
+    discreetNotificationChannel: 'Напоминания',
   },
   settings: {
     title: 'Настройки',

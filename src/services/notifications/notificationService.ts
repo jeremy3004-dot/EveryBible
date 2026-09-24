@@ -41,6 +41,21 @@ function getAuthIdentity(): { userId: string | null; generation: number } | null
   }
 }
 
+/**
+ * Read lazily, like the auth identity above: the privacy store is already loaded by App.tsx,
+ * and a static import would pull it into every notificationService test. Anything that
+ * cannot be read counts as discreet, so a failure never shows Bible text.
+ */
+function isDiscreetMode(): boolean {
+  try {
+    const { isDiscreetModeActive } =
+      require('../../stores/privacyStore') as typeof import('../../stores/privacyStore');
+    return isDiscreetModeActive();
+  } catch {
+    return true;
+  }
+}
+
 async function markPushTokenInactive(userId: string, token: string): Promise<void> {
   try {
     await supabase
@@ -90,7 +105,11 @@ export async function setupAndroidChannels(): Promise<void> {
     return;
   }
 
-  const name = i18n.t('notifications.channelDailyReminder');
+  // The channel name is listed in Android's notification settings, so discreet mode
+  // renames it rather than advertising a Bible reading reminder.
+  const name = i18n.t(
+    isDiscreetMode() ? 'privacy.discreetNotificationChannel' : 'notifications.channelDailyReminder'
+  );
   if (!androidChannelSetup || androidChannelSetup.name !== name) {
     const setup = { name, promise: Promise.resolve() };
     setup.promise = Notifications.setNotificationChannelAsync(DAILY_REMINDER_CHANNEL_ID, {
@@ -189,16 +208,41 @@ const DAILY_REMINDER_ID = 'daily-reading-reminder';
 let scheduledReminderSignature: string | null = null;
 
 /**
- * Everything a scheduled reminder bakes in: its time, its text (resolved in the
- * app language of the moment) and the zone offset Android turned that local time
- * into an absolute alarm with. When any of them changes it must be rescheduled.
+ * The reminder's text. The lock screen shows it to anyone holding the phone, so in
+ * discreet mode it is neutral copy that names neither the app nor the Bible.
  */
-function getReminderSignature(hour: number, minute: number): string {
+function getReminderContent(): { discreet: boolean; title: string; body: string } {
+  const discreet = isDiscreetMode();
+  return discreet
+    ? {
+        discreet,
+        title: i18n.t('privacy.discreetNotificationTitle'),
+        body: i18n.t('privacy.discreetNotificationBody'),
+      }
+    : {
+        discreet,
+        title: i18n.t('settings.notificationTitle'),
+        body: i18n.t('settings.notificationBody'),
+      };
+}
+
+/**
+ * Everything a scheduled reminder bakes in: its time, its text (resolved in the
+ * app language and privacy mode of the moment) and the zone offset Android turned
+ * that local time into an absolute alarm with. When any of them changes it must be
+ * rescheduled.
+ */
+function getReminderSignature(
+  hour: number,
+  minute: number,
+  content: ReturnType<typeof getReminderContent>
+): string {
   return JSON.stringify([
     hour,
     minute,
-    i18n.t('settings.notificationTitle'),
-    i18n.t('settings.notificationBody'),
+    content.discreet,
+    content.title,
+    content.body,
     new Date().getTimezoneOffset(),
   ]);
 }
@@ -222,12 +266,13 @@ export async function scheduleDailyReminder(hour: number, minute: number): Promi
   scheduledReminderSignature = null;
   await Notifications.cancelScheduledNotificationAsync(DAILY_REMINDER_ID).catch(() => {});
 
-  const signature = getReminderSignature(hour, minute);
+  const content = getReminderContent();
+  const signature = getReminderSignature(hour, minute, content);
   await Notifications.scheduleNotificationAsync({
     identifier: DAILY_REMINDER_ID,
     content: {
-      title: i18n.t('settings.notificationTitle'),
-      body: i18n.t('settings.notificationBody'),
+      title: content.title,
+      body: content.body,
       sound: true,
       data: { ...DAILY_REMINDER_NOTIFICATION_DATA },
     },
@@ -272,6 +317,12 @@ export async function reconcileDailyReminder({
   notificationsEnabled,
   reminderTime,
 }: DailyReminderPreference): Promise<void> {
+  // Keeps the channel's user-visible name in step with the language and discreet mode
+  // even while no reminder is scheduled. Memoized, so an unchanged name costs nothing.
+  if (Platform.OS === 'android') {
+    await setupAndroidChannels();
+  }
+
   const schedule = notificationsEnabled ? parseReminderTime(reminderTime) : null;
 
   if (!schedule) {
@@ -281,7 +332,10 @@ export async function reconcileDailyReminder({
     return;
   }
 
-  if (scheduledReminderSignature === getReminderSignature(schedule.hour, schedule.minute)) {
+  if (
+    scheduledReminderSignature ===
+    getReminderSignature(schedule.hour, schedule.minute, getReminderContent())
+  ) {
     return;
   }
 

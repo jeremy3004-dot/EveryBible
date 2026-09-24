@@ -780,6 +780,9 @@ export const fr = {
     pinInvalidCharacters: 'Seuls les chiffres et les symboles de calculatrice sont autorisés.',
     pinMismatch: 'Les codes sécurisés ne correspondent pas encore.',
     incorrectPin: 'Ce code sécurisé est incorrect.',
+    discreetNotificationTitle: 'Rappel',
+    discreetNotificationBody: 'Vous avez un rappel pour aujourd’hui.',
+    discreetNotificationChannel: 'Rappels',
   },
   settings: {
     title: 'Paramètres',

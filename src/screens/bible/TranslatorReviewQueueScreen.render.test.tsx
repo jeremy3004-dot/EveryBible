@@ -82,3 +82,46 @@ test('online, a failed queue load keeps the generic error', async () => {
   assert.ok(view.getByText(t('common.somethingWentWrong')));
   assert.equal(view.queryByText(t('common.offlineTryAgain')), null);
 });
+
+test('the queue lists chapters needing review, most fixes first, and opens one in the reader', async () => {
+  useTranslatorReviewStore.setState({ enabled: true, accessPasscode: '1234' });
+  backend.result = {
+    success: true,
+    chapters: [
+      { bookId: 'GEN', chapter: 1, total: 2, unresolvedDown: 0, unresolvedUp: 1 },
+      { bookId: 'JHN', chapter: 3, total: 4, unresolvedDown: 2, unresolvedUp: 1 },
+      { bookId: 'PSA', chapter: 23, total: 3, unresolvedDown: 0, unresolvedUp: 0 },
+    ],
+  };
+
+  const view = await renderQueue();
+
+  const rows = view
+    .getAllByRole('button')
+    .map((node) => node.props.accessibilityLabel as string)
+    .filter((label) => label !== t('common.back'));
+  assert.deepEqual(rows, [
+    harness.i18n.t('translatorQueue.openLabel', { reference: 'John 3' }),
+    harness.i18n.t('translatorQueue.openLabel', { reference: 'Genesis 1' }),
+  ]);
+  assert.ok(view.getByText(harness.i18n.t('translatorQueue.pendingCount', { count: 2 })));
+
+  await view.press(view.getByRole('button', { name: rows[0] }));
+  assert.deepEqual(
+    harness.navigation.calls.map((call) => [call.method, ...call.args]),
+    [['navigate', 'BibleReader', { bookId: 'JHN', chapter: 3, preferredMode: 'read' }]]
+  );
+});
+
+test('with everything addressed the queue says so instead of a pending count', async () => {
+  useTranslatorReviewStore.setState({ enabled: true, accessPasscode: '1234' });
+  backend.result = {
+    success: true,
+    chapters: [{ bookId: 'PSA', chapter: 23, total: 3, unresolvedDown: 0, unresolvedUp: 0 }],
+  };
+
+  const view = await renderQueue();
+
+  assert.ok(view.getByText(t('translatorQueue.empty')));
+  assert.ok(view.getByText(t('translatorQueue.subtitle')));
+});

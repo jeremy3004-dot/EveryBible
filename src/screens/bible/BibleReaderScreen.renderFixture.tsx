@@ -70,6 +70,23 @@ export const JOHN_3 = [
 
 type AudioStatus = 'idle' | 'loading' | 'playing' | 'paused' | 'error';
 
+export interface FakeRecording {
+  id: number;
+  getStatusAsync: () => Promise<{ durationMillis: number }>;
+  stopAndUnloadAsync: () => Promise<void>;
+  getURI: () => string;
+}
+
+export interface FakeSound {
+  id: number;
+  onStatus: ((status: { isLoaded: boolean; didJustFinish?: boolean }) => void) | null;
+  playAsync: () => Promise<void>;
+  unloadAsync: () => Promise<void>;
+  setOnPlaybackStatusUpdate: (
+    listener: (status: { isLoaded: boolean; didJustFinish?: boolean }) => void
+  ) => void;
+}
+
 export function installReaderRenderFixture(
   mocker: MockTracker,
   options: RenderHarnessOptions = {}
@@ -203,6 +220,8 @@ export function installReaderRenderFixture(
   });
 
   // ---- Services --------------------------------------------------------------
+  /** Writes the reader made through services and native packages, in order. */
+  const serviceCalls: Array<[string, ...unknown[]]> = [];
   const chapters = new Map<string, Verse[]>();
   const chapterRequests: string[] = [];
   mockModule(mocker, sourcePath('services/bible/bibleService.ts'), {
@@ -229,8 +248,14 @@ export function installReaderRenderFixture(
             });
           })
         : Promise.resolve({ success: true, data: [] }),
-    upsertAnnotation: async () => ({ success: true }),
-    softDeleteAnnotation: async () => ({ success: true }),
+    upsertAnnotation: async (annotation: Record<string, unknown>) => {
+      serviceCalls.push(['upsertAnnotation', annotation]);
+      return { success: true };
+    },
+    softDeleteAnnotation: async (id: string) => {
+      serviceCalls.push(['softDeleteAnnotation', id]);
+      return { success: true };
+    },
   });
   let timestamps: Record<number, number> | null = null;
   mockModule(mocker, sourcePath('services/bible/verseTimestamps.ts'), {
@@ -267,8 +292,14 @@ export function installReaderRenderFixture(
     uploadChapterFeedbackAudio: async () => ({ success: true }),
   });
   mockModule(mocker, sourcePath('services/plans/readingPlanService.ts'), {
-    markDayComplete: async () => ({ success: true }),
-    markPlanSessionComplete: async () => ({ success: true }),
+    markDayComplete: async (...args: unknown[]) => {
+      serviceCalls.push(['markDayComplete', ...args]);
+      return { success: true };
+    },
+    markPlanSessionComplete: async (...args: unknown[]) => {
+      serviceCalls.push(['markPlanSessionComplete', ...args]);
+      return { success: true };
+    },
   });
   mockBarrel(mocker, 'services/plans/index.ts', { real: ['getPlanChapterFocusVerse'] });
   mockBarrel(mocker, 'services/sync/index.ts', {
@@ -284,15 +315,86 @@ export function installReaderRenderFixture(
   mockModule(mocker, sourcePath('screens/bible/TranslationPickerList.tsx'), {
     TranslationPickerList: hostComponent('TranslationPickerList'),
   });
-  mockPackage(mocker, 'expo-clipboard', { setStringAsync: async () => true });
-  mockPackage(mocker, 'expo-av', {
-    Audio: {
-      Recording: class {},
-      Sound: class {},
-      setAudioModeAsync: async () => {},
-      requestPermissionsAsync: async () => ({ granted: true }),
+  mockPackage(mocker, 'expo-clipboard', {
+    setStringAsync: async (text: string) => {
+      serviceCalls.push(['Clipboard.setStringAsync', text]);
+      return true;
     },
   });
+  // expo-av for chapter-feedback recording and preview. Every call is logged; a
+  // held operation waits until the test releases it, so a test can unmount or tap
+  // again while the reader is mid-await.
+  const av = {
+    log: [] as string[],
+    held: new Set<string>(),
+    pending: [] as Array<{ name: string; release: () => void }>,
+    recordings: [] as FakeRecording[],
+    sounds: [] as FakeSound[],
+  };
+  const avStep = async (name: string) => {
+    av.log.push(name);
+    if (av.held.has(name)) {
+      await new Promise<void>((release) => av.pending.push({ name, release }));
+    }
+  };
+  mockPackage(mocker, 'expo-av', {
+    Audio: {
+      RecordingOptionsPresets: { HIGH_QUALITY: { preset: 'high' } },
+      Recording: {
+        createAsync: async () => {
+          await avStep('Recording.createAsync');
+          const id = av.recordings.length + 1;
+          const recording: FakeRecording = {
+            id,
+            getStatusAsync: async () => ({ durationMillis: 4_000 }),
+            stopAndUnloadAsync: async () => void av.log.push(`recording${id}.stopAndUnload`),
+            getURI: () => `file:///feedback-${id}.m4a`,
+          };
+          av.recordings.push(recording);
+          return { recording };
+        },
+      },
+      Sound: {
+        createAsync: async () => {
+          await avStep('Sound.createAsync');
+          const id = av.sounds.length + 1;
+          const sound: FakeSound = {
+            id,
+            onStatus: null,
+            playAsync: async () => void av.log.push(`sound${id}.play`),
+            unloadAsync: async () => void av.log.push(`sound${id}.unload`),
+            setOnPlaybackStatusUpdate: (listener) => {
+              sound.onStatus = listener;
+            },
+          };
+          av.sounds.push(sound);
+          return { sound };
+        },
+      },
+      setAudioModeAsync: async () => {},
+      requestPermissionsAsync: async () => {
+        await avStep('requestPermissionsAsync');
+        return { granted: true };
+      },
+    },
+  });
+  const feedbackAv = {
+    log: av.log,
+    recordings: av.recordings,
+    sounds: av.sounds,
+    /** Make the next calls of `name` wait for `release(name)`. */
+    hold: (name: string) => void av.held.add(name),
+    /** Let the oldest waiting call of `name` finish, inside act. */
+    release: async (name: string) => {
+      const index = av.pending.findIndex((entry) => entry.name === name);
+      assert.ok(index >= 0, `a pending ${name}`);
+      const [entry] = av.pending.splice(index, 1);
+      await act(async () => {
+        entry.release();
+      });
+    },
+    waiting: (name: string) => av.pending.filter((entry) => entry.name === name).length,
+  };
 
   // The reader drives the ROOT tab navigator, which it finds by id.
   const rootTabCalls: Array<Record<string, unknown>> = [];
@@ -316,6 +418,12 @@ export function installReaderRenderFixture(
     feedbackSubmissions.length = 0;
     feedbackOutcome.result = { success: true };
     annotationLoads.length = 0;
+    serviceCalls.length = 0;
+    av.log.length = 0;
+    av.held.clear();
+    av.pending.length = 0;
+    av.recordings.length = 0;
+    av.sounds.length = 0;
     holdAnnotationLoads = false;
     timestamps = null;
     playerSteps.previous = null;
@@ -418,6 +526,8 @@ export function installReaderRenderFixture(
       timestamps = value;
     },
     feedbackSubmissions,
+    feedbackAv,
+    serviceCalls,
     feedbackOutcome,
     rootTabCalls,
     renderReader,
