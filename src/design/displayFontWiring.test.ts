@@ -68,8 +68,9 @@ test('every display-token surface merges the useDisplayFont override', () => {
     '../screens/learn/LessonDetailScreen.tsx',
     '../screens/plans/PlanDetailScreen.tsx',
     '../screens/plans/PlansHomeScreen.tsx',
-    '../screens/plans/RhythmDetailScreen.tsx',
-    '../screens/plans/RhythmComposerScreen.tsx',
+    '../screens/plans/rhythmDetail/RhythmDetailHeader.tsx',
+    '../screens/plans/rhythmDetail/RhythmStatusView.tsx',
+    '../screens/plans/rhythmComposer/ComposerHeader.tsx',
     '../screens/auth/AuthScreen.tsx',
     '../screens/auth/ResetPasswordScreen.tsx',
     '../components/ui/Sheet.tsx',
@@ -83,6 +84,9 @@ test('every display-token surface merges the useDisplayFont override', () => {
     '../screens/learn/GroupListScreen.tsx',
     '../screens/bible/reader/ChapterAudioShareSheet.tsx',
     '../screens/more/ReadingActivityScreen.tsx',
+    '../screens/more/readingActivity/ReadingActivityHero.tsx',
+    '../screens/more/readingActivity/CalendarCard.tsx',
+    '../screens/more/readingActivity/SelectedDayCard.tsx',
   ];
 
   for (const surface of surfaces) {
