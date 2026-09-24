@@ -347,6 +347,36 @@ test('cycle days that ran before the reader joined are neither missed nor comple
   assert.equal(ledgerRow(view, 5).props.accessibilityValue, undefined);
 });
 
+test('in the dot grid a missed day is struck through and a day to come is not', async () => {
+  await enroll(PROVERBS, { started_at: '2026-09-20T09:00:00.000Z' });
+  const view = await renderPlan(PROVERBS);
+  const { createThemeColors } = await import('../../contexts/ThemeContext');
+  const { DEFAULT_APPEARANCE_PALETTE } = await import('../../constants/appearancePalettes');
+  const paint = getPlanLedgerDotPaint(createThemeColors('light', DEFAULT_APPEARANCE_PALETTE));
+
+  const grid = view.root.find(
+    (node) => typeof node.type === 'string' && node.props.accessibilityElementsHidden === true
+  );
+  const dots = grid.findAll(
+    (node) => typeof node.type === 'string' && flattenStyle(node.props.style)?.aspectRatio === 1
+  );
+  const strokes = (dot: ReactTestInstance) =>
+    dot.findAll((node) => typeof node.type === 'string' && node !== dot);
+  const fillOf = (dot: ReactTestInstance) => flattenStyle(dot.props.style)?.backgroundColor;
+
+  // The 20th to the 23rd were due since joining and were missed; the 25th is to come.
+  const missed = dots[20];
+  const future = dots[25];
+  assert.equal(fillOf(missed), paint.missed.fill, 'fixture: day 21 is missed');
+  assert.equal(fillOf(future), paint.future.fill, 'fixture: day 26 is to come');
+  assert.equal(strokes(missed).length, 1, 'a missed day carries one stroke');
+  assert.equal(flattenStyle(strokes(missed)[0].props.style)?.backgroundColor, paint.missed.border);
+  assert.deepEqual(strokes(future), []);
+  // The stroke stays inside the dot, so it adds nothing to the grid's height.
+  assert.equal(flattenStyle(missed.props.style)?.overflow, 'hidden');
+  assert.equal(flattenStyle(strokes(missed)[0].props.style)?.position, 'absolute');
+});
+
 // ---------------------------------------------------------------------------
 // Multi-session days
 // ---------------------------------------------------------------------------
@@ -397,6 +427,36 @@ test("a multi-session day offers a button per session, and each opens exactly th
     lastReaderLaunch().playbackSequenceEntries.map((entry) => entry.chapter),
     morningChapters
   );
+});
+
+test("a read session's pill carries a tick, so it is not told from the next session by fill alone", async () => {
+  const { readingPlans } = await import('../../data/readingPlans.generated');
+  const { buildPlanSessionCompletionKey } = await import('../../services/plans/readingPlanModel');
+  const kathisma = readingPlans.find((plan) => plan.id === KATHISMA);
+  assert.ok(kathisma, 'fixture: the weekly Kathisma plan');
+  await enroll(KATHISMA, {
+    started_at: '2026-09-20T09:00:00.000Z',
+    completed_sessions: {
+      [buildPlanSessionCompletionKey(kathisma, 5, 'morning', new Date(TODAY))]: TODAY,
+    },
+  });
+  const view = await renderPlan(KATHISMA);
+  const morning = view.getByRole('button', { name: 'Morning Kathismata for day 5' });
+  const evening = view.getByRole('button', { name: 'Evening Kathismata for day 5' });
+  const pillFill = (pill: ReactTestInstance) => flattenStyle(pill.props.style)?.backgroundColor;
+  const ticks = (pill: ReactTestInstance) =>
+    within(pill)
+      .queryAllByType('LucideIcon')
+      .map((icon) => icon.props.name);
+
+  // Done and next share the accent fill; only the tick separates them.
+  assert.deepEqual(morning.props.accessibilityValue, { text: t('readingPlans.completed') });
+  assert.equal(evening.props.accessibilityValue, undefined);
+  assert.equal(pillFill(morning), pillFill(evening), 'fixture: done and next share a fill');
+  assert.deepEqual(ticks(morning), ['Check']);
+  assert.deepEqual(ticks(evening), []);
+  // The label still names the pill; the tick is drawn inside the same button.
+  assert.ok(within(morning).getByText('Morning Kathismata'));
 });
 
 test('a past multi-session day offers its sessions to VoiceOver as custom actions that open them', async () => {
