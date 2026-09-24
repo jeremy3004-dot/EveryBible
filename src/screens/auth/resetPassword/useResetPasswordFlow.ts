@@ -13,6 +13,7 @@ import {
 import type { RecoveryProblem } from '../../../services/auth/authRecoveryLink';
 import { pullFromCloud } from '../../../services/sync';
 import { useAuthStore } from '../../../stores/authStore';
+import { announceLiveRegionText } from '../../../utils/a11y';
 import { hasFormErrors } from '../authScreenParts/authFormModel';
 import {
   activationProblem,
@@ -137,6 +138,15 @@ export function useResetPasswordFlow(): ResetPasswordFlow {
     }
   }, []);
 
+  // The error texts are live regions, which only TalkBack reads; VoiceOver is
+  // told directly, or a failed save or resend is silent.
+  useEffect(() => {
+    if (formError) announceLiveRegionText(formError);
+  }, [formError]);
+  useEffect(() => {
+    if (resendError) announceLiveRegionText(resendError);
+  }, [resendError]);
+
   const changeResendEmail = (text: string) => {
     setResendEmail(text);
     setResendError(null);
@@ -185,6 +195,12 @@ export function useResetPasswordFlow(): ResetPasswordFlow {
     const nextErrors = validateNewPassword(password, confirmPassword);
     setErrors(nextErrors);
     if (hasFormErrors(nextErrors)) {
+      announceLiveRegionText(
+        [nextErrors.password, nextErrors.confirmPassword]
+          .filter((key): key is string => Boolean(key))
+          .map((key) => t(key))
+          .join('. ')
+      );
       return;
     }
 
