@@ -20,6 +20,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import AdmZip from 'adm-zip';
 import https from 'node:https';
 import http from 'node:http';
+import { pathToFileURL } from 'node:url';
 
 import { EBIBLE_BOOK_MAP } from './ebible-book-map.js';
 
@@ -401,9 +402,11 @@ async function upsertVersionRow(
 // Per-translation import
 // ---------------------------------------------------------------------------
 
-async function importTranslation(
+// Exported (with an injectable downloader) so the write order can be tested without network.
+export async function importTranslation(
   supabase: AnySupabaseClient,
   translation: TranslationCsvRow,
+  download: (url: string) => Promise<Buffer> = fetchUrl,
 ): Promise<void> {
   const { translationId } = translation;
   console.log(
@@ -414,7 +417,7 @@ async function importTranslation(
   const zipUrl = `https://ebible.org/Scriptures/${translationId}_vpl.zip`;
   let zipBuffer: Buffer;
   try {
-    zipBuffer = await fetchUrl(zipUrl);
+    zipBuffer = await download(zipUrl);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.warn(`[import] WARNING: Could not download ${zipUrl} — ${msg}. Skipping.`);
@@ -580,7 +583,9 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((err) => {
-  console.error('[import] Unhandled error:', err);
-  process.exit(1);
-});
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((err) => {
+    console.error('[import] Unhandled error:', err);
+    process.exit(1);
+  });
+}
