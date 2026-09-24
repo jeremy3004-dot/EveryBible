@@ -5,6 +5,8 @@ import { createRequire } from 'node:module';
 import { mockMmkvStorage, mockModule, mockReactNative, sourcePath } from '../testing/mockModules';
 import { createReactHookRuntime } from '../testing/reactHookRuntime';
 import type { AudioChapterMap } from '../services/bible/contentAvailability';
+import { createInstance } from 'i18next';
+import { zh } from '../i18n/locales/zh';
 
 // ---------------------------------------------------------------------------
 // A deterministic hook harness.
@@ -166,7 +168,9 @@ const bibleState = {
 
 const mmkv = mockMmkvStorage(mock);
 
-const translate = (key: string) => key;
+// Keys by default; a test can swap in a real locale to prove translated text is stored.
+let activeTranslate: (key: string) => string = (key) => key;
+const translate = (key: string) => activeTranslate(key);
 
 // tsx compiles this repo's TypeScript to CommonJS, so a package whose
 // "exports" map splits import/require (react-i18next, zustand) resolves to a
@@ -365,6 +369,7 @@ beforeEach(() => {
   scenario.remoteFallback = async () => null;
   scenario.failLoadUrls = new Set();
   scenario.contentSummary = undefined;
+  activeTranslate = (key) => key;
 
   audioPlayerDouble.loaded = false;
   audioPlayerDouble.callbacks = {};
@@ -606,6 +611,38 @@ test('a failing audio lookup reports a generic playback failure', async () => {
   assert.equal(store().status, 'error');
   assert.equal(store().error, 'interface.audioPlayFailed');
 });
+
+// The store keeps the message the listener reads, so it must hold the
+// translated text rather than the key, whichever step failed.
+for (const failure of ['unavailable', 'lookup', 'playback'] as const) {
+  test(`a ${failure} failure stores its translated message and clears the lock screen once`, async () => {
+    const i18n = createInstance();
+    await i18n.init({ lng: 'zh', resources: { zh: { translation: zh } }, initImmediate: false });
+    activeTranslate = (key) => i18n.t(key);
+    if (failure === 'unavailable') scenario.chapterAudio = async () => null;
+    if (failure === 'lookup') {
+      scenario.chapterAudio = async () => {
+        throw new Error('Server unavailable');
+      };
+    }
+    if (failure === 'playback')
+      scenario.failLoadUrls = new Set(['https://cdn.example/bsb/GEN/1.mp3']);
+    const player = mountPlayer();
+    recorded.nowPlayingCleared = 0;
+
+    await player.api.playChapter('GEN', 1);
+
+    assert.equal(store().status, 'error');
+    assert.equal(
+      store().error,
+      failure === 'unavailable'
+        ? zh.interface.audioUnavailableChapter
+        : zh.interface.audioPlayFailed
+    );
+    assert.equal(recorded.nowPlayingCleared, 1);
+    assert.equal(playerCalls('loadAndPlay').length, failure === 'playback' ? 1 : 0);
+  });
+}
 
 test('the player reporting an error surfaces the playback failure message', () => {
   mountPlayer();
