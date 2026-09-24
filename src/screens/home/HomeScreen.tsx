@@ -29,6 +29,7 @@ import { useTranslation } from 'react-i18next';
 import { bibleTranslations } from '../../constants/translations';
 import { getBookById, getTranslatedBookName } from '../../constants/books';
 import { config } from '../../constants/config';
+import { FONT_SIZE_SCALES } from '../../constants/fontSizeScales';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useDisplayFont } from '../../hooks/useDisplayFont';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
@@ -188,7 +189,15 @@ export function HomeScreen() {
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const verseSharePreviewRef = useRef<View | null>(null);
   const verseBackground = getHomeVerseBackground();
-  const homeLayout = getHomeScreenLayout(screenWidth, screenHeight, bottomTabBarHeight);
+  // Scripture on the hero follows the in-app reading size like the reader does;
+  // the OS text size is applied on top by RN, and the hero grows to fit both.
+  const readingFontSize = useAuthStore((state) => state.preferences.fontSize);
+  const homeLayout = getHomeScreenLayout(
+    screenWidth,
+    screenHeight,
+    bottomTabBarHeight,
+    FONT_SIZE_SCALES[readingFontSize]
+  );
   const user = useAuthStore((state) => state.user);
 
   const currentTranslation = useBibleStore((state) => state.currentTranslation);
@@ -660,13 +669,16 @@ export function HomeScreen() {
         style={[
           styles.hero,
           {
-            height: homeLayout.heroPhotoHeight + (isScreenVariant ? HERO_ACTION_OVERHANG : 0),
+            // minHeight, not height: a long verse or a large text size grows the
+            // hero (and the photograph behind it) instead of shrinking the text.
+            minHeight: homeLayout.heroPhotoHeight + (isScreenVariant ? HERO_ACTION_OVERHANG : 0),
           },
         ]}
       >
         <ImageBackground
           source={verseBackgroundSource}
-          style={[styles.heroPhoto, { height: homeLayout.heroPhotoHeight }]}
+          style={[styles.heroPhoto, isScreenVariant ? styles.heroPhotoOverhang : null]}
+          imageStyle={styles.heroPhotoImage}
           resizeMode="cover"
           accessible={false}
         >
@@ -712,7 +724,7 @@ export function HomeScreen() {
               </View>
             ) : (
               <>
-                <Text style={[styles.heroEyebrow, displayFont.regular]} numberOfLines={1}>
+                <Text style={[styles.heroEyebrow, displayFont.regular]}>
                   {verseScriptureEyebrow}
                 </Text>
                 <Text
@@ -724,9 +736,6 @@ export function HomeScreen() {
                       lineHeight: homeLayout.verseTextLineHeight,
                     },
                   ]}
-                  numberOfLines={homeLayout.verseTextLines}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.72}
                 >
                   {verseShareBodyText}
                 </Text>
@@ -749,7 +758,7 @@ export function HomeScreen() {
                       fill={ON_PHOTO_PILL_INK}
                       strokeWidth={2}
                     />
-                    <Text style={styles.heroPillLabel} numberOfLines={1}>
+                    <Text style={styles.heroPillLabel} numberOfLines={2}>
                       {t('bible.listen')}
                     </Text>
                   </PressableScale>
@@ -766,7 +775,7 @@ export function HomeScreen() {
                   }
                   style={styles.heroPill}
                 >
-                  <Text style={styles.heroPillLabel} numberOfLines={1}>
+                  <Text style={styles.heroPillLabel} numberOfLines={2}>
                     {dailyPassageLabel
                       ? t('home.readPassage', { passage: dailyPassageLabel })
                       : t('bible.read')}
@@ -1115,12 +1124,23 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
+    bottom: 0,
+  },
+  // The action pills hang past the photograph's lower edge on screen.
+  heroPhotoOverhang: {
+    bottom: HERO_ACTION_OVERHANG,
+  },
+  // ImageBackground proxies only an explicit width/height to its image, so the
+  // stretched frame is restated here or the photo would keep its intrinsic size.
+  heroPhotoImage: {
+    width: '100%',
+    height: '100%',
   },
   heroScrim: {
     ...StyleSheet.absoluteFillObject,
   },
   heroContent: {
-    flex: 1,
+    flexGrow: 1,
     paddingHorizontal: SHEET_GUTTER,
   },
   heroHeaderRow: {
@@ -1177,13 +1197,17 @@ const styles = StyleSheet.create({
   },
   heroActionRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     gap: spacing.sm,
   },
+  // minHeight, not height: the pill labels grow with the OS text size.
   heroPill: {
-    height: HERO_PILL_HEIGHT,
+    minHeight: HERO_PILL_HEIGHT,
     borderRadius: HERO_PILL_HEIGHT / 2,
     paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xs,
+    maxWidth: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
@@ -1192,6 +1216,7 @@ const styles = StyleSheet.create({
   heroPillLabel: {
     ...typography.captionStrong,
     color: ON_PHOTO_PILL_INK,
+    flexShrink: 1,
   },
   heroShareButton: {
     marginLeft: 'auto',

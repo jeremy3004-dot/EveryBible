@@ -24,7 +24,7 @@ test('HomeScreen uses a bounce-enabled scroll shell while sizing itself against 
 
   assert.match(
     source,
-    /getHomeScreenLayout\(screenWidth, screenHeight, bottomTabBarHeight\)/,
+    /getHomeScreenLayout\(\s*screenWidth,\s*screenHeight,\s*bottomTabBarHeight,/,
     'HomeScreen should size itself against the visible space after the bottom bar'
   );
 
