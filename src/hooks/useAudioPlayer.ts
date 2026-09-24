@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAudioStore } from '../stores/audioStore';
@@ -11,6 +11,7 @@ import {
   backgroundMusicPlayer,
   clearBibleNowPlaying,
   type BibleNowPlayingInput,
+  type BibleNowPlayingLocalizedStrings,
   getChapterAudioUrl,
   isAudioAvailable,
   prefetchChapterAudio,
@@ -22,7 +23,7 @@ import { fetchRemoteChapterAudio } from '../services/audio/audioRemote';
 import type { TrackPlayerProgressSnapshot } from '../services/audio/audioPlayer';
 import { trackAnonymousUsageEvent } from '../services/analytics';
 import { elapsedListeningMs } from '../services/analytics/listeningTime';
-import { getAdjacentBibleChapter, getBookById } from '../constants';
+import { getAdjacentBibleChapter, getBookById, getTranslatedBookName } from '../constants';
 import type { AudioPlaybackSequenceEntry, PlaybackRate, SleepTimerOption } from '../types';
 import { advanceAudioQueue } from '../stores/audioQueueModel';
 import { resolveRepeatPlaybackTarget } from '../stores/audioPlaybackCompletionModel';
@@ -211,6 +212,21 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       const resolvedCanSkipPrevious =
         overrides.canSkipPrevious ??
         Boolean(state.queue[state.queueIndex - 1] ?? resolvedAdjacentChapter(-1));
+      // Android builds its media notification from JS, so it needs the strings in
+      // the interface language. iOS publishes natively and keeps its payload as is.
+      const localized: BibleNowPlayingLocalizedStrings | undefined =
+        Platform.OS === 'android'
+          ? {
+              bookName: getTranslatedBookName(resolvedBookId, t),
+              channelName: t('audio.nowPlaying'),
+              play: t('interface.playChapterAudio'),
+              pause: t('interface.pauseChapterAudio'),
+              previous: t('audio.previousChapter'),
+              next: t('audio.nextChapter'),
+              skipBackward: t('audio.skipBackward'),
+              skipForward: t('audio.skipForward'),
+            }
+          : undefined;
 
       const signature = [
         resolvedTranslationId,
@@ -222,6 +238,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
         resolvedPlaybackRate,
         resolvedCanSkipNext ? '1' : '0',
         resolvedCanSkipPrevious ? '1' : '0',
+        localized?.bookName ?? '',
       ].join('|');
 
       if (!force && lastNowPlayingSignatureRef.current === signature) {
@@ -240,9 +257,10 @@ export function useAudioPlayer(translationId: string = 'bsb') {
         playbackRate: resolvedPlaybackRate,
         canSkipNext: resolvedCanSkipNext,
         canSkipPrevious: resolvedCanSkipPrevious,
+        ...(localized ? { localized } : {}),
       });
     },
-    [translationId]
+    [t, translationId]
   );
 
   const stopAudioProgressTelemetryTimer = useCallback(() => {

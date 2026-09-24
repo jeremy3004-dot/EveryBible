@@ -34,7 +34,7 @@ test('useAudioPlayer uses canonical adjacent-book chapter resolution for manual 
 
   assert.match(
     source,
-    /import \{ getAdjacentBibleChapter, getBookById \} from '\.\.\/constants';/,
+    /import \{ getAdjacentBibleChapter, getBookById(, [A-Za-z]+)* \} from '\.\.\/constants';/,
     'useAudioPlayer should import the shared adjacent-chapter helper from the Bible constants module'
   );
 

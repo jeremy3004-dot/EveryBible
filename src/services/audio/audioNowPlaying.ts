@@ -4,6 +4,7 @@ import type {
   BibleNowPlayingPayload,
 } from './audioNowPlayingModel';
 import { buildBibleNowPlayingPayload } from './audioNowPlayingModel';
+import { getAndroidMediaSession } from './androidMediaSession';
 
 type RemoteCommandName =
   | 'play'
@@ -73,6 +74,15 @@ function coerceRemoteCommandName(value: unknown): RemoteCommandName | null {
 
 export async function syncBibleNowPlaying(input: BibleNowPlayingInput): Promise<void> {
   currentBibleNowPlayingPayload = buildBibleNowPlayingPayload(input);
+
+  if (Platform.OS === 'android') {
+    const session = getAndroidMediaSession();
+    await (currentBibleNowPlayingPayload
+      ? session.sync(input, currentBibleNowPlayingPayload)
+      : session.clear());
+    return;
+  }
+
   const nativeModule = getNativeBibleNowPlayingModule();
 
   if (Platform.OS !== 'ios' || !nativeModule?.syncBibleNowPlaying) {
@@ -90,6 +100,12 @@ export async function syncBibleNowPlaying(input: BibleNowPlayingInput): Promise<
 
 export async function clearBibleNowPlaying(): Promise<void> {
   currentBibleNowPlayingPayload = null;
+
+  if (Platform.OS === 'android') {
+    await getAndroidMediaSession().clear();
+    return;
+  }
+
   const nativeModule = getNativeBibleNowPlayingModule();
 
   if (Platform.OS !== 'ios' || !nativeModule?.clearBibleNowPlaying) {
@@ -103,6 +119,10 @@ export async function clearBibleNowPlaying(): Promise<void> {
 export function subscribeBibleNowPlayingRemoteCommands(
   listener: (command: BibleNowPlayingRemoteCommand) => void
 ): () => void {
+  if (Platform.OS === 'android') {
+    return getAndroidMediaSession().subscribe(listener);
+  }
+
   const emitter = getBibleNowPlayingEmitter();
 
   if (!emitter) {

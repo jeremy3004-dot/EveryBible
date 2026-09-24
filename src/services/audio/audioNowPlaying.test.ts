@@ -54,6 +54,9 @@ class RecordingNativeEventEmitter extends BaseEmitter {
 
 rn.NativeEventEmitter = RecordingNativeEventEmitter;
 mockModule(mock, 'react-native', rn);
+// Android goes through expo-media-control (audioNowPlaying.android.test.ts);
+// here it is simply not linked.
+mockModule(mock, 'expo', { requireOptionalNativeModule: () => null });
 
 // ---------------------------------------------------------------------------
 // Test scaffolding
@@ -302,7 +305,7 @@ test('a dev build warns exactly once about the missing native module', async () 
   assert.match(String(warnings[0][0]), /EveryBibleAudioNowPlayingModule is missing/);
 });
 
-test('a platform with no lock-screen bridge is a silent no-op even when the module exists', async () => {
+test('Android never calls the iOS bridge, and is a silent no-op when its own module is absent', async () => {
   rn.Platform.OS = 'android';
 
   await assert.doesNotReject(() => mod.syncBibleNowPlaying(genesisOne));
@@ -311,7 +314,7 @@ test('a platform with no lock-screen bridge is a silent no-op even when the modu
   assert.deepEqual(nativeCalls, []);
 });
 
-test('subscribing off iOS returns a no-op unsubscribe and constructs no emitter', async () => {
+test('subscribing on Android constructs no iOS emitter and returns a no-op without its module', async () => {
   rn.Platform.OS = 'android';
 
   const unsubscribe = mod.subscribeBibleNowPlayingRemoteCommands(() => {

@@ -113,6 +113,9 @@ to stop some time after the screen locks, with no lock-screen controls. Needs th
 track-player (or expo-audio) migration with a `mediaPlayback` foreground service; expo-av is
 deprecated in favour of expo-audio anyway. Same as N11 from 2026-09-10.
 Repro: start chapter audio, lock the phone for 5–10 minutes, unlock.
+Update: addressed on a follow-up branch with a MediaSession and `mediaPlayback` foreground service
+next to expo-av (not a player migration). See `android-background-audio-2026-09-24.md`
+for the decision and the device QA checklist. It needs a new native build.
 
 **D2 — Medium — Android remote push is inert.** No `googleServicesFile` in `app.json`, so
 `Notifications.getExpoPushTokenAsync` (`src/services/notifications/notificationService.ts:239`)
