@@ -1,6 +1,7 @@
 import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { act } from 'react-test-renderer';
+import { renderedText } from '../../testing/render';
 import {
   concern,
   feedbackPage,
@@ -385,4 +386,43 @@ test('the chapter feedback list shows praise and concerns with their decisions',
 
   assert.ok(view.getByText('Reads clearly'));
   assert.ok(view.getByText('Spelling corrected'));
+});
+
+// ---- Re-render reach -----------------------------------------------------------------------
+
+// Each card's comment Text, counted to see which cards an update redrew.
+const commentRenders = (since: number, comment: string) =>
+  harness.renders.count(since, 'Text', (props) => renderedText(props.children) === comment);
+
+test('typing a reason in the sheet redraws no feedback card', async () => {
+  const view = await renderReview();
+  await view.press(view.getByRole('button', { name: t('feedback.markAddressed') }));
+  const sheet = visibleSheet(view);
+  assert.ok(sheet);
+
+  const since = harness.renders.mark();
+  await view.changeText(sheet.getByLabelText(t('feedback.explanation')), 'Fixed the spelling');
+
+  // The sheet quotes the concern's comment itself; the cards' byline is theirs alone.
+  const bylineRenders = harness.renders.count(since, 'Text', (props) =>
+    renderedText(props.children).startsWith('Ruth · ')
+  );
+  assert.equal(bylineRenders, 0);
+  assert.equal(commentRenders(since, 'Reads clearly'), 0);
+});
+
+test('starting a voice note redraws only the card that is playing', async () => {
+  const view = await renderReview();
+
+  const since = harness.renders.mark();
+  await view.press(listenButton(view, 'bible.translatorReviewListen'));
+  await view.flush();
+
+  assert.ok(commentRenders(since, 'The name is misspelled') > 0, 'the playing card shows Pause');
+  assert.equal(commentRenders(since, 'Reads clearly'), 0);
+  assert.equal(commentRenders(since, 'Old concern'), 0);
+  // The redrawn cards still act on the latest state: Pause pauses the clip now playing.
+  await view.press(listenButton(view, 'bible.translatorReviewPause'));
+  await view.flush();
+  assert.deepEqual(fixture.soundCalls, ['pause']);
 });

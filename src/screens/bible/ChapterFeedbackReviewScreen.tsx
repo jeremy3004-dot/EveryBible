@@ -9,10 +9,12 @@ import { layout, spacing, typography } from '../../design/system';
 import { getTranslatedBookName } from '../../constants';
 import { useTranslatorReviewStore } from '../../stores/translatorReviewStore';
 import { getChapterReviewHeadline, type ChapterFeedbackReviewItem } from '../../services/feedback';
-import { FeedbackResolveSheet, FeedbackResponseCard } from '../../components/feedback';
+import { FeedbackResolveSheet } from '../../components/feedback';
+import { useLatestCallback } from '../../components/audio/playbackControlsParts/useLatestCallback';
 import { AppButton, BackArrowIcon, IconButton } from '../../components/ui';
 import type { BibleStackParamList } from '../../navigation/types';
 import { FeedbackReviewHeader } from './feedbackReview/FeedbackReviewHeader';
+import { FeedbackReviewRow } from './feedbackReview/FeedbackReviewRow';
 import { FeedbackSourceSheet } from './feedbackReview/FeedbackSourceSheet';
 import {
   getSourceFilterLabelKey,
@@ -60,19 +62,24 @@ export function ChapterFeedbackReviewScreen({ route, navigation }: Props) {
     void load();
   };
 
+  // Stable row handlers that always act on the latest state, so the memoised rows
+  // redraw only when their own item, playing state or busy flag changes.
+  const onPlay = useLatestCallback((item: ChapterFeedbackReviewItem) => {
+    void voiceNote.play(item);
+  });
+  const onResolve = useLatestCallback(decisions.chooseResolution);
+  const onReopen = useLatestCallback((item: ChapterFeedbackReviewItem) => {
+    void decisions.reopen(item);
+  });
   const renderItem = ({ item }: { item: ChapterFeedbackReviewItem }) => (
-    <FeedbackResponseCard
+    <FeedbackReviewRow
       item={item}
       language={i18n.language}
       isPlaying={voiceNote.playing === item.id}
       busy={decisions.mutating}
-      onPlay={() => {
-        void voiceNote.play(item);
-      }}
-      onResolve={(resolution) => decisions.chooseResolution(item, resolution)}
-      onReopen={() => {
-        void decisions.reopen(item);
-      }}
+      onPlay={onPlay}
+      onResolve={onResolve}
+      onReopen={onReopen}
     />
   );
 
