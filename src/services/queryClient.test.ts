@@ -47,21 +47,22 @@ let queryClient: import('@tanstack/react-query').QueryClient;
 let focusManager: (typeof import('@tanstack/react-query'))['focusManager'];
 let onlineManager: (typeof import('@tanstack/react-query'))['onlineManager'];
 
-/** Native subscriptions observed straight after the import, before installing. */
+/** Native subscriptions observed straight after the import, before first use. */
 const atImport = { appStateListeners: -1, netInfoSubscribes: -1 };
+let sameClientOnSecondUse = false;
 
 before(async () => {
-  // Importing the module must NOT wire anything up: this module is on App.tsx's
-  // static boot graph, and subscribing here dragged NetInfo into cold start.
-  const { queryClient: client, installQueryClientListeners } = await import('./queryClient');
-  queryClient = client;
+  // Importing the module must NOT create the client or wire anything up: no
+  // screen uses react-query yet, and subscribing at import dragged NetInfo into
+  // cold start.
+  const { getQueryClient } = await import('./queryClient');
   atImport.appStateListeners = rn.AppState.listenerCount();
   atImport.netInfoSubscribes = netInfoSubscribeCount;
 
-  // AppRuntimeEffects calls this after interactions; call it twice to pin the
-  // idempotence the caller relies on.
-  installQueryClientListeners();
-  installQueryClientListeners();
+  // First use creates the client and installs the listeners; a second use must
+  // hand back the same client without installing them again.
+  queryClient = getQueryClient();
+  sameClientOnSecondUse = getQueryClient() === queryClient;
 
   // @tanstack/react-query ships separate `import` and `require` builds, each
   // with its own focusManager/onlineManager singleton. This repo has no
@@ -72,7 +73,11 @@ before(async () => {
   ) as typeof import('@tanstack/react-query'));
 });
 
-test('installing after the app backgrounds immediately pauses focus-driven work', () => {
+test('every caller shares one client, so screens share one query cache', () => {
+  assert.equal(sameClientOnSecondUse, true);
+});
+
+test('first use while the app is backgrounded immediately pauses focus-driven work', () => {
   assert.equal(focusManager.isFocused(), false);
 });
 
@@ -88,15 +93,15 @@ test('the shared client garbage-collects inactive queries after ten minutes', ()
   assert.equal(queryClient.getDefaultOptions().queries?.gcTime, 10 * 60 * 1000);
 });
 
-test('importing the module touches neither AppState nor NetInfo, keeping them off cold start', () => {
+test('importing the module touches neither AppState nor NetInfo until the client is first used', () => {
   assert.deepEqual(atImport, { appStateListeners: 0, netInfoSubscribes: 0 });
 });
 
-test('installing the listeners subscribes to app state exactly once, however often it is called', () => {
+test('first use subscribes to app state exactly once, however often the client is requested', () => {
   assert.equal(rn.AppState.listenerCount(), 1);
 });
 
-test('installing the listeners subscribes to NetInfo exactly once, however often it is called', () => {
+test('first use subscribes to NetInfo exactly once, however often the client is requested', () => {
   assert.equal(netInfoSubscribeCount, 1);
   assert.equal(netInfoListeners.size, 1);
 });

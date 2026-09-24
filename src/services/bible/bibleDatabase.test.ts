@@ -732,6 +732,42 @@ test('getChapterSourceKey distinguishes the bundled source from an installed one
   assert.equal(getChapterSourceKey('web'), `bundled:${BUNDLED_DATABASE_NAME}:`);
 });
 
+test('resolvers registered through bibleDatabaseSources before the database loads drive the first read', async () => {
+  // bibleStore registers both resolvers at import through bibleDatabaseSources
+  // and only loads this module later; the first read must still see them.
+  const sources = await import('./bibleDatabaseSources');
+  const { getDatabase } = await loadModule();
+  writeSeedDatabase(`${installedDirectory}/sources-kjv.db`, {
+    verses: [
+      {
+        translationId: 'kjv',
+        bookId: 'GEN',
+        chapter: 1,
+        verse: 1,
+        text: 'In the beginning God created the heaven and the earth.',
+      },
+    ],
+  });
+  const readiness: Array<{ translationId: string; opensSoFar: number }> = [];
+  sources.setBibleTranslationReadinessResolver(async (translationId) => {
+    readiness.push({ translationId, opensSoFar: opens.length });
+  });
+  sources.setBibleDatabaseSourceResolver((translationId) =>
+    translationId === 'kjv' ? installedSource('kjv', 'sources-kjv.db') : null
+  );
+  resetRecorders();
+
+  try {
+    await getDatabase('kjv');
+
+    assert.deepEqual(readiness, [{ translationId: 'kjv', opensSoFar: 0 }]);
+    assert.equal(opens[0]?.path, `${installedDirectory}/sources-kjv.db`);
+  } finally {
+    sources.setBibleTranslationReadinessResolver(null);
+    sources.setBibleDatabaseSourceResolver(null);
+  }
+});
+
 test('getDatabase opens an installed translation from its own directory and caches the handle', async () => {
   const { getDatabase, setBibleDatabaseSourceResolver } = await loadModule();
   writeSeedDatabase(`${installedDirectory}/web.db`, {

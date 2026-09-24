@@ -22,10 +22,9 @@ import type {
   AudioDownloadJobRecord,
 } from '../services/audio/audioDownloadService';
 import {
-  invalidateInstalledBibleDatabaseAtPath,
   setBibleTranslationReadinessResolver,
   setBibleDatabaseSourceResolver,
-} from '../services/bible/bibleDatabase';
+} from '../services/bible/bibleDatabaseSources';
 import {
   activateTranslationPackCandidate,
   buildInstalledBibleDatabaseSource,
@@ -76,6 +75,17 @@ function saveTranslationPreference(translationId: string): void {
   } catch {
     // Preference sync is best-effort; a failed load must not undo the local switch.
   }
+}
+
+// bibleDatabase brings expo-sqlite and the SQLite schema code with it, and this
+// store is on the path to Home. The store only needs the database when a text
+// pack is installed, repaired or removed, so it is required then. The resolvers
+// registered at the bottom of this file live in bibleDatabaseSources, which has
+// no SQLite dependency, so they are still in place before the first read.
+function invalidateInstalledBibleDatabaseAtPath(localPath: string): Promise<void> {
+  const bibleDatabase =
+    require('../services/bible/bibleDatabase') as typeof import('../services/bible/bibleDatabase');
+  return bibleDatabase.invalidateInstalledBibleDatabaseAtPath(localPath);
 }
 
 type AudioDownloadModules = typeof import('../services/audio/audioDownloadService') &

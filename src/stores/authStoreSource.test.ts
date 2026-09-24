@@ -38,4 +38,14 @@ test('auth store keeps supabase-js and the native sign-in SDKs off the cold-star
     /const getAuthModule = \(\): typeof import\('\.\.\/services\/auth'\) => require\('\.\.\/services\/auth'\);/,
     'the auth service should be required lazily at the call site'
   );
+  assert.match(
+    source,
+    /const getAuthSessionModule = \(\): typeof import\('\.\.\/services\/auth\/authSession'\) =>\s*require\('\.\.\/services\/auth\/authSession'\);/,
+    'session restore runs before Home and should require only the session module, not the sign-in SDKs'
+  );
+  assert.match(
+    source,
+    /await getAuthSessionModule\(\)\.getCurrentSession\(\)/,
+    'initialize() should restore the session through the lightweight session module'
+  );
 });

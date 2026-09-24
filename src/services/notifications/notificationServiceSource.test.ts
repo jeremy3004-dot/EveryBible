@@ -33,12 +33,11 @@ function appPushEffectsHarness() {
       const cleanup = callback();
       if (cleanup) cleanups.push(cleanup);
     },
-    Notifications: {
-      addNotificationResponseReceivedListener: () => ({ remove: () => {} }),
-      addPushTokenListener: (callback: typeof listener) => {
-        listener = callback;
-        return { remove: () => {} };
-      },
+    // App.tsx takes both listeners from notificationBootstrap's deep imports.
+    addNotificationResponseReceivedListener: () => ({ remove: () => {} }),
+    addPushTokenListener: (callback: typeof listener) => {
+      listener = callback;
+      return { remove: () => {} };
     },
     require: (name: string) => {
       assert.equal(name, './src/services/notifications');

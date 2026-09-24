@@ -12,10 +12,8 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { QueryClientProvider } from '@tanstack/react-query';
 import { I18nextProvider } from 'react-i18next';
 import * as SplashScreen from 'expo-splash-screen';
-import * as Notifications from 'expo-notifications';
 import * as Linking from 'expo-linking';
 import { useFonts } from 'expo-font';
 import {
@@ -36,8 +34,11 @@ import {
   createPrivacyRetryInitializer,
   createStartupCoordinator,
 } from './src/services/startup';
-import { queryClient } from './src/services/queryClient';
-import { setupNotificationHandler } from './src/services/notifications/notificationBootstrap';
+import {
+  addNotificationResponseReceivedListener,
+  addPushTokenListener,
+  setupNotificationHandler,
+} from './src/services/notifications/notificationBootstrap';
 import { installGlobalErrorHandlers } from './src/services/diagnostics/globalErrorHandler';
 import { enforceLtrLayoutPolicy } from './src/services/startup/rtlPolicy';
 import { rootNavigationRef } from './src/navigation/rootNavigation';
@@ -436,15 +437,13 @@ function OnboardingHost() {
 export default function App() {
   return (
     <GestureHandlerRootView style={styles.gestureRoot}>
-      <QueryClientProvider client={queryClient}>
-        <I18nextProvider i18n={i18n}>
-          <SafeAreaProvider>
-            <ThemeProvider>
-              <AppContent />
-            </ThemeProvider>
-          </SafeAreaProvider>
-        </I18nextProvider>
-      </QueryClientProvider>
+      <I18nextProvider i18n={i18n}>
+        <SafeAreaProvider>
+          <ThemeProvider>
+            <AppContent />
+          </ThemeProvider>
+        </SafeAreaProvider>
+      </I18nextProvider>
     </GestureHandlerRootView>
   );
 }
@@ -657,7 +656,7 @@ function AppContent() {
 
   // Listen for notification taps — used for future navigate-to-screen support.
   useEffect(() => {
-    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+    const subscription = addNotificationResponseReceivedListener((response) => {
       const data = response.notification.request.content.data;
       // Future: navigate based on data.screen, data.groupId, etc.
       // Guarded: the payload can carry user content, so never log it in release builds.
@@ -671,7 +670,7 @@ function AppContent() {
   // Listen for push token refreshes and re-register with the updated token.
   useEffect(() => {
     let isMounted = true;
-    const subscription = Notifications.addPushTokenListener((devicePushToken) => {
+    const subscription = addPushTokenListener((devicePushToken) => {
       const { user: currentUser, authGeneration } = useAuthStore.getState();
       if (currentUser?.uid) {
         void import('./src/services/notifications').then(({ registerPushToken }) => {

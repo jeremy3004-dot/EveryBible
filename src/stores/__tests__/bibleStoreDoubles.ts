@@ -254,15 +254,20 @@ export function installBibleStoreDoubles(mocker: MockTracker): BibleStoreDoubles
         throw doubles.database.invalidateError;
       }
     },
+    getChapter: async (_translationId: string, bookId: string, chapter: number) =>
+      bookId === doubles.database.readbackBookId && chapter === doubles.database.readbackChapter
+        ? [{ id: 1, bookId, chapter, verse: 1, text: 'fixture' }]
+        : [],
+  });
+
+  // The store registers its resolvers here at import time; bibleDatabase itself
+  // (and expo-sqlite) is only required when a text pack is installed or removed.
+  mockModule(mocker, sourcePath('services/bible/bibleDatabaseSources.ts'), {
     setBibleDatabaseSourceResolver: (resolver: ((id: string) => unknown) | null) => {
       doubles.database.resolverRegistrations += 1;
       doubles.database.resolver = resolver;
     },
     setBibleTranslationReadinessResolver: () => {},
-    getChapter: async (_translationId: string, bookId: string, chapter: number) =>
-      bookId === doubles.database.readbackBookId && chapter === doubles.database.readbackChapter
-        ? [{ id: 1, bookId, chapter, verse: 1, text: 'fixture' }]
-        : [],
   });
 
   mockModule(mocker, sourcePath('services/translations/index.ts'), {

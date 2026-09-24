@@ -95,6 +95,18 @@ mockModule(mock, 'expo-notifications', {
   },
 });
 
+// The re-exported setupNotificationHandler comes from notificationBootstrap,
+// which deep-imports these files instead of the package root.
+mockModule(mock, 'expo-notifications/build/NotificationsHandler', {
+  setNotificationHandler: () => {},
+});
+mockModule(mock, 'expo-notifications/build/NotificationsEmitter', {
+  addNotificationResponseReceivedListener: () => ({ remove: () => {} }),
+});
+mockModule(mock, 'expo-notifications/build/TokenEmitter', {
+  addPushTokenListener: () => ({ remove: () => {} }),
+});
+
 const fake = createSupabaseFake();
 mockSupabaseModule(mock, fake);
 
