@@ -291,7 +291,7 @@ test('an over-budget client gets 429 with Retry-After and costs no write or geo 
 
 test('the budget is charged with the accepted events and body bytes under a hashed key', async () => {
   const h = collector();
-  await h.send([h.event, h.event]);
+  await h.send([h.event, { ...h.event, event_id: '88888888-8888-4888-8888-888888888888' }]);
   assert.equal(h.rpcCalls.length, 1);
   assert.equal(h.rpcCalls[0].p_event_count, 2);
   assert.ok(Number(h.rpcCalls[0].p_byte_count) > 100);
