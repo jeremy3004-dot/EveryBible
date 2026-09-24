@@ -86,7 +86,9 @@ export function filterInstallableCatalogEntries(
     const hasPublishedRuntimeCatalog =
       !entry.is_bundled && (hasCatalogAudio || hasPublishedTextPack) && hasInstallableText;
 
-    return hasPublishedRuntimeCatalog || (currentVersionIds.has(resolvedBackendId) && hasInstallableText);
+    return (
+      hasPublishedRuntimeCatalog || (currentVersionIds.has(resolvedBackendId) && hasInstallableText)
+    );
   });
 }
 
@@ -125,6 +127,12 @@ export function mapCatalogEntryToBibleTranslation(
 ): BibleTranslation {
   const translationId = normalizeCatalogTranslationId(entry.translation_id);
   const hasCatalogAudio = Boolean(entry.catalog?.audio);
+  // is_bundled only describes this binary when the store already holds a bundled seed for the
+  // id (the sanitizer seeds exactly the ids in the app's own catalog). For any other id it is
+  // stale or mistaken server data, and honouring it leaves a row with no runtime source that
+  // readers treat as already on device — so it could never be downloaded.
+  const isBundledInThisBuild =
+    entry.is_bundled && existing !== undefined && existing.source !== 'runtime';
 
   return {
     id: translationId,
@@ -141,15 +149,12 @@ export function mapCatalogEntryToBibleTranslation(
     hasText: Boolean(existing?.hasText || entry.has_text),
     hasAudio: Boolean(existing?.hasAudio || entry.has_audio || hasCatalogAudio),
     audioGranularity:
-      existing?.audioGranularity ??
-      (entry.has_audio || hasCatalogAudio ? 'chapter' : 'none'),
+      existing?.audioGranularity ?? (entry.has_audio || hasCatalogAudio ? 'chapter' : 'none'),
     audioProvider:
       existing?.audioProvider ??
       (entry.catalog?.audio?.strategy === 'provider' ? entry.catalog.audio.provider : undefined),
-    source: entry.is_bundled ? existing?.source : 'runtime',
-    installState:
-      existing?.installState ??
-      (entry.is_bundled ? 'seeded' : entry.has_text ? 'remote-only' : 'remote-only'),
+    source: isBundledInThisBuild ? existing.source : 'runtime',
+    installState: existing?.installState ?? (isBundledInThisBuild ? 'seeded' : 'remote-only'),
     textPackLocalPath: existing?.textPackLocalPath,
     activeTextPackVersion: existing?.activeTextPackVersion,
     pendingTextPackVersion: existing?.pendingTextPackVersion,
