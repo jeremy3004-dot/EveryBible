@@ -146,6 +146,25 @@ test('headline metrics are taken from the RPC and Postgres numerics are coerced 
   );
 });
 
+test('active map locations is the RPC’s activeLocationCount, not the number of rows the client could map', async () => {
+  // METRICS.md: "Active map locations" traces to `activeLocationCount`. The
+  // client drops rows it cannot place and merges rows that share a bucket, so
+  // counting what survived would report a different denominator.
+  service.respondToRpc('get_admin_analytics_overview', () => ({
+    data: {
+      activeLocationCount: '143',
+      locationMetrics: [
+        { countryCode: 'NP', latitude: 27.71, longitude: 85.32, listeningMinutes: 4 },
+        { countryCode: 'NP', latitude: 27.72, longitude: 85.33, listeningMinutes: 2 },
+        { countryCode: 'XX', latitude: null, longitude: null, listeningMinutes: 1 },
+      ],
+    },
+  }));
+  const overview = await data.getAnalyticsOverview(180);
+  assert.equal(overview.activeLocationCount, 143);
+  assert.equal(overview.locationMetrics.length, 1);
+});
+
 test('daily series keep their UTC days and map values to minutes or download units', async () => {
   service.respondToRpc('get_admin_analytics_overview', () => ({
     data: {
@@ -218,6 +237,47 @@ test('country rollups become globe rows placed at each country and ranked by lis
   for (const row of countryMetrics) {
     assert.ok(Number.isFinite(row.latitude) && Number.isFinite(row.longitude), row.code);
   }
+});
+
+test('countries the RPC counted keep their table rows even when they have no map position', async () => {
+  service.respondToRpc('get_admin_analytics_overview', () => ({
+    data: {
+      activeCountryCount: 2,
+      countryMetrics: [
+        {
+          code: 'NP',
+          name: 'Nepal',
+          listeningMinutes: 20,
+          readingMinutes: 0,
+          listenerCount: 2,
+          downloadUnits: 0,
+        },
+        {
+          code: 'EU',
+          name: 'EU',
+          listeningMinutes: 12,
+          readingMinutes: 3,
+          listenerCount: 1,
+          downloadUnits: 5,
+        },
+      ],
+    },
+  }));
+  const { activeCountryCount, countryMetrics } = await data.getAnalyticsOverview(30);
+  assert.equal(countryMetrics.length, activeCountryCount);
+  assert.deepEqual(countryMetrics[1], {
+    locationKind: 'country',
+    region: undefined,
+    subregion: undefined,
+    code: 'EU',
+    downloadUnits: 5,
+    latitude: null,
+    listenerCount: 1,
+    listeningMinutes: 12,
+    readingMinutes: 3,
+    longitude: null,
+    name: 'Europe (unspecified)',
+  });
 });
 
 test('approximate location rollups become 0.1° map buckets and country-only rows sit at the country centre', async () => {
@@ -757,6 +817,48 @@ test('feedback filters narrow the query by language, translation, book, chapter 
   assert.ok(String(stepArgs(call, 'or')[0][0]).includes('comment.ilike.%verse  wording%'));
 });
 
+test('the resolution filter is independent of the accuracy filter', async () => {
+  // "Accurate" is sentiment 'up'. The council resolves those too (as "no change
+  // needed"), so "Accurate" + "Open" means accurate reviews still awaiting
+  // review. Live data has all four combinations.
+  const rows = [
+    { id: 'accurate-open', sentiment: 'up', scripture_council_fixed_at: null },
+    { id: 'accurate-reviewed', sentiment: 'up', scripture_council_fixed_at: '2026-09-20' },
+    { id: 'needs-work-open', sentiment: 'down', scripture_council_fixed_at: null },
+    { id: 'needs-work-fixed', sentiment: 'down', scripture_council_fixed_at: '2026-09-21' },
+  ].map((row) => ({
+    ...row,
+    translation_id: 'bsb',
+    translation_language: 'English',
+    book_id: 'GEN',
+    chapter: 1,
+    created_at: '2026-09-24',
+    user_id: null,
+  }));
+  // Apply the eq / is / not filters the loader chained, as PostgREST would.
+  service.respondTo('chapter_feedback_submissions', (call) => ({
+    data: rows.filter((row) =>
+      call.steps.every(({ method, args }) => {
+        const value = (row as Record<string, unknown>)[String(args[0])];
+        if (method === 'eq') return value === args[1];
+        if (method === 'is') return value === args[1];
+        if (method === 'not') return value !== args[2];
+        return true;
+      })
+    ),
+  }));
+
+  const ids = async (filters: Parameters<typeof data.listChapterFeedback>[0]) =>
+    (await data.listChapterFeedback(filters)).map((item) => item.id).sort();
+
+  assert.deepEqual(await ids({ sentiment: 'up', fixStatus: 'open' }), ['accurate-open']);
+  assert.deepEqual(await ids({ sentiment: 'up', fixStatus: 'fixed' }), ['accurate-reviewed']);
+  assert.deepEqual(await ids({ sentiment: 'down', fixStatus: 'open' }), ['needs-work-open']);
+  assert.deepEqual(await ids({ sentiment: 'down', fixStatus: 'fixed' }), ['needs-work-fixed']);
+  assert.deepEqual(await ids({ fixStatus: 'open' }), ['accurate-open', 'needs-work-open']);
+  assert.deepEqual(await ids({ fixStatus: 'fixed' }), ['accurate-reviewed', 'needs-work-fixed']);
+});
+
 // ---------------------------------------------------------------------------
 // Health
 // ---------------------------------------------------------------------------
@@ -793,4 +895,83 @@ test('a catalog check that could not run is reported instead of claiming all che
       title: 'Health check incomplete',
     },
   ]);
+});
+
+test('health reports a stale sync and published-but-hidden translations from sync and catalog data only', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-09-24T12:00:00.000Z') });
+  service.respondTo('translation_sync_runs', () => ({
+    data: [{ id: 'run-1', state: 'succeeded', started_at: '2026-09-22T12:00:00.000Z' }],
+  }));
+  service.respondTo('translation_catalog', () => ({
+    data: [{ translation_id: 'bsb', distribution_state: 'published', is_available: false }],
+  }));
+  const issues = await data.getHealthIssues();
+  assert.deepEqual(
+    issues.map((issue) => [issue.severity, issue.title, issue.href]),
+    [
+      ['warning', 'Translation sync is stale', '/translations'],
+      ['info', 'Published translations are hidden', '/translations'],
+    ]
+  );
+  // An empty editorial library (verse of the day, images) is not a health issue.
+  assert.deepEqual(service.calls.map((call) => call.table).sort(), [
+    'translation_catalog',
+    'translation_sync_runs',
+  ]);
+});
+
+test('a never-successful upstream sync is informational, not an outage', async () => {
+  service.respondTo('translation_sync_runs', () => ({
+    data: [{ id: 'run-1', state: 'failed', started_at: new Date().toISOString() }],
+  }));
+  assert.deepEqual(
+    (await data.getHealthIssues()).map((issue) => [issue.severity, issue.title]),
+    [['info', 'Upstream metadata sync not running']]
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Dashboard summary
+// ---------------------------------------------------------------------------
+
+test('the overview counts translations, failed syncs, users and feedback without loading rows', async () => {
+  const counts: Record<string, number> = {
+    translation_catalog: 12,
+    translation_sync_runs: 2,
+    profiles: 7,
+    chapter_feedback_submissions: 3,
+  };
+  for (const [table, count] of Object.entries(counts)) {
+    service.respondTo(table, () => ({ data: null, count }));
+  }
+  const summary = await data.getDashboardSummary();
+  assert.deepEqual(
+    { ...summary, adminPathCount: undefined },
+    {
+      adminPathCount: undefined,
+      failedSyncCount: 2,
+      feedbackCount: 3,
+      supportUserCount: 7,
+      translationCount: 12,
+    }
+  );
+  assert.ok(summary.adminPathCount > 0);
+  assert.deepEqual(stepArgs(onlyCall('translation_sync_runs'), 'eq'), [['state', 'failed']]);
+  for (const call of service.calls) {
+    assert.deepEqual(stepArgs(call, 'select')[0][1], { count: 'exact', head: true }, call.table);
+  }
+  assert.deepEqual(service.calls.map((call) => call.table).sort(), Object.keys(counts).sort());
+});
+
+test('an empty backend renders a zeroed overview', async () => {
+  const summary = await data.getDashboardSummary();
+  assert.deepEqual(
+    [
+      summary.failedSyncCount,
+      summary.feedbackCount,
+      summary.supportUserCount,
+      summary.translationCount,
+    ],
+    [0, 0, 0, 0]
+  );
 });

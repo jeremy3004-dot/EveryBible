@@ -153,8 +153,8 @@ export default async function FeedbackPage({ searchParams }: FeedbackPageProps) 
             aria-label="Review status"
           >
             <option value="">All resolution states</option>
-            <option value="open">Open needs-work fixes</option>
-            <option value="fixed">Fixed needs-work items</option>
+            <option value="open">Awaiting resolution</option>
+            <option value="fixed">Resolved by the council</option>
           </select>
           <label className="filter-form__check">
             <input

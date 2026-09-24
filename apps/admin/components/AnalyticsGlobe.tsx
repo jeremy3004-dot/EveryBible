@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import maplibregl, { type GeoJSONSource, type Map as MapLibreMap } from 'maplibre-gl';
-import type { CountryMetric } from '@/lib/analytics-reporting';
+import type { CountryMetric, MappableCountryMetric } from '@/lib/analytics-reporting';
 import {
   buildAtlasFeatures,
   formatNumber,
+  isValidPoint,
   metricLabel,
   pointId,
   type AtlasMetric,
@@ -39,7 +40,7 @@ const GLOBE_HEAT = {
 } as const;
 
 interface AtlasProps {
-  points: CountryMetric[];
+  points: MappableCountryMetric[];
   countries: CountryMetric[];
   mode: AtlasMetric;
   selectedCountry: string | null;
@@ -56,7 +57,7 @@ export function AnalyticsGlobe({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const styleReadyRef = useRef(false);
-  const lastFittedPointsRef = useRef<CountryMetric[] | null>(null);
+  const lastFittedPointsRef = useRef<MappableCountryMetric[] | null>(null);
   const [theme, setTheme] = useState<AdminThemeMode>('light');
   const [projection, setProjection] = useState<'mercator' | 'globe'>('mercator');
   const [layer, setLayer] = useState<'heat' | 'points'>('heat');
@@ -183,7 +184,7 @@ export function AnalyticsGlobe({
     map.setProjection({ type: current.projection });
   }, []);
 
-  const fitPoints = useCallback((rows: CountryMetric[]) => {
+  const fitPoints = useCallback((rows: MappableCountryMetric[]) => {
     const map = mapRef.current;
     if (!map || !rows.length) return;
     const bounds = new maplibregl.LngLatBounds();
@@ -302,7 +303,8 @@ export function AnalyticsGlobe({
               onClick={() => {
                 setProjection('globe');
                 const focus = selected ?? ranked[0] ?? scopedPoints[0];
-                if (focus)
+                // A country row can lack coordinates (pseudo-codes such as EU).
+                if (focus && isValidPoint(focus))
                   mapRef.current?.flyTo({
                     center: [focus.longitude, focus.latitude],
                     zoom: 1.7,

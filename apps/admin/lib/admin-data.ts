@@ -697,8 +697,12 @@ export async function listChapterFeedback(
     query = query.eq('sentiment', filters.sentiment);
   }
 
+  // Resolution is independent of sentiment: the council resolves accurate
+  // reviews too ("no change needed"). Folding `sentiment = down` into "open"
+  // AND-ed a second sentiment predicate onto an explicit one, so "Accurate" +
+  // "Open" could only ever return nothing.
   if (filters.fixStatus === 'open') {
-    query = query.eq('sentiment', 'down').is('scripture_council_fixed_at', null);
+    query = query.is('scripture_council_fixed_at', null);
   } else if (filters.fixStatus === 'fixed') {
     query = query.not('scripture_council_fixed_at', 'is', null);
   }
@@ -1158,7 +1162,10 @@ export async function getAnalyticsOverview(
     retrievedAt: new Date().toISOString(),
     collectionHealth: overview.collectionHealth,
     activeCountryCount: Number(overview.activeCountryCount ?? 0),
-    activeLocationCount: locationMetrics.length,
+    // METRICS.md: the RPC owns this denominator. Counting the mapped rows would
+    // report the buckets that survived client-side geo filtering and merging,
+    // not the distinct approximate locations the database saw.
+    activeLocationCount: Number(overview.activeLocationCount ?? 0),
     averageEngagementScore: Number(overview.averageEngagementScore ?? 0),
     engagementScoreComputedAt,
     countryMetrics,

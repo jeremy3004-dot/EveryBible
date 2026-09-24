@@ -48,6 +48,33 @@ for (const country of countries as WorldCountryRecord[]) {
   });
 }
 
+// IP geolocation providers report some traffic under codes that are not
+// countries (MaxMind's legacy EU/AP/A1/A2/O1, Cloudflare's XX/T1). They have no
+// place on the map but their activity is real.
+const PSEUDO_REGION_NAMES: Record<string, string> = {
+  A1: 'Anonymous proxy',
+  A2: 'Satellite provider',
+  AP: 'Asia/Pacific (unspecified)',
+  EU: 'Europe (unspecified)',
+  O1: 'Unknown region',
+  T1: 'Tor network',
+  XX: 'Unknown region',
+  ZZ: 'Unknown region',
+};
+
+/** A readable name for a reported region code that has no known geography. */
+export function describeUnplacedRegion(code: string, reportedName?: string | null): string {
+  const normalizedCode = code.trim().toUpperCase();
+  const known = PSEUDO_REGION_NAMES[normalizedCode];
+  if (known) {
+    return known;
+  }
+  const name = reportedName?.trim();
+  return name && name.toUpperCase() !== normalizedCode
+    ? name
+    : `Unknown region (${normalizedCode})`;
+}
+
 export function getCountryGeography(
   code: string | null | undefined,
   fallbackName?: string | null

@@ -37,7 +37,7 @@ test('admin backend exposes chapter feedback submissions', async () => {
   assert.match(page, /Feedback by language/);
   assert.match(page, /Feedback by translation/);
   assert.match(page, /fixStatus/);
-  assert.match(page, /Open needs-work fixes/);
+  assert.match(page, /Awaiting resolution/);
   assert.match(page, /Mark addressed/);
   assert.match(page, /Awaiting review/);
   assert.match(page, /Chapter feedback/);
