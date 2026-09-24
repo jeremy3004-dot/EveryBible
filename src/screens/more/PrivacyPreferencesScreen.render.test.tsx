@@ -1,0 +1,151 @@
+import test, { afterEach, mock } from 'node:test';
+import assert from 'node:assert/strict';
+import type { ReactTestInstance } from 'react-test-renderer';
+import { create } from 'zustand';
+import { flattenStyle, installRenderHarness } from '../../testing/render';
+import { mockModule, sourcePath } from '../../testing/mockModules';
+
+const harness = installRenderHarness(mock, { os: 'ios' });
+
+type SaveInput = { mode: 'standard' } | { mode: 'discreet'; pinInput: string };
+const events: string[] = [];
+const saved: SaveInput[] = [];
+const saveResult: { current: { success: true } | { success: false; errorKey: string } } = {
+  current: { success: true },
+};
+const usePrivacyStore = create(() => ({
+  mode: 'standard' as 'standard' | 'discreet',
+  hasPin: false,
+  saveConfiguration: async (input: SaveInput) => {
+    saved.push(input);
+    events.push(`save:${input.mode}`);
+    return saveResult.current;
+  },
+  lock: () => {
+    const leftPreferences = harness.navigation.calls.some((call) => call.method === 'goBack');
+    events.push(leftPreferences ? 'lock after goBack' : 'lock before goBack');
+  },
+}));
+mockModule(mock, sourcePath('stores/privacyStore.ts'), { usePrivacyStore });
+
+const t = (key: string) => harness.i18n.t(key);
+
+afterEach(() => {
+  events.length = 0;
+  saved.length = 0;
+  saveResult.current = { success: true };
+  usePrivacyStore.setState(usePrivacyStore.getInitialState(), true);
+  harness.rn.Platform.OS = 'ios';
+});
+
+async function renderPrivacy() {
+  const { PrivacyPreferencesScreen } = await import('./PrivacyPreferencesScreen');
+  return harness.render(<PrivacyPreferencesScreen />);
+}
+
+function isInside(node: ReactTestInstance, ancestor: ReactTestInstance): boolean {
+  for (let current: ReactTestInstance | null = node; current; current = current.parent) {
+    if (current === ancestor) return true;
+  }
+  return false;
+}
+
+async function chooseDiscreetWithPin(view: Awaited<ReturnType<typeof renderPrivacy>>) {
+  await view.press(view.getByRole('radio', { name: t('onboarding.discreetIconTitle') }));
+  await view.changeText(view.getByLabelText(t('onboarding.pinPlaceholder')), '2468');
+  await view.changeText(view.getByLabelText(t('onboarding.pinConfirmPlaceholder')), '2468');
+}
+
+test('the secure-code form sits in a keyboard-avoiding, tap-through scroll with room beneath it', async () => {
+  const view = await renderPrivacy();
+  await view.press(view.getByRole('radio', { name: t('onboarding.discreetIconTitle') }));
+
+  const [avoider] = view.queryAllByType('KeyboardAvoidingView');
+  assert.ok(avoider, 'the form area is wrapped in a KeyboardAvoidingView');
+  assert.equal(avoider.props.behavior, 'padding', 'iOS pads above the keyboard');
+
+  const [scroll] = view.queryAllByType('ScrollView');
+  assert.equal(scroll.props.keyboardShouldPersistTaps, 'handled');
+  assert.ok(isInside(scroll, avoider));
+  for (const input of view.queryAllByType('TextInput')) {
+    assert.ok(isInside(input, scroll), 'every code input scrolls inside the avoided area');
+    assert.equal(input.props.keyboardType, 'number-pad');
+    assert.equal(input.props.secureTextEntry, true);
+  }
+  const { spacing } = await import('../../design/system');
+  const bottom = Number(flattenStyle(scroll.props.contentContainerStyle)?.paddingBottom);
+  assert.ok(bottom >= spacing.xxl, `the code card can scroll fully clear (got ${bottom})`);
+});
+
+test('Android resizes the keyboard-avoiding area by height', async () => {
+  harness.rn.Platform.OS = 'android';
+  const view = await renderPrivacy();
+
+  const [avoider] = view.queryAllByType('KeyboardAvoidingView');
+  assert.equal(avoider.props.behavior, 'height');
+});
+
+test('saving discreet mode goes back first and only then locks behind the calculator', async () => {
+  const view = await renderPrivacy();
+  await chooseDiscreetWithPin(view);
+
+  await view.press(view.getByRole('button', { name: t('common.done') }));
+  await view.flush();
+
+  assert.deepEqual(saved, [{ mode: 'discreet', pinInput: '2468' }]);
+  assert.deepEqual(events, ['save:discreet', 'lock after goBack']);
+});
+
+test('the calculator lock waits until the navigation away from preferences has settled', async () => {
+  // Hold interaction-deferred work until the test releases it.
+  const { InteractionManager } = harness.rn;
+  const original = InteractionManager.runAfterInteractions;
+  const held: Array<() => void> = [];
+  InteractionManager.runAfterInteractions = ((task?: () => void) => {
+    if (task) held.push(task);
+    return { then: () => {}, done: () => {}, cancel: () => {} };
+  }) as typeof original;
+  try {
+    const view = await renderPrivacy();
+    await chooseDiscreetWithPin(view);
+
+    await view.press(view.getByRole('button', { name: t('common.done') }));
+    await view.flush();
+
+    assert.deepEqual(events, ['save:discreet'], 'not locked while the screen is still leaving');
+    assert.equal(held.length, 1);
+    held.forEach((task) => task());
+    assert.deepEqual(events, ['save:discreet', 'lock after goBack']);
+  } finally {
+    InteractionManager.runAfterInteractions = original;
+  }
+});
+
+test('a failed discreet save shows its error and neither leaves nor locks', async () => {
+  saveResult.current = { success: false, errorKey: 'privacy.pinMismatch' };
+  const view = await renderPrivacy();
+  await chooseDiscreetWithPin(view);
+
+  await view.press(view.getByRole('button', { name: t('common.done') }));
+  await view.flush();
+
+  assert.deepEqual(events, ['save:discreet']);
+  assert.deepEqual(harness.navigation.calls, []);
+  assert.ok(view.getByText(harness.i18n.t('privacy.pinMismatch')));
+});
+
+test('switching back to the standard icon saves without locking the app', async () => {
+  usePrivacyStore.setState({ mode: 'discreet', hasPin: true });
+  const view = await renderPrivacy();
+
+  await view.press(view.getByRole('radio', { name: t('onboarding.standardIconTitle') }));
+  await view.press(view.getByRole('button', { name: t('common.done') }));
+  await view.flush();
+
+  assert.deepEqual(saved, [{ mode: 'standard' }]);
+  assert.deepEqual(events, ['save:standard']);
+  assert.deepEqual(
+    harness.navigation.calls.map((call) => call.method),
+    ['goBack']
+  );
+});
