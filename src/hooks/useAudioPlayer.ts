@@ -27,6 +27,7 @@ import { getAdjacentBibleChapter, getBookById, getTranslatedBookName } from '../
 import type {
   AudioPlaybackSequenceEntry,
   AudioStatus,
+  BackgroundMusicChoice,
   PlaybackRate,
   SleepTimerOption,
 } from '../types';
@@ -81,6 +82,53 @@ const audioProgressTelemetryTimer: { current: ReturnType<typeof setInterval> | n
 };
 const audioProgressTelemetryLastEmittedAt = { current: 0 };
 
+// A chapter change briefly reports a stopped player between two chapters, and the
+// music bed must play through that gap. Shared for the same reason as the timer
+// above: the finish handler that starts a transition can belong to a closed reader.
+const chapterTransition = { current: false };
+
+// The music bed follows the narration from a store subscription rather than a render
+// effect. Lock-screen pause, the sleep timer and the end of playback all change the
+// status after the reader has closed, and the bed has to stop with the narration.
+let backgroundMusicSubscription: (() => void) | null = null;
+let backgroundMusicOffHandled = false;
+
+function syncBackgroundMusicWithPlayback(status: AudioStatus, choice: BackgroundMusicChoice): void {
+  if (status === 'playing') {
+    // The chapter change, if any, has finished.
+    chapterTransition.current = false;
+  }
+
+  if (choice === 'off') {
+    if (!backgroundMusicOffHandled) {
+      backgroundMusicOffHandled = true;
+      void backgroundMusicPlayer.stop();
+    }
+    return;
+  }
+
+  // Keep music playing during chapter transitions; pause it with the narration.
+  backgroundMusicOffHandled = false;
+  const shouldPlay = status === 'playing' || status === 'loading' || chapterTransition.current;
+  void backgroundMusicPlayer.sync(choice, shouldPlay);
+}
+
+function followPlaybackWithBackgroundMusic(): void {
+  // Each mounted player reconciles the bed once, as the render effect used to.
+  backgroundMusicOffHandled = false;
+  const { status, backgroundMusicChoice } = useAudioStore.getState();
+  syncBackgroundMusicWithPlayback(status, backgroundMusicChoice);
+
+  backgroundMusicSubscription ??= useAudioStore.subscribe((state, previous) => {
+    if (
+      state.status !== previous.status ||
+      state.backgroundMusicChoice !== previous.backgroundMusicChoice
+    ) {
+      syncBackgroundMusicWithPlayback(state.status, state.backgroundMusicChoice);
+    }
+  });
+}
+
 export function useAudioPlayer(translationId: string = 'bsb') {
   const { t } = useTranslation();
   const AUDIO_PROGRESS_TELEMETRY_INTERVAL_MS = 30000;
@@ -88,8 +136,6 @@ export function useAudioPlayer(translationId: string = 'bsb') {
   const sleepTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const playRequestIdRef = useRef(0);
   const playbackErrorIdRef = useRef(0);
-  const isChapterTransitioningRef = useRef(false);
-  const backgroundMusicOffHandledRef = useRef(false);
   const playChapterForTranslationRef = useRef<
     | ((
         translationId: string,
@@ -408,9 +454,9 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       } = useAudioStore.getState();
 
       // Any call that replaces an already-active chapter is a transition — mark
-      // it so the background music sync effect keeps music running during the gap.
+      // it so the background music keeps running during the gap.
       if (outgoingBookId && outgoingChapter) {
-        isChapterTransitioningRef.current = true;
+        chapterTransition.current = true;
       }
 
       if (outgoingBookId && outgoingChapter && durationBeforeSwitch > 0) {
@@ -672,6 +718,12 @@ export function useAudioPlayer(translationId: string = 'bsb') {
         emitAudioPlaybackProgress(snapshot.didJustFinish ? 'finish' : 'pause', true);
         stopAudioProgressTelemetryTimer();
 
+        // A finished chapter's status is the finish handler's call (the next
+        // chapter, or idle). Reporting "paused" for the instant in between would
+        // dip the music bed at every chapter boundary.
+        if (snapshot.didJustFinish) {
+          return;
+        }
         if (snapshot.isBuffering) {
           setStatus('loading');
         } else {
@@ -744,7 +796,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
         ? getAdjacentAudioPlaybackSequenceEntry(playbackSequence, bookId, chapterNum, 1)
         : null;
     if (nextSequenceEntry && playChapterForTranslationRef.current) {
-      isChapterTransitioningRef.current = true;
+      chapterTransition.current = true;
       await playChapterForTranslationRef.current(
         store.currentTranslationId ?? translationId,
         nextSequenceEntry.bookId,
@@ -776,7 +828,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
         : undefined,
     });
     if (repeatTarget && playChapterForTranslationRef.current) {
-      isChapterTransitioningRef.current = true;
+      chapterTransition.current = true;
       await playChapterForTranslationRef.current(
         store.currentTranslationId ?? translationId,
         repeatTarget.bookId,
@@ -787,7 +839,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
 
     const nextQueuedEntry = advanceAudioQueue(queue, queueIndex);
     if (nextQueuedEntry && playChapterForTranslationRef.current) {
-      isChapterTransitioningRef.current = true;
+      chapterTransition.current = true;
       setQueueIndex(nextQueuedEntry.queueIndex);
       await playChapterForTranslationRef.current(
         nextQueuedEntry.entry.translationId,
@@ -815,7 +867,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       ? findAdjacentAvailableChapter(bookId, chapterNum, 1, audioChapterMapRef.current)
       : getAdjacentBibleChapter(bookId, chapterNum, 1);
     if (adjacentChapter && playChapterForTranslationRef.current) {
-      isChapterTransitioningRef.current = true;
+      chapterTransition.current = true;
       await playChapterForTranslationRef.current(
         store.currentTranslationId ?? translationId,
         adjacentChapter.bookId,
@@ -843,7 +895,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
         // Some native commands report through this callback and still resolve.
         // Their callers must not replace this error with a successful status.
         playbackErrorIdRef.current += 1;
-        isChapterTransitioningRef.current = false;
+        chapterTransition.current = false;
         setError(t('interface.audioPlayFailed'));
       },
     });
@@ -868,13 +920,6 @@ export function useAudioPlayer(translationId: string = 'bsb') {
   ]);
 
   useEffect(() => {
-    if (status === 'playing') {
-      // Chapter finished transitioning
-      isChapterTransitioningRef.current = false;
-    }
-  }, [status]);
-
-  useEffect(() => {
     if (!currentBookId || !currentChapter || status === 'idle' || status === 'error') {
       lastNowPlayingSignatureRef.current = null;
       void clearBibleNowPlaying();
@@ -892,23 +937,8 @@ export function useAudioPlayer(translationId: string = 'bsb') {
   ]);
 
   useEffect(() => {
-    if (backgroundMusicChoice === 'off') {
-      if (!backgroundMusicOffHandledRef.current) {
-        backgroundMusicOffHandledRef.current = true;
-        void backgroundMusicPlayer.stop();
-      }
-
-      return;
-    }
-
-    // Keep music playing during chapter transitions (isChapterTransitioningRef).
-    // Pause it when the user explicitly pauses (status==='paused' and not transitioning).
-    backgroundMusicOffHandledRef.current = false;
-    const shouldPlayBackgroundMusic =
-      status === 'playing' || status === 'loading' || isChapterTransitioningRef.current;
-
-    void backgroundMusicPlayer.sync(backgroundMusicChoice, shouldPlayBackgroundMusic);
-  }, [backgroundMusicChoice, status]);
+    followPlaybackWithBackgroundMusic();
+  }, []);
 
   const sleepTimerRemaining = useMemo(() => {
     // A paused timer is frozen in the store, so the countdown shown matches
@@ -926,7 +956,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
   // Pause playback
   const pause = useCallback(async () => {
     playRequestIdRef.current += 1;
-    isChapterTransitioningRef.current = false;
+    chapterTransition.current = false;
     // Stop interpolation immediately so position freezes at pause point
     if (interpolationTimerRef.current) {
       clearInterval(interpolationTimerRef.current);
@@ -1044,7 +1074,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
   const stop = useCallback(async () => {
     playRequestIdRef.current += 1;
     const requestId = playRequestIdRef.current;
-    isChapterTransitioningRef.current = false;
+    chapterTransition.current = false;
     if (interpolationTimerRef.current) {
       clearInterval(interpolationTimerRef.current);
       interpolationTimerRef.current = null;
@@ -1184,7 +1214,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       }
 
       const requestId = ++playRequestIdRef.current;
-      isChapterTransitioningRef.current = false;
+      chapterTransition.current = false;
       if (interpolationTimerRef.current) {
         clearInterval(interpolationTimerRef.current);
         interpolationTimerRef.current = null;

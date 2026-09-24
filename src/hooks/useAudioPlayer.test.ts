@@ -2247,11 +2247,10 @@ test('background music is stopped once while the setting is off', () => {
 });
 
 test('choosing a background bed while idle keeps it silent', () => {
-  const player = mountPlayer();
-  store().setBackgroundMusicChoice('piano');
+  mountPlayer();
   recorded.backgroundMusic.length = 0;
 
-  player.rerender();
+  store().setBackgroundMusicChoice('piano');
 
   assert.deepEqual(recorded.backgroundMusic, [
     { method: 'sync', choice: 'piano', shouldPlay: false },
@@ -2261,22 +2260,24 @@ test('choosing a background bed while idle keeps it silent', () => {
 test('the chosen background bed plays alongside the chapter', async () => {
   const player = mountPlayer();
   store().setBackgroundMusicChoice('piano');
-  await player.rerender().playChapter('GEN', 1);
   recorded.backgroundMusic.length = 0;
 
-  player.rerender();
+  await player.rerender().playChapter('GEN', 1);
 
-  assert.deepEqual(recorded.backgroundMusic, [
-    { method: 'sync', choice: 'piano', shouldPlay: true },
-  ]);
+  assert.equal(store().status, 'playing');
+  assert.deepEqual(recorded.backgroundMusic.at(-1), {
+    method: 'sync',
+    choice: 'piano',
+    shouldPlay: true,
+  });
 });
 
 test('the background bed keeps playing while the next chapter loads', async () => {
   const player = mountPlayer();
   store().setBackgroundMusicChoice('piano');
-  store().setStatus('loading');
   recorded.backgroundMusic.length = 0;
 
+  store().setStatus('loading');
   player.rerender();
 
   assert.deepEqual(recorded.backgroundMusic, [
@@ -2290,15 +2291,16 @@ test('the background bed keeps playing when a chapter transition fails', async (
   await player.rerender().playChapter('GEN', 1);
   player.rerender();
   scenario.chapterAudio = async () => null;
-  await player.api.playChapter('GEN', 2);
   recorded.backgroundMusic.length = 0;
 
+  await player.api.playChapter('GEN', 2);
   player.rerender();
 
   assert.equal(store().status, 'error');
-  assert.deepEqual(recorded.backgroundMusic, [
-    { method: 'sync', choice: 'piano', shouldPlay: true },
-  ]);
+  assert.equal(
+    recorded.backgroundMusic.some((call) => call.shouldPlay === false),
+    false
+  );
 });
 
 test('turning the background bed off stops it again', async () => {
@@ -2311,6 +2313,83 @@ test('turning the background bed off stops it again', async () => {
   player.rerender();
 
   assert.deepEqual(recorded.backgroundMusic, [{ method: 'stop' }]);
+});
+
+// The reader is the only screen that mounts the player, but lock-screen pause, the
+// sleep timer and the end of playback all reach the narration after it has closed.
+// The music bed has to stop with the narration, or it plays on under a paused chapter
+// (all night, for a sleep timer) with no control left on screen to silence it.
+const pausedBed = { method: 'sync', choice: 'piano', shouldPlay: false };
+const lastBedCall = () => recorded.backgroundMusic.at(-1);
+
+const playWithBedThenCloseReader = async () => {
+  const player = mountPlayer();
+  store().setBackgroundMusicChoice('piano');
+  await player.rerender().playChapter('GEN', 1);
+  player.rerender();
+  player.unmount();
+  recorded.backgroundMusic.length = 0;
+};
+
+test('a lock screen pause after the reader closed pauses the background bed too', async () => {
+  await playWithBedThenCloseReader();
+
+  await remoteCommandListener?.({ command: 'pause' });
+
+  assert.deepEqual(lastBedCall(), pausedBed);
+});
+
+test('a lock screen play after the reader closed brings the background bed back', async () => {
+  await playWithBedThenCloseReader();
+  store().setPosition(30_000);
+  await remoteCommandListener?.({ command: 'pause' });
+
+  await remoteCommandListener?.({ command: 'play' });
+
+  assert.deepEqual(lastBedCall(), { method: 'sync', choice: 'piano', shouldPlay: true });
+  await remoteCommandListener?.({ command: 'pause' });
+});
+
+test('the sleep timer silences the background bed after the reader has closed', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: BASE_TIME });
+  await playWithBedThenCloseReader();
+  store().setSleepTimer(5);
+
+  t.mock.timers.tick(5 * 60 * 1000);
+  emitStatus({ isPlaying: true, positionMillis: 300_000, durationMillis: DEFAULT_DURATION_MS });
+  await Promise.resolve();
+
+  assert.equal(store().status, 'paused');
+  assert.deepEqual(lastBedCall(), pausedBed);
+  emitStatus({ isPlaying: false, positionMillis: 300_000 });
+});
+
+test('the end of playback after the reader closed silences the background bed', async () => {
+  await playWithBedThenCloseReader();
+  store().setAutoAdvanceChapter(false);
+
+  emitStatus({ isPlaying: false, didJustFinish: true, positionMillis: DEFAULT_DURATION_MS });
+  await finishPlayback();
+
+  assert.equal(store().status, 'idle');
+  assert.deepEqual(lastBedCall(), pausedBed);
+});
+
+test('the background bed plays straight through an auto-advance to the next chapter', async () => {
+  await playWithBedThenCloseReader();
+
+  // The native player reports the finished chapter as stopped before the finish
+  // handler moves on; the bed must not dip for that instant.
+  emitStatus({ isPlaying: false, didJustFinish: true, positionMillis: DEFAULT_DURATION_MS });
+  await finishPlayback();
+
+  assert.equal(store().currentChapter, 2);
+  assert.equal(store().status, 'playing');
+  assert.equal(
+    recorded.backgroundMusic.some((call) => call.shouldPlay === false),
+    false
+  );
+  await remoteCommandListener?.({ command: 'pause' });
 });
 
 // ---------------------------------------------------------------------------
