@@ -47,10 +47,8 @@ interface PersistedStoreUnderTest {
 
 const stores: PersistedStoreUnderTest[] = [];
 /**
- * Stores whose merge or migrate still dereference a persisted state that is null or missing
- * (translatorReviewStore reads `saved.mode` / `state.accessPasscode` unguarded, which also
- * throws on a fresh install with no blob at all). Their sweep is recorded as a todo until the
- * owning change lands, so the reproduction stays in the suite without failing it.
+ * translatorReviewStore once read `saved.mode` / `state.accessPasscode` off a null or missing
+ * persisted state, which threw on every fresh install. Kept as its own test to pin that fix.
  */
 const storesPendingFix: PersistedStoreUnderTest[] = [];
 
@@ -223,18 +221,14 @@ test('every persisted store hydrates a well-formed blob of an unexpected shape i
   }
 });
 
-test(
-  'the translator review store hydrates a null or missing persisted state',
-  { todo: 'translatorReviewStore merge/migrate dereference a null persisted state' },
-  async (t) => {
-    t.mock.method(console, 'error', () => {});
-    t.mock.method(console, 'warn', () => {});
+test('the translator review store hydrates a null or missing persisted state', async (t) => {
+  t.mock.method(console, 'error', () => {});
+  t.mock.method(console, 'warn', () => {});
 
-    for (const store of storesPendingFix) {
-      await assertEnvelopesHydrate(store);
-    }
+  for (const store of storesPendingFix) {
+    await assertEnvelopesHydrate(store);
   }
-);
+});
 
 test('an unreadable blob leaves every store usable and is replaced by the next write', async (t) => {
   t.mock.method(console, 'error', () => {});
