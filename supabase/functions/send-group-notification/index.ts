@@ -166,17 +166,53 @@ Deno.serve(async (req) => {
       throw new Error(`Failed to query user_devices: ${devicesError.message}`);
     }
 
+    const recipientDevices = (devices ?? []) as Array<{ user_id: string; push_token: unknown }>;
+    const candidateTokens = [
+      ...new Set(
+        recipientDevices
+          .map((device) => device.push_token)
+          .filter((token): token is string => typeof token === 'string' && token.trim() !== '')
+      ),
+    ];
+
+    // A push token identifies one app install, but user_devices is unique only per (user,
+    // token) and deactivation on sign-out is best effort. After an account switch the phone's
+    // token can still be active under the previous account, which would keep receiving that
+    // account's group pushes. A token goes only to the account that registered it last, over
+    // every row that holds it, active or not.
+    const latestOwnerByToken = new Map<string, { userId: string; at: number }>();
+    if (candidateTokens.length > 0) {
+      const { data: owners, error: ownersError } = await supabase
+        .from('user_devices')
+        .select('user_id, push_token, updated_at')
+        .in('push_token', candidateTokens);
+      if (ownersError) {
+        throw new Error(`Failed to query push token owners: ${ownersError.message}`);
+      }
+      for (const row of (owners ?? []) as Array<{
+        user_id: string;
+        push_token: string;
+        updated_at: string | null;
+      }>) {
+        const at = Date.parse(row.updated_at ?? '') || 0;
+        const latest = latestOwnerByToken.get(row.push_token);
+        if (!latest || at > latest.at)
+          latestOwnerByToken.set(row.push_token, { userId: row.user_id, at });
+      }
+    }
+
     // One message per distinct token, in its owner's language.
     const groupName = cleanGroupName(claim.group_name);
     const messages: ExpoPushMessage[] = [];
     const seenTokens = new Set<string>();
-    for (const device of (devices ?? []) as Array<{ user_id: string; push_token: unknown }>) {
+    for (const device of recipientDevices) {
       const pushToken = device.push_token;
       if (
         typeof pushToken !== 'string' ||
         pushToken.trim().length === 0 ||
         seenTokens.has(pushToken) ||
-        !languageByUser.has(device.user_id)
+        !languageByUser.has(device.user_id) ||
+        latestOwnerByToken.get(pushToken)?.userId !== device.user_id
       ) {
         continue;
       }

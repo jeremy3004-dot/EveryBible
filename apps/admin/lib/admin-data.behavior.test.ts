@@ -11,6 +11,7 @@ import test, { beforeEach, mock } from 'node:test';
 import {
   createSupabaseFake,
   mockModule,
+  mockNextCache,
   stepArgs,
   type SupabaseQueryCall,
 } from './testing/adminTestHarness';
@@ -33,12 +34,15 @@ mockModule(mock, '@/lib/supabase/service', {
   },
 });
 
+const { cacheCalls } = mockNextCache(mock);
+
 const data = await import('./admin-data');
 
 beforeEach(() => {
   service.reset();
   authorized = true;
   serviceClientCreations = 0;
+  cacheCalls.length = 0;
 });
 
 function onlyCall(table: string): SupabaseQueryCall {
@@ -62,6 +66,7 @@ test('every data loader refuses a non-admin before creating the service-role cli
   }
   assert.equal(serviceClientCreations, 0);
   assert.deepEqual(service.calls, []);
+  assert.deepEqual(cacheCalls, [], 'a refused caller must not reach the shared cache');
 });
 
 // ---------------------------------------------------------------------------
@@ -81,6 +86,18 @@ test('the overview asks the RPC for the selected UTC window including today', as
   await data.getAnalyticsOverview(7);
   const rpc = onlyCall('rpc:get_admin_analytics_overview');
   assert.deepEqual(rpc.payload, { p_since: '2026-09-18T00:00:00.000Z', p_total_days: 7 });
+});
+
+test('the database part of the overview is cached briefly per window and day, under a refreshable tag', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-09-24T21:15:00.000Z') });
+  await data.getAnalyticsOverview(30);
+  assert.deepEqual(cacheCalls, [
+    {
+      keyParts: ['admin-analytics-overview', '2026-08-26T00:00:00.000Z', '30'],
+      options: { revalidate: 60, tags: [data.ANALYTICS_OVERVIEW_CACHE_TAG] },
+    },
+  ]);
+  assert.equal(data.ANALYTICS_OVERVIEW_CACHE_TAG, 'admin-analytics-overview');
 });
 
 test('an empty RPC payload renders as zeros rather than failing the dashboard', async (t) => {

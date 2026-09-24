@@ -312,15 +312,14 @@ test('a flood from one address makes one paid geo lookup and reuses the cached r
   assert.ok(rows.every((row) => row.geo_country_code === 'US' && row.geo_city === 'New York'));
 });
 
-test('when the limiter is unavailable events are still stored but no paid lookup is made', async () => {
+test('when the limiter is unavailable the batch is refused for retry and nothing is looked up', async () => {
   const h = collector(null, 'unavailable');
   const { geo_source: _source, ...needsRequestGeo } = h.event;
   const response = await h.send([needsRequestGeo]);
-  assert.equal(response.status, 200);
+  assert.equal(response.status, 429);
+  assert.equal(response.headers.get('Retry-After'), '60');
   assert.equal(h.geoLookups(), 0);
-  const row = [...h.stored.values()][0];
-  assert.equal(row.geo_country_code, 'GB');
-  assert.equal(row.geo_source, 'cf_ipcountry');
+  assert.equal(h.stored.size, 0);
 });
 
 test('a real client batch (100 events, 30-day-old replay) fits every limit', async () => {

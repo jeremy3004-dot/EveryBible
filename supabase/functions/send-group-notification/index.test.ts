@@ -25,7 +25,13 @@ function loadFunction(
     deviceQueryError?: boolean;
     recipients?: Recipient[];
     groupName?: unknown;
-    devices?: Array<{ user_id: string; push_token: string | null }>;
+    devices?: Array<{
+      user_id: string;
+      push_token: string | null;
+      is_active?: boolean;
+      updated_at?: string;
+    }>;
+    ownerQueryError?: boolean;
     tickets?: unknown;
     pushStatus?: number;
     // Batch numbers (0-based) whose request to Expo throws, e.g. a network drop.
@@ -75,13 +81,25 @@ function loadFunction(
         assert.equal(table, 'user_devices');
         if (options.deviceQueryError)
           return { data: null, error: { message: 'Private device query error' } };
-        const recipientIds = filters.user_id as string[];
         const devices = options.devices ?? [
           { user_id: callerId, push_token: 'caller-token' },
           { user_id: recipientId, push_token: 'recipient-token' },
         ];
+        // Ownership lookup: every row holding one of these tokens, any account, active or not.
+        if (filters.push_token) {
+          if (options.ownerQueryError)
+            return { data: null, error: { message: 'Private owner query error' } };
+          const tokens = filters.push_token as string[];
+          return {
+            data: devices.filter((device) => tokens.includes(device.push_token as string)),
+            error: null,
+          };
+        }
+        const recipientIds = filters.user_id as string[];
         return {
-          data: devices.filter((device) => recipientIds.includes(device.user_id)),
+          data: devices.filter(
+            (device) => recipientIds.includes(device.user_id) && device.is_active !== false
+          ),
           error: null,
         };
       };
@@ -407,6 +425,52 @@ test('deduplicates nonblank device tokens and counts actual Expo ticket outcomes
     ['token-a', 'token-b']
   );
   assert.deepEqual(await response.json(), { success: true, sent: 1, errors: 1 });
+});
+
+// user_devices is unique only per (user, token), and deactivating a token on sign-out is best
+// effort (offline, or a session the server already ended). A phone that switched accounts kept
+// the previous account's active row, so it kept receiving that account's group pushes
+// (security review 2026-09-24, pass 2). A token now belongs to whoever registered it last.
+test('a token re-registered by another account on the same phone no longer reaches the old one', async () => {
+  const runtime = loadFunction({
+    devices: [
+      { user_id: recipientId, push_token: 'phone', updated_at: '2026-09-01T00:00:00Z' },
+      {
+        user_id: outsiderId,
+        push_token: 'phone',
+        is_active: false,
+        updated_at: '2026-09-20T00:00:00Z',
+      },
+    ],
+  });
+  assert.deepEqual(await (await runtime.request()).json(), {
+    success: true,
+    sent: 0,
+    reason: 'no_active_tokens',
+  });
+  assert.equal(runtime.pushes.length, 0);
+});
+
+test('a token the recipient registered most recently is still delivered', async () => {
+  const runtime = loadFunction({
+    devices: [
+      { user_id: outsiderId, push_token: 'phone', updated_at: '2026-09-01T00:00:00Z' },
+      { user_id: recipientId, push_token: 'phone', updated_at: '2026-09-20T00:00:00Z' },
+    ],
+  });
+  await runtime.request();
+  assert.deepEqual(
+    runtime.pushes.flat().map((push) => push.to),
+    ['phone']
+  );
+});
+
+test('a failed token-ownership lookup sends nothing rather than risking the wrong account', async () => {
+  const runtime = loadFunction({ ownerQueryError: true });
+  const response = await runtime.request();
+  assert.equal(response.status, 500);
+  assert.equal(runtime.pushes.length, 0);
+  assert.doesNotMatch(await response.text(), /Private owner query error/);
 });
 
 test('pushes go out in batches of at most 100', async () => {

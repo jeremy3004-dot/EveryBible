@@ -5,7 +5,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { config } from '../../constants';
+import { config } from '../../constants/config';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useLargeText } from '../../hooks/useLargeText';
 import { layout, radius, spacing, typography } from '../../design/system';

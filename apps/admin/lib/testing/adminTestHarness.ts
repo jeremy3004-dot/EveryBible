@@ -92,23 +92,57 @@ export class RedirectSignal extends Error {
 
 /**
  * Replaces the Next.js server runtime a server action or route handler touches.
- * `redirect` throws a RedirectSignal; `revalidatePath` is recorded;
- * `NextResponse` is the platform Response (it has the same `json` factory).
+ * `redirect` throws a RedirectSignal; `revalidatePath` and `revalidateTag` are
+ * recorded; `NextResponse` is the platform Response (it has the same `json`
+ * factory).
  */
 export function mockNextServerRuntime(mocker: MockTracker) {
   const revalidatedPaths: string[] = [];
+  const revalidatedTags: string[] = [];
   mockModule(mocker, 'next/navigation', {
     redirect: (url: string): never => {
       throw new RedirectSignal(url);
     },
   });
+  mockNextCache(mocker, { revalidatedPaths, revalidatedTags });
+  mockModule(mocker, 'next/server', { NextResponse: Response });
+  return { revalidatedPaths, revalidatedTags };
+}
+
+export interface UnstableCacheCall {
+  keyParts: string[];
+  options: { revalidate?: number | false; tags?: string[] };
+}
+
+/**
+ * Replaces `next/cache` for code loaded outside a Next.js server. The real
+ * `unstable_cache` throws there (no incremental cache), so this one runs the
+ * callback every time and records how it was configured.
+ */
+export function mockNextCache(
+  mocker: MockTracker,
+  recorded: { revalidatedPaths?: string[]; revalidatedTags?: string[] } = {}
+) {
+  const cacheCalls: UnstableCacheCall[] = [];
   mockModule(mocker, 'next/cache', {
     revalidatePath: (path: string) => {
-      revalidatedPaths.push(path);
+      recorded.revalidatedPaths?.push(path);
     },
+    revalidateTag: (tag: string) => {
+      recorded.revalidatedTags?.push(tag);
+    },
+    unstable_cache:
+      <T extends (...args: never[]) => Promise<unknown>>(
+        callback: T,
+        keyParts: string[] = [],
+        options: UnstableCacheCall['options'] = {}
+      ) =>
+      (...args: Parameters<T>) => {
+        cacheCalls.push({ keyParts, options });
+        return callback(...args);
+      },
   });
-  mockModule(mocker, 'next/server', { NextResponse: Response });
-  return { revalidatedPaths };
+  return { cacheCalls };
 }
 
 /** Runs `callback` and returns the URL it redirected to, failing if it did not redirect. */

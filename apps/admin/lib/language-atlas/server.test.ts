@@ -7,7 +7,7 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import test, { beforeEach, mock } from 'node:test';
-import { gzipSync } from 'node:zlib';
+import { gunzipSync, gzipSync } from 'node:zlib';
 
 import { mockModule } from '../testing/adminTestHarness';
 
@@ -76,6 +76,25 @@ test('profile shard cache retains only the two most recently used shards', async
   await get(c);
   await get(b);
   assert.equal(shardReads(), 4, 'least-recently-used shard should be read again');
+});
+
+test('the compressed index is the stored snapshot, read once from its fixed path', async () => {
+  instance += 1;
+  const server: typeof import('./server') = await import(`./server.ts?instance=${instance}`);
+  const first = await server.getAtlasIndexGzip();
+  const second = await server.getAtlasIndexGzip();
+  assert.equal(first, second);
+  assert.equal(JSON.parse(gunzipSync(first).toString('utf8')).records[0].id, 'iso:eng');
+  assert.deepEqual(reads, ['/atlas-admin/data/language-atlas/index.json.gz']);
+});
+
+test('a failed compressed index read is retried instead of poisoning the cache', async () => {
+  failFirstRead = true;
+  instance += 1;
+  const server: typeof import('./server') = await import(`./server.ts?instance=${instance}`);
+  await assert.rejects(server.getAtlasIndexGzip(), /temporary read failure/);
+  assert.ok(await server.getAtlasIndexGzip());
+  assert.equal(reads.length, 2);
 });
 
 test('a failed profile read is retried instead of poisoning the cache', async () => {

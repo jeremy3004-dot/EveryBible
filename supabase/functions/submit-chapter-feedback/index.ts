@@ -169,12 +169,17 @@ const BOOK_CHAPTER_COUNTS: Record<string, number> = {
   REV: 22,
 };
 
-const jsonResponse = (status: number, body: Record<string, unknown>) =>
+const jsonResponse = (
+  status: number,
+  body: Record<string, unknown>,
+  extraHeaders: Record<string, string> = {}
+) =>
   new Response(JSON.stringify(body), {
     status,
     headers: {
       ...corsHeaders,
       'Content-Type': 'application/json',
+      ...extraHeaders,
     },
   });
 
@@ -212,6 +217,8 @@ const sanitizePathSegment = (value: string): string =>
     .toLowerCase()
     .replace(/[^a-z0-9_-]+/g, '-')
     .replace(/^-+|-+$/g, '') || 'unknown';
+
+const PREUPLOADED_AUDIO_SEGMENT = /^[A-Za-z0-9_-][A-Za-z0-9._-]*$/;
 
 const buildStoredAudioPath = (body: ChapterFeedbackRequest, userId: string | null): string => {
   const createdAt = Date.now();
@@ -408,6 +415,18 @@ const validateRequest = (
         return { error: 'audio response path is invalid for this user' };
       }
 
+      // Allowlist the rest: plain segments that cannot start with a dot, no empty segments,
+      // no percent-encoding (a storage URL could decode %2e%2e into a parent segment), and an
+      // .m4a object, which is all the server-built paths ever are.
+      const [, ...segments] = preuploadedAudioPath.split('/');
+      if (
+        segments.length === 0 ||
+        !segments.every((segment) => PREUPLOADED_AUDIO_SEGMENT.test(segment)) ||
+        !preuploadedAudioPath.endsWith('.m4a')
+      ) {
+        return { error: 'audio response path is invalid for this user' };
+      }
+
       audioResponsePath = preuploadedAudioPath;
     } else {
       return { error: 'audio responses must include upload data' };
@@ -564,6 +583,46 @@ Deno.serve(async (req) => {
         exported: false,
         error: 'Too many submissions. Please try again later.',
       });
+    }
+
+    // The count above and the insert below are separate requests, so parallel submissions all
+    // passed the count. This atomic budget is charged before any upload (security review
+    // 2026-09-24, pass 2). It is skipped only while its migration is not applied (PGRST202).
+    const { data: budgetRows, error: budgetError } = await supabase.rpc(
+      'consume_feedback_submission_budget',
+      {
+        p_client_key: userId
+          ? `feedback-submit:user:${userId}`
+          : `feedback-submit:ip:${clientIpHash}`,
+        p_max_requests: SUBMISSION_RATE_LIMIT_PER_HOUR,
+        p_window_seconds: 60 * 60,
+      }
+    );
+    if (!budgetError || (budgetError as { code?: unknown }).code !== 'PGRST202') {
+      const budget = (Array.isArray(budgetRows) ? budgetRows[0] : budgetRows) as
+        | { allowed?: unknown; retry_after_seconds?: unknown }
+        | null
+        | undefined;
+      if (budgetError || typeof budget?.allowed !== 'boolean') {
+        return jsonResponse(503, {
+          success: false,
+          saved: false,
+          exported: false,
+          error: 'Unable to accept feedback right now. Please try again later.',
+        });
+      }
+      if (!budget.allowed) {
+        return jsonResponse(
+          429,
+          {
+            success: false,
+            saved: false,
+            exported: false,
+            error: 'Too many submissions. Please try again later.',
+          },
+          { 'Retry-After': String(Math.max(1, Number(budget.retry_after_seconds) || 1)) }
+        );
+      }
     }
 
     let uploadedAudioPath: string | null = null;

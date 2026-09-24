@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { loadEdgeFunction } from '../_testing/edgeFunctionHarness';
+import {
+  loadEdgeFunction,
+  type EdgeQueryCall,
+  type EdgeQueryResult,
+} from '../_testing/edgeFunctionHarness';
 
 // Audit 2026-09-24 L7: the anonymous collector has no authentication at all, so database
 // details go to the function log only.
@@ -23,6 +27,15 @@ const event = {
   geo_source: 'cf-worker',
 };
 
+// The ingest limiter admits the request; an unanswered limiter now refuses writes.
+const ADMITTED = {
+  data: [{ allowed: true, retry_after_seconds: 0, cached_geo: null, claim_geo_lookup: false }],
+};
+const admitted =
+  (respond: (call: EdgeQueryCall) => EdgeQueryResult = () => ({})) =>
+  (call: EdgeQueryCall): EdgeQueryResult =>
+    call.table === 'rpc:consume_analytics_ingest_budget' ? ADMITTED : respond(call);
+
 const send = (harness: ReturnType<typeof loadEdgeFunction>, body: unknown) =>
   harness.handle(
     new Request('https://functions.example/track-anonymous-usage-events', {
@@ -34,7 +47,7 @@ const send = (harness: ReturnType<typeof loadEdgeFunction>, body: unknown) =>
 
 test('a failed write returns a generic error and logs the database detail', async () => {
   const harness = loadEdgeFunction(ENTRY, {
-    respond: () => ({ error: { code: '23514', message: DB_DETAIL } }),
+    respond: admitted(() => ({ error: { code: '23514', message: DB_DETAIL } })),
   });
 
   const response = await send(harness, { events: [event] });
@@ -56,7 +69,7 @@ test('missing collector configuration is not described to the caller', async () 
 });
 
 test('a successful write still reports what was stored', async () => {
-  const harness = loadEdgeFunction(ENTRY);
+  const harness = loadEdgeFunction(ENTRY, { respond: admitted() });
 
   const response = await send(harness, { events: [event] });
   const body = await response.json();
