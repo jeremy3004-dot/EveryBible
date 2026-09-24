@@ -1333,6 +1333,42 @@ test('navigating away from a paused chapter selects it without sounding', async 
   assert.equal(playerCalls('stop').length, 1);
 });
 
+test('switching the translation of a paused chapter re-targets it without sounding', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setPosition(30_000);
+  await player.rerender().pause();
+  recorded.player.length = 0;
+
+  await player.rerender().navigateChapterForTranslation('web', 'GEN', 1);
+
+  assert.equal(playerCalls('loadAndPlay').length, 0);
+  assert.equal(playerCalls('resume').length, 0);
+  assert.equal(store().status, 'paused');
+  assert.equal(store().currentTranslationId, 'web');
+  assert.equal(store().currentChapter, 1);
+
+  // The next Play is the new translation, not the old one.
+  await player.rerender().togglePlayPause();
+  assert.deepEqual(playerCalls('loadAndPlay'), [
+    { method: 'loadAndPlay', args: ['https://cdn.example/web/GEN/1.mp3', 1] },
+  ]);
+});
+
+test('switching the translation of a playing chapter plays the new translation', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  recorded.player.length = 0;
+
+  await player.rerender().navigateChapterForTranslation('web', 'GEN', 1);
+
+  assert.deepEqual(playerCalls('loadAndPlay'), [
+    { method: 'loadAndPlay', args: ['https://cdn.example/web/GEN/1.mp3', 1] },
+  ]);
+  assert.equal(store().status, 'playing');
+  assert.equal(store().currentTranslationId, 'web');
+});
+
 test('navigating away from an idle chapter leaves the player idle', async () => {
   const player = mountPlayer();
   store().setCurrentTrack('bsb', 'GEN', 1);

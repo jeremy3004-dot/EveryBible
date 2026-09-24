@@ -1106,13 +1106,14 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     [setPlaybackRate]
   );
 
-  // Manual chapter navigation keeps the user's current playback intent. A
-  // paused target is selected unloaded, so it cannot briefly start sounding.
+  // Manual chapter navigation, and switching the translation of the loaded
+  // chapter, keep the user's current playback intent. A paused target is
+  // selected unloaded, so it cannot briefly start sounding.
   const navigateChapterForTranslation = useCallback(
-    async (targetTranslationId: string, bookId: string, chapter: number) => {
+    async (targetTranslationId: string, bookId: string, chapter: number, verse?: number) => {
       const statusAtNavigation = useAudioStore.getState().status;
       if (statusAtNavigation === 'playing' || statusAtNavigation === 'loading') {
-        await playChapterForTranslation(targetTranslationId, bookId, chapter);
+        await playChapterForTranslation(targetTranslationId, bookId, chapter, verse);
         return;
       }
 
@@ -1408,6 +1409,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     // Navigation
     previousChapter,
     nextChapter,
+    navigateChapterForTranslation,
 
     // Settings
     changePlaybackRate,

@@ -1090,7 +1090,7 @@ export function BibleReaderScreen() {
     sleepTimerRemaining,
     backgroundMusicChoice,
     playChapter,
-    playChapterForTranslation,
+    navigateChapterForTranslation,
     addToQueue,
     stop,
     togglePlayPause,
@@ -2211,6 +2211,10 @@ export function BibleReaderScreen() {
     }
 
     autoplayKeyRef.current = autoplayKey;
+    // The autoplay param is a one-shot request from the screen that opened the reader.
+    // Left set, a later translation switch produced a new key and started audio again,
+    // even after the listener had paused or stopped it.
+    navigation.setParams({ autoplayAudio: false });
 
     void playChapter(
       bookId,
@@ -2230,6 +2234,7 @@ export function BibleReaderScreen() {
     currentTranslationInfo,
     focusVerse,
     isLoading,
+    navigation,
     playChapter,
   ]);
 
@@ -2649,8 +2654,10 @@ export function BibleReaderScreen() {
       activeAudioChapter,
     });
 
+    // Keeps the listener's intent: a playing chapter continues in the new
+    // translation, a paused one is re-targeted and stays paused until Play.
     if (shouldReplayAudio) {
-      void playChapterForTranslation(
+      void navigateChapterForTranslation(
         translation.id,
         bookId,
         chapter,
