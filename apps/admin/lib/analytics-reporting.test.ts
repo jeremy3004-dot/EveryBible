@@ -144,8 +144,24 @@ test('buildTranslationBreakdown uses the authoritative per-translation listener 
   // max-merged client-side. The RPC supplies the deduped distinct total (377).
   const breakdown = buildTranslationBreakdown(
     [
-      { translationId: 'bsb', code: 'NP', name: 'Nepal', listeningMinutes: 2424, readingMinutes: 530, listenerCount: 137, downloadUnits: 4 },
-      { translationId: 'bsb', code: 'US', name: 'United States', listeningMinutes: 983, readingMinutes: 414, listenerCount: 145, downloadUnits: 134 },
+      {
+        translationId: 'bsb',
+        code: 'NP',
+        name: 'Nepal',
+        listeningMinutes: 2424,
+        readingMinutes: 530,
+        listenerCount: 137,
+        downloadUnits: 4,
+      },
+      {
+        translationId: 'bsb',
+        code: 'US',
+        name: 'United States',
+        listeningMinutes: 983,
+        readingMinutes: 414,
+        listenerCount: 145,
+        downloadUnits: 134,
+      },
     ],
     [],
     [{ translationId: 'bsb', listeningMinutes: 3247 }],
@@ -190,25 +206,54 @@ test('per-translation listeners never exceed the all-listeners total (subset inv
   }
 });
 
-test('buildTranslationBreakdown still falls back to the country max when the RPC omits listener counts', () => {
-  // Backward compatibility: older RPC payloads without translationListenerCounts
-  // keep the previous behaviour rather than reporting zero listeners.
+test('a translation the RPC gives no listener count reports zero listeners, never a max of country rows', () => {
+  // METRICS.md: only the RPC computes distinct listeners, and
+  // buildTranslationBreakdown never max-merges country rows. The RPC omits a
+  // translation from translationListenerCounts when nobody listened to it
+  // (reading-only translations such as KJV), so there is nothing to report.
   const breakdown = buildTranslationBreakdown(
     [
-      { translationId: 'kjv', code: 'US', name: 'United States', listeningMinutes: 10, readingMinutes: 0, listenerCount: 6, downloadUnits: 0 },
-      { translationId: 'kjv', code: 'GB', name: 'United Kingdom', listeningMinutes: 8, readingMinutes: 0, listenerCount: 4, downloadUnits: 0 },
+      {
+        translationId: 'kjv',
+        code: 'US',
+        name: 'United States',
+        listeningMinutes: 10,
+        readingMinutes: 0,
+        listenerCount: 6,
+        downloadUnits: 0,
+      },
+      {
+        translationId: 'kjv',
+        code: 'GB',
+        name: 'United Kingdom',
+        listeningMinutes: 8,
+        readingMinutes: 0,
+        listenerCount: 4,
+        downloadUnits: 0,
+      },
     ],
     [],
-    []
+    [],
+    [{ translationId: 'bsb', listenerCount: 12 }]
   );
 
-  assert.equal(breakdown[0]?.listenerCount, 6);
+  assert.deepEqual(
+    breakdown.map(({ translationId, listenerCount }) => ({ translationId, listenerCount })),
+    [
+      { translationId: 'kjv', listenerCount: 0 },
+      { translationId: 'bsb', listenerCount: 12 },
+    ]
+  );
 });
 
 test('translation totals retain reading and downloads without country attribution', () => {
-  const entries = buildTranslationBreakdown([], [], [], [], [
-    { translationId: 'offline', listeningMinutes: 0, readingMinutes: 5, downloadUnits: 3 },
-  ]);
+  const entries = buildTranslationBreakdown(
+    [],
+    [],
+    [],
+    [],
+    [{ translationId: 'offline', listeningMinutes: 0, readingMinutes: 5, downloadUnits: 3 }]
+  );
   assert.equal(entries[0].readingMinutes, 5);
   assert.equal(entries[0].downloadUnits, 3);
   assert.equal(entries[0].countryTableMetrics.length, 0);
@@ -216,7 +261,15 @@ test('translation totals retain reading and downloads without country attributio
 
 test('location rollups carry reading activity through to the atlas', () => {
   const points = mapLocationRollupsToMetrics([
-    { countryCode: 'NP', latitude: 28.2, longitude: 84, listeningMinutes: 0, readingMinutes: 10, downloadUnits: 0, listenerCount: 0 },
+    {
+      countryCode: 'NP',
+      latitude: 28.2,
+      longitude: 84,
+      listeningMinutes: 0,
+      readingMinutes: 10,
+      downloadUnits: 0,
+      listenerCount: 0,
+    },
   ]);
   assert.equal(points[0].readingMinutes, 10);
 });

@@ -169,7 +169,6 @@ export function buildTranslationBreakdown(
       locationListeningMinutes: number;
       readingMinutes: number;
       downloadUnits: number;
-      listenerCount: number;
       countryRollups: CountryMetricRollup[];
       locationRollups: LocationMetricRollup[];
     }
@@ -194,7 +193,6 @@ export function buildTranslationBreakdown(
         locationListeningMinutes: 0,
         readingMinutes: 0,
         downloadUnits: 0,
-        listenerCount: 0,
         countryRollups: [],
         locationRollups: [],
       };
@@ -222,7 +220,6 @@ export function buildTranslationBreakdown(
     entry.listeningMinutes += Number(row.listeningMinutes) || 0;
     entry.readingMinutes += Number(row.readingMinutes) || 0;
     entry.downloadUnits += Math.round(Number(row.downloadUnits) || 0);
-    entry.listenerCount = Math.max(entry.listenerCount, Number(row.listenerCount) || 0);
     entry.countryRollups.push({
       code: row.code,
       name: row.name,
@@ -264,9 +261,10 @@ export function buildTranslationBreakdown(
           totalsByTranslation.get(translationId)?.readingMinutes ?? entry.readingMinutes
         ),
         downloadUnits: totalsByTranslation.get(translationId)?.downloadUnits ?? entry.downloadUnits,
-        // Prefer the RPC's authoritative distinct count; fall back to the
-        // per-country max only when the RPC didn't supply one.
-        listenerCount: listenerCountByTranslation.get(translationId) ?? entry.listenerCount,
+        // METRICS.md: only the RPC computes distinct listeners. It omits a
+        // translation nobody listened to, so a missing count is zero; a max of
+        // per-country rows would invent a number the database never measured.
+        listenerCount: listenerCountByTranslation.get(translationId) ?? 0,
         countryMetrics: countryMetrics.length > 0 ? countryMetrics : locationMetrics,
         countryTableMetrics: countryMetrics,
         locationMetrics,
