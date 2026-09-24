@@ -139,6 +139,24 @@ test('every React Native <Modal> opts into Android edge-to-edge translucency', (
   );
 });
 
+test('every React Native <Modal> closes on the Android back button', () => {
+  const violations: string[] = [];
+  for (const file of collectScreenSources(SRC_ROOT)) {
+    const source = readFileSync(file, 'utf8');
+    if (!source.includes('<Modal')) continue;
+    for (const { tag, line } of findModalOpeningTags(source)) {
+      if (!/\bonRequestClose\b/.test(tag)) {
+        violations.push(`${path.relative(SRC_ROOT, file)}:${line}`);
+      }
+    }
+  }
+  assert.deepEqual(
+    violations,
+    [],
+    `Android delivers the hardware/gesture back press to a visible <Modal> only through onRequestClose; without it back does nothing.\n${violations.join('\n')}`
+  );
+});
+
 test('the modal translucency scan actually finds the app modals and honours the opt-out marker', () => {
   const files = collectScreenSources(SRC_ROOT);
   const modalFiles = files.filter((file) => readFileSync(file, 'utf8').includes('<Modal'));

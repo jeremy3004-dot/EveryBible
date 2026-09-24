@@ -93,3 +93,21 @@ test('the side inset does not vary with the safe-area insets', async () => {
   assert.equal(withIndicator.sideInset, 16);
   assert.equal(withoutIndicator.sideInset, 16);
 });
+
+test('a floating control clears an Android three-button navigation bar', async () => {
+  const { resolveFloatingBottomOffset } = await import('./useTabBarHeight');
+
+  // 48dp three-button bar: a fixed 22/26pt gap would park the control underneath it.
+  assert.equal(resolveFloatingBottomOffset('android', 48, 26), 48);
+  // Gesture navigation's thin inset still keeps the standard gutter.
+  assert.equal(resolveFloatingBottomOffset('android', 12, 26), 16);
+  assert.equal(resolveFloatingBottomOffset('android', 0, 26), 16);
+});
+
+test('a floating control tucks into the iOS home-indicator area by its own gap', async () => {
+  const { resolveFloatingBottomOffset } = await import('./useTabBarHeight');
+
+  assert.equal(resolveFloatingBottomOffset('ios', 34, 26), 26);
+  assert.equal(resolveFloatingBottomOffset('ios', 34, 22), 22);
+  assert.equal(resolveFloatingBottomOffset('ios', 0, 26), 16);
+});

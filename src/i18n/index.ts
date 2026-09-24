@@ -5,6 +5,7 @@ import { en } from './locales/en';
 import { localeLoaders } from './localeLoaders';
 import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES, type LanguageCode } from '../constants/languages';
 import { getPersistedLanguagePreference } from '../stores/mmkvStorage';
+import { installPluralRulesPolyfill } from './pluralRulesPolyfill';
 
 type DeferredLanguageCode = Exclude<LanguageCode, 'en'>;
 
@@ -65,6 +66,9 @@ async function ensureLanguageResources(lang: LanguageCode): Promise<void> {
   languageResourceLoads.set(lang, load);
   return load;
 }
+
+// Must run before i18next resolves its first plural rule; Hermes has no Intl.PluralRules.
+installPluralRulesPolyfill();
 
 i18n.use(initReactI18next).init({
   resources,

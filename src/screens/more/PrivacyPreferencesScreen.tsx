@@ -27,6 +27,7 @@ import type { PrivacyAppIconMode } from '../../types';
 import type { MoreStackParamList } from '../../navigation/types';
 import { radius, layout, spacing, typography } from '../../design/system';
 import { hexWithAlpha } from '../../utils';
+import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 
 type NavigationProp = NativeStackNavigationProp<MoreStackParamList, 'PrivacyPreferences'>;
 
@@ -35,6 +36,9 @@ export function PrivacyPreferencesScreen() {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  // The More tab keeps the floating tab capsule over this screen; the last card has to be
+  // able to scroll clear of it (and of an Android three-button navigation bar under it).
+  const { contentClearance } = useTabBarHeight();
   const styles = createStyles(colors);
   const pinConfirmationInputRef = useRef<TextInput>(null);
   const currentMode = usePrivacyStore((state) => state.mode);
@@ -138,7 +142,7 @@ export function PrivacyPreferencesScreen() {
       >
         <ScrollView
           style={styles.scrollView}
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, { paddingBottom: contentClearance }]}
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.infoCard}>

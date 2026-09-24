@@ -148,6 +148,7 @@ const fileSystemFaults = {
   unreadableBytes: false,
 };
 const fileSystemCalls: string[] = [];
+const base64Reads: { path: string; position?: number; length?: number }[] = [];
 
 const fakeDownload = async (url: string, path: string) => {
   fileSystemCalls.push(`download:${url}`);
@@ -198,10 +199,14 @@ mockModule(mock, 'expo-file-system/legacy', {
       resumable.cancelled = true;
     },
   }),
-  readAsStringAsync: async (path: string) =>
-    fileSystemFaults.unreadableBytes
-      ? 'not base64 at all!%'
-      : readFileSync(path).toString('base64'),
+  readAsStringAsync: async (path: string, options?: { position?: number; length?: number }) => {
+    base64Reads.push({ path, position: options?.position, length: options?.length });
+    if (fileSystemFaults.unreadableBytes) return 'not base64 at all!%';
+    const bytes = readFileSync(path);
+    const start = options?.position ?? 0;
+    const end = options?.length == null ? bytes.length : start + options.length;
+    return bytes.subarray(start, end).toString('base64');
+  },
 });
 
 // ─── Module under test ────────────────────────────────────────────────────────
@@ -243,6 +248,7 @@ afterEach(() => {
   resumable.started = null;
   fileSystemFaults.failMove = null;
   fileSystemFaults.unreadableBytes = false;
+  base64Reads.length = 0;
   sqliteFaults.failOpen = false;
   fileSystemCalls.length = 0;
   opens.length = 0;
@@ -371,6 +377,32 @@ test('downloadCatalogTextPack accepts a pack whose checksum matches', async () =
   });
 
   assert.equal(readVerseCount(installedPath), 3, 'an uppercase digest still verifies');
+});
+
+test('checksum verification reads the pack in bounded chunks, never as one string', async () => {
+  const { downloadCatalogTextPack } = await loadModule();
+  download.bytes = buildPackBytes();
+  const expectedSha256 = createHash('sha256').update(download.bytes).digest('hex');
+
+  await downloadCatalogTextPack({
+    translationId: 'chunked',
+    downloadUrl: 'https://media.example.test/chunked.db',
+    expectedVerseCount: 3,
+    expectedSha256,
+  });
+
+  assert.ok(base64Reads.length > 0);
+  for (const read of base64Reads) {
+    assert.equal(typeof read.position, 'number', 'every read names its offset');
+    assert.ok(
+      typeof read.length === 'number' && read.length > 0 && read.length <= 256 * 1024,
+      `read of ${read.length} bytes must be bounded`
+    );
+  }
+  assert.equal(
+    base64Reads.reduce((total, read) => total + (read.length ?? 0), 0),
+    download.bytes.length
+  );
 });
 
 test('downloadCatalogTextPack rejects a pack whose checksum does not match', async () => {

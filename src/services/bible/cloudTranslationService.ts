@@ -2,8 +2,7 @@ import * as SQLite from 'expo-sqlite';
 import * as FileSystem from 'expo-file-system/legacy';
 import { assertSafeAssetId } from './assetIdentifiers';
 import { resolveBibleAssetUrl } from './bibleAssetBaseUrl';
-import { base64UrlToBytes } from '../elMedia/elEs256';
-import { sha256 } from '@noble/hashes/sha2.js';
+import { sha256HexOfBase64Chunks } from '../elMedia/elEs256';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -51,10 +50,12 @@ export function cancelActiveCatalogTextPackDownload(translationId?: string): boo
 }
 
 export function waitForActiveCatalogTextPackDownload(translationId: string): Promise<void> {
-  return activeCatalogTextDownloadSettlements.get(translationId)?.then(
-    () => undefined,
-    () => undefined
-  ) ?? Promise.resolve();
+  return (
+    activeCatalogTextDownloadSettlements.get(translationId)?.then(
+      () => undefined,
+      () => undefined
+    ) ?? Promise.resolve()
+  );
 }
 
 export function isTextPackDownloadCancelled(error: unknown): boolean {
@@ -91,7 +92,10 @@ function getStagingTranslationDbPath(translationId: string): string {
   )}.staging.db`;
 }
 
-export function getCatalogTextPackPaths(translationId: string, operationId?: string): {
+export function getCatalogTextPackPaths(
+  translationId: string,
+  operationId?: string
+): {
   finalPath: string;
   stagingPath: string;
   rollbackPath: string;
@@ -293,7 +297,7 @@ async function activateStagedTranslationDatabase(
   }
 }
 
-// Hermes has neither Web Crypto nor atob. Use the same pure-JS primitives as EL
+// Hermes has no Web Crypto. Use the same pure-JS primitives as EL
 // catalog verification, and fail closed whenever a declared checksum cannot be verified.
 async function verifyTextPackSha256({
   fileUri,
@@ -307,28 +311,33 @@ async function verifyTextPackSha256({
   if (!/^[0-9a-f]{64}$/i.test(expectedSha256)) {
     throw new Error('Downloaded translation has an invalid expected checksum.');
   }
-  const base64 = await FileSystem.readAsStringAsync(fileUri, {
-    encoding: FileSystem.EncodingType.Base64,
-  });
-  const bytes = base64UrlToBytes(base64.replace(/\+/g, '-').replace(/\//g, '_'));
-  if (!bytes) {
-    throw new Error('Downloaded translation could not be decoded for checksum verification.');
-  }
-  if (isCancelled?.()) {
-    throw new TextPackDownloadCancelledError();
-  }
-  // Hashing is pure JavaScript on Hermes. Feed bounded chunks with a runtime yield between them
-  // so a cancellation tap can be observed without retaining a second full-file copy.
-  const hasher = sha256.create();
-  const chunkSize = 256 * 1024;
-  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+  // Hashing is pure JavaScript on Hermes. Read the pack in bounded base64 chunks and yield
+  // between them: a whole-file read held a 40MB+ pack ~3x over in the JS heap on budget phones,
+  // and each chunk boundary is where a cancellation tap is observed.
+  const info = await FileSystem.getInfoAsync(fileUri);
+  const size = info.exists && typeof info.size === 'number' ? info.size : 0;
+  const throwIfCancelled = () => {
     if (isCancelled?.()) {
       throw new TextPackDownloadCancelledError();
     }
-    hasher.update(bytes.subarray(offset, offset + chunkSize));
-    await yieldToRuntime();
+  };
+  const digest =
+    size > 0
+      ? await sha256HexOfBase64Chunks({
+          size,
+          readChunk: (position, length) =>
+            FileSystem.readAsStringAsync(fileUri, {
+              encoding: FileSystem.EncodingType.Base64,
+              position,
+              length,
+            }),
+          throwIfCancelled,
+          yieldToRuntime,
+        })
+      : null;
+  if (!digest) {
+    throw new Error('Downloaded translation could not be decoded for checksum verification.');
   }
-  const digest = Array.from(hasher.digest(), (byte) => byte.toString(16).padStart(2, '0')).join('');
   if (digest !== expectedSha256.toLowerCase()) {
     throw new Error('Downloaded translation failed integrity verification (checksum mismatch).');
   }
@@ -468,15 +477,14 @@ async function downloadCatalogTextPackImpl(params: {
       url: string,
       fileUri: string,
       options: Record<string, never>,
-      callback: (progress: {
-        totalBytesWritten: number;
-        totalBytesExpectedToWrite: number;
-      }) => void
+      callback: (progress: { totalBytesWritten: number; totalBytesExpectedToWrite: number }) => void
     ) => DownloadTask;
 
-    const resumableFactory = (FileSystem as typeof FileSystem & {
-      createDownloadResumable?: DownloadFactory;
-    }).createDownloadResumable;
+    const resumableFactory = (
+      FileSystem as typeof FileSystem & {
+        createDownloadResumable?: DownloadFactory;
+      }
+    ).createDownloadResumable;
     const download = resumableFactory
       ? await (async () => {
           const task = resumableFactory(
@@ -489,8 +497,7 @@ async function downloadCatalogTextPackImpl(params: {
                 versesDownloaded: 0,
                 totalVerses: progressTotalVerses,
                 bytesDownloaded: totalBytesWritten,
-                bytesTotal:
-                  totalBytesExpectedToWrite > 0 ? totalBytesExpectedToWrite : undefined,
+                bytesTotal: totalBytesExpectedToWrite > 0 ? totalBytesExpectedToWrite : undefined,
               });
             }
           );

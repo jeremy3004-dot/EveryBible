@@ -46,7 +46,7 @@ interface TokenOptions {
   devicePushToken?: DevicePushToken;
 }
 
-const permission = { current: 'granted', requested: 'granted' };
+const permission = { current: 'granted', requested: 'granted', canAskAgain: true };
 const permissionCalls: string[] = [];
 const cancellations: string[] = [];
 const schedules: Array<Record<string, unknown>> = [];
@@ -69,7 +69,7 @@ mockModule(mock, 'expo-notifications', {
   },
   requestPermissionsAsync: async () => {
     permissionCalls.push('request');
-    return { status: permission.requested };
+    return { status: permission.requested, canAskAgain: permission.canAskAgain };
   },
   setAutoServerRegistrationEnabledAsync: async (enabled: boolean) => {
     autoRegistration.push(enabled);
@@ -152,6 +152,7 @@ beforeEach(() => {
   tokenCalls.length = 0;
   permission.current = 'granted';
   permission.requested = 'granted';
+  permission.canAskAgain = true;
   cancelFailure = null;
   channelFailure = null;
   authState.throws = false;
@@ -264,6 +265,28 @@ test('a previously denied permission is asked for again and still reports unavai
   assert.equal(await notifications.requestNotificationPermissions(), false);
 
   assert.deepEqual(permissionCalls, ['get', 'request']);
+});
+
+test('a denial the system will not ask about again is reported as blocked', async () => {
+  // Android 13+ stops showing the POST_NOTIFICATIONS prompt after repeated denials; only
+  // system settings can turn notifications back on, so the UI has to offer that route.
+  permission.current = 'denied';
+  permission.requested = 'denied';
+  permission.canAskAgain = false;
+
+  assert.equal(await notifications.requestNotificationPermissionOutcome(), 'blocked');
+  assert.equal(await notifications.requestNotificationPermissions(), false);
+});
+
+test('a denial that can still be asked again is reported as denied', async () => {
+  permission.current = 'undetermined';
+  permission.requested = 'denied';
+
+  assert.equal(await notifications.requestNotificationPermissionOutcome(), 'denied');
+});
+
+test('an existing grant is reported as granted', async () => {
+  assert.equal(await notifications.requestNotificationPermissionOutcome(), 'granted');
 });
 
 test('a denied prompt reports that notifications are unavailable', async () => {

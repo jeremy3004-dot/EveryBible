@@ -11,7 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -48,6 +48,7 @@ export function ResetPasswordScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const displayFont = useDisplayFont();
+  const insets = useSafeAreaInsets();
   const setSession = useAuthStore((state) => state.setSession);
   const confirmPasswordInputRef = useRef<TextInput>(null);
 
@@ -199,7 +200,9 @@ export function ResetPasswordScreen() {
         style={styles.keyboardView}
       >
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          // Only the top edge is safe-area padded; keep the submit button clear of an
+          // Android three-button navigation bar (edge-to-edge draws content beneath it).
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom }]}
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.header}>
