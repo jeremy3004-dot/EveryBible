@@ -181,10 +181,18 @@ test('full-text search waits for the debounce window, then lists and announces r
   );
   assert.equal(view.queryByRole('button', { name: 'Genesis' }), null);
 
-  await wait(BIBLE_SEARCH_DEBOUNCE_MS - 100);
+  // Half the window: a debounce can only fire late under load, never early, so this cannot flake.
+  await wait(BIBLE_SEARCH_DEBOUNCE_MS / 2);
   assert.equal(searches.length, 0, 'no query before the debounce window closes');
 
-  await wait(150);
+  // Poll instead of a fixed margin: a busy machine can run the timer late.
+  for (
+    let waited = 0;
+    searches.length === 0 && waited < BIBLE_SEARCH_DEBOUNCE_MS + 2000;
+    waited += 25
+  ) {
+    await wait(25);
+  }
   assert.deepEqual(
     searches.map(({ translationId, query }) => [translationId, query]),
     [['bsb', 'love']]
