@@ -64,14 +64,14 @@ test('mergeAnnotationLists returns local annotations when remote list is empty',
   const local = [makeAnnotation({ id: 'a1', book: 'GEN', chapter: 1, verse_start: 1 })];
   const merged = mergeAnnotationLists(local, []);
   assert.equal(merged.length, 1);
-  assert.equal(merged[0].id, 'a1');
+  assert.equal(merged[0]?.id, 'a1');
 });
 
 test('mergeAnnotationLists returns remote annotations when local list is empty', () => {
   const remote = [makeAnnotation({ id: 'r1', book: 'JHN', chapter: 3, verse_start: 16 })];
   const merged = mergeAnnotationLists([], remote);
   assert.equal(merged.length, 1);
-  assert.equal(merged[0].id, 'r1');
+  assert.equal(merged[0]?.id, 'r1');
 });
 
 test('mergeAnnotationLists keeps the newer remote annotation when timestamps differ', () => {
@@ -94,7 +94,7 @@ test('mergeAnnotationLists keeps the newer remote annotation when timestamps dif
 
   const merged = mergeAnnotationLists([older], [newer]);
   assert.equal(merged.length, 1);
-  assert.equal(merged[0].id, 'remote-id');
+  assert.equal(merged[0]?.id, 'remote-id');
 });
 
 test('mergeAnnotationLists keeps the local annotation when it is newer than remote', () => {
@@ -109,7 +109,7 @@ test('mergeAnnotationLists keeps the local annotation when it is newer than remo
 
   const merged = mergeAnnotationLists([local], [remote]);
   assert.equal(merged.length, 1);
-  assert.equal(merged[0].id, 'local-id');
+  assert.equal(merged[0]?.id, 'local-id');
 });
 
 test('mergeAnnotationLists combines non-overlapping local and remote annotations', () => {
@@ -133,7 +133,7 @@ test('mergeAnnotationLists propagates soft-deleted remote records', () => {
   const merged = mergeAnnotationLists([local], [remoteDeleted]);
   assert.equal(merged.length, 1);
   assert.ok(
-    merged[0].deleted_at !== null,
+    merged[0]?.deleted_at !== null,
     'Deletion should propagate from remote to merged result'
   );
 });
@@ -152,7 +152,7 @@ test('mergeAnnotationLists does not propagate a stale remote deletion when local
 
   const merged = mergeAnnotationLists([localRestored], [remoteDeleted]);
   assert.equal(merged.length, 1);
-  assert.equal(merged[0].deleted_at, null);
+  assert.equal(merged[0]?.deleted_at, null);
 });
 
 // ---------------------------------------------------------------------------
@@ -202,7 +202,7 @@ test('selectAnnotationsToPush includes local annotations absent from remote', ()
 
   const toPush = selectAnnotationsToPush(local, remoteByKey);
   assert.equal(toPush.length, 1);
-  assert.equal(toPush[0].id, 'local-only');
+  assert.equal(toPush[0]?.id, 'local-only');
 });
 
 test('selectAnnotationsToPush excludes local annotations that are older than or equal to remote', () => {
@@ -249,7 +249,7 @@ test('selectAnnotationsToPush includes local annotations that are strictly newer
   const remoteByKey = indexAnnotationsByKey([remote]);
   const toPush = selectAnnotationsToPush([local], remoteByKey);
   assert.equal(toPush.length, 1);
-  assert.equal(toPush[0].id, 'local');
+  assert.equal(toPush[0]?.id, 'local');
 });
 
 test('selectAnnotationsToPush includes soft-deleted local annotations so deletions reach the server', () => {

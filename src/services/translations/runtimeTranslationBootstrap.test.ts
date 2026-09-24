@@ -21,6 +21,7 @@ import assert from 'node:assert/strict';
 import type { BibleTranslation } from '../../types';
 import type { TranslationCatalogEntry, UserTranslationPreferences } from '../supabase/types';
 import { mockModule, sourcePath } from '../../testing/mockModules';
+import { assertDefined } from '../../utils/assertDefined';
 
 // EL must be inert before elMediaConfig is evaluated: keeps every refresh Supabase-only.
 delete process.env.EXPO_PUBLIC_EL_MEDIA_SOURCE;
@@ -352,7 +353,7 @@ test('bootstrapRuntimeTranslations applies the fetched Supabase catalog to the s
 
   assert.equal(appliedCatalogs.length, 1, 'a successful catalog fetch is applied exactly once');
   assert.deepEqual(
-    appliedCatalogs[0].map((entry) => entry.id),
+    assertDefined(appliedCatalogs[0], 'first applied catalog').map((entry) => entry.id),
     ['web']
   );
 });

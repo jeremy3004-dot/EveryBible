@@ -9,6 +9,7 @@ import { mapElCatalogToBibleTranslations, mapElLanguageCode } from './elTranslat
 import { normalizeCatalogTranslationId } from '../translations/translationCatalogModel';
 import { filterInstallableCatalogEntries } from '../translations/translationCatalogModel';
 import type { TranslationCatalogEntry } from '../supabase/types';
+import { assertDefined } from '../../utils/assertDefined';
 
 const fixturesDir = new URL('./fixtures/', import.meta.url);
 const readJson = (name: string) =>
@@ -28,7 +29,7 @@ test('maps the real fixture catalog to one BibleTranslation with every field', a
   const mapped = mapElCatalogToBibleTranslations(catalog);
   assert.equal(mapped.length, 1);
 
-  const t = mapped[0];
+  const t = assertDefined(mapped[0], 'first mapped translation');
   // Identity: id/name/abbreviation come straight from the entry.
   assert.equal(t.id, 'lqdtest');
   assert.equal(t.name, 'EL Test Translation');
@@ -105,13 +106,13 @@ test('skips entries with hasAudio === false', () => {
 
   const mapped = mapElCatalogToBibleTranslations(catalog);
   assert.equal(mapped.length, 1);
-  assert.equal(mapped[0].id, 'lqhasaudio');
+  assert.equal(mapped[0]?.id, 'lqhasaudio');
 });
 
 test('mapped id survives normalizeCatalogTranslationId unchanged', async () => {
   const catalog = await loadFixtureCatalog();
   const mapped = mapElCatalogToBibleTranslations(catalog);
-  const id = mapped[0].id;
+  const id = assertDefined(mapped[0], 'first mapped translation').id;
   assert.equal(normalizeCatalogTranslationId(id), id);
 });
 
@@ -139,7 +140,7 @@ test('language name falls back to languageName when autonym absent', () => {
     ],
   };
   const mapped = mapElCatalogToBibleTranslations(catalog);
-  assert.equal(mapped[0].description, 'Test Language');
+  assert.equal(mapped[0]?.description, 'Test Language');
 });
 
 test('mapElLanguageCode maps known iso639-3 codes and passes unknown through', () => {
@@ -171,7 +172,7 @@ test('mapElLanguageCode maps known iso639-3 codes and passes unknown through', (
 test('audio-only mapped shape is installable (not filtered out)', async () => {
   const catalog = await loadFixtureCatalog();
   const mapped = mapElCatalogToBibleTranslations(catalog);
-  const t = mapped[0];
+  const t = assertDefined(mapped[0], 'first mapped translation');
 
   // Mirror the mapped BibleTranslation into a Supabase-shaped catalog entry to
   // prove the audio-only representation (has_text=false + catalog.audio present,
@@ -198,5 +199,5 @@ test('audio-only mapped shape is installable (not filtered out)', async () => {
 
   const installable = filterInstallableCatalogEntries([entry], new Set<string>());
   assert.equal(installable.length, 1);
-  assert.equal(installable[0].translation_id, t.id);
+  assert.equal(installable[0]?.translation_id, t.id);
 });

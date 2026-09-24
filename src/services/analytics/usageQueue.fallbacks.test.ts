@@ -9,6 +9,7 @@ import {
   sourcePath,
 } from '../../testing/mockModules';
 import { createSupabaseFake } from '../../testing/supabaseFake';
+import { assertDefined } from '../../utils/assertDefined';
 
 // Degraded-environment fallbacks: the app version stamped on each event (from
 // expo-constants, legacy manifest, or a bundled default), an unreadable auth
@@ -175,7 +176,11 @@ test('a failing disk write keeps the event in memory and it is still delivered',
 
   assert.deepEqual(result, { success: true });
   const [call] = supabase.functionCalls;
-  const sent = (call.options as { body: { events: Array<Record<string, unknown>> } }).body.events;
+  const sent = (
+    assertDefined(call, 'first function call').options as {
+      body: { events: Array<Record<string, unknown>> };
+    }
+  ).body.events;
   assert.equal(sent.at(-1)?.event_name, 'chapter_completed');
   assert.equal(queue.getPendingUsageEventCount(), 0);
   assert.equal(mmkv.store.has(QUEUE_CACHE_KEY), false);

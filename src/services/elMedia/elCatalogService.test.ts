@@ -122,7 +122,7 @@ test('happy path fetches, verifies, parses, persists and returns the catalog', a
   assert.equal(catalog.schemaVersion, 'lqd-catalog/v1');
   assert.equal(catalog.sequence, 1);
   assert.equal(catalog.translations.length, 1);
-  assert.equal(catalog.translations[0].translationId, 'lqdtest');
+  assert.equal(catalog.translations[0]?.translationId, 'lqdtest');
 
   const persisted = storage.raw.get(LAST_CATALOG_KEY);
   assert.ok(persisted);
@@ -345,7 +345,7 @@ test('default getKeys (un-injected) verifies the pinned-kid catalog with ZERO JW
   assert.ok(catalog, 'catalog should verify and parse via the pinned trust store');
   assert.equal(catalog.schemaVersion, 'lqd-catalog/v1');
   assert.equal(catalog.sequence, 1);
-  assert.equal(catalog.translations[0].translationId, 'lqdtest');
+  assert.equal(catalog.translations[0]?.translationId, 'lqdtest');
   assert.equal(catalogFetches, 1);
   // The whole point: pinned kid means the JWKS discovery URL is never fetched.
   assert.equal(jwksFetches, 0, `expected zero JWKS fetches, got ${jwksFetches} (${jwksUrl})`);

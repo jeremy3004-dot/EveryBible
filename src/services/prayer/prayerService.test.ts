@@ -196,8 +196,8 @@ test('a request with no interactions reports zero counts', async () => {
   fake.respondTo('prayer_interactions', () => ({ data: [] }));
 
   const [only] = (await prayer.listPrayerRequests('group-1')).data ?? [];
-  assert.equal(only.prayed_count, 0);
-  assert.equal(only.encouraged_count, 0);
+  assert.equal(only?.prayed_count, 0);
+  assert.equal(only?.encouraged_count, 0);
 });
 
 test('interactions for requests outside the page are ignored', async () => {
@@ -210,7 +210,7 @@ test('interactions for requests outside the page are ignored', async () => {
   }));
 
   const [only] = (await prayer.listPrayerRequests('group-1')).data ?? [];
-  assert.equal(only.prayed_count, 1);
+  assert.equal(only?.prayed_count, 1);
 });
 
 test('an unrecognised interaction type is counted in neither column', async () => {
@@ -221,7 +221,7 @@ test('an unrecognised interaction type is counted in neither column', async () =
 
   const [only] = (await prayer.listPrayerRequests('group-1')).data ?? [];
   assert.deepEqual(
-    { prayed: only.prayed_count, encouraged: only.encouraged_count },
+    { prayed: only?.prayed_count, encouraged: only?.encouraged_count },
     {
       prayed: 0,
       encouraged: 0,
@@ -234,7 +234,7 @@ test('a null interactions payload leaves every count at zero', async () => {
   fake.respondTo('prayer_interactions', () => ({ data: null }));
 
   const [only] = (await prayer.listPrayerRequests('group-1')).data ?? [];
-  assert.equal(only.prayed_count, 0);
+  assert.equal(only?.prayed_count, 0);
 });
 
 // QUESTION: `countMap[request.id]?.prayed ?? 0` in listPrayerRequests can never
@@ -250,7 +250,7 @@ test('a request row without an id still renders, with zero counts', async () => 
 
   const [only] = (await prayer.listPrayerRequests('group-1')).data ?? [];
   assert.deepEqual(
-    { prayed: only.prayed_count, encouraged: only.encouraged_count },
+    { prayed: only?.prayed_count, encouraged: only?.encouraged_count },
     { prayed: 0, encouraged: 0 },
     'a row the counts map cannot key on must not crash the prayer wall'
   );

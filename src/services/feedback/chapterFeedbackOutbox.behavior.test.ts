@@ -204,7 +204,7 @@ test('a flush sends queued feedback for the signed-in account and clears it', as
     h.submissions.map((input) => input.chapter),
     [3, 4]
   );
-  assert.equal(h.submissions[0].comment, baseInput.comment);
+  assert.equal(h.submissions[0]?.comment, baseInput.comment);
   assert.equal(outbox.countQueuedChapterFeedback('user-a'), 0);
 });
 
@@ -218,8 +218,8 @@ test('a council submission is sent with the passcode held at send time', async (
 
   await outbox.flushChapterFeedbackOutbox('user-a', h.deps);
 
-  assert.equal(h.submissions[0].councilPasscode, 'secret-9');
-  assert.equal(h.submissions[0].contributorCategory, 'scripture_council');
+  assert.equal(h.submissions[0]?.councilPasscode, 'secret-9');
+  assert.equal(h.submissions[0]?.contributorCategory, 'scripture_council');
 });
 
 test('a flush that still cannot reach the server stops and keeps everything for next time', async () => {

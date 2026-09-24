@@ -9,6 +9,7 @@ import {
   sourcePath,
 } from '../../testing/mockModules';
 import { createSupabaseFake } from '../../testing/supabaseFake';
+import { assertDefined } from '../../utils/assertDefined';
 
 // Restore-from-disk is a once-per-process path (the queue restores lazily on
 // first use), so it needs its own module cache and therefore its own file.
@@ -91,7 +92,9 @@ before(async () => {
   supabase.respondToFunction(() => ({ data: { ok: true }, error: null }));
   await queue.flushUsageQueue();
   restored = (
-    supabase.functionCalls[0].options as { body: { events: Array<Record<string, unknown>> } }
+    assertDefined(supabase.functionCalls[0], 'first function call').options as {
+      body: { events: Array<Record<string, unknown>> };
+    }
   ).body.events;
 });
 
@@ -111,12 +114,12 @@ test('a restored event keeps the fields it was persisted with', () => {
 });
 
 test('a restored event whose id is not a v4 uuid is given a fresh one', () => {
-  assert.match(String(restored[1].event_id), UUID_PATTERN);
-  assert.notEqual(restored[1].event_id, 'legacy-7');
+  assert.match(String(restored[1]?.event_id), UUID_PATTERN);
+  assert.notEqual(restored[1]?.event_id, 'legacy-7');
 });
 
 test('a restored event written before attribution existed reads as unattributed', () => {
-  assert.equal(restored[2].attribution_user_id, null);
+  assert.equal(restored[2]?.attribution_user_id, null);
 });
 
 test('persisted entries missing a server-required field are dropped, not retried forever', () => {

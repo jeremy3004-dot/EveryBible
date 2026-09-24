@@ -132,12 +132,12 @@ test('the client is built once and reused for every later access', () => {
 });
 
 test('the client is created with the publishable key in preference to the legacy anon key', () => {
-  assert.equal(createClientCalls[0].url, 'https://project.supabase.co');
-  assert.equal(createClientCalls[0].key, 'sb_publishable_key');
+  assert.equal(createClientCalls[0]?.url, 'https://project.supabase.co');
+  assert.equal(createClientCalls[0]?.key, 'sb_publishable_key');
 });
 
 test('the client keeps sessions alive itself and ignores URL-borne sessions', () => {
-  const authOptions = createClientCalls[0].options.auth;
+  const authOptions = createClientCalls[0]?.options.auth;
 
   assert.equal(authOptions?.autoRefreshToken, true);
   assert.equal(authOptions?.persistSession, true);
@@ -148,13 +148,13 @@ test('the client keeps sessions alive itself and ignores URL-borne sessions', ()
 // also claim. PKCE makes the link carry a one-time code that only this install's
 // stored code verifier can redeem, instead of a live session.
 test('the client uses the PKCE flow so email links never carry a session', () => {
-  assert.equal(createClientCalls[0].options.auth?.flowType, 'pkce');
+  assert.equal(createClientCalls[0]?.options.auth?.flowType, 'pkce');
 });
 
 // RN's fetch never times out on its own (Android builds OkHttp with 0 timeouts),
 // so a request on a Wi-Fi link without internet would hang every spinner on it.
 test('the client aborts a Supabase request that never answers', async (t) => {
-  const clientFetch = createClientCalls[0].options.global?.fetch;
+  const clientFetch = createClientCalls[0]?.options.global?.fetch;
   assert.ok(clientFetch, 'createClient must receive a fetch with a request timeout');
   const { SUPABASE_REQUEST_TIMEOUT_MS } = await import('./requestTimeoutFetch');
   t.mock.timers.enable({ apis: ['setTimeout'] });

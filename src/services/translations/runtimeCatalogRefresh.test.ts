@@ -13,6 +13,7 @@ const refreshRuntimeCatalog = (deps: RefreshRuntimeCatalogDeps) =>
   createRuntimeCatalogRefresher(deps)();
 import type { ElBootstrapStep } from './runtimeElCatalog';
 import { mapCatalogEntryToBibleTranslation } from './translationCatalogModel';
+import { assertDefined } from '../../utils/assertDefined';
 
 function makeCatalogEntry(translationId: string): TranslationCatalogEntry {
   return {
@@ -510,11 +511,11 @@ test('fresh opens do not reapply stale download state and changed EL configurati
     elStep: async () => [makeElRuntime('el-new')],
   });
   await refresh();
-  store.translations[0].isDownloaded = true;
+  assertDefined(store.translations[0], 'first store translation').isDownloaded = true;
   const applies = store.applyCount;
   await refresh();
   assert.equal(store.applyCount, applies);
-  assert.equal(store.translations[0].isDownloaded, true);
+  assert.equal(store.translations[0]?.isDownloaded, true);
   url = 'https://catalog.example.test';
   await refresh();
   assert.equal(requests, 2);

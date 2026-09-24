@@ -439,7 +439,7 @@ test('signInWithApple draws its nonce from 32 bytes of native randomness', async
 
   assert.deepEqual(expoCrypto.randomLengths, [32]);
   assert.deepEqual(expoCrypto.digestAlgorithms, ['SHA-256']);
-  const raw = (supabaseFake.authCalls[0].args[0] as { nonce?: string }).nonce;
+  const raw = (supabaseFake.authCalls[0]?.args[0] as { nonce?: string } | undefined)?.nonce;
   assert.match(raw ?? '', /^[0-9a-f]{64}$/);
 });
 
@@ -509,7 +509,7 @@ test('signInWithApple uses only the given name when Apple omits the family name'
 
   await authService.signInWithApple();
 
-  assert.deepEqual(supabaseFake.authCalls[1].args, [{ data: { display_name: 'Ada' } }]);
+  assert.deepEqual(supabaseFake.authCalls[1]?.args, [{ data: { display_name: 'Ada' } }]);
 });
 
 test('signInWithApple leaves the profile alone on repeat sign-ins that carry no name', async () => {
@@ -797,7 +797,7 @@ test('signInWithGoogle names an Android DEVELOPER_ERROR instead of a bare unknow
   });
   // It is invisible in the UI, so it has to be named in logcat.
   assert.equal(logged.mock.callCount(), 1);
-  assert.match(String(logged.mock.calls[0].arguments[0]), /DEVELOPER_ERROR/);
+  assert.match(String(logged.mock.calls[0]?.arguments[0]), /DEVELOPER_ERROR/);
   assert.deepEqual(supabaseFake.authCalls, []);
 });
 
@@ -832,7 +832,7 @@ test('signOut ends the Supabase session', async () => {
   supabaseFake.auth.setSession(makeFakeSession({ user: signedInUser() }));
 
   assert.deepEqual(await authService.signOut(), { success: true });
-  assert.equal(supabaseFake.authCalls[0].method, 'signOut');
+  assert.equal(supabaseFake.authCalls[0]?.method, 'signOut');
   assert.equal(supabaseFake.auth.session, null);
 });
 
@@ -1111,7 +1111,7 @@ test('getCurrentSession returns the live session with its user mapped', async (t
 
 test('getCurrentSession returns nulls when there is no stored session', async () => {
   assert.deepEqual(await authService.getCurrentSession(), { session: null, user: null });
-  assert.equal(supabaseFake.authCalls[0].method, 'getSession');
+  assert.equal(supabaseFake.authCalls[0]?.method, 'getSession');
 });
 
 test('getCurrentSession swallows a SecureStore failure and reports a failed restore', async (t) => {

@@ -11,6 +11,7 @@ import {
 import type { ElCatalogTranslation } from './elCatalogModel';
 import type { ElJwk } from './elEnvelope';
 import { __resetElJwksRuntimeForTests } from './elJwks';
+import { assertDefined } from '../../utils/assertDefined';
 
 const fixturesDir = new URL('./fixtures/', import.meta.url);
 const readFixtureBytes = (name: string) =>
@@ -184,7 +185,10 @@ test('cached payload is the verified manifest JSON (not the envelope)', async ()
     k.startsWith('el-media:manifest:')
   );
   assert.equal(diskEntries.length, 1);
-  const cached = JSON.parse(diskEntries[0][1]) as Record<string, unknown>;
+  const cached = JSON.parse(assertDefined(diskEntries[0], 'first disk entry')[1]) as Record<
+    string,
+    unknown
+  >;
   // Verified payload has `schema`; an envelope would have `compactJws`.
   assert.equal(cached.schema, 'everybible-audio-manifest/v1');
   assert.equal(cached.compactJws, undefined);
