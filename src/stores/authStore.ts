@@ -35,10 +35,15 @@ interface AuthState {
   // Monotonic auth boundary generation. A uid can be reused after sign-out and
   // sign-in, so uid equality alone must not keep an old continuation alive.
   authGeneration: number;
+  // True while `session` is a stored session whose access token expired and
+  // could not be refreshed yet (an offline launch). The reader is shown signed
+  // in, but work that sends the token (sync, push registration, feedback) waits
+  // until auth-js refreshes it. Every session auth-js reports clears it.
+  awaitingTokenRefresh: boolean;
 
   // Actions
   setUser: (user: User | null) => void;
-  setSession: (session: Session | null) => void;
+  setSession: (session: Session | null, options?: { awaitingTokenRefresh?: boolean }) => void;
   setLoading: (loading: boolean) => void;
   setPreferences: (prefs: Partial<UserPreferences>) => void;
   // `base` defaults to `preferences`: pass the server's values instead when the
@@ -249,6 +254,7 @@ export const useAuthStore = create<AuthState>()(
       preferenceFieldStamps: {},
       lastSyncedUserId: null,
       authGeneration: 0,
+      awaitingTokenRefresh: false,
 
       setUser: (user) => {
         const previousUserId = get().user?.uid ?? null;
@@ -302,7 +308,7 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      setSession: (session) => {
+      setSession: (session, options) => {
         const user = session?.user ? mapSupabaseUser(session.user) : null;
         const previousUserId = get().user?.uid ?? null;
         const nextUserId = user?.uid ?? null;
@@ -311,6 +317,7 @@ export const useAuthStore = create<AuthState>()(
           user,
           isAuthenticated: session !== null,
           authGeneration: state.authGeneration + (previousUserId === nextUserId ? 0 : 1),
+          awaitingTokenRefresh: session !== null && options?.awaitingTokenRefresh === true,
         }));
         // Same synchronous auth-boundary reconcile as setUser: a session swap
         // resets previous-account stores; first sign-in preserves guest data
@@ -440,6 +447,7 @@ export const useAuthStore = create<AuthState>()(
           user: null,
           session: null,
           isAuthenticated: false,
+          awaitingTokenRefresh: false,
           preferences: defaultAuthPreferences,
           preferencesUpdatedAt: null,
           preferencesSyncBase: null,
@@ -495,8 +503,12 @@ export const useAuthStore = create<AuthState>()(
           // keychain) is not a sign-out: auth-js still holds the session and
           // will refresh it when the network returns. Treating it as one would
           // erase the account's unsynced reading data on every offline launch.
+          // An offline launch restores the stored session without waiting for
+          // its token refresh; the subscription below confirms or ends it.
           if (restoredState.session || !('restoreFailed' in restored && restored.restoreFailed)) {
-            get().setSession(restoredState.session);
+            get().setSession(restoredState.session, {
+              awaitingTokenRefresh: restored.awaitingTokenRefresh === true,
+            });
           }
 
           if (hasSupabaseConfig) {
