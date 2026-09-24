@@ -33,6 +33,7 @@ export function SiteFooter() {
                 alt="Every Language"
                 width={878}
                 height={242}
+                sizes="104px"
               />
               project
             </a>

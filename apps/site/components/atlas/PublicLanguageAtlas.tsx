@@ -1,6 +1,6 @@
 'use client';
 
-import { LanguageMap } from '../../../admin/components/language-atlas/LanguageMap';
+import dynamic from 'next/dynamic';
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import {
   DEFAULT_FILTERS,
@@ -34,6 +34,30 @@ import { ProjectList } from './ProjectList';
 import { UnmappedProjectProfile } from './ProjectProgress';
 import { AtlasRecordProfile, AtlasSources } from './PublicAtlasDetails';
 import { AtlasLegend, AtlasMapSettings, AtlasGroupRecords } from './PublicAtlasTools';
+
+/* MapLibre is ~1 MB of JavaScript. Loading the map in its own chunk lets the
+   headline, search and story hydrate first instead of waiting for it; the
+   placeholder is the same markup LanguageMap renders before its map is
+   ready, so the swap causes no layout shift. */
+const LanguageMap = dynamic(
+  () =>
+    import('../../../admin/components/language-atlas/LanguageMap').then(
+      (module) => module.LanguageMap
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <section className="la-map-panel" aria-label="Language atlas map">
+        <div className="la-map-view">
+          <div className="la-map-canvas" />
+          <p className="la-map-message" role="status">
+            Opening the atlas…
+          </p>
+        </div>
+      </section>
+    ),
+  }
+);
 
 const EMPTY_RECORDS: AtlasIndex['records'] = [];
 const INITIAL_FILTERS: AtlasFilters = DEFAULT_FILTERS;
@@ -527,6 +551,9 @@ export function PublicLanguageAtlas() {
         </div>
       </aside>
 
+      {/* The visible headline makes way for open panels; keep the page's
+          h1 for screen-reader heading navigation while it is hidden. */}
+      {expanded && <h1 className="pa-sr-only">God’s Word. In your heart language.</h1>}
       {!expanded && (
         <div className="pa-story">
           <p className="pa-eyebrow">

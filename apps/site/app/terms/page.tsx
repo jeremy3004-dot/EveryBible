@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 
 import { StaticPageLayout } from '../../components/StaticPageLayout';
+import { pageMetadata } from '../../lib/site-metadata';
 import {
   EVERYBIBLE_PRIVACY_PATH,
   EVERYBIBLE_SUPPORT_EMAIL,
@@ -9,14 +10,12 @@ import {
   EVERYBIBLE_TERMS_PATH,
 } from '../../lib/site-links';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: 'EveryBible Terms of Service',
   description:
     'Read the EveryBible terms covering acceptable use, content licensing, accounts, service availability, and liability.',
-  alternates: {
-    canonical: EVERYBIBLE_TERMS_PATH,
-  },
-};
+  path: EVERYBIBLE_TERMS_PATH,
+});
 
 export default function TermsPage() {
   return (

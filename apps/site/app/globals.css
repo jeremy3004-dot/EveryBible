@@ -12,21 +12,30 @@
    --brand-* ones. Kept in sync by app/brandTokens.test.ts.
    ================================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+/* Archivo and JetBrains Mono come from Google Fonts through next/font in
+   app/layout.tsx: downloaded at build time and served from this origin, so the
+   first paint no longer waits on a render-blocking fonts.googleapis.com
+   stylesheet. layout.tsx exposes them as --font-archivo and
+   --font-jetbrains-mono.
 
-/* Alte Haas Grotesk is the Every Language brand display face (used on
+   Alte Haas Grotesk is the Every Language brand display face (used on
    everylanguage.com and bundled in the mobile app). It is not on Google
-   Fonts, so the site self-hosts the same two binaries the app ships. */
+   Fonts, so the site self-hosts the same two binaries the app ships, as
+   lossless WOFF2 (one third of the TTF size) with the TTF as a fallback. */
 @font-face {
   font-family: 'Alte Haas Grotesk';
-  src: url('/fonts/AlteHaasGrotesk-Regular.ttf') format('truetype');
+  src:
+    url('/fonts/AlteHaasGrotesk-Regular.woff2') format('woff2'),
+    url('/fonts/AlteHaasGrotesk-Regular.ttf') format('truetype');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'Alte Haas Grotesk';
-  src: url('/fonts/AlteHaasGrotesk-Bold.ttf') format('truetype');
+  src:
+    url('/fonts/AlteHaasGrotesk-Bold.woff2') format('woff2'),
+    url('/fonts/AlteHaasGrotesk-Bold.ttf') format('truetype');
   font-weight: 700;
   font-style: normal;
   font-display: swap;
@@ -106,9 +115,10 @@
   --sage: 90 23% 46%;
 
   /* Type */
-  --font-display: 'Alte Haas Grotesk', 'Archivo', system-ui, sans-serif;
-  --font-ui: 'Archivo', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-display: 'Alte Haas Grotesk', var(--font-archivo, 'Archivo'), system-ui, sans-serif;
+  --font-ui: var(--font-archivo, 'Archivo'), system-ui, -apple-system, sans-serif;
+  --font-mono:
+    var(--font-jetbrains-mono, 'JetBrains Mono'), ui-monospace, SFMono-Regular, Menlo, monospace;
 
   --text-display: clamp(40px, 6vw, 72px);
   --text-h1: 32px;
@@ -240,7 +250,9 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
-html { scroll-behavior: smooth; }
+/* scroll-padding keeps anchor targets (#app, #download, #mission) and
+   keyboard-focused elements from landing under the fixed header. */
+html { scroll-behavior: smooth; scroll-padding-top: var(--header-h); }
 
 body {
   margin: 0;
@@ -287,9 +299,30 @@ img { display: block; max-width: 100%; }
   font-feature-settings: 'tnum';
 }
 
+/* The transparent outline is invisible normally but becomes a solid system
+   colour in Windows forced-colors mode, where box-shadow is dropped and the
+   focus ring would otherwise disappear. */
 :focus-visible {
-  outline: none;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
   box-shadow: var(--shadow-focus);
+}
+
+/* Skip link: off-screen until a keyboard user tabs to it. */
+.skip-link {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 1;
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  font-weight: 600;
+  transform: translateY(calc(-100% - 16px));
+}
+.skip-link:focus-visible {
+  transform: none;
 }
 
 /* Motion is quick, transform/opacity only, and never perpetual. */

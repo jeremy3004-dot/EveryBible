@@ -1,11 +1,14 @@
 import type { Metadata } from 'next';
 
 import { StaticPageLayout } from '../../components/StaticPageLayout';
+import { pageMetadata } from '../../lib/site-metadata';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: 'Give to Every Language',
-  description: 'Help native speakers translate the whole Bible into their heart language. Give to Every Language.',
-};
+  description:
+    'Help native speakers translate the whole Bible into their heart language. Give to Every Language.',
+  path: '/give',
+});
 
 export default function GivePage() {
   return (

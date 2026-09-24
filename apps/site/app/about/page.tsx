@@ -1,13 +1,15 @@
 import type { Metadata } from 'next';
 
 import { StaticPageLayout } from '../../components/StaticPageLayout';
+import { pageMetadata } from '../../lib/site-metadata';
 import { EVERY_LANGUAGE_URL } from '../../lib/site-links';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: 'About EveryBible',
   description:
     'EveryBible is part of Every Language, serving churches and communities working toward the whole Bible in every language.',
-};
+  path: '/about',
+});
 
 export default function AboutPage() {
   return (

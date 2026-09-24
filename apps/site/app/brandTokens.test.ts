@@ -33,18 +33,35 @@ test('site globals.css defines the EL blue accent on the vellum paper canvas', a
 test('site globals.css uses the three EL type families', async () => {
   const css = await readSiteCss();
 
+  const layout = await readFile(path.join(repoRoot, 'apps/site/app/layout.tsx'), 'utf8');
+
   assert.match(css, /--font-display:\s*'Alte Haas Grotesk'/, 'display font is Alte Haas Grotesk');
-  assert.match(css, /--font-ui:\s*'Archivo'/, 'UI and reading font is Archivo');
-  assert.match(css, /--font-mono:\s*'JetBrains Mono'/, 'mono font is JetBrains Mono');
-  assert.ok(
-    css.includes("src: url('/fonts/AlteHaasGrotesk-Bold.ttf')"),
-    'Alte Haas Grotesk is self-hosted; it is not on Google Fonts'
+  assert.match(
+    css,
+    /--font-ui:\s*var\(--font-archivo, 'Archivo'\)/,
+    'UI and reading font is Archivo'
+  );
+  assert.match(
+    css,
+    /--font-mono:\s*var\(--font-jetbrains-mono, 'JetBrains Mono'\)/,
+    'mono font is JetBrains Mono'
   );
   assert.ok(
-    css.includes('fonts.googleapis.com/css2?family=Archivo'),
-    'Archivo and JetBrains Mono load from Google Fonts'
+    css.includes("url('/fonts/AlteHaasGrotesk-Bold.woff2') format('woff2')") &&
+      css.includes("url('/fonts/AlteHaasGrotesk-Bold.ttf') format('truetype')"),
+    'Alte Haas Grotesk is self-hosted (WOFF2 with TTF fallback); it is not on Google Fonts'
+  );
+  assert.match(
+    layout,
+    /import \{ Archivo, JetBrains_Mono \} from 'next\/font\/google';/,
+    'Archivo and JetBrains Mono come from Google Fonts via next/font'
+  );
+  assert.ok(
+    !/@import\s+url\(['"]?https:\/\/fonts\.googleapis\.com/.test(css),
+    'no render-blocking Google Fonts stylesheet import in the site CSS'
   );
   assert.ok(!css.includes('Bricolage'), 'the Field-kit Bricolage face is retired on the site');
+  assert.ok(!layout.includes('Bricolage'), 'the Field-kit Bricolage face is retired on the site');
 });
 
 test('site globals.css ships the paper materiality and both theme scopes', async () => {
