@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -18,27 +18,21 @@ export function TranslationBrowserScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { colors } = useTheme();
   const { t } = useTranslation();
-  const [isLoading, setIsLoading] = useState(true);
   // Pushed tab-stack screen: the shared picker list has no bottom-inset story of
   // its own, so end it above the floating tab capsule and the Android nav bar.
   const { contentClearance } = useTabBarHeight();
 
-  const loadCatalog = useCallback(async () => {
-    setIsLoading(true);
-
-    try {
-      // Shared refresh so this screen re-applies Every Language additively. Mapping the
-      // Supabase catalog and applying it here directly would prune the EL runtime rows, which
-      // are remote audio-only and therefore dropped by the runtime-catalog merge.
-      await refreshRuntimeCatalog();
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
+  // The picker renders from the store at once, as the reader's picker sheet does: offline
+  // or on a stalled network the refresh can take a whole request timeout, and the
+  // translations already on the phone must stay pickable meanwhile. Refreshed rows land in
+  // the store and the list follows. The shared refresh re-applies Every Language
+  // additively; mapping the Supabase catalog and applying it here directly would prune the
+  // EL runtime rows, which are remote audio-only and therefore dropped by the merge.
   useEffect(() => {
-    void loadCatalog();
-  }, [loadCatalog]);
+    refreshRuntimeCatalog().catch(() => {
+      // Best effort: the rows already in the store stay listed.
+    });
+  }, []);
 
   return (
     <SafeAreaView
@@ -64,15 +58,9 @@ export function TranslationBrowserScreen() {
         <View style={styles.headerSpacer} />
       </View>
 
-      {isLoading ? (
-        <View style={styles.loader}>
-          <ActivityIndicator size="large" color={colors.accentPrimary} />
-        </View>
-      ) : (
-        <View style={[styles.listContainer, { paddingBottom: contentClearance }]}>
-          <TranslationPickerList onTranslationActivated={() => navigation.goBack()} />
-        </View>
-      )}
+      <View style={[styles.listContainer, { paddingBottom: contentClearance }]}>
+        <TranslationPickerList onTranslationActivated={() => navigation.goBack()} />
+      </View>
     </SafeAreaView>
   );
 }
@@ -101,10 +89,5 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     flex: 1,
-  },
-  loader: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });
