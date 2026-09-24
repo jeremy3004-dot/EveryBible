@@ -493,7 +493,7 @@ export function isPlanCompleted(durationDays: number, completedCount: number): b
  * - synced_at: caller-supplied timestamp
  *
  * The server applies the same rules atomically in merge_reading_plan_progress
- * (migration 20260924160000); keep the two in step.
+ * (migration 20260924035821); keep the two in step.
  *
  * Returns a new object — inputs are not mutated.
  */

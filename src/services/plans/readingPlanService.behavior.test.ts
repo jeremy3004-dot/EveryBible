@@ -138,7 +138,7 @@ test.beforeEach(() => {
   storeModule.readingPlansStore.getState().resetAll();
   mmkv.store.clear();
   supabaseFake.reset();
-  // Most scenarios describe a server without migration 20260924160000, so plan
+  // Most scenarios describe a server without migration 20260924035821, so plan
   // pushes take the upsert path; the merge-RPC tests below install the function.
   supabaseFake.respondToRpc(MERGE_RPC, () => MISSING_MERGE_RPC);
   backend.configured = true;

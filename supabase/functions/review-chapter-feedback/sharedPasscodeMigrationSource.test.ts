@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { sharedPasscodeRequestKind } from './translatorAccess';
 
 const MIGRATION = fileURLToPath(
-  new URL('../../migrations/20260924150000_translator_shared_passcode_switch.sql', import.meta.url)
+  new URL('../../migrations/20260924035827_translator_shared_passcode_switch.sql', import.meta.url)
 );
 const sql = readFileSync(MIGRATION, 'utf8')
   .replace(/--[^\n]*/g, ' ')

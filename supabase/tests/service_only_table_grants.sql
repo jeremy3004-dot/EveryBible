@@ -4,7 +4,7 @@
 -- anon and authenticated held every table privilege on these RLS-without-policy tables.
 -- translator_team_passcodes (hashed team review passcodes) is created without client grants
 -- by 20260924014137_add_translator_team_passcodes.sql; translator_access_settings and
--- translator_shared_passcode_uses by 20260924150000_translator_shared_passcode_switch.sql.
+-- translator_shared_passcode_uses by 20260924035827_translator_shared_passcode_switch.sql.
 BEGIN;
 
 DO $$

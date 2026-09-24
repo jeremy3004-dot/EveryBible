@@ -108,7 +108,7 @@ To retire the shared passcode:
 
    The usage table can then be dropped in a later migration.
 
-Rolling out the switch: apply `20260924150000_translator_shared_passcode_switch.sql`,
+Rolling out the switch: apply `20260924035827_translator_shared_passcode_switch.sql`,
 then deploy `review-chapter-feedback`, then the admin app. Each step is safe on its own:
 the migration creates the switch already on and the current function ignores both
 tables; the new function treats a missing settings table as "allowed" and only logs a

@@ -21,7 +21,7 @@ const MIGRATIONS = [
   '20260924023303_backfill_user_preferences_field_stamps.sql',
   '20260924023340_reading_plan_unenroll_tombstones.sql',
   '20260924023342_reading_plan_session_columns.sql',
-  '20260924160000_merge_reading_plan_progress_rpc.sql',
+  '20260924035821_merge_reading_plan_progress_rpc.sql',
 ];
 
 const db = new PGlite();
@@ -494,7 +494,7 @@ await assert.rejects(
 );
 
 // ---------------------------------------------------------------------------
-// Atomic plan-progress merge (20260924160000)
+// Atomic plan-progress merge (20260924035821)
 // ---------------------------------------------------------------------------
 
 const MERGE = `select * from public.merge_reading_plan_progress($1::jsonb)`;

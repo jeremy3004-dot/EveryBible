@@ -173,7 +173,7 @@ export function translationsWithoutTeamCode(
 }
 
 export interface SharedPasscodeSetting {
-  /** False until the 20260924150000 migration is applied; the switch cannot be used before. */
+  /** False until the 20260924035827 migration is applied; the switch cannot be used before. */
   installed: boolean;
   /** Whether review-chapter-feedback still accepts the shared passcode. */
   allowed: boolean;

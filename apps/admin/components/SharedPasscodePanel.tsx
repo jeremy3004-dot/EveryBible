@@ -57,7 +57,7 @@ export function SharedPasscodePanel({
 
       {!usage.installed ? (
         <p className="table-note">
-          Usage is not recorded yet: the 20260924150000 migration has not been applied.
+          Usage is not recorded yet: the 20260924035827 migration has not been applied.
         </p>
       ) : usage.total === 0 ? (
         <p className="table-note">
@@ -86,7 +86,7 @@ export function SharedPasscodePanel({
 
       {!setting.installed ? (
         <p className="notice notice--warning">
-          The switch is not available until the 20260924150000 migration is applied. Until then the
+          The switch is not available until the 20260924035827 migration is applied. Until then the
           shared passcode stays allowed.
         </p>
       ) : setting.allowed ? (

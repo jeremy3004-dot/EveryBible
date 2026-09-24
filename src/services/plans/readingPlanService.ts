@@ -559,7 +559,7 @@ const PLAN_PROGRESS_MERGE_RPC = 'merge_reading_plan_progress';
 
 /**
  * PostgREST (PGRST202, HTTP 404) or Postgres (42883) reporting that the merge
- * function does not exist: the app shipped before migration 20260924160000.
+ * function does not exist: the app shipped before migration 20260924035821.
  */
 const isMissingMergeRpcError = (
   error: { code?: string } | null | undefined,
