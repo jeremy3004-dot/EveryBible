@@ -271,6 +271,95 @@ test('refusing the permission from the notice explains itself and schedules noth
   assert.equal(harness.authStore.getState().preferences.notificationsEnabled, true);
 });
 
+// --- Reminder time picker ---------------------------------------------------
+
+/** The picker option for `label` (e.g. "09") in the column that lists it. */
+function pickerOption(view: View, label: string): ReactTestInstance {
+  const option = hostAncestors(view.getByText(label)).find(
+    (node) => node.props.accessibilityRole === 'button'
+  );
+  assert.ok(option, `picker option ${label}`);
+  return option;
+}
+
+/** Lays out one picker option; rows are 52pt tall under 60pt of column padding. */
+async function layOutOption(view: View, label: string, index: number) {
+  await view.fire(pickerOption(view, label), 'onLayout', {
+    nativeEvent: { layout: { x: 0, y: 60 + index * 52, width: 80, height: 52 } },
+  });
+}
+
+test('turning the reminder on opens the picker scrolled to the 9:00 it will save, highlighted', async () => {
+  harness.authStore.getState().setPreferences({ notificationsEnabled: false, reminderTime: null });
+  const view = await renderSettings();
+
+  await view.fire(switchNamed(view, t('settings.dailyReminder')), 'onValueChange', true);
+  assert.ok(view.getByRole('header', { name: t('settings.setReminderTime') }));
+
+  // Hours and minutes both list "00"; the hour column comes first.
+  const [hourZero, minuteZero] = view.getAllByText('00');
+  const selected = (node: ReactTestInstance | undefined) =>
+    hostAncestors(node!).find((n) => n.props.accessibilityRole === 'button')?.props
+      .accessibilityState?.selected;
+  assert.deepEqual(
+    [selected(hourZero), pickerOption(view, '09').props.accessibilityState, selected(minuteZero)],
+    [false, { selected: true }, true]
+  );
+
+  harness.refCalls.length = 0;
+  await layOutOption(view, '09', 9);
+  await view.fire(minuteZero!, 'onLayout', {
+    nativeEvent: { layout: { x: 0, y: 60, width: 80, height: 52 } },
+  });
+  // The 200pt hour column centres the 9 o'clock row instead of opening at midnight; the
+  // minute "00" already sits in view, so its column clamps to the top.
+  const scrolls = harness.refCalls.filter((call) => call.method === 'scrollTo');
+  assert.deepEqual(
+    scrolls.map((call) => call.args[0]),
+    [
+      { y: 60 + 9 * 52 + 26 - 100, animated: false },
+      { y: 0, animated: false },
+    ]
+  );
+
+  await view.press(view.getByRole('button', { name: t('settings.setTime') }));
+  assert.deepEqual(reminders.calls, ['schedule:9:0']);
+  assert.equal(harness.authStore.getState().preferences.reminderTime, '09:00');
+});
+
+test('the picker opens on the saved reminder time and a later tap does not jump the column', async () => {
+  harness.authStore
+    .getState()
+    .setPreferences({ notificationsEnabled: true, reminderTime: '18:45' });
+  const view = await renderSettings();
+
+  await view.press(view.getByRole('button', { name: rowNamed(t('settings.reminderTime')) }));
+  assert.deepEqual(
+    [
+      pickerOption(view, '18').props.accessibilityState,
+      pickerOption(view, '45').props.accessibilityState,
+    ],
+    [{ selected: true }, { selected: true }]
+  );
+
+  harness.refCalls.length = 0;
+  await layOutOption(view, '18', 18);
+  await layOutOption(view, '45', 3);
+  assert.deepEqual(
+    harness.refCalls.filter((call) => call.method === 'scrollTo').map((call) => call.args[0]),
+    [
+      { y: 60 + 18 * 52 + 26 - 100, animated: false },
+      { y: 60 + 3 * 52 + 26 - 100, animated: false },
+    ]
+  );
+
+  await view.press(pickerOption(view, '07'));
+  harness.refCalls.length = 0;
+  await layOutOption(view, '07', 7);
+  assert.deepEqual(harness.refCalls, [], 'only the row the picker opened on scrolls the column');
+  assert.deepEqual(pickerOption(view, '07').props.accessibilityState, { selected: true });
+});
+
 // --- Reminder scheduling failures -------------------------------------------
 
 test('a reminder the system fails to schedule from its saved time stays off, explains and is reported', async () => {
