@@ -1480,7 +1480,6 @@ export const de = {
   },
   annotations: {
     title: 'Meine Notizen und Markierungen',
-    bookmarks: 'Lesezeichen',
     highlights: 'Markierungen',
     notes: 'Notizen',
     addNote: 'Notiz hinzufügen',
@@ -1489,7 +1488,6 @@ export const de = {
     editNote: 'Notiz bearbeiten',
     deleteAnnotation: 'Löschen',
     noAnnotations: 'Noch keine Anmerkungen',
-    noBookmarks: 'Noch keine Lesezeichen',
     noHighlights: 'Noch keine Markierungen',
     noNotes: 'Noch keine Notizen',
     noteHint: 'Schreib deine Gedanken …',

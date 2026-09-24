@@ -1140,7 +1140,6 @@ export const pa = {
   },
   annotations: {
     title: 'ਮੇਰੇ ਨੋਟ ਅਤੇ ਹਾਈਲਾਈਟ',
-    bookmarks: 'ਬੁੱਕਮਾਰਕ',
     highlights: 'ਹਾਈਲਾਈਟ',
     notes: 'ਨੋਟ',
     addNote: 'ਨੋਟ ਸ਼ਾਮਲ ਕਰੋ',
@@ -1149,7 +1148,6 @@ export const pa = {
     editNote: 'ਨੋਟ ਸੰਪਾਦਿਤ ਕਰੋ',
     deleteAnnotation: 'ਮਿਟਾਓ',
     noAnnotations: 'ਅਜੇ ਕੋਈ ਨੋਟ ਜਾਂ ਹਾਈਲਾਈਟ ਨਹੀਂ',
-    noBookmarks: 'ਅਜੇ ਕੋਈ ਬੁੱਕਮਾਰਕ ਨਹੀਂ',
     noHighlights: 'ਅਜੇ ਕੋਈ ਹਾਈਲਾਈਟ ਨਹੀਂ',
     noNotes: 'ਅਜੇ ਕੋਈ ਨੋਟ ਨਹੀਂ',
     noteHint: 'ਆਪਣੇ ਵਿਚਾਰ ਲਿਖੋ...',

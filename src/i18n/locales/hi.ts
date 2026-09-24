@@ -1153,7 +1153,6 @@ export const hi = {
   annotations: {
     title: 'मेरे नोट्स और हाइलाइट्स',
     selected: 'चयनित',
-    bookmarks: 'बुकमार्क',
     highlights: 'हाइलाइट्स',
     notes: 'नोट्स',
     addNote: 'नोट जोड़ें',
@@ -1165,7 +1164,6 @@ export const hi = {
     editNote: 'नोट संपादित करें',
     deleteAnnotation: 'हटाएँ',
     noAnnotations: 'अभी तक कोई चिह्न या नोट नहीं',
-    noBookmarks: 'अभी तक कोई बुकमार्क नहीं',
     noHighlights: 'अभी तक कोई हाइलाइट नहीं',
     noNotes: 'अभी तक कोई नोट नहीं',
     noteHint: 'अपने विचार लिखें...',

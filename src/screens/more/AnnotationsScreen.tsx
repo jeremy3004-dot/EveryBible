@@ -24,7 +24,10 @@ import type { MoreStackParamList } from '../../navigation/types';
 
 type NavigationProp = NativeStackNavigationProp<MoreStackParamList>;
 
-type FilterType = 'bookmark' | 'highlight' | 'note';
+// Nothing in the app creates bookmarks, so there is no Bookmarks filter. Bookmark
+// records an older build may have stored stay in the annotation store untouched;
+// they are simply not listed here.
+type FilterType = Extract<UserAnnotation['type'], 'highlight' | 'note'>;
 
 export function AnnotationsScreen() {
   const { colors } = useTheme();
@@ -69,35 +72,18 @@ export function AnnotationsScreen() {
     setRefreshing(false);
   };
 
-  const filtered = annotations.filter((a) => a.type === filter);
+  const filtered = annotations.filter(
+    (a): a is UserAnnotation & { type: FilterType } => a.type === filter
+  );
 
-  const getAnnotationIcon = (type: UserAnnotation['type']): string => {
-    switch (type) {
-      case 'bookmark':
-        return 'bookmark';
-      case 'highlight':
-        return 'color-fill';
-      case 'note':
-        return 'document-text';
-    }
-  };
+  const getAnnotationIcon = (type: FilterType): string =>
+    type === 'highlight' ? 'color-fill' : 'document-text';
 
-  const getEmptyMessage = (): string => {
-    switch (filter) {
-      case 'note':
-        return t('annotations.noNotes');
-      case 'bookmark':
-        return t('annotations.noBookmarks');
-      case 'highlight':
-        return t('annotations.noHighlights');
-    }
-
-    return t('annotations.noNotes');
-  };
+  const emptyMessage =
+    filter === 'highlight' ? t('annotations.noHighlights') : t('annotations.noNotes');
 
   const emptyStateIcons = {
     note: 'document-text-outline',
-    bookmark: 'bookmark-outline',
     highlight: 'color-fill-outline',
   } as const;
 
@@ -115,7 +101,7 @@ export function AnnotationsScreen() {
     });
   };
 
-  const renderItem = ({ item }: { item: UserAnnotation }) => (
+  const renderItem = ({ item }: { item: UserAnnotation & { type: FilterType } }) => (
     <TouchableOpacity
       style={[
         styles.card,
@@ -154,7 +140,6 @@ export function AnnotationsScreen() {
 
   const filterButtons: { key: FilterType; label: string; icon: string }[] = [
     { key: 'note', label: t('annotations.notes'), icon: 'document-text-outline' },
-    { key: 'bookmark', label: t('annotations.bookmarks'), icon: 'bookmark-outline' },
     { key: 'highlight', label: t('annotations.highlights'), icon: 'color-fill-outline' },
   ];
 
@@ -256,7 +241,7 @@ export function AnnotationsScreen() {
                 color={hexWithAlpha(colors.secondaryText, 0.38)}
               />
               <Text style={[styles.emptyText, { color: colors.secondaryText }]}>
-                {getEmptyMessage()}
+                {emptyMessage}
               </Text>
             </View>
           )

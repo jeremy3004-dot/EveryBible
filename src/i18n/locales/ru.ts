@@ -1497,7 +1497,6 @@ export const ru = {
   annotations: {
     title: 'Мои заметки и выделения',
     selected: 'Выбрано',
-    bookmarks: 'Закладки',
     highlights: 'Выделения',
     notes: 'Заметки',
     addNote: 'Добавить заметку',
@@ -1509,7 +1508,6 @@ export const ru = {
     editNote: 'Изменить заметку',
     deleteAnnotation: 'Удалить',
     noAnnotations: 'Пока ничего не отмечено',
-    noBookmarks: 'Закладок пока нет',
     noHighlights: 'Выделений пока нет',
     noNotes: 'Заметок пока нет',
     noteHint: 'Запишите свои мысли…',

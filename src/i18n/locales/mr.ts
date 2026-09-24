@@ -1140,7 +1140,6 @@ export const mr = {
   },
   annotations: {
     title: 'माझ्या टीपा आणि हायलाइट्स',
-    bookmarks: 'बुकमार्क',
     highlights: 'हायलाइट्स',
     notes: 'टीपा',
     addNote: 'टीप जोडा',
@@ -1149,7 +1148,6 @@ export const mr = {
     editNote: 'टीप संपादित करा',
     deleteAnnotation: 'हटवा',
     noAnnotations: 'अद्याप कोणत्याही नोंदी नाहीत',
-    noBookmarks: 'अद्याप कोणतेही बुकमार्क नाहीत',
     noHighlights: 'अद्याप कोणतेही हायलाइट नाहीत',
     noNotes: 'अद्याप कोणतीही टीप नाही',
     noteHint: 'तुमचे विचार लिहा...',

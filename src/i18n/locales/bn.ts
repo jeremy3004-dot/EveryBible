@@ -1134,7 +1134,6 @@ export const bn = {
   },
   annotations: {
     title: 'আমার নোট ও হাইলাইট',
-    bookmarks: 'বুকমার্ক',
     highlights: 'হাইলাইট',
     notes: 'নোট',
     addNote: 'নোট যোগ করুন',
@@ -1143,7 +1142,6 @@ export const bn = {
     editNote: 'নোট সম্পাদনা করুন',
     deleteAnnotation: 'মুছুন',
     noAnnotations: 'এখনও কোনো টীকা নেই',
-    noBookmarks: 'এখনও কোনো বুকমার্ক নেই',
     noHighlights: 'এখনও কোনো হাইলাইট নেই',
     noNotes: 'এখনও কোনো নোট নেই',
     noteHint: 'আপনার ভাবনা লিখুন...',

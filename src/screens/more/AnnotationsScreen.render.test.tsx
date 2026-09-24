@@ -77,34 +77,54 @@ test('opens on the Notes filter and lists only notes, with their text', async ()
     success: true,
     data: [
       annotation({ id: 'n1', content: 'God so loved' }),
-      annotation({ id: 'b1', type: 'bookmark', book: 'GEN', chapter: 1, verse_start: 1 }),
+      annotation({ id: 'h1', type: 'highlight', book: 'GEN', chapter: 1, verse_start: 1 }),
     ],
   };
 
   const view = await renderScreen();
 
   assert.ok(view.getByRole('button', { name: t('annotations.notes'), selected: true }));
-  assert.ok(view.getByRole('button', { name: t('annotations.bookmarks'), selected: false }));
+  assert.ok(view.getByRole('button', { name: t('annotations.highlights'), selected: false }));
   assert.ok(view.getByText('God so loved'));
   assert.ok(view.getByText('John 3:16'));
   assert.equal(view.queryByText('Genesis 1:1'), null);
 });
 
-test('switching filters shows that type, and each empty type has its own message', async () => {
+// Nothing in the app creates bookmarks, so the screen offers no Bookmarks filter.
+// Older stored bookmark records stay in the store but are not listed.
+test('offers only the Notes and Highlights filters and never lists bookmarks', async () => {
   service.result = {
     success: true,
     data: [annotation({ id: 'b1', type: 'bookmark', book: 'GEN', chapter: 1, verse_start: 1 })],
   };
   const view = await renderScreen();
 
+  assert.equal(view.queryByRole('button', { name: 'Bookmarks' }), null);
+  assert.equal(view.queryByText('Genesis 1:1'), null);
   assert.ok(view.getByText(t('annotations.noNotes')));
 
-  await view.press(view.getByRole('button', { name: t('annotations.bookmarks') }));
-  assert.ok(view.getByText('Genesis 1:1'));
-  assert.ok(view.getByRole('button', { name: t('annotations.bookmarks'), selected: true }));
+  await view.press(view.getByRole('button', { name: t('annotations.highlights') }));
+  assert.ok(view.getByRole('button', { name: t('annotations.highlights'), selected: true }));
+  assert.ok(view.getByText(t('annotations.noHighlights')));
+  assert.equal(view.queryByText('Genesis 1:1'), null);
+});
+
+test('switching filters shows that type', async () => {
+  service.result = {
+    success: true,
+    data: [
+      annotation({ id: 'n1', content: 'A note' }),
+      annotation({ id: 'h1', type: 'highlight', book: 'GEN', chapter: 1, verse_start: 1 }),
+    ],
+  };
+  const view = await renderScreen();
 
   await view.press(view.getByRole('button', { name: t('annotations.highlights') }));
-  assert.ok(view.getByText(t('annotations.noHighlights')));
+  assert.ok(view.getByText('Genesis 1:1'));
+  assert.equal(view.queryByText('A note'), null);
+
+  await view.press(view.getByRole('button', { name: t('annotations.notes') }));
+  assert.ok(view.getByText('A note'));
   assert.equal(view.queryByText('Genesis 1:1'), null);
 });
 

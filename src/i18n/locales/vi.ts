@@ -1460,7 +1460,6 @@ export const vi = {
   },
   annotations: {
     title: 'Ghi chú và phần tô sáng của tôi',
-    bookmarks: 'Dấu trang',
     highlights: 'Phần tô sáng',
     notes: 'Ghi chú',
     addNote: 'Thêm ghi chú',
@@ -1469,7 +1468,6 @@ export const vi = {
     editNote: 'Chỉnh sửa ghi chú',
     deleteAnnotation: 'Xóa',
     noAnnotations: 'Chưa có chú thích nào',
-    noBookmarks: 'Chưa có dấu trang nào',
     noHighlights: 'Chưa có phần tô sáng nào',
     noNotes: 'Chưa có ghi chú nào',
     noteHint: 'Viết suy nghĩ của bạn...',

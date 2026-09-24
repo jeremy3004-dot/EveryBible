@@ -1517,7 +1517,6 @@ export const fr = {
   },
   annotations: {
     title: 'Mes notes et surlignages',
-    bookmarks: 'Signets',
     highlights: 'Surlignages',
     notes: 'Notes',
     addNote: 'Ajouter une note',
@@ -1526,7 +1525,6 @@ export const fr = {
     editNote: 'Modifier la note',
     deleteAnnotation: 'Supprimer',
     noAnnotations: 'Aucune annotation pour l’instant',
-    noBookmarks: 'Aucun signet pour l’instant',
     noHighlights: 'Aucun surlignage pour l’instant',
     noNotes: 'Aucune note pour l’instant',
     noteHint: 'Notez vos réflexions...',

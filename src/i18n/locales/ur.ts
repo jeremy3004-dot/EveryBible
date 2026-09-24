@@ -1433,7 +1433,6 @@ export const ur = {
   },
   annotations: {
     title: 'میرے نوٹ اور نمایاں حصے',
-    bookmarks: 'بک مارکس',
     highlights: 'نمایاں حصے',
     notes: 'نوٹ',
     addNote: 'نوٹ شامل کریں',
@@ -1442,7 +1441,6 @@ export const ur = {
     editNote: 'نوٹ میں ترمیم کریں',
     deleteAnnotation: 'حذف کریں',
     noAnnotations: 'ابھی تک کوئی نوٹ یا نشان نہیں',
-    noBookmarks: 'ابھی تک کوئی بک مارک نہیں',
     noHighlights: 'ابھی تک کوئی حصہ نمایاں نہیں کیا گیا',
     noNotes: 'ابھی تک کوئی نوٹ نہیں',
     noteHint: 'اپنے خیالات لکھیں...',
