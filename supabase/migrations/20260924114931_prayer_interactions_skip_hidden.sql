@@ -1,5 +1,5 @@
 -- Refuse reactions to hidden prayer requests in the policy itself (security review 2026-09-24,
--- pass 2, finding P2-14). NOT APPLIED to the live project yet.
+-- pass 2, finding P2-14). Applied live 2026-09-24.
 --
 -- interaction_insert_member only asked "is the reacting user a member of the request's group?".
 -- Today that already refuses hidden requests for everyone but their author: the EXISTS reads
