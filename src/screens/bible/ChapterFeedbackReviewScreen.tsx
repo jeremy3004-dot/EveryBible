@@ -3,13 +3,9 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
-  KeyboardAvoidingView,
-  Platform,
   RefreshControl,
   StyleSheet,
   Text,
-  TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -17,11 +13,16 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Audio } from 'expo-av';
 import { useTranslation } from 'react-i18next';
+import { Check, CheckCheck, ChevronDown, Users } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
+import { layout, spacing, typography } from '../../design/system';
 import { getTranslatedBookName } from '../../constants';
 import { useTranslatorReviewStore } from '../../stores/translatorReviewStore';
 import {
+  buildReviewQueue,
   fetchChapterFeedbackForTranslatorReview,
+  getChapterReviewHeadline,
+  getNextQueuedId,
   resolveTranslatorFeedbackOnServer,
   reopenTranslatorFeedbackOnServer,
   reviewPositiveFeedbackBatch,
@@ -34,10 +35,38 @@ import {
   type TranslatorFeedbackChapterSummary,
   type TranslatorFeedbackResolution,
 } from '../../services/feedback';
-import { TranslationNotCoveredNotice } from '../../components/feedback';
+import {
+  FeedbackFocusedReview,
+  FeedbackResponseCard,
+  TranslationNotCoveredNotice,
+} from '../../components/feedback';
+import {
+  AppButton,
+  AppCard,
+  BackArrowIcon,
+  IconButton,
+  ListRow,
+  Sheet,
+  TabSwitch,
+} from '../../components/ui';
 import type { BibleStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<BibleStackParamList, 'ChapterFeedbackReview'>;
+
+/** A focused review walks a snapshot of the open items, so reloads never reshuffle it. */
+interface ReviewSession {
+  queue: string[];
+  byId: Record<string, ChapterFeedbackReviewItem>;
+  currentId: string | null;
+  handled: ReadonlySet<string>;
+}
+
+const SOURCE_FILTERS: { value: FeedbackCategoryFilter; labelKey: string }[] = [
+  { value: 'all', labelKey: 'feedback.everyone' },
+  { value: 'scripture_council', labelKey: 'feedback.council' },
+  { value: 'community', labelKey: 'feedback.community' },
+];
+
 export function ChapterFeedbackReviewScreen({ route, navigation }: Props) {
   const { translationId, bookId, chapter } = route.params;
   const { colors } = useTheme();
@@ -53,18 +82,21 @@ export function ChapterFeedbackReviewScreen({ route, navigation }: Props) {
   const [summary, setSummary] = useState<TranslatorFeedbackChapterSummary | null>(null);
   const [positiveCount, setPositiveCount] = useState(0);
   const [cursor, setCursor] = useState<FeedbackPageCursor | null>(null);
-  const [expanded, setExpanded] = useState<string | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [mutating, setMutating] = useState(false);
   const [failed, setFailed] = useState(false);
   // Set when this passcode does not open the translation; holds what it does open.
   const [notCovered, setNotCovered] = useState<{ coveredTranslationIds?: string[] } | null>(null);
+  const [sourcePickerOpen, setSourcePickerOpen] = useState(false);
+  const [review, setReview] = useState<ReviewSession | null>(null);
+  const [reviewFailed, setReviewFailed] = useState(false);
   const [playing, setPlaying] = useState<string | null>(null);
   const sound = useRef<Audio.Sound | null>(null);
   const soundId = useRef<string | null>(null);
   const requestId = useRef(0);
   const busy = useRef(false);
+  const chapterLabel = `${getTranslatedBookName(bookId, t)} ${chapter}`;
   const input = useCallback(
     () => ({
       apiVersion: 2 as const,
@@ -119,39 +151,51 @@ export function ChapterFeedbackReviewScreen({ route, navigation }: Props) {
     [enabled, passcode, input]
   );
 
+  const stopAudio = useCallback(() => {
+    void sound.current?.unloadAsync().catch(() => {});
+    sound.current = null;
+    soundId.current = null;
+    setPlaying(null);
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       void load();
       return () => {
         ++requestId.current;
         busy.current = false;
-        void sound.current?.unloadAsync().catch(() => {});
-        sound.current = null;
-        soundId.current = null;
-        setPlaying(null);
+        stopAudio();
       };
-    }, [load])
+    }, [load, stopAudio])
   );
 
+  // Reports success so the list can alert while the focused review, where an Alert
+  // cannot show over its modal, reports inline instead.
   const resolve = async (
     item: ChapterFeedbackReviewItem,
     resolution: TranslatorFeedbackResolution | null
-  ) => {
-    if (!passcode || mutating) return;
+  ): Promise<boolean> => {
+    if (!passcode || mutating) return false;
     const note = notes[item.id]?.trim() ?? '';
-    if (resolution && item.sentiment === 'down' && !note) return;
+    if (resolution && item.sentiment === 'down' && !note) return false;
     setMutating(true);
     const args = { apiVersion: 2 as const, passcode, translationId, feedbackId: item.id };
     const result = resolution
       ? await resolveTranslatorFeedbackOnServer({ ...args, resolution, note })
       : await reopenTranslatorFeedbackOnServer(args);
     setMutating(false);
-    if (!result.success) {
+    if (!result.success) return false;
+    void load();
+    return true;
+  };
+
+  const resolveFromList = async (
+    item: ChapterFeedbackReviewItem,
+    resolution: TranslatorFeedbackResolution | null
+  ) => {
+    if (!(await resolve(item, resolution))) {
       Alert.alert(t('common.error'), t('common.unexpectedError'));
-      return;
     }
-    setExpanded(null);
-    await load();
   };
 
   const reviewPositive = async () => {
@@ -229,86 +273,141 @@ export function ChapterFeedbackReviewScreen({ route, navigation }: Props) {
     }
   };
 
-  const button = (label: string, onPress: () => void, selected = false, disabled = false) => (
-    <TouchableOpacity
-      accessibilityRole="button"
-      accessibilityState={{ selected, disabled }}
-      disabled={disabled}
-      onPress={onPress}
-      style={[
-        styles.button,
-        {
-          borderColor: selected ? colors.accentPrimary : colors.cardBorder,
-          backgroundColor: selected ? colors.accentPrimary : colors.cardBackground,
-          opacity: disabled ? 0.5 : 1,
-        },
-      ]}
-    >
-      <Text style={{ color: selected ? colors.onAccent : colors.primaryText }}>{label}</Text>
-    </TouchableOpacity>
-  );
-  const pending = (summary?.unresolvedDown ?? 0) + (summary?.unresolvedUp ?? 0);
+  const startReview = (startId?: string) => {
+    const queue = buildReviewQueue(items, startId);
+    if (!queue.length) return;
+    setReviewFailed(false);
+    setReview({
+      queue,
+      byId: Object.fromEntries(items.map((item) => [item.id, item])),
+      currentId: queue[0],
+      handled: new Set(),
+    });
+  };
+
+  const advanceReview = (session: ReviewSession, id: string) => {
+    stopAudio();
+    setReviewFailed(false);
+    const handled = new Set(session.handled).add(id);
+    setReview({ ...session, handled, currentId: getNextQueuedId(session.queue, handled, id) });
+  };
+
+  const decide = async (resolution: TranslatorFeedbackResolution) => {
+    const current = review?.currentId ? review.byId[review.currentId] : null;
+    if (!review || !current) return;
+    if (await resolve(current, resolution)) {
+      advanceReview(review, current.id);
+    } else {
+      setReviewFailed(true);
+    }
+  };
+
+  const closeReview = () => {
+    stopAudio();
+    setReview(null);
+  };
+
+  const headline = getChapterReviewHeadline(summary, loading);
+  const hasOpenItems = items.some((item) => !item.resolution);
+  const sourceLabelKey =
+    SOURCE_FILTERS.find((filter) => filter.value === category)?.labelKey ?? 'feedback.everyone';
+  const reviewItem = review?.currentId ? review.byId[review.currentId] : null;
+
   const header = (
-    <View style={styles.section}>
-      <Text accessibilityRole="header" style={[styles.title, { color: colors.primaryText }]}>
-        {getTranslatedBookName(bookId, t)} {chapter}
-      </Text>
-      <Text style={{ color: colors.secondaryText }}>
-        {summary?.total
-          ? t('bible.translatorReviewSummary', { count: summary.total, pending })
-          : loading
-            ? t('common.loading')
-            : t('bible.translatorReviewEmpty')}
-      </Text>
-      {!!summary?.total && pending === 0 && (
-        <Text style={{ color: colors.secondaryText }}>{t('feedback.complete')}</Text>
-      )}
-      <View style={styles.wrap}>
-        {(['all', 'scripture_council', 'community'] as const).map((value) => (
-          <View key={value}>
-            {button(
-              t(
-                value === 'all'
-                  ? 'feedback.all'
-                  : value === 'community'
-                    ? 'feedback.community'
-                    : 'feedback.council'
-              ),
-              () => setCategory(value),
-              category === value
-            )}
-          </View>
-        ))}
-      </View>
-      <View style={styles.wrap}>
-        {button(t('feedback.needsReview'), () => setStatus('pending'), status === 'pending')}
-        {button(t('feedback.reviewed'), () => setStatus('reviewed'), status === 'reviewed')}
-      </View>
-      {(positiveCount > 0 || positiveOnly) && (
-        <View
-          style={[
-            styles.card,
-            { borderColor: colors.cardBorder, backgroundColor: colors.cardBackground },
-          ]}
-        >
-          <Text style={{ color: colors.primaryText }}>
-            {t('feedback.positiveCount', { count: positiveCount })}
+    <View style={styles.header}>
+      <View style={styles.headline}>
+        {headline.kind === 'waiting' ? (
+          <Text style={[styles.headlineText, { color: colors.primaryText }]}>
+            {t('feedback.waiting', { count: headline.count })}
           </Text>
-          {button(t(positiveOnly ? 'feedback.showComments' : 'feedback.viewPositive'), () =>
-            setPositiveOnly(!positiveOnly)
-          )}
-          {status === 'pending' &&
-            positiveCount > 0 &&
-            button(
-              t('feedback.reviewPositive'),
-              () => {
-                void reviewPositive();
-              },
-              false,
-              mutating
-            )}
+        ) : headline.kind === 'caughtUp' ? (
+          <View style={styles.caughtUp}>
+            <CheckCheck size={20} color={colors.success} strokeWidth={2} />
+            <Text style={[styles.headlineText, { color: colors.primaryText }]}>
+              {t('feedback.complete')}
+            </Text>
+          </View>
+        ) : (
+          <Text style={[styles.body, { color: colors.secondaryText }]}>
+            {t(headline.kind === 'loading' ? 'common.loading' : 'bible.translatorReviewEmpty')}
+          </Text>
+        )}
+        {status === 'pending' && hasOpenItems && (
+          <AppButton
+            label={t('feedback.startReview')}
+            variant="primary"
+            size="md"
+            onPress={() => startReview()}
+          />
+        )}
+      </View>
+
+      <TabSwitch
+        segments={[
+          { key: 'pending', label: t('feedback.needsReview') },
+          { key: 'reviewed', label: t('feedback.reviewed') },
+        ]}
+        value={status}
+        onChange={(key) => setStatus(key as FeedbackStatusFilter)}
+        fullWidth
+        size="md"
+        accessibilityLabel={t('feedback.statusFilter')}
+      />
+      <AppButton
+        label={t(sourceLabelKey)}
+        accessibilityLabel={`${t('feedback.sourceFilter')}: ${t(sourceLabelKey)}`}
+        leadingIcon={Users}
+        trailingIcon={ChevronDown}
+        variant="ghost"
+        size="md"
+        onPress={() => setSourcePickerOpen(true)}
+        style={styles.sourceButton}
+      />
+
+      {positiveOnly ? (
+        <View style={styles.positiveRow}>
+          <Text style={[styles.positiveText, { color: colors.primaryText }]}>
+            {t('feedback.plainPositive', { count: positiveCount })}
+          </Text>
+          <AppButton
+            label={t('feedback.showComments')}
+            variant="ghost"
+            size="md"
+            onPress={() => setPositiveOnly(false)}
+          />
         </View>
+      ) : (
+        positiveCount > 0 && (
+          <AppCard padding={layout.denseCardPadding}>
+            <View style={styles.positiveRow}>
+              <Check size={18} color={colors.success} strokeWidth={2.4} />
+              <Text style={[styles.positiveText, { color: colors.primaryText }]}>
+                {t('feedback.plainPositive', { count: positiveCount })}
+              </Text>
+            </View>
+            <View style={styles.positiveActions}>
+              <AppButton
+                label={t('feedback.viewPositive')}
+                variant="ghost"
+                size="md"
+                onPress={() => setPositiveOnly(true)}
+              />
+              {status === 'pending' && (
+                <AppButton
+                  label={t('feedback.markReviewed')}
+                  variant="outline"
+                  size="md"
+                  disabled={mutating}
+                  onPress={() => {
+                    void reviewPositive();
+                  }}
+                />
+              )}
+            </View>
+          </AppCard>
+        )
       )}
+
       {notCovered ? (
         // This screen is pinned to one translation, so after switching the reader go back to
         // it; the reader then shows the new translation's feedback summary.
@@ -321,167 +420,69 @@ export function ChapterFeedbackReviewScreen({ route, navigation }: Props) {
           onSwitched={() => navigation.goBack()}
         />
       ) : (
-        failed &&
-        button(t('common.retry'), () => {
-          void load();
-        })
+        failed && (
+          <AppButton
+            label={t('common.retry')}
+            variant="outline"
+            size="md"
+            onPress={() => {
+              void load();
+            }}
+          />
+        )
       )}
     </View>
   );
-  const renderItem = ({ item }: { item: ChapterFeedbackReviewItem }) => {
-    const isExpanded = expanded === item.id;
-    const isPositive = item.sentiment === 'up';
-    const ratingLabel = t(
-      isPositive ? 'bible.chapterFeedbackThumbsUp' : 'bible.chapterFeedbackThumbsDown'
-    );
-    const outcome = !item.resolution
-      ? 'feedback.needsReview'
-      : item.resolution === 'fixed'
-        ? 'feedback.addressed'
-        : item.sentiment === 'up'
-          ? 'feedback.reviewed'
-          : 'feedback.noChange';
-    const source =
-      item.contributorCategory === 'scripture_council'
-        ? 'feedback.council'
-        : item.contributorCategory === 'community'
-          ? 'feedback.community'
-          : 'feedback.legacy';
-    const noteRequired = item.sentiment === 'down' && !notes[item.id]?.trim();
-    return (
-      <View
-        style={[
-          styles.card,
-          {
-            backgroundColor: isPositive ? colors.successSoft : colors.warningSoft,
-            borderColor: isPositive ? colors.success : colors.warning,
-            borderLeftWidth: 4,
-            borderLeftColor: isPositive ? colors.success : colors.warning,
-          },
-        ]}
-      >
-        <TouchableOpacity
-          accessibilityRole="button"
-          accessibilityState={{ expanded: isExpanded }}
-          onPress={() => setExpanded(isExpanded ? null : item.id)}
-          style={styles.row}
-        >
-          <View style={styles.wrap}>
-            <Text
-              accessibilityLabel={ratingLabel}
-              style={[
-                styles.rating,
-                {
-                  color: isPositive ? colors.onSuccessSoft : colors.onWarningSoft,
-                  backgroundColor: isPositive ? colors.successSoft : colors.warningSoft,
-                },
-              ]}
-            >
-              {isPositive ? '✓' : '!'} {ratingLabel}
-            </Text>
-          </View>
-          <Text style={[styles.name, { color: colors.primaryText }]}>
-            {item.participantName || t('bible.translatorReviewUnknownUser')}
-          </Text>
-          <Text style={{ color: colors.secondaryText }}>{t(source)}</Text>
-          <Text style={{ color: colors.secondaryText }}>{t(outcome)}</Text>
-          <Text style={{ color: colors.secondaryText }}>
-            {new Date(item.createdAt).toLocaleDateString(i18n.language)}
-          </Text>
-          <Text numberOfLines={isExpanded ? undefined : 2} style={{ color: colors.primaryText }}>
-            {item.comment ||
-              t(item.sentiment === 'up' ? 'feedback.positive' : 'bible.chapterFeedbackThumbsDown')}
-          </Text>
-          {!!item.audioResponse && (
-            <Text style={{ color: colors.secondaryText }}>{t('myFeedback.audioLabel')}</Text>
-          )}
-        </TouchableOpacity>
-        {isExpanded && (
-          <View style={styles.row}>
-            {!!item.audioResponse &&
-              button(
-                t(
-                  playing === item.id
-                    ? 'bible.translatorReviewPause'
-                    : 'bible.translatorReviewListen'
-                ),
-                () => {
-                  void play(item);
-                }
-              )}
-            {!!item.resolutionNote && (
-              <Text style={{ color: colors.primaryText }}>{item.resolutionNote}</Text>
-            )}
-            {!item.resolution && item.sentiment === 'down' && (
-              <TextInput
-                value={notes[item.id] ?? ''}
-                onChangeText={(value) =>
-                  setNotes((previous) => ({ ...previous, [item.id]: value }))
-                }
-                placeholder={t('feedback.explanation')}
-                accessibilityLabel={t('feedback.explanation')}
-                placeholderTextColor={colors.secondaryText}
-                multiline
-                maxLength={1000}
-                style={[
-                  styles.input,
-                  { borderColor: colors.controlBorder, color: colors.primaryText },
-                ]}
-              />
-            )}
-            {item.resolution ? (
-              button(
-                t('bible.translatorReviewReopen'),
-                () => {
-                  void resolve(item, null);
-                },
-                false,
-                mutating
-              )
-            ) : item.sentiment === 'up' ? (
-              button(
-                t('feedback.markReviewed'),
-                () => {
-                  void resolve(item, 'no_change_needed');
-                },
-                false,
-                mutating
-              )
-            ) : (
-              <View style={styles.wrap}>
-                {button(
-                  t('feedback.markAddressed'),
-                  () => {
-                    void resolve(item, 'fixed');
-                  },
-                  false,
-                  mutating || !!noteRequired
-                )}
-                {button(
-                  t('feedback.noChange'),
-                  () => {
-                    void resolve(item, 'no_change_needed');
-                  },
-                  false,
-                  mutating || !!noteRequired
-                )}
-              </View>
-            )}
-          </View>
-        )}
-      </View>
-    );
-  };
+
+  const renderItem = ({ item }: { item: ChapterFeedbackReviewItem }) => (
+    <FeedbackResponseCard
+      item={item}
+      language={i18n.language}
+      isPlaying={playing === item.id}
+      busy={mutating}
+      onPlay={() => {
+        void play(item);
+      }}
+      onReview={() => startReview(item.id)}
+      onMarkReviewed={() => {
+        void resolveFromList(item, 'no_change_needed');
+      }}
+      onReopen={() => {
+        void resolveFromList(item, null);
+      }}
+    />
+  );
+
+  // A caught-up chapter already says so in the headline, and the accurate-with-no-comment
+  // row already lists what the comment list leaves out; an empty list only needs
+  // explaining when a filter is hiding everything.
+  const showNoMatching =
+    !loading &&
+    !failed &&
+    !!summary?.total &&
+    (positiveOnly || positiveCount === 0) &&
+    !(status === 'pending' && headline.kind !== 'waiting');
+
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={[styles.screen, { paddingTop: insets.top, backgroundColor: colors.background }]}
-    >
+    <View style={[styles.screen, { paddingTop: insets.top, backgroundColor: colors.background }]}>
       <View style={styles.top}>
-        {button(t('common.back'), () => navigation.goBack())}
-        <Text accessibilityRole="header" style={[styles.title, { color: colors.primaryText }]}>
-          {t('feedback.title')}
-        </Text>
+        <IconButton
+          icon={BackArrowIcon}
+          onPress={() => navigation.goBack()}
+          accessibilityLabel={t('common.back')}
+        />
+        <View style={styles.titleBlock}>
+          <Text
+            accessibilityRole="header"
+            style={[styles.title, { color: colors.primaryText }]}
+            numberOfLines={1}
+          >
+            {chapterLabel}
+          </Text>
+          <Text style={[styles.subtitle, { color: colors.secondaryText }]}>
+            {t('feedback.title')}
+          </Text>
+        </View>
       </View>
       {enabled ? (
         <FlatList
@@ -489,8 +490,6 @@ export function ChapterFeedbackReviewScreen({ route, navigation }: Props) {
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           ListHeaderComponent={header}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
           contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 90 }]}
           refreshControl={
             <RefreshControl
@@ -505,8 +504,8 @@ export function ChapterFeedbackReviewScreen({ route, navigation }: Props) {
           }}
           onEndReachedThreshold={0.4}
           ListEmptyComponent={
-            !loading && !failed ? (
-              <Text style={[styles.section, { color: colors.secondaryText }]}>
+            showNoMatching ? (
+              <Text style={[styles.body, { color: colors.secondaryText }]}>
                 {t('feedback.noMatching')}
               </Text>
             ) : null
@@ -515,44 +514,101 @@ export function ChapterFeedbackReviewScreen({ route, navigation }: Props) {
             loading ? (
               <ActivityIndicator color={colors.accentPrimary} />
             ) : cursor ? (
-              button(t('common.continue'), () => {
-                void load(cursor);
-              })
+              <AppButton
+                label={t('common.continue')}
+                variant="outline"
+                size="md"
+                onPress={() => {
+                  void load(cursor);
+                }}
+              />
             ) : null
           }
         />
       ) : (
-        <Text style={[styles.section, { color: colors.secondaryText }]}>
+        <Text style={[styles.body, styles.content, { color: colors.secondaryText }]}>
           {t('settings.translatorAccessSummaryOff')}
         </Text>
       )}
-    </KeyboardAvoidingView>
+
+      <Sheet
+        visible={sourcePickerOpen}
+        onClose={() => setSourcePickerOpen(false)}
+        title={t('feedback.sourceFilter')}
+      >
+        {SOURCE_FILTERS.map((filter, index) => (
+          <ListRow
+            key={filter.value}
+            title={t(filter.labelKey)}
+            trailing={
+              category === filter.value ? (
+                <Check size={18} color={colors.accentPrimary} strokeWidth={2.4} />
+              ) : undefined
+            }
+            isLast={index === SOURCE_FILTERS.length - 1}
+            onPress={() => {
+              setCategory(filter.value);
+              setSourcePickerOpen(false);
+            }}
+          />
+        ))}
+      </Sheet>
+
+      <FeedbackFocusedReview
+        visible={!!review}
+        item={reviewItem}
+        position={(review?.handled.size ?? 0) + 1}
+        total={review?.queue.length ?? 0}
+        chapterLabel={chapterLabel}
+        language={i18n.language}
+        note={reviewItem ? (notes[reviewItem.id] ?? '') : ''}
+        onChangeNote={(value) => {
+          if (reviewItem) setNotes((previous) => ({ ...previous, [reviewItem.id]: value }));
+        }}
+        busy={mutating}
+        failed={reviewFailed}
+        isPlaying={!!reviewItem && playing === reviewItem.id}
+        onPlay={() => {
+          if (reviewItem) void play(reviewItem);
+        }}
+        onResolve={(resolution) => {
+          void decide(resolution);
+        }}
+        onSkip={() => {
+          if (review && reviewItem) advanceReview(review, reviewItem.id);
+        }}
+        onClose={closeReview}
+      />
+    </View>
   );
 }
+
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  top: { paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  content: { paddingHorizontal: 16, gap: 12 },
-  section: { paddingVertical: 16, gap: 12 },
-  title: { fontSize: 20, fontWeight: '600' },
-  name: { fontSize: 16, fontWeight: '600' },
-  rating: {
-    fontSize: 14,
-    fontWeight: '600',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
+  top: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: layout.screenPadding,
+    paddingVertical: spacing.md,
   },
-  wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  row: { gap: 8, paddingVertical: 8 },
-  card: { borderWidth: 1, borderRadius: 14, padding: 14, gap: 8 },
-  button: {
-    minHeight: 44,
-    justifyContent: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderRadius: 10,
+  titleBlock: { flexShrink: 1 },
+  title: { ...typography.sectionTitle },
+  subtitle: { ...typography.caption },
+  content: { paddingHorizontal: layout.screenPadding, gap: spacing.md },
+  header: { gap: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing.xs },
+  headline: { gap: spacing.md, alignItems: 'flex-start' },
+  headlineText: { ...typography.cardTitle },
+  caughtUp: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  body: { ...typography.body },
+  sourceButton: { alignSelf: 'flex-start' },
+  positiveRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  positiveText: { ...typography.bodyMedium, flexShrink: 1 },
+  positiveActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
   },
-  input: { minHeight: 84, borderWidth: 1, borderRadius: 10, padding: 12, textAlignVertical: 'top' },
 });
