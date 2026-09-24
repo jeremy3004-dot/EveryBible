@@ -2128,6 +2128,37 @@ test('switching chapters closes out the previous chapter segment', async (t) => 
   assert.equal(recorded.analytics.at(0)?.properties.reason, 'chapter-change');
 });
 
+test('reopening the reader while a chapter plays keeps a single listening telemetry timer', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: BASE_TIME });
+  const closed = mountPlayer();
+  await closed.api.playChapter('GEN', 1);
+  emitStatus({ isPlaying: true, positionMillis: 1_000, durationMillis: DEFAULT_DURATION_MS });
+  closed.unmount();
+  // The closed reader's callbacks stay registered until another player mounts.
+  emitStatus({ isPlaying: true, positionMillis: 2_000, durationMillis: DEFAULT_DURATION_MS });
+  mountPlayer();
+  emitStatus({ isPlaying: true, positionMillis: 3_000, durationMillis: DEFAULT_DURATION_MS });
+  recorded.analytics.length = 0;
+
+  t.mock.timers.tick(30_000);
+
+  assert.deepEqual(
+    recorded.analytics
+      .filter((event) => event.name === 'audio_playback_progress')
+      .map((event) => event.properties.reason),
+    ['tick']
+  );
+
+  emitStatus({ isPlaying: false, positionMillis: 33_000, durationMillis: DEFAULT_DURATION_MS });
+  recorded.analytics.length = 0;
+  t.mock.timers.tick(60_000);
+
+  assert.deepEqual(
+    recorded.analytics.filter((event) => event.name === 'audio_playback_progress'),
+    []
+  );
+});
+
 // ---------------------------------------------------------------------------
 // Lock screen metadata
 // ---------------------------------------------------------------------------

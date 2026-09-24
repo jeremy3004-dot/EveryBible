@@ -70,6 +70,16 @@ function canResumeLoadedChapter(state: {
 // handed over when another player mounts.
 let activeRemoteCommandUnsubscribe: (() => void) | null = null;
 
+// The listening telemetry interval is started from those same native callbacks, so
+// a closed reader can start one after it unmounts. A per-player ref would leave that
+// interval where the next player can't reach it, and every reopen would add another
+// 30-second emitter. One shared holder lets whichever player owns the callbacks
+// stop it.
+const audioProgressTelemetryTimer: { current: ReturnType<typeof setInterval> | null } = {
+  current: null,
+};
+const audioProgressTelemetryLastEmittedAt = { current: 0 };
+
 export function useAudioPlayer(translationId: string = 'bsb') {
   const { t } = useTranslation();
   const AUDIO_PROGRESS_TELEMETRY_INTERVAL_MS = 30000;
@@ -97,8 +107,6 @@ export function useAudioPlayer(translationId: string = 'bsb') {
   const lastPollTimeRef = useRef<number>(0);
   const isMountedRef = useRef(false);
   const interpolationTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const audioProgressTelemetryTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const audioProgressTelemetryLastEmittedAtRef = useRef<number>(0);
   const lastNowPlayingSignatureRef = useRef<string | null>(null);
   // Native progress callbacks outlive the reader, so the sleep timer's expiry also
   // runs from them and needs the latest pause action.
@@ -304,15 +312,15 @@ export function useAudioPlayer(translationId: string = 'bsb') {
   );
 
   const stopAudioProgressTelemetryTimer = useCallback(() => {
-    if (audioProgressTelemetryTimerRef.current) {
-      clearInterval(audioProgressTelemetryTimerRef.current);
-      audioProgressTelemetryTimerRef.current = null;
+    if (audioProgressTelemetryTimer.current) {
+      clearInterval(audioProgressTelemetryTimer.current);
+      audioProgressTelemetryTimer.current = null;
     }
-    audioProgressTelemetryLastEmittedAtRef.current = 0;
+    audioProgressTelemetryLastEmittedAt.current = 0;
   }, []);
 
   const resetAudioProgressTelemetryClock = useCallback(() => {
-    audioProgressTelemetryLastEmittedAtRef.current = Date.now();
+    audioProgressTelemetryLastEmittedAt.current = Date.now();
   }, []);
 
   const emitAudioPlaybackProgress = useCallback(
@@ -326,7 +334,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       }
 
       const now = Date.now();
-      const listenedMs = elapsedListeningMs(audioProgressTelemetryLastEmittedAtRef.current, now);
+      const listenedMs = elapsedListeningMs(audioProgressTelemetryLastEmittedAt.current, now);
 
       if (!force && reason === 'tick' && listenedMs < AUDIO_PROGRESS_TELEMETRY_INTERVAL_MS / 2) {
         return;
@@ -355,18 +363,18 @@ export function useAudioPlayer(translationId: string = 'bsb') {
         translation_id: state.currentTranslationId ?? translationId,
       });
 
-      audioProgressTelemetryLastEmittedAtRef.current = now;
+      audioProgressTelemetryLastEmittedAt.current = now;
     },
     [translationId]
   );
 
   const startAudioProgressTelemetry = useCallback(() => {
-    if (audioProgressTelemetryTimerRef.current) {
+    if (audioProgressTelemetryTimer.current) {
       return;
     }
 
     resetAudioProgressTelemetryClock();
-    audioProgressTelemetryTimerRef.current = setInterval(() => {
+    audioProgressTelemetryTimer.current = setInterval(() => {
       emitAudioPlaybackProgress('tick');
     }, AUDIO_PROGRESS_TELEMETRY_INTERVAL_MS);
   }, [emitAudioPlaybackProgress, resetAudioProgressTelemetryClock]);

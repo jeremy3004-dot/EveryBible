@@ -41,17 +41,49 @@ const sound = {
     onStatus = listener;
   },
 };
+type FakeSound = typeof sound;
+// Lets a test hand out its own sounds, or hold a load open, instead of the shared one.
+let createOverride: (() => Promise<{ sound: FakeSound }>) | null = null;
 mockPackage(mock, 'expo-av', {
   Audio: {
     setAudioModeAsync: async () => {},
     Sound: {
       createAsync: async (source: unknown, status: unknown) => {
         created.push({ source, status });
-        return { sound };
+        return createOverride ? createOverride() : { sound };
       },
     },
   },
 });
+
+// A sound whose calls are recorded under its own name.
+function recordingSound(name: string): FakeSound {
+  return {
+    playAsync: async () => void soundCalls.push(`${name}:play`),
+    pauseAsync: async () => void soundCalls.push(`${name}:pause`),
+    unloadAsync: async () => void soundCalls.push(`${name}:unload`),
+    setOnPlaybackStatusUpdate: () => {},
+  };
+}
+
+// Holds every voice-note load open until the test releases it with a sound.
+function gateSoundLoads() {
+  const pending: ((loaded: { sound: FakeSound }) => void)[] = [];
+  const waiters: (() => void)[] = [];
+  createOverride = () =>
+    new Promise((resolveLoad) => {
+      pending.push(resolveLoad);
+      waiters.splice(0).forEach((wake) => wake());
+    });
+  return {
+    loadsStarted: async (count: number) => {
+      while (pending.length < count) {
+        await new Promise<void>((wake) => waiters.push(wake));
+      }
+    },
+    release: (index: number, loaded: FakeSound) => pending[index]({ sound: loaded }),
+  };
+}
 
 // --- the feedback service: fetch, resolve, reopen, audio URL -----------------
 const item = (overrides: Partial<ChapterFeedbackReviewItem>): ChapterFeedbackReviewItem => ({
@@ -162,6 +194,7 @@ afterEach(() => {
     list.length = 0;
   }
   onStatus = null;
+  createOverride = null;
 });
 
 const passcodeArgs = { apiVersion: 2, passcode: '123456', translationId: 'bsb' };
@@ -375,4 +408,45 @@ test('review audio has named play and pause buttons and marks the item listened'
   assert.deepEqual(listened, []);
   onStatus?.({ isLoaded: true, positionMillis: 8000, durationMillis: 12000 });
   assert.deepEqual(listened, ['c1']);
+});
+
+const listenButton = (view: View, key: string) =>
+  view.getByRole('button', { name: `${t(key)}, ${t('myFeedback.audioLabel')}` });
+
+// Listen starts play() without awaiting it, so a released load settles on a later turn.
+const settleReleasedLoad = () => new Promise<void>((resolve) => setImmediate(resolve));
+
+test('a voice note that finishes loading after the screen closes is unloaded, not played', async () => {
+  const loads = gateSoundLoads();
+  const view = await renderReview();
+
+  await view.press(listenButton(view, 'bible.translatorReviewListen'));
+  await loads.loadsStarted(1);
+  await view.unmount();
+  loads.release(0, recordingSound('late'));
+  await settleReleasedLoad();
+
+  assert.deepEqual(soundCalls, ['late:unload']);
+});
+
+test('pressing Listen twice during a load leaves one clip playing, and Pause stops it', async () => {
+  const loads = gateSoundLoads();
+  const view = await renderReview();
+
+  await view.press(listenButton(view, 'bible.translatorReviewListen'));
+  await loads.loadsStarted(1);
+  await view.press(listenButton(view, 'bible.translatorReviewListen'));
+  await loads.loadsStarted(2);
+  loads.release(1, recordingSound('newer'));
+  await settleReleasedLoad();
+  loads.release(0, recordingSound('older'));
+  await settleReleasedLoad();
+  await view.flush();
+
+  assert.deepEqual(soundCalls, ['older:unload']);
+
+  await view.press(listenButton(view, 'bible.translatorReviewPause'));
+  await view.flush();
+
+  assert.deepEqual(soundCalls, ['older:unload', 'newer:pause']);
 });

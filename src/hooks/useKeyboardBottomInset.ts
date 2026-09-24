@@ -47,6 +47,9 @@ export function useKeyboardBottomInset(options: UseKeyboardBottomInsetOptions = 
 
   useEffect(() => {
     const isIOS = Platform.OS === 'ios';
+    // measureInWindow answers asynchronously, so a measurement can land after the keyboard
+    // hid (or after a newer show). Only the latest show's answer may set the inset.
+    let showId = 0;
 
     const handleShow = (event: KeyboardEvent) => {
       if (isIOS) {
@@ -62,6 +65,7 @@ export function useKeyboardBottomInset(options: UseKeyboardBottomInsetOptions = 
         return;
       }
 
+      const measuredShowId = ++showId;
       const surface = surfaceRefRef.current?.current;
       if (!surface) {
         setBottomInset(0);
@@ -69,6 +73,7 @@ export function useKeyboardBottomInset(options: UseKeyboardBottomInsetOptions = 
       }
 
       surface.measureInWindow((_x, y, _width, height) => {
+        if (measuredShowId !== showId) return;
         setBottomInset(
           resolveKeyboardBottomInset({
             platform: Platform.OS,
@@ -90,11 +95,13 @@ export function useKeyboardBottomInset(options: UseKeyboardBottomInsetOptions = 
     const hideSubscription = Keyboard.addListener(
       isIOS ? 'keyboardWillHide' : 'keyboardDidHide',
       () => {
+        showId += 1;
         setBottomInset(0);
       }
     );
 
     return () => {
+      showId += 1;
       showSubscription.remove();
       hideSubscription.remove();
     };
