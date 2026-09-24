@@ -87,12 +87,15 @@ export function ResetPasswordScreen() {
 
   const didActivateRef = useRef(false);
   const didUpdatePasswordRef = useRef(false);
+  const isMountedRef = useRef(true);
 
   // Leaving the screen must never strand a live recovery session. Any account that
   // was signed in was signed out before the exchange, so the recovery session is
   // the only one here and ends with the screen unless the password was set.
   useEffect(() => {
+    isMountedRef.current = true;
     return () => {
+      isMountedRef.current = false;
       clearPendingPasswordRecovery();
       if (didActivateRef.current && !didUpdatePasswordRef.current) {
         void signOut();
@@ -122,6 +125,12 @@ export function ResetPasswordScreen() {
       });
 
       if (result.status === 'activated') {
+        // Closed while the code was exchanged: the cleanup above has already run,
+        // so end the recovery session it could not see.
+        if (!isMountedRef.current) {
+          void signOut();
+          return;
+        }
         didActivateRef.current = true;
         setPhase('form');
         return;

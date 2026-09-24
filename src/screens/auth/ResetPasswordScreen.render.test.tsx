@@ -470,3 +470,26 @@ test('the scroll content keeps the submit button above the bottom inset', async 
   const style = [scroll.props.contentContainerStyle].flat() as Array<Record<string, unknown>>;
   assert.equal(style.at(-1)?.paddingBottom, harness.insets.bottom);
 });
+
+// The header close button stays live while the link is checked. Closing then ran the
+// unmount cleanup before the exchange finished, so the recovery session it opened
+// was left signed in with no screen to finish or end it.
+test('closing while the link is being checked signs out the session it then opens', async () => {
+  const gate = deferred();
+  recovery.gate = gate.promise;
+  const view = await renderReset();
+  const pending = (
+    view.getByRole('button', { name: t('common.continue') }).props.onPress as () => void
+  )();
+  await view.flush();
+
+  await view.press(view.getByRole('button', { name: t('interface.close') }));
+  await view.unmount();
+  assert.equal(recovery.signOuts, 0);
+
+  await act(async () => {
+    gate.resolve();
+    await pending;
+  });
+  assert.equal(recovery.signOuts, 1);
+});
