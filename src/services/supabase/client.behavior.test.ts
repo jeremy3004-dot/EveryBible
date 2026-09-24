@@ -23,6 +23,7 @@ interface CreateClientCall {
       autoRefreshToken?: boolean;
       persistSession?: boolean;
       detectSessionInUrl?: boolean;
+      flowType?: string;
     };
   };
 }
@@ -140,6 +141,13 @@ test('the client keeps sessions alive itself and ignores URL-borne sessions', ()
   assert.equal(authOptions?.autoRefreshToken, true);
   assert.equal(authOptions?.persistSession, true);
   assert.equal(authOptions?.detectSessionInUrl, false);
+});
+
+// Email links (password reset) land on a custom URL scheme any installed app can
+// also claim. PKCE makes the link carry a one-time code that only this install's
+// stored code verifier can redeem, instead of a live session.
+test('the client uses the PKCE flow so email links never carry a session', () => {
+  assert.equal(createClientCalls[0].options.auth?.flowType, 'pkce');
 });
 
 test('methods reached through the proxy stay bound to the real client', () => {

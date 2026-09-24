@@ -879,8 +879,8 @@ export const vi = {
     "resetPasswordSuccess": "Mật khẩu của bạn đã được cập nhật",
     "resetPasswordError": "Không thể cập nhật mật khẩu của bạn",
     "resetLinkConfirmTitle": "Đặt mật khẩu mới?",
-    "resetLinkConfirmBody": "Liên kết này sẽ đặt mật khẩu mới cho {{email}}. Tiếp tục?",
-    "resetLinkDifferentAccount": "Liên kết đặt lại này thuộc về một tài khoản khác. Hãy đăng xuất khỏi tài khoản này trước, rồi mở lại liên kết.",
+    "resetLinkWrongDevice": "Liên kết đặt lại này chỉ hoạt động trên thiết bị mà bạn đã yêu cầu. Hãy mở liên kết trên thiết bị đó, hoặc gửi liên kết mới từ thiết bị này.",
+    "sendNewResetLink": "Gửi liên kết mới",
     "resetPasswordInvalidSession": "Liên kết đặt lại này không hợp lệ hoặc đã hết hạn. Vui lòng yêu cầu một liên kết mới.",
   },
   "profile": {

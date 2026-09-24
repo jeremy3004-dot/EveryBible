@@ -1,25 +1,24 @@
 import { supabase, isSupabaseConfigured } from '../supabase';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
-import { decodeRecoveryTokenClaims, parseAuthRecoveryTokens } from './authRecoveryLink';
+import {
+  classifyRecoveryExchangeError,
+  parseRecoveryLink,
+  type RecoveryLinkParseResult,
+  type RecoveryProblem,
+} from './authRecoveryLink';
 
 // When a reset-password link is opened before the NavigationContainer is ready
 // (cold start, or a not-yet-onboarded install), navigating would be a silent
 // no-op. We remember the pending intent and flush it once navigation is ready.
 let hasPendingResetPasswordNavigation = false;
 
-export interface PendingPasswordRecovery {
-  accessToken: string;
-  refreshToken: string;
-  /** Display-only claim read from the (unverified) access token payload. */
-  email: string | null;
-  /** Display-only `sub` claim, used to detect a different-account link. */
-  subject: string | null;
-}
+export type PendingPasswordRecovery = RecoveryLinkParseResult;
 
-// Tokens are parked here rather than exchanged for a session on arrival. Any app
-// on the device can fire our reset URL, so adopting the session before the user
-// has confirmed would be session fixation: the victim would silently end up
-// inside the attacker's account. ResetPasswordScreen consumes this slot.
+// The link is parked here rather than exchanged on arrival. The same URL can be
+// delivered twice (cold-start URL plus the url event, handled by both App.tsx
+// and AppRuntimeEffects), and auth-js deletes the code verifier after the first
+// exchange attempt, so exchanging on arrival could race itself into a failure.
+// ResetPasswordScreen exchanges the code once the user taps Continue.
 let pendingPasswordRecovery: PendingPasswordRecovery | null = null;
 
 export function getPendingPasswordRecovery(): PendingPasswordRecovery | null {
@@ -33,39 +32,45 @@ export function clearPendingPasswordRecovery(): void {
 export type ActivateRecoverySessionResult =
   | { status: 'activated' }
   | { status: 'missing' }
-  | { status: 'configuration' }
-  | { status: 'failed'; error: string | null };
+  | { status: 'failed'; problem: RecoveryProblem };
 
 /**
- * Exchanges the parked recovery tokens for a real session. Called ONLY after the
- * user has explicitly confirmed the reset on ResetPasswordScreen.
+ * Exchanges the parked PKCE code for a recovery session. Called ONLY after the
+ * user has explicitly confirmed the reset on ResetPasswordScreen. auth-js
+ * consumes the stored code verifier on every attempt, so the parked code is
+ * dropped whether or not the exchange succeeds.
  */
 export async function activatePendingPasswordRecovery(): Promise<ActivateRecoverySessionResult> {
   const pending = pendingPasswordRecovery;
-  if (!pending) {
+  if (!pending || pending.kind !== 'code') {
     return { status: 'missing' };
   }
 
   if (!isSupabaseConfigured()) {
-    return { status: 'configuration' };
+    return { status: 'failed', problem: 'configuration' };
   }
+
+  pendingPasswordRecovery = null;
 
   try {
-    const { error } = await supabase.auth.setSession({
-      access_token: pending.accessToken,
-      refresh_token: pending.refreshToken,
-    });
+    const { data, error } = await supabase.auth.exchangeCodeForSession(pending.code);
 
-    if (error) {
-      return { status: 'failed', error: error.message };
+    if (error || !data.session) {
+      return { status: 'failed', problem: classifyRecoveryExchangeError(error) };
+    }
+
+    // auth-js tags the stored verifier with the request that created it. Only a
+    // verifier stored by resetPasswordForEmail may open the new-password form.
+    // (auth-js returns `redirectType` at runtime but its published type omits it.)
+    const { redirectType } = data as { redirectType?: string | null };
+    if (redirectType !== 'PASSWORD_RECOVERY') {
+      await supabase.auth.signOut().catch(() => undefined);
+      return { status: 'failed', problem: 'expired' };
     }
   } catch (e) {
-    return { status: 'failed', error: e instanceof Error ? e.message : null };
+    return { status: 'failed', problem: classifyRecoveryExchangeError(e) };
   }
 
-  // The tokens are single-use from here on; drop them so a later re-entry into
-  // the screen cannot silently re-establish the same recovery session.
-  pendingPasswordRecovery = null;
   return { status: 'activated' };
 }
 
@@ -98,23 +103,16 @@ export function flushPendingResetPasswordNavigation(): void {
 
 // Entry point for both cold-start (Linking.getInitialURL) and warm (Linking 'url' event)
 // password-reset deep links. Deliberately does NOT establish a session: it validates the
-// URL against the app's own reset link, parks the tokens, and navigates to
-// ResetPasswordScreen, which asks the user to confirm the account before any
-// setSession call happens.
+// URL against the app's own reset link, parks the code (or the reason the link cannot be
+// used), and navigates to ResetPasswordScreen, which either explains the problem or asks
+// the user to continue before the code is exchanged.
 export async function handleAuthDeepLinkUrl(url: string): Promise<boolean> {
-  const tokens = parseAuthRecoveryTokens(url);
-  if (!tokens || !isSupabaseConfigured()) {
+  const parsed = parseRecoveryLink(url);
+  if (!parsed || !isSupabaseConfigured()) {
     return false;
   }
 
-  const claims = decodeRecoveryTokenClaims(tokens.accessToken);
-  pendingPasswordRecovery = {
-    accessToken: tokens.accessToken,
-    refreshToken: tokens.refreshToken,
-    email: claims.email,
-    subject: claims.subject,
-  };
-
+  pendingPasswordRecovery = parsed;
   navigateToResetPassword();
   return true;
 }

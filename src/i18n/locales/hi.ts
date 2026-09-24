@@ -599,8 +599,8 @@ export const hi = {
     "resetPasswordSuccess": "आपका पासवर्ड अपडेट कर दिया गया है",
     "resetPasswordError": "आपका पासवर्ड अपडेट नहीं हो सका",
     "resetLinkConfirmTitle": "नया पासवर्ड बनाएँ?",
-    "resetLinkConfirmBody": "यह लिंक {{email}} के लिए नया पासवर्ड बनाएगा। जारी रखें?",
-    "resetLinkDifferentAccount": "यह रीसेट लिंक किसी दूसरे खाते का है। पहले इस खाते से साइन आउट करें, फिर लिंक दोबारा खोलें।",
+    "resetLinkWrongDevice": "यह रीसेट लिंक सिर्फ़ उसी डिवाइस पर काम करता है जिससे आपने इसे माँगा था। इसे वहीं खोलें, या इस डिवाइस से नया लिंक भेजें।",
+    "sendNewResetLink": "नया लिंक भेजें",
     "resetPasswordInvalidSession": "यह रीसेट लिंक अमान्य है या उसकी अवधि पूरी हो चुकी है। कृपया नया लिंक माँगें।"
   },
   "profile": {

@@ -3,6 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import { publicRuntimeConfig } from '../startup/publicRuntimeConfig';
 import { createLazyClientAccessor } from './lazyClient';
+import { installSecureRandomValues } from './secureRandomValues';
 
 const SUPABASE_URL = publicRuntimeConfig.EXPO_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_PUBLIC_KEY =
@@ -60,15 +61,32 @@ const ExpoSecureStoreAdapter = {
 };
 
 const getSupabaseClient = createLazyClientAccessor({
-  createClient: () =>
-    createClient(CLIENT_SUPABASE_URL, CLIENT_SUPABASE_PUBLIC_KEY, {
+  createClient: () => {
+    // Before the client exists, so the PKCE code verifier comes from the
+    // platform CSPRNG rather than Math.random() — see secureRandomValues.ts.
+    // expo-crypto is required only on runtimes that lack WebCrypto (Hermes).
+    installSecureRandomValues(
+      globalThis,
+      () => require('expo-crypto').getRandomValues as typeof import('expo-crypto').getRandomValues
+    );
+
+    return createClient(CLIENT_SUPABASE_URL, CLIENT_SUPABASE_PUBLIC_KEY, {
       auth: {
         storage: ExpoSecureStoreAdapter,
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: false,
+        // Email links (password reset) open a custom URL scheme that any
+        // installed app can also register. With PKCE the link carries only a
+        // one-time code, redeemable solely with the code verifier that
+        // resetPasswordForEmail stored in this install's SecureStore, instead
+        // of a live access and refresh token. Native Google/Apple sign-in uses
+        // signInWithIdToken and email sign-in uses signInWithPassword; neither
+        // is affected by the flow type.
+        flowType: 'pkce',
       },
-    }),
+    });
+  },
 });
 
 // Keep the runtime client generic until types can be generated from the live project.

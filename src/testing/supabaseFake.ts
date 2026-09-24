@@ -119,7 +119,9 @@ export interface SupabaseAuthHandlers {
     email: string,
     options?: unknown
   ) => AuthResult<Record<string, never> | null>;
-  exchangeCodeForSession: (code: string) => AuthResult<UserSessionData>;
+  exchangeCodeForSession: (
+    code: string
+  ) => AuthResult<UserSessionData & { redirectType?: string | null }>;
   startAutoRefresh: () => Promise<void>;
   stopAutoRefresh: () => Promise<void>;
 }
@@ -299,10 +301,16 @@ export function createSupabaseFake() {
     }),
     updateUser: async () => ({ data: { user: authState.user }, error: null }),
     resetPasswordForEmail: async () => ({ data: {}, error: null }),
-    exchangeCodeForSession: async () => ({
-      data: { session: authState.session, user: authState.user },
-      error: null,
-    }),
+    // Like auth-js: a successful exchange saves the session, and `redirectType`
+    // says which request stored the code verifier.
+    exchangeCodeForSession: async () => {
+      const next = makeFakeSession();
+      fake.auth.setSession(next);
+      return {
+        data: { session: next, user: next.user, redirectType: 'PASSWORD_RECOVERY' },
+        error: null,
+      };
+    },
     startAutoRefresh: async () => undefined,
     stopAutoRefresh: async () => undefined,
   };

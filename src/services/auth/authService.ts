@@ -314,6 +314,8 @@ export const resetPassword = async (
   }
 
   try {
+    // With the client's PKCE flow this also stores a code verifier in this
+    // install's SecureStore; the emailed link only works where it was stored.
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: 'com.everybible.app://reset-password',
     });
@@ -329,7 +331,7 @@ export const resetPassword = async (
 };
 
 // Update the current user's password — used at the end of the password-reset deep link flow,
-// after handleAuthDeepLinkUrl has already established a recovery session via setSession.
+// after ResetPasswordScreen has exchanged the link's PKCE code for a recovery session.
 export const updatePassword = async (newPassword: string): Promise<AuthResult> => {
   if (!isSupabaseConfigured()) {
     return configurationAuthError();
