@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { StyleSheet, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { radius, spacing, typography } from '../../../design/system';
 import { FOLLOW_ALONG_VERSE_LINE_HEIGHT } from '../bibleReaderModel';
@@ -23,8 +24,12 @@ export interface FollowAlongTextSheetProps {
   verses: Verse[];
 }
 
-/** The chapter text over the listen page, following the audio verse by verse. */
-export function FollowAlongTextSheet({
+/**
+ * The chapter text over the listen page, following the audio verse by verse.
+ * Memoized: it maps the whole chapter even while closed, and every prop is stable
+ * across the reader's unrelated re-renders (audio status, sheets, selection).
+ */
+export const FollowAlongTextSheet = memo(function FollowAlongTextSheet({
   activeFollowAlongVerse,
   bookId,
   chapter,
@@ -141,7 +146,7 @@ export function FollowAlongTextSheet({
       </Animated.View>
     </Modal>
   );
-}
+});
 
 const styles = StyleSheet.create({
   followAlongContainer: {
