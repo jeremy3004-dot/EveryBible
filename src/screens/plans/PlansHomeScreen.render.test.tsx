@@ -1194,6 +1194,48 @@ test('progress on one active plan re-renders only that plan’s card', async () 
   assert.deepEqual(drawn, [PSALMS]);
 });
 
+// A background sync restamps synced_at on every synced row without changing anything
+// the row shows. CatalogPlanRow used to take the whole progress object as a prop, so
+// a fresh (but equal) progress object from the store still failed its memo comparison.
+test('a sync that only stamps synced_at leaves the Find plans catalog row alone', async () => {
+  const store = await seed(
+    progressRow(PSALMS, { current_day: 3, started_at: '2026-09-22T09:00:00.000Z' })
+  );
+  const view = await renderHome();
+  await openTab(view, 'readingPlans.findPlans');
+  assert.ok(view.getByRole('button', { name: new RegExp(`^${titleOf(PSALMS)}, `) }), 'sanity');
+
+  const drawn = await rowRendersDuring(() =>
+    act(async () => {
+      const psalms = store.getState().progressByPlanId[PSALMS];
+      store.getState().upsertProgress({ ...psalms, synced_at: '2026-09-24T12:00:00.000Z' });
+    })
+  );
+
+  assert.deepEqual(drawn, []);
+});
+
+test('the Find plans catalog row still redraws when the day it shows actually changes', async () => {
+  const store = await seed(
+    progressRow(PSALMS, { current_day: 3, started_at: '2026-09-22T09:00:00.000Z' })
+  );
+  const view = await renderHome();
+  await openTab(view, 'readingPlans.findPlans');
+
+  await act(async () => {
+    store
+      .getState()
+      .upsertProgress({ ...store.getState().progressByPlanId[PSALMS], current_day: 4 });
+  });
+
+  assert.ok(
+    view.getByRole('button', {
+      name: `${titleOf(PSALMS)}, ${t('readingPlans.daysCount', { count: 30 })}, ${t('readingPlans.dayLabel', { day: 4 })}, ${t('readingPlans.enrolled')}`,
+    }),
+    'the row now reads day 4'
+  );
+});
+
 test('pull to refresh does not redraw plan rows that did not change', async () => {
   await seed(progressRow(PSALMS), progressRow(PROVERBS));
   const view = await renderHome();

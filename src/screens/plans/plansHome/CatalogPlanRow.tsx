@@ -6,8 +6,7 @@ import { useTheme, type ThemeColors } from '../../../contexts/ThemeContext';
 import { radius, spacing, typography } from '../../../design/system';
 import { useDisplayFont } from '../../../hooks/useDisplayFont';
 import { useLargeText } from '../../../hooks/useLargeText';
-import { getActivePlanDayNumber } from '../../../services/plans/readingPlanModel';
-import type { ReadingPlan, UserReadingPlanProgress } from '../../../services/plans/types';
+import type { ReadingPlan } from '../../../services/plans/types';
 import { formatPlanCadenceLabel } from './plansHomeModel';
 import { PlanCover } from './PlanCover';
 import { belowTitleStyles, ROW_COVER_SIZE } from './plansHomeStyles';
@@ -15,9 +14,13 @@ import { SoftChip } from './SoftChip';
 
 interface CatalogPlanRowProps {
   plan: ReadingPlan;
-  /** The reader's progress in this plan; absent when not enrolled. */
-  progress: UserReadingPlanProgress | undefined;
-  today: Date;
+  /** Whether the reader is enrolled in this plan. */
+  isEnrolled: boolean;
+  /** The day the row shows when enrolled; ignored otherwise. Passed as the
+   * derived primitive (not the whole progress object) so a sync that only
+   * restamps synced_at — a new progress object with the same day — does not
+   * fail this row's memo comparison and redraw it. */
+  activeDayNumber: number | undefined;
   /** The first row in its card draws no divider above it. */
   isFirst: boolean;
   onPlanPress: (planId: string) => void;
@@ -29,8 +32,8 @@ interface CatalogPlanRowProps {
  */
 export const CatalogPlanRow = memo(function CatalogPlanRow({
   plan,
-  progress,
-  today,
+  isEnrolled,
+  activeDayNumber,
   isFirst,
   onPlanPress,
 }: CatalogPlanRowProps) {
@@ -40,14 +43,11 @@ export const CatalogPlanRow = memo(function CatalogPlanRow({
   const { isLargeText } = useLargeText();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
-  const isEnrolled = progress !== undefined;
   const title = t(plan.title_key as Parameters<typeof t>[0], { defaultValue: plan.title_key });
   const metaParts = [t('readingPlans.daysCount', { count: plan.duration_days })];
   const cadence = formatPlanCadenceLabel(plan, t);
-  if (progress) {
-    metaParts.push(
-      t('readingPlans.dayLabel', { day: getActivePlanDayNumber(plan, progress, today) })
-    );
+  if (isEnrolled) {
+    metaParts.push(t('readingPlans.dayLabel', { day: activeDayNumber ?? 1 }));
   } else if (cadence) {
     metaParts.push(cadence);
   }
