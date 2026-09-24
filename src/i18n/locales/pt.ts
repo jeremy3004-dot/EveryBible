@@ -887,8 +887,8 @@ export const pt = {
     "resetPasswordSuccess": "Sua senha foi atualizada",
     "resetPasswordError": "Falha ao atualizar sua senha",
     "resetLinkConfirmTitle": "Definir uma nova senha?",
-    "resetLinkConfirmBody": "Este link definirá uma nova senha para {{email}}. Continuar?",
-    "resetLinkDifferentAccount": "Este link de redefinição pertence a outra conta. Saia desta conta primeiro e abra o link novamente.",
+    "resetLinkWrongDevice": "Este link de redefinição só funciona no dispositivo em que você o solicitou. Abra-o lá ou envie um novo link a partir deste dispositivo.",
+    "sendNewResetLink": "Enviar novo link",
     "resetPasswordInvalidSession": "Este link de redefinição é inválido ou expirou. Solicite um novo.",
   },
   "profile": {

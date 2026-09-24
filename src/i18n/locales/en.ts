@@ -912,9 +912,9 @@ export const en = {
     resetPasswordSuccess: 'Your password has been updated',
     resetPasswordError: 'Failed to update your password',
     resetLinkConfirmTitle: 'Set a new password?',
-    resetLinkConfirmBody: 'This link sets a new password for {{email}}. Continue?',
-    resetLinkDifferentAccount:
-      'This reset link belongs to a different account. Sign out of this account first, then open the link again.',
+    resetLinkWrongDevice:
+      'This reset link only works on the device where you asked for it. Open it there, or send a new link from this device.',
+    sendNewResetLink: 'Send a New Link',
     resetPasswordInvalidSession:
       'This reset link is invalid or has expired. Please request a new one.',
   },

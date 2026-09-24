@@ -871,8 +871,8 @@ export const de = {
     "resetPasswordSuccess": "Dein Passwort wurde aktualisiert",
     "resetPasswordError": "Dein Passwort konnte nicht aktualisiert werden",
     "resetLinkConfirmTitle": "Neues Passwort festlegen?",
-    "resetLinkConfirmBody": "Dieser Link legt ein neues Passwort für {{email}} fest. Fortfahren?",
-    "resetLinkDifferentAccount": "Dieser Link zum Zurücksetzen gehört zu einem anderen Konto. Melde dich zuerst von diesem Konto ab und öffne den Link dann erneut.",
+    "resetLinkWrongDevice": "Dieser Link zum Zurücksetzen funktioniert nur auf dem Gerät, auf dem du ihn angefordert hast. Öffne ihn dort oder sende von diesem Gerät aus einen neuen Link.",
+    "sendNewResetLink": "Neuen Link senden",
     "resetPasswordInvalidSession": "Dieser Link zum Zurücksetzen ist ungültig oder abgelaufen. Bitte fordere einen neuen an.",
   },
   "profile": {

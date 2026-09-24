@@ -931,8 +931,8 @@ export const ar = {
     "resetPasswordSuccess": "تم تحديث كلمة المرور",
     "resetPasswordError": "تعذّر تحديث كلمة المرور",
     "resetLinkConfirmTitle": "تعيين كلمة مرور جديدة؟",
-    "resetLinkConfirmBody": "سيعيّن هذا الرابط كلمة مرور جديدة لـ{{email}}. هل تريد المتابعة؟",
-    "resetLinkDifferentAccount": "رابط إعادة التعيين هذا يخص حسابًا آخر. سجّل الخروج من هذا الحساب أولًا، ثم افتح الرابط مرة أخرى.",
+    "resetLinkWrongDevice": "رابط إعادة التعيين هذا يعمل فقط على الجهاز الذي طلبته منه. افتحه هناك، أو أرسل رابطًا جديدًا من هذا الجهاز.",
+    "sendNewResetLink": "إرسال رابط جديد",
     "resetPasswordInvalidSession": "رابط إعادة التعيين غير صالح أو انتهت صلاحيته. اطلب رابطًا جديدًا.",
   },
   "profile": {

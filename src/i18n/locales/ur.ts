@@ -871,8 +871,8 @@ export const ur = {
     "resetPasswordSuccess": "آپ کا پاس ورڈ اپ ڈیٹ ہو گیا ہے",
     "resetPasswordError": "آپ کا پاس ورڈ اپ ڈیٹ نہیں ہو سکا",
     "resetLinkConfirmTitle": "نیا پاس ورڈ مقرر کریں؟",
-    "resetLinkConfirmBody": "یہ لنک {{email}} کے لیے نیا پاس ورڈ مقرر کرے گا۔ جاری رکھیں؟",
-    "resetLinkDifferentAccount": "یہ ری سیٹ لنک کسی دوسرے اکاؤنٹ کا ہے۔ پہلے اس اکاؤنٹ سے سائن آؤٹ کریں، پھر لنک دوبارہ کھولیں۔",
+    "resetLinkWrongDevice": "یہ ری سیٹ لنک صرف اسی آلے پر کام کرتا ہے جس سے آپ نے اسے منگوایا تھا۔ اسے وہیں کھولیں، یا اس آلے سے نیا لنک بھیجیں۔",
+    "sendNewResetLink": "نیا لنک بھیجیں",
     "resetPasswordInvalidSession": "یہ ری سیٹ لنک غلط ہے یا اس کی میعاد ختم ہو چکی ہے۔ براہِ کرم نیا لنک منگوائیں۔",
   },
   "profile": {

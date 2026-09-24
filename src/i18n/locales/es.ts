@@ -887,8 +887,8 @@ export const es = {
     "resetPasswordSuccess": "Tu contraseña se actualizó",
     "resetPasswordError": "No se pudo actualizar tu contraseña",
     "resetLinkConfirmTitle": "¿Establecer una nueva contraseña?",
-    "resetLinkConfirmBody": "Este enlace establecerá una nueva contraseña para {{email}}. ¿Continuar?",
-    "resetLinkDifferentAccount": "Este enlace de restablecimiento pertenece a otra cuenta. Cierra primero la sesión de esta cuenta y vuelve a abrir el enlace.",
+    "resetLinkWrongDevice": "Este enlace de restablecimiento solo funciona en el dispositivo desde el que lo solicitaste. Ábrelo allí o envía un enlace nuevo desde este dispositivo.",
+    "sendNewResetLink": "Enviar un enlace nuevo",
     "resetPasswordInvalidSession": "Este enlace de restablecimiento no es válido o ha caducado. Solicita uno nuevo."
   },
   "profile": {
