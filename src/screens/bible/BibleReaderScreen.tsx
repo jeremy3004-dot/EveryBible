@@ -3,7 +3,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
 import {
   Alert,
-  AppState,
   BackHandler,
   FlatList,
   LayoutAnimation,
@@ -29,7 +28,6 @@ import Animated, {
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import {
   getAdjacentBibleChapter,
@@ -45,8 +43,6 @@ import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { buildTabBarCapsuleStyle } from '../../navigation/tabBarCapsuleStyle';
 import { useReaderChromeOwner, useReaderChromeProgress } from '../../stores/readerChromeStore';
 import { getNextReaderChromeProgress, READER_PLAY_COLLAPSE_TRAVEL } from './readerChromeMotion';
-import { trackAnonymousUsageEvent, flushAnonymousUsageEvents } from '../../services/analytics';
-import { createReadingTimer } from '../../services/analytics/readingTimer';
 import { trackBibleExperienceEvent } from '../../services/analytics/bibleExperienceAnalytics';
 import {
   getAnnotationsForChapter,
@@ -98,7 +94,7 @@ import { AnnotationActionSheet } from '../../components/annotations/AnnotationAc
 import { VersesSkeleton } from '../../components/skeleton/VersesSkeleton';
 import type { BibleTranslation, Verse } from '../../types';
 import type { UserAnnotation } from '../../services/supabase/types';
-import type { BibleStackParamList, BibleReaderScreenProps } from '../../navigation/types';
+import type { BibleReaderScreenProps } from '../../navigation/types';
 import {
   buildBibleSelectionShareText,
   buildBibleSelectionVerseRanges,
@@ -123,23 +119,15 @@ import {
   getReaderInlineActiveVerse,
   getAnnotationsForDisplayedVerses,
   getReaderVerseContentOffset,
-  getInitialChapterSessionMode,
   getReaderVerseLineHeight,
   resolveSwipeChapterNavigation,
   isActiveAudioTrackMatch,
   getNextFontSizeSheetVisibility,
   getNextTranslationSheetVisibility,
-  shouldAutoplayChapterAudio,
   shouldReplayActiveAudioForTranslationChange,
-  shouldSyncReaderToActiveAudioChapter,
 } from './bibleReaderModel';
 import type { ReaderParagraph } from './bibleReaderModel';
-import {
-  invalidateReaderChapterLoad,
-  loadReaderChapter,
-  readerChapterKey,
-  type CancellableTask,
-} from './readerChapterLoader';
+import { loadReaderChapter, readerChapterKey, type CancellableTask } from './readerChapterLoader';
 import { navigateListenChapter } from './readerListenNavigation';
 import {
   applyReaderAnnotationEdits,
@@ -171,11 +159,14 @@ import {
   useAudioReturnTarget,
   useChapterAudioShare,
   useChapterFeedback,
+  useReaderAudioSync,
+  useReaderChapterLifecycle,
+  useReaderFollowAlongScroll,
   useReaderPlanSession,
+  useReaderReadingTimer,
 } from './reader';
-import type { RootTabNavigationHandle } from './reader';
+import type { RootTabNavigationHandle, NavigationProp } from './reader';
 
-type NavigationProp = NativeStackNavigationProp<BibleStackParamList>;
 type VerseTimestamps = import('../../services/bible/verseTimestamps').VerseTimestamps;
 
 export function BibleReaderScreen() {
@@ -198,23 +189,18 @@ export function BibleReaderScreen() {
   const { colors, themeMode, setTheme } = useTheme();
   const { t } = useTranslation();
   const safeInsets = useSafeAreaInsets();
-  const autoplayKeyRef = useRef<string | null>(null);
-  const sessionKeyRef = useRef<string | null>(null);
   const planDayCompletionGuardRef = useRef<string | null>(null);
   const listenCountedNoticeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const listenCountedBaselineRef = useRef<{ key: string; alreadyCountedForPlan: boolean } | null>(
     null
   );
   const lastListenCountedNoticeKeyRef = useRef<string | null>(null);
-  const previousActiveAudioBookIdRef = useRef<string | null>(null);
-  const previousActiveAudioChapterRef = useRef<number | null>(null);
   const scrollViewRef = useRef<Animated.ScrollView | null>(null);
   const premiumReaderListRef = useRef<FlatList<ReaderParagraph> | null>(null);
   const followAlongScrollViewRef = useRef<ScrollView | null>(null);
   const verseImageSharePreviewRef = useRef<View | null>(null);
   const verseOffsetsRef = useRef<Record<number, number>>({});
   const readerFocusScrollRef = useRef(createReaderFocusScroll());
-  const measuredChapterKeyRef = useRef<string | null>(null);
   const renderParagraphRef = useRef<(paragraph: ReaderParagraph, index: number) => ReactElement>(
     () => null as never
   );
@@ -1183,294 +1169,88 @@ export function BibleReaderScreen() {
     transform: [{ translateX: swipeX.value }],
   }));
 
-  useEffect(() => {
-    setCurrentBook(bookId);
-    setCurrentChapter(chapter);
-  }, [bookId, chapter, setCurrentBook, setCurrentChapter]);
-
-  useEffect(() => {
-    if (playbackSequenceEntriesForAudio.length === 0) {
-      return;
-    }
-
-    setPlaybackSequence(playbackSequenceEntriesForAudio);
-  }, [playbackSequenceEntriesForAudio, setPlaybackSequence]);
-
-  useEffect(() => {
-    void loadChapter();
-    return () => {
-      invalidateReaderChapterLoad({
-        requestIdRef: chapterLoadRequestIdRef,
-        prefetchTaskRef: chapterPrefetchTaskRef,
-      });
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bookId, chapter, currentTranslation]);
-
-  useEffect(() => {
-    if (!activePlanId || typeof planDayNumber !== 'number' || !returnToPlanOnComplete) {
-      return;
-    }
-
-    setPlanDayResume(activePlanId, planDayNumber, bookId, chapter);
-  }, [activePlanId, bookId, chapter, planDayNumber, returnToPlanOnComplete, setPlanDayResume]);
-
-  useEffect(() => {
-    const chapterKey = `${currentTranslation}:${bookId}:${chapter}`;
-    if (measuredChapterKeyRef.current !== chapterKey) {
-      measuredChapterKeyRef.current = chapterKey;
-      verseOffsetsRef.current = {};
-      paragraphHeightsRef.current = {};
-      readerListHeaderHeightRef.current = 0;
-      followAlongOffsetsRef.current = {};
-    }
-    readerFocusScrollRef.current.request(focusVerse ?? null);
-    pendingReaderAutoScrollVerseRef.current = null;
-    setSelectedVerses([]);
-    // Reset monotonic follow-along state on chapter change
-    resetFollowAlongClamp();
-    if (focusVerse == null) {
-      scrollReaderToOffset(0, false);
-    }
-  }, [
+  useReaderChapterLifecycle({
+    activeAudioBookId,
+    activeAudioChapter,
+    activeAudioTranslationId,
+    activePlanId,
+    audioEnabled,
+    autoplayAudio,
     bookId,
     chapter,
+    chapterLoadRequestIdRef,
+    chapterPrefetchTaskRef,
+    chapterPresentationMode,
     currentTranslation,
+    dismissSelectedVerseSelection,
     focusVerse,
-    resetFollowAlongClamp,
-    scrollReaderToOffset,
-  ]);
-
-  useEffect(() => {
-    if (isLoading) {
-      return;
-    }
-
-    const sessionKey = `${bookId}:${chapter}:${currentTranslation}`;
-    if (sessionKeyRef.current === sessionKey) {
-      return;
-    }
-
-    sessionKeyRef.current = sessionKey;
-    const hasText = verses.length > 0;
-    const nextSessionMode = hasText
-      ? 'read'
-      : getInitialChapterSessionMode({
-          translationId: currentTranslation,
-          audioEnabled,
-          hasText,
-          autoplayAudio: Boolean(autoplayAudio),
-          preferredMode: preferredMode ?? null,
-          bookId,
-          chapter,
-          activeAudioTranslationId,
-          activeAudioBookId,
-          activeAudioChapter,
-        });
-
-    setShowFollowAlongText((current) => {
-      if (hasText || nextSessionMode === 'read') {
-        return false;
-      }
-
-      return current;
-    });
-    setChapterSessionMode(nextSessionMode);
-  }, [
-    activeAudioTranslationId,
-    activeAudioBookId,
-    activeAudioChapter,
-    audioEnabled,
-    autoplayAudio,
-    bookId,
-    chapter,
-    currentTranslation,
+    followAlongOffsetsRef,
     isLoading,
+    loadChapter,
+    paragraphHeightsRef,
+    pendingReaderAutoScrollVerseRef,
+    planDayNumber,
+    playbackSequenceEntriesForAudio,
     preferredMode,
-    verses.length,
-  ]);
-
-  useEffect(() => {
-    if (chapterPresentationMode === 'audio-first') {
-      setShowFontSizeSheet(false);
-      dismissSelectedVerseSelection();
-    }
-  }, [chapterPresentationMode, dismissSelectedVerseSelection]);
-
-  useEffect(() => {
-    if (isLoading || focusVerse == null) {
-      return;
-    }
-
-    if (!flushPendingReaderFocus() && readerFocusScrollRef.current.pendingVerse != null) {
-      scrollReaderToVerseParagraph(focusVerse, false);
-    }
-  }, [focusVerse, flushPendingReaderFocus, isLoading, scrollReaderToVerseParagraph, verses]);
-
-  useEffect(() => {
-    if (!showFollowAlongText || activeFollowAlongVerse == null) {
-      return;
-    }
-
-    const verseOffset = followAlongOffsetsRef.current[activeFollowAlongVerse];
-    if (verseOffset == null) {
-      return;
-    }
-
-    followAlongScrollViewRef.current?.scrollTo({
-      y: Math.max(verseOffset - 140, 0),
-      animated: true,
-    });
-  }, [activeFollowAlongVerse, showFollowAlongText]);
-
-  useEffect(() => {
-    if (!showPremiumReadMode || !isCurrentAudioChapter || readerInlineActiveVerse == null) {
-      pendingReaderAutoScrollVerseRef.current = null;
-      return;
-    }
-
-    if (didRestartFollowAlongPlayback) {
-      pendingReaderAutoScrollVerseRef.current = null;
-      scrollReaderToOffset(0, true);
-      return;
-    }
-
-    // Until the paragraphs above the verse have been measured its content
-    // offset is unknown, so fall back to FlatList's own index scrolling and
-    // retry from onLayout once the measurements land.
-    if (!scrollReaderToMeasuredVerse(readerInlineActiveVerse, true)) {
-      pendingReaderAutoScrollVerseRef.current = readerInlineActiveVerse;
-      scrollReaderToVerseParagraph(readerInlineActiveVerse, true);
-    }
-  }, [
-    didRestartFollowAlongPlayback,
-    isCurrentAudioChapter,
-    readerInlineActiveVerse,
+    readerFocusScrollRef,
+    readerListHeaderHeightRef,
+    resetFollowAlongClamp,
+    returnToPlanOnComplete,
     scrollReaderToOffset,
-    scrollReaderToMeasuredVerse,
-    scrollReaderToVerseParagraph,
-    showPremiumReadMode,
-  ]);
+    setChapterSessionMode,
+    setCurrentBook,
+    setCurrentChapter,
+    setPlanDayResume,
+    setPlaybackSequence,
+    setSelectedVerses,
+    setShowFollowAlongText,
+    setShowFontSizeSheet,
+    verseOffsetsRef,
+    verses,
+  });
 
-  // Fetch verse timestamps for the active text-backed audio chapter; clear when chapter changes.
-  useEffect(() => {
-    if (!showFollowAlongText && (!isCurrentAudioChapter || verses.length === 0)) return;
-
-    let isCancelled = false;
-    setChapterTimestamps(null);
-
-    void import('../../services/bible/verseTimestamps')
-      .then(({ getChapterTimestamps }) => getChapterTimestamps(currentTranslation, bookId, chapter))
-      .then((timestamps) => {
-        if (!isCancelled) {
-          setChapterTimestamps(timestamps);
-        }
-      })
-      .catch((timestampsError) => {
-        if (!isCancelled) {
-          console.error('Error loading verse timestamps:', timestampsError);
-          setChapterTimestamps(null);
-        }
-      });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [
-    showFollowAlongText,
-    isCurrentAudioChapter,
-    verses.length,
-    currentTranslation,
+  useReaderFollowAlongScroll({
+    activeFollowAlongVerse,
     bookId,
     chapter,
-  ]);
+    currentTranslation,
+    didRestartFollowAlongPlayback,
+    flushPendingReaderFocus,
+    focusVerse,
+    followAlongOffsetsRef,
+    followAlongScrollViewRef,
+    isCurrentAudioChapter,
+    isLoading,
+    pendingReaderAutoScrollVerseRef,
+    readerFocusScrollRef,
+    readerInlineActiveVerse,
+    scrollReaderToMeasuredVerse,
+    scrollReaderToOffset,
+    scrollReaderToVerseParagraph,
+    setChapterTimestamps,
+    showFollowAlongText,
+    showPremiumReadMode,
+    verses,
+  });
 
-  useEffect(() => {
-    if (
-      !shouldAutoplayChapterAudio({
-        translationId: currentTranslation,
-        autoplayAudio: Boolean(autoplayAudio),
-        audioEnabled,
-        isLoading,
-        bookId,
-        chapter,
-        activeAudioTranslationId,
-        activeAudioBookId,
-        activeAudioChapter,
-      })
-    ) {
-      return;
-    }
-
-    const autoplayKey = `${currentTranslation}:${bookId}:${chapter}:${focusVerse ?? 'chapter'}:${chapterPresentationMode}`;
-    if (autoplayKeyRef.current === autoplayKey) {
-      return;
-    }
-
-    autoplayKeyRef.current = autoplayKey;
-    // The autoplay param is a one-shot request from the screen that opened the reader.
-    // Left set, a later translation switch produced a new key and started audio again,
-    // even after the listener had paused or stopped it.
-    navigation.setParams({ autoplayAudio: false });
-
-    void playChapter(
-      bookId,
-      chapter,
-      currentTranslationInfo?.audioGranularity === 'verse' ? focusVerse : undefined
-    );
-  }, [
-    activeAudioTranslationId,
+  useReaderAudioSync({
     activeAudioBookId,
     activeAudioChapter,
-    autoplayAudio,
+    activeAudioTranslationId,
     audioEnabled,
+    autoplayAudio,
     bookId,
     chapter,
     chapterPresentationMode,
+    chapterSessionMode,
     currentTranslation,
     currentTranslationInfo,
     focusVerse,
     isLoading,
     navigation,
     playChapter,
-  ]);
-
-  useEffect(() => {
-    const shouldSync = shouldSyncReaderToActiveAudioChapter({
-      audioEnabled,
-      bookId,
-      chapter,
-      activeAudioBookId,
-      activeAudioChapter,
-      previousActiveAudioBookId: previousActiveAudioBookIdRef.current,
-      previousActiveAudioChapter: previousActiveAudioChapterRef.current,
-    });
-
-    previousActiveAudioBookIdRef.current = activeAudioBookId;
-    previousActiveAudioChapterRef.current = activeAudioChapter;
-
-    if (!shouldSync || activeAudioChapter == null) {
-      return;
-    }
-
-    navigation.setParams(
-      buildReaderChapterRouteParams({
-        bookId: activeAudioBookId ?? bookId,
-        chapter: activeAudioChapter,
-        preferredMode: chapterSessionMode,
-        ...resolvePlanSessionRouteParams(activeAudioBookId ?? bookId, activeAudioChapter),
-      })
-    );
-  }, [
-    audioEnabled,
-    activeAudioBookId,
-    activeAudioChapter,
-    bookId,
-    chapter,
-    chapterSessionMode,
-    navigation,
     resolvePlanSessionRouteParams,
-  ]);
+  });
 
   useEffect(() => {
     const loadAnnotations = async () => {
@@ -1486,33 +1266,7 @@ export function BibleReaderScreen() {
     void loadAnnotations();
   }, [bookId, chapter]);
 
-  // Checkpoint focused foreground reading so a background force-quit does not
-  // lose the visit. Hidden tabs remain mounted, so mount/unmount is insufficient.
-  useFocusEffect(
-    useCallback(() => {
-      if (chapterSessionMode !== 'read') return;
-      const timer = createReadingTimer((durationSeconds) => {
-        trackAnonymousUsageEvent('reading_ended', {
-          book_id: bookId,
-          chapter,
-          translation_id: currentTranslation,
-          duration_seconds: durationSeconds,
-        });
-      });
-      timer.setActive(AppState.currentState === 'active');
-      const interval = setInterval(timer.checkpoint, 30_000);
-      const subscription = AppState.addEventListener('change', (nextState) => {
-        timer.setActive(nextState === 'active');
-        if (nextState !== 'active') void flushAnonymousUsageEvents();
-      });
-      return () => {
-        subscription.remove();
-        clearInterval(interval);
-        timer.finish();
-        void flushAnonymousUsageEvents();
-      };
-    }, [bookId, chapter, currentTranslation, chapterSessionMode])
-  );
+  useReaderReadingTimer({ bookId, chapter, chapterSessionMode, currentTranslation });
 
   const {
     audioPortionEndMs,

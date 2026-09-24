@@ -1,3 +1,5 @@
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { BibleStackParamList } from '../../../navigation/types';
 // The squared top controls are 40pt so they match the reference pill; the slop
 // restores the 44pt touch floor without growing the visible square.
 export const TOP_ACTION_HIT_SLOP = 2;
@@ -28,3 +30,5 @@ export const READER_SCROLL_JS_UPDATE_INTERVAL_PX = 48;
 export type RootTabNavigationHandle = {
   setOptions: (options: { tabBarStyle?: unknown }) => void;
 } | null;
+
+export type NavigationProp = NativeStackNavigationProp<BibleStackParamList>;
