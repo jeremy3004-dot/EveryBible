@@ -50,6 +50,7 @@ import { getHomeScreenLayout } from './homeLayoutModel';
 import { selectHomeContinuePlans } from './homeReadingPlansModel';
 import {
   getHomeReadingPeriodDayTotal,
+  getHomeNextUpChapter,
   getHomeReadingStats,
   type HomeReadingPeriod,
 } from './homeReadingStatsModel';
@@ -378,13 +379,27 @@ export function HomeScreen() {
     });
   }, [i18n.language, ledgerPeriod, readingStats, t]);
 
-  const ledgerNextUpLabel =
-    hasContinuePassage && currentBookInfo
-      ? t('home.ledgerNextUp', {
-          reference: `${currentBookName} ${currentChapter}`,
-          total: currentBookInfo.chapters,
-        })
-      : null;
+  // The resume point stays on the chapter last opened; once that chapter is
+  // finished, "Next up" names the one after it rather than the one just read.
+  const ledgerNextUpLabel = useMemo(() => {
+    if (!hasContinuePassage) {
+      return null;
+    }
+
+    const nextUp = getHomeNextUpChapter(
+      { bookId: currentBook, chapter: currentChapter },
+      { chaptersRead, chaptersListened }
+    );
+    const nextUpBook = nextUp ? getBookById(nextUp.bookId) : undefined;
+    if (!nextUp || !nextUpBook) {
+      return null;
+    }
+
+    return t('home.ledgerNextUp', {
+      reference: `${getTranslatedBookName(nextUp.bookId, t)} ${nextUp.chapter}`,
+      total: nextUpBook.chapters,
+    });
+  }, [chaptersListened, chaptersRead, currentBook, currentChapter, hasContinuePassage, t]);
 
   const loadVerseOfDay = useCallback(
     async ({

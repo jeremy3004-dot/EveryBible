@@ -4,6 +4,7 @@ import {
   getBookCompletionTimes,
   getHomeReadingPeriodDayTotal,
   getHomeReadingPeriodRange,
+  getHomeNextUpChapter,
   getHomeReadingStats,
   parseChapterKey,
   type HomeReadingActivity,
@@ -158,4 +159,48 @@ test('the day denominator is the whole week but only the elapsed part of a month
   assert.equal(getHomeReadingPeriodDayTotal('week', NOW), 7);
   assert.equal(getHomeReadingPeriodDayTotal('month', NOW), 9);
   assert.equal(getHomeReadingPeriodDayTotal('allTime', NOW), 0);
+});
+
+test('next up moves past the chapter the reader just finished', () => {
+  const activity = { ...emptyActivity(), chaptersRead: { GEN_1: at(2026, 9, 9) } };
+
+  assert.deepEqual(getHomeNextUpChapter({ bookId: 'GEN', chapter: 1 }, activity), {
+    bookId: 'GEN',
+    chapter: 2,
+  });
+});
+
+test('next up stays on a chapter that was opened but not finished', () => {
+  assert.deepEqual(getHomeNextUpChapter({ bookId: 'GEN', chapter: 1 }, emptyActivity()), {
+    bookId: 'GEN',
+    chapter: 1,
+  });
+});
+
+test('a chapter heard to the end counts as finished for next up', () => {
+  const activity = { ...emptyActivity(), chaptersListened: { JHN_3: at(2026, 9, 9) } };
+
+  assert.deepEqual(getHomeNextUpChapter({ bookId: 'JHN', chapter: 3 }, activity), {
+    bookId: 'JHN',
+    chapter: 4,
+  });
+});
+
+test('finishing the last chapter of a book points next up at the next book', () => {
+  const activity = { ...emptyActivity(), chaptersRead: { GEN_50: at(2026, 9, 9) } };
+
+  assert.deepEqual(getHomeNextUpChapter({ bookId: 'GEN', chapter: 50 }, activity), {
+    bookId: 'EXO',
+    chapter: 1,
+  });
+});
+
+test('there is no next up once the final chapter of the Bible is finished', () => {
+  const activity = { ...emptyActivity(), chaptersRead: { REV_22: at(2026, 9, 9) } };
+
+  assert.equal(getHomeNextUpChapter({ bookId: 'REV', chapter: 22 }, activity), null);
+});
+
+test('next up has nothing to point at for an unknown book', () => {
+  assert.equal(getHomeNextUpChapter({ bookId: 'ZZZ', chapter: 1 }, emptyActivity()), null);
 });
