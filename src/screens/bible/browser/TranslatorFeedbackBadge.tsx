@@ -23,8 +23,10 @@ export const TranslatorFeedbackBadge = memo(function TranslatorFeedbackBadge({
     <View
       accessible
       accessibilityRole="image"
+      // Read as part of its book row or chapter tile, so it names the state, not
+      // "Feedback queue", which is the header button's name.
       accessibilityLabel={
-        isPending ? t('translatorQueue.title') : t('bible.translatorReviewConfirmedAccurate')
+        isPending ? t('feedback.needsReview') : t('bible.translatorReviewConfirmedAccurate')
       }
       style={[
         styles.badge,

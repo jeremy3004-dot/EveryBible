@@ -96,7 +96,8 @@ test('a book with no content is dimmed, locked, and expands onto a coming-soon n
   const view = await renderBrowser();
 
   const genesis = view.getByRole('button', { name: 'Genesis' });
-  assert.equal(genesis.props.accessibilityHint, t('bible.notAvailableYet'));
+  // A value rather than a hint, which users can switch off.
+  assert.deepEqual(genesis.props.accessibilityValue, { text: t('bible.notAvailableYet') });
   assert.equal(flattenStyle(genesis.props.style)?.opacity, 0.45);
   assert.deepEqual(
     within(genesis)
@@ -105,7 +106,7 @@ test('a book with no content is dimmed, locked, and expands onto a coming-soon n
     ['lock-closed']
   );
   const john = view.getByRole('button', { name: 'John', expanded: true });
-  assert.equal(john.props.accessibilityHint, undefined);
+  assert.equal(john.props.accessibilityValue, undefined);
 
   await view.press(genesis);
   assert.ok(view.getByRole('button', { name: 'Genesis', expanded: true }));
@@ -119,12 +120,14 @@ test('an unavailable chapter explains itself in place instead of opening the rea
   const view = await renderBrowser();
 
   const four = view.getByRole('button', { name: '4' });
-  assert.equal(four.props.accessibilityHint, t('bible.notAvailableYet'));
-  assert.equal(view.getByRole('button', { name: '3' }).props.accessibilityHint, undefined);
+  assert.deepEqual(four.props.accessibilityValue, { text: t('bible.notAvailableYet') });
+  assert.equal(view.getByRole('button', { name: '3' }).props.accessibilityValue, undefined);
 
   await view.press(four);
   assert.deepEqual(harness.navigation.calls, []);
   assert.ok(view.getByText(t('bible.fullBibleComingSoon')));
+  // The note appears below the grid while focus stays on the tile.
+  assert.deepEqual(harness.rn.__recorded.announcements, [t('bible.fullBibleComingSoon')]);
 
   await view.press(view.getByRole('button', { name: '3' }));
   assert.equal(view.queryByText(t('bible.fullBibleComingSoon')), null);

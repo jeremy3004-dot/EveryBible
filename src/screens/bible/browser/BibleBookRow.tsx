@@ -51,7 +51,7 @@ export const BibleBookRow = memo(function BibleBookRow({
         activeOpacity={0.7}
         accessibilityRole="button"
         accessibilityState={{ expanded: isExpanded }}
-        accessibilityHint={isAvailable ? undefined : t('bible.notAvailableYet')}
+        accessibilityValue={isAvailable ? undefined : { text: t('bible.notAvailableYet') }}
       >
         <View style={styles.bookRowLeft}>
           <View style={styles.bookIconWrap}>
