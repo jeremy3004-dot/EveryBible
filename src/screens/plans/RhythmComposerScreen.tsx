@@ -2,7 +2,7 @@ import {
   localizeRhythmPreset,
   getLocalizedRhythmTitle,
 } from '../../services/plans/rhythmLocalization';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -261,8 +261,16 @@ export function RhythmComposerScreen({ navigation, route }: RhythmComposerScreen
 
   const currentRhythmSlot = currentRhythm?.slot ?? inferRhythmSlotFromTitle(currentRhythm?.title);
 
+  // Set once a preset is saved: the composer stays mounted and tappable through the
+  // replace transition, and a second tap would save a second rhythm.
+  const savedRef = useRef(false);
+
   const handleApplyPreset = useCallback(
     (preset: RhythmPreset) => {
+      if (savedRef.current) {
+        return;
+      }
+
       const result = currentRhythm
         ? updateRhythm(currentRhythm.id, {
             title: preset.title,
@@ -283,6 +291,7 @@ export function RhythmComposerScreen({ navigation, route }: RhythmComposerScreen
         return;
       }
 
+      savedRef.current = true;
       successHaptic();
       navigation.replace('RhythmDetail', { rhythmId: result.rhythm.id });
     },

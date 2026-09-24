@@ -282,3 +282,39 @@ test('the filters are grouped under their time-of-day and tradition headings', a
     view.getByText(t('plans.rhythmComposer.presetCount', { count: RHYTHM_PRESET_LIBRARY.length }))
   );
 });
+
+// The composer stays on screen through the replace transition, so a second tap lands.
+test('tapping a preset twice before the composer leaves creates one rhythm', async () => {
+  const store = await loadStore();
+  const view = await renderComposer();
+  const card = view.getByText(RHYTHM_PRESET_LIBRARY[0].title);
+
+  await view.press(card);
+  await view.press(card);
+
+  assert.equal(store.getState().rhythmOrder.length, 1);
+  assert.equal(callsTo('replace').length, 1);
+});
+
+test('after a rejected save the reader can pick another preset', async () => {
+  const store = await loadStore();
+  const { RHYTHM_MUTATION_ERROR_CODES } = await import('../../stores/readingPlansStore');
+  const realCreate = store.getState().createRhythm;
+  let attempts = 0;
+  store.setState({
+    createRhythm: (input) => {
+      attempts += 1;
+      return attempts === 1
+        ? { success: false, error: RHYTHM_MUTATION_ERROR_CODES.emptyItems }
+        : realCreate(input);
+    },
+  });
+  const view = await renderComposer();
+
+  await view.press(view.getByText(RHYTHM_PRESET_LIBRARY[0].title));
+  await view.press(view.getByText(RHYTHM_PRESET_LIBRARY[1].title));
+
+  assert.equal(attempts, 2);
+  assert.equal(store.getState().rhythmOrder.length, 1);
+  assert.equal(callsTo('replace').length, 1);
+});
