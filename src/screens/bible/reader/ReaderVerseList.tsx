@@ -52,6 +52,8 @@ export interface ReaderVerseListProps {
   scaleValue: (baseSize: number) => number;
   scrollHandler: ScrollHandlerProcessed<Record<string, unknown>>;
   scrollReaderToVerseParagraph: (verseNumber: number, animated: boolean) => boolean;
+  /** VoiceOver/TalkBack is on: prose paragraphs draw one selectable element per verse. */
+  screenReaderEnabled: boolean;
   selectedVerseDecorationStyle: {
     readonly textDecorationLine: 'underline';
     readonly textDecorationStyle: 'dotted';
@@ -105,6 +107,7 @@ export const ReaderVerseList = memo(function ReaderVerseList({
   scaleValue,
   scrollHandler,
   scrollReaderToVerseParagraph,
+  screenReaderEnabled,
   selectedVerseDecorationStyle,
   selectedVerseSet,
   selectedVerses,
@@ -214,6 +217,7 @@ export const ReaderVerseList = memo(function ReaderVerseList({
     followHighlightColor: colors.bibleFollowHighlight,
     getVersePresentation,
     onToggleVerseSelection: handleToggleVerseSelection,
+    screenReaderEnabled,
   };
 
   const renderParagraph = (paragraph: ReaderParagraph, _pIndex: number): ReactElement => (
@@ -270,7 +274,10 @@ export const ReaderVerseList = memo(function ReaderVerseList({
         </Text>
       ) : null}
       <View style={styles.readerParagraph}>
+        {/* A screen reader cannot focus the verse spans nested in one paragraph Text,
+            only the whole paragraph, so while one runs each verse is its own block. */}
         {usePremiumTypography &&
+        !screenReaderEnabled &&
         !paragraph.verses.some((verse) => (verse.formatting?.lines.length ?? 0) > 0) ? (
           <Text style={[textStyle, styles.premiumParagraphText]}>
             {paragraph.verses.map((verse, verseIndex) => {
@@ -335,6 +342,7 @@ export const ReaderVerseList = memo(function ReaderVerseList({
         readingFontFamilyBold,
         colors,
         annotations: displayedAnnotations,
+        screenReaderEnabled,
       });
   // The selection rides along so the list offers its cells the new selection;
   // each cell's comparator then keeps the ones whose verses did not change.

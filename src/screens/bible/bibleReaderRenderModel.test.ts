@@ -102,6 +102,15 @@ test('typography size and premium mode remain part of the paragraph appearance',
   assert.notEqual(signature(input), signature({ ...input, premium: false }));
 });
 
+// A screen reader turning on or off reshapes every prose paragraph (one element per
+// verse while it runs), so every memoized paragraph must redraw.
+test('a screen reader turning on or off invalidates every paragraph', () => {
+  const input = appearance();
+  const on = signature({ ...input, screenReaderEnabled: true });
+  assert.notEqual(signature(input), on);
+  assert.equal(signature({ ...input, screenReaderEnabled: false }), signature(input));
+});
+
 test('highlight lookup includes ranges and single verses but ignores notes and deleted entries', () => {
   const highlight = appearance().annotations[0];
   const single = { ...highlight, verse_start: 4, verse_end: null };

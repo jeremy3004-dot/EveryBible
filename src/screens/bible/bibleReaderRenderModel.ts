@@ -40,6 +40,8 @@ export interface ReaderParagraphAppearance {
     | 'bibleFollowVerseNumber'
   >;
   annotations: readonly ReaderAnnotation[];
+  /** With VoiceOver/TalkBack on, prose paragraphs draw one element per verse. */
+  screenReaderEnabled?: boolean;
 }
 
 /**
@@ -61,6 +63,7 @@ export function buildReaderParagraphRenderSignature(input: ReaderParagraphAppear
     input.colors.bibleFollowVerseNumber,
     input.readingFontFamily,
     input.readingFontFamilyBold,
+    input.screenReaderEnabled === true,
     input.annotations.map((annotation) => [
       annotation.type,
       annotation.verse_start,

@@ -33,6 +33,8 @@ export interface UseReaderScrollChromeInput {
   rootTabBarCollapseProgressRef: RefObject<number>;
   rootTabBarHeight: number;
   rootTabBarScrollProgress: SharedValue<number>;
+  /** VoiceOver/TalkBack is on: the chrome stays fully expanded whatever the list does. */
+  screenReaderEnabled: boolean;
   setIsReadBottomChromeCollapsed: Dispatch<SetStateAction<boolean>>;
   shouldForceHideRootTabBar: boolean;
   showPremiumReadMode: boolean;
@@ -56,6 +58,7 @@ export function useReaderScrollChrome({
   rootTabBarCollapseProgressRef,
   rootTabBarHeight,
   rootTabBarScrollProgress,
+  screenReaderEnabled,
   setIsReadBottomChromeCollapsed,
   shouldForceHideRootTabBar,
   showPremiumReadMode,
@@ -119,6 +122,32 @@ export function useReaderScrollChrome({
     setIsReadBottomChromeCollapsed,
   ]);
 
+  // A screen reader scrolls the list with its own gesture (three-finger swipe), and
+  // collapsing then would pull Back, Search and the tab bar out of the swipe order
+  // mid-chapter. While one runs, the chrome stays expanded; turning it on brings
+  // back chrome that was already collapsed.
+  useEffect(() => {
+    if (!screenReaderEnabled) {
+      return;
+    }
+    readerBottomChromeProgressShared.value = 0;
+    readerChromeCollapsedShared.value = false;
+    if (readerChromeOwner.value === readerRouteKey) {
+      rootTabBarScrollProgress.value = 0;
+    }
+    readerBottomChromeCollapsedRef.current = false;
+    setIsReadBottomChromeCollapsed(false);
+  }, [
+    screenReaderEnabled,
+    readerBottomChromeCollapsedRef,
+    readerBottomChromeProgressShared,
+    readerChromeCollapsedShared,
+    readerChromeOwner,
+    readerRouteKey,
+    rootTabBarScrollProgress,
+    setIsReadBottomChromeCollapsed,
+  ]);
+
   // Only the reader's finger collapses the chrome. The list also moves on its own —
   // back to the top on a chapter change, onto a plan's focus verse, after the verse the
   // audio is on — and counting those moves as scrolling left a new chapter opening
@@ -154,16 +183,18 @@ export function useReaderScrollChrome({
           : false;
       if (readerChromeOwner.value !== readerRouteKey) return;
 
-      const nextProgress = getNextReaderChromeProgress({
-        progress: readerBottomChromeProgressShared.value,
-        previousOffset: readerChromeFingerScrollShared.value
-          ? readerChromeOffsetShared.value
-          : nextOffsetY,
-        offset: nextOffsetY,
-        viewportHeight,
-        contentHeight,
-        reduceMotion,
-      });
+      const nextProgress = screenReaderEnabled
+        ? 0
+        : getNextReaderChromeProgress({
+            progress: readerBottomChromeProgressShared.value,
+            previousOffset: readerChromeFingerScrollShared.value
+              ? readerChromeOffsetShared.value
+              : nextOffsetY,
+            offset: nextOffsetY,
+            viewportHeight,
+            contentHeight,
+            reduceMotion,
+          });
       readerChromeOffsetShared.value = nextOffsetY;
       readerBottomChromeProgressShared.value = nextProgress;
       rootTabBarScrollProgress.value = nextProgress;
