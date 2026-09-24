@@ -18,6 +18,7 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useDisplayFont } from '../../hooks/useDisplayFont';
 import { useLargeText } from '../../hooks/useLargeText';
+import { useLocalToday } from '../../hooks/useLocalToday';
 import { layout, radius, spacing, typography } from '../../design/system';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
 import type { RhythmDetailScreenProps } from '../../navigation/types';
@@ -192,6 +193,8 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const rhythmId = route.params.rhythmId;
+  // A calendar plan's day in the rhythm follows the date, including overnight.
+  const today = useLocalToday();
 
   const [allPlans, setAllPlans] = useState<ReadingPlan[]>([]);
   const [planEntriesById, setPlanEntriesById] = useState<Record<string, ReadingPlanEntry[]>>({});
@@ -279,8 +282,9 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
       progressByPlanId,
       planTitlesById: planTitleById,
       getPlanDayResume,
+      today,
     });
-  }, [getPlanDayResume, planEntriesById, planTitleById, progressByPlanId, rhythm]);
+  }, [getPlanDayResume, planEntriesById, planTitleById, progressByPlanId, rhythm, today]);
 
   const segmentViewModels = useMemo<RhythmSegmentViewModel[]>(() => {
     if (!rhythm || !session) {
@@ -301,6 +305,7 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
             chaptersRead,
             listeningHistory,
             dayNumber: segment.dayNumber,
+            today,
           })
         : null;
 
@@ -334,6 +339,7 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
     rhythm,
     session,
     t,
+    today,
   ]);
 
   const rhythmPlanIds = relevantPlanIds;

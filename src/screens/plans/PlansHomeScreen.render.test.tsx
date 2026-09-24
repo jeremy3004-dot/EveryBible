@@ -476,6 +476,28 @@ test('active plans split into Daily readings and Daily rhythms, each card announ
   assert.ok(within(kathisma).getByText(t('readingPlans.morningLabel')));
 });
 
+test('a rhythm left on screen overnight moves to the new day when the app comes back', async () => {
+  await seed(progressRow(PROVERBS, { started_at: '2026-09-21T09:00:00.000Z' }));
+  const view = await renderHome();
+  const proverbsDay = () =>
+    within(sectionOf(view, t('readingPlans.dailyRhythms'))).getByRole('button', {
+      name: titleOf(PROVERBS),
+    }).props.accessibilityValue;
+  assert.deepEqual(proverbsDay(), {
+    text: `${t('readingPlans.dayOf', { current: 24, total: 31 })}, 77%`,
+  });
+
+  // Suspended overnight with Plans still showing: the screen never loses focus.
+  await act(async () => harness.rn.AppState.emit('background'));
+  mock.timers.setTime(new Date('2026-09-25T07:00:00.000Z').getTime());
+  await act(async () => harness.rn.AppState.emit('active'));
+  await view.flush();
+
+  assert.deepEqual(proverbsDay(), {
+    text: `${t('readingPlans.dayOf', { current: 25, total: 31 })}, 81%`,
+  });
+});
+
 test('only a section with plans gets a header', async () => {
   await seed(progressRow(PROVERBS));
   const view = await renderHome();
