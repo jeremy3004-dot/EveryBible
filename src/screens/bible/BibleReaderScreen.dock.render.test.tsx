@@ -216,6 +216,46 @@ test("another chapter's failure is not shown on this one", async () => {
   assert.equal(view.queryByText(failed), null);
 });
 
+// A stream that died after the chapter started used to drop back to Play without a
+// word. The failure is shown (and heard once) for that chapter; Play reloads it, and
+// the notice goes once the chapter is loading and playing again.
+test('a chapter that fails mid-play says so above the dock until Play gets it going again', async () => {
+  const failed = t('interface.audioPlayFailed');
+  const view = await renderReader();
+  await playingJohn3();
+  assert.equal(view.queryByText(failed), null);
+
+  await reader.setAudio({ status: 'error', error: failed });
+
+  view.getByText(failed);
+  const announced = () =>
+    harness.rn.__recorded.announcements.filter((message) => message === failed);
+  assert.deepEqual(announced(), [failed]);
+  await view.press(playButton(view));
+  assert.deepEqual(reader.audioCalls.at(-1), ['togglePlayPause']);
+
+  await reader.setAudio({ status: 'loading', error: null });
+  assert.equal(view.queryByText(failed), null);
+  await reader.setAudio({ status: 'playing' });
+  assert.equal(view.queryByText(failed), null);
+  assert.deepEqual(announced(), [failed]);
+});
+
+test('pausing, stopping or finishing a chapter shows no failure', async () => {
+  const failed = t('interface.audioPlayFailed');
+  const view = await renderReader();
+  await playingJohn3();
+
+  await reader.setAudio({ status: 'paused' });
+  assert.equal(view.queryByText(failed), null);
+  await reader.setAudio({ status: 'idle' });
+  assert.equal(view.queryByText(failed), null);
+  assert.deepEqual(
+    harness.rn.__recorded.announcements.filter((message) => message === failed),
+    []
+  );
+});
+
 // After a relaunch nothing is loaded, only the persisted last track and its
 // resume offset. Playing that chapter from the dock must resume it (the hook's
 // togglePlayPause restores lastPosition); playChapter restarted it from 0:00
