@@ -10,6 +10,8 @@ import {
   LayoutAnimation,
   UIManager,
   Platform,
+  useWindowDimensions,
+  type LayoutChangeEvent,
   type TextInput as TextInputType,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -55,6 +57,11 @@ import {
 import { layout, radius, spacing, typography } from '../../design/system';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { BookIcon } from '../../components/bible/BookIcon';
+import {
+  CHAPTER_TILE_GAP,
+  CHAPTER_TILE_MAX_FONT_SCALE,
+  getChapterTileLayout,
+} from './chapterTileLayout';
 import { VersesSkeleton } from '../../components/skeleton/VersesSkeleton';
 import { TranslationNotCoveredNotice } from '../../components/feedback/TranslationNotCoveredNotice';
 
@@ -68,6 +75,8 @@ type TranslationPickerListComponent =
 const bibleBrowserRows = buildBibleBrowserRows(bibleBooks);
 const BIBLE_BROWSER_ROW_ESTIMATED_SIZE = 52;
 const SEARCH_RESULT_ESTIMATED_SIZE = 118;
+// Inset of the expanded book's chapter panel; the tile maths subtracts it.
+const CHAPTER_GRID_HORIZONTAL_INSET = spacing.xs;
 
 function getBibleBrowserRowIndex(bookId: string) {
   return bibleBrowserRows.findIndex((row) => row.type === 'books' && row.books[0]?.id === bookId);
@@ -144,6 +153,28 @@ export function BibleBrowserScreen() {
     }),
     [listBottomClearance]
   );
+  // The expanded book's chapter tiles share the panel width evenly. The window
+  // gives a first estimate (list padding plus the panel's own inset); the
+  // panel's measured width replaces it once laid out.
+  const { width: windowWidth, fontScale } = useWindowDimensions();
+  const [measuredChapterPanelWidth, setMeasuredChapterPanelWidth] = useState<number | null>(null);
+  const chapterPanelWidth =
+    measuredChapterPanelWidth ??
+    windowWidth - layout.screenPadding * 2 - CHAPTER_GRID_HORIZONTAL_INSET * 2;
+  const chapterTiles = useMemo(
+    () => getChapterTileLayout(chapterPanelWidth, fontScale),
+    [chapterPanelWidth, fontScale]
+  );
+  const chapterTileSizeStyle = useMemo(
+    () => ({ width: chapterTiles.tileSize, height: chapterTiles.tileSize }),
+    [chapterTiles.tileSize]
+  );
+  const handleChapterPanelLayout = useCallback((event: LayoutChangeEvent) => {
+    const width = event.nativeEvent.layout.width - CHAPTER_GRID_HORIZONTAL_INSET * 2;
+    if (width > 0) {
+      setMeasuredChapterPanelWidth(width);
+    }
+  }, []);
   const searchResultsContentStyle = useMemo(
     () => ({
       paddingHorizontal: layout.screenPadding,
@@ -573,7 +604,10 @@ export function BibleBrowserScreen() {
         )}
 
         {isExpanded && isBookAvailable && (
-          <View style={[styles.chapterGrid, { backgroundColor: colors.bibleElevatedSurface }]}>
+          <View
+            style={[styles.chapterGrid, { backgroundColor: colors.bibleElevatedSurface }]}
+            onLayout={handleChapterPanelLayout}
+          >
             <View style={styles.chapterGridInner}>
               {Array.from({ length: book.chapters }, (_, i) => i + 1).map((chapter) => {
                 const chapterSummary = translatorFeedbackSummaryByChapter.get(
@@ -593,6 +627,7 @@ export function BibleBrowserScreen() {
                     key={chapter}
                     style={[
                       styles.chapterButton,
+                      chapterTileSizeStyle,
                       {
                         backgroundColor: colors.bibleSurface,
                         borderColor: colors.bibleDivider,
@@ -605,6 +640,7 @@ export function BibleBrowserScreen() {
                     accessibilityHint={isChapterAvailable ? undefined : t('bible.notAvailableYet')}
                   >
                     <Text
+                      maxFontSizeMultiplier={CHAPTER_TILE_MAX_FONT_SCALE}
                       style={[
                         styles.chapterNumber,
                         {
@@ -863,6 +899,7 @@ export function BibleBrowserScreen() {
           extraData={{
             colors,
             expandedBookId,
+            chapterTiles,
             translatorFeedbackSummaries,
             translatorReviewEnabled,
             isLoadingTranslatorSummary,
@@ -1119,16 +1156,15 @@ const styles = StyleSheet.create({
   },
   chapterGrid: {
     paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xs,
+    paddingHorizontal: CHAPTER_GRID_HORIZONTAL_INSET,
   },
   chapterGridInner: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.sm,
+    gap: CHAPTER_TILE_GAP,
   },
+  // Width and height come from getChapterTileLayout so the tiles fill the row.
   chapterButton: {
-    width: 48,
-    height: 48,
     borderRadius: radius.sm,
     borderWidth: 1,
     alignItems: 'center',
