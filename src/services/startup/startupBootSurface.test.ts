@@ -514,6 +514,9 @@ test('nothing evaluated before Home imports the large bundled data tables', () =
     /\/src\/constants\/bookIconVectors\.generated\.json$/,
     // Its grammars are ~45 KB each; only the Bible browser's search needs them.
     /\/src\/services\/bible\/referenceParser\.ts$/,
+    // Expands every plan into its daily entries at module eval; Home lists plans
+    // from an effect, and readingPlanService requires the catalog on that call.
+    /\/src\/data\/readingPlans\.generated\.ts$/,
   ];
   const entries = [...PATH_TO_HOME, '../bible/verseTimestamps.ts', '../../data/gatherArtwork.ts'];
 

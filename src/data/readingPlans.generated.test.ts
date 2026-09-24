@@ -104,3 +104,27 @@ test('bundled reading plans expose the bundled plans in sort order', async () =>
     ]
   );
 });
+
+test('plan entries are grouped by plan id in collation order, then by day', async () => {
+  const mod = await import('./readingPlans.generated');
+  const planIds = [...new Set(mod.readingPlanEntries.map((entry) => entry.plan_id))];
+
+  // The module sorts by code unit instead of localeCompare; that is only the same
+  // order while every id is a lowercase ASCII slug.
+  planIds.forEach((planId) => assert.match(planId, /^[a-z0-9-]+$/));
+  assert.deepEqual(
+    planIds,
+    [...planIds].sort((left, right) => left.localeCompare(right))
+  );
+  assert.equal(planIds.length, mod.readingPlans.length);
+
+  mod.readingPlanEntries.forEach((entry, index) => {
+    const previous = mod.readingPlanEntries[index - 1];
+    if (previous?.plan_id === entry.plan_id) {
+      assert.ok(
+        previous.day_number <= entry.day_number,
+        `${entry.plan_id} day ${entry.day_number}`
+      );
+    }
+  });
+});

@@ -1004,7 +1004,11 @@ export const readingPlanEntries = [
   .flatMap((item) => item.entries)
   .sort((left, right) => {
     if (left.plan_id !== right.plan_id) {
-      return left.plan_id.localeCompare(right.plan_id);
+      // Plan ids are lowercase ASCII slugs, so comparing code units gives the
+      // localeCompare order without an ICU collation per comparison. This sort
+      // runs at module eval over every entry, and Hermes on Android makes each
+      // localeCompare call a JNI round-trip.
+      return left.plan_id < right.plan_id ? -1 : 1;
     }
     return left.day_number - right.day_number;
   });

@@ -1,8 +1,3 @@
-import {
-  readingPlanEntriesByPlanId,
-  readingPlans,
-  readingPlansById,
-} from '../../data/readingPlans.generated';
 import { readingPlansStore, type ReadingPlansStoreApi } from '../../stores/readingPlansStore';
 import {
   buildRemoteReadingPlanProgressPayload,
@@ -31,6 +26,15 @@ import {
   STALE_SYNC_ERROR,
   type SyncIdentityBoundary,
 } from '../sync/syncIdentity';
+
+type ReadingPlanCatalog = typeof import('../../data/readingPlans.generated');
+
+// HomeScreen imports this service for listReadingPlans(), which it calls from an
+// effect. Building the catalog expands every plan into its daily entries, so load
+// it on the first call instead of while Home's module graph evaluates.
+function readingPlanCatalog(): ReadingPlanCatalog {
+  return require('../../data/readingPlans.generated') as ReadingPlanCatalog;
+}
 
 export interface PlanServiceResult<T = undefined> {
   success: boolean;
@@ -183,11 +187,13 @@ export const resolvePlanSyncIdentity = async (
 };
 
 function getPlan(planId: string): ReadingPlan | undefined {
-  return readingPlansById.get(planId);
+  return readingPlanCatalog().readingPlansById.get(planId);
 }
 
 function getSortedPlans(): ReadingPlan[] {
-  return [...readingPlans].sort((left, right) => left.sort_order - right.sort_order);
+  return [...readingPlanCatalog().readingPlans].sort(
+    (left, right) => left.sort_order - right.sort_order
+  );
 }
 
 function shouldSyncPlanProgressRemotely(planId?: string): boolean {
@@ -257,7 +263,7 @@ export function createReadingPlanService(store: ReadingPlansStoreApi): ReadingPl
 
     getPlanEntries: async (planId: string) => ({
       success: true,
-      data: readingPlanEntriesByPlanId[planId] ?? [],
+      data: readingPlanCatalog().readingPlanEntriesByPlanId[planId] ?? [],
     }),
 
     enrollInPlan: async (planId: string) => {
@@ -304,7 +310,7 @@ export function createReadingPlanService(store: ReadingPlansStoreApi): ReadingPl
       }
 
       const sessionGroups = getDaySessionEntries(
-        readingPlanEntriesByPlanId[planId] ?? [],
+        readingPlanCatalog().readingPlanEntriesByPlanId[planId] ?? [],
         dayNumber
       );
       const sessionIndex = sessionGroups.findIndex((group) => group.sessionKey === sessionKey);
@@ -372,7 +378,7 @@ export async function listReadingPlans(): Promise<PlanServiceResult<ReadingPlan[
 export async function getPlanEntries(
   planId: string
 ): Promise<PlanServiceResult<ReadingPlanEntry[]>> {
-  return { success: true, data: readingPlanEntriesByPlanId[planId] ?? [] };
+  return { success: true, data: readingPlanCatalog().readingPlanEntriesByPlanId[planId] ?? [] };
 }
 
 /**
@@ -770,7 +776,10 @@ export async function markPlanSessionComplete(
     return { success: false, error: 'Plan not found' };
   }
 
-  const sessionGroups = getDaySessionEntries(readingPlanEntriesByPlanId[planId] ?? [], dayNumber);
+  const sessionGroups = getDaySessionEntries(
+    readingPlanCatalog().readingPlanEntriesByPlanId[planId] ?? [],
+    dayNumber
+  );
   const sessionIndex = sessionGroups.findIndex((group) => group.sessionKey === sessionKey);
   if (sessionIndex < 0) {
     return { success: false, error: 'Plan session not found' };
