@@ -16,14 +16,19 @@ function collectScreenSources(dir: string): string[] {
     const absolute = path.join(dir, entry.name);
 
     if (entry.isDirectory()) {
-      if (entry.name === 'node_modules' || entry.name === '__snapshots__') {
+      // src/testing is node:test infrastructure, not app UI.
+      if (
+        entry.name === 'node_modules' ||
+        entry.name === '__snapshots__' ||
+        entry.name === 'testing'
+      ) {
         continue;
       }
       files.push(...collectScreenSources(absolute));
       continue;
     }
 
-    if (entry.isFile() && entry.name.endsWith('.tsx')) {
+    if (entry.isFile() && entry.name.endsWith('.tsx') && !entry.name.endsWith('.test.tsx')) {
       files.push(absolute);
     }
   }

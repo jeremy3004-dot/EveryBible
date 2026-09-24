@@ -14,8 +14,11 @@
  * re-mocking.
  */
 import { createHash } from 'node:crypto';
+import { existsSync, readFileSync, statSync } from 'node:fs';
+import { createRequire, registerHooks } from 'node:module';
+import { dirname, join } from 'node:path';
 import type { MockTracker } from 'node:test';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createReactNativeStub, type ReactNativeStubOptions } from './reactNativeStub';
 import type { SupabaseFake } from './supabaseFake';
 
@@ -38,6 +41,71 @@ export function mockModule(
     });
   }
   return mocker.module(specifier, { exports } as unknown as ModuleMockOptions);
+}
+
+/**
+ * Mock a package under both of its resolutions. A dual package (an `exports`
+ * map with separate `import` and `require` files, like lucide-react-native or
+ * supabase-js) resolves to a different file for tsx's `require()` than for the
+ * bare-specifier mock, and the real package would load behind the mock.
+ */
+export function mockPackage(
+  mocker: MockTracker,
+  specifier: string,
+  moduleExports: Record<string, unknown>
+): void {
+  // A CommonJS `require()` of a mock gets its default export with the named
+  // exports assigned onto it, which Node refuses when the default is a function
+  // (react-native-svg's default is the `Svg` component). Hand such packages over
+  // as an ES-module-shaped object instead; tsx's import interop unwraps it.
+  const exports =
+    typeof moduleExports.default === 'function'
+      ? { default: { __esModule: true, ...moduleExports } }
+      : moduleExports;
+  mockModule(mocker, specifier, exports);
+  let requirePath: string | null = null;
+  try {
+    requirePath = createRequire(import.meta.url).resolve(specifier);
+  } catch {
+    // Not installed (or not resolvable with the require condition): the bare mock is enough.
+  }
+  if (requirePath) {
+    skipRealSource(requirePath);
+    try {
+      mockModule(mocker, requirePath, exports);
+    } catch (error) {
+      // Single-entry packages resolve to the file the bare mock already covers.
+      if ((error as { code?: string }).code !== 'ERR_INVALID_STATE') throw error;
+    }
+  }
+}
+
+/**
+ * Node's module mock still asks the loader chain for the real file's source
+ * before substituting the mock, so tsx tries to compile it. Packages that ship
+ * untranspiled Flow or JSX (react-native-view-shot's `src/index.js`) fail right
+ * there, and the error surfaces wherever the package is imported. Hand the
+ * chain an empty module for mocked package files instead; the mock replaces it.
+ *
+ * The hook must be registered before the first `mock.module` call of the
+ * process (Node's mock hooks then run ahead of it), hence at import time here.
+ */
+const skippedSources = new Set<string>();
+if (typeof registerHooks === 'function') {
+  registerHooks({
+    load(url, context, nextLoad) {
+      if (skippedSources.has(url.split(/[?#]/)[0])) {
+        return { format: 'commonjs', source: 'module.exports = {};', shortCircuit: true };
+      }
+      return nextLoad(url, context);
+    },
+  });
+}
+
+function skipRealSource(filePath: string) {
+  if (filePath.includes(join('node_modules', ''))) {
+    skippedSources.add(pathToFileURL(filePath).href);
+  }
 }
 
 /** Absolute path of a repo source file, for `mock.module` keys. */
@@ -232,4 +300,106 @@ export function mockExpoCrypto(mocker: MockTracker) {
   };
 
   return { state, reset };
+}
+
+const SOURCE_EXTENSIONS = ['', '.ts', '.tsx', '/index.ts', '/index.tsx'];
+
+function resolveSourceFile(fromFile: string, specifier: string): string {
+  const base = join(dirname(fromFile), specifier);
+  for (const extension of SOURCE_EXTENSIONS) {
+    const candidate = base + extension;
+    if (existsSync(candidate) && statSync(candidate).isFile()) return candidate;
+  }
+  throw new Error(`mockBarrel: cannot resolve ${specifier} from ${fromFile}`);
+}
+
+/** Value exports of a source file: exported name -> [defining file, name there]. */
+function readValueExports(file: string): Map<string, [string, string]> {
+  const source = readFileSync(file, 'utf8');
+  const found = new Map<string, [string, string]>();
+  for (const match of source.matchAll(/export\s*\{([^}]*)\}\s*from\s*'([^']+)'/g)) {
+    const target = resolveSourceFile(file, match[2]);
+    for (const raw of match[1].split(',')) {
+      const entry = raw.trim();
+      if (!entry || entry.startsWith('type ')) continue;
+      const [original, alias] = entry.split(/\s+as\s+/);
+      found.set(alias ?? original, [target, original]);
+    }
+  }
+  for (const match of source.matchAll(/export\s*\*\s*from\s*'([^']+)'/g)) {
+    const target = resolveSourceFile(file, match[1]);
+    for (const [name, origin] of readValueExports(target)) found.set(name, origin);
+  }
+  for (const match of source.matchAll(
+    /export\s+(?:declare\s+)?(?:async\s+)?(?:const|let|var|function\*?|class|enum)\s+(\w+)/g
+  )) {
+    found.set(match[1], [file, match[1]]);
+  }
+  return found;
+}
+
+/**
+ * An export the test did not provide. Using it (calling it, reading a property)
+ * throws a message naming the missing fake, instead of an opaque
+ * `undefined is not a function` deep inside a render.
+ */
+function notProvided(barrel: string, name: string): unknown {
+  const fail = () => {
+    throw new Error(
+      `${name} from ${barrel} is not faked in this test: pass it to mockBarrel(..., { provide: { ${name} } })`
+    );
+  };
+  return new Proxy(fail, {
+    apply: fail,
+    get: (_target, property) => {
+      if (typeof property === 'symbol' || property === 'then' || property === '$$typeof') {
+        return undefined;
+      }
+      return fail();
+    },
+  });
+}
+
+export interface MockBarrelOptions {
+  /** Fakes for the exports the code under test uses. */
+  provide?: Record<string, unknown>;
+  /**
+   * Exports to take from their real defining module, loaded now, so every mock
+   * they depend on must already be installed. For light modules only.
+   */
+  real?: string[];
+}
+
+/**
+ * Replace a barrel (`hooks/index.ts`, `stores/index.ts`, ...) so that importing
+ * it does not load everything it re-exports. Every value export still exists:
+ * `provide`d ones are the given fakes, `real` ones come from their own file, and
+ * the rest throw a descriptive error when used.
+ */
+export function mockBarrel(
+  mocker: MockTracker,
+  barrelRelativeToSrc: string,
+  options: MockBarrelOptions = {}
+): Record<string, unknown> {
+  const barrelFile = sourcePath(barrelRelativeToSrc);
+  const provide = options.provide ?? {};
+  const real = new Set(options.real ?? []);
+  const requireSource = createRequire(import.meta.url);
+  const exports: Record<string, unknown> = {};
+  for (const [name, [file, original]] of readValueExports(barrelFile)) {
+    if (name in provide) {
+      exports[name] = provide[name];
+    } else if (real.has(name)) {
+      exports[name] = (requireSource(file) as Record<string, unknown>)[original];
+    } else {
+      exports[name] = notProvided(barrelRelativeToSrc, name);
+    }
+  }
+  for (const name of [...Object.keys(provide), ...real]) {
+    if (!(name in exports)) {
+      throw new Error(`mockBarrel: ${barrelRelativeToSrc} does not export ${name}`);
+    }
+  }
+  mockModule(mocker, barrelFile, exports);
+  return exports;
 }

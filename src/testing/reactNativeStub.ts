@@ -116,6 +116,10 @@ export function createReactNativeStub(options: ReactNativeStubOptions = {}) {
     openURL: async (url: string) => {
       openedUrls.push(url);
     },
+    /** Recorded in openedUrls as `app-settings:`, like iOS's own settings URL. */
+    openSettings: async () => {
+      openedUrls.push('app-settings:');
+    },
     canOpenURL: async (_url: string) => true,
     getInitialURL: async () => null as string | null,
     addEventListener: (event: string, listener: Listener) => linkingRegistry.add(event, listener),

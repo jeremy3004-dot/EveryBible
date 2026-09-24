@@ -33,7 +33,12 @@ const NESTED_ALLOWED: Record<string, number> = {
 function sourceFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const file = path.join(directory, entry.name);
-    return entry.isDirectory() ? sourceFiles(file) : file.endsWith('.tsx') ? [file] : [];
+    // Render tests (*.test.tsx) build throwaway trees; only app UI is audited.
+    return entry.isDirectory()
+      ? sourceFiles(file)
+      : file.endsWith('.tsx') && !file.endsWith('.test.tsx')
+        ? [file]
+        : [];
   });
 }
 
