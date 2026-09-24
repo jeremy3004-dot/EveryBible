@@ -1560,7 +1560,8 @@ export function BibleReaderScreen() {
     [colors.bibleAccent]
   );
   const selectedVerseSet = useMemo(() => new Set(selectedVerses), [selectedVerses]);
-  const isShowingRouteChapter = versesChapterKey === readerChapterKey(bookId, chapter);
+  const isShowingRouteChapter =
+    versesChapterKey === readerChapterKey(currentTranslation, bookId, chapter);
   // Read at press time: memoized paragraph blocks keep the verse press handler they last
   // rendered with, which can predate the chapter change.
   const isShowingRouteChapterRef = useRef(isShowingRouteChapter);
