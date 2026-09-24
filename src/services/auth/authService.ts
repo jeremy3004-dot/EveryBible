@@ -9,6 +9,7 @@ import {
 import { Platform } from 'react-native';
 import type { User } from '../../types';
 import { publicRuntimeConfig } from '../startup/publicRuntimeConfig';
+import { withPrivacyLockGrace } from '../privacy/privacyLockGrace';
 import { createGoogleSignInInitializer } from './googleSignIn';
 import { isDeviceOffline, mapSupabaseUser } from './authSession';
 import type { AuthErrorCode } from './authErrors';
@@ -145,13 +146,17 @@ export const signInWithApple = async (): Promise<AuthResult> => {
       return serviceUnavailableAuthError(e);
     }
 
-    const credential = await AppleAuthentication.signInAsync({
-      requestedScopes: [
-        AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-        AppleAuthentication.AppleAuthenticationScope.EMAIL,
-      ],
-      nonce: nonce.hashed,
-    });
+    // iOS turns the app inactive under the native Apple sheet; discreet mode must
+    // not take that for the reader leaving and lock mid-sign-in.
+    const credential = await withPrivacyLockGrace(() =>
+      AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+        nonce: nonce.hashed,
+      })
+    );
 
     if (!credential.identityToken) {
       return providerUnavailableAuthError('No identity token received');
@@ -217,11 +222,14 @@ export const signInWithGoogle = async (): Promise<AuthResult> => {
       );
     }
 
+    // Both calls can turn the app inactive under native Google UI (the Play
+    // Services update prompt, the account picker sheet); discreet mode must not
+    // take that for the reader leaving and lock mid-sign-in.
     if (Platform.OS === 'android') {
-      await GoogleSignin.hasPlayServices();
+      await withPrivacyLockGrace(() => GoogleSignin.hasPlayServices());
     }
 
-    const response = await GoogleSignin.signIn();
+    const response = await withPrivacyLockGrace(() => GoogleSignin.signIn());
 
     // google-signin v16 RESOLVES with { type: 'cancelled', data: null } when the
     // user backs out — it no longer throws statusCodes.SIGN_IN_CANCELLED. Map it to
