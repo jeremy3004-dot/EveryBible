@@ -113,6 +113,33 @@ module.exports = [
       },
     },
   },
+  {
+    // Supabase edge functions run on Deno. They import by URL (https://esm.sh/...),
+    // npm: and jsr: specifiers, which ESLint does not resolve, so no import rule
+    // applies. no-undef stays off (TypeScript checks names); the globals below
+    // document the runtime. Their *.test.ts files run under node --test.
+    files: ['supabase/functions/**/*.ts'],
+    languageOptions: {
+      globals: {
+        Deno: 'readonly',
+        crypto: 'readonly',
+        TextEncoder: 'readonly',
+        TextDecoder: 'readonly',
+        atob: 'readonly',
+        btoa: 'readonly',
+        queueMicrotask: 'readonly',
+        structuredClone: 'readonly',
+      },
+    },
+    rules: {
+      // `const { field: _field, ...rest } = obj` is how these handlers and their
+      // tests drop a field; the rest sibling is the value that gets used.
+      '@typescript-eslint/no-unused-vars': [
+        'warn',
+        { argsIgnorePattern: '^_', ignoreRestSiblings: true },
+      ],
+    },
+  },
   prettier,
   {
     ignores: [
@@ -132,7 +159,6 @@ module.exports = [
       '.gsd/',
       'apps/',
       'packages/',
-      'supabase/functions/',
       'qa-evidence/',
       'output/',
       'logs/',
