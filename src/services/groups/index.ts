@@ -19,6 +19,7 @@ export {
 } from './groupServiceGuards';
 export type { SyncedGroupServiceAvailability } from './groupServiceGuards';
 export {
+  completeSyncedGroupSession,
   createSyncedGroup,
   getSyncedGroup,
   joinSyncedGroup,
@@ -27,4 +28,4 @@ export {
   recordSyncedGroupSession,
   updateSyncedGroupLesson,
 } from './groupService';
-export type { SyncedGroup } from './groupService';
+export type { SyncedGroup, SyncedGroupSessionCompletion } from './groupService';

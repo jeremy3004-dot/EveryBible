@@ -1872,7 +1872,8 @@ export const es = {
       "backendUnavailable": "Esta versión aún no está configurada para grabar sesiones de grupo sincronizadas.",
       "signInRequired": "Debes iniciar sesión antes de guardar una sesión de grupo sincronizada.",
       "saveFailedTitle": "No se pudo guardar la sesión sincronizada",
-      "saveFailedDefault": "No se pudo guardar la sesión del grupo sincronizado."
+      "saveFailedDefault": "No se pudo guardar la sesión del grupo sincronizado.",
+      "savedLessonUnchanged": "La sesión se guardó, pero el grupo no pudo pasar a la siguiente lección."
     }
   },
   "translations": {

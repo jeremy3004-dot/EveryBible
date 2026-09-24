@@ -1404,7 +1404,8 @@ export const ja = {
       "backendUnavailable": "このビルドは、同期グループの記録にまだ対応していません。",
       "signInRequired": "同期グループのセッションを保存するにはログインが必要です。",
       "saveFailedTitle": "同期セッションを保存できません",
-      "saveFailedDefault": "同期グループのセッションを保存できませんでした。"
+      "saveFailedDefault": "同期グループのセッションを保存できませんでした。",
+      "savedLessonUnchanged": "セッションは保存されましたが、グループを次のレッスンに進めることができませんでした。"
     }
   },
   "prayer": {

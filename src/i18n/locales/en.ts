@@ -1485,6 +1485,8 @@ export const en = {
       signInRequired: 'You must be signed in before you can save a synced group session.',
       saveFailedTitle: 'Unable to save synced session',
       saveFailedDefault: 'Synced group session could not be saved.',
+      savedLessonUnchanged:
+        'The session was saved, but the group could not move on to the next lesson.',
     },
   },
   prayer: {

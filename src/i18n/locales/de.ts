@@ -1404,7 +1404,8 @@ export const de = {
       "backendUnavailable": "Diese Version ist noch nicht für synchronisierte Gruppenaufzeichnungen konfiguriert.",
       "signInRequired": "Du musst angemeldet sein, um ein synchronisiertes Gruppentreffen zu speichern.",
       "saveFailedTitle": "Synchronisiertes Treffen kann nicht gespeichert werden",
-      "saveFailedDefault": "Das synchronisierte Gruppentreffen konnte nicht gespeichert werden."
+      "saveFailedDefault": "Das synchronisierte Gruppentreffen konnte nicht gespeichert werden.",
+      "savedLessonUnchanged": "Das Gruppentreffen wurde gespeichert, aber die Gruppe konnte nicht zur nächsten Lektion wechseln."
     }
   },
   "prayer": {

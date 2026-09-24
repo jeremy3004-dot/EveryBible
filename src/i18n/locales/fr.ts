@@ -1414,7 +1414,8 @@ export const fr = {
       "backendUnavailable": "Cette version n’est pas encore configurée pour l’enregistrement synchronisé des rencontres de groupe.",
       "signInRequired": "Vous devez être connecté pour enregistrer une rencontre de groupe synchronisée.",
       "saveFailedTitle": "Impossible d’enregistrer la rencontre synchronisée",
-      "saveFailedDefault": "La rencontre de groupe synchronisée n’a pas pu être enregistrée."
+      "saveFailedDefault": "La rencontre de groupe synchronisée n’a pas pu être enregistrée.",
+      "savedLessonUnchanged": "La rencontre a été enregistrée, mais le groupe n’a pas pu passer à la leçon suivante."
     }
   },
   "prayer": {

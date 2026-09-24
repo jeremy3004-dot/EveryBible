@@ -1404,7 +1404,8 @@ export const zh = {
       "backendUnavailable": "此版本尚未配置小组聚会同步记录。",
       "signInRequired": "需要先登录，才能保存同步的小组聚会。",
       "saveFailedTitle": "无法保存同步聚会",
-      "saveFailedDefault": "无法保存同步的小组聚会。"
+      "saveFailedDefault": "无法保存同步的小组聚会。",
+      "savedLessonUnchanged": "聚会已保存，但小组未能进入下一节。"
     }
   },
   "prayer": {

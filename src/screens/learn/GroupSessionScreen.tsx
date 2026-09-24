@@ -12,15 +12,19 @@ import { successHaptic } from '../../utils';
 import type { LearnStackParamList } from '../../navigation/types';
 import { useFourFieldsStore } from '../../stores/fourFieldsStore';
 import { useAuthStore } from '../../stores/authStore';
-import { fourFieldsCourses, fieldInfo, FIELD_TITLE_KEYS } from '../../data/fourFieldsCourses';
+import {
+  fourFieldsCourses,
+  fieldInfo,
+  FIELD_TITLE_KEYS,
+  FOUR_FIELDS_LESSON_TITLE_KEYS,
+} from '../../data/fourFieldsCourses';
 import { LessonSectionRenderer } from '../../components/fourfields';
 import {
   buildGroupDetailSnapshot,
+  completeSyncedGroupSession,
   getSyncedGroup,
   getSyncedGroupServiceAvailability,
   loadGroupDetailSnapshot,
-  recordSyncedGroupSession,
-  updateSyncedGroupLesson,
 } from '../../services/groups';
 import { isSupabaseConfigured } from '../../services/supabase';
 import type { GroupDetailSnapshot } from '../../services/groups/groupRepository';
@@ -244,18 +248,22 @@ export function GroupSessionScreen() {
 
     try {
       setIsSavingSynced(true);
-      await recordSyncedGroupSession({
+      const { status } = await completeSyncedGroupSession({
         groupId,
         courseId: group.currentCourseId,
         lessonId: currentLesson.id,
+        isLeader: group.isLeader,
+        nextLesson:
+          nextLesson && currentCourse
+            ? { courseId: currentCourse.id, lessonId: nextLesson.id }
+            : null,
       });
-      if (nextLesson && currentCourse) {
-        await updateSyncedGroupLesson(groupId, {
-          current_course_id: currentCourse.id,
-          current_lesson_id: nextLesson.id,
-        });
-      }
       successHaptic();
+      if (status === 'saved-lesson-unchanged') {
+        // The session is recorded; saying "could not be saved" would invite a
+        // retry that records it (and notifies every member) twice.
+        Alert.alert(t('groups.syncSession.savedLessonUnchanged'));
+      }
       navigation.goBack();
     } catch {
       const message = t('groups.syncSession.saveFailedDefault');
@@ -354,7 +362,9 @@ export function GroupSessionScreen() {
               </Text>
             </View>
             <Text style={[styles.lessonTitle, { color: colors.primaryText }]}>
-              {currentLesson.title}
+              {t(FOUR_FIELDS_LESSON_TITLE_KEYS[currentLesson.id], {
+                defaultValue: currentLesson.title,
+              })}
             </Text>
           </View>
         )}
