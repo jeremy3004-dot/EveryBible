@@ -21,6 +21,7 @@ import {
   sharedPasscodeRequestKind,
   type TranslatorAccess,
 } from './translatorAccess.ts';
+import { isStorableText } from '../_shared/storableText.ts';
 import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
@@ -101,6 +102,38 @@ const trimRequiredText = (value: unknown): string | null => {
 
 const isResolution = (value: unknown): value is ReviewResolution =>
   value === 'fixed' || value === 'no_change_needed';
+
+// Values that reach a typed column or RPC parameter are checked here, so a client mistake is a
+// 400 instead of a failed uuid/integer/bigint/boolean cast answered as a 500.
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// Stored book ids are the upper-case three-character codes submit-chapter-feedback validates.
+const BOOK_ID_PATTERN = /^[0-9A-Z]{3}$/;
+// Psalms has the most chapters.
+const MAX_CHAPTER = 150;
+
+const isUuid = (value: unknown): value is string =>
+  typeof value === 'string' && UUID_PATTERN.test(value);
+
+const isOptionalBoolean = (value: unknown): boolean =>
+  value === undefined || value === null || typeof value === 'boolean';
+
+const isNonNegativeSafeInteger = (value: unknown): boolean =>
+  Number.isSafeInteger(value) && (value as number) >= 0;
+
+// The only cursor a client can hold is the nextCursor chapter_feedback_review_v2 returned.
+const isPageCursor = (value: unknown): boolean => {
+  if (value === undefined || value === null) return true;
+  if (typeof value !== 'object' || Array.isArray(value)) return false;
+  const cursor = value as Record<string, unknown>;
+  return (
+    isNonNegativeSafeInteger(cursor.snapshot) &&
+    isNonNegativeSafeInteger(cursor.sequence) &&
+    (cursor.sentiment === 'up' || cursor.sentiment === 'down')
+  );
+};
+
+const invalidFeedbackId = () =>
+  jsonResponse(400, { success: false, error: 'feedbackId must be a UUID' });
 
 // Brute-force protection for translator passcodes (S2) lives in
 // _shared/passcodeAttempts.ts, keyed on the edge-stamped client address (never on the
@@ -271,6 +304,7 @@ Deno.serve(async (request) => {
         return jsonResponse(400, { success: false, error: 'translationId is required' });
       }
       if (!accessCoversTranslation(access, translationId)) return translationNotCovered();
+      if (!isUuid(feedbackId)) return invalidFeedbackId();
 
       // Confirm the row exists and belongs to the requested translation before mutating.
       const { data: existing, error: existingError } = await service
@@ -325,6 +359,9 @@ Deno.serve(async (request) => {
           error: 'note must be 1000 characters or fewer',
         });
       }
+      if (!isStorableText(note)) {
+        return jsonResponse(400, { success: false, error: 'note contains invalid characters' });
+      }
 
       const fixedBy = await resolveActingUserId(request, service);
 
@@ -363,21 +400,32 @@ Deno.serve(async (request) => {
     if (!accessCoversTranslation(access, translationId)) return translationNotCovered();
 
     const hasChapter = body.chapter != null;
-    if (hasChapter && (!bookId || !Number.isInteger(body.chapter) || (body.chapter ?? 0) < 1)) {
+    if (
+      hasChapter &&
+      (!bookId ||
+        !Number.isInteger(body.chapter) ||
+        (body.chapter ?? 0) < 1 ||
+        (body.chapter ?? 0) > MAX_CHAPTER)
+    ) {
       return jsonResponse(400, {
         success: false,
         error: 'bookId and a valid chapter are required',
       });
     }
+    if (bookId && !BOOK_ID_PATTERN.test(bookId)) {
+      return jsonResponse(400, { success: false, error: 'bookId is not a valid book code' });
+    }
 
     if (body.apiVersion === 2 && body.action === 'audioUrl') {
-      if (!hasChapter || !trimRequiredText(body.feedbackId)) {
+      const feedbackId = trimRequiredText(body.feedbackId);
+      if (!hasChapter || !feedbackId) {
         return jsonResponse(400, { success: false, error: 'Chapter and feedbackId required' });
       }
+      if (!isUuid(feedbackId)) return invalidFeedbackId();
       const { data: audio, error } = await service
         .from('chapter_feedback_submissions')
         .select('audio_response_bucket, audio_response_path')
-        .eq('id', body.feedbackId)
+        .eq('id', feedbackId)
         .eq('translation_id', translationId)
         .eq('book_id', bookId)
         .eq('chapter', body.chapter)
@@ -399,9 +447,14 @@ Deno.serve(async (request) => {
       const status = body.status ?? 'pending';
       if (
         !['all', 'community', 'scripture_council'].includes(category) ||
-        !['pending', 'reviewed', 'all'].includes(status)
+        !['pending', 'reviewed', 'all'].includes(status) ||
+        !isOptionalBoolean(body.positiveOnly) ||
+        !isOptionalBoolean(body.summaryOnly)
       ) {
         return jsonResponse(400, { success: false, error: 'Invalid feedback filter' });
+      }
+      if (!isPageCursor(body.cursor)) {
+        return jsonResponse(400, { success: false, error: 'Invalid page cursor' });
       }
       if (body.action === 'positivePreview' || body.action === 'reviewPositiveIds') {
         if (!hasChapter) return jsonResponse(400, { success: false, error: 'Chapter required' });
@@ -409,7 +462,7 @@ Deno.serve(async (request) => {
           body.action === 'reviewPositiveIds' &&
           (!Array.isArray(body.feedbackIds) ||
             body.feedbackIds.length > 500 ||
-            !body.feedbackIds.every((id) => typeof id === 'string'))
+            !body.feedbackIds.every(isUuid))
         ) {
           return jsonResponse(400, { success: false, error: 'Invalid response selection' });
         }
