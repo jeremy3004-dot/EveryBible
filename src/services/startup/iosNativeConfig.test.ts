@@ -4,6 +4,15 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import plist from '@expo/plist';
+
+interface PrivacyManifest {
+  NSPrivacyAccessedAPITypes?: {
+    NSPrivacyAccessedAPIType: string;
+    NSPrivacyAccessedAPITypeReasons: string[];
+  }[];
+  NSPrivacyTracking?: boolean;
+}
 
 type ExpoPlugin = string | [string, { assets?: string[] }];
 
@@ -16,6 +25,7 @@ interface AppConfig {
         NSPhotoLibraryUsageDescription?: string;
         UIBackgroundModes?: string[];
       };
+      privacyManifests?: PrivacyManifest;
     };
     plugins?: ExpoPlugin[];
   };
@@ -91,6 +101,43 @@ test('ios Info.plist keeps image permission purpose strings aligned with app con
     ),
     'Expected ios/EveryBible/Info.plist to mirror NSPhotoLibraryUsageDescription from app.json'
   );
+});
+
+test('ios privacy manifest declares required-reason APIs in app.json and the committed file', () => {
+  // Prebuild does not run for iOS here, so the committed PrivacyInfo.xcprivacy is what ships.
+  // app.json carries the same declaration so a future prebuild cannot silently drop a
+  // category (App Store Connect rejects uploads with ITMS-91053 when one is missing).
+  // MMKV, expo-file-system, React Native and AsyncStorage use all four categories below.
+  const appConfig = readRootJson<AppConfig>('app.json');
+  // Round-trip through JSON so plist's null-prototype objects compare structurally.
+  const committed = JSON.parse(
+    JSON.stringify(plist.parse(readRootFile('ios/EveryBible/PrivacyInfo.xcprivacy')))
+  ) as PrivacyManifest;
+  const configured = appConfig.expo.ios?.privacyManifests;
+
+  assert.ok(configured, 'Expected app.json to declare expo.ios.privacyManifests');
+  assert.deepEqual(
+    configured.NSPrivacyAccessedAPITypes,
+    committed.NSPrivacyAccessedAPITypes,
+    'app.json privacyManifests must match ios/EveryBible/PrivacyInfo.xcprivacy'
+  );
+  assert.equal(configured.NSPrivacyTracking, false);
+  assert.equal(committed.NSPrivacyTracking, false);
+
+  const categories = (committed.NSPrivacyAccessedAPITypes ?? []).map(
+    (entry) => entry.NSPrivacyAccessedAPIType
+  );
+  for (const required of [
+    'NSPrivacyAccessedAPICategoryFileTimestamp',
+    'NSPrivacyAccessedAPICategoryUserDefaults',
+    'NSPrivacyAccessedAPICategoryDiskSpace',
+    'NSPrivacyAccessedAPICategorySystemBootTime',
+  ]) {
+    assert.ok(
+      categories.includes(required),
+      `Expected the privacy manifest to declare ${required}`
+    );
+  }
 });
 
 test('ios Info.plist keeps both app and Google URL schemes for sign-in callbacks', () => {
