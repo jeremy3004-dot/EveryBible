@@ -25,7 +25,8 @@ interface TranslationRowProps {
   onCancelQueued: (id: string) => void;
 }
 
-const CANCEL_HIT_SLOP = { top: 8, bottom: 8, left: 8, right: 8 };
+// A 20pt glyph: 12pt a side makes the 44pt touch floor.
+const CANCEL_HIT_SLOP = { top: 12, bottom: 12, left: 12, right: 12 };
 const MORE_HIT_SLOP = { top: 6, bottom: 6, left: 6, right: 6 };
 
 // One row per Bible. Tap the row to read it (or start its download); the

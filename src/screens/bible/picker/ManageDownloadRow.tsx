@@ -7,7 +7,8 @@ import { DOWNLOAD_PROGRESS_HEIGHT, groupRowStyle, pickerStyles as styles } from 
 import { getManageRowAccessibilityValue, type ManageRowState } from './translationManageModel';
 import type { GroupPosition } from './translationPickerRowsModel';
 
-const CANCEL_HIT_SLOP = { top: 8, bottom: 8, left: 8, right: 8 };
+// A 20pt glyph: 12pt a side makes the 44pt touch floor.
+const CANCEL_HIT_SLOP = { top: 12, bottom: 12, left: 12, right: 12 };
 
 /** The trailing status of a manage-sheet download row: tick, cloud, download, or spinner. */
 export function ManageStatusGlyph({ state }: { state: ManageRowState }) {

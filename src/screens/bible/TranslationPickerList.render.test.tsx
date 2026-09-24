@@ -245,7 +245,10 @@ test('a runtime translation that needs its text downloads in place, then opens o
   const bar = within(row).getByRole('progressbar', { name: t('translations.downloading') });
   assert.equal(bar.props.accessibilityValue.now, 40);
   assert.ok(within(row).getByText('40%'));
-  await view.press(within(row).getByRole('button', { name: t('translations.cancelDownload') }));
+  const cancel = within(row).getByRole('button', { name: t('translations.cancelDownload') });
+  // A 20pt glyph widened to the 44pt touch floor.
+  assert.deepEqual(cancel.props.hitSlop, { top: 12, bottom: 12, left: 12, right: 12 });
+  await view.press(cancel);
   assert.deepEqual(log.at(-1), ['cancelDownload']);
 
   log.length = 0;

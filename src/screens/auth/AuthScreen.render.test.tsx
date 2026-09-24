@@ -225,6 +225,13 @@ test('the password field keeps its autofill hint per mode and the reveal toggle 
   assert.equal(password().props.textContentType, 'password');
   assert.equal(password().props.secureTextEntry, true);
 
+  // An 18pt glyph widened to the 44pt touch floor.
+  assert.deepEqual(view.getByRole('button', { name: t('auth.showPassword') }).props.hitSlop, {
+    top: 8,
+    bottom: 8,
+    left: 13,
+    right: 13,
+  });
   await view.press(view.getByRole('button', { name: t('auth.showPassword') }));
   assert.equal(password().props.secureTextEntry, false);
   assert.ok(view.getByRole('button', { name: t('auth.hidePassword') }));
