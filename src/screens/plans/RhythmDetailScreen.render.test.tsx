@@ -1,0 +1,234 @@
+import test, { afterEach, mock } from 'node:test';
+import assert from 'node:assert/strict';
+import type { Mutate } from 'zustand/vanilla';
+import { create } from 'zustand';
+import { mockMmkvStorage, mockModule, sourcePath } from '../../testing/mockModules';
+import { installRenderHarness, within } from '../../testing/render';
+import type { RhythmDetailScreenProps } from '../../navigation/types';
+import type { ReadingPlanRhythmItem, UserReadingPlanProgress } from '../../services/plans/types';
+import type { ReadingPlansStoreApi } from '../../stores/readingPlansStore';
+
+// The real reading-plans store runs behind an in-memory MMKV; the plan catalog is the bundled one.
+mockMmkvStorage(mock);
+const harness = installRenderHarness(mock);
+const t = harness.i18n.t.bind(harness.i18n);
+
+const rootCalls: Array<{ name: string; params: Record<string, unknown> }> = [];
+mockModule(mock, sourcePath('navigation/rootNavigation.ts'), {
+  rootNavigationRef: {
+    isReady: () => true,
+    navigate: (name: string, params: Record<string, unknown>) => rootCalls.push({ name, params }),
+  },
+});
+
+const bibleStore = create(() => ({ preferredChapterLaunchMode: 'listen' as 'listen' | 'read' }));
+const audioStore = create(() => ({ status: 'idle' as string }));
+mockModule(mock, sourcePath('stores/bibleStore.ts'), { useBibleStore: bibleStore });
+mockModule(mock, sourcePath('stores/audioStore.ts'), { useAudioStore: audioStore });
+mockModule(mock, sourcePath('stores/libraryStore.ts'), {
+  useLibraryStore: create(() => ({ history: [] })),
+});
+mockModule(mock, sourcePath('stores/progressStore.ts'), {
+  useProgressStore: create(() => ({ chaptersRead: {} })),
+});
+
+const PLAN_ID = 'psalms-30-days';
+
+type PersistedReadingPlansStore = Mutate<ReadingPlansStoreApi, [['zustand/persist', unknown]]>;
+
+async function loadStore() {
+  const { readingPlansStore } = await import('../../stores/readingPlansStore');
+  // The store is built with zustand's persist middleware, which its exported API type omits.
+  const { persist } = readingPlansStore as PersistedReadingPlansStore;
+  // Let the start-up rehydration finish first, so it cannot overwrite what a test seeds.
+  if (!persist.hasHydrated()) await persist.rehydrate();
+  return readingPlansStore;
+}
+
+afterEach(async () => {
+  const store = await loadStore();
+  store.setState(store.getInitialState(), true);
+  bibleStore.setState(bibleStore.getInitialState(), true);
+  audioStore.setState(audioStore.getInitialState(), true);
+  rootCalls.length = 0;
+});
+
+const progress = (overrides: Partial<UserReadingPlanProgress> = {}): UserReadingPlanProgress => ({
+  id: `progress-${PLAN_ID}`,
+  plan_id: PLAN_ID,
+  started_at: '2026-09-01T00:00:00.000Z',
+  completed_entries: {},
+  current_day: 1,
+  is_completed: false,
+  completed_at: null,
+  synced_at: '2026-09-01T00:00:00.000Z',
+  ...overrides,
+});
+
+async function seedRhythm(
+  items: ReadingPlanRhythmItem[],
+  planProgress: UserReadingPlanProgress | null = progress(),
+  slot: 'morning' | 'afternoon' | 'evening' = 'morning'
+) {
+  const store = await loadStore();
+  if (planProgress) {
+    store.setState({
+      enrolledPlanIds: [PLAN_ID],
+      progressByPlanId: { [PLAN_ID]: planProgress },
+    });
+  }
+  const result = store.getState().createRhythm({ title: 'Dawn office', slot, items });
+  assert.ok(result.success, `fixture rhythm is valid: ${result.error}`);
+  return result.rhythm!.id;
+}
+
+const psalm63: ReadingPlanRhythmItem = {
+  id: '',
+  type: 'passage',
+  title: 'Evening psalm',
+  bookId: 'PSA',
+  startChapter: 63,
+  endChapter: 63,
+};
+const psalmsPlan: ReadingPlanRhythmItem = { id: '', type: 'plan', planId: PLAN_ID };
+
+async function renderDetail(rhythmId: string) {
+  const { RhythmDetailScreen } = await import('./RhythmDetailScreen');
+  const props = {
+    navigation: harness.navigation.navigation,
+    route: { key: 'rhythm', name: 'RhythmDetail', params: { rhythmId } },
+  } as unknown as RhythmDetailScreenProps;
+  const view = await harness.render(<RhythmDetailScreen {...props} />);
+  await view.flush();
+  return view;
+}
+
+test('the rhythm shows its slot, its ordered sequence and what comes next', async () => {
+  const rhythmId = await seedRhythm([psalm63, psalmsPlan]);
+  const view = await renderDetail(rhythmId);
+
+  assert.ok(view.getByRole('header', { name: 'Dawn office' }));
+  assert.ok(view.getByText(t('readingPlans.morningRhythm')));
+  assert.ok(view.getByText(t('readingPlans.rhythmItemCount', { count: 2 })));
+  assert.ok(view.getByText(t('readingPlans.rhythmSequence')));
+  assert.ok(view.getByText(t('readingPlans.nextUp', { value: 'Evening psalm' })));
+
+  const titles = ['Evening psalm', t('readingPlans.psalms30.title')];
+  const cards = titles.map((title) => view.getByText(title));
+  assert.ok(within(cards[0].parent!.parent!).queryByText(t('readingPlans.repeatablePassage')));
+  assert.ok(view.getByText(t('readingPlans.dayOf', { current: 1, total: 30 })));
+});
+
+test('Continue Rhythm opens the reader on the first chapter with the whole rhythm queued, in the preferred listen mode', async () => {
+  const rhythmId = await seedRhythm([psalm63, psalmsPlan]);
+  const view = await renderDetail(rhythmId);
+
+  await view.press(
+    view.getByRole('button', { name: t('readingPlans.continueRhythm'), disabled: false })
+  );
+
+  assert.equal(rootCalls.length, 1);
+  const [{ name, params }] = rootCalls;
+  assert.equal(name, 'Bible');
+  assert.equal(params.screen, 'BibleReader');
+  const reader = params.params as Record<string, unknown>;
+  assert.equal(reader.bookId, 'PSA');
+  assert.equal(reader.chapter, 63);
+  assert.equal(reader.preferredMode, 'listen');
+  assert.equal(reader.autoplayAudio, true);
+  assert.equal(reader.returnToPlanOnComplete, true);
+  assert.equal(reader.planId, undefined, 'the rhythm starts on a passage, not a plan day');
+
+  const queue = reader.playbackSequenceEntries as Array<{ bookId: string; chapter: number }>;
+  assert.deepEqual(
+    queue.map((entry) => `${entry.bookId} ${entry.chapter}`),
+    ['PSA 63', 'PSA 1', 'PSA 2', 'PSA 3', 'PSA 4', 'PSA 5']
+  );
+  const session = reader.sessionContext as {
+    type: string;
+    rhythmId: string;
+    segments: Array<{ type: string; planId?: string }>;
+  };
+  assert.equal(session.type, 'rhythm');
+  assert.equal(session.rhythmId, rhythmId);
+  assert.deepEqual(
+    session.segments.map((segment) => segment.type),
+    ['passage', 'plan']
+  );
+});
+
+test('a listener who paused audio is not restarted when continuing the rhythm', async () => {
+  audioStore.setState({ status: 'paused' });
+  const rhythmId = await seedRhythm([psalm63]);
+  const view = await renderDetail(rhythmId);
+
+  await view.press(view.getByRole('button', { name: t('readingPlans.continueRhythm') }));
+
+  const reader = rootCalls[0].params.params as Record<string, unknown>;
+  assert.equal(reader.preferredMode, 'listen');
+  assert.equal('autoplayAudio' in reader, false);
+});
+
+test('a reader who prefers reading continues the rhythm in read mode without autoplay', async () => {
+  bibleStore.setState({ preferredChapterLaunchMode: 'read' });
+  const rhythmId = await seedRhythm([psalm63]);
+  const view = await renderDetail(rhythmId);
+
+  await view.press(view.getByRole('button', { name: t('readingPlans.continueRhythm') }));
+
+  const reader = rootCalls[0].params.params as Record<string, unknown>;
+  assert.equal(reader.preferredMode, 'read');
+  assert.equal('autoplayAudio' in reader, false);
+});
+
+test('when every plan in the rhythm is finished, Continue is disabled and the sequence shows the completed state', async () => {
+  const rhythmId = await seedRhythm(
+    [psalmsPlan],
+    progress({ is_completed: true, completed_at: '2026-09-20T00:00:00.000Z' })
+  );
+  const view = await renderDetail(rhythmId);
+
+  const cont = view.getByRole('button', { name: t('readingPlans.continueRhythm'), disabled: true });
+  await view.press(cont);
+  assert.deepEqual(rootCalls, []);
+  assert.equal(view.queryByText(/^Next up:/), null);
+  assert.equal(
+    view.queryByText(t('readingPlans.psalms30.title')),
+    null,
+    'the finished plan has no card'
+  );
+  // The summary falls back to the empty-rhythm copy, and the sequence shows its empty state.
+  assert.equal(view.getAllByText(/^Build a repeatable flow/).length, 2);
+});
+
+test('the edit button opens the composer for this rhythm', async () => {
+  const rhythmId = await seedRhythm([psalm63]);
+  const view = await renderDetail(rhythmId);
+
+  await view.press(view.getByRole('button', { name: t('readingPlans.editRhythm') }));
+
+  assert.deepEqual(harness.navigation.calls, [
+    { method: 'navigate', args: ['RhythmComposer', { rhythmId }] },
+  ]);
+});
+
+test('each slot is named by the shared slot metadata', async () => {
+  for (const [slot, key] of [
+    ['afternoon', 'readingPlans.afternoonRhythm'],
+    ['evening', 'readingPlans.eveningRhythm'],
+  ] as const) {
+    const rhythmId = await seedRhythm([psalm63], progress(), slot);
+    const view = await renderDetail(rhythmId);
+    assert.ok(view.getByText(t(key)), slot);
+    assert.equal(view.queryByText(t('readingPlans.morningRhythm')), null);
+    await view.unmount();
+  }
+});
+
+test('a rhythm that no longer exists shows an error with a way back', async () => {
+  const view = await renderDetail('missing-rhythm');
+
+  assert.equal(view.queryByText(t('readingPlans.rhythmSequence')), null);
+  await view.press(view.getByRole('button', { name: t('common.back') }));
+  assert.deepEqual(harness.navigation.calls, [{ method: 'goBack', args: [] }]);
+});
