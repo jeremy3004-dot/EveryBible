@@ -2,6 +2,8 @@
 -- Run against a local or linked database as postgres (read-only assertions).
 -- Before 20260923233710_revoke_client_grants_on_service_only_tables.sql this fails:
 -- anon and authenticated held every table privilege on these RLS-without-policy tables.
+-- translator_team_passcodes (hashed team review passcodes) is created without client grants
+-- by 20260924120000_add_translator_team_passcodes.sql.
 BEGIN;
 
 DO $$
@@ -16,6 +18,7 @@ BEGIN
     'content_images',
     'translation_sync_runs',
     'translator_review_attempts',
+    'translator_team_passcodes',
     'verse_of_day_entries'
   ]) AS t(table_name)
   CROSS JOIN unnest(ARRAY['anon', 'authenticated']) AS r(role_name)
@@ -38,6 +41,8 @@ BEGIN
 
   IF NOT has_table_privilege('service_role', 'public.admin_audit_logs', 'INSERT')
      OR NOT has_table_privilege('service_role', 'public.translator_review_attempts', 'INSERT')
+     OR NOT has_table_privilege('service_role', 'public.translator_team_passcodes', 'SELECT')
+     OR NOT has_table_privilege('service_role', 'public.translator_team_passcodes', 'UPDATE')
      OR NOT has_table_privilege('service_role', 'public.verse_of_day_entries', 'SELECT') THEN
     RAISE EXCEPTION 'service_role must keep access to the service-only tables';
   END IF;
