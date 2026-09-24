@@ -112,6 +112,10 @@ const service = {
   progressGate: null as Gate | null,
   onHydrate: null as (() => void) | null,
   unenrollError: null as string | null,
+  // A result the service can return without an error message, and a thrown
+  // failure — both distinct from unenrollError, which always carries a message.
+  unenrollFailsSilently: false,
+  unenrollThrows: null as unknown,
   listCalls: 0,
   hydrateCalls: 0,
   unenrolled: [] as string[],
@@ -131,9 +135,18 @@ mockModule(mock, sourcePath('services/plans/readingPlanService.ts'), {
   },
   unenrollFromPlan: async (planId: string) => {
     service.unenrolled.push(planId);
+    if (service.unenrollThrows) throw service.unenrollThrows;
     if (service.unenrollError) return { success: false, error: service.unenrollError };
+    if (service.unenrollFailsSilently) return { success: false };
     (await loadStore()).getState().unenrollPlan(planId);
     return { success: true };
+  },
+});
+
+const handledErrors: Array<{ source: string; error: unknown }> = [];
+mockModule(mock, sourcePath('services/diagnostics/crashReportQueue.ts'), {
+  reportHandledError: (source: string, error: unknown) => {
+    handledErrors.push({ source, error });
   },
 });
 
@@ -195,12 +208,15 @@ afterEach(async () => {
     progressGate: null,
     onHydrate: null,
     unenrollError: null,
+    unenrollFailsSilently: false,
+    unenrollThrows: null,
     listCalls: 0,
     hydrateCalls: 0,
     unenrolled: [],
   });
   plansWithoutArt.clear();
   swipeCloses.length = 0;
+  handledErrors.length = 0;
   progressStore.setState({ chaptersRead: {} });
   libraryStore.setState({ history: [] });
 });
@@ -652,6 +668,44 @@ test('a failed delete keeps the plan and tells the reader', async () => {
   assert.equal(alert.title, t('common.error'));
   assert.equal(alert.message, t('common.unexpectedError'));
   assert.ok(view.getByRole('button', { name: titleOf(PSALMS) }));
+});
+
+// A failure with no error message used to fall through to the success haptic:
+// `!result.success && result.error` is false when `error` is undefined.
+test('a delete that fails without an error message still keeps the plan and tells the reader, not the success haptic', async () => {
+  await seed(progressRow(PSALMS));
+  service.unenrollFailsSilently = true;
+  const view = await renderHome();
+  const hapticsBefore = harness.haptics.length;
+
+  const row = view.queryAllByType('Swipeable')[0];
+  await view.press(within(row).getByRole('button', { name: t('common.delete') }));
+  await view.flush();
+
+  const [alert] = harness.rn.__recorded.alerts;
+  assert.equal(alert.title, t('common.error'));
+  assert.equal(alert.message, t('common.unexpectedError'));
+  assert.ok(view.getByRole('button', { name: titleOf(PSALMS) }), 'the row stays');
+  assert.equal(harness.haptics.length, hapticsBefore, 'no success haptic played');
+});
+
+test('a delete that throws is treated as a failure, tells the reader, keeps the plan, and is reported', async () => {
+  await seed(progressRow(PSALMS));
+  const thrown = new Error('offline');
+  service.unenrollThrows = thrown;
+  const view = await renderHome();
+  const hapticsBefore = harness.haptics.length;
+
+  const row = view.queryAllByType('Swipeable')[0];
+  await view.press(within(row).getByRole('button', { name: t('common.delete') }));
+  await view.flush();
+
+  const [alert] = harness.rn.__recorded.alerts;
+  assert.equal(alert.title, t('common.error'));
+  assert.equal(alert.message, t('common.unexpectedError'));
+  assert.ok(view.getByRole('button', { name: titleOf(PSALMS) }), 'the row stays');
+  assert.equal(harness.haptics.length, hapticsBefore, 'no success haptic played');
+  assert.deepEqual(handledErrors, [{ source: 'plans.delete', error: thrown }]);
 });
 
 // ---------------------------------------------------------------------------

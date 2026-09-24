@@ -14,6 +14,7 @@ import { layout, spacing, typography } from '../../design/system';
 import { lightHaptic, successHaptic } from '../../utils';
 import type { PlansStackParamList } from '../../navigation/types';
 import { unenrollFromPlan } from '../../services/plans/readingPlanService';
+import { reportHandledError } from '../../services/diagnostics/crashReportQueue';
 import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../design/largeTextLayout';
 import {
   CompletedPlansSection,
@@ -52,12 +53,17 @@ export function PlansHomeScreen() {
 
   const handleDeletePlan = useCallback(
     async (planId: string) => {
-      const result = await unenrollFromPlan(planId);
-      if (!result.success && result.error) {
+      try {
+        const result = await unenrollFromPlan(planId);
+        if (!result.success) {
+          Alert.alert(t('common.error'), t('common.unexpectedError'));
+          return;
+        }
+        successHaptic();
+      } catch (error) {
+        reportHandledError('plans.delete', error);
         Alert.alert(t('common.error'), t('common.unexpectedError'));
-        return;
       }
-      successHaptic();
     },
     [t]
   );
