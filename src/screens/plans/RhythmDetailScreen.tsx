@@ -507,7 +507,7 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
                 {Math.max(totalPlanCount - completedPlanCount, 0)}
               </Text>
               <Text style={[styles.summaryLabel, { color: colors.secondaryText }]}>
-                {t('common.next', { defaultValue: 'Next' })}
+                {t('readingPlans.remaining')}
               </Text>
             </View>
           </View>
