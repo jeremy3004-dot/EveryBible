@@ -4,7 +4,8 @@
  *
  * Rules shared by every merge:
  * - Nothing from either side is dropped. Where only one version can be shown,
- *   the other is kept but hidden (annotations) or the account's copy wins.
+ *   the other is kept but hidden (annotations; a hidden note's text is also
+ *   joined into the visible note) or the account's copy wins.
  * - Idempotent: merging the same guest state twice gives the same result. An
  *   adoption interrupted by an app kill is retried at the next sign-in.
  * - Deterministic: no clocks or random ids, so a retry cannot diverge.
@@ -79,11 +80,37 @@ const isNewerAnnotation = (left: UserAnnotation, right: UserAnnotation): boolean
       ? left.created_at > right.created_at
       : left.id > right.id;
 
+// The texts of colliding notes, oldest edit first, so the joined note reads in
+// the order it was written (as if the newer note had been appended). Each text
+// is trimmed; an empty text and one that repeats a text already included are
+// left out.
+const joinNoteTexts = (notes: UserAnnotation[]): string | null => {
+  const texts: string[] = [];
+  const seen = new Set<string>();
+  for (const note of [...notes].sort((left, right) => (isNewerAnnotation(left, right) ? 1 : -1))) {
+    const text = note.content?.trim();
+    if (text && !seen.has(text)) {
+      seen.add(text);
+      texts.push(text);
+    }
+  }
+  return texts.length > 0 ? texts.join('\n\n') : null;
+};
+
 /**
  * Unions by id. The reader shows one active annotation per verse and type
  * (upsertAnnotation relies on it), so where both sides have one, the most
  * recently edited stays visible and the other is soft-deleted: hidden, but
  * still stored with its content.
+ *
+ * Notes are joined rather than hidden away: the visible (most recently edited)
+ * note takes the texts of every active note on its verse, oldest edit first,
+ * separated by a blank line (see joinNoteTexts), and keeps its own id and
+ * updated_at. Highlights keep the newer colour. Deleted records are never
+ * joined. A second merge of the same guest state finds the other notes already
+ * hidden (the hidden copy wins a same-updated_at tie in pickVersion, and the
+ * account's joined copy wins over the guest's original), so nothing is joined
+ * twice.
  *
  * Deliberately not mergeAnnotationLists: that keys by verse and type, which
  * would drop a re-created highlight sitting next to its deleted predecessor.
@@ -98,16 +125,34 @@ export const mergeGuestAnnotations = (
     byId.set(annotation.id, current ? pickVersion(current, annotation) : annotation);
   }
 
-  const visibleByKey = new Map<string, UserAnnotation>();
+  const activeByKey = new Map<string, UserAnnotation[]>();
   for (const annotation of byId.values()) {
     if (annotation.deleted_at != null) {
       continue;
     }
     const key = annotationKey(annotation);
-    const visible = visibleByKey.get(key);
-    if (!visible || isNewerAnnotation(annotation, visible)) {
-      visibleByKey.set(key, annotation);
+    const group = activeByKey.get(key);
+    if (group) {
+      group.push(annotation);
+    } else {
+      activeByKey.set(key, [annotation]);
     }
+  }
+
+  const visibleByKey = new Map<string, UserAnnotation>();
+  for (const [key, group] of activeByKey) {
+    let visible = group[0] as UserAnnotation;
+    for (const annotation of group) {
+      if (isNewerAnnotation(annotation, visible)) {
+        visible = annotation;
+      }
+    }
+    visibleByKey.set(
+      key,
+      visible.type === 'note' && group.length > 1
+        ? { ...visible, content: joinNoteTexts(group) ?? visible.content }
+        : visible
+    );
   }
 
   return Array.from(byId.values(), (annotation) => {
@@ -115,9 +160,12 @@ export const mergeGuestAnnotations = (
       return annotation;
     }
     const visible = visibleByKey.get(annotationKey(annotation));
-    return visible && visible.id !== annotation.id
+    if (!visible) {
+      return annotation;
+    }
+    return visible.id !== annotation.id
       ? { ...annotation, deleted_at: visible.updated_at }
-      : annotation;
+      : visible;
   });
 };
 

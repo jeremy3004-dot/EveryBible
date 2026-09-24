@@ -1498,7 +1498,6 @@ export const ar = {
   },
   annotations: {
     title: 'ملاحظاتي وتظليلاتي',
-    bookmarks: 'الإشارات المرجعية',
     highlights: 'التظليلات',
     notes: 'الملاحظات',
     addNote: 'إضافة ملاحظة',
@@ -1507,7 +1506,6 @@ export const ar = {
     editNote: 'تعديل الملاحظة',
     deleteAnnotation: 'حذف',
     noAnnotations: 'لا توجد ملاحظات أو تظليلات بعد',
-    noBookmarks: 'لا توجد إشارات مرجعية بعد',
     noHighlights: 'لا توجد تظليلات بعد',
     noNotes: 'لا توجد ملاحظات بعد',
     noteHint: 'اكتب أفكارك...',

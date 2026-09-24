@@ -1412,7 +1412,6 @@ export const ko = {
   },
   annotations: {
     title: '내 메모와 하이라이트',
-    bookmarks: '북마크',
     highlights: '하이라이트',
     notes: '메모',
     addNote: '메모 추가',
@@ -1421,7 +1420,6 @@ export const ko = {
     editNote: '메모 편집',
     deleteAnnotation: '삭제',
     noAnnotations: '아직 저장한 표시가 없습니다',
-    noBookmarks: '아직 북마크가 없습니다',
     noHighlights: '아직 하이라이트가 없습니다',
     noNotes: '아직 메모가 없습니다',
     noteHint: '생각을 적어 보세요…',

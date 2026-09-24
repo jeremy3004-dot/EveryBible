@@ -77,34 +77,54 @@ test('opens on the Notes filter and lists only notes, with their text', async ()
     success: true,
     data: [
       annotation({ id: 'n1', content: 'God so loved' }),
-      annotation({ id: 'b1', type: 'bookmark', book: 'GEN', chapter: 1, verse_start: 1 }),
+      annotation({ id: 'h1', type: 'highlight', book: 'GEN', chapter: 1, verse_start: 1 }),
     ],
   };
 
   const view = await renderScreen();
 
   assert.ok(view.getByRole('button', { name: t('annotations.notes'), selected: true }));
-  assert.ok(view.getByRole('button', { name: t('annotations.bookmarks'), selected: false }));
+  assert.ok(view.getByRole('button', { name: t('annotations.highlights'), selected: false }));
   assert.ok(view.getByText('God so loved'));
   assert.ok(view.getByText('John 3:16'));
   assert.equal(view.queryByText('Genesis 1:1'), null);
 });
 
-test('switching filters shows that type, and each empty type has its own message', async () => {
+// Nothing in the app creates bookmarks, so the screen offers no Bookmarks filter.
+// Older stored bookmark records stay in the store but are not listed.
+test('offers only the Notes and Highlights filters and never lists bookmarks', async () => {
   service.result = {
     success: true,
     data: [annotation({ id: 'b1', type: 'bookmark', book: 'GEN', chapter: 1, verse_start: 1 })],
   };
   const view = await renderScreen();
 
+  assert.equal(view.queryByRole('button', { name: 'Bookmarks' }), null);
+  assert.equal(view.queryByText('Genesis 1:1'), null);
   assert.ok(view.getByText(t('annotations.noNotes')));
 
-  await view.press(view.getByRole('button', { name: t('annotations.bookmarks') }));
-  assert.ok(view.getByText('Genesis 1:1'));
-  assert.ok(view.getByRole('button', { name: t('annotations.bookmarks'), selected: true }));
+  await view.press(view.getByRole('button', { name: t('annotations.highlights') }));
+  assert.ok(view.getByRole('button', { name: t('annotations.highlights'), selected: true }));
+  assert.ok(view.getByText(t('annotations.noHighlights')));
+  assert.equal(view.queryByText('Genesis 1:1'), null);
+});
+
+test('switching filters shows that type', async () => {
+  service.result = {
+    success: true,
+    data: [
+      annotation({ id: 'n1', content: 'A note' }),
+      annotation({ id: 'h1', type: 'highlight', book: 'GEN', chapter: 1, verse_start: 1 }),
+    ],
+  };
+  const view = await renderScreen();
 
   await view.press(view.getByRole('button', { name: t('annotations.highlights') }));
-  assert.ok(view.getByText(t('annotations.noHighlights')));
+  assert.ok(view.getByText('Genesis 1:1'));
+  assert.equal(view.queryByText('A note'), null);
+
+  await view.press(view.getByRole('button', { name: t('annotations.notes') }));
+  assert.ok(view.getByText('A note'));
   assert.equal(view.queryByText('Genesis 1:1'), null);
 });
 
@@ -201,4 +221,33 @@ test('coming back to the screen shows annotations changed in the reader meanwhil
 
   assert.equal(view.queryByText('Old note'), null);
   assert.ok(view.getByText('New note'));
+});
+
+// The list is ordered by last edit, so each card shows when it was last edited.
+test('each card shows the date of its last edit, or its creation date when never edited', async () => {
+  service.result = {
+    success: true,
+    data: [
+      annotation({
+        id: 'edited',
+        content: 'Edited later',
+        created_at: '2026-03-02T12:00:00.000Z',
+        updated_at: '2026-09-20T12:00:00.000Z',
+      }),
+      annotation({
+        id: 'legacy',
+        content: 'No edit stamp',
+        verse_start: 17,
+        created_at: '2026-05-06T12:00:00.000Z',
+        updated_at: '',
+      }),
+    ],
+  };
+  const dateText = (iso: string) => new Date(iso).toLocaleDateString('en');
+
+  const view = await renderScreen();
+
+  assert.ok(view.getByText(dateText('2026-09-20T12:00:00.000Z')));
+  assert.equal(view.queryByText(dateText('2026-03-02T12:00:00.000Z')), null);
+  assert.ok(view.getByText(dateText('2026-05-06T12:00:00.000Z')));
 });

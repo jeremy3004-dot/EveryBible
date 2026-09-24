@@ -1450,7 +1450,6 @@ export const en = {
   annotations: {
     title: 'My Notes & Highlights',
     selected: 'Selected',
-    bookmarks: 'Bookmarks',
     highlights: 'Highlights',
     notes: 'Notes',
     addNote: 'Add Note',
@@ -1462,7 +1461,6 @@ export const en = {
     editNote: 'Edit Note',
     deleteAnnotation: 'Delete',
     noAnnotations: 'No annotations yet',
-    noBookmarks: 'No bookmarks yet',
     noHighlights: 'No highlights yet',
     noNotes: 'No notes yet',
     noteHint: 'Write your thoughts...',

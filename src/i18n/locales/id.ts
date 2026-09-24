@@ -1463,7 +1463,6 @@ export const id = {
   },
   annotations: {
     title: 'Catatan dan sorotan saya',
-    bookmarks: 'Penanda',
     highlights: 'Sorotan',
     notes: 'Catatan',
     addNote: 'Tambah catatan',
@@ -1472,7 +1471,6 @@ export const id = {
     editNote: 'Ubah catatan',
     deleteAnnotation: 'Hapus',
     noAnnotations: 'Belum ada catatan atau sorotan',
-    noBookmarks: 'Belum ada penanda',
     noHighlights: 'Belum ada sorotan',
     noNotes: 'Belum ada catatan',
     noteHint: 'Tuliskan pemikiran Anda...',

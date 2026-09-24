@@ -95,6 +95,18 @@ test('annotation adoption keeps every id, shows one per verse and type, and is i
       for (const key of new Set(visibleKeys([...newestById.values()]))) {
         assert.ok(keys.includes(key), `${key} lost its visible annotation`);
       }
+      // Notes are joined: the visible note on a verse carries the text of every
+      // note that was showing there.
+      for (const shown of newestById.values()) {
+        if (shown.type !== 'note' || shown.deleted_at != null || !shown.content) continue;
+        const visible = once.find(
+          (annotation) =>
+            annotation.deleted_at == null &&
+            annotation.type === 'note' &&
+            annotation.verse_start === shown.verse_start
+        );
+        assert.ok(visible?.content?.includes(shown.content), `note ${shown.id} lost its text`);
+      }
 
       const twice = mergeGuestAnnotations(once, guest);
       const sortById = (list: UserAnnotation[]) =>

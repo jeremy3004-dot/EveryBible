@@ -1491,7 +1491,6 @@ export const pt = {
   },
   annotations: {
     title: 'Minhas notas e destaques',
-    bookmarks: 'Marcadores',
     highlights: 'Destaques',
     notes: 'Notas',
     addNote: 'Adicionar nota',
@@ -1500,7 +1499,6 @@ export const pt = {
     editNote: 'Editar nota',
     deleteAnnotation: 'Excluir',
     noAnnotations: 'Ainda não há anotações',
-    noBookmarks: 'Ainda não há marcadores',
     noHighlights: 'Ainda não há destaques',
     noNotes: 'Ainda não há notas',
     noteHint: 'Escreva seus pensamentos...',

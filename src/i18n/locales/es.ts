@@ -1947,7 +1947,6 @@ export const es = {
   },
   annotations: {
     title: 'Mis notas y resaltados',
-    bookmarks: 'Marcadores',
     highlights: 'Resaltados',
     notes: 'Notas',
     addNote: 'Agregar nota',
@@ -1956,7 +1955,6 @@ export const es = {
     editNote: 'Editar nota',
     deleteAnnotation: 'Eliminar',
     noAnnotations: 'Aún no hay anotaciones',
-    noBookmarks: 'Aún no hay marcadores',
     noHighlights: 'Aún no hay resaltados',
     noNotes: 'Aún no hay notas',
     noteHint: 'Escribe tus pensamientos...',

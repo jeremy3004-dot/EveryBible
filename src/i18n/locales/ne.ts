@@ -1587,7 +1587,6 @@ export const ne = {
   annotations: {
     title: 'मेरा टिप्पणी र हाइलाइट',
     selected: 'छानिएको',
-    bookmarks: 'बुकमार्क',
     highlights: 'हाइलाइट',
     notes: 'टिप्पणी',
     addNote: 'टिप्पणी थप्नुहोस्',
@@ -1599,7 +1598,6 @@ export const ne = {
     editNote: 'टिप्पणी सम्पादन गर्नुहोस्',
     deleteAnnotation: 'हटाउनुहोस्',
     noAnnotations: 'अझै कुनै बुकमार्क, हाइलाइट वा टिप्पणी छैन',
-    noBookmarks: 'अझै कुनै बुकमार्क छैन',
     noHighlights: 'अझै कुनै हाइलाइट छैन',
     noNotes: 'अझै कुनै टिप्पणी छैन',
     noteHint: 'आफ्ना विचार लेख्नुहोस्...',

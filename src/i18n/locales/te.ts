@@ -1155,7 +1155,6 @@ export const te = {
   },
   annotations: {
     title: 'నా గమనికలు, హైలైట్‌లు',
-    bookmarks: 'బుక్‌మార్క్‌లు',
     highlights: 'హైలైట్‌లు',
     notes: 'గమనికలు',
     addNote: 'గమనికను జోడించండి',
@@ -1164,7 +1163,6 @@ export const te = {
     editNote: 'గమనికను సవరించండి',
     deleteAnnotation: 'తొలగించండి',
     noAnnotations: 'ఇంకా ఏవీ లేవు',
-    noBookmarks: 'ఇంకా బుక్‌మార్క్‌లు లేవు',
     noHighlights: 'ఇంకా హైలైట్‌లు లేవు',
     noNotes: 'ఇంకా గమనికలు లేవు',
     noteHint: 'మీ ఆలోచనలు రాయండి...',

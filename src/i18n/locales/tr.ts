@@ -1466,7 +1466,6 @@ export const tr = {
   },
   annotations: {
     title: 'Notlarım ve vurgularım',
-    bookmarks: 'Yer imleri',
     highlights: 'Vurgular',
     notes: 'Notlar',
     addNote: 'Not ekle',
@@ -1475,7 +1474,6 @@ export const tr = {
     editNote: 'Notu düzenle',
     deleteAnnotation: 'Sil',
     noAnnotations: 'Henüz not ya da vurgu yok',
-    noBookmarks: 'Henüz yer imi yok',
     noHighlights: 'Henüz vurgu yok',
     noNotes: 'Henüz not yok',
     noteHint: 'Düşüncelerinizi yazın...',

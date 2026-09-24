@@ -1373,7 +1373,6 @@ export const zh = {
   },
   annotations: {
     title: '我的笔记与高亮',
-    bookmarks: '书签',
     highlights: '高亮',
     notes: '笔记',
     addNote: '添加笔记',
@@ -1382,7 +1381,6 @@ export const zh = {
     editNote: '编辑笔记',
     deleteAnnotation: '删除',
     noAnnotations: '还没有标注',
-    noBookmarks: '还没有书签',
     noHighlights: '还没有高亮',
     noNotes: '还没有笔记',
     noteHint: '写下你的想法…',

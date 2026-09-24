@@ -1420,7 +1420,6 @@ export const ja = {
   },
   annotations: {
     title: '自分のメモとハイライト',
-    bookmarks: 'ブックマーク',
     highlights: 'ハイライト',
     notes: 'メモ',
     addNote: 'メモを追加',
@@ -1429,7 +1428,6 @@ export const ja = {
     editNote: 'メモを編集',
     deleteAnnotation: '削除',
     noAnnotations: 'まだ書き込みはありません',
-    noBookmarks: 'まだブックマークはありません',
     noHighlights: 'ハイライトはまだありません',
     noNotes: 'まだメモはありません',
     noteHint: '思ったことを書きましょう...',
