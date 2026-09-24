@@ -4,6 +4,7 @@ import {
   getActiveSearchQuery,
   getAdjacentSetupStep,
   getFlagEmoji,
+  getOnboardingTranslationStatus,
   groupOptionsIntoSections,
 } from './localeSetupFlowModel';
 
@@ -50,4 +51,33 @@ test('a two-letter region code becomes its flag; anything else shows no flag', (
   assert.equal(getFlagEmoji('np'), '', 'codes arrive upper-cased from the engine');
   assert.equal(getFlagEmoji('419'), '');
   assert.equal(getFlagEmoji(''), '');
+});
+
+test('only a Bible the user downloaded says Continue; a bundled one wears no chip', () => {
+  const ready = { isSelectable: true, reason: null };
+  const bundled = { source: 'bundled' as const, isDownloaded: true };
+  assert.equal(getOnboardingTranslationStatus(bundled, ready), null);
+  assert.equal(
+    getOnboardingTranslationStatus({ source: 'runtime', isDownloaded: true }, ready),
+    'continue'
+  );
+  assert.equal(
+    getOnboardingTranslationStatus(
+      { source: 'runtime', isDownloaded: false, textPackLocalPath: '/packs/mai' },
+      ready
+    ),
+    'continue'
+  );
+  // Audio that streams is selectable, but nothing of the user's is on the device.
+  assert.equal(
+    getOnboardingTranslationStatus({ source: 'runtime', isDownloaded: false }, ready),
+    null
+  );
+  assert.equal(
+    getOnboardingTranslationStatus(
+      { source: 'runtime', isDownloaded: false },
+      { isSelectable: false, reason: 'download-required' }
+    ),
+    'download'
+  );
 });

@@ -105,7 +105,8 @@ interface OnboardingLanguageRowProps {
   optionLabel: string;
   translationLabel: string;
   availabilitySummary: string;
-  statusLabel: string;
+  /** null: the row wears no chip (a Bible that ships with the app). */
+  statusLabel: string | null;
   recommendedBadgeLabel: string;
   downloadingLabel: string;
   isRecommended: boolean;
@@ -147,13 +148,10 @@ export const OnboardingLanguageRow = memo(function OnboardingLanguageRow({
     <ChevronRight size={18} color={colors.textTertiary} strokeWidth={2} />
   );
   // A queued or downloading row shows progress instead of its chip.
-  const statusChip = isInstalling ? null : (
-    <StatusChip
-      label={isRecommended ? recommendedBadgeLabel : statusLabel}
-      colors={colors}
-      eyebrowFont={eyebrowFont}
-    />
-  );
+  const chipLabel = isInstalling ? null : isRecommended ? recommendedBadgeLabel : statusLabel;
+  const statusChip = chipLabel ? (
+    <StatusChip label={chipLabel} colors={colors} eyebrowFont={eyebrowFont} />
+  ) : null;
 
   const row = (
     <OptionRow
@@ -166,7 +164,7 @@ export const OnboardingLanguageRow = memo(function OnboardingLanguageRow({
       isLast={isLast}
       disabled={isInstalling}
       colors={colors}
-      statusLabel={isInstalling ? null : isRecommended ? recommendedBadgeLabel : statusLabel}
+      statusLabel={chipLabel}
       isBusy={isInstalling}
       progress={progress}
       statusChip={statusChip}
