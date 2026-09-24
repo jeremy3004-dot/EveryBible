@@ -77,11 +77,11 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
   const body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {};
   requests.push({ url, body });
 
-  if (url.includes('/auth/v1/logout')) {
-    return new Response(null, { status: 204 });
-  }
   if (url.includes('/auth/v1/recover')) {
     return json({});
+  }
+  if (url.includes('/auth/v1/logout')) {
+    return new Response(null, { status: 204 });
   }
   if (url.includes('/auth/v1/token?grant_type=pkce')) {
     return json({
@@ -171,54 +171,52 @@ test('a link opened where no verifier is stored fails as wrong-device without a 
   assert.equal(requests.length, before);
 });
 
-// ResetPasswordScreen signs the device's account out (authStore.signOut, which reaches
-// supabase.auth.signOut) before exchanging the code. auth-js deletes the stored code
-// verifier whenever it removes a session, so the exchange after it has to still find it.
-test('a reader signed in on this device is signed out first and the reset code still exchanges', async () => {
-  const signedIn = await client.supabase.auth.getSession();
-  assert.equal(signedIn.data.session?.user.id, 'user-a', 'an account is signed in');
+// auth-js deletes the stored verifier on every sign-out. The reset flow signs a signed-in
+// account out before the exchange, so it destroyed the verifier its own exchange needed:
+// a signed-in user could never finish a reset, and any crafted reset link signed them out
+// for nothing (security review 2026-09-24, pass 2).
+test('a signed-in user who requested the reset can still open the link after the sign-out', async () => {
+  const exchangesBefore = requests.filter((r) => r.url.includes('grant_type=pkce')).length;
   assert.deepEqual(await authService.resetPassword('reader@example.com'), { success: true });
-  await authDeepLink.handleAuthDeepLinkUrl(`com.everybible.app://reset-password?code=${CODE}`);
-  let signOuts = 0;
+  const verifier = JSON.parse(keychain.store.get(VERIFIER_KEY) ?? 'null') as string;
+  assert.ok(verifier, 'a verifier is stored for the new request');
+  const { data: before } = await client.supabase.auth.getSession();
+  assert.ok(before.session, 'the user is signed in when the link arrives');
 
+  await authDeepLink.handleAuthDeepLinkUrl(`com.everybible.app://reset-password?code=${CODE}`);
   const result = await authDeepLink.activatePendingPasswordRecovery({
     signedInUserId: 'user-a',
     signOutCurrentAccount: async () => {
-      signOuts += 1;
-      await authService.signOut();
+      await client.supabase.auth.signOut();
     },
   });
 
   assert.deepEqual(result, { status: 'activated' });
-  assert.equal(signOuts, 1);
-  assert.ok(
-    requests.some((request) => request.url.includes('/auth/v1/logout')),
-    'the previous session was ended on the server'
-  );
-  const challenge = requests.filter((request) => request.url.includes('/auth/v1/recover')).at(-1)
-    ?.body.code_challenge;
-  const exchange = requests.filter((request) => request.url.includes('grant_type=pkce')).at(-1);
-  assert.deepEqual(exchange?.body, { auth_code: CODE, code_verifier: challenge });
-  assert.equal(keychain.store.has(VERIFIER_KEY), false, 'the verifier is still single-use');
+  const exchanges = requests.filter((r) => r.url.includes('grant_type=pkce'));
+  assert.equal(exchanges.length, exchangesBefore + 1);
+  assert.deepEqual(exchanges.at(-1)?.body, {
+    auth_code: CODE,
+    code_verifier: verifier.split('/')[0],
+  });
 });
 
-test('a signed-in reader whose verifier is gone is told so without being signed out', async () => {
+test('a reset link this install never requested does not sign the current account out', async () => {
   assert.equal(keychain.store.has(VERIFIER_KEY), false);
-  await authDeepLink.handleAuthDeepLinkUrl(`com.everybible.app://reset-password?code=${CODE}`);
   let signOuts = 0;
+  const before = requests.length;
+  await authDeepLink.handleAuthDeepLinkUrl(`com.everybible.app://reset-password?code=${CODE}`);
 
   const result = await authDeepLink.activatePendingPasswordRecovery({
     signedInUserId: 'user-a',
     signOutCurrentAccount: async () => {
       signOuts += 1;
-      await authService.signOut();
     },
   });
 
   assert.deepEqual(result, { status: 'failed', problem: 'wrong-device' });
-  assert.equal(signOuts, 0, 'nobody is signed out for a link that cannot work here');
-  const { data } = await client.supabase.auth.getSession();
-  assert.equal(data.session?.user.id, 'user-a');
+  assert.equal(signOuts, 0);
+  assert.equal(requests.length, before, 'nothing is sent');
+  assert.equal(authDeepLink.getPendingPasswordRecovery(), null, 'the dead code is dropped');
 });
 
 test('the installed getRandomValues is the only crypto the app adds', () => {

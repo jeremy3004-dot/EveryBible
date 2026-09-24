@@ -79,6 +79,8 @@ const run = async (scenario: Scenario, body: Record<string, unknown>) => {
         ? {}
         : { data: { id: FEEDBACK_ID, translation_id: body.translationId, sentiment: 'up' } };
     }
+    // Pre-migration answer: the passcode gate uses its read-then-record lockout scripted above.
+    if (call.table === 'rpc:claim_passcode_attempt') return { error: { code: 'PGRST202' } };
     if (call.table.startsWith('rpc:')) {
       return { data: { chapters: [], rows: [], nextCursor: null, positiveCount: 0 } };
     }
@@ -238,7 +240,12 @@ test('once switched off, the shared passcode is refused exactly like a wrong cod
   assert.deepEqual(off.json, { success: false, error: 'Translator access denied' });
   assert.equal(off.failedAttemptsRecorded, 1);
   assert.deepEqual(off.touched(FEEDBACK_TABLE), []);
-  assert.ok(off.harness.calls.every((call) => !call.table.startsWith('rpc:')));
+  assert.ok(
+    off.harness.calls.every(
+      (call) => !call.table.startsWith('rpc:') || call.table === 'rpc:claim_passcode_attempt'
+    ),
+    'no feedback RPC runs'
+  );
 });
 
 test('a refused shared passcode is recorded so the owner can see who still uses it', async () => {

@@ -174,6 +174,89 @@ test('an unreadable attempt counter refuses the request before any passcode is c
   assert.deepEqual(result.touched('translator_team_passcodes'), []);
 });
 
+// With claim_passcode_attempt() deployed, the attempt is reserved before the passcode is
+// checked (security review 2026-09-24, pass 2): a locked-out caller is refused even with the
+// right code, and nothing else is recorded afterwards.
+const CLAIM_RPC = 'rpc:claim_passcode_attempt';
+const claimed = (claim: EdgeQueryResult) => (call: EdgeQueryCall) =>
+  call.table === CLAIM_RPC ? claim : undefined;
+
+test('a locked-out caller is refused before the passcode is evaluated, even when it is right', async () => {
+  const result = await run(
+    { passcode: SHARED, validateOnly: true },
+    {
+      respond: claimed({ data: null }),
+    }
+  );
+
+  assert.equal(result.status, 429);
+  assert.deepEqual(result.json, { success: false, error: 'Too many attempts. Try again later.' });
+  assert.deepEqual(result.touched('translator_team_passcodes'), []);
+  assert.deepEqual(result.touched(ATTEMPTS_TABLE), []);
+});
+
+test('the claim is made with the lockout budget and this caller’s hashed address', async () => {
+  const result = await run(
+    { passcode: SHARED, validateOnly: true },
+    {
+      respond: claimed({ data: 'attempt-1' }),
+    }
+  );
+
+  const [claim] = result.touched(CLAIM_RPC);
+  const args = claim.steps[0].args[0] as Record<string, unknown>;
+  assert.equal(args.p_threshold, 10);
+  assert.equal(args.p_window_seconds, 900);
+  assert.match(String(args.p_ip_hash), /^[0-9a-f]{64}$/);
+  assert.ok(!String(args.p_ip_hash).includes('203.0.113.7'));
+});
+
+test('a right passcode releases its claimed attempt, so it never counts as a failure', async () => {
+  const result = await run(
+    { passcode: SHARED, validateOnly: true },
+    {
+      respond: claimed({ data: 'attempt-1' }),
+    }
+  );
+
+  assert.equal(result.status, 200);
+  const writes = result.touched(ATTEMPTS_TABLE);
+  assert.equal(writes.length, 1);
+  assert.deepEqual(
+    writes[0].steps.map((step) => step.method),
+    ['delete', 'eq']
+  );
+  assert.deepEqual(writes[0].steps[1].args, ['id', 'attempt-1']);
+});
+
+test('a wrong passcode keeps its claimed attempt and records nothing more', async () => {
+  const result = await run(
+    { passcode: '000000', validateOnly: true },
+    {
+      respond: claimed({ data: 'attempt-1' }),
+    }
+  );
+
+  assert.equal(result.status, 403);
+  assert.equal(result.failedAttempts, 0, 'the claim already recorded the failure');
+  assert.ok(
+    result.touched(ATTEMPTS_TABLE).every((call) => call.steps[0]?.method === 'select'),
+    'the claimed row is neither deleted nor duplicated'
+  );
+});
+
+test('a claim that errors (other than a missing function) fails closed', async () => {
+  const result = await run(
+    { passcode: SHARED, validateOnly: true },
+    {
+      respond: claimed({ error: { code: '57014', message: 'statement timeout' } }),
+    }
+  );
+
+  assert.equal(result.status, 503);
+  assert.deepEqual(result.touched('translator_team_passcodes'), []);
+});
+
 test('a passcode sent as a number is never coerced into a match', async () => {
   const result = await run({ passcode: Number(SHARED), validateOnly: true });
 
