@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Check, CheckCheck, ChevronDown, Users } from 'lucide-react-native';
@@ -6,6 +7,7 @@ import { layout, spacing, typography } from '../../../design/system';
 import type { ChapterReviewHeadline, FeedbackStatusFilter } from '../../../services/feedback';
 import { TranslationNotCoveredNotice } from '../../../components/feedback';
 import { AppButton, AppCard, TabSwitch } from '../../../components/ui';
+import { announceLiveRegionText } from '../../../utils/a11y';
 
 interface FeedbackReviewHeaderProps {
   translationId: string;
@@ -45,6 +47,14 @@ export function FeedbackReviewHeader({
 }: FeedbackReviewHeaderProps) {
   const { colors } = useTheme();
   const { t } = useTranslation();
+  // A failed first load leaves no summary, which reads as "no feedback yet";
+  // the failure is said instead, beside its Retry.
+  const loadFailed = failed && !notCovered;
+  const loadFailedMessage = t('common.somethingWentWrong');
+
+  useEffect(() => {
+    if (loadFailed) announceLiveRegionText(loadFailedMessage);
+  }, [loadFailed, loadFailedMessage]);
 
   return (
     <View style={styles.header}>
@@ -60,7 +70,7 @@ export function FeedbackReviewHeader({
               {t('feedback.complete')}
             </Text>
           </View>
-        ) : headline.kind === 'empty' ? (
+        ) : headline.kind === 'empty' && !loadFailed ? (
           <Text style={[styles.body, { color: colors.secondaryText }]}>
             {t('bible.translatorReviewEmpty')}
           </Text>
@@ -141,8 +151,16 @@ export function FeedbackReviewHeader({
           onSwitched={onSwitchedTranslation}
         />
       ) : (
-        failed && (
-          <AppButton label={t('common.retry')} variant="outline" size="md" onPress={onRetry} />
+        loadFailed && (
+          <>
+            <Text
+              accessibilityLiveRegion="polite"
+              style={[styles.body, { color: colors.secondaryText }]}
+            >
+              {loadFailedMessage}
+            </Text>
+            <AppButton label={t('common.retry')} variant="outline" size="md" onPress={onRetry} />
+          </>
         )
       )}
     </View>

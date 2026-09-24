@@ -219,9 +219,13 @@ test('pulling to refresh reloads the first page', async () => {
 
 // ---- Failures and access -------------------------------------------------------------
 
-test('a failed load offers Retry, which loads again', async () => {
+test('a failed load says so instead of "no feedback yet", and Retry loads again', async () => {
   responders.fetch = async () => ({ success: false });
   const view = await renderReview();
+
+  assert.ok(view.getByText(t('common.somethingWentWrong')));
+  assert.equal(view.queryByText(t('bible.translatorReviewEmpty')), null);
+  assert.ok(harness.rn.__recorded.announcements.includes(t('common.somethingWentWrong')));
 
   responders.fetch = async () => feedbackPage();
   await view.press(view.getByRole('button', { name: t('common.retry') }));
@@ -230,6 +234,7 @@ test('a failed load offers Retry, which loads again', async () => {
   assert.equal(calls.fetch.length, 2);
   assert.ok(view.getByText('The name is misspelled'));
   assert.equal(view.queryByRole('button', { name: t('common.retry') }), null);
+  assert.equal(view.queryByText(t('common.somethingWentWrong')), null);
 });
 
 test('a passcode that does not open this translation shows what it does open', async () => {
