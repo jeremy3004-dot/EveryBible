@@ -559,6 +559,50 @@ test('nothing evaluated before Home loads react-query, the expo-notifications ro
   );
 });
 
+// Large bundled data is required at first use, never imported by anything evaluated
+// before Home. See round 3 of docs/research/app-performance-pass-2026-09-24.md.
+test('nothing evaluated before Home imports the large bundled data tables', () => {
+  const deferredData = [
+    // One SVG per Gather artwork; the registry requires each when it is first drawn.
+    /\/src\/data\/gatherArtworkSvg\//,
+    // Packed verse timings; bibleStore imports the service at launch, not the tables.
+    /\/src\/data\/verseTimestamps\.[a-z]+\.generated\.json$/,
+    /\/src\/data\/localeCatalog\.json$/,
+    /\/src\/data\/countryDisplayNames\.generated\.json$/,
+    /\/src\/constants\/bookIconVectors\.generated\.json$/,
+    // Its grammars are ~45 KB each; only the Bible browser's search needs them.
+    /\/src\/services\/bible\/referenceParser\.ts$/,
+  ];
+  const entries = [...PATH_TO_HOME, '../bible/verseTimestamps.ts', '../../data/gatherArtwork.ts'];
+
+  entries.forEach((entry) => {
+    const { files, packages } = collectStaticImports(
+      fileURLToPath(new URL(entry, import.meta.url).href)
+    );
+    const closurePaths = [...files].map((file) => file.replace(/\\/g, '/'));
+    deferredData.forEach((pattern) => {
+      const hit = closurePaths.find((file) => pattern.test(file));
+      assert.equal(hit, undefined, `${entry}'s static closure must not reach ${hit}`);
+    });
+    assert.equal(
+      [...packages.keys()].some((specifier) =>
+        specifier.startsWith('bible-passage-reference-parser')
+      ),
+      false,
+      `${entry}'s static closure must not import the reference parser`
+    );
+  });
+
+  // The walker must still see the registry itself, which HomeScreen imports through the badge.
+  const home = collectStaticImportClosure(
+    fileURLToPath(new URL(PATH_TO_HOME[2], import.meta.url).href)
+  );
+  assert.ok(
+    [...home].some((file) => file.endsWith('src/data/gatherArtwork.ts')),
+    'HomeScreen should reach the Gather artwork registry — check the walker if this fails'
+  );
+});
+
 test('restoring the session at launch does not load the native sign-in SDKs', () => {
   const { files, packages } = collectStaticImports(
     fileURLToPath(new URL('../auth/authSession.ts', import.meta.url).href)

@@ -66,7 +66,7 @@ test('GatherIconBadge uses SVG artwork and theme tinting', () => {
   );
 
   assert.equal(
-    source.includes('gatherArtworkXml'),
+    source.includes('getGatherArtworkXml('),
     true,
     'GatherIconBadge should pull artwork from the generated SVG registry'
   );

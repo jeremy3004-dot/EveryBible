@@ -285,16 +285,7 @@ function LoadingScreen() {
 
     warmupCancelRef.current = startupCoordinator.startDeferredWarmups();
 
-    // Pre-warm the ~750KB gatherArtwork SVG string table during idle time so its
-    // eval lands here rather than as a one-time hitch on the first Home render.
-    const cancelArtworkPrewarm = scheduleAfterInteractions(() => {
-      void import('./src/data/gatherArtwork').catch((error) => {
-        console.error('Failed to pre-warm gather artwork:', error);
-      });
-    });
-
     return () => {
-      cancelArtworkPrewarm();
       if (warmupCancelRef.current) {
         warmupCancelRef.current();
         warmupCancelRef.current = null;

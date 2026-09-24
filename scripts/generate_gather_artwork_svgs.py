@@ -14,6 +14,8 @@ ROOT = Path(__file__).resolve().parent.parent
 ICON_REGISTRY_PATH = ROOT / "src" / "data" / "gatherIcons.ts"
 SOURCE_DIR = ROOT / "scripts" / "gather-svg"
 REGISTRY_OUTPUT_PATH = ROOT / "src" / "data" / "gatherArtwork.ts"
+ARTWORK_OUTPUT_DIR = ROOT / "src" / "data" / "gatherArtworkSvg"
+PRINT_WIDTH = 100
 
 
 def read_icon_registry_entries() -> list[tuple[str, str]]:
@@ -80,27 +82,63 @@ def build_bitmap_svg(svg_text: str) -> str | None:
 
 
 def write_registry(entries: list[tuple[str, str]]) -> None:
+    # One JSON module per artwork (a JSON string of SVG markup), required the first
+    # time a badge draws it. Home draws one ~2 KB foundation mark on its first render;
+    # the topic artworks embed PNG payloads and weigh ~750 KB together.
+    ARTWORK_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    keys = {key for key, _ in entries}
+    for stale in ARTWORK_OUTPUT_DIR.glob("*.json"):
+        if stale.stem not in keys:
+            stale.unlink()
+    for key, svg_text in entries:
+        (ARTWORK_OUTPUT_DIR / f"{key}.json").write_text(
+            json.dumps(svg_text) + "\n", encoding="utf-8"
+        )
+
     lines = [
         "/**",
         " * Auto-generated Gather artwork registry.",
         " *",
         " * Generated from scripts/gather-svg/*.svg by scripts/generate_gather_artwork_svgs.py.",
+        " * Each artwork's SVG markup is its own JSON module in ./gatherArtworkSvg, loaded the",
+        " * first time it is drawn, so importing this registry loads no artwork.",
         " */",
         "",
-        "export const gatherArtworkXml: Record<string, string> = {",
+        "const GATHER_ARTWORK_LOADERS: Readonly<Record<string, () => string>> = {",
     ]
 
-    for key, svg_text in entries:
-        lines.append(f"  {json.dumps(key)}: {json.dumps(svg_text)},")
+    for key, _ in entries:
+        name = f"'{key}'" if re.search(r"[^A-Za-z0-9_$]", key) else key
+        loader = f"require('./gatherArtworkSvg/{key}.json') as string,"
+        line = f"  {name}: () => {loader}"
+        if len(line) <= PRINT_WIDTH:
+            lines.append(line)
+        else:
+            lines.append(f"  {name}: () =>")
+            lines.append(f"    {loader}")
 
-    lines.append("};")
-    lines.append("")
-    lines.append(
-        "export function hasGatherArtwork(key: string): key is keyof typeof gatherArtworkXml {"
-    )
-    lines.append("  return key in gatherArtworkXml;")
-    lines.append("}")
-    lines.append("")
+    lines += [
+        "};",
+        "",
+        "const loadedGatherArtwork = new Map<string, string>();",
+        "",
+        "export function hasGatherArtwork(key: string): boolean {",
+        "  return Object.prototype.hasOwnProperty.call(GATHER_ARTWORK_LOADERS, key);",
+        "}",
+        "",
+        "export function getGatherArtworkXml(key: string): string | undefined {",
+        "  if (!hasGatherArtwork(key)) {",
+        "    return undefined;",
+        "  }",
+        "  let xml = loadedGatherArtwork.get(key);",
+        "  if (xml === undefined) {",
+        "    xml = GATHER_ARTWORK_LOADERS[key]();",
+        "    loadedGatherArtwork.set(key, xml);",
+        "  }",
+        "  return xml;",
+        "}",
+        "",
+    ]
 
     REGISTRY_OUTPUT_PATH.write_text("\n".join(lines), encoding="utf-8")
 
