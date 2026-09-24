@@ -90,24 +90,15 @@ export function resolveQueuedAt(
   return new Date(Math.min(parsed, now)).toISOString();
 }
 
-/**
- * The caller's address as stamped by the edge, or null when the edge supplied none.
- *
- * Same trust rule as _shared/passcodeAttempts.ts: cf-connecting-ip and x-real-ip are stamped
- * by the edge, but a client-sent x-forwarded-for reaches the function verbatim. Trusting it
- * would let a flood mint a new throttle key per request, and let a caller choose which address
- * the (paid) geo lookup resolves. It is never used.
- */
-export function getTrustedClientIp(request: Request): string | null {
+export function getClientIp(request: Request): string {
+  // Same trust rule as _shared/passcodeAttempts.ts: cf-connecting-ip and x-real-ip are
+  // stamped by the edge, but a client-sent x-forwarded-for reaches the function verbatim, so
+  // it would let a flood mint a new throttle key per request. It is never used here.
   return (
     request.headers.get('cf-connecting-ip')?.trim() ||
     request.headers.get('x-real-ip')?.trim() ||
-    null
+    'unknown'
   );
-}
-
-export function getClientIp(request: Request): string {
-  return getTrustedClientIp(request) ?? 'unknown';
 }
 
 async function sha256Hex(value: string): Promise<string> {

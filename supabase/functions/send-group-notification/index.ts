@@ -30,6 +30,9 @@ const corsHeaders = {
 
 const EXPO_PUSH_API_URL = 'https://exp.host/--/api/v2/push/send';
 const EXPO_PUSH_BATCH_SIZE = 100;
+// Expo normally answers in well under a second. A hung batch is abandoned and counted as
+// failed rather than holding the caller's request open until the platform wall-clock limit.
+const EXPO_PUSH_TIMEOUT_MS = 10_000;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function jsonResponse(payload: Record<string, unknown>, status = 200): Response {
@@ -195,6 +198,7 @@ Deno.serve(async (req) => {
             Accept: 'application/json',
           },
           body: JSON.stringify(batch),
+          signal: AbortSignal.timeout(EXPO_PUSH_TIMEOUT_MS),
         });
 
         if (!response.ok) {

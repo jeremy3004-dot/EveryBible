@@ -250,21 +250,26 @@ test('an over-long top-level payload geo value cannot reach a bounded column', a
   assert.equal(body.rejected, 1);
 });
 
-test('a client-sent x-forwarded-for is never used for the geo lookup', async () => {
+// x-forwarded-for reaches the function exactly as the caller sent it, so looking it up would
+// let any signed-in account place its events wherever it likes on the admin heat map.
+test('a client-sent x-forwarded-for address is never looked up', async () => {
   const h = endpoint();
   await h.send([h.event], undefined, { 'x-forwarded-for': '198.51.100.4, 10.0.0.1' });
   assert.deepEqual(h.geoRequests, []);
-  assert.equal(h.stored[0].geo_country_code, null);
+  assert.equal(h.stored.length, 1);
   assert.equal(h.stored[0].geo_city, null);
+  assert.equal(h.stored[0].geo_source, null);
 });
 
-test('x-forwarded-for cannot outrank the edge-stamped x-real-ip', async () => {
+test('the edge-stamped x-real-ip wins over a client-sent x-forwarded-for', async () => {
   const h = endpoint();
   await h.send([h.event], undefined, {
     'x-forwarded-for': '198.51.100.4',
     'x-real-ip': '198.51.100.9',
   });
   assert.deepEqual(h.geoRequests, ['https://ipinfo.io/198.51.100.9/json?token=ipinfo-token']);
+  assert.equal(h.stored[0].geo_city, 'Pokhara');
+  assert.equal(h.stored[0].geo_source, 'ipinfo');
 });
 
 test('x-real-ip is used when no other client address header is present', async () => {

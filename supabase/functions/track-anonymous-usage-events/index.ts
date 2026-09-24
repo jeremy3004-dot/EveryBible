@@ -2,7 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
   consumeIngestBudget,
   eventPropertiesWithinLimit,
-  getTrustedClientIp,
+  getClientIp,
   hashIngestClientKey,
   type IngestBudget,
   MAX_EVENTS_PER_BATCH,
@@ -256,9 +256,10 @@ async function resolveRequestGeo(
 }
 
 async function lookupRequestGeo(req: Request, cfCountry: string | null): Promise<GeoResult | null> {
-  // Edge-stamped address only; a client-sent x-forwarded-for would pick the lookup target.
-  const clientIp = getTrustedClientIp(req);
-  if (clientIp) {
+  // Only edge-stamped addresses (cf-connecting-ip, x-real-ip) are trusted; a caller-sent
+  // x-forwarded-for would let the caller pick which address is geolocated.
+  const clientIp = getClientIp(req);
+  if (clientIp !== 'unknown') {
     const ipinfoToken = Deno.env.get('IPINFO_TOKEN')?.trim();
     if (ipinfoToken) {
       const result = await lookupViaIpinfo(clientIp, ipinfoToken);

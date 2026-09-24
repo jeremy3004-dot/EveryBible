@@ -75,10 +75,15 @@ Deno.serve(async (req) => {
       status: 200,
     });
   } catch (error) {
+    // Database detail goes to the function log only, as in every other function (audit
+    // 2026-09-24 L7).
     console.error('Aggregate engagement error:', error);
-    return new Response(JSON.stringify({ success: false, error: (error as Error).message }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500,
-    });
+    return new Response(
+      JSON.stringify({ success: false, error: 'Unable to refresh engagement summaries.' }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
+      }
+    );
   }
 });

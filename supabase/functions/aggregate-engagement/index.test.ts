@@ -21,6 +21,7 @@ function load(
   options: {
     serviceRoleKey?: string;
     authorizationResult?: RpcResult;
+    refreshResult?: RpcResult;
   } = {}
 ) {
   const rpcCalls: Array<{ key: string; fn: string; args: unknown }> = [];
@@ -41,7 +42,7 @@ function load(
         );
       }
       if (key === SERVICE_KEY && fn === 'refresh_engagement_summaries') {
-        return { data: SUMMARY, error: null };
+        return options.refreshResult ?? { data: SUMMARY, error: null };
       }
       return { data: null, error: { message: `unexpected ${fn} with ${key}` } };
     },
@@ -138,4 +139,19 @@ test('aggregate engagement CORS preflight never accesses data', async () => {
   const runtime = load();
   assert.equal((await runtime.request('OPTIONS')).status, 200);
   assert.deepEqual(runtime.harness.clientsCreated, []);
+});
+
+// Same rule as every other function (audit 2026-09-24 L7): database detail goes to the log only.
+test('a failed refresh returns a generic error and logs the database detail', async () => {
+  const detail = 'relation "engagement_summaries" does not exist';
+  const runtime = load({
+    refreshResult: { data: null, error: { code: '42P01', message: detail } },
+  });
+
+  const response = await runtime.request('POST', `Bearer ${SERVICE_KEY}`);
+  const body = await response.json();
+
+  assert.equal(response.status, 500);
+  assert.deepEqual(body, { success: false, error: 'Unable to refresh engagement summaries.' });
+  assert.ok(runtime.harness.loggedErrors.some((line) => line.includes(detail)));
 });
