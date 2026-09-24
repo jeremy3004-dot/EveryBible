@@ -72,6 +72,7 @@ const createStoreStub = <T extends object>(initial: T): StoreStub<T> => {
 interface AppliedPreferences {
   preferences: UserPreferences;
   updatedAt: string | null;
+  base?: UserPreferences;
 }
 interface AppliedProgress {
   chaptersRead: Record<string, number>;
@@ -92,7 +93,13 @@ interface AuthStubState {
   authGeneration: number;
   preferences: UserPreferences;
   preferencesUpdatedAt: string | null;
-  applySyncedPreferences: (preferences: UserPreferences, updatedAt: string | null) => void;
+  preferencesSyncBase?: UserPreferences | null;
+  applySyncedPreferences: (
+    preferences: UserPreferences,
+    updatedAt: string | null,
+    base?: UserPreferences
+  ) => void;
+  markPreferencesSynced: (base: UserPreferences) => void;
 }
 
 interface ProgressStubState {
@@ -113,9 +120,17 @@ const authStore: StoreStub<AuthStubState> = createStoreStub<AuthStubState>({
   authGeneration: 1,
   preferences: LOCAL_PREFERENCES,
   preferencesUpdatedAt: null,
-  applySyncedPreferences: (preferences, updatedAt) => {
-    appliedPreferences.push({ preferences, updatedAt });
-    authStore.setState({ preferences, preferencesUpdatedAt: updatedAt });
+  preferencesSyncBase: null,
+  applySyncedPreferences: (preferences, updatedAt, base) => {
+    appliedPreferences.push(base ? { preferences, updatedAt, base } : { preferences, updatedAt });
+    authStore.setState({
+      preferences,
+      preferencesUpdatedAt: updatedAt,
+      preferencesSyncBase: base ?? preferences,
+    });
+  },
+  markPreferencesSynced: (base) => {
+    authStore.setState({ preferencesSyncBase: base });
   },
 });
 
@@ -318,6 +333,7 @@ beforeEach(() => {
     authGeneration: 1,
     preferences: LOCAL_PREFERENCES,
     preferencesUpdatedAt: null,
+    preferencesSyncBase: null,
   });
   progressStore.setState({ chaptersRead: {}, streakDays: 0, lastReadDate: null });
   bibleStore.setState({ currentBook: 'GEN', currentChapter: 1 });
@@ -1636,4 +1652,169 @@ test('every current accent palette and retired row value passes the migrated pal
   for (const retired of ['ember', 'sapphire', 'teal', 'olive']) {
     assert.equal(checkAdmits(schema, 'appearance_palette', retired), true, retired);
   }
+});
+
+// ---------------------------------------------------------------------------
+// Per-field preference merge once the device has a sync base
+// (docs/research/sync-offline-review-2026-09-24.md, finding 6)
+// ---------------------------------------------------------------------------
+
+/** A cloud row carrying exactly these preferences. */
+const cloudRowFor = (
+  preferences: UserPreferences,
+  syncedAt: string | undefined
+): RemoteUserPreferences =>
+  remotePreferenceRow({
+    font_size: preferences.fontSize,
+    theme: preferences.theme,
+    appearance_palette: preferences.appearancePalette,
+    language: preferences.language,
+    country_code: preferences.countryCode,
+    country_name: preferences.countryName,
+    content_language_code: preferences.contentLanguageCode,
+    content_language_name: preferences.contentLanguageName,
+    content_language_native_name: preferences.contentLanguageNativeName,
+    chapter_feedback_name: preferences.chapterFeedbackName,
+    chapter_feedback_role: preferences.chapterFeedbackRole,
+    onboarding_completed: preferences.onboardingCompleted,
+    chapter_feedback_enabled: preferences.chapterFeedbackEnabled,
+    hide_play_button_from_reading_tab: preferences.hidePlayButtonFromReadingTab,
+    notifications_enabled: preferences.notificationsEnabled,
+    reminder_time: preferences.reminderTime,
+    synced_at: syncedAt,
+  });
+
+const SYNCED_AT = '2026-09-10T00:00:00.000Z';
+
+test('edits to different preferences on two devices both survive when the cloud edit is newer', async () => {
+  // This device changed the font; the other device changed the theme later.
+  authStore.setState({
+    preferencesSyncBase: LOCAL_PREFERENCES,
+    preferences: { ...LOCAL_PREFERENCES, fontSize: 'large' },
+    preferencesUpdatedAt: '2026-09-11T00:00:00.000Z',
+  });
+  script.user_preferences = {
+    select: {
+      data: cloudRowFor({ ...LOCAL_PREFERENCES, theme: 'dark' }, '2026-09-12T00:00:00.000Z'),
+    },
+  };
+
+  const result = await syncPreferences(USER_A);
+
+  assert.equal(result.success, true);
+  assert.equal(authStore.getState().preferences.fontSize, 'large');
+  assert.equal(authStore.getState().preferences.theme, 'dark');
+  assert.equal(payloadOf('user_preferences').font_size, 'large');
+  assert.equal(payloadOf('user_preferences').theme, 'dark');
+});
+
+test('edits to different preferences on two devices both survive when the local edit is newer', async () => {
+  authStore.setState({
+    preferencesSyncBase: LOCAL_PREFERENCES,
+    preferences: { ...LOCAL_PREFERENCES, fontSize: 'large' },
+    preferencesUpdatedAt: '2026-09-13T00:00:00.000Z',
+  });
+  script.user_preferences = {
+    select: {
+      data: cloudRowFor({ ...LOCAL_PREFERENCES, theme: 'dark' }, '2026-09-12T00:00:00.000Z'),
+    },
+  };
+
+  const result = await syncPreferences(USER_A);
+
+  assert.equal(result.success, true);
+  assert.equal(authStore.getState().preferences.theme, 'dark');
+  assert.equal(payloadOf('user_preferences').theme, 'dark');
+  assert.equal(payloadOf('user_preferences').font_size, 'large');
+});
+
+test('a device with no pending edit adopts a cloud change even when its own clock runs ahead', async () => {
+  // Nothing changed locally since the last sync, but this device's clock is fast,
+  // so its stamp is later than the other device's real edit.
+  authStore.setState({
+    preferencesSyncBase: LOCAL_PREFERENCES,
+    preferences: LOCAL_PREFERENCES,
+    preferencesUpdatedAt: '2026-09-20T00:00:00.000Z',
+  });
+  script.user_preferences = {
+    select: {
+      data: cloudRowFor({ ...LOCAL_PREFERENCES, fontSize: 'small' }, '2026-09-12T00:00:00.000Z'),
+    },
+  };
+
+  const result = await syncPreferences(USER_A);
+
+  assert.deepEqual(result, { success: true, merged: true });
+  assert.equal(authStore.getState().preferences.fontSize, 'small');
+  assert.deepEqual(callsFor('user_preferences', 'upsert'), []);
+});
+
+test('a preference changed differently on both devices goes to the newer stamp', async () => {
+  authStore.setState({
+    preferencesSyncBase: LOCAL_PREFERENCES,
+    preferences: { ...LOCAL_PREFERENCES, fontSize: 'large' },
+    preferencesUpdatedAt: '2026-09-11T00:00:00.000Z',
+  });
+  script.user_preferences = {
+    select: {
+      data: cloudRowFor({ ...LOCAL_PREFERENCES, fontSize: 'small' }, '2026-09-12T00:00:00.000Z'),
+    },
+  };
+
+  await syncPreferences(USER_A);
+
+  assert.equal(authStore.getState().preferences.fontSize, 'small');
+  assert.deepEqual(callsFor('user_preferences', 'upsert'), []);
+});
+
+test('an unchanged preference row is not uploaded again on every sync', async () => {
+  authStore.setState({
+    preferencesSyncBase: LOCAL_PREFERENCES,
+    preferences: LOCAL_PREFERENCES,
+    preferencesUpdatedAt: SYNCED_AT,
+  });
+  script.user_preferences = { select: { data: cloudRowFor(LOCAL_PREFERENCES, SYNCED_AT) } };
+
+  const result = await syncPreferences(USER_A);
+
+  assert.deepEqual(result, { success: true, merged: false });
+  assert.deepEqual(callsFor('user_preferences', 'upsert'), []);
+});
+
+test('a failed upload of merged preferences is retried rather than read as a cloud revert', async () => {
+  authStore.setState({
+    preferencesSyncBase: LOCAL_PREFERENCES,
+    preferences: { ...LOCAL_PREFERENCES, fontSize: 'large' },
+    preferencesUpdatedAt: '2026-09-11T00:00:00.000Z',
+  });
+  const cloud = cloudRowFor({ ...LOCAL_PREFERENCES, theme: 'dark' }, '2026-09-12T00:00:00.000Z');
+  script.user_preferences = {
+    select: { data: cloud },
+    write: { error: { message: 'preferences write failed' } },
+  };
+
+  const failed = await syncPreferences(USER_A);
+  assert.equal(failed.success, false);
+  // The server still holds the old font, so the next sync must upload, not revert.
+  script.user_preferences = { select: { data: cloud } };
+
+  const retried = await syncPreferences(USER_A);
+
+  assert.equal(retried.success, true);
+  assert.equal(authStore.getState().preferences.fontSize, 'large');
+  assert.equal(authStore.getState().preferences.theme, 'dark');
+  assert.equal(payloadOf('user_preferences', 1).font_size, 'large');
+});
+
+test('a successful upload records the uploaded values as the new sync base', async () => {
+  authStore.setState({
+    preferencesSyncBase: LOCAL_PREFERENCES,
+    preferences: { ...LOCAL_PREFERENCES, fontSize: 'large' },
+    preferencesUpdatedAt: '2026-09-11T00:00:00.000Z',
+  });
+  script.user_preferences = { select: { data: cloudRowFor(LOCAL_PREFERENCES, SYNCED_AT) } };
+
+  await syncPreferences(USER_A);
+
+  assert.equal(authStore.getState().preferencesSyncBase?.fontSize, 'large');
 });

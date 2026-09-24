@@ -19,6 +19,10 @@ interface AuthState {
   isInitialized: boolean;
   preferences: UserPreferences;
   preferencesUpdatedAt: string | null;
+  // The preference values the server held at this device's last reconcile with
+  // it. The sync merges per field against this base, so an edit on another
+  // device to a different field is not reverted. Null until the first sync.
+  preferencesSyncBase: UserPreferences | null;
   // uid of the account whose per-user data currently lives in the local stores.
   // Used to detect an account switch on sign-in so account B never inherits
   // account A's local reading data (H2).
@@ -32,7 +36,14 @@ interface AuthState {
   setSession: (session: Session | null) => void;
   setLoading: (loading: boolean) => void;
   setPreferences: (prefs: Partial<UserPreferences>) => void;
-  applySyncedPreferences: (preferences: UserPreferences, updatedAt: string | null) => void;
+  // `base` defaults to `preferences`: pass the server's values instead when the
+  // applied preferences still have local edits waiting to upload.
+  applySyncedPreferences: (
+    preferences: UserPreferences,
+    updatedAt: string | null,
+    base?: UserPreferences
+  ) => void;
+  markPreferencesSynced: (base: UserPreferences) => void;
   signOut: () => Promise<void>;
   initialize: () => Promise<void>;
   // Reconcile the auth boundary before the first post-sign-in sync: if the newly
@@ -89,6 +100,24 @@ const resetPerUserStores = (): void => {
   }
 };
 
+const preferencesDiffer = (left: UserPreferences, right: UserPreferences): boolean =>
+  left.fontSize !== right.fontSize ||
+  left.theme !== right.theme ||
+  left.appearancePalette !== right.appearancePalette ||
+  left.language !== right.language ||
+  left.countryCode !== right.countryCode ||
+  left.countryName !== right.countryName ||
+  left.contentLanguageCode !== right.contentLanguageCode ||
+  left.contentLanguageName !== right.contentLanguageName ||
+  left.contentLanguageNativeName !== right.contentLanguageNativeName ||
+  left.chapterFeedbackName !== right.chapterFeedbackName ||
+  left.chapterFeedbackRole !== right.chapterFeedbackRole ||
+  left.onboardingCompleted !== right.onboardingCompleted ||
+  left.chapterFeedbackEnabled !== right.chapterFeedbackEnabled ||
+  left.hidePlayButtonFromReadingTab !== right.hidePlayButtonFromReadingTab ||
+  left.notificationsEnabled !== right.notificationsEnabled ||
+  left.reminderTime !== right.reminderTime;
+
 // Convert Supabase user to app User type
 const mapSupabaseUser = (supabaseUser: {
   id: string;
@@ -118,6 +147,7 @@ export const useAuthStore = create<AuthState>()(
       isInitialized: false,
       preferences: defaultAuthPreferences,
       preferencesUpdatedAt: null,
+      preferencesSyncBase: null,
       lastSyncedUserId: null,
       authGeneration: 0,
 
@@ -158,6 +188,7 @@ export const useAuthStore = create<AuthState>()(
                 set({
                   preferences: defaultAuthPreferences,
                   preferencesUpdatedAt: null,
+                  preferencesSyncBase: null,
                   lastSyncedUserId: null,
                 }),
               clearGuestTombstones: clearGuestPlanTombstones,
@@ -200,6 +231,7 @@ export const useAuthStore = create<AuthState>()(
                 set({
                   preferences: defaultAuthPreferences,
                   preferencesUpdatedAt: null,
+                  preferencesSyncBase: null,
                   lastSyncedUserId: null,
                 }),
               clearGuestTombstones: clearGuestPlanTombstones,
@@ -216,36 +248,24 @@ export const useAuthStore = create<AuthState>()(
           preferencesUpdatedAt: new Date().toISOString(),
         })),
 
-      applySyncedPreferences: (preferences, updatedAt) =>
+      applySyncedPreferences: (preferences, updatedAt, base = preferences) =>
         set((state) => {
-          const preferencesChanged =
-            state.preferences.fontSize !== preferences.fontSize ||
-            state.preferences.theme !== preferences.theme ||
-            state.preferences.appearancePalette !== preferences.appearancePalette ||
-            state.preferences.language !== preferences.language ||
-            state.preferences.countryCode !== preferences.countryCode ||
-            state.preferences.countryName !== preferences.countryName ||
-            state.preferences.contentLanguageCode !== preferences.contentLanguageCode ||
-            state.preferences.contentLanguageName !== preferences.contentLanguageName ||
-            state.preferences.contentLanguageNativeName !== preferences.contentLanguageNativeName ||
-            state.preferences.chapterFeedbackName !== preferences.chapterFeedbackName ||
-            state.preferences.chapterFeedbackRole !== preferences.chapterFeedbackRole ||
-            state.preferences.onboardingCompleted !== preferences.onboardingCompleted ||
-            state.preferences.chapterFeedbackEnabled !== preferences.chapterFeedbackEnabled ||
-            state.preferences.hidePlayButtonFromReadingTab !==
-              preferences.hidePlayButtonFromReadingTab ||
-            state.preferences.notificationsEnabled !== preferences.notificationsEnabled ||
-            state.preferences.reminderTime !== preferences.reminderTime;
+          const preferencesChanged = preferencesDiffer(state.preferences, preferences);
 
           if (!preferencesChanged && state.preferencesUpdatedAt === updatedAt) {
-            return state;
+            return state.preferencesSyncBase && !preferencesDiffer(state.preferencesSyncBase, base)
+              ? state
+              : { preferencesSyncBase: base };
           }
 
           return {
             preferences,
             preferencesUpdatedAt: updatedAt,
+            preferencesSyncBase: base,
           };
         }),
+
+      markPreferencesSynced: (base) => set({ preferencesSyncBase: base }),
 
       signOut: async () => {
         const previousUserId = get().user?.uid ?? null;
@@ -273,6 +293,7 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: false,
           preferences: defaultAuthPreferences,
           preferencesUpdatedAt: null,
+          preferencesSyncBase: null,
           lastSyncedUserId: null,
           authGeneration: get().authGeneration + (previousUserId ? 1 : 0),
         });
@@ -289,7 +310,11 @@ export const useAuthStore = create<AuthState>()(
           {
             resetPerUserState: resetPerUserStores,
             resetPreferences: () =>
-              set({ preferences: defaultAuthPreferences, preferencesUpdatedAt: null }),
+              set({
+                preferences: defaultAuthPreferences,
+                preferencesUpdatedAt: null,
+                preferencesSyncBase: null,
+              }),
             clearGuestTombstones: clearGuestPlanTombstones,
           }
         );
@@ -395,6 +420,7 @@ export const useAuthStore = create<AuthState>()(
       partialize: (state) => ({
         preferences: state.preferences,
         preferencesUpdatedAt: state.preferencesUpdatedAt,
+        preferencesSyncBase: state.preferencesSyncBase,
         lastSyncedUserId: state.lastSyncedUserId,
       }),
       merge: (persistedState, currentState) => {
@@ -415,6 +441,7 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: sanitized.isAuthenticated,
           preferences: sanitized.preferences,
           preferencesUpdatedAt: sanitized.preferencesUpdatedAt,
+          preferencesSyncBase: sanitized.preferencesSyncBase,
           lastSyncedUserId: persistedLastSyncedUserId,
         };
         if (typeof __DEV__ !== 'undefined' && __DEV__) {

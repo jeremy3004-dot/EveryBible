@@ -153,6 +153,7 @@ beforeEach(() => {
     isInitialized: false,
     preferences: { ...defaultAuthPreferences },
     preferencesUpdatedAt: null,
+    preferencesSyncBase: null,
     lastSyncedUserId: null,
     authGeneration: 0,
   });
@@ -217,12 +218,13 @@ test('the last synced account id survives a restart so an account switch can be 
   assert.equal(hydratedState.lastSyncedUserId, 'seeded-user');
 });
 
-test('only preferences and the account marker are written to disk', () => {
+test('only preferences, their sync base and the account marker are written to disk', () => {
   useAuthStore.getState().setPreferences({ fontSize: 'small' });
 
   assert.deepEqual(Object.keys(readPersistedAuthStorage().state).sort(), [
     'lastSyncedUserId',
     'preferences',
+    'preferencesSyncBase',
     'preferencesUpdatedAt',
   ]);
 });
@@ -498,6 +500,39 @@ test('synced preferences identical to the local ones are ignored entirely', () =
     .applySyncedPreferences({ ...defaultAuthPreferences }, '2026-06-01T00:00:00.000Z');
 
   assert.equal(useAuthStore.getState(), settled);
+});
+
+test('synced preferences become the sync base, unless the server copy is passed separately', () => {
+  const server = { ...defaultAuthPreferences, theme: 'dark' as const };
+  const merged = { ...server, fontSize: 'large' as const };
+
+  useAuthStore.getState().applySyncedPreferences(server, '2026-06-01T00:00:00.000Z');
+  assert.deepEqual(useAuthStore.getState().preferencesSyncBase, server);
+
+  // Merged values still waiting to upload: the base must stay what the server holds.
+  useAuthStore.getState().applySyncedPreferences(merged, '2026-06-02T00:00:00.000Z', server);
+  assert.deepEqual(useAuthStore.getState().preferences, merged);
+  assert.deepEqual(useAuthStore.getState().preferencesSyncBase, server);
+
+  useAuthStore.getState().markPreferencesSynced(merged);
+  assert.deepEqual(useAuthStore.getState().preferencesSyncBase, merged);
+});
+
+test('the preference sync base is restored from disk and cleared on sign-out', async () => {
+  const base = { ...defaultAuthPreferences, fontSize: 'large' as const };
+  await rehydrateFrom({ state: { preferences: base, preferencesSyncBase: base }, version: 3 });
+  assert.deepEqual(useAuthStore.getState().preferencesSyncBase, base);
+
+  useAuthStore.getState().setUser(appUser('user-a'));
+  await useAuthStore.getState().signOut();
+
+  assert.equal(useAuthStore.getState().preferencesSyncBase, null);
+});
+
+test('a corrupted persisted sync base is dropped instead of trusted', async () => {
+  await rehydrateFrom({ state: { preferencesSyncBase: 'corrupted' }, version: 3 });
+
+  assert.equal(useAuthStore.getState().preferencesSyncBase, null);
 });
 
 test('a newer sync timestamp is adopted even when the preference values match', () => {

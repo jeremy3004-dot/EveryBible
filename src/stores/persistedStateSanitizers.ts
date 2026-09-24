@@ -940,6 +940,7 @@ export const sanitizePersistedAuthState = (
   isAuthenticated: boolean;
   preferences: UserPreferences;
   preferencesUpdatedAt: string | null;
+  preferencesSyncBase: UserPreferences | null;
 } => {
   const persisted = isRecord(value) ? value : {};
 
@@ -955,6 +956,9 @@ export const sanitizePersistedAuthState = (
       persisted.preferencesUpdatedAt.length > 0
         ? persisted.preferencesUpdatedAt
         : null,
+    preferencesSyncBase: isRecord(persisted.preferencesSyncBase)
+      ? sanitizeUserPreferences(persisted.preferencesSyncBase)
+      : null,
   };
 };
 

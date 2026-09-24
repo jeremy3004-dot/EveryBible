@@ -20,10 +20,18 @@ export interface LocalReadingSnapshot {
 export interface LocalPreferenceSnapshot {
   preferences: UserPreferences;
   updatedAt: string | null;
+  /**
+   * The values the server held when this device last reconciled with it. With a
+   * base, each field takes whichever side changed it; without one (first sync on
+   * this device) the whole row goes to the newer stamp.
+   */
+  base?: UserPreferences | null;
 }
 
 type PositionSource = 'local' | 'remote';
-type PreferenceSource = 'local' | 'remote';
+// 'merged': both sides contributed fields, so the result must be applied
+// locally and uploaded.
+type PreferenceSource = 'local' | 'remote' | 'merged';
 
 interface ReadingPosition {
   bookId: string;
@@ -42,6 +50,8 @@ export interface PreferenceMergeResult {
   updatedAt: string | null;
   source: PreferenceSource;
   changed: boolean;
+  /** The server's current values (normalised), or null when it has no row. */
+  remotePreferences: UserPreferences | null;
 }
 
 export const mergeChapterProgress = (
@@ -226,23 +236,55 @@ const mapRemotePreferences = (remotePreferences: RemoteUserPreferences): UserPre
   reminderTime: remotePreferences.reminder_time,
 });
 
+// Typed as a full record so adding a preference field fails to compile until it
+// is listed here, which keeps the equality check and the per-field merge complete.
+const PREFERENCE_FIELDS = Object.keys({
+  fontSize: true,
+  theme: true,
+  appearancePalette: true,
+  language: true,
+  countryCode: true,
+  countryName: true,
+  contentLanguageCode: true,
+  contentLanguageName: true,
+  contentLanguageNativeName: true,
+  chapterFeedbackName: true,
+  chapterFeedbackRole: true,
+  onboardingCompleted: true,
+  chapterFeedbackEnabled: true,
+  hidePlayButtonFromReadingTab: true,
+  notificationsEnabled: true,
+  reminderTime: true,
+} satisfies Record<keyof UserPreferences, true>) as (keyof UserPreferences)[];
+
 const preferencesEqual = (left: UserPreferences, right: UserPreferences): boolean =>
-  left.fontSize === right.fontSize &&
-  left.theme === right.theme &&
-  left.appearancePalette === right.appearancePalette &&
-  left.language === right.language &&
-  left.countryCode === right.countryCode &&
-  left.countryName === right.countryName &&
-  left.contentLanguageCode === right.contentLanguageCode &&
-  left.contentLanguageName === right.contentLanguageName &&
-  left.contentLanguageNativeName === right.contentLanguageNativeName &&
-  left.chapterFeedbackName === right.chapterFeedbackName &&
-  left.chapterFeedbackRole === right.chapterFeedbackRole &&
-  left.onboardingCompleted === right.onboardingCompleted &&
-  left.chapterFeedbackEnabled === right.chapterFeedbackEnabled &&
-  left.hidePlayButtonFromReadingTab === right.hidePlayButtonFromReadingTab &&
-  left.notificationsEnabled === right.notificationsEnabled &&
-  left.reminderTime === right.reminderTime;
+  PREFERENCE_FIELDS.every((field) => left[field] === right[field]);
+
+/**
+ * Three-way merge against the last reconciled server values. A field changed on
+ * one side only takes that side's value regardless of either device's clock;
+ * only a field changed differently on both sides falls back to the stamps.
+ */
+const mergePreferenceFields = (
+  local: UserPreferences,
+  remote: UserPreferences,
+  base: UserPreferences,
+  remoteIsNewer: boolean
+): UserPreferences => {
+  const merged: UserPreferences = { ...local };
+  const writable = merged as unknown as Record<keyof UserPreferences, unknown>;
+  for (const field of PREFERENCE_FIELDS) {
+    const localValue = local[field];
+    const remoteValue = remote[field];
+    if (localValue === remoteValue || remoteValue === base[field]) {
+      continue;
+    }
+    if (localValue === base[field] || remoteIsNewer) {
+      writable[field] = remoteValue;
+    }
+  }
+  return merged;
+};
 
 export const mergePreferences = (
   localSnapshot: LocalPreferenceSnapshot,
@@ -254,40 +296,58 @@ export const mergePreferences = (
       updatedAt: localSnapshot.updatedAt,
       source: 'local',
       changed: false,
+      remotePreferences: null,
     };
   }
 
   const remoteSnapshot = mapRemotePreferences(remotePreferences);
   const remoteUpdatedAt = remotePreferences.synced_at ?? null;
+  const keepLocal: PreferenceMergeResult = {
+    preferences: localSnapshot.preferences,
+    updatedAt: localSnapshot.updatedAt,
+    source: 'local',
+    changed: false,
+    remotePreferences: remoteSnapshot,
+  };
   const remoteWouldReopenOnboarding =
     localSnapshot.preferences.onboardingCompleted && !remoteSnapshot.onboardingCompleted;
 
   if (remoteWouldReopenOnboarding) {
-    return {
-      preferences: localSnapshot.preferences,
-      updatedAt: localSnapshot.updatedAt,
-      source: 'local',
-      changed: false,
-    };
+    return keepLocal;
   }
 
   const shouldUseRemote =
     !localSnapshot.updatedAt ||
     (remoteUpdatedAt !== null && remoteUpdatedAt > localSnapshot.updatedAt);
+  const useRemote: PreferenceMergeResult = {
+    preferences: remoteSnapshot,
+    updatedAt: remoteUpdatedAt,
+    source: 'remote',
+    changed: !preferencesEqual(localSnapshot.preferences, remoteSnapshot),
+    remotePreferences: remoteSnapshot,
+  };
 
-  if (shouldUseRemote) {
+  if (localSnapshot.base) {
+    const merged = mergePreferenceFields(
+      localSnapshot.preferences,
+      remoteSnapshot,
+      localSnapshot.base,
+      shouldUseRemote
+    );
+    if (preferencesEqual(merged, remoteSnapshot)) {
+      return useRemote;
+    }
+    if (preferencesEqual(merged, localSnapshot.preferences)) {
+      return keepLocal;
+    }
     return {
-      preferences: remoteSnapshot,
-      updatedAt: remoteUpdatedAt,
-      source: 'remote',
-      changed: !preferencesEqual(localSnapshot.preferences, remoteSnapshot),
+      preferences: merged,
+      updatedAt: localSnapshot.updatedAt,
+      source: 'merged',
+      changed: true,
+      remotePreferences: remoteSnapshot,
     };
   }
 
-  return {
-    preferences: localSnapshot.preferences,
-    updatedAt: localSnapshot.updatedAt,
-    source: 'local',
-    changed: false,
-  };
+  return shouldUseRemote ? useRemote : keepLocal;
 };
