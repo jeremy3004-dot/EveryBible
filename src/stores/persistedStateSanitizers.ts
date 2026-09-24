@@ -990,10 +990,13 @@ export const sanitizePersistedBibleState = (
   const translations = sanitizeBibleTranslations(persisted.translations, runtimeCatalogById);
   const translationIds = new Set(translations.map((translation) => translation.id));
   const persistedCurrentBook = sanitizeBookId(persisted.currentBook);
+  // The chapter belongs to its book: without a valid book it would land on Genesis at that
+  // chapter, and past the book's end (Jude 2) it opens a reader with nothing in it.
   const persistedCurrentChapter =
     typeof persisted.currentChapter === 'number' &&
     Number.isInteger(persisted.currentChapter) &&
-    persisted.currentChapter > 0
+    persisted.currentChapter > 0 &&
+    persisted.currentChapter <= (getBookById(persistedCurrentBook ?? '')?.chapters ?? 0)
       ? persisted.currentChapter
       : null;
   const currentBook = persistedCurrentBook ?? 'GEN';

@@ -110,7 +110,12 @@ export function PublicLanguageAtlas() {
     })
       .then(async (response) => {
         if (!response.ok) throw new Error('Atlas unavailable');
-        setIndex(decodePublicAtlas(await response.json()));
+        const decoded = decodePublicAtlas(await response.json());
+        setIndex(decoded);
+        // Language pages link to `/?language=<record id>` to open that profile here.
+        const requested = new URLSearchParams(window.location.search).get('language');
+        if (requested && decoded.records.some((record) => record.id === requested))
+          setSelectedId(requested);
       })
       .catch(() => {
         if (!controller.signal.aborted) setLoadError(true);
@@ -611,7 +616,6 @@ export function PublicLanguageAtlas() {
           </div>
         </div>
       )}
-
     </section>
   );
 }

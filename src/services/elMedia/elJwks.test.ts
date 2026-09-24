@@ -23,9 +23,30 @@ test('EL_PINNED_JWKS pins exactly the prod + dev keys from the contract', () => 
   }
 });
 
-test('getElKeys returns the pinned trust set and nothing else', async () => {
+// __DEV__ is a Metro global; node --test has none, which is exactly a release runtime.
+function withDevRuntime<T>(run: () => Promise<T>): Promise<T> {
+  const globals = globalThis as { __DEV__?: boolean };
+  globals.__DEV__ = true;
+  return run().finally(() => {
+    delete globals.__DEV__;
+  });
+}
+
+test('a release runtime trusts only the production signing key', async () => {
+  // The dev key signs Every Language's offline fixture pack, which is handed around far more
+  // loosely than the production key. Trusting it in a store build would let anyone holding
+  // the fixture-pack signing key forge a catalog or audio manifest that the app accepts.
   __resetElJwksRuntimeForTests();
   const keys = await getElKeys();
+  assert.deepEqual(
+    keys.map((k) => k.kid),
+    [PINNED_PROD_KID]
+  );
+});
+
+test('a development runtime also trusts the fixture-pack dev key', async () => {
+  __resetElJwksRuntimeForTests();
+  const keys = await withDevRuntime(() => getElKeys());
   assert.deepEqual(keys.map((k) => k.kid).sort(), [PINNED_DEV_KID, PINNED_PROD_KID]);
 });
 

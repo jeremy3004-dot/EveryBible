@@ -1,10 +1,19 @@
 import type { TFunction } from 'i18next';
 import { getBookById, getTranslatedBookName } from '../../constants/books';
 import { RHYTHM_PRESET_LIBRARY, type RhythmPreset } from './rhythmPresets';
+import { RHYTHM_SLOT_META } from './rhythmSlots';
+
+// The store names untitled rhythms in English ("Morning Rhythm", "Rhythm 2");
+// those automatic titles follow the interface language, typed titles do not.
+const AUTOMATIC_NUMBERED_TITLE = /^Rhythm (\d+)$/;
 
 export function getLocalizedRhythmTitle(title: string, t: TFunction): string {
   const preset = RHYTHM_PRESET_LIBRARY.find((candidate) => candidate.title === title);
-  return preset ? t(`interface.rhythmPresets.${preset.id}.title`) : title;
+  if (preset) return t(`interface.rhythmPresets.${preset.id}.title`);
+  const slot = Object.values(RHYTHM_SLOT_META).find((meta) => meta.defaultTitle === title);
+  if (slot) return t(slot.labelKey);
+  const numbered = title.match(AUTOMATIC_NUMBERED_TITLE);
+  return numbered ? t('readingPlans.rhythmNumber', { number: Number(numbered[1]) }) : title;
 }
 
 export function getLocalizedPassageTitle(

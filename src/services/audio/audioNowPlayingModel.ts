@@ -27,6 +27,8 @@ export type BibleNowPlayingInput = {
    * translations that are not in the static translations constant. */
   translationName?: string;
   bookId: string;
+  /** Book name in the interface language for the lock-screen title; falls back to English. */
+  bookName?: string;
   chapter: number;
   positionMs: number;
   durationMs: number;
@@ -75,7 +77,7 @@ export function buildBibleNowPlayingPayload(
   const artistName = input.translationName ?? translation?.name ?? DEFAULT_ALBUM_TITLE;
 
   return {
-    title: `${book.name} ${input.chapter}`,
+    title: `${input.bookName || book.name} ${input.chapter}`,
     artist: artistName,
     albumTitle: DEFAULT_ALBUM_TITLE,
     elapsedSeconds: toSeconds(input.positionMs),

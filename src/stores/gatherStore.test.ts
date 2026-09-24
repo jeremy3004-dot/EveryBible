@@ -138,19 +138,15 @@ test('an empty storage slot leaves the store at its initial state', async () => 
   assert.equal(useGatherStore.getState().infoBannerDismissed, false);
 });
 
-// Documents current behaviour: gatherStore has no persisted-state sanitizer, so a
-// corrupted `completedLessons` (null instead of an object) survives hydration and
-// the first read throws. QUESTION for review — every other persisted store in
-// src/stores runs its payload through persistedStateSanitizers first.
-test('a corrupted completedLessons payload hydrates unsanitized and throws on first read', async () => {
+// A corrupted `completedLessons` (null instead of an object) used to survive
+// hydration and make the first read throw; the persist merge now coerces it.
+test('a corrupted completedLessons payload hydrates as an empty record', async () => {
   seedStorage({ completedLessons: null, infoBannerDismissed: false });
 
   await useGatherStore.persist.rehydrate();
 
-  assert.equal(useGatherStore.getState().completedLessons, null);
-  assert.throws(() => useGatherStore.getState().isLessonComplete('foundation-1', 'lesson-a'), {
-    name: 'TypeError',
-  });
+  assert.deepEqual(useGatherStore.getState().completedLessons, {});
+  assert.equal(useGatherStore.getState().isLessonComplete('foundation-1', 'lesson-a'), false);
 });
 
 test('a lesson can be completed again after it was unmarked', () => {

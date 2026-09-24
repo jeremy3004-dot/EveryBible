@@ -22,7 +22,7 @@ EveryBible is a comprehensive Bible study application built with React Native an
 
 - **Framework:** React Native 0.81 with Expo SDK 54
 - **Language:** TypeScript (strict mode)
-- **State Management:** Zustand with AsyncStorage persistence
+- **State Management:** Zustand with MMKV persistence (account-scoped for private, device-only data)
 - **Navigation:** React Navigation v7 (Bottom Tabs + Stack)
 - **Backend:** Supabase (Authentication, Database, Real-time)
 - **Database:** SQLite for offline Bible text
@@ -113,11 +113,11 @@ npm run android
 npm run web
 ```
 
-**Note:** Some features (Apple Sign-In, Google Sign-In, notifications) require a development build, not Expo Go:
+**Note:** Some features (Apple Sign-In, Google Sign-In, notifications) require a development build, not Expo Go. Build one locally — this account is local-builds-only, never a bare cloud `eas build`:
 
 ```bash
-eas build --profile development --platform ios
-eas build --profile development --platform android
+npx expo run:ios
+npx expo run:android
 ```
 
 ### 5. iOS Setup (macOS only)
@@ -153,18 +153,20 @@ npm run admin:typecheck   # Type-check the admin app
 
 ### Building
 
+Local builds only — every `eas build` invocation here carries `--local`; a bare cloud `eas build` is not used.
+
 ```bash
-# Development builds (with dev client, requires Metro when you launch the app)
-eas build --profile development --platform ios
-eas build --profile development --platform android
+# Development builds (dev client) — prefer these local-run commands over EAS
+npx expo run:ios
+npx expo run:android
 
 # Preview builds (internal distribution installs) with embedded JS bundle
-eas build --profile preview --platform ios
-eas build --profile preview --platform android
+eas build --profile preview --platform ios --local
+eas build --profile preview --platform android --local
 
 # Production builds (store / TestFlight submission candidates with embedded JS bundle)
 npm run testflight:build-local
-eas build --profile production --platform android
+eas build --profile production --platform android --local
 ```
 
 ### Deployment
@@ -223,7 +225,7 @@ The Play service-account JSON is written to `google-play-service-account.json` d
   /contexts       - React contexts (ThemeContext)
   /data           - Static data files
   /hooks          - Custom React hooks
-  /i18n           - Internationalization (4 languages)
+  /i18n           - Internationalization (21 bundled interface locales)
   /navigation     - Navigation configuration
   /screens        - Screen components by feature
   /services       - Business logic and API clients
@@ -316,10 +318,8 @@ Each field contains courses and lessons with progress tracking.
 
 ### Multi-language Support
 
-- English (default)
-- Spanish
-- Nepali
-- Hindi
+- 21 bundled interface locales, English (default) plus Chinese, Hindi, Spanish, Arabic, French, Bengali, Portuguese, Russian, Urdu, Indonesian, German, Japanese, Punjabi, Marathi, Telugu, Turkish, Tamil, Vietnamese, Korean, and Nepali (see `src/constants/languages.ts`)
+- Bible translation availability is separate from interface language support
 - Auto-detects device language
 - User can change language in settings
 
@@ -328,7 +328,7 @@ Each field contains courses and lessons with progress tracking.
 - `app.json` - Expo configuration
 - `eas.json` - EAS Build configuration
 - `tsconfig.json` - TypeScript configuration
-- `.eslintrc.js` - ESLint rules
+- `eslint.config.js` - ESLint rules (flat config; `.eslintrc.js` is unused legacy)
 - `.prettierrc` - Prettier code formatting
 - `CLAUDE.md` - AI assistant project guide (detailed technical reference)
 
@@ -374,7 +374,7 @@ cd android && ./gradlew clean && cd ..
 
 ## Contributing
 
-1. Follow the code style defined in `.eslintrc.js` and `.prettierrc`
+1. Follow the code style defined in `eslint.config.js` and `.prettierrc`
 2. Use TypeScript strict mode (no `any` types)
 3. All user-facing text must use i18n translation keys
 4. Use theme colors from `useTheme()` (no hardcoded colors)

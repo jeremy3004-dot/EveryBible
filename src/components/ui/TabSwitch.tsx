@@ -154,7 +154,9 @@ export function TabSwitch({
             bottom: TRACK_PADDING,
             left: TRACK_PADDING,
             backgroundColor: colors.cardBackground,
-            borderColor: colors.cardBorder,
+            // The thumb is the only mark of which segment is selected, and its
+            // fill is ~1.2:1 on the muted track, so its outline carries the 3:1.
+            borderColor: colors.controlBorder,
           },
           shadows.card,
           thumbStyle,

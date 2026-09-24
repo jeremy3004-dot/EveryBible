@@ -1,11 +1,18 @@
-import test from 'node:test';
+import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
+import { WCAG_NON_TEXT, contrastRatio } from '../../design/contrast';
+import { mockModule, sourcePath } from '../../testing/mockModules';
 import {
   PLAN_LEDGER_DENSE_GAP,
   PLAN_LEDGER_ROOMY_GAP,
+  getPlanLedgerDotPaint,
   getPlanLedgerGridMetrics,
   getPlanLedgerGridRows,
 } from './planLedgerGridModel';
+
+// The dot-contrast test reads the real theme palettes; ThemeContext only needs
+// the auth store at render time.
+mockModule(mock, sourcePath('stores/authStore.ts'), { useAuthStore: () => undefined });
 
 const days = (count: number) => Array.from({ length: count }, (_, index) => index + 1);
 
@@ -99,4 +106,38 @@ test('a 31-day plan pads its second row', () => {
 
 test('a plan that fills its rows exactly gets no padding', () => {
   assert.deepEqual(getPlanLedgerGridRows(days(32), 16), [days(16), days(32).slice(16)]);
+});
+
+// WCAG 1.4.11: the dots are a graphic the reader needs to read their progress,
+// so each state's mark — its ring when it has one, else its fill — has to clear
+// 3:1 against the progress card in both scopes. The future dot used to be a
+// `muted` well in a `borderStrong` ring, 1.49:1 on vellum and 1.43:1 in dark.
+test('every plan-day dot stands out from the progress card in both scopes', async () => {
+  const { createThemeColors } = await import('../../contexts/ThemeContext');
+  const failures: string[] = [];
+  for (const scope of ['light', 'dark'] as const) {
+    const colors = createThemeColors(scope, 'el-blue');
+    for (const [state, paint] of Object.entries(getPlanLedgerDotPaint(colors))) {
+      const mark = paint.borderWidth > 0 && paint.border ? paint.border : paint.fill;
+      const ratio = contrastRatio(mark, colors.cardBackground);
+      if (ratio < WCAG_NON_TEXT) {
+        failures.push(`${scope} ${state} dot ${mark}: ${ratio.toFixed(2)}:1 on the card`);
+      }
+    }
+  }
+  assert.deepEqual(failures, []);
+});
+
+test('done and future dots differ in shape, not only colour', () => {
+  const paint = getPlanLedgerDotPaint({
+    accentPrimary: '#000001',
+    warning: '#000002',
+    warningSoft: '#000003',
+    muted: '#000004',
+    controlBorder: '#000005',
+  });
+
+  assert.equal(paint.done.borderWidth, 0, 'a finished day is a solid dot');
+  assert.ok(paint.future.borderWidth > 0, 'a day still to come is a ring');
+  assert.ok(paint.today.borderWidth > paint.future.borderWidth, "today's ring is the heavier one");
 });

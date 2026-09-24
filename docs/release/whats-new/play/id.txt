@@ -1,0 +1,1 @@
+Audio Alkitab kini tetap berputar saat layar terkunci, dengan kontrol di layar kunci, notifikasi, dan headphone. Pengaturan, rencana, dan catatan tersinkron lebih baik antarperangkat dan hanya milik akun Anda. Rencana bacaan tampil baru, judul perikop kembali, teks diperbaiki di semua bahasa, dukungan TalkBack lebih baik, pembukaan lebih cepat, dan banyak perbaikan.

@@ -188,7 +188,7 @@ function SelectionMark({ isSelected, colors, size = RADIO_SIZE }: SelectionMarkP
         styles.selectionMark,
         styles.selectionMarkEmpty,
         { width: size, height: size, borderRadius: size / 2 },
-        { borderColor: colors.borderStrong },
+        { borderColor: colors.controlBorder },
       ]}
     />
   );
@@ -1286,7 +1286,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     <View
       style={[
         styles.searchField,
-        { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
+        { backgroundColor: colors.cardBackground, borderColor: colors.controlBorder },
       ]}
     >
       <Search size={17} color={colors.secondaryText} strokeWidth={2} />

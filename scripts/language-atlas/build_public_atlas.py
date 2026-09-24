@@ -68,8 +68,14 @@ def encoded_projection():
     return bytes(compressed), index
 
 
+# The generated one-line summary is ~30% of the decoded startup JSON, and the
+# public map, search and profiles never display it. Language pages render their
+# own copy server-side, so it stays in the compatibility snapshot only.
+STARTUP_OMITTED_FIELDS = ("summary",)
+
+
 def startup_projection(index):
-    """Lossless table encoding; profiles and every source placement stay local."""
+    """Table encoding of every field the public map uses; every source placement stays local."""
     record_fields, location_fields, locations = [], [], []
     location_ids = {}
 
@@ -92,7 +98,8 @@ def startup_projection(index):
     for record in index["records"]:
         if record["kind"] not in ("language", "dialect"):
             continue
-        compact = {**record, "location": location_id(record["location"])}
+        compact = {key: value for key, value in record.items() if key not in STARTUP_OMITTED_FIELDS}
+        compact["location"] = location_id(record["location"])
         if "locations" in record:
             compact["locations"] = [location_id(location) for location in record["locations"]]
         records.append(row(compact, record_fields))

@@ -6,7 +6,6 @@ import {
   KIND_LABELS,
   PRECISION_LABELS,
   recordLocations,
-  safeSourceUrl,
   scriptureStatus,
 } from '../../../admin/lib/language-atlas/model';
 import {
@@ -14,7 +13,10 @@ import {
   scriptureVisualCategory,
 } from '../../../admin/lib/language-atlas/presentation';
 import type { AtlasIndex, AtlasRecord, AtlasSource } from '../../../admin/lib/language-atlas/types';
+import { atlasSourceLabel, atlasSourceUrl } from '../../lib/atlas-source-links';
+import { languagePagePath, languageSlug } from '../../lib/language-slug';
 import {
+  parentRecord,
   profileDisplayName,
   profileScriptureLabel,
   profileCountryGroups,
@@ -24,17 +26,8 @@ import {
 } from '../../lib/public-atlas-profile';
 
 function SourceLink({ source, record }: { source: AtlasSource; record?: AtlasRecord }) {
-  // These exact record URL patterns are also used by the snapshot importer.
-  const recordUrl =
-    source.id === 'glottolog' && record?.glottocode
-      ? `https://glottolog.org/resource/languoid/id/${encodeURIComponent(record.glottocode)}`
-      : source.id === 'grn' && record?.rolvCode
-        ? `https://globalrecordings.net/en/language/${encodeURIComponent(record.rolvCode)}`
-        : source.id === 'joshua' && record?.kind === 'language' && record.iso6393
-          ? `https://joshuaproject.net/languages/${encodeURIComponent(record.iso6393)}`
-          : source.url;
-  const url = safeSourceUrl(recordUrl);
-  const label = /joshua/i.test(source.name) ? 'Data provided by Joshua Project' : source.name;
+  const url = atlasSourceUrl(source, record);
+  const label = atlasSourceLabel(source);
   return url ? (
     <a href={url} target="_blank" rel="noreferrer">
       {label} ↗
@@ -83,6 +76,13 @@ export function AtlasRecordProfile({
   const population = profilePopulation(record);
   const spokenLocations = profileSpokenLocations(record, index);
   const locations = recordLocations(record);
+  // Languages have their own page; a dialect links to its parent language's.
+  const pageLanguage =
+    record.kind === 'language'
+      ? record
+      : record.kind === 'dialect'
+        ? parentRecord(record, index)
+        : null;
   return (
     <article className="pa-profile" aria-label={`${record.name} profile`}>
       <div className="pa-section-top">
@@ -95,6 +95,14 @@ export function AtlasRecordProfile({
         {profileDisplayName(record, index)}
       </h2>
       <p className="pa-profile-identity">{profileIdentity(record, index)}</p>
+      {pageLanguage && (
+        <a className="pa-profile-page-link" href={languagePagePath(languageSlug(pageLanguage))}>
+          {pageLanguage === record
+            ? 'Open the language page'
+            : `Open the ${pageLanguage.name} language page`}{' '}
+          →
+        </a>
+      )}
       <ProjectProgress recordId={record.id} />
       <section className="pa-profile-where" aria-labelledby="pa-where-spoken-heading">
         <h3 id="pa-where-spoken-heading">Where spoken</h3>

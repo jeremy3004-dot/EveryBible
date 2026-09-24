@@ -69,6 +69,39 @@ test('mergeReadingSnapshot uses the remote reading position for a fresh local de
   assert.equal(merged.positionSource, 'remote');
 });
 
+test('mergeReadingSnapshot ignores a remote reading position that names no real chapter', () => {
+  // A fresh device adopts the remote position outright, so a row naming Jude 2 or an
+  // unknown book would open the reader on a chapter with nothing in it.
+  const local: LocalReadingSnapshot = {
+    chaptersRead: {},
+    streakDays: 0,
+    lastReadDate: null,
+    currentBook: 'GEN',
+    currentChapter: 1,
+  };
+  const remoteAt = (currentBook: string, currentChapter: number): RemoteUserProgress => ({
+    id: 'progress-1',
+    user_id: 'user-1',
+    chapters_read: {},
+    streak_days: 0,
+    last_read_date: null,
+    current_book: currentBook,
+    current_chapter: currentChapter,
+    synced_at: '2026-03-09T06:00:00.000Z',
+  });
+
+  for (const [book, chapter] of [
+    ['JUD', 2],
+    ['PSA', 151],
+    ['XYZ', 1],
+    ['JHN', 0],
+  ] as const) {
+    const merged = mergeReadingSnapshot(local, remoteAt(book, chapter));
+    assert.deepEqual(merged.readingPosition, { bookId: 'GEN', chapter: 1 }, `${book} ${chapter}`);
+    assert.equal(merged.positionSource, 'local');
+  }
+});
+
 test('mergeReadingSnapshot keeps the newer local reading position when it is ahead', () => {
   const local: LocalReadingSnapshot = {
     chaptersRead: {
