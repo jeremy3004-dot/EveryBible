@@ -160,3 +160,39 @@ test('a pull-to-refresh that fails keeps the list and says why it did not update
   await pullToRefresh();
   assert.equal(view.queryByText(t('common.offlineTryAgain')), null);
 });
+
+// The session can end while the screen is open (expired refresh token, account deleted
+// elsewhere). A load that was already out must not list that account's feedback after it.
+test('feedback that arrives after the reader was signed out is not shown', async () => {
+  backend.pending = () => {};
+  const view = await renderScreen();
+  const answer = backend.pending;
+  backend.pending = null;
+
+  await act(async () => {
+    harness.authStore.setState({ isAuthenticated: false });
+  });
+  await view.flush();
+  await act(async () => {
+    answer?.({
+      success: true,
+      feedback: [
+        {
+          id: 'f1',
+          bookId: 'JHN',
+          chapter: 3,
+          sentiment: 'up',
+          status: 'received',
+          comment: 'Private note from the previous account',
+          resolutionNote: null,
+          hasAudio: false,
+          createdAt: '2026-09-20T10:00:00.000Z',
+        },
+      ],
+    });
+  });
+  await view.flush();
+
+  assert.equal(view.queryByText('Private note from the previous account'), null);
+  assert.ok(view.getByText(t('myFeedback.signInRequired')));
+});

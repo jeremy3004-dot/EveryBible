@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -38,7 +38,12 @@ export function MyFeedbackScreen() {
   // This list lives only on the server, so offline it cannot load; say why.
   const [offline, setOffline] = useState(false);
 
+  // Only the latest load may write: one still out when the session ends (or a retry
+  // overtakes it) would otherwise list an earlier account's feedback.
+  const latestLoadRef = useRef(0);
+
   const loadFeedback = useCallback(async () => {
+    const load = ++latestLoadRef.current;
     if (!isAuthenticated) {
       setItems([]);
       setLoadError(false);
@@ -47,11 +52,14 @@ export function MyFeedbackScreen() {
     }
 
     const result = await fetchMyChapterFeedback();
+    if (load !== latestLoadRef.current) return;
     if (result.success) {
       setItems(result.feedback);
       setLoadError(false);
     } else {
-      setOffline(await isDeviceOffline());
+      const isOffline = await isDeviceOffline();
+      if (load !== latestLoadRef.current) return;
+      setOffline(isOffline);
       setLoadError(true);
     }
     setLoading(false);
