@@ -551,6 +551,7 @@ export const ko = {
     translationDownloadFailedTitle: '다운로드 실패',
     translationDownloadFailed:
       '이 성경을 끝까지 다운로드하지 못했습니다. 인터넷 연결과 여유 저장 공간을 확인한 뒤 다시 시도해 주세요.',
+    searchNoResults: '검색과 일치하는 절이 없습니다.',
     searchUnavailable: '이 번역본은 아직 전문 검색을 지원하지 않습니다.',
     noVersesAvailable: '{{book}} {{chapter}}장은 아직 글로 된 본문이 없습니다.',
     fullBibleComingSoon: '이 장은 이 번역본에서 아직 본문이나 오디오로 제공되지 않습니다.',

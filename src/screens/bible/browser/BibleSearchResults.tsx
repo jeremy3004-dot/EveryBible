@@ -56,19 +56,23 @@ interface BibleSearchResultsProps {
   results: Verse[];
   isSearching: boolean;
   error: string | null;
+  /** The finished search matched nothing. */
+  hasNoResults: boolean;
   contentContainerStyle: ContentStyle;
   onPressResult: (verse: Verse) => void;
 }
 
-/** The full-text search surface: skeleton, error, or the matching verses. */
+/** The full-text search surface: skeleton, error, no-results note, or the matching verses. */
 export function BibleSearchResults({
   results,
   isSearching,
   error,
+  hasNoResults,
   contentContainerStyle,
   onPressResult,
 }: BibleSearchResultsProps) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const renderResult = useCallback<ListRenderItem<Verse>>(
     ({ item }) => <SearchResultCard verse={item} onPress={onPressResult} />,
     [onPressResult]
@@ -98,6 +102,22 @@ export function BibleSearchResults({
           style={[styles.feedbackText, { color: colors.biblePrimaryText }]}
         >
           {error}
+        </Text>
+      </View>
+    );
+  }
+
+  if (hasNoResults) {
+    // Screen readers already hear the zero-result count, so this is not a live region.
+    return (
+      <View
+        style={[
+          styles.feedbackCard,
+          { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
+        ]}
+      >
+        <Text style={[styles.feedbackText, { color: colors.biblePrimaryText }]}>
+          {t('bible.searchNoResults')}
         </Text>
       </View>
     );

@@ -581,6 +581,7 @@ export const es = {
     translationDownloadFailedTitle: 'Error en la descarga',
     translationDownloadFailed:
       'Esta Biblia no terminó de descargarse. Revisa tu conexión a internet y el espacio de almacenamiento libre, y vuelve a intentarlo.',
+    searchNoResults: 'Ningún versículo coincide con tu búsqueda.',
     searchUnavailable: 'La búsqueda de texto completo aún no está disponible para esta traducción.',
     noVersesAvailable: '{{book}} {{chapter}} aún no tiene texto escrito.',
     fullBibleComingSoon:

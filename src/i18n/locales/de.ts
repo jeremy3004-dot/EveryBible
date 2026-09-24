@@ -568,6 +568,7 @@ export const de = {
     translationDownloadFailedTitle: 'Download fehlgeschlagen',
     translationDownloadFailed:
       'Diese Bibel wurde nicht vollständig heruntergeladen. Prüfe deine Internetverbindung und den freien Speicherplatz und versuche es dann noch einmal.',
+    searchNoResults: 'Keine passenden Verse gefunden.',
     searchUnavailable: 'Für diese Übersetzung ist noch keine Volltextsuche verfügbar.',
     noVersesAvailable: 'Für {{book}} {{chapter}} gibt es noch keinen geschriebenen Text.',
     fullBibleComingSoon:

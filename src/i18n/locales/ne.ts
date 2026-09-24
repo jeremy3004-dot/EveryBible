@@ -257,6 +257,7 @@ export const ne = {
     translationDownloadFailedTitle: 'डाउनलोड असफल भयो',
     translationDownloadFailed:
       'यो बाइबल पूरा डाउनलोड हुन सकेन। आफ्नो इन्टरनेट जडान र खाली भण्डारण ठाउँ जाँच गरेर फेरि प्रयास गर्नुहोस्।',
+    searchNoResults: 'तपाईंको खोजसँग मिल्ने कुनै पद फेला परेन।',
     searchUnavailable: 'यस अनुवादका लागि पूर्ण पाठ खोज अझै उपलब्ध छैन।',
     noVersesAvailable: '{{book}} {{chapter}} मा अझै लिखित पाठ छैन।',
     fullBibleComingSoon: 'यो अध्याय यस अनुवादमा अझै पाठ वा अडियोका रूपमा उपलब्ध छैन।',

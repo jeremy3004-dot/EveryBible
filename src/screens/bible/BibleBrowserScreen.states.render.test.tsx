@@ -43,8 +43,24 @@ test('the header names the Bible and the current translation', async () => {
   assert.ok(within(translationEntry(view)!).getByText('BSB'));
 });
 
-test('an unknown current translation falls back to the Berean labels', async () => {
-  bibleStore.setState({ currentTranslation: 'missing' });
+test('an unknown current translation is labelled by its id, not as the Berean Bible', async () => {
+  bibleStore.setState({ currentTranslation: 'npiulb' });
+  const view = await renderBrowser();
+
+  assert.equal(view.queryByText(t('about.bereanBible')), null);
+  assert.equal(view.queryByText('BSB'), null);
+  // The subtitle and the translation entry.
+  assert.equal(view.getAllByText('NPIULB').length, 2);
+  const entry = translationEntry(view)!;
+  assert.deepEqual(entry.props.accessibilityValue, { text: 'NPIULB' });
+  assert.ok(within(entry).getByText('NPIULB'));
+});
+
+test('the Berean labels stand in only when the missing translation is BSB', async () => {
+  bibleStore.setState({
+    currentTranslation: 'bsb',
+    translations: [{ id: 'web', name: 'World English Bible', abbreviation: 'WEB' }],
+  });
   const view = await renderBrowser();
 
   assert.ok(view.getByText(t('about.bereanBible')));
@@ -252,17 +268,31 @@ test('earlier results stay on screen while a newer search runs', async () => {
   assert.ok(view.getByText(/God is love\./));
 });
 
-test('an empty search result is announced as zero results', async () => {
+test('an empty search result says so on screen and is announced as zero results', async () => {
   const view = await renderBrowser();
+  const input = view.getByLabelText(t('common.search'));
 
-  await view.changeText(view.getByLabelText(t('common.search')), 'zzzz');
+  await view.changeText(input, 'zzzz');
+  await view.flush();
+  assert.equal(view.queryByText(t('bible.searchNoResults')), null, 'not while the query waits');
   await wait(BIBLE_SEARCH_DEBOUNCE_MS + 50);
   await act(async () => searches[0].resolve([]));
 
   assert.equal(view.queryAllByType('VersesSkeleton').length, 0);
+  assert.ok(view.getByText(t('bible.searchNoResults')));
   assert.ok(
     harness.rn.__recorded.announcements.includes(t('interface.searchResultCount', { count: 0 }))
   );
+
+  // A new query replaces the message with the skeleton until its own results land.
+  await view.changeText(input, 'zzzzq');
+  await view.flush();
+  assert.equal(view.queryByText(t('bible.searchNoResults')), null);
+  assert.equal(view.queryAllByType('VersesSkeleton').length, 1);
+  await wait(BIBLE_SEARCH_DEBOUNCE_MS + 50);
+  await act(async () => searches[1].resolve([verse('JHN', 3, 16, 'For God so loved the world.')]));
+  assert.equal(view.queryByText(t('bible.searchNoResults')), null);
+  assert.ok(view.getByText(/For God so loved the world\./));
 });
 
 test('a whole-chapter reference shows only the chapter line', async () => {

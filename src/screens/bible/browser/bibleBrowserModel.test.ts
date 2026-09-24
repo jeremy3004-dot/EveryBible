@@ -93,7 +93,7 @@ test('chapter summaries are indexed by book and chapter, the later entry winning
   assert.equal(map.get('JHN:3'), replacement);
 });
 
-test('a book is pending when any chapter is unresolved, otherwise addressed', () => {
+test('a book is pending when any chapter is unresolved, addressed when any has feedback', () => {
   const statuses = buildBookFeedbackStatusMap([
     summary('JHN', 3, { unresolvedDown: 1 }),
     summary('JHN', 4, {}),
@@ -105,8 +105,7 @@ test('a book is pending when any chapter is unresolved, otherwise addressed', ()
   assert.deepEqual(Object.fromEntries(statuses), {
     JHN: 'pending',
     GEN: 'addressed',
-    // Matches getTranslatorFeedbackBookSummaryStatus: any summary row marks the book.
-    ROM: 'addressed',
+    // ROM's only row has no feedback, so, like its chapter tile, it gets no badge.
     EPH: 'pending',
   });
   assert.equal(buildBookFeedbackStatusMap([]).size, 0);

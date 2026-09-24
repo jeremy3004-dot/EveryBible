@@ -8,6 +8,8 @@ import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../../design/largeTextLayout';
 import { useDisplayFont } from '../../../hooks/useDisplayFont';
 
 interface BibleBrowserHeaderProps {
+  /** The current translation's id, labelling it when the store has no entry for it. */
+  translationId: string;
   translationName: string | undefined;
   translationAbbreviation: string | undefined;
   /** Present only as the BiblePicker modal. */
@@ -22,6 +24,7 @@ interface BibleBrowserHeaderProps {
 
 /** Title, current translation, the modal close, queue and translation controls. */
 export function BibleBrowserHeader({
+  translationId,
   translationName,
   translationAbbreviation,
   onDismiss,
@@ -32,7 +35,12 @@ export function BibleBrowserHeader({
   const { colors } = useTheme();
   const { t } = useTranslation();
   const displayFont = useDisplayFont();
-  const translationLabel = translationName || t('about.bereanBible');
+  // A current translation missing from the store is named by its id (as persisted
+  // placeholders are); only BSB itself gets the Berean labels.
+  const isBsb = translationId === 'bsb';
+  const fallbackLabel = translationId.toUpperCase();
+  const translationLabel = translationName || (isBsb ? t('about.bereanBible') : fallbackLabel);
+  const abbreviationLabel = translationAbbreviation || fallbackLabel;
   const controlChrome = { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider };
 
   return (
@@ -90,7 +98,7 @@ export function BibleBrowserHeader({
             >
               <Ionicons name="book-outline" size={16} color={colors.bibleSecondaryText} />
               <Text style={[styles.translationButtonText, { color: colors.biblePrimaryText }]}>
-                {translationAbbreviation || 'BSB'}
+                {abbreviationLabel}
               </Text>
               <Ionicons name="chevron-down" size={16} color={colors.bibleSecondaryText} />
             </TouchableOpacity>

@@ -207,6 +207,7 @@ export function BibleBrowserScreen() {
       edges={['top']}
     >
       <BibleBrowserHeader
+        translationId={currentTranslation}
         translationName={currentTranslationInfo?.name}
         translationAbbreviation={currentTranslationInfo?.abbreviation}
         onDismiss={isPickerModal ? dismissPicker : undefined}
@@ -227,6 +228,7 @@ export function BibleBrowserScreen() {
           results={search.searchResults}
           isSearching={search.isSearching}
           error={search.searchError}
+          hasNoResults={search.hasNoResults}
           contentContainerStyle={searchResultsContentStyle}
           onPressResult={handleSearchResultPress}
         />
