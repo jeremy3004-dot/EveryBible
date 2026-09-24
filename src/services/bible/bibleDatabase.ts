@@ -2,8 +2,10 @@ import * as SQLite from 'expo-sqlite';
 import { chapterCache } from './chapterCache';
 import { importDatabaseFromAssetAsync } from 'expo-sqlite';
 import type { Verse } from '../../types';
+import { bibleBooks } from '../../constants/books';
 import {
   buildBibleSearchQuery,
+  buildBibleSubstringSearchTerms,
   buildInstalledBibleDatabaseSource,
   isBundledBibleDatabaseReady,
 } from './bibleDataModel';
@@ -436,6 +438,67 @@ export async function getChapter(
   }));
 }
 
+type VerseRow = {
+  id: number;
+  book_id: string;
+  chapter: number;
+  verse: number;
+  text: string;
+  heading: string | null;
+  formatting: string | null;
+};
+
+function toVerse(row: VerseRow): Verse {
+  return {
+    id: row.id,
+    bookId: row.book_id,
+    chapter: row.chapter,
+    verse: row.verse,
+    text: row.text,
+    heading: row.heading ?? undefined,
+    formatting: reconcileVerseFormattingWithText(
+      row.text,
+      normalizeVerseFormatting(row.formatting)
+    ),
+  };
+}
+
+let canonicalBookOrderSql: string | null = null;
+
+// Pack row ids follow the upstream import, not the canon, so order by book explicitly.
+function getCanonicalBookOrderSql(): string {
+  canonicalBookOrderSql ??= `CASE book_id ${bibleBooks
+    .filter((book) => /^[A-Z0-9]+$/.test(book.id))
+    .map((book, index) => `WHEN '${book.id}' THEN ${index}`)
+    .join(' ')} ELSE ${bibleBooks.length} END`;
+  return canonicalBookOrderSql;
+}
+
+// Substring search for scripts written without spaces between words (see
+// buildBibleSubstringSearchTerms). instr() has no wildcard characters, so terms need no
+// escaping, and it needs no FTS index, so it also works on downloaded text packs, which ship
+// without one. It scans the translation's verses (about 31,000), which is fast enough for a
+// debounced search box.
+async function searchVersesBySubstring(
+  database: SQLite.SQLiteDatabase,
+  translationId: string,
+  terms: string[],
+  limit: number
+): Promise<Verse[]> {
+  const rows = await database.getAllAsync<VerseRow>(
+    `
+      SELECT id, book_id, chapter, verse, text, heading, formatting
+      FROM verses
+      WHERE translation_id = ? ${terms.map(() => 'AND instr(text, ?) > 0').join(' ')}
+      ORDER BY ${getCanonicalBookOrderSql()}, chapter, verse
+      LIMIT ?
+    `,
+    [translationId, ...terms, limit]
+  );
+
+  return rows.map(toVerse);
+}
+
 export async function searchVerses(
   translationId: string,
   query: string,
@@ -444,6 +507,12 @@ export async function searchVerses(
   const source = resolveBibleDatabaseSource(translationId);
   const cacheKey = getSourceCacheKey(source);
   const database = await getDatabase(translationId);
+  const substringTerms = buildBibleSubstringSearchTerms(query.trim());
+
+  if (substringTerms) {
+    return searchVersesBySubstring(database, translationId, substringTerms, limit);
+  }
+
   const ftsQuery = buildBibleSearchQuery(query.trim());
 
   if (!ftsQuery) {
@@ -456,16 +525,7 @@ export async function searchVerses(
 
   if (ftsQuery) {
     try {
-      const indexedResults = await database.getAllAsync<{
-        id: number;
-        translation_id: string;
-        book_id: string;
-        chapter: number;
-        verse: number;
-        text: string;
-        heading: string | null;
-        formatting: string | null;
-      }>(
+      const indexedResults = await database.getAllAsync<VerseRow>(
         `
           SELECT v.*
           FROM verses_fts
@@ -477,18 +537,7 @@ export async function searchVerses(
         [ftsQuery, translationId, limit]
       );
 
-      return indexedResults.map((row) => ({
-        id: row.id,
-        bookId: row.book_id,
-        chapter: row.chapter,
-        verse: row.verse,
-        text: row.text,
-        heading: row.heading ?? undefined,
-        formatting: reconcileVerseFormattingWithText(
-          row.text,
-          normalizeVerseFormatting(row.formatting)
-        ),
-      }));
+      return indexedResults.map(toVerse);
     } catch (error) {
       console.warn('[Bible] Indexed search failed:', error);
       throw error;

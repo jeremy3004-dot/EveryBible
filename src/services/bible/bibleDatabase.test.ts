@@ -1151,6 +1151,174 @@ test('searchVerses rethrows when the indexed query itself fails', async () => {
   await assert.rejects(() => searchVerses('fakeindex', 'beginning'), /no such column: verses_fts/);
 });
 
+// ─── Search without spaces between words (CJK, Thai) ──────────────────────────
+
+const CJK_PACK_VERSES: SeedVerse[] = [
+  // Deliberately out of canonical order: 1 John is inserted before John and Genesis.
+  {
+    translationId: 'cuv',
+    bookId: '1JN',
+    chapter: 4,
+    verse: 8,
+    text: '没有爱心的，就不认识神，因为神就是爱。',
+  },
+  { translationId: 'cuv', bookId: 'GEN', chapter: 1, verse: 1, text: '起初，神创造天地。' },
+  {
+    translationId: 'cuv',
+    bookId: 'JHN',
+    chapter: 3,
+    verse: 16,
+    text: '神爱世人，甚至将他的独生子赐给他们，叫一切信他的，不至灭亡，反得永生。',
+  },
+  {
+    translationId: 'jpn',
+    bookId: 'GEN',
+    chapter: 1,
+    verse: 1,
+    text: '初めに、神は天と地を創造された。',
+  },
+  {
+    translationId: 'jpn',
+    bookId: 'GEN',
+    chapter: 1,
+    verse: 3,
+    text: '神は言われた。「光あれ。」こうして、光があった。',
+  },
+  {
+    translationId: 'kor',
+    bookId: 'JHN',
+    chapter: 3,
+    verse: 16,
+    text: '하나님이 세상을 이처럼 사랑하사 독생자를 주셨으니',
+  },
+  { translationId: 'kor', bookId: '1JN', chapter: 4, verse: 8, text: '하나님은사랑이시라' },
+  {
+    translationId: 'kor',
+    bookId: 'GEN',
+    chapter: 1,
+    verse: 3,
+    text: '하나님이 이르시되 빛이 있으라 하시니',
+  },
+  {
+    translationId: 'tha',
+    bookId: 'GEN',
+    chapter: 1,
+    verse: 1,
+    text: 'ในปฐมกาลพระเจ้าทรงเนรมิตสร้างฟ้าและแผ่นดิน',
+  },
+];
+
+function installCjkPack(options: { searchIndex: boolean }): void {
+  const name = options.searchIndex ? 'cjk-indexed.db' : 'cjk-pack.db';
+  writeSeedDatabase(`${installedDirectory}/${name}`, {
+    searchIndex: options.searchIndex,
+    verses: CJK_PACK_VERSES,
+  });
+}
+
+const refs = (verses: Verse[]) =>
+  verses.map((verse) => `${verse.bookId} ${verse.chapter}:${verse.verse}`);
+
+test('searchVerses finds a Chinese word inside a run of characters with no spaces', async () => {
+  const { searchVerses, setBibleDatabaseSourceResolver } = await loadModule();
+  // Downloaded text packs ship without verses_fts, and unicode61 indexes a whole clause
+  // (神爱世人) as one token anyway, so 世人 was unfindable either way.
+  installCjkPack({ searchIndex: false });
+  setBibleDatabaseSourceResolver((translationId) =>
+    ['cuv', 'jpn', 'kor', 'tha'].includes(translationId)
+      ? installedSource(translationId, 'cjk-pack.db')
+      : null
+  );
+
+  assert.deepEqual(refs(await searchVerses('cuv', '世人')), ['JHN 3:16']);
+  assert.deepEqual(refs(await searchVerses('cuv', '独生子')), ['JHN 3:16']);
+});
+
+test('searchVerses lists substring matches in canonical book order', async () => {
+  const { searchVerses } = await loadModule();
+
+  assert.deepEqual(refs(await searchVerses('cuv', '爱')), ['JHN 3:16', '1JN 4:8']);
+  assert.deepEqual(refs(await searchVerses('cuv', '神')), ['GEN 1:1', 'JHN 3:16', '1JN 4:8']);
+});
+
+test('searchVerses requires every space-separated CJK term to appear', async () => {
+  const { searchVerses } = await loadModule();
+
+  assert.deepEqual(refs(await searchVerses('cuv', '神 天地')), ['GEN 1:1']);
+  assert.deepEqual(refs(await searchVerses('cuv', '天地 永生')), []);
+});
+
+test('searchVerses finds Japanese words written in kanji and kana', async () => {
+  const { searchVerses } = await loadModule();
+
+  assert.deepEqual(refs(await searchVerses('jpn', '創造')), ['GEN 1:1']);
+  assert.deepEqual(refs(await searchVerses('jpn', '光あれ')), ['GEN 1:3']);
+  assert.deepEqual(refs(await searchVerses('jpn', '神')), ['GEN 1:1', 'GEN 1:3']);
+});
+
+test('searchVerses finds a Korean noun whatever particle is attached to it', async () => {
+  const { searchVerses } = await loadModule();
+
+  // 세상을 (object particle), 사랑하사 (verb stem), 사랑이시라 (copula, no space before it).
+  assert.deepEqual(refs(await searchVerses('kor', '세상')), ['JHN 3:16']);
+  assert.deepEqual(refs(await searchVerses('kor', '사랑')), ['JHN 3:16', '1JN 4:8']);
+  assert.deepEqual(refs(await searchVerses('kor', '빛')), ['GEN 1:3']);
+  assert.deepEqual(refs(await searchVerses('kor', '하나님 사랑')), ['JHN 3:16', '1JN 4:8']);
+});
+
+test('searchVerses finds a Thai word inside an unspaced phrase', async () => {
+  const { searchVerses } = await loadModule();
+
+  assert.deepEqual(refs(await searchVerses('tha', 'พระเจ้า')), ['GEN 1:1']);
+});
+
+test('searchVerses keeps CJK substring search inside the requested translation', async () => {
+  const { searchVerses } = await loadModule();
+
+  assert.deepEqual(refs(await searchVerses('jpn', '世人')), []);
+  assert.deepEqual(refs(await searchVerses('kor', '神')), []);
+});
+
+test('searchVerses caps CJK substring results at the limit', async () => {
+  const { searchVerses } = await loadModule();
+
+  assert.deepEqual(refs(await searchVerses('cuv', '神', 2)), ['GEN 1:1', 'JHN 3:16']);
+});
+
+test('searchVerses treats SQL wildcard characters in a CJK query as plain text', async () => {
+  const { searchVerses } = await loadModule();
+
+  assert.deepEqual(refs(await searchVerses('cuv', '%爱')), ['JHN 3:16', '1JN 4:8']);
+  assert.deepEqual(refs(await searchVerses('cuv', '爱_')), ['JHN 3:16', '1JN 4:8']);
+  assert.deepEqual(refs(await searchVerses('cuv', "神'")), ['GEN 1:1', 'JHN 3:16', '1JN 4:8']);
+});
+
+test('searchVerses matches decomposed Hangul typed against precomposed verse text', async () => {
+  const { searchVerses } = await loadModule();
+
+  assert.deepEqual(refs(await searchVerses('kor', '세상'.normalize('NFD'))), ['JHN 3:16']);
+});
+
+test('searchVerses uses substring matching for CJK even when the pack has an FTS index', async () => {
+  const { searchVerses, setBibleDatabaseSourceResolver } = await loadModule();
+  installCjkPack({ searchIndex: true });
+  setBibleDatabaseSourceResolver((translationId) =>
+    translationId === 'cuv' ? installedSource('cuv', 'cjk-indexed.db') : null
+  );
+
+  assert.deepEqual(refs(await searchVerses('cuv', '世人')), ['JHN 3:16']);
+});
+
+test('searchVerses still reports an unavailable index for a Latin query on a pack without one', async () => {
+  const { searchVerses, setBibleDatabaseSourceResolver, BibleSearchUnavailableError } =
+    await loadModule();
+  setBibleDatabaseSourceResolver((translationId) =>
+    translationId === 'cuv' ? installedSource('cuv', 'cjk-pack.db') : null
+  );
+
+  await assert.rejects(() => searchVerses('cuv', 'God'), BibleSearchUnavailableError);
+});
+
 // ─── Writes ───────────────────────────────────────────────────────────────────
 
 test('insertVerse adds a verse that getChapter reads back', async () => {
