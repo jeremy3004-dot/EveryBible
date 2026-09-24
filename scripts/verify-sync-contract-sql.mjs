@@ -999,7 +999,8 @@ assert.equal(merged.rows.length, 1, 'a re-join after the leave is kept');
 assert.ok(Math.abs((await startedOf('fast-clock-fixed')) - (Date.now() - 0.5 * HOUR)) < 60_000);
 
 // A phone two hours slow re-joining half an hour after the leave: its stamp is before the
-// leave, but on the server's clock it is after it, so the re-join is no longer lost.
+// leave, but on the server's clock it is after it, so the server accepts the re-join
+// (the app still drops such a row before pushing it; see the migration header).
 await as(D, NEW_CLIENT_UNENROL, [D, 'slow-clock', hoursAgo(1)]);
 merged = await merge(D, [
   clientRow({
