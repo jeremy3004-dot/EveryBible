@@ -57,7 +57,7 @@ import {
 import { useTranslatorFeedbackFocusRefresh } from './useTranslatorFeedbackFocusRefresh';
 import { layout, radius, spacing, typography } from '../../design/system';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
-import { announceForAccessibility } from '../../utils/a11y';
+import { announceForAccessibility, announceLiveRegionText } from '../../utils/a11y';
 import { BookIcon } from '../../components/bible/BookIcon';
 import {
   CHAPTER_TILE_GAP,
@@ -297,8 +297,8 @@ export function BibleBrowserScreen() {
               ? searchUnavailableMessage
               : failedToLoadMessage;
             setSearchError(message);
-            // The error text's live region is Android-only.
-            announceForAccessibility(message);
+            // The error text's live region speaks on Android; VoiceOver needs the announcement.
+            announceLiveRegionText(message);
           }
         } finally {
           if (!isCancelled && requestId === searchRequestIdRef.current) {

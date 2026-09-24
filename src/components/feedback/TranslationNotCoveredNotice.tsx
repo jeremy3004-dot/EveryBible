@@ -6,7 +6,7 @@ import { spacing, typography } from '../../design/system';
 import { resolveTranslatorCoverageOptions } from '../../services/feedback';
 import { useBibleStore } from '../../stores/bibleStore';
 import { AppButton } from '../ui';
-import { announceForAccessibility } from '../../utils/a11y';
+import { announceLiveRegionText } from '../../utils/a11y';
 
 // Shown when a team passcode does not open the translation on screen (server code
 // translation_not_covered). Names the translations the code does open and switches the reader
@@ -49,7 +49,7 @@ export function TranslationNotCoveredNotice({
     } else {
       setNeedsDownload(label);
       // accessibilityLiveRegion below is Android-only; VoiceOver needs the announcement.
-      announceForAccessibility(t('translatorQueue.switchNeedsDownload', { translation: label }));
+      announceLiveRegionText(t('translatorQueue.switchNeedsDownload', { translation: label }));
     }
   };
 

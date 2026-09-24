@@ -87,7 +87,7 @@ import {
 } from '../../services/notifications';
 import type { MoreStackParamList } from '../../navigation/types';
 import { hexWithAlpha, lightHaptic } from '../../utils';
-import { announceForAccessibility } from '../../utils/a11y';
+import { announceLiveRegionText } from '../../utils/a11y';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const MINUTES = ['00', '15', '30', '45'];
@@ -185,10 +185,10 @@ export function SettingsScreen() {
   // The inline errors in the passcode and identity modals carry accessibilityLiveRegion,
   // which only Android honours; VoiceOver hears them through these announcements.
   useEffect(() => {
-    if (translatorAccessError) announceForAccessibility(translatorAccessError);
+    if (translatorAccessError) announceLiveRegionText(translatorAccessError);
   }, [translatorAccessError]);
   useEffect(() => {
-    if (chapterFeedbackIdentityError) announceForAccessibility(chapterFeedbackIdentityError);
+    if (chapterFeedbackIdentityError) announceLiveRegionText(chapterFeedbackIdentityError);
   }, [chapterFeedbackIdentityError]);
 
   useEffect(() => {

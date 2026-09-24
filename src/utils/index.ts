@@ -13,4 +13,4 @@ export { hexWithAlpha } from './color';
 
 export { formatPlaybackTime } from './time';
 
-export { announceForAccessibility } from './a11y';
+export { announceForAccessibility, announceLiveRegionText } from './a11y';
