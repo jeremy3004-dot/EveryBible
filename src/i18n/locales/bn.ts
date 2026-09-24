@@ -446,6 +446,11 @@ export const bn = {
     discreetNotificationTitle: 'অনুস্মারক',
     discreetNotificationBody: 'আজকের জন্য আপনার একটি অনুস্মারক আছে।',
     discreetNotificationChannel: 'অনুস্মারক',
+    iconSwitchCloseTitle: 'অ্যাপটি বন্ধ হয়ে যাবে',
+    iconSwitchCloseToCalculator:
+      'আইকন বদলালে অ্যাপটি বন্ধ হয়ে যায়। ক্যালকুলেটর আইকন থেকে এটি আবার খুলুন।',
+    iconSwitchCloseToStandard:
+      'আইকন বদলালে অ্যাপটি বন্ধ হয়ে যায়। Every Bible আইকন থেকে এটি আবার খুলুন।',
   },
   settings: {
     title: 'সেটিংস',

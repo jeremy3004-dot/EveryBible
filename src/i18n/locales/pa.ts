@@ -448,6 +448,11 @@ export const pa = {
     discreetNotificationTitle: 'ਰੀਮਾਈਂਡਰ',
     discreetNotificationBody: 'ਅੱਜ ਲਈ ਤੁਹਾਡਾ ਇੱਕ ਰੀਮਾਈਂਡਰ ਹੈ।',
     discreetNotificationChannel: 'ਰੀਮਾਈਂਡਰ',
+    iconSwitchCloseTitle: 'ਐਪ ਬੰਦ ਹੋ ਜਾਵੇਗੀ',
+    iconSwitchCloseToCalculator:
+      'ਆਈਕਨ ਬਦਲਣ ਨਾਲ ਐਪ ਬੰਦ ਹੋ ਜਾਂਦੀ ਹੈ। ਇਸ ਨੂੰ ਕੈਲਕੁਲੇਟਰ ਆਈਕਨ ਤੋਂ ਦੁਬਾਰਾ ਖੋਲ੍ਹੋ।',
+    iconSwitchCloseToStandard:
+      'ਆਈਕਨ ਬਦਲਣ ਨਾਲ ਐਪ ਬੰਦ ਹੋ ਜਾਂਦੀ ਹੈ। ਇਸ ਨੂੰ Every Bible ਆਈਕਨ ਤੋਂ ਦੁਬਾਰਾ ਖੋਲ੍ਹੋ।',
   },
   settings: {
     title: 'ਸੈਟਿੰਗਾਂ',

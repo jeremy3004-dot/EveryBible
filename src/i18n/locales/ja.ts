@@ -740,6 +740,11 @@ export const ja = {
     discreetNotificationTitle: 'リマインダー',
     discreetNotificationBody: '今日のリマインダーがあります。',
     discreetNotificationChannel: 'リマインダー',
+    iconSwitchCloseTitle: 'アプリが閉じます',
+    iconSwitchCloseToCalculator:
+      'アイコンを変更するとアプリが閉じます。電卓アイコンから開き直してください。',
+    iconSwitchCloseToStandard:
+      'アイコンを変更するとアプリが閉じます。Every Bibleのアイコンから開き直してください。',
   },
   settings: {
     title: '設定',

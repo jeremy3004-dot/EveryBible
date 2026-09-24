@@ -450,6 +450,11 @@ export const ne = {
     discreetNotificationTitle: 'रिमाइन्डर',
     discreetNotificationBody: 'आजका लागि तपाईंसँग एउटा रिमाइन्डर छ।',
     discreetNotificationChannel: 'रिमाइन्डरहरू',
+    iconSwitchCloseTitle: 'एप बन्द हुनेछ',
+    iconSwitchCloseToCalculator:
+      'आइकन बदल्दा एप बन्द हुन्छ। यसलाई क्याल्कुलेटर आइकनबाट फेरि खोल्नुहोस्।',
+    iconSwitchCloseToStandard:
+      'आइकन बदल्दा एप बन्द हुन्छ। यसलाई Every Bible आइकनबाट फेरि खोल्नुहोस्।',
   },
   settings: {
     title: 'सेटिङ',

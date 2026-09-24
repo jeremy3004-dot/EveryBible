@@ -789,6 +789,9 @@ export const ar = {
     discreetNotificationTitle: 'تذكير',
     discreetNotificationBody: 'لديك تذكير لهذا اليوم.',
     discreetNotificationChannel: 'التذكيرات',
+    iconSwitchCloseTitle: 'سيُغلق التطبيق',
+    iconSwitchCloseToCalculator: 'تغيير الأيقونة يُغلق التطبيق. أعد فتحه من أيقونة الآلة الحاسبة.',
+    iconSwitchCloseToStandard: 'تغيير الأيقونة يُغلق التطبيق. أعد فتحه من أيقونة Every Bible.',
   },
   settings: {
     title: 'الإعدادات',

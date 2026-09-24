@@ -765,6 +765,11 @@ export const de = {
     discreetNotificationTitle: 'Erinnerung',
     discreetNotificationBody: 'Du hast eine Erinnerung für heute.',
     discreetNotificationChannel: 'Erinnerungen',
+    iconSwitchCloseTitle: 'Die App wird geschlossen',
+    iconSwitchCloseToCalculator:
+      'Beim Ändern des Symbols wird die App geschlossen. Öffne sie danach über das Rechner-Symbol.',
+    iconSwitchCloseToStandard:
+      'Beim Ändern des Symbols wird die App geschlossen. Öffne sie danach über das Symbol von Every Bible.',
   },
   settings: {
     title: 'Einstellungen',
