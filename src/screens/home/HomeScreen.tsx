@@ -62,6 +62,8 @@ import { buildHomeVerseShareMessage } from './homeVerseShareModel';
 import { getMillisecondsUntilNextLocalMidnight } from '../../services/bible/dailyScriptureRefresh';
 import {
   formatHomeDateLabel,
+  getHomeGreetingKey,
+  getMillisecondsUntilNextGreetingChange,
   loadVerseOfDay as loadVerseOfDayFromBible,
   startVerseOfDayRefresh,
   type VerseOfDayLoadOptions,
@@ -142,22 +144,6 @@ function getFirstName(displayName: string | null | undefined): string | null {
   }
 
   return trimmed.split(/\s+/)[0] ?? null;
-}
-
-function getGreetingKey(
-  date = new Date()
-): 'home.goodMorning' | 'home.goodAfternoon' | 'home.goodEvening' {
-  const hour = date.getHours();
-
-  if (hour < 12) {
-    return 'home.goodMorning';
-  }
-
-  if (hour < 17) {
-    return 'home.goodAfternoon';
-  }
-
-  return 'home.goodEvening';
 }
 
 export function HomeScreen() {
@@ -339,7 +325,7 @@ export function HomeScreen() {
     : t('home.defaultReference');
   const greetingName = getFirstName(user?.displayName) ?? t('home.guestName');
   const greetingLabel = t('home.greetingWithName', {
-    greeting: t(getGreetingKey(new Date(clockMs))),
+    greeting: t(getHomeGreetingKey(new Date(clockMs))),
     name: greetingName,
   });
   const todayLabel = useMemo(
@@ -461,6 +447,7 @@ export function HomeScreen() {
         addAppStateListener: (listener) => AppState.addEventListener('change', listener),
         runAfterInteractions: (task) => InteractionManager.runAfterInteractions(task),
         msUntilNextLocalMidnight: () => getMillisecondsUntilNextLocalMidnight(),
+        msUntilNextGreetingChange: () => getMillisecondsUntilNextGreetingChange(new Date()),
         onClockAdvance: () => setClockMs(Date.now()),
       }),
     [loadVerseOfDay]

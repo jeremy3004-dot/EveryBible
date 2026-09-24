@@ -3,6 +3,8 @@ import test, { afterEach, mock } from 'node:test';
 import type { DailyScripture } from '../../types';
 import {
   formatHomeDateLabel,
+  getHomeGreetingKey,
+  getMillisecondsUntilNextGreetingChange,
   loadVerseOfDay,
   startVerseOfDayRefresh,
   type VerseOfDayLoad,
@@ -166,7 +168,11 @@ test('Home settles safely when no translation is available', async () => {
 // Foreground and midnight refresh
 // ---------------------------------------------------------------------------
 
-function refreshHarness(initialAppState = 'active', msUntilMidnight = 5_000) {
+function refreshHarness(
+  initialAppState = 'active',
+  msUntilMidnight = 5_000,
+  msUntilGreetingChange?: number
+) {
   const loads: (VerseOfDayLoadOptions | undefined)[] = [];
   const interactions: { run: () => void; cancelled: boolean }[] = [];
   let appStateListener: ((next: string) => void) | null = null;
@@ -199,6 +205,9 @@ function refreshHarness(initialAppState = 'active', msUntilMidnight = 5_000) {
       };
     },
     msUntilNextLocalMidnight: () => msUntilMidnight,
+    ...(msUntilGreetingChange === undefined
+      ? {}
+      : { msUntilNextGreetingChange: () => msUntilGreetingChange }),
     onClockAdvance: () => {
       clockAdvances += 1;
     },
@@ -293,6 +302,54 @@ test('cleanup stops the timer, the listener and the pending load', () => {
   assert.equal(h.midnightTimerRef.current, null);
   mock.timers.tick(10_000);
   assert.deepEqual(h.loads, []);
+});
+
+test('the greeting turns over at noon and 17:00 while Home stays open, without reloading the verse', () => {
+  mock.timers.enable({ apis: ['setTimeout'] });
+  const h = refreshHarness('active', 60_000, 2_000);
+
+  mock.timers.tick(1_999);
+  assert.equal(h.clockAdvances(), 0);
+  mock.timers.tick(1);
+  assert.equal(h.clockAdvances(), 1);
+  assert.deepEqual(h.loads, [], 'the verse does not change at noon');
+  mock.timers.tick(2_000);
+  assert.equal(h.clockAdvances(), 2, 'the next boundary is scheduled after each one');
+  h.cleanup();
+  mock.timers.tick(10_000);
+  assert.equal(h.clockAdvances(), 2, 'cleanup stops the greeting timer');
+});
+
+test('coming back to the foreground re-arms the greeting timer instead of adding one', () => {
+  mock.timers.enable({ apis: ['setTimeout'] });
+  const h = refreshHarness('background', 60_000, 5_000);
+
+  mock.timers.tick(3_000);
+  h.emitAppState('active');
+  assert.equal(h.clockAdvances(), 1);
+  mock.timers.tick(2_000);
+  assert.equal(h.clockAdvances(), 1, 'the earlier greeting timer was cleared');
+  mock.timers.tick(3_000);
+  assert.equal(h.clockAdvances(), 2);
+  h.cleanup();
+});
+
+test('the greeting is morning before noon, afternoon until 17:00, then evening', () => {
+  assert.equal(getHomeGreetingKey(new Date(2026, 8, 17, 0, 0)), 'home.goodMorning');
+  assert.equal(getHomeGreetingKey(new Date(2026, 8, 17, 11, 59, 59)), 'home.goodMorning');
+  assert.equal(getHomeGreetingKey(new Date(2026, 8, 17, 12, 0)), 'home.goodAfternoon');
+  assert.equal(getHomeGreetingKey(new Date(2026, 8, 17, 16, 59, 59)), 'home.goodAfternoon');
+  assert.equal(getHomeGreetingKey(new Date(2026, 8, 17, 17, 0)), 'home.goodEvening');
+  assert.equal(getHomeGreetingKey(new Date(2026, 8, 17, 23, 59)), 'home.goodEvening');
+});
+
+test('the next greeting change is the next of 12:00, 17:00 and midnight', () => {
+  const HOUR = 60 * 60 * 1000;
+  assert.equal(getMillisecondsUntilNextGreetingChange(new Date(2026, 8, 17, 9, 0)), 3 * HOUR);
+  assert.equal(getMillisecondsUntilNextGreetingChange(new Date(2026, 8, 17, 12, 0)), 5 * HOUR);
+  assert.equal(getMillisecondsUntilNextGreetingChange(new Date(2026, 8, 17, 16, 59, 59, 500)), 500);
+  assert.equal(getMillisecondsUntilNextGreetingChange(new Date(2026, 8, 17, 17, 0)), 7 * HOUR);
+  assert.equal(getMillisecondsUntilNextGreetingChange(new Date(2026, 8, 17, 23, 0)), HOUR);
 });
 
 // ---------------------------------------------------------------------------

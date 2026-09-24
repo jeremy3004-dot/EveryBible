@@ -74,6 +74,8 @@ export interface VerseOfDayRefresh {
   addAppStateListener: (listener: (nextAppState: string) => void) => { remove: () => void };
   runAfterInteractions: (task: () => void) => { cancel: () => void };
   msUntilNextLocalMidnight: () => number;
+  /** Time until the greeting next changes (see getMillisecondsUntilNextGreetingChange). */
+  msUntilNextGreetingChange?: () => number;
   /**
    * Called whenever the verse refreshes because time moved on (a return to the
    * foreground, a local midnight), so the date, greeting and ledger follow it.
@@ -104,6 +106,22 @@ export function startVerseOfDayRefresh(refresh: VerseOfDayRefresh): () => void {
     }, refresh.msUntilNextLocalMidnight());
   };
 
+  // The greeting changes at noon and 17:00 too, but the verse does not, so these only
+  // advance the clock.
+  let greetingTimer: ReturnType<typeof setTimeout> | null = null;
+  const scheduleGreetingChange = () => {
+    const msUntilNextGreetingChange = refresh.msUntilNextGreetingChange;
+    if (!msUntilNextGreetingChange) return;
+    if (greetingTimer) {
+      clearTimeout(greetingTimer);
+    }
+
+    greetingTimer = setTimeout(() => {
+      refresh.onClockAdvance?.();
+      scheduleGreetingChange();
+    }, msUntilNextGreetingChange());
+  };
+
   const interactionHandle = refresh.runAfterInteractions(() => {
     void refresh.load();
   });
@@ -112,12 +130,14 @@ export function startVerseOfDayRefresh(refresh: VerseOfDayRefresh): () => void {
     if (appStateRef.current.match(/inactive|background/) && nextAppState === 'active') {
       refreshVerseOfDay();
       scheduleMidnightRefresh();
+      scheduleGreetingChange();
     }
 
     appStateRef.current = nextAppState;
   });
 
   scheduleMidnightRefresh();
+  scheduleGreetingChange();
 
   return () => {
     refresh.requestIdRef.current += 1;
@@ -128,7 +148,35 @@ export function startVerseOfDayRefresh(refresh: VerseOfDayRefresh): () => void {
       clearTimeout(midnightTimerRef.current);
       midnightTimerRef.current = null;
     }
+
+    if (greetingTimer) {
+      clearTimeout(greetingTimer);
+      greetingTimer = null;
+    }
   };
+}
+
+type HomeGreetingKey = 'home.goodMorning' | 'home.goodAfternoon' | 'home.goodEvening';
+
+// The local hours at which the greeting turns to afternoon and to evening.
+const AFTERNOON_HOUR = 12;
+const EVENING_HOUR = 17;
+
+export function getHomeGreetingKey(date: Date): HomeGreetingKey {
+  const hour = date.getHours();
+  if (hour < AFTERNOON_HOUR) return 'home.goodMorning';
+  if (hour < EVENING_HOUR) return 'home.goodAfternoon';
+  return 'home.goodEvening';
+}
+
+/** Milliseconds until the next local 12:00, 17:00 or midnight, whichever comes first. */
+export function getMillisecondsUntilNextGreetingChange(now: Date): number {
+  const hour = now.getHours();
+  const next = new Date(now);
+  // setHours(24) is the next local midnight, where the greeting returns to morning.
+  next.setHours(hour < AFTERNOON_HOUR ? AFTERNOON_HOUR : hour < EVENING_HOUR ? EVENING_HOUR : 24);
+  next.setMinutes(0, 0, 0);
+  return next.getTime() - now.getTime();
 }
 
 /**

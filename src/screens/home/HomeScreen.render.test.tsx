@@ -197,6 +197,22 @@ test('returning to Home the next evening shows the new date and an evening greet
   assert.equal(screen.queryByText(/^Good morning/), null);
 });
 
+test('the greeting turns to afternoon at noon while Home stays open', async () => {
+  mock.timers.reset();
+  mock.timers.enable({
+    apis: ['Date', 'setTimeout'],
+    now: new Date(2026, 8, 17, 11, 59).getTime(),
+  });
+  const view = await renderHome();
+  assert.ok(heroes(view).screen.getByText(/^Good morning/));
+
+  mock.timers.tick(60_000);
+  await view.flush();
+
+  assert.ok(heroes(view).screen.getByText(/^Good afternoon/));
+  await view.unmount();
+});
+
 test('Scripture borrowed from the bundled BSB is attributed to it on the hero and in the share', async () => {
   bibleStore.setState({ currentTranslation: 'npiulb' });
   dailyScripture = verseOf({ fallbackTranslationId: 'bsb' });
