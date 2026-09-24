@@ -27,7 +27,7 @@ const ROLELESS_ALLOWED: Record<string, number> = {
 
 // A row whose nested control only repeats the row's own action.
 const NESTED_ALLOWED: Record<string, number> = {
-  'src/screens/plans/PlansHomeScreen.tsx': 1,
+  'src/screens/plans/plansHome/CatalogPlanRow.tsx': 1,
 };
 
 function sourceFiles(directory: string): string[] {
