@@ -12,7 +12,7 @@ import type {
   AtlasSource,
   ScriptureStatus,
 } from '../../admin/lib/language-atlas/types';
-import { languageCode, languageShard, languageSlug } from './language-slug';
+import { hasLanguagePage, languageCode, languageShard, languageSlug } from './language-slug';
 import type { AtlasProject } from './public-atlas-projects';
 
 export const LANGUAGE_PAGE_SHARD_COUNT = 64;
@@ -222,7 +222,9 @@ export function buildLanguagePages(
 ): LanguagePagesBuild {
   const byId = new Map(index.records.map((record) => [record.id, record]));
   const countryNames = new Map(index.countries.map((country) => [country.code, country.name]));
-  const languages = index.records.filter((record) => record.kind === 'language');
+  const languages = index.records.filter(
+    (record) => record.kind === 'language' && hasLanguagePage(record)
+  );
 
   const slugs = new Map<string, string>();
   const seen = new Set<string>();

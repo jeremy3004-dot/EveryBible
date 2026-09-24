@@ -4,6 +4,7 @@ import test from 'node:test';
 import type { LanguageIndexEntry, LanguagePage } from './language-pages';
 import {
   buildLanguageSitemap,
+  languageIdentity,
   LANGUAGE_SITEMAP_LIMIT,
   languagePageDescription,
   languagePageMetadata,
@@ -44,7 +45,7 @@ test('the title names the language, and the description its place and Scripture 
   );
   assert.equal(
     languagePageDescription(yoruba),
-    'Yoruba is a language in the Atlantic-Congo family spoken in Nigeria, Benin and Togo. A complete Bible is reported in Yoruba. See its dialects and sources, and read the Bible free in the EveryBible app.'
+    'Yoruba is a language in the Atlantic-Congo family spoken in Nigeria, Benin and Togo. A complete Bible is reported in Yoruba. Read the Bible free on EveryBible.'
   );
   const unknown = {
     ...yoruba,
@@ -54,19 +55,66 @@ test('the title names the language, and the description its place and Scripture 
     countries: [],
     status: 'unknown' as const,
   };
-  assert.match(
+  assert.equal(
     languagePageDescription(unknown),
-    /^Agbirigba is a language\. Our sources record no known Scripture in Agbirigba\./
+    'Agbirigba is a language. Our sources record no known Scripture in Agbirigba. See its dialects and sources, and read the Bible free in the EveryBible app.'
   );
   const widespread = {
     ...yoruba,
     countries: [...yoruba.countries, { code: 'GH', name: 'Ghana' }],
   };
   assert.match(languagePageDescription(widespread), /family spoken in 4 countries\./);
+});
+
+test('titles stay within 60 characters by dropping words, never the language name', () => {
+  assert.equal(
+    languagePageTitle({ label: 'Yoruba' }),
+    'Yoruba language: Bible and Scripture status | EveryBible'
+  );
   assert.equal(
     languagePageTitle({ label: 'Aari (Nepal)' }),
-    'Aari (Nepal) language: Bible and Scripture status | EveryBible'
+    'Aari (Nepal): Bible and Scripture status | EveryBible'
   );
+  assert.equal(
+    languagePageTitle({ label: 'Standard Arabic' }),
+    'Standard Arabic: Bible and Scripture status | EveryBible'
+  );
+  assert.equal(
+    languagePageTitle({ label: 'Mandalay Myanmar Sign Language' }),
+    'Mandalay Myanmar Sign Language: Bible and Scripture status'
+  );
+  // A name too long for any shorter form keeps the shortest one.
+  assert.equal(
+    languagePageTitle({ label: 'Far North Queensland Indigenous Sign Language' }),
+    'Far North Queensland Indigenous Sign Language: Scripture status'
+  );
+});
+
+test('descriptions stay within 160 characters by shortening the closing invitation', () => {
+  const kituba: LanguagePage = {
+    ...yoruba,
+    name: 'Kituba (Democratic Republic of Congo)',
+    label: 'Kituba (Democratic Republic of Congo)',
+    countries: [{ code: 'CD', name: 'DR Congo' }],
+  };
+  // Too long even without the invitation: the facts are kept, the invitation dropped.
+  assert.equal(
+    languagePageDescription(kituba),
+    'Kituba (Democratic Republic of Congo) is a language in the Atlantic-Congo family spoken in DR Congo. A complete Bible is reported in Kituba (Democratic Republic of Congo).'
+  );
+  assert.ok(languagePageDescription(yoruba).length <= 160);
+});
+
+test('pseudo-families such as Bookkeeping are not described as language families', () => {
+  const bookkeeping = { ...yoruba, name: 'Borna', family: 'Bookkeeping', countries: [] };
+  assert.equal(languageIdentity(bookkeeping), 'Borna is a language.');
+  const sign = {
+    ...yoruba,
+    name: 'Indian Sign Language',
+    family: 'Sign Language',
+    countries: [{ code: 'IN', name: 'India' }],
+  };
+  assert.equal(languageIdentity(sign), 'Indian Sign Language is a sign language spoken in India.');
 });
 
 test('metadata gives each language page its own canonical URL and share card', () => {

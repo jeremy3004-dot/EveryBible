@@ -86,7 +86,7 @@ export function HomeBelowAtlas() {
                   <Image
                     src="/everybible/badge-google-play.png"
                     alt="Get it on Google Play"
-                    width={142}
+                    width={141}
                     height={42}
                   />
                 </a>
