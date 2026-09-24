@@ -3,6 +3,10 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { mockExpoCrypto, mockModule, mockReactNative, sourcePath } from '../../testing/mockModules';
 import { createSupabaseFake, makeFakeSession, makeFakeUser } from '../../testing/supabaseFake';
+import {
+  isPrivacyLockGraceActive,
+  PRIVACY_LOCK_GRACE_AFTER_SYSTEM_UI_MS,
+} from '../privacy/privacyLockGrace';
 
 // ---------------------------------------------------------------------------
 // One mock configuration for the file. Every scenario is driven by mutating the
@@ -69,16 +73,20 @@ const apple: {
   requests: unknown[];
   credential: AppleCredential;
   error: unknown;
+  /** Whether the privacy lock grace was active each time the native sheet opened. */
+  sheetGraceStates: boolean[];
 } = {
   requests: [],
   credential: { identityToken: 'apple-identity-token' },
   error: null,
+  sheetGraceStates: [],
 };
 
 mockModule(mock, 'expo-apple-authentication', {
   AppleAuthenticationScope: { FULL_NAME: 'FULL_NAME', EMAIL: 'EMAIL' },
   signInAsync: async (options: unknown) => {
     apple.requests.push(options);
+    apple.sheetGraceStates.push(isPrivacyLockGraceActive());
     if (apple.error) {
       throw apple.error;
     }
@@ -107,6 +115,10 @@ const google: {
   response: GoogleSignInResponse;
   signInError: unknown;
   playServicesError: unknown;
+  /** Whether the privacy lock grace was active each time hasPlayServices ran. */
+  playServicesGraceStates: boolean[];
+  /** Whether the privacy lock grace was active each time the native picker opened. */
+  signInGraceStates: boolean[];
 } = {
   configureCalls: [],
   playServicesCalls: 0,
@@ -114,6 +126,8 @@ const google: {
   response: { type: 'success', data: { idToken: 'google-id-token' } },
   signInError: null,
   playServicesError: null,
+  playServicesGraceStates: [],
+  signInGraceStates: [],
 };
 
 mockModule(mock, '@react-native-google-signin/google-signin', {
@@ -123,6 +137,7 @@ mockModule(mock, '@react-native-google-signin/google-signin', {
     },
     hasPlayServices: async () => {
       google.playServicesCalls += 1;
+      google.playServicesGraceStates.push(isPrivacyLockGraceActive());
       if (google.playServicesError) {
         throw google.playServicesError;
       }
@@ -130,6 +145,7 @@ mockModule(mock, '@react-native-google-signin/google-signin', {
     },
     signIn: async () => {
       google.signInCalls += 1;
+      google.signInGraceStates.push(isPrivacyLockGraceActive());
       if (google.signInError) {
         throw google.signInError;
       }
@@ -171,12 +187,15 @@ beforeEach(() => {
   apple.requests = [];
   apple.credential = { identityToken: 'apple-identity-token' };
   apple.error = null;
+  apple.sheetGraceStates = [];
   google.configureCalls = [];
   google.playServicesCalls = 0;
   google.signInCalls = 0;
   google.response = { type: 'success', data: { idToken: 'google-id-token' } };
   google.signInError = null;
   google.playServicesError = null;
+  google.playServicesGraceStates = [];
+  google.signInGraceStates = [];
   expoCrypto.randomFailure = null;
   expoCrypto.digestFailure = null;
   expoCrypto.randomLengths.length = 0;
@@ -613,6 +632,16 @@ test('signInWithApple reports an unknown failure when Supabase returns no user',
   assert.deepEqual(result, { success: false, code: 'unknown', error: 'Apple sign in failed' });
 });
 
+// iOS turns the app inactive under the native Apple sheet; discreet mode must not
+// take that for the reader leaving and lock mid-sign-in (see privacyLockGrace).
+test('signInWithApple opens the native sheet under the privacy lock grace', async () => {
+  supabaseFake.auth.setSession(makeFakeSession({ user: signedInUser() }));
+
+  await authService.signInWithApple();
+
+  assert.deepEqual(apple.sheetGraceStates, [true]);
+});
+
 // ---------------------------------------------------------------------------
 // signInWithGoogle
 //
@@ -815,6 +844,31 @@ test('signInWithGoogle reports an unknown failure for a plain thrown error', asy
   const result = await authService.signInWithGoogle();
 
   assert.deepEqual(result, { success: false, code: 'unknown', error: 'native module crashed' });
+});
+
+// Both calls can turn the app inactive under native Google UI (the Play Services
+// update prompt, the account picker sheet); discreet mode must not take that for
+// the reader leaving and lock mid-sign-in (see privacyLockGrace).
+test('signInWithGoogle opens the native picker under the privacy lock grace', async () => {
+  runtimeEnv.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID = 'ios-client-id';
+  runtimeEnv.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID = 'web-client-id';
+  supabaseFake.auth.setSession(makeFakeSession({ user: signedInUser() }));
+
+  await authService.signInWithGoogle();
+
+  assert.deepEqual(google.signInGraceStates, [true]);
+});
+
+test('signInWithGoogle checks Play Services under the privacy lock grace on Android', async () => {
+  runtimeEnv.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID = 'ios-client-id';
+  runtimeEnv.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID = 'web-client-id';
+  rn.Platform.OS = 'android';
+  supabaseFake.auth.setSession(makeFakeSession({ user: signedInUser() }));
+
+  await authService.signInWithGoogle();
+
+  assert.deepEqual(google.playServicesGraceStates, [true]);
+  assert.deepEqual(google.signInGraceStates, [true]);
 });
 
 // ---------------------------------------------------------------------------
@@ -1152,4 +1206,63 @@ test('getCurrentSession treats a rejected refresh token as a real sign-out', asy
   });
 
   assert.deepEqual(await authService.getCurrentSession(), { session: null, user: null });
+});
+
+// ---------------------------------------------------------------------------
+// Privacy lock grace release — deliberately last. Advancing mocked time past the
+// grace window leaves privacyLockGrace's shared `graceUntil` singleton stamped
+// with a fixed future instant for the rest of this process, which would make
+// every later isPrivacyLockGraceActive() check in this file trivially true; the
+// "opens under the grace" tests above rely on real time and must run before this.
+// ---------------------------------------------------------------------------
+
+// A fixed instant, not `Date.now()`, so this is not a race against how long the
+// suite above took to run — it only has to be later than the grace window this
+// same test opens.
+const RELEASE_TEST_NOW_MS = 1_800_000_000_000;
+
+test('signInWithApple releases the privacy lock grace once the native sheet settles', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: RELEASE_TEST_NOW_MS });
+  supabaseFake.auth.setSession(makeFakeSession({ user: signedInUser() }));
+
+  await authService.signInWithApple();
+  t.mock.timers.tick(PRIVACY_LOCK_GRACE_AFTER_SYSTEM_UI_MS + 1);
+
+  assert.equal(isPrivacyLockGraceActive(), false);
+});
+
+test('signInWithApple releases the privacy lock grace even when the native sheet is cancelled', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: RELEASE_TEST_NOW_MS });
+  apple.error = Object.assign(new Error('The user canceled the authorization attempt'), {
+    code: 'ERR_REQUEST_CANCELED',
+  });
+
+  await authService.signInWithApple();
+  t.mock.timers.tick(PRIVACY_LOCK_GRACE_AFTER_SYSTEM_UI_MS + 1);
+
+  assert.equal(isPrivacyLockGraceActive(), false);
+});
+
+test('signInWithGoogle releases the privacy lock grace once the native picker settles', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: RELEASE_TEST_NOW_MS });
+  runtimeEnv.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID = 'ios-client-id';
+  runtimeEnv.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID = 'web-client-id';
+  supabaseFake.auth.setSession(makeFakeSession({ user: signedInUser() }));
+
+  await authService.signInWithGoogle();
+  t.mock.timers.tick(PRIVACY_LOCK_GRACE_AFTER_SYSTEM_UI_MS + 1);
+
+  assert.equal(isPrivacyLockGraceActive(), false);
+});
+
+test('signInWithGoogle releases the privacy lock grace even when the native picker is rejected', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: RELEASE_TEST_NOW_MS });
+  runtimeEnv.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID = 'ios-client-id';
+  runtimeEnv.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID = 'web-client-id';
+  google.signInError = new Error('native module crashed');
+
+  await authService.signInWithGoogle();
+  t.mock.timers.tick(PRIVACY_LOCK_GRACE_AFTER_SYSTEM_UI_MS + 1);
+
+  assert.equal(isPrivacyLockGraceActive(), false);
 });
