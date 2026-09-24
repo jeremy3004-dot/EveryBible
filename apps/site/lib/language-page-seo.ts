@@ -1,8 +1,9 @@
 import type { Metadata, MetadataRoute } from 'next';
 
 import type { ScriptureStatus } from '../../admin/lib/language-atlas/types';
+import { languageFamily, languageNoun } from './language-family';
 import type { LanguageIndexEntry, LanguagePage } from './language-pages';
-import { shouldPrerenderLanguage } from './language-pages';
+import { SCRIPTURE_STATUS_ORDER, shouldPrerenderLanguage } from './language-pages';
 import { LANGUAGES_PATH, languagePagePath } from './language-slug';
 import { EVERYBIBLE_SITE_URL } from './site-links';
 import { pageMetadata, SITE_NAME } from './site-metadata';
@@ -14,14 +15,7 @@ export const LANGUAGES_HUB_TITLE = 'Bible translation status by language | Every
 export const LANGUAGES_HUB_DESCRIPTION =
   'Look up Scripture availability, dialects and where they are spoken for thousands of languages, from the Every Language research atlas.';
 
-export const SCRIPTURE_STATUS_ORDER: readonly ScriptureStatus[] = [
-  'bible',
-  'nt',
-  'portions',
-  'started',
-  'needed',
-  'unknown',
-];
+export { SCRIPTURE_STATUS_ORDER };
 
 /** Short status used in lists and badges; red means none known in the sources. */
 export function scriptureStatusLabel(status: ScriptureStatus): string {
@@ -46,34 +40,91 @@ export function scriptureStatusSentence(status: ScriptureStatus, name: string): 
   }[status];
 }
 
+/**
+ * The page's Scripture sentence. A macrolanguage whose status comes from its
+ * members names where it comes from: "A complete Bible is reported in
+ * Standard Arabic, a member language of Arabic."
+ */
+export function languageScriptureSentence(
+  page: Pick<LanguagePage, 'status' | 'name'> & Partial<Pick<LanguagePage, 'statusVia'>>
+): string {
+  const via = page.statusVia ?? [];
+  if (!via.length) return scriptureStatusSentence(page.status, page.name);
+  const subject =
+    via.length === 1
+      ? `${via[0].label}, a member language of ${page.name}`
+      : `${via.length} member languages of ${page.name}, including ${via[0].label}`;
+  return scriptureStatusSentence(page.status, subject);
+}
+
 /** Up to three countries by name; beyond that the lists are long and unranked, so a count. */
-function listCountries(page: LanguagePage): string {
+function listCountries(page: Pick<LanguagePage, 'countries'>): string {
   const names = page.countries.map((country) => country.name);
   if (names.length > 3) return `${names.length} countries`;
   return names.length === 3 ? `${names[0]}, ${names[1]} and ${names[2]}` : names.join(' and ');
 }
 
 /** One plain sentence about what the language is and where it is spoken. */
-export function languageIdentity(page: LanguagePage): string {
-  const family = page.family ? ` in the ${page.family} family` : '';
+export function languageIdentity(
+  page: Pick<LanguagePage, 'name' | 'family' | 'countries'> & Partial<Pick<LanguagePage, 'members'>>
+): string {
+  const family = languageFamily(page.family);
+  const inFamily = family ? ` in the ${family} family` : '';
   const where = page.countries.length ? ` spoken in ${listCountries(page)}` : '';
-  return `${page.name} is a language${family}${where}.`;
+  const noun = page.members?.length ? 'a macrolanguage' : languageNoun(page.family);
+  return `${page.name} is ${noun}${inFamily}${where}.`;
 }
 
+/** Search results cut titles at about 60 characters and descriptions at about 160. */
+export const TITLE_MAX_LENGTH = 60;
+export const DESCRIPTION_MAX_LENGTH = 160;
+
+/** The first candidate that fits, or the last (shortest) one when none does. */
+function firstThatFits(candidates: readonly string[], limit: number): string {
+  return candidates.find((candidate) => candidate.length <= limit) ?? candidates.at(-1)!;
+}
+
+/** Longer names drop words from the end of the title, never the name itself. */
 export function languagePageTitle(page: Pick<LanguagePage, 'label'>): string {
-  return `${page.label} language: Bible and Scripture status | ${SITE_NAME}`;
+  return firstThatFits(
+    [
+      `${page.label} language: Bible and Scripture status | ${SITE_NAME}`,
+      `${page.label}: Bible and Scripture status | ${SITE_NAME}`,
+      `${page.label}: Bible and Scripture status`,
+      `${page.label}: Scripture status`,
+    ],
+    TITLE_MAX_LENGTH
+  );
 }
 
+/** The facts always stay; the closing invitation shortens or goes to fit. */
 export function languagePageDescription(page: LanguagePage): string {
-  return `${languageIdentity(page)} ${scriptureStatusSentence(page.status, page.name)} See its dialects and sources, and read the Bible free in the EveryBible app.`;
+  const facts = `${languageIdentity(page)} ${languageScriptureSentence(page)}`;
+  return firstThatFits(
+    [
+      `${facts} See its dialects and sources, and read the Bible free in the EveryBible app.`,
+      `${facts} Read the Bible free on EveryBible.`,
+      facts,
+    ],
+    DESCRIPTION_MAX_LENGTH
+  );
 }
 
+/**
+ * Thin pages (no code, no country) point search engines at the coded language
+ * of the same name when there is exactly one, and otherwise ask not to be
+ * indexed while their links are still followed.
+ */
 export function languagePageMetadata(page: LanguagePage): Metadata {
-  return pageMetadata({
+  const metadata = pageMetadata({
     title: languagePageTitle(page),
     description: languagePageDescription(page),
     path: languagePagePath(page.slug),
   });
+  if (page.canonicalSlug !== page.slug)
+    metadata.alternates = { canonical: languagePagePath(page.canonicalSlug) };
+  if (!page.indexable) metadata.robots = { index: false, follow: true };
+  return metadata;
 }
 
 export function languagePageUrl(slug: string): string {
@@ -155,28 +206,30 @@ export function languagePageStructuredData(page: LanguagePage, generatedAt: stri
   };
 }
 
-/** Sitemap file ids for /languages/sitemap/<id>.xml; one file per 50,000 languages. */
-export function languageSitemapIds(languageCount: number): { id: number }[] {
+/** Sitemap file ids for /languages/sitemap/<id>.xml; one file per 50,000 listed languages. */
+export function languageSitemapIds(sitemapCount: number): { id: number }[] {
   return Array.from(
-    { length: Math.max(1, Math.ceil(languageCount / LANGUAGE_SITEMAP_LIMIT)) },
+    { length: Math.max(1, Math.ceil(sitemapCount / LANGUAGE_SITEMAP_LIMIT)) },
     (_, id) => ({
       id,
     })
   );
 }
 
-export function languageSitemapUrls(languageCount: number): string[] {
-  return languageSitemapIds(languageCount).map(
+export function languageSitemapUrls(sitemapCount: number): string[] {
+  return languageSitemapIds(sitemapCount).map(
     ({ id }) => `${EVERYBIBLE_SITE_URL}${LANGUAGES_PATH}/sitemap/${id}.xml`
   );
 }
 
+/** Thin pages are left out; they stay reachable from the map and other pages. */
 export function buildLanguageSitemap(
   entries: readonly LanguageIndexEntry[],
   id: number,
   lastModified: Date
 ): MetadataRoute.Sitemap {
   return entries
+    .filter((entry) => entry.sitemap)
     .slice(id * LANGUAGE_SITEMAP_LIMIT, (id + 1) * LANGUAGE_SITEMAP_LIMIT)
     .map((entry) => ({
       url: languagePageUrl(entry.slug),

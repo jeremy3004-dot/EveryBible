@@ -49,6 +49,47 @@ test('Nepali bundled source contains the expected verse corpus', () => {
   assert.ok(john316?.t.includes('परमेश्‍वरले'));
 });
 
+test('every translation the catalog declares as bundled text has a full Bible in the shipped database', async () => {
+  // bundledTranslations.test.ts pins the catalog to scripts/build_bible_db.py, but the .db is
+  // a committed artefact: a stale rebuild would still leave a declared translation with no
+  // verses (the Hindi "phantom bundled" failure). Check the file that actually ships.
+  const { bibleTranslations } = await import('../../constants/translations');
+  const { DatabaseSync } = await import('node:sqlite');
+  const database = new DatabaseSync(
+    fileURLToPath(new URL('../../../assets/databases/bible-bsb-v2.db', import.meta.url).href),
+    { readOnly: true }
+  );
+
+  try {
+    const rows = database
+      .prepare(
+        'SELECT translation_id AS id, COUNT(*) AS verses, COUNT(DISTINCT book_id) AS books FROM verses GROUP BY translation_id'
+      )
+      .all() as Array<{ id: string; verses: number; books: number }>;
+    const shipped = new Map(rows.map((row) => [row.id, row]));
+    const declared = bibleTranslations
+      .filter((translation) => translation.source !== 'runtime' && translation.hasText)
+      .map((translation) => translation.id);
+
+    const incomplete = declared.filter((id) => {
+      const row = shipped.get(id);
+      return !row || row.books < 66 || row.verses < 31000;
+    });
+    assert.deepEqual(
+      incomplete,
+      [],
+      `declared bundled text without a full Bible in bible-bsb-v2.db: ${incomplete.join(', ')}`
+    );
+    assert.deepEqual(
+      [...shipped.keys()].filter((id) => !declared.includes(id)),
+      [],
+      'bible-bsb-v2.db ships verses for a translation the catalog does not declare as bundled'
+    );
+  } finally {
+    database.close();
+  }
+});
+
 test('shipped bundled database asset matches the schema-version and verse-count readiness constants', async () => {
   const { DatabaseSync } = await import('node:sqlite');
   const dbPath = fileURLToPath(

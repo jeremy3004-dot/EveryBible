@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { generateKeyPairSync, sign } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -84,7 +85,10 @@ test('rejects a tampered signature with no globalThis.crypto', async () => {
   try {
     const parts = catalogEnvelope.compactJws.split('.');
     const tamperedSig = parts[2].slice(0, -2) + (parts[2].endsWith('A') ? 'BB' : 'AA');
-    const tampered = { ...catalogEnvelope, compactJws: [parts[0], parts[1], tamperedSig].join('.') };
+    const tampered = {
+      ...catalogEnvelope,
+      compactJws: [parts[0], parts[1], tamperedSig].join('.'),
+    };
     assert.equal(await verifyElEnvelope(tampered, jwks), null);
   } finally {
     Object.defineProperty(globalThis, 'crypto', {
@@ -104,4 +108,67 @@ test('rejects kid/keyId mismatch', async () => {
     y: 'Tyw55Sl_n-9NEbTUzUl3HGB18lGMXTTYxkdTbAFkjbM',
   };
   assert.equal(await verifyElEnvelope(catalogEnvelope, [wrongKey]), null);
+});
+
+test('rejects non-object values and envelopes with an empty key id', () => {
+  assert.equal(isElEnvelopeShape('a.b.c'), false);
+  assert.equal(isElEnvelopeShape(42), false);
+  assert.equal(isElEnvelopeShape({ keyId: '', algorithm: 'ES256', compactJws: 'a.b.c' }), false);
+  assert.equal(isElEnvelopeShape({ keyId: 'x', algorithm: 'ES256', compactJws: 42 }), false);
+});
+
+// Signs a compact JWS with a freshly generated P-256 key, so a test can control the
+// protected header and payload bytes while still presenting a valid signature.
+function signTestEnvelope(options: { headerKid: string; envelopeKid: string; payload: string }) {
+  const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+  const publicJwk = publicKey.export({ format: 'jwk' });
+  const encode = (value: string | Buffer) => Buffer.from(value).toString('base64url');
+  const signingInput = `${encode(JSON.stringify({ alg: 'ES256', kid: options.headerKid }))}.${encode(options.payload)}`;
+  const signature = sign('sha256', Buffer.from(signingInput), {
+    key: privateKey,
+    dsaEncoding: 'ieee-p1363',
+  });
+  return {
+    envelope: {
+      keyId: options.envelopeKid,
+      algorithm: 'ES256' as const,
+      compactJws: `${signingInput}.${encode(signature)}`,
+    },
+    keys: [
+      {
+        kty: 'EC',
+        crv: 'P-256',
+        x: publicJwk.x,
+        y: publicJwk.y,
+        kid: options.envelopeKid,
+      },
+    ],
+  };
+}
+
+test('accepts an envelope signed by a freshly generated key whose header names that key', async () => {
+  const { envelope, keys } = signTestEnvelope({
+    headerKid: 'test-kid',
+    envelopeKid: 'test-kid',
+    payload: JSON.stringify({ ok: true }),
+  });
+  assert.deepEqual(await verifyElEnvelope(envelope, keys), { ok: true });
+});
+
+test('rejects a validly signed envelope whose protected header names a different key', async () => {
+  const { envelope, keys } = signTestEnvelope({
+    headerKid: 'someone-else',
+    envelopeKid: 'test-kid',
+    payload: JSON.stringify({ ok: true }),
+  });
+  assert.equal(await verifyElEnvelope(envelope, keys), null);
+});
+
+test('returns null instead of throwing for a validly signed payload that is not JSON', async () => {
+  const { envelope, keys } = signTestEnvelope({
+    headerKid: 'test-kid',
+    envelopeKid: 'test-kid',
+    payload: 'not json {',
+  });
+  assert.equal(await verifyElEnvelope(envelope, keys), null);
 });

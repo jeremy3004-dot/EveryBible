@@ -27,6 +27,14 @@ export const en = {
     explanation: 'Explain the decision (required)',
     legacy: 'Historical attribution unavailable',
     noMatching: 'No responses match these filters.',
+    waiting: 'Waiting for your decision: {{count}}',
+    startReview: 'Start review',
+    progress: '{{current}} of {{total}}',
+    skip: 'Skip for now',
+    everyone: 'Everyone',
+    sourceFilter: 'Show feedback from',
+    statusFilter: 'Review status',
+    plainPositive: 'Marked accurate with no comment: {{count}}',
   },
   interface: {
     nativePermissions: {
@@ -76,6 +84,15 @@ export const en = {
     currentPlanDay: 'Current plan day {{day}}',
     planDay: 'Day {{day}}',
     planSessionForDay: '{{session}} for day {{day}}',
+    prayerYouPrayed: 'You prayed for this',
+    prayerYouEncouraged: 'You encouraged this',
+    prayerPrayedRemoved: 'Prayer mark removed',
+    prayerEncouragedRemoved: 'Encouragement removed',
+    prayerMarkedAnswered: 'Marked as answered',
+    prayerRequestRemoved: 'Prayer request removed',
+    highlightAdded: 'Highlight added',
+    highlightRemoved: 'Highlight removed',
+    searchResultCount: 'Results: {{count}}',
     music: {
       off: {
         label: 'Off',
@@ -467,6 +484,9 @@ export const en = {
     noLanguagesFound: 'No language matches yet',
     noLanguagesFoundBody:
       'Try another spelling or search in English or the local script. Fuzzy search is enabled.',
+    catalogUnavailableTitle: "Can't reach the Bible library",
+    catalogUnavailableBody:
+      'Check your internet connection and try again. The Bibles below are already on this device and work offline.',
     recommendedBadge: 'Recommended',
     interfaceAvailable: 'Interface available',
     privacyTitle: 'Choose icon',
@@ -514,6 +534,9 @@ export const en = {
     available: 'Available',
     translationComingSoon: '{{name}} will be available for download in a future update.',
     failedToLoad: 'We could not load this chapter right now.',
+    translationDownloadFailedTitle: 'Download failed',
+    translationDownloadFailed:
+      "This Bible didn't finish downloading. Check your internet connection and free storage space, then try again.",
     searchUnavailable: 'Full-text search is not available for this translation yet.',
     noVersesAvailable: '{{book}} {{chapter}} does not have written text yet.',
     fullBibleComingSoon: "This chapter isn't available as text or audio in this translation yet.",
@@ -760,6 +783,9 @@ export const en = {
       'Please enable notifications in your device settings to receive daily reminders.',
     notificationTitle: 'Daily Bible Reading',
     notificationBody: 'Time for your daily Bible reading!',
+    notificationsBlockedNotice:
+      "Notifications for EveryBible are turned off in your device settings, so this reminder can't appear.",
+    openDeviceSettings: 'Open Settings',
     selectLanguage: 'Choose interface language',
     deleteAccount: 'Delete Account',
     deleteAccountWarning:
@@ -912,9 +938,9 @@ export const en = {
     resetPasswordSuccess: 'Your password has been updated',
     resetPasswordError: 'Failed to update your password',
     resetLinkConfirmTitle: 'Set a new password?',
-    resetLinkConfirmBody: 'This link sets a new password for {{email}}. Continue?',
-    resetLinkDifferentAccount:
-      'This reset link belongs to a different account. Sign out of this account first, then open the link again.',
+    resetLinkWrongDevice:
+      'This reset link only works on the device where you asked for it. Open it there, or send a new link from this device.',
+    sendNewResetLink: 'Send a New Link',
     resetPasswordInvalidSession:
       'This reset link is invalid or has expired. Please request a new one.',
   },
@@ -1506,6 +1532,29 @@ export const en = {
     you: 'You',
     groupMember: 'Group member',
     ownerLongPressHint: 'Long press to edit or delete',
+    leaderLongPressHint: 'Long press to remove this request',
+    moreActions: 'More actions',
+    report: 'Report',
+    blockAuthor: 'Block this person',
+    reportTitle: 'Report this request',
+    reportBody:
+      "Tell us what's wrong. You won't see this request again, and our team will review it.",
+    reportReasonSpam: 'Spam or advertising',
+    reportReasonAbuse: 'Harassment or hate',
+    reportReasonSexual: 'Sexual content',
+    reportReasonHarm: 'Violence or self-harm',
+    reportReasonOther: 'Something else',
+    reportNotePlaceholder: 'Add details (optional)',
+    reportSend: 'Send report',
+    reportSent: 'Thank you. Our team will review this request.',
+    reportRateLimited: 'You have sent several reports recently. Please try again later.',
+    blockTitle: 'Block this person?',
+    blockBody: "You won't see their prayer requests anymore. They won't be told.",
+    contentRejected:
+      "This request contains language that isn't allowed on the prayer wall. Please change it and try again.",
+    postingBlocked: "You can't share prayer requests on the prayer wall right now.",
+    underReview: 'Under review',
+    rateLimited: 'You have shared several prayer requests recently. Please try again later.',
   },
   engagement: {
     title: 'Your Journey',
@@ -1545,6 +1594,7 @@ export const en = {
       'Remove the downloaded data for {{name}}? You can re-download it any time.',
     delete: 'Delete',
     cancelDownload: 'Cancel download',
+    queued: 'Waiting to download',
   },
   gather: {
     title: 'Gather',
@@ -1994,6 +2044,7 @@ export const en = {
     decreaseTextSize: 'Decrease text size',
     increaseTextSize: 'Increase text size',
     noPassageText: 'No passage text available',
+    passageLoadFailed: "We couldn't load this passage.",
     listenToStoryAgain: 'Listen to the story again',
     shareApp: 'Share app',
   },

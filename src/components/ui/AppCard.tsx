@@ -2,6 +2,7 @@ import { type ReactNode } from 'react';
 import {
   type AccessibilityActionEvent,
   type AccessibilityActionInfo,
+  type AccessibilityState,
   type AccessibilityValue,
   type GestureResponderEvent,
   type StyleProp,
@@ -35,6 +36,8 @@ export interface AppCardProps {
   accessibilityLabel?: string;
   /** Pressable cards only: state the label does not carry (progress, day). */
   accessibilityValue?: AccessibilityValue;
+  /** Pressable cards only: e.g. `selected` for a card that is one of several choices. */
+  accessibilityState?: AccessibilityState;
   /**
    * Pressable cards only: gesture-only affordances (swipe to delete) and nested
    * controls a screen reader cannot reach inside the card.
@@ -64,6 +67,7 @@ export function AppCard({
   style,
   accessibilityLabel,
   accessibilityValue,
+  accessibilityState,
   accessibilityActions,
   onAccessibilityAction,
 }: AppCardProps) {
@@ -111,6 +115,7 @@ export function AppCard({
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
         accessibilityValue={accessibilityValue}
+        accessibilityState={accessibilityState}
         accessibilityActions={accessibilityActions}
         onAccessibilityAction={onAccessibilityAction}
         style={cardStyle}

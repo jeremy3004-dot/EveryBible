@@ -4,9 +4,18 @@ Run from the repo root:
     python3 -m unittest discover -s scripts -p 'test_export_translation_text_packs.py'
 """
 
+import re
+import sqlite3
+import tempfile
 import unittest
+from pathlib import Path
 
-from export_translation_text_packs import fetch_translation_verses
+import export_translation_text_packs as exporter
+from export_translation_text_packs import build_sqlite_database, fetch_translation_verses
+
+APP_INDEX_MODULE = (
+    Path(__file__).resolve().parent.parent / "src" / "services" / "bible" / "textPackSearchIndex.ts"
+)
 
 
 class FakeResponse:
@@ -111,6 +120,87 @@ class FetchTranslationVersesTest(unittest.TestCase):
         fetch(rest, page_size=10)
 
         self.assertEqual(rest.requests[0]["select"], "*")
+
+
+PACK_ROWS = [
+    {**verse(1, "demo", 1), "text": "In the beginning God created the heavens and the earth."},
+    {**verse(2, "demo", 2), "text": "The LORD is my shepherd; I shall not want."},
+    {**verse(3, "demo", 3), "text": "For God so loved the world."},
+]
+
+
+def table_names(path):
+    connection = sqlite3.connect(path)
+    try:
+        return {
+            row[0]
+            for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+        }
+    finally:
+        connection.close()
+
+
+class BuildSqliteDatabaseTest(unittest.TestCase):
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        self.path = Path(self.directory.name) / "demo.db"
+
+    def tearDown(self):
+        self.directory.cleanup()
+
+    def test_packs_ship_without_a_search_index_by_default(self):
+        build_sqlite_database(self.path, PACK_ROWS)
+
+        tables = table_names(self.path)
+        self.assertIn("verses", tables)
+        self.assertNotIn("verses_fts", tables)
+        self.assertNotIn("search_index_state", tables)
+
+    def test_a_pack_can_ship_a_complete_search_index_marked_with_its_version(self):
+        build_sqlite_database(
+            self.path,
+            PACK_ROWS,
+            search_index_version="2026.09.24-v4",
+            generated_at="2026-09-24T00:00:00Z",
+        )
+
+        connection = sqlite3.connect(self.path)
+        try:
+            matches = [
+                row[0]
+                for row in connection.execute(
+                    "SELECT rowid FROM verses_fts WHERE verses_fts MATCH ? ORDER BY rowid",
+                    ('"lord"',),
+                )
+            ]
+            love = [
+                row[0]
+                for row in connection.execute(
+                    "SELECT rowid FROM verses_fts WHERE verses_fts MATCH ?", ('"love"*',)
+                )
+            ]
+            state = connection.execute(
+                "SELECT index_schema_version, pack_version, last_indexed_id, indexed_count,"
+                " completed_at FROM search_index_state"
+            ).fetchall()
+        finally:
+            connection.close()
+
+        self.assertEqual(matches, [2])
+        self.assertEqual(love, [3])
+        self.assertEqual(state, [(1, "2026.09.24-v4", 3, 3, "2026-09-24T00:00:00Z")])
+
+    def test_the_shipped_index_matches_the_one_the_app_builds(self):
+        # A pack index with another definition or schema version would be rebuilt on every
+        # device, or worse, queried with a tokenizer the app does not expect.
+        source = APP_INDEX_MODULE.read_text(encoding="utf-8")
+        app_version = int(
+            re.search(r"PACK_SEARCH_INDEX_SCHEMA_VERSION = (\d+);", source).group(1)
+        )
+        app_fts_sql = re.search(r'CREATE_VERSES_FTS_SQL =\s*"([^"]+)"', source).group(1)
+
+        self.assertEqual(exporter.PACK_SEARCH_INDEX_SCHEMA_VERSION, app_version)
+        self.assertEqual(exporter.CREATE_VERSES_FTS_SQL, app_fts_sql)
 
 
 if __name__ == "__main__":

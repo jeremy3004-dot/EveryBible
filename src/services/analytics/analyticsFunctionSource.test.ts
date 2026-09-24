@@ -26,5 +26,5 @@ test('analytics functions pin their JWT runtime behavior explicitly', () => {
 
 // Payload geo handling runs on the real edge functions: supabase/functions/
 // track-analytics-events/handler.test.ts ('complete payload geo is stored as sent ...',
-// 'partial payload geo wins field by field ...') and track-anonymous-usage-events/
+// 'a cf-worker payload fix is kept whole ...') and track-anonymous-usage-events/
 // collector.test.ts ('payload geo keeps its own country and coordinates ...').

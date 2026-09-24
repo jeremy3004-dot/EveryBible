@@ -4,9 +4,19 @@ import test from 'node:test';
 import { gunzipSync } from 'node:zlib';
 
 import type { AtlasIndex, AtlasRecord } from '../../admin/lib/language-atlas/types';
+import { languagePageTitle } from './language-page-seo';
 import { isLanguageSlug, languageShard } from './language-slug';
-import { buildLanguagePages, languagePageFiles, shouldPrerenderLanguage } from './language-pages';
+import {
+  buildLanguagePages,
+  isThinLanguage,
+  LANGUAGE_PAGE_SHARD_COUNT,
+  languagePageFiles,
+  rollUpScriptureStatus,
+  shouldPrerenderLanguage,
+  type LanguagePage,
+} from './language-pages';
 import type { AtlasProject } from './public-atlas-projects';
+import isoMacrolanguages from '../data/language-atlas/iso-639-3-macrolanguages.json';
 import projectSnapshot from '../data/language-atlas/projects.json';
 
 function record(overrides: Partial<AtlasRecord> & Pick<AtlasRecord, 'id' | 'name'>): AtlasRecord {
@@ -151,6 +161,200 @@ test('only languages become pages, each with a unique, valid slug and title labe
   assert.equal(build.meta.languageCount, 4);
   assert.deepEqual(build.meta.statusCounts, { bible: 1, nt: 1, unknown: 2 });
   assert.equal(build.meta.shardCount, 4);
+});
+
+test('placeholder records from the project tracker are left out of pages, counts and sitemaps', () => {
+  const placeholder = (id: string, name: string) =>
+    record({ id, name, sourceIds: ['everylanguage'] });
+  const build = buildLanguagePages(
+    atlas([
+      ...fixture.records,
+      placeholder('el:5402abf8-0000', 'Test 6a'),
+      placeholder('el:d97aa4cd-0000', 'Mangala {Delete}'),
+      record({ id: 'rolv:9', kind: 'dialect', name: 'Test dialect', parentId: 'el:5402abf8-0000' }),
+      placeholder('el:aaaaaaaa-0000', 'Tip'),
+    ]),
+    [project('el:5402abf8-0000', 'Test project')],
+    4
+  );
+  assert.deepEqual(
+    build.entries.map((entry) => entry.slug),
+    ['aari-aari1239', 'aari-aaa', 'nepali-npi', 'tamang-tmg', 'tip-el-aaaaaaaa']
+  );
+  assert.equal(build.meta.languageCount, 5);
+  assert.equal(
+    build.shards.reduce((total, shard) => total + Object.keys(shard).length, 0),
+    5
+  );
+});
+
+const pageFor = (build: ReturnType<typeof buildLanguagePages>, slug: string): LanguagePage =>
+  build.shards[languageShard(slug, 4)][slug];
+
+test('a macrolanguage takes the best status among its members, credited to them', () => {
+  const build = buildLanguagePages(
+    atlas([
+      record({ id: 'iso:ara', name: 'Arabic', iso6393: 'ara', countryCodes: ['NP'] }),
+      record({ id: 'iso:arb', name: 'Standard Arabic', iso6393: 'arb', scriptureStatus: 'bible' }),
+      record({ id: 'iso:apd', name: 'Sudanese Arabic', iso6393: 'apd', scriptureStatus: 'bible' }),
+      record({ id: 'iso:afb', name: 'Gulf Arabic', iso6393: 'afb', scriptureStatus: 'portions' }),
+      record({ id: 'iso:aao', name: 'Algerian Saharan Arabic', iso6393: 'aao' }),
+      // A macrolanguage whose own record already has a Bible keeps its own status.
+      record({ id: 'iso:aka', name: 'Akan', iso6393: 'aka', scriptureStatus: 'bible' }),
+      record({ id: 'iso:twi', name: 'Twi', iso6393: 'twi', scriptureStatus: 'nt' }),
+      // No member with Scripture: still no known Scripture.
+      record({ id: 'iso:jrb', name: 'Judeo-Arabic', iso6393: 'jrb' }),
+      record({ id: 'iso:yhd', name: 'Judeo-Iraqi Arabic', iso6393: 'yhd' }),
+    ]),
+    [],
+    4,
+    { ara: ['aao', 'afb', 'apd', 'arb', 'zzz'], aka: ['fat', 'twi'], jrb: ['yhd'] }
+  );
+
+  const arabic = pageFor(build, 'arabic-ara');
+  assert.equal(arabic.status, 'bible');
+  assert.deepEqual(
+    arabic.statusVia.map((member) => member.label),
+    ['Standard Arabic', 'Sudanese Arabic']
+  );
+  assert.deepEqual(
+    arabic.members.map((member) => [member.slug, member.status]),
+    [
+      ['standard-arabic-arb', 'bible'],
+      ['sudanese-arabic-apd', 'bible'],
+      ['gulf-arabic-afb', 'portions'],
+      ['algerian-saharan-arabic-aao', 'unknown'],
+    ],
+    'members with a page, best status first; codes without a page are skipped'
+  );
+  assert.deepEqual(pageFor(build, 'standard-arabic-arb').memberOf, [
+    { slug: 'arabic-ara', label: 'Arabic', status: 'bible' },
+  ]);
+  assert.equal(build.entries.find((entry) => entry.slug === 'arabic-ara')?.status, 'bible');
+
+  const akan = pageFor(build, 'akan-aka');
+  assert.equal(akan.status, 'bible');
+  assert.deepEqual(akan.statusVia, []);
+
+  const judeoArabic = pageFor(build, 'judeo-arabic-jrb');
+  assert.equal(judeoArabic.status, 'unknown');
+  assert.deepEqual(judeoArabic.statusVia, []);
+  assert.equal(judeoArabic.members.length, 1);
+
+  assert.deepEqual(pageFor(build, 'gulf-arabic-afb').members, [], 'members are not macrolanguages');
+});
+
+test('the roll-up never reports no known Scripture while a member has some', () => {
+  const member = (status: LanguagePage['status']) => ({ slug: status, label: status, status });
+  assert.deepEqual(rollUpScriptureStatus('unknown', []), { status: 'unknown', via: [] });
+  assert.deepEqual(rollUpScriptureStatus('unknown', [member('needed'), member('portions')]), {
+    status: 'portions',
+    via: [member('portions')],
+  });
+  assert.deepEqual(rollUpScriptureStatus('nt', [member('nt'), member('portions')]), {
+    status: 'nt',
+    via: [],
+  });
+  assert.deepEqual(rollUpScriptureStatus('portions', [member('bible')]).status, 'bible');
+});
+
+test('pages with no code and no country are thin: out of the sitemap, noindex or canonical', () => {
+  assert.equal(
+    isThinLanguage({ iso6393: null, glottocode: null, rolvCode: null, countryCodes: [] }),
+    true
+  );
+  assert.equal(
+    isThinLanguage({ iso6393: null, glottocode: null, rolvCode: null, countryCodes: ['NP'] }),
+    false
+  );
+  assert.equal(
+    isThinLanguage({ iso6393: null, glottocode: 'abcd1234', rolvCode: null, countryCodes: [] }),
+    false
+  );
+
+  const tracker = (id: string, name: string, countryCodes: string[] = []) =>
+    record({ id, name, sourceIds: ['everylanguage'], countryCodes });
+  const build = buildLanguagePages(
+    atlas([
+      ...fixture.records,
+      tracker('el:11111111-0000', 'tamang'),
+      tracker('el:22222222-0000', 'Aari'),
+      tracker('el:33333333-0000', 'Oung'),
+      tracker('el:44444444-0000', 'Kham', ['NP']),
+    ]),
+    [],
+    4
+  );
+
+  const duplicate = pageFor(build, 'tamang-el-11111111');
+  assert.equal(duplicate.canonicalSlug, 'tamang-tmg', 'an exact (case-insensitive) name match');
+  assert.equal(duplicate.indexable, true);
+
+  const ambiguous = pageFor(build, 'aari-el-22222222');
+  assert.equal(ambiguous.canonicalSlug, 'aari-el-22222222', 'two coded Aari languages: no guess');
+  assert.equal(ambiguous.indexable, false);
+
+  const unique = pageFor(build, 'oung-el-33333333');
+  assert.equal(unique.canonicalSlug, 'oung-el-33333333');
+  assert.equal(unique.indexable, false);
+
+  assert.equal(pageFor(build, 'tamang-tmg').label, 'Tamang', 'the coded language keeps the name');
+  assert.equal(duplicate.label, 'tamang (el-11111111)');
+
+  const withCountry = pageFor(build, 'kham-el-44444444');
+  assert.equal(withCountry.indexable, true);
+  assert.equal(withCountry.canonicalSlug, 'kham-el-44444444');
+
+  assert.deepEqual(
+    build.entries.filter((entry) => !entry.sitemap).map((entry) => entry.slug),
+    ['aari-el-22222222', 'oung-el-33333333', 'tamang-el-11111111']
+  );
+  assert.equal(build.meta.languageCount, 8, 'thin pages are still pages');
+  assert.equal(build.meta.sitemapCount, 5);
+});
+
+test('page names are cleaned for display while slugs keep the source name', () => {
+  const build = buildLanguagePages(
+    atlas([
+      record({
+        id: 'el:55555555-0000',
+        name: 'Marwari.',
+        aliases: ['Marwari', 'Marvari:', 'Marvari  '],
+        countryCodes: ['IN'],
+        sourceIds: ['everylanguage'],
+      }),
+      record({
+        id: 'rolv:7',
+        kind: 'dialect',
+        name: 'Marwari.: Dhundari.',
+        parentId: 'el:55555555-0000',
+      }),
+      record({
+        id: 'rolv:8',
+        kind: 'dialect',
+        name: 'Bhatri {Delete}1',
+        parentId: 'el:55555555-0000',
+      }),
+      record({
+        id: 'rolv:9',
+        kind: 'dialect',
+        name: 'Bhatri {Delete}2',
+        parentId: 'el:55555555-0000',
+      }),
+      record({ id: 'iso:tvu', name: 'Tunen  (change to tvu)', iso6393: 'tvu' }),
+    ]),
+    [],
+    4
+  );
+  const marwari = pageFor(build, 'marwari-el-55555555');
+  assert.equal(marwari.name, 'Marwari');
+  assert.equal(marwari.label, 'Marwari');
+  assert.deepEqual(marwari.aliases, ['Marvari']);
+  assert.deepEqual(marwari.dialects, [
+    { name: 'Bhatri', status: 'unknown' },
+    { name: 'Dhundari', status: 'unknown' },
+  ]);
+  assert.equal(pageFor(build, 'tunen-change-to-tvu-tvu').name, 'Tunen');
 });
 
 test('duplicate names fall back to a code, never repeating another language title', () => {
@@ -301,7 +505,14 @@ test('the committed language pages match the public atlas snapshot', () => {
       readFileSync(new URL('../data/language-atlas/index.json.gz', import.meta.url))
     ).toString()
   ) as AtlasIndex;
-  const expected = languagePageFiles(buildLanguagePages(index, projectSnapshot.projects));
+  const expected = languagePageFiles(
+    buildLanguagePages(
+      index,
+      projectSnapshot.projects,
+      LANGUAGE_PAGE_SHARD_COUNT,
+      isoMacrolanguages.macrolanguages
+    )
+  );
   assert.deepEqual(readdirSync(pagesDirectory).sort(), Object.keys(expected).sort());
   for (const [name, value] of Object.entries(expected)) {
     const bytes = readFileSync(new URL(name, pagesDirectory));
@@ -321,5 +532,44 @@ test('every committed language has a unique, URL-safe slug and a unique title la
     entries.length
   );
   assert.ok(entries.every((entry) => isLanguageSlug(entry.slug)));
+  assert.ok(
+    !entries.some((entry) => /^test\b|^testy\b|\{delete\}/i.test(entry.label)),
+    'no placeholder records are published'
+  );
   assert.ok(entries.some((entry) => entry.slug === 'yoruba-yor'));
+  const titles = entries.map((entry) => languagePageTitle(entry));
+  assert.equal(new Set(titles.map((title) => title.toLocaleLowerCase('en'))).size, titles.length);
+  const tooLong = entries.filter(
+    (entry) => entry.label.length <= 42 && languagePageTitle(entry).length > 60
+  );
+  assert.deepEqual(tooLong, [], 'titles of names up to 42 characters fit in 60');
+});
+
+test('committed macrolanguage pages show their members, never red while a member has Scripture', () => {
+  const pages: Record<string, LanguagePage> = Object.assign(
+    {},
+    ...readdirSync(pagesDirectory)
+      .filter((name) => name.startsWith('shard-'))
+      .map((name) => JSON.parse(gunzipSync(readFileSync(new URL(name, pagesDirectory))).toString()))
+  );
+  const macrolanguages = Object.values(pages).filter((page) => page.members.length > 0);
+  assert.ok(macrolanguages.length >= 45, `${macrolanguages.length} macrolanguage pages`);
+  for (const page of macrolanguages) {
+    if (page.members.some((member) => member.status !== 'unknown'))
+      assert.notEqual(page.status, 'unknown', page.slug);
+  }
+  const arabic = pages['arabic-ara'];
+  assert.equal(arabic.label, 'Arabic');
+  assert.equal(arabic.status, 'bible');
+  assert.ok(arabic.statusVia.some((member) => member.slug === 'standard-arabic-arb'));
+  assert.ok(
+    pages['standard-arabic-arb'].memberOf.some(
+      (macrolanguage) => macrolanguage.slug === 'arabic-ara'
+    )
+  );
+  const thin = Object.values(pages).filter((page) =>
+    isThinLanguage({ ...page, countryCodes: page.countries.map((country) => country.code) })
+  );
+  assert.ok(thin.length > 600, `${thin.length} thin pages`);
+  assert.ok(thin.every((page) => page.canonicalSlug !== page.slug || !page.indexable));
 });

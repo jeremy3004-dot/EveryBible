@@ -1,5 +1,11 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { copyMaplibreWorker } from '../../scripts/copy-maplibre-worker.mjs';
+
+// The atlas map reuses the admin's MapLibre setup, whose worker must be served from public/
+// (see apps/admin/lib/maplibre.ts). Copying here rather than in a prebuild script means it
+// also happens when a host runs `next build` directly.
+copyMaplibreWorker(path.dirname(fileURLToPath(import.meta.url)));
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {

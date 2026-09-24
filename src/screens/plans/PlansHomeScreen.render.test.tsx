@@ -288,12 +288,12 @@ test('the three plan tabs are one full-width switch, pinned in the sticky header
   assert.equal(view.queryByRole('tab', { name: t('readingPlans.saved') }), null);
   assert.equal(flattenStyle(tablist.props.style)?.alignSelf, 'stretch');
   for (const tab of tabs) {
-    // Three equal segments at the medium size: 13pt labels on one line, 7pt padding.
+    // Three equal segments at the medium size: 13pt labels that wrap rather than truncate.
     const segment = flattenStyle(tab.props.style)!;
     assert.equal(segment.flex, 1);
     assert.equal(segment.paddingVertical, 7);
     const label = within(tab).getByText(accessibilityLabelOf(tab)!);
-    assert.equal(label.props.numberOfLines, 1);
+    assert.equal(label.props.numberOfLines, 2);
     assert.equal(flattenStyle(label.props.style)?.fontSize, 13);
   }
   assert.ok(view.getByRole('tab', { name: t('readingPlans.myPlans'), selected: true }));
@@ -546,7 +546,9 @@ test('Find plans leads with a 44pt search strip naming the catalog size', async 
   assert.equal(within(page).getByLabelText(label), input);
   const strip = hostParent(input);
   const frame = flattenStyle(strip.props.style)!;
-  assert.equal(frame.height, 44);
+  // A floor, not a fixed height, so a large text size is not clipped.
+  assert.equal(frame.minHeight, 44);
+  assert.equal(frame.height, undefined);
   assert.equal(frame.borderRadius, radius.lg);
   assert.equal(frame.borderColor, colors.controlBorder);
   const [glyph] = within(strip).queryAllByType('LucideIcon');

@@ -2,7 +2,7 @@ import { type ReactNode } from 'react';
 import { type GestureResponderEvent, StyleSheet, Text, View } from 'react-native';
 import { ChevronRight, type LucideIcon } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
-import { useDisplayFont } from '../../hooks';
+import { useDisplayFont, useLargeText } from '../../hooks';
 import { spacing, typography } from '../../design/system';
 import { PressableScale, type HapticFeedback } from './PressableScale';
 
@@ -68,6 +68,11 @@ export function ListRow({
   // `value` is translated metadata ("6-day streak", a language's native name), and
   // the mono token is the Latin-only display face, so it needs the fallback merge.
   const displayFont = useDisplayFont();
+  // At large text sizes a trailing value ("6-day streak", a native language
+  // name) left the title a sliver of width; it moves under the title instead.
+  const { isLargeText } = useLargeText();
+  const valueBelowTitle = Boolean(value) && !trailing && isLargeText;
+  const valueStyle = [typography.mono, displayFont.regular, { color: colors.secondaryText }];
   const titleColor = destructive ? colors.error : colors.primaryText;
 
   // A row announces everything it shows. Reading only the title dropped the
@@ -99,14 +104,12 @@ export function ListRow({
             {subtitle}
           </Text>
         ) : null}
+        {valueBelowTitle ? <Text style={valueStyle}>{value}</Text> : null}
       </View>
       <View style={styles.trailing}>
         {trailing ??
-          (value ? (
-            <Text
-              style={[typography.mono, displayFont.regular, { color: colors.secondaryText }]}
-              numberOfLines={1}
-            >
+          (value && !valueBelowTitle ? (
+            <Text style={valueStyle} numberOfLines={1}>
               {value}
             </Text>
           ) : null)}

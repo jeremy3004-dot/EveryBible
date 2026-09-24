@@ -1,7 +1,14 @@
 import test, { after, before, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { mockMmkvStorage } from '../../testing/mockModules';
+import { createRequire } from 'node:module';
+import {
+  mockMmkvStorage,
+  mockModule,
+  mockReactNative,
+  sourcePath,
+} from '../../testing/mockModules';
 import type { CrashLogEntry } from './crashLogEntry';
+import type { AppErrorReport } from './crashReportModel';
 
 /**
  * The real crashLogStore (and the real `toCrashLogEntry`) is used here — only
@@ -13,6 +20,16 @@ import type { CrashLogEntry } from './crashLogEntry';
  * installs them and every test drives the captured handlers.
  */
 const mmkv = mockMmkvStorage(mock);
+// Collaborators of the remote crash-report queue (device details, current route).
+mockReactNative(mock, { os: 'ios', version: '18.2' });
+mockModule(mock, createRequire(import.meta.url).resolve('expo-constants'), {
+  default: { default: { expoConfig: { version: '1.0.9' } } },
+});
+mockModule(mock, sourcePath('navigation/rootNavigation.ts'), {
+  rootNavigationRef: { isReady: () => true, getCurrentRoute: () => ({ name: 'Home' }) },
+});
+const pendingReports = (): AppErrorReport[] =>
+  JSON.parse(mmkv.store.get('diagnostics-crash-report-queue-v1') ?? '[]');
 
 type ErrorHandler = (error: unknown, isFatal?: boolean) => void;
 type RejectionOptions = {
@@ -191,4 +208,44 @@ test('a crash log write failure inside the handler never propagates to the app',
     [{ error, isFatal: true }],
     'the redbox still gets the error'
   );
+});
+
+test('a fatal JS error is also queued as an anonymous crash report for the next launch', () => {
+  reset();
+  const error = new TypeError('verses is undefined for jane@example.com');
+
+  installedHandler(error, true);
+
+  const [report] = pendingReports();
+  assert.equal(pendingReports().length, 1);
+  assert.equal(report.kind, 'fatal');
+  assert.equal(report.is_fatal, true);
+  assert.equal(report.error_name, 'TypeError');
+  assert.equal(report.message, 'verses is undefined for <email>');
+  assert.equal(report.screen, 'Home');
+  assert.equal(report.platform, 'ios');
+  // The crash log still gets the unscrubbed local entry first.
+  assert.equal(persisted()[0].message, 'verses is undefined for jane@example.com');
+});
+
+test('a non-fatal global error is queued as an error report', () => {
+  reset();
+
+  installedHandler(new Error('soft global failure'), false);
+
+  assert.equal(pendingReports()[0]?.kind, 'error');
+  assert.equal(pendingReports()[0]?.is_fatal, false);
+});
+
+test('an unhandled rejection is queued as a rejection report', () => {
+  reset();
+  const consoleError = mock.method(console, 'error', () => {});
+  try {
+    trackerOptions[0].onUnhandled(9, new Error('rejected fetch'));
+  } finally {
+    consoleError.mock.restore();
+  }
+
+  assert.equal(pendingReports()[0]?.kind, 'rejection');
+  assert.equal(pendingReports()[0]?.message, 'rejected fetch');
 });

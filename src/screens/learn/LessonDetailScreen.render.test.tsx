@@ -69,7 +69,8 @@ mockModule(mock, sourcePath('services/gather/gatherBibleService.ts'), {
     options: { bookNameResolver: (bookId: string) => string }
   ) => {
     passageCalls.push({ references, translationId, resolveBook: options.bookNameResolver });
-    return PASSAGE;
+    // Blocks name the translation they were read from, as the real service does.
+    return PASSAGE.map((block) => ({ ...block, translationId }));
   },
   getPrimaryAudioReference: (references: BibleReference[]) =>
     references[0] ? { bookId: references[0].bookId, chapter: references[0].chapter } : null,

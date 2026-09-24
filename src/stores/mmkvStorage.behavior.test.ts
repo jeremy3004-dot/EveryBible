@@ -61,3 +61,43 @@ test('the persisted interface language is read straight from the auth snapshot',
   backing.set(AUTH_STORAGE_KEY, JSON.stringify({ state: { preferences: { language: '' } } }));
   assert.equal(getPersistedLanguagePreference(), null);
 });
+
+test('the stored language of an unfinished onboarding is the app default, not a choice, so boot ignores it', async () => {
+  const { getPersistedLanguagePreference, AUTH_STORAGE_KEY } = await load();
+
+  // A fresh install persists the default preferences ('en') as soon as auth initialises, and
+  // sign-out writes them back. Trusting that value booted a French device in English.
+  backing.set(
+    AUTH_STORAGE_KEY,
+    JSON.stringify({ state: { preferences: { language: 'en', onboardingCompleted: false } } })
+  );
+  assert.equal(getPersistedLanguagePreference(), null);
+
+  backing.set(
+    AUTH_STORAGE_KEY,
+    JSON.stringify({ state: { preferences: { language: 'fr', onboardingCompleted: true } } })
+  );
+  assert.equal(getPersistedLanguagePreference(), 'fr');
+});
+
+test('an auth snapshot without a usable language string falls back to the caller default', async () => {
+  const { getPersistedLanguagePreference, AUTH_STORAGE_KEY } = await load();
+
+  backing.set(AUTH_STORAGE_KEY, '');
+  assert.equal(getPersistedLanguagePreference(), null);
+  backing.set(AUTH_STORAGE_KEY, 'null');
+  assert.equal(getPersistedLanguagePreference(), null);
+  backing.set(AUTH_STORAGE_KEY, JSON.stringify({ version: 3 }));
+  assert.equal(getPersistedLanguagePreference(), null);
+  backing.set(AUTH_STORAGE_KEY, JSON.stringify({ state: { preferences: { language: 42 } } }));
+  assert.equal(getPersistedLanguagePreference(), null);
+});
+
+test('every persisted store shares the one MMKV instance the adapter writes through', async () => {
+  const { mmkvInstance, zustandStorage } = await load();
+
+  zustandStorage.setItem('bible-storage', '{"state":{}}');
+
+  assert.ok(mmkvInstance instanceof FakeMMKV);
+  assert.equal(mmkvInstance.getString('bible-storage'), '{"state":{}}');
+});

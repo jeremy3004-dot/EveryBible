@@ -137,7 +137,14 @@ test('the sub-tabs are one shared tablist that swaps the foundations path for th
 });
 
 test('the wisdom library lists every category, translated, with every topic under it', async () => {
-  const view = await renderGather({ 'topic-courage': ['w-1', 'w-2'] });
+  // Progress counts only lessons the topic still has, so use two of its real ids.
+  const courage = gatherWisdomCategories
+    .flatMap((category) => category.wisdoms)
+    .find((wisdom) => wisdom.id === 'topic-courage');
+  assert.ok(courage);
+  const view = await renderGather({
+    'topic-courage': [...courage.lessons.slice(0, 2).map((lesson) => lesson.id), 'retired-id'],
+  });
   await view.press(view.getByRole('tab', { name: t('gather.wisdom') }));
 
   for (const category of gatherWisdomCategories) {

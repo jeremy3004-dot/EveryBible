@@ -1,6 +1,7 @@
 /**
  * Regenerates apps/site/data/language-atlas/pages/ from the public atlas
- * snapshot and the project summary. Run after build_public_atlas.py:
+ * snapshot, the project summary and the ISO 639-3 macrolanguage mapping
+ * (data/language-atlas/iso-639-3-macrolanguages.json). Run after build_public_atlas.py:
  *
  *   npm run atlas:pages:build     # write
  *   npm run atlas:pages:check     # fail if the committed files are stale
@@ -9,8 +10,13 @@ import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { gunzipSync, gzipSync } from 'node:zlib';
 
 import type { AtlasIndex } from '../../admin/lib/language-atlas/types';
+import isoMacrolanguages from '../data/language-atlas/iso-639-3-macrolanguages.json';
 import projectSnapshot from '../data/language-atlas/projects.json';
-import { buildLanguagePages, languagePageFiles } from '../lib/language-pages';
+import {
+  buildLanguagePages,
+  LANGUAGE_PAGE_SHARD_COUNT,
+  languagePageFiles,
+} from '../lib/language-pages';
 
 const data = new URL('../data/language-atlas/', import.meta.url);
 const directory = new URL('pages/', data);
@@ -19,7 +25,12 @@ const check = process.argv.includes('--check');
 const index = JSON.parse(
   gunzipSync(readFileSync(new URL('index.json.gz', data))).toString()
 ) as AtlasIndex;
-const build = buildLanguagePages(index, projectSnapshot.projects);
+const build = buildLanguagePages(
+  index,
+  projectSnapshot.projects,
+  LANGUAGE_PAGE_SHARD_COUNT,
+  isoMacrolanguages.macrolanguages
+);
 const files = languagePageFiles(build);
 
 function encode(name: string, value: unknown): Buffer {

@@ -54,7 +54,14 @@ import {
   useTranslatorReviewStore,
 } from '../../stores/translatorReviewStore';
 import { clearDeviceCaches } from '../../stores/deviceCaches';
-import { useDisplayFont, useFontSize, useI18n, useTabBarHeight } from '../../hooks';
+import {
+  useDisplayFont,
+  useFontSize,
+  useI18n,
+  useLargeText,
+  useNotificationsBlockedBySystem,
+  useTabBarHeight,
+} from '../../hooks';
 import { syncPreferences } from '../../services/sync';
 import {
   appendAccessPasscodeDigit,
@@ -80,6 +87,7 @@ import {
 } from '../../services/notifications';
 import type { MoreStackParamList } from '../../navigation/types';
 import { hexWithAlpha, lightHaptic } from '../../utils';
+import { announceLiveRegionText } from '../../utils/a11y';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const MINUTES = ['00', '15', '30', '45'];
@@ -110,6 +118,10 @@ export function SettingsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { colors, themeMode, setTheme } = useTheme();
   const displayFont = useDisplayFont();
+  // Cancel/Save pairs split a ~300pt modal in half; at large text sizes each
+  // label wrapped inside its half, so the pair stacks (primary on top).
+  const { isLargeText } = useLargeText();
+  const modalButtonsStyle = [styles.modalButtons, isLargeText && styles.modalButtonsStacked];
   // The off track is the only outline an off switch has, so it takes the 3:1
   // control boundary rather than a translucent tint of body text (1.6:1 light, 1.95:1 dark).
   const settingSwitchOffColor = colors.controlBorder;
@@ -119,6 +131,9 @@ export function SettingsScreen() {
   };
   const { t, currentLanguage, setLanguage, availableLanguages } = useI18n();
   const preferences = useAuthStore((state) => state.preferences);
+  const notificationsBlockedBySystem = useNotificationsBlockedBySystem(
+    preferences.notificationsEnabled
+  );
   const setPreferences = useAuthStore((state) => state.setPreferences);
   const { label: fontSizeLabel, increase, decrease, canIncrease, canDecrease } = useFontSize();
   // Absolute tab bar overlays the bottom of nested More screens; pad the scroll
@@ -166,6 +181,15 @@ export function SettingsScreen() {
   const enableTranslatorReviewMode = useTranslatorReviewStore((state) => state.enableWithPasscode);
   const disableTranslatorReviewMode = useTranslatorReviewStore((state) => state.disable);
   const currentTranslation = useBibleStore((state) => state.currentTranslation);
+
+  // The inline errors in the passcode and identity modals carry accessibilityLiveRegion,
+  // which only Android honours; VoiceOver hears them through these announcements.
+  useEffect(() => {
+    if (translatorAccessError) announceLiveRegionText(translatorAccessError);
+  }, [translatorAccessError]);
+  useEffect(() => {
+    if (chapterFeedbackIdentityError) announceLiveRegionText(chapterFeedbackIdentityError);
+  }, [chapterFeedbackIdentityError]);
 
   useEffect(() => {
     if (
@@ -836,7 +860,7 @@ export function SettingsScreen() {
                 </Text>
               ) : null}
 
-              <View style={styles.modalButtons}>
+              <View style={modalButtonsStyle}>
                 <AppButton
                   label={t('common.cancel')}
                   variant="secondary"
@@ -900,7 +924,7 @@ export function SettingsScreen() {
                     coveredTranslationIds={translatorAccessCoverage}
                     onSwitched={closeTranslatorAccessModal}
                   />
-                  <View style={styles.modalButtons}>
+                  <View style={modalButtonsStyle}>
                     <AppButton
                       label={t('common.done')}
                       variant="primary"
@@ -991,7 +1015,7 @@ export function SettingsScreen() {
                       </View>
                     ))}
                   </View>
-                  <View style={styles.modalButtons}>
+                  <View style={modalButtonsStyle}>
                     <AppButton
                       label={t('common.cancel')}
                       variant="secondary"
@@ -1042,6 +1066,27 @@ export function SettingsScreen() {
                 />
               }
             />
+
+            {notificationsBlockedBySystem ? (
+              // On in the app, blocked by the system: the reminder can never appear,
+              // and only system settings can turn it back on.
+              <View style={[styles.blockedNotice, { backgroundColor: colors.warningSoft }]}>
+                <View style={styles.blockedNoticeCopy}>
+                  <TriangleAlert size={18} color={colors.onWarningSoft} strokeWidth={ICON_STROKE} />
+                  <Text style={[styles.blockedNoticeText, { color: colors.onWarningSoft }]}>
+                    {t('settings.notificationsBlockedNotice')}
+                  </Text>
+                </View>
+                <AppButton
+                  label={t('settings.openDeviceSettings')}
+                  variant="secondary"
+                  size="md"
+                  fullWidth={false}
+                  onPress={() => void Linking.openSettings()}
+                  style={styles.blockedNoticeButton}
+                />
+              </View>
+            ) : null}
 
             {preferences.notificationsEnabled ? (
               <ListRow
@@ -1218,7 +1263,7 @@ export function SettingsScreen() {
               </ScrollView>
             </View>
 
-            <View style={styles.modalButtons}>
+            <View style={modalButtonsStyle}>
               <AppButton
                 label={t('common.cancel')}
                 variant="secondary"
@@ -1350,7 +1395,7 @@ export function SettingsScreen() {
               {t('settings.deleteAccountWarning')}
             </Text>
 
-            <View style={styles.modalButtons}>
+            <View style={modalButtonsStyle}>
               <AppButton
                 label={t('common.cancel')}
                 variant="secondary"
@@ -1423,6 +1468,24 @@ const styles = StyleSheet.create({
   },
   disabledRow: {
     opacity: DISABLED_ROW_OPACITY,
+  },
+  blockedNotice: {
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginVertical: spacing.sm,
+    gap: spacing.md,
+  },
+  blockedNoticeCopy: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+  },
+  blockedNoticeText: {
+    ...typography.caption,
+    flex: 1,
+  },
+  blockedNoticeButton: {
+    alignSelf: 'flex-start',
   },
   statusTrailing: {
     flexDirection: 'row',
@@ -1569,6 +1632,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: spacing.md,
+  },
+  // column-reverse keeps Cancel (the first child) at the bottom, as stacked
+  // system alerts do.
+  modalButtonsStacked: {
+    flexDirection: 'column-reverse',
   },
   modalButtonFlex: {
     flex: 1,

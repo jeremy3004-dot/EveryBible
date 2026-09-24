@@ -46,7 +46,10 @@ const readingPlansStore = create(() => ({
 }));
 const gatherStore = create(() => ({ completedLessons: {} as Record<string, string[]> }));
 mockModule(mock, sourcePath('stores/bibleStore.ts'), { useBibleStore: bibleStore });
-mockModule(mock, sourcePath('stores/progressStore.ts'), { useProgressStore: progressStore });
+mockModule(mock, sourcePath('stores/progressStore.ts'), {
+  useProgressStore: progressStore,
+  selectCurrentStreakDays: (state: { streakDays: number }) => state.streakDays,
+});
 mockModule(mock, sourcePath('stores/readingPlansStore.ts'), {
   useReadingPlansStore: readingPlansStore,
 });
@@ -386,7 +389,11 @@ test('one Gather card names the active foundation, its lesson count and the next
   assert.deepEqual(harness.navigation.calls, [
     {
       method: 'navigate',
-      args: ['Learn', { screen: 'FoundationDetail', params: { foundationId: second.id } }],
+      // initial: false keeps Gather home under the foundation, so back returns there.
+      args: [
+        'Learn',
+        { screen: 'FoundationDetail', params: { foundationId: second.id }, initial: false },
+      ],
     },
   ]);
 });

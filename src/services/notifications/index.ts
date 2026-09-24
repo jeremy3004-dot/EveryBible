@@ -4,9 +4,15 @@ export {
   requestNotificationPermissions,
   requestNotificationPermissionOutcome,
   type NotificationPermissionOutcome,
+  getNotificationPermissionStatus,
+  isDailyReminderBlockedBySystem,
+  type NotificationPermissionStatus,
   scheduleDailyReminder,
   cancelDailyReminder,
+  reconcileDailyReminder,
+  type DailyReminderPreference,
   registerPushToken,
   deactivatePushToken,
   getCachedPushToken,
 } from './notificationService';
+export { installDailyReminderReconciler } from './dailyReminderReconciler';

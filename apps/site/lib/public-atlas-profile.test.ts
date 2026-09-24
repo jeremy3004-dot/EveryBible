@@ -162,6 +162,10 @@ test('language identity uses its known family while keeping a concise fallback',
   );
   const unclassified = { ...language, family: null };
   assert.equal(profileIdentity(unclassified, index([unclassified])), 'A language.');
+  const bookkeeping = { ...language, family: 'Bookkeeping' };
+  assert.equal(profileIdentity(bookkeeping, index([bookkeeping])), 'A language.');
+  const sign = { ...language, family: 'Sign Language' };
+  assert.equal(profileIdentity(sign, index([sign])), 'A sign language.');
 });
 
 test('spoken locations use only record labels, preserve order, and deduplicate exact repeats', () => {

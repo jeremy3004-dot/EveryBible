@@ -44,6 +44,8 @@ export enum State {
   Stopped = 'stopped',
   Buffering = 'buffering',
   Loading = 'loading',
+  /** The track played to its end (react-native-track-player v4's `Ended`). */
+  Ended = 'ended',
   Error = 'error',
 }
 
@@ -194,8 +196,13 @@ function handleAVStatus(status: AVPlaybackStatus): void {
   });
 
   if (status.didJustFinish) {
+    // Report the stopped state before the queue ends. The queue-ended handler decides
+    // what follows (the next chapter, or idle with the lock screen cleared at the end
+    // of the Bible or a plan); a state event after it would turn that idle back into
+    // "paused" and re-publish the lock-screen entry it had just cleared. `Ended`, not
+    // Paused or Ready, so listeners can tell a finished chapter from a pause.
+    setState(State.Ended);
     emit(Event.PlaybackQueueEnded, {});
-    setState(State.Ready);
     return;
   }
 

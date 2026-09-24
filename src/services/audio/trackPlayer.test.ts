@@ -499,7 +499,7 @@ test('a stalled status update that is neither playing nor buffering reports Paus
   });
 });
 
-test('didJustFinish ends the queue and returns the player to Ready', async () => {
+test('didJustFinish reports the Ended state and then ends the queue', async () => {
   await mod.default.add(track('gen1'));
   soundInstances[0].emitStatus({ isLoaded: true, positionMillis: 0, isPlaying: true });
   const events = recordEvents();
@@ -517,9 +517,37 @@ test('didJustFinish ends the queue and returns the player to Ready', async () =>
       event: mod.Event.PlaybackProgressUpdated,
       data: { position: 60, duration: 60, buffered: 60 },
     },
+    { event: mod.Event.PlaybackState, data: { state: mod.State.Ended } },
     { event: mod.Event.PlaybackQueueEnded, data: {} },
-    { event: mod.Event.PlaybackState, data: { state: mod.State.Ready } },
   ]);
+});
+
+test('the queue-ended handler has the last word on what follows a finished chapter', async () => {
+  // The finish handler decides what happens next (idle at the end of the Bible or a
+  // plan, the next chapter otherwise) and clears the lock screen when it stops. A
+  // state event reported after it used to flip that decision back to "paused" and
+  // re-publish the lock-screen entry the handler had just cleared.
+  await mod.default.add(track('rev22'));
+  soundInstances[0].emitStatus({ isLoaded: true, positionMillis: 0, isPlaying: true });
+  const afterFinish: string[] = [];
+  let finished = false;
+  mod.addEventListener(mod.Event.PlaybackQueueEnded, () => {
+    finished = true;
+  });
+  mod.addEventListener(mod.Event.PlaybackState, ({ state }) => {
+    if (finished) afterFinish.push(state);
+  });
+
+  soundInstances[0].emitStatus({
+    isLoaded: true,
+    positionMillis: 60_000,
+    durationMillis: 60_000,
+    isPlaying: false,
+    didJustFinish: true,
+  });
+
+  assert.equal(finished, true);
+  assert.deepEqual(afterFinish, []);
 });
 
 test('an unloaded status carrying an error surfaces a PlaybackError', async () => {

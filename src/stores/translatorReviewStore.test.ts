@@ -18,10 +18,16 @@ const PASSCODE_KEY = 'everybible.translatorReview.passcode';
 
 let useTranslatorReviewStore: typeof import('./translatorReviewStore').useTranslatorReviewStore;
 let hydrateTranslatorReviewPasscode: typeof import('./translatorReviewStore').hydrateTranslatorReviewPasscode;
+let hydrateCouncilPasscode: typeof import('./translatorReviewStore').hydrateCouncilPasscode;
+let getFeedbackParticipationMode: typeof import('./translatorReviewStore').getFeedbackParticipationMode;
 
 before(async () => {
-  ({ useTranslatorReviewStore, hydrateTranslatorReviewPasscode } =
-    await import('./translatorReviewStore'));
+  ({
+    useTranslatorReviewStore,
+    hydrateTranslatorReviewPasscode,
+    hydrateCouncilPasscode,
+    getFeedbackParticipationMode,
+  } = await import('./translatorReviewStore'));
 });
 
 const state = () => useTranslatorReviewStore.getState();
@@ -36,6 +42,7 @@ beforeEach(() => {
   mmkv.store.clear();
   secureStore.store.clear();
   secureStore.calls.length = 0;
+  secureStore.state.failure = null;
 });
 
 /** Lets the store's fire-and-forget keystore writes settle. */
@@ -501,5 +508,258 @@ test('hydration keeps the actions callable', async () => {
   await useTranslatorReviewStore.persist.rehydrate();
   state().disable();
 
+  assert.equal(state().enabled, false);
+});
+
+// ---------------------------------------------------------------------------
+// council passcode and participation mode
+// ---------------------------------------------------------------------------
+
+const COUNCIL_KEY = 'everybible.feedback.councilPasscode';
+
+test('switching a translator to the scripture council revokes the translator credential', async () => {
+  state().enableWithPasscode('translator-code');
+  await flushSecureStore();
+
+  assert.equal(state().enableCouncilWithPasscode('  council-code '), true);
+  await flushSecureStore();
+
+  assert.equal(state().mode, 'scripture_council');
+  assert.equal(state().enabled, false);
+  assert.equal(state().accessPasscode, null);
+  assert.equal(state().councilPasscode, 'council-code');
+  assert.equal(secureStore.store.has(PASSCODE_KEY), false);
+  assert.equal(secureStore.store.get(COUNCIL_KEY), 'council-code');
+});
+
+test('choosing community feedback as a council member forgets the council credential', async () => {
+  state().enableCouncilWithPasscode('council-code');
+  await flushSecureStore();
+
+  state().enableCommunityFeedback();
+  await flushSecureStore();
+
+  assert.equal(state().mode, 'community');
+  assert.equal(state().councilPasscode, null);
+  assert.equal(secureStore.store.has(COUNCIL_KEY), false);
+});
+
+test('turning feedback off as a council member returns to reader mode and forgets the credential', async () => {
+  state().enableCouncilWithPasscode('council-code');
+  await flushSecureStore();
+
+  state().disableFeedback();
+  await flushSecureStore();
+
+  assert.equal(state().mode, 'reader');
+  assert.equal(state().councilPasscode, null);
+  assert.equal(secureStore.store.has(COUNCIL_KEY), false);
+});
+
+test('turning general feedback off leaves an active translator session untouched', async () => {
+  state().enableWithPasscode('translator-code');
+  await flushSecureStore();
+  secureStore.calls.length = 0;
+
+  state().disableFeedback();
+  await flushSecureStore();
+
+  assert.equal(state().mode, 'translator');
+  assert.equal(state().enabled, true);
+  assert.equal(state().accessPasscode, 'translator-code');
+  assert.deepEqual(secureStore.calls, []);
+});
+
+test('council keystore failures never escape a store action and are not logged', async (t) => {
+  const warn = t.mock.method(console, 'warn', () => {});
+  secureStore.state.failure = new Error('keychain locked');
+
+  assert.equal(state().enableCouncilWithPasscode('council-code'), true);
+  state().enableCommunityFeedback();
+  state().enableCouncilWithPasscode('council-code');
+  state().disableFeedback();
+  state().enableCouncilWithPasscode('council-code');
+  await flushSecureStore();
+
+  assert.equal(state().mode, 'scripture_council');
+  assert.equal(state().councilPasscode, 'council-code');
+  assert.equal(warn.mock.callCount(), 0);
+});
+
+test('a translator taking over from a council member survives a failing keystore', async (t) => {
+  t.mock.method(console, 'warn', () => {});
+  state().enableCouncilWithPasscode('council-code');
+  await flushSecureStore();
+  secureStore.state.failure = new Error('keychain locked');
+
+  assert.equal(state().enableWithPasscode('translator-code'), true);
+  await flushSecureStore();
+
+  assert.equal(state().mode, 'translator');
+  assert.equal(state().councilPasscode, null);
+  assert.equal(state().accessPasscode, 'translator-code');
+});
+
+test('a keystore delete that rejects on disable still turns translator mode off and logs it', async (t) => {
+  const warn = t.mock.method(console, 'warn', () => {});
+  state().enableWithPasscode('translator-code');
+  await flushSecureStore();
+  secureStore.state.failure = new Error('keychain locked');
+
+  state().disable();
+  await flushSecureStore();
+
+  assert.equal(state().enabled, false);
+  assert.equal(state().accessPasscode, null);
+  assert.deepEqual(
+    warn.mock.calls.map((call) => call.arguments[0]),
+    ['Failed to clear translator review passcode:']
+  );
+});
+
+test('signing out while the keystore is failing still clears every credential in memory', async (t) => {
+  t.mock.method(console, 'warn', () => {});
+  state().enableCouncilWithPasscode('council-code');
+  secureStore.state.failure = new Error('keychain locked');
+
+  state().resetForSignOut();
+  await flushSecureStore();
+
+  assert.equal(state().mode, 'reader');
+  assert.equal(state().councilPasscode, null);
+  assert.equal(state().accessPasscode, null);
+});
+
+test('cold-start council hydration restores the passcode for a council member', async () => {
+  useTranslatorReviewStore.setState({ mode: 'scripture_council', councilPasscode: null });
+  secureStore.store.set(COUNCIL_KEY, ' council-code ');
+
+  await hydrateCouncilPasscode();
+
+  assert.equal(state().councilPasscode, 'council-code');
+});
+
+test('cold-start council hydration does not read the keystore outside council mode', async () => {
+  useTranslatorReviewStore.setState({ mode: 'community', councilPasscode: null });
+  secureStore.store.set(COUNCIL_KEY, 'council-code');
+
+  await hydrateCouncilPasscode();
+
+  assert.deepEqual(secureStore.calls, []);
+  assert.equal(state().councilPasscode, null);
+});
+
+test('cold-start council hydration keeps a passcode entered while the keystore was being read', async () => {
+  useTranslatorReviewStore.setState({ mode: 'scripture_council', councilPasscode: null });
+  secureStore.store.set(COUNCIL_KEY, 'stale-code');
+
+  const hydration = hydrateCouncilPasscode();
+  state().enableCouncilWithPasscode('fresh-code');
+  await hydration;
+
+  assert.equal(state().councilPasscode, 'fresh-code');
+});
+
+test('cold-start council hydration leaves the passcode empty when nothing was stored', async () => {
+  useTranslatorReviewStore.setState({ mode: 'scripture_council', councilPasscode: null });
+
+  await hydrateCouncilPasscode();
+
+  assert.equal(state().councilPasscode, null);
+});
+
+test('a keystore read failure during council hydration is swallowed and leaves the passcode empty', async () => {
+  useTranslatorReviewStore.setState({ mode: 'scripture_council', councilPasscode: null });
+  secureStore.state.failure = new Error('keychain locked');
+
+  await hydrateCouncilPasscode();
+
+  assert.equal(state().councilPasscode, null);
+});
+
+test('translator passcode hydration ignores a blank stored passcode', async () => {
+  useTranslatorReviewStore.setState({ enabled: true, accessPasscode: null });
+  secureStore.store.set(PASSCODE_KEY, '   ');
+
+  await hydrateTranslatorReviewPasscode();
+
+  assert.equal(state().accessPasscode, null);
+});
+
+test('translator passcode hydration does not revive a session disabled while the keystore was read', async () => {
+  useTranslatorReviewStore.setState({ mode: 'translator', enabled: true, accessPasscode: null });
+  secureStore.store.set(PASSCODE_KEY, 'stored-code');
+
+  const hydration = hydrateTranslatorReviewPasscode();
+  state().disable();
+  await hydration;
+
+  assert.equal(state().enabled, false);
+  assert.equal(state().accessPasscode, null);
+});
+
+test('translator passcode hydration keeps a passcode entered while the keystore was read', async () => {
+  useTranslatorReviewStore.setState({ mode: 'translator', enabled: true, accessPasscode: null });
+  secureStore.store.set(PASSCODE_KEY, 'stale-code');
+
+  const hydration = hydrateTranslatorReviewPasscode();
+  state().enableWithPasscode('fresh-code');
+  await hydration;
+
+  assert.equal(state().accessPasscode, 'fresh-code');
+});
+
+test('a keystore read failure during translator hydration is logged, not thrown', async (t) => {
+  const warn = t.mock.method(console, 'warn', () => {});
+  useTranslatorReviewStore.setState({ enabled: true, accessPasscode: null });
+  secureStore.state.failure = new Error('keychain locked');
+
+  await hydrateTranslatorReviewPasscode();
+
+  assert.equal(state().accessPasscode, null);
+  assert.deepEqual(
+    warn.mock.calls.map((call) => call.arguments[0]),
+    ['Failed to load translator review passcode:']
+  );
+});
+
+test('an explicit participation mode wins over the legacy contributor preference', () => {
+  assert.equal(getFeedbackParticipationMode({ mode: 'reader', enabled: false }, true), 'reader');
+  assert.equal(
+    getFeedbackParticipationMode({ mode: 'scripture_council', enabled: false }, false),
+    'scripture_council'
+  );
+});
+
+test('an upgrading install without a mode derives it from translator access, then the legacy preference', () => {
+  assert.equal(getFeedbackParticipationMode({ mode: null, enabled: true }, false), 'translator');
+  assert.equal(getFeedbackParticipationMode({ mode: null, enabled: false }, true), 'community');
+  assert.equal(getFeedbackParticipationMode({ mode: null, enabled: false }, false), 'reader');
+});
+
+test('a legacy snapshot with translator mode off migrates to an undecided mode', async () => {
+  seedStorage({ enabled: false, accessPasscode: 'code', feedbackMarkers: {} }, 2);
+
+  await useTranslatorReviewStore.persist.rehydrate();
+
+  assert.equal(state().mode, null);
+  assert.equal(state().enabled, false);
+});
+
+test('a current-version snapshot without a mode keeps the choice undecided when translator mode is off', async () => {
+  seedStorage({ enabled: false, feedbackMarkers: {} }, 5);
+
+  await useTranslatorReviewStore.persist.rehydrate();
+
+  assert.equal(state().mode, null);
+  assert.equal(state().enabled, false);
+});
+
+test('a persisted non-translator mode always hydrates with translator access off', async () => {
+  seedStorage({ mode: 'community', enabled: true, feedbackMarkers: {} }, 5);
+
+  await useTranslatorReviewStore.persist.rehydrate();
+
+  assert.equal(state().mode, 'community');
   assert.equal(state().enabled, false);
 });

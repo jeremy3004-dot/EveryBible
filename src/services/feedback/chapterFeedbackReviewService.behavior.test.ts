@@ -528,6 +528,24 @@ test('validateTranslatorReviewPasscode omits the translation when the caller nam
   assert.deepEqual(bodies, [{ passcode: '123456', translationId: undefined, validateOnly: true }]);
 });
 
+test('batch review and audio refresh send the trimmed passcode too', async () => {
+  const bodies: Array<Record<string, unknown>> = [];
+  const client = {
+    invoke: async (_name: string, options: unknown) => {
+      bodies.push((options as { body: Record<string, unknown> }).body);
+      return { data: { success: true }, error: null };
+    },
+  };
+
+  await review.reviewPositiveFeedbackBatch(reviewInput, ['feedback-1'], client);
+  await review.refreshFeedbackAudioUrl({ ...reviewInput, feedbackId: 'audio-1' }, client);
+
+  assert.deepEqual(
+    bodies.map((body) => body.passcode),
+    ['123456', '123456']
+  );
+});
+
 test('fetchChapterFeedbackForTranslatorReview reports an empty queue as a success, not a failure', async () => {
   supabaseFake.respondToFunction(() => ({ data: { success: true, feedback: [] } }));
 
@@ -631,4 +649,142 @@ test('other review failures carry no coverage code and make no follow-up request
 
   assert.deepEqual(result, { success: false, chapters: [], error: 'Translator access denied' });
   assert.equal(supabaseFake.functionCalls.length, 1);
+});
+
+test('an uncovered translation reported by a server that lists no scope carries no covered list', async () => {
+  // Servers before September 2026 answer the unlock check without translationIds.
+  respondNotCovered(() => ({ data: { success: true } }));
+
+  const result = await review.fetchChapterFeedbackReviewSummaryForTranslation(summaryInput);
+
+  assert.deepEqual(result, {
+    success: false,
+    chapters: [],
+    error: NOT_COVERED_BODY.error,
+    code: 'translation_not_covered',
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Bulk review of positive feedback
+// ---------------------------------------------------------------------------
+
+test('reviewPositiveFeedbackBatch without ids previews the positive feedback in the chapter', async () => {
+  supabaseFake.respondToFunction(() => ({
+    data: { success: true, feedbackIds: ['up-1', 'up-2'] },
+  }));
+
+  const result = await review.reviewPositiveFeedbackBatch(reviewInput);
+
+  assert.deepEqual(result, { success: true, feedbackIds: ['up-1', 'up-2'] });
+  assert.equal(supabaseFake.functionCalls[0]?.name, 'review-chapter-feedback');
+  assert.deepEqual(sentBody().body, {
+    ...reviewInput,
+    passcode: '123456',
+    apiVersion: 2,
+    action: 'positivePreview',
+    feedbackIds: undefined,
+  });
+});
+
+test('reviewPositiveFeedbackBatch with ids marks exactly those responses reviewed', async () => {
+  supabaseFake.respondToFunction(() => ({ data: { success: true, reviewedCount: 2 } }));
+
+  const result = await review.reviewPositiveFeedbackBatch(reviewInput, ['up-1', 'up-2']);
+
+  assert.deepEqual(result, { success: true, reviewedCount: 2 });
+  assert.equal(sentBody().body.action, 'reviewPositiveIds');
+  assert.deepEqual(sentBody().body.feedbackIds, ['up-1', 'up-2']);
+});
+
+test('reviewPositiveFeedbackBatch refuses a blank passcode or unconfigured backend without a request', async () => {
+  const blank = await review.reviewPositiveFeedbackBatch({ ...reviewInput, passcode: '   ' }, [
+    'up-1',
+  ]);
+  backend.configured = false;
+  const unconfigured = await review.reviewPositiveFeedbackBatch(reviewInput, ['up-1']);
+
+  assert.deepEqual(blank, { success: false, error: ACCESS_DENIED });
+  assert.deepEqual(unconfigured, { success: false, error: ACCESS_DENIED });
+  assert.equal(supabaseFake.functionCalls.length, 0);
+});
+
+test('reviewPositiveFeedbackBatch surfaces the server refusal message', async () => {
+  supabaseFake.respondToFunction(() =>
+    edgeError({ context: { json: async () => ({ error: 'Invalid response selection' }) } })
+  );
+
+  const result = await review.reviewPositiveFeedbackBatch(reviewInput, ['up-1']);
+
+  assert.deepEqual(result, { success: false, error: 'Invalid response selection' });
+});
+
+test('reviewPositiveFeedbackBatch uses generic copy for an unexplained server error', async () => {
+  supabaseFake.respondToFunction(() => edgeError());
+
+  const result = await review.reviewPositiveFeedbackBatch(reviewInput);
+
+  assert.deepEqual(result, { success: false, error: 'Unable to review feedback' });
+});
+
+test('reviewPositiveFeedbackBatch treats an empty response as a failure', async () => {
+  const result = await review.reviewPositiveFeedbackBatch(reviewInput, ['up-1']);
+
+  assert.deepEqual(result, { success: false });
+});
+
+test('reviewPositiveFeedbackBatch reports a thrown transport failure with generic copy', async () => {
+  const result = await review.reviewPositiveFeedbackBatch(reviewInput, ['up-1'], {
+    invoke: async () => {
+      throw new Error('Network request failed');
+    },
+  });
+
+  assert.deepEqual(result, { success: false, error: 'Unable to review feedback' });
+});
+
+// ---------------------------------------------------------------------------
+// Recording links
+// ---------------------------------------------------------------------------
+
+test('refreshFeedbackAudioUrl asks for nothing without a passcode or a backend', async () => {
+  const blank = await review.refreshFeedbackAudioUrl({
+    ...reviewInput,
+    passcode: ' ',
+    feedbackId: 'audio-1',
+  });
+  backend.configured = false;
+  const unconfigured = await review.refreshFeedbackAudioUrl({
+    ...reviewInput,
+    feedbackId: 'audio-1',
+  });
+
+  assert.deepEqual(blank, { success: false });
+  assert.deepEqual(unconfigured, { success: false });
+  assert.equal(supabaseFake.functionCalls.length, 0);
+});
+
+test('refreshFeedbackAudioUrl yields no link when the server refuses or answers nothing', async () => {
+  supabaseFake.respondToFunction(() =>
+    edgeError({ context: { json: async () => ({ error: 'Recording not found' }) } })
+  );
+  const refused = await review.refreshFeedbackAudioUrl({ ...reviewInput, feedbackId: 'audio-1' });
+  supabaseFake.respondToFunction(() => ({ data: null, error: null }));
+  const empty = await review.refreshFeedbackAudioUrl({ ...reviewInput, feedbackId: 'audio-1' });
+
+  assert.deepEqual(refused, { success: false });
+  assert.deepEqual(empty, { success: false });
+});
+
+test('refreshFeedbackAudioUrl yields no link when the request throws', async () => {
+  const result = await review.refreshFeedbackAudioUrl(
+    { ...reviewInput, feedbackId: 'audio-1' },
+    {
+      invoke: async () => {
+        throw new Error('Network request failed');
+      },
+    }
+  );
+
+  assert.deepEqual(result, { success: false });
 });

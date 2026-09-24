@@ -9,7 +9,7 @@ import type {
   TranslationCatalogManifestTranslation,
   TranslationTextCatalog,
 } from '../../types';
-import { sanitizeBibleAssetReference } from './bibleAssetBaseUrl';
+import { requireSecureMediaUrl, sanitizeBibleAssetReference } from './bibleAssetBaseUrl';
 
 export const BUNDLED_BIBLE_SCHEMA_VERSION = 7;
 
@@ -198,7 +198,7 @@ const parseAudioCatalog = (value: unknown): TranslationAudioCatalog | null => {
       strategy,
       manifestUrl,
       audioVersion,
-      catalogBaseUrl,
+      catalogBaseUrl: requireSecureMediaUrl(catalogBaseUrl),
       ...(sanitizeRequiredString(value.fileExtension)
         ? { fileExtension: sanitizeRequiredString(value.fileExtension) ?? undefined }
         : {}),
@@ -391,12 +391,14 @@ export function rollbackTranslationPack(translation: BibleTranslation): BibleTra
 
 export function buildInstalledBibleDatabaseSource(
   translationId: string,
-  localPath: string
+  localPath: string,
+  packVersion?: string | null
 ): {
   kind: 'installed';
   translationId: string;
   databaseName: string;
   directory: string;
+  packVersion?: string;
 } | null {
   const normalizedPath = localPath.replace(/\/+$/, '');
   const lastSlashIndex = normalizedPath.lastIndexOf('/');
@@ -410,6 +412,7 @@ export function buildInstalledBibleDatabaseSource(
     translationId,
     databaseName: normalizedPath.slice(lastSlashIndex + 1),
     directory: normalizedPath.slice(0, lastSlashIndex),
+    ...(packVersion ? { packVersion } : {}),
   };
 }
 
@@ -442,4 +445,67 @@ export function buildBibleSearchQuery(query: string): string | null {
   }
 
   return normalizedTokens.map((token) => `"${token.replace(/"/g, '""')}"*`).join(' ');
+}
+
+// Scripts written without spaces between words. FTS5's unicode61 tokenizer only splits at
+// spaces and punctuation, so it indexes a whole clause (神爱世人) as one token and a word inside
+// it cannot be found. Korean does use spaces, but particles and endings attach to the noun
+// (세상을, 사랑이시라), so it needs the same treatment. Explicit ranges instead of
+// \p{Script=...} keep this independent of Hermes' Unicode script tables.
+const UNSPACED_SCRIPT_PATTERN = new RegExp(
+  '[' +
+    '\\u0E00-\\u0EFF' + // Thai, Lao
+    '\\u1000-\\u109F' + // Myanmar
+    '\\u1100-\\u11FF' + // Hangul Jamo
+    '\\u1780-\\u17FF' + // Khmer
+    '\\u3005\\u3007' + // 々 and 〇
+    '\\u3040-\\u30FF' + // Hiragana, Katakana
+    '\\u3130-\\u318F' + // Hangul Compatibility Jamo
+    '\\u31F0-\\u31FF' + // Katakana Phonetic Extensions
+    '\\u3400-\\u4DBF' + // CJK Extension A
+    '\\u4E00-\\u9FFF' + // CJK Unified Ideographs
+    '\\uAC00-\\uD7AF' + // Hangul Syllables
+    '\\uF900-\\uFAFF' + // CJK Compatibility Ideographs
+    '\\uFF66-\\uFF9F' + // Halfwidth Katakana
+    '\\u{20000}-\\u{3134F}' + // CJK Extensions B-G
+    ']',
+  'u'
+);
+
+// Where a single character is already a word (爱, 神, 빛), so a one-character query is useful.
+const SINGLE_CHARACTER_WORD_PATTERN = /[々〇぀-ヿ㐀-䶿一-鿿가-힯豈-﫿\u{20000}-\u{3134F}]/u;
+
+const MAX_SUBSTRING_SEARCH_TERMS = 8;
+
+export function isSingleCharacterWordQuery(query: string): boolean {
+  return SINGLE_CHARACTER_WORD_PATTERN.test(query);
+}
+
+// Terms for a plain substring search when the query is in an unspaced script, or null when the
+// FTS index can answer it. Each term must appear in the verse; spaces in the query separate
+// terms. NFC matches how verse text is stored, so decomposed Hangul from some keyboards still
+// matches.
+export function buildBibleSubstringSearchTerms(query: string): string[] | null {
+  const normalizedQuery = query.normalize('NFC');
+
+  if (!UNSPACED_SCRIPT_PATTERN.test(normalizedQuery)) {
+    return null;
+  }
+
+  const terms = [...new Set(normalizedQuery.match(BIBLE_SEARCH_WORD_PATTERN) ?? [])];
+  return terms.length > 0 ? terms.slice(0, MAX_SUBSTRING_SEARCH_TERMS) : null;
+}
+
+// Substring terms for a text pack whose FTS index is not built yet (or failed to build). Each
+// inner list holds spellings of one word, any of which may match: as typed, lowercase,
+// capitalised and uppercase. instr() is case-sensitive and SQLite's lower() only folds ASCII,
+// so this covers "lord", "Lord" and "LORD" in any cased script without an ICU build.
+export function buildBibleFallbackSearchTerms(query: string): string[][] {
+  const words = [...new Set(query.normalize('NFC').match(BIBLE_SEARCH_WORD_PATTERN) ?? [])];
+
+  return words.slice(0, MAX_SUBSTRING_SEARCH_TERMS).map((word) => {
+    const lower = word.toLowerCase();
+    const [first = '', ...rest] = [...lower];
+    return [...new Set([word, lower, first.toUpperCase() + rest.join(''), word.toUpperCase()])];
+  });
 }

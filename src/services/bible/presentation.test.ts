@@ -4,6 +4,7 @@ import type { Verse } from '../../types';
 import {
   buildAudioFirstChapterPresentation,
   buildDailyScripture,
+  formatDailyScriptureReferenceLabel,
   getChapterPresentationMode,
   shouldAttemptChapterTextLoad,
 } from './presentation';
@@ -229,4 +230,66 @@ test('attempts a text load for translations that carry text', () => {
 
 test('attempts a text load when the translation is not yet known, so text is never silently skipped', () => {
   assert.equal(shouldAttemptChapterTextLoad(undefined), true);
+});
+
+test('formats a whole-chapter daily reference without a verse number', () => {
+  assert.equal(formatDailyScriptureReferenceLabel('Psalms', 23), 'Psalms 23');
+});
+
+test('formats a single-verse daily reference, including a range that ends on its first verse', () => {
+  assert.equal(formatDailyScriptureReferenceLabel('John', 3, 16), 'John 3:16');
+  assert.equal(formatDailyScriptureReferenceLabel('John', 3, 16, 16), 'John 3:16');
+});
+
+test('formats a multi-verse daily reference as a verse range', () => {
+  assert.equal(formatDailyScriptureReferenceLabel('Numbers', 6, 24, 26), 'Numbers 6:24-26');
+});
+
+test('ignores whitespace-only passage text and falls back to the verse text', () => {
+  const daily = buildDailyScripture({
+    reference: { bookId: 'JHN', chapter: 3, verse: 16 },
+    verse: { ...sampleVerse, text: '  For God so loved the world...  ' },
+    passageText: '   ',
+    audioAvailable: false,
+  });
+
+  assert.equal(daily.kind, 'verse-text');
+  assert.equal(daily.text, 'For God so loved the world...');
+});
+
+test('keeps the passage end verse when a ranged daily scripture falls back to audio', () => {
+  const daily = buildDailyScripture({
+    reference: { bookId: 'NUM', chapter: 6, verse: 24, verseEnd: 26 },
+    verse: null,
+    translation: audioOnlyVerseTranslation,
+    audioAvailable: true,
+  });
+
+  assert.deepEqual(daily, {
+    kind: 'verse-audio',
+    bookId: 'NUM',
+    chapter: 6,
+    verse: 24,
+    verseEnd: 26,
+    text: null,
+    playScope: 'verse',
+  });
+});
+
+test('keeps the passage end verse when a ranged daily scripture has nothing to show', () => {
+  const daily = buildDailyScripture({
+    reference: { bookId: 'NUM', chapter: 6, verse: 24, verseEnd: 26 },
+    verse: { ...sampleVerse, text: '   ' },
+    audioAvailable: true,
+  });
+
+  assert.deepEqual(daily, {
+    kind: 'empty',
+    bookId: 'NUM',
+    chapter: 6,
+    verse: 24,
+    verseEnd: 26,
+    text: null,
+    playScope: 'none',
+  });
 });

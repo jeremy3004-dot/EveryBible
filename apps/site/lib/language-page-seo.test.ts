@@ -4,11 +4,13 @@ import test from 'node:test';
 import type { LanguageIndexEntry, LanguagePage } from './language-pages';
 import {
   buildLanguageSitemap,
+  languageIdentity,
   LANGUAGE_SITEMAP_LIMIT,
   languagePageDescription,
   languagePageMetadata,
   languagePageStructuredData,
   languagePageTitle,
+  languageScriptureSentence,
   languageSitemapIds,
   languageSitemapUrls,
 } from './language-page-seo';
@@ -31,11 +33,85 @@ const yoruba: LanguagePage = {
   ],
   population: null,
   status: 'bible',
+  statusVia: [],
+  members: [],
+  memberOf: [],
+  indexable: true,
+  canonicalSlug: 'yoruba-yor',
   sourceIds: ['glottolog'],
   dialects: [],
   projects: [],
   related: null,
 };
+
+const standardArabic = {
+  slug: 'standard-arabic-arb',
+  label: 'Standard Arabic',
+  status: 'bible',
+} as const;
+const arabic: LanguagePage = {
+  ...yoruba,
+  slug: 'arabic-ara',
+  id: 'iso:ara',
+  name: 'Arabic',
+  label: 'Arabic',
+  aliases: [],
+  iso6393: 'ara',
+  glottocode: null,
+  family: null,
+  countries: [],
+  status: 'bible',
+  statusVia: [standardArabic],
+  members: [standardArabic, { slug: 'gulf-arabic-afb', label: 'Gulf Arabic', status: 'portions' }],
+  canonicalSlug: 'arabic-ara',
+};
+
+test('a macrolanguage names the member language its Scripture status comes from', () => {
+  assert.equal(
+    languageScriptureSentence(arabic),
+    'A complete Bible is reported in Standard Arabic, a member language of Arabic.'
+  );
+  assert.equal(
+    languageScriptureSentence({
+      ...arabic,
+      statusVia: [standardArabic, { slug: 'x-x', label: 'Moroccan Arabic', status: 'bible' }],
+    }),
+    'A complete Bible is reported in 2 member languages of Arabic, including Standard Arabic.'
+  );
+  assert.equal(languageIdentity(arabic), 'Arabic is a macrolanguage.');
+  assert.equal(
+    languagePageDescription(arabic),
+    'Arabic is a macrolanguage. A complete Bible is reported in Standard Arabic, a member language of Arabic. Read the Bible free on EveryBible.'
+  );
+  assert.doesNotMatch(languagePageDescription(arabic), /no known Scripture/);
+  // Its own status needs no attribution.
+  assert.equal(
+    languageScriptureSentence({ ...arabic, statusVia: [] }),
+    'A complete Bible is reported in Arabic.'
+  );
+});
+
+test('thin pages defer to a coded language of the same name, or are not indexed', () => {
+  const duplicate = languagePageMetadata({
+    ...arabic,
+    slug: 'arabic-el-1234abcd',
+    canonicalSlug: 'arabic-ara',
+    indexable: true,
+  });
+  assert.deepEqual(duplicate.alternates, { canonical: '/languages/arabic-ara' });
+  assert.equal(duplicate.robots, undefined);
+
+  const thin = languagePageMetadata({
+    ...yoruba,
+    slug: 'oung-el-15876f53',
+    canonicalSlug: 'oung-el-15876f53',
+    indexable: false,
+  });
+  assert.deepEqual(thin.robots, { index: false, follow: true });
+  assert.deepEqual(thin.alternates, { canonical: '/languages/oung-el-15876f53' });
+
+  assert.equal(languagePageMetadata(yoruba).robots, undefined, 'full pages stay indexable');
+});
 
 test('the title names the language, and the description its place and Scripture status', () => {
   assert.equal(
@@ -44,7 +120,7 @@ test('the title names the language, and the description its place and Scripture 
   );
   assert.equal(
     languagePageDescription(yoruba),
-    'Yoruba is a language in the Atlantic-Congo family spoken in Nigeria, Benin and Togo. A complete Bible is reported in Yoruba. See its dialects and sources, and read the Bible free in the EveryBible app.'
+    'Yoruba is a language in the Atlantic-Congo family spoken in Nigeria, Benin and Togo. A complete Bible is reported in Yoruba. Read the Bible free on EveryBible.'
   );
   const unknown = {
     ...yoruba,
@@ -54,19 +130,66 @@ test('the title names the language, and the description its place and Scripture 
     countries: [],
     status: 'unknown' as const,
   };
-  assert.match(
+  assert.equal(
     languagePageDescription(unknown),
-    /^Agbirigba is a language\. Our sources record no known Scripture in Agbirigba\./
+    'Agbirigba is a language. Our sources record no known Scripture in Agbirigba. See its dialects and sources, and read the Bible free in the EveryBible app.'
   );
   const widespread = {
     ...yoruba,
     countries: [...yoruba.countries, { code: 'GH', name: 'Ghana' }],
   };
   assert.match(languagePageDescription(widespread), /family spoken in 4 countries\./);
+});
+
+test('titles stay within 60 characters by dropping words, never the language name', () => {
+  assert.equal(
+    languagePageTitle({ label: 'Yoruba' }),
+    'Yoruba language: Bible and Scripture status | EveryBible'
+  );
   assert.equal(
     languagePageTitle({ label: 'Aari (Nepal)' }),
-    'Aari (Nepal) language: Bible and Scripture status | EveryBible'
+    'Aari (Nepal): Bible and Scripture status | EveryBible'
   );
+  assert.equal(
+    languagePageTitle({ label: 'Standard Arabic' }),
+    'Standard Arabic: Bible and Scripture status | EveryBible'
+  );
+  assert.equal(
+    languagePageTitle({ label: 'Mandalay Myanmar Sign Language' }),
+    'Mandalay Myanmar Sign Language: Bible and Scripture status'
+  );
+  // A name too long for any shorter form keeps the shortest one.
+  assert.equal(
+    languagePageTitle({ label: 'Far North Queensland Indigenous Sign Language' }),
+    'Far North Queensland Indigenous Sign Language: Scripture status'
+  );
+});
+
+test('descriptions stay within 160 characters by shortening the closing invitation', () => {
+  const kituba: LanguagePage = {
+    ...yoruba,
+    name: 'Kituba (Democratic Republic of Congo)',
+    label: 'Kituba (Democratic Republic of Congo)',
+    countries: [{ code: 'CD', name: 'DR Congo' }],
+  };
+  // Too long even without the invitation: the facts are kept, the invitation dropped.
+  assert.equal(
+    languagePageDescription(kituba),
+    'Kituba (Democratic Republic of Congo) is a language in the Atlantic-Congo family spoken in DR Congo. A complete Bible is reported in Kituba (Democratic Republic of Congo).'
+  );
+  assert.ok(languagePageDescription(yoruba).length <= 160);
+});
+
+test('pseudo-families such as Bookkeeping are not described as language families', () => {
+  const bookkeeping = { ...yoruba, name: 'Borna', family: 'Bookkeeping', countries: [] };
+  assert.equal(languageIdentity(bookkeeping), 'Borna is a language.');
+  const sign = {
+    ...yoruba,
+    name: 'Indian Sign Language',
+    family: 'Sign Language',
+    countries: [{ code: 'IN', name: 'India' }],
+  };
+  assert.equal(languageIdentity(sign), 'Indian Sign Language is a sign language spoken in India.');
 });
 
 test('metadata gives each language page its own canonical URL and share card', () => {
@@ -121,11 +244,16 @@ test('structured data describes the page, the language and its breadcrumb trail'
   assert.doesNotMatch(serializeJsonLd(hostile), /<\/script>/);
 });
 
-const entry = (index: number, status: LanguageIndexEntry['status'] = 'unknown') => ({
+const entry = (
+  index: number,
+  status: LanguageIndexEntry['status'] = 'unknown',
+  sitemap = true
+): LanguageIndexEntry => ({
   slug: `language-${index}`,
   label: `Language ${index}`,
   status,
   project: false,
+  sitemap,
 });
 
 test('language sitemaps list absolute URLs and split at the 50,000 URL limit', () => {
@@ -155,4 +283,16 @@ test('language sitemaps list absolute URLs and split at the 50,000 URL limit', (
   assert.equal(first[0].priority, 0.6, 'languages with a Bible rank above the rest');
   assert.equal(first[1].priority, 0.4);
   assert.ok(first.every((item) => item.lastModified === lastModified));
+});
+
+test('thin pages are left out of the language sitemap', () => {
+  const sitemap = buildLanguageSitemap(
+    [entry(1), entry(2, 'unknown', false), entry(3)],
+    0,
+    new Date('2026-09-05T00:00:00Z')
+  );
+  assert.deepEqual(
+    sitemap.map((item) => item.url),
+    ['https://everybible.app/languages/language-1', 'https://everybible.app/languages/language-3']
+  );
 });

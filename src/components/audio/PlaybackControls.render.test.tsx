@@ -2,7 +2,8 @@ import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import type { ComponentProps } from 'react';
 import type { ReactTestInstance } from 'react-test-renderer';
-import { mockBarrel } from '../../testing/mockModules';
+import { create } from 'zustand';
+import { mockBarrel, mockModule, sourcePath } from '../../testing/mockModules';
 import { flattenStyle, installRenderHarness, within } from '../../testing/render';
 import type { BackgroundMusicChoice, PlaybackRate, SleepTimerOption } from '../../types';
 
@@ -11,6 +12,9 @@ const harness = installRenderHarness(mock);
 // controls only need the bundled music catalogue and the haptic helper.
 mockBarrel(mock, 'services/audio/index.ts', { real: ['BACKGROUND_MUSIC_OPTIONS'] });
 mockBarrel(mock, 'utils/index.ts', { real: ['mediumHaptic'] });
+// The sleep-timer sheet marks the chosen duration from the audio store.
+const audioStore = create(() => ({ sleepTimerMinutes: null as number | null }));
+mockModule(mock, sourcePath('stores/audioStore.ts'), { useAudioStore: audioStore });
 
 const t = (key: string, options?: Record<string, unknown>) => harness.i18n.t(key, options);
 

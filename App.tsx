@@ -20,19 +20,18 @@ import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { PrivacyLockScreen } from './src/components/privacy/PrivacyLockScreen';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import i18n, { changeLanguage } from './src/i18n';
+import { getStoredInterfaceLanguageToApply } from './src/i18n/interfaceLanguagePolicy';
 import {
   createAuthInitializer,
   createPrivacyRetryInitializer,
   createStartupCoordinator,
 } from './src/services/startup';
-import {
-  addNotificationResponseReceivedListener,
-  setupNotificationHandler,
-} from './src/services/notifications/notificationBootstrap';
+import { setupNotificationHandler } from './src/services/notifications/notificationBootstrap';
 import { installGlobalErrorHandlers } from './src/services/diagnostics/globalErrorHandler';
 import { enforceLtrLayoutPolicy } from './src/services/startup/rtlPolicy';
 import { rootNavigationRef } from './src/navigation/rootNavigation';
 import { usePushTokenRegistration } from './src/hooks/usePushTokenRegistration';
+import { useNotificationTapRouting } from './src/hooks/useNotificationTapRouting';
 import { useAudioDownloadRecovery } from './src/hooks/useAudioDownloadRecovery';
 import { useAppSessionAnalytics } from './src/hooks/useAppSessionAnalytics';
 
@@ -310,11 +309,12 @@ function LoadingScreen() {
     )
   );
 
+  const storedInterfaceLanguage = getStoredInterfaceLanguageToApply(preferences);
   useEffect(() => {
-    if (preferences.language) {
-      void changeLanguage(preferences.language);
+    if (storedInterfaceLanguage) {
+      void changeLanguage(storedInterfaceLanguage);
     }
-  }, [preferences.language]);
+  }, [storedInterfaceLanguage]);
 
   useEffect(() => {
     if (!isReady || !preferences.onboardingCompleted || !isPrivacyInitialized || isPrivacyLocked) {
@@ -507,18 +507,9 @@ function AppContent() {
   // before the supabase sign-out, while the session is still valid), so there is
   // no dedicated deactivation effect here.
 
-  // Listen for notification taps — used for future navigate-to-screen support.
-  useEffect(() => {
-    const subscription = addNotificationResponseReceivedListener((response) => {
-      const data = response.notification.request.content.data;
-      // Future: navigate based on data.screen, data.groupId, etc.
-      // Guarded: the payload can carry user content, so never log it in release builds.
-      if (typeof __DEV__ !== 'undefined' && __DEV__) {
-        console.log('[Notifications] Tapped notification:', data);
-      }
-    });
-    return () => subscription.remove();
-  }, []);
+  // A tap on the daily reminder opens Plans (or the one active plan), whether it
+  // launched the app or arrived while it was running.
+  useNotificationTapRouting();
 
   return (
     <>

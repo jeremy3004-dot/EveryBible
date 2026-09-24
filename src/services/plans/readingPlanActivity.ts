@@ -140,6 +140,23 @@ export function buildPlanDayPlaybackSequenceEntries(
   });
 }
 
+/**
+ * The chapters a read-mode plan step puts in the read ledger when it is ticked.
+ *
+ * In a plan session the reader does not mark chapters read on open (opening is
+ * not reading), so the explicit completion is the only record the step leaves —
+ * of every whole chapter it covered, re-read or not, so today's streak and the
+ * reading calendar see it. A verse-range passage is a slice of its chapter and
+ * never counts the whole chapter as read.
+ */
+export function getPlanStepReadChapters(
+  entries: ReadingPlanEntry[]
+): AudioPlaybackSequenceEntry[] {
+  return buildPlanDayPlaybackSequenceEntries(
+    entries.filter((entry) => entry.verse_start == null && entry.verse_end == null)
+  );
+}
+
 export interface PlanDayLaunchAutoplayInput {
   /** `listen` is the day's own play button; `open` is a row, Read, or Continue. */
   trigger: 'listen' | 'open';

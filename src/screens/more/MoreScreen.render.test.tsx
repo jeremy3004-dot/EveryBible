@@ -19,7 +19,10 @@ const useBibleStore = create(() => ({
 const useProgressStore = create(() => ({ streakDays: 0, chaptersRead: {} }));
 const useAnnotationStore = create(() => ({ annotations: [] as unknown[] }));
 mockModule(mock, sourcePath('stores/bibleStore.ts'), { useBibleStore });
-mockModule(mock, sourcePath('stores/progressStore.ts'), { useProgressStore });
+mockModule(mock, sourcePath('stores/progressStore.ts'), {
+  useProgressStore,
+  selectCurrentStreakDays: (state: { streakDays: number }) => state.streakDays,
+});
 mockModule(mock, sourcePath('stores/annotationStore.ts'), { useAnnotationStore });
 
 const authFlowModes: string[] = [];

@@ -16,6 +16,8 @@ const chapterRequests: ChapterRequest[] = [];
 /** Scripted chapters keyed `<translation>/<bookId>/<chapter>`. */
 const chapters = new Map<string, Verse[]>();
 let chapterFailure: Error | null = null;
+/** Translations whose reads throw, as an uninstalled text pack does. */
+const failingTranslations = new Set<string>();
 
 const makeVerse = (bookId: string, chapter: number, verse: number): Verse => ({
   id: chapter * 1000 + verse,
@@ -44,6 +46,9 @@ mockModule(mock, sourcePath('services/bible/bibleService.ts'), {
     if (chapterFailure) {
       throw chapterFailure;
     }
+    if (failingTranslations.has(translationId)) {
+      throw new Error(`${translationId} is not installed`);
+    }
     return chapters.get(`${translationId}/${bookId}/${chapter}`) ?? [];
   },
 });
@@ -54,6 +59,7 @@ beforeEach(() => {
   chapterRequests.length = 0;
   chapters.clear();
   chapterFailure = null;
+  failingTranslations.clear();
 });
 
 test('a whole-chapter reference returns every verse and a bare book-and-chapter label', async () => {
@@ -62,7 +68,7 @@ test('a whole-chapter reference returns every verse and a bare book-and-chapter 
 
   const blocks = await getPassageText([{ bookId: 'GEN', chapter: 1 }]);
 
-  assert.deepEqual(blocks, [{ label: 'Genesis 1', verses }]);
+  assert.deepEqual(blocks, [{ label: 'Genesis 1', verses, translationId: 'bsb' }]);
 });
 
 test('a start-and-end verse range keeps only the verses inside it', async () => {
@@ -131,7 +137,7 @@ test('a range that matches no verse yields an empty block rather than dropping i
     { bookId: 'GEN', chapter: 1, startVerse: 40, endVerse: 45 },
   ]);
 
-  assert.deepEqual(block, { label: 'Genesis 1:40-45', verses: [] });
+  assert.deepEqual(block, { label: 'Genesis 1:40-45', verses: [], translationId: 'bsb' });
 });
 
 test('a multi-reference lesson returns one block per reference, in order', async () => {
@@ -205,7 +211,7 @@ test('a chapter the translation does not carry yields an empty block, not a thro
 
   const blocks = await getPassageText([{ bookId: 'GEN', chapter: 99 }]);
 
-  assert.deepEqual(blocks, [{ label: 'Genesis 99', verses: [] }]);
+  assert.deepEqual(blocks, [{ label: 'Genesis 99', verses: [], translationId: 'bsb' }]);
 });
 
 test('an unknown book id falls back to the raw id in the label', async () => {
@@ -263,4 +269,95 @@ test('getPrimaryAudioReference returns null when a lesson has no references', as
   const { getPrimaryAudioReference } = await loadService();
 
   assert.equal(getPrimaryAudioReference([]), null);
+});
+
+// A lesson opened while the reader's translation lacks the passage (a New
+// Testament-only translation on a Genesis lesson, or a text pack that is not
+// installed) rendered an empty Story section with no explanation.
+
+test('a passage missing from the reading translation falls back to the bundled BSB', async () => {
+  const { getPassageText } = await loadService();
+  const bsbVerses = seedChapter('bsb', 'GEN', 1, 31);
+
+  const blocks = await getPassageText([{ bookId: 'GEN', chapter: 1 }], 'nt-only', {
+    fallbackTranslationId: 'bsb',
+  });
+
+  assert.deepEqual(blocks, [{ label: 'Genesis 1', verses: bsbVerses, translationId: 'bsb' }]);
+});
+
+test('only the references the reading translation lacks fall back', async () => {
+  const { getPassageText } = await loadService();
+  seedChapter('bsb', 'GEN', 1, 31);
+  seedChapter('nt-only', 'JHN', 3, 36);
+
+  const blocks = await getPassageText(
+    [
+      { bookId: 'GEN', chapter: 1, startVerse: 1, endVerse: 2 },
+      { bookId: 'JHN', chapter: 3, startVerse: 16, endVerse: 17 },
+    ],
+    'nt-only',
+    { fallbackTranslationId: 'bsb' }
+  );
+
+  assert.deepEqual(
+    blocks.map((block) => [block.label, block.translationId, block.verses.length]),
+    [
+      ['Genesis 1:1-2', 'bsb', 2],
+      ['John 3:16-17', 'nt-only', 2],
+    ]
+  );
+});
+
+test('a reading translation that cannot be opened falls back instead of failing the lesson', async () => {
+  const { getPassageText } = await loadService();
+  const bsbVerses = seedChapter('bsb', 'GEN', 1, 3);
+  failingTranslations.add('missing-pack');
+
+  const blocks = await getPassageText([{ bookId: 'GEN', chapter: 1 }], 'missing-pack', {
+    fallbackTranslationId: 'bsb',
+  });
+
+  assert.deepEqual(blocks, [{ label: 'Genesis 1', verses: bsbVerses, translationId: 'bsb' }]);
+});
+
+test('when neither translation can be opened the reading translation error propagates', async () => {
+  const { getPassageText } = await loadService();
+  failingTranslations.add('missing-pack');
+  failingTranslations.add('bsb');
+
+  await assert.rejects(
+    () =>
+      getPassageText([{ bookId: 'GEN', chapter: 1 }], 'missing-pack', {
+        fallbackTranslationId: 'bsb',
+      }),
+    { message: 'missing-pack is not installed' }
+  );
+});
+
+test('without a fallback, a missing passage still yields an empty block in the reading translation', async () => {
+  const { getPassageText } = await loadService();
+  seedChapter('bsb', 'GEN', 1, 31);
+
+  const blocks = await getPassageText([{ bookId: 'GEN', chapter: 1 }], 'nt-only');
+
+  assert.deepEqual(blocks, [{ label: 'Genesis 1', verses: [], translationId: 'nt-only' }]);
+});
+
+test('when the fallback has nothing either, the block stays empty in the reading translation', async () => {
+  const { getPassageText } = await loadService();
+
+  const blocks = await getPassageText([{ bookId: 'GEN', chapter: 99 }], 'nt-only', {
+    fallbackTranslationId: 'bsb',
+  });
+
+  assert.deepEqual(blocks, [{ label: 'Genesis 99', verses: [], translationId: 'nt-only' }]);
+});
+
+test('the reading translation is not re-read as its own fallback', async () => {
+  const { getPassageText } = await loadService();
+
+  await getPassageText([{ bookId: 'GEN', chapter: 99 }], 'bsb', { fallbackTranslationId: 'bsb' });
+
+  assert.equal(chapterRequests.length, 1);
 });

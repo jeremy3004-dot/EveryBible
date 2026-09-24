@@ -1099,7 +1099,9 @@ export async function unenrollFromPlan(planId: string): Promise<PlanServiceResul
   // leaves the tombstone in place for syncReadingPlans to retry.
   const deleted = await deleteRemotePlanProgress(planId, expectedUserId, expectedGeneration);
 
-  return { success: deleted };
+  return deleted
+    ? { success: true }
+    : { success: false, error: 'Unable to confirm leaving this plan; it will retry on next sync' };
 }
 
 export async function assignPlanToGroup(

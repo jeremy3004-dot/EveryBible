@@ -13,8 +13,11 @@ import {
   sourcePath,
 } from '../../testing/mockModules';
 
+// Whether the OS has blocked notifications while the in-app reminder is on.
+let notificationsBlocked = false;
 const harness = installRenderHarness(mock, {
   hooks: {
+    useNotificationsBlockedBySystem: (enabled: boolean) => enabled && notificationsBlocked,
     useFontSize: () => ({
       label: 'Medium',
       increase: () => {},
@@ -87,6 +90,8 @@ mockModule(mock, sourcePath('components/feedback/TranslationNotCoveredNotice.tsx
 });
 
 afterEach(async () => {
+  notificationsBlocked = false;
+  harness.rn.__recorded.openedUrls.length = 0;
   syncCalls.length = 0;
   access.translator = { success: true, coversTranslation: true };
   access.council = { success: true };
@@ -125,6 +130,30 @@ function switchNamed(view: View, label: string): ReactTestInstance {
   assert.ok(found, `switch ${label}`);
   return found;
 }
+
+// --- Reminders blocked by the system ------------------------------------------
+
+test('a reminder blocked by the system shows a translated notice that opens system settings', async () => {
+  harness.authStore.getState().setPreferences({ notificationsEnabled: true });
+  notificationsBlocked = true;
+  const view = await renderSettings();
+
+  assert.ok(view.getByText(t('settings.notificationsBlockedNotice')));
+  await view.press(view.getByRole('button', { name: t('settings.openDeviceSettings') }));
+  assert.deepEqual(harness.rn.__recorded.openedUrls, ['app-settings:']);
+});
+
+test('no blocked-reminder notice while the reminder is off or the system allows it', async () => {
+  notificationsBlocked = true;
+  const reminderOff = await renderSettings();
+  assert.equal(reminderOff.queryByText(t('settings.notificationsBlockedNotice')), null);
+  await reminderOff.unmount();
+
+  harness.authStore.getState().setPreferences({ notificationsEnabled: true });
+  notificationsBlocked = false;
+  const allowed = await renderSettings();
+  assert.equal(allowed.queryByText(t('settings.notificationsBlockedNotice')), null);
+});
 
 // --- Privacy shortcut -------------------------------------------------------
 

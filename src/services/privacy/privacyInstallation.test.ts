@@ -289,3 +289,47 @@ test('late auth-storage evidence suppresses reset after native reset loading', a
   assert.equal(await reset, false);
   assert.equal(resetCount, 0);
 });
+
+test('an installation that already has evidence never loads the privacy reset', async () => {
+  let loaderCalls = 0;
+  const load = async () => {
+    loaderCalls += 1;
+    return async () => {};
+  };
+
+  assert.equal(
+    await resetPrivacyIfInstallationIsFresh({
+      getInstallationMarker: () => '1',
+      getLegacyAuthState: () => undefined,
+      loadResetPrivacy: load,
+    }),
+    false
+  );
+  assert.equal(
+    await resetPrivacyIfInstallationIsFresh({
+      getInstallationMarker: () => undefined,
+      getLegacyAuthState: () => '{"state":{}}',
+      loadResetPrivacy: load,
+    }),
+    false
+  );
+  assert.equal(loaderCalls, 0);
+});
+
+test('single-flight task turns a synchronous throw into a rejection and allows a retry', async () => {
+  let calls = 0;
+  const run = createSingleFlightAsyncTask((): Promise<string> => {
+    calls += 1;
+    if (calls === 1) {
+      throw new Error('native module missing');
+    }
+    return Promise.resolve('reconciled');
+  });
+
+  const first = run();
+  assert.equal(run(), first);
+  await assert.rejects(first, /native module missing/);
+
+  assert.equal(await run(), 'reconciled');
+  assert.equal(calls, 2);
+});

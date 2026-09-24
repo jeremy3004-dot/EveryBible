@@ -84,6 +84,7 @@ const signOut = () => {
 };
 
 const UNENROLLMENTS = 'user_reading_plan_unenrollments';
+const UNCONFIRMED_LEAVE = 'Unable to confirm leaving this plan; it will retry on next sync';
 const MERGE_RPC = 'merge_reading_plan_progress';
 // PostgREST's answer for a function the server does not have yet.
 const MISSING_MERGE_RPC = {
@@ -856,6 +857,22 @@ test('unenrollFromPlan records when the reader left as a server tombstone', asyn
   assert.ok(Number.isFinite(Date.parse(payload.unenrolled_at)), 'the leave time is sent');
 });
 
+test('an unconfirmed server leave reports an error the plans screen can show', async () => {
+  signIn('user-a', 3);
+  await service.enrollInPlan('psalms-30-days');
+  await flushBackgroundWork();
+  supabaseFake.reset();
+  supabaseFake.respondTo(UNENROLLMENTS, () => ({ data: null, error: { message: 'offline' } }));
+
+  const result = await service.unenrollFromPlan('psalms-30-days');
+
+  assert.deepEqual(result, { success: false, error: UNCONFIRMED_LEAVE });
+  // The tombstone stays so the next sync retries the leave.
+  assert.deepEqual(storeModule.readingPlansStore.getState().pendingUnenrollPlanIds, [
+    'psalms-30-days',
+  ]);
+});
+
 test('a leave retried later still carries the time the reader actually left', async () => {
   signIn('user-a', 3);
   await service.enrollInPlan('psalms-30-days');
@@ -916,7 +933,7 @@ test('unenrollFromPlan keeps the tombstone when the remote delete fails', async 
 
   const result = await service.unenrollFromPlan('psalms-30-days');
 
-  assert.deepEqual(result, { success: false });
+  assert.deepEqual(result, { success: false, error: UNCONFIRMED_LEAVE });
   assert.deepEqual(storeModule.readingPlansStore.getState().pendingUnenrollPlanIds, [
     'psalms-30-days',
   ]);
@@ -933,7 +950,7 @@ test('unenrollFromPlan keeps the tombstone when the delete throws', async () => 
 
   const result = await service.unenrollFromPlan('psalms-30-days');
 
-  assert.deepEqual(result, { success: false });
+  assert.deepEqual(result, { success: false, error: UNCONFIRMED_LEAVE });
   assert.deepEqual(storeModule.readingPlansStore.getState().pendingUnenrollPlanIds, [
     'psalms-30-days',
   ]);
@@ -1411,7 +1428,7 @@ test('unenrollFromPlan keeps the tombstone when the account changes as the delet
 
   const result = await service.unenrollFromPlan('psalms-30-days');
 
-  assert.deepEqual(result, { success: false });
+  assert.deepEqual(result, { success: false, error: UNCONFIRMED_LEAVE });
   assert.deepEqual(storeModule.readingPlansStore.getState().pendingUnenrollPlanIds, [
     'psalms-30-days',
   ]);

@@ -20,6 +20,10 @@ mockModule(mock, sourcePath('stores/gatherStore.ts'), { useGatherStore: gatherSt
 // The constants barrel reaches expo-constants through the translation catalog;
 // these screens only need the translated book names.
 mockBarrel(mock, 'constants/index.ts', { real: ['getTranslatedBookName'] });
+// The lesson sheet (audio, sharing, passages) has its own tests; this screen only opens it.
+mockModule(mock, sourcePath('components/gather/LessonBottomSheet.tsx'), {
+  LessonBottomSheet: () => null,
+});
 
 const t = (key: string, options?: Record<string, unknown>) => harness.i18n.t(key, options);
 distinguishTranslatedCopy(harness.i18n, [
@@ -65,7 +69,9 @@ test('the header bar grows by the top safe-area inset so the back button clears 
   const header = flattenStyle(enclosingView(back).props.style);
 
   assert.equal(header?.paddingTop, harness.insets.top);
-  assert.equal(header?.height, 56 + harness.insets.top);
+  // A floor, not a fixed height, so a large text size does not clip the title.
+  assert.equal(header?.minHeight, 56 + harness.insets.top);
+  assert.equal(header?.height, undefined);
 
   await view.press(back);
   assert.deepEqual(harness.navigation.calls, [{ method: 'goBack', args: [] }]);
@@ -78,7 +84,7 @@ test('an unknown foundation still offers a back button below the cutout', async 
 
   assert.ok(view.getByText(t('common.error')));
   assert.equal(bar?.paddingTop, harness.insets.top);
-  assert.equal(bar?.height, 56 + harness.insets.top);
+  assert.equal(bar?.minHeight, 56 + harness.insets.top);
 });
 
 test('the header has no download action, and a trailing spacer keeps the title centred', async () => {

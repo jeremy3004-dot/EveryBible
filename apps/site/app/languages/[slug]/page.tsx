@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import type { ReactNode } from 'react';
 
 import {
   LanguageLayout,
@@ -8,13 +9,18 @@ import {
 } from '../../../components/languages/LanguageLayout';
 import { atlasSourceLabel, atlasSourceUrl } from '../../../lib/atlas-source-links';
 import { bundledAppBibles } from '../../../lib/everybible-app-bibles';
+import { languageFamily } from '../../../lib/language-family';
 import {
   languageIdentity,
   languagePageMetadata,
   languagePageStructuredData,
-  scriptureStatusSentence,
+  languageScriptureSentence,
 } from '../../../lib/language-page-seo';
-import { shouldPrerenderLanguage, type LanguagePage } from '../../../lib/language-pages';
+import {
+  shouldPrerenderLanguage,
+  type LanguagePage,
+  type LanguagePageLink,
+} from '../../../lib/language-pages';
 import {
   getLanguageIndex,
   getLanguagePage,
@@ -44,11 +50,33 @@ interface LanguageRouteProps {
 
 export async function generateMetadata({ params }: LanguageRouteProps): Promise<Metadata> {
   const page = await getLanguagePage((await params).slug);
-  return page ? languagePageMetadata(page) : {};
+  // Without this the browser re-applies the homepage title and canonical over the 404.
+  if (!page) notFound();
+  return languagePageMetadata(page);
 }
 
 function formatNumber(value: number): string {
   return new Intl.NumberFormat('en').format(value);
+}
+
+function LanguageLinks({ links }: { links: readonly LanguagePageLink[] }): ReactNode {
+  return links.map((link, index) => (
+    <span key={link.slug}>
+      {index > 0 && (index === links.length - 1 ? ' and ' : ', ')}
+      <a href={languagePagePath(link.slug)}>{link.label}</a>
+    </span>
+  ));
+}
+
+/** "via Standard Arabic" under a macrolanguage's badge when a member gives it its status. */
+function StatusVia({ via }: { via: readonly LanguagePageLink[] }) {
+  const [first] = via;
+  return (
+    <>
+      via <a href={languagePagePath(first.slug)}>{first.label}</a>
+      {via.length > 1 && ` and ${via.length - 1} other member language${via.length > 2 ? 's' : ''}`}
+    </>
+  );
 }
 
 function ProjectSummary({ page }: { page: LanguagePage }) {
@@ -82,14 +110,23 @@ export default async function LanguageDetailPage({ params }: LanguageRouteProps)
 
   const appBibles = bundledAppBibles(page.iso6393);
   const sources = meta.sources.filter((source) => page.sourceIds.includes(source.id));
-  const details = [
-    ['Language family', page.family],
+  const rows: [string, ReactNode][] = [
+    [
+      'Part of',
+      page.memberOf.length > 0 && (
+        <>
+          <LanguageLinks links={page.memberOf} /> (ISO 639-3 macrolanguage)
+        </>
+      ),
+    ],
+    ['Language family', languageFamily(page.family)],
     ['ISO 639-3 code', page.iso6393],
     ['Glottocode', page.glottocode],
     ['ROLV code', page.rolvCode],
     ['Reported population', page.population === null ? null : formatNumber(page.population)],
     ['Also known as', page.aliases.length ? page.aliases.join(' · ') : null],
-  ].filter((row): row is [string, string] => Boolean(row[1]));
+  ];
+  const details = rows.filter(([, value]) => Boolean(value));
 
   return (
     <LanguageLayout
@@ -98,6 +135,7 @@ export default async function LanguageDetailPage({ params }: LanguageRouteProps)
       title={page.name}
       intro={languageIdentity(page)}
       status={page.status}
+      statusNote={page.statusVia.length > 0 && <StatusVia via={page.statusVia} />}
     >
       <script
         type="application/ld+json"
@@ -108,7 +146,7 @@ export default async function LanguageDetailPage({ params }: LanguageRouteProps)
 
       <section aria-labelledby="scripture-heading">
         <h2 id="scripture-heading">Scripture in {page.name}</h2>
-        <p>{scriptureStatusSentence(page.status, page.name)}</p>
+        <p>{languageScriptureSentence(page)}</p>
         <p className="language-note">
           From the Every Language research atlas and its sources. “No known Scripture” means none is
           recorded in those sources, not that none exists.
@@ -169,6 +207,28 @@ export default async function LanguageDetailPage({ params }: LanguageRouteProps)
               </div>
             ))}
           </dl>
+        </section>
+      )}
+
+      {page.members.length > 0 && (
+        <section aria-labelledby="members-heading">
+          <h2 id="members-heading">
+            Languages grouped as {page.name}{' '}
+            <span className="language-count">{page.members.length}</span>
+          </h2>
+          <p className="language-note">
+            ISO 639-3 treats {page.name} as a macrolanguage: closely related languages that are
+            sometimes counted as one. Scripture is recorded for each member language, so {page.name}{' '}
+            shows the best status among them.
+          </p>
+          <ul className="language-list">
+            {page.members.map((member) => (
+              <li key={member.slug}>
+                <a href={languagePagePath(member.slug)}>{member.label}</a>
+                <ScriptureStatusBadge status={member.status} />
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 
@@ -234,6 +294,16 @@ export default async function LanguageDetailPage({ params }: LanguageRouteProps)
         <p className="language-note">
           Atlas data as of {meta.generatedAt}. Joshua Project data is used with permission for
           noncommercial ministry research and education. Glottolog data: CC BY 4.0.
+          {(page.members.length > 0 || page.memberOf.length > 0) && (
+            <>
+              {' '}
+              Macrolanguage membership: ISO 639-3 code tables,{' '}
+              <a href="https://iso639-3.sil.org/" target="_blank" rel="noreferrer">
+                iso639-3.sil.org
+              </a>
+              .
+            </>
+          )}
         </p>
       </section>
     </LanguageLayout>

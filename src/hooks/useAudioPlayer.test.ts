@@ -33,7 +33,7 @@ interface ProgressSnapshot {
   durationMillis: number;
   isPlaying: boolean;
   isBuffering: boolean;
-  didJustFinish: false;
+  didJustFinish: boolean;
 }
 
 interface AudioAsset {
@@ -163,7 +163,16 @@ const backgroundMusicDouble = {
 };
 
 type RemoteCommand = { command: string; positionSeconds?: number };
-let remoteCommandListener: ((command: RemoteCommand) => void | Promise<void>) | null = null;
+type RemoteCommandHandler = (command: RemoteCommand) => void | Promise<void>;
+// Every live subscription receives each command, as the native emitter delivers
+// it, so a player that failed to hand over its subscription would act twice.
+const remoteCommandListeners = new Set<RemoteCommandHandler>();
+let remoteCommandListener: RemoteCommandHandler | null = null;
+const dispatchRemoteCommand: RemoteCommandHandler = async (command) => {
+  for (const listener of Array.from(remoteCommandListeners)) {
+    await listener(command);
+  }
+};
 
 const bibleState = {
   translations: [{ id: 'bsb', name: 'Berean Standard Bible' }] as { id: string; name: string }[],
@@ -255,10 +264,13 @@ mockModule(mock, sourcePath('services/audio/index.ts'), {
   subscribeBibleNowPlayingRemoteCommands: (
     listener: (command: RemoteCommand) => void | Promise<void>
   ) => {
-    remoteCommandListener = listener;
+    remoteCommandListeners.add(listener);
+    remoteCommandListener = dispatchRemoteCommand;
     return () => {
-      remoteCommandListener = null;
+      // A subscription left over from an earlier test was already dropped in beforeEach.
+      if (!remoteCommandListeners.delete(listener)) return;
       recorded.remoteUnsubscribes += 1;
+      if (remoteCommandListeners.size === 0) remoteCommandListener = null;
     };
   },
 });
@@ -385,6 +397,7 @@ beforeEach(() => {
 
   audioPlayerDouble.loaded = false;
   audioPlayerDouble.callbacks = {};
+  remoteCommandListeners.clear();
   remoteCommandListener = null;
   bibleState.translations = [{ id: 'bsb', name: 'Berean Standard Bible' }];
 });
@@ -420,13 +433,32 @@ test('mounting subscribes to lock screen transport commands', () => {
   assert.equal(typeof remoteCommandListener, 'function');
 });
 
-test('unmounting removes the lock screen command subscription', () => {
+// The reader is pushed over the book browser, so going back unmounts the hook while
+// the chapter keeps playing (AudioReturnTab exists for exactly that state). The lock
+// screen, notification and headset controls must keep working until a new player
+// mounts, the same way the native playback callbacks outlive the screen.
+test('unmounting keeps the lock screen commands subscribed while audio plays on', () => {
   const player = mountPlayer();
 
   player.unmount();
 
-  assert.equal(recorded.remoteUnsubscribes, 1);
-  assert.equal(remoteCommandListener, null);
+  assert.equal(recorded.remoteUnsubscribes, 0);
+  assert.equal(typeof remoteCommandListener, 'function');
+});
+
+test('a newly mounted player takes over the lock screen commands from the old one', async () => {
+  const first = mountPlayer();
+  await first.api.playChapter('GEN', 1);
+  first.unmount();
+  const second = mountPlayer();
+  second.rerender();
+  recorded.player.length = 0;
+
+  await remoteCommandListener?.({ command: 'pause' });
+
+  assert.equal(remoteCommandListeners.size, 1);
+  assert.equal(playerCalls('pause').length, 1);
+  assert.equal(store().status, 'paused');
 });
 
 test('audioAvailable reports whether the translation has any audio', () => {
@@ -1336,6 +1368,42 @@ test('navigating away from a paused chapter selects it without sounding', async 
   assert.equal(playerCalls('stop').length, 1);
 });
 
+test('switching the translation of a paused chapter re-targets it without sounding', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setPosition(30_000);
+  await player.rerender().pause();
+  recorded.player.length = 0;
+
+  await player.rerender().navigateChapterForTranslation('web', 'GEN', 1);
+
+  assert.equal(playerCalls('loadAndPlay').length, 0);
+  assert.equal(playerCalls('resume').length, 0);
+  assert.equal(store().status, 'paused');
+  assert.equal(store().currentTranslationId, 'web');
+  assert.equal(store().currentChapter, 1);
+
+  // The next Play is the new translation, not the old one.
+  await player.rerender().togglePlayPause();
+  assert.deepEqual(playerCalls('loadAndPlay'), [
+    { method: 'loadAndPlay', args: ['https://cdn.example/web/GEN/1.mp3', 1] },
+  ]);
+});
+
+test('switching the translation of a playing chapter plays the new translation', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  recorded.player.length = 0;
+
+  await player.rerender().navigateChapterForTranslation('web', 'GEN', 1);
+
+  assert.deepEqual(playerCalls('loadAndPlay'), [
+    { method: 'loadAndPlay', args: ['https://cdn.example/web/GEN/1.mp3', 1] },
+  ]);
+  assert.equal(store().status, 'playing');
+  assert.equal(store().currentTranslationId, 'web');
+});
+
 test('navigating away from an idle chapter leaves the player idle', async () => {
   const player = mountPlayer();
   store().setCurrentTrack('bsb', 'GEN', 1);
@@ -1543,6 +1611,83 @@ test('finishing a chapter with auto-advance off stops playback', async () => {
 
   assert.equal(store().status, 'idle');
   assert.equal(recorded.nowPlayingCleared, 1);
+});
+
+// The native player reports the end of a chapter as a last playing progress tick,
+// a stopped state, then the finish. The decoded length can fall a little short of the
+// catalog duration, so the last position need not equal the stored duration.
+const reachChapterEnd = async (positionMillis: number) => {
+  emitStatus({ positionMillis, durationMillis: positionMillis, isPlaying: true });
+  emitStatus({ positionMillis, durationMillis: positionMillis, isPlaying: false });
+  await finishPlayback();
+};
+
+test('play after the final chapter finished starts it again from the beginning', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setAutoAdvanceChapter(false);
+  player.rerender();
+  await reachChapterEnd(DEFAULT_DURATION_MS - 200);
+  recorded.player.length = 0;
+
+  await player.rerender().togglePlayPause();
+
+  assert.equal(playerCalls('resume').length, 0);
+  assert.deepEqual(playerCalls('loadAndPlay'), [
+    { method: 'loadAndPlay', args: ['https://cdn.example/bsb/GEN/1.mp3', 1] },
+  ]);
+  assert.deepEqual(playerCalls('seekTo'), []);
+  assert.equal(store().status, 'playing');
+});
+
+test('play after a finished chapter never seeks to its end', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setAutoAdvanceChapter(false);
+  player.rerender();
+  await reachChapterEnd(DEFAULT_DURATION_MS);
+  recorded.player.length = 0;
+
+  await player.rerender().togglePlayPause();
+
+  assert.deepEqual(playerCalls('seekTo'), []);
+  assert.equal(playerCalls('loadAndPlay').length, 1);
+});
+
+test('the remote play command after the final chapter finished starts it from the beginning', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setAutoAdvanceChapter(false);
+  player.rerender();
+  await reachChapterEnd(DEFAULT_DURATION_MS - 200);
+  player.rerender();
+  recorded.player.length = 0;
+
+  await remoteCommandListener?.({ command: 'play' });
+
+  assert.equal(playerCalls('resume').length, 0);
+  assert.deepEqual(playerCalls('seekTo'), []);
+  assert.equal(playerCalls('loadAndPlay').length, 1);
+});
+
+test('a finished chapter leaves no resume point for the next launch', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setAutoAdvanceChapter(false);
+  player.rerender();
+  await reachChapterEnd(DEFAULT_DURATION_MS);
+
+  assert.equal(store().lastPosition, 0);
+
+  // Relaunch: nothing is loaded and only the persisted anchor survives.
+  audioPlayerDouble.loaded = false;
+  store().resetPlayback();
+  recorded.player.length = 0;
+  await player.rerender().togglePlayPause();
+
+  assert.deepEqual(playerCalls('seekTo'), []);
+  assert.equal(store().currentBookId, 'GEN');
+  assert.equal(store().currentChapter, 1);
 });
 
 test('finishing a chapter in chapter-repeat mode replays it', async () => {
@@ -1912,6 +2057,33 @@ test('pausing flushes the listening segment that was in flight', async (t) => {
   assert.equal(progress[0]?.properties.reason, 'pause');
 });
 
+test('the last stretch of a finished chapter is reported as a finish', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: BASE_TIME });
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  emitStatus({ isPlaying: true, positionMillis: 1_000, durationMillis: DEFAULT_DURATION_MS });
+  t.mock.timers.tick(5_000);
+  recorded.analytics.length = 0;
+
+  // The native player reports the stopped state first, then ends the queue.
+  emitStatus({
+    isPlaying: false,
+    didJustFinish: true,
+    positionMillis: DEFAULT_DURATION_MS,
+    durationMillis: DEFAULT_DURATION_MS,
+  });
+  await finishPlayback();
+
+  const progress = recorded.analytics.filter((event) => event.name === 'audio_playback_progress');
+  assert.deepEqual(
+    progress.map((event) => ({
+      reason: event.properties.reason,
+      listened: event.properties.listened_ms,
+    })),
+    [{ reason: 'finish', listened: 5_000 }]
+  );
+});
+
 test('no listening progress is reported while the chapter duration is unknown', async (t) => {
   t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: BASE_TIME });
   scenario.chapterAudio = async () => ({ url: 'https://cdn.example/bsb/GEN/1.mp3', duration: 0 });
@@ -2195,6 +2367,51 @@ test('the sleep timer counts down in whole minutes', async (t) => {
   assert.equal(player.rerender().sleepTimerRemaining, 4);
 });
 
+test('pausing freezes the sleep timer countdown and resuming continues the remaining time', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: BASE_TIME });
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setSleepTimer(5);
+  player.rerender();
+  tickSeconds(t.mock.timers, 2 * 60);
+  await player.api.pause();
+  player.rerender();
+
+  t.mock.timers.tick(30 * 60 * 1000);
+  const shownWhilePaused = player.rerender().sleepTimerRemaining;
+  await player.api.resume();
+  player.rerender();
+  recorded.player.length = 0;
+  tickSeconds(t.mock.timers, 3 * 60 - 1);
+  const pausesBeforeEnd = playerCalls('pause').length;
+  tickSeconds(t.mock.timers, 1);
+
+  assert.deepEqual(
+    { shownWhilePaused, pausesBeforeEnd, pausesAtEnd: playerCalls('pause').length },
+    { shownWhilePaused: 3, pausesBeforeEnd: 0, pausesAtEnd: 1 }
+  );
+  assert.equal(store().sleepTimerMinutes, null);
+});
+
+test('a native progress event after a long pause does not expire a frozen sleep timer', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: BASE_TIME });
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setSleepTimer(5);
+  player.rerender();
+  emitStatus({ isPlaying: false, positionMillis: 1_000, durationMillis: DEFAULT_DURATION_MS });
+  t.mock.timers.tick(60 * 60 * 1000);
+  recorded.player.length = 0;
+
+  emitStatus({ isPlaying: true, positionMillis: 1_000, durationMillis: DEFAULT_DURATION_MS });
+  await Promise.resolve();
+
+  assert.equal(playerCalls('pause').length, 0);
+  assert.equal(store().status, 'playing');
+  assert.equal(store().sleepTimerEndTime, BASE_TIME + 60 * 60 * 1000 + 5 * 60 * 1000);
+  emitStatus({ isPlaying: false, positionMillis: 1_000 });
+});
+
 test('no sleep timer means no remaining time to show', () => {
   assert.equal(mountPlayer().api.sleepTimerRemaining, null);
 });
@@ -2282,6 +2499,20 @@ test('the remote seek-position command works in seconds', async () => {
   await remoteCommandListener?.({ command: 'seek-position', positionSeconds: 42 });
 
   assert.equal(store().currentPosition, 42_000);
+});
+
+test('a remote seek past the end of the chapter stops at its length', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  player.rerender();
+  recorded.player.length = 0;
+
+  await remoteCommandListener?.({ command: 'seek-position', positionSeconds: 5_000 });
+
+  assert.deepEqual(playerCalls('seekTo'), [{ method: 'seekTo', args: [DEFAULT_DURATION_MS] }]);
+  assert.equal(store().currentPosition, DEFAULT_DURATION_MS);
+  // The durable resume point must not land beyond the chapter either.
+  assert.ok(store().lastPosition <= DEFAULT_DURATION_MS);
 });
 
 test('a remote seek-position without a position is ignored', async () => {
@@ -2542,6 +2773,77 @@ test('native callbacks after unmount preserve progress and next chapter without 
   assert.equal(store().currentPosition, 1000);
   // Stop the retained playback session's coarse telemetry before ending the test.
   emitStatus({ isPlaying: false, positionMillis: 1000 });
+});
+
+test('lock screen pause and play still work after the reader has closed', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setPosition(30_000);
+  player.rerender();
+  player.unmount();
+
+  await remoteCommandListener?.({ command: 'pause' });
+  assert.equal(store().status, 'paused');
+  assert.equal(playerCalls('pause').length, 1);
+
+  await remoteCommandListener?.({ command: 'play' });
+  assert.equal(store().status, 'playing');
+  assert.equal(playerCalls('resume').length, 1);
+
+  await remoteCommandListener?.({ command: 'pause' });
+});
+
+test('lock screen next after the reader closed follows the chapter playing now', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setAutoAdvanceChapter(true);
+  player.rerender();
+  player.unmount();
+  await finishPlayback();
+  assert.equal(store().currentChapter, 2);
+
+  await remoteCommandListener?.({ command: 'next' });
+
+  assert.equal(store().currentChapter, 3);
+  assert.equal(store().status, 'playing');
+  await remoteCommandListener?.({ command: 'pause' });
+});
+
+test('lock screen pause after the reader closed checkpoints the chapter playing now', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setAutoAdvanceChapter(true);
+  player.rerender();
+  player.unmount();
+  await finishPlayback();
+  store().setPosition(60_000);
+  recorded.history.length = 0;
+
+  await remoteCommandListener?.({ command: 'pause' });
+
+  assert.deepEqual(recorded.history, [
+    { bookId: 'GEN', chapter: 2, progress: 60_000 / DEFAULT_DURATION_MS },
+  ]);
+});
+
+test('the sleep timer still pauses playback after the reader has closed', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: BASE_TIME });
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setSleepTimer(5);
+  player.rerender();
+  player.unmount();
+  recorded.player.length = 0;
+
+  t.mock.timers.tick(5 * 60 * 1000);
+  // The native player keeps reporting progress about once a second while it plays.
+  emitStatus({ isPlaying: true, positionMillis: 300_000, durationMillis: DEFAULT_DURATION_MS });
+  await Promise.resolve();
+
+  assert.equal(playerCalls('pause').length, 1);
+  assert.equal(store().status, 'paused');
+  assert.equal(store().sleepTimerEndTime, null);
+  emitStatus({ isPlaying: false, positionMillis: 300_000 });
 });
 
 test('a replacement hook interpolates and old cleanup does not disable it', async (t) => {

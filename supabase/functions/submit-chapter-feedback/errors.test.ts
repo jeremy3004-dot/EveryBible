@@ -117,3 +117,52 @@ test('validation errors still explain what the caller must fix', async () => {
     error: 'bookId is not a recognized Bible book',
   });
 });
+
+// Public endpoint (verify_jwt = false): the body used to be parsed with req.json() with no size
+// bound. The largest valid request carries a 5 MB recording as base64 (about 7 MB).
+test('a request body over the size limit is refused before auth, storage or database work', async () => {
+  const { harness, response } = submit({}, { ...validBody, padding: 'x'.repeat(8 * 1024 * 1024) });
+
+  const result = await response;
+
+  assert.equal(result.status, 413);
+  assert.equal((await result.json()).saved, false);
+  assert.deepEqual(harness.calls, []);
+});
+
+test('a maximum-size 5 MB recording still fits within the size limit', async () => {
+  const size = 5 * 1024 * 1024;
+  const recording = Buffer.alloc(size);
+  let offset = 0;
+  for (const [type, length] of [
+    ['ftyp', 12],
+    ['moov', 12],
+    ['mdat', size - 24],
+  ] as const) {
+    recording.writeUInt32BE(length, offset);
+    recording.write(type, offset + 4, 'latin1');
+    offset += length;
+  }
+  const { response } = submit(
+    {
+      respond: (call) =>
+        call.steps.some((s) => s.method === 'insert') ? { data: { id: 'f1' } } : { count: 0 },
+    },
+    {
+      ...validBody,
+      audioResponse: {
+        bucket: 'chapter-feedback-audio',
+        mimeType: 'audio/mp4',
+        durationMs: 60000,
+        sizeBytes: size,
+        createdAt: new Date().toISOString(),
+        base64Data: recording.toString('base64'),
+      },
+    }
+  );
+
+  const result = await response;
+
+  assert.equal(result.status, 200);
+  assert.equal((await result.json()).saved, true);
+});

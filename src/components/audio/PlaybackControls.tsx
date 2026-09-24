@@ -22,6 +22,8 @@ import { PLAYBACK_RATES, SLEEP_TIMER_OPTIONS } from '../../types';
 import { BACKGROUND_MUSIC_OPTIONS } from '../../services/audio';
 import { mediumHaptic } from '../../utils';
 import { radius } from '../../design/system';
+import { useAudioStore } from '../../stores/audioStore';
+import { isSleepTimerOptionSelected } from './sleepTimerSelection';
 
 interface PlaybackControlsProps {
   variant?: 'default' | 'chapter-only' | 'utilities-only';
@@ -79,6 +81,7 @@ export function PlaybackControls({
   const [showSpeedModal, setShowSpeedModal] = useState(false);
   const [showTimerModal, setShowTimerModal] = useState(false);
   const [showBackgroundMusicModal, setShowBackgroundMusicModal] = useState(false);
+  const sleepTimerMinutes = useAudioStore((state) => state.sleepTimerMinutes);
 
   const isLoading = status === 'loading';
   const isPlaying = status === 'playing';
@@ -576,23 +579,42 @@ export function PlaybackControls({
             >
               {t('audio.sleepTimer')}
             </Text>
-            {SLEEP_TIMER_OPTIONS.map((option) => (
-              <TouchableOpacity
-                key={option.value ?? 'off'}
-                style={styles.modalOption}
-                onPress={() => {
-                  onSetSleepTimer(option.value);
-                  setShowTimerModal(false);
-                }}
-                accessibilityRole="button"
-              >
-                <Text style={[styles.modalOptionText, { color: colors.biblePrimaryText }]}>
-                  {option.value == null
-                    ? t('interface.music.off.label')
-                    : t('interface.minutesShort', { count: option.value })}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            {SLEEP_TIMER_OPTIONS.map((option) => {
+              const isSelected = isSleepTimerOptionSelected(
+                option.value,
+                sleepTimerMinutes,
+                sleepTimerRemaining
+              );
+              return (
+                <TouchableOpacity
+                  key={option.value ?? 'off'}
+                  style={[
+                    styles.modalOption,
+                    isSelected && { backgroundColor: colors.bibleElevatedSurface },
+                  ]}
+                  onPress={() => {
+                    onSetSleepTimer(option.value);
+                    setShowTimerModal(false);
+                  }}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: isSelected }}
+                >
+                  <Text
+                    style={[
+                      styles.modalOptionText,
+                      { color: isSelected ? colors.bibleAccent : colors.biblePrimaryText },
+                    ]}
+                  >
+                    {option.value == null
+                      ? t('interface.music.off.label')
+                      : t('interface.minutesShort', { count: option.value })}
+                  </Text>
+                  {isSelected ? (
+                    <Ionicons name="checkmark" size={20} color={colors.bibleAccent} />
+                  ) : null}
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </Pressable>
       </Modal>

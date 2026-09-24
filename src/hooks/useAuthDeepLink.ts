@@ -2,9 +2,9 @@ import { useEffect } from 'react';
 import * as Linking from 'expo-linking';
 import { handleAuthDeepLinkUrl } from '../services/auth/authDeepLink';
 
-// Password-reset links arrive with recovery tokens in the URL fragment, which React
-// Navigation's path-based linkingConfig never sees (fragments aren't passed to
-// getStateFromPath). This raw Linking listener is what actually extracts and applies them.
+// Password-reset links carry a one-time PKCE code (or, for an expired link, an
+// error) that React Navigation's path-based linkingConfig does not act on. This raw
+// Linking listener hands every URL to handleAuthDeepLinkUrl, which parks the code.
 export function useAuthDeepLink(): void {
   useEffect(() => {
     let isMounted = true;

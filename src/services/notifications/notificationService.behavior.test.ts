@@ -33,7 +33,12 @@ mockModule(mock, sourcePath('stores/authStore.ts'), {
   },
 });
 
-mockModule(mock, sourcePath('i18n/index.ts'), { default: { t: (key: string) => key } });
+// `language` prefixes every string so a test can tell which language a reminder
+// was scheduled in; it stays empty for the tests that assert on bare keys.
+const i18nState = { language: '' };
+mockModule(mock, sourcePath('i18n/index.ts'), {
+  default: { t: (key: string) => `${i18nState.language}${key}` },
+});
 
 const expoConfig: { extra?: { eas?: { projectId?: string } } } = {
   extra: { eas: { projectId: 'project-id' } },
@@ -54,13 +59,27 @@ const channels: Array<{ id: string; options: Record<string, unknown> }> = [];
 const autoRegistration: boolean[] = [];
 const tokenCalls: TokenOptions[] = [];
 let cancelFailure: Error | null = null;
+let scheduleFailure: Error | null = null;
 let channelFailure: Error | null = null;
 let getToken: (options: TokenOptions) => Promise<{ data: string }> = async () => ({
   data: 'expo-token',
 });
 
+// Importance of each channel the OS knows about; the user can lower it to NONE.
+const channelImportance = new Map<string, number>();
+let channelReads = 0;
+let channelReadFailure: Error | null = null;
+
 mockModule(mock, 'expo-notifications', {
-  AndroidImportance: { DEFAULT: 3, HIGH: 4 },
+  AndroidImportance: { NONE: 1, DEFAULT: 3, HIGH: 4 },
+  getNotificationChannelAsync: async (id: string) => {
+    channelReads += 1;
+    if (channelReadFailure) {
+      throw channelReadFailure;
+    }
+    const importance = channelImportance.get(id);
+    return importance === undefined ? null : { id, importance };
+  },
   SchedulableTriggerInputTypes: { DAILY: 'daily' },
   setNotificationHandler: () => {},
   getPermissionsAsync: async () => {
@@ -85,6 +104,9 @@ mockModule(mock, 'expo-notifications', {
     }
   },
   scheduleNotificationAsync: async (request: Record<string, unknown>) => {
+    if (scheduleFailure) {
+      throw scheduleFailure;
+    }
     schedules.push(request);
   },
   setNotificationChannelAsync: async (id: string, options: Record<string, unknown>) => {
@@ -166,10 +188,15 @@ beforeEach(() => {
   permission.requested = 'granted';
   permission.canAskAgain = true;
   cancelFailure = null;
+  scheduleFailure = null;
   channelFailure = null;
+  channelImportance.clear();
+  channelReads = 0;
+  channelReadFailure = null;
   authState.throws = false;
   expoConfig.extra = { eas: { projectId: 'project-id' } };
   rn.Platform.OS = 'ios';
+  i18nState.language = '';
   upsertResult = async () => ({ error: null });
   updateResult = async () => ({ error: null });
   getToken = async () => ({ data: 'expo-token' });
@@ -243,6 +270,60 @@ test('the channel setup is memoized per launch, so repeated callers configure it
   assert.deepEqual(channels, [], 'the first successful setup is the only one');
 });
 
+test('the channel is renamed once the app language has loaded, then memoized again', async () => {
+  // Startup creates the channel before a non-English interface language has loaded,
+  // so its name (shown in Android's notification settings) was stuck in English.
+  rn.Platform.OS = 'android';
+  i18nState.language = 'ru:';
+
+  await notifications.setupAndroidChannels();
+  await notifications.setupAndroidChannels();
+
+  assert.deepEqual(
+    channels.map(({ id, options }) => [id, options.name]),
+    [['daily-reminder', 'ru:notifications.channelDailyReminder']]
+  );
+});
+
+test('a reminder whose Android channel the user switched off is reported as blocked', async () => {
+  // Android lets the user turn off one notification category while the app-level
+  // permission stays granted; the reminder then never appears.
+  rn.Platform.OS = 'android';
+  channelImportance.set('daily-reminder', 1);
+
+  assert.equal(await notifications.isDailyReminderBlockedBySystem(), true);
+});
+
+test('a reminder channel that is on, or not created yet, is not reported as blocked', async () => {
+  rn.Platform.OS = 'android';
+  assert.equal(await notifications.isDailyReminderBlockedBySystem(), false);
+
+  channelImportance.set('daily-reminder', 3);
+  assert.equal(await notifications.isDailyReminderBlockedBySystem(), false);
+});
+
+test('a reminder is reported as blocked when the app permission is denied', async () => {
+  permission.current = 'denied';
+  assert.equal(await notifications.isDailyReminderBlockedBySystem(), true);
+
+  rn.Platform.OS = 'android';
+  assert.equal(await notifications.isDailyReminderBlockedBySystem(), true);
+});
+
+test('iOS never reads Android channels when checking whether the reminder is blocked', async () => {
+  channelImportance.set('daily-reminder', 1);
+
+  assert.equal(await notifications.isDailyReminderBlockedBySystem(), false);
+  assert.equal(channelReads, 0);
+});
+
+test('an unreadable channel is not reported as blocked', async () => {
+  rn.Platform.OS = 'android';
+  channelReadFailure = new Error('notification service unavailable');
+
+  assert.equal(await notifications.isDailyReminderBlockedBySystem(), false);
+});
+
 test('scheduling a reminder on Android waits for the channel its trigger names', async () => {
   rn.Platform.OS = 'android';
 
@@ -301,6 +382,21 @@ test('an existing grant is reported as granted', async () => {
   assert.equal(await notifications.requestNotificationPermissionOutcome(), 'granted');
 });
 
+test('reading the permission status never prompts', async () => {
+  permission.current = 'denied';
+
+  assert.equal(await notifications.getNotificationPermissionStatus(), 'denied');
+  assert.deepEqual(permissionCalls, ['get']);
+});
+
+test('the permission status reports a grant and an unasked state as they are', async () => {
+  permission.current = 'granted';
+  assert.equal(await notifications.getNotificationPermissionStatus(), 'granted');
+
+  permission.current = 'undetermined';
+  assert.equal(await notifications.getNotificationPermissionStatus(), 'undetermined');
+});
+
 test('a denied prompt reports that notifications are unavailable', async () => {
   permission.current = 'undetermined';
   permission.requested = 'denied';
@@ -326,6 +422,8 @@ test('scheduling a reminder replaces the previous one under a stable identifier'
     title: 'settings.notificationTitle',
     body: 'settings.notificationBody',
     sound: true,
+    // Lets a tap on the reminder open Plans (see notificationTapRouting).
+    data: { screen: 'plans' },
   });
 });
 
@@ -380,6 +478,128 @@ test('cancelling a reminder that is not scheduled is not an error', async () => 
   cancelFailure = new Error('no scheduled notification with that identifier');
 
   await assert.doesNotReject(() => notifications.cancelDailyReminder());
+});
+
+// ─── Keeping the scheduled reminder in line with the preference ───────────────
+
+/** Leaves the reminder cancelled and the recorders empty, whatever ran before. */
+const startWithNoReminder = async () => {
+  await notifications.cancelDailyReminder();
+  cancellations.length = 0;
+  schedules.length = 0;
+};
+
+const scheduledAt = () =>
+  schedules.map((request) => {
+    const trigger = request.trigger as { hour: number; minute: number };
+    return [trigger.hour, trigger.minute, (request.content as { title: string }).title];
+  });
+
+test('an enabled reminder preference is scheduled at its saved time', async () => {
+  await startWithNoReminder();
+
+  await notifications.reconcileDailyReminder({ notificationsEnabled: true, reminderTime: '07:30' });
+
+  assert.deepEqual(scheduledAt(), [[7, 30, 'settings.notificationTitle']]);
+});
+
+test('reconciling an unchanged reminder leaves the schedule alone', async () => {
+  await startWithNoReminder();
+  const preference = { notificationsEnabled: true, reminderTime: '07:30' };
+
+  await notifications.reconcileDailyReminder(preference);
+  await notifications.reconcileDailyReminder(preference);
+
+  assert.equal(schedules.length, 1);
+});
+
+test('a reminder set from Settings is not scheduled a second time by the reconcile after it', async () => {
+  await startWithNoReminder();
+
+  await notifications.scheduleDailyReminder(21, 15);
+  await notifications.reconcileDailyReminder({ notificationsEnabled: true, reminderTime: '21:15' });
+
+  assert.equal(schedules.length, 1);
+});
+
+test('changing the app language reschedules the reminder so its text is in the new language', async () => {
+  // The notification's title and body are fixed when it is scheduled, so a
+  // reminder set in English kept arriving in English after switching to Nepali.
+  await startWithNoReminder();
+  const preference = { notificationsEnabled: true, reminderTime: '07:30' };
+  await notifications.reconcileDailyReminder(preference);
+
+  i18nState.language = 'ne:';
+  await notifications.reconcileDailyReminder(preference);
+
+  assert.deepEqual(scheduledAt(), [
+    [7, 30, 'settings.notificationTitle'],
+    [7, 30, 'ne:settings.notificationTitle'],
+  ]);
+});
+
+test('moving to another timezone reschedules the reminder for the new local time', async (t) => {
+  // Android arms the daily alarm at an absolute instant, so after travel the
+  // next reminder would ring at the old zone's 07:30 until it is rescheduled.
+  await startWithNoReminder();
+  const originalTz = process.env.TZ;
+  t.after(() => {
+    process.env.TZ = originalTz;
+  });
+  const preference = { notificationsEnabled: true, reminderTime: '07:30' };
+
+  process.env.TZ = 'Asia/Tokyo';
+  await notifications.reconcileDailyReminder(preference);
+  process.env.TZ = 'Pacific/Honolulu';
+  await notifications.reconcileDailyReminder(preference);
+
+  assert.equal(schedules.length, 2);
+});
+
+test('a disabled preference cancels a reminder that is still scheduled', async () => {
+  // Sign-out resets the preference to off, and another device can turn it off;
+  // either way the one already on this device must stop ringing.
+  await startWithNoReminder();
+  await notifications.scheduleDailyReminder(7, 30);
+  cancellations.length = 0;
+
+  await notifications.reconcileDailyReminder({
+    notificationsEnabled: false,
+    reminderTime: '07:30',
+  });
+
+  assert.deepEqual(cancellations, ['daily-reading-reminder']);
+});
+
+test('an enabled preference with no usable time cancels rather than guessing a time', async () => {
+  await startWithNoReminder();
+  await notifications.scheduleDailyReminder(7, 30);
+  schedules.length = 0;
+  cancellations.length = 0;
+
+  await notifications.reconcileDailyReminder({ notificationsEnabled: true, reminderTime: null });
+
+  assert.deepEqual([schedules.length, cancellations], [0, ['daily-reading-reminder']]);
+});
+
+test('a reminder that is already off is not cancelled again on every reconcile', async () => {
+  await startWithNoReminder();
+
+  await notifications.reconcileDailyReminder({ notificationsEnabled: false, reminderTime: null });
+
+  assert.deepEqual(cancellations, []);
+});
+
+test('a reminder that failed to schedule is tried again on the next reconcile', async () => {
+  await startWithNoReminder();
+  const preference = { notificationsEnabled: true, reminderTime: '07:30' };
+  scheduleFailure = new Error('alarm service unavailable');
+  await assert.rejects(() => notifications.reconcileDailyReminder(preference));
+
+  scheduleFailure = null;
+  await notifications.reconcileDailyReminder(preference);
+
+  assert.equal(schedules.length, 1);
 });
 
 // ─── Push token registration ─────────────────────────────────────────────────

@@ -23,7 +23,7 @@ import {
 } from '../../data/gatherWisdom';
 import { useGatherStore } from '../../stores/gatherStore';
 import { getTranslatedBookName } from '../../constants/books';
-import { formatBibleReferenceLabel } from '../../services/gather/gatherReferenceLabel';
+import { countCompletedLessons, resolveGatherUpNext } from './gatherPathModel';
 import type { LearnStackParamList } from '../../navigation/types';
 
 type NavProp = NativeStackNavigationProp<LearnStackParamList, 'GatherHome'>;
@@ -40,20 +40,6 @@ const FOUNDATION_LESSON_TOTAL = gatherFoundations.reduce(
   (total, foundation) => total + foundation.lessons.length,
   0
 );
-
-// The path is linear, so "up next" is simply the first lesson nobody has ticked
-// off yet. Once every lesson is complete there is nothing to resume and the
-// caller drops the card rather than pointing back at finished work.
-function findUpNext(completedLessons: Record<string, string[]>) {
-  for (const foundation of gatherFoundations) {
-    const done = completedLessons[foundation.id] ?? [];
-    const lesson = foundation.lessons.find((candidate) => !done.includes(candidate.id));
-    if (lesson) {
-      return { foundation, lesson };
-    }
-  }
-  return null;
-}
 
 // The lesson ledger: one 4pt cell per lesson, filled left to right as lessons
 // complete. A row with nothing done collapses to a single unbroken bar — an
@@ -158,13 +144,15 @@ export function GatherScreen() {
   // re-render when a lesson is marked complete on another screen.
   const completedLessons = useGatherStore((state) => state.completedLessons);
 
-  const completedIn = (parentId: string, total: number) =>
-    Math.min(completedLessons[parentId]?.length ?? 0, total);
+  const completedIn = (parent: { id: string; lessons: readonly { id: string }[] }) =>
+    countCompletedLessons(completedLessons[parent.id], parent.lessons);
 
   const translate = (key: string | undefined, fallback: string) =>
     key ? t(key as Parameters<typeof t>[0]) : fallback;
 
-  const upNext = findUpNext(completedLessons);
+  const upNext = resolveGatherUpNext(completedLessons, (bookId) =>
+    getTranslatedBookName(bookId, t)
+  );
 
   const openFoundation = (foundationId: string) =>
     navigation.navigate('FoundationDetail', { foundationId });
@@ -195,7 +183,10 @@ export function GatherScreen() {
           <Text style={[typography.eyebrow, displayFont.regular, { color: colors.secondaryText }]}>
             {t('gather.discoveryBibleStudy')}
           </Text>
-          <Text style={[typography.displayHero, displayFont.bold, { color: colors.primaryText }]}>
+          <Text
+            accessibilityRole="header"
+            style={[typography.displayHero, displayFont.bold, { color: colors.primaryText }]}
+          >
             {t('gather.title')}
           </Text>
         </View>
@@ -251,9 +242,7 @@ export function GatherScreen() {
                   </Text>
                   <Text style={[styles.upNextMeta, { color: colors.secondaryText }]}>
                     {t('gather.upNextSubtitle', {
-                      reference: formatBibleReferenceLabel(upNext.lesson.references, (bookId) =>
-                        getTranslatedBookName(bookId, t)
-                      ),
+                      reference: upNext.referenceLabel,
                       parent: translate(
                         FOUNDATION_TITLE_KEYS[upNext.foundation.id],
                         upNext.foundation.title
@@ -291,7 +280,7 @@ export function GatherScreen() {
 
           {gatherFoundations.map((foundation, index) => {
             const total = foundation.lessons.length;
-            const completed = completedIn(foundation.id, total);
+            const completed = completedIn(foundation);
             return (
               <View key={foundation.id}>
                 {index > 0 && (
@@ -324,7 +313,7 @@ export function GatherScreen() {
               0
             );
             const categoryCompleted = category.wisdoms.reduce(
-              (total, wisdom) => total + completedIn(wisdom.id, wisdom.lessonCount),
+              (total, wisdom) => total + completedIn(wisdom),
               0
             );
             return (
@@ -357,7 +346,7 @@ export function GatherScreen() {
                 <View style={[styles.listRule, { backgroundColor: colors.primaryText }]} />
 
                 {category.wisdoms.map((wisdom, index) => {
-                  const completed = completedIn(wisdom.id, wisdom.lessonCount);
+                  const completed = completedIn(wisdom);
                   return (
                     <View key={wisdom.id}>
                       {index > 0 && (
@@ -456,9 +445,11 @@ const styles = StyleSheet.create({
     gap: 14,
     paddingVertical: 14,
   },
+  // A floor, not a width: "10" in the numeral face at accessibility sizes is
+  // wider than 34pt and broke onto two lines.
   pathNumeral: {
     ...typography.numeralRow,
-    width: 34,
+    minWidth: 34,
   },
   pathBody: {
     flex: 1,
@@ -467,9 +458,11 @@ const styles = StyleSheet.create({
   pathTitle: {
     ...typography.rowTitle,
   },
+  // A floor, not a fixed width: "10/10" at a large accessibility text size
+  // would otherwise truncate to "1…".
   pathCount: {
     ...typography.mono,
-    width: 30,
+    minWidth: 30,
     textAlign: 'right',
   },
   ledgerTrack: {

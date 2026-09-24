@@ -326,8 +326,9 @@ test('the dot grid and the ledger rows agree on a recurring day read by its date
 
   assert.deepEqual(ledgerRow(view, 10).props.accessibilityValue, { text: 'Completed' });
   assert.equal(ledgerRow(view, 9).props.accessibilityValue, undefined);
-  // 23 days are behind today; one was read, the rest missed.
-  assert.ok(view.getByText('1 of 31 days · 22 missed'));
+  // September has 30 days, so the month-long cycle does too; 23 are behind today,
+  // one was read, the rest missed.
+  assert.ok(view.getByText('1 of 30 days · 22 missed'));
 });
 
 test('cycle days that ran before the reader joined are neither missed nor completed', async () => {
@@ -338,7 +339,7 @@ test('cycle days that ran before the reader joined are neither missed nor comple
   const view = await renderPlan(PROVERBS);
 
   // Only the 20th to the 23rd were due since joining.
-  assert.ok(view.getByText('0 of 31 days · 4 missed'));
+  assert.ok(view.getByText('0 of 30 days · 4 missed'));
   const dayLabelColour = (day: number) =>
     flattenStyle(within(ledgerRow(view, day)).getByText(`Day ${day}`).props.style)?.color;
   assert.equal(dayLabelColour(5), palette.textTertiary, 'pre-enrolment day renders neutral');

@@ -3,3 +3,5 @@ node_modules
 dist
 .vercel
 .env*.local
+# Copied from maplibre-gl at build time by next.config.mjs
+/public/maplibre/

@@ -115,6 +115,19 @@ test('a mutation that leaves the persisted ledgers unchanged does not rewrite st
   assert.equal(writes.mock.callCount(), 1);
 });
 
+test('after the stored ledger is cleared, the next unchanged mutation writes it back', async (t) => {
+  t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 8) });
+  state().markChapterRead('GEN', 1);
+
+  await useProgressStore.persist.clearStorage();
+  assert.equal(mmkv.store.has('progress-storage'), false);
+
+  // The in-memory ledger still holds GEN 1; the write-skip cache must not
+  // treat the cleared storage as already holding it.
+  useProgressStore.setState({});
+  assert.deepEqual(Object.keys(readPersisted().state.chaptersRead), ['GEN_1']);
+});
+
 test('re-reading a chapter overwrites its timestamp rather than adding a key', (t) => {
   t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 8) });
   state().markChapterRead('GEN', 1);
@@ -167,9 +180,28 @@ test('reading on the next calendar day continues the streak', (t) => {
   assert.equal(state().lastReadDate, '2026-09-09');
 });
 
-test('a two-day-old lastReadDate still counts as continuing, for the UTC-to-local upgrade', (t) => {
+test('skipping a single day breaks the streak', (t) => {
+  // Read on the 8th, nothing on the 9th, read again on the 10th.
+  t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 8) });
+  state().markChapterRead('GEN', 1);
+
+  t.mock.timers.setTime(localNoon(2026, 9, 10));
+  state().markChapterRead('GEN', 2);
+
+  assert.equal(state().streakDays, 1);
+  assert.equal(state().lastReadDate, '2026-09-10');
+});
+
+test('a UTC-dated lastReadDate from before the local-day fix continues when a chapter was read yesterday', (t) => {
+  // Builds before the fix stored the UTC date, which can trail the reader's own
+  // calendar by a day. The chapter ledger's timestamps are exact, so a read that
+  // fell on the local yesterday still proves the streak is unbroken.
   t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 10) });
-  useProgressStore.setState({ streakDays: 7, lastReadDate: '2026-09-08' });
+  useProgressStore.setState({
+    streakDays: 7,
+    lastReadDate: '2026-09-08',
+    chaptersRead: { GEN_1: localNoon(2026, 9, 9) },
+  });
 
   state().updateStreak();
 
@@ -733,13 +765,70 @@ test('a lastReadDate in the future is treated as a broken streak and restarts at
   assert.equal(state().lastReadDate, '2026-09-08');
 });
 
-test('tomorrow is not accepted as a continuing day, only yesterday and the day before', (t) => {
+test('a lastReadDate one day ahead, from flying west over the date line, keeps the streak', (t) => {
+  // Read on the 9th in Tokyo, land in Honolulu where it is still the 8th: the
+  // reader has not missed a day, so neither the count nor its date moves back.
   t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 8) });
   useProgressStore.setState({ streakDays: 12, lastReadDate: '2026-09-09' });
 
   state().updateStreak();
 
-  assert.equal(state().streakDays, 1);
+  assert.equal(state().streakDays, 12);
+  assert.equal(state().lastReadDate, '2026-09-09');
+});
+
+test('after flying west the streak carries on from the day already logged', (t) => {
+  t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 8) });
+  useProgressStore.setState({ streakDays: 12, lastReadDate: '2026-09-09' });
+  state().updateStreak();
+
+  t.mock.timers.setTime(localNoon(2026, 9, 10));
+  state().updateStreak();
+
+  assert.equal(state().streakDays, 13);
+  assert.equal(state().lastReadDate, '2026-09-10');
+});
+
+// ---------------------------------------------------------------------------
+// the streak a screen shows
+// ---------------------------------------------------------------------------
+
+test('the shown streak is the stored count while the last read was today or yesterday', async () => {
+  const { selectCurrentStreakDays } = await import('./progressStore');
+  const now = new Date(localNoon(2026, 9, 10));
+
+  assert.deepEqual(
+    ['2026-09-10', '2026-09-09'].map((lastReadDate) =>
+      selectCurrentStreakDays({ streakDays: 6, lastReadDate }, now)
+    ),
+    [6, 6]
+  );
+});
+
+test('the shown streak drops to zero once a whole day has passed without reading', async () => {
+  // The stored count only changes on the next read, so a reader who stopped a
+  // week ago must not keep seeing last week's streak.
+  const { selectCurrentStreakDays } = await import('./progressStore');
+  const now = new Date(localNoon(2026, 9, 10));
+
+  assert.deepEqual(
+    ['2026-09-08', '2026-08-01', null].map((lastReadDate) =>
+      selectCurrentStreakDays({ streakDays: 6, lastReadDate }, now)
+    ),
+    [0, 0, 0]
+  );
+});
+
+test('the shown streak survives a westward date-line crossing', async () => {
+  const { selectCurrentStreakDays } = await import('./progressStore');
+
+  assert.equal(
+    selectCurrentStreakDays(
+      { streakDays: 6, lastReadDate: '2026-09-11' },
+      new Date(localNoon(2026, 9, 10))
+    ),
+    6
+  );
 });
 
 test('a zero streak already dated today stays zero, because today is never re-counted', (t) => {
@@ -753,15 +842,20 @@ test('a zero streak already dated today stays zero, because today is never re-co
   assert.equal(state().streakDays, 0);
 });
 
-test('the streak resumes from a two-day tolerance only once, not repeatedly', (t) => {
+test('a legacy UTC-dated streak resumes once, and a later real gap still breaks it', (t) => {
   t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 10) });
-  useProgressStore.setState({ streakDays: 5, lastReadDate: '2026-09-08' });
+  useProgressStore.setState({
+    streakDays: 5,
+    lastReadDate: '2026-09-08',
+    chaptersRead: { GEN_1: localNoon(2026, 9, 9) },
+  });
   state().updateStreak();
+  const resumed = state().streakDays;
 
   t.mock.timers.setTime(localNoon(2026, 9, 13));
   state().updateStreak();
 
-  assert.equal(state().streakDays, 1);
+  assert.deepEqual([resumed, state().streakDays], [6, 1]);
 });
 
 // ---------------------------------------------------------------------------

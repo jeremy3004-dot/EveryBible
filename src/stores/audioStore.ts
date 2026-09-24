@@ -42,8 +42,12 @@ interface AudioState {
   lastPlayedChapter: number | null;
   lastPosition: number;
 
-  // Sleep timer state
+  // Sleep timer state. The timer only runs while audio plays (the podcast and
+  // audiobook convention): while it runs `sleepTimerEndTime` holds the
+  // wall-clock stop time; while playback is paused or stopped the countdown is
+  // frozen in `sleepTimerRemainingMs` and the end time is recomputed on resume.
   sleepTimerEndTime: number | null;
+  sleepTimerRemainingMs: number | null;
 
   // Settings (persisted)
   playbackRate: PlaybackRate;
@@ -60,6 +64,8 @@ interface AudioState {
     chapter: number | null
   ) => void;
   setPosition: (position: number) => void;
+  /** Drops the durable resume point, e.g. once a chapter has been heard to the end. */
+  clearResumePosition: () => void;
   setDuration: (duration: number) => void;
   setError: (error: string | null) => void;
   syncQueueToTrack: (translationId: string, bookId: string, chapter: number) => void;
@@ -87,6 +93,32 @@ interface AudioState {
 
   // Reset
   resetPlayback: () => void;
+}
+
+/** Statuses during which a sleep timer counts down; buffering counts as playing. */
+const isSleepTimerRunningStatus = (status: AudioStatus) =>
+  status === 'playing' || status === 'loading';
+
+type SleepTimerFields = Pick<AudioState, 'sleepTimerEndTime' | 'sleepTimerRemainingMs'>;
+
+/**
+ * Moves the sleep timer between its running (end time) and frozen (remaining
+ * time) forms to follow a playback status change. Returns null when nothing changes.
+ */
+function getSleepTimerForStatus(
+  state: SleepTimerFields,
+  status: AudioStatus,
+  now: number
+): SleepTimerFields | null {
+  if (isSleepTimerRunningStatus(status)) {
+    if (state.sleepTimerRemainingMs === null) return null;
+    return { sleepTimerEndTime: now + state.sleepTimerRemainingMs, sleepTimerRemainingMs: null };
+  }
+  if (state.sleepTimerEndTime === null) return null;
+  return {
+    sleepTimerEndTime: null,
+    sleepTimerRemainingMs: Math.max(0, state.sleepTimerEndTime - now),
+  };
 }
 
 const selectPersistedAudioState = (state: AudioState) => ({
@@ -166,6 +198,7 @@ export const useAudioStore = create<AudioState>()(
       lastPlayedChapter: null,
       lastPosition: 0,
       sleepTimerEndTime: null,
+      sleepTimerRemainingMs: null,
 
       // Initial settings
       playbackRate: 1.0,
@@ -176,8 +209,11 @@ export const useAudioStore = create<AudioState>()(
 
       // Playback actions
       setStatus: (status) => {
+        const state = get();
         const error = status === 'error' ? 'Playback error' : null;
-        if (get().status !== status || get().error !== error) set({ status, error });
+        if (state.status !== status || state.error !== error) {
+          set({ status, error, ...getSleepTimerForStatus(state, status, Date.now()) });
+        }
       },
 
       setCurrentTrack: (translationId, bookId, chapter) =>
@@ -204,11 +240,18 @@ export const useAudioStore = create<AudioState>()(
         }
       },
 
+      clearResumePosition: () => {
+        if (get().lastPosition !== 0) set({ lastPosition: 0 });
+      },
+
       setDuration: (duration) => {
         if (get().duration !== duration) set({ duration });
       },
 
-      setError: (error) => set({ error, status: error ? 'error' : 'idle' }),
+      setError: (error) => {
+        const status: AudioStatus = error ? 'error' : 'idle';
+        set({ error, status, ...getSleepTimerForStatus(get(), status, Date.now()) });
+      },
 
       syncQueueToTrack: (translationId, bookId, chapter) =>
         set((state) => {
@@ -271,23 +314,29 @@ export const useAudioStore = create<AudioState>()(
           repeatMode: getNextRepeatMode(state.repeatMode),
         })),
 
-      setSleepTimer: (minutes) =>
+      setSleepTimer: (minutes) => {
+        const lengthMs = minutes ? minutes * 60 * 1000 : null;
+        const isRunning = lengthMs !== null && isSleepTimerRunningStatus(get().status);
         set({
           sleepTimerMinutes: minutes,
-          sleepTimerEndTime: minutes ? Date.now() + minutes * 60 * 1000 : null,
-        }),
+          sleepTimerEndTime: isRunning ? Date.now() + lengthMs : null,
+          sleepTimerRemainingMs: isRunning ? null : lengthMs,
+        });
+      },
 
       clearSleepTimer: () =>
         set({
           sleepTimerMinutes: null,
           sleepTimerEndTime: null,
+          sleepTimerRemainingMs: null,
         }),
 
       setBackgroundMusicChoice: (choice) => set({ backgroundMusicChoice: choice }),
 
       // Reset playback state
       resetPlayback: () =>
-        set({
+        set((state) => ({
+          ...getSleepTimerForStatus(state, 'idle', Date.now()),
           status: 'idle',
           currentTranslationId: null,
           currentBookId: null,
@@ -296,7 +345,7 @@ export const useAudioStore = create<AudioState>()(
           duration: 0,
           error: null,
           audioReturnTarget: null,
-        }),
+        })),
     }),
     {
       name: 'audio-storage',

@@ -33,6 +33,25 @@ function normalizeRelativeAssetPath(value: string): string | null {
 // Stored URLs have already been validated at write time, so a regex is sufficient
 // here. Non-absolute strings fall through to the relative-path normalizer.
 const ABSOLUTE_HTTP_RE = /^https?:\/\//i;
+const PLAIN_HTTP_RE = /^http:\/\//i;
+
+// Guarded because node --test has no __DEV__ (and so behaves like a release build).
+const isDevRuntime = (): boolean => typeof __DEV__ !== 'undefined' && __DEV__;
+
+/**
+ * Media URLs come from remote catalog data. Release builds never fetch them over plain
+ * http: ATS / Android cleartext rules would block most such loads anyway, but iOS still
+ * allowed local-network hosts, and streamed audio has no checksum. Upgrading (rather than
+ * dropping) keeps an asset working when its host also serves https. Development builds
+ * keep http so a local media server on the LAN still works.
+ */
+export function requireSecureMediaUrl(url: string): string {
+  if (!PLAIN_HTTP_RE.test(url) || isDevRuntime()) {
+    return url;
+  }
+
+  return `https://${url.slice('http://'.length)}`;
+}
 
 export function sanitizeBibleAssetReference(value: unknown): string | null {
   if (typeof value !== 'string') {
@@ -45,7 +64,7 @@ export function sanitizeBibleAssetReference(value: unknown): string | null {
   }
 
   if (ABSOLUTE_HTTP_RE.test(trimmed)) {
-    return trimmed;
+    return requireSecureMediaUrl(trimmed);
   }
 
   return normalizeRelativeAssetPath(trimmed);

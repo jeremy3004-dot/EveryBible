@@ -1,16 +1,34 @@
 import { supabase, isSupabaseConfigured } from '../supabase';
 import type { PrayerInteraction, PrayerRequest } from '../supabase/types';
-import { aggregateInteractionCounts, attachCountsToPrayerRequests } from './prayerModel';
+import {
+  aggregateInteractionCounts,
+  attachCountsToPrayerRequests,
+  prayerWriteErrorCode,
+  viewerInteractionsByRequest,
+  type PrayerReportReason,
+  type PrayerWriteErrorCode,
+} from './prayerModel';
 
 export interface PrayerServiceResult<T = void> {
   success: boolean;
   data?: T;
   error?: string;
+  /** Set when the server refused a write for a reason the wall explains to the member. */
+  code?: PrayerWriteErrorCode;
 }
 
 export interface PrayerRequestWithCounts extends PrayerRequest {
   prayed_count: number;
   encouraged_count: number;
+  /** Whether the signed-in viewer has already prayed for / encouraged this request. */
+  viewer_prayed: boolean;
+  viewer_encouraged: boolean;
+}
+
+/** A failed write, with the code for a refusal the wall can explain (see prayerModel). */
+function writeFailure(message: string): PrayerServiceResult<never> {
+  const code = prayerWriteErrorCode(message);
+  return code ? { success: false, error: message, code } : { success: false, error: message };
 }
 
 export interface InteractionCounts {
@@ -59,7 +77,7 @@ export async function listPrayerRequests(
 
     const { data: interactions, error: interactionsError } = await supabase
       .from('prayer_interactions')
-      .select('request_id, type')
+      .select('request_id, type, user_id')
       .in('request_id', requestIds);
 
     if (interactionsError) {
@@ -67,7 +85,8 @@ export async function listPrayerRequests(
     }
 
     const countMap = aggregateInteractionCounts(requestIds, interactions ?? []);
-    const data = attachCountsToPrayerRequests(requests as PrayerRequest[], countMap);
+    const viewerMap = viewerInteractionsByRequest(user.id, interactions ?? []);
+    const data = attachCountsToPrayerRequests(requests as PrayerRequest[], countMap, viewerMap);
 
     return { success: true, data };
   } catch (error) {
@@ -113,7 +132,7 @@ export async function createPrayerRequest(
       .single();
 
     if (error) {
-      return { success: false, error: error.message };
+      return writeFailure(error.message);
     }
 
     return { success: true, data: data as PrayerRequest };
@@ -158,7 +177,7 @@ export async function updatePrayerRequest(
       .single();
 
     if (error) {
-      return { success: false, error: error.message };
+      return writeFailure(error.message);
     }
 
     return { success: true, data: data as PrayerRequest };
@@ -215,7 +234,9 @@ export async function markPrayerAnswered(
   }
 }
 
-// Deletes a prayer request. RLS ensures only the original author can delete.
+// Deletes a prayer request. RLS lets the author delete their own request and the group
+// leader delete any request in their group, so the query filters by id alone. RLS hides a
+// refused delete as "0 rows", so that case is reported as a failure.
 export async function deletePrayerRequest(requestId: string): Promise<PrayerServiceResult> {
   if (!isSupabaseConfigured()) {
     return { success: false, error: 'EveryBible backend is not configured for this build yet.' };
@@ -235,14 +256,18 @@ export async function deletePrayerRequest(requestId: string): Promise<PrayerServ
   }
 
   try {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('prayer_requests')
       .delete()
       .eq('id', requestId)
-      .eq('user_id', user.id);
+      .select('id');
 
     if (error) {
       return { success: false, error: error.message };
+    }
+
+    if (!data || data.length === 0) {
+      return { success: false, error: 'Prayer request was not deleted' };
     }
 
     return { success: true };
@@ -344,3 +369,105 @@ export async function removeInteraction(
   }
 }
 
+// Reports a request to the EveryBible team (report_prayer_request RPC). The server hides it
+// from the reporter at once and from the whole group after 3 members report it.
+export async function reportPrayerRequest(
+  requestId: string,
+  reason: PrayerReportReason,
+  note?: string
+): Promise<PrayerServiceResult> {
+  if (!isSupabaseConfigured()) {
+    return { success: false, error: 'EveryBible backend is not configured for this build yet.' };
+  }
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError) {
+    return { success: false, error: authError.message };
+  }
+
+  if (!user) {
+    return { success: false, error: 'You must be signed in to report a prayer request' };
+  }
+
+  try {
+    const { error } = await supabase.rpc('report_prayer_request', {
+      p_request_id: requestId,
+      p_reason: reason,
+      p_note: note?.trim() || null,
+    });
+
+    if (error) {
+      return writeFailure(error.message);
+    }
+
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+// Blocks (or unblocks) another member for the signed-in user only. RLS on prayer_requests
+// then hides the blocked member's requests from the blocker; the blocked member is not told.
+async function setBlocked(userId: string, blocked: boolean): Promise<PrayerServiceResult> {
+  if (!isSupabaseConfigured()) {
+    return { success: false, error: 'EveryBible backend is not configured for this build yet.' };
+  }
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError) {
+    return { success: false, error: authError.message };
+  }
+
+  if (!user) {
+    return { success: false, error: 'You must be signed in to block someone' };
+  }
+
+  if (user.id === userId) {
+    return { success: false, error: 'You cannot block yourself' };
+  }
+
+  try {
+    const { error } = blocked
+      ? await supabase
+          .from('user_blocks')
+          .upsert(
+            { blocker_id: user.id, blocked_id: userId },
+            { onConflict: 'blocker_id,blocked_id', ignoreDuplicates: true }
+          )
+      : await supabase
+          .from('user_blocks')
+          .delete()
+          .eq('blocker_id', user.id)
+          .eq('blocked_id', userId);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+export function blockUser(userId: string): Promise<PrayerServiceResult> {
+  return setBlocked(userId, true);
+}
+
+export function unblockUser(userId: string): Promise<PrayerServiceResult> {
+  return setBlocked(userId, false);
+}

@@ -29,7 +29,7 @@ import {
 } from '../../components/ui';
 import { Skeleton } from '../../components/skeleton/Skeleton';
 import { useTheme } from '../../contexts/ThemeContext';
-import { useDisplayFont, useTabBarHeight } from '../../hooks';
+import { useDisplayFont, useLargeText, useTabBarHeight } from '../../hooks';
 import type { ThemeColors } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
 import { lightHaptic, successHaptic } from '../../utils';
@@ -389,7 +389,7 @@ function MyPlansSection({
             <View style={[styles.outlineAction, { borderColor: colors.accentPrimary }]}>
               <Text
                 style={[styles.outlineActionText, { color: colors.accentPrimary }]}
-                numberOfLines={1}
+                numberOfLines={2}
               >
                 {ctaLabel}
               </Text>
@@ -496,9 +496,12 @@ const createMyPlansStyles = (colors: ThemeColors) =>
     progressBar: {
       marginTop: spacing.md,
     },
+    // Wraps, and the CTA may shrink and take two lines: at large text sizes a
+    // one-line, unshrinkable "Continue reading" ran past the card edge.
     cardFooter: {
       marginTop: spacing.sm,
       flexDirection: 'row',
+      flexWrap: 'wrap',
       alignItems: 'center',
       justifyContent: 'space-between',
       gap: spacing.md,
@@ -508,7 +511,7 @@ const createMyPlansStyles = (colors: ThemeColors) =>
       borderRadius: radius.md,
       paddingVertical: 6,
       paddingHorizontal: 12,
-      flexShrink: 0,
+      flexShrink: 1,
     },
     outlineActionText: {
       ...typography.captionStrong,
@@ -548,6 +551,9 @@ interface FindPlansSectionProps {
 function FindPlansSection({ allPlans, userProgress, onPlanPress, colors }: FindPlansSectionProps) {
   const { t } = useTranslation();
   const displayFont = useDisplayFont();
+  // Two rhythm cards to a row leaves ~150pt per title; at large text sizes that
+  // is a word per line, so each card takes the full row instead.
+  const { isLargeText } = useLargeText();
   const enrolledPlanIds = new Set(userProgress.map((p) => p.plan_id));
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -651,7 +657,7 @@ function FindPlansSection({ allPlans, userProgress, onPlanPress, colors }: FindP
             .filter(Boolean)
             .join(', '),
         }}
-        style={styles.rhythmCard}
+        style={[styles.rhythmCard, isLargeText && styles.rhythmCardFullRow]}
       >
         <View style={styles.rhythmCoverFrame}>
           <CoverImage plan={plan} colors={colors} t={t} initialSize={34} />
@@ -702,7 +708,7 @@ function FindPlansSection({ allPlans, userProgress, onPlanPress, colors }: FindP
           <Text style={styles.rowTitle} numberOfLines={2}>
             {title}
           </Text>
-          <Text style={[styles.metaEyebrow, displayFont.regular]} numberOfLines={1}>
+          <Text style={[styles.metaEyebrow, displayFont.regular]} numberOfLines={2}>
             {metaParts.join(' · ')}
           </Text>
         </View>
@@ -809,7 +815,9 @@ const createFindPlansStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.sm,
-      height: 44,
+      // minHeight, not height: the query grows with the OS text size and a
+      // fixed 44pt strip clipped its glyphs at accessibility sizes.
+      minHeight: 44,
       borderWidth: 1,
       borderRadius: radius.lg,
       borderColor: colors.controlBorder,
@@ -841,6 +849,9 @@ const createFindPlansStyles = (colors: ThemeColors) =>
       flexGrow: 0,
       flexBasis: '48%',
       paddingBottom: spacing.md,
+    },
+    rhythmCardFullRow: {
+      flexBasis: '100%',
     },
     rhythmCoverFrame: {
       width: '100%',

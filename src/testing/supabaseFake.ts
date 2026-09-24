@@ -119,9 +119,13 @@ export interface SupabaseAuthHandlers {
     email: string,
     options?: unknown
   ) => AuthResult<Record<string, never> | null>;
-  exchangeCodeForSession: (code: string) => AuthResult<UserSessionData>;
+  exchangeCodeForSession: (
+    code: string
+  ) => AuthResult<UserSessionData & { redirectType?: string | null }>;
   startAutoRefresh: () => Promise<void>;
   stopAutoRefresh: () => Promise<void>;
+  /** auth-js's local-only session removal (not public API): storage cleared, SIGNED_OUT emitted. */
+  _removeSession: () => Promise<void>;
 }
 
 const FILTER_METHODS = [
@@ -299,12 +303,22 @@ export function createSupabaseFake() {
     }),
     updateUser: async () => ({ data: { user: authState.user }, error: null }),
     resetPasswordForEmail: async () => ({ data: {}, error: null }),
-    exchangeCodeForSession: async () => ({
-      data: { session: authState.session, user: authState.user },
-      error: null,
-    }),
+    // Like auth-js: a successful exchange saves the session, and `redirectType`
+    // says which request stored the code verifier.
+    exchangeCodeForSession: async () => {
+      const next = makeFakeSession();
+      fake.auth.setSession(next);
+      return {
+        data: { session: next, user: next.user, redirectType: 'PASSWORD_RECOVERY' },
+        error: null,
+      };
+    },
     startAutoRefresh: async () => undefined,
     stopAutoRefresh: async () => undefined,
+    _removeSession: async () => {
+      fake.auth.setSession(null);
+      emitAuth('SIGNED_OUT', null);
+    },
   };
 
   const defaultAuthHandlers = { ...authHandlers };

@@ -58,3 +58,40 @@ test('a signed-in non-admin sent to login as forbidden stays there instead of lo
   claims = { sub: 'user-7' };
   assert.deepEqual(await visit('/login?reason=forbidden'), { next: true });
 });
+
+test('the session proxy is installed under the file name this Next.js version loads', async () => {
+  // Next 15 only runs `middleware.ts` (Next 16 renamed it to `proxy.ts`). A root `proxy.ts` on
+  // Next 15 is silently ignored: no session refresh, no signed-out redirect, and Server
+  // Components cannot write the refreshed Supabase cookies themselves.
+  const { MIDDLEWARE_FILENAME } = (await import('next/dist/lib/constants.js')) as {
+    MIDDLEWARE_FILENAME: string;
+  };
+  const entry = (await import(`../../${MIDDLEWARE_FILENAME}.ts`)) as Record<string, unknown>;
+  const handler = entry[MIDDLEWARE_FILENAME] ?? entry.default;
+  assert.equal(typeof handler, 'function');
+
+  const response = await (
+    handler as (request: InstanceType<typeof NextRequest>) => Promise<Response>
+  )(new NextRequest('https://admin.example/analytics'));
+  assert.equal(
+    response.headers.get('location')?.replace('https://admin.example', ''),
+    '/login?reason=auth'
+  );
+});
+
+test('an unconfigured deployment reaches the setup card instead of failing every request', async () => {
+  // The dashboard layout renders AdminSetupCard when env keys are missing. Now that the
+  // middleware actually runs, throwing on missing env here would 500 every page first.
+  const saved = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+  try {
+    assert.deepEqual(await visit('/analytics'), { next: true });
+  } finally {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = saved;
+  }
+});
+
+test('the Vercel cron endpoint is not bounced to login: it has its own bearer-secret gate', async () => {
+  // Cron requests carry no session cookie. Redirecting them would stop the daily upstream sync.
+  assert.deepEqual(await visit('/api/cron/upstream-sync'), { next: true });
+});

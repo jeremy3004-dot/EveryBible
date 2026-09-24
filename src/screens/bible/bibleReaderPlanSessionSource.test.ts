@@ -178,8 +178,8 @@ test('BibleReaderScreen reuses the bottom strip in read and listen modes without
   );
   assert.match(
     source,
-    /height:\s*planSessionBottomBarHeight/,
-    'BibleReaderScreen should size the plan strip to the full tab-bar footprint'
+    /minHeight:\s*planSessionBottomBarHeight/,
+    'BibleReaderScreen should size the plan strip to at least the full tab-bar footprint, growing only when large text needs it'
   );
   assert.match(
     source,
@@ -291,10 +291,12 @@ test('BibleReaderScreen avoids auto-completing plan chapters on open and returns
 
   // Skipping the on-load markChapterRead in a plan session is covered behaviourally in
   // readerChapterLoader.test.ts.
+  // Which chapters a completed step records is covered behaviourally by
+  // getPlanStepReadChapters in readingPlanActivity.test.ts.
   assert.match(
-    source,
-    /if \(shouldRecordReadCompletion && !\(activeChapterKey in chaptersRead\)\) \{[\s\S]*markChapterRead\(bookId, chapter\);[\s\S]*\}/s,
-    'BibleReaderScreen should only count the current chapter as read when the user explicitly completes the plan step in read mode'
+    handleCompletePlanDaySource,
+    /if \(chapterSessionMode === 'read'\) \{\s*for \(const read of getPlanStepReadChapters\(activePlanSessionEntries\)\) \{\s*markChapterRead\(read\.bookId, read\.chapter\);/s,
+    'BibleReaderScreen should record the step as read only when the user explicitly completes it in read mode, even for chapters read before'
   );
   assert.match(
     handleCompletePlanDaySource,

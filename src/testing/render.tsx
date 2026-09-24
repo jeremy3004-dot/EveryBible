@@ -107,7 +107,7 @@ export interface RenderHarnessOptions {
   insets?: Partial<Insets>;
   /**
    * Fakes for `src/hooks` barrel exports the component uses beyond the light
-   * ones kept real (`useDisplayFont`, `useTabBarHeight`, `useKeyboardBottomInset`).
+   * ones kept real (`useDisplayFont`, `useTabBarHeight`, `useKeyboardBottomInset`, `useLargeText`).
    */
   hooks?: Record<string, unknown>;
   /**
@@ -123,6 +123,7 @@ export interface RenderHarnessOptions {
 const LIGHT_BARREL_HOOKS = [
   'useDisplayFont',
   'useKeyboardBottomInset',
+  'useLargeText',
   'useTabBarHeight',
   'TAB_BAR_CAPSULE_HEIGHT',
   'TAB_BAR_CAPSULE_SIDE_INSET',

@@ -60,11 +60,21 @@ export interface RecordedTranslationDownload {
   transport: unknown;
 }
 
+export interface TextPackPaths {
+  finalPath: string;
+  stagingPath: string;
+  rollbackPath: string;
+}
+
+export type TextPackRecoveryResult = 'current' | 'current-without-rollback' | 'previous' | 'none';
+
 export interface RecordedTextPackDownload {
   translationId: string;
   downloadUrl: string;
   expectedSha256?: string;
   expectedVerseCount?: number;
+  operationId?: string;
+  onPhase?: (phase: 'verifying' | 'activating') => void;
   onProgress?: (progress: {
     error?: string;
     phase: 'fetching' | 'indexing' | 'complete' | 'error';
@@ -80,15 +90,25 @@ export const AUDIO_ROOT_URI = 'file:///audio/';
 export interface BibleStoreDoubles {
   database: {
     invalidatedPaths: string[];
+    /** Search-index builds the store asked for, by translation id. */
+    searchIndexBuilds: string[];
+    /** Invalidations and pack-artifact deletions, in order ("invalidate:<path>", "delete:<path>"). */
+    packLifecycle: string[];
     invalidateError: Error | null;
     resolverRegistrations: number;
     resolver: ((translationId: string) => unknown) | null;
     readbackBookId: string;
     readbackChapter: number;
+    /** The store's `ensureTranslationReady` hook, captured at import time. */
+    readinessResolver: ((translationId: string) => Promise<void>) | null;
+    /** Runs inside `getChapter` before it answers; lets a test re-enter the store mid-read. */
+    beforeGetChapter: ((translationId: string) => Promise<void>) | null;
   };
   translations: {
     preferenceCalls: Array<Record<string, unknown>>;
     preferenceError: Error | null;
+    /** Throw synchronously instead of rejecting, like a module that fails to load. */
+    preferenceThrowsSynchronously: boolean;
   };
   remote: {
     /** Translation ids `isRemoteAudioAvailable` reports as playable. */
@@ -108,6 +128,28 @@ export interface BibleStoreDoubles {
     validationChapter: number;
     /** Resolve with the installed pack path, or throw to fail the install. */
     run: (call: RecordedTextPackDownload) => Promise<string>;
+    /** Whether `cancelActiveCatalogTextPackDownload` accepts the request. */
+    cancelAccepted: boolean;
+    /** Thrown synchronously by `cancelActiveCatalogTextPackDownload` when set. */
+    cancelError: Error | null;
+    /** Rejection for `waitForActiveCatalogTextPackDownload` when set. */
+    waitError: Error | null;
+    /** Classifies an error as a user cancellation (`isTextPackDownloadCancelled`). */
+    isCancelled: (error: unknown) => boolean;
+    /** `getCatalogTextPackPaths`; undefined means the service has no journaled paths. */
+    paths: (translationId: string, operationId?: string) => TextPackPaths | undefined;
+    recoverCalls: TextPackPaths[];
+    recover: (paths: TextPackPaths) => Promise<TextPackRecoveryResult | undefined>;
+    validateCalls: Array<{
+      path: string;
+      expectedVerseCount?: number;
+      expectedSha256?: string;
+      translationId?: string;
+    }>;
+    /** Throw from `validateCatalogTextPack` for the given path when this returns an error. */
+    validateError: (path: string) => Error | null;
+    deletedArtifacts: string[];
+    deleteArtifacts: (path: string) => Promise<void>;
   };
   fileSystem: {
     deleted: Array<{ path: string; options: unknown }>;
@@ -133,6 +175,12 @@ export interface BibleStoreDoubles {
     cancelledJobIds: string[];
     cancelJobError: Error | null;
     cancellationRequests: string[];
+    /** Translation ids whose running downloads the store asked to stop. */
+    translationCancellations: string[];
+    /** Scripted completion of that stop; resolves at once by default. */
+    runTranslationCancellation: (translationId: string) => Promise<void>;
+    /** Called as the native transport is asked to stop a job. */
+    onCancelJob: ((jobId: string) => void) | null;
     ensureRunningCalls: number;
     bookDownloads: RecordedBookDownload[];
     translationDownloads: RecordedTranslationDownload[];
@@ -145,17 +193,40 @@ export interface BibleStoreDoubles {
   reset: () => void;
 }
 
+/** The default text-pack lifecycle scripts: no journaled paths, nothing to recover. */
+function defaultCloudScripts() {
+  return {
+    run: async (call: RecordedTextPackDownload) => `file:///packs/${call.translationId}.db`,
+    cancelAccepted: true,
+    cancelError: null,
+    waitError: null,
+    isCancelled: () => false,
+    paths: () => undefined,
+    recover: async () => undefined,
+    validateError: () => null,
+    deleteArtifacts: async () => {},
+  } satisfies Partial<BibleStoreDoubles['cloud']>;
+}
+
 export function installBibleStoreDoubles(mocker: MockTracker): BibleStoreDoubles {
   const doubles: BibleStoreDoubles = {
     database: {
       invalidatedPaths: [],
+      searchIndexBuilds: [],
+      packLifecycle: [],
       invalidateError: null,
       resolverRegistrations: 0,
       resolver: null,
       readbackBookId: 'GEN',
       readbackChapter: 1,
+      readinessResolver: null,
+      beforeGetChapter: null,
     },
-    translations: { preferenceCalls: [], preferenceError: null },
+    translations: {
+      preferenceCalls: [],
+      preferenceError: null,
+      preferenceThrowsSynchronously: false,
+    },
     remote: { availableAudioIds: new Set<string>(), syncedTranslationIds: [] },
     timestamps: { syncedTranslationIds: [] },
     analytics: { events: [] },
@@ -164,7 +235,10 @@ export function installBibleStoreDoubles(mocker: MockTracker): BibleStoreDoubles
       textCancellationRequests: 0,
       validationBookId: 'GEN',
       validationChapter: 1,
-      run: async (call) => `file:///packs/${call.translationId}.db`,
+      recoverCalls: [],
+      validateCalls: [],
+      deletedArtifacts: [],
+      ...defaultCloudScripts(),
     },
     fileSystem: {
       deleted: [],
@@ -192,6 +266,9 @@ export function installBibleStoreDoubles(mocker: MockTracker): BibleStoreDoubles
       cancelledJobIds: [],
       cancelJobError: null,
       cancellationRequests: [],
+      translationCancellations: [],
+      runTranslationCancellation: async () => {},
+      onCancelJob: null,
       ensureRunningCalls: 0,
       bookDownloads: [],
       translationDownloads: [],
@@ -202,11 +279,15 @@ export function installBibleStoreDoubles(mocker: MockTracker): BibleStoreDoubles
     },
     reset: () => {
       doubles.database.invalidatedPaths.length = 0;
+      doubles.database.searchIndexBuilds.length = 0;
+      doubles.database.packLifecycle.length = 0;
       doubles.database.invalidateError = null;
       doubles.database.readbackBookId = 'GEN';
       doubles.database.readbackChapter = 1;
+      doubles.database.beforeGetChapter = null;
       doubles.translations.preferenceCalls.length = 0;
       doubles.translations.preferenceError = null;
+      doubles.translations.preferenceThrowsSynchronously = false;
       doubles.remote.availableAudioIds.clear();
       doubles.remote.syncedTranslationIds.length = 0;
       doubles.timestamps.syncedTranslationIds.length = 0;
@@ -215,7 +296,10 @@ export function installBibleStoreDoubles(mocker: MockTracker): BibleStoreDoubles
       doubles.cloud.textCancellationRequests = 0;
       doubles.cloud.validationBookId = 'GEN';
       doubles.cloud.validationChapter = 1;
-      doubles.cloud.run = async (call) => `file:///packs/${call.translationId}.db`;
+      doubles.cloud.recoverCalls.length = 0;
+      doubles.cloud.validateCalls.length = 0;
+      doubles.cloud.deletedArtifacts.length = 0;
+      Object.assign(doubles.cloud, defaultCloudScripts());
       doubles.fileSystem.deleted.length = 0;
       doubles.fileSystem.deleteError = null;
       doubles.fileSystem.infoError = null;
@@ -236,6 +320,9 @@ export function installBibleStoreDoubles(mocker: MockTracker): BibleStoreDoubles
       doubles.audio.cancelledJobIds.length = 0;
       doubles.audio.cancelJobError = null;
       doubles.audio.cancellationRequests.length = 0;
+      doubles.audio.translationCancellations.length = 0;
+      doubles.audio.runTranslationCancellation = async () => {};
+      doubles.audio.onCancelJob = null;
       doubles.audio.ensureRunningCalls = 0;
       doubles.audio.bookDownloads.length = 0;
       doubles.audio.translationDownloads.length = 0;
@@ -250,14 +337,22 @@ export function installBibleStoreDoubles(mocker: MockTracker): BibleStoreDoubles
     DEFAULT_MINIMUM_READY_VERSE_COUNT: 120000,
     invalidateInstalledBibleDatabaseAtPath: async (localPath: string) => {
       doubles.database.invalidatedPaths.push(localPath);
+      doubles.database.packLifecycle.push(`invalidate:${localPath}`);
       if (doubles.database.invalidateError) {
         throw doubles.database.invalidateError;
       }
     },
-    getChapter: async (_translationId: string, bookId: string, chapter: number) =>
-      bookId === doubles.database.readbackBookId && chapter === doubles.database.readbackChapter
+    getChapter: async (translationId: string, bookId: string, chapter: number) => {
+      await doubles.database.beforeGetChapter?.(translationId);
+      return bookId === doubles.database.readbackBookId &&
+        chapter === doubles.database.readbackChapter
         ? [{ id: 1, bookId, chapter, verse: 1, text: 'fixture' }]
-        : [],
+        : [];
+    },
+    scheduleTextPackSearchIndexBuild: (translationId: string) => {
+      doubles.database.searchIndexBuilds.push(translationId);
+      return Promise.resolve('ready');
+    },
   });
 
   // The store registers its resolvers here at import time; bibleDatabase itself
@@ -267,15 +362,22 @@ export function installBibleStoreDoubles(mocker: MockTracker): BibleStoreDoubles
       doubles.database.resolverRegistrations += 1;
       doubles.database.resolver = resolver;
     },
-    setBibleTranslationReadinessResolver: () => {},
+    setBibleTranslationReadinessResolver: (
+      resolver: ((translationId: string) => Promise<void>) | null
+    ) => {
+      doubles.database.readinessResolver = resolver;
+    },
   });
 
   mockModule(mocker, sourcePath('services/translations/index.ts'), {
-    setUserTranslationPreferences: async (preferences: Record<string, unknown>) => {
+    setUserTranslationPreferences: (preferences: Record<string, unknown>) => {
       doubles.translations.preferenceCalls.push(preferences);
-      if (doubles.translations.preferenceError) {
-        throw doubles.translations.preferenceError;
+      if (doubles.translations.preferenceThrowsSynchronously) {
+        throw new Error('translations service failed to load');
       }
+      return doubles.translations.preferenceError
+        ? Promise.reject(doubles.translations.preferenceError)
+        : Promise.resolve();
     },
   });
 
@@ -305,23 +407,50 @@ export function installBibleStoreDoubles(mocker: MockTracker): BibleStoreDoubles
   mockModule(mocker, sourcePath('services/bible/cloudTranslationService.ts'), {
     cancelActiveCatalogTextPackDownload: (_translationId?: string) => {
       doubles.cloud.textCancellationRequests += 1;
-      return true;
+      if (doubles.cloud.cancelError) {
+        throw doubles.cloud.cancelError;
+      }
+      return doubles.cloud.cancelAccepted;
     },
-    waitForActiveCatalogTextPackDownload: async () => {},
-    isTextPackDownloadCancelled: () => false,
-    getCatalogTextPackPaths: () => undefined,
-    deleteCatalogTextPackArtifacts: async () => {},
-    recoverInterruptedCatalogTextPack: async () => {},
+    waitForActiveCatalogTextPackDownload: async () => {
+      if (doubles.cloud.waitError) {
+        throw doubles.cloud.waitError;
+      }
+    },
+    isTextPackDownloadCancelled: (error: unknown) => doubles.cloud.isCancelled(error),
+    getCatalogTextPackPaths: (translationId: string, operationId?: string) =>
+      doubles.cloud.paths(translationId, operationId),
+    deleteCatalogTextPackArtifacts: async (path: string) => {
+      doubles.cloud.deletedArtifacts.push(path);
+      doubles.database.packLifecycle.push(`delete:${path}`);
+      await doubles.cloud.deleteArtifacts(path);
+    },
+    recoverInterruptedCatalogTextPack: async (paths: TextPackPaths) => {
+      doubles.cloud.recoverCalls.push(paths);
+      return doubles.cloud.recover(paths);
+    },
     validateCatalogTextPack: async (
-      _path: string,
-      _expectedVerseCount?: number,
-      _expectedSha256?: string,
+      path: string,
+      expectedVerseCount?: number,
+      expectedSha256?: string,
       expectedTranslationId?: string
-    ) => ({
-      translationId: expectedTranslationId ?? 'fixture',
-      bookId: doubles.cloud.validationBookId,
-      chapter: doubles.cloud.validationChapter,
-    }),
+    ) => {
+      doubles.cloud.validateCalls.push({
+        path,
+        expectedVerseCount,
+        expectedSha256,
+        translationId: expectedTranslationId,
+      });
+      const error = doubles.cloud.validateError(path);
+      if (error) {
+        throw error;
+      }
+      return {
+        translationId: expectedTranslationId ?? 'fixture',
+        bookId: doubles.cloud.validationBookId,
+        chapter: doubles.cloud.validationChapter,
+      };
+    },
     downloadCatalogTextPack: async (call: RecordedTextPackDownload) => {
       doubles.cloud.calls.push(call);
       return doubles.cloud.run(call);
@@ -376,6 +505,10 @@ export function installBibleStoreDoubles(mocker: MockTracker): BibleStoreDoubles
     requestAudioDownloadCancellation: (jobId: string) => {
       doubles.audio.cancellationRequests.push(jobId);
     },
+    cancelAudioDownloadsForTranslation: async (translationId: string) => {
+      doubles.audio.translationCancellations.push(translationId);
+      await doubles.audio.runTranslationCancellation(translationId);
+    },
   });
 
   mockModule(mocker, sourcePath('services/audio/audioDownloadStorage.ts'), {
@@ -398,6 +531,7 @@ export function installBibleStoreDoubles(mocker: MockTracker): BibleStoreDoubles
         cancelJob: doubles.audio.supportsCancel
           ? async (jobId: string) => {
               doubles.audio.cancelledJobIds.push(jobId);
+              doubles.audio.onCancelJob?.(jobId);
               if (doubles.audio.cancelJobError) {
                 throw doubles.audio.cancelJobError;
               }

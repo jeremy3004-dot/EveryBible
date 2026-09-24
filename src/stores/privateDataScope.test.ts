@@ -365,15 +365,38 @@ test('an adoption killed after the owner was saved clears the adopted guest buck
   assert.deepEqual(useNotes.getState().notes, []);
 });
 
-test('a malformed owner marker falls back to the auth storage owner', () => {
-  mmkv.store.set(scope.PRIVATE_DATA_OWNER_KEY, '{"owner":42}');
-  seedInstallFromBeforeScoping('user-a');
-  mmkv.store.set(userKey(NOTES, 'user-a'), blob({ notes: ['a'] }));
+for (const [label, rawMarker] of [
+  ['a non-string owner', '{"owner":42}'],
+  ['an empty owner', '{"owner":""}'],
+  ['unparseable JSON', '{owner'],
+] as const) {
+  test(`a malformed owner marker (${label}) falls back to the auth storage owner`, () => {
+    seedInstallFromBeforeScoping('user-a');
+    // Seeded after the helper, which deletes the marker key.
+    mmkv.store.set(scope.PRIVATE_DATA_OWNER_KEY, rawMarker);
+    mmkv.store.set(userKey(NOTES, 'user-a'), blob({ notes: ['a'] }));
 
-  relaunch();
+    relaunch();
 
-  assert.equal(scope.getPrivateDataOwner(), 'user-a');
-  assert.deepEqual(useNotes.getState().notes, ['a']);
+    assert.equal(scope.getPrivateDataOwner(), 'user-a');
+    assert.deepEqual(useNotes.getState().notes, ['a']);
+    assert.deepEqual(marker(), { owner: 'user-a' });
+  });
+}
+
+test('an existing install whose auth storage has no usable account id stays signed out', () => {
+  for (const lastSyncedUserId of ['', 42, undefined]) {
+    mmkv.store.clear();
+    mmkv.store.set('auth-storage', JSON.stringify({ state: { lastSyncedUserId }, version: 3 }));
+    mmkv.store.set(NOTES, blob({ notes: ['device note'] }));
+
+    relaunch();
+
+    assert.equal(scope.getPrivateDataOwner(), null);
+    assert.deepEqual(useNotes.getState().notes, ['device note']);
+    assert.deepEqual(stored(NOTES), { notes: ['device note'] });
+    assert.deepEqual(marker(), { owner: null });
+  }
 });
 
 test("deleting an account's private data leaves other accounts and the guest bucket", () => {
@@ -402,4 +425,47 @@ test('deleting the showing account switches to the guest bucket so nothing write
   assert.equal(scope.getPrivateDataOwner(), null);
   assert.equal(stored(userKey(NOTES, 'user-a')), undefined);
   assert.deepEqual(stored(NOTES), { notes: ['signed-out note'] });
+});
+
+test("clearing a private store's storage removes only the active owner's bucket", async () => {
+  switchOwner(null);
+  useNotes.getState().addNote('guest note');
+  switchOwner('user-b');
+  switchOwner('user-a');
+  useNotes.getState().addNote('private to a');
+
+  await useNotes.persist.clearStorage();
+
+  assert.equal(stored(userKey(NOTES, 'user-a')), undefined);
+  assert.deepEqual(stored(userKey(NOTES, 'user-b')), { notes: ['guest note'] });
+});
+
+test('a persist write that would not change the bucket does not rewrite MMKV', (t) => {
+  switchOwner('user-a');
+  useNotes.getState().addNote('once');
+  const set = t.mock.method(mmkv.mmkvInstance, 'set');
+
+  // Replaces the state with an equal value: persist serialises the same blob.
+  useNotes.setState({ notes: ['once'] });
+
+  assert.equal(set.mock.callCount(), 0);
+  useNotes.getState().addNote('twice');
+  assert.deepEqual(
+    set.mock.calls.map((call) => call.arguments[0]),
+    [userKey(NOTES, 'user-a')]
+  );
+});
+
+test('registering a store without a persist name is rejected', () => {
+  const unnamed = Object.assign(
+    create(() => ({ notes: [] as string[] })),
+    {
+      persist: { getOptions: () => ({}), rehydrate: () => {} },
+    }
+  );
+
+  assert.throws(
+    () => scope.registerPrivateDataStore(unnamed, (account) => account),
+    /has no persist name/
+  );
 });

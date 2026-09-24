@@ -1,3 +1,4 @@
+import { readBodyWithinLimit } from '../_shared/analyticsIngest.ts';
 import { verifyCouncilAccess } from '../_shared/councilAccess.ts';
 import { isFeedbackAudioContainer } from '../_shared/feedbackAudio.ts';
 import { hashPasscodeAttemptKey } from '../_shared/passcodeAttempts.ts';
@@ -84,6 +85,9 @@ const AUDIO_RESPONSE_MAX_DURATION_MS = 60000;
 const AUDIO_RESPONSE_MAX_SIZE_BYTES = 5 * 1024 * 1024;
 const AUDIO_RESPONSE_MAX_BASE64_LENGTH = Math.ceil((AUDIO_RESPONSE_MAX_SIZE_BYTES * 4) / 3) + 8;
 const AUDIO_RESPONSE_MIME_TYPE = 'audio/mp4';
+// verify_jwt is off, so the body is capped while it streams, before auth, parsing or any
+// storage/database work: the largest recording as base64 plus generous room for the text fields.
+const MAX_REQUEST_BODY_BYTES = AUDIO_RESPONSE_MAX_BASE64_LENGTH + 64 * 1024;
 
 // Max submissions per account or anonymous identity per rolling hour.
 const SUBMISSION_RATE_LIMIT_PER_HOUR = 20;
@@ -377,6 +381,16 @@ Deno.serve(async (req) => {
       },
     });
 
+    const rawBody = await readBodyWithinLimit(req, MAX_REQUEST_BODY_BYTES);
+    if (!rawBody.ok) {
+      return jsonResponse(413, {
+        success: false,
+        saved: false,
+        exported: false,
+        error: 'Request body is too large',
+      });
+    }
+
     // Authentication is optional. A valid session enriches the row with user_id, while
     // every participant is authorized by supplying the required name and project role.
     let userId: string | null = null;
@@ -394,7 +408,15 @@ Deno.serve(async (req) => {
       userId = user?.id ?? null;
     }
 
-    const requestBody = (await req.json().catch(() => ({}))) as ChapterFeedbackRequest;
+    let requestBody: ChapterFeedbackRequest = {};
+    try {
+      const parsed: unknown = JSON.parse(rawBody.text);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        requestBody = parsed as ChapterFeedbackRequest;
+      }
+    } catch {
+      // Malformed JSON is answered by validateRequest below like an empty body (400).
+    }
     const validation = validateRequest(requestBody, userId);
 
     if (!validation.value) {

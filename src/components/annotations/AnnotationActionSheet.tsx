@@ -7,12 +7,12 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  useWindowDimensions,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useLargeText } from '../../hooks/useLargeText';
 import { radius, shadows, spacing, typography } from '../../design/system';
 import { hexWithAlpha } from '../../utils';
 
@@ -25,9 +25,6 @@ const HIGHLIGHT_COLORS = [
 ] as const;
 
 const PRESSED_SCALE = 0.96;
-// Past this OS text size five pills no longer fit one row with readable labels,
-// so the rail wraps to three per row instead of shrinking the words.
-const LARGE_TEXT_FONT_SCALE = 1.3;
 
 interface AnnotationActionSheetProps {
   visible: boolean;
@@ -57,13 +54,15 @@ interface ActionPillProps {
 
 function ActionPill({ icon, label, onPress, disabled = false }: ActionPillProps) {
   const { colors } = useTheme();
-  const { fontScale } = useWindowDimensions();
+  // Past the shared large-text threshold five pills no longer fit one row with
+  // readable labels, so the rail wraps to three per row instead of shrinking.
+  const { isLargeText } = useLargeText();
 
   return (
     <Pressable
       style={({ pressed }) => [
         styles.actionButton,
-        fontScale >= LARGE_TEXT_FONT_SCALE ? styles.actionButtonLargeText : null,
+        isLargeText ? styles.actionButtonLargeText : null,
         {
           backgroundColor: colors.bibleElevatedSurface,
           borderColor: colors.bibleDivider,

@@ -216,24 +216,67 @@ export function getPlanLedgerDayNumbers(
     .sort((left, right) => left - right);
 }
 
+/**
+ * Hours after local midnight during which a recurring plan's day that has just
+ * rolled into the previous cycle is still taken to be last night's reading.
+ */
+const RECURRING_CYCLE_ROLLOVER_GRACE_HOURS = 4;
+
+function getRecurringCycleDate(
+  plan: Pick<ReadingPlan, 'scheduleMode'>,
+  dayNumber: number,
+  today: Date,
+  cyclesBack = 0
+): Date | null {
+  if (isCalendarDayOfMonthPlan(plan)) {
+    return new Date(today.getFullYear(), today.getMonth() - cyclesBack, dayNumber);
+  }
+  if (isCalendarDayOfWeekPlan(plan)) {
+    return new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate() + dayNumber - 1 - today.getDay() - 7 * cyclesBack
+    );
+  }
+  return null;
+}
+
+/**
+ * The key a completed plan day is filed under in `completed_entries`: the day
+ * number for a sequential plan, the local date the day falls on for a recurring
+ * rhythm (this week's or this month's occurrence).
+ *
+ * One exception: a reading opened late on the last day of a cycle and ticked
+ * after midnight lands in a new week or month, where the same day number points
+ * a whole cycle ahead. When the previous cycle's occurrence is exactly yesterday
+ * and it is still the small hours, the tick belongs to yesterday.
+ */
 export function getPlanCompletionEntryKey(
   plan: Pick<ReadingPlan, 'scheduleMode'>,
   dayNumber: number,
   today: Date = new Date()
 ): string {
-  if (isCalendarDayOfMonthPlan(plan)) {
-    return formatLocalDateKey(new Date(today.getFullYear(), today.getMonth(), dayNumber));
+  const cycleDate = getRecurringCycleDate(plan, dayNumber, today);
+  if (!cycleDate) {
+    return String(dayNumber);
   }
-  if (isCalendarDayOfWeekPlan(plan)) {
-    return formatLocalDateKey(
-      new Date(
-        today.getFullYear(),
-        today.getMonth(),
-        today.getDate() + dayNumber - 1 - today.getDay()
-      )
-    );
+
+  const todayKey = formatLocalDateKey(today);
+  if (
+    today.getHours() < RECURRING_CYCLE_ROLLOVER_GRACE_HOURS &&
+    formatLocalDateKey(cycleDate) > todayKey
+  ) {
+    const previousCycleDate = getRecurringCycleDate(plan, dayNumber, today, 1);
+    const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+    if (
+      previousCycleDate &&
+      formatLocalDateKey(previousCycleDate) === formatLocalDateKey(yesterday)
+    ) {
+      return formatLocalDateKey(previousCycleDate);
+    }
   }
-  return String(dayNumber);
+
+  return formatLocalDateKey(cycleDate);
 }
 
 /** The four states a plan day can hold in the ledger. Cells and rows share them. */

@@ -41,7 +41,7 @@ import {
 } from '../../components/ui';
 import {
   getPassageText,
-  getPrimaryAudioReference,
+  LESSON_FALLBACK_TRANSLATION_ID,
   type PassageBlock,
 } from '../../services/gather/gatherBibleService';
 import { formatBibleReferenceLabel } from '../../services/gather/gatherReferenceLabel';
@@ -53,6 +53,17 @@ import { useBibleStore } from '../../stores/bibleStore';
 import { useGatherStore } from '../../stores/gatherStore';
 import { useFontSize } from '../../hooks/useFontSize';
 import { resolveFloatingBottomOffset } from '../../hooks/useTabBarHeight';
+import {
+  lessonAudioTranslationCandidates,
+  resolveLessonAudio,
+} from '../../services/gather/lessonAudioSource';
+import {
+  buildStoryPassageView,
+  resolveStoryStatus,
+  type StoryPassageView,
+  type StoryStatus,
+} from './lessonPassageModel';
+import { readLessonPlaybackStatus } from './lessonAudioModel';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -75,6 +86,9 @@ const MAX_FONT_MULTIPLIER = 1.3;
 /** Story passage metrics — Lora 17/27 at 1.0×, scaled by the text-size stepper. */
 const PASSAGE_FONT_SIZE = 17;
 const PASSAGE_LINE_HEIGHT = 27;
+
+/** How far one VoiceOver/TalkBack swipe on the progress rule moves playback. */
+const ACCESSIBLE_SEEK_STEP_MS = 10_000;
 
 const padLessonNumber = (value: number) => String(value).padStart(2, '0');
 
@@ -158,6 +172,9 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
   const [activeSection, setActiveSection] = useState<MeetingSectionType>('fellowship');
   const [passageBlocks, setPassageBlocks] = useState<PassageBlock[]>([]);
   const [isLoadingPassage, setIsLoadingPassage] = useState(false);
+  const [passageLoadFailed, setPassageLoadFailed] = useState(false);
+  // Bumped by Retry to run the passage load again.
+  const [passageLoadAttempt, setPassageLoadAttempt] = useState(0);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [audioPosition, setAudioPosition] = useState(0);
@@ -195,9 +212,13 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
     let cancelled = false;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsLoadingPassage(true);
+    setPassageLoadFailed(false);
     setPassageBlocks([]);
 
-    getPassageText(lesson.references, currentTranslation, { bookNameResolver: resolveBookName })
+    getPassageText(lesson.references, currentTranslation, {
+      bookNameResolver: resolveBookName,
+      fallbackTranslationId: LESSON_FALLBACK_TRANSLATION_ID,
+    })
       .then((blocks) => {
         if (!cancelled) {
           setPassageBlocks(blocks);
@@ -206,6 +227,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
       .catch(() => {
         if (!cancelled) {
           setPassageBlocks([]);
+          setPassageLoadFailed(true);
         }
       })
       .finally(() => {
@@ -217,29 +239,30 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
     return () => {
       cancelled = true;
     };
-  }, [currentTranslation, lesson, resolveBookName]);
+  }, [currentTranslation, lesson, resolveBookName, passageLoadAttempt]);
+
+  // Ask the reading translation for audio first; when the story on screen was
+  // borrowed from the bundled BSB, BSB audio is the next choice, so Play is not
+  // dead on (say) a New Testament-only translation's Genesis lesson.
+  const audioCandidateKey = lessonAudioTranslationCandidates(
+    passageBlocks,
+    currentTranslation
+  ).join('|');
 
   // Resolve audio URL
   useEffect(() => {
     if (!lesson) return;
 
-    const primaryRef = getPrimaryAudioReference(lesson.references);
     let cancelled = false;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     resetAudioPlaybackState();
     void soundRef.current?.unloadAsync().catch(() => undefined);
     soundRef.current = null;
 
-    if (!primaryRef) {
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    getChapterAudioUrl(currentTranslation, primaryRef.bookId, primaryRef.chapter)
-      .then((asset) => {
+    void resolveLessonAudio(lesson.references, audioCandidateKey.split('|'), getChapterAudioUrl)
+      .then((source) => {
         if (!cancelled) {
-          setAudioUrl(asset?.url ?? null);
+          setAudioUrl(source?.url ?? null);
         }
       })
       .catch(() => {
@@ -249,7 +272,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
     return () => {
       cancelled = true;
     };
-  }, [currentTranslation, lesson, resetAudioPlaybackState]);
+  }, [audioCandidateKey, lesson, resetAudioPlaybackState]);
 
   // Cleanup audio on unmount
   useEffect(() => {
@@ -271,21 +294,19 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
   // -------------------------------------------------------------------------
 
   const handlePlaybackStatusUpdate = useCallback((status: AVPlaybackStatus) => {
-    if (!status.isLoaded) return;
+    const update = readLessonPlaybackStatus(status);
+    if (!update) return;
 
-    setAudioPosition(status.positionMillis);
-    if (status.durationMillis) {
-      setAudioDuration(status.durationMillis);
+    setAudioPosition(update.positionMillis);
+    if (update.durationMillis) {
+      setAudioDuration(update.durationMillis);
     }
-
-    if (status.didJustFinish) {
-      setIsAudioPlaying(false);
-      setAudioPosition(0);
-    } else {
-      // Functional update bails out of re-render when value is unchanged,
-      // preventing excessive re-renders during playback from making the
-      // play/pause button unresponsive after switching tabs.
-      setIsAudioPlaying((prev) => (prev !== status.isPlaying ? status.isPlaying : prev));
+    // Functional update bails out of re-render when value is unchanged,
+    // preventing excessive re-renders during playback from making the
+    // play/pause button unresponsive after switching tabs.
+    setIsAudioPlaying((prev) => (prev !== update.isPlaying ? update.isPlaying : prev));
+    if (update.rewind) {
+      void soundRef.current?.setPositionAsync(0).catch(() => undefined);
     }
   }, []);
 
@@ -339,6 +360,18 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
       setAudioPosition(target);
     },
     [audioDuration]
+  );
+
+  // Screen-reader equivalent of tapping along the rule: the adjustable role
+  // promises swipe up/down, so each swipe moves playback by a fixed step.
+  const seekBy = useCallback(
+    (deltaMs: number) => {
+      if (audioDuration <= 0 || !soundRef.current) return;
+      const target = Math.min(audioDuration, Math.max(0, audioPosition + deltaMs));
+      void soundRef.current.setPositionAsync(target).catch(() => undefined);
+      setAudioPosition(target);
+    },
+    [audioDuration, audioPosition]
   );
 
   // -------------------------------------------------------------------------
@@ -401,10 +434,17 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
     }
   }, [isComplete, lessonId, markLessonComplete, parentId, unmarkLessonComplete]);
 
-  const verseCount = useMemo(
-    () => passageBlocks.reduce((total, block) => total + block.verses.length, 0),
-    [passageBlocks]
+  const storyView = useMemo(
+    () =>
+      buildStoryPassageView(
+        passageBlocks,
+        currentTranslation,
+        (translationId) =>
+          translations.find((item) => item.id === translationId)?.name ?? translationId
+      ),
+    [currentTranslation, passageBlocks, translations]
   );
+  const verseCount = storyView?.verseCount ?? 0;
 
   // -------------------------------------------------------------------------
   // Lesson not found
@@ -456,7 +496,11 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
     .filter(Boolean)
     .join(' · ');
 
-  const heroEyebrow = [referenceLabel, translationInfo?.name].filter(Boolean).join(' · ');
+  // Name the translations actually on screen: a passage borrowed from the
+  // bundled BSB must not sit under the reader's own translation name.
+  const heroEyebrow = [referenceLabel, ...(storyView?.translationNames ?? [translationInfo?.name])]
+    .filter(Boolean)
+    .join(' · ');
   // Elapsed time once playback has moved; the chapter length before that.
   const stripTime = formatPlaybackTime(audioPosition > 0 ? audioPosition : audioDuration);
   const fontPercent = Math.round(fontSizeMultiplier * 100);
@@ -575,7 +619,10 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
                 styles.sectionEyebrow,
                 { color: colors.secondaryText },
               ]}
-              numberOfLines={1}
+              // Two lines: the passage reference is the only place the story's
+              // source is shown, and one line cut it off at large text sizes.
+              numberOfLines={2}
+              accessibilityRole="header"
             >
               {`${t('gather.story')} · ${referenceLabel}`}
             </Text>
@@ -588,8 +635,13 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
             ) : null}
           </View>
           <StorySection
-            isLoading={isLoadingPassage}
-            passageBlocks={passageBlocks}
+            status={resolveStoryStatus({
+              isLoading: isLoadingPassage,
+              loadFailed: passageLoadFailed,
+              view: storyView,
+            })}
+            onRetry={() => setPassageLoadAttempt((attempt) => attempt + 1)}
+            view={storyView}
             colors={colors}
             fontSizeMultiplier={fontSizeMultiplier}
             readingFontFamily={readingFontFamily}
@@ -615,6 +667,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
                 { color: colors.secondaryText },
               ]}
               numberOfLines={1}
+              accessibilityRole="header"
             >
               {t('gather.application')}
             </Text>
@@ -693,6 +746,12 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
               hitSlop={10}
               accessibilityRole="adjustable"
               accessibilityLabel={t('bible.listen')}
+              accessibilityValue={{ text: stripTime }}
+              accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+              onAccessibilityAction={(event) => {
+                if (event.nativeEvent.actionName === 'increment') seekBy(ACCESSIBLE_SEEK_STEP_MS);
+                if (event.nativeEvent.actionName === 'decrement') seekBy(-ACCESSIBLE_SEEK_STEP_MS);
+              }}
             >
               <ProgressBar
                 progress={progressFraction}
@@ -865,7 +924,10 @@ function CompleteToggle({ isComplete, onPress, colors }: CompleteToggleProps) {
       ]}
     >
       <Check size={16} color={contentColor} strokeWidth={2} />
-      <Text style={[typography.captionStrong, { color: contentColor }]} numberOfLines={1}>
+      <Text
+        style={[typography.captionStrong, styles.completeToggleLabel, { color: contentColor }]}
+        numberOfLines={2}
+      >
         {isComplete ? t('gather.completed') : t('gather.complete')}
       </Text>
     </PressableScale>
@@ -873,8 +935,9 @@ function CompleteToggle({ isComplete, onPress, colors }: CompleteToggleProps) {
 }
 
 interface StorySectionProps {
-  isLoading: boolean;
-  passageBlocks: PassageBlock[];
+  status: StoryStatus;
+  onRetry: () => void;
+  view: StoryPassageView | null;
   colors: ThemeColors;
   fontSizeMultiplier: number;
   readingFontFamily: string | undefined;
@@ -883,8 +946,9 @@ interface StorySectionProps {
 }
 
 function StorySection({
-  isLoading,
-  passageBlocks,
+  status,
+  onRetry,
+  view,
   colors,
   fontSizeMultiplier,
   readingFontFamily,
@@ -892,7 +956,7 @@ function StorySection({
   displayFont,
 }: StorySectionProps) {
   const { t } = useTranslation();
-  if (isLoading) {
+  if (status === 'loading') {
     return (
       <View
         style={styles.centerContainer}
@@ -904,7 +968,24 @@ function StorySection({
     );
   }
 
-  if (passageBlocks.length === 0) {
+  if (status === 'error') {
+    return (
+      <View style={styles.centerContainer} accessibilityLiveRegion="polite">
+        <Text style={[styles.emptyText, { color: colors.secondaryText }]}>
+          {t('learn.passageLoadFailed')}
+        </Text>
+        <AppButton
+          label={t('common.retry')}
+          variant="secondary"
+          size="md"
+          onPress={onRetry}
+          style={styles.retryButton}
+        />
+      </View>
+    );
+  }
+
+  if (status === 'empty' || !view) {
     return (
       <View style={styles.centerContainer}>
         <Text style={[styles.emptyText, { color: colors.secondaryText }]}>
@@ -916,14 +997,14 @@ function StorySection({
 
   const scaledFontSize = PASSAGE_FONT_SIZE * fontSizeMultiplier;
   const scaledLineHeight = PASSAGE_LINE_HEIGHT * fontSizeMultiplier;
-  const showBlockLabels = passageBlocks.length > 1;
-
   return (
     <View>
-      {passageBlocks.map((block, blockIdx) => (
-        <View key={blockIdx} style={blockIdx > 0 ? styles.passageBlockGap : undefined}>
-          {showBlockLabels ? (
+      {view.blocks.map((block, blockIdx) => (
+        <View key={block.key} style={blockIdx > 0 ? styles.passageBlockGap : undefined}>
+          {block.heading ? (
+            // A heading per passage, and the only place a borrowed translation is named.
             <Text
+              accessibilityRole="header"
               style={[
                 typography.eyebrow,
                 displayFont.regular,
@@ -931,7 +1012,7 @@ function StorySection({
                 { color: colors.secondaryText },
               ]}
             >
-              {block.label}
+              {block.heading}
             </Text>
           ) : null}
           <Text
@@ -1007,8 +1088,9 @@ const styles = StyleSheet.create({
   },
 
   // Header
+  // A floor, so the eyebrow can grow at large accessibility text sizes.
   header: {
-    height: 56,
+    minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: layout.screenPadding,
@@ -1118,6 +1200,10 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     ...typography.body,
+    textAlign: 'center',
+  },
+  retryButton: {
+    marginTop: spacing.lg,
   },
   passageBlockGap: {
     marginTop: spacing.xl,
@@ -1173,10 +1259,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
-    height: layout.iconButton,
+    // minHeight, not height: a fixed 40pt pill clipped "Completed" in longer
+    // translations at accessibility text sizes; it now grows like AppButton.
+    minHeight: layout.iconButton,
     borderRadius: layout.iconButton / 2,
     borderWidth: 1,
     paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xs,
+  },
+  completeToggleLabel: {
+    flexShrink: 1,
   },
 
   // Playback + text sheet

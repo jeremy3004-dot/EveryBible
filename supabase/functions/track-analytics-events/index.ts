@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
   consumeIngestBudget,
   eventPropertiesWithinLimit,
+  getClientIp,
   hashIngestUserKey,
   type IngestBudget,
   MAX_EVENTS_PER_BATCH,
@@ -48,7 +49,7 @@ interface GeoResult {
 }
 
 interface TrackAnalyticsRequestBody {
-  events?: QueuedAnalyticsEvent[];
+  events?: unknown;
 }
 
 function getAccessToken(req: Request): string | null {
@@ -57,15 +58,6 @@ function getAccessToken(req: Request): string | null {
   return authorization.toLowerCase().startsWith('bearer ')
     ? authorization.slice(7).trim()
     : authorization.trim() || null;
-}
-
-function getEventProperty(event: QueuedAnalyticsEvent, key: string): unknown {
-  const properties = event.event_properties;
-  if (!properties || typeof properties !== 'object' || Array.isArray(properties)) {
-    return null;
-  }
-
-  return (properties as Record<string, unknown>)[key];
 }
 
 function getText(value: unknown): string | null {
@@ -126,16 +118,6 @@ function normalizeAccuracyKm(value: unknown): number | null {
 
   const parsed = Number(value.trim());
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
-}
-
-function getClientIp(req: Request): string | null {
-  const cfIp = req.headers.get('cf-connecting-ip')?.trim();
-  if (cfIp && cfIp.length > 0) return cfIp;
-  const forwarded = req.headers.get('x-forwarded-for');
-  const realIp = req.headers.get('x-real-ip');
-  const raw = forwarded || realIp;
-  if (!raw) return null;
-  return raw.split(/\s*,\s*/)[0]?.trim() || null;
 }
 
 async function lookupViaIpinfo(ip: string, token: string): Promise<GeoResult | null> {
@@ -206,57 +188,39 @@ async function lookupViaIpapi(ip: string): Promise<GeoResult | null> {
   } catch { return null; }
 }
 
+// Same payload-geo rule as track-anonymous-usage-events: only the approximate IP fix from the
+// app's own Cloudflare worker is accepted, read from the top-level fields alone (never from
+// event_properties), and never a device/GPS fix.
 function resolveEventGeo(event: QueuedAnalyticsEvent): GeoResult | null {
-  const countryCode = normalizeCountryCode(
-    event.geo_country_code ?? getEventProperty(event, 'geo_country_code')
-  );
-  const latitude = normalizeCoordinate(
-    event.geo_latitude ??
-      getEventProperty(event, 'geo_latitude') ??
-      getEventProperty(event, 'geo_latitude_bucket')
-  );
-  const longitude = normalizeCoordinate(
-    event.geo_longitude ??
-      getEventProperty(event, 'geo_longitude') ??
-      getEventProperty(event, 'geo_longitude_bucket')
-  );
-  const sourceValue = event.geo_source ?? getEventProperty(event, 'geo_source');
-  if (sourceValue && !['cf-worker','ipapi','ipinfo','cf_ipcountry'].includes(String(sourceValue))) return null;
-  const timezoneValue = event.geo_timezone ?? getEventProperty(event, 'geo_timezone');
-  const accuracyKm = normalizeAccuracyKm(
-    event.geo_accuracy_km ?? getEventProperty(event, 'geo_accuracy_km')
-  );
-  const source = typeof sourceValue === 'string' && sourceValue.trim().length > 0 ? sourceValue.trim() : null;
-  const timezone = typeof timezoneValue === 'string' && timezoneValue.trim().length > 0 ? timezoneValue.trim() : null;
-  const city = getText(event.geo_city ?? getEventProperty(event, 'geo_city'));
-  const region = getText(event.geo_region_name ?? getEventProperty(event, 'geo_region_name'));
-  const regionCode =
-    getText(event.geo_region_code ?? getEventProperty(event, 'geo_region_code'))?.toUpperCase() ?? null;
-
-  if (
-    countryCode == null &&
-    latitude == null &&
-    longitude == null &&
-    source == null &&
-    timezone == null &&
-    accuracyKm == null &&
-    city == null &&
-    region == null &&
-    regionCode == null
-  ) {
-    return null;
-  }
-
+  if (event.geo_source !== 'cf-worker') return null;
   return {
-    accuracyKm,
-    countryCode,
-    latitude,
-    longitude,
-    source,
-    timezone,
-    city,
-    region,
-    regionCode,
+    accuracyKm: normalizeAccuracyKm(event.geo_accuracy_km),
+    countryCode: normalizeCountryCode(event.geo_country_code),
+    latitude: normalizeCoordinate(event.geo_latitude),
+    longitude: normalizeCoordinate(event.geo_longitude),
+    source: 'cf-worker',
+    timezone: getText(event.geo_timezone),
+    city: getText(event.geo_city),
+    region: getText(event.geo_region_name),
+    regionCode: getText(event.geo_region_code)?.toUpperCase() ?? null,
+  };
+}
+
+// Never combine one provider's country with another provider's coordinates (the rule
+// track-anonymous-usage-events enforces): a payload fix that carries a country is stored whole,
+// so a country-only fix stays country-only; otherwise the request geo is stored whole.
+function selectGeo(requestGeo: GeoResult | null, payloadGeo: GeoResult | null): GeoResult {
+  if (payloadGeo?.countryCode) return payloadGeo;
+  return requestGeo ?? {
+    accuracyKm: null,
+    countryCode: null,
+    latitude: null,
+    longitude: null,
+    source: null,
+    timezone: null,
+    city: null,
+    region: null,
+    regionCode: null,
   };
 }
 
@@ -309,8 +273,10 @@ async function resolveRequestGeo(
 }
 
 async function lookupRequestGeo(req: Request, cfCountry: string | null): Promise<GeoResult | null> {
+  // Only edge-stamped addresses (cf-connecting-ip, x-real-ip) are trusted; a caller-sent
+  // x-forwarded-for would let the caller pick which address is geolocated.
   const clientIp = getClientIp(req);
-  if (clientIp) {
+  if (clientIp !== 'unknown') {
     // Tier 3: ipinfo.io when paid token is configured.
     const ipinfoToken = Deno.env.get('IPINFO_TOKEN')?.trim();
     if (ipinfoToken) {
@@ -327,10 +293,16 @@ async function lookupRequestGeo(req: Request, cfCountry: string | null): Promise
 
 // M1: the same per-event contract as track-anonymous-usage-events. Previously this endpoint
 // stored `queued_at` verbatim (any date, any size), so a signed-in account could rewrite
-// historical rollups. Events that break a limit are dropped individually and counted.
+// historical rollups. Events that break a limit or lack a required field are dropped
+// individually and counted: a missing name/platform/version used to reach the NOT NULL
+// columns and fail the whole batch with a 500, which the app would then retry forever.
 function acceptEvent(raw: unknown, now: number): QueuedAnalyticsEvent | null {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
   const event = raw as QueuedAnalyticsEvent;
+  const eventName = getText(event.event_name);
+  const devicePlatform = getText(event.device_platform);
+  const appVersion = getText(event.app_version);
+  if (!eventName || !devicePlatform || !appVersion) return null;
   const queuedAt =
     typeof event.queued_at === 'string' && event.queued_at.trim().length > 0
       ? resolveQueuedAt(event.queued_at, now)
@@ -343,35 +315,25 @@ function acceptEvent(raw: unknown, now: number): QueuedAnalyticsEvent | null {
       ? event.event_properties
       : {};
   if (!eventPropertiesWithinLimit(properties)) return null;
-  // Geo may also be read from event_properties (resolveEventGeo), so bound what will actually
-  // be stored, not just the top-level fields.
-  const geo = resolveEventGeo({ ...event, event_properties: properties });
+  const sessionId = getText(event.session_id);
+  // Bound what will actually be stored, including any accepted payload geo.
+  const geo = resolveEventGeo(event);
   if (
     !textFieldsWithinLimit([
-      event.event_name, event.device_platform, event.app_version, event.session_id,
-      geo?.source, geo?.timezone, geo?.city, geo?.regionCode, geo?.region, geo?.countryCode,
+      eventName, devicePlatform, appVersion, sessionId,
+      geo?.timezone, geo?.city, geo?.regionCode, geo?.region, geo?.countryCode,
     ])
   ) {
     return null;
   }
-  return { ...event, event_properties: properties, queued_at: queuedAt };
-}
-
-function mergeGeo(requestGeo: GeoResult, payloadGeo: GeoResult | null): GeoResult {
-  if (!payloadGeo) {
-    return requestGeo;
-  }
-
   return {
-    accuracyKm: payloadGeo.accuracyKm ?? requestGeo.accuracyKm,
-    countryCode: payloadGeo.countryCode ?? requestGeo.countryCode,
-    latitude: payloadGeo.latitude ?? requestGeo.latitude,
-    longitude: payloadGeo.longitude ?? requestGeo.longitude,
-    source: payloadGeo.source ?? requestGeo.source,
-    timezone: payloadGeo.timezone ?? requestGeo.timezone,
-    city: payloadGeo.city ?? requestGeo.city,
-    region: payloadGeo.region ?? requestGeo.region,
-    regionCode: payloadGeo.regionCode ?? requestGeo.regionCode,
+    ...event,
+    event_name: eventName,
+    device_platform: devicePlatform,
+    app_version: appVersion,
+    event_properties: properties,
+    queued_at: queuedAt,
+    session_id: sessionId,
   };
 }
 
@@ -429,13 +391,23 @@ Deno.serve(async (req) => {
       });
     }
 
-    let parsed: TrackAnalyticsRequestBody = {};
+    // 400 only when the body as a whole is unusable; individual bad events are dropped below.
+    let parsed: unknown = null;
     try {
-      parsed = (JSON.parse(body.text) ?? {}) as TrackAnalyticsRequestBody;
+      parsed = JSON.parse(body.text);
     } catch {
-      parsed = {};
+      parsed = null;
     }
-    const rawEvents: unknown[] = Array.isArray(parsed.events) ? parsed.events : [];
+    const rawEvents =
+      parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+        ? (parsed as TrackAnalyticsRequestBody).events
+        : undefined;
+    if (!Array.isArray(rawEvents)) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Request body must include an events list' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     if (rawEvents.length === 0) {
       return new Response(JSON.stringify({ success: true, inserted: 0, geo: null }), {
@@ -489,19 +461,7 @@ Deno.serve(async (req) => {
     }
 
     const payloadGeos = events.map((event) => resolveEventGeo(event));
-    const requiresRequestGeo = payloadGeos.some((geo) => {
-      if (!geo) {
-        return true;
-      }
-
-      return (
-        geo.countryCode == null ||
-        geo.latitude == null ||
-        geo.longitude == null ||
-        geo.source == null ||
-        geo.timezone == null
-      );
-    });
+    const requiresRequestGeo = payloadGeos.some((geo) => !geo?.countryCode);
     const requestGeo = requiresRequestGeo
       ? await resolveRequestGeo(req, budget, (geo) =>
           rememberIngestGeo(supabase, clientKey, { ...geo }))
@@ -509,18 +469,7 @@ Deno.serve(async (req) => {
     const now = new Date(receivedAt).toISOString();
 
     const rows = events.map((event, index) => {
-      const payloadGeo = payloadGeos[index];
-      const geo = requestGeo ? mergeGeo(requestGeo, payloadGeo) : payloadGeo ?? {
-        accuracyKm: null,
-        countryCode: null,
-        latitude: null,
-        longitude: null,
-        source: null,
-        timezone: null,
-        city: null,
-        region: null,
-        regionCode: null,
-      };
+      const geo = selectGeo(requestGeo, payloadGeos[index]);
 
       return {
         app_version: event.app_version,

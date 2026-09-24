@@ -108,6 +108,12 @@ test('LocaleSetupFlow bounds runtime catalog hydration and exposes retry without
 
   assert.match(
     flowSource,
+    /case 'catalogError':\s*return renderEmptyCard\(\s*t\('onboarding\.catalogUnavailableTitle'\),\s*t\('onboarding\.catalogUnavailableBody'\),/,
+    'a catalog that failed to load (often: offline) should say the library is unreachable and that the listed Bibles work offline — not "Something went wrong" with search-spelling advice'
+  );
+
+  assert.match(
+    flowSource,
     /getVisibleTranslationsForPicker\(translations,\s*\{[\s\S]*isHydratingRuntimeCatalog[\s\S]*hasHydratedRuntimeCatalog/,
     'LocaleSetupFlow should keep using picker visibility rules that leave bundled translations visible while hydrating'
   );

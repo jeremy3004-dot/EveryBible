@@ -24,7 +24,12 @@ import type { TrackPlayerProgressSnapshot } from '../services/audio/audioPlayer'
 import { trackAnonymousUsageEvent } from '../services/analytics';
 import { elapsedListeningMs } from '../services/analytics/listeningTime';
 import { getAdjacentBibleChapter, getBookById, getTranslatedBookName } from '../constants';
-import type { AudioPlaybackSequenceEntry, PlaybackRate, SleepTimerOption } from '../types';
+import type {
+  AudioPlaybackSequenceEntry,
+  AudioStatus,
+  PlaybackRate,
+  SleepTimerOption,
+} from '../types';
 import { advanceAudioQueue } from '../stores/audioQueueModel';
 import { resolveRepeatPlaybackTarget } from '../stores/audioPlaybackCompletionModel';
 import {
@@ -37,6 +42,33 @@ import {
   getAdjacentAudioPlaybackSequenceEntry,
   hasAudioPlaybackSequenceEntry,
 } from '../stores/audioPlaybackSequenceModel';
+
+/**
+ * Whether Play should continue the loaded sound where it stopped. An idle player
+ * with a loaded sound has played its chapter to the end (a pause leaves it
+ * "paused"), so Play starts that chapter again instead of resuming at its end.
+ */
+function canResumeLoadedChapter(state: {
+  status: AudioStatus;
+  currentBookId: string | null;
+  currentChapter: number | null;
+  currentPosition: number;
+  duration: number;
+}): boolean {
+  return (
+    state.status !== 'idle' &&
+    Boolean(state.currentBookId && state.currentChapter) &&
+    audioPlayer.isLoaded() &&
+    state.currentPosition > 0 &&
+    (state.duration <= 0 || state.currentPosition < state.duration)
+  );
+}
+
+// The reader is pushed over the book browser, so going back unmounts this hook while
+// the chapter keeps playing. Like the native playback callbacks, the lock-screen,
+// notification and headset command subscription outlives the screen and is only
+// handed over when another player mounts.
+let activeRemoteCommandUnsubscribe: (() => void) | null = null;
 
 export function useAudioPlayer(translationId: string = 'bsb') {
   const { t } = useTranslation();
@@ -68,6 +100,9 @@ export function useAudioPlayer(translationId: string = 'bsb') {
   const audioProgressTelemetryTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const audioProgressTelemetryLastEmittedAtRef = useRef<number>(0);
   const lastNowPlayingSignatureRef = useRef<string | null>(null);
+  // Native progress callbacks outlive the reader, so the sleep timer's expiry also
+  // runs from them and needs the latest pause action.
+  const pauseRef = useRef<(() => Promise<void>) | null>(null);
 
   const {
     status,
@@ -87,6 +122,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     repeatMode,
     sleepTimerMinutes,
     sleepTimerEndTime,
+    sleepTimerRemainingMs,
     backgroundMusicChoice,
     setStatus,
     setCurrentTrack,
@@ -129,6 +165,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       repeatMode: state.repeatMode,
       sleepTimerMinutes: state.sleepTimerMinutes,
       sleepTimerEndTime: state.sleepTimerEndTime,
+      sleepTimerRemainingMs: state.sleepTimerRemainingMs,
       backgroundMusicChoice: state.backgroundMusicChoice,
       setStatus: state.setStatus,
       setCurrentTrack: state.setCurrentTrack,
@@ -350,20 +387,29 @@ export function useAudioPlayer(translationId: string = 'bsb') {
 
       const playRequestId = ++playRequestIdRef.current;
 
+      // Read at call time: auto-advance and lock-screen commands reach this after the
+      // reader has unmounted, when this render's track and settings are stale.
+      const {
+        currentBookId: outgoingBookId,
+        currentChapter: outgoingChapter,
+        currentPosition: positionBeforeSwitch,
+        duration: durationBeforeSwitch,
+        playbackSequence,
+        playbackRate,
+      } = useAudioStore.getState();
+
       // Any call that replaces an already-active chapter is a transition — mark
       // it so the background music sync effect keeps music running during the gap.
-      if (currentBookId && currentChapter) {
+      if (outgoingBookId && outgoingChapter) {
         isChapterTransitioningRef.current = true;
       }
 
-      const { currentPosition: positionBeforeSwitch, duration: durationBeforeSwitch } =
-        useAudioStore.getState();
-      if (currentBookId && currentChapter && durationBeforeSwitch > 0) {
+      if (outgoingBookId && outgoingChapter && durationBeforeSwitch > 0) {
         useLibraryStore
           .getState()
           .recordHistory(
-            currentBookId,
-            currentChapter,
+            outgoingBookId,
+            outgoingChapter,
             positionBeforeSwitch / durationBeforeSwitch
           );
       }
@@ -482,16 +528,12 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     [
       emitAudioPlaybackProgress,
       stopAudioProgressTelemetryTimer,
-      currentBookId,
-      currentChapter,
-      playbackRate,
       setStatus,
       setCurrentTrack,
       setError,
       setDuration,
       setPosition,
       syncQueueToTrackInStore,
-      playbackSequence,
       clearPlaybackSequence,
       syncCurrentNowPlaying,
       t,
@@ -568,6 +610,16 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       lastPollTimeRef.current = Date.now();
 
       if (snapshot.isPlaying) {
+        // The sleep-timer interval below only runs while the reader is mounted.
+        // Native progress keeps arriving about once a second while audio plays,
+        // mounted or not, so it also enforces the expiry.
+        const { sleepTimerEndTime: sleepEndTime } = useAudioStore.getState();
+        if (sleepEndTime && Date.now() >= sleepEndTime && pauseRef.current) {
+          useAudioStore.getState().clearSleepTimer();
+          void pauseRef.current();
+          return;
+        }
+
         setStatus('playing');
         startAudioProgressTelemetry();
 
@@ -605,7 +657,9 @@ export function useAudioPlayer(translationId: string = 'bsb') {
           clearInterval(interpolationTimerRef.current);
           interpolationTimerRef.current = null;
         }
-        emitAudioPlaybackProgress('pause', true);
+        // The stopped snapshot of a finished chapter arrives before the finish
+        // handler, so it closes out the last segment as a finish.
+        emitAudioPlaybackProgress(snapshot.didJustFinish ? 'finish' : 'pause', true);
         stopAudioProgressTelemetryTimer();
 
         if (snapshot.isBuffering) {
@@ -661,6 +715,11 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     // Persist the finished listen even when playback ends without a manual pause
     // or a subsequent chapter transition. This keeps plan/listen completion in sync
     // for the last required chapter of the day.
+    // A chapter heard to the end has nothing left to resume. Keeping its end offset as
+    // the resume point made the next Play (or the first Play after a relaunch) seek
+    // straight to the end and finish again without a sound.
+    store.clearResumePosition();
+
     if (bookId && chapterNum && finishedDuration > 0) {
       useLibraryStore.getState().recordHistory(bookId, chapterNum, 1);
       // A finished listen also counts as covering the chapter, so the Home
@@ -842,12 +901,17 @@ export function useAudioPlayer(translationId: string = 'bsb') {
   }, [backgroundMusicChoice, status]);
 
   const sleepTimerRemaining = useMemo(() => {
-    if (!sleepTimerEndTime) {
+    // A paused timer is frozen in the store, so the countdown shown matches
+    // what is left once playback resumes.
+    const remainingMs = sleepTimerEndTime
+      ? sleepTimerEndTime - sleepTimerNow
+      : sleepTimerRemainingMs;
+    if (remainingMs === null) {
       return null;
     }
 
-    return Math.max(0, Math.ceil((sleepTimerEndTime - sleepTimerNow) / 1000 / 60));
-  }, [sleepTimerEndTime, sleepTimerNow]);
+    return Math.max(0, Math.ceil(remainingMs / 1000 / 60));
+  }, [sleepTimerEndTime, sleepTimerNow, sleepTimerRemainingMs]);
 
   // Pause playback
   const pause = useCallback(async () => {
@@ -861,8 +925,12 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     emitAudioPlaybackProgress('pause', true);
     stopAudioProgressTelemetryTimer();
     setStatus('paused');
-    const { currentPosition: positionAtPause, duration: durationAtPause } =
-      useAudioStore.getState();
+    const {
+      currentBookId: bookAtPause,
+      currentChapter: chapterAtPause,
+      currentPosition: positionAtPause,
+      duration: durationAtPause,
+    } = useAudioStore.getState();
     syncCurrentNowPlaying(
       {
         isPlaying: false,
@@ -872,19 +940,19 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       true
     );
     await audioPlayer.pause();
-    if (currentBookId && currentChapter && durationAtPause > 0) {
+    if (bookAtPause && chapterAtPause && durationAtPause > 0) {
       useLibraryStore
         .getState()
-        .recordHistory(currentBookId, currentChapter, positionAtPause / durationAtPause);
+        .recordHistory(bookAtPause, chapterAtPause, positionAtPause / durationAtPause);
     }
   }, [
-    currentBookId,
-    currentChapter,
     emitAudioPlaybackProgress,
     setStatus,
     stopAudioProgressTelemetryTimer,
     syncCurrentNowPlaying,
   ]);
+
+  pauseRef.current = pause;
 
   // Sleep timer check and remaining time calculation
   useEffect(() => {
@@ -896,11 +964,17 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     }
 
     if (sleepTimerEndTime && (status === 'playing' || status === 'loading')) {
+      // The end time moves on every resume; re-anchor the countdown now rather
+      // than showing the stale pre-pause clock for up to a second.
+      setSleepTimerNow(Date.now());
       sleepTimerRef.current = setInterval(() => {
         const now = Date.now();
         setSleepTimerNow(now);
+        // Read the live end time: a pause freezes the timer in the store before
+        // this effect re-runs, and a frozen timer must not expire.
+        const liveEndTime = useAudioStore.getState().sleepTimerEndTime;
 
-        if (now >= sleepTimerEndTime) {
+        if (liveEndTime !== null && now >= liveEndTime) {
           // Expire once and use the same cancellation/status path as Pause.
           if (sleepTimerRef.current) clearInterval(sleepTimerRef.current);
           sleepTimerRef.current = null;
@@ -967,11 +1041,16 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     }
     emitAudioPlaybackProgress('stop', true);
     stopAudioProgressTelemetryTimer();
-    const { currentPosition: positionAtStop, duration: durationAtStop } = useAudioStore.getState();
-    if (currentBookId && currentChapter && durationAtStop > 0) {
+    const {
+      currentBookId: bookAtStop,
+      currentChapter: chapterAtStop,
+      currentPosition: positionAtStop,
+      duration: durationAtStop,
+    } = useAudioStore.getState();
+    if (bookAtStop && chapterAtStop && durationAtStop > 0) {
       useLibraryStore
         .getState()
-        .recordHistory(currentBookId, currentChapter, positionAtStop / durationAtStop);
+        .recordHistory(bookAtStop, chapterAtStop, positionAtStop / durationAtStop);
     }
     void clearBibleNowPlaying();
     clearAudioReturnTarget();
@@ -981,8 +1060,6 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     await backgroundMusicPlayer.stop();
   }, [
     clearAudioReturnTarget,
-    currentBookId,
-    currentChapter,
     emitAudioPlaybackProgress,
     resetPlayback,
     stopAudioProgressTelemetryTimer,
@@ -995,11 +1072,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     if (status === 'playing') {
       await pause();
     } else if (
-      currentBookId &&
-      currentChapter &&
-      audioPlayer.isLoaded() &&
-      currentPosition > 0 &&
-      (duration <= 0 || currentPosition < duration)
+      canResumeLoadedChapter({ status, currentBookId, currentChapter, currentPosition, duration })
     ) {
       await resume();
     } else if (currentBookId && currentChapter) {
@@ -1035,7 +1108,14 @@ export function useAudioPlayer(translationId: string = 'bsb') {
 
   // Seek to position
   const seekTo = useCallback(
-    async (positionMs: number) => {
+    async (requestedPositionMs: number) => {
+      // Lock-screen and notification scrubbers can report a position past the end.
+      // Kept unclamped, it became the visible position and the durable resume point.
+      const { duration } = useAudioStore.getState();
+      const positionMs = Math.max(
+        0,
+        duration > 0 ? Math.min(requestedPositionMs, duration) : requestedPositionMs
+      );
       // Reset interpolation anchor to the seek target so we don't overshoot
       lastPollPositionRef.current = positionMs;
       lastPollTimeRef.current = Date.now();
@@ -1047,7 +1127,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
 
   const skipBy = useCallback(
     async (deltaMs: number) => {
-      const { currentPosition, duration } = useAudioStore.getState();
+      const { currentBookId, currentChapter, currentPosition, duration } = useAudioStore.getState();
       if (!currentBookId || !currentChapter || duration <= 0) {
         return;
       }
@@ -1062,7 +1142,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       await audioPlayer.seekTo(nextPosition);
       setPosition(nextPosition);
     },
-    [currentBookId, currentChapter, setPosition]
+    [setPosition]
   );
 
   const skipBackward = useCallback(async () => {
@@ -1082,13 +1162,14 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     [setPlaybackRate]
   );
 
-  // Manual chapter navigation keeps the user's current playback intent. A
-  // paused target is selected unloaded, so it cannot briefly start sounding.
+  // Manual chapter navigation, and switching the translation of the loaded
+  // chapter, keep the user's current playback intent. A paused target is
+  // selected unloaded, so it cannot briefly start sounding.
   const navigateChapterForTranslation = useCallback(
-    async (targetTranslationId: string, bookId: string, chapter: number) => {
+    async (targetTranslationId: string, bookId: string, chapter: number, verse?: number) => {
       const statusAtNavigation = useAudioStore.getState().status;
       if (statusAtNavigation === 'playing' || statusAtNavigation === 'loading') {
-        await playChapterForTranslation(targetTranslationId, bookId, chapter);
+        await playChapterForTranslation(targetTranslationId, bookId, chapter, verse);
         return;
       }
 
@@ -1105,6 +1186,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       }
       setCurrentTrack(targetTranslationId, bookId, chapter);
       syncQueueToTrackInStore(targetTranslationId, bookId, chapter);
+      const { playbackSequence } = useAudioStore.getState();
       if (
         playbackSequence.length > 0 &&
         !hasAudioPlaybackSequenceEntry(playbackSequence, bookId, chapter)
@@ -1116,7 +1198,6 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     },
     [
       clearPlaybackSequence,
-      playbackSequence,
       playChapterForTranslation,
       setCurrentTrack,
       setStatus,
@@ -1125,128 +1206,79 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     ]
   );
 
-  // Navigate to previous chapter
-  const previousChapter = useCallback(async (): Promise<AudioPlaybackSequenceEntry | null> => {
-    const previousQueuedEntry = queue[queueIndex - 1];
-    if (previousQueuedEntry) {
-      setQueueIndex(queueIndex - 1);
-      await navigateChapterForTranslation(
-        previousQueuedEntry.translationId,
-        previousQueuedEntry.bookId,
-        previousQueuedEntry.chapter
+  // Steps the player one chapter back or forward: the queue first, then a pinned
+  // plan or rhythm session, then plain (or sparse-set) chapter adjacency. State is
+  // read at call time because lock-screen commands arrive after the reader unmounts,
+  // when this render's track may be several auto-advanced chapters behind.
+  const stepChapter = useCallback(
+    async (direction: -1 | 1): Promise<AudioPlaybackSequenceEntry | null> => {
+      const {
+        queue: liveQueue,
+        queueIndex: liveQueueIndex,
+        playbackSequence: liveSequence,
+        currentTranslationId: liveTranslationId,
+        currentBookId: liveBookId,
+        currentChapter: liveChapter,
+      } = useAudioStore.getState();
+
+      const queuedEntry = liveQueue[liveQueueIndex + direction];
+      if (queuedEntry) {
+        setQueueIndex(liveQueueIndex + direction);
+        await navigateChapterForTranslation(
+          queuedEntry.translationId,
+          queuedEntry.bookId,
+          queuedEntry.chapter
+        );
+        return { bookId: queuedEntry.bookId, chapter: queuedEntry.chapter };
+      }
+
+      if (!liveBookId || !liveChapter) return null;
+      const targetTranslationId = liveTranslationId ?? translationId;
+
+      const sequenceEntry = getAdjacentAudioPlaybackSequenceEntry(
+        liveSequence,
+        liveBookId,
+        liveChapter,
+        direction
       );
-      return {
-        bookId: previousQueuedEntry.bookId,
-        chapter: previousQueuedEntry.chapter,
-      };
-    }
+      if (sequenceEntry) {
+        await navigateChapterForTranslation(
+          targetTranslationId,
+          sequenceEntry.bookId,
+          sequenceEntry.chapter
+        );
+        return sequenceEntry;
+      }
 
-    const previousSequenceEntry =
-      currentBookId && currentChapter
-        ? getAdjacentAudioPlaybackSequenceEntry(playbackSequence, currentBookId, currentChapter, -1)
-        : null;
-    if (previousSequenceEntry) {
+      const isPinnedToPlaybackSequence =
+        liveSequence.length > 0 &&
+        hasAudioPlaybackSequenceEntry(liveSequence, liveBookId, liveChapter);
+      if (isPinnedToPlaybackSequence) {
+        return null;
+      }
+
+      const adjacentChapter = audioChapterMapRef.current
+        ? findAdjacentAvailableChapter(
+            liveBookId,
+            liveChapter,
+            direction,
+            audioChapterMapRef.current
+          )
+        : getAdjacentBibleChapter(liveBookId, liveChapter, direction);
+      if (!adjacentChapter) return null;
+
       await navigateChapterForTranslation(
-        currentTranslationId ?? translationId,
-        previousSequenceEntry.bookId,
-        previousSequenceEntry.chapter
+        targetTranslationId,
+        adjacentChapter.bookId,
+        adjacentChapter.chapter
       );
-      return previousSequenceEntry;
-    }
+      return adjacentChapter;
+    },
+    [navigateChapterForTranslation, setQueueIndex, translationId]
+  );
 
-    const isPinnedToPlaybackSequence =
-      currentBookId && currentChapter
-        ? playbackSequence.length > 0 &&
-          hasAudioPlaybackSequenceEntry(playbackSequence, currentBookId, currentChapter)
-        : false;
-    if (isPinnedToPlaybackSequence) {
-      return null;
-    }
-
-    if (!currentBookId || !currentChapter) return null;
-    const adjacentChapter = audioChapterMapRef.current
-      ? findAdjacentAvailableChapter(currentBookId, currentChapter, -1, audioChapterMapRef.current)
-      : getAdjacentBibleChapter(currentBookId, currentChapter, -1);
-    if (!adjacentChapter) return null;
-    await navigateChapterForTranslation(
-      currentTranslationId ?? translationId,
-      adjacentChapter.bookId,
-      adjacentChapter.chapter
-    );
-    return adjacentChapter;
-  }, [
-    currentBookId,
-    currentChapter,
-    currentTranslationId,
-    navigateChapterForTranslation,
-    playbackSequence,
-    queue,
-    queueIndex,
-    setQueueIndex,
-    translationId,
-  ]);
-
-  // Navigate to next chapter
-  const nextChapter = useCallback(async (): Promise<AudioPlaybackSequenceEntry | null> => {
-    const nextQueuedEntry = queue[queueIndex + 1];
-    if (nextQueuedEntry) {
-      setQueueIndex(queueIndex + 1);
-      await navigateChapterForTranslation(
-        nextQueuedEntry.translationId,
-        nextQueuedEntry.bookId,
-        nextQueuedEntry.chapter
-      );
-      return {
-        bookId: nextQueuedEntry.bookId,
-        chapter: nextQueuedEntry.chapter,
-      };
-    }
-
-    const nextSequenceEntry =
-      currentBookId && currentChapter
-        ? getAdjacentAudioPlaybackSequenceEntry(playbackSequence, currentBookId, currentChapter, 1)
-        : null;
-    if (nextSequenceEntry) {
-      await navigateChapterForTranslation(
-        currentTranslationId ?? translationId,
-        nextSequenceEntry.bookId,
-        nextSequenceEntry.chapter
-      );
-      return nextSequenceEntry;
-    }
-
-    const isPinnedToPlaybackSequence =
-      currentBookId && currentChapter
-        ? playbackSequence.length > 0 &&
-          hasAudioPlaybackSequenceEntry(playbackSequence, currentBookId, currentChapter)
-        : false;
-    if (isPinnedToPlaybackSequence) {
-      return null;
-    }
-
-    if (!currentBookId || !currentChapter) return null;
-    const adjacentChapter = audioChapterMapRef.current
-      ? findAdjacentAvailableChapter(currentBookId, currentChapter, 1, audioChapterMapRef.current)
-      : getAdjacentBibleChapter(currentBookId, currentChapter, 1);
-    if (!adjacentChapter) return null;
-
-    await navigateChapterForTranslation(
-      currentTranslationId ?? translationId,
-      adjacentChapter.bookId,
-      adjacentChapter.chapter
-    );
-    return adjacentChapter;
-  }, [
-    currentBookId,
-    currentChapter,
-    currentTranslationId,
-    navigateChapterForTranslation,
-    playbackSequence,
-    queue,
-    queueIndex,
-    setQueueIndex,
-    translationId,
-  ]);
+  const previousChapter = useCallback(() => stepChapter(-1), [stepChapter]);
+  const nextChapter = useCallback(() => stepChapter(1), [stepChapter]);
 
   const addToQueue = useCallback(
     (bookId: string, chapter: number) => {
@@ -1267,7 +1299,8 @@ export function useAudioPlayer(translationId: string = 'bsb') {
   const audioAvailable = isAudioAvailable(translationId);
 
   useEffect(() => {
-    return subscribeBibleNowPlayingRemoteCommands(async (command) => {
+    activeRemoteCommandUnsubscribe?.();
+    activeRemoteCommandUnsubscribe = subscribeBibleNowPlayingRemoteCommands(async (command) => {
       switch (command.command) {
         case 'play': {
           const store = useAudioStore.getState();
@@ -1276,13 +1309,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
             return;
           }
 
-          if (
-            store.currentBookId &&
-            store.currentChapter &&
-            audioPlayer.isLoaded() &&
-            store.currentPosition > 0 &&
-            (store.duration <= 0 || store.currentPosition < store.duration)
-          ) {
+          if (canResumeLoadedChapter(store)) {
             await resume();
             return;
           }
@@ -1334,6 +1361,8 @@ export function useAudioPlayer(translationId: string = 'bsb') {
           return;
       }
     });
+    // No cleanup: the subscription stays live after unmount (see
+    // activeRemoteCommandUnsubscribe) and the next run or player replaces it.
   }, [
     nextChapter,
     pause,
@@ -1390,6 +1419,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     // Navigation
     previousChapter,
     nextChapter,
+    navigateChapterForTranslation,
 
     // Settings
     changePlaybackRate,

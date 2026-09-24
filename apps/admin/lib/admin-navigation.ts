@@ -42,9 +42,21 @@ export const adminNavigation: AdminNavigationItem[] = [
     group: 'Operations',
   },
   {
+    label: 'Prayer Reports',
+    href: '/prayer-reports',
+    description: 'Review reported prayer requests, bans, and the prayer wall word filter.',
+    group: 'Operations',
+  },
+  {
     label: 'Health',
     href: '/health',
     description: 'Catch stale syncs and translation delivery problems early.',
+    group: 'Operations',
+  },
+  {
+    label: 'App Errors',
+    href: '/app-errors',
+    description: 'Anonymous crash and screen-error reports from the mobile app.',
     group: 'Operations',
   },
   {

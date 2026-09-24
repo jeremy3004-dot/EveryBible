@@ -2,231 +2,160 @@
 // react-native/expo imports so it can be unit-tested directly and so it never
 // pulls WHATWG `new URL()` onto the Hermes hot path — see the equivalent
 // scheme-check note in ../supabase/client.ts.
-export interface AuthRecoveryTokens {
-  accessToken: string;
-  refreshToken: string;
-}
+//
+// The client uses the PKCE flow (see ../supabase/client.ts). The recovery email
+// sends the user through Supabase's /verify endpoint, which redirects to
+//   com.everybible.app://reset-password?code=<auth code>
+// The code is worthless without the code verifier that resetPasswordForEmail
+// stored in this install's SecureStore, so another app that claims our custom
+// scheme and receives the link cannot turn it into a session.
 
-export interface AuthRecoveryTokenClaims {
-  email: string | null;
-  subject: string | null;
-}
+export type RecoveryLinkParseResult =
+  | { kind: 'code'; code: string }
+  | {
+      kind: 'unusable';
+      /**
+       * legacy-token: an implicit-flow link carrying a live session (emails sent
+       *   before the PKCE switch). Refused, because accepting session tokens over
+       *   a custom scheme is the vulnerability PKCE closes.
+       * link-error: Supabase redirected with an error (expired or used link).
+       * missing-code: the reset path with no usable code.
+       */
+      reason: 'legacy-token' | 'link-error' | 'missing-code';
+    };
+
+export type RecoveryProblem = 'wrong-device' | 'expired' | 'network' | 'configuration';
 
 // Any installed app can fire an arbitrary URL at us. Only the app's own
-// reset-password link is a recovery link: anything else (another host under our
-// scheme, a http(s) universal link, an `exp://` dev URL carrying a crafted
-// fragment) is rejected outright so an attacker cannot smuggle their own tokens
-// in through a path we merely "happen to parse".
+// reset-password link is a recovery link: another host under our scheme, a
+// deeper path, an http(s) link, or an `exp://` dev URL is not.
 const RECOVERY_LINK_PREFIX = 'com.everybible.app://reset-password';
 
+// Supabase auth codes are UUIDs. Anything that is not a short plain token is
+// refused before it reaches the network.
+const AUTH_CODE_PATTERN = /^[A-Za-z0-9-]{16,128}$/;
+
 function isAllowedRecoveryUrl(url: string): boolean {
-  // Only the scheme+host are case-insensitive in practice; compare the prefix
-  // case-insensitively and then require a real boundary so that hosts such as
-  // `reset-password.attacker.example` cannot pass as a prefix match.
+  // Scheme and host are case-insensitive; the remainder must be nothing, an
+  // optional trailing slash, then a query or fragment.
   if (url.slice(0, RECOVERY_LINK_PREFIX.length).toLowerCase() !== RECOVERY_LINK_PREFIX) {
     return false;
   }
 
   const remainder = url.slice(RECOVERY_LINK_PREFIX.length);
-  return (
-    remainder === '' ||
-    remainder.startsWith('/') ||
-    remainder.startsWith('#') ||
-    remainder.startsWith('?')
-  );
+  const afterSlash = remainder.startsWith('/') ? remainder.slice(1) : remainder;
+  return afterSlash === '' || afterSlash.startsWith('?') || afterSlash.startsWith('#');
 }
 
-function extractParamsSegment(url: string): string {
+function splitUrl(url: string): { query: string; fragment: string } {
   const hashIndex = url.indexOf('#');
-  if (hashIndex !== -1) {
-    return url.slice(hashIndex + 1);
-  }
-
-  const queryIndex = url.indexOf('?');
-  if (queryIndex !== -1) {
-    return url.slice(queryIndex + 1);
-  }
-
-  return '';
+  const beforeHash = hashIndex === -1 ? url : url.slice(0, hashIndex);
+  const fragment = hashIndex === -1 ? '' : url.slice(hashIndex + 1);
+  const queryIndex = beforeHash.indexOf('?');
+  const query = queryIndex === -1 ? '' : beforeHash.slice(queryIndex + 1);
+  return { query, fragment };
 }
 
-function extractParam(segment: string, key: string): string | null {
-  const match = segment.match(new RegExp(`(?:^|&)${key}=([^&]*)`));
-  return match ? decodeURIComponent(match[1]) : null;
+function readParams(segment: string): Map<string, string> {
+  const params = new Map<string, string>();
+  if (!segment) {
+    return params;
+  }
+
+  for (const pair of segment.split('&')) {
+    if (!pair) {
+      continue;
+    }
+    const equalsIndex = pair.indexOf('=');
+    const rawKey = equalsIndex === -1 ? pair : pair.slice(0, equalsIndex);
+    const rawValue = equalsIndex === -1 ? '' : pair.slice(equalsIndex + 1);
+    let value: string;
+    try {
+      value = decodeURIComponent(rawValue.replace(/\+/g, ' '));
+    } catch {
+      // A malformed escape makes the value unusable, not the whole link fatal.
+      value = '';
+    }
+    if (!params.has(rawKey)) {
+      params.set(rawKey, value);
+    }
+  }
+
+  return params;
 }
 
-// Supabase's implicit auth flow (the default, and what this app's client uses —
-// see detectSessionInUrl: false in ../supabase/client.ts) delivers recovery
-// tokens in the URL fragment, e.g.:
-// com.everybible.app://reset-password#access_token=...&refresh_token=...&type=recovery
-export function parseAuthRecoveryTokens(url: string): AuthRecoveryTokens | null {
+export function parseRecoveryLink(url: string): RecoveryLinkParseResult | null {
   if (!isAllowedRecoveryUrl(url)) {
     return null;
   }
 
-  const segment = extractParamsSegment(url);
-  if (!segment) {
-    return null;
+  const { query, fragment } = splitUrl(url);
+  const queryParams = readParams(query);
+  const fragmentParams = readParams(fragment);
+  const has = (key: string) => queryParams.has(key) || fragmentParams.has(key);
+
+  if (has('access_token') || has('refresh_token')) {
+    return { kind: 'unusable', reason: 'legacy-token' };
   }
 
-  if (extractParam(segment, 'type') !== 'recovery') {
-    return null;
+  if (has('error') || has('error_code') || has('error_description')) {
+    return { kind: 'unusable', reason: 'link-error' };
   }
 
-  const accessToken = extractParam(segment, 'access_token');
-  const refreshToken = extractParam(segment, 'refresh_token');
-
-  if (!accessToken || !refreshToken) {
-    return null;
+  const code = queryParams.get('code') ?? '';
+  if (!AUTH_CODE_PATTERN.test(code)) {
+    return { kind: 'unusable', reason: 'missing-code' };
   }
 
-  return { accessToken, refreshToken };
-}
-
-const BASE64_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-
-// Hermes ships neither `atob` nor `Buffer`, so the base64url decode is written
-// out by hand. This is DISPLAY-ONLY: the payload is never verified here, and
-// nothing security-relevant is decided from it beyond "which account does this
-// link claim to be for", which the user then confirms.
-function decodeBase64UrlToBytes(input: string): number[] | null {
-  const normalized = input.replace(/-/g, '+').replace(/_/g, '/');
-  const bytes: number[] = [];
-  let buffer = 0;
-  let bits = 0;
-
-  for (let index = 0; index < normalized.length; index += 1) {
-    const character = normalized[index];
-    if (character === '=') {
-      break;
-    }
-
-    const value = BASE64_ALPHABET.indexOf(character);
-    if (value === -1) {
-      return null;
-    }
-
-    buffer = (buffer << 6) | value;
-    bits += 6;
-
-    if (bits >= 8) {
-      bits -= 8;
-      bytes.push((buffer >> bits) & 0xff);
-    }
-  }
-
-  return bytes;
-}
-
-function decodeUtf8(bytes: number[]): string | null {
-  let output = '';
-  let index = 0;
-
-  while (index < bytes.length) {
-    const first = bytes[index];
-    index += 1;
-    let codePoint: number;
-    let continuationCount: number;
-
-    if (first < 0x80) {
-      output += String.fromCharCode(first);
-      continue;
-    } else if (first >= 0xc2 && first <= 0xdf) {
-      codePoint = first & 0x1f;
-      continuationCount = 1;
-    } else if (first >= 0xe0 && first <= 0xef) {
-      codePoint = first & 0x0f;
-      continuationCount = 2;
-    } else if (first >= 0xf0 && first <= 0xf4) {
-      codePoint = first & 0x07;
-      continuationCount = 3;
-    } else {
-      return null;
-    }
-
-    if (index + continuationCount > bytes.length) {
-      return null;
-    }
-
-    for (let step = 0; step < continuationCount; step += 1) {
-      const continuation = bytes[index];
-      index += 1;
-      if ((continuation & 0xc0) !== 0x80) {
-        return null;
-      }
-      codePoint = (codePoint << 6) | (continuation & 0x3f);
-    }
-
-    if (codePoint > 0x10ffff) {
-      return null;
-    }
-
-    output += String.fromCodePoint(codePoint);
-  }
-
-  return output;
-}
-
-function readStringClaim(payload: Record<string, unknown>, key: string): string | null {
-  const value = payload[key];
-  return typeof value === 'string' && value.length > 0 ? value : null;
+  return { kind: 'code', code };
 }
 
 /**
- * Reads the `email`/`sub` claims out of a Supabase access token so the reset
- * screen can name the account the link belongs to BEFORE any session exists.
- *
- * The signature is deliberately NOT verified — Hermes has no WebCrypto, and the
- * real trust decision is made by Supabase when the token is exchanged for a
- * session. Treat everything returned here as untrusted, user-visible text.
+ * Maps a failed `exchangeCodeForSession` to what the user can do about it.
+ * auth-js deletes the stored code verifier after every attempt, successful or
+ * not, so none of these can be retried with the same link.
  */
-export function decodeRecoveryTokenClaims(accessToken: string): AuthRecoveryTokenClaims {
-  const segments = accessToken.split('.');
-  if (segments.length !== 3) {
-    return { email: null, subject: null };
+export function classifyRecoveryExchangeError(
+  error: unknown
+): Exclude<RecoveryProblem, 'configuration'> {
+  if (!error || typeof error !== 'object') {
+    return 'expired';
   }
 
-  const bytes = decodeBase64UrlToBytes(segments[1]);
-  if (!bytes) {
-    return { email: null, subject: null };
+  const { name, code } = error as { name?: unknown; code?: unknown };
+
+  // No verifier in this install's storage: the link was opened on another
+  // device, after a reinstall, or after a sign-in cleared the pending request.
+  if (code === 'pkce_code_verifier_not_found' || name === 'AuthPKCECodeVerifierMissingError') {
+    return 'wrong-device';
   }
 
-  const json = decodeUtf8(bytes);
-  if (!json) {
-    return { email: null, subject: null };
+  if (name === 'AuthRetryableFetchError') {
+    return 'network';
   }
 
-  try {
-    const parsed: unknown = JSON.parse(json);
-    if (!parsed || typeof parsed !== 'object') {
-      return { email: null, subject: null };
-    }
-
-    const payload = parsed as Record<string, unknown>;
-    return {
-      email: readStringClaim(payload, 'email'),
-      subject: readStringClaim(payload, 'sub'),
-    };
-  } catch {
-    return { email: null, subject: null };
+  // auth-js rethrows anything that is not an auth error, which in practice is a
+  // failed fetch.
+  const isAuthError = typeof name === 'string' && name.startsWith('Auth');
+  if (!isAuthError && code === undefined) {
+    return 'network';
   }
+
+  // flow_state_expired, flow_state_not_found (used), bad_code_verifier (a newer
+  // reset request replaced the verifier), and anything else from the server.
+  return 'expired';
 }
 
-export type RecoveryLinkAudience = 'match' | 'different-account';
-
-/**
- * A recovery link that belongs to a different account than the one currently
- * signed in must never be allowed to silently swap the session out from under
- * the user (session fixation). Signed-out devices, and links whose subject we
- * could not read, fall through to the ordinary confirmation prompt.
- */
-export function resolveRecoveryLinkAudience(
-  linkSubject: string | null,
-  signedInUserId: string | null | undefined
-): RecoveryLinkAudience {
-  if (!signedInUserId || !linkSubject) {
-    return 'match';
+export function recoveryProblemMessageKey(problem: RecoveryProblem): string {
+  switch (problem) {
+    case 'wrong-device':
+      return 'auth.resetLinkWrongDevice';
+    case 'network':
+      return 'auth.serviceUnavailable';
+    case 'configuration':
+      return 'auth.backendNotConfigured';
+    case 'expired':
+    default:
+      return 'auth.resetPasswordInvalidSession';
   }
-
-  return linkSubject === signedInUserId ? 'match' : 'different-account';
 }

@@ -189,8 +189,11 @@ export function TabSwitch({
                 style={styles.icon}
               />
             ) : null}
+            {/* Two lines, not one: an equal-width third of the row holds about
+                eight characters at accessibility sizes, so "Foundations" became
+                "Found…". The thumb is inset top/bottom, so it grows with the row. */}
             <Text
-              numberOfLines={1}
+              numberOfLines={2}
               style={[
                 styles.label,
                 {
@@ -240,5 +243,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontWeight: '600',
+    flexShrink: 1,
+    textAlign: 'center',
   },
 });

@@ -3,7 +3,9 @@ import * as Notifications from 'expo-notifications';
 import type { DevicePushToken } from 'expo-notifications';
 import Constants from 'expo-constants';
 import i18n from '../../i18n';
+import { parseReminderTime } from '../preferences/reminderPreferences';
 import { supabase } from '../supabase';
+import { DAILY_REMINDER_NOTIFICATION_DATA } from './notificationTapRouting';
 export { setupNotificationHandler } from './notificationBootstrap';
 
 /**
@@ -67,11 +69,15 @@ function getDevicePushTokenKey(devicePushToken?: DevicePushToken): string | null
   return `${devicePushToken.type}:${typeof devicePushToken.data === 'string' ? devicePushToken.data : JSON.stringify(devicePushToken.data)}`;
 }
 
-// One in-flight/completed channel setup per launch. Startup fires this and the
-// reminder scheduler awaits it, so without memoization the two racing callers
+const DAILY_REMINDER_CHANNEL_ID = 'daily-reminder';
+
+// One in-flight/completed channel setup per channel name. Startup fires this and
+// the reminder scheduler awaits it, so without memoization the two racing callers
 // would configure the channels twice — and a scheduled reminder could still name
-// a channel Android has not been told about yet.
-let androidChannelSetup: Promise<void> | null = null;
+// a channel Android has not been told about yet. Keyed by the localized name
+// because startup usually runs before a non-English interface language has
+// loaded; the next caller after it loads renames the channel.
+let androidChannelSetup: { name: string; promise: Promise<void> } | null = null;
 
 /**
  * Create Android notification channels required for scheduled notifications.
@@ -84,20 +90,26 @@ export async function setupAndroidChannels(): Promise<void> {
     return;
   }
 
-  if (!androidChannelSetup) {
-    androidChannelSetup = (async () => {
-      await Notifications.setNotificationChannelAsync('daily-reminder', {
-        name: i18n.t('notifications.channelDailyReminder'),
-        importance: Notifications.AndroidImportance.DEFAULT,
-        sound: 'default',
-      });
-    })().catch((error) => {
-      androidChannelSetup = null;
-      throw error;
-    });
+  const name = i18n.t('notifications.channelDailyReminder');
+  if (!androidChannelSetup || androidChannelSetup.name !== name) {
+    const setup = { name, promise: Promise.resolve() };
+    setup.promise = Notifications.setNotificationChannelAsync(DAILY_REMINDER_CHANNEL_ID, {
+      name,
+      importance: Notifications.AndroidImportance.DEFAULT,
+      sound: 'default',
+    }).then(
+      () => undefined,
+      (error: unknown) => {
+        if (androidChannelSetup === setup) {
+          androidChannelSetup = null;
+        }
+        throw error;
+      }
+    );
+    androidChannelSetup = setup;
   }
 
-  await androidChannelSetup;
+  await androidChannelSetup.promise;
 }
 
 /**
@@ -127,8 +139,68 @@ export async function requestNotificationPermissionOutcome(): Promise<Notificati
   return canAskAgain === false ? 'blocked' : 'denied';
 }
 
+export type NotificationPermissionStatus = 'granted' | 'denied' | 'undetermined';
+
+/**
+ * The current notification permission, read without prompting. Settings uses it
+ * to warn when the daily reminder is on in the app but blocked by the system.
+ */
+export async function getNotificationPermissionStatus(): Promise<NotificationPermissionStatus> {
+  const { status } = await Notifications.getPermissionsAsync();
+  if (status === 'granted' || status === 'denied') {
+    return status;
+  }
+  return 'undetermined';
+}
+
+/**
+ * Whether the system will keep the daily reminder from appearing: the app's
+ * notifications are denied, or (Android only) the user switched off the reminder's
+ * own channel in system settings while the app-level permission stays granted.
+ * A channel that cannot be read is not reported: a false alarm is worse than none.
+ */
+export async function isDailyReminderBlockedBySystem(): Promise<boolean> {
+  if ((await getNotificationPermissionStatus()) === 'denied') {
+    return true;
+  }
+  if (Platform.OS !== 'android') {
+    return false;
+  }
+  try {
+    const channel = await Notifications.getNotificationChannelAsync(DAILY_REMINDER_CHANNEL_ID);
+    return channel?.importance === Notifications.AndroidImportance.NONE;
+  } catch {
+    return false;
+  }
+}
+
 export async function requestNotificationPermissions(): Promise<boolean> {
   return (await requestNotificationPermissionOutcome()) === 'granted';
+}
+
+const DAILY_REMINDER_ID = 'daily-reading-reminder';
+
+/**
+ * What the scheduled reminder was last set to in this process: `null` when
+ * unknown (a fresh launch — a reminder from an older build, or one left behind
+ * by a signed-out account, may still be armed), `'off'` once it is cancelled,
+ * otherwise a signature of everything that is fixed at scheduling time.
+ */
+let scheduledReminderSignature: string | null = null;
+
+/**
+ * Everything a scheduled reminder bakes in: its time, its text (resolved in the
+ * app language of the moment) and the zone offset Android turned that local time
+ * into an absolute alarm with. When any of them changes it must be rescheduled.
+ */
+function getReminderSignature(hour: number, minute: number): string {
+  return JSON.stringify([
+    hour,
+    minute,
+    i18n.t('settings.notificationTitle'),
+    i18n.t('settings.notificationBody'),
+    new Date().getTimezoneOffset(),
+  ]);
 }
 
 /**
@@ -147,22 +219,26 @@ export async function scheduleDailyReminder(hour: number, minute: number): Promi
 
   // Cancel the existing scheduled notification first (if any).
   // Use catch() so that a missing notification does not throw.
-  await Notifications.cancelScheduledNotificationAsync('daily-reading-reminder').catch(() => {});
+  scheduledReminderSignature = null;
+  await Notifications.cancelScheduledNotificationAsync(DAILY_REMINDER_ID).catch(() => {});
 
+  const signature = getReminderSignature(hour, minute);
   await Notifications.scheduleNotificationAsync({
-    identifier: 'daily-reading-reminder',
+    identifier: DAILY_REMINDER_ID,
     content: {
       title: i18n.t('settings.notificationTitle'),
       body: i18n.t('settings.notificationBody'),
       sound: true,
+      data: { ...DAILY_REMINDER_NOTIFICATION_DATA },
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DAILY,
       hour,
       minute,
-      channelId: 'daily-reminder',
+      channelId: DAILY_REMINDER_CHANNEL_ID,
     },
   });
+  scheduledReminderSignature = signature;
 }
 
 /**
@@ -173,7 +249,43 @@ export async function scheduleDailyReminder(hour: number, minute: number): Promi
  * group session alerts) that the user may have enabled.
  */
 export async function cancelDailyReminder(): Promise<void> {
-  await Notifications.cancelScheduledNotificationAsync('daily-reading-reminder').catch(() => {});
+  await Notifications.cancelScheduledNotificationAsync(DAILY_REMINDER_ID).catch(() => {});
+  scheduledReminderSignature = 'off';
+}
+
+export interface DailyReminderPreference {
+  notificationsEnabled: boolean;
+  reminderTime: string | null;
+}
+
+/**
+ * Brings the device's scheduled reminder in line with the saved preference.
+ *
+ * Settings schedules the reminder when the user picks a time, but the schedule
+ * then drifts from the preference: its text stays in the language it was set in,
+ * Android keeps the old zone's alarm after travel, a preference pulled from
+ * another device (or reset by sign-out) never touches this device's schedule.
+ * Reconciling on launch, on foreground and on each change closes all of those.
+ * Only work that would change something reaches the native module.
+ */
+export async function reconcileDailyReminder({
+  notificationsEnabled,
+  reminderTime,
+}: DailyReminderPreference): Promise<void> {
+  const schedule = notificationsEnabled ? parseReminderTime(reminderTime) : null;
+
+  if (!schedule) {
+    if (scheduledReminderSignature !== 'off') {
+      await cancelDailyReminder();
+    }
+    return;
+  }
+
+  if (scheduledReminderSignature === getReminderSignature(schedule.hour, schedule.minute)) {
+    return;
+  }
+
+  await scheduleDailyReminder(schedule.hour, schedule.minute);
 }
 
 /**

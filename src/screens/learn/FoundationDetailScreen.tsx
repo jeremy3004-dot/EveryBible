@@ -18,6 +18,7 @@ import { useGatherStore } from '../../stores/gatherStore';
 import { LessonBottomSheet } from '../../components/gather/LessonBottomSheet';
 import { getTranslatedBookName } from '../../constants';
 import { formatBibleReferenceLabel } from '../../services/gather/gatherReferenceLabel';
+import { countCompletedLessons } from './gatherPathModel';
 import type { GatherLesson } from '../../types/gather';
 import type { FoundationDetailScreenProps } from '../../navigation/types';
 
@@ -33,7 +34,9 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
   const markLessonComplete = useGatherStore((state) => state.markLessonComplete);
   const unmarkLessonComplete = useGatherStore((state) => state.unmarkLessonComplete);
   const isLessonComplete = useGatherStore((state) => state.isLessonComplete);
-  const getCompletedCount = useGatherStore((state) => state.getCompletedCount);
+  // Subscribing to this foundation's list (not the stable getter) re-renders the
+  // count and ticks when a lesson is marked from the sheet.
+  const completedIds = useGatherStore((state) => state.completedLessons[foundationId]);
 
   // Resolve foundation or wisdom by ID
   const foundation =
@@ -49,7 +52,7 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
             {
               borderBottomColor: colors.cardBorder,
               paddingTop: insets.top,
-              height: 56 + insets.top,
+              minHeight: 56 + insets.top,
             },
           ]}
           onPress={() => navigation.goBack()}
@@ -69,7 +72,7 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
   }
 
   const isFoundation = foundationId.startsWith('foundation-');
-  const completedCount = getCompletedCount(foundationId);
+  const completedCount = countCompletedLessons(completedIds, foundation.lessons);
   const totalLessons = foundation.lessons.length;
   const resolveBookName = (bookId: string) => getTranslatedBookName(bookId, t);
 
@@ -114,7 +117,7 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
           {
             borderBottomColor: colors.cardBorder,
             paddingTop: insets.top,
-            height: 56 + insets.top,
+            minHeight: 56 + insets.top,
           },
         ]}
       >
@@ -371,8 +374,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   // Header bar
+  // minHeight, not height: the title must not clip at large accessibility text sizes.
   headerBar: {
-    height: 56,
+    minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: layout.screenPadding,

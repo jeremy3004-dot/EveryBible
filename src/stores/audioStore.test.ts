@@ -846,11 +846,83 @@ test('cycleRepeatMode walks off, chapter, book and back to off', () => {
 test('setSleepTimer schedules the stop time from now', (t) => {
   resetStore();
   t.mock.timers.enable({ apis: ['Date'], now: 1_700_000_000_000 });
+  actions().setStatus('playing');
 
   actions().setSleepTimer(15);
 
   assert.equal(useAudioStore.getState().sleepTimerMinutes, 15);
   assert.equal(useAudioStore.getState().sleepTimerEndTime, 1_700_000_000_000 + 15 * 60 * 1000);
+});
+
+test('a sleep timer set while nothing plays holds its full length until playback starts', (t) => {
+  resetStore();
+  t.mock.timers.enable({ apis: ['Date'], now: 1_700_000_000_000 });
+  actions().setStatus('paused');
+
+  actions().setSleepTimer(15);
+  t.mock.timers.tick(10 * 60 * 1000);
+  const whilePaused = useAudioStore.getState();
+  actions().setStatus('playing');
+
+  assert.deepEqual(
+    {
+      pausedEnd: whilePaused.sleepTimerEndTime,
+      pausedRemaining: whilePaused.sleepTimerRemainingMs,
+      end: useAudioStore.getState().sleepTimerEndTime,
+      remaining: useAudioStore.getState().sleepTimerRemainingMs,
+    },
+    {
+      pausedEnd: null,
+      pausedRemaining: 15 * 60 * 1000,
+      end: 1_700_000_000_000 + 10 * 60 * 1000 + 15 * 60 * 1000,
+      remaining: null,
+    }
+  );
+});
+
+test('pausing playback freezes the sleep timer and resuming moves its end time', (t) => {
+  resetStore();
+  t.mock.timers.enable({ apis: ['Date'], now: 1_700_000_000_000 });
+  actions().setStatus('playing');
+  actions().setSleepTimer(15);
+  t.mock.timers.tick(5 * 60 * 1000);
+
+  actions().setStatus('paused');
+  const frozen = useAudioStore.getState().sleepTimerRemainingMs;
+  t.mock.timers.tick(60 * 60 * 1000);
+  actions().setStatus('playing');
+
+  assert.equal(frozen, 10 * 60 * 1000);
+  assert.equal(
+    useAudioStore.getState().sleepTimerEndTime,
+    1_700_000_000_000 + 65 * 60 * 1000 + 10 * 60 * 1000
+  );
+  assert.equal(useAudioStore.getState().sleepTimerMinutes, 15);
+});
+
+test('buffering keeps the sleep timer running', (t) => {
+  resetStore();
+  t.mock.timers.enable({ apis: ['Date'], now: 1_700_000_000_000 });
+  actions().setStatus('playing');
+  actions().setSleepTimer(15);
+
+  actions().setStatus('loading');
+
+  assert.equal(useAudioStore.getState().sleepTimerEndTime, 1_700_000_000_000 + 15 * 60 * 1000);
+  assert.equal(useAudioStore.getState().sleepTimerRemainingMs, null);
+});
+
+test('stopping playback freezes the sleep timer too', (t) => {
+  resetStore();
+  t.mock.timers.enable({ apis: ['Date'], now: 1_700_000_000_000 });
+  actions().setStatus('playing');
+  actions().setSleepTimer(15);
+  t.mock.timers.tick(60 * 1000);
+
+  actions().resetPlayback();
+
+  assert.equal(useAudioStore.getState().sleepTimerEndTime, null);
+  assert.equal(useAudioStore.getState().sleepTimerRemainingMs, 14 * 60 * 1000);
 });
 
 test('setSleepTimer to off removes the scheduled stop time', (t) => {
@@ -872,6 +944,7 @@ test('the sleep timer end time stays out of storage while the chosen length is s
 
   assert.equal(persisted.sleepTimerMinutes, 30);
   assert.equal('sleepTimerEndTime' in persisted, false);
+  assert.equal('sleepTimerRemainingMs' in persisted, false);
 });
 
 test('clearSleepTimer cancels both the length and the stop time', (t) => {
@@ -883,6 +956,17 @@ test('clearSleepTimer cancels both the length and the stop time', (t) => {
 
   assert.equal(useAudioStore.getState().sleepTimerMinutes, null);
   assert.equal(useAudioStore.getState().sleepTimerEndTime, null);
+});
+
+test('clearSleepTimer also drops a paused sleep timer', () => {
+  resetStore();
+  actions().setStatus('paused');
+  actions().setSleepTimer(60);
+
+  actions().clearSleepTimer();
+
+  assert.equal(useAudioStore.getState().sleepTimerRemainingMs, null);
+  assert.equal(useAudioStore.getState().sleepTimerMinutes, null);
 });
 
 test('setBackgroundMusicChoice persists the chosen bed', () => {

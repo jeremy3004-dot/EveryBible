@@ -100,6 +100,7 @@ import {
   buildPlanDayPlaybackSequenceEntries,
   getCurrentPlanDaySummary,
   getPlanChapterListenStatus,
+  getPlanStepReadChapters,
   getRhythmSessionSegmentAtIndex,
   PLAN_LISTEN_COMPLETION_THRESHOLD,
   resolvePlaybackSequenceIndex,
@@ -237,6 +238,13 @@ interface AudioPortionShareDraft {
 // restores the 44pt touch floor without growing the visible square.
 const TOP_ACTION_HIT_SLOP = 2;
 const TOP_ACTION_ICON_SIZE = 20;
+// Reader chrome floats over the verses at a fixed size, and the verse column is
+// padded by exactly that size. Letting its labels grow without limit clipped
+// them inside the 44pt reference pill and pushed the plan strip up over the
+// last verses, so chrome text scales only this far. The verses themselves, and
+// the full reference behind each control, are not capped.
+const READER_REFERENCE_PILL_MAX_FONT_SCALE = 1.4;
+const PLAN_SESSION_BAR_MAX_FONT_SCALE = 1.3;
 
 const AUDIO_PORTION_MIN_DURATION_MS = 1000;
 const AUDIO_PORTION_DEFAULT_DURATION_MS = 30000;
@@ -1100,7 +1108,7 @@ export function BibleReaderScreen() {
     sleepTimerRemaining,
     backgroundMusicChoice,
     playChapter,
-    playChapterForTranslation,
+    navigateChapterForTranslation,
     addToQueue,
     stop,
     togglePlayPause,
@@ -2230,6 +2238,10 @@ export function BibleReaderScreen() {
     }
 
     autoplayKeyRef.current = autoplayKey;
+    // The autoplay param is a one-shot request from the screen that opened the reader.
+    // Left set, a later translation switch produced a new key and started audio again,
+    // even after the listener had paused or stopped it.
+    navigation.setParams({ autoplayAudio: false });
 
     void playChapter(
       bookId,
@@ -2249,6 +2261,7 @@ export function BibleReaderScreen() {
     currentTranslationInfo,
     focusVerse,
     isLoading,
+    navigation,
     playChapter,
   ]);
 
@@ -2390,12 +2403,6 @@ export function BibleReaderScreen() {
       return;
     }
 
-    const shouldRecordReadCompletion =
-      chapterSessionMode === 'read' &&
-      activePlanChapterIndex >= 0 &&
-      !activePlanSessionEntries.some(
-        (entry) => entry.verse_start != null || entry.verse_end != null
-      );
     if (activePlanChapterIndex < 0 || !isLastPlanChapter) {
       return;
     }
@@ -2407,8 +2414,13 @@ export function BibleReaderScreen() {
 
     planDayCompletionGuardRef.current = completionKey;
     try {
-      if (shouldRecordReadCompletion && !(activeChapterKey in chaptersRead)) {
-        markChapterRead(bookId, chapter);
+      // Ticking the step is the read: record it today even for chapters read on
+      // an earlier day (a weekly Kathisma, a second year through the Bible), or
+      // the streak and reading calendar would never see a plan reader's day.
+      if (chapterSessionMode === 'read') {
+        for (const read of getPlanStepReadChapters(activePlanSessionEntries)) {
+          markChapterRead(read.bookId, read.chapter);
+        }
       }
 
       // L20: both service calls apply the completion to the local plan store
@@ -2458,10 +2470,7 @@ export function BibleReaderScreen() {
     activePlanIsMultiSession,
     activePlanSessionEntries,
     activePlanSessionKey,
-    bookId,
-    chapter,
     chapterSessionMode,
-    chaptersRead,
     clearAudioPlaybackSequence,
     clearPlanDayResume,
     isLastPlanChapter,
@@ -2668,8 +2677,10 @@ export function BibleReaderScreen() {
       activeAudioChapter,
     });
 
+    // Keeps the listener's intent: a playing chapter continues in the new
+    // translation, a paused one is re-targeted and stays paused until Play.
     if (shouldReplayAudio) {
-      void playChapterForTranslation(
+      void navigateChapterForTranslation(
         translation.id,
         bookId,
         chapter,
@@ -3641,19 +3652,31 @@ export function BibleReaderScreen() {
     playChapter,
     syncReaderReference,
   };
-  const handlePreviousListenChapter = () =>
-    navigateListenChapter({
+  // The arrows keep focus while the chapter swaps under them; say where they went,
+  // as the read-mode swipe does.
+  const announceChapterTarget = (target: { bookId: string; chapter: number } | null) => {
+    if (target) {
+      announceForAccessibility(`${getTranslatedBookName(target.bookId, t)} ${target.chapter}`);
+    }
+  };
+
+  const handlePreviousListenChapter = () => {
+    announceChapterTarget(previousNavigationTarget);
+    return navigateListenChapter({
       ...listenNavigation,
       stepPlayer: previousChapter,
       fallbackTarget: previousNavigationTarget,
     });
+  };
 
-  const handleNextListenChapter = () =>
-    navigateListenChapter({
+  const handleNextListenChapter = () => {
+    announceChapterTarget(nextNavigationTarget);
+    return navigateListenChapter({
       ...listenNavigation,
       stepPlayer: nextChapter,
       fallbackTarget: nextNavigationTarget,
     });
+  };
 
   const handleReadChapterNavigation = async (
     target: { bookId: string; chapter: number } | null
@@ -3870,6 +3893,7 @@ export function BibleReaderScreen() {
       )
     ) {
       setSelectedVerses([]);
+      announceForAccessibility(t('interface.highlightAdded'));
     }
   };
 
@@ -3884,6 +3908,7 @@ export function BibleReaderScreen() {
       )
     ) {
       setSelectedVerses([]);
+      announceForAccessibility(t('interface.highlightRemoved'));
     }
   };
 
@@ -3892,9 +3917,13 @@ export function BibleReaderScreen() {
       return;
     }
 
-    await commitAnnotationEdits(
-      planReaderNoteSave({ ...readerAnnotationEditInput(), content: text })
-    );
+    if (
+      await commitAnnotationEdits(
+        planReaderNoteSave({ ...readerAnnotationEditInput(), content: text })
+      )
+    ) {
+      announceForAccessibility(t('annotations.saved'));
+    }
   };
 
   const renderPlanSessionBottomBar = () => {
@@ -3920,7 +3949,7 @@ export function BibleReaderScreen() {
         : t('readingPlans.completeDayCta', {
             defaultValue: 'Complete day',
           })
-      : t('common.next');
+      : t('audio.nextChapter');
     const bannerColors = getPlanSessionBannerColors(colors);
     const trailingActionHint = showPlanCompletionAction
       ? showSessionCompletionCopy
@@ -3936,7 +3965,9 @@ export function BibleReaderScreen() {
           {
             backgroundColor: bannerColors.fill,
             borderTopColor: bannerColors.border,
-            height: planSessionBottomBarHeight,
+            // A floor, not a fixed height: the capped labels can still need a
+            // few points more than the tab bar's height at the largest sizes.
+            minHeight: planSessionBottomBarHeight,
             paddingBottom: rootTabBarBottomPadding + spacing.xs,
           },
         ]}
@@ -3953,7 +3984,8 @@ export function BibleReaderScreen() {
                 onPress={() => void handlePreviousListenChapter()}
                 disabled={!hasPrevChapter}
                 accessibilityRole="button"
-                accessibilityLabel={t('common.previous')}
+                // "Previous" alone does not say previous what; the bar also steps days.
+                accessibilityLabel={t('audio.previousChapter')}
                 accessibilityHint={t('interface.previousChapterHint')}
               >
                 <Ionicons
@@ -3980,10 +4012,14 @@ export function BibleReaderScreen() {
             <Text
               style={[styles.planSessionBottomBarTitle, { color: bannerColors.text }]}
               numberOfLines={1}
+              maxFontSizeMultiplier={PLAN_SESSION_BAR_MAX_FONT_SCALE}
             >
               {activePlanTitle}
             </Text>
-            <Text style={[styles.planSessionBottomBarMeta, { color: bannerColors.text }]}>
+            <Text
+              style={[styles.planSessionBottomBarMeta, { color: bannerColors.text }]}
+              maxFontSizeMultiplier={PLAN_SESSION_BAR_MAX_FONT_SCALE}
+            >
               {t('readingPlans.dayLabel', {
                 day: planDayNumber,
                 defaultValue: `Day ${planDayNumber}`,
@@ -4883,6 +4919,7 @@ export function BibleReaderScreen() {
                 { color: colors.biblePrimaryText },
               ]}
               numberOfLines={1}
+              maxFontSizeMultiplier={READER_REFERENCE_PILL_MAX_FONT_SCALE}
             >
               {compactBookName} {chapter}
             </Text>
@@ -4910,6 +4947,7 @@ export function BibleReaderScreen() {
                 { color: colors.biblePrimaryText },
               ]}
               numberOfLines={1}
+              maxFontSizeMultiplier={READER_REFERENCE_PILL_MAX_FONT_SCALE}
             >
               {translationLabel}
             </Text>

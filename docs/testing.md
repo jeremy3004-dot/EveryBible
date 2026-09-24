@@ -265,7 +265,7 @@ What `installRenderHarness(mock, options)` installs:
   renders the dark scope.
 - **The `hooks` barrel** through `mockBarrel`: `useDisplayFont`,
   `useTabBarHeight` and `useKeyboardBottomInset` stay real; anything else a
-  component takes from `../../hooks` is passed in `options.hooks`.
+  component takes from `../../hooks` is passed in `options.hooks`. (`useLargeText` is also real.)
 
 Every render is wrapped in `I18nextProvider` (a private i18next instance with the
 real `en` locale, `harness.i18n`) and the real `ThemeProvider`. Pass

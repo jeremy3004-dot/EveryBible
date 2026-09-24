@@ -328,6 +328,35 @@ test('catching up a recurring plan records the selected date instead of completi
   );
 });
 
+test("finishing Saturday's weekly reading just after midnight files it under that Saturday", () => {
+  // Opened at 23:50 on Saturday 26 Sep, ticked at 00:10 on Sunday 27 Sep: the
+  // new week has begun, and "day 7 of this week" would be next Saturday.
+  const weekly = makePlan({ scheduleMode: 'calendar-day-of-week', duration_days: 7 });
+
+  assert.equal(getPlanCompletionEntryKey(weekly, 7, new Date(2026, 8, 27, 0, 10)), '2026-09-26');
+});
+
+test("finishing the month's last Proverbs chapter just after midnight files it under that day", () => {
+  // Day 30 read late on 30 Sep, ticked at 00:10 on 1 Oct — not 30 Oct.
+  const monthly = makePlan({ scheduleMode: 'calendar-day-of-month', duration_days: 31 });
+
+  assert.equal(getPlanCompletionEntryKey(monthly, 30, new Date(2026, 9, 1, 0, 10)), '2026-09-30');
+  // A leap-year February hands over to 1 March the same way.
+  assert.equal(getPlanCompletionEntryKey(monthly, 29, new Date(2028, 2, 1, 0, 10)), '2028-02-29');
+});
+
+test("reading ahead in a recurring plan still files the day under this cycle's date", () => {
+  const weekly = makePlan({ scheduleMode: 'calendar-day-of-week', duration_days: 7 });
+  const monthly = makePlan({ scheduleMode: 'calendar-day-of-month', duration_days: 31 });
+
+  // Tuesday 22 Sep: Thursday's reading is this Thursday, the 24th.
+  assert.equal(getPlanCompletionEntryKey(weekly, 5, new Date(2026, 8, 22, 12)), '2026-09-24');
+  // 1 Oct: day 31 was not a September date, so it can only be 31 Oct.
+  assert.equal(getPlanCompletionEntryKey(monthly, 31, new Date(2026, 9, 1, 0, 10)), '2026-10-31');
+  // Mid-afternoon on the 1st is no longer last night's session running late.
+  assert.equal(getPlanCompletionEntryKey(monthly, 30, new Date(2026, 9, 1, 15)), '2026-10-30');
+});
+
 test('the Proverbs ledger excludes dates that do not exist in the current month', () => {
   const plan = makePlan({ scheduleMode: 'calendar-day-of-month', duration_days: 31 });
   const entries = Array.from({ length: 31 }, (_, index) => ({

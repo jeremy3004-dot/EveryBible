@@ -4,7 +4,10 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 const reader = readFileSync('src/screens/bible/BibleReaderScreen.tsx', 'utf8');
 const summary = readFileSync('src/components/feedback/ChapterFeedbackSummary.tsx', 'utf8');
-const review = readFileSync('src/screens/bible/ChapterFeedbackReviewScreen.tsx', 'utf8');
+// The decision buttons live in the focused review the screen opens.
+const review =
+  readFileSync('src/screens/bible/ChapterFeedbackReviewScreen.tsx', 'utf8') +
+  readFileSync('src/components/feedback/FeedbackFocusedReview.tsx', 'utf8');
 test('chapters contain only a gated summary and an entry to dedicated review', () => {
   assert.match(reader, /<ChapterFeedbackSummary/);
   assert.doesNotMatch(reader, /translatorFeedbackItems\.map/);

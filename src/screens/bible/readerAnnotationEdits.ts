@@ -202,7 +202,11 @@ interface AnnotationWriteResult {
   success: boolean;
 }
 
-/** Writes the edits in order and reports whether every write succeeded. */
+/**
+ * Writes the edits and reports whether every write succeeded. The replacement highlights are
+ * written before the ones they split are deleted: a write that fails partway then leaves an
+ * overlap the reader can retry, never a verse outside the selection that lost its highlight.
+ */
 export async function applyReaderAnnotationEdits(
   edits: ReaderAnnotationEdits,
   store: {
@@ -210,11 +214,11 @@ export async function applyReaderAnnotationEdits(
     upsert: (draft: ReaderAnnotationDraft) => Promise<AnnotationWriteResult>;
   }
 ): Promise<boolean> {
-  for (const id of edits.softDeleteIds) {
-    if (!(await store.softDelete(id)).success) return false;
-  }
   for (const annotation of edits.upserts) {
     if (!(await store.upsert(annotation)).success) return false;
+  }
+  for (const id of edits.softDeleteIds) {
+    if (!(await store.softDelete(id)).success) return false;
   }
   return true;
 }

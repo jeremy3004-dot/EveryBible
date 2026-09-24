@@ -211,6 +211,9 @@ export interface PrayerRequest {
   answered_at: string | null;
   created_at: string;
   updated_at: string;
+  /** Set by moderation (reports or an admin). Only the author can still read a hidden row. */
+  hidden_at?: string | null;
+  hidden_reason?: 'reports' | 'admin' | null;
 }
 
 export interface PrayerInteraction {
@@ -323,6 +326,15 @@ export interface Database {
       delete_my_account: {
         Args: Record<PropertyKey, never>;
         Returns: void;
+      };
+      /** Creates the group and the caller's leader membership in one transaction. */
+      create_group: {
+        Args: {
+          group_name: string;
+          starting_course_id?: string;
+          starting_lesson_id?: string;
+        };
+        Returns: GroupRecord;
       };
       join_group_by_code: {
         Args: {

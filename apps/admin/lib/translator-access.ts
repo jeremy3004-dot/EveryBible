@@ -239,9 +239,11 @@ export async function getSharedPasscodeUsage(
     byTranslation: [],
   };
   const service = createAdminServiceClient();
-  const { data, error } = await service
+  // PostgREST caps each response at max_rows (1000 by default) whatever .limit() asks for, so
+  // the total and the truncation flag come from the exact count rather than the rows returned.
+  const { data, error, count } = await service
     .from('translator_shared_passcode_uses')
-    .select('translation_id, outcome, used_at')
+    .select('translation_id, outcome, used_at', { count: 'exact' })
     .gte('used_at', since)
     .order('used_at', { ascending: false })
     .limit(USAGE_ROW_LIMIT);
@@ -270,17 +272,22 @@ export async function getSharedPasscodeUsage(
     byTranslation.set(row.translation_id, entry);
   }
 
+  const total = typeof count === 'number' ? Math.max(count, rows.length) : rows.length;
   return {
     installed: true,
     since,
-    total: rows.length,
+    total,
     lastUsedAt: rows[0]?.used_at ?? null,
-    truncated: rows.length >= USAGE_ROW_LIMIT,
+    truncated: total > rows.length || rows.length >= USAGE_ROW_LIMIT,
     byTranslation: [...byTranslation.values()].sort((a, b) =>
       b.lastUsedAt.localeCompare(a.lastUsedAt)
     ),
   };
 }
+
+const FEEDBACK_ID_PAGE_SIZE = 1000;
+// A backstop so a runaway table cannot turn one page load into an unbounded scan.
+const FEEDBACK_ID_SCAN_MAX_ROWS = 200_000;
 
 /**
  * Translation ids that already have chapter feedback, i.e. ids exactly as the app sends them.
@@ -288,17 +295,25 @@ export async function getSharedPasscodeUsage(
  */
 export async function getTranslationIdsWithFeedback(): Promise<string[]> {
   const service = createAdminServiceClient();
-  const { data, error } = await service
-    .from('chapter_feedback_submissions')
-    .select('translation_id')
-    .order('translation_id', { ascending: true })
-    .limit(5000);
+  const ids = new Set<string>();
+  // Page through every row: PostgREST caps a response at max_rows (1000 by default), and an id
+  // missing here would also be missing from the "no active team passcode" warning.
+  for (let from = 0; from < FEEDBACK_ID_SCAN_MAX_ROWS; from += FEEDBACK_ID_PAGE_SIZE) {
+    const { data, error } = await service
+      .from('chapter_feedback_submissions')
+      .select('translation_id')
+      .order('translation_id', { ascending: true })
+      .order('id', { ascending: true })
+      .range(from, from + FEEDBACK_ID_PAGE_SIZE - 1);
 
-  if (error) {
-    throw new Error(`Unable to load feedback translations: ${error.message}`);
+    if (error) {
+      throw new Error(`Unable to load feedback translations: ${error.message}`);
+    }
+
+    const rows = (data ?? []) as Array<{ translation_id: string }>;
+    for (const row of rows) ids.add(row.translation_id);
+    if (rows.length < FEEDBACK_ID_PAGE_SIZE) break;
   }
 
-  return Array.from(
-    new Set(((data ?? []) as Array<{ translation_id: string }>).map((row) => row.translation_id))
-  );
+  return Array.from(ids);
 }

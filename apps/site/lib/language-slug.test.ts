@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  hasLanguagePage,
   isLanguageSlug,
   languagePagePath,
   languageShard,
@@ -58,4 +59,37 @@ test('shards are deterministic, in range and spread slugs across files', () => {
     counts[shard]++;
   }
   assert.ok(Math.min(...counts) > 50, `uneven shards: ${counts.join(',')}`);
+});
+
+const elOnly = (name: string) => ({
+  name,
+  sourceIds: ['everylanguage'],
+  iso6393: null,
+  glottocode: null,
+  rolvCode: null,
+});
+
+test('placeholder and test records from the project tracker get no language page', () => {
+  for (const name of [
+    'Test 6a',
+    'test 2',
+    'test7',
+    'TESTY bislama',
+    'Test language 簡化字',
+    'Test ROLV',
+    'Loma: Bunde {Delete}',
+    'MISTAKES',
+    'Needs Verification',
+    'Pray 3',
+    'Southern Betsimisaraka Malagasy (retired)',
+  ]) {
+    assert.equal(hasLanguagePage(elOnly(name)), false, name);
+  }
+  // Real languages, including ones that start with "Test" or have no codes.
+  for (const name of ['Tip', 'Teste', 'Testo', 'Tesaka', 'Yoruba']) {
+    assert.equal(hasLanguagePage(elOnly(name)), true, name);
+  }
+  // A registry-backed record is never treated as a placeholder.
+  assert.equal(hasLanguagePage({ ...elOnly('Test 5'), iso6393: 'tst' }), true);
+  assert.equal(hasLanguagePage({ ...elOnly('Test 5'), sourceIds: ['glottolog'] }), true);
 });

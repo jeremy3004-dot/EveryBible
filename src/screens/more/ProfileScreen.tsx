@@ -21,7 +21,7 @@ import { getEngagementSummary, refreshEngagement } from '../../services/analytic
 import type { UserEngagementSummary } from '../../services/supabase/types';
 import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
 import { useAuthStore } from '../../stores/authStore';
-import { useProgressStore } from '../../stores/progressStore';
+import { selectCurrentStreakDays, useProgressStore } from '../../stores/progressStore';
 import type { MoreStackParamList } from '../../navigation/types';
 import { openAuthFlow } from '../../navigation/rootNavigation';
 import { layout, radius, spacing, typography } from '../../design/system';
@@ -43,7 +43,7 @@ export function ProfileScreen() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
   const chaptersRead = useProgressStore((state) => Object.keys(state.chaptersRead).length);
-  const streakDays = useProgressStore((state) => state.streakDays);
+  const streakDays = useProgressStore(selectCurrentStreakDays);
 
   const [avatarUri, setAvatarUri] = useState<string | null>(user?.photoURL ?? null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);

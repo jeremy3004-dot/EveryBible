@@ -171,14 +171,23 @@ test('a rejected catalog update reports the database error and is not audited', 
   assert.deepEqual(service.callsFor('translation_catalog_admin'), []);
 });
 
-test('a rejected notes write reports the database error and is not audited', async () => {
+test('a rejected notes write still audits the catalog change that already committed', async () => {
+  // The catalog update (availability, distribution state) is live before the notes upsert runs.
+  // Redirecting with the error but without an audit row would leave a published/hidden flip
+  // with no record of who made it.
   service.respondTo('translation_catalog_admin', () => ({
     error: {
       message: 'insert or update on table "translation_catalog_admin" violates foreign key',
     },
   }));
   const url = await captureRedirect(() =>
-    updateTranslationMetadataAction(formData({ translationId: 'bsb', adminNotes: 'Hold' }))
+    updateTranslationMetadataAction(
+      formData({
+        translationId: 'bsb',
+        adminNotes: 'Hold',
+        distributionState: 'hidden',
+      })
+    )
   );
   assert.equal(
     url,
@@ -186,8 +195,23 @@ test('a rejected notes write reports the database error and is not audited', asy
       'insert or update on table "translation_catalog_admin" violates foreign key'
     )}`
   );
-  assert.deepEqual(auditRows(), []);
-  assert.deepEqual(next.revalidatedPaths, []);
+  assert.deepEqual(auditRows(), [
+    {
+      action: 'translation.metadata.update',
+      actor_email: 'ops@everybible.app',
+      actor_user_id: 'admin-1',
+      entity_id: 'bsb',
+      entity_type: 'translation',
+      metadata: {
+        adminNotesError:
+          'insert or update on table "translation_catalog_admin" violates foreign key',
+        distributionState: 'hidden',
+        isAvailable: false,
+      },
+      summary: 'Updated EveryBible-local metadata for bsb (admin notes were not saved).',
+    },
+  ]);
+  assert.deepEqual(next.revalidatedPaths, ['/translations', '/translations/bsb', '/health']);
 });
 
 test('a failed audit write does not undo or hide a committed catalog update', async (t) => {

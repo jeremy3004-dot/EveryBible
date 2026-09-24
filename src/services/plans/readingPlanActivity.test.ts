@@ -18,6 +18,7 @@ import {
   getReadingPlanRhythmSummary,
   getPlanChapterListenStatus,
   getPlanDayTargetChapterKeys,
+  getPlanStepReadChapters,
   getRhythmSessionSegmentAtIndex,
   getScheduledPlanDayDateKey,
   isPlanDaySatisfied,
@@ -1040,5 +1041,172 @@ test('opening a plan day under the read preference never starts audio', () => {
   assert.equal(
     shouldAutoplayPlanDayLaunch({ trigger: 'open', preferredMode: 'read', audioStatus: 'idle' }),
     false
+  );
+});
+
+test('finishing a read-mode plan step records every whole chapter it covered, in order', () => {
+  // A Bible-in-30-days day spans several chapters; the reader walks through them
+  // and ticks the step on the last one. Every chapter was read, so every chapter
+  // belongs in the read ledger (and today's streak), not just the final one.
+  const entries: ReadingPlanEntry[] = [
+    { id: 'd-1', plan_id: 'p', day_number: 4, book: 'GEN', chapter_start: 11, chapter_end: 13 },
+    { id: 'd-2', plan_id: 'p', day_number: 4, book: 'EXO', chapter_start: 1, chapter_end: null },
+  ];
+
+  assert.deepEqual(getPlanStepReadChapters(entries), [
+    { bookId: 'GEN', chapter: 11 },
+    { bookId: 'GEN', chapter: 12 },
+    { bookId: 'GEN', chapter: 13 },
+    { bookId: 'EXO', chapter: 1 },
+  ]);
+});
+
+test('a verse-range passage does not count its whole chapter as read', () => {
+  const entries: ReadingPlanEntry[] = [
+    {
+      id: 's-1',
+      plan_id: 'p',
+      day_number: 1,
+      book: 'MAT',
+      chapter_start: 5,
+      chapter_end: null,
+      verse_start: 1,
+      verse_end: 16,
+    },
+    { id: 's-2', plan_id: 'p', day_number: 1, book: 'PSA', chapter_start: 1, chapter_end: null },
+  ];
+
+  assert.deepEqual(getPlanStepReadChapters(entries), [{ bookId: 'PSA', chapter: 1 }]);
+});
+
+test('resolvePlanDayPlaybackStartEntry starts at the first chapter without a resume target and has nothing to play for an empty day', () => {
+  const dayOneEntries = dayEntries.filter((entry) => entry.day_number === 1);
+
+  assert.deepEqual(resolvePlanDayPlaybackStartEntry(dayOneEntries, null), {
+    bookId: 'GEN',
+    chapter: 1,
+  });
+  assert.equal(resolvePlanDayPlaybackStartEntry([], { bookId: 'GEN', chapter: 1 }), null);
+});
+
+test('buildRhythmReaderSession skips plans without entries, days without passages and empty passages', () => {
+  const session = buildRhythmReaderSession({
+    rhythm: {
+      ...rhythm,
+      items: [
+        { id: 'item-unknown', type: 'plan', planId: 'plan-without-entries' },
+        { id: 'item-gap', type: 'plan', planId: 'plan-gap' },
+        {
+          id: 'item-backwards',
+          type: 'passage',
+          title: 'Backwards',
+          bookId: 'PSA',
+          startChapter: 5,
+          endChapter: 4,
+        },
+        { id: 'item-plan-a', type: 'plan', planId: 'plan-a' },
+      ],
+    },
+    planEntriesById: {
+      ...rhythmPlanEntriesById,
+      // Day 2 has no passages, and the reader is on day 2.
+      'plan-gap': [
+        makeEntry({
+          id: 'gap-1',
+          plan_id: 'plan-gap',
+          day_number: 1,
+          book: 'RUT',
+          chapter_start: 1,
+        }),
+        makeEntry({
+          id: 'gap-3',
+          plan_id: 'plan-gap',
+          day_number: 3,
+          book: 'RUT',
+          chapter_start: 3,
+        }),
+      ],
+    },
+    progressByPlanId: {
+      ...rhythmProgressByPlanId,
+      'plan-gap': makeProgress('plan-gap', { current_day: 2 }),
+    },
+  });
+
+  assert.deepEqual(
+    session.sessionContext.segments.map((segment) => segment.itemId),
+    ['item-plan-a']
+  );
+  assert.deepEqual(session.playbackSequenceEntries, [
+    { bookId: 'GEN', chapter: 2 },
+    { bookId: 'GEN', chapter: 3 },
+  ]);
+});
+
+test('buildRhythmReaderSession starts at the saved resume chapter of the first incomplete plan day', () => {
+  const resumeLookups: [string, number][] = [];
+  const build = (resume: { bookId: string; chapter: number } | null) =>
+    buildRhythmReaderSession({
+      rhythm,
+      planEntriesById: rhythmPlanEntriesById,
+      progressByPlanId: rhythmProgressByPlanId,
+      getPlanDayResume: (planId, dayNumber) => {
+        resumeLookups.push([planId, dayNumber]);
+        return resume;
+      },
+    });
+
+  assert.deepEqual(build({ bookId: 'GEN', chapter: 3 }).startEntry, { bookId: 'GEN', chapter: 3 });
+  // A resume point outside the plan's current day falls back to the day's first chapter.
+  assert.deepEqual(build({ bookId: 'PSA', chapter: 2 }).startEntry, { bookId: 'GEN', chapter: 2 });
+  assert.deepEqual(resumeLookups, [
+    ['plan-a', 2],
+    ['plan-a', 2],
+  ]);
+});
+
+test('rhythm playback lookups fall back to the first matching chapter and reject unknown positions', () => {
+  const session = buildRhythmReaderSession({
+    rhythm,
+    planEntriesById: rhythmPlanEntriesById,
+    progressByPlanId: rhythmProgressByPlanId,
+  });
+  const lookup = (overrides: Partial<Parameters<typeof resolvePlaybackSequenceIndex>[0]>) =>
+    resolvePlaybackSequenceIndex({
+      playbackSequenceEntries: session.playbackSequenceEntries,
+      bookId: 'PSA',
+      chapter: 2,
+      session: session.sessionContext,
+      ...overrides,
+    });
+
+  assert.equal(lookup({}), 4);
+  assert.equal(lookup({ preferredPlanId: 'plan-not-in-rhythm' }), 4);
+  assert.equal(lookup({ preferredPlanId: 'plan-a', preferredDayNumber: 2 }), 4);
+  assert.equal(lookup({ chapter: 99 }), -1);
+  assert.equal(getRhythmSessionSegmentAtIndex(session.sessionContext, -1), null);
+  assert.equal(getRhythmSessionSegmentAtIndex(session.sessionContext, 99), null);
+});
+
+test('getPlanChapterListenStatus gives no plan credit for a chapter outside the day targets', () => {
+  assert.deepEqual(
+    getPlanChapterListenStatus({
+      chapterKey: 'REV_1',
+      bookId: 'REV',
+      chapter: 1,
+      targetChapterKeys: ['GEN_1'],
+      completedChapterKeys: [],
+      listeningHistory: [
+        makeListeningHistoryEntry({
+          id: 'listen-rev',
+          bookId: 'REV',
+          chapter: 1,
+          listenedAt: Date.parse('2026-04-07T09:00:00.000Z'),
+          progress: 1,
+        }),
+      ],
+      dateKey: '2026-04-07',
+    }),
+    { currentChapterListenCountedAt: null, alreadyCountedForPlan: false }
   );
 });

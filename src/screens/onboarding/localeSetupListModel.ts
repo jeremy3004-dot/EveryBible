@@ -309,3 +309,29 @@ export function buildContentLanguageListItems<TLanguage extends { code: string }
 
   return items;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Search match count                                                         */
+/* -------------------------------------------------------------------------- */
+
+const SELECTABLE_ITEM_TYPES = new Set([
+  'primaryOption',
+  'option',
+  'suggestedCountry',
+  'country',
+  'language',
+]);
+
+/**
+ * How many choosable rows a step's list shows, for the screen reader's "Results: N" after a
+ * search. Group headers, the empty card and status rows are not matches. Returns null while the
+ * Bible catalog is still loading, when the count would be premature.
+ */
+export function countLocaleSetupSearchMatches(
+  items: ReadonlyArray<{ type: string }>
+): number | null {
+  if (items.some((item) => item.type === 'loading')) {
+    return null;
+  }
+  return items.filter((item) => SELECTABLE_ITEM_TYPES.has(item.type)).length;
+}

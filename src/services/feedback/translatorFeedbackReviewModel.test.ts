@@ -197,3 +197,21 @@ test('queue sorts unresolved chapters by thumbs-down urgency then volume', () =>
     ['EXO:2', 'GEN:1', 'LEV:3']
   );
 });
+
+test('queue breaks thumbs-down ties by unresolved volume, then book, then chapter', () => {
+  const summaries: TranslatorFeedbackChapterSummary[] = [
+    { bookId: 'LEV', chapter: 9, total: 1, unresolvedDown: 1, unresolvedUp: 0 },
+    { bookId: 'GEN', chapter: 12, total: 1, unresolvedDown: 1, unresolvedUp: 0 },
+    { bookId: 'GEN', chapter: 3, total: 1, unresolvedDown: 1, unresolvedUp: 0 },
+    { bookId: 'EXO', chapter: 7, total: 4, unresolvedDown: 1, unresolvedUp: 3 },
+  ];
+
+  const queue = sortTranslatorFeedbackQueue(summaries);
+
+  assert.deepEqual(
+    queue.map((summary) => `${summary.bookId}:${summary.chapter}`),
+    ['EXO:7', 'GEN:3', 'GEN:12', 'LEV:9']
+  );
+  // Sorting works on a copy, so the caller's list keeps its original order.
+  assert.equal(summaries[0]?.bookId, 'LEV');
+});

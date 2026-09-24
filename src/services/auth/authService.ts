@@ -297,11 +297,28 @@ export const signOut = async (): Promise<{ success: boolean; error?: string }> =
   try {
     const { error } = await supabase.auth.signOut();
     if (error) {
+      await endSessionOnThisDevice();
       return { success: false, error: error.message };
     }
     return { success: true };
   } catch (e) {
+    await endSessionOnThisDevice();
     return { success: false, error: e instanceof Error ? e.message : 'Unknown error' };
+  }
+};
+
+// When auth-js cannot reach the server to end the session (offline, or an
+// expired token it cannot refresh first) it leaves the session on disk. The next
+// token refresh would then sign the reader back in after they signed out, and
+// adopt what they did as a guest into that account. The server session is left
+// to expire. `_removeSession` is not public API; authSession.realClient.behavior
+// .test.ts pins it against the installed supabase-js.
+const endSessionOnThisDevice = async (): Promise<void> => {
+  try {
+    const auth = supabase.auth as unknown as { _removeSession?: () => Promise<void> };
+    await auth._removeSession?.();
+  } catch {
+    // Best effort: the caller already reports the sign-out failure.
   }
 };
 
@@ -314,6 +331,8 @@ export const resetPassword = async (
   }
 
   try {
+    // With the client's PKCE flow this also stores a code verifier in this
+    // install's SecureStore; the emailed link only works where it was stored.
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: 'com.everybible.app://reset-password',
     });
@@ -329,7 +348,7 @@ export const resetPassword = async (
 };
 
 // Update the current user's password — used at the end of the password-reset deep link flow,
-// after handleAuthDeepLinkUrl has already established a recovery session via setSession.
+// after ResetPasswordScreen has exchanged the link's PKCE code for a recovery session.
 export const updatePassword = async (newPassword: string): Promise<AuthResult> => {
   if (!isSupabaseConfigured()) {
     return configurationAuthError();

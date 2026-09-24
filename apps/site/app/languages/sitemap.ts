@@ -5,7 +5,7 @@ import { getLanguageIndex, getLanguagePagesMeta } from '../../lib/language-pages
 
 /** /languages/sitemap/<id>.xml, split so no file exceeds 50,000 URLs. */
 export async function generateSitemaps() {
-  return languageSitemapIds((await getLanguagePagesMeta()).languageCount);
+  return languageSitemapIds((await getLanguagePagesMeta()).sitemapCount);
 }
 
 export default async function sitemap({

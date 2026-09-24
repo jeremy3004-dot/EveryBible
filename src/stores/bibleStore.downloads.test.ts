@@ -191,7 +191,50 @@ test('re-downloading over a stale pack invalidates the old file before fetching'
   assert.deepEqual(doubles.database.invalidatedPaths, [
     'file:///packs/esv1.old.db',
     'file:///packs/esv1.db',
+    'file:///packs/esv1.old.db',
   ]);
+});
+
+test('replacing a pack closes the old one, stopping its search index build, before deleting it', async () => {
+  withTranslations([
+    makeRuntimeTranslation({
+      id: 'esv1',
+      isDownloaded: false,
+      textPackLocalPath: 'file:///packs/esv1.old.db',
+    }),
+  ]);
+  doubles.cloud.run = async () => 'file:///packs/esv1.db';
+
+  await useBibleStore.getState().downloadTranslation('esv1');
+
+  assert.deepEqual(doubles.database.packLifecycle.slice(-2), [
+    'invalidate:file:///packs/esv1.old.db',
+    'delete:file:///packs/esv1.old.db',
+  ]);
+});
+
+test('an installed pack gets its search index built in the background', async () => {
+  withTranslations([makeRuntimeTranslation({ id: 'esv1' })]);
+
+  await useBibleStore.getState().downloadTranslation('esv1');
+
+  assert.deepEqual(doubles.database.searchIndexBuilds, ['esv1']);
+});
+
+test('a pack that fails its read-back is closed before it is deleted and gets no index', async () => {
+  withTranslations([makeRuntimeTranslation({ id: 'esv1' })]);
+  doubles.cloud.run = async () => 'file:///packs/esv1.db';
+  doubles.database.readbackBookId = 'NONE';
+
+  await assert.rejects(() => useBibleStore.getState().downloadTranslation('esv1'));
+
+  // The read-back opened a shared handle on the new pack; it is closed again before deletion.
+  assert.deepEqual(doubles.database.packLifecycle, [
+    'invalidate:file:///packs/esv1.db',
+    'invalidate:file:///packs/esv1.db',
+    'delete:file:///packs/esv1.db',
+  ]);
+  assert.deepEqual(doubles.database.searchIndexBuilds, []);
 });
 
 test('a cloud download reports its phases as reader-facing progress', async () => {
@@ -327,6 +370,46 @@ test('a failed cloud download records the failure on the translation and rethrow
   assert.equal(failed?.installState, 'failed');
   assert.equal(failed?.lastInstallError, 'network unreachable');
   assert.equal(useBibleStore.getState().downloadProgress, null);
+});
+
+test('a failed download clears its own row even after another download took over the banner', async () => {
+  withTranslations([
+    makeRuntimeTranslation({ id: 'esv1' }),
+    makeRuntimeTranslation({ id: 'kjv2' }),
+  ]);
+  const pending = new Map<
+    string,
+    { resolve: (path: string) => void; reject: (e: Error) => void }
+  >();
+  let signalBothStarted!: () => void;
+  const bothStarted = new Promise<void>((resolve) => {
+    signalBothStarted = resolve;
+  });
+  doubles.cloud.run = (call) =>
+    new Promise<string>((resolve, reject) => {
+      pending.set(call.translationId, { resolve, reject });
+      if (pending.size === 2) signalBothStarted();
+    });
+
+  const first = useBibleStore.getState().downloadTranslation('esv1');
+  const failedFirst = assert.rejects(first, /network unreachable/);
+  await flushAsyncWork();
+  const second = useBibleStore.getState().downloadTranslation('kjv2');
+  await bothStarted;
+  assert.equal(useBibleStore.getState().downloadProgress?.translationId, 'kjv2');
+
+  pending.get('esv1')?.reject(new Error('network unreachable'));
+  await failedFirst;
+
+  const failed = findTranslation('esv1');
+  assert.equal(failed?.installState, 'failed');
+  assert.equal(failed?.lastInstallError, 'network unreachable');
+  // The banner still belongs to the download that is running.
+  assert.equal(useBibleStore.getState().downloadProgress?.translationId, 'kjv2');
+  assert.equal(findTranslation('kjv2')?.installState, 'downloading');
+
+  pending.get('kjv2')?.resolve('file:///packs/kjv2.db');
+  assert.equal(await second, 'installed');
 });
 
 test('a cloud download that rejects with a non-Error still surfaces a download error', async () => {
@@ -677,6 +760,82 @@ test('deleting a translation cancels and removes only its own download jobs', as
 
   assert.deepEqual(doubles.audio.cancelledJobIds, ['job-esv1']);
   assert.deepEqual(doubles.audio.removedJobIds, ['job-esv1']);
+});
+
+test('deleting a translation stops its running audio download before removing its audio', async () => {
+  withTranslations([makeRuntimeTranslation({ id: 'esv1', downloadedAudioBooks: ['GEN'] })]);
+  let finishStopping!: () => void;
+  doubles.audio.runTranslationCancellation = () =>
+    new Promise<void>((resolve) => {
+      finishStopping = resolve;
+    });
+  const audioFolder = `${AUDIO_ROOT_URI}esv1/`;
+
+  const deleting = useBibleStore.getState().deleteTranslation('esv1');
+  await flushAsyncWork();
+  const removedWhileStopping = doubles.fileSystem.deleted.map((entry) => entry.path);
+  finishStopping();
+  await deleting;
+
+  assert.deepEqual(doubles.audio.translationCancellations, ['esv1']);
+  assert.equal(removedWhileStopping.includes(audioFolder), false);
+  assert.ok(doubles.fileSystem.deleted.some((entry) => entry.path === audioFolder));
+});
+
+test('deleting a translation stops its native download tasks before removing its audio', async () => {
+  withTranslations([makeRuntimeTranslation({ id: 'esv1', downloadedAudioBooks: ['GEN'] })]);
+  doubles.audio.jobs.push(makeAudioJob({ id: 'job-esv1', translationId: 'esv1' }));
+  const removedBeforeNativeStop: string[] = [];
+  doubles.audio.onCancelJob = () => {
+    removedBeforeNativeStop.push(...doubles.fileSystem.deleted.map((entry) => entry.path));
+  };
+
+  await useBibleStore.getState().deleteTranslation('esv1');
+
+  assert.deepEqual(doubles.audio.cancelledJobIds, ['job-esv1']);
+  assert.equal(removedBeforeNativeStop.includes(`${AUDIO_ROOT_URI}esv1/`), false);
+});
+
+test('a translation whose first audio download is still running can be deleted', async () => {
+  withTranslations([
+    makeRuntimeTranslation({
+      id: 'esv1',
+      activeDownloadJob: {
+        id: 'audio-download:esv1:book:GEN',
+        kind: 'audio-book',
+        state: 'running',
+        progress: 10,
+        startedAt: 1,
+        updatedAt: 1,
+      },
+    }),
+  ]);
+  useBibleStore.setState({
+    downloadProgress: {
+      translationId: 'esv1',
+      bookId: 'GEN',
+      jobId: 'audio-download:esv1:book:GEN',
+      progress: 10,
+      status: 'downloading',
+    },
+  });
+
+  await useBibleStore.getState().deleteTranslation('esv1');
+
+  assert.deepEqual(doubles.audio.translationCancellations, ['esv1']);
+  assert.ok(doubles.fileSystem.deleted.some((entry) => entry.path === `${AUDIO_ROOT_URI}esv1/`));
+  assert.equal(findTranslation('esv1')?.activeDownloadJob, null);
+  assert.equal(useBibleStore.getState().downloadProgress, null);
+});
+
+test('deleting a translation asks only its own audio downloads to stop', async () => {
+  withTranslations([
+    makeRuntimeTranslation({ id: 'esv1', textPackLocalPath: 'file:///packs/esv1.db' }),
+  ]);
+
+  await useBibleStore.getState().deleteTranslation('esv1');
+
+  assert.deepEqual(doubles.audio.translationCancellations, ['esv1']);
 });
 
 test('deleting a translation still removes a job the native transport cannot cancel', async (t) => {

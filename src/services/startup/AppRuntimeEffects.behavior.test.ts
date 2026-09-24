@@ -38,6 +38,17 @@ mockModule(mock, sourcePath('services/analytics/usageQueue.ts'), {
   },
 });
 
+let crashReportingInstallCount = 0;
+let crashReportingCleanupCount = 0;
+mockModule(mock, sourcePath('services/diagnostics/crashReportQueue.ts'), {
+  installCrashReporting: () => {
+    crashReportingInstallCount += 1;
+    return () => {
+      crashReportingCleanupCount += 1;
+    };
+  },
+});
+
 /** Run every effect the last render queued, the way React does on commit. */
 const commit = () => {
   const queued = effects.splice(0, effects.length);
@@ -46,6 +57,20 @@ const commit = () => {
     if (cleanup) cleanups.push(cleanup);
   }
 };
+
+let reminderInstallCount = 0;
+let reminderUninstallCount = 0;
+mockModule(mock, sourcePath('services/notifications/dailyReminderReconciler.ts'), {
+  installDailyReminderReconciler: () => {
+    reminderInstallCount += 1;
+    return {
+      idle: async () => {},
+      uninstall: () => {
+        reminderUninstallCount += 1;
+      },
+    };
+  },
+});
 
 mockModule(mock, sourcePath('hooks/useSync.ts'), { useSync: recorder('useSync') });
 mockModule(mock, sourcePath('hooks/usePrivacyLock.ts'), {
@@ -62,6 +87,10 @@ beforeEach(() => {
   effects.length = 0;
   reportingInstallCount = 0;
   reportingCleanupCount = 0;
+  reminderInstallCount = 0;
+  reminderUninstallCount = 0;
+  crashReportingInstallCount = 0;
+  crashReportingCleanupCount = 0;
   cleanups.length = 0;
   failingHook = null;
 });
@@ -139,4 +168,28 @@ test('optional reporting listeners install only after commit and clean up on unm
   assert.equal(cleanups.length, 1);
   cleanups[0]();
   assert.equal(reportingCleanupCount, 1);
+});
+
+test('the daily reminder is kept in line with the preference from commit until unmount', async () => {
+  // Without this nothing re-schedules the reminder after a language change, a
+  // timezone change or a preference pulled from another device (or reset by sign-out).
+  const AppRuntimeEffects = await loadComponent();
+  AppRuntimeEffects();
+  assert.equal(reminderInstallCount, 0);
+
+  commit();
+  const installedAfterCommit = reminderInstallCount;
+  cleanups.forEach((cleanup) => cleanup());
+
+  assert.deepEqual([installedAfterCommit, reminderUninstallCount], [1, 1]);
+});
+
+test('crash-report uploads install with usage reporting and clean up with it', async () => {
+  const AppRuntimeEffects = await loadComponent();
+  AppRuntimeEffects();
+  assert.equal(crashReportingInstallCount, 0);
+  commit();
+  assert.equal(crashReportingInstallCount, 1);
+  cleanups[0]();
+  assert.equal(crashReportingCleanupCount, 1);
 });

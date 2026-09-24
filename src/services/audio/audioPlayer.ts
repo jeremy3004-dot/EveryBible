@@ -54,7 +54,8 @@ export interface TrackPlayerProgressSnapshot {
   durationMillis: number;
   isPlaying: boolean;
   isBuffering: boolean;
-  didJustFinish: false;
+  /** True only on the stopped snapshot reported as the track reaches its end. */
+  didJustFinish: boolean;
   error?: string;
 }
 
@@ -97,14 +98,14 @@ class AudioPlayer {
 
   // -- event wiring --------------------------------------------------------
 
-  private emitSnapshot(): void {
+  private emitSnapshot(didJustFinish = false): void {
     this.callbacks.onStatusUpdate?.({
       isLoaded: true,
       positionMillis: this.lastPositionMillis,
       durationMillis: this.lastDurationMillis,
       isPlaying: this.lastIsPlaying,
       isBuffering: this.lastIsBuffering,
-      didJustFinish: false,
+      didJustFinish,
     });
   }
 
@@ -127,7 +128,7 @@ class AudioPlayer {
       TrackPlayer.addEventListener(Event.PlaybackState, (data: PlaybackStateEvent) => {
         this.lastIsPlaying = data.state === State.Playing;
         this.lastIsBuffering = data.state === State.Buffering || data.state === State.Loading;
-        this.emitSnapshot();
+        this.emitSnapshot(data.state === State.Ended);
       })
     );
 

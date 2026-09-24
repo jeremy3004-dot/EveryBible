@@ -1,5 +1,6 @@
 import type { Verse } from '../../types';
 import type { PassageReferenceTarget } from '../../services/bible/referenceParser';
+import { isSingleCharacterWordQuery } from '../../services/bible/bibleDataModel';
 
 export const MIN_BIBLE_SEARCH_QUERY_LENGTH = 2;
 export const BIBLE_SEARCH_DEBOUNCE_MS = 250;
@@ -20,7 +21,10 @@ export type BibleSearchIntent =
     };
 
 export const shouldRunBibleSearch = (query: string): boolean => {
-  return query.trim().length >= MIN_BIBLE_SEARCH_QUERY_LENGTH;
+  const trimmedQuery = query.trim();
+  return (
+    trimmedQuery.length >= MIN_BIBLE_SEARCH_QUERY_LENGTH || isSingleCharacterWordQuery(trimmedQuery)
+  );
 };
 
 export const resolveBibleSearchIntent = (

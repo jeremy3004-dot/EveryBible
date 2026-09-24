@@ -57,6 +57,7 @@ import {
 import { useTranslatorFeedbackFocusRefresh } from './useTranslatorFeedbackFocusRefresh';
 import { layout, radius, spacing, typography } from '../../design/system';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
+import { announceForAccessibility, announceLiveRegionText } from '../../utils/a11y';
 import { BookIcon } from '../../components/bible/BookIcon';
 import {
   CHAPTER_TILE_GAP,
@@ -283,14 +284,21 @@ export function BibleBrowserScreen() {
 
           if (!isCancelled && requestId === searchRequestIdRef.current) {
             setSearchResults(results);
+            // Results land under the search field while focus stays in it; without
+            // this a screen-reader user cannot tell a finished search (or an empty
+            // one) from a search still running.
+            announceForAccessibility(t('interface.searchResultCount', { count: results.length }));
           }
         } catch (error) {
           if (!isCancelled && requestId === searchRequestIdRef.current) {
             console.error('Error searching Bible:', error);
             setSearchResults([]);
-            setSearchError(
-              isBibleSearchUnavailableError(error) ? searchUnavailableMessage : failedToLoadMessage
-            );
+            const message = isBibleSearchUnavailableError(error)
+              ? searchUnavailableMessage
+              : failedToLoadMessage;
+            setSearchError(message);
+            // The error text's live region speaks on Android; VoiceOver needs the announcement.
+            announceLiveRegionText(message);
           }
         } finally {
           if (!isCancelled && requestId === searchRequestIdRef.current) {
@@ -310,6 +318,7 @@ export function BibleBrowserScreen() {
     failedToLoadMessage,
     parseRef,
     searchUnavailableMessage,
+    t,
   ]);
 
   const loadTranslatorFeedbackSummaries = useCallback(async () => {

@@ -49,9 +49,56 @@ test('evaluateReleaseSigningState accepts a single matching release identity', (
   assert.deepEqual(result.errors, []);
 });
 
+test('evaluateReleaseSigningState rejects a profile signed by a different certificate', () => {
+  const result = evaluateReleaseSigningState({
+    profileFingerprint: '1766B7940E2F0C555ED6FC50C1033105082A5D2A',
+    certFingerprint: 'a1:48:3e:c3:2d:67:27:9c:51:2d:f8:57:dd:04:2a:3e:c5:c6:42:14',
+    appleDistributionFingerprints: ['A1483EC32D67279C512DF857DD042A3EC5C64214'],
+  });
+
+  assert.deepEqual(result, {
+    ok: false,
+    errors: ['Provisioning profile and distribution certificate fingerprints do not match.'],
+  });
+});
+
+test('evaluateReleaseSigningState rejects a keychain with no Apple Distribution identity', () => {
+  const result = evaluateReleaseSigningState({
+    profileFingerprint: 'A1483EC32D67279C512DF857DD042A3EC5C64214',
+    certFingerprint: 'A1483EC32D67279C512DF857DD042A3EC5C64214',
+    appleDistributionFingerprints: [],
+  });
+
+  assert.deepEqual(result, {
+    ok: false,
+    errors: ['No Apple Distribution identities are visible in the current keychain search list.'],
+  });
+});
+
+test('evaluateReleaseSigningState rejects a keychain whose only identity is not the release certificate', () => {
+  const result = evaluateReleaseSigningState({
+    profileFingerprint: 'A1483EC32D67279C512DF857DD042A3EC5C64214',
+    certFingerprint: 'A1483EC32D67279C512DF857DD042A3EC5C64214',
+    appleDistributionFingerprints: ['1766B7940E2F0C555ED6FC50C1033105082A5D2A'],
+  });
+
+  assert.deepEqual(result, {
+    ok: false,
+    errors: [
+      'The matching Apple Distribution certificate is not visible in the current keychain search list.',
+    ],
+  });
+});
+
+test('parseAppleDistributionFingerprints de-duplicates an identity listed in several keychains', () => {
+  const line =
+    '  1) a1483ec32d67279c512df857dd042a3ec5c64214 "Apple Distribution: Release (NVC9N47PRH)"';
+
+  assert.deepEqual(parseAppleDistributionFingerprints(`${line}\r\n${line.replace('1)', '2)')}`), [
+    'A1483EC32D67279C512DF857DD042A3EC5C64214',
+  ]);
+});
+
 test('normalizeSha1Fingerprint strips separators and prefixes', () => {
-  assert.equal(
-    normalizeSha1Fingerprint('SHA1 Fingerprint= a1:b2:c3:d4 '),
-    'A1B2C3D4'
-  );
+  assert.equal(normalizeSha1Fingerprint('SHA1 Fingerprint= a1:b2:c3:d4 '), 'A1B2C3D4');
 });

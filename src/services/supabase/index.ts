@@ -1,4 +1,4 @@
-export { supabase, isSupabaseConfigured, getCurrentUserId } from './client';
+export { supabase, isSupabaseConfigured, getCurrentUserId, getSupabasePublicKey } from './client';
 export type {
   Database,
   GroupMemberRecord,
