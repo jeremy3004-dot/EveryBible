@@ -13,7 +13,7 @@ import {
 } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme, type ThemeMode } from '../../../contexts/ThemeContext';
-import { useDisplayFont } from '../../../hooks';
+import { useDisplayFont } from '../../../hooks/useDisplayFont';
 import { AppCard, ListRow, TabSwitch } from '../../../components/ui';
 import { spacing, typography } from '../../../design/system';
 import type { FeedbackParticipationMode } from '../../../stores/translatorReviewStore';

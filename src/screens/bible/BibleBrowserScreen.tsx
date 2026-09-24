@@ -29,7 +29,9 @@ import {
 import { useTheme } from '../../contexts/ThemeContext';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useTranslatorReviewStore } from '../../stores/translatorReviewStore';
-import { useI18n, useDisplayFont, useTranslationContentSummary } from '../../hooks';
+import { useI18n } from '../../hooks/useI18n';
+import { useDisplayFont } from '../../hooks/useDisplayFont';
+import { useTranslationContentSummary } from '../../hooks/useTranslationContentSummary';
 import { buildBibleBrowserRows, type BibleBrowserRow } from '../../services/bible/browserRows';
 import {
   getBookContentAvailability,

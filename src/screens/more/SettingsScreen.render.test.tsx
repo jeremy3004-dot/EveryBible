@@ -16,27 +16,31 @@ import {
 // Whether the OS has blocked notifications while the in-app reminder is on.
 let notificationsBlocked = false;
 const languageCalls: string[] = [];
-const harness = installRenderHarness(mock, {
-  hooks: {
-    useNotificationsBlockedBySystem: (enabled: boolean) => enabled && notificationsBlocked,
-    useFontSize: () => ({
-      label: 'Medium',
-      increase: () => {},
-      decrease: () => {},
-      canIncrease: true,
-      canDecrease: true,
-    }),
-    useI18n: () => {
-      const { t } = useTranslation();
-      return {
-        t,
-        currentLanguage: 'en',
-        setLanguage: async (code: string) => {
-          languageCalls.push(code);
-        },
-        availableLanguages: { en: { nativeName: 'English' } },
-      };
-    },
+const harness = installRenderHarness(mock);
+// Settings and its sections import each hook from its own module, not the hooks barrel.
+mockModule(mock, sourcePath('hooks/useNotificationsBlockedBySystem.ts'), {
+  useNotificationsBlockedBySystem: (enabled: boolean) => enabled && notificationsBlocked,
+});
+mockModule(mock, sourcePath('hooks/useFontSize.ts'), {
+  useFontSize: () => ({
+    label: 'Medium',
+    increase: () => {},
+    decrease: () => {},
+    canIncrease: true,
+    canDecrease: true,
+  }),
+});
+mockModule(mock, sourcePath('hooks/useI18n.ts'), {
+  useI18n: () => {
+    const { t } = useTranslation();
+    return {
+      t,
+      currentLanguage: 'en',
+      setLanguage: async (code: string) => {
+        languageCalls.push(code);
+      },
+      availableLanguages: { en: { nativeName: 'English' } },
+    };
   },
 });
 

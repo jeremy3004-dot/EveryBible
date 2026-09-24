@@ -13,7 +13,8 @@ import { FlashList } from '@shopify/flash-list';
 import { useTranslation } from 'react-i18next';
 
 import { useTheme } from '../../contexts/ThemeContext';
-import { useDisplayFont, useTabBarHeight } from '../../hooks';
+import { useDisplayFont } from '../../hooks/useDisplayFont';
+import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { spacing, typography, layout } from '../../design/system';
 import { AppButton } from '../../components/ui';
 import { useAudioStore } from '../../stores/audioStore';

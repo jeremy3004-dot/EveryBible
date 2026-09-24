@@ -2,7 +2,7 @@
 // import closure, which runtime tests cannot observe.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createPrivacyInstallationBootstrap } from '../privacy/privacyInstallationAdapter';
@@ -604,6 +604,42 @@ test('the UI kit and onboarding do not load the audio or sync stack', () => {
       closurePaths.some((file) => file.endsWith('src/hooks/useDisplayFont.ts')),
       `${entry} should still reach useDisplayFont — check the walker if this fails`
     );
+  });
+});
+
+// The Bible, Plans and More tabs and their detail screens used the hooks barrel for
+// font and layout hooks, which evaluated the audio player and cloud sync on first
+// open. Only files owned outside this guard (the Learn tab) still import it.
+test('screens and components import concrete hooks instead of the hooks barrel', () => {
+  const repoRoot = fileURLToPath(new URL('../../../', import.meta.url).href);
+  const barrelImporters = (['src/screens', 'src/components'] as const).flatMap((directory) =>
+    readdirSync(join(repoRoot, directory), { recursive: true, encoding: 'utf8' })
+      .filter((file) => /\.tsx?$/.test(file) && !/\.test\.tsx?$/.test(file))
+      .map((file) => `${directory}/${file.replace(/\\/g, '/')}`)
+      .filter((file) =>
+        /^\s*import\s+(?!type\b)[\s\S]*?\bfrom\s+['"](?:\.\.\/)+hooks['"]/m.test(
+          readFileSync(join(repoRoot, file), 'utf8')
+        )
+      )
+  );
+
+  assert.deepEqual(barrelImporters.sort(), [
+    'src/screens/learn/GroupListScreen.tsx',
+    'src/screens/learn/LessonDetailScreen.tsx',
+  ]);
+
+  [
+    '../../screens/bible/BibleBrowserScreen.tsx',
+    '../../screens/plans/PlansHomeScreen.tsx',
+    '../../screens/plans/PlanDetailScreen.tsx',
+    '../../screens/more/MoreScreen.tsx',
+    '../../screens/more/SettingsScreen.tsx',
+  ].forEach((entry) => {
+    const closurePaths = [
+      ...collectStaticImportClosure(fileURLToPath(new URL(entry, import.meta.url).href)),
+    ].map((file) => file.replace(/\\/g, '/'));
+    const hit = closurePaths.find((file) => file.endsWith('src/hooks/index.ts'));
+    assert.equal(hit, undefined, `${entry}'s static closure must not reach the hooks barrel`);
   });
 });
 

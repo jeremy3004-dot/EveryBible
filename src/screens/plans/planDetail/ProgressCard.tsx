@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../contexts/ThemeContext';
-import { useDisplayFont } from '../../../hooks';
+import { useDisplayFont } from '../../../hooks/useDisplayFont';
 import { layout, spacing, typography } from '../../../design/system';
 import { AppCard } from '../../../components/ui';
 import type { CurrentPlanDaySummary } from '../../../services/plans/readingPlanActivity';

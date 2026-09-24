@@ -11,15 +11,17 @@ import type { Verse } from '../../types';
 import type { TranslatorFeedbackChapterSummary } from '../../services/feedback/translatorFeedbackReviewModel';
 import { BIBLE_SEARCH_DEBOUNCE_MS } from './bibleSearchModel';
 
-const harness = installRenderHarness(mock, {
-  hooks: {
-    useI18n: () => {
-      const { t, i18n } = useTranslation();
-      return { t, i18n, currentLanguage: 'en' };
-    },
-    // No catalog summary: every book and chapter counts as available.
-    useTranslationContentSummary: () => undefined,
+const harness = installRenderHarness(mock);
+// The screen imports each hook from its own module, not the hooks barrel.
+mockModule(mock, sourcePath('hooks/useI18n.ts'), {
+  useI18n: () => {
+    const { t, i18n } = useTranslation();
+    return { t, i18n, currentLanguage: 'en' };
   },
+});
+// No catalog summary: every book and chapter counts as available.
+mockModule(mock, sourcePath('hooks/useTranslationContentSummary.ts'), {
+  useTranslationContentSummary: () => undefined,
 });
 const t = (key: string, options?: Record<string, unknown>) => harness.i18n.t(key, options);
 

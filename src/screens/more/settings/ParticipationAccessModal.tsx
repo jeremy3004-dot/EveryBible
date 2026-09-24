@@ -1,7 +1,7 @@
 import { Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../contexts/ThemeContext';
-import { useDisplayFont } from '../../../hooks';
+import { useDisplayFont } from '../../../hooks/useDisplayFont';
 import { AppButton } from '../../../components/ui';
 import { TranslationNotCoveredNotice } from '../../../components/feedback/TranslationNotCoveredNotice';
 import { layout, radius, spacing, typography } from '../../../design/system';
