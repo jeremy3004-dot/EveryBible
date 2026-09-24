@@ -152,3 +152,29 @@ export function resetTranslationDownloadState(translation: BibleTranslation): Bi
           : translation.installState,
   };
 }
+
+const IN_PROGRESS_INSTALL_STATES: ReadonlySet<BibleTranslation['installState']> = new Set([
+  'downloading',
+  'verifying',
+  'installing',
+]);
+
+/**
+ * An install phase persisted by a process that was killed mid-download. No transfer survives into
+ * a new process, so on launch the phase settles to what is on disk: the pack that is registered,
+ * the bundled text, or nothing.
+ */
+export function settleInterruptedInstallState(translation: BibleTranslation): BibleTranslation {
+  if (!IN_PROGRESS_INSTALL_STATES.has(translation.installState)) {
+    return translation;
+  }
+
+  return {
+    ...translation,
+    installState: translation.textPackLocalPath
+      ? 'installed'
+      : translation.source !== 'runtime' && translation.hasText
+        ? 'seeded'
+        : 'remote-only',
+  };
+}

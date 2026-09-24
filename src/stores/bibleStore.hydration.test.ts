@@ -261,6 +261,102 @@ test('a persisted chapter its book does not have falls back to chapter 1', async
   }
 });
 
+test('an install the app was killed during is not restored as still in progress', async () => {
+  // downloadTranslation persists installState 'downloading' before the transfer starts. A
+  // process kill leaves it there; no transfer can be running in a fresh process, so every
+  // transient phase settles to what is actually on disk.
+  await rehydrateWith({
+    translations: [
+      { id: 'bsb', isDownloaded: true, installState: 'verifying' },
+      { id: 'kjv', isDownloaded: false, installState: 'downloading' },
+      makeRuntimeTranslation({
+        id: 'esv1',
+        isDownloaded: true,
+        installState: 'installing',
+        activeTextPackVersion: '3',
+        textPackLocalPath: 'file:///packs/esv1.db',
+      }),
+      makeRuntimeTranslation({ id: 'nlt9', isDownloaded: false, installState: 'verifying' }),
+    ],
+  });
+
+  assert.deepEqual(
+    ['bsb', 'kjv', 'esv1', 'nlt9'].map((id) => [id, findTranslation(id)?.installState]),
+    [
+      ['bsb', 'seeded'],
+      ['kjv', 'remote-only'],
+      ['esv1', 'installed'],
+      ['nlt9', 'remote-only'],
+    ]
+  );
+  assert.equal(findTranslation('esv1')?.textPackLocalPath, 'file:///packs/esv1.db');
+});
+
+test('settled install states are restored exactly as persisted', async () => {
+  await rehydrateWith({
+    translations: [
+      makeRuntimeTranslation({
+        id: 'esv1',
+        isDownloaded: true,
+        installState: 'rollback-available',
+        textPackLocalPath: 'file:///packs/esv1.db',
+      }),
+      makeRuntimeTranslation({
+        id: 'nlt9',
+        isDownloaded: false,
+        installState: 'failed',
+        lastInstallError: 'Translation download failed with HTTP 500.',
+      }),
+    ],
+  });
+
+  assert.equal(findTranslation('esv1')?.installState, 'rollback-available');
+  assert.equal(findTranslation('nlt9')?.installState, 'failed');
+  assert.equal(
+    findTranslation('nlt9')?.lastInstallError,
+    'Translation download failed with HTTP 500.'
+  );
+});
+
+test('an unreadable persisted payload leaves the store usable and is replaced by the next write', async (t) => {
+  t.mock.method(console, 'error', () => {});
+  useBibleStore.setState(useBibleStore.getInitialState(), true);
+  mmkv.store.set(STORAGE_KEY, '{"state":{"currentBook":"JHN","transl');
+
+  await assert.doesNotReject(async () => useBibleStore.persist.rehydrate());
+
+  const state = useBibleStore.getState();
+  assert.equal(state.currentTranslation, 'bsb');
+  assert.ok(state.translations.some((translation) => translation.id === 'bsb'));
+  state.setError(null);
+  const rewritten = JSON.parse(mmkv.store.get(STORAGE_KEY) ?? 'null') as {
+    state: { currentTranslation: string };
+  };
+  assert.equal(rewritten.state.currentTranslation, 'bsb');
+});
+
+for (const [label, raw] of [
+  ['a JSON null', 'null'],
+  ['a null state', '{"state":null,"version":1}'],
+  ['a list state', '{"state":[1,2,3],"version":1}'],
+  ['a string state', '{"state":"garbage","version":1}'],
+  ['an unknown old version', '{"state":{"translations":{}},"version":-2}'],
+] as const) {
+  test(`${label} in storage hydrates the default Bible without throwing`, async () => {
+    useBibleStore.setState(useBibleStore.getInitialState(), true);
+    mmkv.store.set(STORAGE_KEY, raw);
+
+    await useBibleStore.persist.rehydrate();
+
+    assert.equal(useBibleStore.persist.hasHydrated(), true, 'migrate and merge must not throw');
+    const state = useBibleStore.getState();
+    assert.equal(state.currentTranslation, 'bsb');
+    assert.equal(state.currentBook, 'GEN');
+    assert.ok(Array.isArray(state.translations));
+    assert.ok(state.translations.some((translation) => translation.id === 'bsb'));
+  });
+}
+
 test('a corrupt persisted payload hydrates to the default translation list', async () => {
   await rehydrateWith({ translations: 'not-an-array', currentTranslation: 42 });
 
