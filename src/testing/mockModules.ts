@@ -94,12 +94,64 @@ const skippedSources = new Set<string>();
 if (typeof registerHooks === 'function') {
   registerHooks({
     load(url, context, nextLoad) {
+      const legacyMockSource = legacyMockModuleSource(url);
+      if (legacyMockSource !== null) {
+        return { format: 'commonjs', source: legacyMockSource, shortCircuit: true };
+      }
       if (skippedSources.has(url.split(/[?#]/)[0])) {
         return { format: 'commonjs', source: 'module.exports = {};', shortCircuit: true };
       }
       return nextLoad(url, context);
     },
   });
+}
+
+/**
+ * Node < 26 mocks `import` with off-thread `module.register` hooks: the mocked
+ * module resolves to `<file>?node-test-mock=N`, and the mock's load hook
+ * supplies source that reads the mock's exports. tsx >= 4.22 on Node >= 22.22.3
+ * loads TypeScript through in-thread `module.registerHooks` instead, and for a
+ * CommonJS-format file (every repo `.ts` file here) the CommonJS loader then
+ * compiles whatever the in-thread chain returns: tsx reads the real file, so
+ * an `import()` of a mocked repo file loads the real module behind the mock
+ * (and throws on `__DEV__` or untranspiled Flow). Answer those
+ * versioned URLs in-thread with the source Node's own mock loader would have
+ * generated. Node 26 mocks through `registerHooks` itself and never gets here.
+ */
+const MOCK_VERSION_PARAM = 'node-test-mock';
+const NODE_MAJOR = Number(process.versions.node.split('.')[0]);
+const nodeRequire = createRequire(import.meta.url);
+
+type LegacyMockExports = { defaultExport?: unknown; namedExports: Record<string, unknown> };
+
+function legacyMockModuleSource(url: string): string | null {
+  if (NODE_MAJOR >= 26 || !url.includes(`${MOCK_VERSION_PARAM}=`)) return null;
+  const parsed = URL.parse(url);
+  if (!parsed) return null;
+  // The CommonJS loader turns the versioned URL back into a path and tsx turns
+  // that into a URL again, so the version arrives percent-encoded in the path
+  // (`index.ts%3Fnode-test-mock=0?node-test-mock=0&tsx-...`). Mocked files never
+  // carry a query of their own.
+  parsed.search = '';
+  parsed.hash = '';
+  parsed.pathname = parsed.pathname.replace(/%3Fnode-test-mock=\d+$/i, '');
+  const baseURL = parsed.href;
+  const registry = (
+    nodeRequire('node:test') as { mock: { _mockExports?: Map<string, LegacyMockExports> } }
+  ).mock._mockExports;
+  const entry = registry?.get(baseURL);
+  if (!entry) return null;
+  // Name every export in the source: an ESM importer of a CommonJS module sees
+  // only the names cjs-module-lexer can find there.
+  const key = JSON.stringify(baseURL);
+  return [
+    `const $__exports = require('node:test').mock._mockExports.get(${key});`,
+    `if ($__exports.defaultExport !== undefined) module.exports = $__exports.defaultExport;`,
+    ...Object.keys(entry.namedExports).map(
+      (name) =>
+        `module.exports[${JSON.stringify(name)}] = $__exports.namedExports[${JSON.stringify(name)}];`
+    ),
+  ].join('\n');
 }
 
 function skipRealSource(filePath: string) {

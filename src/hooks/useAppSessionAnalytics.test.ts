@@ -66,15 +66,24 @@ beforeEach(() => {
   calls.length = 0;
 });
 
-afterEach(() => {
-  runtime.unmountAll();
-});
-
+/**
+ * Let the hook's lazy `import('../services/analytics').then(...)` land. Await a
+ * load of the same (mocked) module rather than counting turns: on Node 22 each
+ * import crosses the loader thread and can outlast any fixed number of turns.
+ */
 const settle = async () => {
+  await import('../services/analytics');
   for (let turn = 0; turn < 5; turn += 1) {
     await new Promise((resolve) => setImmediate(resolve));
   }
 };
+
+afterEach(async () => {
+  runtime.unmountAll();
+  // An unmount while active ends the session through the lazy import; let it
+  // land here so it is not recorded against the next test.
+  await settle();
+});
 
 function mountApp(enabled = true) {
   const view = runtime.mount(useAppSessionAnalytics, enabled);
