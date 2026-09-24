@@ -1,18 +1,21 @@
-Tüm dillerde daha iyi arama, tüm cihazlarınızda güvende kalan notlar ve planlar, yenilenen Okuma planları ve daha hızlı, daha kararlı bir uygulama.
+Daha fazla dilde arama, tüm cihazlarınızda güvende kalan notlar ve planlar, daha kararlı ses ve daha küçük, daha hızlı bir uygulama.
 
-• Arama; Hintçe, Nepalce ve Hint alfabeleriyle yazılan diğer dillerde kelimelerin tamamını, Çince, Japonca, Korece ve Tayca'da ise kelimeleri buluyor. Arama artık indirdiğiniz Kutsal Kitaplarda da çalışıyor. Tek bölümlük bir kitabı bölüm numarasıyla yazdığınızda o bölüm açılıyor.
-• Ayarlar, planlar ve okuma ilerlemeniz tüm cihazlarınızda aynı kalıyor. Bir cihazdaki değişiklik artık başka bir cihazdaki değişikliği geri almıyor ve ilk kez oturum açtığınızda o cihazda yaptığınız seçimler korunuyor.
+• Arama; Hintçe, Nepalce ve Hint alfabeleriyle yazılan diğer dillerde kelimelerin tamamını, Çince, Japonca, Korece ve Tayca'da ise kelimeleri buluyor. İndirdiğiniz Kutsal Kitaplarda da çalışıyor ve hiçbir ayet eşleşmediğinde bunu açıkça söylüyor. Tek bölümlük bir kitabı bölüm numarasıyla yazdığınızda o bölüm açılıyor.
+• Ayarlar, planlar ve okuma ilerlemeniz tüm cihazlarınızda aynı kalıyor. Bir cihazdaki değişiklik artık başka bir cihazdaki değişikliği geri almıyor ve çevrimdışıyken geçtiğiniz Kutsal Kitap seçili kalıyor.
 • Notlarınız, vurgularınız, yer imleriniz ve kitaplığınız hesabınıza ait. Aynı cihazda başka biri oturum açarsa bunları görmez; siz yeniden oturum açtığınızda geri gelirler.
-• Okuma planları: günleriniz nokta ızgarası olarak görünüyor, kaydırırken başlık sabit kalıyor ve bir okumadan planına geri kaydırarak dönebiliyorsunuz. Bir plan gününü bitirmek artık o gündeki tüm bölümleri sayıyor ve gün serileri daha doğru.
-• Günlük hatırlatmaya dokunarak doğrudan planınıza gidin. Hatırlatma dilinize ve saat diliminize uyuyor; bildirimler kapalıysa Ayarlar bunu size söylüyor.
-• Ses: okuma ekranından ayrıldıktan sonra da kilit ekranı kontrolleri ve uyku zamanlayıcısı çalışmaya devam ediyor; siz duraklattığınızda uyku zamanlayıcısı da duraklıyor. Bir indirmeyi iptal etmek veya silmek artık onu gerçekten durduruyor.
-• Vurgular: bir vurgunun bir kısmının rengini değiştirebilir veya kaldırabilirsiniz; bir notu düzenlemek artık kopya oluşturmuyor.
-• Her bölümün başındaki kısım başlığı geri geldi ve her Günün ayeti artık tam bir cümle. Günün ayetini paylaştığınızda yalnızca ayet ve fotoğraf paylaşılıyor.
+• Ses: kulaklık düğmesiyle duraklatıp devam ettirebiliyorsunuz, telefon araması duraklattığınız sesi artık yeniden başlatmıyor ve arka plan müziği seslendirmeyi takip ediyor. Okuma ekranından ayrıldıktan sonra da kilit ekranı kontrolleri ve uyku zamanlayıcısı çalışmaya devam ediyor; uyku zamanlayıcısı sona erdiğinde sonraki bölüm başlamıyor. Otomatik geçiş, sesi olmayan bölümleri atlıyor.
+• Dinleme süreniz artık Okuma etkinliğinde ve profilinizde sayılıyor.
+• Bir ayeti görsel olarak paylaşmak sorunsuz çalışıyor; her arka planda net bir ayet referansı ve Kutsal Kitabın yazısına uygun harfler kullanılıyor. Günün ayetini paylaştığınızda yalnızca ayet ve fotoğraf paylaşılıyor.
+• Okuma planları: günleriniz nokta ızgarası olarak görünüyor, kaydırırken başlık sabit kalıyor ve bir okumadan planına geri kaydırarak dönebiliyorsunuz. Plan günleri gece yarısından sonra da doğru sayılıyor ve gün serileri daha doğru.
+• Günlük hatırlatma: doğrudan planınıza gitmek için dokunun. Hatırlatma dilinize ve saat diliminize uyuyor, bildirimler kapalıysa Ayarlar bunu size söylüyor ve başka bir telefondan açılan hatırlatma burada tek dokunuşla izin istiyor.
+• Gizli mod artık uygulamanın kendi iletişim kutuları açıkken kilitlenmiyor ve kilidi açtığınızda kaldığınız yere dönüyorsunuz.
+• Vurgular: bir vurgunun bir kısmının rengini değiştirin veya kaldırın. Bir notu düzenlemek artık kopya oluşturmuyor.
+• Her bölümün başındaki kısım başlığı geri geldi ve her Günün ayeti artık tam bir cümle. Okuma takvimi haftaları eksiksiz gösteriyor.
 • Parola sıfırlama bağlantıları daha güvenli: bir bağlantı yalnızca onu isteyen cihazda çalışıyor.
 • Kurulum ilk ekrandan itibaren sizin dilinizde ilerliyor ve bir şey indirilemezse bunu açıkça bildiriyor.
 • Uygulamadaki metinler tüm dillerde gözden geçirildi; Rusça ve Arapça artık doğru çoğul biçimlerini kullanıyor.
-• Uygulama genelinde daha iyi VoiceOver desteği ve büyük metin boyutlarında kelimeleri kesmek yerine alt satıra geçen düzenler.
-• Bir ekranda bir sorun çıkarsa uygulamanın geri kalanı çalışmaya devam ediyor.
-• Daha hızlı açılış, daha küçük bir uygulama ve birçok küçük düzeltme.
+• Daha iyi VoiceOver desteği ve büyük metin boyutlarında kelimeleri kesmek yerine alt satıra geçen düzenler.
+• Okuma, Kutsal Kitap seçici ve Planlar ekranları daha akıcı. Uygulama yaklaşık 45 MB daha az yer kaplıyor ve daha hızlı açılıyor.
+• Bir ekranda bir sorun çıkarsa uygulamanın geri kalanı çalışmaya devam ediyor; ayrıca zayıf bağlantıda veya bağlantı yokken yaşanan sorunlar için birçok düzeltme var.
 
 Bizimle birlikte okuduğunuz için teşekkürler.

@@ -1,18 +1,21 @@
-Pencarian yang lebih baik di semua bahasa, catatan dan rencana Anda tetap aman di semua perangkat, Rencana bacaan yang diperbarui, serta aplikasi yang lebih cepat dan stabil.
+Pencarian dalam lebih banyak bahasa, catatan dan rencana Anda tetap aman di semua perangkat, audio yang lebih stabil, serta aplikasi yang lebih kecil dan cepat.
 
-• Pencarian kini menemukan kata utuh dalam bahasa Hindi, Nepali, dan bahasa lain beraksara India, serta menemukan kata dalam bahasa Mandarin, Jepang, Korea, dan Thai. Pencarian kini juga berfungsi di Alkitab yang Anda unduh. Mengetik kitab yang hanya punya satu pasal beserta nomor pasalnya kini langsung membuka pasal itu.
-• Pengaturan, rencana, dan kemajuan membaca tetap selaras di semua perangkat Anda. Perubahan di satu perangkat tidak lagi membatalkan perubahan di perangkat lain, dan saat pertama kali masuk, pilihan yang sudah Anda buat di perangkat itu tetap dipertahankan.
+• Pencarian kini menemukan kata utuh dalam bahasa Hindi, Nepali, dan bahasa lain beraksara India, serta menemukan kata dalam bahasa Mandarin, Jepang, Korea, dan Thai. Pencarian juga berfungsi di Alkitab yang Anda unduh, dan memberi tahu dengan jelas jika tidak ada ayat yang cocok. Mengetik kitab yang hanya punya satu pasal beserta nomor pasalnya kini langsung membuka pasal itu.
+• Pengaturan, rencana, dan kemajuan membaca tetap selaras di semua perangkat Anda. Perubahan di satu perangkat tidak lagi membatalkan perubahan di perangkat lain, dan Alkitab yang Anda pilih saat offline tetap terpilih.
 • Catatan, sorotan, penanda, dan pustaka Anda menjadi milik akun Anda. Jika orang lain masuk di perangkat yang sama, mereka tidak akan melihatnya, dan semuanya kembali saat Anda masuk lagi.
-• Rencana bacaan: hari-hari Anda tampil sebagai kisi titik, judul tetap terlihat saat Anda menggulir, dan Anda bisa menggeser kembali dari bacaan ke rencananya. Menyelesaikan satu hari rencana kini menghitung semua pasal di dalamnya, dan rentetan hari lebih akurat.
-• Ketuk pengingat harian untuk langsung membuka rencana Anda. Pengingat mengikuti bahasa dan zona waktu Anda, dan Pengaturan memberi tahu jika notifikasi dimatikan.
-• Audio: kontrol layar kunci dan pengatur waktu tidur tetap berfungsi setelah Anda meninggalkan layar bacaan, dan pengatur waktu tidur ikut berhenti sejenak saat Anda menjeda audio. Membatalkan atau menghapus unduhan kini benar-benar menghentikannya.
-• Sorotan: Anda bisa mengubah atau menghapus warna pada sebagian sorotan, dan mengedit catatan tidak lagi membuat salinan.
-• Judul perikop di awal setiap pasal kembali muncul, dan setiap Ayat hari ini kini berupa kalimat lengkap. Membagikan Ayat hari ini hanya membagikan ayat dan fotonya.
+• Audio: tombol di headset kini menjeda dan memutar, panggilan telepon tidak lagi memulai ulang audio yang sedang dijeda, dan musik latar mengikuti narasi. Kontrol layar kunci dan pengatur waktu tidur tetap berfungsi setelah Anda meninggalkan layar bacaan, dan setelah pengatur waktu tidur selesai, pasal berikutnya tidak diputar. Putar lanjut otomatis melewati pasal yang tidak memiliki audio.
+• Waktu mendengarkan Anda kini dihitung di Aktivitas membaca dan di profil Anda.
+• Membagikan ayat sebagai gambar kini berfungsi dengan andal, dengan referensi yang jelas di setiap latar dan huruf yang sesuai dengan aksara Alkitabnya. Membagikan Ayat hari ini hanya membagikan ayat dan fotonya.
+• Rencana bacaan: hari-hari Anda tampil sebagai kisi titik, judul tetap terlihat saat Anda menggulir, dan Anda bisa menggeser kembali dari bacaan ke rencananya. Hari rencana kini dihitung dengan benar setelah tengah malam, dan rentetan hari lebih akurat.
+• Pengingat harian: ketuk untuk langsung membuka rencana Anda. Pengingat mengikuti bahasa dan zona waktu Anda, Pengaturan memberi tahu jika notifikasi dimatikan, dan pengingat yang diaktifkan dari ponsel lain meminta izin di sini dengan satu ketukan.
+• Mode tersamar tidak lagi mengunci saat jendela dari aplikasi itu sendiri sedang terbuka, dan setelah dibuka kuncinya Anda kembali ke tempat semula.
+• Sorotan: ubah atau hapus warna pada sebagian sorotan. Mengedit catatan tidak lagi membuat salinan.
+• Judul perikop di awal setiap pasal kembali muncul, dan setiap Ayat hari ini kini berupa kalimat lengkap. Kalender bacaan menampilkan minggu secara utuh.
 • Tautan atur ulang kata sandi kini lebih aman: tautan hanya berfungsi di perangkat yang memintanya.
 • Penyiapan tampil dalam bahasa Anda sejak layar pertama, dan memberi tahu dengan jelas jika ada yang tidak bisa diunduh.
 • Teks aplikasi telah ditinjau dalam semua bahasa, dan bahasa Rusia serta Arab kini memakai bentuk jamak yang benar.
-• Dukungan VoiceOver yang lebih baik di seluruh aplikasi, dan tata letak yang pindah baris alih-alih memotong kata pada ukuran teks besar.
-• Jika terjadi masalah di satu layar, bagian lain aplikasi tetap berjalan.
-• Aplikasi terbuka lebih cepat, ukurannya lebih kecil, dan ada banyak perbaikan kecil.
+• Dukungan VoiceOver yang lebih baik, dan tata letak yang pindah baris alih-alih memotong kata pada ukuran teks besar.
+• Layar bacaan, pemilih Alkitab, dan Rencana kini lebih lancar. Aplikasi memakai sekitar 45 MB lebih sedikit ruang dan terbuka lebih cepat.
+• Jika terjadi masalah di satu layar, bagian lain aplikasi tetap berjalan, ditambah banyak perbaikan untuk koneksi yang lemah atau tanpa koneksi.
 
 Terima kasih telah membaca bersama kami.

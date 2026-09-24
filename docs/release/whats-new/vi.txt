@@ -1,18 +1,21 @@
-Tìm kiếm tốt hơn ở mọi ngôn ngữ, ghi chú và kế hoạch của bạn được giữ an toàn trên mọi thiết bị, Kế hoạch đọc được làm mới, và ứng dụng nhanh hơn, ổn định hơn.
+Tìm kiếm ở nhiều ngôn ngữ hơn, ghi chú và kế hoạch của bạn được giữ an toàn trên mọi thiết bị, âm thanh ổn định hơn, và ứng dụng nhẹ hơn, nhanh hơn.
 
-• Tìm kiếm nay tìm được trọn từ trong tiếng Hindi, tiếng Nepal và các ngôn ngữ khác dùng chữ viết Ấn Độ, đồng thời tìm được từ trong tiếng Trung, tiếng Nhật, tiếng Hàn và tiếng Thái. Tìm kiếm giờ cũng hoạt động trong các bản Kinh Thánh bạn tải về. Gõ tên một sách chỉ có một chương kèm số chương sẽ mở ngay chương đó.
-• Cài đặt, kế hoạch và tiến độ đọc luôn đồng bộ trên mọi thiết bị của bạn. Thay đổi trên thiết bị này không còn xóa mất thay đổi trên thiết bị khác, và lần đầu đăng nhập, những lựa chọn bạn đã đặt trên thiết bị đó vẫn được giữ nguyên.
+• Tìm kiếm nay tìm được trọn từ trong tiếng Hindi, tiếng Nepal và các ngôn ngữ khác dùng chữ viết Ấn Độ, đồng thời tìm được từ trong tiếng Trung, tiếng Nhật, tiếng Hàn và tiếng Thái. Tìm kiếm cũng hoạt động trong các bản Kinh Thánh bạn tải về, và báo rõ khi không có câu nào phù hợp. Gõ tên một sách chỉ có một chương kèm số chương sẽ mở ngay chương đó.
+• Cài đặt, kế hoạch và tiến độ đọc luôn đồng bộ trên mọi thiết bị của bạn. Thay đổi trên thiết bị này không còn xóa mất thay đổi trên thiết bị khác, và bản Kinh Thánh bạn chuyển sang khi ngoại tuyến vẫn được giữ nguyên lựa chọn.
 • Ghi chú, phần tô sáng, dấu trang và thư viện thuộc về tài khoản của bạn. Nếu người khác đăng nhập trên cùng thiết bị, họ sẽ không thấy chúng, và chúng sẽ trở lại khi bạn đăng nhập lại.
-• Kế hoạch đọc: các ngày của bạn hiển thị dạng lưới chấm, tiêu đề luôn cố định khi cuộn, và bạn có thể vuốt để quay lại từ bài đọc về kế hoạch. Hoàn thành một ngày trong kế hoạch nay tính đủ mọi chương của ngày đó, và chuỗi ngày chính xác hơn.
-• Chạm vào lời nhắc hằng ngày để đi thẳng tới kế hoạch của bạn. Lời nhắc theo ngôn ngữ và múi giờ của bạn, và Cài đặt sẽ cho bạn biết nếu thông báo đang tắt.
-• Âm thanh: nút điều khiển trên màn hình khóa và hẹn giờ ngủ vẫn hoạt động sau khi bạn rời màn hình đọc, và hẹn giờ ngủ tạm dừng khi bạn tạm dừng phát. Hủy hoặc xóa một lượt tải xuống giờ sẽ thật sự dừng nó.
-• Tô sáng: bạn có thể đổi hoặc bỏ màu trên một phần của đoạn tô sáng, và chỉnh sửa ghi chú không còn tạo bản sao.
-• Tiêu đề phân đoạn ở đầu mỗi chương đã trở lại, và mỗi Câu Kinh Thánh hôm nay đều là một câu trọn vẹn. Khi chia sẻ Câu Kinh Thánh hôm nay, chỉ câu Kinh Thánh và hình ảnh được chia sẻ.
+• Âm thanh: nút trên tai nghe dùng để tạm dừng và phát tiếp, cuộc gọi điện thoại không còn tự phát lại âm thanh bạn đã tạm dừng, và nhạc nền đi theo giọng đọc. Nút điều khiển trên màn hình khóa và hẹn giờ ngủ vẫn hoạt động sau khi bạn rời màn hình đọc, và khi hẹn giờ ngủ kết thúc, chương tiếp theo sẽ không bắt đầu. Tự động chuyển chương sẽ bỏ qua các chương không có âm thanh.
+• Thời gian nghe của bạn nay được tính vào Hoạt động đọc và trên hồ sơ của bạn.
+• Chia sẻ câu Kinh Thánh dưới dạng hình ảnh nay hoạt động ổn định, với phần trích dẫn rõ ràng trên mọi hình nền và kiểu chữ phù hợp với chữ viết của bản Kinh Thánh. Khi chia sẻ Câu Kinh Thánh hôm nay, chỉ câu Kinh Thánh và hình ảnh được chia sẻ.
+• Kế hoạch đọc: các ngày của bạn hiển thị dạng lưới chấm, tiêu đề luôn cố định khi cuộn, và bạn có thể vuốt để quay lại từ bài đọc về kế hoạch. Các ngày trong kế hoạch được tính đúng sau nửa đêm, và chuỗi ngày chính xác hơn.
+• Nhắc nhở hằng ngày: chạm vào để đi thẳng tới kế hoạch của bạn. Nhắc nhở theo ngôn ngữ và múi giờ của bạn, Cài đặt sẽ cho bạn biết nếu thông báo đang tắt, và nhắc nhở được bật từ điện thoại khác sẽ xin quyền trên máy này chỉ với một lần chạm.
+• Chế độ kín đáo không còn khóa khi hộp thoại của chính ứng dụng đang mở, và mở khóa sẽ đưa bạn về đúng chỗ đang xem.
+• Tô sáng: đổi hoặc bỏ màu trên một phần của đoạn tô sáng. Chỉnh sửa ghi chú không còn tạo bản sao.
+• Tiêu đề phân đoạn ở đầu mỗi chương đã trở lại, và mỗi Câu Kinh Thánh hôm nay đều là một câu trọn vẹn. Lịch đọc hiển thị đầy đủ các tuần.
 • Liên kết đặt lại mật khẩu an toàn hơn: liên kết chỉ hoạt động trên thiết bị đã yêu cầu nó.
 • Phần thiết lập hiển thị bằng ngôn ngữ của bạn ngay từ màn hình đầu tiên và báo rõ nếu có nội dung không tải xuống được.
 • Câu chữ trong ứng dụng đã được rà soát ở mọi ngôn ngữ, và tiếng Nga cùng tiếng Ả Rập nay dùng đúng dạng số nhiều.
-• Hỗ trợ VoiceOver tốt hơn trong toàn ứng dụng, và bố cục tự xuống dòng thay vì cắt chữ khi dùng cỡ chữ lớn.
-• Nếu một màn hình gặp sự cố, phần còn lại của ứng dụng vẫn tiếp tục hoạt động.
-• Khởi động nhanh hơn, ứng dụng nhẹ hơn và nhiều bản sửa lỗi nhỏ.
+• Hỗ trợ VoiceOver tốt hơn, và bố cục tự xuống dòng thay vì cắt chữ khi dùng cỡ chữ lớn.
+• Màn hình đọc, bộ chọn Kinh Thánh và Kế hoạch mượt mà hơn. Ứng dụng chiếm ít hơn khoảng 45 MB dung lượng và khởi động nhanh hơn.
+• Nếu một màn hình gặp sự cố, phần còn lại của ứng dụng vẫn tiếp tục hoạt động, cùng nhiều bản sửa lỗi khi kết nối yếu hoặc không có mạng.
 
 Cảm ơn bạn đã cùng đọc với chúng tôi.
