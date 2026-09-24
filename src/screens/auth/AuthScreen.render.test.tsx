@@ -542,3 +542,31 @@ test('iOS pads the keyboard avoider', async () => {
   const [avoider] = view.queryAllByType('KeyboardAvoidingView');
   assert.equal(avoider.props.behavior, 'padding');
 });
+
+// The native Apple control has no disabled state, so while another sign-in was in
+// flight a tap on it started a second one; both then restored the account and
+// dismissed, and the second goBack popped the screen under the auth modal.
+test('the Apple button ignores taps while another sign-in is in flight', async () => {
+  const gate = deferred();
+  auth.gate = gate.promise;
+  const view = await renderAuth();
+  await view.changeText(view.getByLabelText(t('auth.email')), 'ruth@example.com');
+  await view.changeText(view.getByLabelText(t('auth.password')), 'secret-pass');
+  const pending = (
+    view.getByRole('button', { name: t('auth.signIn') }).props.onPress as () => Promise<void>
+  )();
+  await view.flush();
+
+  const apple = (appleButton(view).props.onPress as () => Promise<void>)();
+  await act(async () => {
+    gate.resolve();
+    await Promise.all([pending, apple]);
+  });
+
+  assert.deepEqual(auth.calls, ['email:ruth@example.com']);
+  assert.deepEqual(pulls, ['user-1']);
+  assert.deepEqual(
+    harness.navigation.calls.map((call) => call.method),
+    ['goBack']
+  );
+});

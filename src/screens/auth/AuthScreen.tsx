@@ -288,6 +288,12 @@ export function AuthScreen() {
   };
 
   const handleAppleAuth = async () => {
+    // The native Apple control cannot be disabled, so it ignores taps here instead:
+    // a second concurrent sign-in would restore and dismiss twice.
+    if (isLoading) {
+      return;
+    }
+
     setIsLoading(true);
 
     try {
