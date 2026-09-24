@@ -467,6 +467,10 @@ export const ar = {
     lessonsProgress: '{{completed}} / {{total}} درس',
     nextLesson: 'التالي · {{title}}',
     readPassage: 'اقرأ {{passage}}',
+    borrowedPassageTitle: '{{passage}} غير موجود في {{translation}}',
+    borrowedPassageBody:
+      'آية اليوم مأخوذة من {{fallback}}. قراءة الإصحاح هناك تغيّر كتابك المقدس إلى {{fallback}}، ويمكنك الرجوع في أي وقت.',
+    readInTranslation: 'اقرأ في {{translation}}',
     goodMorning: 'صباح الخير',
     goodAfternoon: 'طاب يومك',
     goodEvening: 'مساء الخير',

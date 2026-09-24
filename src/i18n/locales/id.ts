@@ -443,6 +443,10 @@ export const id = {
     lessonsProgress: '{{completed}} / {{total}} pelajaran',
     nextLesson: 'Berikutnya · {{title}}',
     readPassage: 'Baca {{passage}}',
+    borrowedPassageTitle: '{{passage}} tidak ada di {{translation}}',
+    borrowedPassageBody:
+      'Ayat hari ini diambil dari {{fallback}}. Membaca pasal itu di sana akan mengganti Alkitab Anda ke {{fallback}}; Anda bisa menggantinya kembali kapan saja.',
+    readInTranslation: 'Baca di {{translation}}',
     goodMorning: 'Selamat pagi',
     goodAfternoon: 'Selamat siang',
     goodEvening: 'Selamat malam',

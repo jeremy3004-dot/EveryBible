@@ -411,6 +411,10 @@ export const en = {
     beginToday: 'Begin today',
     todaysScripture: "Today's Scripture",
     readPassage: 'Read {{passage}}',
+    borrowedPassageTitle: "{{passage}} isn't in {{translation}}",
+    borrowedPassageBody:
+      "Today's verse comes from {{fallback}}. Reading the chapter there switches your Bible to {{fallback}}; you can switch back at any time.",
+    readInTranslation: 'Read in {{translation}}',
     dayEyebrow: 'Day',
     lessonsProgress: '{{completed}} / {{total}} lessons',
     nextLesson: 'Next · {{title}}',

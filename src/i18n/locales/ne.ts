@@ -137,6 +137,10 @@ export const ne = {
     lessonsProgress: '{{completed}} / {{total}} पाठ',
     nextLesson: 'अर्को · {{title}}',
     readPassage: '{{passage}} पढ्नुहोस्',
+    borrowedPassageTitle: '{{translation}} मा {{passage}} छैन',
+    borrowedPassageBody:
+      'आजको पद {{fallback}} बाट लिइएको हो। त्यहाँ यो अध्याय पढ्दा तपाईंको बाइबल {{fallback}} मा बदलिन्छ; तपाईं जुनसुकै बेला फर्काउन सक्नुहुन्छ।',
+    readInTranslation: '{{translation}} मा पढ्नुहोस्',
     goodMorning: 'शुभ प्रभात',
     goodAfternoon: 'शुभ दिउँसो',
     goodEvening: 'शुभ साँझ',

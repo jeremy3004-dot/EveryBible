@@ -30,11 +30,16 @@ mockPackage(mock, '@react-navigation/native', {
 });
 
 // ---- Stores: real Zustand stores holding only what Home selects -------------
+const translationSwitches: string[] = [];
 const bibleStore = create(() => ({
   currentTranslation: 'bsb',
   currentBook: 'JHN',
   currentChapter: 3,
   hasReaderHistory: true,
+  setCurrentTranslation: (translationId: string) => {
+    translationSwitches.push(translationId);
+    bibleStore.setState({ currentTranslation: translationId });
+  },
 }));
 const progressStore = create(() => ({
   chaptersRead: {} as Record<string, number>,
@@ -148,6 +153,7 @@ beforeEach(() => {
   remoteAudio.books = null;
   network.offline = false;
   audioAvailableArgs.length = 0;
+  translationSwitches.length = 0;
   sharing.available = true;
   sharing.captureError = null;
   sharing.captures.length = 0;
@@ -255,6 +261,62 @@ test('Scripture borrowed from the bundled BSB is attributed to it on the hero an
   await view.press(view.getByRole('button', { name: t('groups.share') }));
   assert.deepEqual(harness.rn.__recorded.shares.at(-1), {
     message: `${t('home.verseOfTheDay')}\nJohn 3:16 · BSB\n\n${JOHN_3_16}`,
+  });
+});
+
+test("Read opens today's chapter in the reader's own translation", async () => {
+  const view = await renderHome();
+  await view.press(
+    heroes(view).screen.getByRole('button', { name: t('home.readPassage', { passage: 'John 3' }) })
+  );
+
+  assert.deepEqual(harness.rn.__recorded.alerts, []);
+  assert.deepEqual(translationSwitches, []);
+  assert.deepEqual(harness.navigation.calls.at(-1), {
+    method: 'navigate',
+    args: [
+      'Bible',
+      { screen: 'BibleReader', params: { bookId: 'JHN', chapter: 3, focusVerse: 16 } },
+    ],
+  });
+});
+
+test('Read on a verse borrowed from BSB asks first, then opens the chapter in BSB', async () => {
+  bibleStore.setState({ currentTranslation: 'npiulb' });
+  dailyScripture = verseOf({ fallbackTranslationId: 'bsb' });
+  const view = await renderHome();
+  const navigationsBefore = harness.navigation.calls.length;
+
+  await view.press(
+    heroes(view).screen.getByRole('button', { name: t('home.readPassage', { passage: 'John 3' }) })
+  );
+
+  // The reader follows the selected translation, which lacks this book.
+  assert.equal(harness.navigation.calls.length, navigationsBefore, 'nothing opens yet');
+  const [alert] = harness.rn.__recorded.alerts;
+  assert.equal(
+    alert.title,
+    t('home.borrowedPassageTitle', { passage: 'John 3', translation: 'Nepali Bible' })
+  );
+  assert.equal(alert.message, t('home.borrowedPassageBody', { fallback: 'BSB' }));
+  const buttons = alert.buttons as Array<{ text: string; style?: string; onPress?: () => void }>;
+  assert.deepEqual(
+    buttons.map((button) => button.text),
+    [t('common.cancel'), t('home.readInTranslation', { translation: 'BSB' })]
+  );
+
+  buttons[0].onPress?.();
+  assert.deepEqual(translationSwitches, [], 'Cancel keeps the reader in their translation');
+  assert.equal(harness.navigation.calls.length, navigationsBefore);
+
+  buttons[1].onPress?.();
+  assert.deepEqual(translationSwitches, ['bsb']);
+  assert.deepEqual(harness.navigation.calls.at(-1), {
+    method: 'navigate',
+    args: [
+      'Bible',
+      { screen: 'BibleReader', params: { bookId: 'JHN', chapter: 3, focusVerse: 16 } },
+    ],
   });
 });
 

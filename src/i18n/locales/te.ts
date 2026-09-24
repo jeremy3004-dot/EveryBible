@@ -137,6 +137,10 @@ export const te = {
     lessonsProgress: '{{completed}} / {{total}} పాఠాలు',
     nextLesson: 'తదుపరి · {{title}}',
     readPassage: '{{passage}} చదవండి',
+    borrowedPassageTitle: '{{translation}}లో {{passage}} లేదు',
+    borrowedPassageBody:
+      'నేటి వచనం {{fallback}} నుండి తీసుకోబడింది. అక్కడ ఈ అధ్యాయాన్ని చదివితే మీ బైబిల్ {{fallback}}కి మారుతుంది; మీరు ఎప్పుడైనా తిరిగి మార్చుకోవచ్చు.',
+    readInTranslation: '{{translation}}లో చదవండి',
     goodMorning: 'శుభోదయం',
     goodAfternoon: 'శుభ మధ్యాహ్నం',
     goodEvening: 'శుభ సాయంత్రం',

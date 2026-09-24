@@ -430,6 +430,10 @@ export const ko = {
     lessonsProgress: '레슨 {{completed}}/{{total}}',
     nextLesson: '다음 · {{title}}',
     readPassage: '{{passage}} 읽기',
+    borrowedPassageTitle: '{{translation}}에는 {{passage}}이(가) 없습니다',
+    borrowedPassageBody:
+      '오늘의 말씀은 {{fallback}}에서 가져왔습니다. 그곳에서 이 장을 읽으면 성경이 {{fallback}}(으)로 바뀝니다. 언제든지 다시 바꿀 수 있습니다.',
+    readInTranslation: '{{translation}}(으)로 읽기',
     goodMorning: '좋은 아침이에요',
     goodAfternoon: '좋은 오후예요',
     goodEvening: '좋은 저녁이에요',

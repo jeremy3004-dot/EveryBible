@@ -137,6 +137,10 @@ export const bn = {
     lessonsProgress: '{{completed}} / {{total}} পাঠ',
     nextLesson: 'পরবর্তী · {{title}}',
     readPassage: '{{passage}} পড়ুন',
+    borrowedPassageTitle: '{{translation}}-এ {{passage}} নেই',
+    borrowedPassageBody:
+      'আজকের পদটি {{fallback}} থেকে নেওয়া। সেখানে অধ্যায়টি পড়লে আপনার বাইবেল {{fallback}}-এ বদলে যাবে; আপনি যেকোনো সময় আবার বদলাতে পারেন।',
+    readInTranslation: '{{translation}}-এ পড়ুন',
     goodMorning: 'শুভ সকাল',
     goodAfternoon: 'শুভ বিকেল',
     goodEvening: 'শুভ সন্ধ্যা',

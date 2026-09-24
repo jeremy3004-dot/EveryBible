@@ -443,6 +443,10 @@ export const tr = {
     lessonsProgress: '{{completed}} / {{total}} ders',
     nextLesson: 'Sıradaki · {{title}}',
     readPassage: 'Oku: {{passage}}',
+    borrowedPassageTitle: '{{passage}}, {{translation}} içinde yok',
+    borrowedPassageBody:
+      'Günün ayeti {{fallback}} çevirisinden alındı. Bölümü orada okumak Kutsal Kitabınızı {{fallback}} çevirisine geçirir; istediğiniz zaman geri dönebilirsiniz.',
+    readInTranslation: '{{translation}} ile oku',
     goodMorning: 'Günaydın',
     goodAfternoon: 'İyi günler',
     goodEvening: 'İyi akşamlar',

@@ -424,6 +424,10 @@ export const zh = {
     lessonsProgress: '{{completed}} / {{total}} 课',
     nextLesson: '下一节 · {{title}}',
     readPassage: '阅读{{passage}}',
+    borrowedPassageTitle: '{{translation}}中没有{{passage}}',
+    borrowedPassageBody:
+      '今日经文取自{{fallback}}。在那里阅读这一章会把你的圣经切换为{{fallback}}；你随时可以切换回来。',
+    readInTranslation: '用{{translation}}阅读',
     goodMorning: '早上好',
     goodAfternoon: '下午好',
     goodEvening: '晚上好',

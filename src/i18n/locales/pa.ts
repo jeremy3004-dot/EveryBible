@@ -137,6 +137,10 @@ export const pa = {
     lessonsProgress: '{{completed}} / {{total}} ਪਾਠ',
     nextLesson: 'ਅਗਲਾ · {{title}}',
     readPassage: '{{passage}} ਪੜ੍ਹੋ',
+    borrowedPassageTitle: '{{translation}} ਵਿੱਚ {{passage}} ਨਹੀਂ ਹੈ',
+    borrowedPassageBody:
+      'ਅੱਜ ਦੀ ਆਇਤ {{fallback}} ਤੋਂ ਲਈ ਗਈ ਹੈ। ਉੱਥੇ ਅਧਿਆਇ ਪੜ੍ਹਨ ਨਾਲ ਤੁਹਾਡੀ ਬਾਈਬਲ {{fallback}} ’ਤੇ ਬਦਲ ਜਾਵੇਗੀ; ਤੁਸੀਂ ਕਦੇ ਵੀ ਵਾਪਸ ਬਦਲ ਸਕਦੇ ਹੋ।',
+    readInTranslation: '{{translation}} ਵਿੱਚ ਪੜ੍ਹੋ',
     goodMorning: 'ਸ਼ੁਭ ਸਵੇਰ',
     goodAfternoon: 'ਸ਼ੁਭ ਦੁਪਹਿਰ',
     goodEvening: 'ਸ਼ੁਭ ਸ਼ਾਮ',

@@ -433,6 +433,10 @@ export const ur = {
     lessonsProgress: '{{completed}} / {{total}} اسباق',
     nextLesson: 'اگلا · {{title}}',
     readPassage: '{{passage}} پڑھیں',
+    borrowedPassageTitle: '{{translation}} میں {{passage}} موجود نہیں ہے',
+    borrowedPassageBody:
+      'آج کی آیت {{fallback}} سے لی گئی ہے۔ وہاں باب پڑھنے سے آپ کی بائبل {{fallback}} پر بدل جائے گی؛ آپ کسی بھی وقت واپس بدل سکتے ہیں۔',
+    readInTranslation: '{{translation}} میں پڑھیں',
     goodMorning: 'صبح بخیر',
     goodAfternoon: 'دوپہر بخیر',
     goodEvening: 'شام بخیر',

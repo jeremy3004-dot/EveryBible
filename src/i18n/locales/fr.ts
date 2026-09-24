@@ -463,6 +463,10 @@ export const fr = {
     lessonsProgress: '{{completed}} / {{total}} leçons',
     nextLesson: 'Suivant · {{title}}',
     readPassage: 'Lire {{passage}}',
+    borrowedPassageTitle: '{{passage}} ne figure pas dans {{translation}}',
+    borrowedPassageBody:
+      'Le verset du jour vient de {{fallback}}. Lire le chapitre dans cette version fait passer votre Bible à {{fallback}} ; vous pouvez revenir en arrière à tout moment.',
+    readInTranslation: 'Lire dans {{translation}}',
     goodMorning: 'Bonjour',
     goodAfternoon: 'Bon après-midi',
     goodEvening: 'Bonsoir',

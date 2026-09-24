@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
+  Alert,
   View,
   Text,
   ImageBackground,
@@ -618,14 +619,42 @@ export function HomeScreen() {
       return;
     }
 
-    navigation.navigate('Bible', {
-      screen: 'BibleReader',
-      params: {
-        bookId: dailyScripture.bookId,
-        chapter: dailyScripture.chapter,
-        focusVerse: dailyScripture.verse,
-      },
-    });
+    const openDailyChapter = () =>
+      navigation.navigate('Bible', {
+        screen: 'BibleReader',
+        params: {
+          bookId: dailyScripture.bookId,
+          chapter: dailyScripture.chapter,
+          focusVerse: dailyScripture.verse,
+        },
+      });
+
+    // The reader always shows the selected translation, and borrowed text means that
+    // translation cannot show this passage. Reading it in BSB changes the reader's Bible,
+    // so ask rather than switch silently.
+    const fallbackTranslationId = dailyScripture.fallbackTranslationId;
+    if (fallbackTranslationId && dailyFallbackAbbreviation && dailyPassageLabel) {
+      Alert.alert(
+        t('home.borrowedPassageTitle', {
+          passage: dailyPassageLabel,
+          translation: currentTranslationInfo?.name ?? currentTranslation.toUpperCase(),
+        }),
+        t('home.borrowedPassageBody', { fallback: dailyFallbackAbbreviation }),
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          {
+            text: t('home.readInTranslation', { translation: dailyFallbackAbbreviation }),
+            onPress: () => {
+              useBibleStore.getState().setCurrentTranslation(fallbackTranslationId);
+              openDailyChapter();
+            },
+          },
+        ]
+      );
+      return;
+    }
+
+    openDailyChapter();
   };
 
   const renderVerseShareButton = () => (
