@@ -1,6 +1,6 @@
 import test, { afterEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import type { ReactTestInstance } from 'react-test-renderer';
+import { act, type ReactTestInstance } from 'react-test-renderer';
 import { create } from 'zustand';
 import { flattenStyle, installRenderHarness } from '../../testing/render';
 import { mockModule, sourcePath } from '../../testing/mockModules';
@@ -97,12 +97,52 @@ test('the secure-code form sits in a keyboard-avoiding, tap-through scroll with 
   assert.ok(bottom >= spacing.xxl, `the code card can scroll fully clear (got ${bottom})`);
 });
 
-test('Android resizes the keyboard-avoiding area by height', async () => {
+// Android runs edge to edge, so the window never resizes for the keyboard and the
+// avoider's height math clipped the Confirm field under it. The screen measures how much
+// of its scroll area the keyboard covers and pads the form by that instead.
+test('on Android the code form pads by what the keyboard covers and scrolls Confirm into view', async () => {
   harness.rn.Platform.OS = 'android';
   const view = await renderPrivacy();
+  await view.press(view.getByRole('radio', { name: t('onboarding.discreetIconTitle') }));
 
-  const [avoider] = view.queryAllByType('KeyboardAvoidingView');
-  assert.equal(avoider.props.behavior, 'height');
+  assert.deepEqual(
+    view.queryAllByType('KeyboardAvoidingView'),
+    [],
+    'no avoider height guess on top of the measured pad'
+  );
+
+  const confirm = view.getByLabelText(t('onboarding.pinConfirmPlaceholder'));
+  await view.fire(confirm, 'onFocus');
+  harness.refCalls.length = 0;
+  await act(async () => {
+    harness.rn.Keyboard.emit('keyboardDidShow', {
+      endCoordinates: { height: 300, screenY: 500, screenX: 0, width: 390 },
+    });
+  });
+
+  const measured = harness.refCalls.filter((call) => call.method === 'measureInWindow');
+  assert.equal(measured.length, 1, 'the scroll area measures its own bottom edge');
+  const [scroll] = view.queryAllByType('ScrollView');
+  const surface = measured[0]!;
+  assert.equal(surface.props.collapsable, false, 'Android must not collapse the measured view');
+  // The scroll area runs to the bottom of an 844pt window; the keyboard covers 344pt of it.
+  await act(async () => {
+    (surface.args[0] as (x: number, y: number, w: number, h: number) => void)(0, 120, 390, 724);
+  });
+
+  const bottom = Number(flattenStyle(scroll!.props.contentContainerStyle)?.paddingBottom);
+  assert.ok(bottom >= 344, `the form can scroll clear of the keyboard (got ${bottom})`);
+  assert.ok(isInside(confirm, scroll!), 'Confirm sits inside the padded scroll content');
+  assert.ok(
+    harness.refCalls.some((call) => call.type === 'ScrollView' && call.method === 'scrollToEnd'),
+    'the focused code field is scrolled above the keyboard'
+  );
+
+  await act(async () => {
+    harness.rn.Keyboard.emit('keyboardDidHide', {});
+  });
+  const rested = Number(flattenStyle(scroll!.props.contentContainerStyle)?.paddingBottom);
+  assert.ok(rested < 344, 'the pad goes when the keyboard does');
 });
 
 test('saving discreet mode goes back first and only then locks behind the calculator', async () => {

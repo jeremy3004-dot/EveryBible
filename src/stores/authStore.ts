@@ -9,7 +9,7 @@ import {
   resolveUserStateUpdate,
   shouldResetPerUserStateAtAuthBoundary,
 } from './authSessionState';
-import { defaultAuthPreferences, sanitizePersistedAuthState } from './persistedStateSanitizers';
+import { defaultAuthPreferences, sanitizePersistedAuthState } from './sanitizers/authState';
 import { switchPrivateDataOwner } from './privateDataScope';
 
 interface AuthState {

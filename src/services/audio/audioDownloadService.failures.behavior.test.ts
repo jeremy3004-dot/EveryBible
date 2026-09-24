@@ -801,3 +801,80 @@ test('cancelling a translation as its last book completes reports a cancellation
   assert.equal(jobs.has(TRANSLATION_JOB_ID), false);
   assert.equal(jobs.get(PHM_JOB_ID)?.status, 'completed');
 });
+
+// ---------------------------------------------------------------------------
+// Concurrent chapter failures
+// ---------------------------------------------------------------------------
+
+function rejectable<T>() {
+  let reject!: (error: Error) => void;
+  const promise = new Promise<T>((_resolve, no) => {
+    reject = no;
+  });
+  return { promise, reject };
+}
+
+test('when two chapters fail at once the book reports the first failure, not the last', async () => {
+  const { fileSystem } = sizedFileSystem();
+  const { jobs, store } = memoryJobStore();
+  const recorder = recordingHooks();
+  const lookups = new Map([
+    [1, rejectable<null>()],
+    [2, rejectable<null>()],
+  ]);
+
+  const download = downloadAudioBook({
+    translationId: 'bsb',
+    book: book('HAG'),
+    fileSystem,
+    jobStore: store,
+    hooks: recorder.hooks,
+    resolveRemoteAudio: (_translationId, _bookId, chapter) => {
+      const lookup = lookups.get(chapter);
+      assert.ok(lookup, `unexpected chapter ${chapter}`);
+      return lookup.promise;
+    },
+  });
+  await flush();
+  lookups.get(1)?.reject(new Error('first lookup failed'));
+  await flush();
+  lookups.get(2)?.reject(new Error('second lookup failed'));
+
+  await assert.rejects(download, { message: 'first lookup failed' });
+  assert.deepEqual(
+    recorder.failures.map(({ message }) => message),
+    ['first lookup failed']
+  );
+  assert.equal(jobs.get('audio-download:bsb:book:HAG')?.error, 'first lookup failed');
+});
+
+test('a cancel is not reported as a failure when a sibling chapter lookup fails afterwards', async () => {
+  const { fileSystem } = sizedFileSystem();
+  const { jobs, store } = memoryJobStore();
+  const recorder = recordingHooks();
+  const controller = new AbortController();
+  const secondLookup = rejectable<null>();
+  fileSystem.downloadFile = (_from, _to, options) =>
+    new Promise<void>((_resolve, reject) => {
+      options?.signal?.addEventListener('abort', () => reject(new Error('transfer stopped')));
+    });
+
+  const download = downloadAudioBook({
+    translationId: 'bsb',
+    book: book('HAG'),
+    fileSystem,
+    jobStore: store,
+    signal: controller.signal,
+    hooks: recorder.hooks,
+    resolveRemoteAudio: (translationId, bookId, chapter) =>
+      chapter === 1 ? resolvePhm(translationId, bookId, chapter) : secondLookup.promise,
+  });
+  await flush();
+  controller.abort();
+  await flush();
+  secondLookup.reject(new Error('network down'));
+
+  await assert.rejects(download, AudioDownloadCancelledError);
+  assert.deepEqual(recorder.failures, []);
+  assert.equal(jobs.size, 0);
+});

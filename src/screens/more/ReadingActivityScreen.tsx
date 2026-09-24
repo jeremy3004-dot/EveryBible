@@ -22,6 +22,7 @@ import {
   createDayLabelFormatter,
   ReadingActivityHero,
   SelectedDayCard,
+  totalListeningMinutes,
   useEngagementSummary,
   useReadingActivityCalendar,
 } from './readingActivity';
@@ -37,6 +38,7 @@ export function ReadingActivityScreen() {
   // The More tab's capsule floats over this screen, so the scroll has to clear it.
   const { contentClearance } = useTabBarHeight();
   const chaptersRead = useProgressStore((state) => state.chaptersRead);
+  const listeningMsByDate = useProgressStore((state) => state.listeningMsByDate);
   const streakDays = useProgressStore(selectCurrentStreakDays);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const preferencesUpdatedAt = useAuthStore((state) => state.preferencesUpdatedAt);
@@ -65,10 +67,15 @@ export function ReadingActivityScreen() {
     t,
   });
 
-  // Cloud engagement is the authority when it has loaded; local progress keeps
-  // the row honest offline.
+  // Cloud engagement is the authority for chapters when it has loaded; local
+  // progress keeps the row honest offline. Listening is banked on this device as
+  // it plays, so it never waits on the cloud (see totalListeningMinutes).
   const chapterTotal = engagement?.total_chapters_read ?? activitySummary.totalChapterReads;
-  const listeningLabel = formatListeningTime(engagement?.total_listening_minutes ?? 0, t);
+  const listeningMinutes = useMemo(
+    () => totalListeningMinutes(listeningMsByDate, engagement?.total_listening_minutes),
+    [engagement?.total_listening_minutes, listeningMsByDate]
+  );
+  const listeningLabel = formatListeningTime(listeningMinutes, t);
 
   // The card's chevron has to lead somewhere: it reopens the day's first
   // chapter, the same cross-tab jump the annotations list makes.
