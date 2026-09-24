@@ -66,7 +66,11 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
 
   // The whole dock travels 65pt. The arrows travel the remaining 67pt,
   // so their total travel matches the tab capsule at every animation frame.
+  // They rest above the capsule, though, so that travel stops short of the screen
+  // edge (by the whole bottom inset on Android): they fade out as they go, or the
+  // disabled discs stayed drawn over the bottom of the page.
   const sideTransportAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(collapseProgress.value, [0, 1], [1, 0], Extrapolation.CLAMP),
     transform: [
       {
         translateY: interpolate(

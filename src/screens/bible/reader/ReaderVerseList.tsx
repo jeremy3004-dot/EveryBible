@@ -274,12 +274,17 @@ export const ReaderVerseList = memo(function ReaderVerseList({
         !paragraph.verses.some((verse) => (verse.formatting?.lines.length ?? 0) > 0) ? (
           <Text style={[textStyle, styles.premiumParagraphText]}>
             {paragraph.verses.map((verse, verseIndex) => {
-              const { isFocused, isSelected, verseBackgroundColor } = getVersePresentation(verse);
+              const { highlightAnnotation, isFocused, isSelected, verseBackgroundColor } =
+                getVersePresentation(verse);
+              // Android keeps a nested span's old background when the background is taken
+              // away, so the span is mounted afresh whenever the follow band or a highlight
+              // comes or goes (a removed highlight otherwise stayed until the chapter reloaded).
               const focusRenderKey = isFocused ? 'focused' : 'idle';
+              const highlightRenderKey = highlightAnnotation?.color ?? 'plain';
 
               return (
                 <Text
-                  key={`${verse.id}-${verseFontSize}-${verseLineHeight}-${focusRenderKey}`}
+                  key={`${verse.id}-${verseFontSize}-${verseLineHeight}-${focusRenderKey}-${highlightRenderKey}`}
                   suppressHighlighting
                   onPress={() => handleToggleVerseSelection(verse)}
                   style={[
