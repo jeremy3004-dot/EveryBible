@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { getBookById, type BibleBook } from '../../constants/books';
 import {
   AudioDownloadCancelledError,
+  completeAudioDownloadJob,
   createAudioDownloadJobId,
   createAudioDownloadJobStore,
   downloadAndValidateAudioFile,
@@ -123,27 +124,44 @@ function recordingHooks() {
 // Job lifecycle
 // ---------------------------------------------------------------------------
 
-test('starting a job without a job store begins a fresh first attempt every time', async () => {
+test('without a job store the in-memory fallback remembers a running job until it completes', async () => {
   const recorder = recordingHooks();
+  // completeAudioDownloadJob types its store as required but falls back to memory without one.
+  const noStore = undefined as unknown as AudioDownloadJobStore;
+  const start = () =>
+    startAudioDownloadJob({
+      translationId: 'bsb',
+      scope: 'book',
+      bookId: 'PHM',
+      hooks: recorder.hooks,
+    });
 
-  const first = await startAudioDownloadJob({
-    translationId: 'bsb',
-    scope: 'book',
-    bookId: 'PHM',
+  const first = await start();
+  const second = await start();
+  const completed = await completeAudioDownloadJob({
+    jobId: PHM_JOB_ID,
+    jobStore: noStore,
     hooks: recorder.hooks,
   });
-  const second = await startAudioDownloadJob({
-    translationId: 'bsb',
-    scope: 'book',
-    bookId: 'PHM',
-    hooks: recorder.hooks,
+  const restarted = await start();
+  await completeAudioDownloadJob({
+    jobId: PHM_JOB_ID,
+    jobStore: noStore,
   });
 
   assert.equal(first.id, PHM_JOB_ID);
   assert.equal(first.status, 'downloading');
   assert.equal(first.attemptCount, 1);
+  assert.equal(second.createdAt, first.createdAt);
   assert.equal(second.attemptCount, 1);
-  assert.deepEqual(recorder.events, [`start:${PHM_JOB_ID}`, `start:${PHM_JOB_ID}`]);
+  assert.equal(completed?.status, 'completed');
+  assert.equal(restarted.status, 'downloading');
+  assert.deepEqual(recorder.events, [
+    `start:${PHM_JOB_ID}`,
+    `reattach:${PHM_JOB_ID}`,
+    `complete:${PHM_JOB_ID}`,
+    `start:${PHM_JOB_ID}`,
+  ]);
 });
 
 test('starting a job that is still queued reattaches to it and keeps its history', async () => {

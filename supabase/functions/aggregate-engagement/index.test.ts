@@ -135,8 +135,7 @@ for (const result of [
   });
 }
 
-test('a failing refresh is reported as a 500 with its message', async (t) => {
-  t.mock.method(console, 'error', () => {});
+test('a refresh that fails with an Error is a generic 500 that keeps the message in the log', async () => {
   const runtime = load({
     refreshResult: { data: null, error: new Error('statement timeout') },
   });
@@ -144,7 +143,11 @@ test('a failing refresh is reported as a 500 with its message', async (t) => {
   const response = await runtime.request('POST', `Bearer ${SERVICE_KEY}`);
 
   assert.equal(response.status, 500);
-  assert.deepEqual(await response.json(), { success: false, error: 'statement timeout' });
+  assert.deepEqual(await response.json(), {
+    success: false,
+    error: 'Unable to refresh engagement summaries.',
+  });
+  assert.ok(runtime.harness.loggedErrors.some((line) => line.includes('statement timeout')));
 });
 
 test('an unreadable body or a GET refreshes every user', async () => {

@@ -680,6 +680,7 @@ test('reviewPositiveFeedbackBatch without ids previews the positive feedback in 
   assert.equal(supabaseFake.functionCalls[0]?.name, 'review-chapter-feedback');
   assert.deepEqual(sentBody().body, {
     ...reviewInput,
+    passcode: '123456',
     apiVersion: 2,
     action: 'positivePreview',
     feedbackIds: undefined,

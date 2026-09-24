@@ -382,7 +382,7 @@ test('a request with no client address makes no lookup at all', async () => {
   assert.equal(h.rows()[0]?.geo_country_code, null);
 });
 
-test('without the edge-stamped address the first forwarded address is looked up', async () => {
+test('without the edge-stamped address only x-real-ip is looked up, never x-forwarded-for', async () => {
   const h = collector({ lookup: () => Response.json({ country: 'NP' }) });
   await h.send([needsRequestGeo()], {
     'cf-connecting-ip': ' ',
@@ -391,7 +391,11 @@ test('without the edge-stamped address the first forwarded address is looked up'
   await h.send([needsRequestGeo()], { 'cf-connecting-ip': '', 'x-real-ip': '192.0.2.44' });
   assert.deepEqual(
     h.lookups.map((url) => url.pathname),
-    ['/198.51.100.7/json', '/192.0.2.44/json']
+    ['/192.0.2.44/json']
+  );
+  assert.deepEqual(
+    h.rows().map((row) => row.geo_source),
+    ['cf_ipcountry', 'ipinfo']
   );
 });
 

@@ -1254,6 +1254,8 @@ export const useBibleStore = create<BibleState>()(
           set((state) => {
             // Mark the row failed whenever this is still its operation; a download that took
             // over the banner meanwhile must not leave this translation "downloading" forever.
+            // Only a row still in progress is marked: a failed read-back has already rolled the
+            // row back to the previous pack (or remote-only), and that must not be overwritten.
             const isCurrentOperation =
               activeTextDownloadOperationIds.get(translationId) === operationId;
             const ownsBanner =
@@ -1263,7 +1265,7 @@ export const useBibleStore = create<BibleState>()(
               downloadProgress: ownsBanner ? null : state.downloadProgress,
               translations: isCurrentOperation
                 ? state.translations.map((t) =>
-                    t.id === translationId
+                    t.id === translationId && t.installState === 'downloading'
                       ? { ...t, installState: 'failed' as const, lastInstallError: message }
                       : t
                   )
