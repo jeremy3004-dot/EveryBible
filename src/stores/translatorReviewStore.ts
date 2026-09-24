@@ -3,6 +3,8 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import * as SecureStore from 'expo-secure-store';
 import { zustandStorage } from './mmkvStorage';
 import {
+  COUNCIL_PASSCODE_SECURE_KEY,
+  TRANSLATOR_REVIEW_PASSCODE_SECURE_KEY,
   markTranslatorFeedbackListened,
   normalizeTranslatorReviewPasscode,
   resolveDevelopmentTranslatorReviewPasscode,
@@ -37,8 +39,6 @@ interface TranslatorReviewState {
 // (see services/privacy/privacyService.ts). `enabled` stays in MMKV so translator mode still
 // renders synchronously on a cold start; the passcode itself arrives one tick later from the
 // async SecureStore read below, and every consumer reads it through a store selector.
-const COUNCIL_PASSCODE_SECURE_KEY = 'everybible.feedback.councilPasscode';
-const TRANSLATOR_REVIEW_PASSCODE_SECURE_KEY = 'everybible.translatorReview.passcode';
 
 // S10: `process.env.EXPO_PUBLIC_*` is inlined at BUILD time by Expo's Babel transform, so a
 // bare reference would bake the dev passcode into the production bundle as a string literal.
