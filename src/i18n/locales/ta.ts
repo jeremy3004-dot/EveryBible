@@ -261,6 +261,9 @@ export const ta = {
     translationDownloadFailed:
       'இந்த வேதாகமத்தின் பதிவிறக்கம் முடிவடையவில்லை. உங்கள் இணைய இணைப்பையும் காலி சேமிப்பிடத்தையும் சரிபார்த்து மீண்டும் முயற்சிக்கவும்.',
     searchNoResults: 'உங்கள் தேடலுக்குப் பொருந்தும் வசனங்கள் இல்லை.',
+    translationSearchNoResults: 'உங்கள் தேடலுக்குப் பொருந்தும் வேதாகமங்கள் இல்லை.',
+    translationSearchResultCount_one: '{{count}} வேதாகமம்',
+    translationSearchResultCount_other: '{{count}} வேதாகமங்கள்',
     searchUnavailable: 'இந்த மொழிபெயர்ப்புக்கு முழு உரைத் தேடல் இன்னும் கிடைக்கவில்லை.',
     noVersesAvailable: '{{book}} {{chapter}} இல் இன்னும் எழுதப்பட்ட உரை இல்லை.',
     fullBibleComingSoon:

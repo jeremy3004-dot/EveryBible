@@ -62,6 +62,11 @@ export const pickerStyles = StyleSheet.create({
     paddingTop: spacing.sm,
     paddingBottom: layout.sectionGap,
   },
+  searchEmptyText: {
+    ...typography.body,
+    textAlign: 'center',
+    paddingVertical: spacing.xl,
+  },
   searchInputShell: {
     flexDirection: 'row',
     alignItems: 'center',

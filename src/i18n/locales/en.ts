@@ -543,6 +543,9 @@ export const en = {
     translationDownloadFailed:
       "This Bible didn't finish downloading. Check your internet connection and free storage space, then try again.",
     searchNoResults: 'No verses match your search.',
+    translationSearchNoResults: 'No Bibles match your search.',
+    translationSearchResultCount_one: '{{count}} Bible',
+    translationSearchResultCount_other: '{{count}} Bibles',
     searchUnavailable: 'Full-text search is not available for this translation yet.',
     noVersesAvailable: '{{book}} {{chapter}} does not have written text yet.',
     fullBibleComingSoon: "This chapter isn't available as text or audio in this translation yet.",

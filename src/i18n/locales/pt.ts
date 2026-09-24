@@ -579,6 +579,10 @@ export const pt = {
     translationDownloadFailed:
       'O download desta Bíblia não foi concluído. Verifique sua conexão com a internet e o espaço livre de armazenamento e tente novamente.',
     searchNoResults: 'Nenhum versículo encontrado para sua busca.',
+    translationSearchNoResults: 'Nenhuma Bíblia corresponde à sua busca.',
+    translationSearchResultCount_one: '{{count}} Bíblia',
+    translationSearchResultCount_other: '{{count}} Bíblias',
+    translationSearchResultCount_many: '{{count}} Bíblias',
     searchUnavailable: 'A pesquisa de texto completo ainda não está disponível para esta tradução.',
     noVersesAvailable: '{{book}} {{chapter}} ainda não possui texto escrito.',
     fullBibleComingSoon:
