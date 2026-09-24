@@ -163,7 +163,16 @@ const backgroundMusicDouble = {
 };
 
 type RemoteCommand = { command: string; positionSeconds?: number };
-let remoteCommandListener: ((command: RemoteCommand) => void | Promise<void>) | null = null;
+type RemoteCommandHandler = (command: RemoteCommand) => void | Promise<void>;
+// Every live subscription receives each command, as the native emitter delivers
+// it, so a player that failed to hand over its subscription would act twice.
+const remoteCommandListeners = new Set<RemoteCommandHandler>();
+let remoteCommandListener: RemoteCommandHandler | null = null;
+const dispatchRemoteCommand: RemoteCommandHandler = async (command) => {
+  for (const listener of Array.from(remoteCommandListeners)) {
+    await listener(command);
+  }
+};
 
 const bibleState = {
   translations: [{ id: 'bsb', name: 'Berean Standard Bible' }] as { id: string; name: string }[],
@@ -255,10 +264,13 @@ mockModule(mock, sourcePath('services/audio/index.ts'), {
   subscribeBibleNowPlayingRemoteCommands: (
     listener: (command: RemoteCommand) => void | Promise<void>
   ) => {
-    remoteCommandListener = listener;
+    remoteCommandListeners.add(listener);
+    remoteCommandListener = dispatchRemoteCommand;
     return () => {
-      remoteCommandListener = null;
+      // A subscription left over from an earlier test was already dropped in beforeEach.
+      if (!remoteCommandListeners.delete(listener)) return;
       recorded.remoteUnsubscribes += 1;
+      if (remoteCommandListeners.size === 0) remoteCommandListener = null;
     };
   },
 });
@@ -385,6 +397,7 @@ beforeEach(() => {
 
   audioPlayerDouble.loaded = false;
   audioPlayerDouble.callbacks = {};
+  remoteCommandListeners.clear();
   remoteCommandListener = null;
   bibleState.translations = [{ id: 'bsb', name: 'Berean Standard Bible' }];
 });
@@ -420,13 +433,32 @@ test('mounting subscribes to lock screen transport commands', () => {
   assert.equal(typeof remoteCommandListener, 'function');
 });
 
-test('unmounting removes the lock screen command subscription', () => {
+// The reader is pushed over the book browser, so going back unmounts the hook while
+// the chapter keeps playing (AudioReturnTab exists for exactly that state). The lock
+// screen, notification and headset controls must keep working until a new player
+// mounts, the same way the native playback callbacks outlive the screen.
+test('unmounting keeps the lock screen commands subscribed while audio plays on', () => {
   const player = mountPlayer();
 
   player.unmount();
 
-  assert.equal(recorded.remoteUnsubscribes, 1);
-  assert.equal(remoteCommandListener, null);
+  assert.equal(recorded.remoteUnsubscribes, 0);
+  assert.equal(typeof remoteCommandListener, 'function');
+});
+
+test('a newly mounted player takes over the lock screen commands from the old one', async () => {
+  const first = mountPlayer();
+  await first.api.playChapter('GEN', 1);
+  first.unmount();
+  const second = mountPlayer();
+  second.rerender();
+  recorded.player.length = 0;
+
+  await remoteCommandListener?.({ command: 'pause' });
+
+  assert.equal(remoteCommandListeners.size, 1);
+  assert.equal(playerCalls('pause').length, 1);
+  assert.equal(store().status, 'paused');
 });
 
 test('audioAvailable reports whether the translation has any audio', () => {
@@ -2666,6 +2698,77 @@ test('native callbacks after unmount preserve progress and next chapter without 
   assert.equal(store().currentPosition, 1000);
   // Stop the retained playback session's coarse telemetry before ending the test.
   emitStatus({ isPlaying: false, positionMillis: 1000 });
+});
+
+test('lock screen pause and play still work after the reader has closed', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setPosition(30_000);
+  player.rerender();
+  player.unmount();
+
+  await remoteCommandListener?.({ command: 'pause' });
+  assert.equal(store().status, 'paused');
+  assert.equal(playerCalls('pause').length, 1);
+
+  await remoteCommandListener?.({ command: 'play' });
+  assert.equal(store().status, 'playing');
+  assert.equal(playerCalls('resume').length, 1);
+
+  await remoteCommandListener?.({ command: 'pause' });
+});
+
+test('lock screen next after the reader closed follows the chapter playing now', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setAutoAdvanceChapter(true);
+  player.rerender();
+  player.unmount();
+  await finishPlayback();
+  assert.equal(store().currentChapter, 2);
+
+  await remoteCommandListener?.({ command: 'next' });
+
+  assert.equal(store().currentChapter, 3);
+  assert.equal(store().status, 'playing');
+  await remoteCommandListener?.({ command: 'pause' });
+});
+
+test('lock screen pause after the reader closed checkpoints the chapter playing now', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setAutoAdvanceChapter(true);
+  player.rerender();
+  player.unmount();
+  await finishPlayback();
+  store().setPosition(60_000);
+  recorded.history.length = 0;
+
+  await remoteCommandListener?.({ command: 'pause' });
+
+  assert.deepEqual(recorded.history, [
+    { bookId: 'GEN', chapter: 2, progress: 60_000 / DEFAULT_DURATION_MS },
+  ]);
+});
+
+test('the sleep timer still pauses playback after the reader has closed', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: BASE_TIME });
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setSleepTimer(5);
+  player.rerender();
+  player.unmount();
+  recorded.player.length = 0;
+
+  t.mock.timers.tick(5 * 60 * 1000);
+  // The native player keeps reporting progress about once a second while it plays.
+  emitStatus({ isPlaying: true, positionMillis: 300_000, durationMillis: DEFAULT_DURATION_MS });
+  await Promise.resolve();
+
+  assert.equal(playerCalls('pause').length, 1);
+  assert.equal(store().status, 'paused');
+  assert.equal(store().sleepTimerEndTime, null);
+  emitStatus({ isPlaying: false, positionMillis: 300_000 });
 });
 
 test('a replacement hook interpolates and old cleanup does not disable it', async (t) => {
