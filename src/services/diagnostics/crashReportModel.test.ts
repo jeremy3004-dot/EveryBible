@@ -218,3 +218,37 @@ test('lone surrogates already present in the error text are replaced', () => {
   assert.equal(hasLoneSurrogate(scrubbed), false);
   assert.equal(scrubbed, 'broken � text and � tail');
 });
+
+// Translator/council passcodes and the privacy PIN are short digit runs the long-number
+// rule does not catch, so a labelled secret is redacted by its label.
+test('labelled secrets are redacted even when the value is short', () => {
+  assert.equal(
+    scrubErrorText(
+      'Rejected passcode=4821, {"pin":"1234"} password: hunter2 refresh_token=abc api_key=xyz'
+    ),
+    'Rejected passcode=<redacted>, {"pin":"<redacted>"} password: <redacted> ' +
+      'refresh_token=<redacted> api_key=<redacted>'
+  );
+});
+
+test('parser errors that mention a token keep the offending character', () => {
+  assert.equal(
+    scrubErrorText('JSON Parse error: Unexpected token: }'),
+    'JSON Parse error: Unexpected token: }'
+  );
+});
+
+// Libraries and native modules often reject with a plain `{ message, code }` object; the
+// report used to say only "[object Object]".
+test('a non-Error rejection reason with a message keeps that message', () => {
+  const report = buildCrashReport({
+    error: { message: 'Download failed for jane@example.com', code: 'E_DOWNLOAD' },
+    kind: 'rejection',
+    screen: null,
+    occurredAt: 0,
+    reportId: '11111111-2222-4333-8444-555555555555',
+    device: DEVICE,
+  });
+  assert.equal(report.error_name, 'NonError');
+  assert.equal(report.message, 'Download failed for <email>');
+});

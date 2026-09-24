@@ -51,6 +51,11 @@ const EMAIL_PATTERN = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
 const UUID_PATTERN = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
 const LONG_TOKEN_PATTERN = /\b[A-Za-z0-9_-]{32,}\b/g;
 const LONG_DIGITS_PATTERN = /\d{6,}/g;
+// A labelled secret (`passcode=4821`, `"pin":"1234"`). Translator passcodes and the privacy
+// PIN are too short for the digit rule. Bare `token` is left alone: parser errors say
+// "Unexpected token: }" and the character is the useful part.
+const LABELLED_SECRET_PATTERN =
+  /\b(passcode|password|passwd|pin|secret|access_token|refresh_token|id_token|auth_token|api_?key)(["']?\s*[:=]\s*["']?)[^\s"',;&}]+/gi;
 
 function scrubUrl(url: string): string {
   const schemeEnd = url.indexOf('://') + 3;
@@ -107,6 +112,7 @@ export function scrubErrorText(text: string, maxChars = MAX_MESSAGE_CHARS): stri
   const scrubbed = toStorableText(text)
     .replace(URL_PATTERN, scrubUrl)
     .replace(BEARER_PATTERN, 'Bearer <token>')
+    .replace(LABELLED_SECRET_PATTERN, '$1$2<redacted>')
     .replace(JWT_PATTERN, '<token>')
     .replace(EMAIL_PATTERN, '<email>')
     .replace(UUID_PATTERN, '<uuid>')
@@ -225,7 +231,16 @@ export function buildCrashReport(input: CrashReportInput): AppErrorReport {
   const errorName = isError ? (ERROR_NAME.test(error.name) ? error.name : 'Error') : 'NonError';
   let rawMessage: string;
   try {
-    rawMessage = isError ? error.message : String(error);
+    // Plain `{ message, code }` rejections (common from native modules) keep their message.
+    const objectMessage =
+      !isError && typeof error === 'object' && error !== null
+        ? (error as { message?: unknown }).message
+        : undefined;
+    rawMessage = isError
+      ? error.message
+      : typeof objectMessage === 'string'
+        ? objectMessage
+        : String(error);
   } catch {
     rawMessage = '';
   }
