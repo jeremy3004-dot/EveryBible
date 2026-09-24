@@ -259,7 +259,11 @@ What `installRenderHarness(mock, options)` installs:
   `harness.rn.BackHandler.press()` delivers a hardware back press.
 - **Native UI packages**: reanimated (shared values are refs, `withTiming` /
   `withSpring` land at once and are recorded in `harness.animations`,
-  `useReducedMotion` follows `harness.setReduceMotion()`), safe-area-context
+  `useReducedMotion` follows `harness.setReduceMotion()`, `Animated.FlatList`
+  renders every item like the `FlatList` fake, and `useAnimatedScrollHandler`
+  returns a handler that runs its `onScroll` worklet, so
+  `view.fire(list, 'onScroll', { nativeEvent: { contentOffset, layoutMeasurement, contentSize } })`
+  drives scroll-linked motion), safe-area-context
   (`harness.insets`), react-native-svg (`Svg`, `Svg.Path`, ...), `@expo/vector-icons`
   (host `Icon` with `family` and `name`), lucide (host `LucideIcon` with `name`),
   `expo-linear-gradient`, `expo-blur`, `expo-haptics` (`harness.haptics`),
@@ -322,6 +326,16 @@ Things that trip people up:
   `mockModule(mock, sourcePath('stores/bibleStore.ts'), { useBibleStore })`.
 - **Layout is not computed.** A component that waits for `onLayout` needs
   `view.fire(node, 'onLayout', { nativeEvent: { layout: { width, height } } })`.
+- **Imperative ref calls are recorded.** `scrollToOffset`, `scrollToIndex`,
+  `scrollTo`, `focus`, ... made through a host element's ref land in
+  `harness.refCalls` as `{ type, method, args }` (cleared after each test), so
+  assert what a component asked the native view to do.
+- **A large screen gets a shared fixture.** `BibleReaderScreen` reaches most of
+  the app; `screens/bible/BibleReaderScreen.renderFixture.tsx` installs its fakes
+  once and is shared by the `BibleReaderScreen.*.render.test.tsx` files. Its
+  `useAudioPlayer` reads the fake audio store, so a test changes playback with
+  `setAudio({...})`, and it counts screen renders to prove position ticks stay in
+  the leaves.
 - **Reanimated worklets run at render time**, so an animated style reflects the
   shared value as of the last render, not a later `.value =` write.
 - **Mutation-check new render tests**: break the behaviour in the component once

@@ -446,22 +446,44 @@ export function createReactNativeRenderStub(options: ReactNativeRenderStubOption
 
 export type ReactNativeRenderStub = ReturnType<typeof createReactNativeRenderStub>;
 
-/** Ref targets for host elements: the imperative methods components call on refs. */
-export function createHostNodeMock(_element: ReactElement): Record<string, () => void> {
-  const noop = () => {};
-  return {
-    focus: noop,
-    blur: noop,
-    clear: noop,
-    measure: noop,
-    measureInWindow: noop,
-    measureLayout: noop,
-    setNativeProps: noop,
-    scrollTo: noop,
-    scrollToEnd: noop,
-    scrollToOffset: noop,
-    scrollToIndex: noop,
-    scrollToLocation: noop,
-    flashScrollIndicators: noop,
-  };
+/** An imperative call a component made through a host element's ref. */
+export interface HostRefCall {
+  /** Host type the ref points at (`FlatList`, `ScrollView`, `TextInput`, ...). */
+  type: string;
+  method: string;
+  args: unknown[];
+}
+
+/**
+ * Ref targets for host elements: the imperative methods components call on refs.
+ * Pass `calls` to record them (scrolls, focus) so a test can assert what a
+ * component asked the native view to do.
+ */
+export function createHostNodeMock(
+  element: ReactElement,
+  calls?: HostRefCall[]
+): Record<string, (...args: unknown[]) => void> {
+  const type = typeof element.type === 'string' ? element.type : 'Component';
+  const method =
+    (name: string) =>
+    (...args: unknown[]) => {
+      calls?.push({ type, method: name, args });
+    };
+  return Object.fromEntries(
+    [
+      'focus',
+      'blur',
+      'clear',
+      'measure',
+      'measureInWindow',
+      'measureLayout',
+      'setNativeProps',
+      'scrollTo',
+      'scrollToEnd',
+      'scrollToOffset',
+      'scrollToIndex',
+      'scrollToLocation',
+      'flashScrollIndicators',
+    ].map((name) => [name, method(name)])
+  );
 }

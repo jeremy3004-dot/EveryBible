@@ -1,0 +1,417 @@
+/**
+ * Shared setup for the BibleReaderScreen render tests.
+ *
+ * The reader is one large screen that reaches most of the app, so every test
+ * file that renders it installs the same fakes: real Zustand stores holding
+ * just the fields the screen selects, a `useAudioPlayer` driven by the fake
+ * audio store (so a test changes playback by setting store state), and
+ * recording services. Call `installReaderRenderFixture(mock)` once at module
+ * scope, before the screen is imported.
+ */
+import { afterEach, beforeEach, type MockTracker } from 'node:test';
+import assert from 'node:assert/strict';
+import { act, type ReactTestInstance } from 'react-test-renderer';
+import { create } from 'zustand';
+import { useShallow } from 'zustand/react/shallow';
+import type { BibleTranslation, Verse } from '../../types';
+import { hostComponent } from '../../testing/reactNativeHost';
+import {
+  mockBarrel,
+  mockMmkvStorage,
+  mockModule,
+  mockPackage,
+  mockSecureStore,
+  sourcePath,
+} from '../../testing/mockModules';
+import {
+  flattenStyle,
+  installRenderHarness,
+  type RenderHarnessOptions,
+  type RenderResult,
+} from '../../testing/render';
+
+export const BSB: BibleTranslation = {
+  id: 'bsb',
+  name: 'Berean Standard Bible',
+  abbreviation: 'BSB',
+  language: 'English',
+  description: '',
+  copyright: '',
+  isDownloaded: true,
+  downloadedBooks: [],
+  downloadedAudioBooks: [],
+  totalBooks: 66,
+  sizeInMB: 0,
+  hasText: true,
+  hasAudio: true,
+  audioGranularity: 'chapter',
+};
+
+export const verseOf = (
+  number: number,
+  text: string,
+  extra: Partial<Verse> = {},
+  bookId = 'JHN',
+  chapter = 3
+): Verse => ({
+  id: 43_003_000 + number,
+  bookId,
+  chapter,
+  verse: number,
+  text,
+  ...extra,
+});
+
+export const JOHN_3 = [
+  verseOf(1, 'Now there was a Pharisee named Nicodemus, a leader of the Jews.'),
+  verseOf(2, 'He came to Jesus at night and said, “Rabbi, we know that You are a teacher.”'),
+  verseOf(3, 'Jesus replied, “Truly, truly, I tell you, no one can see the kingdom of God.”'),
+];
+
+type AudioStatus = 'idle' | 'loading' | 'playing' | 'paused' | 'error';
+
+export function installReaderRenderFixture(
+  mocker: MockTracker,
+  options: RenderHarnessOptions = {}
+) {
+  const harness = installRenderHarness(mocker, options);
+  mockMmkvStorage(mocker);
+  mockSecureStore(mocker);
+
+  // ---- Stores ----------------------------------------------------------------
+  const bibleStore = create(() => ({
+    currentTranslation: 'bsb',
+    translations: [BSB] as BibleTranslation[],
+    setCurrentBook: () => {},
+    setCurrentChapter: () => {},
+    setPreferredChapterLaunchMode: () => {},
+    downloadAudioForBook: async () => {},
+    recoverMissingInstalledPack: async () => {},
+  }));
+  mockModule(mocker, sourcePath('stores/bibleStore.ts'), { useBibleStore: bibleStore });
+
+  // Playback: the reader reads it through useAudioPlayer, the position leaves
+  // through useAudioPosition, both from this store.
+  const audioStore = create(() => ({
+    status: 'idle' as AudioStatus,
+    currentTranslationId: null as string | null,
+    currentBookId: null as string | null,
+    currentChapter: null as number | null,
+    currentPosition: 0,
+    duration: 0,
+    sleepTimerMinutes: null as number | null,
+    setPlaybackSequence: () => {},
+    setAudioReturnTarget: () => {},
+    setCurrentTrack: () => {},
+    clearPlaybackSequence: () => {},
+  }));
+  mockModule(mocker, sourcePath('stores/audioStore.ts'), { useAudioStore: audioStore });
+
+  const libraryStore = create(() => ({
+    favorites: [] as Array<{ id: string }>,
+    history: [],
+    toggleFavorite: () => {},
+    addChapterToDefaultPlaylist: () => {},
+  }));
+  mockModule(mocker, sourcePath('stores/libraryStore.ts'), { useLibraryStore: libraryStore });
+
+  const progressStore = create(() => ({
+    chaptersRead: {} as Record<string, number>,
+    markChapterRead: () => {},
+  }));
+  mockModule(mocker, sourcePath('stores/progressStore.ts'), { useProgressStore: progressStore });
+
+  const readingPlansStore = create(() => ({
+    progressByPlanId: {} as Record<string, unknown>,
+    setPlanDayResume: () => {},
+    clearPlanDayResume: () => {},
+  }));
+  mockModule(mocker, sourcePath('stores/readingPlansStore.ts'), {
+    useReadingPlansStore: readingPlansStore,
+  });
+
+  // ---- Hooks -----------------------------------------------------------------
+  const audioCalls: Array<[string, ...unknown[]]> = [];
+  /** What previousChapter()/nextChapter() resolve to (the player's new chapter). */
+  const playerSteps: { previous: unknown; next: unknown } = { previous: null, next: null };
+  /** One increment per BibleReaderScreen render: the screen calls useAudioPlayer once. */
+  const renders = { count: 0 };
+  const record =
+    (name: string, result: () => unknown = () => undefined) =>
+    async (...args: unknown[]) => {
+      audioCalls.push([name, ...args]);
+      return result();
+    };
+  const playerActions = {
+    playChapter: record('playChapter'),
+    navigateChapterForTranslation: record('navigateChapterForTranslation'),
+    addToQueue: record('addToQueue'),
+    stop: record('stop'),
+    togglePlayPause: record('togglePlayPause'),
+    previousChapter: record('previousChapter', () => playerSteps.previous),
+    nextChapter: record('nextChapter', () => playerSteps.next),
+    seekTo: record('seekTo'),
+    skipBackward: record('skipBackward'),
+    skipForward: record('skipForward'),
+    changePlaybackRate: record('changePlaybackRate'),
+    cycleRepeatMode: record('cycleRepeatMode'),
+    startSleepTimer: record('startSleepTimer'),
+    changeBackgroundMusicChoice: record('changeBackgroundMusicChoice'),
+  };
+  mockModule(mocker, sourcePath('hooks/useAudioPlayer.ts'), {
+    useAudioPlayer: () => {
+      renders.count += 1;
+      // Transport state only, like the real hook: position ticks must not reach here.
+      const transport = audioStore(
+        useShallow((state) => ({
+          status: state.status,
+          currentTranslationId: state.currentTranslationId,
+          currentBookId: state.currentBookId,
+          currentChapter: state.currentChapter,
+        }))
+      );
+      return {
+        ...transport,
+        playbackRate: 1,
+        repeatMode: 'off',
+        sleepTimerRemaining: null,
+        backgroundMusicChoice: 'off',
+        ...playerActions,
+      };
+    },
+  });
+  mockModule(mocker, sourcePath('hooks/useFontSize.ts'), {
+    useFontSize: () => ({
+      scaleValue: (value: number) => value,
+      increase: () => {},
+      decrease: () => {},
+      canIncrease: true,
+      canDecrease: true,
+    }),
+  });
+  const contentSummary: { audioChapters?: Record<string, readonly number[]> } = {};
+  mockModule(mocker, sourcePath('hooks/useTranslationContentSummary.ts'), {
+    useTranslationContentSummary: () =>
+      contentSummary.audioChapters ? { audioChapters: contentSummary.audioChapters } : undefined,
+  });
+
+  // ---- Services --------------------------------------------------------------
+  const chapters = new Map<string, Verse[]>();
+  const chapterRequests: string[] = [];
+  mockModule(mocker, sourcePath('services/bible/bibleService.ts'), {
+    getChapter: async (translationId: string, bookId: string, chapter: number) => {
+      chapterRequests.push(`${translationId}:${bookId}:${chapter}`);
+      return chapters.get(`${bookId}:${chapter}`) ?? [];
+    },
+    prefetchNextChapter: async () => {},
+  });
+
+  /** Annotation loads wait for the test to resolve them, newest last. */
+  const annotationLoads: Array<{
+    chapter: string;
+    resolve: (data: unknown[]) => void;
+  }> = [];
+  let holdAnnotationLoads = false;
+  mockModule(mocker, sourcePath('services/annotations/annotationService.ts'), {
+    getAnnotationsForChapter: (bookId: string, chapter: number) =>
+      holdAnnotationLoads
+        ? new Promise((resolve) => {
+            annotationLoads.push({
+              chapter: `${bookId}:${chapter}`,
+              resolve: (data) => resolve({ success: true, data }),
+            });
+          })
+        : Promise.resolve({ success: true, data: [] }),
+    upsertAnnotation: async () => ({ success: true }),
+    softDeleteAnnotation: async () => ({ success: true }),
+  });
+  let timestamps: Record<number, number> | null = null;
+  mockModule(mocker, sourcePath('services/bible/verseTimestamps.ts'), {
+    getChapterTimestamps: async () => timestamps,
+  });
+  mockBarrel(mocker, 'services/analytics/index.ts', {
+    provide: {
+      trackAnonymousUsageEvent: () => {},
+      flushAnonymousUsageEvents: async () => {},
+    },
+  });
+  mockModule(mocker, sourcePath('services/analytics/bibleExperienceAnalytics.ts'), {
+    trackBibleExperienceEvent: () => {},
+  });
+  mockModule(mocker, sourcePath('services/audio/audioRemote.ts'), {
+    isRemoteAudioAvailable: () => true,
+  });
+  const feedbackSubmissions: Array<Record<string, unknown>> = [];
+  mockBarrel(mocker, 'services/feedback/index.ts', {
+    provide: {
+      submitChapterFeedback: async (submission: Record<string, unknown>) => {
+        feedbackSubmissions.push(submission);
+        return { success: true };
+      },
+    },
+  });
+  mockModule(mocker, sourcePath('services/feedback/chapterFeedbackAudio.ts'), {
+    CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS: 60_000,
+    CHAPTER_FEEDBACK_AUDIO_MIME_TYPE: 'audio/m4a',
+    uploadChapterFeedbackAudio: async () => ({ success: true }),
+  });
+  mockModule(mocker, sourcePath('services/plans/readingPlanService.ts'), {
+    markDayComplete: async () => ({ success: true }),
+    markPlanSessionComplete: async () => ({ success: true }),
+  });
+  mockBarrel(mocker, 'services/plans/index.ts', { real: ['getPlanChapterFocusVerse'] });
+  mockBarrel(mocker, 'services/sync/index.ts', {
+    provide: { syncPreferences: async () => ({ success: true }) },
+  });
+  // PlaybackControls reaches the audio barrel only for the bundled music catalogue.
+  mockBarrel(mocker, 'services/audio/index.ts', { real: ['BACKGROUND_MUSIC_OPTIONS'] });
+
+  // ---- Components and native packages ---------------------------------------
+  mockBarrel(mocker, 'components/feedback/index.ts', {
+    provide: { ChapterFeedbackSummary: hostComponent('ChapterFeedbackSummary') },
+  });
+  mockModule(mocker, sourcePath('screens/bible/TranslationPickerList.tsx'), {
+    TranslationPickerList: hostComponent('TranslationPickerList'),
+  });
+  mockPackage(mocker, 'expo-clipboard', { setStringAsync: async () => true });
+  mockPackage(mocker, 'expo-av', {
+    Audio: {
+      Recording: class {},
+      Sound: class {},
+      setAudioModeAsync: async () => {},
+      requestPermissionsAsync: async () => ({ granted: true }),
+    },
+  });
+
+  // The reader drives the ROOT tab navigator, which it finds by id.
+  const rootTabCalls: Array<Record<string, unknown>> = [];
+  const rootTab = {
+    setOptions: (options: Record<string, unknown>) => {
+      rootTabCalls.push(options);
+    },
+  };
+  harness.navigation.navigation.getParent = (id?: unknown) =>
+    id === 'RootTab' ? rootTab : undefined;
+
+  beforeEach(() => {
+    chapters.clear();
+    chapters.set('JHN:3', JOHN_3);
+  });
+
+  afterEach(() => {
+    audioCalls.length = 0;
+    chapterRequests.length = 0;
+    rootTabCalls.length = 0;
+    feedbackSubmissions.length = 0;
+    annotationLoads.length = 0;
+    holdAnnotationLoads = false;
+    timestamps = null;
+    playerSteps.previous = null;
+    playerSteps.next = null;
+    renders.count = 0;
+    delete contentSummary.audioChapters;
+    bibleStore.setState(bibleStore.getInitialState(), true);
+    audioStore.setState(audioStore.getInitialState(), true);
+    libraryStore.setState(libraryStore.getInitialState(), true);
+    progressStore.setState(progressStore.getInitialState(), true);
+    readingPlansStore.setState(readingPlansStore.getInitialState(), true);
+  });
+
+  const t = (key: string, values?: Record<string, unknown>) => harness.i18n.t(key, values);
+
+  async function renderReader(params: Record<string, unknown> = {}) {
+    harness.navigation.route.name = 'BibleReader';
+    harness.navigation.route.key = 'reader-route';
+    harness.navigation.route.params = { bookId: 'JHN', chapter: 3, ...params };
+    const { BibleReaderScreen } = await import('./BibleReaderScreen');
+    const view = await harness.render(<BibleReaderScreen />);
+    await view.flush();
+    return view;
+  }
+
+  /** Re-render the mounted reader after the route params changed. */
+  async function navigateReader(view: RenderResult, params: Record<string, unknown>) {
+    harness.navigation.route.params = { ...harness.navigation.route.params, ...params };
+    const { BibleReaderScreen } = await import('./BibleReaderScreen');
+    await view.rerender(<BibleReaderScreen />);
+    await view.flush();
+  }
+
+  /** The virtualized read-mode list. */
+  const readerList = (view: RenderResult) => {
+    const [list] = view.queryAllByType('FlatList');
+    assert.ok(list, 'the read-mode paragraph list is rendered');
+    return list;
+  };
+
+  /** Scroll the read-mode list like a finger would, one native frame. */
+  async function scrollReader(
+    view: RenderResult,
+    y: number,
+    { viewport = 700, content = 3000 }: { viewport?: number; content?: number } = {}
+  ) {
+    await view.fire(readerList(view), 'onScroll', {
+      nativeEvent: {
+        contentOffset: { x: 0, y },
+        layoutMeasurement: { width: 390, height: viewport },
+        contentSize: { width: 390, height: content },
+      },
+    });
+    await view.flush();
+  }
+
+  const setParamsCalls = () =>
+    harness.navigation.calls
+      .filter((call) => call.method === 'setParams')
+      .map((call) => call.args[0] as Record<string, unknown>);
+
+  /** The floating top bar: the nearest host ancestor of the reference pill with a `top`. */
+  function topChrome(view: RenderResult): ReactTestInstance {
+    let node: ReactTestInstance | null = view.getByRole('button', {
+      name: 'John 3',
+      includeHidden: true,
+    });
+    while (node && flattenStyle(node.props.style)?.top === undefined) node = node.parent;
+    assert.ok(node, 'top chrome');
+    return node;
+  }
+
+  /** Change playback state the way the player does, inside act. */
+  async function setAudio(patch: Partial<ReturnType<typeof audioStore.getState>>) {
+    await act(async () => {
+      audioStore.setState(patch);
+    });
+  }
+
+  return {
+    harness,
+    setAudio,
+    t,
+    bibleStore,
+    audioStore,
+    libraryStore,
+    progressStore,
+    readingPlansStore,
+    audioCalls,
+    playerSteps,
+    renders,
+    contentSummary,
+    chapters,
+    chapterRequests,
+    annotationLoads,
+    holdAnnotations: () => {
+      holdAnnotationLoads = true;
+    },
+    setTimestamps: (value: Record<number, number> | null) => {
+      timestamps = value;
+    },
+    feedbackSubmissions,
+    rootTabCalls,
+    renderReader,
+    navigateReader,
+    readerList,
+    scrollReader,
+    setParamsCalls,
+    topChrome,
+  };
+}
