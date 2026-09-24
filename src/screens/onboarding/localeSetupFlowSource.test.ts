@@ -522,8 +522,27 @@ test('LocaleSetupFlow never resolves the locale search engine while rendering it
 
   assert.match(
     flowSource,
-    /InteractionManager\.runAfterInteractions\(\(\) => \{\s*prewarmLocaleSearchEngine\(\);/,
+    /InteractionManager\.runAfterInteractions\(\(\) => \{\s*prewarmLocaleSearchEngine\(\);\s*setIsLocaleEngineWarm\(true\);/,
     'the off-critical-path pre-warm should stay: the engine is still needed, just not during a render'
+  );
+
+  // The pinned Bible recommendation renders on the first frame, so it must rank
+  // from the seed until the prewarm above has run.
+  const recommendationStart = flowSource.indexOf('const onboardingRecommendation = useMemo');
+  const recommendation = flowSource.slice(
+    recommendationStart,
+    flowSource.indexOf('const isPrimaryOnboardingOptionPending', recommendationStart)
+  );
+  assert.ok(recommendationStart > 0);
+  assert.match(
+    recommendation,
+    /if \(!isLocaleEngineWarm\) \{\s*return pickRecommendedOnboardingOption\([\s\S]*?resolveSeedRecommendationLanguage\s*\);\s*\}[\s\S]*localeSearchEngine\.getLanguageByName/,
+    'the engine may rank the recommendation only once it is warm'
+  );
+  assert.match(
+    flowSource,
+    /const \[isLocaleEngineWarm, setIsLocaleEngineWarm\] = useState\(false\);/,
+    'the first frame must never use the engine, even when an earlier screen warmed it'
   );
 });
 

@@ -90,6 +90,30 @@ test('Bible language sections flatten to an eyebrow followed by positioned rows'
   );
 });
 
+test('a recommendation still being ranked holds its slot with a placeholder, not a guess', () => {
+  const items = buildBibleLanguageListItems(
+    bibleInput({
+      primaryOption: null,
+      isPrimaryOptionPending: true,
+      sections: [{ groupLabel: 'E', options: [option('english'), option('estonian')] }],
+    })
+  );
+
+  assert.deepEqual(
+    items.map((item) => item.id),
+    ['eyebrow-recommended', 'primary-placeholder', 'eyebrow-E', 'option-english', 'option-estonian']
+  );
+  assert.equal(items[1].type, 'primaryOptionPlaceholder');
+
+  assert.deepEqual(
+    buildBibleLanguageListItems(
+      bibleInput({ showsPrimaryOption: false, isPrimaryOptionPending: true })
+    ).map((item) => item.id),
+    [],
+    'settings mode pins nothing, so it has nothing to hold a place for'
+  );
+});
+
 test('the pinned recommendation is shown once and dropped from its alphabetical section', () => {
   const primaryOption = option('english');
   const items = buildBibleLanguageListItems(

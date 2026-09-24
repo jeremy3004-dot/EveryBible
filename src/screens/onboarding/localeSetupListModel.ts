@@ -74,6 +74,7 @@ export type BibleLanguageListItem<TOption> =
   | { type: 'loading'; id: string }
   | { type: 'catalogError'; id: string }
   | { type: 'primaryOption'; id: string; option: TOption; isRecommended: boolean }
+  | { type: 'primaryOptionPlaceholder'; id: string }
   | { type: 'option'; id: string; option: TOption; position: LocaleSetupGroupPosition };
 
 export interface BibleLanguageListInput<TOption extends { key: string }> {
@@ -83,6 +84,11 @@ export interface BibleLanguageListInput<TOption extends { key: string }> {
   primaryOption: TOption | null;
   /** True in `initial` mode: the primary option is pinned above the full list. */
   showsPrimaryOption: boolean;
+  /**
+   * True while the pin cannot be named yet (see onboardingRecommendation.ts): the
+   * slot shows a placeholder rather than a Bible that might be swapped a moment later.
+   */
+  isPrimaryOptionPending?: boolean;
   /** True when the pinned option should wear the RECOMMENDED chip. */
   pinsRecommendedOption: boolean;
   showsFullList: boolean;
@@ -98,6 +104,7 @@ export function buildBibleLanguageListItems<TOption extends { key: string }>({
   sections,
   primaryOption,
   showsPrimaryOption,
+  isPrimaryOptionPending = false,
   pinsRecommendedOption,
   showsFullList,
   isHydratingRuntimeCatalog,
@@ -115,9 +122,17 @@ export function buildBibleLanguageListItems<TOption extends { key: string }>({
     items.push({ type: 'catalogError', id: 'catalog-error' });
   }
 
-  const pinnedOption = showsPrimaryOption ? primaryOption : null;
+  const pinnedOption = showsPrimaryOption && !isPrimaryOptionPending ? primaryOption : null;
 
-  if (pinnedOption) {
+  if (showsPrimaryOption && isPrimaryOptionPending) {
+    items.push({
+      type: 'eyebrow',
+      id: 'eyebrow-recommended',
+      label: recommendedLabel,
+      hasSectionSpacing: false,
+    });
+    items.push({ type: 'primaryOptionPlaceholder', id: 'primary-placeholder' });
+  } else if (pinnedOption) {
     items.push({
       type: 'eyebrow',
       id: 'eyebrow-recommended',
