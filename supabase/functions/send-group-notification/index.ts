@@ -20,6 +20,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+import { readBodyWithinLimit } from '../_shared/analyticsIngest.ts';
 import { cleanGroupName, groupSessionMessage } from './messages.ts';
 
 const corsHeaders = {
@@ -33,6 +34,7 @@ const EXPO_PUSH_BATCH_SIZE = 100;
 // Expo normally answers in well under a second. A hung batch is abandoned and counted as
 // failed rather than holding the caller's request open until the platform wall-clock limit.
 const EXPO_PUSH_TIMEOUT_MS = 10_000;
+const MAX_REQUEST_BODY_BYTES = 16 * 1024;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function jsonResponse(payload: Record<string, unknown>, status = 200): Response {
@@ -100,7 +102,17 @@ Deno.serve(async (req) => {
     }
     const callerId = authData.user.id;
 
-    const payload: unknown = await req.json().catch(() => null);
+    // The body is two UUIDs; cap it while streaming instead of buffering whatever is sent.
+    const rawBody = await readBodyWithinLimit(req, MAX_REQUEST_BODY_BYTES);
+    if (!rawBody.ok) {
+      return jsonResponse({ success: false, error: 'Request body is too large' }, 413);
+    }
+    let payload: unknown = null;
+    try {
+      payload = JSON.parse(rawBody.text);
+    } catch {
+      payload = null;
+    }
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
       return jsonResponse({ success: false, error: 'Invalid notification request' }, 400);
     }
