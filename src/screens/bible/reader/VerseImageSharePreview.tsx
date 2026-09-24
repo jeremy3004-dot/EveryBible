@@ -3,12 +3,14 @@ import { radius, spacing, typography } from '../../../design/system';
 import type { RefObject } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../../contexts/ThemeContext';
+import { getReadingFontFamily } from '../../../design/fonts';
 
 export function VerseImageSharePreview({
   previewRef,
   backgroundSource,
   referenceLabel,
   selectedText,
+  translationLanguage,
 }: VerseImageSharePreviewProps) {
   const { colors, isDark } = useTheme();
   const verseText = selectedText.trim();
@@ -38,6 +40,10 @@ export function VerseImageSharePreview({
             style={[
               styles.verseImagePreviewText,
               {
+                // Scripture renders in its own language: Lora has no glyphs for Devanagari,
+                // Arabic and the like, so those scripts take the platform serif, as in the
+                // reader and on the Home card.
+                fontFamily: getReadingFontFamily(translationLanguage, 400, true),
                 color: colors.biblePrimaryText,
                 fontSize: verseFontSize,
                 lineHeight: Math.round(verseFontSize * 1.38),
@@ -75,6 +81,8 @@ export interface VerseImageSharePreviewProps {
   backgroundSource: import('react-native').ImageSourcePropType;
   referenceLabel: string;
   selectedText: string;
+  /** The translation's language, which picks a face that has its script's glyphs. */
+  translationLanguage?: string;
 }
 
 const styles = StyleSheet.create({

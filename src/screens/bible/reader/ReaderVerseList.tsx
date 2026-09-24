@@ -329,10 +329,11 @@ export const ReaderVerseList = memo(function ReaderVerseList({
         readingFontFamily,
         readingFontFamilyBold,
         colors,
-        selectedVerses,
         annotations: displayedAnnotations,
       });
-  const premiumReaderListExtraData = `${readerInlineActiveVerse ?? 'none'}|${paragraphRenderSignature}`;
+  // The selection rides along so the list offers its cells the new selection;
+  // each cell's comparator then keeps the ones whose verses did not change.
+  const premiumReaderListExtraData = `${readerInlineActiveVerse ?? 'none'}|${selectedVerses.join(',')}|${paragraphRenderSignature}`;
 
   if (renderVirtualized) {
     return (
@@ -404,6 +405,7 @@ export const ReaderVerseList = memo(function ReaderVerseList({
           index={pIndex}
           renderSignature={paragraphRenderSignature}
           activeVerse={readerInlineActiveVerse}
+          selectedVerses={selectedVerseSet}
           renderParagraphRef={renderParagraphRef}
         />
       ))}

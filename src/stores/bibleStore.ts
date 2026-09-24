@@ -589,10 +589,12 @@ function updateTranslationAudioJobState(
   job: AudioDownloadJobRecord | null
 ): BibleTranslation {
   if (!job || translation.id !== job.translationId) {
-    return {
-      ...translation,
-      activeDownloadJob: translation.activeDownloadJob ?? null,
-    };
+    // Another translation's job: keep this row's identity so subscribers that select one
+    // translation (the reader, a picker row) are not re-rendered by it. Only a row that
+    // never had its job slot set is normalized to null.
+    return translation.activeDownloadJob === undefined
+      ? { ...translation, activeDownloadJob: null }
+      : translation;
   }
 
   return {

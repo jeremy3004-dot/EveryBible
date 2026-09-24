@@ -29,6 +29,8 @@ export interface VerseImageShareSheetProps {
   selectedVerseText: string;
   setShowVerseImageSheet: Dispatch<SetStateAction<boolean>>;
   showVerseImageSheet: boolean;
+  /** The current translation's language, so the card sets the verse in a face with its glyphs. */
+  translationLanguage?: string;
   verseImageBackgroundCount: number;
   verseImageSharePreviewRef: RefObject<View | null>;
 }
@@ -44,6 +46,7 @@ export function VerseImageShareSheet({
   selectedVerseText,
   setShowVerseImageSheet,
   showVerseImageSheet,
+  translationLanguage,
   verseImageBackgroundCount,
   verseImageSharePreviewRef,
 }: VerseImageShareSheetProps) {
@@ -112,6 +115,7 @@ export function VerseImageShareSheet({
             backgroundSource={selectedVerseImageBackground}
             referenceLabel={selectedVerseReferenceLabel}
             selectedText={selectedVerseText}
+            translationLanguage={translationLanguage}
           />
 
           <ScrollView

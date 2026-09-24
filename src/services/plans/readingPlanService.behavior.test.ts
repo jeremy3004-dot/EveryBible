@@ -165,6 +165,15 @@ test('listReadingPlans returns the bundled catalog ordered by sort_order', async
   assert.equal(result.data?.[0]?.slug, 'bible-in-1-year');
 });
 
+test('listReadingPlans returns the same catalog array every time, so a reload is not a change', async () => {
+  // Plans home reloads the catalog on every focus; a fresh array each time
+  // re-rendered the whole screen and rebuilt its search index for nothing.
+  const first = await service.listReadingPlans();
+  const second = await service.listReadingPlans();
+
+  assert.equal(second.data, first.data);
+});
+
 test('getPlanEntries returns an empty list for a plan that is not bundled', async () => {
   const result = await service.getPlanEntries('no-such-plan');
 

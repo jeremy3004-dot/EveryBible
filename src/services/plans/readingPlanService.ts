@@ -190,10 +190,18 @@ function getPlan(planId: string): ReadingPlan | undefined {
   return readingPlanCatalog().readingPlansById.get(planId);
 }
 
+let sortedPlans: ReadingPlan[] | null = null;
+
+/**
+ * The bundled catalog in display order, built once. Screens reload it on every
+ * focus, and a fresh array each time made React treat an unchanged catalog as
+ * new data. Callers only read it.
+ */
 function getSortedPlans(): ReadingPlan[] {
-  return [...readingPlanCatalog().readingPlans].sort(
+  sortedPlans ??= [...readingPlanCatalog().readingPlans].sort(
     (left, right) => left.sort_order - right.sort_order
   );
+  return sortedPlans;
 }
 
 function shouldSyncPlanProgressRemotely(planId?: string): boolean {
