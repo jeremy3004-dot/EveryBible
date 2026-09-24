@@ -67,7 +67,7 @@ const readImageAsUint8Array = async (uri: string): Promise<Uint8Array> => {
 /**
  * Upload a profile avatar for the currently authenticated user.
  * The image is stored at `{userId}/avatar.{ext}` inside the avatars bucket.
- * Returns the public URL for the uploaded file.
+ * Returns the public URL for the uploaded file, versioned per upload.
  */
 export const uploadAvatar = async (imageUri: string): Promise<StorageResult<string>> => {
   if (!isSupabaseConfigured()) {
@@ -98,7 +98,10 @@ export const uploadAvatar = async (imageUri: string): Promise<StorageResult<stri
 
     const { data } = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(storagePath);
 
-    return { success: true, data: data.publicUrl };
+    // The path is fixed and upserted, so a new picture has the same bare URL as the
+    // old one: photoURL would not change and the Image cache and storage CDN would
+    // keep showing the previous picture. The version makes each upload a new URL.
+    return { success: true, data: `${data.publicUrl}?v=${Date.now()}` };
   } catch (err) {
     return {
       success: false,

@@ -45,6 +45,7 @@ import {
 import { formatBibleReferenceLabel } from '../../services/gather/gatherReferenceLabel';
 import { getChapterAudioUrl } from '../../services/audio/audioService';
 import { getTranslatedBookName } from '../../constants/books';
+import { EVERYBIBLE_SITE_URL } from '../../constants/links';
 import { formatPlaybackTime, lightHaptic, successHaptic } from '../../utils';
 import { isDeviceOffline } from '../../utils/connectivity';
 import type { MeetingSectionType } from '../../types/gather';
@@ -709,7 +710,9 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
                 return {
                   label: t('learn.shareApp'),
                   onPress: () => {
-                    Share.share({ message: t('common.shareMessage') }).catch(() => undefined);
+                    Share.share({
+                      message: `${t('common.shareMessage')}\n${EVERYBIBLE_SITE_URL}`,
+                    }).catch(() => undefined);
                   },
                 };
               }
