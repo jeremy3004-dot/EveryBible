@@ -17,7 +17,7 @@ export function ErrorPageScreen({ statusCode }: ErrorPageScreenProps) {
   const copy = errorCopy[statusCode] ?? errorCopy[500];
 
   return (
-    <main className="static-page">
+    <main className="static-page" id="main">
       <div className="container static-page__container">
         <section className="static-page__hero">
           <p className="eyebrow">Error</p>
@@ -29,6 +29,8 @@ export function ErrorPageScreen({ statusCode }: ErrorPageScreenProps) {
           <section>
             <p>
               <a href="/">Go home</a>
+              {' · '}
+              <a href="/languages">Browse languages</a>
               {' · '}
               <a href="/support">Get support</a>
             </p>

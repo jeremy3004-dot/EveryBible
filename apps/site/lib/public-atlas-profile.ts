@@ -1,5 +1,6 @@
 import { formatCount, scriptureLabel, scriptureStatus } from '../../admin/lib/language-atlas/model';
 import type { AtlasIndex, AtlasRecord } from '../../admin/lib/language-atlas/types';
+import { languageFamily, languageNoun } from './language-family';
 
 export interface PublicProfileCountry {
   code: string;
@@ -68,7 +69,10 @@ export function profileIdentity(record: AtlasRecord, index: AtlasIndex): string 
     return parent ? `A variety of ${parent.name}.` : 'A dialect or variety.';
   }
   if (record.kind === 'people-group') return 'A people group.';
-  return record.family ? `A language in the ${record.family} family.` : 'A language.';
+  const family = languageFamily(record.family);
+  const noun = languageNoun(record.family);
+  const sentence = family ? `${noun} in the ${family} family.` : `${noun}.`;
+  return sentence[0].toUpperCase() + sentence.slice(1);
 }
 
 export function profileSpokenLocations(record: AtlasRecord, index: AtlasIndex): string[] {

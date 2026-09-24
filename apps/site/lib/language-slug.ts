@@ -41,6 +41,29 @@ export function languageSlug(record: { id: string; name: string }): string {
   return name ? `${name}-${code}` : code;
 }
 
+/**
+ * Every Language's project tracker contains test and retired entries ("Test 6a",
+ * "Mangala {Delete}"). They carry no registry code and come from that source
+ * alone, so a name pattern cannot hide a real, registry-backed language.
+ */
+const PLACEHOLDER_NAME =
+  /^tests?y?(?:\b|\d)|\{delete\}|\(retired\)$|^mistakes$|^needs verification$|^pray \d+$/i;
+
+export function hasLanguagePage(record: {
+  name: string;
+  sourceIds: readonly string[];
+  iso6393: string | null;
+  glottocode: string | null;
+  rolvCode: string | null;
+}): boolean {
+  const trackerOnly =
+    record.sourceIds.every((id) => id === 'everylanguage') &&
+    !record.iso6393 &&
+    !record.glottocode &&
+    !record.rolvCode;
+  return !(trackerOnly && PLACEHOLDER_NAME.test(record.name.trim()));
+}
+
 export function isLanguageSlug(value: string): boolean {
   return value.length > 0 && value.length <= 120 && SLUG_PATTERN.test(value);
 }

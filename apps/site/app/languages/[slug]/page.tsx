@@ -8,6 +8,7 @@ import {
 } from '../../../components/languages/LanguageLayout';
 import { atlasSourceLabel, atlasSourceUrl } from '../../../lib/atlas-source-links';
 import { bundledAppBibles } from '../../../lib/everybible-app-bibles';
+import { languageFamily } from '../../../lib/language-family';
 import {
   languageIdentity,
   languagePageMetadata,
@@ -44,7 +45,9 @@ interface LanguageRouteProps {
 
 export async function generateMetadata({ params }: LanguageRouteProps): Promise<Metadata> {
   const page = await getLanguagePage((await params).slug);
-  return page ? languagePageMetadata(page) : {};
+  // Without this the browser re-applies the homepage title and canonical over the 404.
+  if (!page) notFound();
+  return languagePageMetadata(page);
 }
 
 function formatNumber(value: number): string {
@@ -83,7 +86,7 @@ export default async function LanguageDetailPage({ params }: LanguageRouteProps)
   const appBibles = bundledAppBibles(page.iso6393);
   const sources = meta.sources.filter((source) => page.sourceIds.includes(source.id));
   const details = [
-    ['Language family', page.family],
+    ['Language family', languageFamily(page.family)],
     ['ISO 639-3 code', page.iso6393],
     ['Glottocode', page.glottocode],
     ['ROLV code', page.rolvCode],
