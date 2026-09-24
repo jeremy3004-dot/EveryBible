@@ -48,6 +48,7 @@ import {
 } from '../../services/onboarding/localeSelection';
 import {
   buildInitialOnboardingLanguageOptions,
+  filterInitialOnboardingLanguageOptions,
   getInitialBibleLanguageListState,
   getInitialInterfaceLanguageCode,
   getInterfaceLanguageSelectionResult,
@@ -58,6 +59,11 @@ import {
   type SetupStep,
 } from './localeSetupModel';
 import { GroupedRowCard, LocaleSetupList } from './LocaleSetupList';
+import {
+  createOnboardingBibleSelectionQueue,
+  type OnboardingBibleSelectionDeps,
+  type OnboardingBibleSelectionState,
+} from './onboardingBibleSelectionQueue';
 import {
   buildBibleLanguageListItems,
   buildContentLanguageListItems,
@@ -84,12 +90,14 @@ import { useDisplayFont } from '../../hooks/useDisplayFont';
 import { useKeyboardBottomInset } from '../../hooks/useKeyboardBottomInset';
 import type { BibleTranslation } from '../../types';
 import {
-  filterTranslationsBySearchQuery,
+  buildTranslationSearchIndex,
   getTranslationAvailabilitySummary,
   getTranslationSelectionState,
   getVisibleTranslationsForPicker,
   normalizeTranslationLanguage,
+  searchTranslationIndex,
 } from '../bible/bibleTranslationModel';
+import { showTranslationDownloadFailedAlert } from '../bible/translationDownloadFailureAlert';
 import { getAudioAvailability } from '../../services/audio/audioAvailability';
 import { isRemoteAudioAvailable } from '../../services/audio/audioRemote';
 import { config } from '../../constants';
@@ -553,7 +561,10 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
   const [isHydratingRuntimeCatalog, setIsHydratingRuntimeCatalog] = useState(mode === 'initial');
   const [runtimeCatalogLoadFailed, setRuntimeCatalogLoadFailed] = useState(false);
   const [runtimeCatalogHydrationAttempt, setRuntimeCatalogHydrationAttempt] = useState(0);
-  const [installingTranslationId, setInstallingTranslationId] = useState<string | null>(null);
+  const [bibleSelectionState, setBibleSelectionState] = useState<OnboardingBibleSelectionState>({
+    downloadingId: null,
+    queuedId: null,
+  });
   const [showInterfaceLanguagePicker, setShowInterfaceLanguagePicker] = useState(false);
   const [footerHeight, setFooterHeight] = useState(ESTIMATED_FOOTER_HEIGHT);
 
@@ -643,14 +654,27 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
       );
     });
   }, [translationDisplayDataById, visibleTranslations]);
+  // Grouping, sorting and the search index are built once per catalog change. A keystroke
+  // only matches against the prebuilt index and filters the presorted options, so typing
+  // never re-collates the list (slow on Hermes).
+  const allOnboardingLanguageOptions = useMemo(
+    () => buildInitialOnboardingLanguageOptions(eligibleOnboardingTranslations),
+    [eligibleOnboardingTranslations]
+  );
+  const onboardingTranslationSearchIndex = useMemo(
+    () => buildTranslationSearchIndex(eligibleOnboardingTranslations),
+    [eligibleOnboardingTranslations]
+  );
   const onboardingLanguageOptions = useMemo(() => {
-    const matchingTranslations = filterTranslationsBySearchQuery(
-      eligibleOnboardingTranslations,
-      debouncedTranslationQuery
-    );
+    if (!debouncedTranslationQuery.trim()) {
+      return allOnboardingLanguageOptions;
+    }
 
-    return buildInitialOnboardingLanguageOptions(matchingTranslations);
-  }, [eligibleOnboardingTranslations, debouncedTranslationQuery]);
+    return filterInitialOnboardingLanguageOptions(
+      allOnboardingLanguageOptions,
+      searchTranslationIndex(onboardingTranslationSearchIndex, debouncedTranslationQuery)
+    );
+  }, [allOnboardingLanguageOptions, debouncedTranslationQuery, onboardingTranslationSearchIndex]);
   const onboardingLanguageSections = useMemo(() => {
     const sections: Array<{
       groupLabel: string;
@@ -981,6 +1005,41 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     onComplete?.();
   };
 
+  // Refreshed every render so the queue, created once below, always calls the latest
+  // handlers (they close over the current interface language and device country).
+  const bibleSelectionDepsRef = useRef<OnboardingBibleSelectionDeps<BibleTranslation> | null>(null);
+  const [bibleSelectionQueue] = useState(() =>
+    createOnboardingBibleSelectionQueue<BibleTranslation>(() => {
+      if (!bibleSelectionDepsRef.current) {
+        throw new Error('Onboarding Bible selection used before its first render');
+      }
+      return bibleSelectionDepsRef.current;
+    })
+  );
+  bibleSelectionDepsRef.current = {
+    download: (translation) => downloadTranslation(translation.id),
+    getInstalled: (translation) =>
+      useBibleStore.getState().translations.find((candidate) => candidate.id === translation.id) ??
+      translation,
+    complete: completeInitialSetup,
+    onDownloadFailed: async (translation) => {
+      const fallbackTranslation = resolveRegionalFallbackTranslation(
+        useBibleStore.getState().translations,
+        translation,
+        deviceCountryCode
+      );
+      if (fallbackTranslation) {
+        await bibleSelectionQueue.chooseReady(fallbackTranslation);
+        return;
+      }
+
+      showTranslationDownloadFailedAlert(t, () => {
+        void bibleSelectionQueue.chooseDownload(translation);
+      });
+    },
+    onStateChange: setBibleSelectionState,
+  };
+
   const handleTranslationSelectImpl = async (translation: BibleTranslation) => {
     const availability = getAudioAvailability({
       featureEnabled: config.features.audioEnabled,
@@ -999,37 +1058,12 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     });
 
     if (selectionState.reason === 'download-required') {
-      try {
-        setInstallingTranslationId(translation.id);
-        const downloadResult = await downloadTranslation(translation.id);
-        if (downloadResult === 'cancelled') {
-          return;
-        }
-        const installedTranslation =
-          useBibleStore
-            .getState()
-            .translations.find((candidate) => candidate.id === translation.id) ?? translation;
-        await completeInitialSetup(installedTranslation);
-      } catch {
-        const fallbackTranslation = resolveRegionalFallbackTranslation(
-          useBibleStore.getState().translations,
-          translation,
-          deviceCountryCode
-        );
-        if (fallbackTranslation) {
-          await completeInitialSetup(fallbackTranslation);
-          return;
-        }
-
-        Alert.alert(t('common.error'), t('bible.failedToLoad'), [{ text: t('common.ok') }]);
-      } finally {
-        setInstallingTranslationId(null);
-      }
+      await bibleSelectionQueue.chooseDownload(translation);
       return;
     }
 
     if (selectionState.isSelectable) {
-      await completeInitialSetup(translation);
+      await bibleSelectionQueue.chooseReady(translation);
       return;
     }
 
@@ -1039,7 +1073,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
       deviceCountryCode
     );
     if (fallbackTranslation) {
-      await completeInitialSetup(fallbackTranslation);
+      await bibleSelectionQueue.chooseReady(fallbackTranslation);
       return;
     }
 
@@ -1155,7 +1189,11 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     ) => {
       const isLast = position ? isLastInLocaleSetupGroup(position) : true;
       const translation = option.primaryTranslation;
-      const isInstalling = installingTranslationId === translation.id;
+      // A queued Bible shows the same busy spinner (it has no progress yet) and, like the
+      // downloading one, cannot be tapped again.
+      const isInstalling =
+        bibleSelectionState.downloadingId === translation.id ||
+        bibleSelectionState.queuedId === translation.id;
       const progress =
         downloadProgress?.translationId === translation.id ? downloadProgress.progress : null;
       // Read precomputed availability/selection state (computed once per
@@ -1200,11 +1238,11 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
       );
     },
     [
+      bibleSelectionState,
       colors,
       displayFont,
       downloadProgress,
       handleTranslationSelect,
-      installingTranslationId,
       t,
       translationDisplayDataById,
     ]
@@ -1440,10 +1478,12 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
               <ActivityIndicator color={colors.accentPrimary} />
             </View>
           );
+        // Usually the device is offline. The card sits above the list, so its body can point
+        // at the Bibles below it: they ship with the app and finish onboarding offline.
         case 'catalogError':
           return renderEmptyCard(
-            t('common.somethingWentWrong'),
-            t('onboarding.noLanguagesFoundBody'),
+            t('onboarding.catalogUnavailableTitle'),
+            t('onboarding.catalogUnavailableBody'),
             () => setRuntimeCatalogHydrationAttempt((currentAttempt) => currentAttempt + 1)
           );
         case 'primaryOption':
@@ -1716,11 +1756,11 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
           // re-render of ~10 visible cells whose props did not change costs
           // nothing beyond creating the elements.
           extraData={{
+            bibleSelectionState,
             colors,
             countryQuery,
             displayFont,
             downloadProgress,
-            installingTranslationId,
             languageQuery,
             selectedCountryCode,
             selectedInterfaceLanguageCode,

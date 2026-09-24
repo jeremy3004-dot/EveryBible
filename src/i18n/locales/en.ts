@@ -475,6 +475,9 @@ export const en = {
     noLanguagesFound: 'No language matches yet',
     noLanguagesFoundBody:
       'Try another spelling or search in English or the local script. Fuzzy search is enabled.',
+    catalogUnavailableTitle: "Can't reach the Bible library",
+    catalogUnavailableBody:
+      'Check your internet connection and try again. The Bibles below are already on this device and work offline.',
     recommendedBadge: 'Recommended',
     interfaceAvailable: 'Interface available',
     privacyTitle: 'Choose icon',
@@ -522,6 +525,9 @@ export const en = {
     available: 'Available',
     translationComingSoon: '{{name}} will be available for download in a future update.',
     failedToLoad: 'We could not load this chapter right now.',
+    translationDownloadFailedTitle: 'Download failed',
+    translationDownloadFailed:
+      "This Bible didn't finish downloading. Check your internet connection and free storage space, then try again.",
     searchUnavailable: 'Full-text search is not available for this translation yet.',
     noVersesAvailable: '{{book}} {{chapter}} does not have written text yet.',
     fullBibleComingSoon: "This chapter isn't available as text or audio in this translation yet.",
