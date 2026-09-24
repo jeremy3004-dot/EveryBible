@@ -13,6 +13,7 @@ import {
   downloadableBible,
   installLocaleSetupFlowFakes,
 } from './localeSetupFlowRenderFixtures';
+import { getRuntimeCatalogHydrationPolicy } from './localeSetupModel';
 
 // iOS: the keyboard reports its frame up front (keyboardWillShow). Android's
 // hardware back and measured keyboard overlap live in the .android file.
@@ -138,7 +139,8 @@ test('picking a Bible on first run finishes onboarding with it, then syncs prefe
   assert.equal(fakes.sync.calls, 1);
 });
 
-test('when the Bible library cannot be reached, a retry card shows above the Bibles that ship with the app', async () => {
+test('when the Bible library cannot be reached, a retry card shows above the Bibles that ship with the app', async (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout'] });
   fakes.catalog.impl = async () => {
     throw new Error('offline');
   };
@@ -147,7 +149,15 @@ test('when the Bible library cannot be reached, a retry card shows above the Bib
     const view = await fakes.renderFlow();
     await view.flush();
 
+    // The first load retries once on its own before admitting the library is unreachable;
+    // meanwhile the Bibles that ship with the app are already listed.
     assert.equal(fakes.catalog.loads, 1);
+    assert.equal(view.queryByText(t('onboarding.catalogUnavailableTitle')), null);
+    assert.ok(view.getByRole('button', { name: /^English, Berean Standard Bible/ }));
+    await pause(context.mock.timers, getRuntimeCatalogHydrationPolicy(0).retryDelayMs);
+    await view.flush();
+
+    assert.equal(fakes.catalog.loads, 2, 'one automatic retry after the backoff');
     assert.ok(view.getByText(t('onboarding.catalogUnavailableTitle')));
     assert.ok(view.getByText(t('onboarding.catalogUnavailableBody')));
     const retry = view.getByTestId('onboarding-runtime-catalog-retry');
@@ -158,7 +168,7 @@ test('when the Bible library cannot be reached, a retry card shows above the Bib
     await view.press(within(retry).getByRole('button', { name: t('common.retry') }));
     await view.flush();
 
-    assert.equal(fakes.catalog.loads, 2, 'Retry loads the catalog again');
+    assert.equal(fakes.catalog.loads, 3, 'Retry loads the catalog again');
     assert.equal(view.queryByTestId('onboarding-runtime-catalog-retry'), null);
     assert.equal(view.queryByText(t('onboarding.catalogUnavailableTitle')), null);
   } finally {

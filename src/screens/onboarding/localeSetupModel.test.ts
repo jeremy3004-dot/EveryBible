@@ -12,7 +12,10 @@ import {
   getInitialInterfaceLanguageCode,
   getInterfaceLanguageSelectionResult,
   getLocaleSetupSteps,
+  getRuntimeCatalogHydrationPolicy,
+  hydrateRuntimeCatalogWithRetry,
   waitForRuntimeCatalogHydration,
+  type RuntimeCatalogHydrationPolicy,
 } from './localeSetupModel';
 
 test('initial onboarding opens directly to the Bible language recommendation', () => {
@@ -109,6 +112,140 @@ test('runtime catalog hydration timeout still leaves bundled English BSB listabl
   assert.equal(englishOption?.primaryTranslation.id, 'bsb');
   assert.equal(englishOption?.primaryTranslation.isDownloaded, true);
   assert.equal(englishOption?.primaryTranslation.hasText, true);
+});
+
+// ─── First-launch catalog hydration policy ───────────────────────────────────
+// A fresh install's first catalog request shares the launch with the bundled Bible import and a
+// cold network stack; 7 s was not enough and showed "Can't reach the Bible library" on a first
+// launch that a relaunch then served fine.
+
+test('the first catalog load waits at least 15 s and retries once automatically before giving up', () => {
+  const policy = getRuntimeCatalogHydrationPolicy(0);
+
+  assert.ok(policy.timeoutMs >= 15_000, `first-load timeout is ${policy.timeoutMs} ms`);
+  assert.ok(policy.timeoutMs <= 20_000, 'never waits so long the retry card feels hung');
+  assert.equal(policy.automaticRetries, 1);
+  assert.ok(policy.retryDelayMs > 0, 'the automatic retry backs off first');
+});
+
+test('a Retry tap makes one attempt with the same patient timeout and no automatic retry', () => {
+  const firstLoad = getRuntimeCatalogHydrationPolicy(0);
+
+  for (const attempt of [1, 2, 5]) {
+    assert.deepEqual(getRuntimeCatalogHydrationPolicy(attempt), {
+      ...firstLoad,
+      automaticRetries: 0,
+    });
+  }
+});
+
+const quickPolicy = (automaticRetries: number): RuntimeCatalogHydrationPolicy => ({
+  timeoutMs: 20,
+  automaticRetries,
+  retryDelayMs: 1_500,
+});
+
+function recordWaits() {
+  const waits: number[] = [];
+  return {
+    waits,
+    wait: async (ms: number) => {
+      waits.push(ms);
+    },
+  };
+}
+
+test('a first catalog attempt that times out is retried after the backoff and can still load', async () => {
+  const { waits, wait } = recordWaits();
+  let loads = 0;
+
+  const result = await hydrateRuntimeCatalogWithRetry(
+    () => {
+      loads += 1;
+      return loads === 1 ? new Promise<void>(() => {}) : Promise.resolve();
+    },
+    quickPolicy(1),
+    { wait }
+  );
+
+  assert.equal(result, 'loaded');
+  assert.equal(loads, 2);
+  assert.deepEqual(waits, [1_500]);
+});
+
+test('a catalog that fails every attempt reports the failure only after the automatic retry', async () => {
+  const { waits, wait } = recordWaits();
+  let loads = 0;
+
+  const result = await hydrateRuntimeCatalogWithRetry(
+    async () => {
+      loads += 1;
+      throw new Error('offline');
+    },
+    quickPolicy(1),
+    { wait }
+  );
+
+  assert.equal(result, 'failed');
+  assert.equal(loads, 2);
+  assert.deepEqual(waits, [1_500]);
+});
+
+test('a catalog that loads first time is not retried', async () => {
+  const { waits, wait } = recordWaits();
+  let loads = 0;
+
+  const result = await hydrateRuntimeCatalogWithRetry(
+    async () => {
+      loads += 1;
+    },
+    quickPolicy(1),
+    { wait }
+  );
+
+  assert.equal(result, 'loaded');
+  assert.equal(loads, 1);
+  assert.deepEqual(waits, []);
+});
+
+test('a policy without automatic retries reports the first failure straight away', async () => {
+  const { waits, wait } = recordWaits();
+  let loads = 0;
+
+  const result = await hydrateRuntimeCatalogWithRetry(
+    async () => {
+      loads += 1;
+      throw new Error('offline');
+    },
+    quickPolicy(0),
+    { wait }
+  );
+
+  assert.equal(result, 'failed');
+  assert.equal(loads, 1);
+  assert.deepEqual(waits, []);
+});
+
+test('the automatic retry is skipped once the caller has gone away during the backoff', async () => {
+  let active = true;
+  let loads = 0;
+
+  const result = await hydrateRuntimeCatalogWithRetry(
+    async () => {
+      loads += 1;
+      throw new Error('offline');
+    },
+    quickPolicy(1),
+    {
+      wait: async () => {
+        active = false;
+      },
+      shouldContinue: () => active,
+    }
+  );
+
+  assert.equal(result, 'failed');
+  assert.equal(loads, 1, 'no request after the onboarding screen unmounted');
 });
 
 test('when the Bible catalog cannot be reached, the Bibles shipped in the app stay listed and selectable', () => {

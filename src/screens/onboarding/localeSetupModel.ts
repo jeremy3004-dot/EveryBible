@@ -27,9 +27,62 @@ export interface InitialOnboardingLanguageOption<T extends InitialOnboardingTran
   translations: T[];
 }
 
-export const RUNTIME_CATALOG_HYDRATION_TIMEOUT_MS = 7000;
+// A fresh install's first catalog request competes with the bundled Bible import and a cold
+// network stack (DNS, TLS, Supabase client start-up). 7 s timed out on first launches that a
+// relaunch then served fine. The wait never blocks anything: the Bibles that ship with the app
+// stay selectable while the catalog loads.
+export const RUNTIME_CATALOG_HYDRATION_TIMEOUT_MS = 15_000;
+export const RUNTIME_CATALOG_AUTOMATIC_RETRY_DELAY_MS = 2_000;
 
 export type RuntimeCatalogHydrationResult = 'loaded' | 'timeout' | 'failed';
+
+export interface RuntimeCatalogHydrationPolicy {
+  timeoutMs: number;
+  /** Extra attempts made on their own before onboarding shows the "can't reach" card. */
+  automaticRetries: number;
+  retryDelayMs: number;
+}
+
+/**
+ * Attempt 0 is the automatic load when onboarding opens; it retries once on its own, so a slow
+ * or briefly unreachable first launch does not surface an error. Later attempts come from the
+ * Retry button, which the person just pressed, so they make one attempt and report back.
+ */
+export function getRuntimeCatalogHydrationPolicy(attempt: number): RuntimeCatalogHydrationPolicy {
+  return {
+    timeoutMs: RUNTIME_CATALOG_HYDRATION_TIMEOUT_MS,
+    automaticRetries: attempt === 0 ? 1 : 0,
+    retryDelayMs: RUNTIME_CATALOG_AUTOMATIC_RETRY_DELAY_MS,
+  };
+}
+
+const waitMs = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Runs the catalog load under `policy`. A retry after a timeout calls the loader again, and
+ * ensureRuntimeCatalogLoaded joins the request still in flight rather than starting a second
+ * one, so a slow response keeps counting instead of being thrown away.
+ */
+export async function hydrateRuntimeCatalogWithRetry(
+  loadRuntimeCatalog: () => Promise<void>,
+  policy: RuntimeCatalogHydrationPolicy,
+  {
+    wait = waitMs,
+    shouldContinue = () => true,
+  }: { wait?: (ms: number) => Promise<void>; shouldContinue?: () => boolean } = {}
+): Promise<RuntimeCatalogHydrationResult> {
+  let result = await waitForRuntimeCatalogHydration(loadRuntimeCatalog, policy.timeoutMs);
+
+  for (let retry = 0; retry < policy.automaticRetries && result !== 'loaded'; retry += 1) {
+    await wait(policy.retryDelayMs * (retry + 1));
+    if (!shouldContinue()) {
+      break;
+    }
+    result = await waitForRuntimeCatalogHydration(loadRuntimeCatalog, policy.timeoutMs);
+  }
+
+  return result;
+}
 
 export interface InitialBibleLanguageListState {
   showsSearch: boolean;

@@ -287,7 +287,8 @@ const assetModulePath = fileURLToPath(
 // The module resolves the bundled asset with a bundler `require()` of the .db file, which Node
 // cannot compile. Mocking that specifier makes the module loadable without touching production
 // code; the value is opaque and only ever handed back to importDatabaseFromAssetAsync.
-mockModule(mock, assetModulePath, { __bundledBibleAsset: true });
+const bundledAssetModule = { __bundledBibleAsset: true };
+mockModule(mock, assetModulePath, bundledAssetModule);
 
 mockModule(mock, 'expo-sqlite', {
   defaultDatabaseDirectory: sqliteDirectory,
@@ -382,6 +383,12 @@ test('initDatabase imports the bundled asset on first launch and reports what it
     'a first launch copies the asset once and opens it, without the forced-overwrite recovery path'
   );
   assert.equal(existsSync(bundledDatabasePath), true);
+  // The Metro-required asset module is the only shipped copy of the database (no expo-asset
+  // plugin / Xcode Resources duplicate), so the import must be resolved from exactly that module.
+  assert.deepEqual(
+    assetImports.map(({ databaseName, assetId }) => ({ databaseName, assetId })),
+    [{ databaseName: BUNDLED_DATABASE_NAME, assetId: bundledAssetModule }]
+  );
 });
 
 test('the status returned by initDatabase reports readiness against the shipped threshold', async () => {

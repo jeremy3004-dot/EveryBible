@@ -52,14 +52,6 @@
     },
     "plugins": [
       "expo-sqlite",
-      [
-        "expo-asset",
-        {
-          "assets": [
-            "./assets/databases/bible-bsb-v2.db"
-          ]
-        }
-      ],
       "expo-font",
       "expo-secure-store",
       "expo-web-browser",
