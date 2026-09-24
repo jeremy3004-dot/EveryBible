@@ -191,6 +191,9 @@ export function PlaybackControls({
               disabled={isLoading}
               hitSlop={4}
               accessibilityRole="button"
+              // The visible "10" plus a chevron is not a name; say what it does.
+              accessibilityLabel={t('audio.skipBackward')}
+              accessibilityState={{ disabled: isLoading }}
             >
               <Ionicons name="play-back" size={16} color={colors.biblePrimaryText} />
               <Text style={[styles.skipLabel, { color: colors.biblePrimaryText }]}>10</Text>
@@ -236,6 +239,9 @@ export function PlaybackControls({
               disabled={isLoading}
               hitSlop={4}
               accessibilityRole="button"
+              // The visible "10" plus a chevron is not a name; say what it does.
+              accessibilityLabel={t('audio.skipForward')}
+              accessibilityState={{ disabled: isLoading }}
             >
               <Text style={[styles.skipLabel, { color: colors.biblePrimaryText }]}>10</Text>
               <Ionicons name="play-forward" size={16} color={colors.biblePrimaryText} />

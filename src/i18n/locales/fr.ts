@@ -654,6 +654,8 @@ export const fr = {
     "chooseBackgroundLayer": "Choisissez un fond sonore intégré pour écouter les Écritures hors ligne.",
     "previousChapter": "Chapitre précédent",
     "nextChapter": "Chapitre suivant",
+    "skipBackward": "Reculer de 10 secondes",
+    "skipForward": "Avancer de 10 secondes",
   },
   "privacy": {
     "lockTitle": "Entrez votre code sécurisé",

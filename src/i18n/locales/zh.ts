@@ -649,6 +649,8 @@ export const zh = {
     "chooseBackgroundLayer": "选择一个内置的背景音层，离线听经文时也能用。",
     "previousChapter": "上一章",
     "nextChapter": "下一章",
+    "skipBackward": "后退 10 秒",
+    "skipForward": "前进 10 秒",
   },
   "privacy": {
     "lockTitle": "输入你的安全密码",

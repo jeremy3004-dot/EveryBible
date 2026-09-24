@@ -105,10 +105,24 @@ function audit(): Finding[] {
             if (!attrs.has('accessibilityRole') && attrs.has('onPress')) {
               findings.push({ file: rel, line: line(), rule: 'role' });
             }
+            // Digits and symbols alone ("10", "+") are not a name: a skip button
+            // that shows only "10" beside a chevron still needs a label.
+            const hasWords = (element: ts.JsxElement): boolean =>
+              element.children.some((child) => {
+                if (ts.isJsxText(child)) return /\p{L}/u.test(child.text);
+                if (ts.isJsxExpression(child)) return child.expression !== undefined;
+                if (ts.isJsxElement(child)) return hasWords(child);
+                return ts.isJsxSelfClosingElement(child);
+              });
             const hasVisibleText = someDescendant(node, (child) => {
-              if (ts.isJsxText(child)) return child.text.trim().length > 0;
-              if (ts.isJsxElement(child) || ts.isJsxSelfClosingElement(child)) {
-                return /Text$/.test(opening(child).tagName.getText(source));
+              if (ts.isJsxText(child)) return /\p{L}/u.test(child.text);
+              if (ts.isJsxSelfClosingElement(child)) {
+                return /Text$/.test(child.tagName.getText(source));
+              }
+              if (ts.isJsxElement(child)) {
+                return (
+                  /Text$/.test(child.openingElement.tagName.getText(source)) && hasWords(child)
+                );
               }
               return false;
             });
@@ -151,7 +165,7 @@ test('touchables in screens and components declare an accessibility role', () =>
   assert.deepEqual(withoutAllowed('role', ROLELESS_ALLOWED), []);
 });
 
-test('touchables without visible text carry an accessibility label', () => {
+test('touchables without visible words carry an accessibility label', () => {
   assert.deepEqual(withoutAllowed('label', {}), []);
 });
 

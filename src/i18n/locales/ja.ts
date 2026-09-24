@@ -649,6 +649,8 @@ export const ja = {
     "chooseBackgroundLayer": "オフラインで聖書を聞くときに使う、内蔵の背景音を選んでください。",
     "previousChapter": "前の章",
     "nextChapter": "次の章",
+    "skipBackward": "10秒戻る",
+    "skipForward": "10秒進む",
   },
   "privacy": {
     "lockTitle": "セキュリティコードを入力してください",

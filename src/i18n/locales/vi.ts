@@ -649,6 +649,8 @@ export const vi = {
     "chooseBackgroundLayer": "Chọn một lớp nền tích hợp để nghe Kinh Thánh ngoại tuyến.",
     "previousChapter": "Chương trước",
     "nextChapter": "Chương sau",
+    "skipBackward": "Tua lại 10 giây",
+    "skipForward": "Tua tới 10 giây",
   },
   "privacy": {
     "lockTitle": "Nhập mã bảo mật của bạn",

@@ -373,6 +373,8 @@ export const mr = {
     "chooseBackgroundLayer": "ऑफलाइन पवित्र शास्त्र ऐकण्यासाठी ॲपसोबत आलेला पार्श्वस्वर निवडा.",
     "previousChapter": "मागील अध्याय",
     "nextChapter": "पुढील अध्याय",
+    "skipBackward": "10 सेकंद मागे जा",
+    "skipForward": "10 सेकंद पुढे जा",
   },
   "privacy": {
     "lockTitle": "तुमचा सुरक्षित कोड टाका",

@@ -373,6 +373,8 @@ export const pa = {
     "chooseBackgroundLayer": "ਆਫ਼ਲਾਈਨ ਬਚਨ ਸੁਣਨ ਲਈ ਪਿਛੋਕੜ ਦੀ ਇੱਕ ਧੁਨ ਚੁਣੋ।",
     "previousChapter": "ਪਿਛਲਾ ਅਧਿਆਇ",
     "nextChapter": "ਅਗਲਾ ਅਧਿਆਇ",
+    "skipBackward": "10 ਸਕਿੰਟ ਪਿੱਛੇ ਜਾਓ",
+    "skipForward": "10 ਸਕਿੰਟ ਅੱਗੇ ਜਾਓ",
   },
   "privacy": {
     "lockTitle": "ਆਪਣਾ ਸੁਰੱਖਿਅਤ ਕੋਡ ਦਾਖਲ ਕਰੋ",

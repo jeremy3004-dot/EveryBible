@@ -373,6 +373,8 @@ export const bn = {
     "chooseBackgroundLayer": "অফলাইনে শাস্ত্র শোনার জন্য অ্যাপে থাকা একটি পটভূমির স্তর বেছে নিন।",
     "previousChapter": "পূর্ববর্তী অধ্যায়",
     "nextChapter": "পরবর্তী অধ্যায়",
+    "skipBackward": "10 সেকেন্ড পিছিয়ে যান",
+    "skipForward": "10 সেকেন্ড এগিয়ে যান",
   },
   "privacy": {
     "lockTitle": "আপনার সুরক্ষিত কোড লিখুন",

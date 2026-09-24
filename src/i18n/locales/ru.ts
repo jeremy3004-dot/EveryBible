@@ -659,6 +659,8 @@ export const ru = {
     "chooseBackgroundLayer": "Выберите встроенный фоновый слой для прослушивания Писания офлайн.",
     "previousChapter": "Предыдущая глава",
     "nextChapter": "Следующая глава",
+    "skipBackward": "Назад на 10 секунд",
+    "skipForward": "Вперёд на 10 секунд",
   },
   "privacy": {
     "lockTitle": "Введите секретный код",

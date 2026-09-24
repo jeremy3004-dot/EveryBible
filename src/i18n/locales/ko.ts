@@ -649,6 +649,8 @@ export const ko = {
     "chooseBackgroundLayer": "오프라인으로 성경을 들을 때 함께 재생할 기본 배경 음악을 고르세요.",
     "previousChapter": "이전 장",
     "nextChapter": "다음 장",
+    "skipBackward": "10초 뒤로 이동",
+    "skipForward": "10초 앞으로 이동",
   },
   "privacy": {
     "lockTitle": "보안 코드를 입력하세요",
