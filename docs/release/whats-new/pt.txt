@@ -1,16 +1,18 @@
-Seus ajustes, planos e notas agora ficam iguais em todos os seus dispositivos, os Planos de leitura ganharam um visual novo e o app abre mais rápido.
+Pesquisa melhor em todos os idiomas, suas notas e planos seguros em todos os seus dispositivos, Planos de leitura renovados e um app mais rápido e estável.
 
-• Os ajustes agora são sincronizados um a um, então uma mudança em um dispositivo não desfaz mais uma mudança em outro. Na primeira vez que você entra em um dispositivo, as escolhas que já tinha feito nele são mantidas.
-• Se você sair de um plano de leitura em um dispositivo, ele não volta a aparecer nos outros. As sessões da manhã, do meio-dia e da noite agora também são sincronizadas.
-• Suas notas, destaques, marcadores e biblioteca pertencem à sua conta. Se outra pessoa entrar no mesmo dispositivo, não vai vê-los, e eles voltam quando você entrar de novo.
-• Planos de leitura: seus dias aparecem em uma grade compacta de pontos, o título fica fixo enquanto você rola a tela e dá para deslizar para voltar da leitura ao plano. Abrir um dia do plano não retoma mais o áudio que você tinha pausado.
-• O título de seção no início de cada capítulo voltou; ele estava faltando em mais de mil capítulos. Os resultados da busca agora levam você direto ao versículo.
-• Ao compartilhar o Versículo do dia, agora só o versículo e a foto são compartilhados, sem o seu nome ou a saudação.
-• Os textos do app foram revisados e corrigidos em todos os idiomas, e o russo e o árabe agora usam as formas de plural corretas.
-• Downloads de áudio: cancelar o download da Bíblia inteira agora realmente o interrompe, os capítulos baixados são verificados para não guardar arquivos danificados e você é avisado antes se não houver espaço suficiente.
-• Rótulos do VoiceOver melhores em todo o app, e o texto quebra a linha em vez de ser cortado com letras grandes. No iOS 26, a barra de abas continua legível sobre o texto bíblico.
-• Corrigimos um problema em que abrir o app sem conexão depois de muito tempo podia apagar o progresso de leitura e as sequências de dias ainda não sincronizados.
-• Para equipes de tradução: cada equipe agora tem seu próprio código de revisão, e o app mostra quais traduções o seu código abre.
-• Abertura mais rápida e pequenas correções em todo o app.
+• A pesquisa encontra palavras inteiras em hindi, nepalês e outras escritas da Índia, e encontra palavras em chinês, japonês, coreano e tailandês. Agora a pesquisa também funciona nas Bíblias que você baixar. Digitar um livro de um só capítulo com o número do capítulo abre esse capítulo.
+• Configurações, planos e progresso de leitura ficam sincronizados em todos os seus dispositivos. Uma mudança em um dispositivo não desfaz mais uma mudança em outro, e na primeira vez que você entra na conta, as escolhas que já tinha feito naquele dispositivo são mantidas.
+• Suas notas, destaques, marcadores e biblioteca pertencem à sua conta. Se outra pessoa entrar no mesmo dispositivo, ela não vai vê-los, e eles voltam quando você entrar de novo.
+• Planos de leitura: seus dias aparecem em uma grade de pontos, o título fica fixo enquanto você rola a tela e você pode deslizar para voltar de uma leitura ao plano. Concluir um dia do plano agora conta todos os capítulos dele, e as sequências ficaram mais precisas.
+• Toque no lembrete diário para ir direto ao seu plano. O lembrete segue seu idioma e seu fuso horário, e as Configurações avisam se as notificações estão desativadas.
+• Áudio: os controles da tela de bloqueio e o temporizador continuam funcionando depois que você sai da tela de leitura, e o temporizador pausa quando você pausa o áudio. Cancelar ou excluir um download agora realmente o interrompe.
+• Destaques: você pode mudar ou remover a cor de parte de um destaque, e editar uma nota não cria mais uma cópia.
+• O título de seção no início de cada capítulo voltou, e todo Versículo do dia é uma frase completa. Compartilhar o Versículo do dia compartilha só o versículo e a foto.
+• Os links de redefinição de senha estão mais seguros: um link só funciona no dispositivo que o solicitou.
+• A configuração inicial aparece no seu idioma desde a primeira tela e avisa com clareza se algo não puder ser baixado.
+• Os textos do app foram revisados em todos os idiomas, e o russo e o árabe usam as formas de plural corretas.
+• Melhor suporte ao VoiceOver em todo o app, e layouts que quebram a linha em vez de cortar palavras em tamanhos de texto maiores.
+• Se algo der errado em uma tela, o resto do app continua funcionando.
+• Inicialização mais rápida, um app menor e muitas pequenas correções.
 
 Obrigado por ler com a gente.
