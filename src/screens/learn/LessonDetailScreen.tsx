@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   type LayoutChangeEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
@@ -48,6 +49,7 @@ import { formatBibleReferenceLabel } from '../../services/gather/gatherReference
 import { getChapterAudioUrl } from '../../services/audio/audioService';
 import { getTranslatedBookName } from '../../constants';
 import { formatPlaybackTime, lightHaptic, successHaptic } from '../../utils';
+import { isDeviceOffline } from '../../utils/connectivity';
 import type { MeetingSectionType } from '../../types/gather';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useGatherStore } from '../../stores/gatherStore';
@@ -336,9 +338,13 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
         setIsAudioPlaying(true);
       }
     } catch {
-      // Ignore playback errors silently — user can retry
+      // A chapter that is not downloaded streams, which fails offline; tell the
+      // reader why nothing plays. Other playback errors stay silent (retry).
+      if (await isDeviceOffline()) {
+        Alert.alert(t('common.error'), t('common.offlineTryAgain'));
+      }
     }
-  }, [audioUrl, handlePlaybackStatusUpdate, playbackSpeed, soundOwner]);
+  }, [audioUrl, handlePlaybackStatusUpdate, playbackSpeed, soundOwner, t]);
 
   const pauseAudio = useCallback(async () => {
     try {

@@ -427,6 +427,7 @@ export const fr = {
     notSet: 'Non défini',
     unexpectedError: 'Désolé, une erreur inattendue s’est produite. Veuillez réessayer.',
     somethingWentWrong: 'Une erreur est survenue',
+    offlineTryAgain: 'Vous êtes hors ligne. Connectez-vous à Internet, puis réessayez.',
     tryAgain: 'Réessayer',
     shareMessage: 'Découvrez Every Bible !',
     all: 'Tous',
@@ -711,6 +712,11 @@ export const fr = {
       'Merci pour votre retour. Nous l’avons bien reçu et nos équipes de traduction l’examineront dès que possible.',
     chapterFeedbackSignInRequired:
       'Veuillez vous connecter avant d’envoyer un retour sur un chapitre.',
+    chapterFeedbackQueuedTitle: 'Enregistré pour plus tard',
+    chapterFeedbackQueued:
+      'Vous êtes hors ligne : votre retour est enregistré sur cet appareil. Il sera envoyé automatiquement dès que vous serez de nouveau connecté.',
+    chapterFeedbackOffline:
+      'Vous êtes hors ligne. Votre retour est conservé ici ; envoyez-le une fois connecté.',
     translatorReviewTitle: 'Vérification de fidélité',
     translatorReviewSummary: 'Décisions en attente : {{pending}} sur {{count}}',
     translatorReviewSummaryComplete: 'Toutes les vérifications de fidélité sont traitées',

@@ -396,6 +396,7 @@ export const ko = {
     notSet: '설정 안 함',
     unexpectedError: '죄송합니다. 예상치 못한 일이 발생했습니다. 다시 시도해 주세요.',
     somethingWentWrong: '문제가 발생했습니다',
+    offlineTryAgain: '오프라인 상태입니다. 인터넷에 연결한 후 다시 시도해 주세요.',
     tryAgain: '다시 시도',
     shareMessage: 'Every Bible을 한번 써 보세요!',
     all: '모두',
@@ -666,6 +667,11 @@ export const ko = {
     chapterFeedbackSuccess:
       '피드백을 보내 주셔서 감사합니다. 보내 주신 내용이 접수되었으며, 번역팀이 최대한 빨리 검토하겠습니다.',
     chapterFeedbackSignInRequired: '장 피드백을 보내려면 먼저 로그인해 주세요.',
+    chapterFeedbackQueuedTitle: '나중에 보내도록 저장됨',
+    chapterFeedbackQueued:
+      '오프라인 상태여서 피드백을 이 기기에 저장했습니다. 다시 온라인이 되면 자동으로 전송됩니다.',
+    chapterFeedbackOffline:
+      '오프라인 상태입니다. 피드백은 그대로 남아 있으니 연결된 후 보내 주세요.',
     translatorReviewTitle: '정확성 검토',
     translatorReviewSummary: '판단 대기: {{count}}개 중 {{pending}}개',
     translatorReviewSummaryComplete: '모든 정확성 검토 처리 완료',

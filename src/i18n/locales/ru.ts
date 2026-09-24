@@ -419,6 +419,7 @@ export const ru = {
     notSet: 'Не задано',
     unexpectedError: 'Извините, произошло что-то непредвиденное. Пожалуйста, попробуйте ещё раз.',
     somethingWentWrong: 'Что-то пошло не так',
+    offlineTryAgain: 'Вы не в сети. Подключитесь к интернету и попробуйте ещё раз.',
     tryAgain: 'Попробовать снова',
     shareMessage: 'Попробуйте Every Bible!',
     all: 'Все',
@@ -631,6 +632,11 @@ export const ru = {
     chapterFeedbackSuccess:
       'Спасибо за отзыв. Мы получили его и как можно скорее передадим нашим командам переводчиков.',
     chapterFeedbackSignInRequired: 'Пожалуйста, войдите в аккаунт, чтобы отправить отзыв о главе.',
+    chapterFeedbackQueuedTitle: 'Сохранено для отправки',
+    chapterFeedbackQueued:
+      'Вы не в сети, поэтому отзыв сохранён на этом устройстве. Он будет отправлен автоматически, когда подключение восстановится.',
+    chapterFeedbackOffline:
+      'Вы не в сети. Ваш отзыв сохранён здесь; отправьте его, когда подключитесь.',
     translatorReviewTitle: 'Проверка точности',
     translatorReviewSummary: 'Ожидают решения: {{pending}} из {{count}}',
     translatorReviewSummaryComplete: 'Все проверки точности завершены',

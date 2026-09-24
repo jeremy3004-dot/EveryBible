@@ -54,6 +54,14 @@ mockModule(mock, sourcePath('services/sync/index.ts'), {
   },
 });
 
+const feedbackFlushCalls: string[] = [];
+mockModule(mock, sourcePath('services/feedback/chapterFeedbackOutbox.ts'), {
+  flushChapterFeedbackOutbox: async (userId: string) => {
+    feedbackFlushCalls.push(userId);
+    return { sent: 0, remaining: 0 };
+  },
+});
+
 const reconcileCalls: string[] = [];
 const authState = {
   user: { uid: 'user-a' } as { uid: string } | null,
@@ -110,6 +118,7 @@ beforeEach(() => {
   netInfoListener = null;
   netInfoUnsubscribeCount = 0;
   syncAllCalls.length = 0;
+  feedbackFlushCalls.length = 0;
   pullCalls.length = 0;
   reconcileCalls.length = 0;
   pullResult = async () => ({ success: true });
@@ -355,6 +364,25 @@ test('a sync requested for the live identity runs', async () => {
   await flush();
 
   assert.deepEqual(syncAllCalls, [{ userId: 'user-a', generation: 1 }]);
+});
+
+test('a sync also sends the chapter feedback this account queued while offline', async () => {
+  const handle = mountWithoutInitialSync();
+
+  await handle.sync('user-a', 1);
+  await flush();
+
+  assert.deepEqual(feedbackFlushCalls, ['user-a']);
+});
+
+test('queued chapter feedback is not sent while signed out', async () => {
+  const handle = mountWithoutInitialSync();
+  authState.isAuthenticated = false;
+
+  await handle.sync();
+  await flush();
+
+  assert.deepEqual(feedbackFlushCalls, []);
 });
 
 test('a failing cloud sync is swallowed rather than thrown at the caller', async () => {

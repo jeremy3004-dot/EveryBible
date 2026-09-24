@@ -99,6 +99,11 @@ interface FakeSound {
   isPlaying: boolean;
 }
 const sounds: { source: unknown; initial: Record<string, unknown>; sound: FakeSound }[] = [];
+// Streaming a chapter the device has not downloaded fails when it is offline.
+const network = { offline: false };
+mockModule(mock, sourcePath('utils/connectivity.ts'), {
+  isDeviceOffline: async () => network.offline,
+});
 mockPackage(mock, 'expo-av', {
   Audio: {
     setAudioModeAsync: async () => {},
@@ -108,6 +113,9 @@ mockPackage(mock, 'expo-av', {
         initial: Record<string, unknown>,
         listener: StatusListener
       ) => {
+        if (network.offline) {
+          throw new Error('The Internet connection appears to be offline.');
+        }
         const calls: FakeSound['calls'] = [];
         const record =
           (method: string) =>
@@ -141,6 +149,7 @@ beforeEach(() => {
   passageCalls.length = 0;
   audioUrlCalls.length = 0;
   sounds.length = 0;
+  network.offline = false;
   audioUrl.value = 'https://audio.test/web/GEN/1.mp3';
   fontScale.value = 1;
   bibleStore.setState({ currentTranslation: 'web' });
@@ -362,6 +371,18 @@ test('play starts the chapter at the chosen speed and the same control pauses it
   assert.equal(sounds.length, 1, 'the loaded sound is resumed, not reloaded');
   assert.equal(sounds[0].sound.isPlaying, true);
   assert.deepEqual(sounds[0].sound.calls.at(-1)?.method, 'playAsync');
+});
+
+test('offline, play on streamed audio says the reader is offline instead of doing nothing', async () => {
+  network.offline = true;
+  const view = await renderLesson();
+
+  await view.press(view.getByRole('button', { name: PLAY() }));
+  await view.flush();
+
+  const [alert] = harness.rn.__recorded.alerts;
+  assert.equal(alert?.message, t('common.offlineTryAgain'));
+  assert.ok(view.getByRole('button', { name: PLAY() }), 'the control stays ready for a retry');
 });
 
 test('without chapter audio the play control and the progress rule are disabled', async () => {
