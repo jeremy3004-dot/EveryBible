@@ -518,7 +518,12 @@ function AppContent() {
   return (
     <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-      <AppRuntimeEffectsHost enabled={onboardingCompleted && isPrivacyInitialized} />
+      {/* Outside the app boundary, a throw in a runtime-effects hook (sync, privacy
+          lock, deep links) had no boundary at all and was a fatal crash. It renders
+          nothing, so on failure it renders nothing and the app keeps running. */}
+      <ErrorBoundary scope="runtime-effects" fallback={null}>
+        <AppRuntimeEffectsHost enabled={onboardingCompleted && isPrivacyInitialized} />
+      </ErrorBoundary>
       <ErrorBoundary>
         <LoadingScreen />
       </ErrorBoundary>
