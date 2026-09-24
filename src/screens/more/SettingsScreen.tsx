@@ -54,7 +54,13 @@ import {
   useTranslatorReviewStore,
 } from '../../stores/translatorReviewStore';
 import { clearDeviceCaches } from '../../stores/deviceCaches';
-import { useDisplayFont, useFontSize, useI18n, useTabBarHeight } from '../../hooks';
+import {
+  useDisplayFont,
+  useFontSize,
+  useI18n,
+  useNotificationsBlockedBySystem,
+  useTabBarHeight,
+} from '../../hooks';
 import { syncPreferences } from '../../services/sync';
 import {
   appendAccessPasscodeDigit,
@@ -119,6 +125,9 @@ export function SettingsScreen() {
   };
   const { t, currentLanguage, setLanguage, availableLanguages } = useI18n();
   const preferences = useAuthStore((state) => state.preferences);
+  const notificationsBlockedBySystem = useNotificationsBlockedBySystem(
+    preferences.notificationsEnabled
+  );
   const setPreferences = useAuthStore((state) => state.setPreferences);
   const { label: fontSizeLabel, increase, decrease, canIncrease, canDecrease } = useFontSize();
   // Absolute tab bar overlays the bottom of nested More screens; pad the scroll
@@ -1043,6 +1052,27 @@ export function SettingsScreen() {
               }
             />
 
+            {notificationsBlockedBySystem ? (
+              // On in the app, blocked by the system: the reminder can never appear,
+              // and only system settings can turn it back on.
+              <View style={[styles.blockedNotice, { backgroundColor: colors.warningSoft }]}>
+                <View style={styles.blockedNoticeCopy}>
+                  <TriangleAlert size={18} color={colors.onWarningSoft} strokeWidth={ICON_STROKE} />
+                  <Text style={[styles.blockedNoticeText, { color: colors.onWarningSoft }]}>
+                    {t('settings.notificationsBlockedNotice')}
+                  </Text>
+                </View>
+                <AppButton
+                  label={t('settings.openDeviceSettings')}
+                  variant="secondary"
+                  size="md"
+                  fullWidth={false}
+                  onPress={() => void Linking.openSettings()}
+                  style={styles.blockedNoticeButton}
+                />
+              </View>
+            ) : null}
+
             {preferences.notificationsEnabled ? (
               <ListRow
                 title={t('settings.reminderTime')}
@@ -1423,6 +1453,24 @@ const styles = StyleSheet.create({
   },
   disabledRow: {
     opacity: DISABLED_ROW_OPACITY,
+  },
+  blockedNotice: {
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginVertical: spacing.sm,
+    gap: spacing.md,
+  },
+  blockedNoticeCopy: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+  },
+  blockedNoticeText: {
+    ...typography.caption,
+    flex: 1,
+  },
+  blockedNoticeButton: {
+    alignSelf: 'flex-start',
   },
   statusTrailing: {
     flexDirection: 'row',

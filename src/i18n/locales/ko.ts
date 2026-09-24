@@ -732,6 +732,8 @@ export const ko = {
     "enableNotificationsMessage": "매일 알림을 받으려면 기기 설정에서 알림을 켜 주세요.",
     "notificationTitle": "매일 성경 읽기",
     "notificationBody": "매일 성경을 읽을 시간입니다!",
+    "notificationsBlockedNotice": "기기 설정에서 EveryBible 알림이 꺼져 있어 이 일일 알림이 표시되지 않습니다.",
+    "openDeviceSettings": "설정 열기",
     "selectLanguage": "인터페이스 언어 선택",
     "deleteAccount": "계정 삭제",
     "deleteAccountWarning": "계정과 함께 읽기 진행 상황, 환경 설정, 동기화된 콘텐츠 등 모든 관련 데이터가 영구히 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",

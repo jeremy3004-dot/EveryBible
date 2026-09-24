@@ -744,6 +744,8 @@ export const pt = {
     "enableNotificationsMessage": "Ative as notificações nas configurações do seu dispositivo para receber lembretes diários.",
     "notificationTitle": "Leitura diária da Bíblia",
     "notificationBody": "Hora da sua leitura diária da Bíblia!",
+    "notificationsBlockedNotice": "As notificações do EveryBible estão desativadas nas configurações do seu dispositivo, então este lembrete não pode aparecer.",
+    "openDeviceSettings": "Abrir configurações",
     "selectLanguage": "Escolha o idioma da interface",
     "deleteAccount": "Excluir conta",
     "deleteAccountWarning": "Isso excluirá permanentemente sua conta e todos os dados associados, incluindo progresso de leitura, preferências e conteúdo sincronizado. Esta ação não pode ser desfeita.",

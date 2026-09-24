@@ -19,6 +19,20 @@ function findListRow(source: string, titleExpression: string): string {
   return match[0];
 }
 
+test('a reminder blocked by the system shows a translated notice that opens system settings', () => {
+  const source = readRelativeSource('./SettingsScreen.tsx');
+
+  assert.match(
+    source,
+    /useNotificationsBlockedBySystem\(\s*preferences\.notificationsEnabled\s*\)/,
+    'the notice should follow the reminder setting and the live permission'
+  );
+  assert.match(
+    source,
+    /notificationsBlockedBySystem \? \([\s\S]*?t\('settings\.notificationsBlockedNotice'\)[\s\S]*?label=\{t\('settings\.openDeviceSettings'\)\}[\s\S]*?onPress=\{\(\) => void Linking\.openSettings\(\)\}/
+  );
+});
+
 test('SettingsScreen keeps the calculator disguise shortcut visible from More settings', () => {
   const source = readRelativeSource('./SettingsScreen.tsx');
   const shortcutRow = findListRow(source, "t('onboarding.privacyTitle')");

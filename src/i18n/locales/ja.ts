@@ -732,6 +732,8 @@ export const ja = {
     "enableNotificationsMessage": "毎日のリマインダーを受け取るには、端末の設定で通知を許可してください。",
     "notificationTitle": "毎日の聖書通読",
     "notificationBody": "今日の聖書を読む時間です！",
+    "notificationsBlockedNotice": "端末の設定で EveryBible の通知がオフになっているため、このリマインダーは表示されません。",
+    "openDeviceSettings": "設定を開く",
     "selectLanguage": "表示言語を選ぶ",
     "deleteAccount": "アカウントの削除",
     "deleteAccountWarning": "アカウントと、読書の進捗・設定・同期したデータなど、関連するすべてのデータを完全に削除します。この操作は取り消せません。",

@@ -471,6 +471,8 @@ export const hi = {
     "enableNotificationsMessage": "दैनिक अनुस्मारक पाने के लिए कृपया अपने डिवाइस की सेटिंग में सूचनाएँ चालू करें।",
     "notificationTitle": "दैनिक बाइबल पठन",
     "notificationBody": "आपके दैनिक बाइबल पठन का समय!",
+    "notificationsBlockedNotice": "आपके डिवाइस की सेटिंग में EveryBible की सूचनाएँ बंद हैं, इसलिए यह अनुस्मारक दिखाई नहीं दे सकता।",
+    "openDeviceSettings": "सेटिंग खोलें",
     "selectLanguage": "इंटरफ़ेस भाषा चुनें",
     "deleteAccount": "खाता हटाएँ",
     "deleteAccountWarning": "इससे आपका खाता और उससे जुड़ा सारा डेटा — पढ़ने की प्रगति, पसंद और सिंक की गई सामग्री — हमेशा के लिए हट जाएगा। यह कार्रवाई वापस नहीं ली जा सकती।",

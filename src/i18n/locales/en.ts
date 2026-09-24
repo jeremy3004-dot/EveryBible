@@ -768,6 +768,9 @@ export const en = {
       'Please enable notifications in your device settings to receive daily reminders.',
     notificationTitle: 'Daily Bible Reading',
     notificationBody: 'Time for your daily Bible reading!',
+    notificationsBlockedNotice:
+      "Notifications for EveryBible are turned off in your device settings, so this reminder can't appear.",
+    openDeviceSettings: 'Open Settings',
     selectLanguage: 'Choose interface language',
     deleteAccount: 'Delete Account',
     deleteAccountWarning:

@@ -732,6 +732,8 @@ export const tr = {
     "enableNotificationsMessage": "Günlük hatırlatıcılar almak için lütfen cihaz ayarlarınızda bildirimleri etkinleştirin.",
     "notificationTitle": "Günlük Kutsal Kitap okuması",
     "notificationBody": "Günlük Kutsal Kitap okuma zamanı!",
+    "notificationsBlockedNotice": "EveryBible bildirimleri cihaz ayarlarınızda kapalı, bu yüzden bu hatırlatma görünemez.",
+    "openDeviceSettings": "Ayarları Aç",
     "selectLanguage": "Arayüz dilini seçin",
     "deleteAccount": "Hesabı sil",
     "deleteAccountWarning": "Bu, hesabınızı ve okuma ilerleme durumu, tercihler ve senkronize edilen içerik dahil tüm ilişkili verileri kalıcı olarak silecektir. Bu eylem geri alınamaz.",
