@@ -18,6 +18,7 @@ import {
   getReadingPlanRhythmSummary,
   getPlanChapterListenStatus,
   getPlanDayTargetChapterKeys,
+  getPlanStepReadChapters,
   getRhythmSessionSegmentAtIndex,
   getScheduledPlanDayDateKey,
   isPlanDaySatisfied,
@@ -1041,4 +1042,39 @@ test('opening a plan day under the read preference never starts audio', () => {
     shouldAutoplayPlanDayLaunch({ trigger: 'open', preferredMode: 'read', audioStatus: 'idle' }),
     false
   );
+});
+
+test('finishing a read-mode plan step records every whole chapter it covered, in order', () => {
+  // A Bible-in-30-days day spans several chapters; the reader walks through them
+  // and ticks the step on the last one. Every chapter was read, so every chapter
+  // belongs in the read ledger (and today's streak), not just the final one.
+  const entries: ReadingPlanEntry[] = [
+    { id: 'd-1', plan_id: 'p', day_number: 4, book: 'GEN', chapter_start: 11, chapter_end: 13 },
+    { id: 'd-2', plan_id: 'p', day_number: 4, book: 'EXO', chapter_start: 1, chapter_end: null },
+  ];
+
+  assert.deepEqual(getPlanStepReadChapters(entries), [
+    { bookId: 'GEN', chapter: 11 },
+    { bookId: 'GEN', chapter: 12 },
+    { bookId: 'GEN', chapter: 13 },
+    { bookId: 'EXO', chapter: 1 },
+  ]);
+});
+
+test('a verse-range passage does not count its whole chapter as read', () => {
+  const entries: ReadingPlanEntry[] = [
+    {
+      id: 's-1',
+      plan_id: 'p',
+      day_number: 1,
+      book: 'MAT',
+      chapter_start: 5,
+      chapter_end: null,
+      verse_start: 1,
+      verse_end: 16,
+    },
+    { id: 's-2', plan_id: 'p', day_number: 1, book: 'PSA', chapter_start: 1, chapter_end: null },
+  ];
+
+  assert.deepEqual(getPlanStepReadChapters(entries), [{ bookId: 'PSA', chapter: 1 }]);
 });

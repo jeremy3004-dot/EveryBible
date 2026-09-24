@@ -20,7 +20,7 @@ import { useDisplayFont, useTabBarHeight } from '../../hooks';
 import { config } from '../../constants/config';
 import { useAuthStore } from '../../stores/authStore';
 import { useBibleStore } from '../../stores/bibleStore';
-import { useProgressStore } from '../../stores/progressStore';
+import { selectCurrentStreakDays, useProgressStore } from '../../stores/progressStore';
 import { useAnnotationStore } from '../../stores/annotationStore';
 import type { MoreStackParamList } from '../../navigation/types';
 import { openAuthFlow } from '../../navigation/rootNavigation';
@@ -74,7 +74,7 @@ export function MoreScreen() {
   const preferences = useAuthStore((state) => state.preferences);
   const preferencesUpdatedAt = useAuthStore((state) => state.preferencesUpdatedAt);
   const signOut = useAuthStore((state) => state.signOut);
-  const streakDays = useProgressStore((state) => state.streakDays);
+  const streakDays = useProgressStore(selectCurrentStreakDays);
   const annotations = useAnnotationStore((state) => state.annotations);
   const translations = useBibleStore((state) => state.translations);
   const currentTranslation = useBibleStore((state) => state.currentTranslation);

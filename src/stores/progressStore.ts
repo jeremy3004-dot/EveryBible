@@ -101,6 +101,29 @@ const formatLocalDateKey = (date: Date): string => {
   return `${year}-${month}-${day}`;
 };
 
+/** The local day key `days` calendar days away from `date` (DST-safe via setDate). */
+const shiftLocalDateKey = (date: Date, days: number): string => {
+  const shifted = new Date(date);
+  shifted.setDate(shifted.getDate() + days);
+  return formatLocalDateKey(shifted);
+};
+
+/**
+ * The streak a screen should show. The stored count only changes on the next
+ * read, so once a whole local day has passed without one the streak is over
+ * even though `streakDays` still holds the old run.
+ */
+export const selectCurrentStreakDays = (
+  state: Pick<ProgressState, 'streakDays' | 'lastReadDate'>,
+  now: Date = new Date()
+): number =>
+  state.lastReadDate != null &&
+  [shiftLocalDateKey(now, -1), formatLocalDateKey(now), shiftLocalDateKey(now, 1)].includes(
+    state.lastReadDate
+  )
+    ? state.streakDays
+    : 0;
+
 const getStartOfDay = (date: Date): number => {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
@@ -259,32 +282,29 @@ export const useProgressStore = create<ProgressState>()(
       updateStreak: () => {
         const now = new Date();
         const today = formatLocalDateKey(now);
-        const { lastReadDate, streakDays } = get();
+        const { lastReadDate, streakDays, chaptersRead } = get();
 
-        if (lastReadDate === today) {
-          return; // Already read today
+        // Today is already counted. So is a date one day ahead: a reader who
+        // logged a chapter and then flew west over the date line is back on the
+        // previous calendar day without having missed one.
+        if (lastReadDate === today || lastReadDate === shiftLocalDateKey(now, 1)) {
+          return;
         }
 
-        const yesterday = new Date(now);
-        yesterday.setDate(yesterday.getDate() - 1);
-        const yesterdayStr = formatLocalDateKey(yesterday);
+        const yesterdayStr = shiftLocalDateKey(now, -1);
 
-        // One-time upgrade tolerance: lastReadDate values written before this
-        // fix used the UTC date, which can be off by one day from the local
-        // date depending on timezone. Accept a two-day-old lastReadDate as
-        // "continuing" so legitimate daily readers do not lose their streak on
-        // the first read after upgrading.
-        const twoDaysAgo = new Date(now);
-        twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
-        const twoDaysAgoStr = formatLocalDateKey(twoDaysAgo);
+        // Builds before the local-day fix stored the UTC date, which can trail
+        // the local one by a day. The chapter ledger keeps exact timestamps, so
+        // a read on the local yesterday still proves the streak is unbroken; a
+        // bare two-day-old date does not, or skipping a day would never count.
+        const continuesStreak =
+          lastReadDate === yesterdayStr ||
+          Object.values(chaptersRead).some(
+            (timestamp) =>
+              Number.isFinite(timestamp) && formatLocalDateKey(new Date(timestamp)) === yesterdayStr
+          );
 
-        if (lastReadDate === yesterdayStr || lastReadDate === twoDaysAgoStr) {
-          // Continuing streak
-          set({ streakDays: streakDays + 1, lastReadDate: today });
-        } else {
-          // Starting new streak
-          set({ streakDays: 1, lastReadDate: today });
-        }
+        set({ streakDays: continuesStreak ? streakDays + 1 : 1, lastReadDate: today });
       },
 
       applySyncedProgress: (progress) => {

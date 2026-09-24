@@ -38,7 +38,7 @@ import { GatherIconBadge } from '../../components/gather/GatherIconBadge';
 import { useAuthStore } from '../../stores/authStore';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useGatherStore } from '../../stores/gatherStore';
-import { useProgressStore } from '../../stores/progressStore';
+import { selectCurrentStreakDays, useProgressStore } from '../../stores/progressStore';
 import { useReadingPlansStore } from '../../stores/readingPlansStore';
 import {
   FOUNDATION_LESSON_TITLE_KEYS,
@@ -311,7 +311,7 @@ export function HomeScreen() {
   const chaptersRead = useProgressStore((state) => state.chaptersRead);
   const chaptersListened = useProgressStore((state) => state.chaptersListened);
   const listeningMsByDate = useProgressStore((state) => state.listeningMsByDate);
-  const streakDays = useProgressStore((state) => state.streakDays);
+  const streakDays = useProgressStore(selectCurrentStreakDays);
   // Cold start lands on the current week: the period a reader can still act on.
   const [ledgerPeriod, setLedgerPeriod] = useState<HomeReadingPeriod>('week');
 

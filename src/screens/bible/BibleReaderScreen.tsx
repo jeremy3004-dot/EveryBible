@@ -100,6 +100,7 @@ import {
   buildPlanDayPlaybackSequenceEntries,
   getCurrentPlanDaySummary,
   getPlanChapterListenStatus,
+  getPlanStepReadChapters,
   getRhythmSessionSegmentAtIndex,
   PLAN_LISTEN_COMPLETION_THRESHOLD,
   resolvePlaybackSequenceIndex,
@@ -2390,12 +2391,6 @@ export function BibleReaderScreen() {
       return;
     }
 
-    const shouldRecordReadCompletion =
-      chapterSessionMode === 'read' &&
-      activePlanChapterIndex >= 0 &&
-      !activePlanSessionEntries.some(
-        (entry) => entry.verse_start != null || entry.verse_end != null
-      );
     if (activePlanChapterIndex < 0 || !isLastPlanChapter) {
       return;
     }
@@ -2407,8 +2402,13 @@ export function BibleReaderScreen() {
 
     planDayCompletionGuardRef.current = completionKey;
     try {
-      if (shouldRecordReadCompletion && !(activeChapterKey in chaptersRead)) {
-        markChapterRead(bookId, chapter);
+      // Ticking the step is the read: record it today even for chapters read on
+      // an earlier day (a weekly Kathisma, a second year through the Bible), or
+      // the streak and reading calendar would never see a plan reader's day.
+      if (chapterSessionMode === 'read') {
+        for (const read of getPlanStepReadChapters(activePlanSessionEntries)) {
+          markChapterRead(read.bookId, read.chapter);
+        }
       }
 
       // L20: both service calls apply the completion to the local plan store
@@ -2458,10 +2458,7 @@ export function BibleReaderScreen() {
     activePlanIsMultiSession,
     activePlanSessionEntries,
     activePlanSessionKey,
-    bookId,
-    chapter,
     chapterSessionMode,
-    chaptersRead,
     clearAudioPlaybackSequence,
     clearPlanDayResume,
     isLastPlanChapter,
