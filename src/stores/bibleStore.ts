@@ -1161,6 +1161,8 @@ export const useBibleStore = create<BibleState>()(
                     installState: 'installed' as const,
                     textPackLocalPath: localPath,
                     activeTextPackVersion: textPack?.version ?? '1',
+                    // A retry that succeeds supersedes the failure an earlier attempt recorded.
+                    lastInstallError: null,
                   }
                 : t
             ),
