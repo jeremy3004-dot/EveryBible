@@ -9,8 +9,9 @@
 //
 // It replays the repo migrations that define the group and prayer tables (the same state
 // production has; see docs/research/prayer-wall-health-check-2026-09-24.md), then the prayer
-// wall hardening migration, and drives every request as `authenticated` with a JWT subject,
-// the way PostgREST does.
+// wall hardening and moderation migrations (docs/research/prayer-wall-moderation-2026-09-24.md),
+// and drives every request as `authenticated` with a JWT subject, the way PostgREST does. Admin
+// writes run as `service_role`.
 const { PGlite } = await import(process.env.PGLITE_MODULE || '@electric-sql/pglite');
 import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
@@ -29,11 +30,14 @@ const MIGRATIONS = [
   { name: '20260924035932_move_group_helpers_to_private_schema.sql', optional: true },
 ];
 // Applied after Supabase's default grants, as it would be on the live project.
-const HARDENING = ['20260924042617_harden_prayer_wall.sql'];
+const HARDENING = [
+  '20260924042617_harden_prayer_wall.sql',
+  '20260924180000_prayer_wall_moderation.sql',
+];
 
 const db = new PGlite();
 await db.exec(`
-create role anon nologin; create role authenticated nologin; create role service_role nologin;
+create role anon nologin; create role authenticated nologin; create role service_role nologin bypassrls;
 create schema auth;
 create function auth.uid() returns uuid language sql stable as
   $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
@@ -55,8 +59,8 @@ const replay = async (entries) => {
 await replay(MIGRATIONS);
 // Supabase's default table grants: RLS is the only thing standing between clients and rows.
 await db.exec(`
-grant usage on schema public to anon, authenticated;
-grant all on all tables in schema public to anon, authenticated;
+grant usage on schema public to anon, authenticated, service_role;
+grant all on all tables in schema public to anon, authenticated, service_role;
 `);
 await replay(HARDENING);
 
@@ -76,6 +80,12 @@ const as = (uid, sql, params = []) =>
   db.transaction(async (tx) => {
     await tx.query(`select set_config('request.jwt.claim.sub', $1, true)`, [uid ?? '']);
     await tx.exec(`set local role ${uid ? 'authenticated' : 'anon'}`);
+    return tx.query(sql, params);
+  });
+/** Runs one statement as the service role, the way the admin app (PostgREST) does. */
+const asService = (sql, params = []) =>
+  db.transaction(async (tx) => {
+    await tx.exec(`set local role service_role`);
     return tx.query(sql, params);
   });
 const one = async (sql, params = []) => (await db.query(sql, params)).rows[0];
@@ -335,3 +345,209 @@ assert.equal(await count(`select count(*)::int n from groups where id = $1`, [G2
 await deleteAccount(D);
 assert.equal(await count(`select count(*)::int n from profiles where id = $1`, [D]), 0);
 console.log("PASS: deleting a leader's account hands the group over instead of erasing it");
+
+// --- Moderation: report ------------------------------------------------------------------------
+// App Store Guideline 1.2: members can report a request, block its author, and the server
+// filters abusive text. Reports live in a service-only table and go through an RPC.
+const F = 'ffffffff-ffff-4fff-8fff-ffffffffffff'; // member of G1
+const H = '99999999-9999-4999-8999-999999999999'; // member of G1
+const I = '88888888-8888-4888-8888-888888888888'; // member of G1
+const J = '77777777-7777-4777-8777-777777777777'; // no groups
+for (const table of ['auth.users', 'public.profiles']) {
+  await db.exec(`insert into ${table} values ('${F}'),('${H}'),('${I}'),('${J}');`);
+}
+for (const uid of [F, H, I]) await as(uid, `select join_group_by_code('ABC234')`);
+const sees = async (uid, id) =>
+  (await as(uid, `select count(*)::int n from prayer_requests where id = $1`, [id])).rows[0].n;
+const report = (uid, id, reason = 'abuse', note = null) =>
+  as(uid, `select report_prayer_request($1, $2, $3)`, [id, reason, note]);
+
+await assert.rejects(as(C, `select * from prayer_request_reports`), /permission denied/);
+await assert.rejects(
+  as(
+    C,
+    `insert into prayer_request_reports (request_id, reporter_id, reason) values ($1, $2, 'spam')`,
+    [first.id, C]
+  ),
+  /permission denied/
+);
+await assert.rejects(report(null, first.id), /permission denied/);
+
+const target = await post(C, G1, 'a request the group finds abusive');
+await report(F, target.id, 'abuse', '  rude to the group  ');
+assert.equal(await sees(F, target.id), 0, 'a reported request disappears for the reporter');
+assert.equal(await sees(H, target.id), 1, 'one report does not hide it for anyone else');
+await report(F, target.id, 'spam'); // a second report by the same member is ignored
+assert.deepEqual(
+  (
+    await db.query(
+      `select reporter_id, reason, note, status, request_author_id, group_id, content_snapshot
+         from prayer_request_reports where request_id = $1`,
+      [target.id]
+    )
+  ).rows,
+  [
+    {
+      reporter_id: F,
+      reason: 'abuse',
+      note: 'rude to the group',
+      status: 'open',
+      request_author_id: C,
+      group_id: G1,
+      content_snapshot: 'a request the group finds abusive',
+    },
+  ]
+);
+await assert.rejects(report(C, target.id), /cannot_report_own_prayer_request/);
+await assert.rejects(report(J, target.id), /prayer_request_not_found/);
+await assert.rejects(report(H, target.id, 'boring'), /check constraint/);
+await assert.rejects(report(H, target.id, 'other', 'x'.repeat(501)), /check constraint/);
+await report(H, target.id, 'spam');
+assert.equal(await sees(I, target.id), 1, 'two reports do not hide it yet');
+await report(I, target.id, 'harm');
+assert.equal(await sees(B, target.id), 0, 'three reports hide it from the group, leader included');
+assert.equal(await sees(C, target.id), 1, 'the author still sees their own request');
+assert.equal(
+  (await one(`select hidden_reason from prayer_requests where id = $1`, [target.id])).hidden_reason,
+  'reports'
+);
+await assert.rejects(
+  as(B, `insert into prayer_interactions (request_id, user_id, type) values ($1, $2, 'prayed')`, [
+    target.id,
+    B,
+  ]),
+  /row-level security/,
+  'nobody can interact with a hidden request'
+);
+// Authors cannot un-hide their request or post one pre-hidden.
+await as(C, `update prayer_requests set hidden_at = null, hidden_reason = null where id = $1`, [
+  target.id,
+]);
+assert.equal(
+  (await one(`select hidden_reason from prayer_requests where id = $1`, [target.id])).hidden_reason,
+  'reports'
+);
+const notPreHidden = await post(C, G1, 'hide me?', {
+  hidden_at: '2020-01-01',
+  hidden_reason: 'admin',
+});
+assert.equal(notPreHidden.hidden_at, null);
+assert.equal(notPreHidden.hidden_reason, null);
+// The admin (service role) restores it: the group sees it again, the reporters still do not.
+await asService(`update prayer_requests set hidden_at = null, hidden_reason = null where id = $1`, [
+  target.id,
+]);
+assert.equal(await sees(B, target.id), 1);
+assert.equal(await sees(F, target.id), 0);
+console.log('PASS: reports hide a request from the reporter, and from everyone after 3');
+
+// Reporting is rate limited: 10 an hour per reporter. F has filed 1 report so far.
+const batch = await db.transaction(async (tx) => {
+  await tx.exec(`set local session_replication_role = replica`);
+  return (
+    await tx.query(
+      `insert into prayer_requests (group_id, user_id, content)
+       select $1, $2, 'batch ' || n from generate_series(1, 10) n returning id`,
+      [G1, B]
+    )
+  ).rows.map((row) => row.id);
+});
+for (const id of batch.slice(0, 9)) await report(F, id, 'spam');
+await assert.rejects(report(F, batch[9], 'spam'), /prayer_report_rate_limited/);
+await report(H, batch[9], 'spam');
+console.log('PASS: a member may file 10 reports an hour');
+
+// --- Moderation: block -------------------------------------------------------------------------
+const fromH = await post(H, G1, 'from H');
+await as(F, `insert into user_blocks (blocker_id, blocked_id) values ($1, $2)`, [F, H]);
+assert.equal(await sees(F, fromH.id), 0, "a blocked member's requests disappear for the blocker");
+assert.equal(await sees(I, fromH.id), 1, 'and only for the blocker');
+assert.equal((await as(F, `select count(*)::int n from user_blocks`)).rows[0].n, 1);
+assert.equal((await as(H, `select count(*)::int n from user_blocks`)).rows[0].n, 0);
+await assert.rejects(
+  as(C, `insert into user_blocks (blocker_id, blocked_id) values ($1, $2)`, [F, C]),
+  /row-level security/
+);
+await assert.rejects(
+  as(F, `insert into user_blocks (blocker_id, blocked_id) values ($1, $1)`, [F]),
+  /check constraint/
+);
+await assert.rejects(as(null, `select count(*) from user_blocks`), /permission denied/);
+await as(F, `delete from user_blocks where blocked_id = $1`, [H]);
+assert.equal(await sees(F, fromH.id), 1, 'unblocking shows them again');
+console.log('PASS: members block and unblock authors for themselves only');
+
+// --- Moderation: content filter ----------------------------------------------------------------
+// Neutral stand-in terms; the real list is data in prayer_content_filter_terms.
+assert.ok(
+  (await one(`select count(*)::int n from prayer_content_filter_terms`)).n > 0,
+  'the migration seeds a starter list'
+);
+await asService(
+  `insert into prayer_content_filter_terms (term, match_mode, language)
+   values ('Zorblax', 'word', 'en'), ('drop dead now', 'word', 'en'), ('坏词', 'substring', 'zh')`
+);
+await assert.rejects(as(C, `select * from prayer_content_filter_terms`), /permission denied/);
+await assert.rejects(post(C, G1, 'you are a ZORBLAX!'), /prayer_request_blocked_content/);
+await assert.rejects(post(C, G1, 'please... drop   dead\nnow'), /prayer_request_blocked_content/);
+await assert.rejects(post(C, G1, '你是坏词吗'), /prayer_request_blocked_content/);
+await assert.rejects(post(C, G1, '你是坏 词吗'), /prayer_request_blocked_content/);
+await post(C, G1, 'zorblaxian words are fine as part of a longer word');
+await assert.rejects(
+  as(C, `update prayer_requests set content = 'zorblax' where id = $1`, [notPreHidden.id]),
+  /prayer_request_blocked_content/
+);
+await as(C, `update prayer_requests set is_answered = true where id = $1`, [notPreHidden.id]);
+console.log('PASS: the server rejects requests that contain a filtered term');
+
+// --- Moderation: ban ---------------------------------------------------------------------------
+await asService(`insert into prayer_wall_bans (user_id, reason) values ($1, 'abuse')`, [H]);
+await assert.rejects(as(H, `select * from prayer_wall_bans`), /permission denied/);
+await assert.rejects(post(H, G1, 'still here'), /prayer_wall_banned/);
+await assert.rejects(
+  as(H, `update prayer_requests set content = 'edited after ban' where id = $1`, [fromH.id]),
+  /prayer_wall_banned/
+);
+assert.equal(
+  (await as(H, `delete from prayer_requests where id = $1 returning id`, [fromH.id])).rows.length,
+  1,
+  'a banned author can still delete their own requests'
+);
+await post(I, G1, 'others still post');
+await asService(`delete from prayer_wall_bans where user_id = $1`, [H]);
+await post(H, G1, 'after unban');
+console.log('PASS: a banned author cannot post or edit on the wall');
+
+// The admin app's other writes, as the service role: a ban hides the author's requests, and
+// deleting a request takes its reports with it.
+await asService(
+  `update prayer_requests set hidden_at = now(), hidden_reason = 'admin'
+    where user_id = $1 and hidden_at is null`,
+  [H]
+);
+assert.equal(
+  (await as(I, `select count(*)::int n from prayer_requests where user_id = $1`, [H])).rows[0].n,
+  0
+);
+assert.equal(
+  (await asService(`delete from prayer_requests where id = $1 returning content`, [batch[9]]))
+    .rows[0].content,
+  'batch 10'
+);
+assert.equal(
+  await count(`select count(*)::int n from prayer_request_reports where request_id = $1`, [
+    batch[9],
+  ]),
+  0
+);
+console.log('PASS: the service role hides, restores and deletes for the admin Reports page');
+
+// Account deletion removes the member's reports and blocks with them.
+await as(I, `insert into user_blocks (blocker_id, blocked_id) values ($1, $2)`, [I, C]);
+await deleteAccount(I);
+assert.equal(
+  await count(`select count(*)::int n from prayer_request_reports where reporter_id = $1`, [I]),
+  0
+);
+assert.equal(await count(`select count(*)::int n from user_blocks where blocker_id = $1`, [I]), 0);
+console.log("PASS: deleting an account removes that member's reports and blocks");

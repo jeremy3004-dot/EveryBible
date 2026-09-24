@@ -3,15 +3,18 @@ import type { PrayerInteraction, PrayerRequest } from '../supabase/types';
 import {
   aggregateInteractionCounts,
   attachCountsToPrayerRequests,
+  prayerWriteErrorCode,
   viewerInteractionsByRequest,
+  type PrayerReportReason,
+  type PrayerWriteErrorCode,
 } from './prayerModel';
 
 export interface PrayerServiceResult<T = void> {
   success: boolean;
   data?: T;
   error?: string;
-  /** Set when the server refused a new request because the author posted too many recently. */
-  code?: 'rate_limited';
+  /** Set when the server refused a write for a reason the wall explains to the member. */
+  code?: PrayerWriteErrorCode;
 }
 
 export interface PrayerRequestWithCounts extends PrayerRequest {
@@ -22,8 +25,11 @@ export interface PrayerRequestWithCounts extends PrayerRequest {
   viewer_encouraged: boolean;
 }
 
-// Raised by the limit_prayer_request_rate trigger (20260924042617_harden_prayer_wall.sql).
-const RATE_LIMIT_MESSAGE = 'prayer_request_rate_limited';
+/** A failed write, with the code for a refusal the wall can explain (see prayerModel). */
+function writeFailure(message: string): PrayerServiceResult<never> {
+  const code = prayerWriteErrorCode(message);
+  return code ? { success: false, error: message, code } : { success: false, error: message };
+}
 
 export interface InteractionCounts {
   prayed: number;
@@ -126,9 +132,7 @@ export async function createPrayerRequest(
       .single();
 
     if (error) {
-      return error.message === RATE_LIMIT_MESSAGE
-        ? { success: false, error: error.message, code: 'rate_limited' }
-        : { success: false, error: error.message };
+      return writeFailure(error.message);
     }
 
     return { success: true, data: data as PrayerRequest };
@@ -173,7 +177,7 @@ export async function updatePrayerRequest(
       .single();
 
     if (error) {
-      return { success: false, error: error.message };
+      return writeFailure(error.message);
     }
 
     return { success: true, data: data as PrayerRequest };
@@ -363,4 +367,107 @@ export async function removeInteraction(
       error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
+}
+
+// Reports a request to the EveryBible team (report_prayer_request RPC). The server hides it
+// from the reporter at once and from the whole group after 3 members report it.
+export async function reportPrayerRequest(
+  requestId: string,
+  reason: PrayerReportReason,
+  note?: string
+): Promise<PrayerServiceResult> {
+  if (!isSupabaseConfigured()) {
+    return { success: false, error: 'EveryBible backend is not configured for this build yet.' };
+  }
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError) {
+    return { success: false, error: authError.message };
+  }
+
+  if (!user) {
+    return { success: false, error: 'You must be signed in to report a prayer request' };
+  }
+
+  try {
+    const { error } = await supabase.rpc('report_prayer_request', {
+      p_request_id: requestId,
+      p_reason: reason,
+      p_note: note?.trim() || null,
+    });
+
+    if (error) {
+      return writeFailure(error.message);
+    }
+
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+// Blocks (or unblocks) another member for the signed-in user only. RLS on prayer_requests
+// then hides the blocked member's requests from the blocker; the blocked member is not told.
+async function setBlocked(userId: string, blocked: boolean): Promise<PrayerServiceResult> {
+  if (!isSupabaseConfigured()) {
+    return { success: false, error: 'EveryBible backend is not configured for this build yet.' };
+  }
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError) {
+    return { success: false, error: authError.message };
+  }
+
+  if (!user) {
+    return { success: false, error: 'You must be signed in to block someone' };
+  }
+
+  if (user.id === userId) {
+    return { success: false, error: 'You cannot block yourself' };
+  }
+
+  try {
+    const { error } = blocked
+      ? await supabase
+          .from('user_blocks')
+          .upsert(
+            { blocker_id: user.id, blocked_id: userId },
+            { onConflict: 'blocker_id,blocked_id', ignoreDuplicates: true }
+          )
+      : await supabase
+          .from('user_blocks')
+          .delete()
+          .eq('blocker_id', user.id)
+          .eq('blocked_id', userId);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+export function blockUser(userId: string): Promise<PrayerServiceResult> {
+  return setBlocked(userId, true);
+}
+
+export function unblockUser(userId: string): Promise<PrayerServiceResult> {
+  return setBlocked(userId, false);
 }

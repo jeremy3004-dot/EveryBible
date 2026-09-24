@@ -6,6 +6,7 @@ interface PrayerCardAccessibilityInput {
   displayName: string;
   relativeTime: string;
   isAnswered: boolean;
+  isUnderReview?: boolean;
   content: string;
   prayedCount: number;
   encouragedCount: number;
@@ -28,6 +29,7 @@ export function buildPrayerCardAccessibilityLabel(
     input.displayName,
     input.relativeTime,
     input.isAnswered ? t('prayer.answered') : null,
+    input.isUnderReview ? t('prayer.underReview') : null,
     input.content,
     t('prayer.prayedCount', { count: input.prayedCount }),
     input.hasPrayed ? t('interface.prayerYouPrayed') : null,
