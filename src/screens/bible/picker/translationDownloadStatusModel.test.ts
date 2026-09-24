@@ -1,0 +1,132 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import type { BibleTranslation, TranslationDownloadProgress } from '../../../types';
+import {
+  getTranslationDownloadActivity,
+  getTranslationRowDownloadState,
+  selectRowDownloadProgress,
+} from './translationDownloadStatusModel';
+
+type Job = NonNullable<BibleTranslation['activeDownloadJob']>;
+const job = (state: Job['state'], progress = 30): Job => ({
+  id: 'job',
+  kind: 'translation-audio',
+  state,
+  progress,
+  startedAt: 0,
+  updatedAt: 0,
+});
+
+const runtime = {
+  id: 'engnet',
+  isDownloaded: false,
+  textPackLocalPath: null,
+  activeDownloadJob: null,
+  hasAudio: false,
+  catalog: {
+    version: '1',
+    updatedAt: '2026-09-01',
+    text: { format: 'sqlite', version: '1', downloadUrl: 'https://example.test/net', sha256: 'x' },
+  },
+} as Pick<
+  BibleTranslation,
+  'id' | 'isDownloaded' | 'textPackLocalPath' | 'activeDownloadJob' | 'hasAudio' | 'catalog'
+>;
+
+const textTick = (progress: number, extra: Partial<TranslationDownloadProgress> = {}) => ({
+  translationId: 'engnet',
+  progress,
+  ...extra,
+});
+
+test('the row selector keeps only its own Bible and drops byte counts', () => {
+  const banner: TranslationDownloadProgress = {
+    translationId: 'engnet',
+    progress: 40,
+    status: 'downloading',
+    bytesDownloaded: 404,
+    bytesTotal: 1000,
+  };
+  assert.deepEqual(selectRowDownloadProgress(banner, 'engnet'), {
+    translationId: 'engnet',
+    bookId: undefined,
+    progress: 40,
+    isIndeterminate: undefined,
+  });
+  assert.equal(selectRowDownloadProgress(banner, 'kjv'), null);
+  assert.equal(selectRowDownloadProgress(null, 'engnet'), null);
+});
+
+test('an idle Bible that needs its text shows the download glyph and nothing else', () => {
+  assert.deepEqual(getTranslationRowDownloadState(runtime, null, false), {
+    isActiveAudioJob: false,
+    isTextDownloadActive: false,
+    isTextDownloaded: false,
+    activeDownloadProgress: null,
+    isTextDownloadIndeterminate: false,
+    showsQueued: false,
+    status: 'idle',
+    needsTextDownload: true,
+  });
+});
+
+test('text progress counts only when it names the Bible and carries no book', () => {
+  const state = getTranslationRowDownloadState(runtime, textTick(40), false);
+  assert.equal(state.status, 'downloading');
+  assert.equal(state.activeDownloadProgress, 40);
+
+  const bookTick = getTranslationRowDownloadState(runtime, textTick(40, { bookId: 'GEN' }), false);
+  assert.equal(bookTick.isTextDownloadActive, false, 'a book tick is audio, not the text pack');
+  assert.equal(bookTick.activeDownloadProgress, null);
+
+  const indeterminate = getTranslationRowDownloadState(
+    runtime,
+    textTick(0, { isIndeterminate: true }),
+    false
+  );
+  assert.equal(indeterminate.isTextDownloadIndeterminate, true);
+});
+
+test('a running audio job wins over the text banner and shows its own progress', () => {
+  const state = getTranslationRowDownloadState(
+    { ...runtime, activeDownloadJob: job('running', 25) },
+    textTick(90),
+    false
+  );
+  assert.equal(state.isActiveAudioJob, true);
+  assert.equal(state.isTextDownloadActive, false);
+  assert.equal(state.activeDownloadProgress, 25);
+});
+
+test('finished and failed audio jobs are not active', () => {
+  for (const settled of ['completed', 'failed'] as const) {
+    const activity = getTranslationDownloadActivity(
+      { ...runtime, activeDownloadJob: job(settled) },
+      null
+    );
+    assert.equal(activity.isActiveAudioJob, false, settled);
+  }
+});
+
+test('queued shows only while the Bible is not itself downloading', () => {
+  assert.equal(getTranslationRowDownloadState(runtime, null, true).status, 'queued');
+  const running = getTranslationRowDownloadState(runtime, textTick(5), true);
+  assert.equal(running.status, 'downloading');
+  assert.equal(running.showsQueued, false);
+});
+
+test('an installed text pack or an audio Bible never asks for a text download', () => {
+  assert.equal(
+    getTranslationRowDownloadState({ ...runtime, textPackLocalPath: '/p' }, null, false)
+      .needsTextDownload,
+    false
+  );
+  assert.equal(
+    getTranslationRowDownloadState({ ...runtime, hasAudio: true }, null, false).needsTextDownload,
+    false
+  );
+  assert.equal(
+    getTranslationDownloadActivity({ ...runtime, isDownloaded: true }, null).isTextDownloaded,
+    true
+  );
+});
