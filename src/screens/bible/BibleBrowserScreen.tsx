@@ -13,7 +13,7 @@ import {
   type TextInput as TextInputType,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { FlashList } from '@shopify/flash-list';
@@ -51,6 +51,7 @@ import {
   formatBibleSearchReference,
   resolveBibleSearchIntent,
 } from './bibleSearchModel';
+import { useTranslatorFeedbackFocusRefresh } from './useTranslatorFeedbackFocusRefresh';
 import { layout, radius, spacing, typography } from '../../design/system';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { BookIcon } from '../../components/bible/BookIcon';
@@ -308,15 +309,9 @@ export function BibleBrowserScreen() {
     setTranslatorFeedbackSummaries(result.chapters);
   }, [currentTranslation, t, translatorReviewEnabled, translatorReviewPasscode]);
 
-  // Focus effects also run on a focused mount and dependency changes, so one owner covers
-  // initial loading, translation changes, and updated badges when returning from the reader.
-  useFocusEffect(
-    useCallback(() => {
-      void loadTranslatorFeedbackSummaries();
-      return () => {
-        translatorFeedbackSummaryRequestIdRef.current += 1;
-      };
-    }, [loadTranslatorFeedbackSummaries])
+  useTranslatorFeedbackFocusRefresh(
+    loadTranslatorFeedbackSummaries,
+    translatorFeedbackSummaryRequestIdRef
   );
 
   const translatorFeedbackSummaryByChapter = useMemo(() => {
