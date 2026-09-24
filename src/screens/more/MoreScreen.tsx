@@ -27,6 +27,7 @@ import type { MoreStackParamList } from '../../navigation/types';
 import { openAuthFlow } from '../../navigation/rootNavigation';
 import { layout, spacing, typography } from '../../design/system';
 import { describeSyncStatus } from '../../utils/syncStatus';
+import { formatReminderTimeLabel } from './settings/settingsScreenModel';
 import { getLocalizedCountryName } from '../../services/onboarding/countryDisplayName';
 import { AppCard, ListRow, PressableScale } from '../../components/ui';
 import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../design/largeTextLayout';
@@ -131,9 +132,18 @@ export function MoreScreen() {
   );
   const localeValue =
     [countryName, preferences.contentLanguageNativeName].filter(Boolean).join(' · ') || undefined;
+  // The stored "HH:MM" written as the interface language writes a clock time, as the
+  // Settings screen shows it; memoized to keep Intl off the per-render path.
+  const reminderTimeLabel = useMemo(
+    () =>
+      preferences.reminderTime
+        ? formatReminderTimeLabel(preferences.reminderTime, i18n.language, preferences.reminderTime)
+        : null,
+    [i18n.language, preferences.reminderTime]
+  );
   const reminderValue =
-    preferences.notificationsEnabled && preferences.reminderTime
-      ? t('more.reminderValue', { time: preferences.reminderTime })
+    preferences.notificationsEnabled && reminderTimeLabel
+      ? t('more.reminderValue', { time: reminderTimeLabel })
       : undefined;
 
   const menuGroups: MenuGroup[] = [
