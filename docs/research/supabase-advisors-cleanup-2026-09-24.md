@@ -202,7 +202,7 @@ policy in `public`, `private` or `storage` calls `auth.uid|jwt|role()` bare.
 | unused_index                                 | 31                            | 44   | The additions are on tables created today (hours of stats, 0–few rows): the FK-covering indexes on the new moderation/translator tables, `app_error_reports_occurred_at_idx` (purge cron), and the `private.group_join_attempts` / `group_session_notifications` throttle indexes. Keep; revisit with the list above once they have traffic. |
 | no_primary_key, auth_db_connections_absolute | 9, 1                          | 9, 1 | Unchanged (two of the 9 are today's `backups.*` snapshots; owner decision).                                                                                                                                                                                                                                                                  |
 
-### Migration written: `20260924080000_merge_groups_select_policies.sql` — risk: very low
+### Migration written: `20260924080029_merge_groups_select_policies.sql` — risk: very low
 
 Old:
 
