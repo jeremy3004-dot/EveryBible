@@ -9,7 +9,7 @@
 import assert from 'node:assert/strict';
 import test, { beforeEach, mock } from 'node:test';
 
-import { createSupabaseFake, mockModule } from './testing/adminTestHarness';
+import { createSupabaseFake, mockModule, mockNextCache } from './testing/adminTestHarness';
 
 type Identity = 'super_admin' | 'unauthenticated' | 'ordinary_user';
 
@@ -41,6 +41,8 @@ mockModule(mock, '@/lib/supabase/service', {
     return service.client;
   },
 });
+
+mockNextCache(mock);
 
 const data = await import('./admin-data');
 const { adminNavigation } = await import('./admin-navigation');

@@ -56,6 +56,10 @@ mockModule(mock, '@/lib/language-atlas/server', {
     sideEffects.push('atlas:index');
     return { schemaVersion: 1, records: [] };
   },
+  getAtlasIndexGzip: async () => {
+    sideEffects.push('atlas:index-gzip');
+    return Buffer.from([]);
+  },
   getAtlasDetail: async (id: string) => {
     sideEffects.push(`atlas:detail:${id}`);
     return { id };
