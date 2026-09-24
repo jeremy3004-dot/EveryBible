@@ -53,6 +53,16 @@ export function AnnotationsScreen() {
     loadAnnotations(); // eslint-disable-line react-hooks/set-state-in-effect
   }, [loadAnnotations]);
 
+  // The More stack stays mounted while the user edits notes and highlights in the
+  // reader, so reload on every return; loading only on mount listed deleted notes.
+  useEffect(
+    () =>
+      navigation.addListener('focus', () => {
+        void loadAnnotations();
+      }),
+    [navigation, loadAnnotations]
+  );
+
   const onRefresh = async () => {
     setRefreshing(true);
     await loadAnnotations();
