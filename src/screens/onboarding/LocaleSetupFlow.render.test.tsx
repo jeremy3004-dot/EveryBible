@@ -585,6 +585,20 @@ test('the footer fades the list out and its primary action names the chosen nati
   assert.ok(view.getByText(t('onboarding.searchAboveHint')));
 });
 
+test('the settings header Done grows past its 56pt slot instead of breaking mid-word', async () => {
+  const { CONTROL_LABEL_MAX_FONT_SCALE } = await import('../../design/largeTextLayout');
+  harness.setFontScale(3);
+  const view = await renderSettings();
+
+  const done = within(view.getByRole('button', { name: t('common.done') })).getByText(
+    t('common.done')
+  );
+  assert.equal(done.props.maxFontSizeMultiplier, CONTROL_LABEL_MAX_FONT_SCALE);
+  const slot = hostAncestors(done).find((node) => flattenStyle(node.props.style)?.minWidth === 56);
+  assert.ok(slot, 'the side slot is a floor');
+  assert.equal(flattenStyle(slot.props.style)?.width, undefined);
+});
+
 test('backward navigation is the header icon button only, and in settings it closes the flow', async () => {
   let closed = 0;
   const view = await renderSettings({ onClose: () => closed++ });
