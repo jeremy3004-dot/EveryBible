@@ -1,13 +1,14 @@
-import { supabase, isSupabaseConfigured, getCurrentUserId } from '../supabase';
+import { supabase, isSupabaseConfigured } from '../supabase';
 import type { GroupMemberRecord, GroupRecord, GroupSessionRecord, InsertTables } from '../supabase';
 import { assertSyncedGroupServiceReady } from './groupServiceGuards';
-import i18n from '../../i18n';
 
 export interface SyncedGroup extends GroupRecord {
   group_members: GroupMemberRecord[];
 }
 
 const JOIN_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+/** PostgREST's code for an RPC missing from its schema cache (migration not applied yet). */
+const CREATE_GROUP_RPC_MISSING = 'PGRST202';
 
 async function requireSignedInUserForSyncedGroupAction(action: string) {
   const backendConfigured = isSupabaseConfigured();
@@ -104,11 +105,38 @@ export async function createSyncedGroup(
     throw new Error('You must be signed in to create a group');
   }
 
+  const groupName = name.trim();
+  const startingCourseId = options?.currentCourseId ?? 'entry-course';
+  const startingLessonId = options?.currentLessonId ?? 'entry-1';
+
+  // One transaction on the server: the group, the leader's membership and a join code drawn
+  // with strong randomness (groups health check G9/G6).
+  const { data: created, error: rpcError } = await supabase.rpc('create_group', {
+    group_name: groupName,
+    starting_course_id: startingCourseId,
+    starting_lesson_id: startingLessonId,
+  });
+
+  if (rpcError?.code !== CREATE_GROUP_RPC_MISSING) {
+    if (rpcError || !created) {
+      throw new Error(rpcError?.message ?? 'Unable to create group');
+    }
+    const group: GroupRecord = created;
+    return {
+      ...group,
+      group_members: [
+        { group_id: group.id, user_id: user.id, role: 'leader', joined_at: group.created_at },
+      ],
+    };
+  }
+
+  // Fallback while the create_group migration is not applied: two requests, so a client
+  // killed in between can leave a group without its leader membership.
   const baseInsert: Omit<InsertTables<'groups'>, 'join_code'> = {
     leader_id: user.id,
-    name: name.trim(),
-    current_course_id: options?.currentCourseId ?? 'entry-course',
-    current_lesson_id: options?.currentLessonId ?? 'entry-1',
+    name: groupName,
+    current_course_id: startingCourseId,
+    current_lesson_id: startingLessonId,
   };
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
@@ -228,34 +256,19 @@ export async function recordSyncedGroupSession(values: {
     throw new Error(error.message);
   }
 
-  // Fire-and-forget: notify other group members about the new session.
-  // This must run AFTER the successful insert so that a push failure never
-  // blocks or rolls back the session record. getCurrentUserId() may return
-  // null in edge cases; the Edge Function handles exclude_user_id gracefully.
-  void (async () => {
-    try {
-      // Fetch the group name so the notification body is meaningful.
-      const { data: groupData } = await supabase
-        .from('groups')
-        .select('name')
-        .eq('id', values.groupId)
-        .maybeSingle();
-
-      const groupName = (groupData as { name?: string } | null)?.name ?? '';
-      const excludeUserId = await getCurrentUserId();
-
-      await supabase.functions.invoke('send-group-notification', {
-        body: {
-          group_id: values.groupId,
-          title: i18n.t('notifications.groupSessionTitle'),
-          body: i18n.t('notifications.groupSessionBody', { groupName }),
-          exclude_user_id: excludeUserId ?? undefined,
-        },
+  // Fire-and-forget: tell the other members about this session. It runs only after the
+  // insert succeeded, and a failed or refused push never affects the saved session. The
+  // server checks the session and writes the text in each recipient's language; the client
+  // sends no text of its own (groups health check G5).
+  if (data?.id) {
+    void supabase.functions
+      .invoke('send-group-notification', {
+        body: { group_id: values.groupId, session_id: data.id },
+      })
+      .catch(() => {
+        // Non-fatal: push notification failure must not surface to the caller
       });
-    } catch {
-      // Non-fatal: push notification failure must not surface to the caller
-    }
-  })();
+  }
 
   return data as GroupSessionRecord;
 }

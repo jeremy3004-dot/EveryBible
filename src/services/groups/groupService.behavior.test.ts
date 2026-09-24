@@ -24,14 +24,6 @@ const supabaseExports = {
 mockModule(mock, sourcePath('services/supabase/index.ts'), supabaseExports);
 mockModule(mock, sourcePath('services/supabase/client.ts'), supabaseExports);
 
-// groupService uses i18n only for the push-notification copy. The real barrel
-// boots i18next + expo-localization, so it is replaced with a key echo.
-const i18nStub = {
-  t: (key: string, options?: Record<string, unknown>) =>
-    options ? `${key}(${JSON.stringify(options)})` : key,
-};
-mockModule(mock, sourcePath('i18n/index.ts'), { ...i18nStub, default: i18nStub });
-
 /**
  * Make the fake's `auth.getUser()` fail. The shared fake types its auth handlers
  * with `error: null`, so an error scenario needs this one cast.
@@ -51,6 +43,15 @@ const seedRandom = (values: number[]) => {
   let index = 0;
   return mock.method(Math, 'random', () => values[Math.min(index++, values.length - 1)]);
 };
+
+/** PostgREST's answer for an RPC that is not in its schema cache (migration not applied). */
+const createGroupRpcMissing = () =>
+  supabase.respondToRpc('create_group', () => ({
+    error: {
+      code: 'PGRST202',
+      message: 'Could not find the function public.create_group in the schema cache',
+    },
+  }));
 
 let service: typeof import('./groupService');
 
@@ -73,6 +74,9 @@ beforeEach(() => {
     error: null,
   });
   backendConfigured = true;
+  // Until the create_group migration is applied, PostgREST answers PGRST202 and the service
+  // falls back to the two-request path, which most creation tests below exercise.
+  createGroupRpcMissing();
 });
 
 // ---------------------------------------------------------------------------
@@ -175,6 +179,73 @@ test('creating a group surfaces an auth lookup failure', async () => {
   failAuthLookup('session expired');
 
   await assert.rejects(service.createSyncedGroup('Alpha'), /session expired/);
+});
+
+test('creating a group makes one create_group call and returns the leader membership', async () => {
+  supabase.respondToRpc('create_group', () => ({
+    data: {
+      id: 'g1',
+      name: 'Alpha',
+      leader_id: 'user-1',
+      join_code: 'K7MQ2X',
+      created_at: '2026-09-24T10:00:00.000Z',
+    },
+  }));
+
+  const group = await service.createSyncedGroup('  Alpha  ');
+
+  assert.deepEqual(supabase.callsFor('rpc:create_group')[0].payload, {
+    group_name: 'Alpha',
+    starting_course_id: 'entry-course',
+    starting_lesson_id: 'entry-1',
+  });
+  assert.deepEqual(supabase.callsFor('groups'), [], 'no client-side insert or join code');
+  assert.deepEqual(supabase.callsFor('group_members'), []);
+  assert.equal(group.join_code, 'K7MQ2X');
+  assert.deepEqual(group.group_members, [
+    { group_id: 'g1', user_id: 'user-1', role: 'leader', joined_at: '2026-09-24T10:00:00.000Z' },
+  ]);
+});
+
+test('create_group receives explicit course and lesson overrides', async () => {
+  supabase.respondToRpc('create_group', () => ({ data: { id: 'g1', created_at: 'now' } }));
+
+  await service.createSyncedGroup('Alpha', {
+    currentCourseId: 'gospel-course',
+    currentLessonId: 'gospel-2',
+  });
+
+  assert.deepEqual(supabase.callsFor('rpc:create_group')[0].payload, {
+    group_name: 'Alpha',
+    starting_course_id: 'gospel-course',
+    starting_lesson_id: 'gospel-2',
+  });
+});
+
+test('a create_group failure surfaces without falling back to the two-request path', async () => {
+  supabase.respondToRpc('create_group', () => ({
+    error: { code: '23514', message: 'violates check constraint "groups_name_check"' },
+  }));
+
+  await assert.rejects(service.createSyncedGroup('Al'), /groups_name_check/);
+  assert.deepEqual(supabase.callsFor('groups'), []);
+});
+
+test('a create_group call that returns no row fails with a generic message', async () => {
+  supabase.respondToRpc('create_group', () => ({ data: null }));
+
+  await assert.rejects(service.createSyncedGroup('Alpha'), /Unable to create group/);
+  assert.deepEqual(supabase.callsFor('groups'), []);
+});
+
+test('without the create_group RPC, creation falls back to inserting the group then the leader', async () => {
+  supabase.respondTo('groups', (call) => ({ data: { id: 'g1', ...(call.payload as object) } }));
+
+  await service.createSyncedGroup('Alpha');
+
+  assert.equal(supabase.callsFor('rpc:create_group').length, 1);
+  assert.equal(supabase.callsFor('groups')[0].operation, 'insert');
+  assert.equal(supabase.callsFor('group_members')[0].operation, 'insert');
 });
 
 test('creating a group trims the name and defaults the starting lesson', async () => {
@@ -549,37 +620,21 @@ test('recording a session surfaces an insert failure', async () => {
   );
 });
 
-test('a recorded session notifies the other members with the group name and excludes the author', async () => {
+test('a recorded session asks the server to notify the group about that session only', async () => {
   supabase.respondTo('group_sessions', () => ({ data: { id: 's1' } }));
-  supabase.respondTo('groups', () => ({ data: { name: 'Alpha' } }));
 
   await service.recordSyncedGroupSession({ groupId: 'g1', courseId: 'c1', lessonId: 'l1' });
   await flushMicrotasks();
 
+  // The server writes the text in each recipient's language and checks the session; the
+  // client sends no title, body or excluded user (groups health check G5).
   assert.deepEqual(supabase.functionCalls, [
     {
       name: 'send-group-notification',
-      options: {
-        body: {
-          group_id: 'g1',
-          title: 'notifications.groupSessionTitle',
-          body: 'notifications.groupSessionBody({"groupName":"Alpha"})',
-          exclude_user_id: 'user-1',
-        },
-      },
+      options: { body: { group_id: 'g1', session_id: 's1' } },
     },
   ]);
-});
-
-test('a missing group row still notifies, with an empty group name', async () => {
-  supabase.respondTo('group_sessions', () => ({ data: { id: 's1' } }));
-  supabase.respondTo('groups', () => ({ data: null }));
-
-  await service.recordSyncedGroupSession({ groupId: 'g1', courseId: 'c1', lessonId: 'l1' });
-  await flushMicrotasks();
-
-  const body = supabase.functionCalls[0].options as { body: Record<string, unknown> };
-  assert.equal(body.body.body, 'notifications.groupSessionBody({"groupName":""})');
+  assert.deepEqual(supabase.callsFor('groups'), [], 'no group-name read for the push');
 });
 
 test('the notification is sent only after the session row is safely inserted', async () => {
@@ -588,7 +643,6 @@ test('the notification is sent only after the session row is safely inserted', a
     order.push('insert');
     return { data: { id: 's1' } };
   });
-  supabase.respondTo('groups', () => ({ data: { name: 'Alpha' } }));
   supabase.respondToFunction((name) => {
     order.push(name);
     return { data: null };
@@ -600,25 +654,8 @@ test('the notification is sent only after the session row is safely inserted', a
   assert.deepEqual(order, ['insert', 'send-group-notification']);
 });
 
-test('a session recorded without a resolvable current user notifies without an exclusion', async () => {
-  supabase.respondTo('group_sessions', () => ({ data: { id: 's1' } }));
-  supabase.respondTo('groups', () => {
-    // The signed-in check has already passed; simulate the session evaporating
-    // before the fire-and-forget notification resolves the excluded user.
-    supabase.auth.setUser(null);
-    return { data: { name: 'Alpha' } };
-  });
-
-  await service.recordSyncedGroupSession({ groupId: 'g1', courseId: 'c1', lessonId: 'l1' });
-  await flushMicrotasks();
-
-  const options = supabase.functionCalls[0].options as { body: Record<string, unknown> };
-  assert.equal(options.body.exclude_user_id, undefined);
-});
-
 test('a push notification failure never fails the session that was already recorded', async () => {
   supabase.respondTo('group_sessions', () => ({ data: { id: 's1' } }));
-  supabase.respondTo('groups', () => ({ data: { name: 'Alpha' } }));
   supabase.respondToFunction(() => {
     throw new Error('edge function unreachable');
   });
@@ -633,11 +670,9 @@ test('a push notification failure never fails the session that was already recor
   assert.equal(session.id, 's1');
 });
 
-test('a group-name lookup failure never fails the session that was already recorded', async () => {
+test('a refused or rate-limited push never fails the session that was already recorded', async () => {
   supabase.respondTo('group_sessions', () => ({ data: { id: 's1' } }));
-  supabase.respondTo('groups', () => {
-    throw new Error('groups unreachable');
-  });
+  supabase.respondToFunction(() => ({ data: null, error: { message: 'Too many notifications' } }));
 
   const session = await service.recordSyncedGroupSession({
     groupId: 'g1',
@@ -647,7 +682,6 @@ test('a group-name lookup failure never fails the session that was already recor
   await flushMicrotasks();
 
   assert.equal(session.id, 's1');
-  assert.deepEqual(supabase.functionCalls, []);
 });
 
 // ---------------------------------------------------------------------------
@@ -807,13 +841,14 @@ test('an insert that returns no row still reports success-shaped data to the cal
   await flushMicrotasks();
 
   assert.equal(session, null);
+  assert.deepEqual(supabase.functionCalls, [], 'no session id, so nothing to notify about');
 });
 
 // ---------------------------------------------------------------------------
 // completeSyncedGroupSession (the GroupSession screen's "complete" action)
 // ---------------------------------------------------------------------------
 
-/** Session inserts succeed; the group-name lookup succeeds; lesson updates use `onUpdate`. */
+/** Session inserts succeed; lesson updates use `onUpdate`. */
 const scriptSessionCompletion = (
   onUpdate: (payload: unknown) => { data?: unknown; error?: { message: string } }
 ) => {

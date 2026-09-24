@@ -323,6 +323,15 @@ export interface Database {
         Args: Record<PropertyKey, never>;
         Returns: void;
       };
+      /** Creates the group and the caller's leader membership in one transaction. */
+      create_group: {
+        Args: {
+          group_name: string;
+          starting_course_id?: string;
+          starting_lesson_id?: string;
+        };
+        Returns: GroupRecord;
+      };
       join_group_by_code: {
         Args: {
           group_join_code: string;
