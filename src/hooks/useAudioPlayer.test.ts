@@ -219,6 +219,15 @@ const dispatchRemoteCommand: RemoteCommandHandler = async (command) => {
 
 const bibleState = {
   translations: [{ id: 'bsb', name: 'Berean Standard Bible' }] as { id: string; name: string }[],
+  // The saved reading position (the Bible tab resume), as the reading slice keeps it.
+  currentBook: 'GEN',
+  currentChapter: 1,
+  hasReaderHistory: false,
+  applySyncedReadingPosition: ({ bookId, chapter }: { bookId: string; chapter: number }) => {
+    bibleState.currentBook = bookId;
+    bibleState.currentChapter = chapter;
+    bibleState.hasReaderHistory = true;
+  },
 };
 
 const mmkv = mockMmkvStorage(mock);
@@ -479,6 +488,9 @@ beforeEach(() => {
   remoteCommandListeners.clear();
   remoteCommandListener = null;
   bibleState.translations = [{ id: 'bsb', name: 'Berean Standard Bible' }];
+  bibleState.currentBook = 'GEN';
+  bibleState.currentChapter = 1;
+  bibleState.hasReaderHistory = false;
 });
 
 afterEach(() => {
@@ -2018,6 +2030,38 @@ test('finishing a chapter advances to the next one', async () => {
 
   assert.equal(store().currentChapter, 2);
   assert.equal(store().status, 'playing');
+});
+
+const savedReadingPosition = () => ({
+  bookId: bibleState.currentBook,
+  chapter: bibleState.currentChapter,
+});
+
+test('finishing a chapter carries the saved reading position of a listener following along', async () => {
+  bibleState.applySyncedReadingPosition({ bookId: 'GEN', chapter: 5 });
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 5);
+  player.rerender();
+
+  await finishPlayback();
+  await finishPlayback();
+
+  assert.equal(store().currentChapter, 7);
+  assert.deepEqual(savedReadingPosition(), { bookId: 'GEN', chapter: 7 });
+});
+
+test('chapters the listener picks do not move the saved reading position', async () => {
+  bibleState.applySyncedReadingPosition({ bookId: 'GEN', chapter: 5 });
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 5);
+
+  await player.rerender().playChapter('GEN', 10);
+  await player.rerender().nextChapter();
+  await player.rerender().previousChapter();
+  await player.rerender().previousChapter();
+
+  assert.equal(store().currentChapter, 9);
+  assert.deepEqual(savedReadingPosition(), { bookId: 'GEN', chapter: 5 });
 });
 
 test('finishing a chapter with auto-advance off stops playback', async () => {
