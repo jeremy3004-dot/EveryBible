@@ -49,6 +49,15 @@ export function CompletedPlanRow({
         onPress={() => onPlanPress(item.plan.id)}
         accessibilityRole="button"
         accessibilityLabel={title}
+        // The label replaces the row's text, so the chip and date are read here.
+        accessibilityValue={{
+          text: [t('readingPlans.completed'), completedDate].filter(Boolean).join(', '),
+        }}
+        // Delete is otherwise only reachable by swiping the row.
+        accessibilityActions={[{ name: 'delete', label: t('common.delete') }]}
+        onAccessibilityAction={(event) => {
+          if (event.nativeEvent.actionName === 'delete') onDeletePlan(item.plan.id);
+        }}
         style={[styles.row, isFirst ? null : styles.rowDivider]}
       >
         <View style={styles.coverFrame}>
