@@ -1202,7 +1202,34 @@ export function BibleReaderScreen() {
   );
 
   if (!book) {
-    return null;
+    // BibleStack's route guard returns an unknown book to the browser before the reader
+    // mounts; this covers anything that still renders it, so the page is never a dead end.
+    return (
+      <View
+        style={[
+          styles.container,
+          styles.missingBook,
+          { backgroundColor: colors.bibleBackground, paddingTop: safeInsets.top },
+        ]}
+      >
+        <Text
+          accessibilityRole="header"
+          style={[styles.feedbackTitle, { color: colors.biblePrimaryText }]}
+        >
+          {t('common.error')}
+        </Text>
+        <TouchableOpacity
+          style={[styles.feedbackButton, { backgroundColor: colors.bibleControlBackground }]}
+          onPress={() => navigation.popTo('BibleBrowser')}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+        >
+          <Text style={[styles.feedbackButtonText, { color: colors.bibleBackground }]}>
+            {t('common.back')}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
   }
 
   return (
@@ -1421,6 +1448,12 @@ export function BibleReaderScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  missingBook: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.lg,
+    paddingHorizontal: spacing.xl,
   },
   premiumReaderLayout: {
     flex: 1,

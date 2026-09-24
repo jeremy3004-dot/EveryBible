@@ -230,3 +230,19 @@ test('a plan reader left open overnight counts a listen for the new day, not aga
     "the listen is counted for today's plan"
   );
 });
+
+// ---- Unknown book ------------------------------------------------------------------
+
+test('a book outside the catalog shows a way back instead of a blank page', async () => {
+  // BibleStack's route guard normally catches this before the reader mounts.
+  const view = await renderReader({ bookId: 'XYZ', chapter: 1 });
+
+  assert.ok(view.getByText(t('common.error')));
+  await view.press(view.getByRole('button', { name: t('common.back') }));
+
+  const leaves = harness.navigation.calls.filter((call) => call.method === 'popTo');
+  assert.deepEqual(
+    leaves.map((call) => call.args),
+    [['BibleBrowser']]
+  );
+});
