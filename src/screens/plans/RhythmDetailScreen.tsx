@@ -1,439 +1,67 @@
-import {
-  getLocalizedRhythmTitle,
-  getLocalizedPassageTitle,
-} from '../../services/plans/rhythmLocalization';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import React, { useCallback } from 'react';
+import { ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
 import { useTheme } from '../../contexts/ThemeContext';
-import { useDisplayFont } from '../../hooks/useDisplayFont';
-import { useLargeText } from '../../hooks/useLargeText';
-import { useLocalToday } from '../../hooks/useLocalToday';
-import { layout, radius, spacing, typography } from '../../design/system';
+import { layout, spacing } from '../../design/system';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
 import type { RhythmDetailScreenProps } from '../../navigation/types';
-import { inferRhythmSlotFromTitle, RHYTHM_SLOT_META } from '../../services/plans/rhythmSlots';
 import { useAudioStore } from '../../stores/audioStore';
 import { useBibleStore } from '../../stores/bibleStore';
-import { useLibraryStore } from '../../stores/libraryStore';
-import { useProgressStore } from '../../stores/progressStore';
-import { useReadingPlansStore } from '../../stores/readingPlansStore';
-import {
-  buildRhythmReaderSession,
-  getCurrentPlanDaySummary,
-  shouldAutoplayPlanDayLaunch,
-} from '../../services/plans/readingPlanActivity';
-import { getPlanEntries, listReadingPlans } from '../../services/plans/readingPlanService';
-import type {
-  ReadingPlan,
-  ReadingPlanEntry,
-  ReadingPlanRhythmSessionSegment,
-  UserReadingPlanProgress,
-} from '../../services/plans/types';
 import { lightHaptic } from '../../utils';
-import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../design/largeTextLayout';
-
-interface RhythmSegmentViewModel {
-  segment: ReadingPlanRhythmSessionSegment;
-  plan: ReadingPlan | null;
-  entries: ReadingPlanEntry[];
-  progress: UserReadingPlanProgress | null;
-  currentDaySummary: ReturnType<typeof getCurrentPlanDaySummary> | null;
-  title: string;
-}
-
-function StatusPill({
-  label,
-  colors,
-  variant = 'neutral',
-}: {
-  label: string;
-  colors: ReturnType<typeof useTheme>['colors'];
-  variant?: 'neutral' | 'accent' | 'success';
-}) {
-  const backgroundColor =
-    variant === 'accent'
-      ? colors.accentPrimary
-      : variant === 'success'
-        ? // White on the `success` fill is 4.09:1 on vellum; the soft status pair
-          // is the one audited for text (contrastAudit.test.ts).
-          colors.successSoft
-        : colors.background;
-  const textColor =
-    variant === 'accent'
-      ? colors.onAccent
-      : variant === 'success'
-        ? colors.onSuccessSoft
-        : colors.secondaryText;
-  const borderColor = variant === 'neutral' ? colors.cardBorder : 'transparent';
-
-  return (
-    <View style={[styles.pill, { backgroundColor, borderColor }]}>
-      <Text style={[styles.pillLabel, { color: textColor }]} numberOfLines={2}>
-        {label}
-      </Text>
-    </View>
-  );
-}
-
-function SegmentCard({
-  item,
-  colors,
-  t,
-}: {
-  item: RhythmSegmentViewModel;
-  colors: ReturnType<typeof useTheme>['colors'];
-  t: ReturnType<typeof useTranslation>['t'];
-}) {
-  // At large text the status pill beside the title left it a word per line, so it
-  // moves under the title and meta.
-  const { isLargeText } = useLargeText();
-  const completedCount = item.currentDaySummary?.completedChapterCount ?? 0;
-  const targetCount = item.currentDaySummary?.targetChapterCount ?? item.segment.chapterKeys.length;
-  const progressLabel =
-    item.segment.type === 'plan'
-      ? item.progress?.is_completed
-        ? t('readingPlans.completed')
-        : t('readingPlans.todayTargetProgress', {
-            completed: completedCount,
-            target: targetCount,
-            defaultValue: `${completedCount}/${targetCount} chapters`,
-          })
-      : t('readingPlans.chapterCount', {
-          count: targetCount,
-          defaultValue: `${targetCount} chapters`,
-        });
-
-  const statusPill = (
-    <StatusPill
-      label={
-        item.segment.type === 'plan' && item.progress?.is_completed
-          ? t('readingPlans.completed')
-          : t('common.next', { defaultValue: 'Next' })
-      }
-      colors={colors}
-      variant={item.segment.type === 'plan' && item.progress?.is_completed ? 'success' : 'accent'}
-    />
-  );
-
-  return (
-    <View
-      style={[
-        styles.segmentCard,
-        { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
-      ]}
-    >
-      <View style={styles.segmentHeader}>
-        <View style={[styles.segmentBadge, { backgroundColor: colors.background }]}>
-          <Ionicons name="book-outline" size={18} color={colors.accentPrimary} />
-        </View>
-        <View style={styles.segmentHeaderCopy}>
-          <Text style={[styles.segmentTitle, { color: colors.primaryText }]} numberOfLines={2}>
-            {item.title}
-          </Text>
-          <Text style={[styles.segmentMeta, { color: colors.secondaryText }]}>
-            {item.segment.type === 'plan'
-              ? t('readingPlans.dayOf', {
-                  current: item.segment.dayNumber,
-                  total: item.plan?.duration_days ?? item.segment.dayNumber,
-                })
-              : t('readingPlans.repeatablePassage', { defaultValue: 'Repeatable passage' })}
-          </Text>
-          {isLargeText ? statusPill : null}
-        </View>
-        {isLargeText ? null : statusPill}
-      </View>
-
-      <View style={styles.segmentMetaRow}>
-        <StatusPill
-          label={t('readingPlans.chapterCount', {
-            count: item.segment.chapterKeys.length,
-            defaultValue: `${item.segment.chapterKeys.length} chapters`,
-          })}
-          colors={colors}
-        />
-        <StatusPill label={progressLabel} colors={colors} />
-      </View>
-
-      {item.currentDaySummary ? (
-        <Text style={[styles.segmentBody, { color: colors.secondaryText }]}>
-          {t('readingPlans.todayTargetProgress', {
-            completed: item.currentDaySummary.completedChapterCount,
-            target: item.currentDaySummary.targetChapterCount,
-            defaultValue: `Today's target: ${item.currentDaySummary.completedChapterCount}/${item.currentDaySummary.targetChapterCount} chapters`,
-          })}
-        </Text>
-      ) : item.segment.type === 'passage' ? (
-        <Text style={[styles.segmentBody, { color: colors.secondaryText }]}>
-          {item.segment.startChapter === item.segment.endChapter
-            ? t('interface.chapterNumber', { chapter: item.segment.startChapter ?? 1 })
-            : t('interface.chapterRange', {
-                start: item.segment.startChapter ?? 1,
-                end: item.segment.endChapter ?? item.segment.startChapter ?? 1,
-              })}
-        </Text>
-      ) : null}
-    </View>
-  );
-}
+import {
+  buildRhythmReaderParams,
+  RhythmDetailHeader,
+  RhythmSequenceSection,
+  RhythmStatusView,
+  RhythmSummaryCard,
+  useRhythmSession,
+} from './rhythmDetail';
 
 export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProps) {
   const { colors } = useTheme();
-  const displayFont = useDisplayFont();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const rhythmId = route.params.rhythmId;
-  // A calendar plan's day in the rhythm follows the date, including overnight.
-  const today = useLocalToday();
-
-  const [allPlans, setAllPlans] = useState<ReadingPlan[]>([]);
-  const [planEntriesById, setPlanEntriesById] = useState<Record<string, ReadingPlanEntry[]>>({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const chaptersRead = useProgressStore((state) => state.chaptersRead);
-  const listeningHistory = useLibraryStore((state) => state.history);
   const preferredChapterLaunchMode = useBibleStore((state) => state.preferredChapterLaunchMode);
-  const progressByPlanId = useReadingPlansStore((state) => state.progressByPlanId);
-  const getPlanDayResume = useReadingPlansStore((state) => state.getPlanDayResume);
-  // Subscribed, not read through getRhythm(): an edit made in the composer has to
-  // reach this screen, which stays mounted underneath the detail the composer opens.
-  const rhythm = useReadingPlansStore((state) => state.rhythmsById[rhythmId] ?? null);
-  const relevantPlanIds = useMemo(
-    () =>
-      rhythm?.items
-        .filter(
-          (item): item is Extract<(typeof rhythm.items)[number], { type: 'plan' }> =>
-            item.type === 'plan'
-        )
-        .map((item) => item.planId) ?? [],
-    [rhythm]
-  );
+  const { rhythm, session, segments, planTally, hasActiveSegments, loading, error } =
+    useRhythmSession(rhythmId);
 
-  useEffect(() => {
-    let mounted = true;
-
-    const load = async () => {
-      setLoading(true);
-      setError(null);
-
-      const plansResult = await listReadingPlans();
-      if (!mounted) {
-        return;
-      }
-
-      if (!plansResult.success || !plansResult.data) {
-        setError(t('common.error', { defaultValue: 'Error' }));
-        setLoading(false);
-        return;
-      }
-
-      setAllPlans(plansResult.data);
-
-      const planMap: Record<string, ReadingPlanEntry[]> = {};
-      const entryResults = await Promise.all(
-        relevantPlanIds.map(async (planId) => [planId, await getPlanEntries(planId)] as const)
-      );
-
-      if (!mounted) {
-        return;
-      }
-
-      for (const [planId, result] of entryResults) {
-        planMap[planId] = result.success && result.data ? result.data : [];
-      }
-
-      setPlanEntriesById(planMap);
-      setLoading(false);
-    };
-
-    void load();
-
-    return () => {
-      mounted = false;
-    };
-  }, [relevantPlanIds, t]);
-
-  const planTitleById = useMemo(
-    () =>
-      Object.fromEntries(
-        allPlans.map((plan) => [plan.id, t(plan.title_key as Parameters<typeof t>[0])])
-      ) as Record<string, string>,
-    [allPlans, t]
-  );
-
-  const session = useMemo(() => {
-    if (!rhythm) {
-      return null;
-    }
-
-    return buildRhythmReaderSession({
-      rhythm,
-      planEntriesById,
-      progressByPlanId,
-      planTitlesById: planTitleById,
-      getPlanDayResume,
-      today,
-    });
-  }, [getPlanDayResume, planEntriesById, planTitleById, progressByPlanId, rhythm, today]);
-
-  const segmentViewModels = useMemo<RhythmSegmentViewModel[]>(() => {
-    if (!rhythm || !session) {
-      return [];
-    }
-
-    return session.sessionContext.segments.map((segment) => {
-      const entries = segment.planId ? (planEntriesById[segment.planId] ?? []) : [];
-      const progress = segment.planId ? (progressByPlanId[segment.planId] ?? null) : null;
-      const segmentPlan = segment.planId
-        ? (allPlans.find((plan) => plan.id === segment.planId) ?? null)
-        : null;
-      const currentDaySummary = progress
-        ? getCurrentPlanDaySummary({
-            plan: segmentPlan,
-            entries,
-            progress,
-            chaptersRead,
-            listeningHistory,
-            dayNumber: segment.dayNumber,
-            today,
-          })
-        : null;
-
-      return {
-        segment,
-        plan: segmentPlan,
-        entries,
-        progress,
-        currentDaySummary,
-        title:
-          segment.type === 'plan'
-            ? (planTitleById[segment.planId ?? ''] ?? segment.title)
-            : segment.bookId
-              ? getLocalizedPassageTitle(
-                  segment.title,
-                  segment.bookId,
-                  segment.startChapter ?? 1,
-                  segment.endChapter ?? segment.startChapter ?? 1,
-                  t
-                )
-              : segment.title,
-      };
-    });
-  }, [
-    allPlans,
-    chaptersRead,
-    listeningHistory,
-    planEntriesById,
-    planTitleById,
-    progressByPlanId,
-    rhythm,
-    session,
-    t,
-    today,
-  ]);
-
-  const rhythmPlanIds = relevantPlanIds;
-  const completedPlanCount = rhythmPlanIds.filter(
-    (planId) => progressByPlanId[planId]?.is_completed
-  ).length;
-  const totalPlanCount = rhythmPlanIds.length;
-  const totalItemCount = rhythm?.items.length ?? 0;
-  const hasActiveSegments = Boolean(
-    session &&
-    session.playbackSequenceEntries.length > 0 &&
-    session.startEntry &&
-    session.startSegment
-  );
-  const slotPresentation = useMemo(() => {
-    const slot = rhythm?.slot ?? inferRhythmSlotFromTitle(rhythm?.title);
-    return slot ? RHYTHM_SLOT_META[slot] : null;
-  }, [rhythm?.slot, rhythm?.title]);
+  const handleBack = useCallback(() => navigation.goBack(), [navigation]);
 
   const handleEdit = useCallback(() => {
     navigation.navigate('RhythmComposer', { rhythmId });
   }, [navigation, rhythmId]);
 
   const handleContinue = useCallback(() => {
-    if (!session || !session.startEntry || !session.startSegment || !rootNavigationRef.isReady()) {
+    if (!rootNavigationRef.isReady()) {
+      return;
+    }
+    const params = buildRhythmReaderParams(
+      session,
+      preferredChapterLaunchMode,
+      useAudioStore.getState().status
+    );
+    if (!params) {
       return;
     }
 
     lightHaptic();
-    const autoplayAudio = shouldAutoplayPlanDayLaunch({
-      trigger: 'open',
-      preferredMode: preferredChapterLaunchMode,
-      audioStatus: useAudioStore.getState().status,
-    });
-
-    rootNavigationRef.navigate('Bible', {
-      screen: 'BibleReader',
-      params: {
-        bookId: session.startEntry.bookId,
-        chapter: session.startEntry.chapter,
-        ...(autoplayAudio ? { autoplayAudio: true } : {}),
-        preferredMode: preferredChapterLaunchMode,
-        playbackSequenceEntries: session.playbackSequenceEntries,
-        planId: session.startSegment.type === 'plan' ? session.startSegment.planId : undefined,
-        planDayNumber:
-          session.startSegment.type === 'plan' ? session.startSegment.dayNumber : undefined,
-        returnToPlanOnComplete: true,
-        sessionContext: session.sessionContext,
-      },
-    });
+    rootNavigationRef.navigate('Bible', { screen: 'BibleReader', params });
   }, [preferredChapterLaunchMode, session]);
 
   if (loading) {
-    return (
-      <SafeAreaView
-        style={[styles.safeArea, { backgroundColor: colors.background }]}
-        edges={['top']}
-      >
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.accentPrimary} />
-        </View>
-      </SafeAreaView>
-    );
+    return <RhythmStatusView status="loading" />;
   }
 
   if (error || !rhythm) {
     return (
-      <SafeAreaView
-        style={[styles.safeArea, { backgroundColor: colors.background }]}
-        edges={['top']}
-      >
-        <View style={styles.errorContainer}>
-          <Text
-            maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
-            style={[styles.errorTitle, displayFont.bold, { color: colors.primaryText }]}
-          >
-            {t('readingPlans.rhythms')}
-          </Text>
-          <Text style={[styles.errorBody, { color: colors.secondaryText }]}>
-            {error ?? t('common.error', { defaultValue: 'Error' })}
-          </Text>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            style={[styles.errorButton, { backgroundColor: colors.accentPrimary }]}
-          >
-            <Text style={[styles.errorButtonLabel, { color: colors.onAccent }]}>
-              {t('common.back')}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
+      <RhythmStatusView
+        status="error"
+        message={error ?? t('common.error', { defaultValue: 'Error' })}
+        onBack={handleBack}
+      />
     );
   }
 
@@ -442,158 +70,18 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xl }]}
       >
-        <View style={styles.headerRow}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            accessibilityLabel={t('common.back')}
-            style={[
-              styles.backButton,
-              { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
-            ]}
-          >
-            <Ionicons name="arrow-back" size={20} color={colors.primaryText} />
-          </TouchableOpacity>
-          <View style={styles.headerCopy}>
-            <Text
-              maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
-              accessibilityRole="header"
-              style={[styles.title, displayFont.bold, { color: colors.primaryText }]}
-              numberOfLines={2}
-            >
-              {getLocalizedRhythmTitle(rhythm.title, t)}
-            </Text>
-            {slotPresentation ? (
-              <View
-                style={[
-                  styles.slotBadge,
-                  { borderColor: colors.cardBorder, backgroundColor: colors.cardBackground },
-                ]}
-              >
-                <Ionicons name={slotPresentation.iconName} size={14} color={colors.accentPrimary} />
-                <Text style={[styles.slotBadgeLabel, { color: colors.primaryText }]}>
-                  {t(slotPresentation.labelKey)}
-                </Text>
-              </View>
-            ) : null}
-            <Text style={[styles.subtitle, { color: colors.secondaryText }]}>
-              {t('readingPlans.rhythmItemCount', {
-                count: totalItemCount,
-                defaultValue: `${totalItemCount} items`,
-              })}
-            </Text>
-          </View>
-          <TouchableOpacity
-            onPress={handleEdit}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            accessibilityLabel={t('readingPlans.editRhythm')}
-            style={[
-              styles.editButton,
-              { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
-            ]}
-          >
-            <Ionicons name="create-outline" size={18} color={colors.primaryText} />
-          </TouchableOpacity>
-        </View>
-
-        <View
-          style={[
-            styles.summaryCard,
-            { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
-          ]}
-        >
-          <View style={styles.summaryRow}>
-            <View style={styles.summaryStat}>
-              <Text style={[styles.summaryValue, { color: colors.primaryText }]}>
-                {totalItemCount}
-              </Text>
-              <Text style={[styles.summaryLabel, { color: colors.secondaryText }]}>
-                {t('readingPlans.includedItems', { defaultValue: 'Included items' })}
-              </Text>
-            </View>
-            <View style={styles.summaryStat}>
-              <Text style={[styles.summaryValue, { color: colors.primaryText }]}>
-                {completedPlanCount}
-              </Text>
-              <Text style={[styles.summaryLabel, { color: colors.secondaryText }]}>
-                {t('readingPlans.completed')}
-              </Text>
-            </View>
-            <View style={styles.summaryStat}>
-              <Text style={[styles.summaryValue, { color: colors.primaryText }]}>
-                {Math.max(totalPlanCount - completedPlanCount, 0)}
-              </Text>
-              <Text style={[styles.summaryLabel, { color: colors.secondaryText }]}>
-                {t('readingPlans.remaining')}
-              </Text>
-            </View>
-          </View>
-
-          <Text style={[styles.summaryBody, { color: colors.secondaryText }]}>
-            {hasActiveSegments ? t('readingPlans.continueRhythm') : t('readingPlans.noRhythmsBody')}
-          </Text>
-          {segmentViewModels[0] ? (
-            <Text style={[styles.summaryNext, { color: colors.accentPrimary }]}>
-              {t('readingPlans.nextUp', {
-                value: segmentViewModels[0].title,
-                defaultValue: `Next up: ${segmentViewModels[0].title}`,
-              })}
-            </Text>
-          ) : null}
-        </View>
-
-        <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: colors.primaryText }]}>
-            {t('readingPlans.rhythmSequence', { defaultValue: 'Rhythm sequence' })}
-          </Text>
-          <TouchableOpacity
-            onPress={handleContinue}
-            disabled={!hasActiveSegments}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: !hasActiveSegments }}
-            style={[
-              styles.continueButton,
-              {
-                backgroundColor: hasActiveSegments ? colors.accentPrimary : colors.cardBorder,
-              },
-            ]}
-          >
-            <Text
-              style={[
-                styles.continueLabel,
-                { color: hasActiveSegments ? colors.onAccent : colors.secondaryText },
-              ]}
-            >
-              {t('readingPlans.continueRhythm')}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {segmentViewModels.length === 0 ? (
-          <View
-            style={[
-              styles.emptyState,
-              { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
-            ]}
-          >
-            <Ionicons name="checkmark-circle-outline" size={28} color={colors.success} />
-            <Text style={[styles.emptyTitle, { color: colors.primaryText }]}>
-              {t('readingPlans.completed')}
-            </Text>
-            <Text style={[styles.emptyBody, { color: colors.secondaryText }]}>
-              {t('readingPlans.noRhythmsBody')}
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.segmentList}>
-            {segmentViewModels.map((item) => (
-              <SegmentCard key={item.segment.itemId} item={item} colors={colors} t={t} />
-            ))}
-          </View>
-        )}
+        <RhythmDetailHeader rhythm={rhythm} onBack={handleBack} onEdit={handleEdit} />
+        <RhythmSummaryCard
+          totalItemCount={rhythm.items.length}
+          planTally={planTally}
+          hasActiveSegments={hasActiveSegments}
+          nextTitle={segments[0]?.title ?? null}
+        />
+        <RhythmSequenceSection
+          segments={segments}
+          hasActiveSegments={hasActiveSegments}
+          onContinue={handleContinue}
+        />
       </ScrollView>
     </SafeAreaView>
   );
@@ -603,196 +91,9 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  errorContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: layout.screenPadding,
-    gap: spacing.md,
-  },
-  errorTitle: {
-    ...typography.screenTitle,
-    textAlign: 'center',
-  },
-  errorBody: {
-    ...typography.body,
-    textAlign: 'center',
-  },
-  errorButton: {
-    minHeight: 48,
-    borderRadius: radius.pill,
-    paddingHorizontal: layout.cardPadding,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  errorButtonLabel: {
-    ...typography.label,
-  },
   content: {
     paddingHorizontal: layout.screenPadding,
     paddingTop: spacing.md,
     gap: spacing.md,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.md,
-  },
-  backButton: {
-    width: layout.minTouchTarget,
-    height: layout.minTouchTarget,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerCopy: {
-    flex: 1,
-    gap: spacing.xs,
-  },
-  title: {
-    ...typography.screenTitle,
-  },
-  subtitle: {
-    ...typography.body,
-  },
-  slotBadge: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    minHeight: 30,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    paddingHorizontal: spacing.sm,
-  },
-  slotBadgeLabel: {
-    ...typography.micro,
-  },
-  editButton: {
-    width: layout.minTouchTarget,
-    height: layout.minTouchTarget,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  summaryCard: {
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    padding: layout.cardPadding,
-    gap: spacing.md,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  summaryStat: {
-    flex: 1,
-    gap: spacing.xs,
-    alignItems: 'center',
-  },
-  summaryValue: {
-    ...typography.sectionTitle,
-    fontVariant: ['tabular-nums'],
-  },
-  summaryLabel: {
-    ...typography.micro,
-    textAlign: 'center',
-  },
-  summaryBody: {
-    ...typography.body,
-  },
-  summaryNext: {
-    ...typography.bodyStrong,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-  },
-  sectionTitle: {
-    ...typography.cardTitle,
-    flex: 1,
-  },
-  continueButton: {
-    minHeight: 44,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  continueLabel: {
-    ...typography.label,
-  },
-  emptyState: {
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    padding: layout.cardPadding,
-    gap: spacing.sm,
-    alignItems: 'center',
-  },
-  emptyTitle: {
-    ...typography.bodyStrong,
-  },
-  emptyBody: {
-    ...typography.body,
-    textAlign: 'center',
-  },
-  segmentList: {
-    gap: spacing.md,
-  },
-  segmentCard: {
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    padding: layout.cardPadding,
-    gap: spacing.md,
-  },
-  segmentHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.md,
-  },
-  segmentBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  segmentHeaderCopy: {
-    flex: 1,
-    gap: spacing.xs,
-  },
-  segmentTitle: {
-    ...typography.bodyStrong,
-  },
-  segmentMeta: {
-    ...typography.micro,
-  },
-  segmentMetaRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs,
-  },
-  segmentBody: {
-    ...typography.body,
-  },
-  pill: {
-    alignSelf: 'flex-start',
-    flexShrink: 1,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-  },
-  pillLabel: {
-    ...typography.micro,
   },
 });
