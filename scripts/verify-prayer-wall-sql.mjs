@@ -33,6 +33,7 @@ const MIGRATIONS = [
 const HARDENING = [
   '20260924042617_harden_prayer_wall.sql',
   '20260924045749_prayer_wall_moderation.sql',
+  '20260924210000_prayer_interactions_skip_hidden.sql',
 ];
 
 const db = new PGlite();
@@ -418,6 +419,16 @@ await assert.rejects(
   ]),
   /row-level security/,
   'nobody can interact with a hidden request'
+);
+// The author still sees their hidden request, so only the policy's own hidden_at check
+// (not prayer_select_member) can refuse this one.
+await assert.rejects(
+  as(C, `insert into prayer_interactions (request_id, user_id, type) values ($1, $2, 'prayed')`, [
+    target.id,
+    C,
+  ]),
+  /row-level security/,
+  'not even its author can interact with a hidden request'
 );
 // Authors cannot un-hide their request or post one pre-hidden.
 await as(C, `update prayer_requests set hidden_at = null, hidden_reason = null where id = $1`, [

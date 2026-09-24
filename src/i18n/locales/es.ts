@@ -769,6 +769,9 @@ export const es = {
     pinInvalidCharacters: 'Solo se permiten números y símbolos de calculadora.',
     pinMismatch: 'Los códigos de seguridad aún no coinciden.',
     incorrectPin: 'Ese código de seguridad no es correcto.',
+    discreetNotificationTitle: 'Recordatorio',
+    discreetNotificationBody: 'Tienes un recordatorio para hoy.',
+    discreetNotificationChannel: 'Recordatorios',
   },
   settings: {
     title: 'Ajustes',

@@ -725,6 +725,9 @@ export const en = {
     pinInvalidCharacters: 'Only numbers and calculator symbols are allowed.',
     pinMismatch: 'The secure codes do not match yet.',
     incorrectPin: 'That secure code is not correct.',
+    discreetNotificationTitle: 'Reminder',
+    discreetNotificationBody: 'You have a reminder for today.',
+    discreetNotificationChannel: 'Reminders',
   },
   settings: {
     title: 'Settings',

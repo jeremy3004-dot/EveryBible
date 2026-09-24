@@ -102,7 +102,9 @@ const scoreLanguage = (
   deviceCountryCode: string | null
 ): number => {
   let score = 0;
-  if (language?.iso6391 === context.deviceLanguageCode) {
+  // Most catalog languages have no ISO 639-1 code; an unknown device language (null)
+  // must not match them all.
+  if (context.deviceLanguageCode && language?.iso6391 === context.deviceLanguageCode) {
     score -= DEVICE_LANGUAGE_BONUS;
   }
   if (language?.iso6391 === context.interfaceLanguageCode) {
@@ -183,7 +185,7 @@ export function pickRecommendedOnboardingOption<T extends RecommendableOption>(
   // that set. Every interface language is a seed code, so in practice only the
   // device language and country bonuses stay open.
   getSeedIndex();
-  const couldMatch = (code: string | null) => !(code && seedIsoCodes?.has(code));
+  const couldMatch = (code: string | null) => code !== null && !seedIsoCodes?.has(code);
   const unresolvedBestLanguageScore =
     -(couldMatch(context.deviceLanguageCode) ? DEVICE_LANGUAGE_BONUS : 0) -
     (couldMatch(context.interfaceLanguageCode) ? INTERFACE_LANGUAGE_BONUS : 0) -

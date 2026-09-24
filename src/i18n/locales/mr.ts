@@ -441,6 +441,9 @@ export const mr = {
     pinInvalidCharacters: 'फक्त अंक आणि कॅल्क्युलेटर चिन्हे वापरता येतात.',
     pinMismatch: 'सुरक्षित कोड अद्याप जुळत नाहीत.',
     incorrectPin: 'तो सुरक्षित कोड योग्य नाही.',
+    discreetNotificationTitle: 'स्मरणपत्र',
+    discreetNotificationBody: 'आजसाठी तुमच्याकडे एक स्मरणपत्र आहे.',
+    discreetNotificationChannel: 'स्मरणपत्रे',
   },
   settings: {
     title: 'सेटिंग्ज',

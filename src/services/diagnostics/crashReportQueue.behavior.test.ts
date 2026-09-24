@@ -291,7 +291,7 @@ test('a handled error is queued with its source and shown on the Diagnostics scr
   assert.equal(report.screen, 'BibleReader');
   assert.deepEqual(
     localLog().map((entry) => [entry.message, entry.isFatal]),
-    [['[audio.load] decoder failed for jane@example.com', false]]
+    [['[audio.load] decoder failed for <email>', false]]
   );
 });
 

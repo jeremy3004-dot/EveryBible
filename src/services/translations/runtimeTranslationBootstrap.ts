@@ -81,17 +81,24 @@ export async function reconcilePrimaryTranslationPreference(): Promise<void> {
 
   if (!preferredTranslation || !isReadableLocally(preferredTranslation)) {
     if (preferredTranslation?.catalog?.text?.downloadUrl) {
+      // The download can take a while. A Bible the reader picks meanwhile is their
+      // choice, so the result only applies while the reader is still on this one.
+      const currentAtStart = state.currentTranslation;
+      const readerChoseMeanwhile = () =>
+        useBibleStore.getState().currentTranslation !== currentAtStart;
       try {
         const downloadResult = await state.downloadTranslation(preferredId);
-        if (downloadResult === 'cancelled') {
+        if (downloadResult === 'cancelled' || readerChoseMeanwhile()) {
           return;
         }
         useBibleStore.getState().setCurrentTranslation(preferredId);
       } catch (error) {
-        const fallbackTranslation = resolveRegionalFallbackTranslation(
-          useBibleStore.getState().translations,
-          preferredTranslation
-        );
+        const fallbackTranslation = readerChoseMeanwhile()
+          ? null
+          : resolveRegionalFallbackTranslation(
+              useBibleStore.getState().translations,
+              preferredTranslation
+            );
         if (fallbackTranslation) {
           useBibleStore.getState().setCurrentTranslation(fallbackTranslation.id);
           return;

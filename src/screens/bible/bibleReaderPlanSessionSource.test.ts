@@ -4,10 +4,11 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { readBibleReaderSource } from './bibleReaderSourceFiles';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const source = readFileSync(resolve(__dirname, 'BibleReaderScreen.tsx'), 'utf8');
+const source = readBibleReaderSource();
 const detailSource = readFileSync(resolve(__dirname, '../plans/PlanDetailScreen.tsx'), 'utf8');
 
 test('PlanDetailScreen launches plan chapters with explicit plan-session params', () => {
@@ -127,7 +128,7 @@ test('BibleReaderScreen renders plan chrome with a top-left exit arrow and botto
   );
   assert.match(
     source,
-    /renderPlanSessionBottomBar/,
+    /<PlanSessionBottomBar/,
     'BibleReaderScreen should render a dedicated bottom strip for plan context'
   );
   assert.match(

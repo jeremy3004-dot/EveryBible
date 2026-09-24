@@ -1,15 +1,10 @@
 // UI-only source check: asserts on component render code, which the suite cannot render (no component renderer); not a behaviour test.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-
-function readRelativeSource(relativePath: string): string {
-  return readFileSync(fileURLToPath(new URL(relativePath, import.meta.url).href), 'utf8');
-}
+import { readBibleReaderSource } from './bibleReaderSourceFiles';
 
 test('BibleReaderScreen opens a verse-image background picker and captures the shared image', () => {
-  const source = readRelativeSource('./BibleReaderScreen.tsx');
+  const source = readBibleReaderSource();
 
   assert.match(
     source,

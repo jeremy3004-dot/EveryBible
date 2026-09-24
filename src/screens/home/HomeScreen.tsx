@@ -75,7 +75,6 @@ import { getDailyScriptureReference } from '../../services/bible/dailyScripture'
 import { isChapterAudioCovered } from '../../services/bible/contentAvailability';
 import { getAudioAvailability } from '../../services/audio/audioAvailability';
 import { isRemoteAudioAvailable } from '../../services/audio/audioRemote';
-import { listReadingPlans } from '../../services/plans/readingPlanService';
 import {
   getActivePlanDayNumber,
   getVisibleCompletedEntryCount,
@@ -478,6 +477,12 @@ export function HomeScreen() {
     let cancelled = false;
 
     const loadReadingPlans = async () => {
+      // The plan service and its bundled catalog load here rather than with
+      // Home, so they stay off the cold-start path until the card needs them.
+      const { listReadingPlans } = await import('../../services/plans/readingPlanService');
+      if (cancelled) {
+        return;
+      }
       const result = await listReadingPlans();
       if (!cancelled && result.success) {
         setReadingPlans(result.data ?? []);

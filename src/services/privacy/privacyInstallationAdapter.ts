@@ -58,8 +58,16 @@ const reconcilePrivacyInstallationAttempt = async (): Promise<void> => {
         getInstallationMarker,
         getLegacyAuthState: getMmkvAuthState,
         loadResetPrivacy: async () => {
-          const { clearPrivacySettings } = await import('./privacyService');
-          return clearPrivacySettings;
+          const [{ clearPrivacySettings }, { clearReinstalledCredentials }] = await Promise.all([
+            import('./privacyService'),
+            import('./reinstalledCredentials'),
+          ]);
+          // The keychain outlives an iOS uninstall; the session and passcodes it still
+          // holds go before auth (which waits for this step) can restore them.
+          return async () => {
+            await clearReinstalledCredentials();
+            await clearPrivacySettings();
+          };
         },
       });
     },

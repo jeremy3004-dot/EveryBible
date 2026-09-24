@@ -12,6 +12,15 @@ export {
 } from 'expo-notifications/build/NotificationsEmitter';
 export { addPushTokenListener } from 'expo-notifications/build/TokenEmitter';
 
+export interface NotificationHandlerOptions {
+  /**
+   * Discreet (calculator icon) mode. The banner names the app, and group pushes carry
+   * server-written group text, so a notification arriving while the app is open is not
+   * shown at all. Passed in rather than imported to keep the privacy store off this module.
+   */
+  isDiscreet?: () => boolean;
+}
+
 /**
  * Register the foreground notification handler before React renders.
  *
@@ -19,13 +28,16 @@ export { addPushTokenListener } from 'expo-notifications/build/TokenEmitter';
  * evaluate Supabase/i18n-backed notification services, or the rest of
  * expo-notifications, before the first screen.
  */
-export function setupNotificationHandler(): void {
+export function setupNotificationHandler({ isDiscreet }: NotificationHandlerOptions = {}): void {
   setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowBanner: true,
-      shouldShowList: true,
-      shouldPlaySound: true,
-      shouldSetBadge: false,
-    }),
+    handleNotification: async () => {
+      const show = !isDiscreet?.();
+      return {
+        shouldShowBanner: show,
+        shouldShowList: show,
+        shouldPlaySound: show,
+        shouldSetBadge: false,
+      };
+    },
   });
 }

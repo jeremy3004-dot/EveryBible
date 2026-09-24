@@ -1,15 +1,10 @@
 // UI-only source check: asserts on component render code, which the suite cannot render (no component renderer); not a behaviour test.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-
-function readRelativeSource(relativePath: string): string {
-  return readFileSync(fileURLToPath(new URL(relativePath, import.meta.url).href), 'utf8');
-}
+import { readBibleReaderSource } from './bibleReaderSourceFiles';
 
 test('BibleReaderScreen keeps reader actions local-first instead of restoring an auth session', () => {
-  const source = readRelativeSource('./BibleReaderScreen.tsx');
+  const source = readBibleReaderSource();
   const authSelectors = Array.from(
     source.matchAll(/useAuthStore\(\s*\(state\) => state\.([^)]+?)\s*\)/gs),
     (match) => match[1].replace(/\s+/g, '')
@@ -33,7 +28,7 @@ test('BibleReaderScreen keeps reader actions local-first instead of restoring an
 });
 
 test('BibleReaderScreen keeps verse selection available and local-only annotation actions enabled', () => {
-  const source = readRelativeSource('./BibleReaderScreen.tsx');
+  const source = readBibleReaderSource();
 
   assert.match(
     source,

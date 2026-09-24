@@ -41,6 +41,12 @@ export type TranslatorFeedbackAggregateStatus = 'pending' | 'addressed';
 // phones handle without switching keyboards. Builds released before 2026-09-24 stop at six
 // digits, so six-digit team codes keep working; the limit is twelve so the admin dashboard can
 // issue longer, harder-to-guess team codes once this build is widely installed.
+// expo-secure-store keys for the council and translator passcodes. Shared with the
+// reinstall wipe in services/privacy/reinstalledCredentials.ts (iOS keychain items survive
+// uninstall, so a reinstall must delete them before anything reads them).
+export const COUNCIL_PASSCODE_SECURE_KEY = 'everybible.feedback.councilPasscode';
+export const TRANSLATOR_REVIEW_PASSCODE_SECURE_KEY = 'everybible.translatorReview.passcode';
+
 export const ACCESS_PASSCODE_MAX_DIGITS = 12;
 
 export function appendAccessPasscodeDigit(current: string, digit: string): string {
