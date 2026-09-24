@@ -78,6 +78,8 @@ const signOut = () => {
   supabaseFake.auth.setSession(null);
 };
 
+const UNENROLLMENTS = 'user_reading_plan_unenrollments';
+
 const remoteRow = (overrides: Partial<Record<string, unknown>> = {}) => ({
   id: 'remote-1',
   user_id: 'user-a',
@@ -810,11 +812,63 @@ test('unenrollFromPlan consumes a guest tombstone immediately', async () => {
   assert.deepEqual(storeModule.readingPlansStore.getState().enrolledPlanIds, []);
 });
 
-test('unenrollFromPlan clears the tombstone after the remote delete is confirmed', async () => {
+test('unenrollFromPlan records when the reader left as a server tombstone', async () => {
   signIn('user-a', 3);
   await service.enrollInPlan('psalms-30-days');
   await flushBackgroundWork();
   supabaseFake.reset();
+
+  const result = await service.unenrollFromPlan('psalms-30-days');
+
+  assert.deepEqual(result, { success: true });
+  assert.deepEqual(storeModule.readingPlansStore.getState().pendingUnenrollPlanIds, []);
+  assert.deepEqual(storeModule.readingPlansStore.getState().pendingUnenrollAtByPlanId, {});
+  // The server deletes the ended enrolment itself; the client never deletes rows.
+  assert.deepEqual(supabaseFake.callsFor('user_reading_plan_progress'), []);
+  const [tombstone] = supabaseFake.callsFor(UNENROLLMENTS);
+  assert.equal(tombstone?.operation, 'upsert');
+  assert.deepEqual(tombstone?.options, { onConflict: 'user_id,plan_slug' });
+  const payload = tombstone?.payload as {
+    user_id: string;
+    plan_slug: string;
+    unenrolled_at: string;
+  };
+  assert.equal(payload.user_id, 'user-a');
+  assert.equal(payload.plan_slug, 'psalms-30-days');
+  assert.ok(Number.isFinite(Date.parse(payload.unenrolled_at)), 'the leave time is sent');
+});
+
+test('a leave retried later still carries the time the reader actually left', async () => {
+  signIn('user-a', 3);
+  await service.enrollInPlan('psalms-30-days');
+  await flushBackgroundWork();
+  supabaseFake.reset();
+  supabaseFake.respondTo(UNENROLLMENTS, () => ({ data: null, error: { message: 'offline' } }));
+  await service.unenrollFromPlan('psalms-30-days');
+  const leftAt =
+    storeModule.readingPlansStore.getState().pendingUnenrollAtByPlanId['psalms-30-days'];
+  assert.ok(leftAt);
+  supabaseFake.reset();
+
+  await service.syncPlanProgress([]);
+
+  const retried = supabaseFake.callsFor(UNENROLLMENTS).find((call) => call.operation === 'upsert');
+  assert.equal((retried?.payload as { unenrolled_at: string }).unenrolled_at, leftAt);
+  assert.deepEqual(storeModule.readingPlansStore.getState().pendingUnenrollPlanIds, []);
+});
+
+test('unenrollFromPlan deletes the row the old way when the server has no tombstone table', async () => {
+  signIn('user-a', 3);
+  await service.enrollInPlan('psalms-30-days');
+  await flushBackgroundWork();
+  supabaseFake.reset();
+  supabaseFake.respondTo(UNENROLLMENTS, () => ({
+    data: null,
+    error: {
+      code: 'PGRST205',
+      message: "Could not find the table 'public.user_reading_plan_unenrollments'",
+    },
+  }));
   supabaseFake.respondTo('user_reading_plan_progress', () => ({ data: null }));
 
   const result = await service.unenrollFromPlan('psalms-30-days');
@@ -837,7 +891,7 @@ test('unenrollFromPlan keeps the tombstone when the remote delete fails', async 
   await service.enrollInPlan('psalms-30-days');
   await flushBackgroundWork();
   supabaseFake.reset();
-  supabaseFake.respondTo('user_reading_plan_progress', () => ({
+  supabaseFake.respondTo(UNENROLLMENTS, () => ({
     data: null,
     error: { message: 'row level security' },
   }));
@@ -855,7 +909,7 @@ test('unenrollFromPlan keeps the tombstone when the delete throws', async () => 
   await service.enrollInPlan('psalms-30-days');
   await flushBackgroundWork();
   supabaseFake.reset();
-  supabaseFake.respondTo('user_reading_plan_progress', () => {
+  supabaseFake.respondTo(UNENROLLMENTS, () => {
     throw new Error('socket hang up');
   });
 
@@ -1122,9 +1176,7 @@ test('syncPlanProgress upserts every syncable row and stores the server copies',
 test('syncPlanProgress never pushes a plan whose unenroll delete is still unconfirmed', async () => {
   signIn('user-a', 2);
   storeModule.readingPlansStore.getState().addPendingUnenroll('psalms-30-days');
-  supabaseFake.respondTo('user_reading_plan_progress', (call) =>
-    call.operation === 'delete' ? { data: null, error: { message: 'offline' } } : { data: [] }
-  );
+  supabaseFake.respondTo(UNENROLLMENTS, () => ({ data: null, error: { message: 'offline' } }));
 
   const result = await service.syncPlanProgress([localProgress('psalms-30-days')]);
 
@@ -1133,43 +1185,48 @@ test('syncPlanProgress never pushes a plan whose unenroll delete is still unconf
   assert.deepEqual(storeModule.readingPlansStore.getState().pendingUnenrollPlanIds, [
     'psalms-30-days',
   ]);
-  const operations = supabaseFake
-    .callsFor('user_reading_plan_progress')
-    .map((call) => call.operation);
-  assert.deepEqual(operations, ['delete']);
+  assert.deepEqual(supabaseFake.callsFor('user_reading_plan_progress'), []);
 });
 
-test('syncPlanProgress re-pushes a plan once its unenroll delete has been confirmed', async () => {
+// The sync's snapshot can predate the unenrol. Once the leave is confirmed that
+// snapshot row is the ended enrolment, so pushing it would undo the leave (the
+// server would skip it anyway).
+test('syncPlanProgress does not push a snapshot row back once its unenroll is confirmed', async () => {
   signIn('user-a', 2);
   storeModule.readingPlansStore.getState().addPendingUnenroll('psalms-30-days');
-  supabaseFake.respondTo('user_reading_plan_progress', (call) =>
-    call.operation === 'delete' ? { data: null } : { data: [remoteRow({ id: 'server-1' })] }
-  );
+  supabaseFake.respondTo('user_reading_plan_progress', () => ({
+    data: [remoteRow({ id: 'server-1' })],
+  }));
 
   const result = await service.syncPlanProgress([localProgress('psalms-30-days')]);
 
   assert.equal(result.success, true);
   assert.deepEqual(storeModule.readingPlansStore.getState().pendingUnenrollPlanIds, []);
-  assert.deepEqual(
-    supabaseFake.callsFor('user_reading_plan_progress').map((call) => call.operation),
-    ['delete', 'select', 'upsert']
-  );
+  assert.equal(storeModule.readingPlansStore.getState().getProgress('psalms-30-days'), null);
+  assert.deepEqual(supabaseFake.callsFor('user_reading_plan_progress'), []);
 });
 
 test('syncPlanProgress retries an unconfirmed unenroll delete before pushing progress', async () => {
   signIn('user-a', 2);
   storeModule.readingPlansStore.getState().addPendingUnenroll('acts-28-days');
-  supabaseFake.respondTo('user_reading_plan_progress', (call) =>
-    call.operation === 'delete' ? { data: null } : { data: [remoteRow({ id: 'server-1' })] }
-  );
+  const order: string[] = [];
+  supabaseFake.respondTo(UNENROLLMENTS, (call) => {
+    order.push(`tombstone:${call.operation}`);
+    return { data: call.operation === 'select' ? [] : null };
+  });
+  supabaseFake.respondTo('user_reading_plan_progress', (call) => {
+    order.push(`progress:${call.operation}`);
+    return { data: [remoteRow({ id: 'server-1' })] };
+  });
 
   const result = await service.syncPlanProgress([localProgress('psalms-30-days')]);
 
   assert.equal(result.success, true);
   assert.deepEqual(storeModule.readingPlansStore.getState().pendingUnenrollPlanIds, []);
+  assert.equal(order[0], 'tombstone:upsert', 'the leave is recorded before any push');
   assert.deepEqual(
     supabaseFake.callsFor('user_reading_plan_progress').map((call) => call.operation),
-    ['delete', 'select', 'upsert']
+    ['select', 'upsert']
   );
 });
 
@@ -1327,7 +1384,7 @@ test('unenrollFromPlan keeps the tombstone when the account changes as the delet
   await service.enrollInPlan('psalms-30-days');
   await flushBackgroundWork();
   supabaseFake.reset();
-  supabaseFake.respondTo('user_reading_plan_progress', () => {
+  supabaseFake.respondTo(UNENROLLMENTS, () => {
     // The reader switched accounts while the delete was in flight, so the
     // tombstone must survive for the next sync rather than be cleared here.
     authState.user = { uid: 'user-b' };
@@ -1825,4 +1882,106 @@ test('enrolling on a second device keeps the progress the account already has fo
   assert.deepEqual(Object.keys(pushed?.completed_entries ?? {}).sort(), ['1', '2']);
   assert.equal(pushed?.current_day, 3);
   assert.equal(planStore().getProgress('psalms-30-days')?.current_day, 3);
+});
+
+// ---------------------------------------------------------------------------
+// A plan left on another device stays left
+// (docs/research/sync-offline-review-2026-09-24.md, finding 9)
+// ---------------------------------------------------------------------------
+
+/** Serves the account's server tombstones for every tombstone-table read. */
+const serveTombstones = (rows: Array<{ plan_slug: string; unenrolled_at: string }>) => {
+  supabaseFake.respondTo(UNENROLLMENTS, (call) =>
+    call.operation === 'select' ? { data: rows } : { data: null }
+  );
+};
+
+test('a plan left on another phone is dropped here instead of being pushed back', async () => {
+  signIn('user-a', 2);
+  planStore().upsertProgress(localProgress('psalms-30-days')); // started 2026-02-02
+  serveTombstones([{ plan_slug: 'psalms-30-days', unenrolled_at: '2026-03-01T00:00:00.000Z' }]);
+  serveRows([]);
+
+  const result = await service.syncPlanProgress(Object.values(planStore().progressByPlanId));
+
+  assert.equal(result.success, true);
+  assert.equal(planStore().getProgress('psalms-30-days'), null);
+  assert.equal(planStore().enrolledPlanIds.includes('psalms-30-days'), false);
+  assert.deepEqual(upsertPayloads(), []);
+  // Nothing to retry: the leave is already on the server.
+  assert.deepEqual(planStore().pendingUnenrollPlanIds, []);
+});
+
+test('re-joining a plan after it was left elsewhere is kept and pushed', async () => {
+  signIn('user-a', 2);
+  planStore().upsertProgress(
+    localProgress('psalms-30-days', { started_at: '2026-03-02T00:00:00.000Z' })
+  );
+  serveTombstones([{ plan_slug: 'psalms-30-days', unenrolled_at: '2026-03-01T00:00:00.000Z' }]);
+  serveRows([]);
+
+  const result = await service.syncPlanProgress(Object.values(planStore().progressByPlanId));
+
+  assert.equal(result.success, true);
+  assert.ok(planStore().getProgress('psalms-30-days'));
+  assert.deepEqual(
+    upsertPayloads().map((row) => row.plan_slug),
+    ['psalms-30-days']
+  );
+});
+
+test('a pull drops a plan left elsewhere instead of pushing it as local-only', async () => {
+  signIn('user-a', 2);
+  planStore().upsertProgress(localProgress('acts-28-days'));
+  serveTombstones([{ plan_slug: 'acts-28-days', unenrolled_at: '2026-03-01T00:00:00.000Z' }]);
+  serveRows([remoteRow()]);
+
+  const result = await service.getUserPlanProgress();
+  await flushBackgroundWork();
+
+  assert.equal(result.success, true);
+  assert.deepEqual(
+    result.data?.map((progress) => progress.plan_id),
+    ['psalms-30-days']
+  );
+  assert.equal(planStore().getProgress('acts-28-days'), null);
+  assert.deepEqual(upsertPayloads(), []);
+});
+
+test('a pull adopts a re-join made on another phone after this phone was left behind', async () => {
+  signIn('user-a', 2);
+  // This phone still holds the enrolment that was left on 2026-03-01; another
+  // phone joined the plan again afterwards.
+  planStore().upsertProgress(
+    localProgress('psalms-30-days', { completed_entries: { '9': '2026-02-10T00:00:00.000Z' } })
+  );
+  serveTombstones([{ plan_slug: 'psalms-30-days', unenrolled_at: '2026-03-01T00:00:00.000Z' }]);
+  serveRows([
+    remoteRow({ id: 'rejoined', started_at: '2026-03-05T00:00:00.000Z', completed_entries: {} }),
+  ]);
+
+  await service.getUserPlanProgress();
+
+  const live = planStore().getProgress('psalms-30-days');
+  assert.equal(live?.id, 'rejoined');
+  assert.equal(live?.started_at, '2026-03-05T00:00:00.000Z');
+  assert.deepEqual(live?.completed_entries, {}, 'the ended enrolment is not merged in');
+});
+
+test('a pull with no tombstones visible keeps every local plan as before', async () => {
+  signIn('user-a', 2);
+  planStore().upsertProgress(localProgress('acts-28-days'));
+  supabaseFake.respondTo(UNENROLLMENTS, () => ({
+    data: null,
+    error: { code: 'PGRST205', message: 'no such table' },
+  }));
+  serveRows([remoteRow()]);
+
+  const result = await service.getUserPlanProgress();
+  await flushBackgroundWork();
+
+  assert.deepEqual(result.data?.map((progress) => progress.plan_id).sort(), [
+    'acts-28-days',
+    'psalms-30-days',
+  ]);
 });

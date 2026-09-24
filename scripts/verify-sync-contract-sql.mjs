@@ -19,6 +19,7 @@ import assert from 'node:assert/strict';
 const MIGRATIONS = [
   '20260924120000_user_preferences_field_edit_stamps.sql',
   '20260924120100_backfill_user_preferences_field_stamps.sql',
+  '20260924120200_reading_plan_unenroll_tombstones.sql',
 ];
 
 const db = new PGlite();
@@ -38,6 +39,37 @@ create table public.profiles (
   id uuid primary key,
   created_at timestamptz default now()
 );
+alter table public.profiles enable row level security;
+create policy "Users can view own profile" on public.profiles for select
+  using ((select auth.uid()) = id);
+
+-- Production user_reading_plan_progress before the migrations (2026-09-24).
+create table public.reading_plans (id uuid primary key default gen_random_uuid(), slug text);
+create table public.user_reading_plan_progress (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  plan_id uuid references public.reading_plans(id) on delete cascade,
+  started_at timestamptz not null default now(),
+  completed_entries jsonb default '{}'::jsonb,
+  current_day integer default 1,
+  is_completed boolean default false,
+  completed_at timestamptz,
+  synced_at timestamptz default now(),
+  plan_slug text,
+  constraint user_reading_plan_progress_plan_ref_required
+    check (plan_id is not null or plan_slug is not null),
+  unique (user_id, plan_id),
+  unique (user_id, plan_slug)
+);
+alter table public.user_reading_plan_progress enable row level security;
+create policy plan_progress_select_own on public.user_reading_plan_progress for select
+  to authenticated using (user_id = (select auth.uid()));
+create policy plan_progress_insert_own on public.user_reading_plan_progress for insert
+  to authenticated with check (user_id = (select auth.uid()));
+create policy plan_progress_update_own on public.user_reading_plan_progress for update
+  to authenticated using (user_id = (select auth.uid()));
+create policy plan_progress_delete_own on public.user_reading_plan_progress for delete
+  to authenticated using (user_id = (select auth.uid()));
 
 -- Production user_preferences before the migrations (information_schema, 2026-09-24).
 create table public.user_preferences (
@@ -291,5 +323,126 @@ assert.equal(hijack.affectedRows, 0);
 await db.query(`insert into public.profiles (id) values ($1)`, [C]);
 await as(C, OLD_CLIENT_PREFS_UPSERT, [C, 'small', 'light', iso(0)]);
 assert.equal((await prefsOf(C)).theme, 'light');
+
+// ---------------------------------------------------------------------------
+// Reading-plan unenrol tombstones (20260924120200)
+// ---------------------------------------------------------------------------
+
+const PLAN = 'psalms-30-days';
+const hoursAgo = (hours) => iso(-hours * 60 * 60 * 1000);
+
+// The installed builds' plan upsert (buildRemoteReadingPlanProgressPayload @ a608f1d7):
+// no session columns, on conflict (user_id, plan_slug), returning the row.
+const OLD_CLIENT_PLAN_UPSERT = `
+  insert into public.user_reading_plan_progress (user_id, plan_id, plan_slug, started_at,
+    completed_entries, current_day, is_completed, completed_at, synced_at)
+  values ($1, null, $2, $3::timestamptz, $4::jsonb, $5, false, null, now())
+  on conflict (user_id, plan_slug) do update set plan_id = excluded.plan_id,
+    started_at = excluded.started_at, completed_entries = excluded.completed_entries,
+    current_day = excluded.current_day, is_completed = excluded.is_completed,
+    completed_at = excluded.completed_at, synced_at = excluded.synced_at
+  returning *`;
+// The installed builds' unenrol.
+const OLD_CLIENT_UNENROL = `delete from public.user_reading_plan_progress
+  where user_id = $1 and plan_slug = $2`;
+// The new client's unenrol: upsert the tombstone with the time the reader left.
+const NEW_CLIENT_UNENROL = `
+  insert into public.user_reading_plan_unenrollments (user_id, plan_slug, unenrolled_at)
+  values ($1, $2, $3::timestamptz)
+  on conflict (user_id, plan_slug) do update set unenrolled_at = excluded.unenrolled_at
+  returning *`;
+const planRow = (uid, slug = PLAN) =>
+  one(`select * from public.user_reading_plan_progress where user_id = $1 and plan_slug = $2`, [
+    uid,
+    slug,
+  ]);
+const tombstone = (uid, slug = PLAN) =>
+  one(
+    `select unenrolled_at from public.user_reading_plan_unenrollments
+      where user_id = $1 and plan_slug = $2`,
+    [uid, slug]
+  );
+
+// Phone B (installed build) and phone A share one enrolment that started two days ago.
+const enrolledAt = hoursAgo(48);
+let upserted = await as(A, OLD_CLIENT_PLAN_UPSERT, [A, PLAN, enrolledAt, '{"1": "x"}', 2]);
+assert.equal(upserted.rows.length, 1, 'an installed build can still enrol');
+
+// Phone A (new client) leaves the plan an hour ago; the tombstone ends the enrolment.
+const leftAt = hoursAgo(1);
+await as(A, NEW_CLIENT_UNENROL, [A, PLAN, leftAt]);
+assert.equal(await planRow(A), undefined, 'writing the tombstone deletes the ended enrolment');
+assert.equal(new Date((await tombstone(A)).unenrolled_at).toISOString(), leftAt);
+
+// Phone B still has the plan and pushes it the old way: skipped, no row comes back.
+upserted = await as(A, OLD_CLIENT_PLAN_UPSERT, [A, PLAN, enrolledAt, '{"1": "x", "2": "y"}', 3]);
+assert.equal(upserted.rows.length, 0, 'a stale enrolment is not resurrected');
+assert.equal(await planRow(A), undefined);
+
+// A retried leave recorded earlier never moves the tombstone back.
+await as(A, NEW_CLIENT_UNENROL, [A, PLAN, hoursAgo(5)]);
+assert.equal(new Date((await tombstone(A)).unenrolled_at).toISOString(), leftAt);
+
+// Re-joining after the leave is a new enrolment and is accepted, by any build.
+const rejoinedAt = iso(-60 * 1000);
+upserted = await as(A, OLD_CLIENT_PLAN_UPSERT, [A, PLAN, rejoinedAt, '{}', 1]);
+assert.equal(upserted.rows.length, 1, 'a re-enrolment after the leave is kept');
+// A stale push of the OLD enrolment cannot overwrite the new one either.
+upserted = await as(A, OLD_CLIENT_PLAN_UPSERT, [A, PLAN, enrolledAt, '{"1": "x"}', 2]);
+assert.equal(upserted.rows.length, 0);
+assert.equal(new Date((await planRow(A)).started_at).toISOString(), rejoinedAt);
+
+// An installed build's unenrol (a direct DELETE) is recorded as a tombstone too.
+const beforeDelete = Date.now();
+await as(A, OLD_CLIENT_UNENROL, [A, PLAN]);
+assert.equal(await planRow(A), undefined);
+assert.ok(new Date((await tombstone(A)).unenrolled_at).getTime() >= beforeDelete - 1000);
+upserted = await as(A, OLD_CLIENT_PLAN_UPSERT, [A, PLAN, rejoinedAt, '{}', 1]);
+assert.equal(upserted.rows.length, 0, 'the old build cannot undo its own leave from elsewhere');
+
+// Clock skew: a started_at and an unenrolled_at in the future are clamped to now.
+const OTHER = 'proverbs-31-days';
+upserted = await as(A, OLD_CLIENT_PLAN_UPSERT, [A, OTHER, iso(2 * 60 * 60 * 1000), '{}', 1]);
+assert.ok(new Date(upserted.rows[0].started_at).getTime() <= Date.now());
+await as(A, NEW_CLIENT_UNENROL, [A, OTHER, iso(2 * 60 * 60 * 1000)]);
+assert.ok(new Date((await tombstone(A, OTHER)).unenrolled_at).getTime() <= Date.now());
+assert.equal(await planRow(A, OTHER), undefined);
+
+// A tombstone for one plan leaves the others alone.
+const THIRD = 'acts-28-days';
+await as(A, OLD_CLIENT_PLAN_UPSERT, [A, THIRD, enrolledAt, '{}', 1]);
+assert.ok(await planRow(A, THIRD));
+
+// RLS and grants: nobody reads or writes another account's tombstones; anon has no access.
+assert.equal(
+  (await as(B, `select * from public.user_reading_plan_unenrollments where user_id = $1`, [A])).rows
+    .length,
+  0
+);
+await assert.rejects(as(B, NEW_CLIENT_UNENROL, [A, THIRD, iso(0)]), /row-level security/);
+assert.ok(await planRow(A, THIRD), "B cannot end A's enrolment");
+await assert.rejects(
+  as(null, `select * from public.user_reading_plan_unenrollments`),
+  /permission denied/
+);
+await assert.rejects(
+  as(A, `delete from public.user_reading_plan_unenrollments where user_id = $1`, [A]),
+  /permission denied/,
+  'a client cannot erase its tombstones and resurrect plans'
+);
+
+// Deleting an account cascades through progress and tombstones without error.
+await as(B, OLD_CLIENT_PLAN_UPSERT, [B, PLAN, enrolledAt, '{}', 1]);
+await db.query(`delete from public.profiles where id = $1`, [B]);
+assert.equal(
+  (
+    await one(
+      `select count(*)::int as n from public.user_reading_plan_unenrollments where user_id = $1`,
+      [B]
+    )
+  ).n,
+  0,
+  'an account deletion is not recorded as leaving its plans'
+);
 
 console.log('verify-sync-contract-sql: all checks passed');

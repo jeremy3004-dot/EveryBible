@@ -505,6 +505,20 @@ export function mergePlanProgress(
   };
 }
 
+/**
+ * Whether a leave recorded at `unenrolledAt` ended this enrolment: it did when
+ * the enrolment started at or before the leave. A later start is a re-join.
+ * The server applies the same rule (migration 20260924120200).
+ */
+export function isEnrolmentEndedBy(
+  progress: Pick<UserReadingPlanProgress, 'started_at'>,
+  unenrolledAt: string
+): boolean {
+  const startedAt = Date.parse(progress.started_at);
+  const leftAt = Date.parse(unenrolledAt);
+  return Number.isFinite(startedAt) && Number.isFinite(leftAt) && startedAt <= leftAt;
+}
+
 export interface ReconcileFetchedPlanProgressResult {
   /** The reconciled progress rows to commit to the store. */
   progress: UserReadingPlanProgress[];
