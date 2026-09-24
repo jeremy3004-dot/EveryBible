@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import type { Mutate } from 'zustand/vanilla';
 import { create } from 'zustand';
 import { mockMmkvStorage, mockModule, sourcePath } from '../../testing/mockModules';
-import { hostAncestors, installRenderHarness, within } from '../../testing/render';
+import { hostAncestors, installRenderHarness, textContent, within } from '../../testing/render';
 import type { RhythmDetailScreenProps } from '../../navigation/types';
 import type { ReadingPlanRhythmItem, UserReadingPlanProgress } from '../../services/plans/types';
 import type { ReadingPlansStoreApi } from '../../stores/readingPlansStore';
@@ -28,9 +28,8 @@ mockModule(mock, sourcePath('stores/audioStore.ts'), { useAudioStore: audioStore
 mockModule(mock, sourcePath('stores/libraryStore.ts'), {
   useLibraryStore: create(() => ({ history: [] })),
 });
-mockModule(mock, sourcePath('stores/progressStore.ts'), {
-  useProgressStore: create(() => ({ chaptersRead: {} })),
-});
+const progressStore = create(() => ({ chaptersRead: {} as Record<string, number> }));
+mockModule(mock, sourcePath('stores/progressStore.ts'), { useProgressStore: progressStore });
 
 const PLAN_ID = 'psalms-30-days';
 
@@ -50,6 +49,7 @@ afterEach(async () => {
   store.setState(store.getInitialState(), true);
   bibleStore.setState(bibleStore.getInitialState(), true);
   audioStore.setState(audioStore.getInitialState(), true);
+  progressStore.setState(progressStore.getInitialState(), true);
   rootCalls.length = 0;
 });
 
@@ -268,4 +268,76 @@ test('a rhythm left open overnight offers the new day of a calendar plan when th
   await view.flush();
 
   assert.ok(view.getByText(t('readingPlans.dayOf', { current: 25, total: 31 })));
+});
+
+test("a plan card counts today's chapters already read against the day's target", async () => {
+  const now = Date.now();
+  progressStore.setState({ chaptersRead: { PSA_1: now, PSA_2: now } });
+  const rhythmId = await seedRhythm([psalmsPlan]);
+  const view = await renderDetail(rhythmId);
+
+  const todayProgress = t('readingPlans.todayTargetProgress', { completed: 2, target: 5 });
+  // Once as the card's progress pill and once as its body line.
+  assert.equal(view.getAllByText(todayProgress).length, 2);
+  assert.ok(view.getByText(t('readingPlans.chapterCount', { count: 5 })));
+  assert.ok(view.getByText(t('common.next')));
+});
+
+test('the summary counts the items, and the finished and remaining plans', async () => {
+  const PROVERBS = 'proverbs-31-days';
+  const SERMON = 'sermon-on-the-mount-7-days';
+  const finished = (planId: string) =>
+    progress({
+      id: `progress-${planId}`,
+      plan_id: planId,
+      is_completed: true,
+      completed_at: '2026-09-20T00:00:00.000Z',
+    });
+  const store = await loadStore();
+  store.setState({
+    enrolledPlanIds: [PLAN_ID, PROVERBS, SERMON],
+    progressByPlanId: {
+      [PLAN_ID]: progress(),
+      [PROVERBS]: finished(PROVERBS),
+      [SERMON]: finished(SERMON),
+    },
+  });
+  const result = store.getState().createRhythm({
+    title: 'Full office',
+    slot: 'morning',
+    items: [
+      psalm63,
+      psalmsPlan,
+      { id: '', type: 'plan', planId: PROVERBS },
+      { id: '', type: 'plan', planId: SERMON },
+    ],
+  });
+  assert.ok(result.success);
+  const view = await renderDetail(result.rhythm!.id);
+
+  const statValue = (label: string) =>
+    textContent(within(hostAncestors(view.getByText(label))[0]).queryAllByType('Text')[0]);
+  assert.equal(statValue(t('readingPlans.includedItems')), '4');
+  assert.equal(statValue(t('readingPlans.completed')), '2');
+  assert.equal(statValue(t('readingPlans.remaining')), '1');
+  // With something left to read, the summary invites the reader on as the button does.
+  assert.equal(view.getAllByText(t('readingPlans.continueRhythm')).length, 2);
+});
+
+test('a passage card names its chapter range', async () => {
+  const rhythmId = await seedRhythm([
+    { ...psalm63, title: 'Songs of ascent', startChapter: 120, endChapter: 122 },
+  ]);
+  const view = await renderDetail(rhythmId);
+
+  assert.ok(view.getByText(t('interface.chapterRange', { start: 120, end: 122 })));
+  // The chapter-count pill, and the progress pill a passage fills with the same count.
+  assert.equal(view.getAllByText(t('readingPlans.chapterCount', { count: 3 })).length, 2);
+});
+
+test('a single-chapter passage card names its chapter', async () => {
+  const rhythmId = await seedRhythm([psalm63]);
+  const view = await renderDetail(rhythmId);
+
+  assert.ok(view.getByText(t('interface.chapterNumber', { chapter: 63 })));
 });

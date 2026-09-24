@@ -242,3 +242,43 @@ test('each preset card lists its tradition, historic roots and included passages
   assert.ok(scoped.getByText(t('plans.rhythmComposer.historicRoots')));
   assert.ok(scoped.getByText(t('plans.rhythmComposer.includes')));
 });
+
+test('a save the store rejects explains why and stays on the composer', async () => {
+  const store = await loadStore();
+  const { RHYTHM_MUTATION_ERROR_CODES } = await import('../../stores/readingPlansStore');
+  store.setState({
+    createRhythm: () => ({
+      success: false,
+      error: RHYTHM_MUTATION_ERROR_CODES.planInAnotherRhythm,
+    }),
+  });
+  const view = await renderComposer();
+
+  await view.press(view.getByText(RHYTHM_PRESET_LIBRARY[0].title));
+
+  const [alert] = harness.rn.__recorded.alerts;
+  assert.equal(alert.title, t('common.error'));
+  assert.equal(alert.message, t('plans.rhythmComposer.errorPlanInAnotherRhythm'));
+  assert.deepEqual(callsTo('replace'), []);
+  assert.deepEqual(harness.haptics, [], 'no success haptic');
+});
+
+test('the filters are grouped under their time-of-day and tradition headings', async () => {
+  const view = await renderComposer();
+
+  assert.ok(view.getByText(t('plans.rhythmComposer.timeOfDay')));
+  assert.ok(view.getByText(t('plans.rhythmComposer.tradition')));
+  assert.ok(
+    view.getByRole('button', { name: t('plans.rhythmComposer.allTraditions'), selected: true })
+  );
+  for (const name of [
+    t('readingPlans.morningLabel'),
+    t('plans.rhythmComposer.midday'),
+    t('readingPlans.eveningLabel'),
+  ]) {
+    assert.ok(view.getByRole('button', { name, selected: false }), name);
+  }
+  assert.ok(
+    view.getByText(t('plans.rhythmComposer.presetCount', { count: RHYTHM_PRESET_LIBRARY.length }))
+  );
+});

@@ -5,6 +5,7 @@ import { create } from 'zustand';
 import { mockModule, sourcePath } from '../../testing/mockModules';
 import {
   accessibilityLabelOf,
+  hostAncestors,
   installRenderHarness,
   textContent,
   within,
@@ -36,10 +37,20 @@ mockModule(mock, sourcePath('stores/progressStore.ts'), {
   selectCurrentStreakDays: (state: { streakDays: number }) => state.streakDays,
 });
 
-// Signed out, so the cloud engagement summary is never fetched.
+// Signed out by default, so the cloud engagement summary is never fetched.
+const analytics = {
+  calls: [] as string[],
+  summary: { success: false } as { success: boolean; data?: Record<string, unknown> },
+};
 mockModule(mock, sourcePath('services/analytics/analyticsService.ts'), {
-  refreshEngagement: async () => ({ success: false }),
-  getEngagementSummary: async () => ({ success: false }),
+  refreshEngagement: async () => {
+    analytics.calls.push('refreshEngagement');
+    return { success: true };
+  },
+  getEngagementSummary: async () => {
+    analytics.calls.push('getEngagementSummary');
+    return analytics.summary;
+  },
 });
 
 // The day card jumps tabs through the root navigator, not the screen's own stack.
@@ -56,6 +67,10 @@ beforeEach(() => {
 
 afterEach(() => {
   mock.timers.reset();
+  useProgressStore.setState(useProgressStore.getInitialState(), true);
+  harness.authStore.setState({ isAuthenticated: false });
+  analytics.calls.length = 0;
+  analytics.summary = { success: false };
 });
 
 async function renderScreen() {
@@ -259,4 +274,65 @@ test('every visible string and accessibility label comes from a translation', as
     assert.ok(texts.includes(t(key)), `${key} is shown`);
   }
   assert.ok(view.getByRole('button', { name: t('common.back') }));
+});
+
+test('with nothing read yet, the day card says so and hints how to start', async () => {
+  useProgressStore.setState({ chaptersRead: {}, streakDays: 0 });
+  const view = await renderScreen();
+
+  assert.equal(dayCells(view).filter(isSelected).length, 0, 'no day is selected');
+  assert.ok(view.getByText(t('readingActivity.noReading')));
+  assert.ok(view.getByText(t('readingActivity.noReadingHint')));
+  // The legend and the card's eyebrow both read "Today".
+  assert.equal(view.getAllByText(t('readingActivity.legendToday')).length, 2);
+  assert.ok(view.getByText(t('readingActivity.legendProgress', { read: 0, count: 24 })));
+  assert.equal(
+    view.queryByRole('button', { name: /No reading on this day/ }),
+    null,
+    'the card has nowhere to go'
+  );
+});
+
+test('a day read across a stretch of time shows its reading window, spoken with the summary', async () => {
+  const view = await renderScreen();
+  await view.press(cellNamed(view, 'Tuesday, September 22'));
+
+  const window = t('readingActivity.sessionWindow', {
+    start: '9:00 AM',
+    end: '9:20 AM',
+    duration: t('interface.minutesShort', { count: 20 }),
+  });
+  assert.ok(view.getByText(window));
+  assert.ok(view.getByRole('button', { name: new RegExp(window) }));
+
+  // A single chapter has no window.
+  await view.press(cellNamed(view, 'Wednesday, September 23'));
+  assert.equal(view.queryByText(/ – /), null);
+});
+
+test('signed in, the cloud totals replace the local chapter count and fill in listening time', async () => {
+  harness.authStore.setState({ isAuthenticated: true });
+  analytics.summary = {
+    success: true,
+    data: { total_chapters_read: 412, total_listening_minutes: 95 },
+  };
+  const view = await renderScreen();
+  await view.flush();
+
+  assert.deepEqual(analytics.calls, ['refreshEngagement', 'getEngagementSummary']);
+  assert.ok(view.getByText('412'));
+  assert.ok(view.getByText(t('interface.hoursMinutes', { hours: 1, minutes: 35 })));
+});
+
+test('signed out, the totals come from this device and the cloud is not asked', async () => {
+  const view = await renderScreen();
+  await view.flush();
+
+  assert.deepEqual(analytics.calls, []);
+  const totals = within(hostAncestors(view.getByText(t('readingActivity.chapters')))[0]);
+  assert.ok(totals.getByText(String(Object.keys(CHAPTERS_READ).length)));
+  assert.ok(totals.getByText(t('interface.minutesShort', { count: 0 })));
+  const streak = within(hostAncestors(view.getByText(t('readingActivity.currentStreak')))[0]);
+  assert.ok(streak.getByText('2'));
+  assert.ok(streak.getByText(t('readingActivity.streakUnit', { count: 2 })));
 });
