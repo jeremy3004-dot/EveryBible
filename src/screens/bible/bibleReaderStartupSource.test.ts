@@ -4,13 +4,9 @@
 // path, which rendering under mocks cannot observe.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { readBibleReaderSource } from './bibleReaderSourceFiles';
 
-const readerSource = readFileSync(
-  fileURLToPath(new URL('./BibleReaderScreen.tsx', import.meta.url).href),
-  'utf8'
-);
+const readerSource = readBibleReaderSource();
 
 test('BibleReaderScreen lazy-loads verse timestamps only when follow-along opens', () => {
   assert.equal(

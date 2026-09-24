@@ -3,13 +3,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { readBibleReaderSource } from './bibleReaderSourceFiles';
 
 function readRelativeSource(relativePath: string): string {
   return readFileSync(fileURLToPath(new URL(relativePath, import.meta.url).href), 'utf8');
 }
 
 test('BibleReaderScreen wires a bottom selection tray with copy, note, share, and inline highlight colors', () => {
-  const source = readRelativeSource('./BibleReaderScreen.tsx');
+  const source = readBibleReaderSource();
   const traySource = readRelativeSource('../../components/annotations/AnnotationActionSheet.tsx');
   const highlightSource = readRelativeSource('../../components/bible/HighlightedVerseText.tsx');
 
