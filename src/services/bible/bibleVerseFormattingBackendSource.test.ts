@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { BibleVerseRow } from '../supabase/types';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 
@@ -39,14 +40,11 @@ test('bible_verses formatting rollout adds a dedicated Supabase migration', () =
 });
 
 test('remote text-pack pipeline preserves verse formatting payloads from Supabase', () => {
-  const supabaseTypes = readRepoFile('src/services/supabase/types.ts');
+  // Type-level contract, enforced by `npm run typecheck`: rows carry an optional payload.
+  const row: Pick<BibleVerseRow, 'formatting'> = { formatting: null };
+  assert.deepEqual(row, { formatting: null });
   const exportScript = readRepoFile('scripts/export_translation_text_packs.py');
 
-  assert.match(
-    supabaseTypes,
-    /formatting\?: unknown \| null;/,
-    'Expected Supabase bible verse rows to expose the optional formatting payload'
-  );
   assert.match(
     exportScript,
     /["']select["']:\s*["']\*["']/,
