@@ -389,7 +389,9 @@ export async function inspectBundledDatabaseStatus(
     }
   }
 
-  let temporaryDb: SQLite.SQLiteDatabase | null = null;
+  // A handle this probe opened itself. It is closed on the way out unless it became the shared
+  // handle; the shared handle, when one exists, is only borrowed.
+  let probeDb: SQLite.SQLiteDatabase | null = null;
 
   try {
     // On a fresh install nothing has imported the asset yet. Opening the missing file would
@@ -399,17 +401,25 @@ export async function inspectBundledDatabaseStatus(
       return notReadyStatus();
     }
 
-    temporaryDb = db ?? (await SQLite.openDatabaseAsync(DATABASE_NAME, SQLITE_OPEN_OPTIONS));
-    const status = await inspectOpenDatabase(temporaryDb);
+    const database =
+      db ?? (probeDb = await SQLite.openDatabaseAsync(DATABASE_NAME, SQLITE_OPEN_OPTIONS));
+    const status = await inspectOpenDatabase(database);
     const ready = isBundledBibleDatabaseReady(status, minimumReadyVerseCount);
 
-    if (!db && temporaryDb && ready) {
-      await temporaryDb.execAsync('PRAGMA journal_mode = WAL');
-      await temporaryDb.execAsync('PRAGMA cache_size = -4096');
-      await temporaryDb.execAsync('PRAGMA temp_store = MEMORY');
-      await ensurePerformanceIndexes(temporaryDb);
-      db = temporaryDb;
-      temporaryDb = null;
+    // An initialization can start while the probe is reading (the check above ran before it).
+    // It owns the file then: it may be replacing it and will install its own shared handle, so
+    // adopting the probe would leave one of the two handles open forever.
+    const initializationOwnsFile = () => db !== null || bundledInitPromise !== null;
+    if (ready && probeDb && !initializationOwnsFile()) {
+      const candidate = probeDb;
+      await candidate.execAsync('PRAGMA journal_mode = WAL');
+      await candidate.execAsync('PRAGMA cache_size = -4096');
+      await candidate.execAsync('PRAGMA temp_store = MEMORY');
+      await ensurePerformanceIndexes(candidate);
+      if (!initializationOwnsFile()) {
+        db = candidate;
+        probeDb = null;
+      }
     }
 
     return {
@@ -420,8 +430,8 @@ export async function inspectBundledDatabaseStatus(
     console.warn('[Bible] Failed to inspect bundled database status:', error);
     return notReadyStatus();
   } finally {
-    if (!db && temporaryDb) {
-      await temporaryDb.closeAsync();
+    if (probeDb) {
+      await probeDb.closeAsync();
     }
   }
 }
