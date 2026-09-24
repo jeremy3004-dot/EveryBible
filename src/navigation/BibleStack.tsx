@@ -31,7 +31,7 @@ export function BibleStack() {
       />
       <Stack.Screen
         name="BibleReader"
-        getComponent={() => require('../screens/bible/BibleReaderScreen').BibleReaderScreen}
+        getComponent={() => require('./bibleReaderRouteGuard').BibleReaderRoute}
       />
       <Stack.Screen
         name="TranslatorQueue"
