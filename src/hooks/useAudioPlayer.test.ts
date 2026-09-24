@@ -2340,6 +2340,51 @@ test('the sleep timer counts down in whole minutes', async (t) => {
   assert.equal(player.rerender().sleepTimerRemaining, 4);
 });
 
+test('pausing freezes the sleep timer countdown and resuming continues the remaining time', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: BASE_TIME });
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setSleepTimer(5);
+  player.rerender();
+  tickSeconds(t.mock.timers, 2 * 60);
+  await player.api.pause();
+  player.rerender();
+
+  t.mock.timers.tick(30 * 60 * 1000);
+  const shownWhilePaused = player.rerender().sleepTimerRemaining;
+  await player.api.resume();
+  player.rerender();
+  recorded.player.length = 0;
+  tickSeconds(t.mock.timers, 3 * 60 - 1);
+  const pausesBeforeEnd = playerCalls('pause').length;
+  tickSeconds(t.mock.timers, 1);
+
+  assert.deepEqual(
+    { shownWhilePaused, pausesBeforeEnd, pausesAtEnd: playerCalls('pause').length },
+    { shownWhilePaused: 3, pausesBeforeEnd: 0, pausesAtEnd: 1 }
+  );
+  assert.equal(store().sleepTimerMinutes, null);
+});
+
+test('a native progress event after a long pause does not expire a frozen sleep timer', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: BASE_TIME });
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setSleepTimer(5);
+  player.rerender();
+  emitStatus({ isPlaying: false, positionMillis: 1_000, durationMillis: DEFAULT_DURATION_MS });
+  t.mock.timers.tick(60 * 60 * 1000);
+  recorded.player.length = 0;
+
+  emitStatus({ isPlaying: true, positionMillis: 1_000, durationMillis: DEFAULT_DURATION_MS });
+  await Promise.resolve();
+
+  assert.equal(playerCalls('pause').length, 0);
+  assert.equal(store().status, 'playing');
+  assert.equal(store().sleepTimerEndTime, BASE_TIME + 60 * 60 * 1000 + 5 * 60 * 1000);
+  emitStatus({ isPlaying: false, positionMillis: 1_000 });
+});
+
 test('no sleep timer means no remaining time to show', () => {
   assert.equal(mountPlayer().api.sleepTimerRemaining, null);
 });
