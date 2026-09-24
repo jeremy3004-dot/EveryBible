@@ -51,6 +51,27 @@ const RESET_PASSWORD_ROUTE = [
   { screen: 'Auth', params: { screen: 'ResetPassword' } },
 ] as const;
 
+// auth-js keeps the PKCE verifier beside the session in auth storage and deletes it on every
+// sign-out. The shared fake does not model it, so this file layers one over the fake's storage.
+const fakeAuthInternals = supabaseFake.client.auth as unknown as {
+  storageKey: string;
+  storage: {
+    getItem: (key: string) => Promise<string | null>;
+    setItem: (key: string, value: string) => Promise<void>;
+  };
+};
+const VERIFIER_KEY = `${fakeAuthInternals.storageKey}-code-verifier`;
+const STORED_VERIFIER = 'stored-verifier/PASSWORD_RECOVERY';
+const storedVerifiers = new Map<string, string>();
+const fakeGetItem = fakeAuthInternals.storage.getItem;
+const fakeSetItem = fakeAuthInternals.storage.setItem;
+fakeAuthInternals.storage.getItem = async (key) =>
+  key === VERIFIER_KEY ? (storedVerifiers.get(key) ?? null) : fakeGetItem(key);
+fakeAuthInternals.storage.setItem = async (key, value) => {
+  if (key === VERIFIER_KEY) storedVerifiers.set(key, value);
+  else await fakeSetItem(key, value);
+};
+
 const defaultAuthHandlers = { ...supabaseFake.auth.handlers };
 const authHandlers = supabaseFake.auth.handlers as unknown as Record<
   string,
@@ -71,6 +92,8 @@ beforeEach(() => {
   navigator.ready = true;
   navigator.navigations = [];
   authDeepLink.clearPendingPasswordRecovery();
+  storedVerifiers.clear();
+  storedVerifiers.set(VERIFIER_KEY, STORED_VERIFIER);
 });
 
 /**
@@ -165,7 +188,7 @@ test('activation exchanges the parked code for a recovery session, and only once
 test('a signed-in account is signed out through the normal path before the code is exchanged', async () => {
   const order: string[] = [];
   authHandlers.exchangeCodeForSession = async () => {
-    order.push('exchange');
+    order.push(`exchange:${storedVerifiers.get(VERIFIER_KEY) ?? 'no-verifier'}`);
     const next = { access_token: 'recovery', user: { id: 'user-b' } };
     supabaseFake.auth.setSession(next as never);
     return {
@@ -178,11 +201,12 @@ test('a signed-in account is signed out through the normal path before the code 
     signedInUserId: 'user-a',
     signOutCurrentAccount: async () => {
       order.push('sign-out:user-a');
+      storedVerifiers.delete(VERIFIER_KEY); // what auth-js signOut does
     },
   });
 
   assert.deepEqual(result, { status: 'activated' });
-  assert.deepEqual(order, ['sign-out:user-a', 'exchange']);
+  assert.deepEqual(order, ['sign-out:user-a', `exchange:${STORED_VERIFIER}`]);
 });
 
 test('with nobody signed in the code is exchanged without a sign-out', async () => {

@@ -41,6 +41,35 @@ export interface ActivatePasswordRecoveryOptions {
   signOutCurrentAccount?: () => Promise<void>;
 }
 
+// auth-js keeps the PKCE verifier in the client's storage under `<storageKey>-code-verifier`.
+// Neither is public API; passwordRecoveryPkce.realClient.behavior.test.ts pins this against
+// the installed auth-js.
+interface AuthStorageInternals {
+  storage: {
+    getItem: (key: string) => Promise<string | null> | string | null;
+    setItem: (key: string, value: string) => Promise<void> | void;
+  };
+  storageKey: string;
+}
+
+async function readStoredCodeVerifier(): Promise<{ restore: () => Promise<void> } | null> {
+  const auth = supabase.auth as unknown as AuthStorageInternals;
+  const key = `${auth.storageKey}-code-verifier`;
+  let value: string | null = null;
+  try {
+    value = await auth.storage.getItem(key);
+  } catch {
+    value = null;
+  }
+  if (!value) return null;
+  const stored = value;
+  return {
+    restore: async () => {
+      await auth.storage.setItem(key, stored);
+    },
+  };
+}
+
 /**
  * Exchanges the parked PKCE code for a recovery session. Called ONLY after the
  * user has explicitly confirmed the reset on ResetPasswordScreen. auth-js
@@ -52,7 +81,8 @@ export interface ActivatePasswordRecoveryOptions {
  * user out from under the app. So a signed-in account is signed out first, through
  * the normal sign-out (push token, per-user stores, private data scope), and the
  * recovered account then arrives as a clean sign-in. The screen says so before
- * the user confirms. If that sign-out fails the code is not exchanged.
+ * the user confirms. If that sign-out fails the code is not exchanged, and when this
+ * install holds no verifier (a link it never requested) nobody is signed out.
  */
 export async function activatePendingPasswordRecovery(
   options: ActivatePasswordRecoveryOptions = {}
@@ -67,8 +97,18 @@ export async function activatePendingPasswordRecovery(
   }
 
   if (options.signedInUserId && options.signOutCurrentAccount) {
+    // auth-js deletes the stored PKCE verifier on every sign-out, so signing out first
+    // destroyed the verifier this exchange needs: a signed-in user could never finish a
+    // reset, and any crafted reset link signed them out for nothing. Keep the verifier
+    // across the sign-out, and do not sign out at all when this install holds none.
+    const verifier = await readStoredCodeVerifier();
+    if (!verifier) {
+      pendingPasswordRecovery = null;
+      return { status: 'failed', problem: 'wrong-device' };
+    }
     try {
       await options.signOutCurrentAccount();
+      await verifier.restore();
     } catch {
       return { status: 'failed', problem: 'network' };
     }
