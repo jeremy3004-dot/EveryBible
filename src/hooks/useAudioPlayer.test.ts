@@ -1542,6 +1542,83 @@ test('finishing a chapter with auto-advance off stops playback', async () => {
   assert.equal(recorded.nowPlayingCleared, 1);
 });
 
+// The native player reports the end of a chapter as a last playing progress tick,
+// a stopped state, then the finish. The decoded length can fall a little short of the
+// catalog duration, so the last position need not equal the stored duration.
+const reachChapterEnd = async (positionMillis: number) => {
+  emitStatus({ positionMillis, durationMillis: positionMillis, isPlaying: true });
+  emitStatus({ positionMillis, durationMillis: positionMillis, isPlaying: false });
+  await finishPlayback();
+};
+
+test('play after the final chapter finished starts it again from the beginning', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setAutoAdvanceChapter(false);
+  player.rerender();
+  await reachChapterEnd(DEFAULT_DURATION_MS - 200);
+  recorded.player.length = 0;
+
+  await player.rerender().togglePlayPause();
+
+  assert.equal(playerCalls('resume').length, 0);
+  assert.deepEqual(playerCalls('loadAndPlay'), [
+    { method: 'loadAndPlay', args: ['https://cdn.example/bsb/GEN/1.mp3', 1] },
+  ]);
+  assert.deepEqual(playerCalls('seekTo'), []);
+  assert.equal(store().status, 'playing');
+});
+
+test('play after a finished chapter never seeks to its end', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setAutoAdvanceChapter(false);
+  player.rerender();
+  await reachChapterEnd(DEFAULT_DURATION_MS);
+  recorded.player.length = 0;
+
+  await player.rerender().togglePlayPause();
+
+  assert.deepEqual(playerCalls('seekTo'), []);
+  assert.equal(playerCalls('loadAndPlay').length, 1);
+});
+
+test('the remote play command after the final chapter finished starts it from the beginning', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setAutoAdvanceChapter(false);
+  player.rerender();
+  await reachChapterEnd(DEFAULT_DURATION_MS - 200);
+  player.rerender();
+  recorded.player.length = 0;
+
+  await remoteCommandListener?.({ command: 'play' });
+
+  assert.equal(playerCalls('resume').length, 0);
+  assert.deepEqual(playerCalls('seekTo'), []);
+  assert.equal(playerCalls('loadAndPlay').length, 1);
+});
+
+test('a finished chapter leaves no resume point for the next launch', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setAutoAdvanceChapter(false);
+  player.rerender();
+  await reachChapterEnd(DEFAULT_DURATION_MS);
+
+  assert.equal(store().lastPosition, 0);
+
+  // Relaunch: nothing is loaded and only the persisted anchor survives.
+  audioPlayerDouble.loaded = false;
+  store().resetPlayback();
+  recorded.player.length = 0;
+  await player.rerender().togglePlayPause();
+
+  assert.deepEqual(playerCalls('seekTo'), []);
+  assert.equal(store().currentBookId, 'GEN');
+  assert.equal(store().currentChapter, 1);
+});
+
 test('finishing a chapter in chapter-repeat mode replays it', async () => {
   const player = mountPlayer();
   await player.api.playChapter('GEN', 1);

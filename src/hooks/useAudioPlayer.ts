@@ -24,7 +24,12 @@ import type { TrackPlayerProgressSnapshot } from '../services/audio/audioPlayer'
 import { trackAnonymousUsageEvent } from '../services/analytics';
 import { elapsedListeningMs } from '../services/analytics/listeningTime';
 import { getAdjacentBibleChapter, getBookById, getTranslatedBookName } from '../constants';
-import type { AudioPlaybackSequenceEntry, PlaybackRate, SleepTimerOption } from '../types';
+import type {
+  AudioPlaybackSequenceEntry,
+  AudioStatus,
+  PlaybackRate,
+  SleepTimerOption,
+} from '../types';
 import { advanceAudioQueue } from '../stores/audioQueueModel';
 import { resolveRepeatPlaybackTarget } from '../stores/audioPlaybackCompletionModel';
 import {
@@ -37,6 +42,27 @@ import {
   getAdjacentAudioPlaybackSequenceEntry,
   hasAudioPlaybackSequenceEntry,
 } from '../stores/audioPlaybackSequenceModel';
+
+/**
+ * Whether Play should continue the loaded sound where it stopped. An idle player
+ * with a loaded sound has played its chapter to the end (a pause leaves it
+ * "paused"), so Play starts that chapter again instead of resuming at its end.
+ */
+function canResumeLoadedChapter(state: {
+  status: AudioStatus;
+  currentBookId: string | null;
+  currentChapter: number | null;
+  currentPosition: number;
+  duration: number;
+}): boolean {
+  return (
+    state.status !== 'idle' &&
+    Boolean(state.currentBookId && state.currentChapter) &&
+    audioPlayer.isLoaded() &&
+    state.currentPosition > 0 &&
+    (state.duration <= 0 || state.currentPosition < state.duration)
+  );
+}
 
 export function useAudioPlayer(translationId: string = 'bsb') {
   const { t } = useTranslation();
@@ -658,6 +684,11 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     // Persist the finished listen even when playback ends without a manual pause
     // or a subsequent chapter transition. This keeps plan/listen completion in sync
     // for the last required chapter of the day.
+    // A chapter heard to the end has nothing left to resume. Keeping its end offset as
+    // the resume point made the next Play (or the first Play after a relaunch) seek
+    // straight to the end and finish again without a sound.
+    store.clearResumePosition();
+
     if (bookId && chapterNum && finishedDuration > 0) {
       useLibraryStore.getState().recordHistory(bookId, chapterNum, 1);
       // A finished listen also counts as covering the chapter, so the Home
@@ -992,11 +1023,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     if (status === 'playing') {
       await pause();
     } else if (
-      currentBookId &&
-      currentChapter &&
-      audioPlayer.isLoaded() &&
-      currentPosition > 0 &&
-      (duration <= 0 || currentPosition < duration)
+      canResumeLoadedChapter({ status, currentBookId, currentChapter, currentPosition, duration })
     ) {
       await resume();
     } else if (currentBookId && currentChapter) {
@@ -1273,13 +1300,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
             return;
           }
 
-          if (
-            store.currentBookId &&
-            store.currentChapter &&
-            audioPlayer.isLoaded() &&
-            store.currentPosition > 0 &&
-            (store.duration <= 0 || store.currentPosition < store.duration)
-          ) {
+          if (canResumeLoadedChapter(store)) {
             await resume();
             return;
           }
