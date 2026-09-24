@@ -1013,8 +1013,7 @@ export const en = {
     localOnly: 'Local only',
     noLocalGroups: 'No local groups saved on this device yet.',
     syncedGroupsTitle: 'Synced groups',
-    syncedGroupsDescription:
-      'These groups come from your signed-in account when secure sync is enabled for this build.',
+    syncedGroupsDescription: 'Groups linked to your account appear here once syncing is available.',
     syncedGroupsSignin: 'Sign in to view synced groups tied to your account.',
     noSyncedGroups: 'No synced groups are available for this account yet.',
     syncedLabel: 'Synced',
@@ -1417,7 +1416,7 @@ export const en = {
     goBack: 'Go back',
     joinCode: 'Join Code',
     share: 'Share',
-    syncedProgress: 'Synced progress will appear after session rollout is enabled.',
+    syncedProgress: 'Group progress will appear here once syncing is available.',
     lessonsCompleted_one: '{{count}} lesson completed',
     lessonsCompleted_other: '{{count}} lessons completed',
     nextLesson: 'Next: {{title}}',
@@ -1428,7 +1427,7 @@ export const en = {
       "Saving sessions for synced groups isn't available yet. You can still follow this group's progress here.",
     readOnlySyncedMembership: 'Read-only synced membership',
     readOnlySyncedMembershipBody:
-      'This synced group came from your signed-in account. Member names and synced lesson history will appear here as rollout continues.',
+      'This group is linked to your account. Member names and lesson history will appear here once syncing is available.',
     members: 'Members ({{count}})',
     you: ' (you)',
     leader: 'Leader',
@@ -1476,7 +1475,7 @@ export const en = {
     },
     syncSession: {
       unavailableTitle: 'Synced session unavailable',
-      backendUnavailable: 'This build is not configured for synced group recording yet.',
+      backendUnavailable: "Saving sessions for synced groups isn't available yet.",
       signInRequired: 'You must be signed in before you can save a synced group session.',
       saveFailedTitle: 'Unable to save synced session',
       saveFailedDefault: 'Synced group session could not be saved.',
