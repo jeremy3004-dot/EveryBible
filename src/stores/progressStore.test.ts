@@ -88,12 +88,13 @@ test('marking a chapter read persists it to MMKV', (t) => {
   assert.deepEqual(readPersisted().state.chaptersRead, { GEN_1: localNoon(2026, 9, 8) });
 });
 
-test('only the five ledgers hydration restores are persisted, not the computed getters', (t) => {
+test('only the six ledgers hydration restores are persisted, not the computed getters', (t) => {
   t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 8) });
 
   state().markChapterRead('GEN', 1);
 
   assert.deepEqual(Object.keys(readPersisted().state).sort(), [
+    'chaptersByDate',
     'chaptersListened',
     'chaptersRead',
     'lastReadDate',
@@ -331,6 +332,54 @@ test('every period counter is zero on a fresh install', (t) => {
     ],
     [0, 0, 0, 0]
   );
+});
+
+// ---------------------------------------------------------------------------
+// chaptersByDate: the per-day tally behind the Home reading heatmap
+// ---------------------------------------------------------------------------
+
+test('each chapter first read or heard on a day adds one to that day', (t) => {
+  t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 8) });
+
+  state().markChapterRead('GEN', 1);
+  state().markChapterRead('GEN', 2);
+  state().markChapterListened('GEN', 3);
+
+  assert.deepEqual(state().chaptersByDate, { '2026-09-08': 3 });
+});
+
+test('reopening, or both reading and hearing, a chapter the same day counts it once', (t) => {
+  t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 8) });
+
+  state().markChapterRead('GEN', 1);
+  const afterFirst = state().chaptersByDate;
+  state().markChapterRead('GEN', 1);
+  state().markChapterListened('GEN', 1);
+
+  assert.deepEqual(state().chaptersByDate, { '2026-09-08': 1 });
+  assert.equal(state().chaptersByDate, afterFirst, 'no new map for a repeat');
+});
+
+test('rereading a chapter on a later day counts on that day too', (t) => {
+  // The chapter ledger keeps only the latest timestamp, so without this tally a
+  // reread would erase the earlier day from the heatmap.
+  t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 8) });
+  state().markChapterRead('PSA', 23);
+
+  t.mock.timers.setTime(localNoon(2026, 9, 9));
+  state().markChapterRead('PSA', 23);
+
+  assert.deepEqual(state().chaptersByDate, { '2026-09-08': 1, '2026-09-09': 1 });
+});
+
+test('the day tally is persisted and survives a synced chapter ledger', (t) => {
+  t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 8) });
+  state().markChapterRead('GEN', 1);
+
+  state().applySyncedProgress({ chaptersRead: { GEN_2: 5 }, streakDays: 2, lastReadDate: null });
+
+  assert.deepEqual(readPersisted().state.chaptersByDate, { '2026-09-08': 1 });
+  assert.deepEqual(state().chaptersByDate, { '2026-09-08': 1 });
 });
 
 // ---------------------------------------------------------------------------
@@ -611,6 +660,7 @@ test('resetForSignOut clears every ledger back to its initial value', (t) => {
       chaptersRead: state().chaptersRead,
       chaptersListened: state().chaptersListened,
       listeningMsByDate: state().listeningMsByDate,
+      chaptersByDate: state().chaptersByDate,
       streakDays: state().streakDays,
       lastReadDate: state().lastReadDate,
     },
@@ -618,6 +668,7 @@ test('resetForSignOut clears every ledger back to its initial value', (t) => {
       chaptersRead: {},
       chaptersListened: {},
       listeningMsByDate: {},
+      chaptersByDate: {},
       streakDays: 0,
       lastReadDate: null,
     }
@@ -704,6 +755,23 @@ test('a pre-upgrade snapshot without the listening ledgers hydrates them as empt
 
   assert.deepEqual(state().chaptersListened, {});
   assert.deepEqual(state().listeningMsByDate, {});
+  assert.deepEqual(state().chaptersByDate, {});
+});
+
+test('day-tally entries that are not YYYY-MM-DD or a positive count are dropped', async () => {
+  seedStorage({
+    chaptersByDate: {
+      '2026-09-08': 3,
+      '2026-09-09': 2.7,
+      '2026-9-8': 1,
+      '2026-09-10': 0,
+      '2026-09-11': 'many',
+    },
+  });
+
+  await useProgressStore.persist.rehydrate();
+
+  assert.deepEqual(state().chaptersByDate, { '2026-09-08': 3, '2026-09-09': 2 });
 });
 
 test('listening-day keys that are not YYYY-MM-DD, or hold a bad duration, are dropped', async () => {

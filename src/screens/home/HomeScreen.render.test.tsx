@@ -47,6 +47,7 @@ const progressStore = create(() => ({
   chaptersRead: {} as Record<string, number>,
   chaptersListened: {} as Record<string, number>,
   listeningMsByDate: {} as Record<string, number>,
+  chaptersByDate: {} as Record<string, number>,
   streakDays: 0,
 }));
 const readingPlansStore = create(() => ({
@@ -802,44 +803,74 @@ test('one Gather card names the active foundation, its lesson count and the next
   ]);
 });
 
-test('the reading ledger closes the sheet below the Gather card and opens on this week', async () => {
+const heatmapButton = (view: HomeView) =>
+  view.getByRole('button', { name: new RegExp(`^${t('more.readingActivity')} · `) });
+
+test('the reading ledger closes the sheet below the Gather card with a reading heatmap', async () => {
   const view = await renderHome();
   const [scroll] = view.queryAllByType('ScrollView');
   const order = within(scroll)
     .queryAllByType('Pressable')
     .map((node) => String(node.props.accessibilityLabel ?? ''));
   const gatherIndex = order.findIndex((label) => label.startsWith(`${t('tabs.gather')} · `));
-  const ledgerIndex = order.indexOf(t('home.week'));
+  const ledgerIndex = order.findIndex((label) =>
+    label.startsWith(`${t('more.readingActivity')} · `)
+  );
   assert.ok(gatherIndex >= 0 && ledgerIndex > gatherIndex);
 
-  assert.ok(view.getByRole('tablist', { name: t('home.ledgerPeriodLabel') }));
-  assert.ok(view.getByRole('tab', { name: t('home.week'), selected: true }));
-  const rows = [
-    t('home.ledgerChapters'),
-    t('home.ledgerChaptersCaption'),
-    t('home.ledgerBooksFinished'),
-  ];
-  const texts = within(scroll)
-    .queryAllByType('Text')
-    .map((node) => textContent(node));
-  const positions = rows.map((row) => texts.indexOf(row));
-  assert.ok(positions.every((position) => position >= 0));
-  assert.deepEqual(
-    [...positions].sort((a, b) => a - b),
-    positions,
-    'rows keep their order'
+  // The week/month/all-time switch and its rows are gone: the grid shows all three.
+  assert.equal(view.queryAllByRole('tablist').length, 0);
+  assert.equal(view.queryByText(t('home.ledgerBooksFinished')), null);
+  assert.ok(view.getByText(t('home.ledgerNoChapters')));
+  assert.ok(view.getByText(t('home.heatmapLess')));
+  assert.ok(view.getByText(t('home.heatmapMore')));
+});
+
+test('the heatmap shades each day by chapters read or heard, and outlines today', async () => {
+  progressStore.setState({
+    chaptersRead: { JHN_1: Date.now(), JHN_2: Date.now() },
+    chaptersListened: { JHN_3: Date.now() },
+    chaptersByDate: { '2026-09-15': 1 },
+  });
+  const view = await renderHome();
+
+  const today = view.getByTestId('heatmap-day-2026-09-17');
+  const tuesday = view.getByTestId('heatmap-day-2026-09-15');
+  const friday = view.getByTestId('heatmap-day-2026-09-18');
+  const monday = view.getByTestId('heatmap-day-2026-09-14');
+  const fill = (node: ReactTestInstance) => flattenStyle(node.props.style)?.backgroundColor;
+
+  assert.equal(flattenStyle(today.props.style)?.borderWidth, 1.5);
+  assert.notEqual(fill(today), fill(tuesday), 'three chapters shade deeper than one');
+  assert.notEqual(fill(tuesday), fill(monday), 'a read day differs from a rest day');
+  assert.equal(fill(friday), 'transparent', 'later this week is left open');
+  // Before layout the grid holds 15 weeks: 14 full ones plus Monday to Thursday.
+  assert.equal(
+    heatmapButton(view).props.accessibilityLabel,
+    `${t('more.readingActivity')} · ${t('home.heatmapDays', { active: 2, count: 14 * 7 + 4 })}`
   );
 });
 
-test('the ledger counts chapters read and listened from the progress store', async () => {
+test('the ledger totals chapters read and listened since the first one', async () => {
   progressStore.setState({
     chaptersRead: { JHN_1: Date.now(), JHN_2: Date.now() },
     chaptersListened: { JHN_3: Date.now() },
   });
   const view = await renderHome();
 
-  const chaptersRow = hostAncestors(view.getByText(t('home.ledgerChapters')))[1];
-  assert.ok(within(chaptersRow).getByText('3'));
+  assert.ok(view.getByText(t('home.ledgerSince', { date: 'September 17', count: 3 })));
+});
+
+test('tapping the heatmap opens the reading calendar in More', async () => {
+  const view = await renderHome();
+
+  await view.press(heatmapButton(view));
+  assert.deepEqual(harness.navigation.calls, [
+    {
+      method: 'navigate',
+      args: ['More', { screen: 'ReadingActivity', initial: false }],
+    },
+  ]);
 });
 
 test('the streak unit keeps its two-line width at default size and loses the cap at large text', async () => {

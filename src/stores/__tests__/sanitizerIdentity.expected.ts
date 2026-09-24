@@ -94,23 +94,23 @@ export const SANITIZER_IDENTITY_EXPECTED: Readonly<Record<string, string>> = {
   'auth: user preferences and stamps directly':
     '[{"appearancePalette":"el-blue","chapterFeedbackEnabled":false,"chapterFeedbackName":null,"chapterFeedbackRole":null,"contentLanguageCode":null,"contentLanguageName":null,"contentLanguageNativeName":null,"countryCode":null,"countryName":null,"fontSize":"medium","hidePlayButtonFromReadingTab":false,"language":"en","notificationsEnabled":false,"onboardingCompleted":false,"reminderTime":null,"theme":"light"},{"appearancePalette":"el-blue","chapterFeedbackEnabled":false,"chapterFeedbackName":null,"chapterFeedbackRole":null,"contentLanguageCode":null,"contentLanguageName":null,"contentLanguageNativeName":null,"countryCode":null,"countryName":null,"fontSize":"medium","hidePlayButtonFromReadingTab":false,"language":"zh","notificationsEnabled":false,"onboardingCompleted":false,"reminderTime":null,"theme":"light"},{"reminderTime":"2026-09-01"},{}]',
   'progress: undefined':
-    '{"chaptersListened":{},"chaptersRead":{},"lastReadDate":null,"listeningMsByDate":{},"streakDays":0}',
+    '{"chaptersByDate":{},"chaptersListened":{},"chaptersRead":{},"lastReadDate":null,"listeningMsByDate":{},"streakDays":0}',
   'progress: null':
-    '{"chaptersListened":{},"chaptersRead":{},"lastReadDate":null,"listeningMsByDate":{},"streakDays":0}',
+    '{"chaptersByDate":{},"chaptersListened":{},"chaptersRead":{},"lastReadDate":null,"listeningMsByDate":{},"streakDays":0}',
   'progress: string':
-    '{"chaptersListened":{},"chaptersRead":{},"lastReadDate":null,"listeningMsByDate":{},"streakDays":0}',
+    '{"chaptersByDate":{},"chaptersListened":{},"chaptersRead":{},"lastReadDate":null,"listeningMsByDate":{},"streakDays":0}',
   'progress: number':
-    '{"chaptersListened":{},"chaptersRead":{},"lastReadDate":null,"listeningMsByDate":{},"streakDays":0}',
+    '{"chaptersByDate":{},"chaptersListened":{},"chaptersRead":{},"lastReadDate":null,"listeningMsByDate":{},"streakDays":0}',
   'progress: NaN':
-    '{"chaptersListened":{},"chaptersRead":{},"lastReadDate":null,"listeningMsByDate":{},"streakDays":0}',
+    '{"chaptersByDate":{},"chaptersListened":{},"chaptersRead":{},"lastReadDate":null,"listeningMsByDate":{},"streakDays":0}',
   'progress: array':
-    '{"chaptersListened":{},"chaptersRead":{},"lastReadDate":null,"listeningMsByDate":{},"streakDays":0}',
+    '{"chaptersByDate":{},"chaptersListened":{},"chaptersRead":{},"lastReadDate":null,"listeningMsByDate":{},"streakDays":0}',
   'progress: empty object':
-    '{"chaptersListened":{},"chaptersRead":{},"lastReadDate":null,"listeningMsByDate":{},"streakDays":0}',
+    '{"chaptersByDate":{},"chaptersListened":{},"chaptersRead":{},"lastReadDate":null,"listeningMsByDate":{},"streakDays":0}',
   'progress: mixed ledger':
-    '{"chaptersListened":{},"chaptersRead":{"1CO_2":3,"GEN_1":10},"lastReadDate":"2026-09-01","listeningMsByDate":{"2026-09-01":1000},"streakDays":4}',
+    '{"chaptersByDate":{},"chaptersListened":{},"chaptersRead":{"1CO_2":3,"GEN_1":10},"lastReadDate":"2026-09-01","listeningMsByDate":{"2026-09-01":1000},"streakDays":4}',
   'progress: bad scalars':
-    '{"chaptersListened":{},"chaptersRead":{},"lastReadDate":null,"listeningMsByDate":{},"streakDays":0}',
+    '{"chaptersByDate":{},"chaptersListened":{},"chaptersRead":{},"lastReadDate":null,"listeningMsByDate":{},"streakDays":0}',
   'audio: undefined':
     '{"autoAdvanceChapter":true,"backgroundMusicChoice":"off","lastPlayedBookId":null,"lastPlayedChapter":null,"lastPlayedTranslationId":null,"lastPosition":0,"playbackRate":1,"queue":[],"queueIndex":0,"repeatMode":"off","sleepTimerMinutes":null}',
   'audio: null':

@@ -57,6 +57,10 @@ interface ProgressState {
   // re-listens that a chapter-keyed map would collapse, and lets any period sum
   // its own minutes. Local-only, like chaptersListened.
   listeningMsByDate: Record<string, number>;
+  // Distinct chapters read or heard per local day ({ "2026-09-08": 3 }), for the
+  // Home reading heatmap. The chapter maps above keep only each chapter's latest
+  // timestamp, so a reread would otherwise erase the earlier day. Local-only.
+  chaptersByDate: Record<string, number>;
   streakDays: number;
   lastReadDate: string | null;
 
@@ -85,11 +89,17 @@ interface ProgressState {
 
 const initialProgressState: Pick<
   ProgressState,
-  'chaptersRead' | 'chaptersListened' | 'listeningMsByDate' | 'streakDays' | 'lastReadDate'
+  | 'chaptersRead'
+  | 'chaptersListened'
+  | 'listeningMsByDate'
+  | 'chaptersByDate'
+  | 'streakDays'
+  | 'lastReadDate'
 > = {
   chaptersRead: {},
   chaptersListened: {},
   listeningMsByDate: {},
+  chaptersByDate: {},
   streakDays: 0,
   lastReadDate: null,
 };
@@ -127,6 +137,31 @@ export const selectCurrentStreakDays = (
     ? state.streakDays
     : 0;
 
+const isOnLocalDay = (timestamp: number | undefined, dateKey: string): boolean =>
+  timestamp !== undefined &&
+  Number.isFinite(timestamp) &&
+  formatLocalDateKey(new Date(timestamp)) === dateKey;
+
+/**
+ * The day tally with `key` counted for today, unless it was already read or heard
+ * today — the reader calls markChapterRead on every chapter open, and reading a
+ * chapter while its audio plays is still one chapter.
+ */
+const countChapterToday = (
+  state: Pick<ProgressState, 'chaptersRead' | 'chaptersListened' | 'chaptersByDate'>,
+  key: string,
+  now: Date
+): Record<string, number> => {
+  const today = formatLocalDateKey(now);
+  if (
+    isOnLocalDay(state.chaptersRead[key], today) ||
+    isOnLocalDay(state.chaptersListened[key], today)
+  ) {
+    return state.chaptersByDate;
+  }
+  return { ...state.chaptersByDate, [today]: (state.chaptersByDate[today] ?? 0) + 1 };
+};
+
 const getStartOfDay = (date: Date): number => {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
@@ -155,13 +190,14 @@ const getStartOfYear = (date: Date): number => {
   return d.getTime();
 };
 
-// Only these five fields are ever restored (see sanitizePersistedProgressState).
+// Only these six fields are ever restored (see sanitizePersistedProgressState).
 // Without a partialize, zustand serialized the whole store — the four computed
 // getters included — on every single mutation.
 const selectPersistedProgressState = (state: ProgressState) => ({
   chaptersRead: state.chaptersRead,
   chaptersListened: state.chaptersListened,
   listeningMsByDate: state.listeningMsByDate,
+  chaptersByDate: state.chaptersByDate,
   streakDays: state.streakDays,
   lastReadDate: state.lastReadDate,
 });
@@ -246,6 +282,7 @@ export const useProgressStore = create<ProgressState>()(
         const key = `${bookId}_${chapter}`;
         const now = Date.now();
         set((state) => ({
+          chaptersByDate: countChapterToday(state, key, new Date(now)),
           chaptersRead: {
             ...state.chaptersRead,
             [key]: now,
@@ -258,10 +295,12 @@ export const useProgressStore = create<ProgressState>()(
 
       markChapterListened: (bookId, chapter) => {
         const key = `${bookId}_${chapter}`;
+        const now = Date.now();
         set((state) => ({
+          chaptersByDate: countChapterToday(state, key, new Date(now)),
           chaptersListened: {
             ...state.chaptersListened,
-            [key]: Date.now(),
+            [key]: now,
           },
         }));
       },

@@ -21,14 +21,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import {
-  BookOpen,
-  ChevronRight,
-  CircleCheck,
-  Flame,
-  Play,
-  Share as ShareGlyph,
-} from 'lucide-react-native';
+import { ChevronRight, Flame, Play, Share as ShareGlyph } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { bibleTranslations } from '../../constants/translations';
 import { getBookById, getTranslatedBookName } from '../../constants/books';
@@ -54,12 +47,8 @@ import {
 import { getHomeVerseBackground } from '../../data/homeVerseBackgrounds';
 import { getHomeScreenLayout } from './homeLayoutModel';
 import { selectHomeContinuePlans } from './homeReadingPlansModel';
-import {
-  getHomeReadingPeriodDayTotal,
-  getHomeNextUpChapter,
-  getHomeReadingStats,
-  type HomeReadingPeriod,
-} from './homeReadingStatsModel';
+import { getHomeNextUpChapter, getHomeReadingStats } from './homeReadingStatsModel';
+import { HomeReadingHeatmap } from './HomeReadingHeatmap';
 import { buildHomeVerseShareMessage } from './homeVerseShareModel';
 import { getMillisecondsUntilNextLocalMidnight } from '../../services/bible/dailyScriptureRefresh';
 import {
@@ -84,7 +73,6 @@ import { AppCard } from '../../components/ui/AppCard';
 import { IconButton } from '../../components/ui/IconButton';
 import { PressableScale } from '../../components/ui/PressableScale';
 import { ProgressBar } from '../../components/ui/ProgressBar';
-import { TabSwitch } from '../../components/ui/TabSwitch';
 import { getReadingFontFamily } from '../../design/fonts';
 import type { DailyScripture } from '../../types';
 import type { RootTabParamList } from '../../navigation/types';
@@ -136,8 +124,6 @@ const SHEET_PADDING_TOP = 20;
 const SHEET_GUTTER = spacing.xl;
 const SHEET_GAP = spacing.md;
 const SHEET_CARD_MIN_HEIGHT = 120;
-/** Ledger rows are separated by hairline rules and hold a 48pt tap-free rhythm. */
-const LEDGER_ROW_MIN_HEIGHT = 48;
 
 function getFirstName(displayName: string | null | undefined): string | null {
   const trimmed = displayName?.trim();
@@ -395,70 +381,51 @@ export function HomeScreen() {
   );
 
   // ---- Reading ledger -------------------------------------------------------
-  // The streak is the store's own count, unaffected by the period switch; every
-  // other figure is derived in homeReadingStatsModel so the boundaries stay
-  // testable. The chosen period is screen state: Home has no preferences store,
-  // and a switch that always opens on "All time" reads the same on every launch.
+  // The streak is the store's own count; the all-time total and the heatmap are
+  // derived from the progress maps (homeReadingStatsModel, homeReadingHeatmapModel)
+  // so their boundaries stay testable.
   const chaptersRead = useProgressStore((state) => state.chaptersRead);
   const chaptersListened = useProgressStore((state) => state.chaptersListened);
   const listeningMsByDate = useProgressStore((state) => state.listeningMsByDate);
+  const chaptersByDate = useProgressStore((state) => state.chaptersByDate);
   const streakDays = useProgressStore(selectCurrentStreakDays);
-  // Cold start lands on the current week: the period a reader can still act on.
-  const [ledgerPeriod, setLedgerPeriod] = useState<HomeReadingPeriod>('week');
 
-  const ledgerSegments = useMemo(
-    () => [
-      { key: 'week', label: t('home.week') },
-      { key: 'month', label: t('home.month') },
-      { key: 'allTime', label: t('home.allTime') },
-    ],
-    [t]
+  const heatmapActivity = useMemo(
+    () => ({ chaptersRead, chaptersListened, listeningMsByDate, chaptersByDate }),
+    [chaptersByDate, chaptersListened, chaptersRead, listeningMsByDate]
   );
 
-  const readingStats = useMemo(
+  const allTimeStats = useMemo(
     () =>
       getHomeReadingStats(
         { chaptersRead, chaptersListened, listeningMsByDate },
-        ledgerPeriod,
+        'allTime',
         new Date(clockMs)
       ),
-    [chaptersRead, chaptersListened, clockMs, ledgerPeriod, listeningMsByDate]
+    [chaptersRead, chaptersListened, clockMs, listeningMsByDate]
   );
-
-  const finishedBookCount = readingStats.booksFinished.length;
 
   // Intl formatters are built here rather than at module scope so the JS thread
   // never pays for them at import time, and so they follow a language change.
-  const ledgerFooterLabel = useMemo(() => {
-    if (ledgerPeriod === 'allTime') {
-      if (readingStats.firstActivityAt === null) {
-        return t('home.ledgerNoChapters');
-      }
-
-      return t('home.ledgerSince', {
-        date: new Intl.DateTimeFormat(i18n.language, {
-          day: 'numeric',
-          month: 'long',
-        }).format(new Date(readingStats.firstActivityAt)),
-        count: readingStats.chaptersCovered,
-      });
+  const ledgerTotalLabel = useMemo(() => {
+    if (allTimeStats.firstActivityAt === null) {
+      return t('home.ledgerNoChapters');
     }
 
-    const now = new Date(clockMs);
-    const total = getHomeReadingPeriodDayTotal(ledgerPeriod, now);
-
-    if (ledgerPeriod === 'week') {
-      return t('home.ledgerThisWeek', { active: readingStats.activeDays, total });
-    }
-
-    return t('home.ledgerThisMonth', {
-      month: new Intl.DateTimeFormat(i18n.language, { month: 'long' }).format(now),
-      active: readingStats.activeDays,
-      // Passed as `count` so the day noun agrees with the month's elapsed days
-      // ("0 of 1 day" on the 1st).
-      count: total,
+    return t('home.ledgerSince', {
+      date: new Intl.DateTimeFormat(i18n.language, {
+        day: 'numeric',
+        month: 'long',
+      }).format(new Date(allTimeStats.firstActivityAt)),
+      count: allTimeStats.chaptersCovered,
     });
-  }, [clockMs, i18n.language, ledgerPeriod, readingStats, t]);
+  }, [allTimeStats, i18n.language, t]);
+
+  // initial: false keeps More's own list under the calendar, so back returns there.
+  const openReadingActivity = useCallback(() => {
+    lightHaptic();
+    navigation.navigate('More', { screen: 'ReadingActivity', initial: false });
+  }, [navigation]);
 
   // The resume point stays on the chapter last opened; once that chapter is
   // finished, "Next up" names the one after it rather than the one just read.
@@ -1114,8 +1081,8 @@ export function HomeScreen() {
             </AppCard>
           </Animated.View>
 
-          {/* Reading ledger: the streak, then one rule-separated row per way a
-              chapter can be covered, then the period's own footer. */}
+          {/* Reading ledger: the streak and all-time total, then a day-by-day
+              heatmap of recent reading, then where to pick up. */}
           <Animated.View entering={sectionEntering(2)}>
             <AppCard padding={layout.cardPadding} style={styles.ledgerCard}>
               <View style={styles.ledgerHeader}>
@@ -1138,83 +1105,32 @@ export function HomeScreen() {
                     {t('home.streakUnitLabel', { count: streakDays })}
                   </Text>
                 </View>
-                <TabSwitch
-                  segments={ledgerSegments}
-                  value={ledgerPeriod}
-                  onChange={(key) => setLedgerPeriod(key as HomeReadingPeriod)}
-                  size="sm"
-                  accessibilityLabel={t('home.ledgerPeriodLabel')}
-                />
+                <Text
+                  style={[styles.ledgerTotal, { color: colors.secondaryText }]}
+                  numberOfLines={2}
+                >
+                  {ledgerTotalLabel}
+                </Text>
               </View>
 
-              <View>
-                {/* One chapter count, however it was covered. Reading and
-                    listening were split until a listener with years of audio saw
-                    a zero: the listen record only starts at this build, while the
-                    union has always been populated by reading. */}
-                <View
-                  style={[styles.ledgerRow, { borderTopColor: colors.borderStrong }]}
-                  accessible
-                >
-                  <BookOpen size={18} color={colors.secondaryText} strokeWidth={2} />
-                  <View style={styles.ledgerRowCopy}>
-                    <Text style={[styles.ledgerRowTitle, { color: colors.primaryText }]}>
-                      {t('home.ledgerChapters')}
-                    </Text>
-                    <Text style={[styles.ledgerRowCaption, { color: colors.secondaryText }]}>
-                      {t('home.ledgerChaptersCaption')}
-                    </Text>
-                  </View>
-                  <Text style={[styles.ledgerRowValue, { color: colors.primaryText }]}>
-                    {readingStats.chaptersCovered}
-                  </Text>
-                </View>
+              <HomeReadingHeatmap
+                activity={heatmapActivity}
+                nowMs={clockMs}
+                onPress={openReadingActivity}
+              />
 
-                <View
-                  style={[styles.ledgerRow, { borderTopColor: colors.borderStrong }]}
-                  accessible
-                >
-                  <CircleCheck size={18} color={colors.success} strokeWidth={2} />
-                  <View style={styles.ledgerRowCopy}>
-                    <Text style={[styles.ledgerRowTitle, { color: colors.primaryText }]}>
-                      {t('home.ledgerBooksFinished')}
-                    </Text>
-                    <Text style={[styles.ledgerRowCaption, { color: colors.secondaryText }]}>
-                      {finishedBookCount > 0
-                        ? t('home.ledgerBooksFinishedCaption')
-                        : t('home.ledgerNoBooksFinished')}
-                    </Text>
-                  </View>
-                  <Text style={[styles.ledgerRowValue, { color: colors.primaryText }]}>
-                    {finishedBookCount}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.ledgerFooter}>
+              {ledgerNextUpLabel ? (
                 <Text
                   style={[
-                    styles.ledgerFooterLabel,
+                    styles.ledgerNextUp,
                     displayFont.regular,
                     { color: colors.secondaryText },
                   ]}
                   numberOfLines={2}
                 >
-                  {ledgerFooterLabel}
+                  {ledgerNextUpLabel}
                 </Text>
-                {ledgerNextUpLabel ? (
-                  <Text
-                    style={[
-                      styles.ledgerNextUp,
-                      displayFont.regular,
-                      { color: colors.secondaryText },
-                    ]}
-                    numberOfLines={2}
-                  >
-                    {ledgerNextUpLabel}
-                  </Text>
-                ) : null}
-              </View>
+              ) : null}
             </AppCard>
           </Animated.View>
         </View>
@@ -1479,37 +1395,10 @@ const styles = StyleSheet.create({
     // Two short lines beside the numeral, as in the reference.
     maxWidth: 54,
   },
-  ledgerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    minHeight: LEDGER_ROW_MIN_HEIGHT,
-    borderTopWidth: 1,
-  },
-  ledgerRowCopy: {
-    flex: 1,
-    minWidth: 0,
-  },
-  ledgerRowTitle: {
-    ...typography.bodyMedium,
-  },
-  ledgerRowCaption: {
+  ledgerTotal: {
     ...typography.caption,
-  },
-  ledgerRowValue: {
-    ...typography.numeralRow,
-    fontSize: 22,
-    lineHeight: 22,
-    letterSpacing: -0.88,
-  },
-  // Stacked so the period summary never has to ellipsise beside the next-up line.
-  ledgerFooter: {
-    gap: spacing.xs,
-  },
-  ledgerFooterLabel: {
-    ...typography.eyebrow,
     flexShrink: 1,
-    minWidth: 0,
+    textAlign: 'right',
   },
   ledgerNextUp: {
     ...typography.mono,
