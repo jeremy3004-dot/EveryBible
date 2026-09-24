@@ -38,7 +38,6 @@ import { useAudioPlayer } from '../../hooks/useAudioPlayer';
 import { useFontSize } from '../../hooks/useFontSize';
 import { useLargeText } from '../../hooks/useLargeText';
 import { useLocalToday } from '../../hooks/useLocalToday';
-import { useShallow } from 'zustand/react/shallow';
 import { ReaderPlaybackDock } from '../../components/audio/ReaderPlaybackDock';
 import {
   ReaderAudioPortionPreviewGuard,
@@ -244,7 +243,12 @@ export function BibleReaderScreen() {
     (state) => state.setPreferredChapterLaunchMode
   );
   const currentTranslation = useBibleStore((state) => state.currentTranslation);
-  const translations = useBibleStore(useShallow((state) => state.translations));
+  // Only the current translation: another translation's download progress or
+  // catalog refresh replaces its own row in `translations`, which must not
+  // re-render the whole reader.
+  const currentTranslationInfo = useBibleStore((state) =>
+    state.translations.find((translation) => translation.id === state.currentTranslation)
+  );
   const downloadAudioForBook = useBibleStore((state) => state.downloadAudioForBook);
   const setPlaybackSequence = useAudioStore((state) => state.setPlaybackSequence);
   const setAudioReturnTarget = useAudioStore((state) => state.setAudioReturnTarget);
@@ -261,9 +265,6 @@ export function BibleReaderScreen() {
   );
   const setPlanDayResume = useReadingPlansStore((state) => state.setPlanDayResume);
   const clearPlanDayResume = useReadingPlansStore((state) => state.clearPlanDayResume);
-  const currentTranslationInfo = translations.find(
-    (translation) => translation.id === currentTranslation
-  );
   // Every Language translations describe their audio only through a signed manifest, so
   // the catalog row cannot say whether *this* chapter exists. Until the manifest resolves
   // `audioChapters` is undefined and the reader behaves exactly as before.
@@ -881,17 +882,9 @@ export function BibleReaderScreen() {
         readingFontFamily,
         readingFontFamilyBold,
         colors,
-        selectedVerses,
         annotations: displayedAnnotations,
       }),
-    [
-      displayedAnnotations,
-      colors,
-      readingFontFamily,
-      readingFontFamilyBold,
-      scaleValue,
-      selectedVerses,
-    ]
+    [displayedAnnotations, colors, readingFontFamily, readingFontFamilyBold, scaleValue]
   );
   const renderParagraphBlock = useCallback(
     ({ item, index }: { item: ReaderParagraph; index: number }): ReactElement => (
@@ -900,10 +893,11 @@ export function BibleReaderScreen() {
         index={index}
         renderSignature={premiumParagraphRenderSignature}
         activeVerse={readerInlineActiveVerse}
+        selectedVerses={selectedVerseSet}
         renderParagraphRef={renderParagraphRef}
       />
     ),
-    [premiumParagraphRenderSignature, readerInlineActiveVerse]
+    [premiumParagraphRenderSignature, readerInlineActiveVerse, selectedVerseSet]
   );
 
   const renderLegacyContent = () => {

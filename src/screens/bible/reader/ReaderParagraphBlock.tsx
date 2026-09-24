@@ -1,18 +1,21 @@
 import { memo } from 'react';
 import type { RefObject, ReactElement } from 'react';
 import type { ReaderParagraph } from '../bibleReaderModel';
+import { hasParagraphSelectionChanged } from '../bibleReaderRenderModel';
 
 export interface ReaderParagraphBlockProps {
   paragraph: ReaderParagraph;
   index: number;
   /**
-   * A render signature that changes whenever anything affecting this paragraph's
-   * visual output changes EXCEPT the raw audio position (theme/fontsize/selection
-   * version, etc.), plus the active follow-along verse. This lets the cell skip
-   * re-rendering on the ~250ms position ticks that do not move the highlight.
+   * A render signature that changes whenever anything affecting every paragraph's
+   * visual output changes (theme, font size, highlights, ...). The raw audio
+   * position and the selection are not in it: the active follow-along verse and
+   * the selected verses are compared per paragraph below, so a ~250ms position
+   * tick or a verse tap redraws only the paragraphs whose verses it touches.
    */
   renderSignature: string;
   activeVerse: number | null;
+  selectedVerses: ReadonlySet<number>;
   renderParagraphRef: RefObject<(paragraph: ReaderParagraph, index: number) => ReactElement>;
 }
 
@@ -23,7 +26,8 @@ export function readerParagraphBlockPropsAreEqual(
   if (
     prev.paragraph !== next.paragraph ||
     prev.index !== next.index ||
-    prev.renderSignature !== next.renderSignature
+    prev.renderSignature !== next.renderSignature ||
+    hasParagraphSelectionChanged(next.paragraph.verses, prev.selectedVerses, next.selectedVerses)
   ) {
     return false;
   }

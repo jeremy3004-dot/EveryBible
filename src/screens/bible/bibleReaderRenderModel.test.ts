@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   buildReaderParagraphRenderSignature,
   buildReaderHighlightIndex,
+  hasParagraphSelectionChanged,
   type ReaderParagraphAppearance,
 } from './bibleReaderRenderModel';
 
@@ -21,7 +22,6 @@ const appearance = (): ReaderParagraphAppearance => ({
     bibleFollowHighlight: '#333333',
     bibleFollowVerseNumber: '#dddddd',
   },
-  selectedVerses: [1],
   annotations: [
     { type: 'highlight', verse_start: 1, verse_end: 2, color: '#ffaa00', deleted_at: null },
   ],
@@ -34,9 +34,25 @@ test('unchanged paragraph appearance retains its render signature across cloned 
   assert.equal(signature(input), signature(structuredClone(input)));
 });
 
-test('moving a selection without changing its size invalidates the paragraph', () => {
-  const input = appearance();
-  assert.notEqual(signature(input), signature({ ...input, selectedVerses: [2] }));
+// Selection is per paragraph, not part of the shared signature: selecting one
+// verse must not redraw every paragraph in the chapter.
+const paragraph = [{ verse: 3 }, { verse: 4 }];
+
+test('a selection change reaches a paragraph only when one of its verses flips', () => {
+  const none = new Set<number>();
+  assert.equal(hasParagraphSelectionChanged(paragraph, none, new Set([4])), true);
+  assert.equal(hasParagraphSelectionChanged(paragraph, new Set([4]), none), true);
+  assert.equal(hasParagraphSelectionChanged(paragraph, none, new Set([1, 9])), false);
+  assert.equal(hasParagraphSelectionChanged(paragraph, new Set([3, 7]), new Set([3])), false);
+});
+
+test('moving a selection between two verses of one paragraph still redraws it', () => {
+  assert.equal(hasParagraphSelectionChanged(paragraph, new Set([3]), new Set([4])), true);
+});
+
+test('the same selection set is never a change', () => {
+  const selected = new Set([3]);
+  assert.equal(hasParagraphSelectionChanged(paragraph, selected, selected), false);
 });
 
 test('recoloring an existing highlight invalidates the paragraph', () => {
