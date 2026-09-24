@@ -517,13 +517,32 @@ test('a plan left on another device is removed without queuing a leave of its ow
   store.getState().enrollPlan('psalms-30-days');
   store.getState().setPlanDayResume('psalms-30-days', 2, 'PSA', 6);
 
-  store.getState().endPlanLeftElsewhere('psalms-30-days');
+  store.getState().endPlanLeftElsewhere('psalms-30-days', '2026-05-01T12:10:00.000Z');
 
   assert.equal(store.getState().getProgress('psalms-30-days'), null);
   assert.deepEqual(store.getState().enrolledPlanIds, []);
   assert.equal(store.getState().getPlanDayResume('psalms-30-days', 2), null);
   assert.deepEqual(store.getState().savedPlanIds, ['psalms-30-days']);
   assert.deepEqual(store.getState().pendingUnenrollPlanIds, []);
+});
+
+test('a re-join after a leave on another device starts past that leave on a phone clock behind it', async (t) => {
+  const mod = await import('./readingPlansStore');
+  const storage = createMemoryStorage();
+  const store = mod.createReadingPlansStore(storage);
+  store.getState().enrollPlan('psalms-30-days');
+  // Another device left at 12:10 on the server's clock; this phone runs 10 minutes slow.
+  store.getState().endPlanLeftElsewhere('psalms-30-days', '2026-05-01T12:10:00.000Z');
+  const restored = mod.createReadingPlansStore(storage);
+  assert.deepEqual(restored.getState().serverLeftAtByPlanId, {
+    'psalms-30-days': '2026-05-01T12:10:00.000Z',
+  });
+  t.mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-05-01T12:01:00.000Z') });
+
+  const rejoined = restored.getState().enrollPlan('psalms-30-days');
+
+  assert.equal(rejoined.started_at, '2026-05-01T12:10:00.001Z');
+  assert.deepEqual(restored.getState().serverLeftAtByPlanId, {});
 });
 
 test('corrupt persisted leave times are dropped on load', async () => {

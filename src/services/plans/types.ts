@@ -198,8 +198,8 @@ export interface ReadingPlansPersistedState {
    */
   pendingUnenrollAtByPlanId: Record<string, string>;
   /**
-   * When the server stored each confirmed leave (on the server's clock), for a plan left and
-   * not re-joined since. A re-join starts after it: on a phone whose clock runs slow, a start
+   * When the server stored each confirmed leave (on the server's clock), this phone's or one
+   * made on another device that ended the plan here, for a plan left and not re-joined since. A re-join starts after it: on a phone whose clock runs slow, a start
    * on the phone's clock can fall at or before the stored leave, which would end the re-join.
    * Consumed by the re-join and dropped by a newer leave. Missing from blobs written before it
    * existed, which load as empty.
@@ -268,9 +268,10 @@ export interface ReadingPlansStoreState extends ReadingPlansPersistedState {
   rememberServerLeftAt: (planId: string, storedLeftAt: string) => void;
   /**
    * Removes a plan the reader left on another device. Unlike unenrollPlan it
-   * records no pending tombstone: the server already holds the leave.
+   * records no pending tombstone: the server already holds the leave. That leave's stored time
+   * is remembered for a re-join here to start after (see serverLeftAtByPlanId).
    */
-  endPlanLeftElsewhere: (planId: string) => void;
+  endPlanLeftElsewhere: (planId: string, storedLeftAt: string) => void;
   resetAll: () => void;
   /**
    * Clears all per-user plan progress, rhythms, and tombstones back to the initial
