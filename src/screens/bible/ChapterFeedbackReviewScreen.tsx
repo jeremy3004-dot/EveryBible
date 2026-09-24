@@ -22,7 +22,7 @@ import {
   buildReviewQueue,
   fetchChapterFeedbackForTranslatorReview,
   getChapterReviewHeadline,
-  getNextQueuedId,
+  advanceReviewSession,
   resolveTranslatorFeedbackOnServer,
   reopenTranslatorFeedbackOnServer,
   reviewPositiveFeedbackBatch,
@@ -291,18 +291,19 @@ export function ChapterFeedbackReviewScreen({ route, navigation }: Props) {
     });
   };
 
-  const advanceReview = (session: ReviewSession, id: string) => {
+  // Functional: a decision advances after its save, when the review may have been
+  // skipped on or closed; advancing the snapshot it started from reopened a closed review.
+  const advanceReview = (id: string) => {
     stopAudio();
     setReviewFailed(false);
-    const handled = new Set(session.handled).add(id);
-    setReview({ ...session, handled, currentId: getNextQueuedId(session.queue, handled, id) });
+    setReview((session) => advanceReviewSession(session, id));
   };
 
   const decide = async (resolution: TranslatorFeedbackResolution) => {
     const current = review?.currentId ? review.byId[review.currentId] : null;
     if (!review || !current) return;
     if (await resolve(current, resolution)) {
-      advanceReview(review, current.id);
+      advanceReview(current.id);
     } else {
       setReviewFailed(true);
     }
@@ -581,7 +582,7 @@ export function ChapterFeedbackReviewScreen({ route, navigation }: Props) {
           void decide(resolution);
         }}
         onSkip={() => {
-          if (review && reviewItem) advanceReview(review, reviewItem.id);
+          if (reviewItem) advanceReview(reviewItem.id);
         }}
         onClose={closeReview}
       />

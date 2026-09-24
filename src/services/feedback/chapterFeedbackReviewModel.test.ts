@@ -9,6 +9,7 @@ import {
   getChapterReviewHeadline,
   getFeedbackOutcomeKey,
   getFeedbackSourceKey,
+  advanceReviewSession,
   getNextQueuedId,
   getResolutionChoices,
   requiresResolutionNote,
@@ -124,4 +125,19 @@ test('voice note durations read as minutes and padded seconds', () => {
   assert.equal(formatVoiceNoteDuration(42_400), '0:42');
   assert.equal(formatVoiceNoteDuration(125_000), '2:05');
   assert.equal(formatVoiceNoteDuration(-5), '0:00');
+});
+
+test('a decision that lands after the review was closed does not reopen it', () => {
+  // The reviewer taps Addressed, then closes the sheet before the server answers.
+  assert.equal(advanceReviewSession(null, 'a'), null);
+});
+
+test('a decision that lands after a skip advances from the latest session', () => {
+  const opened = { queue: ['a', 'b', 'c'], currentId: 'a', handled: new Set<string>() };
+  // Skip moves on to b while a's decision is still saving; then the decision lands.
+  const skipped = advanceReviewSession(opened, 'a');
+  const decided = advanceReviewSession(skipped, 'a');
+
+  assert.equal(decided?.currentId, 'b');
+  assert.deepEqual([...(decided?.handled ?? [])], ['a']);
 });
