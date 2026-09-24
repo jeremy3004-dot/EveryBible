@@ -31,10 +31,19 @@ const DEFAULT_FETCH_TIMEOUT_MS = 10_000;
 
 // Persisted last-verified catalog record. `payloadJson` is the raw verified catalog payload
 // (never the envelope); it is always re-parsed on read so corrupt storage cannot inject data.
+//
+// `keyId` and `catalogUrl` say which key verified it and which catalog it came from. MMKV
+// survives an app update, so a release build installed over a dev build finds the dev
+// build's record, verified by the dev key this build no longer trusts and fetched from the
+// dev catalog. A record is only used by a build that trusts its key and asks for the same
+// catalog; any other record (including one written before these fields existed) is ignored,
+// both as a fallback and as the sequence floor for the rollback guard.
 interface StoredCatalogRecord {
   sequence: number;
   payloadJson: string;
   verifiedAt: number;
+  keyId: string;
+  catalogUrl: string;
 }
 
 const LAST_CATALOG_KEY = 'el-media:last-catalog';
@@ -81,7 +90,9 @@ async function readStoredRecord(storage: ElCatalogStorage): Promise<StoredCatalo
       !parsed ||
       typeof parsed.sequence !== 'number' ||
       typeof parsed.payloadJson !== 'string' ||
-      typeof parsed.verifiedAt !== 'number'
+      typeof parsed.verifiedAt !== 'number' ||
+      typeof parsed.keyId !== 'string' ||
+      typeof parsed.catalogUrl !== 'string'
     ) {
       return null;
     }
@@ -89,7 +100,26 @@ async function readStoredRecord(storage: ElCatalogStorage): Promise<StoredCatalo
       sequence: parsed.sequence,
       payloadJson: parsed.payloadJson,
       verifiedAt: parsed.verifiedAt,
+      keyId: parsed.keyId,
+      catalogUrl: parsed.catalogUrl,
     };
+  } catch {
+    return null;
+  }
+}
+
+// The stored record, only when it came from `catalogUrl` and this build still trusts the key
+// that verified it (see StoredCatalogRecord).
+async function readTrustedRecord(
+  storage: ElCatalogStorage,
+  catalogUrl: string,
+  getKeys: (keyId: string) => Promise<ElJwk[]>
+): Promise<StoredCatalogRecord | null> {
+  const record = await readStoredRecord(storage);
+  if (!record || record.catalogUrl !== catalogUrl) return null;
+  try {
+    const keys = await getKeys(record.keyId);
+    return keys.some((key) => key.kid === record.keyId) ? record : null;
   } catch {
     return null;
   }
@@ -106,12 +136,15 @@ function parseStoredRecord(record: StoredCatalogRecord | null): ElCatalog | null
   }
 }
 
-// Returns the last verified catalog, always re-parsed from storage (never trust raw storage).
+// Returns the last catalog verified from `catalogUrl` by a key this build trusts, always
+// re-parsed from storage (never trust raw storage).
 export async function getLastVerifiedElCatalog(
+  catalogUrl: string,
   deps: ElCatalogServiceDeps = {}
 ): Promise<ElCatalog | null> {
   const storage = deps.storage ?? defaultStorage();
-  return parseStoredRecord(await readStoredRecord(storage));
+  const getKeys = deps.getKeys ?? defaultGetKeys;
+  return parseStoredRecord(await readTrustedRecord(storage, catalogUrl, getKeys));
 }
 
 // Fetches, verifies and parses the signed catalog. On any failure (network, non-2xx, malformed
@@ -130,14 +163,14 @@ export async function refreshElCatalog(
   // gated on crypto.subtle and therefore returned null on every real device.
   if (!isSupported()) return null;
 
-  // Read-snapshot the stored record ONCE up front; last-write-wins under concurrent refresh.
-  // Today there is a single warmup caller, so overlapping refreshes cannot race here.
-  const storedRecord = await readStoredRecord(storage);
-  const lastGood = () => parseStoredRecord(storedRecord);
-
   const fetchFn = deps.fetchFn ?? fetch;
   const timeoutMs = deps.timeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
   const getKeys = deps.getKeys ?? defaultGetKeys;
+
+  // Read-snapshot the stored record ONCE up front; last-write-wins under concurrent refresh.
+  // Today there is a single warmup caller, so overlapping refreshes cannot race here.
+  const storedRecord = await readTrustedRecord(storage, catalogUrl, getKeys);
+  const lastGood = () => parseStoredRecord(storedRecord);
 
   // AbortController + setTimeout(abort) mirrors the repo's existing fetch-timeout pattern
   // (see verseTimestamps.ts / audioRemote.ts). We deliberately do NOT use AbortSignal.timeout,
@@ -159,9 +192,10 @@ export async function refreshElCatalog(
 
   if (!isElEnvelopeShape(envelope)) return lastGood();
 
+  const { keyId } = envelope as ElSignedEnvelope;
   let payload: unknown;
   try {
-    const keys = await getKeys((envelope as ElSignedEnvelope).keyId);
+    const keys = await getKeys(keyId);
     payload = await verifyElEnvelope(envelope as ElSignedEnvelope, keys);
   } catch {
     return lastGood();
@@ -178,6 +212,8 @@ export async function refreshElCatalog(
     sequence: catalog.sequence,
     payloadJson: JSON.stringify(payload),
     verifiedAt: Date.now(),
+    keyId,
+    catalogUrl,
   };
   try {
     await storage.setItem(LAST_CATALOG_KEY, JSON.stringify(record));

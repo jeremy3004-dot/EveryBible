@@ -58,6 +58,10 @@ interface Scenario {
   env?: EdgeHarnessOptions['env'];
   /** Answer of consume_feedback_submission_budget(); unscripted means "not deployed". */
   budget?: EdgeQueryResult;
+  /** Answer of each insert, in order, given the row it tried to write. */
+  insert?: (row: Record<string, unknown>) => EdgeQueryResult;
+  /** Answer of the lookup of an already-saved submission by its client submission id. */
+  existing?: EdgeQueryResult;
 }
 
 const BUDGET_RPC = 'rpc:consume_feedback_submission_budget';
@@ -79,7 +83,16 @@ function endpoint(scenario: Scenario = {}) {
     respond: (call) => {
       if (call.table === BUDGET_RPC) return scenario.budget ?? {};
       if (call.table !== 'chapter_feedback_submissions') return {};
-      if (call.steps.some((step) => step.method === 'insert')) {
+      const insertStep = call.steps.find((step) => step.method === 'insert');
+      if (insertStep && scenario.insert) {
+        return scenario.insert(insertStep.args[0] as Record<string, unknown>);
+      }
+      if (
+        call.steps.some((step) => step.method === 'eq' && step.args[0] === 'client_submission_id')
+      ) {
+        return scenario.existing ?? { data: null };
+      }
+      if (insertStep) {
         return scenario.insertError
           ? { error: { message: 'insert failed' } }
           : { data: { id: 'feedback-1', created_at: '2026-09-24T08:00:00.000Z' } };
@@ -433,4 +446,124 @@ test('an unknown contributor category is refused', async () => {
 
   assert.equal(response.status, 400);
   assert.equal(await errorOf(response), 'Invalid contributor category');
+});
+
+// ─── client submission ids (idempotent retries) ───────────────────────────────
+
+const SUBMISSION_ID = '5b0c9a4e-2f7d-4c1e-9a3b-8d6f0e1c2a7b';
+const DUPLICATE_SUBMISSION = {
+  error: {
+    code: '23505',
+    message:
+      'duplicate key value violates unique constraint "chapter_feedback_submissions_client_submission_id_key"',
+    details: `Key (client_submission_id)=(${SUBMISSION_ID}) already exists.`,
+  },
+};
+
+test('a client submission id is stored with the feedback', async () => {
+  const h = endpoint();
+
+  const response = await h.send({ ...validBody, clientSubmissionId: SUBMISSION_ID.toUpperCase() });
+
+  assert.equal(response.status, 200);
+  assert.equal(h.inserts()[0].client_submission_id, SUBMISSION_ID);
+});
+
+test('feedback from a build that sends no client submission id is saved as before', async () => {
+  const h = endpoint();
+
+  const response = await h.send(validBody);
+
+  assert.equal(response.status, 200);
+  assert.equal('client_submission_id' in h.inserts()[0], false);
+});
+
+test('a retry of a submission that was already saved succeeds with the saved row, not a copy', async () => {
+  const h = endpoint({
+    insert: () => DUPLICATE_SUBMISSION,
+    existing: { data: { id: 'feedback-first' } },
+  });
+
+  const response = await h.send({ ...validBody, clientSubmissionId: SUBMISSION_ID });
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    success: true,
+    saved: true,
+    exported: true,
+    feedbackId: 'feedback-first',
+  });
+  assert.equal(h.inserts().length, 1);
+});
+
+test('a retried recording is not left behind when the submission was already saved', async () => {
+  const h = endpoint({
+    insert: () => DUPLICATE_SUBMISSION,
+    existing: { data: { id: 'feedback-first' } },
+  });
+
+  const response = await h.send({
+    ...validBody,
+    clientSubmissionId: SUBMISSION_ID,
+    audioResponse: audio(),
+  });
+
+  assert.equal(response.status, 200);
+  const upload = h.storage.find((call) => call.method === 'upload')!;
+  const remove = h.storage.find((call) => call.method === 'remove')!;
+  assert.deepEqual(remove.args, [[upload.args[0]]]);
+});
+
+test('a unique violation on another constraint is still a failure', async () => {
+  const h = endpoint({
+    insert: () => ({ error: { code: '23505', message: 'duplicate key value violates "other"' } }),
+    existing: { data: { id: 'feedback-first' } },
+  });
+
+  const response = await h.send({ ...validBody, clientSubmissionId: SUBMISSION_ID });
+
+  assert.equal(response.status, 500);
+});
+
+test('a duplicate whose saved row cannot be read back is a retryable failure', async () => {
+  const h = endpoint({
+    insert: () => DUPLICATE_SUBMISSION,
+    existing: { error: { message: 'lookup failed' } },
+  });
+
+  const response = await h.send({ ...validBody, clientSubmissionId: SUBMISSION_ID });
+
+  assert.equal(response.status, 500);
+});
+
+test('a client submission id that is not a UUID is refused before anything is written', async () => {
+  const h = endpoint();
+
+  const response = await h.send({ ...validBody, clientSubmissionId: 'not-a-uuid' });
+
+  assert.equal(response.status, 400);
+  assert.equal(await errorOf(response), 'clientSubmissionId must be a UUID');
+  assert.deepEqual(h.inserts(), []);
+});
+
+test('until the client_submission_id column exists, feedback is saved without it', async () => {
+  // The function can be deployed before its migration is applied.
+  const h = endpoint({
+    insert: (row) =>
+      'client_submission_id' in row
+        ? {
+            error: {
+              code: 'PGRST204',
+              message:
+                "Could not find the 'client_submission_id' column of 'chapter_feedback_submissions' in the schema cache",
+            },
+          }
+        : { data: { id: 'feedback-1', created_at: '2026-09-24T08:00:00.000Z' } },
+  });
+
+  const response = await h.send({ ...validBody, clientSubmissionId: SUBMISSION_ID });
+
+  assert.equal(response.status, 200);
+  assert.equal(h.inserts().length, 2);
+  assert.equal('client_submission_id' in h.inserts()[1], false);
 });

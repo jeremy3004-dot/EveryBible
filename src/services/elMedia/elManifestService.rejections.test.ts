@@ -248,7 +248,10 @@ test('an unreadable disk cache entry is ignored and the manifest is fetched and 
 
   assert.equal(manifest?.translationId, 'lqdtest');
   assert.equal(server.requests.length, 1);
-  assert.equal(JSON.parse(storage.raw.get(diskKey) as string).schema, fixturePayload.schema);
+  assert.equal(
+    JSON.parse(storage.raw.get(diskKey) as string).payload.schema,
+    fixturePayload.schema
+  );
 });
 
 test('a disk cache whose reads throw falls through to the network', async () => {

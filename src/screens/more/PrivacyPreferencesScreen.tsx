@@ -31,6 +31,14 @@ import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 
 type NavigationProp = NativeStackNavigationProp<MoreStackParamList, 'PrivacyPreferences'>;
 
+// The crash queue is loaded only when there is a failure to report, and reporting never
+// throws into the save flow.
+function reportPrivacySaveFailure(error: unknown): void {
+  void import('../../services/diagnostics/crashReportQueue')
+    .then(({ reportHandledError }) => reportHandledError('privacy.save', error))
+    .catch(() => undefined);
+}
+
 export function PrivacyPreferencesScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { t } = useTranslation();
@@ -98,6 +106,10 @@ export function PrivacyPreferencesScreen() {
           lockPrivacy();
         });
       }
+    } catch (error) {
+      // The keychain write failed, so nothing changed: stay here so the reader can retry.
+      setErrorKey('common.unexpectedError');
+      reportPrivacySaveFailure(error);
     } finally {
       setIsSaving(false);
     }
@@ -235,6 +247,13 @@ export function PrivacyPreferencesScreen() {
                 </Text>
               ) : null}
             </View>
+          ) : null}
+
+          {/* Without the code card (standard icon), a failed save still needs a message. */}
+          {!discreetSelected && errorKey ? (
+            <Text style={styles.errorText} accessibilityLiveRegion="polite">
+              {t(errorKey)}
+            </Text>
           ) : null}
         </ScrollView>
       </KeyboardAvoidingView>

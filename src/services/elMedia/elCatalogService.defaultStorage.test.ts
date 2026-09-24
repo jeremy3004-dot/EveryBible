@@ -52,13 +52,13 @@ test('a verified catalog is persisted to MMKV and readable as the last verified 
 
   assert.equal(refreshed?.sequence, 1);
   assert.equal(JSON.parse(mmkv.get(LAST_CATALOG_KEY) as string).sequence, 1);
-  assert.deepEqual(await getLastVerifiedElCatalog(), refreshed);
+  assert.deepEqual(await getLastVerifiedElCatalog(CATALOG_URL, deps), refreshed);
 });
 
 test('with nothing in MMKV there is no last verified catalog', async () => {
   const { getLastVerifiedElCatalog } = await loadService();
 
-  assert.equal(await getLastVerifiedElCatalog(), null);
+  assert.equal(await getLastVerifiedElCatalog(CATALOG_URL, deps), null);
 });
 
 test('an unusable MMKV still returns the freshly verified catalog for this launch', async () => {
@@ -69,5 +69,5 @@ test('an unusable MMKV still returns the freshly verified catalog for this launc
 
   assert.equal(refreshed?.translations[0]?.translationId, 'lqdtest');
   assert.equal(fetches, 1);
-  assert.equal(await getLastVerifiedElCatalog(), null);
+  assert.equal(await getLastVerifiedElCatalog(CATALOG_URL, deps), null);
 });
