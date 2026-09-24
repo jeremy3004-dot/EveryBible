@@ -15,6 +15,7 @@ import {
 } from '../services/privacy';
 import { initializePrivacyWithTimeout } from '../services/privacy/privacyInitialization';
 import { initializePrivacyInstallationOnStartup } from '../services/privacy/privacyInstallationAdapter';
+import { DEFAULT_CRITICAL_TASK_TIMEOUT_MS } from '../services/startup/startupService';
 
 interface SavePrivacyConfigurationInput {
   mode: PrivacyAppIconMode;
@@ -69,6 +70,12 @@ const reportPrivacyFailure = (source: string, error: unknown): void => {
 
 const ICON_READ_TIMEOUT_MS = 1_000;
 
+/**
+ * How long privacy setup may take at startup. Past the startup coordinator's limit, that
+ * launch skips auth and looks signed out; the margin covers the work after the icon read.
+ */
+const PRIVACY_STARTUP_BUDGET_MS = DEFAULT_CRITICAL_TASK_TIMEOUT_MS - 250;
+
 const reportIconChangeFailure = (error: unknown): void =>
   reportPrivacyFailure('privacy.iconChange', error);
 
@@ -82,19 +89,24 @@ const reportUnreadablePrivacySettings = (error: unknown): void =>
  * Whether discreet mode locks, when the keychain holding its record cannot be read.
  * Fails closed: the lock hint or the decoy icon on the home screen saying discreet keeps
  * the app locked; only a hint saying standard opens it. Null when nothing says either,
- * which leaves the retry screen.
+ * which leaves the retry screen. The icon read gets at most `iconReadTimeoutMs`.
  */
-const resolveLockWithoutKeychain = async (): Promise<PrivacyAppIconMode | null> => {
+const resolveLockWithoutKeychain = async (
+  iconReadTimeoutMs: number
+): Promise<PrivacyAppIconMode | null> => {
   const hint = readPrivacyLockHint();
   if (hint === 'discreet') {
     return 'discreet';
   }
   // Bounded: startup waits on this, and a native call that never answers counts as unknown.
+  if (iconReadTimeoutMs <= 0) {
+    return hint;
+  }
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
   const icon = await Promise.race([
     getCurrentPrivacyAppIcon(),
     new Promise<null>((resolve) => {
-      timeoutId = setTimeout(() => resolve(null), ICON_READ_TIMEOUT_MS);
+      timeoutId = setTimeout(() => resolve(null), iconReadTimeoutMs);
     }),
   ]).finally(() => clearTimeout(timeoutId));
   return icon === 'discreet' ? 'discreet' : hint;
@@ -134,6 +146,7 @@ export const usePrivacyStore = create<PrivacyState>()((set, get) => {
     }
 
     const generation = ++initializationGeneration;
+    const startedAt = Date.now();
     const previousInitializationError = get().initializationError;
     set({
       isLoading: true,
@@ -170,7 +183,10 @@ export const usePrivacyStore = create<PrivacyState>()((set, get) => {
     if (result.status === 'unavailable') {
       console.error('Failed to initialize privacy mode:', result.error);
       reportUnreadablePrivacySettings(result.error);
-      const assumedMode = await resolveLockWithoutKeychain();
+      // A keychain that failed late leaves the icon read only what remains of the budget.
+      const assumedMode = await resolveLockWithoutKeychain(
+        Math.min(ICON_READ_TIMEOUT_MS, PRIVACY_STARTUP_BUDGET_MS - (Date.now() - startedAt))
+      );
       if (generation !== initializationGeneration) {
         return;
       }

@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { mockExpoCrypto, mockModule, sourcePath } from '../testing/mockModules';
 import { createReactNativeStub } from '../testing/reactNativeStub';
 import type { PrivacyAppIconMode } from '../types';
+import { createStartupCoordinator } from '../services/startup/startupService';
 
 /**
  * The whole privacy dependency graph is real here (privacyService,
@@ -22,6 +23,7 @@ const secureStoreOptions: unknown[] = [];
 type Deferred = {
   promise: Promise<string | null>;
   resolve: (value: string | null) => void;
+  reject: (error: Error) => void;
   started: Promise<void>;
   markStarted: () => void;
 };
@@ -30,14 +32,16 @@ let readFailure: Error | null = null;
 
 const createDeferred = (): Deferred => {
   let resolve!: (value: string | null) => void;
+  let reject!: (error: Error) => void;
   let markStarted!: () => void;
   const started = new Promise<void>((done) => {
     markStarted = done;
   });
-  const promise = new Promise<string | null>((done) => {
+  const promise = new Promise<string | null>((done, fail) => {
     resolve = done;
+    reject = fail;
   });
-  return { promise, resolve, started, markStarted };
+  return { promise, resolve, reject, started, markStarted };
 };
 
 mockExpoCrypto(mock);
@@ -71,6 +75,8 @@ const iconCalls: PrivacyAppIconMode[] = [];
 let setAppIconResult = true;
 // The icon the home screen shows; only a switch the device accepts changes it.
 let currentIcon: PrivacyAppIconMode = 'standard';
+// A native icon read that never answers.
+let iconReadHangs = false;
 mockModule(
   mock,
   'react-native',
@@ -84,7 +90,8 @@ mockModule(
           }
           return setAppIconResult;
         },
-        getCurrentAppIcon: async () => currentIcon,
+        getCurrentAppIcon: () =>
+          iconReadHangs ? new Promise<never>(() => {}) : Promise.resolve(currentIcon),
       },
     },
   })
@@ -156,6 +163,7 @@ beforeEach(() => {
   secureStoreOptions.length = 0;
   iconCalls.length = 0;
   currentIcon = 'standard';
+  iconReadHangs = false;
   reportedErrors.length = 0;
   reportWaiters = [];
   mmkv.clear();
@@ -878,6 +886,50 @@ test('a standard install whose keychain cannot be read starts open, and the fail
   assert.deepEqual(reportedErrors, [
     { source: 'privacy.keychain', message: 'The operation couldn’t be completed.' },
   ]);
+});
+
+test('a keychain that fails late still leaves startup time to sign in', async () => {
+  // A standard install; its keychain read fails just inside privacy's own deadline and the
+  // icon read never answers. Privacy must still finish inside the startup limit, or that
+  // launch skips auth and looks signed out.
+  mmkv.set('everybible.privacy.lockHint.v1', 'standard');
+  pendingRead = createDeferred();
+  iconReadHangs = true;
+  const consoleError = mock.method(console, 'error', () => {});
+  mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  let authInitialized = false;
+  const coordinator = createStartupCoordinator({
+    initializePrivacy: () => store().initialize(),
+    isPrivacyInitialized: () => store().isInitialized,
+    initializeAuth: async () => {
+      authInitialized = true;
+    },
+    preloadBibleData: async () => {},
+  });
+
+  try {
+    const critical = coordinator.initializeCritical();
+    await pendingRead.started;
+    mock.timers.tick(3_400);
+    pendingRead.reject(keychainError());
+    await flush();
+    mock.timers.tick(350);
+    await flush();
+    mock.timers.tick(650);
+    await critical;
+  } finally {
+    mock.timers.reset();
+    consoleError.mock.restore();
+  }
+
+  assert.equal(authInitialized, true, 'privacy ran past the startup limit, so auth was skipped');
+  assert.deepEqual(lockState(), {
+    isInitialized: true,
+    initializationError: null,
+    mode: 'standard',
+    hasPin: false,
+    isLocked: false,
+  });
 });
 
 test('a fresh install whose keychain cannot be read starts open in standard mode', async () => {
