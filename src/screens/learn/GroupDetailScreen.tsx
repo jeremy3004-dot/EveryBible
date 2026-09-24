@@ -14,7 +14,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { config } from '../../constants';
+import { config } from '../../constants/config';
 import { useTheme } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
@@ -36,7 +36,6 @@ import {
 } from '../../services/groups';
 import { isSupabaseConfigured } from '../../services/supabase';
 import type { GroupDetailSnapshot } from '../../services/groups/groupRepository';
-import { listPrayerRequests } from '../../services/prayer/prayerService';
 
 type NavigationProp = NativeStackNavigationProp<LearnStackParamList>;
 type ScreenRouteProp = RouteProp<LearnStackParamList, 'GroupDetail'>;
@@ -153,8 +152,12 @@ export function GroupDetailScreen() {
 
     let cancelled = false;
 
-    listPrayerRequests(groupId)
+    // The prayer service is only needed for this signed-in preview, so it
+    // loads here instead of with the screen.
+    import('../../services/prayer/prayerService')
+      .then(({ listPrayerRequests }) => (cancelled ? null : listPrayerRequests(groupId)))
       .then((result) => {
+        if (!result) return;
         if (cancelled) return;
         if (result.success && result.data) {
           const active = result.data.filter((r) => !r.is_answered);

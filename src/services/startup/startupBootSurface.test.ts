@@ -2,7 +2,7 @@
 // import closure, which runtime tests cannot observe.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createPrivacyInstallationBootstrap } from '../privacy/privacyInstallationAdapter';
@@ -570,4 +570,85 @@ test('restoring the session at launch does not load the native sign-in SDKs', ()
     'authSession must not reach authService, which owns the sign-in flows'
   );
   assert.ok(files.size > 1, 'authSession should reach the Supabase client — check the walker');
+});
+
+// Home evaluates before first paint; the plan service (~48 KB, plus the ~33 KB
+// bundled plan catalog it imports) is only needed by the effect that loads the
+// plan card.
+test('HomeScreen loads the reading-plan service on first use, not at module load', () => {
+  const closurePaths = [
+    ...collectStaticImportClosure(
+      fileURLToPath(new URL('../../screens/home/HomeScreen.tsx', import.meta.url).href)
+    ),
+  ].map((file) => file.replace(/\\/g, '/'));
+
+  ['src/services/plans/readingPlanService.ts', 'src/data/readingPlans.generated.ts'].forEach(
+    (suffix) => {
+      const hit = closurePaths.find((file) => file.endsWith(suffix));
+      assert.equal(hit, undefined, `HomeScreen's static closure must not reach ${suffix}`);
+    }
+  );
+  assert.ok(
+    closurePaths.some((file) => file.endsWith('src/stores/readingPlansStore.ts')),
+    'HomeScreen should still reach the plan progress store — check the walker if this fails'
+  );
+});
+
+// The components/ui barrel re-exports Sheet, ListRow, SectionHeader and
+// EmptyState, which import the hooks barrel (audio player, audio downloads,
+// cloud sync). A screen that only wants AppCard should not pay for those.
+const SCREEN_BARREL_IMPORT_PATTERN =
+  /^\s*import\s+(?!type\b)[\s\S]*?\bfrom\s+['"](\.[./]*\/(?:hooks|constants|stores|components|components\/ui))['"]/gm;
+
+test('Home and Learn screens import concrete modules instead of barrels', () => {
+  const repoRoot = fileURLToPath(new URL('../../../', import.meta.url).href);
+  const screenFiles = ['src/screens/home', 'src/screens/learn'].flatMap((directory) =>
+    readdirSync(join(repoRoot, directory))
+      .filter((name) => /\.tsx?$/.test(name) && !/\.test\.tsx?$/.test(name))
+      .filter((name) => name !== 'index.ts')
+      .map((name) => `${directory}/${name}`)
+  );
+
+  assert.ok(screenFiles.length > 10, 'expected the Home and Learn screen modules');
+
+  screenFiles.forEach((file) => {
+    const source = readFileSync(join(repoRoot, file), 'utf8');
+    const offenders = [...source.matchAll(SCREEN_BARREL_IMPORT_PATTERN)].map((match) => match[1]);
+    assert.deepEqual(
+      offenders,
+      [],
+      `${file} must import concrete modules, not the ${offenders.join(', ')} barrel`
+    );
+  });
+});
+
+// LessonDetail, FoundationDetail and PrayerWall still reach the hooks barrel
+// through components/ui/Sheet and components/gather/LessonBottomSheet, which
+// are owned outside the screens.
+test('the Gather tab and group screens reach neither the hooks nor the constants barrel', () => {
+  const banned = ['src/hooks/index.ts', 'src/constants/index.ts', 'src/hooks/useAudioPlayer.ts'];
+  const screens: Record<string, string[]> = {
+    'GatherScreen.tsx': banned,
+    'GroupListScreen.tsx': banned,
+    'GroupSessionScreen.tsx': banned,
+    // The prayer preview loads its service when the signed-in effect runs.
+    'GroupDetailScreen.tsx': [...banned, 'src/services/prayer/prayerService.ts'],
+  };
+
+  Object.entries(screens).forEach(([screen, suffixes]) => {
+    const closurePaths = [
+      ...collectStaticImportClosure(
+        fileURLToPath(new URL(`../../screens/learn/${screen}`, import.meta.url).href)
+      ),
+    ].map((file) => file.replace(/\\/g, '/'));
+
+    suffixes.forEach((suffix) => {
+      const hit = closurePaths.find((file) => file.endsWith(suffix));
+      assert.equal(hit, undefined, `${screen}'s static closure must not reach ${suffix}`);
+    });
+    assert.ok(
+      closurePaths.some((file) => file.endsWith('src/contexts/ThemeContext.tsx')),
+      `${screen} should still reach ThemeContext — check the walker if this fails`
+    );
+  });
 });
