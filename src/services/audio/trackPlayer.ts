@@ -288,11 +288,11 @@ async function setupPlayer(_options?: SetupOptions): Promise<void> {
 }
 
 async function add(track: Track | Track[]): Promise<number | undefined> {
-  const tracks = Array.isArray(track) ? track : [track];
-  if (tracks.length === 0) return;
+  const [firstTrack] = Array.isArray(track) ? track : [track];
+  if (!firstTrack) return;
 
   // Only supports single-track loading; queue managed by audioStore
-  return loadTrack(tracks[0]);
+  return loadTrack(firstTrack);
 }
 
 async function loadTrack(target: Track, startPositionMillis = 0): Promise<number | undefined> {

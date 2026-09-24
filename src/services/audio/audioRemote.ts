@@ -536,15 +536,16 @@ async function fetchBibleIsChapterAudio(
     }
 
     const data: BibleIsAudioResponse = await response.json();
-    if (!data.data || data.data.length === 0) {
+    const firstFile = data.data?.[0];
+    if (!data.data || !firstFile) {
       return null;
     }
 
     const audioFile =
       verse == null
-        ? data.data[0]
+        ? firstFile
         : (data.data.find((file) => verse >= file.verse_start && verse <= file.verse_end) ??
-          data.data[0]);
+          firstFile);
 
     return {
       url: requireSecureMediaUrl(audioFile.path),

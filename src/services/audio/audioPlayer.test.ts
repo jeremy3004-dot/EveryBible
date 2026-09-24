@@ -175,7 +175,7 @@ test('configureAudioMode logs and swallows a setup failure so playback can still
   }
 
   assert.equal(errors.messages.length, 1);
-  assert.equal(errors.messages[0][0], 'Error configuring audio mode:');
+  assert.equal(errors.messages[0]?.[0], 'Error configuring audio mode:');
 });
 
 // ---------------------------------------------------------------------------

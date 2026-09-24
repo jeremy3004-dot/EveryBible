@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test, { after, before, beforeEach, mock } from 'node:test';
 import { mockModule } from '../../testing/mockModules';
+import { assertDefined } from '../../utils/assertDefined';
 
 // ---------------------------------------------------------------------------
 // Scripted expo-av fake
@@ -92,6 +93,8 @@ class FakeSound {
 }
 
 const soundInstances: FakeSound[] = [];
+const soundAt = (index: number): FakeSound =>
+  assertDefined(soundInstances[index], `soundInstances[${index}]`);
 const createCalls: Array<{ source: unknown; initialStatus: unknown }> = [];
 const audioModeCalls: unknown[] = [];
 
@@ -277,13 +280,9 @@ test('add unloads the previously loaded sound before loading the replacement', a
   await mod.default.add(track('first'));
   await mod.default.add(track('second'));
 
-  assert.deepEqual(soundInstances[0].methods(), [
-    'setOnPlaybackStatusUpdate',
-    'stopAsync',
-    'unloadAsync',
-  ]);
-  assert.equal(soundInstances[0].calls[0].args[0], null);
-  assert.deepEqual(soundInstances[1].methods(), []);
+  assert.deepEqual(soundAt(0).methods(), ['setOnPlaybackStatusUpdate', 'stopAsync', 'unloadAsync']);
+  assert.equal(soundAt(0).calls[0]?.args[0], null);
+  assert.deepEqual(soundAt(1).methods(), []);
   assert.deepEqual(await mod.default.getActiveTrack(), track('second'));
 });
 
@@ -292,7 +291,7 @@ test('add applies the sticky playback rate to the next load', async () => {
 
   await mod.default.add(track('gen1'));
 
-  assert.deepEqual(createCalls[0].initialStatus, {
+  assert.deepEqual(createCalls[0]?.initialStatus, {
     shouldPlay: false,
     rate: 1.5,
     shouldCorrectPitch: true,
@@ -314,9 +313,10 @@ test('a stale load that finishes after a newer one is unloaded instead of becomi
   gate.resolve();
   await stalePending;
 
-  const [staleSound, freshSound] = soundInstances;
+  const staleSound = soundAt(0);
+  const freshSound = soundAt(1);
   assert.deepEqual(staleSound.methods(), ['setOnPlaybackStatusUpdate', 'stopAsync', 'unloadAsync']);
-  assert.equal(staleSound.calls[0].args[0], null);
+  assert.equal(staleSound.calls[0]?.args[0], null);
   assert.deepEqual(freshSound.methods(), []);
   assert.deepEqual(await mod.default.getActiveTrack(), track('fresh'));
   assert.deepEqual(
@@ -335,7 +335,7 @@ test('a stale load being discarded cannot report progress over the track that re
   nextCreateGate = null;
   await mod.default.add(track('fresh'));
 
-  const [staleSound] = soundInstances;
+  const staleSound = soundAt(0);
   // expo-av reports one last loaded status while a sound is torn down. The
   // discarded load must be detached first, or the live track's scrubber jumps
   // back to zero and the transport flips to paused.
@@ -390,11 +390,7 @@ test('a load still in flight when stop is called never becomes the active track'
   await pending;
 
   assert.equal(await mod.default.getActiveTrack(), null);
-  assert.deepEqual(soundInstances[0].methods(), [
-    'setOnPlaybackStatusUpdate',
-    'stopAsync',
-    'unloadAsync',
-  ]);
+  assert.deepEqual(soundAt(0).methods(), ['setOnPlaybackStatusUpdate', 'stopAsync', 'unloadAsync']);
   assert.deepEqual(events, []);
 });
 
@@ -441,7 +437,7 @@ test('a playing status update reports progress in seconds and moves the player t
   await mod.default.add(track('gen1'));
   const events = recordEvents();
 
-  soundInstances[0].emitStatus({
+  soundAt(0).emitStatus({
     isLoaded: true,
     positionMillis: 12_500,
     durationMillis: 60_000,
@@ -462,7 +458,7 @@ test('a status update without a buffered figure reports the current position as 
   await mod.default.add(track('gen1'));
   const events = recordEvents();
 
-  soundInstances[0].emitStatus({ isLoaded: true, positionMillis: 4_000, isPlaying: true });
+  soundAt(0).emitStatus({ isLoaded: true, positionMillis: 4_000, isPlaying: true });
 
   assert.deepEqual(events[0], {
     event: mod.Event.PlaybackProgressUpdated,
@@ -474,7 +470,7 @@ test('a buffering status update moves the player to Buffering', async () => {
   await mod.default.add(track('gen1'));
   const events = recordEvents();
 
-  soundInstances[0].emitStatus({
+  soundAt(0).emitStatus({
     isLoaded: true,
     positionMillis: 0,
     isPlaying: false,
@@ -491,7 +487,7 @@ test('a stalled status update that is neither playing nor buffering reports Paus
   await mod.default.add(track('gen1'));
   const events = recordEvents();
 
-  soundInstances[0].emitStatus({ isLoaded: true, positionMillis: 1_000, isPlaying: false });
+  soundAt(0).emitStatus({ isLoaded: true, positionMillis: 1_000, isPlaying: false });
 
   assert.deepEqual(events[1], {
     event: mod.Event.PlaybackState,
@@ -501,10 +497,10 @@ test('a stalled status update that is neither playing nor buffering reports Paus
 
 test('didJustFinish reports the Ended state and then ends the queue', async () => {
   await mod.default.add(track('gen1'));
-  soundInstances[0].emitStatus({ isLoaded: true, positionMillis: 0, isPlaying: true });
+  soundAt(0).emitStatus({ isLoaded: true, positionMillis: 0, isPlaying: true });
   const events = recordEvents();
 
-  soundInstances[0].emitStatus({
+  soundAt(0).emitStatus({
     isLoaded: true,
     positionMillis: 60_000,
     durationMillis: 60_000,
@@ -528,7 +524,7 @@ test('the queue-ended handler has the last word on what follows a finished chapt
   // state event reported after it used to flip that decision back to "paused" and
   // re-publish the lock-screen entry the handler had just cleared.
   await mod.default.add(track('rev22'));
-  soundInstances[0].emitStatus({ isLoaded: true, positionMillis: 0, isPlaying: true });
+  soundAt(0).emitStatus({ isLoaded: true, positionMillis: 0, isPlaying: true });
   const afterFinish: string[] = [];
   let finished = false;
   mod.addEventListener(mod.Event.PlaybackQueueEnded, () => {
@@ -538,7 +534,7 @@ test('the queue-ended handler has the last word on what follows a finished chapt
     if (finished) afterFinish.push(state);
   });
 
-  soundInstances[0].emitStatus({
+  soundAt(0).emitStatus({
     isLoaded: true,
     positionMillis: 60_000,
     durationMillis: 60_000,
@@ -554,7 +550,7 @@ test('an unloaded status carrying an error surfaces a PlaybackError', async () =
   await mod.default.add(track('gen1'));
   const events = recordEvents();
 
-  soundInstances[0].emitStatus({ isLoaded: false, error: 'AVFoundation decode failure' });
+  soundAt(0).emitStatus({ isLoaded: false, error: 'AVFoundation decode failure' });
 
   assert.deepEqual(events, [
     { event: mod.Event.PlaybackState, data: { state: mod.State.Error } },
@@ -572,13 +568,13 @@ test('an unloaded status carrying an error surfaces a PlaybackError', async () =
 test('a sound that failed mid-stream is dropped instead of being driven again', async () => {
   await mod.default.add(track('gen1'));
   await mod.default.play();
-  soundInstances[0].emitStatus({ isLoaded: false, error: 'The network connection was lost.' });
-  soundInstances[0].calls.length = 0;
+  soundAt(0).emitStatus({ isLoaded: false, error: 'The network connection was lost.' });
+  soundAt(0).calls.length = 0;
 
   await mod.default.play();
   await mod.default.seekTo(30);
 
-  assert.deepEqual(soundInstances[0].calls, []);
+  assert.deepEqual(soundAt(0).calls, []);
   assert.equal(await mod.default.getActiveTrack(), null);
   assert.deepEqual(await mod.default.getPlaybackState(), { state: mod.State.Error });
 });
@@ -586,8 +582,8 @@ test('a sound that failed mid-stream is dropped instead of being driven again', 
 test('a command the native side rejects because it released the sound drops that sound', async () => {
   await mod.default.add(track('gen1'));
   const released = new Error('Player does not exist.');
-  soundInstances[0].rejections.set('playAsync', released);
-  soundInstances[0].rejections.set('getStatusAsync', released);
+  soundAt(0).rejections.set('playAsync', released);
+  soundAt(0).rejections.set('getStatusAsync', released);
   const events = recordEvents();
 
   await assert.doesNotReject(() => mod.default.play());
@@ -599,15 +595,15 @@ test('a command the native side rejects because it released the sound drops that
       data: { code: 'PLAY_ERROR', message: 'Player does not exist.' },
     },
   ]);
-  soundInstances[0].calls.length = 0;
+  soundAt(0).calls.length = 0;
   await mod.default.pause();
-  assert.deepEqual(soundInstances[0].methods(), []);
+  assert.deepEqual(soundAt(0).methods(), []);
 });
 
 test('a failed seek on a sound reported as unloaded drops that sound', async () => {
   await mod.default.add(track('gen1'));
-  soundInstances[0].rejections.set('setPositionAsync', new Error('sound is not loaded'));
-  soundInstances[0].status = { isLoaded: false };
+  soundAt(0).rejections.set('setPositionAsync', new Error('sound is not loaded'));
+  soundAt(0).status = { isLoaded: false };
   const events = recordEvents();
 
   await mod.default.seekTo(5);
@@ -621,14 +617,14 @@ test('a failed seek on a sound reported as unloaded drops that sound', async () 
 
 test('a failed command on a sound that is still loaded keeps it', async () => {
   await mod.default.add(track('gen1'));
-  soundInstances[0].rejections.set('pauseAsync', new Error('interrupted'));
+  soundAt(0).rejections.set('pauseAsync', new Error('interrupted'));
 
   await mod.default.pause();
-  soundInstances[0].rejections.clear();
-  soundInstances[0].calls.length = 0;
+  soundAt(0).rejections.clear();
+  soundAt(0).calls.length = 0;
   await mod.default.play();
 
-  assert.deepEqual(soundInstances[0].methods(), ['playAsync']);
+  assert.deepEqual(soundAt(0).methods(), ['playAsync']);
 });
 
 // Android releases a sound whose stream fails while it buffers without telling JS,
@@ -636,7 +632,7 @@ test('a failed command on a sound that is still loaded keeps it', async () => {
 // can check that the sound still exists.
 test('verifyActiveTrack drops and reports a sound the native side released', async () => {
   await mod.default.add(track('gen1'));
-  soundInstances[0].rejections.set('getStatusAsync', new Error('Player does not exist.'));
+  soundAt(0).rejections.set('getStatusAsync', new Error('Player does not exist.'));
   const events = recordEvents();
 
   assert.equal(await mod.default.verifyActiveTrack(), false);
@@ -662,7 +658,7 @@ test('an unloaded status without an error is ignored', async () => {
   await mod.default.add(track('gen1'));
   const events = recordEvents();
 
-  soundInstances[0].emitStatus({ isLoaded: false });
+  soundAt(0).emitStatus({ isLoaded: false });
 
   assert.deepEqual(events, []);
 });
@@ -678,7 +674,7 @@ test('play, pause and seekTo drive the loaded sound', async () => {
   await mod.default.pause();
   await mod.default.seekTo(42.5);
 
-  assert.deepEqual(soundInstances[0].calls, [
+  assert.deepEqual(soundAt(0).calls, [
     { method: 'playAsync', args: [] },
     { method: 'pauseAsync', args: [] },
     { method: 'setPositionAsync', args: [42_500] },
@@ -699,7 +695,7 @@ test('transport controls are no-ops while nothing is loaded', async () => {
 
 test('a failed play surfaces PLAY_ERROR without throwing', async () => {
   await mod.default.add(track('gen1'));
-  soundInstances[0].rejections.set('playAsync', new Error('session busy'));
+  soundAt(0).rejections.set('playAsync', new Error('session busy'));
   const events = recordEvents();
 
   await assert.doesNotReject(() => mod.default.play());
@@ -711,7 +707,7 @@ test('a failed play surfaces PLAY_ERROR without throwing', async () => {
 
 test('a failed pause surfaces PAUSE_ERROR without throwing', async () => {
   await mod.default.add(track('gen1'));
-  soundInstances[0].rejections.set('pauseAsync', 'not an error');
+  soundAt(0).rejections.set('pauseAsync', 'not an error');
   const events = recordEvents();
 
   await assert.doesNotReject(() => mod.default.pause());
@@ -723,7 +719,7 @@ test('a failed pause surfaces PAUSE_ERROR without throwing', async () => {
 
 test('a failed seek surfaces SEEK_ERROR without throwing', async () => {
   await mod.default.add(track('gen1'));
-  soundInstances[0].rejections.set('setPositionAsync', new Error('seek past end'));
+  soundAt(0).rejections.set('setPositionAsync', new Error('seek past end'));
   const events = recordEvents();
 
   await assert.doesNotReject(() => mod.default.seekTo(5));
@@ -738,12 +734,12 @@ test('setRate applies pitch correction to the loaded sound', async () => {
 
   await mod.default.setRate(1.25);
 
-  assert.deepEqual(soundInstances[0].calls, [{ method: 'setRateAsync', args: [1.25, true] }]);
+  assert.deepEqual(soundAt(0).calls, [{ method: 'setRateAsync', args: [1.25, true] }]);
 });
 
 test('a failed rate change surfaces RATE_ERROR without throwing', async () => {
   await mod.default.add(track('gen1'));
-  soundInstances[0].rejections.set('setRateAsync', new Error('rate unsupported'));
+  soundAt(0).rejections.set('setRateAsync', new Error('rate unsupported'));
   const events = recordEvents();
 
   await assert.doesNotReject(() => mod.default.setRate(2));
@@ -763,7 +759,7 @@ test('getProgress reports zeroes while nothing is loaded', async () => {
 
 test('getProgress converts the loaded sound status to seconds', async () => {
   await mod.default.add(track('gen1'));
-  soundInstances[0].status = {
+  soundAt(0).status = {
     isLoaded: true,
     positionMillis: 15_000,
     durationMillis: 300_000,
@@ -779,14 +775,14 @@ test('getProgress converts the loaded sound status to seconds', async () => {
 
 test('getProgress reports zeroes when the sound says it is no longer loaded', async () => {
   await mod.default.add(track('gen1'));
-  soundInstances[0].status = { isLoaded: false };
+  soundAt(0).status = { isLoaded: false };
 
   assert.deepEqual(await mod.default.getProgress(), { position: 0, duration: 0, buffered: 0 });
 });
 
 test('getProgress reports zeroes when the status read throws', async () => {
   await mod.default.add(track('gen1'));
-  soundInstances[0].rejections.set('getStatusAsync', new Error('sound released'));
+  soundAt(0).rejections.set('getStatusAsync', new Error('sound released'));
 
   assert.deepEqual(await mod.default.getProgress(), { position: 0, duration: 0, buffered: 0 });
 });
@@ -801,11 +797,7 @@ test('stop unloads the sound, clears the active track and announces the change',
 
   await mod.default.stop();
 
-  assert.deepEqual(soundInstances[0].methods(), [
-    'setOnPlaybackStatusUpdate',
-    'stopAsync',
-    'unloadAsync',
-  ]);
+  assert.deepEqual(soundAt(0).methods(), ['setOnPlaybackStatusUpdate', 'stopAsync', 'unloadAsync']);
   assert.deepEqual(events, [
     { event: mod.Event.PlaybackState, data: { state: mod.State.Stopped } },
     { event: mod.Event.PlaybackActiveTrackChanged, data: { track: null } },
@@ -815,7 +807,7 @@ test('stop unloads the sound, clears the active track and announces the change',
 
 test('stop tolerates a sound that is already gone', async () => {
   await mod.default.add(track('gen1'));
-  soundInstances[0].rejections.set('stopAsync', new Error('already unloaded'));
+  soundAt(0).rejections.set('stopAsync', new Error('already unloaded'));
 
   await assert.doesNotReject(() => mod.default.stop());
 
@@ -880,7 +872,7 @@ test('a listener that throws is warned about and does not block the other listen
 
   assert.deepEqual(seen, [{ state: mod.State.Ready }]);
   assert.equal(warnings.messages.length, 1);
-  assert.match(String(warnings.messages[0][0]), /playback-state listener/);
+  assert.match(String(warnings.messages[0]?.[0]), /playback-state listener/);
 });
 
 // ---------------------------------------------------------------------------
@@ -899,7 +891,7 @@ test('loadAndPlay re-applies a non-default rate with pitch correction before pla
       progressUpdateIntervalMillis: 1000,
     },
   });
-  assert.deepEqual(soundInstances[0].calls, [
+  assert.deepEqual(soundAt(0).calls, [
     { method: 'setRateAsync', args: [1.5, true] },
     { method: 'playAsync', args: [] },
   ]);
@@ -915,7 +907,7 @@ test('a rate change while the chapter loads is applied before it starts playing'
   gate.resolve();
   await loading;
 
-  assert.deepEqual(soundInstances[0].calls, [
+  assert.deepEqual(soundAt(0).calls, [
     { method: 'setRateAsync', args: [1.5, true] },
     { method: 'playAsync', args: [] },
   ]);
@@ -928,16 +920,16 @@ test('loadAndPlay creates a resumed chapter at its offset instead of seeking aft
   await mod.default.loadAndPlay('https://audio.test/john3.mp3', 1, 42.5);
 
   assert.equal(
-    (createCalls[0].initialStatus as { positionMillis?: number }).positionMillis,
+    (createCalls[0]?.initialStatus as { positionMillis?: number } | undefined)?.positionMillis,
     42_500
   );
-  assert.deepEqual(soundInstances[0].methods(), ['playAsync']);
+  assert.deepEqual(soundAt(0).methods(), ['playAsync']);
 });
 
 test('loadAndPlay skips the redundant rate call at 1x', async () => {
   await mod.default.loadAndPlay('https://audio.test/john3.mp3');
 
-  assert.deepEqual(soundInstances[0].methods(), ['playAsync']);
+  assert.deepEqual(soundAt(0).methods(), ['playAsync']);
 });
 
 test('loadAndPlay surfaces a load failure and leaves the transport with nothing to drive', async () => {
@@ -987,7 +979,7 @@ test('an old loadAndPlay completion cannot resume a newer paused track', async (
   nextCreateGate = null;
   await mod.default.loadAndPlay('https://audio.test/new.mp3');
   await mod.default.pause();
-  const current = soundInstances[1];
+  const current = soundAt(1);
   const callsAtPause = current.calls.length;
 
   gate.resolve();
@@ -1007,7 +999,7 @@ test('pause cancels an in-flight chapter load before it can autoplay', async () 
   gate.resolve();
   await pending;
 
-  assert.equal(soundInstances[0].methods().includes('playAsync'), false);
+  assert.equal(soundAt(0).methods().includes('playAsync'), false);
   assert.equal(await mod.default.getActiveTrack(), null);
 });
 
@@ -1030,8 +1022,8 @@ test('a superseded loading sound cannot publish stale progress or errors', async
   await mod.default.loadAndPlay('https://audio.test/new.mp3');
   const events = recordEvents();
 
-  soundInstances[0].emitStatus({ isLoaded: true, positionMillis: 9000, isPlaying: false });
-  soundInstances[0].emitStatus({ isLoaded: false, error: 'old load failed' });
+  soundAt(0).emitStatus({ isLoaded: true, positionMillis: 9000, isPlaying: false });
+  soundAt(0).emitStatus({ isLoaded: false, error: 'old load failed' });
   gate.resolve();
   await stale;
 
@@ -1042,7 +1034,7 @@ test('a superseded loading sound cannot publish stale progress or errors', async
 test('a delayed stop cannot clear a newer loaded track', async () => {
   await mod.default.loadAndPlay('https://audio.test/old.mp3');
   const gate = createDeferred();
-  soundInstances[0].gates.set('stopAsync', gate.promise);
+  soundAt(0).gates.set('stopAsync', gate.promise);
   const stopping = mod.default.stop();
   await flush();
   await mod.default.loadAndPlay('https://audio.test/new.mp3');
@@ -1057,7 +1049,7 @@ test('a delayed stop cannot clear a newer loaded track', async () => {
 test('a delayed pause cannot replace the state of a newer resume', async () => {
   await mod.default.loadAndPlay('https://audio.test/chapter.mp3');
   const gate = createDeferred();
-  soundInstances[0].gates.set('pauseAsync', gate.promise);
+  soundAt(0).gates.set('pauseAsync', gate.promise);
   const pausing = mod.default.pause();
   await mod.default.play();
 
@@ -1070,7 +1062,7 @@ test('a delayed pause cannot replace the state of a newer resume', async () => {
 test('a stale play failure cannot report an error for the newer chapter', async () => {
   await mod.default.loadAndPlay('https://audio.test/old.mp3');
   let reject!: (error: Error) => void;
-  soundInstances[0].gates.set(
+  soundAt(0).gates.set(
     'playAsync',
     new Promise((_, fail) => {
       reject = fail;
@@ -1089,7 +1081,7 @@ test('a stale play failure cannot report an error for the newer chapter', async 
 test('a stale pause failure cannot report an error for the newer chapter', async () => {
   await mod.default.loadAndPlay('https://audio.test/old.mp3');
   let reject!: (error: Error) => void;
-  soundInstances[0].gates.set(
+  soundAt(0).gates.set(
     'pauseAsync',
     new Promise((_, fail) => {
       reject = fail;

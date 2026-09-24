@@ -161,7 +161,7 @@ test('a verse request on a verse-granular translation skips the downloaded chapt
 
   assert.deepEqual(audio, { url: 'https://cdn.test/npiulb/JHN/3/16.mp3', duration: 12_000 });
   assert.deepEqual(methodsCalled(), ['getConfiguredAudioGranularity', 'fetchRemoteChapterAudio']);
-  assert.deepEqual(calls[1].args, ['npiulb', 'JHN', 3, 16]);
+  assert.deepEqual(calls[1]?.args, ['npiulb', 'JHN', 3, 16]);
 });
 
 test('a verse request on a chapter-granular translation still uses the downloaded chapter file', async () => {

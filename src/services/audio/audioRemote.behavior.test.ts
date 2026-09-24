@@ -516,7 +516,7 @@ test('bible.is chapter audio resolves the first file and converts duration to mi
   });
   assert.equal(fetchCalls.length, 1);
   assert.equal(
-    fetchCalls[0].url,
+    fetchCalls[0]?.url,
     `https://4.dbt.io/api/bibles/filesets/ENGESVN2DA/JHN/3?v=4&key=${BIBLE_IS_KEY}`
   );
 });
@@ -989,7 +989,7 @@ test('a legacy bible.is provider without a catalog streams through the bible.is 
     duration: 12_000,
   });
   assert.equal(fetchCalls.length, 1);
-  assert.match(fetchCalls[0].url, /\/bibles\/filesets\/ENGKJVN2DA\/JHN\/3\?v=4/);
+  assert.match(fetchCalls[0]?.url ?? '', /\/bibles\/filesets\/ENGKJVN2DA\/JHN\/3\?v=4/);
 });
 
 test('a translation the bundled catalog does not know has no audio by default', async () => {

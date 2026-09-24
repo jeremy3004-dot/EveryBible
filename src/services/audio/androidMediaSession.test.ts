@@ -225,7 +225,7 @@ test('advancing to the next chapter updates metadata on the running session with
     'updatePlaybackState',
   ]);
   assert.equal(h.native.methods().filter((method) => method === 'enableMediaControls').length, 0);
-  assert.deepEqual(h.native.calls[2].args[0], {
+  assert.deepEqual(h.native.calls[2]?.args[0], {
     title: 'Genesis 2',
     artist: 'Berean Standard Bible',
     album: 'Every Bible',
@@ -307,7 +307,7 @@ test('native calls keep the order the hook issued them: sync, clear, sync', asyn
     'updateMetadata',
     'updatePlaybackState',
   ]);
-  assert.equal((h.native.calls[5].args[0] as { title: string }).title, 'Genesis 3');
+  assert.equal((h.native.calls[5]?.args[0] as { title: string } | undefined)?.title, 'Genesis 3');
 });
 
 test('syncs that queue up behind a slow native call collapse into the latest one', async () => {
@@ -439,7 +439,7 @@ test('an unreadable privacy setting fails closed to the neutral entry', async ()
 
   await sync(h, genesisOne);
 
-  assert.equal((h.native.calls[1].args[0] as { title: string }).title, 'Now playing');
+  assert.equal((h.native.calls[1]?.args[0] as { title: string } | undefined)?.title, 'Now playing');
   assert.deepEqual(h.errors, ['isDiscreetMode']);
 });
 

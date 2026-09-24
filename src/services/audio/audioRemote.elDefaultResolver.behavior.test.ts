@@ -124,5 +124,5 @@ test('a manifest service failure degrades to no audio instead of throwing', asyn
 
   assert.equal(await mod.fetchRemoteChapterAudio('el-lqd', 'PHM', 1), null);
   assert.equal(warnings.length, 1);
-  assert.match(String(warnings[0][0]), /Failed to resolve EL manifest chapter audio/);
+  assert.match(String(warnings[0]?.[0]), /Failed to resolve EL manifest chapter audio/);
 });

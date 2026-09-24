@@ -861,7 +861,7 @@ test('the job id stands in as the task id when no explicit one is supplied', asy
     jobId: 'job-7',
   });
 
-  assert.deepEqual((backgroundCalls[0].args[0] as { id: string }).id, 'job-7');
+  assert.deepEqual((backgroundCalls[0]?.args[0] as { id: string } | undefined)?.id, 'job-7');
 });
 
 test('a chapter with no task id falls straight through to the file-system download', async () => {
@@ -887,7 +887,7 @@ test('a background task that errors falls back to the file-system download', asy
     { from: 'https://media.test/GEN/1.m4a', to: 'file:///documents/a.m4a.download' },
   ]);
   assert.equal(warnings.length, 1);
-  assert.match(String(warnings[0][0]), /Background downloader failed/);
+  assert.match(String(warnings[0]?.[0]), /Background downloader failed/);
 });
 
 test('an already-aborted background download is refused before a task is created', async () => {
@@ -1042,7 +1042,7 @@ test('one task that refuses to resume does not strand the tasks after it', async
     ]
   );
   assert.equal(warnings.length, 1);
-  assert.match(String(warnings[0][0]), /Failed to resume background task/);
+  assert.match(String(warnings[0]?.[0]), /Failed to resume background task/);
 });
 
 test('an unavailable native downloader never breaks startup', async () => {

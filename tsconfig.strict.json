@@ -15,9 +15,5 @@
     "src/design/**/*",
     "src/contexts/**/*",
     "src/data/**/*"
-  ],
-  "exclude": [
-    "src/services/audio/**",
-    "src/hooks/useAudioPlayer*"
   ]
 }
