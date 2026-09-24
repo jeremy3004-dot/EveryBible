@@ -1,6 +1,6 @@
 import { NativeEventEmitter, NativeModules, Platform } from 'react-native';
 import type { BibleNowPlayingInput, BibleNowPlayingPayload } from './audioNowPlayingModel';
-import { buildBibleNowPlayingPayload } from './audioNowPlayingModel';
+import { buildBibleNowPlayingPayload, toDiscreetNowPlayingPayload } from './audioNowPlayingModel';
 import { getAndroidMediaSession } from './androidMediaSession';
 
 type RemoteCommandName =
@@ -33,6 +33,44 @@ const EVENT_NAME = 'EveryBibleAudioNowPlayingCommand';
 let didWarnAboutMissingNativeModule = false;
 
 let currentBibleNowPlayingPayload: BibleNowPlayingPayload | null = null;
+/** What the lock screen shows now, so a change of discreet mode can publish it again. */
+let lastSyncedInput: BibleNowPlayingInput | null = null;
+let isWatchingDiscreetMode = false;
+
+// Lazy so this bridge does not pull the privacy store into every importer.
+const loadPrivacyStore = () =>
+  require('../../stores/privacyStore') as typeof import('../../stores/privacyStore');
+
+/** Fails closed: a privacy state that cannot be read keeps the lock screen neutral. */
+function isDiscreetNowPlaying(): boolean {
+  try {
+    return loadPrivacyStore().isDiscreetModeActive();
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * A paused chapter, or one whose position has not moved, is not published again on its
+ * own, so turning discreet mode on would leave it named on the lock screen until playback
+ * changed. Republish it when discreet mode changes.
+ */
+function watchDiscreetMode(): void {
+  if (isWatchingDiscreetMode) {
+    return;
+  }
+  try {
+    const { usePrivacyStore, isDiscreetModeActive } = loadPrivacyStore();
+    usePrivacyStore.subscribe((state, previous) => {
+      if (lastSyncedInput && isDiscreetModeActive(state) !== isDiscreetModeActive(previous)) {
+        void syncBibleNowPlaying(lastSyncedInput);
+      }
+    });
+    isWatchingDiscreetMode = true;
+  } catch {
+    // Without the store every sync already fails closed; only the republish is lost.
+  }
+}
 
 function isDevMode(): boolean {
   return Boolean((globalThis as { __DEV__?: boolean }).__DEV__);
@@ -77,6 +115,8 @@ function coerceRemoteCommandName(value: unknown): RemoteCommandName | null {
 
 export async function syncBibleNowPlaying(input: BibleNowPlayingInput): Promise<void> {
   currentBibleNowPlayingPayload = buildBibleNowPlayingPayload(input);
+  lastSyncedInput = currentBibleNowPlayingPayload ? input : null;
+  watchDiscreetMode();
 
   if (Platform.OS === 'android') {
     const session = getAndroidMediaSession();
@@ -98,11 +138,16 @@ export async function syncBibleNowPlaying(input: BibleNowPlayingInput): Promise<
     return;
   }
 
-  nativeModule.syncBibleNowPlaying(currentBibleNowPlayingPayload);
+  nativeModule.syncBibleNowPlaying(
+    isDiscreetNowPlaying()
+      ? toDiscreetNowPlayingPayload(currentBibleNowPlayingPayload, input.discreetTitle)
+      : currentBibleNowPlayingPayload
+  );
 }
 
 export async function clearBibleNowPlaying(): Promise<void> {
   currentBibleNowPlayingPayload = null;
+  lastSyncedInput = null;
 
   if (Platform.OS === 'android') {
     await getAndroidMediaSession().clear();

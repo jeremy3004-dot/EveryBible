@@ -581,6 +581,8 @@ test('playChapter publishes the chapter to the lock screen with skip availabilit
     playbackRate: 1,
     canSkipNext: true,
     canSkipPrevious: false,
+    // What the iOS lock screen shows instead of the chapter in discreet mode.
+    discreetTitle: 'audio.nowPlaying',
   });
 });
 
