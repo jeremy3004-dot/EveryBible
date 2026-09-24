@@ -9,9 +9,25 @@ const runtime = createReactHookRuntime();
 mockModule(mock, 'react', runtime.react);
 const rn = mockReactNative(mock, { os: 'ios' });
 
-const auth = { isAuthenticated: false };
+const auth = { isAuthenticated: false, isInitialized: true };
+const authListeners = new Set<(state: typeof auth) => void>();
+/** The session restore finishing: auth settles, then subscribers hear about it. */
+const finishRestore = (isAuthenticated: boolean) => {
+  Object.assign(auth, { isAuthenticated, isInitialized: true });
+  for (const listener of [...authListeners]) {
+    listener(auth);
+  }
+};
 mockModule(mock, sourcePath('stores/authStore.ts'), {
-  useAuthStore: { getState: () => auth },
+  useAuthStore: {
+    getState: () => auth,
+    subscribe: (listener: (state: typeof auth) => void) => {
+      authListeners.add(listener);
+      return () => {
+        authListeners.delete(listener);
+      };
+    },
+  },
 });
 
 const calls: string[] = [];
@@ -45,6 +61,8 @@ before(async () => {
 beforeEach(() => {
   rn.AppState.currentState = 'active';
   auth.isAuthenticated = false;
+  auth.isInitialized = true;
+  authListeners.clear();
   calls.length = 0;
 });
 
@@ -165,4 +183,53 @@ test('unmounting while active ends and flushes the open session', async () => {
   await settle();
 
   assert.deepEqual(calls, ['endAnonymousUsageSession', 'flushAnonymousUsageEvents', 'flushEvents']);
+});
+
+test('a cold-start session waits for the session restore, then is attributed to the signed-in reader', async () => {
+  auth.isInitialized = false;
+  mountApp();
+  await settle();
+
+  assert.deepEqual(calls, ['primeGeoContext']);
+
+  finishRestore(true);
+  await settle();
+
+  assert.deepEqual(calls, [
+    'primeGeoContext',
+    'initAnonymousSessionContext',
+    'startSession(session-1)',
+  ]);
+  assert.equal(authListeners.size, 0);
+});
+
+test('a cold start that restores no session starts one anonymous session when the restore finishes', async () => {
+  auth.isInitialized = false;
+  mountApp();
+  await settle();
+
+  finishRestore(false);
+  finishRestore(false);
+  await settle();
+
+  assert.deepEqual(calls, ['primeGeoContext', 'startAnonymousUsageSession']);
+});
+
+test('leaving the app before the restore finishes still starts and ends exactly one session', async () => {
+  auth.isInitialized = false;
+  mountApp();
+  await settle();
+
+  await background();
+  finishRestore(true);
+  await settle();
+
+  assert.deepEqual(calls, [
+    'primeGeoContext',
+    'startAnonymousUsageSession',
+    'endAnonymousUsageSession',
+    'flushAnonymousUsageEvents',
+    'flushEvents',
+  ]);
+  assert.equal(authListeners.size, 0);
 });

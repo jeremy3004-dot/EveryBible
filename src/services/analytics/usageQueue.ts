@@ -291,6 +291,26 @@ export async function flushUsageQueue(): Promise<UsageFlushResult> {
   return flushPromise;
 }
 
+/**
+ * Strips a deleted account's uid from the events still waiting on this phone.
+ *
+ * The server keeps a deleted account's analytics without the user link
+ * (analytics_events.user_id is ON DELETE SET NULL), so queued events are kept
+ * and sent the same way, as signed-out events. Entries are replaced rather
+ * than edited so an in-flight batch is unaffected; it can no longer be
+ * attributed anyway, because the collector only attributes to a live token.
+ */
+export function anonymiseQueuedUsageEventsOf(userId: string): void {
+  ensureQueueRestored();
+  let changed = false;
+  eventQueue.forEach((event, index) => {
+    if (event.attribution_user_id !== userId) return;
+    eventQueue[index] = { ...event, attribution_user_id: null };
+    changed = true;
+  });
+  if (changed) persistQueue();
+}
+
 export function getPendingUsageEventCount(): number {
   ensureQueueRestored();
   return eventQueue.length;

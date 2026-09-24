@@ -56,6 +56,7 @@ test('the sitemap lists every indexable page as an absolute URL and skips redire
       'https://everybible.app/',
       'https://everybible.app/about',
       'https://everybible.app/give',
+      'https://everybible.app/languages',
       'https://everybible.app/support',
       'https://everybible.app/privacy',
       'https://everybible.app/terms',
@@ -66,11 +67,15 @@ test('the sitemap lists every indexable page as an absolute URL and skips redire
   assert.ok(!entries.some((entry) => entry.url.includes('/download')));
 });
 
-test('robots allows the site, keeps crawlers out of the data API, and names the sitemap', () => {
+test('robots allows the site, keeps crawlers out of the data API, and names every sitemap', () => {
   assert.deepEqual(buildRobots(), {
     rules: [{ userAgent: '*', allow: '/', disallow: ['/api/'] }],
-    sitemap: 'https://everybible.app/sitemap.xml',
+    sitemap: ['https://everybible.app/sitemap.xml'],
   });
+  assert.deepEqual(buildRobots(['https://everybible.app/languages/sitemap/0.xml']).sitemap, [
+    'https://everybible.app/sitemap.xml',
+    'https://everybible.app/languages/sitemap/0.xml',
+  ]);
 });
 
 test('structured data describes the free app with both store listings', () => {

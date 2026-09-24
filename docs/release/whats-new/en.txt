@@ -1,0 +1,16 @@
+Your settings, plans and notes now stay in step across your devices, Reading Plans has a fresh look, and the app starts faster.
+
+• Settings now sync one at a time, so a change on one device no longer undoes a change on another. The first time you sign in on a device, the choices you already made there are kept.
+• If you leave a reading plan on one device, it no longer comes back on your other devices. Morning, midday and evening sessions now sync too.
+• Your notes, highlights, bookmarks and library belong to your account. If someone else signs in on the same device, they won't see them, and they come back when you sign in again.
+• Reading Plans: your days appear as a compact dot grid, the title stays pinned while you scroll, and you can swipe back from a reading to its plan. Opening a plan day no longer restarts audio you had paused.
+• The section heading at the start of each chapter is back. It was missing in over a thousand chapters. Search results now take you straight to the verse.
+• Sharing the Verse of the Day now shares only the verse and the photo, not your name or greeting.
+• The app's wording has been reviewed and corrected in every language, and Russian and Arabic now use the right plural forms.
+• Audio downloads: cancelling a whole-Bible download really stops it, downloaded chapters are checked for damage, and you'll be told up front if there isn't enough space.
+• Better VoiceOver labels throughout, and text that wraps instead of being cut off at larger text sizes. The tab bar stays readable over the Bible text on iOS 26.
+• Fixed a problem where opening the app offline after a long break could clear reading progress and streaks that had not synced yet.
+• For translation teams: each team now has its own review code, and the app shows which translations your code opens.
+• Faster start-up, plus small fixes throughout.
+
+Thank you for reading with us.

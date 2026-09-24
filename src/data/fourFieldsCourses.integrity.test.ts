@@ -13,6 +13,7 @@ import {
   getCoursesByField,
   getLessonsForField,
   getTotalLessonsCount,
+  getFourFieldsLessonTitle,
 } from './fourFieldsCourses';
 import { bibleBooks, getBookById } from '../constants/books';
 import { parsePassageReference } from '../services/bible/referenceParser';
@@ -202,4 +203,19 @@ test('lesson counters agree with the catalog they count', () => {
     FIELD_ORDER.reduce((total, field) => total + getLessonsForField(field), 0),
     getTotalLessonsCount()
   );
+});
+
+test('group screens name each lesson through its translation key, keeping the English title as fallback', () => {
+  const t = ((key: string, options?: { defaultValue?: string }) =>
+    `${key}|${options?.defaultValue ?? ''}`) as unknown as Parameters<
+    typeof getFourFieldsLessonTitle
+  >[1];
+
+  for (const { lesson } of allLessons) {
+    assert.equal(
+      getFourFieldsLessonTitle(lesson, t),
+      `${FOUR_FIELDS_LESSON_TITLE_KEYS[lesson.id]}|${lesson.title}`
+    );
+  }
+  assert.equal(getFourFieldsLessonTitle({ id: 'unknown', title: 'Custom' }, t), 'Custom');
 });

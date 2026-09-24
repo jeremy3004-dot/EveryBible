@@ -1,0 +1,16 @@
+Ayarlarınız, planlarınız ve notlarınız artık tüm cihazlarınızda aynı kalıyor, Okuma planları yenilendi ve uygulama daha hızlı açılıyor.
+
+• Ayarlar artık tek tek eşitleniyor; bir cihazda yaptığınız değişiklik artık başka bir cihazdaki değişikliği geri almıyor. Bir cihazda ilk kez oturum açtığınızda, orada daha önce yaptığınız seçimler korunuyor.
+• Bir cihazda bir okuma planından ayrılırsanız, diğer cihazlarınızda yeniden görünmüyor. Sabah, öğle ve akşam oturumları da artık eşitleniyor.
+• Notlarınız, vurgularınız, yer imleriniz ve kitaplığınız hesabınıza ait. Aynı cihazda başka biri oturum açarsa bunları görmez; yeniden oturum açtığınızda hepsi geri gelir.
+• Okuma planları: Günleriniz artık kompakt bir nokta ızgarasında görünüyor, kaydırırken başlık üstte sabit kalıyor ve okumadan kaydırarak plana geri dönebiliyorsunuz. Plandaki bir günü açmak, duraklattığınız sesi artık yeniden başlatmıyor.
+• Her bölümün başındaki kısım başlığı geri geldi; binden fazla bölümde görünmüyordu. Arama sonuçları artık sizi doğrudan ilgili ayete götürüyor.
+• Günün ayetini paylaştığınızda artık yalnızca ayet ve fotoğraf paylaşılıyor; adınız ya da karşılama mesajı paylaşılmıyor.
+• Uygulamanın metinleri tüm dillerde gözden geçirilip düzeltildi; Rusça ve Arapça artık doğru çoğul biçimlerini kullanıyor.
+• Ses indirmeleri: Kutsal Kitap'ın tamamını indirmeyi iptal etmek artık onu gerçekten durduruyor, indirilen bölümler bozulmaya karşı kontrol ediliyor ve yer yetmeyecekse önceden haber veriliyor.
+• Uygulama genelinde daha iyi VoiceOver etiketleri; büyük yazı boyutlarında metin kesilmek yerine alt satıra geçiyor. iOS 26'da sekme çubuğu Kutsal Kitap metninin üzerinde de okunaklı kalıyor.
+• Düzeltildi: Uzun bir aradan sonra uygulamayı çevrimdışı açmak, henüz eşitlenmemiş okuma ilerlemesini ve gün serilerini silebiliyordu.
+• Çeviri ekipleri için: Her ekibin artık kendi inceleme kodu var ve uygulama, kodunuzun hangi çevirileri açtığını gösteriyor.
+• Daha hızlı açılış ve pek çok küçük düzeltme.
+
+Bizimle birlikte okuduğunuz için teşekkürler.

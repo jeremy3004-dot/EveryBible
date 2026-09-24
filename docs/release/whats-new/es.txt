@@ -1,0 +1,16 @@
+Tus ajustes, planes y notas ahora se mantienen al día en todos tus dispositivos, los Planes de lectura tienen un aspecto renovado y la app se abre más rápido.
+
+• Los ajustes ahora se sincronizan uno por uno, así que un cambio en un dispositivo ya no deshace un cambio en otro. La primera vez que inicias sesión en un dispositivo, se conservan las opciones que ya habías elegido en él.
+• Si dejas un plan de lectura en un dispositivo, ya no vuelve a aparecer en los demás. Las sesiones de mañana, mediodía y noche ahora también se sincronizan.
+• Tus notas, resaltados, marcadores y biblioteca pertenecen a tu cuenta. Si otra persona inicia sesión en el mismo dispositivo, no los verá, y volverán cuando inicies sesión de nuevo.
+• Planes de lectura: tus días aparecen en una cuadrícula compacta de puntos, el título queda fijo al desplazarte y puedes deslizar hacia atrás desde una lectura para volver a su plan. Abrir un día del plan ya no reanuda el audio que habías pausado.
+• Vuelve el título de sección al comienzo de cada capítulo; faltaba en más de mil capítulos. Los resultados de búsqueda ahora te llevan directamente al versículo.
+• Al compartir el Versículo del día, ahora solo se comparten el versículo y la foto, no tu nombre ni tu saludo.
+• Revisamos y corregimos los textos de la app en todos los idiomas, y el ruso y el árabe ahora usan las formas de plural correctas.
+• Descargas de audio: cancelar la descarga de toda la Biblia ahora la detiene de verdad, los capítulos descargados se comprueban para descartar archivos dañados y se te avisa de antemano si no hay espacio suficiente.
+• Mejores etiquetas de VoiceOver en toda la app, y el texto pasa a la línea siguiente en lugar de cortarse con tamaños de letra grandes. En iOS 26, la barra de pestañas se lee bien sobre el texto bíblico.
+• Corregimos un problema por el que abrir la app sin conexión después de mucho tiempo podía borrar el progreso de lectura y las rachas que aún no se habían sincronizado.
+• Para equipos de traducción: cada equipo tiene ahora su propio código de revisión, y la app muestra qué traducciones abre tu código.
+• Inicio más rápido y pequeñas mejoras en toda la app.
+
+Gracias por leer con nosotros.

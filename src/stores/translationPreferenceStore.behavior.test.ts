@@ -157,12 +157,12 @@ test('unparseable storage is ignored and leaves the in-memory lists untouched', 
   assert.deepEqual(useTranslationPreferenceStore.getState().hiddenIds, []);
 });
 
-// QUESTION for the lead: persist merges the stored object shallowly and this
-// store has no sanitizer, so a corrupted row can replace a list with a non-array
-// and the next pin/hide throws. Documented as current behaviour, not changed.
-test('a corrupted list survives hydration as-is and breaks the next write', () => {
+// A corrupted row used to replace a list with a non-array, so the picker's render
+// selector and the next pin/hide threw. The persist merge now coerces both lists.
+test('a corrupted list hydrates as an empty list and the next write works', () => {
   rehydrateFrom(JSON.stringify({ state: { pinnedIds: null, hiddenIds: [] }, version: 0 }));
 
-  assert.equal(useTranslationPreferenceStore.getState().pinnedIds, null);
-  assert.throws(() => useTranslationPreferenceStore.getState().pin('bsb'), TypeError);
+  assert.deepEqual(useTranslationPreferenceStore.getState().pinnedIds, []);
+  useTranslationPreferenceStore.getState().pin('bsb');
+  assert.deepEqual(useTranslationPreferenceStore.getState().pinnedIds, ['bsb']);
 });

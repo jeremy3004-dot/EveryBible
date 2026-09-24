@@ -7,19 +7,23 @@ import { useAuthStore } from '../stores/authStore';
  * the OS rotates the token. The notification service is imported lazily so it stays off
  * the startup path. Auth can change while that import resolves, so each registration
  * checks it is still for the same account and auth generation, and unmounting cancels
- * anything still pending.
+ * anything still pending. A session restored offline with an expired token registers
+ * only once auth-js has refreshed it.
  */
 export function usePushTokenRegistration(isAuthenticated: boolean, userId: string | undefined) {
-  // Re-runs whenever the user changes.
+  const awaitingTokenRefresh = useAuthStore((state) => state.awaitingTokenRefresh);
+
+  // Re-runs whenever the user changes, or their session's token is refreshed.
   useEffect(() => {
     let isCurrentEffect = true;
     const authGeneration = useAuthStore.getState().authGeneration;
-    if (isAuthenticated && userId) {
+    if (isAuthenticated && userId && !awaitingTokenRefresh) {
       void import('../services/notifications').then(({ registerPushToken }) => {
         const currentAuth = useAuthStore.getState();
         if (
           isCurrentEffect &&
           currentAuth.isAuthenticated &&
+          !currentAuth.awaitingTokenRefresh &&
           currentAuth.user?.uid === userId &&
           currentAuth.authGeneration === authGeneration
         ) {
@@ -30,7 +34,7 @@ export function usePushTokenRegistration(isAuthenticated: boolean, userId: strin
     return () => {
       isCurrentEffect = false;
     };
-  }, [isAuthenticated, userId]);
+  }, [isAuthenticated, userId, awaitingTokenRefresh]);
 
   useEffect(() => {
     let isMounted = true;
@@ -42,6 +46,7 @@ export function usePushTokenRegistration(isAuthenticated: boolean, userId: strin
           if (
             isMounted &&
             currentAuth.isAuthenticated &&
+            !currentAuth.awaitingTokenRefresh &&
             currentAuth.user?.uid === currentUser.uid &&
             currentAuth.authGeneration === authGeneration
           ) {

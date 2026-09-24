@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { privateDataStorage, registerPrivateDataStore } from './privateDataScope';
 import { mergeGuestAnnotations } from './privateDataAdoption';
+import { asRecordArray, mergeSanitizedState, type PersistedRecord } from './persistedShapeGuards';
 import type { UserAnnotation } from '../services/supabase/types';
 
 const LOCAL_USER_ID = 'local-device';
@@ -45,6 +46,14 @@ const sortAnnotations = (annotations: UserAnnotation[]) =>
 
     return compareStrings(b.created_at, a.created_at);
   });
+
+// The fields the reader, the store's own dedup and the sync path index on.
+const isPersistedAnnotation = (entry: PersistedRecord): boolean =>
+  typeof entry.id === 'string' &&
+  typeof entry.book === 'string' &&
+  typeof entry.chapter === 'number' &&
+  typeof entry.verse_start === 'number' &&
+  typeof entry.type === 'string';
 
 const hydrateLocalAnnotation = (
   annotation: LocalAnnotationInput,
@@ -136,6 +145,11 @@ export const useAnnotationStore = create<AnnotationStoreState>()(
       name: 'annotation-storage',
       // Local-only and private: scoped to the signed-in account (see privateDataScope).
       storage: createJSONStorage(() => privateDataStorage),
+      merge: (persistedState, currentState) =>
+        mergeSanitizedState(persistedState, currentState, {
+          // Stored order is kept: every write path already sorts.
+          annotations: (value) => asRecordArray<UserAnnotation>(value, isPersistedAnnotation),
+        }),
     }
   )
 );

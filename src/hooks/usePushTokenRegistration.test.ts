@@ -26,9 +26,12 @@ const auth = {
   user: { uid: 'user-a' } as { uid: string } | null,
   authGeneration: 0,
   isAuthenticated: true,
+  awaitingTokenRefresh: false,
 };
 mockModule(mock, sourcePath('stores/authStore.ts'), {
-  useAuthStore: { getState: () => auth },
+  useAuthStore: Object.assign(<T>(selector: (state: typeof auth) => T): T => selector(auth), {
+    getState: () => auth,
+  }),
 });
 
 // The service is imported lazily; each import settles on a later turn, so auth can
@@ -54,6 +57,7 @@ beforeEach(() => {
   auth.user = { uid: 'user-a' };
   auth.authGeneration = 0;
   auth.isAuthenticated = true;
+  auth.awaitingTokenRefresh = false;
   registrations.length = 0;
   tokenListener = null;
   listenerRemovals = 0;
@@ -134,4 +138,19 @@ test('nothing registers while signed out, and a token refresh without a user is 
   await settle();
 
   assert.deepEqual(registrations, []);
+});
+
+test('nothing registers while the session waits for its token refresh, and it registers once refreshed', async () => {
+  auth.awaitingTokenRefresh = true;
+  const view = mountApp();
+  tokenListener?.(TOKEN);
+  await settle();
+  assert.deepEqual(registrations, []);
+
+  auth.awaitingTokenRefresh = false;
+  view.rerender();
+  view.flushEffects();
+  await settle();
+
+  assert.deepEqual(registrations, [{ userId: 'user-a' }]);
 });

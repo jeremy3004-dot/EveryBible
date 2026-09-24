@@ -32,12 +32,12 @@ function formatSyncRelativeTime(elapsedMs: number, t: TFunction): string {
     return t('more.sync.relativeNow');
   }
   if (elapsedMs < HOUR_MS) {
-    return t('more.sync.relativeMinutes', { minutes: Math.floor(elapsedMs / MINUTE_MS) });
+    return t('more.sync.relativeMinutes', { count: Math.floor(elapsedMs / MINUTE_MS) });
   }
   if (elapsedMs < DAY_MS) {
-    return t('more.sync.relativeHours', { hours: Math.floor(elapsedMs / HOUR_MS) });
+    return t('more.sync.relativeHours', { count: Math.floor(elapsedMs / HOUR_MS) });
   }
-  return t('more.sync.relativeDays', { days: Math.floor(elapsedMs / DAY_MS) });
+  return t('more.sync.relativeDays', { count: Math.floor(elapsedMs / DAY_MS) });
 }
 
 export function describeSyncStatus({

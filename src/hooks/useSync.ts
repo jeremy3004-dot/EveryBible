@@ -11,6 +11,9 @@ export const useSync = () => {
   const isInitialized = useAuthStore((state) => state.isInitialized);
   const authenticatedUserId = useAuthStore((state) => state.user?.uid ?? null);
   const authGeneration = useAuthStore((state) => state.authGeneration);
+  // An offline launch shows the reader signed in before auth-js has refreshed
+  // the expired token; sync waits for that refresh.
+  const awaitingTokenRefresh = useAuthStore((state) => state.awaitingTokenRefresh);
   const appState = useRef(AppState.currentState);
   const initialSyncUserId = useRef<string | null>(null);
   const initialSyncGeneration = useRef<number | null>(null);
@@ -42,6 +45,7 @@ export const useSync = () => {
       if (
         !authState.isInitialized ||
         !authState.isAuthenticated ||
+        authState.awaitingTokenRefresh ||
         !currentUserId ||
         (expectedUserId !== undefined && currentUserId !== expectedUserId) ||
         (expectedGeneration !== undefined && currentGeneration !== expectedGeneration)
@@ -124,6 +128,7 @@ export const useSync = () => {
     if (
       isInitialized &&
       isAuthenticated &&
+      !awaitingTokenRefresh &&
       authenticatedUserId &&
       (initialSyncUserId.current !== authenticatedUserId ||
         initialSyncGeneration.current !== authGeneration)
@@ -171,6 +176,7 @@ export const useSync = () => {
   }, [
     authGeneration,
     authenticatedUserId,
+    awaitingTokenRefresh,
     isAuthenticated,
     isInitialized,
     queueInitialPull,

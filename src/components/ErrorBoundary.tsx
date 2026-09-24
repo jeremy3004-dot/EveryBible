@@ -4,6 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { darkColors, useTheme, type ThemeColors } from '../contexts/ThemeContext';
 import { radius, spacing, typography } from '../design/system';
+import { recordCrashLog } from '../services/diagnostics/crashLogStore';
+import { toRenderErrorCrashLogEntry } from '../services/diagnostics/crashLogEntry';
 
 // Resolve theme colors defensively: if the ThemeProvider is itself part of the
 // crash (missing/broken context), fall back to the dark palette so the fallback
@@ -17,8 +19,12 @@ function useSafeThemeColors(): ThemeColors {
 }
 
 interface Props {
-  children: ReactNode;
+  children?: ReactNode;
   fallback?: ReactNode;
+  /** Tags crash-log entries (`app`, `screen:BibleReader`, ...). */
+  scope?: string;
+  /** When given, the fallback also offers a Back action (screen-level boundaries). */
+  onGoBack?: () => void;
 }
 
 interface State {
@@ -26,7 +32,7 @@ interface State {
   error: Error | null;
 }
 
-function ErrorFallback({ onRetry }: { onRetry: () => void }) {
+function ErrorFallback({ onRetry, onGoBack }: { onRetry: () => void; onGoBack?: () => void }) {
   // ErrorBoundary is mounted inside ThemeProvider + I18nextProvider (see App.tsx),
   // but the provider itself may be part of the crash, so resolve colors defensively
   // (falls back to the dark palette) instead of re-throwing from the fallback UI.
@@ -35,6 +41,7 @@ function ErrorFallback({ onRetry }: { onRetry: () => void }) {
   const title = t('common.somethingWentWrong');
   const message = t('common.unexpectedError');
   const retryLabel = t('common.tryAgain');
+  const backLabel = t('common.back');
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -53,6 +60,16 @@ function ErrorFallback({ onRetry }: { onRetry: () => void }) {
           <Ionicons name="refresh" size={20} color={colors.onAccent} />
           <Text style={[styles.retryText, { color: colors.onAccent }]}>{retryLabel}</Text>
         </TouchableOpacity>
+        {onGoBack ? (
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={onGoBack}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.backText, { color: colors.primaryText }]}>{backLabel}</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
     </View>
   );
@@ -70,6 +87,16 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('ErrorBoundary caught an error:', error, errorInfo);
+    // A caught render error never reaches the global handler, so without this
+    // it would leave no trace on the Diagnostics screen. recordCrashLog never throws.
+    recordCrashLog(
+      toRenderErrorCrashLogEntry(
+        error,
+        this.props.scope ?? 'app',
+        errorInfo?.componentStack,
+        Date.now()
+      )
+    );
   }
 
   handleRetry = () => {
@@ -78,11 +105,13 @@ export class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
-      if (this.props.fallback) {
+      // `!== undefined`, not truthiness: `fallback={null}` deliberately renders
+      // nothing (used around non-visual hosts such as AppRuntimeEffects).
+      if (this.props.fallback !== undefined) {
         return this.props.fallback;
       }
 
-      return <ErrorFallback onRetry={this.handleRetry} />;
+      return <ErrorFallback onRetry={this.handleRetry} onGoBack={this.props.onGoBack} />;
     }
 
     return this.props.children;
@@ -122,6 +151,14 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   retryText: {
+    ...typography.button,
+  },
+  backButton: {
+    marginTop: spacing.lg,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+  },
+  backText: {
     ...typography.button,
   },
 });

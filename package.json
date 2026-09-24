@@ -31,6 +31,8 @@
     "atlas:build": "python3 scripts/language-atlas/build_atlas.py",
     "atlas:public:build": "python3 scripts/language-atlas/build_public_atlas.py",
     "atlas:public:check": "python3 scripts/language-atlas/build_public_atlas.py --check",
+    "atlas:pages:build": "node --import tsx apps/site/scripts/build-language-pages.ts",
+    "atlas:pages:check": "node --import tsx apps/site/scripts/build-language-pages.ts --check",
     "atlas:check": "python3 -m unittest discover -s scripts/language-atlas -p 'test_*.py' && python3 scripts/language-atlas/build_atlas.py --check",
     "i18n:native": "node --import tsx scripts/sync-native-localizations.mjs",
     "i18n:native:check": "node --import tsx scripts/sync-native-localizations.mjs --check",
