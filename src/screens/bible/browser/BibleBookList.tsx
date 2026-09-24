@@ -109,14 +109,10 @@ export function BibleBookList({
       showsVerticalScrollIndicator={false}
       estimatedItemSize={BIBLE_BROWSER_ROW_ESTIMATED_SIZE}
       getItemType={browserRowType}
-      extraData={{
-        expandedBookId,
-        unavailableChapterKey,
-        availabilityTranslation,
-        showFeedbackBadges,
-        statusByBook,
-        panel,
-      }}
+      // FlashList cells re-render only when extraData changes. renderRow already
+      // changes exactly when anything a row shows changes, so it is the marker;
+      // the memoised rows then skip every row whose own props are unchanged.
+      extraData={renderRow}
     />
   );
 }

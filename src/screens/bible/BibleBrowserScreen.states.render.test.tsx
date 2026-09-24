@@ -15,6 +15,7 @@ const {
   translatorReviewStore,
   feedback,
   searches,
+  bookIconRenders,
   verse,
   renderBrowser,
   wait,
@@ -290,4 +291,16 @@ test('submitting a full-text query from the keyboard does not navigate', async (
   await view.fire(input, 'onSubmitEditing');
 
   assert.deepEqual(harness.navigation.calls, []);
+});
+
+test('expanding a book re-renders only the rows that open or close', async () => {
+  const view = await renderBrowser();
+  bookIconRenders.length = 0;
+
+  await view.press(view.getByRole('button', { name: 'Genesis' }));
+  assert.deepEqual([...bookIconRenders].sort(), ['GEN', 'JHN']);
+
+  bookIconRenders.length = 0;
+  await view.changeText(view.getByLabelText(t('common.search')), 'l');
+  assert.deepEqual(bookIconRenders, [], 'a keystroke that keeps the list leaves the rows alone');
 });

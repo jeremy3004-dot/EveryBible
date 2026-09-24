@@ -103,6 +103,14 @@ export function installBrowserRenderFixture(mock: MockTracker) {
     TranslationNotCoveredNotice: (props: Record<string, unknown>) =>
       createElement('TranslationNotCoveredNotice', props),
   });
+  // Book icons record each render, so a test can tell which book rows re-rendered.
+  const bookIconRenders: string[] = [];
+  mockModule(mock, sourcePath('components/bible/BookIcon.tsx'), {
+    BookIcon: (props: { bookId: string }) => {
+      bookIconRenders.push(props.bookId);
+      return createElement('BookIcon', props);
+    },
+  });
   mockModule(mock, sourcePath('components/skeleton/VersesSkeleton.tsx'), {
     VersesSkeleton: (props: Record<string, unknown>) => createElement('VersesSkeleton', props),
   });
@@ -130,6 +138,7 @@ export function installBrowserRenderFixture(mock: MockTracker) {
     feedback.gate = null;
     content.summary = undefined;
     searches.length = 0;
+    bookIconRenders.length = 0;
     harness.navigation.route.name = 'TestRoute';
   });
 
@@ -182,6 +191,7 @@ export function installBrowserRenderFixture(mock: MockTracker) {
     translatorReviewStore,
     feedback,
     searches,
+    bookIconRenders,
     verse,
     renderBrowser,
     wait,

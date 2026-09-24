@@ -49,9 +49,10 @@ export function BibleBrowserScreen() {
   const { t, currentLanguage } = useI18n();
   const currentBook = useBibleStore((state) => state.currentBook);
   const currentTranslation = useBibleStore((state) => state.currentTranslation);
-  const translations = useBibleStore((state) => state.translations);
-  const currentTranslationInfo = translations.find(
-    (translation) => translation.id === currentTranslation
+  // Selects the one translation shown, not the whole list: download progress on
+  // other translations rewrites `translations` and would otherwise re-render the browser.
+  const currentTranslationInfo = useBibleStore((state) =>
+    state.translations.find((translation) => translation.id === state.currentTranslation)
   );
   const preferredChapterLaunchMode = useBibleStore((state) => state.preferredChapterLaunchMode);
   const translatorReviewEnabled = useTranslatorReviewStore((state) => state.enabled);
@@ -174,15 +175,27 @@ export function BibleBrowserScreen() {
   const openTranslationPicker = useCallback(() => setShowTranslationModal(true), []);
   const closeTranslationPicker = useCallback(() => setShowTranslationModal(false), []);
 
-  const summaryBanner = (
-    <TranslatorSummaryBanner
-      enabled={translatorReviewEnabled}
-      translationId={currentTranslation}
-      isLoadingFirstSummary={feedback.isLoading && feedback.summaries.length === 0}
-      error={feedback.error}
-      notCovered={feedback.notCovered}
-      onRetry={feedback.reload}
-    />
+  // Memoised so the book list (a PureComponent) is not re-rendered by a new header element.
+  const isLoadingFirstSummary = feedback.isLoading && feedback.summaries.length === 0;
+  const summaryBanner = useMemo(
+    () => (
+      <TranslatorSummaryBanner
+        enabled={translatorReviewEnabled}
+        translationId={currentTranslation}
+        isLoadingFirstSummary={isLoadingFirstSummary}
+        error={feedback.error}
+        notCovered={feedback.notCovered}
+        onRetry={feedback.reload}
+      />
+    ),
+    [
+      currentTranslation,
+      feedback.error,
+      feedback.notCovered,
+      feedback.reload,
+      isLoadingFirstSummary,
+      translatorReviewEnabled,
+    ]
   );
 
   const { searchIntent } = search;
