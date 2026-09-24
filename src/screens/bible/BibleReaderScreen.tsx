@@ -106,7 +106,6 @@ import { useReadingPlansStore } from '../../stores/readingPlansStore';
 import { getAdjacentAudioPlaybackSequenceEntry } from '../../stores/audioPlaybackSequenceModel';
 import { useAudioPlayer } from '../../hooks/useAudioPlayer';
 import { useFontSize } from '../../hooks/useFontSize';
-import { useDisplayFont } from '../../hooks/useDisplayFont';
 import { useLargeText } from '../../hooks/useLargeText';
 import { useShallow } from 'zustand/react/shallow';
 import { lightHaptic, selectionHaptic } from '../../utils/haptics';
@@ -116,9 +115,7 @@ import { ReaderPlaybackDock } from '../../components/audio/ReaderPlaybackDock';
 import {
   ReaderAudioPortionPreviewGuard,
   ReaderAudioPositionBridge,
-  ReaderAudioPositionValue,
   ReaderListenProgress,
-  formatClockTime,
 } from './ReaderAudioPositionParts';
 import type {
   ReaderAudioPositionBridgeHandle,
@@ -189,25 +186,23 @@ import {
 import { TranslationPickerList } from './TranslationPickerList';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
 import {
-  AudioRangeSelector,
+  AudioPortionShareSheet,
+  ChapterAudioShareLoadingOverlay,
+  ChapterAudioShareSheet,
   ChapterFeedbackModal,
   ListenFeedbackComposer,
   ReaderParagraphBlock,
   VerseImageSharePreview,
-  loadAudioShareDependencies,
-  tryLoadSharing,
-  loadVideoTrimDependencies,
   TOP_ACTION_HIT_SLOP,
   TOP_ACTION_ICON_SIZE,
   READER_REFERENCE_PILL_MAX_FONT_SCALE,
   PLAN_SESSION_BAR_MAX_FONT_SCALE,
-  AUDIO_PORTION_MIN_DURATION_MS,
-  AUDIO_PORTION_DEFAULT_DURATION_MS,
   READER_SCROLL_JS_UPDATE_INTERVAL_PX,
   styles,
+  useAudioPortionShare,
+  useChapterAudioShare,
   useChapterFeedback,
 } from './reader';
-import type { AudioPortionShareDraft } from './reader';
 
 type NavigationProp = NativeStackNavigationProp<BibleStackParamList>;
 type VerseTimestamps = import('../../services/bible/verseTimestamps').VerseTimestamps;
@@ -218,8 +213,6 @@ type RootTabNavigationHandle = {
 export function BibleReaderScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<BibleReaderScreenProps['route']>();
-  // The audio-share eyebrow is translated copy set in the Latin-only display face.
-  const displayFont = useDisplayFont();
   const { isLargeText } = useLargeText();
   const {
     bookId,
@@ -294,16 +287,6 @@ export function BibleReaderScreen() {
   const [showFollowAlongText, setShowFollowAlongText] = useState(false);
   const [chapterTimestamps, setChapterTimestamps] = useState<VerseTimestamps | null>(null);
   const [showChapterActionsSheet, setShowChapterActionsSheet] = useState(false);
-  const [showChapterAudioShareSheet, setShowChapterAudioShareSheet] = useState(false);
-  const [pendingChapterAudioShareAction, setPendingChapterAudioShareAction] = useState<
-    'full' | 'portion' | null
-  >(null);
-  const [audioPortionShareDraft, setAudioPortionShareDraft] =
-    useState<AudioPortionShareDraft | null>(null);
-  const [audioPortionStartMs, setAudioPortionStartMs] = useState(0);
-  const [audioPortionEndMs, setAudioPortionEndMs] = useState(0);
-  const [isSharingAudioPortion, setIsSharingAudioPortion] = useState(false);
-  const [isPreviewingAudioPortion, setIsPreviewingAudioPortion] = useState(false);
   const [showVerseImageSheet, setShowVerseImageSheet] = useState(false);
   const [isSharingVerseImage, setIsSharingVerseImage] = useState(false);
   const [listenCountedNotice, setListenCountedNotice] = useState<string | null>(null);
@@ -985,11 +968,6 @@ export function BibleReaderScreen() {
       translationLanguage: currentTranslationInfo?.language,
     }) || translationLabel;
   const chapterShareTitle = `${getTranslatedBookName(bookId, t)} ${chapter}`;
-  const chapterAudioShareActionLabel =
-    pendingChapterAudioShareAction === 'portion'
-      ? t('bible.shareAudioPortion')
-      : t('bible.shareChapterAudio');
-  const audioPortionRangeDurationMs = Math.max(audioPortionEndMs - audioPortionStartMs, 0);
   const rawPresentationMode = getChapterPresentationMode({
     verses,
     translation: currentTranslationInfo,
@@ -1836,29 +1814,34 @@ export function BibleReaderScreen() {
     }, [bookId, chapter, currentTranslation, chapterSessionMode])
   );
 
-  useEffect(() => {
-    if (!isPreviewingAudioPortion || !audioPortionShareDraft || !isCurrentAudioChapter) {
-      return;
-    }
-
-    if (status !== 'playing') {
-      setIsPreviewingAudioPortion(false);
-    }
-  }, [audioPortionShareDraft, isCurrentAudioChapter, isPreviewingAudioPortion, status]);
-
-  // Reaching the end of the previewed range is a position-tick concern, so it
-  // lives in <ReaderAudioPortionPreviewGuard/> and is mounted only while a
-  // preview is actually running.
-  const isWatchingAudioPortionPreview =
-    isPreviewingAudioPortion &&
-    audioPortionShareDraft != null &&
-    isCurrentAudioChapter &&
-    status === 'playing';
-  const handleAudioPortionPreviewEnd = useCallback(() => {
-    void togglePlayPause();
-    void seekTo(audioPortionStartMs);
-    setIsPreviewingAudioPortion(false);
-  }, [audioPortionStartMs, seekTo, togglePlayPause]);
+  const {
+    audioPortionEndMs,
+    audioPortionRangeDurationMs,
+    audioPortionShareDraft,
+    audioPortionStartMs,
+    handleAudioPortionEndSeek,
+    handleAudioPortionPreviewEnd,
+    handleAudioPortionStartSeek,
+    handleCloseAudioPortionSheet,
+    handleConfirmAudioPortionShare,
+    handleToggleAudioPortionPreview,
+    isPreviewingAudioPortion,
+    isSharingAudioPortion,
+    isWatchingAudioPortionPreview,
+    setAudioPortionEndMs,
+    setAudioPortionShareDraft,
+    setAudioPortionStartMs,
+  } = useAudioPortionShare({
+    audioPositionRef,
+    bookId,
+    chapter,
+    chapterShareTitle,
+    isCurrentAudioChapter,
+    resetFollowAlongClamp,
+    seekTo,
+    status,
+    togglePlayPause,
+  });
 
   function loadChapter() {
     return loadReaderChapter({
@@ -2236,380 +2219,27 @@ export function BibleReaderScreen() {
     );
   };
 
-  const handleOpenChapterAudioShareSheet = () => {
-    setShowAudioOptionsSheet(false);
-    setShowChapterActionsSheet(false);
-    setShowChapterAudioShareSheet(true);
-  };
-
-  const waitForChapterAudioShareSheetDismissal = async () => {
-    await new Promise<void>((resolve) => {
-      let settled = false;
-      const complete = () => {
-        if (settled) {
-          return;
-        }
-        settled = true;
-        clearTimeout(timeoutId);
-        resolve();
-      };
-      // Guard against long-running interaction handles that can block runAfterInteractions forever.
-      const timeoutId = setTimeout(complete, 300);
-      InteractionManager.runAfterInteractions(complete);
-    });
-  };
-
-  const handleShareFullChapterAudio = async () => {
-    if (pendingChapterAudioShareAction) {
-      return;
-    }
-
-    setShowChapterAudioShareSheet(false);
-    setPendingChapterAudioShareAction('full');
-
-    try {
-      await waitForChapterAudioShareSheetDismissal();
-      const {
-        AUDIO_DOWNLOAD_ROOT_URI,
-        chapterAudioShareRootUri,
-        expoAudioFileSystemAdapter,
-        fetchRemoteChapterAudio,
-        getDownloadedChapterAudioUri,
-        prepareChapterAudioShareAsset,
-      } = await loadAudioShareDependencies();
-
-      const audioShareAsset = await prepareChapterAudioShareAsset({
-        translationId: currentTranslation,
-        bookId,
-        chapter,
-        fileSystem: expoAudioFileSystemAdapter,
-        rootUri: chapterAudioShareRootUri,
-        resolveDownloadedAudioUri: (translationId, bookId, chapter) =>
-          getDownloadedChapterAudioUri(
-            translationId,
-            bookId,
-            chapter,
-            expoAudioFileSystemAdapter,
-            AUDIO_DOWNLOAD_ROOT_URI
-          ),
-        resolveRemoteAudio: fetchRemoteChapterAudio,
-      });
-
-      if (!audioShareAsset) {
-        Alert.alert(t('common.error'), t('bible.audioDownloadFailed'));
-        return;
-      }
-
-      trackBibleExperienceEvent({
-        name: 'library_action',
-        bookId,
-        chapter,
-        source: 'reader-actions',
-        mode: 'listen',
-        translationId: currentTranslation,
-        detail: 'share-audio-full',
-      });
-
-      const Sharing = await tryLoadSharing();
-      if (Sharing && (await Sharing.isAvailableAsync())) {
-        setPendingChapterAudioShareAction(null);
-        await Sharing.shareAsync(audioShareAsset.uri, {
-          dialogTitle: t('groups.share'),
-          mimeType: audioShareAsset.mimeType,
-          UTI: 'public.audio',
-        });
-        return;
-      }
-
-      const url = buildBibleDeepLink(bookId, chapter);
-      setPendingChapterAudioShareAction(null);
-      await Share.share(
-        Platform.OS === 'android'
-          ? { message: url ? `${chapterShareTitle}\n${url}` : chapterShareTitle }
-          : { message: chapterShareTitle, url }
-      );
-    } catch {
-      const message = t('bible.audioDownloadFailed');
-      Alert.alert(t('common.error'), message);
-    } finally {
-      setPendingChapterAudioShareAction(null);
-    }
-  };
-
-  const handleShareAudioPortion = async () => {
-    if (pendingChapterAudioShareAction) {
-      return;
-    }
-
-    setShowChapterAudioShareSheet(false);
-    setPendingChapterAudioShareAction('portion');
-
-    try {
-      await waitForChapterAudioShareSheetDismissal();
-      const {
-        AUDIO_DOWNLOAD_ROOT_URI,
-        chapterAudioShareRootUri,
-        expoAudioFileSystemAdapter,
-        fetchRemoteChapterAudio,
-        getDownloadedChapterAudioUri,
-        prepareChapterAudioShareAsset,
-      } = await loadAudioShareDependencies();
-
-      const audioShareAsset = await prepareChapterAudioShareAsset({
-        translationId: currentTranslation,
-        bookId,
-        chapter,
-        fileSystem: expoAudioFileSystemAdapter,
-        rootUri: chapterAudioShareRootUri,
-        resolveDownloadedAudioUri: (translationId, bookId, chapter) =>
-          getDownloadedChapterAudioUri(
-            translationId,
-            bookId,
-            chapter,
-            expoAudioFileSystemAdapter,
-            AUDIO_DOWNLOAD_ROOT_URI
-          ),
-        resolveRemoteAudio: fetchRemoteChapterAudio,
-      });
-
-      if (!audioShareAsset) {
-        setPendingChapterAudioShareAction(null);
-        Alert.alert(t('common.error'), t('bible.audioDownloadFailed'));
-        return;
-      }
-
-      trackBibleExperienceEvent({
-        name: 'library_action',
-        bookId,
-        chapter,
-        source: 'reader-actions',
-        mode: 'listen',
-        translationId: currentTranslation,
-        detail: 'share-audio-clip',
-      });
-
-      const { VideoTrimModule, isValidTrimMediaFile } = await loadVideoTrimDependencies();
-      const validateTrimMediaFile =
-        typeof isValidTrimMediaFile === 'function'
-          ? isValidTrimMediaFile
-          : typeof (VideoTrimModule as { isValidFile?: (url: string) => Promise<unknown> })
-                .isValidFile === 'function'
-            ? (VideoTrimModule as { isValidFile: (url: string) => Promise<unknown> }).isValidFile
-            : null;
-
-      const validationResult = validateTrimMediaFile
-        ? await validateTrimMediaFile(audioShareAsset.uri)
-        : null;
-      const isValidAudioFile =
-        validationResult == null || typeof validationResult === 'boolean'
-          ? validationResult !== false
-          : (validationResult as { isValid?: boolean } | null | undefined)?.isValid === true;
-      if (!isValidAudioFile) {
-        setPendingChapterAudioShareAction(null);
-        Alert.alert(t('common.error'), t('bible.audioDownloadFailed'));
-        return;
-      }
-
-      const validatedDurationMs =
-        validationResult != null && typeof validationResult !== 'boolean'
-          ? (validationResult as { duration?: number } | null | undefined)?.duration
-          : null;
-      const { currentPosition: livePositionMs, duration: liveDurationMs } =
-        audioPositionRef.current;
-      const fallbackDurationMs =
-        isCurrentAudioChapter && liveDurationMs > 0 ? Math.round(liveDurationMs) : 0;
-      const resolvedDurationMs = Math.max(
-        validatedDurationMs ?? fallbackDurationMs,
-        AUDIO_PORTION_MIN_DURATION_MS
-      );
-      const initialStartMs = Math.max(
-        0,
-        Math.min(
-          isCurrentAudioChapter ? livePositionMs : 0,
-          resolvedDurationMs - AUDIO_PORTION_MIN_DURATION_MS
-        )
-      );
-      const initialEndMs = Math.min(
-        resolvedDurationMs,
-        Math.max(
-          initialStartMs + AUDIO_PORTION_MIN_DURATION_MS,
-          initialStartMs + AUDIO_PORTION_DEFAULT_DURATION_MS
-        )
-      );
-
-      setAudioPortionShareDraft({
-        sourceUri: audioShareAsset.uri,
-        fileExtension: audioShareAsset.fileExtension,
-        mimeType: audioShareAsset.mimeType,
-        durationMs: resolvedDurationMs,
-      });
-      setAudioPortionStartMs(initialStartMs);
-      setAudioPortionEndMs(initialEndMs);
-      setPendingChapterAudioShareAction(null);
-    } catch {
-      setPendingChapterAudioShareAction(null);
-      const message = t('bible.audioDownloadFailed');
-      Alert.alert(t('common.error'), message);
-    }
-  };
-
-  const handleCloseAudioPortionSheet = () => {
-    if (isSharingAudioPortion) {
-      return;
-    }
-
-    if (isPreviewingAudioPortion && isCurrentAudioChapter && status === 'playing') {
-      void togglePlayPause();
-    }
-
-    setIsPreviewingAudioPortion(false);
-    setAudioPortionShareDraft(null);
-    setAudioPortionStartMs(0);
-    setAudioPortionEndMs(0);
-  };
-
-  const handleAudioPortionStartSeek = (nextStartMs: number) => {
-    if (!audioPortionShareDraft) {
-      return;
-    }
-
-    const clampedStartMs = Math.max(0, Math.min(nextStartMs, audioPortionShareDraft.durationMs));
-    const maxStartMs = Math.max(audioPortionEndMs - AUDIO_PORTION_MIN_DURATION_MS, 0);
-    setAudioPortionStartMs(Math.min(clampedStartMs, maxStartMs));
-  };
-
-  const handleAudioPortionEndSeek = (nextEndMs: number) => {
-    if (!audioPortionShareDraft) {
-      return;
-    }
-
-    const clampedEndMs = Math.max(0, Math.min(nextEndMs, audioPortionShareDraft.durationMs));
-    const minEndMs = Math.min(
-      audioPortionShareDraft.durationMs,
-      audioPortionStartMs + AUDIO_PORTION_MIN_DURATION_MS
-    );
-    setAudioPortionEndMs(Math.max(clampedEndMs, minEndMs));
-  };
-
-  const handleToggleAudioPortionPreview = () => {
-    const { duration: liveDurationMs } = audioPositionRef.current;
-    if (!audioPortionShareDraft || !isCurrentAudioChapter || liveDurationMs <= 0) {
-      return;
-    }
-
-    if (isPreviewingAudioPortion) {
-      if (status === 'playing') {
-        void togglePlayPause();
-      }
-      setIsPreviewingAudioPortion(false);
-      return;
-    }
-
-    const nextStartMs = Math.max(0, Math.min(audioPortionStartMs, liveDurationMs));
-    resetFollowAlongClamp();
-    void seekTo(nextStartMs);
-    if (status !== 'playing') {
-      void togglePlayPause();
-    }
-    setIsPreviewingAudioPortion(true);
-  };
-
-  const handleConfirmAudioPortionShare = async () => {
-    if (!audioPortionShareDraft || isSharingAudioPortion) {
-      return;
-    }
-
-    if (isPreviewingAudioPortion && isCurrentAudioChapter && status === 'playing') {
-      void togglePlayPause();
-    }
-    setIsPreviewingAudioPortion(false);
-
-    const startTime = Math.max(0, Math.round(audioPortionStartMs));
-    const endTime = Math.max(
-      startTime + AUDIO_PORTION_MIN_DURATION_MS,
-      Math.round(audioPortionEndMs)
-    );
-    if (endTime > audioPortionShareDraft.durationMs) {
-      Alert.alert(t('common.error'), t('bible.audioDownloadFailed'));
-      return;
-    }
-
-    const { VideoTrimModule, trimAudioMedia } = await loadVideoTrimDependencies();
-    const trimMediaFile =
-      typeof trimAudioMedia === 'function'
-        ? trimAudioMedia
-        : typeof (
-              VideoTrimModule as {
-                trim?: (url: string, options: unknown) => Promise<unknown>;
-              }
-            ).trim === 'function'
-          ? (
-              VideoTrimModule as {
-                trim: (url: string, options: unknown) => Promise<unknown>;
-              }
-            ).trim
-          : null;
-    if (!trimMediaFile) {
-      Alert.alert(t('common.error'), t('bible.audioDownloadFailed'));
-      return;
-    }
-
-    setIsSharingAudioPortion(true);
-    try {
-      const trimResult = await trimMediaFile(audioPortionShareDraft.sourceUri, {
-        type: 'audio',
-        outputExt: audioPortionShareDraft.fileExtension,
-        startTime,
-        endTime,
-        saveToPhoto: false,
-        removeAfterSavedToPhoto: false,
-        removeAfterFailedToSavePhoto: false,
-        enableRotation: false,
-        rotationAngle: 0,
-      });
-
-      const trimOutputPath =
-        typeof trimResult === 'string'
-          ? trimResult
-          : (trimResult as { outputPath?: string; success?: boolean } | null | undefined)
-              ?.outputPath;
-      const trimSucceeded =
-        typeof trimResult === 'string'
-          ? trimResult.length > 0
-          : (trimResult as { success?: boolean } | null | undefined)?.success !== false;
-
-      if (!trimSucceeded || !trimOutputPath) {
-        Alert.alert(t('common.error'), t('bible.audioDownloadFailed'));
-        return;
-      }
-
-      const trimOutputUri = trimOutputPath.startsWith('file://')
-        ? trimOutputPath
-        : `file://${trimOutputPath}`;
-      handleCloseAudioPortionSheet();
-
-      const Sharing = await tryLoadSharing();
-      if (Sharing && (await Sharing.isAvailableAsync())) {
-        await Sharing.shareAsync(trimOutputUri, {
-          dialogTitle: t('groups.share'),
-          mimeType: audioPortionShareDraft.mimeType,
-          UTI: 'public.audio',
-        });
-      } else {
-        const url = buildBibleDeepLink(bookId, chapter);
-        await Share.share(
-          Platform.OS === 'android'
-            ? { message: url ? `${chapterShareTitle}\n${url}` : chapterShareTitle }
-            : { message: chapterShareTitle, url }
-        );
-      }
-    } catch {
-      const message = t('bible.audioDownloadFailed');
-      Alert.alert(t('common.error'), message);
-    } finally {
-      setIsSharingAudioPortion(false);
-    }
-  };
+  const {
+    chapterAudioShareActionLabel,
+    handleOpenChapterAudioShareSheet,
+    handleShareAudioPortion,
+    handleShareFullChapterAudio,
+    pendingChapterAudioShareAction,
+    setShowChapterAudioShareSheet,
+    showChapterAudioShareSheet,
+  } = useChapterAudioShare({
+    audioPositionRef,
+    bookId,
+    chapter,
+    chapterShareTitle,
+    currentTranslation,
+    isCurrentAudioChapter,
+    setAudioPortionEndMs,
+    setAudioPortionShareDraft,
+    setAudioPortionStartMs,
+    setShowAudioOptionsSheet,
+    setShowChapterActionsSheet,
+  });
 
   const handleDownloadCurrentBookAudio = async () => {
     setShowChapterActionsSheet(false);
@@ -4425,317 +4055,35 @@ export function BibleReaderScreen() {
 
       <ChapterFeedbackModal feedback={feedback} bookId={bookId} chapter={chapter} />
 
-      <Modal
-        visible={showChapterAudioShareSheet}
-        transparent
-        statusBarTranslucent
-        navigationBarTranslucent
-        animationType="fade"
-        onRequestClose={() => setShowChapterAudioShareSheet(false)}
-      >
-        <TouchableOpacity
-          style={[
-            styles.audioShareBackdrop,
-            {
-              backgroundColor: colors.overlay,
-              paddingBottom: Math.max(safeInsets.bottom, 12) + spacing.md,
-            },
-          ]}
-          activeOpacity={1}
-          onPress={() => setShowChapterAudioShareSheet(false)}
-          // Left accessible, this wrapping backdrop folds the whole sheet into one
-          // VoiceOver element whose only action is dismiss.
-          accessible={false}
-        >
-          <View
-            accessibilityViewIsModal
-            onAccessibilityEscape={() => setShowChapterAudioShareSheet(false)}
-            style={[
-              styles.audioShareSheet,
-              {
-                backgroundColor: colors.bibleSurface,
-                borderColor: colors.bibleDivider,
-              },
-            ]}
-          >
-            <View style={[styles.audioShareGrabber, { backgroundColor: colors.bibleDivider }]} />
+      <ChapterAudioShareSheet
+        chapterShareTitle={chapterShareTitle}
+        handleShareAudioPortion={handleShareAudioPortion}
+        handleShareFullChapterAudio={handleShareFullChapterAudio}
+        setShowChapterAudioShareSheet={setShowChapterAudioShareSheet}
+        showChapterAudioShareSheet={showChapterAudioShareSheet}
+      />
 
-            <View style={styles.audioShareHeader}>
-              <View style={styles.audioShareTitleWrap}>
-                <Text
-                  style={[
-                    styles.audioShareEyebrow,
-                    displayFont.regular,
-                    { color: colors.bibleSecondaryText },
-                  ]}
-                >
-                  {t('groups.share')}
-                </Text>
-                <Text
-                  accessibilityRole="header"
-                  style={[styles.audioShareTitle, { color: colors.biblePrimaryText }]}
-                >
-                  {chapterShareTitle}
-                </Text>
-              </View>
-              <TouchableOpacity
-                accessibilityRole="button"
-                accessibilityLabel={t('common.cancel')}
-                hitSlop={6}
-                onPress={() => setShowChapterAudioShareSheet(false)}
-                style={[
-                  styles.audioShareCloseButton,
-                  {
-                    backgroundColor: colors.bibleElevatedSurface,
-                    borderColor: colors.bibleDivider,
-                  },
-                ]}
-              >
-                <Ionicons name="close" size={16} color={colors.bibleSecondaryText} />
-              </TouchableOpacity>
-            </View>
+      <AudioPortionShareSheet
+        audioPortionEndMs={audioPortionEndMs}
+        audioPortionRangeDurationMs={audioPortionRangeDurationMs}
+        audioPortionShareDraft={audioPortionShareDraft}
+        audioPortionStartMs={audioPortionStartMs}
+        chapterShareTitle={chapterShareTitle}
+        handleAudioPortionEndSeek={handleAudioPortionEndSeek}
+        handleAudioPortionStartSeek={handleAudioPortionStartSeek}
+        handleCloseAudioPortionSheet={handleCloseAudioPortionSheet}
+        handleConfirmAudioPortionShare={handleConfirmAudioPortionShare}
+        handleToggleAudioPortionPreview={handleToggleAudioPortionPreview}
+        isCurrentAudioChapter={isCurrentAudioChapter}
+        isPreviewingAudioPortion={isPreviewingAudioPortion}
+        isSharingAudioPortion={isSharingAudioPortion}
+        readerAudioTrack={readerAudioTrack}
+      />
 
-            {[
-              {
-                key: 'full-audio',
-                icon: 'musical-notes-outline',
-                label: t('bible.shareChapterAudio'),
-                onPress: () => {
-                  void handleShareFullChapterAudio();
-                },
-              },
-              {
-                key: 'audio-clip',
-                icon: 'cut-outline',
-                label: t('bible.shareAudioPortion'),
-                onPress: () => {
-                  void handleShareAudioPortion();
-                },
-              },
-            ].map((action) => (
-              <TouchableOpacity
-                key={action.key}
-                style={[
-                  styles.audioShareOption,
-                  {
-                    backgroundColor: colors.bibleElevatedSurface,
-                    borderColor: colors.bibleDivider,
-                  },
-                ]}
-                activeOpacity={0.9}
-                onPress={action.onPress}
-                accessibilityRole="button"
-              >
-                <View
-                  style={[
-                    styles.audioShareOptionIconWrap,
-                    {
-                      backgroundColor: colors.bibleSurface,
-                      borderColor: colors.bibleDivider,
-                    },
-                  ]}
-                >
-                  <Ionicons name={action.icon as never} size={18} color={colors.bibleAccent} />
-                </View>
-                <Text style={[styles.audioShareOptionLabel, { color: colors.biblePrimaryText }]}>
-                  {action.label}
-                </Text>
-                <Ionicons name="chevron-forward" size={16} color={colors.bibleSecondaryText} />
-              </TouchableOpacity>
-            ))}
-          </View>
-        </TouchableOpacity>
-      </Modal>
-
-      <Modal
-        visible={audioPortionShareDraft !== null}
-        transparent
-        statusBarTranslucent
-        navigationBarTranslucent
-        animationType="fade"
-        onRequestClose={handleCloseAudioPortionSheet}
-      >
-        <View style={[styles.feedbackModalOverlay, { backgroundColor: colors.overlay }]}>
-          <TouchableOpacity
-            style={styles.feedbackModalBackdrop}
-            activeOpacity={1}
-            accessible={false}
-            importantForAccessibility="no-hide-descendants"
-            onPress={handleCloseAudioPortionSheet}
-          />
-          <View
-            style={[
-              styles.audioPortionSheet,
-              {
-                backgroundColor: colors.bibleSurface,
-                borderColor: colors.bibleDivider,
-              },
-            ]}
-          >
-            <Text
-              accessibilityRole="header"
-              style={[styles.audioPortionTitle, { color: colors.biblePrimaryText }]}
-            >
-              {t('bible.shareAudioPortion')}
-            </Text>
-            <Text style={[styles.audioPortionReference, { color: colors.bibleSecondaryText }]}>
-              {chapterShareTitle}
-            </Text>
-
-            <View style={styles.audioPortionRangeHeader}>
-              <View style={styles.audioPortionRangeLabelWrap}>
-                <Ionicons
-                  name="play-skip-back-outline"
-                  size={14}
-                  color={colors.bibleSecondaryText}
-                />
-                <Text style={[styles.audioPortionRangeTime, { color: colors.biblePrimaryText }]}>
-                  {formatClockTime(audioPortionStartMs)}
-                </Text>
-              </View>
-              <View style={styles.audioPortionRangeLabelWrap}>
-                <Ionicons
-                  name="play-skip-forward-outline"
-                  size={14}
-                  color={colors.bibleSecondaryText}
-                />
-                <Text style={[styles.audioPortionRangeTime, { color: colors.biblePrimaryText }]}>
-                  {formatClockTime(audioPortionEndMs)}
-                </Text>
-              </View>
-            </View>
-
-            <ReaderAudioPositionValue
-              track={readerAudioTrack}
-              enabled={isCurrentAudioChapter}
-              fallbackMs={audioPortionStartMs}
-              render={(previewPositionMs) => (
-                <AudioRangeSelector
-                  durationMs={audioPortionShareDraft?.durationMs ?? 0}
-                  startMs={audioPortionStartMs}
-                  endMs={audioPortionEndMs}
-                  minRangeMs={AUDIO_PORTION_MIN_DURATION_MS}
-                  previewPositionMs={previewPositionMs}
-                  trackColor={colors.bibleDivider}
-                  selectionColor={colors.bibleElevatedSurface}
-                  waveColor={colors.bibleDivider}
-                  selectedWaveColor={colors.bibleSecondaryText}
-                  playedWaveColor={colors.bibleAccent}
-                  handleColor={colors.bibleAccent}
-                  handleGripColor={colors.bibleSurface}
-                  onStartChange={handleAudioPortionStartSeek}
-                  onEndChange={handleAudioPortionEndSeek}
-                  startLabel={t('bible.audioClipStart')}
-                  endLabel={t('bible.audioClipEnd')}
-                />
-              )}
-            />
-
-            <TouchableOpacity
-              style={[
-                styles.audioPortionPreviewButton,
-                {
-                  borderColor: colors.bibleDivider,
-                  backgroundColor: colors.bibleElevatedSurface,
-                },
-              ]}
-              activeOpacity={0.9}
-              onPress={handleToggleAudioPortionPreview}
-              disabled={!isCurrentAudioChapter || isSharingAudioPortion}
-              accessibilityRole="button"
-              accessibilityLabel={t(
-                isPreviewingAudioPortion
-                  ? 'interface.pauseChapterAudio'
-                  : 'interface.playChapterAudio'
-              )}
-              accessibilityValue={{ text: formatClockTime(audioPortionRangeDurationMs) }}
-            >
-              <Ionicons
-                name={isPreviewingAudioPortion ? 'pause' : 'play'}
-                size={14}
-                color={colors.biblePrimaryText}
-              />
-              <Text style={[styles.audioPortionPreviewLabel, { color: colors.biblePrimaryText }]}>
-                {formatClockTime(audioPortionRangeDurationMs)}
-              </Text>
-            </TouchableOpacity>
-
-            <View style={styles.audioPortionActions}>
-              <TouchableOpacity
-                style={[
-                  styles.audioPortionActionButton,
-                  {
-                    borderColor: colors.bibleDivider,
-                    backgroundColor: colors.bibleElevatedSurface,
-                  },
-                ]}
-                onPress={handleCloseAudioPortionSheet}
-                disabled={isSharingAudioPortion}
-                accessibilityRole="button"
-              >
-                <Text style={[styles.audioPortionActionLabel, { color: colors.biblePrimaryText }]}>
-                  {t('common.cancel')}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.audioPortionActionButton,
-                  styles.audioPortionShareButton,
-                  {
-                    borderColor: colors.bibleAccent,
-                    backgroundColor: colors.bibleAccent,
-                  },
-                ]}
-                onPress={() => {
-                  void handleConfirmAudioPortionShare();
-                }}
-                disabled={isSharingAudioPortion}
-                accessibilityRole="button"
-                // The label text is swapped for a spinner while sharing.
-                accessibilityLabel={t('groups.share')}
-                accessibilityState={{
-                  disabled: isSharingAudioPortion,
-                  busy: isSharingAudioPortion,
-                }}
-              >
-                {isSharingAudioPortion ? (
-                  <ActivityIndicator size="small" color={colors.cardBackground} />
-                ) : (
-                  <Text style={[styles.audioPortionActionLabel, { color: colors.cardBackground }]}>
-                    {t('groups.share')}
-                  </Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {pendingChapterAudioShareAction !== null ? (
-        <View style={[styles.chapterAudioShareLoadingOverlay, { backgroundColor: colors.overlay }]}>
-          <View
-            style={[
-              styles.chapterAudioShareLoadingCard,
-              {
-                backgroundColor: colors.bibleSurface,
-                borderColor: colors.bibleDivider,
-              },
-            ]}
-          >
-            <ActivityIndicator size="small" color={colors.biblePrimaryText} />
-            <Text
-              style={[styles.chapterAudioShareLoadingTitle, { color: colors.biblePrimaryText }]}
-            >
-              {chapterAudioShareActionLabel}
-            </Text>
-            <Text
-              style={[styles.chapterAudioShareLoadingBody, { color: colors.bibleSecondaryText }]}
-            >
-              {t('common.loading')}
-            </Text>
-          </View>
-        </View>
-      ) : null}
+      <ChapterAudioShareLoadingOverlay
+        chapterAudioShareActionLabel={chapterAudioShareActionLabel}
+        pendingChapterAudioShareAction={pendingChapterAudioShareAction}
+      />
 
       {canShowTranslationSheet ? (
         <Modal

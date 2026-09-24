@@ -80,7 +80,7 @@ test('every display-token surface merges the useDisplayFont override', () => {
     '../components/ui/SectionHeader.tsx',
     '../components/ui/ListRow.tsx',
     '../screens/learn/GroupListScreen.tsx',
-    '../screens/bible/BibleReaderScreen.tsx',
+    '../screens/bible/reader/ChapterAudioShareSheet.tsx',
     '../screens/more/ReadingActivityScreen.tsx',
   ];
 

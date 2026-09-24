@@ -1,4 +1,7 @@
+export * from './AudioPortionShareSheet';
 export * from './AudioRangeSelector';
+export * from './ChapterAudioShareLoadingOverlay';
+export * from './ChapterAudioShareSheet';
 export * from './ChapterFeedbackAudioControls';
 export * from './ChapterFeedbackModal';
 export * from './ListenFeedbackComposer';
@@ -8,5 +11,7 @@ export * from './audioShareDependencies';
 export * from './feedbackAudioSession';
 export * from './readerConstants';
 export * from './readerStyles';
+export * from './useAudioPortionShare';
+export * from './useChapterAudioShare';
 export * from './useChapterFeedback';
 export * from './useChapterFeedbackAudio';
