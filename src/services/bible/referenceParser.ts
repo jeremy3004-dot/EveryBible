@@ -218,17 +218,40 @@ const LOCALIZED_REFERENCE_NUMBERS_PATTERN =
   /^\s*(\d{1,3})(?:\s*[章장篇편](?:\s*(\d{1,3})\s*[节節절]?)?|\s*[:.]\s*(\d{1,3}))?(?:\s*[-–—~～]\s*\d{1,3}(?:\s*[:.]\s*\d{1,3})?\s*[章장篇편节節절]?)?\s*$/;
 const WHITESPACE_RUN_PATTERN = /\s+/g;
 
+const MAX_NAMED_REFERENCE_LENGTH = 80;
+
 const preparedBookNamesCache = new WeakMap<readonly LocalizedBookName[], PreparedBookName[]>();
 
-// Lowercased once per list, longest first so "1 Jean" wins over "Jean". The spaceless
-// spelling also accepts "1Jean 4:8".
+// Accents and apostrophes are optional in what people type: "Joao", "Genese", "Giang" and
+// "Mısır'dan" are João, Genèse, Giăng and Mısır’dan. Only the Latin/Greek/Cyrillic combining
+// block is removed, so Devanagari, Arabic or kana marks stay part of the name.
+const LATIN_COMBINING_MARKS_PATTERN = /[\u0300-\u036f]/g;
+const APOSTROPHE_VARIANTS_PATTERN = /[’ʼ]/g;
+
+const foldForNameMatch = (text: string): string =>
+  text
+    .normalize('NFD')
+    .replace(LATIN_COMBINING_MARKS_PATTERN, '')
+    .normalize('NFC')
+    .replace(WHITESPACE_RUN_PATTERN, ' ')
+    .replace(APOSTROPHE_VARIANTS_PATTERN, "'")
+    .toLowerCase()
+    .replace(/đ/g, 'd');
+
+// Folded once per list, longest first so "1 Jean" wins over "Jean". A hyphenated name
+// (Vietnamese "Ê-sai") also matches with a space or with nothing in place of each hyphen, and
+// any name matches without its spaces ("1Jean 4:8").
 const prepareBookNames = (bookNames: readonly LocalizedBookName[]): PreparedBookName[] => {
   let prepared = preparedBookNamesCache.get(bookNames);
   if (!prepared) {
     prepared = bookNames
       .map(({ bookId, name }) => {
-        const lower = name.trim().replace(WHITESPACE_RUN_PATTERN, ' ').toLowerCase();
-        return { bookId, names: [...new Set([lower, lower.replace(WHITESPACE_RUN_PATTERN, '')])] };
+        const folded = foldForNameMatch(name.trim());
+        const spaced = folded.replace(/-/g, ' ');
+        return {
+          bookId,
+          names: [...new Set([folded, spaced, folded.replace(/[\s-]/g, '')])],
+        };
       })
       .filter((entry) => entry.names[0] !== '')
       .sort((left, right) => (right.names[0]?.length ?? 0) - (left.names[0]?.length ?? 0));
@@ -243,9 +266,12 @@ const parseWithBookNames = (
   query: string,
   bookNames: readonly LocalizedBookName[]
 ): PassageReferenceTarget | null => {
-  const normalizedQuery = normalizeReferenceNumerals(query.trim())
-    .replace(WHITESPACE_RUN_PATTERN, ' ')
-    .toLowerCase();
+  // The longest book name with a chapter, verse and range fits well within this; a pasted
+  // paragraph is not normalised on every keystroke.
+  if (query.length > MAX_NAMED_REFERENCE_LENGTH) {
+    return null;
+  }
+  const normalizedQuery = foldForNameMatch(normalizeReferenceNumerals(query.trim()));
   if (normalizedQuery.length === 0) {
     return null;
   }

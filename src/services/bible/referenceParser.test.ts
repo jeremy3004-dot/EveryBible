@@ -8,6 +8,9 @@ import { fr } from '../../i18n/locales/fr';
 import { ja } from '../../i18n/locales/ja';
 import { ko } from '../../i18n/locales/ko';
 import { ne } from '../../i18n/locales/ne';
+import { pt } from '../../i18n/locales/pt';
+import { tr } from '../../i18n/locales/tr';
+import { vi } from '../../i18n/locales/vi';
 import { zh } from '../../i18n/locales/zh';
 import {
   parsePassageReference,
@@ -397,4 +400,18 @@ test('every interface language opens every book by the name the app shows for it
       assert.equal(last?.bookId, bookId, `${code}: ${name} ${book?.chapters}`);
     }
   }
+});
+
+test('an interface book name typed without its accents or with a plain apostrophe still opens', () => {
+  const ptNames = interfaceBookNames(pt.bible.books);
+  const viNames = interfaceBookNames(vi.bible.books);
+  const trNames = interfaceBookNames(tr.bible.books);
+
+  assert.equal(parsePassageReferenceLocale('Joao 3:16', 'pt', ptNames)?.bookId, 'JHN');
+  assert.equal(parsePassageReferenceLocale('Genese 1', 'fr', frNames)?.bookId, 'GEN');
+  assert.equal(parsePassageReferenceLocale('Esaie 53', 'fr', frNames)?.bookId, 'ISA');
+  assert.equal(parsePassageReferenceLocale('Giang 3:16', 'vi', viNames)?.bookId, 'JHN');
+  assert.equal(parsePassageReferenceLocale('E-sai 53', 'vi', viNames)?.bookId, 'ISA');
+  assert.equal(parsePassageReferenceLocale('Giu-de 1', 'vi', viNames)?.bookId, 'JUD');
+  assert.equal(parsePassageReferenceLocale("Mısır'dan Çıkış 20", 'tr', trNames)?.bookId, 'EXO');
 });
