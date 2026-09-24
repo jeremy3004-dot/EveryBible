@@ -190,7 +190,7 @@ test('App.tsx installs global error handlers at module scope before render', () 
     'App.tsx should statically import installGlobalErrorHandlers so it is available before any component renders'
   );
 
-  const setupNotificationCallIndex = appSource.indexOf('setupNotificationHandler();');
+  const setupNotificationCallIndex = appSource.search(/^setupNotificationHandler\(/m);
   const installHandlersCallIndex = appSource.indexOf('installGlobalErrorHandlers();');
   const firstComponentIndex = appSource.indexOf('function LoadingScreen()');
 

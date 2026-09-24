@@ -446,6 +446,9 @@ export const ta = {
     pinInvalidCharacters: 'எண்களும் கால்குலேட்டர் குறியீடுகளும் மட்டுமே அனுமதிக்கப்படும்.',
     pinMismatch: 'பாதுகாப்பான குறியீடுகள் இன்னும் பொருந்தவில்லை.',
     incorrectPin: 'அந்தப் பாதுகாப்பான குறியீடு சரியானது அல்ல.',
+    discreetNotificationTitle: 'நினைவூட்டல்',
+    discreetNotificationBody: 'இன்றைக்கு உங்களுக்கு ஒரு நினைவூட்டல் உள்ளது.',
+    discreetNotificationChannel: 'நினைவூட்டல்கள்',
   },
   settings: {
     title: 'அமைப்புகள்',

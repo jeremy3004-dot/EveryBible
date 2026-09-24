@@ -225,3 +225,14 @@ export const usePrivacyStore = create<PrivacyState>()((set, get) => {
     },
   };
 });
+
+/**
+ * Whether app-generated notifications must stay neutral (no app name, Bible or group
+ * text). Settings that have not loaded yet count as discreet: a discreet device must not
+ * leak during launch, and a standard one only sees neutral text for that moment.
+ */
+export function isDiscreetModeActive(
+  state: Pick<PrivacyState, 'isInitialized' | 'mode'> = usePrivacyStore.getState()
+): boolean {
+  return !state.isInitialized || state.mode === 'discreet';
+}

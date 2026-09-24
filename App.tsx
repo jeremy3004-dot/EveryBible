@@ -15,7 +15,7 @@ import {
   Lora_700Bold,
 } from '@expo-google-fonts/lora';
 import { useAuthStore } from './src/stores/authStore';
-import { usePrivacyStore } from './src/stores/privacyStore';
+import { isDiscreetModeActive, usePrivacyStore } from './src/stores/privacyStore';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { PrivacyLockScreen } from './src/components/privacy/PrivacyLockScreen';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
@@ -53,8 +53,9 @@ void SplashScreen.preventAutoHideAsync().catch((error) => {
 });
 
 // Must be called at module scope BEFORE any component renders so that
-// foreground notifications display a banner instead of being silently dropped.
-setupNotificationHandler();
+// foreground notifications display a banner instead of being silently dropped
+// (except in discreet mode, where none is shown).
+setupNotificationHandler({ isDiscreet: () => isDiscreetModeActive() });
 
 // Must also run before render: captures crashes/rejections from the earliest
 // possible point in boot, not just ones that happen once React is mounted.

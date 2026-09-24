@@ -758,6 +758,9 @@ export const de = {
     pinInvalidCharacters: 'Es sind nur Zahlen und Taschenrechnersymbole erlaubt.',
     pinMismatch: 'Die Sicherheitscodes stimmen noch nicht überein.',
     incorrectPin: 'Dieser Sicherheitscode ist nicht korrekt.',
+    discreetNotificationTitle: 'Erinnerung',
+    discreetNotificationBody: 'Du hast eine Erinnerung für heute.',
+    discreetNotificationChannel: 'Erinnerungen',
   },
   settings: {
     title: 'Einstellungen',

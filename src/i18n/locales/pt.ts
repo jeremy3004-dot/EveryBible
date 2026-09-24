@@ -765,6 +765,9 @@ export const pt = {
     pinInvalidCharacters: 'Somente números e símbolos de calculadora são permitidos.',
     pinMismatch: 'Os códigos seguros ainda não correspondem.',
     incorrectPin: 'Esse código seguro não está correto.',
+    discreetNotificationTitle: 'Lembrete',
+    discreetNotificationBody: 'Você tem um lembrete para hoje.',
+    discreetNotificationChannel: 'Lembretes',
   },
   settings: {
     title: 'Configurações',

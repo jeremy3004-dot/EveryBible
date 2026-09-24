@@ -1,6 +1,7 @@
 import { AppState } from 'react-native';
 import i18n from '../../i18n';
 import { useAuthStore } from '../../stores/authStore';
+import { isDiscreetModeActive, usePrivacyStore } from '../../stores/privacyStore';
 
 export interface DailyReminderReconciler {
   /** Resolves once every reconcile queued so far has finished. */
@@ -12,8 +13,9 @@ export interface DailyReminderReconciler {
  * Keeps the scheduled daily reminder in line with the saved preference for the
  * life of the app: once on install, then whenever the reminder preference
  * changes (Settings, a pull from another device, the sign-out reset), the app
- * language changes (the reminder text is fixed when it is scheduled) or the app
- * returns to the foreground (a new timezone, a reboot the OS did not restore).
+ * language or discreet mode changes (the reminder text is fixed when it is
+ * scheduled) or the app returns to the foreground (a new timezone, a reboot the
+ * OS did not restore).
  *
  * notificationService is imported lazily: it pulls in the expo-notifications
  * root, which must stay off the startup path. Reconciles run one at a time so a
@@ -42,6 +44,11 @@ export function installDailyReminderReconciler(): DailyReminderReconciler {
       reconcile();
     }
   });
+  const unsubscribePrivacy = usePrivacyStore.subscribe((state, previous) => {
+    if (isDiscreetModeActive(state) !== isDiscreetModeActive(previous)) {
+      reconcile();
+    }
+  });
   i18n.on('languageChanged', reconcile);
   const appStateSubscription = AppState.addEventListener('change', (state) => {
     if (state === 'active') {
@@ -55,6 +62,7 @@ export function installDailyReminderReconciler(): DailyReminderReconciler {
     idle: () => queue,
     uninstall: () => {
       unsubscribePreferences();
+      unsubscribePrivacy();
       i18n.off('languageChanged', reconcile);
       appStateSubscription.remove();
     },

@@ -439,6 +439,9 @@ export const bn = {
     pinInvalidCharacters: 'শুধু সংখ্যা ও ক্যালকুলেটরের চিহ্ন ব্যবহার করা যাবে।',
     pinMismatch: 'সুরক্ষিত কোড দুটি এখনও মিলছে না।',
     incorrectPin: 'এই সুরক্ষিত কোডটি সঠিক নয়।',
+    discreetNotificationTitle: 'অনুস্মারক',
+    discreetNotificationBody: 'আজকের জন্য আপনার একটি অনুস্মারক আছে।',
+    discreetNotificationChannel: 'অনুস্মারক',
   },
   settings: {
     title: 'সেটিংস',

@@ -738,6 +738,9 @@ export const ur = {
     pinInvalidCharacters: 'صرف نمبرز اور کیلکولیٹر علامتوں کی اجازت ہے۔',
     pinMismatch: 'دونوں محفوظ کوڈ ابھی ایک جیسے نہیں ہیں۔',
     incorrectPin: 'یہ محفوظ کوڈ درست نہیں ہے۔',
+    discreetNotificationTitle: 'یاد دہانی',
+    discreetNotificationBody: 'آج کے لیے آپ کی ایک یاد دہانی ہے۔',
+    discreetNotificationChannel: 'یاد دہانیاں',
   },
   settings: {
     title: 'ترتیبات',
