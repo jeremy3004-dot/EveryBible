@@ -60,6 +60,11 @@ import {
 } from './localeSetupModel';
 import { GroupedRowCard, LocaleSetupList } from './LocaleSetupList';
 import {
+  createOnboardingBibleSelectionQueue,
+  type OnboardingBibleSelectionDeps,
+  type OnboardingBibleSelectionState,
+} from './onboardingBibleSelectionQueue';
+import {
   buildBibleLanguageListItems,
   buildContentLanguageListItems,
   buildCountryListItems,
@@ -555,7 +560,10 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
   const [isHydratingRuntimeCatalog, setIsHydratingRuntimeCatalog] = useState(mode === 'initial');
   const [runtimeCatalogLoadFailed, setRuntimeCatalogLoadFailed] = useState(false);
   const [runtimeCatalogHydrationAttempt, setRuntimeCatalogHydrationAttempt] = useState(0);
-  const [installingTranslationId, setInstallingTranslationId] = useState<string | null>(null);
+  const [bibleSelectionState, setBibleSelectionState] = useState<OnboardingBibleSelectionState>({
+    downloadingId: null,
+    queuedId: null,
+  });
   const [showInterfaceLanguagePicker, setShowInterfaceLanguagePicker] = useState(false);
   const [footerHeight, setFooterHeight] = useState(ESTIMATED_FOOTER_HEIGHT);
 
@@ -996,6 +1004,39 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     onComplete?.();
   };
 
+  // Refreshed every render so the queue, created once below, always calls the latest
+  // handlers (they close over the current interface language and device country).
+  const bibleSelectionDepsRef = useRef<OnboardingBibleSelectionDeps<BibleTranslation> | null>(null);
+  const [bibleSelectionQueue] = useState(() =>
+    createOnboardingBibleSelectionQueue<BibleTranslation>(() => {
+      if (!bibleSelectionDepsRef.current) {
+        throw new Error('Onboarding Bible selection used before its first render');
+      }
+      return bibleSelectionDepsRef.current;
+    })
+  );
+  bibleSelectionDepsRef.current = {
+    download: (translation) => downloadTranslation(translation.id),
+    getInstalled: (translation) =>
+      useBibleStore.getState().translations.find((candidate) => candidate.id === translation.id) ??
+      translation,
+    complete: completeInitialSetup,
+    onDownloadFailed: async (translation) => {
+      const fallbackTranslation = resolveRegionalFallbackTranslation(
+        useBibleStore.getState().translations,
+        translation,
+        deviceCountryCode
+      );
+      if (fallbackTranslation) {
+        await bibleSelectionQueue.chooseReady(fallbackTranslation);
+        return;
+      }
+
+      Alert.alert(t('common.error'), t('bible.failedToLoad'), [{ text: t('common.ok') }]);
+    },
+    onStateChange: setBibleSelectionState,
+  };
+
   const handleTranslationSelectImpl = async (translation: BibleTranslation) => {
     const availability = getAudioAvailability({
       featureEnabled: config.features.audioEnabled,
@@ -1014,37 +1055,12 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     });
 
     if (selectionState.reason === 'download-required') {
-      try {
-        setInstallingTranslationId(translation.id);
-        const downloadResult = await downloadTranslation(translation.id);
-        if (downloadResult === 'cancelled') {
-          return;
-        }
-        const installedTranslation =
-          useBibleStore
-            .getState()
-            .translations.find((candidate) => candidate.id === translation.id) ?? translation;
-        await completeInitialSetup(installedTranslation);
-      } catch {
-        const fallbackTranslation = resolveRegionalFallbackTranslation(
-          useBibleStore.getState().translations,
-          translation,
-          deviceCountryCode
-        );
-        if (fallbackTranslation) {
-          await completeInitialSetup(fallbackTranslation);
-          return;
-        }
-
-        Alert.alert(t('common.error'), t('bible.failedToLoad'), [{ text: t('common.ok') }]);
-      } finally {
-        setInstallingTranslationId(null);
-      }
+      await bibleSelectionQueue.chooseDownload(translation);
       return;
     }
 
     if (selectionState.isSelectable) {
-      await completeInitialSetup(translation);
+      await bibleSelectionQueue.chooseReady(translation);
       return;
     }
 
@@ -1054,7 +1070,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
       deviceCountryCode
     );
     if (fallbackTranslation) {
-      await completeInitialSetup(fallbackTranslation);
+      await bibleSelectionQueue.chooseReady(fallbackTranslation);
       return;
     }
 
@@ -1170,7 +1186,11 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     ) => {
       const isLast = position ? isLastInLocaleSetupGroup(position) : true;
       const translation = option.primaryTranslation;
-      const isInstalling = installingTranslationId === translation.id;
+      // A queued Bible shows the same busy spinner (it has no progress yet) and, like the
+      // downloading one, cannot be tapped again.
+      const isInstalling =
+        bibleSelectionState.downloadingId === translation.id ||
+        bibleSelectionState.queuedId === translation.id;
       const progress =
         downloadProgress?.translationId === translation.id ? downloadProgress.progress : null;
       // Read precomputed availability/selection state (computed once per
@@ -1215,11 +1235,11 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
       );
     },
     [
+      bibleSelectionState,
       colors,
       displayFont,
       downloadProgress,
       handleTranslationSelect,
-      installingTranslationId,
       t,
       translationDisplayDataById,
     ]
@@ -1731,11 +1751,11 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
           // re-render of ~10 visible cells whose props did not change costs
           // nothing beyond creating the elements.
           extraData={{
+            bibleSelectionState,
             colors,
             countryQuery,
             displayFont,
             downloadProgress,
-            installingTranslationId,
             languageQuery,
             selectedCountryCode,
             selectedInterfaceLanguageCode,
