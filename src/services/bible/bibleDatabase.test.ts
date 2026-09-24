@@ -1648,6 +1648,94 @@ test('the substring fallback requires every word and caps results at the limit',
   await scheduleTextPackSearchIndexBuild('noindex');
 });
 
+test('the substring fallback matches a straight apostrophe against a curly one and back', async () => {
+  const { searchVerses, setBibleDatabaseSourceResolver, scheduleTextPackSearchIndexBuild } =
+    await loadModule();
+  // Keyboards type ' while most translations print ’ (BSB has 3,182 of them and no '), so
+  // "Father's" found nothing while a downloaded pack's index was still being built.
+  installPackWithoutIndex('noindex-apostrophe.db', [
+    {
+      translationId: 'noindex',
+      bookId: 'LUK',
+      chapter: 2,
+      verse: 49,
+      text: 'Did you not know that I must be in My Father’s house?',
+    },
+    { translationId: 'noindex', bookId: 'JHN', chapter: 14, verse: 2, text: "My Father's house." },
+  ]);
+  setBibleDatabaseSourceResolver((translationId) =>
+    translationId === 'noindex' ? installedSource('noindex', 'noindex-apostrophe.db') : null
+  );
+
+  assert.deepEqual(verseRefs(await searchVerses('noindex', "father's")), ['LUK 2:49', 'JHN 14:2']);
+  assert.deepEqual(verseRefs(await searchVerses('noindex', 'Father’s')), ['LUK 2:49', 'JHN 14:2']);
+  await scheduleTextPackSearchIndexBuild('noindex');
+});
+
+test('a built pack index finds Vietnamese words typed without their tone marks', async () => {
+  const { searchVerses, setBibleDatabaseSourceResolver, scheduleTextPackSearchIndexBuild } =
+    await loadModule();
+  // unicode61's default folding only removes a single diacritic, so ờ, ư, ơ and ệ (two marks)
+  // were kept: "Chua Troi" and "nguoi" found nothing, while "chua" alone did.
+  installPackWithoutIndex('vietnamese.db', [
+    {
+      translationId: 'vie',
+      bookId: 'JHN',
+      chapter: 3,
+      verse: 16,
+      text: 'Vì Đức Chúa Trời yêu thương thế gian, đến nỗi đã ban Con một của Ngài, hầu cho hễ ai tin Con ấy không bị hư mất mà được sự sống đời đời.',
+    },
+    {
+      translationId: 'vie',
+      bookId: 'MAT',
+      chapter: 5,
+      verse: 3,
+      text: 'Phước cho những người có lòng khó khăn.',
+    },
+  ]);
+  setBibleDatabaseSourceResolver((translationId) =>
+    translationId === 'vie' ? installedSource('vie', 'vietnamese.db') : null
+  );
+  assert.equal(await scheduleTextPackSearchIndexBuild('vie'), 'ready');
+
+  assert.deepEqual(verseRefs(await searchVerses('vie', 'Chua Troi')), ['JHN 3:16']);
+  assert.deepEqual(verseRefs(await searchVerses('vie', 'nguoi')), ['MAT 5:3']);
+  assert.deepEqual(verseRefs(await searchVerses('vie', 'phuoc')), ['MAT 5:3']);
+  // Typed with its marks, a word still finds itself.
+  assert.deepEqual(verseRefs(await searchVerses('vie', 'Trời')), ['JHN 3:16']);
+});
+
+test("the substring fallback finds a Devanagari word typed without the text's joiners", async () => {
+  const { searchVerses, setBibleDatabaseSourceResolver, scheduleTextPackSearchIndexBuild } =
+    await loadModule();
+  // Nepali text writes परमेश्‍वर with a zero-width joiner after the virama (19,594 npiulb verses
+  // carry one); keyboards do not type it. The FTS index ignores joiners, but the substring scan
+  // used while a pack's index is built found 81 of the 3,932 verses with परमेश्वर.
+  installPackWithoutIndex('noindex-joiner.db', [
+    {
+      translationId: 'noindex',
+      bookId: '1JN',
+      chapter: 4,
+      verse: 8,
+      text: 'परमेश्\u200Dवर प्रेम हुनुहुन्छ।',
+    },
+    {
+      translationId: 'noindex',
+      bookId: 'GEN',
+      chapter: 1,
+      verse: 1,
+      text: 'सुरुमा आकाश र पृथ्वी।',
+    },
+  ]);
+  setBibleDatabaseSourceResolver((translationId) =>
+    translationId === 'noindex' ? installedSource('noindex', 'noindex-joiner.db') : null
+  );
+
+  assert.deepEqual(verseRefs(await searchVerses('noindex', 'परमेश्वर')), ['1JN 4:8']);
+  assert.deepEqual(verseRefs(await searchVerses('noindex', 'परमेश्\u200Dवर')), ['1JN 4:8']);
+  await scheduleTextPackSearchIndexBuild('noindex');
+});
+
 test('a pack replaced at the same path is searched without the old index and indexed again', async () => {
   const {
     invalidateInstalledBibleDatabaseAtPath,
@@ -1846,6 +1934,30 @@ test('searchVerses rethrows when the indexed query itself fails', async () => {
   );
 
   await assert.rejects(() => searchVerses('fakeindex', 'beginning'), /no such column: verses_fts/);
+});
+
+test('searchVerses matches a nukta letter whether the keyboard typed it composed or not', async () => {
+  const { searchVerses, setBibleDatabaseSourceResolver } = await loadModule();
+  // Verse text is stored in NFC, where ज़ is ज + nukta (U+095B is a composition exclusion).
+  // Some Hindi keyboards type the single code point U+095B instead, which the FTS index never
+  // saw, so ज़मीन ("land") found nothing.
+  writeSeedDatabase(`${installedDirectory}/nukta.db`, {
+    verses: [
+      {
+        translationId: 'nukta',
+        bookId: 'GEN',
+        chapter: 1,
+        verse: 10,
+        text: 'परमेश्वर ने सूखी भूमि को \u091C\u093Cमीन कहा।',
+      },
+    ],
+  });
+  setBibleDatabaseSourceResolver((translationId) =>
+    translationId === 'nukta' ? installedSource('nukta', 'nukta.db') : null
+  );
+
+  assert.deepEqual(verseRefs(await searchVerses('nukta', '\u095Bमीन')), ['GEN 1:10']);
+  assert.deepEqual(verseRefs(await searchVerses('nukta', '\u091C\u093Cमीन')), ['GEN 1:10']);
 });
 
 // ─── Search without spaces between words (CJK, Thai) ──────────────────────────

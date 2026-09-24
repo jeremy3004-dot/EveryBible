@@ -1,9 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { bibleBooks } from '../../constants/books';
+import { localeLoaders } from '../../i18n/localeLoaders';
+import { ar } from '../../i18n/locales/ar';
+import { de } from '../../i18n/locales/de';
+import { fr } from '../../i18n/locales/fr';
+import { ja } from '../../i18n/locales/ja';
+import { ko } from '../../i18n/locales/ko';
+import { ne } from '../../i18n/locales/ne';
+import { pt } from '../../i18n/locales/pt';
+import { tr } from '../../i18n/locales/tr';
+import { vi } from '../../i18n/locales/vi';
+import { zh } from '../../i18n/locales/zh';
 import {
   parsePassageReference,
   parsePassageReferenceLocale,
   isSupportedParserLocale,
+  type LocalizedBookName,
 } from './referenceParser';
 
 // ---------------------------------------------------------------------------
@@ -236,4 +249,209 @@ test('isSupportedParserLocale returns false for unsupported locales', () => {
   assert.equal(isSupportedParserLocale('fr'), false);
   assert.equal(isSupportedParserLocale('de'), false);
   assert.equal(isSupportedParserLocale(''), false);
+});
+
+// ---------------------------------------------------------------------------
+// Native-script and full-width digits
+// ---------------------------------------------------------------------------
+
+test('reads a Devanagari-numeral reference typed on a Hindi or Nepali keyboard', () => {
+  const expected = { bookId: 'JHN', chapter: 3, focusVerse: 16, label: 'John 3:16' };
+  assert.deepEqual(parsePassageReferenceLocale('यूहन्ना ३:१६', 'hi'), expected);
+  assert.deepEqual(parsePassageReferenceLocale('यूहन्ना ३:१६', 'ne'), expected);
+});
+
+test('reads Bengali, Arabic-Indic and full-width digits and a full-width colon', () => {
+  const expected = { bookId: 'JHN', chapter: 3, focusVerse: 16, label: 'John 3:16' };
+  assert.deepEqual(parsePassageReferenceLocale('John ৩:১৬', 'bn'), expected);
+  assert.deepEqual(parsePassageReferenceLocale('John ٣:١٦', 'ar'), expected);
+  assert.deepEqual(parsePassageReferenceLocale('John ۳:۱۶', 'ur'), expected);
+  assert.deepEqual(parsePassageReferenceLocale('John ３：１６', 'zh'), expected);
+});
+
+test('a single-chapter book typed with a native numeral opens its one chapter', () => {
+  assert.deepEqual(parsePassageReferenceLocale('Jude १', 'hi'), {
+    bookId: 'JUD',
+    chapter: 1,
+    focusVerse: undefined,
+    label: 'Jude 1',
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Book names in the interface language (no dedicated grammar)
+// ---------------------------------------------------------------------------
+
+const interfaceBookNames = (books: Record<string, string>): LocalizedBookName[] =>
+  bibleBooks.map((book) => ({ bookId: book.id, name: books[book.id] ?? book.name }));
+
+const frNames = interfaceBookNames(fr.bible.books);
+
+test('reads a reference written with the book names the interface shows', () => {
+  assert.deepEqual(parsePassageReferenceLocale('Jean 3:16', 'fr', frNames), {
+    bookId: 'JHN',
+    chapter: 3,
+    focusVerse: 16,
+    label: 'John 3:16',
+  });
+  assert.deepEqual(
+    parsePassageReferenceLocale('Johannes 3', 'de', interfaceBookNames(de.bible.books)),
+    { bookId: 'JHN', chapter: 3, focusVerse: undefined, label: 'John 3' }
+  );
+  assert.deepEqual(
+    parsePassageReferenceLocale('约翰福音3:16', 'zh', interfaceBookNames(zh.bible.books)),
+    { bookId: 'JHN', chapter: 3, focusVerse: 16, label: 'John 3:16' }
+  );
+  assert.deepEqual(
+    parsePassageReferenceLocale('요한복음 3:16', 'ko', interfaceBookNames(ko.bible.books)),
+    { bookId: 'JHN', chapter: 3, focusVerse: 16, label: 'John 3:16' }
+  );
+  assert.deepEqual(
+    parsePassageReferenceLocale('يوحنا ٣:١٦', 'ar', interfaceBookNames(ar.bible.books)),
+    { bookId: 'JHN', chapter: 3, focusVerse: 16, label: 'John 3:16' }
+  );
+});
+
+test('an interface book name matches regardless of case and prefers the longest name', () => {
+  assert.equal(parsePassageReferenceLocale('jean 3:16', 'fr', frNames)?.bookId, 'JHN');
+  assert.equal(parsePassageReferenceLocale('1 Jean 4:8', 'fr', frNames)?.bookId, '1JN');
+  assert.deepEqual(parsePassageReferenceLocale('Cantique des cantiques 2', 'fr', frNames), {
+    bookId: 'SNG',
+    chapter: 2,
+    focusVerse: undefined,
+    label: 'Song of Solomon 2',
+  });
+  assert.deepEqual(parsePassageReferenceLocale('Jean 3:16-18', 'fr', frNames)?.focusVerse, 16);
+});
+
+test('an interface book name without a valid chapter stays a word search', () => {
+  assert.equal(parsePassageReferenceLocale('Jean', 'fr', frNames), null);
+  assert.equal(parsePassageReferenceLocale('Jean 22', 'fr', frNames), null);
+  assert.equal(parsePassageReferenceLocale('Jean 0', 'fr', frNames), null);
+  assert.equal(parsePassageReferenceLocale('Jean 3:', 'fr', frNames), null);
+  assert.equal(parsePassageReferenceLocale('Jeanne 3', 'fr', frNames), null);
+  assert.equal(parsePassageReferenceLocale('Jean baptiste', 'fr', frNames), null);
+});
+
+test('a single-chapter book named in the interface language reads a lone number as a verse', () => {
+  assert.deepEqual(parsePassageReferenceLocale('Jude 1', 'fr', frNames), {
+    bookId: 'JUD',
+    chapter: 1,
+    focusVerse: undefined,
+    label: 'Jude 1',
+  });
+  assert.deepEqual(parsePassageReferenceLocale('Jude 5', 'fr', frNames), {
+    bookId: 'JUD',
+    chapter: 1,
+    focusVerse: 5,
+    label: 'Jude 1:5',
+  });
+});
+
+test('reads the chapter-and-verse counters Chinese, Japanese and Korean references use', () => {
+  const john316 = { bookId: 'JHN', chapter: 3, focusVerse: 16, label: 'John 3:16' };
+  const zhNames = interfaceBookNames(zh.bible.books);
+  const koNames = interfaceBookNames(ko.bible.books);
+  const jaNames = interfaceBookNames(ja.bible.books);
+
+  assert.deepEqual(parsePassageReferenceLocale('约翰福音3章16节', 'zh', zhNames), john316);
+  assert.deepEqual(parsePassageReferenceLocale('约翰福音 3章', 'zh', zhNames), {
+    bookId: 'JHN',
+    chapter: 3,
+    focusVerse: undefined,
+    label: 'John 3',
+  });
+  assert.deepEqual(parsePassageReferenceLocale('ヨハネの福音書3章16節', 'ja', jaNames), john316);
+  assert.deepEqual(parsePassageReferenceLocale('요한복음 3장 16절', 'ko', koNames), john316);
+  assert.equal(parsePassageReferenceLocale('시편 23편', 'ko', koNames)?.chapter, 23);
+  assert.equal(parsePassageReferenceLocale('约翰福音 3节', 'zh', zhNames), null);
+});
+
+test('a reference typed with interface book names is checked against the verse counts', () => {
+  const enNames = bibleBooks.map((book) => ({ bookId: book.id, name: book.name }));
+  // John 3 has 36 verses.
+  assert.equal(parsePassageReferenceLocale('John 3:99', 'en', enNames), null);
+  assert.equal(parsePassageReferenceLocale('Jean 3:99', 'fr', frNames), null);
+  assert.equal(parsePassageReferenceLocale('Jean 3:36', 'fr', frNames)?.focusVerse, 36);
+});
+
+test('Nepali interface book names the Nepali grammar does not know still open the passage', () => {
+  // The app calls Psalms भजनसङ्ग्रह and Acts प्रेरितका काम; the grammar knew neither.
+  const neNames = interfaceBookNames(ne.bible.books);
+  assert.deepEqual(parsePassageReferenceLocale('भजनसङ्ग्रह २३', 'ne', neNames), {
+    bookId: 'PSA',
+    chapter: 23,
+    focusVerse: undefined,
+    label: 'Psalms 23',
+  });
+  assert.equal(parsePassageReferenceLocale('प्रेरितका काम 2:4', 'ne', neNames)?.bookId, 'ACT');
+  assert.equal(parsePassageReferenceLocale('एफेसी 2:8', 'ne', neNames)?.bookId, 'EPH');
+});
+
+test('every interface language opens every book by the name the app shows for it', async () => {
+  for (const [code, load] of Object.entries(localeLoaders)) {
+    const resource = (await load()) as { bible: { books: Record<string, string> } };
+    const names = interfaceBookNames(resource.bible.books);
+    for (const { bookId, name } of names) {
+      const book = bibleBooks.find((candidate) => candidate.id === bookId);
+      const first = parsePassageReferenceLocale(`${name} 1:1`, code, names);
+      const last = parsePassageReferenceLocale(`${name} ${book?.chapters}`, code, names);
+      assert.equal(first?.bookId, bookId, `${code}: ${name} 1:1`);
+      assert.equal(last?.bookId, bookId, `${code}: ${name} ${book?.chapters}`);
+    }
+  }
+});
+
+test('an interface book name typed without its accents or with a plain apostrophe still opens', () => {
+  const ptNames = interfaceBookNames(pt.bible.books);
+  const viNames = interfaceBookNames(vi.bible.books);
+  const trNames = interfaceBookNames(tr.bible.books);
+
+  assert.equal(parsePassageReferenceLocale('Joao 3:16', 'pt', ptNames)?.bookId, 'JHN');
+  assert.equal(parsePassageReferenceLocale('Genese 1', 'fr', frNames)?.bookId, 'GEN');
+  assert.equal(parsePassageReferenceLocale('Esaie 53', 'fr', frNames)?.bookId, 'ISA');
+  assert.equal(parsePassageReferenceLocale('Giang 3:16', 'vi', viNames)?.bookId, 'JHN');
+  assert.equal(parsePassageReferenceLocale('E-sai 53', 'vi', viNames)?.bookId, 'ISA');
+  assert.equal(parsePassageReferenceLocale('Giu-de 1', 'vi', viNames)?.bookId, 'JUD');
+  assert.equal(parsePassageReferenceLocale("Mısır'dan Çıkış 20", 'tr', trNames)?.bookId, 'EXO');
+});
+
+test('an interface book name reads chapter and verse separated by a space, like English', () => {
+  // The English grammar reads "john 3 16" as John 3:16; "Jean 3 16" was a word search.
+  assert.equal(parsePassageReferenceLocale('Jean 3 16', 'fr', frNames)?.focusVerse, 16);
+  assert.equal(
+    parsePassageReferenceLocale('Johannes 3 16', 'de', interfaceBookNames(de.bible.books))
+      ?.focusVerse,
+    16
+  );
+});
+
+test('a reference copied with its sentence-ending punctuation still opens', () => {
+  const john316 = { bookId: 'JHN', chapter: 3, focusVerse: 16, label: 'John 3:16' };
+  assert.deepEqual(parsePassageReferenceLocale('John 3:16.', 'en'), john316);
+  assert.deepEqual(parsePassageReferenceLocale('Jean 3:16.', 'fr', frNames), john316);
+  assert.deepEqual(
+    parsePassageReferenceLocale('约翰福音3:16。', 'zh', interfaceBookNames(zh.bible.books)),
+    john316
+  );
+});
+
+test('a German numbered book opens with or without the period after its number', () => {
+  const deNames = interfaceBookNames(de.bible.books);
+  // The app shows "1. Korinther"; "1 Korinther 13" and "1Kor..." style input omit the period.
+  assert.equal(parsePassageReferenceLocale('1 Korinther 13', 'de', deNames)?.bookId, '1CO');
+  assert.equal(parsePassageReferenceLocale('1. Korinther 13', 'de', deNames)?.bookId, '1CO');
+  assert.equal(parsePassageReferenceLocale('1Korinther 13', 'de', deNames)?.bookId, '1CO');
+  assert.equal(parsePassageReferenceLocale('1 Johannes 4:8', 'de', deNames)?.bookId, '1JN');
+  assert.equal(parsePassageReferenceLocale('Johannes 4:8', 'de', deNames)?.bookId, 'JHN');
+  assert.equal(parsePassageReferenceLocale('1 Mose 1', 'de', deNames)?.bookId, 'GEN');
+});
+
+test('a Russian numbered book opens with a bare number', async () => {
+  const { ru } = await import('../../i18n/locales/ru');
+  const ruNames = interfaceBookNames(ru.bible.books);
+  // The app shows "1-е Коринфянам"; people type "1 Коринфянам 13".
+  assert.equal(parsePassageReferenceLocale('1 Коринфянам 13', 'ru', ruNames)?.bookId, '1CO');
+  assert.equal(parsePassageReferenceLocale('1-е Коринфянам 13', 'ru', ruNames)?.bookId, '1CO');
+  assert.equal(parsePassageReferenceLocale('2 Петра 1:3', 'ru', ruNames)?.bookId, '2PE');
 });

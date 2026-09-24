@@ -697,6 +697,17 @@ test('buildBibleSearchQuery quotes each word as an FTS5 prefix phrase', () => {
   assert.equal(buildBibleSearchQuery('प्रेम'), '"प्रेम"*');
 });
 
+test('buildBibleSearchQuery sends each word once and bounds a pasted passage', () => {
+  // The index folds case, so a repeated word only costs another pass over its postings.
+  assert.equal(buildBibleSearchQuery('the Lord the LORD lord'), '"the"* "Lord"*');
+  // A pasted chapter became thousands of prefix phrases: 3.5 s of SQLite work on a desktop for
+  // 3,000 words (seconds more on a phone, with chapter reads queued behind it) to match nothing.
+  const pasted = Array.from({ length: 1000 }, (_, index) => `word${index}`).join(' ');
+  const phrases = buildBibleSearchQuery(pasted)?.split(' ') ?? [];
+  assert.equal(phrases.length, 16);
+  assert.equal(phrases[0], '"word0"*');
+});
+
 test('buildBibleSearchQuery returns null when the query has no searchable words', () => {
   assert.equal(buildBibleSearchQuery(''), null);
   assert.equal(buildBibleSearchQuery(' "?!,. '), null);

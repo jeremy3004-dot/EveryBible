@@ -196,7 +196,7 @@ test('an index shipped inside the file without a build marker counts as ready', 
 
 // ─── Building ─────────────────────────────────────────────────────────────────
 
-test('building indexes every verse with the bundled database tokenizer', async () => {
+test('building indexes every verse with the unicode61 tokenizer, folding every diacritic', async () => {
   const { buildPackSearchIndex, readPackSearchIndexStatus } = await load();
   const path = writePack('build-basic.db', { fillerVerses: 250 });
   const database = createAdapter(path);
@@ -211,7 +211,7 @@ test('building indexes every verse with the bundled database tokenizer', async (
 
   assert.equal(result, 'ready');
   assert.equal(countRows(path, 'SELECT COUNT(*) AS count FROM verses_fts_docsize'), 255);
-  // unicode61 folds case and diacritics the way the bundled index does.
+  // unicode61 folds case, and remove_diacritics 2 folds letters with one mark or several.
   assert.deepEqual(matchIds(path, '"lord"'), [3]);
   assert.deepEqual(matchIds(path, '"love"*'), [4, 5]);
   const schema = new DatabaseSync(path);
@@ -221,7 +221,10 @@ test('building indexes every verse with the bundled database tokenizer', async (
     }
   ).sql;
   schema.close();
-  assert.match(ftsSql, /content='verses', content_rowid='id', tokenize='unicode61'/);
+  assert.match(
+    ftsSql,
+    /content='verses', content_rowid='id', tokenize='unicode61 remove_diacritics 2'/
+  );
 });
 
 test('building commits one transaction per chunk and pauses between chunks', async () => {

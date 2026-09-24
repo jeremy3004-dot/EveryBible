@@ -616,6 +616,15 @@ function getCanonicalBookOrderSql(): string {
   return canonicalBookOrderSql;
 }
 
+// Devanagari and other Indic text writes zero-width joiners after a virama (परमेश्‍वर; 19,594
+// npiulb verses carry one) that keyboards do not type, and the FTS tokenizer ignores. Compare
+// without them on both sides, or परमेश्वर matched 81 of its 3,932 verses. Only for words in
+// the scripts that use joiners (Arabic through Sinhala): the replace() makes a Latin scan ~3x
+// slower.
+const JOINER_FREE_TEXT_SQL = "replace(replace(text, char(8205), ''), char(8204), '')";
+const JOINER_PATTERN = /\u200C|\u200D/g;
+const JOINER_SCRIPT_PATTERN = /[\u0600-\u06FF]|[\u0900-\u0DFF]/;
+
 // Substring search for scripts written without spaces between words (see
 // buildBibleSubstringSearchTerms), and for any text pack whose FTS index is still being built
 // or failed to build. Every term must appear; a term is a list of spellings, any of which may
@@ -629,9 +638,20 @@ async function searchVersesBySubstring(
   terms: string[][],
   limit: number
 ): Promise<Verse[]> {
+  const joinerFree = terms.map((spellings) =>
+    spellings.some((spelling) => JOINER_SCRIPT_PATTERN.test(spelling))
+  );
   const conditions = terms
-    .map((spellings) => `AND (${spellings.map(() => 'instr(text, ?) > 0').join(' OR ')})`)
+    .map((spellings, index) => {
+      const column = joinerFree[index] ? JOINER_FREE_TEXT_SQL : 'text';
+      return `AND (${spellings.map(() => `instr(${column}, ?) > 0`).join(' OR ')})`;
+    })
     .join(' ');
+  const joinerFreeTerms = terms.map((spellings, index) =>
+    joinerFree[index]
+      ? spellings.map((spelling) => spelling.replace(JOINER_PATTERN, ''))
+      : spellings
+  );
   const rows = await database.getAllAsync<VerseRow>(
     `
       SELECT id, book_id, chapter, verse, text, heading, formatting
@@ -640,7 +660,7 @@ async function searchVersesBySubstring(
       ORDER BY ${getCanonicalBookOrderSql()}, chapter, verse
       LIMIT ?
     `,
-    [translationId, ...terms.flat(), limit]
+    [translationId, ...joinerFreeTerms.flat(), limit]
   );
 
   return rows.map(toVerse);
