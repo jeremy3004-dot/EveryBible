@@ -130,8 +130,23 @@ function entryHandler(entryFile: string): Handler {
   return servedHandler;
 }
 
+// claim_passcode_attempt() (migration 20260924200000) answers null for "locked out", so an
+// unscripted `{}` would read as a lockout. Until a test scripts the RPC with an explicit
+// `data` or `error`, it answers as PostgREST does while the function is not deployed, and the
+// passcode gates take their previous read-then-record path, which those tests script.
+const UNSCRIPTED_DEFAULTS: Record<string, EdgeQueryResult> = {
+  'rpc:claim_passcode_attempt': {
+    error: { code: 'PGRST202', message: 'Could not find the function in the schema cache' },
+  },
+};
+
 function recordingClient(calls: EdgeQueryCall[], options: EdgeHarnessOptions): unknown {
-  const respond = options.respond ?? (() => ({ data: null, error: null }));
+  const scripted = options.respond ?? (() => ({ data: null, error: null }));
+  const respond = (call: EdgeQueryCall): EdgeQueryResult => {
+    const result = scripted(call);
+    const fallback = UNSCRIPTED_DEFAULTS[call.table];
+    return fallback && !('data' in result) && !('error' in result) ? fallback : result;
+  };
   const chain = (call: EdgeQueryCall): unknown => {
     calls.push(call);
     const proxy: unknown = new Proxy(() => undefined, {
