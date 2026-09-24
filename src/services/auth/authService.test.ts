@@ -39,6 +39,23 @@ mockModule(mock, sourcePath('services/startup/publicRuntimeConfig.ts'), {
 
 const rn = mockReactNative(mock, { os: 'ios' });
 
+// signOut checks connectivity (through authSession's lazy `require(...).default`,
+// so the fake carries a self-reference, as in authSession.test.ts).
+const connectivity: { isConnected: boolean | null; error: Error | null } = {
+  isConnected: true,
+  error: null,
+};
+const netInfoFake: Record<string, unknown> = {
+  fetch: async () => {
+    if (connectivity.error) {
+      throw connectivity.error;
+    }
+    return { isConnected: connectivity.isConnected, isInternetReachable: null };
+  },
+};
+netInfoFake.default = netInfoFake;
+mockModule(mock, '@react-native-community/netinfo', netInfoFake);
+
 interface AppleFullName {
   givenName?: string | null;
   familyName?: string | null;
@@ -149,6 +166,8 @@ beforeEach(() => {
   Object.assign(supabaseFake.auth.handlers, defaultAuthHandlers);
   supabaseFake.auth.setSession(null);
   rn.Platform.OS = 'ios';
+  connectivity.isConnected = true;
+  connectivity.error = null;
   apple.requests = [];
   apple.credential = { identityToken: 'apple-identity-token' };
   apple.error = null;
@@ -858,6 +877,32 @@ test('signOut ends the session on this device when the sign-out request throws',
   await authService.signOut();
 
   assert.equal(supabaseFake.auth.session, null);
+});
+
+// Offline, auth-js refreshes the expired token before its sign-out request and
+// retries that refresh for about 25 s. The network call cannot succeed anyway, so
+// an offline sign-out ends the session on this device straight away.
+test('an offline signOut ends the session on this device without contacting the server', async () => {
+  connectivity.isConnected = false;
+  supabaseFake.auth.setSession(makeFakeSession({ user: signedInUser() }));
+
+  const result = await authService.signOut();
+
+  assert.deepEqual(result, { success: true });
+  assert.equal(supabaseFake.auth.session, null);
+  assert.equal(
+    supabaseFake.authCalls.some((call) => call.method === 'signOut'),
+    false,
+    'the network sign-out is skipped'
+  );
+});
+
+test('signOut still asks the server when the connectivity check fails', async () => {
+  connectivity.error = new Error('NetInfo native module missing');
+  supabaseFake.auth.setSession(makeFakeSession({ user: signedInUser() }));
+
+  assert.deepEqual(await authService.signOut(), { success: true });
+  assert.equal(supabaseFake.authCalls[0]?.method, 'signOut');
 });
 
 test('signOut reports a generic message when something non-Error is thrown', async () => {
