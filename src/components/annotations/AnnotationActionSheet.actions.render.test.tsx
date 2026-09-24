@@ -224,3 +224,25 @@ test('the sheet leaves room for the home indicator below its controls', async ()
   assert.ok(surface);
   assert.equal(flattenStyle(surface.props.style)?.paddingBottom, 24 + 34);
 });
+
+// The Bible stays tappable around the sheet, so a selection can grow onto a verse
+// that already has a note while the sheet is up. The field kept the note of the
+// first selection (none), and Done then saved over the existing note unseen.
+test('a note the selection gains while the sheet is open is the one Note shows', async () => {
+  const { view, rerender } = await renderSheet();
+
+  await rerender({ existingNote: 'Saved on verse 17' });
+  await view.press(view.getByRole('button', { name: t('annotations.note') }));
+
+  assert.equal(view.getByLabelText(t('annotations.noteHint')).props.value, 'Saved on verse 17');
+});
+
+test('a note arriving while one is being written does not overwrite the draft', async () => {
+  const { view, rerender } = await renderSheet();
+  await view.press(view.getByRole('button', { name: t('annotations.note') }));
+  await view.changeText(view.getByLabelText(t('annotations.noteHint')), 'Draft');
+
+  await rerender({ existingNote: 'Saved on verse 17' });
+
+  assert.equal(view.getByLabelText(t('annotations.noteHint')).props.value, 'Draft');
+});

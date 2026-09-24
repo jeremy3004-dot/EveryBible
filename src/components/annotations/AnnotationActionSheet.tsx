@@ -131,6 +131,13 @@ function AnnotationActionSheetContent({
   const [noteText, setNoteText] = useState(existingNote ?? '');
   const [mode, setMode] = useState<'actions' | 'note'>('actions');
   const [isSaving, setIsSaving] = useState(false);
+  // The selection can change under an open sheet (the Bible stays tappable around
+  // it), bringing a different existing note. Follow it unless a note is being written.
+  const [seededNote, setSeededNote] = useState(existingNote);
+  if (mode === 'actions' && existingNote !== seededNote) {
+    setSeededNote(existingNote);
+    setNoteText(existingNote ?? '');
+  }
   const activeHighlightColorSet = new Set(activeHighlightColors);
 
   const handleClose = () => {
