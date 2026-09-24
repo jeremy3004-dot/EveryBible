@@ -100,6 +100,9 @@ export function PrivacyPreferencesScreen() {
   const [pinConfirmation, setPinConfirmation] = useState('');
   const [errorKey, setErrorKey] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  // Done and the keyboard's submit both save, and on Android the close warning is up
+  // before isSaving is: a second press or submit in that time must not save twice.
+  const saveInFlightRef = useRef(false);
 
   const selectMode = (nextMode: PrivacyAppIconMode) => {
     setSelectedMode(nextMode);
@@ -112,6 +115,16 @@ export function PrivacyPreferencesScreen() {
   };
 
   const handleSave = async () => {
+    if (saveInFlightRef.current) return;
+    saveInFlightRef.current = true;
+    try {
+      await runSave();
+    } finally {
+      saveInFlightRef.current = false;
+    }
+  };
+
+  const runSave = async () => {
     const savePlan = getPrivacySettingsSavePlan({
       currentMode,
       hasExistingPin,
@@ -318,6 +331,8 @@ export function PrivacyPreferencesScreen() {
           disabled={isSaving}
           hitSlop={8}
           accessibilityRole="button"
+          accessibilityLabel={t('common.done')}
+          accessibilityState={{ busy: isSaving, disabled: isSaving }}
         >
           {isSaving ? (
             <ActivityIndicator size="small" color={colors.accentPrimary} />
