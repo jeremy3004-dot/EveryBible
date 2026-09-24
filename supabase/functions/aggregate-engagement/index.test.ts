@@ -115,11 +115,12 @@ test('the caller credential is checked with the public key and never forwarded t
 
 test('a requested user id is passed to the refresh; otherwise every user is refreshed', async () => {
   const runtime = load();
-  await runtime.request('POST', `Bearer ${SERVICE_KEY}`, JSON.stringify({ user_id: 'user-1' }));
+  const userId = '7c9e6679-7425-40de-944b-e07fc1f90ae7';
+  await runtime.request('POST', `Bearer ${SERVICE_KEY}`, JSON.stringify({ user_id: userId }));
   await runtime.request('POST', `Bearer ${SERVICE_KEY}`);
   assert.deepEqual(
     runtime.privilegedCalls().map((call) => call.args),
-    [{ p_user_id: 'user-1' }, { p_user_id: null }]
+    [{ p_user_id: userId }, { p_user_id: null }]
   );
 });
 

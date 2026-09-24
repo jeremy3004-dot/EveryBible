@@ -29,6 +29,22 @@ export const MAX_BYTES_PER_WINDOW = 2 * 1024 * 1024;
 export const GEO_CACHE_TTL_SECONDS = 12 * 60 * 60;
 export const MAX_GEO_LOOKUPS_PER_WINDOW = 100;
 
+// A budget RPC normally answers in a few milliseconds. supabase-js has no timeout of its own, so
+// a stuck connection pool would otherwise hold every ingest request open until the platform's
+// wall-clock limit. Past this, the limiter counts as unavailable (each caller's usual fallback).
+export const LIMITER_TIMEOUT_MS = 3000;
+
+export function withinLimiterTimeout<T>(
+  pending: PromiseLike<T>,
+  timeoutMs: number = LIMITER_TIMEOUT_MS
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error('limiter timed out')), timeoutMs);
+  });
+  return Promise.race([Promise.resolve(pending), timeout]).finally(() => clearTimeout(timer));
+}
+
 export type BodyReadResult =
   | { ok: true; text: string; bytes: number }
   | { ok: false; reason: 'too_large' };
@@ -156,17 +172,19 @@ export async function consumeIngestBudget(
     degraded: true,
   };
   try {
-    const { data, error } = await service.rpc('consume_analytics_ingest_budget', {
-      p_client_key: clientKey,
-      p_event_count: usage.events,
-      p_byte_count: usage.bytes,
-      p_window_seconds: RATE_WINDOW_SECONDS,
-      p_max_requests: MAX_REQUESTS_PER_WINDOW,
-      p_max_events: MAX_EVENTS_PER_WINDOW,
-      p_max_bytes: MAX_BYTES_PER_WINDOW,
-      p_geo_ttl_seconds: GEO_CACHE_TTL_SECONDS,
-      p_max_geo_lookups: MAX_GEO_LOOKUPS_PER_WINDOW,
-    });
+    const { data, error } = await withinLimiterTimeout(
+      service.rpc('consume_analytics_ingest_budget', {
+        p_client_key: clientKey,
+        p_event_count: usage.events,
+        p_byte_count: usage.bytes,
+        p_window_seconds: RATE_WINDOW_SECONDS,
+        p_max_requests: MAX_REQUESTS_PER_WINDOW,
+        p_max_events: MAX_EVENTS_PER_WINDOW,
+        p_max_bytes: MAX_BYTES_PER_WINDOW,
+        p_geo_ttl_seconds: GEO_CACHE_TTL_SECONDS,
+        p_max_geo_lookups: MAX_GEO_LOOKUPS_PER_WINDOW,
+      })
+    );
     const row = (Array.isArray(data) ? data[0] : data) as
       | {
           allowed?: unknown;

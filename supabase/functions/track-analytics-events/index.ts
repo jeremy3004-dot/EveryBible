@@ -11,6 +11,7 @@ import {
   resolveQueuedAt,
   textFieldsWithinLimit,
 } from '../_shared/analyticsIngest.ts';
+import { jsonStorable, textFieldsStorable } from '../_shared/storableText.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -331,23 +332,23 @@ function acceptEvent(raw: unknown, now: number): QueuedAnalyticsEvent | null {
     !Array.isArray(event.event_properties)
       ? event.event_properties
       : {};
-  if (!eventPropertiesWithinLimit(properties)) return null;
+  if (!eventPropertiesWithinLimit(properties) || !jsonStorable(properties)) return null;
   const sessionId = getText(event.session_id);
-  // Bound what will actually be stored, including any accepted payload geo.
+  // Bound what will actually be stored, including any accepted payload geo. A NUL byte or a
+  // lone surrogate would fail the insert for the whole batch, so it drops just this event.
   const geo = resolveEventGeo(event);
-  if (
-    !textFieldsWithinLimit([
-      eventName,
-      devicePlatform,
-      appVersion,
-      sessionId,
-      geo?.timezone,
-      geo?.city,
-      geo?.regionCode,
-      geo?.region,
-      geo?.countryCode,
-    ])
-  ) {
+  const textFields = [
+    eventName,
+    devicePlatform,
+    appVersion,
+    sessionId,
+    geo?.timezone,
+    geo?.city,
+    geo?.regionCode,
+    geo?.region,
+    geo?.countryCode,
+  ];
+  if (!textFieldsWithinLimit(textFields) || !textFieldsStorable(textFields)) {
     return null;
   }
   return {
@@ -380,6 +381,14 @@ function internalErrorResponse(context: string, detail: unknown): Response {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
+  }
+
+  // The app only ever POSTs a batch. Anything else used to run the whole POST path.
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ success: false, error: 'Method not allowed' }), {
+      status: 405,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 
   try {

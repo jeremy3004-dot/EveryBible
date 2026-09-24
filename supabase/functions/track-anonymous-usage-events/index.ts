@@ -11,6 +11,7 @@ import {
   resolveQueuedAt,
   textFieldsWithinLimit,
 } from '../_shared/analyticsIngest.ts';
+import { jsonStorable, textFieldsStorable } from '../_shared/storableText.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -383,6 +384,7 @@ function parseBatchRequest(body: unknown): AnonymousUsageRequestBody | null {
   // Failing the batch would punish a device for one bad event by making it retry the whole
   // queue forever; dropping keeps the good events and reports the count back to the client.
   let rejected = 0;
+  const seenEventIds = new Set<string>();
   for (const event of events) {
     if (!event || typeof event !== 'object') return null;
     const raw = event as Partial<AnonymousUsageEvent>;
@@ -406,22 +408,25 @@ function parseBatchRequest(body: unknown): AnonymousUsageRequestBody | null {
       return null;
     const createdAt = resolveQueuedAt(queuedAt);
     if (createdAt === 'invalid') return null;
-    // Oversized strings would otherwise fail the analytics_events CHECK constraints and turn
-    // the whole batch into a retried 500.
+    // Oversized strings would otherwise fail the analytics_events CHECK constraints, and a NUL
+    // byte or lone surrogate would fail the insert itself; either turns the whole batch into a
+    // retried 500.
+    const textFields = [
+      raw.event_name,
+      raw.device_platform,
+      raw.app_version,
+      raw.session_id,
+      raw.attribution_user_id,
+      raw.geo_source,
+      raw.geo_timezone,
+      raw.geo_city,
+      raw.geo_region_code,
+      raw.geo_region_name,
+    ];
     if (
       createdAt === 'too_old' ||
-      !textFieldsWithinLimit([
-        raw.event_name,
-        raw.device_platform,
-        raw.app_version,
-        raw.session_id,
-        raw.attribution_user_id,
-        raw.geo_source,
-        raw.geo_timezone,
-        raw.geo_city,
-        raw.geo_region_code,
-        raw.geo_region_name,
-      ])
+      !textFieldsWithinLimit(textFields) ||
+      !textFieldsStorable(textFields)
     ) {
       rejected += 1;
       continue;
@@ -432,9 +437,16 @@ function parseBatchRequest(body: unknown): AnonymousUsageRequestBody | null {
       !Array.isArray(raw.event_properties)
         ? (raw.event_properties as Record<string, unknown>)
         : {};
-    if (!eventPropertiesWithinLimit(eventProperties)) {
+    if (!eventPropertiesWithinLimit(eventProperties) || !jsonStorable(eventProperties)) {
       rejected += 1;
       continue;
+    }
+    // A replayed id is written once; ON CONFLICT would skip the copy anyway, but the count
+    // reported back to the client should match what was stored.
+    if (eventId) {
+      const key = eventId.toLowerCase();
+      if (seenEventIds.has(key)) continue;
+      seenEventIds.add(key);
     }
     normalizedEvents.push({
       event_id: eventId ?? undefined,

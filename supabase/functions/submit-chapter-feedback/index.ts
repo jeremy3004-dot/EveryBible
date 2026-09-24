@@ -2,6 +2,7 @@ import { readBodyWithinLimit } from '../_shared/analyticsIngest.ts';
 import { verifyCouncilAccess } from '../_shared/councilAccess.ts';
 import { isFeedbackAudioContainer } from '../_shared/feedbackAudio.ts';
 import { hashPasscodeAttemptKey } from '../_shared/passcodeAttempts.ts';
+import { textFieldsStorable } from '../_shared/storableText.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
@@ -88,6 +89,11 @@ const AUDIO_RESPONSE_MIME_TYPE = 'audio/mp4';
 // verify_jwt is off, so the body is capped while it streams, before auth, parsing or any
 // storage/database work: the largest recording as base64 plus generous room for the text fields.
 const MAX_REQUEST_BODY_BYTES = AUDIO_RESPONSE_MAX_BASE64_LENGTH + 64 * 1024;
+
+// Bound for the identifier-like text fields (translation, languages, screen, platform, version).
+const MAX_SHORT_TEXT_CHARS = 128;
+const ISO_TIMESTAMP =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?(?:Z|[+-]\d{2}:\d{2})$/;
 
 // Max submissions per account or anonymous identity per rolling hour.
 const SUBMISSION_RATE_LIMIT_PER_HOUR = 20;
@@ -281,6 +287,25 @@ const validateRequest = (
     return { error: 'participantName and participantRole must be 120 characters or fewer' };
   }
 
+  // Identifier-like fields had no bound, so one request could store megabytes in each.
+  const shortTexts = [
+    translationId,
+    translationLanguage,
+    interfaceLanguage,
+    trimOptionalText(body.contentLanguageCode),
+    trimOptionalText(body.contentLanguageName),
+    trimOptionalText(body.sourceScreen),
+    trimOptionalText(body.appPlatform),
+    trimOptionalText(body.appVersion),
+  ];
+  if (shortTexts.some((text) => text != null && text.length > MAX_SHORT_TEXT_CHARS)) {
+    return { error: `Text fields must be ${MAX_SHORT_TEXT_CHARS} characters or fewer` };
+  }
+  // A NUL byte or a lone surrogate fails the insert itself, which surfaced as a 500.
+  if (!textFieldsStorable([...shortTexts, participantName, participantRole, comment])) {
+    return { error: 'Text fields must not contain control or invalid characters' };
+  }
+
   const normalizedBookId = bookId.toUpperCase();
   const bookChapterCount = BOOK_CHAPTER_COUNTS[normalizedBookId];
   if (bookChapterCount === undefined) {
@@ -306,6 +331,7 @@ const validateRequest = (
   const audioResponse = body.audioResponse ?? null;
   let pendingAudioUpload: PendingAudioUpload | undefined;
   let audioResponsePath: string | null = null;
+  let audioResponseCreatedAt: string | null = null;
 
   if (audioResponse) {
     if (audioResponse.bucket !== 'chapter-feedback-audio') {
@@ -336,10 +362,16 @@ const validateRequest = (
       return { error: 'audio response size must be 5 MB or smaller' };
     }
 
-    const createdAtTime = Date.parse(audioResponse.createdAt ?? '');
+    // Date.parse alone also reads 12345 or '1' as dates, which then failed the timestamptz
+    // insert with a 500. The app sends toISOString(); the stored value is normalised to UTC and
+    // a clock running ahead is clamped to the time of receipt.
+    const createdAtText =
+      typeof audioResponse.createdAt === 'string' ? audioResponse.createdAt.trim() : '';
+    const createdAtTime = ISO_TIMESTAMP.test(createdAtText) ? Date.parse(createdAtText) : NaN;
     if (!Number.isFinite(createdAtTime)) {
       return { error: 'audio response createdAt must be an ISO timestamp' };
     }
+    audioResponseCreatedAt = new Date(Math.min(createdAtTime, Date.now())).toISOString();
 
     if (base64Data) {
       const decodedSizeBytes = base64DecodedSize(base64Data);
@@ -402,7 +434,7 @@ const validateRequest = (
       audio_response_mime_type: audioResponse?.mimeType ?? null,
       audio_response_size_bytes: audioResponse?.sizeBytes ?? null,
       audio_response_duration_ms: audioResponse?.durationMs ?? null,
-      audio_response_created_at: audioResponse?.createdAt ?? null,
+      audio_response_created_at: audioResponseCreatedAt,
       book_id: normalizedBookId,
       chapter: body.chapter!,
       sentiment: body.sentiment,
