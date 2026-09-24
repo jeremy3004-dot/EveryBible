@@ -27,21 +27,26 @@ export function getHomeScreenScale(screenWidth: number, screenHeight: number): n
 export function getHomeScreenLayout(
   screenWidth: number,
   screenHeight: number,
-  bottomChromeHeight = 0
+  bottomChromeHeight = 0,
+  // The in-app reading size preference (FONT_SIZE_SCALES). The OS text size is
+  // applied by RN on top of this, so it is deliberately not folded in here.
+  readingFontScale = 1
 ) {
   const availableHeight = Math.max(0, screenHeight - bottomChromeHeight);
   const scale = getHomeScreenScale(screenWidth, availableHeight);
-  const isTightHeight = availableHeight < 700;
+  const verseTextFontSize = scaleDimension(28, scale, 21, 30);
+  const verseTextLineHeight = scaleDimension(36, scale, 27, 38);
 
   return {
     // The full-bleed hero photograph. 430pt on the 390×844 reference frame; it
     // has to shrink on short phones or the sheet cards fall under the tab bar.
+    // It is a minimum: a long verse or a large text size grows the hero instead
+    // of shrinking or truncating the scripture.
     heroPhotoHeight: scaleDimension(HOME_SCREEN_BASE_HERO_PHOTO_HEIGHT, scale, 340, 470),
     greetingFontSize: scaleDimension(22, scale, 18, 24),
     greetingLineHeight: scaleDimension(26, scale, 22, 28),
-    verseTextFontSize: scaleDimension(28, scale, 21, 30),
-    verseTextLineHeight: scaleDimension(36, scale, 27, 38),
-    verseTextLines: isTightHeight ? 3 : 4,
+    verseTextFontSize: Math.round(verseTextFontSize * readingFontScale),
+    verseTextLineHeight: Math.round(verseTextLineHeight * readingFontScale),
   };
 }
 

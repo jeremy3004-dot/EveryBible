@@ -2,14 +2,9 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../stores/authStore';
 import { syncPreferences } from '../services/sync';
+import { FONT_SIZE_SCALES, type FontSizeKey } from '../constants/fontSizeScales';
 
-export type FontSizeKey = 'small' | 'medium' | 'large';
-
-const fontScales: Record<FontSizeKey, number> = {
-  small: 0.85,
-  medium: 1,
-  large: 1.2,
-};
+export type { FontSizeKey };
 
 const fontSizeOrder: FontSizeKey[] = ['small', 'medium', 'large'];
 
@@ -18,7 +13,7 @@ export function useFontSize() {
   const preferences = useAuthStore((state) => state.preferences);
   const setPreferences = useAuthStore((state) => state.setPreferences);
 
-  const scale = useMemo(() => fontScales[preferences.fontSize], [preferences.fontSize]);
+  const scale = useMemo(() => FONT_SIZE_SCALES[preferences.fontSize], [preferences.fontSize]);
 
   const label = useMemo(() => {
     if (preferences.fontSize === 'small') return t('settings.fontSizeSmall');

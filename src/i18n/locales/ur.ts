@@ -649,6 +649,8 @@ export const ur = {
     "chooseBackgroundLayer": "آف لائن کلامِ مقدس سننے کے لیے شامل شدہ پس منظر کی موسیقی منتخب کریں۔",
     "previousChapter": "پچھلا باب",
     "nextChapter": "اگلا باب",
+    "skipBackward": "10 سیکنڈ پیچھے جائیں",
+    "skipForward": "10 سیکنڈ آگے جائیں",
   },
   "privacy": {
     "lockTitle": "اپنا محفوظ کوڈ درج کریں",

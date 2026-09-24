@@ -649,6 +649,8 @@ export const de = {
     "chooseBackgroundLayer": "Wähle einen mitgelieferten Hintergrundklang für das Bibelhören ohne Internet.",
     "previousChapter": "Vorheriges Kapitel",
     "nextChapter": "Nächstes Kapitel",
+    "skipBackward": "10 Sekunden zurück",
+    "skipForward": "10 Sekunden vorspulen",
   },
   "privacy": {
     "lockTitle": "Gib deinen Sicherheitscode ein",

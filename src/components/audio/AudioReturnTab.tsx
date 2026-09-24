@@ -10,6 +10,9 @@ import { rootNavigationRef } from '../../navigation/rootNavigation';
 import { useAudioStore } from '../../stores/audioStore';
 import { useBibleStore } from '../../stores/bibleStore';
 
+// 13/18pt label x 1.5 = a 27pt line, the most the 30pt rotated tab can hold.
+const AUDIO_RETURN_TAB_MAX_FONT_SCALE = 1.5;
+
 interface AudioReturnTabProps {
   currentRouteName: string | null;
 }
@@ -98,7 +101,13 @@ export function AudioReturnTab({ currentRouteName }: AudioReturnTabProps) {
           },
         ]}
       >
-        <Text numberOfLines={1} style={[styles.label, { color: colors.onAccent }]}>
+        <Text
+          numberOfLines={1}
+          // The tab is rotated and pinned by its fixed 30pt thickness, so it cannot
+          // grow; the screen reader gets the full reference from the label above.
+          maxFontSizeMultiplier={AUDIO_RETURN_TAB_MAX_FONT_SCALE}
+          style={[styles.label, { color: colors.onAccent }]}
+        >
           {referenceLabel}
         </Text>
       </Pressable>

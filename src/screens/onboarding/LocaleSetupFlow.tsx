@@ -1825,8 +1825,9 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: spacing.lg,
   },
+  // minHeight, not height: the typed query grows with the user's text size.
   searchField: {
-    height: SEARCH_FIELD_HEIGHT,
+    minHeight: SEARCH_FIELD_HEIGHT,
     borderWidth: 1,
     borderRadius: radius.lg,
     paddingHorizontal: 14,

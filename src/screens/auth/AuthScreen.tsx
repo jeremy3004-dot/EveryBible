@@ -48,6 +48,9 @@ const GOOGLE_MARK = require('../../../assets/icons/google-g.png');
 
 const APP_ICON_SIZE = 52;
 const GOOGLE_MARK_SIZE = 18;
+// Same cap as AppButton's label, so the Google strip and the primary CTA grow
+// together with the user's text size.
+const GOOGLE_LABEL_MAX_FONT_SCALE = 1.6;
 const FIELD_HEIGHT = 48;
 const PROVIDER_GAP = 10;
 
@@ -116,7 +119,11 @@ function GoogleButton({
         accessible={false}
         importantForAccessibility="no-hide-descendants"
       />
-      <Text style={[typography.bodyStrong, { color: colors.primaryText }]} numberOfLines={1}>
+      <Text
+        style={[googleStyles.label, { color: colors.primaryText }]}
+        numberOfLines={2}
+        maxFontSizeMultiplier={GOOGLE_LABEL_MAX_FONT_SCALE}
+      >
         {label}
       </Text>
     </PressableScale>
@@ -575,8 +582,9 @@ export function AuthScreen() {
 }
 
 const googleStyles = StyleSheet.create({
+  // minHeight, not height: the label grows with the user's text size.
   button: {
-    height: layout.pillHeight,
+    minHeight: layout.pillHeight,
     borderRadius: layout.pillHeight / 2,
     borderWidth: 1,
     flexDirection: 'row',
@@ -585,6 +593,12 @@ const googleStyles = StyleSheet.create({
     gap: spacing.md,
     alignSelf: 'stretch',
     paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.sm,
+  },
+  label: {
+    ...typography.bodyStrong,
+    flexShrink: 1,
+    textAlign: 'center',
   },
   mark: {
     width: GOOGLE_MARK_SIZE,

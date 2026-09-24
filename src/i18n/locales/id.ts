@@ -649,6 +649,8 @@ export const id = {
     "chooseBackgroundLayer": "Pilih musik latar bawaan untuk mendengarkan firman secara offline.",
     "previousChapter": "Pasal sebelumnya",
     "nextChapter": "Pasal berikutnya",
+    "skipBackward": "Mundur 10 detik",
+    "skipForward": "Maju 10 detik",
   },
   "privacy": {
     "lockTitle": "Masukkan kode aman Anda",

@@ -373,6 +373,8 @@ export const hi = {
     "chooseBackgroundLayer": "ऑफ़लाइन पवित्रशास्त्र सुनने के लिए ऐप में शामिल पृष्ठभूमि संगीत चुनें।",
     "previousChapter": "पिछला अध्याय",
     "nextChapter": "अगला अध्याय",
+    "skipBackward": "10 सेकंड पीछे जाएँ",
+    "skipForward": "10 सेकंड आगे जाएँ",
   },
   "privacy": {
     "lockTitle": "अपना सुरक्षित कोड दर्ज करें",

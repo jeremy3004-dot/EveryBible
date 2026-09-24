@@ -373,6 +373,8 @@ export const te = {
     "chooseBackgroundLayer": "ఆఫ్‌లైన్‌లో లేఖనం వినడానికి యాప్‌తో వచ్చే నేపథ్య ధ్వనిని ఎంచుకోండి.",
     "previousChapter": "మునుపటి అధ్యాయం",
     "nextChapter": "తదుపరి అధ్యాయం",
+    "skipBackward": "10 సెకన్లు వెనక్కి వెళ్లండి",
+    "skipForward": "10 సెకన్లు ముందుకు వెళ్లండి",
   },
   "privacy": {
     "lockTitle": "మీ సురక్షిత కోడ్‌ని నమోదు చేయండి",

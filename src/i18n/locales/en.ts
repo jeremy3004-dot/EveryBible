@@ -661,6 +661,8 @@ export const en = {
     chooseBackgroundLayer: 'Choose a bundled background layer for offline scripture listening.',
     previousChapter: 'Previous chapter',
     nextChapter: 'Next chapter',
+    skipBackward: 'Skip back 10 seconds',
+    skipForward: 'Skip forward 10 seconds',
   },
   privacy: {
     lockTitle: 'Enter your secure code',

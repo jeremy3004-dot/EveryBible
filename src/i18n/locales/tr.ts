@@ -649,6 +649,8 @@ export const tr = {
     "chooseBackgroundLayer": "Kutsal Yazıları çevrimdışı dinlerken kullanmak için yerleşik bir arka plan katmanı seçin.",
     "previousChapter": "Önceki bölüm",
     "nextChapter": "Sonraki bölüm",
+    "skipBackward": "10 saniye geri sar",
+    "skipForward": "10 saniye ileri sar",
   },
   "privacy": {
     "lockTitle": "Güvenli kodunuzu girin",

@@ -669,6 +669,8 @@ export const ar = {
     "chooseBackgroundLayer": "اختر طبقة خلفية مضمّنة للاستماع إلى الكتاب المقدس دون اتصال.",
     "previousChapter": "الإصحاح السابق",
     "nextChapter": "الإصحاح التالي",
+    "skipBackward": "الرجوع 10 ثوانٍ",
+    "skipForward": "التقدّم 10 ثوانٍ",
   },
   "privacy": {
     "lockTitle": "أدخل رمزك الآمن",

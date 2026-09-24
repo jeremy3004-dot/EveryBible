@@ -655,6 +655,8 @@ export const pt = {
     "chooseBackgroundLayer": "Escolha uma camada de fundo incluída para ouvir as Escrituras offline.",
     "previousChapter": "Capítulo anterior",
     "nextChapter": "Próximo capítulo",
+    "skipBackward": "Voltar 10 segundos",
+    "skipForward": "Avançar 10 segundos",
   },
   "privacy": {
     "lockTitle": "Digite seu código seguro",
