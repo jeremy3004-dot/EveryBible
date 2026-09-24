@@ -116,9 +116,14 @@ before(async () => {
     entry('progress-storage', useProgressStore, () => {
       useProgressStore.getState().markChapterRead('JHN', 3);
     }),
-    entry('reading-plans-storage', readingPlansStore, () => {
-      readingPlansStore.getState().savePlan('plan-a');
-    }),
+    // The vanilla store's exported type omits the `persist` API the middleware attaches.
+    entry(
+      'reading-plans-storage',
+      readingPlansStore as typeof readingPlansStore & { persist: PersistApi },
+      () => {
+        readingPlansStore.getState().savePlan('plan-a');
+      }
+    ),
     entry('translation-preferences', useTranslationPreferenceStore, () => {
       useTranslationPreferenceStore.getState().pin('bsb');
     })
