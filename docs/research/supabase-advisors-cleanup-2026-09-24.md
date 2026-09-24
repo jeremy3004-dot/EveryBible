@@ -86,7 +86,7 @@ Both files use a plain `DROP INDEX` with `lock_timeout = 5s`. `CONCURRENTLY` can
 the migration transaction. Every table involved is small or not read. For zero locking, run
 `drop index concurrently if exists public.<name>;` per index outside a transaction instead.
 
-### 3. `20260924040200_move_group_helpers_to_private_schema.sql` — risk: low
+### 3. `20260924035932_move_group_helpers_to_private_schema.sql` — risk: low
 
 This clears 2 of the 6 `authenticated_security_definer_function_executable` WARNs. It moves
 `is_group_member(uuid)` and `is_group_leader(uuid)` into the non-exposed `private` schema with
@@ -172,4 +172,4 @@ anon, authenticated, and authenticated with a `service_role` claim, and across t
 
 ## Applied live 2026-09-24
 
-Applied: 20260924035626 drop_duplicate_indexes, 20260924035633 drop_prefix_redundant_indexes, 20260924035637 wrap_auth_role_in_storage_service_policies (all 15 indexes confirmed gone). Held: 20260924040200 move_group_helpers_to_private_schema until the groups health check lands.
+Applied: 20260924035626 drop_duplicate_indexes, 20260924035633 drop_prefix_redundant_indexes, 20260924035637 wrap_auth_role_in_storage_service_policies (all 15 indexes confirmed gone). Held: 20260924035932 move_group_helpers_to_private_schema until the groups health check lands.

@@ -60,7 +60,7 @@ branch.
 
 ## Needs a live step
 
-1. Apply `supabase/migrations/20260924150000_groups_leader_read_and_leave_guard.sql`. First
+1. Apply `supabase/migrations/20260924035926_groups_leader_read_and_leave_guard.sql`. First
    run `PGLITE_MODULE=<pglite>/dist/index.js node scripts/verify-group-policies-sql.mjs`,
    which passes on this branch.
 2. G5, G6 and G9 need an edge-function deploy or a new RPC migration. Do them before turning

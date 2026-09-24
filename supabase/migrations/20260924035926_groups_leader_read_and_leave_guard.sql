@@ -1,5 +1,5 @@
 -- Groups health check 2026-09-24 (docs/research/groups-health-check-2026-09-24.md, G1 and G2).
--- NOT YET APPLIED to production. Synced groups are behind studyGroupsSync=false and production
+-- Applied to production 2026-09-24 (version 20260924035926).
 -- had 0 rows in groups / group_members / group_sessions on 2026-09-24, so applying it changes
 -- no existing data. Verify with scripts/verify-group-policies-sql.mjs (PGlite) first.
 --

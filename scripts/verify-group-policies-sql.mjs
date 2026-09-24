@@ -22,8 +22,8 @@ const MIGRATIONS = [
   '20260711100100_revoke_group_membership_helpers_from_public.sql',
   '20260910093000_restrict_group_members_direct_insert.sql',
   '20260923233220_pin_group_scope_and_harden_group_helpers.sql',
-  '20260924150000_groups_leader_read_and_leave_guard.sql',
-  '20260924040200_move_group_helpers_to_private_schema.sql',
+  '20260924035926_groups_leader_read_and_leave_guard.sql',
+  '20260924035932_move_group_helpers_to_private_schema.sql',
 ];
 
 const db = new PGlite();
