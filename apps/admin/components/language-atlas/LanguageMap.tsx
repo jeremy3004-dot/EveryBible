@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import maplibregl, { type GeoJSONSource, type Map as LibreMap } from 'maplibre-gl';
+import type { GeoJSONSource, Map as LibreMap } from 'maplibre-gl';
+import { maplibregl } from '../../lib/maplibre';
 import { loadAtlasBasemap } from '../../lib/atlas-basemap';
 import { normalizeAdminTheme } from '../../lib/theme';
 import {

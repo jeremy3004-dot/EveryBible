@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import maplibregl, { type Map as LibreMap, type MapMouseEvent } from 'maplibre-gl';
+import type { Map as LibreMap, MapMouseEvent } from 'maplibre-gl';
+import { maplibregl } from '../../lib/maplibre';
 import {
   formatCount,
   KIND_LABELS,
@@ -165,8 +166,9 @@ export function SpreadDots({
         (point) => {
           const coordinate = coordinates.get(point.id)!;
           const screen = map.project(coordinate);
-          // Use the same occlusion test as MapLibre's own Marker implementation.
-          return { ...screen, occluded: map.transform.isLocationOccluded(coordinate) };
+          // Use the same occlusion test as MapLibre's own Marker implementation. MapLibre 6
+          // moved the camera transform behind `_camera` and exposes no public equivalent yet.
+          return { ...screen, occluded: map._camera.transform.isLocationOccluded(coordinate) };
         },
         width,
         height
