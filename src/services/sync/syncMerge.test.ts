@@ -283,6 +283,131 @@ test('mergeReadingSnapshot adopts the remote streak when the remote lastReadDate
   assert.equal(merged.progress.streakDays, 5);
 });
 
+// ---------------------------------------------------------------------------
+// A device whose clock runs ahead
+// ---------------------------------------------------------------------------
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const CLOCK_NOW = new Date('2026-09-24T12:00:00.000Z');
+/** The device's local calendar day, `shift` days from `date` (what progressStore writes). */
+const localDay = (date: Date, shift = 0): string => {
+  const day = new Date(date);
+  day.setDate(day.getDate() + shift);
+  return [
+    day.getFullYear(),
+    String(day.getMonth() + 1).padStart(2, '0'),
+    String(day.getDate()).padStart(2, '0'),
+  ].join('-');
+};
+const progressRow = (overrides: Partial<RemoteUserProgress>): RemoteUserProgress => ({
+  id: 'progress-1',
+  user_id: 'user-1',
+  chapters_read: {},
+  streak_days: 0,
+  last_read_date: null,
+  current_book: 'GEN',
+  current_chapter: 1,
+  synced_at: '2026-09-24T11:00:00.000Z',
+  ...overrides,
+});
+const readerOn = (lastReadDate: string | null, streakDays: number): LocalReadingSnapshot => ({
+  chaptersRead: { JHN_3: CLOCK_NOW.getTime() - DAY_MS },
+  streakDays,
+  lastReadDate,
+  currentBook: 'JHN',
+  currentChapter: 3,
+});
+
+test('a read date from a clock running ahead counts as today, so it cannot end the streak', () => {
+  const ahead = progressRow({ last_read_date: localDay(CLOCK_NOW, 30), streak_days: 1 });
+
+  // Read today here: a same-day tie, so the longer run stays.
+  const readToday = mergeReadingSnapshot(readerOn(localDay(CLOCK_NOW), 7), ahead, CLOCK_NOW);
+  assert.deepEqual(
+    [readToday.progress.lastReadDate, readToday.progress.streakDays],
+    [localDay(CLOCK_NOW), 7]
+  );
+
+  // Read yesterday here: the other device's read is today's, with its count.
+  const readYesterday = mergeReadingSnapshot(
+    readerOn(localDay(CLOCK_NOW, -1), 7),
+    ahead,
+    CLOCK_NOW
+  );
+  assert.deepEqual(
+    [readYesterday.progress.lastReadDate, readYesterday.progress.streakDays],
+    [localDay(CLOCK_NOW), 1]
+  );
+
+  // The row still holds the future date, so the merge does not match it and the
+  // next upload lets the server repair it.
+  assert.equal(readingMatchesRemote(readToday, ahead), false);
+});
+
+test('a read date one day ahead is kept, since another time zone can be there already', () => {
+  const tomorrow = localDay(CLOCK_NOW, 1);
+  const merged = mergeReadingSnapshot(
+    readerOn(localDay(CLOCK_NOW), 7),
+    progressRow({ last_read_date: tomorrow, streak_days: 8 }),
+    CLOCK_NOW
+  );
+  assert.deepEqual([merged.progress.lastReadDate, merged.progress.streakDays], [tomorrow, 8]);
+});
+
+test('a future read date stored on this device (clock since corrected) comes back to today', () => {
+  const merged = mergeReadingSnapshot(readerOn(localDay(CLOCK_NOW, 10), 4), null, CLOCK_NOW);
+  assert.deepEqual(
+    [merged.progress.lastReadDate, merged.progress.streakDays],
+    [localDay(CLOCK_NOW), 4]
+  );
+  assert.equal(merged.changed, true);
+});
+
+test('chapter times more than a day ahead are taken as read now, on either side', () => {
+  const now = CLOCK_NOW.getTime();
+  const merged = mergeReadingSnapshot(
+    {
+      ...readerOn(localDay(CLOCK_NOW), 1),
+      chaptersRead: { JHN_3: now - DAY_MS, MAT_1: now + 90 * DAY_MS },
+    },
+    progressRow({
+      chapters_read: { GEN_1: now + 30 * DAY_MS, GEN_2: now + DAY_MS - 60_000, JHN_3: now + 5e12 },
+    }),
+    CLOCK_NOW
+  );
+  assert.deepEqual(merged.progress.chaptersRead, {
+    JHN_3: now,
+    MAT_1: now,
+    GEN_1: now,
+    GEN_2: now + DAY_MS - 60_000,
+  });
+});
+
+test('the upload never carries a read date past tomorrow or a chapter time past a day ahead', () => {
+  const now = CLOCK_NOW.getTime();
+  const reading = (lastReadDate: string, chaptersRead: Record<string, number>) => ({
+    progress: { chaptersRead, streakDays: 3, lastReadDate },
+    readingPosition: { bookId: 'GEN', chapter: 1 },
+    positionSource: 'local' as const,
+    changed: true,
+  });
+
+  const payload = buildRemoteProgressPayload(
+    'user-1',
+    reading(localDay(CLOCK_NOW, 40), { GEN_1: now + 40 * DAY_MS, GEN_2: now + DAY_MS }),
+    CLOCK_NOW.toISOString()
+  );
+  assert.equal(payload.last_read_date, localDay(CLOCK_NOW));
+  assert.deepEqual(payload.chapters_read, { GEN_1: now, GEN_2: now + DAY_MS });
+
+  const tomorrow = buildRemoteProgressPayload(
+    'user-1',
+    reading(localDay(CLOCK_NOW, 1), {}),
+    CLOCK_NOW.toISOString()
+  );
+  assert.equal(tomorrow.last_read_date, localDay(CLOCK_NOW, 1));
+});
+
 test('mergePreferences prefers the newer remote preferences snapshot', () => {
   const local: LocalPreferenceSnapshot = {
     preferences: {
