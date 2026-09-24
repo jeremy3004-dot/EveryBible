@@ -41,6 +41,8 @@ const {
   audio,
   catalog,
   remote,
+  modelCalls,
+  resetModelCalls,
   useBibleStore,
   renderPicker,
   rowOf,
@@ -545,11 +547,9 @@ test('text download progress redraws only its row, and only when the percentage 
   assert.ok(within(rowOf(view, NET)).getByText('41%'));
 });
 
-test('an audio job tick on one translation redraws only that row', async () => {
-  await renderPicker();
-  const mark = harness.renders.mark();
-
-  await inAct(() =>
+/** The store's per-book audio progress: a fresh copy of the downloading Bible, nothing else. */
+const audioJobTick = (progress: number) =>
+  inAct(() =>
     useBibleStore.setState((state) => ({
       translations: state.translations.map((translation) =>
         translation.id === 'bsb'
@@ -559,9 +559,9 @@ test('an audio job tick on one translation redraws only that row', async () => {
                 id: 'job-1',
                 kind: 'translation-audio',
                 state: 'running',
-                progress: 10,
+                progress,
                 startedAt: 0,
-                updatedAt: 1,
+                updatedAt: progress,
               },
             }
           : translation
@@ -569,5 +569,51 @@ test('an audio job tick on one translation redraws only that row', async () => {
     }))
   );
 
+test('an audio job tick on one translation redraws only that row', async () => {
+  await renderPicker();
+  const mark = harness.renders.mark();
+
+  await audioJobTick(10);
+
   assert.deepEqual(rowRenders(mark), onlyRow('BSB'));
+});
+
+test('audio job ticks reuse the search and language indexes; a catalog change rebuilds them once', async () => {
+  const view = await renderPicker();
+  await view.changeText(view.getByTestId('translation-picker-search'), 'Berean');
+  resetModelCalls();
+
+  await audioJobTick(10);
+  await audioJobTick(11);
+  const noRebuilds = {
+    buildTranslationSearchIndex: 0,
+    buildTranslationLanguageSearchIndex: 0,
+    buildTranslationLanguageFilters: 0,
+    buildTranslationLanguageOptions: 0,
+    resolvePreferredTranslationLanguage: 0,
+  };
+  assert.deepEqual({ ...modelCalls }, noRebuilds);
+  assert.ok(
+    within(rowOf(view, BSB)).getByText('11%'),
+    'the row still draws the newest progress from the store'
+  );
+
+  await inAct(() =>
+    useBibleStore.setState((state) => ({
+      translations: state.translations.map((translation) =>
+        translation.id === 'bsb' ? { ...translation, name: 'Berean Study Bible' } : translation
+      ),
+    }))
+  );
+  assert.deepEqual(
+    { ...modelCalls },
+    {
+      buildTranslationSearchIndex: 1,
+      buildTranslationLanguageSearchIndex: 1,
+      buildTranslationLanguageFilters: 1,
+      buildTranslationLanguageOptions: 1,
+      resolvePreferredTranslationLanguage: 1,
+    }
+  );
+  assert.ok(view.getByRole('button', { name: /^Berean Study Bible,/ }), 'the rename is searchable');
 });

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '../../../hooks/useI18n';
 import { useBibleStore } from '../../../stores/bibleStore';
 import { useTranslationPreferenceStore } from '../../../stores/translationPreferenceStore';
@@ -13,7 +13,22 @@ import {
   resolvePreferredTranslationLanguage,
   searchTranslationIndex,
 } from '../bibleTranslationModel';
-import { buildTranslationPickerRows } from './translationPickerRowsModel';
+import { buildTranslationPickerRows, hasSameIndexedCatalog } from './translationPickerRowsModel';
+
+/**
+ * The catalog snapshot the indexes were built from, kept while only download or install state
+ * changes. The store hands the picker a new array on every audio progress tick; rebuilding the
+ * search and language indexes over every Bible for that is wasted work while audio plays.
+ */
+function useIndexedCatalog(visibleTranslations: BibleTranslation[]): BibleTranslation[] {
+  const [indexedCatalog, setIndexedCatalog] = useState(visibleTranslations);
+  const isCurrent = hasSameIndexedCatalog(indexedCatalog, visibleTranslations);
+  // Adjusted during render (not in an effect) so a changed catalog is never drawn stale.
+  if (!isCurrent) {
+    setIndexedCatalog(visibleTranslations);
+  }
+  return isCurrent ? indexedCatalog : visibleTranslations;
+}
 
 /**
  * The picker list's rows for a query: matching languages while searching (or the language
@@ -34,27 +49,37 @@ export function useTranslationPickerRows(
   const hiddenIds = useTranslationPreferenceStore((state) => state.hiddenIds);
   const hasActiveSearchQuery = searchQuery.trim().length > 0;
 
+  // Everything built over the whole catalog reads this snapshot; the rows below still carry the
+  // store's newest copy of each Bible so progress and install state stay live.
+  const indexedCatalog = useIndexedCatalog(visibleTranslations);
   const languageFilters = useMemo(
-    () => buildTranslationLanguageFilters(visibleTranslations),
-    [visibleTranslations]
+    () => buildTranslationLanguageFilters(indexedCatalog),
+    [indexedCatalog]
   );
-  const searchIndex = useMemo(
-    () => buildTranslationSearchIndex(visibleTranslations),
-    [visibleTranslations]
-  );
+  const searchIndex = useMemo(() => buildTranslationSearchIndex(indexedCatalog), [indexedCatalog]);
   // Indexed equivalent of filterTranslationsBySearchQuery: catalog normalization is reused.
+  const matchingIds = useMemo(
+    () =>
+      hasActiveSearchQuery
+        ? new Set(searchTranslationIndex(searchIndex, searchQuery).map(({ id }) => id))
+        : null,
+    [hasActiveSearchQuery, searchQuery, searchIndex]
+  );
   const filteredTranslations = useMemo(
-    () => searchTranslationIndex(searchIndex, searchQuery),
-    [searchQuery, searchIndex]
+    () =>
+      matchingIds
+        ? visibleTranslations.filter((translation) => matchingIds.has(translation.id))
+        : visibleTranslations,
+    [matchingIds, visibleTranslations]
   );
   const resolvedPreferredLanguage = useMemo(
     () =>
       resolvePreferredTranslationLanguage(
-        visibleTranslations,
+        indexedCatalog,
         preferredTranslationLanguage,
         currentTranslation
       ),
-    [currentTranslation, preferredTranslationLanguage, visibleTranslations]
+    [currentTranslation, preferredTranslationLanguage, indexedCatalog]
   );
   const sections = useMemo(
     () =>
@@ -74,16 +99,16 @@ export function useTranslationPickerRows(
     ]
   );
   const languageSearchIndex = useMemo(
-    () => buildTranslationLanguageSearchIndex(visibleTranslations),
-    [visibleTranslations]
+    () => buildTranslationLanguageSearchIndex(indexedCatalog),
+    [indexedCatalog]
   );
   const languageSearchResults = useMemo(
-    () => (searchQuery.trim() ? searchTranslationIndex(languageSearchIndex, searchQuery) : []),
-    [searchQuery, languageSearchIndex]
+    () => (hasActiveSearchQuery ? searchTranslationIndex(languageSearchIndex, searchQuery) : []),
+    [hasActiveSearchQuery, searchQuery, languageSearchIndex]
   );
   const languageOptions = useMemo(
-    () => buildTranslationLanguageOptions(visibleTranslations, languageFilters),
-    [languageFilters, visibleTranslations]
+    () => buildTranslationLanguageOptions(indexedCatalog, languageFilters),
+    [indexedCatalog, languageFilters]
   );
 
   useEffect(() => {

@@ -14,6 +14,7 @@ export * from './translationDownloadStatusModel';
 export * from './translationManageModel';
 export * from './translationPickerRowsModel';
 export * from './translationSelectionModel';
+export { useDownloadStatusAnnouncements } from './useDownloadStatusAnnouncements';
 export { useLatestRef } from './useLatestRef';
 export { useTranslationDownloadProgress } from './useTranslationDownloadProgress';
 export { useTranslationPickerCatalog } from './useTranslationPickerCatalog';

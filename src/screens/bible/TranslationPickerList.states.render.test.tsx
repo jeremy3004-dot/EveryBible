@@ -186,6 +186,44 @@ test('a download that stops without installing announces the Bible as available 
   ]);
 });
 
+test('a finished download announces the Bible installed once, as it moves to My Translations', async () => {
+  // The download was superseded (another Bible was chosen meanwhile), so the picker stays open
+  // and the row reappears under My Translations with a new key.
+  const view = await renderPicker();
+  await startDownload(view, NET);
+  await textProgress('engnet', 90);
+
+  const installed = (translation: typeof NET) =>
+    translation.id === NET.id
+      ? { ...translation, isDownloaded: true, textPackLocalPath: '/packs/engnet.sqlite' }
+      : translation;
+  await inAct(() =>
+    useBibleStore.setState((state) => ({
+      downloadProgress: null,
+      translations: state.translations.map(installed),
+    }))
+  );
+
+  assert.deepEqual(rowNames(view), [
+    BSB.name,
+    KJV.name,
+    NET.name,
+    UNKNOWN_COVERAGE_AUDIO.name,
+    GOSPEL_AUDIO.name,
+  ]);
+  assert.deepEqual(harness.rn.__recorded.announcements, [
+    t('translations.downloading'),
+    t('translations.installed'),
+  ]);
+
+  await inAct(() =>
+    useBibleStore.setState((state) => ({
+      translations: state.translations.map((item) => ({ ...item })),
+    }))
+  );
+  assert.equal(harness.rn.__recorded.announcements.length, 2, 'announced once');
+});
+
 test('a failed text download is reported and offers to try again', async () => {
   const view = await renderPicker();
   await startDownload(view, NET);

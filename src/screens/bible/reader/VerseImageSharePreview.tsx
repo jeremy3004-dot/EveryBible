@@ -55,21 +55,32 @@ export function VerseImageSharePreview({
           >
             {`"${verseText || referenceLabel}"`}
           </Text>
-          <Text
+          {/* The gradient is translucent over a photo, so text drawn straight on it has no
+              knowable contrast (an accent reference vanished on a blue-grey photo). The reference
+              sits on an opaque reader-surface chip, in the reader's text colour, which the theme
+              contrast audit holds at 4.5:1. */}
+          <View
             style={[
-              styles.verseImagePreviewReference,
-              {
-                color: colors.accentGreen,
-                fontSize: referenceFontSize,
-                lineHeight: Math.round(referenceFontSize * 1.4),
-              },
+              styles.verseImagePreviewReferenceChip,
+              { backgroundColor: colors.bibleSurface },
             ]}
-            numberOfLines={2}
-            adjustsFontSizeToFit
-            minimumFontScale={0.82}
           >
-            {referenceLabel}
-          </Text>
+            <Text
+              style={[
+                styles.verseImagePreviewReference,
+                {
+                  color: colors.biblePrimaryText,
+                  fontSize: referenceFontSize,
+                  lineHeight: Math.round(referenceFontSize * 1.4),
+                },
+              ]}
+              numberOfLines={2}
+              adjustsFontSizeToFit
+              minimumFontScale={0.82}
+            >
+              {referenceLabel}
+            </Text>
+          </View>
         </View>
       </ImageBackground>
     </View>
@@ -114,6 +125,12 @@ const styles = StyleSheet.create({
     ...typography.readingDisplay,
     textAlign: 'center',
     letterSpacing: -0.2,
+  },
+  verseImagePreviewReferenceChip: {
+    maxWidth: '100%',
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
   },
   verseImagePreviewReference: {
     ...typography.label,

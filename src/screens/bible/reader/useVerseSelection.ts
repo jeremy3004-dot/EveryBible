@@ -1,6 +1,6 @@
 import type { Dispatch, RefObject, SetStateAction } from 'react';
-import { useMemo } from 'react';
-import { Alert, Share, View } from 'react-native';
+import { useMemo, useRef } from 'react';
+import { Alert, InteractionManager, Platform, Share, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useTranslation } from 'react-i18next';
 import { getTranslatedBookName } from '../../../constants';
@@ -29,6 +29,19 @@ import {
   planReaderNoteSave,
   type ReaderAnnotationEdits,
 } from '../readerAnnotationEdits';
+
+/**
+ * Longest wait for the image picker to report that it has closed. It covers a picker that was
+ * already gone (so never reports) and is well past the Modal's fade-out.
+ */
+const VERSE_IMAGE_SHEET_DISMISS_TIMEOUT_MS = Platform.OS === 'ios' ? 1000 : 300;
+
+/** Records a failed verse-image share. The crash queue is loaded only when something failed. */
+function reportVerseImageShareFailure(error: unknown) {
+  void import('../../../services/diagnostics/crashReportQueue')
+    .then(({ reportHandledError }) => reportHandledError('reader.shareImage', error))
+    .catch(() => undefined);
+}
 
 export interface UseVerseSelectionInput {
   annotations: UserAnnotation[];
@@ -192,6 +205,40 @@ export function useVerseSelection({
     setSelectedVerseImageBackgroundIndex(backgroundIndex);
   };
 
+  const verseImageSheetDismissedRef = useRef<(() => void) | null>(null);
+
+  /** The image picker Modal's onDismiss (iOS reports the end of its close animation). */
+  const handleVerseImageSheetDismissed = () => {
+    verseImageSheetDismissedRef.current?.();
+  };
+
+  // iOS presents a share sheet from the top view controller, which is the picker Modal until its
+  // fade-out ends. Presenting then fails ("… whose view is not in the window hierarchy") and the
+  // share promise never settles, so the share waits for the picker to be gone: its onDismiss on
+  // iOS (the only platform that reports one), the end of the close interaction on Android.
+  const closeVerseImageSheetAndWait = () =>
+    new Promise<void>((resolve) => {
+      let settled = false;
+      const complete = () => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        clearTimeout(timeoutId);
+        if (verseImageSheetDismissedRef.current === complete) {
+          verseImageSheetDismissedRef.current = null;
+        }
+        resolve();
+      };
+      const timeoutId = setTimeout(complete, VERSE_IMAGE_SHEET_DISMISS_TIMEOUT_MS);
+      if (Platform.OS === 'ios') {
+        verseImageSheetDismissedRef.current = complete;
+      } else {
+        InteractionManager.runAfterInteractions(complete);
+      }
+      setShowVerseImageSheet(false);
+    });
+
   const handleShareSelectedVerseImage = async () => {
     if (!selectedVerseShareText || isSharingVerseImage) {
       return;
@@ -200,36 +247,46 @@ export function useVerseSelection({
     setIsSharingVerseImage(true);
 
     try {
-      const Sharing = await import('expo-sharing');
+      // The card is captured while the picker still shows it; the sheet is presented once it's gone.
+      let shareImage: (() => Promise<void>) | null = null;
+      try {
+        const Sharing = await import('expo-sharing');
 
-      if (await Sharing.isAvailableAsync()) {
-        if (verseImageSharePreviewRef.current) {
+        if ((await Sharing.isAvailableAsync()) && verseImageSharePreviewRef.current) {
           const { captureRef } = await import('react-native-view-shot');
           const imageUri = await captureRef(verseImageSharePreviewRef, {
             format: 'png',
             quality: 1,
             result: 'tmpfile',
           });
+          shareImage = () =>
+            Sharing.shareAsync(imageUri, {
+              dialogTitle: t('groups.share'),
+              mimeType: 'image/png',
+            });
+        }
+      } catch (error) {
+        reportVerseImageShareFailure(error);
+      }
 
-          setShowVerseImageSheet(false);
+      await closeVerseImageSheetAndWait();
+      // The spinner lives in the closed picker. A native sheet that never reports back must not
+      // leave it busy when the picker is opened again.
+      setIsSharingVerseImage(false);
 
-          await Sharing.shareAsync(imageUri, {
-            dialogTitle: t('groups.share'),
-            mimeType: 'image/png',
-          });
+      if (shareImage) {
+        try {
+          // Both share sheets resolve when the user cancels; only a failure rejects.
+          await shareImage();
           return;
+        } catch (error) {
+          reportVerseImageShareFailure(error);
         }
       }
 
-      setShowVerseImageSheet(false);
       await Share.share({ message: selectedVerseShareText });
-    } catch {
-      try {
-        setShowVerseImageSheet(false);
-        await Share.share({ message: selectedVerseShareText });
-      } catch {
-        // Ignore share errors.
-      }
+    } catch (error) {
+      reportVerseImageShareFailure(error);
     } finally {
       setIsSharingVerseImage(false);
     }
@@ -310,6 +367,7 @@ export function useVerseSelection({
     handleSelectVerseImageBackground,
     handleShareSelectedVerseImage,
     handleShareSelectedVerses,
+    handleVerseImageSheetDismissed,
     highlightByVerse,
     selectedHighlightColors,
     selectedNoteAnnotation,

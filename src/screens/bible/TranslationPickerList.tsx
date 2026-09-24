@@ -21,6 +21,7 @@ import {
   pickerStyles as styles,
   translationPickerRowKey,
   translationPickerRowType,
+  useDownloadStatusAnnouncements,
   useTranslationPickerCatalog,
   useTranslationPickerDownloads,
   useTranslationPickerRows,
@@ -131,6 +132,7 @@ export function TranslationPickerList({
   const closeManageSheet = useCallback(() => setManageTranslationId(null), []);
 
   const { downloadingId, queuedId } = downloadQueueState;
+  useDownloadStatusAnnouncements(rows, queuedId);
   const renderTranslationRow = useCallback<ListRenderItem<TranslationPickerRow>>(
     ({ item }) => {
       if (item.type === 'language-search-result') {

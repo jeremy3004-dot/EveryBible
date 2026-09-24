@@ -4,6 +4,7 @@ import type { BibleTranslation } from '../../../types';
 import {
   buildTranslationPickerRows,
   groupPosition,
+  hasSameIndexedCatalog,
   translationPickerRowKey,
   translationPickerRowType,
   type TranslationPickerRowsInput,
@@ -112,4 +113,37 @@ test('the same Bible gets distinct keys in My Translations and Available', () =>
     'section-header',
     'translation',
   ]);
+});
+
+test('a catalog indexes the same while only download and install state change', () => {
+  const catalog = { version: '1', updatedAt: '2026-09-01' };
+  const bsb = { ...bible('bsb'), language: 'English', hasText: true, catalog };
+  const kjv = { ...bible('kjv'), language: 'English', hasText: true };
+  const before = [bsb, kjv];
+
+  assert.equal(hasSameIndexedCatalog(before, before), true);
+  assert.equal(
+    hasSameIndexedCatalog(before, [
+      { ...bsb, isDownloaded: true, textPackLocalPath: '/packs/bsb', activeDownloadJob: null },
+      kjv,
+    ]),
+    true,
+    'a progress tick or an install copies the Bible without changing what is searched'
+  );
+});
+
+test('a catalog indexes differently when a searched field, the order or the size changes', () => {
+  const bsb = { ...bible('bsb'), language: 'English', hasText: false, hasAudio: true };
+  const kjv = { ...bible('kjv'), language: 'English' };
+  const before = [bsb, kjv];
+
+  assert.equal(hasSameIndexedCatalog(before, [{ ...bsb, hasText: true }, kjv]), false);
+  assert.equal(hasSameIndexedCatalog(before, [{ ...bsb, language: 'Spanish' }, kjv]), false);
+  assert.equal(hasSameIndexedCatalog(before, [{ ...bsb, catalog: undefined }, kjv]), true);
+  assert.equal(
+    hasSameIndexedCatalog(before, [{ ...bsb, catalog: { version: '2', updatedAt: 'x' } }, kjv]),
+    false
+  );
+  assert.equal(hasSameIndexedCatalog(before, [kjv, bsb]), false);
+  assert.equal(hasSameIndexedCatalog(before, [bsb]), false);
 });
