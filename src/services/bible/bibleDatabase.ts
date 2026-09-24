@@ -50,16 +50,33 @@ export class BibleSearchUnavailableError extends Error {
   }
 }
 
+/**
+ * The installed pack for a translation cannot be read: its file is gone, or it is no longer a
+ * SQLite database. Either way the only way back is a re-download, which the reader offers when
+ * it sees this error (matched by name).
+ */
 export class MissingInstalledDatabaseError extends Error {
   readonly translationId: string;
   readonly localPath: string;
+  readonly reason: 'missing' | 'corrupt';
 
-  constructor(translationId: string, localPath: string) {
-    super(`Installed database file is missing for translation "${translationId}": ${localPath}`);
+  constructor(translationId: string, localPath: string, reason: 'missing' | 'corrupt' = 'missing') {
+    super(`Installed database file is ${reason} for translation "${translationId}": ${localPath}`);
     this.name = 'MissingInstalledDatabaseError';
     this.translationId = translationId;
     this.localPath = localPath;
+    this.reason = reason;
   }
+}
+
+// SQLITE_NOTADB and SQLITE_CORRUPT. expo-sqlite wraps SQLite's message in its own text on both
+// platforms, so match the message rather than a code. A busy or locked database is transient and
+// deliberately does not match: treating it as corruption would throw away a working install.
+const CORRUPT_DATABASE_MESSAGE =
+  /file is not a database|database disk image is malformed|SQLITE_(?:NOTADB|CORRUPT)\b/i;
+
+function isCorruptDatabaseError(error: unknown): boolean {
+  return CORRUPT_DATABASE_MESSAGE.test(error instanceof Error ? error.message : String(error));
 }
 
 export {
@@ -486,14 +503,46 @@ async function openInstalledDatabase(
     throw new MissingInstalledDatabaseError(source.translationId, localPath);
   }
 
-  const database = await SQLite.openDatabaseAsync(
-    source.databaseName,
-    SQLITE_OPEN_OPTIONS,
-    source.directory
-  );
-  await database.execAsync('PRAGMA journal_mode = WAL');
+  let database: SQLite.SQLiteDatabase | null = null;
+  try {
+    database = await SQLite.openDatabaseAsync(
+      source.databaseName,
+      SQLITE_OPEN_OPTIONS,
+      source.directory
+    );
+    // The first statement on a file that is not (or no longer) a database fails here.
+    await database.execAsync('PRAGMA journal_mode = WAL');
+  } catch (error) {
+    await database?.closeAsync().catch(() => undefined);
+    if (isCorruptDatabaseError(error)) {
+      throw new MissingInstalledDatabaseError(source.translationId, localPath, 'corrupt');
+    }
+    throw error;
+  }
   installedDatabaseCache.set(cacheKey, database);
   return database;
+}
+
+/**
+ * Damage that only shows once a page is read (a pack truncated or overwritten after install)
+ * surfaces from a query on a handle that opened fine. Drop that handle and report the pack as
+ * unreadable so the reader resets the install instead of failing on every chapter.
+ */
+async function toInstalledDatabaseReadError(
+  translationId: string,
+  error: unknown
+): Promise<unknown> {
+  const source = resolveBibleDatabaseSource(translationId);
+  if (source.kind !== 'installed' || !isCorruptDatabaseError(error)) {
+    return error;
+  }
+  const localPath = `${source.directory}/${source.databaseName}`;
+  try {
+    await invalidateInstalledBibleDatabaseAtPath(localPath);
+  } catch (invalidateError) {
+    console.warn('[Bible] Failed to drop the handle on a damaged text pack:', invalidateError);
+  }
+  return new MissingInstalledDatabaseError(source.translationId, localPath, 'corrupt');
 }
 
 export async function getChapter(
@@ -502,23 +551,20 @@ export async function getChapter(
   chapter: number
 ): Promise<Verse[]> {
   const database = await getDatabase(translationId);
-  const results = await database.getAllAsync<{
-    id: number;
-    book_id: string;
-    chapter: number;
-    verse: number;
-    text: string;
-    heading: string | null;
-    formatting: string | null;
-  }>(
-    `
-      SELECT id, book_id, chapter, verse, text, heading, formatting
-      FROM verses
-      WHERE translation_id = ? AND book_id = ? AND chapter = ?
-      ORDER BY verse
-    `,
-    [translationId, bookId, chapter]
-  );
+  let results: VerseRow[];
+  try {
+    results = await database.getAllAsync<VerseRow>(
+      `
+        SELECT id, book_id, chapter, verse, text, heading, formatting
+        FROM verses
+        WHERE translation_id = ? AND book_id = ? AND chapter = ?
+        ORDER BY verse
+      `,
+      [translationId, bookId, chapter]
+    );
+  } catch (error) {
+    throw await toInstalledDatabaseReadError(translationId, error);
+  }
 
   return results.map((row) => ({
     id: row.id,

@@ -1229,6 +1229,111 @@ test('concurrent first reads of an installed pack share one handle', async () =>
   );
 });
 
+test('an installed pack that is no longer a database is reported so the reader can recover it', async () => {
+  const { getChapter, setBibleDatabaseSourceResolver, MissingInstalledDatabaseError } =
+    await loadModule();
+  const localPath = `${installedDirectory}/scrambled.db`;
+  // Storage corruption, or a backup restore that wrote something other than the pack.
+  writeFileSync(localPath, Buffer.alloc(16_384, 0x5a));
+  setBibleDatabaseSourceResolver((translationId) =>
+    translationId === 'scrambled' ? installedSource('scrambled', 'scrambled.db') : null
+  );
+  resetRecorders();
+  const before = new Set(liveHandles);
+
+  await assert.rejects(
+    () => getChapter('scrambled', 'GEN', 1),
+    (error: unknown) => {
+      // The reader matches this by name to reset the install and offer a re-download; any
+      // other error leaves the translation failing on every open, with no way back.
+      assert.ok(error instanceof MissingInstalledDatabaseError);
+      assert.equal(error.name, 'MissingInstalledDatabaseError');
+      assert.equal(error.translationId, 'scrambled');
+      assert.equal(error.localPath, localPath);
+      assert.match(error.message, /corrupt/);
+      return true;
+    }
+  );
+  assert.deepEqual(handlesOpenedSince(before), [], 'the handle on the bad file is closed');
+});
+
+test('an installed pack truncated after install fails its read as a recoverable missing pack', async () => {
+  const { getChapter, getDatabase, setBibleDatabaseSourceResolver, MissingInstalledDatabaseError } =
+    await loadModule();
+  const localPath = `${installedDirectory}/cut.db`;
+  writeSeedDatabase(localPath, {
+    verses: SEED_VERSES.filter((verse) => verse.translationId === 'bsb').map((verse) => ({
+      ...verse,
+      translationId: 'cut',
+    })),
+    padRows: 400,
+  });
+  // Only the schema page and the first table page survive; every b-tree below them is gone.
+  writeFileSync(localPath, readFileSync(localPath).subarray(0, 8192));
+  setBibleDatabaseSourceResolver((translationId) =>
+    translationId === 'cut' ? installedSource('cut', 'cut.db') : null
+  );
+  resetRecorders();
+
+  await assert.rejects(
+    () => getChapter('cut', 'JHN', 3),
+    (error: unknown) => error instanceof MissingInstalledDatabaseError
+  );
+
+  resetRecorders();
+  await assert.rejects(
+    () => getDatabase('cut'),
+    (error: unknown) => error instanceof MissingInstalledDatabaseError
+  );
+  assert.equal(opens.length, 1, 'the handle on the damaged file is not cached for later reads');
+  assert.equal(closes.length, 1, 'and the retry closes the handle it opened');
+});
+
+test('corruption met while reading an open pack drops its handle and is reported as recoverable', async () => {
+  const { getChapter, getDatabase, setBibleDatabaseSourceResolver, MissingInstalledDatabaseError } =
+    await loadModule();
+  seedInstalledPack('rotted');
+  setBibleDatabaseSourceResolver((translationId) =>
+    translationId === 'rotted' ? installedSource('rotted', 'rotted.db') : null
+  );
+  await getDatabase('rotted');
+  sqliteFaults.query = {
+    match: /FROM verses\s+WHERE translation_id = \? AND book_id/,
+    error: new Error('Error code 11: database disk image is malformed'),
+    remaining: 1,
+  };
+  resetRecorders();
+
+  await assert.rejects(
+    () => getChapter('rotted', 'GEN', 1),
+    (error: unknown) => error instanceof MissingInstalledDatabaseError
+  );
+
+  assert.deepEqual(closes, [`${installedDirectory}/rotted.db`], 'the damaged handle is closed');
+});
+
+test('a locked installed pack is not mistaken for a corrupt one', async () => {
+  const { getChapter, setBibleDatabaseSourceResolver, MissingInstalledDatabaseError } =
+    await loadModule();
+  seedInstalledPack('busy');
+  setBibleDatabaseSourceResolver((translationId) =>
+    translationId === 'busy' ? installedSource('busy', 'busy.db') : null
+  );
+  sqliteFaults.query = {
+    match: /FROM verses\s+WHERE translation_id = \? AND book_id/,
+    error: new Error('database is locked'),
+    remaining: 1,
+  };
+
+  await assert.rejects(
+    () => getChapter('busy', 'GEN', 1),
+    (error: unknown) =>
+      !(error instanceof MissingInstalledDatabaseError) && /database is locked/.test(String(error)),
+    'resetting a working install over a transient lock would throw the download away'
+  );
+  assert.equal((await getChapter('busy', 'GEN', 1)).length, 1);
+});
+
 test('invalidating a pack whose first open is still in flight closes the handle it produces', async () => {
   const { getDatabase, invalidateInstalledBibleDatabaseAtPath, setBibleDatabaseSourceResolver } =
     await loadModule();
