@@ -139,7 +139,9 @@ test('restoring a request un-hides it and dismisses its open reports', async () 
 test('acting on a request that no longer exists reports it and writes no audit row', async () => {
   requestRow = null;
 
-  const url = await captureRedirect(() => hidePrayerRequestAction(formData({ requestId: '33333333-3333-4333-8333-333333333333' })));
+  const url = await captureRedirect(() =>
+    hidePrayerRequestAction(formData({ requestId: '33333333-3333-4333-8333-333333333333' }))
+  );
 
   assert.equal(url, '/prayer-reports?error=That%20request%20no%20longer%20exists');
   assert.deepEqual(callsOf('prayer_request_reports', 'update'), []);
@@ -240,9 +242,7 @@ test('banning needs the confirmation box ticked, as it hides every request by th
 
 test('a ban reason over 500 characters is refused before any write', async () => {
   const url = await captureRedirect(() =>
-    banPrayerAuthorAction(
-      formData({ userId: AUTHOR_ID, reason: 'x'.repeat(501), confirm: 'yes' })
-    )
+    banPrayerAuthorAction(formData({ userId: AUTHOR_ID, reason: 'x'.repeat(501), confirm: 'yes' }))
   );
 
   assert.equal(url, '/prayer-reports?error=The%20reason%20can%20be%20at%20most%20500%20characters');
@@ -316,7 +316,8 @@ test('a term already in the list is refused in plain words, not as a Postgres er
   service.respondTo('prayer_content_filter_terms', () => ({
     error: {
       code: '23505',
-      message: 'duplicate key value violates unique constraint "prayer_content_filter_terms_unique"',
+      message:
+        'duplicate key value violates unique constraint "prayer_content_filter_terms_unique"',
     },
   }));
 
@@ -336,7 +337,10 @@ test('a term already in the list is refused in plain words, not as a Postgres er
 for (const [name, run] of [
   ['hide', (id: string) => hidePrayerRequestAction(formData({ requestId: id }))],
   ['restore', (id: string) => restorePrayerRequestAction(formData({ requestId: id }))],
-  ['delete', (id: string) => deletePrayerRequestAction(formData({ requestId: id, confirm: 'yes' }))],
+  [
+    'delete',
+    (id: string) => deletePrayerRequestAction(formData({ requestId: id, confirm: 'yes' })),
+  ],
 ] as const) {
   test(`${name} refuses a request id that is not a uuid before any write`, async () => {
     const url = await captureRedirect(() => run('req-1; drop'));

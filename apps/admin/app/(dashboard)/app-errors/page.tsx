@@ -95,6 +95,12 @@ export default async function AppErrorsPage({ searchParams }: AppErrorsPageProps
             <h3>Most reported in the last {windowDays} days</h3>
           </div>
         </div>
+        {summary.totals.fingerprints > summary.fingerprints.length ? (
+          <p className="table-note">
+            Showing the {summary.fingerprints.length} most reported of {summary.totals.fingerprints}{' '}
+            distinct errors. The totals above count all of them.
+          </p>
+        ) : null}
 
         <div className="table-wrap">
           <table className="data-table">

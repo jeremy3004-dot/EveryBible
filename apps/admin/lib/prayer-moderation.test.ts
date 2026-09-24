@@ -314,7 +314,11 @@ test('every loader checks for an admin before it reads anything', async () => {
   isAdmin = false;
   await assert.rejects(getPrayerReportQueue('open'), /Admin identity required/);
   await assert.rejects(getPrayerFilterTerms(), /Admin identity required/);
-  for (const table of ['prayer_request_reports', 'prayer_wall_bans', 'prayer_content_filter_terms']) {
+  for (const table of [
+    'prayer_request_reports',
+    'prayer_wall_bans',
+    'prayer_content_filter_terms',
+  ]) {
     assert.deepEqual(service.callsFor(table), [], table);
   }
 });

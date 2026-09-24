@@ -58,12 +58,16 @@ export function maskToken(value: string | null | undefined): string {
   return `••••${trimmed.slice(-6)}`;
 }
 
-export function getNotice(searchParams: Record<string, string | string[] | undefined>): string | null {
+export function getNotice(
+  searchParams: Record<string, string | string[] | undefined>
+): string | null {
   const value = searchParams.notice;
   return typeof value === 'string' ? value : null;
 }
 
-export function getError(searchParams: Record<string, string | string[] | undefined>): string | null {
+export function getError(
+  searchParams: Record<string, string | string[] | undefined>
+): string | null {
   const value = searchParams.error;
   return typeof value === 'string' ? value : null;
 }

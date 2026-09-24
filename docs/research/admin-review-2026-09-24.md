@@ -99,22 +99,77 @@ its total and truncation flag from `count: 'exact'`. A `select distinct` RPC wou
   exclude `scripts/`.) Note: `output: 'standalone'` does not copy `public/`. That matters only for
   self-hosting, not on Vercel.
 
-## Open (low, not fixed)
+## Low-priority follow-ups (second pass, same day)
 
-- The data helpers in `lib/translator-access.ts` do not check for an admin themselves, unlike
-  `admin-data.ts` and `app-errors.ts`; they rely on the page's guard. Safe today, but a future page could
-  import them without that guard.
-- `/translator-access` has no `error.tsx`. `getTranslatorTeams` throws if its table is missing. The table is
-  applied live, so this cannot happen today.
-- `getSupportUserDetail` ignores a `count_user_sessions` error and shows 0 sessions.
-- `teamId` is not checked to be a UUID, so a bad value shows the Postgres cast error to the operator.
-- The cron bearer comparison is not constant-time. This predates the reviewed changes.
-- `SpreadDots.tsx` reads MapLibre's private `map._camera.transform`, which can break on a minor MapLibre
-  upgrade.
-- Six-digit team codes (the default) rely on the lockout of 10 failures per 15 minutes. This is documented on
-  the page. Move new codes to 10 or 12 digits once most translators run the updated app.
+The first pass left seven low-priority items open. Six are fixed on a later worktree branch;
+one is left on purpose.
+
+| # | Item | Outcome |
+|---|------|---------|
+| 1 | `lib/translator-access.ts` loaders relied on the page's admin check | Fixed (e4c94c3e). A new shared `lib/supabase/authorized-service.ts` (`getAuthorizedAdminServiceClient`, cached per render like `admin-data.ts`) checks the admin before it hands out the service client. All four translator-access loaders and both prayer moderation loaders use it. A test shows each loader refuses a non-admin before any query. `issueTeamPasscode` still takes a client from its caller, and only the admin-guarded actions call it. |
+| 2 | `/translator-access` had no `error.tsx` | Fixed (e4c94c3e). Added one; `/prayer-reports` got one too (5b64f0b9). |
+| 3 | `getSupportUserDetail` showed 0 sessions when `count_user_sessions` failed | Fixed (5322a437). A failed session, plan or feedback count is now `null`, and the page shows "Unavailable". Zero is a real answer ("never opened the app"), so a failure must not look like zero. |
+| 4 | `teamId` was not checked to be a UUID | Fixed (e4c94c3e). New `normalizeUuid` in `lib/format.ts`. Revoke and rotate refuse a non-UUID before any write. The prayer actions use the same check for request and author ids. |
+| 5 | Cron bearer comparison was not constant-time | Fixed (e45ba376). The route compares sha256 digests with `timingSafeEqual`, so both sides have the same length and the secret's length stays hidden. A unit test cannot measure timing. The new test covers near misses (same length, prefix, extension, case). The Fetch `Headers` class strips trailing spaces before the route sees the header. |
+| 6 | `SpreadDots.tsx` read MapLibre's private `map._camera.transform` | Mitigated (4faf9234). MapLibre 6.10 has no public equivalent (checked `maplibre-gl.d.ts`: `isLocationOccluded` exists only on the transform, and `TransformProvider` is `@internal`). The call now goes through `components/language-atlas/location-occlusion.ts`. It uses the private test while it exists. Otherwise it falls back to the public API: on a globe, hide the half facing away from the view centre; on a flat map, hide nothing. So an upgrade that moves the private test degrades the dots slightly instead of throwing in the draw loop. Remove the private path once MapLibre makes the test public. |
+| 7 | Six-digit team codes rely on the 10-per-15-minutes lockout | **Left open, on purpose.** Changing the default length is a rollout decision, not a code fix. App builds from before the keypad change stop at six digits, so a longer code cannot be typed on them (the page says so). Six stays the default until most translators run the updated app; the page already offers 10 and 12. Owner decision. |
+
+## Pages added later the same day: /prayer-reports and /app-errors
+
+### /prayer-reports (prayer wall moderation), fixed in 5b64f0b9
+
+- **Admin guard:** the page calls `requireAdminIdentity()` before loading data. All seven actions (hide,
+  restore, delete, ban, unban, add term, remove term) call it first; `serverBoundaryAuth.test.ts`
+  finds them. **Changed:** the loaders now also check for an admin themselves (see item 1).
+- **Audit logging:** all seven mutations write `admin_audit_logs`. Delete keeps the deleted text in
+  the metadata as evidence. Hide and ban also write the audit row when the follow-up report close or
+  request hide fails, and then report the partial failure. No gap found.
+- **Confirmation:** delete already needed a ticked box, checked on the server. **Changed:** a ban now
+  needs one too, checked on the server. A ban hides every request the author has posted, and lifting
+  it restores none of them. Hide, restore, unban and removing a term are all reversible, so they have
+  no confirmation.
+- **Input validation (filter terms):** trimmed, 1–100 characters, match mode, and a 2–3 letter
+  language were already checked. **Changed:**
+  - A term with no letter or number (for example `!!!`) is refused on the form. The database strips
+    spaces and punctuation before matching, so such a term could never match, and its CHECK
+    constraint answered with a raw Postgres error.
+  - Length is now counted in characters, as Postgres counts it, not in UTF-16 units.
+  - A duplicate is caught by the unique index on `(lower(term), match_mode)`. It is now reported as
+    `"Word" is already a whole-word term` instead of the raw constraint error.
+  - Request and author ids must be UUIDs.
+- **More than 1,000 rows:**
+  - **Changed:** bans and filter terms are now read page by page with `range()`. Before, they were
+    unbounded selects, silently capped at PostgREST's `max_rows`.
+  - **Changed:** the report queue still shows the newest 500. It now takes the exact total from
+    `count: 'exact'`, and the page warns "Showing the newest 500 of N".
+  - **Changed:** reported requests and groups are read 100 ids per `in` filter. 500 UUIDs in one
+    filter make a URL of about 19 kB.
+- **Empty and error states:**
+  - The queue and ban list already had empty rows. **Changed:** the filter-term table now has one too.
+  - **Changed:** added `error.tsx`, so a failed read shows a retry card instead of a 500.
+
+### /app-errors, no fixes needed
+
+- **Admin guard:** every read goes through `getAuthorizedAdminServiceClient` in `lib/app-errors.ts`,
+  which checks for an admin first.
+- **Mutations:** none. The page is read-only, so audit logging and confirmation do not apply.
+- **Input validation:** the window is limited to 7 or 30 days.
+- **More than 1,000 rows:** does not apply. `get_admin_app_error_summary` aggregates in SQL and
+  returns one `jsonb` value. The totals count every fingerprint in the window, and the list is the
+  top 50. **Changed:** the page now says "Showing the 50 most reported of N distinct errors" when
+  there are more.
+- **Empty and error states:** there is an empty row for a window with no errors, and an `error.tsx`.
 
 ## Commands run
 
 `npm run typecheck` and `npm run lint` in `apps/admin` (0 errors, 1 existing font warning); root `npm test`
 (5683 passed, 0 failed); `cd apps/admin && npx next build` (passes, and now includes the middleware).
+
+Second pass (the follow-ups above): `npm run typecheck` and `npm run lint` in `apps/admin` (0 errors, the
+same font warning); `cd apps/admin && npx next build` (passes; `/prayer-reports`, `/app-errors`,
+`/translator-access` and the middleware are in the output). Root `npm test`: 6289 passed, 9 failed. All 9
+failures are outside `apps/admin`, in files this pass did not touch: `bibleStore.textPackLifecycle` (2),
+`audioDownloadService.failures`, `chapterFeedbackReviewService`, `aggregate-engagement`,
+`track-analytics-events/validation` (3) and `track-anonymous-usage-events/validation`. They also fail
+when run on their own. This pass changes only `apps/admin` and this doc, so they fail without it too;
+their cause was not investigated here. Every `apps/admin` test passes.

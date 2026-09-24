@@ -26,8 +26,8 @@ export default function TranslatorAccessError({
         </div>
         <p className="page-copy">
           The translator teams, the shared passcode switch or its usage log failed to load. No
-          passcode was changed. Retry below. If it keeps failing, check the admin logs and that
-          the translator_team_passcodes migration is applied.
+          passcode was changed. Retry below. If it keeps failing, check the admin logs and that the
+          translator_team_passcodes migration is applied.
         </p>
         <button type="button" className="button button--primary" onClick={() => reset()}>
           Retry
