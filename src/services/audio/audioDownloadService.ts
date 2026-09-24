@@ -537,6 +537,78 @@ async function isCachedChapterSizeWrong(
   return (await fileSystem.getFileSize(fileUri)) !== expectedBytes;
 }
 
+// The size each chapter of a book was accepted at, kept as a file in the book's own directory so
+// deleting the book or translation removes it too. A resume walks every chapter again, and some
+// sources need one request per chapter to publish its size; a chapter whose file still has exactly
+// its recorded size is trusted without asking again. A partial left by an interrupted rewrite has
+// a different size, so it is still looked up and replaced.
+const VERIFIED_CHAPTER_SIZES_FILENAME = 'verified-sizes.json';
+
+interface VerifiedChapterSizes {
+  isVerified: (chapter: number, fileUri: string) => Promise<boolean>;
+  record: (chapter: number, fileUri: string) => Promise<void>;
+  /** Resolves once every recorded size has been written. */
+  flush: () => Promise<void>;
+}
+
+const UNTRACKED_CHAPTER_SIZES: VerifiedChapterSizes = {
+  isVerified: async () => false,
+  record: async () => {},
+  flush: async () => {},
+};
+
+function parseVerifiedChapterSizes(contents: string | null): Map<number, number> {
+  const sizes = new Map<number, number>();
+  if (!contents) return sizes;
+  try {
+    const parsed: unknown = JSON.parse(contents);
+    if (parsed && typeof parsed === 'object') {
+      for (const [chapter, bytes] of Object.entries(parsed)) {
+        const chapterNumber = Number(chapter);
+        if (Number.isInteger(chapterNumber) && typeof bytes === 'number' && bytes > 0) {
+          sizes.set(chapterNumber, bytes);
+        }
+      }
+    }
+  } catch {
+    // An unreadable record only costs a lookup per chapter.
+  }
+  return sizes;
+}
+
+async function openVerifiedChapterSizes(
+  fileSystem: AudioFileSystemAdapter,
+  directoryUri: string
+): Promise<VerifiedChapterSizes> {
+  const { readTextFile, writeTextFile, getFileSize } = fileSystem;
+  if (!readTextFile || !writeTextFile || !getFileSize) return UNTRACKED_CHAPTER_SIZES;
+
+  const recordUri = `${directoryUri}${VERIFIED_CHAPTER_SIZES_FILENAME}`;
+  const sizes = parseVerifiedChapterSizes(await readTextFile(recordUri).catch(() => null));
+  let writes: Promise<void> = Promise.resolve();
+
+  return {
+    isVerified: async (chapter, fileUri) => {
+      const recorded = sizes.get(chapter);
+      return recorded != null && (await getFileSize(fileUri)) === recorded;
+    },
+    record: async (chapter, fileUri) => {
+      const size = await getFileSize(fileUri);
+      if (size == null || size <= 0) return;
+      sizes.set(chapter, size);
+      const contents = JSON.stringify(Object.fromEntries(sizes));
+      // Chapters finish concurrently; writing in order keeps the last write the fullest.
+      writes = writes
+        .then(() => writeTextFile(recordUri, contents))
+        .catch((error: unknown) => {
+          console.warn('[AudioDownload] Could not save verified chapter sizes:', error);
+        });
+      await writes;
+    },
+    flush: () => writes,
+  };
+}
+
 const AUDIO_DOWNLOAD_TIMEOUT_MS = 60_000;
 
 // Per-chapter download tuning. The timeout is an INACTIVITY timeout (reset on every progress tick)
@@ -938,6 +1010,7 @@ export async function downloadAudioBook({
 
   let lastEmittedProgress = -1;
   let lastEmittedCompletedChapters = -1;
+  let verifiedSizes = UNTRACKED_CHAPTER_SIZES;
 
   const emitBookProgress = (chapter?: number): void => {
     const totalChapters = chapterTargets.length;
@@ -976,6 +1049,7 @@ export async function downloadAudioBook({
 
   try {
     await fileSystem.ensureDirectory(directoryUri);
+    verifiedSizes = await openVerifiedChapterSizes(fileSystem, directoryUri);
     await runWithConcurrency(
       chapterTargets,
       DEFAULT_CHAPTER_DOWNLOAD_CONCURRENCY,
@@ -990,17 +1064,29 @@ export async function downloadAudioBook({
         let remoteAudio: RemoteAudioAsset | null;
         if (await isValidDownloadedAudioFile(fileSystem, fileUri, true)) {
           if (signal.aborted) throw new AudioDownloadCancelledError();
+          if (await verifiedSizes.isVerified(target.chapter, fileUri)) {
+            if (signal.aborted) throw new AudioDownloadCancelledError();
+            chapterProgressByNumber.set(target.chapter, 100);
+            emitBookProgress(target.chapter);
+            return;
+          }
           // A file over the 1KB floor can still be a truncated transfer (an interrupted download
           // from an older build wrote straight to this path). When the source publishes the
           // chapter's size, a mismatch means incomplete: delete it and download again. A lookup
-          // failure keeps the file, as before, rather than failing a download that is done.
+          // failure keeps the file, as before, rather than failing a download that is done, but
+          // leaves it unverified so the next resume checks it again.
+          let lookupFailed = false;
           remoteAudio = await resolveRemoteAudio(
             translationId,
             target.bookId,
             target.chapter
-          ).catch(() => null);
+          ).catch(() => {
+            lookupFailed = true;
+            return null;
+          });
           if (signal.aborted) throw new AudioDownloadCancelledError();
           if (!(await isCachedChapterSizeWrong(fileSystem, fileUri, remoteAudio?.bytes))) {
+            if (!lookupFailed) await verifiedSizes.record(target.chapter, fileUri);
             chapterProgressByNumber.set(target.chapter, 100);
             emitBookProgress(target.chapter);
             return;
@@ -1041,6 +1127,7 @@ export async function downloadAudioBook({
         }, signal);
 
         if (signal.aborted) throw new AudioDownloadCancelledError();
+        await verifiedSizes.record(target.chapter, fileUri);
         chapterProgressByNumber.set(target.chapter, 100);
         emitBookProgress(target.chapter);
       },
@@ -1070,6 +1157,9 @@ export async function downloadAudioBook({
     throw failure;
   } finally {
     externalSignal?.removeEventListener('abort', onExternalAbort);
+    // Settle the size record before the job counts as stopped: a delete waits on that, and a
+    // late write must not land in a directory it has removed.
+    await verifiedSizes.flush();
     releaseAudioDownloadAbortController(job.id, activeDownload);
   }
 
