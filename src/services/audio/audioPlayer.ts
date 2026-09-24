@@ -130,7 +130,13 @@ class AudioPlayer {
         // resume, so Play has to load the chapter again.
         if (data.state === State.Error) this.loaded = false;
         this.lastIsPlaying = data.state === State.Playing;
-        this.lastIsBuffering = data.state === State.Buffering || data.state === State.Loading;
+        // Until Play starts a chapter being loaded, its first status (paused) and
+        // Ready are part of loading it, not a pause.
+        const isStartingChapter =
+          this.pendingLoadRequestId !== null &&
+          (data.state === State.Paused || data.state === State.Ready);
+        this.lastIsBuffering =
+          data.state === State.Buffering || data.state === State.Loading || isStartingChapter;
         this.emitSnapshot(data.state === State.Ended);
       })
     );

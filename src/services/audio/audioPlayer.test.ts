@@ -247,6 +247,42 @@ test('Buffering and Loading states both read as buffering', async () => {
   ]);
 });
 
+// Loading a chapter reports the sound as paused (its first status) and Ready before
+// Play starts it. Read as a pause, every chapter load flashed the transport, the lock
+// screen and the notification to "paused" and paused then restarted the music bed.
+test('a chapter that has loaded but not started yet reads as loading, not paused', async () => {
+  const snapshots: Array<{ isPlaying: boolean; isBuffering: boolean }> = [];
+  mod.audioPlayer.setCallbacks({
+    onStatusUpdate: (status) =>
+      snapshots.push({ isPlaying: status.isPlaying, isBuffering: status.isBuffering }),
+  });
+  let release!: () => void;
+  gates.set(
+    'loadAndPlay',
+    new Promise<void>((resolve) => {
+      release = resolve;
+    })
+  );
+  const loading = mod.audioPlayer.loadAndPlay('https://audio.test/john3.mp3');
+  await new Promise((resolve) => setImmediate(resolve));
+
+  emit(Event.PlaybackState, { state: State.Loading });
+  emit(Event.PlaybackState, { state: State.Paused });
+  emit(Event.PlaybackState, { state: State.Ready });
+  emit(Event.PlaybackState, { state: State.Playing });
+  release();
+  await loading;
+  emit(Event.PlaybackState, { state: State.Paused });
+
+  assert.deepEqual(snapshots, [
+    { isPlaying: false, isBuffering: true },
+    { isPlaying: false, isBuffering: true },
+    { isPlaying: false, isBuffering: true },
+    { isPlaying: true, isBuffering: false },
+    { isPlaying: false, isBuffering: false },
+  ]);
+});
+
 test('the merged snapshot keeps position and state from separate events', async () => {
   const snapshots: unknown[] = [];
   mod.audioPlayer.setCallbacks({ onStatusUpdate: (status) => snapshots.push(status) });
