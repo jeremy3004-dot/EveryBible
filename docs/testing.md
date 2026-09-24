@@ -19,6 +19,13 @@ node --test --experimental-test-module-mocks --import tsx \
   src/stores/bibleStore.downloads.test.ts
 ```
 
+`npm test` and `npm run test:release` set `TSX_DISABLE_CACHE=1`. On a tsx disk
+cache miss (a new worktree, an edited file, a temp fixture), tsx 4.23+ walks its
+whole shared cache directory (`$TMPDIR/tsx-<uid>`) to expire old entries, and
+the process cannot exit until that walk ends. On a machine whose cache has grown
+large, one test file then takes minutes. If a direct `node --test` run stalls
+at exit, prefix it with `TSX_DISABLE_CACHE=1`.
+
 Any `*.test.ts` or `*.test.tsx` under `src/`, `scripts/`, `apps/`, `packages/`, or
 `supabase/functions` is picked up automatically. No registration needed.
 
