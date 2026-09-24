@@ -49,7 +49,7 @@ test('BibleReaderScreen keeps verse selection available and local-only annotatio
 
   assert.match(
     source,
-    /const handleToggleVerseSelection = \(verse: Verse\) => \{\s*selectionHaptic\(\);\s*setSelectedVerses\(\(current\) =>\s*toggleBibleSelectionVerse\(current, verse\.verse\)\s*\);\s*\}/s,
+    /const handleToggleVerseSelection = \(verse: Verse\) => \{\s*if \(!canSelectDisplayedVerse\(\{[^}]*\}\)\) \{\s*return;\s*\}\s*selectionHaptic\(\);\s*setSelectedVerses\(\(current\) =>\s*toggleBibleSelectionVerse\(current, verse\.verse\)\s*\);\s*\}/s,
     'BibleReaderScreen should toggle verse selection (with selection haptic) through a shared handler when the user taps text'
   );
 

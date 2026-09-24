@@ -175,6 +175,8 @@ import {
   getNextBibleTabBarVisibility,
   getReaderAutoScrollTarget,
   getReaderInlineActiveVerse,
+  getAnnotationsForDisplayedVerses,
+  canSelectDisplayedVerse,
   getPlanSessionBannerColors,
   getReaderVerseContentOffset,
   getInitialChapterSessionMode,
@@ -1558,13 +1560,22 @@ export function BibleReaderScreen() {
     [colors.bibleAccent]
   );
   const selectedVerseSet = useMemo(() => new Set(selectedVerses), [selectedVerses]);
+  const isShowingRouteChapter = versesChapterKey === readerChapterKey(bookId, chapter);
+  // Read at press time: memoized paragraph blocks keep the verse press handler they last
+  // rendered with, which can predate the chapter change.
+  const isShowingRouteChapterRef = useRef(isShowingRouteChapter);
+  isShowingRouteChapterRef.current = isShowingRouteChapter;
+  const displayedAnnotations = getAnnotationsForDisplayedVerses({
+    annotations,
+    isShowingRouteChapter,
+  });
   const highlightByVerse = useMemo(
     () =>
       buildReaderHighlightIndex(
-        annotations,
+        displayedAnnotations,
         verses.reduce((lastVerse, verse) => Math.max(lastVerse, verse.verse), 0)
       ),
-    [annotations, verses]
+    [displayedAnnotations, verses]
   );
   // One pass over the annotation list per selection change instead of three
   // chained filters on every render (this used to run on every position tick).
@@ -1612,7 +1623,6 @@ export function BibleReaderScreen() {
     : null;
   const activeFollowAlongVerse = followAlongPlaybackState.verse;
   const didRestartFollowAlongPlayback = followAlongPlaybackState.didRestart;
-  const isShowingRouteChapter = versesChapterKey === readerChapterKey(bookId, chapter);
   const readerInlineActiveVerse = getReaderInlineActiveVerse({
     isCurrentAudioChapter,
     activeFollowAlongVerse,
@@ -4330,9 +4340,16 @@ export function BibleReaderScreen() {
         readingFontFamilyBold,
         colors,
         selectedVerses,
-        annotations,
+        annotations: displayedAnnotations,
       }),
-    [annotations, colors, readingFontFamily, readingFontFamilyBold, scaleValue, selectedVerses]
+    [
+      displayedAnnotations,
+      colors,
+      readingFontFamily,
+      readingFontFamilyBold,
+      scaleValue,
+      selectedVerses,
+    ]
   );
   const renderParagraphBlock = useCallback(
     ({ item, index }: { item: ReaderParagraph; index: number }): ReactElement => (
@@ -4428,6 +4445,9 @@ export function BibleReaderScreen() {
     };
 
     const handleToggleVerseSelection = (verse: Verse) => {
+      if (!canSelectDisplayedVerse({ isShowingRouteChapter: isShowingRouteChapterRef.current })) {
+        return;
+      }
       selectionHaptic();
       setSelectedVerses((current) => toggleBibleSelectionVerse(current, verse.verse));
     };
@@ -4631,7 +4651,7 @@ export function BibleReaderScreen() {
           readingFontFamilyBold,
           colors,
           selectedVerses,
-          annotations,
+          annotations: displayedAnnotations,
         });
     const premiumReaderListExtraData = `${readerInlineActiveVerse ?? 'none'}|${paragraphRenderSignature}`;
 
