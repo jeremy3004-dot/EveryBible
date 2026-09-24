@@ -293,8 +293,8 @@ test('PlanDetailScreen exposes a stable selector for the active current-day row'
   );
   assert.match(
     source,
-    /const accessibilityLabel = isCurrent\s*\? `\$\{t\('interface\.currentPlanDay', \{ day: dayNumber \}\)\}/,
-    'PlanDetailScreen should localize the current-day label while retaining its day number'
+    /const \{ label: accessibilityLabel, value: accessibilityValue \} = getPlanDayRowAccessibility\(t, \{/,
+    'PlanDetailScreen should build the day label through getPlanDayRowAccessibility (planDayRowAccessibility.test.ts covers its wording)'
   );
   assert.match(
     source,

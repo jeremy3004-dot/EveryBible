@@ -23,7 +23,7 @@ import {
 } from '../../data/gatherWisdom';
 import { useGatherStore } from '../../stores/gatherStore';
 import { getTranslatedBookName } from '../../constants/books';
-import { resolveGatherUpNext } from './gatherPathModel';
+import { countCompletedLessons, resolveGatherUpNext } from './gatherPathModel';
 import type { LearnStackParamList } from '../../navigation/types';
 
 type NavProp = NativeStackNavigationProp<LearnStackParamList, 'GatherHome'>;
@@ -144,8 +144,8 @@ export function GatherScreen() {
   // re-render when a lesson is marked complete on another screen.
   const completedLessons = useGatherStore((state) => state.completedLessons);
 
-  const completedIn = (parentId: string, total: number) =>
-    Math.min(completedLessons[parentId]?.length ?? 0, total);
+  const completedIn = (parent: { id: string; lessons: readonly { id: string }[] }) =>
+    countCompletedLessons(completedLessons[parent.id], parent.lessons);
 
   const translate = (key: string | undefined, fallback: string) =>
     key ? t(key as Parameters<typeof t>[0]) : fallback;
@@ -280,7 +280,7 @@ export function GatherScreen() {
 
           {gatherFoundations.map((foundation, index) => {
             const total = foundation.lessons.length;
-            const completed = completedIn(foundation.id, total);
+            const completed = completedIn(foundation);
             return (
               <View key={foundation.id}>
                 {index > 0 && (
@@ -313,7 +313,7 @@ export function GatherScreen() {
               0
             );
             const categoryCompleted = category.wisdoms.reduce(
-              (total, wisdom) => total + completedIn(wisdom.id, wisdom.lessonCount),
+              (total, wisdom) => total + completedIn(wisdom),
               0
             );
             return (
@@ -346,7 +346,7 @@ export function GatherScreen() {
                 <View style={[styles.listRule, { backgroundColor: colors.primaryText }]} />
 
                 {category.wisdoms.map((wisdom, index) => {
-                  const completed = completedIn(wisdom.id, wisdom.lessonCount);
+                  const completed = completedIn(wisdom);
                   return (
                     <View key={wisdom.id}>
                       {index > 0 && (
@@ -445,9 +445,11 @@ const styles = StyleSheet.create({
     gap: 14,
     paddingVertical: 14,
   },
+  // A floor, not a width: "10" in the numeral face at accessibility sizes is
+  // wider than 34pt and broke onto two lines.
   pathNumeral: {
     ...typography.numeralRow,
-    width: 34,
+    minWidth: 34,
   },
   pathBody: {
     flex: 1,

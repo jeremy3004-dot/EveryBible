@@ -104,3 +104,40 @@ test('prepareChapterAudioShareAsset returns null when the chapter audio cannot b
 
   assert.equal(asset, null);
 });
+
+test('getChapterAudioShareFileUri refuses ids that would escape the share cache', () => {
+  assert.throws(
+    () => getChapterAudioShareFileUri('../../Library', 'JHN', 3, 'm4a'),
+    /translation id/
+  );
+  assert.throws(() => getChapterAudioShareFileUri('bsb', '../Documents', 3, 'm4a'), /book id/);
+  assert.throws(() => getChapterAudioShareFileUri('bsb', 'JHN/..', 3, 'm4a'), /book id/);
+});
+
+test('getChapterAudioShareFileUri refuses a chapter or extension that is not a plain file-name part', () => {
+  assert.throws(() => getChapterAudioShareFileUri('bsb', 'JHN', Number.NaN, 'm4a'), /chapter/);
+  assert.throws(() => getChapterAudioShareFileUri('bsb', 'JHN', -1, 'm4a'), /chapter/);
+  assert.throws(() => getChapterAudioShareFileUri('bsb', 'JHN', 3, 'm4a/../../x'), /extension/);
+});
+
+test('prepareChapterAudioShareAsset touches no file when the ids are unsafe', async () => {
+  const { fileSystem, directories, downloads } = createFileSystemDouble();
+
+  await assert.rejects(
+    prepareChapterAudioShareAsset({
+      translationId: '../../tmp',
+      bookId: 'GEN',
+      chapter: 1,
+      fileSystem,
+      resolveDownloadedAudioUri: async () => null,
+      resolveRemoteAudio: async () => ({
+        url: 'https://ebible.org/eng-webbe/mp3/eng-webbe_002_GEN_01.mp3',
+        duration: 0,
+      }),
+    }),
+    /translation id/
+  );
+
+  assert.deepEqual(Array.from(directories), []);
+  assert.deepEqual(downloads, []);
+});

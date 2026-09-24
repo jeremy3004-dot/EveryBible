@@ -8,6 +8,26 @@ let isForeground = () => false;
 // own callback receives the same background event.
 export const canReportUsage = (): boolean => allowed && isForeground();
 
+// Other optional uploaders (crash reports) follow the same policy without
+// installing a second set of AppState/NetInfo listeners.
+const listeners = new Set<() => void>();
+const notifyListeners = () => {
+  for (const listener of listeners) {
+    try {
+      listener();
+    } catch {
+      // A failing subscriber must not stop the usage queue's own reaction.
+    }
+  }
+};
+
+export function subscribeToReportingPolicy(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
 export function installReportingPolicy(onChange: () => void): () => void {
   // Only the deferred runtime owner calls this. No native reads at module load.
   const { AppState } = require('react-native') as typeof import('react-native');
@@ -31,6 +51,7 @@ export function installReportingPolicy(onChange: () => void): () => void {
     if (next === allowed) return;
     allowed = next;
     onChange();
+    notifyListeners();
   };
   const appSubscription = AppState.addEventListener('change', (status) => {
     const nextActive = status === 'active';
@@ -70,5 +91,6 @@ export function installReportingPolicy(onChange: () => void): () => void {
     appSubscription.remove();
     allowed = false;
     onChange();
+    notifyListeners();
   };
 }

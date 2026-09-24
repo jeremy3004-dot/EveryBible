@@ -84,6 +84,13 @@ export const en = {
     currentPlanDay: 'Current plan day {{day}}',
     planDay: 'Day {{day}}',
     planSessionForDay: '{{session}} for day {{day}}',
+    prayerYouPrayed: 'You prayed for this',
+    prayerYouEncouraged: 'You encouraged this',
+    prayerPrayedRemoved: 'Prayer mark removed',
+    prayerEncouragedRemoved: 'Encouragement removed',
+    highlightAdded: 'Highlight added',
+    highlightRemoved: 'Highlight removed',
+    searchResultCount: 'Results: {{count}}',
     music: {
       off: {
         label: 'Off',
@@ -475,6 +482,9 @@ export const en = {
     noLanguagesFound: 'No language matches yet',
     noLanguagesFoundBody:
       'Try another spelling or search in English or the local script. Fuzzy search is enabled.',
+    catalogUnavailableTitle: "Can't reach the Bible library",
+    catalogUnavailableBody:
+      'Check your internet connection and try again. The Bibles below are already on this device and work offline.',
     recommendedBadge: 'Recommended',
     interfaceAvailable: 'Interface available',
     privacyTitle: 'Choose icon',
@@ -522,6 +532,9 @@ export const en = {
     available: 'Available',
     translationComingSoon: '{{name}} will be available for download in a future update.',
     failedToLoad: 'We could not load this chapter right now.',
+    translationDownloadFailedTitle: 'Download failed',
+    translationDownloadFailed:
+      "This Bible didn't finish downloading. Check your internet connection and free storage space, then try again.",
     searchUnavailable: 'Full-text search is not available for this translation yet.',
     noVersesAvailable: '{{book}} {{chapter}} does not have written text yet.',
     fullBibleComingSoon: "This chapter isn't available as text or audio in this translation yet.",
@@ -768,6 +781,9 @@ export const en = {
       'Please enable notifications in your device settings to receive daily reminders.',
     notificationTitle: 'Daily Bible Reading',
     notificationBody: 'Time for your daily Bible reading!',
+    notificationsBlockedNotice:
+      "Notifications for EveryBible are turned off in your device settings, so this reminder can't appear.",
+    openDeviceSettings: 'Open Settings',
     selectLanguage: 'Choose interface language',
     deleteAccount: 'Delete Account',
     deleteAccountWarning:
@@ -920,9 +936,9 @@ export const en = {
     resetPasswordSuccess: 'Your password has been updated',
     resetPasswordError: 'Failed to update your password',
     resetLinkConfirmTitle: 'Set a new password?',
-    resetLinkConfirmBody: 'This link sets a new password for {{email}}. Continue?',
-    resetLinkDifferentAccount:
-      'This reset link belongs to a different account. Sign out of this account first, then open the link again.',
+    resetLinkWrongDevice:
+      'This reset link only works on the device where you asked for it. Open it there, or send a new link from this device.',
+    sendNewResetLink: 'Send a New Link',
     resetPasswordInvalidSession:
       'This reset link is invalid or has expired. Please request a new one.',
   },
@@ -2004,6 +2020,7 @@ export const en = {
     decreaseTextSize: 'Decrease text size',
     increaseTextSize: 'Increase text size',
     noPassageText: 'No passage text available',
+    passageLoadFailed: "We couldn't load this passage.",
     listenToStoryAgain: 'Listen to the story again',
     shareApp: 'Share app',
   },

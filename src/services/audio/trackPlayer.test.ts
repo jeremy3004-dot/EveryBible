@@ -499,7 +499,7 @@ test('a stalled status update that is neither playing nor buffering reports Paus
   });
 });
 
-test('didJustFinish ends the queue and returns the player to Ready', async () => {
+test('didJustFinish reports the Ended state and then ends the queue', async () => {
   await mod.default.add(track('gen1'));
   soundInstances[0].emitStatus({ isLoaded: true, positionMillis: 0, isPlaying: true });
   const events = recordEvents();
@@ -517,7 +517,7 @@ test('didJustFinish ends the queue and returns the player to Ready', async () =>
       event: mod.Event.PlaybackProgressUpdated,
       data: { position: 60, duration: 60, buffered: 60 },
     },
-    { event: mod.Event.PlaybackState, data: { state: mod.State.Ready } },
+    { event: mod.Event.PlaybackState, data: { state: mod.State.Ended } },
     { event: mod.Event.PlaybackQueueEnded, data: {} },
   ]);
 });

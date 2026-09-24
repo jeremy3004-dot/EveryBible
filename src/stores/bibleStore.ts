@@ -88,6 +88,18 @@ function invalidateInstalledBibleDatabaseAtPath(localPath: string): Promise<void
   return bibleDatabase.invalidateInstalledBibleDatabaseAtPath(localPath);
 }
 
+// Packs are published without a full-text index. Build it inside the pack in the background so
+// word search works offline; until it finishes, search answers with a substring scan.
+function scheduleTextPackSearchIndexBuild(translationId: string): void {
+  try {
+    const bibleDatabase =
+      require('../services/bible/bibleDatabase') as typeof import('../services/bible/bibleDatabase');
+    void bibleDatabase.scheduleTextPackSearchIndexBuild(translationId);
+  } catch (error) {
+    console.warn('[Bible] Could not start the text pack search index build:', translationId, error);
+  }
+}
+
 type AudioDownloadModules = typeof import('../services/audio/audioDownloadService') &
   typeof import('../services/audio/audioDownloadStorage') &
   typeof import('../services/audio/audioRemote');
@@ -1153,6 +1165,7 @@ export const useBibleStore = create<BibleState>()(
           } catch (readbackError) {
             const { deleteCatalogTextPackArtifacts } =
               await import('../services/bible/cloudTranslationService');
+            await invalidateInstalledBibleDatabaseAtPath(localPath).catch(() => {});
             await deleteCatalogTextPackArtifacts(localPath).catch(() => {});
             set((state) => ({
               translations: state.translations.map((item) =>
@@ -1183,6 +1196,8 @@ export const useBibleStore = create<BibleState>()(
             try {
               const { deleteCatalogTextPackArtifacts } =
                 await import('../services/bible/cloudTranslationService');
+              // Close the old pack's handle and stop any search index build on it first.
+              await invalidateInstalledBibleDatabaseAtPath(previousTextPackPath);
               await deleteCatalogTextPackArtifacts(previousTextPackPath);
             } catch (cleanupError) {
               // The newly registered candidate remains authoritative; retain the old copy if
@@ -1191,6 +1206,7 @@ export const useBibleStore = create<BibleState>()(
             }
           }
 
+          scheduleTextPackSearchIndexBuild(translationId);
           trackBibleStoreEvent('text_translation_download_completed', {
             content_kind: 'text',
             download_scope: 'translation',
@@ -1627,8 +1643,22 @@ export const useBibleStore = create<BibleState>()(
         const state = get();
         const translation = state.translations.find((item) => item.id === translationId);
 
-        if (!translation || !hasTranslationDownloadData(translation)) {
+        // A translation whose first audio download is still running has no finished books yet,
+        // but its partial files and running loop still need cleaning up.
+        if (
+          !translation ||
+          (!hasTranslationDownloadData(translation) && !translation.activeDownloadJob)
+        ) {
           return;
+        }
+
+        // Stop every writer before deleting anything: a download loop left running would put
+        // chapters back into the deleted folder and mark their books downloaded again.
+        try {
+          const audio = await loadAudioDownloadModules();
+          await audio.cancelAudioDownloadsForTranslation(translationId);
+        } catch (error) {
+          console.warn('[Bible] Failed to stop translation audio downloads:', translationId, error);
         }
 
         const pendingJournalInstall = readTextPackInstallJournal().installs[translationId];
@@ -1676,17 +1706,6 @@ export const useBibleStore = create<BibleState>()(
 
         try {
           const audio = await loadAudioDownloadModules();
-          await deleteFileSystemPath(`${audio.AUDIO_DOWNLOAD_ROOT_URI}${translationId}/`);
-        } catch (error) {
-          console.warn(
-            '[Bible] Failed to remove translation audio downloads:',
-            translationId,
-            error
-          );
-        }
-
-        try {
-          const audio = await loadAudioDownloadModules();
           const jobStore = await audio.createAudioDownloadJobStore({
             fileSystem: audio.expoAudioFileSystemAdapter,
             rootUri: audio.AUDIO_DOWNLOAD_ROOT_URI,
@@ -1709,6 +1728,18 @@ export const useBibleStore = create<BibleState>()(
           );
         } catch (error) {
           console.warn('[Bible] Failed to clear translation download jobs:', translationId, error);
+        }
+
+        // Removes finished chapters and any partial transfer files with them.
+        try {
+          const audio = await loadAudioDownloadModules();
+          await deleteFileSystemPath(`${audio.AUDIO_DOWNLOAD_ROOT_URI}${translationId}/`);
+        } catch (error) {
+          console.warn(
+            '[Bible] Failed to remove translation audio downloads:',
+            translationId,
+            error
+          );
         }
 
         let nextTranslationsSnapshot: BibleTranslation[] = [];
@@ -1828,7 +1859,11 @@ setBibleDatabaseSourceResolver((translationId) => {
     return null;
   }
 
-  return buildInstalledBibleDatabaseSource(translation.id, translation.textPackLocalPath);
+  return buildInstalledBibleDatabaseSource(
+    translation.id,
+    translation.textPackLocalPath,
+    translation.activeTextPackVersion
+  );
 });
 
 setBibleTranslationReadinessResolver(async (translationId) => {

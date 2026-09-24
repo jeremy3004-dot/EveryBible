@@ -4,6 +4,7 @@ import type { BibleTranslation } from '../../types';
 import {
   activateTranslationPackCandidate,
   BUNDLED_BIBLE_SCHEMA_VERSION,
+  buildBibleFallbackSearchTerms,
   buildBibleSearchQuery,
   buildBibleSubstringSearchTerms,
   buildInstalledBibleDatabaseSource,
@@ -82,6 +83,63 @@ test('parseTranslationCatalogManifest drops an el-manifest audio block with a no
   // hasAudio:true + an unparseable el-manifest audio block drops the whole translation
   // (parseManifestTranslation requires audio when hasAudio is true), so it must not leak in.
   assert.equal(parsed.translations.length, 0);
+});
+
+test('parseTranslationCatalogManifest upgrades plain-http media urls to https in a release build', () => {
+  const parsed = parseTranslationCatalogManifest({
+    manifestVersion: '2026.09.24',
+    issuedAt: '2026-09-24T00:00:00.000Z',
+    translations: [
+      {
+        id: 'npiulb',
+        name: 'Nepali ULB',
+        abbreviation: 'NPIULB',
+        language: 'Nepali',
+        description: 'Text and audio',
+        copyright: 'CC BY-SA 4.0',
+        hasText: true,
+        hasAudio: true,
+        audioGranularity: 'chapter',
+        totalBooks: 66,
+        sizeInMB: 4,
+        text: {
+          format: 'sqlite',
+          version: '1',
+          downloadUrl: 'http://cdn.example.com/text/npiulb.sqlite',
+          sha256: 'a'.repeat(64),
+        },
+        audio: {
+          strategy: 'stream-template',
+          baseUrl: 'http://cdn.example.com/audio/npiulb',
+          chapterPathTemplate: '{bookId}/{chapter}.mp3',
+        },
+      },
+      {
+        id: 'lqdtest',
+        name: 'LangQuest Distribution Test',
+        abbreviation: 'LQDT',
+        language: 'Test Language',
+        description: 'Every Language audio-only entry',
+        copyright: 'Public Domain audio (CC0 1.0)',
+        hasText: false,
+        hasAudio: true,
+        audioGranularity: 'chapter',
+        totalBooks: 66,
+        sizeInMB: 0,
+        audio: {
+          strategy: 'el-manifest',
+          manifestUrl: '/manifests/audio/lqdtest/v.json',
+          audioVersion: 'v2026-07-20-1',
+          catalogBaseUrl: 'http://lqd-media.example.com',
+        },
+      },
+    ],
+  });
+
+  const [npiulb, lqdtest] = parsed.translations;
+  assert.equal(npiulb?.text?.downloadUrl, 'https://cdn.example.com/text/npiulb.sqlite');
+  assert.equal(npiulb?.audio?.baseUrl, 'https://cdn.example.com/audio/npiulb');
+  assert.equal(lqdtest?.audio?.catalogBaseUrl, 'https://lqd-media.example.com');
 });
 
 function createPackTranslation(
@@ -480,7 +538,7 @@ test('parseTranslationCatalogManifest keeps the mime type and signature of an el
       strategy: 'el-manifest',
       manifestUrl: '/manifests/audio/lqdtest/v1.json',
       audioVersion: 'v1',
-      catalogBaseUrl: 'HTTP://lqd-media.example.com',
+      catalogBaseUrl: 'https://lqd-media.example.com',
       mimeType: 'audio/mpeg',
       signature: 'el-sig',
     }),
@@ -488,7 +546,7 @@ test('parseTranslationCatalogManifest keeps the mime type and signature of an el
       strategy: 'el-manifest',
       manifestUrl: '/manifests/audio/lqdtest/v1.json',
       audioVersion: 'v1',
-      catalogBaseUrl: 'HTTP://lqd-media.example.com',
+      catalogBaseUrl: 'https://lqd-media.example.com',
       mimeType: 'audio/mpeg',
       signature: 'el-sig',
     }
@@ -669,4 +727,33 @@ test('buildBibleSubstringSearchTerms caps the number of substring terms', () => 
     buildBibleSubstringSearchTerms(query),
     Array.from({ length: 8 }, (_, index) => `神${index}`)
   );
+});
+
+test('buildInstalledBibleDatabaseSource carries the installed pack version when one is known', () => {
+  assert.deepEqual(
+    buildInstalledBibleDatabaseSource('niv', 'file:///packs/niv.db', '2026.09.01-v2'),
+    {
+      kind: 'installed',
+      translationId: 'niv',
+      databaseName: 'niv.db',
+      directory: 'file:///packs',
+      packVersion: '2026.09.01-v2',
+    }
+  );
+  assert.equal(
+    buildInstalledBibleDatabaseSource('niv', 'file:///packs/niv.db', null)?.packVersion,
+    undefined
+  );
+});
+
+test('buildBibleFallbackSearchTerms lists the case spellings of each word for a substring scan', () => {
+  assert.deepEqual(buildBibleFallbackSearchTerms('lord'), [['lord', 'Lord', 'LORD']]);
+  assert.deepEqual(buildBibleFallbackSearchTerms('Бог любовь'), [
+    ['Бог', 'бог', 'БОГ'],
+    ['любовь', 'Любовь', 'ЛЮБОВЬ'],
+  ]);
+  // Uncased scripts have one spelling; marks stay inside the word, as in the FTS query.
+  assert.deepEqual(buildBibleFallbackSearchTerms('प्रेम'), [['प्रेम']]);
+  assert.deepEqual(buildBibleFallbackSearchTerms('% _ "'), []);
+  assert.equal(buildBibleFallbackSearchTerms('a b c d e f g h i j').length, 8);
 });

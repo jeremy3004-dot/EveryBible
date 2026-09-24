@@ -1,218 +1,138 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  decodeRecoveryTokenClaims,
-  parseAuthRecoveryTokens,
-  resolveRecoveryLinkAudience,
+  classifyRecoveryExchangeError,
+  parseRecoveryLink,
+  recoveryProblemMessageKey,
 } from './authRecoveryLink';
 
-test('parseAuthRecoveryTokens extracts access/refresh tokens from a fragment-based recovery link', () => {
-  const url =
-    'com.everybible.app://reset-password#access_token=abc123&refresh_token=def456&type=recovery';
+const CODE = '6f1c7a0e-2b7d-4a55-9d7e-3f0b8f2c1a90';
 
-  assert.deepEqual(parseAuthRecoveryTokens(url), {
-    accessToken: 'abc123',
-    refreshToken: 'def456',
+test('a PKCE reset link yields its authorization code', () => {
+  assert.deepEqual(parseRecoveryLink(`com.everybible.app://reset-password?code=${CODE}`), {
+    kind: 'code',
+    code: CODE,
   });
 });
 
-test('parseAuthRecoveryTokens extracts tokens from a query-based recovery link', () => {
-  const url =
-    'com.everybible.app://reset-password?access_token=abc123&refresh_token=def456&type=recovery';
-
-  assert.deepEqual(parseAuthRecoveryTokens(url), {
-    accessToken: 'abc123',
-    refreshToken: 'def456',
+test('the reset link is accepted with a trailing slash and a mixed-case scheme and host', () => {
+  assert.deepEqual(parseRecoveryLink(`COM.EVERYBIBLE.APP://Reset-Password/?code=${CODE}`), {
+    kind: 'code',
+    code: CODE,
   });
 });
 
-test('parseAuthRecoveryTokens decodes URL-encoded token characters', () => {
-  const url =
-    'com.everybible.app://reset-password#access_token=abc%2F123&refresh_token=def456&type=recovery';
-
-  assert.deepEqual(parseAuthRecoveryTokens(url), {
-    accessToken: 'abc/123',
-    refreshToken: 'def456',
-  });
+test('a code that is not a plain token is refused rather than sent to Supabase', () => {
+  for (const code of ['', 'abc', 'a b c d e f g h', `${CODE}%00`, 'x'.repeat(200)]) {
+    assert.deepEqual(
+      parseRecoveryLink(`com.everybible.app://reset-password?code=${code}`),
+      { kind: 'unusable', reason: 'missing-code' },
+      `code ${JSON.stringify(code)}`
+    );
+  }
 });
 
-test('parseAuthRecoveryTokens returns null for non-recovery auth links', () => {
-  const url =
-    'com.everybible.app://reset-password#access_token=abc123&refresh_token=def456&type=signup';
-
-  assert.equal(parseAuthRecoveryTokens(url), null);
-});
-
-test('parseAuthRecoveryTokens returns null when tokens are missing', () => {
-  assert.equal(parseAuthRecoveryTokens('com.everybible.app://reset-password#type=recovery'), null);
-});
-
-test('parseAuthRecoveryTokens returns null for links with no fragment or query', () => {
-  assert.equal(parseAuthRecoveryTokens('com.everybible.app://reset-password'), null);
-});
-
-test('parseAuthRecoveryTokens returns null for unrelated deep links', () => {
-  assert.equal(parseAuthRecoveryTokens('com.everybible.app://bible/jhn/3/16'), null);
-});
-
-test('parseAuthRecoveryTokens rejects recovery-looking links from other hosts under our scheme', () => {
-  assert.equal(
-    parseAuthRecoveryTokens(
-      'com.everybible.app://bible#access_token=abc123&refresh_token=def456&type=recovery'
-    ),
-    null
-  );
-});
-
-test('parseAuthRecoveryTokens rejects host prefixes that only look like reset-password', () => {
-  assert.equal(
-    parseAuthRecoveryTokens(
-      'com.everybible.app://reset-password.attacker.example#access_token=abc123&refresh_token=def456&type=recovery'
-    ),
-    null
-  );
-  assert.equal(
-    parseAuthRecoveryTokens(
-      'com.everybible.app://reset-passwordx#access_token=abc123&refresh_token=def456&type=recovery'
-    ),
-    null
-  );
-});
-
-test('parseAuthRecoveryTokens rejects other schemes carrying a crafted recovery fragment', () => {
-  assert.equal(
-    parseAuthRecoveryTokens(
-      'https://everybible.app/reset-password#access_token=abc123&refresh_token=def456&type=recovery'
-    ),
-    null
-  );
-  assert.equal(
-    parseAuthRecoveryTokens(
-      'exp://127.0.0.1:8081/--/reset-password#access_token=abc123&refresh_token=def456&type=recovery'
-    ),
-    null
-  );
-  assert.equal(
-    parseAuthRecoveryTokens(
-      'evil://reset-password#access_token=abc123&refresh_token=def456&type=recovery'
-    ),
-    null
-  );
-});
-
-test('parseAuthRecoveryTokens accepts the app link with a trailing slash and mixed-case scheme', () => {
+// Emails sent before the PKCE switch carry a live session in the fragment.
+// Accepting them is exactly the scheme-hijack exposure, so they are refused.
+test('an old implicit-flow link carrying session tokens is refused', () => {
   assert.deepEqual(
-    parseAuthRecoveryTokens(
-      'COM.EVERYBIBLE.APP://Reset-Password/#access_token=abc123&refresh_token=def456&type=recovery'
+    parseRecoveryLink(
+      'com.everybible.app://reset-password#access_token=abc123&refresh_token=def456&type=recovery'
     ),
-    { accessToken: 'abc123', refreshToken: 'def456' }
+    { kind: 'unusable', reason: 'legacy-token' }
+  );
+  assert.deepEqual(
+    parseRecoveryLink(
+      'com.everybible.app://reset-password?access_token=abc123&refresh_token=def456&type=recovery'
+    ),
+    { kind: 'unusable', reason: 'legacy-token' }
   );
 });
 
-function encodeJwtPayload(payload: Record<string, unknown>): string {
-  const body = Buffer.from(JSON.stringify(payload), 'utf8')
-    .toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
-  return `header.${body}.signature`;
-}
-
-test('decodeRecoveryTokenClaims reads the email and subject from an access token payload', () => {
-  const token = encodeJwtPayload({
-    email: 'reader@example.com',
-    sub: 'user-123',
-    role: 'authenticated',
-  });
-
-  assert.deepEqual(decodeRecoveryTokenClaims(token), {
-    email: 'reader@example.com',
-    subject: 'user-123',
-  });
-});
-
-test('decodeRecoveryTokenClaims handles non-ASCII payloads without atob', () => {
-  const token = encodeJwtPayload({ email: 'lecteur+é@exämple.com', sub: 'user-é' });
-
-  assert.deepEqual(decodeRecoveryTokenClaims(token), {
-    email: 'lecteur+é@exämple.com',
-    subject: 'user-é',
-  });
-});
-
-test('decodeRecoveryTokenClaims returns empty claims for malformed tokens', () => {
-  assert.deepEqual(decodeRecoveryTokenClaims('not-a-jwt'), { email: null, subject: null });
-  assert.deepEqual(decodeRecoveryTokenClaims('a.!!!!.c'), { email: null, subject: null });
-  assert.deepEqual(decodeRecoveryTokenClaims(encodeJwtPayload({})), { email: null, subject: null });
-});
-
-// Builds a token whose payload segment is the given raw bytes (not JSON-encoded).
-function tokenWithPayloadBytes(bytes: number[] | string, padded = false): string {
-  const encoded = Buffer.from(typeof bytes === 'string' ? Buffer.from(bytes, 'utf8') : bytes)
-    .toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_');
-  return `header.${padded ? encoded : encoded.replace(/=+$/, '')}.signature`;
-}
-
-test('decodeRecoveryTokenClaims decodes three- and four-byte UTF-8 claims and tolerates base64 padding', () => {
-  const token = tokenWithPayloadBytes(
-    JSON.stringify({ email: '読者📖@example.com', sub: 'u' }),
-    true
+test('a link that carries both a code and session tokens is refused', () => {
+  assert.deepEqual(
+    parseRecoveryLink(`com.everybible.app://reset-password?code=${CODE}#access_token=abc123`),
+    { kind: 'unusable', reason: 'legacy-token' }
   );
-  assert.match(token, /=\.signature$/);
+});
 
-  assert.deepEqual(decodeRecoveryTokenClaims(token), {
-    email: '読者📖@example.com',
-    subject: 'u',
+test('the error redirect Supabase sends for an expired or used email link is recognised', () => {
+  assert.deepEqual(
+    parseRecoveryLink(
+      'com.everybible.app://reset-password?error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired'
+    ),
+    { kind: 'unusable', reason: 'link-error' }
+  );
+  assert.deepEqual(
+    parseRecoveryLink(
+      'com.everybible.app://reset-password#error=access_denied&error_code=otp_expired'
+    ),
+    { kind: 'unusable', reason: 'link-error' }
+  );
+});
+
+test('a bare reset link with nothing to exchange is unusable', () => {
+  assert.deepEqual(parseRecoveryLink('com.everybible.app://reset-password'), {
+    kind: 'unusable',
+    reason: 'missing-code',
   });
 });
 
-test('decodeRecoveryTokenClaims rejects payloads that are not valid UTF-8', () => {
-  const invalid: Record<string, number[]> = {
-    'a stray continuation byte as a lead byte': [0x7b, 0x80, 0x7d],
-    'an overlong two-byte lead': [0x7b, 0xc0, 0x80, 0x7d],
-    'a sequence truncated at the end': [0x7b, 0xe3, 0x81],
-    'a lead byte followed by ASCII instead of a continuation': [0x7b, 0xe3, 0x41, 0x41, 0x7d],
-    'a code point above U+10FFFF': [0x7b, 0xf4, 0x90, 0x80, 0x80, 0x7d],
-  };
-
-  for (const [label, bytes] of Object.entries(invalid)) {
-    assert.deepEqual(
-      decodeRecoveryTokenClaims(tokenWithPayloadBytes(bytes)),
-      { email: null, subject: null },
-      label
-    );
+test('links that are not the app reset link are not recovery links at all', () => {
+  for (const url of [
+    'com.everybible.app://bible/JHN/3',
+    'com.everybible.app://auth/callback?code=' + CODE,
+    `com.everybible.app://reset-password.attacker.example?code=${CODE}`,
+    `com.everybible.app://reset-passwordx?code=${CODE}`,
+    `com.everybible.app://reset-password/extra?code=${CODE}`,
+    `https://everybible.app/reset-password?code=${CODE}`,
+    `exp://127.0.0.1:8081/--/reset-password?code=${CODE}`,
+    `evil://reset-password?code=${CODE}`,
+  ]) {
+    assert.equal(parseRecoveryLink(url), null, url);
   }
 });
 
-test('decodeRecoveryTokenClaims returns empty claims when the payload is not a JSON object', () => {
-  for (const payload of ['null', '42', '"reader@example.com"', '{"email":']) {
-    assert.deepEqual(
-      decodeRecoveryTokenClaims(tokenWithPayloadBytes(payload)),
-      { email: null, subject: null },
-      payload
-    );
-  }
-});
-
-test('decodeRecoveryTokenClaims ignores empty and non-string claims', () => {
-  assert.deepEqual(decodeRecoveryTokenClaims(encodeJwtPayload({ email: '', sub: 42 })), {
-    email: null,
-    subject: null,
+test('a malformed percent-escape does not throw', () => {
+  assert.deepEqual(parseRecoveryLink('com.everybible.app://reset-password?code=%E0%A4%A'), {
+    kind: 'unusable',
+    reason: 'missing-code',
   });
 });
 
-test('resolveRecoveryLinkAudience refuses a link issued for a different signed-in account', () => {
-  assert.equal(resolveRecoveryLinkAudience('user-attacker', 'user-victim'), 'different-account');
+test('a missing code verifier means the link was opened away from the requesting install', () => {
+  assert.equal(
+    classifyRecoveryExchangeError({
+      name: 'AuthPKCECodeVerifierMissingError',
+      code: 'pkce_code_verifier_not_found',
+      status: 400,
+    }),
+    'wrong-device'
+  );
 });
 
-test('resolveRecoveryLinkAudience allows the link when it matches the signed-in account', () => {
-  assert.equal(resolveRecoveryLinkAudience('user-victim', 'user-victim'), 'match');
+test('an expired, used, or superseded code is reported as an expired link', () => {
+  for (const code of ['flow_state_expired', 'flow_state_not_found', 'bad_code_verifier', 'x']) {
+    assert.equal(
+      classifyRecoveryExchangeError({ name: 'AuthApiError', code, status: 400 }),
+      'expired',
+      code
+    );
+  }
+  assert.equal(classifyRecoveryExchangeError(null), 'expired');
 });
 
-test('resolveRecoveryLinkAudience allows the link when nobody is signed in or the subject is unknown', () => {
-  assert.equal(resolveRecoveryLinkAudience('user-victim', null), 'match');
-  assert.equal(resolveRecoveryLinkAudience('user-victim', undefined), 'match');
-  assert.equal(resolveRecoveryLinkAudience(null, 'user-victim'), 'match');
+test('a transport failure is reported as a network problem', () => {
+  assert.equal(
+    classifyRecoveryExchangeError({ name: 'AuthRetryableFetchError', status: 0 }),
+    'network'
+  );
+  assert.equal(classifyRecoveryExchangeError(new TypeError('Network request failed')), 'network');
+});
+
+test('every recovery problem maps to a translated message key', () => {
+  assert.equal(recoveryProblemMessageKey('wrong-device'), 'auth.resetLinkWrongDevice');
+  assert.equal(recoveryProblemMessageKey('expired'), 'auth.resetPasswordInvalidSession');
+  assert.equal(recoveryProblemMessageKey('network'), 'auth.serviceUnavailable');
+  assert.equal(recoveryProblemMessageKey('configuration'), 'auth.backendNotConfigured');
 });

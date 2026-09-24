@@ -7,7 +7,11 @@ import type {
   TranslationAudioBookCatalog,
   TranslationAudioCoverage,
 } from '../../types';
-import { resolveBibleAssetBaseUrl, resolveBibleAssetUrl } from '../bible/bibleAssetBaseUrl';
+import {
+  requireSecureMediaUrl,
+  resolveBibleAssetBaseUrl,
+  resolveBibleAssetUrl,
+} from '../bible/bibleAssetBaseUrl';
 import { publicRuntimeConfig } from '../startup/publicRuntimeConfig';
 import type { RemoteAudioAsset } from './audioDownloadService';
 
@@ -543,7 +547,7 @@ async function fetchBibleIsChapterAudio(
           data.data[0]);
 
     return {
-      url: audioFile.path,
+      url: requireSecureMediaUrl(audioFile.path),
       duration: audioFile.duration * 1000,
     };
   } catch (error) {

@@ -82,6 +82,7 @@
       ],
       "./plugins/withBrandedSplashAsset",
       "./plugins/withGradleJvmHeap",
+      "./plugins/withReleaseAtsLockdown",
       "@react-native-google-signin/google-signin",
       [
         "expo-build-properties",

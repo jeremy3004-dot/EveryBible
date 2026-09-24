@@ -10,6 +10,10 @@ import {
   getFeedbackSourceKey,
   type ChapterFeedbackReviewItem,
 } from '../../services/feedback';
+import {
+  buildFeedbackResponseAccessibilityLabel,
+  getFeedbackCardActions,
+} from './feedbackResponseAccessibility';
 
 export interface FeedbackVerdictProps {
   item: ChapterFeedbackReviewItem;
@@ -93,9 +97,25 @@ export function FeedbackResponseCard({
   const isOpen = !item.resolution;
   const name = item.participantName || t('bible.translatorReviewUnknownUser');
   const date = new Date(item.createdAt).toLocaleDateString(language);
+  const cardActions = getFeedbackCardActions(t, item, { isPlaying, busy });
 
   return (
-    <AppCard onPress={isOpen ? onReview : undefined} accessibilityLabel={item.comment ?? name}>
+    <AppCard
+      onPress={isOpen ? onReview : undefined}
+      // Settled cards take no label: AppCard would make the card one element and swallow
+      // the Listen and Reopen buttons, which have no other way in.
+      accessibilityLabel={
+        isOpen ? buildFeedbackResponseAccessibilityLabel(t, item, date) : undefined
+      }
+      // An open card is one button, so the audio and Mark reviewed buttons inside it
+      // are unreachable by VoiceOver; they are offered again as custom actions.
+      accessibilityActions={isOpen && cardActions.length > 0 ? cardActions : undefined}
+      onAccessibilityAction={(event) => {
+        const action = event.nativeEvent.actionName;
+        if (action === 'play') onPlay();
+        else if (action === 'markReviewed') onMarkReviewed();
+      }}
+    >
       <View style={styles.body}>
         <FeedbackVerdict item={item} />
         {!!item.comment && (

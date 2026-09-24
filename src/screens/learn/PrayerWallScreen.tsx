@@ -21,12 +21,17 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { lightHaptic, successHaptic } from '../../utils';
+import { announceForAccessibility } from '../../utils/a11y';
 import type { LearnStackParamList } from '../../navigation/types';
 import { openAuthFlow } from '../../navigation/rootNavigation';
 import { useAuthStore } from '../../stores/authStore';
 import * as prayerService from '../../services/prayer/prayerService';
 import type { PrayerRequestWithCounts } from '../../services/prayer/prayerService';
 import { prayerRequestActions } from '../../services/prayer/prayerModel';
+import {
+  buildPrayerCardAccessibilityLabel,
+  prayerInteractionAnnouncement,
+} from './prayerCardAccessibility';
 
 type ScreenRouteProp = RouteProp<LearnStackParamList, 'PrayerWall'>;
 type NavigationProp = NativeStackNavigationProp<LearnStackParamList, 'PrayerWall'>;
@@ -173,9 +178,13 @@ export function PrayerWallScreen() {
       // Roll back the optimistic change if the write failed so counts don't drift.
       if (!result?.success) {
         applyLocalDelta(-1);
+        announceForAccessibility(t('common.somethingWentWrong'));
+        return;
       }
+      // The pill changes only by fill and icon; say which way the toggle went.
+      announceForAccessibility(prayerInteractionAnnouncement(t, type, !alreadyInteracted));
     },
-    [currentUserId, localInteractions]
+    [currentUserId, localInteractions, t]
   );
 
   const handleLongPress = useCallback(
@@ -314,16 +323,16 @@ export function PrayerWallScreen() {
           // Encouraged pills on iOS; they are offered again as custom actions and
           // the label carries everything the card shows.
           accessible
-          accessibilityLabel={[
+          accessibilityLabel={buildPrayerCardAccessibilityLabel(t, {
             displayName,
-            formatRelativeTime(item.created_at, t),
-            item.is_answered ? t('prayer.answered') : null,
-            item.content,
-            t('prayer.prayedCount', { count: item.prayed_count }),
-            t('prayer.encouragedCount', { count: item.encouraged_count }),
-          ]
-            .filter(Boolean)
-            .join(', ')}
+            relativeTime: formatRelativeTime(item.created_at, t),
+            isAnswered: item.is_answered,
+            content: item.content,
+            prayedCount: item.prayed_count,
+            encouragedCount: item.encouraged_count,
+            hasPrayed,
+            hasEncouraged,
+          })}
           accessibilityHint={
             isOwner
               ? t('prayer.ownerLongPressHint')
@@ -382,6 +391,7 @@ export function PrayerWallScreen() {
               onPress={() => handleInteraction(item.id, 'prayed')}
               accessibilityLabel={t('prayer.prayedCount', { count: item.prayed_count })}
               accessibilityRole="button"
+              accessibilityState={{ selected: hasPrayed }}
             >
               <Ionicons
                 name={hasPrayed ? 'hand-left' : 'hand-left-outline'}
@@ -411,6 +421,7 @@ export function PrayerWallScreen() {
               onPress={() => handleInteraction(item.id, 'encouraged')}
               accessibilityLabel={t('prayer.encouragedCount', { count: item.encouraged_count })}
               accessibilityRole="button"
+              accessibilityState={{ selected: hasEncouraged }}
             >
               <Ionicons
                 name={hasEncouraged ? 'heart' : 'heart-outline'}
@@ -799,8 +810,11 @@ const styles = StyleSheet.create({
     ...typography.body,
     lineHeight: 22,
   },
+  // Wraps so the pills drop to a second line at large text sizes instead of
+  // running past the card edge.
   actionRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.sm,
   },
   actionPill: {

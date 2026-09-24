@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, Share } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { View, Text, StyleSheet, Share, Platform } from 'react-native';
 import {
   Bookmark,
   BookOpen,
@@ -18,6 +19,26 @@ import { spacing, typography } from '../../design/system';
 import { AppButton, ListRow, Sheet } from '../ui';
 import { getTranslatedBookName } from '../../constants';
 import { formatBibleReferenceLabel } from '../../services/gather/gatherReferenceLabel';
+import {
+  getPassageText,
+  LESSON_FALLBACK_TRANSLATION_ID,
+  type PassageBlock,
+} from '../../services/gather/gatherBibleService';
+import {
+  buildLessonLinkShare,
+  buildLessonTextShareMessage,
+  loadLessonAudioShareDeps,
+  shareLessonAudio,
+  toSharePayload,
+  type LessonSharePayload,
+} from '../../services/gather/lessonShareService';
+import { getChapterAudioUrl } from '../../services/audio/audioService';
+import { useBibleStore } from '../../stores/bibleStore';
+import {
+  lessonAudioTranslationCandidates,
+  resolveLessonAudio,
+  type LessonAudioSource,
+} from '../../services/gather/lessonAudioSource';
 import type { GatherLesson } from '../../types/gather';
 
 const HEADER_ICON_SIZE = 20;
@@ -46,12 +67,56 @@ export function LessonBottomSheet({
   const { t } = useTranslation();
   const titleKey = FOUNDATION_LESSON_TITLE_KEYS[lesson.id] ?? WISDOM_LESSON_TITLE_KEYS[lesson.id];
   const lessonTitle = titleKey ? t(titleKey) : lesson.title;
-  const resolveBookName = (bookId: string) => getTranslatedBookName(bookId, t);
+  const resolveBookName = useCallback((bookId: string) => getTranslatedBookName(bookId, t), [t]);
   const referenceLabel = formatBibleReferenceLabel(lesson.references, resolveBookName);
+  const currentTranslation = useBibleStore((state) => state.currentTranslation);
+  const translations = useBibleStore((state) => state.translations);
+  const translationName = (translationId: string) =>
+    translations.find((item) => item.id === translationId)?.name ?? translationId;
+
+  // The passage (with the same BSB fallback the lesson screen uses) decides both
+  // what "Share text" sends and which translation's recording "Share audio" can
+  // offer. With no recording anywhere, the audio row is not shown.
+  const [passageBlocks, setPassageBlocks] = useState<PassageBlock[] | null>(null);
+  const [audioSource, setAudioSource] = useState<LessonAudioSource | null>(null);
+
+  const loadPassage = useCallback(
+    () =>
+      getPassageText(lesson.references, currentTranslation, {
+        bookNameResolver: resolveBookName,
+        fallbackTranslationId: LESSON_FALLBACK_TRANSLATION_ID,
+      }).catch((): PassageBlock[] => []),
+    [currentTranslation, lesson.references, resolveBookName]
+  );
+
+  useEffect(() => {
+    if (!visible) return;
+    let cancelled = false;
+    void (async () => {
+      const blocks = await loadPassage();
+      if (cancelled) return;
+      setPassageBlocks(blocks);
+      const audio = await resolveLessonAudio(
+        lesson.references,
+        lessonAudioTranslationCandidates(blocks, currentTranslation),
+        getChapterAudioUrl
+      );
+      if (!cancelled) setAudioSource(audio);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentTranslation, lesson.references, loadPassage, visible]);
+
+  const shareMessage = async (payload: LessonSharePayload) => {
+    await Share.share(payload);
+  };
 
   const handleShareAudio = async () => {
+    if (!audioSource) return;
     try {
-      await Share.share({ message: lessonTitle + ' - ' + referenceLabel });
+      const deps = await loadLessonAudioShareDeps(Platform.OS, shareMessage, t('groups.share'));
+      await shareLessonAudio(audioSource, `${lessonTitle} · ${referenceLabel}`, deps);
     } catch {
       // Ignore share errors
     }
@@ -60,7 +125,15 @@ export function LessonBottomSheet({
 
   const handleShareText = async () => {
     try {
-      await Share.share({ message: lessonTitle + ' - ' + referenceLabel });
+      const blocks = passageBlocks ?? (await loadPassage());
+      await shareMessage({
+        message: buildLessonTextShareMessage({
+          lessonTitle,
+          referenceLabel,
+          blocks,
+          translationName,
+        }),
+      });
     } catch {
       // Ignore share errors
     }
@@ -69,7 +142,12 @@ export function LessonBottomSheet({
 
   const handleShareLink = async () => {
     try {
-      await Share.share({ message: lessonTitle + ' - ' + referenceLabel });
+      const { message, url } = buildLessonLinkShare({
+        lessonTitle,
+        referenceLabel,
+        references: lesson.references,
+      });
+      await shareMessage(toSharePayload(Platform.OS, message, url));
     } catch {
       // Ignore share errors
     }
@@ -102,7 +180,7 @@ export function LessonBottomSheet({
           </Text>
           <Text
             style={[typography.eyebrowPlain, displayFont.regular, { color: colors.secondaryText }]}
-            numberOfLines={1}
+            numberOfLines={2}
           >
             {referenceLabel}
           </Text>
@@ -111,14 +189,16 @@ export function LessonBottomSheet({
 
       <View style={[styles.divider, { backgroundColor: colors.borderStrong }]} />
 
-      <ListRow
-        title={t('gather.shareAudio')}
-        leadingIcon={Volume2}
-        onPress={() => {
-          void handleShareAudio();
-        }}
-        accessibilityLabel={t('gather.shareAudio')}
-      />
+      {audioSource ? (
+        <ListRow
+          title={t('gather.shareAudio')}
+          leadingIcon={Volume2}
+          onPress={() => {
+            void handleShareAudio();
+          }}
+          accessibilityLabel={t('gather.shareAudio')}
+        />
+      ) : null}
 
       <ListRow
         title={t('gather.shareText')}

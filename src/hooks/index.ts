@@ -7,6 +7,7 @@ export { useI18n } from './useI18n';
 export { useDisplayFont, type DisplayFontOverrides } from './useDisplayFont';
 export { useKeyboardBottomInset } from './useKeyboardBottomInset';
 export { usePrivacyLock } from './usePrivacyLock';
+export { useNotificationsBlockedBySystem } from './useNotificationsBlockedBySystem';
 export { useTranslationContentSummary } from './useTranslationContentSummary';
 export {
   useTabBarHeight,
@@ -16,3 +17,4 @@ export {
   TAB_BAR_CONTENT_GAP,
   type TabBarHeightMetrics,
 } from './useTabBarHeight';
+export { useLargeText, type LargeTextLayout } from './useLargeText';

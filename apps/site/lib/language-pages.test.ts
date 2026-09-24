@@ -4,6 +4,7 @@ import test from 'node:test';
 import { gunzipSync } from 'node:zlib';
 
 import type { AtlasIndex, AtlasRecord } from '../../admin/lib/language-atlas/types';
+import { languagePageTitle } from './language-page-seo';
 import { isLanguageSlug, languageShard } from './language-slug';
 import { buildLanguagePages, languagePageFiles, shouldPrerenderLanguage } from './language-pages';
 import type { AtlasProject } from './public-atlas-projects';
@@ -151,6 +152,31 @@ test('only languages become pages, each with a unique, valid slug and title labe
   assert.equal(build.meta.languageCount, 4);
   assert.deepEqual(build.meta.statusCounts, { bible: 1, nt: 1, unknown: 2 });
   assert.equal(build.meta.shardCount, 4);
+});
+
+test('placeholder records from the project tracker are left out of pages, counts and sitemaps', () => {
+  const placeholder = (id: string, name: string) =>
+    record({ id, name, sourceIds: ['everylanguage'] });
+  const build = buildLanguagePages(
+    atlas([
+      ...fixture.records,
+      placeholder('el:5402abf8-0000', 'Test 6a'),
+      placeholder('el:d97aa4cd-0000', 'Mangala {Delete}'),
+      record({ id: 'rolv:9', kind: 'dialect', name: 'Test dialect', parentId: 'el:5402abf8-0000' }),
+      placeholder('el:aaaaaaaa-0000', 'Tip'),
+    ]),
+    [project('el:5402abf8-0000', 'Test project')],
+    4
+  );
+  assert.deepEqual(
+    build.entries.map((entry) => entry.slug),
+    ['aari-aari1239', 'aari-aaa', 'nepali-npi', 'tamang-tmg', 'tip-el-aaaaaaaa']
+  );
+  assert.equal(build.meta.languageCount, 5);
+  assert.equal(
+    build.shards.reduce((total, shard) => total + Object.keys(shard).length, 0),
+    5
+  );
 });
 
 test('duplicate names fall back to a code, never repeating another language title', () => {
@@ -321,5 +347,15 @@ test('every committed language has a unique, URL-safe slug and a unique title la
     entries.length
   );
   assert.ok(entries.every((entry) => isLanguageSlug(entry.slug)));
+  assert.ok(
+    !entries.some((entry) => /^test\b|^testy\b|\{delete\}/i.test(entry.label)),
+    'no placeholder records are published'
+  );
   assert.ok(entries.some((entry) => entry.slug === 'yoruba-yor'));
+  const titles = entries.map((entry) => languagePageTitle(entry));
+  assert.equal(new Set(titles.map((title) => title.toLocaleLowerCase('en'))).size, titles.length);
+  const tooLong = entries.filter(
+    (entry) => entry.label.length <= 42 && languagePageTitle(entry).length > 60
+  );
+  assert.deepEqual(tooLong, [], 'titles of names up to 42 characters fit in 60');
 });

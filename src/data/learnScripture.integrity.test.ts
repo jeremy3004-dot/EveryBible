@@ -205,3 +205,112 @@ test('the prose-reference expander reads every shape the course data uses', () =
     points: [{ chapter: 12 }],
   });
 });
+
+/**
+ * Four Fields quotes scripture directly (key verses and `scripture` sections).
+ * Modern translations such as the NIV require a copyright notice, so every
+ * quotation must be the bundled BSB text for the reference it cites. Verses
+ * inside one range are joined with a space; separate ranges ("Romans 3:23,
+ * 6:23") are joined with an ellipsis.
+ */
+const BSB_RANGE_SEPARATOR = ' … ';
+
+const loadBsbText = () => {
+  const db = new DatabaseSync(
+    fileURLToPath(new URL('../../assets/databases/bible-bsb-v2.db', import.meta.url)),
+    { readOnly: true }
+  );
+  try {
+    const rows = db
+      .prepare("SELECT book_id, chapter, verse, text FROM verses WHERE translation_id = 'bsb'")
+      .all() as Array<{ book_id: string; chapter: number; verse: number; text: string }>;
+    return new Map(rows.map((row) => [`${row.book_id}:${row.chapter}:${row.verse}`, row.text]));
+  } finally {
+    db.close();
+  }
+};
+
+const bsbText = loadBsbText();
+
+/** The BSB wording for a quoted reference, or null when the reference is not a plain verse list. */
+const bsbPassageText = (reference: string): string | null => {
+  const parsed = parsePassageReference(reference);
+  const tail = reference.match(/(\d+:\d+(?:-\d+)?(?:,\s*\d+(?::\d+)?(?:-\d+)?)*)$/);
+  if (!parsed || !tail) {
+    return null;
+  }
+  let chapter = parsed.chapter;
+  const ranges: string[] = [];
+  for (const part of tail[1].split(/,\s*/)) {
+    const [startToken, endToken] = part.split('-');
+    let start = Number(startToken);
+    if (startToken.includes(':')) {
+      [chapter, start] = startToken.split(':').map(Number);
+    }
+    const end = endToken === undefined ? start : Number(endToken);
+    const startText = bsbText.get(`${parsed.bookId}:${chapter}:${start}`);
+    const endText = bsbText.get(`${parsed.bookId}:${chapter}:${end}`);
+    if (startText === undefined || endText === undefined) {
+      return null;
+    }
+    // The BSB omits some verses inside a range (Acts 8:37); the quote skips them too.
+    const verses: string[] = [];
+    for (let verse = start; verse <= end; verse += 1) {
+      const text = bsbText.get(`${parsed.bookId}:${chapter}:${verse}`);
+      if (text !== undefined) {
+        verses.push(text);
+      }
+    }
+    ranges.push(verses.join(' '));
+  }
+  return ranges.join(BSB_RANGE_SEPARATOR);
+};
+
+test('the BSB passage reader joins verses within a range and separates ranges', () => {
+  assert.equal(
+    bsbPassageText('Romans 3:23, 6:23'),
+    `${bsbText.get('ROM:3:23')}${BSB_RANGE_SEPARATOR}${bsbText.get('ROM:6:23')}`
+  );
+  assert.equal(
+    bsbPassageText('Luke 10:5-7, 10-11'),
+    [
+      `${bsbText.get('LUK:10:5')} ${bsbText.get('LUK:10:6')} ${bsbText.get('LUK:10:7')}`,
+      `${bsbText.get('LUK:10:10')} ${bsbText.get('LUK:10:11')}`,
+    ].join(BSB_RANGE_SEPARATOR)
+  );
+  assert.equal(bsbText.has('ACT:8:37'), false);
+  assert.equal(
+    bsbPassageText('Acts 8:36-38'),
+    `${bsbText.get('ACT:8:36')} ${bsbText.get('ACT:8:38')}`
+  );
+  // An annotated reference ("(summary)") cannot be checked word for word, so it is rejected.
+  assert.equal(bsbPassageText('Acts 26:4-18 (summary)'), null);
+});
+
+test('every Four Fields key verse and scripture section quotes the bundled BSB text exactly', () => {
+  const quotes: { where: string; reference: string; text: string }[] = [];
+  for (const course of fourFieldsCourses) {
+    quotes.push({ where: `${course.id}.keyVerse`, ...course.keyVerse });
+    for (const lesson of course.lessons) {
+      if (lesson.keyVerse) {
+        quotes.push({ where: `${lesson.id}.keyVerse`, ...lesson.keyVerse });
+      }
+      lesson.sections.forEach((section, index) => {
+        if (section.type === 'scripture') {
+          assert.ok(section.reference, `${lesson.id}#${index}: scripture section has no reference`);
+          quotes.push({
+            where: `${lesson.id}#${index}`,
+            reference: section.reference,
+            text: section.content,
+          });
+        }
+      });
+    }
+  }
+  assert.ok(quotes.length >= 29, 'expected every key verse to be checked');
+
+  const mismatched = quotes
+    .filter(({ reference, text }) => bsbPassageText(reference) !== text)
+    .map(({ where, reference }) => `${where} (${reference})`);
+  assert.deepEqual(mismatched, [], 'quotations that are not the BSB text for their reference');
+});

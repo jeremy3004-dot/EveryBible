@@ -117,14 +117,20 @@ test('the store registers itself as the installed-database source resolver on lo
 
 test('the database source resolver describes the installed pack of a downloaded translation', () => {
   withTranslations([
-    makeRuntimeTranslation({ id: 'esv1', textPackLocalPath: 'file:///packs/esv1.db' }),
+    makeRuntimeTranslation({
+      id: 'esv1',
+      textPackLocalPath: 'file:///packs/esv1.db',
+      activeTextPackVersion: '2026.09.01-v3',
+    }),
   ]);
 
+  // The pack version keys the pack's search index, so an update rebuilds it.
   assert.deepEqual(doubles.database.resolver?.('esv1'), {
     kind: 'installed',
     translationId: 'esv1',
     databaseName: 'esv1.db',
     directory: 'file:///packs',
+    packVersion: '2026.09.01-v3',
   });
 });
 

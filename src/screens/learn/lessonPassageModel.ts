@@ -15,6 +15,27 @@ export interface StoryPassageView {
   translationNames: string[];
 }
 
+export type StoryStatus = 'loading' | 'error' | 'empty' | 'ready';
+
+/**
+ * Which Story state to render. A load that threw is an error the reader can
+ * retry; a passage that loaded with no verses is genuinely empty. Showing both
+ * as "No passage text available" hid the failure and offered no way out.
+ */
+export function resolveStoryStatus({
+  isLoading,
+  loadFailed,
+  view,
+}: {
+  isLoading: boolean;
+  loadFailed: boolean;
+  view: StoryPassageView | null;
+}): StoryStatus {
+  if (isLoading) return 'loading';
+  if (loadFailed) return 'error';
+  return view ? 'ready' : 'empty';
+}
+
 /**
  * Shapes a lesson's passage blocks for the Story section. Returns null when no
  * block has a verse, so the screen shows its empty state instead of a blank

@@ -56,6 +56,7 @@ import {
 } from './bibleTranslationModel';
 import { useTranslationPreferenceStore } from '../../stores/translationPreferenceStore';
 import { hasTranslationDownloadData } from '../../stores/bibleStoreModel';
+import { showTranslationDownloadFailedAlert } from './translationDownloadFailureAlert';
 
 interface TranslationPickerListProps {
   onRequestClose?: () => void;
@@ -235,24 +236,30 @@ export function TranslationPickerList({
         return;
       }
 
-      const requestId = ++selectionRequestRef.current;
+      const attemptDownload = async (): Promise<void> => {
+        const requestId = ++selectionRequestRef.current;
 
-      try {
-        const result = await downloadTranslation(translation.id);
-        if (result === 'cancelled' || requestId !== selectionRequestRef.current) {
-          return;
+        try {
+          const result = await downloadTranslation(translation.id);
+          if (result === 'cancelled' || requestId !== selectionRequestRef.current) {
+            return;
+          }
+          setPreferredTranslationLanguage(normalizeTranslationLanguage(translation.language));
+          setCurrentTranslation(translation.id);
+          onRequestClose?.();
+          onTranslationActivated?.(
+            useBibleStore
+              .getState()
+              .translations.find((candidate) => candidate.id === translation.id) ?? translation
+          );
+        } catch {
+          showTranslationDownloadFailedAlert(t, () => {
+            void attemptDownload();
+          });
         }
-        setPreferredTranslationLanguage(normalizeTranslationLanguage(translation.language));
-        setCurrentTranslation(translation.id);
-        onRequestClose?.();
-        onTranslationActivated?.(
-          useBibleStore
-            .getState()
-            .translations.find((candidate) => candidate.id === translation.id) ?? translation
-        );
-      } catch {
-        Alert.alert(t('common.error'), t('bible.failedToLoad'), [{ text: t('common.ok') }]);
-      }
+      };
+
+      await attemptDownload();
     },
     [
       downloadTranslation,
@@ -857,14 +864,16 @@ const TranslationRow = memo(function TranslationRow({
         }}
       >
         <View style={styles.rowText}>
+          {/* Two lines each: at large text sizes one line cut the name to
+              "Bible in O…", which is the only thing that tells rows apart. */}
           <Text
             style={[styles.rowTitle, { color: colors.biblePrimaryText }]}
-            numberOfLines={1}
+            numberOfLines={2}
             ellipsizeMode="tail"
           >
             {translation.name}
           </Text>
-          <Text style={[styles.rowMeta, { color: colors.bibleSecondaryText }]} numberOfLines={1}>
+          <Text style={[styles.rowMeta, { color: colors.bibleSecondaryText }]} numberOfLines={2}>
             {meta}
           </Text>
           {description ? (
@@ -1095,7 +1104,13 @@ function TranslationManageSheet({
       },
     });
   }
-  if (hasTranslationDownloadData(translation) && !isBusy) {
+  // Deleting stops a running audio download first, so Delete stays available during one.
+  if (
+    (hasTranslationDownloadData(translation) ||
+      isActiveAudioJob ||
+      activeAudioDownloadKey !== null) &&
+    !isTextDownloadActive
+  ) {
     libraryRows.push({
       key: 'delete',
       icon: 'trash-outline',
@@ -1112,7 +1127,7 @@ function TranslationManageSheet({
           <Text
             accessibilityRole="header"
             style={[styles.modalTitle, { color: colors.biblePrimaryText }]}
-            numberOfLines={1}
+            numberOfLines={2}
           >
             {translation.name}
           </Text>

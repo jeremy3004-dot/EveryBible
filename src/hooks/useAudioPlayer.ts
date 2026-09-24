@@ -122,6 +122,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     repeatMode,
     sleepTimerMinutes,
     sleepTimerEndTime,
+    sleepTimerRemainingMs,
     backgroundMusicChoice,
     setStatus,
     setCurrentTrack,
@@ -164,6 +165,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       repeatMode: state.repeatMode,
       sleepTimerMinutes: state.sleepTimerMinutes,
       sleepTimerEndTime: state.sleepTimerEndTime,
+      sleepTimerRemainingMs: state.sleepTimerRemainingMs,
       backgroundMusicChoice: state.backgroundMusicChoice,
       setStatus: state.setStatus,
       setCurrentTrack: state.setCurrentTrack,
@@ -655,7 +657,9 @@ export function useAudioPlayer(translationId: string = 'bsb') {
           clearInterval(interpolationTimerRef.current);
           interpolationTimerRef.current = null;
         }
-        emitAudioPlaybackProgress('pause', true);
+        // The stopped snapshot of a finished chapter arrives before the finish
+        // handler, so it closes out the last segment as a finish.
+        emitAudioPlaybackProgress(snapshot.didJustFinish ? 'finish' : 'pause', true);
         stopAudioProgressTelemetryTimer();
 
         if (snapshot.isBuffering) {
@@ -897,12 +901,17 @@ export function useAudioPlayer(translationId: string = 'bsb') {
   }, [backgroundMusicChoice, status]);
 
   const sleepTimerRemaining = useMemo(() => {
-    if (!sleepTimerEndTime) {
+    // A paused timer is frozen in the store, so the countdown shown matches
+    // what is left once playback resumes.
+    const remainingMs = sleepTimerEndTime
+      ? sleepTimerEndTime - sleepTimerNow
+      : sleepTimerRemainingMs;
+    if (remainingMs === null) {
       return null;
     }
 
-    return Math.max(0, Math.ceil((sleepTimerEndTime - sleepTimerNow) / 1000 / 60));
-  }, [sleepTimerEndTime, sleepTimerNow]);
+    return Math.max(0, Math.ceil(remainingMs / 1000 / 60));
+  }, [sleepTimerEndTime, sleepTimerNow, sleepTimerRemainingMs]);
 
   // Pause playback
   const pause = useCallback(async () => {
@@ -955,11 +964,17 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     }
 
     if (sleepTimerEndTime && (status === 'playing' || status === 'loading')) {
+      // The end time moves on every resume; re-anchor the countdown now rather
+      // than showing the stale pre-pause clock for up to a second.
+      setSleepTimerNow(Date.now());
       sleepTimerRef.current = setInterval(() => {
         const now = Date.now();
         setSleepTimerNow(now);
+        // Read the live end time: a pause freezes the timer in the store before
+        // this effect re-runs, and a frozen timer must not expire.
+        const liveEndTime = useAudioStore.getState().sleepTimerEndTime;
 
-        if (now >= sleepTimerEndTime) {
+        if (liveEndTime !== null && now >= liveEndTime) {
           // Expire once and use the same cancellation/status path as Pause.
           if (sleepTimerRef.current) clearInterval(sleepTimerRef.current);
           sleepTimerRef.current = null;

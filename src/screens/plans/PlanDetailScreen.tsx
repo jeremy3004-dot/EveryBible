@@ -23,7 +23,7 @@ import { BookOpen, Check, Ellipsis, Play } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 
 import { useTheme } from '../../contexts/ThemeContext';
-import { useDisplayFont, useTabBarHeight } from '../../hooks';
+import { useDisplayFont, useLargeText, useTabBarHeight } from '../../hooks';
 import { layout, motion, radius, spacing, typography } from '../../design/system';
 import {
   AppButton,
@@ -83,9 +83,14 @@ import {
 } from './planDetailHeaderModel';
 import { formatPlanProgressAnnouncement, formatPlanProgressTally } from './planProgressTally';
 import {
+  getPlanDayRowAccessibility,
+  getPlanSessionAccessibilityValue,
+} from './planDayRowAccessibility';
+import {
   PLAN_LEDGER_DENSE_GAP,
   PLAN_LEDGER_ROOMY_GAP,
   getPlanLedgerDotPaint,
+  getPlanLedgerGridDayCount,
   getPlanLedgerGridMetrics,
   getPlanLedgerGridRows,
   type PlanLedgerDotPaint,
@@ -432,7 +437,8 @@ function ProgressCard({ plan, progress, currentDaySummary, today }: ProgressCard
   const displayFont = useDisplayFont();
   const { t } = useTranslation();
 
-  const totalDays = plan.duration_days;
+  // This month's length for a day-of-month plan, so September has no day-31 dot.
+  const totalDays = getPlanLedgerGridDayCount(plan, today);
   const currentDay = currentDaySummary?.dayNumber ?? getActivePlanDayNumber(plan, progress, today);
 
   const cellStates = useMemo<ReadingPlanLedgerDayState[]>(() => {
@@ -604,12 +610,21 @@ const DayRow = React.memo(function DayRow({
 }: DayRowProps) {
   const { colors } = useTheme();
   const displayFont = useDisplayFont();
+  // Today's references share the row with Read + Listen; at large text sizes
+  // that left the references a word per line, so the actions drop beneath.
+  const { rowDirection: todayRowDirection } = useLargeText();
 
   const { t } = useTranslation();
   const refs = entries.map((entry) => formatChapterRef(entry, t)).join(', ');
-  const accessibilityLabel = isCurrent
-    ? `${t('interface.currentPlanDay', { day: dayNumber })}${dateLabel ? `, ${dateLabel}` : ''}: ${refs}`
-    : `${t('interface.planDay', { day: dayNumber })}${dateLabel ? `, ${dateLabel}` : ''}: ${refs}`;
+  const { label: accessibilityLabel, value: accessibilityValue } = getPlanDayRowAccessibility(t, {
+    dayNumber,
+    dateLabel,
+    refs,
+    isCurrent,
+    isCompleted,
+    isNext,
+    subtitle,
+  });
   const hasSessionActions = sessionActions.length > 0;
 
   const sessionActionRow = hasSessionActions ? (
@@ -627,6 +642,7 @@ const DayRow = React.memo(function DayRow({
               session: action.label,
               day: dayNumber,
             })}
+            accessibilityValue={getPlanSessionAccessibilityValue(t, action.state)}
             style={[
               dayRowStyles.sessionActionButton,
               {
@@ -654,15 +670,24 @@ const DayRow = React.memo(function DayRow({
   if (isCurrent) {
     return (
       <AppCard accentRule padding={spacing.lg} style={dayRowStyles.todayCard}>
-        <View style={dayRowStyles.todayRow}>
+        <View
+          style={[
+            dayRowStyles.todayRow,
+            todayRowDirection === 'column' && dayRowStyles.todayRowStacked,
+          ]}
+        >
           <PressableScale
             pressEffect="translate"
             haptic="light"
             onPress={() => onPress(dayNumber, launchSessionKey)}
             testID={isCurrent ? CURRENT_PLAN_DAY_ROW_TEST_ID : undefined}
             accessibilityLabel={accessibilityLabel}
+            accessibilityValue={accessibilityValue}
             accessibilityRole="button"
-            style={dayRowStyles.todayContent}
+            style={[
+              dayRowStyles.todayContent,
+              todayRowDirection === 'column' && dayRowStyles.todayContentStacked,
+            ]}
           >
             <Text
               style={[typography.eyebrow, displayFont.regular, { color: colors.accentPrimary }]}
@@ -679,7 +704,7 @@ const DayRow = React.memo(function DayRow({
             {subtitle ? (
               <Text
                 style={[dayRowStyles.todaySubtitle, { color: colors.secondaryText }]}
-                numberOfLines={1}
+                numberOfLines={2}
               >
                 {subtitle}
               </Text>
@@ -734,13 +759,7 @@ const DayRow = React.memo(function DayRow({
       accessibilityLabel={accessibilityLabel}
       accessibilityRole="button"
       // Completion is otherwise only a tick glyph.
-      accessibilityValue={
-        isCompleted
-          ? { text: t('readingPlans.completed') }
-          : isNext
-            ? { text: t('readingPlans.tomorrow') }
-            : undefined
-      }
+      accessibilityValue={accessibilityValue}
       // The session buttons inside this row are not reachable by VoiceOver, so
       // each one is also offered as a custom action.
       accessibilityActions={
@@ -807,9 +826,19 @@ const dayRowStyles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
   },
+  todayRowStacked: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+  },
   todayContent: {
     flex: 1,
     gap: spacing.xs,
+  },
+  // In a content-sized column, flex: 1 would split a height that is itself
+  // derived from the children; size to the text and take the full width.
+  todayContentStacked: {
+    flex: 0,
+    alignSelf: 'stretch',
   },
   todayTitle: {
     ...typography.cardTitle,

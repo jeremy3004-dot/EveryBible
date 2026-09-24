@@ -38,6 +38,17 @@ mockModule(mock, sourcePath('services/analytics/usageQueue.ts'), {
   },
 });
 
+let crashReportingInstallCount = 0;
+let crashReportingCleanupCount = 0;
+mockModule(mock, sourcePath('services/diagnostics/crashReportQueue.ts'), {
+  installCrashReporting: () => {
+    crashReportingInstallCount += 1;
+    return () => {
+      crashReportingCleanupCount += 1;
+    };
+  },
+});
+
 /** Run every effect the last render queued, the way React does on commit. */
 const commit = () => {
   const queued = effects.splice(0, effects.length);
@@ -78,6 +89,8 @@ beforeEach(() => {
   reportingCleanupCount = 0;
   reminderInstallCount = 0;
   reminderUninstallCount = 0;
+  crashReportingInstallCount = 0;
+  crashReportingCleanupCount = 0;
   cleanups.length = 0;
   failingHook = null;
 });
@@ -169,4 +182,14 @@ test('the daily reminder is kept in line with the preference from commit until u
   cleanups.forEach((cleanup) => cleanup());
 
   assert.deepEqual([installedAfterCommit, reminderUninstallCount], [1, 1]);
+});
+
+test('crash-report uploads install with usage reporting and clean up with it', async () => {
+  const AppRuntimeEffects = await loadComponent();
+  AppRuntimeEffects();
+  assert.equal(crashReportingInstallCount, 0);
+  commit();
+  assert.equal(crashReportingInstallCount, 1);
+  cleanups[0]();
+  assert.equal(crashReportingCleanupCount, 1);
 });

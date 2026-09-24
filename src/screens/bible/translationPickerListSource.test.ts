@@ -78,9 +78,10 @@ test('shared translation picker can filter by language and download runtime tran
   );
 
   assert.equal(
-    source.includes('numberOfLines={1}'),
+    /\{translation\.name\}/.test(source) &&
+      /numberOfLines=\{2\}\s*ellipsizeMode="tail"\s*>\s*\{translation\.name\}/.test(source),
     true,
-    'TranslationPickerList should keep long translation names on one line'
+    'TranslationPickerList should let a long translation name wrap to a second line instead of truncating it at large text sizes'
   );
 
   assert.equal(

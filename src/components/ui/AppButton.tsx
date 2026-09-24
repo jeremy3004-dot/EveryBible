@@ -169,7 +169,7 @@ export function AppButton({
             truncated. The multiplier cap keeps that growth bounded at the top
             of the Dynamic Type range. */}
         <Text
-          style={[typography.bodyStrong, { color: contentColor }]}
+          style={[typography.bodyStrong, styles.label, { color: contentColor }]}
           numberOfLines={2}
           maxFontSizeMultiplier={LABEL_MAX_FONT_SCALE}
         >
@@ -211,6 +211,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  // A Text in a row does not shrink by default, so beside an icon a long label
+  // ran past the pill instead of wrapping onto its second line.
+  label: {
+    flexShrink: 1,
+    textAlign: 'center',
   },
   leadingIcon: {
     marginRight: spacing.sm,

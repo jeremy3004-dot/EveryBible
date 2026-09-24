@@ -1,6 +1,7 @@
 import type { Metadata, MetadataRoute } from 'next';
 
 import type { ScriptureStatus } from '../../admin/lib/language-atlas/types';
+import { languageFamily, languageNoun } from './language-family';
 import type { LanguageIndexEntry, LanguagePage } from './language-pages';
 import { shouldPrerenderLanguage } from './language-pages';
 import { LANGUAGES_PATH, languagePagePath } from './language-slug';
@@ -47,25 +48,55 @@ export function scriptureStatusSentence(status: ScriptureStatus, name: string): 
 }
 
 /** Up to three countries by name; beyond that the lists are long and unranked, so a count. */
-function listCountries(page: LanguagePage): string {
+function listCountries(page: Pick<LanguagePage, 'countries'>): string {
   const names = page.countries.map((country) => country.name);
   if (names.length > 3) return `${names.length} countries`;
   return names.length === 3 ? `${names[0]}, ${names[1]} and ${names[2]}` : names.join(' and ');
 }
 
 /** One plain sentence about what the language is and where it is spoken. */
-export function languageIdentity(page: LanguagePage): string {
-  const family = page.family ? ` in the ${page.family} family` : '';
+export function languageIdentity(
+  page: Pick<LanguagePage, 'name' | 'family' | 'countries'>
+): string {
+  const family = languageFamily(page.family);
+  const inFamily = family ? ` in the ${family} family` : '';
   const where = page.countries.length ? ` spoken in ${listCountries(page)}` : '';
-  return `${page.name} is a language${family}${where}.`;
+  return `${page.name} is ${languageNoun(page.family)}${inFamily}${where}.`;
 }
 
+/** Search results cut titles at about 60 characters and descriptions at about 160. */
+export const TITLE_MAX_LENGTH = 60;
+export const DESCRIPTION_MAX_LENGTH = 160;
+
+/** The first candidate that fits, or the last (shortest) one when none does. */
+function firstThatFits(candidates: readonly string[], limit: number): string {
+  return candidates.find((candidate) => candidate.length <= limit) ?? candidates.at(-1)!;
+}
+
+/** Longer names drop words from the end of the title, never the name itself. */
 export function languagePageTitle(page: Pick<LanguagePage, 'label'>): string {
-  return `${page.label} language: Bible and Scripture status | ${SITE_NAME}`;
+  return firstThatFits(
+    [
+      `${page.label} language: Bible and Scripture status | ${SITE_NAME}`,
+      `${page.label}: Bible and Scripture status | ${SITE_NAME}`,
+      `${page.label}: Bible and Scripture status`,
+      `${page.label}: Scripture status`,
+    ],
+    TITLE_MAX_LENGTH
+  );
 }
 
+/** The facts always stay; the closing invitation shortens or goes to fit. */
 export function languagePageDescription(page: LanguagePage): string {
-  return `${languageIdentity(page)} ${scriptureStatusSentence(page.status, page.name)} See its dialects and sources, and read the Bible free in the EveryBible app.`;
+  const facts = `${languageIdentity(page)} ${scriptureStatusSentence(page.status, page.name)}`;
+  return firstThatFits(
+    [
+      `${facts} See its dialects and sources, and read the Bible free in the EveryBible app.`,
+      `${facts} Read the Bible free on EveryBible.`,
+      facts,
+    ],
+    DESCRIPTION_MAX_LENGTH
+  );
 }
 
 export function languagePageMetadata(page: LanguagePage): Metadata {

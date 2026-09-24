@@ -4,17 +4,15 @@ import { mockModule, sourcePath } from '../../testing/mockModules';
 import { createSupabaseFake } from '../../testing/supabaseFake';
 
 /**
- * Link arrival must NEVER establish a session: any app on the device can fire our
- * reset URL, so adopting it before the user confirms would be session fixation.
- * The tokens are parked and only `activatePendingPasswordRecovery()` — called
- * from ResetPasswordScreen after the user confirms — exchanges them.
+ * Link arrival must NEVER establish a session. The PKCE code is parked and only
+ * `activatePendingPasswordRecovery()` — called from ResetPasswordScreen after
+ * the user taps Continue — exchanges it. Old implicit-flow links, which carry a
+ * live session over a scheme any app can claim, are refused.
  */
-const RECOVERY_URL =
+const CODE = '6f1c7a0e-2b7d-4a55-9d7e-3f0b8f2c1a90';
+const RECOVERY_URL = `com.everybible.app://reset-password?code=${CODE}`;
+const LEGACY_URL =
   'com.everybible.app://reset-password#access_token=access-1&refresh_token=refresh-1&type=recovery';
-
-/** Access token whose (unverified, display-only) payload names an account. */
-const encodeClaims = (claims: Record<string, unknown>) =>
-  ['header', Buffer.from(JSON.stringify(claims)).toString('base64url'), 'signature'].join('.');
 
 const supabaseFake = createSupabaseFake();
 
@@ -68,6 +66,7 @@ before(async () => {
 beforeEach(() => {
   supabaseConfigured = true;
   supabaseFake.reset();
+  supabaseFake.auth.setSession(null);
   Object.assign(supabaseFake.auth.handlers, defaultAuthHandlers);
   navigator.ready = true;
   navigator.navigations = [];
@@ -84,21 +83,12 @@ const drainPendingNavigation = (): void => {
   navigator.navigations = [];
 };
 
-test('a link with no recovery tokens is left for React Navigation to handle', async () => {
+test('a link that is not the reset link is left for React Navigation to handle', async () => {
   const handled = await authDeepLink.handleAuthDeepLinkUrl('com.everybible.app://bible/JHN/3');
 
   assert.equal(handled, false);
   assert.deepEqual(supabaseFake.authCalls, []);
   assert.deepEqual(navigator.navigations, []);
-});
-
-test('a link whose type is not recovery is ignored', async () => {
-  const handled = await authDeepLink.handleAuthDeepLinkUrl(
-    'com.everybible.app://reset-password#access_token=a&refresh_token=b&type=magiclink'
-  );
-
-  assert.equal(handled, false);
-  assert.deepEqual(supabaseFake.authCalls, []);
 });
 
 test('a recovery link is ignored on a build with no backend configured', async () => {
@@ -111,40 +101,44 @@ test('a recovery link is ignored on a build with no backend configured', async (
   assert.deepEqual(navigator.navigations, []);
 });
 
-test('a recovery link parks the fragment tokens without establishing a session', async () => {
+test('a recovery link parks its code without establishing a session', async () => {
   const handled = await authDeepLink.handleAuthDeepLinkUrl(RECOVERY_URL);
 
   assert.equal(handled, true);
-  // The security property: no session is adopted on arrival.
   assert.deepEqual(supabaseFake.authCalls, []);
   assert.equal(supabaseFake.auth.session, null);
-  assert.deepEqual(authDeepLink.getPendingPasswordRecovery(), {
-    accessToken: 'access-1',
-    refreshToken: 'refresh-1',
-    email: null,
-    subject: null,
-  });
+  assert.deepEqual(authDeepLink.getPendingPasswordRecovery(), { kind: 'code', code: CODE });
 });
 
-test('the parked recovery carries the display-only account claims from the token', async () => {
-  const accessToken = encodeClaims({ email: 'reader@example.com', sub: 'user-42' });
+test('an old implicit-flow link opens the reset screen as unusable and its tokens are never used', async () => {
+  const handled = await authDeepLink.handleAuthDeepLinkUrl(LEGACY_URL);
 
+  assert.equal(handled, true, 'the screen explains the link and offers a new one');
+  assert.deepEqual(authDeepLink.getPendingPasswordRecovery(), {
+    kind: 'unusable',
+    reason: 'legacy-token',
+  });
+  assert.deepEqual(navigator.navigations, [[...RESET_PASSWORD_ROUTE]]);
+  assert.deepEqual(await authDeepLink.activatePendingPasswordRecovery(), { status: 'missing' });
+  assert.deepEqual(supabaseFake.authCalls, []);
+  assert.equal(supabaseFake.auth.session, null);
+});
+
+test('an expired-link error redirect opens the reset screen as unusable', async () => {
   await authDeepLink.handleAuthDeepLinkUrl(
-    `com.everybible.app://reset-password#access_token=${accessToken}&refresh_token=refresh-1&type=recovery`
+    'com.everybible.app://reset-password?error=access_denied&error_code=otp_expired'
   );
 
   assert.deepEqual(authDeepLink.getPendingPasswordRecovery(), {
-    accessToken,
-    refreshToken: 'refresh-1',
-    email: 'reader@example.com',
-    subject: 'user-42',
+    kind: 'unusable',
+    reason: 'link-error',
   });
-  assert.deepEqual(supabaseFake.authCalls, [], 'reading the claims is not a session exchange');
+  assert.deepEqual(navigator.navigations, [[...RESET_PASSWORD_ROUTE]]);
 });
 
 test('a link from a lookalike host is rejected outright', async () => {
   const handled = await authDeepLink.handleAuthDeepLinkUrl(
-    'com.everybible.app://reset-password.attacker.example#access_token=a&refresh_token=b&type=recovery'
+    `com.everybible.app://reset-password.attacker.example?code=${CODE}`
   );
 
   assert.equal(handled, false);
@@ -152,65 +146,100 @@ test('a link from a lookalike host is rejected outright', async () => {
   assert.deepEqual(navigator.navigations, []);
 });
 
-test('activation is what exchanges the parked tokens, and only once', async () => {
+test('activation exchanges the parked code for a recovery session, and only once', async () => {
   await authDeepLink.handleAuthDeepLinkUrl(RECOVERY_URL);
 
   assert.deepEqual(await authDeepLink.activatePendingPasswordRecovery(), { status: 'activated' });
 
-  assert.deepEqual(supabaseFake.authCalls, [
-    { method: 'setSession', args: [{ access_token: 'access-1', refresh_token: 'refresh-1' }] },
-  ]);
-  assert.equal(supabaseFake.auth.session?.access_token, 'access-1');
-  // The tokens are single-use: re-entering the screen cannot replay them.
+  assert.deepEqual(supabaseFake.authCalls, [{ method: 'exchangeCodeForSession', args: [CODE] }]);
+  assert.ok(supabaseFake.auth.session);
   assert.equal(authDeepLink.getPendingPasswordRecovery(), null);
   assert.deepEqual(await authDeepLink.activatePendingPasswordRecovery(), { status: 'missing' });
   assert.equal(supabaseFake.authCalls.length, 1);
 });
 
-test('activation with nothing parked touches Supabase at all', async () => {
+test('activation with nothing parked does not touch Supabase', async () => {
   assert.deepEqual(await authDeepLink.activatePendingPasswordRecovery(), { status: 'missing' });
 
   assert.deepEqual(supabaseFake.authCalls, []);
 });
 
-test('activation on a build with no backend reports a configuration failure and keeps the tokens', async () => {
+test('activation on a build with no backend reports a configuration failure', async () => {
   await authDeepLink.handleAuthDeepLinkUrl(RECOVERY_URL);
   supabaseConfigured = false;
 
   assert.deepEqual(await authDeepLink.activatePendingPasswordRecovery(), {
-    status: 'configuration',
+    status: 'failed',
+    problem: 'configuration',
   });
   assert.deepEqual(supabaseFake.authCalls, []);
-  assert.ok(authDeepLink.getPendingPasswordRecovery());
 });
 
-test('an expired link fails at activation, not at arrival, and the tokens are kept for the message', async () => {
-  authHandlers.setSession = async () => ({
-    data: { session: null, user: null },
-    error: { message: 'Invalid Refresh Token' },
+test('a link opened where the code verifier is missing reports the wrong-device problem', async () => {
+  authHandlers.exchangeCodeForSession = async () => ({
+    data: { session: null, user: null, redirectType: null },
+    error: {
+      name: 'AuthPKCECodeVerifierMissingError',
+      code: 'pkce_code_verifier_not_found',
+      status: 400,
+      message: 'PKCE code verifier not found in storage.',
+    },
   });
   await authDeepLink.handleAuthDeepLinkUrl(RECOVERY_URL);
 
   assert.deepEqual(await authDeepLink.activatePendingPasswordRecovery(), {
     status: 'failed',
-    error: 'Invalid Refresh Token',
+    problem: 'wrong-device',
   });
-  assert.ok(authDeepLink.getPendingPasswordRecovery(), 'the screen can still explain the failure');
+  assert.equal(supabaseFake.auth.session, null);
+  assert.equal(authDeepLink.getPendingPasswordRecovery(), null, 'the code cannot be retried');
 });
 
-test('a thrown setSession is reported as a failure rather than dead-ending the screen', async () => {
-  authHandlers.setSession = async () => {
-    throw new Error('Network request failed');
+test('an expired or already-used code reports the expired problem', async () => {
+  authHandlers.exchangeCodeForSession = async () => ({
+    data: { session: null, user: null, redirectType: null },
+    error: { name: 'AuthApiError', code: 'flow_state_not_found', status: 404, message: 'x' },
+  });
+  await authDeepLink.handleAuthDeepLinkUrl(RECOVERY_URL);
+
+  assert.deepEqual(await authDeepLink.activatePendingPasswordRecovery(), {
+    status: 'failed',
+    problem: 'expired',
+  });
+});
+
+test('a thrown exchange is reported as a network failure rather than dead-ending the screen', async () => {
+  authHandlers.exchangeCodeForSession = async () => {
+    throw new TypeError('Network request failed');
   };
   await authDeepLink.handleAuthDeepLinkUrl(RECOVERY_URL);
 
   assert.deepEqual(await authDeepLink.activatePendingPasswordRecovery(), {
     status: 'failed',
-    error: 'Network request failed',
+    problem: 'network',
   });
 });
 
-test('clearPendingPasswordRecovery drops the parked tokens so a cancelled reset cannot be resumed', async () => {
+test('a code whose verifier came from a non-recovery request is refused and its session dropped', async () => {
+  authHandlers.exchangeCodeForSession = async () => {
+    const next = { access_token: 'signup-session', user: { id: 'user-1' } };
+    supabaseFake.auth.setSession(next as never);
+    return { data: { session: next as never, user: next.user as never, redirectType: null } };
+  };
+  await authDeepLink.handleAuthDeepLinkUrl(RECOVERY_URL);
+
+  assert.deepEqual(await authDeepLink.activatePendingPasswordRecovery(), {
+    status: 'failed',
+    problem: 'expired',
+  });
+  assert.deepEqual(
+    supabaseFake.authCalls.map((call) => call.method),
+    ['exchangeCodeForSession', 'signOut']
+  );
+  assert.equal(supabaseFake.auth.session, null);
+});
+
+test('clearPendingPasswordRecovery drops the parked code so a cancelled reset cannot be resumed', async () => {
   await authDeepLink.handleAuthDeepLinkUrl(RECOVERY_URL);
 
   authDeepLink.clearPendingPasswordRecovery();
@@ -225,29 +254,6 @@ test('a recovery link navigates into ResetPassword inside the Auth stack of the 
   assert.deepEqual(navigator.navigations, [[...RESET_PASSWORD_ROUTE]]);
 });
 
-test('recovery tokens delivered as a query string are accepted too', async () => {
-  const handled = await authDeepLink.handleAuthDeepLinkUrl(
-    'com.everybible.app://reset-password?access_token=q-access&refresh_token=q-refresh&type=recovery'
-  );
-
-  assert.equal(handled, true);
-  assert.deepEqual(supabaseFake.authCalls, []);
-  assert.equal(authDeepLink.getPendingPasswordRecovery()?.accessToken, 'q-access');
-  assert.equal(authDeepLink.getPendingPasswordRecovery()?.refreshToken, 'q-refresh');
-});
-
-test('a link whose tokens cannot be exchanged still opens ResetPassword so the screen can explain it', async () => {
-  authHandlers.setSession = async () => ({
-    data: { session: null, user: null },
-    error: { message: 'Invalid Refresh Token' },
-  });
-
-  const handled = await authDeepLink.handleAuthDeepLinkUrl(RECOVERY_URL);
-
-  assert.equal(handled, true);
-  assert.deepEqual(navigator.navigations, [[...RESET_PASSWORD_ROUTE]]);
-});
-
 test('a link that arrives before the navigator is ready defers navigation', async () => {
   navigator.ready = false;
 
@@ -255,7 +261,7 @@ test('a link that arrives before the navigator is ready defers navigation', asyn
 
   assert.equal(handled, true);
   assert.deepEqual(supabaseFake.authCalls, []);
-  assert.ok(authDeepLink.getPendingPasswordRecovery(), 'the tokens wait with the navigation');
+  assert.ok(authDeepLink.getPendingPasswordRecovery(), 'the code waits with the navigation');
   assert.deepEqual(navigator.navigations, []);
 
   drainPendingNavigation();

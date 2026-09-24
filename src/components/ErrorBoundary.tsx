@@ -1,4 +1,4 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import React, { Component, ErrorInfo, ReactNode, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -6,6 +6,9 @@ import { darkColors, useTheme, type ThemeColors } from '../contexts/ThemeContext
 import { radius, spacing, typography } from '../design/system';
 import { recordCrashLog } from '../services/diagnostics/crashLogStore';
 import { toRenderErrorCrashLogEntry } from '../services/diagnostics/crashLogEntry';
+import { screenFromBoundaryScope } from '../services/diagnostics/crashReportModel';
+import { queueCrashReport } from '../services/diagnostics/crashReportQueue';
+import { announceForAccessibility } from '../utils/a11y';
 
 // Resolve theme colors defensively: if the ThemeProvider is itself part of the
 // crash (missing/broken context), fall back to the dark palette so the fallback
@@ -43,13 +46,25 @@ function ErrorFallback({ onRetry, onGoBack }: { onRetry: () => void; onGoBack?: 
   const retryLabel = t('common.tryAgain');
   const backLabel = t('common.back');
 
+  // The fallback replaces the screen under a screen reader's focus without a
+  // sound; say what happened so the user knows why the page changed.
+  useEffect(() => {
+    announceForAccessibility(`${title}. ${message}`);
+  }, [message, title]);
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.content}>
-        <View style={styles.iconContainer}>
+        <View
+          style={styles.iconContainer}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        >
           <Ionicons name="alert-circle-outline" size={64} color={colors.error} />
         </View>
-        <Text style={[styles.title, { color: colors.primaryText }]}>{title}</Text>
+        <Text accessibilityRole="header" style={[styles.title, { color: colors.primaryText }]}>
+          {title}
+        </Text>
         <Text style={[styles.message, { color: colors.secondaryText }]}>{message}</Text>
         <TouchableOpacity
           style={[styles.retryButton, { backgroundColor: colors.accentPrimary }]}
@@ -97,6 +112,13 @@ export class ErrorBoundary extends Component<Props, State> {
         Date.now()
       )
     );
+    // Scrubbed copy for remote reporting; queueCrashReport never throws either.
+    queueCrashReport({
+      error,
+      kind: 'boundary',
+      screen: screenFromBoundaryScope(this.props.scope),
+      componentStack: errorInfo?.componentStack,
+    });
   }
 
   handleRetry = () => {

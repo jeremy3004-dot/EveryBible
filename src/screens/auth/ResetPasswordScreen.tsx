@@ -20,13 +20,22 @@ import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
 import { useDisplayFont } from '../../hooks';
 import { radius, spacing, typography } from '../../design/system';
 import type { AuthStackParamList } from '../../navigation/types';
-import { getCurrentSession, signOut, updatePassword, type AuthResult } from '../../services/auth';
+import {
+  getCurrentSession,
+  resetPassword,
+  signOut,
+  updatePassword,
+  type AuthResult,
+} from '../../services/auth';
 import {
   activatePendingPasswordRecovery,
   clearPendingPasswordRecovery,
   getPendingPasswordRecovery,
 } from '../../services/auth/authDeepLink';
-import { resolveRecoveryLinkAudience } from '../../services/auth/authRecoveryLink';
+import {
+  recoveryProblemMessageKey,
+  type RecoveryProblem,
+} from '../../services/auth/authRecoveryLink';
 import { pullFromCloud } from '../../services/sync';
 import { useAuthStore } from '../../stores/authStore';
 
@@ -37,10 +46,12 @@ interface FormErrors {
   confirmPassword?: string;
 }
 
-// The screen is only reachable from a password-reset deep link, and the link's
-// tokens are parked (never exchanged) until the user confirms here — see
-// ../../services/auth/authDeepLink.ts.
-type ResetPhase = 'confirm' | 'form';
+// The screen is only reachable from a password-reset deep link. The link's PKCE
+// code is parked (never exchanged) until the user confirms here — see
+// ../../services/auth/authDeepLink.ts. A link that cannot be used (an old
+// implicit-flow link, an expired one, or one opened on another device) lands in
+// the 'problem' phase, which explains why and can send a fresh link.
+type ResetPhase = 'confirm' | 'form' | 'problem';
 
 export function ResetPasswordScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -57,9 +68,14 @@ export function ResetPasswordScreen() {
   const [pendingRecovery] = useState(() => getPendingPasswordRecovery());
   const [signedInUserId] = useState<string | null>(() => useAuthStore.getState().user?.uid ?? null);
 
-  const [phase, setPhase] = useState<ResetPhase>('confirm');
+  const [phase, setPhase] = useState<ResetPhase>(() =>
+    pendingRecovery?.kind === 'code' ? 'confirm' : 'problem'
+  );
+  const [problem, setProblem] = useState<RecoveryProblem>('expired');
   const [isActivating, setIsActivating] = useState(false);
-  const [linkError, setLinkError] = useState<string | null>(null);
+  const [resendEmail, setResendEmail] = useState('');
+  const [isResending, setIsResending] = useState(false);
+  const [resendError, setResendError] = useState<string | null>(null);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -69,11 +85,6 @@ export function ResetPasswordScreen() {
 
   const didActivateRef = useRef(false);
   const didUpdatePasswordRef = useRef(false);
-
-  const audience = useMemo(
-    () => resolveRecoveryLinkAudience(pendingRecovery?.subject ?? null, signedInUserId),
-    [pendingRecovery, signedInUserId]
-  );
 
   // Leaving the screen must never strand a live recovery session on a device
   // that was signed out before the link was opened.
@@ -98,7 +109,6 @@ export function ResetPasswordScreen() {
   }, [navigation]);
 
   const handleConfirmAccount = useCallback(async () => {
-    setLinkError(null);
     setIsActivating(true);
     try {
       const result = await activatePendingPasswordRecovery();
@@ -109,15 +119,39 @@ export function ResetPasswordScreen() {
         return;
       }
 
-      setLinkError(
-        result.status === 'configuration'
-          ? t('auth.backendNotConfigured')
-          : t('auth.resetPasswordInvalidSession')
-      );
+      setProblem(result.status === 'failed' ? result.problem : 'expired');
+      setPhase('problem');
     } finally {
       setIsActivating(false);
     }
-  }, [t]);
+  }, []);
+
+  // The new link is requested from this install, so its code verifier is stored
+  // here and the emailed link works on this device.
+  const handleSendNewLink = async () => {
+    const email = resendEmail.trim();
+    if (!email) {
+      setResendError(t('auth.emailRequiredForReset'));
+      return;
+    }
+
+    setResendError(null);
+    setIsResending(true);
+    try {
+      const result = await resetPassword(email);
+      if (!result.success) {
+        setResendError(t('auth.resetEmailError'));
+        return;
+      }
+      Alert.alert(t('auth.checkYourEmail'), t('auth.resetLinkSent'), [
+        { text: t('common.ok'), onPress: dismiss },
+      ]);
+    } catch {
+      setResendError(t('auth.resetEmailError'));
+    } finally {
+      setIsResending(false);
+    }
+  };
 
   // result.error is always raw, untranslated English from the auth service layer.
   // Never surface it directly — map by code instead so every locale shows translated text.
@@ -183,15 +217,8 @@ export function ResetPasswordScreen() {
     }
   };
 
-  const canContinue = Boolean(pendingRecovery) && audience === 'match';
-
-  const confirmBody = !pendingRecovery
-    ? t('auth.resetPasswordInvalidSession')
-    : audience === 'different-account'
-      ? t('auth.resetLinkDifferentAccount')
-      : pendingRecovery.email
-        ? t('auth.resetLinkConfirmBody', { email: pendingRecovery.email })
-        : t('auth.resetPasswordSubtitle');
+  // Without a backend a new link cannot be sent either.
+  const canResend = problem !== 'configuration';
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -219,37 +246,101 @@ export function ResetPasswordScreen() {
           </View>
 
           <View style={styles.content}>
-            {phase === 'confirm' ? (
+            {phase === 'problem' ? (
+              <>
+                <Text accessibilityRole="header" style={[styles.title, displayFont.bold]}>
+                  {t('auth.resetPasswordTitle')}
+                </Text>
+                <Text style={styles.subtitle} accessibilityLiveRegion="polite">
+                  {t(recoveryProblemMessageKey(problem))}
+                </Text>
+
+                <View style={styles.form}>
+                  {canResend ? (
+                    <>
+                      <View style={styles.inputContainer}>
+                        <Text style={styles.label}>{t('auth.email')}</Text>
+                        <TextInput
+                          style={[styles.input, resendError ? styles.inputError : null]}
+                          value={resendEmail}
+                          onChangeText={(text) => {
+                            setResendEmail(text);
+                            setResendError(null);
+                          }}
+                          placeholder={t('auth.emailPlaceholder')}
+                          placeholderTextColor={colors.secondaryText}
+                          autoCapitalize="none"
+                          autoComplete="email"
+                          keyboardType="email-address"
+                          textContentType="emailAddress"
+                          editable={!isResending}
+                          returnKeyType="send"
+                          onSubmitEditing={() => void handleSendNewLink()}
+                          accessibilityLabel={
+                            resendError ? `${t('auth.email')}, ${resendError}` : t('auth.email')
+                          }
+                        />
+                        {resendError ? (
+                          <Text style={styles.errorText} accessibilityLiveRegion="polite">
+                            {resendError}
+                          </Text>
+                        ) : null}
+                      </View>
+
+                      <TouchableOpacity
+                        style={[styles.primaryButton, isResending && styles.buttonDisabled]}
+                        onPress={() => void handleSendNewLink()}
+                        disabled={isResending}
+                        activeOpacity={0.85}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('auth.sendNewResetLink')}
+                        accessibilityState={{ disabled: isResending }}
+                      >
+                        {isResending ? (
+                          <ActivityIndicator color={colors.bibleBackground} />
+                        ) : (
+                          <Text style={styles.primaryButtonText}>{t('auth.sendNewResetLink')}</Text>
+                        )}
+                      </TouchableOpacity>
+                    </>
+                  ) : null}
+
+                  <TouchableOpacity
+                    style={styles.secondaryButton}
+                    onPress={handleCancel}
+                    disabled={isResending}
+                    activeOpacity={0.85}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('common.cancel')}
+                    accessibilityState={{ disabled: isResending }}
+                  >
+                    <Text style={styles.secondaryButtonText}>{t('common.cancel')}</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : phase === 'confirm' ? (
               <>
                 <Text accessibilityRole="header" style={[styles.title, displayFont.bold]}>
                   {t('auth.resetLinkConfirmTitle')}
                 </Text>
-                <Text style={styles.subtitle}>{confirmBody}</Text>
-
-                {linkError ? (
-                  <Text style={styles.errorText} accessibilityLiveRegion="polite">
-                    {linkError}
-                  </Text>
-                ) : null}
+                <Text style={styles.subtitle}>{t('auth.resetPasswordSubtitle')}</Text>
 
                 <View style={styles.form}>
-                  {canContinue ? (
-                    <TouchableOpacity
-                      style={[styles.primaryButton, isActivating && styles.buttonDisabled]}
-                      onPress={() => void handleConfirmAccount()}
-                      disabled={isActivating}
-                      activeOpacity={0.85}
-                      accessibilityRole="button"
-                      accessibilityLabel={t('common.continue')}
-                      accessibilityState={{ disabled: isActivating }}
-                    >
-                      {isActivating ? (
-                        <ActivityIndicator color={colors.bibleBackground} />
-                      ) : (
-                        <Text style={styles.primaryButtonText}>{t('common.continue')}</Text>
-                      )}
-                    </TouchableOpacity>
-                  ) : null}
+                  <TouchableOpacity
+                    style={[styles.primaryButton, isActivating && styles.buttonDisabled]}
+                    onPress={() => void handleConfirmAccount()}
+                    disabled={isActivating}
+                    activeOpacity={0.85}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('common.continue')}
+                    accessibilityState={{ disabled: isActivating }}
+                  >
+                    {isActivating ? (
+                      <ActivityIndicator color={colors.bibleBackground} />
+                    ) : (
+                      <Text style={styles.primaryButtonText}>{t('common.continue')}</Text>
+                    )}
+                  </TouchableOpacity>
 
                   <TouchableOpacity
                     style={styles.secondaryButton}

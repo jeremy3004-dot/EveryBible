@@ -70,7 +70,9 @@ export function ChapterFeedbackSummary({
         { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
       ]}
     >
-      <Text style={[styles.title, { color: colors.biblePrimaryText }]}>{t('feedback.title')}</Text>
+      <Text accessibilityRole="header" style={[styles.title, { color: colors.biblePrimaryText }]}>
+        {t('feedback.title')}
+      </Text>
       {loading ? (
         <ActivityIndicator color={colors.accentPrimary} />
       ) : notCovered ? (

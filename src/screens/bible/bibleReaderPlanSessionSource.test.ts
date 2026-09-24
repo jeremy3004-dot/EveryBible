@@ -178,8 +178,8 @@ test('BibleReaderScreen reuses the bottom strip in read and listen modes without
   );
   assert.match(
     source,
-    /height:\s*planSessionBottomBarHeight/,
-    'BibleReaderScreen should size the plan strip to the full tab-bar footprint'
+    /minHeight:\s*planSessionBottomBarHeight/,
+    'BibleReaderScreen should size the plan strip to at least the full tab-bar footprint, growing only when large text needs it'
   );
   assert.match(
     source,

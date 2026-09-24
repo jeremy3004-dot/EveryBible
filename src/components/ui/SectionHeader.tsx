@@ -33,7 +33,12 @@ export function SectionHeader({ title, eyebrow, action, style }: SectionHeaderPr
         // can populate VoiceOver's heading rotor on a screen. Every section
         // title is a real heading, so it says so.
         accessibilityRole="header"
-        style={[typography.sectionHeading, displayFont.bold, { color: colors.primaryText }]}
+        style={[
+          typography.sectionHeading,
+          displayFont.bold,
+          styles.title,
+          { color: colors.primaryText },
+        ]}
         // The row is laid out by content (marginBottom only, no fixed height),
         // so a second line pushes the section down instead of being clipped —
         // a translated title at large Dynamic Type stays readable.
@@ -75,7 +80,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: spacing.sm,
   },
+  // Without flexShrink a two-line title claims the full row width and pushes
+  // the eyebrow or action off the right edge at large text sizes.
+  title: {
+    flexShrink: 1,
+  },
   trailing: {
     marginLeft: spacing.md,
+    flexShrink: 0,
   },
 });

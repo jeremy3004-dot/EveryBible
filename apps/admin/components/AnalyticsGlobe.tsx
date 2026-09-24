@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import maplibregl, { type GeoJSONSource, type Map as MapLibreMap } from 'maplibre-gl';
+import type { GeoJSONSource, Map as MapLibreMap } from 'maplibre-gl';
+import { maplibregl } from '@/lib/maplibre';
 import type { CountryMetric, MappableCountryMetric } from '@/lib/analytics-reporting';
 import {
   buildAtlasFeatures,

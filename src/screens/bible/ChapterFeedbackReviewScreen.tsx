@@ -40,6 +40,8 @@ import {
   FeedbackResponseCard,
   TranslationNotCoveredNotice,
 } from '../../components/feedback';
+import { feedbackDecisionAnnouncement } from '../../components/feedback/feedbackResponseAccessibility';
+import { announceForAccessibility } from '../../utils/a11y';
 import {
   AppButton,
   AppCard,
@@ -195,7 +197,10 @@ export function ChapterFeedbackReviewScreen({ route, navigation }: Props) {
   ) => {
     if (!(await resolve(item, resolution))) {
       Alert.alert(t('common.error'), t('common.unexpectedError'));
+      return;
     }
+    // The card leaves this list for the other status tab without a sound otherwise.
+    announceForAccessibility(feedbackDecisionAnnouncement(t, item, resolution));
   };
 
   const reviewPositive = async () => {
@@ -222,6 +227,7 @@ export function ChapterFeedbackReviewScreen({ route, navigation }: Props) {
           void reviewPositiveFeedbackBatch(input(), ids).then(async (result) => {
             setMutating(false);
             if (!result.success) Alert.alert(t('common.error'), t('common.unexpectedError'));
+            else announceForAccessibility(t('feedback.reviewed'));
             await load();
           });
         },
@@ -475,7 +481,7 @@ export function ChapterFeedbackReviewScreen({ route, navigation }: Props) {
           <Text
             accessibilityRole="header"
             style={[styles.title, { color: colors.primaryText }]}
-            numberOfLines={1}
+            numberOfLines={2}
           >
             {chapterLabel}
           </Text>

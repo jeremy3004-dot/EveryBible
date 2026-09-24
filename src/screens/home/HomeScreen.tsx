@@ -32,6 +32,7 @@ import { config } from '../../constants/config';
 import { FONT_SIZE_SCALES } from '../../constants/fontSizeScales';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useDisplayFont } from '../../hooks/useDisplayFont';
+import { useLargeText } from '../../hooks/useLargeText';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { useTranslationContentSummary } from '../../hooks/useTranslationContentSummary';
 import { GatherIconBadge } from '../../components/gather/GatherIconBadge';
@@ -82,6 +83,7 @@ import { getReadingFontFamily } from '../../design/fonts';
 import type { DailyScripture } from '../../types';
 import type { RootTabParamList } from '../../navigation/types';
 import { gatherFoundationRoute } from '../../navigation/learnRoutes';
+import { countCompletedLessons } from '../learn/gatherPathModel';
 import { layout, motion, radius, spacing, typography } from '../../design/system';
 import { lightHaptic } from '../../utils/haptics';
 import { createHomeReadyReporter } from '../../services/startup/homeStartupTiming';
@@ -187,6 +189,9 @@ export function HomeScreen() {
     (reduceMotion ? FadeIn : FadeInDown).duration(motion.duration.base).delay(step * 60);
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const tabBar = useTabBarHeight();
+  // Continue and Plan sit side by side at normal sizes; at large text each half
+  // held a word per line under a clipped numeral, so they stack.
+  const { rowDirection: sheetCardDirection } = useLargeText();
   const bottomTabBarHeight = tabBar.height;
   const [dailyScripture, setDailyScripture] = useState<DailyScripture | null>(null);
   const [isLoadingVerse, setIsLoadingVerse] = useState(true);
@@ -240,17 +245,22 @@ export function HomeScreen() {
   // Falls back to foundation-1 if none started yet.
   const foundation = (() => {
     const inProgress = gatherFoundations.find((item) => {
-      const done = completedLessons[item.id]?.length ?? 0;
+      const done = countCompletedLessons(completedLessons[item.id], item.lessons);
       return done > 0 && done < item.lessons.length;
     });
     if (inProgress) return inProgress;
     // All complete? Show the last one. Nothing started? Show the first.
     const allDone = gatherFoundations.every(
-      (item) => (completedLessons[item.id]?.length ?? 0) >= item.lessons.length
+      (item) =>
+        countCompletedLessons(completedLessons[item.id], item.lessons) >= item.lessons.length
     );
     return allDone ? gatherFoundations[gatherFoundations.length - 1] : gatherFoundations[0];
   })();
   const foundationCompletedLessons = completedLessons[foundation.id] ?? [];
+  const foundationCompletedCount = countCompletedLessons(
+    foundationCompletedLessons,
+    foundation.lessons
+  );
   const nextLesson =
     foundation.lessons.find((lesson) => !foundationCompletedLessons.includes(lesson.id)) ??
     foundation.lessons[0];
@@ -764,12 +774,15 @@ export function HomeScreen() {
         {renderVerseOfTheDayCard('screen')}
 
         <View style={styles.sheet}>
-          <Animated.View entering={sectionEntering(0)} style={styles.sheetCardRow}>
+          <Animated.View
+            entering={sectionEntering(0)}
+            style={[styles.sheetCardRow, { flexDirection: sheetCardDirection }]}
+          >
             <AppCard
               pressable
               onPress={handleContinueReading}
               padding={spacing.lg}
-              style={styles.sheetCard}
+              style={[styles.sheetCard, sheetCardDirection === 'column' && styles.sheetCardStacked]}
               accessibilityLabel={`${t('common.continue')} ${currentPassageLabel}`}
             >
               <Text
@@ -786,7 +799,7 @@ export function HomeScreen() {
                     </Text>
                     <Text
                       style={[styles.numeralCaption, { color: colors.primaryText }]}
-                      numberOfLines={1}
+                      numberOfLines={2}
                     >
                       {currentBookName}
                     </Text>
@@ -798,7 +811,7 @@ export function HomeScreen() {
                 )}
                 <Text
                   style={[styles.cardFooter, { color: colors.secondaryText }]}
-                  numberOfLines={1}
+                  numberOfLines={2}
                 >
                   {currentTranslationInfo?.name ?? currentTranslation.toUpperCase()}
                 </Text>
@@ -813,7 +826,7 @@ export function HomeScreen() {
                   : navigation.navigate('Plans', { screen: 'PlansHome' })
               }
               padding={spacing.lg}
-              style={styles.sheetCard}
+              style={[styles.sheetCard, sheetCardDirection === 'column' && styles.sheetCardStacked]}
               accessibilityLabel={
                 featuredPlanDuration > 0
                   ? `${featuredPlanTitle} · ${t('readingPlans.dayOf', {
@@ -825,8 +838,9 @@ export function HomeScreen() {
             >
               {featuredPlanDuration > 0 ? (
                 <>
-                  {/* One Text so a long plan title wraps to a second line instead of
-                      ellipsising mid-word before the " · Day" suffix. */}
+                  {/* The title stands alone so a line only ever breaks between
+                      its own words: "Bible in One Year · Day" used to push
+                      "· Day" onto a line of its own on a 402pt phone. */}
                   <Text
                     style={[
                       styles.cardEyebrow,
@@ -835,9 +849,21 @@ export function HomeScreen() {
                     ]}
                     numberOfLines={2}
                   >
-                    {`${featuredPlanTitle} · ${t('home.dayEyebrow')}`}
+                    {featuredPlanTitle}
                   </Text>
                   <View style={styles.cardBody}>
+                    {/* "Day" labels the numeral directly, as on the plan's own
+                        progress card. */}
+                    <Text
+                      style={[
+                        styles.cardEyebrow,
+                        displayFont.regular,
+                        { color: colors.secondaryText },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {t('home.dayEyebrow')}
+                    </Text>
                     <View style={styles.numeralRow}>
                       <Text style={[styles.numeral, { color: colors.primaryText }]}>
                         {featuredPlanDay}
@@ -883,7 +909,7 @@ export function HomeScreen() {
               accessibilityLabel={[
                 `${t('tabs.gather')} · ${foundationTitle}`,
                 t('home.lessonsProgress', {
-                  completed: foundationCompletedLessons.length,
+                  completed: foundationCompletedCount,
                   total: foundation.lessons.length,
                 }),
                 t('home.nextLesson', { title: nextLessonTitle }),
@@ -909,7 +935,7 @@ export function HomeScreen() {
                   numberOfLines={1}
                 >
                   {t('home.lessonsProgress', {
-                    completed: foundationCompletedLessons.length,
+                    completed: foundationCompletedCount,
                     total: foundation.lessons.length,
                   })}
                 </Text>
@@ -924,13 +950,13 @@ export function HomeScreen() {
                 <View style={styles.gatherCopy}>
                   <Text
                     style={[styles.gatherTitle, { color: colors.primaryText }]}
-                    numberOfLines={1}
+                    numberOfLines={2}
                   >
                     {foundationTitle}
                   </Text>
                   <Text
                     style={[styles.gatherSubtitle, { color: colors.secondaryText }]}
-                    numberOfLines={1}
+                    numberOfLines={2}
                   >
                     {t('home.nextLesson', { title: nextLessonTitle })}
                   </Text>
@@ -1029,7 +1055,7 @@ export function HomeScreen() {
                       displayFont.regular,
                       { color: colors.secondaryText },
                     ]}
-                    numberOfLines={1}
+                    numberOfLines={2}
                   >
                     {ledgerNextUpLabel}
                   </Text>
@@ -1181,6 +1207,11 @@ const styles = StyleSheet.create({
     minWidth: 0,
     minHeight: SHEET_CARD_MIN_HEIGHT,
   },
+  // Stacked, each card sizes to its content instead of splitting a column
+  // whose height is itself content-sized.
+  sheetCardStacked: {
+    flex: 0,
+  },
   cardEyebrow: {
     ...typography.eyebrow,
   },
@@ -1223,8 +1254,11 @@ const styles = StyleSheet.create({
   gatherCard: {
     gap: 14,
   },
+  // Wraps so the lesson count drops under the eyebrow at large text sizes
+  // instead of squeezing it to "Gather · F…".
   gatherHeader: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.sm,
@@ -1252,8 +1286,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: layout.cardPaddingWide,
     gap: spacing.md,
   },
+  // Wraps so the period switch drops under the streak at large text sizes.
   ledgerHeader: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.md,

@@ -29,6 +29,12 @@
   color: hsl(var(--primary));
 }
 
+/* --primary-deep is 3.7:1 on the dark surface; links there use --primary,
+   as .static-page__content links do. */
+html.dark .language-breadcrumb a {
+  color: hsl(var(--primary));
+}
+
 .language-page .static-page__hero h1 {
   overflow-wrap: anywhere;
 }

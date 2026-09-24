@@ -1,6 +1,10 @@
 // Kept free of react-native imports so the node test runner can load it.
 import type { ThemeColors } from '../../contexts/ThemeContext';
-import type { ReadingPlanLedgerDayState } from '../../services/plans/readingPlanModel';
+import {
+  isCalendarDayOfMonthPlan,
+  type ReadingPlanLedgerDayState,
+} from '../../services/plans/readingPlanModel';
+import type { ReadingPlan } from '../../services/plans/types';
 
 /**
  * The plan card's day grid is a GitHub-style dot heatmap. A long plan packs
@@ -15,6 +19,23 @@ export const PLAN_LEDGER_DENSE_DOT = 8;
 export const PLAN_LEDGER_DENSE_GAP = 3;
 export const PLAN_LEDGER_ROOMY_DOT = 14;
 export const PLAN_LEDGER_ROOMY_GAP = 4;
+
+/**
+ * How many day dots the plan card draws. A day-of-month plan (Proverbs) is
+ * advertised as 31 days, but this month may be shorter; drawing day 31 in
+ * September left a dot for a date that does not exist, which the ledger rows
+ * below already leave out.
+ */
+export function getPlanLedgerGridDayCount(
+  plan: Pick<ReadingPlan, 'duration_days' | 'scheduleMode'>,
+  today: Date
+): number {
+  if (!isCalendarDayOfMonthPlan(plan)) {
+    return plan.duration_days;
+  }
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  return Math.min(plan.duration_days, daysInMonth);
+}
 
 export interface PlanLedgerGridMetrics {
   columns: number;

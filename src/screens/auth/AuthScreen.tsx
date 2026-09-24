@@ -728,7 +728,9 @@ const createStyles = (colors: ThemeColors) =>
       color: colors.secondaryText,
     },
     input: {
-      height: FIELD_HEIGHT,
+      // minHeight, not height: at accessibility text sizes the typed email and
+      // password outgrew a fixed 48pt field and were clipped top and bottom.
+      minHeight: FIELD_HEIGHT,
       backgroundColor: colors.cardBackground,
       borderColor: colors.controlBorder,
       borderRadius: radius.md,

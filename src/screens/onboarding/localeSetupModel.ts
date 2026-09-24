@@ -154,14 +154,29 @@ function getDisplayLanguageLabel(language: string | null | undefined): string {
   };
   const nativeLabel = nativeLabels[normalizedLanguage.toLowerCase()] ?? null;
 
-  if (
-    nativeLabel == null ||
-    nativeLabel.localeCompare(normalizedLanguage, undefined, { sensitivity: 'accent' }) === 0
-  ) {
+  // The native labels are a fixed table, so a case-insensitive match is all "English" needs;
+  // an ICU comparison here would run once per language on every rebuild.
+  if (nativeLabel == null || nativeLabel.toLowerCase() === normalizedLanguage.toLowerCase()) {
     return normalizedLanguage;
   }
 
   return `${normalizedLanguage} / ${nativeLabel}`;
+}
+
+// Hermes has no JIT and collating is an ICU call there, so localeCompare in a sort comparator
+// is slow. One collator is built on first use — never at module evaluation, which is on the
+// first-run startup path — and reused for every comparison after that.
+let languageLabelCollator: Intl.Collator | null = null;
+
+function collateLabels(left: string, right: string): number {
+  if (!languageLabelCollator) {
+    if (typeof Intl === 'undefined' || typeof Intl.Collator !== 'function') {
+      return left < right ? -1 : left > right ? 1 : 0;
+    }
+    languageLabelCollator = new Intl.Collator();
+  }
+
+  return languageLabelCollator.compare(left, right);
 }
 
 const OTHER_GROUP_LABEL = '#';
@@ -188,7 +203,7 @@ function compareLanguageOptions(
     return left.groupLabel < right.groupLabel ? -1 : 1;
   }
 
-  return left.label.localeCompare(right.label);
+  return collateLabels(left.label, right.label);
 }
 
 function getTranslationPriority(translation: InitialOnboardingTranslation): number {
@@ -237,7 +252,7 @@ export function buildInitialOnboardingLanguageOptions<T extends InitialOnboardin
           return priorityDelta;
         }
 
-        return left.name.localeCompare(right.name);
+        return collateLabels(left.name, right.name);
       });
       const primaryTranslation = translationsByPriority[0];
       const label = getDisplayLanguageLabel(primaryTranslation.language);
@@ -251,4 +266,33 @@ export function buildInitialOnboardingLanguageOptions<T extends InitialOnboardin
       };
     })
     .sort(compareLanguageOptions);
+}
+
+/**
+ * Narrows options built once by buildInitialOnboardingLanguageOptions to the translations a
+ * search matched. The options are already sorted, and each keeps its translations in priority
+ * order, so filtering preserves both orders without sorting or collating on every keystroke.
+ * A language keeps the label of its full-list entry; only its primary Bible can change.
+ */
+export function filterInitialOnboardingLanguageOptions<T extends InitialOnboardingTranslation>(
+  options: InitialOnboardingLanguageOption<T>[],
+  matchingTranslations: readonly T[]
+): InitialOnboardingLanguageOption<T>[] {
+  const matching = new Set(matchingTranslations);
+  const filteredOptions: InitialOnboardingLanguageOption<T>[] = [];
+
+  for (const option of options) {
+    const translations = option.translations.filter((translation) => matching.has(translation));
+    if (translations.length === 0) {
+      continue;
+    }
+
+    filteredOptions.push(
+      translations.length === option.translations.length
+        ? option
+        : { ...option, primaryTranslation: translations[0], translations }
+    );
+  }
+
+  return filteredOptions;
 }

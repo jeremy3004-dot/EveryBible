@@ -537,6 +537,21 @@ test('a verse request picks the bible.is file whose verse range contains it', as
   });
 });
 
+test('a plain-http bible.is file path is upgraded to https in a release build', async () => {
+  useBibleIsTranslation('ENGESVN2DA');
+  fetchHandler = async () =>
+    jsonResponse({
+      data: [
+        { path: 'http://cdn.bible.is/JHN/5.mp3', duration: 90, verse_start: 1, verse_end: 47 },
+      ],
+    });
+
+  assert.deepEqual(await mod.fetchRemoteChapterAudio('bis', 'JHN', 5), {
+    url: 'https://cdn.bible.is/JHN/5.mp3',
+    duration: 90000,
+  });
+});
+
 test('a verse outside every bible.is range falls back to the first file', async () => {
   useBibleIsTranslation('ENGESVN2DA');
   fetchHandler = async () =>

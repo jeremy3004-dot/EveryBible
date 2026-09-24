@@ -14,7 +14,8 @@ import {
 } from '../../../admin/lib/language-atlas/presentation';
 import type { AtlasIndex, AtlasRecord, AtlasSource } from '../../../admin/lib/language-atlas/types';
 import { atlasSourceLabel, atlasSourceUrl } from '../../lib/atlas-source-links';
-import { languagePagePath, languageSlug } from '../../lib/language-slug';
+import { languageFamily } from '../../lib/language-family';
+import { hasLanguagePage, languagePagePath, languageSlug } from '../../lib/language-slug';
 import {
   parentRecord,
   profileDisplayName,
@@ -77,12 +78,14 @@ export function AtlasRecordProfile({
   const spokenLocations = profileSpokenLocations(record, index);
   const locations = recordLocations(record);
   // Languages have their own page; a dialect links to its parent language's.
-  const pageLanguage =
+  const linkedLanguage =
     record.kind === 'language'
       ? record
       : record.kind === 'dialect'
         ? parentRecord(record, index)
         : null;
+  const pageLanguage = linkedLanguage && hasLanguagePage(linkedLanguage) ? linkedLanguage : null;
+  const family = languageFamily(record.family);
   return (
     <article className="pa-profile" aria-label={`${record.name} profile`}>
       <div className="pa-section-top">
@@ -146,10 +149,10 @@ export function AtlasRecordProfile({
             <dd>{population.value}</dd>
           </div>
         )}
-        {record.family && (
+        {family && (
           <div>
             <dt>Family</dt>
-            <dd>{record.family}</dd>
+            <dd>{family}</dd>
           </div>
         )}
         {record.iso6393 && (

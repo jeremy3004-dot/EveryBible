@@ -130,12 +130,20 @@ audio or long biographies.
 
 ## Language pages
 
-`/languages/<slug>` gives each of the 9,795 language records its own indexable
+`/languages/<slug>` gives each of the 9,770 language records its own indexable
 page (title, description, canonical URL, `WebPage`/`Language`/`BreadcrumbList`
 JSON-LD), with its Scripture status, countries, identifiers, dialects, any Every
 Language recording project, neighbouring languages and source credits. `/languages`
 lists status counts, project languages and languages with a complete Bible.
 Dialects appear on their parent language's page rather than on their own.
+
+Titles are kept to 60 characters and descriptions to 160 by dropping trailing
+words, never the language name (`language-page-seo.ts`). Glottolog
+pseudo-families (Bookkeeping, Unclassifiable, Sign Language, Pidgin, ...) are
+not presented as language families (`language-family.ts`). Test and retired
+entries from the Every Language project tracker ("Test 6a", "Mangala {Delete}")
+get no page or map-profile link (`hasLanguagePage` in `language-slug.ts`); they
+still appear in the map snapshot until the source is cleaned.
 
 Slugs are `<name>-<code>` from `apps/site/lib/language-slug.ts` (`yoruba-yor`,
 `gane-gane1238`, `oung-el-15876f53`); the code comes from the record id, so a
