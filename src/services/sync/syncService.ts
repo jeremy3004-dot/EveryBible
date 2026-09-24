@@ -108,6 +108,18 @@ const applyPreferenceMergeLocally = (
   }
 };
 
+const PROGRESS_MERGE_RPC = 'merge_user_progress';
+
+/**
+ * PostgREST (PGRST202, HTTP 404) or Postgres (42883) reporting that the merge
+ * function does not exist: the app shipped before migration 20260924170000.
+ */
+const isMissingMergeRpcError = (
+  error: { code?: string } | null | undefined,
+  httpStatus: number | undefined
+): boolean =>
+  Boolean(error) && (error?.code === 'PGRST202' || error?.code === '42883' || httpStatus === 404);
+
 const getAuthGeneration = (): number => useAuthStore.getState().authGeneration;
 
 const staleSyncResult = (): SyncResult => ({
@@ -341,19 +353,46 @@ const syncProgressForIdentityImpl = async (identity: SyncIdentityBoundary): Prom
         : staleSyncResult();
     }
 
+    const row = {
+      user_id: userId,
+      chapters_read: mergedReading.progress.chaptersRead,
+      streak_days: mergedReading.progress.streakDays,
+      last_read_date: mergedReading.progress.lastReadDate,
+      current_book: mergedReading.readingPosition.bookId,
+      current_chapter: mergedReading.readingPosition.chapter,
+      synced_at: new Date().toISOString(),
+    };
+
+    // The server-side merge unions this row into the stored one under the row
+    // lock, so a second device that read the same row before either wrote cannot
+    // erase this device's new chapters (finding 12). It returns what it stored,
+    // which carries anything the other device added meanwhile.
+    const merge = await identity.runIfCurrent(() =>
+      supabase.rpc(PROGRESS_MERGE_RPC, { p_progress: row }).single()
+    );
+    if (!merge.applied) {
+      return staleSyncResult();
+    }
+    const { data: storedRow, error: mergeError, status: mergeStatus } = await merge.value!;
+    if (!isMissingMergeRpcError(mergeError, mergeStatus)) {
+      if (mergeError) {
+        return { success: false, error: mergeError.message };
+      }
+      if (!storedRow) {
+        return (await identity.isCurrent())
+          ? { success: true, merged: mergedReading.changed }
+          : staleSyncResult();
+      }
+      const adopted = await applyMergedReadingState(storedRow as UserProgress, identity);
+      if (!adopted) {
+        return staleSyncResult();
+      }
+      return { success: true, merged: mergedReading.changed || adopted.changed };
+    }
+
+    // No merge function on this server yet: the plain upsert, as before.
     const write = await identity.runIfCurrent(() =>
-      supabase.from('user_progress').upsert(
-        {
-          user_id: userId,
-          chapters_read: mergedReading.progress.chaptersRead,
-          streak_days: mergedReading.progress.streakDays,
-          last_read_date: mergedReading.progress.lastReadDate,
-          current_book: mergedReading.readingPosition.bookId,
-          current_chapter: mergedReading.readingPosition.chapter,
-          synced_at: new Date().toISOString(),
-        },
-        { onConflict: 'user_id' }
-      )
+      supabase.from('user_progress').upsert(row, { onConflict: 'user_id' })
     );
 
     if (!write.applied) {

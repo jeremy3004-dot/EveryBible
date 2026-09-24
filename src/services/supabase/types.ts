@@ -346,6 +346,13 @@ export interface Database {
         Args: Record<PropertyKey, never>;
         Returns: void;
       };
+      /** Migration 20260924170000: unions the caller's progress into their row; returns it. */
+      merge_user_progress: {
+        Args: {
+          p_progress: unknown;
+        };
+        Returns: UserProgress[];
+      };
     };
     Tables: {
       groups: {
