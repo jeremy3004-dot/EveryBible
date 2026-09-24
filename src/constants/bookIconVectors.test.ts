@@ -18,7 +18,7 @@ const directory = new URL('../../assets/book-icons-vector/', import.meta.url);
 // renders the shared BookIcon; the renderer itself is checked below on real data.
 test('every existing book-art placement uses the shared vector renderer and its own book ID', () => {
   const placements = [
-    ['../screens/bible/BibleBrowserScreen.tsx', 'book.id'],
+    ['../screens/bible/browser/BibleBookRow.tsx', 'book.id'],
     ['../screens/bible/ChapterSelectorScreen.tsx', 'book.id'],
     ['../screens/bible/BibleReaderScreen.tsx', 'bookId'],
     ['../components/bible/CompanionCard.tsx', 'item.target.bookId'],
