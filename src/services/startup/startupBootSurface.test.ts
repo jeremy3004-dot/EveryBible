@@ -100,9 +100,6 @@ test('App boot path avoids heavy barrel imports and defers the root navigator', 
     "from './src/services/analytics';",
     "from './src/services/notifications';",
     "from './src/hooks/useSync';",
-    // No screen uses react-query yet; a root provider evaluated query-core first.
-    "from '@tanstack/react-query';",
-    "from './src/services/queryClient';",
     // The package root drags push-token auto-registration and Node polyfills in;
     // notificationBootstrap deep-imports the three pieces App.tsx needs.
     "from 'expo-notifications';",
@@ -461,17 +458,15 @@ const PATH_TO_HOME = [
   '../../screens/home/HomeScreen.tsx',
 ];
 
-test('nothing evaluated before Home loads react-query, the expo-notifications root or SQLite', () => {
+test('nothing evaluated before Home loads the expo-notifications root or SQLite', () => {
   const bannedPackages = [
-    // No screen uses react-query; getQueryClient() creates the client on first use.
-    '@tanstack/react-query',
     // notificationBootstrap deep-imports the handler and the two listeners.
     'expo-notifications',
     // bibleStore registers its resolvers through bibleDatabaseSources and
     // requires bibleDatabase only when a text pack is installed or removed.
     'expo-sqlite',
   ];
-  const bannedFiles = ['src/services/queryClient.ts', 'src/services/bible/bibleDatabase.ts'];
+  const bannedFiles = ['src/services/bible/bibleDatabase.ts'];
 
   PATH_TO_HOME.forEach((entry) => {
     const { files, packages } = collectStaticImports(

@@ -88,7 +88,8 @@ mockExpoCrypto(mock);
 const secureStore = mockSecureStore(mock);
 
 // Session restore checks connectivity through a lazy `require(...).default`, so
-// the fake carries a self-reference (see queryClient.test.ts).
+// the fake carries a self-reference: it answers whether the loader hands back
+// the namespace or the interop default.
 const connectivity = { isConnected: true as boolean | null };
 const netInfoFake: Record<string, unknown> = {
   fetch: async () => ({ isConnected: connectivity.isConnected, isInternetReachable: null }),
