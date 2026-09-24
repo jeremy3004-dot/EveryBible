@@ -229,6 +229,12 @@ test('a plan reader left open overnight counts a listen for the new day, not aga
     view.getByText(t('readingPlans.listenChapterCounted', { reference: 'Matthew 2' })),
     "the listen is counted for today's plan"
   );
+  assert.ok(
+    harness.rn.__recorded.announcements.includes(
+      t('readingPlans.listenChapterCounted', { reference: 'Matthew 2' })
+    ),
+    'the passing notice is spoken, not only shown'
+  );
 });
 
 // ---- Unknown book ------------------------------------------------------------------
