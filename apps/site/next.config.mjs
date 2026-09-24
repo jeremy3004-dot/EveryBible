@@ -1,6 +1,8 @@
 import path from 'node:path';
+import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { copyMaplibreWorker } from '../../scripts/copy-maplibre-worker.mjs';
+import { buildSiteSecurityHeaders } from './lib/security-headers.mjs';
 
 // The atlas map reuses the admin's MapLibre setup, whose worker must be served from public/
 // (see apps/admin/lib/maplibre.ts). Copying here rather than in a prebuild script means it
@@ -10,6 +12,11 @@ copyMaplibreWorker(path.dirname(fileURLToPath(import.meta.url)));
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   typedRoutes: true,
+  poweredByHeader: false,
+  async headers() {
+    const dev = process.env.NODE_ENV !== 'production';
+    return [{ source: '/:path*', headers: buildSiteSecurityHeaders({ dev }) }];
+  },
   outputFileTracingRoot: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..'),
   outputFileTracingIncludes: {
     '/api/language-atlas': ['./data/language-atlas/index.json.gz'],
