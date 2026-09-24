@@ -1,3 +1,4 @@
+// Startup import-graph guard: usePrivacyLock is on App.tsx's boot graph and must not pull in the stores barrel; allowed by docs/testing.md.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
