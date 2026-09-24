@@ -145,3 +145,20 @@ test('a wisdom topic draws its own artwork in the hero', async () => {
   assert.ok(view.getByRole('header', { name: t('gather.topicCourage') }));
   assert.ok(drawsArtwork(view.root, 'topic-courage'));
 });
+
+test('the list ends clear of the floating tab bar so the up-next card is never hidden', async () => {
+  const { TAB_BAR_CAPSULE_HEIGHT } = await import('../../hooks/useTabBarHeight');
+  const view = await renderFoundation('foundation-1');
+
+  const scrollView = view.root.findAll(
+    (node) => (node.type as unknown) === 'ScrollView' && node.props.contentContainerStyle != null
+  )[0];
+  assert.ok(scrollView, 'the body scrolls');
+  const { paddingBottom } = flattenStyle(scrollView.props.contentContainerStyle) as {
+    paddingBottom?: number;
+  };
+  assert.ok(
+    typeof paddingBottom === 'number' && paddingBottom > TAB_BAR_CAPSULE_HEIGHT,
+    `bottom padding ${paddingBottom} must clear the ${TAB_BAR_CAPSULE_HEIGHT}pt tab bar`
+  );
+});

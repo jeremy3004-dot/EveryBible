@@ -396,6 +396,7 @@ export const ko = {
     notSet: '설정 안 함',
     unexpectedError: '죄송합니다. 예상치 못한 일이 발생했습니다. 다시 시도해 주세요.',
     somethingWentWrong: '문제가 발생했습니다',
+    offlineTryAgain: '오프라인 상태입니다. 인터넷에 연결한 후 다시 시도해 주세요.',
     tryAgain: '다시 시도',
     shareMessage: 'Every Bible을 한번 써 보세요!',
     all: '모두',
@@ -424,11 +425,16 @@ export const ko = {
     ledgerThisMonth_one: '{{month}} · {{count}}일 중 {{active}}일',
     ledgerThisMonth_other: '{{month}} · {{count}}일 중 {{active}}일',
     ledgerThisWeek: '이번 주 · {{total}}일 중 {{active}}일',
-    streakUnitLabel: '일 연속',
+    streakUnitLabel_one: '일 연속',
+    streakUnitLabel_other: '일 연속',
     dayEyebrow: '일차',
     lessonsProgress: '레슨 {{completed}}/{{total}}',
     nextLesson: '다음 · {{title}}',
     readPassage: '{{passage}} 읽기',
+    borrowedPassageTitle: '{{translation}}에는 {{passage}}이(가) 없습니다',
+    borrowedPassageBody:
+      '오늘의 말씀은 {{fallback}}에서 가져왔습니다. 그곳에서 이 장을 읽으면 성경이 {{fallback}}(으)로 바뀝니다. 언제든지 다시 바꿀 수 있습니다.',
+    readInTranslation: '{{translation}}(으)로 읽기',
     goodMorning: '좋은 아침이에요',
     goodAfternoon: '좋은 오후예요',
     goodEvening: '좋은 저녁이에요',
@@ -666,6 +672,11 @@ export const ko = {
     chapterFeedbackSuccess:
       '피드백을 보내 주셔서 감사합니다. 보내 주신 내용이 접수되었으며, 번역팀이 최대한 빨리 검토하겠습니다.',
     chapterFeedbackSignInRequired: '장 피드백을 보내려면 먼저 로그인해 주세요.',
+    chapterFeedbackQueuedTitle: '나중에 보내도록 저장됨',
+    chapterFeedbackQueued:
+      '오프라인 상태여서 피드백을 이 기기에 저장했습니다. 다시 온라인이 되면 자동으로 전송됩니다.',
+    chapterFeedbackOffline:
+      '오프라인 상태입니다. 피드백은 그대로 남아 있으니 연결된 후 보내 주세요.',
     translatorReviewTitle: '정확성 검토',
     translatorReviewSummary: '판단 대기: {{count}}개 중 {{pending}}개',
     translatorReviewSummaryComplete: '모든 정확성 검토 처리 완료',

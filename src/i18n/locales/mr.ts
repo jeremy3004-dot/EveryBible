@@ -103,6 +103,7 @@ export const mr = {
     notSet: 'ठरवलेले नाही',
     unexpectedError: 'आम्ही दिलगीर आहोत, परंतु काहीतरी अनपेक्षित घडले. कृपया पुन्हा प्रयत्न करा.',
     somethingWentWrong: 'काहीतरी चूक झाली',
+    offlineTryAgain: 'तुम्ही ऑफलाइन आहात. इंटरनेटशी जोडा आणि पुन्हा प्रयत्न करा.',
     tryAgain: 'पुन्हा प्रयत्न करा',
     shareMessage: 'Every Bible नक्की पाहा!',
     all: 'सर्व',
@@ -131,11 +132,16 @@ export const mr = {
     ledgerThisMonth_one: '{{month}} · {{count}} पैकी {{active}} दिवस',
     ledgerThisMonth_other: '{{month}} · {{count}} पैकी {{active}} दिवस',
     ledgerThisWeek: 'या आठवड्यात · {{total}} पैकी {{active}} दिवस',
-    streakUnitLabel: 'सलग दिवस',
+    streakUnitLabel_one: 'सलग दिवस',
+    streakUnitLabel_other: 'सलग दिवस',
     dayEyebrow: 'दिवस',
     lessonsProgress: '{{completed}} / {{total}} धडे',
     nextLesson: 'पुढे · {{title}}',
     readPassage: '{{passage}} वाचा',
+    borrowedPassageTitle: '{{translation}} मध्ये {{passage}} नाही',
+    borrowedPassageBody:
+      'आजचे वचन {{fallback}} मधून घेतले आहे. तिथे हा अध्याय वाचल्यास तुमचे बायबल {{fallback}} वर बदलेल; तुम्ही कधीही परत बदलू शकता.',
+    readInTranslation: '{{translation}} मध्ये वाचा',
     goodMorning: 'शुभ सकाळ',
     goodAfternoon: 'शुभ दुपार',
     goodEvening: 'शुभ संध्याकाळ',
@@ -374,6 +380,11 @@ export const mr = {
     chapterFeedbackSuccess:
       'तुमच्या अभिप्रायाबद्दल धन्यवाद. तो आम्हाला मिळाला असून आमची भाषांतर पथके शक्य तितक्या लवकर त्याचे पुनरावलोकन करतील.',
     chapterFeedbackSignInRequired: 'अध्यायावरील अभिप्राय पाठवण्यापूर्वी कृपया साइन इन करा.',
+    chapterFeedbackQueuedTitle: 'नंतर पाठवण्यासाठी जतन केले',
+    chapterFeedbackQueued:
+      'तुम्ही ऑफलाइन आहात, त्यामुळे तुमचा अभिप्राय या डिव्हाइसवर जतन केला आहे. पुन्हा ऑनलाइन आल्यावर तो आपोआप पाठवला जाईल.',
+    chapterFeedbackOffline:
+      'तुम्ही ऑफलाइन आहात. तुमचा अभिप्राय इथेच आहे; इंटरनेटशी जोडल्यावर तो पाठवा.',
     translatorReviewTitle: 'अचूकतेचे पुनरावलोकन',
     translatorReviewSummary: 'प्रलंबित निर्णय: {{count}} पैकी {{pending}}',
     translatorReviewSummaryComplete: 'अचूकतेची सर्व पुनरावलोकने पूर्ण झाली',

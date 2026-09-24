@@ -427,6 +427,7 @@ export const fr = {
     notSet: 'Non défini',
     unexpectedError: 'Désolé, une erreur inattendue s’est produite. Veuillez réessayer.',
     somethingWentWrong: 'Une erreur est survenue',
+    offlineTryAgain: 'Vous êtes hors ligne. Connectez-vous à Internet, puis réessayez.',
     tryAgain: 'Réessayer',
     shareMessage: 'Découvrez Every Bible !',
     all: 'Tous',
@@ -457,11 +458,17 @@ export const fr = {
     ledgerThisMonth_many: '{{month}} · {{active}}/{{count}} jours',
     ledgerThisMonth_other: '{{month}} · {{active}}/{{count}} jours',
     ledgerThisWeek: 'Cette semaine · {{active}}/{{total}} jours',
-    streakUnitLabel: 'jours d’affilée',
+    streakUnitLabel_one: 'jour d’affilée',
+    streakUnitLabel_many: 'jours d’affilée',
+    streakUnitLabel_other: 'jours d’affilée',
     dayEyebrow: 'Jour',
     lessonsProgress: '{{completed}} / {{total}} leçons',
     nextLesson: 'Suivant · {{title}}',
     readPassage: 'Lire {{passage}}',
+    borrowedPassageTitle: '{{passage}} ne figure pas dans {{translation}}',
+    borrowedPassageBody:
+      'Le verset du jour vient de {{fallback}}. Lire le chapitre dans cette version fait passer votre Bible à {{fallback}} ; vous pouvez revenir en arrière à tout moment.',
+    readInTranslation: 'Lire dans {{translation}}',
     goodMorning: 'Bonjour',
     goodAfternoon: 'Bon après-midi',
     goodEvening: 'Bonsoir',
@@ -711,6 +718,11 @@ export const fr = {
       'Merci pour votre retour. Nous l’avons bien reçu et nos équipes de traduction l’examineront dès que possible.',
     chapterFeedbackSignInRequired:
       'Veuillez vous connecter avant d’envoyer un retour sur un chapitre.',
+    chapterFeedbackQueuedTitle: 'Enregistré pour plus tard',
+    chapterFeedbackQueued:
+      'Vous êtes hors ligne : votre retour est enregistré sur cet appareil. Il sera envoyé automatiquement dès que vous serez de nouveau connecté.',
+    chapterFeedbackOffline:
+      'Vous êtes hors ligne. Votre retour est conservé ici ; envoyez-le une fois connecté.',
     translatorReviewTitle: 'Vérification de fidélité',
     translatorReviewSummary: 'Décisions en attente : {{pending}} sur {{count}}',
     translatorReviewSummaryComplete: 'Toutes les vérifications de fidélité sont traitées',

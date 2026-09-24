@@ -3,6 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import { publicRuntimeConfig } from '../startup/publicRuntimeConfig';
 import { createLazyClientAccessor } from './lazyClient';
+import { createRequestTimeoutFetch } from './requestTimeoutFetch';
 import { installSecureRandomValues } from './secureRandomValues';
 
 const SUPABASE_URL = publicRuntimeConfig.EXPO_PUBLIC_SUPABASE_URL || '';
@@ -84,6 +85,10 @@ const getSupabaseClient = createLazyClientAccessor({
         // signInWithIdToken and email sign-in uses signInWithPassword; neither
         // is affected by the flow type.
         flowType: 'pkce',
+      },
+      global: {
+        // Read global fetch per call so RN's (and any test's) fetch is used.
+        fetch: createRequestTimeoutFetch((input, init) => globalThis.fetch(input, init)),
       },
     });
   },

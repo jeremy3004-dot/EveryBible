@@ -52,6 +52,7 @@ import { useLibraryStore } from '../../stores/libraryStore';
 import { useReadingPlansStore } from '../../stores/readingPlansStore';
 import { isMultiSessionPlan } from '../../services/plans/readingPlanModel';
 import type { ListeningHistoryEntry } from '../../stores/libraryModel';
+import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../design/largeTextLayout';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -1331,7 +1332,11 @@ export function PlansHomeScreen() {
               {headerEyebrow}
             </Text>
           ) : null}
-          <Text accessibilityRole="header" style={[styles.title, displayFont.bold]}>
+          <Text
+            maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
+            accessibilityRole="header"
+            style={[styles.title, displayFont.bold]}
+          >
             {t('readingPlans.plans')}
           </Text>
         </View>

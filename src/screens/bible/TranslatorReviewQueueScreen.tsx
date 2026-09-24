@@ -27,6 +27,7 @@ import { TranslationNotCoveredNotice } from '../../components/feedback';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useTranslatorReviewStore } from '../../stores/translatorReviewStore';
 import { hexWithAlpha } from '../../utils';
+import { isDeviceOffline } from '../../utils/connectivity';
 import type { BibleStackParamList } from '../../navigation/types';
 
 type NavigationProp = NativeStackNavigationProp<BibleStackParamList, 'TranslatorQueue'>;
@@ -44,6 +45,8 @@ export function TranslatorReviewQueueScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState(false);
+  // The queue lives only on the server, so offline it cannot load; say why.
+  const [offline, setOffline] = useState(false);
   // Set when this passcode does not open the current translation; holds what it does open.
   const [notCovered, setNotCovered] = useState<{ coveredTranslationIds?: string[] } | null>(null);
 
@@ -76,6 +79,11 @@ export function TranslatorReviewQueueScreen() {
       setLoadError(false);
       setNotCovered(null);
     } else {
+      const deviceOffline = await isDeviceOffline();
+      if (requestId !== loadQueueRequestIdRef.current) {
+        return;
+      }
+      setOffline(deviceOffline);
       setQueue([]);
       setLoadError(true);
       setNotCovered(
@@ -191,7 +199,7 @@ export function TranslatorReviewQueueScreen() {
             color={hexWithAlpha(colors.secondaryText, 0.6)}
           />
           <Text style={[styles.emptyText, { color: colors.secondaryText }]}>
-            {t('common.somethingWentWrong')}
+            {offline ? t('common.offlineTryAgain') : t('common.somethingWentWrong')}
           </Text>
           <TouchableOpacity
             style={[styles.retryButton, { borderColor: colors.cardBorder }]}

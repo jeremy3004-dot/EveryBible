@@ -56,3 +56,15 @@ test('row direction follows the large-text decision', () => {
   assert.equal(getLargeTextRowDirection(IOS_AX1), 'column');
   assert.equal(getLargeTextRowDirection(IOS_XXXL, 1.6), 'row');
 });
+
+test('the scaling caps still enlarge capped text past the large-text threshold', async () => {
+  const { CONTROL_LABEL_MAX_FONT_SCALE, DISPLAY_TEXT_MAX_FONT_SCALE } =
+    await import('./largeTextLayout');
+  // A cap at or below the threshold would leave capped text no bigger than the
+  // largest standard size, which is not what someone at AX sizes asked for.
+  for (const cap of [DISPLAY_TEXT_MAX_FONT_SCALE, CONTROL_LABEL_MAX_FONT_SCALE]) {
+    assert.ok(cap > LARGE_TEXT_FONT_SCALE && cap < IOS_AX1);
+  }
+  assert.equal(DISPLAY_TEXT_MAX_FONT_SCALE, 1.5);
+  assert.equal(CONTROL_LABEL_MAX_FONT_SCALE, 1.6);
+});

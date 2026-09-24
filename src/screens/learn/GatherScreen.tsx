@@ -26,6 +26,7 @@ import { useGatherStore } from '../../stores/gatherStore';
 import { getTranslatedBookName } from '../../constants/books';
 import { countCompletedLessons, resolveGatherUpNext } from './gatherPathModel';
 import type { LearnStackParamList } from '../../navigation/types';
+import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../design/largeTextLayout';
 
 type NavProp = NativeStackNavigationProp<LearnStackParamList, 'GatherHome'>;
 
@@ -186,6 +187,7 @@ export function GatherScreen() {
             {t('gather.discoveryBibleStudy')}
           </Text>
           <Text
+            maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
             accessibilityRole="header"
             style={[typography.displayHero, displayFont.bold, { color: colors.primaryText }]}
           >

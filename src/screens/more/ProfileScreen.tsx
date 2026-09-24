@@ -27,6 +27,7 @@ import { openAuthFlow } from '../../navigation/rootNavigation';
 import { layout, radius, spacing, typography } from '../../design/system';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { formatListeningTime } from '../../i18n/interfaceFormatting';
+import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../design/largeTextLayout';
 
 type NavigationProp = NativeStackNavigationProp<MoreStackParamList>;
 
@@ -202,11 +203,15 @@ export function ProfileScreen() {
         <View style={styles.statsCard}>
           <View style={styles.statsGrid}>
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{chaptersRead}</Text>
+              <Text maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE} style={styles.statNumber}>
+                {chaptersRead}
+              </Text>
               <Text style={styles.statLabel}>{t('home.chaptersRead')}</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{streakDays}</Text>
+              <Text maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE} style={styles.statNumber}>
+                {streakDays}
+              </Text>
               <Text style={styles.statLabel}>{t('profile.streak')}</Text>
             </View>
           </View>
@@ -223,13 +228,15 @@ export function ProfileScreen() {
 
             <View style={styles.statsGrid}>
               <View style={styles.statItem}>
-                <Text style={styles.statNumber}>
+                <Text maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE} style={styles.statNumber}>
                   {formatListeningTime(engagement.total_listening_minutes, t)}
                 </Text>
                 <Text style={styles.statLabel}>{t('engagement.listeningTime')}</Text>
               </View>
               <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{engagement.plans_completed}</Text>
+                <Text maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE} style={styles.statNumber}>
+                  {engagement.plans_completed}
+                </Text>
                 <Text style={styles.statLabel}>{t('engagement.plansCompleted')}</Text>
               </View>
             </View>
@@ -238,11 +245,15 @@ export function ProfileScreen() {
 
             <View style={styles.statsGrid}>
               <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{engagement.longest_streak_days}</Text>
+                <Text maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE} style={styles.statNumber}>
+                  {engagement.longest_streak_days}
+                </Text>
                 <Text style={styles.statLabel}>{t('engagement.longestStreak')}</Text>
               </View>
               <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{engagement.annotations_created}</Text>
+                <Text maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE} style={styles.statNumber}>
+                  {engagement.annotations_created}
+                </Text>
                 <Text style={styles.statLabel}>{t('engagement.annotationsCreated')}</Text>
               </View>
             </View>

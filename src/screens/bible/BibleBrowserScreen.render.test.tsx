@@ -403,6 +403,22 @@ test('the translation sheet loads the shared picker only once it is opened', asy
   assert.equal(view.queryAllByType('Modal').length, 0, 'the picker can dismiss the sheet');
 });
 
+test('the translation sheet shares the reader header: capped title and a 44pt close target', async () => {
+  const { DISPLAY_TEXT_MAX_FONT_SCALE } = await import('../../design/largeTextLayout');
+  harness.setFontScale(3.12);
+  const view = await renderBrowser();
+  await view.press(translationEntry(view)!);
+  await view.flush();
+
+  const title = view.getByRole('header', { name: t('bible.selectTranslation') });
+  assert.equal(title.props.maxFontSizeMultiplier, DISPLAY_TEXT_MAX_FONT_SCALE);
+  const close = view.getByRole('button', { name: t('interface.close') });
+  const style = flattenStyle(close.props.style) ?? {};
+  assert.deepEqual([style.width, style.height], [44, 44]);
+  await view.press(close);
+  assert.equal(view.queryAllByType('Modal').length, 0);
+});
+
 test('translator review badges mark pending and addressed feedback on books and chapters', async () => {
   const { createThemeColors } = await import('../../contexts/ThemeContext');
   const colors = createThemeColors('light', DEFAULT_APPEARANCE_PALETTE);

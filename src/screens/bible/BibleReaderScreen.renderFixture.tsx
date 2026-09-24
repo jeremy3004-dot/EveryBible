@@ -273,12 +273,16 @@ export function installReaderRenderFixture(
     isRemoteAudioAvailable: () => true,
   });
   const feedbackSubmissions: Array<Record<string, unknown>> = [];
+  // What the send (or offline queue) reports back; a test sets it before submitting.
+  const feedbackOutcome: { result: Record<string, unknown> } = { result: { success: true } };
+  const recordFeedback = async (submission: Record<string, unknown>) => {
+    feedbackSubmissions.push(submission);
+    return feedbackOutcome.result;
+  };
   mockBarrel(mocker, 'services/feedback/index.ts', {
     provide: {
-      submitChapterFeedback: async (submission: Record<string, unknown>) => {
-        feedbackSubmissions.push(submission);
-        return { success: true };
-      },
+      submitChapterFeedback: recordFeedback,
+      submitChapterFeedbackOrQueue: recordFeedback,
     },
   });
   mockModule(mocker, sourcePath('services/feedback/chapterFeedbackAudio.ts'), {
@@ -410,6 +414,7 @@ export function installReaderRenderFixture(
     chapterRequests.length = 0;
     rootTabCalls.length = 0;
     feedbackSubmissions.length = 0;
+    feedbackOutcome.result = { success: true };
     annotationLoads.length = 0;
     serviceCalls.length = 0;
     av.log.length = 0;
@@ -521,6 +526,7 @@ export function installReaderRenderFixture(
     feedbackSubmissions,
     feedbackAv,
     serviceCalls,
+    feedbackOutcome,
     rootTabCalls,
     renderReader,
     navigateReader,

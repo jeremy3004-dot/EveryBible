@@ -103,6 +103,7 @@ export const te = {
     notSet: 'సెట్ చేయలేదు',
     unexpectedError: 'క్షమించండి, ఏదో అనుకోనిది జరిగింది. దయచేసి మళ్లీ ప్రయత్నించండి.',
     somethingWentWrong: 'ఏదో తప్పు జరిగింది',
+    offlineTryAgain: 'మీరు ఆఫ్‌లైన్‌లో ఉన్నారు. ఇంటర్నెట్‌కు కనెక్ట్ అయి మళ్లీ ప్రయత్నించండి.',
     tryAgain: 'మళ్లీ ప్రయత్నించండి',
     shareMessage: 'Every Bible చూడండి!',
     all: 'అన్నీ',
@@ -131,11 +132,16 @@ export const te = {
     ledgerThisMonth_one: '{{month}} · {{active}}/{{count}} రోజు',
     ledgerThisMonth_other: '{{month}} · {{active}}/{{count}} రోజులు',
     ledgerThisWeek: 'ఈ వారం · {{active}}/{{total}} రోజులు',
-    streakUnitLabel: 'రోజుల వరుస',
+    streakUnitLabel_one: 'రోజు వరుస',
+    streakUnitLabel_other: 'రోజుల వరుస',
     dayEyebrow: 'రోజు',
     lessonsProgress: '{{completed}} / {{total}} పాఠాలు',
     nextLesson: 'తదుపరి · {{title}}',
     readPassage: '{{passage}} చదవండి',
+    borrowedPassageTitle: '{{translation}}లో {{passage}} లేదు',
+    borrowedPassageBody:
+      'నేటి వచనం {{fallback}} నుండి తీసుకోబడింది. అక్కడ ఈ అధ్యాయాన్ని చదివితే మీ బైబిల్ {{fallback}}కి మారుతుంది; మీరు ఎప్పుడైనా తిరిగి మార్చుకోవచ్చు.',
+    readInTranslation: '{{translation}}లో చదవండి',
     goodMorning: 'శుభోదయం',
     goodAfternoon: 'శుభ మధ్యాహ్నం',
     goodEvening: 'శుభ సాయంత్రం',
@@ -379,6 +385,11 @@ export const te = {
     chapterFeedbackSuccess:
       'మీ అభిప్రాయానికి ధన్యవాదాలు. మీరు పంపినది మాకు అందింది; వీలైనంత త్వరగా మా అనువాద బృందాలు దీన్ని సమీక్షిస్తాయి.',
     chapterFeedbackSignInRequired: 'దయచేసి అధ్యాయం అభిప్రాయాన్ని పంపే ముందు సైన్ ఇన్ చేయండి.',
+    chapterFeedbackQueuedTitle: 'తర్వాత పంపడానికి భద్రపరచబడింది',
+    chapterFeedbackQueued:
+      'మీరు ఆఫ్‌లైన్‌లో ఉన్నారు, కాబట్టి మీ అభిప్రాయం ఈ పరికరంలో భద్రపరచబడింది. మీరు మళ్లీ ఆన్‌లైన్‌లోకి వచ్చినప్పుడు అది ఆటోమేటిక్‌గా పంపబడుతుంది.',
+    chapterFeedbackOffline:
+      'మీరు ఆఫ్‌లైన్‌లో ఉన్నారు. మీ అభిప్రాయం ఇక్కడే ఉంది; కనెక్ట్ అయిన తర్వాత పంపండి.',
     translatorReviewTitle: 'ఖచ్చితత్వ సమీక్ష',
     translatorReviewSummary: 'మిగిలిన నిర్ణయాలు: {{count}}లో {{pending}}',
     translatorReviewSummaryComplete: 'ఖచ్చితత్వ సమీక్షలన్నీ పూర్తయ్యాయి',

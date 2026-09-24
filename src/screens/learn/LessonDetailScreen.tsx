@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   type LayoutChangeEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
@@ -48,6 +49,7 @@ import { formatBibleReferenceLabel } from '../../services/gather/gatherReference
 import { getChapterAudioUrl } from '../../services/audio/audioService';
 import { getTranslatedBookName } from '../../constants';
 import { formatPlaybackTime, lightHaptic, successHaptic } from '../../utils';
+import { isDeviceOffline } from '../../utils/connectivity';
 import type { MeetingSectionType } from '../../types/gather';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useGatherStore } from '../../stores/gatherStore';
@@ -65,6 +67,7 @@ import {
 } from './lessonPassageModel';
 import { readLessonPlaybackStatus } from './lessonAudioModel';
 import { createLessonSoundOwner } from './lessonSoundOwner';
+import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../design/largeTextLayout';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -336,9 +339,13 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
         setIsAudioPlaying(true);
       }
     } catch {
-      // Ignore playback errors silently — user can retry
+      // A chapter that is not downloaded streams, which fails offline; tell the
+      // reader why nothing plays. Other playback errors stay silent (retry).
+      if (await isDeviceOffline()) {
+        Alert.alert(t('common.error'), t('common.offlineTryAgain'));
+      }
     }
-  }, [audioUrl, handlePlaybackStatusUpdate, playbackSpeed, soundOwner]);
+  }, [audioUrl, handlePlaybackStatusUpdate, playbackSpeed, soundOwner, t]);
 
   const pauseAudio = useCallback(async () => {
     try {
@@ -561,12 +568,14 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
         {/* Hero */}
         <View style={styles.hero}>
           <Text
+            maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
             style={[typography.numeralHero, styles.heroNumeral, { color: colors.accentPrimary }]}
           >
             {padLessonNumber(lesson.number)}
           </Text>
           <View style={styles.heroColumn}>
             <Text
+              maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
               accessibilityRole="header"
               style={[styles.heroTitle, displayFont.bold, { color: colors.primaryText }]}
             >

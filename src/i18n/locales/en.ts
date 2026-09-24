@@ -387,6 +387,7 @@ export const en = {
     notSet: 'Not set',
     unexpectedError: "We're sorry, but something unexpected happened. Please try again.",
     somethingWentWrong: 'Something went wrong',
+    offlineTryAgain: "You're offline. Connect to the internet and try again.",
     tryAgain: 'Try Again',
     shareMessage: 'Check out Every Bible!',
     all: 'All',
@@ -410,6 +411,10 @@ export const en = {
     beginToday: 'Begin today',
     todaysScripture: "Today's Scripture",
     readPassage: 'Read {{passage}}',
+    borrowedPassageTitle: "{{passage}} isn't in {{translation}}",
+    borrowedPassageBody:
+      "Today's verse comes from {{fallback}}. Reading the chapter there switches your Bible to {{fallback}}; you can switch back at any time.",
+    readInTranslation: 'Read in {{translation}}',
     dayEyebrow: 'Day',
     lessonsProgress: '{{completed}} / {{total}} lessons',
     nextLesson: 'Next · {{title}}',
@@ -436,7 +441,8 @@ export const en = {
     defaultVerse: 'Start reading or listening to discover today’s Scripture.',
     defaultReference: 'Open the Bible',
     allTime: 'All time',
-    streakUnitLabel: 'day streak',
+    streakUnitLabel_one: 'day streak',
+    streakUnitLabel_other: 'day streak',
     ledgerPeriodLabel: 'Reading summary period',
     ledgerChapters: 'Chapters',
     ledgerChaptersCaption: 'Read or listened',
@@ -590,6 +596,11 @@ export const en = {
     chapterFeedbackSuccess:
       'Thank you for your feedback. Your submission has been received and will be reviewed by our translation teams as soon as possible.',
     chapterFeedbackSignInRequired: 'Please sign in before sending chapter feedback.',
+    chapterFeedbackQueuedTitle: 'Saved for later',
+    chapterFeedbackQueued:
+      "You're offline, so your feedback is saved on this device. It will be sent automatically when you're back online.",
+    chapterFeedbackOffline:
+      "You're offline. Your feedback is still here; send it once you're connected.",
     translatorReviewTitle: 'Accuracy review',
     translatorReviewSummary: 'Pending decisions: {{pending}} of {{count}}',
     translatorReviewSummaryComplete: 'All accuracy reviews processed',

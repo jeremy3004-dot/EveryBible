@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { layout, radius, spacing, typography } from '../../design/system';
 import { lightHaptic, successHaptic } from '../../utils';
 import {
@@ -27,6 +28,7 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
   const { colors } = useTheme();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const { contentClearance } = useTabBarHeight();
 
   const [selectedLesson, setSelectedLesson] = useState<GatherLesson | null>(null);
   const [bottomSheetVisible, setBottomSheetVisible] = useState(false);
@@ -154,7 +156,7 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
-          { padding: layout.screenPadding, paddingBottom: 40 },
+          { padding: layout.screenPadding, paddingBottom: contentClearance },
         ]}
         showsVerticalScrollIndicator={false}
       >

@@ -440,6 +440,7 @@ test('a client that throws is reported with the thrown message', async () => {
     saved: false,
     exported: false,
     error: 'Network request failed',
+    retryable: true,
   });
 });
 
@@ -451,6 +452,39 @@ test('a client that throws a non-Error value falls back to the generic failure c
   });
 
   assert.equal(result.error, 'Unable to submit chapter feedback right now.');
+});
+
+// ---------------------------------------------------------------------------
+// Retryable failures (offline outbox)
+// ---------------------------------------------------------------------------
+
+test('a request that never reached the edge function (offline) is marked retryable', async () => {
+  const result = await submitWithError({
+    name: 'FunctionsFetchError',
+    message: 'Failed to send a request to the Edge Function',
+    context: new TypeError('Network request failed'),
+  });
+
+  assert.equal(result.success, false);
+  assert.equal(result.retryable, true);
+});
+
+test('a server outage (5xx) is marked retryable', async () => {
+  const result = await submitWithError({
+    message: 'Edge Function returned a non-2xx status code',
+    context: { status: 503, text: async () => 'upstream unavailable' },
+  });
+
+  assert.equal(result.retryable, true);
+});
+
+test('a request the server refused on its merits is not retryable', async () => {
+  const result = await submitWithError({
+    message: 'Edge Function returned a non-2xx status code',
+    context: { status: 400, json: async () => ({ error: 'Chapter is out of range' }) },
+  });
+
+  assert.equal(result.retryable, undefined);
 });
 
 // ---------------------------------------------------------------------------

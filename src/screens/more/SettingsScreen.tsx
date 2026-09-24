@@ -88,6 +88,10 @@ import {
 import type { MoreStackParamList } from '../../navigation/types';
 import { hexWithAlpha, lightHaptic } from '../../utils';
 import { announceLiveRegionText } from '../../utils/a11y';
+import {
+  CONTROL_LABEL_MAX_FONT_SCALE,
+  DISPLAY_TEXT_MAX_FONT_SCALE,
+} from '../../design/largeTextLayout';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const MINUTES = ['00', '15', '30', '45'];
@@ -545,6 +549,7 @@ export function SettingsScreen() {
       <Text
         style={[styles.fontSizeValue, displayFont.regular, { color: colors.secondaryText }]}
         numberOfLines={2}
+        maxFontSizeMultiplier={CONTROL_LABEL_MAX_FONT_SCALE}
       >
         {fontSizeLabel}
       </Text>
@@ -791,6 +796,7 @@ export function SettingsScreen() {
               ]}
             >
               <Text
+                maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
                 accessibilityRole="header"
                 style={[styles.modalTitle, displayFont.bold, { color: colors.primaryText }]}
               >
@@ -915,6 +921,7 @@ export function SettingsScreen() {
               ]}
             >
               <Text
+                maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
                 accessibilityRole="header"
                 style={[styles.modalTitle, displayFont.bold, { color: colors.primaryText }]}
               >
@@ -1201,6 +1208,7 @@ export function SettingsScreen() {
             ]}
           >
             <Text
+              maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
               accessibilityRole="header"
               style={[styles.modalTitle, displayFont.bold, { color: colors.primaryText }]}
             >
@@ -1312,6 +1320,7 @@ export function SettingsScreen() {
             ]}
           >
             <Text
+              maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
               accessibilityRole="header"
               style={[styles.modalTitle, displayFont.bold, { color: colors.primaryText }]}
             >
@@ -1396,6 +1405,7 @@ export function SettingsScreen() {
               style={styles.deleteWarningIcon}
             />
             <Text
+              maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
               accessibilityRole="header"
               style={[styles.modalTitle, displayFont.bold, { color: colors.primaryText }]}
             >

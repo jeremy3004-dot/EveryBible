@@ -103,6 +103,7 @@ export const hi = {
     notSet: 'तय नहीं',
     unexpectedError: 'हमें खेद है, लेकिन कुछ अप्रत्याशित हुआ। कृपया पुनः प्रयास करें।',
     somethingWentWrong: 'कुछ गलत हो गया',
+    offlineTryAgain: 'आप ऑफ़लाइन हैं। इंटरनेट से जुड़ें और फिर से कोशिश करें।',
     tryAgain: 'फिर से कोशिश करें',
     shareMessage: 'Every Bible देखें!',
     all: 'सभी',
@@ -131,11 +132,16 @@ export const hi = {
     ledgerThisMonth_one: '{{month}} · {{count}} में से {{active}} दिन',
     ledgerThisMonth_other: '{{month}} · {{count}} में से {{active}} दिन',
     ledgerThisWeek: 'इस सप्ताह · {{total}} में से {{active}} दिन',
-    streakUnitLabel: 'दिनों का सिलसिला',
+    streakUnitLabel_one: 'दिन का सिलसिला',
+    streakUnitLabel_other: 'दिनों का सिलसिला',
     dayEyebrow: 'दिन',
     lessonsProgress: '{{completed}} / {{total}} पाठ',
     nextLesson: 'अगला · {{title}}',
     readPassage: '{{passage}} पढ़ें',
+    borrowedPassageTitle: '{{translation}} में {{passage}} नहीं है',
+    borrowedPassageBody:
+      'आज का वचन {{fallback}} से लिया गया है। वहाँ यह अध्याय पढ़ने से आपकी बाइबल {{fallback}} में बदल जाएगी; आप कभी भी वापस बदल सकते हैं।',
+    readInTranslation: '{{translation}} में पढ़ें',
     goodMorning: 'शुभ प्रभात',
     goodAfternoon: 'शुभ दोपहर',
     goodEvening: 'शुभ संध्या',
@@ -306,6 +312,11 @@ export const hi = {
     chapterFeedbackSuccess:
       'आपकी प्रतिक्रिया के लिए धन्यवाद। हमें यह मिल गई है और हमारी अनुवाद टीमें जल्द से जल्द इसकी समीक्षा करेंगी।',
     chapterFeedbackSignInRequired: 'अध्याय प्रतिक्रिया भेजने से पहले कृपया साइन इन करें।',
+    chapterFeedbackQueuedTitle: 'बाद में भेजने के लिए सहेजा गया',
+    chapterFeedbackQueued:
+      'आप ऑफ़लाइन हैं, इसलिए आपकी प्रतिक्रिया इस डिवाइस पर सहेज ली गई है। इंटरनेट वापस आने पर यह अपने-आप भेज दी जाएगी।',
+    chapterFeedbackOffline:
+      'आप ऑफ़लाइन हैं। आपकी प्रतिक्रिया यहीं सुरक्षित है; इंटरनेट से जुड़ने पर इसे भेजें।',
     translatorReviewTitle: 'सटीकता की समीक्षा',
     translatorReviewSummary: 'लंबित निर्णय: {{count}} में से {{pending}}',
     translatorReviewSummaryComplete: 'सटीकता की सभी समीक्षाएँ पूरी हो गईं',

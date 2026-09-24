@@ -1,0 +1,47 @@
+# Home and Verse of the Day bug hunt: 2026-09-24
+
+Scope: `HomeScreen`, the verse of the day (selection, text per translation, the Listen and
+Read pills, share, hero photograph), the greeting and date, the Continue, plan, Gather and
+reading-ledger cards, and what Home does when the app returns from the background hours
+later. Also the passage list change in 3d1682ec, which widened ranges to sentence boundaries.
+Base: origin/main 9e1a3f25. Layout sizing was out of scope (another agent owns large-text
+truncation on Home).
+
+## Found and fixed
+
+Each fix started with a failing test.
+
+| Severity    | Bug                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Fix                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | Test                                                   |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| Medium–High | A translation without today's passage showed no Scripture. The daily roster has 100 Old Testament and 100 New Testament entries, and they come in runs of up to 43 Old Testament days in a row. On every one of those days a New Testament-only text pack drew the placeholder "Start reading or listening to discover today's Scripture." under "Today's Scripture · Isaiah 40:31". An audio-only set that does not cover the chapter did the same. A pack that could not be opened threw, so the hero fell back to "Open the Bible". | `getDailyScripture` reads the passage in the reader's translation first, then that translation's chapter audio, and then the bundled BSB, as Gather lessons already do. Borrowed text sets `fallbackTranslationId`. Home adds "· BSB" to the reference on the hero, the shared image and the shared text. The verse is drawn in the reading face for BSB's language, not the selected translation's. If the BSB read also fails, the original error still reaches the caller. | `bibleService.test.ts`, `HomeScreen.render.test.tsx`   |
+| Medium      | The greeting and date kept the time Home first mounted. `getGreetingKey` was memoised with no dependencies, and the date label was memoised only on the language. At midnight the verse refreshed but the eyebrow still showed yesterday's date. After the app came back from the background, a phone that opened Home in the morning said "Good morning" in the evening. The ledger's week and month ranges, the "x of y days" footer and the plan ordering used memos that were not keyed on the day either.                         | Home keeps a `clockMs` state. `startVerseOfDayRefresh` advances it through a new `onClockAdvance` callback at each local midnight and on each return to the foreground. The greeting, date, ledger, plan day and ordering, daily reference and hero photograph all read it.                                                                                                                                                                                                   | `homeVerseOfDay.test.ts`, `HomeScreen.render.test.tsx` |
+| Low–Medium  | Wrong verse under the reference. If a chapter existed but lacked the named verse, `getReferencePassageText` returned the chapter's first verse, and the hero printed it under the named reference, for example Isaiah 40:1 labelled Isaiah 40:31. An existing test asserted this behaviour, and I replaced it.                                                                                                                                                                                                                         | The function returns only the named verses, or nothing. When there is nothing, the BSB fallback above applies.                                                                                                                                                                                                                                                                                                                                                                | `bibleService.test.ts`                                 |
+
+## Checked and clean
+
+- **Selecting the verse by local date.** `getDailyScriptureReference` indexes by local calendar components, so DST and time-zone offsets cannot repeat or skip an entry. I checked Asia/Kathmandu (UTC+5:45), Pacific/Honolulu (UTC−10), America/New_York and America/Santiago. Each case covered 23:59 to 00:00, 28 Feb to 29 Feb 2028 and 29 Feb to 1 Mar 2028. In all four zones the midnight timer (`setHours(24)`) lands on the next calendar day. That includes Santiago's DST start, where local midnight does not exist and the timer fires at 01:00. Existing tests pin the DST and leap-day steps.
+- **Midnight rollover while the app is open.** The refresh module reloads silently at each local midnight and re-arms the timer. While the app is backgrounded, JS timers pause and the foreground listener reloads instead.
+- **Passages changed in 3d1682ec.** In the bundled BSB, every range ends on sentence punctuation (the existing test). Today's passage is Romans 12:12, 63 characters. The longest is Deuteronomy 30:19-20, 397 characters. The hero's verse `Text` has no `numberOfLines`, and neither it nor any ancestor fixes or caps a height (the hero uses `minHeight`). A new render test draws both real passages at OS scale 1 and 2 with the medium and large reading sizes.
+- **"Read Romans 12".** It opens `BibleReader` with the passage's book, chapter and `focusVerse`. With no verse loaded, it opens the browser.
+- **Share.** It captures the Scripture-only card as a PNG and falls back to text when sharing images is unavailable or the capture throws. The date, greeting and name are never shared. Existing tests cover this.
+- **Hero photograph.** It comes from 14 bundled photos, chosen by local day of year. It needs no network and has no cache to go stale.
+- **Continue card.** After reading history is cleared (`hasReaderHistory` false) it shows "Open the Bible" and opens the browser. After a translation change it names the new translation. A translation id missing from the list falls back to the id in upper case.
+- **Plan card.** With no plan it offers "Browse plans". With several, `selectHomeContinuePlans` ranks unread-today first, then the most recently active. A completed plan is excluded, and the card then suggests the Proverbs plan, as the existing test expects.
+- **Gather card.** The in-progress foundation wins. If none is started it shows the first, and if all are done it shows the last.
+- **Streak.** `selectCurrentStreakDays` runs on every render. After the clock fix, Home re-renders at midnight and on resume, so a streak that lapsed overnight drops to 0.
+
+## Fixed in a follow-up (same day)
+
+- The greeting now also turns over at 12:00 and 17:00 while Home stays open
+  (`getMillisecondsUntilNextGreetingChange`, a clock-only timer in `startVerseOfDayRefresh`).
+- The hero photograph counts local days continuously, so 31 Dec and 1 Jan never share a photo.
+- "Read …" on a verse borrowed from BSB asks first, then switches the reader to BSB and
+  opens the chapter. Cancel leaves the translation alone.
+- Listen follows NetInfo (`useDeviceOffline`) and asks `isRemoteAudioAvailable` about
+  today's book, so it shows only for downloaded audio or, online, a stream that carries
+  the book. Chapter maps still decide for Every Language sets.
+
+## Open (not fixed)
+
+- **Low.** If the silent midnight refresh throws, yesterday's verse stays under today's date. The error is only logged.
+- **Unconfirmed:** I did not query the live `translation_catalog` for New Testament-only text packs, because this task allowed no live Supabase access. Gather's comments and tests treat them as real.

@@ -21,6 +21,10 @@ import { useTranslation } from 'react-i18next';
 import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
 import { useDisplayFont } from '../../hooks';
 import { layout, motion, radius, shadows, spacing, typography } from '../../design/system';
+import {
+  CONTROL_LABEL_MAX_FONT_SCALE,
+  DISPLAY_TEXT_MAX_FONT_SCALE,
+} from '../../design/largeTextLayout';
 import { AppButton, AppCard, IconButton, PressableScale } from '../../components/ui';
 import { errorHaptic } from '../../utils/haptics';
 import type { AuthScreenMode, AuthStackParamList } from '../../navigation/types';
@@ -50,7 +54,7 @@ const APP_ICON_SIZE = 52;
 const GOOGLE_MARK_SIZE = 18;
 // Same cap as AppButton's label, so the Google strip and the primary CTA grow
 // together with the user's text size.
-const GOOGLE_LABEL_MAX_FONT_SCALE = 1.6;
+const GOOGLE_LABEL_MAX_FONT_SCALE = CONTROL_LABEL_MAX_FONT_SCALE;
 const FIELD_HEIGHT = 48;
 const PROVIDER_GAP = 10;
 
@@ -363,7 +367,11 @@ export function AuthScreen() {
               importantForAccessibility="no-hide-descendants"
             />
 
-            <Text accessibilityRole="header" style={[styles.title, displayFont.bold]}>
+            <Text
+              maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
+              accessibilityRole="header"
+              style={[styles.title, displayFont.bold]}
+            >
               {copy.title}
             </Text>
             <Text style={styles.subtitle}>{copy.subtitle}</Text>

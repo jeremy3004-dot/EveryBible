@@ -121,8 +121,8 @@ test('BibleReaderScreen submits chapter feedback through the dedicated service a
 
   assert.match(
     source,
-    /submitChapterFeedback\(/,
-    'BibleReaderScreen should submit feedback through submitChapterFeedback'
+    /submitChapterFeedbackOrQueue\(/,
+    'BibleReaderScreen should submit feedback through the service, which queues it offline'
   );
   assert.match(
     source,

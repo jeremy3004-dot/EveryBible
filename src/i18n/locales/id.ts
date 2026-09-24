@@ -409,6 +409,7 @@ export const id = {
     notSet: 'Belum diatur',
     unexpectedError: 'Maaf, terjadi kesalahan yang tidak terduga. Silakan coba lagi.',
     somethingWentWrong: 'Ada yang tidak beres',
+    offlineTryAgain: 'Anda sedang offline. Sambungkan ke internet, lalu coba lagi.',
     tryAgain: 'Coba lagi',
     shareMessage: 'Coba Every Bible!',
     all: 'Semua',
@@ -437,11 +438,16 @@ export const id = {
     ledgerThisMonth_one: '{{month}} · {{active}} dari {{count}} hari',
     ledgerThisMonth_other: '{{month}} · {{active}} dari {{count}} hari',
     ledgerThisWeek: 'Minggu ini · {{active}} dari {{total}} hari',
-    streakUnitLabel: 'hari berturut-turut',
+    streakUnitLabel_one: 'hari berturut-turut',
+    streakUnitLabel_other: 'hari berturut-turut',
     dayEyebrow: 'Hari',
     lessonsProgress: '{{completed}} / {{total}} pelajaran',
     nextLesson: 'Berikutnya · {{title}}',
     readPassage: 'Baca {{passage}}',
+    borrowedPassageTitle: '{{passage}} tidak ada di {{translation}}',
+    borrowedPassageBody:
+      'Ayat hari ini diambil dari {{fallback}}. Membaca pasal itu di sana akan mengganti Alkitab Anda ke {{fallback}}; Anda bisa menggantinya kembali kapan saja.',
+    readInTranslation: 'Baca di {{translation}}',
     goodMorning: 'Selamat pagi',
     goodAfternoon: 'Selamat siang',
     goodEvening: 'Selamat malam',
@@ -682,6 +688,11 @@ export const id = {
     chapterFeedbackSuccess:
       'Terima kasih atas masukan Anda. Kiriman Anda telah kami terima dan akan ditinjau oleh tim penerjemah kami sesegera mungkin.',
     chapterFeedbackSignInRequired: 'Silakan masuk sebelum mengirim masukan pasal.',
+    chapterFeedbackQueuedTitle: 'Disimpan untuk nanti',
+    chapterFeedbackQueued:
+      'Anda sedang offline, jadi masukan Anda disimpan di perangkat ini. Masukan akan dikirim otomatis saat Anda kembali online.',
+    chapterFeedbackOffline:
+      'Anda sedang offline. Masukan Anda masih ada di sini; kirimkan setelah terhubung.',
     translatorReviewTitle: 'Tinjauan keakuratan',
     translatorReviewSummary: 'Keputusan tertunda: {{pending}} dari {{count}}',
     translatorReviewSummaryComplete: 'Semua tinjauan keakuratan telah diproses',

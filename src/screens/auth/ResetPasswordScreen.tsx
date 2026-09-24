@@ -38,6 +38,7 @@ import {
 } from '../../services/auth/authRecoveryLink';
 import { pullFromCloud } from '../../services/sync';
 import { useAuthStore } from '../../stores/authStore';
+import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../design/largeTextLayout';
 
 type NavigationProp = NativeStackNavigationProp<AuthStackParamList, 'ResetPassword'>;
 
@@ -255,7 +256,11 @@ export function ResetPasswordScreen() {
           <View style={styles.content}>
             {phase === 'problem' ? (
               <>
-                <Text accessibilityRole="header" style={[styles.title, displayFont.bold]}>
+                <Text
+                  maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
+                  accessibilityRole="header"
+                  style={[styles.title, displayFont.bold]}
+                >
                   {t('auth.resetPasswordTitle')}
                 </Text>
                 <Text style={styles.subtitle} accessibilityLiveRegion="polite">
@@ -327,7 +332,11 @@ export function ResetPasswordScreen() {
               </>
             ) : phase === 'confirm' ? (
               <>
-                <Text accessibilityRole="header" style={[styles.title, displayFont.bold]}>
+                <Text
+                  maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
+                  accessibilityRole="header"
+                  style={[styles.title, displayFont.bold]}
+                >
                   {t('auth.resetLinkConfirmTitle')}
                 </Text>
                 <Text style={styles.subtitle}>
@@ -368,7 +377,11 @@ export function ResetPasswordScreen() {
               </>
             ) : (
               <>
-                <Text accessibilityRole="header" style={[styles.title, displayFont.bold]}>
+                <Text
+                  maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
+                  accessibilityRole="header"
+                  style={[styles.title, displayFont.bold]}
+                >
                   {t('auth.resetPasswordTitle')}
                 </Text>
                 <Text style={styles.subtitle}>{t('auth.resetPasswordSubtitle')}</Text>

@@ -25,6 +25,7 @@ interface CreateClientCall {
       detectSessionInUrl?: boolean;
       flowType?: string;
     };
+    global?: { fetch?: (input: string, init?: RequestInit) => Promise<Response> };
   };
 }
 
@@ -148,6 +149,27 @@ test('the client keeps sessions alive itself and ignores URL-borne sessions', ()
 // stored code verifier can redeem, instead of a live session.
 test('the client uses the PKCE flow so email links never carry a session', () => {
   assert.equal(createClientCalls[0].options.auth?.flowType, 'pkce');
+});
+
+// RN's fetch never times out on its own (Android builds OkHttp with 0 timeouts),
+// so a request on a Wi-Fi link without internet would hang every spinner on it.
+test('the client aborts a Supabase request that never answers', async (t) => {
+  const clientFetch = createClientCalls[0].options.global?.fetch;
+  assert.ok(clientFetch, 'createClient must receive a fetch with a request timeout');
+  const { SUPABASE_REQUEST_TIMEOUT_MS } = await import('./requestTimeoutFetch');
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = ((_input: unknown, init?: RequestInit) =>
+    new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => reject(new Error('aborted')));
+    })) as typeof fetch;
+  try {
+    const pending = clientFetch('https://project.supabase.co/rest/v1/profiles');
+    t.mock.timers.tick(SUPABASE_REQUEST_TIMEOUT_MS);
+    await assert.rejects(pending, /aborted/);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
 });
 
 test('methods reached through the proxy stay bound to the real client', () => {

@@ -231,4 +231,9 @@ export interface DailyScripture {
   verseEnd?: number;
   text: string | null;
   playScope: DailyScripturePlayScope;
+  /**
+   * Set when `text` was read from this translation because the reader's own has none
+   * for today's reference (the bundled BSB standing in for a New Testament-only pack).
+   */
+  fallbackTranslationId?: string;
 }

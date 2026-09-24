@@ -1,6 +1,5 @@
-import { Modal, Text, TouchableOpacity, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useTranslation } from 'react-i18next';
+import { TranslationPickerHeader } from '../TranslationPickerHeader';
+import { Modal, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../../contexts/ThemeContext';
 import type { BibleTranslation } from '../../../types';
 import { TranslationPickerList } from '../TranslationPickerList';
@@ -21,7 +20,6 @@ export function ReaderTranslationSheet({
   showTranslationSheet,
 }: ReaderTranslationSheetProps) {
   const { colors } = useTheme();
-  const { t } = useTranslation();
   return canShowTranslationSheet ? (
     <Modal
       visible={showTranslationSheet}
@@ -45,18 +43,11 @@ export function ReaderTranslationSheet({
             { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
           ]}
         >
-          <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { color: colors.biblePrimaryText }]}>
-              {t('bible.selectTranslation')}
-            </Text>
-            <TouchableOpacity
-              onPress={handleCloseTranslationSheet}
-              accessibilityRole="button"
-              accessibilityLabel={t('interface.close')}
-            >
-              <Ionicons name="close" size={22} color={colors.bibleSecondaryText} />
-            </TouchableOpacity>
-          </View>
+          <TranslationPickerHeader
+            onClose={handleCloseTranslationSheet}
+            style={styles.modalHeader}
+            titleStyle={styles.modalTitle}
+          />
           <TranslationPickerList
             onRequestClose={handleCloseTranslationSheet}
             onTranslationActivated={handleTranslationActivated}

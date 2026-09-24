@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Alert, Platform } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { config } from '../../../constants/config';
-import { submitChapterFeedback } from '../../../services/feedback';
+import { submitChapterFeedbackOrQueue } from '../../../services/feedback';
 import { uploadChapterFeedbackAudio } from '../../../services/feedback/chapterFeedbackAudio';
 import { normalizeChapterFeedbackIdentity } from '../../../services/feedback/chapterFeedbackIdentity';
 import type { ChapterFeedbackSourceScreen } from '../../../services/feedback/chapterFeedbackService';
@@ -120,7 +120,8 @@ export function useChapterFeedback({
       return;
     }
 
-    const result = await submitChapterFeedback({
+    // Offline, a written response is kept on the device and sent by the next sync.
+    const result = await submitChapterFeedbackOrQueue({
       translationId: currentTranslation,
       translationLanguage: currentTranslationInfo?.language ?? translationLabel,
       bookId,
@@ -149,6 +150,10 @@ export function useChapterFeedback({
       }
       resetFeedbackDraft();
 
+      if (result.queued) {
+        Alert.alert(t('bible.chapterFeedbackQueuedTitle'), t('bible.chapterFeedbackQueued'));
+        return;
+      }
       Alert.alert(t('bible.chapterFeedbackSuccessTitle'), t('bible.chapterFeedbackSuccess'));
       return;
     }
@@ -157,7 +162,11 @@ export function useChapterFeedback({
       setFeedbackAudioState('preview');
     }
     setFeedbackSubmitError(
-      result.requiresSignIn ? t('bible.chapterFeedbackSignInRequired') : t('common.unexpectedError')
+      result.offline
+        ? t('bible.chapterFeedbackOffline')
+        : result.requiresSignIn
+          ? t('bible.chapterFeedbackSignInRequired')
+          : t('common.unexpectedError')
     );
   };
 
