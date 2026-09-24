@@ -1,7 +1,12 @@
+// UI-only source check: ReaderPlaybackDock is a component and the suite has no renderer.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import {
+  READER_CHAPTER_BUTTON_SIZE,
+  READER_PLAY_BUTTON_SIZE,
+} from '../../screens/bible/readerChromeMotion';
 
 function readRelativeSource(relativePath: string): string {
   return readFileSync(fileURLToPath(new URL(relativePath, import.meta.url).href), 'utf8');
@@ -9,15 +14,14 @@ function readRelativeSource(relativePath: string): string {
 
 test('ReaderPlaybackDock uses fixed reference-sized transport discs without a progress ring', () => {
   const source = readRelativeSource('./ReaderPlaybackDock.tsx');
-  const motion = readRelativeSource('../../screens/bible/readerChromeMotion.ts');
 
   assert.doesNotMatch(
     source,
     /react-native-svg|<Svg|<Circle|strokeDasharray|strokeDashoffset/,
     'The persistent play disc should not bring back the visible playback ring'
   );
-  assert.match(motion, /READER_PLAY_BUTTON_SIZE = 64;/);
-  assert.match(motion, /READER_CHAPTER_BUTTON_SIZE = 40;/);
+  assert.equal(READER_PLAY_BUTTON_SIZE, 64);
+  assert.equal(READER_CHAPTER_BUTTON_SIZE, 40);
   assert.match(
     source,
     /playButton:\s*\{\s*width: READER_PLAY_BUTTON_SIZE,\s*height: READER_PLAY_BUTTON_SIZE,/,

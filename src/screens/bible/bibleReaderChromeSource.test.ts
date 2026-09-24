@@ -1,7 +1,11 @@
+// UI-only source check: BibleReaderScreen and its dock are components and the suite has no
+// renderer; the reader's modules are tested directly (bibleReaderModel, bibleDatabase, ...).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { READER_TAB_BAR_COLLAPSE_DISTANCE } from '../../navigation/readerTabBarMotion';
+import { READER_PLAY_COLLAPSE_TRAVEL } from './readerChromeMotion';
 
 function readRelativeSource(relativePath: string): string {
   return readFileSync(fileURLToPath(new URL(relativePath, import.meta.url).href), 'utf8');
@@ -170,13 +174,7 @@ test('BibleReaderScreen avoids broad barrels on the reader open path', () => {
 
 test('BibleReaderScreen auto-scrolls inline audio highlights before they leave the viewport', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
-  const modelSource = readRelativeSource('./bibleReaderModel.ts');
-
-  assert.match(
-    modelSource,
-    /export const getReaderAutoScrollTarget =/,
-    'The reader model should expose a deterministic auto-scroll threshold helper'
-  );
+  // getReaderAutoScrollTarget itself is tested in bibleReaderModel.test.ts.
 
   assert.match(
     source,
@@ -683,11 +681,9 @@ test('BibleReaderScreen updates dock and root tab motion on every UI frame befor
 test('ReaderPlaybackDock keeps the play disc unchanged during collapse and uses actual transport state', () => {
   const source = readRelativeSource('../../components/audio/ReaderPlaybackDock.tsx');
   const readerSource = readRelativeSource('./BibleReaderScreen.tsx');
-  const motion = readRelativeSource('./readerChromeMotion.ts');
-  const tabMotion = readRelativeSource('../../navigation/readerTabBarMotion.ts');
 
-  assert.match(motion, /READER_PLAY_COLLAPSE_TRAVEL = 65;/);
-  assert.match(tabMotion, /READER_TAB_BAR_COLLAPSE_DISTANCE = 132;/);
+  assert.equal(READER_PLAY_COLLAPSE_TRAVEL, 65);
+  assert.equal(READER_TAB_BAR_COLLAPSE_DISTANCE, 132);
   assert.match(
     source,
     /\[0, READER_TAB_BAR_COLLAPSE_DISTANCE - READER_PLAY_COLLAPSE_TRAVEL\]/,
@@ -1495,19 +1491,9 @@ test('invisible animated top chrome excludes interaction without disabling liste
 
 test('the reader reinstates prose lead-ins inside poetry verses without emphasising them', () => {
   const readerSource = readRelativeSource('./BibleReaderScreen.tsx');
-  const databaseSource = readRelativeSource('../../services/bible/bibleDatabase.ts');
-
-  assert.equal(
-    databaseSource.includes('reconcileVerseFormattingWithText'),
-    true,
-    'Verses read from the bundled database must reconcile poetry lines against the verse text, or prose lead-ins like Hebrews 1:5 are dropped from the reader'
-  );
-
-  assert.equal(
-    (databaseSource.match(/reconcileVerseFormattingWithText\(/g) ?? []).length,
-    2,
-    'Both the chapter read path and the search read path must reconcile, so search results are not missing text either'
-  );
+  // Reconciling poetry lines against the verse text on both the chapter and the search read
+  // paths runs on the real module in bibleDatabase.test.ts ('getChapter reinstates prose ...',
+  // 'search results reinstate prose ...').
 
   assert.equal(
     readerSource.includes('structuredVerseProse'),
