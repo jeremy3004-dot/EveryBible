@@ -55,6 +55,12 @@ import {
 } from './homeReadingStatsModel';
 import { buildHomeVerseShareMessage } from './homeVerseShareModel';
 import { getMillisecondsUntilNextLocalMidnight } from '../../services/bible/dailyScriptureRefresh';
+import {
+  formatHomeDateLabel,
+  loadVerseOfDay as loadVerseOfDayFromBible,
+  startVerseOfDayRefresh,
+  type VerseOfDayLoadOptions,
+} from './homeVerseOfDay';
 import { formatDailyScriptureReferenceLabel } from '../../services/bible/presentation';
 import { getDailyScriptureReference } from '../../services/bible/dailyScripture';
 import { isChapterAudioCovered } from '../../services/bible/contentAvailability';
@@ -293,26 +299,7 @@ export function HomeScreen() {
     greeting: t(greetingKey),
     name: greetingName,
   });
-  // "TUESDAY · 8 SEPTEMBER": the weekday is split off its own way so every
-  // locale keeps the EL separator instead of the locale's own comma.
-  const todayLabel = useMemo(() => {
-    const parts = new Intl.DateTimeFormat(i18n.language, {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-    }).formatToParts(new Date());
-    const weekday = parts
-      .filter((part) => part.type === 'weekday')
-      .map((part) => part.value)
-      .join('');
-    const rest = parts
-      .filter((part) => part.type !== 'weekday')
-      .map((part) => part.value)
-      .join('')
-      .replace(/^[\s,.·、，]+/, '')
-      .replace(/[\s,.·、，]+$/, '');
-    return weekday && rest ? `${weekday} · ${rest}` : weekday || rest;
-  }, [i18n.language]);
+  const todayLabel = useMemo(() => formatHomeDateLabel(i18n.language, new Date()), [i18n.language]);
 
   // ---- Reading ledger -------------------------------------------------------
   // The streak is the store's own count, unaffected by the period switch; every
@@ -387,88 +374,34 @@ export function HomeScreen() {
       : null;
 
   const loadVerseOfDay = useCallback(
-    async ({
-      allowInitialization = true,
-      silent = false,
-    }: {
-      allowInitialization?: boolean;
-      silent?: boolean;
-    } = {}) => {
-      const requestId = ++verseRequestIdRef.current;
-      if (!silent) {
-        setIsLoadingVerse(true);
-      }
-
-      try {
-        if (!currentTranslationInfo) {
-          setDailyScripture(null);
-          return;
-        }
-
-        const { getDailyScripture } = await import('../../services/bible/bibleService');
-        if (requestId !== verseRequestIdRef.current) return;
-        const scripture = await getDailyScripture(currentTranslationInfo, remoteAudioAvailable, {
-          allowInitialization,
-        });
-        if (requestId === verseRequestIdRef.current) {
-          setDailyScripture(scripture);
-        }
-      } catch (error) {
-        if (requestId === verseRequestIdRef.current) {
-          console.error('Error loading verse of the day:', error);
-        }
-      } finally {
-        // A silent retry may supersede the initial load, so it must also settle its spinner.
-        if (requestId === verseRequestIdRef.current) {
-          setIsLoadingVerse(false);
-        }
-      }
-    },
+    (options?: VerseOfDayLoadOptions) =>
+      loadVerseOfDayFromBible(
+        {
+          requestIdRef: verseRequestIdRef,
+          translation: currentTranslationInfo,
+          remoteAudioAvailable,
+          loadBibleService: () => import('../../services/bible/bibleService'),
+          setIsLoadingVerse,
+          setDailyScripture,
+        },
+        options
+      ),
     [currentTranslationInfo, remoteAudioAvailable]
   );
 
-  useEffect(() => {
-    const refreshVerseOfDay = () => {
-      void loadVerseOfDay({ silent: true });
-    };
-
-    const scheduleMidnightRefresh = () => {
-      if (midnightRefreshTimerRef.current) {
-        clearTimeout(midnightRefreshTimerRef.current);
-      }
-
-      midnightRefreshTimerRef.current = setTimeout(() => {
-        refreshVerseOfDay();
-        scheduleMidnightRefresh();
-      }, getMillisecondsUntilNextLocalMidnight());
-    };
-
-    const interactionHandle = InteractionManager.runAfterInteractions(() => {
-      void loadVerseOfDay();
-    });
-
-    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
-      if (appStateRef.current.match(/inactive|background/) && nextAppState === 'active') {
-        refreshVerseOfDay();
-        scheduleMidnightRefresh();
-      }
-
-      appStateRef.current = nextAppState;
-    });
-
-    scheduleMidnightRefresh();
-
-    return () => {
-      verseRequestIdRef.current += 1;
-      interactionHandle.cancel();
-      subscription.remove();
-
-      if (midnightRefreshTimerRef.current) {
-        clearTimeout(midnightRefreshTimerRef.current);
-        midnightRefreshTimerRef.current = null;
-      }
-    };
-  }, [loadVerseOfDay]);
+  useEffect(
+    () =>
+      startVerseOfDayRefresh({
+        load: loadVerseOfDay,
+        requestIdRef: verseRequestIdRef,
+        appStateRef,
+        midnightTimerRef: midnightRefreshTimerRef,
+        addAppStateListener: (listener) => AppState.addEventListener('change', listener),
+        runAfterInteractions: (task) => InteractionManager.runAfterInteractions(task),
+        msUntilNextLocalMidnight: () => getMillisecondsUntilNextLocalMidnight(),
+      }),
+    [loadVerseOfDay]
+  );
 
   useEffect(() => {
     let cancelled = false;

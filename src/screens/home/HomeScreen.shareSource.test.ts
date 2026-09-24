@@ -36,7 +36,7 @@ test('HomeScreen captures a verse image and falls back to text sharing', () => {
 
   assert.match(
     source,
-    /const \{ getDailyScripture \} = await import\('\.\.\/\.\.\/services\/bible\/bibleService'\);/,
+    /loadBibleService: \(\) => import\('\.\.\/\.\.\/services\/bible\/bibleService'\)/,
     'HomeScreen should lazy-load Bible database access after interactions when loading verse-of-day text'
   );
 
