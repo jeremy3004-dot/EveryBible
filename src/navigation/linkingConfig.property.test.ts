@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import fc from 'fast-check';
 
-import { mockModule } from '../testing/mockModules';
+import { mockModule, sourcePath } from '../testing/mockModules';
 import { bibleBooks } from '../constants/books';
 
 // ---------------------------------------------------------------------------
@@ -55,6 +55,9 @@ async function loadPipeline() {
     getInitialURL: async () => null,
   });
   mockModule(mock, '@react-navigation/native', { getStateFromPath });
+  mockModule(mock, sourcePath('navigation/rootNavigation.ts'), {
+    rootNavigationRef: { isReady: () => false },
+  });
 
   const { linkingConfig } = await import('./linkingConfig');
   const prefixes = linkingConfig.prefixes;

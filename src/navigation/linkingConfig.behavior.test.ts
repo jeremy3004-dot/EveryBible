@@ -4,7 +4,7 @@ import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import { mockModule } from '../testing/mockModules';
+import { mockModule, sourcePath } from '../testing/mockModules';
 import { rootTabManifest } from './tabManifest';
 
 /**
@@ -51,6 +51,9 @@ async function importConfig() {
     },
   });
   mockModule(mock, '@react-navigation/native', { getStateFromPath });
+  mockModule(mock, sourcePath('navigation/rootNavigation.ts'), {
+    rootNavigationRef: { isReady: () => false },
+  });
 
   return (await import('./linkingConfig')).linkingConfig;
 }

@@ -11,7 +11,13 @@ let rootState: unknown;
 mockModule(mock, sourcePath('navigation/rootNavigation.ts'), {
   rootNavigationRef: { current: null, getRootState: () => rootState },
 });
-mockModule(mock, sourcePath('navigation/linkingConfig.ts'), { linkingConfig: {} });
+let parkedLinkFlushes = 0;
+mockModule(mock, sourcePath('navigation/linkingConfig.ts'), {
+  linkingConfig: {},
+  flushParkedLink: () => {
+    parkedLinkFlushes += 1;
+  },
+});
 mockModule(mock, sourcePath('navigation/TabNavigator.tsx'), {
   TabNavigator: hostComponent('TabNavigator'),
 });
@@ -65,4 +71,14 @@ test('the tab navigator and the audio return tab both mount inside the navigatio
   const types = children.map((node) => String(node.type));
   assert.ok(types.includes('TabNavigator'));
   assert.ok(types.includes('AudioReturnTab'));
+});
+
+// A link that arrived while the navigator was unmounted (discreet-mode lock) or not yet
+// ready waits in linkingConfig until the container reports ready.
+test('the container hands over a parked link as soon as it is ready', async () => {
+  parkedLinkFlushes = 0;
+  const { view, container } = await renderRoot();
+  assert.equal(parkedLinkFlushes, 0);
+  await view.fire(container, 'onReady');
+  assert.equal(parkedLinkFlushes, 1);
 });
