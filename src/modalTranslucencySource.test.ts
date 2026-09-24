@@ -1,3 +1,4 @@
+// Codebase-wide static lint (not a behaviour test): every <Modal> under src/ is statusBarTranslucent and handles Android back.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';

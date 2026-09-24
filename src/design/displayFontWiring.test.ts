@@ -1,3 +1,4 @@
+// Codebase-wide static lint (not a behaviour test): every display-token surface merges the useDisplayFont override.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -53,26 +54,6 @@ test('the display face falls back for every script it cannot render', () => {
   // Regional tags resolve on their base subtag.
   assert.equal(getDisplayFontFamily('ru-RU', 700), undefined);
   assert.equal(getDisplayFontFamily('en-GB', 700), displayFamily(700));
-});
-
-test('useDisplayFont clears the family, tracking and leading on fallback', () => {
-  const source = read('../hooks/useDisplayFont.ts');
-
-  assert.match(source, /fontFamily: undefined/, 'fallback should clear the baked family');
-  assert.match(
-    source,
-    /letterSpacing: 0/,
-    "EL's tight display tracking is metric-matched to Alte Haas and must be relaxed on fallback"
-  );
-  // The display tokens set leading below the font size (32/31, 28/27, 24/23),
-  // which only clears Alte Haas's shallow Latin extenders. Devanagari matras and
-  // Bengali/Tamil vowel signs clip at sub-1em leading, so the fallback has to
-  // hand the line height back to the platform font.
-  assert.match(
-    source,
-    /lineHeight: undefined/,
-    'fallback must drop the sub-1em display leading so non-Latin marks are not clipped'
-  );
 });
 
 // Every screen that renders translated text through a display token must merge

@@ -1,3 +1,4 @@
+// Codebase-wide static lint (not a behaviour test): raw touchables and inputs under src/ carry accessibility roles and labels.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
