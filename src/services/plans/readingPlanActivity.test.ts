@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readingPlanEntriesByPlanId } from '../../data/readingPlans.generated';
 
 import type { ListeningHistoryEntry } from '../../stores/libraryModel';
+import { assertDefined } from '../../utils/assertDefined';
 import type {
   ReadingPlan,
   ReadingPlanEntry,
@@ -93,7 +94,7 @@ test('completing one Sermon passage does not satisfy another day in the same cha
     completed_entries: { '2': now.toISOString() },
   });
   const input = {
-    entries: readingPlanEntriesByPlanId[planId],
+    entries: assertDefined(readingPlanEntriesByPlanId[planId], `${planId} entries`),
     progress,
     chaptersRead: { MAT_5: now.getTime() },
     listeningHistory: [],
