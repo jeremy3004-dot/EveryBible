@@ -50,7 +50,7 @@ Method) and found gaps the linter does not look for.
 All four are idempotent. None of them needs an app change. Apply them in version order; no
 file depends on another.
 
-### 1. `20260924040000_drop_duplicate_indexes.sql` — risk: very low
+### 1. `20260924035626_drop_duplicate_indexes.sql` — risk: very low
 
 Drops `idx_groups_join_code`, `idx_user_preferences_user_id`, `idx_user_progress_user_id`
 and `idx_user_translation_prefs_user`. Each has the same single column as a UNIQUE index that
@@ -58,7 +58,7 @@ stays, so every query gets an identical plan, and `ON CONFLICT (user_id)` upsert
 the unique index. The only change is less write amplification. `idx_groups_join_code` also
 leaves the `unused_index` list.
 
-### 2. `20260924040100_drop_prefix_redundant_indexes.sql` — risk: low
+### 2. `20260924035633_drop_prefix_redundant_indexes.sql` — risk: low
 
 Drops 11 indexes whose key columns are the leading columns of a kept index, which is almost
 always a UNIQUE constraint index:
@@ -105,7 +105,7 @@ This clears 2 of the 6 `authenticated_security_definer_function_executable` WARN
   without USAGE on `private`. New assertions check that the helpers can no longer be reached
   by name from `public` or `private`.
 
-### 4. `20260924040300_wrap_auth_role_in_storage_service_policies.sql` — risk: very low
+### 4. `20260924035637_wrap_auth_role_in_storage_service_policies.sql` — risk: very low
 
 This rewrites the four "Service role upload/delete for Bible audio / verse timestamps"
 `storage.objects` policies from `auth.role() = 'service_role'` to
@@ -169,3 +169,7 @@ anon, authenticated, and authenticated with a `service_role` claim, and across t
 - That `postgres` can `ALTER POLICY` on `storage.objects`. Earlier migrations
   (`20260923230718`, `20260923233717`) ran DROP and CREATE POLICY there, which need the same
   ownership rights.
+
+## Applied live 2026-09-24
+
+Applied: 20260924035626 drop_duplicate_indexes, 20260924035633 drop_prefix_redundant_indexes, 20260924035637 wrap_auth_role_in_storage_service_policies (all 15 indexes confirmed gone). Held: 20260924040200 move_group_helpers_to_private_schema until the groups health check lands.
