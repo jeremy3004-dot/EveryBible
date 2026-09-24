@@ -11,6 +11,7 @@ function arrows(options: {
 }) {
   const played: ReaderChapterRef[] = [];
   const shown: ReaderChapterRef[] = [];
+  const announced: ReaderChapterRef[] = [];
   let playerSteps = 0;
   let status: AudioStatus = options.status ?? 'playing';
   const navigate = () =>
@@ -26,11 +27,13 @@ function arrows(options: {
         played.push({ bookId, chapter });
       },
       syncReaderReference: (bookId, chapter) => shown.push({ bookId, chapter }),
+      announceTarget: (target) => announced.push(target),
     });
   return {
     navigate,
     played,
     shown,
+    announced,
     playerSteps: () => playerSteps,
     setStatus: (next: AudioStatus) => {
       status = next;
@@ -90,4 +93,39 @@ test('the pause state is read when the arrow is pressed, not when it rendered', 
 
   assert.deepEqual(h.played, []);
   assert.deepEqual(h.shown, [target]);
+});
+
+test('on the playing chapter the screen reader hears the chapter the player moved to, not the reader guess', async () => {
+  // A queued chapter from another book comes next in the player, while the reader's own
+  // next-chapter guess is simply the following chapter.
+  const queued = { bookId: 'PSA', chapter: 23 };
+  const h = arrows({
+    isCurrentAudioChapter: true,
+    playerTarget: queued,
+    fallbackTarget: { bookId: 'JHN', chapter: 5 },
+  });
+
+  await h.navigate();
+
+  assert.deepEqual(h.announced, [queued]);
+});
+
+test('with another chapter displayed the screen reader hears the chapter the reader moved to', async () => {
+  const target = { bookId: 'JHN', chapter: 5 };
+  const h = arrows({ isCurrentAudioChapter: false, status: 'paused', fallbackTarget: target });
+
+  await h.navigate();
+
+  assert.deepEqual(h.announced, [target]);
+});
+
+test('nothing is announced when the arrow has nowhere to go', async () => {
+  const onPlayer = arrows({ isCurrentAudioChapter: true, playerTarget: null });
+  const onOther = arrows({ isCurrentAudioChapter: false, fallbackTarget: null });
+
+  await onPlayer.navigate();
+  await onOther.navigate();
+
+  assert.deepEqual(onPlayer.announced, []);
+  assert.deepEqual(onOther.announced, []);
 });
