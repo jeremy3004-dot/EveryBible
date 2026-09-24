@@ -659,3 +659,19 @@ test('a speed chosen during a load that is then replaced does not carry to the n
     []
   );
 });
+
+// useAudioPlayer.stop() resets the store to idle before stopping the player. A snapshot
+// from the wrapper's Stopped state would then read as "paused", and the reader treats a
+// paused chapter as live audio to return to.
+test('stopping reports no paused snapshot after playback is torn down', async () => {
+  const snapshots: unknown[] = [];
+  mod.audioPlayer.setCallbacks({ onStatusUpdate: (snapshot) => snapshots.push(snapshot) });
+  await mod.audioPlayer.loadAndPlay('https://audio.test/gen1.mp3');
+  emit(Event.PlaybackState, { state: State.Playing });
+  snapshots.length = 0;
+
+  await mod.audioPlayer.stop();
+  emit(Event.PlaybackState, { state: State.Stopped });
+
+  assert.deepEqual(snapshots, []);
+});

@@ -131,6 +131,9 @@ class AudioPlayer {
       TrackPlayer.addEventListener(Event.PlaybackState, (data: PlaybackStateEvent) => {
         this.lastIsPlaying = data.state === State.Playing;
         this.lastIsBuffering = data.state === State.Buffering || data.state === State.Loading;
+        // Stopped only follows stop(), whose caller has already reset playback to idle;
+        // a snapshot now would read as a pause and bring the torn-down chapter back.
+        if (data.state === State.Stopped) return;
         this.emitSnapshot(data.state === State.Ended);
       })
     );
