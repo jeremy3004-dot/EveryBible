@@ -31,8 +31,9 @@ delete process.env.EXPO_PUBLIC_EL_MEDIA_BASE_URL;
 interface StoreState {
   translations: BibleTranslation[];
   currentTranslation: string;
+  currentTranslationChosenAt: string | null;
   applyRuntimeCatalog: (translations: BibleTranslation[]) => void;
-  setCurrentTranslation: (translationId: string) => void;
+  setCurrentTranslation: (translationId: string, adopted?: { chosenAt: string | null }) => void;
   downloadTranslation: (translationId: string) => Promise<void>;
 }
 
@@ -43,14 +44,16 @@ let downloadOutcome: (translationId: string) => Promise<void> = async () => {};
 const storeState: StoreState = {
   translations: [],
   currentTranslation: 'bsb',
+  currentTranslationChosenAt: null,
   applyRuntimeCatalog: (translations) => {
     events.push(`apply:${translations.map((entry) => entry.id).join(',')}`);
     appliedCatalogs.push(translations);
     storeState.translations = translations;
   },
-  setCurrentTranslation: (translationId) => {
+  setCurrentTranslation: (translationId, adopted) => {
     events.push(`current:${translationId}`);
     storeState.currentTranslation = translationId;
+    storeState.currentTranslationChosenAt = adopted ? adopted.chosenAt : 'now';
   },
   downloadTranslation: async (translationId) => {
     events.push(`download:${translationId}`);
@@ -88,6 +91,10 @@ mockModule(mock, sourcePath('services/translations/translationService.ts'), {
   getUserTranslationPreferences: async () => {
     events.push('preferences');
     return preferencesResult();
+  },
+  setUserTranslationPreferences: async (input: { primary?: string; chosenAt?: string }) => {
+    events.push(`save:${input.primary}@${input.chosenAt}`);
+    return { success: true };
   },
 });
 
@@ -185,6 +192,7 @@ function reset() {
   listCallCount = 0;
   storeState.translations = [];
   storeState.currentTranslation = 'bsb';
+  storeState.currentTranslationChosenAt = null;
   downloadOutcome = async () => {};
   listResult = async () => ({ success: true, data: [] });
   preferencesResult = async () => ({ success: false });
@@ -589,6 +597,85 @@ test('a translation the reader picks while a failing download runs is not replac
 
   assert.equal(storeState.currentTranslation, 'asv');
   assert.equal(warn.mock.callCount(), 1, 'the failed install is still reported');
+});
+
+test('a Bible switched offline survives a relaunch against an older saved preference', async () => {
+  reset();
+  const { reconcilePrimaryTranslationPreference } = await loadModule();
+  storeState.translations = [
+    makeTranslation({ id: 'asv', source: 'bundled', hasText: true }),
+    makeTranslation({ id: 'web', source: 'bundled', hasText: true }),
+  ];
+  storeState.currentTranslation = 'web';
+  storeState.currentTranslationChosenAt = '2026-02-01T00:00:00.000Z';
+  preferencesResult = async () => ({
+    success: true,
+    data: { ...makePreferences('asv'), synced_at: '2026-01-01T00:00:00+00:00' },
+  });
+
+  await reconcilePrimaryTranslationPreference();
+
+  assert.equal(storeState.currentTranslation, 'web');
+  assert.deepEqual(
+    events,
+    ['preferences', 'save:web@2026-02-01T00:00:00.000Z'],
+    'the switch that never reached the server is uploaded with the time it was made'
+  );
+});
+
+test('an offline switch is kept even when the older saved preference would need a download', async () => {
+  reset();
+  const { reconcilePrimaryTranslationPreference } = await loadModule();
+  storeState.translations = [
+    makeTranslation({ id: 'web', source: 'bundled', hasText: true }),
+    makeTranslation({ id: 'ylt', source: 'runtime', hasText: true, catalog: downloadableCatalog }),
+  ];
+  storeState.currentTranslation = 'web';
+  storeState.currentTranslationChosenAt = '2026-02-01T00:00:00.000Z';
+  preferencesResult = async () => ({ success: true, data: makePreferences('ylt') });
+
+  await reconcilePrimaryTranslationPreference();
+
+  assert.equal(storeState.currentTranslation, 'web');
+  assert.deepEqual(events, ['preferences', 'save:web@2026-02-01T00:00:00.000Z']);
+});
+
+test('a newer switch made on another device replaces this device choice', async () => {
+  reset();
+  const { reconcilePrimaryTranslationPreference } = await loadModule();
+  storeState.translations = [
+    makeTranslation({ id: 'asv', source: 'bundled', hasText: true }),
+    makeTranslation({ id: 'web', source: 'bundled', hasText: true }),
+  ];
+  storeState.currentTranslation = 'web';
+  storeState.currentTranslationChosenAt = '2026-02-01T00:00:00.000Z';
+  preferencesResult = async () => ({
+    success: true,
+    data: { ...makePreferences('asv'), synced_at: '2026-03-01T00:00:00+00:00' },
+  });
+
+  await reconcilePrimaryTranslationPreference();
+
+  assert.equal(storeState.currentTranslation, 'asv');
+  assert.equal(
+    storeState.currentTranslationChosenAt,
+    '2026-03-01T00:00:00+00:00',
+    'the adopted choice keeps the other device stamp and is not uploaded back'
+  );
+  assert.deepEqual(events, ['preferences', 'current:asv']);
+});
+
+test('an offline switch reaches a server that has no saved preference yet', async () => {
+  reset();
+  const { reconcilePrimaryTranslationPreference } = await loadModule();
+  storeState.translations = [makeTranslation({ id: 'web', source: 'bundled', hasText: true })];
+  storeState.currentTranslation = 'web';
+  storeState.currentTranslationChosenAt = '2026-02-01T00:00:00.000Z';
+  preferencesResult = async () => ({ success: true });
+
+  await reconcilePrimaryTranslationPreference();
+
+  assert.deepEqual(events, ['preferences', 'save:web@2026-02-01T00:00:00.000Z']);
 });
 
 // ─── bootstrapRuntimeTranslationsAndPreferences ───────────────────────────────
