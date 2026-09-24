@@ -21,6 +21,7 @@ export * from './audioShareDependencies';
 export * from './feedbackAudioSession';
 export * from './readerConstants';
 export * from './readerSharedStyles';
+export * from './renderStackedVerse';
 export * from './useAudioPortionShare';
 export * from './useAudioReturnTarget';
 export * from './useChapterAudioShare';

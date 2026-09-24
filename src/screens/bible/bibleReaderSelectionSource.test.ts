@@ -88,7 +88,7 @@ test('BibleReaderScreen wires a bottom selection tray with copy, note, share, an
 
   assert.match(
     source,
-    /<HighlightedVerseText[\s\S]*onPress=\{\(\) => handleToggleVerseSelection\(verse\)\}[\s\S]*<Pressable[\s\S]*onPress=\{\(\) => handleToggleVerseSelection\(verse\)\}/s,
+    /<HighlightedVerseText[\s\S]*onPress=\{\(\) => onToggleVerseSelection\(verse\)\}[\s\S]*<Pressable[\s\S]*onPress=\{\(\) => onToggleVerseSelection\(verse\)\}/s,
     'BibleReaderScreen should keep verse selection behind the shared Pressable-driven handler for both highlighted and plain verses'
   );
 

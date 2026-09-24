@@ -1,5 +1,5 @@
-import { StyleSheet, FlatList, Pressable, Text, View } from 'react-native';
-import { radius, spacing, typography } from '../../../design/system';
+import { StyleSheet, FlatList, Text, View } from 'react-native';
+import { spacing, typography } from '../../../design/system';
 import {
   buildReaderParagraphs,
   canSelectDisplayedVerse,
@@ -13,12 +13,12 @@ import type { Dispatch, RefObject, SetStateAction, ReactElement } from 'react';
 import Animated from 'react-native-reanimated';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { selectionHaptic } from '../../../utils/haptics';
-import { HighlightedVerseText } from '../../../components/bible/HighlightedVerseText';
 import type { Verse } from '../../../types';
 import type { UserAnnotation } from '../../../services/supabase/types';
 import { toggleBibleSelectionVerse } from '../bibleSelectionModel';
 import { buildReaderParagraphRenderSignature } from '../bibleReaderRenderModel';
 import type { ReaderParagraph } from '../bibleReaderModel';
+import { renderStackedVerse, type StackedVerseContext } from './renderStackedVerse';
 import { readerSharedStyles } from './readerSharedStyles';
 import { ReaderParagraphBlock } from './ReaderParagraphBlock';
 
@@ -195,91 +195,18 @@ export function ReaderVerseList({
     setSelectedVerses((current) => toggleBibleSelectionVerse(current, verse.verse));
   };
 
-  const renderStackedVerse = (verse: Verse) => {
-    const { highlightAnnotation, isFocused, isSelected, verseBackgroundColor } =
-      getVersePresentation(verse);
-    const formattingLines = verse.formatting?.lines.length ? verse.formatting.lines : null;
-    const focusRenderKey = isFocused ? 'focused' : 'idle';
-
-    if (formattingLines) {
-      return (
-        <Pressable
-          key={`${verse.id}-formatted-${focusRenderKey}`}
-          onPress={() => handleToggleVerseSelection(verse)}
-          accessibilityState={{ selected: isSelected }}
-          style={[
-            styles.readerVerse,
-            styles.structuredVerse,
-            usePremiumTypography ? styles.premiumStructuredVerse : null,
-            verseBackgroundColor ? { backgroundColor: verseBackgroundColor } : null,
-          ]}
-        >
-          {formattingLines.map((line, lineIndex) => (
-            <Text
-              key={`${verse.id}-line-${lineIndex}`}
-              style={[
-                textStyle,
-                styles.structuredVerseLine,
-                lineIndex > 0 ? styles.structuredVerseContinuation : null,
-                isSelected ? selectedVerseDecorationStyle : null,
-                line.indentLevel
-                  ? { marginLeft: structuredVerseIndentSize * line.indentLevel }
-                  : null,
-              ]}
-            >
-              {lineIndex === 0 ? (
-                <>
-                  <Text style={verseNumberStyle}>{verse.verse}</Text>
-                  {'\u00A0'}
-                </>
-              ) : null}
-              {line.text}
-            </Text>
-          ))}
-        </Pressable>
-      );
-    }
-
-    if (highlightAnnotation?.color) {
-      return (
-        <View
-          key={`${verse.id}-${highlightAnnotation.color}-${verseFontSize}-${verseLineHeight}-${focusRenderKey}`}
-          style={styles.readerVerse}
-        >
-          <HighlightedVerseText
-            verseNumber={verse.verse}
-            verseText={verse.text}
-            verseTextStyle={textStyle}
-            verseNumberStyle={verseNumberStyle}
-            selectedStyle={isSelected ? selectedVerseDecorationStyle : null}
-            highlightColor={highlightAnnotation.color}
-            isSelected={isSelected}
-            onPress={() => handleToggleVerseSelection(verse)}
-          />
-        </View>
-      );
-    }
-
-    return (
-      <Pressable
-        key={`${verse.id}-${focusRenderKey}`}
-        onPress={() => handleToggleVerseSelection(verse)}
-        accessibilityState={{ selected: isSelected }}
-        style={styles.readerVerse}
-      >
-        <Text
-          style={[
-            textStyle,
-            isSelected ? selectedVerseDecorationStyle : null,
-            isFocused ? { backgroundColor: colors.bibleFollowHighlight } : null,
-          ]}
-        >
-          <Text style={isFocused ? followVerseNumberStyle : verseNumberStyle}>{verse.verse}</Text>
-          {'\u00A0'}
-          {verse.text}
-        </Text>
-      </Pressable>
-    );
+  const stackedVerse: StackedVerseContext = {
+    usePremiumTypography,
+    textStyle,
+    verseNumberStyle,
+    followVerseNumberStyle,
+    selectedVerseDecorationStyle,
+    structuredVerseIndentSize,
+    verseFontSize,
+    verseLineHeight,
+    followHighlightColor: colors.bibleFollowHighlight,
+    getVersePresentation,
+    onToggleVerseSelection: handleToggleVerseSelection,
   };
 
   const renderParagraph = (paragraph: ReaderParagraph, _pIndex: number): ReactElement => (
@@ -370,7 +297,7 @@ export function ReaderVerseList({
             })}
           </Text>
         ) : (
-          paragraph.verses.map((verse) => renderStackedVerse(verse))
+          paragraph.verses.map((verse) => renderStackedVerse(verse, stackedVerse))
         )}
       </View>
     </View>
@@ -506,22 +433,6 @@ const styles = StyleSheet.create({
   premiumReaderBlock: {
     gap: 6,
     paddingHorizontal: 0,
-  },
-  readerVerse: {
-    alignSelf: 'stretch',
-  },
-  structuredVerse: {
-    borderRadius: radius.sm,
-    paddingVertical: 2,
-  },
-  premiumStructuredVerse: {
-    paddingVertical: 4,
-  },
-  structuredVerseLine: {
-    alignSelf: 'stretch',
-  },
-  structuredVerseContinuation: {
-    marginTop: 2,
   },
   sectionHeading: {
     ...typography.readingHeading,
