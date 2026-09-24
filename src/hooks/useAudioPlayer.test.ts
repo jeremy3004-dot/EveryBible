@@ -7,6 +7,7 @@ import { createReactHookRuntime } from '../testing/reactHookRuntime';
 import type { AudioChapterMap } from '../services/bible/contentAvailability';
 import { createInstance } from 'i18next';
 import { zh } from '../i18n/locales/zh';
+import { shallow } from 'zustand/shallow';
 
 // ---------------------------------------------------------------------------
 // A deterministic hook harness.
@@ -192,7 +193,16 @@ const mockPackage = (specifier: string, exports: Record<string, unknown>) => {
 
 mockPackage('react', runtime.react);
 mockPackage('react-i18next', { useTranslation: () => ({ t: translate }) });
-mockPackage('zustand/react/shallow', { useShallow: (selector: unknown) => selector });
+// Identity wrapper that remembers the selector, so a test can check what the
+// transport subscription re-renders on (zustand compares it with `shallow`).
+type StoreSelector = (state: object) => Record<string, unknown>;
+const shallowSelectors: StoreSelector[] = [];
+mockPackage('zustand/react/shallow', {
+  useShallow: (selector: StoreSelector) => {
+    shallowSelectors.push(selector);
+    return selector;
+  },
+});
 
 mockModule(mock, sourcePath('stores/bibleStore.ts'), {
   useBibleStore: Object.assign(
@@ -1068,6 +1078,60 @@ test('startSleepTimer stores the chosen length', () => {
   player.api.startSleepTimer(30);
 
   assert.equal(store().sleepTimerMinutes, 30);
+});
+
+// ---------------------------------------------------------------------------
+// Transport subscription
+// ---------------------------------------------------------------------------
+
+const transportSelector = (): StoreSelector => {
+  shallowSelectors.length = 0;
+  mountPlayer();
+  const selector = shallowSelectors.at(-1);
+  assert.ok(selector, 'useAudioPlayer should subscribe through useShallow');
+  return selector;
+};
+
+test('the transport subscription ignores 240 position ticks and twelve resume checkpoints', () => {
+  const select = transportSelector();
+  useAudioStore.setState({ status: 'playing', duration: 90_000 });
+  let previous = select(useAudioStore.getState());
+  let updates = 0;
+
+  for (let position = 250; position <= 60_000; position += 250) {
+    useAudioStore.setState(
+      position % 5000 === 0
+        ? { currentPosition: position, lastPosition: position }
+        : { currentPosition: position }
+    );
+    const next = select(useAudioStore.getState());
+    if (!shallow(previous, next)) updates += 1;
+    previous = next;
+  }
+
+  assert.equal(updates, 0);
+  assert.equal(store().currentPosition, 60_000);
+  assert.equal(store().lastPosition, 60_000);
+});
+
+test('the transport subscription still sees status, track and playback settings changes', () => {
+  const select = transportSelector();
+  const changes = {
+    status: 'paused',
+    currentBookId: 'JHN',
+    currentChapter: 4,
+    currentTranslationId: 'web',
+    playbackRate: 1.5,
+    repeatMode: 'chapter',
+    backgroundMusicChoice: 'piano',
+    sleepTimerEndTime: 60_000,
+  } as const;
+
+  for (const [key, value] of Object.entries(changes)) {
+    const before = select(useAudioStore.getState());
+    useAudioStore.setState({ [key]: value });
+    assert.equal(shallow(before, select(useAudioStore.getState())), false, key);
+  }
 });
 
 // ---------------------------------------------------------------------------
