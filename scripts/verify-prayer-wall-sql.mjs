@@ -29,7 +29,7 @@ const MIGRATIONS = [
   { name: '20260924035932_move_group_helpers_to_private_schema.sql', optional: true },
 ];
 // Applied after Supabase's default grants, as it would be on the live project.
-const HARDENING = ['20260924160000_harden_prayer_wall.sql'];
+const HARDENING = ['20260924042617_harden_prayer_wall.sql'];
 
 const db = new PGlite();
 await db.exec(`

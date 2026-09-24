@@ -22,7 +22,7 @@ export interface PrayerRequestWithCounts extends PrayerRequest {
   viewer_encouraged: boolean;
 }
 
-// Raised by the limit_prayer_request_rate trigger (20260924160000_harden_prayer_wall.sql).
+// Raised by the limit_prayer_request_rate trigger (20260924042617_harden_prayer_wall.sql).
 const RATE_LIMIT_MESSAGE = 'prayer_request_rate_limited';
 
 export interface InteractionCounts {
