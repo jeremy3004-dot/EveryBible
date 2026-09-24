@@ -63,10 +63,11 @@ export function ResetPasswordScreen() {
   const setSession = useAuthStore((state) => state.setSession);
   const confirmPasswordInputRef = useRef<TextInput>(null);
 
-  // Captured once: everything below reasons about the state of the app at the
-  // moment the reset link was opened, not about the recovery session it creates.
+  // Captured once: the link as it was when the screen opened.
   const [pendingRecovery] = useState(() => getPendingPasswordRecovery());
-  const [signedInUserId] = useState<string | null>(() => useAuthStore.getState().user?.uid ?? null);
+  // Live: Continue signs this account out before the code is exchanged, and the
+  // confirm step says so while someone is signed in.
+  const signedInUserId = useAuthStore((state) => state.user?.uid ?? null);
 
   const [phase, setPhase] = useState<ResetPhase>(() =>
     pendingRecovery?.kind === 'code' ? 'confirm' : 'problem'
@@ -86,16 +87,17 @@ export function ResetPasswordScreen() {
   const didActivateRef = useRef(false);
   const didUpdatePasswordRef = useRef(false);
 
-  // Leaving the screen must never strand a live recovery session on a device
-  // that was signed out before the link was opened.
+  // Leaving the screen must never strand a live recovery session. Any account that
+  // was signed in was signed out before the exchange, so the recovery session is
+  // the only one here and ends with the screen unless the password was set.
   useEffect(() => {
     return () => {
       clearPendingPasswordRecovery();
-      if (didActivateRef.current && !didUpdatePasswordRef.current && !signedInUserId) {
+      if (didActivateRef.current && !didUpdatePasswordRef.current) {
         void signOut();
       }
     };
-  }, [signedInUserId]);
+  }, []);
 
   const dismiss = () => {
     navigation.getParent()?.goBack();
@@ -111,7 +113,12 @@ export function ResetPasswordScreen() {
   const handleConfirmAccount = useCallback(async () => {
     setIsActivating(true);
     try {
-      const result = await activatePendingPasswordRecovery();
+      // Read now, not at render: the exchange replaces this device's session, so a
+      // signed-in account goes through the normal sign-out first.
+      const result = await activatePendingPasswordRecovery({
+        signedInUserId: useAuthStore.getState().user?.uid ?? null,
+        signOutCurrentAccount: () => useAuthStore.getState().signOut(),
+      });
 
       if (result.status === 'activated') {
         didActivateRef.current = true;
@@ -323,7 +330,11 @@ export function ResetPasswordScreen() {
                 <Text accessibilityRole="header" style={[styles.title, displayFont.bold]}>
                   {t('auth.resetLinkConfirmTitle')}
                 </Text>
-                <Text style={styles.subtitle}>{t('auth.resetPasswordSubtitle')}</Text>
+                <Text style={styles.subtitle}>
+                  {signedInUserId
+                    ? t('auth.resetLinkSignsOutCurrent')
+                    : t('auth.resetPasswordSubtitle')}
+                </Text>
 
                 <View style={styles.form}>
                   <TouchableOpacity

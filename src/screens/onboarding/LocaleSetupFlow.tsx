@@ -101,6 +101,7 @@ import {
   searchTranslationIndex,
 } from '../bible/bibleTranslationModel';
 import { showTranslationDownloadFailedAlert } from '../bible/translationDownloadFailureAlert';
+import { showOnboardingFinishFailedAlert } from './onboardingFinishFailureAlert';
 import { getAudioAvailability } from '../../services/audio/audioAvailability';
 import { isRemoteAudioAvailable } from '../../services/audio/audioRemote';
 import { config } from '../../constants';
@@ -1098,6 +1099,12 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
 
       showTranslationDownloadFailedAlert(t, () => {
         void bibleSelectionQueue.chooseDownload(translation);
+      });
+    },
+    onCompleteFailed: (translation, error) => {
+      console.error('[Onboarding] Failed to finish setup:', error);
+      showOnboardingFinishFailedAlert(t, () => {
+        void bibleSelectionQueue.chooseReady(translation);
       });
     },
     onStateChange: setBibleSelectionState,

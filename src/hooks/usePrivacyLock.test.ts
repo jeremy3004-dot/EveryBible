@@ -54,6 +54,7 @@ mockModule(mock, sourcePath('stores/migrateFromAsyncStorage.ts'), {
 });
 
 let usePrivacyLock: typeof import('./usePrivacyLock').usePrivacyLock;
+let lockAfterPrivacyLockFailure: typeof import('./usePrivacyLock').lockAfterPrivacyLockFailure;
 let usePrivacyStore: typeof import('../stores/privacyStore').usePrivacyStore;
 
 /** Mounts the hook and returns its unmount function. */
@@ -64,7 +65,7 @@ const mountPrivacyLock = () => {
 };
 
 before(async () => {
-  ({ usePrivacyLock } = await import('./usePrivacyLock'));
+  ({ usePrivacyLock, lockAfterPrivacyLockFailure } = await import('./usePrivacyLock'));
   ({ usePrivacyStore } = await import('../stores/privacyStore'));
 });
 
@@ -183,14 +184,53 @@ test('a discreet install without a pin is never locked by backgrounding', () => 
   unmount();
 });
 
-test('the listener reads privacy configuration captured at mount time', () => {
+test('discreet mode turned on after mount still locks on the next background', () => {
   const unmount = mountPrivacyLock();
-  // The effect closes over mode/hasPin; React would re-run it on change, so a
-  // configuration made after mount must not affect this mount's listener.
+  // The configuration is read when the app leaves the foreground, so the lock never
+  // depends on the host having re-rendered after privacy settings changed.
   configureDiscreet();
 
   rn.AppState.emit('background');
 
-  assert.equal(usePrivacyStore.getState().isLocked, false);
+  assert.equal(usePrivacyStore.getState().isLocked, true);
   unmount();
+});
+
+test('an error while locking still leaves a discreet install locked', (t) => {
+  t.mock.method(console, 'error', () => {});
+  configureDiscreet();
+  usePrivacyStore.setState({
+    lock: () => {
+      throw new Error('lock failed');
+    },
+  });
+  const unmount = mountPrivacyLock();
+
+  rn.AppState.emit('background');
+
+  assert.equal(usePrivacyStore.getState().isLocked, true);
+  unmount();
+});
+
+test('a failed privacy-lock host locks a discreet install so the lock screen shows', (t) => {
+  t.mock.method(console, 'error', () => {});
+  configureDiscreet();
+
+  lockAfterPrivacyLockFailure(new Error('host crashed'));
+
+  assert.equal(usePrivacyStore.getState().isLocked, true);
+});
+
+test('a failed privacy-lock host leaves a standard install usable', (t) => {
+  t.mock.method(console, 'error', () => {});
+  usePrivacyStore.setState({
+    isInitialized: true,
+    mode: 'standard',
+    hasPin: false,
+    isLocked: false,
+  });
+
+  lockAfterPrivacyLockFailure(new Error('host crashed'));
+
+  assert.equal(usePrivacyStore.getState().isLocked, false);
 });

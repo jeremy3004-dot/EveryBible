@@ -64,6 +64,7 @@ import {
   type StoryStatus,
 } from './lessonPassageModel';
 import { readLessonPlaybackStatus } from './lessonAudioModel';
+import { createLessonSoundOwner } from './lessonSoundOwner';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -186,7 +187,9 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
   // session; until then we keep it mirrored to the global Settings preference.
   const hasManualFontOverride = useRef(false);
 
-  const soundRef = useRef<Audio.Sound | null>(null);
+  // Owns the one lesson sound, including one still loading, so a source change or
+  // unmount can never leave a sound playing that nothing controls.
+  const [soundOwner] = useState(() => createLessonSoundOwner<Audio.Sound>());
   const scrollViewRef = useRef<ScrollView>(null);
   const progressWidthRef = useRef(0);
   const sectionYRef = useRef<{ fellowship: number; story: number; application: number }>({
@@ -256,8 +259,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
     let cancelled = false;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     resetAudioPlaybackState();
-    void soundRef.current?.unloadAsync().catch(() => undefined);
-    soundRef.current = null;
+    soundOwner.release();
 
     void resolveLessonAudio(lesson.references, audioCandidateKey.split('|'), getChapterAudioUrl)
       .then((source) => {
@@ -272,14 +274,14 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
     return () => {
       cancelled = true;
     };
-  }, [audioCandidateKey, lesson, resetAudioPlaybackState]);
+  }, [audioCandidateKey, lesson, resetAudioPlaybackState, soundOwner]);
 
   // Cleanup audio on unmount
   useEffect(() => {
     return () => {
-      soundRef.current?.unloadAsync().catch(() => undefined);
+      soundOwner.release();
     };
-  }, []);
+  }, [soundOwner]);
 
   // Mirror the global Settings font-size preference until the user manually
   // adjusts the lesson-local stepper (L23).
@@ -293,52 +295,59 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
   // Audio controls
   // -------------------------------------------------------------------------
 
-  const handlePlaybackStatusUpdate = useCallback((status: AVPlaybackStatus) => {
-    const update = readLessonPlaybackStatus(status);
-    if (!update) return;
+  const handlePlaybackStatusUpdate = useCallback(
+    (status: AVPlaybackStatus) => {
+      const update = readLessonPlaybackStatus(status);
+      if (!update) return;
 
-    setAudioPosition(update.positionMillis);
-    if (update.durationMillis) {
-      setAudioDuration(update.durationMillis);
-    }
-    // Functional update bails out of re-render when value is unchanged,
-    // preventing excessive re-renders during playback from making the
-    // play/pause button unresponsive after switching tabs.
-    setIsAudioPlaying((prev) => (prev !== update.isPlaying ? update.isPlaying : prev));
-    if (update.rewind) {
-      void soundRef.current?.setPositionAsync(0).catch(() => undefined);
-    }
-  }, []);
+      setAudioPosition(update.positionMillis);
+      if (update.durationMillis) {
+        setAudioDuration(update.durationMillis);
+      }
+      // Functional update bails out of re-render when value is unchanged,
+      // preventing excessive re-renders during playback from making the
+      // play/pause button unresponsive after switching tabs.
+      setIsAudioPlaying((prev) => (prev !== update.isPlaying ? update.isPlaying : prev));
+      if (update.rewind) {
+        void soundOwner
+          .getSound()
+          ?.setPositionAsync(0)
+          .catch(() => undefined);
+      }
+    },
+    [soundOwner]
+  );
 
   const playAudio = useCallback(async () => {
     if (!audioUrl) return;
 
     try {
-      if (!soundRef.current) {
+      const isPlaying = await soundOwner.play(async () => {
         await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
+        // Loaded paused: the owner starts it only if it is still wanted once loaded.
         const { sound } = await Audio.Sound.createAsync(
           { uri: audioUrl },
-          { shouldPlay: true, progressUpdateIntervalMillis: 500, rate: playbackSpeed },
+          { shouldPlay: false, progressUpdateIntervalMillis: 500, rate: playbackSpeed },
           handlePlaybackStatusUpdate
         );
-        soundRef.current = sound;
-      } else {
-        await soundRef.current.playAsync();
+        return sound;
+      });
+      if (isPlaying) {
+        setIsAudioPlaying(true);
       }
-      setIsAudioPlaying(true);
     } catch {
       // Ignore playback errors silently — user can retry
     }
-  }, [audioUrl, handlePlaybackStatusUpdate, playbackSpeed]);
+  }, [audioUrl, handlePlaybackStatusUpdate, playbackSpeed, soundOwner]);
 
   const pauseAudio = useCallback(async () => {
     try {
-      await soundRef.current?.pauseAsync();
+      await soundOwner.getSound()?.pauseAsync();
     } catch {
       // Ignore
     }
     setIsAudioPlaying(false);
-  }, []);
+  }, [soundOwner]);
 
   const togglePlayPause = useCallback(async () => {
     if (isAudioPlaying) {
@@ -353,25 +362,27 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
   const seekToLocation = useCallback(
     (locationX: number) => {
       const width = progressWidthRef.current;
-      if (!width || audioDuration <= 0 || !soundRef.current) return;
+      const sound = soundOwner.getSound();
+      if (!width || audioDuration <= 0 || !sound) return;
       const fraction = Math.min(1, Math.max(0, locationX / width));
       const target = Math.round(fraction * audioDuration);
-      void soundRef.current.setPositionAsync(target).catch(() => undefined);
+      void sound.setPositionAsync(target).catch(() => undefined);
       setAudioPosition(target);
     },
-    [audioDuration]
+    [audioDuration, soundOwner]
   );
 
   // Screen-reader equivalent of tapping along the rule: the adjustable role
   // promises swipe up/down, so each swipe moves playback by a fixed step.
   const seekBy = useCallback(
     (deltaMs: number) => {
-      if (audioDuration <= 0 || !soundRef.current) return;
+      const sound = soundOwner.getSound();
+      if (audioDuration <= 0 || !sound) return;
       const target = Math.min(audioDuration, Math.max(0, audioPosition + deltaMs));
-      void soundRef.current.setPositionAsync(target).catch(() => undefined);
+      void sound.setPositionAsync(target).catch(() => undefined);
       setAudioPosition(target);
     },
-    [audioDuration, audioPosition]
+    [audioDuration, audioPosition, soundOwner]
   );
 
   // -------------------------------------------------------------------------
@@ -405,14 +416,17 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
   // Settings: playback speed and font size
   // -------------------------------------------------------------------------
 
-  const setPlaybackSpeedValue = useCallback(async (rate: number) => {
-    setPlaybackSpeed(rate);
-    try {
-      await soundRef.current?.setRateAsync(rate, true);
-    } catch {
-      // Ignore
-    }
-  }, []);
+  const setPlaybackSpeedValue = useCallback(
+    async (rate: number) => {
+      setPlaybackSpeed(rate);
+      try {
+        await soundOwner.getSound()?.setRateAsync(rate, true);
+      } catch {
+        // Ignore
+      }
+    },
+    [soundOwner]
+  );
 
   const adjustFontSize = useCallback((delta: number) => {
     hasManualFontOverride.current = true;

@@ -3651,17 +3651,14 @@ export function BibleReaderScreen() {
     getAudioStatus: () => useAudioStore.getState().status,
     playChapter,
     syncReaderReference,
-  };
-  // The arrows keep focus while the chapter swaps under them; say where they went,
-  // as the read-mode swipe does.
-  const announceChapterTarget = (target: { bookId: string; chapter: number } | null) => {
-    if (target) {
+    // The arrows keep focus while the chapter swaps under them; say where they went,
+    // as the read-mode swipe does.
+    announceTarget: (target: { bookId: string; chapter: number }) => {
       announceForAccessibility(`${getTranslatedBookName(target.bookId, t)} ${target.chapter}`);
-    }
+    },
   };
 
   const handlePreviousListenChapter = () => {
-    announceChapterTarget(previousNavigationTarget);
     return navigateListenChapter({
       ...listenNavigation,
       stepPlayer: previousChapter,
@@ -3670,7 +3667,6 @@ export function BibleReaderScreen() {
   };
 
   const handleNextListenChapter = () => {
-    announceChapterTarget(nextNavigationTarget);
     return navigateListenChapter({
       ...listenNavigation,
       stepPlayer: nextChapter,

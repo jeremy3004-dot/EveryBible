@@ -2,13 +2,13 @@ import { installUsageQueueReporting } from '../analytics/usageQueue';
 import { installCrashReporting } from '../diagnostics/crashReportQueue';
 import { useEffect } from 'react';
 import { useAuthDeepLink } from '../../hooks/useAuthDeepLink';
-import { usePrivacyLock } from '../../hooks/usePrivacyLock';
 import { useSync } from '../../hooks/useSync';
 import { installDailyReminderReconciler } from '../notifications/dailyReminderReconciler';
 
 export function AppRuntimeEffects() {
+  // The privacy lock is not here: it has its own host and boundary in App.tsx, so an
+  // error in these effects can never switch discreet mode's lock off.
   useSync();
-  usePrivacyLock();
   useAuthDeepLink();
 
   // Usage-queue reporting and the daily-reminder reconciler both subscribe to

@@ -16,6 +16,12 @@ export interface ReaderListenNavigation {
   getAudioStatus: () => AudioStatus;
   playChapter: (bookId: string, chapter: number) => Promise<void>;
   syncReaderReference: (bookId: string, chapter: number) => void;
+  /**
+   * Tells a screen reader where the arrow went. The arrows keep focus while the chapter
+   * swaps under them. Called with the chapter actually reached: on the playing chapter
+   * that is the player's queue or plan step, which can differ from the reader's own guess.
+   */
+  announceTarget: (target: ReaderChapterRef) => void;
 }
 
 /**
@@ -27,6 +33,7 @@ export async function navigateListenChapter(navigation: ReaderListenNavigation):
   if (navigation.isCurrentAudioChapter) {
     const target = await navigation.stepPlayer();
     if (target) {
+      navigation.announceTarget(target);
       navigation.syncReaderReference(target.bookId, target.chapter);
     }
     return;
@@ -40,5 +47,6 @@ export async function navigateListenChapter(navigation: ReaderListenNavigation):
   if (navigation.getAudioStatus() !== 'paused') {
     await navigation.playChapter(target.bookId, target.chapter);
   }
+  navigation.announceTarget(target);
   navigation.syncReaderReference(target.bookId, target.chapter);
 }

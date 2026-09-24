@@ -659,6 +659,132 @@ test('an existing chapter is kept when its published size cannot be looked up', 
   assert.deepEqual(disk.downloads, []);
 });
 
+// A resume walks every chapter of the book again. The sizes it verified are kept beside the
+// chapters, so a source that needs one request per chapter is not asked again for them.
+const createResumableDiskDouble = () => {
+  const disk = createSizedFileSystemDouble([]);
+  const textFiles = new Map<string, string>();
+  const fileSystem: AudioFileSystemAdapter = {
+    ...disk.fileSystem,
+    readTextFile: async (uri) => textFiles.get(uri) ?? null,
+    writeTextFile: async (uri, contents) => {
+      textFiles.set(uri, contents);
+    },
+  };
+  return { ...disk, fileSystem, textFiles };
+};
+
+const countingResolver = (bytes: number | undefined) => {
+  const lookups: string[] = [];
+  const resolve = async (_translationId: string, bookId: string, chapter: number) => {
+    lookups.push(`${bookId} ${chapter}`);
+    return { url: `https://audio.test/${bookId}/${chapter}.mp3`, duration: 1, bytes };
+  };
+  return { lookups, resolve };
+};
+
+test('resuming a book skips the lookup for chapters whose size was already verified', async () => {
+  const disk = createResumableDiskDouble();
+  const first = countingResolver(5000);
+  await downloadAudioBook({
+    translationId: 'bsb',
+    book: getBookById('RUT')!,
+    fileSystem: disk.fileSystem,
+    resolveRemoteAudio: first.resolve,
+  });
+  assert.equal(first.lookups.length, 4);
+
+  const resumed = countingResolver(5000);
+  const result = await downloadAudioBook({
+    translationId: 'bsb',
+    book: getBookById('RUT')!,
+    fileSystem: disk.fileSystem,
+    resolveRemoteAudio: resumed.resolve,
+  });
+
+  assert.equal(result.chapterCount, 4);
+  assert.deepEqual(resumed.lookups, []);
+  assert.equal(disk.downloads.length, 4);
+});
+
+test('an existing chapter kept after a size lookup is not looked up again on the next resume', async () => {
+  const kept = getChapterAudioFileUri('bsb', 'PHM', 1);
+  const disk = createResumableDiskDouble();
+  disk.fileSizes.set(kept, 5000);
+
+  const first = countingResolver(5000);
+  await downloadAudioBook({
+    translationId: 'bsb',
+    book: getBookById('PHM')!,
+    fileSystem: disk.fileSystem,
+    resolveRemoteAudio: first.resolve,
+  });
+  const resumed = countingResolver(5000);
+  await downloadAudioBook({
+    translationId: 'bsb',
+    book: getBookById('PHM')!,
+    fileSystem: disk.fileSystem,
+    resolveRemoteAudio: resumed.resolve,
+  });
+
+  assert.deepEqual(first.lookups, ['PHM 1']);
+  assert.deepEqual(resumed.lookups, []);
+  assert.deepEqual(disk.downloads, []);
+});
+
+test('a chapter whose size no longer matches its verified size is looked up and downloaded again', async () => {
+  const disk = createResumableDiskDouble();
+  await downloadAudioBook({
+    translationId: 'bsb',
+    book: getBookById('PHM')!,
+    fileSystem: disk.fileSystem,
+    resolveRemoteAudio: countingResolver(5000).resolve,
+  });
+  // An interrupted rewrite left a partial over the 1KB floor at the chapter's path.
+  const fileUri = getChapterAudioFileUri('bsb', 'PHM', 1);
+  disk.fileSizes.set(fileUri, 3000);
+
+  const resumed = countingResolver(5000);
+  await downloadAudioBook({
+    translationId: 'bsb',
+    book: getBookById('PHM')!,
+    fileSystem: disk.fileSystem,
+    resolveRemoteAudio: resumed.resolve,
+  });
+
+  assert.deepEqual(resumed.lookups, ['PHM 1']);
+  assert.deepEqual(disk.deletedFiles, [fileUri]);
+  assert.equal(disk.downloads.length, 2);
+  assert.equal(disk.fileSizes.get(fileUri), 5000);
+});
+
+test('a chapter kept only because its size lookup failed is checked again on the next resume', async (t) => {
+  t.mock.method(console, 'warn', () => {});
+  const fileUri = getChapterAudioFileUri('bsb', 'PHM', 1);
+  const disk = createResumableDiskDouble();
+  disk.fileSizes.set(fileUri, 3000);
+
+  await downloadAudioBook({
+    translationId: 'bsb',
+    book: getBookById('PHM')!,
+    fileSystem: disk.fileSystem,
+    resolveRemoteAudio: async () => {
+      throw new Error('offline');
+    },
+  });
+  const resumed = countingResolver(5000);
+  await downloadAudioBook({
+    translationId: 'bsb',
+    book: getBookById('PHM')!,
+    fileSystem: disk.fileSystem,
+    resolveRemoteAudio: resumed.resolve,
+  });
+
+  assert.deepEqual(resumed.lookups, ['PHM 1']);
+  assert.deepEqual(disk.deletedFiles, [fileUri]);
+  assert.equal(disk.fileSizes.get(fileUri), 5000);
+});
+
 test('cancelling a translation stops its running download and waits for it to settle', async () => {
   const { fileSystem } = createFileSystemDouble();
   const releaseStop: Array<() => void> = [];

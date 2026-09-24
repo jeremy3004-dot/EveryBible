@@ -34,13 +34,29 @@ export type ActivateRecoverySessionResult =
   | { status: 'missing' }
   | { status: 'failed'; problem: RecoveryProblem };
 
+export interface ActivatePasswordRecoveryOptions {
+  /** The account signed in on this device when the user confirmed, if any. */
+  signedInUserId?: string | null;
+  /** The app's normal sign-out (authStore.signOut). */
+  signOutCurrentAccount?: () => Promise<void>;
+}
+
 /**
  * Exchanges the parked PKCE code for a recovery session. Called ONLY after the
  * user has explicitly confirmed the reset on ResetPasswordScreen. auth-js
  * consumes the stored code verifier on every attempt, so the parked code is
  * dropped whether or not the exchange succeeds.
+ *
+ * A PKCE code does not say whose account it opens, and the exchange replaces this
+ * device's session. A reset for another account would otherwise swap the signed-in
+ * user out from under the app. So a signed-in account is signed out first, through
+ * the normal sign-out (push token, per-user stores, private data scope), and the
+ * recovered account then arrives as a clean sign-in. The screen says so before
+ * the user confirms. If that sign-out fails the code is not exchanged.
  */
-export async function activatePendingPasswordRecovery(): Promise<ActivateRecoverySessionResult> {
+export async function activatePendingPasswordRecovery(
+  options: ActivatePasswordRecoveryOptions = {}
+): Promise<ActivateRecoverySessionResult> {
   const pending = pendingPasswordRecovery;
   if (!pending || pending.kind !== 'code') {
     return { status: 'missing' };
@@ -48,6 +64,14 @@ export async function activatePendingPasswordRecovery(): Promise<ActivateRecover
 
   if (!isSupabaseConfigured()) {
     return { status: 'failed', problem: 'configuration' };
+  }
+
+  if (options.signedInUserId && options.signOutCurrentAccount) {
+    try {
+      await options.signOutCurrentAccount();
+    } catch {
+      return { status: 'failed', problem: 'network' };
+    }
   }
 
   pendingPasswordRecovery = null;

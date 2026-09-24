@@ -28,6 +28,11 @@ interface Props {
   scope?: string;
   /** When given, the fallback also offers a Back action (screen-level boundaries). */
   onGoBack?: () => void;
+  /**
+   * Runs first when an error is caught, for boundaries whose subtree guards something
+   * that must fail safe (the privacy lock locks the app).
+   */
+  onError?: (error: Error) => void;
 }
 
 interface State {
@@ -101,6 +106,11 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    try {
+      this.props.onError?.(error);
+    } catch (handlerError) {
+      console.error('ErrorBoundary onError handler failed:', handlerError);
+    }
     console.error('ErrorBoundary caught an error:', error, errorInfo);
     // A caught render error never reaches the global handler, so without this
     // it would leave no trace on the Diagnostics screen. recordCrashLog never throws.

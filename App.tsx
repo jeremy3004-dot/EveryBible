@@ -34,6 +34,7 @@ import { usePushTokenRegistration } from './src/hooks/usePushTokenRegistration';
 import { useNotificationTapRouting } from './src/hooks/useNotificationTapRouting';
 import { useAudioDownloadRecovery } from './src/hooks/useAudioDownloadRecovery';
 import { useAppSessionAnalytics } from './src/hooks/useAppSessionAnalytics';
+import { lockAfterPrivacyLockFailure, usePrivacyLock } from './src/hooks/usePrivacyLock';
 
 // KEEP THIS UNGUARDED. scripts/benchmark-android-startup.py and
 // scripts/android_startup_metrics.py parse `[EB-T] App:module-start` (and
@@ -514,9 +515,16 @@ function AppContent() {
   return (
     <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-      {/* Outside the app boundary, a throw in a runtime-effects hook (sync, privacy
-          lock, deep links) had no boundary at all and was a fatal crash. It renders
-          nothing, so on failure it renders nothing and the app keeps running. */}
+      {/* Discreet mode's lock has a boundary of its own, so a failure anywhere else can
+          never switch it off. It fails closed: a caught error locks a discreet install,
+          and LoadingScreen then shows the lock screen. It is mounted at once rather than
+          deferred; everything it imports is already on the startup path. */}
+      <ErrorBoundary scope="privacy-lock" fallback={null} onError={lockAfterPrivacyLockFailure}>
+        <PrivacyLockHost />
+      </ErrorBoundary>
+      {/* Outside the app boundary, a throw in a runtime-effects hook (sync, deep links)
+          had no boundary at all and was a fatal crash. It renders nothing, so on failure
+          it renders nothing and the app keeps running. */}
       <ErrorBoundary scope="runtime-effects" fallback={null}>
         <AppRuntimeEffectsHost enabled={onboardingCompleted && isPrivacyInitialized} />
       </ErrorBoundary>
@@ -525,6 +533,11 @@ function AppContent() {
       </ErrorBoundary>
     </>
   );
+}
+
+function PrivacyLockHost() {
+  usePrivacyLock();
+  return null;
 }
 
 type RuntimeEffectsComponent = () => null;

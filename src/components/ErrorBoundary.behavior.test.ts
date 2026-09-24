@@ -100,3 +100,35 @@ test('a boundary given fallback={null} renders nothing after a crash instead of 
 
   assert.equal(boundary.render(), null);
 });
+
+test('a boundary tells its onError handler about the error it caught', async () => {
+  const { ErrorBoundary } = await import('./ErrorBoundary');
+  const caught: Error[] = [];
+  const boundary = new ErrorBoundary({
+    children: null,
+    scope: 'privacy-lock',
+    onError: (error) => caught.push(error),
+  });
+
+  const error = new Error('AppState unavailable');
+  boundary.componentDidCatch(error, { componentStack: null });
+
+  assert.deepEqual(caught, [error]);
+});
+
+test('an onError handler that throws does not break the boundary', async () => {
+  const { ErrorBoundary } = await import('./ErrorBoundary');
+  const { getCrashLogs } = await import('../services/diagnostics/crashLogStore');
+  const boundary = new ErrorBoundary({
+    children: null,
+    scope: 'privacy-lock',
+    onError: () => {
+      throw new Error('handler failed');
+    },
+  });
+
+  assert.doesNotThrow(() =>
+    boundary.componentDidCatch(new Error('boom'), { componentStack: null })
+  );
+  assert.equal(getCrashLogs()[0]?.message, '[privacy-lock] boom');
+});

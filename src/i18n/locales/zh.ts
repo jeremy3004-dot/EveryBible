@@ -894,6 +894,7 @@ export const zh = {
     "resetPasswordSuccess": "你的密码已更新",
     "resetPasswordError": "无法更新你的密码",
     "resetLinkConfirmTitle": "设置新密码？",
+    "resetLinkSignsOutCurrent": "你已在这台设备上登录。继续后，将先退出当前账号，再登录此链接所对应的账号。",
     "resetLinkWrongDevice": "此重置链接只能在你申请它的设备上使用。请在那台设备上打开，或从这台设备发送新链接。",
     "sendNewResetLink": "发送新链接",
     "resetPasswordInvalidSession": "此重置链接无效或已过期，请重新申请。",
