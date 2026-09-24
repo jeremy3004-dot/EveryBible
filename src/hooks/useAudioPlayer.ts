@@ -123,8 +123,10 @@ let backgroundMusicSubscription: (() => void) | null = null;
 let backgroundMusicOffHandled = false;
 
 function syncBackgroundMusicWithPlayback(status: AudioStatus, choice: BackgroundMusicChoice): void {
-  if (status === 'playing') {
-    // The chapter change, if any, has finished.
+  if (status === 'playing' || status === 'error' || status === 'idle') {
+    // The chapter change, if any, is over: it played, or it failed. A failed next
+    // chapter must not leave the bed playing on its own; on a locked phone that is
+    // music with no narration and no visible reason, until someone unlocks it.
     chapterTransition.current = false;
   }
 

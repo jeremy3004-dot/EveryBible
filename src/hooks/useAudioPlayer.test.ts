@@ -2648,7 +2648,12 @@ test('the background bed keeps playing while the next chapter loads', async () =
   ]);
 });
 
-test('the background bed keeps playing when a chapter transition fails', async () => {
+// The bed plays through the gap between chapters, but not past a next chapter that
+// fails to load. This used to keep the bed going on the error. On a locked phone that
+// is music with no narration and no visible reason, indefinitely (all night, when
+// auto-advance fails after the listener fell asleep), so a failed narration load now
+// stops the bed with the narration, as a pause or the end of playback does.
+test('a chapter transition that fails pauses the background bed', async () => {
   const player = mountPlayer();
   store().setBackgroundMusicChoice('piano');
   await player.rerender().playChapter('GEN', 1);
@@ -2660,10 +2665,51 @@ test('the background bed keeps playing when a chapter transition fails', async (
   player.rerender();
 
   assert.equal(store().status, 'error');
-  assert.equal(
-    recorded.backgroundMusic.some((call) => call.shouldPlay === false),
-    false
-  );
+  assert.deepEqual(recorded.backgroundMusic.at(-1), {
+    method: 'sync',
+    choice: 'piano',
+    shouldPlay: false,
+  });
+});
+
+test('a next chapter that fails to load after the reader closed pauses the background bed', async () => {
+  const player = mountPlayer();
+  store().setBackgroundMusicChoice('piano');
+  await player.rerender().playChapter('GEN', 1);
+  player.rerender();
+  player.unmount();
+  scenario.failLoadUrls = new Set(['https://cdn.example/bsb/GEN/2.mp3']);
+  recorded.backgroundMusic.length = 0;
+
+  await finishPlayback();
+
+  assert.equal(store().status, 'error');
+  assert.deepEqual(recorded.backgroundMusic.at(-1), {
+    method: 'sync',
+    choice: 'piano',
+    shouldPlay: false,
+  });
+});
+
+test('the background bed comes back when Play recovers from a failed chapter', async () => {
+  const player = mountPlayer();
+  store().setBackgroundMusicChoice('piano');
+  await player.rerender().playChapter('GEN', 1);
+  player.rerender();
+  player.unmount();
+  scenario.failLoadUrls = new Set(['https://cdn.example/bsb/GEN/2.mp3']);
+  await finishPlayback();
+  scenario.failLoadUrls = new Set();
+
+  await remoteCommandListener?.({ command: 'play' });
+
+  assert.equal(store().status, 'playing');
+  assert.deepEqual(recorded.backgroundMusic.at(-1), {
+    method: 'sync',
+    choice: 'piano',
+    shouldPlay: true,
+  });
+  await remoteCommandListener?.({ command: 'pause' });
 });
 
 test('turning the background bed off stops it again', async () => {
