@@ -213,8 +213,8 @@ test('PlanDetailScreen surfaces today target progress on the progress card', () 
   );
   assert.match(
     source,
-    /const palette: Record<ReadingPlanLedgerDayState, ViewStyle> = \{/,
-    'PlanDetailScreen should paint a cell for every one of the four shared ledger day states'
+    /const paint = getPlanLedgerDotPaint\(colors\);/,
+    'PlanDetailScreen should paint every ledger day state from the shared, contrast-tested dot paint'
   );
   assert.match(
     source,
