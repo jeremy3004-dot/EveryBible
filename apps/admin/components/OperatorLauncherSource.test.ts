@@ -4,19 +4,14 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
+// UI-only source check: OperatorLauncher is a client component and the suite has no
+// renderer. The Gemini-only route and chat behaviour run on the real modules in
+// app/api/operator/chat/route.test.ts and lib/operator-chat.test.ts.
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 
 test('admin shell exposes a floating operator launcher without extra chrome', async () => {
   const componentSource = await readFile(
     path.join(repoRoot, 'apps/admin/components/OperatorLauncher.tsx'),
-    'utf8'
-  );
-  const routeSource = await readFile(
-    path.join(repoRoot, 'apps/admin/app/api/operator/chat/route.ts'),
-    'utf8'
-  );
-  const chatSource = await readFile(
-    path.join(repoRoot, 'apps/admin/lib/operator-chat.ts'),
     'utf8'
   );
   const rootLayoutSource = await readFile(path.join(repoRoot, 'apps/admin/app/layout.tsx'), 'utf8');
@@ -48,9 +43,6 @@ test('admin shell exposes a floating operator launcher without extra chrome', as
   assert.doesNotMatch(componentSource, /DEFAULT_PROMPTS/);
   assert.doesNotMatch(componentSource, /operator-launcher__prompts/);
   assert.doesNotMatch(componentSource, /operator-launcher__mark/);
-  assert.match(routeSource, /GEMINI_API_KEY/);
-  assert.match(chatSource, /generativelanguage\.googleapis\.com/);
-  assert.match(chatSource, /gemini-2\.5-flash/);
   assert.doesNotMatch(rootLayoutSource, /<OperatorLauncher \/>/);
   assert.match(dashboardLayoutSource, /<OperatorLauncher \/>/);
 });
