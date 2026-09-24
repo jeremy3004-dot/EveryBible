@@ -11,6 +11,10 @@ module.exports = function (api) {
   return {
     presets: [expoBabelPreset],
     // Reanimated's plugin must stay last.
-    plugins: ['./plugins/babel-icon-deep-imports', 'react-native-reanimated/plugin'],
+    plugins: [
+      './plugins/babel-icon-deep-imports',
+      './plugins/babel-hermes-native-unicode-regex',
+      'react-native-reanimated/plugin',
+    ],
   };
 };
