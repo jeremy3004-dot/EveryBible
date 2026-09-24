@@ -93,6 +93,8 @@ export const id = {
     "prayerYouEncouraged": "Anda sudah menguatkan ini",
     "prayerPrayedRemoved": "Tanda doa dihapus",
     "prayerEncouragedRemoved": "Tanda menguatkan dihapus",
+    "prayerMarkedAnswered": "Ditandai sudah dijawab",
+    "prayerRequestRemoved": "Permohonan doa dihapus",
     "highlightAdded": "Sorotan ditambahkan",
     "highlightRemoved": "Sorotan dihapus",
     "searchResultCount": "Hasil: {{count}}",
@@ -1486,6 +1488,7 @@ export const id = {
     "deleteConfirmTitle": "Hapus terjemahan",
     "deleteConfirmMessage": "Hapus data yang telah diunduh untuk {{name}}? Anda dapat mengunduhnya lagi kapan saja.",
     "cancelDownload": "Batalkan unduhan",
+    "queued": "Menunggu diunduh",
     "delete": "Hapus"
   },
   "gather": {

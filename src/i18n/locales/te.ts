@@ -1199,6 +1199,7 @@ export const te = {
     "deleteConfirmTitle": "అనువాదాన్ని తొలగించండి",
     "deleteConfirmMessage": "{{name}} కోసం డౌన్‌లోడ్ చేసిన డేటాను తీసివేయాలా? మీరు దీన్ని ఎప్పుడైనా మళ్లీ డౌన్‌లోడ్ చేసుకోవచ్చు.",
     "cancelDownload": "డౌన్‌లోడ్‌ను రద్దు చేయండి",
+    "queued": "డౌన్‌లోడ్ కోసం వేచి ఉంది",
     "delete": "తొలగించండి"
   },
   "gather": {
@@ -1704,6 +1705,8 @@ export const te = {
     "prayerYouEncouraged": "మీరు దీనిని ప్రోత్సహించారు",
     "prayerPrayedRemoved": "ప్రార్థన గుర్తు తీసివేయబడింది",
     "prayerEncouragedRemoved": "ప్రోత్సాహం తీసివేయబడింది",
+    "prayerMarkedAnswered": "సమాధానం లభించినట్లు గుర్తించబడింది",
+    "prayerRequestRemoved": "ప్రార్థన అభ్యర్థన తీసివేయబడింది",
     "highlightAdded": "హైలైట్ జోడించబడింది",
     "highlightRemoved": "హైలైట్ తీసివేయబడింది",
     "searchResultCount": "ఫలితాలు: {{count}}",

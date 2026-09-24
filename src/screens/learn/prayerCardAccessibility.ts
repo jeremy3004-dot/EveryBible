@@ -49,3 +49,16 @@ export function prayerInteractionAnnouncement(
   }
   return isNowActive ? t('interface.prayerYouEncouraged') : t('interface.prayerEncouragedRemoved');
 }
+
+/**
+ * Spoken after mark-answered or delete succeeds. The card changes or disappears and focus
+ * moves with it, so without this the action finished in silence.
+ */
+export function prayerRequestActionAnnouncement(
+  t: TFunction,
+  action: 'markAnswered' | 'delete'
+): string {
+  return action === 'markAnswered'
+    ? t('interface.prayerMarkedAnswered')
+    : t('interface.prayerRequestRemoved');
+}

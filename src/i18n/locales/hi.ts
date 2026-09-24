@@ -1199,6 +1199,7 @@ export const hi = {
     "deleteConfirmTitle": "अनुवाद हटाएँ",
     "deleteConfirmMessage": "{{name}} का डाउनलोड किया गया डेटा हटाएँ? आप इसे कभी भी दोबारा डाउनलोड कर सकते हैं।",
     "cancelDownload": "डाउनलोड रद्द करें",
+    "queued": "डाउनलोड की प्रतीक्षा में",
     "delete": "हटाएँ"
   },
   "gather": {
@@ -1704,6 +1705,8 @@ export const hi = {
     "prayerYouEncouraged": "आपने इसे प्रोत्साहित किया",
     "prayerPrayedRemoved": "प्रार्थना का चिह्न हटाया गया",
     "prayerEncouragedRemoved": "प्रोत्साहन हटाया गया",
+    "prayerMarkedAnswered": "उत्तर मिला चिह्नित किया गया",
+    "prayerRequestRemoved": "प्रार्थना अनुरोध हटाया गया",
     "highlightAdded": "हाइलाइट जोड़ा गया",
     "highlightRemoved": "हाइलाइट हटाया गया",
     "searchResultCount": "परिणाम: {{count}}",

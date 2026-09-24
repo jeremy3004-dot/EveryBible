@@ -1199,6 +1199,7 @@ export const mr = {
     "deleteConfirmTitle": "भाषांतर हटवा",
     "deleteConfirmMessage": "{{name}} साठी डाउनलोड केलेला डेटा काढायचा? तुम्ही ते कधीही पुन्हा डाउनलोड करू शकता.",
     "cancelDownload": "डाउनलोड रद्द करा",
+    "queued": "डाउनलोडच्या प्रतीक्षेत",
     "delete": "हटवा"
   },
   "gather": {
@@ -1704,6 +1705,8 @@ export const mr = {
     "prayerYouEncouraged": "तुम्ही याला प्रोत्साहन दिले",
     "prayerPrayedRemoved": "प्रार्थनेची खूण काढली",
     "prayerEncouragedRemoved": "प्रोत्साहन काढले",
+    "prayerMarkedAnswered": "उत्तर मिळाल्याची खूण केली",
+    "prayerRequestRemoved": "प्रार्थना विनंती काढली",
     "highlightAdded": "हायलाइट जोडले",
     "highlightRemoved": "हायलाइट काढले",
     "searchResultCount": "निकाल: {{count}}",

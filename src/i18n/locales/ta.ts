@@ -1199,6 +1199,7 @@ export const ta = {
     "deleteConfirmTitle": "மொழிபெயர்ப்பை நீக்கு",
     "deleteConfirmMessage": "{{name}} க்காகப் பதிவிறக்கிய தரவை அகற்றவா? எப்போது வேண்டுமானாலும் மீண்டும் பதிவிறக்கிக்கொள்ளலாம்.",
     "cancelDownload": "பதிவிறக்கத்தை ரத்துசெய்",
+    "queued": "பதிவிறக்கக் காத்திருக்கிறது",
     "delete": "நீக்கு"
   },
   "gather": {
@@ -1704,6 +1705,8 @@ export const ta = {
     "prayerYouEncouraged": "நீங்கள் இதற்கு ஊக்கமளித்தீர்கள்",
     "prayerPrayedRemoved": "ஜெபக் குறி அகற்றப்பட்டது",
     "prayerEncouragedRemoved": "ஊக்கம் அகற்றப்பட்டது",
+    "prayerMarkedAnswered": "பதில் கிடைத்ததாகக் குறிக்கப்பட்டது",
+    "prayerRequestRemoved": "ஜெபக் கோரிக்கை அகற்றப்பட்டது",
     "highlightAdded": "சிறப்புக்குறி இடப்பட்டது",
     "highlightRemoved": "சிறப்புக்குறி அகற்றப்பட்டது",
     "searchResultCount": "முடிவுகள்: {{count}}",

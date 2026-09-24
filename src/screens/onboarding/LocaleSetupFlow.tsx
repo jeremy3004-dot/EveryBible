@@ -69,6 +69,7 @@ import {
   buildBibleLanguageListItems,
   buildContentLanguageListItems,
   buildCountryListItems,
+  countLocaleSetupSearchMatches,
   isLastInLocaleSetupGroup,
   type BibleLanguageListItem,
   type ContentLanguageListItem,
@@ -89,6 +90,7 @@ import {
 // A barrel import here would undo the deferred-import work below.
 import { useDisplayFont } from '../../hooks/useDisplayFont';
 import { useKeyboardBottomInset } from '../../hooks/useKeyboardBottomInset';
+import { announceForAccessibility } from '../../utils/a11y';
 import type { BibleTranslation } from '../../types';
 import {
   buildTranslationSearchIndex,
@@ -135,6 +137,8 @@ const syncPreferencesAfterOnboarding = (): void => {
 // typing still feels immediate; only the expensive filtering/search follows the
 // debounced value.
 const SEARCH_DEBOUNCE_MS = 150;
+// On top of SEARCH_DEBOUNCE_MS: how long typing must pause before the match count is spoken.
+const SEARCH_ANNOUNCEMENT_DEBOUNCE_MS = 700;
 
 // EL geometry for this screen. The step bar is a fixed 120pt rail regardless of
 // how many segments it carries, so the header reads the same on every step.
@@ -912,6 +916,36 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     t,
   ]);
 
+  // Results arrive silently while focus stays in the search field, so the match count is
+  // spoken. It waits for a pause in typing, or a fast typist hears a stale count per letter.
+  const activeSearchQuery =
+    step === 'translation'
+      ? debouncedTranslationQuery
+      : step === 'country'
+        ? debouncedCountryQuery
+        : step === 'contentLanguage'
+          ? debouncedLanguageQuery
+          : '';
+  const trimmedSearchQuery = activeSearchQuery.trim();
+  const searchMatchCount = useMemo(() => countLocaleSetupSearchMatches(stepItems), [stepItems]);
+  const searchAnnouncement = useMemo(
+    () =>
+      trimmedSearchQuery && searchMatchCount != null
+        ? { step, query: trimmedSearchQuery, count: searchMatchCount }
+        : null,
+    [trimmedSearchQuery, searchMatchCount, step]
+  );
+  const settledSearchAnnouncement = useDebouncedValue(
+    searchAnnouncement,
+    SEARCH_ANNOUNCEMENT_DEBOUNCE_MS
+  );
+  useEffect(() => {
+    if (!settledSearchAnnouncement) return;
+    announceForAccessibility(
+      t('interface.searchResultCount', { count: settledSearchAnnouncement.count })
+    );
+  }, [settledSearchAnnouncement, t]);
+
   // Pre-warm the locale search engine off the interaction/render critical path.
   // The engine's first use (129 KB catalog require + ICU sorts + Fuse build) is
   // otherwise paid synchronously on the first country-step render or first
@@ -1418,14 +1452,6 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
   const keyboardOffset = keyboardBottomInset;
   const showFooter = mode === 'settings';
 
-  const activeSearchQuery =
-    step === 'translation'
-      ? debouncedTranslationQuery
-      : step === 'country'
-        ? debouncedCountryQuery
-        : step === 'contentLanguage'
-          ? debouncedLanguageQuery
-          : '';
   // A new step, or a freshly filtered result set, is a different list: keeping
   // the old scroll offset would drop the reader into the middle of results they
   // have not seen. The list scrolls itself back to the top when this changes.

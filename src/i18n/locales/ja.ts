@@ -93,6 +93,8 @@ export const ja = {
     "prayerYouEncouraged": "この祈りの課題に励ましを送りました",
     "prayerPrayedRemoved": "祈りの印を取り消しました",
     "prayerEncouragedRemoved": "励ましを取り消しました",
+    "prayerMarkedAnswered": "答えられたと記録しました",
+    "prayerRequestRemoved": "祈りの課題を削除しました",
     "highlightAdded": "ハイライトを追加しました",
     "highlightRemoved": "ハイライトを削除しました",
     "searchResultCount": "検索結果: {{count}}件",
@@ -1486,6 +1488,7 @@ export const ja = {
     "deleteConfirmTitle": "翻訳の削除",
     "deleteConfirmMessage": "{{name}}のダウンロード済みデータを削除しますか？いつでも再ダウンロードできます。",
     "cancelDownload": "ダウンロードをキャンセル",
+    "queued": "ダウンロード待ち",
     "delete": "削除"
   },
   "gather": {

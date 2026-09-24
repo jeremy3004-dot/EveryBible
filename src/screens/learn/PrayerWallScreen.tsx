@@ -31,6 +31,7 @@ import { prayerRequestActions } from '../../services/prayer/prayerModel';
 import {
   buildPrayerCardAccessibilityLabel,
   prayerInteractionAnnouncement,
+  prayerRequestActionAnnouncement,
 } from './prayerCardAccessibility';
 
 type ScreenRouteProp = RouteProp<LearnStackParamList, 'PrayerWall'>;
@@ -272,6 +273,7 @@ export function PrayerWallScreen() {
               : r
           )
         );
+        announceForAccessibility(prayerRequestActionAnnouncement(t, 'markAnswered'));
       } else {
         Alert.alert(t('common.error'), t('common.somethingWentWrong'));
       }
@@ -290,6 +292,7 @@ export function PrayerWallScreen() {
             const result = await prayerService.deletePrayerRequest(requestId);
             if (result.success) {
               setRequests((prev) => prev.filter((r) => r.id !== requestId));
+              announceForAccessibility(prayerRequestActionAnnouncement(t, 'delete'));
             } else {
               Alert.alert(t('common.error'), t('common.somethingWentWrong'));
             }

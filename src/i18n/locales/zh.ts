@@ -93,6 +93,8 @@ export const zh = {
     "prayerYouEncouraged": "你已鼓励此代祷事项",
     "prayerPrayedRemoved": "已取消祷告标记",
     "prayerEncouragedRemoved": "已取消鼓励",
+    "prayerMarkedAnswered": "已标记为已蒙应允",
+    "prayerRequestRemoved": "已移除代祷事项",
     "highlightAdded": "已添加高亮",
     "highlightRemoved": "已取消高亮",
     "searchResultCount": "结果：{{count}} 条",
@@ -1486,6 +1488,7 @@ export const zh = {
     "deleteConfirmTitle": "删除译本",
     "deleteConfirmMessage": "要删除 {{name}} 的下载数据吗？你可以随时重新下载。",
     "cancelDownload": "取消下载",
+    "queued": "等待下载",
     "delete": "删除"
   },
   "gather": {

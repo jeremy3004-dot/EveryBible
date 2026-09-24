@@ -117,6 +117,8 @@ export const ar = {
     "prayerYouEncouraged": "شجّعت صاحب هذا الطلب",
     "prayerPrayedRemoved": "أُزيلت علامة الصلاة",
     "prayerEncouragedRemoved": "أُزيل التشجيع",
+    "prayerMarkedAnswered": "حُدِّدت كمستجابة",
+    "prayerRequestRemoved": "أُزيل طلب الصلاة",
     "highlightAdded": "أُضيف التظليل",
     "highlightRemoved": "أُزيل التظليل",
     "searchResultCount": "النتائج: {{count}}",
@@ -1566,6 +1568,7 @@ export const ar = {
     "deleteConfirmTitle": "حذف الترجمة",
     "deleteConfirmMessage": "هل تريد إزالة بيانات {{name}} المنزَّلة؟ يمكنك تنزيلها مرة أخرى في أي وقت.",
     "cancelDownload": "إلغاء التنزيل",
+    "queued": "في انتظار التنزيل",
     "delete": "حذف"
   },
   "gather": {

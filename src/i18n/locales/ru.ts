@@ -111,6 +111,8 @@ export const ru = {
     "prayerYouEncouraged": "Вы поддержали эту просьбу",
     "prayerPrayedRemoved": "Отметка о молитве снята",
     "prayerEncouragedRemoved": "Поддержка снята",
+    "prayerMarkedAnswered": "Отмечено: ответ получен",
+    "prayerRequestRemoved": "Молитвенная нужда убрана",
     "highlightAdded": "Выделение добавлено",
     "highlightRemoved": "Выделение удалено",
     "searchResultCount": "Результаты: {{count}}",
@@ -1526,6 +1528,7 @@ export const ru = {
     "deleteConfirmTitle": "Удалить перевод",
     "deleteConfirmMessage": "Удалить загруженные файлы перевода «{{name}}»? Вы сможете скачать их снова в любое время.",
     "cancelDownload": "Отменить загрузку",
+    "queued": "Ожидает загрузки",
     "delete": "Удалить"
   },
   "gather": {
