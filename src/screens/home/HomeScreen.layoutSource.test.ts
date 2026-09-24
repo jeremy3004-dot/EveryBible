@@ -123,7 +123,7 @@ test('HomeScreen renders a single Gather card for the active foundation', () => 
 
   assert.match(
     source,
-    /t\('home\.lessonsProgress',\s*\{[\s\S]*completed: foundationCompletedLessons\.length,[\s\S]*total: foundation\.lessons\.length,/,
+    /t\('home\.lessonsProgress',\s*\{[\s\S]*completed: foundationCompletedCount,[\s\S]*total: foundation\.lessons\.length,/,
     'the Gather card should show the lesson counter for the active foundation'
   );
 
