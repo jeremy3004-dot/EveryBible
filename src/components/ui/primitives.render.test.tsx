@@ -117,9 +117,9 @@ test('SectionHeader and ListRow fall back from the display face in a language it
     </>
   );
   const slots = (view: Awaited<ReturnType<typeof harness.render>>) => ({
-    title: flattenStyle(view.getByText('Планы').props.style),
-    eyebrow: flattenStyle(view.getByText('2 ПЛАНА').props.style),
-    value: flattenStyle(view.getByText('Русский').props.style),
+    title: flattenStyle(view.getByText('Планы').props.style) ?? {},
+    eyebrow: flattenStyle(view.getByText('2 ПЛАНА').props.style) ?? {},
+    value: flattenStyle(view.getByText('Русский').props.style) ?? {},
   });
 
   // Each view unmounts before the language changes, so no mounted tree re-renders
@@ -188,7 +188,7 @@ test('a disabled IconButton is dimmed, announced as disabled, and ignores presse
 
   const button = view.getByRole('button', { name: 'Share', disabled: true });
   assert.equal(button.props.accessibilityState?.disabled, true);
-  assert.equal(flattenStyle(button.props.style).opacity, 0.45);
+  assert.equal(flattenStyle(button.props.style)?.opacity, 0.45);
   await view.press(button);
   assert.equal(pressed, 0);
   assert.deepEqual(harness.haptics, []);
@@ -197,7 +197,7 @@ test('a disabled IconButton is dimmed, announced as disabled, and ignores presse
     <IconButton icon={Glyph} accessibilityLabel="Share" onPress={() => (pressed += 1)} />
   );
   const enabled = view.getByRole('button', { name: 'Share', disabled: false });
-  assert.equal(flattenStyle(enabled.props.style).opacity, undefined);
+  assert.equal(flattenStyle(enabled.props.style)?.opacity, undefined);
   await view.press(enabled);
   assert.equal(pressed, 1);
 });
