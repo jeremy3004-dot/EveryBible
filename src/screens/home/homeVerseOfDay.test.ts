@@ -171,6 +171,7 @@ function refreshHarness(initialAppState = 'active', msUntilMidnight = 5_000) {
   const interactions: { run: () => void; cancelled: boolean }[] = [];
   let appStateListener: ((next: string) => void) | null = null;
   let removed = 0;
+  let clockAdvances = 0;
   const requestIdRef = { current: 0 };
   const midnightTimerRef: { current: ReturnType<typeof setTimeout> | null } = { current: null };
   const cleanup = startVerseOfDayRefresh({
@@ -198,6 +199,9 @@ function refreshHarness(initialAppState = 'active', msUntilMidnight = 5_000) {
       };
     },
     msUntilNextLocalMidnight: () => msUntilMidnight,
+    onClockAdvance: () => {
+      clockAdvances += 1;
+    },
   });
   return {
     cleanup,
@@ -207,6 +211,7 @@ function refreshHarness(initialAppState = 'active', msUntilMidnight = 5_000) {
     midnightTimerRef,
     emitAppState: (next: string) => appStateListener?.(next),
     removed: () => removed,
+    clockAdvances: () => clockAdvances,
   };
 }
 
@@ -259,6 +264,20 @@ test('coming back to the foreground re-arms the midnight timer instead of adding
   assert.deepEqual(h.loads, [{ silent: true }], 'the earlier timer was cleared');
   mock.timers.tick(3_000);
   assert.deepEqual(h.loads, [{ silent: true }, { silent: true }]);
+  h.cleanup();
+});
+
+test("midnight and each return to the foreground advance Home's clock, not the first load", () => {
+  mock.timers.enable({ apis: ['setTimeout'] });
+  const h = refreshHarness('active', 5_000);
+
+  h.interactions[0].run();
+  assert.equal(h.clockAdvances(), 0);
+  h.emitAppState('background');
+  h.emitAppState('active');
+  assert.equal(h.clockAdvances(), 1, 'the greeting and date must not keep the hour Home opened at');
+  mock.timers.tick(5_000);
+  assert.equal(h.clockAdvances(), 2, 'the date eyebrow turns over with the verse at midnight');
   h.cleanup();
 });
 

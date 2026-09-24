@@ -197,11 +197,15 @@ export function HomeScreen() {
   const [isLoadingVerse, setIsLoadingVerse] = useState(true);
   const [isSharingVerse, setIsSharingVerse] = useState(false);
   const [readingPlans, setReadingPlans] = useState<ReadingPlan[]>([]);
+  // Everything on Home that depends on the time of day reads this, not a fresh Date: it
+  // advances at local midnight and on each return to the foreground, so a Home left open
+  // overnight or resumed hours later does not keep the date and greeting it opened with.
+  const [clockMs, setClockMs] = useState(() => Date.now());
   const verseRequestIdRef = useRef(0);
   const midnightRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const verseSharePreviewRef = useRef<View | null>(null);
-  const verseBackground = getHomeVerseBackground();
+  const verseBackground = getHomeVerseBackground(new Date(clockMs));
   // Scripture on the hero follows the in-app reading size like the reader does;
   // the OS text size is applied on top by RN, and the hero grows to fit both.
   const readingFontSize = useAuthStore((state) => state.preferences.fontSize);
@@ -228,7 +232,7 @@ export function HomeScreen() {
   // offer "available as audio" plus a Listen button for Matthew 7:7. The exact chapter map
   // decides instead; until the manifest resolves it is undefined and Home stays optimistic.
   const dailyAudioChapters = useTranslationContentSummary(currentTranslationInfo)?.audioChapters;
-  const dailyScriptureReference = getDailyScriptureReference();
+  const dailyScriptureReference = getDailyScriptureReference(new Date(clockMs));
   const remoteAudioAvailable =
     config.features.audioEnabled &&
     isRemoteAudioAvailable(currentTranslation) &&
@@ -273,8 +277,8 @@ export function HomeScreen() {
     ? t(nextLessonTitleKey as Parameters<typeof t>[0])
     : (nextLesson?.title ?? '');
   const continuePlans = useMemo(
-    () => selectHomeContinuePlans(readingPlans, progressByPlanId),
-    [progressByPlanId, readingPlans]
+    () => selectHomeContinuePlans(readingPlans, progressByPlanId, 2, new Date(clockMs)),
+    [clockMs, progressByPlanId, readingPlans]
   );
   const featuredPlanProgress = continuePlans[0];
   const featuredPlan =
@@ -288,7 +292,7 @@ export function HomeScreen() {
       })
     : t('readingPlans.title');
   const featuredPlanDay = featuredPlan
-    ? getActivePlanDayNumber(featuredPlan, featuredPlanProgress?.progress)
+    ? getActivePlanDayNumber(featuredPlan, featuredPlanProgress?.progress, new Date(clockMs))
     : 0;
   const featuredPlanDuration = featuredPlan?.duration_days ?? 0;
   const featuredPlanCompletedCount = featuredPlanProgress
@@ -306,12 +310,14 @@ export function HomeScreen() {
     ? `${currentBookName} ${currentChapter}`
     : t('home.defaultReference');
   const greetingName = getFirstName(user?.displayName) ?? t('home.guestName');
-  const greetingKey = useMemo(() => getGreetingKey(), []);
   const greetingLabel = t('home.greetingWithName', {
-    greeting: t(greetingKey),
+    greeting: t(getGreetingKey(new Date(clockMs))),
     name: greetingName,
   });
-  const todayLabel = useMemo(() => formatHomeDateLabel(i18n.language, new Date()), [i18n.language]);
+  const todayLabel = useMemo(
+    () => formatHomeDateLabel(i18n.language, new Date(clockMs)),
+    [clockMs, i18n.language]
+  );
 
   // ---- Reading ledger -------------------------------------------------------
   // The streak is the store's own count, unaffected by the period switch; every
@@ -339,9 +345,9 @@ export function HomeScreen() {
       getHomeReadingStats(
         { chaptersRead, chaptersListened, listeningMsByDate },
         ledgerPeriod,
-        new Date()
+        new Date(clockMs)
       ),
-    [chaptersRead, chaptersListened, ledgerPeriod, listeningMsByDate]
+    [chaptersRead, chaptersListened, clockMs, ledgerPeriod, listeningMsByDate]
   );
 
   const finishedBookCount = readingStats.booksFinished.length;
@@ -363,7 +369,7 @@ export function HomeScreen() {
       });
     }
 
-    const now = new Date();
+    const now = new Date(clockMs);
     const total = getHomeReadingPeriodDayTotal(ledgerPeriod, now);
 
     if (ledgerPeriod === 'week') {
@@ -377,7 +383,7 @@ export function HomeScreen() {
       // ("0 of 1 day" on the 1st).
       count: total,
     });
-  }, [i18n.language, ledgerPeriod, readingStats, t]);
+  }, [clockMs, i18n.language, ledgerPeriod, readingStats, t]);
 
   // The resume point stays on the chapter last opened; once that chapter is
   // finished, "Next up" names the one after it rather than the one just read.
@@ -427,6 +433,7 @@ export function HomeScreen() {
         addAppStateListener: (listener) => AppState.addEventListener('change', listener),
         runAfterInteractions: (task) => InteractionManager.runAfterInteractions(task),
         msUntilNextLocalMidnight: () => getMillisecondsUntilNextLocalMidnight(),
+        onClockAdvance: () => setClockMs(Date.now()),
       }),
     [loadVerseOfDay]
   );
@@ -512,7 +519,23 @@ export function HomeScreen() {
   const canListenToDailyScripture = canPlayDailyAudio;
   const verseCardTitleLabel =
     dailyAudioKind === 'section-audio' ? t('home.sectionOfTheDay') : t('home.verseOfTheDay');
-  const verseShareReferenceLabel = dailyReferenceLabel ?? t('home.defaultReference');
+  // Scripture borrowed from the bundled BSB (the reader's own translation lacks today's
+  // passage) names its source, on screen and in what is shared.
+  const dailyTextTranslation = dailyScripture?.fallbackTranslationId
+    ? (translations.find(
+        (translation) => translation.id === dailyScripture.fallbackTranslationId
+      ) ??
+      bibleTranslations.find(
+        (translation) => translation.id === dailyScripture.fallbackTranslationId
+      ))
+    : currentTranslationInfo;
+  const dailyFallbackAbbreviation = dailyScripture?.fallbackTranslationId
+    ? (dailyTextTranslation?.abbreviation ?? dailyScripture.fallbackTranslationId.toUpperCase())
+    : null;
+  const verseShareReferenceLabel =
+    dailyReferenceLabel && dailyFallbackAbbreviation
+      ? `${dailyReferenceLabel} · ${dailyFallbackAbbreviation}`
+      : (dailyReferenceLabel ?? t('home.defaultReference'));
   const verseShareBodyText =
     dailyScripture?.kind === 'verse-text'
       ? dailyScripture.text?.trim() || t('home.defaultVerse')
@@ -530,7 +553,7 @@ export function HomeScreen() {
   const verseScriptureEyebrow = `${t('home.todaysScripture')} · ${verseShareReferenceLabel}`;
   // Scripture is content, not interface: it renders in the translation's own
   // language, so Lora is swapped for the platform serif on scripts it lacks.
-  const verseFontFamily = getReadingFontFamily(currentTranslationInfo?.language);
+  const verseFontFamily = getReadingFontFamily(dailyTextTranslation?.language);
   const heroScrimColors = useMemo(
     () => [...HERO_SCRIM_STOPS, colors.background] as const,
     [colors.background]
