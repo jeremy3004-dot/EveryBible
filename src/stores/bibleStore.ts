@@ -1215,13 +1215,15 @@ export const useBibleStore = create<BibleState>()(
         } catch (err) {
           if (isTextPackDownloadCancelled?.(err)) {
             set((state) => {
+              // The row belongs to this operation even when another download has since taken
+              // over the progress banner; only the banner itself is guarded by ownership.
               const isCurrentOperation =
-                activeTextDownloadOperationIds.get(translationId) === operationId &&
-                state.downloadProgress?.translationId === translationId &&
-                Boolean(state.downloadProgress);
+                activeTextDownloadOperationIds.get(translationId) === operationId;
+              const ownsBanner =
+                isCurrentOperation && state.downloadProgress?.translationId === translationId;
               return {
-                error: isCurrentOperation ? null : state.error,
-                downloadProgress: isCurrentOperation ? null : state.downloadProgress,
+                error: ownsBanner ? null : state.error,
+                downloadProgress: ownsBanner ? null : state.downloadProgress,
                 translations: isCurrentOperation
                   ? state.translations.map((t) =>
                       t.id === translationId
@@ -1242,13 +1244,15 @@ export const useBibleStore = create<BibleState>()(
           }
           const message = err instanceof Error ? err.message : 'Download failed';
           set((state) => {
+            // Mark the row failed whenever this is still its operation; a download that took
+            // over the banner meanwhile must not leave this translation "downloading" forever.
             const isCurrentOperation =
-              activeTextDownloadOperationIds.get(translationId) === operationId &&
-              state.downloadProgress?.translationId === translationId &&
-              Boolean(state.downloadProgress);
+              activeTextDownloadOperationIds.get(translationId) === operationId;
+            const ownsBanner =
+              isCurrentOperation && state.downloadProgress?.translationId === translationId;
             return {
-              error: isCurrentOperation ? message : state.error,
-              downloadProgress: isCurrentOperation ? null : state.downloadProgress,
+              error: ownsBanner ? message : state.error,
+              downloadProgress: ownsBanner ? null : state.downloadProgress,
               translations: isCurrentOperation
                 ? state.translations.map((t) =>
                     t.id === translationId
