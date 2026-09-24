@@ -2,6 +2,7 @@ import * as Crypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
 import type { PrivacyAppIconMode } from '../../types';
 import { getCurrentPrivacyAppIcon, setPrivacyAppIcon, supportsDynamicAppIcon } from './appIcon';
+import { withPrivacyLockGrace } from './privacyLockGrace';
 
 const privacySettingsKey = 'everybible.privacy.settings';
 
@@ -135,7 +136,8 @@ export const savePrivacySettings = async (settings: PrivacySettingsRecord): Prom
  * first and a change is only requested when it differs, because iOS shows the reader an
  * alert for every change. Throws when a device that supports alternate icons refuses the
  * change (iOS does while the app is not in the foreground), so the caller can report it
- * and try again later.
+ * and try again later. The change runs under the lock grace, so the alert iOS raises for
+ * it does not lock discreet mode; reading the icon does not.
  */
 export const applyPrivacyAppIcon = async (mode: PrivacyAppIconMode): Promise<void> => {
   if (!supportsDynamicAppIcon()) {
@@ -144,7 +146,7 @@ export const applyPrivacyAppIcon = async (mode: PrivacyAppIconMode): Promise<voi
   if ((await getCurrentPrivacyAppIcon()) === mode) {
     return;
   }
-  if (!(await setPrivacyAppIcon(mode))) {
+  if (!(await withPrivacyLockGrace(() => setPrivacyAppIcon(mode)))) {
     throw new Error(`Failed to apply the ${mode} privacy app icon`);
   }
 };
@@ -153,8 +155,9 @@ export const clearPrivacySettings = async (): Promise<void> => {
   // Restore the icon before deleting the record: the stored code is the only
   // thing that can unlock a discreet install, so it must survive a refused icon
   // restore or the handset is left wearing the decoy icon with privacy silently
-  // switched off.
-  const didApplyStandardIcon = await setPrivacyAppIcon('standard');
+  // switched off. The mode is still discreet while iOS shows its icon alert, so the
+  // change runs under the lock grace.
+  const didApplyStandardIcon = await withPrivacyLockGrace(() => setPrivacyAppIcon('standard'));
   if (!didApplyStandardIcon && supportsDynamicAppIcon()) {
     throw new Error('Failed to apply the standard privacy app icon');
   }

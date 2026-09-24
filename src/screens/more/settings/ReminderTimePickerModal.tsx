@@ -1,4 +1,13 @@
-import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useRef, useState } from 'react';
+import {
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  type LayoutChangeEvent,
+} from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useDisplayFont } from '../../../hooks/useDisplayFont';
@@ -58,69 +67,21 @@ export function ReminderTimePickerModal({
           </Text>
 
           <View style={styles.timePickerContainer}>
-            <ScrollView
-              style={styles.timeColumn}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.timeColumnContent}
-            >
-              {REMINDER_HOURS.map((hour) => (
-                <TouchableOpacity
-                  key={hour}
-                  style={[
-                    styles.timeOption,
-                    selectedHour === hour && { backgroundColor: colors.accentPrimary },
-                  ]}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: selectedHour === hour }}
-                  onPress={() => onSelectHour(hour)}
-                >
-                  <Text
-                    style={[
-                      styles.timeOptionText,
-                      { color: colors.secondaryText },
-                      selectedHour === hour && {
-                        color: colors.onAccent,
-                      },
-                    ]}
-                  >
-                    {hour.toString().padStart(2, '0')}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+            <TimeColumn
+              values={REMINDER_HOURS}
+              selected={selectedHour}
+              onSelect={onSelectHour}
+              format={(hour) => hour.toString().padStart(2, '0')}
+            />
 
             <Text style={[styles.timeSeparator, { color: colors.primaryText }]}>:</Text>
 
-            <ScrollView
-              style={styles.timeColumn}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.timeColumnContent}
-            >
-              {REMINDER_MINUTES.map((minute) => (
-                <TouchableOpacity
-                  key={minute}
-                  style={[
-                    styles.timeOption,
-                    selectedMinute === minute && { backgroundColor: colors.accentPrimary },
-                  ]}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: selectedMinute === minute }}
-                  onPress={() => onSelectMinute(minute)}
-                >
-                  <Text
-                    style={[
-                      styles.timeOptionText,
-                      { color: colors.secondaryText },
-                      selectedMinute === minute && {
-                        color: colors.onAccent,
-                      },
-                    ]}
-                  >
-                    {minute}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+            <TimeColumn
+              values={REMINDER_MINUTES}
+              selected={selectedMinute}
+              onSelect={onSelectMinute}
+              format={(minute) => minute}
+            />
           </View>
 
           <View style={modalButtonsStyle}>
@@ -147,12 +108,81 @@ export function ReminderTimePickerModal({
   );
 }
 
+interface TimeColumnProps<T extends number | string> {
+  values: readonly T[];
+  selected: T;
+  onSelect: (value: T) => void;
+  format: (value: T) => string;
+}
+
+/**
+ * One scrolling column. It opens scrolled so the selected value sits in the middle:
+ * without that the hour column opened at midnight, with the 09 that would be saved
+ * highlighted out of sight below it. The modal unmounts its content while hidden, so
+ * each opening remounts the column and centres the value selected at that moment; a
+ * later tap only moves the highlight, never the column under the finger.
+ */
+function TimeColumn<T extends number | string>({
+  values,
+  selected,
+  onSelect,
+  format,
+}: TimeColumnProps<T>) {
+  const { colors } = useTheme();
+  const scrollRef = useRef<ScrollView>(null);
+  const [openedOn] = useState(selected);
+
+  const centreOpenedValue = (value: T, event: LayoutChangeEvent) => {
+    if (value !== openedOn) return;
+    const { y, height } = event.nativeEvent.layout;
+    scrollRef.current?.scrollTo({
+      y: Math.max(0, y + height / 2 - TIME_COLUMN_HEIGHT / 2),
+      animated: false,
+    });
+  };
+
+  return (
+    <ScrollView
+      ref={scrollRef}
+      style={styles.timeColumn}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={styles.timeColumnContent}
+    >
+      {values.map((value) => (
+        <TouchableOpacity
+          key={value}
+          style={[
+            styles.timeOption,
+            selected === value && { backgroundColor: colors.accentPrimary },
+          ]}
+          accessibilityRole="button"
+          accessibilityState={{ selected: selected === value }}
+          onPress={() => onSelect(value)}
+          onLayout={(event) => centreOpenedValue(value, event)}
+        >
+          <Text
+            style={[
+              styles.timeOptionText,
+              { color: colors.secondaryText },
+              selected === value && { color: colors.onAccent },
+            ]}
+          >
+            {format(value)}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </ScrollView>
+  );
+}
+
+const TIME_COLUMN_HEIGHT = 200;
+
 const styles = StyleSheet.create({
   timePickerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 200,
+    height: TIME_COLUMN_HEIGHT,
     marginBottom: spacing.lg,
   },
   timeColumn: {
