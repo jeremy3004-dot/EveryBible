@@ -87,7 +87,8 @@ npm run ios            # Build and run on iOS simulator (requires Xcode)
 npm run android        # Build and run on Android emulator
 npm run web            # Start web version (limited functionality)
 npm run lint           # ESLint check
-npm run typecheck      # TypeScript compile check
+npm run typecheck      # TypeScript compile check (runs tsc, then typecheck:strict)
+npm run typecheck:strict # noUncheckedIndexedAccess etc. for non-UI code (tsconfig.strict.json)
 npm run test:release   # Focused release regression suite
 npm run release:verify # Lint + typecheck + full test suite (npm test) + expo config check
 npm run lint:fix       # Auto-fix ESLint issues
