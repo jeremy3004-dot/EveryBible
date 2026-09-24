@@ -136,7 +136,10 @@ function LoadingScreen() {
   const isPrivacyInitialized = usePrivacyStore((state) => state.isInitialized);
   const privacyInitializationError = usePrivacyStore((state) => state.initializationError);
   const isPrivacyLocked = usePrivacyStore((state) => state.isLocked);
-  const preferences = useAuthStore((state) => state.preferences);
+  // Only the fields this screen gates on. It renders the whole navigator, so
+  // subscribing to every preference re-rendered all mounted screens on any write.
+  const onboardingCompleted = useAuthStore((state) => state.preferences.onboardingCompleted);
+  const storedLanguage = useAuthStore((state) => state.preferences.language);
   const initializeAuthAfterStorage = useMemo(
     () =>
       createAuthInitializer({
@@ -287,7 +290,7 @@ function LoadingScreen() {
   }, [isReady, shouldWaitForFonts]);
 
   useEffect(() => {
-    if (!isReady || !preferences.onboardingCompleted || warmupCancelRef.current) {
+    if (!isReady || !onboardingCompleted || warmupCancelRef.current) {
       return;
     }
 
@@ -299,16 +302,19 @@ function LoadingScreen() {
         warmupCancelRef.current = null;
       }
     };
-  }, [isReady, preferences.onboardingCompleted, startupCoordinator]);
+  }, [isReady, onboardingCompleted, startupCoordinator]);
 
-  useAudioDownloadRecovery(isReady && Boolean(preferences.onboardingCompleted), (task) =>
+  useAudioDownloadRecovery(isReady && Boolean(onboardingCompleted), (task) =>
     scheduleAfterInteractions(
       task,
       Platform.OS === 'android' ? ANDROID_BACKGROUND_STARTUP_DELAY_MS : 0
     )
   );
 
-  const storedInterfaceLanguage = getStoredInterfaceLanguageToApply(preferences);
+  const storedInterfaceLanguage = getStoredInterfaceLanguageToApply({
+    language: storedLanguage,
+    onboardingCompleted,
+  });
   useEffect(() => {
     if (storedInterfaceLanguage) {
       void changeLanguage(storedInterfaceLanguage);
@@ -316,7 +322,7 @@ function LoadingScreen() {
   }, [storedInterfaceLanguage]);
 
   useEffect(() => {
-    if (!isReady || !preferences.onboardingCompleted || !isPrivacyInitialized || isPrivacyLocked) {
+    if (!isReady || !onboardingCompleted || !isPrivacyInitialized || isPrivacyLocked) {
       setShouldRenderNavigator(false);
       return;
     }
@@ -328,7 +334,7 @@ function LoadingScreen() {
     return () => {
       clearTimeout(timeoutId);
     };
-  }, [isPrivacyInitialized, isPrivacyLocked, isReady, preferences.onboardingCompleted]);
+  }, [isPrivacyInitialized, isPrivacyLocked, isReady, onboardingCompleted]);
 
   if (privacyInitializationError) {
     return <PrivacyInitializationRetryScreen onRetry={retryPrivacyAndAuth} />;
@@ -342,7 +348,7 @@ function LoadingScreen() {
     return <PrivacyLockScreen />;
   }
 
-  if (!preferences.onboardingCompleted) {
+  if (!onboardingCompleted) {
     return (
       <View style={[styles.bootShell, { backgroundColor: colors.background }]}>
         <OnboardingHost />
@@ -424,8 +430,14 @@ function AppContent() {
 
   useAppSessionAnalytics(Boolean(onboardingCompleted) && !isPrivacyLocked);
 
-  // Set up Android notification channels on mount (idempotent, no-op on iOS).
+  // Set up Android notification channels on mount (idempotent). Channels exist only
+  // on Android, and the import alone evaluates the whole notification service
+  // (~120 modules), so iOS skips it. Push-token registration and the daily-reminder
+  // reconciler load the service themselves when they have work to do.
   useEffect(() => {
+    if (Platform.OS !== 'android') {
+      return;
+    }
     const handle = InteractionManager.runAfterInteractions(() => {
       void import('./src/services/notifications')
         .then(({ setupAndroidChannels }) => setupAndroidChannels())
