@@ -242,3 +242,27 @@ test('leaving the app before the restore finishes still starts and ends exactly 
   ]);
   assert.equal(authListeners.size, 0);
 });
+
+test('mounting and unmounting through cold starts leaves no listeners and balanced sessions', async () => {
+  // The hook remounts whenever the privacy lock or onboarding flips `enabled`, often
+  // before the session restore has finished.
+  const baseline = rn.AppState.listenerCount();
+  auth.isInitialized = false;
+
+  for (let cycle = 0; cycle < 5; cycle += 1) {
+    const view = mountApp();
+    if (cycle % 2 === 0) {
+      await settle(); // the lazy import landed and is waiting on the restore
+    }
+    view.unmount();
+    await settle();
+  }
+
+  assert.equal(rn.AppState.listenerCount(), baseline);
+  assert.equal(authListeners.size, 0);
+  const count = (name: string) => calls.filter((call) => call === name).length;
+  assert.deepEqual(
+    [count('startAnonymousUsageSession'), count('endAnonymousUsageSession')],
+    [5, 5]
+  );
+});
