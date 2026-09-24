@@ -599,7 +599,13 @@ export function downloadCatalogTextPack(params: {
   onPhase?: (phase: 'verifying' | 'activating') => void;
   translationId: string;
 }): Promise<string> {
+  // A refused duplicate must not replace (and, on rejection, remove) the settlement of the
+  // transfer that is still running, or waitForActiveCatalogTextPackDownload stops waiting for it.
+  const isDuplicate = activeCatalogTextDownloads.has(params.translationId);
   const promise = downloadCatalogTextPackImpl(params);
+  if (isDuplicate) {
+    return promise;
+  }
   activeCatalogTextDownloadSettlements.set(params.translationId, promise);
   void promise.then(
     () => {

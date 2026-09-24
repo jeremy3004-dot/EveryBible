@@ -142,9 +142,13 @@ const resumable = {
   cancelled: false,
   resolve: null as (() => void) | null,
   started: null as (() => void) | null,
+  /** Native progress callbacks fired once the transfer is allowed to proceed. */
+  progressEvents: [] as { totalBytesWritten: number; totalBytesExpectedToWrite: number }[],
+  cancelError: null as Error | null,
 };
 const fileSystemFaults = {
   failMove: null as ((from: string, to: string) => boolean) | null,
+  failDelete: null as ((path: string) => boolean) | null,
   unreadableBytes: false,
 };
 const fileSystemCalls: string[] = [];
@@ -174,6 +178,9 @@ mockModule(mock, 'expo-file-system/legacy', {
   },
   deleteAsync: async (path: string) => {
     fileSystemCalls.push(`delete:${path}`);
+    if (fileSystemFaults.failDelete?.(path)) {
+      throw new Error('native delete failed');
+    }
     rmSync(path, { force: true, recursive: true });
   },
   moveAsync: async ({ from, to }: { from: string; to: string }) => {
@@ -184,19 +191,31 @@ mockModule(mock, 'expo-file-system/legacy', {
     renameSync(from, to);
   },
   downloadAsync: async (url: string, path: string) => fakeDownload(url, path),
-  createDownloadResumable: (url: string, path: string) => ({
+  createDownloadResumable: (
+    url: string,
+    path: string,
+    _options: unknown,
+    onNativeProgress?: (progress: {
+      totalBytesWritten: number;
+      totalBytesExpectedToWrite: number;
+    }) => void
+  ) => ({
     downloadAsync: async () => {
       if (resumable.enabled) {
         await new Promise<void>((resolve) => {
           resumable.resolve = resolve;
           resumable.started?.();
         });
-        if (resumable.cancelled) return undefined;
       }
+      for (const event of resumable.progressEvents) {
+        onNativeProgress?.(event);
+      }
+      if (resumable.cancelled) return undefined;
       return fakeDownload(url, path);
     },
     cancelAsync: async () => {
       resumable.cancelled = true;
+      if (resumable.cancelError) throw resumable.cancelError;
     },
   }),
   readAsStringAsync: async (path: string, options?: { position?: number; length?: number }) => {
@@ -246,7 +265,10 @@ afterEach(() => {
   resumable.cancelled = false;
   resumable.resolve = null;
   resumable.started = null;
+  resumable.progressEvents = [];
+  resumable.cancelError = null;
   fileSystemFaults.failMove = null;
+  fileSystemFaults.failDelete = null;
   fileSystemFaults.unreadableBytes = false;
   base64Reads.length = 0;
   sqliteFaults.failOpen = false;
@@ -704,4 +726,603 @@ test('checksum verification runs on Hermes, where Web Crypto and atob do not exi
     if (savedCrypto) Object.defineProperty(globalThis, 'crypto', savedCrypto);
     if (savedAtob) Object.defineProperty(globalThis, 'atob', savedAtob);
   }
+});
+
+// ─── Custom pack shapes ───────────────────────────────────────────────────────
+
+/** A pack built from arbitrary SQL, for schemas `buildPackBytes` cannot express. */
+function buildCustomPackBytes(setupSql: string): Buffer {
+  const path = `${root}/custom-${Math.random().toString(36).slice(2)}.db`;
+  const database = new DatabaseSync(path);
+  database.exec('PRAGMA journal_mode = DELETE');
+  database.exec(setupSql);
+  database.close();
+  const bytes = readFileSync(path);
+  rmSync(path, { force: true });
+  return bytes;
+}
+
+/** Holds the next resumable transfer open until the returned `release` is called. */
+function holdNextTransfer(): { started: Promise<void>; release: () => void } {
+  resumable.enabled = true;
+  const started = new Promise<void>((resolve) => {
+    resumable.started = resolve;
+  });
+  return { started, release: () => resumable.resolve?.() };
+}
+
+const sha256Hex = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
+
+// ─── Transfer progress and cancellation ───────────────────────────────────────
+
+test('downloadCatalogTextPack reports native byte progress and omits an unknown total size', async () => {
+  const { downloadCatalogTextPack } = await loadModule();
+  const progress = collectProgress();
+  resumable.progressEvents = [
+    { totalBytesWritten: 512, totalBytesExpectedToWrite: 2048 },
+    { totalBytesWritten: 900, totalBytesExpectedToWrite: -1 },
+  ];
+
+  await downloadCatalogTextPack({
+    translationId: 'bytes',
+    downloadUrl: 'https://media.example.test/bytes.db',
+    expectedVerseCount: 3,
+    onProgress: progress.onProgress,
+  });
+
+  assert.deepEqual(
+    progress.entries.filter((entry) => entry.bytesDownloaded !== undefined),
+    [
+      {
+        phase: 'fetching',
+        versesDownloaded: 0,
+        totalVerses: 3,
+        bytesDownloaded: 512,
+        bytesTotal: 2048,
+      },
+      {
+        phase: 'fetching',
+        versesDownloaded: 0,
+        totalVerses: 3,
+        bytesDownloaded: 900,
+        bytesTotal: undefined,
+      },
+    ]
+  );
+});
+
+test('cancelActiveCatalogTextPackDownload cancels only the named translation and silences its progress', async () => {
+  const {
+    cancelActiveCatalogTextPackDownload,
+    downloadCatalogTextPack,
+    isTextPackDownloadCancelled,
+  } = await loadModule();
+  const progress = collectProgress();
+  const transfer = holdNextTransfer();
+  resumable.progressEvents = [{ totalBytesWritten: 10, totalBytesExpectedToWrite: 20 }];
+  resumable.cancelError = new Error('native cancel failed');
+
+  const promise = downloadCatalogTextPack({
+    translationId: 'named',
+    downloadUrl: 'https://media.example.test/named.db',
+    expectedVerseCount: 3,
+    onProgress: progress.onProgress,
+  });
+  await transfer.started;
+
+  assert.equal(cancelActiveCatalogTextPackDownload('someone-else'), false);
+  assert.equal(cancelActiveCatalogTextPackDownload('named'), true);
+  transfer.release();
+
+  await assert.rejects(promise, (error: unknown) => isTextPackDownloadCancelled(error));
+  assert.deepEqual(
+    progress.phases,
+    ['fetching'],
+    'no byte, error or completion progress after cancel'
+  );
+  assert.equal(existsSync(packPath('named')), false);
+  assert.equal(existsSync(stagingPath('named')), false);
+  assert.equal(cancelActiveCatalogTextPackDownload(), false, 'nothing is active any more');
+});
+
+test('a transfer the native layer abandons on its own is reported as cancelled, not as an error', async () => {
+  const { downloadCatalogTextPack, isTextPackDownloadCancelled } = await loadModule();
+  const progress = collectProgress();
+  resumable.enabled = true;
+  resumable.cancelled = true;
+  resumable.started = () => resumable.resolve?.();
+
+  await assert.rejects(
+    downloadCatalogTextPack({
+      translationId: 'abandoned',
+      downloadUrl: 'https://media.example.test/abandoned.db',
+      expectedVerseCount: 3,
+      onProgress: progress.onProgress,
+    }),
+    (error: unknown) => isTextPackDownloadCancelled(error)
+  );
+  assert.deepEqual(progress.phases, ['fetching']);
+});
+
+test('a cancel during checksum verification stops hashing before the pack is read', async () => {
+  const {
+    cancelActiveCatalogTextPackDownload,
+    downloadCatalogTextPack,
+    isTextPackDownloadCancelled,
+  } = await loadModule();
+  const progress = collectProgress();
+
+  await assert.rejects(
+    downloadCatalogTextPack({
+      translationId: 'hashcancel',
+      downloadUrl: 'https://media.example.test/hashcancel.db',
+      expectedVerseCount: 3,
+      expectedSha256: sha256Hex(download.bytes),
+      onProgress: progress.onProgress,
+      onPhase: (phase) => {
+        if (phase === 'verifying') cancelActiveCatalogTextPackDownload('hashcancel');
+      },
+    }),
+    (error: unknown) => isTextPackDownloadCancelled(error)
+  );
+  assert.equal(base64Reads.length, 0);
+  assert.equal(progress.phases.includes('error'), false);
+  assert.equal(existsSync(stagingPath('hashcancel')), false);
+  assert.equal(existsSync(packPath('hashcancel')), false);
+});
+
+test('a cancel during verification of a pack without a checksum still stops the install', async () => {
+  const {
+    cancelActiveCatalogTextPackDownload,
+    downloadCatalogTextPack,
+    isTextPackDownloadCancelled,
+  } = await loadModule();
+
+  await assert.rejects(
+    downloadCatalogTextPack({
+      translationId: 'verifycancel',
+      downloadUrl: 'https://media.example.test/verifycancel.db',
+      expectedVerseCount: 3,
+      onPhase: (phase) => {
+        if (phase === 'verifying') cancelActiveCatalogTextPackDownload('verifycancel');
+      },
+    }),
+    (error: unknown) => isTextPackDownloadCancelled(error)
+  );
+  assert.equal(opens.length, 0, 'the staged database is never opened');
+  assert.equal(existsSync(packPath('verifycancel')), false);
+});
+
+test('a cancel while the staged database is being checked prevents activation', async () => {
+  const {
+    cancelActiveCatalogTextPackDownload,
+    downloadCatalogTextPack,
+    isTextPackDownloadCancelled,
+  } = await loadModule();
+  const phases: string[] = [];
+
+  await assert.rejects(
+    downloadCatalogTextPack({
+      translationId: 'indexcancel',
+      downloadUrl: 'https://media.example.test/indexcancel.db',
+      expectedVerseCount: 3,
+      onProgress: (progress) => {
+        if (progress.phase === 'indexing') cancelActiveCatalogTextPackDownload('indexcancel');
+      },
+      onPhase: (phase) => phases.push(phase),
+    }),
+    (error: unknown) => isTextPackDownloadCancelled(error)
+  );
+  assert.deepEqual(phases, ['verifying']);
+  assert.equal(existsSync(packPath('indexcancel')), false);
+});
+
+test('a cancel that arrives once activation has begun is refused and the install completes', async () => {
+  const { cancelActiveCatalogTextPackDownload, downloadCatalogTextPack } = await loadModule();
+  let accepted: boolean | null = null;
+
+  const installedPath = await downloadCatalogTextPack({
+    translationId: 'lateactivate',
+    downloadUrl: 'https://media.example.test/lateactivate.db',
+    expectedVerseCount: 3,
+    onPhase: (phase) => {
+      if (phase === 'activating') accepted = cancelActiveCatalogTextPackDownload('lateactivate');
+    },
+  });
+
+  assert.equal(accepted, false);
+  assert.equal(readVerseCount(installedPath), 3);
+});
+
+// ─── Concurrency tracking ─────────────────────────────────────────────────────
+
+test('waitForActiveCatalogTextPackDownload resolves at once when nothing is downloading', async () => {
+  const { waitForActiveCatalogTextPackDownload } = await loadModule();
+
+  assert.equal(await waitForActiveCatalogTextPackDownload('idle'), undefined);
+});
+
+test('waitForActiveCatalogTextPackDownload settles quietly once a failing download finishes', async () => {
+  const { downloadCatalogTextPack, waitForActiveCatalogTextPackDownload } = await loadModule();
+  const transfer = holdNextTransfer();
+  download.status = 500;
+
+  const promise = downloadCatalogTextPack({
+    translationId: 'waitfail',
+    downloadUrl: 'https://media.example.test/waitfail.db',
+    expectedVerseCount: 3,
+  });
+  const rejection = assert.rejects(promise, /HTTP 500/);
+  await transfer.started;
+  const waiting = waitForActiveCatalogTextPackDownload('waitfail');
+  transfer.release();
+
+  assert.equal(await waiting, undefined, 'the wait never rethrows the download failure');
+  await rejection;
+});
+
+test('a second download for the same translation is refused while the first continues', async () => {
+  const { downloadCatalogTextPack } = await loadModule();
+  const transfer = holdNextTransfer();
+
+  const first = downloadCatalogTextPack({
+    translationId: 'twice',
+    downloadUrl: 'https://media.example.test/twice.db',
+    expectedVerseCount: 3,
+  });
+  await transfer.started;
+
+  await assert.rejects(
+    downloadCatalogTextPack({
+      translationId: 'twice',
+      downloadUrl: 'https://media.example.test/twice.db',
+      expectedVerseCount: 3,
+    }),
+    /A text pack download is already in progress for twice/
+  );
+  transfer.release();
+
+  assert.equal(readVerseCount(await first), 3);
+});
+
+// Regression: the refused duplicate used to replace the settlement entry for the translation,
+// and removed it again when it rejected. waitForActiveCatalogTextPackDownload then resolved
+// immediately, so a delete could run while the original transfer was still writing.
+test('a refused duplicate download does not stop waitForActiveCatalogTextPackDownload tracking the original', async () => {
+  const { downloadCatalogTextPack, waitForActiveCatalogTextPackDownload } = await loadModule();
+  const transfer = holdNextTransfer();
+
+  const first = downloadCatalogTextPack({
+    translationId: 'tracked',
+    downloadUrl: 'https://media.example.test/tracked.db',
+    expectedVerseCount: 3,
+  });
+  await transfer.started;
+  await assert.rejects(
+    downloadCatalogTextPack({
+      translationId: 'tracked',
+      downloadUrl: 'https://media.example.test/tracked.db',
+      expectedVerseCount: 3,
+    }),
+    /already in progress/
+  );
+
+  let waitSettled = false;
+  const waiting = waitForActiveCatalogTextPackDownload('tracked').then(() => {
+    waitSettled = true;
+  });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(waitSettled, false, 'the original transfer is still in flight');
+
+  transfer.release();
+  assert.equal(await first, packPath('tracked'));
+  await waiting;
+  assert.equal(waitSettled, true);
+});
+
+// ─── Failure paths ────────────────────────────────────────────────────────────
+
+test('a non-Error failure is reported as an unknown download error and rethrown as-is', async () => {
+  const { downloadCatalogTextPack } = await loadModule();
+  const progress = collectProgress();
+  download.error = 'socket hang up' as unknown as Error;
+
+  await assert.rejects(
+    downloadCatalogTextPack({
+      translationId: 'nonerror',
+      downloadUrl: 'https://media.example.test/nonerror.db',
+      onProgress: progress.onProgress,
+    }),
+    (error: unknown) => error === 'socket hang up'
+  );
+  assert.deepEqual(progress.entries.at(-1), {
+    phase: 'error',
+    versesDownloaded: 0,
+    totalVerses: 0,
+    error: 'Unknown download error',
+  });
+});
+
+test('a staging cleanup failure after a bad download leaves the evidence and keeps the original error', async () => {
+  const { downloadCatalogTextPack } = await loadModule();
+  download.status = 404;
+  fileSystemFaults.failDelete = (path) => path.includes('stuck.staging.db');
+
+  await assert.rejects(
+    downloadCatalogTextPack({
+      translationId: 'stuck',
+      downloadUrl: 'https://media.example.test/stuck.db',
+      expectedVerseCount: 3,
+    }),
+    /Translation download failed with HTTP 404/
+  );
+  assert.equal(existsSync(stagingPath('stuck')), true);
+});
+
+test('a successful install survives a failure to delete the previous pack backup', async () => {
+  const { downloadCatalogTextPack } = await loadModule();
+  mkdirSync(translationsDirectory, { recursive: true });
+  writeFileSync(packPath('keepbackup'), buildPackBytes({ verses: 2 }));
+  fileSystemFaults.failDelete = (path) => path.includes('keepbackup.db.rollback');
+
+  const installedPath = await downloadCatalogTextPack({
+    translationId: 'keepbackup',
+    downloadUrl: 'https://media.example.test/keepbackup.db',
+    expectedVerseCount: 3,
+  });
+
+  assert.equal(readVerseCount(installedPath), 3);
+  assert.equal(
+    readVerseCount(`${packPath('keepbackup')}.rollback`),
+    2,
+    'the backup is left for the recovery pass to retire'
+  );
+});
+
+test('downloadCatalogTextPack rejects a verses table missing a required column', async () => {
+  const { downloadCatalogTextPack } = await loadModule();
+  download.bytes = buildCustomPackBytes(`
+    CREATE TABLE verses (translation_id TEXT, book_id TEXT, chapter INTEGER, verse INTEGER);
+    INSERT INTO verses VALUES ('schema', 'GEN', 1, 1);
+  `);
+
+  await assert.rejects(
+    downloadCatalogTextPack({
+      translationId: 'schema',
+      downloadUrl: 'https://media.example.test/schema.db',
+    }),
+    /incompatible verses schema/
+  );
+  assert.equal(existsSync(packPath('schema')), false);
+});
+
+test('downloadCatalogTextPack rejects a pack whose first verse is blank', async () => {
+  const { downloadCatalogTextPack } = await loadModule();
+  download.bytes = buildCustomPackBytes(`
+    CREATE TABLE verses (translation_id TEXT, book_id TEXT, chapter INTEGER, verse INTEGER, text TEXT);
+    INSERT INTO verses VALUES ('blank', 'GEN', 1, 1, '   ');
+  `);
+
+  await assert.rejects(
+    downloadCatalogTextPack({
+      translationId: 'blank',
+      downloadUrl: 'https://media.example.test/blank.db',
+    }),
+    /has no readable verse/
+  );
+});
+
+// ─── Journaled (operation-scoped) installs ────────────────────────────────────
+
+test('getCatalogTextPackPaths scopes paths to a sanitised operation id', async () => {
+  const { getCatalogTextPackPaths } = await loadModule();
+
+  assert.deepEqual(getCatalogTextPackPaths('niv', 'op:1/2'), {
+    finalPath: `${translationsDirectory}/niv.op_1_2.db`,
+    stagingPath: `${translationsDirectory}/niv.op_1_2.staging.db`,
+    rollbackPath: `${translationsDirectory}/niv.op_1_2.db.rollback`,
+  });
+  assert.deepEqual(getCatalogTextPackPaths('niv'), {
+    finalPath: `${translationsDirectory}/niv.db`,
+    stagingPath: `${translationsDirectory}/niv.staging.db`,
+    rollbackPath: `${translationsDirectory}/niv.db.rollback`,
+  });
+});
+
+test('getCatalogTextPackPaths refuses a translation id that could escape the translations folder', async () => {
+  const { getCatalogTextPackPaths } = await loadModule();
+
+  assert.throws(() => getCatalogTextPackPaths('../Library'), /Unsafe translation id rejected/);
+  assert.throws(
+    () => getCatalogTextPackPaths('../Library', 'op-1'),
+    /Unsafe translation operation id rejected/
+  );
+});
+
+test('an operation-scoped install checks the pack identity case-insensitively and installs to its own path', async () => {
+  const { downloadCatalogTextPack } = await loadModule();
+  download.bytes = buildPackBytes({ translationId: 'OPID' });
+
+  const installedPath = await downloadCatalogTextPack({
+    translationId: 'opid',
+    operationId: 'op-1',
+    downloadUrl: 'https://media.example.test/opid.db',
+    expectedVerseCount: 3,
+  });
+
+  assert.equal(installedPath, `${translationsDirectory}/opid.op-1.db`);
+  assert.equal(readVerseCount(installedPath), 3);
+});
+
+test('an operation-scoped install rejects a pack that belongs to another translation', async () => {
+  const { downloadCatalogTextPack } = await loadModule();
+  download.bytes = buildPackBytes({ translationId: 'someone-else' });
+
+  await assert.rejects(
+    downloadCatalogTextPack({
+      translationId: 'wrongid',
+      operationId: 'op-2',
+      downloadUrl: 'https://media.example.test/wrongid.db',
+      expectedVerseCount: 3,
+    }),
+    /wrong translation identity/
+  );
+  assert.equal(existsSync(`${translationsDirectory}/wrongid.op-2.db`), false);
+});
+
+// ─── Standalone validation and cleanup ────────────────────────────────────────
+
+test('validateCatalogTextPack verifies the checksum and returns the first verse location', async () => {
+  const { validateCatalogTextPack } = await loadModule();
+  mkdirSync(translationsDirectory, { recursive: true });
+  const bytes = buildPackBytes({ translationId: 'validated' });
+  const path = `${translationsDirectory}/validated.db`;
+  writeFileSync(path, bytes);
+
+  assert.deepEqual(await validateCatalogTextPack(path, 3, sha256Hex(bytes), 'VALIDATED'), {
+    translationId: 'validated',
+    bookId: 'GEN',
+    chapter: 1,
+  });
+  await assert.rejects(
+    validateCatalogTextPack(path, 3, sha256Hex(Buffer.from('other bytes'))),
+    /checksum mismatch/
+  );
+});
+
+test('validateCatalogTextPack fails closed on an empty file with a declared checksum', async () => {
+  const { validateCatalogTextPack } = await loadModule();
+  mkdirSync(translationsDirectory, { recursive: true });
+  const path = `${translationsDirectory}/empty.db`;
+  writeFileSync(path, Buffer.alloc(0));
+
+  await assert.rejects(
+    validateCatalogTextPack(path, 1, sha256Hex(Buffer.alloc(0))),
+    /could not be decoded for checksum verification/
+  );
+});
+
+test('deleteCatalogTextPackArtifacts removes a database and every sidecar that exists', async () => {
+  const { deleteCatalogTextPackArtifacts } = await loadModule();
+  mkdirSync(translationsDirectory, { recursive: true });
+  const path = `${translationsDirectory}/retired.db`;
+  for (const suffix of ['', '-journal', '-wal']) {
+    writeFileSync(`${path}${suffix}`, 'bytes');
+  }
+
+  await deleteCatalogTextPackArtifacts(path);
+
+  for (const suffix of ['', '-journal', '-shm', '-wal']) {
+    assert.equal(existsSync(`${path}${suffix}`), false, `${suffix || 'main'} removed`);
+  }
+  assert.equal(
+    fileSystemCalls.some((call) => call.endsWith('retired.db-shm')),
+    false,
+    'a sidecar that never existed is not deleted'
+  );
+});
+
+// ─── Interrupted-install recovery ─────────────────────────────────────────────
+
+test('recoverInterruptedCatalogTextPack reports nothing to recover for an empty slot', async () => {
+  const { getCatalogTextPackPaths, recoverInterruptedCatalogTextPack } = await loadModule();
+
+  assert.equal(await recoverInterruptedCatalogTextPack(getCatalogTextPackPaths('vacant')), 'none');
+});
+
+test('recoverInterruptedCatalogTextPack keeps a lone installed pack as current without a rollback', async () => {
+  const { getCatalogTextPackPaths, recoverInterruptedCatalogTextPack } = await loadModule();
+  const paths = getCatalogTextPackPaths('lonely');
+  mkdirSync(translationsDirectory, { recursive: true });
+  writeFileSync(paths.finalPath, buildPackBytes({ translationId: 'lonely' }));
+
+  assert.equal(await recoverInterruptedCatalogTextPack(paths), 'current-without-rollback');
+  assert.equal(readVerseCount(paths.finalPath), 3);
+});
+
+test('recoverInterruptedCatalogTextPack keeps both generations when only cleanup was interrupted', async () => {
+  const { getCatalogTextPackPaths, recoverInterruptedCatalogTextPack } = await loadModule();
+  const paths = getCatalogTextPackPaths('bothgen');
+  mkdirSync(translationsDirectory, { recursive: true });
+  writeFileSync(paths.finalPath, buildPackBytes({ translationId: 'bothgen', verses: 3 }));
+  writeFileSync(paths.rollbackPath, buildPackBytes({ translationId: 'bothgen', verses: 2 }));
+
+  assert.equal(await recoverInterruptedCatalogTextPack(paths), 'current');
+  assert.equal(readVerseCount(paths.finalPath), 3);
+  assert.equal(readVerseCount(paths.rollbackPath), 2, 'the old generation is kept for now');
+});
+
+test('recoverInterruptedCatalogTextPack rejects when the surviving replacement is not a valid pack', async () => {
+  const { getCatalogTextPackPaths, recoverInterruptedCatalogTextPack } = await loadModule();
+  const paths = getCatalogTextPackPaths('badcurrent');
+  mkdirSync(translationsDirectory, { recursive: true });
+  writeFileSync(paths.finalPath, buildPackBytes({ versesTable: false }));
+  writeFileSync(paths.rollbackPath, buildPackBytes({ translationId: 'badcurrent' }));
+
+  await assert.rejects(recoverInterruptedCatalogTextPack(paths), /missing the verses table/);
+  assert.equal(readVerseCount(paths.rollbackPath), 3);
+});
+
+test('recoverInterruptedCatalogTextPack quarantines a sidecar both generations claim', async () => {
+  const { getCatalogTextPackPaths, recoverInterruptedCatalogTextPack } = await loadModule();
+  const paths = getCatalogTextPackPaths('ambiguous');
+  mkdirSync(translationsDirectory, { recursive: true });
+  writeFileSync(paths.rollbackPath, buildPackBytes({ translationId: 'ambiguous' }));
+  // -shm is ignored by a rollback-journal database, so neither copy disturbs validation.
+  writeFileSync(`${paths.rollbackPath}-shm`, 'rollback shm');
+  writeFileSync(`${paths.finalPath}-shm`, 'final shm');
+
+  assert.equal(await recoverInterruptedCatalogTextPack(paths), 'previous');
+
+  const quarantined = readdirSync(translationsDirectory).filter(
+    (entry) => entry.startsWith('ambiguous.db.recovery-orphan-') && entry.endsWith('-shm')
+  );
+  assert.equal(quarantined.length, 1);
+  assert.equal(readFileSync(`${translationsDirectory}/${quarantined[0]}`, 'utf8'), 'final shm');
+  assert.equal(readFileSync(`${paths.finalPath}-shm`, 'utf8'), 'rollback shm');
+  assert.equal(readVerseCount(paths.finalPath), 3);
+  assert.equal(existsSync(paths.rollbackPath), false);
+});
+
+test('recoverInterruptedCatalogTextPack leaves orphaned rollback sidecars in place for the next pass', async () => {
+  const { getCatalogTextPackPaths, recoverInterruptedCatalogTextPack } = await loadModule();
+  const paths = getCatalogTextPackPaths('orphan');
+  mkdirSync(translationsDirectory, { recursive: true });
+  writeFileSync(`${paths.rollbackPath}-journal`, 'orphaned journal');
+
+  assert.equal(await recoverInterruptedCatalogTextPack(paths), 'none');
+  assert.equal(readFileSync(`${paths.rollbackPath}-journal`, 'utf8'), 'orphaned journal');
+  assert.deepEqual(
+    fileSystemCalls.filter((call) => call.startsWith('move:') || call.startsWith('delete:')),
+    []
+  );
+});
+
+test('recoverInterruptedCatalogTextPack discards an abandoned staging download and its sidecars', async () => {
+  const { getCatalogTextPackPaths, recoverInterruptedCatalogTextPack } = await loadModule();
+  const main = getCatalogTextPackPaths('abandonedmain');
+  const sidecarOnly = getCatalogTextPackPaths('abandonedsidecar');
+  mkdirSync(translationsDirectory, { recursive: true });
+  writeFileSync(main.stagingPath, 'partial');
+  writeFileSync(`${main.stagingPath}-wal`, 'partial wal');
+  writeFileSync(`${sidecarOnly.stagingPath}-journal`, 'partial journal');
+
+  assert.equal(await recoverInterruptedCatalogTextPack(main), 'none');
+  assert.equal(await recoverInterruptedCatalogTextPack(sidecarOnly), 'none');
+
+  assert.equal(existsSync(main.stagingPath), false);
+  assert.equal(existsSync(`${main.stagingPath}-wal`), false);
+  assert.equal(existsSync(`${sidecarOnly.stagingPath}-journal`), false);
+});
+
+test('recoverInterruptedCatalogTextPack still reports its result when staging cleanup fails', async () => {
+  const { getCatalogTextPackPaths, recoverInterruptedCatalogTextPack } = await loadModule();
+  const paths = getCatalogTextPackPaths('stagingstuck');
+  mkdirSync(translationsDirectory, { recursive: true });
+  writeFileSync(paths.finalPath, buildPackBytes({ translationId: 'stagingstuck' }));
+  writeFileSync(paths.stagingPath, 'partial');
+  fileSystemFaults.failDelete = (path) => path.includes('stagingstuck.staging.db');
+
+  assert.equal(await recoverInterruptedCatalogTextPack(paths), 'current-without-rollback');
+  assert.equal(existsSync(paths.stagingPath), true, 'the journal keeps tracking it');
 });
