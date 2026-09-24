@@ -235,9 +235,11 @@ test('BibleReaderScreen wires a bottom selection tray with copy, note, share, an
     'The tray should use compact side padding so the final image action is not clipped'
   );
 
-  assert.equal(
-    traySource.includes('ScrollView'),
-    false,
+  // The tray scrolls vertically when it outgrows the screen at large text
+  // (covered by AnnotationActionSheet.render.test.tsx), never sideways.
+  assert.doesNotMatch(
+    traySource,
+    /<ScrollView[^>]*\bhorizontal\b/,
     'The tray should not need a horizontal ScrollView now that the actions fit on one row'
   );
 

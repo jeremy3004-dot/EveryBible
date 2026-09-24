@@ -4,10 +4,13 @@ import type { ComponentProps } from 'react';
 import type { ReactTestInstance } from 'react-test-renderer';
 import { create } from 'zustand';
 import { mockBarrel, mockModule, sourcePath } from '../../testing/mockModules';
-import { flattenStyle, installRenderHarness, within } from '../../testing/render';
+import { flattenStyle, hostAncestors, installRenderHarness, within } from '../../testing/render';
 import type { BackgroundMusicChoice, PlaybackRate, SleepTimerOption } from '../../types';
 
-const harness = installRenderHarness(mock);
+// A small phone (iPhone SE: 375x667pt, 20pt status bar, no home indicator), where
+// the option dialogs are likeliest to outgrow the screen at large text.
+const WINDOW = { width: 375, height: 667 };
+const harness = installRenderHarness(mock, { ...WINDOW, insets: { top: 20, bottom: 0 } });
 // The audio and utils barrels pull in the player, downloads and storage; the
 // controls only need the bundled music catalogue and the haptic helper.
 mockBarrel(mock, 'services/audio/index.ts', { real: ['BACKGROUND_MUSIC_OPTIONS'] });
@@ -308,4 +311,70 @@ test('the speed and sleep-timer sheets report the chosen option', async () => {
     ['sleepTimer', 10],
   ]);
   assert.equal(view.queryAllByType('Modal').length, 0);
+});
+
+const isScrollView = (node: ReactTestInstance) => (node.type as unknown) === 'ScrollView';
+
+/** Open the dialog behind `button` and return its surface and title. */
+async function openDialog(
+  view: Awaited<ReturnType<typeof renderControls>>['view'],
+  button: string,
+  header: string
+) {
+  await view.press(view.getByRole('button', { name: button }));
+  const title = view.getByRole('header', { name: header });
+  const surface = hostAncestors(title).find((node) => node.props.accessibilityViewIsModal);
+  assert.ok(surface, 'the dialog surface scopes the screen reader');
+  return { title, surface };
+}
+
+test('at large text on a small phone the sleep-timer dialog fits the safe area and scrolls its options', async () => {
+  harness.setFontScale(2);
+  const { view, calls } = await renderControls({ sleepTimerRemaining: null });
+  const { title, surface } = await openDialog(view, t('audio.sleepTimer'), t('audio.sleepTimer'));
+
+  const style = flattenStyle(surface.props.style) ?? {};
+  const maxHeight = Number(style.maxHeight);
+  const safeHeight = WINDOW.height - harness.insets.top - harness.insets.bottom;
+  assert.ok(maxHeight > safeHeight / 2 && maxHeight < safeHeight, `cap ${maxHeight}`);
+
+  // The dialog is centred inside the safe area, not the whole window.
+  const [modal] = view.queryAllByType('Modal');
+  const centred = hostAncestors(surface).find(
+    (node) => flattenStyle(node.props.style)?.justifyContent === 'center'
+  );
+  assert.ok(centred && hostAncestors(centred).includes(modal));
+  assert.equal(flattenStyle(centred.props.style)?.paddingTop, harness.insets.top + 20);
+
+  // Every option scrolls under a fixed title, and the last one is still pressable.
+  const lastOption = view.getByText(t('interface.minutesShort', { count: 60 }));
+  const scroll = hostAncestors(lastOption).find(isScrollView);
+  assert.ok(scroll, 'the options sit in a scroll view');
+  assert.ok(hostAncestors(scroll).includes(surface));
+  assert.equal(flattenStyle(scroll.props.style)?.flexShrink, 1);
+  assert.equal(hostAncestors(title).find(isScrollView), undefined, 'the title stays put');
+
+  await view.press(lastOption);
+  assert.deepEqual(calls, [['sleepTimer', 60]]);
+});
+
+test('at large text the speed and music dialogs are bounded and scroll the same way', async () => {
+  harness.setFontScale(2);
+  const { view } = await renderControls();
+  const dialogs: Array<[string, string, string]> = [
+    [t('audio.playbackSpeed'), t('audio.playbackSpeed'), '2.5x'],
+    [
+      t('interface.backgroundMusicLabel', { name: t('interface.music.off.label') }),
+      t('audio.musicAndSounds'),
+      t('interface.music.ocean-waves.description'),
+    ],
+  ];
+
+  for (const [button, header, lastText] of dialogs) {
+    const { surface } = await openDialog(view, button, header);
+    assert.ok(Number(flattenStyle(surface.props.style)?.maxHeight) < WINDOW.height, header);
+    const scroll = hostAncestors(view.getByText(lastText)).find(isScrollView);
+    assert.ok(scroll && hostAncestors(scroll).includes(surface), `${header} scrolls`);
+    await view.fire(view.queryAllByType('Modal')[0], 'onRequestClose');
+  }
 });

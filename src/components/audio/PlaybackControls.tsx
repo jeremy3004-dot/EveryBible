@@ -1,12 +1,4 @@
-import {
-  ActivityIndicator,
-  View,
-  TouchableOpacity,
-  Text,
-  StyleSheet,
-  Modal,
-  Pressable,
-} from 'react-native';
+import { ActivityIndicator, View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -21,9 +13,9 @@ import type {
 import { PLAYBACK_RATES, SLEEP_TIMER_OPTIONS } from '../../types';
 import { BACKGROUND_MUSIC_OPTIONS } from '../../services/audio';
 import { mediumHaptic } from '../../utils';
-import { radius } from '../../design/system';
 import { useAudioStore } from '../../stores/audioStore';
 import { isSleepTimerOptionSelected } from './sleepTimerSelection';
+import { PlaybackOptionsDialog } from './PlaybackOptionsDialog';
 
 interface PlaybackControlsProps {
   variant?: 'default' | 'chapter-only' | 'utilities-only';
@@ -401,223 +393,143 @@ export function PlaybackControls({
 
       {footer}
 
-      <Modal
+      <PlaybackOptionsDialog
         visible={showBackgroundMusicModal}
-        transparent
-        statusBarTranslucent
-        navigationBarTranslucent
-        animationType="fade"
-        onRequestClose={() => setShowBackgroundMusicModal(false)}
+        onClose={() => setShowBackgroundMusicModal(false)}
+        title={t('audio.musicAndSounds')}
+        contentStyle={styles.backgroundMusicModalContent}
+        listStyle={styles.backgroundMusicModalContent}
       >
-        <Pressable
-          style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}
-          onPress={() => setShowBackgroundMusicModal(false)}
-          // The backdrop wraps the sheet; left accessible it would fold every
-          // option into one VoiceOver element that can only dismiss.
-          accessible={false}
-        >
-          <View
-            accessibilityViewIsModal
-            onAccessibilityEscape={() => setShowBackgroundMusicModal(false)}
-            style={[
-              styles.modalContent,
-              styles.backgroundMusicModalContent,
-              { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
-            ]}
-          >
-            <Text
-              accessibilityRole="header"
-              style={[styles.modalTitle, { color: colors.biblePrimaryText }]}
-            >
-              {t('audio.musicAndSounds')}
-            </Text>
-            <Text style={[styles.modalSubtitle, { color: colors.bibleSecondaryText }]}>
-              {t('audio.chooseBackgroundLayer')}
-            </Text>
-            {BACKGROUND_MUSIC_OPTIONS.map((option) => {
-              const isSelected = option.id === backgroundMusicChoice;
+        <Text style={[styles.modalSubtitle, { color: colors.bibleSecondaryText }]}>
+          {t('audio.chooseBackgroundLayer')}
+        </Text>
+        {BACKGROUND_MUSIC_OPTIONS.map((option) => {
+          const isSelected = option.id === backgroundMusicChoice;
 
-              return (
-                <TouchableOpacity
-                  key={option.id}
-                  style={[
-                    styles.backgroundMusicOption,
-                    {
-                      backgroundColor: isSelected
-                        ? colors.bibleElevatedSurface
-                        : colors.bibleBackground,
-                      borderColor: colors.bibleDivider,
-                    },
-                  ]}
-                  onPress={() => {
-                    onChangeBackgroundMusicChoice(option.id);
-                    setShowBackgroundMusicModal(false);
-                  }}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: isSelected }}
-                >
-                  <View style={styles.backgroundMusicCopy}>
-                    <Text
-                      style={[
-                        styles.backgroundMusicLabel,
-                        {
-                          color: isSelected ? colors.bibleAccent : colors.biblePrimaryText,
-                        },
-                      ]}
-                    >
-                      {t(`interface.music.${option.id}.label`)}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.backgroundMusicDescription,
-                        { color: colors.bibleSecondaryText },
-                      ]}
-                    >
-                      {t(`interface.music.${option.id}.description`)}
-                    </Text>
-                  </View>
-                  {isSelected ? (
-                    <Ionicons name="checkmark" size={20} color={colors.bibleAccent} />
-                  ) : null}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </Pressable>
-      </Modal>
-
-      <Modal
-        visible={showSpeedModal}
-        transparent
-        statusBarTranslucent
-        navigationBarTranslucent
-        animationType="fade"
-        onRequestClose={() => setShowSpeedModal(false)}
-      >
-        <Pressable
-          style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}
-          onPress={() => setShowSpeedModal(false)}
-          // The backdrop wraps the sheet; left accessible it would fold every
-          // option into one VoiceOver element that can only dismiss.
-          accessible={false}
-        >
-          <View
-            accessibilityViewIsModal
-            onAccessibilityEscape={() => setShowSpeedModal(false)}
-            style={[
-              styles.modalContent,
-              { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
-            ]}
-          >
-            <Text
-              accessibilityRole="header"
-              style={[styles.modalTitle, { color: colors.biblePrimaryText }]}
+          return (
+            <TouchableOpacity
+              key={option.id}
+              style={[
+                styles.backgroundMusicOption,
+                {
+                  backgroundColor: isSelected
+                    ? colors.bibleElevatedSurface
+                    : colors.bibleBackground,
+                  borderColor: colors.bibleDivider,
+                },
+              ]}
+              onPress={() => {
+                onChangeBackgroundMusicChoice(option.id);
+                setShowBackgroundMusicModal(false);
+              }}
+              accessibilityRole="button"
+              accessibilityState={{ selected: isSelected }}
             >
-              {t('audio.playbackSpeed')}
-            </Text>
-            {PLAYBACK_RATES.map((rate) => (
-              <TouchableOpacity
-                key={rate}
-                style={[
-                  styles.modalOption,
-                  rate === playbackRate && {
-                    backgroundColor: colors.bibleElevatedSurface,
-                  },
-                ]}
-                onPress={() => {
-                  onChangePlaybackRate(rate);
-                  setShowSpeedModal(false);
-                }}
-                accessibilityRole="button"
-                accessibilityState={{ selected: rate === playbackRate }}
-              >
+              <View style={styles.backgroundMusicCopy}>
                 <Text
                   style={[
-                    styles.modalOptionText,
+                    styles.backgroundMusicLabel,
                     {
-                      color: rate === playbackRate ? colors.bibleAccent : colors.biblePrimaryText,
+                      color: isSelected ? colors.bibleAccent : colors.biblePrimaryText,
                     },
                   ]}
                 >
-                  {rate}x
+                  {t(`interface.music.${option.id}.label`)}
                 </Text>
-                {rate === playbackRate ? (
-                  <Ionicons name="checkmark" size={20} color={colors.bibleAccent} />
-                ) : null}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </Pressable>
-      </Modal>
+                <Text
+                  style={[styles.backgroundMusicDescription, { color: colors.bibleSecondaryText }]}
+                >
+                  {t(`interface.music.${option.id}.description`)}
+                </Text>
+              </View>
+              {isSelected ? (
+                <Ionicons name="checkmark" size={20} color={colors.bibleAccent} />
+              ) : null}
+            </TouchableOpacity>
+          );
+        })}
+      </PlaybackOptionsDialog>
 
-      <Modal
-        visible={showTimerModal}
-        transparent
-        statusBarTranslucent
-        navigationBarTranslucent
-        animationType="fade"
-        onRequestClose={() => setShowTimerModal(false)}
+      <PlaybackOptionsDialog
+        visible={showSpeedModal}
+        onClose={() => setShowSpeedModal(false)}
+        title={t('audio.playbackSpeed')}
       >
-        <Pressable
-          style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}
-          onPress={() => setShowTimerModal(false)}
-          // The backdrop wraps the sheet; left accessible it would fold every
-          // option into one VoiceOver element that can only dismiss.
-          accessible={false}
-        >
-          <View
-            accessibilityViewIsModal
-            onAccessibilityEscape={() => setShowTimerModal(false)}
+        {PLAYBACK_RATES.map((rate) => (
+          <TouchableOpacity
+            key={rate}
             style={[
-              styles.modalContent,
-              { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
+              styles.modalOption,
+              rate === playbackRate && {
+                backgroundColor: colors.bibleElevatedSurface,
+              },
             ]}
+            onPress={() => {
+              onChangePlaybackRate(rate);
+              setShowSpeedModal(false);
+            }}
+            accessibilityRole="button"
+            accessibilityState={{ selected: rate === playbackRate }}
           >
             <Text
-              accessibilityRole="header"
-              style={[styles.modalTitle, { color: colors.biblePrimaryText }]}
+              style={[
+                styles.modalOptionText,
+                {
+                  color: rate === playbackRate ? colors.bibleAccent : colors.biblePrimaryText,
+                },
+              ]}
             >
-              {t('audio.sleepTimer')}
+              {rate}x
             </Text>
-            {SLEEP_TIMER_OPTIONS.map((option) => {
-              const isSelected = isSleepTimerOptionSelected(
-                option.value,
-                sleepTimerMinutes,
-                sleepTimerRemaining
-              );
-              return (
-                <TouchableOpacity
-                  key={option.value ?? 'off'}
-                  style={[
-                    styles.modalOption,
-                    isSelected && { backgroundColor: colors.bibleElevatedSurface },
-                  ]}
-                  onPress={() => {
-                    onSetSleepTimer(option.value);
-                    setShowTimerModal(false);
-                  }}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: isSelected }}
-                >
-                  <Text
-                    style={[
-                      styles.modalOptionText,
-                      { color: isSelected ? colors.bibleAccent : colors.biblePrimaryText },
-                    ]}
-                  >
-                    {option.value == null
-                      ? t('interface.music.off.label')
-                      : t('interface.minutesShort', { count: option.value })}
-                  </Text>
-                  {isSelected ? (
-                    <Ionicons name="checkmark" size={20} color={colors.bibleAccent} />
-                  ) : null}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </Pressable>
-      </Modal>
+            {rate === playbackRate ? (
+              <Ionicons name="checkmark" size={20} color={colors.bibleAccent} />
+            ) : null}
+          </TouchableOpacity>
+        ))}
+      </PlaybackOptionsDialog>
+
+      <PlaybackOptionsDialog
+        visible={showTimerModal}
+        onClose={() => setShowTimerModal(false)}
+        title={t('audio.sleepTimer')}
+      >
+        {SLEEP_TIMER_OPTIONS.map((option) => {
+          const isSelected = isSleepTimerOptionSelected(
+            option.value,
+            sleepTimerMinutes,
+            sleepTimerRemaining
+          );
+          return (
+            <TouchableOpacity
+              key={option.value ?? 'off'}
+              style={[
+                styles.modalOption,
+                isSelected && { backgroundColor: colors.bibleElevatedSurface },
+              ]}
+              onPress={() => {
+                onSetSleepTimer(option.value);
+                setShowTimerModal(false);
+              }}
+              accessibilityRole="button"
+              accessibilityState={{ selected: isSelected }}
+            >
+              <Text
+                style={[
+                  styles.modalOptionText,
+                  { color: isSelected ? colors.bibleAccent : colors.biblePrimaryText },
+                ]}
+              >
+                {option.value == null
+                  ? t('interface.music.off.label')
+                  : t('interface.minutesShort', { count: option.value })}
+              </Text>
+              {isSelected ? (
+                <Ionicons name="checkmark" size={20} color={colors.bibleAccent} />
+              ) : null}
+            </TouchableOpacity>
+          );
+        })}
+      </PlaybackOptionsDialog>
     </View>
   );
 }
@@ -797,25 +709,6 @@ const styles = StyleSheet.create({
     height: 72,
     borderRadius: 36,
     marginHorizontal: 10,
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  modalContent: {
-    width: '100%',
-    maxWidth: 320,
-    borderRadius: radius.xl,
-    padding: 18,
-    borderWidth: 1,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 14,
-    textAlign: 'center',
   },
   modalSubtitle: {
     fontSize: 13,
