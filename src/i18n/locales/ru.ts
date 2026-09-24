@@ -841,8 +841,8 @@ export const ru = {
     cacheClearError: 'Ошибка очистки кэша',
     setReminderTime: 'Установить время напоминания',
     setTime: 'Установить время',
-    reminderHourLabel: 'Часы',
-    reminderMinuteLabel: 'Минуты',
+    reminderHourLabel: 'Час',
+    reminderMinuteLabel: 'Минута',
     permissionRequired: 'Требуется разрешение',
     enableNotifications:
       'Пожалуйста, включите уведомления в настройках устройства, чтобы получать ежедневные напоминания.',

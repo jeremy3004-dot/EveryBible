@@ -602,7 +602,7 @@ export const ar = {
     translationSearchResultCount_zero: '{{count}} نسخة من الكتاب المقدس',
     translationSearchResultCount_two: '{{count}} نسخة من الكتاب المقدس',
     translationSearchResultCount_few: '{{count}} نسخ من الكتاب المقدس',
-    translationSearchResultCount_many: '{{count}} نسخة من الكتاب المقدس',
+    translationSearchResultCount_many: '{{count}} نسخةً من الكتاب المقدس',
     searchUnavailable: 'البحث في النص الكامل غير متاح لهذه الترجمة بعد.',
     noVersesAvailable: 'لا يتوفر نص مكتوب لـ{{book}} {{chapter}} بعد.',
     fullBibleComingSoon: 'هذا الإصحاح غير متوفر كنص أو صوت في هذه الترجمة بعد.',
