@@ -173,3 +173,60 @@ anon, authenticated, and authenticated with a `service_role` claim, and across t
 ## Applied live 2026-09-24
 
 Applied: 20260924035626 drop_duplicate_indexes, 20260924035633 drop_prefix_redundant_indexes, 20260924035637 wrap_auth_role_in_storage_service_policies (all 15 indexes confirmed gone). Held: 20260924035932 move_group_helpers_to_private_schema until the groups health check lands.
+
+## Recheck after today's migrations (2026-09-24 07:55 UTC)
+
+All 21 `20260924*` migrations are live (policies already reference `private.is_group_member`,
+so the held private-schema move has also landed). Read-only again: `get_advisors` plus
+catalog SELECTs.
+
+**Security**
+
+| Lint                                               | Before | Now | What changed                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| -------------------------------------------------- | ------ | --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| authenticated_security_definer_function_executable | 6      | 6   | `is_group_member`/`is_group_leader` gone (moved to `private`). New: `create_group(text,text,text)` and `report_prayer_request(uuid,text,text)`. Both are app RPCs by design: they take the caller from `auth.uid()`, pin `search_path=''`, and `anon` has no EXECUTE. Left as intended.                                                                                                                                                                                                                           |
+| rls_enabled_no_policy                              | 11     | 18  | New: `app_error_reports`, `prayer_request_reports`, `prayer_wall_bans`, `prayer_content_filter_terms`, `translator_access_settings`, `translator_shared_passcode_uses`, `private.group_session_notifications`. Checked live: `anon`/`authenticated` hold no SELECT/INSERT/UPDATE/DELETE on any of them. Every reader is a service client (`report-app-errors`, `review-chapter-feedback`, admin `getAuthorizedAdminServiceClient`) or a SECURITY DEFINER function, so no client needs a policy. Left as intended. |
+| extension_in_public, leaked password, MFA          | —      | —   | Unchanged, owner-only.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+
+Not reported and re-checked by hand: no SECURITY DEFINER function in `public`/`private` is
+executable by `anon`; no non-extension function lacks a pinned `search_path` (the new
+`merge_user_progress`/`merge_reading_plan_progress` are INVOKER with `search_path=''`); no
+policy in `public`, `private` or `storage` calls `auth.uid|jwt|role()` bare.
+
+**Performance**
+
+| Lint                                         | Before (expected after apply) | Now  | What changed                                                                                                                                                                                                                                                                                                                                 |
+| -------------------------------------------- | ----------------------------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| multiple_permissive_policies                 | 0                             | 1    | **New.** `public.groups`, `authenticated`, SELECT: "Group members can view groups" + "Leaders can view their groups" (added by `20260924035926`). Fixed below.                                                                                                                                                                               |
+| unindexed_foreign_keys                       | 0                             | 0    | The new tables' FKs (reports, bans, filter terms, passcode uses, team passcodes, catalog admin) all have a leading index. Confirmed with a manual `pg_constraint`/`pg_index` check over `public` and `private`.                                                                                                                              |
+| unused_index                                 | 31                            | 44   | The additions are on tables created today (hours of stats, 0–few rows): the FK-covering indexes on the new moderation/translator tables, `app_error_reports_occurred_at_idx` (purge cron), and the `private.group_join_attempts` / `group_session_notifications` throttle indexes. Keep; revisit with the list above once they have traffic. |
+| no_primary_key, auth_db_connections_absolute | 9, 1                          | 9, 1 | Unchanged (two of the 9 are today's `backups.*` snapshots; owner decision).                                                                                                                                                                                                                                                                  |
+
+### Migration written: `20260924080000_merge_groups_select_policies.sql` — risk: very low
+
+Old:
+
+- `"Group members can view groups"` FOR SELECT TO public USING `private.is_group_member(id)`
+- `"Leaders can view their groups"` FOR SELECT TO authenticated USING `leader_id = (select auth.uid())`
+
+New: `"Members and leaders can view groups"` FOR SELECT TO authenticated USING
+`leader_id = (select auth.uid()) or private.is_group_member(id)`.
+
+Equivalence: permissive policies are OR-combined, so for `authenticated` the visible set (and
+the INSERT … RETURNING check that G1 depends on) is exactly the new expression. The cheap
+leader test is first, so the SECURITY DEFINER member lookup is skipped for the leader's rows.
+For `anon`, which has SELECT on `groups` but no EXECUTE on `private.is_group_member` (checked
+live), every read used to fail with 42501; it now returns zero rows. No row becomes visible to
+anyone. `service_role` and the owner bypass RLS. Idempotent (drops old and new names first).
+
+Verified with PGlite:
+
+- `scripts/verify-group-policies-sql.mjs` now replays this migration and asserts a single
+  `{authenticated}` SELECT policy on `groups` and that anon reads 0 rows. All 11 PASS blocks pass.
+- A scratch before/after harness (not committed) seeded four group shapes (normal, leader with
+  no membership row, stale leader, leader who is not a member) and compared SELECT, filtered
+  SELECT, and INSERT … RETURNING (own and someone else's `leader_id`) for four users plus anon.
+  All 16 authenticated results were identical. The only differences were anon SELECT going from
+  42501 to empty. Applying the migration twice also succeeds.
+
+Expected after apply: `multiple_permissive_policies` back to 0; nothing else moves.

@@ -25,6 +25,7 @@ const MIGRATIONS = [
   '20260924035926_groups_leader_read_and_leave_guard.sql',
   '20260924035932_move_group_helpers_to_private_schema.sql',
   '20260924042319_group_create_rpc_join_throttle_and_push_claims.sql',
+  '20260924080000_merge_groups_select_policies.sql',
 ];
 
 const db = new PGlite();
@@ -284,6 +285,16 @@ assert.equal((await as(D, `select count(*)::int n from groups`)).rows[0].n, 0);
 assert.equal((await as(D, `select count(*)::int n from group_members`)).rows[0].n, 0);
 assert.equal((await as(A, `select count(*)::int n from group_members`)).rows[0].n, 2);
 assert.equal((await as(C, `select count(*)::int n from group_sessions`)).rows[0].n, 0);
+// One permissive SELECT policy on groups (advisor multiple_permissive_policies), for
+// authenticated only; anon reads nothing and no longer trips the helper's EXECUTE check.
+assert.deepEqual(
+  await one(
+    `select array_agg(policyname) names, array_agg(roles::text) roles from pg_policies
+       where schemaname = 'public' and tablename = 'groups' and cmd = 'SELECT'`
+  ),
+  { names: ['Members and leaders can view groups'], roles: ['{authenticated}'] }
+);
+assert.equal((await as(null, `select count(*)::int n from groups`)).rows[0].n, 0);
 console.log('PASS: helpers check only the caller; member-scoped reads unchanged');
 
 // --- M4: former members lose edit rights on what they posted ---------------------------------
