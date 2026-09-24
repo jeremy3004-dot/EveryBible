@@ -2,6 +2,7 @@ import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   flattenStyle,
+  hostAncestors,
   installRenderHarness,
   isHiddenFromAccessibility,
   within,
@@ -160,6 +161,28 @@ test('ListRow announces its value and subtitle along with its title', async () =
   const [content] = within(row).queryAllByType('View');
   assert.equal(flattenStyle(content.props.style)?.minHeight, 52);
   assert.equal(view.getByText('Large').props.numberOfLines, 1);
+});
+
+test('ListRow can move a wide trailing control under the title once the text is large', async () => {
+  const { ListRow } = await import('./ListRow');
+  const { Text } = harness.rn;
+  const row = () => (
+    <ListRow title="Font size" trailing={<Text>A- Medium A+</Text>} stackTrailingAtLargeText />
+  );
+  const titleColumn = (view: Awaited<ReturnType<typeof harness.render>>) =>
+    hostAncestors(view.getByText('Font size'))[0];
+
+  const regular = await harness.render(row());
+  assert.equal(
+    within(titleColumn(regular)).queryByText('A- Medium A+'),
+    null,
+    'beside the title at default size'
+  );
+  await regular.unmount();
+
+  harness.setFontScale(2);
+  const large = await harness.render(row());
+  assert.ok(within(titleColumn(large)).getByText('A- Medium A+'), 'under the title at 2.0');
 });
 
 test('a disabled ListRow is announced as disabled and ignores presses', async () => {

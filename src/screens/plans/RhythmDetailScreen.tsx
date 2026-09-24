@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
 import { useTheme } from '../../contexts/ThemeContext';
-import { useDisplayFont } from '../../hooks';
+import { useDisplayFont, useLargeText } from '../../hooks';
 import { layout, radius, spacing, typography } from '../../design/system';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
 import type { RhythmDetailScreenProps } from '../../navigation/types';
@@ -76,7 +76,7 @@ function StatusPill({
 
   return (
     <View style={[styles.pill, { backgroundColor, borderColor }]}>
-      <Text style={[styles.pillLabel, { color: textColor }]} numberOfLines={1}>
+      <Text style={[styles.pillLabel, { color: textColor }]} numberOfLines={2}>
         {label}
       </Text>
     </View>
@@ -92,6 +92,9 @@ function SegmentCard({
   colors: ReturnType<typeof useTheme>['colors'];
   t: ReturnType<typeof useTranslation>['t'];
 }) {
+  // At large text the status pill beside the title left it a word per line, so it
+  // moves under the title and meta.
+  const { isLargeText } = useLargeText();
   const completedCount = item.currentDaySummary?.completedChapterCount ?? 0;
   const targetCount = item.currentDaySummary?.targetChapterCount ?? item.segment.chapterKeys.length;
   const progressLabel =
@@ -107,6 +110,18 @@ function SegmentCard({
           count: targetCount,
           defaultValue: `${targetCount} chapters`,
         });
+
+  const statusPill = (
+    <StatusPill
+      label={
+        item.segment.type === 'plan' && item.progress?.is_completed
+          ? t('readingPlans.completed')
+          : t('common.next', { defaultValue: 'Next' })
+      }
+      colors={colors}
+      variant={item.segment.type === 'plan' && item.progress?.is_completed ? 'success' : 'accent'}
+    />
+  );
 
   return (
     <View
@@ -131,18 +146,9 @@ function SegmentCard({
                 })
               : t('readingPlans.repeatablePassage', { defaultValue: 'Repeatable passage' })}
           </Text>
+          {isLargeText ? statusPill : null}
         </View>
-        <StatusPill
-          label={
-            item.segment.type === 'plan' && item.progress?.is_completed
-              ? t('readingPlans.completed')
-              : t('common.next', { defaultValue: 'Next' })
-          }
-          colors={colors}
-          variant={
-            item.segment.type === 'plan' && item.progress?.is_completed ? 'success' : 'accent'
-          }
-        />
+        {isLargeText ? null : statusPill}
       </View>
 
       <View style={styles.segmentMetaRow}>
@@ -766,6 +772,8 @@ const styles = StyleSheet.create({
     ...typography.body,
   },
   pill: {
+    alignSelf: 'flex-start',
+    flexShrink: 1,
     borderRadius: radius.pill,
     borderWidth: 1,
     paddingHorizontal: spacing.sm,

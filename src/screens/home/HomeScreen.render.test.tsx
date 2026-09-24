@@ -438,6 +438,23 @@ test('the ledger counts chapters read and listened from the progress store', asy
   assert.ok(within(chaptersRow).getByText('3'));
 });
 
+test('the streak unit keeps its two-line width at default size and loses the cap at large text', async () => {
+  const unitStyle = async () => {
+    const view = await renderHome();
+    const unit = view.getByText(t('home.streakUnitLabel'));
+    return { style: flattenStyle(unit.props.style) ?? {}, lines: unit.props.numberOfLines };
+  };
+
+  const regular = await unitStyle();
+  assert.equal(regular.style.maxWidth, 54);
+  assert.equal(regular.lines, 2);
+
+  harness.setFontScale(2);
+  const large = await unitStyle();
+  assert.equal(large.style.maxWidth, undefined, 'a fixed 54pt column fits only a word per line');
+  assert.equal(large.lines, undefined, 'longer languages need a third line at 2.0');
+});
+
 test('Home draws its glyphs with Lucide only', async () => {
   const view = await renderHome();
 

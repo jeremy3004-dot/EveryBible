@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import type { ReactTestInstance } from 'react-test-renderer';
 import { useTranslation } from 'react-i18next';
 import { create } from 'zustand';
-import { flattenStyle, installRenderHarness, within } from '../../testing/render';
+import { flattenStyle, hostAncestors, installRenderHarness, within } from '../../testing/render';
 import {
   mockBarrel,
   mockMmkvStorage,
@@ -288,6 +288,28 @@ test('a long locale summary is truncated to one line inside a bounded, stable-he
   while (column && (column.type as unknown) !== 'View') column = column.parent;
   assert.equal(flattenStyle(column?.props.style)?.flex, 1, 'the text column flexes');
   assert.equal(flattenStyle(row.props.style)?.minHeight, 52, 'a stable row height');
+});
+
+// --- Large text ---------------------------------------------------------------
+
+test('at large text the font-size stepper and the offline status sit under their row titles', async () => {
+  harness.setFontScale(2);
+  const view = await renderSettings();
+
+  const fontTitle = view.getByText(t('settings.fontSize'));
+  assert.ok(
+    within(hostAncestors(fontTitle)[0]).getByRole('button', { name: t('learn.increaseTextSize') }),
+    'the stepper left the title a word per line beside it'
+  );
+  const fontValue = within(hostAncestors(fontTitle)[0])
+    .queryAllByType('Text')
+    .find((node) => flattenStyle(node.props.style)?.minWidth !== undefined);
+  assert.ok(fontValue, 'the size name');
+  assert.equal(fontValue.props.numberOfLines, 2);
+
+  const offlineTitle = view.getByText(t('settings.downloadForOffline'));
+  const available = within(hostAncestors(offlineTitle)[0]).getByText(t('common.available'));
+  assert.equal(available.props.numberOfLines, undefined);
 });
 
 // --- Translator access -----------------------------------------------------

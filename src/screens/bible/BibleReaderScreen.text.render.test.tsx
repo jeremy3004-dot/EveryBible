@@ -386,3 +386,22 @@ test('the listen page carries the feedback composer inline and submits it as lis
   assert.equal(submission.sentiment, 'up');
   assert.deepEqual([submission.bookId, submission.chapter], ['JHN', 3]);
 });
+
+test('at large text the feedback identity drops under the heading and wraps instead of truncating', async () => {
+  enableFeedback();
+  chapters.set('JHN:3', []);
+  harness.setFontScale(2);
+  const view = await renderReader();
+
+  const identity = view.getByText('Ruth • Reviewer');
+  assert.equal(
+    flattenStyle(identity.props.style)?.maxWidth,
+    undefined,
+    'a 110pt cap cut "Name • Role" after a few letters'
+  );
+  assert.equal(identity.props.numberOfLines, 2);
+  const header = hostAncestors(identity).find(
+    (node) => flattenStyle(node.props.style)?.justifyContent === 'space-between'
+  );
+  assert.equal(flattenStyle(header?.props.style)?.flexDirection, 'column');
+});

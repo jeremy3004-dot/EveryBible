@@ -38,7 +38,7 @@ export function CompanionCard({ item, onPress }: CompanionCardProps) {
       </View>
 
       <View style={styles.copy}>
-        <Text style={[styles.meta, { color: colors.bibleAccent }]} numberOfLines={1}>
+        <Text style={[styles.meta, { color: colors.bibleAccent }]} numberOfLines={2}>
           {item.meta}
         </Text>
         <Text style={[styles.title, { color: colors.biblePrimaryText }]} numberOfLines={2}>
@@ -102,6 +102,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   actionLabel: {
+    flexShrink: 1,
     fontSize: 13,
     fontWeight: '700',
   },

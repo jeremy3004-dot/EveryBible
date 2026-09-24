@@ -191,7 +191,7 @@ export function HomeScreen() {
   const tabBar = useTabBarHeight();
   // Continue and Plan sit side by side at normal sizes; at large text each half
   // held a word per line under a clipped numeral, so they stack.
-  const { rowDirection: sheetCardDirection } = useLargeText();
+  const { rowDirection: sheetCardDirection, isLargeText } = useLargeText();
   const bottomTabBarHeight = tabBar.height;
   const [dailyScripture, setDailyScripture] = useState<DailyScripture | null>(null);
   const [isLoadingVerse, setIsLoadingVerse] = useState(true);
@@ -977,9 +977,15 @@ export function HomeScreen() {
                   <Text style={[styles.ledgerStreakCount, { color: colors.primaryText }]}>
                     {streakDays}
                   </Text>
+                  {/* Two short lines beside the numeral; at large text the fixed
+                      column held a word per line and cut longer languages. */}
                   <Text
-                    style={[styles.ledgerStreakUnit, { color: colors.primaryText }]}
-                    numberOfLines={2}
+                    style={[
+                      styles.ledgerStreakUnit,
+                      !isLargeText && styles.ledgerStreakUnitCompact,
+                      { color: colors.primaryText },
+                    ]}
+                    numberOfLines={isLargeText ? undefined : 2}
                   >
                     {t('home.streakUnitLabel')}
                   </Text>
@@ -1306,9 +1312,11 @@ const styles = StyleSheet.create({
   },
   ledgerStreakUnit: {
     ...typography.captionStrong,
+    flexShrink: 1,
+  },
+  ledgerStreakUnitCompact: {
     // Two short lines beside the numeral, as in the reference.
     maxWidth: 54,
-    flexShrink: 1,
   },
   ledgerRow: {
     flexDirection: 'row',

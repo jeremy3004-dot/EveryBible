@@ -1,5 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { ScrollView, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { darkColors, useTheme, type ThemeColors } from '../contexts/ThemeContext';
@@ -57,8 +57,13 @@ function ErrorFallback({ onRetry, onGoBack }: { onRetry: () => void; onGoBack?: 
     announceForAccessibility(`${title}. ${message}`);
   }, [message, title]);
 
+  // A scroll view, not a plain centred column: at large text the icon, message and
+  // buttons outgrow a phone screen, and a centred column clips both ends.
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <ScrollView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      contentContainerStyle={styles.scrollContent}
+    >
       <View style={styles.content}>
         <View
           style={styles.iconContainer}
@@ -91,7 +96,7 @@ function ErrorFallback({ onRetry, onGoBack }: { onRetry: () => void; onGoBack?: 
           </TouchableOpacity>
         ) : null}
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -153,6 +158,9 @@ export class ErrorBoundary extends Component<Props, State> {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: spacing.xxl,
@@ -184,6 +192,8 @@ const styles = StyleSheet.create({
   },
   retryText: {
     ...typography.button,
+    flexShrink: 1,
+    textAlign: 'center',
   },
   backButton: {
     marginTop: spacing.lg,
@@ -192,5 +202,6 @@ const styles = StyleSheet.create({
   },
   backText: {
     ...typography.button,
+    textAlign: 'center',
   },
 });

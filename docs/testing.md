@@ -277,6 +277,10 @@ What `installRenderHarness(mock, options)` installs:
 - **The `hooks` barrel** through `mockBarrel`: `useDisplayFont`,
   `useTabBarHeight` and `useKeyboardBottomInset` stay real; anything else a
   component takes from `../../hooks` is passed in `options.hooks`. (`useLargeText` is also real.)
+- **The OS text scale**: `harness.setFontScale(2)` before `render` makes
+  `useWindowDimensions().fontScale` (and so `useLargeText`) report 2, to assert
+  what stacks or wraps at large text. It is reset to 1 after each test, and a
+  change does not re-render a tree that is already mounted.
 
 Every render is wrapped in `I18nextProvider` (a private i18next instance with the
 real `en` locale, `harness.i18n`) and the real `ThemeProvider`. Pass

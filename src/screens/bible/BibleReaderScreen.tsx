@@ -128,6 +128,7 @@ import { getAdjacentAudioPlaybackSequenceEntry } from '../../stores/audioPlaybac
 import { useAudioPlayer } from '../../hooks/useAudioPlayer';
 import { useFontSize } from '../../hooks/useFontSize';
 import { useDisplayFont } from '../../hooks/useDisplayFont';
+import { useLargeText } from '../../hooks/useLargeText';
 import { useShallow } from 'zustand/react/shallow';
 import { lightHaptic, selectionHaptic } from '../../utils/haptics';
 import { hexWithAlpha } from '../../utils/color';
@@ -686,6 +687,7 @@ export function BibleReaderScreen() {
   const route = useRoute<BibleReaderScreenProps['route']>();
   // The audio-share eyebrow is translated copy set in the Latin-only display face.
   const displayFont = useDisplayFont();
+  const { isLargeText } = useLargeText();
   const {
     bookId,
     chapter,
@@ -4175,8 +4177,17 @@ export function BibleReaderScreen() {
               },
             ]}
           >
-            <View style={styles.listenFeedbackHeader}>
-              <View style={styles.listenFeedbackCopy}>
+            {/* At large text the identity pill takes its own line under the heading,
+                so "Name • Role" wraps instead of truncating beside it. */}
+            <View
+              style={[
+                styles.listenFeedbackHeader,
+                isLargeText && styles.listenFeedbackHeaderStacked,
+              ]}
+            >
+              <View
+                style={[styles.listenFeedbackCopy, isLargeText && styles.listenFeedbackCopyStacked]}
+              >
                 <Text style={[styles.listenFeedbackTitle, { color: colors.biblePrimaryText }]}>
                   {t('bible.chapterFeedbackTitle')}
                   {' · '}
@@ -4205,8 +4216,12 @@ export function BibleReaderScreen() {
               >
                 <Ionicons name="person-outline" size={14} color={colors.bibleSecondaryText} />
                 <Text
-                  style={[styles.listenFeedbackIdentityText, { color: colors.bibleSecondaryText }]}
-                  numberOfLines={1}
+                  style={[
+                    styles.listenFeedbackIdentityText,
+                    !isLargeText && styles.listenFeedbackIdentityTextCompact,
+                    { color: colors.bibleSecondaryText },
+                  ]}
+                  numberOfLines={isLargeText ? 2 : 1}
                 >
                   {savedChapterFeedbackIdentity
                     ? `${savedChapterFeedbackIdentity.name} • ${savedChapterFeedbackIdentity.role}`
@@ -5406,7 +5421,8 @@ export function BibleReaderScreen() {
                           styles.readerThemeTileLabel,
                           { color: isActive ? colors.accentPrimary : colors.bibleSecondaryText },
                         ]}
-                        numberOfLines={1}
+                        // Two lines: longer languages cut the theme name under a 128pt tile.
+                        numberOfLines={2}
                       >
                         {t(option.labelKey)}
                       </Text>
@@ -6310,7 +6326,7 @@ export function BibleReaderScreen() {
                 </Text>
                 <Text
                   style={[styles.verseImageSheetReference, { color: colors.bibleSecondaryText }]}
-                  numberOfLines={1}
+                  numberOfLines={2}
                 >
                   {selectedVerseReferenceLabel}
                 </Text>
@@ -6767,9 +6783,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: spacing.md,
   },
+  listenFeedbackHeaderStacked: {
+    flexDirection: 'column',
+  },
   listenFeedbackCopy: {
     flex: 1,
     gap: 4,
+  },
+  listenFeedbackCopyStacked: {
+    // flex: 1 in a column would try to fill a height the card does not have.
+    flex: 0,
   },
   listenFeedbackTitle: {
     fontSize: 17,
@@ -6789,9 +6812,12 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   listenFeedbackIdentityText: {
-    maxWidth: 110,
+    flexShrink: 1,
     fontSize: 11,
     fontWeight: '700',
+  },
+  listenFeedbackIdentityTextCompact: {
+    maxWidth: 110,
   },
   listenSentimentButton: {
     flex: 1,

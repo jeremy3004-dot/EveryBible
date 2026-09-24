@@ -90,6 +90,7 @@ import {
 // A barrel import here would undo the deferred-import work below.
 import { useDisplayFont } from '../../hooks/useDisplayFont';
 import { useKeyboardBottomInset } from '../../hooks/useKeyboardBottomInset';
+import { useLargeText } from '../../hooks/useLargeText';
 import { Skeleton } from '../../components/skeleton/Skeleton';
 import { announceForAccessibility } from '../../utils/a11y';
 import type { BibleTranslation } from '../../types';
@@ -222,6 +223,12 @@ interface OptionRowProps {
   title: string;
   subtitle?: string | null;
   trailing?: ReactNode;
+  /**
+   * A status chip ("RECOMMENDED", "DOWNLOAD"): beside `trailing` at normal sizes,
+   * under the subtitle at large text, where beside it the copy column kept a word
+   * per line.
+   */
+  statusChip?: ReactNode;
   isLast?: boolean;
   disabled?: boolean;
   colors: ThemeColors;
@@ -240,6 +247,7 @@ function OptionRow({
   title,
   subtitle,
   trailing,
+  statusChip,
   isLast = false,
   disabled = false,
   colors,
@@ -251,6 +259,7 @@ function OptionRow({
   testID,
   onPress,
 }: OptionRowProps) {
+  const { isLargeText } = useLargeText();
   const a11y = getLocaleOptionRowAccessibility({
     title,
     subtitle,
@@ -292,8 +301,16 @@ function OptionRow({
             {subtitle}
           </Text>
         ) : null}
+        {statusChip && isLargeText ? <View style={styles.chipBelowCopy}>{statusChip}</View> : null}
       </View>
-      {trailing}
+      {statusChip && !isLargeText ? (
+        <View style={styles.optionRowTrailing}>
+          {statusChip}
+          {trailing}
+        </View>
+      ) : (
+        trailing
+      )}
     </PressableScale>
   );
 }
@@ -414,14 +431,12 @@ const LanguageRow = memo(function LanguageRow({
       colors={colors}
       isSelected={isSelected}
       statusLabel={isRecommended ? recommendedBadgeLabel : null}
-      trailing={
-        <View style={styles.optionRowTrailing}>
-          {isRecommended ? (
-            <StatusChip label={recommendedBadgeLabel} colors={colors} eyebrowFont={eyebrowFont} />
-          ) : null}
-          <SelectionMark isSelected={isSelected} colors={colors} />
-        </View>
+      statusChip={
+        isRecommended ? (
+          <StatusChip label={recommendedBadgeLabel} colors={colors} eyebrowFont={eyebrowFont} />
+        ) : null
       }
+      trailing={<SelectionMark isSelected={isSelected} colors={colors} />}
       onPress={() => onSelect(language.code)}
     />
   );
@@ -473,14 +488,15 @@ const OnboardingLanguageRow = memo(function OnboardingLanguageRow({
       <ActivityIndicator color={colors.accentPrimary} />
     )
   ) : (
-    <View style={styles.optionRowTrailing}>
-      <StatusChip
-        label={isRecommended ? recommendedBadgeLabel : statusLabel}
-        colors={colors}
-        eyebrowFont={eyebrowFont}
-      />
-      <ChevronRight size={18} color={colors.textTertiary} strokeWidth={2} />
-    </View>
+    <ChevronRight size={18} color={colors.textTertiary} strokeWidth={2} />
+  );
+  // A queued or downloading row shows progress instead of its chip.
+  const statusChip = isInstalling ? null : (
+    <StatusChip
+      label={isRecommended ? recommendedBadgeLabel : statusLabel}
+      colors={colors}
+      eyebrowFont={eyebrowFont}
+    />
   );
 
   const row = (
@@ -497,6 +513,7 @@ const OnboardingLanguageRow = memo(function OnboardingLanguageRow({
       statusLabel={isInstalling ? null : isRecommended ? recommendedBadgeLabel : statusLabel}
       isBusy={isInstalling}
       progress={progress}
+      statusChip={statusChip}
       trailing={trailing}
       onPress={() => onPress(translation)}
     />
@@ -547,6 +564,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
   const { colors } = useTheme();
   const { t } = useTranslation();
   const displayFont = useDisplayFont();
+  const { isLargeText } = useLargeText();
   const insets = useSafeAreaInsets();
   // Android cannot learn the keyboard overlap from the keyboard frame alone
   // (edge-to-edge clears decorFitsSystemWindows, so adjustResize never shrinks
@@ -1448,6 +1466,13 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
         statusLabel: t('onboarding.suggestedBadge'),
         isSelected: selectedCountryCode === countryCode,
       });
+      const suggestedChip = (
+        <StatusChip
+          label={t('onboarding.suggestedBadge')}
+          colors={colors}
+          eyebrowFont={displayFont.regular}
+        />
+      );
 
       return (
         <AppCard
@@ -1468,16 +1493,13 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
               </Text>
               <Text
                 style={[styles.suggestedSubtitle, { color: colors.secondaryText }]}
-                numberOfLines={1}
+                numberOfLines={2}
               >
                 {getCountrySubtitle(countryCode, countryName)}
               </Text>
+              {isLargeText ? <View style={styles.chipBelowCopy}>{suggestedChip}</View> : null}
             </View>
-            <StatusChip
-              label={t('onboarding.suggestedBadge')}
-              colors={colors}
-              eyebrowFont={displayFont.regular}
-            />
+            {isLargeText ? null : suggestedChip}
             <SelectionMark
               isSelected={selectedCountryCode === countryCode}
               colors={colors}
@@ -1492,6 +1514,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
       displayFont,
       getCountrySubtitle,
       handleCountrySelect,
+      isLargeText,
       selectedCountryCode,
       selectedInterfaceLanguageCode,
       t,
@@ -2024,6 +2047,10 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.sm,
+  },
+  chipBelowCopy: {
+    alignSelf: 'flex-start',
+    marginTop: spacing.xs,
   },
   downloadProgress: {
     width: 72,

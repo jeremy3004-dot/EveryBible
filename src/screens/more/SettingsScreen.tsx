@@ -544,7 +544,7 @@ export function SettingsScreen() {
       </TouchableOpacity>
       <Text
         style={[styles.fontSizeValue, displayFont.regular, { color: colors.secondaryText }]}
-        numberOfLines={1}
+        numberOfLines={2}
       >
         {fontSizeLabel}
       </Text>
@@ -612,7 +612,12 @@ export function SettingsScreen() {
             {t('settings.reading')}
           </Text>
           <AppCard padding={0} style={styles.groupCard}>
-            <ListRow title={t('settings.fontSize')} leadingIcon={Type} trailing={fontSizeStepper} />
+            <ListRow
+              title={t('settings.fontSize')}
+              leadingIcon={Type}
+              trailing={fontSizeStepper}
+              stackTrailingAtLargeText
+            />
 
             {/* Appearance is a block, not a row: the segment needs the full width
                 of the card, so the label sits above it rather than beside it. */}
@@ -1136,11 +1141,16 @@ export function SettingsScreen() {
             <ListRow
               title={t('settings.downloadForOffline')}
               leadingIcon={CloudDownload}
+              stackTrailingAtLargeText
               trailing={
                 <View style={styles.statusTrailing}>
                   <Text
-                    style={[typography.mono, displayFont.regular, { color: colors.secondaryText }]}
-                    numberOfLines={1}
+                    style={[
+                      typography.mono,
+                      displayFont.regular,
+                      styles.statusTrailingText,
+                      { color: colors.secondaryText },
+                    ]}
                   >
                     {t('common.available')}
                   </Text>
@@ -1336,7 +1346,7 @@ export function SettingsScreen() {
                     </Text>
                     <Text
                       style={[styles.languageHint, { color: colors.secondaryText }]}
-                      numberOfLines={1}
+                      numberOfLines={2}
                     >
                       {language.appLanguageLabel}
                     </Text>
@@ -1492,6 +1502,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
+  statusTrailingText: {
+    flexShrink: 1,
+  },
   fontSizeControls: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1511,6 +1524,7 @@ const styles = StyleSheet.create({
     ...typography.mono,
     marginHorizontal: spacing.md,
     minWidth: 58,
+    flexShrink: 1,
     textAlign: 'center',
   },
   // Modal styles

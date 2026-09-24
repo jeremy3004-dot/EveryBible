@@ -2,7 +2,7 @@ import test, { afterEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { create } from 'zustand';
 import type { ReactNode } from 'react';
-import { installRenderHarness } from '../../testing/render';
+import { installRenderHarness, within } from '../../testing/render';
 import { mockModule, mockPackage, sourcePath } from '../../testing/mockModules';
 import type {
   BibleStackParamList,
@@ -165,6 +165,16 @@ test('a signed-in account card opens the profile, and sign out asks before signi
   );
   await confirm?.onPress?.();
   assert.equal(signOutCalls.length, 1);
+});
+
+test('the account card keeps the name to one line but lets the sync status wrap', async () => {
+  signIn();
+  const view = await renderMore();
+
+  const texts = within(view.getByRole('button', { name: 'Ruth Moab' })).queryAllByType('Text');
+  assert.equal(view.getByText('Ruth Moab').props.numberOfLines, 1, 'Profile shows the full name');
+  // The sync status is the card's last line and appears nowhere else.
+  assert.equal(texts.at(-1)?.props.numberOfLines, 2);
 });
 
 test('the Profile screen sign-in button opens the shared auth flow for guests', async () => {

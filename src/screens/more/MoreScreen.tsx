@@ -257,9 +257,11 @@ export function MoreScreen() {
                 {syncStatus.isSynced ? (
                   <View style={[styles.syncDot, { backgroundColor: colors.success }]} />
                 ) : null}
+                {/* Two lines: the sync status is shown nowhere else, and translated
+                    statuses outgrow one line at large text. */}
                 <Text
                   style={[styles.syncLabel, displayFont.regular, { color: colors.secondaryText }]}
-                  numberOfLines={1}
+                  numberOfLines={2}
                 >
                   {syncStatus.label}
                 </Text>

@@ -38,7 +38,7 @@ export function FeedbackVerdict({ item }: FeedbackVerdictProps) {
           {t(isPositive ? 'bible.chapterFeedbackThumbsUp' : 'bible.chapterFeedbackThumbsDown')}
         </Text>
       </View>
-      <Text style={[styles.meta, { color: colors.secondaryText }]} numberOfLines={1}>
+      <Text style={[styles.meta, { color: colors.secondaryText }]} numberOfLines={2}>
         {t(getFeedbackSourceKey(item))}
       </Text>
     </View>
@@ -148,7 +148,9 @@ export function FeedbackResponseCard({
 
 const styles = StyleSheet.create({
   body: { gap: spacing.sm },
-  verdictRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  // Wraps so a long source label ("Scripture Council" in a longer language) takes
+  // its own line under the verdict at large text instead of truncating.
+  verdictRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing.sm },
   verdictPill: {
     flexDirection: 'row',
     alignItems: 'center',

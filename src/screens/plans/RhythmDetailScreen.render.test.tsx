@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import type { Mutate } from 'zustand/vanilla';
 import { create } from 'zustand';
 import { mockMmkvStorage, mockModule, sourcePath } from '../../testing/mockModules';
-import { installRenderHarness, within } from '../../testing/render';
+import { hostAncestors, installRenderHarness, within } from '../../testing/render';
 import type { RhythmDetailScreenProps } from '../../navigation/types';
 import type { ReadingPlanRhythmItem, UserReadingPlanProgress } from '../../services/plans/types';
 import type { ReadingPlansStoreApi } from '../../stores/readingPlansStore';
@@ -231,4 +231,14 @@ test('a rhythm that no longer exists shows an error with a way back', async () =
   assert.equal(view.queryByText(t('readingPlans.rhythmSequence')), null);
   await view.press(view.getByRole('button', { name: t('common.back') }));
   assert.deepEqual(harness.navigation.calls, [{ method: 'goBack', args: [] }]);
+});
+
+test('at large text a sequence card moves its status pill under the title, and pills wrap', async () => {
+  const rhythmId = await seedRhythm([psalm63]);
+  harness.setFontScale(2);
+  const view = await renderDetail(rhythmId);
+
+  const titleColumn = hostAncestors(view.getByText('Evening psalm'))[0];
+  const status = within(titleColumn).getByText(t('common.next'));
+  assert.equal(status.props.numberOfLines, 2, 'a pill label wraps rather than truncates');
 });

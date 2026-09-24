@@ -274,6 +274,11 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     ...typography.sectionTitle,
+    // Shrinks and wraps between Back and the spacer; unshrinkable, a long
+    // translated title pushed the spacer off the row at large text.
+    flexShrink: 1,
+    textAlign: 'center',
+    marginHorizontal: spacing.sm,
   },
   headerSpacer: {
     width: 32,

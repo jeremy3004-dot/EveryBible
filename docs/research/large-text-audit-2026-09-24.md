@@ -72,25 +72,43 @@ Smaller fixes made at the same time:
 | Plan cover eyebrow (`PlanDetailScreen`) | 1.4, one line  | Sits over a photo inside a fixed 360pt hero, above a two-line title                                      |
 | Reader font preview specimen            | 1.4            | A preview sample in a fixed card, not content                                                            |
 
-## Not fixed (lower priority, listed for follow-up)
+## Follow-up pass (same day): lower-priority items and new screens
 
-| Screen / component                                     | Element                                                                        | Issue                                                           | Suggested fix                                       |
-| ------------------------------------------------------ | ------------------------------------------------------------------------------ | --------------------------------------------------------------- | --------------------------------------------------- |
-| `home/HomeScreen`                                      | Streak unit label (`maxWidth: 54`, two lines)                                  | At about 2.0 "day streak" in longer languages needs three lines | Drop `maxWidth` at large text                       |
-| `bible/BibleReaderScreen`                              | Listen-feedback identity pill (`maxWidth: 110`, one line)                      | "Name • Role" truncates early                                   | Two lines, or move the role to its own line         |
-| `bible/BibleReaderScreen`                              | Theme tile labels, verse-image sheet reference (one line)                      | Truncate in long languages                                      | Two lines                                           |
-| `learn/FoundationDetailScreen`                         | Header title (one line, 32pt controls)                                         | Truncates; check whether the hero repeats the full title        | Two lines if the hero does not show it              |
-| `more/SettingsScreen`                                  | Font-size value (`minWidth: 58`, one line), "Available", language hint         | Short strings; long translations could truncate                 | Two lines                                           |
-| `more/MoreScreen`                                      | Account name, email, sync label (one line)                                     | Truncate; the full values are on Profile                        | Keep, or allow two lines for the sync label         |
-| `plans/PlansHomeScreen`                                | Soft chip, header eyebrow, session summary, day-of and completed-date eyebrows | One-line metadata                                               | Two lines where the value is not repeated elsewhere |
-| `plans/PlanDetailScreen`                               | Compact header title, ledger day label                                         | One line (the full title is in the hero)                        | Keep                                                |
-| `plans/RhythmDetailScreen`                             | Pill labels                                                                    | One line                                                        | Wrap the pill row                                   |
-| `onboarding/LocaleSetupFlow`                           | Suggested-country subtitle                                                     | One line                                                        | Two lines                                           |
-| `learn/PrayerWallScreen`                               | Header group name                                                              | One line                                                        | Two lines                                           |
-| `learn/GroupSessionScreen`                             | Previous / Next footer row                                                     | Does not wrap; labels are short                                 | Stack with `useLargeText` if translations run long  |
-| `more/ProfileScreen`                                   | Two-up stats grid                                                              | Labels wrap inside each half and stay readable at 2.0           | None needed yet                                     |
-| `bible/CompanionCard`, `feedback/FeedbackResponseCard` | One-line meta                                                                  | Minor truncation                                                | Two lines                                           |
-| `audio/PlaybackControls`, `audio/ReaderPlaybackDock`   | Fixed-size buttons                                                             | Icon-only, so text size does not apply                          | None                                                |
+Everything the first pass listed as not fixed, plus the screens added the same
+day, was worked through. Render tests now set the OS scale with
+`harness.setFontScale(n)` (`src/testing/render.tsx`), so each stacking or
+wrapping change below is asserted at 2.0, and at the default size where the
+layout differs.
+
+| Screen / component                                       | Element                                                                        | Status | What changed                                                                                                                                         |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------ | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `home/HomeScreen`                                        | Streak unit label (`maxWidth: 54`, two lines)                                  | Fixed  | At large text the 54pt cap and the line limit drop                                                                                                   |
+| `bible/BibleReaderScreen`                                | Listen-feedback identity pill (`maxWidth: 110`, one line)                      | Fixed  | At large text the pill moves under the heading, drops the cap and takes two lines                                                                    |
+| `bible/BibleReaderScreen`                                | Theme tile labels, verse-image sheet reference                                 | Fixed  | Two lines                                                                                                                                            |
+| `learn/FoundationDetailScreen`                           | Header title (one line, 32pt controls)                                         | Kept   | The hero directly below repeats the full title with no line limit                                                                                    |
+| `more/SettingsScreen`                                    | Font-size stepper, "Available" status, language hint                           | Fixed  | New `ListRow` prop `stackTrailingAtLargeText` moves the stepper and the status under the row title; the size name and language hint take two lines   |
+| `more/MoreScreen`                                        | Account name, email, sync label                                                | Fixed  | Sync label two lines (shown nowhere else); name and email stay one line because Profile shows them in full                                           |
+| `plans/PlansHomeScreen`                                  | Soft chip, header eyebrow, session summary, day-of and completed-date eyebrows | Fixed  | Two lines each; at large text the Enrolled/Completed chip and the Start button move under the row title in Find plans and Completed                  |
+| `plans/PlanDetailScreen`                                 | Compact header title, ledger day label                                         | Kept   | The full title is in the hero                                                                                                                        |
+| `plans/RhythmDetailScreen`                               | Pill labels, sequence-card status pill                                         | Fixed  | Pill labels two lines and shrinkable (the meta row already wraps); at large text the Next/Completed pill moves under the card title                  |
+| `onboarding/LocaleSetupFlow`                             | Suggested-country subtitle and chip; Bible and language row chips              | Fixed  | Subtitle two lines; at large text every status chip (Suggested, Recommended, Download/Continue) moves under the row copy; the chevron or radio stays |
+| `onboarding/LocaleSetupFlow` (new)                       | Download queue rows (queued and downloading)                                   | OK     | A queued or downloading row swaps its chip for a spinner or a 72pt progress bar, so only a narrow indicator sits beside the wrapping copy            |
+| `learn/PrayerWallScreen`                                 | Header group name                                                              | Fixed  | Two lines, centred                                                                                                                                   |
+| `learn/PrayerReportSheet` (new)                          | Reasons, note and Send inside the shared `Sheet`                               | Fixed  | The form scrolls inside a cap of 60% of the window; at 2.0 five wrapped reasons, the note and Send outgrew the screen                                |
+| `learn/GroupSessionScreen`                               | Previous / Next footer row                                                     | Fixed  | Stacks at large text (`column-reverse`, Next on top); the lesson is padded by the footer's measured height instead of a fixed 140pt                  |
+| `auth/ResetPasswordScreen` (new)                         | Fields and buttons                                                             | OK     | Inputs and buttons size by padding, not fixed heights, and every label wraps                                                                         |
+| `more/SettingsScreen` blocked-notifications notice (new) | Notice text and Open Settings button                                           | OK     | The text is `flex: 1` beside an 18pt icon and the button sits on its own line                                                                        |
+| `bible/TranslatorReviewQueueScreen` (new)                | Header title between Back and a spacer                                         | Fixed  | The title shrinks, wraps and centres instead of pushing the spacer off the row                                                                       |
+| `components/ErrorBoundary` fallback (new)                | Icon, message, Try again and Back in a centred column                          | Fixed  | Scrolls (still centred when it fits); the Try again label shrinks beside its icon                                                                    |
+| `annotations/AnnotationActionSheet`                      | Title under the absolutely positioned close button                             | Fixed  | The title is inset by the button's width on both sides, so a wrapped title stays clear of it                                                         |
+| `bible/CompanionCard`, `feedback/FeedbackResponseCard`   | One-line meta                                                                  | Fixed  | Two lines; the feedback verdict row wraps so the source label can drop under the verdict; the companion action label shrinks                         |
+| `more/ProfileScreen`                                     | Two-up stats grid                                                              | Kept   | Labels wrap inside each half and stay readable at 2.0                                                                                                |
+| `audio/PlaybackControls`, `audio/ReaderPlaybackDock`     | Fixed-size buttons                                                             | Kept   | Icon-only, so text size does not apply                                                                                                               |
+
+Still open: the shared `ui/Sheet` has no height bound or scroll of its own. The
+report sheet now scrolls its own content, but any other sheet whose content can
+outgrow the screen at large text needs the same treatment, or `Sheet` itself
+should bound its body.
 
 ## Absolutely positioned elements over text
 
@@ -101,8 +119,10 @@ Smaller fixes made at the same time:
   When it hides, it fades to opacity 0, so a few extra points of height never
   show while it is hidden.
 - `AudioReturnTab`: capped (see above).
-- Not checked in this pass: the `AnnotationActionSheet` close button, which is
-  absolutely positioned beside the sheet title.
+- `AnnotationActionSheet` close button: the title is now inset past it
+  (follow-up pass).
+- `GroupSessionScreen` footer: floats over the lesson, which is now padded by
+  the footer's measured height (follow-up pass).
 
 ## Device QA still needed
 
@@ -110,3 +130,10 @@ Check each fixed surface at iOS AX2/AX3 and Android 2.0 in English and German:
 Home, Plans (all three tabs), Plan detail (Today card), the translation picker
 and its manage sheet, Lesson detail, reader plan-session mode (strip and pill),
 sign-in, and the Settings modals.
+
+From the follow-up pass: the Settings font-size and offline rows, the
+onboarding Bible, language and suggested-nation rows (including a queued
+download), the Rhythm detail sequence cards, the group session footer over a
+long lesson, the prayer report sheet with the keyboard up, the reader's
+listen-feedback composer, the translator queue header, the error fallback, and
+the verse actions sheet title.

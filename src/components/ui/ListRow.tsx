@@ -22,6 +22,12 @@ export interface ListRowProps {
   value?: string;
   /** Custom trailing content (e.g. a Switch). Takes precedence over chevron/value. */
   trailing?: ReactNode;
+  /**
+   * For a wide `trailing` (a stepper, a status label): at large text it moves under
+   * the title, like `value`, instead of squeezing the title to a word per line.
+   * Leave it off for compact controls such as a Switch.
+   */
+  stackTrailingAtLargeText?: boolean;
   showChevron?: boolean;
   onPress?: (event: GestureResponderEvent) => void;
   destructive?: boolean;
@@ -54,6 +60,7 @@ export function ListRow({
   leadingIcon: LeadingIcon,
   value,
   trailing,
+  stackTrailingAtLargeText = false,
   showChevron = false,
   onPress,
   destructive = false,
@@ -72,6 +79,7 @@ export function ListRow({
   // name) left the title a sliver of width; it moves under the title instead.
   const { isLargeText } = useLargeText();
   const valueBelowTitle = Boolean(value) && !trailing && isLargeText;
+  const trailingBelowTitle = Boolean(trailing) && stackTrailingAtLargeText && isLargeText;
   const valueStyle = [typography.mono, displayFont.regular, { color: colors.secondaryText }];
   const titleColor = destructive ? colors.error : colors.primaryText;
 
@@ -105,14 +113,17 @@ export function ListRow({
           </Text>
         ) : null}
         {valueBelowTitle ? <Text style={valueStyle}>{value}</Text> : null}
+        {trailingBelowTitle ? <View style={styles.trailingBelowTitle}>{trailing}</View> : null}
       </View>
       <View style={styles.trailing}>
-        {trailing ??
-          (value && !valueBelowTitle ? (
-            <Text style={valueStyle} numberOfLines={1}>
-              {value}
-            </Text>
-          ) : null)}
+        {trailingBelowTitle
+          ? null
+          : (trailing ??
+            (value && !valueBelowTitle ? (
+              <Text style={valueStyle} numberOfLines={1}>
+                {value}
+              </Text>
+            ) : null))}
         {showChevron && !trailing ? (
           <View style={value ? styles.chevronAfterValue : undefined}>
             <ChevronRight
@@ -188,6 +199,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginLeft: spacing.md,
+  },
+  trailingBelowTitle: {
+    alignSelf: 'flex-start',
+    marginTop: spacing.xs,
   },
   chevronAfterValue: {
     marginLeft: spacing.sm,

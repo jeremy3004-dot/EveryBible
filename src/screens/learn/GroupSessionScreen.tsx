@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { config } from '../../constants';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useLargeText } from '../../hooks/useLargeText';
 import { layout, radius, spacing, typography } from '../../design/system';
 import { successHaptic } from '../../utils';
 import { announceForAccessibility } from '../../utils/a11y';
@@ -43,6 +44,11 @@ export function GroupSessionScreen() {
   const { colors } = useTheme();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  // Previous and Next stack at large text, and the footer floats over the scroll
+  // content, so the content is padded by the footer's measured height rather than
+  // a constant sized for one row.
+  const { isLargeText } = useLargeText();
+  const [footerHeight, setFooterHeight] = useState(0);
 
   const PHASES = [
     {
@@ -357,7 +363,13 @@ export function GroupSessionScreen() {
         })}
       </View>
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: Math.max(CONTENT_MIN_BOTTOM_PADDING, footerHeight + spacing.xl) },
+        ]}
+      >
         {/* Lesson Info */}
         {currentCourse && currentLesson && currentFieldInfo && (
           <View style={styles.lessonInfo}>
@@ -611,11 +623,14 @@ export function GroupSessionScreen() {
             paddingBottom: Math.max(insets.bottom, spacing.lg),
           },
         ]}
+        onLayout={(event) => setFooterHeight(event.nativeEvent.layout.height)}
       >
-        <View style={styles.footerButtons}>
+        {/* column-reverse at large text: Next draws on top, Previous keeps its
+            place first in the focus order. */}
+        <View style={[styles.footerButtons, isLargeText && styles.footerButtonsStacked]}>
           {currentPhaseIndex > 0 && (
             <TouchableOpacity
-              style={styles.footerButtonSecondary}
+              style={[styles.footerButtonSecondary, isLargeText && styles.footerButtonStacked]}
               onPress={handlePreviousPhase}
               accessibilityRole="button"
             >
@@ -625,10 +640,14 @@ export function GroupSessionScreen() {
               </Text>
             </TouchableOpacity>
           )}
-          <View style={styles.footerSpacer} />
+          {isLargeText ? null : <View style={styles.footerSpacer} />}
           {currentPhaseIndex < PHASES.length - 1 ? (
             <TouchableOpacity
-              style={[styles.footerButtonPrimary, { backgroundColor: colors.accentGreen }]}
+              style={[
+                styles.footerButtonPrimary,
+                isLargeText && styles.footerButtonStacked,
+                { backgroundColor: colors.accentGreen },
+              ]}
               onPress={handleNextPhase}
               accessibilityRole="button"
             >
@@ -641,6 +660,7 @@ export function GroupSessionScreen() {
             <TouchableOpacity
               style={[
                 styles.footerButtonPrimary,
+                isLargeText && styles.footerButtonStacked,
                 { backgroundColor: colors.accentGreen },
                 isSavingSynced && styles.footerButtonPrimaryDisabled,
               ]}
@@ -666,6 +686,9 @@ export function GroupSessionScreen() {
     </SafeAreaView>
   );
 }
+
+// The footer's height at the default text size, plus breathing room.
+const CONTENT_MIN_BOTTOM_PADDING = 140;
 
 const styles = StyleSheet.create({
   container: {
@@ -749,7 +772,6 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: layout.screenPadding,
-    paddingBottom: 140,
   },
   lessonInfo: {
     marginBottom: 20,
@@ -912,6 +934,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  footerButtonsStacked: {
+    flexDirection: 'column-reverse',
+    alignItems: 'stretch',
+    gap: spacing.sm,
+  },
+  footerButtonStacked: {
+    justifyContent: 'center',
+  },
   footerButtonSecondary: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -920,6 +950,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   footerButtonSecondaryText: {
+    flexShrink: 1,
     fontSize: 15,
     fontWeight: '500',
   },
@@ -938,6 +969,8 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   footerButtonPrimaryText: {
+    flexShrink: 1,
+    textAlign: 'center',
     fontSize: 15,
     fontWeight: '600',
   },

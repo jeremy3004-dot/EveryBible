@@ -1,5 +1,13 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { AppButton, Sheet } from '../../components/ui';
@@ -8,6 +16,10 @@ import { layout, radius, spacing, typography } from '../../design/system';
 import { PRAYER_REPORT_REASONS, type PrayerReportReason } from '../../services/prayer/prayerModel';
 
 const NOTE_MAX_CHARS = 500;
+// Share of the window the form may take below the sheet title before it scrolls.
+// At default sizes it fits without scrolling; at large text five wrapped reasons,
+// the note and Send outgrow the screen, and the shared Sheet does not bound them.
+const FORM_MAX_WINDOW_SHARE = 0.6;
 
 const REASON_LABEL_KEYS: Record<PrayerReportReason, string> = {
   spam: 'prayer.reportReasonSpam',
@@ -34,69 +46,76 @@ export function PrayerReportSheet({
 }: PrayerReportSheetProps) {
   const { t } = useTranslation();
   const { colors } = useTheme();
+  const { height: windowHeight } = useWindowDimensions();
   const [reason, setReason] = useState<PrayerReportReason | null>(null);
   // The wall keys this sheet by the reported request, so each report starts blank.
   const [note, setNote] = useState('');
 
   return (
     <Sheet visible={visible} onClose={onClose} title={t('prayer.reportTitle')}>
-      <Text style={[styles.body, { color: colors.secondaryText }]}>{t('prayer.reportBody')}</Text>
-      <View accessibilityRole="radiogroup" style={styles.reasons}>
-        {PRAYER_REPORT_REASONS.map((option) => {
-          const selected = option === reason;
-          return (
-            <TouchableOpacity
-              key={option}
-              style={[
-                styles.reasonRow,
-                {
-                  borderColor: selected ? colors.accentPrimary : colors.cardBorder,
-                  backgroundColor: selected ? colors.accentPrimary + '14' : colors.background,
-                },
-              ]}
-              onPress={() => setReason(option)}
-              accessibilityRole="radio"
-              accessibilityState={{ checked: selected }}
-            >
-              <Text style={[styles.reasonText, { color: colors.primaryText }]}>
-                {t(REASON_LABEL_KEYS[option])}
-              </Text>
-              <Ionicons
-                name={selected ? 'radio-button-on' : 'radio-button-off'}
-                size={20}
-                color={selected ? colors.accentPrimary : colors.secondaryText}
-              />
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-      <TextInput
-        style={[
-          styles.noteInput,
-          {
-            color: colors.primaryText,
-            backgroundColor: colors.background,
-            borderColor: colors.controlBorder,
-          },
-        ]}
-        placeholder={t('prayer.reportNotePlaceholder')}
-        placeholderTextColor={colors.secondaryText}
-        accessibilityLabel={t('prayer.reportNotePlaceholder')}
-        value={note}
-        onChangeText={(text) => setNote(text.slice(0, NOTE_MAX_CHARS))}
-        maxLength={NOTE_MAX_CHARS}
-        multiline
-      />
-      <AppButton
-        label={t('prayer.reportSend')}
-        variant="primary"
-        fullWidth
-        loading={isSubmitting}
-        disabled={!reason || isSubmitting}
-        onPress={() => {
-          if (reason) onSubmit(reason, note);
-        }}
-      />
+      <ScrollView
+        style={{ maxHeight: windowHeight * FORM_MAX_WINDOW_SHARE }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={[styles.body, { color: colors.secondaryText }]}>{t('prayer.reportBody')}</Text>
+        <View accessibilityRole="radiogroup" style={styles.reasons}>
+          {PRAYER_REPORT_REASONS.map((option) => {
+            const selected = option === reason;
+            return (
+              <TouchableOpacity
+                key={option}
+                style={[
+                  styles.reasonRow,
+                  {
+                    borderColor: selected ? colors.accentPrimary : colors.cardBorder,
+                    backgroundColor: selected ? colors.accentPrimary + '14' : colors.background,
+                  },
+                ]}
+                onPress={() => setReason(option)}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: selected }}
+              >
+                <Text style={[styles.reasonText, { color: colors.primaryText }]}>
+                  {t(REASON_LABEL_KEYS[option])}
+                </Text>
+                <Ionicons
+                  name={selected ? 'radio-button-on' : 'radio-button-off'}
+                  size={20}
+                  color={selected ? colors.accentPrimary : colors.secondaryText}
+                />
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+        <TextInput
+          style={[
+            styles.noteInput,
+            {
+              color: colors.primaryText,
+              backgroundColor: colors.background,
+              borderColor: colors.controlBorder,
+            },
+          ]}
+          placeholder={t('prayer.reportNotePlaceholder')}
+          placeholderTextColor={colors.secondaryText}
+          accessibilityLabel={t('prayer.reportNotePlaceholder')}
+          value={note}
+          onChangeText={(text) => setNote(text.slice(0, NOTE_MAX_CHARS))}
+          maxLength={NOTE_MAX_CHARS}
+          multiline
+        />
+        <AppButton
+          label={t('prayer.reportSend')}
+          variant="primary"
+          fullWidth
+          loading={isSubmitting}
+          disabled={!reason || isSubmitting}
+          onPress={() => {
+            if (reason) onSubmit(reason, note);
+          }}
+        />
+      </ScrollView>
     </Sheet>
   );
 }
