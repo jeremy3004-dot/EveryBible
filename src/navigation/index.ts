@@ -5,5 +5,6 @@ export * from './TabNavigator';
 export * from './HomeStack';
 export * from './BibleStack';
 export * from './LearnStack';
+export * from './learnRoutes';
 export * from './MoreStack';
 export * from './linkingConfig';
