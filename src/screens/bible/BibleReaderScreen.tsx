@@ -12,7 +12,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import * as Clipboard from 'expo-clipboard';
 import Animated from 'react-native-reanimated';
 import { GestureDetector } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -29,17 +28,10 @@ import { useTheme, type ThemeMode } from '../../contexts/ThemeContext';
 import { layout, spacing, typography } from '../../design/system';
 import { getReadingFontFamily } from '../../design/fonts';
 import { trackBibleExperienceEvent } from '../../services/analytics/bibleExperienceAnalytics';
-import {
-  getAnnotationsForChapter,
-  softDeleteAnnotation,
-  upsertAnnotation,
-} from '../../services/annotations/annotationService';
+import { getAnnotationsForChapter } from '../../services/annotations/annotationService';
 import { getChapter, prefetchNextChapter } from '../../services/bible/bibleService';
 import { buildBibleDeepLink } from '../../services/bible/deepLinkParser';
-import {
-  getChapterPresentationMode,
-  type ChapterPresentationMode,
-} from '../../services/bible/presentation';
+import { getChapterPresentationMode } from '../../services/bible/presentation';
 import {
   findAdjacentAvailableChapter,
   getChapterContentAvailability,
@@ -61,7 +53,6 @@ import { useAudioPlayer } from '../../hooks/useAudioPlayer';
 import { useFontSize } from '../../hooks/useFontSize';
 import { useLargeText } from '../../hooks/useLargeText';
 import { useShallow } from 'zustand/react/shallow';
-import { selectionHaptic } from '../../utils/haptics';
 import { announceForAccessibility } from '../../utils/a11y';
 import { ReaderPlaybackDock } from '../../components/audio/ReaderPlaybackDock';
 import {
@@ -78,17 +69,8 @@ import { VersesSkeleton } from '../../components/skeleton/VersesSkeleton';
 import type { BibleTranslation, Verse } from '../../types';
 import type { UserAnnotation } from '../../services/supabase/types';
 import type { BibleReaderScreenProps } from '../../navigation/types';
-import {
-  buildBibleSelectionShareText,
-  buildBibleSelectionVerseRanges,
-  extractBibleSelectionText,
-  formatBibleSelectionReference,
-  getBibleSelectionShareTranslationLabel,
-} from './bibleSelectionModel';
-import {
-  buildReaderHighlightIndex,
-  buildReaderParagraphRenderSignature,
-} from './bibleReaderRenderModel';
+import { getBibleSelectionShareTranslationLabel } from './bibleSelectionModel';
+import { buildReaderParagraphRenderSignature } from './bibleReaderRenderModel';
 import { createReaderFocusScroll } from './readerFocusScroll';
 import { HOME_VERSE_BACKGROUND_SOURCES } from '../../data/homeVerseBackgrounds';
 import { SHARE_VERSE_BACKGROUND_SOURCES } from '../../data/shareVerseBackgrounds';
@@ -98,7 +80,6 @@ import {
   buildReaderChapterRouteParams,
   getPlanSessionTrailingActionState,
   getReaderInlineActiveVerse,
-  getAnnotationsForDisplayedVerses,
   getReaderVerseLineHeight,
   isActiveAudioTrackMatch,
   getNextFontSizeSheetVisibility,
@@ -108,13 +89,6 @@ import {
 import type { ReaderParagraph } from './bibleReaderModel';
 import { loadReaderChapter, readerChapterKey, type CancellableTask } from './readerChapterLoader';
 import { navigateListenChapter } from './readerListenNavigation';
-import {
-  applyReaderAnnotationEdits,
-  planReaderHighlightApply,
-  planReaderHighlightRemove,
-  planReaderNoteSave,
-  type ReaderAnnotationEdits,
-} from './readerAnnotationEdits';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
 import {
   AudioOptionsSheet,
@@ -147,6 +121,8 @@ import {
   useReaderScrollTargets,
   useReaderSwipeNavigation,
   useReaderTabBarMotion,
+  useStableChapterPresentation,
+  useVerseSelection,
 } from './reader';
 import type { NavigationProp } from './reader';
 
@@ -231,7 +207,6 @@ export function BibleReaderScreen() {
   const chapterLoadRequestIdRef = useRef(0);
   const chapterPrefetchTaskRef = useRef<CancellableTask | null>(null);
   const annotationLoadRequestIdRef = useRef(0);
-  const lastStableSessionModeRef = useRef(chapterSessionMode);
   const {
     getRootTabBarStyle,
     getRootTabNavigation,
@@ -464,20 +439,15 @@ export function BibleReaderScreen() {
   // loading state shows a text skeleton instead of the audio-first UI. Without
   // this, BSB (which has audio) would show the audio player while verses are
   // fetching on first mount, even though text is expected.
-  const lastStablePresentationModeRef = useRef<ChapterPresentationMode>(
-    currentTranslationInfo?.hasText ? 'text' : rawPresentationMode
-  );
-  if (!isLoading) {
-    lastStablePresentationModeRef.current = rawPresentationMode;
-    lastStableSessionModeRef.current = chapterSessionMode;
-  }
-  const chapterPresentationMode = isLoading
-    ? lastStablePresentationModeRef.current
-    : rawPresentationMode;
+  const { chapterPresentationMode, stableSessionMode } = useStableChapterPresentation({
+    isLoading,
+    rawPresentationMode,
+    chapterSessionMode,
+    initialPresentationMode: currentTranslationInfo?.hasText ? 'text' : rawPresentationMode,
+  });
   const canReadDisplayedChapter = chapterPresentationMode === 'text' && verses.length > 0;
   const canAdjustFontSize = canReadDisplayedChapter;
   const canShowTranslationSheet = config.features.multipleTranslations;
-  const stableSessionMode = isLoading ? lastStableSessionModeRef.current : chapterSessionMode;
   const showMinimalListenChrome =
     chapterPresentationMode === 'audio-first' ||
     (stableSessionMode === 'listen' && !canReadDisplayedChapter);
@@ -485,94 +455,48 @@ export function BibleReaderScreen() {
     config.features.chapterFeedbackInlineComposer &&
     chapterFeedbackEnabled &&
     showMinimalListenChrome;
-  const selectedVerseReferenceLabel =
-    selectedVerses.length > 0
-      ? formatBibleSelectionReference({
-          bookName: getTranslatedBookName(bookId, t),
-          chapter,
-          verses: selectedVerses,
-          translationLabel: translationShareLabel,
-        })
-      : '';
-  const selectedVerseText =
-    selectedVerses.length > 0 ? extractBibleSelectionText(verses, selectedVerses) : '';
-  const selectedVerseShareText =
-    selectedVerses.length > 0
-      ? buildBibleSelectionShareText({
-          referenceLabel: selectedVerseReferenceLabel,
-          selectedText: selectedVerseText,
-        })
-      : '';
-  const selectedVerseRanges = useMemo(
-    () => buildBibleSelectionVerseRanges(selectedVerses),
-    [selectedVerses]
-  );
-
-  const getAnnotationVerseEnd = (annotation: Pick<UserAnnotation, 'verse_start' | 'verse_end'>) =>
-    annotation.verse_end ?? annotation.verse_start;
-  const annotationOverlapsSelectionRange = (
-    annotation: Pick<UserAnnotation, 'verse_start' | 'verse_end'>,
-    range: (typeof selectedVerseRanges)[number]
-  ) =>
-    annotation.verse_start <= range.verse_end &&
-    getAnnotationVerseEnd(annotation) >= range.verse_start;
-  const selectedVerseDecorationStyle = useMemo(
-    () =>
-      ({
-        textDecorationLine: 'underline',
-        textDecorationStyle: 'dotted',
-        textDecorationColor: colors.bibleAccent,
-      }) as const,
-    [colors.bibleAccent]
-  );
-  const selectedVerseSet = useMemo(() => new Set(selectedVerses), [selectedVerses]);
   const isShowingRouteChapter =
     versesChapterKey === readerChapterKey(currentTranslation, bookId, chapter);
   // Read at press time: memoized paragraph blocks keep the verse press handler they last
   // rendered with, which can predate the chapter change.
   const isShowingRouteChapterRef = useRef(isShowingRouteChapter);
+  // eslint-disable-next-line react-hooks/refs -- latest value for press handlers, see above
   isShowingRouteChapterRef.current = isShowingRouteChapter;
-  const displayedAnnotations = getAnnotationsForDisplayedVerses({
+  const {
+    displayedAnnotations,
+    handleCloseSelectedVerses,
+    handleCopySelectedVerses,
+    handleHighlightSelectedVerses,
+    handleNoteSelectedVerses,
+    handleOpenVerseImageShare,
+    handleRemoveHighlightSelectedVerses,
+    handleSelectVerseImageBackground,
+    handleShareSelectedVerseImage,
+    handleShareSelectedVerses,
+    highlightByVerse,
+    selectedHighlightColors,
+    selectedNoteAnnotation,
+    selectedVerseDecorationStyle,
+    selectedVerseReferenceLabel,
+    selectedVerseSet,
+    selectedVerseText,
+  } = useVerseSelection({
     annotations,
+    bookId,
+    chapter,
+    dismissSelectedVerseSelection,
+    isSharingVerseImage,
     isShowingRouteChapter,
+    selectedVerses,
+    setAnnotations,
+    setIsSharingVerseImage,
+    setSelectedVerseImageBackgroundIndex,
+    setSelectedVerses,
+    setShowVerseImageSheet,
+    translationShareLabel,
+    verseImageSharePreviewRef,
+    verses,
   });
-  const highlightByVerse = useMemo(
-    () =>
-      buildReaderHighlightIndex(
-        displayedAnnotations,
-        verses.reduce((lastVerse, verse) => Math.max(lastVerse, verse.verse), 0)
-      ),
-    [displayedAnnotations, verses]
-  );
-  // One pass over the annotation list per selection change instead of three
-  // chained filters on every render (this used to run on every position tick).
-  const { selectedHighlightColors, selectedNoteAnnotation } = useMemo(() => {
-    const matching =
-      selectedVerseRanges.length > 0
-        ? annotations.filter(
-            (annotation) =>
-              annotation.deleted_at == null &&
-              selectedVerseRanges.some((range) =>
-                annotationOverlapsSelectionRange(annotation, range)
-              )
-          )
-        : [];
-    const highlights = matching.filter((annotation) => annotation.type === 'highlight');
-    return {
-      selectedHighlightColors: Array.from(
-        new Set(
-          highlights
-            .map((annotation) => annotation.color)
-            .filter(
-              (color): color is string => typeof color === 'string' && color.trim().length > 0
-            )
-        )
-      ),
-      selectedNoteAnnotation: matching.find((annotation) => annotation.type === 'note'),
-    };
-    // annotationOverlapsSelectionRange is a pure local helper over its arguments.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [annotations, selectedVerseRanges]);
   const isCurrentAudioChapter = isActiveAudioTrackMatch({
     translationId: currentTranslation,
     bookId,
@@ -1238,153 +1162,6 @@ export function BibleReaderScreen() {
     showPlanSessionChrome && chapterSessionMode === 'read'
       ? hasNextChapter || hasPlanReadDockNextAction
       : hasNextChapter;
-
-  const reloadAnnotations = async () => {
-    const result = await getAnnotationsForChapter(bookId, chapter);
-    if (result.success && result.data) {
-      setAnnotations(result.data);
-    }
-  };
-
-  const handleCopySelectedVerses = async () => {
-    if (!selectedVerseShareText) {
-      return;
-    }
-
-    await Clipboard.setStringAsync(selectedVerseShareText);
-    selectionHaptic();
-  };
-
-  const handleCloseSelectedVerses = () => {
-    dismissSelectedVerseSelection();
-  };
-
-  const handleShareSelectedVerses = async () => {
-    if (!selectedVerseShareText) {
-      return;
-    }
-
-    await Share.share({ message: selectedVerseShareText });
-  };
-
-  const handleOpenVerseImageShare = () => {
-    if (!selectedVerseShareText) {
-      return;
-    }
-
-    setShowVerseImageSheet(true);
-  };
-
-  const handleSelectVerseImageBackground = (backgroundIndex: number) => {
-    setSelectedVerseImageBackgroundIndex(backgroundIndex);
-  };
-
-  const handleShareSelectedVerseImage = async () => {
-    if (!selectedVerseShareText || isSharingVerseImage) {
-      return;
-    }
-
-    setIsSharingVerseImage(true);
-
-    try {
-      const Sharing = await import('expo-sharing');
-
-      if (await Sharing.isAvailableAsync()) {
-        if (verseImageSharePreviewRef.current) {
-          const { captureRef } = await import('react-native-view-shot');
-          const imageUri = await captureRef(verseImageSharePreviewRef, {
-            format: 'png',
-            quality: 1,
-            result: 'tmpfile',
-          });
-
-          setShowVerseImageSheet(false);
-
-          await Sharing.shareAsync(imageUri, {
-            dialogTitle: t('groups.share'),
-            mimeType: 'image/png',
-          });
-          return;
-        }
-      }
-
-      setShowVerseImageSheet(false);
-      await Share.share({ message: selectedVerseShareText });
-    } catch {
-      try {
-        setShowVerseImageSheet(false);
-        await Share.share({ message: selectedVerseShareText });
-      } catch {
-        // Ignore share errors.
-      }
-    } finally {
-      setIsSharingVerseImage(false);
-    }
-  };
-
-  const commitAnnotationEdits = async (edits: ReaderAnnotationEdits) => {
-    const succeeded = await applyReaderAnnotationEdits(edits, {
-      softDelete: softDeleteAnnotation,
-      upsert: upsertAnnotation,
-    });
-    if (!succeeded) {
-      Alert.alert(t('common.error'), t('common.unexpectedError'));
-    }
-    await reloadAnnotations();
-    return succeeded;
-  };
-
-  const readerAnnotationEditInput = () => ({
-    book: bookId,
-    chapter,
-    annotations,
-    selectedVerses,
-    createId: () => Math.random().toString(36).slice(2),
-  });
-
-  const handleHighlightSelectedVerses = async (color: string) => {
-    if (selectedVerseRanges.length === 0) {
-      return;
-    }
-
-    if (
-      await commitAnnotationEdits(
-        planReaderHighlightApply({ ...readerAnnotationEditInput(), color })
-      )
-    ) {
-      setSelectedVerses([]);
-      announceForAccessibility(t('interface.highlightAdded'));
-    }
-  };
-
-  const handleRemoveHighlightSelectedVerses = async (color: string) => {
-    if (selectedVerseRanges.length === 0) {
-      return;
-    }
-
-    if (
-      await commitAnnotationEdits(
-        planReaderHighlightRemove({ ...readerAnnotationEditInput(), color })
-      )
-    ) {
-      setSelectedVerses([]);
-      announceForAccessibility(t('interface.highlightRemoved'));
-    }
-  };
-
-  const handleNoteSelectedVerses = async (text: string) => {
-    if (selectedVerseRanges.length === 0) {
-      return;
-    }
-
-    if (
-      await commitAnnotationEdits(
-        planReaderNoteSave({ ...readerAnnotationEditInput(), content: text })
-      )
-    ) {
-      announceForAccessibility(t('annotations.saved'));
-    }
-  };
 
   const renderTranslatorFeedbackReviewTools = () => (
     <ChapterFeedbackSummary translationId={currentTranslation} bookId={bookId} chapter={chapter} />
