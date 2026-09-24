@@ -4,7 +4,7 @@ import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import { mockModule } from '../testing/mockModules';
+import { mockModule, sourcePath } from '../testing/mockModules';
 import { rootTabManifest } from './tabManifest';
 
 /**
@@ -27,6 +27,9 @@ type StateRoute = {
 type LoadedConfig = Awaited<ReturnType<typeof importConfig>>;
 
 const createUrlCalls: string[] = [];
+// Like the OS: Linking reports the URL that launched the app for the whole process.
+const LAUNCH_URL = 'com.everybible.app://bible/john/3/16';
+let getInitialUrlCalls = 0;
 
 async function importConfig() {
   // The vendor parser ships ESM only, so it has to be pulled in before the mocks
@@ -42,8 +45,15 @@ async function importConfig() {
       createUrlCalls.push(path);
       return `${EXPO_PREFIX}${path.replace(/^\//, '')}`;
     },
+    getInitialURL: async () => {
+      getInitialUrlCalls += 1;
+      return LAUNCH_URL;
+    },
   });
   mockModule(mock, '@react-navigation/native', { getStateFromPath });
+  mockModule(mock, sourcePath('navigation/rootNavigation.ts'), {
+    rootNavigationRef: { isReady: () => false },
+  });
 
   return (await import('./linkingConfig')).linkingConfig;
 }
@@ -59,10 +69,13 @@ const parse = async (path: string) => {
     | undefined;
 };
 
+/** The route each nested stack shows: its last one. */
+const topRoute = (route: StateRoute): StateRoute | undefined => route.state?.routes.at(-1);
+
 const leafParams = (route: StateRoute): Record<string, unknown> | undefined => {
   let cursor: StateRoute = route;
-  while (cursor.state?.routes[0]) {
-    cursor = cursor.state.routes[0];
+  for (let next = topRoute(cursor); next; next = topRoute(cursor)) {
+    cursor = next;
   }
   return cursor.params;
 };
@@ -72,7 +85,7 @@ const routeChain = (route: StateRoute): string[] => {
   let cursor: StateRoute | undefined = route;
   while (cursor) {
     names.push(cursor.name);
-    cursor = cursor.state?.routes[0];
+    cursor = topRoute(cursor);
   }
   return names;
 };
@@ -138,10 +151,36 @@ test('the reset-password link resolves through the More > Auth > ResetPassword t
   assert.deepEqual(leafParams(state.routes[0]), { access_token: 'abc', type: 'recovery' });
 });
 
+// A cold-start reset link used to build More: [Auth] with no More page beneath the
+// modal: closing it fell through to the tab navigator, and the More tab kept showing
+// the modal afterwards with nothing to close back to.
+test("the reset-password link opens the modal over the More page, not as the tab's only screen", async () => {
+  const state = await parse('/reset-password?code=abc');
+  const more = state?.routes[0];
+  assert.equal(more?.name, 'More');
+  assert.deepEqual(
+    more?.state?.routes.map((route) => route.name),
+    ['MoreScreen', 'Auth']
+  );
+});
+
 test('a path no template covers yields no state rather than a wrong screen', async () => {
   assert.equal(await parse('/definitely-not-a-screen'), undefined);
 });
 
 test('a malformed percent-escape is rejected before the vendor parser sees it', async () => {
   assert.equal(await parse('/reset-password?token=%E0%A4%A'), undefined);
+});
+
+// NavigationContainer asks linking.getInitialURL() on every mount, and the navigator
+// unmounts behind the discreet-mode lock screen. Unlocking remounted it, so an app
+// launched from a link reopened that chapter on every unlock for the rest of the
+// session, wherever the reader had gone since.
+test('the launch link is handed to the navigator once, not again when it remounts', async () => {
+  const config = await loadConfig();
+  assert.ok(config.getInitialURL);
+  assert.equal(await config.getInitialURL(), LAUNCH_URL, 'the first mount opens the launch link');
+  assert.equal(await config.getInitialURL(), null, 'a remount keeps where the reader is');
+  assert.equal(await config.getInitialURL(), null);
+  assert.equal(getInitialUrlCalls, 1);
 });

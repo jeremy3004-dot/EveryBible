@@ -4,7 +4,7 @@ import { TabNavigator } from './TabNavigator';
 import { useTheme } from '../contexts/ThemeContext';
 import { rootNavigationRef } from './rootNavigation';
 import { navigationTypography } from '../design/system';
-import { linkingConfig } from './linkingConfig';
+import { flushParkedLink, linkingConfig } from './linkingConfig';
 import { AudioReturnTab } from '../components/audio/AudioReturnTab';
 import { getCurrentRouteName } from '../components/audio/miniPlayerModel';
 
@@ -15,12 +15,16 @@ export function RootNavigator() {
     const nextRouteName = getCurrentRouteName(rootNavigationRef.getRootState());
     setCurrentRouteName((current) => (current === nextRouteName ? current : nextRouteName));
   }, []);
+  const handleReady = useCallback(() => {
+    syncCurrentRouteName();
+    flushParkedLink();
+  }, [syncCurrentRouteName]);
 
   return (
     <NavigationContainer
       ref={rootNavigationRef}
       linking={linkingConfig}
-      onReady={syncCurrentRouteName}
+      onReady={handleReady}
       onStateChange={syncCurrentRouteName}
       theme={{
         dark: isDark,

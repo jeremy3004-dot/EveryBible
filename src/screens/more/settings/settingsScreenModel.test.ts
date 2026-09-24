@@ -40,6 +40,58 @@ test('a stored reminder time is written the way the app language writes clock ti
   );
 });
 
+/**
+ * Hermes builds a local date with today's zone offset whatever the year, while its
+ * Intl formatter applies the offset the zone really had then. For 1899 those differ
+ * almost everywhere (local mean time: Kathmandu +5:41:16, Amsterdam +0:19:32), so a
+ * label built from a 1899 date drifts by minutes or hours on device. This stands in
+ * for that engine: Date's field constructor uses the zone's current offset.
+ */
+function withHermesLocalClock(timeZone: string, run: () => void) {
+  const RealDate = Date;
+  const previousZone = process.env.TZ;
+  process.env.TZ = timeZone;
+  class HermesDate extends RealDate {
+    constructor(...args: unknown[]) {
+      if (args.length < 2) {
+        super(...(args as []));
+        return;
+      }
+      const fields = args as [number, number, number?, number?, number?, number?, number?];
+      const [year, month, day = 1, hours = 0, minutes = 0, seconds = 0, ms = 0] = fields;
+      const utc = RealDate.UTC(year, month, day, hours, minutes, seconds, ms);
+      const currentOffsetMinutes = new RealDate(RealDate.UTC(2026, 0, 1)).getTimezoneOffset();
+      super(utc + currentOffsetMinutes * 60_000);
+    }
+  }
+  globalThis.Date = HermesDate as DateConstructor;
+  try {
+    run();
+  } finally {
+    globalThis.Date = RealDate;
+    if (previousZone === undefined) delete process.env.TZ;
+    else process.env.TZ = previousZone;
+  }
+}
+
+test('the reminder label shows the stored clock time in every zone, on Hermes too', () => {
+  for (const timeZone of [
+    'Asia/Kathmandu',
+    'Asia/Kolkata',
+    'Europe/Amsterdam',
+    'America/Sao_Paulo',
+  ]) {
+    withHermesLocalClock(timeZone, () => {
+      // ICU separates the day period with a narrow no-break space.
+      const label = (time: string, locale: string) =>
+        formatReminderTimeLabel(time, locale, 'Not set').replace(/\s/gu, ' ');
+      assert.equal(label('09:00', 'en'), '9:00 AM', timeZone);
+      assert.equal(label('00:00', 'en'), '12:00 AM', timeZone);
+      assert.equal(label('23:45', 'de'), '23:45', timeZone);
+    });
+  }
+});
+
 test('no reminder time reads as the not-set label', () => {
   assert.equal(formatReminderTimeLabel(null, 'en', 'Not set'), 'Not set');
   assert.equal(formatReminderTimeLabel('', 'en', 'Not set'), 'Not set');

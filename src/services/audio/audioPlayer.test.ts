@@ -78,7 +78,15 @@ const trackPlayerDouble = {
   stop: () => record('stop'),
   seekTo: (positionSeconds: number) => record('seekTo', [positionSeconds]),
   setRate: (rate: number) => record('setRate', [rate]),
-  loadAndPlay: (url: string, rate: number) => record('loadAndPlay', [url, rate]),
+  verifyActiveTrack: async () => {
+    await record('verifyActiveTrack');
+    return true;
+  },
+  loadAndPlay: (url: string, rate: number, startPositionSeconds?: number) =>
+    record(
+      'loadAndPlay',
+      startPositionSeconds === undefined ? [url, rate] : [url, rate, startPositionSeconds]
+    ),
   getProgress: async () => {
     await record('getProgress');
     return progressResult;
@@ -247,6 +255,42 @@ test('Buffering and Loading states both read as buffering', async () => {
   ]);
 });
 
+// Loading a chapter reports the sound as paused (its first status) and Ready before
+// Play starts it. Read as a pause, every chapter load flashed the transport, the lock
+// screen and the notification to "paused" and paused then restarted the music bed.
+test('a chapter that has loaded but not started yet reads as loading, not paused', async () => {
+  const snapshots: Array<{ isPlaying: boolean; isBuffering: boolean }> = [];
+  mod.audioPlayer.setCallbacks({
+    onStatusUpdate: (status) =>
+      snapshots.push({ isPlaying: status.isPlaying, isBuffering: status.isBuffering }),
+  });
+  let release!: () => void;
+  gates.set(
+    'loadAndPlay',
+    new Promise<void>((resolve) => {
+      release = resolve;
+    })
+  );
+  const loading = mod.audioPlayer.loadAndPlay('https://audio.test/john3.mp3');
+  await new Promise((resolve) => setImmediate(resolve));
+
+  emit(Event.PlaybackState, { state: State.Loading });
+  emit(Event.PlaybackState, { state: State.Paused });
+  emit(Event.PlaybackState, { state: State.Ready });
+  emit(Event.PlaybackState, { state: State.Playing });
+  release();
+  await loading;
+  emit(Event.PlaybackState, { state: State.Paused });
+
+  assert.deepEqual(snapshots, [
+    { isPlaying: false, isBuffering: true },
+    { isPlaying: false, isBuffering: true },
+    { isPlaying: false, isBuffering: true },
+    { isPlaying: true, isBuffering: false },
+    { isPlaying: false, isBuffering: false },
+  ]);
+});
+
 test('the merged snapshot keeps position and state from separate events', async () => {
   const snapshots: unknown[] = [];
   mod.audioPlayer.setCallbacks({ onStatusUpdate: (status) => snapshots.push(status) });
@@ -278,6 +322,21 @@ test('the Ended state reaches onStatusUpdate as a just-finished stop, once', asy
     { isPlaying: false, didJustFinish: true },
     { isPlaying: false, didJustFinish: false },
   ]);
+});
+
+// The wrapper reports Error once it has dropped a sound the native side released
+// (a stream that failed mid-chapter). The facade must stop claiming a loaded track,
+// or Play keeps resuming a sound that no longer exists instead of reloading it.
+test('an Error state leaves the facade unloaded so the chapter is loaded again', async () => {
+  await mod.audioPlayer.loadAndPlay('https://audio.test/gen1.mp3');
+  assert.equal(mod.audioPlayer.isLoaded(), true);
+
+  emit(Event.PlaybackState, { state: State.Error });
+
+  assert.equal(mod.audioPlayer.isLoaded(), false);
+  trackPlayerCalls.length = 0;
+  await mod.audioPlayer.play();
+  assert.deepEqual(trackPlayerCalls, []);
 });
 
 test('a queue-ended event invokes onPlaybackFinished', async () => {
@@ -331,6 +390,15 @@ test('loadAndPlay forwards the url and rate and marks the player loaded', async 
     { method: 'loadAndPlay', args: ['https://audio.test/john3.mp3', 1.5] },
   ]);
   assert.equal(mod.audioPlayer.isLoaded(), true);
+});
+
+test('loadAndPlay hands a resume offset to the wrapper in seconds', async () => {
+  await mod.audioPlayer.loadAndPlay('https://audio.test/john3.mp3', 1.25, 42_500);
+
+  assert.deepEqual(
+    trackPlayerCalls.filter((call) => call.method === 'loadAndPlay'),
+    [{ method: 'loadAndPlay', args: ['https://audio.test/john3.mp3', 1.25, 42.5] }]
+  );
 });
 
 test('loadAndPlay defaults to 1x playback', async () => {
@@ -406,6 +474,36 @@ test('play, pause and resume delegate once a track is loaded', async () => {
     { method: 'pause', args: [] },
     { method: 'play', args: [] },
   ]);
+});
+
+test('a rate change while a chapter is loading reaches the wrapper for that chapter', async () => {
+  let release!: () => void;
+  gates.set(
+    'loadAndPlay',
+    new Promise<void>((resolve) => {
+      release = resolve;
+    })
+  );
+  const loading = mod.audioPlayer.loadAndPlay('https://audio.test/john3.mp3');
+  await new Promise((resolve) => setImmediate(resolve));
+  trackPlayerCalls.length = 0;
+
+  await mod.audioPlayer.setRate(1.5);
+  release();
+  await loading;
+
+  assert.deepEqual(trackPlayerCalls, [{ method: 'setRate', args: [1.5] }]);
+});
+
+test('verifyLoaded checks the loaded sound with the wrapper, and only a loaded one', async () => {
+  await mod.audioPlayer.verifyLoaded();
+  assert.deepEqual(trackPlayerCalls, []);
+
+  await mod.audioPlayer.loadAndPlay('https://audio.test/john3.mp3');
+  trackPlayerCalls.length = 0;
+  await mod.audioPlayer.verifyLoaded();
+
+  assert.deepEqual(trackPlayerCalls, [{ method: 'verifyActiveTrack', args: [] }]);
 });
 
 test('seekTo converts the millisecond position the UI uses into seconds', async () => {

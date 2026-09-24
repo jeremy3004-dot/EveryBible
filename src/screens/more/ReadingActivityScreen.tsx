@@ -15,6 +15,7 @@ import { useTranslation } from 'react-i18next';
 import { formatListeningTime } from '../../i18n/interfaceFormatting';
 import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
 import { useDisplayFont } from '../../hooks/useDisplayFont';
+import { useLocalToday } from '../../hooks/useLocalToday';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { selectCurrentStreakDays, useProgressStore } from '../../stores/progressStore';
 import { useAuthStore } from '../../stores/authStore';
@@ -70,12 +71,8 @@ const getMonthSelectionKey = (
 const formatMonthTitle = (viewDate: Date, language: string): string =>
   viewDate.toLocaleDateString(language, { month: 'long', year: 'numeric' });
 
-const formatDayEyebrow = (dateKey: string, language: string): string =>
-  parseLocalDateKey(dateKey).toLocaleDateString(language, {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  });
+const createDayLabelFormatter = (language: string): Intl.DateTimeFormat =>
+  new Intl.DateTimeFormat(language, { weekday: 'long', day: 'numeric', month: 'long' });
 
 const formatTime = (timestamp: number, language: string): string =>
   new Date(timestamp).toLocaleTimeString(language, { hour: 'numeric', minute: '2-digit' });
@@ -93,6 +90,8 @@ export function ReadingActivityScreen() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const preferencesUpdatedAt = useAuthStore((state) => state.preferencesUpdatedAt);
   const [viewDate, setViewDate] = useState(() => new Date());
+  // Which cell is today, refreshed on foreground and at midnight as well as on focus.
+  const today = useLocalToday();
   const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
   const [engagement, setEngagement] = useState<UserEngagementSummary | null>(null);
   const [gridWidth, setGridWidth] = useState(0);
@@ -132,10 +131,26 @@ export function ReadingActivityScreen() {
         daysByDateKey: activitySummary.daysByDateKey,
         viewDate,
         selectedDateKey: effectiveSelectedDateKey,
+        today,
       }),
-    [activitySummary.daysByDateKey, viewDate, effectiveSelectedDateKey]
+    [activitySummary.daysByDateKey, viewDate, effectiveSelectedDateKey, today]
   );
   const weekdayInitials = useMemo(() => buildWeekdayInitials(i18n.language), [i18n.language]);
+  // One formatter and one pass per month and language: every cell is named by its
+  // full date, and the grid re-renders on each press.
+  const dayLabelFormatter = useMemo(() => createDayLabelFormatter(i18n.language), [i18n.language]);
+  const formatDayEyebrow = (dateKey: string) =>
+    dayLabelFormatter.format(parseLocalDateKey(dateKey));
+  const cellLabels = useMemo(
+    () =>
+      new Map(
+        grid.cells.map((cell) => [
+          cell.dateKey,
+          dayLabelFormatter.format(parseLocalDateKey(cell.dateKey)),
+        ])
+      ),
+    [dayLabelFormatter, grid.cells]
+  );
   const selectedDay = effectiveSelectedDateKey
     ? (activitySummary.daysByDateKey[effectiveSelectedDateKey] ?? null)
     : null;
@@ -301,7 +316,7 @@ export function ReadingActivityScreen() {
                 size={cellSize}
                 colors={colors}
                 styles={styles}
-                label={formatDayEyebrow(cell.dateKey, i18n.language)}
+                label={cellLabels.get(cell.dateKey) ?? formatDayEyebrow(cell.dateKey)}
                 // The fill is the only visual cue, so the state is spoken as the value.
                 stateLabel={
                   [
@@ -344,7 +359,7 @@ export function ReadingActivityScreen() {
           // carries the summary as well as the date.
           accessibilityLabel={
             effectiveSelectedDateKey
-              ? [formatDayEyebrow(effectiveSelectedDateKey, i18n.language), daySummary, dayWindow]
+              ? [formatDayEyebrow(effectiveSelectedDateKey), daySummary, dayWindow]
                   .filter(Boolean)
                   .join(', ')
               : undefined
@@ -354,7 +369,7 @@ export function ReadingActivityScreen() {
             <View style={styles.dayCopy}>
               <Text style={[styles.dayEyebrow, displayFont.regular]}>
                 {effectiveSelectedDateKey
-                  ? formatDayEyebrow(effectiveSelectedDateKey, i18n.language)
+                  ? formatDayEyebrow(effectiveSelectedDateKey)
                   : t('readingActivity.legendToday')}
               </Text>
               {selectedDay ? (

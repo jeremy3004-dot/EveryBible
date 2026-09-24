@@ -299,6 +299,35 @@ test('formatScheduledPlanDayLabel renders the scheduled day as a short calendar 
   assert.equal(formatScheduledPlanDayLabel(startedAt, 3), 'Dec 18');
 });
 
+test('labelling a year of plan days builds one date formatter, not one per day', (t) => {
+  // Each toLocaleDateString builds a formatter; on Hermes for Android that is a JNI
+  // round trip, and Plan Detail labels every day of a 365-day plan in one render.
+  const startedAt = new Date(2026, 0, 1, 12, 0, 0).toISOString();
+  const expected = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
+  const perCall = t.mock.method(Date.prototype, 'toLocaleDateString');
+  const RealDateTimeFormat = Intl.DateTimeFormat;
+  let constructed = 0;
+  t.mock.property(
+    Intl,
+    'DateTimeFormat',
+    new Proxy(RealDateTimeFormat, {
+      construct(target, args: ConstructorParameters<typeof Intl.DateTimeFormat>) {
+        constructed += 1;
+        return new target(...args);
+      },
+    })
+  );
+
+  const labels = Array.from({ length: 365 }, (_, index) =>
+    formatScheduledPlanDayLabel(startedAt, index + 1)
+  );
+
+  assert.equal(labels[0], expected.format(new Date(2026, 0, 1)));
+  assert.equal(labels[364], expected.format(new Date(2026, 11, 31)));
+  assert.equal(perCall.mock.callCount(), 0);
+  assert.ok(constructed <= 1, `built ${constructed} formatters`);
+});
+
 test('mergeTodayCompletedChapterActivity merges todays read and listen activity and filters partial listens', () => {
   const today = new Date(2026, 3, 7, 12, 0, 0);
   const yesterday = new Date(2026, 3, 6, 12, 0, 0);
