@@ -1404,7 +1404,8 @@ export const vi = {
       "backendUnavailable": "Bản dựng này chưa được cấu hình để ghi lại buổi nhóm đồng bộ.",
       "signInRequired": "Bạn phải đăng nhập trước khi lưu buổi nhóm đã đồng bộ.",
       "saveFailedTitle": "Không thể lưu buổi nhóm đã đồng bộ",
-      "saveFailedDefault": "Không thể lưu buổi nhóm đã đồng bộ."
+      "saveFailedDefault": "Không thể lưu buổi nhóm đã đồng bộ.",
+      "savedLessonUnchanged": "Buổi nhóm đã được lưu, nhưng không thể chuyển nhóm sang bài học tiếp theo."
     }
   },
   "prayer": {

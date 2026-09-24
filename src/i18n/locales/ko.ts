@@ -1404,7 +1404,8 @@ export const ko = {
       "backendUnavailable": "이 빌드는 아직 동기화 그룹 기록용으로 설정되어 있지 않습니다.",
       "signInRequired": "동기화 그룹 세션을 저장하려면 먼저 로그인해야 합니다.",
       "saveFailedTitle": "동기화 세션을 저장할 수 없습니다",
-      "saveFailedDefault": "동기화 그룹 세션을 저장하지 못했습니다."
+      "saveFailedDefault": "동기화 그룹 세션을 저장하지 못했습니다.",
+      "savedLessonUnchanged": "세션은 저장되었지만 그룹을 다음 레슨으로 넘기지 못했습니다."
     }
   },
   "prayer": {

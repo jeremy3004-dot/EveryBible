@@ -1404,7 +1404,8 @@ export const id = {
       "backendUnavailable": "Versi ini belum dikonfigurasi untuk perekaman kelompok yang tersinkron.",
       "signInRequired": "Anda harus masuk sebelum dapat menyimpan sesi kelompok yang tersinkron.",
       "saveFailedTitle": "Tidak dapat menyimpan sesi tersinkron",
-      "saveFailedDefault": "Sesi kelompok tersinkron tidak dapat disimpan."
+      "saveFailedDefault": "Sesi kelompok tersinkron tidak dapat disimpan.",
+      "savedLessonUnchanged": "Sesi sudah disimpan, tetapi kelompok tidak dapat pindah ke pelajaran berikutnya."
     }
   },
   "prayer": {

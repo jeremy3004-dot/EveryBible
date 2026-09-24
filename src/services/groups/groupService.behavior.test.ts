@@ -808,3 +808,110 @@ test('an insert that returns no row still reports success-shaped data to the cal
 
   assert.equal(session, null);
 });
+
+// ---------------------------------------------------------------------------
+// completeSyncedGroupSession (the GroupSession screen's "complete" action)
+// ---------------------------------------------------------------------------
+
+/** Session inserts succeed; the group-name lookup succeeds; lesson updates use `onUpdate`. */
+const scriptSessionCompletion = (
+  onUpdate: (payload: unknown) => { data?: unknown; error?: { message: string } }
+) => {
+  supabase.respondTo('group_sessions', (call) => ({
+    data: { id: 's1', ...(call.payload as object) },
+  }));
+  supabase.respondTo('groups', (call) =>
+    call.operation === 'update' ? onUpdate(call.payload) : { data: { name: 'Alpha' } }
+  );
+};
+
+const groupUpdates = () =>
+  supabase.callsFor('groups').filter((call) => call.operation === 'update');
+
+test("a member's completed session is recorded without trying to move the group's lesson", async () => {
+  // groups UPDATE is leader-only under RLS, so a member's attempt always fails.
+  scriptSessionCompletion(() => ({ error: { message: 'JSON object requested, 0 rows' } }));
+
+  const result = await service.completeSyncedGroupSession({
+    groupId: 'g1',
+    courseId: 'entry-course',
+    lessonId: 'entry-1',
+    isLeader: false,
+    nextLesson: { courseId: 'entry-course', lessonId: 'entry-2' },
+  });
+  await flushMicrotasks();
+
+  assert.deepEqual(result, { status: 'saved' });
+  assert.equal(supabase.callsFor('group_sessions').length, 1);
+  assert.deepEqual(groupUpdates(), []);
+});
+
+test("a leader's completed session is recorded and the group moves to the next lesson", async () => {
+  scriptSessionCompletion((payload) => ({ data: { id: 'g1', ...(payload as object) } }));
+
+  const result = await service.completeSyncedGroupSession({
+    groupId: 'g1',
+    courseId: 'entry-course',
+    lessonId: 'entry-1',
+    isLeader: true,
+    nextLesson: { courseId: 'entry-course', lessonId: 'entry-2' },
+  });
+  await flushMicrotasks();
+
+  assert.deepEqual(result, { status: 'saved' });
+  assert.deepEqual(
+    groupUpdates().map((call) => call.payload),
+    [{ current_course_id: 'entry-course', current_lesson_id: 'entry-2' }]
+  );
+});
+
+test('a lesson that fails to advance after the session is saved is a partial save, not a failure', async () => {
+  // Reporting this as "could not be saved" invited a retry that recorded the
+  // session twice and notified every member twice.
+  scriptSessionCompletion(() => ({ error: { message: 'network request failed' } }));
+
+  const result = await service.completeSyncedGroupSession({
+    groupId: 'g1',
+    courseId: 'entry-course',
+    lessonId: 'entry-1',
+    isLeader: true,
+    nextLesson: { courseId: 'entry-course', lessonId: 'entry-2' },
+  });
+  await flushMicrotasks();
+
+  assert.deepEqual(result, { status: 'saved-lesson-unchanged' });
+  assert.equal(supabase.callsFor('group_sessions').length, 1);
+});
+
+test('completing the last lesson of a course records the session and leaves the lesson alone', async () => {
+  scriptSessionCompletion((payload) => ({ data: { id: 'g1', ...(payload as object) } }));
+
+  const result = await service.completeSyncedGroupSession({
+    groupId: 'g1',
+    courseId: 'entry-course',
+    lessonId: 'entry-4',
+    isLeader: true,
+    nextLesson: null,
+  });
+  await flushMicrotasks();
+
+  assert.deepEqual(result, { status: 'saved' });
+  assert.deepEqual(groupUpdates(), []);
+});
+
+test('a session that fails to record surfaces the error and never moves the lesson', async () => {
+  supabase.respondTo('group_sessions', () => ({ error: { message: 'session insert denied' } }));
+  supabase.respondTo('groups', (call) => ({ data: { id: 'g1', ...(call.payload as object) } }));
+
+  await assert.rejects(
+    service.completeSyncedGroupSession({
+      groupId: 'g1',
+      courseId: 'entry-course',
+      lessonId: 'entry-1',
+      isLeader: true,
+      nextLesson: { courseId: 'entry-course', lessonId: 'entry-2' },
+    }),
+    /session insert denied/
+  );
+  assert.deepEqual(groupUpdates(), []);
+});

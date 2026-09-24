@@ -1415,7 +1415,8 @@ export const pt = {
       "backendUnavailable": "Esta versão ainda não está configurada para a gravação sincronizada de grupo.",
       "signInRequired": "Você precisa estar conectado para salvar uma sessão de grupo sincronizada.",
       "saveFailedTitle": "Não foi possível salvar a sessão sincronizada",
-      "saveFailedDefault": "A sessão de grupo sincronizada não pôde ser salva."
+      "saveFailedDefault": "A sessão de grupo sincronizada não pôde ser salva.",
+      "savedLessonUnchanged": "A sessão foi salva, mas o grupo não conseguiu avançar para a próxima lição."
     }
   },
   "prayer": {

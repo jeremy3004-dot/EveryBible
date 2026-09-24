@@ -1404,7 +1404,8 @@ export const tr = {
       "backendUnavailable": "Bu sürüm henüz senkronize grup kaydı için yapılandırılmadı.",
       "signInRequired": "Senkronize bir grup buluşmasını kaydedebilmek için önce oturum açmanız gerekir.",
       "saveFailedTitle": "Senkronize buluşma kaydedilemiyor",
-      "saveFailedDefault": "Senkronize grup buluşması kaydedilemedi."
+      "saveFailedDefault": "Senkronize grup buluşması kaydedilemedi.",
+      "savedLessonUnchanged": "Buluşma kaydedildi ancak grup bir sonraki derse geçirilemedi."
     }
   },
   "prayer": {
