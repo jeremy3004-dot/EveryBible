@@ -7,29 +7,56 @@ type NotificationHandler = {
 };
 
 const handlers: NotificationHandler[] = [];
-mockModule(mock, 'expo-notifications', {
+mockModule(mock, 'expo-notifications/build/NotificationsHandler', {
   setNotificationHandler: (handler: NotificationHandler) => {
     handlers.push(handler);
   },
 });
 
-let setupNotificationHandler: () => void;
+const responseListener = () => ({ remove: () => {} });
+const pushTokenListener = () => ({ remove: () => {} });
+mockModule(mock, 'expo-notifications/build/NotificationsEmitter', {
+  addNotificationResponseReceivedListener: responseListener,
+});
+mockModule(mock, 'expo-notifications/build/TokenEmitter', {
+  addPushTokenListener: pushTokenListener,
+});
+
+// The package root must stay unloaded on the boot path: it evaluates the push
+// token auto-registration side-effect module and its Node polyfills. Anything
+// registered through it would land here instead of in the deep-module fakes.
+const rootCalls: string[] = [];
+mockModule(mock, 'expo-notifications', {
+  setNotificationHandler: () => {
+    rootCalls.push('setNotificationHandler');
+  },
+  addNotificationResponseReceivedListener: () => {
+    rootCalls.push('addNotificationResponseReceivedListener');
+    return { remove: () => {} };
+  },
+  addPushTokenListener: () => {
+    rootCalls.push('addPushTokenListener');
+    return { remove: () => {} };
+  },
+});
+
+let bootstrap: typeof import('./notificationBootstrap');
 
 before(async () => {
-  ({ setupNotificationHandler } = await import('./notificationBootstrap'));
+  bootstrap = await import('./notificationBootstrap');
 });
 
 test('the foreground handler is registered exactly once per call', () => {
   handlers.length = 0;
 
-  setupNotificationHandler();
+  bootstrap.setupNotificationHandler();
 
   assert.equal(handlers.length, 1);
 });
 
 test('foreground notifications show a banner and a list entry with sound but no badge', async () => {
   handlers.length = 0;
-  setupNotificationHandler();
+  bootstrap.setupNotificationHandler();
 
   assert.deepEqual(await handlers[0].handleNotification(), {
     shouldShowBanner: true,
@@ -37,4 +64,15 @@ test('foreground notifications show a banner and a list entry with sound but no 
     shouldPlaySound: true,
     shouldSetBadge: false,
   });
+});
+
+test('App.tsx gets the tap and push-token listeners from the same modules the package root re-exports', () => {
+  assert.equal(bootstrap.addNotificationResponseReceivedListener, responseListener);
+  assert.equal(bootstrap.addPushTokenListener, pushTokenListener);
+});
+
+test('registering at boot never goes through the expo-notifications root', () => {
+  bootstrap.setupNotificationHandler();
+
+  assert.deepEqual(rootCalls, []);
 });

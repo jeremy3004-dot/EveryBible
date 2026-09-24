@@ -29,18 +29,23 @@ function resolveModuleFile(fromFile: string, importPath: string): string | null 
   );
 }
 
-// Walks the transitive graph of static (top-level) relative imports reachable from
+// Walks the transitive graph of static (top-level) imports reachable from
 // entryFile, ignoring type-only imports (which are erased at compile time and carry
-// no runtime/boot cost). Used to assert that heavy runtime modules never re-enter the
-// App.tsx boot surface indirectly through a screen that is imported eagerly.
-function collectStaticImportClosure(entryFile: string): Set<string> {
+// no runtime/boot cost). Relative imports are followed; bare package specifiers are
+// recorded with the files that import them but not followed. Used to assert that
+// heavy runtime modules never re-enter the App.tsx boot surface indirectly through
+// a screen that is imported eagerly.
+function collectStaticImports(entryFile: string): {
+  files: Set<string>;
+  packages: Map<string, string[]>;
+} {
   const visited = new Set<string>();
+  const packages = new Map<string, string[]>();
   const queue: string[] = [entryFile];
   // Barrels re-export with `export … from`, which the old import-only pattern
   // ignored — the single most common way a heavy module re-enters the boot
   // surface. Match both forms, and both quote styles.
-  const importRegex =
-    /^\s*(?:import|export)\s+(type\s+)?(?:[\s\S]*?\bfrom\s+)?['"](\.[^'"]+)['"]/gm;
+  const importRegex = /^\s*(?:import|export)\s+(type\s+)?(?:[\s\S]*?\bfrom\s+)?['"]([^'"]+)['"]/gm;
 
   while (queue.length > 0) {
     const currentFile = queue.shift();
@@ -61,14 +66,23 @@ function collectStaticImportClosure(entryFile: string): Set<string> {
       if (isTypeOnly) {
         continue;
       }
-      const resolved = resolveModuleFile(currentFile, match[2]);
+      const specifier = match[2];
+      if (!specifier.startsWith('.')) {
+        packages.set(specifier, [...(packages.get(specifier) ?? []), currentFile]);
+        continue;
+      }
+      const resolved = resolveModuleFile(currentFile, specifier);
       if (resolved && !visited.has(resolved)) {
         queue.push(resolved);
       }
     }
   }
 
-  return visited;
+  return { files: visited, packages };
+}
+
+function collectStaticImportClosure(entryFile: string): Set<string> {
+  return collectStaticImports(entryFile).files;
 }
 
 test('App boot path avoids heavy barrel imports and defers the root navigator', () => {
@@ -87,6 +101,12 @@ test('App boot path avoids heavy barrel imports and defers the root navigator', 
     "from './src/services/notifications';",
     "from './src/hooks/useSync';",
     "from './src/hooks/usePrivacyLock';",
+    // No screen uses react-query yet; a root provider evaluated query-core first.
+    "from '@tanstack/react-query';",
+    "from './src/services/queryClient';",
+    // The package root drags push-token auto-registration and Node polyfills in;
+    // notificationBootstrap deep-imports the three pieces App.tsx needs.
+    "from 'expo-notifications';",
   ];
 
   bannedBootImports.forEach((statement) => {
@@ -392,42 +412,6 @@ test('deferred runtime effects own sync and privacy hooks after boot', () => {
   assert.match(source, /import \{ useSync \} from '\.\.\/\.\.\/hooks\/useSync';/);
   assert.match(source, /import \{ usePrivacyLock \} from '\.\.\/\.\.\/hooks\/usePrivacyLock';/);
   assert.match(source, /useSync\(\);[\s\S]*usePrivacyLock\(\);/);
-
-  // react-query's NetInfo + AppState listeners used to register at
-  // queryClient module scope — which is on the static boot path, because
-  // App.tsx needs the QueryClient instance for its provider.
-  assert.match(
-    source,
-    /import \{ installQueryClientListeners \} from '\.\.\/queryClient';/,
-    'the deferred runtime effects should own the react-query listeners'
-  );
-  assert.match(
-    source,
-    /useEffect\(\(\) => \{\s*installQueryClientListeners\(\);\s*return installUsageQueueReporting\(\);\s*\}, \[\]\);/,
-    'the listeners should install after boot, with optional reporting cleanup returned'
-  );
-
-  const queryClientSource = readRelativeSource('../queryClient.ts');
-  assert.match(
-    queryClientSource,
-    /export function installQueryClientListeners\(\): void \{/,
-    'queryClient should expose listener installation instead of doing it at module scope'
-  );
-  assert.equal(
-    /^onlineManager\.setEventListener\(/m.test(queryClientSource),
-    false,
-    'queryClient must not register the NetInfo online listener at module scope'
-  );
-  assert.equal(
-    /^AppState\.addEventListener\(/m.test(queryClientSource),
-    false,
-    'queryClient must not register the AppState focus listener at module scope'
-  );
-  assert.equal(
-    queryClientSource.includes("import NetInfo from '@react-native-community/netinfo';"),
-    false,
-    'NetInfo should not be a static import on the boot path'
-  );
 });
 
 test('src/stores/index.ts is not a store barrel', () => {
@@ -493,4 +477,80 @@ test('navigation stacks lazy-load screens instead of importing them at module lo
       `${relativePath} should lazy-load screens with getComponent`
     );
   });
+});
+
+// Everything in these three closures evaluates before Home can paint: App.tsx at
+// launch, RootNavigator once privacy and auth are ready, HomeScreen through its
+// getComponent require. See round 2 of docs/research/app-performance-pass-2026-09-24.md.
+const PATH_TO_HOME = [
+  '../../../App.tsx',
+  '../../navigation/RootNavigator.tsx',
+  '../../screens/home/HomeScreen.tsx',
+];
+
+test('nothing evaluated before Home loads react-query, the expo-notifications root or SQLite', () => {
+  const bannedPackages = [
+    // No screen uses react-query; getQueryClient() creates the client on first use.
+    '@tanstack/react-query',
+    // notificationBootstrap deep-imports the handler and the two listeners.
+    'expo-notifications',
+    // bibleStore registers its resolvers through bibleDatabaseSources and
+    // requires bibleDatabase only when a text pack is installed or removed.
+    'expo-sqlite',
+  ];
+  const bannedFiles = ['src/services/queryClient.ts', 'src/services/bible/bibleDatabase.ts'];
+
+  PATH_TO_HOME.forEach((entry) => {
+    const { files, packages } = collectStaticImports(
+      fileURLToPath(new URL(entry, import.meta.url).href)
+    );
+    bannedPackages.forEach((specifier) => {
+      assert.deepEqual(
+        packages.get(specifier) ?? [],
+        [],
+        `${entry}'s static closure must not import '${specifier}'`
+      );
+    });
+    const closurePaths = [...files].map((file) => file.replace(/\\/g, '/'));
+    bannedFiles.forEach((suffix) => {
+      const hit = closurePaths.find((file) => file.endsWith(suffix));
+      assert.equal(hit, undefined, `${entry}'s static closure must not reach ${suffix}`);
+    });
+  });
+
+  // Sanity-check that the walker records bare specifiers and follows the store.
+  const app = collectStaticImports(fileURLToPath(new URL(PATH_TO_HOME[0], import.meta.url).href));
+  assert.ok(
+    app.packages.has('expo-notifications/build/NotificationsHandler'),
+    'the boot closure should still register the foreground handler — check the walker if this fails'
+  );
+  const home = collectStaticImportClosure(
+    fileURLToPath(new URL(PATH_TO_HOME[2], import.meta.url).href)
+  );
+  assert.ok(
+    [...home].some((file) => file.endsWith('src/services/bible/bibleDatabaseSources.ts')),
+    'bibleStore should still register its database resolvers at import — check the walker if this fails'
+  );
+});
+
+test('restoring the session at launch does not load the native sign-in SDKs', () => {
+  const { files, packages } = collectStaticImports(
+    fileURLToPath(new URL('../auth/authSession.ts', import.meta.url).href)
+  );
+
+  ['@react-native-google-signin/google-signin', 'expo-apple-authentication'].forEach(
+    (specifier) => {
+      assert.equal(
+        packages.has(specifier),
+        false,
+        `authSession runs during critical startup and must not import '${specifier}'`
+      );
+    }
+  );
+  assert.equal(
+    [...files].some((file) => file.endsWith('src/services/auth/authService.ts')),
+    false,
+    'authSession must not reach authService, which owns the sign-in flows'
+  );
+  assert.ok(files.size > 1, 'authSession should reach the Supabase client — check the walker');
 });

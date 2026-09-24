@@ -8,6 +8,11 @@ import {
   isBundledBibleDatabaseReady,
 } from './bibleDataModel';
 import {
+  ensureTranslationReady,
+  resolveRegisteredBibleDatabaseSource,
+  type BibleDatabaseSource,
+} from './bibleDatabaseSources';
+import {
   normalizeVerseFormatting,
   reconcileVerseFormattingWithText,
   serializeVerseFormatting,
@@ -45,21 +50,16 @@ export class MissingInstalledDatabaseError extends Error {
   }
 }
 
-export type BibleDatabaseSource =
-  | {
-      kind: 'bundled';
-      databaseName: string;
-      assetId: number;
-    }
-  | {
-      kind: 'installed';
-      translationId: string;
-      databaseName: string;
-      directory: string;
-    };
-
-export type BibleDatabaseSourceResolver = (translationId: string) => BibleDatabaseSource | null;
-export type BibleTranslationReadinessResolver = (translationId: string) => Promise<void>;
+export {
+  ensureTranslationReady,
+  setBibleDatabaseSourceResolver,
+  setBibleTranslationReadinessResolver,
+} from './bibleDatabaseSources';
+export type {
+  BibleDatabaseSource,
+  BibleDatabaseSourceResolver,
+  BibleTranslationReadinessResolver,
+} from './bibleDatabaseSources';
 
 const bundledBibleDatabaseSource: BibleDatabaseSource = {
   kind: 'bundled',
@@ -67,26 +67,8 @@ const bundledBibleDatabaseSource: BibleDatabaseSource = {
   assetId: DATABASE_ASSET_ID,
 };
 
-let bibleDatabaseSourceResolver: BibleDatabaseSourceResolver = () => null;
-let bibleTranslationReadinessResolver: BibleTranslationReadinessResolver | null = null;
-
-export function setBibleDatabaseSourceResolver(resolver: BibleDatabaseSourceResolver | null): void {
-  chapterCache.clear();
-  bibleDatabaseSourceResolver = resolver ?? (() => null);
-}
-
-export function setBibleTranslationReadinessResolver(
-  resolver: BibleTranslationReadinessResolver | null
-): void {
-  bibleTranslationReadinessResolver = resolver;
-}
-
-export async function ensureTranslationReady(translationId: string): Promise<void> {
-  await bibleTranslationReadinessResolver?.(translationId);
-}
-
 function resolveBibleDatabaseSource(translationId: string): BibleDatabaseSource {
-  return bibleDatabaseSourceResolver(translationId) ?? bundledBibleDatabaseSource;
+  return resolveRegisteredBibleDatabaseSource(translationId) ?? bundledBibleDatabaseSource;
 }
 
 type BibleDatabaseStatus = {

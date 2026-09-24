@@ -63,6 +63,10 @@ const getSupabaseModule = (): typeof import('../services/supabase') =>
   require('../services/supabase');
 
 const getAuthModule = (): typeof import('../services/auth') => require('../services/auth');
+// Session restore runs before Home; the auth barrel would also load the Google
+// and Apple sign-in SDKs, which only the sign-in screens need.
+const getAuthSessionModule = (): typeof import('../services/auth/authSession') =>
+  require('../services/auth/authSession');
 
 // Minimal structural view of a store that exposes resetForSignOut. Used so this
 // module does not depend on the full (and still-evolving) types of the sibling
@@ -332,7 +336,7 @@ export const useAuthStore = create<AuthState>()(
           const { isSupabaseConfigured } = getSupabaseModule();
           const hasSupabaseConfig = isSupabaseConfigured();
           const restored = hasSupabaseConfig
-            ? await getAuthModule().getCurrentSession()
+            ? await getAuthSessionModule().getCurrentSession()
             : { session: null, user: null };
           const restoredState = resolveInitializedAuthState(restored);
 
