@@ -1,4 +1,4 @@
-import test, { mock } from 'node:test';
+import test, { mock, type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import { act, type ReactTestInstance } from 'react-test-renderer';
 import { flattenStyle, hostAncestors, within } from '../../testing/render';
@@ -22,6 +22,35 @@ const {
   bookList,
   translationEntry,
 } = installBrowserRenderFixture(mock);
+
+/**
+ * Advances node:test's mocked clock, inside `act` so the resulting state updates and
+ * effects flush. Scoped to the test via its `context` (node:test restores it when the
+ * test ends), so only tests that opt in run the debounce timer on a fake clock; the
+ * search-debounce tests below use this instead of a real `wait()` against
+ * BIBLE_SEARCH_DEBOUNCE_MS so the window itself can never fire early or late under load.
+ */
+async function tickTimers(context: TestContext, ms: number) {
+  await act(async () => {
+    context.mock.timers.tick(ms);
+  });
+}
+
+/**
+ * Once the debounce timer fires, the search hook still reaches the (mocked) search
+ * service through a dynamic import(), which settles on a real event-loop turn rather
+ * than a microtask (see docs/testing.md's lazy-import note). Polling by iteration count
+ * rather than elapsed time means a busy machine just takes longer wall time to satisfy
+ * the same bounded number of turns, instead of racing a fixed real-time budget.
+ */
+async function waitUntil(predicate: () => boolean, maxIterations = 200) {
+  for (let i = 0; i < maxIterations && !predicate(); i++) {
+    await act(async () => {
+      await new Promise((resolve) => setImmediate(resolve));
+    });
+  }
+  assert.ok(predicate(), 'condition was not met within the poll budget');
+}
 
 test('every book row carries a stable key derived from the book', async () => {
   const view = await renderBrowser();
@@ -169,7 +198,8 @@ test('a typed reference offers a jump card that opens the passage', async () => 
   assert.deepEqual(harness.navigation.calls[1], harness.navigation.calls[0]);
 });
 
-test('full-text search waits for the debounce window, then lists and announces results', async () => {
+test('full-text search waits for the debounce window, then lists and announces results', async (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout'] });
   const view = await renderBrowser();
   await view.changeText(view.getByLabelText(t('common.search')), 'love');
   await view.flush();
@@ -181,18 +211,14 @@ test('full-text search waits for the debounce window, then lists and announces r
   );
   assert.equal(view.queryByRole('button', { name: 'Genesis' }), null);
 
-  // Half the window: a debounce can only fire late under load, never early, so this cannot flake.
-  await wait(BIBLE_SEARCH_DEBOUNCE_MS / 2);
+  // The debounce timer runs on the mocked clock, so only an explicit tick moves it
+  // forward: stopping one tick short of the window proves it never fires early, with
+  // no dependence on wall-clock scheduling at all.
+  await tickTimers(context, BIBLE_SEARCH_DEBOUNCE_MS - 1);
   assert.equal(searches.length, 0, 'no query before the debounce window closes');
 
-  // Poll instead of a fixed margin: a busy machine can run the timer late.
-  for (
-    let waited = 0;
-    searches.length === 0 && waited < BIBLE_SEARCH_DEBOUNCE_MS + 2000;
-    waited += 25
-  ) {
-    await wait(25);
-  }
+  await tickTimers(context, 1);
+  await waitUntil(() => searches.length > 0);
   assert.deepEqual(
     searches.map(({ translationId, query }) => [translationId, query]),
     [['bsb', 'love']]
@@ -214,14 +240,18 @@ test('full-text search waits for the debounce window, then lists and announces r
   ]);
 });
 
-test('typing again inside the debounce window issues only the latest query', async () => {
+test('typing again inside the debounce window issues only the latest query', async (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout'] });
   const view = await renderBrowser();
   const input = view.getByLabelText(t('common.search'));
 
   await view.changeText(input, 'lov');
-  await wait(100);
+  // Well inside the window (100 of 250 mocked ms): proves the edit below lands
+  // before 'lov' could have fired, deterministically rather than by real-time luck.
+  await tickTimers(context, 100);
   await view.changeText(input, 'love');
-  await wait(BIBLE_SEARCH_DEBOUNCE_MS + 50);
+  await tickTimers(context, BIBLE_SEARCH_DEBOUNCE_MS);
+  await waitUntil(() => searches.length > 0);
 
   assert.deepEqual(
     searches.map(({ query }) => query),
@@ -229,14 +259,17 @@ test('typing again inside the debounce window issues only the latest query', asy
   );
 });
 
-test('a slower earlier search never overwrites the results of a newer one', async () => {
+test('a slower earlier search never overwrites the results of a newer one', async (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout'] });
   const view = await renderBrowser();
   const input = view.getByLabelText(t('common.search'));
 
   await view.changeText(input, 'love');
-  await wait(BIBLE_SEARCH_DEBOUNCE_MS + 50);
+  await tickTimers(context, BIBLE_SEARCH_DEBOUNCE_MS);
+  await waitUntil(() => searches.length === 1);
   await view.changeText(input, 'grace');
-  await wait(BIBLE_SEARCH_DEBOUNCE_MS + 50);
+  await tickTimers(context, BIBLE_SEARCH_DEBOUNCE_MS);
+  await waitUntil(() => searches.length === 2);
   assert.deepEqual(
     searches.map(({ query }) => query),
     ['love', 'grace']
@@ -249,14 +282,16 @@ test('a slower earlier search never overwrites the results of a newer one', asyn
   assert.equal(view.queryByText(/God is love\./), null);
 });
 
-test('a translation without full-text search says so; other failures show the load error', async () => {
+test('a translation without full-text search says so; other failures show the load error', async (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout'] });
   const consoleError = mock.method(console, 'error', () => {});
   try {
     const view = await renderBrowser();
     const input = view.getByLabelText(t('common.search'));
 
     await view.changeText(input, 'love');
-    await wait(BIBLE_SEARCH_DEBOUNCE_MS + 50);
+    await tickTimers(context, BIBLE_SEARCH_DEBOUNCE_MS);
+    await waitUntil(() => searches.length === 1);
     const unavailable = Object.assign(new Error('no index'), {
       name: 'BibleSearchUnavailableError',
     });
@@ -265,7 +300,8 @@ test('a translation without full-text search says so; other failures show the lo
     assert.equal(view.queryByText(t('bible.failedToLoad')), null);
 
     await view.changeText(input, 'grace');
-    await wait(BIBLE_SEARCH_DEBOUNCE_MS + 50);
+    await tickTimers(context, BIBLE_SEARCH_DEBOUNCE_MS);
+    await waitUntil(() => searches.length === 2);
     await act(async () => searches[1].reject(new Error('disk I/O')));
     assert.ok(view.getByText(t('bible.failedToLoad')));
     assert.equal(view.queryByText(t('bible.searchUnavailable')), null);
