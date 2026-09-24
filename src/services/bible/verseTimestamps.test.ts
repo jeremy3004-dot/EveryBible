@@ -2,16 +2,13 @@
  * Behavioural tests for the verseTimestamps service: bundled chapter lookup, the
  * remote stream-template path, and the JSON sanitising both share.
  *
- * The final suite is a bundled-asset integrity guard, not a behaviour test: the
- * generated `require()` table is code-generated and must keep pointing at files
- * that actually ship.
+ * The final suite loads every bundled chapter through the public lookup, so a
+ * generated `require()` entry that points at a missing or malformed file fails.
  */
 
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
-import path from 'node:path';
 import { afterEach, describe, it } from 'node:test';
-import { fileURLToPath } from 'node:url';
+import { bibleBooks } from '../../constants/books';
 
 type TimestampModule = typeof import('./verseTimestamps');
 
@@ -147,24 +144,23 @@ describe('verseTimestamps — remote stream templates', () => {
   });
 });
 
-describe('verseTimestamps — generated asset paths', () => {
-  it('points every generated require path at a real bundled timestamp file', () => {
-    const testDir = path.dirname(fileURLToPath(import.meta.url));
-    const sourcePath = path.join(testDir, 'verseTimestamps.ts');
-    const source = readFileSync(sourcePath, 'utf8');
-    const requirePaths = [
-      ...source.matchAll(/require\('([^']+\/assets\/timestamps\/[^']+\.json)'\)/g),
-    ].map((match) => match[1]);
+describe('verseTimestamps — every bundled chapter ships', () => {
+  // The require() table is code-generated; each entry must load a real, well-formed file.
+  // A missing or malformed asset is swallowed to null at runtime, so check every chapter.
+  it('returns timestamps for every BSB and WEB chapter of the Bible', async () => {
+    const { getChapterTimestamps } = await loadModule();
+    const missing: string[] = [];
 
-    assert.ok(requirePaths.length > 0, 'expected generated timestamp require paths');
-
-    for (const requirePath of requirePaths) {
-      const resolvedPath = path.resolve(path.dirname(sourcePath), requirePath);
-      assert.equal(
-        existsSync(resolvedPath),
-        true,
-        `generated timestamp path should exist: ${requirePath} -> ${resolvedPath}`
-      );
+    for (const translationId of ['bsb', 'web']) {
+      for (const book of bibleBooks) {
+        for (let chapter = 1; chapter <= book.chapters; chapter += 1) {
+          if (!(await getChapterTimestamps(translationId, book.id, chapter))) {
+            missing.push(`${translationId} ${book.id} ${chapter}`);
+          }
+        }
+      }
     }
+
+    assert.deepEqual(missing, []);
   });
 });
