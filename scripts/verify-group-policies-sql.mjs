@@ -22,6 +22,7 @@ const MIGRATIONS = [
   '20260711100100_revoke_group_membership_helpers_from_public.sql',
   '20260910093000_restrict_group_members_direct_insert.sql',
   '20260923233220_pin_group_scope_and_harden_group_helpers.sql',
+  '20260924040200_move_group_helpers_to_private_schema.sql',
 ];
 
 const db = new PGlite();
@@ -236,13 +237,27 @@ assert.equal(
 console.log('PASS: leadership transfers only to existing members and keeps roles in sync');
 
 // --- L1: membership helpers only answer for the caller ---------------------------------------
+// They live in the non-exposed `private` schema (advisor
+// authenticated_security_definer_function_executable), so PostgREST has no /rpc route to them
+// and client roles cannot name them; the policies reference them by OID and keep working.
 await assert.rejects(as(D, `select is_group_member($1, $2)`, [G1, B]), /does not exist/);
 await assert.rejects(as(D, `select is_group_leader($1, $2)`, [G1, B]), /does not exist/);
-assert.equal((await as(D, `select is_group_member($1) v`, [G1])).rows[0].v, false);
-assert.equal((await as(B, `select is_group_member($1) v`, [G1])).rows[0].v, true);
-assert.equal((await as(B, `select is_group_leader($1) v`, [G1])).rows[0].v, true);
-assert.equal((await as(A, `select is_group_leader($1) v`, [G1])).rows[0].v, false);
-await assert.rejects(as(null, `select is_group_member($1)`, [G1]), /permission denied/);
+await assert.rejects(as(B, `select is_group_member($1)`, [G1]), /does not exist/);
+await assert.rejects(as(B, `select public.is_group_leader($1)`, [G1]), /does not exist/);
+await assert.rejects(as(B, `select private.is_group_member($1)`, [G1]), /permission denied/);
+await assert.rejects(as(null, `select private.is_group_member($1)`, [G1]), /permission denied/);
+/** Calls a helper as the owner with `uid` as the JWT subject, the way a policy evaluates it. */
+const helperAs = async (uid, fn) =>
+  (
+    await db.transaction(async (tx) => {
+      await tx.query(`select set_config('request.jwt.claim.sub', $1, true)`, [uid]);
+      return tx.query(`select private.${fn}($1) v`, [G1]);
+    })
+  ).rows[0].v;
+assert.equal(await helperAs(D, 'is_group_member'), false);
+assert.equal(await helperAs(B, 'is_group_member'), true);
+assert.equal(await helperAs(B, 'is_group_leader'), true);
+assert.equal(await helperAs(A, 'is_group_leader'), false);
 // Policies built on the helpers still scope reads to members.
 assert.equal((await as(D, `select count(*)::int n from groups`)).rows[0].n, 0);
 assert.equal((await as(D, `select count(*)::int n from group_members`)).rows[0].n, 0);
