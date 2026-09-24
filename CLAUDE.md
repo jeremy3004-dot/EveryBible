@@ -53,6 +53,8 @@ EveryBible is a mobile Bible study app built with Expo/React Native. It provides
 /scripts          - Build and utility scripts
 ```
 
+**Screen subfolders:** a large screen keeps its file and path (`BibleReaderScreen.tsx`); its hooks, sub-components, and models live in a sibling folder next to it. In use: `src/screens/bible/reader/`, `browser/`, `picker/`; `src/screens/more/settings/`, `readingActivity/`; `src/screens/plans/planDetail/`, `plansHome/`, `rhythmDetail/`, `rhythmComposer/`; `src/screens/onboarding/localeSetup/`; `src/screens/auth/authScreenParts/`, `resetPassword/`; `src/components/audio/playbackControlsParts/`; `src/hooks/audioPlayer/`; `src/stores/bible/` (bibleStore's slices), `src/stores/readingPlans/`, `src/stores/sanitizers/`; `src/services/audio/download/`; `src/services/plans/readingPlan/`. A sibling folder is never named exactly the screen's PascalCase stem (`authScreenParts`, not `AuthScreen`) — macOS's default case-insensitive filesystem can't have a folder and a `.tsx` file share a name differing only by case. Screens and components import hooks from their own module, never the `../hooks` barrel — a static-import-graph guard in `src/services/startup/startupBootSurface.test.ts` enforces this.
+
 ### Patterns We Use
 
 - **State Management:** Zustand persisted to MMKV (`react-native-mmkv` v2, pinned for old-architecture compatibility) via `stores/mmkvStorage.ts`, not AsyncStorage. Private, device-only data (annotations, library/downloads, Gather progress, Four Fields) is additionally scoped per signed-in account by `stores/privateDataScope.ts` — see State Management below.
@@ -96,6 +98,8 @@ npm run format         # Format code with Prettier
 npm run format:check   # Check code formatting
 ```
 
+`npm run typecheck` runs `tsc --noEmit` for the whole app, then `typecheck:strict` (`scripts/typecheck-strict.mjs`), which type-checks `tsconfig.strict.json` (`noUncheckedIndexedAccess`, `noFallthroughCasesInSwitch`, `noImplicitOverride`) but only fails on diagnostics inside its `include` (`src/services`, `src/stores`, `src/utils`, `src/hooks`, `src/constants`, `src/i18n`, minus an `exclude` list still covering `src/services/audio`, `src/stores/audio*`, `src/hooks/useAudioPlayer*`, `src/services/sync`, `src/services/notifications`, `src/services/privacy`, `src/services/diagnostics`). Run `node scripts/typecheck-strict.mjs --list-deferred` to see diagnostics outside that set — moving a directory into the strict set is then a one-line config change. Use `assertDefined` (`src/utils/assertDefined.ts`) instead of `!` where `noUncheckedIndexedAccess` can't follow reasoning the caller already did.
+
 ### EAS Build & Deploy
 
 **Local builds only — never a bare cloud `eas build`.** The account has exhausted EAS cloud build credits; every `eas build` invocation must carry `--local` (or run inside the GitHub Actions runner, which also uses `--local`). For day-to-day dev/simulator work, prefer `npx expo run:ios` / `npx expo run:android` over invoking EAS at all.
@@ -131,6 +135,8 @@ supabase status      # Check local Supabase status
 ```
 
 **Migration file versions must match what's live.** Applying a migration through the Supabase MCP `apply_migration` tool records it under the timestamp *MCP* assigns, which can differ from the repo filename. If that happens, rename the repo file to the live version (or run `supabase migration repair`) so `list_migrations`/`db push` stay in sync — a mismatch here blocks `db push` and silently drifts the history table without changing the live schema. Check `list_migrations` for drift before trusting that a repo file and the live database agree; see `docs/research/supabase-migration-drift-2026-09-24.md` for a worked example.
+
+**Edge functions deploy via the Supabase MCP `deploy_edge_function` tool**, not the CLI. Each function's own files go under `functions/<fn>/...` plus anything shared under `functions/_shared/...`, with `functions/<fn>/index.ts` as the entrypoint. `submit-chapter-feedback` additionally needs `import_map_path: functions/submit-chapter-feedback/deno.json` (its own `deno.json`, for its extra import map).
 
 ### Common Tasks
 
@@ -274,6 +280,8 @@ Each field has lessons, courses, and tracking. Groups conduct sessions following
 ### Zustand Stores
 
 All stores persist through `zustandStorage` (MMKV, not AsyncStorage — see `stores/mmkvStorage.ts`). `stores/index.ts` only re-exports that shared MMKV plumbing; import each store directly from its own module (`../stores/authStore`, etc.) so importing one store doesn't hydrate every store.
+
+`bibleStore.ts` and `readingPlansStore.ts` are each a single store assembled from slice modules (`stores/bible/*Slice.ts`, `stores/readingPlans/*Slice.ts`) rather than one flat file. The persisted MMKV bytes are pinned regardless: `bibleStore.persistence.test.ts` and `readingPlansStore.persistence.test.ts` assert the exact JSON a store writes and rehydrates (keys, key order, the `partialize` selection, `version`). Any change to what a store persists — including moving code between slices in a way that changes shape — must update those tests deliberately, and bump `version` with a `migrate` if the shape actually changed.
 
 Original five, still present:
 
@@ -578,9 +586,12 @@ Read `docs/testing.md` before writing or changing tests. Summary:
 - Do not add source-text tests (`readFileSync` + regex) or `vm` transpile tests
   for behaviour; the older ones that remain guard startup import graphs only.
 - Bug fixes are test-first: failing test, minimal fix, passing test, same commit.
+- `npm test` and `npm run test:release` set `TSX_DISABLE_CACHE=1`; running a test
+  file directly with `node --test` needs the same env var if it stalls on exit
+  (see docs/testing.md). `fast-check` is available for property tests.
 
 ```bash
-npm test                                   # whole workspace (~450 *.test.ts files; see docs/testing.md for current timing)
+npm test                                   # whole workspace (~670 *.test.ts files; see docs/testing.md for current timing)
 node --test --experimental-test-module-mocks --import tsx src/path/to/file.test.ts
 npm run typecheck                          # tests are type-checked too
 ```
@@ -837,6 +848,9 @@ Sessions tracked in Supabase with attendance, notes, progress.
 ## Updates Log
 
 - 2026-01-29: Initial CLAUDE.md created based on codebase analysis
+- 2026-09-24: Documented the screen-subfolder pattern, bibleStore/readingPlansStore slice
+  architecture + persistence pinning, `typecheck:strict` scope and `assertDefined`, and
+  MCP-based edge function deployment, after the day's large refactors
 - Future: Use # key to add instructions when Claude needs correction
 
 ---
