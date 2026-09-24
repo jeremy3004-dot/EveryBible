@@ -1011,32 +1011,196 @@ test('searchVerses probes the search index once per source and caches the answer
   await searchVerses('probed', 'beginning');
   await searchVerses('probed', 'beginning');
 
-  const probes = queries.filter((entry) => entry.sql.includes("name = 'verses_fts'"));
+  const probes = queries.filter(
+    (entry) => entry.sql.includes('sqlite_master') && entry.sql.includes('verses_fts')
+  );
   assert.equal(probes.length, 1, 'the second search reuses the cached search-index probe');
 });
 
-test('searchVerses reports an unavailable index for a translation without verses_fts', async () => {
-  const { searchVerses, setBibleDatabaseSourceResolver, BibleSearchUnavailableError } =
+const NO_INDEX_PACK_VERSES: SeedVerse[] = [
+  { translationId: 'noindex', bookId: 'GEN', chapter: 1, verse: 1, text: 'In the beginning.' },
+  {
+    translationId: 'noindex',
+    bookId: 'PSA',
+    chapter: 23,
+    verse: 1,
+    text: 'The LORD is my shepherd; I shall not want.',
+  },
+  {
+    translationId: 'noindex',
+    bookId: 'JHN',
+    chapter: 3,
+    verse: 16,
+    text: 'For God so loved the world that He gave His one and only Son.',
+  },
+  {
+    translationId: 'noindex',
+    bookId: 'GEN',
+    chapter: 1,
+    verse: 3,
+    text: 'And God said, “Let there be light.”',
+  },
+  {
+    translationId: 'noindex',
+    bookId: '1JN',
+    chapter: 4,
+    verse: 8,
+    text: 'Whoever does not love does not know God, because God is love.',
+  },
+];
+
+function installPackWithoutIndex(name: string, verses: SeedVerse[] = NO_INDEX_PACK_VERSES): void {
+  for (const suffix of ['', '-wal', '-shm']) {
+    rmSync(`${installedDirectory}/${name}${suffix}`, { force: true });
+  }
+  writeSeedDatabase(`${installedDirectory}/${name}`, { searchIndex: false, verses });
+}
+
+const verseRefs = (verses: Verse[]) =>
+  verses.map((verse) => `${verse.bookId} ${verse.chapter}:${verse.verse}`);
+const ranMatch = () => queries.some((entry) => entry.sql.includes('MATCH'));
+
+test('searchVerses on a pack without an index answers from a substring scan meanwhile', async () => {
+  const { searchVerses, scheduleTextPackSearchIndexBuild, setBibleDatabaseSourceResolver } =
     await loadModule();
-  writeSeedDatabase(`${installedDirectory}/noindex.db`, {
-    searchIndex: false,
-    verses: [
-      { translationId: 'noindex', bookId: 'GEN', chapter: 1, verse: 1, text: 'In the beginning.' },
-    ],
-  });
+  installPackWithoutIndex('noindex.db');
   setBibleDatabaseSourceResolver((translationId) =>
     translationId === 'noindex' ? installedSource('noindex', 'noindex.db') : null
   );
+  resetRecorders();
 
-  await assert.rejects(
-    () => searchVerses('noindex', 'beginning'),
-    (error: unknown) => {
-      assert.ok(error instanceof BibleSearchUnavailableError);
-      assert.equal(error.translationId, 'noindex');
-      assert.match(error.message, /Full-text search is not available/);
-      return true;
-    }
+  // Lowercase, capitalised and all-caps spellings of the word all match, in canonical order.
+  assert.deepEqual(verseRefs(await searchVerses('noindex', 'lord')), ['PSA 23:1']);
+  assert.deepEqual(verseRefs(await searchVerses('noindex', 'god')), [
+    'GEN 1:3',
+    'JHN 3:16',
+    '1JN 4:8',
+  ]);
+  assert.equal(ranMatch(), false);
+  await scheduleTextPackSearchIndexBuild('noindex');
+});
+
+test('searchVerses builds the pack index in the background and then uses it', async () => {
+  const { searchVerses, scheduleTextPackSearchIndexBuild, setBibleDatabaseSourceResolver } =
+    await loadModule();
+  installPackWithoutIndex('noindex-build.db');
+  setBibleDatabaseSourceResolver((translationId) =>
+    translationId === 'noindex' ? installedSource('noindex', 'noindex-build.db') : null
   );
+  await searchVerses('noindex', 'shepherd');
+
+  assert.equal(await scheduleTextPackSearchIndexBuild('noindex'), 'ready');
+  resetRecorders();
+
+  assert.deepEqual(verseRefs(await searchVerses('noindex', 'shepherd')), ['PSA 23:1']);
+  assert.equal(ranMatch(), true, 'the search now runs against the built FTS index');
+  // FTS prefix matching, like the bundled database: "love" also finds "loved".
+  assert.deepEqual(verseRefs(await searchVerses('noindex', 'love')).sort(), [
+    '1JN 4:8',
+    'JHN 3:16',
+  ]);
+});
+
+test('the substring fallback requires every word and caps results at the limit', async () => {
+  const { searchVerses, setBibleDatabaseSourceResolver, scheduleTextPackSearchIndexBuild } =
+    await loadModule();
+  installPackWithoutIndex('noindex-terms.db');
+  setBibleDatabaseSourceResolver((translationId) =>
+    translationId === 'noindex' ? installedSource('noindex', 'noindex-terms.db') : null
+  );
+
+  assert.deepEqual(verseRefs(await searchVerses('noindex', 'God love')), ['JHN 3:16', '1JN 4:8']);
+  assert.deepEqual(verseRefs(await searchVerses('noindex', 'god', 2)), ['GEN 1:3', 'JHN 3:16']);
+  assert.deepEqual(await searchVerses('noindex', '100% _'), []);
+  await scheduleTextPackSearchIndexBuild('noindex');
+});
+
+test('a pack replaced at the same path is searched without the old index and indexed again', async () => {
+  const {
+    invalidateInstalledBibleDatabaseAtPath,
+    scheduleTextPackSearchIndexBuild,
+    searchVerses,
+    setBibleDatabaseSourceResolver,
+  } = await loadModule();
+  installPackWithoutIndex('noindex-replaced.db');
+  setBibleDatabaseSourceResolver((translationId) =>
+    translationId === 'noindex' ? installedSource('noindex', 'noindex-replaced.db') : null
+  );
+  await searchVerses('noindex', 'shepherd');
+  assert.equal(await scheduleTextPackSearchIndexBuild('noindex'), 'ready');
+  await searchVerses('noindex', 'shepherd');
+
+  await invalidateInstalledBibleDatabaseAtPath(`${installedDirectory}/noindex-replaced.db`);
+  installPackWithoutIndex('noindex-replaced.db');
+  resetRecorders();
+
+  assert.deepEqual(verseRefs(await searchVerses('noindex', 'shepherd')), ['PSA 23:1']);
+  assert.equal(ranMatch(), false, 'the cached "index ready" answer was dropped with the handle');
+  assert.equal(await scheduleTextPackSearchIndexBuild('noindex'), 'ready');
+});
+
+test('an index built for an older pack version is rebuilt for the new one', async () => {
+  const { scheduleTextPackSearchIndexBuild, searchVerses, setBibleDatabaseSourceResolver } =
+    await loadModule();
+  installPackWithoutIndex('noindex-versioned.db');
+  let packVersion = '2026.09.01-v1';
+  setBibleDatabaseSourceResolver((translationId) =>
+    translationId === 'noindex'
+      ? { ...installedSource('noindex', 'noindex-versioned.db'), packVersion }
+      : null
+  );
+  assert.equal(await scheduleTextPackSearchIndexBuild('noindex'), 'ready');
+  await searchVerses('noindex', 'shepherd');
+
+  packVersion = '2026.09.20-v2';
+  resetRecorders();
+  assert.deepEqual(verseRefs(await searchVerses('noindex', 'shepherd')), ['PSA 23:1']);
+  assert.equal(ranMatch(), false);
+  assert.equal(await scheduleTextPackSearchIndexBuild('noindex'), 'ready');
+
+  const database = new DatabaseSync(`${installedDirectory}/noindex-versioned.db`);
+  const state = database
+    .prepare('SELECT pack_version, completed_at FROM search_index_state')
+    .get() as { pack_version: string; completed_at: string | null };
+  database.close();
+  assert.equal(state.pack_version, '2026.09.20-v2');
+  assert.ok(state.completed_at);
+});
+
+test('invalidating a pack stops its index build before the file can be deleted', async () => {
+  const {
+    invalidateInstalledBibleDatabaseAtPath,
+    scheduleTextPackSearchIndexBuild,
+    setBibleDatabaseSourceResolver,
+  } = await loadModule();
+  const localPath = `${installedDirectory}/noindex-deleted.db`;
+  installPackWithoutIndex('noindex-deleted.db');
+  setBibleDatabaseSourceResolver((translationId) =>
+    translationId === 'noindex' ? installedSource('noindex', 'noindex-deleted.db') : null
+  );
+  resetRecorders();
+
+  const build = scheduleTextPackSearchIndexBuild('noindex');
+  await invalidateInstalledBibleDatabaseAtPath(localPath);
+
+  assert.equal(await build, 'cancelled');
+  assert.ok(
+    closes.includes(localPath),
+    'the build connection was closed before invalidate returned'
+  );
+  for (const suffix of ['', '-wal', '-shm']) {
+    rmSync(`${localPath}${suffix}`, { force: true });
+  }
+  assert.equal(existsSync(localPath), false, 'the index lived in the pack file and went with it');
+});
+
+test('the bundled translation has no pack index to build', async () => {
+  const { scheduleTextPackSearchIndexBuild, setBibleDatabaseSourceResolver } = await loadModule();
+  setBibleDatabaseSourceResolver(null);
+  resetRecorders();
+
+  assert.equal(await scheduleTextPackSearchIndexBuild('bsb'), null);
+  assert.equal(opens.length, 0);
 });
 
 test('searchVerses keeps a Devanagari word whole instead of splitting it at its vowel signs', async () => {
@@ -1309,14 +1473,16 @@ test('searchVerses uses substring matching for CJK even when the pack has an FTS
   assert.deepEqual(refs(await searchVerses('cuv', '世人')), ['JHN 3:16']);
 });
 
-test('searchVerses still reports an unavailable index for a Latin query on a pack without one', async () => {
-  const { searchVerses, setBibleDatabaseSourceResolver, BibleSearchUnavailableError } =
+test('searchVerses answers a Latin query on a CJK pack without an index by substring', async () => {
+  const { searchVerses, setBibleDatabaseSourceResolver, scheduleTextPackSearchIndexBuild } =
     await loadModule();
+  installCjkPack({ searchIndex: false });
   setBibleDatabaseSourceResolver((translationId) =>
     translationId === 'cuv' ? installedSource('cuv', 'cjk-pack.db') : null
   );
 
-  await assert.rejects(() => searchVerses('cuv', 'God'), BibleSearchUnavailableError);
+  assert.deepEqual(await searchVerses('cuv', 'God'), []);
+  await scheduleTextPackSearchIndexBuild('cuv');
 });
 
 // ─── Writes ───────────────────────────────────────────────────────────────────

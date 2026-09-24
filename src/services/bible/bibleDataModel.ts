@@ -391,12 +391,14 @@ export function rollbackTranslationPack(translation: BibleTranslation): BibleTra
 
 export function buildInstalledBibleDatabaseSource(
   translationId: string,
-  localPath: string
+  localPath: string,
+  packVersion?: string | null
 ): {
   kind: 'installed';
   translationId: string;
   databaseName: string;
   directory: string;
+  packVersion?: string;
 } | null {
   const normalizedPath = localPath.replace(/\/+$/, '');
   const lastSlashIndex = normalizedPath.lastIndexOf('/');
@@ -410,6 +412,7 @@ export function buildInstalledBibleDatabaseSource(
     translationId,
     databaseName: normalizedPath.slice(lastSlashIndex + 1),
     directory: normalizedPath.slice(0, lastSlashIndex),
+    ...(packVersion ? { packVersion } : {}),
   };
 }
 
@@ -491,4 +494,18 @@ export function buildBibleSubstringSearchTerms(query: string): string[] | null {
 
   const terms = [...new Set(normalizedQuery.match(BIBLE_SEARCH_WORD_PATTERN) ?? [])];
   return terms.length > 0 ? terms.slice(0, MAX_SUBSTRING_SEARCH_TERMS) : null;
+}
+
+// Substring terms for a text pack whose FTS index is not built yet (or failed to build). Each
+// inner list holds spellings of one word, any of which may match: as typed, lowercase,
+// capitalised and uppercase. instr() is case-sensitive and SQLite's lower() only folds ASCII,
+// so this covers "lord", "Lord" and "LORD" in any cased script without an ICU build.
+export function buildBibleFallbackSearchTerms(query: string): string[][] {
+  const words = [...new Set(query.normalize('NFC').match(BIBLE_SEARCH_WORD_PATTERN) ?? [])];
+
+  return words.slice(0, MAX_SUBSTRING_SEARCH_TERMS).map((word) => {
+    const lower = word.toLowerCase();
+    const [first = '', ...rest] = [...lower];
+    return [...new Set([word, lower, first.toUpperCase() + rest.join(''), word.toUpperCase()])];
+  });
 }

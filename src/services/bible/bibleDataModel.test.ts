@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import type { BibleTranslation } from '../../types';
 import {
   activateTranslationPackCandidate,
+  buildBibleFallbackSearchTerms,
   buildInstalledBibleDatabaseSource,
   failTranslationPackCandidate,
   parseTranslationCatalogManifest,
@@ -193,4 +194,33 @@ test('buildInstalledBibleDatabaseSource derives the SQLite directory and databas
       directory: 'file:///packs',
     }
   );
+});
+
+test('buildInstalledBibleDatabaseSource carries the installed pack version when one is known', () => {
+  assert.deepEqual(
+    buildInstalledBibleDatabaseSource('niv', 'file:///packs/niv.db', '2026.09.01-v2'),
+    {
+      kind: 'installed',
+      translationId: 'niv',
+      databaseName: 'niv.db',
+      directory: 'file:///packs',
+      packVersion: '2026.09.01-v2',
+    }
+  );
+  assert.equal(
+    buildInstalledBibleDatabaseSource('niv', 'file:///packs/niv.db', null)?.packVersion,
+    undefined
+  );
+});
+
+test('buildBibleFallbackSearchTerms lists the case spellings of each word for a substring scan', () => {
+  assert.deepEqual(buildBibleFallbackSearchTerms('lord'), [['lord', 'Lord', 'LORD']]);
+  assert.deepEqual(buildBibleFallbackSearchTerms('Бог любовь'), [
+    ['Бог', 'бог', 'БОГ'],
+    ['любовь', 'Любовь', 'ЛЮБОВЬ'],
+  ]);
+  // Uncased scripts have one spelling; marks stay inside the word, as in the FTS query.
+  assert.deepEqual(buildBibleFallbackSearchTerms('प्रेम'), [['प्रेम']]);
+  assert.deepEqual(buildBibleFallbackSearchTerms('% _ "'), []);
+  assert.equal(buildBibleFallbackSearchTerms('a b c d e f g h i j').length, 8);
 });
