@@ -460,6 +460,10 @@ export const ru = {
     lessonsProgress: '{{completed}} / {{total}} уроков',
     nextLesson: 'Далее · {{title}}',
     readPassage: 'Читать {{passage}}',
+    borrowedPassageTitle: 'В {{translation}} нет {{passage}}',
+    borrowedPassageBody:
+      'Стих дня взят из {{fallback}}. Если читать главу там, ваша Библия переключится на {{fallback}}; вернуться можно в любой момент.',
+    readInTranslation: 'Читать в {{translation}}',
     goodMorning: 'Доброе утро',
     goodAfternoon: 'Добрый день',
     goodEvening: 'Добрый вечер',

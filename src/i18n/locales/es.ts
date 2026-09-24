@@ -460,6 +460,10 @@ export const es = {
     lessonsProgress: '{{completed}} / {{total}} lecciones',
     nextLesson: 'Siguiente · {{title}}',
     readPassage: 'Leer {{passage}}',
+    borrowedPassageTitle: '{{passage}} no está en {{translation}}',
+    borrowedPassageBody:
+      'El versículo de hoy viene de {{fallback}}. Si lees el capítulo allí, tu Biblia cambiará a {{fallback}}; puedes volver a cambiarla cuando quieras.',
+    readInTranslation: 'Leer en {{translation}}',
     goodMorning: 'Buenos días',
     goodAfternoon: 'Buenas tardes',
     goodEvening: 'Buenas noches',

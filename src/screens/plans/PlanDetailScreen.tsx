@@ -1,79 +1,41 @@
 /* eslint-disable react/prop-types -- screen is fully typed via PlanDetailScreenProps; rule false-positives on navigation/route after the FlashList refactor (matches BibleReaderScreen P1 pattern) */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
-  FlatList,
-  Image,
-  type ColorValue,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   StyleSheet,
   Text,
   View,
-  type ViewStyle,
-  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
 import { FlashList } from '@shopify/flash-list';
-import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeIn, FadeOut, useReducedMotion } from 'react-native-reanimated';
-import { BookOpen, Check, Ellipsis, Play } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 
 import { useTheme } from '../../contexts/ThemeContext';
-import { useDisplayFont, useLargeText, useTabBarHeight } from '../../hooks';
-import { layout, motion, radius, spacing, typography } from '../../design/system';
-import {
-  AppButton,
-  AppCard,
-  BackArrowIcon,
-  IconButton,
-  PressableScale,
-  SectionHeader,
-} from '../../components/ui';
+import { useDisplayFont, useTabBarHeight } from '../../hooks';
+import { spacing, typography, layout } from '../../design/system';
+import { AppButton } from '../../components/ui';
 import { useAudioStore } from '../../stores/audioStore';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { useProgressStore } from '../../stores/progressStore';
 import { useReadingPlansStore } from '../../stores/readingPlansStore';
-import { formatPlanPassageReference } from '../../services/plans';
-import {
-  enrollInPlan,
-  getPlansByCategory,
-  getPlanEntries,
-  listReadingPlans,
-  unenrollFromPlan,
-} from '../../services/plans/readingPlanService';
+import { enrollInPlan, unenrollFromPlan } from '../../services/plans/readingPlanService';
 import {
   getCurrentPlanDaySummary,
   buildPlanDayPlaybackSequenceEntries,
   shouldAutoplayPlanDayLaunch,
-  formatScheduledPlanDayLabel,
   resolvePlanDayPlaybackStartEntry,
-  type CurrentPlanDaySummary,
 } from '../../services/plans/readingPlanActivity';
 import { getReadingPlanCoverSource } from '../../services/plans/readingPlanAssets';
 import {
   getActivePlanDayNumber,
-  getDaySessionEntries,
   getPlanLedgerDayNumbers,
-  isCalendarDayOfMonthPlan,
-  isCalendarDayOfWeekPlan,
   isRecurringPlan,
   isMultiSessionPlan,
-  resolvePlanLedgerDayState,
-  type ReadingPlanLedgerDayState,
 } from '../../services/plans/readingPlanModel';
-import { formatLocalDateKey } from '../../services/progress/readingActivity';
-import type {
-  PlanSessionKey,
-  ReadingPlan,
-  ReadingPlanCategory,
-  ReadingPlanEntry,
-  UserReadingPlanProgress,
-} from '../../services/plans/types';
+import type { PlanSessionKey } from '../../services/plans/types';
 import type { PlanDetailScreenProps } from '../../navigation/types';
 import { getTranslatedBookName } from '../../constants';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
@@ -81,910 +43,29 @@ import {
   getPlanDetailCompactHeaderHeight,
   isPlanDetailCompactHeaderVisible,
 } from './planDetailHeaderModel';
-import { formatPlanProgressAnnouncement, formatPlanProgressTally } from './planProgressTally';
 import {
-  getPlanDayRowAccessibility,
-  getPlanSessionAccessibilityValue,
-} from './planDayRowAccessibility';
-import {
-  PLAN_LEDGER_DENSE_GAP,
-  PLAN_LEDGER_ROOMY_GAP,
-  getPlanLedgerDotPaint,
-  getPlanLedgerGridDayCount,
-  getPlanLedgerGridMetrics,
-  getPlanLedgerGridRows,
-  type PlanLedgerDotPaint,
-} from './planLedgerGridModel';
+  COVER_CONTENT_OVERLAP,
+  COVER_HEIGHT,
+  DayRow,
+  HERO_TEXT_BOTTOM,
+  PlanDetailCompactHeader,
+  PlanDetailHero,
+  PlanDetailStatusView,
+  ProgressCard,
+  RelatedPlansSection,
+  buildPlanDayViewModels,
+  getDominantPlanBook,
+  getNextLedgerDayNumber,
+  getPlanCadenceLabelKey,
+  groupEntriesByDay,
+  orderLedgerRows,
+  useFocusedToday,
+  usePlanDetailData,
+  type PlanDayViewModel,
+} from './planDetail';
 import { lightHaptic, successHaptic } from '../../utils';
-import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../design/largeTextLayout';
 
-// ---------------------------------------------------------------------------
-// Geometry the design fixes in absolute points
-// ---------------------------------------------------------------------------
-
-/** The photographic hero. Its lower third fades into the page background. */
-const COVER_HEIGHT = 360;
-/** How far the content column rises into the cover's fade. */
-const COVER_CONTENT_OVERLAP = 71;
-/** Distance from the cover's lower edge to the baseline block of the hero text. */
-const HERO_TEXT_BOTTOM = 94;
-/** Back / more controls float this far down the cover on a standard notch. */
-const COVER_CONTROL_TOP = 62;
-
-// The hero sits over a photograph, so these two cannot come from the theme:
-// they must read identically in both scopes or they vanish against the image.
-const ON_PHOTO_TEXT = '#FDFAF5';
-const ON_PHOTO_EYEBROW = 'rgba(253, 250, 245, 0.82)';
-// Readability scrim: dark at the very top (so the controls hold), almost clear
-// through the photograph's subject, then deepening into the page background.
-const COVER_SCRIM_STOPS = [
-  'rgba(12, 11, 9, 0.4)',
-  'rgba(12, 11, 9, 0.05)',
-  'rgba(12, 11, 9, 0.55)',
-  'rgba(12, 11, 9, 0.82)',
-] as const;
-const COVER_SCRIM_LOCATIONS: readonly [number, number, ...number[]] = [0, 0.25, 0.52, 0.78, 1];
-
-/**
- * Dot ledger: one dot per plan day, as many to a row as fit the card. The grid
- * sits inside the header's screen padding and the progress card's padding.
- */
-const LEDGER_GRID_HORIZONTAL_INSET = 2 * (layout.screenPadding + layout.cardPaddingWide);
-/** Last cell starts drawing in by here, so the whole grid lands inside 1.5s. */
-const LEDGER_DRAW_IN_MAX_DELAY = 1350;
-const LEDGER_DRAW_IN_STEP = 30;
-/** The mono day column in a ledger row. */
-const LEDGER_DAY_WIDTH = 56;
-
-const CATEGORY_LABEL_KEYS: Partial<Record<ReadingPlanCategory, string>> = {
-  chronological: 'readingPlans.categoryChronological',
-  'book-study': 'readingPlans.categoryBookStudy',
-  topical: 'readingPlans.categoryTopical',
-  devotional: 'readingPlans.categoryDevotional',
-};
-
-// ---------------------------------------------------------------------------
-// Helpers (self-contained to avoid cross-screen dep)
-// ---------------------------------------------------------------------------
-
-function formatChapterRef(
-  entry: ReadingPlanEntry,
-  t: ReturnType<typeof useTranslation>['t']
-): string {
-  return formatPlanPassageReference(entry, getTranslatedBookName(entry.book, t));
-}
-
-function groupEntriesByDay(entries: ReadingPlanEntry[]): Map<number, ReadingPlanEntry[]> {
-  const map = new Map<number, ReadingPlanEntry[]>();
-  entries.forEach((entry) => {
-    const existing = map.get(entry.day_number) ?? [];
-    existing.push(entry);
-    map.set(entry.day_number, existing);
-  });
-  return map;
-}
-
-/**
- * Every day the ledger accounts for: the plan's whole day universe.
- *
- * A recurring rhythm still has a full cycle behind it — the Proverbs plan is
- * thirty-one days whether or not you are standing on day thirty — so the ledger
- * lists the cycle even though navigation only ever resumes today's chapter.
- */
-/**
- * The local date a recurring plan's day falls on, or `null` for a sequential
- * plan (whose days are scheduled from the enrolment date instead).
- *
- * A day-of-month plan resolves against this month; a day-of-week plan against
- * this week.
- */
-function getRecurringLedgerDayDate(plan: ReadingPlan, dayNumber: number, today: Date): Date | null {
-  if (isCalendarDayOfMonthPlan(plan)) {
-    return new Date(today.getFullYear(), today.getMonth(), dayNumber);
-  }
-  if (isCalendarDayOfWeekPlan(plan)) {
-    const offset = dayNumber - 1 - today.getDay();
-    return new Date(today.getFullYear(), today.getMonth(), today.getDate() + offset);
-  }
-  return null;
-}
-
-/**
- * The key a given plan day would be filed under in `completed_entries`.
- *
- * Sequential plans key by day number; recurring rhythms key by the local date
- * the day falls on.
- */
-function getLedgerDayCompletionKey(plan: ReadingPlan, dayNumber: number, today: Date): string {
-  const cycleDate = getRecurringLedgerDayDate(plan, dayNumber, today);
-  return cycleDate ? formatLocalDateKey(cycleDate) : String(dayNumber);
-}
-
-/**
- * Whether a plan day counts as read. The cell grid and the ledger rows are two
- * pictures of the same record, so both must resolve it here — otherwise a
- * recurring plan's squares and its rows disagree about the same day.
- */
-function isLedgerDayComplete({
-  plan,
-  progress,
-  dayNumber,
-  currentDay,
-  isCurrentDayComplete,
-  today,
-}: {
-  plan: ReadingPlan | null;
-  progress: UserReadingPlanProgress | null;
-  dayNumber: number;
-  currentDay: number;
-  isCurrentDayComplete: boolean;
-  today: Date;
-}): boolean {
-  if (!plan || !progress) {
-    return false;
-  }
-  if (getLedgerDayCompletionKey(plan, dayNumber, today) in progress.completed_entries) {
-    return true;
-  }
-  return dayNumber === currentDay && isCurrentDayComplete;
-}
-
-/**
- * The one place a plan day's ledger state is decided.
- *
- * The cell grid, the ledger rows and the read/missed tally are three pictures of
- * the same record, so all three resolve a day here — otherwise the squares and
- * the rows can disagree about the same date.
- */
-function getLedgerDayState({
-  plan,
-  progress,
-  dayNumber,
-  currentDay,
-  isCurrentDayComplete,
-  today,
-}: {
-  plan: ReadingPlan | null;
-  progress: UserReadingPlanProgress | null;
-  dayNumber: number;
-  currentDay: number;
-  isCurrentDayComplete: boolean;
-  today: Date;
-}): ReadingPlanLedgerDayState {
-  return resolvePlanLedgerDayState({
-    dayNumber,
-    currentDay,
-    isCompleted: isLedgerDayComplete({
-      plan,
-      progress,
-      dayNumber,
-      currentDay,
-      isCurrentDayComplete,
-      today,
-    }),
-    // A recurring cycle's early days can sit before the enrolment date; a
-    // sequential plan starts counting from it, so it has no such day.
-    dayDate: plan ? getRecurringLedgerDayDate(plan, dayNumber, today) : null,
-    startedAt: progress?.started_at ?? null,
-  });
-}
-
-/** Short cycle date for a ledger row ("7 Sep"), in the in-app language. */
-function formatLedgerCycleDate(date: Date, locale?: string): string {
-  return date.toLocaleDateString(locale || undefined, { month: 'short', day: 'numeric' });
-}
-
-// ---------------------------------------------------------------------------
-// PlanCoverImage — full-width or thumbnail with graceful fallback
-// ---------------------------------------------------------------------------
-
-function PlanCoverImage({
-  plan,
-  width,
-  height,
-  borderRadius,
-}: {
-  plan: ReadingPlan;
-  width: number;
-  height: number;
-  borderRadius: number;
-}) {
-  const { colors } = useTheme();
-  const source = getReadingPlanCoverSource(plan);
-  if (!source) {
-    return (
-      <View
-        style={[
-          coverImageStyles.fallback,
-          { width, height, borderRadius, backgroundColor: colors.accentSecondary },
-        ]}
-      >
-        <BookOpen size={Math.round(width * 0.28)} color={colors.secondaryText} strokeWidth={2} />
-      </View>
-    );
-  }
-  return (
-    <Image
-      source={source}
-      style={{ width, height, borderRadius }}
-      resizeMode="cover"
-      accessible={false}
-      importantForAccessibility="no-hide-descendants"
-    />
-  );
-}
-
-const coverImageStyles = StyleSheet.create({
-  fallback: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-});
-
-// ---------------------------------------------------------------------------
-// Dot ledger — one dot per plan day, a GitHub-style heatmap
-// ---------------------------------------------------------------------------
-
-function LedgerCells({ states }: { states: ReadingPlanLedgerDayState[] }) {
-  const { colors } = useTheme();
-  const reduceMotion = useReducedMotion();
-  const { width: windowWidth } = useWindowDimensions();
-
-  // Columns come from the window width, which is right on the first frame, and
-  // the dots flex to fill full rows: measuring the card first meant its first
-  // frame had no grid, and the grid then landed a frame later and shoved Today
-  // and the ledger under the reader's tap.
-  const { columns, density } = getPlanLedgerGridMetrics(
-    states.length,
-    windowWidth - LEDGER_GRID_HORIZONTAL_INSET
-  );
-  const rows = useMemo(() => getPlanLedgerGridRows(states, columns), [states, columns]);
-  const isDense = density === 'dense';
-
-  const palette = useMemo(() => {
-    const paint = getPlanLedgerDotPaint(colors);
-    const toStyle = ({ fill, border, borderWidth }: PlanLedgerDotPaint): ViewStyle =>
-      border
-        ? { backgroundColor: fill, borderWidth, borderColor: border }
-        : { backgroundColor: fill };
-    return {
-      done: toStyle(paint.done),
-      missed: toStyle(paint.missed),
-      today: toStyle(paint.today),
-      future: toStyle(paint.future),
-    } satisfies Record<ReadingPlanLedgerDayState, ViewStyle>;
-  }, [colors]);
-
-  return (
-    <View
-      style={[cellStyles.grid, isDense ? cellStyles.denseGap : cellStyles.roomyGap]}
-      // The card's heading row already says this in words; the dots are a
-      // picture of it, so screen readers should not walk 365 of them.
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
-    >
-      {rows.map((row, rowIndex) => (
-        <View
-          key={rowIndex}
-          style={[cellStyles.row, isDense ? cellStyles.denseGap : cellStyles.roomyGap]}
-        >
-          {row.map((state, columnIndex) => {
-            const index = rowIndex * columns + columnIndex;
-            if (state === null) {
-              return <View key={`empty-${index}`} style={cellStyles.cell} />;
-            }
-            return (
-              <Animated.View
-                key={`${state}-${index}`}
-                entering={
-                  reduceMotion
-                    ? undefined
-                    : FadeIn.duration(motion.duration.fast).delay(
-                        Math.min(index * LEDGER_DRAW_IN_STEP, LEDGER_DRAW_IN_MAX_DELAY)
-                      )
-                }
-                style={[
-                  cellStyles.cell,
-                  palette[state],
-                  // An 8pt ring is small; let today's swell into the gap so it
-                  // still reads as the marker without changing the row height.
-                  state === 'today' && isDense ? cellStyles.denseToday : null,
-                ]}
-              />
-            );
-          })}
-        </View>
-      ))}
-    </View>
-  );
-}
-
-const cellStyles = StyleSheet.create({
-  grid: {
-    marginTop: spacing.lg,
-  },
-  row: {
-    flexDirection: 'row',
-  },
-  denseGap: {
-    gap: PLAN_LEDGER_DENSE_GAP,
-  },
-  roomyGap: {
-    gap: PLAN_LEDGER_ROOMY_GAP,
-  },
-  cell: {
-    flex: 1,
-    aspectRatio: 1,
-    borderRadius: radius.pill,
-  },
-  denseToday: {
-    transform: [{ scale: 1.25 }],
-  },
-});
-
-// ---------------------------------------------------------------------------
-// Progress summary card
-// ---------------------------------------------------------------------------
-
-interface ProgressCardProps {
-  plan: ReadingPlan;
-  progress: UserReadingPlanProgress | null;
-  currentDaySummary: CurrentPlanDaySummary | null;
-  today: Date;
-}
-
-function ProgressCard({ plan, progress, currentDaySummary, today }: ProgressCardProps) {
-  const { colors } = useTheme();
-  const displayFont = useDisplayFont();
-  const { t } = useTranslation();
-
-  // This month's length for a day-of-month plan, so September has no day-31 dot.
-  const totalDays = getPlanLedgerGridDayCount(plan, today);
-  const currentDay = currentDaySummary?.dayNumber ?? getActivePlanDayNumber(plan, progress, today);
-
-  const cellStates = useMemo<ReadingPlanLedgerDayState[]>(() => {
-    const states: ReadingPlanLedgerDayState[] = [];
-    for (let day = 1; day <= totalDays; day += 1) {
-      const ledgerState = getLedgerDayState({
-        plan,
-        progress,
-        dayNumber: day,
-        currentDay,
-        isCurrentDayComplete: Boolean(currentDaySummary?.isComplete),
-        today,
-      });
-      states.push(ledgerState);
-    }
-    return states;
-  }, [currentDay, currentDaySummary?.isComplete, plan, progress, today, totalDays]);
-
-  const doneCount = cellStates.filter((state) => state === 'done').length;
-  const missedCount = cellStates.filter((state) => state === 'missed').length;
-  const tallyLabel = formatPlanProgressTally(t, {
-    done: doneCount,
-    missed: missedCount,
-    totalDays,
-  });
-  const progressAnnouncement = formatPlanProgressAnnouncement(t, {
-    currentDay,
-    done: doneCount,
-    missed: missedCount,
-    totalDays,
-  });
-
-  return (
-    <AppCard padding={layout.cardPaddingWide}>
-      <View
-        style={progressCardStyles.headRow}
-        // One stop for screen readers ("Day 1 of 365, Completed, 0 of 365 days")
-        // instead of "Day", "1", "/365" fragments; the dot grid below is hidden.
-        accessible
-        accessibilityLabel={progressAnnouncement}
-      >
-        <View>
-          <Text style={[typography.eyebrow, displayFont.regular, { color: colors.secondaryText }]}>
-            {t('readingPlans.day')}
-          </Text>
-          <View style={progressCardStyles.numeralRow}>
-            <Text
-              maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
-              style={[typography.numeralXL, { color: colors.primaryText }]}
-            >
-              {currentDay}
-            </Text>
-            <Text style={[progressCardStyles.numeralTotal, { color: colors.secondaryText }]}>
-              /{totalDays}
-            </Text>
-          </View>
-        </View>
-
-        <View style={progressCardStyles.tally}>
-          <Text style={[typography.eyebrow, displayFont.regular, { color: colors.secondaryText }]}>
-            {t('readingPlans.completed')}
-          </Text>
-          <Text
-            style={[
-              progressCardStyles.tallyValue,
-              displayFont.regular,
-              { color: colors.primaryText },
-            ]}
-          >
-            {tallyLabel}
-          </Text>
-        </View>
-      </View>
-
-      <LedgerCells states={cellStates} />
-    </AppCard>
-  );
-}
-
-const progressCardStyles = StyleSheet.create({
-  headRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: spacing.lg,
-  },
-  numeralRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    marginTop: spacing.sm,
-  },
-  numeralTotal: {
-    ...typography.sectionHeading,
-    fontSize: 18,
-    letterSpacing: -0.45,
-  },
-  tally: {
-    flex: 1,
-    alignItems: 'flex-end',
-    gap: spacing.sm,
-  },
-  tallyValue: {
-    ...typography.mono,
-    fontSize: 14,
-    lineHeight: 19,
-    fontWeight: '600',
-    textAlign: 'right',
-  },
-});
-
-// ---------------------------------------------------------------------------
-// Day row — the accent "today" card and the ledger slices below it
-// ---------------------------------------------------------------------------
-
-export const CURRENT_PLAN_DAY_ROW_TEST_ID = 'plan-detail-current-day-row';
-
-type PlanDaySessionState = 'done' | 'next' | 'upcoming' | 'available';
-
-interface PlanDayViewModel {
-  dayNumber: number;
-  dateLabel: string | null;
-  entries: ReadingPlanEntry[];
-  launchSessionKey?: PlanSessionKey;
-  isCompleted: boolean;
-  isCurrent: boolean;
-  isFuture: boolean;
-  isNext: boolean;
-  sessionActions: Array<{
-    sessionKey: PlanSessionKey;
-    label: string;
-    state: PlanDaySessionState;
-  }>;
-}
-
-interface DayRowProps {
-  dayNumber: number;
-  dateLabel: string | null;
-  entries: ReadingPlanEntry[];
-  launchSessionKey?: PlanSessionKey;
-  isCompleted: boolean;
-  isCurrent: boolean;
-  isFuture: boolean;
-  isNext: boolean;
-  isFirst?: boolean;
-  isLast?: boolean;
-  /** Today card only: "Today's target: 1/3 chapters" or the chapter count. */
-  subtitle?: string | null;
-  audioAvailable?: boolean;
-  sessionActions?: Array<{
-    sessionKey: PlanSessionKey;
-    label: string;
-    state: PlanDaySessionState;
-  }>;
-  onPress: (dayNumber: number, sessionKey?: PlanSessionKey) => void;
-  onListen?: (dayNumber: number, sessionKey?: PlanSessionKey) => void;
-}
-
-const DayRow = React.memo(function DayRow({
-  dayNumber,
-  dateLabel,
-  entries,
-  launchSessionKey,
-  isCompleted,
-  isCurrent,
-  isFuture,
-  isNext,
-  isFirst = false,
-  isLast = false,
-  subtitle,
-  audioAvailable = false,
-  sessionActions = [],
-  onPress,
-  onListen,
-}: DayRowProps) {
-  const { colors } = useTheme();
-  const displayFont = useDisplayFont();
-  // Today's references share the row with Read + Listen; at large text sizes
-  // that left the references a word per line, so the actions drop beneath.
-  const { rowDirection: todayRowDirection } = useLargeText();
-
-  const { t } = useTranslation();
-  const refs = entries.map((entry) => formatChapterRef(entry, t)).join(', ');
-  const { label: accessibilityLabel, value: accessibilityValue } = getPlanDayRowAccessibility(t, {
-    dayNumber,
-    dateLabel,
-    refs,
-    isCurrent,
-    isCompleted,
-    isNext,
-    subtitle,
-  });
-  const hasSessionActions = sessionActions.length > 0;
-
-  const sessionActionRow = hasSessionActions ? (
-    <View style={dayRowStyles.sessionActionRow}>
-      {sessionActions.map((action) => {
-        const isFilled = action.state === 'done' || action.state === 'next';
-        return (
-          <PressableScale
-            key={`${dayNumber}-${action.sessionKey}`}
-            pressEffect="translate"
-            haptic="light"
-            onPress={() => onPress(dayNumber, action.sessionKey)}
-            accessibilityRole="button"
-            accessibilityLabel={t('interface.planSessionForDay', {
-              session: action.label,
-              day: dayNumber,
-            })}
-            accessibilityValue={getPlanSessionAccessibilityValue(t, action.state)}
-            style={[
-              dayRowStyles.sessionActionButton,
-              {
-                backgroundColor: isFilled ? colors.accentSurface : colors.background,
-                borderColor: isFilled ? colors.accentSurface : colors.borderStrong,
-              },
-            ]}
-          >
-            <Text
-              style={[
-                dayRowStyles.sessionActionLabel,
-                displayFont.regular,
-                { color: isFilled ? colors.onAccentSurface : colors.secondaryText },
-              ]}
-            >
-              {action.label}
-            </Text>
-          </PressableScale>
-        );
-      })}
-    </View>
-  ) : null;
-
-  // ---- Today: the one accent-ruled card on the screen ----------------------
-  if (isCurrent) {
-    return (
-      <AppCard accentRule padding={spacing.lg} style={dayRowStyles.todayCard}>
-        <View
-          style={[
-            dayRowStyles.todayRow,
-            todayRowDirection === 'column' && dayRowStyles.todayRowStacked,
-          ]}
-        >
-          <PressableScale
-            pressEffect="translate"
-            haptic="light"
-            onPress={() => onPress(dayNumber, launchSessionKey)}
-            testID={isCurrent ? CURRENT_PLAN_DAY_ROW_TEST_ID : undefined}
-            accessibilityLabel={accessibilityLabel}
-            accessibilityValue={accessibilityValue}
-            accessibilityRole="button"
-            style={[
-              dayRowStyles.todayContent,
-              todayRowDirection === 'column' && dayRowStyles.todayContentStacked,
-            ]}
-          >
-            <Text
-              style={[typography.eyebrow, displayFont.regular, { color: colors.accentPrimary }]}
-              numberOfLines={1}
-            >
-              {`${t('home.today')} · ${t('readingPlans.dayLabel', { day: dayNumber })}`}
-            </Text>
-            <Text
-              style={[dayRowStyles.todayTitle, { color: colors.primaryText }]}
-              numberOfLines={2}
-            >
-              {refs}
-            </Text>
-            {subtitle ? (
-              <Text
-                style={[dayRowStyles.todaySubtitle, { color: colors.secondaryText }]}
-                numberOfLines={2}
-              >
-                {subtitle}
-              </Text>
-            ) : null}
-          </PressableScale>
-
-          <View style={dayRowStyles.todayActions}>
-            <AppButton
-              label={t('bible.read')}
-              size="md"
-              fullWidth={false}
-              onPress={() => onPress(dayNumber, launchSessionKey)}
-              style={dayRowStyles.todayReadButton}
-            />
-            {audioAvailable && onListen ? (
-              <IconButton
-                icon={Play}
-                variant="paper"
-                onPress={() => onListen(dayNumber, launchSessionKey)}
-                accessibilityLabel={t('bible.listen')}
-              />
-            ) : null}
-          </View>
-        </View>
-        {sessionActionRow}
-      </AppCard>
-    );
-  }
-
-  // ---- Ledger slice --------------------------------------------------------
-  const trailing = isNext ? (
-    <Text style={[typography.eyebrow, displayFont.regular, { color: colors.secondaryText }]}>
-      {t('readingPlans.tomorrow')}
-    </Text>
-  ) : isCompleted ? (
-    <View style={dayRowStyles.ledgerTrailingGroup}>
-      <Check size={12} color={colors.success} strokeWidth={2} />
-      {dateLabel ? (
-        <Text style={[typography.eyebrow, { color: colors.secondaryText }]}>{dateLabel}</Text>
-      ) : null}
-    </View>
-  ) : dateLabel ? (
-    <Text style={[typography.eyebrow, { color: colors.textTertiary }]}>{dateLabel}</Text>
-  ) : null;
-
-  return (
-    <PressableScale
-      pressEffect="translate"
-      haptic="light"
-      onPress={() => onPress(dayNumber, launchSessionKey)}
-      testID={isCurrent ? CURRENT_PLAN_DAY_ROW_TEST_ID : undefined}
-      accessibilityLabel={accessibilityLabel}
-      accessibilityRole="button"
-      // Completion is otherwise only a tick glyph.
-      accessibilityValue={accessibilityValue}
-      // The session buttons inside this row are not reachable by VoiceOver, so
-      // each one is also offered as a custom action.
-      accessibilityActions={
-        hasSessionActions && !isFuture
-          ? sessionActions.map((action) => ({
-              name: `session:${action.sessionKey}`,
-              label: t('interface.planSessionForDay', { session: action.label, day: dayNumber }),
-            }))
-          : undefined
-      }
-      onAccessibilityAction={(event) => {
-        const action = sessionActions.find(
-          (candidate) => `session:${candidate.sessionKey}` === event.nativeEvent.actionName
-        );
-        if (action) onPress(dayNumber, action.sessionKey);
-      }}
-      style={[
-        dayRowStyles.ledgerSlice,
-        { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
-        isFirst ? dayRowStyles.ledgerSliceFirst : null,
-        isLast ? dayRowStyles.ledgerSliceLast : null,
-      ]}
-    >
-      <View
-        style={[
-          dayRowStyles.ledgerRow,
-          isFirst ? null : { borderTopWidth: 1, borderTopColor: colors.borderStrong },
-        ]}
-      >
-        <Text
-          style={[
-            dayRowStyles.ledgerDay,
-            { color: isFuture ? colors.textTertiary : colors.secondaryText },
-          ]}
-          numberOfLines={1}
-        >
-          {t('readingPlans.dayLabel', { day: dayNumber })}
-        </Text>
-        <Text
-          style={[
-            dayRowStyles.ledgerRef,
-            { color: isFuture ? colors.textTertiary : colors.primaryText },
-          ]}
-          numberOfLines={2}
-        >
-          {refs}
-        </Text>
-        <View style={dayRowStyles.ledgerTrailing}>{trailing}</View>
-      </View>
-      {hasSessionActions && !isFuture ? (
-        <View style={dayRowStyles.ledgerSessions}>{sessionActionRow}</View>
-      ) : null}
-    </PressableScale>
-  );
-});
-
-const dayRowStyles = StyleSheet.create({
-  // Today card
-  todayCard: {
-    paddingVertical: 14,
-  },
-  todayRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  todayRowStacked: {
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-  },
-  todayContent: {
-    flex: 1,
-    gap: spacing.xs,
-  },
-  // In a content-sized column, flex: 1 would split a height that is itself
-  // derived from the children; size to the text and take the full width.
-  todayContentStacked: {
-    flex: 0,
-    alignSelf: 'stretch',
-  },
-  todayTitle: {
-    ...typography.cardTitle,
-  },
-  todaySubtitle: {
-    ...typography.captionStrong,
-    fontWeight: '400',
-  },
-  todayActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  todayReadButton: {
-    paddingHorizontal: spacing.lg,
-  },
-
-  // Ledger slice
-  ledgerSlice: {
-    marginHorizontal: layout.screenPadding,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-  },
-  ledgerSliceFirst: {
-    borderTopWidth: 1,
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
-  },
-  ledgerSliceLast: {
-    borderBottomWidth: 1,
-    borderBottomLeftRadius: radius.lg,
-    borderBottomRightRadius: radius.lg,
-  },
-  ledgerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    minHeight: 48,
-    marginHorizontal: spacing.lg,
-  },
-  ledgerDay: {
-    ...typography.mono,
-    fontWeight: '600',
-    // minWidth keeps the column aligned but lets "Day 12" grow with Dynamic Type
-    // instead of truncating.
-    minWidth: LEDGER_DAY_WIDTH,
-  },
-  ledgerRef: {
-    ...typography.bodyMedium,
-    fontSize: 14.5,
-    lineHeight: 20,
-    flex: 1,
-  },
-  ledgerTrailing: {
-    alignItems: 'flex-end',
-  },
-  ledgerTrailingGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  ledgerSessions: {
-    marginHorizontal: spacing.lg,
-  },
-
-  // Session actions (multi-session plans)
-  sessionActionRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs,
-    marginTop: spacing.md,
-  },
-  sessionActionButton: {
-    minHeight: 32,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.md,
-  },
-  sessionActionLabel: {
-    ...typography.monoSmall,
-  },
-});
-
-// ---------------------------------------------------------------------------
-// Related plan card
-// ---------------------------------------------------------------------------
-
-interface RelatedPlanCardProps {
-  plan: ReadingPlan;
-  onPress: (planId: string) => void;
-}
-
-function RelatedPlanCard({ plan, onPress }: RelatedPlanCardProps) {
-  const { colors } = useTheme();
-  const { t } = useTranslation();
-
-  return (
-    <AppCard
-      pressable
-      padding={0}
-      onPress={() => onPress(plan.id)}
-      style={relatedCardStyles.card}
-      accessibilityLabel={t(plan.title_key as Parameters<typeof t>[0], {
-        defaultValue: plan.title_key,
-      })}
-    >
-      <PlanCoverImage plan={plan} width={172} height={92} borderRadius={0} />
-      <View style={relatedCardStyles.info}>
-        <Text style={[relatedCardStyles.title, { color: colors.primaryText }]} numberOfLines={2}>
-          {t(plan.title_key as Parameters<typeof t>[0], { defaultValue: plan.title_key })}
-        </Text>
-        <Text style={[relatedCardStyles.duration, { color: colors.secondaryText }]}>
-          {t('readingPlans.durationDays', { count: plan.duration_days })}
-        </Text>
-      </View>
-    </AppCard>
-  );
-}
-
-const relatedCardStyles = StyleSheet.create({
-  card: {
-    width: 172,
-    overflow: 'hidden',
-  },
-  info: {
-    padding: spacing.md,
-    gap: spacing.xs,
-  },
-  title: {
-    ...typography.captionStrong,
-  },
-  duration: {
-    ...typography.caption,
-  },
-});
-
-// ---------------------------------------------------------------------------
-// Main screen
-// ---------------------------------------------------------------------------
+export { CURRENT_PLAN_DAY_ROW_TEST_ID } from './planDetail';
 
 export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
   const { planId } = route.params;
@@ -993,77 +74,18 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
   const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   const tabBar = useTabBarHeight();
-  const reduceMotion = useReducedMotion();
   const progress = useReadingPlansStore((state) => state.progressByPlanId[planId] ?? null);
   const getPlanDayResume = useReadingPlansStore((state) => state.getPlanDayResume);
 
-  // Data state
-  const [plan, setPlan] = useState<ReadingPlan | null>(null);
-  const [entries, setEntries] = useState<ReadingPlanEntry[]>([]);
-  const [relatedPlans, setRelatedPlans] = useState<ReadingPlan[]>([]);
-
-  // UI state
-  const [loading, setLoading] = useState(true);
+  const today = useFocusedToday();
+  const { plan, entries, relatedPlans, loading, error, load } = usePlanDetailData(planId);
   const [enrolling, setEnrolling] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const entriesByDay = React.useMemo(() => groupEntriesByDay(entries), [entries]);
-  const [today, setToday] = useState(() => new Date());
-  useFocusEffect(
-    useCallback(() => {
-      setToday(new Date());
-    }, [])
-  );
-  const ledgerDayNumbers = React.useMemo(
+  const entriesByDay = useMemo(() => groupEntriesByDay(entries), [entries]);
+  const ledgerDayNumbers = useMemo(
     () => getPlanLedgerDayNumbers(plan, entries, today),
     [plan, entries, today]
   );
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-
-    const [plansResult, entriesResult] = await Promise.all([
-      listReadingPlans(),
-      getPlanEntries(planId),
-    ]);
-
-    let foundPlan: ReadingPlan | null = null;
-    if (plansResult.success) {
-      foundPlan = (plansResult.data ?? []).find((p) => p.id === planId) ?? null;
-      setPlan(foundPlan);
-    } else {
-      setError(t('common.error'));
-    }
-
-    if (entriesResult.success) {
-      setEntries(entriesResult.data ?? []);
-    } else {
-      // Only surface an error when we have no entries to show; keep any
-      // previously loaded rows visible on a transient refresh failure.
-      setEntries((prev) => {
-        if (prev.length === 0) {
-          setError(t('common.error'));
-        }
-        return prev;
-      });
-    }
-
-    // Fetch related plans once we know the category
-    if (foundPlan?.category) {
-      const relatedResult = await getPlansByCategory(foundPlan.category);
-      if (relatedResult.success) {
-        const filtered = (relatedResult.data ?? []).filter((p) => p.id !== planId).slice(0, 5);
-        setRelatedPlans(filtered);
-      }
-    }
-
-    setLoading(false);
-  }, [planId, t]);
-
-  useEffect(() => {
-    load(); // eslint-disable-line react-hooks/set-state-in-effect
-  }, [load]);
 
   const currentDay = plan
     ? getActivePlanDayNumber(plan, progress, today)
@@ -1071,13 +93,13 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
   const chaptersRead = useProgressStore((state) => state.chaptersRead);
   const listeningHistory = useLibraryStore((state) => state.history);
   const preferredChapterLaunchMode = useBibleStore((state) => state.preferredChapterLaunchMode);
-  const translations = useBibleStore((state) => state.translations);
-  const currentTranslationId = useBibleStore((state) => state.currentTranslation);
-  const audioAvailable = React.useMemo(
-    () => translations.find((entry) => entry.id === currentTranslationId)?.hasAudio ?? false,
-    [currentTranslationId, translations]
+  // Only whether the current translation has audio: a download or catalog change
+  // to any other translation no longer re-renders the whole plan page.
+  const audioAvailable = useBibleStore(
+    (state) =>
+      state.translations.find((entry) => entry.id === state.currentTranslation)?.hasAudio ?? false
   );
-  const currentDaySummary = React.useMemo(() => {
+  const currentDaySummary = useMemo(() => {
     if (!plan || !progress) {
       return null;
     }
@@ -1215,6 +237,8 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
     ]);
   }, [navigation, planId, t]);
 
+  const handleBack = useCallback(() => navigation.goBack(), [navigation]);
+
   const handleRelatedPlanPress = useCallback(
     (relatedPlanId: string) => {
       navigation.push('PlanDetail', { planId: relatedPlanId });
@@ -1229,150 +253,66 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
 
   // "DAILY RHYTHM · 31 DAYS · PROVERBS" — cadence, length, and the book the plan
   // is actually about, when one dominates it.
-  const heroEyebrow = React.useMemo(() => {
+  const heroEyebrow = useMemo(() => {
     if (!plan) return null;
-    const cadenceKey = isRecurringPlan(plan)
-      ? 'readingPlans.dailyRhythm'
-      : plan.category
-        ? CATEGORY_LABEL_KEYS[plan.category]
-        : undefined;
-
-    const counts = new Map<string, number>();
-    entries.forEach((entry) => counts.set(entry.book, (counts.get(entry.book) ?? 0) + 1));
-    const ranked = Array.from(counts.entries()).sort((left, right) => right[1] - left[1]);
-    const dominant = ranked[0];
-    const bookLabel =
-      dominant && entries.length > 0 && dominant[1] / entries.length >= 0.6
-        ? getTranslatedBookName(dominant[0], t)
-        : null;
+    const cadenceKey = getPlanCadenceLabelKey(plan);
+    const dominantBook = getDominantPlanBook(entries);
 
     return [
       cadenceKey ? t(cadenceKey as Parameters<typeof t>[0]) : null,
       t('readingPlans.durationDays', { count: plan.duration_days }),
-      bookLabel,
+      dominantBook ? getTranslatedBookName(dominantBook, t) : null,
     ]
       .filter(Boolean)
       .join(' · ');
   }, [entries, plan, t]);
 
-  // The day the ledger marks "tomorrow". A recurring cycle wraps back to its
-  // first day once you are standing on the last one.
-  const nextDayNumber = React.useMemo(() => {
-    const index = ledgerDayNumbers.indexOf(currentDay);
-    if (index === -1) {
-      return currentDay + 1;
-    }
-    const following = ledgerDayNumbers[index + 1];
-    if (following != null) {
-      return following;
-    }
-    return isRecurringPlan(plan) ? (ledgerDayNumbers[0] ?? currentDay + 1) : currentDay + 1;
-  }, [currentDay, ledgerDayNumbers, plan]);
+  const nextDayNumber = useMemo(
+    () => getNextLedgerDayNumber(ledgerDayNumbers, currentDay, isRecurringPlan(plan)),
+    [currentDay, ledgerDayNumbers, plan]
+  );
 
-  const dayViewModels = React.useMemo<PlanDayViewModel[]>(() => {
-    return ledgerDayNumbers.map((dayNumber) => {
-      const dayEntries = entriesByDay.get(dayNumber) ?? [];
-      const daySessionGroups = multiSessionPlan ? getDaySessionEntries(entries, dayNumber) : [];
-      // Rows and cells read the same record, so a recurring plan's past days
-      // carry their real done/missed state instead of collapsing to today.
-      const ledgerState = getLedgerDayState({
+  const dayViewModels = useMemo(
+    () =>
+      buildPlanDayViewModels({
         plan,
         progress,
-        dayNumber,
+        entries,
+        entriesByDay,
+        ledgerDayNumbers,
         currentDay,
-        isCurrentDayComplete: Boolean(currentDaySummary?.isComplete),
+        currentDaySummary,
+        nextDayNumber,
+        isMultiSession: multiSessionPlan,
         today,
-      });
-      const isCompleted = ledgerState === 'done';
-      const isCurrent = dayNumber === currentDay;
-      const recurringCycleDate =
-        plan && isRecurringPlan(plan) ? getRecurringLedgerDayDate(plan, dayNumber, today) : null;
-      const dateLabel = recurringCycleDate
-        ? formatLedgerCycleDate(recurringCycleDate, i18n.language)
-        : progress && !isRecurringPlan(plan)
-          ? formatScheduledPlanDayLabel(progress.started_at, dayNumber)
-          : null;
-      const launchSessionKey = multiSessionPlan
-        ? isCurrent && isEnrolled
-          ? (currentDaySummary?.nextIncompleteSessionKey ?? daySessionGroups[0]?.sessionKey)
-          : daySessionGroups[0]?.sessionKey
-        : undefined;
-      const sessionActions = daySessionGroups.map((group) => {
-        const matchingSummary =
-          isCurrent && isEnrolled
-            ? (currentDaySummary?.sessionSummaries.find(
-                (session) => session.sessionKey === group.sessionKey
-              ) ?? null)
-            : null;
-        const state =
-          !isCurrent || !isEnrolled
-            ? 'available'
-            : matchingSummary?.isComplete
-              ? 'done'
-              : currentDaySummary?.nextIncompleteSessionKey === group.sessionKey
-                ? 'next'
-                : 'upcoming';
+        locale: i18n.language,
+      }),
+    [
+      currentDay,
+      currentDaySummary,
+      entries,
+      entriesByDay,
+      i18n.language,
+      ledgerDayNumbers,
+      multiSessionPlan,
+      nextDayNumber,
+      plan,
+      progress,
+      today,
+    ]
+  );
 
-        return {
-          sessionKey: group.sessionKey,
-          label: group.title,
-          state,
-        } as const;
-      });
-
-      return {
-        dayNumber,
-        dateLabel,
-        entries: dayEntries,
-        launchSessionKey,
-        isCompleted,
-        isCurrent: isCurrent && isEnrolled,
-        // Before enrolling nothing is behind or ahead of you yet, so the ledger
-        // stays uniform rather than greying out most of the plan. Once enrolled,
-        // "future" also covers a recurring cycle's days that ran before you
-        // joined: they carry their date but none of the missed weight.
-        isFuture: isEnrolled && ledgerState === 'future',
-        isNext: isEnrolled && dayNumber === nextDayNumber,
-        sessionActions,
-      };
-    });
-  }, [
-    currentDay,
-    currentDaySummary,
-    entries,
-    entriesByDay,
-    i18n.language,
-    isEnrolled,
-    ledgerDayNumbers,
-    multiSessionPlan,
-    nextDayNumber,
-    plan,
-    progress,
-    today,
-  ]);
-
-  const todayViewModel = React.useMemo(
+  const todayViewModel = useMemo(
     () => (isEnrolled ? (dayViewModels.find((item) => item.isCurrent) ?? null) : null),
     [dayViewModels, isEnrolled]
   );
 
-  // The ledger reads the way the design does: tomorrow at the top, then the
-  // record behind you newest-first, then the rest of the plan ahead of you.
-  const ledgerRows = React.useMemo<PlanDayViewModel[]>(() => {
-    if (!todayViewModel) {
-      return dayViewModels;
-    }
-    const rest = dayViewModels.filter((item) => item.dayNumber !== currentDay);
-    return [
-      ...rest.filter((item) => item.isNext),
-      ...rest
-        .filter((item) => !item.isNext && item.dayNumber < currentDay)
-        .sort((left, right) => right.dayNumber - left.dayNumber),
-      ...rest.filter((item) => !item.isNext && item.dayNumber > currentDay),
-    ];
-  }, [currentDay, dayViewModels, todayViewModel]);
+  const ledgerRows = useMemo(
+    () => orderLedgerRows(dayViewModels, currentDay, todayViewModel !== null),
+    [currentDay, dayViewModels, todayViewModel]
+  );
 
-  const todaySubtitle = React.useMemo(() => {
+  const todaySubtitle = useMemo(() => {
     if (!todayViewModel) return null;
     if (currentDaySummary && currentDaySummary.targetChapterCount > 1) {
       return t('readingPlans.todayTargetProgress', {
@@ -1406,16 +346,6 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
 
   const keyExtractorDay = useCallback((item: PlanDayViewModel) => String(item.dayNumber), []);
 
-  const scrimColors = React.useMemo(
-    () =>
-      [...COVER_SCRIM_STOPS, colors.background] as readonly [
-        ColorValue,
-        ColorValue,
-        ...ColorValue[],
-      ],
-    [colors.background]
-  );
-  const controlTop = Math.max(insets.top + spacing.sm, COVER_CONTROL_TOP);
   const compactHeaderHeight = getPlanDetailCompactHeaderHeight(insets.top);
   const [isCompactHeaderVisible, setIsCompactHeaderVisible] = useState(false);
   const handleListScroll = useCallback(
@@ -1430,83 +360,21 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
     },
     [compactHeaderHeight]
   );
-  const listContentStyle = React.useMemo(
+  const listContentStyle = useMemo(
     () => ({ paddingBottom: tabBar.contentClearance }),
     [tabBar.contentClearance]
   );
 
   const listHeader = (
     <View>
-      {/* ------------------------------------------------------------------ */}
-      {/* Cover hero                                                          */}
-      {/* ------------------------------------------------------------------ */}
-      <View style={styles.cover}>
-        {heroCoverSource ? (
-          <Image
-            source={heroCoverSource}
-            style={styles.coverImage}
-            resizeMode="cover"
-            accessible={false}
-            importantForAccessibility="no-hide-descendants"
-          />
-        ) : (
-          <View
-            style={[
-              styles.coverImage,
-              styles.coverFallback,
-              { backgroundColor: colors.accentSecondary },
-            ]}
-          >
-            <BookOpen size={60} color={colors.secondaryText} strokeWidth={2} />
-          </View>
-        )}
-
-        {/* The cover is always a photographic hero, so the scrim and the text on
-            it are fixed on-photo values in both scopes; only the final stop is
-            themed, so the image dissolves into the page. */}
-        <LinearGradient
-          colors={scrimColors}
-          locations={COVER_SCRIM_LOCATIONS}
-          style={styles.coverScrim}
-        />
-
-        <View style={[styles.coverControls, { top: controlTop }]} pointerEvents="box-none">
-          <IconButton
-            icon={BackArrowIcon}
-            variant="paper"
-            onPress={() => navigation.goBack()}
-            accessibilityLabel={t('common.back')}
-          />
-          {isEnrolled ? (
-            <IconButton
-              icon={Ellipsis}
-              variant="paper"
-              onPress={handleLeavePlan}
-              accessibilityLabel={t('readingPlans.planOptions')}
-            />
-          ) : null}
-        </View>
-
-        <View style={styles.coverTitleWrap}>
-          {heroEyebrow ? (
-            <Text
-              style={[styles.coverEyebrow, displayFont.regular]}
-              numberOfLines={1}
-              maxFontSizeMultiplier={1.4}
-            >
-              {heroEyebrow}
-            </Text>
-          ) : null}
-          <Text
-            maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
-            accessibilityRole="header"
-            style={[styles.coverTitle, displayFont.bold]}
-            numberOfLines={2}
-          >
-            {planTitle}
-          </Text>
-        </View>
-      </View>
+      <PlanDetailHero
+        coverSource={heroCoverSource}
+        eyebrow={heroEyebrow}
+        title={planTitle}
+        showOptions={isEnrolled}
+        onBack={handleBack}
+        onOptions={handleLeavePlan}
+      />
 
       <View style={styles.headerBody}>
         {/* Progress card (only if enrolled) */}
@@ -1570,65 +438,13 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
     </View>
   );
 
-  const listFooter = (
-    <View>
-      {relatedPlans.length > 0 ? (
-        <View style={styles.relatedSection}>
-          <SectionHeader title={t('readingPlans.relatedPlans')} style={styles.relatedHeader} />
-          <FlatList
-            data={relatedPlans}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.relatedList}
-            ItemSeparatorComponent={() => <View style={styles.relatedSeparator} />}
-            renderItem={({ item }) => (
-              <RelatedPlanCard plan={item} onPress={handleRelatedPlanPress} />
-            )}
-          />
-        </View>
-      ) : null}
-    </View>
-  );
-
   if (loading) {
-    return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={[styles.plainHeader, { paddingTop: insets.top + spacing.sm }]}>
-          <IconButton
-            icon={BackArrowIcon}
-            variant="paper"
-            onPress={() => navigation.goBack()}
-            accessibilityLabel={t('common.back')}
-          />
-        </View>
-        <View
-          style={styles.loadingContainer}
-          accessibilityState={{ busy: true }}
-          accessibilityLabel={t('common.loading')}
-        >
-          <ActivityIndicator size="large" color={colors.accentPrimary} />
-        </View>
-      </View>
-    );
+    return <PlanDetailStatusView status="loading" onBack={handleBack} />;
   }
 
   if (error) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={[styles.plainHeader, { paddingTop: insets.top + spacing.sm }]}>
-          <IconButton
-            icon={BackArrowIcon}
-            variant="paper"
-            onPress={() => navigation.goBack()}
-            accessibilityLabel={t('common.back')}
-          />
-        </View>
-        <View style={styles.errorContainer}>
-          <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
-          <AppButton label={t('common.retry')} variant="outline" onPress={load} fullWidth={false} />
-        </View>
-      </View>
+      <PlanDetailStatusView status="error" message={error} onRetry={load} onBack={handleBack} />
     );
   }
 
@@ -1639,7 +455,9 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
         renderItem={renderDayRow}
         keyExtractor={keyExtractorDay}
         ListHeaderComponent={listHeader}
-        ListFooterComponent={listFooter}
+        ListFooterComponent={
+          <RelatedPlansSection plans={relatedPlans} onPlanPress={handleRelatedPlanPress} />
+        }
         contentContainerStyle={listContentStyle}
         showsVerticalScrollIndicator={false}
         estimatedItemSize={48}
@@ -1648,46 +466,14 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
         scrollEventThrottle={16}
       />
 
-      {/* Once the hero has scrolled away, this keeps the status bar backed and the
-          page's title and back control in reach at any scroll offset. */}
       {isCompactHeaderVisible ? (
-        <Animated.View
-          entering={reduceMotion ? undefined : FadeIn.duration(motion.duration.fast)}
-          exiting={reduceMotion ? undefined : FadeOut.duration(motion.duration.fast)}
-          style={[
-            styles.compactHeader,
-            {
-              height: compactHeaderHeight,
-              paddingTop: insets.top + spacing.sm,
-              backgroundColor: colors.background,
-              borderBottomColor: colors.borderStrong,
-            },
-          ]}
-        >
-          <IconButton
-            icon={BackArrowIcon}
-            variant="paper"
-            onPress={() => navigation.goBack()}
-            accessibilityLabel={t('common.back')}
-          />
-          <Text
-            accessibilityRole="header"
-            style={[styles.compactHeaderTitle, displayFont.bold, { color: colors.primaryText }]}
-            numberOfLines={1}
-          >
-            {planTitle}
-          </Text>
-          {isEnrolled ? (
-            <IconButton
-              icon={Ellipsis}
-              variant="paper"
-              onPress={handleLeavePlan}
-              accessibilityLabel={t('readingPlans.planOptions')}
-            />
-          ) : (
-            <View style={styles.compactHeaderSpacer} />
-          )}
-        </Animated.View>
+        <PlanDetailCompactHeader
+          height={compactHeaderHeight}
+          title={planTitle}
+          showOptions={isEnrolled}
+          onBack={handleBack}
+          onOptions={handleLeavePlan}
+        />
       ) : null}
     </View>
   );
@@ -1696,95 +482,6 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-
-  // Loading / error states
-  plainHeader: {
-    paddingHorizontal: layout.screenPadding,
-    paddingBottom: spacing.md,
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  errorContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.lg,
-    paddingHorizontal: layout.screenPadding,
-  },
-  errorText: {
-    ...typography.body,
-    textAlign: 'center',
-  },
-
-  // Cover hero
-  cover: {
-    height: COVER_HEIGHT,
-  },
-  // The asset registry stamps a required image's intrinsic size onto its style,
-  // and inset-only positioning does not override it — a 320×180 cover would draw
-  // at 320×180 in the corner. The hero states its own frame instead, so the photo
-  // fills the full width and bleeds up under the status bar.
-  coverImage: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: '100%',
-    height: COVER_HEIGHT,
-  },
-  coverFallback: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  coverScrim: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  coverControls: {
-    position: 'absolute',
-    left: layout.screenPadding,
-    right: layout.screenPadding,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  coverTitleWrap: {
-    position: 'absolute',
-    left: layout.screenPadding,
-    right: layout.screenPadding,
-    bottom: HERO_TEXT_BOTTOM,
-    gap: spacing.sm,
-  },
-  coverEyebrow: {
-    ...typography.eyebrow,
-    color: ON_PHOTO_EYEBROW,
-  },
-  coverTitle: {
-    ...typography.screenTitle,
-    color: ON_PHOTO_TEXT,
-  },
-
-  compactHeader: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingHorizontal: layout.screenPadding,
-    paddingBottom: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  compactHeaderTitle: {
-    ...typography.rowTitle,
-    flex: 1,
-    textAlign: 'center',
-  },
-  compactHeaderSpacer: {
-    width: layout.iconButton,
   },
 
   // Content column
@@ -1810,20 +507,5 @@ const styles = StyleSheet.create({
     ...typography.eyebrow,
     marginTop: spacing.xl,
     marginBottom: spacing.md,
-  },
-
-  // Related plans
-  relatedSection: {
-    paddingTop: spacing.xxl,
-    gap: spacing.md,
-  },
-  relatedHeader: {
-    paddingHorizontal: layout.screenPadding,
-  },
-  relatedList: {
-    paddingHorizontal: layout.screenPadding,
-  },
-  relatedSeparator: {
-    width: spacing.md,
   },
 });

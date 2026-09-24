@@ -16,6 +16,7 @@ import {
   textContent,
   within,
 } from '../../testing/render';
+import { bibleTranslations } from '../../constants/translations';
 import { getHomeScreenLayout } from './homeLayoutModel';
 
 const harness = installRenderHarness(mock, { skip: ['@react-navigation/native'] });
@@ -29,11 +30,16 @@ mockPackage(mock, '@react-navigation/native', {
 });
 
 // ---- Stores: real Zustand stores holding only what Home selects -------------
+const translationSwitches: string[] = [];
 const bibleStore = create(() => ({
   currentTranslation: 'bsb',
   currentBook: 'JHN',
   currentChapter: 3,
   hasReaderHistory: true,
+  setCurrentTranslation: (translationId: string) => {
+    translationSwitches.push(translationId);
+    bibleStore.setState({ currentTranslation: translationId });
+  },
 }));
 const progressStore = create(() => ({
   chaptersRead: {} as Record<string, number>,
@@ -78,12 +84,30 @@ const verseOf = (overrides: Partial<DailyScripture> = {}) =>
     ...overrides,
   }) as DailyScripture;
 let dailyScripture = verseOf();
+// What Home told the service about today's audio, newest last.
+const audioAvailableArgs: boolean[] = [];
 // Home reaches the Bible database through a lazy import; this is what it loads.
 mockModule(mock, sourcePath('services/bible/bibleService.ts'), {
-  getDailyScripture: async () => dailyScripture,
+  getDailyScripture: async (_translation: unknown, audioAvailable: boolean) => {
+    audioAvailableArgs.push(audioAvailable);
+    return dailyScripture;
+  },
 });
+// Which books the translation can stream; null when it has no remote audio at all.
+const remoteAudio = { books: null as string[] | null };
 mockModule(mock, sourcePath('services/audio/audioRemote.ts'), {
-  isRemoteAudioAvailable: () => false,
+  isRemoteAudioAvailable: (_translationId: string, bookId?: string | null) =>
+    remoteAudio.books !== null && (bookId == null || remoteAudio.books.includes(bookId)),
+});
+// NetInfo, as Home's offline hook hears it.
+const network = { offline: false, listeners: new Set<(offline: boolean) => void>() };
+mockModule(mock, sourcePath('utils/connectivity.ts'), {
+  isDeviceOffline: async () => network.offline,
+  subscribeToDeviceOffline: (listener: (offline: boolean) => void) => {
+    network.listeners.add(listener);
+    listener(network.offline);
+    return () => network.listeners.delete(listener);
+  },
 });
 mockModule(mock, sourcePath('hooks/useTranslationContentSummary.ts'), {
   useTranslationContentSummary: () => undefined,
@@ -126,6 +150,10 @@ beforeEach(() => {
   isFocused = true;
   catalog = bundledReadingPlans;
   dailyScripture = verseOf();
+  remoteAudio.books = null;
+  network.offline = false;
+  audioAvailableArgs.length = 0;
+  translationSwitches.length = 0;
   sharing.available = true;
   sharing.captureError = null;
   sharing.captures.length = 0;
@@ -197,6 +225,22 @@ test('returning to Home the next evening shows the new date and an evening greet
   assert.equal(screen.queryByText(/^Good morning/), null);
 });
 
+test('the greeting turns to afternoon at noon while Home stays open', async () => {
+  mock.timers.reset();
+  mock.timers.enable({
+    apis: ['Date', 'setTimeout'],
+    now: new Date(2026, 8, 17, 11, 59).getTime(),
+  });
+  const view = await renderHome();
+  assert.ok(heroes(view).screen.getByText(/^Good morning/));
+
+  mock.timers.tick(60_000);
+  await view.flush();
+
+  assert.ok(heroes(view).screen.getByText(/^Good afternoon/));
+  await view.unmount();
+});
+
 test('Scripture borrowed from the bundled BSB is attributed to it on the hero and in the share', async () => {
   bibleStore.setState({ currentTranslation: 'npiulb' });
   dailyScripture = verseOf({ fallbackTranslationId: 'bsb' });
@@ -217,6 +261,62 @@ test('Scripture borrowed from the bundled BSB is attributed to it on the hero an
   await view.press(view.getByRole('button', { name: t('groups.share') }));
   assert.deepEqual(harness.rn.__recorded.shares.at(-1), {
     message: `${t('home.verseOfTheDay')}\nJohn 3:16 · BSB\n\n${JOHN_3_16}`,
+  });
+});
+
+test("Read opens today's chapter in the reader's own translation", async () => {
+  const view = await renderHome();
+  await view.press(
+    heroes(view).screen.getByRole('button', { name: t('home.readPassage', { passage: 'John 3' }) })
+  );
+
+  assert.deepEqual(harness.rn.__recorded.alerts, []);
+  assert.deepEqual(translationSwitches, []);
+  assert.deepEqual(harness.navigation.calls.at(-1), {
+    method: 'navigate',
+    args: [
+      'Bible',
+      { screen: 'BibleReader', params: { bookId: 'JHN', chapter: 3, focusVerse: 16 } },
+    ],
+  });
+});
+
+test('Read on a verse borrowed from BSB asks first, then opens the chapter in BSB', async () => {
+  bibleStore.setState({ currentTranslation: 'npiulb' });
+  dailyScripture = verseOf({ fallbackTranslationId: 'bsb' });
+  const view = await renderHome();
+  const navigationsBefore = harness.navigation.calls.length;
+
+  await view.press(
+    heroes(view).screen.getByRole('button', { name: t('home.readPassage', { passage: 'John 3' }) })
+  );
+
+  // The reader follows the selected translation, which lacks this book.
+  assert.equal(harness.navigation.calls.length, navigationsBefore, 'nothing opens yet');
+  const [alert] = harness.rn.__recorded.alerts;
+  assert.equal(
+    alert.title,
+    t('home.borrowedPassageTitle', { passage: 'John 3', translation: 'Nepali Bible' })
+  );
+  assert.equal(alert.message, t('home.borrowedPassageBody', { fallback: 'BSB' }));
+  const buttons = alert.buttons as Array<{ text: string; style?: string; onPress?: () => void }>;
+  assert.deepEqual(
+    buttons.map((button) => button.text),
+    [t('common.cancel'), t('home.readInTranslation', { translation: 'BSB' })]
+  );
+
+  buttons[0].onPress?.();
+  assert.deepEqual(translationSwitches, [], 'Cancel keeps the reader in their translation');
+  assert.equal(harness.navigation.calls.length, navigationsBefore);
+
+  buttons[1].onPress?.();
+  assert.deepEqual(translationSwitches, ['bsb']);
+  assert.deepEqual(harness.navigation.calls.at(-1), {
+    method: 'navigate',
+    args: [
+      'Bible',
+      { screen: 'BibleReader', params: { bookId: 'JHN', chapter: 3, focusVerse: 16 } },
+    ],
   });
 });
 
@@ -371,6 +471,78 @@ test('the hero photograph stays at full strength under a dark scrim that dissolv
     assert.equal(flattenStyle(screen.getByText(JOHN_3_16).props.style)?.color, '#FDFAF5');
     await view.unmount();
   }
+});
+
+// ---- Listen -------------------------------------------------------------------
+
+/** Today's passage, as the service would return it: the real daily reference. */
+async function todaysVerse(overrides: Partial<DailyScripture> = {}) {
+  const { getDailyScriptureReference } = await import('../../services/bible/dailyScripture');
+  const reference = getDailyScriptureReference(new Date());
+  return verseOf({
+    bookId: reference.bookId,
+    chapter: reference.chapter,
+    verse: reference.verse,
+    ...overrides,
+  });
+}
+const listenButton = (view: HomeView) =>
+  heroes(view).screen.queryByRole('button', { name: t('bible.listen') });
+
+test("Listen is offered online when the translation streams today's book", async () => {
+  dailyScripture = await todaysVerse();
+  remoteAudio.books = [dailyScripture.bookId];
+  const view = await renderHome();
+
+  assert.ok(listenButton(view));
+});
+
+test('offline, Listen is hidden unless the chapter audio is on the device', async () => {
+  dailyScripture = await todaysVerse();
+  remoteAudio.books = [dailyScripture.bookId];
+  network.offline = true;
+  const view = await renderHome();
+  assert.equal(listenButton(view), null, 'streaming cannot play offline');
+  await view.unmount();
+
+  bibleStore.setState({
+    translations: bibleTranslations.map((translation) =>
+      translation.id === 'bsb'
+        ? { ...translation, downloadedAudioBooks: [dailyScripture.bookId] }
+        : translation
+    ),
+  } as never);
+  const downloaded = await renderHome();
+  assert.ok(listenButton(downloaded), 'downloaded audio plays offline');
+  // So an audio-only set keeps its audio card offline instead of borrowing BSB text.
+  assert.equal(audioAvailableArgs.at(-1), true);
+});
+
+test('losing the connection while Home is open hides Listen, and reconnecting brings it back', async () => {
+  dailyScripture = await todaysVerse();
+  remoteAudio.books = [dailyScripture.bookId];
+  const view = await renderHome();
+  assert.ok(listenButton(view));
+
+  network.offline = true;
+  for (const listener of network.listeners) listener(true);
+  await view.flush();
+  await view.flush();
+  assert.equal(listenButton(view), null);
+
+  network.offline = false;
+  for (const listener of network.listeners) listener(false);
+  await view.flush();
+  await view.flush();
+  assert.ok(listenButton(view));
+});
+
+test("Listen is hidden when the translation's stream does not include today's book", async () => {
+  dailyScripture = await todaysVerse();
+  remoteAudio.books = ['NOT-TODAYS-BOOK'];
+  const view = await renderHome();
+
+  assert.equal(listenButton(view), null);
 });
 
 // ---- Layout -----------------------------------------------------------------

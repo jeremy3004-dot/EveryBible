@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
+  Alert,
   View,
   Text,
   ImageBackground,
@@ -37,6 +38,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useDisplayFont } from '../../hooks/useDisplayFont';
 import { useLargeText } from '../../hooks/useLargeText';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
+import { useDeviceOffline } from '../../hooks/useDeviceOffline';
 import { useTranslationContentSummary } from '../../hooks/useTranslationContentSummary';
 import { GatherIconBadge } from '../../components/gather/GatherIconBadge';
 import { useAuthStore } from '../../stores/authStore';
@@ -62,6 +64,8 @@ import { buildHomeVerseShareMessage } from './homeVerseShareModel';
 import { getMillisecondsUntilNextLocalMidnight } from '../../services/bible/dailyScriptureRefresh';
 import {
   formatHomeDateLabel,
+  getHomeGreetingKey,
+  getMillisecondsUntilNextGreetingChange,
   loadVerseOfDay as loadVerseOfDayFromBible,
   startVerseOfDayRefresh,
   type VerseOfDayLoadOptions,
@@ -143,22 +147,6 @@ function getFirstName(displayName: string | null | undefined): string | null {
   }
 
   return trimmed.split(/\s+/)[0] ?? null;
-}
-
-function getGreetingKey(
-  date = new Date()
-): 'home.goodMorning' | 'home.goodAfternoon' | 'home.goodEvening' {
-  const hour = date.getHours();
-
-  if (hour < 12) {
-    return 'home.goodMorning';
-  }
-
-  if (hour < 17) {
-    return 'home.goodAfternoon';
-  }
-
-  return 'home.goodEvening';
 }
 
 export function HomeScreen() {
@@ -262,9 +250,27 @@ export function HomeScreen() {
   // decides instead; until the manifest resolves it is undefined and Home stays optimistic.
   const dailyAudioChapters = useTranslationContentSummary(currentTranslationInfo)?.audioChapters;
   const dailyScriptureReference = getDailyScriptureReference(new Date(clockMs));
+  // Streaming needs the network and a stream that carries today's book (a New Testament
+  // audio set has no Isaiah); downloaded audio plays either way.
+  const isOffline = useDeviceOffline();
   const remoteAudioAvailable =
     config.features.audioEnabled &&
-    isRemoteAudioAvailable(currentTranslation) &&
+    !isOffline &&
+    isRemoteAudioAvailable(currentTranslation, dailyScriptureReference.bookId) &&
+    isChapterAudioCovered(
+      dailyAudioChapters,
+      dailyScriptureReference.bookId,
+      dailyScriptureReference.chapter
+    );
+  const dailyAudioPlayable =
+    currentTranslationInfo != null &&
+    getAudioAvailability({
+      featureEnabled: config.features.audioEnabled,
+      translationHasAudio: currentTranslationInfo.hasAudio,
+      remoteAudioAvailable,
+      downloadedAudioBooks: currentTranslationInfo.downloadedAudioBooks,
+      bookId: dailyScriptureReference.bookId,
+    }).canPlayAudio &&
     isChapterAudioCovered(
       dailyAudioChapters,
       dailyScriptureReference.bookId,
@@ -340,7 +346,7 @@ export function HomeScreen() {
     : t('home.defaultReference');
   const greetingName = getFirstName(user?.displayName) ?? t('home.guestName');
   const greetingLabel = t('home.greetingWithName', {
-    greeting: t(getGreetingKey(new Date(clockMs))),
+    greeting: t(getHomeGreetingKey(new Date(clockMs))),
     name: greetingName,
   });
   const todayLabel = useMemo(
@@ -442,14 +448,14 @@ export function HomeScreen() {
         {
           requestIdRef: verseRequestIdRef,
           translation: currentTranslationInfo,
-          remoteAudioAvailable,
+          audioAvailable: dailyAudioPlayable,
           loadBibleService: () => import('../../services/bible/bibleService'),
           setIsLoadingVerse,
           setDailyScripture,
         },
         options
       ),
-    [currentTranslationInfo, remoteAudioAvailable]
+    [currentTranslationInfo, dailyAudioPlayable]
   );
 
   useEffect(
@@ -462,6 +468,7 @@ export function HomeScreen() {
         addAppStateListener: (listener) => AppState.addEventListener('change', listener),
         runAfterInteractions: (task) => InteractionManager.runAfterInteractions(task),
         msUntilNextLocalMidnight: () => getMillisecondsUntilNextLocalMidnight(),
+        msUntilNextGreetingChange: () => getMillisecondsUntilNextGreetingChange(new Date()),
         onClockAdvance: () => setClockMs(Date.now()),
       }),
     [loadVerseOfDay]
@@ -613,14 +620,42 @@ export function HomeScreen() {
       return;
     }
 
-    navigation.navigate('Bible', {
-      screen: 'BibleReader',
-      params: {
-        bookId: dailyScripture.bookId,
-        chapter: dailyScripture.chapter,
-        focusVerse: dailyScripture.verse,
-      },
-    });
+    const openDailyChapter = () =>
+      navigation.navigate('Bible', {
+        screen: 'BibleReader',
+        params: {
+          bookId: dailyScripture.bookId,
+          chapter: dailyScripture.chapter,
+          focusVerse: dailyScripture.verse,
+        },
+      });
+
+    // The reader always shows the selected translation, and borrowed text means that
+    // translation cannot show this passage. Reading it in BSB changes the reader's Bible,
+    // so ask rather than switch silently.
+    const fallbackTranslationId = dailyScripture.fallbackTranslationId;
+    if (fallbackTranslationId && dailyFallbackAbbreviation && dailyPassageLabel) {
+      Alert.alert(
+        t('home.borrowedPassageTitle', {
+          passage: dailyPassageLabel,
+          translation: currentTranslationInfo?.name ?? currentTranslation.toUpperCase(),
+        }),
+        t('home.borrowedPassageBody', { fallback: dailyFallbackAbbreviation }),
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          {
+            text: t('home.readInTranslation', { translation: dailyFallbackAbbreviation }),
+            onPress: () => {
+              useBibleStore.getState().setCurrentTranslation(fallbackTranslationId);
+              openDailyChapter();
+            },
+          },
+        ]
+      );
+      return;
+    }
+
+    openDailyChapter();
   };
 
   const renderVerseShareButton = () => (

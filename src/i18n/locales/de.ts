@@ -446,6 +446,10 @@ export const de = {
     lessonsProgress: '{{completed}} / {{total}} Lektionen',
     nextLesson: 'Nächste · {{title}}',
     readPassage: '{{passage}} lesen',
+    borrowedPassageTitle: '{{passage}} ist nicht in {{translation}} enthalten',
+    borrowedPassageBody:
+      'Der Vers des Tages stammt aus {{fallback}}. Wenn du das Kapitel dort liest, wechselt deine Bibel zu {{fallback}}; du kannst jederzeit zurückwechseln.',
+    readInTranslation: 'In {{translation}} lesen',
     goodMorning: 'Guten Morgen',
     goodAfternoon: 'Guten Tag',
     goodEvening: 'Guten Abend',

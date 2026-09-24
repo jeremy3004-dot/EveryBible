@@ -447,6 +447,10 @@ export const vi = {
     lessonsProgress: '{{completed}} / {{total}} bài học',
     nextLesson: 'Tiếp theo · {{title}}',
     readPassage: 'Đọc {{passage}}',
+    borrowedPassageTitle: '{{translation}} không có {{passage}}',
+    borrowedPassageBody:
+      'Câu Kinh Thánh hôm nay lấy từ {{fallback}}. Đọc chương này ở đó sẽ chuyển Kinh Thánh của bạn sang {{fallback}}; bạn có thể chuyển lại bất cứ lúc nào.',
+    readInTranslation: 'Đọc bằng {{translation}}',
     goodMorning: 'Chào buổi sáng',
     goodAfternoon: 'Chào buổi chiều',
     goodEvening: 'Chào buổi tối',
