@@ -477,6 +477,37 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     }, AUDIO_PROGRESS_TELEMETRY_INTERVAL_MS);
   }, [emitAudioPlaybackProgress, resetAudioProgressTelemetryClock]);
 
+  // With the reader closed, the sleep timer is enforced only from native progress, which
+  // a chapter reports once it is already sounding. A timer that has run out by a chapter
+  // boundary holds the next chapter back instead: selected and paused at its start, so
+  // Play (or the lock screen) carries on from there. Returns whether it held it.
+  const holdChapterForExpiredSleepTimer = useCallback(
+    async (track: {
+      translationId: string;
+      bookId: string;
+      chapter: number;
+      positionMs: number;
+      durationMs: number;
+    }): Promise<boolean> => {
+      const { sleepTimerEndTime } = useAudioStore.getState();
+      if (sleepTimerEndTime === null || Date.now() < sleepTimerEndTime) {
+        return false;
+      }
+
+      useAudioStore.getState().clearSleepTimer();
+      // As a listener pause: the end of an interruption must not start it.
+      pausedByListener.current = true;
+      chapterTransition.current = false;
+      setStatus('paused');
+      syncCurrentNowPlaying({ ...track, isPlaying: false }, true);
+      if (audioPlayer.isLoaded()) {
+        await audioPlayer.pause();
+      }
+      return true;
+    },
+    [setStatus, syncCurrentNowPlaying]
+  );
+
   const playChapterForTranslation = useCallback(
     async (
       targetTranslationId: string,
@@ -540,6 +571,15 @@ export function useAudioPlayer(translationId: string = 'bsb') {
         clearPlaybackSequence();
       }
 
+      const heldTrack = {
+        translationId: targetTranslationId,
+        bookId,
+        chapter,
+        positionMs: startPositionMs,
+        durationMs: 0,
+      };
+      if (await holdChapterForExpiredSleepTimer(heldTrack)) return;
+
       try {
         let audioData = await getChapterAudioUrl(targetTranslationId, bookId, chapter, verse);
         const initialAudioUrl = audioData?.url ?? null;
@@ -547,6 +587,8 @@ export function useAudioPlayer(translationId: string = 'bsb') {
         if (playRequestId !== playRequestIdRef.current) {
           return;
         }
+
+        if (await holdChapterForExpiredSleepTimer(heldTrack)) return;
 
         if (!audioData) {
           setError(t('interface.audioUnavailableChapter'));
@@ -606,6 +648,12 @@ export function useAudioPlayer(translationId: string = 'bsb') {
           setPosition(startPositionMs);
         }
         setDuration(audioData.duration);
+        // Loading can take long enough for the timer to run out meanwhile.
+        if (
+          await holdChapterForExpiredSleepTimer({ ...heldTrack, durationMs: audioData.duration })
+        ) {
+          return;
+        }
         setStatus('playing');
         useLibraryStore.getState().recordHistory(bookId, chapter, 0);
         syncCurrentNowPlaying(
@@ -649,6 +697,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       clearPlaybackSequence,
       syncCurrentNowPlaying,
       resolveAudioCoverage,
+      holdChapterForExpiredSleepTimer,
       t,
     ]
   );

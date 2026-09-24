@@ -3431,6 +3431,116 @@ test('the sleep timer still pauses playback after the reader has closed', async 
   emitStatus({ isPlaying: false, positionMillis: 300_000 });
 });
 
+// With the reader closed the sleep timer is only checked on native progress, which a
+// new chapter reports once it is already sounding. A timer that has run out by the
+// end of a chapter must not start the next one at all.
+const playWithSleepTimerThenCloseReader = async (timers: MockTimers) => {
+  timers.enable({ apis: ['setInterval', 'Date'], now: BASE_TIME });
+  const player = mountPlayer();
+  store().setBackgroundMusicChoice('piano');
+  await player.api.playChapter('GEN', 1);
+  store().setSleepTimer(5);
+  player.rerender();
+  player.unmount();
+  recorded.player.length = 0;
+  recorded.audioLookups.length = 0;
+};
+
+test('a sleep timer that ran out as the chapter ended does not start the next chapter', async (t) => {
+  await playWithSleepTimerThenCloseReader(t.mock.timers);
+
+  t.mock.timers.tick(5 * 60 * 1000);
+  await finishPlayback();
+
+  assert.deepEqual(playerCalls('loadAndPlay'), []);
+  assert.deepEqual(recorded.audioLookups, []);
+  assert.equal(store().status, 'paused');
+  assert.equal(store().sleepTimerEndTime, null);
+  assert.equal(store().sleepTimerMinutes, null);
+  assert.deepEqual(recorded.backgroundMusic.at(-1), {
+    method: 'sync',
+    choice: 'piano',
+    shouldPlay: false,
+  });
+  // Play picks up with the chapter that would have come next, from its start.
+  assert.equal(store().currentChapter, 2);
+  assert.equal(store().lastPosition, 0);
+  assert.equal(recorded.nowPlaying.at(-1)?.chapter, 2);
+  assert.equal(recorded.nowPlaying.at(-1)?.isPlaying, false);
+});
+
+test('a chapter the sleep timer held back stays paused when an interruption ends', async (t) => {
+  await playWithSleepTimerThenCloseReader(t.mock.timers);
+  t.mock.timers.tick(5 * 60 * 1000);
+  await finishPlayback();
+
+  await remoteCommandListener?.({ command: 'interruption-ended' });
+
+  assert.equal(store().status, 'paused');
+  assert.deepEqual(playerCalls('loadAndPlay'), []);
+});
+
+test('a sleep timer that runs out while the next chapter is looked up does not start it', async (t) => {
+  await playWithSleepTimerThenCloseReader(t.mock.timers);
+  t.mock.timers.tick(5 * 60 * 1000 - 500);
+  let releaseLookup: () => void = () => {};
+  const lookup = new Promise<void>((resolve) => {
+    releaseLookup = resolve;
+  });
+  scenario.chapterAudio = async (translationId, bookId, chapter) => {
+    await lookup;
+    return defaultChapterAudio(translationId, bookId, chapter);
+  };
+
+  const finishing = finishPlayback();
+  await new Promise((resolve) => setImmediate(resolve));
+  t.mock.timers.tick(1_000);
+  releaseLookup();
+  await finishing;
+
+  assert.deepEqual(playerCalls('loadAndPlay'), []);
+  assert.equal(store().status, 'paused');
+  assert.equal(store().currentChapter, 2);
+  assert.equal(store().sleepTimerEndTime, null);
+});
+
+test('a sleep timer that runs out while the next chapter loads pauses it at once', async (t) => {
+  await playWithSleepTimerThenCloseReader(t.mock.timers);
+  t.mock.timers.tick(5 * 60 * 1000 - 500);
+  let releaseLoad: () => void = () => {};
+  playerGates.set(
+    'load:https://cdn.example/bsb/GEN/2.mp3',
+    new Promise<void>((resolve) => {
+      releaseLoad = resolve;
+    })
+  );
+
+  const finishing = finishPlayback();
+  while (playerCalls('loadAndPlay').length === 0) {
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+  t.mock.timers.tick(1_000);
+  releaseLoad();
+  await finishing;
+
+  assert.equal(playerCalls('pause').length, 1);
+  assert.equal(store().status, 'paused');
+  assert.equal(store().currentChapter, 2);
+  assert.equal(store().sleepTimerEndTime, null);
+});
+
+test('a sleep timer with time left lets the next chapter start', async (t) => {
+  await playWithSleepTimerThenCloseReader(t.mock.timers);
+  t.mock.timers.tick(4 * 60 * 1000);
+
+  await finishPlayback();
+
+  assert.equal(store().status, 'playing');
+  assert.equal(store().currentChapter, 2);
+  assert.equal(store().sleepTimerMinutes, 5);
+  await remoteCommandListener?.({ command: 'pause' });
+});
+
 test('a replacement hook interpolates and old cleanup does not disable it', async (t) => {
   t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: BASE_TIME });
   const old = mountPlayer();
