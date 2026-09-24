@@ -104,6 +104,7 @@ export const bn = {
     "harvest": "ফসল",
     "gather": "সমাবেশ",
     "more": "আরও",
+    "accessibilityPosition": "{{label}}, ট্যাব, {{total}}টির মধ্যে {{position}}",
     "plans": "পরিকল্পনা"
   },
   "home": {
@@ -221,6 +222,7 @@ export const bn = {
     "downloadBibleAudio": "সম্পূর্ণ বাইবেল অডিও ডাউনলোড করুন",
     "audioSavedOffline": "অফলাইনে শোনার জন্য সংরক্ষিত",
     "audioDownloadFailed": "এই অডিওটি এখন ডাউনলোড করা যায়নি।",
+    "audioDownloadInsufficientSpace": "এই ডাউনলোডের জন্য যথেষ্ট খালি জায়গা নেই। এর জন্য প্রায় {{required}} লাগবে, কিন্তু খালি আছে মাত্র {{free}}। কিছু জায়গা খালি করে আবার চেষ্টা করুন।",
     "available": "উপলব্ধ",
     "translationComingSoon": "{{name}} ভবিষ্যতের কোনো আপডেটে ডাউনলোডের জন্য পাওয়া যাবে।",
     "failedToLoad": "এই অধ্যায়টি এখন লোড করা যায়নি।",
@@ -857,6 +859,7 @@ export const bn = {
     "morningRhythm": "সকালের ছন্দ",
     "afternoonRhythm": "বিকেলের ছন্দ",
     "eveningRhythm": "সন্ধ্যার ছন্দ",
+    "rhythmNumber": "ছন্দ {{number}}",
     "morningLabel": "সকাল",
     "afternoonLabel": "বিকেল",
     "eveningLabel": "সন্ধ্যা",
@@ -1674,6 +1677,8 @@ export const bn = {
     "pauseChapterAudio": "অধ্যায়ের অডিও থামান",
     "previousChapterHint": "আগের অধ্যায়ে যায়",
     "chapterRange": "অধ্যায় {{start}}–{{end}}",
+    "chapterNumber": "অধ্যায় {{chapter}}",
+    "verseNumber": "পদ {{verse}}",
     "currentPlanDay": "পরিকল্পনার বর্তমান দিন {{day}}",
     "planDay": "দিন {{day}}",
     "planSessionForDay": "দিন {{day}}-এর {{session}}",

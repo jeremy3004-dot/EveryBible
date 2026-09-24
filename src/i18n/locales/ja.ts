@@ -76,6 +76,8 @@ export const ja = {
     "pauseChapterAudio": "章の音声を一時停止",
     "previousChapterHint": "前の章に戻ります",
     "chapterRange": "{{start}}–{{end}}章",
+    "chapterNumber": "{{chapter}}章",
+    "verseNumber": "{{verse}}節",
     "currentPlanDay": "現在のプランの{{day}}日目",
     "planDay": "{{day}}日目",
     "planSessionForDay": "{{day}}日目の{{session}}",
@@ -382,6 +384,7 @@ export const ja = {
     "harvest": "収穫",
     "gather": "集い",
     "more": "その他",
+    "accessibilityPosition": "{{label}}、タブ、{{total}}個中{{position}}個目",
     "plans": "プラン"
   },
   "home": {
@@ -499,6 +502,7 @@ export const ja = {
     "downloadBibleAudio": "聖書全体の音声をダウンロード",
     "audioSavedOffline": "オフライン再生用に保存済み",
     "audioDownloadFailed": "現在、この音声をダウンロードできませんでした。",
+    "audioDownloadInsufficientSpace": "このダウンロードに必要な空き容量が足りません。約{{required}}必要ですが、空きは{{free}}しかありません。空き容量を増やしてから、もう一度お試しください。",
     "available": "利用可能",
     "translationComingSoon": "{{name}}は今後のアップデートでダウンロードできるようになります。",
     "failedToLoad": "現在、この章を読み込めませんでした。",
@@ -1135,6 +1139,7 @@ export const ja = {
     "morningRhythm": "朝のリズム",
     "afternoonRhythm": "午後のリズム",
     "eveningRhythm": "夕のリズム",
+    "rhythmNumber": "リズム {{number}}",
     "morningLabel": "朝",
     "afternoonLabel": "午後",
     "eveningLabel": "夕方",

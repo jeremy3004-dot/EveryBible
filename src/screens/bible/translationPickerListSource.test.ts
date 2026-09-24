@@ -459,13 +459,13 @@ test('translation picker sheet keeps its bottom rows clear of the Android naviga
 test('translation picker surfaces the real download failure instead of swallowing it', () => {
   const source = readRelativeSource('./TranslationPickerList.tsx');
 
-  const matches = source.match(
-    /downloadError instanceof Error \? downloadError\.message : t\('bible\.audioDownloadFailed'\)/g
-  );
+  // describeAudioDownloadError (behaviour-tested in audioDownloadErrorMessage.test.ts)
+  // keeps the specific out-of-space reason in the interface language.
+  const matches = source.match(/describeAudioDownloadError\(downloadError, t\)/g);
   assert.equal(
     matches?.length,
     2,
-    'both audio download paths should report the underlying error message, with the translated string only as the fallback'
+    'both audio download paths should describe the error they caught in the interface language'
   );
 
   assert.doesNotMatch(

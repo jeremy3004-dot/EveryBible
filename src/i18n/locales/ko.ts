@@ -76,6 +76,8 @@ export const ko = {
     "pauseChapterAudio": "장 오디오 일시 정지",
     "previousChapterHint": "이전 장으로 이동",
     "chapterRange": "{{start}}–{{end}}장",
+    "chapterNumber": "{{chapter}}장",
+    "verseNumber": "{{verse}}절",
     "currentPlanDay": "현재 계획 {{day}}일차",
     "planDay": "{{day}}일차",
     "planSessionForDay": "{{day}}일차 {{session}}",
@@ -382,6 +384,7 @@ export const ko = {
     "harvest": "추수",
     "gather": "모임",
     "more": "더보기",
+    "accessibilityPosition": "{{label}}, 탭, {{total}}개 중 {{position}}번째",
     "plans": "계획"
   },
   "home": {
@@ -499,6 +502,7 @@ export const ko = {
     "downloadBibleAudio": "전체 성경 오디오 다운로드",
     "audioSavedOffline": "오프라인 청취용으로 저장됨",
     "audioDownloadFailed": "지금은 이 오디오를 다운로드할 수 없습니다.",
+    "audioDownloadInsufficientSpace": "이 다운로드에 필요한 여유 공간이 부족합니다. 약 {{required}}가 필요하지만 여유 공간은 {{free}}뿐입니다. 공간을 확보한 뒤 다시 시도해 주세요.",
     "available": "사용 가능",
     "translationComingSoon": "{{name}}은(는) 향후 업데이트에서 다운로드할 수 있습니다.",
     "failedToLoad": "지금은 이 장을 불러올 수 없습니다.",
@@ -1135,6 +1139,7 @@ export const ko = {
     "morningRhythm": "아침 리듬",
     "afternoonRhythm": "오후 리듬",
     "eveningRhythm": "저녁 리듬",
+    "rhythmNumber": "리듬 {{number}}",
     "morningLabel": "아침",
     "afternoonLabel": "오후",
     "eveningLabel": "저녁",

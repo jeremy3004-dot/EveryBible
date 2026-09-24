@@ -82,6 +82,8 @@ export const de = {
     "pauseChapterAudio": "Kapitel-Audio pausieren",
     "previousChapterHint": "Geht zum vorherigen Kapitel",
     "chapterRange": "Kapitel {{start}}–{{end}}",
+    "chapterNumber": "Kapitel {{chapter}}",
+    "verseNumber": "Vers {{verse}}",
     "currentPlanDay": "Aktueller Plantag: {{day}}",
     "planDay": "Tag {{day}}",
     "planSessionForDay": "{{session}} für Tag {{day}}",
@@ -382,6 +384,7 @@ export const de = {
     "harvest": "Ernte",
     "gather": "Treffen",
     "more": "Mehr",
+    "accessibilityPosition": "{{label}}, Tab, {{position}} von {{total}}",
     "plans": "Pläne"
   },
   "home": {
@@ -499,6 +502,7 @@ export const de = {
     "downloadBibleAudio": "Audio der ganzen Bibel herunterladen",
     "audioSavedOffline": "Für das Offline-Hören gespeichert",
     "audioDownloadFailed": "Dieses Audio konnte gerade nicht heruntergeladen werden.",
+    "audioDownloadInsufficientSpace": "Nicht genug freier Speicher für diesen Download. Er braucht etwa {{required}}, aber nur {{free}} sind frei. Schaffe etwas Platz und versuche es noch einmal.",
     "available": "Verfügbar",
     "translationComingSoon": "{{name}} steht in einem späteren Update zum Download bereit.",
     "failedToLoad": "Dieses Kapitel konnte derzeit nicht geladen werden.",
@@ -1135,6 +1139,7 @@ export const de = {
     "morningRhythm": "Morgenrhythmus",
     "afternoonRhythm": "Nachmittagsrhythmus",
     "eveningRhythm": "Abendrhythmus",
+    "rhythmNumber": "Rhythmus {{number}}",
     "morningLabel": "Morgen",
     "afternoonLabel": "Nachmittag",
     "eveningLabel": "Abend",

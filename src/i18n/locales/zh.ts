@@ -76,6 +76,8 @@ export const zh = {
     "pauseChapterAudio": "暂停本章音频",
     "previousChapterHint": "前往上一章",
     "chapterRange": "第 {{start}}–{{end}} 章",
+    "chapterNumber": "第 {{chapter}} 章",
+    "verseNumber": "第 {{verse}} 节",
     "currentPlanDay": "当前计划第 {{day}} 天",
     "planDay": "第 {{day}} 天",
     "planSessionForDay": "第 {{day}} 天：{{session}}",
@@ -382,6 +384,7 @@ export const zh = {
     "harvest": "禾场",
     "gather": "聚集",
     "more": "更多",
+    "accessibilityPosition": "{{label}}，标签，第 {{position}} 个，共 {{total}} 个",
     "plans": "计划"
   },
   "home": {
@@ -499,6 +502,7 @@ export const zh = {
     "downloadBibleAudio": "下载整本圣经音频",
     "audioSavedOffline": "已保存以供离线收听",
     "audioDownloadFailed": "暂时无法下载此音频。",
+    "audioDownloadInsufficientSpace": "存储空间不足，无法下载。此下载约需 {{required}}，但只剩 {{free}} 可用。请释放一些空间后再试。",
     "available": "可用",
     "translationComingSoon": "{{name}} 将在后续更新中开放下载。",
     "failedToLoad": "暂时无法加载本章。",
@@ -1138,6 +1142,7 @@ export const zh = {
     "morningRhythm": "早晨节奏",
     "afternoonRhythm": "下午节奏",
     "eveningRhythm": "晚间节奏",
+    "rhythmNumber": "节奏 {{number}}",
     "morningLabel": "早晨",
     "middayLabel": "中午",
     "afternoonLabel": "下午",

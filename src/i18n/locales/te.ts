@@ -104,6 +104,7 @@ export const te = {
     "harvest": "కోత",
     "gather": "కలయిక",
     "more": "మరిన్ని",
+    "accessibilityPosition": "{{label}}, ట్యాబ్, {{total}}లో {{position}}",
     "plans": "ప్రణాళికలు"
   },
   "home": {
@@ -221,6 +222,7 @@ export const te = {
     "downloadBibleAudio": "మొత్తం బైబిల్ ఆడియోను డౌన్‌లోడ్ చేయండి",
     "audioSavedOffline": "ఆఫ్‌లైన్ వినడానికి భద్రపరచబడింది",
     "audioDownloadFailed": "ఈ ఆడియోను ఇప్పుడు డౌన్‌లోడ్ చేయలేకపోయాము.",
+    "audioDownloadInsufficientSpace": "ఈ డౌన్‌లోడ్‌కు సరిపడా ఖాళీ స్థలం లేదు. దీనికి సుమారు {{required}} కావాలి, కానీ {{free}} మాత్రమే ఖాళీగా ఉంది. కొంత స్థలం ఖాళీ చేసి మళ్లీ ప్రయత్నించండి.",
     "available": "అందుబాటులో ఉంది",
     "translationComingSoon": "{{name}} భవిష్యత్ నవీకరణలో డౌన్‌లోడ్ చేసుకోవడానికి అందుబాటులో ఉంటుంది.",
     "failedToLoad": "ఈ అధ్యాయాన్ని ఇప్పుడు లోడ్ చేయలేకపోయాము.",
@@ -857,6 +859,7 @@ export const te = {
     "morningRhythm": "ఉదయపు లయ",
     "afternoonRhythm": "మధ్యాహ్నపు లయ",
     "eveningRhythm": "సాయంత్రపు లయ",
+    "rhythmNumber": "లయ {{number}}",
     "morningLabel": "ఉదయం",
     "afternoonLabel": "మధ్యాహ్నం",
     "eveningLabel": "సాయంత్రం",
@@ -1674,6 +1677,8 @@ export const te = {
     "pauseChapterAudio": "అధ్యాయం ఆడియోకు విరామం ఇవ్వండి",
     "previousChapterHint": "మునుపటి అధ్యాయానికి వెళ్తుంది",
     "chapterRange": "అధ్యాయాలు {{start}}–{{end}}",
+    "chapterNumber": "అధ్యాయం {{chapter}}",
+    "verseNumber": "వచనం {{verse}}",
     "currentPlanDay": "ప్రణాళికలో ప్రస్తుత రోజు {{day}}",
     "planDay": "రోజు {{day}}",
     "planSessionForDay": "రోజు {{day}} కోసం {{session}}",

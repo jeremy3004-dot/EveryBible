@@ -76,6 +76,8 @@ export const id = {
     "pauseChapterAudio": "Jeda audio pasal",
     "previousChapterHint": "Buka pasal sebelumnya",
     "chapterRange": "Pasal {{start}}–{{end}}",
+    "chapterNumber": "Pasal {{chapter}}",
+    "verseNumber": "Ayat {{verse}}",
     "currentPlanDay": "Hari rencana saat ini: {{day}}",
     "planDay": "Hari {{day}}",
     "planSessionForDay": "{{session}} untuk hari {{day}}",
@@ -382,6 +384,7 @@ export const id = {
     "harvest": "Panen",
     "gather": "Berkumpul",
     "more": "Lainnya",
+    "accessibilityPosition": "{{label}}, tab, {{position}} dari {{total}}",
     "plans": "Rencana"
   },
   "home": {
@@ -499,6 +502,7 @@ export const id = {
     "downloadBibleAudio": "Unduh audio seluruh Alkitab",
     "audioSavedOffline": "Disimpan untuk didengarkan offline",
     "audioDownloadFailed": "Kami belum bisa mengunduh audio ini sekarang.",
+    "audioDownloadInsufficientSpace": "Ruang kosong tidak cukup untuk unduhan ini. Dibutuhkan sekitar {{required}}, tetapi hanya tersisa {{free}}. Kosongkan sebagian ruang lalu coba lagi.",
     "available": "Tersedia",
     "translationComingSoon": "{{name}} akan tersedia untuk diunduh pada pembaruan mendatang.",
     "failedToLoad": "Kami tidak dapat memuat pasal ini sekarang.",
@@ -1135,6 +1139,7 @@ export const id = {
     "morningRhythm": "Ritme pagi",
     "afternoonRhythm": "Ritme sore",
     "eveningRhythm": "Ritme malam",
+    "rhythmNumber": "Ritme {{number}}",
     "morningLabel": "Pagi",
     "afternoonLabel": "Sore",
     "eveningLabel": "Malam",

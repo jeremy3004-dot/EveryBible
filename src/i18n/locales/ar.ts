@@ -100,6 +100,8 @@ export const ar = {
     "pauseChapterAudio": "إيقاف صوت الإصحاح مؤقتًا",
     "previousChapterHint": "ينتقل إلى الإصحاح السابق",
     "chapterRange": "الإصحاحات {{start}}–{{end}}",
+    "chapterNumber": "الإصحاح {{chapter}}",
+    "verseNumber": "الآية {{verse}}",
     "currentPlanDay": "اليوم الحالي في الخطة: {{day}}",
     "planDay": "اليوم {{day}}",
     "planSessionForDay": "{{session}} لليوم {{day}}",
@@ -410,6 +412,7 @@ export const ar = {
     "harvest": "الحصاد",
     "gather": "اجتماع",
     "more": "المزيد",
+    "accessibilityPosition": "{{label}}، علامة تبويب، {{position}} من {{total}}",
     "plans": "الخطط"
   },
   "home": {
@@ -539,6 +542,7 @@ export const ar = {
     "downloadBibleAudio": "تنزيل صوت الكتاب المقدس بالكامل",
     "audioSavedOffline": "محفوظ للاستماع دون اتصال",
     "audioDownloadFailed": "تعذّر تنزيل هذا الصوت الآن.",
+    "audioDownloadInsufficientSpace": "لا توجد مساحة كافية لهذا التنزيل. يحتاج إلى نحو {{required}}، لكن المساحة المتاحة {{free}} فقط. أفرغ بعض المساحة وحاول مرة أخرى.",
     "available": "متاحة",
     "translationComingSoon": "سيكون {{name}} متاحًا للتنزيل في تحديث قادم.",
     "failedToLoad": "تعذّر تحميل هذا الإصحاح الآن.",
@@ -1363,6 +1367,7 @@ export const ar = {
     "morningRhythm": "إيقاع الصباح",
     "afternoonRhythm": "إيقاع بعد الظهر",
     "eveningRhythm": "إيقاع المساء",
+    "rhythmNumber": "الإيقاع {{number}}",
     "morningLabel": "الصباح",
     "afternoonLabel": "بعد الظهر",
     "eveningLabel": "المساء",

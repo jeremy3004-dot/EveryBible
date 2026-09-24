@@ -104,6 +104,7 @@ export const pa = {
     "harvest": "ਵਾਢੀ",
     "gather": "ਇਕੱਠ",
     "more": "ਹੋਰ",
+    "accessibilityPosition": "{{label}}, ਟੈਬ, {{total}} ਵਿੱਚੋਂ {{position}}",
     "plans": "ਯੋਜਨਾਵਾਂ"
   },
   "home": {
@@ -221,6 +222,7 @@ export const pa = {
     "downloadBibleAudio": "ਪੂਰੀ ਬਾਈਬਲ ਆਡੀਓ ਡਾਊਨਲੋਡ ਕਰੋ",
     "audioSavedOffline": "ਆਫ਼ਲਾਈਨ ਸੁਣਨ ਲਈ ਸੰਭਾਲਿਆ",
     "audioDownloadFailed": "ਅਸੀਂ ਇਹ ਆਡੀਓ ਇਸ ਵੇਲੇ ਡਾਊਨਲੋਡ ਨਹੀਂ ਕਰ ਸਕੇ।",
+    "audioDownloadInsufficientSpace": "ਇਸ ਡਾਊਨਲੋਡ ਲਈ ਕਾਫ਼ੀ ਖਾਲੀ ਥਾਂ ਨਹੀਂ ਹੈ। ਇਸ ਨੂੰ ਲਗਭਗ {{required}} ਚਾਹੀਦੀ ਹੈ, ਪਰ ਸਿਰਫ਼ {{free}} ਖਾਲੀ ਹੈ। ਕੁਝ ਥਾਂ ਖਾਲੀ ਕਰਕੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
     "available": "ਉਪਲਬਧ ਹੈ",
     "translationComingSoon": "{{name}} ਭਵਿੱਖ ਦੇ ਅੱਪਡੇਟ ਵਿੱਚ ਡਾਊਨਲੋਡ ਕਰਨ ਲਈ ਉਪਲਬਧ ਹੋਵੇਗਾ।",
     "failedToLoad": "ਅਸੀਂ ਇਹ ਅਧਿਆਇ ਇਸ ਵੇਲੇ ਲੋਡ ਨਹੀਂ ਕਰ ਸਕੇ।",
@@ -857,6 +859,7 @@ export const pa = {
     "morningRhythm": "ਸਵੇਰ ਦੀ ਲੈਅ",
     "afternoonRhythm": "ਦੁਪਹਿਰ ਦੀ ਲੈਅ",
     "eveningRhythm": "ਸ਼ਾਮ ਦੀ ਲੈਅ",
+    "rhythmNumber": "ਲੈਅ {{number}}",
     "morningLabel": "ਸਵੇਰ",
     "afternoonLabel": "ਦੁਪਹਿਰ",
     "eveningLabel": "ਸ਼ਾਮ",
@@ -1674,6 +1677,8 @@ export const pa = {
     "pauseChapterAudio": "ਅਧਿਆਇ ਦੀ ਆਡੀਓ ਰੋਕੋ",
     "previousChapterHint": "ਪਿਛਲੇ ਅਧਿਆਇ ਉੱਤੇ ਜਾਂਦਾ ਹੈ",
     "chapterRange": "ਅਧਿਆਇ {{start}}–{{end}}",
+    "chapterNumber": "ਅਧਿਆਇ {{chapter}}",
+    "verseNumber": "ਆਇਤ {{verse}}",
     "currentPlanDay": "ਯੋਜਨਾ ਦਾ ਮੌਜੂਦਾ ਦਿਨ {{day}}",
     "planDay": "ਦਿਨ {{day}}",
     "planSessionForDay": "ਦਿਨ {{day}} ਲਈ {{session}}",

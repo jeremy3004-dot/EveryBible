@@ -104,6 +104,7 @@ export const ta = {
     "harvest": "அறுவடை",
     "gather": "ஒன்றுகூடல்",
     "more": "மேலும்",
+    "accessibilityPosition": "{{label}}, தாவல், {{total}}-இல் {{position}}",
     "plans": "திட்டங்கள்"
   },
   "home": {
@@ -221,6 +222,7 @@ export const ta = {
     "downloadBibleAudio": "முழு வேதாகம ஆடியோவைப் பதிவிறக்கவும்",
     "audioSavedOffline": "ஆஃப்லைனில் கேட்கச் சேமிக்கப்பட்டது",
     "audioDownloadFailed": "இந்த ஆடியோவை இப்போது பதிவிறக்க முடியவில்லை.",
+    "audioDownloadInsufficientSpace": "இந்தப் பதிவிறக்கத்துக்குப் போதுமான காலி இடம் இல்லை. இதற்குச் சுமார் {{required}} தேவை, ஆனால் {{free}} மட்டுமே காலியாக உள்ளது. சிறிது இடத்தைக் காலி செய்து மீண்டும் முயற்சிக்கவும்.",
     "available": "கிடைக்கும்",
     "translationComingSoon": "{{name}} எதிர்காலப் புதுப்பிப்பில் பதிவிறக்கத்திற்குக் கிடைக்கும்.",
     "failedToLoad": "எங்களால் இந்த அத்தியாயத்தை இப்போது ஏற்ற முடியவில்லை.",
@@ -857,6 +859,7 @@ export const ta = {
     "morningRhythm": "காலை ஒழுங்கு",
     "afternoonRhythm": "மதிய ஒழுங்கு",
     "eveningRhythm": "மாலை ஒழுங்கு",
+    "rhythmNumber": "ஒழுங்கு {{number}}",
     "morningLabel": "காலை",
     "afternoonLabel": "மதியம்",
     "eveningLabel": "மாலை",
@@ -1674,6 +1677,8 @@ export const ta = {
     "pauseChapterAudio": "அத்தியாய ஒலியை இடைநிறுத்து",
     "previousChapterHint": "முந்தைய அத்தியாயத்திற்குச் செல்கிறது",
     "chapterRange": "அத்தியாயங்கள் {{start}}–{{end}}",
+    "chapterNumber": "அத்தியாயம் {{chapter}}",
+    "verseNumber": "வசனம் {{verse}}",
     "currentPlanDay": "திட்டத்தின் தற்போதைய நாள் {{day}}",
     "planDay": "நாள் {{day}}",
     "planSessionForDay": "நாள் {{day}}க்கான {{session}}",

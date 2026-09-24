@@ -89,6 +89,8 @@ export const pt = {
     "pauseChapterAudio": "Pausar o áudio do capítulo",
     "previousChapterHint": "Vai para o capítulo anterior",
     "chapterRange": "Capítulos {{start}}–{{end}}",
+    "chapterNumber": "Capítulo {{chapter}}",
+    "verseNumber": "Versículo {{verse}}",
     "currentPlanDay": "Dia atual do plano: {{day}}",
     "planDay": "Dia {{day}}",
     "planSessionForDay": "{{session}} do dia {{day}}",
@@ -390,6 +392,7 @@ export const pt = {
     "harvest": "Colheita",
     "gather": "Reunir",
     "more": "Mais",
+    "accessibilityPosition": "{{label}}, aba, {{position}} de {{total}}",
     "plans": "Planos"
   },
   "home": {
@@ -510,6 +513,7 @@ export const pt = {
     "downloadBibleAudio": "Baixar o áudio da Bíblia inteira",
     "audioSavedOffline": "Salvo para ouvir offline",
     "audioDownloadFailed": "Não foi possível baixar este áudio agora.",
+    "audioDownloadInsufficientSpace": "Não há espaço livre suficiente para este download. Ele precisa de cerca de {{required}}, mas só há {{free}} livres. Libere espaço e tente novamente.",
     "available": "Disponível",
     "translationComingSoon": "{{name}} estará disponível para download em uma atualização futura.",
     "failedToLoad": "Não foi possível carregar este capítulo agora.",
@@ -1154,6 +1158,7 @@ export const pt = {
     "morningRhythm": "Ritmo matinal",
     "afternoonRhythm": "Ritmo da tarde",
     "eveningRhythm": "Ritmo noturno",
+    "rhythmNumber": "Ritmo {{number}}",
     "morningLabel": "Manhã",
     "afternoonLabel": "Tarde",
     "eveningLabel": "Noite",

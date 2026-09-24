@@ -88,6 +88,8 @@ export const fr = {
     "pauseChapterAudio": "Mettre le chapitre audio en pause",
     "previousChapterHint": "Passe au chapitre précédent",
     "chapterRange": "Chapitres {{start}}–{{end}}",
+    "chapterNumber": "Chapitre {{chapter}}",
+    "verseNumber": "Verset {{verse}}",
     "currentPlanDay": "Jour actuel du plan : {{day}}",
     "planDay": "Jour {{day}}",
     "planSessionForDay": "{{session}} du jour {{day}}",
@@ -389,6 +391,7 @@ export const fr = {
     "harvest": "Moisson",
     "gather": "Rassembler",
     "more": "Plus",
+    "accessibilityPosition": "{{label}}, onglet, {{position}} sur {{total}}",
     "plans": "Plans"
   },
   "home": {
@@ -509,6 +512,7 @@ export const fr = {
     "downloadBibleAudio": "Télécharger l’audio de toute la Bible",
     "audioSavedOffline": "Enregistré pour l’écoute hors ligne",
     "audioDownloadFailed": "Nous n’avons pas pu télécharger cet audio pour le moment.",
+    "audioDownloadInsufficientSpace": "Espace libre insuffisant pour ce téléchargement. Il faut environ {{required}}, mais seulement {{free}} sont disponibles. Libérez de l’espace et réessayez.",
     "available": "Disponible",
     "translationComingSoon": "{{name}} sera disponible en téléchargement dans une prochaine mise à jour.",
     "failedToLoad": "Nous n’avons pas pu charger ce chapitre pour le moment.",
@@ -1153,6 +1157,7 @@ export const fr = {
     "morningRhythm": "Rythme du matin",
     "afternoonRhythm": "Rythme de l’après-midi",
     "eveningRhythm": "Rythme du soir",
+    "rhythmNumber": "Rythme {{number}}",
     "morningLabel": "Matin",
     "afternoonLabel": "Après-midi",
     "eveningLabel": "Soir",

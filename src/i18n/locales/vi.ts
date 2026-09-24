@@ -76,6 +76,8 @@ export const vi = {
     "pauseChapterAudio": "Tạm dừng âm thanh chương",
     "previousChapterHint": "Chuyển đến chương trước",
     "chapterRange": "Chương {{start}}–{{end}}",
+    "chapterNumber": "Chương {{chapter}}",
+    "verseNumber": "Câu {{verse}}",
     "currentPlanDay": "Ngày {{day}} của kế hoạch hiện tại",
     "planDay": "Ngày {{day}}",
     "planSessionForDay": "{{session}} cho ngày {{day}}",
@@ -382,6 +384,7 @@ export const vi = {
     "harvest": "Mùa gặt",
     "gather": "Nhóm họp",
     "more": "Thêm",
+    "accessibilityPosition": "{{label}}, thẻ, {{position}} trên {{total}}",
     "plans": "Kế hoạch"
   },
   "home": {
@@ -499,6 +502,7 @@ export const vi = {
     "downloadBibleAudio": "Tải xuống âm thanh toàn bộ Kinh Thánh",
     "audioSavedOffline": "Đã lưu để nghe ngoại tuyến",
     "audioDownloadFailed": "Hiện chúng tôi không tải xuống được âm thanh này.",
+    "audioDownloadInsufficientSpace": "Không đủ dung lượng trống cho lượt tải xuống này. Cần khoảng {{required}}, nhưng chỉ còn trống {{free}}. Hãy giải phóng bớt dung lượng rồi thử lại.",
     "available": "Có sẵn",
     "translationComingSoon": "{{name}} sẽ có để tải xuống trong một bản cập nhật sắp tới.",
     "failedToLoad": "Hiện chúng tôi không tải được chương này.",
@@ -1135,6 +1139,7 @@ export const vi = {
     "morningRhythm": "Nhịp buổi sáng",
     "afternoonRhythm": "Nhịp buổi chiều",
     "eveningRhythm": "Nhịp buổi tối",
+    "rhythmNumber": "Nhịp {{number}}",
     "morningLabel": "Buổi sáng",
     "afternoonLabel": "Buổi chiều",
     "eveningLabel": "Buổi tối",

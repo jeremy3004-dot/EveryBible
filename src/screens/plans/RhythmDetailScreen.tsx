@@ -167,7 +167,7 @@ function SegmentCard({
       ) : item.segment.type === 'passage' ? (
         <Text style={[styles.segmentBody, { color: colors.secondaryText }]}>
           {item.segment.startChapter === item.segment.endChapter
-            ? `${t('bible.chapter')} ${item.segment.startChapter ?? 1}`
+            ? t('interface.chapterNumber', { chapter: item.segment.startChapter ?? 1 })
             : t('interface.chapterRange', {
                 start: item.segment.startChapter ?? 1,
                 end: item.segment.endChapter ?? item.segment.startChapter ?? 1,

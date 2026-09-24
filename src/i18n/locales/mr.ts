@@ -104,6 +104,7 @@ export const mr = {
     "harvest": "कापणी",
     "gather": "संगती",
     "more": "अधिक",
+    "accessibilityPosition": "{{label}}, टॅब, {{total}} पैकी {{position}}",
     "plans": "योजना"
   },
   "home": {
@@ -221,6 +222,7 @@ export const mr = {
     "downloadBibleAudio": "संपूर्ण बायबल ऑडिओ डाउनलोड करा",
     "audioSavedOffline": "ऑफलाइन ऐकण्यासाठी जतन केले",
     "audioDownloadFailed": "आम्ही हा ऑडिओ आत्ता डाउनलोड करू शकलो नाही.",
+    "audioDownloadInsufficientSpace": "या डाउनलोडसाठी पुरेशी मोकळी जागा नाही. याला सुमारे {{required}} लागतील, पण फक्त {{free}} मोकळी आहे. थोडी जागा मोकळी करून पुन्हा प्रयत्न करा.",
     "available": "उपलब्ध",
     "translationComingSoon": "{{name}} भविष्यातील अपडेटमध्ये डाउनलोडसाठी उपलब्ध असेल.",
     "failedToLoad": "आम्ही आत्ता हा अध्याय लोड करू शकलो नाही.",
@@ -857,6 +859,7 @@ export const mr = {
     "morningRhythm": "सकाळचा नित्यक्रम",
     "afternoonRhythm": "दुपारचा नित्यक्रम",
     "eveningRhythm": "संध्याकाळचा नित्यक्रम",
+    "rhythmNumber": "नित्यक्रम {{number}}",
     "morningLabel": "सकाळ",
     "afternoonLabel": "दुपार",
     "eveningLabel": "संध्याकाळ",
@@ -1674,6 +1677,8 @@ export const mr = {
     "pauseChapterAudio": "अध्यायाचा ऑडिओ थांबवा",
     "previousChapterHint": "मागील अध्यायाकडे जाते",
     "chapterRange": "अध्याय {{start}}–{{end}}",
+    "chapterNumber": "अध्याय {{chapter}}",
+    "verseNumber": "वचन {{verse}}",
     "currentPlanDay": "योजनेचा सध्याचा दिवस {{day}}",
     "planDay": "दिवस {{day}}",
     "planSessionForDay": "दिवस {{day}} साठी {{session}}",

@@ -82,6 +82,8 @@ export const tr = {
     "pauseChapterAudio": "Bölümün sesini duraklat",
     "previousChapterHint": "Önceki bölüme gider",
     "chapterRange": "Bölümler {{start}}–{{end}}",
+    "chapterNumber": "{{chapter}}. bölüm",
+    "verseNumber": "{{verse}}. ayet",
     "currentPlanDay": "Planın şu anki günü: {{day}}",
     "planDay": "{{day}}. gün",
     "planSessionForDay": "{{day}}. gün için {{session}}",
@@ -382,6 +384,7 @@ export const tr = {
     "harvest": "Hasat",
     "gather": "Buluşma",
     "more": "Diğer",
+    "accessibilityPosition": "{{label}}, sekme, {{position}}/{{total}}",
     "plans": "Planlar"
   },
   "home": {
@@ -499,6 +502,7 @@ export const tr = {
     "downloadBibleAudio": "Tüm Kutsal Kitap sesini indir",
     "audioSavedOffline": "Çevrimdışı dinleme için kaydedildi",
     "audioDownloadFailed": "Bu sesi şu anda indiremedik.",
+    "audioDownloadInsufficientSpace": "Bu indirme için yeterli boş alan yok. Yaklaşık {{required}} gerekiyor ancak yalnızca {{free}} boş. Biraz yer açıp tekrar deneyin.",
     "available": "Mevcut",
     "translationComingSoon": "{{name}} gelecekteki bir güncellemeyle indirilebilecek.",
     "failedToLoad": "Bu bölümü şu anda yükleyemedik.",
@@ -1135,6 +1139,7 @@ export const tr = {
     "morningRhythm": "Sabah ritmi",
     "afternoonRhythm": "Öğleden sonra ritmi",
     "eveningRhythm": "Akşam ritmi",
+    "rhythmNumber": "Ritim {{number}}",
     "morningLabel": "Sabah",
     "afternoonLabel": "Öğleden sonra",
     "eveningLabel": "Akşam",

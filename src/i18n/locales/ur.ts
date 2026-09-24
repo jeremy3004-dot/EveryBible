@@ -76,6 +76,8 @@ export const ur = {
     "pauseChapterAudio": "باب کی آڈیو موقوف کریں",
     "previousChapterHint": "پچھلے باب پر جاتا ہے",
     "chapterRange": "ابواب {{start}}–{{end}}",
+    "chapterNumber": "باب {{chapter}}",
+    "verseNumber": "آیت {{verse}}",
     "currentPlanDay": "منصوبے کا موجودہ دن {{day}}",
     "planDay": "دن {{day}}",
     "planSessionForDay": "دن {{day}} کی {{session}}",
@@ -382,6 +384,7 @@ export const ur = {
     "harvest": "فصل",
     "gather": "اجتماع",
     "more": "مزید",
+    "accessibilityPosition": "{{label}}، ٹیب، {{total}} میں سے {{position}}",
     "plans": "منصوبے"
   },
   "home": {
@@ -499,6 +502,7 @@ export const ur = {
     "downloadBibleAudio": "مکمل بائبل آڈیو ڈاؤن لوڈ کریں",
     "audioSavedOffline": "آف لائن سننے کے لیے محفوظ کیا گیا",
     "audioDownloadFailed": "ہم اس آڈیو کو ابھی ڈاؤن لوڈ نہیں کر سکے۔",
+    "audioDownloadInsufficientSpace": "اس ڈاؤن لوڈ کے لیے کافی خالی جگہ نہیں ہے۔ اسے تقریباً {{required}} درکار ہیں، لیکن صرف {{free}} خالی ہے۔ کچھ جگہ خالی کر کے دوبارہ کوشش کریں۔",
     "available": "دستیاب",
     "translationComingSoon": "{{name}} آئندہ اپ ڈیٹ میں ڈاؤن لوڈ کے لیے دستیاب ہوگا۔",
     "failedToLoad": "ہم ابھی اس باب کو لوڈ نہیں کر سکے۔",
@@ -1135,6 +1139,7 @@ export const ur = {
     "morningRhythm": "صبح کا معمول",
     "afternoonRhythm": "دوپہر کا معمول",
     "eveningRhythm": "شام کا معمول",
+    "rhythmNumber": "معمول {{number}}",
     "morningLabel": "صبح",
     "afternoonLabel": "دوپہر",
     "eveningLabel": "شام",

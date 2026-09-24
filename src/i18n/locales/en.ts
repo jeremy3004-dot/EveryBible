@@ -71,6 +71,8 @@ export const en = {
     pauseChapterAudio: 'Pause chapter audio',
     previousChapterHint: 'Goes to the previous chapter',
     chapterRange: 'Chapters {{start}}–{{end}}',
+    chapterNumber: 'Chapter {{chapter}}',
+    verseNumber: 'Verse {{verse}}',
     currentPlanDay: 'Current plan day {{day}}',
     planDay: 'Day {{day}}',
     planSessionForDay: '{{session}} for day {{day}}',
@@ -380,6 +382,7 @@ export const en = {
     gather: 'Gather',
     plans: 'Plans',
     more: 'More',
+    accessibilityPosition: '{{label}}, tab, {{position}} of {{total}}',
   },
   home: {
     goodMorning: 'Good morning',
@@ -506,6 +509,8 @@ export const en = {
     downloadBibleAudio: 'Download Entire Bible Audio',
     audioSavedOffline: 'Saved for Offline Listening',
     audioDownloadFailed: 'We could not download this audio right now.',
+    audioDownloadInsufficientSpace:
+      'Not enough free space for this download. It needs about {{required}}, but only {{free}} is free. Free up some space and try again.',
     available: 'Available',
     translationComingSoon: '{{name}} will be available for download in a future update.',
     failedToLoad: 'We could not load this chapter right now.',
@@ -1160,6 +1165,7 @@ export const en = {
     morningRhythm: 'Morning Rhythm',
     afternoonRhythm: 'Afternoon Rhythm',
     eveningRhythm: 'Evening Rhythm',
+    rhythmNumber: 'Rhythm {{number}}',
     morningLabel: 'Morning',
     afternoonLabel: 'Afternoon',
     eveningLabel: 'Evening',
