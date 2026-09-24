@@ -1024,8 +1024,9 @@ merged = await merge(D, [
 ]);
 assert.deepEqual(Object.keys(merged.rows[0].completed_entries).sort(), ['7', '8', '9']);
 assert.equal(await startedOf(REJOIN_PLAN), storedStart);
-merged = await merge(D, [clientRow({ plan_slug: 'no-clock', started_at: hoursAgo(3) })]);
-assert.equal(new Date(merged.rows[0].started_at).toISOString(), hoursAgo(3));
+const noClockStart = hoursAgo(3);
+merged = await merge(D, [clientRow({ plan_slug: 'no-clock', started_at: noClockStart })]);
+assert.equal(new Date(merged.rows[0].started_at).toISOString(), noClockStart);
 
 // client_clock_at is a timestamp string or null.
 merged = await merge(D, [clientRow({ plan_slug: 'null-clock', client_clock_at: null })]);
