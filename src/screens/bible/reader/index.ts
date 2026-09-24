@@ -26,6 +26,7 @@ export * from './useAudioReturnTarget';
 export * from './useChapterAudioShare';
 export * from './useChapterFeedback';
 export * from './useChapterFeedbackAudio';
+export * from './usePlanDayCompletion';
 export * from './useReaderAudioSync';
 export * from './useReaderChapterLifecycle';
 export * from './useReaderFollowAlongScroll';

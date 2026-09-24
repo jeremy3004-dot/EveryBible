@@ -48,8 +48,6 @@ import { useTranslationContentSummary } from '../../hooks/useTranslationContentS
 import { isRemoteAudioAvailable } from '../../services/audio/audioRemote';
 import { getAudioAvailability } from '../../services/audio/audioAvailability';
 import { describeAudioDownloadError } from '../../services/audio/audioDownloadErrorMessage';
-import { getPlanStepReadChapters } from '../../services/plans/readingPlanActivity';
-import { markDayComplete, markPlanSessionComplete } from '../../services/plans/readingPlanService';
 import { formatLocalDateKey } from '../../services/progress/readingActivity';
 import { syncPreferences } from '../../services/sync';
 import { useAudioStore } from '../../stores/audioStore';
@@ -139,6 +137,7 @@ import {
   useAudioReturnTarget,
   useChapterAudioShare,
   useChapterFeedback,
+  usePlanDayCompletion,
   useReaderAudioSync,
   useReaderChapterLifecycle,
   useReaderFollowAlongScroll,
@@ -173,12 +172,6 @@ export function BibleReaderScreen() {
   const { colors, themeMode, setTheme } = useTheme();
   const { t } = useTranslation();
   const safeInsets = useSafeAreaInsets();
-  const planDayCompletionGuardRef = useRef<string | null>(null);
-  const listenCountedNoticeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const listenCountedBaselineRef = useRef<{ key: string; alreadyCountedForPlan: boolean } | null>(
-    null
-  );
-  const lastListenCountedNoticeKeyRef = useRef<string | null>(null);
   const scrollViewRef = useRef<Animated.ScrollView | null>(null);
   const premiumReaderListRef = useRef<FlatList<ReaderParagraph> | null>(null);
   const followAlongScrollViewRef = useRef<ScrollView | null>(null);
@@ -816,199 +809,30 @@ export function BibleReaderScreen() {
     });
   }
 
-  const handleCompletePlanDay = useCallback(async () => {
-    if (
-      !activePlanId ||
-      typeof planDayNumber !== 'number' ||
-      !returnToPlanOnComplete ||
-      !activePlanProgress ||
-      activePlanProgress.is_completed
-    ) {
-      return;
-    }
-
-    if (activePlanChapterIndex < 0 || !isLastPlanChapter) {
-      return;
-    }
-
-    const completionKey = `${activePlanId}:${planDayNumber}:${activePlanSessionKey ?? 'day'}:${activeChapterKey}`;
-    if (planDayCompletionGuardRef.current === completionKey) {
-      return;
-    }
-
-    planDayCompletionGuardRef.current = completionKey;
-    try {
-      // Ticking the step is the read: record it today even for chapters read on
-      // an earlier day (a weekly Kathisma, a second year through the Bible), or
-      // the streak and reading calendar would never see a plan reader's day.
-      if (chapterSessionMode === 'read') {
-        for (const read of getPlanStepReadChapters(activePlanSessionEntries)) {
-          markChapterRead(read.bookId, read.chapter);
-        }
-      }
-
-      // L20: both service calls apply the completion to the local plan store
-      // synchronously and push to Supabase in the background, so this await resolves
-      // immediately without gating navigation on an un-timed network round-trip.
-      const completionResult =
-        activePlanIsMultiSession && activePlanSessionKey
-          ? await markPlanSessionComplete(activePlanId, planDayNumber, activePlanSessionKey)
-          : await markDayComplete(activePlanId, planDayNumber);
-
-      if (!completionResult.success) {
-        return;
-      }
-
-      const shouldReturnToPlanDetail =
-        activePlanIsMultiSession && Boolean(completionResult.data?.current_session);
-
-      await stop();
-      clearAudioPlaybackSequence();
-      setAudioTrack(null, null, null);
-
-      clearPlanDayResume(activePlanId, planDayNumber);
-
-      if (!rootNavigationRef.isReady()) {
-        return;
-      }
-
-      rootNavigationRef.navigate(
-        'Plans',
-        shouldReturnToPlanDetail
-          ? {
-              screen: 'PlanDetail',
-              params: { planId: activePlanId },
-            }
-          : {
-              screen: 'PlansHome',
-            }
-      );
-    } finally {
-      planDayCompletionGuardRef.current = null;
-    }
-  }, [
+  const { handleCompletePlanDay } = usePlanDayCompletion({
     activeChapterKey,
     activePlanChapterIndex,
+    activePlanDaySummary,
     activePlanId,
-    activePlanProgress,
     activePlanIsMultiSession,
+    activePlanProgress,
     activePlanSessionEntries,
     activePlanSessionKey,
+    activePlanSessionSummary,
+    bookId,
+    chapter,
     chapterSessionMode,
     clearAudioPlaybackSequence,
     clearPlanDayResume,
+    currentChapterListenStatus,
     isLastPlanChapter,
     markChapterRead,
     planDayNumber,
     returnToPlanOnComplete,
     setAudioTrack,
+    setListenCountedNotice,
     stop,
-  ]);
-
-  useEffect(
-    () => () => {
-      if (listenCountedNoticeTimeoutRef.current) {
-        clearTimeout(listenCountedNoticeTimeoutRef.current);
-      }
-    },
-    []
-  );
-
-  useEffect(() => {
-    const activePlanListenTargetKeys =
-      activePlanSessionSummary?.targetChapterKeys ?? activePlanDaySummary?.targetChapterKeys ?? [];
-
-    if (
-      chapterSessionMode !== 'listen' ||
-      !activePlanId ||
-      typeof planDayNumber !== 'number' ||
-      !activePlanListenTargetKeys.includes(activeChapterKey)
-    ) {
-      listenCountedBaselineRef.current = null;
-      setListenCountedNotice(null);
-      return;
-    }
-
-    const noticeKey = `${activePlanId}:${planDayNumber}:${activeChapterKey}`;
-    if (listenCountedBaselineRef.current?.key === noticeKey) {
-      return;
-    }
-
-    listenCountedBaselineRef.current = {
-      key: noticeKey,
-      alreadyCountedForPlan:
-        currentChapterListenStatus?.currentChapterListenCountedAt !== null ||
-        currentChapterListenStatus?.alreadyCountedForPlan === true,
-    };
-    setListenCountedNotice(null);
-  }, [
-    activeChapterKey,
-    activePlanDaySummary?.targetChapterKeys,
-    activePlanSessionSummary?.targetChapterKeys,
-    activePlanId,
-    chapterSessionMode,
-    currentChapterListenStatus,
-    planDayNumber,
-  ]);
-
-  useEffect(() => {
-    if (
-      chapterSessionMode !== 'listen' ||
-      !activePlanId ||
-      typeof planDayNumber !== 'number' ||
-      currentChapterListenStatus?.currentChapterListenCountedAt === null
-    ) {
-      return;
-    }
-
-    const noticeKey = `${activePlanId}:${planDayNumber}:${activeChapterKey}`;
-    const baseline = listenCountedBaselineRef.current;
-    if (
-      !baseline ||
-      baseline.key !== noticeKey ||
-      baseline.alreadyCountedForPlan ||
-      lastListenCountedNoticeKeyRef.current === noticeKey
-    ) {
-      return;
-    }
-
-    lastListenCountedNoticeKeyRef.current = noticeKey;
-    const chapterReference = `${getTranslatedBookName(bookId, t)} ${chapter}`;
-    setListenCountedNotice(
-      t('readingPlans.listenChapterCounted', {
-        reference: chapterReference,
-        defaultValue: `${chapterReference} counted for today's plan`,
-      })
-    );
-
-    if (listenCountedNoticeTimeoutRef.current) {
-      clearTimeout(listenCountedNoticeTimeoutRef.current);
-    }
-
-    listenCountedNoticeTimeoutRef.current = setTimeout(() => {
-      setListenCountedNotice((currentNotice) => (currentNotice === null ? currentNotice : null));
-      listenCountedNoticeTimeoutRef.current = null;
-    }, 2200);
-  }, [
-    activeChapterKey,
-    activePlanId,
-    bookId,
-    chapter,
-    chapterSessionMode,
-    currentChapterListenStatus,
-    planDayNumber,
-    t,
-  ]);
-
-  useEffect(
-    () => () => {
-      if (listenCountedNoticeTimeoutRef.current) {
-        clearTimeout(listenCountedNoticeTimeoutRef.current);
-        listenCountedNoticeTimeoutRef.current = null;
-      }
-    },
-    []
-  );
+  });
 
   const previousSequenceEntry = getAdjacentAudioPlaybackSequenceEntry(
     activePlanPlaybackSequenceEntries,
