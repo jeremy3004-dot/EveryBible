@@ -138,6 +138,10 @@ export const hi = {
     lessonsProgress: '{{completed}} / {{total}} पाठ',
     nextLesson: 'अगला · {{title}}',
     readPassage: '{{passage}} पढ़ें',
+    borrowedPassageTitle: '{{translation}} में {{passage}} नहीं है',
+    borrowedPassageBody:
+      'आज का वचन {{fallback}} से लिया गया है। वहाँ यह अध्याय पढ़ने से आपकी बाइबल {{fallback}} में बदल जाएगी; आप कभी भी वापस बदल सकते हैं।',
+    readInTranslation: '{{translation}} में पढ़ें',
     goodMorning: 'शुभ प्रभात',
     goodAfternoon: 'शुभ दोपहर',
     goodEvening: 'शुभ संध्या',

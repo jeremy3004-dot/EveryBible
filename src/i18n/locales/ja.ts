@@ -432,6 +432,10 @@ export const ja = {
     lessonsProgress: 'レッスン {{completed}} / {{total}}',
     nextLesson: '次 · {{title}}',
     readPassage: '{{passage}}を読む',
+    borrowedPassageTitle: '{{translation}}には{{passage}}がありません',
+    borrowedPassageBody:
+      '今日の聖句は{{fallback}}から表示しています。この章をそこで読むと、聖書が{{fallback}}に切り替わります。いつでも元に戻せます。',
+    readInTranslation: '{{translation}}で読む',
     goodMorning: 'おはようございます',
     goodAfternoon: 'こんにちは',
     goodEvening: 'こんばんは',

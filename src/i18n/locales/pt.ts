@@ -457,6 +457,10 @@ export const pt = {
     lessonsProgress: '{{completed}} / {{total}} lições',
     nextLesson: 'A seguir · {{title}}',
     readPassage: 'Ler {{passage}}',
+    borrowedPassageTitle: '{{passage}} não está em {{translation}}',
+    borrowedPassageBody:
+      'O versículo de hoje vem de {{fallback}}. Ler o capítulo ali muda sua Bíblia para {{fallback}}; você pode voltar a qualquer momento.',
+    readInTranslation: 'Ler em {{translation}}',
     goodMorning: 'Bom dia',
     goodAfternoon: 'Boa tarde',
     goodEvening: 'Boa noite',

@@ -18,3 +18,4 @@ export {
   type TabBarHeightMetrics,
 } from './useTabBarHeight';
 export { useLargeText, type LargeTextLayout } from './useLargeText';
+export { useDeviceOffline } from './useDeviceOffline';

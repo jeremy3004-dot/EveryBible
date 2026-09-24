@@ -138,6 +138,10 @@ export const ta = {
     lessonsProgress: '{{completed}} / {{total}} பாடங்கள்',
     nextLesson: 'அடுத்தது · {{title}}',
     readPassage: '{{passage}} வாசி',
+    borrowedPassageTitle: '{{translation}}-இல் {{passage}} இல்லை',
+    borrowedPassageBody:
+      'இன்றைய வசனம் {{fallback}}-இலிருந்து எடுக்கப்பட்டது. அங்கே இந்த அத்தியாயத்தை வாசித்தால் உங்கள் வேதாகமம் {{fallback}}-க்கு மாறும்; எப்போது வேண்டுமானாலும் திரும்ப மாற்றலாம்.',
+    readInTranslation: '{{translation}}-இல் வாசி',
     goodMorning: 'காலை வணக்கம்',
     goodAfternoon: 'மதிய வணக்கம்',
     goodEvening: 'மாலை வணக்கம்',
