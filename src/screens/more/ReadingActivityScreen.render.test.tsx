@@ -229,6 +229,22 @@ test('the selected-day card tells a screen reader what was read, not only the da
   assert.ok(view.getByRole('button', { name: /Psalms 21–22/ }));
 });
 
+test('the legend wraps so the day count cannot run off the card at large text sizes', async () => {
+  const view = await renderScreen();
+  const progress = view.getByText(t('readingActivity.legendProgress', { read: 2, count: 24 }));
+  // The nearest ancestor laid out as a row is the legend.
+  let legend = progress.parent;
+  while (legend && flattenStyle(legend.props.style)?.flexDirection !== 'row') {
+    legend = legend.parent;
+  }
+  assert.ok(legend, 'the progress label sits in the legend row');
+
+  // The row wraps and the count may shrink, so at accessibility sizes it drops to its own line
+  // (it ran 44pt past a 402pt window at accessibility-large on iOS).
+  assert.equal(flattenStyle(legend.props.style)?.flexWrap, 'wrap');
+  assert.equal(flattenStyle(progress.props.style)?.flexShrink, 1);
+});
+
 test('month buttons are named and step the grid, legend and selection a month at a time', async () => {
   const view = await renderScreen();
 

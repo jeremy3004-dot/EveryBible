@@ -96,8 +96,11 @@ export const createCalendarStyles = (colors: ThemeColors) =>
       borderWidth: SELECTED_RING_WIDTH,
       borderRadius: CELL_RADIUS + SELECTED_RING_GAP * 2,
     },
+    // Wraps so the "N of M days" count moves to its own line at large text sizes instead of
+    // running off the card.
     legend: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
       alignItems: 'center',
       gap: spacing.sm,
       marginTop: layout.cardPadding,
@@ -123,6 +126,7 @@ export const createCalendarStyles = (colors: ThemeColors) =>
       ...typography.eyebrow,
       color: colors.secondaryText,
       marginLeft: 'auto',
+      flexShrink: 1,
       textAlign: 'right',
     },
   });
