@@ -133,34 +133,42 @@ function getTodayReference(): DailyScriptureReference {
   return getDailyScriptureReference();
 }
 
+/**
+ * The text of exactly the verses the reference names, or null. Another verse of the
+ * chapter is never substituted: the hero prints the reference above whatever this returns.
+ */
 function getReferencePassageText(
   verses: Verse[],
   reference: DailyScriptureReference
 ): string | null {
   const startVerse = reference.verse;
   if (!startVerse) {
-    return verses[0]?.text?.trim() ?? null;
+    return verses[0]?.text?.trim() || null;
   }
 
   const endVerse = reference.verseEnd ?? startVerse;
-  const selectedVerses = verses.filter(
-    (verse) => verse.verse >= startVerse && verse.verse <= endVerse
-  );
-  const passageText = selectedVerses
+  const passageText = verses
+    .filter((verse) => verse.verse >= startVerse && verse.verse <= endVerse)
     .map((verse) => verse.text.trim())
     .filter(Boolean)
     .join(' ')
     .trim();
 
-  if (passageText.length > 0) {
-    return passageText;
-  }
+  return passageText || null;
+}
 
-  return (
-    verses.find((verse) => verse.verse === startVerse)?.text?.trim() ??
-    verses[0]?.text?.trim() ??
-    null
-  );
+/** The translation shipped inside the app, readable with no download. */
+const DAILY_SCRIPTURE_FALLBACK_TRANSLATION_ID = 'bsb';
+
+async function readReferencePassage(
+  translationId: string,
+  reference: DailyScriptureReference
+): Promise<{ verse: Verse | null; passageText: string | null }> {
+  const verses = await getChapter(translationId, reference.bookId, reference.chapter);
+  return {
+    verse: verses.find((item) => item.verse === reference.verse) ?? null,
+    passageText: getReferencePassageText(verses, reference),
+  };
 }
 
 export async function getVerseOfTheDay(translationId = 'bsb'): Promise<Verse | null> {
@@ -178,37 +186,65 @@ export async function getDailyScripture(
 ): Promise<DailyScripture> {
   const reference = getTodayReference();
   const allowInitialization = options?.allowInitialization ?? true;
-
-  let verse: Verse | null = null;
   const bibleReady = await isBibleDataReady();
-
-  if (
+  const mayReadText = (translationHasText: boolean) =>
     shouldLoadDailyScriptureText({
-      translationHasText: translation.hasText,
+      translationHasText,
       isBibleReady: bibleReady,
       allowInitialization,
-    })
-  ) {
-    if (!bibleReady) {
-      await initBibleData();
-    }
-
-    const verses = await getChapter(translation.id, reference.bookId, reference.chapter);
-    verse = verses.find((item) => item.verse === reference.verse) ?? verses[0] ?? null;
-    const passageText = getReferencePassageText(verses, reference);
-
-    return buildDailyScripture({
-      reference,
-      verse,
-      passageText,
-      translation,
-      audioAvailable,
     });
+
+  let readError: unknown = null;
+  if (mayReadText(translation.hasText)) {
+    try {
+      const { verse, passageText } = await readReferencePassage(translation.id, reference);
+      if (passageText) {
+        return buildDailyScripture({ reference, verse, passageText, translation, audioAvailable });
+      }
+    } catch (error) {
+      readError = error;
+    }
+  }
+
+  // The reader's own language comes first: its text above, else its chapter audio.
+  const ownAudioPlayable = translation.hasAudio && audioAvailable;
+  // Otherwise the bundled BSB, as Gather lessons do, so a New Testament-only pack on an
+  // Old Testament day, an audio set without this chapter, or a pack that cannot be opened
+  // still shows today's Scripture rather than a placeholder under today's reference.
+  if (
+    !ownAudioPlayable &&
+    translation.id !== DAILY_SCRIPTURE_FALLBACK_TRANSLATION_ID &&
+    mayReadText(true)
+  ) {
+    try {
+      const fallback = await readReferencePassage(
+        DAILY_SCRIPTURE_FALLBACK_TRANSLATION_ID,
+        reference
+      );
+      if (fallback.passageText) {
+        return {
+          ...buildDailyScripture({
+            reference,
+            verse: fallback.verse,
+            passageText: fallback.passageText,
+            translation,
+            audioAvailable,
+          }),
+          fallbackTranslationId: DAILY_SCRIPTURE_FALLBACK_TRANSLATION_ID,
+        };
+      }
+    } catch {
+      // The reading translation's own error, if any, is the one worth reporting.
+    }
+  }
+
+  if (readError) {
+    throw readError;
   }
 
   return buildDailyScripture({
     reference,
-    verse,
+    verse: null,
     passageText: null,
     translation,
     audioAvailable,
