@@ -49,6 +49,9 @@ export function useReaderTabBarMotion({
   const readerChromeOffsetShared = useSharedValue(0);
   const readerChromeChapterKeyRef = useRef('');
   const readerChromeCollapsedShared = useSharedValue(false);
+  // Whether the list is moving under the reader's finger (a drag or its fling), the
+  // only scrolling that may collapse the chrome. See useReaderScrollChrome.
+  const readerChromeFingerScrollShared = useSharedValue(false);
   const reduceMotion = useReducedMotion();
   const readerRouteKey = route.key;
 
@@ -63,6 +66,7 @@ export function useReaderTabBarMotion({
         readerChromeOffsetShared.value = 0;
       }
       readerChromeCollapsedShared.value = false;
+      readerChromeFingerScrollShared.value = false;
       readerBottomChromeCollapsedRef.current = false;
       setIsReadBottomChromeCollapsed(false);
       readerChromeOwner.value = readerRouteKey;
@@ -80,6 +84,7 @@ export function useReaderTabBarMotion({
       readerBottomChromeProgressShared,
       readerChromeOffsetShared,
       readerChromeCollapsedShared,
+      readerChromeFingerScrollShared,
       readerChromeOwner,
       rootTabBarScrollProgress,
       setIsReadBottomChromeCollapsed,
@@ -259,6 +264,7 @@ export function useReaderTabBarMotion({
     readerBottomChromeCollapsedRef,
     readerBottomChromeProgressShared,
     readerChromeCollapsedShared,
+    readerChromeFingerScrollShared,
     readerChromeOffsetShared,
     readerChromeOwner,
     readerLastScrollOffsetYRef,

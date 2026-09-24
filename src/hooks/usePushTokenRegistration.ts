@@ -3,6 +3,7 @@ import { AppState, type AppStateStatus } from 'react-native';
 import { addPushTokenListener } from '../services/notifications/notificationBootstrap';
 import { addNotificationPermissionRequestListener } from '../services/notifications/notificationPermissionEvents';
 import { useAuthStore } from '../stores/authStore';
+import { usePrivacyStore } from '../stores/privacyStore';
 
 /**
  * Registers this device's push token for the signed-in account, and re-registers when
@@ -14,6 +15,10 @@ import { useAuthStore } from '../stores/authStore';
  */
 export function usePushTokenRegistration(isAuthenticated: boolean, userId: string | undefined) {
   const awaitingTokenRefresh = useAuthStore((state) => state.awaitingTokenRefresh);
+  // Null until privacy settings load. A discreet device takes itself off the push list
+  // instead (see suspendPushTokenForDiscreetMode): the OS would show a push on the lock
+  // screen under the app's real name.
+  const privacyMode = usePrivacyStore((state) => (state.isInitialized ? state.mode : null));
 
   // Re-runs whenever the user changes, or their session's token is refreshed. Registration
   // needs notification permission, which can be granted after launch: by the app's own
@@ -22,25 +27,29 @@ export function usePushTokenRegistration(isAuthenticated: boolean, userId: strin
   // The service reuses a registration it already made for this account and device
   // without native or server work, so repeated tries do not write user_devices again.
   useEffect(() => {
-    if (!isAuthenticated || !userId || awaitingTokenRefresh) {
+    if (!isAuthenticated || !userId || awaitingTokenRefresh || privacyMode === null) {
       return;
     }
     let isCurrentEffect = true;
 
     const register = () => {
       const authGeneration = useAuthStore.getState().authGeneration;
-      void import('../services/notifications').then(({ registerPushToken }) => {
-        const currentAuth = useAuthStore.getState();
-        if (
-          isCurrentEffect &&
-          currentAuth.isAuthenticated &&
-          !currentAuth.awaitingTokenRefresh &&
-          currentAuth.user?.uid === userId &&
-          currentAuth.authGeneration === authGeneration
-        ) {
-          return registerPushToken(userId);
+      void import('../services/notifications').then(
+        ({ registerPushToken, suspendPushTokenForDiscreetMode }): Promise<unknown> | undefined => {
+          const currentAuth = useAuthStore.getState();
+          if (
+            isCurrentEffect &&
+            currentAuth.isAuthenticated &&
+            !currentAuth.awaitingTokenRefresh &&
+            currentAuth.user?.uid === userId &&
+            currentAuth.authGeneration === authGeneration
+          ) {
+            return privacyMode === 'discreet'
+              ? suspendPushTokenForDiscreetMode(userId)
+              : registerPushToken(userId);
+          }
         }
-      });
+      );
     };
 
     register();
@@ -56,7 +65,7 @@ export function usePushTokenRegistration(isAuthenticated: boolean, userId: strin
       appStateSubscription.remove();
       permissionSubscription.remove();
     };
-  }, [isAuthenticated, userId, awaitingTokenRefresh]);
+  }, [isAuthenticated, userId, awaitingTokenRefresh, privacyMode]);
 
   useEffect(() => {
     let isMounted = true;

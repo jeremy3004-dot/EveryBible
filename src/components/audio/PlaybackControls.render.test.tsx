@@ -442,6 +442,61 @@ test('while audio loads the play button is busy with a spinner, and the transpor
   assert.deepEqual(calls, [['repeat']]);
 });
 
+// A chapter that would not load used to drop back to Play with nothing said: the
+// store held the message, but no transport rendered it.
+test('a failed load shows why under the transport, announces it once, and Play tries again', async () => {
+  const { PlaybackControls } = await import('./PlaybackControls');
+  const failed = t('interface.audioPlayFailed');
+  const calls: string[] = [];
+  const noop = () => {};
+  const props: Props = {
+    variant: 'chapter-only',
+    status: 'error',
+    errorMessage: failed,
+    playbackRate: 1.0 as PlaybackRate,
+    repeatMode: 'off',
+    sleepTimerRemaining: null,
+    backgroundMusicChoice: 'off',
+    hasPreviousChapter: true,
+    hasNextChapter: true,
+    onPlayPause: () => calls.push('playPause'),
+    onPreviousChapter: noop,
+    onNextChapter: noop,
+    onSkipBackward: noop,
+    onSkipForward: noop,
+    onChangePlaybackRate: noop,
+    onCycleRepeatMode: noop,
+    onSetSleepTimer: noop,
+    onChangeBackgroundMusicChoice: noop,
+  };
+  const view = await harness.render(<PlaybackControls {...props} />);
+
+  const notice = view.getByText(failed);
+  assert.ok(hostAncestors(notice).some((node) => node.props.accessibilityRole === 'alert'));
+  assert.deepEqual(harness.rn.__recorded.announcements, [failed]);
+  await view.press(view.getByRole('button', { name: t('interface.playChapterAudio') }));
+  assert.deepEqual(calls, ['playPause']);
+
+  // Unrelated redraws do not repeat the announcement.
+  await view.rerender(<PlaybackControls {...props} sleepTimerRemaining={5} />);
+  assert.deepEqual(harness.rn.__recorded.announcements, [failed]);
+});
+
+test('no failure notice is drawn without a message, or by the utilities-only player', async () => {
+  const failed = t('interface.audioPlayFailed');
+  const plain = await renderControls({ status: 'error', errorMessage: null });
+  assert.equal(plain.view.queryByText(failed), null);
+  await plain.view.unmount();
+
+  const utilities = await renderControls({
+    variant: 'utilities-only',
+    status: 'error',
+    errorMessage: failed,
+  });
+  assert.equal(utilities.view.queryByText(failed), null);
+  assert.deepEqual(harness.rn.__recorded.announcements, []);
+});
+
 test('the play icon switches to pause while playing and is nudged right only as play', async () => {
   const paused = await renderControls({ status: 'paused' });
   const [playIcon] = within(

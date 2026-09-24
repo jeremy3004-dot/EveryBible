@@ -1,15 +1,18 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import Animated, {
   Extrapolation,
   interpolate,
+  runOnJS,
+  useAnimatedReaction,
   useAnimatedStyle,
   type SharedValue,
 } from 'react-native-reanimated';
 import { useTheme } from '../../contexts/ThemeContext';
 import { mediumHaptic } from '../../utils/haptics';
+import { AudioPlaybackErrorNotice } from './AudioPlaybackErrorNotice';
 import { radius } from '../../design/system';
 import { READER_TAB_BAR_COLLAPSE_DISTANCE } from '../../navigation/readerTabBarMotion';
 import {
@@ -19,12 +22,18 @@ import {
 } from '../../screens/bible/readerChromeMotion';
 
 const PRESSED_SCALE = 0.96;
+// Past half way the arrows are drawn under half opacity and, on Android, partly
+// outside the dock, whose bounds clip touches: stop offering them as buttons, so
+// a tap there reaches the page, until the chrome is back more than half way.
+const ARROWS_TOUCHABLE_BELOW_PROGRESS = 0.5;
 
 interface ReaderPlaybackDockProps {
   collapseProgress: SharedValue<number>;
   isCollapsed: boolean;
   isPlaying: boolean;
   isLoading: boolean;
+  /** Why the chapter failed to play, shown above the dock; Play tries again. */
+  errorMessage?: string | null;
   hasPreviousChapter: boolean;
   hasNextChapter: boolean;
   hidePlayButton?: boolean;
@@ -43,6 +52,7 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
   isCollapsed,
   isPlaying,
   isLoading,
+  errorMessage = null,
   hasPreviousChapter,
   hasNextChapter,
   hidePlayButton,
@@ -63,6 +73,17 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
       ? t('interface.pauseChapterAudio')
       : t('interface.playChapterAudio');
   const showPlayButton = hidePlayButton !== true;
+  const [arrowsFaded, setArrowsFaded] = useState(false);
+  useAnimatedReaction(
+    () => collapseProgress.value >= ARROWS_TOUCHABLE_BELOW_PROGRESS,
+    (faded, previous) => {
+      if (faded !== previous) {
+        runOnJS(setArrowsFaded)(faded);
+      }
+    },
+    [collapseProgress]
+  );
+  const arrowsHidden = isCollapsed || arrowsFaded;
 
   // The whole dock travels 65pt. The arrows travel the remaining 67pt,
   // so their total travel matches the tab capsule at every animation frame.
@@ -85,11 +106,17 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
 
   return (
     <View style={[styles.container]}>
+      {errorMessage ? (
+        // Floats above the discs so they keep their place over the tab capsule.
+        <View pointerEvents="none" style={styles.errorNoticeWrap}>
+          <AudioPlaybackErrorNotice message={errorMessage} />
+        </View>
+      ) : null}
       <Animated.View
         style={[styles.sideTransportWrap, sideTransportAnimatedStyle]}
-        pointerEvents={isCollapsed ? 'none' : 'auto'}
-        accessibilityElementsHidden={isCollapsed}
-        importantForAccessibility={isCollapsed ? 'no-hide-descendants' : 'auto'}
+        pointerEvents={arrowsHidden ? 'none' : 'auto'}
+        accessibilityElementsHidden={arrowsHidden}
+        importantForAccessibility={arrowsHidden ? 'no-hide-descendants' : 'auto'}
       >
         <Pressable
           style={({ pressed }) => [
@@ -100,8 +127,8 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
             },
           ]}
           onPress={onPreviousChapter}
-          disabled={isCollapsed || !hasPreviousChapter}
-          accessibilityState={{ disabled: isCollapsed || !hasPreviousChapter }}
+          disabled={arrowsHidden || !hasPreviousChapter}
+          accessibilityState={{ disabled: arrowsHidden || !hasPreviousChapter }}
           hitSlop={4}
           accessibilityRole="button"
           accessibilityLabel={t('audio.previousChapter')}
@@ -149,9 +176,9 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
 
       <Animated.View
         style={[styles.sideTransportWrap, sideTransportAnimatedStyle]}
-        pointerEvents={isCollapsed ? 'none' : 'auto'}
-        accessibilityElementsHidden={isCollapsed}
-        importantForAccessibility={isCollapsed ? 'no-hide-descendants' : 'auto'}
+        pointerEvents={arrowsHidden ? 'none' : 'auto'}
+        accessibilityElementsHidden={arrowsHidden}
+        importantForAccessibility={arrowsHidden ? 'no-hide-descendants' : 'auto'}
       >
         <Pressable
           style={({ pressed }) => [
@@ -162,8 +189,8 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
             },
           ]}
           onPress={onNextChapter}
-          disabled={isCollapsed || !hasNextChapter}
-          accessibilityState={{ disabled: isCollapsed || !hasNextChapter }}
+          disabled={arrowsHidden || !hasNextChapter}
+          accessibilityState={{ disabled: arrowsHidden || !hasNextChapter }}
           hitSlop={4}
           accessibilityRole="button"
           accessibilityLabel={nextAccessibilityLabel ?? t('audio.nextChapter')}
@@ -193,6 +220,14 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     justifyContent: 'space-between',
     width: '100%',
+  },
+  errorNoticeWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: '100%',
+    marginBottom: 12,
+    alignItems: 'center',
   },
   sideTransportWrap: {
     width: 56,

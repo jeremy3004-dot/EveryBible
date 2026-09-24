@@ -196,6 +196,7 @@ export function BibleReaderScreen() {
     readerBottomChromeCollapsedRef,
     readerBottomChromeProgressShared,
     readerChromeCollapsedShared,
+    readerChromeFingerScrollShared,
     readerChromeOffsetShared,
     readerChromeOwner,
     readerLastScrollOffsetYRef,
@@ -290,6 +291,7 @@ export function BibleReaderScreen() {
   } = useFontSize();
   const {
     status,
+    error: audioError,
     currentTranslationId: activeAudioTranslationId,
     currentBookId: activeAudioBookId,
     currentChapter: activeAudioChapter,
@@ -563,6 +565,7 @@ export function BibleReaderScreen() {
     readerBottomChromeCollapsedRef,
     readerBottomChromeProgressShared,
     readerChromeCollapsedShared,
+    readerChromeFingerScrollShared,
     readerChromeOffsetShared,
     readerChromeOwner,
     readerLastScrollOffsetYRef,
@@ -656,6 +659,7 @@ export function BibleReaderScreen() {
     isLoading,
     navigation,
     playChapter,
+    routeKey: route.key,
     resolvePlanSessionRouteParams,
   });
 
@@ -948,6 +952,7 @@ export function BibleReaderScreen() {
             changeBackgroundMusicChoice={changeBackgroundMusicChoice}
             changePlaybackRate={changePlaybackRate}
             cycleRepeatMode={cycleRepeatMode}
+            errorMessage={audioError}
             feedback={feedback}
             handleListenModeSeek={handleListenModeSeek}
             handleNextListenChapter={handleNextListenChapter}
@@ -1120,6 +1125,7 @@ export function BibleReaderScreen() {
               isCollapsed={isReadBottomChromeCollapsed}
               isPlaying={isCurrentAudioChapter && status === 'playing'}
               isLoading={isCurrentAudioChapter && status === 'loading'}
+              errorMessage={isCurrentAudioChapter && status === 'error' ? audioError : null}
               hidePlayButton={showPlanSessionChrome ? false : hidePlayButtonFromReadingTab}
               hasPreviousChapter={hasPrevChapter}
               hasNextChapter={hasReaderPlaybackDockNextChapter}

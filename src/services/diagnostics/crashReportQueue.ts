@@ -5,6 +5,7 @@ import { recordCrashLog, toCrashLogEntry } from './crashLogStore';
 import {
   admitCrashReport,
   buildCrashReport,
+  isTimeoutError,
   isTransientNetworkError,
   MAX_CRASH_REPORTS_PER_DAY,
   MAX_HANDLED_REPORTS_PER_DAY,
@@ -218,18 +219,34 @@ export function queueCrashReport(input: QueueCrashReportInput): void {
   }
 }
 
+export interface ReportHandledErrorOptions {
+  /**
+   * Report timeouts although other transient network failures are skipped. For a caller
+   * that has already retried, where running out of time is a failure the listener saw
+   * rather than a blip, and can point at a slow host.
+   */
+  reportTimeouts?: boolean;
+}
+
 /**
  * For a catch site that recovers from an error we would still want to hear about (a
  * damaged database import, a failed text-pack install, audio that will not load, a sync
  * cycle that failed). Recorded on the Diagnostics screen and queued as an `error` report
- * whose message starts with `[source]`. Transient network failures are skipped, handled
- * errors can use only half the daily budget, and it never throws.
+ * whose message starts with `[source]`. Transient network failures are skipped (timeouts
+ * too, unless `reportTimeouts`), handled errors can use only half the daily budget, and
+ * it never throws.
  *
  *   reportHandledError('audio.load', error);
  */
-export function reportHandledError(source: string, error: unknown): void {
+export function reportHandledError(
+  source: string,
+  error: unknown,
+  options: ReportHandledErrorOptions = {}
+): void {
   try {
-    if (isTransientNetworkError(error)) return;
+    if (isTransientNetworkError(error) && !(options.reportTimeouts && isTimeoutError(error))) {
+      return;
+    }
     const label = toHandledErrorSource(source);
     const entry = toCrashLogEntry(error, false, Date.now());
     recordCrashLog({ ...entry, message: `[${label}] ${entry.message}` });

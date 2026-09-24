@@ -320,6 +320,39 @@ test('transient network failures are not reported as handled errors', async () =
   assert.deepEqual(persistedQueue(), []);
 });
 
+// A chapter that times out after its automatic retry is a failure the listener saw, and
+// can point at the media host; losing the connection still says nothing about a bug.
+test('a caller that counts timeouts as failures has them reported, but not offline errors', async () => {
+  const queue = await load();
+  const deadline = new Error('Chapter audio did not load in time');
+  deadline.name = 'TimeoutError';
+  const options = { reportTimeouts: true };
+  queue.reportHandledError('audio.load', new Error('The request timed out.'), options);
+  queue.reportHandledError(
+    'audio.load',
+    new Error(
+      'An unknown error occurred (-1001) - The AVPlayerItem instance has failed with the error code -11800 and domain "AVFoundationErrorDomain".'
+    ),
+    options
+  );
+  queue.reportHandledError('audio.load', deadline, options);
+  queue.reportHandledError(
+    'audio.load',
+    new Error('The Internet connection appears to be offline.'),
+    options
+  );
+  queue.reportHandledError('audio.load', new TypeError('Network request failed'), options);
+
+  assert.deepEqual(
+    persistedQueue().map((report) => report.message),
+    [
+      '[audio.load] The request timed out.',
+      '[audio.load] An unknown error occurred (-1001) - The AVPlayerItem instance has failed with the error code -11800 and domain "AVFoundationErrorDomain".',
+      '[audio.load] Chapter audio did not load in time',
+    ]
+  );
+});
+
 test('a source label that is not a plain identifier is not sent', async () => {
   const queue = await load();
   queue.reportHandledError('jane@example.com', new Error('odd label'));

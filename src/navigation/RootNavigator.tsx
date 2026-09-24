@@ -16,11 +16,13 @@ export function RootNavigator() {
   const { colors, isDark } = useTheme();
   const [currentRouteName, setCurrentRouteName] = useState<string | null>(null);
   // Reopens where the reader was after the discreet-mode lock unmounted this navigator.
-  const initialState = usePrivacyLockNavigationState(readRootState);
+  const { initialState, rememberState } = usePrivacyLockNavigationState();
   const syncCurrentRouteName = useCallback(() => {
-    const nextRouteName = getCurrentRouteName(rootNavigationRef.getRootState());
+    const rootState = readRootState();
+    rememberState(rootState);
+    const nextRouteName = getCurrentRouteName(rootState);
     setCurrentRouteName((current) => (current === nextRouteName ? current : nextRouteName));
-  }, []);
+  }, [rememberState]);
   const handleReady = useCallback(() => {
     syncCurrentRouteName();
     flushParkedLink();

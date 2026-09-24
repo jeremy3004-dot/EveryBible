@@ -291,6 +291,39 @@ test('a chapter that has loaded but not started yet reads as loading, not paused
   ]);
 });
 
+// A chapter whose first request fails is retried by its caller while it still reads as
+// loading. The wrapper's Error state belongs to that load (the load itself rejects),
+// so reporting it as a stop flashed the transport and lock screen to "paused".
+test('a chapter load that fails reads as still loading until its caller decides', async () => {
+  const snapshots: Array<{ isPlaying: boolean; isBuffering: boolean }> = [];
+  mod.audioPlayer.setCallbacks({
+    onStatusUpdate: (status) =>
+      snapshots.push({ isPlaying: status.isPlaying, isBuffering: status.isBuffering }),
+  });
+  let fail!: (error: Error) => void;
+  gates.set(
+    'loadAndPlay',
+    new Promise<void>((_, reject) => {
+      fail = reject;
+    })
+  );
+  const loading = mod.audioPlayer.loadAndPlay('https://audio.test/john3.mp3');
+  await new Promise((resolve) => setImmediate(resolve));
+
+  emit(Event.PlaybackState, { state: State.Loading });
+  emit(Event.PlaybackState, { state: State.Error });
+  fail(new Error('The request timed out.'));
+  await assert.rejects(loading, /timed out/);
+  emit(Event.PlaybackState, { state: State.Error });
+
+  assert.deepEqual(snapshots, [
+    { isPlaying: false, isBuffering: true },
+    { isPlaying: false, isBuffering: true },
+    { isPlaying: false, isBuffering: false },
+  ]);
+  assert.equal(mod.audioPlayer.isLoaded(), false);
+});
+
 test('the merged snapshot keeps position and state from separate events', async () => {
   const snapshots: unknown[] = [];
   mod.audioPlayer.setCallbacks({ onStatusUpdate: (status) => snapshots.push(status) });
