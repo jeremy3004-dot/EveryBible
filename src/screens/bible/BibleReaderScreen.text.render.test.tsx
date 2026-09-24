@@ -202,6 +202,60 @@ test('an unrelated reader re-render keeps the list’s renderItem, so rows are n
   assert.equal(renderItemOf(), renderItem);
 });
 
+/**
+ * Counts renders of the verse list. Each render hands its FlatList a fresh props object
+ * (a new footer element, a new content style), so the host element's props change
+ * identity exactly when the list component rendered again.
+ */
+function trackVerseListRenders(view: View) {
+  let seen = reader.readerList(view).props;
+  let count = 0;
+  return () => {
+    const current = reader.readerList(view).props;
+    if (current !== seen) {
+      count += 1;
+      seen = current;
+    }
+    return count;
+  };
+}
+
+test('the verse list skips reader re-renders it takes nothing from, but not size or chapter changes', async () => {
+  chapters.set('JHN:4', [
+    verseOf(1, 'Now Jesus learned that the Pharisees had heard.', {}, 'JHN', 4),
+  ]);
+  const view = await renderReader();
+  const listRenders = trackVerseListRenders(view);
+
+  // Opening and closing the chapter actions sheet re-renders the screen only.
+  let renders = reader.renders.count;
+  await view.press(view.getByRole('button', { name: t('tabs.more') }));
+  assert.ok(reader.renders.count > renders, 'the screen did re-render');
+  assert.equal(listRenders(), 0, 'opening a sheet does not redraw the verse list');
+  renders = reader.renders.count;
+  await act(async () => {
+    reader.libraryStore.setState({ favorites: [{ id: 'JHN:3' }] });
+  });
+  assert.ok(reader.renders.count > renders, 'the screen did re-render');
+  assert.equal(listRenders(), 0, 'a favorite toggle does not redraw the verse list');
+  renders = reader.renders.count;
+  await setAudio({ status: 'playing', currentBookId: 'GEN', currentChapter: 1 });
+  assert.ok(reader.renders.count > renders, 'the screen did re-render');
+  assert.equal(listRenders(), 0, 'playback of another chapter does not redraw the verse list');
+
+  const bodySize = () => flattenStyle(hostAncestors(verseSpan(view, 1))[0].props.style)?.fontSize;
+  const mediumSize = bodySize();
+  await act(async () => {
+    harness.authStore.getState().setPreferences({ fontSize: 'large' });
+  });
+  assert.equal(listRenders(), 1, 'a font size change redraws the verse list');
+  assert.ok((bodySize() ?? 0) > (mediumSize ?? 0), 'at the larger size');
+
+  await reader.navigateReader(view, { chapter: 4 });
+  assert.equal(listRenders(), 2, 'a chapter change redraws the verse list');
+  assert.ok(view.getByText(/the Pharisees had heard/));
+});
+
 test('follow-along scrolls the playing verse up once it passes the middle of the screen', async () => {
   reader.setTimestamps({ 1: 0, 2: 30, 3: 60 });
   chapters.set('JHN:3', HEADED);

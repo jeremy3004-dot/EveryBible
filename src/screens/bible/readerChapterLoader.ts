@@ -97,7 +97,8 @@ export async function loadReaderChapter(load: ReaderChapterLoad): Promise<void> 
         void load.prefetchNextChapter(translationId, bookId, chapter);
       });
     }
-    if (!load.returnToPlanOnComplete) {
+    // An empty chapter put nothing on the page to read.
+    if (data.length > 0 && !load.returnToPlanOnComplete) {
       load.markChapterRead(bookId, chapter);
     }
   } catch (err) {
