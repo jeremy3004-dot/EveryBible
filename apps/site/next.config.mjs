@@ -11,6 +11,9 @@ const nextConfig = {
       './data/language-atlas/startup-*.json.br',
       './data/language-atlas/startup-*.json.gz',
     ],
+    // Languages outside the prerendered set render on first request from one
+    // ~30 KB shard; the full atlas snapshot is never loaded for a page.
+    '/languages/[slug]': ['./data/language-atlas/pages/*'],
   },
   eslint: {
     ignoreDuringBuilds: true,

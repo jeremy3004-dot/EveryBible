@@ -80,6 +80,13 @@ class PublicBoundary(unittest.TestCase):
         self.assertEqual(dict(zip(packed["locationFields"][location[0]], location[1:])), source["records"][0]["location"])
         self.assertEqual(source, before)
 
+    def test_startup_transport_omits_the_generated_summary_the_public_map_never_shows(self):
+        source = public_projection(self.fixture())
+        source["records"][0]["summary"] = "Variety is a language variety."
+        packed = build_public_atlas.startup_projection(source)
+        self.assertNotIn("summary", {field for layout in packed["recordFields"] for field in layout})
+        self.assertEqual(source["records"][0]["summary"], "Variety is a language variety.")
+
     def test_startup_transport_shares_identical_locations_without_losing_optional_fields(self):
         pack = getattr(build_public_atlas, "startup_projection", None)
         self.assertTrue(callable(pack), "a compact, lossless public startup projection is required")
