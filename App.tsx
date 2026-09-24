@@ -42,6 +42,7 @@ import { installGlobalErrorHandlers } from './src/services/diagnostics/globalErr
 import { enforceLtrLayoutPolicy } from './src/services/startup/rtlPolicy';
 import { rootNavigationRef } from './src/navigation/rootNavigation';
 import { usePushTokenRegistration } from './src/hooks/usePushTokenRegistration';
+import { useAudioDownloadRecovery } from './src/hooks/useAudioDownloadRecovery';
 
 // KEEP THIS UNGUARDED. scripts/benchmark-android-startup.py and
 // scripts/android_startup_metrics.py parse `[EB-T] App:module-start` (and
@@ -140,7 +141,6 @@ function LoadingScreen() {
   const privacyInitializationError = usePrivacyStore((state) => state.initializationError);
   const isPrivacyLocked = usePrivacyStore((state) => state.isLocked);
   const preferences = useAuthStore((state) => state.preferences);
-  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const initializeAuthAfterStorage = useMemo(
     () =>
       createAuthInitializer({
@@ -311,42 +311,12 @@ function LoadingScreen() {
     };
   }, [isReady, preferences.onboardingCompleted, startupCoordinator]);
 
-  useEffect(() => {
-    if (!isReady || !preferences.onboardingCompleted) {
-      return;
-    }
-
-    let cancelRecovery: (() => void) | null = null;
-
-    const recoverAudioDownloads = () => {
-      cancelRecovery?.();
-      cancelRecovery = scheduleAfterInteractions(
-        () => {
-          void import('./src/stores/bibleStore')
-            .then(({ useBibleStore }) => useBibleStore.getState().reattachAudioDownloads())
-            .catch((error) => {
-              console.error('Failed to reattach persisted audio downloads:', error);
-            });
-        },
-        Platform.OS === 'android' ? ANDROID_BACKGROUND_STARTUP_DELAY_MS : 0
-      );
-    };
-
-    recoverAudioDownloads();
-
-    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
-      if (appStateRef.current.match(/inactive|background/) && nextAppState === 'active') {
-        recoverAudioDownloads();
-      }
-
-      appStateRef.current = nextAppState;
-    });
-
-    return () => {
-      cancelRecovery?.();
-      subscription.remove();
-    };
-  }, [isReady, preferences.onboardingCompleted]);
+  useAudioDownloadRecovery(isReady && Boolean(preferences.onboardingCompleted), (task) =>
+    scheduleAfterInteractions(
+      task,
+      Platform.OS === 'android' ? ANDROID_BACKGROUND_STARTUP_DELAY_MS : 0
+    )
+  );
 
   useEffect(() => {
     if (preferences.language) {
