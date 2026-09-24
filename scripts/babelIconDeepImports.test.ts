@@ -152,6 +152,7 @@ test('the app Babel config applies the rewrite before Reanimated', () => {
 
   assert.deepEqual(plugins, [
     './plugins/babel-icon-deep-imports',
+    './plugins/babel-hermes-native-unicode-regex',
     'react-native-reanimated/plugin',
   ]);
 });

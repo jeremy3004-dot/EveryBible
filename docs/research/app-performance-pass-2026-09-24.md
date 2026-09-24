@@ -284,3 +284,151 @@ lazy (inside a function) or async (`asyncRequire`), and maps modules to
 source files through the source map. It then walks the four steps in launch
 order. In the "after" tree, step 2 counts `services/auth/authSession` instead
 of the auth barrel, because that is what `initialize()` now requires.
+
+## Round 3: what is in the 17 MB bundle
+
+Baseline: `claude/integrate-2026-09-24e` at `a021c7a3`. Still no native builds or
+device runs.
+
+### Result
+
+| Measurement                                                      |       Before |        After |              Change |
+| ---------------------------------------------------------------- | -----------: | -----------: | ------------------: |
+| Hermes bytecode, iOS production export                           | 17,400,442 B | 13,150,287 B | −4,250,155 B (−24%) |
+| Hermes bytecode, Android production export                       | 17,610,393 B | 13,361,806 B | −4,248,587 B (−24%) |
+| Minified JS, iOS (`--no-bytecode`)                               | 14,144,616 B | 10,435,184 B |      −3.7 MB (−26%) |
+| Modules in the bundle                                            |        4,545 |        2,207 |              −2,338 |
+| Load bytecode and register every module (Mac, median of 40 runs) |      12.5 ms |      11.2 ms |                   — |
+| Gather artwork evaluated when Home draws its card                |       747 KB |        ~2 KB |                   — |
+
+Both exports ran with `--clear` and without `--source-maps`. Passing
+`--source-maps` makes hermesc write a smaller file (14.38 MB → 10.32 MB for
+iOS), so only compare numbers taken the same way.
+
+### Top 30 contributors before (minified iOS JS)
+
+Per-file bytes come from the source map. JSON modules have no mappings, so
+they were measured by their `__d()` factories.
+
+| #   | Module                                             |  KB |
+| --- | -------------------------------------------------- | --: |
+| 1   | `bible-passage-reference-parser/esm/lang/en.js`    | 917 |
+| 2   | `bible-passage-reference-parser/esm/lang/es.js`    | 863 |
+| 3   | `bible-passage-reference-parser/esm/lang/ne.js`    | 816 |
+| 4   | `bible-passage-reference-parser/esm/lang/hi.js`    | 799 |
+| 5   | `src/data/gatherArtwork.ts`                        | 729 |
+| 6   | `assets/timestamps/**/*.json` (2,378 modules)      | 658 |
+| 7   | `src/i18n/locales/ta.ts`                           | 319 |
+| 8   | `src/constants/bookIconVectors.generated.json`     | 291 |
+| 9   | `src/i18n/locales/te.ts`                           | 277 |
+| 10  | `src/i18n/locales/ru.ts`                           | 265 |
+| 11  | `src/i18n/locales/ne.ts`                           | 261 |
+| 12  | `src/i18n/locales/mr.ts`                           | 254 |
+| 13  | `src/i18n/locales/bn.ts`                           | 254 |
+| 14  | `src/i18n/locales/hi.ts`                           | 249 |
+| 15  | `src/i18n/locales/pa.ts`                           | 245 |
+| 16  | `src/i18n/locales/ur.ts`                           | 236 |
+| 17  | `src/i18n/locales/ar.ts`                           | 222 |
+| 18  | `src/data/countryDisplayNames.generated.json`      | 212 |
+| 19  | `src/i18n/locales/ja.ts`                           | 143 |
+| 20  | `src/i18n/locales/ko.ts`                           | 129 |
+| 21  | `src/i18n/locales/vi.ts`                           | 122 |
+| 22  | `src/screens/bible/BibleReaderScreen.tsx`          | 120 |
+| 23  | `react-native/…/ReactNativeRenderer-prod.js`       | 118 |
+| 24  | `react-native/…/ReactFabric-prod.js`               | 115 |
+| 25  | `src/i18n/locales/zh.ts`                           | 106 |
+| 26  | `bible-passage-reference-parser/esm/bcv_parser.js` | 102 |
+| 27  | `src/i18n/locales/tr.ts`                           |  91 |
+| 28  | `src/i18n/locales/fr.ts`                           |  87 |
+| 29  | `src/i18n/locales/es.ts`                           |  81 |
+| 30  | `src/data/localeCatalog.json`                      |  81 |
+
+By group: app source 5.96 MB (the 21 interface locales are 3.9 MB of it),
+the reference parser 3.58 MB, React Native 0.75 MB, Reanimated 0.59 MB.
+
+### What changed
+
+1. **u-flag regexes stay native on Hermes** (`plugins/babel-hermes-native-unicode-regex.js`).
+   `@react-native/babel-preset` 0.81 always runs
+   `@babel/plugin-transform-unicode-regex`, even for Hermes. It expands every
+   `\p{L}`-style escape into explicit ranges and surrogate pairs. The reference
+   parser's grammars are made of those escapes, so each 50–70 KB language file
+   became ~0.9 MB. Hermes for RN 0.81 supports u-flag patterns and property
+   escapes natively (`hermes -version` lists "Unicode RegExp Property
+   Escapes"). The plugin clears the u-flag bit in Babel's shared regexp-feature
+   mask when the caller engine is Hermes. Named-group lowering still runs, and
+   non-Hermes targets still lower. Eight source files change in the bundle:
+   the parser, `bibleDataModel.ts`, `referenceParser.ts` and
+   `HighlightedVerseText.tsx`. On the RN 0.81.5 Hermes CLI, 12,864 reference
+   queries in en/es/hi/ne/fr gave the same results with lowered and native
+   regexes. The app's own u-flag regexes gave the same matches as V8 on Latin,
+   Devanagari, Tamil, Gurmukhi, Arabic, Cyrillic, CJK (including astral
+   ideographs), Korean and emoji text. Saves about 3.6 MB of bytecode.
+2. **Verse timings are one table per translation.** `verseTimestamps.ts`
+   required each of the 2,378 per-chapter JSON files. Metro made each one a
+   module, so every launch registered them, and importing the service (which
+   bibleStore does at launch) built a map of 2,378 closures.
+   `npm run codegen-timestamps` now packs `assets/timestamps/<ID>/*.json` into
+   `src/data/verseTimestamps.<id>.generated.json`. Each chapter becomes a
+   comma-separated list of verse start times, with an empty slot for a verse
+   that has no timing. A table is required when a chapter of its translation
+   is first looked up. The per-chapter files are still the generator's output.
+   Saves about 0.45 MB of bytecode and 2,376 modules. The source file went
+   from 197 KB to 10 KB.
+3. **Gather artwork loads one SVG at a time.** Home's Gather card draws one
+   ~2 KB foundation mark, which synchronously required the whole ~750 KB table
+   inside Home's render. App.tsx also pre-warmed the whole table after
+   interactions on every launch. The generator
+   (`scripts/generate_gather_artwork_svgs.py`) now writes
+   `src/data/gatherArtworkSvg/<key>.json` and a registry that requires each
+   artwork when it is first drawn. The pre-warm is gone. The markup is
+   byte-identical. Bundle size is unchanged; this is a startup change only.
+
+Everything stays in the binary, so offline use is unchanged.
+
+### Checked and left alone
+
+- **Interface locales (3.9 MB of JS).** `localeLoaders.ts` already loads
+  only the active one. Hermes memory-maps bytecode, so modules that never run
+  cost download size, not startup time. Moving them to file assets would make
+  loading a language asynchronous on the first frame. That is a product
+  change and needs device testing.
+- **`bookIconVectors.generated.json` (291 KB), `countryDisplayNames` (212 KB),
+  `localeCatalog` (81 KB).** They are only reached from the Bible browser and
+  the locale search, and they are already off the path to Home. The new guard
+  below keeps them there.
+- **Hermes eval of a large string table is cheap.** Evaluating the old
+  750 KB artwork object took 1–2 ms the first time in the Mac Hermes CLI, and
+  about 0.02 ms after that. Big string modules cost memory and bundle size
+  more than CPU. Deferring them is still worth doing, but expect gains of
+  milliseconds, not tens of milliseconds.
+
+### Regression guards (round 3)
+
+- `scripts/babelHermesUnicodeRegex.test.ts` runs the real app Babel config.
+  Hermes callers must keep `\p{…}` and the `u` flag, non-Hermes callers must
+  still lower them, named groups must still be lowered, and the parser's
+  `en.js` must stay under 1.5× its source size. This fails if a Babel upgrade
+  renames the shared feature key.
+- `verseTimestamps.test.ts` now requires every chapter lookup to equal its
+  source JSON exactly, not just to be non-null.
+  `verseTimestamps.lazyTables.test.ts` proves importing the service loads no
+  table and a lookup loads only its own translation's table.
+- `gatherArtwork.lazy.test.ts` proves importing the registry loads no
+  artwork and drawing one loads only that file.
+- `startupBootSurface.test.ts` fails if the App, RootNavigator or HomeScreen
+  closures, the timestamp service or the artwork registry statically import
+  an artwork SVG, a timing table, `localeCatalog`, `countryDisplayNames`,
+  `bookIconVectors`, `referenceParser.ts` or the parser package. Confirmed to
+  fail when an artwork is imported statically.
+
+### How the numbers were taken (round 3)
+
+`CI=1 EXPO_OFFLINE=1 EXPO_NO_DEPENDENCY_VALIDATION=1 npx expo export --platform android --platform ios --clear`
+for bytecode sizes. The baseline was a `git archive` of `a021c7a3`. Per-file
+attribution came from `--no-bytecode --source-maps` exports: a script walked
+every source-map segment and added its generated bytes to the segment's source
+file. The load benchmark removed the trailing `__r()` calls from the minified
+bundles, compiled them with `hermesc -O` and timed 40 runs of each with the
+Hermes CLI. This measures loading the file and registering modules, not
+running the app.
