@@ -1,6 +1,12 @@
 import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import * as sanitizers from './persistedStateSanitizers';
+import * as authState from './sanitizers/authState';
+import * as audioState from './sanitizers/audioState';
+import * as bibleState from './sanitizers/bibleState';
+import * as libraryState from './sanitizers/libraryState';
+import * as progressState from './sanitizers/progressState';
+import * as runtimeTranslation from './sanitizers/runtimeTranslation';
 import {
   SANITIZER_IDENTITY_CASES,
   SANITIZER_IDENTITY_NOW,
@@ -20,6 +26,21 @@ test('the identity corpus and its captured outputs cover the same cases', () => 
     SANITIZER_IDENTITY_CASES.map(({ name }) => name).sort(),
     Object.keys(SANITIZER_IDENTITY_EXPECTED).sort()
   );
+});
+
+test('the old import path re-exports the per-store modules unchanged', () => {
+  const modules = [authState, audioState, bibleState, libraryState, progressState];
+  const publicRuntime = {
+    isRuntimeCatalogSnapshotEntry: runtimeTranslation.isRuntimeCatalogSnapshotEntry,
+    sanitizeLegacyPersistedRuntimeTranslations:
+      runtimeTranslation.sanitizeLegacyPersistedRuntimeTranslations,
+    sanitizeRuntimeCatalogSnapshotEntries: runtimeTranslation.sanitizeRuntimeCatalogSnapshotEntries,
+  };
+  const expected: Record<string, unknown> = Object.assign({}, ...modules, publicRuntime);
+  assert.deepEqual(Object.keys(sanitizers).sort(), Object.keys(expected).sort());
+  for (const [name, value] of Object.entries(sanitizers)) {
+    assert.equal(value, expected[name], name);
+  }
 });
 
 for (const identityCase of SANITIZER_IDENTITY_CASES) {
