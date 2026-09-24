@@ -1705,6 +1705,37 @@ test('a built pack index finds Vietnamese words typed without their tone marks',
   assert.deepEqual(verseRefs(await searchVerses('vie', 'Trời')), ['JHN 3:16']);
 });
 
+test("the substring fallback finds a Devanagari word typed without the text's joiners", async () => {
+  const { searchVerses, setBibleDatabaseSourceResolver, scheduleTextPackSearchIndexBuild } =
+    await loadModule();
+  // Nepali text writes परमेश्‍वर with a zero-width joiner after the virama (19,594 npiulb verses
+  // carry one); keyboards do not type it. The FTS index ignores joiners, but the substring scan
+  // used while a pack's index is built found 81 of the 3,932 verses with परमेश्वर.
+  installPackWithoutIndex('noindex-joiner.db', [
+    {
+      translationId: 'noindex',
+      bookId: '1JN',
+      chapter: 4,
+      verse: 8,
+      text: 'परमेश्\u200Dवर प्रेम हुनुहुन्छ।',
+    },
+    {
+      translationId: 'noindex',
+      bookId: 'GEN',
+      chapter: 1,
+      verse: 1,
+      text: 'सुरुमा आकाश र पृथ्वी।',
+    },
+  ]);
+  setBibleDatabaseSourceResolver((translationId) =>
+    translationId === 'noindex' ? installedSource('noindex', 'noindex-joiner.db') : null
+  );
+
+  assert.deepEqual(verseRefs(await searchVerses('noindex', 'परमेश्वर')), ['1JN 4:8']);
+  assert.deepEqual(verseRefs(await searchVerses('noindex', 'परमेश्\u200Dवर')), ['1JN 4:8']);
+  await scheduleTextPackSearchIndexBuild('noindex');
+});
+
 test('a pack replaced at the same path is searched without the old index and indexed again', async () => {
   const {
     invalidateInstalledBibleDatabaseAtPath,
