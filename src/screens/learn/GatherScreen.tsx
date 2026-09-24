@@ -9,6 +9,7 @@ import { AppCard, IconButton, PressableScale, TabSwitch } from '../../components
 import { GatherIconBadge } from '../../components/gather/GatherIconBadge';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useDisplayFont } from '../../hooks/useDisplayFont';
+import { useLargeText } from '../../hooks/useLargeText';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { layout, spacing, typography } from '../../design/system';
 import {
@@ -136,6 +137,7 @@ export function GatherScreen() {
   const navigation = useNavigation<NavProp>();
   const displayFont = useDisplayFont();
   const { contentClearance } = useTabBarHeight();
+  const { isLargeText } = useLargeText();
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('foundations');
 
@@ -178,8 +180,8 @@ export function GatherScreen() {
       edges={['top']}
     >
       {/* Screen header: identity on the left, path switch on the right. */}
-      <View style={styles.header}>
-        <View style={styles.headerTitles}>
+      <View style={[styles.header, isLargeText && styles.headerStacked]}>
+        <View style={[styles.headerTitles, isLargeText && styles.headerTitlesStacked]}>
           <Text style={[typography.eyebrow, displayFont.regular, { color: colors.secondaryText }]}>
             {t('gather.discoveryBibleStudy')}
           </Text>
@@ -394,6 +396,17 @@ const styles = StyleSheet.create({
   headerTitles: {
     flex: 1,
     gap: spacing.sm,
+  },
+  // At large text the switch alone fills the row, which squeezed the title column
+  // beside it to nothing; stacked, the title keeps the full width above it.
+  headerStacked: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+  },
+  headerTitlesStacked: {
+    // No zero flex basis here: in an auto-height column it would collapse.
+    flex: 0,
+    alignSelf: 'stretch',
   },
   scrollView: {
     flex: 1,
