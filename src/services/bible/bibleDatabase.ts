@@ -33,6 +33,10 @@ const pendingInstalledDatabaseOpens = new Map<string, Promise<SQLite.SQLiteDatab
 // Search-index cache keys whose index is known to be complete. Only a ready index is cached: a
 // pack's index can finish building in the background, so "not ready" is probed again.
 const searchIndexReadyCache = new Set<string>();
+// First and last verse id of each translation, per open handle (null: the translation has no
+// verses there). A handle opened on a replaced file starts empty; inserts drop the handle's entry.
+type VerseIdRange = { first: number; last: number } | null;
+const verseIdRangeCache = new WeakMap<SQLite.SQLiteDatabase, Map<string, VerseIdRange>>();
 const DATABASE_NAME = 'bible-bsb-v2.db';
 const DATABASE_ASSET_ID: number = require('../../../assets/databases/bible-bsb-v2.db');
 export const DEFAULT_MINIMUM_READY_VERSE_COUNT = 120000;
@@ -666,6 +670,30 @@ async function searchVersesBySubstring(
   return rows.map(toVerse);
 }
 
+async function getVerseIdRange(
+  database: SQLite.SQLiteDatabase,
+  translationId: string
+): Promise<VerseIdRange> {
+  let ranges = verseIdRangeCache.get(database);
+  if (!ranges) {
+    ranges = new Map();
+    verseIdRangeCache.set(database, ranges);
+  }
+  const cached = ranges.get(translationId);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  const row = await database.getFirstAsync<{ first: number | null; last: number | null }>(
+    'SELECT min(id) AS first, max(id) AS last FROM verses WHERE translation_id = ?',
+    [translationId]
+  );
+  const range =
+    row?.first != null && row.last != null ? { first: row.first, last: row.last } : null;
+  ranges.set(translationId, range);
+  return range;
+}
+
 export async function searchVerses(
   translationId: string,
   query: string,
@@ -706,16 +734,29 @@ export async function searchVerses(
   }
 
   try {
+    const idRange = await getVerseIdRange(database, translationId);
+    if (!idRange) {
+      return [];
+    }
+
+    // The bundled database indexes four translations together, one id range each. Without the
+    // rowid bounds FTS5 hands back every translation's matches ("the" has about 80,000), and
+    // each is joined to its verse row only to be dropped by the translation filter. bm25 still
+    // scores against the whole index, and ties still fall back to book, chapter and verse, so
+    // the ranking is the one searching every translation gave. translation_id stays in the
+    // filter for a translation whose ids are not contiguous.
     const indexedResults = await database.getAllAsync<VerseRow>(
       `
         SELECT v.*
         FROM verses_fts
         JOIN verses v ON v.id = verses_fts.rowid
-        WHERE verses_fts MATCH ? AND v.translation_id = ?
+        WHERE verses_fts MATCH ?
+          AND verses_fts.rowid BETWEEN ? AND ?
+          AND v.translation_id = ?
         ORDER BY bm25(verses_fts), v.book_id, v.chapter, v.verse
         LIMIT ?
       `,
-      [ftsQuery, translationId, limit]
+      [ftsQuery, idRange.first, idRange.last, translationId, limit]
     );
 
     return indexedResults.map(toVerse);
@@ -742,6 +783,7 @@ export async function insertVerse(translationId: string, verse: Omit<Verse, 'id'
       serializeVerseFormatting(verse.formatting),
     ]
   );
+  verseIdRangeCache.delete(database);
   chapterCache.clear();
 }
 
@@ -770,6 +812,7 @@ export async function insertVerses(
       );
     }
   });
+  verseIdRangeCache.delete(database);
   chapterCache.clear();
 }
 

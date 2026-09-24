@@ -2228,7 +2228,7 @@ function mixedTranslationVerses(): SeedVerse[] {
       });
       verses.push({
         translationId,
-        bookId: assertDefined(books[index % books.length]),
+        bookId: assertDefined(books[index % books.length], 'fixture book'),
         chapter: 1 + (index % 3),
         verse: index + 1,
         text: index % 5 === 0 ? 'the light of the world' : words.join(' '),
@@ -2257,6 +2257,8 @@ function searchEveryTranslationThenFilter(
   query: string,
   limit: number
 ): VerseKey[] {
+  const ftsQuery = buildBibleSearchQuery(query);
+  assert.ok(ftsQuery, `"${query}" must be searchable`);
   const database = new DatabaseSync(path, { readOnly: true });
   try {
     const rows = database
@@ -2266,7 +2268,7 @@ function searchEveryTranslationThenFilter(
          ORDER BY bm25(verses_fts), v.book_id, v.chapter, v.verse
          LIMIT ?`
       )
-      .all(assertDefined(buildBibleSearchQuery(query)), translationId, limit) as {
+      .all(ftsQuery, translationId, limit) as {
       id: number;
       book_id: string;
       chapter: number;
