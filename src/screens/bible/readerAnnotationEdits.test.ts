@@ -245,7 +245,39 @@ test('saving a note with no existing note creates one per run of selected verses
   );
 });
 
-test('applying edits deletes before it writes and stops at the first failure', async () => {
+test('a failed write never loses a highlight on verses outside the selection', async () => {
+  // Yellow covers 1-5 and the reader paints verse 3 blue: the yellow is split around it.
+  // If a write fails partway, the yellow on 1-2 and 4-5 must survive; the old order
+  // deleted the 1-5 highlight first and then failed to write its replacements.
+  let stored = [annotation('yellow', 'highlight', 1, 5)];
+  const edits = planReaderHighlightApply({
+    ...chapter,
+    annotations: stored,
+    selectedVerses: [3],
+    color: 'blue',
+    createId: idFactory(),
+  });
+
+  const succeeded = await applyReaderAnnotationEdits(edits, {
+    softDelete: async (id) => {
+      stored = stored.filter((item) => item.id !== id);
+      return { success: true };
+    },
+    upsert: async (draft) => {
+      if (draft.verse_start === 1) return { success: false };
+      stored = replay(stored, { softDeleteIds: [], upserts: [draft] });
+      return { success: true };
+    },
+  });
+
+  assert.equal(succeeded, false);
+  const painted = paintedColors(stored);
+  for (const verse of [1, 2, 4, 5]) {
+    assert.equal(painted[verse], 'yellow', `verse ${verse} kept its highlight`);
+  }
+});
+
+test('applying edits writes before it deletes and stops at the first failure', async () => {
   const calls: string[] = [];
   const edits: ReaderAnnotationEdits = {
     softDeleteIds: ['old'],
@@ -279,5 +311,5 @@ test('applying edits deletes before it writes and stops at the first failure', a
   });
 
   assert.equal(succeeded, false);
-  assert.deepEqual(calls, ['delete old', 'upsert first']);
+  assert.deepEqual(calls, ['upsert first']);
 });
