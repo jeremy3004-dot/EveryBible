@@ -1,4 +1,5 @@
 import test, { mock } from 'node:test';
+import { act } from 'react';
 import assert from 'node:assert/strict';
 import { hostComponent } from '../../testing/reactNativeHost';
 import { mockBarrel, mockModule } from '../../testing/mockModules';
@@ -20,34 +21,39 @@ const auth = {
   signUpResult: { success: true, user: { id: 'user-1' } } as FakeAuthResult,
   googleResult: { success: true, user: { id: 'user-1' } } as FakeAuthResult,
   resetResult: { success: true } as FakeAuthResult,
+  appleResult: { success: true, user: { id: 'user-1' } } as FakeAuthResult,
   session: { user: { id: 'user-1' } } as { user: { id: string } } | null,
   calls: [] as string[],
+  // While set, every auth call waits on it, so a test can look at the in-flight screen.
+  gate: null as Promise<void> | null,
+  // When set, the named call throws instead of answering.
+  throwOn: null as string | null,
 };
+
+async function answer(call: string, result: FakeAuthResult): Promise<FakeAuthResult> {
+  auth.calls.push(call);
+  if (auth.gate) await auth.gate;
+  if (auth.throwOn && call.startsWith(auth.throwOn)) throw new Error('network down');
+  return result;
+}
+
+function deferred() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
 const pulls: string[] = [];
 
 mockBarrel(mock, 'services/auth/index.ts', {
   real: ['isSilentAuthError'],
   provide: {
-    signInWithEmail: async (email: string) => {
-      auth.calls.push(`email:${email}`);
-      return auth.emailResult;
-    },
-    signUpWithEmail: async (email: string) => {
-      auth.calls.push(`signUp:${email}`);
-      return auth.signUpResult;
-    },
-    signInWithGoogle: async () => {
-      auth.calls.push('google');
-      return auth.googleResult;
-    },
-    signInWithApple: async () => {
-      auth.calls.push('apple');
-      return auth.emailResult;
-    },
-    resetPassword: async (email: string) => {
-      auth.calls.push(`reset:${email}`);
-      return auth.resetResult;
-    },
+    signInWithEmail: (email: string) => answer(`email:${email}`, auth.emailResult),
+    signUpWithEmail: (email: string) => answer(`signUp:${email}`, auth.signUpResult),
+    signInWithGoogle: () => answer('google', auth.googleResult),
+    signInWithApple: () => answer('apple', auth.appleResult),
+    resetPassword: (email: string) => answer(`reset:${email}`, auth.resetResult),
     getCurrentSession: async () => ({ session: auth.session }),
   },
 });
@@ -69,8 +75,11 @@ test.beforeEach(() => {
   auth.signUpResult = { success: true, user: { id: 'user-1' } };
   auth.googleResult = { success: true, user: { id: 'user-1' } };
   auth.resetResult = { success: true };
+  auth.appleResult = { success: true, user: { id: 'user-1' } };
   auth.session = { user: { id: 'user-1' } };
   auth.calls.length = 0;
+  auth.gate = null;
+  auth.throwOn = null;
   pulls.length = 0;
 });
 
@@ -285,6 +294,277 @@ test('a provider sign-in that succeeds restores the account and closes', async (
 
   assert.deepEqual(auth.calls, ['google']);
   assert.deepEqual(pulls, ['google-uid']);
+  assert.deepEqual(
+    harness.navigation.calls.map((call) => call.method),
+    ['goBack']
+  );
+});
+
+const appleButton = (view: RenderResult) => {
+  const [apple] = view.queryAllByType('AppleAuthenticationButton');
+  assert.ok(apple, 'the Apple button is shown');
+  return apple;
+};
+
+test('on iOS the Apple button says Continue to sign in and Sign up to create an account', async () => {
+  const signIn = await renderAuth();
+  assert.equal(appleButton(signIn).props.buttonType, 1);
+  assert.equal(appleButton(signIn).props.cornerRadius, 25);
+  await signIn.press(signIn.getByText(t('auth.createAnAccount')));
+  assert.equal(appleButton(signIn).props.buttonType, 2);
+});
+
+test('the Apple button is black on the light theme and white on the dark theme', async () => {
+  const light = await renderAuth();
+  assert.equal(appleButton(light).props.buttonStyle, 2);
+  await light.unmount();
+
+  harness.authStore.getState().setPreferences({ theme: 'dark' });
+  const dark = await renderAuth();
+  assert.equal(appleButton(dark).props.buttonStyle, 0);
+});
+
+test('an Apple sign-in that succeeds restores the account and closes', async () => {
+  auth.session = { user: { id: 'apple-uid' } };
+  const view = await renderAuth();
+
+  await view.press(appleButton(view));
+
+  assert.deepEqual(auth.calls, ['apple']);
+  assert.deepEqual(pulls, ['apple-uid']);
+  assert.deepEqual(
+    harness.navigation.calls.map((call) => call.method),
+    ['goBack']
+  );
+});
+
+test('a failed Apple sign-in falls back to the Apple failure message, and a cancel stays silent', async () => {
+  auth.appleResult = { success: false, code: 'unknown', error: RAW_ERROR };
+  const view = await renderAuth();
+  await view.press(appleButton(view));
+  assert.deepEqual(
+    { title: lastAlert()?.title, message: lastAlert()?.message },
+    { title: t('auth.signInFailed'), message: t('auth.appleSignInFailed') }
+  );
+  assert.deepEqual(harness.haptics.at(-1), { kind: 'notification', style: 'error' });
+
+  const alerts = harness.rn.__recorded.alerts.length;
+  auth.appleResult = { success: false, code: 'cancelled', error: RAW_ERROR };
+  await view.press(appleButton(view));
+  assert.equal(harness.rn.__recorded.alerts.length, alerts);
+});
+
+test('a failed Google sign-in falls back to the Google failure message', async () => {
+  auth.googleResult = { success: false, code: 'unknown', error: RAW_ERROR };
+  const view = await renderAuth();
+  await view.press(view.getByRole('button', { name: t('auth.continueWithGoogle') }));
+
+  assert.deepEqual(
+    { title: lastAlert()?.title, message: lastAlert()?.message },
+    { title: t('auth.signInFailed'), message: t('auth.googleSignInFailed') }
+  );
+  assert.deepEqual(pulls, []);
+});
+
+test('a sign-in call that throws shows the generic error and frees the form', async () => {
+  for (const [press, call] of [
+    [(view: RenderResult) => submitEmail(view), 'email'],
+    [
+      (view: RenderResult) =>
+        view.press(view.getByRole('button', { name: t('auth.continueWithGoogle') })),
+      'google',
+    ],
+    [(view: RenderResult) => view.press(appleButton(view)), 'apple'],
+    [(view: RenderResult) => view.press(view.getByText(t('auth.forgotPassword'))), 'reset'],
+  ] as const) {
+    auth.throwOn = call;
+    const view = await renderAuth();
+    await view.changeText(view.getByLabelText(t('auth.email')), 'ruth@example.com');
+    await press(view);
+
+    assert.deepEqual(
+      { title: lastAlert()?.title, message: lastAlert()?.message },
+      { title: t('common.error'), message: t('auth.somethingWentWrong') },
+      call
+    );
+    assert.ok(view.getByRole('button', { name: t('auth.signIn'), disabled: false }), call);
+    await view.unmount();
+  }
+  assert.deepEqual(pulls, []);
+});
+
+test('while a sign-in is in flight the form is locked and the primary button is busy', async () => {
+  const gate = deferred();
+  auth.gate = gate.promise;
+  const view = await renderAuth();
+  await view.changeText(view.getByLabelText(t('auth.email')), 'ruth@example.com');
+  await view.changeText(view.getByLabelText(t('auth.password')), 'secret-pass');
+  // Pressed outside act so the screen can be read while the call is pending.
+  const pending = (
+    view.getByRole('button', { name: t('auth.signIn') }).props.onPress as () => Promise<void>
+  )();
+  await view.flush();
+
+  assert.ok(view.getByRole('button', { name: t('auth.signIn'), busy: true, disabled: true }));
+  assert.ok(view.getByRole('button', { name: t('auth.continueWithGoogle'), disabled: true }));
+  assert.equal(view.getByLabelText(t('auth.email')).props.editable, false);
+  assert.equal(view.getByLabelText(t('auth.password')).props.editable, false);
+  assert.ok(view.getByRole('button', { name: t('auth.showPassword'), disabled: true }));
+  assert.ok(view.getByRole('button', { name: t('auth.forgotPassword'), disabled: true }));
+  assert.ok(view.getByRole('button', { name: t('auth.createAnAccount'), disabled: true }));
+
+  await act(async () => {
+    gate.resolve();
+    await pending;
+  });
+  assert.deepEqual(pulls, ['user-1']);
+  assert.ok(view.getByRole('button', { name: t('auth.signIn'), busy: false }));
+});
+
+test('a reset link that was sent says to check the inbox', async () => {
+  const view = await renderAuth();
+  await view.changeText(view.getByLabelText(t('auth.email')), 'ruth@example.com');
+  await view.press(view.getByText(t('auth.forgotPassword')));
+
+  assert.deepEqual(
+    { title: lastAlert()?.title, message: lastAlert()?.message },
+    { title: t('auth.checkYourEmail'), message: t('auth.resetLinkSent') }
+  );
+});
+
+test('an empty form asks for both fields, and typing clears only that field error', async () => {
+  const view = await renderAuth();
+  await view.press(view.getByRole('button', { name: t('auth.signIn') }));
+
+  assert.ok(view.getByText(t('auth.emailRequired')));
+  assert.ok(view.getByText(t('auth.passwordRequired')));
+  assert.equal(
+    view.queryAllByType('LucideIcon').filter((icon) => icon.props.name === 'CircleAlert').length,
+    2
+  );
+
+  await view.changeText(view.getByLabelText(`${t('auth.email')}, ${t('auth.emailRequired')}`), 'r');
+  assert.equal(view.queryByText(t('auth.emailRequired')), null);
+  assert.ok(view.getByText(t('auth.passwordRequired')));
+
+  await view.changeText(
+    view.getByLabelText(`${t('auth.password')}, ${t('auth.passwordRequired')}`),
+    'x'
+  );
+  assert.equal(view.queryByText(t('auth.passwordRequired')), null);
+});
+
+test('switching between sign-in and sign-up clears field errors', async () => {
+  const view = await renderAuth();
+  await view.press(view.getByRole('button', { name: t('auth.signIn') }));
+  assert.ok(view.getByText(t('auth.emailRequired')));
+
+  await view.press(view.getByText(t('auth.createAnAccount')));
+  assert.equal(view.queryByText(t('auth.emailRequired')), null);
+  assert.equal(view.queryByText(t('auth.passwordRequired')), null);
+});
+
+test('sign-up mode hints the password rule and submits from the keyboard', async () => {
+  const view = await renderAuth('signUp');
+  const password = view.getByLabelText(t('auth.password'));
+  assert.equal(password.props.placeholder, t('auth.passwordHint'));
+  assert.equal(password.props.autoComplete, 'new-password');
+  assert.equal(password.props.returnKeyType, 'next');
+  assert.ok(view.getByText(t('auth.signUpSubtitle')));
+
+  await view.changeText(view.getByLabelText(t('auth.email')), 'ruth@example.com');
+  await view.changeText(password, 'secret-pass');
+  await view.fire(view.getByLabelText(t('auth.password')), 'onSubmitEditing');
+  assert.deepEqual(auth.calls, ['signUp:ruth@example.com']);
+});
+
+test('sign-in mode submits from the password key and the email key moves to the password', async () => {
+  const view = await renderAuth();
+  assert.ok(view.getByText(t('auth.signInSubtitle')));
+  const password = view.getByLabelText(t('auth.password'));
+  assert.equal(password.props.placeholder, t('auth.passwordPlaceholder'));
+  assert.equal(password.props.autoComplete, 'current-password');
+  assert.equal(password.props.returnKeyType, 'go');
+
+  await view.fire(view.getByLabelText(t('auth.email')), 'onSubmitEditing');
+  assert.deepEqual(
+    harness.refCalls.map((call) => [call.type, call.method, call.props.accessibilityLabel]),
+    [['TextInput', 'focus', t('auth.password')]]
+  );
+
+  await view.changeText(view.getByLabelText(t('auth.email')), 'ruth@example.com');
+  await view.changeText(password, 'secret-pass');
+  await view.fire(view.getByLabelText(t('auth.password')), 'onSubmitEditing');
+  assert.deepEqual(auth.calls, ['email:ruth@example.com']);
+});
+
+test('a sign-up that is signed in at once restores the account and closes', async () => {
+  auth.session = { user: { id: 'new-uid' } };
+  const view = await renderAuth('signUp');
+  await submitEmail(view);
+
+  assert.deepEqual(pulls, ['new-uid']);
+  assert.equal(view.queryByText(t('auth.accountCreated')), null);
+  assert.deepEqual(
+    harness.navigation.calls.map((call) => call.method),
+    ['goBack']
+  );
+});
+
+test('the verification notice offers sign-in, which switches mode and hides the notice', async () => {
+  auth.session = null;
+  const view = await renderAuth('signUp');
+  await submitEmail(view);
+  const notice = view.getByText(t('auth.accountCreated'));
+  assert.ok(notice);
+
+  const buttons = view.getAllByRole('button', { name: t('auth.signIn') });
+  assert.equal(buttons.length, 2, 'the notice button and the footer link');
+  await view.press(buttons[0]);
+
+  assert.equal(view.queryByText(t('auth.accountCreated')), null);
+  assert.ok(view.getByRole('header', { name: t('auth.welcomeBack') }));
+  assert.equal(view.getByLabelText(t('auth.email')).props.value, 'ruth@example.com');
+});
+
+test('the app mark and the Google mark are decorative', async () => {
+  const view = await renderAuth();
+  const images = view.queryAllByType('Image');
+  assert.equal(images.length, 2);
+  for (const image of images) {
+    assert.equal(image.props.accessible, false);
+    assert.equal(image.props.importantForAccessibility, 'no-hide-descendants');
+  }
+});
+
+test('iOS pads the keyboard avoider', async () => {
+  const view = await renderAuth();
+  const [avoider] = view.queryAllByType('KeyboardAvoidingView');
+  assert.equal(avoider.props.behavior, 'padding');
+});
+
+// The native Apple control has no disabled state, so while another sign-in was in
+// flight a tap on it started a second one; both then restored the account and
+// dismissed, and the second goBack popped the screen under the auth modal.
+test('the Apple button ignores taps while another sign-in is in flight', async () => {
+  const gate = deferred();
+  auth.gate = gate.promise;
+  const view = await renderAuth();
+  await view.changeText(view.getByLabelText(t('auth.email')), 'ruth@example.com');
+  await view.changeText(view.getByLabelText(t('auth.password')), 'secret-pass');
+  const pending = (
+    view.getByRole('button', { name: t('auth.signIn') }).props.onPress as () => Promise<void>
+  )();
+  await view.flush();
+
+  const apple = (appleButton(view).props.onPress as () => Promise<void>)();
+  await act(async () => {
+    gate.resolve();
+    await Promise.all([pending, apple]);
+  });
+
+  assert.deepEqual(auth.calls, ['email:ruth@example.com']);
+  assert.deepEqual(pulls, ['user-1']);
   assert.deepEqual(
     harness.navigation.calls.map((call) => call.method),
     ['goBack']
