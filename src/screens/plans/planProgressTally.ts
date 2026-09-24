@@ -20,3 +20,18 @@ export function formatPlanProgressTally(
     ? t('readingPlans.daysReadMissedSummary', { read: done, days, missed })
     : t('readingPlans.daysReadSummary', { read: done, days });
 }
+
+/**
+ * What the progress card says to a screen reader as one element: the day the
+ * reader is on and the tally, since the dot grid under them is hidden.
+ */
+export function formatPlanProgressAnnouncement(
+  t: TFunction,
+  { currentDay, ...tally }: PlanProgressTallyInput & { currentDay: number }
+): string {
+  return [
+    t('readingPlans.dayOf', { current: currentDay, total: tally.totalDays }),
+    t('readingPlans.completed'),
+    formatPlanProgressTally(t, tally),
+  ].join(', ');
+}

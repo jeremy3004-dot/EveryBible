@@ -223,8 +223,27 @@ test('PlanDetailScreen surfaces today target progress on the progress card', () 
   );
   assert.match(
     source,
-    /getPlanLedgerGridRows\(states, LEDGER_COLUMNS\)/,
-    'PlanDetailScreen should lay the cell ledger out as full flex rows so it has its height on the first frame'
+    /getPlanLedgerGridMetrics\(\s*states\.length,\s*windowWidth - LEDGER_GRID_HORIZONTAL_INSET\s*\)/,
+    'PlanDetailScreen should size the dot ledger from the window width, which is known on the first frame'
+  );
+  assert.match(
+    source,
+    /getPlanLedgerGridRows\(states, columns\)/,
+    'PlanDetailScreen should lay the dot ledger out as full flex rows so it has its height on the first frame'
+  );
+  const ledgerCellsSource = source.slice(
+    source.indexOf('function LedgerCells'),
+    source.indexOf('const cellStyles = StyleSheet.create')
+  );
+  assert.doesNotMatch(
+    ledgerCellsSource,
+    /onLayout/,
+    'The dot ledger must not wait on a layout measurement before drawing'
+  );
+  assert.match(
+    source,
+    /accessibilityLabel=\{progressAnnouncement\}/,
+    'The progress card should announce the day and tally in one stop, since the dot grid is hidden'
   );
 });
 

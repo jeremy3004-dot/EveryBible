@@ -12,6 +12,7 @@ import {
   Text,
   View,
   type ViewStyle,
+  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -80,8 +81,13 @@ import {
   getPlanDetailCompactHeaderHeight,
   isPlanDetailCompactHeaderVisible,
 } from './planDetailHeaderModel';
-import { formatPlanProgressTally } from './planProgressTally';
-import { getPlanLedgerGridRows } from './planLedgerGridModel';
+import { formatPlanProgressAnnouncement, formatPlanProgressTally } from './planProgressTally';
+import {
+  PLAN_LEDGER_DENSE_GAP,
+  PLAN_LEDGER_ROOMY_GAP,
+  getPlanLedgerGridMetrics,
+  getPlanLedgerGridRows,
+} from './planLedgerGridModel';
 import { lightHaptic, successHaptic } from '../../utils';
 
 // ---------------------------------------------------------------------------
@@ -111,10 +117,11 @@ const COVER_SCRIM_STOPS = [
 ] as const;
 const COVER_SCRIM_LOCATIONS: readonly [number, number, ...number[]] = [0, 0.25, 0.52, 0.78, 1];
 
-/** Cell ledger: one square per plan day, sixteen to a row. */
-const LEDGER_COLUMNS = 16;
-const LEDGER_CELL_GAP = spacing.xs;
-const LEDGER_CELL_RADIUS = 3;
+/**
+ * Dot ledger: one dot per plan day, as many to a row as fit the card. The grid
+ * sits inside the header's screen padding and the progress card's padding.
+ */
+const LEDGER_GRID_HORIZONTAL_INSET = 2 * (layout.screenPadding + layout.cardPaddingWide);
 /** Last cell starts drawing in by here, so the whole grid lands inside 1.5s. */
 const LEDGER_DRAW_IN_MAX_DELAY = 1350;
 const LEDGER_DRAW_IN_STEP = 30;
@@ -307,37 +314,47 @@ const coverImageStyles = StyleSheet.create({
 });
 
 // ---------------------------------------------------------------------------
-// Cell ledger — one square per plan day
+// Dot ledger — one dot per plan day, a GitHub-style heatmap
 // ---------------------------------------------------------------------------
 
 function LedgerCells({ states }: { states: ReadingPlanLedgerDayState[] }) {
   const { colors } = useTheme();
   const reduceMotion = useReducedMotion();
+  const { width: windowWidth } = useWindowDimensions();
 
-  // Full rows of flex squares, never a measured cell size: measuring the card
-  // first meant its first frame had no grid, and a 365-day grid then landed a
-  // frame later ~500pt tall, shoving Today and the ledger under the reader's tap.
-  const rows = useMemo(() => getPlanLedgerGridRows(states, LEDGER_COLUMNS), [states]);
+  // Columns come from the window width, which is right on the first frame, and
+  // the dots flex to fill full rows: measuring the card first meant its first
+  // frame had no grid, and the grid then landed a frame later and shoved Today
+  // and the ledger under the reader's tap.
+  const { columns, density } = getPlanLedgerGridMetrics(
+    states.length,
+    windowWidth - LEDGER_GRID_HORIZONTAL_INSET
+  );
+  const rows = useMemo(() => getPlanLedgerGridRows(states, columns), [states, columns]);
+  const isDense = density === 'dense';
 
   const palette: Record<ReadingPlanLedgerDayState, ViewStyle> = {
     done: { backgroundColor: colors.accentPrimary },
     missed: { backgroundColor: colors.warningSoft, borderWidth: 1, borderColor: colors.warning },
-    today: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: colors.accentPrimary },
+    today: { backgroundColor: 'transparent', borderWidth: 2, borderColor: colors.accentPrimary },
     future: { backgroundColor: colors.muted, borderWidth: 1, borderColor: colors.borderStrong },
   };
 
   return (
     <View
-      style={cellStyles.grid}
-      // The read/missed tally above already says this in words; the squares are
-      // a picture of it, so screen readers should not walk 365 of them.
+      style={[cellStyles.grid, isDense ? cellStyles.denseGap : cellStyles.roomyGap]}
+      // The card's heading row already says this in words; the dots are a
+      // picture of it, so screen readers should not walk 365 of them.
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >
       {rows.map((row, rowIndex) => (
-        <View key={rowIndex} style={cellStyles.row}>
+        <View
+          key={rowIndex}
+          style={[cellStyles.row, isDense ? cellStyles.denseGap : cellStyles.roomyGap]}
+        >
           {row.map((state, columnIndex) => {
-            const index = rowIndex * LEDGER_COLUMNS + columnIndex;
+            const index = rowIndex * columns + columnIndex;
             if (state === null) {
               return <View key={`empty-${index}`} style={cellStyles.cell} />;
             }
@@ -351,7 +368,13 @@ function LedgerCells({ states }: { states: ReadingPlanLedgerDayState[] }) {
                         Math.min(index * LEDGER_DRAW_IN_STEP, LEDGER_DRAW_IN_MAX_DELAY)
                       )
                 }
-                style={[cellStyles.cell, palette[state]]}
+                style={[
+                  cellStyles.cell,
+                  palette[state],
+                  // An 8pt ring is small; let today's swell into the gap so it
+                  // still reads as the marker without changing the row height.
+                  state === 'today' && isDense ? cellStyles.denseToday : null,
+                ]}
               />
             );
           })}
@@ -363,17 +386,24 @@ function LedgerCells({ states }: { states: ReadingPlanLedgerDayState[] }) {
 
 const cellStyles = StyleSheet.create({
   grid: {
-    gap: LEDGER_CELL_GAP,
     marginTop: spacing.lg,
   },
   row: {
     flexDirection: 'row',
-    gap: LEDGER_CELL_GAP,
+  },
+  denseGap: {
+    gap: PLAN_LEDGER_DENSE_GAP,
+  },
+  roomyGap: {
+    gap: PLAN_LEDGER_ROOMY_GAP,
   },
   cell: {
     flex: 1,
     aspectRatio: 1,
-    borderRadius: LEDGER_CELL_RADIUS,
+    borderRadius: radius.pill,
+  },
+  denseToday: {
+    transform: [{ scale: 1.25 }],
   },
 });
 
@@ -419,10 +449,22 @@ function ProgressCard({ plan, progress, currentDaySummary, today }: ProgressCard
     missed: missedCount,
     totalDays,
   });
+  const progressAnnouncement = formatPlanProgressAnnouncement(t, {
+    currentDay,
+    done: doneCount,
+    missed: missedCount,
+    totalDays,
+  });
 
   return (
     <AppCard padding={layout.cardPaddingWide}>
-      <View style={progressCardStyles.headRow}>
+      <View
+        style={progressCardStyles.headRow}
+        // One stop for screen readers ("Day 1 of 365, Completed, 0 of 365 days")
+        // instead of "Day", "1", "/365" fragments; the dot grid below is hidden.
+        accessible
+        accessibilityLabel={progressAnnouncement}
+      >
         <View>
           <Text style={[typography.eyebrow, displayFont.regular, { color: colors.secondaryText }]}>
             {t('readingPlans.day')}
