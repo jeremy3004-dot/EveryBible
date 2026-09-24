@@ -1,0 +1,132 @@
+{
+  "version": "5",
+  "redirects": {
+    "https://esm.sh/@supabase/supabase-js@2": "https://esm.sh/@supabase/supabase-js@2.115.0"
+  },
+  "remote": {
+    "https://esm.sh/@supabase/supabase-js@2.115.0": "f4e488ef8059a64be766b58feb4d6a18aa812038fdcf9c7c916efbdf26ab9585"
+  },
+  "workspace": {
+    "packageJson": {
+      "dependencies": [
+        "npm:@expo-google-fonts/lora@~0.4.2",
+        "npm:@expo/vector-icons@^15.0.3",
+        "npm:@kesha-antonov/react-native-background-downloader@^4.5.4",
+        "npm:@next/eslint-plugin-next@^15.5.25",
+        "npm:@noble/curves@^1.9.7",
+        "npm:@noble/hashes@^1.8.0",
+        "npm:@react-native-async-storage/async-storage@2.2.0",
+        "npm:@react-native-community/netinfo@11.4.1",
+        "npm:@react-native-google-signin/google-signin@^16.1.1",
+        "npm:@react-navigation/bottom-tabs@^7.10.1",
+        "npm:@react-navigation/native-stack@^7.10.1",
+        "npm:@react-navigation/native@^7.1.28",
+        "npm:@shopify/flash-list@^1.8.3",
+        "npm:@supabase/supabase-js@^2.91.0",
+        "npm:@tanstack/react-query@^5.95.2",
+        "npm:@types/adm-zip@~0.5.8",
+        "npm:@types/react@~19.1.10",
+        "npm:@typescript-eslint/eslint-plugin@^8.53.1",
+        "npm:@typescript-eslint/parser@^8.53.1",
+        "npm:adm-zip@~0.5.16",
+        "npm:bible-passage-reference-parser@^3.2.0",
+        "npm:eslint-config-prettier@^10.1.8",
+        "npm:eslint-plugin-react-hooks@^7.0.1",
+        "npm:eslint-plugin-react@^7.37.5",
+        "npm:eslint@^9.39.2",
+        "npm:expo-apple-authentication@~8.0.8",
+        "npm:expo-asset@~12.0.13",
+        "npm:expo-av@~16.0.8",
+        "npm:expo-blur@~15.0.8",
+        "npm:expo-build-properties@~1.0.10",
+        "npm:expo-clipboard@~8.0.8",
+        "npm:expo-constants@~18.0.14",
+        "npm:expo-crypto@~15.0.9",
+        "npm:expo-dev-client@~6.0.21",
+        "npm:expo-file-system@~19.0.23",
+        "npm:expo-font@~14.0.12",
+        "npm:expo-glass-effect@~0.1.10",
+        "npm:expo-haptics@~15.0.8",
+        "npm:expo-image-picker@~17.0.11",
+        "npm:expo-linear-gradient@~15.0.8",
+        "npm:expo-linking@~8.0.12",
+        "npm:expo-localization@~17.0.9",
+        "npm:expo-media-control@1.0.12",
+        "npm:expo-notifications@~0.32.17",
+        "npm:expo-secure-store@~15.0.8",
+        "npm:expo-sharing@~14.0.8",
+        "npm:expo-splash-screen@~31.0.13",
+        "npm:expo-sqlite@~16.0.10",
+        "npm:expo-status-bar@~3.0.9",
+        "npm:expo-updates@~29.0.20",
+        "npm:expo-web-browser@~15.0.11",
+        "npm:expo@~54.0.36",
+        "npm:fuse.js@^7.1.0",
+        "npm:i18next@^25.8.0",
+        "npm:lucide-react-native@^1.38.0",
+        "npm:patch-package@^8.0.1",
+        "npm:prettier@^3.8.1",
+        "npm:react-i18next@^16.5.3",
+        "npm:react-native-gesture-handler@2.28",
+        "npm:react-native-mmkv@2.12.2",
+        "npm:react-native-reanimated@~3.19.5",
+        "npm:react-native-safe-area-context@5.6",
+        "npm:react-native-screens@4.16",
+        "npm:react-native-svg@15.12.1",
+        "npm:react-native-video-trim@^6.1.0",
+        "npm:react-native-view-shot@4.0.3",
+        "npm:react-native@0.81.5",
+        "npm:react@19.1.0",
+        "npm:sharp@~0.35.4",
+        "npm:supabase@^2.117.0",
+        "npm:tsx@^4.23.13",
+        "npm:turbo@^2.10.13",
+        "npm:typescript@~5.9.2",
+        "npm:zustand@^5.0.10"
+      ]
+    },
+    "members": {
+      "apps/admin": {
+        "packageJson": {
+          "dependencies": [
+            "npm:@supabase/ssr@0.10",
+            "npm:@supabase/supabase-js@^2.91.0",
+            "npm:@types/node@^24.3.1",
+            "npm:@types/react-dom@^19.2.2",
+            "npm:@types/react@^19.2.2",
+            "npm:maplibre-gl@^6.10.0",
+            "npm:next@^15.5.25",
+            "npm:react-dom@19.1.0",
+            "npm:react@19.1.0",
+            "npm:typescript@~5.9.2",
+            "npm:world-countries@^5.1.0"
+          ]
+        }
+      },
+      "apps/site": {
+        "packageJson": {
+          "dependencies": [
+            "npm:@aws-sdk/client-s3@^3.1022.0",
+            "npm:@eslint/js@^9.39.2",
+            "npm:@next/eslint-plugin-next@^15.5.25",
+            "npm:@supabase/supabase-js@^2.91.0",
+            "npm:@types/node@^24.3.1",
+            "npm:@types/react-dom@^19.2.2",
+            "npm:@types/react@^19.2.2",
+            "npm:@typescript-eslint/eslint-plugin@^8.53.1",
+            "npm:@typescript-eslint/parser@^8.53.1",
+            "npm:eslint-config-prettier@^10.1.8",
+            "npm:eslint-plugin-react-hooks@^7.0.1",
+            "npm:eslint-plugin-react@^7.37.5",
+            "npm:eslint@^9.39.2",
+            "npm:maplibre-gl@^6.10.0",
+            "npm:next@^15.5.25",
+            "npm:react-dom@19.1.0",
+            "npm:react@19.1.0",
+            "npm:typescript@~5.9.2"
+          ]
+        }
+      }
+    }
+  }
+}

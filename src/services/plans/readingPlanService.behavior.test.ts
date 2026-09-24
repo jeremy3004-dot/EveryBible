@@ -2314,7 +2314,7 @@ test('a merge the server refuses is not retried as a blind upsert', async () => 
 });
 
 // The server refuses rows naming another account with 42501 (migration
-// 20260924063000): the session switched accounts while the push was in flight.
+// 20260924051658): the session switched accounts while the push was in flight.
 test('a plan merge refused as another account (42501) is dropped and the sync reported stale', async () => {
   signIn('user-a', 2);
   const rows = [localProgress('psalms-30-days', { completed_entries: { '3': 'x' } })];

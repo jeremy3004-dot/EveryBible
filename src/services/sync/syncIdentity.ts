@@ -4,7 +4,7 @@ export const STALE_SYNC_ERROR = 'Authenticated user changed during sync';
  * A server-side merge refusing the push with 42501: the request ran under a
  * session for another account than the payload's user_id (the account changed
  * while the push was in flight), or under no session at all
- * (migration 20260924063000). The push is dropped and the cycle reported stale,
+ * (migration 20260924051658). The push is dropped and the cycle reported stale,
  * so the account now signed in syncs, and re-reads, its own state. It is never
  * retried as a plain upsert.
  */

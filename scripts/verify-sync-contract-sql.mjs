@@ -356,12 +356,12 @@ await db.exec(
     'utf8'
   )
 );
-// Both merge functions as replaced by 20260924063000 (payload owner check); every
+// Both merge functions as replaced by 20260924051658 (payload owner check); every
 // merge check below runs against this version.
 await db.exec(
   await fs.readFile(
     new URL(
-      '../supabase/migrations/20260924063000_merge_rpcs_reject_foreign_owner.sql',
+      '../supabase/migrations/20260924051658_merge_rpcs_reject_foreign_owner.sql',
       import.meta.url
     ),
     'utf8'

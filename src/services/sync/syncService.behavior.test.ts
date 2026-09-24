@@ -871,7 +871,7 @@ test('a merge the server refuses is a failed push, never a blind upsert', async 
 });
 
 // The server refuses a payload naming another account with 42501 (migration
-// 20260924063000): the session switched accounts while the push was in flight.
+// 20260924051658): the session switched accounts while the push was in flight.
 // That push belongs to nobody now; it is dropped, never retried as an upsert.
 test('a merge refused as another account (42501) drops the push and reports the sync as stale', async () => {
   progressStore.setState({ chaptersRead: { GEN_1: 500 } });
