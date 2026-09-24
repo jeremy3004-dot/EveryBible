@@ -1438,6 +1438,7 @@ export function BibleReaderScreen() {
         selectedVerseText={selectedVerseText}
         setShowVerseImageSheet={setShowVerseImageSheet}
         showVerseImageSheet={showVerseImageSheet}
+        translationLanguage={currentTranslationInfo?.language}
         verseImageBackgroundCount={verseImageBackgroundCount}
         verseImageSharePreviewRef={verseImageSharePreviewRef}
       />
