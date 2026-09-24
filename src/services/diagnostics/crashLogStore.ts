@@ -13,6 +13,25 @@ export { toCrashLogEntry } from './crashLogEntry';
  */
 export const CRASH_LOG_STORAGE_KEY = 'diagnostics-crash-log';
 
+// Largest epoch-ms value a Date can hold; beyond it toISOString throws.
+const MAX_DATE_MS = 8.64e15;
+
+// The Diagnostics screen renders every row and formats its timestamp, so a row
+// it cannot display is dropped rather than allowed to crash that screen.
+const isCrashLogEntry = (value: unknown): value is CrashLogEntry => {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const candidate = value as Partial<CrashLogEntry>;
+  return (
+    typeof candidate.message === 'string' &&
+    typeof candidate.isFatal === 'boolean' &&
+    typeof candidate.timestamp === 'number' &&
+    Math.abs(candidate.timestamp) <= MAX_DATE_MS &&
+    (candidate.stack === undefined || typeof candidate.stack === 'string')
+  );
+};
+
 export function getCrashLogs(): CrashLogEntry[] {
   try {
     const raw = mmkvInstance.getString(CRASH_LOG_STORAGE_KEY);
@@ -20,7 +39,7 @@ export function getCrashLogs(): CrashLogEntry[] {
       return [];
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed) ? parsed.filter(isCrashLogEntry) : [];
   } catch {
     return [];
   }
