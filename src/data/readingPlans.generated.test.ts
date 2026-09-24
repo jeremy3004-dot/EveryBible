@@ -40,18 +40,18 @@ test('bundled reading plans expose the bundled plans in sort order', async () =>
   assert.equal(mod.readingPlansById.get('kathisma-weekly')?.coverKey, 'kathisma');
   assert.equal(mod.readingPlansById.get('kathisma-weekly')?.scheduleMode, 'calendar-day-of-week');
   assert.equal(mod.readingPlansById.get('kathisma-weekly')?.format, 'multi-session');
-  assert.equal(mod.readingPlanEntriesByPlanId['bible-in-1-year'].length, 365);
-  assert.equal(mod.readingPlanEntriesByPlanId['sermon-on-the-mount-7-days'].length, 7);
-  assert.equal(mod.readingPlanEntriesByPlanId['bible-in-30-days'].length, 94);
-  assert.equal(mod.readingPlanEntriesByPlanId['acts-28-days'].length, 28);
-  assert.equal(mod.readingPlanEntriesByPlanId['foundations-of-the-gospel'].length, 18);
-  assert.equal(mod.readingPlanEntriesByPlanId['prayer-intimacy-with-god'].length, 12);
-  assert.equal(mod.readingPlanEntriesByPlanId['identity-in-christ'].length, 8);
-  assert.equal(mod.readingPlanEntriesByPlanId['kathisma-weekly'].length, 20);
+  assert.equal(mod.readingPlanEntriesByPlanId['bible-in-1-year']?.length, 365);
+  assert.equal(mod.readingPlanEntriesByPlanId['sermon-on-the-mount-7-days']?.length, 7);
+  assert.equal(mod.readingPlanEntriesByPlanId['bible-in-30-days']?.length, 94);
+  assert.equal(mod.readingPlanEntriesByPlanId['acts-28-days']?.length, 28);
+  assert.equal(mod.readingPlanEntriesByPlanId['foundations-of-the-gospel']?.length, 18);
+  assert.equal(mod.readingPlanEntriesByPlanId['prayer-intimacy-with-god']?.length, 12);
+  assert.equal(mod.readingPlanEntriesByPlanId['identity-in-christ']?.length, 8);
+  assert.equal(mod.readingPlanEntriesByPlanId['kathisma-weekly']?.length, 20);
 
   assert.deepEqual(
     mod.readingPlanEntriesByPlanId['kathisma-weekly']
-      .filter((entry) => entry.day_number === 1)
+      ?.filter((entry) => entry.day_number === 1)
       .map((entry) => ({
         session: entry.session_key,
         title: entry.session_title,
@@ -75,7 +75,7 @@ test('bundled reading plans expose the bundled plans in sort order', async () =>
   );
   assert.deepEqual(
     mod.readingPlanEntriesByPlanId['kathisma-weekly']
-      .filter((entry) => entry.day_number === 2)
+      ?.filter((entry) => entry.day_number === 2)
       .map((entry) => ({
         session: entry.session_key,
         title: entry.session_title,

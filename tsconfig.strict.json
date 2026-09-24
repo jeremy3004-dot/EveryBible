@@ -13,7 +13,8 @@
     "src/constants/**/*",
     "src/i18n/**/*",
     "src/design/**/*",
-    "src/contexts/**/*"
+    "src/contexts/**/*",
+    "src/data/**/*"
   ],
   "exclude": [
     "src/services/audio/**",

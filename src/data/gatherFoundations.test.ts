@@ -9,6 +9,7 @@ import {
   APPLICATION_QUESTIONS,
 } from './gatherFoundations';
 import type { GatherFoundation, GatherLesson } from '../types/gather';
+import { assertDefined } from '../utils/assertDefined';
 
 // ---------------------------------------------------------------------------
 // S22-T01: Foundation list integrity
@@ -61,7 +62,7 @@ test('FOUNDATION_TITLE_KEYS has an entry for every foundation ID', () => {
   for (const f of gatherFoundations) {
     assert.ok(f.id in FOUNDATION_TITLE_KEYS, `FOUNDATION_TITLE_KEYS missing entry for ${f.id}`);
     assert.ok(
-      FOUNDATION_TITLE_KEYS[f.id].startsWith('gather.'),
+      FOUNDATION_TITLE_KEYS[f.id]?.startsWith('gather.'),
       `title key for ${f.id} should be in gather.* namespace`
     );
   }
@@ -71,7 +72,7 @@ test('FOUNDATION_DESC_KEYS has an entry for every foundation ID', () => {
   for (const f of gatherFoundations) {
     assert.ok(f.id in FOUNDATION_DESC_KEYS, `FOUNDATION_DESC_KEYS missing entry for ${f.id}`);
     assert.ok(
-      FOUNDATION_DESC_KEYS[f.id].startsWith('gather.'),
+      FOUNDATION_DESC_KEYS[f.id]?.startsWith('gather.'),
       `desc key for ${f.id} should be in gather.* namespace`
     );
   }
@@ -147,7 +148,7 @@ test('FOUNDATION_LESSON_TITLE_KEYS has an entry for every foundation lesson', ()
         `FOUNDATION_LESSON_TITLE_KEYS missing entry for ${lesson.id}`
       );
       assert.ok(
-        FOUNDATION_LESSON_TITLE_KEYS[lesson.id].startsWith('gather.lessons.'),
+        FOUNDATION_LESSON_TITLE_KEYS[lesson.id]?.startsWith('gather.lessons.'),
         `lesson key for ${lesson.id} should be in gather.lessons.* namespace`
       );
     }
@@ -264,8 +265,8 @@ test('each foundation has between 9 and 10 lessons', () => {
 });
 
 test('Foundation 1 covers Old Testament through the birth of Jesus', () => {
-  const f1 = gatherFoundations[0];
-  const books = f1.lessons.map((l) => l.references[0].bookId);
+  const f1 = assertDefined(gatherFoundations[0], 'Foundation 1');
+  const books = f1.lessons.map((l) => l.references[0]?.bookId);
   // Should include Genesis (creation), Exodus (Passover), and Luke (birth)
   assert.ok(books.includes('GEN'), 'F1 should reference Genesis');
   assert.ok(books.includes('EXO'), 'F1 should reference Exodus');
@@ -273,8 +274,8 @@ test('Foundation 1 covers Old Testament through the birth of Jesus', () => {
 });
 
 test("Foundation 2 covers the gospels for Jesus' life and ministry", () => {
-  const f2 = gatherFoundations[1];
-  const books = new Set(f2.lessons.map((l) => l.references[0].bookId));
+  const f2 = assertDefined(gatherFoundations[1], 'Foundation 2');
+  const books = new Set(f2.lessons.map((l) => l.references[0]?.bookId));
   // Should reference at least 2 different gospel books
   const gospelBooks = ['MAT', 'MRK', 'LUK', 'JHN'].filter((b) => books.has(b));
   assert.ok(
@@ -284,8 +285,8 @@ test("Foundation 2 covers the gospels for Jesus' life and ministry", () => {
 });
 
 test('Foundation 3 covers gospel response passages (John, Romans, Acts)', () => {
-  const f3 = gatherFoundations[2];
-  const books = new Set(f3.lessons.map((l) => l.references[0].bookId));
+  const f3 = assertDefined(gatherFoundations[2], 'Foundation 3');
+  const books = new Set(f3.lessons.map((l) => l.references[0]?.bookId));
   assert.ok(
     books.has('JHN') || books.has('ROM') || books.has('ACT'),
     'F3 should reference John, Romans, or Acts for gospel response'

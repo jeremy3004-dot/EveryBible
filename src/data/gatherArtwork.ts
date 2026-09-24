@@ -55,12 +55,13 @@ export function hasGatherArtwork(key: string): boolean {
 }
 
 export function getGatherArtworkXml(key: string): string | undefined {
-  if (!hasGatherArtwork(key)) {
+  const loader = hasGatherArtwork(key) ? GATHER_ARTWORK_LOADERS[key] : undefined;
+  if (!loader) {
     return undefined;
   }
   let xml = loadedGatherArtwork.get(key);
   if (xml === undefined) {
-    xml = GATHER_ARTWORK_LOADERS[key]();
+    xml = loader();
     loadedGatherArtwork.set(key, xml);
   }
   return xml;

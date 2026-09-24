@@ -8,6 +8,7 @@ import { gatherWisdomCategories, WISDOM_LESSON_TITLE_KEYS } from './gatherWisdom
 import { fourFieldsCourses } from './fourFieldsCourses';
 import { parsePassageReference } from '../services/bible/referenceParser';
 import type { BibleReference } from '../types/gather';
+import { assertDefined } from '../utils/assertDefined';
 
 /**
  * Every Gather and Four Fields lesson points at scripture. A reference that
@@ -112,20 +113,22 @@ const expandProseReference = (
 ): { bookId: string; points: { chapter: number; verse?: number }[] } | null => {
   const passage = reference.replace(/\s*\([^)]*\)\s*$/, '');
   const parsed = parsePassageReference(passage);
-  const tail = passage.match(/(\d+(?::\d+)?(?:-\d+(?::\d+)?)?(?:,\s*\d+(?::\d+)?(?:-\d+)?)*)$/);
-  if (!parsed || !tail) {
+  const tail = passage.match(
+    /(\d+(?::\d+)?(?:-\d+(?::\d+)?)?(?:,\s*\d+(?::\d+)?(?:-\d+)?)*)$/
+  )?.[1];
+  if (!parsed || tail === undefined) {
     return null;
   }
 
   const points: { chapter: number; verse?: number }[] = [];
   let chapter = parsed.chapter;
-  for (const part of tail[1].split(/,\s*/)) {
-    const [start, end] = part.split('-');
+  for (const part of tail.split(/,\s*/)) {
+    const [start = part, end] = part.split('-');
     const readPoint = (token: string, chapterRef: boolean) => {
       if (token.includes(':')) {
         const [c, v] = token.split(':').map(Number);
-        chapter = c;
-        points.push({ chapter: c, verse: v });
+        chapter = assertDefined(c, `the chapter in ${token}`);
+        points.push({ chapter, verse: v });
       } else if (chapterRef) {
         chapter = Number(token);
         points.push({ chapter });
@@ -235,17 +238,19 @@ const bsbText = loadBsbText();
 /** The BSB wording for a quoted reference, or null when the reference is not a plain verse list. */
 const bsbPassageText = (reference: string): string | null => {
   const parsed = parsePassageReference(reference);
-  const tail = reference.match(/(\d+:\d+(?:-\d+)?(?:,\s*\d+(?::\d+)?(?:-\d+)?)*)$/);
-  if (!parsed || !tail) {
+  const tail = reference.match(/(\d+:\d+(?:-\d+)?(?:,\s*\d+(?::\d+)?(?:-\d+)?)*)$/)?.[1];
+  if (!parsed || tail === undefined) {
     return null;
   }
   let chapter = parsed.chapter;
   const ranges: string[] = [];
-  for (const part of tail[1].split(/,\s*/)) {
-    const [startToken, endToken] = part.split('-');
+  for (const part of tail.split(/,\s*/)) {
+    const [startToken = part, endToken] = part.split('-');
     let start = Number(startToken);
     if (startToken.includes(':')) {
-      [chapter, start] = startToken.split(':').map(Number);
+      const [chapterPart, versePart] = startToken.split(':').map(Number);
+      chapter = assertDefined(chapterPart, `the chapter in ${startToken}`);
+      start = assertDefined(versePart, `the verse in ${startToken}`);
     }
     const end = endToken === undefined ? start : Number(endToken);
     const startText = bsbText.get(`${parsed.bookId}:${chapter}:${start}`);
