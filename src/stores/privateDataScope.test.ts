@@ -346,6 +346,54 @@ test('an adoption killed before the owner was saved re-adopts on the next sign-i
   assert.equal(mmkv.store.has(NOTES), false);
 });
 
+/**
+ * Runs a guest adoption into `uid` and kills the app at the first owner-marker
+ * write after the account bucket took the merged notes, then relaunches.
+ */
+const adoptionKilledAfterMerge = (t: TestContext, uid: string) => {
+  const write = mmkv.mmkvInstance.set;
+  let accountWritten = false;
+  const kill = t.mock.method(mmkv.mmkvInstance, 'set', (key: string, value: string) => {
+    if (accountWritten && key === scope.PRIVATE_DATA_OWNER_KEY) throw new Error('killed');
+    write(key, value);
+    if (key === userKey(NOTES, uid)) accountWritten = true;
+  });
+  assert.throws(() => switchOwner(uid), /killed/);
+  kill.mock.restore();
+  relaunch();
+};
+
+test('an adoption killed after merging never also hands the guest notes to the next account', (t) => {
+  useNotes.getState().addNote('guest note');
+  adoptionKilledAfterMerge(t, 'user-a');
+  assert.deepEqual(stored(userKey(NOTES, 'user-a')), { notes: ['guest note'] });
+
+  switchOwner('user-b');
+
+  assert.deepEqual(useNotes.getState().notes, []);
+  assert.equal(stored(userKey(NOTES, 'user-b')), undefined);
+  assert.equal(mmkv.store.has(NOTES), false, 'the adoption into user-a was finished');
+  assert.deepEqual(stored(userKey(NOTES, 'user-a')), { notes: ['guest note'] });
+  switchOwner(null);
+  assert.deepEqual(useNotes.getState().notes, []);
+  switchOwner('user-a');
+  assert.deepEqual(useNotes.getState().notes, ['guest note']);
+});
+
+test('an adoption killed after merging is finished once when the same account signs in again', (t) => {
+  useNotes.getState().addNote('guest note');
+  adoptionKilledAfterMerge(t, 'user-a');
+  // Until then nothing changed for the signed-out reader.
+  assert.equal(scope.getPrivateDataOwner(), null);
+  assert.deepEqual(useNotes.getState().notes, ['guest note']);
+
+  switchOwner('user-a');
+
+  assert.deepEqual(useNotes.getState().notes, ['guest note']);
+  assert.equal(mmkv.store.has(NOTES), false);
+  assert.deepEqual(marker(), { owner: 'user-a' });
+});
+
 test('an adoption killed after the owner was saved clears the adopted guest bucket on launch', () => {
   mmkv.store.set(
     scope.PRIVATE_DATA_OWNER_KEY,
