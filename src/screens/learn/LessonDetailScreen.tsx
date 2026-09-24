@@ -4,6 +4,7 @@ import {
   type LayoutChangeEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
+  Platform,
   Pressable,
   ScrollView,
   Share,
@@ -51,6 +52,7 @@ import type { MeetingSectionType } from '../../types/gather';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useGatherStore } from '../../stores/gatherStore';
 import { useFontSize } from '../../hooks/useFontSize';
+import { resolveFloatingBottomOffset } from '../../hooks/useTabBarHeight';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -434,7 +436,11 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
 
   const referenceLabel = formatBibleReferenceLabel(lesson.references, resolveBookName);
   const progressFraction = audioDuration > 0 ? audioPosition / audioDuration : 0;
-  const stripBottom = insets.bottom > 0 ? STRIP_BOTTOM_WITH_INDICATOR : spacing.lg;
+  const stripBottom = resolveFloatingBottomOffset(
+    Platform.OS,
+    insets.bottom,
+    STRIP_BOTTOM_WITH_INDICATOR
+  );
   const contentClearance = STRIP_HEIGHT + stripBottom + spacing.lg;
 
   const sections: { key: MeetingSectionType; label: string }[] = [

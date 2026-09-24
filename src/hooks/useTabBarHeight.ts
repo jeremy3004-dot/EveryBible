@@ -32,20 +32,30 @@ export const TAB_BAR_CAPSULE_RADIUS = TAB_BAR_CAPSULE_HEIGHT / 2;
 /** Breathing room between the last piece of content and the capsule's top edge. */
 export const TAB_BAR_CONTENT_GAP = spacing.lg;
 
+/**
+ * Gap between a floating bottom control's lower edge and the screen bottom.
+ *
+ * On iOS a non-zero bottom inset means a home indicator — a hairline — so the
+ * control tucks into the safe area and `indicatorGap` reads as a deliberate gap.
+ *
+ * Android's bottom inset is a different animal: a three-button navigation bar
+ * is 24-48dp of real chrome, and a fixed 22-26pt would park the control
+ * underneath it. Clear the whole inset there, never less than the standard gutter.
+ */
+export function resolveFloatingBottomOffset(
+  os: string,
+  insetBottom: number,
+  indicatorGap: number
+): number {
+  if (os === 'android') {
+    return Math.max(insetBottom, spacing.lg);
+  }
+  return insetBottom > 0 ? indicatorGap : spacing.lg;
+}
+
 export function useTabBarHeight(): TabBarHeightMetrics {
   const insets = useSafeAreaInsets();
-  // On iOS a non-zero bottom inset means a home indicator — a hairline — so the
-  // capsule tucks into the safe area and 22pt reads as a deliberate gap.
-  //
-  // Android's bottom inset is a different animal: a three-button navigation bar
-  // is 24-48dp of real chrome, and 22pt would park the capsule underneath it.
-  // Clear the whole inset there, never less than the standard gutter.
-  const bottomPadding =
-    Platform.OS === 'android'
-      ? Math.max(insets.bottom, spacing.lg)
-      : insets.bottom > 0
-        ? 22
-        : spacing.lg;
+  const bottomPadding = resolveFloatingBottomOffset(Platform.OS, insets.bottom, 22);
 
   return {
     bottomPadding,
