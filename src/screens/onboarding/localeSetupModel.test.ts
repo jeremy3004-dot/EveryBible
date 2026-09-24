@@ -42,6 +42,24 @@ test('initial onboarding groups Bible languages alphabetically', () => {
   );
 });
 
+test('each letter section of the Bible language list is contiguous, so section ids never repeat', () => {
+  // The list builds one section per run of equal group labels and keys each by its label.
+  // Sorting by collated label while grouping by raw first character split "E" around
+  // "Éwondo" (filed under "#") and scattered "#" rows, repeating "eyebrow-E"/"eyebrow-#".
+  const options = buildInitialOnboardingLanguageOptions(
+    ['Ewe', 'Éwondo', 'Eyak', 'Zulu', 'Ελληνικά', '!Kung', 'Ọ̀yọ́'].map((language, index) => ({
+      id: `t${index}`,
+      name: `Bible ${index}`,
+      language,
+    }))
+  );
+
+  assert.deepEqual(
+    options.map((option) => `${option.groupLabel}:${option.label}`),
+    ['E:Ewe', 'E:Éwondo', 'E:Eyak', 'O:Ọ̀yọ́', 'Z:Zulu', '#:!Kung', '#:Ελληνικά']
+  );
+});
+
 test('initial onboarding maps English to BSB when multiple English Bibles exist', () => {
   const [englishOption] = buildInitialOnboardingLanguageOptions([
     {

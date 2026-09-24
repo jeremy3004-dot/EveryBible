@@ -164,9 +164,31 @@ function getDisplayLanguageLabel(language: string | null | undefined): string {
   return `${normalizedLanguage} / ${nativeLabel}`;
 }
 
+const OTHER_GROUP_LABEL = '#';
+
 function getLanguageGroupLabel(label: string): string {
-  const groupLabel = label.trim().charAt(0).toUpperCase();
-  return /^[A-Z]$/.test(groupLabel) ? groupLabel : '#';
+  // Decompose only the first character so an accented Latin initial (É, Ọ) files under its
+  // base letter, where collation already sorts it.
+  const initial = label.trim().charAt(0);
+  const groupLabel = (initial.normalize ? initial.normalize('NFD') : initial)
+    .charAt(0)
+    .toUpperCase();
+  return /^[A-Z]$/.test(groupLabel) ? groupLabel : OTHER_GROUP_LABEL;
+}
+
+// Sections are built from runs of equal group labels, so the order must keep each group
+// contiguous: letters A–Z, then everything else, collated within each group.
+function compareLanguageOptions(
+  left: { label: string; groupLabel: string },
+  right: { label: string; groupLabel: string }
+): number {
+  if (left.groupLabel !== right.groupLabel) {
+    if (left.groupLabel === OTHER_GROUP_LABEL) return 1;
+    if (right.groupLabel === OTHER_GROUP_LABEL) return -1;
+    return left.groupLabel < right.groupLabel ? -1 : 1;
+  }
+
+  return left.label.localeCompare(right.label);
 }
 
 function getTranslationPriority(translation: InitialOnboardingTranslation): number {
@@ -228,5 +250,5 @@ export function buildInitialOnboardingLanguageOptions<T extends InitialOnboardin
         translations: translationsByPriority,
       };
     })
-    .sort((left, right) => left.label.localeCompare(right.label));
+    .sort(compareLanguageOptions);
 }
