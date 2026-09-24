@@ -29,6 +29,12 @@ export interface UserPreferences {
   reminderTime: string | null; // HH:mm format, e.g., "09:00"
 }
 
+/**
+ * When each preference was last chosen (ISO time), by any device. A preference
+ * with no stamp has never been chosen and still holds a default.
+ */
+export type PreferenceFieldStamps = Partial<Record<keyof UserPreferences, string>>;
+
 export interface UserProgress {
   chaptersRead: { [key: string]: number };
   currentBook: string;

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { zustandStorage } from './mmkvStorage';
-import type { User, UserPreferences } from '../types';
+import type { PreferenceFieldStamps, User, UserPreferences } from '../types';
 import type { Session, Subscription } from '@supabase/supabase-js';
 import {
   applyAuthBoundaryEffects,
@@ -23,6 +23,10 @@ interface AuthState {
   // it. The sync merges per field against this base, so an edit on another
   // device to a different field is not reverted. Null until the first sync.
   preferencesSyncBase: UserPreferences | null;
+  // When each preference was last chosen: stamped here on a local edit, or
+  // adopted from the server with its value. The sync merges per field on these,
+  // so the newest edit wins rather than the newest upload.
+  preferenceFieldStamps: PreferenceFieldStamps;
   // uid of the account whose per-user data currently lives in the local stores.
   // Used to detect an account switch on sign-in so account B never inherits
   // account A's local reading data (H2).
@@ -38,10 +42,12 @@ interface AuthState {
   setPreferences: (prefs: Partial<UserPreferences>) => void;
   // `base` defaults to `preferences`: pass the server's values instead when the
   // applied preferences still have local edits waiting to upload.
+  // `fieldStamps` replaces the per-field stamps when given.
   applySyncedPreferences: (
     preferences: UserPreferences,
     updatedAt: string | null,
-    base?: UserPreferences
+    base?: UserPreferences,
+    fieldStamps?: PreferenceFieldStamps
   ) => void;
   markPreferencesSynced: (base: UserPreferences) => void;
   signOut: () => Promise<void>;
@@ -118,6 +124,14 @@ const preferencesDiffer = (left: UserPreferences, right: UserPreferences): boole
   left.notificationsEnabled !== right.notificationsEnabled ||
   left.reminderTime !== right.reminderTime;
 
+const fieldStampsEqual = (left: PreferenceFieldStamps, right: PreferenceFieldStamps): boolean => {
+  const leftKeys = Object.keys(left) as (keyof UserPreferences)[];
+  return (
+    leftKeys.length === Object.keys(right).length &&
+    leftKeys.every((field) => left[field] === right[field])
+  );
+};
+
 // Convert Supabase user to app User type
 const mapSupabaseUser = (supabaseUser: {
   id: string;
@@ -148,6 +162,7 @@ export const useAuthStore = create<AuthState>()(
       preferences: defaultAuthPreferences,
       preferencesUpdatedAt: null,
       preferencesSyncBase: null,
+      preferenceFieldStamps: {},
       lastSyncedUserId: null,
       authGeneration: 0,
 
@@ -189,6 +204,7 @@ export const useAuthStore = create<AuthState>()(
                   preferences: defaultAuthPreferences,
                   preferencesUpdatedAt: null,
                   preferencesSyncBase: null,
+                  preferenceFieldStamps: {},
                   lastSyncedUserId: null,
                 }),
               clearGuestTombstones: clearGuestPlanTombstones,
@@ -232,6 +248,7 @@ export const useAuthStore = create<AuthState>()(
                   preferences: defaultAuthPreferences,
                   preferencesUpdatedAt: null,
                   preferencesSyncBase: null,
+                  preferenceFieldStamps: {},
                   lastSyncedUserId: null,
                 }),
               clearGuestTombstones: clearGuestPlanTombstones,
@@ -243,25 +260,51 @@ export const useAuthStore = create<AuthState>()(
       setLoading: (isLoading) => set({ isLoading }),
 
       setPreferences: (prefs) =>
-        set((state) => ({
-          preferences: { ...state.preferences, ...prefs },
-          preferencesUpdatedAt: new Date().toISOString(),
-        })),
+        set((state) => {
+          const now = new Date().toISOString();
+          const preferences = { ...state.preferences, ...prefs };
+          // Stamp only what actually changed: re-saving a value (onboarding
+          // writes several at once) is not a new choice, and a stamp is what lets
+          // this value beat another device's.
+          const stamped = (Object.keys(prefs) as (keyof UserPreferences)[]).filter(
+            (field) => preferences[field] !== state.preferences[field]
+          );
+          return {
+            preferences,
+            preferencesUpdatedAt: now,
+            preferenceFieldStamps:
+              stamped.length === 0
+                ? state.preferenceFieldStamps
+                : {
+                    ...state.preferenceFieldStamps,
+                    ...Object.fromEntries(stamped.map((field) => [field, now])),
+                  },
+          };
+        }),
 
-      applySyncedPreferences: (preferences, updatedAt, base = preferences) =>
+      applySyncedPreferences: (preferences, updatedAt, base = preferences, fieldStamps) =>
         set((state) => {
           const preferencesChanged = preferencesDiffer(state.preferences, preferences);
+          const stampUpdate =
+            fieldStamps && !fieldStampsEqual(state.preferenceFieldStamps, fieldStamps)
+              ? { preferenceFieldStamps: fieldStamps }
+              : {};
 
           if (!preferencesChanged && state.preferencesUpdatedAt === updatedAt) {
-            return state.preferencesSyncBase && !preferencesDiffer(state.preferencesSyncBase, base)
+            const baseUpdate =
+              state.preferencesSyncBase && !preferencesDiffer(state.preferencesSyncBase, base)
+                ? {}
+                : { preferencesSyncBase: base };
+            return Object.keys(baseUpdate).length + Object.keys(stampUpdate).length === 0
               ? state
-              : { preferencesSyncBase: base };
+              : { ...baseUpdate, ...stampUpdate };
           }
 
           return {
             preferences,
             preferencesUpdatedAt: updatedAt,
             preferencesSyncBase: base,
+            ...stampUpdate,
           };
         }),
 
@@ -294,6 +337,7 @@ export const useAuthStore = create<AuthState>()(
           preferences: defaultAuthPreferences,
           preferencesUpdatedAt: null,
           preferencesSyncBase: null,
+          preferenceFieldStamps: {},
           lastSyncedUserId: null,
           authGeneration: get().authGeneration + (previousUserId ? 1 : 0),
         });
@@ -314,6 +358,7 @@ export const useAuthStore = create<AuthState>()(
                 preferences: defaultAuthPreferences,
                 preferencesUpdatedAt: null,
                 preferencesSyncBase: null,
+                preferenceFieldStamps: {},
               }),
             clearGuestTombstones: clearGuestPlanTombstones,
           }
@@ -421,6 +466,7 @@ export const useAuthStore = create<AuthState>()(
         preferences: state.preferences,
         preferencesUpdatedAt: state.preferencesUpdatedAt,
         preferencesSyncBase: state.preferencesSyncBase,
+        preferenceFieldStamps: state.preferenceFieldStamps,
         lastSyncedUserId: state.lastSyncedUserId,
       }),
       merge: (persistedState, currentState) => {
@@ -442,6 +488,7 @@ export const useAuthStore = create<AuthState>()(
           preferences: sanitized.preferences,
           preferencesUpdatedAt: sanitized.preferencesUpdatedAt,
           preferencesSyncBase: sanitized.preferencesSyncBase,
+          preferenceFieldStamps: sanitized.preferenceFieldStamps,
           lastSyncedUserId: persistedLastSyncedUserId,
         };
         if (typeof __DEV__ !== 'undefined' && __DEV__) {

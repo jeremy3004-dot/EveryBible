@@ -218,15 +218,86 @@ test('the last synced account id survives a restart so an account switch can be 
   assert.equal(hydratedState.lastSyncedUserId, 'seeded-user');
 });
 
-test('only preferences, their sync base and the account marker are written to disk', () => {
+test('only preferences, their sync base, their edit stamps and the account marker are written to disk', () => {
   useAuthStore.getState().setPreferences({ fontSize: 'small' });
 
   assert.deepEqual(Object.keys(readPersistedAuthStorage().state).sort(), [
     'lastSyncedUserId',
+    'preferenceFieldStamps',
     'preferences',
     'preferencesSyncBase',
     'preferencesUpdatedAt',
   ]);
+});
+
+test('a preference edit stamps only the settings whose value changed', () => {
+  useAuthStore
+    .getState()
+    .applySyncedPreferences(
+      { ...defaultAuthPreferences },
+      '2026-06-01T00:00:00.000Z',
+      undefined,
+      {}
+    );
+  const current = useAuthStore.getState().preferences;
+
+  useAuthStore.getState().setPreferences({
+    fontSize: current.fontSize === 'large' ? 'small' : 'large',
+    language: current.language,
+  });
+
+  const stamps = useAuthStore.getState().preferenceFieldStamps;
+  assert.deepEqual(Object.keys(stamps), ['fontSize']);
+  assert.equal(stamps.fontSize, useAuthStore.getState().preferencesUpdatedAt);
+});
+
+test('synced preferences carry the server stamps when they are given', () => {
+  const stamps = { theme: '2026-06-01T00:00:00.000Z' };
+
+  useAuthStore
+    .getState()
+    .applySyncedPreferences(
+      { ...defaultAuthPreferences, theme: 'dark' },
+      '2026-06-02T00:00:00.000Z',
+      undefined,
+      stamps
+    );
+
+  assert.deepEqual(useAuthStore.getState().preferenceFieldStamps, stamps);
+});
+
+test('new stamps alone are adopted even when the values and sync time are unchanged', () => {
+  const stamp = '2026-06-01T00:00:00.000Z';
+  useAuthStore
+    .getState()
+    .applySyncedPreferences({ ...defaultAuthPreferences }, stamp, undefined, {});
+
+  useAuthStore
+    .getState()
+    .applySyncedPreferences({ ...defaultAuthPreferences }, stamp, undefined, { fontSize: stamp });
+
+  assert.deepEqual(useAuthStore.getState().preferenceFieldStamps, { fontSize: stamp });
+});
+
+test('preference edit stamps survive a restart, drop corrupt entries, and clear on sign-out', async () => {
+  await rehydrateFrom({
+    state: {
+      preferenceFieldStamps: {
+        theme: '2026-06-01T00:00:00.000Z',
+        fontSize: 'not a time',
+        notAPreference: '2026-06-01T00:00:00.000Z',
+      },
+    },
+    version: 3,
+  });
+  assert.deepEqual(useAuthStore.getState().preferenceFieldStamps, {
+    theme: '2026-06-01T00:00:00.000Z',
+  });
+
+  useAuthStore.getState().setUser(appUser('user-a'));
+  await useAuthStore.getState().signOut();
+
+  assert.deepEqual(useAuthStore.getState().preferenceFieldStamps, {});
 });
 
 test('an unsupported language and font size fall back to the defaults', async () => {

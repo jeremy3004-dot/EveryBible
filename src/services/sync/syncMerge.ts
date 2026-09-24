@@ -1,4 +1,4 @@
-import type { UserPreferences } from '../../types';
+import type { PreferenceFieldStamps, UserPreferences } from '../../types';
 import {
   APPEARANCE_PALETTE_IDS,
   DEFAULT_APPEARANCE_PALETTE,
@@ -23,9 +23,12 @@ export interface LocalPreferenceSnapshot {
   /**
    * The values the server held when this device last reconciled with it. With a
    * base, each field takes whichever side changed it; without one (first sync on
-   * this device) the whole row goes to the newer stamp.
+   * this device) the whole row goes to the newer stamp. Only used while the
+   * server has no per-field stamps.
    */
   base?: UserPreferences | null;
+  /** When each preference was last chosen, on this device or adopted from the server. */
+  fieldStamps?: PreferenceFieldStamps;
 }
 
 type PositionSource = 'local' | 'remote';
@@ -52,6 +55,14 @@ export interface PreferenceMergeResult {
   changed: boolean;
   /** The server's current values (normalised), or null when it has no row. */
   remotePreferences: UserPreferences | null;
+  /**
+   * The stamps that go with `preferences`, and that an upload sends as
+   * `field_updated_at`. Null when the server row has no stamp column yet, so
+   * the upload must not send one.
+   */
+  fieldStamps: PreferenceFieldStamps | null;
+  /** The server's stamps, or null when it has no row or no stamp column. */
+  remoteFieldStamps: PreferenceFieldStamps | null;
 }
 
 export const mergeChapterProgress = (
@@ -217,7 +228,37 @@ const normalizeRemotePalette = (
     ? (palette as UserPreferences['appearancePalette'])
     : DEFAULT_APPEARANCE_PALETTE;
 
-const mapRemotePreferences = (remotePreferences: RemoteUserPreferences): UserPreferences => ({
+/**
+ * The server column for each synced preference. Its values are also the keys of
+ * `user_preferences.field_updated_at`, and must match the column list in the
+ * stamp trigger (migration 20260924120000; a test pins the two together).
+ * Typed as a full record so adding a preference field fails to compile until it
+ * is listed here, which keeps the equality check and the merges complete.
+ */
+export const PREFERENCE_COLUMNS = {
+  fontSize: 'font_size',
+  theme: 'theme',
+  appearancePalette: 'appearance_palette',
+  language: 'language',
+  countryCode: 'country_code',
+  countryName: 'country_name',
+  contentLanguageCode: 'content_language_code',
+  contentLanguageName: 'content_language_name',
+  contentLanguageNativeName: 'content_language_native_name',
+  chapterFeedbackName: 'chapter_feedback_name',
+  chapterFeedbackRole: 'chapter_feedback_role',
+  onboardingCompleted: 'onboarding_completed',
+  chapterFeedbackEnabled: 'chapter_feedback_enabled',
+  hidePlayButtonFromReadingTab: 'hide_play_button_from_reading_tab',
+  notificationsEnabled: 'notifications_enabled',
+  reminderTime: 'reminder_time',
+} as const satisfies Record<keyof UserPreferences, keyof RemoteUserPreferences>;
+
+const PREFERENCE_FIELDS = Object.keys(PREFERENCE_COLUMNS) as (keyof UserPreferences)[];
+
+export const mapRemotePreferences = (
+  remotePreferences: RemoteUserPreferences
+): UserPreferences => ({
   fontSize: remotePreferences.font_size,
   theme: normalizeRemoteTheme(remotePreferences.theme),
   appearancePalette: normalizeRemotePalette(remotePreferences.appearance_palette),
@@ -236,34 +277,69 @@ const mapRemotePreferences = (remotePreferences: RemoteUserPreferences): UserPre
   reminderTime: remotePreferences.reminder_time,
 });
 
-// Typed as a full record so adding a preference field fails to compile until it
-// is listed here, which keeps the equality check and the per-field merge complete.
-const PREFERENCE_FIELDS = Object.keys({
-  fontSize: true,
-  theme: true,
-  appearancePalette: true,
-  language: true,
-  countryCode: true,
-  countryName: true,
-  contentLanguageCode: true,
-  contentLanguageName: true,
-  contentLanguageNativeName: true,
-  chapterFeedbackName: true,
-  chapterFeedbackRole: true,
-  onboardingCompleted: true,
-  chapterFeedbackEnabled: true,
-  hidePlayButtonFromReadingTab: true,
-  notificationsEnabled: true,
-  reminderTime: true,
-} satisfies Record<keyof UserPreferences, true>) as (keyof UserPreferences)[];
-
 const preferencesEqual = (left: UserPreferences, right: UserPreferences): boolean =>
   PREFERENCE_FIELDS.every((field) => left[field] === right[field]);
+
+/** Milliseconds for a stamp, or null when it is missing or unparseable. */
+const stampTime = (stamp: string | null | undefined): number | null => {
+  if (typeof stamp !== 'string') {
+    return null;
+  }
+  const time = Date.parse(stamp);
+  return Number.isFinite(time) ? time : null;
+};
+
+/**
+ * The server's per-field stamps, or null when the row was read from a database
+ * that does not have the `field_updated_at` column yet (migration not applied).
+ */
+export const readRemoteFieldStamps = (
+  remotePreferences: RemoteUserPreferences
+): PreferenceFieldStamps | null => {
+  if (remotePreferences.field_updated_at === undefined) {
+    return null;
+  }
+  const raw = remotePreferences.field_updated_at ?? {};
+  const stamps: PreferenceFieldStamps = {};
+  for (const field of PREFERENCE_FIELDS) {
+    const stamp = raw[PREFERENCE_COLUMNS[field]];
+    if (stampTime(stamp) !== null) {
+      stamps[field] = stamp;
+    }
+  }
+  return stamps;
+};
+
+/** The `field_updated_at` payload for an upload. */
+export const toRemoteFieldStamps = (stamps: PreferenceFieldStamps): Record<string, string> => {
+  const remote: Record<string, string> = {};
+  for (const field of PREFERENCE_FIELDS) {
+    const stamp = stamps[field];
+    if (stamp) {
+      remote[PREFERENCE_COLUMNS[field]] = stamp;
+    }
+  }
+  return remote;
+};
+
+const fieldStampsEqual = (left: PreferenceFieldStamps, right: PreferenceFieldStamps): boolean =>
+  PREFERENCE_FIELDS.every((field) => (left[field] ?? null) === (right[field] ?? null));
+
+/** The later of two stamps; the server's on a tie, since the server breaks ties that way. */
+const laterStamp = (local: string | undefined, remote: string | undefined): string | undefined => {
+  const localTime = stampTime(local);
+  const remoteTime = stampTime(remote);
+  if (remoteTime === null) {
+    return localTime === null ? undefined : local;
+  }
+  return localTime === null || remoteTime >= localTime ? remote : local;
+};
 
 /**
  * Three-way merge against the last reconciled server values. A field changed on
  * one side only takes that side's value regardless of either device's clock;
  * only a field changed differently on both sides falls back to the stamps.
+ * Used only while the server has no per-field stamps.
  */
 const mergePreferenceFields = (
   local: UserPreferences,
@@ -286,20 +362,14 @@ const mergePreferenceFields = (
   return merged;
 };
 
-export const mergePreferences = (
+/**
+ * The merge used before the server has `field_updated_at`: whole-row stamps,
+ * or the three-way merge once this device has a sync base.
+ */
+const mergeWithoutFieldStamps = (
   localSnapshot: LocalPreferenceSnapshot,
-  remotePreferences: RemoteUserPreferences | null
+  remotePreferences: RemoteUserPreferences
 ): PreferenceMergeResult => {
-  if (!remotePreferences) {
-    return {
-      preferences: localSnapshot.preferences,
-      updatedAt: localSnapshot.updatedAt,
-      source: 'local',
-      changed: false,
-      remotePreferences: null,
-    };
-  }
-
   const remoteSnapshot = mapRemotePreferences(remotePreferences);
   const remoteUpdatedAt = remotePreferences.synced_at ?? null;
   const keepLocal: PreferenceMergeResult = {
@@ -308,6 +378,8 @@ export const mergePreferences = (
     source: 'local',
     changed: false,
     remotePreferences: remoteSnapshot,
+    fieldStamps: null,
+    remoteFieldStamps: null,
   };
   const remoteWouldReopenOnboarding =
     localSnapshot.preferences.onboardingCompleted && !remoteSnapshot.onboardingCompleted;
@@ -325,6 +397,8 @@ export const mergePreferences = (
     source: 'remote',
     changed: !preferencesEqual(localSnapshot.preferences, remoteSnapshot),
     remotePreferences: remoteSnapshot,
+    fieldStamps: null,
+    remoteFieldStamps: null,
   };
 
   if (localSnapshot.base) {
@@ -346,8 +420,112 @@ export const mergePreferences = (
       source: 'merged',
       changed: true,
       remotePreferences: remoteSnapshot,
+      fieldStamps: null,
+      remoteFieldStamps: null,
     };
   }
 
   return shouldUseRemote ? useRemote : keepLocal;
+};
+
+/**
+ * Per-field merge on edit stamps: for each preference the value chosen most
+ * recently wins, whichever device uploaded last. The server applies the same
+ * rule when the upload lands (and clamps stamps from a clock running ahead), so
+ * a race between two devices converges on the same answer.
+ */
+const mergeWithFieldStamps = (
+  localSnapshot: LocalPreferenceSnapshot,
+  remotePreferences: RemoteUserPreferences,
+  remoteStamps: PreferenceFieldStamps
+): PreferenceMergeResult => {
+  const remoteSnapshot = mapRemotePreferences(remotePreferences);
+  const local = localSnapshot.preferences;
+  const localStamps = localSnapshot.fieldStamps ?? {};
+  // A setting nobody has stamped on either side was never chosen after the
+  // stamps existed; until first-sign-in handling lands it keeps the old
+  // whole-row decision.
+  const unstampedDecision = mergeWithoutFieldStamps(localSnapshot, remotePreferences).preferences;
+
+  const preferences: UserPreferences = { ...local };
+  const writable = preferences as unknown as Record<keyof UserPreferences, unknown>;
+  const stamps: PreferenceFieldStamps = {};
+
+  for (const field of PREFERENCE_FIELDS) {
+    const localValue = local[field];
+    const remoteValue = remoteSnapshot[field];
+    const localStamp = localStamps[field];
+    const remoteStamp = remoteStamps[field];
+
+    if (localValue === remoteValue) {
+      const stamp = laterStamp(localStamp, remoteStamp);
+      if (stamp) {
+        stamps[field] = stamp;
+      }
+      continue;
+    }
+
+    const localTime = stampTime(localStamp);
+    const remoteTime = stampTime(remoteStamp);
+    let takeRemote: boolean;
+    if (field === 'onboardingCompleted') {
+      // Finishing onboarding is never undone by another device's row.
+      takeRemote = remoteValue === true;
+    } else if (localTime !== null && remoteTime !== null) {
+      takeRemote = remoteTime >= localTime;
+    } else if (remoteTime !== null || localTime !== null) {
+      takeRemote = remoteTime !== null;
+    } else {
+      takeRemote = unstampedDecision[field] === remoteValue;
+    }
+
+    if (takeRemote) {
+      writable[field] = remoteValue;
+    }
+    const stamp = takeRemote ? remoteStamp : localStamp;
+    if (stamp) {
+      stamps[field] = stamp;
+    }
+  }
+
+  const needsUpload =
+    !preferencesEqual(preferences, remoteSnapshot) || !fieldStampsEqual(stamps, remoteStamps);
+  const changedLocally =
+    !preferencesEqual(preferences, local) || !fieldStampsEqual(stamps, localStamps);
+  const source: PreferenceSource = !needsUpload ? 'remote' : !changedLocally ? 'local' : 'merged';
+
+  return {
+    preferences: source === 'remote' ? remoteSnapshot : preferences,
+    updatedAt:
+      source === 'remote' ? (remotePreferences.synced_at ?? null) : localSnapshot.updatedAt,
+    source,
+    changed: !preferencesEqual(preferences, local),
+    remotePreferences: remoteSnapshot,
+    fieldStamps: stamps,
+    remoteFieldStamps: remoteStamps,
+  };
+};
+
+export const mergePreferences = (
+  localSnapshot: LocalPreferenceSnapshot,
+  remotePreferences: RemoteUserPreferences | null
+): PreferenceMergeResult => {
+  if (!remotePreferences) {
+    return {
+      preferences: localSnapshot.preferences,
+      updatedAt: localSnapshot.updatedAt,
+      source: 'local',
+      changed: false,
+      remotePreferences: null,
+      // Unknown whether the server has the stamp column: offer the stamps and let
+      // the upload fall back if it is refused.
+      fieldStamps: localSnapshot.fieldStamps ?? {},
+      remoteFieldStamps: null,
+    };
+  }
+
+  const remoteStamps = readRemoteFieldStamps(remotePreferences);
+  return remoteStamps
+    ? mergeWithFieldStamps(localSnapshot, remotePreferences, remoteStamps)
+    : mergeWithoutFieldStamps(localSnapshot, remotePreferences);
 };
