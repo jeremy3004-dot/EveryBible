@@ -814,7 +814,9 @@ async function runWithConcurrency<T>(
       try {
         await worker(items[currentIndex] as T);
       } catch (error) {
-        firstError = error instanceof Error ? error : new Error(String(error));
+        // Workers already in flight keep running after the first failure; a later sibling
+        // failure (e.g. a lookup rejecting after a cancel) must not replace it.
+        firstError ??= error instanceof Error ? error : new Error(String(error));
         return;
       }
     }
