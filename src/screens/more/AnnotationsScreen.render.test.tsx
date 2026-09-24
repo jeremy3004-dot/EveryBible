@@ -222,3 +222,32 @@ test('coming back to the screen shows annotations changed in the reader meanwhil
   assert.equal(view.queryByText('Old note'), null);
   assert.ok(view.getByText('New note'));
 });
+
+// The list is ordered by last edit, so each card shows when it was last edited.
+test('each card shows the date of its last edit, or its creation date when never edited', async () => {
+  service.result = {
+    success: true,
+    data: [
+      annotation({
+        id: 'edited',
+        content: 'Edited later',
+        created_at: '2026-03-02T12:00:00.000Z',
+        updated_at: '2026-09-20T12:00:00.000Z',
+      }),
+      annotation({
+        id: 'legacy',
+        content: 'No edit stamp',
+        verse_start: 17,
+        created_at: '2026-05-06T12:00:00.000Z',
+        updated_at: '',
+      }),
+    ],
+  };
+  const dateText = (iso: string) => new Date(iso).toLocaleDateString('en');
+
+  const view = await renderScreen();
+
+  assert.ok(view.getByText(dateText('2026-09-20T12:00:00.000Z')));
+  assert.equal(view.queryByText(dateText('2026-03-02T12:00:00.000Z')), null);
+  assert.ok(view.getByText(dateText('2026-05-06T12:00:00.000Z')));
+});

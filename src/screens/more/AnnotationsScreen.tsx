@@ -123,8 +123,10 @@ export function AnnotationsScreen() {
             {formatReference(item)}
           </Text>
         </View>
+        {/* The list is ordered by last edit, so show that date. A record stored
+            without updated_at (older builds) falls back to its creation date. */}
         <Text style={[styles.date, { color: colors.secondaryText }]}>
-          {new Date(item.created_at).toLocaleDateString(i18n.language)}
+          {new Date(item.updated_at || item.created_at).toLocaleDateString(i18n.language)}
         </Text>
       </View>
       {item.content ? (
