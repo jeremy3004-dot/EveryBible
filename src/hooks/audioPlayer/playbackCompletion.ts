@@ -84,7 +84,8 @@ export async function finishChapterAndAdvance({
     useLibraryStore.getState().recordHistory(bookId, chapterNum, 1);
     // A finished listen also counts as covering the chapter, so the Home
     // reading ledger can credit chapters heard cover to cover, not just read.
-    useProgressStore.getState().markChapterListened(bookId, chapterNum, finishedDuration);
+    // Its minutes were banked segment by segment as it played.
+    useProgressStore.getState().markChapterListened(bookId, chapterNum);
   }
 
   // A plan or rhythm owns playback until its last chapter finishes.

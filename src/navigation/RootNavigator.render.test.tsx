@@ -3,14 +3,18 @@ import assert from 'node:assert/strict';
 import { hostComponent } from '../testing/reactNativeHost';
 import { mockModule, sourcePath } from '../testing/mockModules';
 import { installRenderHarness } from '../testing/render';
+import { create } from 'zustand';
 
 const harness = installRenderHarness(mock);
 
 // The navigation tree as the container would report it after each change.
 let rootState: unknown;
 mockModule(mock, sourcePath('navigation/rootNavigation.ts'), {
-  rootNavigationRef: { current: null, getRootState: () => rootState },
+  rootNavigationRef: { current: null, isReady: () => true, getRootState: () => rootState },
 });
+// Only the lock flag: the navigator unmounts behind the discreet-mode lock screen.
+const privacyStore = create(() => ({ isLocked: false }));
+mockModule(mock, sourcePath('stores/privacyStore.ts'), { usePrivacyStore: privacyStore });
 let parkedLinkFlushes = 0;
 mockModule(mock, sourcePath('navigation/linkingConfig.ts'), {
   linkingConfig: {},
@@ -81,4 +85,37 @@ test('the container hands over a parked link as soon as it is ready', async () =
   assert.equal(parkedLinkFlushes, 0);
   await view.fire(container, 'onReady');
   assert.equal(parkedLinkFlushes, 1);
+});
+
+// --- Discreet-mode lock -------------------------------------------------------
+
+test('after the discreet-mode lock, the remounted navigator reopens where the reader was', async () => {
+  rootState = readerState;
+  const locked = await renderRoot();
+  assert.equal(locked.container.props.initialState, undefined, 'a first mount follows linking');
+
+  privacyStore.setState({ isLocked: true });
+  await locked.view.unmount();
+  privacyStore.setState({ isLocked: false });
+
+  const unlocked = await renderRoot();
+  assert.deepEqual(unlocked.container.props.initialState, readerState);
+
+  // Handed back once: a later remount (not after a lock) starts fresh.
+  await unlocked.view.unmount();
+  const later = await renderRoot();
+  assert.equal(later.container.props.initialState, undefined);
+});
+
+test('a navigator unmounted for any reason but the lock remounts fresh', async () => {
+  rootState = readerState;
+  const first = await renderRoot();
+  await first.view.unmount();
+
+  // Locking while no navigator is mounted (onboarding, say) holds nothing either.
+  privacyStore.setState({ isLocked: true });
+  privacyStore.setState({ isLocked: false });
+
+  const second = await renderRoot();
+  assert.equal(second.container.props.initialState, undefined);
 });

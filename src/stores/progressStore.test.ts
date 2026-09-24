@@ -334,33 +334,45 @@ test('every period counter is zero on a fresh install', (t) => {
 });
 
 // ---------------------------------------------------------------------------
-// markChapterListened
+// markChapterListened / recordListeningTime
 // ---------------------------------------------------------------------------
 
-test('a completed listen is recorded per chapter and its minutes are banked by local day', (t) => {
+test('a completed listen is recorded per chapter without banking any minutes', (t) => {
   t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 8) });
 
-  state().markChapterListened('GEN', 1, 60_000);
+  state().markChapterListened('GEN', 1);
 
   assert.deepEqual(state().chaptersListened, { GEN_1: localNoon(2026, 9, 8) });
-  assert.deepEqual(state().listeningMsByDate, { '2026-09-08': 60_000 });
+  // The minutes were banked as they were heard; the finish must not add them twice.
+  assert.deepEqual(state().listeningMsByDate, {});
 });
 
-test('listening minutes accumulate within the same local day', (t) => {
+test('listening time is banked by local day as it is heard', (t) => {
   t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 8) });
 
-  state().markChapterListened('GEN', 1, 60_000);
-  state().markChapterListened('GEN', 2, 30_000);
+  state().recordListeningTime(30_000);
+
+  assert.deepEqual(state().listeningMsByDate, { '2026-09-08': 30_000 });
+  assert.deepEqual(state().chaptersListened, {}, 'time alone does not mark a chapter heard');
+});
+
+test('listening time accumulates within the same local day', (t) => {
+  t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 8) });
+
+  state().recordListeningTime(60_000);
+  state().recordListeningTime(30_000);
 
   assert.deepEqual(state().listeningMsByDate, { '2026-09-08': 90_000 });
 });
 
-test('re-listening to a chapter on a later day banks minutes under the new day', (t) => {
+test('listening on a later day is banked under the new day', (t) => {
   t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 8) });
-  state().markChapterListened('GEN', 1, 60_000);
+  state().recordListeningTime(60_000);
+  state().markChapterListened('GEN', 1);
 
   t.mock.timers.setTime(localNoon(2026, 9, 9));
-  state().markChapterListened('GEN', 1, 45_000);
+  state().recordListeningTime(45_000);
+  state().markChapterListened('GEN', 1);
 
   assert.deepEqual(state().listeningMsByDate, {
     '2026-09-08': 60_000,
@@ -369,32 +381,33 @@ test('re-listening to a chapter on a later day banks minutes under the new day',
   assert.deepEqual(state().chaptersListened, { GEN_1: localNoon(2026, 9, 9) });
 });
 
-test('a fractional duration is rounded to whole milliseconds', (t) => {
+test('a fractional listening time is rounded to whole milliseconds', (t) => {
   t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 8) });
 
-  state().markChapterListened('GEN', 1, 1234.6);
+  state().recordListeningTime(1234.6);
 
   assert.deepEqual(state().listeningMsByDate, { '2026-09-08': 1235 });
 });
 
-test('a zero, negative or non-finite duration records the listen without a time ledger entry', (t) => {
+test('a zero, negative or non-finite listening time leaves the ledger alone', (t) => {
   t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 8) });
+  const before = state().listeningMsByDate;
 
-  state().markChapterListened('GEN', 1, 0);
-  state().markChapterListened('GEN', 2, -5000);
-  state().markChapterListened('GEN', 3, Number.NaN);
-  // An infinite duration is reachable from a player that reports a live/unknown
-  // stream length; it must never poison the day's minute total.
-  state().markChapterListened('GEN', 4, Number.POSITIVE_INFINITY);
+  state().recordListeningTime(0);
+  state().recordListeningTime(-5000);
+  state().recordListeningTime(Number.NaN);
+  // A clock that jumps or a live stream must never poison the day's minute total.
+  state().recordListeningTime(Number.POSITIVE_INFINITY);
 
-  assert.deepEqual(Object.keys(state().chaptersListened), ['GEN_1', 'GEN_2', 'GEN_3', 'GEN_4']);
   assert.deepEqual(state().listeningMsByDate, {});
+  assert.equal(state().listeningMsByDate, before, 'no store write for nothing heard');
 });
 
 test('listening never touches the read ledger, the streak, or the sync trigger', (t) => {
   t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 8) });
 
-  state().markChapterListened('GEN', 1, 60_000);
+  state().markChapterListened('GEN', 1);
+  state().recordListeningTime(60_000);
   t.mock.timers.tick(5000);
 
   assert.deepEqual(state().chaptersRead, {});
@@ -588,7 +601,8 @@ test('the identity is captured when the read happens, not when the debounce fire
 test('resetForSignOut clears every ledger back to its initial value', (t) => {
   t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 8) });
   state().markChapterRead('GEN', 1);
-  state().markChapterListened('GEN', 1, 60_000);
+  state().markChapterListened('GEN', 1);
+  state().recordListeningTime(60_000);
 
   state().resetForSignOut();
 
