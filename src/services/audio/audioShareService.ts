@@ -1,3 +1,4 @@
+import { assertSafeAssetId } from '../bible/assetIdentifiers';
 import type { RemoteAudioAsset, AudioFileSystemAdapter } from './audioDownloadService';
 import { getRemoteAudioFileExtension } from './audioRemote';
 
@@ -33,12 +34,21 @@ export interface PrepareChapterAudioShareAssetOptions {
 
 export const AUDIO_SHARE_EXPORT_ROOT_URI = 'file:///everybible-audio-share/';
 
+const SAFE_FILE_EXTENSION_RE = /^[a-z0-9]{1,8}$/i;
+
+// The export cache path is built from ids that ultimately come from remote catalog data and
+// is handed to ensureDirectory/downloadFile. Callers resolve the ids through validated
+// builders today, but the guard lives here too so no future caller can walk out of the
+// share cache with a `../` id (same rule as getBookAudioDirectoryUri).
 function getAudioShareDirectoryUri(
   translationId: string,
   bookId: string,
   rootUri: string = AUDIO_SHARE_EXPORT_ROOT_URI
 ): string {
-  return `${rootUri}${translationId}/${bookId}/`;
+  return `${rootUri}${assertSafeAssetId(translationId, 'translation id')}/${assertSafeAssetId(
+    bookId,
+    'book id'
+  )}/`;
 }
 
 function inferAudioFileExtension(uri: string, fallbackExtension: string): string {
@@ -69,6 +79,12 @@ export function getChapterAudioShareFileUri(
   extension: string,
   rootUri: string = AUDIO_SHARE_EXPORT_ROOT_URI
 ): string {
+  if (!Number.isInteger(chapter) || chapter < 1) {
+    throw new Error(`Unsafe chapter rejected: ${JSON.stringify(chapter)}`);
+  }
+  if (!SAFE_FILE_EXTENSION_RE.test(extension)) {
+    throw new Error(`Unsafe audio file extension rejected: ${JSON.stringify(extension)}`);
+  }
   return `${getAudioShareDirectoryUri(translationId, bookId, rootUri)}${chapter}.${extension}`;
 }
 
