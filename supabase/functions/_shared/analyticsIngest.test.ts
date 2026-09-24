@@ -1,39 +1,10 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import test from 'node:test';
-import vm from 'node:vm';
-import ts from 'typescript';
+import test, { mock } from 'node:test';
+import * as ingest from './analyticsIngest.ts';
 
-// Edge functions are Deno modules (URL imports, Deno globals), so they are loaded the same
-// way as councilAccess.test.ts: transpile and run in a context with only the web globals.
-type Ingest = typeof import('./analyticsIngest');
-
-function loadIngest(): Ingest {
-  const exports = {} as Ingest;
-  const source = ts.transpileModule(
-    readFileSync(new URL('./analyticsIngest.ts', import.meta.url), 'utf8'),
-    { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }
-  ).outputText;
-  vm.runInNewContext(source, {
-    exports,
-    crypto,
-    TextEncoder,
-    TextDecoder,
-    Date,
-    Math,
-    Uint8Array,
-    Number,
-    JSON,
-    Array,
-    console: { warn() {} },
-  });
-  return exports;
-}
-
-const ingest = loadIngest();
-
-// Values built inside the vm context carry that realm's prototypes; compare them as plain data.
-const plain = (value: unknown) => JSON.parse(JSON.stringify(value));
+// analyticsIngest.ts has no Deno or supabase-js imports, so it loads through the normal
+// loader. The limiter's console.warn is silenced for the degraded-path cases.
+mock.method(console, 'warn', () => undefined);
 
 function streamingRequest(chunks: string[], headers: Record<string, string> = {}): Request {
   const encoder = new TextEncoder();
@@ -76,7 +47,7 @@ function rpcFake(result: { data?: unknown; error?: unknown }) {
 
 test('a body within the cap is returned with its byte length', async () => {
   const body = await ingest.readBodyWithinLimit(streamingRequest(['{"events":', '[]}']), 64);
-  assert.deepEqual(plain(body), { ok: true, text: '{"events":[]}', bytes: 13 });
+  assert.deepEqual(body, { ok: true, text: '{"events":[]}', bytes: 13 });
 });
 
 test('a chunked body with no content-length is cut off as soon as it passes the cap', async () => {
@@ -84,7 +55,7 @@ test('a chunked body with no content-length is cut off as soon as it passes the 
     streamingRequest(['x'.repeat(40), 'x'.repeat(40), 'x'.repeat(40)]),
     64
   );
-  assert.deepEqual(plain(body), { ok: false, reason: 'too_large' });
+  assert.deepEqual(body, { ok: false, reason: 'too_large' });
 });
 
 test('a declared content-length above the cap is refused without reading the body', async () => {
@@ -92,7 +63,7 @@ test('a declared content-length above the cap is refused without reading the bod
     streamingRequest(['{}'], { 'content-length': '999999' }),
     64
   );
-  assert.deepEqual(plain(body), { ok: false, reason: 'too_large' });
+  assert.deepEqual(body, { ok: false, reason: 'too_large' });
 });
 
 test('byte length counts UTF-8 bytes, not UTF-16 code units', async () => {
@@ -157,7 +128,7 @@ test('the budget RPC is charged with this request’s events and bytes', async (
     data: [{ allowed: true, retry_after_seconds: 0, cached_geo: null, claim_geo_lookup: true }],
   });
   const budget = await ingest.consumeIngestBudget(fake.client, 'key', { events: 7, bytes: 900 });
-  assert.deepEqual(plain(budget), {
+  assert.deepEqual(budget, {
     allowed: true,
     retryAfterSeconds: 0,
     cachedGeo: null,
@@ -193,7 +164,7 @@ test('a cached geo result is returned so no paid lookup is needed', async () => 
 test('if the limiter is unavailable, ingestion continues but paid geo lookups stop', async () => {
   const fake = rpcFake({ error: { message: 'function does not exist' } });
   const budget = await ingest.consumeIngestBudget(fake.client, 'key', { events: 1, bytes: 10 });
-  assert.deepEqual(plain(budget), {
+  assert.deepEqual(budget, {
     allowed: true,
     retryAfterSeconds: 0,
     cachedGeo: null,
