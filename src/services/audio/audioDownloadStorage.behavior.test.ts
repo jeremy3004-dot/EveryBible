@@ -1171,7 +1171,6 @@ function gate() {
 
 test('a cancelled download still settles as cancelled when its partial file cannot be deleted', async () => {
   downloadScript = { gate: new Promise<void>(() => {}) };
-  deleteError = new Error('EBUSY');
   const controller = new AbortController();
 
   const pending = mod.expoAudioFileSystemAdapter.downloadFile(
@@ -1180,6 +1179,9 @@ test('a cancelled download still settles as cancelled when its partial file cann
     { signal: controller.signal }
   );
   await flush();
+  // Only the partial left by the cancelled transfer is undeletable; the stale-partial
+  // cleanup before the transfer started has already succeeded.
+  deleteError = new Error('EBUSY');
   controller.abort();
 
   await assert.rejects(pending, (error: unknown) => service.isAudioDownloadCancellation(error));
@@ -1252,7 +1254,8 @@ test('an abort that lands while the finished file is being measured is a cancell
   const controller = new AbortController();
   const target = 'file:///documents/everybible-audio/bsb/GEN/1.m4a';
   onGetInfo = (uri) => {
-    if (uri === target) controller.abort();
+    // The transfer is measured at its partial path before it is moved into place.
+    if (uri === `${target}${mod.AUDIO_DOWNLOAD_PARTIAL_SUFFIX}`) controller.abort();
   };
 
   await assert.rejects(
@@ -1263,7 +1266,13 @@ test('an abort that lands while the finished file is being measured is a cancell
     (error: unknown) => service.isAudioDownloadCancellation(error)
   );
 
-  assert.equal(fsMethods().includes('deleteAsync'), false);
+  // Only the stale-partial cleanup before the transfer ran; the chapter at its final path
+  // was never touched and nothing was moved into place.
+  assert.deepEqual(
+    fsCalls.filter((call) => call.method === 'deleteAsync').map((call) => call.args[0]),
+    [`${target}${mod.AUDIO_DOWNLOAD_PARTIAL_SUFFIX}`]
+  );
+  assert.equal(fsMethods().includes('moveAsync'), false);
 });
 
 test('readBase64Chunk reads one base64 window of a downloaded chapter', async () => {

@@ -135,7 +135,7 @@ test('sanitizeBibleAssetReference refuses script, data, blob and file schemes', 
 
 test('sanitizeBibleAssetReference trims padding and drops a leading ./ from relative paths', () => {
   assert.equal(sanitizeBibleAssetReference('  ./audio/bsb  '), 'audio/bsb');
-  assert.equal(sanitizeBibleAssetReference(' HTTP://cdn.test/a '), 'HTTP://cdn.test/a');
+  assert.equal(sanitizeBibleAssetReference(' https://cdn.test/a '), 'https://cdn.test/a');
 });
 
 test('resolveBibleAssetBaseUrl strips trailing slashes from absolute urls', () => {
