@@ -5,6 +5,7 @@
 ## Ownership and merging
 
 - Existing rows retain the operator's `distribution_state`, `is_available`, and `admin_notes`, even if upstream supplies conflicting values. Updates omit these columns, preserving operator edits made while the sync is running.
+- Operator notes and upstream provenance (`admin_notes`, `upstream_payload`, `upstream_external_id`, `sync_run_id`) live in `translation_catalog_admin`, not on `translation_catalog`, because the app reads the catalog with `select('*')` using the publishable key. The sync upserts provenance there on every run and sets `admin_notes` only when it creates the translation.
 - New rows accept the initial upstream controls, defaulting to `ready`, available, and no admin notes when omitted. Creation uses INSERT so a concurrent creator cannot have its controls overwritten by an upsert.
 - Incoming catalog keys merge over existing keys. The `text`, `audio`, and `timing` sections also merge their immediate keys; omitted sections and delivery metadata remain intact.
 - Sparse version refreshes preserve existing publication timestamps, checksums, changelogs, and counts. Only a new version without a publication timestamp receives the sync time. An explicit upstream version timestamp remains authoritative. Versions omitted from the payload are retained.

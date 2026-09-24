@@ -49,7 +49,6 @@ export async function updateTranslationMetadataAction(formData: FormData) {
   const { error } = await service
     .from('translation_catalog')
     .update({
-      admin_notes: adminNotes,
       distribution_state: distributionState,
       is_available: isAvailable,
     })
@@ -57,6 +56,18 @@ export async function updateTranslationMetadataAction(formData: FormData) {
 
   if (error) {
     redirect(`/translations/${translationId}?error=${encodeURIComponent(error.message)}`);
+  }
+
+  // Notes live in the admin-only side table: translation_catalog is readable by the app.
+  const { error: notesError } = await service
+    .from('translation_catalog_admin')
+    .upsert(
+      { admin_notes: adminNotes, translation_id: translationId },
+      { onConflict: 'translation_id' }
+    );
+
+  if (notesError) {
+    redirect(`/translations/${translationId}?error=${encodeURIComponent(notesError.message)}`);
   }
 
   await writeAdminAuditLog({

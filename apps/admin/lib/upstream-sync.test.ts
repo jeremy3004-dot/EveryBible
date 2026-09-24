@@ -8,23 +8,33 @@ type Row = Record<string, unknown>;
 type Write = { table: string; operation: string; values: Row };
 const now = '2026-09-05T12:00:00.000Z';
 const publishedAt = '2024-01-15T12:00:00.000Z';
+// Operator-only columns live in translation_catalog_admin, which client roles cannot read.
+const ADMIN_ONLY_COLUMNS = [
+  'admin_notes',
+  'upstream_payload',
+  'upstream_external_id',
+  'sync_run_id',
+];
 
 // Run the real sync module with only Supabase, environment, network, and time replaced.
 function createSyncFixture({
   payload,
   catalog = [],
+  admin = [],
   versions = [],
   finishError = false,
   beforeCatalogWrite,
 }: {
   payload: unknown;
   catalog?: Row[];
+  admin?: Row[];
   versions?: Row[];
   finishError?: boolean;
-  beforeCatalogWrite?: (rows: Row[]) => void;
+  beforeCatalogWrite?: (rows: Record<string, Row[]>) => void;
 }) {
   const rows: Record<string, Row[]> = {
     translation_catalog: structuredClone(catalog),
+    translation_catalog_admin: structuredClone(admin),
     translation_versions: structuredClone(versions),
     translation_sync_runs: [],
   };
@@ -81,7 +91,7 @@ function createSyncFixture({
             return Promise.resolve({ data: structuredClone(selected), error: null }).then(resolve);
           }
           writes.push({ table, operation, values: JSON.parse(JSON.stringify(values)) });
-          if (table === 'translation_catalog') beforeCatalogWrite?.(rows[table]);
+          if (table === 'translation_catalog') beforeCatalogWrite?.(rows);
           if (finishError && table === 'translation_sync_runs' && values.state === 'succeeded') {
             return Promise.resolve({
               data: null,
@@ -155,9 +165,9 @@ for (const distributionState of ['hidden', 'published', 'draft', 'ready']) {
             catalog: null,
             distribution_state: distributionState,
             is_available: false,
-            admin_notes: 'Local review required',
           },
         ],
+        admin: [{ translation_id: 'eng', admin_notes: 'Local review required' }],
         payload: [
           {
             translation_id: 'eng',
@@ -177,15 +187,24 @@ for (const distributionState of ['hidden', 'published', 'draft', 'ready']) {
       assert.equal(row.name, 'Updated upstream name');
       assert.equal(row.distribution_state, distributionState);
       assert.equal(row.is_available, false);
-      assert.equal(row.admin_notes, 'Local review required');
+      assert.equal(fixture.rows.translation_catalog_admin[0].admin_notes, 'Local review required');
       const write = fixture.writes.find((entry) => entry.table === 'translation_catalog')!;
-      for (const key of ['distribution_state', 'is_available', 'admin_notes']) {
+      for (const key of ['distribution_state', 'is_available', ...ADMIN_ONLY_COLUMNS]) {
         assert.equal(
           Object.hasOwn(write.values, key),
           false,
-          `${key} must be omitted from existing-row writes`
+          `${key} must be omitted from existing-row catalog writes`
         );
       }
+      const adminWrite = fixture.writes.find(
+        (entry) => entry.table === 'translation_catalog_admin'
+      )!;
+      assert.equal(adminWrite.operation, 'upsert');
+      assert.equal(
+        Object.hasOwn(adminWrite.values, 'admin_notes'),
+        false,
+        'admin_notes must be omitted from existing-row side-table writes'
+      );
     });
   }
 }
@@ -198,22 +217,43 @@ test('sync preserves operator edits made after the catalog read', async () => {
         catalog: {},
         distribution_state: 'ready',
         is_available: true,
-        admin_notes: null,
       },
     ],
+    admin: [{ translation_id: 'eng', admin_notes: null }],
     payload: [{ translation_id: 'eng' }],
     beforeCatalogWrite(rows) {
-      Object.assign(rows[0], {
+      Object.assign(rows.translation_catalog[0], {
         distribution_state: 'hidden',
         is_available: false,
-        admin_notes: 'Changed during sync',
       });
+      Object.assign(rows.translation_catalog_admin[0], { admin_notes: 'Changed during sync' });
     },
   });
   await fixture.run(null);
   assert.equal(fixture.rows.translation_catalog[0].distribution_state, 'hidden');
   assert.equal(fixture.rows.translation_catalog[0].is_available, false);
-  assert.equal(fixture.rows.translation_catalog[0].admin_notes, 'Changed during sync');
+  assert.equal(fixture.rows.translation_catalog_admin[0].admin_notes, 'Changed during sync');
+});
+
+test('sync records upstream identity, payload and run on the admin-only side table', async () => {
+  const fixture = createSyncFixture({
+    catalog: [{ translation_id: 'eng', catalog: {} }],
+    admin: [{ translation_id: 'eng', admin_notes: 'Keep', upstream_payload: { stale: true } }],
+    payload: [{ translation_id: 'eng', external_id: 'up-7', name: 'English' }],
+  });
+  await fixture.run(null);
+  assert.deepEqual(JSON.parse(JSON.stringify(fixture.rows.translation_catalog_admin)), [
+    {
+      translation_id: 'eng',
+      admin_notes: 'Keep',
+      upstream_payload: { translation_id: 'eng', external_id: 'up-7', name: 'English' },
+      sync_run_id: 'run-1',
+      upstream_external_id: 'up-7',
+    },
+  ]);
+  for (const column of ADMIN_ONLY_COLUMNS) {
+    assert.equal(Object.hasOwn(fixture.rows.translation_catalog[0], column), false, column);
+  }
 });
 
 for (const incomingVersions of [undefined, [{ version_number: 1 }]]) {
@@ -290,7 +330,23 @@ test('new catalog rows keep default controls and only new versions receive the s
   const added = fixture.rows.translation_catalog.find((row) => row.translation_id === 'new')!;
   assert.equal(added.distribution_state, 'ready');
   assert.equal(added.is_available, true);
-  assert.equal(added.admin_notes, null);
+  for (const column of ADMIN_ONLY_COLUMNS) {
+    assert.equal(
+      Object.hasOwn(added, column),
+      false,
+      `${column} must not be written to the catalog`
+    );
+  }
+  const addedAdmin = fixture.rows.translation_catalog_admin.find(
+    (row) => row.translation_id === 'new'
+  )!;
+  assert.deepEqual(JSON.parse(JSON.stringify(addedAdmin)), {
+    admin_notes: null,
+    sync_run_id: 'run-1',
+    translation_id: 'new',
+    upstream_external_id: null,
+    upstream_payload: { translation_id: 'new' },
+  });
   assert.deepEqual(
     fixture.rows.translation_versions.map((row) => row.published_at),
     [publishedAt, now, now]
@@ -314,7 +370,7 @@ test('new rows accept initial upstream controls and explicit version publication
   await fixture.run(null);
   assert.equal(fixture.rows.translation_catalog[0].distribution_state, 'hidden');
   assert.equal(fixture.rows.translation_catalog[0].is_available, false);
-  assert.equal(fixture.rows.translation_catalog[0].admin_notes, 'Initial note');
+  assert.equal(fixture.rows.translation_catalog_admin[0].admin_notes, 'Initial note');
   assert.equal(fixture.rows.translation_versions[0].published_at, publishedAt);
 });
 
@@ -344,10 +400,13 @@ test('a concurrently created catalog row is not overwritten by initial upstream 
   const fixture = createSyncFixture({
     payload: [{ translation_id: 'eng', distribution_state: 'published', is_available: true }],
     beforeCatalogWrite(rows) {
-      rows.push({
+      rows.translation_catalog.push({
         translation_id: 'eng',
         distribution_state: 'hidden',
         is_available: false,
+      });
+      rows.translation_catalog_admin.push({
+        translation_id: 'eng',
         admin_notes: 'Created by operator during sync',
       });
     },
@@ -355,6 +414,8 @@ test('a concurrently created catalog row is not overwritten by initial upstream 
   await assert.rejects(fixture.run(null), /Unable to save translation eng: duplicate key/);
   assert.equal(fixture.rows.translation_catalog[0].distribution_state, 'hidden');
   assert.equal(fixture.rows.translation_catalog[0].is_available, false);
-  assert.equal(fixture.rows.translation_catalog[0].admin_notes, 'Created by operator during sync');
+  assert.deepEqual(fixture.rows.translation_catalog_admin, [
+    { translation_id: 'eng', admin_notes: 'Created by operator during sync' },
+  ]);
   assert.equal(fixture.rows.translation_sync_runs[0].state, 'failed');
 });

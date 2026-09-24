@@ -571,10 +571,58 @@ const catalogRow = {
   has_audio: true,
   is_available: true,
   distribution_state: 'published',
-  admin_notes: null,
   updated_at: '2026-09-01',
   upstream_last_synced_at: '2026-09-23',
+  translation_catalog_admin: null,
 };
+
+function selectedColumns(call: SupabaseQueryCall): string {
+  return String(stepArgs(call, 'select')[0]?.[0] ?? '');
+}
+
+test('catalog reads take operator notes and upstream payloads from the admin-only side table', async () => {
+  service.respondTo('translation_catalog', () => ({
+    data: [
+      {
+        ...catalogRow,
+        translation_catalog_admin: { admin_notes: 'Council hold', upstream_payload: null },
+      },
+      { ...catalogRow, translation_id: 'web' },
+    ],
+  }));
+  const list = await data.listTranslations();
+  assert.deepEqual(
+    list.map((item) => [item.translationId, item.adminNotes]),
+    [
+      ['bsb', 'Council hold'],
+      ['web', null],
+    ]
+  );
+  const listColumns = selectedColumns(onlyCall('translation_catalog'));
+  assert.match(listColumns, /translation_catalog_admin\(admin_notes\)/);
+  assert.doesNotMatch(listColumns.replace(/translation_catalog_admin\([^)]*\)/, ''), /admin_notes/);
+
+  service.reset();
+  service.respondTo('translation_catalog', () => ({
+    data: {
+      ...catalogRow,
+      // PostgREST may return a to-one embed as a single-element array; accept both shapes.
+      translation_catalog_admin: [
+        { admin_notes: 'Needs licence check', upstream_payload: { id: 'upstream-bsb' } },
+      ],
+    },
+  }));
+  const detail = await data.getTranslationDetail('bsb');
+  assert.ok(detail);
+  assert.equal(detail.adminNotes, 'Needs licence check');
+  assert.deepEqual(detail.upstreamPayload, { id: 'upstream-bsb' });
+  const detailColumns = selectedColumns(onlyCall('translation_catalog'));
+  assert.match(detailColumns, /translation_catalog_admin\(admin_notes, upstream_payload\)/);
+  assert.doesNotMatch(
+    detailColumns.replace(/translation_catalog_admin\([^)]*\)/, ''),
+    /admin_notes|upstream_payload/
+  );
+});
 
 test('the catalog list pairs each translation with its current published version', async () => {
   service.respondTo('translation_catalog', () => ({
@@ -627,7 +675,10 @@ test('translation detail reports the current version, version history and recent
   ];
   const runs = [{ id: 'run-1', state: 'succeeded', started_at: '2026-09-23' }];
   service.respondTo('translation_catalog', () => ({
-    data: { ...catalogRow, upstream_payload: { source: 'upstream' } },
+    data: {
+      ...catalogRow,
+      translation_catalog_admin: { admin_notes: null, upstream_payload: { source: 'upstream' } },
+    },
   }));
   service.respondTo('translation_versions', () => ({ data: versions }));
   service.respondTo('translation_sync_runs', () => ({ data: runs }));

@@ -140,9 +140,7 @@ function mergeNormalizedVersion(
   };
 }
 
-function normalizeDistributionState(
-  value: unknown
-): 'draft' | 'ready' | 'published' | 'hidden' {
+function normalizeDistributionState(value: unknown): 'draft' | 'ready' | 'published' | 'hidden' {
   const normalized = asString(value)?.toLowerCase();
 
   if (normalized === 'published' || normalized === 'hidden' || normalized === 'draft') {
@@ -157,7 +155,8 @@ function normalizeVersions(item: Record<string, unknown>): NormalizedVersion[] {
   const normalizedFromArray = rawVersions
     .map((rawVersion, index) => {
       const version = asRecord(rawVersion);
-      const versionNumber = asNumber(version.version_number) ?? asNumber(version.versionNumber) ?? index + 1;
+      const versionNumber =
+        asNumber(version.version_number) ?? asNumber(version.versionNumber) ?? index + 1;
 
       return {
         changelog: asString(version.changelog),
@@ -185,8 +184,7 @@ function normalizeVersions(item: Record<string, unknown>): NormalizedVersion[] {
       totalBooks: asNumber(item.total_books) ?? asNumber(item.totalBooks),
       totalChapters: asNumber(item.total_chapters) ?? asNumber(item.totalChapters),
       totalVerses: asNumber(item.total_verses) ?? asNumber(item.totalVerses),
-      versionNumber:
-        asNumber(item.version_number) ?? asNumber(item.versionNumber) ?? 1,
+      versionNumber: asNumber(item.version_number) ?? asNumber(item.versionNumber) ?? 1,
     },
   ];
 }
@@ -206,10 +204,7 @@ function normalizeTranslation(rawItem: unknown): NormalizedTranslation | null {
   const language = asRecord(item.language);
 
   return {
-    abbreviation:
-      asString(item.abbreviation) ??
-      asString(item.abbr) ??
-      translationId.toUpperCase(),
+    abbreviation: asString(item.abbreviation) ?? asString(item.abbr) ?? translationId.toUpperCase(),
     adminNotes: asString(item.admin_notes) ?? asString(item.adminNotes),
     catalog: asRecord(item.catalog),
     distributionState: normalizeDistributionState(
@@ -345,11 +340,8 @@ export async function runUpstreamTranslationSync(actorUserId: string | null) {
         license_url: translation.licenseUrl,
         name: translation.name,
         source_url: translation.sourceUrl,
-        sync_run_id: syncRun.id,
         translation_id: translation.translationId,
-        upstream_external_id: translation.upstreamExternalId,
         upstream_last_synced_at: new Date().toISOString(),
-        upstream_payload: translation.upstreamPayload,
         catalog: mergedCatalog,
       };
       // Operator controls belong to the admin after creation. Omit them entirely
@@ -361,7 +353,6 @@ export async function runUpstreamTranslationSync(actorUserId: string | null) {
             .eq('translation_id', translation.translationId)
         : await service.from('translation_catalog').insert({
             ...catalogMetadata,
-            admin_notes: translation.adminNotes,
             distribution_state: translation.distributionState,
             is_available: translation.isAvailable,
           });
@@ -369,6 +360,26 @@ export async function runUpstreamTranslationSync(actorUserId: string | null) {
       if (catalogError) {
         throw new Error(
           `Unable to save translation ${translation.translationId}: ${catalogError.message}`
+        );
+      }
+
+      // Upstream provenance and operator notes live in translation_catalog_admin, which client
+      // roles cannot read (translation_catalog is readable by the app with select('*')).
+      // Notes follow the same rule as the controls above: set on creation, never on updates.
+      const { error: adminError } = await service.from('translation_catalog_admin').upsert(
+        {
+          ...(existed ? {} : { admin_notes: translation.adminNotes }),
+          sync_run_id: syncRun.id,
+          translation_id: translation.translationId,
+          upstream_external_id: translation.upstreamExternalId,
+          upstream_payload: translation.upstreamPayload,
+        },
+        { onConflict: 'translation_id' }
+      );
+
+      if (adminError) {
+        throw new Error(
+          `Unable to save upstream details for ${translation.translationId}: ${adminError.message}`
         );
       }
 
@@ -383,22 +394,20 @@ export async function runUpstreamTranslationSync(actorUserId: string | null) {
           existingVersionByKey.get(`${translation.translationId}:${version.versionNumber}`) ?? null,
           version
         );
-        const { error: versionError } = await service
-          .from('translation_versions')
-          .upsert(
-            {
-              changelog: mergedVersion.changelog,
-              data_checksum: mergedVersion.dataChecksum,
-              is_current: mergedVersion.isCurrent,
-              published_at: mergedVersion.publishedAt,
-              total_books: mergedVersion.totalBooks,
-              total_chapters: mergedVersion.totalChapters,
-              total_verses: mergedVersion.totalVerses,
-              translation_id: translation.translationId,
-              version_number: mergedVersion.versionNumber,
-            },
-            { onConflict: 'translation_id,version_number' }
-          );
+        const { error: versionError } = await service.from('translation_versions').upsert(
+          {
+            changelog: mergedVersion.changelog,
+            data_checksum: mergedVersion.dataChecksum,
+            is_current: mergedVersion.isCurrent,
+            published_at: mergedVersion.publishedAt,
+            total_books: mergedVersion.totalBooks,
+            total_chapters: mergedVersion.totalChapters,
+            total_verses: mergedVersion.totalVerses,
+            translation_id: translation.translationId,
+            version_number: mergedVersion.versionNumber,
+          },
+          { onConflict: 'translation_id,version_number' }
+        );
 
         if (versionError) {
           throw new Error(

@@ -111,11 +111,15 @@ test('saving catalog metadata updates only the EveryBible-local columns of that 
   const [update] = service.callsFor('translation_catalog');
   assert.equal(update.operation, 'update');
   assert.deepEqual(update.payload, {
-    admin_notes: 'Council approved',
     distribution_state: 'published',
     is_available: true,
   });
   assert.deepEqual(stepArgs(update, 'eq'), [['translation_id', 'bsb']]);
+  // Operator notes live in the admin-only side table, which client roles cannot read.
+  const [notes] = service.callsFor('translation_catalog_admin');
+  assert.equal(notes.operation, 'upsert');
+  assert.deepEqual(notes.payload, { admin_notes: 'Council approved', translation_id: 'bsb' });
+  assert.deepEqual(notes.options, { onConflict: 'translation_id' });
   assert.deepEqual(auditRows(), [
     {
       action: 'translation.metadata.update',
@@ -140,9 +144,12 @@ test('an unchecked availability box hides the translation and blank fields fall 
     updateTranslationMetadataAction(formData({ translationId: 'web', adminNotes: '   ' }))
   );
   assert.deepEqual(service.callsFor('translation_catalog')[0].payload, {
-    admin_notes: null,
     distribution_state: 'draft',
     is_available: false,
+  });
+  assert.deepEqual(service.callsFor('translation_catalog_admin')[0].payload, {
+    admin_notes: null,
+    translation_id: 'web',
   });
 });
 
@@ -157,6 +164,26 @@ test('a rejected catalog update reports the database error and is not audited', 
     url,
     `/translations/bsb?error=${encodeURIComponent(
       'new row violates check constraint "distribution_state"'
+    )}`
+  );
+  assert.deepEqual(auditRows(), []);
+  assert.deepEqual(next.revalidatedPaths, []);
+  assert.deepEqual(service.callsFor('translation_catalog_admin'), []);
+});
+
+test('a rejected notes write reports the database error and is not audited', async () => {
+  service.respondTo('translation_catalog_admin', () => ({
+    error: {
+      message: 'insert or update on table "translation_catalog_admin" violates foreign key',
+    },
+  }));
+  const url = await captureRedirect(() =>
+    updateTranslationMetadataAction(formData({ translationId: 'bsb', adminNotes: 'Hold' }))
+  );
+  assert.equal(
+    url,
+    `/translations/bsb?error=${encodeURIComponent(
+      'insert or update on table "translation_catalog_admin" violates foreign key'
     )}`
   );
   assert.deepEqual(auditRows(), []);

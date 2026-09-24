@@ -26,9 +26,15 @@ const getAuthorizedAdminServiceClient = cache(async () => {
   return createAdminServiceClient();
 });
 
+// Operator notes and upstream provenance live in translation_catalog_admin (service role only),
+// not on translation_catalog, which the app reads with select('*').
+interface TranslationCatalogAdminRow {
+  admin_notes: string | null;
+  upstream_payload?: Record<string, unknown> | null;
+}
+
 interface TranslationCatalogRow {
   abbreviation: string;
-  admin_notes: string | null;
   distribution_state: 'draft' | 'ready' | 'published' | 'hidden';
   has_audio: boolean;
   has_text: boolean;
@@ -36,9 +42,15 @@ interface TranslationCatalogRow {
   language_name: string;
   name: string;
   translation_id: string;
+  translation_catalog_admin: TranslationCatalogAdminRow | TranslationCatalogAdminRow[] | null;
   updated_at: string;
   upstream_last_synced_at: string | null;
-  upstream_payload: Record<string, unknown> | null;
+}
+
+// A to-one embed normally arrives as an object; accept a one-element array too.
+function catalogAdminDetails(row: TranslationCatalogRow): TranslationCatalogAdminRow | null {
+  const embedded = row.translation_catalog_admin;
+  return (Array.isArray(embedded) ? embedded[0] : embedded) ?? null;
 }
 
 interface TranslationVersionRow {
@@ -390,7 +402,7 @@ export async function listTranslations(searchTerm?: string): Promise<Translation
   let query = service
     .from('translation_catalog')
     .select(
-      'translation_id, name, abbreviation, language_name, has_text, has_audio, is_available, distribution_state, admin_notes, updated_at, upstream_last_synced_at'
+      'translation_id, name, abbreviation, language_name, has_text, has_audio, is_available, distribution_state, updated_at, upstream_last_synced_at, translation_catalog_admin(admin_notes)'
     )
     .order('language_name', { ascending: true })
     .order('name', { ascending: true });
@@ -425,7 +437,7 @@ export async function listTranslations(searchTerm?: string): Promise<Translation
 
   return ((catalog as TranslationCatalogRow[] | null) ?? []).map((row) => ({
     abbreviation: row.abbreviation,
-    adminNotes: row.admin_notes,
+    adminNotes: catalogAdminDetails(row)?.admin_notes ?? null,
     currentVersion: currentVersionByTranslation.get(row.translation_id) ?? null,
     distributionState: row.distribution_state,
     hasAudio: row.has_audio,
@@ -448,7 +460,7 @@ export async function getTranslationDetail(
       service
         .from('translation_catalog')
         .select(
-          'translation_id, name, abbreviation, language_name, has_text, has_audio, is_available, distribution_state, admin_notes, updated_at, upstream_last_synced_at, upstream_payload'
+          'translation_id, name, abbreviation, language_name, has_text, has_audio, is_available, distribution_state, updated_at, upstream_last_synced_at, translation_catalog_admin(admin_notes, upstream_payload)'
         )
         .eq('translation_id', translationId)
         .maybeSingle<TranslationCatalogRow>(),
@@ -474,6 +486,7 @@ export async function getTranslationDetail(
   }
 
   const currentVersion = (versions ?? []).find((row) => row.is_current)?.version_number ?? null;
+  const adminDetails = catalogAdminDetails(catalog);
 
   const { data: runs, error: runsError } = await service
     .from('translation_sync_runs')
@@ -489,7 +502,7 @@ export async function getTranslationDetail(
 
   return {
     abbreviation: catalog.abbreviation,
-    adminNotes: catalog.admin_notes,
+    adminNotes: adminDetails?.admin_notes ?? null,
     currentVersion,
     distributionState: catalog.distribution_state,
     hasAudio: catalog.has_audio,
@@ -501,7 +514,7 @@ export async function getTranslationDetail(
     translationId: catalog.translation_id,
     updatedAt: catalog.updated_at,
     upstreamLastSyncedAt: catalog.upstream_last_synced_at,
-    upstreamPayload: catalog.upstream_payload,
+    upstreamPayload: adminDetails?.upstream_payload ?? null,
     versions: (versions ?? []) as TranslationVersionRow[],
   };
 }
