@@ -246,20 +246,25 @@ const foldForNameMatch = (text: string): string =>
     .replace(/đ/g, 'd');
 
 // Folded once per list, longest first so "1 Jean" wins over "Jean". A hyphenated name
-// (Vietnamese "Ê-sai") also matches with a space or with nothing in place of each hyphen, and
-// any name matches without its spaces ("1Jean 4:8").
+// (Vietnamese "Ê-sai") also matches with a space in place of each hyphen, a German numbered
+// book ("1. Korinther") without the period after its number, and any name without its spaces
+// ("1Jean 4:8", "1Korinther 13").
+const nameSpellings = (name: string): string[] => {
+  const folded = foldForNameMatch(name.trim());
+  const spellings = new Set<string>();
+  for (const base of [folded, folded.replace(/-/g, ' '), folded.replace(/\./g, '')]) {
+    const spaced = base.replace(WHITESPACE_RUN_PATTERN, ' ').trim();
+    spellings.add(spaced);
+    spellings.add(spaced.replace(/[\s-]/g, ''));
+  }
+  return [...spellings];
+};
+
 const prepareBookNames = (bookNames: readonly LocalizedBookName[]): PreparedBookName[] => {
   let prepared = preparedBookNamesCache.get(bookNames);
   if (!prepared) {
     prepared = bookNames
-      .map(({ bookId, name }) => {
-        const folded = foldForNameMatch(name.trim());
-        const spaced = folded.replace(/-/g, ' ');
-        return {
-          bookId,
-          names: [...new Set([folded, spaced, folded.replace(/[\s-]/g, '')])],
-        };
-      })
+      .map(({ bookId, name }) => ({ bookId, names: nameSpellings(name) }))
       .filter((entry) => entry.names[0] !== '')
       .sort((left, right) => (right.names[0]?.length ?? 0) - (left.names[0]?.length ?? 0));
     preparedBookNamesCache.set(bookNames, prepared);

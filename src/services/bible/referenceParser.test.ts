@@ -435,3 +435,14 @@ test('a reference copied with its sentence-ending punctuation still opens', () =
     john316
   );
 });
+
+test('a German numbered book opens with or without the period after its number', () => {
+  const deNames = interfaceBookNames(de.bible.books);
+  // The app shows "1. Korinther"; "1 Korinther 13" and "1Kor..." style input omit the period.
+  assert.equal(parsePassageReferenceLocale('1 Korinther 13', 'de', deNames)?.bookId, '1CO');
+  assert.equal(parsePassageReferenceLocale('1. Korinther 13', 'de', deNames)?.bookId, '1CO');
+  assert.equal(parsePassageReferenceLocale('1Korinther 13', 'de', deNames)?.bookId, '1CO');
+  assert.equal(parsePassageReferenceLocale('1 Johannes 4:8', 'de', deNames)?.bookId, '1JN');
+  assert.equal(parsePassageReferenceLocale('Johannes 4:8', 'de', deNames)?.bookId, 'JHN');
+  assert.equal(parsePassageReferenceLocale('1 Mose 1', 'de', deNames)?.bookId, 'GEN');
+});
