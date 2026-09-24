@@ -316,23 +316,30 @@ mockModule(mock, 'expo-sqlite', {
 
 const fileSystemCalls: Array<{ method: string; path: string }> = [];
 const fileSystemFaults = { deleteAsync: false };
+const stripFileScheme = (uri: string) => uri.replace(/^file:\/\//, '');
 mockModule(mock, 'expo-file-system/legacy', {
   documentDirectory: `${root}/documents/`,
-  getInfoAsync: async (path: string) => {
-    fileSystemCalls.push({ method: 'getInfoAsync', path });
+  getInfoAsync: async (uri: string) => {
+    fileSystemCalls.push({ method: 'getInfoAsync', path: uri });
+    const path = stripFileScheme(uri);
     if (!existsSync(path)) {
-      return { exists: false, uri: path };
+      return { exists: false, uri };
     }
     const stats = statSync(path);
-    return { exists: true, uri: path, size: stats.size, isDirectory: stats.isDirectory() };
+    return { exists: true, uri, size: stats.size, isDirectory: stats.isDirectory() };
   },
-  deleteAsync: async (path: string) => {
-    fileSystemCalls.push({ method: 'deleteAsync', path });
-    events.push(`delete:${path}`);
+  deleteAsync: async (uri: string) => {
+    fileSystemCalls.push({ method: 'deleteAsync', path: uri });
+    events.push(`delete:${uri}`);
     if (fileSystemFaults.deleteAsync) {
       throw new Error('deleteAsync is unavailable');
     }
-    rmSync(path, { force: true, recursive: true });
+    // Like the native module on both platforms: a scheme-less path is only readable, so a
+    // delete is refused. expo-sqlite's defaultDatabaseDirectory is such a plain path.
+    if (!uri.startsWith('file://')) {
+      throw new Error(`Location '${uri}' isn't deletable.`);
+    }
+    rmSync(stripFileScheme(uri), { force: true, recursive: true });
   },
 });
 
@@ -533,9 +540,12 @@ test('a forced re-import deletes the stale WAL and SHM sidecars before copying',
   const deletions = fileSystemCalls
     .filter((call) => call.method === 'deleteAsync')
     .map((call) => call.path);
-  assert.deepEqual(deletions.sort(), [`${bundledDatabasePath}-shm`, `${bundledDatabasePath}-wal`]);
+  assert.deepEqual(deletions.sort(), [
+    `file://${bundledDatabasePath}-shm`,
+    `file://${bundledDatabasePath}-wal`,
+  ]);
   assert.ok(
-    events.indexOf(`delete:${bundledDatabasePath}-wal`) <
+    events.indexOf(`delete:file://${bundledDatabasePath}-wal`) <
       events.indexOf(`import:${BUNDLED_DATABASE_NAME}:force`),
     'stale journal files must be gone before the fresh copy lands, or WAL frames replay onto it'
   );
@@ -684,6 +694,40 @@ test('inspectBundledDatabaseStatus reports an empty status when the database can
     formattedVerseCount: 0,
     ready: false,
   });
+});
+
+test('a readiness probe on a fresh install leaves no empty database behind to block the first import', async () => {
+  const { initDatabase, inspectBundledDatabaseStatus } = await loadModule();
+  await resetBundledDatabase();
+  for (const suffix of ['', '-wal', '-shm']) {
+    rmSync(`${bundledDatabasePath}${suffix}`, { force: true });
+  }
+
+  // Home asks isBibleDataReady() before anything has imported the asset.
+  const probe = await inspectBundledDatabaseStatus(READY_VERSE_COUNT);
+
+  assert.equal(probe.ready, false);
+  assert.equal(probe.verseCount, 0);
+  assert.equal(
+    existsSync(bundledDatabasePath),
+    false,
+    'opening a missing database creates an empty file, and the native import skips any existing file'
+  );
+  assert.ok(
+    fileSystemCalls.some(
+      ({ method, path }) => method === 'getInfoAsync' && path === `file://${bundledDatabasePath}`
+    ),
+    'the existence check needs a file:// URI; the native module reports a bare path as missing'
+  );
+
+  const status = await initDatabase(READY_VERSE_COUNT);
+
+  assert.equal(status.verseCount, READY_VERSE_COUNT);
+  assert.deepEqual(
+    assetImports.map(({ forceOverwrite }) => forceOverwrite),
+    [false],
+    'the first launch copies the asset once, without falling into the forced-recovery import'
+  );
 });
 
 test('inspectBundledDatabaseStatus waits for an initialization that is still in flight', async () => {
