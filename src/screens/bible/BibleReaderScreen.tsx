@@ -788,11 +788,15 @@ export function BibleReaderScreen() {
   const feedbackAudioStartedAtRef = useRef<number | null>(null);
   const feedbackAudioTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const feedbackAudioPreviewSoundRef = useRef<Audio.Sound | null>(null);
+  // Bumped whenever a preview is stopped or the reader unmounts, so a preview that
+  // finishes loading afterwards knows nobody wants it any more.
+  const feedbackAudioPreviewRequestRef = useRef(0);
   useEffect(() => {
     return () => {
       if (feedbackAudioTimerRef.current) {
         clearInterval(feedbackAudioTimerRef.current);
       }
+      feedbackAudioPreviewRequestRef.current += 1;
       void feedbackAudioPreviewSoundRef.current?.unloadAsync();
       const recording = feedbackAudioRecordingRef.current;
       void (async () => {
@@ -3189,12 +3193,14 @@ export function BibleReaderScreen() {
   };
 
   const stopFeedbackAudioPreview = async () => {
-    if (!feedbackAudioPreviewSoundRef.current) {
+    feedbackAudioPreviewRequestRef.current += 1;
+    const sound = feedbackAudioPreviewSoundRef.current;
+    if (!sound) {
       return;
     }
 
-    await feedbackAudioPreviewSoundRef.current.unloadAsync().catch(() => undefined);
     feedbackAudioPreviewSoundRef.current = null;
+    await sound.unloadAsync().catch(() => undefined);
   };
 
   const stopFeedbackAudioRecording = async () => {
@@ -3301,12 +3307,31 @@ export function BibleReaderScreen() {
     }
 
     await stopFeedbackAudioPreview();
+    const request = feedbackAudioPreviewRequestRef.current;
     await restoreFeedbackAudioPlaybackMode();
+    if (request !== feedbackAudioPreviewRequestRef.current) {
+      return;
+    }
     const { sound } = await Audio.Sound.createAsync(
       { uri: feedbackAudioDraft.uri },
       { shouldPlay: true }
     );
+    // A second tap or leaving the reader superseded this load: it must not play on untracked.
+    if (request !== feedbackAudioPreviewRequestRef.current) {
+      await sound.unloadAsync().catch(() => undefined);
+      return;
+    }
     feedbackAudioPreviewSoundRef.current = sound;
+    sound.setOnPlaybackStatusUpdate((status) => {
+      if (!status.isLoaded || !status.didJustFinish) {
+        return;
+      }
+      // Only the current preview owns the ref; an older one finishing leaves it alone.
+      if (feedbackAudioPreviewSoundRef.current === sound) {
+        feedbackAudioPreviewSoundRef.current = null;
+      }
+      void sound.unloadAsync().catch(() => undefined);
+    });
   };
 
   const discardFeedbackAudioDraft = () => {
