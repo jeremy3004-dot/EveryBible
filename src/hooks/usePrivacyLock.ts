@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
-import { AppState, type AppStateStatus } from 'react-native';
+import { AppState, Platform, type AppStateStatus } from 'react-native';
 import {
+  getPendingPrivacyLockGraceDeadline,
   isPrivacyLockGraceActive,
   notePrivacyLockAppState,
   shouldLockForAppStateChange,
@@ -49,7 +50,9 @@ const reconcileAppIcon = (): void => {
  *
  * Going inactive under system UI the app raised itself (an icon-change alert, a
  * permission prompt; see privacyLockGrace) does not lock, but backgrounding from there
- * still does.
+ * still does. On Android, where that prompt backgrounds the app instead, the lock waits
+ * while the prompt is open, up to the grace cap, and is dropped if the app comes back
+ * in time.
  *
  * It also retries an app icon change that did not take (iOS refuses one while the app is
  * not in the foreground): once privacy settings have loaded, and on every return to the
@@ -61,21 +64,67 @@ export const usePrivacyLock = () => {
     // An inactive spell left unlocked for the app's own system UI. Backgrounding from it
     // must still lock, though inactive -> background is not otherwise a lock trigger.
     let inactiveLockDeferred = false;
+    // Android: a background spell left unlocked for the app's own open prompt, and the
+    // time it stops being excused.
+    let backgroundLockDeadline: number | null = null;
+    let backgroundLockTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const clearBackgroundLock = (): void => {
+      if (backgroundLockTimer !== null) {
+        clearTimeout(backgroundLockTimer);
+      }
+      backgroundLockTimer = null;
+      backgroundLockDeadline = null;
+    };
+
+    // Android pauses JS timers in the background, so this may only run on return, where
+    // the check on 'active' below has already locked.
+    const lockIfStillAway = (): void => {
+      backgroundLockTimer = null;
+      try {
+        if (previousState !== 'active' && shouldStayLocked()) {
+          usePrivacyStore.getState().lock();
+        }
+      } catch (error) {
+        lockAfterPrivacyLockFailure(error);
+      }
+    };
 
     const subscription = AppState.addEventListener('change', (nextState) => {
       const leaving = previousState;
       previousState = nextState;
       const lockDeferred = inactiveLockDeferred;
       inactiveLockDeferred = false;
+      const backgroundDeadline = backgroundLockDeadline;
+      if (nextState === 'active') {
+        clearBackgroundLock();
+      }
 
       try {
         notePrivacyLockAppState(nextState);
+        if (
+          nextState === 'active' &&
+          backgroundDeadline !== null &&
+          Date.now() >= backgroundDeadline &&
+          shouldStayLocked()
+        ) {
+          // The prompt outlasted its grace while the app was away.
+          usePrivacyStore.getState().lock();
+        }
         const leavesForeground =
           shouldLockForAppStateChange(leaving, nextState) ||
           (lockDeferred && nextState === 'background');
         if (leavesForeground && shouldStayLocked()) {
+          const pendingDeadline =
+            nextState === 'background' && Platform.OS === 'android'
+              ? getPendingPrivacyLockGraceDeadline()
+              : null;
           if (nextState === 'inactive' && isPrivacyLockGraceActive()) {
             inactiveLockDeferred = true;
+          } else if (pendingDeadline !== null) {
+            clearBackgroundLock();
+            backgroundLockDeadline = pendingDeadline;
+            backgroundLockTimer = setTimeout(lockIfStillAway, pendingDeadline - Date.now());
           } else {
             usePrivacyStore.getState().lock();
           }
@@ -100,6 +149,7 @@ export const usePrivacyLock = () => {
 
     return () => {
       subscription.remove();
+      clearBackgroundLock();
       unsubscribeFromInitialization();
     };
   }, []);

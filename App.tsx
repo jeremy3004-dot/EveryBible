@@ -41,6 +41,7 @@ import { useAppSessionAnalytics } from './src/hooks/useAppSessionAnalytics';
 import { lockAfterPrivacyLockFailure, usePrivacyLock } from './src/hooks/usePrivacyLock';
 import { readPrivacyLockHint } from './src/services/privacy/privacyLockHint';
 import { startScreenCaptureProtection } from './src/services/privacy/screenCaptureProtection';
+import { subscribeToAppWindowChanges } from './src/services/privacy/privacyWindowEvents';
 
 // KEEP THIS UNGUARDED. scripts/benchmark-android-startup.py and
 // scripts/android_startup_metrics.py parse `[EB-T] App:module-start` (and
@@ -74,6 +75,7 @@ startScreenCaptureProtection({
   platform: Platform.OS,
   store: usePrivacyStore,
   readLockHint: readPrivacyLockHint,
+  subscribeToWindowChanges: subscribeToAppWindowChanges,
 });
 
 const ANDROID_BACKGROUND_STARTUP_DELAY_MS = 1500;

@@ -7,8 +7,16 @@
  *
  * So system UI the app raises runs through `withPrivacyLockGrace`, and while it is open,
  * and briefly after it settles, going 'inactive' does not lock. Going to the background
- * always locks, and so does backgrounding after an ignored inactive (see usePrivacyLock),
- * so the grace never keeps content visible outside the app.
+ * always locks on iOS, and so does backgrounding after an ignored inactive (see
+ * usePrivacyLock), so the grace never keeps content visible outside the app. Android's
+ * exception, for its own prompts only, is below.
+ *
+ * Android has no 'inactive': the app's own permission dialog pauses the activity and
+ * AppState reports 'background'. There, and only while a request run through
+ * `withPrivacyLockGrace` is still open (not in the settle tail, so leaving the app right
+ * after a prompt still locks), a 'background' may wait until the request's cap: returning
+ * to 'active' before it cancels the lock, and reaching it while still away locks (on
+ * return at the latest, since Android pauses JS timers in the background).
  *
  * It covers short, self-contained system UI that hands straight back to the same screen:
  * the icon alert, permission prompts (notifications, microphone) and the photo picker.
@@ -94,4 +102,21 @@ export function isPrivacyLockGraceActive(): boolean {
     }
   }
   return false;
+}
+
+/**
+ * While a request run through `withPrivacyLockGrace` is still open (and under the cap),
+ * the time until which its system UI may keep the app out of the foreground; otherwise
+ * null. Only Android uses it, for the 'background' its permission dialogs cause.
+ */
+export function getPendingPrivacyLockGraceDeadline(): number | null {
+  const now = Date.now();
+  let deadline: number | null = null;
+  for (const entry of pendingSince) {
+    const end = entry.startedAt + PRIVACY_LOCK_GRACE_MAX_PENDING_MS;
+    if (end > now && (deadline === null || end > deadline)) {
+      deadline = end;
+    }
+  }
+  return deadline;
 }

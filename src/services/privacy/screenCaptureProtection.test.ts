@@ -23,8 +23,28 @@ const recordNative =
 // Mirrors the package's own JS bookkeeping: a key is marked active before the native
 // call, so preventing again with a key still marked never reaches the native module.
 const activeKeys = new Set<string>();
-const preventNative = recordNative('preventScreenCaptureAsync');
-const allowNative = recordNative('allowScreenCaptureAsync');
+const recordPrevent = recordNative('preventScreenCaptureAsync');
+const recordAllow = recordNative('allowScreenCaptureAsync');
+// Android sets FLAG_SECURE on the current activity's window only. Switching the launcher
+// alias creates a new activity, and so a new window without the flag.
+let currentWindow = 1;
+const secureWindows = new Set<number>();
+const preventNative = async (key: string): Promise<void> => {
+  await recordPrevent(key);
+  secureWindows.add(currentWindow);
+};
+const allowNative = async (key: string): Promise<void> => {
+  await recordAllow(key);
+  secureWindows.delete(currentWindow);
+};
+const windowListeners = new Set<() => void>();
+/** The alias switch: a new activity window comes up and the app is active again. */
+const openNewWindow = () => {
+  currentWindow += 1;
+  windowListeners.forEach((listener) => listener());
+};
+/** The app coming back to the foreground on the same window. */
+const returnToSameWindow = () => windowListeners.forEach((listener) => listener());
 
 mockPackage(mock, 'expo-screen-capture', {
   preventScreenCaptureAsync: async (key = 'default') => {
@@ -87,6 +107,9 @@ beforeEach(() => {
   privacyStore.setState(UNINITIALIZED, true);
   lockHint = null;
   moduleLoads = 0;
+  currentWindow = 1;
+  secureWindows.clear();
+  windowListeners.clear();
 });
 
 // A failed assertion must not leave a subscription behind to answer the next test's changes.
@@ -103,6 +126,10 @@ const start = async (platform: string) => {
     loadScreenCapture: () => {
       moduleLoads += 1;
       return import('expo-screen-capture');
+    },
+    subscribeToWindowChanges: (listener) => {
+      windowListeners.add(listener);
+      return () => windowListeners.delete(listener);
     },
   });
   handles.push(handle);
@@ -301,4 +328,88 @@ test('stopping leaves later privacy changes alone', async () => {
   await protection.settled();
 
   assert.deepEqual(nativeCalls, []);
+});
+
+// ─── A new window after discreet mode is turned on (Android) ─────────────────
+
+test('turning discreet mode on mid-session also protects the window the alias switch opens', async () => {
+  becomes({ mode: 'standard' });
+  const protection = await start('android');
+  becomes({ mode: 'discreet' });
+  await protection.settled();
+  assert.deepEqual([...secureWindows], [1]);
+
+  openNewWindow();
+  await protection.settled();
+
+  assert.equal(secureWindows.has(currentWindow), true, 'the new window is FLAG_SECURE');
+  assert.deepEqual(nativeCalls, [
+    'preventScreenCaptureAsync(discreet)',
+    'preventScreenCaptureAsync(discreet:1)',
+  ]);
+  // The keys stay balanced: turning discreet off still clears the flag natively.
+  becomes({ mode: 'standard' });
+  await protection.settled();
+  assert.equal(secureWindows.has(currentWindow), false);
+  assert.deepEqual(activeKeys, new Set());
+});
+
+test('every return to the foreground re-asserts the flag once, and no more', async () => {
+  becomes({ mode: 'discreet' });
+  const protection = await start('android');
+  await protection.settled();
+
+  // The icon change completing and the app turning active arrive together.
+  openNewWindow();
+  returnToSameWindow();
+  returnToSameWindow();
+  await protection.settled();
+  assert.equal(nativeCalls.filter((call) => call.startsWith('prevent')).length, 2);
+
+  returnToSameWindow();
+  await protection.settled();
+  assert.equal(nativeCalls.filter((call) => call.startsWith('prevent')).length, 3);
+  assert.equal(
+    nativeCalls.some((call) => call.startsWith('allow')),
+    false,
+    'the flag is never lifted in between'
+  );
+});
+
+test('with discreet mode off a new window is left alone', async () => {
+  becomes({ mode: 'standard' });
+  const protection = await start('android');
+  openNewWindow();
+  await protection.settled();
+
+  assert.deepEqual(nativeCalls, []);
+  assert.equal(moduleLoads, 0);
+});
+
+test('iOS keeps its single app switcher cover across windows', async () => {
+  becomes({ mode: 'discreet' });
+  const protection = await start('ios');
+  await protection.settled();
+  openNewWindow();
+  await protection.settled();
+
+  assert.deepEqual(nativeCalls, ['enableAppSwitcherProtectionAsync(1)']);
+});
+
+test('a re-assert that fails is reported and the earlier protection is kept', async () => {
+  becomes({ mode: 'discreet' });
+  const protection = await start('android');
+  await protection.settled();
+
+  nativeFailure = new Error('window unavailable');
+  const reported = nextReport();
+  openNewWindow();
+  await protection.settled();
+  await reported;
+  assert.deepEqual(activeKeys, new Set(['discreet']), 'the failed key is released');
+
+  nativeFailure = null;
+  returnToSameWindow();
+  await protection.settled();
+  assert.equal(secureWindows.has(currentWindow), true, 'the next activation protects it');
 });
