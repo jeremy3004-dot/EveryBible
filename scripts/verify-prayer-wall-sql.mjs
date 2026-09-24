@@ -33,7 +33,8 @@ const MIGRATIONS = [
 const HARDENING = [
   '20260924042617_harden_prayer_wall.sql',
   '20260924045749_prayer_wall_moderation.sql',
-  '20260924210000_prayer_interactions_skip_hidden.sql',
+  '20260924114931_prayer_interactions_skip_hidden.sql',
+  '20260924115100_list_prayer_requests_with_counts.sql',
 ];
 
 const db = new PGlite();
@@ -562,3 +563,175 @@ assert.equal(
 );
 assert.equal(await count(`select count(*)::int n from user_blocks where blocker_id = $1`, [I]), 0);
 console.log("PASS: deleting an account removes that member's reports and blocks");
+
+// --- Listing with server-side counts -----------------------------------------------------------
+// list_prayer_requests(group, limit, before_created_at, before_id) returns one page of requests
+// with their prayed/encouraged counts and the viewer's own flags. The client used to read every
+// interaction row and count them itself, which PostgREST silently cut off at 1000 rows. The
+// function is SECURITY INVOKER, so the prayer_requests and prayer_interactions policies decide
+// what it returns: membership, hidden requests, blocks and reports all apply.
+const K = '66666666-6666-4666-8666-666666666666'; // leader of G3
+const L = '55555555-5555-4555-8555-555555555555'; // member of G3
+const M = '44444444-4444-4444-8444-444444444444'; // member of G3
+const N = '33333333-3333-4333-8333-333333333333'; // member of G3
+const O = '12121212-1212-4212-8212-121212121212'; // outsider
+const G3 = '34343434-3434-4343-8343-343434343434';
+for (const table of ['auth.users', 'public.profiles']) {
+  await db.exec(`insert into ${table} values ('${K}'),('${L}'),('${M}'),('${N}'),('${O}');`);
+}
+await as(
+  K,
+  `insert into groups (id, name, leader_id, join_code) values ($1, 'Group', $2, 'LST234')`,
+  [G3, K]
+);
+await as(K, `insert into group_members (group_id, user_id, role) values ($1, $2, 'leader')`, [
+  G3,
+  K,
+]);
+for (const uid of [L, M, N]) await as(uid, `select join_group_by_code('LST234')`);
+
+const list = (uid, gid, limit = null, beforeCreatedAt = null, beforeId = null) =>
+  as(uid, `select * from list_prayer_requests($1, $2, $3, $4)`, [
+    gid,
+    limit,
+    beforeCreatedAt,
+    beforeId,
+  ]).then((result) => result.rows);
+const interact = (uid, id, type) =>
+  as(uid, `insert into prayer_interactions (request_id, user_id, type) values ($1, $2, $3)`, [
+    id,
+    uid,
+    type,
+  ]);
+/** content -> [prayed, encouraged, viewer prayed, viewer encouraged] */
+const summary = (rows) =>
+  Object.fromEntries(
+    rows.map((row) => [
+      row.content,
+      [row.prayed_count, row.encouraged_count, row.viewer_has_prayed, row.viewer_has_encouraged],
+    ])
+  );
+
+assert.equal(
+  (await one(`select prosecdef from pg_proc where proname = 'list_prayer_requests'`)).prosecdef,
+  false,
+  'the listing runs as the caller, so RLS applies'
+);
+await assert.rejects(list(null, G3), /permission denied/);
+
+const fromK = await post(K, G3, 'from the leader');
+const fromM = await post(M, G3, 'from M');
+const fromN = await post(N, G3, 'from N');
+await interact(L, fromK.id, 'prayed');
+await interact(M, fromK.id, 'prayed');
+await interact(N, fromK.id, 'encouraged');
+await interact(L, fromK.id, 'encouraged');
+await interact(K, fromM.id, 'prayed');
+assert.deepEqual(summary(await list(L, G3)), {
+  'from N': [0, 0, false, false],
+  'from M': [1, 0, false, false],
+  'from the leader': [2, 2, true, true],
+});
+assert.deepEqual(summary(await list(K, G3))['from M'], [1, 0, true, false]);
+assert.deepEqual(
+  Object.keys((await list(L, G3))[0]).sort(),
+  [
+    'answered_at',
+    'content',
+    'created_at',
+    'encouraged_count',
+    'group_id',
+    'hidden_at',
+    'hidden_reason',
+    'id',
+    'is_answered',
+    'prayed_count',
+    'updated_at',
+    'user_id',
+    'viewer_has_encouraged',
+    'viewer_has_prayed',
+  ],
+  'each row is the request plus its counts and the viewer flags'
+);
+assert.deepEqual(await list(O, G3), [], 'outsiders get nothing');
+assert.deepEqual(await list(L, G1), [], 'nor do members of other groups');
+
+// Counts are aggregated in the database, so a busy request is not cut off at 1000 rows.
+const crowd = Array.from(
+  { length: 700 },
+  (_, index) => `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`
+);
+await db.transaction(async (tx) => {
+  await tx.exec(`set local session_replication_role = replica`);
+  await tx.query(
+    `insert into prayer_interactions (request_id, user_id, type)
+     select $1, member::uuid, kind from unnest($2::text[]) member,
+            unnest(array['prayed', 'encouraged']) kind`,
+    [fromN.id, crowd]
+  );
+});
+assert.deepEqual(summary(await list(L, G3))['from N'], [700, 700, false, false]);
+console.log('PASS: list_prayer_requests counts interactions in the database for group members');
+
+// Moderation applies exactly as it does to the table: hidden requests only for their author,
+// blocked authors and reported requests not at all.
+await asService(
+  `update prayer_requests set hidden_at = now(), hidden_reason = 'admin' where id = $1`,
+  [fromM.id]
+);
+assert.equal(summary(await list(L, G3))['from M'], undefined, 'hidden from the group');
+assert.equal(summary(await list(K, G3))['from M'], undefined, 'leader included');
+assert.ok((await list(M, G3)).find((row) => row.id === fromM.id)?.hidden_at, 'author sees it');
+await asService(`update prayer_requests set hidden_at = null, hidden_reason = null where id = $1`, [
+  fromM.id,
+]);
+await as(L, `insert into user_blocks (blocker_id, blocked_id) values ($1, $2)`, [L, N]);
+assert.equal(summary(await list(L, G3))['from N'], undefined, 'blocked authors disappear');
+assert.ok(summary(await list(M, G3))['from N'], 'only for the blocker');
+await as(L, `delete from user_blocks where blocked_id = $1`, [N]);
+await report(L, fromK.id, 'spam');
+assert.equal(summary(await list(L, G3))['from the leader'], undefined, 'reported requests too');
+console.log('PASS: list_prayer_requests applies hidden, blocked and reported rules');
+
+// Pages are newest first, and a (created_at, id) cursor continues without gaps or repeats, even
+// when requests share a created_at.
+await db.transaction(async (tx) => {
+  await tx.exec(`set local session_replication_role = replica`);
+  await tx.query(
+    `insert into prayer_requests (group_id, user_id, content, created_at)
+     select $1, $2, 'paged ' || n, timestamptz '2026-01-01' + ((n / 3) || ' minutes')::interval
+       from generate_series(1, 11) n`,
+    [G3, M]
+  );
+});
+const everything = await list(M, G3);
+assert.equal(everything.length, 14);
+for (let index = 1; index < everything.length; index += 1) {
+  const [newer, older] = [everything[index - 1], everything[index]];
+  assert.ok(
+    newer.created_at > older.created_at ||
+      (newer.created_at.getTime() === older.created_at.getTime() && newer.id > older.id),
+    'ordered by created_at desc, id desc'
+  );
+}
+const walked = [];
+let cursor = { created_at: null, id: null };
+for (;;) {
+  const page = await list(M, G3, 4, cursor.created_at, cursor.id);
+  assert.ok(page.length <= 4);
+  walked.push(...page.map((row) => row.id));
+  if (page.length < 4) break;
+  const last = page[page.length - 1].id;
+  // The client passes back created_at as PostgREST returned it, at full precision.
+  cursor = await one(`select created_at::text created_at, id from prayer_requests where id = $1`, [
+    last,
+  ]);
+}
+assert.deepEqual(
+  walked,
+  everything.map((row) => row.id),
+  'walking the pages returns every request once, in order'
+);
+assert.equal((await list(M, G3, 0)).length, 1, 'a page holds at least one request');
+assert.equal((await list(M, G3, 5000)).length, 14, 'large limits are capped, not refused');
+console.log('PASS: list_prayer_requests pages newest first with a (created_at, id) cursor');

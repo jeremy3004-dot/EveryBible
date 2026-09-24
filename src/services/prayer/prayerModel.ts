@@ -79,6 +79,53 @@ export function viewerInteractionsByRequest(
   return viewerMap;
 }
 
+export type PrayerInteractionType = 'prayed' | 'encouraged';
+
+interface InteractionState {
+  prayed_count: number;
+  encouraged_count: number;
+  viewer_prayed: boolean;
+  viewer_encouraged: boolean;
+}
+
+const COUNT_KEY = { prayed: 'prayed_count', encouraged: 'encouraged_count' } as const;
+const FLAG_KEY = { prayed: 'viewer_prayed', encouraged: 'viewer_encouraged' } as const;
+
+/**
+ * The row once the server has confirmed the viewer's flag for `type` is now `active`. The count
+ * moves only when the flag actually changes, so a confirmation that a reload already reflects
+ * is not counted twice.
+ */
+export function applyConfirmedInteraction<T extends InteractionState>(
+  row: T,
+  type: PrayerInteractionType,
+  active: boolean
+): T {
+  if (row[FLAG_KEY[type]] === active) return row;
+  return {
+    ...row,
+    [FLAG_KEY[type]]: active,
+    [COUNT_KEY[type]]: Math.max(0, row[COUNT_KEY[type]] + (active ? 1 : -1)),
+  };
+}
+
+/**
+ * What the wall shows while taps are in flight: each pending target laid over the latest
+ * confirmed row. A failed tap just drops its pending entry, so the card falls back to whatever
+ * the server last confirmed, including a reload that landed while the tap was in flight.
+ */
+export function withPendingInteractions<T extends InteractionState>(
+  row: T,
+  pending: Partial<Record<PrayerInteractionType, boolean>>
+): T {
+  let shown = row;
+  for (const type of ['prayed', 'encouraged'] as const) {
+    const target = pending[type];
+    if (target !== undefined) shown = applyConfirmedInteraction(shown, type, target);
+  }
+  return shown;
+}
+
 export type PrayerRequestAction = 'edit' | 'markAnswered' | 'report' | 'block' | 'delete';
 
 /**
