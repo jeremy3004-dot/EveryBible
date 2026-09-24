@@ -113,7 +113,7 @@ test('reader prefetches text only after accepting a successful nonempty chapter 
   );
   assert.match(
     loadChapter,
-    /await getChapter\([\s\S]*requestId !== chapterLoadRequestIdRef.current[\s\S]*return;[\s\S]*setVerses\(data\);\s*if \(data.length > 0\) \{[\s\S]*void prefetchNextChapter\(currentTranslation, bookId, chapter\);/
+    /await getChapter\([\s\S]*requestId !== chapterLoadRequestIdRef.current[\s\S]*return;[\s\S]*setVerses\(data\);\s*setVersesChapterKey\([^)]*\);\s*if \(data.length > 0\) \{[\s\S]*void prefetchNextChapter\(currentTranslation, bookId, chapter\);/
   );
   assert.doesNotMatch(loadChapter, /playChapter\(|prefetchChapterAudio\(/);
 });

@@ -131,6 +131,12 @@ interface ReaderInlineActiveVerseInput {
   isCurrentAudioChapter: boolean;
   activeFollowAlongVerse: number | null;
   focusVerse?: number;
+  /**
+   * False while a chapter change still shows the previous chapter's verses. The
+   * route (and the audio) already name the new chapter, so neither its live
+   * verse nor its focus verse belongs on the text that is visible.
+   */
+  isShowingRouteChapter?: boolean;
 }
 
 interface ReaderAutoScrollTargetInput {
@@ -484,7 +490,12 @@ export const getReaderInlineActiveVerse = ({
   isCurrentAudioChapter,
   activeFollowAlongVerse,
   focusVerse,
+  isShowingRouteChapter = true,
 }: ReaderInlineActiveVerseInput): number | null => {
+  if (!isShowingRouteChapter) {
+    return null;
+  }
+
   if (isCurrentAudioChapter && activeFollowAlongVerse != null) {
     return activeFollowAlongVerse;
   }

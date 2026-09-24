@@ -725,6 +725,9 @@ export function BibleReaderScreen() {
     );
   }, []);
   const [verses, setVerses] = useState<Verse[]>([]);
+  // Which chapter `verses` holds. A chapter change keeps the old verses visible
+  // until the new ones load, so this can lag the route's bookId/chapter.
+  const [versesChapterKey, setVersesChapterKey] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showFontSizeSheet, setShowFontSizeSheet] = useState(false);
@@ -1599,10 +1602,12 @@ export function BibleReaderScreen() {
     : null;
   const activeFollowAlongVerse = followAlongPlaybackState.verse;
   const didRestartFollowAlongPlayback = followAlongPlaybackState.didRestart;
+  const isShowingRouteChapter = versesChapterKey === `${bookId}:${chapter}`;
   const readerInlineActiveVerse = getReaderInlineActiveVerse({
     isCurrentAudioChapter,
     activeFollowAlongVerse,
     focusVerse,
+    isShowingRouteChapter,
   });
   const showPremiumReadMode =
     chapterPresentationMode === 'text' && verses.length > 0 && !isLoading && error == null;
@@ -2348,6 +2353,7 @@ export function BibleReaderScreen() {
     // verses instead: an empty chapter with audio available IS the audio-first state.
     if (!shouldAttemptChapterTextLoad(currentTranslationInfo)) {
       setVerses([]);
+      setVersesChapterKey(`${bookId}:${chapter}`);
       setIsLoading(false);
       return;
     }
@@ -2358,6 +2364,7 @@ export function BibleReaderScreen() {
         return;
       }
       setVerses(data);
+      setVersesChapterKey(`${bookId}:${chapter}`);
       if (data.length > 0) {
         chapterPrefetchTaskRef.current = InteractionManager.runAfterInteractions(() => {
           if (requestId !== chapterLoadRequestIdRef.current) {
@@ -6237,7 +6244,7 @@ export function BibleReaderScreen() {
             showsVerticalScrollIndicator={false}
           >
             {verses.map((verse) => {
-              const isActive = verse.verse === activeFollowAlongVerse;
+              const isActive = isShowingRouteChapter && verse.verse === activeFollowAlongVerse;
 
               return (
                 <View

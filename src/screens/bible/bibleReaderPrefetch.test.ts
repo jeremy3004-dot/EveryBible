@@ -27,6 +27,7 @@ function harness() {
     setIsLoading: () => {},
     setError: () => {},
     setVerses: () => {},
+    setVersesChapterKey: () => {},
     getChapter: async () => [{ verse: 1 }],
     currentTranslation: 'bsb',
     bookId: 'JHN',
