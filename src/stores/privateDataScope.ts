@@ -25,6 +25,7 @@
 import type { StateStorage } from 'zustand/middleware';
 import type { StoreApi } from 'zustand';
 import { mmkvInstance } from './mmkvStorage';
+import { createGuardedStringStorage } from './guardedMmkvStorage';
 
 /** MMKV key holding whose bucket is active: `{ owner: uid | null }`. */
 export const PRIVATE_DATA_OWNER_KEY = 'private-data-owner';
@@ -178,22 +179,28 @@ const withWritesSuspended = (run: () => void): void => {
   }
 };
 
+// Failed reads and writes degrade as they do for every other store (guardedMmkvStorage.ts).
+const guardedBuckets = createGuardedStringStorage(mmkvInstance, (name) =>
+  privateDataStorageKey(name, resolveActiveOwner())
+);
+
+// Counts writes that did not reach the active bucket, so a guest adoption can tell whether
+// the account bucket really took the guest data before it deletes the guest copy.
+let droppedWrites = 0;
+
 /**
  * StateStorage for the private stores: reads and writes the active owner's
  * bucket. Pass it to `createJSONStorage` in place of `zustandStorage`.
  */
 export const privateDataStorage: StateStorage = {
-  getItem: (name) =>
-    mmkvInstance.getString(privateDataStorageKey(name, resolveActiveOwner())) ?? null,
+  getItem: guardedBuckets.getItem,
   setItem: (name, value) => {
     if (writesSuspended) {
       return;
     }
-    const key = privateDataStorageKey(name, resolveActiveOwner());
-    if (mmkvInstance.getString(key) === value) {
-      return;
+    if (!guardedBuckets.setItem(name, value)) {
+      droppedWrites += 1;
     }
-    mmkvInstance.set(key, value);
   },
   removeItem: (name) => {
     if (writesSuspended) {
@@ -263,8 +270,15 @@ export function switchPrivateDataOwner(
       store.reload();
     }
     // Writes the merged state into the account's bucket.
+    const droppedBeforeAdoption = droppedWrites;
     for (const apply of applyGuest) {
       apply();
+    }
+    if (droppedWrites !== droppedBeforeAdoption) {
+      // The account bucket did not take the guest data, so the guest bucket is still its
+      // only copy on disk. Keep it; the next adoption merges it again (merges are idempotent).
+      writeOwnerMarker({ owner: nextOwner });
+      return;
     }
     writeOwnerMarker({ owner: nextOwner, clearGuest: true });
     clearGuestBuckets();
