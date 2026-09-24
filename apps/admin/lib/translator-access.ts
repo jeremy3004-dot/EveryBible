@@ -152,6 +152,136 @@ export async function getTranslatorTeams(): Promise<TranslatorTeamSummary[]> {
   }));
 }
 
+// ---------------------------------------------------------------------------
+// Retiring the old shared passcode (TRANSLATOR_REVIEW_PASSCODE)
+// ---------------------------------------------------------------------------
+
+// PostgREST and Postgres codes for "this table does not exist" (migration not applied yet).
+const MISSING_TABLE_CODES = new Set(['PGRST205', '42P01']);
+const isMissingTable = (error: { code?: string | null } | null) =>
+  MISSING_TABLE_CODES.has(String(error?.code ?? ''));
+
+/** Translations that have feedback but no active team code: they still need the shared code. */
+export function translationsWithoutTeamCode(
+  feedbackTranslationIds: string[],
+  teams: TranslatorTeamSummary[]
+): string[] {
+  const covered = new Set(
+    teams.filter((team) => team.revokedAt === null).flatMap((team) => team.translationIds)
+  );
+  return feedbackTranslationIds.filter((id) => !covered.has(id));
+}
+
+export interface SharedPasscodeSetting {
+  /** False until the 20260924150000 migration is applied; the switch cannot be used before. */
+  installed: boolean;
+  /** Whether review-chapter-feedback still accepts the shared passcode. */
+  allowed: boolean;
+  updatedAt: string | null;
+}
+
+/** The switch review-chapter-feedback reads. A missing row means "allowed", as in the function. */
+export async function getSharedPasscodeSetting(): Promise<SharedPasscodeSetting> {
+  const service = createAdminServiceClient();
+  const { data, error } = await service
+    .from('translator_access_settings')
+    .select('shared_passcode_enabled, updated_at')
+    .eq('id', true)
+    .maybeSingle<{ shared_passcode_enabled: boolean; updated_at: string }>();
+
+  if (error) {
+    if (isMissingTable(error)) return { installed: false, allowed: true, updatedAt: null };
+    throw new Error(`Unable to load the shared passcode setting: ${error.message}`);
+  }
+  return {
+    installed: true,
+    allowed: data?.shared_passcode_enabled !== false,
+    updatedAt: data?.updated_at ?? null,
+  };
+}
+
+export interface SharedPasscodeTranslationUsage {
+  /** Null when the request named no translation (e.g. unlocking from Settings). */
+  translationId: string | null;
+  allowed: number;
+  refused: number;
+  lastUsedAt: string;
+}
+
+export interface SharedPasscodeUsage {
+  installed: boolean;
+  since: string;
+  total: number;
+  lastUsedAt: string | null;
+  /** True when the window held more rows than were read; counts are then a lower bound. */
+  truncated: boolean;
+  byTranslation: SharedPasscodeTranslationUsage[];
+}
+
+const USAGE_ROW_LIMIT = 5000;
+export const SHARED_PASSCODE_USAGE_WINDOW_DAYS = 30;
+
+/**
+ * Requests that presented the shared passcode in the last `windowDays`, grouped by the
+ * translation they asked for, most recently used first. The log holds no passcode or address.
+ */
+export async function getSharedPasscodeUsage(
+  now: Date = new Date(),
+  windowDays: number = SHARED_PASSCODE_USAGE_WINDOW_DAYS
+): Promise<SharedPasscodeUsage> {
+  const since = new Date(now.getTime() - windowDays * 24 * 60 * 60 * 1000).toISOString();
+  const empty: SharedPasscodeUsage = {
+    installed: false,
+    since,
+    total: 0,
+    lastUsedAt: null,
+    truncated: false,
+    byTranslation: [],
+  };
+  const service = createAdminServiceClient();
+  const { data, error } = await service
+    .from('translator_shared_passcode_uses')
+    .select('translation_id, outcome, used_at')
+    .gte('used_at', since)
+    .order('used_at', { ascending: false })
+    .limit(USAGE_ROW_LIMIT);
+
+  if (error) {
+    if (isMissingTable(error)) return empty;
+    throw new Error(`Unable to load shared passcode uses: ${error.message}`);
+  }
+
+  const rows = (data ?? []) as Array<{
+    translation_id: string | null;
+    outcome: 'allowed' | 'refused';
+    used_at: string;
+  }>;
+  const byTranslation = new Map<string | null, SharedPasscodeTranslationUsage>();
+  for (const row of rows) {
+    const entry = byTranslation.get(row.translation_id) ?? {
+      translationId: row.translation_id,
+      allowed: 0,
+      refused: 0,
+      lastUsedAt: row.used_at,
+    };
+    if (row.outcome === 'refused') entry.refused += 1;
+    else entry.allowed += 1;
+    if (row.used_at > entry.lastUsedAt) entry.lastUsedAt = row.used_at;
+    byTranslation.set(row.translation_id, entry);
+  }
+
+  return {
+    installed: true,
+    since,
+    total: rows.length,
+    lastUsedAt: rows[0]?.used_at ?? null,
+    truncated: rows.length >= USAGE_ROW_LIMIT,
+    byTranslation: [...byTranslation.values()].sort((a, b) =>
+      b.lastUsedAt.localeCompare(a.lastUsedAt)
+    ),
+  };
+}
+
 /**
  * Translation ids that already have chapter feedback, i.e. ids exactly as the app sends them.
  * Shown as a hint when choosing what a new passcode covers.

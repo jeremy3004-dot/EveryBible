@@ -80,17 +80,40 @@ only for the translations in `TRANSLATOR_REVIEW_PASSCODE_TRANSLATIONS`
 when team passcodes shipped. If a team code and the shared code are ever the same
 digits, the team's narrower scope wins.
 
+Every request that presents the shared code is recorded in
+`public.translator_shared_passcode_uses`: the translation it asked for, the request type
+(unlock, read, resolve, reopen, audio, bulk review), whether it was allowed or refused,
+and the time. No passcode, hash, address or user id is stored. The **Shared passcode**
+panel on **Translator Access** summarises the last 30 days per translation, lists the
+translations with feedback that no active team code covers, and holds the off switch
+(`public.translator_access_settings.shared_passcode_enabled`, default on).
+
 To retire the shared passcode:
 
-1. Create a team passcode for every team that uses the shared one, and hand them out.
-2. Run `supabase secrets set TRANSLATOR_REVIEW_PASSCODE_TRANSLATIONS=none`. The shared
-   code now opens nothing and counts as a wrong guess, so anyone still using it hits
-   the lockout after 10 tries. Secrets apply without a redeploy.
-3. Once nobody reports problems, unset both secrets:
+1. Create a team passcode for every translation the panel lists as having no team code,
+   and hand them out. Watch the usage table until the shared code stops appearing.
+2. In the panel, tick the confirmation and choose **Turn off the shared passcode**. It
+   takes effect on the next request, with no deploy. The shared code is then refused
+   exactly like a wrong code (it counts toward the lockout), and each refusal still
+   appears in the usage table, so you can see who was cut off. **Allow the shared
+   passcode again** undoes it. If the switch cannot be read, the function refuses the
+   shared code (fail closed) and team codes keep working.
+   (`supabase secrets set TRANSLATOR_REVIEW_PASSCODE_TRANSLATIONS=none` has the same
+   effect, without the usage record of refusals.)
+3. Once nobody has been refused for a while, unset both secrets:
 
    ```bash
    supabase secrets unset TRANSLATOR_REVIEW_PASSCODE TRANSLATOR_REVIEW_PASSCODE_TRANSLATIONS
    ```
+
+   The usage table can then be dropped in a later migration.
+
+Rolling out the switch: apply `20260924150000_translator_shared_passcode_switch.sql`,
+then deploy `review-chapter-feedback`, then the admin app. Each step is safe on its own:
+the migration creates the switch already on and the current function ignores both
+tables; the new function treats a missing settings table as "allowed" and only logs a
+failed usage write; the admin page shows "not installed" for either table until the
+migration exists.
 
 `submit-chapter-feedback` verifies the council code for each council submission.
 `contributor_category` snapshots `community` or `scripture_council` at submission;

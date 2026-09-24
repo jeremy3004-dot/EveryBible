@@ -8,7 +8,15 @@ import {
 import { requireAdminIdentity } from '@/lib/admin-auth';
 import { getAdminRequiredEnvKeys } from '@/lib/env';
 import { formatDateTime } from '@/lib/format';
-import { getTranslationIdsWithFeedback, getTranslatorTeams } from '@/lib/translator-access';
+import { SharedPasscodePanel } from '@/components/SharedPasscodePanel';
+import {
+  SHARED_PASSCODE_USAGE_WINDOW_DAYS,
+  getSharedPasscodeSetting,
+  getSharedPasscodeUsage,
+  getTranslationIdsWithFeedback,
+  getTranslatorTeams,
+  translationsWithoutTeamCode,
+} from '@/lib/translator-access';
 
 interface TranslatorAccessPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -28,9 +36,11 @@ export default async function TranslatorAccessPage({ searchParams }: TranslatorA
   const resolvedSearchParams = await searchParams;
   const notice = firstParam(resolvedSearchParams.notice);
   const error = firstParam(resolvedSearchParams.error);
-  const [teams, feedbackTranslationIds] = await Promise.all([
+  const [teams, feedbackTranslationIds, sharedSetting, sharedUsage] = await Promise.all([
     getTranslatorTeams(),
     getTranslationIdsWithFeedback(),
+    getSharedPasscodeSetting(),
+    getSharedPasscodeUsage(),
   ]);
 
   const columns = [
@@ -72,8 +82,9 @@ export default async function TranslatorAccessPage({ searchParams }: TranslatorA
           {teams.length === 0 ? (
             <tr>
               <td colSpan={columns.length} className="data-table__empty">
-                No team passcodes yet. Until one exists, translators use the shared passcode, which
-                only covers the translations in TRANSLATOR_REVIEW_PASSCODE_TRANSLATIONS.
+                No team passcodes yet. Until one exists, translators use the shared passcode (see
+                below), which only covers the translations in
+                TRANSLATOR_REVIEW_PASSCODE_TRANSLATIONS.
               </td>
             </tr>
           ) : (
@@ -104,6 +115,13 @@ export default async function TranslatorAccessPage({ searchParams }: TranslatorA
           )}
         </DataTable>
       </AdminCard>
+
+      <SharedPasscodePanel
+        setting={sharedSetting}
+        usage={sharedUsage}
+        translationsWithoutCode={translationsWithoutTeamCode(feedbackTranslationIds, teams)}
+        windowDays={SHARED_PASSCODE_USAGE_WINDOW_DAYS}
+      />
     </div>
   );
 }
