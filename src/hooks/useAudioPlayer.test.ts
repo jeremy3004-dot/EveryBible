@@ -937,6 +937,58 @@ test('resume after a cold restart falls back to the durable resume anchor', asyn
   assert.equal(recorded.nowPlaying.at(-1)?.positionMs, 45_000);
 });
 
+// After a relaunch the chapter is loaded again from the saved offset. Selecting the
+// track zeroed that offset before the load had even started, so a load that failed
+// (offline, a stream error) or a second tap while it was slow began the chapter
+// again from 0:00, and the saved place was gone for good.
+const coldStartAt = (positionMs: number) => {
+  useAudioStore.setState({
+    lastPlayedTranslationId: 'bsb',
+    lastPlayedBookId: 'GEN',
+    lastPlayedChapter: 1,
+    lastPosition: positionMs,
+  });
+};
+
+test('a resume that fails to load keeps the saved place for the next try', async () => {
+  const player = mountPlayer();
+  coldStartAt(180_000);
+  scenario.failLoadUrls.add('https://cdn.example/bsb/GEN/1.mp3');
+
+  await player.rerender().togglePlayPause();
+  assert.equal(store().status, 'error');
+  assert.equal(store().lastPosition, 180_000);
+
+  scenario.failLoadUrls.clear();
+  recorded.player.length = 0;
+  await player.rerender().togglePlayPause();
+
+  assert.deepEqual(playerCalls('seekTo'), [{ method: 'seekTo', args: [180_000] }]);
+  assert.equal(store().status, 'playing');
+});
+
+test('a second Play while a resume is still loading resumes at the same place', async () => {
+  let release!: () => void;
+  playerGates.set(
+    'load:https://cdn.example/bsb/GEN/1.mp3',
+    new Promise<void>((resolve) => {
+      release = resolve;
+    })
+  );
+  const player = mountPlayer();
+  coldStartAt(180_000);
+
+  const first = player.rerender().togglePlayPause();
+  await new Promise((resolve) => setImmediate(resolve));
+  playerGates.clear();
+  const second = player.rerender().togglePlayPause();
+  release();
+  await Promise.all([first, second]);
+
+  assert.deepEqual(playerCalls('seekTo'), [{ method: 'seekTo', args: [180_000] }]);
+  assert.equal(store().currentPosition, 180_000);
+});
+
 test('stop tears playback down and silences the background bed', async () => {
   const player = mountPlayer();
   await player.api.playChapter('GEN', 1);

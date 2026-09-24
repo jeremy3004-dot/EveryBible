@@ -475,8 +475,11 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       stopAudioProgressTelemetryTimer();
       await audioPlayer.stop();
       if (playRequestId !== playRequestIdRef.current) return;
+      const startPositionMs = Math.max(0, Math.round(options?.startPositionMs ?? 0));
       setStatus('loading');
-      setCurrentTrack(targetTranslationId, bookId, chapter);
+      // Keep the resume point until the chapter actually plays: a load that fails, or
+      // a second Play while it is slow, must resume at the same place, not at 0:00.
+      setCurrentTrack(targetTranslationId, bookId, chapter, startPositionMs);
       syncQueueToTrackInStore(targetTranslationId, bookId, chapter);
       if (
         playbackSequence.length > 0 &&
@@ -486,7 +489,6 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       }
 
       try {
-        const startPositionMs = Math.max(0, Math.round(options?.startPositionMs ?? 0));
         let audioData = await getChapterAudioUrl(targetTranslationId, bookId, chapter, verse);
         const initialAudioUrl = audioData?.url ?? null;
 
