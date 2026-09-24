@@ -9,6 +9,7 @@ import {
   sourcePath,
 } from '../../testing/mockModules';
 import { createSupabaseFake, type SupabaseFakeResult } from '../../testing/supabaseFake';
+import { assertDefined } from '../../utils/assertDefined';
 
 /**
  * Behavioural coverage through the real module loader. The vm-based
@@ -382,8 +383,9 @@ test('scheduling a reminder on Android waits for the channel its trigger names',
   await notifications.scheduleDailyReminder(8, 30);
 
   assert.equal(schedules.length, 1);
+  const androidRequest = assertDefined(schedules[0], 'the scheduled request');
   assert.equal(
-    (schedules[0].trigger as { channelId: string }).channelId,
+    (androidRequest.trigger as { channelId: string }).channelId,
     'daily-reminder',
     'a trigger naming a channel Android has not been told about is dropped'
   );
@@ -463,14 +465,15 @@ test('scheduling a reminder replaces the previous one under a stable identifier'
 
   assert.deepEqual(cancellations, ['daily-reading-reminder']);
   assert.equal(schedules.length, 1);
-  assert.equal(schedules[0].identifier, 'daily-reading-reminder');
-  assert.deepEqual(JSON.parse(JSON.stringify(schedules[0].trigger)), {
+  const request = assertDefined(schedules[0], 'the scheduled request');
+  assert.equal(request.identifier, 'daily-reading-reminder');
+  assert.deepEqual(JSON.parse(JSON.stringify(request.trigger)), {
     type: 'daily',
     hour: 8,
     minute: 30,
     channelId: 'daily-reminder',
   });
-  assert.deepEqual(JSON.parse(JSON.stringify(schedules[0].content)), {
+  assert.deepEqual(JSON.parse(JSON.stringify(request.content)), {
     title: 'settings.notificationTitle',
     body: 'settings.notificationBody',
     sound: true,
@@ -502,7 +505,8 @@ for (const [hour, minute] of [
   test(`a reminder set for ${hour}:${String(minute).padStart(2, '0')} is scheduled at exactly that time every day`, async () => {
     await notifications.scheduleDailyReminder(hour, minute);
 
-    assert.deepEqual(JSON.parse(JSON.stringify(schedules[0].trigger)), {
+    const request = assertDefined(schedules[0], 'the scheduled request');
+    assert.deepEqual(JSON.parse(JSON.stringify(request.trigger)), {
       type: 'daily',
       hour,
       minute,
@@ -825,10 +829,11 @@ test('registering forwards the native token, disables Expo auto-registration and
   assert.equal(await notifications.registerPushToken(uid, native), 'expo-token');
 
   assert.deepEqual(autoRegistration, [false]);
-  assert.equal(tokenCalls[0].projectId, 'project-id');
-  assert.equal(tokenCalls[0].baseUrl, 'https://exp.host/--/api/v2/');
-  assert.equal(tokenCalls[0].devicePushToken, native);
-  const [upsert] = upsertsFor(uid);
+  const tokenCall = assertDefined(tokenCalls[0], 'the token registration call');
+  assert.equal(tokenCall.projectId, 'project-id');
+  assert.equal(tokenCall.baseUrl, 'https://exp.host/--/api/v2/');
+  assert.equal(tokenCall.devicePushToken, native);
+  const upsert = assertDefined(upsertsFor(uid)[0], 'the first upserted push token row');
   assert.deepEqual(upsert.payload, {
     user_id: uid,
     push_token: 'expo-token',
@@ -848,7 +853,8 @@ test('the platform column records android for Android devices', async () => {
 
   await notifications.registerPushToken(uid);
 
-  assert.equal((upsertsFor(uid)[0].payload as { platform: string }).platform, 'android');
+  const androidUpsert = assertDefined(upsertsFor(uid)[0], 'the upserted push token row');
+  assert.equal((androidUpsert.payload as { platform: string }).platform, 'android');
 
   await notifications.deactivatePushToken(uid);
 });
