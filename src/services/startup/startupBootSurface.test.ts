@@ -261,6 +261,33 @@ test('App.tsx static import closure never reaches heavy runtime modules', () => 
   );
 });
 
+test('RootNavigator static import closure leaves the translations service for later', () => {
+  const navigatorPath = fileURLToPath(
+    new URL('../../navigation/RootNavigator.tsx', import.meta.url).href
+  );
+  const closurePaths = [...collectStaticImportClosure(navigatorPath)].map((file) =>
+    file.replace(/\\/g, '/')
+  );
+
+  // The navigator is evaluated before Home can paint. The translations barrel
+  // brings the runtime catalog bootstrap and the Fuse-backed locale search
+  // engine with it; the deferred startup warmup loads them after interactions.
+  ['src/services/translations/index.ts', 'src/services/onboarding/localeSelection.ts'].forEach(
+    (suffix) => {
+      const hit = closurePaths.find((file) => file.endsWith(suffix));
+      assert.equal(
+        hit,
+        undefined,
+        `RootNavigator's static import closure should not reach ${suffix} (found ${hit}); load it with a deferred require()/import()`
+      );
+    }
+  );
+  assert.ok(
+    closurePaths.some((file) => file.endsWith('src/stores/bibleStore.ts')),
+    'the navigator closure should still include bibleStore — check the walker if this fails'
+  );
+});
+
 // The `src/hooks`, `src/constants` and `src/stores` barrels each re-export a
 // large family of modules — `src/constants` alone pulls the ~298KB
 // bookIconVectors table in through `bookIcons`, and `src/stores` hydrates all

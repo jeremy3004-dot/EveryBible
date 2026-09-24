@@ -44,7 +44,6 @@ import {
   toPersistedTranslation,
   writeRuntimeCatalogSnapshot,
 } from './bibleTranslationPersistence';
-import { setUserTranslationPreferences } from '../services/translations';
 import {
   mergeRuntimeCatalogTranslations,
   mergeDownloadedAudioBook,
@@ -63,6 +62,21 @@ import {
   upsertTextPackInstall,
 } from '../services/bible/textPackInstallJournalModel';
 import type { TextPackInstallJournal } from '../services/bible/textPackInstallJournalModel';
+
+// The translations service barrel also evaluates the runtime catalog
+// bootstrap and the locale search engine (Fuse). bibleStore sits on the
+// navigator's static graph, and its only use of the service is this
+// fire-and-forget preference save, so load the barrel on first use instead of
+// on every cold start (the same pattern authStore uses for Supabase).
+function saveTranslationPreference(translationId: string): void {
+  try {
+    const { setUserTranslationPreferences } =
+      require('../services/translations') as typeof import('../services/translations');
+    setUserTranslationPreferences({ primary: translationId }).catch(() => {});
+  } catch {
+    // Preference sync is best-effort; a failed load must not undo the local switch.
+  }
+}
 
 type AudioDownloadModules = typeof import('../services/audio/audioDownloadService') &
   typeof import('../services/audio/audioDownloadStorage') &
@@ -624,7 +638,7 @@ export const useBibleStore = create<BibleState>()(
 
         if (translation.isDownloaded || hasReadableText) {
           set({ currentTranslation: translationId, preferredTranslationLanguage, error: null });
-          setUserTranslationPreferences({ primary: translationId }).catch(() => {});
+          saveTranslationPreference(translationId);
           return;
         }
 
@@ -638,7 +652,7 @@ export const useBibleStore = create<BibleState>()(
 
           if (availability.canPlayAudio) {
             set({ currentTranslation: translationId, preferredTranslationLanguage, error: null });
-            setUserTranslationPreferences({ primary: translationId }).catch(() => {});
+            saveTranslationPreference(translationId);
           }
         }
       },
