@@ -58,6 +58,7 @@ import { mmkvInstance } from '../../stores/mmkvStorage';
 import { useDisplayFont, useFontSize, useI18n, useTabBarHeight } from '../../hooks';
 import { syncPreferences } from '../../services/sync';
 import {
+  appendAccessPasscodeDigit,
   validateScriptureCouncilPasscode,
   validateTranslatorReviewPasscode,
 } from '../../services/feedback';
@@ -366,7 +367,7 @@ export function SettingsScreen() {
   };
 
   const handleTranslatorAccessDigit = (digit: string) => {
-    setTranslatorAccessPasscode((current) => `${current}${digit}`.slice(0, 6));
+    setTranslatorAccessPasscode((current) => appendAccessPasscodeDigit(current, digit));
     if (translatorAccessError) {
       setTranslatorAccessError(null);
     }

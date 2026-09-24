@@ -37,6 +37,17 @@ export interface TranslatorFeedbackReviewStatus {
 
 export type TranslatorFeedbackAggregateStatus = 'pending' | 'addressed';
 
+// Translator and council codes are typed on a digits-only keypad (Settings), which basic
+// phones handle without switching keyboards. Builds before September 2026 stopped at six
+// digits, so six-digit team codes keep working; the limit is twelve so the admin dashboard can
+// issue longer, harder-to-guess team codes once this build is widely installed.
+export const ACCESS_PASSCODE_MAX_DIGITS = 12;
+
+export function appendAccessPasscodeDigit(current: string, digit: string): string {
+  if (!/^[0-9]$/.test(digit)) return current;
+  return `${current}${digit}`.slice(0, ACCESS_PASSCODE_MAX_DIGITS);
+}
+
 export function normalizeTranslatorReviewPasscode(passcode: string): string | null {
   const trimmed = passcode.trim();
   return trimmed.length > 0 ? trimmed : null;
