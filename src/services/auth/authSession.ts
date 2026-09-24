@@ -1,6 +1,7 @@
 import { supabase, isSupabaseConfigured } from '../supabase';
 import type { User } from '../../types';
 import type { Session } from '@supabase/supabase-js';
+import { isKeychainError } from '../privacy/keychainError';
 
 // Session restore runs during critical startup (authStore.initialize), before
 // Home paints. It needs only the Supabase client, so it lives apart from
@@ -104,6 +105,16 @@ const readExpiredStoredSession = async (): Promise<Session | null> => {
   }
 };
 
+// The crash queue is loaded only when there is a failure to report, and reporting never
+// throws into startup.
+const reportRestoreFailure = (error: unknown): void => {
+  void import('../diagnostics/crashReportQueue')
+    .then(({ reportHandledError }) =>
+      reportHandledError(isKeychainError(error) ? 'auth.keychain' : 'auth.sessionRestore', error)
+    )
+    .catch(() => undefined);
+};
+
 const awaitingRefresh = (session: Session): RestoredAuthSession => ({
   session,
   user: mapSupabaseUser(session.user),
@@ -143,7 +154,10 @@ export const getCurrentSession = async (): Promise<RestoredAuthSession> => {
 
     return { session: null, user: null };
   } catch (error) {
+    // An unreadable keychain (ERR_KEY_CHAIN) lands here too. It is not a sign-out: the
+    // app starts as a guest for now and auth-js keeps whatever it holds.
     console.error('Failed to restore auth session:', error);
+    reportRestoreFailure(error);
     return { session: null, user: null, restoreFailed: true };
   }
 };

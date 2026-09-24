@@ -12,6 +12,7 @@ import {
   requestNotificationPermissionOutcome,
   scheduleDailyReminder,
 } from '../../../services/notifications';
+import { withPrivacyLockGrace } from '../../../services/privacy/privacyLockGrace';
 import { lightHaptic } from '../../../utils';
 import { REMINDER_MINUTES, buildReminderTimeString } from './settingsScreenModel';
 
@@ -69,7 +70,9 @@ export function useReminderSettings() {
    * notifications; the preference and sync are only touched when they change.
    */
   const enableReminder = async () => {
-    const outcome = await requestNotificationPermissionOutcome();
+    // iOS turns the app inactive under the permission prompt; discreet mode must not
+    // take that for the reader leaving and lock them out of Settings.
+    const outcome = await withPrivacyLockGrace(requestNotificationPermissionOutcome);
 
     if (outcome !== 'granted') {
       // Once Android stops showing the prompt, the only way back is system settings.

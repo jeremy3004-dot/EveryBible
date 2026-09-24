@@ -10,7 +10,7 @@ import {
   type LibraryPlaylist,
   type ListeningHistoryEntry,
 } from './libraryModel';
-import { sanitizePersistedLibraryState } from './persistedStateSanitizers';
+import { sanitizePersistedLibraryState } from './sanitizers/libraryState';
 
 const DEFAULT_PLAYLIST_ID = 'saved-chapters';
 const DEFAULT_PLAYLIST_TITLE = 'Saved Chapters';

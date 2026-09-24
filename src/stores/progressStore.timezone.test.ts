@@ -196,17 +196,17 @@ test('the month window opens at local midnight on the first', (t) => {
 test('listening minutes are banked under the local day even late in the evening', (t) => {
   t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: eastern(2026, 9, 8, 22) });
 
-  state().markChapterListened('GEN', 1, 60_000);
+  state().recordListeningTime(60_000);
 
   assert.deepEqual(state().listeningMsByDate, { '2026-09-08': 60_000 });
 });
 
 test('a listen either side of local midnight is banked under two different days', (t) => {
   t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: eastern(2026, 9, 8, 23, 55) });
-  state().markChapterListened('GEN', 1, 60_000);
+  state().recordListeningTime(60_000);
 
   t.mock.timers.setTime(eastern(2026, 9, 9, 0, 5));
-  state().markChapterListened('GEN', 2, 30_000);
+  state().recordListeningTime(30_000);
 
   assert.deepEqual(state().listeningMsByDate, {
     '2026-09-08': 60_000,

@@ -1,6 +1,6 @@
 import test, { before, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { mockModule, mockSupabaseModule } from '../../testing/mockModules';
+import { mockModule, mockSupabaseModule, sourcePath } from '../../testing/mockModules';
 import { createSupabaseFake, makeFakeSession, makeFakeUser } from '../../testing/supabaseFake';
 
 // Session restore at launch. auth-js refreshes an expired access token inside
@@ -33,6 +33,19 @@ const netInfoFake: Record<string, unknown> = {
 netInfoFake.default = netInfoFake;
 mockModule(mock, '@react-native-community/netinfo', netInfoFake);
 
+const reported: { source: string; error: unknown }[] = [];
+let reportWaiters: (() => void)[] = [];
+/** Resolves on the next report: the crash queue is loaded only when there is one. */
+const nextReport = () => new Promise<void>((resolve) => reportWaiters.push(resolve));
+mockModule(mock, sourcePath('services/diagnostics/crashReportQueue.ts'), {
+  reportHandledError: (source: string, error: unknown) => {
+    reported.push({ source, error });
+    const waiters = reportWaiters;
+    reportWaiters = [];
+    waiters.forEach((resolve) => resolve());
+  },
+});
+
 let authSession: typeof import('./authSession');
 
 before(async () => {
@@ -43,6 +56,8 @@ beforeEach(() => {
   supabase.reset();
   supabase.auth.setSession(null);
   Object.assign(connectivity, { isConnected: true, isInternetReachable: true, error: null });
+  reported.length = 0;
+  reportWaiters = [];
 });
 
 const nowInSeconds = () => Math.floor(Date.now() / 1000);
@@ -181,4 +196,36 @@ test('a malformed stored session is not restored offline', async () => {
   const restored = await authSession.getCurrentSession();
 
   assert.deepEqual(restored, { session: null, user: null, restoreFailed: true });
+});
+
+test('a keychain that cannot be read leaves the session unchecked, not signed out, and is reported', async (t) => {
+  t.mock.method(console, 'error', () => {});
+  const keychainFailure = Object.assign(new Error('Keychain unavailable'), {
+    code: 'ERR_KEY_CHAIN',
+  });
+  supabase.auth.handlers.getSession = async () => {
+    throw keychainFailure;
+  };
+
+  const report = nextReport();
+  const restored = await authSession.getCurrentSession();
+  // Bounded only so a missing report fails instead of hanging the file.
+  await Promise.race([report, new Promise((resolve) => setTimeout(resolve, 2_000))]);
+
+  assert.deepEqual(restored, { session: null, user: null, restoreFailed: true });
+  assert.deepEqual(reported, [{ source: 'auth.keychain', error: keychainFailure }]);
+});
+
+test('any other restore failure is reported as a restore failure', async (t) => {
+  t.mock.method(console, 'error', () => {});
+  const failure = new Error('lock acquisition timed out');
+  supabase.auth.handlers.getSession = async () => {
+    throw failure;
+  };
+
+  const report = nextReport();
+  await authSession.getCurrentSession();
+  await Promise.race([report, new Promise((resolve) => setTimeout(resolve, 2_000))]);
+
+  assert.deepEqual(reported, [{ source: 'auth.sessionRestore', error: failure }]);
 });

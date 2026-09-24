@@ -121,6 +121,27 @@ export function buildReadingActivityGrid({
   };
 }
 
+/**
+ * The grid as week rows of exactly seven slots, Monday first. The month's last
+ * row is padded with `null` blanks so every real cell keeps a seventh of the row;
+ * laying weeks out as rows, rather than wrapping cells sized from a measured
+ * width, is what keeps each date under its weekday.
+ */
+export function chunkCalendarWeeks(
+  cells: readonly ReadingActivityGridCell[]
+): Array<Array<ReadingActivityGridCell | null>> {
+  const weeks: Array<Array<ReadingActivityGridCell | null>> = [];
+  for (let start = 0; start < cells.length; start += CALENDAR_COLUMN_COUNT) {
+    const week: Array<ReadingActivityGridCell | null> = cells.slice(
+      start,
+      start + CALENDAR_COLUMN_COUNT
+    );
+    while (week.length < CALENDAR_COLUMN_COUNT) week.push(null);
+    weeks.push(week);
+  }
+  return weeks;
+}
+
 /** Step one month back or forward from the month currently on screen. */
 export function shiftMonth(viewDate: Date, delta: number): Date {
   return new Date(viewDate.getFullYear(), viewDate.getMonth() + delta, 1);
