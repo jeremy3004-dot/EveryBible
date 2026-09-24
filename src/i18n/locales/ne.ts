@@ -2097,5 +2097,8 @@ export const ne = {
       NSFaceIDUsageDescription:
         'सुरक्षित राखिएको साइन-इन जोगाउन Every Bible लाई Face ID प्रयोग गर्ने अनुमति दिनुहोस्।',
     },
+    nativeLauncher: {
+      discreetAppName: 'क्याल्कुलेटर',
+    },
   },
 } as const;

@@ -373,6 +373,9 @@ export const ar = {
       NSFaceIDUsageDescription:
         'اسمح لتطبيق Every Bible باستخدام Face ID لحماية بيانات تسجيل الدخول المحفوظة.',
     },
+    nativeLauncher: {
+      discreetAppName: 'الآلة الحاسبة',
+    },
   },
   translatorQueue: {
     title: 'قائمة الملاحظات',

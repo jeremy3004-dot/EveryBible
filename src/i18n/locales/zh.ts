@@ -342,6 +342,9 @@ export const zh = {
       NSPhotoLibraryUsageDescription: '请允许 Every Bible 访问你的照片图库，以便选择个人资料照片。',
       NSFaceIDUsageDescription: '请允许 Every Bible 使用 Face ID 保护你保存的登录信息。',
     },
+    nativeLauncher: {
+      discreetAppName: '计算器',
+    },
   },
   translatorQueue: {
     title: '反馈待办',

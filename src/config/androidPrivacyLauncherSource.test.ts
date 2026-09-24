@@ -4,7 +4,7 @@ import privacyPlugin from '../../plugins/withBrandedSplashAsset';
 
 const pluginExports = privacyPlugin as unknown as {
   ANDROID_DISCREET_APP_LABEL_NAME: string;
-  ANDROID_DISCREET_APP_LABEL: string;
+  getAndroidDiscreetAppLabel: () => string;
   ensureAndroidLauncherAliases: (manifest: string) => string;
   ensureAndroidDiscreetLabelString: (stringsXml: string) => string;
   ensureAndroidPrivacyPackageRegistration: (mainApplicationSource: string) => string;
@@ -14,7 +14,7 @@ const pluginExports = privacyPlugin as unknown as {
 
 const {
   ANDROID_DISCREET_APP_LABEL_NAME,
-  ANDROID_DISCREET_APP_LABEL,
+  getAndroidDiscreetAppLabel,
   ensureAndroidLauncherAliases,
   ensureAndroidDiscreetLabelString,
   ensureAndroidPrivacyPackageRegistration,
@@ -64,9 +64,14 @@ test('Android discreet launcher alias uses calculator disguise label', () => {
   assert.match(
     rewritten,
     new RegExp(
-      `<string name="${ANDROID_DISCREET_APP_LABEL_NAME}">${ANDROID_DISCREET_APP_LABEL}<\\/string>`
+      `<string name="${ANDROID_DISCREET_APP_LABEL_NAME}">${getAndroidDiscreetAppLabel()}<\\/string>`
     ),
     'The Android discreet launcher label should read as Calculator'
+  );
+  assert.equal(
+    getAndroidDiscreetAppLabel(),
+    'Calculator',
+    'The default (values/) label comes from the English native localization'
   );
 });
 

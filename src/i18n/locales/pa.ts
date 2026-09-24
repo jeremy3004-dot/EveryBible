@@ -2098,5 +2098,8 @@ export const pa = {
       NSFaceIDUsageDescription:
         'ਸੰਭਾਲੇ ਹੋਏ ਸਾਈਨ-ਇਨ ਨੂੰ ਸੁਰੱਖਿਅਤ ਰੱਖਣ ਲਈ Every Bible ਨੂੰ Face ID ਵਰਤਣ ਦੀ ਇਜਾਜ਼ਤ ਦਿਓ।',
     },
+    nativeLauncher: {
+      discreetAppName: 'ਕੈਲਕੁਲੇਟਰ',
+    },
   },
 } as const;

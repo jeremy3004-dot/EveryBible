@@ -27,8 +27,15 @@ import {
   getChapterGridItemSize,
 } from './chapterSelectorModel';
 import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../design/largeTextLayout';
+import { CHAPTER_TILE_MAX_FONT_SCALE } from './chapterTileLayout';
 
 type NavigationProp = NativeStackNavigationProp<BibleStackParamList>;
+
+/**
+ * The read tick sits under the number. A 320pt-wide phone gets ~50pt tiles, and with
+ * the number capped at CHAPTER_TILE_MAX_FONT_SCALE its digits end above the tick.
+ */
+const CHAPTER_READ_TICK_SIZE = 10;
 
 function trackBookHubEvent(
   event: Parameters<
@@ -174,7 +181,33 @@ export function ChapterSelectorScreen() {
                   : undefined
             }
           >
-            <Text style={[styles.chapterNumber, { color: numberColor }]}>{chapter}</Text>
+            {/* Fill tone alone told read / continue apart (WCAG 1.4.1): the continue
+                chapter also gets an inner ring, a read chapter a small tick. Both are
+                decoration; the tile's value already says it aloud. */}
+            {isContinueChapter ? (
+              <View
+                pointerEvents="none"
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+                style={[styles.continueRing, { borderColor: colors.onAccent }]}
+              />
+            ) : null}
+            <Text
+              maxFontSizeMultiplier={CHAPTER_TILE_MAX_FONT_SCALE}
+              style={[styles.chapterNumber, { color: numberColor }]}
+            >
+              {chapter}
+            </Text>
+            {isRead && !isContinueChapter ? (
+              <Ionicons
+                name="checkmark"
+                size={CHAPTER_READ_TICK_SIZE}
+                color={colors.bibleAccent}
+                style={styles.readTick}
+                accessibilityElementsHidden
+                importantForAccessibility="no"
+              />
+            ) : null}
           </TouchableOpacity>
         );
       })}
@@ -332,6 +365,21 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  // Inset so the ring reads as a second circle inside the solid fill.
+  continueRing: {
+    position: 'absolute',
+    top: 3,
+    right: 3,
+    bottom: 3,
+    left: 3,
+    borderRadius: radius.pill,
+    borderWidth: 2,
+  },
+  // Bottom-centre stays inside the round tile; off the layout, so the number stays centred.
+  readTick: {
+    position: 'absolute',
+    bottom: spacing.xs,
   },
   chapterNumber: {
     ...typography.cardTitle,

@@ -349,6 +349,9 @@ export const ur = {
       NSFaceIDUsageDescription:
         'اپنے محفوظ سائن اِن کی حفاظت کے لیے Every Bible کو Face ID استعمال کرنے کی اجازت دیں۔',
     },
+    nativeLauncher: {
+      discreetAppName: 'کیلکولیٹر',
+    },
   },
   translatorQueue: {
     title: 'آراء کی فہرست',

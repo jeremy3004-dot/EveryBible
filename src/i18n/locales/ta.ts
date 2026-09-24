@@ -2158,5 +2158,8 @@ export const ta = {
       NSFaceIDUsageDescription:
         'சேமித்த உள்நுழைவைப் பாதுகாக்க Face ID-ஐப் பயன்படுத்த Every Bible-க்கு அனுமதி வழங்குங்கள்.',
     },
+    nativeLauncher: {
+      discreetAppName: 'கால்குலேட்டர்',
+    },
   },
 } as const;

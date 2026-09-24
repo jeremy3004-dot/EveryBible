@@ -10,7 +10,11 @@ const DEFAULT_LAUNCH_STORYBOARD_NAME = 'SplashScreen';
 const BRANDED_LAUNCH_STORYBOARD_NAME = 'EveryBibleLaunchScreen';
 const DISCREET_APP_ICON_NAME = 'DiscreetAppIcon';
 const ANDROID_DISCREET_APP_LABEL_NAME = 'app_name_discreet';
-const ANDROID_DISCREET_APP_LABEL = 'Calculator';
+// Default (values/) label. Per-language labels come from src/i18n/native/<code>.json, which
+// Expo's Android locale mod writes to values-b+<lang>/strings.xml under the same name. Read
+// lazily: scripts/sync-native-localizations.mjs loads this file before it writes those JSONs.
+const getAndroidDiscreetAppLabel = () =>
+  require('../src/i18n/native/en.json').android[ANDROID_DISCREET_APP_LABEL_NAME];
 const ANDROID_PRIVACY_MODULE_NAME = 'EveryBiblePrivacyModule';
 const ANDROID_PRIVACY_PACKAGE_NAME = 'EveryBiblePrivacyPackage';
 const ANDROID_ICON_SPECS = [
@@ -211,7 +215,7 @@ const ensureAndroidLauncherAliases = (manifest) => {
 };
 
 const ensureAndroidDiscreetLabelString = (stringsXml) => {
-  const discreetLabelString = `<string name="${ANDROID_DISCREET_APP_LABEL_NAME}">${ANDROID_DISCREET_APP_LABEL}</string>`;
+  const discreetLabelString = `<string name="${ANDROID_DISCREET_APP_LABEL_NAME}">${getAndroidDiscreetAppLabel()}</string>`;
 
   if (stringsXml.includes(`name="${ANDROID_DISCREET_APP_LABEL_NAME}"`)) {
     return stringsXml.replace(
@@ -433,7 +437,7 @@ module.exports.applyAlternateAppIconInfoPlist = applyAlternateAppIconInfoPlist;
 module.exports.ensureDiscreetAppIconAssets = ensureDiscreetAppIconAssets;
 module.exports.applyLaunchStoryboardName = applyLaunchStoryboardName;
 module.exports.ANDROID_DISCREET_APP_LABEL_NAME = ANDROID_DISCREET_APP_LABEL_NAME;
-module.exports.ANDROID_DISCREET_APP_LABEL = ANDROID_DISCREET_APP_LABEL;
+module.exports.getAndroidDiscreetAppLabel = getAndroidDiscreetAppLabel;
 module.exports.ensureAndroidLauncherAliases = ensureAndroidLauncherAliases;
 module.exports.ensureAndroidDiscreetLabelString = ensureAndroidDiscreetLabelString;
 module.exports.ensureAndroidPrivacyPackageRegistration = ensureAndroidPrivacyPackageRegistration;

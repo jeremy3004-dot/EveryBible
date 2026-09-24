@@ -359,6 +359,9 @@ export const id = {
       NSFaceIDUsageDescription:
         'Izinkan Every Bible menggunakan Face ID untuk melindungi data masuk yang tersimpan.',
     },
+    nativeLauncher: {
+      discreetAppName: 'Kalkulator',
+    },
   },
   translatorQueue: {
     title: 'Antrean masukan',

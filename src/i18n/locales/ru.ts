@@ -71,6 +71,9 @@ export const ru = {
       NSFaceIDUsageDescription:
         'Разрешите Every Bible использовать Face ID для защиты сохранённого входа в аккаунт.',
     },
+    nativeLauncher: {
+      discreetAppName: 'Калькулятор',
+    },
     close: 'Закрыть',
     share: 'Поделиться',
     minutesShort: '{{count}} мин',

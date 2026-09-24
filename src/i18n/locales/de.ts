@@ -65,6 +65,9 @@ export const de = {
       NSFaceIDUsageDescription:
         'Erlaube Every Bible, deine gespeicherte Anmeldung mit Face ID zu schützen.',
     },
+    nativeLauncher: {
+      discreetAppName: 'Rechner',
+    },
     close: 'Schließen',
     share: 'Teilen',
     minutesShort: '{{count}} Min.',

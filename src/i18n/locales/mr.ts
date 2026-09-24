@@ -2102,5 +2102,8 @@ export const mr = {
       NSFaceIDUsageDescription:
         'जतन केलेले साइन-इन सुरक्षित ठेवण्यासाठी Every Bible ला Face ID वापरण्याची परवानगी द्या.',
     },
+    nativeLauncher: {
+      discreetAppName: 'कॅल्क्युलेटर',
+    },
   },
 } as const;

@@ -363,6 +363,9 @@ export const vi = {
       NSFaceIDUsageDescription:
         'Cho phép Every Bible sử dụng Face ID để bảo vệ thông tin đăng nhập đã lưu.',
     },
+    nativeLauncher: {
+      discreetAppName: 'Máy tính',
+    },
   },
   translatorQueue: {
     title: 'Danh sách phản hồi',
@@ -759,7 +762,7 @@ export const vi = {
     discreetNotificationChannel: 'Nhắc nhở',
     iconSwitchCloseTitle: 'Ứng dụng sẽ đóng',
     iconSwitchCloseToCalculator:
-      'Đổi biểu tượng sẽ đóng ứng dụng. Hãy mở lại từ biểu tượng máy tính bỏ túi.',
+      'Đổi biểu tượng sẽ đóng ứng dụng. Hãy mở lại từ biểu tượng Máy tính.',
     iconSwitchCloseToStandard:
       'Đổi biểu tượng sẽ đóng ứng dụng. Hãy mở lại từ biểu tượng Every Bible.',
   },

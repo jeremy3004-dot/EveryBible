@@ -4,5 +4,8 @@
     "NSMicrophoneUsageDescription": "اسمح لتطبيق Every Bible بتسجيل ردود صوتية للملاحظات على الإصحاحات.",
     "NSPhotoLibraryUsageDescription": "اسمح لتطبيق Every Bible بالوصول إلى مكتبة الصور لاختيار صورة لملفك الشخصي.",
     "NSFaceIDUsageDescription": "اسمح لتطبيق Every Bible باستخدام Face ID لحماية بيانات تسجيل الدخول المحفوظة."
+  },
+  "android": {
+    "app_name_discreet": "الآلة الحاسبة"
   }
 }

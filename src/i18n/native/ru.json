@@ -4,5 +4,8 @@
     "NSMicrophoneUsageDescription": "Разрешите Every Bible записывать аудиоответы для отзывов о главах.",
     "NSPhotoLibraryUsageDescription": "Разрешите Every Bible доступ к медиатеке, чтобы выбрать фото профиля.",
     "NSFaceIDUsageDescription": "Разрешите Every Bible использовать Face ID для защиты сохранённого входа в аккаунт."
+  },
+  "android": {
+    "app_name_discreet": "Калькулятор"
   }
 }
