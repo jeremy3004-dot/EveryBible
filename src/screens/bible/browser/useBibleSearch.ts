@@ -1,6 +1,10 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import type { TFunction } from 'i18next';
-import { parsePassageReferenceLocale } from '../../../services/bible/referenceParser';
+import { bibleBooks, getTranslatedBookName } from '../../../constants/books';
+import {
+  parsePassageReferenceLocale,
+  type LocalizedBookName,
+} from '../../../services/bible/referenceParser';
 import type { Verse } from '../../../types';
 import { announceForAccessibility, announceLiveRegionText } from '../../../utils/a11y';
 import {
@@ -46,7 +50,16 @@ export function useBibleSearch(
   const searchRequestIdRef = useRef(0);
   const deferredSearchQuery = useDeferredValue(searchQuery);
 
-  const parseRef = useCallback((q: string) => parsePassageReferenceLocale(q, language), [language]);
+  // The book names the interface shows, so a reference typed with them opens the passage in
+  // languages the reference grammar does not cover. `t` changes with the interface language.
+  const bookNames = useMemo<LocalizedBookName[]>(
+    () => bibleBooks.map((book) => ({ bookId: book.id, name: getTranslatedBookName(book.id, t) })),
+    [t]
+  );
+  const parseRef = useCallback(
+    (q: string) => parsePassageReferenceLocale(q, language, bookNames),
+    [bookNames, language]
+  );
   // Memoised: the reference parser otherwise runs again on every unrelated re-render.
   const searchIntent = useMemo(
     () => resolveBibleSearchIntent(deferredSearchQuery, parseRef),

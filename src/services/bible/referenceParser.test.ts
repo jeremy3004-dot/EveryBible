@@ -1,9 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { bibleBooks } from '../../constants/books';
+import { ar } from '../../i18n/locales/ar';
+import { de } from '../../i18n/locales/de';
+import { fr } from '../../i18n/locales/fr';
+import { ko } from '../../i18n/locales/ko';
+import { zh } from '../../i18n/locales/zh';
 import {
   parsePassageReference,
   parsePassageReferenceLocale,
   isSupportedParserLocale,
+  type LocalizedBookName,
 } from './referenceParser';
 
 // ---------------------------------------------------------------------------
@@ -262,5 +269,75 @@ test('a single-chapter book typed with a native numeral opens its one chapter', 
     chapter: 1,
     focusVerse: undefined,
     label: 'Jude 1',
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Book names in the interface language (no dedicated grammar)
+// ---------------------------------------------------------------------------
+
+const interfaceBookNames = (books: Record<string, string>): LocalizedBookName[] =>
+  bibleBooks.map((book) => ({ bookId: book.id, name: books[book.id] ?? book.name }));
+
+const frNames = interfaceBookNames(fr.bible.books);
+
+test('reads a reference written with the book names the interface shows', () => {
+  assert.deepEqual(parsePassageReferenceLocale('Jean 3:16', 'fr', frNames), {
+    bookId: 'JHN',
+    chapter: 3,
+    focusVerse: 16,
+    label: 'John 3:16',
+  });
+  assert.deepEqual(
+    parsePassageReferenceLocale('Johannes 3', 'de', interfaceBookNames(de.bible.books)),
+    { bookId: 'JHN', chapter: 3, focusVerse: undefined, label: 'John 3' }
+  );
+  assert.deepEqual(
+    parsePassageReferenceLocale('约翰福音3:16', 'zh', interfaceBookNames(zh.bible.books)),
+    { bookId: 'JHN', chapter: 3, focusVerse: 16, label: 'John 3:16' }
+  );
+  assert.deepEqual(
+    parsePassageReferenceLocale('요한복음 3:16', 'ko', interfaceBookNames(ko.bible.books)),
+    { bookId: 'JHN', chapter: 3, focusVerse: 16, label: 'John 3:16' }
+  );
+  assert.deepEqual(
+    parsePassageReferenceLocale('يوحنا ٣:١٦', 'ar', interfaceBookNames(ar.bible.books)),
+    { bookId: 'JHN', chapter: 3, focusVerse: 16, label: 'John 3:16' }
+  );
+});
+
+test('an interface book name matches regardless of case and prefers the longest name', () => {
+  assert.equal(parsePassageReferenceLocale('jean 3:16', 'fr', frNames)?.bookId, 'JHN');
+  assert.equal(parsePassageReferenceLocale('1 Jean 4:8', 'fr', frNames)?.bookId, '1JN');
+  assert.deepEqual(parsePassageReferenceLocale('Cantique des cantiques 2', 'fr', frNames), {
+    bookId: 'SNG',
+    chapter: 2,
+    focusVerse: undefined,
+    label: 'Song of Solomon 2',
+  });
+  assert.deepEqual(parsePassageReferenceLocale('Jean 3:16-18', 'fr', frNames)?.focusVerse, 16);
+});
+
+test('an interface book name without a valid chapter stays a word search', () => {
+  assert.equal(parsePassageReferenceLocale('Jean', 'fr', frNames), null);
+  assert.equal(parsePassageReferenceLocale('Jean 22', 'fr', frNames), null);
+  assert.equal(parsePassageReferenceLocale('Jean 0', 'fr', frNames), null);
+  assert.equal(parsePassageReferenceLocale('Jean 3:', 'fr', frNames), null);
+  assert.equal(parsePassageReferenceLocale('Jeanne 3', 'fr', frNames), null);
+  assert.equal(parsePassageReferenceLocale('Jean baptiste', 'fr', frNames), null);
+});
+
+test('a single-chapter book named in the interface language reads a lone number as a verse', () => {
+  assert.deepEqual(parsePassageReferenceLocale('Jude 1', 'fr', frNames), {
+    bookId: 'JUD',
+    chapter: 1,
+    focusVerse: undefined,
+    label: 'Jude 1',
+  });
+  assert.deepEqual(parsePassageReferenceLocale('Jude 5', 'fr', frNames), {
+    bookId: 'JUD',
+    chapter: 1,
+    focusVerse: 5,
+    label: 'Jude 1:5',
   });
 });

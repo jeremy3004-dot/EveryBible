@@ -203,6 +203,84 @@ const parseWithParser = (query: string, parser: bcv_parser): PassageReferenceTar
   };
 };
 
+/** A book's name as the interface shows it (`bible.books.<id>` in the current locale). */
+export interface LocalizedBookName {
+  bookId: string;
+  name: string;
+}
+
+type PreparedBookName = { bookId: string; names: string[] };
+
+// After the book name: a chapter, an optional verse, and an optional range end, which is
+// ignored like the grammar's ranges are. Digits are already ASCII (normalizeReferenceNumerals).
+const LOCALIZED_REFERENCE_NUMBERS_PATTERN =
+  /^\s*(\d{1,3})(?:\s*[:.]\s*(\d{1,3}))?(?:\s*[-–—]\s*\d{1,3}(?:\s*[:.]\s*\d{1,3})?)?\s*$/;
+const WHITESPACE_RUN_PATTERN = /\s+/g;
+
+const preparedBookNamesCache = new WeakMap<readonly LocalizedBookName[], PreparedBookName[]>();
+
+// Lowercased once per list, longest first so "1 Jean" wins over "Jean". The spaceless
+// spelling also accepts "1Jean 4:8".
+const prepareBookNames = (bookNames: readonly LocalizedBookName[]): PreparedBookName[] => {
+  let prepared = preparedBookNamesCache.get(bookNames);
+  if (!prepared) {
+    prepared = bookNames
+      .map(({ bookId, name }) => {
+        const lower = name.trim().replace(WHITESPACE_RUN_PATTERN, ' ').toLowerCase();
+        return { bookId, names: [...new Set([lower, lower.replace(WHITESPACE_RUN_PATTERN, '')])] };
+      })
+      .filter((entry) => entry.names[0] !== '')
+      .sort((left, right) => (right.names[0]?.length ?? 0) - (left.names[0]?.length ?? 0));
+    preparedBookNamesCache.set(bookNames, prepared);
+  }
+  return prepared;
+};
+
+// The grammars cover four languages; everywhere else the app already shows every book's name
+// in the interface language, so "Jean 3:16" or "约翰福音3:16" is read against those names.
+const parseWithBookNames = (
+  query: string,
+  bookNames: readonly LocalizedBookName[]
+): PassageReferenceTarget | null => {
+  const normalizedQuery = normalizeReferenceNumerals(query.trim())
+    .replace(WHITESPACE_RUN_PATTERN, ' ')
+    .toLowerCase();
+  if (normalizedQuery.length === 0) {
+    return null;
+  }
+
+  for (const { bookId, names } of prepareBookNames(bookNames)) {
+    const name = names.find((candidate) => normalizedQuery.startsWith(candidate));
+    if (name === undefined) {
+      continue;
+    }
+    const numbers = normalizedQuery.slice(name.length).match(LOCALIZED_REFERENCE_NUMBERS_PATTERN);
+    const book = getBookById(bookId);
+    if (!numbers || !book) {
+      continue;
+    }
+
+    const first = Number(numbers[1]);
+    const second = numbers[2] === undefined ? undefined : Number(numbers[2]);
+    // Like the grammar, a lone number after a one-chapter book is a verse ("3 John 5").
+    const isVerseOfOnlyChapter = book.chapters === 1 && second === undefined && first > 1;
+    const chapter = isVerseOfOnlyChapter ? 1 : first;
+    const focusVerse = isVerseOfOnlyChapter ? first : second;
+    if (chapter < 1 || chapter > book.chapters || focusVerse === 0) {
+      return null;
+    }
+
+    return {
+      bookId,
+      chapter,
+      focusVerse,
+      label: focusVerse ? `${book.name} ${chapter}:${focusVerse}` : `${book.name} ${chapter}`,
+    };
+  }
+
+  return null;
+};
+
 /**
  * Parse a Bible reference using the English parser (default, backward-compatible).
  */
@@ -215,11 +293,13 @@ export const parsePassageReference = (query: string): PassageReferenceTarget | n
  * if the locale has no dedicated grammar.
  *
  * When the locale-specific parser does not find a match, the English parser is tried
- * as a secondary fallback so that English references still work regardless of UI language.
+ * as a secondary fallback so that English references still work regardless of UI language,
+ * and then `bookNames`, the book names the interface shows, when given.
  */
 export const parsePassageReferenceLocale = (
   query: string,
-  locale: string
+  locale: string,
+  bookNames?: readonly LocalizedBookName[]
 ): PassageReferenceTarget | null => {
   const parserLocale: ReferenceParserLocale = isSupportedParserLocale(locale) ? locale : 'en';
 
@@ -231,8 +311,11 @@ export const parsePassageReferenceLocale = (
 
   // If the locale parser didn't match and it wasn't already English, try English as fallback.
   if (parserLocale !== 'en') {
-    return parseWithParser(query, getParser('en'));
+    const englishResult = parseWithParser(query, getParser('en'));
+    if (englishResult) {
+      return englishResult;
+    }
   }
 
-  return null;
+  return bookNames ? parseWithBookNames(query, bookNames) : null;
 };
