@@ -1,9 +1,14 @@
 import { supabase, isSupabaseConfigured } from '../supabase';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Crypto from 'expo-crypto';
-import { GoogleSignin, isErrorWithCode, statusCodes } from '@react-native-google-signin/google-signin';
+import {
+  GoogleSignin,
+  isErrorWithCode,
+  statusCodes,
+} from '@react-native-google-signin/google-signin';
 import { Platform } from 'react-native';
 import type { User } from '../../types';
+import type { Session } from '@supabase/supabase-js';
 import { publicRuntimeConfig } from '../startup/publicRuntimeConfig';
 import { createGoogleSignInInitializer } from './googleSignIn';
 import type { AuthErrorCode } from './authErrors';
@@ -390,7 +395,25 @@ export const updateUserProfile = async (
 };
 
 // Get current session
-export const getCurrentSession = async () => {
+export interface RestoredAuthSession {
+  session: Session | null;
+  user: User | null;
+  /**
+   * True when the session could not be checked (offline token refresh, unreadable
+   * secure storage). The reader may still be signed in: auth-js keeps a session
+   * whose refresh failed for a retryable reason. Callers must not treat this as
+   * a sign-out, or an offline cold start erases the account's unsynced data.
+   */
+  restoreFailed?: true;
+}
+
+// auth-js names the error class explicitly, so the name survives minification.
+const isRetryableAuthFetchError = (error: unknown): boolean =>
+  typeof error === 'object' &&
+  error !== null &&
+  (error as { name?: unknown }).name === 'AuthRetryableFetchError';
+
+export const getCurrentSession = async (): Promise<RestoredAuthSession> => {
   if (!isSupabaseConfigured()) {
     return { session: null, user: null };
   }
@@ -398,15 +421,20 @@ export const getCurrentSession = async () => {
   try {
     const {
       data: { session },
+      error,
     } = await supabase.auth.getSession();
 
     if (session?.user) {
       return { session, user: mapSupabaseUser(session.user) };
     }
 
+    if (isRetryableAuthFetchError(error)) {
+      return { session: null, user: null, restoreFailed: true };
+    }
+
     return { session: null, user: null };
   } catch (error) {
     console.error('Failed to restore auth session:', error);
-    return { session: null, user: null };
+    return { session: null, user: null, restoreFailed: true };
   }
 };

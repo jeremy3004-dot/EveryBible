@@ -688,6 +688,55 @@ test('a cold start that cannot restore a session clears the previously synced ac
   assert.deepEqual(useAuthStore.getState().preferences, defaultAuthPreferences);
 });
 
+test('an offline cold start keeps the signed-in account data until the session can be refreshed', async () => {
+  // The access token expired while the app was closed and there is no network:
+  // auth-js keeps the stored session but getSession (and the INITIAL_SESSION
+  // callback) report null.
+  authHandlers.getSession = async () => ({
+    data: { session: null },
+    error: { name: 'AuthRetryableFetchError', message: 'Network request failed', status: 0 },
+  });
+  useAuthStore.setState({ lastSyncedUserId: 'user-a' });
+  useAuthStore.getState().setPreferences({ fontSize: 'large', onboardingCompleted: true });
+  seedPerUserData();
+
+  await useAuthStore.getState().initialize();
+  supabaseFake.auth.emit('INITIAL_SESSION', null);
+
+  assert.equal(perUserDataIsCleared(), false);
+  assert.equal(bibleResetCount, 0);
+  assert.equal(useAuthStore.getState().lastSyncedUserId, 'user-a');
+  assert.equal(useAuthStore.getState().preferences.fontSize, 'large');
+  assert.equal(useAuthStore.getState().preferences.onboardingCompleted, true);
+  assert.equal(useAuthStore.getState().isAuthenticated, false);
+
+  // Back online: the auto-refresh restores the same account with its data intact.
+  supabaseFake.auth.emit(
+    'TOKEN_REFRESHED',
+    makeFakeSession({ user: makeFakeUser({ id: 'user-a' }) })
+  );
+
+  assert.equal(useAuthStore.getState().user?.uid, 'user-a');
+  assert.equal(perUserDataIsCleared(), false);
+  assert.equal(useAuthStore.getState().preferences.fontSize, 'large');
+});
+
+test('a different account signing in after an offline cold start still gets a clean slate', async () => {
+  authHandlers.getSession = async () => ({
+    data: { session: null },
+    error: { name: 'AuthRetryableFetchError', message: 'Network request failed', status: 0 },
+  });
+  useAuthStore.setState({ lastSyncedUserId: 'user-a' });
+  seedPerUserData();
+
+  await useAuthStore.getState().initialize();
+  supabaseFake.auth.emit('SIGNED_IN', makeFakeSession({ user: makeFakeUser({ id: 'user-b' }) }));
+
+  assert.equal(useAuthStore.getState().user?.uid, 'user-b');
+  assert.equal(perUserDataIsCleared(), true);
+  assert.equal(useAuthStore.getState().lastSyncedUserId, 'user-b');
+});
+
 test('initialize subscribes to Supabase auth changes exactly once', async () => {
   await useAuthStore.getState().initialize();
   useAuthStore.setState({ isInitialized: false });

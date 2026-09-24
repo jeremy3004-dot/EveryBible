@@ -306,25 +306,36 @@ export const useAuthStore = create<AuthState>()(
         try {
           const { isSupabaseConfigured } = getSupabaseModule();
           const hasSupabaseConfig = isSupabaseConfigured();
-          const restoredState = hasSupabaseConfig
-            ? resolveInitializedAuthState(await getAuthModule().getCurrentSession())
-            : resolveInitializedAuthState({ session: null, user: null });
+          const restored = hasSupabaseConfig
+            ? await getAuthModule().getCurrentSession()
+            : { session: null, user: null };
+          const restoredState = resolveInitializedAuthState(restored);
 
           // Route restored sessions through the same synchronous boundary as
           // interactive auth. This clears stale persisted A state before the
           // initialized UI can render as B (or as signed-out guest).
-          get().setSession(restoredState.session);
+          // A restore that could not be checked (offline token refresh, locked
+          // keychain) is not a sign-out: auth-js still holds the session and
+          // will refresh it when the network returns. Treating it as one would
+          // erase the account's unsynced reading data on every offline launch.
+          if (restoredState.session || !('restoreFailed' in restored && restored.restoreFailed)) {
+            get().setSession(restoredState.session);
+          }
 
           if (hasSupabaseConfig) {
             // Get current session
             if (!authSubscription) {
               const { supabase } = getSupabaseModule();
-              const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+              const { data } = supabase.auth.onAuthStateChange((event, session) => {
                 if (session?.user) {
                   // Route auth callbacks through the same boundary-aware action
                   // as interactive sign-in so an account swap resets local
                   // per-user stores before any sync continuation can run.
                   get().setSession(session);
+                } else if (event === 'INITIAL_SESSION') {
+                  // initialize() has already applied the restored session. A
+                  // null here repeats a restore that could not be checked
+                  // (offline refresh), which must not reset the account.
                 } else {
                   get().setSession(null);
                 }
