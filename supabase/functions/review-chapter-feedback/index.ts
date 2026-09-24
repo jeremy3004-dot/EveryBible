@@ -1,3 +1,4 @@
+import { readBodyWithinLimit } from '../_shared/analyticsIngest.ts';
 import { verifyCouncilAccess } from '../_shared/councilAccess.ts';
 import {
   hashPasscodeAttemptKey,
@@ -58,6 +59,10 @@ interface ChapterFeedbackSummaryRow {
 }
 
 const SUMMARY_ROW_LIMIT = 5000;
+
+// verify_jwt is off, so the body is capped while it streams, before parsing or any database
+// work. The largest real request (a 500-id bulk review with a note) is about 20 KB.
+const MAX_REVIEW_BODY_BYTES = 64 * 1024;
 
 const jsonResponse = (status: number, body: Record<string, unknown>) =>
   new Response(JSON.stringify(body), {
@@ -147,7 +152,18 @@ Deno.serve(async (request) => {
   }
 
   try {
-    const body = (await request.json()) as ReviewRequest;
+    const raw = await readBodyWithinLimit(request, MAX_REVIEW_BODY_BYTES);
+    if (!raw.ok) {
+      return jsonResponse(413, { success: false, error: 'Request body is too large' });
+    }
+    let body: ReviewRequest;
+    try {
+      const parsed: unknown = JSON.parse(raw.text);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new TypeError();
+      body = parsed as ReviewRequest;
+    } catch {
+      return jsonResponse(400, { success: false, error: 'Invalid request body' });
+    }
 
     const supabaseUrl = getRequiredSecret('SUPABASE_URL');
     const serviceRoleKey = getRequiredSecret('SUPABASE_SERVICE_ROLE_KEY');

@@ -228,10 +228,24 @@ test('an over-long geo value smuggled in event_properties cannot reach a bounded
   assert.equal(body.rejected, 1);
 });
 
-test('without Cloudflare, the first x-forwarded-for address is looked up via ipinfo', async () => {
+// x-forwarded-for reaches the function exactly as the caller sent it, so looking it up would
+// let any signed-in account place its events wherever it likes on the admin heat map.
+test('a client-sent x-forwarded-for address is never looked up', async () => {
   const h = endpoint();
   await h.send([h.event], undefined, { 'x-forwarded-for': '198.51.100.4, 10.0.0.1' });
-  assert.deepEqual(h.geoRequests, ['https://ipinfo.io/198.51.100.4/json?token=ipinfo-token']);
+  assert.deepEqual(h.geoRequests, []);
+  assert.equal(h.stored.length, 1);
+  assert.equal(h.stored[0].geo_city, null);
+  assert.equal(h.stored[0].geo_source, null);
+});
+
+test('the edge-stamped x-real-ip wins over a client-sent x-forwarded-for', async () => {
+  const h = endpoint();
+  await h.send([h.event], undefined, {
+    'x-forwarded-for': '198.51.100.4',
+    'x-real-ip': '198.51.100.9',
+  });
+  assert.deepEqual(h.geoRequests, ['https://ipinfo.io/198.51.100.9/json?token=ipinfo-token']);
   assert.equal(h.stored[0].geo_city, 'Pokhara');
   assert.equal(h.stored[0].geo_source, 'ipinfo');
 });

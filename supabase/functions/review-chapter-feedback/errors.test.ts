@@ -87,3 +87,41 @@ test('a wrong passcode is still refused with its specific message', async () => 
   assert.equal(result.status, 403);
   assert.deepEqual(await result.json(), { success: false, error: 'Translator access denied' });
 });
+
+// This endpoint is public (verify_jwt = false) and every request, valid passcode or not, used to
+// be parsed with request.json() with no size bound. The largest real request (500 feedback ids
+// for a bulk review) is about 20 KB.
+test('a request body over the size limit is refused before any database access', async () => {
+  const { harness, response } = review(
+    { respond: () => ({ count: 0 }) },
+    { passcode: PASSCODE, validateOnly: true, padding: 'x'.repeat(256 * 1024) }
+  );
+
+  const result = await response;
+
+  assert.equal(result.status, 413);
+  assert.equal((await result.json()).success, false);
+  assert.deepEqual(harness.calls, []);
+  assert.deepEqual(harness.clientsCreated, []);
+});
+
+test('a malformed JSON body is a client error, not a logged server failure', async () => {
+  const { harness, response } = review({ respond: () => ({ count: 0 }) }, '{"passcode":');
+
+  const result = await response;
+
+  assert.equal(result.status, 400);
+  assert.deepEqual(await result.json(), { success: false, error: 'Invalid request body' });
+  assert.deepEqual(harness.calls, []);
+  assert.deepEqual(harness.loggedErrors, []);
+});
+
+test('a full 500-id bulk review request fits within the size limit', async () => {
+  const feedbackIds = Array.from({ length: 500 }, () => crypto.randomUUID());
+  const { response } = review(
+    { respond: () => ({ count: 0 }) },
+    { passcode: PASSCODE, validateOnly: true, feedbackIds, note: 'n'.repeat(1000) }
+  );
+
+  assert.equal((await response).status, 200);
+});

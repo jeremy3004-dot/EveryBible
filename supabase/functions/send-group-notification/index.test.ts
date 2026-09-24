@@ -33,6 +33,7 @@ function loadFunction(
   const authCalls: string[] = [];
   const calls: Call[] = [];
   const pushes: Push[][] = [];
+  const pushSignals: Array<AbortSignal | null | undefined> = [];
   const env = {
     SUPABASE_URL: 'https://backend.example',
     SUPABASE_SERVICE_ROLE_KEY: 'private-service-key',
@@ -108,6 +109,7 @@ function loadFunction(
       assert.equal(url, 'https://exp.host/--/api/v2/push/send');
       const batch = JSON.parse(String(init.body)) as Push[];
       pushes.push(batch);
+      pushSignals.push(init.signal);
       return new Response(
         JSON.stringify({
           data: options.tickets ?? batch.map(() => ({ status: 'ok', id: 'ticket' })),
@@ -120,6 +122,7 @@ function loadFunction(
     authCalls,
     calls,
     pushes,
+    pushSignals,
     clientsCreated: harness.clientsCreated,
     loggedErrors: harness.loggedErrors,
     request({
@@ -420,3 +423,14 @@ for (const options of [{ tickets: [] }, { pushStatus: 500 }]) {
     assert.deepEqual(await (await runtime.request()).json(), { success: true, sent: 0, errors: 1 });
   });
 }
+
+// A hung Expo endpoint must not hold the function (and the caller's request) open until the
+// platform's wall-clock limit; each batch is abandoned and counted as failed instead.
+test('every Expo push request is bounded by a timeout signal', async () => {
+  const runtime = loadFunction();
+  assert.equal((await runtime.request()).status, 200);
+  assert.equal(runtime.pushSignals.length, 1);
+  const signal = runtime.pushSignals[0];
+  assert.ok(signal instanceof AbortSignal, 'fetch was called without an AbortSignal');
+  assert.equal(signal.aborted, false);
+});

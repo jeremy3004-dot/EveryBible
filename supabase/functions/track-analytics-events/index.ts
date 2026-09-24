@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
   consumeIngestBudget,
   eventPropertiesWithinLimit,
+  getClientIp,
   hashIngestUserKey,
   type IngestBudget,
   MAX_EVENTS_PER_BATCH,
@@ -126,16 +127,6 @@ function normalizeAccuracyKm(value: unknown): number | null {
 
   const parsed = Number(value.trim());
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
-}
-
-function getClientIp(req: Request): string | null {
-  const cfIp = req.headers.get('cf-connecting-ip')?.trim();
-  if (cfIp && cfIp.length > 0) return cfIp;
-  const forwarded = req.headers.get('x-forwarded-for');
-  const realIp = req.headers.get('x-real-ip');
-  const raw = forwarded || realIp;
-  if (!raw) return null;
-  return raw.split(/\s*,\s*/)[0]?.trim() || null;
 }
 
 async function lookupViaIpinfo(ip: string, token: string): Promise<GeoResult | null> {
@@ -309,8 +300,10 @@ async function resolveRequestGeo(
 }
 
 async function lookupRequestGeo(req: Request, cfCountry: string | null): Promise<GeoResult | null> {
+  // Only edge-stamped addresses (cf-connecting-ip, x-real-ip) are trusted; a caller-sent
+  // x-forwarded-for would let the caller pick which address is geolocated.
   const clientIp = getClientIp(req);
-  if (clientIp) {
+  if (clientIp !== 'unknown') {
     // Tier 3: ipinfo.io when paid token is configured.
     const ipinfoToken = Deno.env.get('IPINFO_TOKEN')?.trim();
     if (ipinfoToken) {
