@@ -36,6 +36,12 @@ export function usePlanDetailData(planId: string) {
     if (plansResult.success) {
       foundPlan = (plansResult.data ?? []).find((p) => p.id === planId) ?? null;
       setPlan(foundPlan);
+      if (!foundPlan) {
+        // A persisted or notification-supplied id can outlive its catalog entry. Without
+        // this the page rendered an empty ledger under a Start plan button that enrolled
+        // the reader in a plan that does not exist.
+        setError(t('common.error'));
+      }
     } else {
       setError(t('common.error'));
     }
