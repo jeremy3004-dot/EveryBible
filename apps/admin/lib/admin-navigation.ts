@@ -48,6 +48,12 @@ export const adminNavigation: AdminNavigationItem[] = [
     group: 'Operations',
   },
   {
+    label: 'App Errors',
+    href: '/app-errors',
+    description: 'Anonymous crash and screen-error reports from the mobile app.',
+    group: 'Operations',
+  },
+  {
     label: 'Support',
     href: '/support/users',
     description: 'Inspect account, device, and sync state without unsafe mutations.',
