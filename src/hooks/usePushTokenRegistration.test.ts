@@ -35,12 +35,22 @@ mockModule(mock, sourcePath('stores/authStore.ts'), {
   }),
 });
 
+// The mode once privacy settings have loaded; the hook waits for it.
+const privacy = { isInitialized: true, mode: 'standard' as 'standard' | 'discreet' };
+mockModule(mock, sourcePath('stores/privacyStore.ts'), {
+  usePrivacyStore: <T>(selector: (state: typeof privacy) => T): T => selector(privacy),
+});
+
 // The service is imported lazily; each import settles on a later turn, so auth can
 // change in between exactly as it can on a device.
 const registrations: Array<{ userId: string; token?: DevicePushToken }> = [];
+const suspensions: string[] = [];
 mockModule(mock, sourcePath('services/notifications/index.ts'), {
   registerPushToken: async (userId: string, token?: DevicePushToken) => {
     registrations.push(token ? { userId, token } : { userId });
+  },
+  suspendPushTokenForDiscreetMode: async (userId: string) => {
+    suspensions.push(userId);
   },
 });
 
@@ -63,6 +73,9 @@ beforeEach(() => {
   auth.isAuthenticated = true;
   auth.awaitingTokenRefresh = false;
   registrations.length = 0;
+  suspensions.length = 0;
+  privacy.isInitialized = true;
+  privacy.mode = 'standard';
   tokenListener = null;
   listenerRemovals = 0;
 });
@@ -264,4 +277,60 @@ test('unmounting stops listening for the foreground and for permission requests'
 
   assert.deepEqual(registrations, []);
   assert.equal(rn.AppState.listenerCount(), 0);
+});
+
+// ─── Discreet mode ───────────────────────────────────────────────────────────
+
+test('a discreet device takes itself off the push list instead of registering', async () => {
+  privacy.mode = 'discreet';
+
+  mountApp();
+  await settle();
+
+  assert.deepEqual([registrations, suspensions], [[], ['user-a']]);
+});
+
+test('turning discreet mode on takes the device off, and turning it off registers again', async () => {
+  const view = mountApp();
+  await settle();
+  assert.deepEqual([registrations, suspensions], [[{ userId: 'user-a' }], []]);
+
+  privacy.mode = 'discreet';
+  view.rerender();
+  view.flushEffects();
+  await settle();
+  assert.deepEqual(suspensions, ['user-a']);
+
+  privacy.mode = 'standard';
+  view.rerender();
+  view.flushEffects();
+  await settle();
+  assert.deepEqual(registrations, [{ userId: 'user-a' }, { userId: 'user-a' }]);
+});
+
+test('nothing registers before privacy settings have loaded', async () => {
+  privacy.isInitialized = false;
+  const view = mountApp();
+  rn.AppState.emit('active');
+  await settle();
+  assert.deepEqual([registrations, suspensions], [[], []]);
+
+  privacy.isInitialized = true;
+  view.rerender();
+  view.flushEffects();
+  await settle();
+  assert.deepEqual(registrations, [{ userId: 'user-a' }]);
+});
+
+test('in discreet mode a foreground or permission grant never registers the device', async () => {
+  privacy.mode = 'discreet';
+  mountApp();
+  await settle();
+
+  rn.AppState.emit('active');
+  notifyNotificationPermissionRequested();
+  await settle();
+
+  assert.deepEqual(registrations, []);
+  assert.deepEqual(suspensions, ['user-a', 'user-a', 'user-a']);
 });
