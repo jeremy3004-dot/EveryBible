@@ -29,7 +29,7 @@ export const ar = {
     noMatching: 'لا توجد ردود تطابق هذه المرشحات.',
     openCount: 'ملاحظات مفتوحة: {{count}}',
     openTab: 'مفتوحة',
-    doneTab: 'منتهية',
+    doneTab: 'مكتملة',
     everyone: 'الجميع',
     sourceFilter: 'عرض الملاحظات من',
     statusFilter: 'حالة المراجعة',

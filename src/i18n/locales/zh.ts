@@ -1447,7 +1447,7 @@ export const zh = {
       signInRequired: '需要先登录，才能保存同步的小组聚会。',
       saveFailedTitle: '无法保存同步聚会',
       saveFailedDefault: '无法保存同步的小组聚会。',
-      savedLessonUnchanged: '聚会已保存，但小组未能进入下一节。',
+      savedLessonUnchanged: '聚会已保存，但小组未能进入下一课。',
     },
   },
   prayer: {
