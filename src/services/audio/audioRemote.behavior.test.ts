@@ -910,3 +910,89 @@ test('a book map naming no canonical book leaves no first available audio book',
 
   assert.equal(mod.getFirstAvailableAudioBook('partial'), null);
 });
+
+test('new-testament coverage without a book map limits audio to New Testament books', async () => {
+  useTranslations(
+    withCatalogAudio('nt', {
+      strategy: 'stream-template',
+      coverage: 'new-testament',
+      baseUrl: 'https://cdn.example.test/nt',
+      chapterPathTemplate: '{bookId}/{chapter}.mp3',
+    })
+  );
+
+  assert.equal(mod.isRemoteAudioAvailable('nt', 'MAT'), true);
+  assert.equal(mod.isRemoteAudioAvailable('nt', 'GEN'), false);
+  assert.equal(await mod.fetchRemoteChapterAudio('nt', 'GEN', 1), null);
+  assert.equal(mod.getFirstAvailableAudioBook('nt'), 'MAT');
+});
+
+// ---------------------------------------------------------------------------
+// Incomplete catalog entries
+// ---------------------------------------------------------------------------
+
+test('a stream-template catalog without a base url is not remotely available', async () => {
+  useTranslations(
+    withCatalogAudio('tpl', {
+      strategy: 'stream-template',
+      chapterPathTemplate: '{bookId}/{chapter}.mp3',
+    })
+  );
+
+  assert.equal(mod.isRemoteAudioAvailable('tpl'), false);
+  assert.equal(await mod.fetchRemoteChapterAudio('tpl', 'JHN', 3), null);
+});
+
+test('an el-manifest catalog without a manifest or catalog location resolves to no audio', async () => {
+  let resolverCalls = 0;
+  mod.setElManifestChapterResolverForTests(async () => {
+    resolverCalls += 1;
+    return null;
+  });
+  useTranslations(withCatalogAudio('el', { strategy: 'el-manifest', audioVersion: 'v1' }));
+
+  assert.equal(mod.getRemoteAudioFileExtension('el'), 'mp3');
+  assert.equal(mod.isRemoteAudioAvailable('el'), false);
+  assert.equal(await mod.fetchRemoteChapterAudio('el', 'JHN', 1), null);
+  assert.equal(resolverCalls, 0);
+});
+
+test('a legacy bible.is provider without a catalog streams through the bible.is api', async () => {
+  useTranslations(
+    makeTranslation({ id: 'legacy-bis', audioProvider: 'bible-is', audioFilesetId: 'ENGKJVN2DA' })
+  );
+  fetchHandler = async () =>
+    jsonResponse({
+      data: [
+        { path: 'https://cdn.dbt.test/JHN3.mp3', duration: 12, verse_start: 1, verse_end: 36 },
+      ],
+    });
+
+  assert.equal(mod.isRemoteAudioAvailable('legacy-bis'), true);
+  assert.deepEqual(await mod.fetchRemoteChapterAudio('legacy-bis', 'JHN', 3), {
+    url: 'https://cdn.dbt.test/JHN3.mp3',
+    duration: 12_000,
+  });
+  assert.equal(fetchCalls.length, 1);
+  assert.match(fetchCalls[0].url, /\/bibles\/filesets\/ENGKJVN2DA\/JHN\/3\?v=4/);
+});
+
+test('a translation the bundled catalog does not know has no audio by default', async () => {
+  mod.setRemoteAudioMetadataResolver(null);
+
+  assert.equal(mod.hasConfiguredTranslationAudio('no-such-translation'), false);
+  assert.equal(mod.isRemoteAudioAvailable('no-such-translation'), false);
+  assert.equal(await mod.fetchRemoteChapterAudio('no-such-translation', 'JHN', 1), null);
+});
+
+test('a stream template never emits a url that still contains a placeholder', async () => {
+  useTranslations(
+    withCatalogAudio('tpl', {
+      strategy: 'stream-template',
+      baseUrl: 'https://cdn.example.test/tpl',
+      chapterPathTemplate: '{bookId}/{chapter}.mp3',
+    })
+  );
+
+  assert.equal(await mod.fetchRemoteChapterAudio('tpl', '{bookId}', 1), null);
+});

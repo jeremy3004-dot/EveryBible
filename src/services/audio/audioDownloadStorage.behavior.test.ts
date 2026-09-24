@@ -47,6 +47,10 @@ interface DownloadScript {
 let downloadScript: DownloadScript = {};
 /** Scripted failure for `FileSystem.deleteAsync` (cleanup paths). */
 let deleteError: unknown = null;
+/** Runs inside every `getInfoAsync`, so a test can land an abort mid-validation. */
+let onGetInfo: ((uri: string) => void) | null = null;
+/** What `getFreeDiskStorageAsync` reports; an Error instance is thrown instead. */
+let freeDiskStorage: number | Error = 0;
 /** The progress callback expo-file-system handed the last download. */
 let lastOnProgress:
   | ((progress: { totalBytesWritten: number; totalBytesExpectedToWrite: number }) => void)
@@ -100,6 +104,7 @@ mockModule(mock, 'expo-file-system/legacy', {
   },
   getInfoAsync: async (uri: string): Promise<{ exists: boolean; size?: number }> => {
     fsCalls.push({ method: 'getInfoAsync', args: [uri] });
+    onGetInfo?.(uri);
     const file = files.get(uri);
     return file ? { exists: true, size: file.size } : { exists: false };
   },
@@ -110,13 +115,27 @@ mockModule(mock, 'expo-file-system/legacy', {
     }
     files.delete(uri);
   },
-  readAsStringAsync: async (uri: string): Promise<string> => {
-    fsCalls.push({ method: 'readAsStringAsync', args: [uri] });
+  readAsStringAsync: async (
+    uri: string,
+    options?: { encoding?: string; position?: number; length?: number }
+  ): Promise<string> => {
+    fsCalls.push({ method: 'readAsStringAsync', args: options ? [uri, options] : [uri] });
     const file = files.get(uri);
     if (!file || file.contents == null) {
       throw new Error(`ENOENT: ${uri}`);
     }
+    if (options?.position != null && options.length != null) {
+      return file.contents.slice(options.position, options.position + options.length);
+    }
     return file.contents;
+  },
+  EncodingType: { UTF8: 'utf8', Base64: 'base64' },
+  getFreeDiskStorageAsync: async (): Promise<number> => {
+    fsCalls.push({ method: 'getFreeDiskStorageAsync', args: [] });
+    if (freeDiskStorage instanceof Error) {
+      throw freeDiskStorage;
+    }
+    return freeDiskStorage;
   },
   writeAsStringAsync: async (uri: string, contents: string): Promise<void> => {
     fsCalls.push({ method: 'writeAsStringAsync', args: [uri, contents] });
@@ -277,6 +296,8 @@ beforeEach(() => {
   existingTasksError = null;
   deleteError = null;
   lastOnProgress = undefined;
+  onGetInfo = null;
+  freeDiskStorage = 0;
 });
 
 test.after(() => {
@@ -1012,6 +1033,179 @@ test('native callbacks that arrive after a stopped background download are ignor
   assert.deepEqual(
     backgroundCalls.filter((call) => call.method === 'completeHandler'),
     []
+  );
+  assert.deepEqual(downloadCalls, []);
+});
+
+function gate() {
+  let open!: () => void;
+  const promise = new Promise<void>((resolve) => {
+    open = resolve;
+  });
+  return { promise, open };
+}
+
+test('a cancelled download still settles as cancelled when its partial file cannot be deleted', async () => {
+  downloadScript = { gate: new Promise<void>(() => {}) };
+  deleteError = new Error('EBUSY');
+  const controller = new AbortController();
+
+  const pending = mod.expoAudioFileSystemAdapter.downloadFile(
+    'https://media.test/GEN/1.m4a',
+    'file:///documents/everybible-audio/bsb/GEN/1.m4a',
+    { signal: controller.signal }
+  );
+  await flush();
+  controller.abort();
+
+  await assert.rejects(pending, (error: unknown) => service.isAudioDownloadCancellation(error));
+  assert.equal(fsMethods().includes('deleteAsync'), true);
+});
+
+test('a download that finishes while its cancel is in flight still reports the cancellation', async () => {
+  const transfer = gate();
+  const cancel = gate();
+  downloadScript = {
+    gate: transfer.promise,
+    cancelGate: cancel.promise,
+    writeSize: VALID_AUDIO_BYTES,
+  };
+  const controller = new AbortController();
+  let outcome = 'pending';
+
+  const pending = mod.expoAudioFileSystemAdapter
+    .downloadFile(
+      'https://media.test/GEN/1.m4a',
+      'file:///documents/everybible-audio/bsb/GEN/1.m4a',
+      { signal: controller.signal }
+    )
+    .then(
+      () => {
+        outcome = 'resolved';
+      },
+      (error: unknown) => {
+        outcome = service.isAudioDownloadCancellation(error) ? 'cancelled' : 'failed';
+      }
+    );
+  await flush();
+  controller.abort();
+  transfer.open();
+  await flush();
+
+  assert.equal(outcome, 'pending', 'the late transfer result must not settle the download');
+
+  cancel.open();
+  await pending;
+
+  assert.equal(outcome, 'cancelled');
+});
+
+test('a transfer error that arrives while its cancel is in flight is not reported', async () => {
+  const transfer = gate();
+  const cancel = gate();
+  downloadScript = {
+    gate: transfer.promise,
+    cancelGate: cancel.promise,
+    error: new Error('connection reset by cancel'),
+  };
+  const controller = new AbortController();
+
+  const pending = mod.expoAudioFileSystemAdapter.downloadFile(
+    'https://media.test/GEN/1.m4a',
+    'file:///documents/everybible-audio/bsb/GEN/1.m4a',
+    { signal: controller.signal }
+  );
+  await flush();
+  controller.abort();
+  transfer.open();
+  await flush();
+  cancel.open();
+
+  await assert.rejects(pending, (error: unknown) => service.isAudioDownloadCancellation(error));
+});
+
+test('an abort that lands while the finished file is being measured is a cancellation', async () => {
+  const controller = new AbortController();
+  const target = 'file:///documents/everybible-audio/bsb/GEN/1.m4a';
+  onGetInfo = (uri) => {
+    if (uri === target) controller.abort();
+  };
+
+  await assert.rejects(
+    () =>
+      mod.expoAudioFileSystemAdapter.downloadFile('https://media.test/GEN/1.m4a', target, {
+        signal: controller.signal,
+      }),
+    (error: unknown) => service.isAudioDownloadCancellation(error)
+  );
+
+  assert.equal(fsMethods().includes('deleteAsync'), false);
+});
+
+test('readBase64Chunk reads one base64 window of a downloaded chapter', async () => {
+  const uri = 'file:///documents/everybible-audio/bsb/GEN/1.mp3';
+  files.set(uri, { size: 8, contents: 'QUJDREVGR0g=' });
+
+  const chunk = await mod.expoAudioFileSystemAdapter.readBase64Chunk?.(uri, 4, 4);
+
+  assert.equal(chunk, 'REVG');
+  assert.deepEqual(fsCalls.at(-1), {
+    method: 'readAsStringAsync',
+    args: [uri, { encoding: 'base64', position: 4, length: 4 }],
+  });
+});
+
+test('readBase64Chunk returns null for a chapter that cannot be read', async () => {
+  const chunk = await mod.expoAudioFileSystemAdapter.readBase64Chunk?.(
+    'file:///documents/everybible-audio/bsb/GEN/404.mp3',
+    0,
+    4
+  );
+
+  assert.equal(chunk, null);
+});
+
+test('getFreeDiskBytes reports free space, and null when the volume cannot say', async () => {
+  freeDiskStorage = 5_000_000;
+  assert.equal(await mod.expoAudioFileSystemAdapter.getFreeDiskBytes?.(), 5_000_000);
+
+  freeDiskStorage = new Error('statfs failed');
+  assert.equal(await mod.expoAudioFileSystemAdapter.getFreeDiskBytes?.(), null);
+});
+
+test('a native task that reports done and then an error settles the download once', async () => {
+  const transport = await mod.createBackgroundAudioDownloadTransport();
+
+  await transport.downloadFile('https://media.test/GEN/1.m4a', 'file:///documents/a.m4a', {
+    taskId: 'job-1:GEN:1',
+  });
+  lastTaskHandlers.error?.({ error: 'spurious late error' });
+  await flush();
+
+  assert.deepEqual(
+    backgroundCalls.filter((call) => call.method === 'completeHandler'),
+    [{ method: 'completeHandler', args: ['job-1:GEN:1'] }]
+  );
+  assert.deepEqual(downloadCalls, []);
+  assert.deepEqual(warnings, []);
+});
+
+test('native callbacks after the caller aborts a finished background download are ignored', async () => {
+  const transport = await mod.createBackgroundAudioDownloadTransport();
+  const controller = new AbortController();
+
+  await transport.downloadFile('https://media.test/GEN/1.m4a', 'file:///documents/a.m4a', {
+    taskId: 'job-1:GEN:1',
+    signal: controller.signal,
+  });
+  controller.abort();
+  lastTaskHandlers.done?.();
+  lastTaskHandlers.error?.({ error: 'too late' });
+  await flush();
+
+  assert.deepEqual(
+    backgroundCalls.map((call) => call.method),
+    ['createDownloadTask', 'start', 'completeHandler']
   );
   assert.deepEqual(downloadCalls, []);
 });

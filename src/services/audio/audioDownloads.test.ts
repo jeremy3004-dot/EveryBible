@@ -35,3 +35,12 @@ test('isTranslationAudioDownloaded requires every book in the scope', () => {
     true
   );
 });
+
+test('isTranslationAudioDownloaded never reports an empty book scope as downloaded', () => {
+  assert.equal(isTranslationAudioDownloaded(['GEN', 'EXO'], []), false);
+  assert.equal(isTranslationAudioDownloaded([], []), false);
+});
+
+test('buildAudioChapterTargets returns no targets when no books are selected', () => {
+  assert.deepEqual(buildAudioChapterTargets([]), []);
+});
