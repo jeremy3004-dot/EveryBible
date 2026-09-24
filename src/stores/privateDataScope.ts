@@ -13,6 +13,10 @@
  * - A -> signed out: the guest bucket is shown; A's bucket stays on disk.
  * - A -> B, directly or via a sign-out: B's bucket. A's data returns when A
  *   signs in again. Nothing is deleted.
+ * - An adoption into A cut short (app killed, bucket write refused) is finished
+ *   into A at the next sign-in from the guest, whichever account that is, so
+ *   the guest data never lands in two accounts. Guest notes made in between go
+ *   to A as well.
  * - A launch that cannot refresh the session offline is not a boundary: nobody
  *   calls switchPrivateDataOwner, so the persisted owner's data stays visible.
  *
