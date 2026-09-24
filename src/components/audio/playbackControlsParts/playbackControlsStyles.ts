@@ -1,0 +1,221 @@
+import { StyleSheet } from 'react-native';
+
+export const playbackControlsStyles = StyleSheet.create({
+  container: {
+    gap: 12,
+  },
+  transportRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  chapterOnlyTransportRow: {
+    gap: 18,
+    marginTop: 6,
+  },
+  utilityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  utilityPrimaryGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    gap: 12,
+    width: '100%',
+    maxWidth: '100%',
+  },
+  chapterOnlyUtilityRow: {
+    gap: 10,
+    marginTop: 4,
+  },
+  iconButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chapterOnlyTransportButton: {
+    width: 52,
+    height: 52,
+  },
+  utilityButton: {
+    minWidth: 64,
+    // minHeight, not height: the sleep-timer and speed labels grow with Dynamic Type.
+    minHeight: 38,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  utilityText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  musicUtilityButton: {
+    minWidth: 38,
+    paddingHorizontal: 10,
+  },
+  repeatUtilityButton: {
+    minWidth: 38,
+    paddingHorizontal: 10,
+  },
+  textUtilityButton: {
+    minWidth: 38,
+    paddingHorizontal: 10,
+  },
+  chapterOnlyTextUtilityButton: {
+    paddingHorizontal: 10,
+  },
+  iconOnlyUtilityButton: {
+    minWidth: 38,
+    paddingHorizontal: 10,
+  },
+  repeatIconWrapper: {
+    width: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  textUtilityIcon: {
+    width: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  textUtilityIconBubble: {
+    width: 16,
+    minHeight: 13,
+    borderWidth: 1.5,
+    borderRadius: 5,
+    paddingHorizontal: 3,
+    paddingVertical: 3,
+    gap: 2,
+  },
+  textUtilityIconTail: {
+    position: 'absolute',
+    left: 4,
+    bottom: 0,
+    width: 5,
+    height: 5,
+    borderLeftWidth: 1.5,
+    borderBottomWidth: 1.5,
+    transform: [{ rotate: '-45deg' }],
+    backgroundColor: 'transparent',
+  },
+  textUtilityIconLineLong: {
+    width: 8,
+    height: 1.5,
+    borderRadius: 999,
+  },
+  textUtilityIconLineMedium: {
+    width: 7,
+    height: 1.5,
+    borderRadius: 999,
+  },
+  textUtilityIconLineShort: {
+    width: 5,
+    height: 1.5,
+    borderRadius: 999,
+  },
+  repeatBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -6,
+    minWidth: 12,
+    height: 12,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 1,
+  },
+  repeatBadgeText: {
+    fontSize: 8,
+    fontWeight: '800',
+    lineHeight: 10,
+  },
+  disabledButton: {
+    opacity: 0.45,
+  },
+  skipButton: {
+    minWidth: 64,
+    minHeight: 42,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  skipLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  playButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 2,
+  },
+  playIconOffset: {
+    marginLeft: 2,
+  },
+  chapterOnlyPlayButton: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    marginHorizontal: 10,
+  },
+  modalSubtitle: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 14,
+    textAlign: 'center',
+  },
+  modalOption: {
+    minHeight: 46,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  modalOptionText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  backgroundMusicModalContent: {
+    gap: 10,
+  },
+  backgroundMusicOption: {
+    borderWidth: 1,
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  backgroundMusicCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  backgroundMusicLabel: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  backgroundMusicDescription: {
+    fontSize: 12,
+    lineHeight: 17,
+  },
+});

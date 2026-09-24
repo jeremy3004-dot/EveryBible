@@ -590,3 +590,79 @@ test('an unknown background-music choice reads as the first option', async () =>
     })
   );
 });
+
+// The reader redraws its listen page whenever a position tick crosses into a new
+// verse, and both callers hand the controls fresh inline callbacks each time.
+// Only the controls whose own values changed may redraw.
+test('re-render reach: fresh callbacks redraw nothing, and each change redraws only its control', async () => {
+  const { PlaybackControls } = await import('./PlaybackControls');
+  const noop = () => {};
+  const make = (overrides: Partial<Props> = {}): Props => ({
+    status: 'paused',
+    playbackRate: 1.0 as PlaybackRate,
+    repeatMode: 'off',
+    sleepTimerRemaining: null,
+    backgroundMusicChoice: 'off',
+    hasPreviousChapter: true,
+    hasNextChapter: true,
+    onPlayPause: () => noop(),
+    onPreviousChapter: () => noop(),
+    onNextChapter: () => noop(),
+    onSkipBackward: () => noop(),
+    onSkipForward: () => noop(),
+    onChangePlaybackRate: () => noop(),
+    onCycleRepeatMode: () => noop(),
+    onSetSleepTimer: () => noop(),
+    onChangeBackgroundMusicChoice: () => noop(),
+    onShowText: () => noop(),
+    onShareAudio: () => noop(),
+    ...overrides,
+  });
+  const view = await harness.render(<PlaybackControls {...make()} />);
+  const redrawn = async (overrides: Partial<Props>) => {
+    const mark = harness.renders.mark();
+    await view.rerender(<PlaybackControls {...make(overrides)} />);
+    return harness.renders
+      .since(mark)
+      .filter((entry) => entry.type === 'TouchableOpacity')
+      .map((entry) => String(entry.props.accessibilityLabel));
+  };
+
+  assert.deepEqual(await redrawn({}), []);
+  assert.deepEqual(await redrawn({ sleepTimerRemaining: 5 }), [t('audio.sleepTimer')]);
+  assert.deepEqual(await redrawn({ sleepTimerRemaining: 4 }), [t('audio.sleepTimer')]);
+  assert.deepEqual(await redrawn({ sleepTimerRemaining: 4, status: 'playing' }), [
+    t('interface.pauseChapterAudio'),
+  ]);
+  assert.deepEqual(
+    await redrawn({ sleepTimerRemaining: 4, status: 'playing', playbackRate: 1.5 as PlaybackRate }),
+    [t('audio.playbackSpeed')]
+  );
+  assert.deepEqual(
+    await redrawn({
+      sleepTimerRemaining: 4,
+      status: 'loading',
+      playbackRate: 1.5 as PlaybackRate,
+    }),
+    [
+      t('audio.previousChapter'),
+      t('audio.skipBackward'),
+      t('interface.playChapterAudio'),
+      t('audio.skipForward'),
+      t('audio.nextChapter'),
+    ]
+  );
+
+  // The stable handlers still reach the latest callbacks.
+  const calls: string[] = [];
+  await view.rerender(
+    <PlaybackControls
+      {...make({ sleepTimerRemaining: 4, playbackRate: 1.5 as PlaybackRate })}
+      onPreviousChapter={() => calls.push('previous')}
+      onCycleRepeatMode={() => calls.push('repeat')}
+    />
+  );
+  await view.press(view.getByRole('button', { name: t('audio.previousChapter') }));
+  await view.press(view.getByRole('button', { name: t('audio.repeatOff') }));
+  assert.deepEqual(calls, ['previous', 'repeat']);
+});
