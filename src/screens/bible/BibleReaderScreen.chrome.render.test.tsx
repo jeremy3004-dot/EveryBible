@@ -7,7 +7,7 @@ import {
   isHiddenFromAccessibility,
   within,
 } from '../../testing/render';
-import { installReaderRenderFixture } from './BibleReaderScreen.renderFixture';
+import { installReaderRenderFixture, verseOf } from './BibleReaderScreen.renderFixture';
 
 // The reader's floating top chrome, its sheets and the read/listen layout frame.
 const reader = installReaderRenderFixture(mock);
@@ -163,6 +163,36 @@ test('read mode masks the status-bar strip above the floating chrome; listen mod
   chapters.set('JHN:3', []);
   const listen = await renderReader();
   assert.equal(listen.queryAllByType('View').filter(isMask).length, 0);
+});
+
+/** The status-bar mask the reader draws only in read mode (see the test above). */
+const readModeMasks = (view: View) =>
+  view.queryAllByType('View').filter((node) => {
+    const style = flattenStyle(node.props.style) ?? {};
+    return node.props.pointerEvents === 'none' && style.position === 'absolute' && style.top === 0;
+  });
+
+test('stepping from a text chapter to an audio-only one in the same translation settles in listen mode', async () => {
+  chapters.set('JHN:4', []); // this chapter has only audio
+  const view = await renderReader();
+  assert.equal(readModeMasks(view).length, 1, 'John 3 opens in read mode');
+
+  await reader.navigateReader(view, { chapter: 4 });
+
+  assert.equal(view.queryAllByType('FlatList').length, 0, 'the read list is gone');
+  assert.equal(readModeMasks(view).length, 0, 'the listen page is in listen mode, not read mode');
+});
+
+test('stepping from an audio-only chapter to a text chapter returns to read mode', async () => {
+  chapters.set('JHN:3', []);
+  chapters.set('JHN:4', [verseOf(1, 'Jesus learned that the Pharisees had heard.', {}, 'JHN', 4)]);
+  const view = await renderReader();
+  assert.equal(readModeMasks(view).length, 0, 'the audio-only chapter opens in listen mode');
+
+  await reader.navigateReader(view, { chapter: 4 });
+
+  assert.ok(view.getByText(/Jesus learned that the Pharisees/));
+  assert.equal(readModeMasks(view).length, 1, 'the text chapter is read in read mode');
 });
 
 // ---- Overflow menu and its sheets -------------------------------------------

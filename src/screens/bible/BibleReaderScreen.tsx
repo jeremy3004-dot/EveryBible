@@ -583,7 +583,7 @@ export function BibleReaderScreen() {
     dismissSelectedVerseSelection,
     focusVerse,
     followAlongOffsetsRef,
-    isLoading,
+    hasLoadedRouteChapter: isShowingRouteChapter && !isLoading && error == null,
     loadChapter,
     paragraphHeightsRef,
     pendingReaderAutoScrollVerseRef,
