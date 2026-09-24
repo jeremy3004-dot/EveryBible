@@ -206,6 +206,7 @@ export function BibleBrowserScreen() {
       edges={['top']}
     >
       <BibleBrowserHeader
+        translationId={currentTranslation}
         translationName={currentTranslationInfo?.name}
         translationAbbreviation={currentTranslationInfo?.abbreviation}
         onDismiss={isPickerModal ? dismissPicker : undefined}

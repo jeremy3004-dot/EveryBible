@@ -43,8 +43,24 @@ test('the header names the Bible and the current translation', async () => {
   assert.ok(within(translationEntry(view)!).getByText('BSB'));
 });
 
-test('an unknown current translation falls back to the Berean labels', async () => {
-  bibleStore.setState({ currentTranslation: 'missing' });
+test('an unknown current translation is labelled by its id, not as the Berean Bible', async () => {
+  bibleStore.setState({ currentTranslation: 'npiulb' });
+  const view = await renderBrowser();
+
+  assert.equal(view.queryByText(t('about.bereanBible')), null);
+  assert.equal(view.queryByText('BSB'), null);
+  // The subtitle and the translation entry.
+  assert.equal(view.getAllByText('NPIULB').length, 2);
+  const entry = translationEntry(view)!;
+  assert.deepEqual(entry.props.accessibilityValue, { text: 'NPIULB' });
+  assert.ok(within(entry).getByText('NPIULB'));
+});
+
+test('the Berean labels stand in only when the missing translation is BSB', async () => {
+  bibleStore.setState({
+    currentTranslation: 'bsb',
+    translations: [{ id: 'web', name: 'World English Bible', abbreviation: 'WEB' }],
+  });
   const view = await renderBrowser();
 
   assert.ok(view.getByText(t('about.bereanBible')));
