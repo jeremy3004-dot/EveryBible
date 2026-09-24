@@ -9,7 +9,11 @@ export {
   reportPrayerRequest,
   blockUser,
   unblockUser,
+  PRAYER_REQUEST_PAGE_SIZE,
   type PrayerServiceResult,
   type PrayerRequestWithCounts,
+  type PrayerRequestCursor,
+  type PrayerRequestPageResult,
+  type ListPrayerRequestsOptions,
   type InteractionCounts,
 } from './prayerService';
