@@ -56,7 +56,15 @@ export function getPersistedLanguagePreference(): string | null {
     if (!raw) {
       return null;
     }
-    const parsed = JSON.parse(raw) as { state?: { preferences?: { language?: unknown } } };
+    const parsed = JSON.parse(raw) as {
+      state?: { preferences?: { language?: unknown; onboardingCompleted?: unknown } };
+    };
+    // Until onboarding finishes, the stored language is the app default ('en'), written on
+    // first launch and again by sign-out — not a choice. Boot must fall through to the device
+    // language instead. (Pre-onboarding-gate snapshots have no flag and are trusted.)
+    if (parsed?.state?.preferences?.onboardingCompleted === false) {
+      return null;
+    }
     const language = parsed?.state?.preferences?.language;
     return typeof language === 'string' && language.length > 0 ? language : null;
   } catch {

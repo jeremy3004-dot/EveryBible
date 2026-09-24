@@ -74,7 +74,12 @@
         }
       ],
       "expo-image-picker",
-      "expo-localization",
+      [
+        "expo-localization",
+        {
+          "supportsRTL": false
+        }
+      ],
       "./plugins/withBrandedSplashAsset",
       "./plugins/withGradleJvmHeap",
       "@react-native-google-signin/google-signin",

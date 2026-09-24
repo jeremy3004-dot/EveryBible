@@ -6,6 +6,7 @@ import { localeLoaders } from './localeLoaders';
 import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES, type LanguageCode } from '../constants/languages';
 import { getPersistedLanguagePreference } from '../stores/mmkvStorage';
 import { installPluralRulesPolyfill } from './pluralRulesPolyfill';
+import { resolveDeviceInterfaceLanguage } from './deviceLanguage';
 
 type DeferredLanguageCode = Exclude<LanguageCode, 'en'>;
 
@@ -32,11 +33,7 @@ const getInitialLanguage = (): LanguageCode => {
     return persistedLanguage as LanguageCode;
   }
 
-  const deviceLocale = Localization.getLocales()[0]?.languageCode;
-  if (deviceLocale && supportedLanguages.includes(deviceLocale as LanguageCode)) {
-    return deviceLocale as LanguageCode;
-  }
-  return DEFAULT_LANGUAGE;
+  return resolveDeviceInterfaceLanguage(Localization.getLocales()) ?? DEFAULT_LANGUAGE;
 };
 
 const initialLanguage = getInitialLanguage();

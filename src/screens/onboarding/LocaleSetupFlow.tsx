@@ -34,7 +34,8 @@ import {
 } from '../../constants/languages';
 import { useAuthStore } from '../../stores/authStore';
 import { useBibleStore } from '../../stores/bibleStore';
-import { changeLanguage } from '../../i18n';
+import { changeLanguage, getCurrentLanguage } from '../../i18n';
+import { normalizeDeviceLanguageCode } from '../../i18n/deviceLanguage';
 import {
   ensureRuntimeCatalogLoaded,
   hasRuntimeCatalogTranslations,
@@ -48,6 +49,7 @@ import {
 import {
   buildInitialOnboardingLanguageOptions,
   getInitialBibleLanguageListState,
+  getInitialInterfaceLanguageCode,
   getInterfaceLanguageSelectionResult,
   getLocaleSetupSteps,
   waitForRuntimeCatalogHydration,
@@ -516,14 +518,17 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
   const downloadTranslation = useBibleStore((state) => state.downloadTranslation);
   const steps = useMemo(() => getLocaleSetupSteps(mode), [mode]);
 
-  const deviceLocale = Localization.getLocales()[0];
+  // Read once per mount: getLocales() is a native call, and the device locale does not
+  // change under an open onboarding flow in a way this screen reacts to.
+  const [deviceLocale] = useState(() => Localization.getLocales()[0]);
   const deviceCountryCode = deviceLocale?.regionCode ?? null;
-  const deviceLanguageCode = deviceLocale?.languageCode as LanguageCode | undefined;
+  // Any language, not only interface ones: it ranks the device's Bible language first.
+  const deviceLanguageCode = normalizeDeviceLanguageCode(deviceLocale);
   const totalSteps = steps.length;
-  const initialInterfaceLanguageCode =
-    mode === 'initial' && deviceLanguageCode && LANGUAGES[deviceLanguageCode]
-      ? deviceLanguageCode
-      : preferences.language;
+  const initialInterfaceLanguageCode = getInitialInterfaceLanguageCode(mode, {
+    currentLanguage: getCurrentLanguage(),
+    preferredLanguage: preferences.language,
+  });
 
   const [step, setStep] = useState<SetupStep>(steps[0] ?? 'translation');
   const [translationQuery, setTranslationQuery] = useState('');

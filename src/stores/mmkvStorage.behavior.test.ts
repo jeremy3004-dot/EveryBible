@@ -61,3 +61,21 @@ test('the persisted interface language is read straight from the auth snapshot',
   backing.set(AUTH_STORAGE_KEY, JSON.stringify({ state: { preferences: { language: '' } } }));
   assert.equal(getPersistedLanguagePreference(), null);
 });
+
+test('the stored language of an unfinished onboarding is the app default, not a choice, so boot ignores it', async () => {
+  const { getPersistedLanguagePreference, AUTH_STORAGE_KEY } = await load();
+
+  // A fresh install persists the default preferences ('en') as soon as auth initialises, and
+  // sign-out writes them back. Trusting that value booted a French device in English.
+  backing.set(
+    AUTH_STORAGE_KEY,
+    JSON.stringify({ state: { preferences: { language: 'en', onboardingCompleted: false } } })
+  );
+  assert.equal(getPersistedLanguagePreference(), null);
+
+  backing.set(
+    AUTH_STORAGE_KEY,
+    JSON.stringify({ state: { preferences: { language: 'fr', onboardingCompleted: true } } })
+  );
+  assert.equal(getPersistedLanguagePreference(), 'fr');
+});

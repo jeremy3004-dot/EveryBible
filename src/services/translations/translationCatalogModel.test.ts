@@ -126,6 +126,66 @@ test('mapCatalogEntryToBibleTranslation carries backend catalog delivery metadat
   assert.equal(mapped.catalog?.audio?.mimeType, 'audio/mp4');
 });
 
+test('a catalog row marked bundled for a translation this app build does not bundle stays a runtime download', () => {
+  // is_bundled is server data. For an id the binary never shipped, trusting it produced a
+  // row with no `source`, which every reader treats as bundled: the app believed the verses
+  // were already on device, never offered the download, and rendered empty chapters — the
+  // phantom-bundled Hindi failure, reachable from a catalog edit instead of a code change.
+  const entry: TranslationCatalogEntry = {
+    ...baseEntry,
+    translation_id: 'HIN2017',
+    name: 'Hindi Bible 2017',
+    abbreviation: 'HIN',
+    language_name: 'Hindi',
+    is_bundled: true,
+    catalog: {
+      version: '1',
+      updatedAt: '2026-09-01T00:00:00.000Z',
+      text: {
+        downloadUrl: 'https://media.everybible.app/text/hin2017.db',
+        format: 'sqlite',
+        sha256: 'a'.repeat(64),
+      },
+    } as TranslationCatalogEntry['catalog'],
+  };
+
+  const mapped = mapCatalogEntryToBibleTranslation(entry);
+
+  assert.equal(mapped.source, 'runtime');
+  assert.equal(mapped.installState, 'remote-only');
+  assert.equal(mapped.isDownloaded, false);
+  assert.equal(mapped.hasText, true);
+});
+
+test('a catalog row marked bundled keeps the bundled source of a translation this build ships', () => {
+  const existing: BibleTranslation = {
+    id: 'bsb',
+    name: 'Berean Standard Bible',
+    abbreviation: 'BSB',
+    language: 'English',
+    description: 'Bundled',
+    copyright: 'Public Domain',
+    isDownloaded: true,
+    downloadedBooks: [],
+    downloadedAudioBooks: [],
+    totalBooks: 66,
+    sizeInMB: 4.5,
+    hasText: true,
+    hasAudio: true,
+    audioGranularity: 'chapter',
+    installState: 'seeded',
+  };
+
+  const mapped = mapCatalogEntryToBibleTranslation(
+    { ...baseEntry, translation_id: 'BSB', abbreviation: 'BSB', is_bundled: true },
+    existing
+  );
+
+  assert.equal(mapped.source, undefined);
+  assert.equal(mapped.installState, 'seeded');
+  assert.equal(mapped.isDownloaded, true);
+});
+
 test('normalizeCatalogEntries lowercases ids and keeps the best-ranked duplicate', () => {
   const normalized = normalizeCatalogEntries([
     {
@@ -338,10 +398,11 @@ test('filterInstallableCatalogEntries keeps alias-backed translations with a cur
     new Set(['engBBE', 'spaRV1909', 'npiulb'])
   );
 
-  assert.deepEqual(
-    filtered.map((entry) => entry.translation_id).sort(),
-    ['bbe', 'npiulb', 'sparv1909']
-  );
+  assert.deepEqual(filtered.map((entry) => entry.translation_id).sort(), [
+    'bbe',
+    'npiulb',
+    'sparv1909',
+  ]);
 });
 
 test('filterInstallableCatalogEntries hides blocked English Bible variants even when they are installable', () => {
@@ -478,7 +539,10 @@ test('filterInstallableCatalogEntries keeps audio-only runtime rows when they ca
     new Set()
   );
 
-  assert.deepEqual(filtered.map((entry) => entry.translation_id), ['benbcv']);
+  assert.deepEqual(
+    filtered.map((entry) => entry.translation_id),
+    ['benbcv']
+  );
 });
 
 test('filterInstallableCatalogEntries keeps text-backed runtime rows when they carry a published text pack', () => {
@@ -514,7 +578,10 @@ test('filterInstallableCatalogEntries keeps text-backed runtime rows when they c
     new Set()
   );
 
-  assert.deepEqual(filtered.map((entry) => entry.translation_id), ['npiulb']);
+  assert.deepEqual(
+    filtered.map((entry) => entry.translation_id),
+    ['npiulb']
+  );
 });
 
 test('normalizeCatalogEntries drops rows whose translation_id is unsafe in a file path', () => {

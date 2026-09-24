@@ -79,7 +79,9 @@ test('ios Info.plist keeps image permission purpose strings aligned with app con
 
   assert.match(
     infoPlist,
-    new RegExp(`<key>NSCameraUsageDescription</key>\\s*<string>${escapeForRegex(expectedCameraUsage)}</string>`),
+    new RegExp(
+      `<key>NSCameraUsageDescription</key>\\s*<string>${escapeForRegex(expectedCameraUsage)}</string>`
+    ),
     'Expected ios/EveryBible/Info.plist to mirror NSCameraUsageDescription from app.json'
   );
   assert.match(
@@ -110,6 +112,28 @@ test('ios Info.plist keeps both app and Google URL schemes for sign-in callbacks
     new Set(urlSchemes).size,
     urlSchemes.length,
     'Expected ios/EveryBible/Info.plist URL schemes to stay unique so Google callbacks are not replaced by duplicates'
+  );
+});
+
+test('native RTL layout is disabled before React starts, not only from JS on the next launch', () => {
+  // rtlPolicy.ts pins layout to LTR, but I18nManager.allowRTL/forceRTL only take effect on
+  // the NEXT launch. With ar.lproj/ur.lproj bundled, an Arabic/Urdu (or any RTL-locale Android)
+  // device therefore got its first session mirrored. expo-localization's supportsRTL writes
+  // the same native preference in its module OnCreate, before the first surface renders.
+  const appConfig = readRootJson<AppConfig>('app.json');
+  const localizationPlugin = appConfig.expo.plugins?.find(
+    (plugin) => Array.isArray(plugin) && plugin[0] === 'expo-localization'
+  ) as [string, { supportsRTL?: boolean }] | undefined;
+
+  assert.equal(
+    localizationPlugin?.[1]?.supportsRTL,
+    false,
+    'Expected app.json to configure ["expo-localization", { "supportsRTL": false }]'
+  );
+  assert.match(
+    readRootFile('ios/EveryBible/Info.plist'),
+    /<key>ExpoLocalization_supportsRTL<\/key>\s*<false\/>/,
+    'Expected the committed iOS Info.plist to carry ExpoLocalization_supportsRTL=false (prebuild does not run for this project)'
   );
 });
 
