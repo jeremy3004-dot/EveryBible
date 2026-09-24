@@ -1,7 +1,11 @@
 # Release notes: next release (draft, not shipped)
 
-Drafted 2026-09-24 from `origin/main` @ `195717e1`. This is a draft. Nothing here has been
+Drafted 2026-09-24 from `origin/main` @ `195717e1`, then updated the same day to `d57229c6`
+(section A2 and the second technical changelog). This is a draft. Nothing here has been
 uploaded to App Store Connect or Google Play.
+
+Phone testing still to do before release: `device-qa-checklist.md`. Decisions waiting on the
+owner: `owner-decisions-2026-09-24.md`.
 
 ## Baselines
 
@@ -102,6 +106,123 @@ B = `fda08d60..adac656b` (75 non-merge commits).
   JavaScript is roughly 0.7 MB smaller.
 - Large downloads are checked in smaller pieces, so the app stays responsive while a
   download finishes.
+
+### A2. Also new since build 447 (landed later on 2026-09-24)
+
+**Search**
+
+- Hindi, Nepali and other Devanagari-script searches find the whole word. Before, a search
+  for प्रेम ("love") in the Nepali Bible matched about 21,000 verses; now it finds the few
+  hundred that contain the word. Words with an apostrophe, such as "Father's", work too.
+- Chinese, Japanese, Korean and Thai searches find words inside text written without
+  spaces, and a single character is a valid search.
+- Word search works in Bibles you downloaded. Before, it said "search unavailable". The
+  app builds a search index in the background after the download, and gives simple results
+  while it works.
+- Typing "Jude 1", "Obadiah 1", "Philemon 1", "2 John 1" or "3 John 1" opens the chapter.
+
+**Reading**
+
+- Changing or removing a highlight on part of a longer highlight now works, and each verse
+  shows one colour. Editing a note changes that note instead of adding a second one.
+- While the next chapter or Bible is loading, the old text no longer shows the new
+  chapter's highlights, and a tap in that moment is ignored.
+- Switching Bible while audio is paused no longer starts the audio.
+- Links and saved positions that point to a chapter that doesn't exist (such as Jude 2) are
+  ignored instead of opening an empty page.
+- Every Verse of the Day is now a complete sentence. Fourteen used to stop mid-sentence.
+
+**Listening**
+
+- Lock-screen, notification and headphone controls, and the sleep timer, keep working after
+  you leave the reading screen while audio plays.
+- The sleep timer pauses when you pause, and carries on when you play again.
+- When a chapter finishes, Play starts it again from the beginning, and the lock-screen
+  entry goes away at the end of a book or plan day.
+- A half-finished audio download is never kept as if it were complete. Delete now stops a
+  download that is still running.
+
+**Reading plans, streaks and reminders**
+
+- A missed day now breaks the streak, and Home no longer shows an old streak after you stop
+  reading. Flying west across time zones no longer resets it.
+- Finishing a plan day records every chapter in it as read, so it counts for the streak and
+  the reading calendar.
+- A weekly or monthly plan day ticked just after midnight counts for the night before.
+- Monthly plans show one dot for each day of the current month.
+- "Next up" on Home shows what you have not read today first.
+- The daily reminder follows your setting: it changes language with the app, keeps the same
+  local time after a time-zone change, follows a setting changed on another device, and
+  stops after sign-out.
+- Tapping the daily reminder opens Plans, or your plan if you have only one.
+- Settings warns you if the daily reminder is on but the phone blocks notifications, with a
+  button that opens the phone's settings. On Android this also covers turning off only the
+  reminder category, and the category name follows the app language.
+
+**Sign-in and your account**
+
+- Password-reset links are safer. A link now works only on the phone that asked for it.
+  Opened anywhere else, the app explains why and offers to send a new link. If someone else
+  is signed in, the app says it will sign them out first.
+- Signing out works straight away when you are offline.
+- Opening the app offline with an expired sign-in no longer waits several seconds on a
+  blank screen.
+- Reading progress and plan progress are merged on the server, so two phones syncing at the
+  same moment both keep their chapters and days.
+- Deleting an account removes more: saved names on feedback, backup copies, and usage data
+  still waiting on the phone. A former group leader can now delete their account.
+- Clear cache and Delete account keep other accounts' private notes on the same phone.
+
+**First run and languages**
+
+- Setup stays in your language. Before, a French or Arabic user could see setup (and the
+  app after signing out) in English.
+- Android phones set to Indonesian start in Indonesian.
+- On a phone set to Arabic or Urdu, the very first launch is no longer mirrored.
+- If the Bible list can't load or a download fails during setup, the app says what went
+  wrong and still offers the Bibles that work offline. Tapping a second Bible waits for the
+  first instead of starting both.
+- The language list is faster to search, and each letter appears as one section.
+- All new wording was reviewed language by language in all 20 translations. The app now
+  calls itself "Every Bible" everywhere.
+
+**Learn**
+
+- A lesson story is never blank. If your Bible has no text for it, the Berean Bible is used
+  and named, and its audio plays.
+- Story audio can be replayed after it finishes, a failed passage has a Retry button, and
+  Share audio, Share text and Share link each do what they say.
+- Opening a lesson from Home no longer traps the Learn tab on that lesson.
+- Lesson progress can no longer read 11 of 10.
+- The Four Fields key verses quote the Berean Standard Bible.
+
+**Accessibility**
+
+- Layouts on Home, Plans, the Bible picker, lessons, sign-in and Settings wrap or stack at
+  the largest text sizes instead of cutting words off.
+- Screen readers announce search result counts, highlight changes, saved notes, the chapter
+  reached with the arrow buttons, the sleep timer choice and reading-calendar days.
+- TalkBack no longer reads some error messages twice.
+- Buttons have a clearer outline, and error text in dark mode is easier to read.
+
+**Reliability**
+
+- If one screen hits an error, only that screen shows an error page. The tab bar and Back
+  still work. Before, the whole app was replaced.
+- Damaged saved data no longer crashes the app on start.
+- Anonymous error reports (no names or emails) are sent to the team, on Wi-Fi only, so
+  problems can be fixed sooner.
+
+**Speed**
+
+- The app's built-in code is about a quarter smaller again, and it loads fewer pieces on
+  start-up.
+
+**Translation teams**
+
+- The chapter feedback screen is now a simple list with Open and Done tabs. Each concern
+  has "Mark addressed" and "No change needed", each with a short reason.
+- The English text now calls the translator code a "passcode" everywhere.
 
 ### B. In 1.0.9 TestFlight builds (440–447) but not yet on the App Store
 
@@ -228,6 +349,132 @@ B = `fda08d60..adac656b` (75 non-merge commits).
 
 ---
 
+## Internal technical changelog, part 2 (`195717e1..d57229c6`)
+
+200 non-merge commits: 49 test/docs, 15 chore/style/build. The user-visible ones are in A2.
+
+### Native / build (needs a new binary)
+
+- `4712f1ad`: `expo-localization` `supportsRTL: false` in `app.json`, plus
+  `ExpoLocalization_supportsRTL=false` in the committed iOS `Info.plist`.
+- `34479d1a`: new iOS build phase (`plugins/withReleaseAtsLockdown.js`) strips
+  `NSAllowsLocalNetworking` from non-Debug builds.
+- `67cab515`: `flowType: 'pkce'`, and a `crypto.getRandomValues` shim backed by
+  `expo-crypto` (installed only when missing). `0f636d8c` refreshed `Podfile.lock` for
+  `expo-updates` and `expo-crypto`.
+- `30f65e44`: 4 GB Gradle heap at prebuild; `android/app/build.gradle` is no longer tracked.
+- `1cca0ec1`: Babel plugin keeps `u`-flag regexes native on Hermes (iOS bytecode
+  14.38 → 10.77 MB). Also round 3 of the performance pass (bundle 4,545 → 2,207 modules),
+  `62ca2bd4` (verse timings packed per translation) and `38ce9bc2` (Gather artwork loaded
+  one SVG at a time).
+
+### Sync and auth
+
+- `333bf312`, `c12031be`, `1cb66cf9`: `merge_user_progress` and plan-progress merge RPCs,
+  both refusing payloads for another account (live as `20260924041000`, `20260924035821`,
+  `20260924051658`).
+- `5ace46b0`, `47fc5cc1`: an offline expired-session restore no longer holds first paint;
+  cold-start analytics wait for the restore.
+- `67cab515`, `24018376`, `00902ea1`: PKCE reset links; sign the current account out before
+  the exchange; hear a reset link that arrives while startup restores the session.
+- `8947d3c0`, `2b39d13b`: offline sign-out; local sign-out when the server can't be reached.
+- `c446e8d2` (live as `20260924041136`), `728f1f40`: account-deletion leftovers; other
+  accounts' private buckets kept on Clear cache / Delete account.
+
+### Reader, search and Bible data
+
+- `e163d4f9`, `8b3a10f9`, `17697c16`, `58588858`: Devanagari/apostrophe FTS phrases, CJK and
+  Thai `instr()` search, on-device FTS index for text packs, one-chapter book references.
+- `666d8612`, `1864509b`, `f66bd411`, `b8ad6dcb`, `bd17a494`: highlight and note edits over a
+  selection; annotations held back until the new text loads; paused audio stays paused on a
+  translation switch.
+- `9d75340b`, `12a9240a`: reject deep links and stored positions for missing chapters.
+- `8564905f`: a server `is_bundled` flag can no longer create a phantom bundled translation.
+- `caf39f66`, `b70ee78a`, `5b37648f`, `60d089d8`: text-pack download and activation edge cases.
+- `8c433fc9`: plain-http catalog media upgraded to https in release builds.
+- `6917cbfe`: the Every Language dev signing key is trusted only in dev builds.
+- `3d1682ec`: Verse of the Day ranges widened to full sentences.
+
+### Audio
+
+- `89357ef6`, `46f03c54`, `45270d18`, `56612231`, `0151005f`, `cf2df288`: remote commands and
+  the sleep timer outlive the reader; the sleep timer pauses with playback; replay after
+  finish; finish ordering; seek clamp.
+- `363112e5`, `78d3b4f2`, `3c20d0e1`, `9d76195b`: partial downloads never trusted, Delete
+  stops a download, share-export path validation.
+
+### Plans, streaks, reminders, notifications
+
+- `a049ff89`, `554a264f`, `7612e54f`, `60ef2d7e` / `1925a1e0`, `0a1526a7`, `c7c11bb4`,
+  `2e422255`, `594ca0d9`: streak rules, plan-step reads, midnight grace, monthly dot grid,
+  Next up order, leave-plan confirmation, tab bar hidden for an early plan-session reader.
+- `1394e0d2`, `aee13d73`, `c72078de`, `a99af456`: reminder reconciler, tap opens Plans,
+  blocked-notifications notice, Android channel check and localized channel name.
+
+### Onboarding and i18n
+
+- `831bca51`, `1567367c`, `92aacec5`, `a43cfc8f`, `9f1a2b51`, `61e8edca`, `60263b41`,
+  `e3d04d1d`: stored language applied only after onboarding, legacy Android codes,
+  contiguous letter sections, queued second download, failure copy, faster list.
+- `6787d0c0`, `20575fd2`, `9d687c57`, `bc1c7c10`, `16c79240`, `8c06e4a2`: strings that
+  bypassed `t()`, the "Every Bible" display name, count-of-one agreement, "passcode" wording.
+- `09898e55`, `a1102f06`, `340aee0e`, `09c39ac2`: native review of the new strings in the 20
+  locales. The Portuguese feedback strings moved from European to Brazilian Portuguese to
+  match the rest of `pt.ts`.
+
+### Learn / Gather
+
+- `f3dfc0f1`, `2c82ee68`, `36db50dc`, `965bb5d1`, `4485038e`, `d31b7fd8`, `b6eb48af`,
+  `71d20d2c`, `2cb635f9`, `8dbbad0c`: route fix, BSB fallback, replay, retry, share actions,
+  catalog-side counts, localized up-next reference, lesson sound ownership, BSB key verses
+  (no NIV wording remains; a data-integrity test guards it).
+
+### Crash-proofing and crash reporting
+
+- `79d2785f`, `8d122274`, `e80b946e`, `75d9ecd1`, `fe03a779`: per-screen and root error
+  boundaries, sanitized persisted stores, safe Diagnostics rows, privacy lock fails closed.
+- `2af3cc14`, `c5a988c6`, `90f37bf3` (live `app_error_reports`, edge function
+  `report-app-errors` v1), `73ac6335`: scrubbed crash-report queue, collector, retention,
+  admin App errors page.
+
+### Accessibility
+
+- `ef1482f3`, `47a00b40`, `e5c5e029`, `9862b56e`, `bf0cdcc9`, `70fa3bee`, `2105fbbc`,
+  `e3345f93`: large-text layouts, screen-reader pass, announcements, TalkBack double read,
+  3:1 control outlines and dark error contrast.
+
+### Translator feedback
+
+- `35146fdf`, then `2415c3d2` and `928459a3`: feedback inbox, then a plain reading list with
+  reasoned decisions. `41dcce00`, `16dba894`: a decision saved after closing, trimmed
+  passcode.
+- `314c199a`: admin switch and usage log to retire the shared passcode.
+
+### Groups and Prayer Wall (still switched off in the app)
+
+- `bb83ca33`, `86e44269`, `c509c68c`, `2ea3df78`, `d041075f`, `9d61f7ef`, `f4a90331`: leader
+  read and leave guard, atomic `create_group`, join throttle, server-written group pushes,
+  prayer wall hardening, report/block/filter/ban. The migrations are live and
+  `send-group-notification` v2 is deployed. None of it is reachable until `studyGroupsSync`
+  is turned on.
+
+### Backend (live, independent of the binary)
+
+- `d29af195`, `34110778`: edge functions trust only edge-stamped IPs, cap public bodies and
+  bound Expo push. Deployed 2026-09-24 (checked with `list_edge_functions`:
+  track-analytics-events v14, track-anonymous-usage-events v13, aggregate-engagement v7,
+  review-chapter-feedback v14, submit-chapter-feedback v7, send-group-notification v2).
+- `db9cbec4`: `20260710095000_capture_live_only_objects.sql`. Record it on production with
+  `supabase migration repair --status applied 20260710095000`; do not run it there.
+
+### Web / admin (not in the mobile binary)
+
+- Site: `d6102727`, `af50d88e`, `82b21dec`, `f178c74b`, `36913465`, `c3600f69`.
+- Admin: `88d31edd`, `5b64f0b9`, `33391d37` (the session middleware now actually runs),
+  `258ce823`, `82ceea05`, `e4c94c3e`, `5322a437`, `e45ba376`, `4faf9234`.
+
+---
+
 ## Store copy files
 
 | File                                       | Use                       | Limit           |
@@ -236,6 +483,10 @@ B = `fda08d60..adac656b` (75 non-merge commits).
 | `docs/release/whats-new/play/<locale>.txt` | Google Play release notes | 500 characters  |
 
 The App Store text leaves out Android-only items. The Play text leads with lock-screen audio.
+
+**Update 2026-09-24 (A2):** only the English files (`en.txt` and `play/en.txt`) were
+rewritten to include the A2 changes. The other 20 locale files still describe the earlier
+draft and need a fresh translation before they are used.
 
 Locale mapping when a store localization exists:
 
