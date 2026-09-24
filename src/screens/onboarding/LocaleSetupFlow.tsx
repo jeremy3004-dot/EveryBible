@@ -54,7 +54,8 @@ import {
   getInitialInterfaceLanguageCode,
   getInterfaceLanguageSelectionResult,
   getLocaleSetupSteps,
-  waitForRuntimeCatalogHydration,
+  getRuntimeCatalogHydrationPolicy,
+  hydrateRuntimeCatalogWithRetry,
   type InitialOnboardingLanguageOption,
   type SetupMode,
   type SetupStep,
@@ -969,7 +970,13 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     setIsHydratingRuntimeCatalog(true);
     setRuntimeCatalogLoadFailed(false);
 
-    void waitForRuntimeCatalogHydration(() => ensureRuntimeCatalogLoaded())
+    // The automatic first load retries once before the "can't reach" card appears; the Bibles
+    // that ship with the app stay selectable the whole time.
+    void hydrateRuntimeCatalogWithRetry(
+      () => ensureRuntimeCatalogLoaded(),
+      getRuntimeCatalogHydrationPolicy(runtimeCatalogHydrationAttempt),
+      { shouldContinue: () => isMounted }
+    )
       .then((result) => {
         if (!isMounted) {
           return;
