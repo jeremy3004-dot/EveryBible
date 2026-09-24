@@ -1,4 +1,4 @@
-import { StyleSheet, Modal, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { radius, spacing } from '../../../design/system';
 import type { Dispatch, SetStateAction } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -64,7 +64,11 @@ export function ChapterActionsSheet({
       <TouchableOpacity
         style={[
           styles.modalBackdropFill,
-          { backgroundColor: colors.overlay, paddingTop: safeInsets.top + spacing.xxl },
+          {
+            backgroundColor: colors.overlay,
+            paddingTop: safeInsets.top + spacing.xxl,
+            paddingBottom: safeInsets.bottom + spacing.lg,
+          },
         ]}
         activeOpacity={1}
         onPress={() => setShowChapterActionsSheet(false)}
@@ -83,97 +87,106 @@ export function ChapterActionsSheet({
             },
           ]}
         >
-          <Text
-            accessibilityRole="header"
-            style={[styles.actionSheetTitle, { color: colors.biblePrimaryText }]}
+          {/* Nine rows outgrow the screen at the largest text sizes; the sheet stops at the
+              safe area and its rows scroll rather than running off the bottom. */}
+          <ScrollView
+            testID="chapter-actions-sheet-scroll"
+            style={styles.actionSheetScroll}
+            contentContainerStyle={styles.actionSheetContent}
+            showsVerticalScrollIndicator={false}
           >
-            {getTranslatedBookName(bookId, t)} {chapter}
-          </Text>
-
-          {[
-            ...(chapterFeedbackEnabled && !showInlineChapterFeedbackComposer
-              ? [
-                  {
-                    key: 'chapter-feedback',
-                    icon: 'checkmark-circle-outline',
-                    label: t('bible.chapterFeedback'),
-                    onPress: handleOpenChapterFeedback,
-                  },
-                ]
-              : []),
-            ...(canAdjustFontSize
-              ? [
-                  {
-                    key: 'font-size',
-                    icon: 'text-outline',
-                    label: t('bible.readerFontsAndSettings'),
-                    onPress: handleOpenFontSizeOptions,
-                  },
-                ]
-              : []),
-            ...(canShowTranslationSheet
-              ? [
-                  {
-                    key: 'translation',
-                    icon: 'book-outline',
-                    label: t('bible.selectTranslation'),
-                    onPress: handleOpenTranslationOptions,
-                  },
-                ]
-              : []),
-            {
-              key: 'favorite',
-              icon: isFavorite ? 'heart' : 'heart-outline',
-              label: isFavorite ? t('bible.removeFromFavorites') : t('bible.addToFavorites'),
-              onPress: handleToggleFavorite,
-            },
-            {
-              key: 'playlist',
-              icon: 'list-outline',
-              label: t('bible.addToSavedPlaylist'),
-              onPress: handleAddToPlaylist,
-            },
-            {
-              key: 'queue',
-              icon: 'play-forward-outline',
-              label: t('bible.addToQueue'),
-              onPress: handleAddToQueue,
-            },
-            {
-              key: 'download',
-              icon: 'download-outline',
-              label: t('bible.downloadBookAudio'),
-              onPress: handleDownloadCurrentBookAudio,
-            },
-            {
-              key: 'share-audio',
-              icon: 'musical-notes-outline',
-              label: t('bible.shareChapterAudio'),
-              onPress: handleOpenChapterAudioShareSheet,
-            },
-            {
-              key: 'share',
-              icon: 'share-social-outline',
-              label: t('bible.shareChapterReference'),
-              onPress: () => {
-                void handleShareChapter();
-              },
-            },
-          ].map((action) => (
-            <TouchableOpacity
-              key={action.key}
-              style={[styles.actionRow, { borderColor: colors.bibleDivider }]}
-              onPress={action.onPress}
-              activeOpacity={0.85}
-              accessibilityRole="button"
-              accessibilityLabel={action.label}
+            <Text
+              accessibilityRole="header"
+              style={[styles.actionSheetTitle, { color: colors.biblePrimaryText }]}
             >
-              <Ionicons name={action.icon as never} size={20} color={colors.biblePrimaryText} />
-              <Text style={[styles.actionLabel, { color: colors.biblePrimaryText }]}>
-                {action.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+              {getTranslatedBookName(bookId, t)} {chapter}
+            </Text>
+
+            {[
+              ...(chapterFeedbackEnabled && !showInlineChapterFeedbackComposer
+                ? [
+                    {
+                      key: 'chapter-feedback',
+                      icon: 'checkmark-circle-outline',
+                      label: t('bible.chapterFeedback'),
+                      onPress: handleOpenChapterFeedback,
+                    },
+                  ]
+                : []),
+              ...(canAdjustFontSize
+                ? [
+                    {
+                      key: 'font-size',
+                      icon: 'text-outline',
+                      label: t('bible.readerFontsAndSettings'),
+                      onPress: handleOpenFontSizeOptions,
+                    },
+                  ]
+                : []),
+              ...(canShowTranslationSheet
+                ? [
+                    {
+                      key: 'translation',
+                      icon: 'book-outline',
+                      label: t('bible.selectTranslation'),
+                      onPress: handleOpenTranslationOptions,
+                    },
+                  ]
+                : []),
+              {
+                key: 'favorite',
+                icon: isFavorite ? 'heart' : 'heart-outline',
+                label: isFavorite ? t('bible.removeFromFavorites') : t('bible.addToFavorites'),
+                onPress: handleToggleFavorite,
+              },
+              {
+                key: 'playlist',
+                icon: 'list-outline',
+                label: t('bible.addToSavedPlaylist'),
+                onPress: handleAddToPlaylist,
+              },
+              {
+                key: 'queue',
+                icon: 'play-forward-outline',
+                label: t('bible.addToQueue'),
+                onPress: handleAddToQueue,
+              },
+              {
+                key: 'download',
+                icon: 'download-outline',
+                label: t('bible.downloadBookAudio'),
+                onPress: handleDownloadCurrentBookAudio,
+              },
+              {
+                key: 'share-audio',
+                icon: 'musical-notes-outline',
+                label: t('bible.shareChapterAudio'),
+                onPress: handleOpenChapterAudioShareSheet,
+              },
+              {
+                key: 'share',
+                icon: 'share-social-outline',
+                label: t('bible.shareChapterReference'),
+                onPress: () => {
+                  void handleShareChapter();
+                },
+              },
+            ].map((action) => (
+              <TouchableOpacity
+                key={action.key}
+                style={[styles.actionRow, { borderColor: colors.bibleDivider }]}
+                onPress={action.onPress}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel={action.label}
+              >
+                <Ionicons name={action.icon as never} size={20} color={colors.biblePrimaryText} />
+                <Text style={[styles.actionLabel, { color: colors.biblePrimaryText }]}>
+                  {action.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
       </TouchableOpacity>
     </Modal>
@@ -189,6 +202,13 @@ const styles = StyleSheet.create({
   actionSheet: {
     borderRadius: radius.lg,
     borderWidth: 1,
+    flexShrink: 1,
+    overflow: 'hidden',
+  },
+  actionSheetScroll: {
+    flexGrow: 0,
+  },
+  actionSheetContent: {
     padding: 18,
     gap: 8,
   },
