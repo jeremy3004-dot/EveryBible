@@ -229,7 +229,7 @@ export function AuthScreen() {
 
     if (!email.trim()) {
       nextErrors.email = t('auth.emailRequired');
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
+    } else if (!/\S+@\S+\.\S+/.test(email.trim())) {
       nextErrors.email = t('auth.emailInvalid');
     }
 
@@ -243,6 +243,8 @@ export function AuthScreen() {
     return Object.keys(nextErrors).length === 0;
   };
 
+  // Addresses are sent trimmed: iOS QuickType appends a space to a suggested address,
+  // and the auth server matches the address exactly, so the space fails sign-in.
   const handleEmailSubmit = async () => {
     if (!validateForm()) {
       return;
@@ -253,7 +255,7 @@ export function AuthScreen() {
 
     try {
       if (mode === 'signUp') {
-        const result = await signUpWithEmail(email, password);
+        const result = await signUpWithEmail(email.trim(), password);
 
         if (result.success && result.user) {
           const userId = await hydrateLiveSession();
@@ -272,7 +274,7 @@ export function AuthScreen() {
         return;
       }
 
-      const result = await signInWithEmail(email, password);
+      const result = await signInWithEmail(email.trim(), password);
       if (result.success && result.user) {
         await completeAuthenticatedFlow();
       } else {
@@ -327,7 +329,7 @@ export function AuthScreen() {
 
     setIsLoading(true);
     try {
-      const result = await resetPassword(email);
+      const result = await resetPassword(email.trim());
       if (result.success) {
         Alert.alert(t('auth.checkYourEmail'), t('auth.resetLinkSent'));
       } else {

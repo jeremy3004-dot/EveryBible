@@ -241,3 +241,52 @@ test('the Every Language surface: close button, eyebrow, email divider, tagline 
     ['goBack']
   );
 });
+
+// iOS QuickType inserts a suggested address followed by a space, and the auth
+// server matches the address exactly, so an untrimmed address fails sign-in
+// with "check your credentials" and sign-up with an invalid-address error.
+test('an email address with surrounding spaces is sent without them', async () => {
+  const view = await renderAuth();
+  await view.changeText(view.getByLabelText(t('auth.email')), ' ruth@example.com ');
+  await view.changeText(view.getByLabelText(t('auth.password')), 'secret-pass');
+  await view.press(view.getByRole('button', { name: t('auth.signIn') }));
+  await view.press(view.getByText(t('auth.forgotPassword')));
+
+  const signUp = await renderAuth('signUp');
+  await signUp.changeText(signUp.getByLabelText(t('auth.email')), 'ruth@example.com  ');
+  await signUp.changeText(signUp.getByLabelText(t('auth.password')), 'secret-pass');
+  await signUp.press(signUp.getByRole('button', { name: t('auth.createAccount') }));
+
+  assert.deepEqual(auth.calls, [
+    'email:ruth@example.com',
+    'reset:ruth@example.com',
+    'signUp:ruth@example.com',
+  ]);
+});
+
+test('forgot password without an address asks for one instead of sending a reset', async () => {
+  const view = await renderAuth();
+  await view.changeText(view.getByLabelText(t('auth.email')), '   ');
+
+  await view.press(view.getByText(t('auth.forgotPassword')));
+
+  assert.deepEqual(
+    { title: lastAlert()?.title, message: lastAlert()?.message },
+    { title: t('auth.emailRequired'), message: t('auth.emailRequiredForReset') }
+  );
+  assert.deepEqual(auth.calls, []);
+});
+
+test('a provider sign-in that succeeds restores the account and closes', async () => {
+  auth.session = { user: { id: 'google-uid' } };
+  const view = await renderAuth();
+
+  await view.press(view.getByRole('button', { name: t('auth.continueWithGoogle') }));
+
+  assert.deepEqual(auth.calls, ['google']);
+  assert.deepEqual(pulls, ['google-uid']);
+  assert.deepEqual(
+    harness.navigation.calls.map((call) => call.method),
+    ['goBack']
+  );
+});
