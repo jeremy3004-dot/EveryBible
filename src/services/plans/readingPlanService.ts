@@ -78,7 +78,9 @@ const TIMED_CHALLENGE_PLAN_IDS = new Set([
 ]);
 const PLAN_REMOTE_PROGRESS_TIMEOUT_MS = 1500;
 
-let supabaseModulePromise: Promise<typeof import('../supabase')> | null = null;
+type SupabaseModule = typeof import('../supabase');
+
+let supabaseModulePromise: Promise<SupabaseModule> | null = null;
 
 async function loadSupabaseModule() {
   if (!supabaseModulePromise) {
@@ -305,10 +307,12 @@ export function createReadingPlanService(store: ReadingPlansStoreApi): ReadingPl
       }
 
       const completedSessions = store.getState().getProgress(planId)?.completed_sessions ?? {};
-      const nextSessionKey = sessionGroups.find(
-        (group) => group.sessionKey !== sessionKey &&
-          !completedSessions[buildPlanSessionCompletionKey(plan, dayNumber, group.sessionKey)]
-      )?.sessionKey ?? null;
+      const nextSessionKey =
+        sessionGroups.find(
+          (group) =>
+            group.sessionKey !== sessionKey &&
+            !completedSessions[buildPlanSessionCompletionKey(plan, dayNumber, group.sessionKey)]
+        )?.sessionKey ?? null;
       const updated = store.getState().markSessionComplete(planId, dayNumber, sessionKey, {
         completionKey: buildPlanSessionCompletionKey(plan, dayNumber, sessionKey),
         dayCompletionKey: getPlanCompletionEntryKey(plan, dayNumber),
@@ -365,6 +369,83 @@ export async function getPlanEntries(
   return { success: true, data: readingPlanEntriesByPlanId[planId] ?? [] };
 }
 
+/**
+ * Folds a server row into the live store. A server row reflects the moment it was
+ * written and the server has no columns for session ticks, so replacing the live
+ * row would drop completed sessions and any completion made while a request was
+ * in flight. A plan that is no longer enrolled (or is waiting on its remote
+ * delete) is not revived by a late row.
+ */
+function mergeServerRowIntoLive(serverRow: UserReadingPlanProgress): void {
+  const store = readingPlansStore.getState();
+  if (store.pendingUnenrollPlanIds.includes(serverRow.plan_id)) {
+    return;
+  }
+
+  const live = store.getProgress(serverRow.plan_id);
+  if (!live) {
+    return;
+  }
+
+  store.upsertProgress(mergePlanProgress(live, serverRow, serverRow.synced_at));
+}
+
+/**
+ * Applies a caller-supplied progress row. syncAll hands over a snapshot captured
+ * before its network awaits, so a row already in the store is merged (never
+ * overwritten) to keep anything completed since the snapshot was taken.
+ */
+function applyLocalSnapshotRow(snapshotRow: UserReadingPlanProgress): void {
+  const store = readingPlansStore.getState();
+  const live = store.getProgress(snapshotRow.plan_id);
+  store.upsertProgress(live ? mergePlanProgress(live, snapshotRow, live.synced_at) : snapshotRow);
+}
+
+type PreWriteMerge = 'merged' | 'unreadable' | 'stale';
+
+/**
+ * Reads the account's server rows for these plans and folds them into the live
+ * store before a push. The upsert replaces the server row, so pushing without
+ * this read would overwrite days completed on another device (or the account's
+ * existing progress when a second device enrols). When the rows cannot be read
+ * the caller must skip the push rather than write blind.
+ */
+async function mergeServerRowsBeforePush(
+  supabase: SupabaseModule['supabase'],
+  identity: SyncIdentityBoundary,
+  planIds: string[]
+): Promise<PreWriteMerge> {
+  try {
+    const { data, error } = await supabase
+      .from('user_reading_plan_progress')
+      .select('*')
+      .eq('user_id', identity.expectedUserId)
+      .in('plan_slug', planIds);
+
+    if (error) {
+      return (await identity.isCurrent()) ? 'unreadable' : 'stale';
+    }
+
+    const serverRows = normalizeRemoteProgressRows((data ?? []) as RemoteReadingPlanProgressRow[]);
+    const merged = await identity.runIfCurrent(() => {
+      serverRows.forEach(mergeServerRowIntoLive);
+    });
+    return merged.applied ? 'merged' : 'stale';
+  } catch {
+    return (await identity.isCurrent()) ? 'unreadable' : 'stale';
+  }
+}
+
+/** The live, still-enrolled rows for these plans, read at the moment of the push. */
+function getLivePushableProgress(planIds: string[]): UserReadingPlanProgress[] {
+  const store = readingPlansStore.getState();
+  const tombstoned = new Set(store.pendingUnenrollPlanIds);
+  return planIds
+    .filter((planId) => !tombstoned.has(planId))
+    .map((planId) => store.getProgress(planId))
+    .filter((progress): progress is UserReadingPlanProgress => progress !== null);
+}
+
 async function pushProgressToRemote(
   progress: UserReadingPlanProgress,
   expectedUserId?: string,
@@ -386,20 +467,27 @@ async function pushProgressToRemote(
       return;
     }
 
-    const write = await identity.runIfCurrent(() =>
-      supabase
-        .from('user_reading_plan_progress')
-        .upsert(buildRemoteReadingPlanProgressPayload(progress, identity.expectedUserId), {
-          onConflict: 'user_id,plan_slug',
-        })
-        .select('*')
-        .single()
-    );
-    if (!write.applied) {
+    if ((await mergeServerRowsBeforePush(supabase, identity, [progress.plan_id])) !== 'merged') {
       return;
     }
 
-    const { data, error } = await write.value!;
+    const write = await identity.runIfCurrent(() => {
+      const [live] = getLivePushableProgress([progress.plan_id]);
+      return live
+        ? supabase
+            .from('user_reading_plan_progress')
+            .upsert(buildRemoteReadingPlanProgressPayload(live, identity.expectedUserId), {
+              onConflict: 'user_id,plan_slug',
+            })
+            .select('*')
+            .single()
+        : null;
+    });
+    if (!write.applied || !write.value) {
+      return;
+    }
+
+    const { data, error } = await write.value;
 
     if (error) {
       return;
@@ -408,7 +496,7 @@ async function pushProgressToRemote(
     const syncedProgress = normalizeRemoteReadingPlanProgress(data as RemoteReadingPlanProgressRow);
     if (syncedProgress) {
       await identity.runIfCurrent(() => {
-        readingPlansStore.getState().upsertProgress(syncedProgress);
+        mergeServerRowIntoLive(syncedProgress);
       });
     }
   } catch {
@@ -476,10 +564,12 @@ export async function markPlanSessionComplete(
 
   const completedSessions =
     readingPlansStore.getState().getProgress(planId)?.completed_sessions ?? {};
-  const nextSessionKey = sessionGroups.find(
-    (group) => group.sessionKey !== sessionKey &&
-      !completedSessions[buildPlanSessionCompletionKey(plan, dayNumber, group.sessionKey)]
-  )?.sessionKey ?? null;
+  const nextSessionKey =
+    sessionGroups.find(
+      (group) =>
+        group.sessionKey !== sessionKey &&
+        !completedSessions[buildPlanSessionCompletionKey(plan, dayNumber, group.sessionKey)]
+    )?.sessionKey ?? null;
   const localUpdated = readingPlansStore
     .getState()
     .markSessionComplete(planId, dayNumber, sessionKey, {
@@ -876,9 +966,7 @@ export async function syncPlanProgress(
   const supabaseModule = await loadSupabaseModule().catch(() => null);
 
   const applyLocalProgress = (): void => {
-    localProgress.forEach((progress) => {
-      readingPlansStore.getState().upsertProgress(progress);
-    });
+    localProgress.forEach(applyLocalSnapshotRow);
   };
 
   const entryBoundaryIsCurrent = (): boolean => {
@@ -941,20 +1029,24 @@ export async function syncPlanProgress(
   const localApplied = await identity.runIfCurrent(() => {
     localProgress
       .filter((progress) => !tombstoned.has(progress.plan_id))
-      .forEach((progress) => {
-        readingPlansStore.getState().upsertProgress(progress);
-      });
+      .forEach(applyLocalSnapshotRow);
   });
   if (!localApplied.applied) {
     return stalePlanResult<UserReadingPlanProgress[]>();
   }
 
-  const remoteSyncableProgress = localProgress.filter(
-    (progress) =>
-      shouldSyncPlanProgressRemotely(progress.plan_id) && !tombstoned.has(progress.plan_id)
-  );
+  const remoteSyncablePlanIds = [
+    ...new Set(
+      localProgress
+        .filter(
+          (progress) =>
+            shouldSyncPlanProgressRemotely(progress.plan_id) && !tombstoned.has(progress.plan_id)
+        )
+        .map((progress) => progress.plan_id)
+    ),
+  ];
 
-  if (remoteSyncableProgress.length === 0) {
+  if (remoteSyncablePlanIds.length === 0) {
     return (await identity.isCurrent())
       ? { success: true, data: localProgress }
       : stalePlanResult<UserReadingPlanProgress[]>();
@@ -963,21 +1055,35 @@ export async function syncPlanProgress(
   const { supabase } = supabaseModule;
 
   try {
-    const upsertPayload = remoteSyncableProgress.map((progress) =>
-      buildRemoteReadingPlanProgressPayload(progress, identity.expectedUserId)
-    );
+    const preWrite = await mergeServerRowsBeforePush(supabase, identity, remoteSyncablePlanIds);
+    if (preWrite === 'stale') {
+      return stalePlanResult<UserReadingPlanProgress[]>();
+    }
+    if (preWrite === 'unreadable') {
+      return { success: true, data: localProgress };
+    }
 
-    const write = await identity.runIfCurrent(() =>
-      supabase
-        .from('user_reading_plan_progress')
-        .upsert(upsertPayload, { onConflict: 'user_id,plan_slug' })
-        .select('*')
-    );
+    // Push the live rows, not the snapshot the cycle captured before its awaits:
+    // they now hold local ∪ server plus anything completed while this sync ran.
+    const write = await identity.runIfCurrent(() => {
+      const upsertPayload = getLivePushableProgress(remoteSyncablePlanIds).map((progress) =>
+        buildRemoteReadingPlanProgressPayload(progress, identity.expectedUserId)
+      );
+      return upsertPayload.length > 0
+        ? supabase
+            .from('user_reading_plan_progress')
+            .upsert(upsertPayload, { onConflict: 'user_id,plan_slug' })
+            .select('*')
+        : null;
+    });
     if (!write.applied) {
       return stalePlanResult<UserReadingPlanProgress[]>();
     }
+    if (!write.value) {
+      return { success: true, data: localProgress };
+    }
 
-    const { data, error } = await write.value!;
+    const { data, error } = await write.value;
 
     if (error) {
       return (await identity.isCurrent())
@@ -987,9 +1093,7 @@ export async function syncPlanProgress(
 
     const syncedRows = normalizeRemoteProgressRows((data ?? []) as RemoteReadingPlanProgressRow[]);
     const syncedApplied = await identity.runIfCurrent(() => {
-      syncedRows.forEach((progress) => {
-        readingPlansStore.getState().upsertProgress(progress);
-      });
+      syncedRows.forEach(mergeServerRowIntoLive);
     });
     if (!syncedApplied.applied) {
       return stalePlanResult<UserReadingPlanProgress[]>();

@@ -278,7 +278,11 @@ test('enrollInPlan enrols a signed-out reader locally without touching Supabase'
 test('enrollInPlan pushes the new enrolment to Supabase in the background', async () => {
   signIn('user-a', 4);
   const remoteWrite = new Promise<void>((resolve) => {
-    supabaseFake.respondTo('user_reading_plan_progress', () => {
+    supabaseFake.respondTo('user_reading_plan_progress', (call) => {
+      // The push reads the account's server row first so it never overwrites it.
+      if (call.operation === 'select') {
+        return { data: [] };
+      }
       resolve();
       return {
         data: remoteRow({ plan_slug: 'psalms-30-days', current_day: 1, completed_entries: {} }),
@@ -293,7 +297,8 @@ test('enrollInPlan pushes the new enrolment to Supabase in the background', asyn
   await flushBackgroundWork();
 
   assert.equal(result.success, true);
-  const [write] = supabaseFake.callsFor('user_reading_plan_progress');
+  const [read, write] = supabaseFake.callsFor('user_reading_plan_progress');
+  assert.equal(read?.operation, 'select');
   assert.equal(write?.operation, 'upsert');
   assert.deepEqual(write?.options, { onConflict: 'user_id,plan_slug' });
   assert.deepEqual((write?.payload as { user_id: string; plan_slug: string }).user_id, 'user-a');
@@ -662,7 +667,8 @@ test('getUserPlanProgress pushes local-only rows that the server has never seen'
     'acts-28-days',
     'psalms-30-days',
   ]);
-  assert.deepEqual(reads, ['select', 'upsert']);
+  // The pull's read, then the push's own pre-write read of that plan, then the push.
+  assert.deepEqual(reads, ['select', 'select', 'upsert']);
   const upsert = supabaseFake
     .callsFor('user_reading_plan_progress')
     .find((call) => call.operation === 'upsert');
@@ -1103,7 +1109,8 @@ test('syncPlanProgress upserts every syncable row and stores the server copies',
     result.data?.map((progress) => progress.id),
     ['server-1']
   );
-  const [write] = supabaseFake.callsFor('user_reading_plan_progress');
+  const [read, write] = supabaseFake.callsFor('user_reading_plan_progress');
+  assert.equal(read?.operation, 'select');
   assert.equal(write?.operation, 'upsert');
   assert.equal((write?.payload as Array<{ plan_slug: string }>).length, 1);
   assert.equal(
@@ -1145,7 +1152,7 @@ test('syncPlanProgress re-pushes a plan once its unenroll delete has been confir
   assert.deepEqual(storeModule.readingPlansStore.getState().pendingUnenrollPlanIds, []);
   assert.deepEqual(
     supabaseFake.callsFor('user_reading_plan_progress').map((call) => call.operation),
-    ['delete', 'upsert']
+    ['delete', 'select', 'upsert']
   );
 });
 
@@ -1162,7 +1169,7 @@ test('syncPlanProgress retries an unconfirmed unenroll delete before pushing pro
   assert.deepEqual(storeModule.readingPlansStore.getState().pendingUnenrollPlanIds, []);
   assert.deepEqual(
     supabaseFake.callsFor('user_reading_plan_progress').map((call) => call.operation),
-    ['delete', 'upsert']
+    ['delete', 'select', 'upsert']
   );
 });
 
@@ -1195,8 +1202,9 @@ test('syncPlanProgress pushes only the syncable rows and returns the unsyncable 
   const result = await service.syncPlanProgress([localOnly, localProgress('psalms-30-days')]);
 
   assert.equal(result.success, true);
-  const [write] = supabaseFake.callsFor('user_reading_plan_progress');
-  assert.equal(write?.operation, 'upsert');
+  const write = supabaseFake
+    .callsFor('user_reading_plan_progress')
+    .find((call) => call.operation === 'upsert');
   assert.deepEqual(
     (write?.payload as Array<{ plan_slug: string }>).map((row) => row.plan_slug),
     ['psalms-30-days']
@@ -1599,4 +1607,222 @@ test('markPlanSessionComplete stays local for a signed-in reader instead of writ
   assert.equal(result.success, true);
   assert.equal(result.data?.current_session, 'evening');
   assert.deepEqual(supabaseFake.callsFor('user_reading_plan_progress'), []);
+});
+
+// ---------------------------------------------------------------------------
+// Server echoes merge into the live row; they never replace it
+// (docs/research/sync-offline-review-2026-09-24.md, findings 2, 4, 5)
+// ---------------------------------------------------------------------------
+
+const planStore = () => storeModule.readingPlansStore.getState();
+
+test('a plan sync keeps the session ticks the server row cannot carry', async () => {
+  signIn('user-a', 2);
+  // Enrol through the store so no background push races the sync under test.
+  planStore().enrollPlan('kathisma-weekly');
+  await service.markPlanSessionComplete('kathisma-weekly', 2, 'morning');
+  const beforeSync = planStore().getProgress('kathisma-weekly')!;
+  assert.equal(Object.keys(beforeSync.completed_sessions ?? {}).length, 1);
+  // user_reading_plan_progress has no completed_sessions/current_session columns.
+  supabaseFake.respondTo('user_reading_plan_progress', (call) =>
+    call.operation === 'upsert'
+      ? {
+          data: [
+            remoteRow({
+              id: 'server-k',
+              plan_slug: 'kathisma-weekly',
+              completed_entries: {},
+              current_day: 2,
+            }),
+          ],
+        }
+      : { data: [] }
+  );
+
+  const result = await service.syncPlanProgress([beforeSync]);
+
+  assert.equal(result.success, true);
+  const afterSync = planStore().getProgress('kathisma-weekly');
+  assert.deepEqual(afterSync?.completed_sessions, beforeSync.completed_sessions);
+  assert.equal(afterSync?.current_session, 'evening');
+});
+
+test('a day completed while its enrolment push is in flight survives the server echo', async () => {
+  signIn('user-a', 4);
+  let echoSent!: () => void;
+  const echo = new Promise<void>((resolve) => {
+    echoSent = resolve;
+  });
+  supabaseFake.respondTo('user_reading_plan_progress', (call) => {
+    if (call.operation !== 'upsert') {
+      return { data: [] };
+    }
+    // The reader finishes day 1 while the enrolment row is still on the wire.
+    planStore().markDayComplete('psalms-30-days', 1, 30);
+    echoSent();
+    return {
+      data: remoteRow({ plan_slug: 'psalms-30-days', current_day: 1, completed_entries: {} }),
+    };
+  });
+
+  await service.enrollInPlan('psalms-30-days');
+  await echo;
+  await flushBackgroundWork();
+
+  const live = planStore().getProgress('psalms-30-days');
+  assert.ok(live?.completed_entries['1'], 'day 1 must not be rolled back by the echo');
+  assert.equal(live?.current_day, 2);
+});
+
+test('an unenrol made while the enrolment push is in flight is not undone by the echo', async () => {
+  signIn('user-a', 4);
+  let echoSent!: () => void;
+  const echo = new Promise<void>((resolve) => {
+    echoSent = resolve;
+  });
+  supabaseFake.respondTo('user_reading_plan_progress', (call) => {
+    if (call.operation !== 'upsert') {
+      return { data: [] };
+    }
+    planStore().unenrollPlan('psalms-30-days');
+    echoSent();
+    return { data: remoteRow({ plan_slug: 'psalms-30-days', current_day: 1 }) };
+  });
+
+  await service.enrollInPlan('psalms-30-days');
+  await echo;
+  await flushBackgroundWork();
+
+  assert.equal(planStore().getProgress('psalms-30-days'), null);
+  assert.equal(planStore().enrolledPlanIds.includes('psalms-30-days'), false);
+});
+
+// ---------------------------------------------------------------------------
+// Pushes read the server row first, so one device never overwrites another
+// (docs/research/sync-offline-review-2026-09-24.md, findings 3, 4)
+// ---------------------------------------------------------------------------
+
+type PlanPayload = {
+  plan_slug: string;
+  completed_entries: Record<string, string>;
+  current_day: number;
+};
+
+const upsertPayloads = (): PlanPayload[] =>
+  supabaseFake
+    .callsFor('user_reading_plan_progress')
+    .filter((call) => call.operation === 'upsert')
+    .flatMap(
+      (call) => (Array.isArray(call.payload) ? call.payload : [call.payload]) as PlanPayload[]
+    );
+
+/** Answers reads with `serverRows` and echoes every upsert back as the stored row. */
+const serveRows = (serverRows: Array<Record<string, unknown>>) => {
+  supabaseFake.respondTo('user_reading_plan_progress', (call) => {
+    if (call.operation === 'select') {
+      return { data: serverRows };
+    }
+    const rows = (Array.isArray(call.payload) ? call.payload : [call.payload]) as PlanPayload[];
+    const echoed = rows.map((row) => remoteRow({ ...row, id: `server-${row.plan_slug}` }));
+    return { data: call.single ? echoed[0] : echoed };
+  });
+};
+
+test('a plan sync keeps the days another device already completed', async () => {
+  signIn('user-a', 2);
+  planStore().upsertProgress(
+    localProgress('psalms-30-days', {
+      completed_entries: { '3': '2026-03-03T00:00:00.000Z' },
+      current_day: 4,
+    })
+  );
+  serveRows([
+    remoteRow({
+      completed_entries: {
+        '1': '2026-03-01T00:00:00.000Z',
+        '2': '2026-03-02T00:00:00.000Z',
+        '5': '2026-03-05T00:00:00.000Z',
+      },
+      current_day: 6,
+    }),
+  ]);
+
+  const result = await service.syncPlanProgress(Object.values(planStore().progressByPlanId));
+
+  assert.equal(result.success, true);
+  const [pushed] = upsertPayloads();
+  assert.deepEqual(Object.keys(pushed?.completed_entries ?? {}).sort(), ['1', '2', '3', '5']);
+  assert.equal(pushed?.current_day, 6);
+  assert.deepEqual(
+    Object.keys(planStore().getProgress('psalms-30-days')?.completed_entries ?? {}).sort(),
+    ['1', '2', '3', '5']
+  );
+});
+
+test('a day completed while the plan sync waits on the network is kept and pushed', async () => {
+  signIn('user-a', 2);
+  planStore().upsertProgress(localProgress('psalms-30-days'));
+  const snapshot = Object.values(planStore().progressByPlanId);
+  serveRows([]);
+  // The auth round-trip is the first await inside syncPlanProgress.
+  supabaseFake.auth.handlers.getUser = async () => {
+    planStore().markDayComplete('psalms-30-days', 1, 30);
+    return { data: { user: supabaseFake.auth.user }, error: null };
+  };
+
+  try {
+    const result = await service.syncPlanProgress(snapshot);
+
+    assert.equal(result.success, true);
+    assert.ok(planStore().getProgress('psalms-30-days')?.completed_entries['1']);
+    assert.ok(upsertPayloads()[0]?.completed_entries['1']);
+  } finally {
+    supabaseFake.auth.handlers.getUser = async () => ({
+      data: { user: supabaseFake.auth.user },
+      error: null,
+    });
+  }
+});
+
+test('a plan sync that cannot read the server rows does not push blind', async () => {
+  signIn('user-a', 2);
+  const rows = [localProgress('psalms-30-days')];
+  supabaseFake.respondTo('user_reading_plan_progress', (call) =>
+    call.operation === 'select'
+      ? { data: null, error: { message: 'network down' } }
+      : { data: [remoteRow()] }
+  );
+
+  const result = await service.syncPlanProgress(rows);
+
+  assert.deepEqual(result, { success: true, data: rows });
+  assert.deepEqual(upsertPayloads(), []);
+});
+
+test('enrolling on a second device keeps the progress the account already has for that plan', async () => {
+  signIn('user-a', 4);
+  let upserted!: () => void;
+  const upsertSeen = new Promise<void>((resolve) => {
+    upserted = resolve;
+  });
+  const serverRow = remoteRow({
+    completed_entries: { '1': '2026-01-01T00:00:00.000Z', '2': '2026-01-02T00:00:00.000Z' },
+    current_day: 3,
+  });
+  supabaseFake.respondTo('user_reading_plan_progress', (call) => {
+    if (call.operation === 'select') {
+      return { data: [serverRow] };
+    }
+    upserted();
+    return { data: remoteRow({ ...(call.payload as object), id: 'remote-1' }) };
+  });
+
+  await service.enrollInPlan('psalms-30-days');
+  await upsertSeen;
+  await flushBackgroundWork();
+
+  const [pushed] = upsertPayloads();
+  assert.deepEqual(Object.keys(pushed?.completed_entries ?? {}).sort(), ['1', '2']);
+  assert.equal(pushed?.current_day, 3);
+  assert.equal(planStore().getProgress('psalms-30-days')?.current_day, 3);
 });

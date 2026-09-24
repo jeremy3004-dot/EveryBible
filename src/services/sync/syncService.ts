@@ -6,6 +6,7 @@ import {
   mergeReadingSnapshot,
   readingMatchesRemote,
   type LocalPreferenceSnapshot,
+  type PreferenceMergeResult,
 } from './syncMerge';
 import {
   createSyncIdentityBoundary,
@@ -59,7 +60,27 @@ const getLocalPreferenceSnapshot = (): LocalPreferenceSnapshot => {
   return {
     preferences: authState.preferences,
     updatedAt: authState.preferencesUpdatedAt,
+    base: authState.preferencesSyncBase ?? null,
   };
+};
+
+/**
+ * Applies a merge result to the store. A 'merged' result is shown locally at
+ * once, but its sync base stays the server's copy until the upload lands: if the
+ * upload fails, the next sync must still see these fields as local edits to
+ * push, not as the server reverting them.
+ */
+const applyPreferenceMergeLocally = (
+  merge: PreferenceMergeResult,
+  localSnapshot: LocalPreferenceSnapshot
+): void => {
+  if (merge.source === 'remote') {
+    useAuthStore.getState().applySyncedPreferences(merge.preferences, merge.updatedAt);
+  } else if (merge.source === 'merged' && merge.remotePreferences) {
+    useAuthStore
+      .getState()
+      .applySyncedPreferences(merge.preferences, localSnapshot.updatedAt, merge.remotePreferences);
+  }
 };
 
 const getAuthGeneration = (): number => useAuthStore.getState().authGeneration;
@@ -372,18 +393,23 @@ const syncPreferencesForIdentityImpl = async (
     const merged = await identity.runIfCurrent(() => {
       const localSnapshot = getLocalPreferenceSnapshot();
       const mergedPreferences = mergePreferences(localSnapshot, data as UserPreferences | null);
-      if (mergedPreferences.source === 'remote') {
-        useAuthStore
-          .getState()
-          .applySyncedPreferences(mergedPreferences.preferences, mergedPreferences.updatedAt);
-      }
-      return { localSnapshot, mergedPreferences };
+      applyPreferenceMergeLocally(mergedPreferences, localSnapshot);
+      return {
+        localSnapshot,
+        mergedPreferences,
+        // What the store holds once the merge is applied; an edit made during the
+        // upload replaces this object, which is how it is detected below.
+        expectedPreferences:
+          mergedPreferences.source === 'merged'
+            ? mergedPreferences.preferences
+            : localSnapshot.preferences,
+      };
     });
     if (!merged.applied) {
       return staleSyncResult();
     }
     const remotePreferences = data as UserPreferences | null;
-    const { localSnapshot, mergedPreferences } = merged.value!;
+    const { localSnapshot, mergedPreferences, expectedPreferences } = merged.value!;
 
     if (mergedPreferences.source === 'remote') {
       return {
@@ -434,10 +460,14 @@ const syncPreferencesForIdentityImpl = async (
     const applied = await identity.runIfCurrent(() => {
       const current = getLocalPreferenceSnapshot();
       if (
-        current.preferences === localSnapshot.preferences &&
+        current.preferences === expectedPreferences &&
         current.updatedAt === localSnapshot.updatedAt
       ) {
         useAuthStore.getState().applySyncedPreferences(mergedPreferences.preferences, syncedAt);
+      } else {
+        // An edit landed during the upload: keep it pending, but record what the
+        // server now holds so the next merge compares against the right base.
+        useAuthStore.getState().markPreferencesSynced(mergedPreferences.preferences);
       }
     });
     if (!applied.applied) {
@@ -585,10 +615,10 @@ export const pullFromCloud = async (expectedUserId?: string): Promise<SyncResult
       }
 
       const applied = await identity.runIfCurrent(() => {
-        const mergedPreferences = mergePreferences(getLocalPreferenceSnapshot(), prefsData);
-        useAuthStore
-          .getState()
-          .applySyncedPreferences(mergedPreferences.preferences, mergedPreferences.updatedAt);
+        // A 'local' result is left for the next sync to upload; recording it as
+        // synced here would mark values the server does not have as its own.
+        const localSnapshot = getLocalPreferenceSnapshot();
+        applyPreferenceMergeLocally(mergePreferences(localSnapshot, prefsData), localSnapshot);
       });
       if (!applied.applied) {
         return staleSyncResult();

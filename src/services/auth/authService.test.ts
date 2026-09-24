@@ -1043,12 +1043,42 @@ test('getCurrentSession returns nulls when there is no stored session', async ()
   assert.equal(supabaseFake.authCalls[0].method, 'getSession');
 });
 
-test('getCurrentSession swallows a SecureStore failure and reports a signed-out app', async (t) => {
+test('getCurrentSession swallows a SecureStore failure and reports a failed restore', async (t) => {
   const logged = t.mock.method(console, 'error', () => {});
   authHandlers.getSession = async () => {
     throw new Error('SecureStore unavailable');
   };
 
-  assert.deepEqual(await authService.getCurrentSession(), { session: null, user: null });
+  // Storage that cannot be read (iOS keychain before first unlock) says nothing
+  // about whether the reader is signed out, so it must not look like a sign-out.
+  assert.deepEqual(await authService.getCurrentSession(), {
+    session: null,
+    user: null,
+    restoreFailed: true,
+  });
   assert.equal(logged.mock.callCount(), 1);
+});
+
+test('getCurrentSession flags an offline token refresh as a failed restore, not a sign-out', async () => {
+  // auth-js keeps the stored session when the refresh fails for a retryable
+  // (network) reason, but still answers getSession with a null session.
+  authHandlers.getSession = async () => ({
+    data: { session: null },
+    error: { name: 'AuthRetryableFetchError', message: 'Network request failed', status: 0 },
+  });
+
+  assert.deepEqual(await authService.getCurrentSession(), {
+    session: null,
+    user: null,
+    restoreFailed: true,
+  });
+});
+
+test('getCurrentSession treats a rejected refresh token as a real sign-out', async () => {
+  authHandlers.getSession = async () => ({
+    data: { session: null },
+    error: { name: 'AuthApiError', message: 'Invalid Refresh Token', status: 400 },
+  });
+
+  assert.deepEqual(await authService.getCurrentSession(), { session: null, user: null });
 });

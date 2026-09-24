@@ -153,6 +153,7 @@ beforeEach(() => {
     isInitialized: false,
     preferences: { ...defaultAuthPreferences },
     preferencesUpdatedAt: null,
+    preferencesSyncBase: null,
     lastSyncedUserId: null,
     authGeneration: 0,
   });
@@ -217,12 +218,13 @@ test('the last synced account id survives a restart so an account switch can be 
   assert.equal(hydratedState.lastSyncedUserId, 'seeded-user');
 });
 
-test('only preferences and the account marker are written to disk', () => {
+test('only preferences, their sync base and the account marker are written to disk', () => {
   useAuthStore.getState().setPreferences({ fontSize: 'small' });
 
   assert.deepEqual(Object.keys(readPersistedAuthStorage().state).sort(), [
     'lastSyncedUserId',
     'preferences',
+    'preferencesSyncBase',
     'preferencesUpdatedAt',
   ]);
 });
@@ -500,6 +502,39 @@ test('synced preferences identical to the local ones are ignored entirely', () =
   assert.equal(useAuthStore.getState(), settled);
 });
 
+test('synced preferences become the sync base, unless the server copy is passed separately', () => {
+  const server = { ...defaultAuthPreferences, theme: 'dark' as const };
+  const merged = { ...server, fontSize: 'large' as const };
+
+  useAuthStore.getState().applySyncedPreferences(server, '2026-06-01T00:00:00.000Z');
+  assert.deepEqual(useAuthStore.getState().preferencesSyncBase, server);
+
+  // Merged values still waiting to upload: the base must stay what the server holds.
+  useAuthStore.getState().applySyncedPreferences(merged, '2026-06-02T00:00:00.000Z', server);
+  assert.deepEqual(useAuthStore.getState().preferences, merged);
+  assert.deepEqual(useAuthStore.getState().preferencesSyncBase, server);
+
+  useAuthStore.getState().markPreferencesSynced(merged);
+  assert.deepEqual(useAuthStore.getState().preferencesSyncBase, merged);
+});
+
+test('the preference sync base is restored from disk and cleared on sign-out', async () => {
+  const base = { ...defaultAuthPreferences, fontSize: 'large' as const };
+  await rehydrateFrom({ state: { preferences: base, preferencesSyncBase: base }, version: 3 });
+  assert.deepEqual(useAuthStore.getState().preferencesSyncBase, base);
+
+  useAuthStore.getState().setUser(appUser('user-a'));
+  await useAuthStore.getState().signOut();
+
+  assert.equal(useAuthStore.getState().preferencesSyncBase, null);
+});
+
+test('a corrupted persisted sync base is dropped instead of trusted', async () => {
+  await rehydrateFrom({ state: { preferencesSyncBase: 'corrupted' }, version: 3 });
+
+  assert.equal(useAuthStore.getState().preferencesSyncBase, null);
+});
+
 test('a newer sync timestamp is adopted even when the preference values match', () => {
   useAuthStore
     .getState()
@@ -686,6 +721,55 @@ test('a cold start that cannot restore a session clears the previously synced ac
   assert.equal(bibleResetCount, 1);
   assert.equal(useAuthStore.getState().lastSyncedUserId, null);
   assert.deepEqual(useAuthStore.getState().preferences, defaultAuthPreferences);
+});
+
+test('an offline cold start keeps the signed-in account data until the session can be refreshed', async () => {
+  // The access token expired while the app was closed and there is no network:
+  // auth-js keeps the stored session but getSession (and the INITIAL_SESSION
+  // callback) report null.
+  authHandlers.getSession = async () => ({
+    data: { session: null },
+    error: { name: 'AuthRetryableFetchError', message: 'Network request failed', status: 0 },
+  });
+  useAuthStore.setState({ lastSyncedUserId: 'user-a' });
+  useAuthStore.getState().setPreferences({ fontSize: 'large', onboardingCompleted: true });
+  seedPerUserData();
+
+  await useAuthStore.getState().initialize();
+  supabaseFake.auth.emit('INITIAL_SESSION', null);
+
+  assert.equal(perUserDataIsCleared(), false);
+  assert.equal(bibleResetCount, 0);
+  assert.equal(useAuthStore.getState().lastSyncedUserId, 'user-a');
+  assert.equal(useAuthStore.getState().preferences.fontSize, 'large');
+  assert.equal(useAuthStore.getState().preferences.onboardingCompleted, true);
+  assert.equal(useAuthStore.getState().isAuthenticated, false);
+
+  // Back online: the auto-refresh restores the same account with its data intact.
+  supabaseFake.auth.emit(
+    'TOKEN_REFRESHED',
+    makeFakeSession({ user: makeFakeUser({ id: 'user-a' }) })
+  );
+
+  assert.equal(useAuthStore.getState().user?.uid, 'user-a');
+  assert.equal(perUserDataIsCleared(), false);
+  assert.equal(useAuthStore.getState().preferences.fontSize, 'large');
+});
+
+test('a different account signing in after an offline cold start still gets a clean slate', async () => {
+  authHandlers.getSession = async () => ({
+    data: { session: null },
+    error: { name: 'AuthRetryableFetchError', message: 'Network request failed', status: 0 },
+  });
+  useAuthStore.setState({ lastSyncedUserId: 'user-a' });
+  seedPerUserData();
+
+  await useAuthStore.getState().initialize();
+  supabaseFake.auth.emit('SIGNED_IN', makeFakeSession({ user: makeFakeUser({ id: 'user-b' }) }));
+
+  assert.equal(useAuthStore.getState().user?.uid, 'user-b');
+  assert.equal(perUserDataIsCleared(), true);
+  assert.equal(useAuthStore.getState().lastSyncedUserId, 'user-b');
 });
 
 test('initialize subscribes to Supabase auth changes exactly once', async () => {
