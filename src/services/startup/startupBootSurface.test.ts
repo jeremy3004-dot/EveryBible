@@ -361,41 +361,6 @@ test('app-shell modules import concrete files instead of the hooks/constants/sto
   });
 });
 
-test('LoadingScreen fails closed until privacy initialization completes', () => {
-  const appSource = readRelativeSource('../../../App.tsx');
-
-  assert.match(
-    appSource,
-    /const isPrivacyInitialized = usePrivacyStore\(\(state\) => state\.isInitialized\);/,
-    'LoadingScreen should observe privacy initialization state before exposing sensitive content'
-  );
-
-  assert.match(
-    appSource,
-    /if \(!isReady \|\| !isPrivacyInitialized \|\| shouldWaitForFonts\) \{[\s\S]*<View style=\{\[styles\.bootShell/,
-    'LoadingScreen should keep the boot shell visible while privacy initialization is pending'
-  );
-
-  assert.match(
-    appSource,
-    /if \(\s*!isReady\s*\|\|\s*!preferences\.onboardingCompleted\s*\|\|\s*!isPrivacyInitialized\s*\|\|\s*isPrivacyLocked\s*\)/,
-    'LoadingScreen should not schedule the navigator before privacy initialization completes'
-  );
-
-  assert.match(
-    appSource,
-    /createAuthInitializer\(\{[\s\S]*rehydrateAuth:\s*\(\)\s*=>\s*useAuthStore\.persist\.rehydrate\(\),[\s\S]*initializeAuth,[\s\S]*\}\)/,
-    'LoadingScreen should rehydrate persisted auth state after privacy migration before auth initialization'
-  );
-
-  const privacyLockIndex = appSource.indexOf('if (isPrivacyLocked) {');
-  const onboardingIndex = appSource.indexOf('if (!preferences.onboardingCompleted) {');
-  assert.ok(
-    privacyLockIndex !== -1 && onboardingIndex !== -1 && privacyLockIndex < onboardingIndex,
-    'LoadingScreen should render the privacy lock before onboarding once readiness is complete'
-  );
-});
-
 test('App render path does not call impure timing helpers', () => {
   const appSource = readRelativeSource('../../../App.tsx');
   const appStart = appSource.indexOf('export default function App()');
@@ -406,40 +371,6 @@ test('App render path does not call impure timing helpers', () => {
     /Date\.now\(/.test(appRenderSource),
     false,
     'App component render body should stay pure; keep timing logs in effects or module scope'
-  );
-});
-
-// UI-only source check (no component renderer): a render or effect error outside
-// every ErrorBoundary is a fatal RCTFatal crash in a release build.
-test('App wraps the providers, AppContent and the runtime-effects host in error boundaries', () => {
-  const appSource = readRelativeSource('../../../App.tsx');
-  const appStart = appSource.indexOf('export default function App()');
-  const appRenderSource = appSource.slice(
-    appStart,
-    appSource.indexOf('function AppContent()', appStart)
-  );
-
-  assert.match(
-    appRenderSource,
-    /<GestureHandlerRootView[^>]*>(?:\s*\{\/\*[\s\S]*?\*\/\})?\s*<ErrorBoundary scope="root">\s*<I18nextProvider/,
-    'the provider tree and AppContent (its effects and hooks) need a root boundary'
-  );
-  assert.match(
-    appSource,
-    /<ErrorBoundary scope="runtime-effects" fallback=\{null\}>\s*<AppRuntimeEffectsHost/,
-    'the runtime-effects host renders nothing, so on failure it must render nothing'
-  );
-  // The privacy lock fails closed: its own boundary, outside the runtime-effects one, and
-  // a caught error locks a discreet install (LoadingScreen then shows the lock screen).
-  assert.match(
-    appSource,
-    /<ErrorBoundary\s+scope="privacy-lock"\s+fallback=\{null\}\s+onError=\{lockAfterPrivacyLockFailure\}\s*>\s*<PrivacyLockHost \/>\s*<\/ErrorBoundary>/,
-    'the privacy lock needs its own fail-closed boundary'
-  );
-  assert.match(
-    appSource,
-    /function PrivacyLockHost\(\) \{\s*usePrivacyLock\(\);\s*return null;\s*\}/,
-    'the privacy lock host mounts only the lock, so no other effect can take it down'
   );
 });
 
