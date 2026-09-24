@@ -44,15 +44,15 @@ export default async function SupportUserDetailPage({
       <section className="metric-grid">
         <article className="metric-card">
           <span>Sessions</span>
-          <strong>{detail.sessionCount}</strong>
+          <strong>{detail.sessionCount ?? 'Unavailable'}</strong>
         </article>
         <article className="metric-card">
           <span>Plans</span>
-          <strong>{detail.planCount}</strong>
+          <strong>{detail.planCount ?? 'Unavailable'}</strong>
         </article>
         <article className="metric-card">
           <span>Feedback items</span>
-          <strong>{detail.feedbackCount}</strong>
+          <strong>{detail.feedbackCount ?? 'Unavailable'}</strong>
         </article>
       </section>
 
