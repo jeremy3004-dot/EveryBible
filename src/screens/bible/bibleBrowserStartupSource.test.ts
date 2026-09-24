@@ -60,10 +60,24 @@ test('the shared translation picker is imported only once the translation sheet 
     );
   }
   const sheet = read('./browser/TranslationPickerSheet.tsx');
-  assert.match(sheet, /void import\('\.\.\/TranslationPickerList'\)\.then/);
+  assert.match(sheet, /return import\('\.\.\/TranslationPickerList'\)\.then/);
   assert.match(
     sheet,
     /!visible \|\| TranslationPickerComponent/,
     'the dynamic import is gated on the sheet being opened'
+  );
+});
+
+test('the crash queue (and so MMKV) loads only when a picker load failure is reported', () => {
+  for (const { name, source } of startupGraph) {
+    assert.doesNotMatch(
+      source,
+      /^(import|export)[^;]*from '(\.\.\/)+services\/diagnostics\/crashReportQueue';/m,
+      `${name} must not statically import the crash queue`
+    );
+  }
+  assert.match(
+    read('./browser/TranslationPickerSheet.tsx'),
+    /void import\('\.\.\/\.\.\/\.\.\/services\/diagnostics\/crashReportQueue'\)/
   );
 });
