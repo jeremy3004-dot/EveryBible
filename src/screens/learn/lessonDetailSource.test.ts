@@ -17,11 +17,10 @@ test('LessonDetailScreen uses the active Bible translation for gather scripture 
     'LessonDetailScreen should read the current Bible translation from the shared Bible store'
   );
 
-  assert.equal(
-    source.includes(
-      'getPassageText(lesson.references, currentTranslation, { bookNameResolver: resolveBookName })'
-    ),
-    true,
+  // The BSB fallback itself is behaviour, covered by gatherBibleService.test.ts.
+  assert.match(
+    source,
+    /getPassageText\(lesson\.references, currentTranslation, \{\s*bookNameResolver: resolveBookName,\s*fallbackTranslationId: LESSON_FALLBACK_TRANSLATION_ID,/,
     'LessonDetailScreen should load gather passage text in the currently selected translation and locale'
   );
 
