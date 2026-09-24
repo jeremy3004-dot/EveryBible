@@ -15,6 +15,7 @@ import { act, type ReactTestInstance } from 'react-test-renderer';
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
 import type { BibleTranslation, Verse } from '../../types';
+import type { UserAnnotation } from '../../services/supabase/types';
 import { hostComponent } from '../../testing/reactNativeHost';
 import { createReanimatedFake, type ReanimatedFakeState } from '../../testing/nativePackageFakes';
 import {
@@ -267,6 +268,8 @@ export function installReaderRenderFixture(
     resolve: (data: unknown[]) => void;
   }> = [];
   let holdAnnotationLoads = false;
+  /** The saved annotations, as the local annotation store keeps them (soft deletes included). */
+  const annotationRows: UserAnnotation[] = [];
   mockModule(mocker, sourcePath('services/annotations/annotationService.ts'), {
     getAnnotationsForChapter: (bookId: string, chapter: number) =>
       holdAnnotationLoads
@@ -276,13 +279,36 @@ export function installReaderRenderFixture(
               resolve: (data) => resolve({ success: true, data }),
             });
           })
-        : Promise.resolve({ success: true, data: [] }),
-    upsertAnnotation: async (annotation: Record<string, unknown>) => {
+        : Promise.resolve({
+            success: true,
+            // Fresh objects per load, as the store hands out new rows after every write.
+            data: annotationRows
+              .filter(
+                (row) => row.deleted_at == null && row.book === bookId && row.chapter === chapter
+              )
+              .map((row) => ({ ...row })),
+          }),
+    upsertAnnotation: async (
+      annotation: Omit<UserAnnotation, 'user_id' | 'created_at' | 'updated_at' | 'synced_at'>
+    ) => {
       serviceCalls.push(['upsertAnnotation', annotation]);
-      return { success: true };
+      const saved: UserAnnotation = {
+        ...annotation,
+        user_id: 'local',
+        created_at: '2026-09-24T00:00:00.000Z',
+        updated_at: '2026-09-24T00:00:00.000Z',
+        synced_at: '2026-09-24T00:00:00.000Z',
+      };
+      const index = annotationRows.findIndex((row) => row.id === annotation.id);
+      if (index >= 0) annotationRows[index] = saved;
+      else annotationRows.push(saved);
+      return { success: true, data: saved };
     },
     softDeleteAnnotation: async (id: string) => {
       serviceCalls.push(['softDeleteAnnotation', id]);
+      const row = annotationRows.find((candidate) => candidate.id === id);
+      if (!row || row.deleted_at != null) return { success: false, error: 'not found' };
+      row.deleted_at = '2026-09-24T00:00:01.000Z';
       return { success: true };
     },
   });
@@ -448,6 +474,7 @@ export function installReaderRenderFixture(
     feedbackSubmissions.length = 0;
     feedbackOutcome.result = { success: true };
     annotationLoads.length = 0;
+    annotationRows.length = 0;
     serviceCalls.length = 0;
     av.log.length = 0;
     av.held.clear();
@@ -549,6 +576,7 @@ export function installReaderRenderFixture(
     chapters,
     chapterRequests,
     annotationLoads,
+    annotationRows,
     holdAnnotations: () => {
       holdAnnotationLoads = true;
     },
