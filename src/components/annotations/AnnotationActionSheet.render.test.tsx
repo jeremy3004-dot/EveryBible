@@ -3,9 +3,17 @@ import assert from 'node:assert/strict';
 import type { ComponentProps } from 'react';
 import { act } from 'react-test-renderer';
 import { mockBarrel } from '../../testing/mockModules';
-import { flattenStyle, installRenderHarness } from '../../testing/render';
+import type { ReactTestInstance } from 'react-test-renderer';
+import { flattenStyle, hostAncestors, installRenderHarness } from '../../testing/render';
 
-const harness = installRenderHarness(mock, { os: 'android' });
+// A small phone (iPhone SE: 375x667pt, 20pt status bar, no home indicator), the
+// window where the sheet is likeliest to outgrow the screen at large text.
+const WINDOW = { width: 375, height: 667 };
+const harness = installRenderHarness(mock, {
+  os: 'android',
+  ...WINDOW,
+  insets: { top: 20, bottom: 0 },
+});
 mockBarrel(mock, 'utils/index.ts', { real: ['hexWithAlpha'] });
 
 const t = (key: string) => harness.i18n.t(key);
@@ -106,4 +114,102 @@ test('a wrapped sheet title stays clear of the close button pinned beside it', a
     inset >= Number(closeStyle.width) + Number(closeStyle.right ?? 0),
     `a ${inset}pt inset keeps a two-line title out from under the ${closeStyle.width}pt button`
   );
+});
+
+type View = Awaited<ReturnType<typeof harness.render>>;
+
+const isScrollView = (node: ReactTestInstance) => (node.type as unknown) === 'ScrollView';
+const scrollViewAbove = (node: ReactTestInstance) => hostAncestors(node).find(isScrollView);
+
+/** The sheet surface: the view that carries the height cap, around the title. */
+function sheetSurface(view: View, title: string) {
+  const surface = hostAncestors(view.getByText(title)).find(
+    (node) => flattenStyle(node.props.style)?.maxHeight != null
+  );
+  assert.ok(surface, 'the sheet surface bounds its height');
+  return surface;
+}
+
+// Room left above an SE keyboard with its suggestion bar (216 + 44pt) and the status bar.
+const ROOM_ABOVE_KEYBOARD = WINDOW.height - 20 - 260;
+
+test('at large text on a small phone the sheet stays below the status bar and its actions scroll', async () => {
+  const { AnnotationActionSheet } = await import('./AnnotationActionSheet');
+  harness.setFontScale(2);
+  const view = await harness.render(<AnnotationActionSheet {...sheetProps(() => {})} />);
+
+  // The overlay fills the reader, which draws under the status bar.
+  const [overlay] = view.queryAllByType('KeyboardAvoidingView');
+  assert.equal(flattenStyle(overlay.props.style)?.paddingTop, harness.insets.top);
+
+  const title = `${t('annotations.selected')}: John 3:16`;
+  const surface = sheetSurface(view, title);
+  const style = flattenStyle(surface.props.style) ?? {};
+  const maxHeight = Number(style.maxHeight);
+  const available = WINDOW.height - harness.insets.top;
+  assert.ok(maxHeight > available / 2 && maxHeight < available, `cap ${maxHeight}`);
+  assert.equal(style.flexShrink, 1, 'the keyboard can squeeze the sheet further');
+
+  // The colours and action pills scroll; the title and close button stay put.
+  const scroll = scrollViewAbove(view.getByRole('button', { name: t('annotations.copy') }));
+  assert.ok(scroll, 'the actions sit in a scroll view');
+  assert.ok(hostAncestors(scroll).includes(surface));
+  assert.ok(scrollViewAbove(view.getByRole('button', { name: t('annotations.colors.red') })));
+  assert.equal(scrollViewAbove(view.getByText(title)), undefined, 'the title does not scroll');
+  assert.equal(
+    scrollViewAbove(view.getByRole('button', { name: 'Close verse actions' })),
+    undefined,
+    'the close button does not scroll'
+  );
+});
+
+test('in note mode at large text the note field and Done stay pinned above the keyboard while the preview scrolls', async () => {
+  const { AnnotationActionSheet } = await import('./AnnotationActionSheet');
+  harness.setFontScale(2);
+  const notes: string[] = [];
+  const view = await harness.render(
+    <AnnotationActionSheet
+      {...sheetProps(() => {}, {
+        selectedText: 'For God so loved the world, that he gave his only Son. '.repeat(4),
+        onNote: (text) => {
+          notes.push(text);
+        },
+      })}
+    />
+  );
+  await view.press(view.getByRole('button', { name: t('annotations.note') }));
+
+  const surface = sheetSurface(view, `${t('annotations.selected')}: John 3:16`);
+  const preview = scrollViewAbove(view.getByText(/^For God so loved/));
+  assert.ok(preview, 'the verse preview scrolls');
+  assert.ok(hostAncestors(preview).includes(surface));
+  assert.equal(preview.props.keyboardShouldPersistTaps, 'handled');
+  assert.equal(flattenStyle(preview.props.style)?.flexShrink, 1, 'the preview gives up room first');
+
+  const input = view.getByLabelText(t('annotations.noteHint'));
+  const done = view.getByRole('button', { name: t('common.done') });
+  for (const node of [input, done]) {
+    assert.equal(scrollViewAbove(node), undefined, 'pinned, never scrolled out of reach');
+    assert.ok(hostAncestors(node).includes(surface));
+  }
+
+  // A long note scrolls inside the field instead of pushing Done off the screen:
+  // the field's cap plus Done fit in well under half the room above the keyboard.
+  const inputStyle = flattenStyle(input.props.style) ?? {};
+  const inputMaxHeight = Number(inputStyle.maxHeight);
+  assert.ok(inputMaxHeight >= Number(inputStyle.minHeight), `field cap ${inputMaxHeight}`);
+  const doneStyle =
+    flattenStyle(
+      typeof done.props.style === 'function'
+        ? done.props.style({ pressed: false })
+        : done.props.style
+    ) ?? {};
+  assert.ok(
+    inputMaxHeight + Number(doneStyle.minHeight) < ROOM_ABOVE_KEYBOARD / 2,
+    `${inputMaxHeight} + ${doneStyle.minHeight} fits above the keyboard`
+  );
+
+  await view.changeText(input, 'Remember this.');
+  await view.press(done);
+  assert.deepEqual(notes, ['Remember this.']);
 });

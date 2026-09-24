@@ -4,12 +4,15 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useLargeText } from '../../hooks/useLargeText';
@@ -25,6 +28,16 @@ const HIGHLIGHT_COLORS = [
 ] as const;
 
 const PRESSED_SCALE = 0.96;
+
+// Height: the sheet grows with its content up to a share of the reader below
+// the status bar, then everything under the title scrolls. At large text on a
+// small phone (and in note mode with the keyboard up) the unbounded sheet was
+// pushed past the top of the screen. The share leaves a strip of verses showing.
+const SHEET_MAX_HEIGHT_SHARE = 0.9;
+// The note field grows with the note up to this share of the window, then
+// scrolls inside itself, so a long note never pushes Done under the keyboard.
+const NOTE_INPUT_MIN_HEIGHT = 124;
+const NOTE_INPUT_MAX_HEIGHT_SHARE = 0.2;
 
 interface AnnotationActionSheetProps {
   visible: boolean;
@@ -104,6 +117,13 @@ function AnnotationActionSheetContent({
 }: AnnotationActionSheetProps) {
   const { colors } = useTheme();
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
+  const maxHeight = Math.round((windowHeight - insets.top) * SHEET_MAX_HEIGHT_SHARE);
+  const noteInputMaxHeight = Math.max(
+    NOTE_INPUT_MIN_HEIGHT,
+    Math.round(windowHeight * NOTE_INPUT_MAX_HEIGHT_SHARE)
+  );
   const [noteText, setNoteText] = useState(existingNote ?? '');
   const [mode, setMode] = useState<'actions' | 'note'>('actions');
   const [isSaving, setIsSaving] = useState(false);
@@ -165,7 +185,10 @@ function AnnotationActionSheetContent({
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       pointerEvents="box-none"
-      style={styles.overlay}
+      // The reader draws under the status bar, so the overlay starts below it;
+      // the keyboard's padding then takes room from the sheet, which shrinks
+      // and scrolls instead of pushing its title off the top.
+      style={[styles.overlay, { paddingTop: insets.top }]}
     >
       <View
         style={[
@@ -174,6 +197,7 @@ function AnnotationActionSheetContent({
             backgroundColor: colors.bibleSurface,
             borderColor: colors.bibleDivider,
             paddingBottom: spacing.xl + bottomInset,
+            maxHeight,
           },
         ]}
       >
@@ -209,7 +233,13 @@ function AnnotationActionSheetContent({
         </View>
 
         {mode === 'actions' ? (
-          <View style={styles.actionsContainer}>
+          <ScrollView
+            style={styles.body}
+            contentContainerStyle={styles.actionsContainer}
+            // A tap on a pill should press it, not only dismiss a keyboard.
+            keyboardShouldPersistTaps="handled"
+            alwaysBounceVertical={false}
+          >
             <View style={styles.selectionControlsRow}>
               <View style={styles.highlightRow}>
                 {HIGHLIGHT_COLORS.map((color) => {
@@ -279,77 +309,93 @@ function AnnotationActionSheetContent({
                 />
               </View>
             </View>
-          </View>
+          </ScrollView>
         ) : (
-          <View style={styles.noteContainer}>
-            <Text style={[styles.noteReference, { color: colors.bibleSecondaryText }]}>
-              {referenceLabel}
-            </Text>
-            <Text
-              style={[styles.notePreview, { color: colors.bibleSecondaryText }]}
-              numberOfLines={3}
+          <>
+            {/* Only the reference and verse preview scroll. The field and its
+                buttons stay pinned at the bottom of the sheet, directly above
+                the keyboard, so what the user is typing and Done are always in
+                reach however little room the keyboard leaves. */}
+            <ScrollView
+              style={styles.body}
+              contentContainerStyle={styles.notePreviewContainer}
+              keyboardShouldPersistTaps="handled"
+              alwaysBounceVertical={false}
             >
-              {selectedText}
-            </Text>
-            <TextInput
-              style={[
-                styles.noteInput,
-                {
-                  color: colors.biblePrimaryText,
-                  borderColor: colors.controlBorder,
-                  backgroundColor: colors.bibleElevatedSurface,
-                },
-              ]}
-              placeholder={t('annotations.noteHint')}
-              placeholderTextColor={colors.bibleSecondaryText}
-              accessibilityLabel={t('annotations.noteHint')}
-              value={noteText}
-              onChangeText={setNoteText}
-              multiline
-              maxLength={1000}
-              autoFocus
-              editable={canAnnotate}
-            />
-            <View style={styles.noteActions}>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.noteActionButton,
+              <Text style={[styles.noteReference, { color: colors.bibleSecondaryText }]}>
+                {referenceLabel}
+              </Text>
+              <Text
+                style={[styles.notePreview, { color: colors.bibleSecondaryText }]}
+                numberOfLines={3}
+              >
+                {selectedText}
+              </Text>
+            </ScrollView>
+            <View style={styles.noteComposer}>
+              <TextInput
+                style={[
+                  styles.noteInput,
                   {
+                    maxHeight: noteInputMaxHeight,
+                    color: colors.biblePrimaryText,
+                    borderColor: colors.controlBorder,
                     backgroundColor: colors.bibleElevatedSurface,
-                    borderColor: colors.bibleDivider,
-                    transform: [{ scale: pressed ? PRESSED_SCALE : 1 }],
                   },
                 ]}
-                onPress={() => setMode('actions')}
-                hitSlop={10}
-                accessibilityRole="button"
-              >
-                <Text style={[styles.noteActionText, { color: colors.bibleSecondaryText }]}>
-                  {t('common.cancel')}
-                </Text>
-              </Pressable>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.noteActionButton,
-                  {
-                    backgroundColor: colors.accentPrimary,
-                    opacity: canAnnotate && !isSaving ? 1 : 0.5,
-                    transform: [{ scale: pressed && canAnnotate && !isSaving ? PRESSED_SCALE : 1 }],
-                  },
-                ]}
-                onPress={() => {
-                  void handleNote();
-                }}
-                disabled={!canAnnotate || isSaving}
-                hitSlop={10}
-                accessibilityRole="button"
-              >
-                <Text style={[styles.noteActionText, { color: colors.onAccent }]}>
-                  {t('common.done')}
-                </Text>
-              </Pressable>
+                placeholder={t('annotations.noteHint')}
+                placeholderTextColor={colors.bibleSecondaryText}
+                accessibilityLabel={t('annotations.noteHint')}
+                value={noteText}
+                onChangeText={setNoteText}
+                multiline
+                maxLength={1000}
+                autoFocus
+                editable={canAnnotate}
+              />
+              <View style={styles.noteActions}>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.noteActionButton,
+                    {
+                      backgroundColor: colors.bibleElevatedSurface,
+                      borderColor: colors.bibleDivider,
+                      transform: [{ scale: pressed ? PRESSED_SCALE : 1 }],
+                    },
+                  ]}
+                  onPress={() => setMode('actions')}
+                  hitSlop={10}
+                  accessibilityRole="button"
+                >
+                  <Text style={[styles.noteActionText, { color: colors.bibleSecondaryText }]}>
+                    {t('common.cancel')}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.noteActionButton,
+                    {
+                      backgroundColor: colors.accentPrimary,
+                      opacity: canAnnotate && !isSaving ? 1 : 0.5,
+                      transform: [
+                        { scale: pressed && canAnnotate && !isSaving ? PRESSED_SCALE : 1 },
+                      ],
+                    },
+                  ]}
+                  onPress={() => {
+                    void handleNote();
+                  }}
+                  disabled={!canAnnotate || isSaving}
+                  hitSlop={10}
+                  accessibilityRole="button"
+                >
+                  <Text style={[styles.noteActionText, { color: colors.onAccent }]}>
+                    {t('common.done')}
+                  </Text>
+                </Pressable>
+              </View>
             </View>
-          </View>
+          </>
         )}
       </View>
     </KeyboardAvoidingView>
@@ -382,7 +428,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
     paddingBottom: spacing.xl,
+    flexShrink: 1,
     ...shadows.floating,
+  },
+  body: {
+    flexGrow: 0,
+    flexShrink: 1,
   },
   handle: {
     alignItems: 'center',
@@ -470,7 +521,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 8,
   },
-  noteContainer: {
+  notePreviewContainer: {
+    gap: spacing.md,
+  },
+  noteComposer: {
+    marginTop: spacing.md,
     gap: spacing.md,
   },
   noteReference: {
@@ -488,7 +543,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    minHeight: 124,
+    minHeight: NOTE_INPUT_MIN_HEIGHT,
     textAlignVertical: 'top',
   },
   noteActions: {

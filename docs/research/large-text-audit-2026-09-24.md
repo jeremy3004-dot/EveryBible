@@ -123,11 +123,26 @@ resolve sheet (`ChapterFeedbackReviewScreen`, reason field + Save) and the lesso
 playback sheet (`LessonDetailScreen`).
 
 Not on `Sheet`, so not covered by the cap: the reader's verse actions sheet
-(`annotations/AnnotationActionSheet`, an in-screen overlay; its note mode with
-the keyboard up is the likeliest to overflow on a small phone), the audio speed,
-sleep-timer and music dialogs (`audio/PlaybackControls`, centred modals; the
-music list with descriptions is the tallest), and the translation picker and
-Bible browser modals, which set their own `82%` / `60%` heights.
+and the player's option dialogs (both fixed separately, below), and the
+translation picker and Bible browser modals, which set their own `82%` / `60%`
+heights.
+
+### Verse actions sheet and player dialogs (same day)
+
+| Component                           | Element                               | Status | What changed                                                                                                                                                                                                                                                                                                                                                    |
+| ----------------------------------- | ------------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `annotations/AnnotationActionSheet` | Whole overlay (actions and note mode) | Fixed  | The overlay starts below the status bar (the reader draws under it); the sheet is capped at 90% of the rest and can shrink, and everything under the title scrolls (`keyboardShouldPersistTaps="handled"`), so the keyboard's avoidance padding squeezes the sheet instead of pushing its title off the top                                                     |
+| `annotations/AnnotationActionSheet` | Note mode: field and Cancel/Done      | Fixed  | Only the reference and verse preview scroll; the note field and its buttons are pinned at the bottom of the sheet, directly above the keyboard. The field grows to 20% of the window (never under its 124pt minimum) and then scrolls inside itself, so a long note cannot push Done under the keyboard                                                         |
+| `audio/PlaybackControls`            | Sleep-timer, speed and music dialogs  | Fixed  | The three centred modals now share `audio/PlaybackOptionsDialog`: centred inside the safe area with a 20pt margin, capped to that height, title fixed and options scrolling. The backdrop moved behind the dialog (it used to wrap it), so dragging the list scrolls it rather than starting a backdrop press; it stays out of the accessibility tree as before |
+
+Render tests at fontScale 2 in a 375x667pt window (20pt status bar):
+`AnnotationActionSheet.render.test.tsx` (overlay inset, cap, scrolling actions,
+fixed title and close; in note mode a scrolling preview with the field and Done
+outside the scroll view, the field's cap plus Done under half the room above an
+SE keyboard, and typing then pressing Done saves) and
+`PlaybackControls.render.test.tsx` (sleep-timer cap and safe-area centring,
+options scroll under the title and the last one still sets the timer; the speed
+and music dialogs are bounded and scroll the same way).
 
 ## Absolutely positioned elements over text
 
@@ -161,3 +176,9 @@ From the `Sheet` cap: each `Sheet` at AX3 on a small phone (iPhone SE) with and
 without the keyboard (feedback resolve reason, prayer report note), on iOS and
 Android, checking the title stays on screen and the last button scrolls into
 reach.
+
+From the verse actions sheet and player dialogs: on an iPhone SE at AX3, the
+verse actions sheet in both modes, and note mode with the keyboard up and a
+note long enough to scroll inside the field (Done must stay above the
+keyboard, on iOS and Android); the sleep-timer and music dialogs at AX3,
+scrolled to their last option.
