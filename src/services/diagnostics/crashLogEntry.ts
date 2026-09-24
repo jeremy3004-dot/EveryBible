@@ -24,15 +24,33 @@ export function appendCrashLogEntry(
   return next.length > max ? next.slice(next.length - max) : next;
 }
 
+const UNPRINTABLE = '[unprintable value]';
+
+/**
+ * Never throws: it runs inside the global error handler, where a throw would skip the
+ * remote report and RN's own handler. `String(Object.create(null))`, a throwing
+ * `toString` and a throwing `message` getter all become a placeholder.
+ */
 export function toCrashLogEntry(
   error: unknown,
   isFatal: boolean,
   timestamp: number
 ): CrashLogEntry {
-  if (error instanceof Error) {
-    return { message: error.message, stack: error.stack, isFatal, timestamp };
+  try {
+    if (error instanceof Error) {
+      const message = error.message;
+      const stack = error.stack;
+      return {
+        message: typeof message === 'string' ? message : String(message),
+        stack: typeof stack === 'string' ? stack : undefined,
+        isFatal,
+        timestamp,
+      };
+    }
+    return { message: String(error), isFatal, timestamp };
+  } catch {
+    return { message: UNPRINTABLE, isFatal, timestamp };
   }
-  return { message: String(error), isFatal, timestamp };
 }
 
 /**

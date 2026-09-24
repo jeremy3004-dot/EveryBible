@@ -43,6 +43,11 @@ const MAX_MESSAGE_CHARS = 500;
 const MAX_STACK_FRAMES = 8;
 const MAX_COMPONENT_NAMES = 12;
 export const MAX_CRASH_REPORTS_PER_DAY = 10;
+/**
+ * Handled errors (reportHandledError) may only use the first half of the daily budget, so
+ * a noisy catch site can never crowd out the crashes that follow it.
+ */
+export const MAX_HANDLED_REPORTS_PER_DAY = 5;
 
 const URL_PATTERN = /\b[a-z][a-z0-9+.-]*:\/\/[^\s'"<>()]+/gi;
 const JWT_PATTERN = /\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}(?:\.[A-Za-z0-9_-]*)?/g;
@@ -51,6 +56,11 @@ const EMAIL_PATTERN = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
 const UUID_PATTERN = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
 const LONG_TOKEN_PATTERN = /\b[A-Za-z0-9_-]{32,}\b/g;
 const LONG_DIGITS_PATTERN = /\d{6,}/g;
+// A labelled secret (`passcode=4821`, `"pin":"1234"`). Translator passcodes and the privacy
+// PIN are too short for the digit rule. Bare `token` is left alone: parser errors say
+// "Unexpected token: }" and the character is the useful part.
+const LABELLED_SECRET_PATTERN =
+  /\b(passcode|password|passwd|pin|secret|access_token|refresh_token|id_token|auth_token|api_?key)(["']?\s*[:=]\s*["']?)[^\s"',;&}]+/gi;
 
 function scrubUrl(url: string): string {
   const schemeEnd = url.indexOf('://') + 3;
@@ -66,11 +76,48 @@ function scrubUrl(url: string): string {
   return `${url.slice(0, schemeEnd)}${kept}`;
 }
 
+const isHighSurrogate = (code: number) => code >= 0xd800 && code <= 0xdbff;
+const isLowSurrogate = (code: number) => code >= 0xdc00 && code <= 0xdfff;
+
+/**
+ * Postgres cannot store U+0000 or a lone UTF-16 surrogate; either one in a report used to
+ * fail the whole upload batch. NULs are dropped and lone surrogates become U+FFFD. A loop
+ * rather than a lookbehind regex, so it behaves the same on every Hermes version.
+ */
+function toStorableText(text: string): string {
+  let result = '';
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    if (code === 0) continue;
+    if (isHighSurrogate(code) && i + 1 < text.length && isLowSurrogate(text.charCodeAt(i + 1))) {
+      result += text[i] + text[i + 1];
+      i += 1;
+    } else if (isHighSurrogate(code) || isLowSurrogate(code)) {
+      result += '\ufffd';
+    } else {
+      result += text[i];
+    }
+  }
+  return result;
+}
+
+/**
+ * Cuts to at most `maxChars` UTF-16 units (the server's limit) on a code point boundary,
+ * so an emoji at the cut is dropped whole instead of leaving half a surrogate pair.
+ */
+function truncateText(text: string, maxChars: number): string {
+  if (text.length <= maxChars) return text;
+  let end = Math.max(0, maxChars - 1);
+  if (end > 0 && isHighSurrogate(text.charCodeAt(end - 1))) end -= 1;
+  return `${text.slice(0, end)}…`;
+}
+
 /** Removes personal data and secrets from free text, collapses whitespace and truncates. */
 export function scrubErrorText(text: string, maxChars = MAX_MESSAGE_CHARS): string {
-  const scrubbed = text
+  const scrubbed = toStorableText(text)
     .replace(URL_PATTERN, scrubUrl)
     .replace(BEARER_PATTERN, 'Bearer <token>')
+    .replace(LABELLED_SECRET_PATTERN, '$1$2<redacted>')
     .replace(JWT_PATTERN, '<token>')
     .replace(EMAIL_PATTERN, '<email>')
     .replace(UUID_PATTERN, '<uuid>')
@@ -78,7 +125,7 @@ export function scrubErrorText(text: string, maxChars = MAX_MESSAGE_CHARS): stri
     .replace(LONG_DIGITS_PATTERN, '<n>')
     .replace(/\s+/g, ' ')
     .trim();
-  return scrubbed.length > maxChars ? `${scrubbed.slice(0, maxChars - 1)}…` : scrubbed;
+  return truncateText(scrubbed, maxChars);
 }
 
 const V8_FRAME = /^at\s+(?:(.+?)\s+\()?(?:address at\s+)?(.+?):(\d+):(\d+)\)?$/;
@@ -164,6 +211,36 @@ export function computeCrashFingerprint(
   return cyrb53(`${errorName}|${message.replace(/\d+/g, '#')}|${screen ?? ''}`);
 }
 
+const HANDLED_SOURCE = /^[A-Za-z][\w.-]{0,31}$/;
+
+/** A catch-site label such as `audio.load`; anything else becomes `unknown`. */
+export function toHandledErrorSource(source: unknown): string {
+  return typeof source === 'string' && HANDLED_SOURCE.test(source) ? source : 'unknown';
+}
+
+const TRANSIENT_NETWORK_NAMES = new Set(['AbortError', 'TimeoutError']);
+const TRANSIENT_NETWORK_MESSAGE =
+  /network request failed|network ?error|failed to fetch|timed out|timeout|aborted|offline|not connected to the internet|unable to resolve host|ENOTFOUND|ECONNRESET|ECONNREFUSED|NSURLErrorDomain|UnknownHostException|SocketTimeoutException/i;
+
+/**
+ * Offline, timeouts and cancellations are expected on phones and say nothing about a bug,
+ * so handled-error reporting skips them (uncaught ones are still reported as crashes).
+ */
+export function isTransientNetworkError(error: unknown): boolean {
+  try {
+    if (typeof error !== 'object' || error === null) {
+      return typeof error === 'string' && TRANSIENT_NETWORK_MESSAGE.test(error);
+    }
+    const { name, message } = error as { name?: unknown; message?: unknown };
+    return (
+      (typeof name === 'string' && TRANSIENT_NETWORK_NAMES.has(name)) ||
+      (typeof message === 'string' && TRANSIENT_NETWORK_MESSAGE.test(message))
+    );
+  } catch {
+    return false;
+  }
+}
+
 const ERROR_NAME = /^[A-Za-z_$][\w$.]{0,63}$/;
 const SCREEN_NAME = /^[\w:.[\]-]{1,64}$/;
 
@@ -178,6 +255,8 @@ export interface CrashReportInput {
   kind: CrashReportKind;
   screen: string | null;
   componentStack?: string | null;
+  /** Catch-site label for a handled error; prefixed to the message as `[source]`. */
+  source?: string | null;
   occurredAt: number;
   reportId: string;
   device: CrashReportDevice;
@@ -189,11 +268,22 @@ export function buildCrashReport(input: CrashReportInput): AppErrorReport {
   const errorName = isError ? (ERROR_NAME.test(error.name) ? error.name : 'Error') : 'NonError';
   let rawMessage: string;
   try {
-    rawMessage = isError ? error.message : String(error);
+    // Plain `{ message, code }` rejections (common from native modules) keep their message.
+    const objectMessage =
+      !isError && typeof error === 'object' && error !== null
+        ? (error as { message?: unknown }).message
+        : undefined;
+    rawMessage = isError
+      ? error.message
+      : typeof objectMessage === 'string'
+        ? objectMessage
+        : String(error);
   } catch {
     rawMessage = '';
   }
-  const message = scrubErrorText(rawMessage);
+  const message = scrubErrorText(
+    input.source ? `[${toHandledErrorSource(input.source)}] ${rawMessage}` : rawMessage
+  );
   const screen = input.screen && SCREEN_NAME.test(input.screen) ? input.screen : null;
   return {
     report_id: input.reportId,

@@ -25,6 +25,16 @@ function getHermesInternal(): HermesPromiseRejectionTracker | undefined {
 
 let installed = false;
 
+// Reporting runs inside error handlers; a failure there must never replace the
+// original error or stop the next step.
+function guarded(step: () => void): void {
+  try {
+    step();
+  } catch {
+    // Best effort.
+  }
+}
+
 /**
  * Registers process-wide handlers for uncaught JS errors and unhandled promise
  * rejections so Android production crashes leave a local trail (via crashLogStore)
@@ -45,9 +55,10 @@ export function installGlobalErrorHandlers(): void {
     const originalHandler = errorUtils.getGlobalHandler();
     errorUtils.setGlobalHandler((error, isFatal) => {
       // Local log first, then the scrubbed remote report; both are synchronous
-      // MMKV writes because a fatal error may end the process right after.
-      recordCrashLog(toCrashLogEntry(error, Boolean(isFatal), Date.now()));
-      queueCrashReport({ error, kind: isFatal ? 'fatal' : 'error' });
+      // MMKV writes because a fatal error may end the process right after. Each
+      // step is guarded on its own so RN's handler always runs.
+      guarded(() => recordCrashLog(toCrashLogEntry(error, Boolean(isFatal), Date.now())));
+      guarded(() => queueCrashReport({ error, kind: isFatal ? 'fatal' : 'error' }));
       originalHandler(error, isFatal);
     });
   }
@@ -57,9 +68,9 @@ export function installGlobalErrorHandlers(): void {
     hermesInternal.enablePromiseRejectionTracker({
       allRejections: true,
       onUnhandled: (_id, error) => {
-        recordCrashLog(toCrashLogEntry(error, false, Date.now()));
-        queueCrashReport({ error, kind: 'rejection' });
-        console.error('[GlobalErrorHandler] Unhandled promise rejection:', error);
+        guarded(() => recordCrashLog(toCrashLogEntry(error, false, Date.now())));
+        guarded(() => queueCrashReport({ error, kind: 'rejection' }));
+        guarded(() => console.error('[GlobalErrorHandler] Unhandled promise rejection:', error));
       },
     });
   }
