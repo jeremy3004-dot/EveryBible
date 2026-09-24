@@ -306,6 +306,56 @@ test('the photograph bleeds under the status bar while the greeting clears it', 
   assert.equal(statusBar.props.style, 'light');
 });
 
+test('once the photograph scrolls out from under the status bar, the strip gets a backdrop', async () => {
+  const view = await renderHome();
+  const [scroll] = view.queryAllByType('ScrollView');
+  const isStatusMask = (node: ReactTestInstance) => {
+    const style = flattenStyle(node.props.style) ?? {};
+    return (
+      node.props.pointerEvents === 'none' &&
+      node.props.collapsable !== false && // not the off-screen share capture
+      style.position === 'absolute' &&
+      style.top === 0
+    );
+  };
+  const masks = () => view.queryAllByType('View').filter(isStatusMask);
+  const statusBarStyle = () => view.queryAllByType('ExpoStatusBar')[0].props.style;
+  const scrollTo = (y: number) =>
+    view.fire(scroll, 'onScroll', { nativeEvent: { contentOffset: { x: 0, y } } });
+
+  // The hero grows with the text size, so its measured height sets the threshold.
+  const greeting = heroes(view).screen.getByText(/^Good morning/);
+  const hero = hostAncestors(greeting).find((node) => node.props.onLayout) as ReactTestInstance;
+  assert.ok(hero, 'the on-screen hero reports its height');
+  await view.fire(hero, 'onLayout', {
+    nativeEvent: { layout: { x: 0, y: 0, width: 390, height: 900 } },
+  });
+  // The photograph ends 9 pt above the hero's bottom edge (the pills hang past it).
+  const photoLeavesStatusBarAt = 900 - 9 - harness.insets.top;
+
+  assert.equal(masks().length, 0, 'the photograph bleeds under the status bar at rest');
+  await scrollTo(photoLeavesStatusBarAt - 1);
+  assert.equal(masks().length, 0);
+  assert.equal(statusBarStyle(), 'light');
+
+  await scrollTo(photoLeavesStatusBarAt + 1);
+  const [mask] = masks();
+  assert.ok(mask, 'page content no longer runs under the status-bar glyphs');
+  const style = flattenStyle(mask.props.style) ?? {};
+  assert.equal(style.height, harness.insets.top);
+  assert.equal(style.left, 0);
+  assert.equal(style.right, 0);
+  assert.equal(
+    style.backgroundColor,
+    flattenStyle(view.root.findAllByType('View' as never)[0].props.style)?.backgroundColor
+  );
+  assert.equal(statusBarStyle(), 'dark', 'glyphs follow the page, not the photograph');
+
+  await scrollTo(0);
+  assert.equal(masks().length, 0);
+  assert.equal(statusBarStyle(), 'light');
+});
+
 test('the light status bar is only drawn while Home is the focused tab', async () => {
   isFocused = false;
   const view = await renderHome();
