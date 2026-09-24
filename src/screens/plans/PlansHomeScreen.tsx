@@ -51,7 +51,7 @@ export function PlansHomeScreen() {
     [navigation]
   );
 
-  const handleDeletePlan = useCallback(
+  const unenroll = useCallback(
     async (planId: string) => {
       try {
         const result = await unenrollFromPlan(planId);
@@ -66,6 +66,22 @@ export function PlansHomeScreen() {
       }
     },
     [t]
+  );
+
+  // A swipe or a screen-reader action is one gesture away from losing a plan's
+  // progress, so it asks first, with the same prompt as leaving from plan detail.
+  const handleDeletePlan = useCallback(
+    (planId: string) => {
+      Alert.alert(t('readingPlans.leavePlan'), t('readingPlans.leavePlanConfirmBody'), [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('readingPlans.leavePlan'),
+          style: 'destructive',
+          onPress: () => unenroll(planId),
+        },
+      ]);
+    },
+    [t, unenroll]
   );
 
   const handleAddPlan = useCallback(() => {

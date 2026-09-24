@@ -622,6 +622,59 @@ test('tapping an active plan opens its detail', async () => {
   assert.ok(harness.haptics.length > 0);
 });
 
+/**
+ * The confirmation a delete raises: plan detail's leave-plan prompt, word for word.
+ * Returns its buttons so a test can cancel or confirm it.
+ */
+function deleteConfirmation() {
+  const confirm = harness.rn.__recorded.alerts.at(-1);
+  assert.ok(confirm, 'deleting asks first');
+  assert.equal(confirm.title, t('readingPlans.leavePlan'));
+  assert.equal(confirm.message, t('readingPlans.leavePlanConfirmBody'));
+  const buttons = confirm.buttons as Array<{
+    text: string;
+    style?: string;
+    onPress?: () => unknown;
+  }>;
+  const cancel = buttons.find((button) => button.style === 'cancel');
+  const leave = buttons.find((button) => button.style === 'destructive');
+  assert.equal(cancel?.text, t('common.cancel'));
+  assert.equal(leave?.text, t('readingPlans.leavePlan'));
+  return { cancel, leave };
+}
+
+/** Confirm the pending delete prompt, inside act. */
+async function confirmDelete(view: Awaited<ReturnType<typeof renderHome>>) {
+  const { leave } = deleteConfirmation();
+  await act(async () => {
+    await leave?.onPress?.();
+  });
+  await view.flush();
+}
+
+test('deleting an active plan asks first; cancelling keeps it, confirming removes it', async () => {
+  await seed(progressRow(PSALMS));
+  const view = await renderHome();
+  const row = view.queryAllByType('Swipeable')[0];
+
+  await view.press(within(row).getByRole('button', { name: t('common.delete') }));
+  await view.flush();
+  const { cancel } = deleteConfirmation();
+  assert.deepEqual(service.unenrolled, [], 'nothing is removed before confirming');
+
+  await act(async () => {
+    cancel?.onPress?.();
+  });
+  await view.flush();
+  assert.deepEqual(service.unenrolled, []);
+  assert.ok(view.getByRole('button', { name: titleOf(PSALMS) }), 'cancel keeps the plan');
+
+  await view.press(within(row).getByRole('button', { name: t('common.delete') }));
+  await confirmDelete(view);
+  assert.deepEqual(service.unenrolled, [PSALMS]);
+  assert.equal(view.queryByRole('button', { name: titleOf(PSALMS) }), null);
+});
+
 test('swiping an active plan reveals Delete, which unenrolls it through the plan service', async () => {
   await seed(progressRow(PSALMS), progressRow(PROVERBS));
   const view = await renderHome();
@@ -636,12 +689,13 @@ test('swiping an active plan reveals Delete, which unenrolls it through the plan
   assert.ok(card);
   await view.press(remove);
   await view.flush();
+  assert.equal(swipeCloses.length, 1, 'the row closes');
+  await confirmDelete(view);
 
   assert.deepEqual(service.unenrolled, [PSALMS]);
-  assert.equal(swipeCloses.length, 1, 'the row closes');
   assert.equal(view.queryByRole('button', { name: titleOf(PSALMS) }), null);
   assert.ok(view.getByRole('button', { name: titleOf(PROVERBS) }));
-  assert.deepEqual(harness.rn.__recorded.alerts, []);
+  assert.equal(harness.rn.__recorded.alerts.length, 1, 'only the confirmation, no error');
 });
 
 test('VoiceOver users can delete an active plan with a custom action', async () => {
@@ -654,6 +708,8 @@ test('VoiceOver users can delete an active plan with a custom action', async () 
   ]);
   await view.fire(card, 'onAccessibilityAction', { nativeEvent: { actionName: 'delete' } });
   await view.flush();
+  assert.deepEqual(service.unenrolled, [], 'the custom action asks first too');
+  await confirmDelete(view);
 
   assert.deepEqual(service.unenrolled, [PSALMS]);
   assert.ok(view.getByText(t('readingPlans.noActivePlans')));
@@ -666,8 +722,9 @@ test('a failed delete keeps the plan and tells the reader', async () => {
 
   const row = view.queryAllByType('Swipeable')[0];
   await view.press(within(row).getByRole('button', { name: t('common.delete') }));
+  await confirmDelete(view);
 
-  const [alert] = harness.rn.__recorded.alerts;
+  const alert = harness.rn.__recorded.alerts.at(-1)!;
   assert.equal(alert.title, t('common.error'));
   assert.equal(alert.message, t('common.unexpectedError'));
   assert.ok(view.getByRole('button', { name: titleOf(PSALMS) }));
@@ -683,9 +740,9 @@ test('a delete that fails without an error message still keeps the plan and tell
 
   const row = view.queryAllByType('Swipeable')[0];
   await view.press(within(row).getByRole('button', { name: t('common.delete') }));
-  await view.flush();
+  await confirmDelete(view);
 
-  const [alert] = harness.rn.__recorded.alerts;
+  const alert = harness.rn.__recorded.alerts.at(-1)!;
   assert.equal(alert.title, t('common.error'));
   assert.equal(alert.message, t('common.unexpectedError'));
   assert.ok(view.getByRole('button', { name: titleOf(PSALMS) }), 'the row stays');
@@ -701,9 +758,9 @@ test('a delete that throws is treated as a failure, tells the reader, keeps the 
 
   const row = view.queryAllByType('Swipeable')[0];
   await view.press(within(row).getByRole('button', { name: t('common.delete') }));
-  await view.flush();
+  await confirmDelete(view);
 
-  const [alert] = harness.rn.__recorded.alerts;
+  const alert = harness.rn.__recorded.alerts.at(-1)!;
   assert.equal(alert.title, t('common.error'));
   assert.equal(alert.message, t('common.unexpectedError'));
   assert.ok(view.getByRole('button', { name: titleOf(PSALMS) }), 'the row stays');
@@ -1004,6 +1061,7 @@ test('a finished plan is listed under Completed with its date and chip, opens it
   const swipe = view.queryAllByType('Swipeable')[0];
   await view.press(within(swipe).getByRole('button', { name: t('common.delete') }));
   await view.flush();
+  await confirmDelete(view);
   assert.deepEqual(service.unenrolled, [GOSPELS]);
   assert.ok(view.getByRole('header', { name: t('readingPlans.noCompletedPlans') }));
 });
@@ -1051,6 +1109,7 @@ test('a completed row reads its status and finish date, and offers Delete as a V
 
   await view.fire(row, 'onAccessibilityAction', { nativeEvent: { actionName: 'delete' } });
   await view.flush();
+  await confirmDelete(view);
   assert.deepEqual(service.unenrolled, [GOSPELS]);
 });
 
