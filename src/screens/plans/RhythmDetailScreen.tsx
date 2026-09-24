@@ -205,9 +205,10 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
   const listeningHistory = useLibraryStore((state) => state.history);
   const preferredChapterLaunchMode = useBibleStore((state) => state.preferredChapterLaunchMode);
   const progressByPlanId = useReadingPlansStore((state) => state.progressByPlanId);
-  const getRhythm = useReadingPlansStore((state) => state.getRhythm);
   const getPlanDayResume = useReadingPlansStore((state) => state.getPlanDayResume);
-  const rhythm = getRhythm(rhythmId);
+  // Subscribed, not read through getRhythm(): an edit made in the composer has to
+  // reach this screen, which stays mounted underneath the detail the composer opens.
+  const rhythm = useReadingPlansStore((state) => state.rhythmsById[rhythmId] ?? null);
   const relevantPlanIds = useMemo(
     () =>
       rhythm?.items

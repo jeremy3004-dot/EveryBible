@@ -341,3 +341,25 @@ test('a single-chapter passage card names its chapter', async () => {
 
   assert.ok(view.getByText(t('interface.chapterNumber', { chapter: 63 })));
 });
+
+// The composer replaces itself with a fresh detail screen, leaving this one underneath;
+// going back must not show the rhythm as it was before the edit.
+test('an edit to the rhythm reaches a detail screen that is already open', async () => {
+  const rhythmId = await seedRhythm([psalm63]);
+  const view = await renderDetail(rhythmId);
+  assert.ok(view.getByRole('header', { name: 'Dawn office' }));
+
+  const store = await loadStore();
+  const result = store.getState().updateRhythm(rhythmId, {
+    title: 'Vespers',
+    slot: 'evening',
+    items: [{ ...psalm63, title: 'Psalm 141', startChapter: 141, endChapter: 141 }],
+  });
+  assert.ok(result.success);
+  await view.flush();
+
+  assert.ok(view.getByRole('header', { name: 'Vespers' }));
+  assert.ok(view.getByText(t('readingPlans.eveningRhythm')));
+  assert.ok(view.getByText(t('interface.chapterNumber', { chapter: 141 })));
+  assert.equal(view.queryByText('Evening psalm'), null);
+});
