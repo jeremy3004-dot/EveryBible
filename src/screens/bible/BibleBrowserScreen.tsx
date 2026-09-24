@@ -1,148 +1,83 @@
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Modal,
-  ActivityIndicator,
-  TextInput,
-  LayoutAnimation,
-  UIManager,
-  Platform,
-  useWindowDimensions,
-  type LayoutChangeEvent,
-  type TextInput as TextInputType,
-} from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { StyleSheet, type TextInput as TextInputType } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
-import { FlashList } from '@shopify/flash-list';
-import {
-  bibleBooks,
-  type BibleBook,
-  config,
-  getBookById,
-  getTranslatedBookName,
-} from '../../constants';
+import { config } from '../../constants/config';
+import { getBookById } from '../../constants/books';
 import { useTheme } from '../../contexts/ThemeContext';
+import { layout, spacing } from '../../design/system';
+import { useI18n, useTranslationContentSummary } from '../../hooks';
+import { useTabBarHeight } from '../../hooks/useTabBarHeight';
+import { getChapterContentAvailability } from '../../services/bible/contentAvailability';
+import type { PassageReferenceTarget } from '../../services/bible/referenceParser';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useTranslatorReviewStore } from '../../stores/translatorReviewStore';
-import { useI18n, useDisplayFont, useTranslationContentSummary } from '../../hooks';
-import { buildBibleBrowserRows, type BibleBrowserRow } from '../../services/bible/browserRows';
-import {
-  getBookContentAvailability,
-  getChapterContentAvailability,
-} from '../../services/bible/contentAvailability';
-import {
-  parsePassageReferenceLocale,
-  type PassageReferenceTarget,
-} from '../../services/bible/referenceParser';
 import type { BibleStackParamList } from '../../navigation/types';
 import type { Verse } from '../../types';
 import {
-  fetchChapterFeedbackReviewSummaryForTranslation,
-  getTranslatorFeedbackBookSummaryStatus,
-  getTranslatorFeedbackChapterSummaryStatus,
-  TRANSLATION_NOT_COVERED,
-  type TranslatorFeedbackAggregateStatus,
-  type TranslatorFeedbackChapterSummary,
-} from '../../services/feedback';
-import {
-  BIBLE_SEARCH_DEBOUNCE_MS,
-  formatBibleSearchReference,
-  resolveBibleSearchIntent,
-} from './bibleSearchModel';
-import { useTranslatorFeedbackFocusRefresh } from './useTranslatorFeedbackFocusRefresh';
-import { TranslationPickerHeader } from './TranslationPickerHeader';
-import { layout, radius, spacing, typography } from '../../design/system';
-import { useTabBarHeight } from '../../hooks/useTabBarHeight';
-import { announceForAccessibility, announceLiveRegionText } from '../../utils/a11y';
-import { BookIcon } from '../../components/bible/BookIcon';
-import {
-  CHAPTER_TILE_GAP,
-  CHAPTER_TILE_MAX_FONT_SCALE,
-  getChapterTileLayout,
-} from './chapterTileLayout';
-import { VersesSkeleton } from '../../components/skeleton/VersesSkeleton';
-import { TranslationNotCoveredNotice } from '../../components/feedback/TranslationNotCoveredNotice';
-import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../design/largeTextLayout';
+  BibleBookList,
+  BibleBrowserHeader,
+  BibleSearchField,
+  BibleSearchResults,
+  buildReaderLaunchParams,
+  ReferenceJumpCard,
+  TranslationPickerSheet,
+  TranslatorSummaryBanner,
+  useBibleSearch,
+  useBookExpansion,
+  useChapterTileLayout,
+  useTranslatorFeedbackSummaries,
+} from './browser';
 
 type NavigationProp = NativeStackNavigationProp<BibleStackParamList>;
 type BibleBrowserRoute =
   | RouteProp<BibleStackParamList, 'BibleBrowser'>
   | RouteProp<BibleStackParamList, 'BiblePicker'>;
-type TranslationPickerListComponent =
-  typeof import('./TranslationPickerList').TranslationPickerList;
+type ReaderParams = BibleStackParamList['BibleReader'];
 
-const bibleBrowserRows = buildBibleBrowserRows(bibleBooks);
-const BIBLE_BROWSER_ROW_ESTIMATED_SIZE = 52;
-const SEARCH_RESULT_ESTIMATED_SIZE = 118;
-// Inset of the expanded book's chapter panel; the tile maths subtracts it.
-const CHAPTER_GRID_HORIZONTAL_INSET = spacing.xs;
-
-function getBibleBrowserRowIndex(bookId: string) {
-  return bibleBrowserRows.findIndex((row) => row.type === 'books' && row.books[0]?.id === bookId);
-}
-
-function isBibleSearchUnavailableError(error: unknown): boolean {
-  return error instanceof Error && error.name === 'BibleSearchUnavailableError';
-}
-
-if (Platform.OS === 'android') {
-  UIManager.setLayoutAnimationEnabledExperimental?.(true);
-}
-
+/**
+ * The Bible tab's book browser, also presented as the BiblePicker modal from the
+ * reader. Books expand to their chapter grids; the search field jumps to a typed
+ * reference or runs a full-text search; the tab screen also opens the
+ * translation sheet. Sections and state live in ./browser.
+ */
 export function BibleBrowserScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<BibleBrowserRoute>();
   const { colors } = useTheme();
-  const displayFont = useDisplayFont();
   const { t, currentLanguage } = useI18n();
   const currentBook = useBibleStore((state) => state.currentBook);
-  const initialBookId = route.params?.initialBookId ?? null;
-  const shouldFocusSearch = route.params?.focusSearch === true;
-  const hasExplicitInitialBook = initialBookId != null && Boolean(getBookById(initialBookId));
-  const resolvedInitialBookId = hasExplicitInitialBook ? initialBookId : currentBook;
-  const [expandedBookId, setExpandedBookId] = useState<string | null>(resolvedInitialBookId);
-  const [unavailableChapterKey, setUnavailableChapterKey] = useState<string | null>(null);
-  const [showTranslationModal, setShowTranslationModal] = useState(false);
-  const [TranslationPickerComponent, setTranslationPickerComponent] =
-    useState<TranslationPickerListComponent | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<Verse[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
-  const [translatorFeedbackSummaries, setTranslatorFeedbackSummaries] = useState<
-    TranslatorFeedbackChapterSummary[]
-  >([]);
-  const [isLoadingTranslatorSummary, setIsLoadingTranslatorSummary] = useState(false);
-  const [translatorSummaryError, setTranslatorSummaryError] = useState<string | null>(null);
-  // Set when this passcode does not open the current translation; holds what it does open.
-  const [translatorNotCovered, setTranslatorNotCovered] = useState<{
-    coveredTranslationIds?: string[];
-  } | null>(null);
-  const searchRequestIdRef = useRef(0);
-  const translatorFeedbackSummaryRequestIdRef = useRef(0);
-  const searchInputRef = useRef<TextInputType | null>(null);
-  const browserListRef = useRef<FlashList<BibleBrowserRow> | null>(null);
-  const deferredSearchQuery = useDeferredValue(searchQuery);
-
   const currentTranslation = useBibleStore((state) => state.currentTranslation);
-  const translations = useBibleStore((state) => state.translations);
+  // Selects the one translation shown, not the whole list: download progress on
+  // other translations rewrites `translations` and would otherwise re-render the browser.
+  const currentTranslationInfo = useBibleStore((state) =>
+    state.translations.find((translation) => translation.id === state.currentTranslation)
+  );
   const preferredChapterLaunchMode = useBibleStore((state) => state.preferredChapterLaunchMode);
   const translatorReviewEnabled = useTranslatorReviewStore((state) => state.enabled);
   const translatorReviewPasscode = useTranslatorReviewStore((state) => state.accessPasscode);
-  const initialScrollIndex = Math.max(0, getBibleBrowserRowIndex(resolvedInitialBookId));
-
-  const currentTranslationInfo = translations.find(
-    (translation) => translation.id === currentTranslation
-  );
   const availabilityTranslation = useTranslationContentSummary(currentTranslationInfo);
+
+  const initialBookId = route.params?.initialBookId ?? null;
+  const shouldFocusSearch = route.params?.focusSearch === true;
   const isPickerModal = route.name === 'BiblePicker';
-  const canDismissModal = isPickerModal;
   const canOpenTranslationPicker = !isPickerModal && config.features.multipleTranslations;
+  const [showTranslationModal, setShowTranslationModal] = useState(false);
+  const searchInputRef = useRef<TextInputType | null>(null);
+
+  const expansion = useBookExpansion(currentBook, initialBookId, currentTranslation);
+  const { expandedBookId, toggleBook, showUnavailableChapter, clearUnavailableChapter } = expansion;
+  const { tileSizeStyle, onPanelLayout } = useChapterTileLayout();
+  const search = useBibleSearch(currentTranslation, currentLanguage, t);
+  const { resolveSubmitIntent } = search;
+  const feedback = useTranslatorFeedbackSummaries(
+    currentTranslation,
+    translatorReviewEnabled,
+    translatorReviewPasscode,
+    t
+  );
+
   // As a tab-stack screen the browser sits under the floating tab capsule; as the
   // BiblePicker modal the capsule is hidden, so only the Android navigation bar
   // is in the way. FlashList wants plain ContentStyle objects, not StyleSheet refs.
@@ -157,49 +92,10 @@ export function BibleBrowserScreen() {
     }),
     [listBottomClearance]
   );
-  // The expanded book's chapter tiles share the panel width evenly. The window
-  // gives a first estimate (list padding plus the panel's own inset); the
-  // panel's measured width replaces it once laid out.
-  const { width: windowWidth, fontScale } = useWindowDimensions();
-  const [measuredChapterPanelWidth, setMeasuredChapterPanelWidth] = useState<number | null>(null);
-  const chapterPanelWidth =
-    measuredChapterPanelWidth ??
-    windowWidth - layout.screenPadding * 2 - CHAPTER_GRID_HORIZONTAL_INSET * 2;
-  const chapterTiles = useMemo(
-    () => getChapterTileLayout(chapterPanelWidth, fontScale),
-    [chapterPanelWidth, fontScale]
-  );
-  const chapterTileSizeStyle = useMemo(
-    () => ({ width: chapterTiles.tileSize, height: chapterTiles.tileSize }),
-    [chapterTiles.tileSize]
-  );
-  const handleChapterPanelLayout = useCallback((event: LayoutChangeEvent) => {
-    const width = event.nativeEvent.layout.width - CHAPTER_GRID_HORIZONTAL_INSET * 2;
-    if (width > 0) {
-      setMeasuredChapterPanelWidth(width);
-    }
-  }, []);
   const searchResultsContentStyle = useMemo(
-    () => ({
-      paddingHorizontal: layout.screenPadding,
-      paddingTop: spacing.sm,
-      paddingBottom: spacing.xl + listBottomClearance,
-      gap: spacing.md,
-    }),
-    [listBottomClearance]
+    () => ({ ...listContentStyle, gap: spacing.md }),
+    [listContentStyle]
   );
-  const parseRef = useCallback(
-    (q: string) => parsePassageReferenceLocale(q, currentLanguage),
-    [currentLanguage]
-  );
-  const searchIntent = resolveBibleSearchIntent(deferredSearchQuery, parseRef);
-  const failedToLoadMessage = t('bible.failedToLoad');
-  const searchUnavailableMessage = t('bible.searchUnavailable');
-
-  useEffect(() => {
-    // A "not available" note describes the translation it was shown for.
-    setUnavailableChapterKey(null);
-  }, [currentTranslation]);
 
   useEffect(() => {
     if (!shouldFocusSearch) {
@@ -215,754 +111,147 @@ export function BibleBrowserScreen() {
     };
   }, [shouldFocusSearch]);
 
-  useEffect(() => {
-    if (!showTranslationModal || TranslationPickerComponent) {
-      return;
-    }
-
-    let isMounted = true;
-
-    void import('./TranslationPickerList').then((module) => {
-      if (isMounted) {
-        setTranslationPickerComponent(() => module.TranslationPickerList);
+  const navigateToReader = useCallback(
+    (params: Pick<ReaderParams, 'bookId' | 'chapter' | 'focusVerse'>) => {
+      const readerParams = buildReaderLaunchParams(params, preferredChapterLaunchMode);
+      if (isPickerModal) {
+        // Pop directly to the reader route so chapter selection exits modal
+        // presentation in one deterministic stack operation.
+        navigation.popTo('BibleReader', readerParams);
+        return;
       }
-    });
 
-    return () => {
-      isMounted = false;
-    };
-  }, [TranslationPickerComponent, showTranslationModal]);
-
-  useEffect(() => {
-    if (hasExplicitInitialBook) {
-      return;
-    }
-
-    setExpandedBookId(currentBook);
-
-    const rowIndex = getBibleBrowserRowIndex(currentBook);
-    if (rowIndex < 0) {
-      return;
-    }
-
-    const animationFrameId = requestAnimationFrame(() => {
-      browserListRef.current?.scrollToIndex({
-        index: rowIndex,
-        animated: false,
-        viewPosition: 0.15,
-      });
-    });
-
-    return () => {
-      cancelAnimationFrame(animationFrameId);
-    };
-  }, [currentBook, hasExplicitInitialBook]);
-
-  useEffect(() => {
-    let isCancelled = false;
-    const deferredSearchIntent = resolveBibleSearchIntent(deferredSearchQuery, parseRef);
-
-    if (deferredSearchIntent.kind !== 'full-text') {
-      searchRequestIdRef.current += 1;
-      setSearchResults([]);
-      setSearchError(null);
-      setIsSearching(false);
-
-      return () => {
-        isCancelled = true;
-      };
-    }
-
-    const requestId = searchRequestIdRef.current + 1;
-    searchRequestIdRef.current = requestId;
-    setIsSearching(true);
-    setSearchError(null);
-
-    const timeoutId = setTimeout(() => {
-      void (async () => {
-        try {
-          const { searchBible } = await import('../../services/bible/bibleService');
-          const results = await searchBible(currentTranslation, deferredSearchIntent.query);
-
-          if (!isCancelled && requestId === searchRequestIdRef.current) {
-            setSearchResults(results);
-            // Results land under the search field while focus stays in it; without
-            // this a screen-reader user cannot tell a finished search (or an empty
-            // one) from a search still running.
-            announceForAccessibility(t('interface.searchResultCount', { count: results.length }));
-          }
-        } catch (error) {
-          if (!isCancelled && requestId === searchRequestIdRef.current) {
-            console.error('Error searching Bible:', error);
-            setSearchResults([]);
-            const message = isBibleSearchUnavailableError(error)
-              ? searchUnavailableMessage
-              : failedToLoadMessage;
-            setSearchError(message);
-            // The error text's live region speaks on Android; VoiceOver needs the announcement.
-            announceLiveRegionText(message);
-          }
-        } finally {
-          if (!isCancelled && requestId === searchRequestIdRef.current) {
-            setIsSearching(false);
-          }
-        }
-      })();
-    }, BIBLE_SEARCH_DEBOUNCE_MS);
-
-    return () => {
-      isCancelled = true;
-      clearTimeout(timeoutId);
-    };
-  }, [
-    currentTranslation,
-    deferredSearchQuery,
-    failedToLoadMessage,
-    parseRef,
-    searchUnavailableMessage,
-    t,
-  ]);
-
-  const loadTranslatorFeedbackSummaries = useCallback(async () => {
-    if (!translatorReviewEnabled || !translatorReviewPasscode) {
-      translatorFeedbackSummaryRequestIdRef.current += 1;
-      setTranslatorFeedbackSummaries([]);
-      setTranslatorSummaryError(null);
-      setTranslatorNotCovered(null);
-      setIsLoadingTranslatorSummary(false);
-      return;
-    }
-
-    const requestId = translatorFeedbackSummaryRequestIdRef.current + 1;
-    translatorFeedbackSummaryRequestIdRef.current = requestId;
-    setIsLoadingTranslatorSummary(true);
-    setTranslatorSummaryError(null);
-    setTranslatorNotCovered(null);
-
-    const result = await fetchChapterFeedbackReviewSummaryForTranslation({
-      translationId: currentTranslation,
-      passcode: translatorReviewPasscode,
-    });
-
-    if (requestId !== translatorFeedbackSummaryRequestIdRef.current) {
-      return;
-    }
-
-    setIsLoadingTranslatorSummary(false);
-
-    if (!result.success) {
-      setTranslatorFeedbackSummaries([]);
-      setTranslatorSummaryError(t('common.unexpectedError'));
-      setTranslatorNotCovered(
-        result.code === TRANSLATION_NOT_COVERED
-          ? { coveredTranslationIds: result.coveredTranslationIds }
-          : null
-      );
-      return;
-    }
-
-    setTranslatorFeedbackSummaries(result.chapters);
-  }, [currentTranslation, t, translatorReviewEnabled, translatorReviewPasscode]);
-
-  useTranslatorFeedbackFocusRefresh(
-    loadTranslatorFeedbackSummaries,
-    translatorFeedbackSummaryRequestIdRef
+      navigation.navigate('BibleReader', readerParams);
+    },
+    [isPickerModal, navigation, preferredChapterLaunchMode]
   );
 
-  const translatorFeedbackSummaryByChapter = useMemo(() => {
-    const summariesByChapter = new Map<string, TranslatorFeedbackChapterSummary>();
+  const handleChapterPress = useCallback(
+    (bookId: string, chapter: number) => {
+      const book = getBookById(bookId);
 
-    translatorFeedbackSummaries.forEach((summary) => {
-      summariesByChapter.set(`${summary.bookId}:${summary.chapter}`, summary);
-    });
+      if (
+        book &&
+        !getChapterContentAvailability(book, chapter, availabilityTranslation).isAvailable
+      ) {
+        showUnavailableChapter(bookId, chapter);
+        return;
+      }
 
-    return summariesByChapter;
-  }, [translatorFeedbackSummaries]);
+      clearUnavailableChapter();
+      navigateToReader({ bookId, chapter, focusVerse: undefined });
+    },
+    [availabilityTranslation, clearUnavailableChapter, navigateToReader, showUnavailableChapter]
+  );
 
-  const getTranslatorFeedbackBadge = (status: TranslatorFeedbackAggregateStatus | null) => {
-    if (!translatorReviewEnabled || !status) {
-      return null;
-    }
-
-    const isPending = status === 'pending';
-    return (
-      <View
-        accessible
-        accessibilityRole="image"
-        accessibilityLabel={
-          isPending ? t('translatorQueue.title') : t('bible.translatorReviewConfirmedAccurate')
-        }
-        style={[
-          styles.translatorFeedbackBadge,
-          {
-            backgroundColor: isPending ? colors.accentPrimary : colors.success,
-            borderColor: colors.bibleBackground,
-          },
-        ]}
-      >
-        <Ionicons name={isPending ? 'alert' : 'checkmark'} size={10} color={colors.onAccent} />
-      </View>
-    );
-  };
-
-  const handleBookPress = (book: BibleBook) => {
-    // An unavailable book still expands: the row opens onto the "not available yet"
-    // note instead of a chapter grid, which keeps the explanation where the reader
-    // tapped. A system alert cannot be used here — this screen is often presented
-    // modally, and UIAlertController never surfaces above that modal.
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setUnavailableChapterKey(null);
-    setExpandedBookId((prev) => (prev === book.id ? null : book.id));
-  };
-
-  const navigateToReader = (params: BibleStackParamList['BibleReader']) => {
-    if (isPickerModal) {
-      // Pop directly to the reader route so chapter selection exits modal
-      // presentation in one deterministic stack operation.
-      navigation.popTo('BibleReader', params);
-      return;
-    }
-
-    navigation.navigate('BibleReader', params);
-  };
-
-  const buildReaderLaunchParams = (
-    params: Pick<BibleStackParamList['BibleReader'], 'bookId' | 'chapter' | 'focusVerse'>
-  ): BibleStackParamList['BibleReader'] => ({
-    ...params,
-    preferredMode: preferredChapterLaunchMode,
-  });
-
-  const handleChapterPress = (bookId: string, chapter: number) => {
-    const book = getBookById(bookId);
-
-    if (
-      book &&
-      !getChapterContentAvailability(book, chapter, availabilityTranslation).isAvailable
-    ) {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setUnavailableChapterKey(`${bookId}:${chapter}`);
-      return;
-    }
-
-    setUnavailableChapterKey(null);
-    navigateToReader(buildReaderLaunchParams({ bookId, chapter, focusVerse: undefined }));
-  };
-
-  const handleReferencePress = (target: PassageReferenceTarget) => {
-    navigateToReader(
-      buildReaderLaunchParams({
+  const handleReferencePress = useCallback(
+    (target: PassageReferenceTarget) =>
+      navigateToReader({
         bookId: target.bookId,
         chapter: target.chapter,
         focusVerse: target.focusVerse,
-      })
-    );
-  };
+      }),
+    [navigateToReader]
+  );
 
-  const handleSearchResultPress = (verse: Verse) => {
-    navigateToReader(
-      buildReaderLaunchParams({
-        bookId: verse.bookId,
-        chapter: verse.chapter,
-        focusVerse: verse.verse,
-      })
-    );
-  };
+  const handleSearchResultPress = useCallback(
+    (verse: Verse) =>
+      navigateToReader({ bookId: verse.bookId, chapter: verse.chapter, focusVerse: verse.verse }),
+    [navigateToReader]
+  );
 
-  const handleSearchSubmit = () => {
-    const submitIntent = resolveBibleSearchIntent(searchQuery, parseRef);
+  const handleSearchSubmit = useCallback(() => {
+    const submitIntent = resolveSubmitIntent();
     if (submitIntent.kind === 'reference') {
       handleReferencePress(submitIntent.target);
     }
-  };
+  }, [handleReferencePress, resolveSubmitIntent]);
 
-  const renderTranslatorSummaryBanner = () => {
-    if (!translatorReviewEnabled) {
-      return null;
-    }
+  const dismissPicker = useCallback(() => navigation.goBack(), [navigation]);
+  const openTranslatorQueue = useCallback(
+    () => navigation.navigate('TranslatorQueue'),
+    [navigation]
+  );
+  const openTranslationPicker = useCallback(() => setShowTranslationModal(true), []);
+  const closeTranslationPicker = useCallback(() => setShowTranslationModal(false), []);
 
-    if (isLoadingTranslatorSummary && translatorFeedbackSummaries.length === 0) {
-      return (
-        <View style={styles.translatorSummaryBanner}>
-          <ActivityIndicator size="small" color={colors.bibleAccent} />
-          <Text style={[styles.translatorSummaryBannerText, { color: colors.bibleSecondaryText }]}>
-            {t('bible.translatorReviewLoading')}
-          </Text>
-        </View>
-      );
-    }
+  // Memoised so the book list (a PureComponent) is not re-rendered by a new header element.
+  const isLoadingFirstSummary = feedback.isLoading && feedback.summaries.length === 0;
+  const summaryBanner = useMemo(
+    () => (
+      <TranslatorSummaryBanner
+        enabled={translatorReviewEnabled}
+        translationId={currentTranslation}
+        isLoadingFirstSummary={isLoadingFirstSummary}
+        error={feedback.error}
+        notCovered={feedback.notCovered}
+        onRetry={feedback.reload}
+      />
+    ),
+    [
+      currentTranslation,
+      feedback.error,
+      feedback.notCovered,
+      feedback.reload,
+      isLoadingFirstSummary,
+      translatorReviewEnabled,
+    ]
+  );
 
-    if (translatorNotCovered) {
-      return (
-        <View
-          style={[
-            styles.translatorSummaryErrorCard,
-            styles.translatorNotCoveredCard,
-            { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
-          ]}
-        >
-          <TranslationNotCoveredNotice
-            tone="reader"
-            translationId={currentTranslation}
-            coveredTranslationIds={translatorNotCovered.coveredTranslationIds}
-            onRetry={() => {
-              void loadTranslatorFeedbackSummaries();
-            }}
-          />
-        </View>
-      );
-    }
-
-    if (translatorSummaryError) {
-      return (
-        <View
-          style={[
-            styles.translatorSummaryErrorCard,
-            { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
-          ]}
-        >
-          <Text style={[styles.translatorSummaryBannerText, { color: colors.error }]}>
-            {translatorSummaryError}
-          </Text>
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel={t('common.retry')}
-            onPress={() => {
-              void loadTranslatorFeedbackSummaries();
-            }}
-          >
-            <Text style={[styles.translatorSummaryRetryText, { color: colors.bibleAccent }]}>
-              {t('common.retry')}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
-
-    return null;
-  };
-
-  const renderRow = ({ item }: { item: BibleBrowserRow }) => {
-    if (item.type === 'divider') {
-      return (
-        <View style={styles.dividerRow}>
-          <View style={[styles.dividerLine, { backgroundColor: colors.bibleDivider }]} />
-          <Text
-            accessibilityRole="header"
-            style={[styles.dividerLabel, displayFont.regular, { color: colors.bibleSecondaryText }]}
-          >
-            {t(item.testament === 'NT' ? 'bible.newTestament' : 'bible.oldTestament')}
-          </Text>
-          <View style={[styles.dividerLine, { backgroundColor: colors.bibleDivider }]} />
-        </View>
-      );
-    }
-
-    const book = item.books[0];
-    if (!book) return null;
-    const isExpanded = book.id === expandedBookId;
-    const bookFeedbackStatus = getTranslatorFeedbackBookSummaryStatus(
-      book.id,
-      translatorFeedbackSummaries
-    );
-    const isBookAvailable = getBookContentAvailability(book, availabilityTranslation).isAvailable;
-    const bookInk = isBookAvailable ? colors.biblePrimaryText : colors.bibleSecondaryText;
-
-    return (
-      <View>
-        <TouchableOpacity
-          style={[
-            styles.bookRow,
-            { borderBottomColor: colors.bibleDivider },
-            !isBookAvailable && styles.unavailable,
-          ]}
-          onPress={() => handleBookPress(book)}
-          activeOpacity={0.7}
-          accessibilityRole="button"
-          accessibilityState={{ expanded: isExpanded }}
-          accessibilityHint={isBookAvailable ? undefined : t('bible.notAvailableYet')}
-        >
-          <View style={styles.bookRowLeft}>
-            <View style={styles.bookIconWrap}>
-              <BookIcon bookId={book.id} style={styles.bookIcon} color={bookInk} />
-              {getTranslatorFeedbackBadge(bookFeedbackStatus)}
-            </View>
-            <Text style={[styles.bookName, { color: bookInk }]}>
-              {getTranslatedBookName(book.id, t)}
-            </Text>
-          </View>
-          <Ionicons
-            name={isBookAvailable ? (isExpanded ? 'chevron-up' : 'chevron-down') : 'lock-closed'}
-            size={20}
-            color={colors.bibleSecondaryText}
-          />
-        </TouchableOpacity>
-
-        {isExpanded && !isBookAvailable && (
-          <View style={[styles.chapterGrid, { backgroundColor: colors.bibleElevatedSurface }]}>
-            <Text style={[styles.unavailableNoticeTitle, { color: colors.biblePrimaryText }]}>
-              {t('bible.notAvailableYet')}
-            </Text>
-            <Text style={[styles.unavailableNoticeBody, { color: colors.bibleSecondaryText }]}>
-              {t('bible.bookComingSoon', { book: getTranslatedBookName(book.id, t) })}
-            </Text>
-          </View>
-        )}
-
-        {isExpanded && isBookAvailable && (
-          <View
-            style={[styles.chapterGrid, { backgroundColor: colors.bibleElevatedSurface }]}
-            onLayout={handleChapterPanelLayout}
-          >
-            <View style={styles.chapterGridInner}>
-              {Array.from({ length: book.chapters }, (_, i) => i + 1).map((chapter) => {
-                const chapterSummary = translatorFeedbackSummaryByChapter.get(
-                  `${book.id}:${chapter}`
-                );
-                const chapterFeedbackStatus = chapterSummary
-                  ? getTranslatorFeedbackChapterSummaryStatus(chapterSummary)
-                  : null;
-                const isChapterAvailable = getChapterContentAvailability(
-                  book,
-                  chapter,
-                  availabilityTranslation
-                ).isAvailable;
-
-                return (
-                  <TouchableOpacity
-                    key={chapter}
-                    style={[
-                      styles.chapterButton,
-                      chapterTileSizeStyle,
-                      {
-                        backgroundColor: colors.bibleSurface,
-                        borderColor: colors.bibleDivider,
-                      },
-                      !isChapterAvailable && styles.unavailable,
-                    ]}
-                    onPress={() => handleChapterPress(book.id, chapter)}
-                    activeOpacity={0.7}
-                    accessibilityRole="button"
-                    accessibilityHint={isChapterAvailable ? undefined : t('bible.notAvailableYet')}
-                  >
-                    <Text
-                      maxFontSizeMultiplier={CHAPTER_TILE_MAX_FONT_SCALE}
-                      style={[
-                        styles.chapterNumber,
-                        {
-                          color: isChapterAvailable
-                            ? colors.biblePrimaryText
-                            : colors.bibleSecondaryText,
-                        },
-                      ]}
-                    >
-                      {chapter}
-                    </Text>
-                    {getTranslatorFeedbackBadge(chapterFeedbackStatus)}
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-            {unavailableChapterKey?.startsWith(`${book.id}:`) && (
-              <Text style={[styles.unavailableNoticeBody, { color: colors.bibleSecondaryText }]}>
-                {t('bible.fullBibleComingSoon')}
-              </Text>
-            )}
-          </View>
-        )}
-      </View>
-    );
-  };
-
-  const renderSearchResult = ({ item }: { item: Verse }) => {
-    const bookName = getTranslatedBookName(item.bookId, t);
-    const referenceLabel = formatBibleSearchReference(item, (bookId) =>
-      getTranslatedBookName(bookId, t)
-    );
-
-    return (
-      <TouchableOpacity
-        style={[
-          styles.searchResultCard,
-          {
-            backgroundColor: colors.bibleSurface,
-            borderColor: colors.bibleDivider,
-          },
-        ]}
-        onPress={() => handleSearchResultPress(item)}
-        activeOpacity={0.85}
-        accessibilityRole="button"
-      >
-        <View style={styles.searchResultHeader}>
-          <Text style={[styles.searchReference, { color: colors.bibleAccent }]}>
-            {referenceLabel}
-          </Text>
-          {bookName ? (
-            <Ionicons name="arrow-forward" size={18} color={colors.bibleSecondaryText} />
-          ) : null}
-        </View>
-        <Text style={[styles.searchExcerpt, { color: colors.biblePrimaryText }]} numberOfLines={3}>
-          <Text style={[styles.searchVerseNumber, { color: colors.bibleAccent }]}>
-            {item.verse}{' '}
-          </Text>
-          {item.text}
-        </Text>
-      </TouchableOpacity>
-    );
-  };
-
-  // The parser labels references with English book names; show the interface language's.
-  const referenceLabel =
-    searchIntent.kind === 'reference'
-      ? `${getTranslatedBookName(searchIntent.target.bookId, t)} ${searchIntent.target.chapter}${
-          searchIntent.target.focusVerse ? `:${searchIntent.target.focusVerse}` : ''
-        }`
-      : null;
-
-  const referenceMeta =
-    searchIntent.kind === 'reference'
-      ? searchIntent.target.focusVerse
-        ? `${t('interface.chapterNumber', { chapter: searchIntent.target.chapter })} • ${t('interface.verseNumber', { verse: searchIntent.target.focusVerse })}`
-        : t('interface.chapterNumber', { chapter: searchIntent.target.chapter })
-      : null;
+  const { searchIntent } = search;
 
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: colors.bibleBackground }]}
       edges={['top']}
     >
-      <View style={styles.header}>
-        <View style={styles.headerTopRow}>
-          <View style={styles.headerTitleCluster}>
-            {canDismissModal ? (
-              <TouchableOpacity
-                style={[
-                  styles.modalDismissButton,
-                  { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
-                ]}
-                onPress={() => navigation.goBack()}
-                activeOpacity={0.85}
-                accessibilityRole="button"
-                accessibilityLabel={t('interface.close')}
-              >
-                <Ionicons name="close" size={18} color={colors.biblePrimaryText} />
-              </TouchableOpacity>
-            ) : null}
-            <View>
-              <Text
-                maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
-                accessibilityRole="header"
-                style={[styles.title, displayFont.bold, { color: colors.biblePrimaryText }]}
-              >
-                {t('bible.title')}
-              </Text>
-              <Text style={[styles.subtitle, { color: colors.bibleSecondaryText }]}>
-                {currentTranslationInfo?.name || t('about.bereanBible')}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.headerActionCluster}>
-            {translatorReviewEnabled ? (
-              <TouchableOpacity
-                style={[
-                  styles.headerIconButton,
-                  { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
-                ]}
-                onPress={() => navigation.navigate('TranslatorQueue')}
-                activeOpacity={0.85}
-                hitSlop={2}
-                accessibilityRole="button"
-                accessibilityLabel={t('translatorQueue.title')}
-              >
-                <Ionicons name="clipboard-outline" size={18} color={colors.biblePrimaryText} />
-              </TouchableOpacity>
-            ) : null}
-
-            {canOpenTranslationPicker ? (
-              <TouchableOpacity
-                style={[
-                  styles.translationButton,
-                  { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
-                ]}
-                onPress={() => {
-                  setShowTranslationModal(true);
-                }}
-                activeOpacity={0.85}
-                hitSlop={2}
-                accessibilityRole="button"
-                accessibilityLabel={t('bible.selectTranslation')}
-                accessibilityValue={{
-                  text: currentTranslationInfo?.name || t('about.bereanBible'),
-                }}
-              >
-                <Ionicons name="book-outline" size={16} color={colors.bibleSecondaryText} />
-                <Text style={[styles.translationButtonText, { color: colors.biblePrimaryText }]}>
-                  {currentTranslationInfo?.abbreviation || 'BSB'}
-                </Text>
-                <Ionicons name="chevron-down" size={16} color={colors.bibleSecondaryText} />
-              </TouchableOpacity>
-            ) : null}
-          </View>
-        </View>
-
-        <View
-          style={[
-            styles.searchInputShell,
-            { backgroundColor: colors.bibleSurface, borderColor: colors.controlBorder },
-          ]}
-        >
-          <Ionicons name="search" size={18} color={colors.bibleSecondaryText} />
-          <TextInput
-            ref={searchInputRef}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            accessibilityLabel={t('common.search')}
-            placeholder={t('common.search')}
-            placeholderTextColor={colors.bibleSecondaryText}
-            style={[styles.searchInput, { color: colors.biblePrimaryText }]}
-            autoCapitalize="none"
-            autoCorrect={false}
-            returnKeyType="search"
-            onSubmitEditing={handleSearchSubmit}
-          />
-          {searchQuery.length > 0 ? (
-            <TouchableOpacity
-              style={styles.clearSearchButton}
-              onPress={() => setSearchQuery('')}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              accessibilityRole="button"
-              accessibilityLabel={t('settings.clear')}
-            >
-              <Ionicons name="close-circle" size={18} color={colors.bibleSecondaryText} />
-            </TouchableOpacity>
-          ) : null}
-        </View>
-      </View>
+      <BibleBrowserHeader
+        translationName={currentTranslationInfo?.name}
+        translationAbbreviation={currentTranslationInfo?.abbreviation}
+        onDismiss={isPickerModal ? dismissPicker : undefined}
+        onOpenTranslatorQueue={translatorReviewEnabled ? openTranslatorQueue : undefined}
+        onOpenTranslationPicker={canOpenTranslationPicker ? openTranslationPicker : undefined}
+      >
+        <BibleSearchField
+          inputRef={searchInputRef}
+          value={search.searchQuery}
+          onChangeText={search.setSearchQuery}
+          onClear={search.clearSearch}
+          onSubmit={handleSearchSubmit}
+        />
+      </BibleBrowserHeader>
 
       {searchIntent.kind === 'full-text' ? (
-        // Only take over the whole surface with a spinner when there are no
-        // results yet. Once results exist, keep them rendered and show a small
-        // inline indicator so each keystroke does not flash a blank screen.
-        isSearching && searchResults.length === 0 ? (
-          <View style={styles.searchLoadingState}>
-            <VersesSkeleton count={6} />
-          </View>
-        ) : searchError ? (
-          <View
-            style={[
-              styles.searchFeedbackCard,
-              { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
-            ]}
-          >
-            <Text
-              accessibilityLiveRegion="polite"
-              style={[styles.searchFeedbackText, { color: colors.biblePrimaryText }]}
-            >
-              {searchError}
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.searchResultsWrapper}>
-            <FlashList
-              data={searchResults}
-              renderItem={renderSearchResult}
-              keyExtractor={(item) => String(item.id)}
-              contentContainerStyle={searchResultsContentStyle}
-              showsVerticalScrollIndicator={false}
-              estimatedItemSize={SEARCH_RESULT_ESTIMATED_SIZE}
-            />
-          </View>
-        )
+        <BibleSearchResults
+          results={search.searchResults}
+          isSearching={search.isSearching}
+          error={search.searchError}
+          contentContainerStyle={searchResultsContentStyle}
+          onPressResult={handleSearchResultPress}
+        />
       ) : searchIntent.kind === 'reference' ? (
-        <TouchableOpacity
-          style={[
-            styles.referenceActionCard,
-            {
-              backgroundColor: colors.bibleSurface,
-              borderColor: colors.bibleDivider,
-            },
-          ]}
-          onPress={() => handleReferencePress(searchIntent.target)}
-          activeOpacity={0.85}
-          accessibilityRole="button"
-        >
-          <View style={styles.searchResultHeader}>
-            <Text style={[styles.searchReference, { color: colors.bibleAccent }]}>
-              {referenceLabel}
-            </Text>
-            <Ionicons name="arrow-forward" size={18} color={colors.bibleSecondaryText} />
-          </View>
-          {referenceMeta ? (
-            <Text style={[styles.referenceMetaText, { color: colors.biblePrimaryText }]}>
-              {referenceMeta}
-            </Text>
-          ) : null}
-        </TouchableOpacity>
+        <ReferenceJumpCard target={searchIntent.target} onPress={handleReferencePress} />
       ) : (
-        <FlashList
-          ref={browserListRef}
-          data={bibleBrowserRows}
-          initialScrollIndex={initialScrollIndex}
-          renderItem={renderRow}
-          ListHeaderComponent={renderTranslatorSummaryBanner}
-          keyExtractor={(item) => item.id}
+        <BibleBookList
+          listRef={expansion.listRef}
+          initialScrollIndex={expansion.initialScrollIndex}
           contentContainerStyle={listContentStyle}
-          showsVerticalScrollIndicator={false}
-          estimatedItemSize={BIBLE_BROWSER_ROW_ESTIMATED_SIZE}
-          getItemType={(item) => item.type}
-          extraData={{
-            colors,
-            expandedBookId,
-            chapterTiles,
-            translatorFeedbackSummaries,
-            translatorReviewEnabled,
-            isLoadingTranslatorSummary,
-            translatorSummaryError,
-            translatorNotCovered,
-          }}
+          header={summaryBanner}
+          expandedBookId={expandedBookId}
+          unavailableChapterKey={expansion.unavailableChapterKey}
+          availabilityTranslation={availabilityTranslation}
+          showFeedbackBadges={translatorReviewEnabled}
+          statusByBook={feedback.statusByBook}
+          summaryByChapter={feedback.summaryByChapter}
+          tileSizeStyle={tileSizeStyle}
+          onPanelLayout={onPanelLayout}
+          onPressBook={toggleBook}
+          onPressChapter={handleChapterPress}
         />
       )}
 
       {config.features.multipleTranslations ? (
-        <Modal
-          visible={showTranslationModal}
-          transparent
-          statusBarTranslucent
-          navigationBarTranslucent
-          animationType="slide"
-          onRequestClose={() => setShowTranslationModal(false)}
-        >
-          <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
-            <View
-              style={[
-                styles.modalContent,
-                { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
-              ]}
-            >
-              <TranslationPickerHeader
-                onClose={() => setShowTranslationModal(false)}
-                style={styles.modalHeader}
-                titleStyle={styles.modalTitle}
-              />
-              {TranslationPickerComponent ? (
-                <TranslationPickerComponent onRequestClose={() => setShowTranslationModal(false)} />
-              ) : (
-                <View style={styles.translationPickerLoading}>
-                  <ActivityIndicator color={colors.bibleAccent} />
-                  <Text
-                    style={[
-                      styles.translationPickerLoadingText,
-                      { color: colors.bibleSecondaryText },
-                    ]}
-                  >
-                    {t('common.loading')}
-                  </Text>
-                </View>
-              )}
-            </View>
-          </View>
-        </Modal>
+        <TranslationPickerSheet visible={showTranslationModal} onClose={closeTranslationPicker} />
       ) : null}
     </SafeAreaView>
   );
@@ -971,444 +260,5 @@ export function BibleBrowserScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  header: {
-    paddingHorizontal: layout.screenPadding,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.sm,
-    gap: spacing.md,
-  },
-  headerTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  headerTitleCluster: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  title: {
-    ...typography.screenTitle,
-    fontSize: 32,
-    lineHeight: 36,
-    marginBottom: spacing.xs,
-  },
-  subtitle: {
-    ...typography.micro,
-  },
-  headerActionCluster: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  headerIconButton: {
-    minHeight: 42,
-    minWidth: 42,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  translationButton: {
-    minHeight: 42,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  translationButtonText: {
-    ...typography.label,
-  },
-  modalDismissButton: {
-    width: layout.minTouchTarget,
-    height: layout.minTouchTarget,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  searchInputShell: {
-    minHeight: 48,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  searchInput: {
-    flex: 1,
-    ...typography.body,
-    paddingVertical: 0,
-  },
-  clearSearchButton: {
-    width: 24,
-    height: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  searchLoadingState: {
-    flex: 1,
-  },
-  searchResultsWrapper: {
-    flex: 1,
-  },
-  inlineSearchIndicator: {
-    position: 'absolute',
-    top: spacing.sm,
-    right: layout.screenPadding,
-    zIndex: 1,
-  },
-  searchResultCard: {
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-    gap: spacing.sm,
-  },
-  searchResultHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  searchReference: {
-    ...typography.label,
-  },
-  searchExcerpt: {
-    ...typography.body,
-    fontSize: 16,
-    lineHeight: 24,
-  },
-  searchVerseNumber: {
-    fontWeight: '700',
-  },
-  searchFeedbackCard: {
-    marginHorizontal: layout.screenPadding,
-    marginTop: spacing.sm,
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-  },
-  searchFeedbackText: {
-    ...typography.bodyStrong,
-  },
-  translatorSummaryBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginHorizontal: layout.screenPadding,
-    marginTop: spacing.sm,
-  },
-  translatorSummaryBannerText: {
-    ...typography.label,
-  },
-  translatorSummaryErrorCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-    marginHorizontal: layout.screenPadding,
-    marginTop: spacing.sm,
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-  },
-  translatorNotCoveredCard: {
-    flexDirection: 'column',
-    alignItems: 'stretch',
-  },
-  translatorSummaryRetryText: {
-    ...typography.label,
-  },
-  referenceActionCard: {
-    marginHorizontal: layout.screenPadding,
-    marginTop: spacing.sm,
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-    gap: spacing.sm,
-  },
-  referenceMetaText: {
-    ...typography.label,
-  },
-  bookRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    minHeight: 60,
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  bookRowLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  bookIcon: {
-    width: 40,
-    height: 40,
-  },
-  bookIconWrap: {
-    width: 40,
-    height: 40,
-  },
-  bookName: {
-    fontSize: 18,
-    fontWeight: '500',
-  },
-  chapterGrid: {
-    paddingVertical: spacing.md,
-    paddingHorizontal: CHAPTER_GRID_HORIZONTAL_INSET,
-  },
-  chapterGridInner: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: CHAPTER_TILE_GAP,
-  },
-  // Width and height come from getChapterTileLayout so the tiles fill the row.
-  chapterButton: {
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  translatorFeedbackBadge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  unavailable: {
-    opacity: 0.45,
-  },
-  unavailableNoticeTitle: {
-    ...typography.captionStrong,
-    paddingHorizontal: spacing.sm,
-  },
-  unavailableNoticeBody: {
-    ...typography.caption,
-    paddingHorizontal: spacing.sm,
-    paddingTop: spacing.xs,
-  },
-  chapterNumber: {
-    fontSize: 15,
-    fontWeight: '600',
-    fontVariant: ['tabular-nums'],
-  },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    marginTop: 10,
-    marginBottom: spacing.lg,
-    paddingHorizontal: 4,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-  },
-  dividerLabel: {
-    ...typography.eyebrow,
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
-    borderWidth: 1,
-    paddingTop: layout.denseCardPadding,
-    height: '60%',
-    overflow: 'hidden',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: layout.screenPadding,
-    marginBottom: spacing.xs,
-  },
-  modalTitle: {
-    ...typography.cardTitle,
-  },
-  translationPickerLoading: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-  },
-  translationPickerLoadingText: {
-    ...typography.label,
-  },
-  translationList: {
-    paddingHorizontal: layout.screenPadding,
-  },
-  translationCard: {
-    marginBottom: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  translationItem: {
-    minHeight: 88,
-    paddingVertical: 16,
-    paddingHorizontal: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  translationInfo: {
-    flex: 1,
-  },
-  translationNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 4,
-  },
-  translationName: {
-    ...typography.cardTitle,
-  },
-  translationAbbr: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  translationDescription: {
-    fontSize: 13,
-    lineHeight: 18,
-    marginBottom: 8,
-  },
-  translationMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  translationSize: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  downloadedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  downloadedText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  audioDownloadSection: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 14,
-    gap: 10,
-  },
-  audioDownloadHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  audioDownloadTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  audioDownloadButtons: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  audioDownloadChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-  },
-  audioDownloadChipLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  audioDownloadByBook: {
-    alignSelf: 'flex-start',
-    paddingTop: 2,
-  },
-  audioDownloadByBookLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  audioModalSubtitle: {
-    fontSize: 13,
-    marginTop: 4,
-  },
-  downloadAllCard: {
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  downloadAllInfo: {
-    flex: 1,
-    paddingRight: 12,
-  },
-  downloadAllTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  downloadAllDescription: {
-    fontSize: 13,
-  },
-  downloadProgressTrack: {
-    height: 4,
-    borderRadius: 2,
-    marginTop: 6,
-    overflow: 'hidden',
-  },
-  downloadProgressFill: {
-    height: 4,
-    borderRadius: 2,
-  },
-  chipProgressWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  audioBookRow: {
-    minHeight: 60,
-    paddingVertical: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-    borderBottomWidth: 1,
-  },
-  audioBookName: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  audioBookAction: {
-    width: 42,
-    height: 42,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });
