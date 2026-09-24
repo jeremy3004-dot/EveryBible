@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActionSheetIOS,
+  ActivityIndicator,
   Alert,
   FlatList,
   Platform,
@@ -27,10 +28,16 @@ import type { LearnStackParamList } from '../../navigation/types';
 import { openAuthFlow } from '../../navigation/rootNavigation';
 import { useAuthStore } from '../../stores/authStore';
 import * as prayerService from '../../services/prayer/prayerService';
-import type { PrayerRequestWithCounts } from '../../services/prayer/prayerService';
+import type {
+  PrayerRequestCursor,
+  PrayerRequestWithCounts,
+} from '../../services/prayer/prayerService';
 import {
+  applyConfirmedInteraction,
   isUnderReviewForViewer,
   prayerRequestActions,
+  withPendingInteractions,
+  type PrayerInteractionType,
   type PrayerReportReason,
   type PrayerWriteErrorCode,
 } from '../../services/prayer/prayerModel';
@@ -44,14 +51,10 @@ import {
 type ScreenRouteProp = RouteProp<LearnStackParamList, 'PrayerWall'>;
 type NavigationProp = NativeStackNavigationProp<LearnStackParamList, 'PrayerWall'>;
 
-// Tracks which request IDs the current user has prayed for / encouraged. Seeded from the
-// server on every load and updated optimistically on tap.
-interface LocalInteractions {
-  prayed: Set<string>;
-  encouraged: Set<string>;
-}
-
 const MAX_CHARS = 500;
+
+/** One Prayed / Encouraged pill: `prayed:<request id>`. */
+const interactionKey = (type: PrayerInteractionType, requestId: string) => `${type}:${requestId}`;
 
 export function PrayerWallScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -73,10 +76,20 @@ export function PrayerWallScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [submitText, setSubmitText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [localInteractions, setLocalInteractions] = useState<LocalInteractions>({
-    prayed: new Set(),
-    encouraged: new Set(),
-  });
+  // `requests` holds what the server last confirmed. Taps still waiting for the server are laid
+  // over it from here (pill key -> the state the tap will set), so a failed tap only has to drop
+  // its entry to show the latest confirmed state again.
+  const [pendingInteractions, setPendingInteractions] = useState<Record<string, boolean>>({});
+  // Pills with a write in flight. A ref, so a second tap in the same frame is already ignored.
+  const inFlightRef = useRef(new Set<string>());
+  // The viewer's confirmed flag per pill, read synchronously to decide what a tap does.
+  const confirmedRef = useRef(new Map<string, boolean>());
+  // Older requests load a page at a time as the reader reaches the end of the wall.
+  const [nextCursor, setNextCursor] = useState<PrayerRequestCursor | null>(null);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const loadingMoreRef = useRef(false);
+  // Bumped by every first-page load, so a next page requested before a refresh is dropped.
+  const loadGenerationRef = useRef(0);
   // The request whose report form is open, if any.
   const [reportTarget, setReportTarget] = useState<PrayerRequestWithCounts | null>(null);
   const [isReporting, setIsReporting] = useState(false);
@@ -84,15 +97,23 @@ export function PrayerWallScreen() {
   const inputRef = useRef<TextInput>(null);
   const isSignedIn = Boolean(currentUserId);
 
+  const rememberConfirmed = useCallback((rows: PrayerRequestWithCounts[]) => {
+    for (const row of rows) {
+      confirmedRef.current.set(interactionKey('prayed', row.id), row.viewer_prayed);
+      confirmedRef.current.set(interactionKey('encouraged', row.id), row.viewer_encouraged);
+    }
+  }, []);
+
   const loadRequests = useCallback(async () => {
+    const generation = ++loadGenerationRef.current;
     const result = await prayerService.listPrayerRequests(groupId);
+    if (generation !== loadGenerationRef.current) return;
     if (result.success && result.data) {
       const loaded = result.data;
       setRequests(loaded);
-      setLocalInteractions({
-        prayed: new Set(loaded.filter((r) => r.viewer_prayed).map((r) => r.id)),
-        encouraged: new Set(loaded.filter((r) => r.viewer_encouraged).map((r) => r.id)),
-      });
+      setNextCursor(result.nextCursor ?? null);
+      confirmedRef.current = new Map();
+      rememberConfirmed(loaded);
       setLoadError(false);
     } else {
       // Distinguish a genuine load failure (offline / server error) from an
@@ -100,12 +121,31 @@ export function PrayerWallScreen() {
       setOffline(await isDeviceOffline());
       setLoadError(true);
     }
-  }, [groupId]);
+  }, [groupId, rememberConfirmed]);
+
+  const handleLoadMore = useCallback(async () => {
+    if (!nextCursor || loadingMoreRef.current) return;
+    loadingMoreRef.current = true;
+    setIsLoadingMore(true);
+    const generation = loadGenerationRef.current;
+    const result = await prayerService.listPrayerRequests(groupId, { before: nextCursor });
+    loadingMoreRef.current = false;
+    setIsLoadingMore(false);
+    // A failed page keeps the cursor, so reaching the end again retries it.
+    if (generation !== loadGenerationRef.current || !result.success || !result.data) return;
+    const page = result.data;
+    rememberConfirmed(page);
+    setRequests((prev) => {
+      const shown = new Set(prev.map((r) => r.id));
+      return [...prev, ...page.filter((r) => !shown.has(r.id))];
+    });
+    setNextCursor(result.nextCursor ?? null);
+  }, [groupId, nextCursor, rememberConfirmed]);
 
   // isLoading starts true, so the first load needs no synchronous setState here. loadRequests
-  // only sets state after its network call resolves, which the compiler rule cannot see.
+  // only sets state after its network call resolves.
   useEffect(() => {
-    loadRequests().finally(() => setIsLoading(false)); // eslint-disable-line react-hooks/set-state-in-effect
+    loadRequests().finally(() => setIsLoading(false));
   }, [loadRequests]);
 
   const handleRefresh = useCallback(async () => {
@@ -156,58 +196,52 @@ export function PrayerWallScreen() {
     setIsSubmitting(false);
   }, [currentUserId, groupId, isSubmitting, submitText, t, writeErrorMessage]);
 
+  // One write per pill at a time: a tap while that pill's write is in flight is ignored, so a
+  // fast double tap cannot send two writes that fight each other. The tap sets the opposite of
+  // the confirmed state; on failure the pending entry is dropped, which shows the latest
+  // confirmed state (including a refresh that landed meanwhile) rather than a stale snapshot.
   const handleInteraction = useCallback(
-    async (requestId: string, type: 'prayed' | 'encouraged') => {
+    async (requestId: string, type: PrayerInteractionType) => {
       if (!currentUserId) {
         openAuthFlow('signIn');
         return;
       }
 
-      const key = type === 'prayed' ? 'prayed' : 'encouraged';
-      const alreadyInteracted = localInteractions[key].has(requestId);
-      const delta = alreadyInteracted ? -1 : 1;
+      const key = interactionKey(type, requestId);
+      if (inFlightRef.current.has(key)) return;
+      inFlightRef.current.add(key);
 
-      const applyLocalDelta = (direction: 1 | -1) => {
-        setLocalInteractions((prev) => {
-          const updated = new Set(prev[key]);
-          const shouldHave = direction === 1 ? !alreadyInteracted : alreadyInteracted;
-          if (shouldHave) {
-            updated.add(requestId);
-          } else {
-            updated.delete(requestId);
-          }
-          return { ...prev, [key]: updated };
-        });
-
-        setRequests((prev) =>
-          prev.map((r) => {
-            if (r.id !== requestId) return r;
-            const applied = delta * direction;
-            return type === 'prayed'
-              ? { ...r, prayed_count: Math.max(0, r.prayed_count + applied) }
-              : { ...r, encouraged_count: Math.max(0, r.encouraged_count + applied) };
-          })
-        );
-      };
-
-      // Optimistic update
-      applyLocalDelta(1);
+      const active = !(confirmedRef.current.get(key) ?? false);
+      setPendingInteractions((prev) => ({ ...prev, [key]: active }));
       lightHaptic();
 
-      const result = alreadyInteracted
-        ? await prayerService.removeInteraction(requestId, type)
-        : await prayerService.addInteraction(requestId, type);
+      let succeeded = false;
+      try {
+        const result = active
+          ? await prayerService.addInteraction(requestId, type)
+          : await prayerService.removeInteraction(requestId, type);
+        succeeded = Boolean(result?.success);
+      } finally {
+        inFlightRef.current.delete(key);
+        setPendingInteractions((prev) => {
+          const next = { ...prev };
+          delete next[key];
+          return next;
+        });
+      }
 
-      // Roll back the optimistic change if the write failed so counts don't drift.
-      if (!result?.success) {
-        applyLocalDelta(-1);
+      if (!succeeded) {
         announceForAccessibility(t('common.somethingWentWrong'));
         return;
       }
+      confirmedRef.current.set(key, active);
+      setRequests((prev) =>
+        prev.map((r) => (r.id === requestId ? applyConfirmedInteraction(r, type, active) : r))
+      );
       // The pill changes only by fill and icon; say which way the toggle went.
-      announceForAccessibility(prayerInteractionAnnouncement(t, type, !alreadyInteracted));
+      announceForAccessibility(prayerInteractionAnnouncement(t, type, active));
     },
-    [currentUserId, localInteractions, t]
+    [currentUserId, t]
   );
 
   const handleEdit = useCallback(
@@ -391,12 +425,16 @@ export function PrayerWallScreen() {
   );
 
   const renderItem = useCallback(
-    ({ item }: { item: PrayerRequestWithCounts }) => {
+    ({ item: confirmed }: { item: PrayerRequestWithCounts }) => {
+      const item = withPendingInteractions(confirmed, {
+        prayed: pendingInteractions[interactionKey('prayed', confirmed.id)],
+        encouraged: pendingInteractions[interactionKey('encouraged', confirmed.id)],
+      });
       const isOwner = item.user_id === currentUserId;
       const hasActions = actionsFor(item).length > 0;
       const underReview = isUnderReviewForViewer(item, isOwner);
-      const hasPrayed = localInteractions.prayed.has(item.id);
-      const hasEncouraged = localInteractions.encouraged.has(item.id);
+      const hasPrayed = item.viewer_prayed;
+      const hasEncouraged = item.viewer_encouraged;
       const displayName = isOwner
         ? (user?.displayName ?? t('prayer.you'))
         : t('prayer.groupMember');
@@ -407,7 +445,7 @@ export function PrayerWallScreen() {
       return (
         <TouchableOpacity
           style={[styles.card, { backgroundColor: colors.cardBackground }]}
-          onLongPress={hasActions ? () => handleShowActions(item) : undefined}
+          onLongPress={hasActions ? () => handleShowActions(confirmed) : undefined}
           activeOpacity={hasActions ? 0.7 : 1}
           // The card is one VoiceOver element, which swallows the nested Prayed /
           // Encouraged pills on iOS; they are offered again as custom actions and
@@ -441,7 +479,7 @@ export function PrayerWallScreen() {
             if (action === 'prayed' || action === 'encouraged') {
               void handleInteraction(item.id, action);
             } else if (action === 'moreActions') {
-              handleShowActions(item);
+              handleShowActions(confirmed);
             }
           }}
         >
@@ -478,7 +516,7 @@ export function PrayerWallScreen() {
             {hasActions ? (
               <TouchableOpacity
                 style={styles.moreButton}
-                onPress={() => handleShowActions(item)}
+                onPress={() => handleShowActions(confirmed)}
                 accessibilityRole="button"
                 accessibilityLabel={t('prayer.moreActions')}
                 hitSlop={spacing.sm}
@@ -502,7 +540,7 @@ export function PrayerWallScreen() {
                     : colors.cardBorder + '50',
                 },
               ]}
-              onPress={() => handleInteraction(item.id, 'prayed')}
+              onPress={() => void handleInteraction(item.id, 'prayed')}
               accessibilityLabel={t('prayer.prayedCount', { count: item.prayed_count })}
               accessibilityRole="button"
               accessibilityState={{ selected: hasPrayed }}
@@ -532,7 +570,7 @@ export function PrayerWallScreen() {
                     : colors.cardBorder + '50',
                 },
               ]}
-              onPress={() => handleInteraction(item.id, 'encouraged')}
+              onPress={() => void handleInteraction(item.id, 'encouraged')}
               accessibilityLabel={t('prayer.encouragedCount', { count: item.encouraged_count })}
               accessibilityRole="button"
               accessibilityState={{ selected: hasEncouraged }}
@@ -564,7 +602,7 @@ export function PrayerWallScreen() {
       handleInteraction,
       handleShowActions,
       isLeader,
-      localInteractions,
+      pendingInteractions,
       t,
       user?.displayName,
     ]
@@ -770,6 +808,17 @@ export function PrayerWallScreen() {
             { paddingBottom: contentClearance },
           ]}
           ListEmptyComponent={ListEmptyComponent}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={
+            isLoadingMore ? (
+              <ActivityIndicator
+                style={styles.loadingMore}
+                color={colors.secondaryText}
+                accessibilityLabel={t('common.loading')}
+              />
+            ) : null
+          }
           refreshControl={
             <RefreshControl
               refreshing={isRefreshing}
@@ -890,6 +939,9 @@ const styles = StyleSheet.create({
   },
   listContentEmpty: {
     flex: 1,
+  },
+  loadingMore: {
+    paddingVertical: spacing.md,
   },
   card: {
     borderRadius: radius.lg,

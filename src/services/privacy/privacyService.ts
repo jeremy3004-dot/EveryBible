@@ -1,7 +1,7 @@
 import * as Crypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
 import type { PrivacyAppIconMode } from '../../types';
-import { setPrivacyAppIcon, supportsDynamicAppIcon } from './appIcon';
+import { getCurrentPrivacyAppIcon, setPrivacyAppIcon, supportsDynamicAppIcon } from './appIcon';
 
 const privacySettingsKey = 'everybible.privacy.settings';
 
@@ -130,8 +130,23 @@ export const savePrivacySettings = async (settings: PrivacySettingsRecord): Prom
   // after navigation completes to avoid an OOM crash from concurrent Zustand + AppState churn.
 };
 
+/**
+ * Brings the home-screen icon in line with `mode`. The icon the system shows is read
+ * first and a change is only requested when it differs, because iOS shows the reader an
+ * alert for every change. Throws when a device that supports alternate icons refuses the
+ * change (iOS does while the app is not in the foreground), so the caller can report it
+ * and try again later.
+ */
 export const applyPrivacyAppIcon = async (mode: PrivacyAppIconMode): Promise<void> => {
-  await setPrivacyAppIcon(mode);
+  if (!supportsDynamicAppIcon()) {
+    return;
+  }
+  if ((await getCurrentPrivacyAppIcon()) === mode) {
+    return;
+  }
+  if (!(await setPrivacyAppIcon(mode))) {
+    throw new Error(`Failed to apply the ${mode} privacy app icon`);
+  }
 };
 
 export const clearPrivacySettings = async (): Promise<void> => {

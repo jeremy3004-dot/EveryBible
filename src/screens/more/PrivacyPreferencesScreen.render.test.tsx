@@ -10,7 +10,9 @@ const harness = installRenderHarness(mock, { os: 'ios' });
 type SaveInput = { mode: 'standard' } | { mode: 'discreet'; pinInput: string };
 const events: string[] = [];
 const saved: SaveInput[] = [];
-const saveResult: { current: { success: true } | { success: false; errorKey: string } } = {
+const saveResult: {
+  current: { success: true } | { success: false; errorKey: string } | Error;
+} = {
   current: { success: true },
 };
 const usePrivacyStore = create(() => ({
@@ -19,6 +21,9 @@ const usePrivacyStore = create(() => ({
   saveConfiguration: async (input: SaveInput) => {
     saved.push(input);
     events.push(`save:${input.mode}`);
+    if (saveResult.current instanceof Error) {
+      throw saveResult.current;
+    }
     return saveResult.current;
   },
   lock: () => {
@@ -28,12 +33,27 @@ const usePrivacyStore = create(() => ({
 }));
 mockModule(mock, sourcePath('stores/privacyStore.ts'), { usePrivacyStore });
 
+const reported: { source: string; error: unknown }[] = [];
+let reportWaiters: (() => void)[] = [];
+/** Resolves on the next report: the screen loads the crash queue lazily. */
+const nextReport = () => new Promise<void>((resolve) => reportWaiters.push(resolve));
+mockModule(mock, sourcePath('services/diagnostics/crashReportQueue.ts'), {
+  reportHandledError: (source: string, error: unknown) => {
+    reported.push({ source, error });
+    const waiters = reportWaiters;
+    reportWaiters = [];
+    waiters.forEach((resolve) => resolve());
+  },
+});
+
 const t = (key: string) => harness.i18n.t(key);
 
 afterEach(() => {
   events.length = 0;
   saved.length = 0;
   saveResult.current = { success: true };
+  reported.length = 0;
+  reportWaiters = [];
   usePrivacyStore.setState(usePrivacyStore.getInitialState(), true);
   harness.rn.Platform.OS = 'ios';
 });
@@ -148,4 +168,37 @@ test('switching back to the standard icon saves without locking the app', async 
     harness.navigation.calls.map((call) => call.method),
     ['goBack']
   );
+});
+
+test('a discreet save that throws shows an error, is reported and leaves Done usable', async () => {
+  const failure = new Error('keychain unavailable');
+  saveResult.current = failure;
+  const view = await renderPrivacy();
+  await chooseDiscreetWithPin(view);
+  const report = nextReport();
+
+  await view.press(view.getByRole('button', { name: t('common.done') }));
+  await view.flush();
+  await report;
+
+  assert.deepEqual(reported, [{ source: 'privacy.save', error: failure }]);
+  assert.deepEqual(harness.navigation.calls, [], 'the reader stays to try again');
+  assert.deepEqual(events, ['save:discreet'], 'nothing is locked after a failed save');
+  assert.ok(view.getByText(t('common.unexpectedError')));
+  assert.ok(view.getByText(t('common.done')), 'the spinner is gone so Done can be pressed again');
+});
+
+test('a standard-icon save that throws shows its error too', async () => {
+  saveResult.current = new Error('keychain unavailable');
+  usePrivacyStore.setState({ mode: 'discreet', hasPin: true });
+  const view = await renderPrivacy();
+  const report = nextReport();
+
+  await view.press(view.getByRole('radio', { name: t('onboarding.standardIconTitle') }));
+  await view.press(view.getByRole('button', { name: t('common.done') }));
+  await view.flush();
+  await report;
+
+  assert.deepEqual(harness.navigation.calls, []);
+  assert.ok(view.getByText(t('common.unexpectedError')));
 });

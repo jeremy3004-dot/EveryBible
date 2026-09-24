@@ -55,6 +55,24 @@ const failGetUser = (message: string) => {
   });
 };
 
+const EMPTY_PAGE = { success: true, data: [], nextCursor: null };
+
+/** PostgREST's answer while list_prayer_requests is not deployed yet. */
+const listRpcMissing = (error: { code?: string; message: string }, status = 404) =>
+  fake.respondToRpc('list_prayer_requests', () => ({ data: null, error, status }));
+
+/** A row as list_prayer_requests returns it. */
+const rpcRow = (overrides: Record<string, unknown> = {}) => ({
+  ...request(),
+  hidden_at: null,
+  hidden_reason: null,
+  prayed_count: 0,
+  encouraged_count: 0,
+  viewer_has_prayed: false,
+  viewer_has_encouraged: false,
+  ...overrides,
+});
+
 before(async () => {
   prayer = await import('./prayerService');
 });
@@ -64,21 +82,219 @@ beforeEach(() => {
   fake.auth.handlers.getUser = originalGetUser;
   fake.auth.setSession(makeFakeSession({ user: makeFakeUser({ id: 'user-1' }) }));
   backend.configured = true;
+  // The listing tests below "Listing (fallback)" exercise the two-query path the app keeps for
+  // a backend without the RPC; the RPC tests script it explicitly.
+  listRpcMissing({
+    code: 'PGRST202',
+    message: 'Could not find the function public.list_prayer_requests in the schema cache',
+  });
 });
 
-// ─── Listing ─────────────────────────────────────────────────────────────────
+// ─── Listing (server-side counts) ───────────────────────────────────────────
+
+test('the wall is read in one call that counts on the server, a page at a time', async () => {
+  fake.respondToRpc('list_prayer_requests', () => ({ data: [] }));
+
+  assert.deepEqual(await prayer.listPrayerRequests('group-9'), EMPTY_PAGE);
+
+  assert.deepEqual(lastCall('rpc:list_prayer_requests').payload, {
+    p_group_id: 'group-9',
+    // One more than the page so the service knows whether another page exists.
+    p_limit: prayer.PRAYER_REQUEST_PAGE_SIZE + 1,
+    p_before_created_at: null,
+    p_before_id: null,
+  });
+  assert.deepEqual(fake.callsFor('prayer_requests'), []);
+  assert.deepEqual(fake.callsFor('prayer_interactions'), []);
+});
+
+test('server counts and the viewer flags reach the wall as they came back', async () => {
+  fake.respondToRpc('list_prayer_requests', () => ({
+    data: [
+      rpcRow({
+        id: 'req-1',
+        prayed_count: 1204,
+        encouraged_count: 3,
+        viewer_has_prayed: true,
+        viewer_has_encouraged: false,
+      }),
+      rpcRow({ id: 'req-2', hidden_at: '2026-01-03T00:00:00Z', hidden_reason: 'reports' }),
+    ],
+  }));
+
+  const result = await prayer.listPrayerRequests('group-1');
+
+  assert.deepEqual(result, {
+    success: true,
+    nextCursor: null,
+    data: [
+      {
+        ...request({ id: 'req-1' }),
+        hidden_at: null,
+        hidden_reason: null,
+        prayed_count: 1204,
+        encouraged_count: 3,
+        viewer_prayed: true,
+        viewer_encouraged: false,
+      },
+      {
+        ...request({ id: 'req-2' }),
+        hidden_at: '2026-01-03T00:00:00Z',
+        hidden_reason: 'reports',
+        prayed_count: 0,
+        encouraged_count: 0,
+        viewer_prayed: false,
+        viewer_encouraged: false,
+      },
+    ],
+  });
+});
+
+test('a full page returns a cursor to the next one and drops the look-ahead row', async () => {
+  fake.respondToRpc('list_prayer_requests', () => ({
+    data: [
+      rpcRow({ id: 'req-3', created_at: '2026-01-03T00:00:00.123456+00:00' }),
+      rpcRow({ id: 'req-2', created_at: '2026-01-02T00:00:00.654321+00:00' }),
+      rpcRow({ id: 'req-1', created_at: '2026-01-01T00:00:00+00:00' }),
+    ],
+  }));
+
+  const result = await prayer.listPrayerRequests('group-1', { limit: 2 });
+
+  assert.deepEqual(
+    result.data?.map((row) => row.id),
+    ['req-3', 'req-2']
+  );
+  assert.deepEqual(result.nextCursor, {
+    created_at: '2026-01-02T00:00:00.654321+00:00',
+    id: 'req-2',
+  });
+});
+
+test('the next page continues from the cursor', async () => {
+  fake.respondToRpc('list_prayer_requests', () => ({ data: [rpcRow()] }));
+
+  const result = await prayer.listPrayerRequests('group-1', {
+    limit: 10,
+    before: { created_at: '2026-01-02T00:00:00.654321+00:00', id: 'req-2' },
+  });
+
+  assert.equal(result.nextCursor, null);
+  assert.deepEqual(lastCall('rpc:list_prayer_requests').payload, {
+    p_group_id: 'group-1',
+    p_limit: 11,
+    p_before_created_at: '2026-01-02T00:00:00.654321+00:00',
+    p_before_id: 'req-2',
+  });
+});
+
+test('a page size is kept between 1 and 100', async () => {
+  fake.respondToRpc('list_prayer_requests', () => ({ data: [] }));
+
+  await prayer.listPrayerRequests('group-1', { limit: 0 });
+  assert.equal((lastCall('rpc:list_prayer_requests').payload as { p_limit: number }).p_limit, 2);
+  await prayer.listPrayerRequests('group-1', { limit: 5000 });
+  assert.equal((lastCall('rpc:list_prayer_requests').payload as { p_limit: number }).p_limit, 101);
+});
+
+test('a failing listing call is reported, not retried the old way', async () => {
+  fake.respondToRpc('list_prayer_requests', () => ({
+    data: null,
+    error: { code: '57014', message: 'canceling statement due to statement timeout' },
+    status: 500,
+  }));
+
+  assert.deepEqual(await prayer.listPrayerRequests('group-1'), {
+    success: false,
+    error: 'canceling statement due to statement timeout',
+  });
+  assert.deepEqual(fake.callsFor('prayer_requests'), []);
+});
+
+for (const [label, error, status] of [
+  ['PGRST202', { code: 'PGRST202', message: 'Could not find the function' }, 404],
+  ['42883', { code: '42883', message: 'function list_prayer_requests does not exist' }, 400],
+  ['a 404', { message: 'Not Found' }, 404],
+] as const) {
+  test(`while the listing function is missing (${label}) the wall uses the two-query path`, async () => {
+    listRpcMissing(error, status);
+    fake.respondTo('prayer_requests', () => ({ data: [request({ id: 'req-1' })] }));
+    fake.respondTo('prayer_interactions', () => ({
+      data: [{ request_id: 'req-1', type: 'prayed', user_id: 'user-1' }],
+    }));
+
+    const [only] = (await prayer.listPrayerRequests('group-1')).data ?? [];
+
+    assert.deepEqual(
+      [only.prayed_count, only.viewer_prayed],
+      [1, true],
+      'counts come from the old queries'
+    );
+  });
+}
+
+// ─── Listing (fallback) ─────────────────────────────────────────────────────
+
+test('the fallback pages requests with the same size and cursor', async () => {
+  fake.respondTo('prayer_requests', () => ({ data: [] }));
+
+  await prayer.listPrayerRequests('group-1', {
+    limit: 10,
+    before: { created_at: '2026-01-02T00:00:00.654321+00:00', id: 'req-2' },
+  });
+
+  const call = lastCall('prayer_requests');
+  assert.deepEqual(
+    call.steps.filter((step) => ['order', 'limit', 'or'].includes(step.method)),
+    [
+      { method: 'order', args: ['created_at', { ascending: false }] },
+      { method: 'order', args: ['id', { ascending: false }] },
+      {
+        method: 'or',
+        args: [
+          'created_at.lt."2026-01-02T00:00:00.654321+00:00",' +
+            'and(created_at.eq."2026-01-02T00:00:00.654321+00:00",id.lt."req-2")',
+        ],
+      },
+      { method: 'limit', args: [11] },
+    ]
+  );
+});
+
+test("the fallback reads interactions past PostgREST's 1000-row cap", async () => {
+  fake.respondTo('prayer_requests', () => ({ data: [request({ id: 'req-1' })] }));
+  const pageRows = (count: number) =>
+    Array.from({ length: count }, () => ({ request_id: 'req-1', type: 'prayed', user_id: 'x' }));
+  fake.respondTo('prayer_interactions', (call) => {
+    const [from] = call.steps.find((step) => step.method === 'range')?.args as [number, number];
+    return { data: from === 0 ? pageRows(1000) : pageRows(7) };
+  });
+
+  const [only] = (await prayer.listPrayerRequests('group-1')).data ?? [];
+
+  assert.equal(only.prayed_count, 1007);
+  assert.deepEqual(
+    fake
+      .callsFor('prayer_interactions')
+      .map((call) => call.steps.find((step) => step.method === 'range')?.args),
+    [
+      [0, 999],
+      [1000, 1999],
+    ]
+  );
+});
 
 test('a build without a backend shows an empty prayer wall rather than an error', async () => {
   backend.configured = false;
 
-  assert.deepEqual(await prayer.listPrayerRequests('group-1'), { success: true, data: [] });
+  assert.deepEqual(await prayer.listPrayerRequests('group-1'), EMPTY_PAGE);
   assert.deepEqual(fake.calls, []);
 });
 
 test('a signed-out reader browsing a group sees an empty prayer wall', async () => {
   fake.auth.setSession(null);
 
-  assert.deepEqual(await prayer.listPrayerRequests('group-1'), { success: true, data: [] });
+  assert.deepEqual(await prayer.listPrayerRequests('group-1'), EMPTY_PAGE);
   assert.deepEqual(fake.calls, []);
 });
 
@@ -109,14 +325,14 @@ test('requests are fetched for the group, newest first', async () => {
 test('a group with no prayer requests skips the interactions query entirely', async () => {
   fake.respondTo('prayer_requests', () => ({ data: [] }));
 
-  assert.deepEqual(await prayer.listPrayerRequests('group-1'), { success: true, data: [] });
+  assert.deepEqual(await prayer.listPrayerRequests('group-1'), EMPTY_PAGE);
   assert.deepEqual(fake.callsFor('prayer_interactions'), []);
 });
 
 test('a null request payload is treated as an empty prayer wall', async () => {
   fake.respondTo('prayer_requests', () => ({ data: null }));
 
-  assert.deepEqual(await prayer.listPrayerRequests('group-1'), { success: true, data: [] });
+  assert.deepEqual(await prayer.listPrayerRequests('group-1'), EMPTY_PAGE);
 });
 
 test('each request carries its aggregated prayed and encouraged counts', async () => {

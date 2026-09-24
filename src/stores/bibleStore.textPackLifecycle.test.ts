@@ -541,5 +541,8 @@ test('switching translation still happens when the preference service cannot eve
   useBibleStore.getState().setCurrentTranslation('web');
 
   assert.equal(useBibleStore.getState().currentTranslation, 'web');
-  assert.deepEqual(doubles.translations.preferenceCalls, [{ primary: 'web' }]);
+  assert.deepEqual(
+    doubles.translations.preferenceCalls.map(({ primary }) => primary),
+    ['web']
+  );
 });

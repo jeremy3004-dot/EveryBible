@@ -25,11 +25,27 @@ export function lockAfterPrivacyLockFailure(error: unknown): void {
   }
 }
 
+// A failed icon change is reported inside the store; nothing here may break the lock.
+const reconcileAppIcon = (): void => {
+  try {
+    void usePrivacyStore
+      .getState()
+      .reconcileAppIcon()
+      .catch(() => undefined);
+  } catch {
+    // The icon retry is best effort.
+  }
+};
+
 /**
  * Locks a discreet install whenever the app leaves the foreground (background, or the
  * inactive app-switcher preview). The configuration is read when that happens, not
  * captured at mount, so the lock never waits on its host re-rendering after privacy
  * settings change.
+ *
+ * It also retries an app icon change that did not take (iOS refuses one while the app is
+ * not in the foreground): once privacy settings have loaded, and on every return to the
+ * foreground, an icon that differs from the saved mode is changed again.
  */
 export const usePrivacyLock = () => {
   useEffect(() => {
@@ -46,10 +62,24 @@ export const usePrivacyLock = () => {
       } catch (error) {
         lockAfterPrivacyLockFailure(error);
       }
+
+      if (nextState === 'active' && leaving !== 'active') {
+        reconcileAppIcon();
+      }
+    });
+
+    if (usePrivacyStore.getState().isInitialized) {
+      reconcileAppIcon();
+    }
+    const unsubscribeFromInitialization = usePrivacyStore.subscribe((state, previous) => {
+      if (state.isInitialized && !previous.isInitialized) {
+        reconcileAppIcon();
+      }
     });
 
     return () => {
       subscription.remove();
+      unsubscribeFromInitialization();
     };
   }, []);
 };

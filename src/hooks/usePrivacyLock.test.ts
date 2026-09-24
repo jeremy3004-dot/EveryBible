@@ -234,3 +234,64 @@ test('a failed privacy-lock host leaves a standard install usable', (t) => {
 
   assert.equal(usePrivacyStore.getState().isLocked, false);
 });
+
+// ─── app icon retry ───────────────────────────────────────────────────────────
+
+/** Replaces the store's icon reconcile with a counter; the real one is covered in privacyStore. */
+const recordIconReconciles = () => {
+  const calls = { count: 0 };
+  usePrivacyStore.setState({
+    reconcileAppIcon: async () => {
+      calls.count += 1;
+    },
+  });
+  return calls;
+};
+
+test('returning to the foreground retries an icon change that did not take', () => {
+  configureDiscreet();
+  const reconciles = recordIconReconciles();
+  const unmount = mountPrivacyLock();
+  const atMount = reconciles.count;
+
+  rn.AppState.emit('background');
+  rn.AppState.emit('active');
+
+  assert.equal(reconciles.count, atMount + 1);
+  unmount();
+});
+
+test('leaving the foreground does not touch the app icon', () => {
+  configureDiscreet();
+  const reconciles = recordIconReconciles();
+  const unmount = mountPrivacyLock();
+  const atMount = reconciles.count;
+
+  rn.AppState.emit('inactive');
+  rn.AppState.emit('background');
+
+  assert.equal(reconciles.count, atMount);
+  unmount();
+});
+
+test('the icon is reconciled once privacy settings have loaded at launch', () => {
+  const reconciles = recordIconReconciles();
+  const unmount = mountPrivacyLock();
+  assert.equal(reconciles.count, 0, 'the saved mode is not known before initialization');
+
+  usePrivacyStore.setState({ isInitialized: true, mode: 'discreet' });
+  usePrivacyStore.setState({ isLocked: false });
+
+  assert.equal(reconciles.count, 1, 'only the transition to initialized triggers it');
+  unmount();
+});
+
+test('a lock host mounted after initialization reconciles the icon straight away', () => {
+  configureDiscreet();
+  const reconciles = recordIconReconciles();
+
+  const unmount = mountPrivacyLock();
+
+  assert.equal(reconciles.count, 1);
+  unmount();
+});
