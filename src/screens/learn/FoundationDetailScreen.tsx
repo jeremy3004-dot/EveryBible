@@ -19,6 +19,7 @@ import { useGatherStore } from '../../stores/gatherStore';
 import { LessonBottomSheet } from '../../components/gather/LessonBottomSheet';
 import { getTranslatedBookName } from '../../constants/books';
 import { formatBibleReferenceLabel } from '../../services/gather/gatherReferenceLabel';
+import { EVERYBIBLE_SITE_URL } from '../../constants/links';
 import { countCompletedLessons } from './gatherPathModel';
 import type { GatherLesson } from '../../types/gather';
 import type { FoundationDetailScreenProps } from '../../navigation/types';
@@ -74,6 +75,11 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
   }
 
   const isFoundation = foundationId.startsWith('foundation-');
+  const foundationTitle = FOUNDATION_TITLE_KEYS[foundation.id]
+    ? t(FOUNDATION_TITLE_KEYS[foundation.id])
+    : WISDOM_TITLE_KEYS[foundation.id]
+      ? t(WISDOM_TITLE_KEYS[foundation.id])
+      : foundation.title;
   const completedCount = countCompletedLessons(completedIds, foundation.lessons);
   const totalLessons = foundation.lessons.length;
   const resolveBookName = (bookId: string) => getTranslatedBookName(bookId, t);
@@ -87,7 +93,9 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
   const handleShareInvitation = async () => {
     try {
       await Share.share({
-        message: t('gather.invitationDescription') + '\nhttps://everybible.app',
+        // First person: the friend reads this, not the sender. The card's caption
+        // (gather.invitationDescription) is the instruction to the sender.
+        message: `${t('gather.inviteShareMessage', { title: foundationTitle })}\n${EVERYBIBLE_SITE_URL}`,
       });
     } catch {
       // Ignore share errors
@@ -141,11 +149,7 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
           style={[styles.headerTitle, { color: colors.primaryText }]}
           numberOfLines={1}
         >
-          {FOUNDATION_TITLE_KEYS[foundation.id]
-            ? t(FOUNDATION_TITLE_KEYS[foundation.id])
-            : WISDOM_TITLE_KEYS[foundation.id]
-              ? t(WISDOM_TITLE_KEYS[foundation.id])
-              : foundation.title}
+          {foundationTitle}
         </Text>
 
         <View style={styles.headerActionSpacer} />
@@ -191,13 +195,7 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
           )}
 
           {/* Title */}
-          <Text style={[styles.heroTitle, { color: colors.primaryText }]}>
-            {FOUNDATION_TITLE_KEYS[foundation.id]
-              ? t(FOUNDATION_TITLE_KEYS[foundation.id])
-              : WISDOM_TITLE_KEYS[foundation.id]
-                ? t(WISDOM_TITLE_KEYS[foundation.id])
-                : foundation.title}
-          </Text>
+          <Text style={[styles.heroTitle, { color: colors.primaryText }]}>{foundationTitle}</Text>
         </View>
 
         {/* Description — GatherFoundation has description; GatherWisdom does not */}

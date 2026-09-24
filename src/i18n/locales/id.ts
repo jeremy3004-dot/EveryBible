@@ -414,7 +414,7 @@ export const id = {
     somethingWentWrong: 'Ada yang tidak beres',
     offlineTryAgain: 'Anda sedang offline. Sambungkan ke internet, lalu coba lagi.',
     tryAgain: 'Coba lagi',
-    shareMessage: 'Coba Every Bible!',
+    shareMessage: 'Saya membaca dan mendengarkan Alkitab di Every Bible. Gratis. Coba lihat:',
     all: 'Semua',
   },
   tabs: {
@@ -1669,6 +1669,8 @@ export const id = {
     sendInvitation: 'Kirim undangan',
     gatherWithOthers: 'Berkumpul dengan orang lain',
     invitationDescription: 'Ajak seseorang untuk menggali Alkitab bersama.',
+    inviteShareMessage:
+      'Saya sedang mempelajari “{{title}}” di Every Bible. Mau ikut bersama saya?',
     upNext: 'Berikutnya',
     fellowship: 'Persekutuan',
     story: 'Cerita',

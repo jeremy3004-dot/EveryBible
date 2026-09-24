@@ -105,7 +105,7 @@ export const te = {
     somethingWentWrong: 'ఏదో తప్పు జరిగింది',
     offlineTryAgain: 'మీరు ఆఫ్‌లైన్‌లో ఉన్నారు. ఇంటర్నెట్‌కు కనెక్ట్ అయి మళ్లీ ప్రయత్నించండి.',
     tryAgain: 'మళ్లీ ప్రయత్నించండి',
-    shareMessage: 'Every Bible చూడండి!',
+    shareMessage: 'నేను Every Bible లో బైబిల్ చదువుతూ, వింటున్నాను. ఇది ఉచితం. చూడండి:',
     all: 'అన్నీ',
   },
   tabs: {
@@ -1361,6 +1361,7 @@ export const te = {
     sendInvitation: 'ఆహ్వానం పంపండి',
     gatherWithOthers: 'ఇతరులతో కలిసి సమకూడండి',
     invitationDescription: 'కలిసి బైబిల్‌ను కనుగొనేందుకు ఎవరినైనా ఆహ్వానించండి.',
+    inviteShareMessage: 'నేను Every Bible లో “{{title}}” చదువుతున్నాను. నాతో కలిసి చదువుతారా?',
     upNext: 'తదుపరి',
     fellowship: 'సహవాసం',
     story: 'కథ',

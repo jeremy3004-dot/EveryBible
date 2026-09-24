@@ -401,7 +401,7 @@ export const ko = {
     somethingWentWrong: '문제가 발생했습니다',
     offlineTryAgain: '오프라인 상태입니다. 인터넷에 연결한 후 다시 시도해 주세요.',
     tryAgain: '다시 시도',
-    shareMessage: 'Every Bible을 한번 써 보세요!',
+    shareMessage: 'Every Bible로 성경을 읽고 듣고 있어요. 무료예요. 한번 보세요:',
     all: '모두',
   },
   tabs: {
@@ -1612,6 +1612,7 @@ export const ko = {
     sendInvitation: '초대장 보내기',
     gatherWithOthers: '함께 모이기',
     invitationDescription: '함께 성경을 발견해 갈 사람을 초대해 보세요.',
+    inviteShareMessage: 'Every Bible로 ‘{{title}}’ 공부하고 있어요. 저와 함께할래요?',
     upNext: '다음',
     fellowship: '교제',
     story: '이야기',

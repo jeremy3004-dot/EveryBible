@@ -105,7 +105,7 @@ export const ne = {
     somethingWentWrong: 'केही गडबड भयो',
     offlineTryAgain: 'तपाईं अफलाइन हुनुहुन्छ। इन्टरनेटमा जोडिएर फेरि प्रयास गर्नुहोस्।',
     tryAgain: 'फेरि प्रयास गर्नुहोस्',
-    shareMessage: 'Every Bible हेर्नुहोस्!',
+    shareMessage: 'म Every Bible मा बाइबल पढ्छु र सुन्छु। यो निःशुल्क छ। हेर्नुहोस्:',
     all: 'सबै',
   },
   tabs: {
@@ -881,6 +881,7 @@ export const ne = {
     sendInvitation: 'निमन्त्रणा पठाउनुहोस्',
     gatherWithOthers: 'अरूसँग सङ्गति गर्नुहोस्',
     invitationDescription: 'कसैलाई सँगै बाइबल पत्ता लगाउन निम्तो दिनुहोस्।',
+    inviteShareMessage: 'म Every Bible मा “{{title}}” पढ्दैछु। तपाईं मसँगै पढ्न चाहनुहुन्छ?',
     upNext: 'अर्को',
     fellowship: 'आपसी सङ्गति',
     story: 'कथा',

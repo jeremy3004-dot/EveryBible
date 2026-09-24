@@ -432,7 +432,7 @@ export const fr = {
     somethingWentWrong: 'Une erreur est survenue',
     offlineTryAgain: 'Vous êtes hors ligne. Connectez-vous à Internet, puis réessayez.',
     tryAgain: 'Réessayer',
-    shareMessage: 'Découvrez Every Bible !',
+    shareMessage: 'Je lis et j’écoute la Bible avec Every Bible. C’est gratuit. Jette un œil :',
     all: 'Tous',
   },
   tabs: {
@@ -1727,6 +1727,8 @@ export const fr = {
     sendInvitation: 'Envoyer une invitation',
     gatherWithOthers: 'Se rassembler avec d’autres',
     invitationDescription: 'Invitez quelqu’un à découvrir la Bible ensemble.',
+    inviteShareMessage:
+      'Je suis en train de parcourir « {{title}} » dans Every Bible. Tu veux le faire avec moi ?',
     upNext: 'À suivre',
     fellowship: 'Communion',
     story: 'Histoire',

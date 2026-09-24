@@ -414,7 +414,7 @@ export const tr = {
     somethingWentWrong: 'Bir şeyler ters gitti',
     offlineTryAgain: 'Çevrimdışısınız. İnternete bağlanıp yeniden deneyin.',
     tryAgain: 'Tekrar dene',
-    shareMessage: 'Every Bible’a göz atın!',
+    shareMessage: 'Every Bible ile Kutsal Kitap’ı okuyup dinliyorum. Ücretsiz. Bir göz at:',
     all: 'Tümü',
   },
   tabs: {
@@ -1672,6 +1672,8 @@ export const tr = {
     sendInvitation: 'Davet gönder',
     gatherWithOthers: 'Başkalarıyla buluşun',
     invitationDescription: 'Birini Kutsal Kitap’ı birlikte keşfetmeye davet edin.',
+    inviteShareMessage:
+      'Every Bible’da “{{title}}” üzerinde çalışıyorum. Benimle birlikte yapmak ister misin?',
     upNext: 'Sıradaki',
     fellowship: 'Paydaşlık',
     story: 'Hikâye',

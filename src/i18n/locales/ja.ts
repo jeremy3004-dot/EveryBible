@@ -402,7 +402,7 @@ export const ja = {
     somethingWentWrong: '問題が発生しました',
     offlineTryAgain: 'オフラインです。インターネットに接続して、もう一度お試しください。',
     tryAgain: 'もう一度試す',
-    shareMessage: 'Every Bibleを使ってみませんか！',
+    shareMessage: 'Every Bibleで聖書を読んだり聞いたりしています。無料です。ぜひ見てみてください：',
     all: 'すべて',
   },
   tabs: {
@@ -1624,6 +1624,7 @@ export const ja = {
     sendInvitation: '招待を送る',
     gatherWithOthers: '他の人と集まる',
     invitationDescription: '誰かを誘って、一緒に聖書を読み始めましょう。',
+    inviteShareMessage: 'Every Bibleで「{{title}}」を読んでいます。一緒に読みませんか？',
     upNext: '次は',
     fellowship: '交わり',
     story: '物語',

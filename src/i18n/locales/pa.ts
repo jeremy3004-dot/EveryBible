@@ -105,7 +105,8 @@ export const pa = {
     somethingWentWrong: 'ਕੁਝ ਗਲਤ ਹੋ ਗਿਆ',
     offlineTryAgain: 'ਤੁਸੀਂ ਆਫ਼ਲਾਈਨ ਹੋ। ਇੰਟਰਨੈੱਟ ਨਾਲ ਜੁੜੋ ਅਤੇ ਮੁੜ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
     tryAgain: 'ਫਿਰ ਕੋਸ਼ਿਸ਼ ਕਰੋ',
-    shareMessage: 'Every Bible ਦੇਖੋ!',
+    shareMessage:
+      'ਮੈਨੂੰ Every Bible ’ਤੇ ਬਾਈਬਲ ਪੜ੍ਹਨਾ ਤੇ ਸੁਣਨਾ ਬਹੁਤ ਚੰਗਾ ਲੱਗਦਾ ਹੈ। ਇਹ ਮੁਫ਼ਤ ਹੈ। ਦੇਖੋ:',
     all: 'ਸਾਰੇ',
   },
   tabs: {
@@ -1345,6 +1346,7 @@ export const pa = {
     sendInvitation: 'ਸੱਦਾ ਭੇਜੋ',
     gatherWithOthers: 'ਦੂਜਿਆਂ ਨਾਲ ਇਕੱਠੇ ਹੋਵੋ',
     invitationDescription: 'ਕਿਸੇ ਨੂੰ ਮਿਲ ਕੇ ਬਾਈਬਲ ਖੋਜਣ ਲਈ ਸੱਦਾ ਦਿਓ।',
+    inviteShareMessage: 'ਆਓ, Every Bible ਵਿੱਚ “{{title}}” ਮਿਲ ਕੇ ਪੜ੍ਹੀਏ। ਕੀ ਤੁਸੀਂ ਮੇਰੇ ਨਾਲ ਜੁੜੋਗੇ?',
     upNext: 'ਅਗਲਾ',
     fellowship: 'ਸਾਂਝ',
     story: 'ਕਹਾਣੀ',

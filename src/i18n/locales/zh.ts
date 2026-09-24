@@ -395,7 +395,7 @@ export const zh = {
     somethingWentWrong: '出了点问题',
     offlineTryAgain: '你目前处于离线状态。请连接网络后重试。',
     tryAgain: '再试一次',
-    shareMessage: '快来看看 Every Bible！',
+    shareMessage: '我在用 Every Bible 读圣经、听圣经，完全免费。来看看：',
     all: '全部',
   },
   tabs: {
@@ -1564,6 +1564,7 @@ export const zh = {
     sendInvitation: '发送邀请',
     gatherWithOthers: '与他人聚集',
     invitationDescription: '邀请一个人和你一起探索圣经。',
+    inviteShareMessage: '我正在 Every Bible 里学习“{{title}}”。要不要和我一起？',
     upNext: '接下来',
     fellowship: '团契',
     story: '故事',

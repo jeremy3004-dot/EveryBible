@@ -424,7 +424,7 @@ export const ru = {
     somethingWentWrong: 'Что-то пошло не так',
     offlineTryAgain: 'Вы не в сети. Подключитесь к интернету и попробуйте ещё раз.',
     tryAgain: 'Попробовать снова',
-    shareMessage: 'Попробуйте Every Bible!',
+    shareMessage: 'Я читаю и слушаю Библию в Every Bible. Это бесплатно. Посмотри:',
     all: 'Все',
   },
   tabs: {
@@ -1701,6 +1701,7 @@ export const ru = {
     sendInvitation: 'Отправить приглашение',
     gatherWithOthers: 'Собираться с другими',
     invitationDescription: 'Пригласите кого-нибудь вместе исследовать Библию.',
+    inviteShareMessage: 'Я прохожу «{{title}}» в Every Bible. Хочешь присоединиться?',
     upNext: 'Далее',
     fellowship: 'Общение',
     story: 'История',
