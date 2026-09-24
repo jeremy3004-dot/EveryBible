@@ -1,693 +1,116 @@
 import { ChapterFeedbackSummary } from '../../components/feedback';
-import { BookIcon } from '../../components/bible/BookIcon';
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { RefObject } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
-import type { AccessibilityActionEvent, LayoutChangeEvent } from 'react-native';
 import {
-  ActivityIndicator,
-  Alert,
-  AppState,
-  BackHandler,
-  FlatList,
-  LayoutAnimation,
-  ImageBackground,
-  Linking,
-  InteractionManager,
-  KeyboardAvoidingView,
-  Modal,
-  PanResponder,
-  Platform,
-  Pressable,
-  ScrollView,
-  Share,
   StyleSheet,
+  FlatList,
+  InteractionManager,
+  ScrollView,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import * as Clipboard from 'expo-clipboard';
-import { Audio } from 'expo-av';
-import Animated, {
-  useSharedValue,
-  useReducedMotion,
-  useAnimatedScrollHandler,
-  useAnimatedStyle,
-  interpolate,
-  Extrapolation,
-  withSpring,
-  runOnJS,
-  SlideInDown,
-  SlideOutDown,
-} from 'react-native-reanimated';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { LinearGradient } from 'expo-linear-gradient';
+import Animated from 'react-native-reanimated';
+import { GestureDetector } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
-import Svg, { Circle } from 'react-native-svg';
-import {
-  getAdjacentBibleChapter,
-  getBookById,
-  getCompactTranslatedBookName,
-  getTranslatedBookName,
-} from '../../constants';
+import { getBookById, getCompactTranslatedBookName, getTranslatedBookName } from '../../constants';
 import { config } from '../../constants/config';
-import { useTheme, type ThemeMode } from '../../contexts/ThemeContext';
-import { layout, radius, shadows, spacing, typography } from '../../design/system';
+import { useTheme } from '../../contexts/ThemeContext';
+import { layout, radius, spacing, typography } from '../../design/system';
 import { getReadingFontFamily } from '../../design/fonts';
-import { readerThemePreviews } from '../../design/readerThemePreviews';
-import { useTabBarHeight } from '../../hooks/useTabBarHeight';
-import { buildTabBarCapsuleStyle } from '../../navigation/tabBarCapsuleStyle';
-import { useReaderChromeOwner, useReaderChromeProgress } from '../../stores/readerChromeStore';
-import { getNextReaderChromeProgress, READER_PLAY_COLLAPSE_TRAVEL } from './readerChromeMotion';
-import { trackAnonymousUsageEvent, flushAnonymousUsageEvents } from '../../services/analytics';
-import { createReadingTimer } from '../../services/analytics/readingTimer';
-import { trackBibleExperienceEvent } from '../../services/analytics/bibleExperienceAnalytics';
-import {
-  getAnnotationsForChapter,
-  softDeleteAnnotation,
-  upsertAnnotation,
-} from '../../services/annotations/annotationService';
+import { getAnnotationsForChapter } from '../../services/annotations/annotationService';
 import { getChapter, prefetchNextChapter } from '../../services/bible/bibleService';
-import { buildBibleDeepLink } from '../../services/bible/deepLinkParser';
-import {
-  getChapterPresentationMode,
-  type ChapterPresentationMode,
-} from '../../services/bible/presentation';
-import {
-  findAdjacentAvailableChapter,
-  getChapterContentAvailability,
-} from '../../services/bible/contentAvailability';
+import { getChapterPresentationMode } from '../../services/bible/presentation';
+import { getChapterContentAvailability } from '../../services/bible/contentAvailability';
 import { useTranslationContentSummary } from '../../hooks/useTranslationContentSummary';
 import { isRemoteAudioAvailable } from '../../services/audio/audioRemote';
 import { getAudioAvailability } from '../../services/audio/audioAvailability';
-import { describeAudioDownloadError } from '../../services/audio/audioDownloadErrorMessage';
-import { READING_PLAN_ENTRIES_BY_PLAN_ID, readingPlans } from '../../data/readingPlans.generated';
-import { submitChapterFeedbackOrQueue } from '../../services/feedback';
-import {
-  CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS,
-  CHAPTER_FEEDBACK_AUDIO_MIME_TYPE,
-  uploadChapterFeedbackAudio,
-  type ChapterFeedbackAudioDraft,
-} from '../../services/feedback/chapterFeedbackAudio';
-import { normalizeChapterFeedbackIdentity } from '../../services/feedback/chapterFeedbackIdentity';
-import type { ChapterFeedbackSourceScreen } from '../../services/feedback/chapterFeedbackService';
-import {
-  buildPlanDayPlaybackSequenceEntries,
-  getCurrentPlanDaySummary,
-  getPlanChapterListenStatus,
-  getPlanStepReadChapters,
-  getRhythmSessionSegmentAtIndex,
-  PLAN_LISTEN_COMPLETION_THRESHOLD,
-  resolvePlaybackSequenceIndex,
-} from '../../services/plans/readingPlanActivity';
-import { markDayComplete, markPlanSessionComplete } from '../../services/plans/readingPlanService';
-import { getPlanChapterFocusVerse } from '../../services/plans';
 import { formatLocalDateKey } from '../../services/progress/readingActivity';
-import {
-  buildPlanSessionCompletionKey,
-  getDaySessionEntries,
-  isMultiSessionPlan,
-} from '../../services/plans/readingPlanModel';
-import { syncPreferences } from '../../services/sync';
 import { useAudioStore } from '../../stores/audioStore';
 import { useAuthStore } from '../../stores/authStore';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { useProgressStore } from '../../stores/progressStore';
 import { useReadingPlansStore } from '../../stores/readingPlansStore';
-import {
-  getFeedbackParticipationMode,
-  useTranslatorReviewStore,
-} from '../../stores/translatorReviewStore';
-import { getAdjacentAudioPlaybackSequenceEntry } from '../../stores/audioPlaybackSequenceModel';
 import { useAudioPlayer } from '../../hooks/useAudioPlayer';
 import { useFontSize } from '../../hooks/useFontSize';
-import { useDisplayFont } from '../../hooks/useDisplayFont';
 import { useLargeText } from '../../hooks/useLargeText';
+import { useLocalToday } from '../../hooks/useLocalToday';
 import { useShallow } from 'zustand/react/shallow';
-import { lightHaptic, selectionHaptic } from '../../utils/haptics';
-import { hexWithAlpha } from '../../utils/color';
-import { announceForAccessibility } from '../../utils/a11y';
 import { ReaderPlaybackDock } from '../../components/audio/ReaderPlaybackDock';
 import {
   ReaderAudioPortionPreviewGuard,
   ReaderAudioPositionBridge,
-  ReaderAudioPositionValue,
-  ReaderListenProgress,
-  formatClockTime,
 } from './ReaderAudioPositionParts';
 import type {
   ReaderAudioPositionBridgeHandle,
   ReaderAudioPositionSnapshot,
   ReaderFollowAlongPlaybackState,
 } from './ReaderAudioPositionParts';
-import { PlaybackControls } from '../../components/audio/PlaybackControls';
 import { AnnotationActionSheet } from '../../components/annotations/AnnotationActionSheet';
-import { HighlightedVerseText } from '../../components/bible/HighlightedVerseText';
 import { VersesSkeleton } from '../../components/skeleton/VersesSkeleton';
 import type { BibleTranslation, Verse } from '../../types';
 import type { UserAnnotation } from '../../services/supabase/types';
-import type { BibleStackParamList, BibleReaderScreenProps } from '../../navigation/types';
-import {
-  buildBibleSelectionShareText,
-  buildBibleSelectionVerseRanges,
-  extractBibleSelectionText,
-  formatBibleSelectionReference,
-  getBibleSelectionShareTranslationLabel,
-  toggleBibleSelectionVerse,
-} from './bibleSelectionModel';
-import {
-  buildReaderHighlightIndex,
-  buildReaderParagraphRenderSignature,
-} from './bibleReaderRenderModel';
+import type { BibleReaderScreenProps } from '../../navigation/types';
+import { getBibleSelectionShareTranslationLabel } from './bibleSelectionModel';
+import { buildReaderParagraphRenderSignature } from './bibleReaderRenderModel';
 import { createReaderFocusScroll } from './readerFocusScroll';
 import { HOME_VERSE_BACKGROUND_SOURCES } from '../../data/homeVerseBackgrounds';
 import { SHARE_VERSE_BACKGROUND_SOURCES } from '../../data/shareVerseBackgrounds';
 import { getHomeVerseBackgroundIndex } from '../../data/homeVerseBackgroundSelection';
 import {
   buildReaderParagraphs,
-  FOLLOW_ALONG_VERSE_LINE_HEIGHT,
-  buildReaderChapterRouteParams,
-  getListenCountedNoticeViewModel,
-  getPlanSessionTrailingActionState,
-  getNextBibleTabBarVisibility,
-  getReaderAutoScrollTarget,
   getReaderInlineActiveVerse,
-  getAnnotationsForDisplayedVerses,
-  canSelectDisplayedVerse,
-  getPlanSessionBannerColors,
-  getReaderVerseContentOffset,
-  getInitialChapterSessionMode,
-  LISTEN_COUNTED_NOTICE_TEST_ID,
   getReaderVerseLineHeight,
-  resolveSwipeChapterNavigation,
   isActiveAudioTrackMatch,
   getNextFontSizeSheetVisibility,
   getNextTranslationSheetVisibility,
-  shouldAutoplayChapterAudio,
-  shouldReplayActiveAudioForTranslationChange,
-  shouldSyncReaderToActiveAudioChapter,
 } from './bibleReaderModel';
 import type { ReaderParagraph } from './bibleReaderModel';
+import { loadReaderChapter, readerChapterKey, type CancellableTask } from './readerChapterLoader';
 import {
-  invalidateReaderChapterLoad,
-  loadReaderChapter,
-  readerChapterKey,
-  type CancellableTask,
-} from './readerChapterLoader';
-import { navigateListenChapter } from './readerListenNavigation';
-import {
-  applyReaderAnnotationEdits,
-  planReaderHighlightApply,
-  planReaderHighlightRemove,
-  planReaderNoteSave,
-  type ReaderAnnotationEdits,
-} from './readerAnnotationEdits';
-import {
-  normalizeChapterFeedbackComment,
-  shouldEnableChapterFeedbackSubmit,
-} from './bibleReaderFeedbackModel';
-import { TranslationPickerList } from './TranslationPickerList';
-import { TranslationPickerHeader } from './TranslationPickerHeader';
-import { rootNavigationRef } from '../../navigation/rootNavigation';
+  AudioOptionsSheet,
+  AudioPortionShareSheet,
+  ChapterActionsSheet,
+  ChapterAudioShareLoadingOverlay,
+  ChapterAudioShareSheet,
+  ChapterFeedbackModal,
+  FollowAlongTextSheet,
+  PlanSessionBottomBar,
+  ReaderFontSheet,
+  ReaderListenMode,
+  ReaderParagraphBlock,
+  ReaderTopChrome,
+  ReaderTranslationSheet,
+  ReaderVerseList,
+  VerseImageShareSheet,
+  readerSharedStyles,
+  useAudioPortionShare,
+  useAudioReturnTarget,
+  useChapterFeedback,
+  usePlanDayCompletion,
+  useReaderAudioSync,
+  useReaderChapterActions,
+  useReaderChapterLifecycle,
+  useReaderChapterNavigation,
+  useReaderFollowAlongScroll,
+  useReaderPlanSession,
+  useReaderReadingTimer,
+  useReaderScrollChrome,
+  useReaderScrollTargets,
+  useReaderTabBarMotion,
+  useStableChapterPresentation,
+  useVerseSelection,
+} from './reader';
+import type { NavigationProp } from './reader';
 
-type NavigationProp = NativeStackNavigationProp<BibleStackParamList>;
 type VerseTimestamps = import('../../services/bible/verseTimestamps').VerseTimestamps;
-type RootTabNavigationHandle = {
-  setOptions: (options: { tabBarStyle?: unknown }) => void;
-} | null;
-
-interface VerseImageSharePreviewProps {
-  previewRef: RefObject<View | null>;
-  backgroundSource: import('react-native').ImageSourcePropType;
-  referenceLabel: string;
-  selectedText: string;
-}
-
-interface AudioPortionShareDraft {
-  sourceUri: string;
-  fileExtension: string;
-  mimeType: string;
-  durationMs: number;
-}
-
-// The squared top controls are 40pt so they match the reference pill; the slop
-// restores the 44pt touch floor without growing the visible square.
-const TOP_ACTION_HIT_SLOP = 2;
-const TOP_ACTION_ICON_SIZE = 20;
-// Reader chrome floats over the verses at a fixed size, and the verse column is
-// padded by exactly that size. Letting its labels grow without limit clipped
-// them inside the 44pt reference pill and pushed the plan strip up over the
-// last verses, so chrome text scales only this far. The verses themselves, and
-// the full reference behind each control, are not capped.
-const READER_REFERENCE_PILL_MAX_FONT_SCALE = 1.4;
-const PLAN_SESSION_BAR_MAX_FONT_SCALE = 1.3;
-
-const AUDIO_PORTION_MIN_DURATION_MS = 1000;
-const AUDIO_PORTION_DEFAULT_DURATION_MS = 30000;
-const AUDIO_PORTION_HANDLE_WIDTH = 20;
-// One screen-reader increment/decrement of a clip handle.
-const AUDIO_PORTION_A11Y_STEP_MS = 5000;
-const CHAPTER_FEEDBACK_AUDIO_TIMER_MS = 500;
-const CHAPTER_FEEDBACK_AUDIO_APP_ACTIVE_TIMEOUT_MS = 3000;
-const FEEDBACK_AUDIO_COUNTDOWN_SIZE = 58;
-const FEEDBACK_AUDIO_COUNTDOWN_STROKE_WIDTH = 4;
-const FEEDBACK_AUDIO_COUNTDOWN_RADIUS =
-  (FEEDBACK_AUDIO_COUNTDOWN_SIZE - FEEDBACK_AUDIO_COUNTDOWN_STROKE_WIDTH) / 2;
-const FEEDBACK_AUDIO_COUNTDOWN_CIRCUMFERENCE = 2 * Math.PI * FEEDBACK_AUDIO_COUNTDOWN_RADIUS;
-const READER_SCROLL_JS_UPDATE_INTERVAL_PX = 48;
-
-interface ReaderParagraphBlockProps {
-  paragraph: ReaderParagraph;
-  index: number;
-  /**
-   * A render signature that changes whenever anything affecting this paragraph's
-   * visual output changes EXCEPT the raw audio position (theme/fontsize/selection
-   * version, etc.), plus the active follow-along verse. This lets the cell skip
-   * re-rendering on the ~250ms position ticks that do not move the highlight.
-   */
-  renderSignature: string;
-  activeVerse: number | null;
-  renderParagraphRef: RefObject<(paragraph: ReaderParagraph, index: number) => ReactElement>;
-}
-
-function readerParagraphBlockPropsAreEqual(
-  prev: ReaderParagraphBlockProps,
-  next: ReaderParagraphBlockProps
-): boolean {
-  if (
-    prev.paragraph !== next.paragraph ||
-    prev.index !== next.index ||
-    prev.renderSignature !== next.renderSignature
-  ) {
-    return false;
-  }
-
-  // Only paragraphs touched by the active verse transition must re-render.
-  const prevHasActive =
-    prev.activeVerse != null && prev.paragraph.verses.some((v) => v.verse === prev.activeVerse);
-  const nextHasActive =
-    next.activeVerse != null && next.paragraph.verses.some((v) => v.verse === next.activeVerse);
-  if (!prevHasActive && !nextHasActive) {
-    return true;
-  }
-
-  return prev.activeVerse === next.activeVerse;
-}
-
-/* eslint-disable react/prop-types */
-const ReaderParagraphBlock = memo(function ReaderParagraphBlock({
-  paragraph,
-  index,
-  renderParagraphRef,
-}: ReaderParagraphBlockProps) {
-  // The render closure is read from a ref so prop identity stays stable across
-  // position ticks; the comparator above gates actual re-renders.
-  return renderParagraphRef.current(paragraph, index);
-}, readerParagraphBlockPropsAreEqual);
-/* eslint-enable react/prop-types */
-
-type ChapterFeedbackAudioState = 'idle' | 'recording' | 'preview' | 'uploading' | 'error';
-
-const waitForFeedbackAudioActiveAppState = async (): Promise<boolean> => {
-  if (AppState.currentState === 'active') {
-    return true;
-  }
-
-  return new Promise((resolve) => {
-    let settled = false;
-    const subscription = AppState.addEventListener('change', (nextState) => {
-      if (nextState === 'active') {
-        settle(true);
-      }
-    });
-    const timeout = setTimeout(() => {
-      settle(AppState.currentState === 'active');
-    }, CHAPTER_FEEDBACK_AUDIO_APP_ACTIVE_TIMEOUT_MS);
-    if (AppState.currentState === 'active') {
-      settle(true);
-    }
-
-    function settle(isActive: boolean) {
-      if (settled) {
-        return;
-      }
-      settled = true;
-      clearTimeout(timeout);
-      subscription.remove();
-      resolve(isActive);
-    }
-  });
-};
-
-const restoreFeedbackAudioPlaybackMode = async (): Promise<void> => {
-  try {
-    // iOS can route playback through the earpiece while recording is allowed.
-    await Audio.setAudioModeAsync({
-      allowsRecordingIOS: false,
-      playsInSilentModeIOS: true,
-    });
-  } catch {
-    // Audio cleanup should not hide the recording error or block the feedback flow.
-  }
-};
-
-async function loadAudioShareDependencies() {
-  const [downloadStorage, downloadService, remoteAudio, shareService, FileSystem] =
-    await Promise.all([
-      import('../../services/audio/audioDownloadStorage'),
-      import('../../services/audio/audioDownloadService'),
-      import('../../services/audio/audioRemote'),
-      import('../../services/audio/audioShareService'),
-      import('expo-file-system/legacy'),
-    ]);
-
-  return {
-    AUDIO_DOWNLOAD_ROOT_URI: downloadStorage.AUDIO_DOWNLOAD_ROOT_URI,
-    expoAudioFileSystemAdapter: downloadStorage.expoAudioFileSystemAdapter,
-    fetchRemoteChapterAudio: remoteAudio.fetchRemoteChapterAudio,
-    getDownloadedChapterAudioUri: downloadService.getDownloadedChapterAudioUri,
-    prepareChapterAudioShareAsset: shareService.prepareChapterAudioShareAsset,
-    chapterAudioShareRootUri: `${
-      FileSystem.cacheDirectory ?? FileSystem.documentDirectory ?? 'file:///'
-    }everybible-audio-share/`,
-  };
-}
-
-// expo-sharing relies on a native module that may not be registered in all
-// build configurations (e.g. Expo Go, stale dev client). Wrap the import so
-// any "Requiring unknown module" error at the factory level falls back to the
-// plain Share.share() path instead of crashing the app.
-async function tryLoadSharing(): Promise<typeof import('expo-sharing') | null> {
-  try {
-    const mod = await import('expo-sharing');
-    return typeof mod.isAvailableAsync === 'function' ? mod : null;
-  } catch {
-    return null;
-  }
-}
-
-async function loadVideoTrimDependencies() {
-  const videoTrimModule = await import('react-native-video-trim');
-  const VideoTrimModule = videoTrimModule.default ?? videoTrimModule;
-
-  return {
-    VideoTrimModule,
-    isValidTrimMediaFile: videoTrimModule.isValidFile,
-    trimAudioMedia: videoTrimModule.trim,
-  };
-}
-
-interface AudioRangeSelectorProps {
-  durationMs: number;
-  startMs: number;
-  endMs: number;
-  minRangeMs: number;
-  previewPositionMs: number;
-  trackColor: string;
-  selectionColor: string;
-  waveColor: string;
-  selectedWaveColor: string;
-  playedWaveColor: string;
-  handleColor: string;
-  handleGripColor: string;
-  onStartChange: (nextStartMs: number) => void;
-  onEndChange: (nextEndMs: number) => void;
-  startLabel: string;
-  endLabel: string;
-}
-
-function AudioRangeSelector({
-  durationMs,
-  startMs,
-  endMs,
-  minRangeMs,
-  previewPositionMs,
-  trackColor,
-  selectionColor,
-  waveColor,
-  selectedWaveColor,
-  playedWaveColor,
-  handleColor,
-  handleGripColor,
-  onStartChange,
-  onEndChange,
-  startLabel,
-  endLabel,
-}: AudioRangeSelectorProps) {
-  const [trackWidth, setTrackWidth] = useState(0);
-  const waveformSamples = useMemo(
-    () =>
-      Array.from({ length: 44 }, (_, index) => {
-        const harmonic = Math.sin((index + 1) * 0.9);
-        const pulse = Math.sin((index + 1) * 0.33);
-        const normalized = 0.25 + Math.abs(harmonic) * 0.5 + Math.abs(pulse) * 0.25;
-        return 8 + Math.round(normalized * 34);
-      }),
-    []
-  );
-
-  const safeDurationMs = Math.max(durationMs, minRangeMs);
-  const pxPerMs = trackWidth > 0 ? trackWidth / safeDurationMs : 0;
-  const minGapPx = pxPerMs * minRangeMs;
-  const clampedStartMs = Math.max(0, Math.min(startMs, safeDurationMs));
-  const clampedEndMs = Math.max(clampedStartMs, Math.min(endMs, safeDurationMs));
-  const startPx = pxPerMs * clampedStartMs;
-  const endPx = pxPerMs * clampedEndMs;
-  const previewPx = pxPerMs * Math.max(0, Math.min(previewPositionMs, safeDurationMs));
-
-  const pxToMs = useCallback(
-    (positionPx: number) => {
-      if (trackWidth <= 0 || safeDurationMs <= 0) {
-        return 0;
-      }
-
-      return Math.max(
-        0,
-        Math.min(safeDurationMs, Math.round((positionPx / trackWidth) * safeDurationMs))
-      );
-    },
-    [safeDurationMs, trackWidth]
-  );
-
-  const onTrackLayout = (event: LayoutChangeEvent) => {
-    setTrackWidth(event.nativeEvent.layout.width);
-  };
-
-  const startHandleResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: () => true,
-        onPanResponderMove: (_event, gestureState) => {
-          const maxStartPx = Math.max(endPx - minGapPx, 0);
-          const nextStartPx = Math.max(0, Math.min(maxStartPx, startPx + gestureState.dx));
-          onStartChange(pxToMs(nextStartPx));
-        },
-      }),
-    [endPx, minGapPx, onStartChange, pxToMs, startPx]
-  );
-
-  const endHandleResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: () => true,
-        onPanResponderMove: (_event, gestureState) => {
-          const minEndPx = Math.min(startPx + minGapPx, trackWidth);
-          const nextEndPx = Math.max(minEndPx, Math.min(trackWidth, endPx + gestureState.dx));
-          onEndChange(pxToMs(nextEndPx));
-        },
-      }),
-    [endPx, minGapPx, onEndChange, pxToMs, startPx, trackWidth]
-  );
-
-  const isPreviewWithinSelection =
-    previewPositionMs >= clampedStartMs && previewPositionMs <= clampedEndMs;
-
-  // The handles are drag-only; as adjustable elements a screen-reader user can
-  // move them with swipe up/down. The seek handlers clamp to the valid range.
-  const handleA11yActions = [{ name: 'increment' as const }, { name: 'decrement' as const }];
-  const onStartA11yAction = (event: AccessibilityActionEvent) => {
-    const direction = event.nativeEvent.actionName === 'increment' ? 1 : -1;
-    onStartChange(clampedStartMs + direction * AUDIO_PORTION_A11Y_STEP_MS);
-  };
-  const onEndA11yAction = (event: AccessibilityActionEvent) => {
-    const direction = event.nativeEvent.actionName === 'increment' ? 1 : -1;
-    onEndChange(clampedEndMs + direction * AUDIO_PORTION_A11Y_STEP_MS);
-  };
-
-  return (
-    <View style={styles.audioPortionRangeSelector} onLayout={onTrackLayout}>
-      <View style={[styles.audioPortionRangeTrack, { backgroundColor: trackColor }]} />
-      <View
-        style={[
-          styles.audioPortionRangeSelection,
-          {
-            left: startPx,
-            width: Math.max(endPx - startPx, 0),
-            backgroundColor: selectionColor,
-          },
-        ]}
-      />
-
-      <View style={styles.audioPortionWaveRow}>
-        {waveformSamples.map((sample, index) => {
-          const segmentCenter = trackWidth * (index / Math.max(waveformSamples.length - 1, 1));
-          const isSelected = segmentCenter >= startPx && segmentCenter <= endPx;
-          const isPlayed =
-            isPreviewWithinSelection && segmentCenter >= startPx && segmentCenter <= previewPx;
-
-          return (
-            <View
-              key={`wave-${index}`}
-              style={[
-                styles.audioPortionWaveBar,
-                {
-                  height: sample,
-                  backgroundColor: isPlayed
-                    ? playedWaveColor
-                    : isSelected
-                      ? selectedWaveColor
-                      : waveColor,
-                },
-              ]}
-            />
-          );
-        })}
-      </View>
-
-      {isPreviewWithinSelection ? (
-        <View
-          pointerEvents="none"
-          style={[
-            styles.audioPortionPreviewNeedle,
-            { left: previewPx, backgroundColor: playedWaveColor },
-          ]}
-        />
-      ) : null}
-
-      <View
-        style={[
-          styles.audioPortionHandle,
-          styles.audioPortionHandleStart,
-          {
-            left: startPx - AUDIO_PORTION_HANDLE_WIDTH / 2,
-            backgroundColor: handleColor,
-          },
-        ]}
-        hitSlop={{ left: 12, right: 12 }}
-        accessible
-        accessibilityRole="adjustable"
-        accessibilityLabel={startLabel}
-        accessibilityValue={{ text: formatClockTime(clampedStartMs) }}
-        accessibilityActions={handleA11yActions}
-        onAccessibilityAction={onStartA11yAction}
-        {...startHandleResponder.panHandlers}
-      >
-        <View style={[styles.audioPortionHandleGrip, { backgroundColor: handleGripColor }]} />
-      </View>
-
-      <View
-        style={[
-          styles.audioPortionHandle,
-          styles.audioPortionHandleEnd,
-          {
-            left: endPx - AUDIO_PORTION_HANDLE_WIDTH / 2,
-            backgroundColor: handleColor,
-          },
-        ]}
-        hitSlop={{ left: 12, right: 12 }}
-        accessible
-        accessibilityRole="adjustable"
-        accessibilityLabel={endLabel}
-        accessibilityValue={{ text: formatClockTime(clampedEndMs) }}
-        accessibilityActions={handleA11yActions}
-        onAccessibilityAction={onEndA11yAction}
-        {...endHandleResponder.panHandlers}
-      >
-        <View style={[styles.audioPortionHandleGrip, { backgroundColor: handleGripColor }]} />
-      </View>
-    </View>
-  );
-}
-
-function VerseImageSharePreview({
-  previewRef,
-  backgroundSource,
-  referenceLabel,
-  selectedText,
-}: VerseImageSharePreviewProps) {
-  const { colors, isDark } = useTheme();
-  const verseText = selectedText.trim();
-  const verseFontSize = verseText.length > 220 ? 19 : verseText.length > 140 ? 21 : 23;
-  const referenceFontSize = verseText.length > 220 ? 13 : 14;
-  const gradientColors: [string, string] = isDark
-    ? ['rgba(12, 11, 9, 0.12)', 'rgba(12, 11, 9, 0.74)']
-    : ['rgba(245, 240, 232, 0.08)', 'rgba(245, 240, 232, 0.6)'];
-
-  return (
-    <View ref={previewRef} collapsable={false} style={styles.verseImagePreviewFrame}>
-      <ImageBackground
-        source={backgroundSource}
-        style={styles.verseImagePreviewBackground}
-        imageStyle={styles.verseImagePreviewImage}
-        resizeMode="cover"
-      >
-        <LinearGradient
-          pointerEvents="none"
-          colors={gradientColors}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-          style={styles.verseImagePreviewOverlay}
-        />
-        <View style={styles.verseImagePreviewContent}>
-          <Text
-            style={[
-              styles.verseImagePreviewText,
-              {
-                color: colors.biblePrimaryText,
-                fontSize: verseFontSize,
-                lineHeight: Math.round(verseFontSize * 1.38),
-              },
-            ]}
-            numberOfLines={8}
-            adjustsFontSizeToFit
-            minimumFontScale={0.64}
-          >
-            {`"${verseText || referenceLabel}"`}
-          </Text>
-          <Text
-            style={[
-              styles.verseImagePreviewReference,
-              {
-                color: colors.accentGreen,
-                fontSize: referenceFontSize,
-                lineHeight: Math.round(referenceFontSize * 1.4),
-              },
-            ]}
-            numberOfLines={2}
-            adjustsFontSizeToFit
-            minimumFontScale={0.82}
-          >
-            {referenceLabel}
-          </Text>
-        </View>
-      </ImageBackground>
-    </View>
-  );
-}
 
 export function BibleReaderScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<BibleReaderScreenProps['route']>();
-  // The audio-share eyebrow is translated copy set in the Latin-only display face.
-  const displayFont = useDisplayFont();
   const { isLargeText } = useLargeText();
   const {
     bookId,
@@ -703,25 +126,14 @@ export function BibleReaderScreen() {
     sessionContext,
   } = route.params;
   const { colors, themeMode, setTheme } = useTheme();
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const safeInsets = useSafeAreaInsets();
-  const autoplayKeyRef = useRef<string | null>(null);
-  const sessionKeyRef = useRef<string | null>(null);
-  const planDayCompletionGuardRef = useRef<string | null>(null);
-  const listenCountedNoticeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const listenCountedBaselineRef = useRef<{ key: string; alreadyCountedForPlan: boolean } | null>(
-    null
-  );
-  const lastListenCountedNoticeKeyRef = useRef<string | null>(null);
-  const previousActiveAudioBookIdRef = useRef<string | null>(null);
-  const previousActiveAudioChapterRef = useRef<number | null>(null);
   const scrollViewRef = useRef<Animated.ScrollView | null>(null);
   const premiumReaderListRef = useRef<FlatList<ReaderParagraph> | null>(null);
   const followAlongScrollViewRef = useRef<ScrollView | null>(null);
   const verseImageSharePreviewRef = useRef<View | null>(null);
   const verseOffsetsRef = useRef<Record<number, number>>({});
   const readerFocusScrollRef = useRef(createReaderFocusScroll());
-  const measuredChapterKeyRef = useRef<string | null>(null);
   const renderParagraphRef = useRef<(paragraph: ReaderParagraph, index: number) => ReactElement>(
     () => null as never
   );
@@ -762,51 +174,8 @@ export function BibleReaderScreen() {
   const [showFollowAlongText, setShowFollowAlongText] = useState(false);
   const [chapterTimestamps, setChapterTimestamps] = useState<VerseTimestamps | null>(null);
   const [showChapterActionsSheet, setShowChapterActionsSheet] = useState(false);
-  const [showChapterAudioShareSheet, setShowChapterAudioShareSheet] = useState(false);
-  const [pendingChapterAudioShareAction, setPendingChapterAudioShareAction] = useState<
-    'full' | 'portion' | null
-  >(null);
-  const [audioPortionShareDraft, setAudioPortionShareDraft] =
-    useState<AudioPortionShareDraft | null>(null);
-  const [audioPortionStartMs, setAudioPortionStartMs] = useState(0);
-  const [audioPortionEndMs, setAudioPortionEndMs] = useState(0);
-  const [isSharingAudioPortion, setIsSharingAudioPortion] = useState(false);
-  const [isPreviewingAudioPortion, setIsPreviewingAudioPortion] = useState(false);
-  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [showVerseImageSheet, setShowVerseImageSheet] = useState(false);
-  const [feedbackSentiment, setFeedbackSentiment] = useState<'up' | 'down' | null>(null);
-  const [feedbackComment, setFeedbackComment] = useState('');
-  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
-  const [feedbackAudioState, setFeedbackAudioState] = useState<ChapterFeedbackAudioState>('idle');
-  const [feedbackAudioDraft, setFeedbackAudioDraft] = useState<ChapterFeedbackAudioDraft | null>(
-    null
-  );
-  const [feedbackAudioElapsedMs, setFeedbackAudioElapsedMs] = useState(0);
-  const [feedbackAudioPermissionDenied, setFeedbackAudioPermissionDenied] = useState(false);
   const [isSharingVerseImage, setIsSharingVerseImage] = useState(false);
-  const [feedbackSubmitError, setFeedbackSubmitError] = useState<string | null>(null);
-  const feedbackAudioRecordingRef = useRef<Audio.Recording | null>(null);
-  const feedbackAudioStartedAtRef = useRef<number | null>(null);
-  const feedbackAudioTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const feedbackAudioPreviewSoundRef = useRef<Audio.Sound | null>(null);
-  useEffect(() => {
-    return () => {
-      if (feedbackAudioTimerRef.current) {
-        clearInterval(feedbackAudioTimerRef.current);
-      }
-      void feedbackAudioPreviewSoundRef.current?.unloadAsync();
-      const recording = feedbackAudioRecordingRef.current;
-      void (async () => {
-        try {
-          await recording?.stopAndUnloadAsync();
-        } catch {
-          // Recording teardown can race with native screen cleanup.
-        } finally {
-          await restoreFeedbackAudioPlaybackMode();
-        }
-      })();
-    };
-  }, []);
   const [listenCountedNotice, setListenCountedNotice] = useState<string | null>(null);
   const [chapterSessionMode, setChapterSessionMode] = useState<'listen' | 'read'>('read');
   const [annotations, setAnnotations] = useState<UserAnnotation[]>([]);
@@ -818,216 +187,39 @@ export function BibleReaderScreen() {
   const chapterLoadRequestIdRef = useRef(0);
   const chapterPrefetchTaskRef = useRef<CancellableTask | null>(null);
   const annotationLoadRequestIdRef = useRef(0);
-  const lastStableSessionModeRef = useRef(chapterSessionMode);
-  const readerBottomChromeCollapsedRef = useRef(false);
-  const rootTabBarCollapseProgressRef = useRef(0);
-  const selectedVersePreviousTabBarCollapseProgressRef = useRef<number | null>(null);
-  const readerLastScrollOffsetYRef = useRef(0);
-  const readerScrollViewportHeightRef = useRef(0);
-  const readerBottomChromeProgressShared = useSharedValue(0);
-  const rootTabBarScrollProgress = useReaderChromeProgress();
-  const readerChromeOwner = useReaderChromeOwner();
-  const readerChromeOffsetShared = useSharedValue(0);
-  const readerChromeChapterKeyRef = useRef('');
-  const readerChromeCollapsedShared = useSharedValue(false);
-  const reduceMotion = useReducedMotion();
-  const readerRouteKey = route.key;
-
-  // Retained readers keep local motion. Only the focused route may publish to
-  // the root bar; late scroll events and old cleanup cannot overwrite a new one.
-  useFocusEffect(
-    useCallback(() => {
-      readerBottomChromeProgressShared.value = 0;
-      const chapterKey = `${bookId}:${chapter}`;
-      if (readerChromeChapterKeyRef.current !== chapterKey) {
-        readerChromeChapterKeyRef.current = chapterKey;
-        readerChromeOffsetShared.value = 0;
-      }
-      readerChromeCollapsedShared.value = false;
-      readerBottomChromeCollapsedRef.current = false;
-      setIsReadBottomChromeCollapsed(false);
-      readerChromeOwner.value = readerRouteKey;
-      rootTabBarScrollProgress.value = 0;
-      return () => {
-        if (readerChromeOwner.value === readerRouteKey) {
-          readerChromeOwner.value = '';
-          rootTabBarScrollProgress.value = 0;
-        }
-      };
-    }, [
-      bookId,
-      chapter,
-      readerRouteKey,
-      readerBottomChromeProgressShared,
-      readerChromeOffsetShared,
-      readerChromeCollapsedShared,
-      readerChromeOwner,
-      rootTabBarScrollProgress,
-    ])
-  );
-  const rootTabBarVisibleRef = useRef<boolean | null>(null);
   const {
-    bottomPadding: rootTabBarBottomPadding,
-    barHeight: rootTabBarBarHeight,
-    sideInset: rootTabBarSideInset,
-    height: rootTabBarHeight,
-  } = useTabBarHeight();
-  const shouldForceHideRootTabBar =
-    Boolean(activePlanId) && typeof planDayNumber === 'number' && returnToPlanOnComplete;
-  const premiumReaderBaseBottomPadding =
-    rootTabBarHeight + layout.minTouchTarget + spacing.xxxl + spacing.lg;
-  const getRootTabNavigation = useCallback((): RootTabNavigationHandle => {
-    // Runtime contract: navigation.getParent('RootTab') ?? navigation.getParent()?.getParent()
-    const getParentById = navigation.getParent as unknown as (
-      id?: string
-    ) => RootTabNavigationHandle;
-
-    return (
-      getParentById('RootTab') ??
-      (navigation.getParent()?.getParent() as RootTabNavigationHandle | undefined) ??
-      null
-    );
-  }, [navigation]);
-  // The reader drives a scroll-linked collapse of the ROOT tab bar, so it has to
-  // rebuild that bar's style. It must be the same capsule the navigator draws —
-  // this used to be a second, full-width copy, which made the bar visibly change
-  // shape on entering and leaving the reader.
-  const getRootTabBarStyle = useCallback(
-    (collapseProgress: number) =>
-      buildTabBarCapsuleStyle({
-        sideInset: rootTabBarSideInset,
-        bottomPadding: rootTabBarBottomPadding,
-        barHeight: rootTabBarBarHeight,
-        collapseProgress,
-      }),
-    [rootTabBarSideInset, rootTabBarBottomPadding, rootTabBarBarHeight]
-  );
-  const rootTabBarStyleBuilderRef = useRef(getRootTabBarStyle);
-  rootTabBarStyleBuilderRef.current = getRootTabBarStyle;
-  // Keep the chapter content padding stable so dock taps do not reflow the
-  // ScrollView when the user is already pinned at the bottom of the chapter.
-  const premiumReaderBottomPadding = premiumReaderBaseBottomPadding;
-
-  const syncRootTabBarVisibility = useCallback(
-    (nextVisible: boolean) => {
-      if (rootTabBarVisibleRef.current === nextVisible) {
-        return;
-      }
-
-      if (rootTabBarVisibleRef.current != null) {
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      }
-
-      rootTabBarVisibleRef.current = nextVisible;
-      navigation.setParams({ tabBarVisible: nextVisible });
-    },
-    [navigation]
-  );
-
-  const syncRootTabBarCollapseProgress = useCallback(
-    (nextProgress: number) => {
-      const clampedProgress = Math.max(0, Math.min(nextProgress, 1));
-      if (
-        Math.abs(clampedProgress - rootTabBarCollapseProgressRef.current) < 0.02 &&
-        !(clampedProgress === 0 && rootTabBarCollapseProgressRef.current !== 0) &&
-        !(clampedProgress === 1 && rootTabBarCollapseProgressRef.current !== 1)
-      ) {
-        return;
-      }
-
-      rootTabBarCollapseProgressRef.current = clampedProgress;
-      const rootTabNavigation = getRootTabNavigation();
-      if (rootTabNavigation) {
-        rootTabNavigation.setOptions({
-          tabBarStyle: rootTabBarStyleBuilderRef.current(clampedProgress),
-        });
-      }
-      navigation.setParams({ tabBarCollapseProgress: clampedProgress });
-    },
-    [getRootTabNavigation, navigation]
-  );
-
-  useEffect(() => {
-    const rootTabNavigation = getRootTabNavigation();
-    if (!rootTabNavigation || shouldForceHideRootTabBar) {
-      return;
-    }
-
-    rootTabNavigation.setOptions({
-      tabBarStyle: getRootTabBarStyle(rootTabBarCollapseProgressRef.current),
-    });
-    navigation.setParams({ tabBarCollapseProgress: rootTabBarCollapseProgressRef.current });
-  }, [getRootTabBarStyle, getRootTabNavigation, navigation, shouldForceHideRootTabBar]);
-
-  useEffect(() => {
-    syncRootTabBarVisibility(
-      shouldForceHideRootTabBar
-        ? false
-        : getNextBibleTabBarVisibility({
-            sessionMode: chapterSessionMode,
-            action: 'enter',
-          })
-    );
-    syncRootTabBarCollapseProgress(shouldForceHideRootTabBar ? 1 : 0);
-  }, [
-    chapterSessionMode,
+    getRootTabBarStyle,
+    getRootTabNavigation,
+    handleReaderMomentumScrollEnd,
+    handleReaderScrollBeginDrag,
+    handleReaderScrollEndDrag,
+    premiumReaderBottomPadding,
+    readerBottomChromeCollapsedRef,
+    readerBottomChromeProgressShared,
+    readerChromeCollapsedShared,
+    readerChromeOffsetShared,
+    readerChromeOwner,
+    readerLastScrollOffsetYRef,
+    readerRouteKey,
+    readerScrollViewportHeightRef,
+    reduceMotion,
+    rootTabBarBottomPadding,
+    rootTabBarCollapseProgressRef,
+    rootTabBarHeight,
+    rootTabBarScrollProgress,
     shouldForceHideRootTabBar,
-    syncRootTabBarCollapseProgress,
-    syncRootTabBarVisibility,
-  ]);
-
-  useEffect(() => {
-    if (selectedVerses.length > 0) {
-      if (selectedVersePreviousTabBarCollapseProgressRef.current == null) {
-        selectedVersePreviousTabBarCollapseProgressRef.current =
-          rootTabBarCollapseProgressRef.current;
-      }
-
-      syncRootTabBarVisibility(!shouldForceHideRootTabBar);
-      syncRootTabBarCollapseProgress(1);
-      return;
-    }
-
-    const previousProgress = selectedVersePreviousTabBarCollapseProgressRef.current;
-    if (previousProgress == null) {
-      return;
-    }
-
-    selectedVersePreviousTabBarCollapseProgressRef.current = null;
-    syncRootTabBarVisibility(
-      shouldForceHideRootTabBar
-        ? false
-        : getNextBibleTabBarVisibility({
-            sessionMode: chapterSessionMode,
-            action: 'enter',
-          })
-    );
-    syncRootTabBarCollapseProgress(shouldForceHideRootTabBar ? 1 : previousProgress);
-  }, [
+  } = useReaderTabBarMotion({
+    activePlanId,
+    bookId,
+    chapter,
     chapterSessionMode,
-    selectedVerses.length,
-    shouldForceHideRootTabBar,
-    syncRootTabBarCollapseProgress,
-    syncRootTabBarVisibility,
-  ]);
-
-  const handleReaderScrollBeginDrag = useCallback(() => {
-    if (chapterSessionMode !== 'read') {
-      return;
-    }
-  }, [chapterSessionMode]);
-
-  const handleReaderScrollEndDrag = useCallback(() => {
-    if (chapterSessionMode !== 'read') {
-      return;
-    }
-  }, [chapterSessionMode]);
-
-  const handleReaderMomentumScrollEnd = useCallback(() => {
-    if (chapterSessionMode !== 'read') {
-      return;
-    }
-  }, [chapterSessionMode]);
+    navigation,
+    planDayNumber,
+    returnToPlanOnComplete,
+    route,
+    selectedVerses,
+    setIsReadBottomChromeCollapsed,
+  });
 
   const verseImageBackgroundCount = SHARE_VERSE_BACKGROUND_SOURCES.length;
   const selectedVerseImageBackground =
@@ -1038,22 +230,9 @@ export function BibleReaderScreen() {
     ] ?? SHARE_VERSE_BACKGROUND_SOURCES[0];
   const dismissSelectedVerseSelection = useCallback(() => {
     setShowVerseImageSheet(false);
-    setSelectedVerses([]);
+    setSelectedVerses((current) => (current.length === 0 ? current : []));
   }, []);
 
-  const legacyFeedbackEnabled = useAuthStore((state) => state.preferences.chapterFeedbackEnabled);
-  const storedMode = useTranslatorReviewStore((state) => state.mode);
-  const participationMode = getFeedbackParticipationMode(
-    { mode: storedMode, enabled: useTranslatorReviewStore((state) => state.enabled) },
-    legacyFeedbackEnabled
-  );
-  const chapterFeedbackEnabled =
-    participationMode === 'community' || participationMode === 'scripture_council';
-  const councilPasscode = useTranslatorReviewStore((state) => state.councilPasscode);
-  const chapterFeedbackName = useAuthStore((state) => state.preferences.chapterFeedbackName);
-  const chapterFeedbackRole = useAuthStore((state) => state.preferences.chapterFeedbackRole);
-  const contentLanguageCode = useAuthStore((state) => state.preferences.contentLanguageCode);
-  const contentLanguageName = useAuthStore((state) => state.preferences.contentLanguageName);
   const hidePlayButtonFromReadingTab = useAuthStore(
     (state) => state.preferences.hidePlayButtonFromReadingTab
   );
@@ -1153,7 +332,18 @@ export function BibleReaderScreen() {
       downloadedAudioBooks: currentTranslationInfo?.downloadedAudioBooks ?? [],
       bookId,
     }).canPlayAudio && chapterHasCoveredAudio;
-  const translationLabel = currentTranslationInfo?.abbreviation || 'BSB';
+  // A translation the store has no entry for is named by its own id (as the Bible
+  // browser does); only BSB itself reads as BSB.
+  const translationLabel = currentTranslationInfo?.abbreviation || currentTranslation.toUpperCase();
+  const feedback = useChapterFeedback({
+    currentTranslation,
+    currentTranslationInfo,
+    translationLabel,
+    bookId,
+    chapter,
+    onOpenChapterFeedback: () => setShowChapterActionsSheet(false),
+  });
+  const { chapterFeedbackEnabled, handleOpenChapterFeedback } = feedback;
   // Reading-surface serif family for this translation's script. Latin → Lora;
   // Devanagari/unsupported (e.g. Hindi, Nepali) → undefined = platform serif so
   // glyphs render instead of tofu. `language` is a display name ('Hindi').
@@ -1164,288 +354,50 @@ export function BibleReaderScreen() {
   const readingFontFamilyBold = getReadingFontFamily(currentTranslationInfo?.language, 700);
   const compactBookName = getCompactTranslatedBookName(bookId, t);
   const activeChapterKey = `${bookId}_${chapter}`;
-  const todayDateKey = formatLocalDateKey(new Date());
-  const activeRhythmSession = sessionContext?.type === 'rhythm' ? sessionContext : null;
-  const activePlanEntries = useMemo(
-    () => (activePlanId ? (READING_PLAN_ENTRIES_BY_PLAN_ID.get(activePlanId) ?? []) : []),
-    [activePlanId]
-  );
-  const activePlanRecord = useMemo(
-    () => (activePlanId ? (readingPlans.find((plan) => plan.id === activePlanId) ?? null) : null),
-    [activePlanId]
-  );
-  const activePlanIsMultiSession = isMultiSessionPlan(activePlanRecord);
-  const activePlanDayEntries = useMemo(
-    () =>
-      typeof planDayNumber === 'number'
-        ? activePlanEntries.filter((entry) => entry.day_number === planDayNumber)
-        : [],
-    [activePlanEntries, planDayNumber]
-  );
-  const activePlanSessionGroups = useMemo(
-    () =>
-      typeof planDayNumber === 'number'
-        ? getDaySessionEntries(activePlanEntries, planDayNumber)
-        : [],
-    [activePlanEntries, planDayNumber]
-  );
-  const activePlanSessionKey = useMemo(
-    () =>
-      activePlanIsMultiSession
-        ? (planSessionKey ?? activePlanSessionGroups[0]?.sessionKey ?? null)
-        : null,
-    [activePlanIsMultiSession, activePlanSessionGroups, planSessionKey]
-  );
-  const activePlanSessionEntries = useMemo(() => {
-    if (!activePlanIsMultiSession || !activePlanSessionKey) {
-      return activePlanDayEntries;
-    }
-
-    return (
-      activePlanSessionGroups.find((group) => group.sessionKey === activePlanSessionKey)?.entries ??
-      activePlanDayEntries
-    );
-  }, [
-    activePlanDayEntries,
+  // A reader left open past midnight (or resumed the next morning) must count today's
+  // reads and listens toward today's plan day, not yesterday's.
+  const today = useLocalToday();
+  const todayDateKey = useMemo(() => formatLocalDateKey(today), [today]);
+  const {
+    activePlanChapterIndex,
+    activePlanDayChapterItems,
+    activePlanDaySummary,
     activePlanIsMultiSession,
-    activePlanSessionGroups,
-    activePlanSessionKey,
-  ]);
-  const activePlanDayChapterItems = useMemo(
-    () =>
-      activePlanSessionEntries.flatMap((entry) => {
-        const endChapter = entry.chapter_end ?? entry.chapter_start;
-        const chapterItems: Array<{ bookId: string; chapter: number; entryId: string }> = [];
-
-        for (
-          let chapterNumber = entry.chapter_start;
-          chapterNumber <= endChapter;
-          chapterNumber += 1
-        ) {
-          chapterItems.push({
-            bookId: entry.book,
-            chapter: chapterNumber,
-            entryId: entry.id,
-          });
-        }
-
-        return chapterItems;
-      }),
-    [activePlanSessionEntries]
-  );
-  const activePlanChapterIndex = useMemo(
-    () =>
-      activePlanDayChapterItems.findIndex(
-        (item) => item.bookId === bookId && item.chapter === chapter
-      ),
-    [activePlanDayChapterItems, bookId, chapter]
-  );
-  const isInActivePlanSession =
-    Boolean(activePlanId) &&
-    typeof planDayNumber === 'number' &&
-    returnToPlanOnComplete &&
-    activePlanChapterIndex >= 0;
-  const activePlanTitle = activePlanRecord
-    ? t(activePlanRecord.title_key as Parameters<typeof t>[0], {
-        defaultValue: activePlanRecord.title_key,
-      })
-    : null;
-  const showPlanSessionChrome =
-    isInActivePlanSession &&
-    activePlanTitle != null &&
-    typeof planDayNumber === 'number' &&
-    activePlanDayChapterItems.length > 0;
-  const isLastPlanChapter = activePlanChapterIndex === activePlanDayChapterItems.length - 1;
-  const activePlanPlaybackSequenceEntries = useMemo(() => {
-    if (showPlanSessionChrome && !activeRhythmSession) {
-      return buildPlanDayPlaybackSequenceEntries(activePlanSessionEntries);
-    }
-
-    return playbackSequenceEntries;
-  }, [
-    activePlanSessionEntries,
-    activeRhythmSession,
-    playbackSequenceEntries,
-    showPlanSessionChrome,
-  ]);
-  const playbackSequenceEntriesForAudio = useMemo(() => {
-    if (activeRhythmSession) {
-      const activeSegment =
-        activeRhythmSession.segments.find((segment) =>
-          playbackSequenceEntries
-            .slice(segment.startIndex, segment.endIndex)
-            .some((entry) => entry.bookId === bookId && entry.chapter === chapter)
-        ) ??
-        (activePlanId && typeof planDayNumber === 'number'
-          ? (activeRhythmSession.segments.find(
-              (segment) => segment.planId === activePlanId && segment.dayNumber === planDayNumber
-            ) ?? null)
-          : null);
-
-      if (activeSegment) {
-        return playbackSequenceEntries.slice(activeSegment.startIndex, activeSegment.endIndex);
-      }
-    }
-
-    return activePlanPlaybackSequenceEntries;
-  }, [
-    activePlanId,
     activePlanPlaybackSequenceEntries,
+    activePlanSessionEntries,
+    activePlanSessionKey,
+    activePlanSessionSummary,
+    activePlanSessionTitle,
+    activePlanTitle,
     activeRhythmSession,
+    currentChapterListenStatus,
+    focusVerse,
+    hasOtherIncompletePlanSessions,
+    isLastPlanChapter,
+    playbackSequenceEntriesForAudio,
+    resolvePlanSessionRouteParams,
+    showPlanSessionChrome,
+  } = useReaderPlanSession({
+    activeChapterKey,
+    activePlanId,
+    activePlanProgress,
     bookId,
     chapter,
-    planDayNumber,
-    playbackSequenceEntries,
-  ]);
-  useEffect(() => {
-    const rootTabNavigation = getRootTabNavigation();
-    if (!rootTabNavigation) {
-      return;
-    }
-
-    if (showPlanSessionChrome) {
-      rootTabNavigation.setOptions({
-        tabBarStyle: { display: 'none' },
-      });
-
-      return () => {
-        rootTabNavigation.setOptions({
-          tabBarStyle: getRootTabBarStyle(0),
-        });
-      };
-    }
-
-    return undefined;
-  }, [getRootTabBarStyle, getRootTabNavigation, showPlanSessionChrome]);
-  useEffect(() => {
-    if (!activePlanId || typeof planDayNumber !== 'number' || activePlanChapterIndex < 0) {
-      return;
-    }
-
-    setPlanDayResume(activePlanId, planDayNumber, bookId, chapter);
-  }, [activePlanChapterIndex, activePlanId, bookId, chapter, planDayNumber, setPlanDayResume]);
-  const activePlanDaySummary = useMemo(() => {
-    if (!activePlanId || typeof planDayNumber !== 'number' || !activePlanProgress) {
-      return null;
-    }
-
-    return getCurrentPlanDaySummary({
-      plan: activePlanRecord,
-      entries: activePlanEntries,
-      progress: activePlanProgress,
-      chaptersRead,
-      listeningHistory,
-      dayNumber: planDayNumber,
-    });
-  }, [
-    activePlanEntries,
-    activePlanId,
-    activePlanRecord,
-    activePlanProgress,
     chaptersRead,
+    getRootTabBarStyle,
+    getRootTabNavigation,
     listeningHistory,
     planDayNumber,
-  ]);
-  const activePlanSessionSummary = useMemo(
-    () =>
-      activePlanSessionKey
-        ? (activePlanDaySummary?.sessionSummaries.find(
-            (session) => session.sessionKey === activePlanSessionKey
-          ) ?? null)
-        : null,
-    [activePlanDaySummary, activePlanSessionKey]
-  );
-  const focusVerse =
-    requestedFocusVerse ?? getPlanChapterFocusVerse(activePlanSessionEntries, bookId, chapter);
-  const hasOtherIncompletePlanSessions =
-    activePlanRecord != null &&
-    planDayNumber != null &&
-    activePlanIsMultiSession &&
-    activePlanSessionGroups.some(
-      (group) =>
-        group.sessionKey !== activePlanSessionKey &&
-        !activePlanProgress?.completed_sessions?.[
-          buildPlanSessionCompletionKey(activePlanRecord, planDayNumber, group.sessionKey)
-        ]
-    );
-  const activePlanSessionTitle = activePlanSessionKey
-    ? t(
-        activePlanSessionKey === 'morning'
-          ? 'readingPlans.morningLabel'
-          : activePlanSessionKey === 'midday'
-            ? 'readingPlans.middayLabel'
-            : 'readingPlans.eveningLabel',
-        {
-          defaultValue:
-            activePlanSessionKey.charAt(0).toUpperCase() + activePlanSessionKey.slice(1),
-        }
-      )
-    : null;
-  const resolvePlanSessionRouteParams = useCallback(
-    (nextBookId: string, nextChapter: number) => {
-      if (activeRhythmSession) {
-        const nextPlaybackIndex = resolvePlaybackSequenceIndex({
-          playbackSequenceEntries: activePlanPlaybackSequenceEntries,
-          bookId: nextBookId,
-          chapter: nextChapter,
-          session: activeRhythmSession,
-          preferredPlanId: activePlanId,
-          preferredDayNumber: planDayNumber,
-        });
-        const nextSegment = getRhythmSessionSegmentAtIndex(activeRhythmSession, nextPlaybackIndex);
-
-        if (!nextSegment) {
-          return {};
-        }
-
-        return {
-          planId: nextSegment.type === 'plan' ? nextSegment.planId : undefined,
-          planDayNumber: nextSegment.type === 'plan' ? nextSegment.dayNumber : undefined,
-          returnToPlanOnComplete: true,
-          sessionContext: activeRhythmSession,
-        };
-      }
-
-      if (activePlanId && typeof planDayNumber === 'number' && returnToPlanOnComplete) {
-        return {
-          planId: activePlanId,
-          planDayNumber,
-          ...(activePlanSessionKey ? { planSessionKey: activePlanSessionKey } : {}),
-          returnToPlanOnComplete: true,
-        };
-      }
-
-      return {};
-    },
-    [
-      activePlanId,
-      activePlanSessionKey,
-      activeRhythmSession,
-      planDayNumber,
-      activePlanPlaybackSequenceEntries,
-      returnToPlanOnComplete,
-    ]
-  );
-  useEffect(() => {
-    const resolvedBookId = activeAudioBookId ?? bookId;
-    const resolvedChapter = activeAudioChapter ?? chapter;
-    const hasActivePlaybackTarget =
-      resolvedBookId != null &&
-      resolvedChapter != null &&
-      (status === 'playing' || status === 'paused' || status === 'loading');
-
-    if (!hasActivePlaybackTarget) {
-      return;
-    }
-
-    setAudioReturnTarget({
-      translationId: activeAudioTranslationId ?? currentTranslation,
-      bookId: resolvedBookId,
-      chapter: resolvedChapter,
-      preferredMode: chapterSessionMode,
-      ...resolvePlanSessionRouteParams(resolvedBookId, resolvedChapter),
-    });
-  }, [
+    planSessionKey,
+    playbackSequenceEntries,
+    requestedFocusVerse,
+    returnToPlanOnComplete,
+    sessionContext,
+    setPlanDayResume,
+    today,
+    todayDateKey,
+  });
+  useAudioReturnTarget({
     activeAudioBookId,
     activeAudioChapter,
     activeAudioTranslationId,
@@ -1456,33 +408,7 @@ export function BibleReaderScreen() {
     resolvePlanSessionRouteParams,
     setAudioReturnTarget,
     status,
-  ]);
-  const currentChapterListenStatus = useMemo(() => {
-    if (!activePlanDaySummary) {
-      return null;
-    }
-
-    const targetSummary = activePlanSessionSummary ?? activePlanDaySummary;
-
-    return getPlanChapterListenStatus({
-      chapterKey: activeChapterKey,
-      bookId,
-      chapter,
-      targetChapterKeys: targetSummary.targetChapterKeys,
-      completedChapterKeys: targetSummary.completedChapterKeys,
-      listeningHistory,
-      dateKey: todayDateKey,
-      listenCompletionThreshold: PLAN_LISTEN_COMPLETION_THRESHOLD,
-    });
-  }, [
-    activeChapterKey,
-    activePlanDaySummary,
-    activePlanSessionSummary,
-    bookId,
-    chapter,
-    listeningHistory,
-    todayDateKey,
-  ]);
+  });
   const translationShareLabel =
     getBibleSelectionShareTranslationLabel({
       translationName: currentTranslationInfo?.name,
@@ -1490,20 +416,6 @@ export function BibleReaderScreen() {
       translationLanguage: currentTranslationInfo?.language,
     }) || translationLabel;
   const chapterShareTitle = `${getTranslatedBookName(bookId, t)} ${chapter}`;
-  const chapterAudioShareActionLabel =
-    pendingChapterAudioShareAction === 'portion'
-      ? t('bible.shareAudioPortion')
-      : t('bible.shareChapterAudio');
-  const audioPortionRangeDurationMs = Math.max(audioPortionEndMs - audioPortionStartMs, 0);
-  const savedChapterFeedbackIdentity = normalizeChapterFeedbackIdentity({
-    name: chapterFeedbackName ?? '',
-    role: chapterFeedbackRole ?? '',
-  });
-  const canSubmitFeedback =
-    shouldEnableChapterFeedbackSubmit({
-      sentiment: feedbackSentiment,
-      isSubmitting: isSubmittingFeedback || feedbackAudioState === 'recording',
-    }) && savedChapterFeedbackIdentity != null;
   const rawPresentationMode = getChapterPresentationMode({
     verses,
     translation: currentTranslationInfo,
@@ -1513,20 +425,15 @@ export function BibleReaderScreen() {
   // loading state shows a text skeleton instead of the audio-first UI. Without
   // this, BSB (which has audio) would show the audio player while verses are
   // fetching on first mount, even though text is expected.
-  const lastStablePresentationModeRef = useRef<ChapterPresentationMode>(
-    currentTranslationInfo?.hasText ? 'text' : rawPresentationMode
-  );
-  if (!isLoading) {
-    lastStablePresentationModeRef.current = rawPresentationMode;
-    lastStableSessionModeRef.current = chapterSessionMode;
-  }
-  const chapterPresentationMode = isLoading
-    ? lastStablePresentationModeRef.current
-    : rawPresentationMode;
+  const { chapterPresentationMode, stableSessionMode } = useStableChapterPresentation({
+    isLoading,
+    rawPresentationMode,
+    chapterSessionMode,
+    initialPresentationMode: currentTranslationInfo?.hasText ? 'text' : rawPresentationMode,
+  });
   const canReadDisplayedChapter = chapterPresentationMode === 'text' && verses.length > 0;
   const canAdjustFontSize = canReadDisplayedChapter;
   const canShowTranslationSheet = config.features.multipleTranslations;
-  const stableSessionMode = isLoading ? lastStableSessionModeRef.current : chapterSessionMode;
   const showMinimalListenChrome =
     chapterPresentationMode === 'audio-first' ||
     (stableSessionMode === 'listen' && !canReadDisplayedChapter);
@@ -1534,94 +441,48 @@ export function BibleReaderScreen() {
     config.features.chapterFeedbackInlineComposer &&
     chapterFeedbackEnabled &&
     showMinimalListenChrome;
-  const selectedVerseReferenceLabel =
-    selectedVerses.length > 0
-      ? formatBibleSelectionReference({
-          bookName: getTranslatedBookName(bookId, t),
-          chapter,
-          verses: selectedVerses,
-          translationLabel: translationShareLabel,
-        })
-      : '';
-  const selectedVerseText =
-    selectedVerses.length > 0 ? extractBibleSelectionText(verses, selectedVerses) : '';
-  const selectedVerseShareText =
-    selectedVerses.length > 0
-      ? buildBibleSelectionShareText({
-          referenceLabel: selectedVerseReferenceLabel,
-          selectedText: selectedVerseText,
-        })
-      : '';
-  const selectedVerseRanges = useMemo(
-    () => buildBibleSelectionVerseRanges(selectedVerses),
-    [selectedVerses]
-  );
-
-  const getAnnotationVerseEnd = (annotation: Pick<UserAnnotation, 'verse_start' | 'verse_end'>) =>
-    annotation.verse_end ?? annotation.verse_start;
-  const annotationOverlapsSelectionRange = (
-    annotation: Pick<UserAnnotation, 'verse_start' | 'verse_end'>,
-    range: (typeof selectedVerseRanges)[number]
-  ) =>
-    annotation.verse_start <= range.verse_end &&
-    getAnnotationVerseEnd(annotation) >= range.verse_start;
-  const selectedVerseDecorationStyle = useMemo(
-    () =>
-      ({
-        textDecorationLine: 'underline',
-        textDecorationStyle: 'dotted',
-        textDecorationColor: colors.bibleAccent,
-      }) as const,
-    [colors.bibleAccent]
-  );
-  const selectedVerseSet = useMemo(() => new Set(selectedVerses), [selectedVerses]);
   const isShowingRouteChapter =
     versesChapterKey === readerChapterKey(currentTranslation, bookId, chapter);
   // Read at press time: memoized paragraph blocks keep the verse press handler they last
   // rendered with, which can predate the chapter change.
   const isShowingRouteChapterRef = useRef(isShowingRouteChapter);
+  // eslint-disable-next-line react-hooks/refs -- latest value for press handlers, see above
   isShowingRouteChapterRef.current = isShowingRouteChapter;
-  const displayedAnnotations = getAnnotationsForDisplayedVerses({
+  const {
+    displayedAnnotations,
+    handleCloseSelectedVerses,
+    handleCopySelectedVerses,
+    handleHighlightSelectedVerses,
+    handleNoteSelectedVerses,
+    handleOpenVerseImageShare,
+    handleRemoveHighlightSelectedVerses,
+    handleSelectVerseImageBackground,
+    handleShareSelectedVerseImage,
+    handleShareSelectedVerses,
+    highlightByVerse,
+    selectedHighlightColors,
+    selectedNoteAnnotation,
+    selectedVerseDecorationStyle,
+    selectedVerseReferenceLabel,
+    selectedVerseSet,
+    selectedVerseText,
+  } = useVerseSelection({
     annotations,
+    bookId,
+    chapter,
+    dismissSelectedVerseSelection,
+    isSharingVerseImage,
     isShowingRouteChapter,
+    selectedVerses,
+    setAnnotations,
+    setIsSharingVerseImage,
+    setSelectedVerseImageBackgroundIndex,
+    setSelectedVerses,
+    setShowVerseImageSheet,
+    translationShareLabel,
+    verseImageSharePreviewRef,
+    verses,
   });
-  const highlightByVerse = useMemo(
-    () =>
-      buildReaderHighlightIndex(
-        displayedAnnotations,
-        verses.reduce((lastVerse, verse) => Math.max(lastVerse, verse.verse), 0)
-      ),
-    [displayedAnnotations, verses]
-  );
-  // One pass over the annotation list per selection change instead of three
-  // chained filters on every render (this used to run on every position tick).
-  const { selectedHighlightColors, selectedNoteAnnotation } = useMemo(() => {
-    const matching =
-      selectedVerseRanges.length > 0
-        ? annotations.filter(
-            (annotation) =>
-              annotation.deleted_at == null &&
-              selectedVerseRanges.some((range) =>
-                annotationOverlapsSelectionRange(annotation, range)
-              )
-          )
-        : [];
-    const highlights = matching.filter((annotation) => annotation.type === 'highlight');
-    return {
-      selectedHighlightColors: Array.from(
-        new Set(
-          highlights
-            .map((annotation) => annotation.color)
-            .filter(
-              (color): color is string => typeof color === 'string' && color.trim().length > 0
-            )
-        )
-      ),
-      selectedNoteAnnotation: matching.find((annotation) => annotation.type === 'note'),
-    };
-    // annotationOverlapsSelectionRange is a pure local helper over its arguments.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [annotations, selectedVerseRanges]);
   const isCurrentAudioChapter = isActiveAudioTrackMatch({
     translationId: currentTranslation,
     bookId,
@@ -1656,657 +517,138 @@ export function BibleReaderScreen() {
   // `sharedTopChromeTop`, so content only needs to clear that plus a gap. The old
   // flat 98 left ~54pt of dead space above the first line.
   const readerContentTopPadding = sharedTopChromeTop + layout.minTouchTarget + spacing.xl;
-  const lastReaderScrollJsOffset = useSharedValue(0);
-  const lastReaderScrollJsAtBottom = useSharedValue(false);
   const premiumReaderParagraphs = useMemo(() => buildReaderParagraphs(verses), [verses]);
-  const scrollReaderToOffset = useCallback(
-    (offsetY: number, animated: boolean) => {
-      const y = Math.max(offsetY, 0);
-      if (showPremiumReadMode) {
-        premiumReaderListRef.current?.scrollToOffset({ offset: y, animated });
-        return;
-      }
-
-      scrollViewRef.current?.scrollTo({
-        y,
-        animated,
-      });
-    },
-    [showPremiumReadMode]
-  );
-  const scrollReaderToVerseParagraph = useCallback(
-    (verseNumber: number, animated: boolean) => {
-      if (!showPremiumReadMode) {
-        return false;
-      }
-
-      const paragraphIndex = premiumReaderParagraphs.findIndex((paragraph) =>
-        paragraph.verses.some((verse) => verse.verse === verseNumber)
-      );
-      if (paragraphIndex < 0) {
-        return false;
-      }
-
-      try {
-        premiumReaderListRef.current?.scrollToIndex({
-          index: paragraphIndex,
-          animated,
-          viewPosition: 0,
-          viewOffset: sharedTopChromeTop + spacing.md,
-        });
-        return true;
-      } catch {
-        return false;
-      }
-    },
-    [premiumReaderParagraphs, sharedTopChromeTop, showPremiumReadMode]
-  );
-  // Scroll-content position of a verse. The premium reader is a virtualized
-  // FlatList, so a paragraph's own onLayout `y` is cell-relative and unusable as
-  // a scroll offset; offsets are accumulated from measured paragraph heights
-  // instead. Only the legacy ScrollView reader lays paragraphs out directly in
-  // content space, so only it can read verseOffsetsRef.
-  const getReaderVerseOffset = useCallback(
-    (verseNumber: number) => {
-      if (showPremiumReadMode) {
-        return getReaderVerseContentOffset({
-          paragraphs: premiumReaderParagraphs,
-          paragraphHeights: paragraphHeightsRef.current,
-          contentTopOffset: readerContentTopPadding + readerListHeaderHeightRef.current,
-          verseNumber,
-        });
-      }
-
-      return verseOffsetsRef.current[verseNumber] ?? null;
-    },
-    [premiumReaderParagraphs, readerContentTopPadding, showPremiumReadMode]
-  );
-  const scrollReaderToMeasuredVerse = useCallback(
-    (verseNumber: number, animated: boolean) => {
-      const verseOffset = getReaderVerseOffset(verseNumber);
-      if (verseOffset == null) {
-        return false;
-      }
-
-      const targetOffset = getReaderAutoScrollTarget({
-        currentScrollOffsetY: readerLastScrollOffsetYRef.current,
-        viewportHeight: readerScrollViewportHeightRef.current,
-        verseOffsetY: verseOffset,
-        triggerViewportFraction: 0.48,
-        targetTopOffset: readerContentTopPadding,
-      });
-
-      pendingReaderAutoScrollVerseRef.current = null;
-      if (targetOffset == null) {
-        return true;
-      }
-
-      scrollReaderToOffset(targetOffset, animated);
-      return true;
-    },
-    [getReaderVerseOffset, readerContentTopPadding, scrollReaderToOffset]
-  );
-  const flushPendingReaderFocus = useCallback(
-    () =>
-      readerFocusScrollRef.current.flush(getReaderVerseOffset, (offset) =>
-        scrollReaderToOffset(offset - readerContentTopPadding, false)
-      ),
-    [getReaderVerseOffset, readerContentTopPadding, scrollReaderToOffset]
-  );
-  const flushPendingReaderAutoScroll = useCallback(
-    (animated: boolean) => {
-      if (flushPendingReaderFocus()) return;
-      const pendingVerse = pendingReaderAutoScrollVerseRef.current;
-      if (
-        pendingVerse == null ||
-        !showPremiumReadMode ||
-        !isCurrentAudioChapter ||
-        pendingVerse !== readerInlineActiveVerse
-      ) {
-        return;
-      }
-
-      scrollReaderToMeasuredVerse(pendingVerse, animated);
-    },
-    [
-      flushPendingReaderFocus,
-      isCurrentAudioChapter,
-      readerInlineActiveVerse,
-      scrollReaderToMeasuredVerse,
-      showPremiumReadMode,
-    ]
-  );
-  const updateReaderBottomChromeState = useCallback(
-    (offsetY: number, viewportHeight: number, nextCollapsed: boolean) => {
-      if (readerChromeOwner.value !== readerRouteKey) return;
-      readerLastScrollOffsetYRef.current = offsetY;
-      readerScrollViewportHeightRef.current = viewportHeight;
-      if (nextCollapsed !== readerBottomChromeCollapsedRef.current) {
-        readerBottomChromeCollapsedRef.current = nextCollapsed;
-        setIsReadBottomChromeCollapsed(nextCollapsed);
-      }
-    },
-    [readerChromeOwner, readerRouteKey]
-  );
-
-  useEffect(() => {
-    if (showPremiumReadMode) {
-      return;
-    }
-
-    readerBottomChromeCollapsedRef.current = false;
-    rootTabBarCollapseProgressRef.current = 0;
-    readerLastScrollOffsetYRef.current = 0;
-    readerBottomChromeProgressShared.value = 0;
-    if (readerChromeOwner.value === readerRouteKey) {
-      rootTabBarScrollProgress.value = 0;
-    }
-    setIsReadBottomChromeCollapsed(false);
-    const rootTabNavigation = getRootTabNavigation();
-    if (rootTabNavigation) {
-      rootTabNavigation.setOptions({
-        tabBarStyle: shouldForceHideRootTabBar ? { display: 'none' } : getRootTabBarStyle(0),
-      });
-    }
-    navigation.setParams({ tabBarCollapseProgress: shouldForceHideRootTabBar ? 1 : 0 });
-  }, [
-    getRootTabNavigation,
-    getRootTabBarStyle,
-    navigation,
-    readerBottomChromeProgressShared,
-    readerChromeOwner,
-    readerRouteKey,
-    rootTabBarScrollProgress,
+  const {
+    flushPendingReaderAutoScroll,
+    flushPendingReaderFocus,
+    scrollReaderToMeasuredVerse,
+    scrollReaderToOffset,
+    scrollReaderToVerseParagraph,
+  } = useReaderScrollTargets({
+    isCurrentAudioChapter,
+    paragraphHeightsRef,
+    pendingReaderAutoScrollVerseRef,
+    premiumReaderListRef,
+    premiumReaderParagraphs,
+    readerContentTopPadding,
+    readerFocusScrollRef,
+    readerInlineActiveVerse,
+    readerLastScrollOffsetYRef,
+    readerListHeaderHeightRef,
+    readerScrollViewportHeightRef,
+    scrollViewRef,
+    sharedTopChromeTop,
     showPremiumReadMode,
+    verseOffsetsRef,
+  });
+  const {
+    bottomDockAnimatedStyle,
+    planSessionBottomBarAnimatedStyle,
+    readerDockBaseBottom,
+    scrollHandler,
+    topChromeAnimatedStyle,
+  } = useReaderScrollChrome({
+    getRootTabBarStyle,
+    getRootTabNavigation,
+    navigation,
+    readerBottomChromeCollapsedRef,
+    readerBottomChromeProgressShared,
+    readerChromeCollapsedShared,
+    readerChromeOffsetShared,
+    readerChromeOwner,
+    readerLastScrollOffsetYRef,
+    readerRouteKey,
+    readerScrollViewportHeightRef,
+    reduceMotion,
+    rootTabBarCollapseProgressRef,
+    rootTabBarHeight,
+    rootTabBarScrollProgress,
+    setIsReadBottomChromeCollapsed,
     shouldForceHideRootTabBar,
-  ]);
-
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      'worklet';
-      const nextOffsetY = event.contentOffset.y;
-      const viewportHeight = event.layoutMeasurement.height;
-      const contentHeight = event.contentSize.height;
-      const isAtBottom =
-        viewportHeight > 0 && contentHeight > 0
-          ? nextOffsetY + viewportHeight >= contentHeight - spacing.lg
-          : false;
-      if (readerChromeOwner.value !== readerRouteKey) return;
-
-      const nextProgress = getNextReaderChromeProgress({
-        progress: readerBottomChromeProgressShared.value,
-        previousOffset: readerChromeOffsetShared.value,
-        offset: nextOffsetY,
-        viewportHeight,
-        contentHeight,
-        reduceMotion,
-      });
-      readerChromeOffsetShared.value = nextOffsetY;
-      readerBottomChromeProgressShared.value = nextProgress;
-      rootTabBarScrollProgress.value = nextProgress;
-      const nextCollapsed = nextProgress >= 0.98;
-      // Only bookkeeping crosses to JS. All visible motion above runs for
-      // every native scroll frame, including the small deltas of a slow drag.
-      const shouldNotifyJs =
-        nextCollapsed !== readerChromeCollapsedShared.value ||
-        Math.abs(nextOffsetY - lastReaderScrollJsOffset.value) >=
-          READER_SCROLL_JS_UPDATE_INTERVAL_PX ||
-        isAtBottom !== lastReaderScrollJsAtBottom.value;
-      if (!shouldNotifyJs) {
-        return;
-      }
-      readerChromeCollapsedShared.value = nextCollapsed;
-      lastReaderScrollJsOffset.value = nextOffsetY;
-      lastReaderScrollJsAtBottom.value = isAtBottom;
-      runOnJS(updateReaderBottomChromeState)(nextOffsetY, viewportHeight, nextCollapsed);
-    },
+    showPremiumReadMode,
+  });
+  useReaderChapterLifecycle({
+    activeAudioBookId,
+    activeAudioChapter,
+    activeAudioTranslationId,
+    activePlanId,
+    audioEnabled,
+    autoplayAudio,
+    bookId,
+    chapter,
+    chapterLoadRequestIdRef,
+    chapterPrefetchTaskRef,
+    chapterPresentationMode,
+    currentTranslation,
+    dismissSelectedVerseSelection,
+    focusVerse,
+    followAlongOffsetsRef,
+    isLoading,
+    loadChapter,
+    paragraphHeightsRef,
+    pendingReaderAutoScrollVerseRef,
+    planDayNumber,
+    playbackSequenceEntriesForAudio,
+    preferredMode,
+    readerFocusScrollRef,
+    readerListHeaderHeightRef,
+    resetFollowAlongClamp,
+    returnToPlanOnComplete,
+    scrollReaderToOffset,
+    setChapterSessionMode,
+    setCurrentBook,
+    setCurrentChapter,
+    setPlanDayResume,
+    setPlaybackSequence,
+    setSelectedVerses,
+    setShowFollowAlongText,
+    setShowFontSizeSheet,
+    verseOffsetsRef,
+    verses,
   });
 
-  const topChromeAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(
-      readerBottomChromeProgressShared.value,
-      [0, 1],
-      [1, 0],
-      Extrapolation.CLAMP
-    ),
-    transform: [
-      {
-        translateY: interpolate(
-          readerBottomChromeProgressShared.value,
-          [0, 1],
-          [0, -12],
-          Extrapolation.CLAMP
-        ),
-      },
-    ],
-  }));
-
-  // Resting play center is 50pt above the capsule top; it lowers 65pt
-  // while the tabs and arrows travel 132pt. These paths never intersect.
-  const readerDockBaseBottom = rootTabBarHeight + 18;
-  const readerDockCollapsedTranslateY = READER_PLAY_COLLAPSE_TRAVEL;
-
-  const bottomDockAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      {
-        translateY: interpolate(
-          readerBottomChromeProgressShared.value,
-          [0, 1],
-          [0, readerDockCollapsedTranslateY],
-          Extrapolation.CLAMP
-        ),
-      },
-    ],
-  }));
-
-  const planSessionBottomBarAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      {
-        translateY: rootTabBarHeight * readerBottomChromeProgressShared.value,
-      },
-    ],
-    opacity: interpolate(
-      readerBottomChromeProgressShared.value,
-      [0, 1],
-      [1, 0],
-      Extrapolation.CLAMP
-    ),
-  }));
-
-  const swipeX = useSharedValue(0);
-  const swipeInFlightRef = useRef(false);
-
-  const handleSwipeNavigation = (direction: 'next' | 'prev') => {
-    if (swipeInFlightRef.current) return;
-    swipeInFlightRef.current = true;
-
-    // The swipe repaints the page silently; a screen reader would otherwise
-    // land in a new chapter with no signal that the reference changed.
-    const swipeTarget = direction === 'next' ? nextNavigationTarget : previousNavigationTarget;
-    if (swipeTarget) {
-      announceForAccessibility(
-        `${getTranslatedBookName(swipeTarget.bookId, t)} ${swipeTarget.chapter}`
-      );
-    }
-
-    if (direction === 'next') {
-      void handleNextReadChapter().finally(() => {
-        setTimeout(() => {
-          swipeInFlightRef.current = false;
-        }, 150);
-      });
-    } else {
-      void handlePreviousReadChapter().finally(() => {
-        setTimeout(() => {
-          swipeInFlightRef.current = false;
-        }, 150);
-      });
-    }
-  };
-
-  // A plan session is opened from the Plans tab into the Bible tab's stack, so
-  // nothing native sits behind it: every way out (top chevron, back swipe past
-  // the first session chapter, Android back) routes through here to the plan.
-  const handleExitPlanSession = useCallback(() => {
-    if (!showPlanSessionChrome || !activePlanId || !rootNavigationRef.isReady()) {
-      return;
-    }
-
-    if (activeRhythmSession) {
-      rootNavigationRef.navigate('Plans', {
-        screen: 'RhythmDetail',
-        params: { rhythmId: activeRhythmSession.rhythmId },
-      });
-      return;
-    }
-
-    rootNavigationRef.navigate('Plans', {
-      screen: 'PlanDetail',
-      params: { planId: activePlanId },
-    });
-  }, [activePlanId, activeRhythmSession, showPlanSessionChrome]);
-
-  useFocusEffect(
-    useCallback(() => {
-      if (!showPlanSessionChrome) {
-        return undefined;
-      }
-
-      const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-        handleExitPlanSession();
-        return true;
-      });
-      return () => subscription.remove();
-    }, [handleExitPlanSession, showPlanSessionChrome])
-  );
-
-  // Resolved on the JS thread so the shared, tested swipe model stays the single
-  // source of truth for thresholds (worklets cannot call non-worklet functions).
-  const handleSwipeEnd = (translationX: number, velocityX: number) => {
-    if (swipeInFlightRef.current) return;
-
-    const direction = resolveSwipeChapterNavigation({
-      translationX,
-      velocityX,
-      hasNextChapter,
-      hasPrevChapter,
-      canExitSession: showPlanSessionChrome,
-    });
-    if (!direction) return;
-
-    lightHaptic();
-    if (direction === 'exit') {
-      handleExitPlanSession();
-      return;
-    }
-    handleSwipeNavigation(direction);
-  };
-
-  const swipeGesture = Gesture.Pan()
-    .activeOffsetX([-15, 15])
-    .failOffsetY([-10, 10])
-    .onUpdate((event) => {
-      'worklet';
-      swipeX.value = event.translationX;
-    })
-    .onEnd((event) => {
-      'worklet';
-      runOnJS(handleSwipeEnd)(event.translationX, event.velocityX);
-      swipeX.value = withSpring(0, { damping: 30, stiffness: 300 });
-    });
-
-  const swipeStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: swipeX.value }],
-  }));
-
-  useEffect(() => {
-    setCurrentBook(bookId);
-    setCurrentChapter(chapter);
-  }, [bookId, chapter, setCurrentBook, setCurrentChapter]);
-
-  useEffect(() => {
-    if (playbackSequenceEntriesForAudio.length === 0) {
-      return;
-    }
-
-    setPlaybackSequence(playbackSequenceEntriesForAudio);
-  }, [playbackSequenceEntriesForAudio, setPlaybackSequence]);
-
-  useEffect(() => {
-    void loadChapter();
-    return () => {
-      invalidateReaderChapterLoad({
-        requestIdRef: chapterLoadRequestIdRef,
-        prefetchTaskRef: chapterPrefetchTaskRef,
-      });
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bookId, chapter, currentTranslation]);
-
-  useEffect(() => {
-    if (!activePlanId || typeof planDayNumber !== 'number' || !returnToPlanOnComplete) {
-      return;
-    }
-
-    setPlanDayResume(activePlanId, planDayNumber, bookId, chapter);
-  }, [activePlanId, bookId, chapter, planDayNumber, returnToPlanOnComplete, setPlanDayResume]);
-
-  useEffect(() => {
-    const chapterKey = `${currentTranslation}:${bookId}:${chapter}`;
-    if (measuredChapterKeyRef.current !== chapterKey) {
-      measuredChapterKeyRef.current = chapterKey;
-      verseOffsetsRef.current = {};
-      paragraphHeightsRef.current = {};
-      readerListHeaderHeightRef.current = 0;
-      followAlongOffsetsRef.current = {};
-    }
-    readerFocusScrollRef.current.request(focusVerse ?? null);
-    pendingReaderAutoScrollVerseRef.current = null;
-    setSelectedVerses([]);
-    // Reset monotonic follow-along state on chapter change
-    resetFollowAlongClamp();
-    if (focusVerse == null) {
-      scrollReaderToOffset(0, false);
-    }
-  }, [
+  useReaderFollowAlongScroll({
+    activeFollowAlongVerse,
     bookId,
     chapter,
     currentTranslation,
-    focusVerse,
-    resetFollowAlongClamp,
-    scrollReaderToOffset,
-  ]);
-
-  useEffect(() => {
-    if (isLoading) {
-      return;
-    }
-
-    const sessionKey = `${bookId}:${chapter}:${currentTranslation}`;
-    if (sessionKeyRef.current === sessionKey) {
-      return;
-    }
-
-    sessionKeyRef.current = sessionKey;
-    const hasText = verses.length > 0;
-    const nextSessionMode = hasText
-      ? 'read'
-      : getInitialChapterSessionMode({
-          translationId: currentTranslation,
-          audioEnabled,
-          hasText,
-          autoplayAudio: Boolean(autoplayAudio),
-          preferredMode: preferredMode ?? null,
-          bookId,
-          chapter,
-          activeAudioTranslationId,
-          activeAudioBookId,
-          activeAudioChapter,
-        });
-
-    setShowFollowAlongText((current) => {
-      if (hasText || nextSessionMode === 'read') {
-        return false;
-      }
-
-      return current;
-    });
-    setChapterSessionMode(nextSessionMode);
-  }, [
-    activeAudioTranslationId,
-    activeAudioBookId,
-    activeAudioChapter,
-    audioEnabled,
-    autoplayAudio,
-    bookId,
-    chapter,
-    currentTranslation,
-    isLoading,
-    preferredMode,
-    verses.length,
-  ]);
-
-  useEffect(() => {
-    if (chapterPresentationMode === 'audio-first') {
-      setShowFontSizeSheet(false);
-      dismissSelectedVerseSelection();
-    }
-  }, [chapterPresentationMode, dismissSelectedVerseSelection]);
-
-  useEffect(() => {
-    if (isLoading || focusVerse == null) {
-      return;
-    }
-
-    if (!flushPendingReaderFocus() && readerFocusScrollRef.current.pendingVerse != null) {
-      scrollReaderToVerseParagraph(focusVerse, false);
-    }
-  }, [focusVerse, flushPendingReaderFocus, isLoading, scrollReaderToVerseParagraph, verses]);
-
-  useEffect(() => {
-    if (!showFollowAlongText || activeFollowAlongVerse == null) {
-      return;
-    }
-
-    const verseOffset = followAlongOffsetsRef.current[activeFollowAlongVerse];
-    if (verseOffset == null) {
-      return;
-    }
-
-    followAlongScrollViewRef.current?.scrollTo({
-      y: Math.max(verseOffset - 140, 0),
-      animated: true,
-    });
-  }, [activeFollowAlongVerse, showFollowAlongText]);
-
-  useEffect(() => {
-    if (!showPremiumReadMode || !isCurrentAudioChapter || readerInlineActiveVerse == null) {
-      pendingReaderAutoScrollVerseRef.current = null;
-      return;
-    }
-
-    if (didRestartFollowAlongPlayback) {
-      pendingReaderAutoScrollVerseRef.current = null;
-      scrollReaderToOffset(0, true);
-      return;
-    }
-
-    // Until the paragraphs above the verse have been measured its content
-    // offset is unknown, so fall back to FlatList's own index scrolling and
-    // retry from onLayout once the measurements land.
-    if (!scrollReaderToMeasuredVerse(readerInlineActiveVerse, true)) {
-      pendingReaderAutoScrollVerseRef.current = readerInlineActiveVerse;
-      scrollReaderToVerseParagraph(readerInlineActiveVerse, true);
-    }
-  }, [
     didRestartFollowAlongPlayback,
+    flushPendingReaderFocus,
+    focusVerse,
+    followAlongOffsetsRef,
+    followAlongScrollViewRef,
     isCurrentAudioChapter,
+    isLoading,
+    pendingReaderAutoScrollVerseRef,
+    readerFocusScrollRef,
     readerInlineActiveVerse,
-    scrollReaderToOffset,
     scrollReaderToMeasuredVerse,
+    scrollReaderToOffset,
     scrollReaderToVerseParagraph,
-    showPremiumReadMode,
-  ]);
-
-  // Fetch verse timestamps for the active text-backed audio chapter; clear when chapter changes.
-  useEffect(() => {
-    if (!showFollowAlongText && (!isCurrentAudioChapter || verses.length === 0)) return;
-
-    let isCancelled = false;
-    setChapterTimestamps(null);
-
-    void import('../../services/bible/verseTimestamps')
-      .then(({ getChapterTimestamps }) => getChapterTimestamps(currentTranslation, bookId, chapter))
-      .then((timestamps) => {
-        if (!isCancelled) {
-          setChapterTimestamps(timestamps);
-        }
-      })
-      .catch((timestampsError) => {
-        if (!isCancelled) {
-          console.error('Error loading verse timestamps:', timestampsError);
-          setChapterTimestamps(null);
-        }
-      });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [
+    setChapterTimestamps,
     showFollowAlongText,
-    isCurrentAudioChapter,
-    verses.length,
-    currentTranslation,
-    bookId,
-    chapter,
-  ]);
+    showPremiumReadMode,
+    verses,
+  });
 
-  useEffect(() => {
-    if (
-      !shouldAutoplayChapterAudio({
-        translationId: currentTranslation,
-        autoplayAudio: Boolean(autoplayAudio),
-        audioEnabled,
-        isLoading,
-        bookId,
-        chapter,
-        activeAudioTranslationId,
-        activeAudioBookId,
-        activeAudioChapter,
-      })
-    ) {
-      return;
-    }
-
-    const autoplayKey = `${currentTranslation}:${bookId}:${chapter}:${focusVerse ?? 'chapter'}:${chapterPresentationMode}`;
-    if (autoplayKeyRef.current === autoplayKey) {
-      return;
-    }
-
-    autoplayKeyRef.current = autoplayKey;
-    // The autoplay param is a one-shot request from the screen that opened the reader.
-    // Left set, a later translation switch produced a new key and started audio again,
-    // even after the listener had paused or stopped it.
-    navigation.setParams({ autoplayAudio: false });
-
-    void playChapter(
-      bookId,
-      chapter,
-      currentTranslationInfo?.audioGranularity === 'verse' ? focusVerse : undefined
-    );
-  }, [
-    activeAudioTranslationId,
+  useReaderAudioSync({
     activeAudioBookId,
     activeAudioChapter,
-    autoplayAudio,
+    activeAudioTranslationId,
     audioEnabled,
+    autoplayAudio,
     bookId,
     chapter,
     chapterPresentationMode,
+    chapterSessionMode,
     currentTranslation,
     currentTranslationInfo,
     focusVerse,
     isLoading,
     navigation,
     playChapter,
-  ]);
-
-  useEffect(() => {
-    const shouldSync = shouldSyncReaderToActiveAudioChapter({
-      audioEnabled,
-      bookId,
-      chapter,
-      activeAudioBookId,
-      activeAudioChapter,
-      previousActiveAudioBookId: previousActiveAudioBookIdRef.current,
-      previousActiveAudioChapter: previousActiveAudioChapterRef.current,
-    });
-
-    previousActiveAudioBookIdRef.current = activeAudioBookId;
-    previousActiveAudioChapterRef.current = activeAudioChapter;
-
-    if (!shouldSync || activeAudioChapter == null) {
-      return;
-    }
-
-    navigation.setParams(
-      buildReaderChapterRouteParams({
-        bookId: activeAudioBookId ?? bookId,
-        chapter: activeAudioChapter,
-        preferredMode: chapterSessionMode,
-        ...resolvePlanSessionRouteParams(activeAudioBookId ?? bookId, activeAudioChapter),
-      })
-    );
-  }, [
-    audioEnabled,
-    activeAudioBookId,
-    activeAudioChapter,
-    bookId,
-    chapter,
-    chapterSessionMode,
-    navigation,
     resolvePlanSessionRouteParams,
-  ]);
+  });
 
   useEffect(() => {
     const loadAnnotations = async () => {
@@ -2322,57 +664,36 @@ export function BibleReaderScreen() {
     void loadAnnotations();
   }, [bookId, chapter]);
 
-  // Checkpoint focused foreground reading so a background force-quit does not
-  // lose the visit. Hidden tabs remain mounted, so mount/unmount is insufficient.
-  useFocusEffect(
-    useCallback(() => {
-      if (chapterSessionMode !== 'read') return;
-      const timer = createReadingTimer((durationSeconds) => {
-        trackAnonymousUsageEvent('reading_ended', {
-          book_id: bookId,
-          chapter,
-          translation_id: currentTranslation,
-          duration_seconds: durationSeconds,
-        });
-      });
-      timer.setActive(AppState.currentState === 'active');
-      const interval = setInterval(timer.checkpoint, 30_000);
-      const subscription = AppState.addEventListener('change', (nextState) => {
-        timer.setActive(nextState === 'active');
-        if (nextState !== 'active') void flushAnonymousUsageEvents();
-      });
-      return () => {
-        subscription.remove();
-        clearInterval(interval);
-        timer.finish();
-        void flushAnonymousUsageEvents();
-      };
-    }, [bookId, chapter, currentTranslation, chapterSessionMode])
-  );
+  useReaderReadingTimer({ bookId, chapter, chapterSessionMode, currentTranslation });
 
-  useEffect(() => {
-    if (!isPreviewingAudioPortion || !audioPortionShareDraft || !isCurrentAudioChapter) {
-      return;
-    }
-
-    if (status !== 'playing') {
-      setIsPreviewingAudioPortion(false);
-    }
-  }, [audioPortionShareDraft, isCurrentAudioChapter, isPreviewingAudioPortion, status]);
-
-  // Reaching the end of the previewed range is a position-tick concern, so it
-  // lives in <ReaderAudioPortionPreviewGuard/> and is mounted only while a
-  // preview is actually running.
-  const isWatchingAudioPortionPreview =
-    isPreviewingAudioPortion &&
-    audioPortionShareDraft != null &&
-    isCurrentAudioChapter &&
-    status === 'playing';
-  const handleAudioPortionPreviewEnd = useCallback(() => {
-    void togglePlayPause();
-    void seekTo(audioPortionStartMs);
-    setIsPreviewingAudioPortion(false);
-  }, [audioPortionStartMs, seekTo, togglePlayPause]);
+  const {
+    audioPortionEndMs,
+    audioPortionRangeDurationMs,
+    audioPortionShareDraft,
+    audioPortionStartMs,
+    handleAudioPortionEndSeek,
+    handleAudioPortionPreviewEnd,
+    handleAudioPortionStartSeek,
+    handleCloseAudioPortionSheet,
+    handleConfirmAudioPortionShare,
+    handleToggleAudioPortionPreview,
+    isPreviewingAudioPortion,
+    isSharingAudioPortion,
+    isWatchingAudioPortionPreview,
+    setAudioPortionEndMs,
+    setAudioPortionShareDraft,
+    setAudioPortionStartMs,
+  } = useAudioPortionShare({
+    audioPositionRef,
+    bookId,
+    chapter,
+    chapterShareTitle,
+    isCurrentAudioChapter,
+    resetFollowAlongClamp,
+    seekTo,
+    status,
+    togglePlayPause,
+  });
 
   function loadChapter() {
     return loadReaderChapter({
@@ -2398,2001 +719,153 @@ export function BibleReaderScreen() {
     });
   }
 
-  const handleCompletePlanDay = useCallback(async () => {
-    if (
-      !activePlanId ||
-      typeof planDayNumber !== 'number' ||
-      !returnToPlanOnComplete ||
-      !activePlanProgress ||
-      activePlanProgress.is_completed
-    ) {
-      return;
-    }
-
-    if (activePlanChapterIndex < 0 || !isLastPlanChapter) {
-      return;
-    }
-
-    const completionKey = `${activePlanId}:${planDayNumber}:${activePlanSessionKey ?? 'day'}:${activeChapterKey}`;
-    if (planDayCompletionGuardRef.current === completionKey) {
-      return;
-    }
-
-    planDayCompletionGuardRef.current = completionKey;
-    try {
-      // Ticking the step is the read: record it today even for chapters read on
-      // an earlier day (a weekly Kathisma, a second year through the Bible), or
-      // the streak and reading calendar would never see a plan reader's day.
-      if (chapterSessionMode === 'read') {
-        for (const read of getPlanStepReadChapters(activePlanSessionEntries)) {
-          markChapterRead(read.bookId, read.chapter);
-        }
-      }
-
-      // L20: both service calls apply the completion to the local plan store
-      // synchronously and push to Supabase in the background, so this await resolves
-      // immediately without gating navigation on an un-timed network round-trip.
-      const completionResult =
-        activePlanIsMultiSession && activePlanSessionKey
-          ? await markPlanSessionComplete(activePlanId, planDayNumber, activePlanSessionKey)
-          : await markDayComplete(activePlanId, planDayNumber);
-
-      if (!completionResult.success) {
-        return;
-      }
-
-      const shouldReturnToPlanDetail =
-        activePlanIsMultiSession && Boolean(completionResult.data?.current_session);
-
-      await stop();
-      clearAudioPlaybackSequence();
-      setAudioTrack(null, null, null);
-
-      clearPlanDayResume(activePlanId, planDayNumber);
-
-      if (!rootNavigationRef.isReady()) {
-        return;
-      }
-
-      rootNavigationRef.navigate(
-        'Plans',
-        shouldReturnToPlanDetail
-          ? {
-              screen: 'PlanDetail',
-              params: { planId: activePlanId },
-            }
-          : {
-              screen: 'PlansHome',
-            }
-      );
-    } finally {
-      planDayCompletionGuardRef.current = null;
-    }
-  }, [
+  const { handleCompletePlanDay } = usePlanDayCompletion({
     activeChapterKey,
     activePlanChapterIndex,
+    activePlanDaySummary,
     activePlanId,
-    activePlanProgress,
     activePlanIsMultiSession,
+    activePlanProgress,
     activePlanSessionEntries,
     activePlanSessionKey,
+    activePlanSessionSummary,
+    bookId,
+    chapter,
     chapterSessionMode,
     clearAudioPlaybackSequence,
     clearPlanDayResume,
+    currentChapterListenStatus,
     isLastPlanChapter,
     markChapterRead,
     planDayNumber,
     returnToPlanOnComplete,
     setAudioTrack,
+    setListenCountedNotice,
     stop,
-  ]);
-
-  useEffect(
-    () => () => {
-      if (listenCountedNoticeTimeoutRef.current) {
-        clearTimeout(listenCountedNoticeTimeoutRef.current);
-      }
-    },
-    []
-  );
-
-  useEffect(() => {
-    const activePlanListenTargetKeys =
-      activePlanSessionSummary?.targetChapterKeys ?? activePlanDaySummary?.targetChapterKeys ?? [];
-
-    if (
-      chapterSessionMode !== 'listen' ||
-      !activePlanId ||
-      typeof planDayNumber !== 'number' ||
-      !activePlanListenTargetKeys.includes(activeChapterKey)
-    ) {
-      listenCountedBaselineRef.current = null;
-      setListenCountedNotice(null);
-      return;
-    }
-
-    const noticeKey = `${activePlanId}:${planDayNumber}:${activeChapterKey}`;
-    if (listenCountedBaselineRef.current?.key === noticeKey) {
-      return;
-    }
-
-    listenCountedBaselineRef.current = {
-      key: noticeKey,
-      alreadyCountedForPlan:
-        currentChapterListenStatus?.currentChapterListenCountedAt !== null ||
-        currentChapterListenStatus?.alreadyCountedForPlan === true,
-    };
-    setListenCountedNotice(null);
-  }, [
-    activeChapterKey,
-    activePlanDaySummary?.targetChapterKeys,
-    activePlanSessionSummary?.targetChapterKeys,
-    activePlanId,
-    chapterSessionMode,
-    currentChapterListenStatus,
-    planDayNumber,
-  ]);
-
-  useEffect(() => {
-    if (
-      chapterSessionMode !== 'listen' ||
-      !activePlanId ||
-      typeof planDayNumber !== 'number' ||
-      currentChapterListenStatus?.currentChapterListenCountedAt === null
-    ) {
-      return;
-    }
-
-    const noticeKey = `${activePlanId}:${planDayNumber}:${activeChapterKey}`;
-    const baseline = listenCountedBaselineRef.current;
-    if (
-      !baseline ||
-      baseline.key !== noticeKey ||
-      baseline.alreadyCountedForPlan ||
-      lastListenCountedNoticeKeyRef.current === noticeKey
-    ) {
-      return;
-    }
-
-    lastListenCountedNoticeKeyRef.current = noticeKey;
-    const chapterReference = `${getTranslatedBookName(bookId, t)} ${chapter}`;
-    setListenCountedNotice(
-      t('readingPlans.listenChapterCounted', {
-        reference: chapterReference,
-        defaultValue: `${chapterReference} counted for today's plan`,
-      })
-    );
-
-    if (listenCountedNoticeTimeoutRef.current) {
-      clearTimeout(listenCountedNoticeTimeoutRef.current);
-    }
-
-    listenCountedNoticeTimeoutRef.current = setTimeout(() => {
-      setListenCountedNotice((currentNotice) => (currentNotice === null ? currentNotice : null));
-      listenCountedNoticeTimeoutRef.current = null;
-    }, 2200);
-  }, [
-    activeChapterKey,
-    activePlanId,
-    bookId,
-    chapter,
-    chapterSessionMode,
-    currentChapterListenStatus,
-    planDayNumber,
-    t,
-  ]);
-
-  useEffect(
-    () => () => {
-      if (listenCountedNoticeTimeoutRef.current) {
-        clearTimeout(listenCountedNoticeTimeoutRef.current);
-        listenCountedNoticeTimeoutRef.current = null;
-      }
-    },
-    []
-  );
-
-  const previousSequenceEntry = getAdjacentAudioPlaybackSequenceEntry(
-    activePlanPlaybackSequenceEntries,
-    bookId,
-    chapter,
-    -1
-  );
-  const nextSequenceEntry = getAdjacentAudioPlaybackSequenceEntry(
-    activePlanPlaybackSequenceEntries,
-    bookId,
-    chapter,
-    1
-  );
-  const shouldConstrainChapterNavigationToSession =
-    activeRhythmSession != null || showPlanSessionChrome;
-  // With an exact chapter map the chevrons skip past everything the translation does not
-  // cover — Bhujel runs Joshua 2 past Judges and Ruth to 1 Samuel 1 — and go dead at the ends
-  // instead of walking the reader into a chapter with nothing to show.
-  const resolveChapterNavigationTarget = (direction: -1 | 1) => {
-    if (shouldConstrainChapterNavigationToSession) {
-      return null;
-    }
-
-    return audioChapterMap
-      ? findAdjacentAvailableChapter(bookId, chapter, direction, audioChapterMap)
-      : getAdjacentBibleChapter(bookId, chapter, direction);
-  };
-  const previousNavigationTarget = previousSequenceEntry ?? resolveChapterNavigationTarget(-1);
-  const nextNavigationTarget = nextSequenceEntry ?? resolveChapterNavigationTarget(1);
-  const hasPrevChapter = previousNavigationTarget != null;
-  const hasNextChapter = nextNavigationTarget != null;
-  const shouldFillReaderCanvas = chapterPresentationMode === 'audio-first';
-  const syncReaderReference = (nextBookId: string, nextChapter: number) => {
-    navigation.setParams(
-      buildReaderChapterRouteParams({
-        bookId: nextBookId,
-        chapter: nextChapter,
-        preferredMode: chapterSessionMode,
-        ...resolvePlanSessionRouteParams(nextBookId, nextChapter),
-      })
-    );
-  };
-  const handleCloseFontSizeSheet = () => {
-    setShowFontSizeSheet(false);
-  };
-  const handleReaderThemeChange = (mode: ThemeMode) => {
-    setTheme(mode);
-    syncPreferences().catch(() => {});
-  };
-  const handleOpenAllSettings = () => {
-    handleCloseFontSizeSheet();
-
-    if (rootNavigationRef.isReady()) {
-      rootNavigationRef.navigate('More', { screen: 'Settings' });
-    }
-  };
-  const handleOpenBookPicker = () => {
-    navigation.push('BiblePicker', {
-      initialBookId: bookId,
-    });
-  };
-
-  const handleOpenBibleSearch = () => {
-    setShowAudioOptionsSheet(false);
-    setShowFontSizeSheet(false);
-    setShowTranslationSheet(false);
-    setShowChapterActionsSheet(false);
-    navigation.navigate('BibleBrowser', {
-      initialBookId: bookId,
-      focusSearch: true,
-    });
-  };
-
-  const handleCloseTranslationSheet = () => {
-    setShowTranslationSheet((current) =>
-      getNextTranslationSheetVisibility(current, canShowTranslationSheet, 'dismiss')
-    );
-  };
-
-  const handleTranslationActivated = (translation: BibleTranslation) => {
-    const audioAvailability = getTranslationAudioAvailability(translation, bookId);
-    const shouldReplayAudio = shouldReplayActiveAudioForTranslationChange({
-      currentTranslationId: currentTranslation,
-      nextTranslationId: translation.id,
-      audioEnabled: audioAvailability.canPlayAudio,
-      bookId,
-      chapter,
-      activeAudioTranslationId,
-      activeAudioBookId,
-      activeAudioChapter,
-    });
-
-    // Keeps the listener's intent: a playing chapter continues in the new
-    // translation, a paused one is re-targeted and stays paused until Play.
-    if (shouldReplayAudio) {
-      void navigateChapterForTranslation(
-        translation.id,
-        bookId,
-        chapter,
-        translation.audioGranularity === 'verse' ? focusVerse : undefined
-      );
-    }
-  };
-
-  const handleToggleFavorite = () => {
-    toggleFavorite(bookId, chapter);
-    trackBibleExperienceEvent({
-      name: 'library_action',
-      bookId,
-      chapter,
-      source: 'reader-actions',
-      detail: isFavorite ? 'unfavorite' : 'favorite',
-    });
-    setShowChapterActionsSheet(false);
-  };
-
-  const handleAddToPlaylist = () => {
-    addChapterToDefaultPlaylist(bookId, chapter);
-    trackBibleExperienceEvent({
-      name: 'library_action',
-      bookId,
-      chapter,
-      source: 'reader-actions',
-      detail: 'playlist',
-    });
-    setShowChapterActionsSheet(false);
-  };
-
-  const handleAddToQueue = () => {
-    addToQueue(bookId, chapter);
-    trackBibleExperienceEvent({
-      name: 'library_action',
-      bookId,
-      chapter,
-      source: 'reader-actions',
-      detail: 'queue',
-    });
-    setShowChapterActionsSheet(false);
-  };
-
-  const handleShareChapter = async () => {
-    setShowChapterActionsSheet(false);
-    trackBibleExperienceEvent({
-      name: 'library_action',
-      bookId,
-      chapter,
-      source: 'reader-actions',
-      detail: 'share',
-    });
-    const bookName = getTranslatedBookName(bookId, t);
-    const url = buildBibleDeepLink(bookId, chapter);
-    const text = `${bookName} ${chapter}`;
-    await Share.share(
-      Platform.OS === 'android'
-        ? { message: url ? `${text}\n${url}` : text }
-        : { message: text, url }
-    );
-  };
-
-  const handleOpenChapterAudioShareSheet = () => {
-    setShowAudioOptionsSheet(false);
-    setShowChapterActionsSheet(false);
-    setShowChapterAudioShareSheet(true);
-  };
-
-  const waitForChapterAudioShareSheetDismissal = async () => {
-    await new Promise<void>((resolve) => {
-      let settled = false;
-      const complete = () => {
-        if (settled) {
-          return;
-        }
-        settled = true;
-        clearTimeout(timeoutId);
-        resolve();
-      };
-      // Guard against long-running interaction handles that can block runAfterInteractions forever.
-      const timeoutId = setTimeout(complete, 300);
-      InteractionManager.runAfterInteractions(complete);
-    });
-  };
-
-  const handleShareFullChapterAudio = async () => {
-    if (pendingChapterAudioShareAction) {
-      return;
-    }
-
-    setShowChapterAudioShareSheet(false);
-    setPendingChapterAudioShareAction('full');
-
-    try {
-      await waitForChapterAudioShareSheetDismissal();
-      const {
-        AUDIO_DOWNLOAD_ROOT_URI,
-        chapterAudioShareRootUri,
-        expoAudioFileSystemAdapter,
-        fetchRemoteChapterAudio,
-        getDownloadedChapterAudioUri,
-        prepareChapterAudioShareAsset,
-      } = await loadAudioShareDependencies();
-
-      const audioShareAsset = await prepareChapterAudioShareAsset({
-        translationId: currentTranslation,
-        bookId,
-        chapter,
-        fileSystem: expoAudioFileSystemAdapter,
-        rootUri: chapterAudioShareRootUri,
-        resolveDownloadedAudioUri: (translationId, bookId, chapter) =>
-          getDownloadedChapterAudioUri(
-            translationId,
-            bookId,
-            chapter,
-            expoAudioFileSystemAdapter,
-            AUDIO_DOWNLOAD_ROOT_URI
-          ),
-        resolveRemoteAudio: fetchRemoteChapterAudio,
-      });
-
-      if (!audioShareAsset) {
-        Alert.alert(t('common.error'), t('bible.audioDownloadFailed'));
-        return;
-      }
-
-      trackBibleExperienceEvent({
-        name: 'library_action',
-        bookId,
-        chapter,
-        source: 'reader-actions',
-        mode: 'listen',
-        translationId: currentTranslation,
-        detail: 'share-audio-full',
-      });
-
-      const Sharing = await tryLoadSharing();
-      if (Sharing && (await Sharing.isAvailableAsync())) {
-        setPendingChapterAudioShareAction(null);
-        await Sharing.shareAsync(audioShareAsset.uri, {
-          dialogTitle: t('groups.share'),
-          mimeType: audioShareAsset.mimeType,
-          UTI: 'public.audio',
-        });
-        return;
-      }
-
-      const url = buildBibleDeepLink(bookId, chapter);
-      setPendingChapterAudioShareAction(null);
-      await Share.share(
-        Platform.OS === 'android'
-          ? { message: url ? `${chapterShareTitle}\n${url}` : chapterShareTitle }
-          : { message: chapterShareTitle, url }
-      );
-    } catch {
-      const message = t('bible.audioDownloadFailed');
-      Alert.alert(t('common.error'), message);
-    } finally {
-      setPendingChapterAudioShareAction(null);
-    }
-  };
-
-  const handleShareAudioPortion = async () => {
-    if (pendingChapterAudioShareAction) {
-      return;
-    }
-
-    setShowChapterAudioShareSheet(false);
-    setPendingChapterAudioShareAction('portion');
-
-    try {
-      await waitForChapterAudioShareSheetDismissal();
-      const {
-        AUDIO_DOWNLOAD_ROOT_URI,
-        chapterAudioShareRootUri,
-        expoAudioFileSystemAdapter,
-        fetchRemoteChapterAudio,
-        getDownloadedChapterAudioUri,
-        prepareChapterAudioShareAsset,
-      } = await loadAudioShareDependencies();
-
-      const audioShareAsset = await prepareChapterAudioShareAsset({
-        translationId: currentTranslation,
-        bookId,
-        chapter,
-        fileSystem: expoAudioFileSystemAdapter,
-        rootUri: chapterAudioShareRootUri,
-        resolveDownloadedAudioUri: (translationId, bookId, chapter) =>
-          getDownloadedChapterAudioUri(
-            translationId,
-            bookId,
-            chapter,
-            expoAudioFileSystemAdapter,
-            AUDIO_DOWNLOAD_ROOT_URI
-          ),
-        resolveRemoteAudio: fetchRemoteChapterAudio,
-      });
-
-      if (!audioShareAsset) {
-        setPendingChapterAudioShareAction(null);
-        Alert.alert(t('common.error'), t('bible.audioDownloadFailed'));
-        return;
-      }
-
-      trackBibleExperienceEvent({
-        name: 'library_action',
-        bookId,
-        chapter,
-        source: 'reader-actions',
-        mode: 'listen',
-        translationId: currentTranslation,
-        detail: 'share-audio-clip',
-      });
-
-      const { VideoTrimModule, isValidTrimMediaFile } = await loadVideoTrimDependencies();
-      const validateTrimMediaFile =
-        typeof isValidTrimMediaFile === 'function'
-          ? isValidTrimMediaFile
-          : typeof (VideoTrimModule as { isValidFile?: (url: string) => Promise<unknown> })
-                .isValidFile === 'function'
-            ? (VideoTrimModule as { isValidFile: (url: string) => Promise<unknown> }).isValidFile
-            : null;
-
-      const validationResult = validateTrimMediaFile
-        ? await validateTrimMediaFile(audioShareAsset.uri)
-        : null;
-      const isValidAudioFile =
-        validationResult == null || typeof validationResult === 'boolean'
-          ? validationResult !== false
-          : (validationResult as { isValid?: boolean } | null | undefined)?.isValid === true;
-      if (!isValidAudioFile) {
-        setPendingChapterAudioShareAction(null);
-        Alert.alert(t('common.error'), t('bible.audioDownloadFailed'));
-        return;
-      }
-
-      const validatedDurationMs =
-        validationResult != null && typeof validationResult !== 'boolean'
-          ? (validationResult as { duration?: number } | null | undefined)?.duration
-          : null;
-      const { currentPosition: livePositionMs, duration: liveDurationMs } =
-        audioPositionRef.current;
-      const fallbackDurationMs =
-        isCurrentAudioChapter && liveDurationMs > 0 ? Math.round(liveDurationMs) : 0;
-      const resolvedDurationMs = Math.max(
-        validatedDurationMs ?? fallbackDurationMs,
-        AUDIO_PORTION_MIN_DURATION_MS
-      );
-      const initialStartMs = Math.max(
-        0,
-        Math.min(
-          isCurrentAudioChapter ? livePositionMs : 0,
-          resolvedDurationMs - AUDIO_PORTION_MIN_DURATION_MS
-        )
-      );
-      const initialEndMs = Math.min(
-        resolvedDurationMs,
-        Math.max(
-          initialStartMs + AUDIO_PORTION_MIN_DURATION_MS,
-          initialStartMs + AUDIO_PORTION_DEFAULT_DURATION_MS
-        )
-      );
-
-      setAudioPortionShareDraft({
-        sourceUri: audioShareAsset.uri,
-        fileExtension: audioShareAsset.fileExtension,
-        mimeType: audioShareAsset.mimeType,
-        durationMs: resolvedDurationMs,
-      });
-      setAudioPortionStartMs(initialStartMs);
-      setAudioPortionEndMs(initialEndMs);
-      setPendingChapterAudioShareAction(null);
-    } catch {
-      setPendingChapterAudioShareAction(null);
-      const message = t('bible.audioDownloadFailed');
-      Alert.alert(t('common.error'), message);
-    }
-  };
-
-  const handleCloseAudioPortionSheet = () => {
-    if (isSharingAudioPortion) {
-      return;
-    }
-
-    if (isPreviewingAudioPortion && isCurrentAudioChapter && status === 'playing') {
-      void togglePlayPause();
-    }
-
-    setIsPreviewingAudioPortion(false);
-    setAudioPortionShareDraft(null);
-    setAudioPortionStartMs(0);
-    setAudioPortionEndMs(0);
-  };
-
-  const handleAudioPortionStartSeek = (nextStartMs: number) => {
-    if (!audioPortionShareDraft) {
-      return;
-    }
-
-    const clampedStartMs = Math.max(0, Math.min(nextStartMs, audioPortionShareDraft.durationMs));
-    const maxStartMs = Math.max(audioPortionEndMs - AUDIO_PORTION_MIN_DURATION_MS, 0);
-    setAudioPortionStartMs(Math.min(clampedStartMs, maxStartMs));
-  };
-
-  const handleAudioPortionEndSeek = (nextEndMs: number) => {
-    if (!audioPortionShareDraft) {
-      return;
-    }
-
-    const clampedEndMs = Math.max(0, Math.min(nextEndMs, audioPortionShareDraft.durationMs));
-    const minEndMs = Math.min(
-      audioPortionShareDraft.durationMs,
-      audioPortionStartMs + AUDIO_PORTION_MIN_DURATION_MS
-    );
-    setAudioPortionEndMs(Math.max(clampedEndMs, minEndMs));
-  };
-
-  const handleToggleAudioPortionPreview = () => {
-    const { duration: liveDurationMs } = audioPositionRef.current;
-    if (!audioPortionShareDraft || !isCurrentAudioChapter || liveDurationMs <= 0) {
-      return;
-    }
-
-    if (isPreviewingAudioPortion) {
-      if (status === 'playing') {
-        void togglePlayPause();
-      }
-      setIsPreviewingAudioPortion(false);
-      return;
-    }
-
-    const nextStartMs = Math.max(0, Math.min(audioPortionStartMs, liveDurationMs));
-    resetFollowAlongClamp();
-    void seekTo(nextStartMs);
-    if (status !== 'playing') {
-      void togglePlayPause();
-    }
-    setIsPreviewingAudioPortion(true);
-  };
-
-  const handleConfirmAudioPortionShare = async () => {
-    if (!audioPortionShareDraft || isSharingAudioPortion) {
-      return;
-    }
-
-    if (isPreviewingAudioPortion && isCurrentAudioChapter && status === 'playing') {
-      void togglePlayPause();
-    }
-    setIsPreviewingAudioPortion(false);
-
-    const startTime = Math.max(0, Math.round(audioPortionStartMs));
-    const endTime = Math.max(
-      startTime + AUDIO_PORTION_MIN_DURATION_MS,
-      Math.round(audioPortionEndMs)
-    );
-    if (endTime > audioPortionShareDraft.durationMs) {
-      Alert.alert(t('common.error'), t('bible.audioDownloadFailed'));
-      return;
-    }
-
-    const { VideoTrimModule, trimAudioMedia } = await loadVideoTrimDependencies();
-    const trimMediaFile =
-      typeof trimAudioMedia === 'function'
-        ? trimAudioMedia
-        : typeof (
-              VideoTrimModule as {
-                trim?: (url: string, options: unknown) => Promise<unknown>;
-              }
-            ).trim === 'function'
-          ? (
-              VideoTrimModule as {
-                trim: (url: string, options: unknown) => Promise<unknown>;
-              }
-            ).trim
-          : null;
-    if (!trimMediaFile) {
-      Alert.alert(t('common.error'), t('bible.audioDownloadFailed'));
-      return;
-    }
-
-    setIsSharingAudioPortion(true);
-    try {
-      const trimResult = await trimMediaFile(audioPortionShareDraft.sourceUri, {
-        type: 'audio',
-        outputExt: audioPortionShareDraft.fileExtension,
-        startTime,
-        endTime,
-        saveToPhoto: false,
-        removeAfterSavedToPhoto: false,
-        removeAfterFailedToSavePhoto: false,
-        enableRotation: false,
-        rotationAngle: 0,
-      });
-
-      const trimOutputPath =
-        typeof trimResult === 'string'
-          ? trimResult
-          : (trimResult as { outputPath?: string; success?: boolean } | null | undefined)
-              ?.outputPath;
-      const trimSucceeded =
-        typeof trimResult === 'string'
-          ? trimResult.length > 0
-          : (trimResult as { success?: boolean } | null | undefined)?.success !== false;
-
-      if (!trimSucceeded || !trimOutputPath) {
-        Alert.alert(t('common.error'), t('bible.audioDownloadFailed'));
-        return;
-      }
-
-      const trimOutputUri = trimOutputPath.startsWith('file://')
-        ? trimOutputPath
-        : `file://${trimOutputPath}`;
-      handleCloseAudioPortionSheet();
-
-      const Sharing = await tryLoadSharing();
-      if (Sharing && (await Sharing.isAvailableAsync())) {
-        await Sharing.shareAsync(trimOutputUri, {
-          dialogTitle: t('groups.share'),
-          mimeType: audioPortionShareDraft.mimeType,
-          UTI: 'public.audio',
-        });
-      } else {
-        const url = buildBibleDeepLink(bookId, chapter);
-        await Share.share(
-          Platform.OS === 'android'
-            ? { message: url ? `${chapterShareTitle}\n${url}` : chapterShareTitle }
-            : { message: chapterShareTitle, url }
-        );
-      }
-    } catch {
-      const message = t('bible.audioDownloadFailed');
-      Alert.alert(t('common.error'), message);
-    } finally {
-      setIsSharingAudioPortion(false);
-    }
-  };
-
-  const handleDownloadCurrentBookAudio = async () => {
-    setShowChapterActionsSheet(false);
-
-    if (!currentTranslationInfo?.hasAudio || !audioEnabled) {
-      Alert.alert(t('common.error'), t('bible.audioDownloadFailed'));
-      return;
-    }
-
-    try {
-      await downloadAudioForBook(currentTranslation, bookId);
-      trackBibleExperienceEvent({
-        name: 'library_action',
-        bookId,
-        chapter,
-        source: 'reader-actions',
-        detail: 'download',
-      });
-      Alert.alert(t('common.ok'), t('bible.audioSavedOffline'));
-    } catch (downloadError) {
-      Alert.alert(t('common.error'), describeAudioDownloadError(downloadError, t));
-    }
-  };
-
-  const handleOpenFontSizeOptions = () => {
-    setShowAudioOptionsSheet(false);
-    setShowChapterActionsSheet(false);
-    setShowTranslationSheet(false);
-
-    if (!canAdjustFontSize) {
-      return;
-    }
-
-    setChapterSessionMode('read');
-    setPreferredChapterLaunchMode('read');
-    navigation.setParams({ preferredMode: 'read', autoplayAudio: false });
-    setShowFontSizeSheet(true);
-  };
-
-  const handleOpenTranslationOptions = () => {
-    setShowAudioOptionsSheet(false);
-    setShowChapterActionsSheet(false);
-    setShowFontSizeSheet(false);
-
-    if (!canShowTranslationSheet) {
-      return;
-    }
-
-    setShowTranslationSheet(true);
-  };
-
-  const clearFeedbackAudioTimer = () => {
-    if (feedbackAudioTimerRef.current) {
-      clearInterval(feedbackAudioTimerRef.current);
-      feedbackAudioTimerRef.current = null;
-    }
-  };
-
-  const formatFeedbackAudioDuration = (durationMs: number) => {
-    const totalSeconds = Math.max(0, Math.round(durationMs / 1000));
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes}:${String(seconds).padStart(2, '0')}`;
-  };
-
-  const stopFeedbackAudioPreview = async () => {
-    if (!feedbackAudioPreviewSoundRef.current) {
-      return;
-    }
-
-    await feedbackAudioPreviewSoundRef.current.unloadAsync().catch(() => undefined);
-    feedbackAudioPreviewSoundRef.current = null;
-  };
-
-  const stopFeedbackAudioRecording = async () => {
-    const recording = feedbackAudioRecordingRef.current;
-    if (!recording) {
-      await restoreFeedbackAudioPlaybackMode();
-      return;
-    }
-
-    clearFeedbackAudioTimer();
-    feedbackAudioRecordingRef.current = null;
-    setFeedbackAudioState('preview');
-
-    try {
-      const status = await recording.getStatusAsync();
-      await recording.stopAndUnloadAsync();
-      const uri = recording.getURI();
-
-      if (!uri) {
-        setFeedbackAudioState('error');
-        setFeedbackSubmitError(t('bible.chapterFeedbackAudioRecordingMissing'));
-        return;
-      }
-
-      const durationMs =
-        typeof status.durationMillis === 'number' ? status.durationMillis : feedbackAudioElapsedMs;
-      setFeedbackAudioDraft({
-        uri,
-        durationMs: Math.max(durationMs, feedbackAudioElapsedMs),
-        mimeType: CHAPTER_FEEDBACK_AUDIO_MIME_TYPE,
-      });
-      setFeedbackAudioElapsedMs(Math.max(durationMs, feedbackAudioElapsedMs));
-    } catch {
-      // The recorder's own error message is an English diagnostic, not reader copy.
-      setFeedbackAudioState('error');
-      setFeedbackSubmitError(t('bible.chapterFeedbackAudioStopError'));
-    } finally {
-      await restoreFeedbackAudioPlaybackMode();
-    }
-  };
-
-  const startFeedbackAudioRecording = async () => {
-    if (isSubmittingFeedback || feedbackAudioState === 'recording') {
-      return;
-    }
-
-    await stopFeedbackAudioPreview();
-    setFeedbackSubmitError(null);
-    setFeedbackAudioPermissionDenied(false);
-
-    try {
-      const permission = await Audio.requestPermissionsAsync();
-      if (!permission.granted) {
-        setFeedbackAudioPermissionDenied(true);
-        setFeedbackAudioState('error');
-        setFeedbackSubmitError(t('bible.chapterFeedbackAudioPermissionDenied'));
-        return;
-      }
-
-      setFeedbackAudioDraft(null);
-      setFeedbackAudioElapsedMs(0);
-      const isAppActive = await waitForFeedbackAudioActiveAppState();
-      if (!isAppActive) {
-        setFeedbackAudioState('error');
-        setFeedbackSubmitError(t('bible.chapterFeedbackAudioStartError'));
-        return;
-      }
-      await new Promise<void>((resolve) => {
-        InteractionManager.runAfterInteractions(() => resolve());
-      });
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
-
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
-
-      feedbackAudioRecordingRef.current = recording;
-      feedbackAudioStartedAtRef.current = Date.now();
-      setFeedbackAudioState('recording');
-      feedbackAudioTimerRef.current = setInterval(() => {
-        const elapsedMs = feedbackAudioStartedAtRef.current
-          ? Date.now() - feedbackAudioStartedAtRef.current
-          : 0;
-        setFeedbackAudioElapsedMs(Math.min(elapsedMs, CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS));
-
-        if (elapsedMs >= CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS) {
-          void stopFeedbackAudioRecording();
-        }
-      }, CHAPTER_FEEDBACK_AUDIO_TIMER_MS);
-    } catch {
-      clearFeedbackAudioTimer();
-      await restoreFeedbackAudioPlaybackMode();
-      setFeedbackAudioState('error');
-      setFeedbackSubmitError(t('bible.chapterFeedbackAudioStartError'));
-    }
-  };
-
-  const playFeedbackAudioPreview = async () => {
-    if (!feedbackAudioDraft) {
-      return;
-    }
-
-    await stopFeedbackAudioPreview();
-    await restoreFeedbackAudioPlaybackMode();
-    const { sound } = await Audio.Sound.createAsync(
-      { uri: feedbackAudioDraft.uri },
-      { shouldPlay: true }
-    );
-    feedbackAudioPreviewSoundRef.current = sound;
-  };
-
-  const discardFeedbackAudioDraft = () => {
-    void stopFeedbackAudioPreview();
-    setFeedbackAudioDraft(null);
-    setFeedbackAudioElapsedMs(0);
-    setFeedbackAudioState('idle');
-    setFeedbackAudioPermissionDenied(false);
-    setFeedbackSubmitError(null);
-  };
-
-  const resetFeedbackDraft = () => {
-    if (feedbackAudioState === 'recording') {
-      void stopFeedbackAudioRecording();
-    }
-    void stopFeedbackAudioPreview();
-    setFeedbackSentiment(null);
-    setFeedbackComment('');
-    setFeedbackAudioDraft(null);
-    setFeedbackAudioElapsedMs(0);
-    setFeedbackAudioState('idle');
-    setFeedbackAudioPermissionDenied(false);
-    setFeedbackSubmitError(null);
-  };
-
-  const handleCloseFeedbackModal = () => {
-    if (isSubmittingFeedback) {
-      return;
-    }
-
-    setShowFeedbackModal(false);
-  };
-
-  const handleOpenChapterFeedback = () => {
-    setShowChapterActionsSheet(false);
-
-    setFeedbackSubmitError(null);
-    setShowFeedbackModal(true);
-  };
-
-  const handleSubmitChapterFeedback = async (sourceScreen: ChapterFeedbackSourceScreen) => {
-    if (!chapterFeedbackEnabled || !feedbackSentiment || isSubmittingFeedback) {
-      return;
-    }
-
-    setIsSubmittingFeedback(true);
-    if (feedbackAudioDraft) {
-      setFeedbackAudioState('uploading');
-    }
-    setFeedbackSubmitError(null);
-
-    const audioUploadResult = feedbackAudioDraft
-      ? await uploadChapterFeedbackAudio(feedbackAudioDraft, {
-          translationId: currentTranslation,
-          bookId,
-          chapter,
-        })
-      : null;
-
-    if (audioUploadResult && !audioUploadResult.success) {
-      setIsSubmittingFeedback(false);
-      setFeedbackAudioState('error');
-      setFeedbackSubmitError(t('bible.chapterFeedbackAudioUploadError'));
-      return;
-    }
-
-    // Offline, a written response is kept on the device and sent by the next sync.
-    const result = await submitChapterFeedbackOrQueue({
-      translationId: currentTranslation,
-      translationLanguage: currentTranslationInfo?.language ?? translationLabel,
-      bookId,
-      chapter,
-      sentiment: feedbackSentiment,
-      comment: normalizeChapterFeedbackComment(feedbackComment),
-      interfaceLanguage: i18n.resolvedLanguage ?? i18n.language ?? 'en',
-      contentLanguageCode,
-      contentLanguageName,
-      participantName: savedChapterFeedbackIdentity?.name ?? null,
-      participantRole: savedChapterFeedbackIdentity?.role ?? null,
-      contributorCategory:
-        participationMode === 'scripture_council' ? 'scripture_council' : 'community',
-      councilPasscode: participationMode === 'scripture_council' ? councilPasscode : undefined,
-      audioResponse: audioUploadResult?.data ?? null,
-      sourceScreen,
-      appPlatform: Platform.OS,
-      appVersion: config.version,
-    });
-
-    setIsSubmittingFeedback(false);
-
-    if (result.success) {
-      if (sourceScreen === 'reader') {
-        setShowFeedbackModal(false);
-      }
-      resetFeedbackDraft();
-
-      if (result.queued) {
-        Alert.alert(t('bible.chapterFeedbackQueuedTitle'), t('bible.chapterFeedbackQueued'));
-        return;
-      }
-      Alert.alert(t('bible.chapterFeedbackSuccessTitle'), t('bible.chapterFeedbackSuccess'));
-      return;
-    }
-
-    if (feedbackAudioDraft) {
-      setFeedbackAudioState('preview');
-    }
-    setFeedbackSubmitError(
-      result.offline
-        ? t('bible.chapterFeedbackOffline')
-        : result.requiresSignIn
-          ? t('bible.chapterFeedbackSignInRequired')
-          : t('common.unexpectedError')
-    );
-  };
-
-  const renderChapterFeedbackAudioControls = (compact = false) => {
-    const isRecording = feedbackAudioState === 'recording';
-    const isUploadingAudio = feedbackAudioState === 'uploading';
-    const previewDurationMs = feedbackAudioDraft?.durationMs ?? feedbackAudioElapsedMs;
-    const countdownElapsedMs = Math.min(
-      isRecording ? feedbackAudioElapsedMs : previewDurationMs,
-      CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS
-    );
-    const countdownRemainingMs = Math.max(
-      CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS - countdownElapsedMs,
-      0
-    );
-    const countdownProgress =
-      CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS > 0
-        ? countdownElapsedMs / CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS
-        : 0;
-    const countdownStrokeDashoffset = FEEDBACK_AUDIO_COUNTDOWN_CIRCUMFERENCE * countdownProgress;
-    const statusLabel = isRecording
-      ? t('bible.chapterFeedbackAudioRecording', {
-          duration: formatFeedbackAudioDuration(feedbackAudioElapsedMs),
-        })
-      : feedbackAudioDraft
-        ? t('bible.chapterFeedbackAudioReady', {
-            duration: formatFeedbackAudioDuration(previewDurationMs),
-          })
-        : t('bible.chapterFeedbackAudioIdle');
-
-    return (
-      <View
-        style={[
-          styles.feedbackAudioCard,
-          compact ? styles.feedbackAudioCardCompact : null,
-          {
-            backgroundColor: colors.bibleElevatedSurface,
-            borderColor: colors.bibleDivider,
-          },
-        ]}
-      >
-        <View style={styles.feedbackAudioHeader}>
-          <View style={styles.feedbackAudioHeaderMain}>
-            <View style={styles.feedbackAudioCountdown}>
-              <Svg
-                width={FEEDBACK_AUDIO_COUNTDOWN_SIZE}
-                height={FEEDBACK_AUDIO_COUNTDOWN_SIZE}
-                viewBox={`0 0 ${FEEDBACK_AUDIO_COUNTDOWN_SIZE} ${FEEDBACK_AUDIO_COUNTDOWN_SIZE}`}
-                style={styles.feedbackAudioCountdownSvg}
-              >
-                <Circle
-                  cx={FEEDBACK_AUDIO_COUNTDOWN_SIZE / 2}
-                  cy={FEEDBACK_AUDIO_COUNTDOWN_SIZE / 2}
-                  r={FEEDBACK_AUDIO_COUNTDOWN_RADIUS}
-                  stroke={colors.bibleDivider}
-                  strokeWidth={FEEDBACK_AUDIO_COUNTDOWN_STROKE_WIDTH}
-                  fill="none"
-                />
-                <Circle
-                  cx={FEEDBACK_AUDIO_COUNTDOWN_SIZE / 2}
-                  cy={FEEDBACK_AUDIO_COUNTDOWN_SIZE / 2}
-                  r={FEEDBACK_AUDIO_COUNTDOWN_RADIUS}
-                  stroke={isRecording ? colors.accentPrimary : colors.bibleAccent}
-                  strokeWidth={FEEDBACK_AUDIO_COUNTDOWN_STROKE_WIDTH}
-                  strokeLinecap="round"
-                  strokeDasharray={FEEDBACK_AUDIO_COUNTDOWN_CIRCUMFERENCE}
-                  strokeDashoffset={countdownStrokeDashoffset}
-                  fill="none"
-                  transform={`rotate(-90 ${FEEDBACK_AUDIO_COUNTDOWN_SIZE / 2} ${
-                    FEEDBACK_AUDIO_COUNTDOWN_SIZE / 2
-                  })`}
-                />
-              </Svg>
-              <Text style={[styles.feedbackAudioCountdownText, { color: colors.biblePrimaryText }]}>
-                {formatFeedbackAudioDuration(countdownRemainingMs)}
-              </Text>
-            </View>
-            <View style={styles.feedbackAudioStatus}>
-              <Ionicons
-                name={
-                  isRecording ? 'mic' : feedbackAudioDraft ? 'musical-notes-outline' : 'mic-outline'
-                }
-                size={18}
-                color={isRecording ? colors.error : colors.biblePrimaryText}
-              />
-              <Text style={[styles.feedbackAudioStatusText, { color: colors.biblePrimaryText }]}>
-                {statusLabel}
-              </Text>
-            </View>
-          </View>
-          <Text style={[styles.feedbackAudioLimitText, { color: colors.bibleSecondaryText }]}>
-            {t('bible.chapterFeedbackAudioLimit')}
-          </Text>
-        </View>
-
-        {feedbackAudioPermissionDenied ? (
-          <View style={styles.feedbackAudioHelpRow}>
-            <Text
-              style={[
-                styles.feedbackAudioHelpText,
-                styles.feedbackAudioHelpMessage,
-                { color: colors.bibleSecondaryText },
-              ]}
-            >
-              {t('bible.chapterFeedbackAudioPermissionHelp')}
-            </Text>
-            {/* Once the system stops re-prompting (Android "don't ask again"), settings is
-                the only way to turn the microphone back on. */}
-            <TouchableOpacity
-              onPress={() => void Linking.openSettings()}
-              accessibilityRole="button"
-              accessibilityLabel={t('common.settings')}
-              hitSlop={8}
-            >
-              <Text style={[styles.feedbackAudioHelpLink, { color: colors.bibleAccent }]}>
-                {t('common.settings')}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        ) : null}
-
-        <View style={styles.feedbackAudioActionRow}>
-          {!isRecording && !feedbackAudioDraft ? (
-            <TouchableOpacity
-              style={[
-                styles.feedbackAudioButton,
-                {
-                  borderColor: colors.bibleDivider,
-                  backgroundColor: colors.bibleSurface,
-                },
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel={t('bible.chapterFeedbackAudioRecord')}
-              onPress={() => {
-                void startFeedbackAudioRecording();
-              }}
-              disabled={isSubmittingFeedback}
-            >
-              <Ionicons name="mic-outline" size={17} color={colors.biblePrimaryText} />
-              <Text style={[styles.feedbackAudioButtonText, { color: colors.biblePrimaryText }]}>
-                {t('bible.chapterFeedbackAudioRecord')}
-              </Text>
-            </TouchableOpacity>
-          ) : null}
-
-          {isRecording ? (
-            <TouchableOpacity
-              style={[
-                styles.feedbackAudioButton,
-                {
-                  borderColor: colors.accentPrimary,
-                  backgroundColor: colors.accentPrimary,
-                },
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel={t('bible.chapterFeedbackAudioStop')}
-              onPress={() => {
-                void stopFeedbackAudioRecording();
-              }}
-            >
-              <Ionicons name="stop-outline" size={17} color={colors.cardBackground} />
-              <Text style={[styles.feedbackAudioButtonText, { color: colors.cardBackground }]}>
-                {t('bible.chapterFeedbackAudioStop')}
-              </Text>
-            </TouchableOpacity>
-          ) : null}
-
-          {feedbackAudioDraft ? (
-            <>
-              <TouchableOpacity
-                style={[
-                  styles.feedbackAudioIconButton,
-                  {
-                    borderColor: colors.bibleDivider,
-                    backgroundColor: colors.bibleSurface,
-                  },
-                ]}
-                accessibilityRole="button"
-                accessibilityLabel={t('bible.chapterFeedbackAudioPreview')}
-                onPress={() => {
-                  void playFeedbackAudioPreview();
-                }}
-                disabled={isSubmittingFeedback}
-              >
-                <Ionicons name="play-outline" size={18} color={colors.biblePrimaryText} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.feedbackAudioIconButton,
-                  {
-                    borderColor: colors.bibleDivider,
-                    backgroundColor: colors.bibleSurface,
-                  },
-                ]}
-                accessibilityRole="button"
-                accessibilityLabel={t('bible.chapterFeedbackAudioRerecord')}
-                onPress={discardFeedbackAudioDraft}
-                disabled={isSubmittingFeedback}
-              >
-                <Ionicons name="refresh-outline" size={18} color={colors.biblePrimaryText} />
-              </TouchableOpacity>
-            </>
-          ) : null}
-
-          {isUploadingAudio ? (
-            <View style={styles.feedbackAudioUploading}>
-              <ActivityIndicator size="small" color={colors.accentPrimary} />
-              <Text style={[styles.feedbackAudioHelpText, { color: colors.bibleSecondaryText }]}>
-                {t('bible.chapterFeedbackAudioUploading')}
-              </Text>
-            </View>
-          ) : null}
-        </View>
-      </View>
-    );
-  };
-
-  const handlePlayDisplayedChapter = () => {
-    // After a relaunch nothing is loaded and only the persisted last track remains.
-    // togglePlayPause resumes it from its saved offset; playChapter would restart it.
-    const resumesLastPlayedChapter =
-      activeAudioBookId == null &&
-      isActiveAudioTrackMatch({
-        translationId: currentTranslation,
-        bookId,
-        chapter,
-        activeAudioTranslationId: lastPlayedTranslationId,
-        activeAudioBookId: lastPlayedBookId,
-        activeAudioChapter: lastPlayedChapter,
-      });
-    if (!isCurrentAudioChapter && !resumesLastPlayedChapter) {
-      void playChapter(bookId, chapter);
-      return;
-    }
-
-    void togglePlayPause();
-  };
-
-  const handleListenModeSeek = useCallback(
-    (positionMs: number) => {
-      const { duration: liveDurationMs } = audioPositionRef.current;
-      if (liveDurationMs <= 0 || !isCurrentAudioChapter) {
-        return;
-      }
-
-      // Allow the verse highlight to jump backward after a user seek
-      resetFollowAlongClamp();
-      void seekTo(Math.max(0, Math.min(liveDurationMs, positionMs)));
-    },
-    [isCurrentAudioChapter, resetFollowAlongClamp, seekTo]
-  );
-
-  const listenNavigation = {
-    isCurrentAudioChapter,
-    getAudioStatus: () => useAudioStore.getState().status,
-    playChapter,
-    syncReaderReference,
-    // The arrows keep focus while the chapter swaps under them; say where they went,
-    // as the read-mode swipe does.
-    announceTarget: (target: { bookId: string; chapter: number }) => {
-      announceForAccessibility(`${getTranslatedBookName(target.bookId, t)} ${target.chapter}`);
-    },
-  };
-
-  const handlePreviousListenChapter = () => {
-    return navigateListenChapter({
-      ...listenNavigation,
-      stepPlayer: previousChapter,
-      fallbackTarget: previousNavigationTarget,
-    });
-  };
-
-  const handleNextListenChapter = () => {
-    return navigateListenChapter({
-      ...listenNavigation,
-      stepPlayer: nextChapter,
-      fallbackTarget: nextNavigationTarget,
-    });
-  };
-
-  const handleReadChapterNavigation = async (
-    target: { bookId: string; chapter: number } | null
-  ) => {
-    if (!target) {
-      return;
-    }
-
-    // chapter_completed was a write-only event (no RPC/admin consumer) gated on
-    // this fragile read-mode navigation path; chapter completion is derived from
-    // reading_ended instead (see P1 S7). Emission removed.
-
-    setShowFontSizeSheet((current) => getNextFontSizeSheetVisibility(current, 'chapterChange'));
-    setShowTranslationSheet((current) =>
-      getNextTranslationSheetVisibility(current, canShowTranslationSheet, 'dismiss')
-    );
-    setShowChapterActionsSheet(false);
-
-    syncReaderReference(target.bookId, target.chapter);
-  };
-
-  const handlePreviousReadChapter = async () => {
-    if (isCurrentAudioChapter) {
-      const target = await previousChapter();
-      if (target) {
-        syncReaderReference(target.bookId, target.chapter);
-      }
-      return;
-    }
-
-    await handleReadChapterNavigation(previousNavigationTarget);
-  };
-
-  const handleNextReadChapter = async () => {
-    if (
-      showPlanSessionChrome &&
-      chapterSessionMode === 'read' &&
-      planReadDockTrailingActionState?.showCompletionAction &&
-      hasPlanReadDockNextAction
-    ) {
-      await handleCompletePlanDay();
-      return;
-    }
-
-    if (isCurrentAudioChapter) {
-      const target = await nextChapter();
-      if (target) {
-        syncReaderReference(target.bookId, target.chapter);
-      }
-      return;
-    }
-
-    await handleReadChapterNavigation(nextNavigationTarget);
-  };
-
-  const planReadDockTrailingActionState =
-    showPlanSessionChrome && chapterSessionMode === 'read'
-      ? getPlanSessionTrailingActionState({
-          isLastPlanChapter,
-          hasNextChapter,
-        })
-      : null;
-  const hasPlanReadDockNextAction = Boolean(
-    planReadDockTrailingActionState?.showCompletionAction &&
-    planReadDockTrailingActionState.isEnabled
-  );
-  const showPlanReadDockSessionCompletionCopy = hasOtherIncompletePlanSessions;
-  const readerPlaybackDockNextIconName =
-    planReadDockTrailingActionState?.iconName ?? 'chevron-forward';
-  const readerPlaybackDockNextButtonColor =
-    showPlanSessionChrome && chapterSessionMode === 'read' && hasPlanReadDockNextAction
-      ? colors.accentPrimary
-      : undefined;
-  const readerPlaybackDockNextIconColor =
-    showPlanSessionChrome && chapterSessionMode === 'read' && hasPlanReadDockNextAction
-      ? colors.onAccent
-      : undefined;
-  const readerPlaybackDockNextAccessibilityLabel =
-    showPlanSessionChrome &&
-    chapterSessionMode === 'read' &&
-    planReadDockTrailingActionState?.showCompletionAction
-      ? showPlanReadDockSessionCompletionCopy
-        ? t('readingPlans.completeSessionCta', {
-            defaultValue: 'Complete session',
-          })
-        : t('readingPlans.completeDayCta', {
-            defaultValue: 'Complete day',
-          })
-      : t('bible.nextChapterHint');
-  const readerPlaybackDockNextAccessibilityHint =
-    showPlanSessionChrome &&
-    chapterSessionMode === 'read' &&
-    planReadDockTrailingActionState?.showCompletionAction
-      ? showPlanReadDockSessionCompletionCopy
-        ? t('readingPlans.completeSessionHint')
-        : t('readingPlans.completeDayHint')
-      : undefined;
-  const hasReaderPlaybackDockNextChapter =
-    showPlanSessionChrome && chapterSessionMode === 'read'
-      ? hasNextChapter || hasPlanReadDockNextAction
-      : hasNextChapter;
-
-  const reloadAnnotations = async () => {
-    const result = await getAnnotationsForChapter(bookId, chapter);
-    if (result.success && result.data) {
-      setAnnotations(result.data);
-    }
-  };
-
-  const handleCopySelectedVerses = async () => {
-    if (!selectedVerseShareText) {
-      return;
-    }
-
-    await Clipboard.setStringAsync(selectedVerseShareText);
-    selectionHaptic();
-  };
-
-  const handleCloseSelectedVerses = () => {
-    dismissSelectedVerseSelection();
-  };
-
-  const handleShareSelectedVerses = async () => {
-    if (!selectedVerseShareText) {
-      return;
-    }
-
-    await Share.share({ message: selectedVerseShareText });
-  };
-
-  const handleOpenVerseImageShare = () => {
-    if (!selectedVerseShareText) {
-      return;
-    }
-
-    setShowVerseImageSheet(true);
-  };
-
-  const handleSelectVerseImageBackground = (backgroundIndex: number) => {
-    setSelectedVerseImageBackgroundIndex(backgroundIndex);
-  };
-
-  const handleShareSelectedVerseImage = async () => {
-    if (!selectedVerseShareText || isSharingVerseImage) {
-      return;
-    }
-
-    setIsSharingVerseImage(true);
-
-    try {
-      const Sharing = await import('expo-sharing');
-
-      if (await Sharing.isAvailableAsync()) {
-        if (verseImageSharePreviewRef.current) {
-          const { captureRef } = await import('react-native-view-shot');
-          const imageUri = await captureRef(verseImageSharePreviewRef, {
-            format: 'png',
-            quality: 1,
-            result: 'tmpfile',
-          });
-
-          setShowVerseImageSheet(false);
-
-          await Sharing.shareAsync(imageUri, {
-            dialogTitle: t('groups.share'),
-            mimeType: 'image/png',
-          });
-          return;
-        }
-      }
-
-      setShowVerseImageSheet(false);
-      await Share.share({ message: selectedVerseShareText });
-    } catch {
-      try {
-        setShowVerseImageSheet(false);
-        await Share.share({ message: selectedVerseShareText });
-      } catch {
-        // Ignore share errors.
-      }
-    } finally {
-      setIsSharingVerseImage(false);
-    }
-  };
-
-  const commitAnnotationEdits = async (edits: ReaderAnnotationEdits) => {
-    const succeeded = await applyReaderAnnotationEdits(edits, {
-      softDelete: softDeleteAnnotation,
-      upsert: upsertAnnotation,
-    });
-    if (!succeeded) {
-      Alert.alert(t('common.error'), t('common.unexpectedError'));
-    }
-    await reloadAnnotations();
-    return succeeded;
-  };
-
-  const readerAnnotationEditInput = () => ({
-    book: bookId,
-    chapter,
-    annotations,
-    selectedVerses,
-    createId: () => Math.random().toString(36).slice(2),
   });
 
-  const handleHighlightSelectedVerses = async (color: string) => {
-    if (selectedVerseRanges.length === 0) {
-      return;
-    }
+  const {
+    handleExitPlanSession,
+    handleListenModeSeek,
+    handleNextListenChapter,
+    handleNextReadChapter,
+    handlePlayDisplayedChapter,
+    handlePreviousListenChapter,
+    handlePreviousReadChapter,
+    hasNextChapter,
+    hasPrevChapter,
+    hasReaderPlaybackDockNextChapter,
+    readerPlaybackDockNextAccessibilityHint,
+    readerPlaybackDockNextAccessibilityLabel,
+    readerPlaybackDockNextButtonColor,
+    readerPlaybackDockNextIconColor,
+    readerPlaybackDockNextIconName,
+    shouldFillReaderCanvas,
+    swipeGesture,
+    swipeStyle,
+  } = useReaderChapterNavigation({
+    activeAudioBookId,
+    activePlanId,
+    activePlanPlaybackSequenceEntries,
+    activeRhythmSession,
+    audioChapterMap,
+    audioPositionRef,
+    bookId,
+    canShowTranslationSheet,
+    chapter,
+    chapterPresentationMode,
+    chapterSessionMode,
+    currentTranslation,
+    handleCompletePlanDay,
+    hasOtherIncompletePlanSessions,
+    isCurrentAudioChapter,
+    isLastPlanChapter,
+    lastPlayedBookId,
+    lastPlayedChapter,
+    lastPlayedTranslationId,
+    navigation,
+    nextChapter,
+    playChapter,
+    previousChapter,
+    resetFollowAlongClamp,
+    resolvePlanSessionRouteParams,
+    seekTo,
+    setShowChapterActionsSheet,
+    setShowFontSizeSheet,
+    setShowTranslationSheet,
+    showPlanSessionChrome,
+    togglePlayPause,
+  });
+  const {
+    chapterAudioShareActionLabel,
+    handleAddToPlaylist,
+    handleAddToQueue,
+    handleCloseFontSizeSheet,
+    handleCloseTranslationSheet,
+    handleDownloadCurrentBookAudio,
+    handleOpenAllSettings,
+    handleOpenBibleSearch,
+    handleOpenBookPicker,
+    handleOpenChapterAudioShareSheet,
+    handleOpenFontSizeOptions,
+    handleOpenTranslationOptions,
+    handleReaderThemeChange,
+    handleShareAudioPortion,
+    handleShareChapter,
+    handleShareFullChapterAudio,
+    handleToggleFavorite,
+    handleTranslationActivated,
+    pendingChapterAudioShareAction,
+    setShowChapterAudioShareSheet,
+    showChapterAudioShareSheet,
+  } = useReaderChapterActions({
+    activeAudioBookId,
+    activeAudioChapter,
+    activeAudioTranslationId,
+    addChapterToDefaultPlaylist,
+    addToQueue,
+    audioEnabled,
+    audioPositionRef,
+    bookId,
+    canAdjustFontSize,
+    canShowTranslationSheet,
+    chapter,
+    chapterShareTitle,
+    currentTranslation,
+    currentTranslationInfo,
+    downloadAudioForBook,
+    focusVerse,
+    getTranslationAudioAvailability,
+    isCurrentAudioChapter,
+    isFavorite,
+    navigateChapterForTranslation,
+    navigation,
+    setAudioPortionEndMs,
+    setAudioPortionShareDraft,
+    setAudioPortionStartMs,
+    setChapterSessionMode,
+    setPreferredChapterLaunchMode,
+    setShowAudioOptionsSheet,
+    setShowChapterActionsSheet,
+    setShowFontSizeSheet,
+    setShowTranslationSheet,
+    setTheme,
+    toggleFavorite,
+  });
 
-    if (
-      await commitAnnotationEdits(
-        planReaderHighlightApply({ ...readerAnnotationEditInput(), color })
-      )
-    ) {
-      setSelectedVerses([]);
-      announceForAccessibility(t('interface.highlightAdded'));
-    }
-  };
-
-  const handleRemoveHighlightSelectedVerses = async (color: string) => {
-    if (selectedVerseRanges.length === 0) {
-      return;
-    }
-
-    if (
-      await commitAnnotationEdits(
-        planReaderHighlightRemove({ ...readerAnnotationEditInput(), color })
-      )
-    ) {
-      setSelectedVerses([]);
-      announceForAccessibility(t('interface.highlightRemoved'));
-    }
-  };
-
-  const handleNoteSelectedVerses = async (text: string) => {
-    if (selectedVerseRanges.length === 0) {
-      return;
-    }
-
-    if (
-      await commitAnnotationEdits(
-        planReaderNoteSave({ ...readerAnnotationEditInput(), content: text })
-      )
-    ) {
-      announceForAccessibility(t('annotations.saved'));
-    }
-  };
-
-  const renderPlanSessionBottomBar = () => {
-    if (!showPlanSessionChrome || !activePlanTitle || typeof planDayNumber !== 'number') {
-      return null;
-    }
-
-    const planSessionBottomBarHeight = rootTabBarHeight;
-    const showPlanChapterArrows = chapterSessionMode === 'listen';
-    const showPlanPreviousChapterButton = hasPrevChapter;
-    const trailingActionState = getPlanSessionTrailingActionState({
-      isLastPlanChapter,
-      hasNextChapter,
-    });
-    const showPlanCompletionAction = trailingActionState.showCompletionAction;
-    const trailingActionEnabled = trailingActionState.isEnabled;
-    const showSessionCompletionCopy = hasOtherIncompletePlanSessions;
-    const trailingActionLabel = showPlanCompletionAction
-      ? showSessionCompletionCopy
-        ? t('readingPlans.completeSessionCta', {
-            defaultValue: 'Complete session',
-          })
-        : t('readingPlans.completeDayCta', {
-            defaultValue: 'Complete day',
-          })
-      : t('audio.nextChapter');
-    const bannerColors = getPlanSessionBannerColors(colors);
-    const trailingActionHint = showPlanCompletionAction
-      ? showSessionCompletionCopy
-        ? t('readingPlans.completeSessionHint')
-        : t('readingPlans.completeDayHint')
-      : t('bible.nextChapterHint');
-
-    return (
-      <Animated.View
-        style={[
-          styles.planSessionBottomBar,
-          planSessionBottomBarAnimatedStyle,
-          {
-            backgroundColor: bannerColors.fill,
-            borderTopColor: bannerColors.border,
-            // A floor, not a fixed height: the capped labels can still need a
-            // few points more than the tab bar's height at the largest sizes.
-            minHeight: planSessionBottomBarHeight,
-            paddingBottom: rootTabBarBottomPadding + spacing.xs,
-          },
-        ]}
-      >
-        <View style={styles.planSessionBottomBarContent}>
-          {showPlanChapterArrows ? (
-            showPlanPreviousChapterButton ? (
-              <TouchableOpacity
-                style={[
-                  styles.planSessionBottomBarArrowButton,
-                  !hasPrevChapter ? styles.disabledSessionModeButton : null,
-                ]}
-                activeOpacity={0.85}
-                onPress={() => void handlePreviousListenChapter()}
-                disabled={!hasPrevChapter}
-                accessibilityRole="button"
-                // "Previous" alone does not say previous what; the bar also steps days.
-                accessibilityLabel={t('audio.previousChapter')}
-                accessibilityHint={t('interface.previousChapterHint')}
-              >
-                <Ionicons
-                  name="chevron-back"
-                  size={22}
-                  color={hasPrevChapter ? bannerColors.icon : bannerColors.disabledIcon}
-                />
-              </TouchableOpacity>
-            ) : (
-              <View style={styles.planSessionBottomBarArrowSpacer} />
-            )
-          ) : (
-            <View style={styles.planSessionBottomBarArrowSpacer} />
-          )}
-
-          <View
-            style={[
-              styles.planSessionBottomBarCopy,
-              showPlanChapterArrows
-                ? styles.planSessionBottomBarCopyCentered
-                : styles.planSessionBottomBarCopyListenMode,
-            ]}
-          >
-            <Text
-              style={[styles.planSessionBottomBarTitle, { color: bannerColors.text }]}
-              numberOfLines={1}
-              maxFontSizeMultiplier={PLAN_SESSION_BAR_MAX_FONT_SCALE}
-            >
-              {activePlanTitle}
-            </Text>
-            <Text
-              style={[styles.planSessionBottomBarMeta, { color: bannerColors.text }]}
-              maxFontSizeMultiplier={PLAN_SESSION_BAR_MAX_FONT_SCALE}
-            >
-              {t('readingPlans.dayLabel', {
-                day: planDayNumber,
-                defaultValue: `Day ${planDayNumber}`,
-              })}
-              {activePlanSessionTitle ? ` • ${activePlanSessionTitle}` : ''}
-              {' • '}
-              {t('readingPlans.chapterProgress', {
-                current: activePlanChapterIndex + 1,
-                total: activePlanDayChapterItems.length,
-                defaultValue: `${activePlanChapterIndex + 1} of ${activePlanDayChapterItems.length}`,
-              })}
-            </Text>
-          </View>
-
-          {showPlanChapterArrows ? (
-            <TouchableOpacity
-              style={[
-                styles.planSessionBottomBarArrowButton,
-                showPlanCompletionAction
-                  ? [
-                      styles.planSessionBottomBarCompleteButton,
-                      { backgroundColor: bannerColors.completeFill },
-                    ]
-                  : null,
-                !trailingActionEnabled ? styles.disabledSessionModeButton : null,
-              ]}
-              activeOpacity={0.85}
-              onPress={() =>
-                void (showPlanCompletionAction
-                  ? handleCompletePlanDay()
-                  : handleNextListenChapter())
-              }
-              disabled={!trailingActionEnabled}
-              accessibilityRole="button"
-              accessibilityLabel={trailingActionLabel}
-              accessibilityHint={trailingActionHint}
-            >
-              <Ionicons
-                name={showPlanCompletionAction ? 'checkmark' : 'chevron-forward'}
-                size={22}
-                color={
-                  trailingActionEnabled
-                    ? showPlanCompletionAction
-                      ? bannerColors.completeIcon
-                      : bannerColors.icon
-                    : bannerColors.disabledIcon
-                }
-              />
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.planSessionBottomBarArrowSpacer} />
-          )}
-        </View>
-      </Animated.View>
-    );
-  };
-
-  const renderTranslatorFeedbackReviewTools = () => (
-    <ChapterFeedbackSummary translationId={currentTranslation} bookId={bookId} chapter={chapter} />
+  // The read list takes this as its header component, so it must keep its identity across
+  // renders: a new function each render is a new component type, which remounted the
+  // summary (and refetched it for council reviewers) on every reader re-render.
+  const renderTranslatorFeedbackReviewTools = useCallback(
+    () => (
+      <ChapterFeedbackSummary
+        translationId={currentTranslation}
+        bookId={bookId}
+        chapter={chapter}
+      />
+    ),
+    [bookId, chapter, currentTranslation]
   );
-
-  const renderListenMode = () => {
-    const listenStatus = isCurrentAudioChapter ? status : 'idle';
-    const listenCountedNoticeViewModel = getListenCountedNoticeViewModel(listenCountedNotice);
-
-    return (
-      <View style={styles.listenColumn}>
-        <View
-          style={[
-            styles.listenArtworkFrame,
-            {
-              backgroundColor: colors.bibleElevatedSurface,
-              borderColor: colors.bibleDivider,
-            },
-          ]}
-        >
-          <BookIcon bookId={bookId} style={styles.listenArtwork} />
-        </View>
-
-        <View
-          style={[
-            styles.listenPlayerCard,
-            {
-              backgroundColor: 'transparent',
-              borderColor: 'transparent',
-            },
-          ]}
-        >
-          <ReaderListenProgress
-            track={readerAudioTrack}
-            isCurrentAudioChapter={isCurrentAudioChapter}
-            onSeek={handleListenModeSeek}
-            trackColor={colors.bibleDivider}
-            fillColor={colors.bibleAccent}
-            timeTextColor={colors.bibleSecondaryText}
-            containerStyle={styles.listenProgressTouch}
-            trackStyle={styles.listenProgressTrack}
-            fillStyle={styles.listenProgressFill}
-            timeRowStyle={styles.listenTimeRow}
-            timeTextStyle={styles.listenTimeText}
-          >
-            {listenCountedNoticeViewModel ? (
-              <Animated.View
-                testID={LISTEN_COUNTED_NOTICE_TEST_ID}
-                accessibilityLabel={listenCountedNoticeViewModel.accessibilityLabel}
-                entering={SlideInDown.springify().damping(20).stiffness(220)}
-                exiting={SlideOutDown.duration(180)}
-                style={[
-                  styles.listenCountedNoticeCard,
-                  {
-                    backgroundColor: colors.bibleSurface,
-                    borderColor: colors.accentGreen,
-                  },
-                ]}
-              >
-                <Ionicons name="checkmark-circle" size={16} color={colors.accentGreen} />
-                <Text
-                  style={[styles.listenCountedNoticeText, { color: colors.biblePrimaryText }]}
-                  numberOfLines={2}
-                >
-                  {listenCountedNoticeViewModel.text}
-                </Text>
-              </Animated.View>
-            ) : null}
-          </ReaderListenProgress>
-
-          <PlaybackControls
-            variant="chapter-only"
-            showUtilityRow={false}
-            status={listenStatus}
-            playbackRate={playbackRate}
-            repeatMode={repeatMode}
-            sleepTimerRemaining={sleepTimerRemaining}
-            backgroundMusicChoice={backgroundMusicChoice}
-            hasPreviousChapter={hasPrevChapter}
-            hasNextChapter={hasNextChapter}
-            onPlayPause={handlePlayDisplayedChapter}
-            showChapterNavigation={!showPlanSessionChrome}
-            onPreviousChapter={() => void handlePreviousListenChapter()}
-            onNextChapter={() => void handleNextListenChapter()}
-            onSkipBackward={() => void skipBackward()}
-            onSkipForward={() => void skipForward()}
-            onChangePlaybackRate={changePlaybackRate}
-            onCycleRepeatMode={cycleRepeatMode}
-            onSetSleepTimer={startSleepTimer}
-            onChangeBackgroundMusicChoice={changeBackgroundMusicChoice}
-          />
-        </View>
-
-        {showInlineChapterFeedbackComposer ? (
-          <View
-            style={[
-              styles.listenFeedbackCard,
-              {
-                backgroundColor: colors.bibleSurface,
-                borderColor: colors.bibleDivider,
-              },
-            ]}
-          >
-            {/* At large text the identity pill takes its own line under the heading,
-                so "Name • Role" wraps instead of truncating beside it. */}
-            <View
-              style={[
-                styles.listenFeedbackHeader,
-                isLargeText && styles.listenFeedbackHeaderStacked,
-              ]}
-            >
-              <View
-                style={[styles.listenFeedbackCopy, isLargeText && styles.listenFeedbackCopyStacked]}
-              >
-                <Text style={[styles.listenFeedbackTitle, { color: colors.biblePrimaryText }]}>
-                  {t('bible.chapterFeedbackTitle')}
-                  {' · '}
-                  {t(
-                    participationMode === 'scripture_council'
-                      ? 'feedback.council'
-                      : 'feedback.community'
-                  )}
-                </Text>
-                <Text style={[styles.listenFeedbackBody, { color: colors.bibleSecondaryText }]}>
-                  {t(
-                    participationMode === 'scripture_council'
-                      ? 'feedback.submittingCouncil'
-                      : 'feedback.submittingCommunity'
-                  )}
-                </Text>
-              </View>
-              <View
-                style={[
-                  styles.listenFeedbackIdentityPill,
-                  {
-                    backgroundColor: colors.bibleElevatedSurface,
-                    borderColor: colors.bibleDivider,
-                  },
-                ]}
-              >
-                <Ionicons name="person-outline" size={14} color={colors.bibleSecondaryText} />
-                <Text
-                  style={[
-                    styles.listenFeedbackIdentityText,
-                    !isLargeText && styles.listenFeedbackIdentityTextCompact,
-                    { color: colors.bibleSecondaryText },
-                  ]}
-                  numberOfLines={isLargeText ? 2 : 1}
-                >
-                  {savedChapterFeedbackIdentity
-                    ? `${savedChapterFeedbackIdentity.name} • ${savedChapterFeedbackIdentity.role}`
-                    : t('common.notSet')}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.feedbackSentimentRow}>
-              <TouchableOpacity
-                accessibilityRole="button"
-                accessibilityLabel={t('bible.chapterFeedbackThumbsUp')}
-                accessibilityState={{ selected: feedbackSentiment === 'up' }}
-                style={[
-                  styles.listenSentimentButton,
-                  {
-                    backgroundColor:
-                      feedbackSentiment === 'up' ? colors.success : colors.bibleElevatedSurface,
-                    borderColor: feedbackSentiment === 'up' ? colors.success : colors.bibleDivider,
-                  },
-                ]}
-                onPress={() => {
-                  setFeedbackSentiment('up');
-                  if (feedbackSubmitError) {
-                    setFeedbackSubmitError(null);
-                  }
-                }}
-                disabled={isSubmittingFeedback}
-              >
-                <Ionicons
-                  name="checkmark-circle-outline"
-                  size={22}
-                  color={feedbackSentiment === 'up' ? colors.onAccent : colors.biblePrimaryText}
-                />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                accessibilityRole="button"
-                accessibilityLabel={t('bible.chapterFeedbackThumbsDown')}
-                accessibilityState={{ selected: feedbackSentiment === 'down' }}
-                style={[
-                  styles.listenSentimentButton,
-                  {
-                    backgroundColor:
-                      feedbackSentiment === 'down'
-                        ? colors.accentPrimary
-                        : colors.bibleElevatedSurface,
-                    borderColor:
-                      feedbackSentiment === 'down' ? colors.accentPrimary : colors.bibleDivider,
-                  },
-                ]}
-                onPress={() => {
-                  setFeedbackSentiment('down');
-                  if (feedbackSubmitError) {
-                    setFeedbackSubmitError(null);
-                  }
-                }}
-                disabled={isSubmittingFeedback}
-              >
-                <Ionicons
-                  name="close-circle-outline"
-                  size={22}
-                  color={feedbackSentiment === 'down' ? colors.onAccent : colors.biblePrimaryText}
-                />
-              </TouchableOpacity>
-            </View>
-
-            {feedbackSentiment ? (
-              <>
-                <TextInput
-                  value={feedbackComment}
-                  onChangeText={(value) => {
-                    setFeedbackComment(value);
-                    if (feedbackSubmitError) {
-                      setFeedbackSubmitError(null);
-                    }
-                  }}
-                  editable={!isSubmittingFeedback}
-                  multiline
-                  numberOfLines={3}
-                  maxLength={2000}
-                  placeholder={t('bible.chapterFeedbackPlaceholder')}
-                  placeholderTextColor={colors.bibleSecondaryText}
-                  accessibilityLabel={t('bible.chapterFeedbackPlaceholder')}
-                  style={[
-                    styles.listenFeedbackInput,
-                    {
-                      color: colors.biblePrimaryText,
-                      borderColor: colors.controlBorder,
-                      backgroundColor: colors.bibleElevatedSurface,
-                    },
-                  ]}
-                />
-                {renderChapterFeedbackAudioControls(true)}
-                <TouchableOpacity
-                  style={[
-                    styles.feedbackActionButton,
-                    styles.listenFeedbackSubmitButton,
-                    {
-                      backgroundColor: canSubmitFeedback
-                        ? colors.accentPrimary
-                        : colors.bibleDivider,
-                      borderColor: canSubmitFeedback ? colors.accentPrimary : colors.bibleDivider,
-                    },
-                  ]}
-                  onPress={() => {
-                    void handleSubmitChapterFeedback('listener');
-                  }}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('bible.chapterFeedbackSubmit')}
-                  accessibilityState={{ disabled: !canSubmitFeedback, busy: isSubmittingFeedback }}
-                  disabled={!canSubmitFeedback}
-                >
-                  {isSubmittingFeedback ? (
-                    <ActivityIndicator size="small" color={colors.cardBackground} />
-                  ) : (
-                    <Text
-                      style={[
-                        styles.feedbackActionLabel,
-                        { color: canSubmitFeedback ? colors.cardBackground : colors.secondaryText },
-                      ]}
-                    >
-                      {t('bible.chapterFeedbackSubmit')}
-                    </Text>
-                  )}
-                </TouchableOpacity>
-              </>
-            ) : (
-              <Text style={[styles.listenFeedbackHint, { color: colors.bibleSecondaryText }]}>
-                {t('bible.chapterFeedbackSelectionHint')}
-              </Text>
-            )}
-
-            {feedbackSubmitError ? (
-              <Text
-                accessibilityLiveRegion="polite"
-                style={[styles.feedbackErrorText, { color: colors.error }]}
-              >
-                {feedbackSubmitError}
-              </Text>
-            ) : null}
-          </View>
-        ) : null}
-      </View>
-    );
-  };
 
   // The virtualized reader always uses premium typography, so its render signature
   // and FlatList renderItem can be hoisted here and kept stable across renders.
@@ -4433,376 +906,6 @@ export function BibleReaderScreen() {
     [premiumParagraphRenderSignature, readerInlineActiveVerse]
   );
 
-  const renderReaderVerses = (usePremiumTypography: boolean, renderVirtualized = false) => {
-    const verseFontSize = usePremiumTypography
-      ? scaleValue(typography.readingBody.fontSize)
-      : scaleValue(20);
-    const verseLineHeight = getReaderVerseLineHeight(verseFontSize);
-    const verseNumberSize = usePremiumTypography
-      ? scaleValue(typography.readingVerseNumber.fontSize)
-      : scaleValue(12);
-    const headingFontSize = scaleValue(typography.readingHeading.fontSize);
-
-    const paragraphs = usePremiumTypography
-      ? premiumReaderParagraphs
-      : buildReaderParagraphs(verses);
-
-    const textStyle = [
-      styles.verseText,
-      usePremiumTypography ? styles.premiumVerseText : null,
-      {
-        fontSize: verseFontSize,
-        lineHeight: verseLineHeight,
-        color: colors.biblePrimaryText,
-        // undefined for non-Latin scripts overrides the token's Lora → platform serif.
-        fontFamily: readingFontFamily,
-      },
-    ];
-    const verseNumberStyle = [
-      styles.inlineVerseNumber,
-      usePremiumTypography ? styles.premiumVerseNumber : null,
-      {
-        fontSize: verseNumberSize,
-        lineHeight: verseLineHeight,
-        color: colors.bibleSecondaryText,
-      },
-    ];
-    // `bibleSecondaryText` only reaches 3.18:1 on the follow band, so a verse
-    // number sitting on it swaps to the band's own quiet foreground.
-    const followVerseNumberStyle = [...verseNumberStyle, { color: colors.bibleFollowVerseNumber }];
-    const structuredVerseIndentSize = scaleValue(spacing.lg);
-
-    const getVersePresentation = (verse: Verse) => {
-      const highlightAnnotation = highlightByVerse.get(verse.verse);
-      const isFocused = verse.verse === readerInlineActiveVerse;
-      const verseBackgroundColor = isFocused
-        ? colors.bibleFollowHighlight
-        : highlightAnnotation?.color
-          ? highlightAnnotation.color + '33'
-          : undefined;
-
-      return {
-        highlightAnnotation,
-        isFocused,
-        isSelected: selectedVerseSet.has(verse.verse),
-        verseBackgroundColor,
-      };
-    };
-
-    const updateInlineParagraphVerseOffsets = (
-      paragraphVerses: Verse[],
-      paragraphOffsetY: number,
-      paragraphHeight: number
-    ) => {
-      const totalWeight = paragraphVerses.reduce(
-        (sum, verse) => sum + Math.max(verse.text.length, 12),
-        0
-      );
-      if (totalWeight <= 0) {
-        for (const verse of paragraphVerses) {
-          verseOffsetsRef.current[verse.verse] = paragraphOffsetY;
-        }
-        return;
-      }
-
-      let cumulativeWeight = 0;
-      for (const verse of paragraphVerses) {
-        verseOffsetsRef.current[verse.verse] =
-          paragraphOffsetY + (cumulativeWeight / totalWeight) * paragraphHeight;
-        cumulativeWeight += Math.max(verse.text.length, 12);
-      }
-    };
-
-    const handleToggleVerseSelection = (verse: Verse) => {
-      if (!canSelectDisplayedVerse({ isShowingRouteChapter: isShowingRouteChapterRef.current })) {
-        return;
-      }
-      selectionHaptic();
-      setSelectedVerses((current) => toggleBibleSelectionVerse(current, verse.verse));
-    };
-
-    const renderStackedVerse = (verse: Verse) => {
-      const { highlightAnnotation, isFocused, isSelected, verseBackgroundColor } =
-        getVersePresentation(verse);
-      const formattingLines = verse.formatting?.lines.length ? verse.formatting.lines : null;
-      const focusRenderKey = isFocused ? 'focused' : 'idle';
-
-      if (formattingLines) {
-        return (
-          <Pressable
-            key={`${verse.id}-formatted-${focusRenderKey}`}
-            onPress={() => handleToggleVerseSelection(verse)}
-            accessibilityState={{ selected: isSelected }}
-            style={[
-              styles.readerVerse,
-              styles.structuredVerse,
-              usePremiumTypography ? styles.premiumStructuredVerse : null,
-              verseBackgroundColor ? { backgroundColor: verseBackgroundColor } : null,
-            ]}
-          >
-            {formattingLines.map((line, lineIndex) => (
-              <Text
-                key={`${verse.id}-line-${lineIndex}`}
-                style={[
-                  textStyle,
-                  styles.structuredVerseLine,
-                  lineIndex > 0 ? styles.structuredVerseContinuation : null,
-                  isSelected ? selectedVerseDecorationStyle : null,
-                  line.indentLevel
-                    ? { marginLeft: structuredVerseIndentSize * line.indentLevel }
-                    : null,
-                ]}
-              >
-                {lineIndex === 0 ? (
-                  <>
-                    <Text style={verseNumberStyle}>{verse.verse}</Text>
-                    {'\u00A0'}
-                  </>
-                ) : null}
-                {line.text}
-              </Text>
-            ))}
-          </Pressable>
-        );
-      }
-
-      if (highlightAnnotation?.color) {
-        return (
-          <View
-            key={`${verse.id}-${highlightAnnotation.color}-${verseFontSize}-${verseLineHeight}-${focusRenderKey}`}
-            style={styles.readerVerse}
-          >
-            <HighlightedVerseText
-              verseNumber={verse.verse}
-              verseText={verse.text}
-              verseTextStyle={textStyle}
-              verseNumberStyle={verseNumberStyle}
-              selectedStyle={isSelected ? selectedVerseDecorationStyle : null}
-              highlightColor={highlightAnnotation.color}
-              isSelected={isSelected}
-              onPress={() => handleToggleVerseSelection(verse)}
-            />
-          </View>
-        );
-      }
-
-      return (
-        <Pressable
-          key={`${verse.id}-${focusRenderKey}`}
-          onPress={() => handleToggleVerseSelection(verse)}
-          accessibilityState={{ selected: isSelected }}
-          style={styles.readerVerse}
-        >
-          <Text
-            style={[
-              textStyle,
-              isSelected ? selectedVerseDecorationStyle : null,
-              isFocused ? { backgroundColor: colors.bibleFollowHighlight } : null,
-            ]}
-          >
-            <Text style={isFocused ? followVerseNumberStyle : verseNumberStyle}>{verse.verse}</Text>
-            {'\u00A0'}
-            {verse.text}
-          </Text>
-        </Pressable>
-      );
-    };
-
-    const renderParagraph = (paragraph: ReaderParagraph, _pIndex: number): ReactElement => (
-      <View
-        key={paragraph.key}
-        style={[
-          styles.readerBlock,
-          usePremiumTypography
-            ? [styles.premiumReaderBlock, styles.premiumReaderContentShell]
-            : null,
-        ]}
-        onLayout={(event) => {
-          const y = event.nativeEvent.layout.y;
-          paragraphHeightsRef.current[paragraph.key] = event.nativeEvent.layout.height;
-          // Virtualized cells measure `y` against their own cell wrapper, so it
-          // is always ~0 and must never be stored as a scroll offset; those
-          // readers resolve offsets from the measured heights above instead.
-          if (renderVirtualized) {
-            flushPendingReaderAutoScroll(true);
-            return;
-          }
-
-          const hasFormattedVerse = paragraph.verses.some(
-            (verse) => (verse.formatting?.lines.length ?? 0) > 0
-          );
-          if (usePremiumTypography && !hasFormattedVerse) {
-            updateInlineParagraphVerseOffsets(paragraph.verses, y, event.nativeEvent.layout.height);
-            flushPendingReaderAutoScroll(true);
-            return;
-          }
-
-          for (const v of paragraph.verses) {
-            verseOffsetsRef.current[v.verse] = y;
-          }
-          flushPendingReaderAutoScroll(true);
-        }}
-      >
-        {paragraph.heading ? (
-          <Text
-            // Lets VoiceOver/TalkBack users jump between pericopes with the headings rotor.
-            accessibilityRole="header"
-            style={[
-              styles.sectionHeading,
-              usePremiumTypography ? styles.premiumSectionHeading : null,
-              {
-                fontSize: headingFontSize,
-                color: colors.biblePrimaryText,
-                // Must be the bold face, not `readingFontFamily`: that is the regular weight
-                // and silently overrode the heading token's own semi-bold family, which is
-                // why section titles rendered at body weight.
-                fontFamily: readingFontFamilyBold ?? readingFontFamily,
-              },
-            ]}
-          >
-            {paragraph.heading}
-          </Text>
-        ) : null}
-        <View style={styles.readerParagraph}>
-          {usePremiumTypography &&
-          !paragraph.verses.some((verse) => (verse.formatting?.lines.length ?? 0) > 0) ? (
-            <Text style={[textStyle, styles.premiumParagraphText]}>
-              {paragraph.verses.map((verse, verseIndex) => {
-                const { isFocused, isSelected, verseBackgroundColor } = getVersePresentation(verse);
-                const focusRenderKey = isFocused ? 'focused' : 'idle';
-
-                return (
-                  <Text
-                    key={`${verse.id}-${verseFontSize}-${verseLineHeight}-${focusRenderKey}`}
-                    suppressHighlighting
-                    onPress={() => handleToggleVerseSelection(verse)}
-                    style={[
-                      styles.premiumInlineVerse,
-                      isSelected ? selectedVerseDecorationStyle : null,
-                      verseBackgroundColor ? { backgroundColor: verseBackgroundColor } : null,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        isFocused ? followVerseNumberStyle : verseNumberStyle,
-                        styles.premiumInlineVerseNumber,
-                      ]}
-                    >
-                      {verse.verse}
-                    </Text>
-                    {'\u00A0'}
-                    {verse.text}
-                    {verseIndex < paragraph.verses.length - 1 ? ' ' : ''}
-                  </Text>
-                );
-              })}
-            </Text>
-          ) : (
-            paragraph.verses.map((verse) => renderStackedVerse(verse))
-          )}
-        </View>
-      </View>
-    );
-
-    renderParagraphRef.current = renderParagraph;
-    // Signature of every non-position input that affects paragraph output. When
-    // this changes we let memoized cells re-render; raw position ticks are absent
-    // here, so ticks alone never invalidate cells.
-    const paragraphRenderSignature = usePremiumTypography
-      ? premiumParagraphRenderSignature
-      : buildReaderParagraphRenderSignature({
-          premium: false,
-          verseFontSize,
-          verseLineHeight,
-          verseNumberSize,
-          headingFontSize,
-          readingFontFamily,
-          readingFontFamilyBold,
-          colors,
-          selectedVerses,
-          annotations: displayedAnnotations,
-        });
-    const premiumReaderListExtraData = `${readerInlineActiveVerse ?? 'none'}|${paragraphRenderSignature}`;
-
-    if (renderVirtualized) {
-      return (
-        <Animated.FlatList
-          ref={premiumReaderListRef}
-          data={paragraphs}
-          keyExtractor={(paragraph) => paragraph.key}
-          renderItem={renderParagraphBlock}
-          extraData={premiumReaderListExtraData}
-          ListHeaderComponent={renderTranslatorFeedbackReviewTools}
-          style={styles.scrollView}
-          showsVerticalScrollIndicator={false}
-          scrollEventThrottle={16}
-          onScroll={scrollHandler}
-          onLayout={(event) => {
-            readerScrollViewportHeightRef.current = event.nativeEvent.layout.height;
-            flushPendingReaderAutoScroll(false);
-          }}
-          onScrollToIndexFailed={(info) => {
-            const focusTarget = readerFocusScrollRef.current.pendingVerse;
-            premiumReaderListRef.current?.scrollToOffset({
-              offset: Math.max(info.averageItemLength * info.index - sharedTopChromeTop, 0),
-              animated: true,
-            });
-            requestAnimationFrame(() => {
-              if (focusTarget != null) {
-                pendingReaderAutoScrollVerseRef.current = null;
-                scrollReaderToVerseParagraph(focusTarget, false);
-                flushPendingReaderFocus();
-              } else if (readerInlineActiveVerse != null) {
-                pendingReaderAutoScrollVerseRef.current = readerInlineActiveVerse;
-                scrollReaderToVerseParagraph(readerInlineActiveVerse, true);
-                flushPendingReaderAutoScroll(true);
-              }
-            });
-          }}
-          onScrollBeginDrag={() => {
-            handleReaderScrollBeginDrag();
-            setShowFontSizeSheet((current) =>
-              getNextFontSizeSheetVisibility(current, 'scrollStart')
-            );
-            setShowTranslationSheet((current) =>
-              getNextTranslationSheetVisibility(current, canShowTranslationSheet, 'dismiss')
-            );
-          }}
-          onScrollEndDrag={handleReaderScrollEndDrag}
-          onMomentumScrollEnd={handleReaderMomentumScrollEnd}
-          removeClippedSubviews
-          initialNumToRender={8}
-          maxToRenderPerBatch={6}
-          windowSize={7}
-          updateCellsBatchingPeriod={32}
-          contentContainerStyle={[
-            styles.premiumReaderScrollContent,
-            {
-              paddingTop: readerContentTopPadding,
-              paddingBottom: premiumReaderBottomPadding,
-            },
-          ]}
-          ListFooterComponent={<View style={styles.premiumReaderVirtualFooter} />}
-        />
-      );
-    }
-
-    return (
-      <View style={[styles.readerColumn, usePremiumTypography ? styles.premiumReaderColumn : null]}>
-        {paragraphs.map((paragraph, pIndex) => (
-          <ReaderParagraphBlock
-            key={paragraph.key}
-            paragraph={paragraph}
-            index={pIndex}
-            renderSignature={paragraphRenderSignature}
-            activeVerse={readerInlineActiveVerse}
-            renderParagraphRef={renderParagraphRef}
-          />
-        ))}
-      </View>
-    );
-  };
-
   const renderLegacyContent = () => {
     if (isLoading) {
       return <VersesSkeleton count={10} />;
@@ -4835,7 +938,37 @@ export function BibleReaderScreen() {
     }
 
     if (verses.length === 0 && chapterPresentationMode === 'audio-first') {
-      return <View style={styles.audioFirstShell}>{renderListenMode()}</View>;
+      return (
+        <View style={styles.audioFirstShell}>
+          <ReaderListenMode
+            backgroundMusicChoice={backgroundMusicChoice}
+            bookId={bookId}
+            changeBackgroundMusicChoice={changeBackgroundMusicChoice}
+            changePlaybackRate={changePlaybackRate}
+            cycleRepeatMode={cycleRepeatMode}
+            feedback={feedback}
+            handleListenModeSeek={handleListenModeSeek}
+            handleNextListenChapter={handleNextListenChapter}
+            handlePlayDisplayedChapter={handlePlayDisplayedChapter}
+            handlePreviousListenChapter={handlePreviousListenChapter}
+            hasNextChapter={hasNextChapter}
+            hasPrevChapter={hasPrevChapter}
+            isCurrentAudioChapter={isCurrentAudioChapter}
+            isLargeText={isLargeText}
+            listenCountedNotice={listenCountedNotice}
+            playbackRate={playbackRate}
+            readerAudioTrack={readerAudioTrack}
+            repeatMode={repeatMode}
+            showInlineChapterFeedbackComposer={showInlineChapterFeedbackComposer}
+            showPlanSessionChrome={showPlanSessionChrome}
+            skipBackward={skipBackward}
+            skipForward={skipForward}
+            sleepTimerRemaining={sleepTimerRemaining}
+            startSleepTimer={startSleepTimer}
+            status={status}
+          />
+        </View>
+      );
     }
 
     if (verses.length === 0) {
@@ -4859,16 +992,117 @@ export function BibleReaderScreen() {
       );
     }
 
-    return renderReaderVerses(false);
+    return (
+      <ReaderVerseList
+        usePremiumTypography={false}
+        canShowTranslationSheet={canShowTranslationSheet}
+        displayedAnnotations={displayedAnnotations}
+        flushPendingReaderAutoScroll={flushPendingReaderAutoScroll}
+        flushPendingReaderFocus={flushPendingReaderFocus}
+        handleReaderMomentumScrollEnd={handleReaderMomentumScrollEnd}
+        handleReaderScrollBeginDrag={handleReaderScrollBeginDrag}
+        handleReaderScrollEndDrag={handleReaderScrollEndDrag}
+        highlightByVerse={highlightByVerse}
+        isShowingRouteChapterRef={isShowingRouteChapterRef}
+        paragraphHeightsRef={paragraphHeightsRef}
+        pendingReaderAutoScrollVerseRef={pendingReaderAutoScrollVerseRef}
+        premiumParagraphRenderSignature={premiumParagraphRenderSignature}
+        premiumReaderBottomPadding={premiumReaderBottomPadding}
+        premiumReaderListRef={premiumReaderListRef}
+        premiumReaderParagraphs={premiumReaderParagraphs}
+        readerContentTopPadding={readerContentTopPadding}
+        readerFocusScrollRef={readerFocusScrollRef}
+        readerInlineActiveVerse={readerInlineActiveVerse}
+        readerScrollViewportHeightRef={readerScrollViewportHeightRef}
+        readingFontFamily={readingFontFamily}
+        readingFontFamilyBold={readingFontFamilyBold}
+        renderParagraphBlock={renderParagraphBlock}
+        renderParagraphRef={renderParagraphRef}
+        renderTranslatorFeedbackReviewTools={renderTranslatorFeedbackReviewTools}
+        scaleValue={scaleValue}
+        scrollHandler={scrollHandler}
+        scrollReaderToVerseParagraph={scrollReaderToVerseParagraph}
+        selectedVerseDecorationStyle={selectedVerseDecorationStyle}
+        selectedVerseSet={selectedVerseSet}
+        selectedVerses={selectedVerses}
+        setSelectedVerses={setSelectedVerses}
+        setShowFontSizeSheet={setShowFontSizeSheet}
+        setShowTranslationSheet={setShowTranslationSheet}
+        sharedTopChromeTop={sharedTopChromeTop}
+        verseOffsetsRef={verseOffsetsRef}
+        verses={verses}
+      />
+    );
   };
 
   const renderPremiumReadLayout = () => (
     <View style={styles.premiumReaderLayout}>
       <GestureDetector gesture={swipeGesture}>
         <Animated.View style={[{ flex: 1 }, swipeStyle]}>
-          {renderSharedTopChrome(true)}
+          <ReaderTopChrome
+            useAnimatedChrome={true}
+            audioEnabled={audioEnabled}
+            bookId={bookId}
+            canShowTranslationSheet={canShowTranslationSheet}
+            chapter={chapter}
+            chapterFeedbackEnabled={chapterFeedbackEnabled}
+            compactBookName={compactBookName}
+            handleExitPlanSession={handleExitPlanSession}
+            handleOpenBibleSearch={handleOpenBibleSearch}
+            handleOpenBookPicker={handleOpenBookPicker}
+            handleOpenChapterFeedback={handleOpenChapterFeedback}
+            handleOpenTranslationOptions={handleOpenTranslationOptions}
+            isReadBottomChromeCollapsed={isReadBottomChromeCollapsed}
+            setShowAudioOptionsSheet={setShowAudioOptionsSheet}
+            setShowChapterActionsSheet={setShowChapterActionsSheet}
+            setShowFontSizeSheet={setShowFontSizeSheet}
+            setShowTranslationSheet={setShowTranslationSheet}
+            sharedTopChromeTop={sharedTopChromeTop}
+            showPlanSessionChrome={showPlanSessionChrome}
+            topChromeAnimatedStyle={topChromeAnimatedStyle}
+            translationLabel={translationLabel}
+          />
 
-          {renderReaderVerses(true, true)}
+          <ReaderVerseList
+            usePremiumTypography={true}
+            renderVirtualized={true}
+            canShowTranslationSheet={canShowTranslationSheet}
+            displayedAnnotations={displayedAnnotations}
+            flushPendingReaderAutoScroll={flushPendingReaderAutoScroll}
+            flushPendingReaderFocus={flushPendingReaderFocus}
+            handleReaderMomentumScrollEnd={handleReaderMomentumScrollEnd}
+            handleReaderScrollBeginDrag={handleReaderScrollBeginDrag}
+            handleReaderScrollEndDrag={handleReaderScrollEndDrag}
+            highlightByVerse={highlightByVerse}
+            isShowingRouteChapterRef={isShowingRouteChapterRef}
+            paragraphHeightsRef={paragraphHeightsRef}
+            pendingReaderAutoScrollVerseRef={pendingReaderAutoScrollVerseRef}
+            premiumParagraphRenderSignature={premiumParagraphRenderSignature}
+            premiumReaderBottomPadding={premiumReaderBottomPadding}
+            premiumReaderListRef={premiumReaderListRef}
+            premiumReaderParagraphs={premiumReaderParagraphs}
+            readerContentTopPadding={readerContentTopPadding}
+            readerFocusScrollRef={readerFocusScrollRef}
+            readerInlineActiveVerse={readerInlineActiveVerse}
+            readerScrollViewportHeightRef={readerScrollViewportHeightRef}
+            readingFontFamily={readingFontFamily}
+            readingFontFamilyBold={readingFontFamilyBold}
+            renderParagraphBlock={renderParagraphBlock}
+            renderParagraphRef={renderParagraphRef}
+            renderTranslatorFeedbackReviewTools={renderTranslatorFeedbackReviewTools}
+            scaleValue={scaleValue}
+            scrollHandler={scrollHandler}
+            scrollReaderToVerseParagraph={scrollReaderToVerseParagraph}
+            selectedVerseDecorationStyle={selectedVerseDecorationStyle}
+            selectedVerseSet={selectedVerseSet}
+            selectedVerses={selectedVerses}
+            setSelectedVerses={setSelectedVerses}
+            setShowFontSizeSheet={setShowFontSizeSheet}
+            setShowTranslationSheet={setShowTranslationSheet}
+            sharedTopChromeTop={sharedTopChromeTop}
+            verseOffsetsRef={verseOffsetsRef}
+            verses={verses}
+          />
 
           <Animated.View
             pointerEvents="box-none"
@@ -4902,196 +1136,35 @@ export function BibleReaderScreen() {
     </View>
   );
 
-  const renderSharedTopChrome = (useAnimatedChrome: boolean) => (
-    <Animated.View
-      pointerEvents={useAnimatedChrome && isReadBottomChromeCollapsed ? 'none' : 'box-none'}
-      accessibilityElementsHidden={useAnimatedChrome && isReadBottomChromeCollapsed}
-      importantForAccessibility={
-        useAnimatedChrome && isReadBottomChromeCollapsed ? 'no-hide-descendants' : 'auto'
-      }
-      style={[
-        styles.floatingReaderTopBar,
-        { top: sharedTopChromeTop },
-        useAnimatedChrome ? topChromeAnimatedStyle : null,
-      ]}
-    >
-      <View style={styles.floatingReaderReferenceCluster}>
-        {showPlanSessionChrome ? (
-          <TouchableOpacity
-            style={[styles.floatingReaderPlanExitButton]}
-            activeOpacity={0.85}
-            onPress={handleExitPlanSession}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            accessibilityRole="button"
-            accessibilityLabel={t('common.back')}
-            accessibilityHint={t('bible.returnToPlanHint')}
-          >
-            <Ionicons name="chevron-back" size={18} color={colors.biblePrimaryText} />
-          </TouchableOpacity>
-        ) : null}
-
-        <View style={styles.floatingReaderReferencePill}>
-          <View
-            pointerEvents="none"
-            style={[
-              styles.floatingReaderReferencePillBackground,
-              { backgroundColor: colors.bibleElevatedSurface, borderColor: colors.bibleDivider },
-            ]}
-          />
-          <TouchableOpacity
-            style={[
-              styles.floatingReaderReferencePillSegment,
-              styles.floatingReaderReferencePillBookSegment,
-            ]}
-            activeOpacity={0.85}
-            onPress={handleOpenBookPicker}
-            accessibilityRole="button"
-            accessibilityLabel={`${getTranslatedBookName(bookId, t)} ${chapter}`}
-            accessibilityHint={t('bible.openBookAndChapterPickerHint')}
-          >
-            <Text
-              style={[
-                styles.floatingReaderReferencePillPrimary,
-                { color: colors.biblePrimaryText },
-              ]}
-              numberOfLines={1}
-              maxFontSizeMultiplier={READER_REFERENCE_PILL_MAX_FONT_SCALE}
-            >
-              {compactBookName} {chapter}
-            </Text>
-          </TouchableOpacity>
-
-          <View
-            style={[
-              styles.floatingReaderReferencePillDivider,
-              { backgroundColor: colors.bibleDivider },
-            ]}
-          />
-
-          <TouchableOpacity
-            style={styles.floatingReaderReferencePillSegment}
-            activeOpacity={0.85}
-            onPress={handleOpenTranslationOptions}
-            accessibilityRole="button"
-            accessibilityLabel={translationLabel}
-            accessibilityHint={t('bible.openTranslationOptionsHint')}
-            disabled={!canShowTranslationSheet}
-          >
-            <Text
-              style={[
-                styles.floatingReaderReferencePillTranslation,
-                { color: colors.biblePrimaryText },
-              ]}
-              numberOfLines={1}
-              maxFontSizeMultiplier={READER_REFERENCE_PILL_MAX_FONT_SCALE}
-            >
-              {translationLabel}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <View style={styles.floatingReaderTopActionGroup}>
-        {audioEnabled ? (
-          <TouchableOpacity
-            style={[
-              styles.floatingReaderMenuButton,
-              { backgroundColor: colors.bibleElevatedSurface, borderColor: colors.bibleDivider },
-            ]}
-            activeOpacity={0.85}
-            hitSlop={TOP_ACTION_HIT_SLOP}
-            onPress={() => {
-              setShowFontSizeSheet(false);
-              setShowTranslationSheet(false);
-              setShowChapterActionsSheet(false);
-              setShowAudioOptionsSheet(true);
-            }}
-            accessibilityRole="button"
-            accessibilityLabel={t('audio.nowPlaying')}
-          >
-            <View style={styles.floatingReaderMenuButtonContent}>
-              <Ionicons
-                name="volume-medium-outline"
-                size={TOP_ACTION_ICON_SIZE}
-                color={colors.biblePrimaryText}
-              />
-            </View>
-          </TouchableOpacity>
-        ) : null}
-
-        <TouchableOpacity
-          style={[
-            styles.floatingReaderMenuButton,
-            { backgroundColor: colors.bibleElevatedSurface, borderColor: colors.bibleDivider },
-          ]}
-          activeOpacity={0.85}
-          hitSlop={TOP_ACTION_HIT_SLOP}
-          onPress={handleOpenBibleSearch}
-          accessibilityRole="button"
-          accessibilityLabel={t('common.search')}
-        >
-          <View style={styles.floatingReaderMenuButtonContent}>
-            <Ionicons name="search" size={TOP_ACTION_ICON_SIZE} color={colors.biblePrimaryText} />
-          </View>
-        </TouchableOpacity>
-
-        {chapterFeedbackEnabled ? (
-          <TouchableOpacity
-            style={[
-              styles.floatingReaderMenuButton,
-              { backgroundColor: colors.bibleElevatedSurface, borderColor: colors.bibleDivider },
-            ]}
-            activeOpacity={0.85}
-            hitSlop={TOP_ACTION_HIT_SLOP}
-            onPress={handleOpenChapterFeedback}
-            accessibilityRole="button"
-            accessibilityLabel={t('bible.chapterFeedback')}
-          >
-            <View style={styles.floatingReaderMenuButtonContent}>
-              <Ionicons
-                name="chatbox-ellipses-outline"
-                size={TOP_ACTION_ICON_SIZE}
-                color={colors.biblePrimaryText}
-              />
-            </View>
-          </TouchableOpacity>
-        ) : null}
-
-        <TouchableOpacity
-          style={[
-            styles.floatingReaderMenuButton,
-            { backgroundColor: colors.bibleElevatedSurface, borderColor: colors.bibleDivider },
-          ]}
-          activeOpacity={0.85}
-          hitSlop={TOP_ACTION_HIT_SLOP}
-          onPress={() => {
-            setShowAudioOptionsSheet(false);
-            setShowFontSizeSheet(false);
-            setShowTranslationSheet(false);
-            setShowChapterActionsSheet(true);
-          }}
-          accessibilityRole="button"
-          accessibilityLabel={t('tabs.more')}
-        >
-          <View style={styles.floatingReaderMenuButtonContent}>
-            <Ionicons
-              name="ellipsis-horizontal"
-              size={TOP_ACTION_ICON_SIZE}
-              color={colors.biblePrimaryText}
-            />
-          </View>
-        </TouchableOpacity>
-      </View>
-    </Animated.View>
-  );
-
   const renderLegacyReaderLayout = () => (
     <>
-      {renderSharedTopChrome(false)}
+      <ReaderTopChrome
+        useAnimatedChrome={false}
+        audioEnabled={audioEnabled}
+        bookId={bookId}
+        canShowTranslationSheet={canShowTranslationSheet}
+        chapter={chapter}
+        chapterFeedbackEnabled={chapterFeedbackEnabled}
+        compactBookName={compactBookName}
+        handleExitPlanSession={handleExitPlanSession}
+        handleOpenBibleSearch={handleOpenBibleSearch}
+        handleOpenBookPicker={handleOpenBookPicker}
+        handleOpenChapterFeedback={handleOpenChapterFeedback}
+        handleOpenTranslationOptions={handleOpenTranslationOptions}
+        isReadBottomChromeCollapsed={isReadBottomChromeCollapsed}
+        setShowAudioOptionsSheet={setShowAudioOptionsSheet}
+        setShowChapterActionsSheet={setShowChapterActionsSheet}
+        setShowFontSizeSheet={setShowFontSizeSheet}
+        setShowTranslationSheet={setShowTranslationSheet}
+        sharedTopChromeTop={sharedTopChromeTop}
+        showPlanSessionChrome={showPlanSessionChrome}
+        topChromeAnimatedStyle={topChromeAnimatedStyle}
+        translationLabel={translationLabel}
+      />
 
       <ScrollView
         ref={scrollViewRef}
-        style={styles.scrollView}
+        style={readerSharedStyles.scrollView}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets
@@ -5129,7 +1202,34 @@ export function BibleReaderScreen() {
   );
 
   if (!book) {
-    return null;
+    // BibleStack's route guard returns an unknown book to the browser before the reader
+    // mounts; this covers anything that still renders it, so the page is never a dead end.
+    return (
+      <View
+        style={[
+          styles.container,
+          styles.missingBook,
+          { backgroundColor: colors.bibleBackground, paddingTop: safeInsets.top },
+        ]}
+      >
+        <Text
+          accessibilityRole="header"
+          style={[styles.feedbackTitle, { color: colors.biblePrimaryText }]}
+        >
+          {t('common.error')}
+        </Text>
+        <TouchableOpacity
+          style={[styles.feedbackButton, { backgroundColor: colors.bibleControlBackground }]}
+          onPress={() => navigation.popTo('BibleBrowser')}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+        >
+          <Text style={[styles.feedbackButtonText, { color: colors.bibleBackground }]}>
+            {t('common.back')}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
   }
 
   return (
@@ -5159,86 +1259,48 @@ export function BibleReaderScreen() {
         />
       ) : null}
       {showPremiumReadMode ? renderPremiumReadLayout() : renderLegacyReaderLayout()}
-      {renderPlanSessionBottomBar()}
+      <PlanSessionBottomBar
+        activePlanChapterIndex={activePlanChapterIndex}
+        activePlanDayChapterItems={activePlanDayChapterItems}
+        activePlanSessionTitle={activePlanSessionTitle}
+        activePlanTitle={activePlanTitle}
+        chapterSessionMode={chapterSessionMode}
+        handleCompletePlanDay={handleCompletePlanDay}
+        handleNextListenChapter={handleNextListenChapter}
+        handlePreviousListenChapter={handlePreviousListenChapter}
+        hasNextChapter={hasNextChapter}
+        hasOtherIncompletePlanSessions={hasOtherIncompletePlanSessions}
+        hasPrevChapter={hasPrevChapter}
+        isLastPlanChapter={isLastPlanChapter}
+        planDayNumber={planDayNumber}
+        planSessionBottomBarAnimatedStyle={planSessionBottomBarAnimatedStyle}
+        rootTabBarBottomPadding={rootTabBarBottomPadding}
+        rootTabBarHeight={rootTabBarHeight}
+        showPlanSessionChrome={showPlanSessionChrome}
+      />
 
-      <Modal
-        visible={showAudioOptionsSheet}
-        transparent
-        statusBarTranslucent
-        navigationBarTranslucent
-        animationType="fade"
-        onRequestClose={() => setShowAudioOptionsSheet(false)}
-      >
-        <TouchableOpacity
-          style={[
-            styles.audioShareBackdrop,
-            {
-              backgroundColor: colors.overlay,
-              paddingBottom: Math.max(safeInsets.bottom, 12) + spacing.md,
-            },
-          ]}
-          activeOpacity={1}
-          onPress={() => setShowAudioOptionsSheet(false)}
-          // Left accessible, this wrapping backdrop folds the whole sheet into one
-          // VoiceOver element whose only action is dismiss.
-          accessible={false}
-        >
-          <View
-            accessibilityViewIsModal
-            onAccessibilityEscape={() => setShowAudioOptionsSheet(false)}
-            style={[
-              styles.audioOptionsSheet,
-              {
-                backgroundColor: colors.bibleSurface,
-                borderColor: colors.bibleDivider,
-              },
-            ]}
-          >
-            <View style={styles.audioOptionsHeader}>
-              <View style={styles.audioOptionsTitleRow}>
-                <Ionicons name="volume-medium-outline" size={18} color={colors.biblePrimaryText} />
-                <Text
-                  accessibilityRole="header"
-                  style={[styles.audioOptionsTitle, { color: colors.biblePrimaryText }]}
-                >
-                  {t('audio.nowPlaying')}
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={styles.sheetCloseButton}
-                hitSlop={6}
-                onPress={() => setShowAudioOptionsSheet(false)}
-                accessibilityRole="button"
-                accessibilityLabel={t('interface.close')}
-              >
-                <Ionicons name="close" size={18} color={colors.bibleSecondaryText} />
-              </TouchableOpacity>
-            </View>
-
-            <PlaybackControls
-              variant="utilities-only"
-              status={isCurrentAudioChapter ? status : 'idle'}
-              playbackRate={playbackRate}
-              repeatMode={repeatMode}
-              sleepTimerRemaining={sleepTimerRemaining}
-              backgroundMusicChoice={backgroundMusicChoice}
-              hasPreviousChapter={hasPrevChapter}
-              hasNextChapter={hasNextChapter}
-              onPlayPause={handlePlayDisplayedChapter}
-              showChapterNavigation={false}
-              onPreviousChapter={() => void handlePreviousListenChapter()}
-              onNextChapter={() => void handleNextListenChapter()}
-              onSkipBackward={() => void skipBackward()}
-              onSkipForward={() => void skipForward()}
-              onChangePlaybackRate={changePlaybackRate}
-              onCycleRepeatMode={cycleRepeatMode}
-              onSetSleepTimer={startSleepTimer}
-              onChangeBackgroundMusicChoice={changeBackgroundMusicChoice}
-              onShareAudio={handleOpenChapterAudioShareSheet}
-            />
-          </View>
-        </TouchableOpacity>
-      </Modal>
+      <AudioOptionsSheet
+        backgroundMusicChoice={backgroundMusicChoice}
+        changeBackgroundMusicChoice={changeBackgroundMusicChoice}
+        changePlaybackRate={changePlaybackRate}
+        cycleRepeatMode={cycleRepeatMode}
+        handleNextListenChapter={handleNextListenChapter}
+        handleOpenChapterAudioShareSheet={handleOpenChapterAudioShareSheet}
+        handlePlayDisplayedChapter={handlePlayDisplayedChapter}
+        handlePreviousListenChapter={handlePreviousListenChapter}
+        hasNextChapter={hasNextChapter}
+        hasPrevChapter={hasPrevChapter}
+        isCurrentAudioChapter={isCurrentAudioChapter}
+        playbackRate={playbackRate}
+        repeatMode={repeatMode}
+        setShowAudioOptionsSheet={setShowAudioOptionsSheet}
+        showAudioOptionsSheet={showAudioOptionsSheet}
+        skipBackward={skipBackward}
+        skipForward={skipForward}
+        sleepTimerRemaining={sleepTimerRemaining}
+        startSleepTimer={startSleepTimer}
+        status={status}
+      />
 
       {chapterSessionMode === 'read' ? (
         <View
@@ -5253,1036 +1315,93 @@ export function BibleReaderScreen() {
         />
       ) : null}
 
-      {showFontSizeSheet && canAdjustFontSize ? (
-        <Modal
-          visible={showFontSizeSheet && canAdjustFontSize}
-          transparent
-          statusBarTranslucent
-          navigationBarTranslucent
-          animationType="fade"
-          onRequestClose={handleCloseFontSizeSheet}
-        >
-          <View style={[styles.fontSheetOverlay, { backgroundColor: colors.overlay }]}>
-            <TouchableOpacity
-              style={styles.fontSheetBackdrop}
-              activeOpacity={1}
-              accessibilityRole="button"
-              accessibilityLabel={t('interface.close')}
-              onPress={handleCloseFontSizeSheet}
-            />
-            <View
-              style={[
-                styles.fontSheet,
-                {
-                  backgroundColor: colors.bibleSurface,
-                  borderColor: colors.bibleDivider,
-                  paddingBottom: safeInsets.bottom + spacing.lg,
-                },
-              ]}
-            >
-              <View
-                style={[
-                  styles.fontSheetHandle,
-                  { backgroundColor: colors.bibleSecondaryText + '55' },
-                ]}
-              />
-              <Text
-                accessibilityRole="header"
-                style={[styles.fontSheetTitle, { color: colors.biblePrimaryText }]}
-              >
-                {t('bible.fontsAndSettings')}
-              </Text>
-              <View
-                style={[styles.readerFontPreview, { backgroundColor: colors.bibleElevatedSurface }]}
-                accessibilityElementsHidden
-                importantForAccessibility="no-hide-descendants"
-              >
-                <Text
-                  maxFontSizeMultiplier={1.4}
-                  style={[
-                    styles.readerFontPreviewSpecimen,
-                    {
-                      color: colors.biblePrimaryText,
-                      fontFamily: readingFontFamily,
-                      fontSize: scaleValue(typography.readingBody.fontSize) * 1.7,
-                      lineHeight: scaleValue(typography.readingBody.lineHeight) * 1.7,
-                    },
-                  ]}
-                >
-                  Aa
-                </Text>
-              </View>
-              <View style={styles.readerFontStepperRow}>
-                <TouchableOpacity
-                  style={[
-                    styles.readerFontStepperButton,
-                    { backgroundColor: colors.bibleElevatedSurface },
-                    !canDecrease && styles.readerFontStepperDisabled,
-                  ]}
-                  onPress={decrease}
-                  disabled={!canDecrease}
-                  activeOpacity={0.82}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('learn.decreaseTextSize')}
-                >
-                  <Text
-                    style={[
-                      styles.readerFontStepperText,
-                      styles.readerFontStepperSmallText,
-                      {
-                        color: canDecrease
-                          ? colors.biblePrimaryText
-                          : colors.bibleSecondaryText + '88',
-                      },
-                    ]}
-                  >
-                    A
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.readerFontStepperButton,
-                    styles.readerFontStepperButtonLarge,
-                    { backgroundColor: colors.bibleElevatedSurface },
-                    !canIncrease && styles.readerFontStepperDisabled,
-                  ]}
-                  onPress={increase}
-                  disabled={!canIncrease}
-                  activeOpacity={0.82}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('learn.increaseTextSize')}
-                >
-                  <Text
-                    style={[
-                      styles.readerFontStepperText,
-                      styles.readerFontStepperLargeText,
-                      {
-                        color: canIncrease
-                          ? colors.biblePrimaryText
-                          : colors.bibleSecondaryText + '88',
-                      },
-                    ]}
-                  >
-                    A
-                  </Text>
-                </TouchableOpacity>
-              </View>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.readerThemeModeRail}
-              >
-                {readerThemePreviews.map((option) => {
-                  const isActive = themeMode === option.mode;
-                  return (
-                    <View key={option.mode} style={styles.readerThemeTileColumn}>
-                      <TouchableOpacity
-                        style={[
-                          styles.readerThemeTile,
-                          {
-                            borderColor: isActive ? colors.accentPrimary : colors.bibleDivider,
-                          },
-                        ]}
-                        accessibilityRole="button"
-                        accessibilityLabel={t(option.labelKey)}
-                        accessibilityState={{ selected: isActive }}
-                        onPress={() => handleReaderThemeChange(option.mode)}
-                        activeOpacity={0.85}
-                      >
-                        <LinearGradient
-                          colors={option.background}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 1 }}
-                          style={StyleSheet.absoluteFill}
-                        />
-                        <View
-                          style={[
-                            styles.readerThemePaper,
-                            {
-                              backgroundColor: option.paper,
-                              borderColor: hexWithAlpha(option.line, 0.14),
-                            },
-                          ]}
-                        >
-                          <View style={styles.readerThemeLineStack}>
-                            <View
-                              style={[styles.readerThemeLine, { backgroundColor: option.line }]}
-                            />
-                            <View
-                              style={[
-                                styles.readerThemeLine,
-                                styles.readerThemeLineMedium,
-                                { backgroundColor: option.line },
-                              ]}
-                            />
-                            <View
-                              style={[
-                                styles.readerThemeLine,
-                                styles.readerThemeLineShort,
-                                { backgroundColor: option.line },
-                              ]}
-                            />
-                          </View>
-                        </View>
-                        <View
-                          style={[
-                            styles.readerThemeCheckCircle,
-                            {
-                              borderColor: isActive ? colors.accentPrimary : colors.bibleDivider,
-                              backgroundColor: isActive ? colors.accentPrimary : 'transparent',
-                            },
-                          ]}
-                        >
-                          {isActive ? (
-                            <Ionicons name="checkmark" size={18} color={colors.onAccent} />
-                          ) : null}
-                        </View>
-                      </TouchableOpacity>
-                      <Text
-                        // Duplicates the tile's own label for sighted users only.
-                        accessibilityElementsHidden
-                        importantForAccessibility="no"
-                        style={[
-                          styles.readerThemeTileLabel,
-                          { color: isActive ? colors.accentPrimary : colors.bibleSecondaryText },
-                        ]}
-                        // Two lines: longer languages cut the theme name under a 128pt tile.
-                        numberOfLines={2}
-                      >
-                        {t(option.labelKey)}
-                      </Text>
-                    </View>
-                  );
-                })}
-              </ScrollView>
-              <TouchableOpacity
-                style={styles.readerAllSettingsButton}
-                onPress={handleOpenAllSettings}
-                activeOpacity={0.82}
-                accessibilityRole="button"
-              >
-                <Text style={[styles.readerAllSettingsLabel, { color: colors.biblePrimaryText }]}>
-                  {t('bible.allSettings')}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-      ) : null}
+      <ReaderFontSheet
+        canAdjustFontSize={canAdjustFontSize}
+        canDecrease={canDecrease}
+        canIncrease={canIncrease}
+        decrease={decrease}
+        handleCloseFontSizeSheet={handleCloseFontSizeSheet}
+        handleOpenAllSettings={handleOpenAllSettings}
+        handleReaderThemeChange={handleReaderThemeChange}
+        increase={increase}
+        readingFontFamily={readingFontFamily}
+        scaleValue={scaleValue}
+        showFontSizeSheet={showFontSizeSheet}
+        themeMode={themeMode}
+      />
 
-      <Modal
-        visible={showChapterActionsSheet}
-        transparent
-        statusBarTranslucent
-        navigationBarTranslucent
-        animationType="fade"
-        onRequestClose={() => setShowChapterActionsSheet(false)}
-      >
-        <TouchableOpacity
-          style={[
-            styles.modalBackdropFill,
-            { backgroundColor: colors.overlay, paddingTop: safeInsets.top + spacing.xxl },
-          ]}
-          activeOpacity={1}
-          onPress={() => setShowChapterActionsSheet(false)}
-          // Left accessible, this wrapping backdrop folds the whole sheet into one
-          // VoiceOver element whose only action is dismiss.
-          accessible={false}
-        >
-          <View
-            accessibilityViewIsModal
-            onAccessibilityEscape={() => setShowChapterActionsSheet(false)}
-            style={[
-              styles.actionSheet,
-              {
-                backgroundColor: colors.bibleSurface,
-                borderColor: colors.bibleDivider,
-              },
-            ]}
-          >
-            <Text
-              accessibilityRole="header"
-              style={[styles.actionSheetTitle, { color: colors.biblePrimaryText }]}
-            >
-              {getTranslatedBookName(bookId, t)} {chapter}
-            </Text>
+      <ChapterActionsSheet
+        bookId={bookId}
+        canAdjustFontSize={canAdjustFontSize}
+        canShowTranslationSheet={canShowTranslationSheet}
+        chapter={chapter}
+        chapterFeedbackEnabled={chapterFeedbackEnabled}
+        handleAddToPlaylist={handleAddToPlaylist}
+        handleAddToQueue={handleAddToQueue}
+        handleDownloadCurrentBookAudio={handleDownloadCurrentBookAudio}
+        handleOpenChapterAudioShareSheet={handleOpenChapterAudioShareSheet}
+        handleOpenChapterFeedback={handleOpenChapterFeedback}
+        handleOpenFontSizeOptions={handleOpenFontSizeOptions}
+        handleOpenTranslationOptions={handleOpenTranslationOptions}
+        handleShareChapter={handleShareChapter}
+        handleToggleFavorite={handleToggleFavorite}
+        isFavorite={isFavorite}
+        setShowChapterActionsSheet={setShowChapterActionsSheet}
+        showChapterActionsSheet={showChapterActionsSheet}
+        showInlineChapterFeedbackComposer={showInlineChapterFeedbackComposer}
+      />
 
-            {[
-              ...(chapterFeedbackEnabled && !showInlineChapterFeedbackComposer
-                ? [
-                    {
-                      key: 'chapter-feedback',
-                      icon: 'checkmark-circle-outline',
-                      label: t('bible.chapterFeedback'),
-                      onPress: handleOpenChapterFeedback,
-                    },
-                  ]
-                : []),
-              ...(canAdjustFontSize
-                ? [
-                    {
-                      key: 'font-size',
-                      icon: 'text-outline',
-                      label: t('bible.readerFontsAndSettings'),
-                      onPress: handleOpenFontSizeOptions,
-                    },
-                  ]
-                : []),
-              ...(canShowTranslationSheet
-                ? [
-                    {
-                      key: 'translation',
-                      icon: 'book-outline',
-                      label: t('bible.selectTranslation'),
-                      onPress: handleOpenTranslationOptions,
-                    },
-                  ]
-                : []),
-              {
-                key: 'favorite',
-                icon: isFavorite ? 'heart' : 'heart-outline',
-                label: isFavorite ? t('bible.removeFromFavorites') : t('bible.addToFavorites'),
-                onPress: handleToggleFavorite,
-              },
-              {
-                key: 'playlist',
-                icon: 'list-outline',
-                label: t('bible.addToSavedPlaylist'),
-                onPress: handleAddToPlaylist,
-              },
-              {
-                key: 'queue',
-                icon: 'play-forward-outline',
-                label: t('bible.addToQueue'),
-                onPress: handleAddToQueue,
-              },
-              {
-                key: 'download',
-                icon: 'download-outline',
-                label: t('bible.downloadBookAudio'),
-                onPress: handleDownloadCurrentBookAudio,
-              },
-              {
-                key: 'share-audio',
-                icon: 'musical-notes-outline',
-                label: t('bible.shareChapterAudio'),
-                onPress: handleOpenChapterAudioShareSheet,
-              },
-              {
-                key: 'share',
-                icon: 'share-social-outline',
-                label: t('bible.shareChapterReference'),
-                onPress: () => {
-                  void handleShareChapter();
-                },
-              },
-            ].map((action) => (
-              <TouchableOpacity
-                key={action.key}
-                style={[styles.actionRow, { borderColor: colors.bibleDivider }]}
-                onPress={action.onPress}
-                activeOpacity={0.85}
-                accessibilityRole="button"
-                accessibilityLabel={action.label}
-              >
-                <Ionicons name={action.icon as never} size={20} color={colors.biblePrimaryText} />
-                <Text style={[styles.actionLabel, { color: colors.biblePrimaryText }]}>
-                  {action.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </TouchableOpacity>
-      </Modal>
+      <ChapterFeedbackModal feedback={feedback} bookId={bookId} chapter={chapter} />
 
-      <Modal
-        visible={showFeedbackModal}
-        transparent
-        statusBarTranslucent
-        navigationBarTranslucent
-        animationType="fade"
-        onRequestClose={handleCloseFeedbackModal}
-      >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={safeInsets.top + spacing.lg}
-          style={[styles.feedbackModalOverlay, { backgroundColor: colors.overlay }]}
-        >
-          <TouchableOpacity
-            style={styles.feedbackModalBackdrop}
-            activeOpacity={1}
-            accessible={false}
-            importantForAccessibility="no-hide-descendants"
-            onPress={handleCloseFeedbackModal}
-          />
-          <View
-            style={[
-              styles.feedbackModalCard,
-              {
-                backgroundColor: colors.bibleSurface,
-                borderColor: colors.bibleDivider,
-              },
-            ]}
-          >
-            <ScrollView
-              style={styles.feedbackModalScroll}
-              contentContainerStyle={styles.feedbackModalScrollContent}
-              keyboardShouldPersistTaps="handled"
-              automaticallyAdjustKeyboardInsets
-              showsVerticalScrollIndicator={false}
-            >
-              <Text style={[styles.feedbackModalTitle, { color: colors.biblePrimaryText }]}>
-                {t('bible.chapterFeedbackTitle')}
-                {' · '}
-                {t(
-                  participationMode === 'scripture_council'
-                    ? 'feedback.council'
-                    : 'feedback.community'
-                )}
-              </Text>
-              <Text style={[styles.feedbackModalReference, { color: colors.bibleSecondaryText }]}>
-                {getTranslatedBookName(bookId, t)} {chapter}
-              </Text>
-              <Text style={[styles.feedbackModalBody, { color: colors.bibleSecondaryText }]}>
-                {t(
-                  participationMode === 'scripture_council'
-                    ? 'feedback.submittingCouncil'
-                    : 'feedback.submittingCommunity'
-                )}
-              </Text>
+      <ChapterAudioShareSheet
+        chapterShareTitle={chapterShareTitle}
+        handleShareAudioPortion={handleShareAudioPortion}
+        handleShareFullChapterAudio={handleShareFullChapterAudio}
+        setShowChapterAudioShareSheet={setShowChapterAudioShareSheet}
+        showChapterAudioShareSheet={showChapterAudioShareSheet}
+      />
 
-              <View style={styles.feedbackSentimentRow}>
-                <TouchableOpacity
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: feedbackSentiment === 'up' }}
-                  accessibilityLabel={t('bible.chapterFeedbackThumbsUp')}
-                  style={[
-                    styles.feedbackSentimentButton,
-                    {
-                      // White on the `success` fill is 4.09:1 on vellum, short of AA
-                      // for this label; the soft tint pair clears it in both scopes.
-                      backgroundColor:
-                        feedbackSentiment === 'up'
-                          ? colors.successSoft
-                          : colors.bibleElevatedSurface,
-                      borderColor:
-                        feedbackSentiment === 'up' ? colors.success : colors.bibleDivider,
-                    },
-                  ]}
-                  onPress={() => {
-                    setFeedbackSentiment('up');
-                    if (feedbackSubmitError) {
-                      setFeedbackSubmitError(null);
-                    }
-                  }}
-                  disabled={isSubmittingFeedback}
-                >
-                  <Ionicons
-                    name="checkmark-circle-outline"
-                    size={18}
-                    color={
-                      feedbackSentiment === 'up' ? colors.onSuccessSoft : colors.biblePrimaryText
-                    }
-                  />
-                  <Text
-                    style={[
-                      styles.feedbackSentimentLabel,
-                      {
-                        color:
-                          feedbackSentiment === 'up'
-                            ? colors.onSuccessSoft
-                            : colors.biblePrimaryText,
-                      },
-                    ]}
-                  >
-                    {t('bible.chapterFeedbackThumbsUp')}
-                  </Text>
-                </TouchableOpacity>
+      <AudioPortionShareSheet
+        audioPortionEndMs={audioPortionEndMs}
+        audioPortionRangeDurationMs={audioPortionRangeDurationMs}
+        audioPortionShareDraft={audioPortionShareDraft}
+        audioPortionStartMs={audioPortionStartMs}
+        chapterShareTitle={chapterShareTitle}
+        handleAudioPortionEndSeek={handleAudioPortionEndSeek}
+        handleAudioPortionStartSeek={handleAudioPortionStartSeek}
+        handleCloseAudioPortionSheet={handleCloseAudioPortionSheet}
+        handleConfirmAudioPortionShare={handleConfirmAudioPortionShare}
+        handleToggleAudioPortionPreview={handleToggleAudioPortionPreview}
+        isCurrentAudioChapter={isCurrentAudioChapter}
+        isPreviewingAudioPortion={isPreviewingAudioPortion}
+        isSharingAudioPortion={isSharingAudioPortion}
+        readerAudioTrack={readerAudioTrack}
+      />
 
-                <TouchableOpacity
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: feedbackSentiment === 'down' }}
-                  accessibilityLabel={t('bible.chapterFeedbackThumbsDown')}
-                  style={[
-                    styles.feedbackSentimentButton,
-                    {
-                      backgroundColor:
-                        feedbackSentiment === 'down'
-                          ? colors.accentPrimary
-                          : colors.bibleElevatedSurface,
-                      borderColor:
-                        feedbackSentiment === 'down' ? colors.accentPrimary : colors.bibleDivider,
-                    },
-                  ]}
-                  onPress={() => {
-                    setFeedbackSentiment('down');
-                    if (feedbackSubmitError) {
-                      setFeedbackSubmitError(null);
-                    }
-                  }}
-                  disabled={isSubmittingFeedback}
-                >
-                  <Ionicons
-                    name="close-circle-outline"
-                    size={18}
-                    color={feedbackSentiment === 'down' ? colors.onAccent : colors.biblePrimaryText}
-                  />
-                  <Text
-                    style={[
-                      styles.feedbackSentimentLabel,
-                      {
-                        color:
-                          feedbackSentiment === 'down' ? colors.onAccent : colors.biblePrimaryText,
-                      },
-                    ]}
-                  >
-                    {t('bible.chapterFeedbackThumbsDown')}
-                  </Text>
-                </TouchableOpacity>
-              </View>
+      <ChapterAudioShareLoadingOverlay
+        chapterAudioShareActionLabel={chapterAudioShareActionLabel}
+        pendingChapterAudioShareAction={pendingChapterAudioShareAction}
+      />
 
-              <TextInput
-                value={feedbackComment}
-                onChangeText={setFeedbackComment}
-                editable={!isSubmittingFeedback}
-                multiline
-                numberOfLines={4}
-                maxLength={2000}
-                placeholder={t('bible.chapterFeedbackPlaceholder')}
-                placeholderTextColor={colors.bibleSecondaryText}
-                accessibilityLabel={t('bible.chapterFeedbackPlaceholder')}
-                style={[
-                  styles.feedbackCommentInput,
-                  {
-                    color: colors.biblePrimaryText,
-                    borderColor: colors.controlBorder,
-                    backgroundColor: colors.bibleElevatedSurface,
-                  },
-                ]}
-              />
-              <Text style={[styles.feedbackCharCount, { color: colors.bibleSecondaryText }]}>
-                {`${feedbackComment.length}/2000`}
-              </Text>
+      <ReaderTranslationSheet
+        canShowTranslationSheet={canShowTranslationSheet}
+        handleCloseTranslationSheet={handleCloseTranslationSheet}
+        handleTranslationActivated={handleTranslationActivated}
+        showTranslationSheet={showTranslationSheet}
+      />
 
-              {renderChapterFeedbackAudioControls()}
-
-              {feedbackSubmitError ? (
-                <Text
-                  accessibilityLiveRegion="polite"
-                  style={[styles.feedbackErrorText, { color: colors.error }]}
-                >
-                  {feedbackSubmitError}
-                </Text>
-              ) : null}
-
-              <View style={styles.feedbackActionRow}>
-                <TouchableOpacity
-                  accessibilityRole="button"
-                  accessibilityLabel={t('common.cancel')}
-                  style={[
-                    styles.feedbackActionButton,
-                    {
-                      borderColor: colors.bibleDivider,
-                      backgroundColor: colors.bibleElevatedSurface,
-                    },
-                  ]}
-                  onPress={handleCloseFeedbackModal}
-                  disabled={isSubmittingFeedback}
-                >
-                  <Text style={[styles.feedbackActionLabel, { color: colors.biblePrimaryText }]}>
-                    {t('common.cancel')}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  accessibilityRole="button"
-                  accessibilityLabel={t('bible.chapterFeedbackSubmit')}
-                  accessibilityState={{ disabled: !canSubmitFeedback }}
-                  style={[
-                    styles.feedbackActionButton,
-                    styles.feedbackSubmitButton,
-                    {
-                      backgroundColor: canSubmitFeedback
-                        ? colors.accentPrimary
-                        : colors.bibleDivider,
-                      borderColor: canSubmitFeedback ? colors.accentPrimary : colors.bibleDivider,
-                    },
-                  ]}
-                  onPress={() => {
-                    void handleSubmitChapterFeedback('reader');
-                  }}
-                  disabled={!canSubmitFeedback}
-                >
-                  {isSubmittingFeedback ? (
-                    <ActivityIndicator size="small" color={colors.cardBackground} />
-                  ) : (
-                    <Text
-                      style={[
-                        styles.feedbackActionLabel,
-                        { color: canSubmitFeedback ? colors.cardBackground : colors.secondaryText },
-                      ]}
-                    >
-                      {t('bible.chapterFeedbackSubmit')}
-                    </Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      <Modal
-        visible={showChapterAudioShareSheet}
-        transparent
-        statusBarTranslucent
-        navigationBarTranslucent
-        animationType="fade"
-        onRequestClose={() => setShowChapterAudioShareSheet(false)}
-      >
-        <TouchableOpacity
-          style={[
-            styles.audioShareBackdrop,
-            {
-              backgroundColor: colors.overlay,
-              paddingBottom: Math.max(safeInsets.bottom, 12) + spacing.md,
-            },
-          ]}
-          activeOpacity={1}
-          onPress={() => setShowChapterAudioShareSheet(false)}
-          // Left accessible, this wrapping backdrop folds the whole sheet into one
-          // VoiceOver element whose only action is dismiss.
-          accessible={false}
-        >
-          <View
-            accessibilityViewIsModal
-            onAccessibilityEscape={() => setShowChapterAudioShareSheet(false)}
-            style={[
-              styles.audioShareSheet,
-              {
-                backgroundColor: colors.bibleSurface,
-                borderColor: colors.bibleDivider,
-              },
-            ]}
-          >
-            <View style={[styles.audioShareGrabber, { backgroundColor: colors.bibleDivider }]} />
-
-            <View style={styles.audioShareHeader}>
-              <View style={styles.audioShareTitleWrap}>
-                <Text
-                  style={[
-                    styles.audioShareEyebrow,
-                    displayFont.regular,
-                    { color: colors.bibleSecondaryText },
-                  ]}
-                >
-                  {t('groups.share')}
-                </Text>
-                <Text
-                  accessibilityRole="header"
-                  style={[styles.audioShareTitle, { color: colors.biblePrimaryText }]}
-                >
-                  {chapterShareTitle}
-                </Text>
-              </View>
-              <TouchableOpacity
-                accessibilityRole="button"
-                accessibilityLabel={t('common.cancel')}
-                hitSlop={6}
-                onPress={() => setShowChapterAudioShareSheet(false)}
-                style={[
-                  styles.audioShareCloseButton,
-                  {
-                    backgroundColor: colors.bibleElevatedSurface,
-                    borderColor: colors.bibleDivider,
-                  },
-                ]}
-              >
-                <Ionicons name="close" size={16} color={colors.bibleSecondaryText} />
-              </TouchableOpacity>
-            </View>
-
-            {[
-              {
-                key: 'full-audio',
-                icon: 'musical-notes-outline',
-                label: t('bible.shareChapterAudio'),
-                onPress: () => {
-                  void handleShareFullChapterAudio();
-                },
-              },
-              {
-                key: 'audio-clip',
-                icon: 'cut-outline',
-                label: t('bible.shareAudioPortion'),
-                onPress: () => {
-                  void handleShareAudioPortion();
-                },
-              },
-            ].map((action) => (
-              <TouchableOpacity
-                key={action.key}
-                style={[
-                  styles.audioShareOption,
-                  {
-                    backgroundColor: colors.bibleElevatedSurface,
-                    borderColor: colors.bibleDivider,
-                  },
-                ]}
-                activeOpacity={0.9}
-                onPress={action.onPress}
-                accessibilityRole="button"
-              >
-                <View
-                  style={[
-                    styles.audioShareOptionIconWrap,
-                    {
-                      backgroundColor: colors.bibleSurface,
-                      borderColor: colors.bibleDivider,
-                    },
-                  ]}
-                >
-                  <Ionicons name={action.icon as never} size={18} color={colors.bibleAccent} />
-                </View>
-                <Text style={[styles.audioShareOptionLabel, { color: colors.biblePrimaryText }]}>
-                  {action.label}
-                </Text>
-                <Ionicons name="chevron-forward" size={16} color={colors.bibleSecondaryText} />
-              </TouchableOpacity>
-            ))}
-          </View>
-        </TouchableOpacity>
-      </Modal>
-
-      <Modal
-        visible={audioPortionShareDraft !== null}
-        transparent
-        statusBarTranslucent
-        navigationBarTranslucent
-        animationType="fade"
-        onRequestClose={handleCloseAudioPortionSheet}
-      >
-        <View style={[styles.feedbackModalOverlay, { backgroundColor: colors.overlay }]}>
-          <TouchableOpacity
-            style={styles.feedbackModalBackdrop}
-            activeOpacity={1}
-            accessible={false}
-            importantForAccessibility="no-hide-descendants"
-            onPress={handleCloseAudioPortionSheet}
-          />
-          <View
-            style={[
-              styles.audioPortionSheet,
-              {
-                backgroundColor: colors.bibleSurface,
-                borderColor: colors.bibleDivider,
-              },
-            ]}
-          >
-            <Text
-              accessibilityRole="header"
-              style={[styles.audioPortionTitle, { color: colors.biblePrimaryText }]}
-            >
-              {t('bible.shareAudioPortion')}
-            </Text>
-            <Text style={[styles.audioPortionReference, { color: colors.bibleSecondaryText }]}>
-              {chapterShareTitle}
-            </Text>
-
-            <View style={styles.audioPortionRangeHeader}>
-              <View style={styles.audioPortionRangeLabelWrap}>
-                <Ionicons
-                  name="play-skip-back-outline"
-                  size={14}
-                  color={colors.bibleSecondaryText}
-                />
-                <Text style={[styles.audioPortionRangeTime, { color: colors.biblePrimaryText }]}>
-                  {formatClockTime(audioPortionStartMs)}
-                </Text>
-              </View>
-              <View style={styles.audioPortionRangeLabelWrap}>
-                <Ionicons
-                  name="play-skip-forward-outline"
-                  size={14}
-                  color={colors.bibleSecondaryText}
-                />
-                <Text style={[styles.audioPortionRangeTime, { color: colors.biblePrimaryText }]}>
-                  {formatClockTime(audioPortionEndMs)}
-                </Text>
-              </View>
-            </View>
-
-            <ReaderAudioPositionValue
-              track={readerAudioTrack}
-              enabled={isCurrentAudioChapter}
-              fallbackMs={audioPortionStartMs}
-              render={(previewPositionMs) => (
-                <AudioRangeSelector
-                  durationMs={audioPortionShareDraft?.durationMs ?? 0}
-                  startMs={audioPortionStartMs}
-                  endMs={audioPortionEndMs}
-                  minRangeMs={AUDIO_PORTION_MIN_DURATION_MS}
-                  previewPositionMs={previewPositionMs}
-                  trackColor={colors.bibleDivider}
-                  selectionColor={colors.bibleElevatedSurface}
-                  waveColor={colors.bibleDivider}
-                  selectedWaveColor={colors.bibleSecondaryText}
-                  playedWaveColor={colors.bibleAccent}
-                  handleColor={colors.bibleAccent}
-                  handleGripColor={colors.bibleSurface}
-                  onStartChange={handleAudioPortionStartSeek}
-                  onEndChange={handleAudioPortionEndSeek}
-                  startLabel={t('bible.audioClipStart')}
-                  endLabel={t('bible.audioClipEnd')}
-                />
-              )}
-            />
-
-            <TouchableOpacity
-              style={[
-                styles.audioPortionPreviewButton,
-                {
-                  borderColor: colors.bibleDivider,
-                  backgroundColor: colors.bibleElevatedSurface,
-                },
-              ]}
-              activeOpacity={0.9}
-              onPress={handleToggleAudioPortionPreview}
-              disabled={!isCurrentAudioChapter || isSharingAudioPortion}
-              accessibilityRole="button"
-              accessibilityLabel={t(
-                isPreviewingAudioPortion
-                  ? 'interface.pauseChapterAudio'
-                  : 'interface.playChapterAudio'
-              )}
-              accessibilityValue={{ text: formatClockTime(audioPortionRangeDurationMs) }}
-            >
-              <Ionicons
-                name={isPreviewingAudioPortion ? 'pause' : 'play'}
-                size={14}
-                color={colors.biblePrimaryText}
-              />
-              <Text style={[styles.audioPortionPreviewLabel, { color: colors.biblePrimaryText }]}>
-                {formatClockTime(audioPortionRangeDurationMs)}
-              </Text>
-            </TouchableOpacity>
-
-            <View style={styles.audioPortionActions}>
-              <TouchableOpacity
-                style={[
-                  styles.audioPortionActionButton,
-                  {
-                    borderColor: colors.bibleDivider,
-                    backgroundColor: colors.bibleElevatedSurface,
-                  },
-                ]}
-                onPress={handleCloseAudioPortionSheet}
-                disabled={isSharingAudioPortion}
-                accessibilityRole="button"
-              >
-                <Text style={[styles.audioPortionActionLabel, { color: colors.biblePrimaryText }]}>
-                  {t('common.cancel')}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.audioPortionActionButton,
-                  styles.audioPortionShareButton,
-                  {
-                    borderColor: colors.bibleAccent,
-                    backgroundColor: colors.bibleAccent,
-                  },
-                ]}
-                onPress={() => {
-                  void handleConfirmAudioPortionShare();
-                }}
-                disabled={isSharingAudioPortion}
-                accessibilityRole="button"
-                // The label text is swapped for a spinner while sharing.
-                accessibilityLabel={t('groups.share')}
-                accessibilityState={{
-                  disabled: isSharingAudioPortion,
-                  busy: isSharingAudioPortion,
-                }}
-              >
-                {isSharingAudioPortion ? (
-                  <ActivityIndicator size="small" color={colors.cardBackground} />
-                ) : (
-                  <Text style={[styles.audioPortionActionLabel, { color: colors.cardBackground }]}>
-                    {t('groups.share')}
-                  </Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {pendingChapterAudioShareAction !== null ? (
-        <View style={[styles.chapterAudioShareLoadingOverlay, { backgroundColor: colors.overlay }]}>
-          <View
-            style={[
-              styles.chapterAudioShareLoadingCard,
-              {
-                backgroundColor: colors.bibleSurface,
-                borderColor: colors.bibleDivider,
-              },
-            ]}
-          >
-            <ActivityIndicator size="small" color={colors.biblePrimaryText} />
-            <Text
-              style={[styles.chapterAudioShareLoadingTitle, { color: colors.biblePrimaryText }]}
-            >
-              {chapterAudioShareActionLabel}
-            </Text>
-            <Text
-              style={[styles.chapterAudioShareLoadingBody, { color: colors.bibleSecondaryText }]}
-            >
-              {t('common.loading')}
-            </Text>
-          </View>
-        </View>
-      ) : null}
-
-      {canShowTranslationSheet ? (
-        <Modal
-          visible={showTranslationSheet}
-          transparent
-          statusBarTranslucent
-          navigationBarTranslucent
-          animationType="slide"
-          onRequestClose={handleCloseTranslationSheet}
-        >
-          <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
-            <TouchableOpacity
-              style={styles.modalBackdrop}
-              activeOpacity={1}
-              accessible={false}
-              importantForAccessibility="no-hide-descendants"
-              onPress={handleCloseTranslationSheet}
-            />
-            <View
-              style={[
-                styles.modalContent,
-                { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
-              ]}
-            >
-              <TranslationPickerHeader
-                onClose={handleCloseTranslationSheet}
-                style={styles.modalHeader}
-                titleStyle={styles.modalTitle}
-              />
-              <TranslationPickerList
-                onRequestClose={handleCloseTranslationSheet}
-                onTranslationActivated={handleTranslationActivated}
-              />
-            </View>
-          </View>
-        </Modal>
-      ) : null}
-
-      <Modal
-        visible={showFollowAlongText}
-        transparent
-        statusBarTranslucent
-        navigationBarTranslucent
-        animationType="none"
-        onRequestClose={() => setShowFollowAlongText(false)}
-      >
-        <Animated.View
-          entering={SlideInDown.springify().damping(20).stiffness(200)}
-          exiting={SlideOutDown.duration(250)}
-          style={[styles.followAlongContainer, { backgroundColor: colors.bibleBackground }]}
-        >
-          <View
-            style={[
-              styles.followAlongHeader,
-              {
-                borderBottomColor: colors.bibleDivider,
-                backgroundColor: colors.bibleBackground,
-                paddingTop: safeInsets.top + spacing.md,
-              },
-            ]}
-          >
-            {/* Back to player — left */}
-            <TouchableOpacity
-              style={[
-                styles.followAlongCloseButton,
-                { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
-              ]}
-              onPress={() => setShowFollowAlongText(false)}
-              accessibilityRole="button"
-            >
-              <Ionicons name="chevron-back" size={20} color={colors.biblePrimaryText} />
-              <Text style={[styles.followAlongCloseLabel, { color: colors.biblePrimaryText }]}>
-                {t('bible.backToPlayer')}
-              </Text>
-            </TouchableOpacity>
-
-            {/* Centered title */}
-            <View style={styles.followAlongTitleCenter} pointerEvents="none">
-              <Text style={[styles.followAlongEyebrow, { color: colors.bibleAccent }]}>
-                {translationLabel}
-              </Text>
-              <Text style={[styles.followAlongTitle, { color: colors.biblePrimaryText }]}>
-                {getTranslatedBookName(bookId, t)} {chapter}
-              </Text>
-            </View>
-          </View>
-
-          <ScrollView
-            ref={followAlongScrollViewRef}
-            style={styles.followAlongScrollView}
-            contentContainerStyle={styles.followAlongContent}
-            showsVerticalScrollIndicator={false}
-          >
-            {verses.map((verse) => {
-              const isActive = isShowingRouteChapter && verse.verse === activeFollowAlongVerse;
-
-              return (
-                <View
-                  key={verse.id}
-                  style={[styles.followAlongVerseRow]}
-                  onLayout={(event) => {
-                    followAlongOffsetsRef.current[verse.verse] = event.nativeEvent.layout.y;
-                  }}
-                >
-                  <View
-                    style={[
-                      styles.followAlongVerseIndicator,
-                      {
-                        backgroundColor: isActive ? colors.bibleAccent : 'transparent',
-                      },
-                    ]}
-                  />
-                  <View style={styles.followAlongVerseContent}>
-                    {verse.heading ? (
-                      <Text
-                        style={[styles.followAlongHeading, { color: colors.bibleSecondaryText }]}
-                      >
-                        {verse.heading}
-                      </Text>
-                    ) : null}
-                    <Text
-                      style={[
-                        styles.followAlongVerseText,
-                        {
-                          color: isActive ? colors.biblePrimaryText : colors.bibleSecondaryText,
-                        },
-                      ]}
-                    >
-                      <Text style={[styles.followAlongVerseNumber, { color: colors.bibleAccent }]}>
-                        {verse.verse}{' '}
-                      </Text>
-                      {verse.text}
-                    </Text>
-                  </View>
-                </View>
-              );
-            })}
-          </ScrollView>
-        </Animated.View>
-      </Modal>
+      <FollowAlongTextSheet
+        activeFollowAlongVerse={activeFollowAlongVerse}
+        bookId={bookId}
+        chapter={chapter}
+        followAlongOffsetsRef={followAlongOffsetsRef}
+        followAlongScrollViewRef={followAlongScrollViewRef}
+        isShowingRouteChapter={isShowingRouteChapter}
+        setShowFollowAlongText={setShowFollowAlongText}
+        showFollowAlongText={showFollowAlongText}
+        translationLabel={translationLabel}
+        verses={verses}
+      />
 
       <AnnotationActionSheet
         visible={selectedVerses.length > 0}
@@ -6309,180 +1428,19 @@ export function BibleReaderScreen() {
         existingNote={selectedNoteAnnotation?.content ?? undefined}
       />
 
-      <Modal
-        visible={showVerseImageSheet}
-        transparent
-        statusBarTranslucent
-        navigationBarTranslucent
-        animationType="fade"
-        onRequestClose={() => setShowVerseImageSheet(false)}
-      >
-        <View style={[styles.verseImageSheetOverlay, { backgroundColor: colors.overlay }]}>
-          <TouchableOpacity
-            style={styles.verseImageSheetBackdrop}
-            activeOpacity={1}
-            accessible={false}
-            importantForAccessibility="no-hide-descendants"
-            onPress={() => setShowVerseImageSheet(false)}
-          />
-          <View
-            style={[
-              styles.verseImageSheetCard,
-              {
-                backgroundColor: colors.bibleSurface,
-                borderColor: colors.bibleDivider,
-              },
-            ]}
-          >
-            <View style={styles.verseImageSheetHeader}>
-              <View style={styles.verseImageSheetHeaderCopy}>
-                <Text
-                  accessibilityRole="header"
-                  style={[styles.verseImageSheetTitle, { color: colors.biblePrimaryText }]}
-                >
-                  {t('bible.chooseVerseImageBackground')}
-                </Text>
-                <Text
-                  style={[styles.verseImageSheetReference, { color: colors.bibleSecondaryText }]}
-                  numberOfLines={2}
-                >
-                  {selectedVerseReferenceLabel}
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={[
-                  styles.verseImageSheetCloseButton,
-                  {
-                    backgroundColor: colors.bibleElevatedSurface,
-                    borderColor: colors.bibleDivider,
-                  },
-                ]}
-                activeOpacity={0.88}
-                accessibilityRole="button"
-                accessibilityLabel={t('interface.close')}
-                onPress={() => setShowVerseImageSheet(false)}
-              >
-                <Ionicons name="close" size={18} color={colors.bibleSecondaryText} />
-              </TouchableOpacity>
-            </View>
-
-            <VerseImageSharePreview
-              previewRef={verseImageSharePreviewRef}
-              backgroundSource={selectedVerseImageBackground}
-              referenceLabel={selectedVerseReferenceLabel}
-              selectedText={selectedVerseText}
-            />
-
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.verseImageBackgroundRail}
-            >
-              {SHARE_VERSE_BACKGROUND_SOURCES.map((backgroundSource, index) => {
-                const isSelected =
-                  verseImageBackgroundCount > 0 &&
-                  index === selectedVerseImageBackgroundIndex % verseImageBackgroundCount;
-
-                return (
-                  <Pressable
-                    key={`${index}`}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: isSelected }}
-                    accessibilityLabel={`${t('bible.chooseVerseImageBackground')} ${index + 1}`}
-                    hitSlop={8}
-                    style={({ pressed }) => [
-                      styles.verseImageBackgroundButton,
-                      {
-                        opacity: pressed ? 0.92 : 1,
-                        borderColor: isSelected ? colors.accentGreen : colors.bibleDivider,
-                      },
-                    ]}
-                    onPress={() => {
-                      handleSelectVerseImageBackground(index);
-                    }}
-                  >
-                    <ImageBackground
-                      source={backgroundSource}
-                      style={styles.verseImageBackgroundTile}
-                      imageStyle={styles.verseImageBackgroundTileImage}
-                      resizeMode="cover"
-                    >
-                      <LinearGradient
-                        pointerEvents="none"
-                        colors={['rgba(12, 11, 9, 0.04)', 'rgba(12, 11, 9, 0.48)']}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 0, y: 1 }}
-                        style={StyleSheet.absoluteFillObject}
-                      />
-                      {isSelected ? (
-                        <View
-                          style={[
-                            styles.verseImageBackgroundSelectedBadge,
-                            { backgroundColor: colors.accentGreen },
-                          ]}
-                        >
-                          <Ionicons name="checkmark" size={13} color={colors.bibleBackground} />
-                        </View>
-                      ) : null}
-                    </ImageBackground>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-
-            <View style={styles.verseImageSheetActions}>
-              <TouchableOpacity
-                style={[
-                  styles.verseImageSheetActionButton,
-                  {
-                    backgroundColor: colors.bibleElevatedSurface,
-                    borderColor: colors.bibleDivider,
-                  },
-                ]}
-                activeOpacity={0.88}
-                onPress={() => setShowVerseImageSheet(false)}
-                accessibilityRole="button"
-              >
-                <Text
-                  style={[styles.verseImageSheetActionText, { color: colors.biblePrimaryText }]}
-                >
-                  {t('common.cancel')}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.verseImageSheetActionButton,
-                  styles.verseImageSheetShareButton,
-                  {
-                    backgroundColor: colors.accentPrimary,
-                    borderColor: colors.accentPrimary,
-                  },
-                ]}
-                activeOpacity={0.88}
-                onPress={() => {
-                  void handleShareSelectedVerseImage();
-                }}
-                disabled={isSharingVerseImage}
-                accessibilityRole="button"
-                // The label text is swapped for a spinner while sharing.
-                accessibilityLabel={t('groups.share')}
-                accessibilityState={{ disabled: isSharingVerseImage, busy: isSharingVerseImage }}
-              >
-                {isSharingVerseImage ? (
-                  <ActivityIndicator size="small" color={colors.bibleBackground} />
-                ) : (
-                  <Text
-                    style={[styles.verseImageSheetActionText, { color: colors.bibleBackground }]}
-                  >
-                    {t('groups.share')}
-                  </Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <VerseImageShareSheet
+        handleSelectVerseImageBackground={handleSelectVerseImageBackground}
+        handleShareSelectedVerseImage={handleShareSelectedVerseImage}
+        isSharingVerseImage={isSharingVerseImage}
+        selectedVerseImageBackground={selectedVerseImageBackground}
+        selectedVerseImageBackgroundIndex={selectedVerseImageBackgroundIndex}
+        selectedVerseReferenceLabel={selectedVerseReferenceLabel}
+        selectedVerseText={selectedVerseText}
+        setShowVerseImageSheet={setShowVerseImageSheet}
+        showVerseImageSheet={showVerseImageSheet}
+        verseImageBackgroundCount={verseImageBackgroundCount}
+        verseImageSharePreviewRef={verseImageSharePreviewRef}
+      />
     </View>
   );
 }
@@ -6491,107 +1449,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  missingBook: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.lg,
+    paddingHorizontal: spacing.xl,
+  },
   premiumReaderLayout: {
     flex: 1,
-  },
-  planSessionBottomBar: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 40,
-    borderTopWidth: 1,
-  },
-  planSessionBottomBarContent: {
-    flex: 1,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.sm,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-  },
-  planSessionBottomBarArrowButton: {
-    width: layout.minTouchTarget,
-    height: layout.minTouchTarget,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  planSessionBottomBarCompleteButton: {
-    borderRadius: layout.minTouchTarget / 2,
-  },
-  planSessionBottomBarArrowSpacer: {
-    width: layout.minTouchTarget,
-    height: layout.minTouchTarget,
-  },
-  planSessionBottomBarCopy: {
-    flex: 1,
-    gap: 2,
-    justifyContent: 'center',
-  },
-  planSessionBottomBarCopyCentered: {
-    alignItems: 'center',
-  },
-  planSessionBottomBarCopyListenMode: {
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-  },
-  planSessionBottomBarTitle: {
-    ...typography.bodyStrong,
-    fontSize: 15,
-    lineHeight: 19,
-    letterSpacing: -0.2,
-    textAlign: 'center',
-  },
-  planSessionBottomBarMeta: {
-    ...typography.micro,
-    fontVariant: ['tabular-nums'],
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  glassSurface: {
-    overflow: 'hidden',
-    borderRadius: radius.pill,
-    backgroundColor: 'transparent',
-  },
-  glassStroke: {
-    ...StyleSheet.absoluteFillObject,
-    borderWidth: 1,
-    borderRadius: radius.pill,
-  },
-  glassContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  floatingReaderTopBar: {
-    position: 'absolute',
-    left: 24,
-    right: 22,
-    zIndex: 30,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-  },
-  floatingReaderReferenceCluster: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    flexShrink: 1,
-  },
-  floatingReaderTopActionGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: spacing.xs,
-    flexShrink: 0,
-  },
-  floatingReaderPlanExitButton: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   dynamicIslandTopMask: {
     position: 'absolute',
@@ -6599,71 +1464,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 29,
-  },
-  floatingReaderReferencePill: {
-    minWidth: 124,
-    maxWidth: 212,
-    height: layout.minTouchTarget,
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    alignSelf: 'center',
-    flexShrink: 1,
-  },
-  floatingReaderReferencePillBackground: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 2,
-    height: layout.iconButton,
-    borderRadius: radius.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    overflow: 'hidden',
-  },
-  floatingReaderReferencePillSegment: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 12,
-    minWidth: layout.minTouchTarget,
-    flexShrink: 1,
-  },
-  floatingReaderReferencePillBookSegment: {
-    paddingHorizontal: 16,
-  },
-  floatingReaderReferencePillPrimary: {
-    ...typography.label,
-    fontSize: 14,
-    lineHeight: 17,
-    fontWeight: '700',
-    letterSpacing: 0,
-    flexShrink: 1,
-  },
-  floatingReaderReferencePillDivider: {
-    width: 1,
-    height: 32,
-    alignSelf: 'center',
-    opacity: 0.55,
-  },
-  floatingReaderReferencePillTranslation: {
-    ...typography.label,
-    fontSize: 14,
-    lineHeight: 17,
-    fontWeight: '700',
-    letterSpacing: 0,
-    flexShrink: 1,
-  },
-  floatingReaderMenuButton: {
-    width: layout.iconButton,
-    height: layout.iconButton,
-    borderRadius: radius.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'center',
-  },
-  floatingReaderMenuButtonContent: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   floatingReaderChapterNavOverlay: {
     position: 'absolute',
@@ -6673,33 +1473,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     zIndex: 26,
-  },
-  floatingReaderChapterNavButton: {
-    width: layout.minTouchTarget,
-    height: layout.minTouchTarget,
-    borderWidth: 1,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  premiumReaderScrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: spacing.xl,
-  },
-  premiumReaderContentShell: {
-    maxWidth: 560,
-    width: '100%',
-    alignSelf: 'center',
-  },
-  premiumReaderVirtualFooter: {
-    height: 1,
-  },
-  disabledSessionModeButton: {
-    opacity: 0.45,
-  },
-  scrollView: {
-    flex: 1,
   },
   content: {
     paddingHorizontal: 12,
@@ -6719,206 +1492,6 @@ const styles = StyleSheet.create({
   audioFirstShell: {
     flex: 1,
   },
-  readerColumn: {
-    gap: 20,
-  },
-  premiumReaderColumn: {
-    gap: 20,
-  },
-  readerParagraph: {
-    gap: 0,
-  },
-  listenColumn: {
-    flex: 1,
-    gap: 20,
-    justifyContent: 'flex-start',
-  },
-  listenArtworkFrame: {
-    alignSelf: 'stretch',
-    width: '100%',
-    aspectRatio: 1,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  listenArtwork: {
-    width: '100%',
-    height: '100%',
-  },
-  listenPlayerCard: {
-    paddingBottom: 0,
-    gap: 12,
-  },
-  listenCountedNoticeCard: {
-    borderWidth: 1,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    gap: spacing.sm,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  listenCountedNoticeText: {
-    flex: 1,
-    ...typography.micro,
-    fontWeight: '700',
-  },
-  listenProgressTouch: {
-    justifyContent: 'center',
-    height: 22,
-  },
-  listenProgressTrack: {
-    height: 5,
-    borderRadius: radius.pill,
-    overflow: 'hidden',
-  },
-  listenProgressFill: {
-    height: '100%',
-    borderRadius: radius.pill,
-  },
-  listenTimeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-    gap: 12,
-  },
-  listenTimeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    minWidth: 42,
-    fontVariant: ['tabular-nums'],
-  },
-  listenFeedbackCard: {
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    padding: 16,
-    gap: 14,
-  },
-  listenFeedbackHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-  },
-  listenFeedbackHeaderStacked: {
-    flexDirection: 'column',
-  },
-  listenFeedbackCopy: {
-    flex: 1,
-    gap: 4,
-  },
-  listenFeedbackCopyStacked: {
-    // flex: 1 in a column would try to fill a height the card does not have.
-    flex: 0,
-  },
-  listenFeedbackTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-  },
-  listenFeedbackBody: {
-    fontSize: 13,
-    lineHeight: 19,
-  },
-  listenFeedbackIdentityPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  listenFeedbackIdentityText: {
-    flexShrink: 1,
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  listenFeedbackIdentityTextCompact: {
-    maxWidth: 110,
-  },
-  listenSentimentButton: {
-    flex: 1,
-    minHeight: layout.minTouchTarget,
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  listenFeedbackInput: {
-    minHeight: 96,
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    fontSize: 15,
-    lineHeight: 21,
-    textAlignVertical: 'top',
-  },
-  listenFeedbackHint: {
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  listenFeedbackSubmitButton: {
-    minWidth: 0,
-  },
-  readerBlock: {
-    gap: 10,
-    paddingHorizontal: 12,
-  },
-  premiumReaderBlock: {
-    gap: 6,
-    paddingHorizontal: 0,
-  },
-  readerVerse: {
-    alignSelf: 'stretch',
-  },
-  structuredVerse: {
-    borderRadius: radius.sm,
-    paddingVertical: 2,
-  },
-  premiumStructuredVerse: {
-    paddingVertical: 4,
-  },
-  structuredVerseLine: {
-    alignSelf: 'stretch',
-  },
-  structuredVerseContinuation: {
-    marginTop: 2,
-  },
-  sectionHeading: {
-    ...typography.readingHeading,
-    // Carried for the platform-serif fallback used by non-Latin scripts, where no named
-    // bold family is available and fontWeight is what actually thickens the glyphs.
-    fontWeight: '700',
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  premiumSectionHeading: {
-    ...typography.readingHeading,
-    textTransform: 'none',
-    marginTop: 18,
-    marginBottom: 8,
-  },
-  verseText: {
-    fontWeight: '400',
-    letterSpacing: 0.2,
-  },
-  premiumVerseText: {
-    ...typography.readingBody,
-    letterSpacing: 0,
-  },
-  inlineVerseNumber: {
-    fontWeight: '600',
-  },
-  premiumVerseNumber: {
-    ...typography.readingVerseNumber,
-  },
-  premiumParagraphText: {
-    includeFontPadding: false,
-  },
-  premiumInlineVerse: {},
-  premiumInlineVerseNumber: {},
   feedbackCard: {
     borderWidth: 1,
     borderRadius: radius.lg,
@@ -6946,1081 +1519,6 @@ const styles = StyleSheet.create({
   },
   feedbackButtonText: {
     fontSize: 14,
-    fontWeight: '700',
-  },
-  fontSheetOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  fontSheetBackdrop: {
-    flex: 1,
-  },
-  modalBackdropFill: {
-    flex: 1,
-    justifyContent: 'flex-start',
-    paddingHorizontal: 16,
-  },
-  actionSheet: {
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    padding: 18,
-    gap: 8,
-  },
-  actionSheetTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  actionRow: {
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  actionLabel: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  feedbackModalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-  },
-  chapterAudioShareLoadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    zIndex: 50,
-  },
-  chapterAudioShareLoadingCard: {
-    minWidth: 220,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  chapterAudioShareLoadingTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  chapterAudioShareLoadingBody: {
-    fontSize: 14,
-    lineHeight: 20,
-    textAlign: 'center',
-  },
-  audioShareBackdrop: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.xxl,
-  },
-  audioShareSheet: {
-    borderRadius: 20,
-    borderWidth: 1,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
-    gap: spacing.md,
-    ...shadows.floating,
-  },
-  audioOptionsSheet: {
-    borderRadius: 20,
-    borderWidth: 1,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
-    gap: spacing.md,
-    ...shadows.floating,
-  },
-  audioOptionsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-  },
-  audioOptionsTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    flex: 1,
-  },
-  audioOptionsTitle: {
-    ...typography.cardTitle,
-    fontSize: 18,
-    lineHeight: 22,
-  },
-  sheetCloseButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  audioShareGrabber: {
-    width: 44,
-    height: 4,
-    borderRadius: radius.pill,
-    alignSelf: 'center',
-    opacity: 0.9,
-  },
-  audioShareHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-  },
-  audioShareTitleWrap: {
-    flex: 1,
-    gap: 2,
-  },
-  audioShareEyebrow: {
-    ...typography.eyebrow,
-    fontSize: 10,
-    lineHeight: 12,
-    letterSpacing: 1.1,
-  },
-  audioShareTitle: {
-    ...typography.cardTitle,
-    fontSize: 21,
-    lineHeight: 26,
-    letterSpacing: -0.35,
-  },
-  audioShareCloseButton: {
-    width: 34,
-    height: 34,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  audioShareOption: {
-    borderWidth: 1,
-    borderRadius: 16,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  audioShareOptionIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  audioShareOptionLabel: {
-    ...typography.bodyStrong,
-    flex: 1,
-    fontSize: 15,
-    lineHeight: 20,
-  },
-  audioPortionSheet: {
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    padding: spacing.lg,
-    gap: spacing.sm,
-    ...shadows.floating,
-  },
-  audioPortionTitle: {
-    ...typography.cardTitle,
-    fontSize: 20,
-    lineHeight: 24,
-  },
-  audioPortionReference: {
-    ...typography.label,
-    fontSize: 12,
-    lineHeight: 17,
-    letterSpacing: 0.3,
-  },
-  audioPortionRangeHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: spacing.xs,
-    gap: spacing.md,
-  },
-  audioPortionRangeLabelWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  audioPortionRangeTime: {
-    ...typography.bodyStrong,
-    fontSize: 14,
-    lineHeight: 18,
-    fontVariant: ['tabular-nums'],
-  },
-  audioPortionRangeSelector: {
-    height: 72,
-    borderRadius: 16,
-    justifyContent: 'center',
-    marginTop: spacing.xs,
-    marginBottom: spacing.xs,
-    overflow: 'hidden',
-  },
-  audioPortionRangeTrack: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: 16,
-    opacity: 0.45,
-  },
-  audioPortionRangeSelection: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    borderRadius: 16,
-    opacity: 0.6,
-  },
-  audioPortionWaveRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    height: 54,
-  },
-  audioPortionWaveBar: {
-    width: 3,
-    borderRadius: radius.pill,
-    opacity: 0.95,
-  },
-  audioPortionPreviewNeedle: {
-    position: 'absolute',
-    top: 6,
-    bottom: 6,
-    width: 2,
-    borderRadius: radius.pill,
-    marginLeft: -1,
-  },
-  audioPortionHandle: {
-    position: 'absolute',
-    top: 8,
-    bottom: 8,
-    width: AUDIO_PORTION_HANDLE_WIDTH,
-    borderRadius: radius.pill,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  audioPortionHandleStart: {
-    marginLeft: 0,
-  },
-  audioPortionHandleEnd: {
-    marginLeft: 0,
-  },
-  audioPortionHandleGrip: {
-    width: 2,
-    height: 22,
-    borderRadius: radius.pill,
-    opacity: 0.88,
-  },
-  audioPortionPreviewButton: {
-    alignSelf: 'center',
-    minHeight: 36,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    paddingHorizontal: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 2,
-    marginBottom: 4,
-  },
-  audioPortionPreviewLabel: {
-    ...typography.label,
-    fontVariant: ['tabular-nums'],
-  },
-  audioPortionActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: spacing.xs,
-  },
-  audioPortionActionButton: {
-    flex: 1,
-    minHeight: layout.minTouchTarget,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.md,
-  },
-  audioPortionShareButton: {
-    flex: 1.2,
-  },
-  audioPortionActionLabel: {
-    ...typography.button,
-    fontSize: 15,
-    lineHeight: 20,
-  },
-  feedbackModalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  feedbackModalCard: {
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    maxHeight: '85%',
-    overflow: 'hidden',
-  },
-  feedbackModalScroll: {
-    maxHeight: '100%',
-  },
-  feedbackModalScrollContent: {
-    gap: spacing.md,
-    padding: spacing.lg,
-  },
-  feedbackModalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  feedbackModalReference: {
-    ...typography.label,
-    fontSize: 12,
-    letterSpacing: 0.4,
-    textTransform: 'uppercase',
-  },
-  feedbackModalBody: {
-    fontSize: 14,
-    lineHeight: 21,
-  },
-  feedbackSentimentRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  feedbackSentimentButton: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-  },
-  feedbackSentimentLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  feedbackCommentInput: {
-    minHeight: 120,
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    fontSize: 15,
-    lineHeight: 21,
-    textAlignVertical: 'top',
-  },
-  feedbackCharCount: {
-    ...typography.micro,
-    alignSelf: 'flex-end',
-    marginTop: spacing.xs,
-  },
-  feedbackAudioCard: {
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    gap: spacing.sm,
-  },
-  feedbackAudioCardCompact: {
-    padding: spacing.sm,
-  },
-  feedbackAudioHeader: {
-    gap: 4,
-  },
-  feedbackAudioHeaderMain: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  feedbackAudioCountdown: {
-    width: FEEDBACK_AUDIO_COUNTDOWN_SIZE,
-    height: FEEDBACK_AUDIO_COUNTDOWN_SIZE,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  feedbackAudioCountdownSvg: {
-    position: 'absolute',
-  },
-  feedbackAudioCountdownText: {
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '700',
-    fontVariant: ['tabular-nums'],
-  },
-  feedbackAudioStatus: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  feedbackAudioStatusText: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  feedbackAudioLimitText: {
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  feedbackAudioHelpText: {
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  feedbackAudioHelpRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  feedbackAudioHelpMessage: {
-    flex: 1,
-  },
-  feedbackAudioHelpLink: {
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '600',
-  },
-  feedbackAudioActionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  feedbackAudioButton: {
-    minHeight: layout.minTouchTarget,
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.md,
-    gap: spacing.xs,
-  },
-  feedbackAudioButtonText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  feedbackAudioIconButton: {
-    width: layout.minTouchTarget,
-    height: layout.minTouchTarget,
-    borderWidth: 1,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  feedbackAudioUploading: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  feedbackErrorText: {
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  translatorReviewCard: {
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    padding: 16,
-    marginBottom: 20,
-    gap: 12,
-  },
-  translatorReviewHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  translatorReviewHeaderCopy: {
-    flex: 1,
-    gap: 4,
-  },
-  translatorReviewTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  translatorReviewMeta: {
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  translatorReviewRefreshButton: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  translatorReviewLoadingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  translatorReviewItem: {
-    borderWidth: 1,
-    borderRadius: radius.md,
-    padding: 12,
-    gap: 8,
-  },
-  translatorReviewItemHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  translatorReviewSentimentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    flexShrink: 1,
-  },
-  translatorReviewItemTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  translatorReviewBadge: {
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  translatorReviewBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  translatorReviewComment: {
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  translatorReviewActionRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  translatorReviewActionButton: {
-    minHeight: 40,
-    borderWidth: 1,
-    borderRadius: radius.sm,
-    paddingHorizontal: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 6,
-  },
-  translatorReviewActionLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  verseImageSheetOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-  },
-  verseImageSheetBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  verseImageSheetCard: {
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    overflow: 'hidden',
-    maxHeight: '88%',
-  },
-  verseImageSheetHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.md,
-  },
-  verseImageSheetHeaderCopy: {
-    flex: 1,
-    gap: 2,
-  },
-  verseImageSheetTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-  },
-  verseImageSheetReference: {
-    ...typography.label,
-    fontSize: 12,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-  },
-  verseImageSheetCloseButton: {
-    width: layout.minTouchTarget,
-    height: layout.minTouchTarget,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.pill,
-    borderWidth: 1,
-  },
-  verseImagePreviewFrame: {
-    marginHorizontal: spacing.lg,
-    borderRadius: radius.lg,
-    overflow: 'hidden',
-    aspectRatio: 1.08,
-  },
-  verseImagePreviewBackground: {
-    flex: 1,
-    justifyContent: 'space-between',
-  },
-  verseImagePreviewImage: {
-    borderRadius: radius.lg,
-  },
-  verseImagePreviewOverlay: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  verseImagePreviewContent: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xl,
-    gap: spacing.lg,
-  },
-  verseImagePreviewText: {
-    ...typography.readingDisplay,
-    textAlign: 'center',
-    letterSpacing: -0.2,
-  },
-  verseImagePreviewReference: {
-    ...typography.label,
-    textAlign: 'center',
-    fontWeight: '700',
-  },
-  verseImageBackgroundRail: {
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.md,
-  },
-  verseImageBackgroundButton: {
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  verseImageBackgroundTile: {
-    width: 88,
-    height: 118,
-    justifyContent: 'flex-end',
-  },
-  verseImageBackgroundTileImage: {
-    borderRadius: radius.lg,
-  },
-  verseImageBackgroundSelectedBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 22,
-    height: 22,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  verseImageSheetActions: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
-    paddingTop: spacing.xs,
-  },
-  verseImageSheetActionButton: {
-    flex: 1,
-    minHeight: layout.minTouchTarget,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  verseImageSheetShareButton: {
-    minWidth: 132,
-  },
-  verseImageSheetActionText: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  feedbackActionRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  feedbackActionButton: {
-    flex: 1,
-    minHeight: layout.minTouchTarget,
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  feedbackSubmitButton: {
-    minWidth: 132,
-  },
-  feedbackActionLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  modalBackdrop: {
-    flex: 1,
-  },
-  modalContent: {
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
-    borderWidth: 1,
-    paddingTop: 20,
-    height: '78%',
-    overflow: 'hidden',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    marginBottom: 12,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  audioOptionsList: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    gap: 12,
-  },
-  audioOptionCard: {
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    padding: 16,
-    gap: 8,
-  },
-  audioOptionLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-  },
-  audioOptionValue: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  translationList: {
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
-  translationCard: {
-    marginBottom: 12,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-  },
-  translationItem: {
-    minHeight: 88,
-    paddingVertical: 16,
-    paddingHorizontal: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  translationInfo: {
-    flex: 1,
-  },
-  translationNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 4,
-  },
-  translationName: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  translationAbbr: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  translationDescription: {
-    fontSize: 13,
-    lineHeight: 18,
-    marginBottom: 8,
-  },
-  translationMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  translationSize: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  downloadedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  downloadedText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  followAlongContainer: {
-    flex: 1,
-  },
-  followAlongHeader: {
-    paddingHorizontal: 18,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  followAlongTitleCenter: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
-  followAlongEyebrow: {
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    marginBottom: 2,
-  },
-  followAlongTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  followAlongCloseButton: {
-    borderWidth: 1,
-    borderRadius: radius.pill,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    zIndex: 1,
-  },
-  followAlongCloseLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  followAlongScrollView: {
-    flex: 1,
-  },
-  followAlongContent: {
-    paddingHorizontal: 18,
-    paddingTop: 18,
-    paddingBottom: 28,
-    gap: 12,
-  },
-  followAlongVerseRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-  },
-  followAlongVerseIndicator: {
-    width: 3,
-    alignSelf: 'stretch',
-    borderRadius: radius.pill,
-    minHeight: FOLLOW_ALONG_VERSE_LINE_HEIGHT,
-  },
-  followAlongVerseContent: {
-    flex: 1,
-    gap: 8,
-  },
-  followAlongHeading: {
-    ...typography.readingHeading,
-  },
-  followAlongVerseText: {
-    ...typography.readingBody,
-    fontSize: 18,
-    lineHeight: FOLLOW_ALONG_VERSE_LINE_HEIGHT,
-  },
-  followAlongVerseNumber: {
-    ...typography.readingVerseNumber,
-    fontSize: 12,
-  },
-  fontSheet: {
-    borderTopWidth: 1,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    paddingBottom: 16,
-    gap: 16,
-  },
-  fontSheetHandle: {
-    width: 44,
-    height: 4,
-    borderRadius: radius.pill,
-    alignSelf: 'center',
-  },
-  fontSheetTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  readerFontStepperRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  readerFontStepperButton: {
-    flex: 1,
-    minHeight: 64,
-    borderRadius: radius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  readerFontStepperButtonLarge: {
-    flex: 1.2,
-  },
-  readerFontStepperDisabled: {
-    opacity: 0.48,
-  },
-  readerFontStepperText: {
-    fontWeight: '500',
-  },
-  readerFontStepperSmallText: {
-    fontSize: 26,
-    lineHeight: 32,
-  },
-  readerFontStepperLargeText: {
-    fontSize: 42,
-    lineHeight: 48,
-  },
-  readerFontPreview: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.md,
-    paddingVertical: spacing.md,
-  },
-  readerFontPreviewSpecimen: {
-    textAlign: 'center',
-  },
-  readerThemeModeRail: {
-    gap: 10,
-    paddingRight: 2,
-  },
-  readerThemeTileColumn: {
-    width: 128,
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  readerThemeTileLabel: {
-    ...typography.micro,
-    textAlign: 'center',
-  },
-  readerThemeTile: {
-    width: 128,
-    height: 112,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    padding: 10,
-    justifyContent: 'space-between',
-    overflow: 'hidden',
-  },
-  readerThemePaper: {
-    minHeight: 60,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    padding: 10,
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.18,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 3,
-  },
-  readerThemeLineStack: {
-    gap: 8,
-  },
-  readerThemeLine: {
-    width: '82%',
-    height: 4,
-    borderRadius: radius.pill,
-    opacity: 0.88,
-  },
-  readerThemeLineMedium: {
-    width: '64%',
-  },
-  readerThemeLineShort: {
-    width: '48%',
-  },
-  readerThemeCheckCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'center',
-  },
-  readerPaletteRail: {
-    gap: 10,
-    paddingRight: 2,
-  },
-  readerPaletteTile: {
-    width: 116,
-    height: 96,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    padding: 12,
-    justifyContent: 'space-between',
-    overflow: 'hidden',
-  },
-  readerPaletteSwatches: {
-    flexDirection: 'row',
-    alignSelf: 'center',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 76,
-    height: 34,
-  },
-  readerPaletteGradient: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: radius.pill,
-    opacity: 0.38,
-  },
-  readerPaletteSwatch: {
-    width: 24,
-    height: 34,
-    borderRadius: radius.pill,
-    borderWidth: 2,
-    marginHorizontal: -4,
-  },
-  readerAllSettingsButton: {
-    minHeight: layout.minTouchTarget,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  readerAllSettingsLabel: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  fontOptionRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  fontOptionButton: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    paddingVertical: 14,
-    alignItems: 'center',
-    gap: 8,
-  },
-  fontOptionSample: {
-    fontWeight: '700',
-  },
-  fontOptionLabel: {
-    fontSize: 12,
     fontWeight: '700',
   },
 });

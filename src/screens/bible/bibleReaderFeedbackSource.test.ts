@@ -3,13 +3,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { readBibleReaderSource } from './bibleReaderSourceFiles';
 
 function readRelativeSource(relativePath: string): string {
   return readFileSync(fileURLToPath(new URL(relativePath, import.meta.url).href), 'utf8');
 }
 
 test('BibleReaderScreen shows inline chapter feedback in listen mode and keeps the reader modal as fallback', () => {
-  const source = readRelativeSource('./BibleReaderScreen.tsx');
+  const source = readBibleReaderSource();
   const inlineFeedbackDefinition =
     source.match(/const showInlineChapterFeedbackComposer =[\s\S]*?;\n/)?.[0] ?? '';
 
@@ -56,7 +57,7 @@ test('BibleReaderScreen shows inline chapter feedback in listen mode and keeps t
 });
 
 test('BibleReaderScreen renders a lightweight accuracy review modal with choices and an optional multiline comment', () => {
-  const source = readRelativeSource('./BibleReaderScreen.tsx');
+  const source = readBibleReaderSource();
 
   assert.match(
     source,
@@ -101,7 +102,7 @@ test('BibleReaderScreen renders a lightweight accuracy review modal with choices
 });
 
 test('BibleReaderScreen keeps chapter feedback above the keyboard in both listen mode and the modal', () => {
-  const source = readRelativeSource('./BibleReaderScreen.tsx');
+  const source = readBibleReaderSource();
   const keyboardInsetMatches = source.match(/automaticallyAdjustKeyboardInsets/g) ?? [];
 
   assert.equal(
@@ -112,7 +113,7 @@ test('BibleReaderScreen keeps chapter feedback above the keyboard in both listen
 });
 
 test('BibleReaderScreen submits chapter feedback through the dedicated service and preserves retry state on failure', () => {
-  const source = readRelativeSource('./BibleReaderScreen.tsx');
+  const source = readBibleReaderSource();
   const startRecordingBlock = source.slice(
     source.indexOf('const startFeedbackAudioRecording'),
     source.indexOf('const playFeedbackAudioPreview')
@@ -161,7 +162,7 @@ test('BibleReaderScreen submits chapter feedback through the dedicated service a
 });
 
 test('BibleReaderScreen restores speaker playback mode after feedback recording and before feedback audio playback', () => {
-  const source = readRelativeSource('./BibleReaderScreen.tsx');
+  const source = readBibleReaderSource();
   const stopRecordingBlock =
     source.match(/const stopFeedbackAudioRecording = async \(\) => \{[\s\S]*?\n {2}\};/)?.[0] ?? '';
   const startRecordingBlock =
@@ -208,7 +209,7 @@ test('BibleReaderScreen restores speaker playback mode after feedback recording 
 });
 
 test('BibleReaderScreen uses the saved reviewer name and role but does not depend on a manual ID-number preference', () => {
-  const source = readRelativeSource('./BibleReaderScreen.tsx');
+  const source = readBibleReaderSource();
 
   assert.equal(
     source.includes('chapterFeedbackIdNumber'),

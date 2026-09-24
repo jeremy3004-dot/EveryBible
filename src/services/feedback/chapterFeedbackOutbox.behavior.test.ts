@@ -222,6 +222,38 @@ test('a council submission is sent with the passcode held at send time', async (
   assert.equal(h.submissions[0]?.contributorCategory, 'scripture_council');
 });
 
+// The passcode is gone from the device after a sign-out and back in, a switch to community
+// mode, or an unreadable keychain. The server would refuse a council submission without it
+// (and count a wrong guess against the network), which is no verdict on the feedback.
+test('a council submission waits while the device holds no council passcode', async () => {
+  h.offline = true;
+  await outbox.submitChapterFeedbackOrQueue(
+    { ...baseInput, contributorCategory: 'scripture_council', councilPasscode: 'secret-9' },
+    h.deps
+  );
+  await outbox.submitChapterFeedbackOrQueue({ ...baseInput, chapter: 4 }, h.deps);
+  h.passcode = null;
+  h.respond = () =>
+    h.submissions.at(-1)?.contributorCategory === 'scripture_council' ? refused() : sent();
+
+  const result = await outbox.flushChapterFeedbackOutbox('user-a', h.deps);
+
+  assert.deepEqual(result, { sent: 1, remaining: 1 });
+  assert.deepEqual(
+    h.submissions.map((input) => input.chapter),
+    [4],
+    'only the community response was sent'
+  );
+
+  h.passcode = 'secret-9';
+  h.respond = sent;
+  assert.deepEqual(await outbox.flushChapterFeedbackOutbox('user-a', h.deps), {
+    sent: 1,
+    remaining: 0,
+  });
+  assert.equal(h.submissions.at(-1)?.councilPasscode, 'secret-9');
+});
+
 test('a flush that still cannot reach the server stops and keeps everything for next time', async () => {
   h.offline = true;
   await outbox.submitChapterFeedbackOrQueue(baseInput, h.deps);
@@ -312,4 +344,66 @@ test('an unreadable stored outbox is treated as empty rather than crashing the f
     sent: 0,
     remaining: 0,
   });
+});
+
+// ---------------------------------------------------------------------------
+// Idempotency
+// ---------------------------------------------------------------------------
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+test('a submission that timed out is retried with the same client submission id', async () => {
+  // The first request may have been saved before the response was lost; the server
+  // recognises the retry by its id instead of storing the feedback twice.
+  h.respond = unreachable;
+  await outbox.submitChapterFeedbackOrQueue(baseInput, h.deps);
+  h.respond = sent;
+
+  await outbox.flushChapterFeedbackOutbox('user-a', h.deps);
+
+  const [first, retry] = h.submissions;
+  assert.match(first.clientSubmissionId ?? '', UUID);
+  assert.equal(retry.clientSubmissionId, first.clientSubmissionId);
+});
+
+test('each new submission gets its own client submission id', async () => {
+  await outbox.submitChapterFeedbackOrQueue(baseInput, h.deps);
+  await outbox.submitChapterFeedbackOrQueue(baseInput, h.deps);
+
+  const [first, second] = h.submissions;
+  assert.match(first.clientSubmissionId ?? '', UUID);
+  assert.match(second.clientSubmissionId ?? '', UUID);
+  assert.notEqual(first.clientSubmissionId, second.clientSubmissionId);
+});
+
+test('feedback queued offline keeps one id across flushes that fail and then succeed', async () => {
+  h.offline = true;
+  await outbox.submitChapterFeedbackOrQueue(baseInput, h.deps);
+  h.offline = false;
+  h.respond = unreachable;
+  await outbox.flushChapterFeedbackOutbox('user-a', h.deps);
+  h.respond = sent;
+
+  await outbox.flushChapterFeedbackOutbox('user-a', h.deps);
+
+  assert.equal(h.submissions.length, 2);
+  assert.match(h.submissions[0].clientSubmissionId ?? '', UUID);
+  assert.equal(h.submissions[1].clientSubmissionId, h.submissions[0].clientSubmissionId);
+});
+
+test('feedback queued by an older build gets one id that it keeps across retries', async () => {
+  mmkv.set(
+    'chapter-feedback-outbox',
+    JSON.stringify([
+      { id: 'legacy-1', userId: 'user-a', queuedAt: NOW - DAY_MS, input: { ...baseInput } },
+    ])
+  );
+  h.respond = unreachable;
+  await outbox.flushChapterFeedbackOutbox('user-a', h.deps);
+  h.respond = sent;
+
+  await outbox.flushChapterFeedbackOutbox('user-a', h.deps);
+
+  assert.match(h.submissions[0].clientSubmissionId ?? '', UUID);
+  assert.equal(h.submissions[1].clientSubmissionId, h.submissions[0].clientSubmissionId);
 });

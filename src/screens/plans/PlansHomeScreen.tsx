@@ -31,6 +31,7 @@ import { Skeleton } from '../../components/skeleton/Skeleton';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useDisplayFont } from '../../hooks/useDisplayFont';
 import { useLargeText } from '../../hooks/useLargeText';
+import { useLocalToday } from '../../hooks/useLocalToday';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import type { ThemeColors } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
@@ -286,6 +287,8 @@ interface MyPlansSectionProps {
   onPlanPress: (planId: string) => void;
   onDeletePlan: (planId: string) => void;
   colors: ThemeColors;
+  /** The local "now" a recurring plan's day and today's activity are read against. */
+  today: Date;
 }
 
 type ActivePlanRow = { progress: UserReadingPlanProgress; plan: ReadingPlan };
@@ -299,6 +302,7 @@ function MyPlansSection({
   onPlanPress,
   onDeletePlan,
   colors,
+  today,
 }: MyPlansSectionProps) {
   const { t } = useTranslation();
   const displayFont = useDisplayFont();
@@ -317,13 +321,14 @@ function MyPlansSection({
   const styles = createMyPlansStyles(colors);
 
   const renderPlanCard = ({ progress, plan }: ActivePlanRow) => {
-    const currentDay = getActivePlanDayNumber(plan, progress);
+    const currentDay = getActivePlanDayNumber(plan, progress, today);
     const currentDaySummary = getCurrentPlanDaySummary({
       plan,
       entries: readingPlanEntriesByPlanId[plan.id] ?? [],
       progress,
       chaptersRead,
       listeningHistory,
+      today,
     });
     const progressRatio =
       plan.duration_days > 0
@@ -557,9 +562,16 @@ interface FindPlansSectionProps {
   userProgress: UserReadingPlanProgress[];
   onPlanPress: (planId: string) => void;
   colors: ThemeColors;
+  today: Date;
 }
 
-function FindPlansSection({ allPlans, userProgress, onPlanPress, colors }: FindPlansSectionProps) {
+function FindPlansSection({
+  allPlans,
+  userProgress,
+  onPlanPress,
+  colors,
+  today,
+}: FindPlansSectionProps) {
   const { t } = useTranslation();
   const displayFont = useDisplayFont();
   // Two rhythm cards to a row leaves ~150pt per title; at large text sizes that
@@ -644,7 +656,7 @@ function FindPlansSection({ allPlans, userProgress, onPlanPress, colors }: FindP
     const dayLabel =
       isEnrolled && progress
         ? t('readingPlans.dayOf', {
-            current: getActivePlanDayNumber(plan, progress),
+            current: getActivePlanDayNumber(plan, progress, today),
             total: plan.duration_days,
           })
         : null;
@@ -696,7 +708,9 @@ function FindPlansSection({ allPlans, userProgress, onPlanPress, colors }: FindP
     const metaParts = [t('readingPlans.daysCount', { count: plan.duration_days })];
     const cadence = formatPlanCadenceLabel(plan, t);
     if (isEnrolled && progress) {
-      metaParts.push(t('readingPlans.dayLabel', { day: getActivePlanDayNumber(plan, progress) }));
+      metaParts.push(
+        t('readingPlans.dayLabel', { day: getActivePlanDayNumber(plan, progress, today) })
+      );
     } else if (cadence) {
       metaParts.push(cadence);
     }
@@ -1185,6 +1199,9 @@ export function PlansHomeScreen() {
   const chaptersRead = useProgressStore((state) => state.chaptersRead);
   const listeningHistory = useLibraryStore((state) => state.history);
   const progressByPlanId = useReadingPlansStore((state) => state.progressByPlanId);
+  // A rhythm's day is the calendar's; this re-renders on the new day even when the
+  // screen was left showing overnight.
+  const today = useLocalToday();
 
   // Data state
   const [allPlans, setAllPlans] = useState<ReadingPlan[]>([]);
@@ -1358,6 +1375,7 @@ export function PlansHomeScreen() {
                 onPlanPress={handlePlanPress}
                 onDeletePlan={handleDeletePlan}
                 colors={colors}
+                today={today}
               />
             )}
             {activeTab === 'find-plans' && (
@@ -1366,6 +1384,7 @@ export function PlansHomeScreen() {
                 userProgress={userProgress}
                 onPlanPress={handlePlanPress}
                 colors={colors}
+                today={today}
               />
             )}
             {activeTab === 'completed' && (

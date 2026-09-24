@@ -24,9 +24,15 @@ export function formatReminderTimeLabel(
   const [hours, minutes] = time.split(':');
   const hour = parseInt(hours, 10);
   const minute = parseInt(minutes, 10);
-  return new Date(0, 0, 0, hour, minute).toLocaleTimeString(locale, {
+  // Only the clock fields matter, so format a fixed modern instant in UTC. A local
+  // date is unsafe here: Hermes builds one with today's zone offset while its Intl
+  // formatter applies the offset the zone had on that date, and for the old default
+  // year (1899, local mean time) that put 09:00 at "8:56 AM" in Kathmandu and
+  // "8:00 AM" in Amsterdam.
+  return new Date(Date.UTC(2000, 0, 1, hour, minute)).toLocaleTimeString(locale, {
     hour: 'numeric',
     minute: '2-digit',
+    timeZone: 'UTC',
   });
 }
 

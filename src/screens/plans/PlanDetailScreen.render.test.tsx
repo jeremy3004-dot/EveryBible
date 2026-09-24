@@ -571,3 +571,23 @@ test('a related plan opens as a new plan page on top of this one', async () => {
     args: ['PlanDetail', { planId: first.id }],
   });
 });
+
+// A plan id can outlive its catalog entry: progress is persisted and synced, and a
+// daily-reminder tap opens the one active plan by id. Such a page used to render as
+// "Reading Plans" with an empty ledger and a Start plan button that enrolled the
+// reader in a plan that does not exist.
+test('a plan id missing from the catalog shows the error page with a way back, and nothing to start', async () => {
+  const store = await loadStore();
+  const view = await renderPlan('retired-plan-2024');
+
+  assert.ok(view.getByText(t('common.error')));
+  assert.equal(view.queryByRole('button', { name: t('readingPlans.startPlan') }), null);
+  assert.deepEqual(ledgerRows(view), []);
+
+  await view.press(view.getByRole('button', { name: t('common.back') }));
+  assert.deepEqual(
+    harness.navigation.calls.map((call) => call.method),
+    ['goBack']
+  );
+  assert.deepEqual(store.getState().progressByPlanId, {});
+});

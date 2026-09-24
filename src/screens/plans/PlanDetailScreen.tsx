@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useTheme } from '../../contexts/ThemeContext';
 import { useDisplayFont } from '../../hooks/useDisplayFont';
+import { useLocalToday } from '../../hooks/useLocalToday';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { spacing, typography, layout } from '../../design/system';
 import { AppButton } from '../../components/ui';
@@ -60,7 +61,6 @@ import {
   getPlanCadenceLabelKey,
   groupEntriesByDay,
   orderLedgerRows,
-  useFocusedToday,
   usePlanDetailData,
   type PlanDayViewModel,
 } from './planDetail';
@@ -78,7 +78,7 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
   const progress = useReadingPlansStore((state) => state.progressByPlanId[planId] ?? null);
   const getPlanDayResume = useReadingPlansStore((state) => state.getPlanDayResume);
 
-  const today = useFocusedToday();
+  const today = useLocalToday();
   const { plan, entries, relatedPlans, loading, error, load } = usePlanDetailData(planId);
   const [enrolling, setEnrolling] = useState(false);
 

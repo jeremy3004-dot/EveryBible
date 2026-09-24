@@ -81,6 +81,33 @@ test('sanitizePersistedBibleState drops a malformed preferred translation langua
   assert.equal(sanitized.preferredTranslationLanguage, null);
 });
 
+test('sanitizePersistedBibleState keeps the time the persisted Bible was chosen', () => {
+  const sanitized = sanitizePersistedBibleState({
+    currentTranslation: 'bsb',
+    currentTranslationChosenAt: '2026-02-01T00:00:00.000Z',
+  });
+
+  assert.equal(sanitized.currentTranslationChosenAt, '2026-02-01T00:00:00.000Z');
+});
+
+test('sanitizePersistedBibleState drops a malformed stamp and the stamp of a choice it replaced', () => {
+  assert.equal(
+    sanitizePersistedBibleState({
+      currentTranslation: 'bsb',
+      currentTranslationChosenAt: 'not a time',
+    }).currentTranslationChosenAt,
+    null
+  );
+  assert.equal(
+    sanitizePersistedBibleState({
+      currentTranslation: 'missing',
+      currentTranslationChosenAt: '2026-02-01T00:00:00.000Z',
+    }).currentTranslationChosenAt,
+    null,
+    'a choice that fell back to BSB must not win over the account preference'
+  );
+});
+
 test('sanitizePersistedBibleState only marks reader history when a prior chapter was actually persisted', () => {
   const fallbackState = sanitizePersistedBibleState({});
   assert.equal(

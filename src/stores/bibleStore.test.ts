@@ -196,16 +196,39 @@ test('setError stores a message for the reader to surface', () => {
   assert.equal(useBibleStore.getState().error, 'No chapter text');
 });
 
-test('setCurrentTranslation switches to an installed bundled translation and saves the preference', () => {
+test('setCurrentTranslation switches to an installed bundled translation and saves the preference', (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-04-05T06:07:08.000Z') });
   useBibleStore.setState({ error: 'stale error' });
 
   useBibleStore.getState().setCurrentTranslation('asv');
 
   const state = useBibleStore.getState();
   assert.equal(state.currentTranslation, 'asv');
+  assert.equal(state.currentTranslationChosenAt, '2026-04-05T06:07:08.000Z');
   assert.equal(state.preferredTranslationLanguage, 'English');
   assert.equal(state.error, null);
-  assert.deepEqual(doubles.translations.preferenceCalls, [{ primary: 'asv' }]);
+  assert.deepEqual(doubles.translations.preferenceCalls, [
+    { primary: 'asv', chosenAt: '2026-04-05T06:07:08.000Z' },
+  ]);
+});
+
+test('a Bible adopted from the account keeps its saved stamp and is not uploaded back', () => {
+  useBibleStore.getState().setCurrentTranslation('asv', { chosenAt: '2026-03-01T00:00:00+00:00' });
+
+  const state = useBibleStore.getState();
+  assert.equal(state.currentTranslation, 'asv');
+  assert.equal(state.currentTranslationChosenAt, '2026-03-01T00:00:00+00:00');
+  assert.deepEqual(doubles.translations.preferenceCalls, []);
+});
+
+test('the time a Bible was chosen is persisted with the choice', (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-04-05T06:07:08.000Z') });
+
+  useBibleStore.getState().setCurrentTranslation('asv');
+
+  const persisted = JSON.parse(mmkv.store.get('bible-storage') ?? '{}');
+  assert.equal(persisted.state.currentTranslation, 'asv');
+  assert.equal(persisted.state.currentTranslationChosenAt, '2026-04-05T06:07:08.000Z');
 });
 
 test('setCurrentTranslation survives a preference sync that rejects', async () => {
@@ -270,7 +293,10 @@ test('setCurrentTranslation accepts an audio-only translation that can stream', 
   useBibleStore.getState().setCurrentTranslation('elx');
 
   assert.equal(useBibleStore.getState().currentTranslation, 'elx');
-  assert.deepEqual(doubles.translations.preferenceCalls, [{ primary: 'elx' }]);
+  assert.deepEqual(
+    doubles.translations.preferenceCalls.map(({ primary }) => primary),
+    ['elx']
+  );
 });
 
 test('setCurrentTranslation accepts an audio-only translation with downloaded chapters offline', () => {
@@ -680,6 +706,11 @@ test('resetForSignOut keeps device-level translation availability intact', () =>
   useBibleStore.getState().resetForSignOut();
 
   assert.equal(useBibleStore.getState().currentTranslation, 'esv1');
+  assert.equal(
+    useBibleStore.getState().currentTranslationChosenAt,
+    null,
+    "the next account's saved Bible must win over a choice stamped under this one"
+  );
   assert.equal(findTranslation('esv1')?.isDownloaded, true);
 });
 

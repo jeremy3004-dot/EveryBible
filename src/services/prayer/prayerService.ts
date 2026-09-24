@@ -36,13 +36,53 @@ export interface InteractionCounts {
   encouraged: number;
 }
 
-// Returns all prayer requests for a group, with aggregated interaction counts.
+/** Where the next page starts: the last row of the previous one (the wall is newest first). */
+export interface PrayerRequestCursor {
+  created_at: string;
+  id: string;
+}
+
+export interface ListPrayerRequestsOptions {
+  /** Requests per page, 1 to 100. */
+  limit?: number;
+  /** The `nextCursor` of the previous page; omitted for the first page. */
+  before?: PrayerRequestCursor | null;
+}
+
+export interface PrayerRequestPageResult extends PrayerServiceResult<PrayerRequestWithCounts[]> {
+  /** Set when there are older requests to load. */
+  nextCursor?: PrayerRequestCursor | null;
+}
+
+export const PRAYER_REQUEST_PAGE_SIZE = 50;
+const MAX_PAGE_SIZE = 100;
+// PostgREST's max-rows: a longer response is cut short without an error.
+const POSTGREST_MAX_ROWS = 1000;
+
+type ListRpcRow = PrayerRequest & {
+  prayed_count: number;
+  encouraged_count: number;
+  viewer_has_prayed: boolean;
+  viewer_has_encouraged: boolean;
+};
+
+// PGRST202: not in PostgREST's schema cache. 42883: no such function in Postgres. Either way the
+// migration adding list_prayer_requests is not live yet, so the old queries are used instead.
+function isMissingListRpc(error: { code?: string } | null, status: number | undefined): boolean {
+  return error?.code === 'PGRST202' || error?.code === '42883' || status === 404;
+}
+
+// Returns one page of a group's prayer requests, newest first, with interaction counts and
+// whether the viewer has prayed for / encouraged each one. The list_prayer_requests RPC counts in
+// the database; reading the interaction rows instead was cut off at PostgREST's 1000 rows, which
+// made counts and the viewer flags wrong in large groups. RLS applies either way.
 // Unauthenticated callers (browsing without sign-in) receive an empty list.
 export async function listPrayerRequests(
-  groupId: string
-): Promise<PrayerServiceResult<PrayerRequestWithCounts[]>> {
+  groupId: string,
+  options: ListPrayerRequestsOptions = {}
+): Promise<PrayerRequestPageResult> {
   if (!isSupabaseConfigured()) {
-    return { success: true, data: [] };
+    return { success: true, data: [], nextCursor: null };
   }
 
   const {
@@ -55,46 +95,116 @@ export async function listPrayerRequests(
   }
 
   if (!user) {
-    return { success: true, data: [] };
+    return { success: true, data: [], nextCursor: null };
   }
 
+  const limit = Math.min(
+    Math.max(Math.floor(options.limit ?? PRAYER_REQUEST_PAGE_SIZE), 1),
+    MAX_PAGE_SIZE
+  );
+  const before = options.before ?? null;
+
   try {
-    const { data: requests, error: requestsError } = await supabase
-      .from('prayer_requests')
-      .select('*')
-      .eq('group_id', groupId)
-      .order('created_at', { ascending: false });
+    // One extra row says whether another page exists.
+    const {
+      data: rows,
+      error: rpcError,
+      status,
+    } = await supabase.rpc('list_prayer_requests', {
+      p_group_id: groupId,
+      p_limit: limit + 1,
+      p_before_created_at: before?.created_at ?? null,
+      p_before_id: before?.id ?? null,
+    });
 
-    if (requestsError) {
-      return { success: false, error: requestsError.message };
+    let requests: PrayerRequestWithCounts[];
+    if (!rpcError) {
+      requests = ((rows ?? []) as ListRpcRow[]).map(
+        ({ viewer_has_prayed, viewer_has_encouraged, ...row }) => ({
+          ...row,
+          viewer_prayed: viewer_has_prayed,
+          viewer_encouraged: viewer_has_encouraged,
+        })
+      );
+    } else if (isMissingListRpc(rpcError, status)) {
+      const fallback = await listPrayerRequestsWithoutRpc(groupId, user.id, limit + 1, before);
+      if (!fallback.success) return fallback;
+      requests = fallback.data ?? [];
+    } else {
+      return { success: false, error: rpcError.message };
     }
 
-    if (!requests || requests.length === 0) {
-      return { success: true, data: [] };
-    }
-
-    const requestIds = requests.map((r) => r.id);
-
-    const { data: interactions, error: interactionsError } = await supabase
-      .from('prayer_interactions')
-      .select('request_id, type, user_id')
-      .in('request_id', requestIds);
-
-    if (interactionsError) {
-      return { success: false, error: interactionsError.message };
-    }
-
-    const countMap = aggregateInteractionCounts(requestIds, interactions ?? []);
-    const viewerMap = viewerInteractionsByRequest(user.id, interactions ?? []);
-    const data = attachCountsToPrayerRequests(requests as PrayerRequest[], countMap, viewerMap);
-
-    return { success: true, data };
+    const hasMore = requests.length > limit;
+    const data = hasMore ? requests.slice(0, limit) : requests;
+    const last = data[data.length - 1];
+    return {
+      success: true,
+      data,
+      nextCursor: hasMore && last ? { created_at: last.created_at, id: last.id } : null,
+    };
   } catch (error) {
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
+}
+
+// The path used before list_prayer_requests existed: read the page of requests, then their
+// interaction rows (in PostgREST-sized pages), and count on the device.
+async function listPrayerRequestsWithoutRpc(
+  groupId: string,
+  viewerId: string,
+  limit: number,
+  before: PrayerRequestCursor | null
+): Promise<PrayerServiceResult<PrayerRequestWithCounts[]>> {
+  let query = supabase
+    .from('prayer_requests')
+    .select('*')
+    .eq('group_id', groupId)
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false });
+  if (before) {
+    const createdAt = JSON.stringify(before.created_at);
+    query = query.or(
+      `created_at.lt.${createdAt},and(created_at.eq.${createdAt},id.lt.${JSON.stringify(before.id)})`
+    );
+  }
+  const { data: requests, error: requestsError } = await query.limit(limit);
+
+  if (requestsError) {
+    return { success: false, error: requestsError.message };
+  }
+
+  if (!requests || requests.length === 0) {
+    return { success: true, data: [] };
+  }
+
+  const requestIds = requests.map((r) => r.id);
+  const interactions: Array<{ request_id: string; type: string; user_id?: string }> = [];
+
+  for (let from = 0; ; from += POSTGREST_MAX_ROWS) {
+    const { data: page, error: interactionsError } = await supabase
+      .from('prayer_interactions')
+      .select('request_id, type, user_id')
+      .in('request_id', requestIds)
+      .order('id')
+      .range(from, from + POSTGREST_MAX_ROWS - 1);
+
+    if (interactionsError) {
+      return { success: false, error: interactionsError.message };
+    }
+
+    interactions.push(...(page ?? []));
+    if (!page || page.length < POSTGREST_MAX_ROWS) break;
+  }
+
+  const countMap = aggregateInteractionCounts(requestIds, interactions);
+  const viewerMap = viewerInteractionsByRequest(viewerId, interactions);
+  return {
+    success: true,
+    data: attachCountsToPrayerRequests(requests as PrayerRequest[], countMap, viewerMap),
+  };
 }
 
 // Submits a new prayer request scoped to a group.

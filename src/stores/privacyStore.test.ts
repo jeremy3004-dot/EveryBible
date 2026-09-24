@@ -69,6 +69,8 @@ mockModule(mock, 'expo-secure-store', {
 const iconCalls: PrivacyAppIconMode[] = [];
 // A device that supports alternate icons but can refuse a particular switch.
 let setAppIconResult = true;
+// The icon the home screen shows; only a switch the device accepts changes it.
+let currentIcon: PrivacyAppIconMode = 'standard';
 mockModule(
   mock,
   'react-native',
@@ -77,13 +79,32 @@ mockModule(
       EveryBiblePrivacyModule: {
         setAppIcon: async (mode: PrivacyAppIconMode) => {
           iconCalls.push(mode);
+          if (setAppIconResult) {
+            currentIcon = mode;
+          }
           return setAppIconResult;
         },
-        getCurrentAppIcon: async () => 'standard',
+        getCurrentAppIcon: async () => currentIcon,
       },
     },
   })
 );
+
+const reportedErrors: { source: string; message: string }[] = [];
+let reportWaiters: (() => void)[] = [];
+/** Resolves on the next report: the crash queue is loaded by a lazy import. */
+const nextReport = () => new Promise<void>((resolve) => reportWaiters.push(resolve));
+mockModule(mock, sourcePath('services/diagnostics/crashReportQueue.ts'), {
+  reportHandledError: (source: string, error: unknown) => {
+    reportedErrors.push({
+      source,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    const waiters = reportWaiters;
+    reportWaiters = [];
+    waiters.forEach((resolve) => resolve());
+  },
+});
 
 const mmkv = new Map<string, string>();
 mockModule(mock, sourcePath('stores/mmkvStorage.ts'), {
@@ -111,6 +132,12 @@ mockModule(mock, sourcePath('stores/migrateFromAsyncStorage.ts'), {
 let usePrivacyStore: typeof import('./privacyStore').usePrivacyStore;
 
 const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
+/** Lets the deferred icon change (a read of the current icon, then the switch) finish. */
+const settleIconChange = async () => {
+  for (let turn = 0; turn < 10; turn += 1) {
+    await flush();
+  }
+};
 const store = () => usePrivacyStore.getState();
 const storedSettings = () =>
   JSON.parse(secureStore.get(PRIVACY_SETTINGS_KEY) ?? 'null') as Record<string, unknown> | null;
@@ -128,6 +155,9 @@ beforeEach(() => {
   secureStoreReads.length = 0;
   secureStoreOptions.length = 0;
   iconCalls.length = 0;
+  currentIcon = 'standard';
+  reportedErrors.length = 0;
+  reportWaiters = [];
   mmkv.clear();
   // Default to an upgraded install so reconciliation is a no-op; the reinstall
   // path gets its own test.
@@ -388,6 +418,7 @@ test('saving a discreet pin persists the normalized pin and unlocks the app', as
     assert.deepEqual(iconCalls, [], 'the icon swap is deferred past navigation');
 
     mock.timers.tick(400);
+    await settleIconChange();
     assert.deepEqual(iconCalls, ['discreet']);
   } finally {
     mock.timers.reset();
@@ -401,6 +432,7 @@ test('switching back to standard mode drops the stored pin and restores the stan
     await store().initialize();
     await store().saveConfiguration({ mode: 'discreet', pinInput: '1234' });
     mock.timers.tick(400);
+    await settleIconChange();
     iconCalls.length = 0;
 
     const result = await store().saveConfiguration({ mode: 'standard' });
@@ -416,6 +448,7 @@ test('switching back to standard mode drops the stored pin and restores the stan
     assert.equal(store().isLocked, false);
 
     mock.timers.tick(400);
+    await settleIconChange();
     assert.deepEqual(iconCalls, ['standard']);
   } finally {
     mock.timers.reset();
@@ -661,4 +694,79 @@ test('a refused icon restore leaves privacy switched on with the pin still able 
   assert.equal(store().isLocked, true);
   assert.equal(await store().unlock('1234'), true);
   assert.equal(store().isLocked, false);
+});
+
+// ─── icon changes that do not take ────────────────────────────────────────────
+
+test('a discreet icon change the device refuses is reported, not dropped silently', async () => {
+  mock.timers.enable({ apis: ['setTimeout'] });
+  setAppIconResult = false;
+  const reported = nextReport();
+  try {
+    await store().initialize();
+    await store().saveConfiguration({ mode: 'discreet', pinInput: '1234' });
+    mock.timers.tick(400);
+  } finally {
+    mock.timers.reset();
+  }
+  await reported;
+
+  assert.deepEqual(iconCalls, ['discreet']);
+  assert.deepEqual(reportedErrors, [
+    { source: 'privacy.iconChange', message: 'Failed to apply the discreet privacy app icon' },
+  ]);
+});
+
+test('an icon change that did not take is retried when the app icon is reconciled', async () => {
+  mock.timers.enable({ apis: ['setTimeout'] });
+  setAppIconResult = false;
+  const reported = nextReport();
+  try {
+    await store().initialize();
+    await store().saveConfiguration({ mode: 'discreet', pinInput: '1234' });
+    mock.timers.tick(400);
+  } finally {
+    mock.timers.reset();
+  }
+  await reported;
+  setAppIconResult = true;
+
+  await store().reconcileAppIcon();
+
+  assert.deepEqual(iconCalls, ['discreet', 'discreet']);
+  assert.equal(currentIcon, 'discreet');
+});
+
+test('reconciling leaves an icon that already matches the saved mode alone', async () => {
+  secureStore.set(PRIVACY_SETTINGS_KEY, JSON.stringify({ mode: 'discreet', pin: '1234' }));
+  currentIcon = 'discreet';
+  await store().initialize();
+
+  await store().reconcileAppIcon();
+
+  assert.deepEqual(iconCalls, [], 'an unneeded change would show the reader a system alert');
+});
+
+test('reconciling does nothing before the saved mode is known', async () => {
+  currentIcon = 'discreet';
+
+  await store().reconcileAppIcon();
+
+  assert.deepEqual(iconCalls, []);
+});
+
+test('a refused retry is reported', async () => {
+  secureStore.set(PRIVACY_SETTINGS_KEY, JSON.stringify({ mode: 'discreet', pin: '1234' }));
+  await store().initialize();
+  setAppIconResult = false;
+  const reported = nextReport();
+
+  await store().reconcileAppIcon();
+  await reported;
+
+  assert.deepEqual(iconCalls, ['discreet']);
+  assert.deepEqual(
+    reportedErrors.map(({ source }) => source),
+    ['privacy.iconChange']
+  );
 });

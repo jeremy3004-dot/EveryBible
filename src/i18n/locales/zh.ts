@@ -708,6 +708,9 @@ export const zh = {
     pinInvalidCharacters: '仅允许使用数字和计算器符号。',
     pinMismatch: '两次输入的安全密码还不一致。',
     incorrectPin: '安全密码不正确。',
+    discreetNotificationTitle: '提醒',
+    discreetNotificationBody: '你今天有一条提醒。',
+    discreetNotificationChannel: '提醒事项',
   },
   settings: {
     title: '设置',

@@ -39,9 +39,33 @@ interface PrivacyState {
   lock: () => void;
   unlock: (pinInput: string | string[]) => Promise<boolean>;
   disablePrivacy: () => Promise<void>;
+  /**
+   * Retries an icon change that did not take: when the icon on the home screen differs
+   * from the saved mode, it is changed again. Called when the app returns to the
+   * foreground and once privacy settings have loaded.
+   */
+  reconcileAppIcon: () => Promise<void>;
 }
 
 let initializationGeneration = 0;
+
+// The crash queue opens MMKV and the reporting policy, which nothing else here needs, so
+// it is loaded only when there is a failure to report.
+const reportIconChangeFailure = (error: unknown): void => {
+  void import('../services/diagnostics/crashReportQueue')
+    .then(({ reportHandledError }) => reportHandledError('privacy.iconChange', error))
+    .catch(() => undefined);
+};
+
+// An icon change that fails is reported and left for reconcileAppIcon to retry; it never
+// undoes the saved mode, which is what the lock screen follows.
+const syncAppIcon = async (mode: PrivacyAppIconMode): Promise<void> => {
+  try {
+    await applyPrivacyAppIcon(mode);
+  } catch (error) {
+    reportIconChangeFailure(error);
+  }
+};
 
 export const usePrivacyStore = create<PrivacyState>()((set, get) => {
   const initialize = async (): Promise<void> => {
@@ -145,7 +169,7 @@ export const usePrivacyStore = create<PrivacyState>()((set, get) => {
         // Defer icon change until after navigation and re-renders complete to
         // prevent the concurrent Zustand + AppState cascade that OOMs Hermes GC.
         setTimeout(() => {
-          void applyPrivacyAppIcon('discreet');
+          void syncAppIcon('discreet');
         }, 400);
 
         return {
@@ -165,7 +189,7 @@ export const usePrivacyStore = create<PrivacyState>()((set, get) => {
 
       // Defer icon change until after navigation and re-renders complete.
       setTimeout(() => {
-        void applyPrivacyAppIcon('standard');
+        void syncAppIcon('standard');
       }, 400);
 
       return {
@@ -212,6 +236,13 @@ export const usePrivacyStore = create<PrivacyState>()((set, get) => {
       return result.success;
     },
 
+    reconcileAppIcon: async () => {
+      if (!get().isInitialized) {
+        return;
+      }
+      await syncAppIcon(get().mode);
+    },
+
     disablePrivacy: async () => {
       await clearPrivacySettings();
       set({
@@ -225,3 +256,14 @@ export const usePrivacyStore = create<PrivacyState>()((set, get) => {
     },
   };
 });
+
+/**
+ * Whether app-generated notifications must stay neutral (no app name, Bible or group
+ * text). Settings that have not loaded yet count as discreet: a discreet device must not
+ * leak during launch, and a standard one only sees neutral text for that moment.
+ */
+export function isDiscreetModeActive(
+  state: Pick<PrivacyState, 'isInitialized' | 'mode'> = usePrivacyStore.getState()
+): boolean {
+  return !state.isInitialized || state.mode === 'discreet';
+}

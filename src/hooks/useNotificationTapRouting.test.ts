@@ -47,8 +47,9 @@ let useNotificationTapRouting: Hook;
 
 before(async () => {
   ({ useNotificationTapRouting } = await import('./useNotificationTapRouting'));
-  // Load the lazily imported store once so every lazy import resolves from the cache.
+  // Load the lazily imported modules once so every lazy import resolves from the cache.
   await import('../stores/readingPlansStore');
+  await import('../data/readingPlans.generated');
 });
 
 let tapDate = 0;
@@ -105,8 +106,8 @@ test('tapping the reminder while the app runs opens the Plans tab', async () => 
 
 test('with one active plan the tap opens that plan, keeping Plans underneath', async () => {
   plans.progressByPlanId = {
-    'bible-in-a-year': { plan_id: 'bible-in-a-year', is_completed: false },
-    john: { plan_id: 'john', is_completed: true },
+    'psalms-30-days': { plan_id: 'psalms-30-days', is_completed: false },
+    'proverbs-31-days': { plan_id: 'proverbs-31-days', is_completed: true },
   };
   mountApp();
 
@@ -114,7 +115,36 @@ test('with one active plan the tap opens that plan, keeping Plans underneath', a
   await settle();
 
   assert.deepEqual(navigation.calls, [
-    ['Plans', { screen: 'PlanDetail', params: { planId: 'bible-in-a-year' }, initial: false }],
+    ['Plans', { screen: 'PlanDetail', params: { planId: 'psalms-30-days' }, initial: false }],
+  ]);
+});
+
+// Progress is persisted and synced, so a plan id can outlive its catalog entry. The
+// tap opened that id's detail page, which has no plan to show.
+test('an active plan that is no longer in the catalog does not count: the tap opens Plans', async () => {
+  plans.progressByPlanId = {
+    'retired-plan-2024': { plan_id: 'retired-plan-2024', is_completed: false },
+  };
+  mountApp();
+
+  responseListener?.(reminderTap());
+  await settle();
+
+  assert.deepEqual(navigation.calls, [['Plans', { screen: 'PlansHome' }]]);
+});
+
+test('beside a retired plan, the one active catalog plan still opens directly', async () => {
+  plans.progressByPlanId = {
+    'retired-plan-2024': { plan_id: 'retired-plan-2024', is_completed: false },
+    'psalms-30-days': { plan_id: 'psalms-30-days', is_completed: false },
+  };
+  mountApp();
+
+  responseListener?.(reminderTap());
+  await settle();
+
+  assert.deepEqual(navigation.calls, [
+    ['Plans', { screen: 'PlanDetail', params: { planId: 'psalms-30-days' }, initial: false }],
   ]);
 });
 

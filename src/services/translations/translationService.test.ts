@@ -505,6 +505,47 @@ test('a failed preference read never overwrites the saved row', async () => {
   );
 });
 
+test('a translation choice is saved with the time it was made, not the upload time', async (t) => {
+  const { setUserTranslationPreferences } = await loadModule();
+  t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-03-04T05:06:07.000Z') });
+  signIn();
+  supabaseFake.respondTo('user_translation_preferences', (call) =>
+    call.operation === 'upsert' ? { data: null } : { data: makePreferences() }
+  );
+
+  const result = await setUserTranslationPreferences({
+    primary: 'ylt',
+    chosenAt: '2026-03-01T00:00:00.000Z',
+  });
+
+  assert.deepEqual(result, { success: true });
+  const upsert = supabaseFake.callsFor('user_translation_preferences')[1];
+  assert.equal((upsert.payload as { synced_at: string }).synced_at, '2026-03-01T00:00:00.000Z');
+  assert.equal((upsert.payload as { primary_translation: string }).primary_translation, 'ylt');
+});
+
+test('a late upload of an older choice never overwrites a newer choice from another device', async () => {
+  const { setUserTranslationPreferences } = await loadModule();
+  signIn();
+  supabaseFake.respondTo('user_translation_preferences', (call) =>
+    call.operation === 'upsert'
+      ? { data: null }
+      : { data: makePreferences({ synced_at: '2026-02-01T00:00:00+00:00' }) }
+  );
+
+  const result = await setUserTranslationPreferences({
+    primary: 'ylt',
+    chosenAt: '2026-01-15T00:00:00.000Z',
+  });
+
+  assert.deepEqual(result, { success: true });
+  assert.equal(
+    supabaseFake.calls.filter((call) => call.operation === 'upsert').length,
+    0,
+    'the server already holds a choice made after this one'
+  );
+});
+
 test('setUserTranslationPreferences surfaces an upsert error', async () => {
   const { setUserTranslationPreferences } = await loadModule();
   signIn();

@@ -68,11 +68,11 @@ import type { TextPackInstallJournal } from '../services/bible/textPackInstallJo
 // navigator's static graph, and its only use of the service is this
 // fire-and-forget preference save, so load the barrel on first use instead of
 // on every cold start (the same pattern authStore uses for Supabase).
-function saveTranslationPreference(translationId: string): void {
+function saveTranslationPreference(translationId: string, chosenAt: string): void {
   try {
     const { setUserTranslationPreferences } =
       require('../services/translations') as typeof import('../services/translations');
-    setUserTranslationPreferences({ primary: translationId }).catch(() => {});
+    setUserTranslationPreferences({ primary: translationId, chosenAt }).catch(() => {});
   } catch {
     // Preference sync is best-effort; a failed load must not undo the local switch.
   }
@@ -477,6 +477,12 @@ interface BibleState {
 
   // Translation state
   currentTranslation: string;
+  /**
+   * When the reader chose `currentTranslation` (ISO time), or the saved account stamp it
+   * was adopted with. Null until a choice is made. It makes the account preference last
+   * write wins: a switch made offline outlives an older saved value at the next launch.
+   */
+  currentTranslationChosenAt: string | null;
   preferredTranslationLanguage: string | null;
   translations: BibleTranslation[];
   downloadProgress: TranslationDownloadProgress | null;
@@ -491,7 +497,11 @@ interface BibleState {
   setError: (error: string | null) => void;
 
   // Translation actions
-  setCurrentTranslation: (translationId: string) => void;
+  /**
+   * `adopted` applies a choice already saved to the account (from another device): it
+   * keeps that choice's stamp and is not uploaded back.
+   */
+  setCurrentTranslation: (translationId: string, adopted?: { chosenAt: string | null }) => void;
   setPreferredTranslationLanguage: (language: string | null) => void;
   applyRuntimeCatalog: (runtimeTranslations: BibleTranslation[]) => void;
   reconcileTranslationPacks: () => Promise<void>;
@@ -638,6 +648,7 @@ export const useBibleStore = create<BibleState>()(
       isLoading: false,
       error: null,
       currentTranslation: 'bsb',
+      currentTranslationChosenAt: null,
       preferredTranslationLanguage: 'English',
       translations: getDefaultBibleTranslations(),
       downloadProgress: null,
@@ -663,21 +674,32 @@ export const useBibleStore = create<BibleState>()(
       setLoading: (isLoading) => set({ isLoading }),
       setError: (error) => set({ error }),
 
-      setCurrentTranslation: (translationId) => {
+      setCurrentTranslation: (translationId, adopted) => {
         const translation = get().translations.find((t) => t.id === translationId);
         if (!translation) {
           return;
         }
 
         const preferredTranslationLanguage = translation.language?.trim() || null;
+        const select = () => {
+          const currentTranslationChosenAt = adopted ? adopted.chosenAt : new Date().toISOString();
+          set({
+            currentTranslation: translationId,
+            currentTranslationChosenAt,
+            preferredTranslationLanguage,
+            error: null,
+          });
+          if (!adopted && currentTranslationChosenAt) {
+            saveTranslationPreference(translationId, currentTranslationChosenAt);
+          }
+        };
 
         const hasInstalledTextPack = Boolean(translation.textPackLocalPath);
         const hasReadableText =
           translation.hasText && (translation.source !== 'runtime' || hasInstalledTextPack);
 
         if (translation.isDownloaded || hasReadableText) {
-          set({ currentTranslation: translationId, preferredTranslationLanguage, error: null });
-          saveTranslationPreference(translationId);
+          select();
           return;
         }
 
@@ -690,8 +712,7 @@ export const useBibleStore = create<BibleState>()(
           });
 
           if (availability.canPlayAudio) {
-            set({ currentTranslation: translationId, preferredTranslationLanguage, error: null });
-            saveTranslationPreference(translationId);
+            select();
           }
         }
       },
@@ -1840,6 +1861,8 @@ export const useBibleStore = create<BibleState>()(
       // would be hostile in the offline-first, metered-data markets this app targets.
       resetForSignOut: () => {
         set({
+          // The next account's saved Bible wins over a choice stamped under this one.
+          currentTranslationChosenAt: null,
           currentBook: 'GEN',
           currentChapter: 1,
           hasReaderHistory: false,
@@ -1883,6 +1906,7 @@ export const useBibleStore = create<BibleState>()(
         hasReaderHistory: state.hasReaderHistory,
         preferredChapterLaunchMode: state.preferredChapterLaunchMode,
         currentTranslation: state.currentTranslation,
+        currentTranslationChosenAt: state.currentTranslationChosenAt,
         preferredTranslationLanguage: state.preferredTranslationLanguage,
         translations: state.translations.map(toPersistedTranslation),
       }),

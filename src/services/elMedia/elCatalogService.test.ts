@@ -93,7 +93,11 @@ function createRotatedCatalogFixture(keyId: string): { envelope: unknown; key: E
 
 // A synthetic stored catalog state at a given sequence. The stored payloadJson must be a
 // valid lqd-catalog/v1 payload so getLastVerifiedElCatalog can re-parse it.
-function storedCatalogState(sequence: number): string {
+// It carries the key that verified it and the catalog URL it came from, like a real record.
+function storedCatalogState(
+  sequence: number,
+  source: { keyId?: string; catalogUrl?: string } | 'legacy' = {}
+): string {
   const payload = {
     schema_version: 'lqd-catalog/v1',
     sequence,
@@ -105,8 +109,18 @@ function storedCatalogState(sequence: number): string {
     sequence,
     payloadJson: JSON.stringify(payload),
     verifiedAt: 1_000_000,
+    ...(source === 'legacy'
+      ? {}
+      : { keyId: source.keyId ?? 'lqd-dev-2026-a', catalogUrl: source.catalogUrl ?? CATALOG_URL }),
   });
 }
+
+const throwingFetch = (async () => {
+  throw new Error('network down');
+}) as unknown as typeof fetch;
+
+// What a release build trusts: the production key only, never the dev fixture key.
+const releaseKeys = async (): Promise<ElJwk[]> => [{ ...jwks[0], kid: 'lqd-prod-2026-a' }];
 
 test('happy path fetches, verifies, parses, persists and returns the catalog', async () => {
   const storage = createMemoryStorage();
@@ -130,17 +144,18 @@ test('happy path fetches, verifies, parses, persists and returns the catalog', a
     sequence: number;
     payloadJson: string;
     verifiedAt: number;
+    keyId: string;
+    catalogUrl: string;
   };
   assert.equal(parsedRecord.sequence, 1);
+  assert.equal(parsedRecord.keyId, 'lqd-dev-2026-a', 'the record names the key that verified it');
+  assert.equal(parsedRecord.catalogUrl, CATALOG_URL);
   assert.equal(typeof parsedRecord.payloadJson, 'string');
   assert.equal(typeof parsedRecord.verifiedAt, 'number');
 });
 
 test('network failure returns last-good and never throws', async () => {
   const storage = createMemoryStorage({ [LAST_CATALOG_KEY]: storedCatalogState(3) });
-  const throwingFetch = (async () => {
-    throw new Error('network down');
-  }) as unknown as typeof fetch;
   const catalog = await refreshElCatalog(CATALOG_URL, {
     fetchFn: throwingFetch,
     storage,
@@ -261,7 +276,7 @@ test('verification unsupported returns null WITHOUT fetching', async () => {
 
 test('getLastVerifiedElCatalog re-parses persisted payload through the parser', async () => {
   const storage = createMemoryStorage({ [LAST_CATALOG_KEY]: storedCatalogState(9) });
-  const catalog = await getLastVerifiedElCatalog({ storage });
+  const catalog = await getLastVerifiedElCatalog(CATALOG_URL, { storage, getKeys });
   assert.ok(catalog);
   assert.equal(catalog.sequence, 9);
   assert.equal(catalog.schemaVersion, 'lqd-catalog/v1');
@@ -269,7 +284,7 @@ test('getLastVerifiedElCatalog re-parses persisted payload through the parser', 
 
 test('getLastVerifiedElCatalog returns null for corrupt storage', async () => {
   const storage = createMemoryStorage({ [LAST_CATALOG_KEY]: 'not-json' });
-  assert.equal(await getLastVerifiedElCatalog({ storage }), null);
+  assert.equal(await getLastVerifiedElCatalog(CATALOG_URL, { storage, getKeys }), null);
 });
 
 test('getLastVerifiedElCatalog returns null when stored payload is not a valid catalog', async () => {
@@ -280,12 +295,12 @@ test('getLastVerifiedElCatalog returns null when stored payload is not a valid c
       verifiedAt: 1,
     }),
   });
-  assert.equal(await getLastVerifiedElCatalog({ storage }), null);
+  assert.equal(await getLastVerifiedElCatalog(CATALOG_URL, { storage, getKeys }), null);
 });
 
 test('getLastVerifiedElCatalog returns null when nothing is stored', async () => {
   const storage = createMemoryStorage();
-  assert.equal(await getLastVerifiedElCatalog({ storage }), null);
+  assert.equal(await getLastVerifiedElCatalog(CATALOG_URL, { storage, getKeys }), null);
 });
 
 test('shape rejection (non-envelope body) returns last-good', async () => {
@@ -415,9 +430,12 @@ test('a catalog signed by a valid-but-unpinned key is REJECTED with zero JWKS fe
 
 test('an unpinned kid on an otherwise valid envelope keeps the last-good catalog', async () => {
   __resetElJwksRuntimeForTests();
-  const storage = createMemoryStorage({ [LAST_CATALOG_KEY]: storedCatalogState(3) });
-  const unknownKid = 'lqd-rotated-2027-a';
   const catalogUrl = 'https://example.test/media/catalog.dev.json';
+  // Verified by the production key, which this (release-like) runtime pins.
+  const storage = createMemoryStorage({
+    [LAST_CATALOG_KEY]: storedCatalogState(3, { keyId: 'lqd-prod-2026-a', catalogUrl }),
+  });
+  const unknownKid = 'lqd-rotated-2027-a';
   let jwksFetches = 0;
 
   const fetchFn = (async (url: string) => {
@@ -451,7 +469,7 @@ test('getLastVerifiedElCatalog ignores a stored record that is missing or mistyp
     JSON.stringify({ sequence: 9, payloadJson: '{}' }),
   ]) {
     const storage = createMemoryStorage({ [LAST_CATALOG_KEY]: raw });
-    assert.equal(await getLastVerifiedElCatalog({ storage }), null, raw);
+    assert.equal(await getLastVerifiedElCatalog(CATALOG_URL, { storage, getKeys }), null, raw);
   }
 });
 
@@ -460,7 +478,7 @@ test('getLastVerifiedElCatalog returns null when the stored payload bytes are no
     [LAST_CATALOG_KEY]: JSON.stringify({ sequence: 2, payloadJson: '{"schema', verifiedAt: 1 }),
   });
 
-  assert.equal(await getLastVerifiedElCatalog({ storage }), null);
+  assert.equal(await getLastVerifiedElCatalog(CATALOG_URL, { storage, getKeys }), null);
 });
 
 test('a malformed stored record does not act as a rollback floor for a fresh catalog', async () => {
@@ -483,12 +501,16 @@ test('a malformed stored record does not act as a rollback floor for a fresh cat
 });
 
 test('a trust-store lookup that throws keeps the last-good catalog', async () => {
-  const storage = createMemoryStorage({ [LAST_CATALOG_KEY]: storedCatalogState(4) });
+  const storage = createMemoryStorage({
+    [LAST_CATALOG_KEY]: storedCatalogState(4, { keyId: 'lqd-cached-2026-a' }),
+  });
 
   const catalog = await refreshElCatalog(CATALOG_URL, {
     fetchFn: makeFetch(catalogEnvelope).fetchFn,
     storage,
-    getKeys: async () => {
+    // Only the incoming envelope's key lookup fails; the stored record's key is still trusted.
+    getKeys: async (keyId) => {
+      if (keyId === 'lqd-cached-2026-a') return [{ ...jwks[0], kid: keyId }];
       throw new Error('keystore unavailable');
     },
     isVerificationSupported: supported,
@@ -525,7 +547,7 @@ test('storage whose reads throw is treated as having no last-good catalog', asyn
     setItem: async () => {},
   };
 
-  assert.equal(await getLastVerifiedElCatalog({ storage }), null);
+  assert.equal(await getLastVerifiedElCatalog(CATALOG_URL, { storage, getKeys }), null);
   const catalog = await refreshElCatalog(CATALOG_URL, {
     fetchFn: makeFetch(catalogEnvelope, false).fetchFn,
     storage,
@@ -533,4 +555,90 @@ test('storage whose reads throw is treated as having no last-good catalog', asyn
     isVerificationSupported: supported,
   });
   assert.equal(catalog, null);
+});
+
+test('a stored catalog verified by a key this build does not trust is never served', async () => {
+  // A dev build stored a catalog verified by the dev key; a release build installed over it
+  // trusts the production key alone.
+  const storage = createMemoryStorage({ [LAST_CATALOG_KEY]: storedCatalogState(3) });
+
+  const catalog = await refreshElCatalog(CATALOG_URL, {
+    fetchFn: throwingFetch,
+    storage,
+    getKeys: releaseKeys,
+    isVerificationSupported: supported,
+  });
+
+  assert.equal(catalog, null);
+  assert.equal(
+    await getLastVerifiedElCatalog(CATALOG_URL, { storage, getKeys: releaseKeys }),
+    null
+  );
+});
+
+test('a stored catalog from another catalog source is never served', async () => {
+  const storage = createMemoryStorage({
+    [LAST_CATALOG_KEY]: storedCatalogState(3, {
+      catalogUrl: 'https://example.test/catalog.dev.json',
+    }),
+  });
+  const releaseUrl = 'https://example.test/catalog.json';
+
+  const catalog = await refreshElCatalog(releaseUrl, {
+    fetchFn: throwingFetch,
+    storage,
+    getKeys,
+    isVerificationSupported: supported,
+  });
+
+  assert.equal(catalog, null);
+  assert.equal(await getLastVerifiedElCatalog(releaseUrl, { storage, getKeys }), null);
+});
+
+test('a stored catalog that does not name its verifying key is never served', async () => {
+  const storage = createMemoryStorage({ [LAST_CATALOG_KEY]: storedCatalogState(3, 'legacy') });
+
+  const catalog = await refreshElCatalog(CATALOG_URL, {
+    fetchFn: throwingFetch,
+    storage,
+    getKeys,
+    isVerificationSupported: supported,
+  });
+
+  assert.equal(catalog, null);
+});
+
+test('a discarded catalog does not hold back a verified catalog with a lower sequence', async () => {
+  // The dev catalog's sequence would otherwise reject every production catalog as a rollback.
+  const storage = createMemoryStorage({
+    [LAST_CATALOG_KEY]: storedCatalogState(9, { keyId: 'lqd-other-2026-a' }),
+  });
+
+  const catalog = await refreshElCatalog(CATALOG_URL, {
+    fetchFn: makeFetch(catalogEnvelope).fetchFn,
+    storage,
+    getKeys,
+    isVerificationSupported: supported,
+  });
+
+  assert.equal(catalog?.sequence, 1);
+  const persisted = JSON.parse(storage.raw.get(LAST_CATALOG_KEY) as string) as {
+    sequence: number;
+    keyId: string;
+  };
+  assert.deepEqual(
+    { sequence: persisted.sequence, keyId: persisted.keyId },
+    {
+      sequence: 1,
+      keyId: 'lqd-dev-2026-a',
+    }
+  );
+});
+
+test('the last verified catalog is served for the source and key that verified it', async () => {
+  const storage = createMemoryStorage({ [LAST_CATALOG_KEY]: storedCatalogState(6) });
+
+  const catalog = await getLastVerifiedElCatalog(CATALOG_URL, { storage, getKeys });
+
+  assert.equal(catalog?.sequence, 6);
 });

@@ -76,6 +76,9 @@ class AudioPlayer {
   private loaded = false;
   private loadRequestId = 0;
   private pendingLoadRequestId: number | null = null;
+  // A speed chosen while a chapter loads: the wrapper has no sound to apply it to yet,
+  // so it is applied when that load completes.
+  private pendingRate: PlaybackRate | null = null;
 
   // Merged state — progress and playback-state arrive as separate events from
   // the track-player wrapper. We merge them here so onStatusUpdate always
@@ -126,8 +129,20 @@ class AudioPlayer {
 
     this.subscriptions.push(
       TrackPlayer.addEventListener(Event.PlaybackState, (data: PlaybackStateEvent) => {
+        // The wrapper has dropped a failed or released sound: nothing is left to
+        // resume, so Play has to load the chapter again.
+        if (data.state === State.Error) this.loaded = false;
         this.lastIsPlaying = data.state === State.Playing;
-        this.lastIsBuffering = data.state === State.Buffering || data.state === State.Loading;
+        // Until Play starts a chapter being loaded, its first status (paused) and
+        // Ready are part of loading it, not a pause.
+        const isStartingChapter =
+          this.pendingLoadRequestId !== null &&
+          (data.state === State.Paused || data.state === State.Ready);
+        this.lastIsBuffering =
+          data.state === State.Buffering || data.state === State.Loading || isStartingChapter;
+        // Stopped only follows stop(), whose caller has already reset playback to idle;
+        // a snapshot now would read as a pause and bring the torn-down chapter back.
+        if (data.state === State.Stopped) return;
         this.emitSnapshot(data.state === State.Ended);
       })
     );
@@ -140,6 +155,10 @@ class AudioPlayer {
 
     this.subscriptions.push(
       TrackPlayer.addEventListener(Event.PlaybackError, (data: PlaybackErrorEvent) => {
+        // A load error means the sound is gone: expo-av unloads it on a fatal status
+        // (dropped stream, decode failure) and rejects every later call. Play must then
+        // load the chapter again rather than resume it.
+        if (data.code === 'LOAD_ERROR') this.loaded = false;
         this.callbacks.onError?.(data.message);
       })
     );
@@ -147,20 +166,31 @@ class AudioPlayer {
 
   // -- playback controls ---------------------------------------------------
 
-  async loadAndPlay(url: string, rate: PlaybackRate = 1.0): Promise<void> {
+  /** `startPositionMs` resumes the chapter at that offset instead of the top. */
+  async loadAndPlay(url: string, rate: PlaybackRate = 1.0, startPositionMs = 0): Promise<void> {
     const requestId = ++this.loadRequestId;
     this.pendingLoadRequestId = requestId;
+    this.pendingRate = null;
     this.loaded = false;
     try {
       await this.configure();
       if (requestId !== this.loadRequestId) return;
       // Reset merged state for new track
-      this.lastPositionMillis = 0;
+      this.lastPositionMillis = startPositionMs;
       this.lastDurationMillis = 0;
       this.lastIsPlaying = false;
       this.lastIsBuffering = true;
-      await TrackPlayer.loadAndPlay(url, rate);
-      if (requestId === this.loadRequestId) this.loaded = true;
+      if (startPositionMs > 0) {
+        await TrackPlayer.loadAndPlay(url, rate, startPositionMs / 1000);
+      } else {
+        await TrackPlayer.loadAndPlay(url, rate);
+      }
+      if (requestId === this.loadRequestId) {
+        this.loaded = true;
+        const chosenRate = this.pendingRate;
+        this.pendingRate = null;
+        if (chosenRate !== null && chosenRate !== rate) await this.setRate(chosenRate);
+      }
     } finally {
       if (this.pendingLoadRequestId === requestId) this.pendingLoadRequestId = null;
     }
@@ -195,6 +225,7 @@ class AudioPlayer {
   async stop(): Promise<void> {
     this.loadRequestId += 1;
     this.pendingLoadRequestId = null;
+    this.pendingRate = null;
     this.loaded = false;
     this.lastPositionMillis = 0;
     this.lastDurationMillis = 0;
@@ -214,13 +245,25 @@ class AudioPlayer {
   }
 
   async setRate(rate: PlaybackRate): Promise<void> {
-    if (!this.loaded) return;
+    if (!this.loaded) {
+      if (this.pendingLoadRequestId !== null) this.pendingRate = rate;
+      return;
+    }
     try {
       await TrackPlayer.setRate(rate);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to set playback rate';
       this.callbacks.onError?.(message);
     }
+  }
+
+  /**
+   * Checks that the loaded sound still exists natively. A released one is reported
+   * through onError and leaves the player unloaded, so Play loads the chapter again.
+   */
+  async verifyLoaded(): Promise<void> {
+    if (!this.loaded) return;
+    await TrackPlayer.verifyActiveTrack();
   }
 
   async getStatus(): Promise<TrackPlayerProgressSnapshot | null> {

@@ -56,6 +56,20 @@ const defaultGetCouncilPasscode = (): string | null => {
   return useTranslatorReviewStore.getState().councilPasscode;
 };
 
+// Hermes has no globalThis.crypto, so the fallback is what runs on device. The id only has
+// to tell this device's submissions apart; it is not a secret.
+const createClientSubmissionId = (): string => {
+  const webCrypto = globalThis.crypto as { randomUUID?: () => string } | undefined;
+  if (typeof webCrypto?.randomUUID === 'function') {
+    return webCrypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (character) => {
+    const random = Math.floor(Math.random() * 16);
+    const value = character === 'x' ? random : (random & 0x3) | 0x8;
+    return value.toString(16);
+  });
+};
+
 const resolveDeps = (deps: ChapterFeedbackOutboxDeps = {}) => ({
   submit: deps.submit ?? ((input: ChapterFeedbackSubmissionInput) => submitChapterFeedback(input)),
   isOffline: deps.isOffline ?? isDeviceOffline,
@@ -84,6 +98,23 @@ const writeEntries = (entries: OutboxEntry[]): void => {
 
 const removeEntry = (id: string): void => {
   writeEntries(readEntries().filter((entry) => entry.id !== id));
+};
+
+// Feedback queued by a build that did not send an id gets one now, saved before the first
+// attempt, so every later retry of it carries the same id.
+const ensureClientSubmissionId = (entry: OutboxEntry): string => {
+  if (entry.input.clientSubmissionId) {
+    return entry.input.clientSubmissionId;
+  }
+  const clientSubmissionId = createClientSubmissionId();
+  writeEntries(
+    readEntries().map((stored) =>
+      stored.id === entry.id
+        ? { ...stored, input: { ...stored.input, clientSubmissionId } }
+        : stored
+    )
+  );
+  return clientSubmissionId;
 };
 
 const enqueue = (userId: string, input: ChapterFeedbackSubmissionInput, now: number): void => {
@@ -126,18 +157,24 @@ export async function submitChapterFeedbackOrQueue(
   const { submit, isOffline, getUserId, now } = resolveDeps(deps);
   const userId = getUserId();
   const canQueue = Boolean(userId) && !input.audioResponse;
+  // Made before the first attempt, so a queued retry of a request that timed out after the
+  // server saved it is recognised as the same submission.
+  const submission: ChapterFeedbackSubmissionInput = {
+    ...input,
+    clientSubmissionId: input.clientSubmissionId ?? createClientSubmissionId(),
+  };
 
   if (await isOffline()) {
     if (!canQueue || !userId) {
       return offlineResult();
     }
-    enqueue(userId, input, now());
+    enqueue(userId, submission, now());
     return queuedResult();
   }
 
-  const result = await submit(input);
+  const result = await submit(submission);
   if (!result.success && result.retryable && canQueue && userId) {
-    enqueue(userId, input, now());
+    enqueue(userId, submission, now());
     return queuedResult();
   }
   return result;
@@ -183,11 +220,20 @@ async function runFlush(
       break;
     }
 
+    const councilPasscode =
+      entry.input.contributorCategory === 'scripture_council' ? getCouncilPasscode() : undefined;
+    if (councilPasscode === null) {
+      // No passcode on the device (signed out and back in, left council mode, unreadable
+      // keychain). The server would refuse it and count a wrong guess, which says nothing
+      // about the feedback, so it waits until the council is unlocked again.
+      continue;
+    }
+
     const result = await submit({
       ...entry.input,
+      clientSubmissionId: ensureClientSubmissionId(entry),
       audioResponse: null,
-      councilPasscode:
-        entry.input.contributorCategory === 'scripture_council' ? getCouncilPasscode() : undefined,
+      councilPasscode,
     });
 
     if (result.success) {

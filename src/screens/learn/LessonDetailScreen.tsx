@@ -19,7 +19,7 @@ import { Audio, type AVPlaybackStatus } from 'expo-av';
 import { useTranslation } from 'react-i18next';
 
 import { useTheme } from '../../contexts/ThemeContext';
-import { useDisplayFont } from '../../hooks';
+import { useDisplayFont } from '../../hooks/useDisplayFont';
 import type { LessonDetailScreenProps } from '../../navigation/types';
 import { layout, shadows, spacing, typography } from '../../design/system';
 import { getReadingFontFamily } from '../../design/fonts';
@@ -30,16 +30,13 @@ import {
   WISDOM_TITLE_KEYS,
 } from '../../data/gatherWisdom';
 import { GatherIconBadge } from '../../components/gather/GatherIconBadge';
-import {
-  AppButton,
-  AppCard,
-  BackArrowIcon,
-  IconButton,
-  PressableScale,
-  ProgressBar,
-  Sheet,
-  TabSwitch,
-} from '../../components/ui';
+import { AppButton } from '../../components/ui/AppButton';
+import { AppCard } from '../../components/ui/AppCard';
+import { BackArrowIcon, IconButton } from '../../components/ui/IconButton';
+import { PressableScale } from '../../components/ui/PressableScale';
+import { ProgressBar } from '../../components/ui/ProgressBar';
+import { Sheet } from '../../components/ui/Sheet';
+import { TabSwitch } from '../../components/ui/TabSwitch';
 import {
   getPassageText,
   LESSON_FALLBACK_TRANSLATION_ID,
@@ -47,7 +44,7 @@ import {
 } from '../../services/gather/gatherBibleService';
 import { formatBibleReferenceLabel } from '../../services/gather/gatherReferenceLabel';
 import { getChapterAudioUrl } from '../../services/audio/audioService';
-import { getTranslatedBookName } from '../../constants';
+import { getTranslatedBookName } from '../../constants/books';
 import { formatPlaybackTime, lightHaptic, successHaptic } from '../../utils';
 import { isDeviceOffline } from '../../utils/connectivity';
 import type { MeetingSectionType } from '../../types/gather';

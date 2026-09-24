@@ -3,10 +3,79 @@ import type { LinkingOptions } from '@react-navigation/native';
 import { getStateFromPath as defaultGetStateFromPath } from '@react-navigation/native';
 import type { RootTabParamList } from './types';
 import { buildBibleNavState } from './buildBibleNavState';
+import { rootNavigationRef } from './rootNavigation';
 
 export { buildBibleNavState } from './buildBibleNavState';
 
 const prefix = Linking.createURL('/');
+
+/** React Navigation's own wait: getInitialURL can hang on Android (react-native#25675). */
+const INITIAL_URL_TIMEOUT_MS = 150;
+
+let hasDeliveredInitialUrl = false;
+
+/**
+ * The launch URL, once per JS runtime. Linking reports it for the life of the process,
+ * and NavigationContainer asks on every mount; the navigator unmounts behind the
+ * discreet-mode lock screen, so each unlock used to reopen the launch link wherever
+ * the reader had gone since. A link that arrives later comes through the 'url'
+ * listener instead. A launch during onboarding or behind the lock is still honoured:
+ * the navigator first mounts, and asks, only after both.
+ */
+const getInitialURLOnce = (): Promise<string | null> | null => {
+  if (hasDeliveredInitialUrl) {
+    return null;
+  }
+  hasDeliveredInitialUrl = true;
+  return Promise.race([
+    Linking.getInitialURL(),
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), INITIAL_URL_TIMEOUT_MS)),
+  ]);
+};
+
+type LinkListener = (url: string) => void;
+
+let deliverLink: LinkListener | null = null;
+let parkedLink: string | null = null;
+let isWatchingLinks = false;
+
+/**
+ * Hands the parked link to React Navigation once its container is listening and ready.
+ * RootNavigator calls this from onReady; subscribeToLinks calls it on subscribe, since a
+ * remounted container can be ready before React Navigation subscribes.
+ */
+export function flushParkedLink(): void {
+  if (parkedLink === null || !deliverLink || !rootNavigationRef.isReady()) {
+    return;
+  }
+  const url = parkedLink;
+  parkedLink = null;
+  deliverLink(url);
+}
+
+/**
+ * React Navigation only listens for links while its container is mounted, and drops a
+ * link that arrives before the container is ready. The navigator unmounts behind the
+ * discreet-mode lock screen, so a link tapped while the app sat locked was lost. The
+ * app listens once for its whole life instead; the latest link waits here until a
+ * mounted, ready navigator can take it (after unlock, so the lock is never bypassed).
+ */
+const subscribeToLinks = (listener: LinkListener): (() => void) => {
+  if (!isWatchingLinks) {
+    isWatchingLinks = true;
+    Linking.addEventListener('url', ({ url }) => {
+      parkedLink = url;
+      flushParkedLink();
+    });
+  }
+  deliverLink = listener;
+  flushParkedLink();
+  return () => {
+    if (deliverLink === listener) {
+      deliverLink = null;
+    }
+  };
+};
 
 /**
  * React Navigation linking config for deep links using the com.everybible.app:// scheme.
@@ -21,6 +90,8 @@ const prefix = Linking.createURL('/');
  */
 export const linkingConfig: LinkingOptions<RootTabParamList> = {
   prefixes: [prefix, 'com.everybible.app://'],
+  getInitialURL: getInitialURLOnce,
+  subscribe: subscribeToLinks,
   config: {
     // No `bible/...` template lives here on purpose. Bible paths are owned entirely
     // by getStateFromPath below (slug→bookId via buildBibleNavState). A template of
@@ -33,6 +104,9 @@ export const linkingConfig: LinkingOptions<RootTabParamList> = {
     // inbound template.
     screens: {
       More: {
+        // A cold-start link builds the More stack from this config alone; without an
+        // initial route it was [Auth] with no More page to close the modal back to.
+        initialRouteName: 'MoreScreen',
         screens: {
           Auth: {
             screens: {

@@ -19,6 +19,7 @@ const readFixtureBytes = (name: string) =>
 const readJson = (name: string) => JSON.parse(readFixtureBytes(name).toString('utf8'));
 
 const jwks = readJson('dev.jwks.json').keys as ElJwk[];
+const devJwk = assertDefined(jwks[0], 'the dev fixture key');
 // The fixture catalog's manifest_sha256 is the sha256 of these exact manifest FILE bytes.
 const manifestBytes = readFixtureBytes('manifest-lqdtest.json');
 
@@ -185,13 +186,63 @@ test('cached payload is the verified manifest JSON (not the envelope)', async ()
     k.startsWith('el-media:manifest:')
   );
   assert.equal(diskEntries.length, 1);
-  const cached = JSON.parse(assertDefined(diskEntries[0], 'first disk entry')[1]) as Record<
-    string,
-    unknown
-  >;
+  const cached = JSON.parse(assertDefined(diskEntries[0], 'first disk entry')[1]) as {
+    keyId: string;
+    payload: Record<string, unknown>;
+  };
   // Verified payload has `schema`; an envelope would have `compactJws`.
-  assert.equal(cached.schema, 'everybible-audio-manifest/v1');
-  assert.equal(cached.compactJws, undefined);
+  assert.equal(cached.payload.schema, 'everybible-audio-manifest/v1');
+  assert.equal(cached.payload.compactJws, undefined);
+  assert.equal(cached.keyId, 'lqd-dev-2026-a', 'the cache names the key that verified it');
+});
+
+test('a cached manifest verified by a key this build does not trust is not served', async () => {
+  // A dev build cached a manifest verified by the dev key; a release build installed over it
+  // trusts the production key alone.
+  __resetElManifestRuntimeForTests();
+  const storage = createMemoryStorage();
+  await getElManifest(baseEntry(), CATALOG_BASE_URL, {
+    fetchFn: makeFetch(manifestBytes).fetchFn,
+    storage,
+    getKeys,
+  });
+  __resetElManifestRuntimeForTests();
+  const offline = makeFetch(manifestBytes, true, true);
+
+  const manifest = await getElManifest(baseEntry(), CATALOG_BASE_URL, {
+    fetchFn: offline.fetchFn,
+    storage,
+    getKeys: async () => [{ ...devJwk, kid: 'lqd-prod-2026-a' }],
+  });
+
+  assert.equal(manifest, null);
+  assert.equal(offline.calls, 1, 'the untrusted copy is refetched rather than served');
+});
+
+test('a cached manifest that does not name its verifying key is refetched', async () => {
+  __resetElManifestRuntimeForTests();
+  const storage = createMemoryStorage();
+  const fetcher = makeFetch(manifestBytes);
+  await getElManifest(baseEntry(), CATALOG_BASE_URL, {
+    fetchFn: fetcher.fetchFn,
+    storage,
+    getKeys,
+  });
+  // Rewrite the entry in the format written before the key was recorded: the bare payload.
+  const [diskKey, value] = [...storage.raw.entries()].find(([key]) =>
+    key.startsWith('el-media:manifest:')
+  ) as [string, string];
+  storage.raw.set(diskKey, JSON.stringify((JSON.parse(value) as { payload: unknown }).payload));
+  __resetElManifestRuntimeForTests();
+
+  const manifest = await getElManifest(baseEntry(), CATALOG_BASE_URL, {
+    fetchFn: fetcher.fetchFn,
+    storage,
+    getKeys,
+  });
+
+  assert.equal(manifest?.translationId, 'lqdtest');
+  assert.equal(fetcher.calls, 2);
 });
 
 test('integrity mismatch (sha256 differs) returns null and does not cache', async () => {
@@ -507,7 +558,7 @@ test('an unpinned manifest kid is REJECTED with zero JWKS fetches', async () => 
       jwksFetches += 1;
       return {
         ok: true,
-        json: async () => ({ keys: [{ ...jwks[0], kid: unknownKid }] }),
+        json: async () => ({ keys: [{ ...devJwk, kid: unknownKid }] }),
       } as unknown as Response;
     }
     return {

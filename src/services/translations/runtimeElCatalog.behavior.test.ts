@@ -35,8 +35,8 @@ mockModule(mock, sourcePath('services/elMedia/elCatalogService.ts'), {
     catalogCalls.push(`refresh:${url}`);
     return refreshResult(url);
   },
-  getLastVerifiedElCatalog: async () => {
-    catalogCalls.push('lastVerified');
+  getLastVerifiedElCatalog: async (url: string) => {
+    catalogCalls.push(`lastVerified:${url}`);
     return lastVerifiedResult();
   },
 });
@@ -147,7 +147,11 @@ test('the default step falls back to the last verified catalog when the refresh 
   });
 
   assert.equal(merged, true, 'a cached catalog keeps previously loaded audio available offline');
-  assert.deepEqual(catalogCalls, [`refresh:${CATALOG_URL}`, 'lastVerified', 'map:cached']);
+  assert.deepEqual(catalogCalls, [
+    `refresh:${CATALOG_URL}`,
+    `lastVerified:${CATALOG_URL}`,
+    'map:cached',
+  ]);
 });
 
 test('the default step maps nothing when neither a fresh nor a cached catalog exists', async () => {
@@ -160,7 +164,7 @@ test('the default step maps nothing when neither a fresh nor a cached catalog ex
   });
 
   assert.equal(merged, false);
-  assert.deepEqual(catalogCalls, [`refresh:${CATALOG_URL}`, 'lastVerified']);
+  assert.deepEqual(catalogCalls, [`refresh:${CATALOG_URL}`, `lastVerified:${CATALOG_URL}`]);
   assert.deepEqual(storeApplies, [], 'no catalog means no apply, so nothing can be pruned');
 });
 

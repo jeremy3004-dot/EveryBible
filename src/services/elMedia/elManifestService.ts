@@ -117,15 +117,30 @@ async function diskKeyForUrl(url: string): Promise<string> {
   return `${DISK_KEY_PREFIX}${hashed ?? encodeURIComponent(url)}`;
 }
 
+// A disk cache entry: the verified payload and the key that verified it. MMKV survives an app
+// update, so a release build installed over a dev build finds manifests the dev key verified;
+// an entry is only served while this build still trusts its key. An entry without a key id
+// (written before the id was recorded) is refetched.
+interface StoredManifestEntry {
+  keyId: string;
+  payload: unknown;
+}
+
 async function readDiskCache(
   storage: ElManifestStorage,
-  diskKey: string
+  diskKey: string,
+  getKeys: (keyId: string) => Promise<ElJwk[]>
 ): Promise<ElAudioManifest | null> {
   try {
     const raw = await storage.getItem(diskKey);
     if (!raw) return null;
+    const entry = JSON.parse(raw) as Partial<StoredManifestEntry> | null;
+    const keyId = entry?.keyId;
+    if (typeof keyId !== 'string') return null;
+    const keys = await getKeys(keyId);
+    if (!keys.some((key) => key.kid === keyId)) return null;
     // Re-parse through the tolerant parser; never trust raw storage bytes.
-    return parseElManifestPayload(JSON.parse(raw));
+    return parseElManifestPayload(entry?.payload);
   } catch {
     return null;
   }
@@ -165,7 +180,7 @@ export async function getElManifest(
   if (cachedInMemory && matchesManifestEntry(cachedInMemory, entry)) return cachedInMemory;
 
   const diskKey = await diskKeyForUrl(url);
-  const cachedOnDisk = await readDiskCache(storage, diskKey);
+  const cachedOnDisk = await readDiskCache(storage, diskKey, getKeys);
   if (cachedOnDisk && matchesManifestEntry(cachedOnDisk, entry)) {
     memoryCache.set(url, cachedOnDisk);
     return cachedOnDisk;
@@ -204,9 +219,10 @@ export async function getElManifest(
   }
   if (!isElEnvelopeShape(envelope)) return fail();
 
+  const { keyId } = envelope as ElSignedEnvelope;
   let payload: unknown;
   try {
-    const keys = await getKeys((envelope as ElSignedEnvelope).keyId);
+    const keys = await getKeys(keyId);
     payload = await verifyElEnvelope(envelope as ElSignedEnvelope, keys);
   } catch {
     return fail();
@@ -221,7 +237,8 @@ export async function getElManifest(
 
   memoryCache.set(url, manifest);
   try {
-    await storage.setItem(diskKey, JSON.stringify(payload));
+    const stored: StoredManifestEntry = { keyId, payload };
+    await storage.setItem(diskKey, JSON.stringify(stored));
   } catch {
     // Persist is best-effort; the memory cache still serves this launch.
   }

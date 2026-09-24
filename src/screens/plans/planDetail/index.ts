@@ -12,4 +12,4 @@ export { PlanDetailStatusView } from './PlanDetailStatusView';
 export * from './planDetailLedgerModel';
 export { ProgressCard } from './ProgressCard';
 export { RelatedPlansSection } from './RelatedPlansSection';
-export { useFocusedToday, usePlanDetailData } from './usePlanDetailData';
+export { usePlanDetailData } from './usePlanDetailData';

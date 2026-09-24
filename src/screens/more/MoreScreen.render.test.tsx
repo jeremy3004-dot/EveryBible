@@ -174,6 +174,18 @@ test('in English the locale row keeps the English country name', async (context)
   assert.ok(within(localeRow()).getByText('United States · العربية'));
 });
 
+test('the Settings row writes the reminder time the way the interface language writes clock times', async () => {
+  harness.authStore
+    .getState()
+    .setPreferences({ notificationsEnabled: true, reminderTime: '18:30' });
+  const view = await renderMore();
+  const settingsRow = view.getByRole('button', { name: rowNamed(t('more.settings')) });
+
+  // ICU separates the day period with a narrow no-break space.
+  const label = String(settingsRow.props.accessibilityLabel).replace(/\s/gu, ' ');
+  assert.match(label, /6:30 PM reminder/, 'English reads a 12-hour clock, as Settings does');
+});
+
 test('each More row opens its own screen in the More stack', async () => {
   const view = await renderMore();
 

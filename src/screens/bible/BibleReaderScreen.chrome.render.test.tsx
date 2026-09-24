@@ -79,6 +79,16 @@ test('the reference pill opens the book picker and the translation segment the t
   assert.ok(view.getByText(t('bible.selectTranslation')));
 });
 
+test('a current translation missing from the list is labelled by its own id, not as BSB', async () => {
+  // Only BSB itself gets the Berean label; any other id the store has no entry for
+  // (a removed or not-yet-synced translation) is named by its id, as the browser does.
+  reader.bibleStore.setState({ currentTranslation: 'kjv' });
+  const view = await renderReader();
+
+  assert.ok(view.getByRole('button', { name: 'KJV' }));
+  assert.equal(view.queryByRole('button', { name: 'BSB' }), null);
+});
+
 test('search opens the Bible browser focused on searching the current book', async () => {
   const view = await renderReader();
 

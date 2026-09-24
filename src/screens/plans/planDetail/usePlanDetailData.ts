@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import {
   getPlanEntries,
@@ -36,6 +35,12 @@ export function usePlanDetailData(planId: string) {
     if (plansResult.success) {
       foundPlan = (plansResult.data ?? []).find((p) => p.id === planId) ?? null;
       setPlan(foundPlan);
+      if (!foundPlan) {
+        // A persisted or notification-supplied id can outlive its catalog entry. Without
+        // this the page rendered an empty ledger under a Start plan button that enrolled
+        // the reader in a plan that does not exist.
+        setError(t('common.error'));
+      }
     } else {
       setError(t('common.error'));
     }
@@ -72,15 +77,4 @@ export function usePlanDetailData(planId: string) {
   }, [load]);
 
   return { plan, entries, relatedPlans, loading, error, load };
-}
-
-/** Today's date, refreshed whenever the screen regains focus (a plan left open overnight). */
-export function useFocusedToday(): Date {
-  const [today, setToday] = useState(() => new Date());
-  useFocusEffect(
-    useCallback(() => {
-      setToday(new Date());
-    }, [])
-  );
-  return today;
 }

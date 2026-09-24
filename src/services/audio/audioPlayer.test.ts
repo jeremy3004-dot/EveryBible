@@ -78,7 +78,15 @@ const trackPlayerDouble = {
   stop: () => record('stop'),
   seekTo: (positionSeconds: number) => record('seekTo', [positionSeconds]),
   setRate: (rate: number) => record('setRate', [rate]),
-  loadAndPlay: (url: string, rate: number) => record('loadAndPlay', [url, rate]),
+  verifyActiveTrack: async () => {
+    await record('verifyActiveTrack');
+    return true;
+  },
+  loadAndPlay: (url: string, rate: number, startPositionSeconds?: number) =>
+    record(
+      'loadAndPlay',
+      startPositionSeconds === undefined ? [url, rate] : [url, rate, startPositionSeconds]
+    ),
   getProgress: async () => {
     await record('getProgress');
     return progressResult;
@@ -247,6 +255,42 @@ test('Buffering and Loading states both read as buffering', async () => {
   ]);
 });
 
+// Loading a chapter reports the sound as paused (its first status) and Ready before
+// Play starts it. Read as a pause, every chapter load flashed the transport, the lock
+// screen and the notification to "paused" and paused then restarted the music bed.
+test('a chapter that has loaded but not started yet reads as loading, not paused', async () => {
+  const snapshots: Array<{ isPlaying: boolean; isBuffering: boolean }> = [];
+  mod.audioPlayer.setCallbacks({
+    onStatusUpdate: (status) =>
+      snapshots.push({ isPlaying: status.isPlaying, isBuffering: status.isBuffering }),
+  });
+  let release!: () => void;
+  gates.set(
+    'loadAndPlay',
+    new Promise<void>((resolve) => {
+      release = resolve;
+    })
+  );
+  const loading = mod.audioPlayer.loadAndPlay('https://audio.test/john3.mp3');
+  await new Promise((resolve) => setImmediate(resolve));
+
+  emit(Event.PlaybackState, { state: State.Loading });
+  emit(Event.PlaybackState, { state: State.Paused });
+  emit(Event.PlaybackState, { state: State.Ready });
+  emit(Event.PlaybackState, { state: State.Playing });
+  release();
+  await loading;
+  emit(Event.PlaybackState, { state: State.Paused });
+
+  assert.deepEqual(snapshots, [
+    { isPlaying: false, isBuffering: true },
+    { isPlaying: false, isBuffering: true },
+    { isPlaying: false, isBuffering: true },
+    { isPlaying: true, isBuffering: false },
+    { isPlaying: false, isBuffering: false },
+  ]);
+});
+
 test('the merged snapshot keeps position and state from separate events', async () => {
   const snapshots: unknown[] = [];
   mod.audioPlayer.setCallbacks({ onStatusUpdate: (status) => snapshots.push(status) });
@@ -278,6 +322,21 @@ test('the Ended state reaches onStatusUpdate as a just-finished stop, once', asy
     { isPlaying: false, didJustFinish: true },
     { isPlaying: false, didJustFinish: false },
   ]);
+});
+
+// The wrapper reports Error once it has dropped a sound the native side released
+// (a stream that failed mid-chapter). The facade must stop claiming a loaded track,
+// or Play keeps resuming a sound that no longer exists instead of reloading it.
+test('an Error state leaves the facade unloaded so the chapter is loaded again', async () => {
+  await mod.audioPlayer.loadAndPlay('https://audio.test/gen1.mp3');
+  assert.equal(mod.audioPlayer.isLoaded(), true);
+
+  emit(Event.PlaybackState, { state: State.Error });
+
+  assert.equal(mod.audioPlayer.isLoaded(), false);
+  trackPlayerCalls.length = 0;
+  await mod.audioPlayer.play();
+  assert.deepEqual(trackPlayerCalls, []);
 });
 
 test('a queue-ended event invokes onPlaybackFinished', async () => {
@@ -331,6 +390,15 @@ test('loadAndPlay forwards the url and rate and marks the player loaded', async 
     { method: 'loadAndPlay', args: ['https://audio.test/john3.mp3', 1.5] },
   ]);
   assert.equal(mod.audioPlayer.isLoaded(), true);
+});
+
+test('loadAndPlay hands a resume offset to the wrapper in seconds', async () => {
+  await mod.audioPlayer.loadAndPlay('https://audio.test/john3.mp3', 1.25, 42_500);
+
+  assert.deepEqual(
+    trackPlayerCalls.filter((call) => call.method === 'loadAndPlay'),
+    [{ method: 'loadAndPlay', args: ['https://audio.test/john3.mp3', 1.25, 42.5] }]
+  );
 });
 
 test('loadAndPlay defaults to 1x playback', async () => {
@@ -406,6 +474,36 @@ test('play, pause and resume delegate once a track is loaded', async () => {
     { method: 'pause', args: [] },
     { method: 'play', args: [] },
   ]);
+});
+
+test('a rate change while a chapter is loading reaches the wrapper for that chapter', async () => {
+  let release!: () => void;
+  gates.set(
+    'loadAndPlay',
+    new Promise<void>((resolve) => {
+      release = resolve;
+    })
+  );
+  const loading = mod.audioPlayer.loadAndPlay('https://audio.test/john3.mp3');
+  await new Promise((resolve) => setImmediate(resolve));
+  trackPlayerCalls.length = 0;
+
+  await mod.audioPlayer.setRate(1.5);
+  release();
+  await loading;
+
+  assert.deepEqual(trackPlayerCalls, [{ method: 'setRate', args: [1.5] }]);
+});
+
+test('verifyLoaded checks the loaded sound with the wrapper, and only a loaded one', async () => {
+  await mod.audioPlayer.verifyLoaded();
+  assert.deepEqual(trackPlayerCalls, []);
+
+  await mod.audioPlayer.loadAndPlay('https://audio.test/john3.mp3');
+  trackPlayerCalls.length = 0;
+  await mod.audioPlayer.verifyLoaded();
+
+  assert.deepEqual(trackPlayerCalls, [{ method: 'verifyActiveTrack', args: [] }]);
 });
 
 test('seekTo converts the millisecond position the UI uses into seconds', async () => {
@@ -595,4 +693,83 @@ test('a delayed stop cannot clear the loaded flag of a newer chapter', async () 
   await stopping;
 
   assert.equal(mod.audioPlayer.isLoaded(), true);
+});
+
+// expo-av unloads a sound itself when playback fails for good (a dropped stream, a decode
+// error) and rejects every later call with "sound is not loaded". The facade has to stop
+// treating it as loaded, or Play keeps resuming a dead sound and fails every time instead
+// of loading the chapter again.
+test('a fatal playback error leaves the facade unloaded so Play reloads the chapter', async () => {
+  await mod.audioPlayer.loadAndPlay('https://audio.test/gen1.mp3');
+  assert.equal(mod.audioPlayer.isLoaded(), true);
+
+  emit(Event.PlaybackError, { code: 'LOAD_ERROR', message: 'The network connection was lost.' });
+
+  assert.equal(mod.audioPlayer.isLoaded(), false);
+  trackPlayerCalls.length = 0;
+  await mod.audioPlayer.seekTo(30_000);
+  await mod.audioPlayer.resume();
+  assert.deepEqual(trackPlayerCalls, []);
+});
+
+test('an error from one transport command does not unload the chapter', async () => {
+  await mod.audioPlayer.loadAndPlay('https://audio.test/gen1.mp3');
+
+  emit(Event.PlaybackError, { code: 'SEEK_ERROR', message: 'Seeking interrupted.' });
+
+  assert.equal(mod.audioPlayer.isLoaded(), true);
+});
+
+test('a speed chosen while the chapter is still loading applies once it has loaded', async () => {
+  const gate = deferOperation();
+  gates.set('loadAndPlay', gate.promise);
+  const pending = mod.audioPlayer.loadAndPlay('https://audio.test/gen1.mp3', 1.0);
+  await flushOperations();
+
+  await mod.audioPlayer.setRate(1.5);
+  gate.resolve();
+  await pending;
+
+  assert.deepEqual(
+    trackPlayerCalls.filter((call) => call.method === 'loadAndPlay' || call.method === 'setRate'),
+    [
+      { method: 'loadAndPlay', args: ['https://audio.test/gen1.mp3', 1.0] },
+      { method: 'setRate', args: [1.5] },
+    ]
+  );
+});
+
+test('a speed chosen during a load that is then replaced does not carry to the next chapter', async () => {
+  const gate = deferOperation();
+  gates.set('loadAndPlay', gate.promise);
+  const first = mod.audioPlayer.loadAndPlay('https://audio.test/gen1.mp3', 1.0);
+  await flushOperations();
+  await mod.audioPlayer.setRate(1.5);
+  await mod.audioPlayer.stop();
+  gates.clear();
+  gate.resolve();
+  await first;
+
+  await mod.audioPlayer.loadAndPlay('https://audio.test/gen2.mp3', 1.25);
+
+  assert.deepEqual(
+    trackPlayerCalls.filter((call) => call.method === 'setRate'),
+    []
+  );
+});
+
+// useAudioPlayer.stop() resets the store to idle before stopping the player. A snapshot
+// from the wrapper's Stopped state would then read as "paused", and the reader treats a
+// paused chapter as live audio to return to.
+test('stopping reports no paused snapshot after playback is torn down', async () => {
+  const snapshots: unknown[] = [];
+  mod.audioPlayer.setCallbacks({ onStatusUpdate: (snapshot) => snapshots.push(snapshot) });
+  await mod.audioPlayer.loadAndPlay('https://audio.test/gen1.mp3');
+  emit(Event.PlaybackState, { state: State.Playing });
+  snapshots.length = 0;
+
+  await mod.audioPlayer.stop();
+  emit(Event.PlaybackState, { state: State.Stopped });
+
+  assert.deepEqual(snapshots, []);
 });
