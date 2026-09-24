@@ -114,6 +114,7 @@ import {
 import { getAudioAvailability } from '../../services/audio/audioAvailability';
 import { isRemoteAudioAvailable } from '../../services/audio/audioRemote';
 import { config } from '../../constants';
+import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../design/largeTextLayout';
 
 interface LocaleSetupFlowProps {
   mode?: SetupMode;
@@ -1630,6 +1631,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
       {step === 'interfaceLanguage' ? (
         <>
           <Text
+            maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
             accessibilityRole="header"
             style={[styles.heroTitle, displayFont.bold, { color: colors.primaryText }]}
           >
@@ -1650,6 +1652,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
       {step === 'translation' ? (
         <>
           <Text
+            maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
             accessibilityRole="header"
             style={[styles.heroTitle, displayFont.bold, { color: colors.primaryText }]}
           >
@@ -1710,6 +1713,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
       {step === 'country' ? (
         <>
           <Text
+            maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
             accessibilityRole="header"
             style={[styles.heroTitle, displayFont.bold, { color: colors.primaryText }]}
           >
@@ -1731,6 +1735,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
       {step === 'contentLanguage' ? (
         <>
           <Text
+            maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
             accessibilityRole="header"
             style={[styles.heroTitle, displayFont.bold, { color: colors.primaryText }]}
           >

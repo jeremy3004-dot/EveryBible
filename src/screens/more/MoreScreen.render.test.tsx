@@ -117,6 +117,63 @@ test('the More menu lists profile and settings destinations, with no Saved Libra
   );
 });
 
+// Release QA in Arabic: More showed the saved country as "United States" while
+// Settings translated it. The name must come from the interface language without
+// the locale search engine (catalog, Fuse index, sorts), which More never loads.
+const localeEngineReads: string[] = [];
+mockModule(mock, sourcePath('services/onboarding/localeSelection.ts'), {
+  localeSearchEngine: new Proxy(
+    {},
+    {
+      get: (_target, key) => {
+        localeEngineReads.push(String(key));
+        return () => '';
+      },
+    }
+  ),
+});
+
+async function renderMoreIn(language: 'ar' | 'en') {
+  const { ar } = await import('../../i18n/locales/ar');
+  harness.i18n.addResourceBundle('ar', 'translation', ar, true, true);
+  await harness.i18n.changeLanguage(language);
+  harness.authStore.getState().setPreferences({
+    countryCode: 'US',
+    countryName: 'United States',
+    contentLanguageNativeName: 'العربية',
+  });
+  const view = await renderMore();
+  const localeRow = () =>
+    view.getByRole('button', { name: rowNamed(t('settings.nationAndLanguage')) });
+  return { view, localeRow };
+}
+
+for (const engine of ['with Intl.DisplayNames', 'on Hermes, without Intl.DisplayNames']) {
+  test(`the locale row names the saved country in the interface language ${engine}`, async (context) => {
+    if (engine.startsWith('on Hermes')) {
+      const descriptor = Object.getOwnPropertyDescriptor(Intl, 'DisplayNames')!;
+      Object.defineProperty(Intl, 'DisplayNames', { ...descriptor, value: undefined });
+      context.after(() => Object.defineProperty(Intl, 'DisplayNames', descriptor));
+    }
+    context.after(() => harness.i18n.changeLanguage('en'));
+    localeEngineReads.length = 0;
+
+    const { view, localeRow } = await renderMoreIn('ar');
+    // The lookup runs after interactions settle, not during the first render.
+    await view.flush();
+    assert.ok(within(localeRow()).getByText('الولايات المتحدة · العربية'));
+    assert.deepEqual(localeEngineReads, [], 'the locale search engine is never touched');
+  });
+}
+
+test('in English the locale row keeps the English country name', async (context) => {
+  context.after(() => harness.i18n.changeLanguage('en'));
+  const { view, localeRow } = await renderMoreIn('en');
+  await view.flush();
+
+  assert.ok(within(localeRow()).getByText('United States · العربية'));
+});
+
 test('each More row opens its own screen in the More stack', async () => {
   const view = await renderMore();
 

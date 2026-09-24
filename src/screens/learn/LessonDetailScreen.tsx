@@ -65,6 +65,7 @@ import {
 } from './lessonPassageModel';
 import { readLessonPlaybackStatus } from './lessonAudioModel';
 import { createLessonSoundOwner } from './lessonSoundOwner';
+import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../design/largeTextLayout';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -561,12 +562,14 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
         {/* Hero */}
         <View style={styles.hero}>
           <Text
+            maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
             style={[typography.numeralHero, styles.heroNumeral, { color: colors.accentPrimary }]}
           >
             {padLessonNumber(lesson.number)}
           </Text>
           <View style={styles.heroColumn}>
             <Text
+              maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
               accessibilityRole="header"
               style={[styles.heroTitle, displayFont.bold, { color: colors.primaryText }]}
             >

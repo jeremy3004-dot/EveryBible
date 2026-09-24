@@ -87,6 +87,7 @@ import { countCompletedLessons } from '../learn/gatherPathModel';
 import { layout, motion, radius, spacing, typography } from '../../design/system';
 import { lightHaptic } from '../../utils/haptics';
 import { createHomeReadyReporter } from '../../services/startup/homeStartupTiming';
+import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../design/largeTextLayout';
 
 type NavigationProp = NativeStackNavigationProp<RootTabParamList>;
 
@@ -656,10 +657,14 @@ export function HomeScreen() {
           {isScreenVariant ? (
             <View style={styles.heroHeaderRow}>
               <View style={styles.heroHeaderCopy}>
-                <Text style={[styles.heroDate, displayFont.regular]} numberOfLines={1}>
+                <Text
+                  style={[styles.heroDate, displayFont.regular]}
+                  numberOfLines={isLargeText ? 2 : 1}
+                >
                   {todayLabel}
                 </Text>
                 <Text
+                  maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
                   style={[
                     styles.heroGreeting,
                     displayFont.bold,
@@ -668,7 +673,7 @@ export function HomeScreen() {
                       lineHeight: homeLayout.greetingLineHeight,
                     },
                   ]}
-                  numberOfLines={2}
+                  numberOfLines={isLargeText ? 3 : 2}
                 >
                   {greetingLabel}
                 </Text>
@@ -794,7 +799,10 @@ export function HomeScreen() {
               <View style={styles.cardBody}>
                 {hasContinuePassage ? (
                   <View style={styles.numeralRow}>
-                    <Text style={[styles.numeral, { color: colors.primaryText }]}>
+                    <Text
+                      maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
+                      style={[styles.numeral, { color: colors.primaryText }]}
+                    >
                       {currentChapter}
                     </Text>
                     <Text
@@ -865,7 +873,10 @@ export function HomeScreen() {
                       {t('home.dayEyebrow')}
                     </Text>
                     <View style={styles.numeralRow}>
-                      <Text style={[styles.numeral, { color: colors.primaryText }]}>
+                      <Text
+                        maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
+                        style={[styles.numeral, { color: colors.primaryText }]}
+                      >
                         {featuredPlanDay}
                       </Text>
                       <Text style={[styles.numeralDenominator, { color: colors.secondaryText }]}>
@@ -924,7 +935,7 @@ export function HomeScreen() {
                     displayFont.regular,
                     { color: colors.secondaryText },
                   ]}
-                  numberOfLines={1}
+                  numberOfLines={isLargeText ? 2 : 1}
                 >
                   {`${t('tabs.gather')} · ${t('gather.foundationLabel', {
                     number: foundation.number,
@@ -932,7 +943,7 @@ export function HomeScreen() {
                 </Text>
                 <Text
                   style={[styles.gatherCount, displayFont.regular, { color: colors.secondaryText }]}
-                  numberOfLines={1}
+                  numberOfLines={isLargeText ? 2 : 1}
                 >
                   {t('home.lessonsProgress', {
                     completed: foundationCompletedCount,
@@ -987,7 +998,7 @@ export function HomeScreen() {
                     ]}
                     numberOfLines={isLargeText ? undefined : 2}
                   >
-                    {t('home.streakUnitLabel')}
+                    {t('home.streakUnitLabel', { count: streakDays })}
                   </Text>
                 </View>
                 <TabSwitch

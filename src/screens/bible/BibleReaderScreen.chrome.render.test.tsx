@@ -220,8 +220,37 @@ test('translation selection from the overflow menu shows the shared picker in a 
   assert.equal(style.height, '78%', 'a fixed body so the picker list has room to render');
   assert.equal(style.overflow, 'hidden');
 
-  await view.press(within(body).getByRole('button', { name: t('interface.close') }));
+  const close = within(body).getByRole('button', { name: t('interface.close') });
+  assertCloseTarget(close);
+  await view.press(close);
   assert.equal(view.queryAllByType('TranslationPickerList').length, 0);
+});
+
+// Release QA measured the close control at 22pt, the glyph's own size. The target
+// grows to the 44pt floor while the 22pt glyph and the header height stay put.
+function assertCloseTarget(close: ReactTestInstance) {
+  const style = flattenStyle(close.props.style) ?? {};
+  assert.equal(style.width, 44);
+  assert.equal(style.height, 44);
+  assert.equal(
+    style.marginVertical,
+    -11,
+    'lays out at the glyph height, so the header is unchanged'
+  );
+  assert.equal(style.marginEnd, -11, 'the glyph keeps its place at the header edge');
+  const [glyph] = within(close).queryAllByType('Icon');
+  assert.equal(glyph.props.size, 22);
+}
+
+test('the translation sheet title caps its scaling so a word never breaks at AX sizes', async () => {
+  const { DISPLAY_TEXT_MAX_FONT_SCALE } = await import('../../design/largeTextLayout');
+  harness.setFontScale(3.12);
+  const view = await renderReader();
+  await view.press(view.getByRole('button', { name: 'BSB' }));
+
+  const title = view.getByRole('header', { name: t('bible.selectTranslation') });
+  assert.equal(title.props.maxFontSizeMultiplier, DISPLAY_TEXT_MAX_FONT_SCALE);
+  assert.equal(flattenStyle(title.props.style)?.flexShrink, 1, 'wraps beside the close button');
 });
 
 // ---- Audio sheet ------------------------------------------------------------

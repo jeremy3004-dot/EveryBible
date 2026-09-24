@@ -17,6 +17,8 @@ import Animated, {
 import type { LucideIcon } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { layout, motion, radius, shadows } from '../../design/system';
+import { CONTROL_LABEL_MAX_FONT_SCALE } from '../../design/largeTextLayout';
+import { useLargeText } from '../../hooks/useLargeText';
 import { selectionHaptic } from '../../utils/haptics';
 
 export interface TabSwitchSegment {
@@ -85,6 +87,13 @@ export function TabSwitch({
 }: TabSwitchProps) {
   const { colors } = useTheme();
   const reduceMotion = useReducedMotion();
+  const { isLargeText } = useLargeText();
+  // Equal thirds of a row hold one short word at accessibility sizes, so a
+  // full-width switch stacks its segments instead (the HIG's advice for
+  // horizontal controls at AX sizes). A hugging switch stays a row: its segments
+  // are as wide as their labels, which wrap between words.
+  const stacked = fullWidth && isLargeText;
+  const axis = stacked ? 'y' : 'x';
   const metrics = SIZE_METRICS[size];
   const segmentHitSlop = {
     top: Math.max(0, Math.round((layout.minTouchTarget - SIZE_HEIGHT[size]) / 2)),
@@ -94,37 +103,48 @@ export function TabSwitch({
   } as const;
 
   // Segment geometry is only known after layout, so the thumb is parked at zero
-  // width until then — which also keeps it invisible on the very first frame.
-  const [widths, setWidths] = useState<number[]>([]);
+  // size until then — which also keeps it invisible on the very first frame.
+  // Each segment's extent along the switch's axis: widths in a row, heights once
+  // stacked. Measurements from the other axis are discarded, not reused.
+  const [measured, setMeasured] = useState<{ axis: 'x' | 'y'; sizes: number[] }>({
+    axis,
+    sizes: [],
+  });
+  const sizes = measured.axis === axis ? measured.sizes : [];
   const selectedIndex = Math.max(
     0,
     segments.findIndex((segment) => segment.key === value)
   );
 
-  const handleLayout = useCallback((index: number, event: LayoutChangeEvent) => {
-    const { width } = event.nativeEvent.layout;
-    setWidths((current) => {
-      if (current[index] === width) {
-        return current;
-      }
-      const next = [...current];
-      next[index] = width;
-      return next;
-    });
-  }, []);
+  const handleLayout = useCallback(
+    (index: number, event: LayoutChangeEvent) => {
+      const { width, height } = event.nativeEvent.layout;
+      const extent = axis === 'y' ? height : width;
+      setMeasured((current) => {
+        const base = current.axis === axis ? current.sizes : [];
+        if (current.axis === axis && base[index] === extent) {
+          return current;
+        }
+        const next = [...base];
+        next[index] = extent;
+        return { axis, sizes: next };
+      });
+    },
+    [axis]
+  );
 
-  const measured = widths.length >= segments.length && widths.every((width) => width > 0);
-  const offset = widths.slice(0, selectedIndex).reduce((total, width) => total + width, 0);
-  const thumbWidth = widths[selectedIndex] ?? 0;
+  const isMeasured = sizes.length >= segments.length && sizes.every((extent) => extent > 0);
+  const offset = sizes.slice(0, selectedIndex).reduce((total, extent) => total + extent, 0);
+  const thumbSize = sizes[selectedIndex] ?? 0;
 
   const thumbStyle = useAnimatedStyle(() => {
     const duration = reduceMotion ? 0 : motion.duration.base;
-    return {
-      opacity: withTiming(measured ? 1 : 0, { duration, easing: switchEasing }),
-      width: thumbWidth,
-      transform: [{ translateX: withTiming(offset, { duration, easing: switchEasing }) }],
-    };
-  }, [measured, offset, reduceMotion, thumbWidth]);
+    const opacity = withTiming(isMeasured ? 1 : 0, { duration, easing: switchEasing });
+    const moved = withTiming(offset, { duration, easing: switchEasing });
+    return stacked
+      ? { opacity, height: thumbSize, transform: [{ translateY: moved }] }
+      : { opacity, width: thumbSize, transform: [{ translateX: moved }] };
+  }, [isMeasured, offset, reduceMotion, stacked, thumbSize]);
 
   const handlePress = (key: string) => {
     if (key === value) {
@@ -142,6 +162,7 @@ export function TabSwitch({
         styles.track,
         { backgroundColor: colors.muted, borderColor: colors.borderStrong },
         fullWidth && styles.fullWidth,
+        stacked && styles.trackStacked,
         style,
       ]}
     >
@@ -149,10 +170,10 @@ export function TabSwitch({
         pointerEvents="none"
         style={[
           styles.thumb,
+          stacked
+            ? { top: TRACK_PADDING, left: TRACK_PADDING, right: TRACK_PADDING }
+            : { top: TRACK_PADDING, bottom: TRACK_PADDING, left: TRACK_PADDING },
           {
-            top: TRACK_PADDING,
-            bottom: TRACK_PADDING,
-            left: TRACK_PADDING,
             backgroundColor: colors.cardBackground,
             // The thumb is the only mark of which segment is selected, and its
             // fill is ~1.2:1 on the muted track, so its outline carries the 3:1.
@@ -178,7 +199,7 @@ export function TabSwitch({
             style={[
               styles.segment,
               { paddingVertical: metrics.paddingVertical },
-              fullWidth && styles.segmentFlex,
+              stacked ? styles.segmentStacked : fullWidth && styles.segmentFlex,
             ]}
           >
             {SegmentIcon ? (
@@ -191,9 +212,13 @@ export function TabSwitch({
             ) : null}
             {/* Two lines, not one: an equal-width third of the row holds about
                 eight characters at accessibility sizes, so "Foundations" became
-                "Found…". The thumb is inset top/bottom, so it grows with the row. */}
+                "Found…". The thumb is inset top/bottom, so it grows with the row.
+                The cap keeps a single word narrower than its segment, so iOS
+                never breaks one mid-word ("We/ek"); a stacked segment has the
+                full row and no line limit. */}
             <Text
-              numberOfLines={2}
+              numberOfLines={stacked ? undefined : 2}
+              maxFontSizeMultiplier={CONTROL_LABEL_MAX_FONT_SCALE}
               style={[
                 styles.label,
                 {
@@ -226,6 +251,10 @@ const styles = StyleSheet.create({
   fullWidth: {
     alignSelf: 'stretch',
   },
+  trackStacked: {
+    flexDirection: 'column',
+    alignSelf: 'stretch',
+  },
   thumb: {
     position: 'absolute',
     borderRadius: radius.sm,
@@ -244,6 +273,9 @@ const styles = StyleSheet.create({
   segmentFlex: {
     flex: 1,
     paddingHorizontal: 4,
+  },
+  segmentStacked: {
+    alignSelf: 'stretch',
   },
   label: {
     fontWeight: '600',

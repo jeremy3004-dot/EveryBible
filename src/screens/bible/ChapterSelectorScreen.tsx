@@ -26,6 +26,7 @@ import {
   buildBookHubPresentation,
   getChapterGridItemSize,
 } from './chapterSelectorModel';
+import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../design/largeTextLayout';
 
 type NavigationProp = NativeStackNavigationProp<BibleStackParamList>;
 
@@ -235,6 +236,7 @@ export function ChapterSelectorScreen() {
               </View>
 
               <Text
+                maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
                 accessibilityRole="header"
                 style={[styles.title, displayFont.bold, { color: colors.biblePrimaryText }]}
               >
