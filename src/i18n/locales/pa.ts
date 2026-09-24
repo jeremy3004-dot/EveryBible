@@ -1627,6 +1627,7 @@ export const pa = {
     "playbackSpeed": "ਪਲੇਬੈਕ ਗਤੀ",
     "fontSizeLabel": "ਲਿਖਤ ਦਾ ਆਕਾਰ",
     "noPassageText": "ਇਸ ਹਿੱਸੇ ਦੀ ਲਿਖਤ ਉਪਲਬਧ ਨਹੀਂ",
+    "passageLoadFailed": "ਇਹ ਹਿੱਸਾ ਲੋਡ ਨਹੀਂ ਹੋ ਸਕਿਆ।",
     "listenToStoryAgain": "ਕਹਾਣੀ ਦੁਬਾਰਾ ਸੁਣੋ",
     "shareApp": "ਐਪ ਸਾਂਝੀ ਕਰੋ",
   },

@@ -1947,6 +1947,7 @@ export const ru = {
     "playbackSpeed": "Скорость воспроизведения",
     "fontSizeLabel": "Размер текста",
     "noPassageText": "Текст отрывка недоступен",
+    "passageLoadFailed": "Не удалось загрузить этот отрывок.",
     "listenToStoryAgain": "Прослушать историю снова",
     "shareApp": "Поделиться приложением",
   },

@@ -1907,6 +1907,7 @@ export const zh = {
     "playbackSpeed": "播放速度",
     "fontSizeLabel": "字体大小",
     "noPassageText": "暂无经文文字",
+    "passageLoadFailed": "无法加载这段经文。",
     "listenToStoryAgain": "再听一遍故事",
     "shareApp": "分享应用",
   },

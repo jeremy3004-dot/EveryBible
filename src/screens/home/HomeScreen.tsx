@@ -82,6 +82,7 @@ import { getReadingFontFamily } from '../../design/fonts';
 import type { DailyScripture } from '../../types';
 import type { RootTabParamList } from '../../navigation/types';
 import { gatherFoundationRoute } from '../../navigation/learnRoutes';
+import { countCompletedLessons } from '../learn/gatherPathModel';
 import { layout, motion, radius, spacing, typography } from '../../design/system';
 import { lightHaptic } from '../../utils/haptics';
 import { createHomeReadyReporter } from '../../services/startup/homeStartupTiming';
@@ -240,17 +241,22 @@ export function HomeScreen() {
   // Falls back to foundation-1 if none started yet.
   const foundation = (() => {
     const inProgress = gatherFoundations.find((item) => {
-      const done = completedLessons[item.id]?.length ?? 0;
+      const done = countCompletedLessons(completedLessons[item.id], item.lessons);
       return done > 0 && done < item.lessons.length;
     });
     if (inProgress) return inProgress;
     // All complete? Show the last one. Nothing started? Show the first.
     const allDone = gatherFoundations.every(
-      (item) => (completedLessons[item.id]?.length ?? 0) >= item.lessons.length
+      (item) =>
+        countCompletedLessons(completedLessons[item.id], item.lessons) >= item.lessons.length
     );
     return allDone ? gatherFoundations[gatherFoundations.length - 1] : gatherFoundations[0];
   })();
   const foundationCompletedLessons = completedLessons[foundation.id] ?? [];
+  const foundationCompletedCount = countCompletedLessons(
+    foundationCompletedLessons,
+    foundation.lessons
+  );
   const nextLesson =
     foundation.lessons.find((lesson) => !foundationCompletedLessons.includes(lesson.id)) ??
     foundation.lessons[0];
@@ -883,7 +889,7 @@ export function HomeScreen() {
               accessibilityLabel={[
                 `${t('tabs.gather')} · ${foundationTitle}`,
                 t('home.lessonsProgress', {
-                  completed: foundationCompletedLessons.length,
+                  completed: foundationCompletedCount,
                   total: foundation.lessons.length,
                 }),
                 t('home.nextLesson', { title: nextLessonTitle }),
@@ -909,7 +915,7 @@ export function HomeScreen() {
                   numberOfLines={1}
                 >
                   {t('home.lessonsProgress', {
-                    completed: foundationCompletedLessons.length,
+                    completed: foundationCompletedCount,
                     total: foundation.lessons.length,
                   })}
                 </Text>

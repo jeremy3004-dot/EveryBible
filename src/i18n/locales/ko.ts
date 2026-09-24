@@ -1907,6 +1907,7 @@ export const ko = {
     "playbackSpeed": "재생 속도",
     "fontSizeLabel": "글자 크기",
     "noPassageText": "제공되는 본문이 없습니다",
+    "passageLoadFailed": "이 본문을 불러오지 못했습니다.",
     "listenToStoryAgain": "이야기 다시 듣기",
     "shareApp": "앱 공유",
   },

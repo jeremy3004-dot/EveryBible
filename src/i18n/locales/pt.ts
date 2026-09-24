@@ -1928,6 +1928,7 @@ export const pt = {
     "playbackSpeed": "Velocidade de reprodução",
     "fontSizeLabel": "Tamanho do texto",
     "noPassageText": "Nenhum texto de passagem disponível",
+    "passageLoadFailed": "Não foi possível carregar este trecho.",
     "listenToStoryAgain": "Ouvir a história novamente",
     "shareApp": "Compartilhar o aplicativo",
   },

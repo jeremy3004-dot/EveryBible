@@ -1907,6 +1907,7 @@ export const ja = {
     "playbackSpeed": "再生速度",
     "fontSizeLabel": "文字サイズ",
     "noPassageText": "この箇所の本文はありません",
+    "passageLoadFailed": "この箇所を読み込めませんでした。",
     "listenToStoryAgain": "もう一度物語を聞く",
     "shareApp": "アプリを共有",
   },

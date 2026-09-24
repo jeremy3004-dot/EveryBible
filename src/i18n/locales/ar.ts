@@ -1987,6 +1987,7 @@ export const ar = {
     "playbackSpeed": "سرعة التشغيل",
     "fontSizeLabel": "حجم النص",
     "noPassageText": "لا يتوفر نص للمقطع",
+    "passageLoadFailed": "تعذّر تحميل هذا المقطع.",
     "listenToStoryAgain": "استمع إلى القصة مرة أخرى",
     "shareApp": "مشاركة التطبيق",
   },

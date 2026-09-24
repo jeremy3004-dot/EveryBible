@@ -1627,6 +1627,7 @@ export const hi = {
     "playbackSpeed": "प्लेबैक गति",
     "fontSizeLabel": "पाठ का आकार",
     "noPassageText": "इस अंश का पाठ उपलब्ध नहीं",
+    "passageLoadFailed": "यह अंश लोड नहीं हो सका।",
     "listenToStoryAgain": "कहानी फिर से सुनें",
     "shareApp": "ऐप साझा करें",
   },
