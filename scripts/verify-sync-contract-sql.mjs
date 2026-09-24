@@ -21,6 +21,7 @@ const MIGRATIONS = [
   '20260924023303_backfill_user_preferences_field_stamps.sql',
   '20260924023340_reading_plan_unenroll_tombstones.sql',
   '20260924023342_reading_plan_session_columns.sql',
+  '20260924160000_merge_reading_plan_progress_rpc.sql',
 ];
 
 const db = new PGlite();
@@ -491,5 +492,151 @@ await assert.rejects(
   as(A, NEW_CLIENT_PLAN_UPSERT, [A, SESSION_PLAN, enrolledAt, '{}', 'midnight']),
   /current_session_check/
 );
+
+// ---------------------------------------------------------------------------
+// Atomic plan-progress merge (20260924160000)
+// ---------------------------------------------------------------------------
+
+const MERGE = `select * from public.merge_reading_plan_progress($1::jsonb)`;
+const merge = (uid, rows) => as(uid, MERGE, [JSON.stringify(rows)]);
+const RACE_PLAN = 'gospels-40-days';
+const D = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
+await signUp(D);
+const day = (n) => `2026-09-${String(10 + n).padStart(2, '0')}T08:00:00.000Z`;
+const entries = (...days) => Object.fromEntries(days.map((n) => [String(n), day(n)]));
+const clientRow = (overrides = {}) => ({
+  user_id: D,
+  plan_id: null,
+  plan_slug: RACE_PLAN,
+  started_at: enrolledAt,
+  completed_entries: {},
+  completed_sessions: {},
+  current_day: 1,
+  current_session: null,
+  is_completed: false,
+  completed_at: null,
+  synced_at: iso(0),
+  ...overrides,
+});
+
+// The race with the plain upsert: both phones read {1,2}; phone 1 writes {1,2,3},
+// then phone 2 writes {1,2,4} and day 3 is gone. This is the bug being fixed.
+await as(D, OLD_CLIENT_PLAN_UPSERT, [D, RACE_PLAN, enrolledAt, JSON.stringify(entries(1, 2)), 3]);
+await as(D, OLD_CLIENT_PLAN_UPSERT, [
+  D,
+  RACE_PLAN,
+  enrolledAt,
+  JSON.stringify(entries(1, 2, 3)),
+  4,
+]);
+await as(D, OLD_CLIENT_PLAN_UPSERT, [
+  D,
+  RACE_PLAN,
+  enrolledAt,
+  JSON.stringify(entries(1, 2, 4)),
+  5,
+]);
+assert.deepEqual(Object.keys((await planRow(D, RACE_PLAN)).completed_entries).sort(), [
+  '1',
+  '2',
+  '4',
+]);
+
+// The same two stale writes through the RPC keep both phones' days.
+await as(D, OLD_CLIENT_PLAN_UPSERT, [D, RACE_PLAN, enrolledAt, JSON.stringify(entries(1, 2)), 3]);
+let merged = await merge(D, [clientRow({ completed_entries: entries(1, 2, 3), current_day: 4 })]);
+assert.equal(merged.rows.length, 1, 'the RPC returns the stored row');
+merged = await merge(D, [clientRow({ completed_entries: entries(1, 2, 4), current_day: 5 })]);
+assert.deepEqual(Object.keys(merged.rows[0].completed_entries).sort(), ['1', '2', '3', '4']);
+assert.equal(merged.rows[0].current_day, 5);
+// A phone that is behind never moves the plan back.
+merged = await merge(D, [clientRow({ completed_entries: entries(1), current_day: 2 })]);
+assert.deepEqual(Object.keys(merged.rows[0].completed_entries).sort(), ['1', '2', '3', '4']);
+assert.equal(merged.rows[0].current_day, 5);
+// The stored enrolment start is kept; the upload time is the server's.
+assert.equal(new Date(merged.rows[0].started_at).toISOString(), new Date(enrolledAt).toISOString());
+
+// Session ticks union too; the next-session pointer comes from the side further along.
+const tick = (key) => ({ [key]: '2026-09-20T06:00:00.000Z' });
+merged = await merge(D, [
+  clientRow({ completed_sessions: tick('5:morning'), current_day: 5, current_session: 'evening' }),
+]);
+merged = await merge(D, [
+  clientRow({ completed_sessions: tick('5:evening'), current_day: 4, current_session: 'morning' }),
+]);
+assert.deepEqual(Object.keys(merged.rows[0].completed_sessions).sort(), ['5:evening', '5:morning']);
+assert.equal(merged.rows[0].current_session, 'evening', 'a phone on an earlier day keeps no say');
+merged = await merge(D, [clientRow({ current_day: 5, current_session: null })]);
+assert.equal(
+  merged.rows[0].current_session,
+  'evening',
+  'same day: a missing pointer keeps the stored one'
+);
+
+// Finishing on either phone finishes the plan; a later stale write cannot undo it.
+merged = await merge(D, [
+  clientRow({ is_completed: true, completed_at: day(19), current_day: 41 }),
+]);
+merged = await merge(D, [clientRow({ is_completed: false, completed_at: null, current_day: 5 })]);
+assert.equal(merged.rows[0].is_completed, true);
+assert.equal(new Date(merged.rows[0].completed_at).toISOString(), day(19));
+
+// A first push inserts (several plans at once), and a legacy null completed_entries merges.
+await db.query(
+  `insert into public.user_reading_plan_progress (user_id, plan_slug, started_at, completed_entries)
+   values ($1, 'legacy-null', $2, null)`,
+  [D, enrolledAt]
+);
+merged = await merge(D, [
+  clientRow({ plan_slug: 'fresh-plan', completed_entries: entries(1) }),
+  clientRow({ plan_slug: 'legacy-null', completed_entries: entries(2) }),
+]);
+assert.deepEqual(merged.rows.map((row) => row.plan_slug).sort(), ['fresh-plan', 'legacy-null']);
+assert.deepEqual(
+  Object.keys(merged.rows.find((row) => row.plan_slug === 'legacy-null').completed_entries),
+  ['2']
+);
+
+// The owner is always the caller: a user_id in the payload is ignored, and another
+// account's row is never touched.
+const beforeOther = await planRow(A, SESSION_PLAN);
+merged = await merge(D, [
+  clientRow({ user_id: A, plan_slug: SESSION_PLAN, completed_entries: entries(9) }),
+]);
+assert.equal(merged.rows[0].user_id, D);
+assert.deepEqual((await planRow(A, SESSION_PLAN)).completed_entries, beforeOther.completed_entries);
+
+// An ended enrolment is skipped by the tombstone trigger, exactly as for the upsert.
+await as(D, NEW_CLIENT_UNENROL, [D, 'left-plan', hoursAgo(1)]);
+merged = await merge(D, [clientRow({ plan_slug: 'left-plan', started_at: hoursAgo(2) })]);
+assert.equal(merged.rows.length, 0, 'a push of a left enrolment is skipped, not resurrected');
+assert.equal(await planRow(D, 'left-plan'), undefined);
+
+// Installed builds keep writing with the plain upsert after the RPC exists.
+upserted = await as(D, OLD_CLIENT_PLAN_UPSERT, [D, 'fresh-plan', enrolledAt, '{}', 1]);
+assert.equal(upserted.rows.length, 1);
+
+// Validation and access.
+for (const [rows, reason] of [
+  [{ plan_slug: RACE_PLAN }, 'not an array'],
+  [[clientRow({ plan_slug: '  ' })], 'blank slug'],
+  [[{ completed_entries: {} }], 'missing slug'],
+  [[clientRow({ completed_entries: ['1'] })], 'array completed_entries'],
+  [[clientRow({ completed_sessions: 'x' })], 'string completed_sessions'],
+  [[clientRow(), clientRow()], 'duplicate slug'],
+  [Array.from({ length: 101 }, (_, i) => clientRow({ plan_slug: `p${i}` })), 'too many rows'],
+]) {
+  await assert.rejects(as(D, MERGE, [JSON.stringify(rows)]), { code: '22023' }, reason);
+}
+await assert.rejects(
+  merge(D, [clientRow({ current_session: 'midnight' })]),
+  /current_session_check/
+);
+await assert.rejects(merge(null, [clientRow()]), /permission denied/, 'anon cannot call it');
+const fnSecurity = await one(
+  `select prosecdef, proconfig from pg_proc where proname = 'merge_reading_plan_progress'`
+);
+assert.equal(fnSecurity.prosecdef, false, 'runs as the caller, under RLS');
+assert.deepEqual(fnSecurity.proconfig, ['search_path=""']);
 
 console.log('verify-sync-contract-sql: all checks passed');
