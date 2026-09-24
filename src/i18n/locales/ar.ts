@@ -789,7 +789,7 @@ export const ar = {
     "enableNotificationsMessage": "فعّل الإشعارات في إعدادات جهازك لتصلك التذكيرات اليومية.",
     "notificationTitle": "قراءة الكتاب المقدس اليومية",
     "notificationBody": "حان الوقت لقراءة الكتاب المقدس اليومية!",
-    "notificationsBlockedNotice": "إشعارات EveryBible متوقفة في إعدادات جهازك، لذلك لا يمكن أن يظهر هذا التذكير.",
+    "notificationsBlockedNotice": "إشعارات Every Bible متوقفة في إعدادات جهازك، لذلك لا يمكن أن يظهر هذا التذكير.",
     "openDeviceSettings": "فتح الإعدادات",
     "selectLanguage": "اختر لغة الواجهة",
     "deleteAccount": "حذف الحساب",
