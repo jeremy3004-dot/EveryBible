@@ -1,4 +1,6 @@
 // Kept free of react-native imports so the node test runner can load it.
+import type { ThemeColors } from '../../contexts/ThemeContext';
+import type { ReadingPlanLedgerDayState } from '../../services/plans/readingPlanModel';
 
 /**
  * The plan card's day grid is a GitHub-style dot heatmap. A long plan packs
@@ -55,4 +57,36 @@ export function getPlanLedgerGridRows<T>(items: readonly T[], columns: number): 
     rows.push(row);
   }
   return rows;
+}
+
+/** The theme tokens a plan-day dot is painted from. */
+export type PlanLedgerDotTokens = Pick<
+  ThemeColors,
+  'accentPrimary' | 'warning' | 'warningSoft' | 'muted' | 'controlBorder'
+>;
+
+export interface PlanLedgerDotPaint {
+  fill: string;
+  /** The ring, when the state draws one; `null` for a solid dot. */
+  border: string | null;
+  borderWidth: number;
+}
+
+/**
+ * How each day state is painted. The dots sit on the progress card, and each
+ * state is told apart by shape as well as colour: done is solid, today is a
+ * thick accent ring, missed is a tinted dot in an amber ring, future is a thin
+ * neutral ring around an un-tinted well. Every mark clears 3:1 on the card
+ * (WCAG 1.4.11), which is why the future ring is `controlBorder` rather than a
+ * decorative separator tone.
+ */
+export function getPlanLedgerDotPaint(
+  colors: PlanLedgerDotTokens
+): Record<ReadingPlanLedgerDayState, PlanLedgerDotPaint> {
+  return {
+    done: { fill: colors.accentPrimary, border: null, borderWidth: 0 },
+    missed: { fill: colors.warningSoft, border: colors.warning, borderWidth: 1 },
+    today: { fill: 'transparent', border: colors.accentPrimary, borderWidth: 2 },
+    future: { fill: colors.muted, border: colors.controlBorder, borderWidth: 1 },
+  };
 }

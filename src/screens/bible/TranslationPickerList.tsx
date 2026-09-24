@@ -477,7 +477,7 @@ export function TranslationPickerList({
     <View
       style={[
         styles.searchInputShell,
-        { backgroundColor: colors.bibleElevatedSurface, borderColor: colors.bibleDivider },
+        { backgroundColor: colors.bibleElevatedSurface, borderColor: colors.controlBorder },
       ]}
     >
       <Ionicons name="search" size={18} color={colors.bibleSecondaryText} />

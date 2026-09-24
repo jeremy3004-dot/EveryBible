@@ -32,7 +32,7 @@ export const colors = {
   tabInactive: '#B0A99B',
 
   // Additional utility colors
-  error: '#E34F5B',
+  error: '#E65A66',
   success: '#62C082',
   warning: '#E9A23F',
 

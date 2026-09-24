@@ -90,8 +90,6 @@ const ROW_ICON_SIZE = 18;
 const ICON_STROKE = 2;
 /** ListRow insets its separator past the glyph; blocks in the card must match. */
 const ROW_SEPARATOR_INSET = ROW_ICON_SIZE + spacing.md;
-/** iOS switch off-track: the old `+ '55'` alpha suffix, expressed as a ratio. */
-const SWITCH_OFF_ALPHA = 0.33;
 /** The stepper's A-/A+ glyphs when the size is already at the end of the scale. */
 const STEPPER_DISABLED_ALPHA = 0.4;
 /** A row that cannot act yet still has to be legible, just clearly inert. */
@@ -112,7 +110,9 @@ export function SettingsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { colors, themeMode, setTheme } = useTheme();
   const displayFont = useDisplayFont();
-  const settingSwitchOffColor = hexWithAlpha(colors.secondaryText, SWITCH_OFF_ALPHA);
+  // The off track is the only outline an off switch has, so it takes the 3:1
+  // control boundary rather than a translucent tint of body text (1.6:1 light, 1.95:1 dark).
+  const settingSwitchOffColor = colors.controlBorder;
   const settingSwitchTrackColor = {
     false: settingSwitchOffColor,
     true: colors.accentPrimary,
@@ -792,7 +792,7 @@ export function SettingsScreen() {
                       styles.feedbackIdentityInput,
                       {
                         color: colors.primaryText,
-                        borderColor: colors.borderStrong,
+                        borderColor: colors.controlBorder,
                         backgroundColor: colors.background,
                       },
                     ]}
@@ -819,7 +819,7 @@ export function SettingsScreen() {
                       styles.feedbackIdentityInput,
                       {
                         color: colors.primaryText,
-                        borderColor: colors.borderStrong,
+                        borderColor: colors.controlBorder,
                         backgroundColor: colors.background,
                       },
                     ]}
@@ -930,7 +930,7 @@ export function SettingsScreen() {
                       styles.translatorAccessInput,
                       {
                         color: colors.primaryText,
-                        borderColor: colors.borderStrong,
+                        borderColor: colors.controlBorder,
                         backgroundColor: colors.background,
                       },
                     ]}

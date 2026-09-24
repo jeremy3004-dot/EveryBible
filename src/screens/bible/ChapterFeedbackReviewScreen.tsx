@@ -425,7 +425,7 @@ export function ChapterFeedbackReviewScreen({ route, navigation }: Props) {
                 maxLength={1000}
                 style={[
                   styles.input,
-                  { borderColor: colors.cardBorder, color: colors.primaryText },
+                  { borderColor: colors.controlBorder, color: colors.primaryText },
                 ]}
               />
             )}

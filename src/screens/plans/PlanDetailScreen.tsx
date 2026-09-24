@@ -85,8 +85,10 @@ import { formatPlanProgressAnnouncement, formatPlanProgressTally } from './planP
 import {
   PLAN_LEDGER_DENSE_GAP,
   PLAN_LEDGER_ROOMY_GAP,
+  getPlanLedgerDotPaint,
   getPlanLedgerGridMetrics,
   getPlanLedgerGridRows,
+  type PlanLedgerDotPaint,
 } from './planLedgerGridModel';
 import { lightHaptic, successHaptic } from '../../utils';
 
@@ -333,12 +335,19 @@ function LedgerCells({ states }: { states: ReadingPlanLedgerDayState[] }) {
   const rows = useMemo(() => getPlanLedgerGridRows(states, columns), [states, columns]);
   const isDense = density === 'dense';
 
-  const palette: Record<ReadingPlanLedgerDayState, ViewStyle> = {
-    done: { backgroundColor: colors.accentPrimary },
-    missed: { backgroundColor: colors.warningSoft, borderWidth: 1, borderColor: colors.warning },
-    today: { backgroundColor: 'transparent', borderWidth: 2, borderColor: colors.accentPrimary },
-    future: { backgroundColor: colors.muted, borderWidth: 1, borderColor: colors.borderStrong },
-  };
+  const palette = useMemo(() => {
+    const paint = getPlanLedgerDotPaint(colors);
+    const toStyle = ({ fill, border, borderWidth }: PlanLedgerDotPaint): ViewStyle =>
+      border
+        ? { backgroundColor: fill, borderWidth, borderColor: border }
+        : { backgroundColor: fill };
+    return {
+      done: toStyle(paint.done),
+      missed: toStyle(paint.missed),
+      today: toStyle(paint.today),
+      future: toStyle(paint.future),
+    } satisfies Record<ReadingPlanLedgerDayState, ViewStyle>;
+  }, [colors]);
 
   return (
     <View
