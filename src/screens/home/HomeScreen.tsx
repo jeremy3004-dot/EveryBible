@@ -825,8 +825,9 @@ export function HomeScreen() {
             >
               {featuredPlanDuration > 0 ? (
                 <>
-                  {/* One Text so a long plan title wraps to a second line instead of
-                      ellipsising mid-word before the " · Day" suffix. */}
+                  {/* The title stands alone so a line only ever breaks between
+                      its own words: "Bible in One Year · Day" used to push
+                      "· Day" onto a line of its own on a 402pt phone. */}
                   <Text
                     style={[
                       styles.cardEyebrow,
@@ -835,9 +836,21 @@ export function HomeScreen() {
                     ]}
                     numberOfLines={2}
                   >
-                    {`${featuredPlanTitle} · ${t('home.dayEyebrow')}`}
+                    {featuredPlanTitle}
                   </Text>
                   <View style={styles.cardBody}>
+                    {/* "Day" labels the numeral directly, as on the plan's own
+                        progress card. */}
+                    <Text
+                      style={[
+                        styles.cardEyebrow,
+                        displayFont.regular,
+                        { color: colors.secondaryText },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {t('home.dayEyebrow')}
+                    </Text>
                     <View style={styles.numeralRow}>
                       <Text style={[styles.numeral, { color: colors.primaryText }]}>
                         {featuredPlanDay}
