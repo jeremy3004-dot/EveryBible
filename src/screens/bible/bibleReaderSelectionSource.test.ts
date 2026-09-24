@@ -1,7 +1,7 @@
 // UI-only source check: asserts on component render code, which the suite cannot render (no component renderer); not a behaviour test.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { readBibleReaderSource } from './bibleReaderSourceFiles';
 
@@ -9,9 +9,21 @@ function readRelativeSource(relativePath: string): string {
   return readFileSync(fileURLToPath(new URL(relativePath, import.meta.url).href), 'utf8');
 }
 
+// The tray is AnnotationActionSheet.tsx plus its panels and state in actionSheet/.
+function readSelectionTraySource(): string {
+  const partsDirectory = '../../components/annotations/actionSheet/';
+  const parts = readdirSync(fileURLToPath(new URL(partsDirectory, import.meta.url).href))
+    .filter((name) => /\.tsx?$/.test(name) && !name.includes('.test.'))
+    .sort();
+  return [
+    readRelativeSource('../../components/annotations/AnnotationActionSheet.tsx'),
+    ...parts.map((name) => readRelativeSource(`${partsDirectory}${name}`)),
+  ].join('\n');
+}
+
 test('BibleReaderScreen wires a bottom selection tray with copy, note, share, and inline highlight colors', () => {
   const source = readBibleReaderSource();
-  const traySource = readRelativeSource('../../components/annotations/AnnotationActionSheet.tsx');
+  const traySource = readSelectionTraySource();
   const highlightSource = readRelativeSource('../../components/bible/HighlightedVerseText.tsx');
 
   assert.match(
