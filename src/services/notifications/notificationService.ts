@@ -339,6 +339,16 @@ export async function reconcileDailyReminder({
     return;
   }
 
+  // A reminder turned on on another device arrives here by sync, on a device that may
+  // never have been asked for notification permission. Scheduling it then would look
+  // done while it can never appear, and a system prompt nobody asked for is not ours
+  // to show at launch: Settings flags it and asks with one tap. Nothing is recorded as
+  // scheduled, so the reconcile after permission is granted (foreground, or Settings)
+  // schedules it.
+  if ((await getNotificationPermissionStatus()) !== 'granted') {
+    return;
+  }
+
   await scheduleDailyReminder(schedule.hour, schedule.minute);
 }
 

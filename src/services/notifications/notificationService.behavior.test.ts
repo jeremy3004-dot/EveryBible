@@ -609,6 +609,36 @@ test('a reminder that failed to schedule is tried again on the next reconcile', 
   assert.equal(schedules.length, 1);
 });
 
+test('a reminder synced on to a device that has not allowed notifications is not scheduled', async () => {
+  // Another device turned the reminder on; this one was never asked for permission.
+  // Scheduling here would look done while it can never appear, and prompting at
+  // launch is not ours to do: Settings offers the prompt instead.
+  for (const status of ['undetermined', 'denied']) {
+    await startWithNoReminder();
+    permission.current = status;
+    permissionCalls.length = 0;
+
+    await notifications.reconcileDailyReminder({
+      notificationsEnabled: true,
+      reminderTime: '07:30',
+    });
+
+    assert.deepEqual([status, schedules.length, permissionCalls], [status, 0, ['get']]);
+  }
+});
+
+test('a synced reminder is scheduled on the first reconcile after permission is granted', async () => {
+  await startWithNoReminder();
+  const preference = { notificationsEnabled: true, reminderTime: '07:30' };
+  permission.current = 'undetermined';
+  await notifications.reconcileDailyReminder(preference);
+
+  permission.current = 'granted';
+  await notifications.reconcileDailyReminder(preference);
+
+  assert.deepEqual(scheduledAt(), [[7, 30, 'settings.notificationTitle']]);
+});
+
 // ─── Discreet mode ───────────────────────────────────────────────────────────
 
 const scheduledContent = () =>
