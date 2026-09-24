@@ -8,16 +8,13 @@ const harness = installRenderHarness(mock);
 const t = (key: string) => harness.i18n.t(key);
 
 // My feedback lists the reader's own submissions from the server; it has no local copy.
+type FeedbackResult = { success: boolean; feedback: unknown[]; error?: string };
 const backend = {
   fetches: 0,
   // Holds the next fetch open until the test resolves it.
-  pending: null as ((result: typeof backend.result) => void) | null,
+  pending: null as ((result: FeedbackResult) => void) | null,
   offline: false,
-  result: { success: false, feedback: [] as unknown[], error: 'Failed to fetch' } as {
-    success: boolean;
-    feedback: unknown[];
-    error?: string;
-  },
+  result: { success: false, feedback: [], error: 'Failed to fetch' } as FeedbackResult,
 };
 mockBarrel(mock, 'services/feedback/index.ts', {
   provide: {
