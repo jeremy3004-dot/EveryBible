@@ -66,6 +66,7 @@ test('openAuthFlow opens the Auth screen inside the More tab once ready', async 
       params: {
         screen: 'Auth',
         params: { screen: 'AuthScreen', params: { initialMode: 'signUp' } },
+        initial: false,
       },
     },
   ]);
@@ -80,7 +81,21 @@ test('openAuthFlow defaults to sign-in when no mode is given', async () => {
   assert.deepEqual(navigateCalls[0].params, {
     screen: 'Auth',
     params: { screen: 'AuthScreen', params: { initialMode: 'signIn' } },
+    initial: false,
   });
+});
+
+// A navigate into a stack that has not rendered yet (the More tab was never opened)
+// makes the named screen that stack's only route unless `initial: false` is passed.
+// The More stack was then just [Auth]: closing the modal (getParent().goBack())
+// fell through to the tab navigator, and every later visit to the More tab showed
+// the auth modal again with no More page beneath it to close back to.
+test('openAuthFlow opens auth on top of the More page, even when the More tab never rendered', async () => {
+  reset();
+  const { openAuthFlow } = await load();
+  ready = true;
+  openAuthFlow('signIn');
+  assert.equal((navigateCalls[0]?.params as { initial?: boolean }).initial, false);
 });
 
 test('every auth mode is forwarded verbatim to the auth screen', async () => {

@@ -17,13 +17,16 @@ const MAX_FLUSH_ATTEMPTS = 240;
 let routerPromise: Promise<NotificationTapRouter> | null = null;
 
 /**
- * One router per launch. The plans store is imported lazily so it stays off the
- * boot path; taps are rare, and by the time one is routed the store has hydrated.
+ * One router per launch. The plans store and catalog are imported lazily so they stay
+ * off the boot path; taps are rare, and by the time one is routed the store has hydrated.
  */
 function getNotificationTapRouter(): Promise<NotificationTapRouter> {
   if (!routerPromise) {
-    routerPromise = import('../stores/readingPlansStore')
-      .then(({ readingPlansStore }) =>
+    routerPromise = Promise.all([
+      import('../stores/readingPlansStore'),
+      import('../data/readingPlans.generated'),
+    ])
+      .then(([{ readingPlansStore }, { readingPlansById }]) =>
         createNotificationTapRouter({
           isNavigationReady: () => rootNavigationRef.isReady(),
           navigate: (destination) => {
@@ -38,8 +41,12 @@ function getNotificationTapRouter(): Promise<NotificationTapRouter> {
             }
             rootNavigationRef.navigate('Plans', { screen: 'PlansHome' });
           },
+          // Progress is persisted and synced, so it can name a plan the bundled catalog
+          // no longer has; its detail page would have nothing to show.
           getActivePlanIds: () =>
-            getActiveReadingPlanIds(readingPlansStore.getState().progressByPlanId),
+            getActiveReadingPlanIds(readingPlansStore.getState().progressByPlanId).filter(
+              (planId) => readingPlansById.has(planId)
+            ),
         })
       )
       .catch((error: unknown) => {
