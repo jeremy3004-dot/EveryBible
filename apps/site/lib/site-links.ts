@@ -5,6 +5,8 @@ export const EVERYBIBLE_SUPPORT_PATH = '/support';
 export const EVERYBIBLE_PRIVACY_PATH = '/privacy';
 export const EVERYBIBLE_TERMS_PATH = '/terms';
 export const EVERYBIBLE_SMART_DOWNLOAD_PATH = '/download';
+/** Homepage element id that desktop visitors to /download land on. */
+export const EVERYBIBLE_DOWNLOAD_ANCHOR = 'download';
 export const EVERYBIBLE_APP_STORE_URL = 'https://apps.apple.com/us/app/every-bible/id6758254335';
 export const EVERYBIBLE_GOOGLE_PLAY_URL =
   'https://play.google.com/store/apps/details?id=com.everybible.app';
@@ -34,5 +36,5 @@ export function resolveSmartDownloadTarget(userAgent: string | null | undefined)
     return EVERYBIBLE_APP_STORE_URL;
   }
 
-  return `${EVERYBIBLE_SITE_URL}/#download`;
+  return `${EVERYBIBLE_SITE_URL}/#${EVERYBIBLE_DOWNLOAD_ANCHOR}`;
 }

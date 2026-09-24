@@ -1,7 +1,11 @@
 import Image from 'next/image';
 
 import { projectSnapshot } from '../lib/public-atlas-projects';
-import { EVERYBIBLE_APP_STORE_URL, EVERYBIBLE_GOOGLE_PLAY_URL } from '../lib/site-links';
+import {
+  EVERYBIBLE_APP_STORE_URL,
+  EVERYBIBLE_DOWNLOAD_ANCHOR,
+  EVERYBIBLE_GOOGLE_PLAY_URL,
+} from '../lib/site-links';
 
 const PROMISES = ['Free, forever', 'No ads, no purchases', 'Works offline'];
 
@@ -50,7 +54,8 @@ export function HomeBelowAtlas() {
               </span>
             </div>
           </div>
-          <div className="home-get">
+          {/* /download sends desktop browsers here (resolveSmartDownloadTarget). */}
+          <div className="home-get" id={EVERYBIBLE_DOWNLOAD_ANCHOR}>
             <a
               className="home-get__qr"
               href="/download"

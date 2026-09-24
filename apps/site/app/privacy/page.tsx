@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 
 import { StaticPageLayout } from '../../components/StaticPageLayout';
+import { pageMetadata } from '../../lib/site-metadata';
 import {
   EVERYBIBLE_PRIVACY_PATH,
   EVERYBIBLE_SUPPORT_EMAIL,
@@ -9,14 +10,12 @@ import {
   EVERYBIBLE_TERMS_PATH,
 } from '../../lib/site-links';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: 'EveryBible Privacy Policy',
   description:
     'Read the EveryBible privacy policy covering account data, reading activity, support requests, analytics, and your choices.',
-  alternates: {
-    canonical: EVERYBIBLE_PRIVACY_PATH,
-  },
-};
+  path: EVERYBIBLE_PRIVACY_PATH,
+});
 
 export default function PrivacyPage() {
   return (
