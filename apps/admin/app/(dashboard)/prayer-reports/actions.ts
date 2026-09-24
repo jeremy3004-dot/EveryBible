@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 
 import { requireAdminIdentity, type AdminIdentity } from '@/lib/admin-auth';
 import { writeAdminAuditLog } from '@/lib/audit-log';
-import { normalizeOptionalString } from '@/lib/format';
+import { normalizeOptionalString, normalizeUuid } from '@/lib/format';
 import { parseFilterTermInput } from '@/lib/prayer-moderation';
 import { createAdminServiceClient } from '@/lib/supabase/service';
 
@@ -15,6 +15,7 @@ import { createAdminServiceClient } from '@/lib/supabase/service';
 
 const PAGE = '/prayer-reports';
 const BAN_REASON_MAX = 500;
+const UNIQUE_VIOLATION = '23505';
 
 interface RequestRow {
   id: string;
@@ -56,7 +57,7 @@ async function closeOpenReports(
 async function setRequestHidden(formData: FormData, hidden: boolean) {
   const admin = await requireAdminIdentity();
   const returnTo = normalizeReturnTo(normalizeOptionalString(formData.get('returnTo')));
-  const requestId = normalizeOptionalString(formData.get('requestId'));
+  const requestId = normalizeUuid(formData.get('requestId'));
   if (!requestId) fail(returnTo, 'Missing request id');
 
   const { data, error } = await createAdminServiceClient()
@@ -105,7 +106,7 @@ export async function restorePrayerRequestAction(formData: FormData) {
 export async function deletePrayerRequestAction(formData: FormData) {
   const admin = await requireAdminIdentity();
   const returnTo = normalizeReturnTo(normalizeOptionalString(formData.get('returnTo')));
-  const requestId = normalizeOptionalString(formData.get('requestId'));
+  const requestId = normalizeUuid(formData.get('requestId'));
   if (!requestId) fail(returnTo, 'Missing request id');
   if (formData.get('confirm') !== 'yes') fail(returnTo, 'Tick the box to confirm the delete');
 
@@ -134,9 +135,11 @@ export async function deletePrayerRequestAction(formData: FormData) {
 export async function banPrayerAuthorAction(formData: FormData) {
   const admin = await requireAdminIdentity();
   const returnTo = normalizeReturnTo(normalizeOptionalString(formData.get('returnTo')));
-  const userId = normalizeOptionalString(formData.get('userId'));
+  const userId = normalizeUuid(formData.get('userId'));
   const reason = normalizeOptionalString(formData.get('reason'));
   if (!userId) fail(returnTo, 'Missing author id');
+  // A ban hides every request the author has posted, and lifting it does not restore them.
+  if (formData.get('confirm') !== 'yes') fail(returnTo, 'Tick the box to confirm the ban');
   if (reason && reason.length > BAN_REASON_MAX) {
     fail(returnTo, `The reason can be at most ${BAN_REASON_MAX} characters`);
   }
@@ -177,7 +180,7 @@ export async function banPrayerAuthorAction(formData: FormData) {
 export async function unbanPrayerAuthorAction(formData: FormData) {
   const admin = await requireAdminIdentity();
   const returnTo = normalizeReturnTo(normalizeOptionalString(formData.get('returnTo')));
-  const userId = normalizeOptionalString(formData.get('userId'));
+  const userId = normalizeUuid(formData.get('userId'));
   if (!userId) fail(returnTo, 'Missing author id');
 
   const { data, error } = await createAdminServiceClient()
@@ -216,6 +219,11 @@ export async function addPrayerFilterTermAction(formData: FormData) {
     })
     .select('id')
     .single<{ id: number }>();
+  if (error?.code === UNIQUE_VIOLATION) {
+    // The unique index is on (lower(term), match_mode).
+    const mode = parsed.matchMode === 'word' ? 'whole-word' : 'substring';
+    fail(returnTo, `"${parsed.term}" is already a ${mode} term`);
+  }
   if (error || !data) fail(returnTo, error?.message ?? 'Unable to add the term');
 
   await writeAdminAuditLog({

@@ -5,6 +5,7 @@ import { requireAdminIdentity } from '@/lib/admin-auth';
 import { getAdminRequiredEnvKeys } from '@/lib/env';
 import { formatDateTime } from '@/lib/format';
 import {
+  FILTER_TERM_MAX_LENGTH,
   PRAYER_REPORT_AUTO_HIDE_THRESHOLD,
   getPrayerFilterTerms,
   getPrayerReportQueue,
@@ -75,6 +76,10 @@ function RequestActions({ item, returnTo }: { item: ReportedPrayerRequest; retur
             placeholder="Ban reason (optional)"
             aria-label={`Ban reason for ${item.authorId}`}
           />
+          <label className="filter-form__check">
+            <input type="checkbox" name="confirm" value="yes" required />
+            Confirm
+          </label>
           <button type="submit" className="button button-secondary">
             Ban author
           </button>
@@ -138,6 +143,12 @@ export default async function PrayerReportsPage({ searchParams }: PrayerReportsP
             <a href="/prayer-reports?status=all">Show reviewed reports too</a>
           )}
         </p>
+        {queue.truncated ? (
+          <p className="notice notice--warning">
+            Showing the newest {queue.reportsShown} of {queue.reportTotal} reports. Older reports
+            are not listed; on the open queue they appear as the newer ones are reviewed.
+          </p>
+        ) : null}
         <DataTable columns={reportColumns}>
           {queue.items.length === 0 ? (
             <tr>
@@ -232,7 +243,7 @@ export default async function PrayerReportsPage({ searchParams }: PrayerReportsP
           <input
             name="term"
             required
-            maxLength={100}
+            maxLength={FILTER_TERM_MAX_LENGTH}
             placeholder="Word or phrase"
             aria-label="Term"
           />
@@ -253,6 +264,13 @@ export default async function PrayerReportsPage({ searchParams }: PrayerReportsP
         <details>
           <summary>Show the {terms.length} current terms (offensive language)</summary>
           <DataTable columns={termColumns}>
+            {terms.length === 0 ? (
+              <tr>
+                <td colSpan={termColumns.length} className="data-table__empty">
+                  No filter terms yet, so no request is blocked by its wording.
+                </td>
+              </tr>
+            ) : null}
             {terms.map((term) => (
               <tr key={term.id}>
                 <td>{term.term}</td>
