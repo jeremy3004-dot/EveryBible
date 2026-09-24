@@ -14,6 +14,7 @@ import {
 import {
   createSyncIdentityBoundary,
   createSyncCycleCache,
+  isMergeRefusedForAccount,
   STALE_SYNC_ERROR,
   type SyncIdentityBoundary,
 } from './syncIdentity';
@@ -374,6 +375,9 @@ const syncProgressForIdentityImpl = async (identity: SyncIdentityBoundary): Prom
       return staleSyncResult();
     }
     const { data: storedRow, error: mergeError, status: mergeStatus } = await merge.value!;
+    if (isMergeRefusedForAccount(mergeError)) {
+      return staleSyncResult();
+    }
     if (!isMissingMergeRpcError(mergeError, mergeStatus)) {
       if (mergeError) {
         return { success: false, error: mergeError.message };

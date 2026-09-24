@@ -8,7 +8,7 @@ import {
   readRepoMigrations,
   replayTableMigrations,
 } from '../../testing/migrationSchema';
-import { createSyncIdentityBoundary } from '../sync/syncIdentity';
+import { createSyncIdentityBoundary, STALE_SYNC_ERROR } from '../sync/syncIdentity';
 import type { UserReadingPlanProgress } from './types';
 
 // One mock configuration for the whole file (ESM caches modules). Every scenario
@@ -2294,6 +2294,56 @@ test('a merge the server refuses is not retried as a blind upsert', async () => 
   assert.equal(result.success, true);
   assert.deepEqual(upsertPayloads(), []);
   assert.deepEqual(planStore().getProgress('psalms-30-days')?.completed_entries, { '3': 'x' });
+});
+
+// The server refuses rows naming another account with 42501 (migration
+// 20260924063000): the session switched accounts while the push was in flight.
+test('a plan merge refused as another account (42501) is dropped and the sync reported stale', async () => {
+  signIn('user-a', 2);
+  const rows = [localProgress('psalms-30-days', { completed_entries: { '3': 'x' } })];
+  planStore().upsertProgress(rows[0]!);
+  serveRows([]);
+  supabaseFake.respondToRpc(MERGE_RPC, () => ({
+    data: null,
+    error: { code: '42501', message: 'p_rows holds progress for another account' },
+    status: 403,
+  }));
+
+  const result = await service.syncPlanProgress(rows);
+
+  assert.equal(result.success, false);
+  assert.equal(result.error, STALE_SYNC_ERROR);
+  assert.equal(mergeRpcCalls().length, 1);
+  assert.equal((mergeRpcCalls()[0]?.payload as MergeRpcArgs).p_rows[0]?.user_id, 'user-a');
+  assert.deepEqual(upsertPayloads(), [], 'never retried as an upsert');
+  assert.deepEqual(planStore().getProgress('psalms-30-days')?.completed_entries, { '3': 'x' });
+});
+
+test('a single-plan push refused as another account (42501) is not retried as an upsert', async () => {
+  signIn('user-a', 4);
+  planStore().enrollPlan('psalms-30-days');
+  serveRows([]);
+  const refused = new Promise<void>((resolve) => {
+    supabaseFake.respondToRpc(MERGE_RPC, () => {
+      resolve();
+      return {
+        data: null,
+        error: { code: '42501', message: 'p_rows holds progress for another account' },
+        status: 403,
+      };
+    });
+  });
+
+  await service.markDayComplete('psalms-30-days', 1);
+  await refused;
+  await flushBackgroundWork();
+
+  assert.equal(mergeRpcCalls().length, 1);
+  assert.deepEqual(upsertPayloads(), []);
+  assert.deepEqual(
+    Object.keys(planStore().getProgress('psalms-30-days')?.completed_entries ?? {}),
+    ['1']
+  );
 });
 
 test('every column the merge RPC is sent exists in the migrated table', async () => {
