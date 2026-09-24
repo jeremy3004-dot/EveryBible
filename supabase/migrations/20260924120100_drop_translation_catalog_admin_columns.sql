@@ -4,7 +4,7 @@
 -- every instance. The previous admin build selects admin_notes / upstream_payload from
 -- translation_catalog by name and writes admin_notes, sync_run_id, upstream_external_id and
 -- upstream_payload to it, so it fails once these columns are gone. Order:
---   1. 20260924120000_add_translation_catalog_admin_side_table.sql
+--   1. 20260924014149_add_translation_catalog_admin_side_table.sql
 --   2. deploy apps/admin
 --   3. this migration
 --

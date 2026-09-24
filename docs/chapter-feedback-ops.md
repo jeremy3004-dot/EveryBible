@@ -138,7 +138,7 @@ passcode-based review API.
 
 ## Backend rollout
 
-Team passcodes: apply `20260924120000_add_translator_team_passcodes.sql`, then deploy
+Team passcodes: apply `20260924014137_add_translator_team_passcodes.sql`, then deploy
 `review-chapter-feedback`. No secret changes are needed for the shared code to keep
 working for `bsb`. If the function is deployed before the migration, the shared code
 still works and any other code gets 503 until the table exists. No app release is

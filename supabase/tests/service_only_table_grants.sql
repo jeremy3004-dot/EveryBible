@@ -3,7 +3,7 @@
 -- Before 20260923233710_revoke_client_grants_on_service_only_tables.sql this fails:
 -- anon and authenticated held every table privilege on these RLS-without-policy tables.
 -- translator_team_passcodes (hashed team review passcodes) is created without client grants
--- by 20260924120000_add_translator_team_passcodes.sql.
+-- by 20260924014137_add_translator_team_passcodes.sql.
 BEGIN;
 
 DO $$

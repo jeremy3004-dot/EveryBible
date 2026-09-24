@@ -355,7 +355,7 @@ and `sync_run_id` move from `translation_catalog` to `translation_catalog_admin`
 policies, client grants revoked). Dropping the columns keeps `select('*')` working in every shipped
 build; it just stops returning them. Apply in this order:
 
-1. `20260924120000_add_translation_catalog_admin_side_table` — creates and backfills the side table
+1. `20260924014149_add_translation_catalog_admin_side_table` — creates and backfills the side table
    and installs a transition trigger that mirrors the old admin build's writes to the old columns.
    Safe while the old admin build is still serving.
 2. Deploy `apps/admin` (reads the side table through a PostgREST embed, writes notes and upstream
