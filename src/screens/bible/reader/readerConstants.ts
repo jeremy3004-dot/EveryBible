@@ -23,3 +23,8 @@ export const FEEDBACK_AUDIO_COUNTDOWN_RADIUS =
   (FEEDBACK_AUDIO_COUNTDOWN_SIZE - FEEDBACK_AUDIO_COUNTDOWN_STROKE_WIDTH) / 2;
 export const FEEDBACK_AUDIO_COUNTDOWN_CIRCUMFERENCE = 2 * Math.PI * FEEDBACK_AUDIO_COUNTDOWN_RADIUS;
 export const READER_SCROLL_JS_UPDATE_INTERVAL_PX = 48;
+
+/** The root tab navigator the reader drives (hides it in plan sessions, slides it on scroll). */
+export type RootTabNavigationHandle = {
+  setOptions: (options: { tabBarStyle?: unknown }) => void;
+} | null;

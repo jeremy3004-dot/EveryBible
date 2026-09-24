@@ -30,7 +30,6 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import {
   getAdjacentBibleChapter,
@@ -68,24 +67,9 @@ import { useTranslationContentSummary } from '../../hooks/useTranslationContentS
 import { isRemoteAudioAvailable } from '../../services/audio/audioRemote';
 import { getAudioAvailability } from '../../services/audio/audioAvailability';
 import { describeAudioDownloadError } from '../../services/audio/audioDownloadErrorMessage';
-import { READING_PLAN_ENTRIES_BY_PLAN_ID, readingPlans } from '../../data/readingPlans.generated';
-import {
-  buildPlanDayPlaybackSequenceEntries,
-  getCurrentPlanDaySummary,
-  getPlanChapterListenStatus,
-  getPlanStepReadChapters,
-  getRhythmSessionSegmentAtIndex,
-  PLAN_LISTEN_COMPLETION_THRESHOLD,
-  resolvePlaybackSequenceIndex,
-} from '../../services/plans/readingPlanActivity';
+import { getPlanStepReadChapters } from '../../services/plans/readingPlanActivity';
 import { markDayComplete, markPlanSessionComplete } from '../../services/plans/readingPlanService';
-import { getPlanChapterFocusVerse } from '../../services/plans';
 import { formatLocalDateKey } from '../../services/progress/readingActivity';
-import {
-  buildPlanSessionCompletionKey,
-  getDaySessionEntries,
-  isMultiSessionPlan,
-} from '../../services/plans/readingPlanModel';
 import { syncPreferences } from '../../services/sync';
 import { useAudioStore } from '../../stores/audioStore';
 import { useAuthStore } from '../../stores/authStore';
@@ -177,24 +161,22 @@ import {
   ReaderFontSheet,
   ReaderListenMode,
   ReaderParagraphBlock,
+  ReaderTopChrome,
   ReaderTranslationSheet,
   ReaderVerseList,
   VerseImageShareSheet,
-  TOP_ACTION_HIT_SLOP,
-  TOP_ACTION_ICON_SIZE,
-  READER_REFERENCE_PILL_MAX_FONT_SCALE,
   READER_SCROLL_JS_UPDATE_INTERVAL_PX,
   styles,
   useAudioPortionShare,
+  useAudioReturnTarget,
   useChapterAudioShare,
   useChapterFeedback,
+  useReaderPlanSession,
 } from './reader';
+import type { RootTabNavigationHandle } from './reader';
 
 type NavigationProp = NativeStackNavigationProp<BibleStackParamList>;
 type VerseTimestamps = import('../../services/bible/verseTimestamps').VerseTimestamps;
-type RootTabNavigationHandle = {
-  setOptions: (options: { tabBarStyle?: unknown }) => void;
-} | null;
 
 export function BibleReaderScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -629,287 +611,45 @@ export function BibleReaderScreen() {
   const compactBookName = getCompactTranslatedBookName(bookId, t);
   const activeChapterKey = `${bookId}_${chapter}`;
   const todayDateKey = formatLocalDateKey(new Date());
-  const activeRhythmSession = sessionContext?.type === 'rhythm' ? sessionContext : null;
-  const activePlanEntries = useMemo(
-    () => (activePlanId ? (READING_PLAN_ENTRIES_BY_PLAN_ID.get(activePlanId) ?? []) : []),
-    [activePlanId]
-  );
-  const activePlanRecord = useMemo(
-    () => (activePlanId ? (readingPlans.find((plan) => plan.id === activePlanId) ?? null) : null),
-    [activePlanId]
-  );
-  const activePlanIsMultiSession = isMultiSessionPlan(activePlanRecord);
-  const activePlanDayEntries = useMemo(
-    () =>
-      typeof planDayNumber === 'number'
-        ? activePlanEntries.filter((entry) => entry.day_number === planDayNumber)
-        : [],
-    [activePlanEntries, planDayNumber]
-  );
-  const activePlanSessionGroups = useMemo(
-    () =>
-      typeof planDayNumber === 'number'
-        ? getDaySessionEntries(activePlanEntries, planDayNumber)
-        : [],
-    [activePlanEntries, planDayNumber]
-  );
-  const activePlanSessionKey = useMemo(
-    () =>
-      activePlanIsMultiSession
-        ? (planSessionKey ?? activePlanSessionGroups[0]?.sessionKey ?? null)
-        : null,
-    [activePlanIsMultiSession, activePlanSessionGroups, planSessionKey]
-  );
-  const activePlanSessionEntries = useMemo(() => {
-    if (!activePlanIsMultiSession || !activePlanSessionKey) {
-      return activePlanDayEntries;
-    }
-
-    return (
-      activePlanSessionGroups.find((group) => group.sessionKey === activePlanSessionKey)?.entries ??
-      activePlanDayEntries
-    );
-  }, [
-    activePlanDayEntries,
+  const {
+    activePlanChapterIndex,
+    activePlanDayChapterItems,
+    activePlanDaySummary,
     activePlanIsMultiSession,
-    activePlanSessionGroups,
-    activePlanSessionKey,
-  ]);
-  const activePlanDayChapterItems = useMemo(
-    () =>
-      activePlanSessionEntries.flatMap((entry) => {
-        const endChapter = entry.chapter_end ?? entry.chapter_start;
-        const chapterItems: Array<{ bookId: string; chapter: number; entryId: string }> = [];
-
-        for (
-          let chapterNumber = entry.chapter_start;
-          chapterNumber <= endChapter;
-          chapterNumber += 1
-        ) {
-          chapterItems.push({
-            bookId: entry.book,
-            chapter: chapterNumber,
-            entryId: entry.id,
-          });
-        }
-
-        return chapterItems;
-      }),
-    [activePlanSessionEntries]
-  );
-  const activePlanChapterIndex = useMemo(
-    () =>
-      activePlanDayChapterItems.findIndex(
-        (item) => item.bookId === bookId && item.chapter === chapter
-      ),
-    [activePlanDayChapterItems, bookId, chapter]
-  );
-  const isInActivePlanSession =
-    Boolean(activePlanId) &&
-    typeof planDayNumber === 'number' &&
-    returnToPlanOnComplete &&
-    activePlanChapterIndex >= 0;
-  const activePlanTitle = activePlanRecord
-    ? t(activePlanRecord.title_key as Parameters<typeof t>[0], {
-        defaultValue: activePlanRecord.title_key,
-      })
-    : null;
-  const showPlanSessionChrome =
-    isInActivePlanSession &&
-    activePlanTitle != null &&
-    typeof planDayNumber === 'number' &&
-    activePlanDayChapterItems.length > 0;
-  const isLastPlanChapter = activePlanChapterIndex === activePlanDayChapterItems.length - 1;
-  const activePlanPlaybackSequenceEntries = useMemo(() => {
-    if (showPlanSessionChrome && !activeRhythmSession) {
-      return buildPlanDayPlaybackSequenceEntries(activePlanSessionEntries);
-    }
-
-    return playbackSequenceEntries;
-  }, [
-    activePlanSessionEntries,
-    activeRhythmSession,
-    playbackSequenceEntries,
-    showPlanSessionChrome,
-  ]);
-  const playbackSequenceEntriesForAudio = useMemo(() => {
-    if (activeRhythmSession) {
-      const activeSegment =
-        activeRhythmSession.segments.find((segment) =>
-          playbackSequenceEntries
-            .slice(segment.startIndex, segment.endIndex)
-            .some((entry) => entry.bookId === bookId && entry.chapter === chapter)
-        ) ??
-        (activePlanId && typeof planDayNumber === 'number'
-          ? (activeRhythmSession.segments.find(
-              (segment) => segment.planId === activePlanId && segment.dayNumber === planDayNumber
-            ) ?? null)
-          : null);
-
-      if (activeSegment) {
-        return playbackSequenceEntries.slice(activeSegment.startIndex, activeSegment.endIndex);
-      }
-    }
-
-    return activePlanPlaybackSequenceEntries;
-  }, [
-    activePlanId,
     activePlanPlaybackSequenceEntries,
+    activePlanSessionEntries,
+    activePlanSessionKey,
+    activePlanSessionSummary,
+    activePlanSessionTitle,
+    activePlanTitle,
     activeRhythmSession,
+    currentChapterListenStatus,
+    focusVerse,
+    hasOtherIncompletePlanSessions,
+    isLastPlanChapter,
+    playbackSequenceEntriesForAudio,
+    resolvePlanSessionRouteParams,
+    showPlanSessionChrome,
+  } = useReaderPlanSession({
+    activeChapterKey,
+    activePlanId,
+    activePlanProgress,
     bookId,
     chapter,
-    planDayNumber,
-    playbackSequenceEntries,
-  ]);
-  useEffect(() => {
-    const rootTabNavigation = getRootTabNavigation();
-    if (!rootTabNavigation) {
-      return;
-    }
-
-    if (showPlanSessionChrome) {
-      rootTabNavigation.setOptions({
-        tabBarStyle: { display: 'none' },
-      });
-
-      return () => {
-        rootTabNavigation.setOptions({
-          tabBarStyle: getRootTabBarStyle(0),
-        });
-      };
-    }
-
-    return undefined;
-  }, [getRootTabBarStyle, getRootTabNavigation, showPlanSessionChrome]);
-  useEffect(() => {
-    if (!activePlanId || typeof planDayNumber !== 'number' || activePlanChapterIndex < 0) {
-      return;
-    }
-
-    setPlanDayResume(activePlanId, planDayNumber, bookId, chapter);
-  }, [activePlanChapterIndex, activePlanId, bookId, chapter, planDayNumber, setPlanDayResume]);
-  const activePlanDaySummary = useMemo(() => {
-    if (!activePlanId || typeof planDayNumber !== 'number' || !activePlanProgress) {
-      return null;
-    }
-
-    return getCurrentPlanDaySummary({
-      plan: activePlanRecord,
-      entries: activePlanEntries,
-      progress: activePlanProgress,
-      chaptersRead,
-      listeningHistory,
-      dayNumber: planDayNumber,
-    });
-  }, [
-    activePlanEntries,
-    activePlanId,
-    activePlanRecord,
-    activePlanProgress,
     chaptersRead,
+    getRootTabBarStyle,
+    getRootTabNavigation,
     listeningHistory,
     planDayNumber,
-  ]);
-  const activePlanSessionSummary = useMemo(
-    () =>
-      activePlanSessionKey
-        ? (activePlanDaySummary?.sessionSummaries.find(
-            (session) => session.sessionKey === activePlanSessionKey
-          ) ?? null)
-        : null,
-    [activePlanDaySummary, activePlanSessionKey]
-  );
-  const focusVerse =
-    requestedFocusVerse ?? getPlanChapterFocusVerse(activePlanSessionEntries, bookId, chapter);
-  const hasOtherIncompletePlanSessions =
-    activePlanRecord != null &&
-    planDayNumber != null &&
-    activePlanIsMultiSession &&
-    activePlanSessionGroups.some(
-      (group) =>
-        group.sessionKey !== activePlanSessionKey &&
-        !activePlanProgress?.completed_sessions?.[
-          buildPlanSessionCompletionKey(activePlanRecord, planDayNumber, group.sessionKey)
-        ]
-    );
-  const activePlanSessionTitle = activePlanSessionKey
-    ? t(
-        activePlanSessionKey === 'morning'
-          ? 'readingPlans.morningLabel'
-          : activePlanSessionKey === 'midday'
-            ? 'readingPlans.middayLabel'
-            : 'readingPlans.eveningLabel',
-        {
-          defaultValue:
-            activePlanSessionKey.charAt(0).toUpperCase() + activePlanSessionKey.slice(1),
-        }
-      )
-    : null;
-  const resolvePlanSessionRouteParams = useCallback(
-    (nextBookId: string, nextChapter: number) => {
-      if (activeRhythmSession) {
-        const nextPlaybackIndex = resolvePlaybackSequenceIndex({
-          playbackSequenceEntries: activePlanPlaybackSequenceEntries,
-          bookId: nextBookId,
-          chapter: nextChapter,
-          session: activeRhythmSession,
-          preferredPlanId: activePlanId,
-          preferredDayNumber: planDayNumber,
-        });
-        const nextSegment = getRhythmSessionSegmentAtIndex(activeRhythmSession, nextPlaybackIndex);
-
-        if (!nextSegment) {
-          return {};
-        }
-
-        return {
-          planId: nextSegment.type === 'plan' ? nextSegment.planId : undefined,
-          planDayNumber: nextSegment.type === 'plan' ? nextSegment.dayNumber : undefined,
-          returnToPlanOnComplete: true,
-          sessionContext: activeRhythmSession,
-        };
-      }
-
-      if (activePlanId && typeof planDayNumber === 'number' && returnToPlanOnComplete) {
-        return {
-          planId: activePlanId,
-          planDayNumber,
-          ...(activePlanSessionKey ? { planSessionKey: activePlanSessionKey } : {}),
-          returnToPlanOnComplete: true,
-        };
-      }
-
-      return {};
-    },
-    [
-      activePlanId,
-      activePlanSessionKey,
-      activeRhythmSession,
-      planDayNumber,
-      activePlanPlaybackSequenceEntries,
-      returnToPlanOnComplete,
-    ]
-  );
-  useEffect(() => {
-    const resolvedBookId = activeAudioBookId ?? bookId;
-    const resolvedChapter = activeAudioChapter ?? chapter;
-    const hasActivePlaybackTarget =
-      resolvedBookId != null &&
-      resolvedChapter != null &&
-      (status === 'playing' || status === 'paused' || status === 'loading');
-
-    if (!hasActivePlaybackTarget) {
-      return;
-    }
-
-    setAudioReturnTarget({
-      translationId: activeAudioTranslationId ?? currentTranslation,
-      bookId: resolvedBookId,
-      chapter: resolvedChapter,
-      preferredMode: chapterSessionMode,
-      ...resolvePlanSessionRouteParams(resolvedBookId, resolvedChapter),
-    });
-  }, [
+    planSessionKey,
+    playbackSequenceEntries,
+    requestedFocusVerse,
+    returnToPlanOnComplete,
+    sessionContext,
+    setPlanDayResume,
+    todayDateKey,
+  });
+  useAudioReturnTarget({
     activeAudioBookId,
     activeAudioChapter,
     activeAudioTranslationId,
@@ -920,33 +660,7 @@ export function BibleReaderScreen() {
     resolvePlanSessionRouteParams,
     setAudioReturnTarget,
     status,
-  ]);
-  const currentChapterListenStatus = useMemo(() => {
-    if (!activePlanDaySummary) {
-      return null;
-    }
-
-    const targetSummary = activePlanSessionSummary ?? activePlanDaySummary;
-
-    return getPlanChapterListenStatus({
-      chapterKey: activeChapterKey,
-      bookId,
-      chapter,
-      targetChapterKeys: targetSummary.targetChapterKeys,
-      completedChapterKeys: targetSummary.completedChapterKeys,
-      listeningHistory,
-      dateKey: todayDateKey,
-      listenCompletionThreshold: PLAN_LISTEN_COMPLETION_THRESHOLD,
-    });
-  }, [
-    activeChapterKey,
-    activePlanDaySummary,
-    activePlanSessionSummary,
-    bookId,
-    chapter,
-    listeningHistory,
-    todayDateKey,
-  ]);
+  });
   const translationShareLabel =
     getBibleSelectionShareTranslationLabel({
       translationName: currentTranslationInfo?.name,
@@ -2764,7 +2478,29 @@ export function BibleReaderScreen() {
     <View style={styles.premiumReaderLayout}>
       <GestureDetector gesture={swipeGesture}>
         <Animated.View style={[{ flex: 1 }, swipeStyle]}>
-          {renderSharedTopChrome(true)}
+          <ReaderTopChrome
+            useAnimatedChrome={true}
+            audioEnabled={audioEnabled}
+            bookId={bookId}
+            canShowTranslationSheet={canShowTranslationSheet}
+            chapter={chapter}
+            chapterFeedbackEnabled={chapterFeedbackEnabled}
+            compactBookName={compactBookName}
+            handleExitPlanSession={handleExitPlanSession}
+            handleOpenBibleSearch={handleOpenBibleSearch}
+            handleOpenBookPicker={handleOpenBookPicker}
+            handleOpenChapterFeedback={handleOpenChapterFeedback}
+            handleOpenTranslationOptions={handleOpenTranslationOptions}
+            isReadBottomChromeCollapsed={isReadBottomChromeCollapsed}
+            setShowAudioOptionsSheet={setShowAudioOptionsSheet}
+            setShowChapterActionsSheet={setShowChapterActionsSheet}
+            setShowFontSizeSheet={setShowFontSizeSheet}
+            setShowTranslationSheet={setShowTranslationSheet}
+            sharedTopChromeTop={sharedTopChromeTop}
+            showPlanSessionChrome={showPlanSessionChrome}
+            topChromeAnimatedStyle={topChromeAnimatedStyle}
+            translationLabel={translationLabel}
+          />
 
           <ReaderVerseList
             usePremiumTypography={true}
@@ -2839,192 +2575,31 @@ export function BibleReaderScreen() {
     </View>
   );
 
-  const renderSharedTopChrome = (useAnimatedChrome: boolean) => (
-    <Animated.View
-      pointerEvents={useAnimatedChrome && isReadBottomChromeCollapsed ? 'none' : 'box-none'}
-      accessibilityElementsHidden={useAnimatedChrome && isReadBottomChromeCollapsed}
-      importantForAccessibility={
-        useAnimatedChrome && isReadBottomChromeCollapsed ? 'no-hide-descendants' : 'auto'
-      }
-      style={[
-        styles.floatingReaderTopBar,
-        { top: sharedTopChromeTop },
-        useAnimatedChrome ? topChromeAnimatedStyle : null,
-      ]}
-    >
-      <View style={styles.floatingReaderReferenceCluster}>
-        {showPlanSessionChrome ? (
-          <TouchableOpacity
-            style={[styles.floatingReaderPlanExitButton]}
-            activeOpacity={0.85}
-            onPress={handleExitPlanSession}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            accessibilityRole="button"
-            accessibilityLabel={t('common.back')}
-            accessibilityHint={t('bible.returnToPlanHint')}
-          >
-            <Ionicons name="chevron-back" size={18} color={colors.biblePrimaryText} />
-          </TouchableOpacity>
-        ) : null}
-
-        <View style={styles.floatingReaderReferencePill}>
-          <View
-            pointerEvents="none"
-            style={[
-              styles.floatingReaderReferencePillBackground,
-              { backgroundColor: colors.bibleElevatedSurface, borderColor: colors.bibleDivider },
-            ]}
-          />
-          <TouchableOpacity
-            style={[
-              styles.floatingReaderReferencePillSegment,
-              styles.floatingReaderReferencePillBookSegment,
-            ]}
-            activeOpacity={0.85}
-            onPress={handleOpenBookPicker}
-            accessibilityRole="button"
-            accessibilityLabel={`${getTranslatedBookName(bookId, t)} ${chapter}`}
-            accessibilityHint={t('bible.openBookAndChapterPickerHint')}
-          >
-            <Text
-              style={[
-                styles.floatingReaderReferencePillPrimary,
-                { color: colors.biblePrimaryText },
-              ]}
-              numberOfLines={1}
-              maxFontSizeMultiplier={READER_REFERENCE_PILL_MAX_FONT_SCALE}
-            >
-              {compactBookName} {chapter}
-            </Text>
-          </TouchableOpacity>
-
-          <View
-            style={[
-              styles.floatingReaderReferencePillDivider,
-              { backgroundColor: colors.bibleDivider },
-            ]}
-          />
-
-          <TouchableOpacity
-            style={styles.floatingReaderReferencePillSegment}
-            activeOpacity={0.85}
-            onPress={handleOpenTranslationOptions}
-            accessibilityRole="button"
-            accessibilityLabel={translationLabel}
-            accessibilityHint={t('bible.openTranslationOptionsHint')}
-            disabled={!canShowTranslationSheet}
-          >
-            <Text
-              style={[
-                styles.floatingReaderReferencePillTranslation,
-                { color: colors.biblePrimaryText },
-              ]}
-              numberOfLines={1}
-              maxFontSizeMultiplier={READER_REFERENCE_PILL_MAX_FONT_SCALE}
-            >
-              {translationLabel}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <View style={styles.floatingReaderTopActionGroup}>
-        {audioEnabled ? (
-          <TouchableOpacity
-            style={[
-              styles.floatingReaderMenuButton,
-              { backgroundColor: colors.bibleElevatedSurface, borderColor: colors.bibleDivider },
-            ]}
-            activeOpacity={0.85}
-            hitSlop={TOP_ACTION_HIT_SLOP}
-            onPress={() => {
-              setShowFontSizeSheet(false);
-              setShowTranslationSheet(false);
-              setShowChapterActionsSheet(false);
-              setShowAudioOptionsSheet(true);
-            }}
-            accessibilityRole="button"
-            accessibilityLabel={t('audio.nowPlaying')}
-          >
-            <View style={styles.floatingReaderMenuButtonContent}>
-              <Ionicons
-                name="volume-medium-outline"
-                size={TOP_ACTION_ICON_SIZE}
-                color={colors.biblePrimaryText}
-              />
-            </View>
-          </TouchableOpacity>
-        ) : null}
-
-        <TouchableOpacity
-          style={[
-            styles.floatingReaderMenuButton,
-            { backgroundColor: colors.bibleElevatedSurface, borderColor: colors.bibleDivider },
-          ]}
-          activeOpacity={0.85}
-          hitSlop={TOP_ACTION_HIT_SLOP}
-          onPress={handleOpenBibleSearch}
-          accessibilityRole="button"
-          accessibilityLabel={t('common.search')}
-        >
-          <View style={styles.floatingReaderMenuButtonContent}>
-            <Ionicons name="search" size={TOP_ACTION_ICON_SIZE} color={colors.biblePrimaryText} />
-          </View>
-        </TouchableOpacity>
-
-        {chapterFeedbackEnabled ? (
-          <TouchableOpacity
-            style={[
-              styles.floatingReaderMenuButton,
-              { backgroundColor: colors.bibleElevatedSurface, borderColor: colors.bibleDivider },
-            ]}
-            activeOpacity={0.85}
-            hitSlop={TOP_ACTION_HIT_SLOP}
-            onPress={handleOpenChapterFeedback}
-            accessibilityRole="button"
-            accessibilityLabel={t('bible.chapterFeedback')}
-          >
-            <View style={styles.floatingReaderMenuButtonContent}>
-              <Ionicons
-                name="chatbox-ellipses-outline"
-                size={TOP_ACTION_ICON_SIZE}
-                color={colors.biblePrimaryText}
-              />
-            </View>
-          </TouchableOpacity>
-        ) : null}
-
-        <TouchableOpacity
-          style={[
-            styles.floatingReaderMenuButton,
-            { backgroundColor: colors.bibleElevatedSurface, borderColor: colors.bibleDivider },
-          ]}
-          activeOpacity={0.85}
-          hitSlop={TOP_ACTION_HIT_SLOP}
-          onPress={() => {
-            setShowAudioOptionsSheet(false);
-            setShowFontSizeSheet(false);
-            setShowTranslationSheet(false);
-            setShowChapterActionsSheet(true);
-          }}
-          accessibilityRole="button"
-          accessibilityLabel={t('tabs.more')}
-        >
-          <View style={styles.floatingReaderMenuButtonContent}>
-            <Ionicons
-              name="ellipsis-horizontal"
-              size={TOP_ACTION_ICON_SIZE}
-              color={colors.biblePrimaryText}
-            />
-          </View>
-        </TouchableOpacity>
-      </View>
-    </Animated.View>
-  );
-
   const renderLegacyReaderLayout = () => (
     <>
-      {renderSharedTopChrome(false)}
+      <ReaderTopChrome
+        useAnimatedChrome={false}
+        audioEnabled={audioEnabled}
+        bookId={bookId}
+        canShowTranslationSheet={canShowTranslationSheet}
+        chapter={chapter}
+        chapterFeedbackEnabled={chapterFeedbackEnabled}
+        compactBookName={compactBookName}
+        handleExitPlanSession={handleExitPlanSession}
+        handleOpenBibleSearch={handleOpenBibleSearch}
+        handleOpenBookPicker={handleOpenBookPicker}
+        handleOpenChapterFeedback={handleOpenChapterFeedback}
+        handleOpenTranslationOptions={handleOpenTranslationOptions}
+        isReadBottomChromeCollapsed={isReadBottomChromeCollapsed}
+        setShowAudioOptionsSheet={setShowAudioOptionsSheet}
+        setShowChapterActionsSheet={setShowChapterActionsSheet}
+        setShowFontSizeSheet={setShowFontSizeSheet}
+        setShowTranslationSheet={setShowTranslationSheet}
+        sharedTopChromeTop={sharedTopChromeTop}
+        showPlanSessionChrome={showPlanSessionChrome}
+        topChromeAnimatedStyle={topChromeAnimatedStyle}
+        translationLabel={translationLabel}
+      />
 
       <ScrollView
         ref={scrollViewRef}
