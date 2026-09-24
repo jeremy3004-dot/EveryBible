@@ -117,7 +117,7 @@ test('a sync exactly one minute old switches to the minutes wording', () => {
 
   describeSyncStatus({ isAuthenticated: true, lastSyncedAt: isoAgo(MINUTE_MS), t, now: NOW });
 
-  assert.deepEqual(calls[0], { key: 'more.sync.relativeMinutes', options: { minutes: 1 } });
+  assert.deepEqual(calls[0], { key: 'more.sync.relativeMinutes', options: { count: 1 } });
 });
 
 test('minutes are floored rather than rounded', () => {
@@ -130,7 +130,7 @@ test('minutes are floored rather than rounded', () => {
     now: NOW,
   });
 
-  assert.deepEqual(calls[0], { key: 'more.sync.relativeMinutes', options: { minutes: 59 } });
+  assert.deepEqual(calls[0], { key: 'more.sync.relativeMinutes', options: { count: 59 } });
 });
 
 test('a sync an hour old switches to the hours wording', () => {
@@ -143,7 +143,7 @@ test('a sync an hour old switches to the hours wording', () => {
     now: NOW,
   });
 
-  assert.deepEqual(calls[0], { key: 'more.sync.relativeHours', options: { hours: 3 } });
+  assert.deepEqual(calls[0], { key: 'more.sync.relativeHours', options: { count: 3 } });
   assert.equal(status.isSynced, true);
 });
 
@@ -157,7 +157,7 @@ test('a sync a day or more old switches to the days wording', () => {
     now: NOW,
   });
 
-  assert.deepEqual(calls[0], { key: 'more.sync.relativeDays', options: { days: 9 } });
+  assert.deepEqual(calls[0], { key: 'more.sync.relativeDays', options: { count: 9 } });
 });
 
 test('a last-sync stamp from the future is clamped to just now rather than going negative', () => {
@@ -184,7 +184,7 @@ test('the eyebrow and footer describe the same relative moment', () => {
     now: NOW,
   });
 
-  const relative = 'more.sync.relativeHours({"hours":2})';
+  const relative = 'more.sync.relativeHours({"count":2})';
   assert.deepEqual(status, {
     label: `more.sync.syncedAgo(${JSON.stringify({ relative })})`,
     sourceLabel: `more.sync.sourceSynced(${JSON.stringify({ relative })})`,
@@ -205,6 +205,6 @@ test('now defaults to the wall clock when the caller does not pass one', (t2) =>
     t,
   });
 
-  assert.deepEqual(calls[0], { key: 'more.sync.relativeHours', options: { hours: 3 } });
+  assert.deepEqual(calls[0], { key: 'more.sync.relativeHours', options: { count: 3 } });
   assert.equal(status.isSynced, true);
 });

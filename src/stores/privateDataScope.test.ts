@@ -375,3 +375,31 @@ test('a malformed owner marker falls back to the auth storage owner', () => {
   assert.equal(scope.getPrivateDataOwner(), 'user-a');
   assert.deepEqual(useNotes.getState().notes, ['a']);
 });
+
+test("deleting an account's private data leaves other accounts and the guest bucket", () => {
+  switchOwner('user-a');
+  useNotes.getState().addNote('private to a');
+  switchOwner('user-b');
+  useNotes.getState().addNote('private to b');
+  switchOwner(null);
+  useNotes.getState().addNote('guest note');
+
+  scope.deletePrivateDataOf('user-a');
+
+  assert.equal(stored(userKey(NOTES, 'user-a')), undefined);
+  assert.deepEqual(stored(userKey(NOTES, 'user-b')), { notes: ['private to b'] });
+  assert.deepEqual(stored(NOTES), { notes: ['guest note'] });
+  assert.deepEqual(useNotes.getState().notes, ['guest note']);
+});
+
+test('deleting the showing account switches to the guest bucket so nothing writes it back', () => {
+  switchOwner('user-a');
+  useNotes.getState().addNote('private to a');
+
+  scope.deletePrivateDataOf('user-a');
+  useNotes.getState().addNote('signed-out note');
+
+  assert.equal(scope.getPrivateDataOwner(), null);
+  assert.equal(stored(userKey(NOTES, 'user-a')), undefined);
+  assert.deepEqual(stored(NOTES), { notes: ['signed-out note'] });
+});

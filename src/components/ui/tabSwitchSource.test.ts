@@ -87,8 +87,8 @@ test('TabSwitch takes every colour from the theme rather than hardcoding hex lit
 
   assert.match(
     source,
-    /backgroundColor: colors\.cardBackground,\s*\n\s*borderColor: colors\.cardBorder,/,
-    'the sliding thumb should read as lit paper from the card tokens'
+    /backgroundColor: colors\.cardBackground,[\s\S]{0,240}?borderColor: colors\.controlBorder,/,
+    'the sliding thumb is lit paper outlined at the 3:1 control boundary, since it alone marks the selection'
   );
 
   assert.match(

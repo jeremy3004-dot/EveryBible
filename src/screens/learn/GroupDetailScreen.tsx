@@ -22,7 +22,12 @@ import { warningHaptic } from '../../utils';
 import type { LearnStackParamList } from '../../navigation/types';
 import { useFourFieldsStore } from '../../stores/fourFieldsStore';
 import { useAuthStore } from '../../stores/authStore';
-import { fourFieldsCourses, fieldInfo, FIELD_TITLE_KEYS } from '../../data/fourFieldsCourses';
+import {
+  fourFieldsCourses,
+  fieldInfo,
+  FIELD_TITLE_KEYS,
+  getFourFieldsLessonTitle,
+} from '../../data/fourFieldsCourses';
 import {
   buildGroupDetailSnapshot,
   getSyncedGroup,
@@ -334,7 +339,7 @@ export function GroupDetailScreen() {
               {currentCourse.title}
             </Text>
             <Text style={[styles.currentLesson, { color: colors.secondaryText }]}>
-              {t('groups.nextLesson', { title: currentLesson.title })}
+              {t('groups.nextLesson', { title: getFourFieldsLessonTitle(currentLesson, t) })}
             </Text>
             {canStartSession ? (
               <TouchableOpacity

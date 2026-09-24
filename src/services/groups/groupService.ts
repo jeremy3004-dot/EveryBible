@@ -259,3 +259,44 @@ export async function recordSyncedGroupSession(values: {
 
   return data as GroupSessionRecord;
 }
+
+export type SyncedGroupSessionCompletion = {
+  // 'saved-lesson-unchanged': the session row exists, but the leader's move to
+  // the next lesson failed. Callers must not offer a retry of the whole save,
+  // which would record the session (and notify every member) a second time.
+  status: 'saved' | 'saved-lesson-unchanged';
+};
+
+/**
+ * Records a finished group session and, for the leader only, moves the group to
+ * the next lesson. Any member may record a session, but only the leader may
+ * update the group row (RLS "Leaders can update groups"), so a member never
+ * attempts the move. Throws only when the session itself was not recorded.
+ */
+export async function completeSyncedGroupSession(values: {
+  groupId: string;
+  courseId: string;
+  lessonId: string;
+  isLeader: boolean;
+  nextLesson: { courseId: string; lessonId: string } | null;
+}): Promise<SyncedGroupSessionCompletion> {
+  await recordSyncedGroupSession({
+    groupId: values.groupId,
+    courseId: values.courseId,
+    lessonId: values.lessonId,
+  });
+
+  if (!values.isLeader || values.nextLesson === null) {
+    return { status: 'saved' };
+  }
+
+  try {
+    await updateSyncedGroupLesson(values.groupId, {
+      current_course_id: values.nextLesson.courseId,
+      current_lesson_id: values.nextLesson.lessonId,
+    });
+    return { status: 'saved' };
+  } catch {
+    return { status: 'saved-lesson-unchanged' };
+  }
+}

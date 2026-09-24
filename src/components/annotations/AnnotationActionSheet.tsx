@@ -297,7 +297,7 @@ function AnnotationActionSheetContent({
                 styles.noteInput,
                 {
                   color: colors.biblePrimaryText,
-                  borderColor: colors.bibleDivider,
+                  borderColor: colors.controlBorder,
                   backgroundColor: colors.bibleElevatedSurface,
                 },
               ]}

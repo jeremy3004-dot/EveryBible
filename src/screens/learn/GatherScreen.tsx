@@ -22,7 +22,7 @@ import {
   WISDOM_TITLE_KEYS,
 } from '../../data/gatherWisdom';
 import { useGatherStore } from '../../stores/gatherStore';
-import { getTranslatedBookName } from '../../constants';
+import { getTranslatedBookName } from '../../constants/books';
 import { resolveGatherUpNext } from './gatherPathModel';
 import type { LearnStackParamList } from '../../navigation/types';
 

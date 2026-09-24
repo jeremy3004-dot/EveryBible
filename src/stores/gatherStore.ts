@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { privateDataStorage, registerPrivateDataStore } from './privateDataScope';
 import { mergeGuestGather } from './privateDataAdoption';
-import { sanitizePersistedGatherState } from './persistedStateSanitizers';
+import { asStringArrayRecord, mergeSanitizedState } from './persistedShapeGuards';
 
 interface GatherState {
   // Completion tracking: parentId (foundation-1, topic-courage) -> lessonId[]
@@ -76,15 +76,16 @@ export const useGatherStore = create<GatherState>()(
       name: 'gather-storage',
       // Local-only and private: scoped to the signed-in account (see privateDataScope).
       storage: createJSONStorage(() => privateDataStorage),
-      merge: (persistedState, currentState) => ({
-        ...currentState,
-        ...sanitizePersistedGatherState(persistedState),
-      }),
       // Only persist completion data and UI state, not action functions
       partialize: (state) => ({
         completedLessons: state.completedLessons,
         infoBannerDismissed: state.infoBannerDismissed,
       }),
+      merge: (persistedState, currentState) =>
+        mergeSanitizedState(persistedState, currentState, {
+          completedLessons: asStringArrayRecord,
+          infoBannerDismissed: (value) => value === true,
+        }),
     }
   )
 );

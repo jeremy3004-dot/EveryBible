@@ -520,6 +520,30 @@ export const getEstimatedFollowAlongVerse = ({
   return verses[verses.length - 1]?.verse ?? fallbackVerse ?? null;
 };
 
+const NO_DISPLAYED_ANNOTATIONS: readonly never[] = [];
+
+/**
+ * Annotations load for the routed chapter at once, while the previous chapter's text stays
+ * on screen until the new text arrives. Until then those verses show no highlights.
+ */
+export const getAnnotationsForDisplayedVerses = <T>({
+  annotations,
+  isShowingRouteChapter,
+}: {
+  annotations: readonly T[];
+  isShowingRouteChapter: boolean;
+}): readonly T[] => (isShowingRouteChapter ? annotations : NO_DISPLAYED_ANNOTATIONS);
+
+/**
+ * A selection is labelled with the routed chapter, so a verse of the previous chapter
+ * still on screen must not be selectable: its share text would carry the wrong reference.
+ */
+export const canSelectDisplayedVerse = ({
+  isShowingRouteChapter,
+}: {
+  isShowingRouteChapter: boolean;
+}): boolean => isShowingRouteChapter;
+
 export const getReaderInlineActiveVerse = ({
   isCurrentAudioChapter,
   activeFollowAlongVerse,

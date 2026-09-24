@@ -21,6 +21,14 @@ import type {
   RhythmItemId,
   RhythmSlot,
 } from '../services/plans/types';
+import {
+  asRecord,
+  asStringArray,
+  isPlainRecord,
+  mapRecordValues,
+  mergeSanitizedState,
+  type PersistedRecord,
+} from './persistedShapeGuards';
 
 export type ReadingPlansStoreApi = StoreApi<ReadingPlansStoreState>;
 
@@ -87,13 +95,20 @@ const normalizeProgressRecord = (progress: ReadingPlanProgress): ReadingPlanProg
   current_session: progress.current_session ?? null,
 });
 
+// A null entry used to throw inside merge, which left the store empty; the next
+// write then replaced every plan's real progress with that empty state.
 const normalizeProgressByPlanId = (
-  progressByPlanId: Record<string, ReadingPlanProgress> | undefined
+  progressByPlanId: unknown
 ): Record<string, ReadingPlanProgress> =>
+  mapRecordValues(progressByPlanId, (progress) =>
+    normalizeProgressRecord(progress as unknown as ReadingPlanProgress)
+  );
+
+const asRecordOfLists = <T>(value: unknown): Record<string, T[]> =>
   Object.fromEntries(
-    Object.entries(progressByPlanId ?? {}).map(([planId, progress]) => [
-      planId,
-      normalizeProgressRecord(progress),
+    Object.entries(asRecord(value)).map(([key, entries]) => [
+      key,
+      Array.isArray(entries) ? (entries.filter(isPlainRecord) as T[]) : [],
     ])
   );
 
@@ -436,21 +451,23 @@ const normalizePersistedRhythmsById = (
   rhythmsById: Record<RhythmId, ReadingPlanRhythm> | undefined
 ): Record<RhythmId, ReadingPlanRhythm> =>
   Object.fromEntries(
-    Object.entries(rhythmsById ?? {}).map(([rhythmId, rhythm]) => [
-      rhythmId,
-      {
-        ...rhythm,
-        slot: normalizeRhythmSlot(rhythm.slot),
-        items: normalizeRhythmItems({
-          items: Array.isArray((rhythm as ReadingPlanRhythm).items)
-            ? (rhythm as ReadingPlanRhythm).items
-            : undefined,
-          planIds: Array.isArray((rhythm as ReadingPlanRhythmInput).planIds)
-            ? (rhythm as ReadingPlanRhythmInput).planIds
-            : [],
-        }),
-      },
-    ])
+    Object.entries(asRecord(rhythmsById))
+      .filter((entry): entry is [RhythmId, ReadingPlanRhythm] => isPlainRecord(entry[1]))
+      .map(([rhythmId, rhythm]) => [
+        rhythmId,
+        {
+          ...rhythm,
+          slot: normalizeRhythmSlot(rhythm.slot),
+          items: normalizeRhythmItems({
+            items: Array.isArray((rhythm as ReadingPlanRhythm).items)
+              ? (rhythm as ReadingPlanRhythm).items
+              : undefined,
+            planIds: Array.isArray((rhythm as ReadingPlanRhythmInput).planIds)
+              ? (rhythm as ReadingPlanRhythmInput).planIds
+              : [],
+          }),
+        },
+      ])
   );
 
 const lazyDefaultStorage: StateStorage = {
@@ -957,17 +974,28 @@ export function createReadingPlansStore(storage: StateStorage = lazyDefaultStora
           pendingUnenrollAtByPlanId: state.pendingUnenrollAtByPlanId,
         }),
         merge: (persistedState, currentState) => {
+          const persisted = asRecord(persistedState);
           const mergedState = {
-            ...currentState,
-            ...(persistedState as Partial<ReadingPlansPersistedState>),
-            progressByPlanId: normalizeProgressByPlanId(
-              (persistedState as Partial<ReadingPlansPersistedState>)?.progressByPlanId
-            ),
+            ...mergeSanitizedState<ReadingPlansStoreState>(persistedState, currentState, {
+              enrolledPlanIds: asStringArray,
+              savedPlanIds: asStringArray,
+              completedPlanIds: asStringArray,
+              pendingUnenrollPlanIds: asStringArray,
+              rhythmOrder: (value) => asStringArray(value) as RhythmId[],
+              planDayResumeByKey: (value) =>
+                mapRecordValues(
+                  value,
+                  (resume: PersistedRecord) =>
+                    resume as unknown as ReadingPlansPersistedState['planDayResumeByKey'][string]
+                ),
+              groupPlansByGroupId: (value) => asRecordOfLists<GroupReadingPlan>(value),
+            }),
+            progressByPlanId: normalizeProgressByPlanId(persisted.progressByPlanId),
             pendingUnenrollAtByPlanId: normalizePendingUnenrollTimes(
-              (persistedState as Partial<ReadingPlansPersistedState>)?.pendingUnenrollAtByPlanId
+              persisted.pendingUnenrollAtByPlanId
             ),
             rhythmsById: normalizePersistedRhythmsById(
-              (persistedState as Partial<ReadingPlansPersistedState>)?.rhythmsById
+              persisted.rhythmsById as ReadingPlansPersistedState['rhythmsById'] | undefined
             ),
           };
 

@@ -990,10 +990,13 @@ export const sanitizePersistedBibleState = (
   const translations = sanitizeBibleTranslations(persisted.translations, runtimeCatalogById);
   const translationIds = new Set(translations.map((translation) => translation.id));
   const persistedCurrentBook = sanitizeBookId(persisted.currentBook);
+  // The chapter belongs to its book: without a valid book it would land on Genesis at that
+  // chapter, and past the book's end (Jude 2) it opens a reader with nothing in it.
   const persistedCurrentChapter =
     typeof persisted.currentChapter === 'number' &&
     Number.isInteger(persisted.currentChapter) &&
-    persisted.currentChapter > 0
+    persisted.currentChapter > 0 &&
+    persisted.currentChapter <= (getBookById(persistedCurrentBook ?? '')?.chapters ?? 0)
       ? persisted.currentChapter
       : null;
   const currentBook = persistedCurrentBook ?? 'GEN';
@@ -1247,34 +1250,5 @@ export const sanitizePersistedLibraryState = (value: unknown) => {
     favorites,
     playlists,
     history,
-  };
-};
-
-/**
- * Gather lesson marks: `{ parentId: lessonId[] }` plus the banner flag. A slot
- * that is not that shape (hand-edited, truncated, or written by an older build)
- * keeps what is valid rather than failing the first `includes` call on render.
- */
-export const sanitizePersistedGatherState = (value: unknown) => {
-  const persisted = isRecord(value) ? value : {};
-  const completedLessons: Record<string, string[]> = {};
-  if (isRecord(persisted.completedLessons)) {
-    for (const [parentId, lessonIds] of Object.entries(persisted.completedLessons)) {
-      if (!Array.isArray(lessonIds)) {
-        continue;
-      }
-      completedLessons[parentId] = [
-        ...new Set(
-          lessonIds.filter(
-            (lessonId): lessonId is string => typeof lessonId === 'string' && lessonId.length > 0
-          )
-        ),
-      ];
-    }
-  }
-
-  return {
-    completedLessons,
-    infoBannerDismissed: persisted.infoBannerDismissed === true,
   };
 };

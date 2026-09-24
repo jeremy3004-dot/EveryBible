@@ -21,6 +21,8 @@ import {
   getReaderAutoScrollTarget,
   getReaderInlineActiveVerse,
   getReaderVerseContentOffset,
+  getAnnotationsForDisplayedVerses,
+  canSelectDisplayedVerse,
   isActiveAudioTrackMatch,
   getNextChapterSessionMode,
   getNextFollowAlongVisibility,
@@ -677,6 +679,24 @@ test('draws no inline audio or focus highlight while the previous chapter is sti
     }),
     1
   );
+});
+
+// The same window applies to annotations: they load for the routed chapter at once, so the
+// outgoing chapter's verses wore the new chapter's highlights, and a verse tapped in that
+// window was shared as the new chapter's reference with the old chapter's text.
+test("keeps the routed chapter's highlights and selection off the previous chapter's text", () => {
+  const annotations = [{ id: 'h1' }, { id: 'h2' }];
+
+  assert.deepEqual(
+    getAnnotationsForDisplayedVerses({ annotations, isShowingRouteChapter: false }),
+    []
+  );
+  assert.equal(
+    getAnnotationsForDisplayedVerses({ annotations, isShowingRouteChapter: true }),
+    annotations
+  );
+  assert.equal(canSelectDisplayedVerse({ isShowingRouteChapter: false }), false);
+  assert.equal(canSelectDisplayedVerse({ isShowingRouteChapter: true }), true);
 });
 
 test('auto-scrolls the inline audio highlight to the top before it reaches the playback dock', () => {

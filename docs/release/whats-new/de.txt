@@ -1,0 +1,16 @@
+Deine Einstellungen, Pläne und Notizen bleiben jetzt auf all deinen Geräten gleich, die Lesepläne haben ein neues Aussehen und die App startet schneller.
+
+• Einstellungen werden jetzt einzeln synchronisiert, sodass eine Änderung auf einem Gerät keine Änderung auf einem anderen mehr rückgängig macht. Beim ersten Anmelden auf einem Gerät bleibt erhalten, was du dort schon eingestellt hattest.
+• Wenn du einen Leseplan auf einem Gerät verlässt, taucht er auf deinen anderen Geräten nicht wieder auf. Auch Morgen-, Mittags- und Abendeinheiten werden jetzt synchronisiert.
+• Deine Notizen, Markierungen, Lesezeichen und deine Bibliothek gehören zu deinem Konto. Meldet sich jemand anderes auf demselben Gerät an, sieht er sie nicht, und sie sind wieder da, sobald du dich erneut anmeldest.
+• Lesepläne: Deine Tage erscheinen als kompaktes Punkteraster, der Titel bleibt beim Scrollen oben stehen und du kannst von einer Lesung zurück zum Plan wischen. Das Öffnen eines Plantags setzt pausiertes Audio nicht mehr fort.
+• Die Abschnittsüberschrift am Anfang jedes Kapitels ist zurück – sie fehlte in über tausend Kapiteln. Suchergebnisse führen dich jetzt direkt zum Vers.
+• Wenn du den Vers des Tages teilst, werden nur noch Vers und Foto geteilt, nicht dein Name oder deine Begrüßung.
+• Die Texte der App wurden in allen Sprachen überprüft und korrigiert, und Russisch und Arabisch verwenden jetzt die richtigen Pluralformen.
+• Audio-Downloads: Das Abbrechen eines Downloads der ganzen Bibel stoppt ihn jetzt wirklich, heruntergeladene Kapitel werden auf Beschädigungen geprüft, und du erfährst vorher, wenn der Speicherplatz nicht reicht.
+• Bessere VoiceOver-Beschriftungen in der ganzen App, und bei großer Schrift wird Text umbrochen statt abgeschnitten. Unter iOS 26 bleibt die Tableiste über dem Bibeltext gut lesbar.
+• Behoben: Wer die App nach längerer Pause offline öffnete, konnte noch nicht synchronisierten Lesefortschritt und Tagesserien verlieren.
+• Für Übersetzungsteams: Jedes Team hat jetzt einen eigenen Prüfcode, und die App zeigt, welche Übersetzungen dein Code freischaltet.
+• Schnellerer Start und viele kleine Verbesserungen.
+
+Danke, dass du mit uns liest.

@@ -1,16 +1,19 @@
 import assert from 'node:assert/strict';
 import test, { beforeEach, mock } from 'node:test';
 
-import { createSupabaseFake, mockModule } from './testing/adminTestHarness';
+import { createSupabaseFake, mockModule, stepArgs } from './testing/adminTestHarness';
 
 const service = createSupabaseFake();
 mockModule(mock, '@/lib/supabase/service', { createAdminServiceClient: () => service.client });
 
 const {
+  getSharedPasscodeSetting,
+  getSharedPasscodeUsage,
   getTranslationIdsWithFeedback,
   getTranslatorTeams,
   parseTeamPasscodeLength,
   parseTeamTranslationIds,
+  translationsWithoutTeamCode,
 } = await import('./translator-access');
 
 beforeEach(() => service.reset());
@@ -75,4 +78,115 @@ test('the code length defaults to six and accepts only the offered lengths', () 
       error: 'Choose a code length of 6, 10 or 12 digits',
     });
   }
+});
+
+// ---------------------------------------------------------------------------
+// Retiring the shared passcode
+// ---------------------------------------------------------------------------
+
+const team = (id: string, translationIds: string[], revokedAt: string | null = null) => ({
+  id,
+  label: `Team ${id}`,
+  translationIds,
+  createdAt: '2026-09-24T08:00:00.000Z',
+  revokedAt,
+});
+
+test('translations with feedback but no active team code are listed as gaps', () => {
+  assert.deepEqual(
+    translationsWithoutTeamCode(
+      ['bsb', 'npiulb', 'el-nep', 'BSB'],
+      [team('a', ['npiulb']), team('b', ['el-nep', 'bsb'], '2026-09-24T09:00:00.000Z')]
+    ),
+    ['bsb', 'el-nep', 'BSB']
+  );
+  assert.deepEqual(translationsWithoutTeamCode([], []), []);
+});
+
+test('the shared passcode switch reads as allowed until the owner turns it off', async () => {
+  service.respondTo('translator_access_settings', () => ({
+    data: { shared_passcode_enabled: false, updated_at: '2026-09-25T10:00:00.000Z' },
+  }));
+  assert.deepEqual(await getSharedPasscodeSetting(), {
+    installed: true,
+    allowed: false,
+    updatedAt: '2026-09-25T10:00:00.000Z',
+  });
+
+  service.respondTo('translator_access_settings', () => ({ data: null }));
+  assert.deepEqual(await getSharedPasscodeSetting(), {
+    installed: true,
+    allowed: true,
+    updatedAt: null,
+  });
+});
+
+test('before the migration the switch reports itself as not installed', async () => {
+  service.respondTo('translator_access_settings', () => ({
+    data: null,
+    error: { code: 'PGRST205', message: 'Could not find the table' },
+  }));
+  assert.deepEqual(await getSharedPasscodeSetting(), {
+    installed: false,
+    allowed: true,
+    updatedAt: null,
+  });
+});
+
+test('any other switch read failure is reported rather than shown as allowed', async () => {
+  service.respondTo('translator_access_settings', () => ({
+    data: null,
+    error: { code: '57014', message: 'statement timeout' },
+  }));
+  await assert.rejects(getSharedPasscodeSetting(), /Unable to load the shared passcode setting/);
+});
+
+test('shared passcode uses are summarised per translation over the recent window', async () => {
+  service.respondTo('translator_shared_passcode_uses', () => ({
+    data: [
+      { translation_id: 'bsb', outcome: 'refused', used_at: '2026-09-24T12:00:00.000Z' },
+      { translation_id: 'bsb', outcome: 'allowed', used_at: '2026-09-24T11:00:00.000Z' },
+      { translation_id: null, outcome: 'allowed', used_at: '2026-09-23T09:00:00.000Z' },
+      { translation_id: 'bsb', outcome: 'allowed', used_at: '2026-09-20T09:00:00.000Z' },
+    ],
+  }));
+
+  const usage = await getSharedPasscodeUsage(new Date('2026-09-24T13:00:00.000Z'), 30);
+
+  assert.deepEqual(usage, {
+    installed: true,
+    since: '2026-08-25T13:00:00.000Z',
+    total: 4,
+    lastUsedAt: '2026-09-24T12:00:00.000Z',
+    truncated: false,
+    byTranslation: [
+      { translationId: 'bsb', allowed: 2, refused: 1, lastUsedAt: '2026-09-24T12:00:00.000Z' },
+      { translationId: null, allowed: 1, refused: 0, lastUsedAt: '2026-09-23T09:00:00.000Z' },
+    ],
+  });
+  const [call] = service.callsFor('translator_shared_passcode_uses');
+  assert.deepEqual(stepArgs(call, 'gte'), [['used_at', '2026-08-25T13:00:00.000Z']]);
+  assert.doesNotMatch(String(call.columns), /\*/);
+});
+
+test('before the migration the usage log reports itself as not installed', async () => {
+  service.respondTo('translator_shared_passcode_uses', () => ({
+    data: null,
+    error: { code: '42P01', message: 'relation does not exist' },
+  }));
+  const usage = await getSharedPasscodeUsage(new Date('2026-09-24T13:00:00.000Z'), 30);
+  assert.equal(usage.installed, false);
+  assert.equal(usage.total, 0);
+  assert.deepEqual(usage.byTranslation, []);
+});
+
+test('any other usage read failure is reported rather than shown as unused', async () => {
+  service.respondTo('translator_shared_passcode_uses', () => ({
+    data: null,
+    error: { code: '57014', message: 'statement timeout' },
+  }));
+  await assert.rejects(
+    getSharedPasscodeUsage(new Date('2026-09-24T13:00:00.000Z'), 30),
+    /Unable to load shared passcode uses/
+  );
 });

@@ -1,6 +1,7 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { HomeStackParamList } from './types';
 import { useTheme } from '../contexts/ThemeContext';
+import { renderScreenWithErrorBoundary } from './screenErrorLayout';
 
 const Stack = createNativeStackNavigator<HomeStackParamList>();
 
@@ -9,6 +10,7 @@ export function HomeStack() {
 
   return (
     <Stack.Navigator
+      screenLayout={renderScreenWithErrorBoundary}
       screenOptions={{
         headerShown: false,
         contentStyle: { backgroundColor: colors.background },

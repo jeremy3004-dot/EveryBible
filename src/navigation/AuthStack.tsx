@@ -1,11 +1,13 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from './types';
+import { renderScreenWithErrorBoundary } from './screenErrorLayout';
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
 
 export function AuthStack() {
   return (
     <Stack.Navigator
+      screenLayout={renderScreenWithErrorBoundary}
       screenOptions={{
         headerShown: false,
         animation: 'slide_from_right',
