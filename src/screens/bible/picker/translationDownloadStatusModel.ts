@@ -30,6 +30,19 @@ export function selectRowDownloadProgress(
     : null;
 }
 
+/** Which Bible (and, for audio, which book) the shared banner names, without how far it has got. */
+export type TranslationDownloadTarget = Pick<
+  TranslationDownloadProgress,
+  'translationId' | 'bookId'
+>;
+
+/** Selects the banner's target (use with `useShallow`); percent and byte ticks leave it unchanged. */
+export function selectDownloadTarget(
+  progress: TranslationDownloadProgress | null
+): TranslationDownloadTarget | null {
+  return progress ? { translationId: progress.translationId, bookId: progress.bookId } : null;
+}
+
 export interface TranslationDownloadActivity {
   /** An audio job is queued or running for this Bible (finished and failed jobs are not). */
   isActiveAudioJob: boolean;
@@ -45,7 +58,7 @@ export interface TranslationDownloadActivity {
  */
 export function getTranslationDownloadActivity(
   translation: StatusTranslation,
-  downloadProgress: TranslationRowDownloadProgress | null
+  downloadProgress: TranslationDownloadTarget | null
 ): TranslationDownloadActivity {
   const activeAudioJob = translation.activeDownloadJob;
   const isActiveAudioJob =
@@ -65,6 +78,12 @@ export function getTranslationDownloadActivity(
 }
 
 export type TranslationRowDownloadStatus = 'downloading' | 'queued' | 'idle';
+
+const getDownloadStatus = (
+  { isActiveAudioJob, isTextDownloadActive }: TranslationDownloadActivity,
+  isQueued: boolean
+): TranslationRowDownloadStatus =>
+  isActiveAudioJob || isTextDownloadActive ? 'downloading' : isQueued ? 'queued' : 'idle';
 
 export interface TranslationRowDownloadState extends TranslationDownloadActivity {
   /** Percent shown on the row, or null when nothing is downloading. */
@@ -99,8 +118,57 @@ export function getTranslationRowDownloadState(
     activeDownloadProgress,
     isTextDownloadIndeterminate: Boolean(isTextDownloadActive && downloadProgress?.isIndeterminate),
     showsQueued,
-    status: isDownloading ? 'downloading' : showsQueued ? 'queued' : 'idle',
+    status: getDownloadStatus(activity, isQueued),
     needsTextDownload:
       !isTextDownloaded && Boolean(translation.catalog?.text?.downloadUrl) && !translation.hasAudio,
   };
+}
+
+/** The status words a picker row already shows, spoken when a Bible's download state changes. */
+export type DownloadStatusAnnouncementKey =
+  | 'translations.downloading'
+  | 'translations.queued'
+  | 'translations.installed'
+  | 'translations.available';
+
+export interface DownloadStatusAnnouncements {
+  /** Each listed Bible's status now; pass it back as `previous` next time. */
+  statuses: ReadonlyMap<string, TranslationRowDownloadStatus>;
+  announcements: DownloadStatusAnnouncementKey[];
+}
+
+/**
+ * What to announce as the listed Bibles' downloads start, queue and settle. Tracked by Bible id,
+ * not by row: a finished download moves its Bible from Available to My Translations under a new
+ * row key, and a row that remounted there started idle and never said it was installed. A Bible
+ * that leaves the list is forgotten, so one that comes back is announced as if newly drawn.
+ */
+export function getDownloadStatusAnnouncements(
+  previous: ReadonlyMap<string, TranslationRowDownloadStatus>,
+  translations: readonly StatusTranslation[],
+  downloadTarget: TranslationDownloadTarget | null,
+  queuedId: string | null
+): DownloadStatusAnnouncements {
+  const statuses = new Map<string, TranslationRowDownloadStatus>();
+  const announcements: DownloadStatusAnnouncementKey[] = [];
+
+  for (const translation of translations) {
+    const activity = getTranslationDownloadActivity(translation, downloadTarget);
+    const status = getDownloadStatus(activity, translation.id === queuedId);
+    const previousStatus = previous.get(translation.id) ?? 'idle';
+    statuses.set(translation.id, status);
+    if (status === previousStatus) continue;
+
+    if (status === 'downloading') {
+      announcements.push('translations.downloading');
+    } else if (status === 'queued') {
+      announcements.push('translations.queued');
+    } else if (previousStatus === 'downloading') {
+      announcements.push(
+        activity.isTextDownloaded ? 'translations.installed' : 'translations.available'
+      );
+    }
+  }
+
+  return { statuses, announcements };
 }

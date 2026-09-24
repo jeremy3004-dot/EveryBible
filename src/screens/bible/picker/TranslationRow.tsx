@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef } from 'react';
+import { memo } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ProgressBar } from '../../../components/ui';
@@ -6,13 +6,10 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import { useI18n } from '../../../hooks/useI18n';
 import { useBibleStore } from '../../../stores/bibleStore';
 import type { BibleTranslation } from '../../../types';
-import { announceForAccessibility, hexWithAlpha } from '../../../utils';
+import { hexWithAlpha } from '../../../utils';
 import { getTranslationAvailabilitySummary } from '../bibleTranslationModel';
 import { DOWNLOAD_PROGRESS_HEIGHT, groupRowStyle, pickerStyles as styles } from './pickerStyles';
-import {
-  getTranslationRowDownloadState,
-  type TranslationRowDownloadStatus,
-} from './translationDownloadStatusModel';
+import { getTranslationRowDownloadState } from './translationDownloadStatusModel';
 import type { GroupPosition } from './translationPickerRowsModel';
 import { useTranslationDownloadProgress } from './useTranslationDownloadProgress';
 
@@ -52,32 +49,12 @@ export const TranslationRow = memo(function TranslationRow({
 
   const {
     isTextDownloadActive,
-    isTextDownloaded,
     activeDownloadProgress,
     isTextDownloadIndeterminate,
     showsQueued,
-    status: downloadStatus,
     needsTextDownload,
   } = getTranslationRowDownloadState(translation, downloadProgress, isQueued);
   const isDownloading = activeDownloadProgress != null;
-
-  // A download's only visible signal is a silently growing rule, so speak the
-  // same status words the row already shows when it starts and when it settles.
-  const previousDownloadStatusRef = useRef<TranslationRowDownloadStatus>('idle');
-  useEffect(() => {
-    const previousStatus = previousDownloadStatusRef.current;
-    if (downloadStatus === previousStatus) return;
-    previousDownloadStatusRef.current = downloadStatus;
-    if (downloadStatus === 'downloading') {
-      announceForAccessibility(t('translations.downloading'));
-    } else if (downloadStatus === 'queued') {
-      announceForAccessibility(t('translations.queued'));
-    } else if (previousStatus === 'downloading') {
-      announceForAccessibility(
-        isTextDownloaded ? t('translations.installed') : t('translations.available')
-      );
-    }
-  }, [downloadStatus, isTextDownloaded, t]);
 
   const cancelRowDownload = () => {
     if (showsQueued) {

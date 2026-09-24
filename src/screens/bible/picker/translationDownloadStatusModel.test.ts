@@ -2,9 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { BibleTranslation, TranslationDownloadProgress } from '../../../types';
 import {
+  getDownloadStatusAnnouncements,
   getTranslationDownloadActivity,
   getTranslationRowDownloadState,
+  selectDownloadTarget,
   selectRowDownloadProgress,
+  type TranslationRowDownloadStatus,
 } from './translationDownloadStatusModel';
 
 type Job = NonNullable<BibleTranslation['activeDownloadJob']>;
@@ -129,4 +132,74 @@ test('an installed text pack or an audio Bible never asks for a text download', 
     getTranslationDownloadActivity({ ...runtime, isDownloaded: true }, null).isTextDownloaded,
     true
   );
+});
+
+test('the download target drops percent and bytes, so ticks keep the same shape', () => {
+  const banner: TranslationDownloadProgress = {
+    translationId: 'bsb',
+    bookId: 'GEN',
+    progress: 40,
+    status: 'downloading',
+    bytesDownloaded: 404,
+  };
+  assert.deepEqual(selectDownloadTarget(banner), { translationId: 'bsb', bookId: 'GEN' });
+  assert.equal(selectDownloadTarget(null), null);
+});
+
+const statuses = (entries: [string, TranslationRowDownloadStatus][]) => new Map(entries);
+const kjv = { ...runtime, id: 'kjv' };
+
+test('starting, queueing and settling are each announced once, by Bible id', () => {
+  const started = getDownloadStatusAnnouncements(statuses([]), [runtime, kjv], textTick(0), 'kjv');
+  assert.deepEqual(started.announcements, ['translations.downloading', 'translations.queued']);
+  assert.deepEqual(
+    [...started.statuses],
+    [
+      ['engnet', 'downloading'],
+      ['kjv', 'queued'],
+    ]
+  );
+
+  const unchanged = getDownloadStatusAnnouncements(
+    started.statuses,
+    [runtime, kjv],
+    textTick(0),
+    'kjv'
+  );
+  assert.deepEqual(unchanged.announcements, []);
+
+  // The finished Bible arrives as a new object (under a new row) with its pack installed.
+  const settled = getDownloadStatusAnnouncements(
+    unchanged.statuses,
+    [kjv, { ...runtime, textPackLocalPath: '/packs/engnet' }],
+    null,
+    null
+  );
+  assert.deepEqual(settled.announcements, ['translations.installed']);
+});
+
+test('a download that stops without installing says available; a cancelled wait says nothing', () => {
+  const stopped = getDownloadStatusAnnouncements(
+    statuses([
+      ['engnet', 'downloading'],
+      ['kjv', 'queued'],
+    ]),
+    [runtime, kjv],
+    null,
+    null
+  );
+  assert.deepEqual(stopped.announcements, ['translations.available']);
+});
+
+test('an audio job is announced while it runs, and a Bible that left the list is forgotten', () => {
+  const audioRunning = { ...runtime, activeDownloadJob: job('running') };
+  const running = getDownloadStatusAnnouncements(statuses([]), [audioRunning], null, null);
+  assert.deepEqual(running.announcements, ['translations.downloading']);
+
+  const hidden = getDownloadStatusAnnouncements(running.statuses, [kjv], null, null);
+  assert.deepEqual(hidden.announcements, []);
+  assert.equal(hidden.statuses.has('engnet'), false);
+
+  const shownAgain = getDownloadStatusAnnouncements(hidden.statuses, [audioRunning], null, null);
+  assert.deepEqual(shownAgain.announcements, ['translations.downloading']);
 });
