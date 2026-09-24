@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { StateStorage } from 'zustand/middleware';
+import { assertDefined } from '../utils/assertDefined';
 
 function createMemoryStorage(): StateStorage {
   const store = new Map<string, string>();
@@ -97,7 +98,7 @@ test('reading plans store persists enrolled, saved, and completed state', async 
   assert.deepEqual(store.getState().savedPlanIds, ['psalms-30-days']);
   assert.deepEqual(store.getState().enrolledPlanIds, ['psalms-30-days']);
   assert.deepEqual(store.getState().completedPlanIds, ['psalms-30-days']);
-  assert.equal(store.getState().progressByPlanId['psalms-30-days'].is_completed, true);
+  assert.equal(store.getState().progressByPlanId['psalms-30-days']?.is_completed, true);
 
   const restored = mod.createReadingPlansStore(storage);
   assert.deepEqual(restored.getState().savedPlanIds, ['psalms-30-days']);
@@ -122,7 +123,10 @@ test('reading plans store tracks completed sessions and advances the day only af
     nextSessionKey: 'midday',
   });
 
-  const afterMorning = store.getState().progressByPlanId[planId];
+  const afterMorning = assertDefined(
+    store.getState().progressByPlanId[planId],
+    'progress after the morning session'
+  );
   assert.equal(afterMorning.current_day, 1);
   assert.equal(afterMorning.current_session, 'midday');
   assert.equal(afterMorning.completed_sessions?.['1:morning'] !== undefined, true);
@@ -146,7 +150,10 @@ test('reading plans store tracks completed sessions and advances the day only af
     nextSessionKey: null,
   });
 
-  const afterEvening = store.getState().progressByPlanId[planId];
+  const afterEvening = assertDefined(
+    store.getState().progressByPlanId[planId],
+    'progress after the evening session'
+  );
   assert.equal(afterEvening.current_day, 2);
   assert.equal(afterEvening.current_session, null);
   assert.equal(afterEvening.completed_sessions?.['1:evening'] !== undefined, true);

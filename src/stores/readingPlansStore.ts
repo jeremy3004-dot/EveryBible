@@ -630,6 +630,9 @@ export function createReadingPlansStore(
 
             const items = [...rhythm.items];
             const [movedItem] = items.splice(currentIndex, 1);
+            if (!movedItem) {
+              return state;
+            }
             items.splice(nextIndex, 0, movedItem);
 
             return {
@@ -667,6 +670,9 @@ export function createReadingPlansStore(
 
             const items = [...rhythm.items];
             const [movedItem] = items.splice(currentIndex, 1);
+            if (!movedItem) {
+              return state;
+            }
             items.splice(nextIndex, 0, movedItem);
 
             return {

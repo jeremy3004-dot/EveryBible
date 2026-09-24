@@ -34,12 +34,13 @@ export function resolveRepeatPlaybackTarget({
   }
 
   if (availableChapters) {
-    if (availableChapters.length === 0) {
+    const ordered = [...availableChapters].sort((a, b) => a - b);
+    const [firstChapter] = ordered;
+    if (firstChapter === undefined) {
       return null;
     }
 
-    const ordered = [...availableChapters].sort((a, b) => a - b);
-    return { bookId, chapter: ordered.find((entry) => entry > chapter) ?? ordered[0] };
+    return { bookId, chapter: ordered.find((entry) => entry > chapter) ?? firstChapter };
   }
 
   return {
