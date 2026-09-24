@@ -3,7 +3,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
 import {
   Alert,
-  BackHandler,
   FlatList,
   InteractionManager,
   Platform,
@@ -14,18 +13,10 @@ import {
   View,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import Animated, {
-  useSharedValue,
-  useAnimatedScrollHandler,
-  useAnimatedStyle,
-  interpolate,
-  Extrapolation,
-  withSpring,
-  runOnJS,
-} from 'react-native-reanimated';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated from 'react-native-reanimated';
+import { GestureDetector } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import {
   getAdjacentBibleChapter,
@@ -37,7 +28,6 @@ import { config } from '../../constants/config';
 import { useTheme, type ThemeMode } from '../../contexts/ThemeContext';
 import { layout, spacing, typography } from '../../design/system';
 import { getReadingFontFamily } from '../../design/fonts';
-import { getNextReaderChromeProgress, READER_PLAY_COLLAPSE_TRAVEL } from './readerChromeMotion';
 import { trackBibleExperienceEvent } from '../../services/analytics/bibleExperienceAnalytics';
 import {
   getAnnotationsForChapter,
@@ -73,7 +63,7 @@ import { useAudioPlayer } from '../../hooks/useAudioPlayer';
 import { useFontSize } from '../../hooks/useFontSize';
 import { useLargeText } from '../../hooks/useLargeText';
 import { useShallow } from 'zustand/react/shallow';
-import { lightHaptic, selectionHaptic } from '../../utils/haptics';
+import { selectionHaptic } from '../../utils/haptics';
 import { announceForAccessibility } from '../../utils/a11y';
 import { ReaderPlaybackDock } from '../../components/audio/ReaderPlaybackDock';
 import {
@@ -112,7 +102,6 @@ import {
   getReaderInlineActiveVerse,
   getAnnotationsForDisplayedVerses,
   getReaderVerseLineHeight,
-  resolveSwipeChapterNavigation,
   isActiveAudioTrackMatch,
   getNextFontSizeSheetVisibility,
   getNextTranslationSheetVisibility,
@@ -145,7 +134,6 @@ import {
   ReaderTranslationSheet,
   ReaderVerseList,
   VerseImageShareSheet,
-  READER_SCROLL_JS_UPDATE_INTERVAL_PX,
   styles,
   useAudioPortionShare,
   useAudioReturnTarget,
@@ -156,7 +144,9 @@ import {
   useReaderFollowAlongScroll,
   useReaderPlanSession,
   useReaderReadingTimer,
+  useReaderScrollChrome,
   useReaderScrollTargets,
+  useReaderSwipeNavigation,
   useReaderTabBarMotion,
 } from './reader';
 import type { NavigationProp } from './reader';
@@ -624,8 +614,6 @@ export function BibleReaderScreen() {
   // `sharedTopChromeTop`, so content only needs to clear that plus a gap. The old
   // flat 98 left ~54pt of dead space above the first line.
   const readerContentTopPadding = sharedTopChromeTop + layout.minTouchTarget + spacing.xl;
-  const lastReaderScrollJsOffset = useSharedValue(0);
-  const lastReaderScrollJsAtBottom = useSharedValue(false);
   const premiumReaderParagraphs = useMemo(() => buildReaderParagraphs(verses), [verses]);
   const {
     flushPendingReaderAutoScroll,
@@ -650,258 +638,32 @@ export function BibleReaderScreen() {
     showPremiumReadMode,
     verseOffsetsRef,
   });
-  const updateReaderBottomChromeState = useCallback(
-    (offsetY: number, viewportHeight: number, nextCollapsed: boolean) => {
-      if (readerChromeOwner.value !== readerRouteKey) return;
-      readerLastScrollOffsetYRef.current = offsetY;
-      readerScrollViewportHeightRef.current = viewportHeight;
-      if (nextCollapsed !== readerBottomChromeCollapsedRef.current) {
-        readerBottomChromeCollapsedRef.current = nextCollapsed;
-        setIsReadBottomChromeCollapsed(nextCollapsed);
-      }
-    },
-    [
-      readerChromeOwner,
-      readerRouteKey,
-      readerBottomChromeCollapsedRef,
-      readerLastScrollOffsetYRef,
-      readerScrollViewportHeightRef,
-    ]
-  );
-
-  useEffect(() => {
-    if (showPremiumReadMode) {
-      return;
-    }
-
-    readerBottomChromeCollapsedRef.current = false;
-    rootTabBarCollapseProgressRef.current = 0;
-    readerLastScrollOffsetYRef.current = 0;
-    readerBottomChromeProgressShared.value = 0;
-    if (readerChromeOwner.value === readerRouteKey) {
-      rootTabBarScrollProgress.value = 0;
-    }
-    setIsReadBottomChromeCollapsed(false);
-    const rootTabNavigation = getRootTabNavigation();
-    if (rootTabNavigation) {
-      rootTabNavigation.setOptions({
-        tabBarStyle: shouldForceHideRootTabBar ? { display: 'none' } : getRootTabBarStyle(0),
-      });
-    }
-    navigation.setParams({ tabBarCollapseProgress: shouldForceHideRootTabBar ? 1 : 0 });
-  }, [
-    getRootTabNavigation,
+  const {
+    bottomDockAnimatedStyle,
+    planSessionBottomBarAnimatedStyle,
+    readerDockBaseBottom,
+    scrollHandler,
+    topChromeAnimatedStyle,
+  } = useReaderScrollChrome({
     getRootTabBarStyle,
+    getRootTabNavigation,
     navigation,
-    readerBottomChromeProgressShared,
-    readerChromeOwner,
-    readerRouteKey,
-    rootTabBarScrollProgress,
-    showPremiumReadMode,
-    shouldForceHideRootTabBar,
     readerBottomChromeCollapsedRef,
+    readerBottomChromeProgressShared,
+    readerChromeCollapsedShared,
+    readerChromeOffsetShared,
+    readerChromeOwner,
     readerLastScrollOffsetYRef,
+    readerRouteKey,
+    readerScrollViewportHeightRef,
+    reduceMotion,
     rootTabBarCollapseProgressRef,
-  ]);
-
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      'worklet';
-      const nextOffsetY = event.contentOffset.y;
-      const viewportHeight = event.layoutMeasurement.height;
-      const contentHeight = event.contentSize.height;
-      const isAtBottom =
-        viewportHeight > 0 && contentHeight > 0
-          ? nextOffsetY + viewportHeight >= contentHeight - spacing.lg
-          : false;
-      if (readerChromeOwner.value !== readerRouteKey) return;
-
-      const nextProgress = getNextReaderChromeProgress({
-        progress: readerBottomChromeProgressShared.value,
-        previousOffset: readerChromeOffsetShared.value,
-        offset: nextOffsetY,
-        viewportHeight,
-        contentHeight,
-        reduceMotion,
-      });
-      readerChromeOffsetShared.value = nextOffsetY;
-      readerBottomChromeProgressShared.value = nextProgress;
-      rootTabBarScrollProgress.value = nextProgress;
-      const nextCollapsed = nextProgress >= 0.98;
-      // Only bookkeeping crosses to JS. All visible motion above runs for
-      // every native scroll frame, including the small deltas of a slow drag.
-      const shouldNotifyJs =
-        nextCollapsed !== readerChromeCollapsedShared.value ||
-        Math.abs(nextOffsetY - lastReaderScrollJsOffset.value) >=
-          READER_SCROLL_JS_UPDATE_INTERVAL_PX ||
-        isAtBottom !== lastReaderScrollJsAtBottom.value;
-      if (!shouldNotifyJs) {
-        return;
-      }
-      readerChromeCollapsedShared.value = nextCollapsed;
-      lastReaderScrollJsOffset.value = nextOffsetY;
-      lastReaderScrollJsAtBottom.value = isAtBottom;
-      runOnJS(updateReaderBottomChromeState)(nextOffsetY, viewportHeight, nextCollapsed);
-    },
+    rootTabBarHeight,
+    rootTabBarScrollProgress,
+    setIsReadBottomChromeCollapsed,
+    shouldForceHideRootTabBar,
+    showPremiumReadMode,
   });
-
-  const topChromeAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(
-      readerBottomChromeProgressShared.value,
-      [0, 1],
-      [1, 0],
-      Extrapolation.CLAMP
-    ),
-    transform: [
-      {
-        translateY: interpolate(
-          readerBottomChromeProgressShared.value,
-          [0, 1],
-          [0, -12],
-          Extrapolation.CLAMP
-        ),
-      },
-    ],
-  }));
-
-  // Resting play center is 50pt above the capsule top; it lowers 65pt
-  // while the tabs and arrows travel 132pt. These paths never intersect.
-  const readerDockBaseBottom = rootTabBarHeight + 18;
-  const readerDockCollapsedTranslateY = READER_PLAY_COLLAPSE_TRAVEL;
-
-  const bottomDockAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      {
-        translateY: interpolate(
-          readerBottomChromeProgressShared.value,
-          [0, 1],
-          [0, readerDockCollapsedTranslateY],
-          Extrapolation.CLAMP
-        ),
-      },
-    ],
-  }));
-
-  const planSessionBottomBarAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      {
-        translateY: rootTabBarHeight * readerBottomChromeProgressShared.value,
-      },
-    ],
-    opacity: interpolate(
-      readerBottomChromeProgressShared.value,
-      [0, 1],
-      [1, 0],
-      Extrapolation.CLAMP
-    ),
-  }));
-
-  const swipeX = useSharedValue(0);
-  const swipeInFlightRef = useRef(false);
-
-  const handleSwipeNavigation = (direction: 'next' | 'prev') => {
-    if (swipeInFlightRef.current) return;
-    swipeInFlightRef.current = true;
-
-    // The swipe repaints the page silently; a screen reader would otherwise
-    // land in a new chapter with no signal that the reference changed.
-    const swipeTarget = direction === 'next' ? nextNavigationTarget : previousNavigationTarget;
-    if (swipeTarget) {
-      announceForAccessibility(
-        `${getTranslatedBookName(swipeTarget.bookId, t)} ${swipeTarget.chapter}`
-      );
-    }
-
-    if (direction === 'next') {
-      void handleNextReadChapter().finally(() => {
-        setTimeout(() => {
-          swipeInFlightRef.current = false;
-        }, 150);
-      });
-    } else {
-      void handlePreviousReadChapter().finally(() => {
-        setTimeout(() => {
-          swipeInFlightRef.current = false;
-        }, 150);
-      });
-    }
-  };
-
-  // A plan session is opened from the Plans tab into the Bible tab's stack, so
-  // nothing native sits behind it: every way out (top chevron, back swipe past
-  // the first session chapter, Android back) routes through here to the plan.
-  const handleExitPlanSession = useCallback(() => {
-    if (!showPlanSessionChrome || !activePlanId || !rootNavigationRef.isReady()) {
-      return;
-    }
-
-    if (activeRhythmSession) {
-      rootNavigationRef.navigate('Plans', {
-        screen: 'RhythmDetail',
-        params: { rhythmId: activeRhythmSession.rhythmId },
-      });
-      return;
-    }
-
-    rootNavigationRef.navigate('Plans', {
-      screen: 'PlanDetail',
-      params: { planId: activePlanId },
-    });
-  }, [activePlanId, activeRhythmSession, showPlanSessionChrome]);
-
-  useFocusEffect(
-    useCallback(() => {
-      if (!showPlanSessionChrome) {
-        return undefined;
-      }
-
-      const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-        handleExitPlanSession();
-        return true;
-      });
-      return () => subscription.remove();
-    }, [handleExitPlanSession, showPlanSessionChrome])
-  );
-
-  // Resolved on the JS thread so the shared, tested swipe model stays the single
-  // source of truth for thresholds (worklets cannot call non-worklet functions).
-  const handleSwipeEnd = (translationX: number, velocityX: number) => {
-    if (swipeInFlightRef.current) return;
-
-    const direction = resolveSwipeChapterNavigation({
-      translationX,
-      velocityX,
-      hasNextChapter,
-      hasPrevChapter,
-      canExitSession: showPlanSessionChrome,
-    });
-    if (!direction) return;
-
-    lightHaptic();
-    if (direction === 'exit') {
-      handleExitPlanSession();
-      return;
-    }
-    handleSwipeNavigation(direction);
-  };
-
-  const swipeGesture = Gesture.Pan()
-    .activeOffsetX([-15, 15])
-    .failOffsetY([-10, 10])
-    .onUpdate((event) => {
-      'worklet';
-      swipeX.value = event.translationX;
-    })
-    .onEnd((event) => {
-      'worklet';
-      runOnJS(handleSwipeEnd)(event.translationX, event.velocityX);
-      swipeX.value = withSpring(0, { damping: 30, stiffness: 300 });
-    });
-
-  const swipeStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: swipeX.value }],
-  }));
-
   useReaderChapterLifecycle({
     activeAudioBookId,
     activeAudioChapter,
@@ -1594,6 +1356,17 @@ export function BibleReaderScreen() {
 
     await handleReadChapterNavigation(nextNavigationTarget);
   };
+  const { handleExitPlanSession, swipeGesture, swipeStyle } = useReaderSwipeNavigation({
+    activePlanId,
+    activeRhythmSession,
+    handleNextReadChapter,
+    handlePreviousReadChapter,
+    hasNextChapter,
+    hasPrevChapter,
+    nextNavigationTarget,
+    previousNavigationTarget,
+    showPlanSessionChrome,
+  });
 
   const planReadDockTrailingActionState =
     showPlanSessionChrome && chapterSessionMode === 'read'

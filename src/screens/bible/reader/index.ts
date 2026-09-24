@@ -31,5 +31,7 @@ export * from './useReaderChapterLifecycle';
 export * from './useReaderFollowAlongScroll';
 export * from './useReaderPlanSession';
 export * from './useReaderReadingTimer';
+export * from './useReaderScrollChrome';
 export * from './useReaderScrollTargets';
+export * from './useReaderSwipeNavigation';
 export * from './useReaderTabBarMotion';
