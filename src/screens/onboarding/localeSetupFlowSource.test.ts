@@ -1,3 +1,5 @@
+// UI-only source check: LocaleSetupFlow is a component and the suite has no renderer; its
+// models and the regional fallback resolver are tested directly.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -25,13 +27,8 @@ test('LocaleSetupFlow no longer includes an initial auth-choice step', () => {
 
 test('LocaleSetupFlow initial onboarding shows Bible search and the full list immediately', () => {
   const flowSource = readRelativeSource('./LocaleSetupFlow.tsx');
-  const modelSource = readRelativeSource('./localeSetupModel.ts');
-
-  assert.match(
-    modelSource,
-    /return \['translation'\];/,
-    'Initial onboarding should open directly to Bible language selection'
-  );
+  // Opening straight on Bible language selection is getLocaleSetupSteps, tested in
+  // localeSetupModel.test.ts.
 
   assert.equal(
     flowSource.includes('onboarding-translation-search'),
@@ -88,13 +85,8 @@ test('LocaleSetupFlow initial onboarding shows Bible search and the full list im
 
 test('LocaleSetupFlow bounds runtime catalog hydration and exposes retry without hiding bundled Bibles', () => {
   const flowSource = readRelativeSource('./LocaleSetupFlow.tsx');
-  const modelSource = readRelativeSource('./localeSetupModel.ts');
-
-  assert.equal(
-    modelSource.includes('RUNTIME_CATALOG_HYDRATION_TIMEOUT_MS'),
-    true,
-    'Runtime catalog hydration should have a bounded timeout constant'
-  );
+  // The bounded hydration wait itself is tested in localeSetupModel.test.ts ('runtime catalog
+  // hydration timeout still leaves bundled English BSB listable').
 
   assert.equal(
     flowSource.includes('waitForRuntimeCatalogHydration'),
@@ -139,25 +131,8 @@ test('LocaleSetupFlow closes interface-language picker even when changeLanguage 
 
 test('LocaleSetupFlow falls back to bundled Hindi or Nepali for India and Nepal language misses', () => {
   const flowSource = readRelativeSource('./LocaleSetupFlow.tsx');
-  const fallbackSource = readFileSync(
-    fileURLToPath(
-      new URL('../../services/translations/regionalTranslationFallback.ts', import.meta.url).href
-    ),
-    'utf8'
-  );
-
-  assert.match(
-    fallbackSource,
-    /REGIONAL_FALLBACK_TRANSLATION_IDS[\s\S]*IN:\s*'hincv'[\s\S]*NP:\s*'npiulb'/,
-    'Initial onboarding should know the bundled Hindi and Nepali fallback translations'
-  );
-
-  assert.match(
-    fallbackSource,
-    /resolveRegionalFallbackTranslation[\s\S]*countryCodes\.includes\('NP'\)[\s\S]*REGIONAL_FALLBACK_TRANSLATION_IDS\.NP[\s\S]*countryCodes\.includes\('IN'\)[\s\S]*REGIONAL_FALLBACK_TRANSLATION_IDS\.IN/,
-    'Initial onboarding should prefer Nepali/Hindi fallbacks for Nepal/India language selections'
-  );
-
+  // The Nepal/India fallback mapping (Nepali first) is tested on the real resolver in
+  // services/translations/regionalTranslationFallback.test.ts.
   assert.equal(
     flowSource.includes('resolveRegionalFallbackTranslation'),
     true,
