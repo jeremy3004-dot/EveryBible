@@ -150,8 +150,12 @@ mockModule(mock, sourcePath('hooks/useAppSessionAnalytics.ts'), {
 });
 
 // Everything App.tsx loads through import().
+let navigatorRenders = 0;
 mockModule(mock, sourcePath('navigation/RootNavigator.tsx'), {
-  RootNavigator: hostComponent('RootNavigator'),
+  RootNavigator: () => {
+    navigatorRenders += 1;
+    return createElement('RootNavigator');
+  },
 });
 mockModule(mock, sourcePath('screens/onboarding/LocaleSetupFlow.tsx'), {
   LocaleSetupFlow: hostComponent('LocaleSetupFlow'),
@@ -198,6 +202,7 @@ beforeEach(() => {
   launchCrashFlushes = 0;
   handledReports.length = 0;
   bibleInitError = null;
+  navigatorRenders = 0;
   privacyStore.setState(privacyStore.getInitialState(), true);
   authStore.setState(authStore.getInitialState(), true);
 });
@@ -395,4 +400,35 @@ test('a failing privacy lock leaves a standard install usable', async (t) => {
   const view = await renderApp();
 
   assert.equal(surface(view), 'navigator');
+});
+
+// LoadingScreen renders the whole navigator, so a preference it does not gate on
+// (font size, theme, reminders) must not re-render every screen below it.
+test('an unrelated preference change does not re-render the navigator', async () => {
+  privacyInitResult = { isInitialized: true, isLocked: false };
+  const view = await renderApp();
+  assert.equal(surface(view), 'navigator');
+  const before = navigatorRenders;
+
+  await act(async () => {
+    authStore.getState().setPreferences({ fontSize: 'large' });
+  });
+  await act(async () => {
+    authStore.getState().setPreferences({ notificationsEnabled: true, reminderTime: '07:30' });
+  });
+  await settle();
+
+  assert.equal(navigatorRenders, before);
+});
+
+test('a preference reset that clears onboarding still takes the app back to onboarding', async () => {
+  privacyInitResult = { isInitialized: true, isLocked: false };
+  const view = await renderApp();
+  assert.equal(surface(view), 'navigator');
+
+  await act(async () => {
+    authStore.getState().setPreferences({ onboardingCompleted: false });
+  });
+  await settle();
+  assert.equal(surface(view), 'onboarding');
 });

@@ -17,10 +17,7 @@ const appSource = readRelativeSource('../../../App.tsx');
 const flowSource = readRelativeSource('./LocaleSetupFlow.tsx');
 
 test('App.tsx gates first run behind onboarding before rendering the main shell', () => {
-  assert.match(
-    appSource,
-    /if \(!preferences\.onboardingCompleted\) \{[\s\S]*?<OnboardingHost \/>[\s\S]*?\}/
-  );
+  assert.match(appSource, /if \(!onboardingCompleted\) \{[\s\S]*?<OnboardingHost \/>[\s\S]*?\}/);
 });
 
 test('App.tsx loads LocaleSetupFlow lazily instead of importing it onto the boot render path', () => {
