@@ -57,6 +57,11 @@ import {
 import { useTranslationPreferenceStore } from '../../stores/translationPreferenceStore';
 import { hasTranslationDownloadData } from '../../stores/bibleStoreModel';
 import { showTranslationDownloadFailedAlert } from './translationDownloadFailureAlert';
+import {
+  createTranslationPickerDownloadQueue,
+  type TranslationPickerDownloadDeps,
+  type TranslationPickerDownloadState,
+} from './translationPickerDownloadQueue';
 
 interface TranslationPickerListProps {
   onRequestClose?: () => void;
@@ -100,7 +105,6 @@ export function TranslationPickerList({
   // own bottom edge against the keyboard top instead.
   const listSurfaceRef = useRef<View>(null);
   const keyboardBottomInset = useKeyboardBottomInset({ surfaceRef: listSurfaceRef });
-  const selectionRequestRef = useRef(0);
 
   // The search box sits above this list, and the picker's own sheet is a plain
   // Modal that iOS never resizes for the keyboard. Growing the scrollable extent
@@ -224,56 +228,56 @@ export function TranslationPickerList({
     []
   );
 
-  useEffect(() => {
-    return () => {
-      selectionRequestRef.current += 1;
-    };
-  }, []);
+  // One text download at a time (see translationPickerDownloadQueue.ts). The deps ref is
+  // refreshed every render so the queue, created once, always calls the latest handlers.
+  const [downloadQueueState, setDownloadQueueState] = useState<TranslationPickerDownloadState>({
+    downloadingId: null,
+    queuedId: null,
+  });
+  const downloadQueueDepsRef = useRef<TranslationPickerDownloadDeps<BibleTranslation> | null>(null);
+  const [downloadQueue] = useState(() =>
+    createTranslationPickerDownloadQueue<BibleTranslation>(() => {
+      if (!downloadQueueDepsRef.current) {
+        throw new Error('Translation picker download queue used before its first render');
+      }
+      return downloadQueueDepsRef.current;
+    })
+  );
+  downloadQueueDepsRef.current = {
+    download: (translation) => downloadTranslation(translation.id),
+    activate: (translation) => {
+      setPreferredTranslationLanguage(normalizeTranslationLanguage(translation.language));
+      setCurrentTranslation(translation.id);
+      onRequestClose?.();
+      onTranslationActivated?.(
+        useBibleStore
+          .getState()
+          .translations.find((candidate) => candidate.id === translation.id) ?? translation
+      );
+    },
+    onDownloadFailed: (translation) => {
+      showTranslationDownloadFailedAlert(t, () => {
+        void downloadQueue.request(translation);
+      });
+    },
+    onStateChange: setDownloadQueueState,
+  };
+
+  // Closing the picker drops the waiting choice; a running download finishes but opens nothing.
+  useEffect(() => () => downloadQueue.supersede(), [downloadQueue]);
 
   const handleDownloadTextTranslation = useCallback(
     async (translation: BibleTranslation) => {
       if (!translation.catalog?.text?.downloadUrl) {
         return;
       }
-
-      const attemptDownload = async (): Promise<void> => {
-        const requestId = ++selectionRequestRef.current;
-
-        try {
-          const result = await downloadTranslation(translation.id);
-          if (result === 'cancelled' || requestId !== selectionRequestRef.current) {
-            return;
-          }
-          setPreferredTranslationLanguage(normalizeTranslationLanguage(translation.language));
-          setCurrentTranslation(translation.id);
-          onRequestClose?.();
-          onTranslationActivated?.(
-            useBibleStore
-              .getState()
-              .translations.find((candidate) => candidate.id === translation.id) ?? translation
-          );
-        } catch {
-          showTranslationDownloadFailedAlert(t, () => {
-            void attemptDownload();
-          });
-        }
-      };
-
-      await attemptDownload();
+      await downloadQueue.request(translation);
     },
-    [
-      downloadTranslation,
-      setPreferredTranslationLanguage,
-      setCurrentTranslation,
-      onRequestClose,
-      onTranslationActivated,
-      t,
-    ]
+    [downloadQueue]
   );
 
   const handleTranslationSelect = useCallback(
     async (translation: BibleTranslation) => {
-      selectionRequestRef.current += 1;
       let nextTranslation = translation;
 
       if (!hasHydratedRuntimeCatalog && !translation.isDownloaded) {
@@ -314,6 +318,9 @@ export function TranslationPickerList({
         const isCurrentBookOT = !newTestamentBooks.some((b) => b.id === currentBook);
         const isNTOnlyText = nextTranslation.totalBooks === newTestamentBooks.length;
 
+        // The reader chose a Bible they can open now, so a download still running must not
+        // replace it when it finishes.
+        downloadQueue.supersede();
         setPreferredTranslationLanguage(normalizeTranslationLanguage(nextTranslation.language));
 
         if (isCurrentBookOT && isNTOnlyText) {
@@ -339,6 +346,7 @@ export function TranslationPickerList({
           targetBook !== currentBook &&
           isRemoteAudioAvailable(nextTranslation.id, targetBook)
         ) {
+          downloadQueue.supersede();
           setPreferredTranslationLanguage(normalizeTranslationLanguage(nextTranslation.language));
           setCurrentBook(targetBook);
           setCurrentChapter(1);
@@ -389,6 +397,7 @@ export function TranslationPickerList({
       onTranslationActivated,
       t,
       handleDownloadTextTranslation,
+      downloadQueue,
     ]
   );
 
@@ -602,9 +611,14 @@ export function TranslationPickerList({
         translation={item.translation}
         position={item.position}
         isSelected={currentTranslation === item.translation.id}
-        disabled={isHydratingRuntimeCatalog && !hasHydratedRuntimeCatalog}
+        disabled={
+          (isHydratingRuntimeCatalog && !hasHydratedRuntimeCatalog) ||
+          downloadQueueState.downloadingId === item.translation.id
+        }
+        isQueued={downloadQueueState.queuedId === item.translation.id}
         handleTranslationSelect={handleTranslationSelect}
         onManage={setManageTranslationId}
+        onCancelQueued={downloadQueue.cancelQueued}
       />
     );
   };
@@ -696,6 +710,7 @@ export function TranslationPickerList({
           extraData={{
             colors,
             currentTranslation,
+            downloadQueueState,
             isHydratingRuntimeCatalog,
             resolvedPreferredLanguage,
             searchQuery,
@@ -756,15 +771,20 @@ const TranslationRow = memo(function TranslationRow({
   position,
   isSelected,
   disabled,
+  isQueued,
   handleTranslationSelect,
   onManage,
+  onCancelQueued,
 }: {
   translation: BibleTranslation;
   position: GroupPosition;
   isSelected: boolean;
   disabled: boolean;
+  /** Waiting for the running download to finish before its own starts. */
+  isQueued: boolean;
   handleTranslationSelect: (translation: BibleTranslation) => Promise<void>;
   onManage: (id: string) => void;
+  onCancelQueued: (id: string) => void;
 }) {
   const { colors } = useTheme();
   const { t } = useI18n();
@@ -794,19 +814,32 @@ const TranslationRow = memo(function TranslationRow({
 
   // A download's only visible signal is a silently growing rule, so speak the
   // same status words the row already shows when it starts and when it settles.
-  const wasDownloadingRef = useRef(false);
+  const isDownloading = activeDownloadProgress != null;
+  const showsQueued = isQueued && !isDownloading;
+  const downloadStatus = isDownloading ? 'downloading' : showsQueued ? 'queued' : 'idle';
+  const previousDownloadStatusRef = useRef<typeof downloadStatus>('idle');
   useEffect(() => {
-    const isDownloading = activeDownloadProgress != null;
-    if (isDownloading === wasDownloadingRef.current) return;
-    wasDownloadingRef.current = isDownloading;
-    if (isDownloading) {
+    const previousStatus = previousDownloadStatusRef.current;
+    if (downloadStatus === previousStatus) return;
+    previousDownloadStatusRef.current = downloadStatus;
+    if (downloadStatus === 'downloading') {
       announceForAccessibility(t('translations.downloading'));
-    } else {
+    } else if (downloadStatus === 'queued') {
+      announceForAccessibility(t('translations.queued'));
+    } else if (previousStatus === 'downloading') {
       announceForAccessibility(
         isTextDownloaded ? t('translations.installed') : t('translations.available')
       );
     }
-  }, [activeDownloadProgress, isTextDownloaded, t]);
+  }, [downloadStatus, isTextDownloaded, t]);
+
+  const cancelRowDownload = () => {
+    if (showsQueued) {
+      onCancelQueued(translation.id);
+    } else {
+      cancelDownload();
+    }
+  };
 
   const needsTextDownload =
     !isTextDownloaded && Boolean(translation.catalog?.text?.downloadUrl) && !translation.hasAudio;
@@ -839,7 +872,7 @@ const TranslationRow = memo(function TranslationRow({
           void handleTranslationSelect(translation);
         }}
         activeOpacity={0.85}
-        disabled={disabled || isTextDownloadActive}
+        disabled={disabled || isTextDownloadActive || showsQueued}
         accessibilityRole="button"
         accessibilityState={{ selected: isSelected }}
         accessibilityLabel={[translation.name, meta].filter(Boolean).join(', ')}
@@ -850,17 +883,19 @@ const TranslationRow = memo(function TranslationRow({
                   ? t('translations.downloading')
                   : `${activeDownloadProgress}%`,
               }
-            : undefined
+            : showsQueued
+              ? { text: t('translations.queued') }
+              : undefined
         }
         // The nested cancel button is not reachable by VoiceOver inside this
         // row, so it is also offered as a custom action.
         accessibilityActions={
-          activeDownloadProgress != null
+          isDownloading || showsQueued
             ? [{ name: 'cancelDownload', label: t('translations.cancelDownload') }]
             : undefined
         }
         onAccessibilityAction={(event) => {
-          if (event.nativeEvent.actionName === 'cancelDownload') cancelDownload();
+          if (event.nativeEvent.actionName === 'cancelDownload') cancelRowDownload();
         }}
       >
         <View style={styles.rowText}>
@@ -896,6 +931,10 @@ const TranslationRow = memo(function TranslationRow({
                 accessibilityLabel={t('translations.downloading')}
               />
             </View>
+          ) : showsQueued ? (
+            <Text style={[styles.rowMeta, { color: colors.bibleAccent }]} numberOfLines={2}>
+              {t('translations.queued')}
+            </Text>
           ) : null}
         </View>
 
@@ -914,6 +953,15 @@ const TranslationRow = memo(function TranslationRow({
                 <Ionicons name="close-circle" size={20} color={colors.bibleSecondaryText} />
               </TouchableOpacity>
             </>
+          ) : showsQueued ? (
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={t('translations.cancelDownload')}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              onPress={() => onCancelQueued(translation.id)}
+            >
+              <Ionicons name="close-circle" size={20} color={colors.bibleSecondaryText} />
+            </TouchableOpacity>
           ) : isSelected ? (
             <Ionicons name="checkmark-circle" size={22} color={colors.bibleAccent} />
           ) : needsTextDownload ? (

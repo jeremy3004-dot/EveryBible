@@ -93,6 +93,8 @@ export const vi = {
     "prayerYouEncouraged": "Bạn đã khích lệ lời cầu xin này",
     "prayerPrayedRemoved": "Đã bỏ dấu cầu nguyện",
     "prayerEncouragedRemoved": "Đã bỏ khích lệ",
+    "prayerMarkedAnswered": "Đã đánh dấu là đã được nhậm lời",
+    "prayerRequestRemoved": "Đã gỡ điều cần cầu nguyện",
     "highlightAdded": "Đã thêm tô sáng",
     "highlightRemoved": "Đã xóa tô sáng",
     "searchResultCount": "Kết quả: {{count}}",
@@ -1505,6 +1507,7 @@ export const vi = {
     "deleteConfirmTitle": "Xóa bản dịch",
     "deleteConfirmMessage": "Xóa dữ liệu đã tải xuống của {{name}}? Bạn có thể tải lại bất cứ lúc nào.",
     "cancelDownload": "Hủy tải xuống",
+    "queued": "Đang chờ tải xuống",
     "delete": "Xóa"
   },
   "gather": {

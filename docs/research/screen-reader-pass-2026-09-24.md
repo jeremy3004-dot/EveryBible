@@ -56,12 +56,12 @@ vous / 你).
 
 ## Not fixed (deferred)
 
-- Sleep-timer options have no selected state. The store keeps only minutes
-  remaining, not which option was chosen.
-- Prayer Wall delete and mark-answered succeed silently. The card disappears or
-  changes and focus is lost.
-- Onboarding search doesn't announce how many matches it found. The list mixes
-  header rows and option rows, so counting it needs a small model change.
+- Fixed in a follow-up the same day: sleep-timer options now carry the selected
+  state (from `audioStore.sleepTimerMinutes`, counted only while a countdown
+  exists), Prayer Wall delete and mark-answered are announced, and onboarding
+  search announces "Results: N" once typing pauses
+  (`countLocaleSetupSearchMatches`). Focus after a Prayer Wall delete still moves
+  with the removed card; check that on a device.
 - The translator passcode field (`secureTextEntry`, not editable) relies on the
   platform to read the digit count.
 - The locale files were already not Prettier-formatted on `main` (`tr.ts` and others

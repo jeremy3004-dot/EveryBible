@@ -5,6 +5,7 @@ import { en } from '../../i18n/locales/en';
 import {
   buildPrayerCardAccessibilityLabel,
   prayerInteractionAnnouncement,
+  prayerRequestActionAnnouncement,
 } from './prayerCardAccessibility';
 
 async function englishT() {
@@ -55,5 +56,16 @@ test('a toggle announces the state it lands in, for both interactions', async ()
       prayerInteractionAnnouncement(t, 'encouraged', false),
     ],
     ['You prayed for this', 'Prayer mark removed', 'You encouraged this', 'Encouragement removed']
+  );
+});
+
+test('marking a request answered and removing one are both spoken', async () => {
+  const t = await englishT();
+  assert.deepEqual(
+    [
+      prayerRequestActionAnnouncement(t, 'markAnswered'),
+      prayerRequestActionAnnouncement(t, 'delete'),
+    ],
+    ['Marked as answered', 'Prayer request removed']
   );
 });

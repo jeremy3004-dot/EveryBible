@@ -1218,6 +1218,7 @@ export const bn = {
     "deleteConfirmTitle": "অনুবাদ মুছুন",
     "deleteConfirmMessage": "{{name}}-এর ডাউনলোড করা ডেটা সরাবেন? আপনি যেকোনো সময় আবার ডাউনলোড করতে পারবেন।",
     "cancelDownload": "ডাউনলোড বাতিল করুন",
+    "queued": "ডাউনলোডের অপেক্ষায়",
     "delete": "মুছুন"
   },
   "gather": {
@@ -1723,6 +1724,8 @@ export const bn = {
     "prayerYouEncouraged": "আপনি এতে উৎসাহ দিয়েছেন",
     "prayerPrayedRemoved": "প্রার্থনার চিহ্ন সরানো হয়েছে",
     "prayerEncouragedRemoved": "উৎসাহ সরানো হয়েছে",
+    "prayerMarkedAnswered": "উত্তর পাওয়া গেছে বলে চিহ্নিত হয়েছে",
+    "prayerRequestRemoved": "প্রার্থনার অনুরোধ সরানো হয়েছে",
     "highlightAdded": "হাইলাইট যোগ করা হয়েছে",
     "highlightRemoved": "হাইলাইট সরানো হয়েছে",
     "searchResultCount": "ফলাফল: {{count}}",

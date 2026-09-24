@@ -1642,6 +1642,7 @@ export const ne = {
     "deleteConfirmTitle": "अनुवाद हटाउनुहोस्",
     "deleteConfirmMessage": "{{name}} को डाउनलोड गरिएको डाटा हटाउने? तपाईं जहिले पनि फेरि डाउनलोड गर्न सक्नुहुन्छ।",
     "cancelDownload": "डाउनलोड रद्द गर्नुहोस्",
+    "queued": "डाउनलोडको प्रतीक्षामा",
     "delete": "हटाउनुहोस्"
   },
   "learn": {
@@ -1723,6 +1724,8 @@ export const ne = {
     "prayerYouEncouraged": "तपाईंले यसलाई प्रोत्साहन दिनुभयो",
     "prayerPrayedRemoved": "प्रार्थनाको चिन्ह हटाइयो",
     "prayerEncouragedRemoved": "प्रोत्साहन हटाइयो",
+    "prayerMarkedAnswered": "जवाफ पाइएको चिन्ह लगाइयो",
+    "prayerRequestRemoved": "प्रार्थना अनुरोध हटाइयो",
     "highlightAdded": "हाइलाइट थपियो",
     "highlightRemoved": "हाइलाइट हटाइयो",
     "searchResultCount": "नतिजा: {{count}}",

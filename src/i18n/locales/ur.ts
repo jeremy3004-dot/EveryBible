@@ -93,6 +93,8 @@ export const ur = {
     "prayerYouEncouraged": "آپ نے اس کا حوصلہ بڑھایا",
     "prayerPrayedRemoved": "دعا کا نشان ہٹا دیا گیا",
     "prayerEncouragedRemoved": "حوصلہ افزائی ہٹا دی گئی",
+    "prayerMarkedAnswered": "جواب ملنے کا نشان لگا دیا گیا",
+    "prayerRequestRemoved": "دعا کی درخواست ہٹا دی گئی",
     "highlightAdded": "نمایاں کر دیا گیا",
     "highlightRemoved": "نمایاں ہٹا دیا گیا",
     "searchResultCount": "نتائج: {{count}}",
@@ -1505,6 +1507,7 @@ export const ur = {
     "deleteConfirmTitle": "ترجمہ حذف کریں",
     "deleteConfirmMessage": "{{name}} کا ڈاؤن لوڈ کیا ہوا ڈیٹا ہٹا دیں؟ آپ اسے کسی بھی وقت دوبارہ ڈاؤن لوڈ کر سکتے ہیں۔",
     "cancelDownload": "ڈاؤن لوڈ منسوخ کریں",
+    "queued": "ڈاؤن لوڈ کا انتظار ہے",
     "delete": "حذف کریں"
   },
   "gather": {

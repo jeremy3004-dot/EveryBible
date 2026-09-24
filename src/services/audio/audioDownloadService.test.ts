@@ -10,6 +10,7 @@ import {
   createAudioDownloadJobId,
   createAudioDownloadJobStore,
   downloadAudioBook,
+  completeAudioDownloadJob,
   downloadAudioTranslation,
   failAudioDownloadJob,
   reattachAudioDownloadJob,
@@ -227,12 +228,100 @@ test('audio download job lifecycle exposes start, reattach, and failure hooks', 
     },
   });
 
-  assert.equal(failed.status, 'failed');
+  assert.equal(failed?.status, 'failed');
   assert.deepEqual(events, [
     'start:audio-download:bsb:book:GEN:downloading',
     'reattach:audio-download:bsb:book:GEN:downloading',
     'failure:audio-download:bsb:book:GEN:failed:network down',
   ]);
+});
+
+const createMapJobStore = () => {
+  const jobs = new Map<string, AudioDownloadJobRecord>();
+  const jobStore: AudioDownloadJobStore = {
+    listJobs: async () => [...jobs.values()],
+    getJob: async (id) => jobs.get(id) ?? null,
+    upsertJob: async (job) => {
+      jobs.set(job.id, job);
+    },
+    removeJob: async (id) => {
+      jobs.delete(id);
+    },
+  };
+  return { jobs, jobStore };
+};
+
+test('failing a job that is no longer in the store writes nothing and fires no hook', async () => {
+  const { jobs, jobStore } = createMapJobStore();
+  const events: string[] = [];
+
+  const result = await failAudioDownloadJob({
+    jobId: 'audio-download:bsb:book:GEN',
+    jobStore,
+    error: new Error('network down'),
+    hooks: { onFailure: (job) => events.push(job.id) },
+  });
+
+  assert.equal(result, null);
+  assert.deepEqual([...jobs.keys()], []);
+  assert.deepEqual(events, []);
+});
+
+test('completing a job that is no longer in the store writes nothing and fires no hook', async () => {
+  const { jobs, jobStore } = createMapJobStore();
+  const events: string[] = [];
+
+  const result = await completeAudioDownloadJob({
+    jobId: 'audio-download:bsb:translation:all',
+    jobStore,
+    hooks: { onComplete: (job) => events.push(job.id) },
+  });
+
+  assert.equal(result, null);
+  assert.deepEqual([...jobs.keys()], []);
+  assert.deepEqual(events, []);
+});
+
+test('a book download whose job is removed mid-download leaves no placeholder record behind', async () => {
+  const { jobs, jobStore } = createMapJobStore();
+  const completions: string[] = [];
+
+  await downloadAudioBook({
+    translationId: 'bsb',
+    book: getBookById('PHM')!,
+    jobStore,
+    fileSystem: {
+      ensureDirectory: async () => {},
+      fileExists: async () => false,
+      downloadFile: async () => {
+        // The user deletes the translation's audio while the chapter is transferring.
+        jobs.clear();
+      },
+    },
+    resolveRemoteAudio: async () => ({ url: 'https://audio.test/PHM/1.mp3', duration: 10 }),
+    hooks: { onComplete: (job) => completions.push(job.id) },
+  });
+
+  assert.deepEqual([...jobs.keys()], []);
+  assert.deepEqual(completions, []);
+});
+
+test('jobs run without a persistent store still complete through the in-memory fallback', async () => {
+  const completions: string[] = [];
+
+  await downloadAudioBook({
+    translationId: 'bsb',
+    book: getBookById('PHM')!,
+    fileSystem: {
+      ensureDirectory: async () => {},
+      fileExists: async () => false,
+      downloadFile: async () => {},
+    },
+    resolveRemoteAudio: async () => ({ url: 'https://audio.test/PHM/1.mp3', duration: 10 }),
+    hooks: { onComplete: (job) => completions.push(`${job.id}:${job.status}`) },
+  });
+
+  assert.deepEqual(completions, ['audio-download:bsb:book:PHM:completed']);
 });
 
 test('audio download progress events carry the real job id so a caller can target the exact running job for cancellation', async () => {

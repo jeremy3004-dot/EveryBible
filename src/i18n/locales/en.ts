@@ -88,6 +88,8 @@ export const en = {
     prayerYouEncouraged: 'You encouraged this',
     prayerPrayedRemoved: 'Prayer mark removed',
     prayerEncouragedRemoved: 'Encouragement removed',
+    prayerMarkedAnswered: 'Marked as answered',
+    prayerRequestRemoved: 'Prayer request removed',
     highlightAdded: 'Highlight added',
     highlightRemoved: 'Highlight removed',
     searchResultCount: 'Results: {{count}}',
@@ -1592,6 +1594,7 @@ export const en = {
       'Remove the downloaded data for {{name}}? You can re-download it any time.',
     delete: 'Delete',
     cancelDownload: 'Cancel download',
+    queued: 'Waiting to download',
   },
   gather: {
     title: 'Gather',

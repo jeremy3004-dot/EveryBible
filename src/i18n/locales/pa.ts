@@ -1218,6 +1218,7 @@ export const pa = {
     "deleteConfirmTitle": "ਅਨੁਵਾਦ ਮਿਟਾਓ",
     "deleteConfirmMessage": "ਕੀ {{name}} ਲਈ ਡਾਊਨਲੋਡ ਕੀਤਾ ਡਾਟਾ ਹਟਾਉਣਾ ਹੈ? ਤੁਸੀਂ ਇਸਨੂੰ ਕਦੇ ਵੀ ਦੁਬਾਰਾ ਡਾਊਨਲੋਡ ਕਰ ਸਕਦੇ ਹੋ।",
     "cancelDownload": "ਡਾਊਨਲੋਡ ਰੱਦ ਕਰੋ",
+    "queued": "ਡਾਊਨਲੋਡ ਦੀ ਉਡੀਕ ਵਿੱਚ",
     "delete": "ਮਿਟਾਓ"
   },
   "gather": {
@@ -1723,6 +1724,8 @@ export const pa = {
     "prayerYouEncouraged": "ਤੁਸੀਂ ਇਸ ਨੂੰ ਉਤਸ਼ਾਹਿਤ ਕੀਤਾ",
     "prayerPrayedRemoved": "ਪ੍ਰਾਰਥਨਾ ਦਾ ਨਿਸ਼ਾਨ ਹਟਾਇਆ ਗਿਆ",
     "prayerEncouragedRemoved": "ਉਤਸ਼ਾਹ ਹਟਾਇਆ ਗਿਆ",
+    "prayerMarkedAnswered": "ਜਵਾਬ ਮਿਲਿਆ ਨਿਸ਼ਾਨ ਲਗਾਇਆ ਗਿਆ",
+    "prayerRequestRemoved": "ਪ੍ਰਾਰਥਨਾ ਬੇਨਤੀ ਹਟਾਈ ਗਈ",
     "highlightAdded": "ਹਾਈਲਾਈਟ ਜੋੜੀ ਗਈ",
     "highlightRemoved": "ਹਾਈਲਾਈਟ ਹਟਾਈ ਗਈ",
     "searchResultCount": "ਨਤੀਜੇ: {{count}}",

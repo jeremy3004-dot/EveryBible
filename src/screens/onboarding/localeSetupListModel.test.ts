@@ -4,6 +4,7 @@ import {
   buildBibleLanguageListItems,
   buildContentLanguageListItems,
   buildCountryListItems,
+  countLocaleSetupSearchMatches,
   getLocaleSetupGroupPosition,
   isLastInLocaleSetupGroup,
   type BibleLanguageListInput,
@@ -383,5 +384,61 @@ test('a language search that matches nothing shows only the empty card', () => {
   assert.deepEqual(
     items.map((item) => item.id),
     ['empty']
+  );
+});
+
+/* -------------------------------------------------------------------------- */
+/* Search match count                                                         */
+/* -------------------------------------------------------------------------- */
+
+test('the match count counts Bible rows, including the pinned one, but not group headers', () => {
+  const items = buildBibleLanguageListItems(
+    bibleInput({
+      primaryOption: option('eng'),
+      sections: [
+        { groupLabel: 'E', options: [option('eng'), option('spa')] },
+        { groupLabel: 'F', options: [option('fra')] },
+      ],
+    })
+  );
+
+  assert.equal(countLocaleSetupSearchMatches(items), 3);
+});
+
+test('the match count is unknown while the Bible catalog is still loading', () => {
+  const items = buildBibleLanguageListItems(
+    bibleInput({ isHydratingRuntimeCatalog: true, hasAnyOptions: false })
+  );
+
+  assert.equal(countLocaleSetupSearchMatches(items), null);
+});
+
+test('the match count counts nations and languages, and a search with no match is zero', () => {
+  const countries = buildCountryListItems({
+    suggestedCountryCode: null,
+    listedCountryCodes: ['NP', 'NZ'],
+    suggestedLabel: 'SUGGESTED',
+    listLabel: 'RESULTS',
+  });
+  const languages = buildContentLanguageListItems({
+    recommended: [{ code: 'npi' }],
+    global: [{ code: 'eng' }, { code: 'hin' }],
+    recommendedLabel: 'RECOMMENDED FOR NEPAL',
+    moreLabel: 'MORE LANGUAGES',
+  });
+  const noLanguages = buildContentLanguageListItems({
+    recommended: [],
+    global: [],
+    recommendedLabel: 'RECOMMENDED FOR NEPAL',
+    moreLabel: 'MORE LANGUAGES',
+  });
+
+  assert.deepEqual(
+    [
+      countLocaleSetupSearchMatches(countries),
+      countLocaleSetupSearchMatches(languages),
+      countLocaleSetupSearchMatches(noLanguages),
+    ],
+    [2, 3, 0]
   );
 });

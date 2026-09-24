@@ -99,6 +99,8 @@ export const de = {
     "prayerYouEncouraged": "Du hast diese Bitte ermutigt",
     "prayerPrayedRemoved": "Gebetsmarkierung entfernt",
     "prayerEncouragedRemoved": "Ermutigung entfernt",
+    "prayerMarkedAnswered": "Als erhört markiert",
+    "prayerRequestRemoved": "Gebetsanliegen entfernt",
     "highlightAdded": "Markierung hinzugefügt",
     "highlightRemoved": "Markierung entfernt",
     "searchResultCount": "Ergebnisse: {{count}}",
@@ -1505,6 +1507,7 @@ export const de = {
     "deleteConfirmTitle": "Übersetzung löschen",
     "deleteConfirmMessage": "Die heruntergeladenen Daten für {{name}} entfernen? Du kannst sie jederzeit erneut herunterladen.",
     "cancelDownload": "Download abbrechen",
+    "queued": "Wartet auf Download",
     "delete": "Löschen"
   },
   "gather": {

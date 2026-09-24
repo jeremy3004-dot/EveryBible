@@ -93,6 +93,8 @@ export const ko = {
     "prayerYouEncouraged": "이 기도 제목을 격려했어요",
     "prayerPrayedRemoved": "기도 표시를 취소했어요",
     "prayerEncouragedRemoved": "격려를 취소했어요",
+    "prayerMarkedAnswered": "응답됨으로 표시했어요",
+    "prayerRequestRemoved": "기도 제목을 삭제했어요",
     "highlightAdded": "하이라이트를 추가했어요",
     "highlightRemoved": "하이라이트를 제거했어요",
     "searchResultCount": "검색 결과: {{count}}개",
@@ -1505,6 +1507,7 @@ export const ko = {
     "deleteConfirmTitle": "번역본 삭제",
     "deleteConfirmMessage": "{{name}}의 다운로드된 데이터를 삭제할까요? 언제든 다시 다운로드할 수 있습니다.",
     "cancelDownload": "다운로드 취소",
+    "queued": "다운로드 대기 중",
     "delete": "삭제"
   },
   "gather": {

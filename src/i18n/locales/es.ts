@@ -106,6 +106,8 @@ export const es = {
     "prayerYouEncouraged": "Animaste esta petición",
     "prayerPrayedRemoved": "Marca de oración quitada",
     "prayerEncouragedRemoved": "Ánimo quitado",
+    "prayerMarkedAnswered": "Marcada como respondida",
+    "prayerRequestRemoved": "Petición de oración quitada",
     "highlightAdded": "Resaltado añadido",
     "highlightRemoved": "Resaltado quitado",
     "searchResultCount": "Resultados: {{count}}",
@@ -1950,6 +1952,7 @@ export const es = {
     "deleteConfirmTitle": "Eliminar traducción",
     "deleteConfirmMessage": "¿Eliminar los datos descargados de {{name}}? Puedes volver a descargarla cuando quieras.",
     "cancelDownload": "Cancelar descarga",
+    "queued": "En espera de descarga",
     "delete": "Eliminar"
   },
   "learn": {

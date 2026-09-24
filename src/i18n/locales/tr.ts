@@ -99,6 +99,8 @@ export const tr = {
     "prayerYouEncouraged": "Bu isteği yüreklendirdiniz",
     "prayerPrayedRemoved": "Dua işareti kaldırıldı",
     "prayerEncouragedRemoved": "Yüreklendirme kaldırıldı",
+    "prayerMarkedAnswered": "Yanıtlandı olarak işaretlendi",
+    "prayerRequestRemoved": "Dua isteği kaldırıldı",
     "highlightAdded": "Vurgu eklendi",
     "highlightRemoved": "Vurgu kaldırıldı",
     "searchResultCount": "Sonuçlar: {{count}}",
@@ -1505,6 +1507,7 @@ export const tr = {
     "deleteConfirmTitle": "Çeviriyi sil",
     "deleteConfirmMessage": "{{name}} için indirilen veriler kaldırılsın mı? İstediğiniz zaman yeniden indirebilirsiniz.",
     "cancelDownload": "İndirmeyi iptal et",
+    "queued": "İndirilmeyi bekliyor",
     "delete": "Sil"
   },
   "gather": {
