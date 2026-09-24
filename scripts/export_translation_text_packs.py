@@ -9,6 +9,11 @@ translation, computes SHA-256 checksums, and emits:
 - `tmp/r2-source-of-truth/text-pack-manifest.json` with pack metadata
 - `tmp/r2-source-of-truth/catalog-updates.sql` with deterministic catalog updates
 
+Packs ship without a full-text index by default; the app builds one on the device after
+install (src/services/bible/textPackSearchIndex.ts). `--with-search-index` ships the same
+index inside each pack instead, which makes the pack about 30-45% larger but searchable
+the moment it is installed.
+
 The mobile app already knows how to install catalog-backed SQLite text packs.
 This script makes the publishing side produce those packs for every current
 translation so the app no longer needs row-by-row Supabase text downloads.
@@ -37,6 +42,25 @@ MANIFEST_PATH = OUTPUT_ROOT / "text-pack-manifest.json"
 SQL_OUTPUT_PATH = OUTPUT_ROOT / "catalog-updates.sql"
 SCHEMA_VERSION = 5
 PAGE_SIZE = 1000
+
+# Must match PACK_SEARCH_INDEX_SCHEMA_VERSION and the verses_fts definition in
+# src/services/bible/textPackSearchIndex.ts (and the bundled database in build_bible_db.py).
+# The app rebuilds an index whose schema version differs.
+PACK_SEARCH_INDEX_SCHEMA_VERSION = 1
+CREATE_VERSES_FTS_SQL = (
+    "CREATE VIRTUAL TABLE IF NOT EXISTS verses_fts USING fts5("
+    "text, content='verses', content_rowid='id', tokenize='unicode61')"
+)
+CREATE_SEARCH_INDEX_STATE_SQL = """
+  CREATE TABLE IF NOT EXISTS search_index_state (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    index_schema_version INTEGER NOT NULL,
+    pack_version TEXT,
+    last_indexed_id INTEGER NOT NULL,
+    indexed_count INTEGER NOT NULL,
+    completed_at TEXT
+  )
+"""
 
 
 MANUAL_CATALOG_OVERRIDES: dict[str, dict[str, Any]] = {
@@ -106,6 +130,14 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=PAGE_SIZE,
         help="Supabase fetch page size for bible_verses.",
+    )
+    parser.add_argument(
+        "--with-search-index",
+        action="store_true",
+        help=(
+            "Ship the verses_fts full-text index inside each pack (larger download, "
+            "searchable at once). Without it the app builds the index after install."
+        ),
     )
     return parser.parse_args()
 
@@ -262,7 +294,32 @@ def compute_sha256(target_path: Path) -> str:
     return digest.hexdigest()
 
 
-def build_sqlite_database(target_path: Path, verses: list[dict[str, Any]]) -> None:
+def add_search_index(
+    connection: sqlite3.Connection, *, pack_version: str, completed_at: str
+) -> None:
+    """Build the same verses_fts index the app builds on the device, and mark it complete."""
+    connection.execute(CREATE_VERSES_FTS_SQL)
+    connection.execute("INSERT INTO verses_fts(verses_fts) VALUES ('rebuild')")
+    connection.execute(CREATE_SEARCH_INDEX_STATE_SQL)
+    last_id, count = connection.execute("SELECT COALESCE(MAX(id), 0), COUNT(*) FROM verses").fetchone()
+    connection.execute(
+        """
+        INSERT INTO search_index_state
+          (id, index_schema_version, pack_version, last_indexed_id, indexed_count, completed_at)
+        VALUES (1, ?, ?, ?, ?, ?)
+        """,
+        (PACK_SEARCH_INDEX_SCHEMA_VERSION, pack_version, last_id, count, completed_at),
+    )
+
+
+def build_sqlite_database(
+    target_path: Path,
+    verses: list[dict[str, Any]],
+    *,
+    search_index_version: str | None = None,
+    generated_at: str | None = None,
+) -> None:
+    """Write one pack. With search_index_version, also ship its full-text index."""
     temp_path = target_path.with_suffix(".tmp")
     if temp_path.exists():
         temp_path.unlink()
@@ -319,6 +376,15 @@ def build_sqlite_database(target_path: Path, verses: list[dict[str, Any]]) -> No
             ],
         )
         connection.commit()
+        if search_index_version is not None:
+            connection.execute("BEGIN")
+            add_search_index(
+                connection,
+                pack_version=search_index_version,
+                completed_at=generated_at
+                or datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+            )
+            connection.commit()
         connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         connection.commit()
         connection.execute("VACUUM")
@@ -458,7 +524,12 @@ def main() -> None:
         local_path = text_root / asset_id / filename
         download_url = f"text/{asset_id}/{filename}"
 
-        build_sqlite_database(local_path, verses)
+        build_sqlite_database(
+            local_path,
+            verses,
+            search_index_version=version_tag if args.with_search_index else None,
+            generated_at=generated_at,
+        )
         sha256 = compute_sha256(local_path)
 
         catalog = merge_catalog(
@@ -483,6 +554,7 @@ def main() -> None:
                 "localPath": str(local_path),
                 "sha256": sha256,
                 "sizeBytes": local_path.stat().st_size,
+                "hasSearchIndex": bool(args.with_search_index),
                 "catalog": catalog,
             }
         )

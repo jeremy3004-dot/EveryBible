@@ -80,6 +80,10 @@ export const AUDIO_ROOT_URI = 'file:///audio/';
 export interface BibleStoreDoubles {
   database: {
     invalidatedPaths: string[];
+    /** Search-index builds the store asked for, by translation id. */
+    searchIndexBuilds: string[];
+    /** Invalidations and pack-artifact deletions, in order ("invalidate:<path>", "delete:<path>"). */
+    packLifecycle: string[];
     invalidateError: Error | null;
     resolverRegistrations: number;
     resolver: ((translationId: string) => unknown) | null;
@@ -149,6 +153,8 @@ export function installBibleStoreDoubles(mocker: MockTracker): BibleStoreDoubles
   const doubles: BibleStoreDoubles = {
     database: {
       invalidatedPaths: [],
+      searchIndexBuilds: [],
+      packLifecycle: [],
       invalidateError: null,
       resolverRegistrations: 0,
       resolver: null,
@@ -202,6 +208,8 @@ export function installBibleStoreDoubles(mocker: MockTracker): BibleStoreDoubles
     },
     reset: () => {
       doubles.database.invalidatedPaths.length = 0;
+      doubles.database.searchIndexBuilds.length = 0;
+      doubles.database.packLifecycle.length = 0;
       doubles.database.invalidateError = null;
       doubles.database.readbackBookId = 'GEN';
       doubles.database.readbackChapter = 1;
@@ -250,6 +258,7 @@ export function installBibleStoreDoubles(mocker: MockTracker): BibleStoreDoubles
     DEFAULT_MINIMUM_READY_VERSE_COUNT: 120000,
     invalidateInstalledBibleDatabaseAtPath: async (localPath: string) => {
       doubles.database.invalidatedPaths.push(localPath);
+      doubles.database.packLifecycle.push(`invalidate:${localPath}`);
       if (doubles.database.invalidateError) {
         throw doubles.database.invalidateError;
       }
@@ -258,6 +267,10 @@ export function installBibleStoreDoubles(mocker: MockTracker): BibleStoreDoubles
       bookId === doubles.database.readbackBookId && chapter === doubles.database.readbackChapter
         ? [{ id: 1, bookId, chapter, verse: 1, text: 'fixture' }]
         : [],
+    scheduleTextPackSearchIndexBuild: (translationId: string) => {
+      doubles.database.searchIndexBuilds.push(translationId);
+      return Promise.resolve('ready');
+    },
   });
 
   // The store registers its resolvers here at import time; bibleDatabase itself
@@ -310,7 +323,9 @@ export function installBibleStoreDoubles(mocker: MockTracker): BibleStoreDoubles
     waitForActiveCatalogTextPackDownload: async () => {},
     isTextPackDownloadCancelled: () => false,
     getCatalogTextPackPaths: () => undefined,
-    deleteCatalogTextPackArtifacts: async () => {},
+    deleteCatalogTextPackArtifacts: async (path: string) => {
+      doubles.database.packLifecycle.push(`delete:${path}`);
+    },
     recoverInterruptedCatalogTextPack: async () => {},
     validateCatalogTextPack: async (
       _path: string,

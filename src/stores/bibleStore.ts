@@ -88,6 +88,18 @@ function invalidateInstalledBibleDatabaseAtPath(localPath: string): Promise<void
   return bibleDatabase.invalidateInstalledBibleDatabaseAtPath(localPath);
 }
 
+// Packs are published without a full-text index. Build it inside the pack in the background so
+// word search works offline; until it finishes, search answers with a substring scan.
+function scheduleTextPackSearchIndexBuild(translationId: string): void {
+  try {
+    const bibleDatabase =
+      require('../services/bible/bibleDatabase') as typeof import('../services/bible/bibleDatabase');
+    void bibleDatabase.scheduleTextPackSearchIndexBuild(translationId);
+  } catch (error) {
+    console.warn('[Bible] Could not start the text pack search index build:', translationId, error);
+  }
+}
+
 type AudioDownloadModules = typeof import('../services/audio/audioDownloadService') &
   typeof import('../services/audio/audioDownloadStorage') &
   typeof import('../services/audio/audioRemote');
@@ -1145,6 +1157,7 @@ export const useBibleStore = create<BibleState>()(
           } catch (readbackError) {
             const { deleteCatalogTextPackArtifacts } =
               await import('../services/bible/cloudTranslationService');
+            await invalidateInstalledBibleDatabaseAtPath(localPath).catch(() => {});
             await deleteCatalogTextPackArtifacts(localPath).catch(() => {});
             set((state) => ({
               translations: state.translations.map((item) =>
@@ -1175,6 +1188,8 @@ export const useBibleStore = create<BibleState>()(
             try {
               const { deleteCatalogTextPackArtifacts } =
                 await import('../services/bible/cloudTranslationService');
+              // Close the old pack's handle and stop any search index build on it first.
+              await invalidateInstalledBibleDatabaseAtPath(previousTextPackPath);
               await deleteCatalogTextPackArtifacts(previousTextPackPath);
             } catch (cleanupError) {
               // The newly registered candidate remains authoritative; retain the old copy if
@@ -1183,6 +1198,7 @@ export const useBibleStore = create<BibleState>()(
             }
           }
 
+          scheduleTextPackSearchIndexBuild(translationId);
           trackBibleStoreEvent('text_translation_download_completed', {
             content_kind: 'text',
             download_scope: 'translation',
@@ -1820,7 +1836,11 @@ setBibleDatabaseSourceResolver((translationId) => {
     return null;
   }
 
-  return buildInstalledBibleDatabaseSource(translation.id, translation.textPackLocalPath);
+  return buildInstalledBibleDatabaseSource(
+    translation.id,
+    translation.textPackLocalPath,
+    translation.activeTextPackVersion
+  );
 });
 
 setBibleTranslationReadinessResolver(async (translationId) => {

@@ -17,6 +17,8 @@ export type BibleDatabaseSource =
       translationId: string;
       databaseName: string;
       directory: string;
+      /** The catalog text version the pack was installed from; keys its search index. */
+      packVersion?: string;
     };
 
 export type BibleDatabaseSourceResolver = (translationId: string) => BibleDatabaseSource | null;

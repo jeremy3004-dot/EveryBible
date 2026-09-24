@@ -4,6 +4,7 @@ import { importDatabaseFromAssetAsync } from 'expo-sqlite';
 import type { Verse } from '../../types';
 import { bibleBooks } from '../../constants/books';
 import {
+  buildBibleFallbackSearchTerms,
   buildBibleSearchQuery,
   buildBibleSubstringSearchTerms,
   buildInstalledBibleDatabaseSource,
@@ -19,10 +20,18 @@ import {
   reconcileVerseFormattingWithText,
   serializeVerseFormatting,
 } from './verseFormatting';
+import {
+  cancelPackSearchIndexBuild,
+  readPackSearchIndexStatus,
+  schedulePackSearchIndexBuild,
+  type PackSearchIndexBuildResult,
+} from './textPackSearchIndex';
 
 let db: SQLite.SQLiteDatabase | null = null;
 const installedDatabaseCache = new Map<string, SQLite.SQLiteDatabase>();
-const searchIndexCache = new Map<string, boolean>();
+// Search-index cache keys whose index is known to be complete. Only a ready index is cached: a
+// pack's index can finish building in the background, so "not ready" is probed again.
+const searchIndexReadyCache = new Set<string>();
 const DATABASE_NAME = 'bible-bsb-v2.db';
 const DATABASE_ASSET_ID: number = require('../../../assets/databases/bible-bsb-v2.db');
 export const DEFAULT_MINIMUM_READY_VERSE_COUNT = 120000;
@@ -89,6 +98,14 @@ export function getChapterSourceKey(translationId: string): string {
   return getSourceCacheKey(resolveBibleDatabaseSource(translationId));
 }
 
+function forgetSearchIndexReadiness(cacheKey: string): void {
+  for (const key of searchIndexReadyCache) {
+    if (key.startsWith(`${cacheKey}@`)) {
+      searchIndexReadyCache.delete(key);
+    }
+  }
+}
+
 export async function invalidateInstalledBibleDatabaseAtPath(localPath: string): Promise<void> {
   chapterCache.clear();
   const source = buildInstalledBibleDatabaseSource('installed', localPath);
@@ -97,7 +114,12 @@ export async function invalidateInstalledBibleDatabaseAtPath(localPath: string):
     return;
   }
 
+  // The pack's search index is built inside the pack file on a connection of its own. Stop it
+  // before the caller replaces or deletes the file.
+  await cancelPackSearchIndexBuild(localPath);
+
   const cacheKey = getSourceCacheKey(source);
+  forgetSearchIndexReadiness(cacheKey);
   const cachedDatabase = installedDatabaseCache.get(cacheKey);
 
   if (!cachedDatabase) {
@@ -106,7 +128,6 @@ export async function invalidateInstalledBibleDatabaseAtPath(localPath: string):
 
   await closeDatabase(cachedDatabase);
   installedDatabaseCache.delete(cacheKey);
-  searchIndexCache.delete(cacheKey);
 }
 
 async function closeDatabase(database?: SQLite.SQLiteDatabase | null): Promise<void> {
@@ -125,7 +146,7 @@ async function closeBundledDatabase(): Promise<void> {
 
   await closeDatabase(db);
   db = null;
-  searchIndexCache.delete(getSourceCacheKey(bundledBibleDatabaseSource));
+  forgetSearchIndexReadiness(getSourceCacheKey(bundledBibleDatabaseSource));
 }
 
 // A forced re-import replaces the .db file, but SQLite may still have -wal/-shm sidecars from the
@@ -230,22 +251,40 @@ async function inspectOpenDatabase(database: SQLite.SQLiteDatabase): Promise<Bib
   };
 }
 
-async function hasSearchIndexTable(
+async function isSearchIndexReady(
   database: SQLite.SQLiteDatabase,
-  cacheKey: string
+  source: BibleDatabaseSource
 ): Promise<boolean> {
-  const cached = searchIndexCache.get(cacheKey);
-  if (cached !== undefined) {
-    return cached;
+  const packVersion = source.kind === 'installed' ? source.packVersion : undefined;
+  const readyKey = `${getSourceCacheKey(source)}@${packVersion ?? ''}`;
+  if (searchIndexReadyCache.has(readyKey)) {
+    return true;
   }
 
-  const result = await database.getFirstAsync<{ present: number }>(
-    "SELECT COUNT(*) as present FROM sqlite_master WHERE type = 'table' AND name = 'verses_fts'"
-  );
+  const ready = (await readPackSearchIndexStatus(database, packVersion)) === 'ready';
+  if (ready) {
+    searchIndexReadyCache.add(readyKey);
+  }
+  return ready;
+}
 
-  const hasIndex = (result?.present ?? 0) > 0;
-  searchIndexCache.set(cacheKey, hasIndex);
-  return hasIndex;
+/**
+ * Builds the full-text index inside the installed text pack for this translation, in the
+ * background, unless it is already built. Returns the build (shared with any build already
+ * running for the pack), or null for the bundled database, which ships its index.
+ */
+export function scheduleTextPackSearchIndexBuild(
+  translationId: string
+): Promise<PackSearchIndexBuildResult> | null {
+  const source = resolveBibleDatabaseSource(translationId);
+  if (source.kind !== 'installed') {
+    return null;
+  }
+  return schedulePackSearchIndexBuild({
+    directory: source.directory,
+    databaseName: source.databaseName,
+    packVersion: source.packVersion,
+  });
 }
 
 async function ensureBundledDatabaseReady(
@@ -475,25 +514,30 @@ function getCanonicalBookOrderSql(): string {
 }
 
 // Substring search for scripts written without spaces between words (see
-// buildBibleSubstringSearchTerms). instr() has no wildcard characters, so terms need no
-// escaping, and it needs no FTS index, so it also works on downloaded text packs, which ship
-// without one. It scans the translation's verses (about 31,000), which is fast enough for a
-// debounced search box.
+// buildBibleSubstringSearchTerms), and for any text pack whose FTS index is still being built
+// or failed to build. Every term must appear; a term is a list of spellings, any of which may
+// match. instr() has no wildcard characters, so terms need no escaping, and it needs no FTS
+// index. It scans the translation's verses (about 31,000; 3-60 ms on a desktop, see
+// docs/research/pack-search-index-2026-09-24.md), which is fast enough for a debounced search
+// box, and returns at most `limit` rows.
 async function searchVersesBySubstring(
   database: SQLite.SQLiteDatabase,
   translationId: string,
-  terms: string[],
+  terms: string[][],
   limit: number
 ): Promise<Verse[]> {
+  const conditions = terms
+    .map((spellings) => `AND (${spellings.map(() => 'instr(text, ?) > 0').join(' OR ')})`)
+    .join(' ');
   const rows = await database.getAllAsync<VerseRow>(
     `
       SELECT id, book_id, chapter, verse, text, heading, formatting
       FROM verses
-      WHERE translation_id = ? ${terms.map(() => 'AND instr(text, ?) > 0').join(' ')}
+      WHERE translation_id = ? ${conditions}
       ORDER BY ${getCanonicalBookOrderSql()}, chapter, verse
       LIMIT ?
     `,
-    [translationId, ...terms, limit]
+    [translationId, ...terms.flat(), limit]
   );
 
   return rows.map(toVerse);
@@ -504,13 +548,17 @@ export async function searchVerses(
   query: string,
   limit = 50
 ): Promise<Verse[]> {
-  const source = resolveBibleDatabaseSource(translationId);
-  const cacheKey = getSourceCacheKey(source);
   const database = await getDatabase(translationId);
+  const source = resolveBibleDatabaseSource(translationId);
   const substringTerms = buildBibleSubstringSearchTerms(query.trim());
 
   if (substringTerms) {
-    return searchVersesBySubstring(database, translationId, substringTerms, limit);
+    return searchVersesBySubstring(
+      database,
+      translationId,
+      substringTerms.map((term) => [term]),
+      limit
+    );
   }
 
   const ftsQuery = buildBibleSearchQuery(query.trim());
@@ -519,32 +567,39 @@ export async function searchVerses(
     return [];
   }
 
-  if (ftsQuery && !(await hasSearchIndexTable(database, cacheKey))) {
-    throw new BibleSearchUnavailableError(translationId);
-  }
-
-  if (ftsQuery) {
-    try {
-      const indexedResults = await database.getAllAsync<VerseRow>(
-        `
-          SELECT v.*
-          FROM verses_fts
-          JOIN verses v ON v.id = verses_fts.rowid
-          WHERE verses_fts MATCH ? AND v.translation_id = ?
-          ORDER BY bm25(verses_fts), v.book_id, v.chapter, v.verse
-          LIMIT ?
-        `,
-        [ftsQuery, translationId, limit]
-      );
-
-      return indexedResults.map(toVerse);
-    } catch (error) {
-      console.warn('[Bible] Indexed search failed:', error);
-      throw error;
+  if (!(await isSearchIndexReady(database, source))) {
+    if (source.kind !== 'installed') {
+      throw new BibleSearchUnavailableError(translationId);
     }
+    // Packs are published without an index. Build it now in the background (a no-op while one
+    // is running, or for ten minutes after one failed) and answer this search by substring.
+    void scheduleTextPackSearchIndexBuild(translationId);
+    return searchVersesBySubstring(
+      database,
+      translationId,
+      buildBibleFallbackSearchTerms(query.trim()),
+      limit
+    );
   }
 
-  return [];
+  try {
+    const indexedResults = await database.getAllAsync<VerseRow>(
+      `
+        SELECT v.*
+        FROM verses_fts
+        JOIN verses v ON v.id = verses_fts.rowid
+        WHERE verses_fts MATCH ? AND v.translation_id = ?
+        ORDER BY bm25(verses_fts), v.book_id, v.chapter, v.verse
+        LIMIT ?
+      `,
+      [ftsQuery, translationId, limit]
+    );
+
+    return indexedResults.map(toVerse);
+  } catch (error) {
+    console.warn('[Bible] Indexed search failed:', error);
+    throw error;
+  }
 }
 
 export async function insertVerse(translationId: string, verse: Omit<Verse, 'id'>): Promise<void> {

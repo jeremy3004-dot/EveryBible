@@ -191,7 +191,50 @@ test('re-downloading over a stale pack invalidates the old file before fetching'
   assert.deepEqual(doubles.database.invalidatedPaths, [
     'file:///packs/esv1.old.db',
     'file:///packs/esv1.db',
+    'file:///packs/esv1.old.db',
   ]);
+});
+
+test('replacing a pack closes the old one, stopping its search index build, before deleting it', async () => {
+  withTranslations([
+    makeRuntimeTranslation({
+      id: 'esv1',
+      isDownloaded: false,
+      textPackLocalPath: 'file:///packs/esv1.old.db',
+    }),
+  ]);
+  doubles.cloud.run = async () => 'file:///packs/esv1.db';
+
+  await useBibleStore.getState().downloadTranslation('esv1');
+
+  assert.deepEqual(doubles.database.packLifecycle.slice(-2), [
+    'invalidate:file:///packs/esv1.old.db',
+    'delete:file:///packs/esv1.old.db',
+  ]);
+});
+
+test('an installed pack gets its search index built in the background', async () => {
+  withTranslations([makeRuntimeTranslation({ id: 'esv1' })]);
+
+  await useBibleStore.getState().downloadTranslation('esv1');
+
+  assert.deepEqual(doubles.database.searchIndexBuilds, ['esv1']);
+});
+
+test('a pack that fails its read-back is closed before it is deleted and gets no index', async () => {
+  withTranslations([makeRuntimeTranslation({ id: 'esv1' })]);
+  doubles.cloud.run = async () => 'file:///packs/esv1.db';
+  doubles.database.readbackBookId = 'NONE';
+
+  await assert.rejects(() => useBibleStore.getState().downloadTranslation('esv1'));
+
+  // The read-back opened a shared handle on the new pack; it is closed again before deletion.
+  assert.deepEqual(doubles.database.packLifecycle, [
+    'invalidate:file:///packs/esv1.db',
+    'invalidate:file:///packs/esv1.db',
+    'delete:file:///packs/esv1.db',
+  ]);
+  assert.deepEqual(doubles.database.searchIndexBuilds, []);
 });
 
 test('a cloud download reports its phases as reader-facing progress', async () => {
