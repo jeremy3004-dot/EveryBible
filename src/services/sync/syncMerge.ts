@@ -3,6 +3,7 @@ import {
   APPEARANCE_PALETTE_IDS,
   DEFAULT_APPEARANCE_PALETTE,
 } from '../../constants/appearancePalettes';
+import { getBookById } from '../../constants/books';
 import { resolveThemeMode } from '../../design/themeMode';
 import type {
   UserPreferences as RemoteUserPreferences,
@@ -104,7 +105,15 @@ const resolveReadingPosition = (
   remoteData: RemoteUserProgress | null,
   mergedChaptersRead: Record<string, number>
 ): { readingPosition: ReadingPosition; positionSource: PositionSource } => {
-  if (!remoteData?.current_book || !remoteData.current_chapter) {
+  const remoteBook = remoteData?.current_book ? getBookById(remoteData.current_book) : undefined;
+  const remoteChapter = remoteData?.current_chapter;
+  const isRemotePositionReal =
+    remoteBook != null &&
+    typeof remoteChapter === 'number' &&
+    Number.isInteger(remoteChapter) &&
+    remoteChapter >= 1 &&
+    remoteChapter <= remoteBook.chapters;
+  if (!remoteData?.current_book || !remoteData.current_chapter || !isRemotePositionReal) {
     return {
       readingPosition: {
         bookId: localState.currentBook,
