@@ -11,6 +11,7 @@ import {
   sanitizePersistedLibraryState,
   sanitizePersistedProgressState,
 } from './persistedStateSanitizers';
+import { assertDefined } from '../utils/assertDefined';
 
 test('sanitizePersistedBibleState falls back when translations are malformed', () => {
   const sanitized = sanitizePersistedBibleState({
@@ -939,28 +940,31 @@ test('sanitizePersistedLibraryState keeps only valid favorites, playlists, and h
 });
 
 function makeMappedElTranslation(): BibleTranslation {
-  return mapElCatalogToBibleTranslations({
-    schemaVersion: 'lqd-catalog/v1',
-    sequence: 1,
-    generatedAt: '2026-09-05T00:00:00.000Z',
-    baseUrl: 'https://media.example.com',
-    translations: [
-      {
-        translationId: 'el-persistence',
-        languageIso6393: 'eng',
-        languageName: 'English',
-        translationName: 'Persistence Audio',
-        abbreviation: 'PA',
-        source: 'langquest',
-        copyright: 'CC0-1.0',
-        deliveryMode: 'chapter',
-        hasAudio: true,
-        currentAudioVersion: 'v1',
-        manifestUrl: '/manifest.json',
-        manifestSha256: 'a'.repeat(64),
-      },
-    ],
-  })[0];
+  return assertDefined(
+    mapElCatalogToBibleTranslations({
+      schemaVersion: 'lqd-catalog/v1',
+      sequence: 1,
+      generatedAt: '2026-09-05T00:00:00.000Z',
+      baseUrl: 'https://media.example.com',
+      translations: [
+        {
+          translationId: 'el-persistence',
+          languageIso6393: 'eng',
+          languageName: 'English',
+          translationName: 'Persistence Audio',
+          abbreviation: 'PA',
+          source: 'langquest',
+          copyright: 'CC0-1.0',
+          deliveryMode: 'chapter',
+          hasAudio: true,
+          currentAudioVersion: 'v1',
+          manifestUrl: '/manifest.json',
+          manifestSha256: 'a'.repeat(64),
+        },
+      ],
+    })[0],
+    'mapped EL translation'
+  );
 }
 
 test('mapped EL audio-only translation preserves selection and downloads through restart', () => {

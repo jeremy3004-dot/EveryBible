@@ -71,7 +71,7 @@ test('the same annotation id keeps its newer version', () => {
   );
 
   assert.equal(merged.length, 1);
-  assert.equal(merged[0].color, 'sky');
+  assert.equal(merged[0]?.color, 'sky');
 });
 
 test('a deleted and a re-created annotation on one verse in the same bucket both survive', () => {

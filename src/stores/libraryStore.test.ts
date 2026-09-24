@@ -1,6 +1,7 @@
 import test, { before, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { mockMmkvStorage } from '../testing/mockModules';
+import { assertDefined } from '../utils/assertDefined';
 
 // One mock configuration per file: the library store only needs MMKV. Its model
 // (./libraryModel) and its hydration sanitizer (./persistedStateSanitizers) are
@@ -99,7 +100,7 @@ test('a blank playlist title falls back to Untitled', (t) => {
 
   state().createPlaylist('   ');
 
-  assert.equal(state().playlists[0].title, 'Untitled');
+  assert.equal(state().playlists[0]?.title, 'Untitled');
 });
 
 test('a playlist title is trimmed before it is stored', (t) => {
@@ -107,7 +108,7 @@ test('a playlist title is trimmed before it is stored', (t) => {
 
   state().createPlaylist('  Advent  ');
 
-  assert.equal(state().playlists[0].title, 'Advent');
+  assert.equal(state().playlists[0]?.title, 'Advent');
 });
 
 test('adding a chapter to a playlist puts it at the head and bumps updatedAt', (t) => {
@@ -119,7 +120,7 @@ test('adding a chapter to a playlist puts it at the head and bumps updatedAt', (
   t.mock.timers.setTime(1_700_000_120_000);
   state().addChapterToPlaylist(id, 'JHN', 3);
 
-  const [playlist] = state().playlists;
+  const playlist = assertDefined(state().playlists[0], 'first playlist');
   assert.deepEqual(
     playlist.entries.map((entry) => entry.id),
     ['JHN:3', 'GEN:1']
@@ -137,10 +138,10 @@ test('re-adding a chapter moves it back to the head instead of duplicating it', 
   state().addChapterToPlaylist(id, 'GEN', 1);
 
   assert.deepEqual(
-    state().playlists[0].entries.map((entry) => entry.id),
+    state().playlists[0]?.entries.map((entry) => entry.id),
     ['GEN:1', 'JHN:3']
   );
-  assert.equal(state().playlists[0].entries[0].addedAt, 1_700_000_300_000);
+  assert.equal(state().playlists[0]?.entries[0]?.addedAt, 1_700_000_300_000);
 });
 
 test('adding to an unknown playlist leaves every playlist unchanged', (t) => {
@@ -164,7 +165,7 @@ test('the first save to the default playlist creates the Saved Chapters playlist
     [['saved-chapters', 'Saved Chapters']]
   );
   assert.deepEqual(
-    state().playlists[0].entries.map((entry) => entry.id),
+    state().playlists[0]?.entries.map((entry) => entry.id),
     ['GEN:1']
   );
 });
@@ -177,7 +178,7 @@ test('later saves reuse the existing default playlist rather than creating a sec
 
   assert.equal(state().playlists.length, 1);
   assert.deepEqual(
-    state().playlists[0].entries.map((entry) => entry.id),
+    state().playlists[0]?.entries.map((entry) => entry.id),
     ['JHN:3', 'GEN:1']
   );
 });
@@ -192,7 +193,7 @@ test('saving to the default playlist leaves other playlists alone', (t) => {
     state().playlists.map((playlist) => playlist.id),
     [custom, 'saved-chapters']
   );
-  assert.deepEqual(state().playlists[0].entries, []);
+  assert.deepEqual(state().playlists[0]?.entries, []);
 });
 
 test('playlists are persisted to MMKV', (t) => {
@@ -223,13 +224,13 @@ test('recording history stores the chapter with its clamped progress', (t) => {
 test('progress above one is clamped to one', () => {
   state().recordHistory('GEN', 1, 4);
 
-  assert.equal(state().history[0].progress, 1);
+  assert.equal(state().history[0]?.progress, 1);
 });
 
 test('negative progress is clamped to zero', () => {
   state().recordHistory('GEN', 1, -3);
 
-  assert.equal(state().history[0].progress, 0);
+  assert.equal(state().history[0]?.progress, 0);
 });
 
 test('the newest listen is at the head and replaces the previous entry for that chapter', (t) => {
@@ -247,7 +248,7 @@ test('the newest listen is at the head and replaces the previous entry for that 
       ['JHN:3', 0.4],
     ]
   );
-  assert.equal(state().history[0].listenedAt, 1_700_000_600_000);
+  assert.equal(state().history[0]?.listenedAt, 1_700_000_600_000);
 });
 
 test('history is capped at 256 entries, keeping the most recent', () => {
@@ -256,8 +257,8 @@ test('history is capped at 256 entries, keeping the most recent', () => {
   }
 
   assert.equal(state().history.length, 256);
-  assert.equal(state().history[0].id, 'PSA:260');
-  assert.equal(state().history[255].id, 'PSA:5');
+  assert.equal(state().history[0]?.id, 'PSA:260');
+  assert.equal(state().history[255]?.id, 'PSA:5');
 });
 
 test('clearing history empties the list and the persisted snapshot', () => {
@@ -304,7 +305,7 @@ test('a well-formed snapshot hydrates favourites, playlists and history', async 
 
   assert.equal(state().isFavorite('GEN', 3), true);
   assert.deepEqual(
-    state().playlists[0].entries.map((entry) => entry.id),
+    state().playlists[0]?.entries.map((entry) => entry.id),
     ['JHN:3']
   );
   assert.deepEqual(
@@ -382,7 +383,7 @@ test('playlist entries pointing at an unknown book are dropped while the playlis
   await useLibraryStore.persist.rehydrate();
 
   assert.deepEqual(
-    state().playlists[0].entries.map((entry) => entry.id),
+    state().playlists[0]?.entries.map((entry) => entry.id),
     ['GEN:1']
   );
 });
@@ -497,7 +498,7 @@ test('rehydrating over a locally built library replaces it with the stored snaps
 test('a non-finite progress passes the clamp in memory and is dropped by the next hydration', async () => {
   state().recordHistory('GEN', 1, Number.NaN);
 
-  assert.ok(Number.isNaN(state().history[0].progress));
+  assert.ok(Number.isNaN(state().history[0]?.progress));
   // JSON has no NaN: the persisted snapshot stores null, and the sanitizer drops it.
   assert.equal(readPersisted().state.history[0].progress, null);
 

@@ -52,7 +52,7 @@ test('creating a group stores it with the creator as its only leader member', ()
   assert.equal(group.currentCourseId, 'entry-course');
   assert.equal(group.currentLessonId, 'entry-1');
   assert.deepEqual(group.members, [
-    { id: 'user-1', name: 'Ada', role: 'leader', joinedAt: group.members[0].joinedAt },
+    { id: 'user-1', name: 'Ada', role: 'leader', joinedAt: group.members[0]?.joinedAt },
   ]);
   assert.deepEqual(state().groups, [group]);
 });

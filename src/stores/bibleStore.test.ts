@@ -16,6 +16,7 @@ import {
   type BibleStoreDoubles,
 } from './__tests__/bibleStoreDoubles';
 import type { BibleTranslation } from '../types';
+import { assertDefined } from '../utils/assertDefined';
 
 const mmkv = mockMmkvStorage(mock);
 const doubles: BibleStoreDoubles = installBibleStoreDoubles(mock);
@@ -1027,28 +1028,31 @@ test('recoverMissingInstalledPack skips database invalidation when no pack path 
 
 /** An audio-only EL row exactly as the EL catalog mapper produces it. */
 const makeMappedElTranslation = (): BibleTranslation =>
-  mapElCatalogToBibleTranslations({
-    schemaVersion: 'lqd-catalog/v1',
-    sequence: 1,
-    generatedAt: '2026-09-05T00:00:00.000Z',
-    baseUrl: 'https://media.example.com',
-    translations: [
-      {
-        translationId: 'el-persistence',
-        languageIso6393: 'eng',
-        languageName: 'English',
-        translationName: 'Persistence Audio',
-        abbreviation: 'PA',
-        source: 'langquest',
-        copyright: 'CC0-1.0',
-        deliveryMode: 'chapter',
-        hasAudio: true,
-        currentAudioVersion: 'v1',
-        manifestUrl: '/manifest.json',
-        manifestSha256: 'a'.repeat(64),
-      },
-    ],
-  })[0];
+  assertDefined(
+    mapElCatalogToBibleTranslations({
+      schemaVersion: 'lqd-catalog/v1',
+      sequence: 1,
+      generatedAt: '2026-09-05T00:00:00.000Z',
+      baseUrl: 'https://media.example.com',
+      translations: [
+        {
+          translationId: 'el-persistence',
+          languageIso6393: 'eng',
+          languageName: 'English',
+          translationName: 'Persistence Audio',
+          abbreviation: 'PA',
+          source: 'langquest',
+          copyright: 'CC0-1.0',
+          deliveryMode: 'chapter',
+          hasAudio: true,
+          currentAudioVersion: 'v1',
+          manifestUrl: '/manifest.json',
+          manifestSha256: 'a'.repeat(64),
+        },
+      ],
+    })[0],
+    'mapped EL translation'
+  );
 
 // An EL row carries no text and no books, which is exactly the shape earlier builds
 // mistook for a corrupt runtime row and dropped, losing the reader's selection and
