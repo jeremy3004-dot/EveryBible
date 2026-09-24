@@ -1825,7 +1825,7 @@ test('a successful upload records the uploaded values as the new sync base', asy
 });
 
 // ---------------------------------------------------------------------------
-// Per-field edit stamps once migration 20260924120000 is live
+// Per-field edit stamps once migration 20260924023259 is live
 // (docs/research/sync-offline-review-2026-09-24.md, finding 7)
 // ---------------------------------------------------------------------------
 

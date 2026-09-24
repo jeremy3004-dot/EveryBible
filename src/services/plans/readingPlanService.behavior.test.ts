@@ -2006,7 +2006,7 @@ test('a pull with no tombstones visible keeps every local plan as before', async
 });
 
 // ---------------------------------------------------------------------------
-// Session ticks follow the account (migration 20260924120300)
+// Session ticks follow the account (migration 20260924023342)
 // ---------------------------------------------------------------------------
 
 type SessionPayload = PlanPayload & {

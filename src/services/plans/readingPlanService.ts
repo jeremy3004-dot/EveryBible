@@ -78,7 +78,7 @@ const TIMED_CHALLENGE_PLAN_IDS = new Set([
   'acts-28-days',
 ]);
 const PLAN_REMOTE_PROGRESS_TIMEOUT_MS = 1500;
-// Server tombstones: when each plan was left (migration 20260924120200).
+// Server tombstones: when each plan was left (migration 20260924023340).
 const PLAN_UNENROLLMENTS_TABLE = 'user_reading_plan_unenrollments';
 
 type SupabaseModule = typeof import('../supabase');
@@ -374,7 +374,7 @@ export async function getPlanEntries(
 
 /**
  * Folds a server row into the live store. A server row reflects the moment it was
- * written (and, before migration 20260924120300, carries no session ticks), so
+ * written (and, before migration 20260924023342, carries no session ticks), so
  * replacing the live row would drop completed sessions and any completion made
  * while a request was in flight. A plan that is no longer enrolled (or is waiting on its remote
  * delete) is not revived by a late row.
@@ -406,7 +406,7 @@ function applyLocalSnapshotRow(snapshotRow: UserReadingPlanProgress): void {
 
 /**
  * PostgREST (PGRST205) or Postgres (42P01) reporting that a table does not exist:
- * the app shipped before migration 20260924120200 was applied.
+ * the app shipped before migration 20260924023340 was applied.
  */
 const isMissingTableError = (error: { code?: string } | null | undefined): boolean =>
   error?.code === 'PGRST205' || error?.code === '42P01';
@@ -539,7 +539,7 @@ async function mergeServerRowsBeforePush(
 
 /**
  * PostgREST (PGRST204) or Postgres (42703) refusing a payload column: the app
- * shipped before migration 20260924120300 added the session-tick columns.
+ * shipped before migration 20260924023342 added the session-tick columns.
  */
 const isMissingSessionColumnError = (
   error: { code?: string; message?: string } | null | undefined
@@ -738,7 +738,7 @@ export async function markPlanSessionComplete(
     return { success: false, error: 'Not enrolled in this plan' };
   }
 
-  // Session ticks follow the account (migration 20260924120300); like a day
+  // Session ticks follow the account (migration 20260924023342); like a day
   // completion, the push runs in the background after the local write.
   void pushProgressToRemote(localUpdated, getAuthUserIdSnapshot(), getAuthGenerationSnapshot());
 

@@ -113,7 +113,7 @@ export type RemoteReadingPlanProgressPayload = Omit<RemoteReadingPlanProgressRow
 
 /**
  * The upsert row for one plan. Session ticks are included only when the server
- * has the columns (migration 20260924120300); naming a missing column makes
+ * has the columns (migration 20260924023342); naming a missing column makes
  * PostgREST reject the whole write, so the caller decides.
  */
 export function buildRemoteReadingPlanProgressPayload(
@@ -530,7 +530,7 @@ export function mergePlanProgress(
 /**
  * Whether a leave recorded at `unenrolledAt` ended this enrolment: it did when
  * the enrolment started at or before the leave. A later start is a re-join.
- * The server applies the same rule (migration 20260924120200).
+ * The server applies the same rule (migration 20260924023340).
  */
 export function isEnrolmentEndedBy(
   progress: Pick<UserReadingPlanProgress, 'started_at'>,

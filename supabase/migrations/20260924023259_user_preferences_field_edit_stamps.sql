@@ -28,7 +28,7 @@
 --
 -- Everything is additive: one defaulted column and one trigger. No existing
 -- value is rewritten here (the backfill for rows old builds already wrote is
--- 20260924120100).
+-- 20260924023303).
 
 ALTER TABLE public.user_preferences
   ADD COLUMN IF NOT EXISTS field_updated_at JSONB NOT NULL DEFAULT '{}'::jsonb;

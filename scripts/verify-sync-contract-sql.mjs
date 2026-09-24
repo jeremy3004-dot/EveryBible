@@ -17,10 +17,10 @@ import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
 
 const MIGRATIONS = [
-  '20260924120000_user_preferences_field_edit_stamps.sql',
-  '20260924120100_backfill_user_preferences_field_stamps.sql',
-  '20260924120200_reading_plan_unenroll_tombstones.sql',
-  '20260924120300_reading_plan_session_columns.sql',
+  '20260924023259_user_preferences_field_edit_stamps.sql',
+  '20260924023303_backfill_user_preferences_field_stamps.sql',
+  '20260924023340_reading_plan_unenroll_tombstones.sql',
+  '20260924023342_reading_plan_session_columns.sql',
 ];
 
 const db = new PGlite();
@@ -197,7 +197,7 @@ for (const name of MIGRATIONS) {
 }
 
 // ---------------------------------------------------------------------------
-// Backfill (20260924120100): defaults stay unstamped, client-written rows get
+// Backfill (20260924023303): defaults stay unstamped, client-written rows get
 // their upload time on every column.
 // ---------------------------------------------------------------------------
 
@@ -222,7 +222,7 @@ await db.exec(
 assert.deepEqual((await prefsOf(LEGACY_WRITTEN)).field_updated_at, afterEdit);
 
 // ---------------------------------------------------------------------------
-// user_preferences.field_updated_at (20260924120000)
+// user_preferences.field_updated_at (20260924023259)
 // ---------------------------------------------------------------------------
 
 await signUp(A);
@@ -326,7 +326,7 @@ await as(C, OLD_CLIENT_PREFS_UPSERT, [C, 'small', 'light', iso(0)]);
 assert.equal((await prefsOf(C)).theme, 'light');
 
 // ---------------------------------------------------------------------------
-// Reading-plan unenrol tombstones (20260924120200)
+// Reading-plan unenrol tombstones (20260924023340)
 // ---------------------------------------------------------------------------
 
 const PLAN = 'psalms-30-days';
@@ -447,7 +447,7 @@ assert.equal(
 );
 
 // ---------------------------------------------------------------------------
-// Plan session-tick columns (20260924120300)
+// Plan session-tick columns (20260924023342)
 // ---------------------------------------------------------------------------
 
 const SESSION_PLAN = 'kathisma-weekly';

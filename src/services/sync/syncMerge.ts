@@ -231,7 +231,7 @@ const normalizeRemotePalette = (
 /**
  * The server column for each synced preference. Its values are also the keys of
  * `user_preferences.field_updated_at`, and must match the column list in the
- * stamp trigger (migration 20260924120000; a test pins the two together).
+ * stamp trigger (migration 20260924023259; a test pins the two together).
  * Typed as a full record so adding a preference field fails to compile until it
  * is listed here, which keeps the equality check and the merges complete.
  */

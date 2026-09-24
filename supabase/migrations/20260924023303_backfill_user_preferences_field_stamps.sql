@@ -1,7 +1,7 @@
 -- Stamp the preference rows that app builds have already written, so the
 -- per-field merge can tell a real choice from a DB default
 -- (docs/research/sync-offline-review-2026-09-24.md, finding 8). Requires
--- 20260924120000 (the column and its trigger); apply the two together.
+-- 20260924023259 (the column and its trigger); apply the two together.
 --
 -- Every account's row is created by handle_new_user with DB defaults (theme
 -- 'dark', onboarding_completed false, ...). Those values were never chosen and
@@ -16,7 +16,7 @@
 -- On 2026-09-24 production had 25 rows: 15 untouched, 10 client-written.
 --
 -- Additive and idempotent: only field_updated_at changes, and stamps the trigger
--- already recorded (writes that landed after 20260924120000) take precedence.
+-- already recorded (writes that landed after 20260924023259) take precedence.
 
 UPDATE public.user_preferences AS prefs
 SET field_updated_at = (

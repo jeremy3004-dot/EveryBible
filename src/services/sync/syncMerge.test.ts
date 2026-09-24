@@ -273,7 +273,7 @@ test('mergePreferences does not let a newer incomplete remote snapshot reopen on
 
 // ---------------------------------------------------------------------------
 // Per-field edit stamps (docs/research/sync-offline-review-2026-09-24.md, finding 7).
-// The server row carries field_updated_at once migration 20260924120000 is live.
+// The server row carries field_updated_at once migration 20260924023259 is live.
 // ---------------------------------------------------------------------------
 
 const stampedRow = (
@@ -473,7 +473,7 @@ test('a first sign-in keeps what the device chose and takes what the account cho
 // column map are two copies of one list, and a drift silently stops stamping.
 test('the stamp columns the client knows match the ones the server trigger tracks', () => {
   const migration = readFileSync(
-    path.join(MIGRATIONS_DIR, '20260924120000_user_preferences_field_edit_stamps.sql'),
+    path.join(MIGRATIONS_DIR, '20260924023259_user_preferences_field_edit_stamps.sql'),
     'utf8'
   );
   const tracked = /tracked CONSTANT text\[\] := ARRAY\[([^\]]+)\]/.exec(migration)?.[1] ?? '';
