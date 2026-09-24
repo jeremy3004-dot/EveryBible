@@ -61,6 +61,25 @@ test('translation hints are the distinct ids the app has sent feedback for', asy
   assert.deepEqual(await getTranslationIdsWithFeedback(), ['bsb', 'npiulb']);
 });
 
+test('translation hints read every feedback row, not just the first page PostgREST returns', async () => {
+  // The hint drives the "no active team passcode" warning shown before the shared passcode is
+  // turned off. PostgREST caps a response at max_rows (1000 by default) whatever .limit() asks
+  // for, so ids that sort after the first page would silently drop out of that warning.
+  const PAGE = 1000;
+  const rows = [
+    ...Array.from({ length: PAGE }, () => ({ translation_id: 'aaa' })),
+    ...Array.from({ length: PAGE }, () => ({ translation_id: 'bsb' })),
+    { translation_id: 'zzz' },
+  ];
+  service.respondTo('chapter_feedback_submissions', (call) => {
+    const [from, to] = (stepArgs(call, 'range')[0] ?? [0, rows.length - 1]) as [number, number];
+    // Emulate the server-side cap regardless of the requested window.
+    return { data: rows.slice(from, Math.min(to + 1, from + PAGE)) };
+  });
+
+  assert.deepEqual(await getTranslationIdsWithFeedback(), ['aaa', 'bsb', 'zzz']);
+});
+
 test('translation ids keep their case and are split on commas and new lines', () => {
   assert.deepEqual(parseTeamTranslationIds('BSB, bsb\n el-nep '), {
     ids: ['BSB', 'bsb', 'el-nep'],
@@ -167,6 +186,26 @@ test('shared passcode uses are summarised per translation over the recent window
   const [call] = service.callsFor('translator_shared_passcode_uses');
   assert.deepEqual(stepArgs(call, 'gte'), [['used_at', '2026-08-25T13:00:00.000Z']]);
   assert.doesNotMatch(String(call.columns), /\*/);
+});
+
+test('usage counts come from the database total, so a capped page is flagged as truncated', async () => {
+  // PostgREST returns at most max_rows (1000 by default) rows, far below the 5000 the code
+  // asks for, so the row count alone can neither be the total nor detect truncation.
+  service.respondTo('translator_shared_passcode_uses', () => ({
+    data: Array.from({ length: 1000 }, (_, index) => ({
+      translation_id: 'bsb',
+      outcome: 'allowed',
+      used_at: `2026-09-24T12:${String(Math.floor(index / 60) % 60).padStart(2, '0')}:00.000Z`,
+    })),
+    count: 1500,
+  }));
+
+  const usage = await getSharedPasscodeUsage(new Date('2026-09-24T13:00:00.000Z'), 30);
+
+  assert.equal(usage.total, 1500);
+  assert.equal(usage.truncated, true);
+  const [call] = service.callsFor('translator_shared_passcode_uses');
+  assert.deepEqual(stepArgs(call, 'select')[0][1], { count: 'exact' });
 });
 
 test('before the migration the usage log reports itself as not installed', async () => {
