@@ -14,6 +14,7 @@ export {
   type DailyReminderPreference,
   registerPushToken,
   deactivatePushToken,
+  PUSH_TOKEN_SIGN_OUT_TIMEOUT_MS,
   suspendPushTokenForDiscreetMode,
   getCachedPushToken,
 } from './notificationService';

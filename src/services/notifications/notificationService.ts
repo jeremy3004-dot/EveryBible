@@ -5,6 +5,7 @@ import Constants from 'expo-constants';
 import i18n from '../../i18n';
 import { parseReminderTime } from '../preferences/reminderPreferences';
 import { supabase } from '../supabase';
+import { isDeviceOffline } from '../../utils/connectivity';
 import { DAILY_REMINDER_NOTIFICATION_DATA } from './notificationTapRouting';
 import { notifyNotificationPermissionRequested } from './notificationPermissionEvents';
 import {
@@ -12,6 +13,10 @@ import {
   markDailyReminderMayBeScheduled,
   mayDailyReminderBeScheduled,
 } from './dailyReminderScheduleMarker';
+import {
+  clearPendingPushTokenDeactivation,
+  recordPendingPushTokenDeactivation,
+} from './pendingPushTokenDeactivation';
 export { setupNotificationHandler } from './notificationBootstrap';
 
 /**
@@ -36,6 +41,19 @@ let discreetSuspension: { userId: string; authGeneration: number } | null = null
 // Only database writes and their cleanup belong here, never native token acquisition.
 // Serialize each user's writes so old cleanup cannot deactivate a newer registration.
 const deviceWrites = new Map<string, Promise<unknown>>();
+/**
+ * Sign-out waits this long for the device row to be marked inactive, then goes ahead.
+ * Offline with an expired login, auth-js retries the token refresh for about 25 s
+ * before a request can even be sent, which used to hold sign-out for that long.
+ */
+export const PUSH_TOKEN_SIGN_OUT_TIMEOUT_MS = 3_000;
+/**
+ * Per account, the signal of its latest sign-out cleanup. Once the time limit aborts it,
+ * no device-row update for that account is sent any more, so a request cannot run later
+ * with whatever session is current by then (RLS would also make it a no-op, since every
+ * update is pinned to the old user_id). Dropped when that account starts a new write.
+ */
+const signOutCleanupSignals = new Map<string, AbortSignal>();
 const EXPO_NOTIFICATIONS_BASE_URL = 'https://exp.host/--/api/v2/';
 
 function getAuthIdentity(): { userId: string | null; generation: number } | null {
@@ -65,13 +83,19 @@ function isDiscreetMode(): boolean {
 }
 
 /** Resolves whether the backend confirmed the change; it never rejects. */
-async function markPushTokenInactive(userId: string, token: string): Promise<boolean> {
+async function markPushTokenInactive(
+  userId: string,
+  token: string,
+  signal?: AbortSignal
+): Promise<boolean> {
+  if (signal?.aborted) return false;
   try {
-    const { error } = await supabase
+    const query = supabase
       .from('user_devices')
       .update({ is_active: false, updated_at: new Date().toISOString() })
       .eq('user_id', userId)
       .eq('push_token', token);
+    const { error } = await (signal ? query.abortSignal(signal) : query);
     return !error;
   } catch {
     // Best-effort: an unavailable backend must not prevent sign-out.
@@ -465,6 +489,8 @@ export async function registerPushToken(
       const previousWrite = deviceWrites.get(userId);
       if (previousWrite) await previousWrite;
       if (!isCurrentRegistration()) return null;
+      // A new session for this account: its writes are no longer bound by an old sign-out.
+      signOutCleanupSignals.delete(userId);
 
       const write = (async () => {
         try {
@@ -486,12 +512,23 @@ export async function registerPushToken(
           lastRegisteredUserId = userId;
           lastRegisteredAuthGeneration = authGeneration;
           lastRegisteredDevicePushTokenKey = devicePushTokenKey;
+          // This device's token now belongs to this account (see pendingPushTokenDeactivation.ts).
+          clearPendingPushTokenDeactivation();
           return tokenResult.data;
         } catch {
           return null;
         } finally {
           // The upsert may already have reached the server when auth/token state changed.
-          if (!isCurrentRegistration()) await markPushTokenInactive(userId, tokenResult.data);
+          if (
+            !isCurrentRegistration() &&
+            !(await markPushTokenInactive(
+              userId,
+              tokenResult.data,
+              signOutCleanupSignals.get(userId)
+            ))
+          ) {
+            recordPendingPushTokenDeactivation({ token: tokenResult.data, userId });
+          }
         }
       })();
       deviceWrites.set(userId, write);
@@ -517,7 +554,9 @@ export async function registerPushToken(
  *
  * Invalidate pending work immediately, then finish any started database write
  * and deactivate it while sign-out still retains the user's credentials.
- * Native token acquisition is never awaited. Backend cleanup is best-effort.
+ * Native token acquisition is never awaited. Backend cleanup is best-effort and
+ * waited for at most PUSH_TOKEN_SIGN_OUT_TIMEOUT_MS; anything it could not confirm is
+ * recorded as a pending deactivation (see pendingPushTokenDeactivation.ts).
  */
 export async function deactivatePushToken(userId: string): Promise<void> {
   const auth = getAuthIdentity();
@@ -533,16 +572,37 @@ export async function deactivatePushToken(userId: string): Promise<void> {
     lastRegisteredAuthGeneration = null;
     lastRegisteredDevicePushTokenKey = null;
   }
+  const controller = new AbortController();
+  signOutCleanupSignals.set(userId, controller.signal);
   const previousWrite = deviceWrites.get(userId);
-  const cleanup = (async () => {
+  const cleanup = (async (): Promise<boolean> => {
     if (previousWrite) await previousWrite;
-    if (token) await markPushTokenInactive(userId, token);
+    if (!token) return true;
+    // Offline, the request would first start an auth-js refresh of an expired token that
+    // keeps retrying after sign-out (and could save the old session again if the
+    // connection came back); it could not be confirmed anyway.
+    if (await isDeviceOffline()) return false;
+    return markPushTokenInactive(userId, token, controller.signal);
   })();
+  // Later writes for this account still queue behind the whole cleanup, not the time limit.
   deviceWrites.set(userId, cleanup);
-  try {
-    await cleanup;
-  } finally {
+  void cleanup.finally(() => {
     if (deviceWrites.get(userId) === cleanup) deviceWrites.delete(userId);
+  });
+
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeLimit = new Promise<'timed-out'>((resolve) => {
+    timer = setTimeout(() => resolve('timed-out'), PUSH_TOKEN_SIGN_OUT_TIMEOUT_MS);
+  });
+  const outcome = await Promise.race([cleanup, timeLimit]);
+  clearTimeout(timer);
+  if (outcome === 'timed-out') controller.abort();
+
+  if (!token) return;
+  if (outcome === true) {
+    clearPendingPushTokenDeactivation({ token, userId });
+  } else {
+    recordPendingPushTokenDeactivation({ token, userId });
   }
 }
 
@@ -587,6 +647,7 @@ export async function suspendPushTokenForDiscreetMode(userId: string): Promise<v
     // Without permission (or a token) the OS shows no push from this device anyway.
     if (token && (await markPushTokenInactive(userId, token))) {
       discreetSuspension = { userId, authGeneration: auth.generation };
+      clearPendingPushTokenDeactivation({ token, userId });
     }
   })();
   deviceWrites.set(userId, cleanup);

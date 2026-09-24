@@ -20,6 +20,8 @@ const rn = mockReactNative(mock, { os: 'ios' });
 // Holds the persisted "a reminder may be scheduled" flag (dailyReminderScheduleMarker.ts).
 const mmkv = mockMmkvStorage(mock);
 const MAY_BE_SCHEDULED_KEY = 'daily-reminder-may-be-scheduled';
+// The one sign-out deactivation the backend never confirmed (pendingPushTokenDeactivation.ts).
+const PENDING_DEACTIVATION_KEY = 'push-token-pending-deactivation';
 
 const authState = {
   user: null as { uid: string } | null,
@@ -139,6 +141,14 @@ mockModule(mock, 'expo-notifications/build/TokenEmitter', {
   addPushTokenListener: () => ({ remove: () => {} }),
 });
 
+// Sign-out skips the device-row update when the device is offline (utils/connectivity).
+const connectivity = { isConnected: true as boolean | null };
+const netInfoFake: Record<string, unknown> = {
+  fetch: async () => ({ isConnected: connectivity.isConnected, isInternetReachable: null }),
+};
+netInfoFake.default = netInfoFake;
+mockModule(mock, '@react-native-community/netinfo', netInfoFake);
+
 const fake = createSupabaseFake();
 mockSupabaseModule(mock, fake);
 
@@ -209,6 +219,7 @@ beforeEach(() => {
   rn.Platform.OS = 'ios';
   i18nState.language = '';
   privacyState.discreet = false;
+  connectivity.isConnected = true;
   upsertResult = async () => ({ error: null });
   updateResult = async () => ({ error: null });
   getToken = async () => ({ data: 'expo-token' });
@@ -736,6 +747,143 @@ test('with the flag set, an off reminder of unknown state is cancelled', async (
     [cancellations, mmkv.store.get(MAY_BE_SCHEDULED_KEY)],
     [['daily-reading-reminder'], '0']
   );
+});
+
+// ─── Sign-out time limit and the pending deactivation ───────────────────────
+
+const pendingDeactivation = (): unknown => {
+  const raw = mmkv.store.get(PENDING_DEACTIVATION_KEY);
+  return raw === undefined ? undefined : JSON.parse(raw);
+};
+
+const deviceUpdates = () =>
+  fake.callsFor('user_devices').filter((call) => call.operation === 'update');
+
+/** Settles until the fake has seen `count` device-row updates (the lazy steps before it are async). */
+const untilDeviceUpdates = async (count: number) => {
+  for (let i = 0; i < 50 && deviceUpdates().length < count; i += 1) await settle();
+  assert.equal(deviceUpdates().length, count);
+};
+
+test('sign-out waits for the device row update only up to the time limit, then aborts it', async (t) => {
+  const uid = nextUser();
+  await notifications.registerPushToken(uid);
+  const never = deferred<SupabaseFakeResult>();
+  updateResult = () => never.promise;
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+
+  let signedOut = false;
+  const deactivation = notifications.deactivatePushToken(uid).then(() => {
+    signedOut = true;
+  });
+  await untilDeviceUpdates(1);
+  t.mock.timers.tick(notifications.PUSH_TOKEN_SIGN_OUT_TIMEOUT_MS - 1);
+  await settle();
+  assert.equal(signedOut, false, 'a prompt answer is still waited for');
+
+  t.mock.timers.tick(1);
+  await deactivation;
+
+  const signal = deviceUpdates()[0]?.steps.find((step) => step.method === 'abortSignal')
+    ?.args[0] as AbortSignal | undefined;
+  assert.ok(signal, 'the update must be abortable');
+  assert.equal(signal.aborted, true, 'a request answered late must not act after sign-out');
+  assert.deepEqual(pendingDeactivation(), { token: 'expo-token', userId: uid });
+  assert.equal(notifications.getCachedPushToken(), null);
+});
+
+test('the time limit is short enough that sign-out never feels stuck', () => {
+  assert.ok(notifications.PUSH_TOKEN_SIGN_OUT_TIMEOUT_MS <= 3_000);
+  assert.ok(notifications.PUSH_TOKEN_SIGN_OUT_TIMEOUT_MS >= 1_000);
+});
+
+test('a device row update not yet sent when time runs out is never sent, even under the next account', async (t) => {
+  const uid = nextUser();
+  const write = deferred<SupabaseFakeResult>();
+  upsertResult = () => write.promise;
+  const registration = notifications.registerPushToken(uid);
+  await settle();
+  assert.equal(upsertsFor(uid).length, 1);
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+
+  const deactivation = notifications.deactivatePushToken(uid);
+  t.mock.timers.tick(notifications.PUSH_TOKEN_SIGN_OUT_TIMEOUT_MS);
+  await deactivation;
+
+  // The next account signs in before the old write finally answers.
+  nextUser();
+  write.resolve({ error: null });
+  assert.equal(await registration, null);
+  await settle();
+
+  assert.deepEqual(deviceUpdates(), [], 'no late update may run with whatever session is current');
+  assert.deepEqual(pendingDeactivation(), { token: 'expo-token', userId: uid });
+});
+
+test('offline, sign-out sends nothing and records the deactivation as pending', async () => {
+  const uid = nextUser();
+  await notifications.registerPushToken(uid);
+  connectivity.isConnected = false;
+
+  await notifications.deactivatePushToken(uid);
+
+  assert.deepEqual(deviceUpdates(), [], 'an offline request would only start a token refresh');
+  assert.deepEqual(pendingDeactivation(), { token: 'expo-token', userId: uid });
+});
+
+test('a device row update the backend refused is recorded as pending', async () => {
+  const uid = nextUser();
+  await notifications.registerPushToken(uid);
+  updateResult = async () => ({ error: { message: 'JWT expired' } });
+
+  await notifications.deactivatePushToken(uid);
+
+  assert.deepEqual(pendingDeactivation(), { token: 'expo-token', userId: uid });
+});
+
+test('a confirmed sign-out deactivation leaves nothing pending', async () => {
+  const uid = nextUser();
+  await notifications.registerPushToken(uid);
+
+  await notifications.deactivatePushToken(uid);
+
+  assert.equal(pendingDeactivation(), undefined);
+});
+
+test('registering this device for the next account clears the pending deactivation without touching the old row', async () => {
+  mmkv.store.set(
+    PENDING_DEACTIVATION_KEY,
+    JSON.stringify({ token: 'expo-token', userId: 'previous-account' })
+  );
+  const uid = nextUser();
+
+  assert.equal(await notifications.registerPushToken(uid), 'expo-token');
+
+  assert.equal(pendingDeactivation(), undefined);
+  assert.deepEqual(deviceUpdates(), [], 'the new registration must never be deactivated');
+
+  await notifications.deactivatePushToken(uid);
+});
+
+test('a registration the backend refused keeps the pending deactivation', async () => {
+  const pending = { token: 'expo-token', userId: 'previous-account' };
+  mmkv.store.set(PENDING_DEACTIVATION_KEY, JSON.stringify(pending));
+  const uid = nextUser();
+  upsertResult = async () => ({ error: { message: 'offline' } });
+
+  assert.equal(await notifications.registerPushToken(uid), null);
+
+  assert.deepEqual(pendingDeactivation(), pending);
+});
+
+test('discreet mode taking the same account and token off the push list clears its pending record', async () => {
+  const uid = nextUser();
+  mmkv.store.set(PENDING_DEACTIVATION_KEY, JSON.stringify({ token: 'expo-token', userId: uid }));
+  privacyState.discreet = true;
+
+  await notifications.suspendPushTokenForDiscreetMode(uid);
+
+  assert.equal(pendingDeactivation(), undefined);
 });
 
 // ─── Discreet mode ───────────────────────────────────────────────────────────

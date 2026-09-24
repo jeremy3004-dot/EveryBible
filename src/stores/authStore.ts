@@ -430,6 +430,8 @@ export const useAuthStore = create<AuthState>()(
 
         // Deactivate the push token BEFORE tearing down the session, while it
         // still exists so the RLS-protected user_devices update is allowed (M9).
+        // It waits at most PUSH_TOKEN_SIGN_OUT_TIMEOUT_MS and records what it could
+        // not confirm, so an offline sign-out is never held up by it.
         if (previousUserId) {
           try {
             const { deactivatePushToken } = await import('../services/notifications');
