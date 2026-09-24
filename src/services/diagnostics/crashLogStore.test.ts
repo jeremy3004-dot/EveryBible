@@ -111,6 +111,27 @@ test('a stored payload that is valid JSON but not an array reads back as an empt
   assert.deepEqual(crashLogStore.getCrashLogs(), []);
 });
 
+// The Diagnostics screen renders `entry.message`/`entry.isFatal` for every row and
+// formats `entry.timestamp` with toISOString (RangeError on an invalid date), so
+// a malformed row would crash the one screen meant for reading crash reports.
+test('rows that are not crash-log entries are dropped on read and the valid ones kept', () => {
+  store.set(
+    key,
+    JSON.stringify([
+      null,
+      'text',
+      { message: 'no timestamp', isFatal: false },
+      { message: 'bad timestamp', isFatal: false, timestamp: 1e20 },
+      entry('kept'),
+    ])
+  );
+
+  assert.deepEqual(
+    crashLogStore.getCrashLogs().map((item) => item.message),
+    ['kept']
+  );
+});
+
 test('recording over a corrupt payload replaces it with a well-formed log', () => {
   store.set(key, '{not json');
 

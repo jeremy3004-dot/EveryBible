@@ -410,6 +410,28 @@ test('App render path does not call impure timing helpers', () => {
   );
 });
 
+// UI-only source check (no component renderer): a render or effect error outside
+// every ErrorBoundary is a fatal RCTFatal crash in a release build.
+test('App wraps the providers, AppContent and the runtime-effects host in error boundaries', () => {
+  const appSource = readRelativeSource('../../../App.tsx');
+  const appStart = appSource.indexOf('export default function App()');
+  const appRenderSource = appSource.slice(
+    appStart,
+    appSource.indexOf('function AppContent()', appStart)
+  );
+
+  assert.match(
+    appRenderSource,
+    /<GestureHandlerRootView[^>]*>(?:\s*\{\/\*[\s\S]*?\*\/\})?\s*<ErrorBoundary scope="root">\s*<I18nextProvider/,
+    'the provider tree and AppContent (its effects and hooks) need a root boundary'
+  );
+  assert.match(
+    appSource,
+    /<ErrorBoundary scope="runtime-effects" fallback=\{null\}>\s*<AppRuntimeEffectsHost/,
+    'the runtime-effects host renders nothing, so on failure it must render nothing'
+  );
+});
+
 test('deferred runtime effects own sync and privacy hooks after boot', () => {
   const source = readRelativeSource('./AppRuntimeEffects.tsx');
 
