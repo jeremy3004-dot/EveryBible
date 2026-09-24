@@ -425,7 +425,7 @@ const normalizeRemoteReminderTime = (
     typeof reminderTime === 'string'
       ? /^(\d{2}:\d{2})(?::\d{2}(?:\.\d+)?)?$/.exec(reminderTime)
       : null;
-  return match ? match[1] : null;
+  return match?.[1] ?? null;
 };
 
 /**

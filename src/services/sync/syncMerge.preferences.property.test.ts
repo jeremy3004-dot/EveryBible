@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fc from 'fast-check';
+import { assertDefined } from '../../utils/assertDefined';
 import { defaultAuthPreferences } from '../../stores/persistedStateSanitizers';
 import {
   mapRemotePreferences,
@@ -308,7 +309,7 @@ const prefOpArb: fc.Arbitrary<PrefOp> = fc.oneof(
 );
 
 const choose = <F extends Field>(field: F, choice: number): UserPreferences[F] =>
-  CHOICES[field][choice % CHOICES[field].length];
+  assertDefined(CHOICES[field][choice % CHOICES[field].length], `choice ${choice} for ${field}`);
 
 interface Outcome {
   devices: [Device, Device];
