@@ -28,18 +28,8 @@ test('reader chapter navigation keeps read mode separate from audio playback con
     'BibleReaderScreen should guard autoplay when the requested chapter is already the active audio session'
   );
 
-  assert.match(
-    readerSource,
-    /const handlePreviousListenChapter = async \(\) => \{[\s\S]*if \(isCurrentAudioChapter\) \{[\s\S]*await previousChapter\(\);[\s\S]*return;[\s\S]*\}/,
-    'BibleReaderScreen should hand active playback to previousChapter when the current reader chapter is already playing in listen mode'
-  );
-
-  assert.match(
-    readerSource,
-    /const handleNextListenChapter = async \(\) => \{[\s\S]*if \(isCurrentAudioChapter\) \{[\s\S]*await nextChapter\(\);[\s\S]*return;[\s\S]*\}/,
-    'BibleReaderScreen should hand active playback to nextChapter when the current reader chapter is already playing in listen mode'
-  );
-
+  // The listen arrows' hand-off to the player's own next/previous step is covered
+  // behaviourally in screens/bible/readerListenNavigation.test.ts.
   assert.match(
     readerSource,
     /navigation\.setParams\(\s*buildReaderChapterRouteParams\(\{[\s\S]*bookId:\s*activeAudioBookId \?\? bookId,[\s\S]*chapter:\s*activeAudioChapter,[\s\S]*preferredMode:\s*chapterSessionMode,[\s\S]*\}\)\s*\);/s,

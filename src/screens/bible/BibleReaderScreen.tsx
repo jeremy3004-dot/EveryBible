@@ -192,6 +192,7 @@ import {
   loadReaderChapter,
   type CancellableTask,
 } from './readerChapterLoader';
+import { navigateListenChapter } from './readerListenNavigation';
 import {
   normalizeChapterFeedbackComment,
   shouldEnableChapterFeedbackSubmit,
@@ -3568,43 +3569,25 @@ export function BibleReaderScreen() {
     [isCurrentAudioChapter, resetFollowAlongClamp, seekTo]
   );
 
-  const handlePreviousListenChapter = async () => {
-    if (isCurrentAudioChapter) {
-      const target = await previousChapter();
-      if (target) {
-        syncReaderReference(target.bookId, target.chapter);
-      }
-      return;
-    }
-
-    if (!previousNavigationTarget) {
-      return;
-    }
-
-    if (useAudioStore.getState().status !== 'paused') {
-      await playChapter(previousNavigationTarget.bookId, previousNavigationTarget.chapter);
-    }
-    syncReaderReference(previousNavigationTarget.bookId, previousNavigationTarget.chapter);
+  const listenNavigation = {
+    isCurrentAudioChapter,
+    getAudioStatus: () => useAudioStore.getState().status,
+    playChapter,
+    syncReaderReference,
   };
+  const handlePreviousListenChapter = () =>
+    navigateListenChapter({
+      ...listenNavigation,
+      stepPlayer: previousChapter,
+      fallbackTarget: previousNavigationTarget,
+    });
 
-  const handleNextListenChapter = async () => {
-    if (isCurrentAudioChapter) {
-      const target = await nextChapter();
-      if (target) {
-        syncReaderReference(target.bookId, target.chapter);
-      }
-      return;
-    }
-
-    if (!nextNavigationTarget) {
-      return;
-    }
-
-    if (useAudioStore.getState().status !== 'paused') {
-      await playChapter(nextNavigationTarget.bookId, nextNavigationTarget.chapter);
-    }
-    syncReaderReference(nextNavigationTarget.bookId, nextNavigationTarget.chapter);
-  };
+  const handleNextListenChapter = () =>
+    navigateListenChapter({
+      ...listenNavigation,
+      stepPlayer: nextChapter,
+      fallbackTarget: nextNavigationTarget,
+    });
 
   const handleReadChapterNavigation = async (
     target: { bookId: string; chapter: number } | null
