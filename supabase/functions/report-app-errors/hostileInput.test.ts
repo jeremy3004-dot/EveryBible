@@ -145,7 +145,7 @@ test('wrong types for every field are dropped or defaulted without a 500', async
       app_version: null,
       build_number: false,
       platform: ['ios'],
-      os_version: 1e309,
+      os_version: Infinity,
       install_id: 'not-a-uuid',
     }),
     report({ report_id: 123 }),

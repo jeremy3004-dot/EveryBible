@@ -6,12 +6,13 @@
 //
 // Deliberately free of Deno and supabase-js imports so the unit tests can load it directly.
 
-const NUL = /\u0000/;
+const NUL = String.fromCharCode(0);
+const REPLACEMENT = '�';
 const LONE_SURROGATE = /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/;
 const LONE_SURROGATE_GLOBAL = new RegExp(LONE_SURROGATE.source, 'g');
 
 export function isStorableText(value: string): boolean {
-  return !NUL.test(value) && !LONE_SURROGATE.test(value);
+  return !value.includes(NUL) && !LONE_SURROGATE.test(value);
 }
 
 /** True when every string in `values` can be stored; non-strings are ignored. */
@@ -38,5 +39,5 @@ export function jsonStorable(value: unknown): boolean {
 
 /** Replaces NUL and lone surrogates with U+FFFD, for text the server rewrites anyway. */
 export function toStorableText(value: string): string {
-  return value.replace(/\u0000/g, '�').replace(LONE_SURROGATE_GLOBAL, '�');
+  return value.split(NUL).join(REPLACEMENT).replace(LONE_SURROGATE_GLOBAL, REPLACEMENT);
 }

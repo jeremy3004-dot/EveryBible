@@ -277,7 +277,7 @@ test('an audio response of the wrong shape is a 400, never an upload', async () 
     'recording',
     [audio()],
     { ...audio(), bucket: 'avatars' },
-    { ...audio(), durationMs: 1e309 },
+    { ...audio(), durationMs: Infinity },
     { ...audio(), sizeBytes: -1 },
     { ...audio(), base64Data: 12345 },
   ]) {
