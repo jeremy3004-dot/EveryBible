@@ -42,6 +42,9 @@ let entries: ScreenReaderTraceEntry[] = [];
 
 function append(entry: ScreenReaderTraceEntry, line: string): void {
   entries = [...entries, entry].slice(-MAX_SCREEN_READER_TRACE_ENTRIES);
+  // `__DEV__` is defined in every React Native bundle, dev and release alike; only the
+  // Node test runner lacks it, where the line would just be noise in the test output.
+  if (typeof __DEV__ === 'undefined') return;
   try {
     console.info(`${LOG_TAG} ${line}`);
   } catch {

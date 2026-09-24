@@ -8,6 +8,8 @@ import {
   traceScreenReaderSignal,
 } from './screenReaderTrace';
 
+// A React Native bundle defines `__DEV__` (false in release); the trace only logs there.
+Object.assign(globalThis, { __DEV__: false });
 const info = mock.method(console, 'info', () => {});
 
 afterEach(() => {
@@ -61,6 +63,17 @@ test('only the most recent entries are kept', () => {
   const trace = getScreenReaderTrace();
   assert.equal(trace.length, MAX_SCREEN_READER_TRACE_ENTRIES);
   assert.equal(trace[0]?.at, 5);
+});
+
+test('outside a React Native bundle the trace is kept but nothing is logged', () => {
+  Reflect.deleteProperty(globalThis, '__DEV__');
+  try {
+    traceScreenReaderSignal(true, 'query', 1);
+  } finally {
+    Object.assign(globalThis, { __DEV__: false });
+  }
+  assert.equal(getScreenReaderTrace().length, 1);
+  assert.equal(info.mock.callCount(), 0);
 });
 
 test('a console that throws never breaks the caller', () => {
