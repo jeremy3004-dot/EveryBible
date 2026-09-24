@@ -92,7 +92,7 @@ export function FeedbackFocusedReview({
       >
         <View style={styles.header}>
           <IconButton icon={X} onPress={onClose} accessibilityLabel={t('interface.close')} />
-          <Text style={[styles.headerLabel, { color: colors.secondaryText }]} numberOfLines={1}>
+          <Text style={[styles.headerLabel, { color: colors.secondaryText }]} numberOfLines={2}>
             {item
               ? `${chapterLabel} · ${t('feedback.progress', { current: position, total })}`
               : chapterLabel}

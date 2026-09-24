@@ -23,7 +23,7 @@ import { BookOpen, Check, Ellipsis, Play } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 
 import { useTheme } from '../../contexts/ThemeContext';
-import { useDisplayFont, useTabBarHeight } from '../../hooks';
+import { useDisplayFont, useLargeText, useTabBarHeight } from '../../hooks';
 import { layout, motion, radius, spacing, typography } from '../../design/system';
 import {
   AppButton,
@@ -604,6 +604,9 @@ const DayRow = React.memo(function DayRow({
 }: DayRowProps) {
   const { colors } = useTheme();
   const displayFont = useDisplayFont();
+  // Today's references share the row with Read + Listen; at large text sizes
+  // that left the references a word per line, so the actions drop beneath.
+  const { rowDirection: todayRowDirection } = useLargeText();
 
   const { t } = useTranslation();
   const refs = entries.map((entry) => formatChapterRef(entry, t)).join(', ');
@@ -654,7 +657,12 @@ const DayRow = React.memo(function DayRow({
   if (isCurrent) {
     return (
       <AppCard accentRule padding={spacing.lg} style={dayRowStyles.todayCard}>
-        <View style={dayRowStyles.todayRow}>
+        <View
+          style={[
+            dayRowStyles.todayRow,
+            todayRowDirection === 'column' && dayRowStyles.todayRowStacked,
+          ]}
+        >
           <PressableScale
             pressEffect="translate"
             haptic="light"
@@ -662,7 +670,10 @@ const DayRow = React.memo(function DayRow({
             testID={isCurrent ? CURRENT_PLAN_DAY_ROW_TEST_ID : undefined}
             accessibilityLabel={accessibilityLabel}
             accessibilityRole="button"
-            style={dayRowStyles.todayContent}
+            style={[
+              dayRowStyles.todayContent,
+              todayRowDirection === 'column' && dayRowStyles.todayContentStacked,
+            ]}
           >
             <Text
               style={[typography.eyebrow, displayFont.regular, { color: colors.accentPrimary }]}
@@ -679,7 +690,7 @@ const DayRow = React.memo(function DayRow({
             {subtitle ? (
               <Text
                 style={[dayRowStyles.todaySubtitle, { color: colors.secondaryText }]}
-                numberOfLines={1}
+                numberOfLines={2}
               >
                 {subtitle}
               </Text>
@@ -807,9 +818,19 @@ const dayRowStyles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
   },
+  todayRowStacked: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+  },
   todayContent: {
     flex: 1,
     gap: spacing.xs,
+  },
+  // In a content-sized column, flex: 1 would split a height that is itself
+  // derived from the children; size to the text and take the full width.
+  todayContentStacked: {
+    flex: 0,
+    alignSelf: 'stretch',
   },
   todayTitle: {
     ...typography.cardTitle,

@@ -799,8 +799,11 @@ const styles = StyleSheet.create({
     ...typography.body,
     lineHeight: 22,
   },
+  // Wraps so the pills drop to a second line at large text sizes instead of
+  // running past the card edge.
   actionRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.sm,
   },
   actionPill: {
