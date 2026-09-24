@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { ReadingActivityDaySummary } from '../../services/progress/readingActivity';
 import {
+  chunkCalendarWeeks,
   buildReadingActivityGrid,
   buildWeekdayInitials,
   CALENDAR_COLUMN_COUNT,
@@ -185,4 +186,29 @@ test('the selected-day card opens the first chapter of the same canonical order'
   // Nothing to open means no chevron and no press target.
   assert.equal(firstChapterOfDay([], resolve), null);
   assert.equal(firstChapterOfDay(['broken'], resolve), null);
+});
+
+test('the grid is laid out as week rows of seven, the last one padded with blanks', () => {
+  // September 2026 starts on a Tuesday: one leading day, then 30 days, five weeks.
+  const grid = buildReadingActivityGrid({
+    daysByDateKey: {},
+    viewDate: new Date(2026, 8, 1),
+    selectedDateKey: null,
+    today: new Date(2026, 8, 24),
+  });
+  const weeks = chunkCalendarWeeks(grid.cells);
+
+  assert.equal(weeks.length, grid.rowCount);
+  assert.ok(weeks.every((week) => week.length === 7));
+  assert.deepEqual(
+    weeks.map((week) => week.map((cell) => cell?.day ?? null)),
+    [
+      [31, 1, 2, 3, 4, 5, 6],
+      [7, 8, 9, 10, 11, 12, 13],
+      [14, 15, 16, 17, 18, 19, 20],
+      [21, 22, 23, 24, 25, 26, 27],
+      [28, 29, 30, null, null, null, null],
+    ]
+  );
+  assert.deepEqual(chunkCalendarWeeks([]), []);
 });

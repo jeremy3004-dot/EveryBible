@@ -460,6 +460,7 @@ export function BibleReaderScreen() {
     handleSelectVerseImageBackground,
     handleShareSelectedVerseImage,
     handleShareSelectedVerses,
+    handleVerseImageSheetDismissed,
     highlightByVerse,
     selectedHighlightColors,
     selectedNoteAnnotation,
@@ -1425,6 +1426,7 @@ export function BibleReaderScreen() {
       <VerseImageShareSheet
         handleSelectVerseImageBackground={handleSelectVerseImageBackground}
         handleShareSelectedVerseImage={handleShareSelectedVerseImage}
+        handleVerseImageSheetDismissed={handleVerseImageSheetDismissed}
         isSharingVerseImage={isSharingVerseImage}
         selectedVerseImageBackground={selectedVerseImageBackground}
         selectedVerseImageBackgroundIndex={selectedVerseImageBackgroundIndex}

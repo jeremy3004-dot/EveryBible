@@ -5,6 +5,8 @@ import { create } from 'zustand';
 import { mockModule, sourcePath } from '../../testing/mockModules';
 import {
   accessibilityLabelOf,
+  flattenStyle,
+  hostAncestors,
   installRenderHarness,
   textContent,
   within,
@@ -36,10 +38,20 @@ mockModule(mock, sourcePath('stores/progressStore.ts'), {
   selectCurrentStreakDays: (state: { streakDays: number }) => state.streakDays,
 });
 
-// Signed out, so the cloud engagement summary is never fetched.
+// Signed out by default, so the cloud engagement summary is never fetched.
+const analytics = {
+  calls: [] as string[],
+  summary: { success: false } as { success: boolean; data?: Record<string, unknown> },
+};
 mockModule(mock, sourcePath('services/analytics/analyticsService.ts'), {
-  refreshEngagement: async () => ({ success: false }),
-  getEngagementSummary: async () => ({ success: false }),
+  refreshEngagement: async () => {
+    analytics.calls.push('refreshEngagement');
+    return { success: true };
+  },
+  getEngagementSummary: async () => {
+    analytics.calls.push('getEngagementSummary');
+    return analytics.summary;
+  },
 });
 
 // The day card jumps tabs through the root navigator, not the screen's own stack.
@@ -56,6 +68,10 @@ beforeEach(() => {
 
 afterEach(() => {
   mock.timers.reset();
+  useProgressStore.setState(useProgressStore.getInitialState(), true);
+  harness.authStore.setState({ isAuthenticated: false });
+  analytics.calls.length = 0;
+  analytics.summary = { success: false };
 });
 
 async function renderScreen() {
@@ -259,4 +275,160 @@ test('every visible string and accessibility label comes from a translation', as
     assert.ok(texts.includes(t(key)), `${key} is shown`);
   }
   assert.ok(view.getByRole('button', { name: t('common.back') }));
+});
+
+test('with nothing read yet, the day card says so and hints how to start', async () => {
+  useProgressStore.setState({ chaptersRead: {}, streakDays: 0 });
+  const view = await renderScreen();
+
+  assert.equal(dayCells(view).filter(isSelected).length, 0, 'no day is selected');
+  assert.ok(view.getByText(t('readingActivity.noReading')));
+  assert.ok(view.getByText(t('readingActivity.noReadingHint')));
+  // The legend and the card's eyebrow both read "Today".
+  assert.equal(view.getAllByText(t('readingActivity.legendToday')).length, 2);
+  assert.ok(view.getByText(t('readingActivity.legendProgress', { read: 0, count: 24 })));
+  assert.equal(
+    view.queryByRole('button', { name: /No reading on this day/ }),
+    null,
+    'the card has nowhere to go'
+  );
+});
+
+test('a day read across a stretch of time shows its reading window, spoken with the summary', async () => {
+  const view = await renderScreen();
+  await view.press(cellNamed(view, 'Tuesday, September 22'));
+
+  const window = t('readingActivity.sessionWindow', {
+    start: '9:00 AM',
+    end: '9:20 AM',
+    duration: t('interface.minutesShort', { count: 20 }),
+  });
+  assert.ok(view.getByText(window));
+  assert.ok(view.getByRole('button', { name: new RegExp(window) }));
+
+  // A single chapter has no window.
+  await view.press(cellNamed(view, 'Wednesday, September 23'));
+  assert.equal(view.queryByText(/ – /), null);
+});
+
+test('signed in, the cloud totals replace the local chapter count and fill in listening time', async () => {
+  harness.authStore.setState({ isAuthenticated: true });
+  analytics.summary = {
+    success: true,
+    data: { total_chapters_read: 412, total_listening_minutes: 95 },
+  };
+  const view = await renderScreen();
+  await view.flush();
+
+  assert.deepEqual(analytics.calls, ['refreshEngagement', 'getEngagementSummary']);
+  assert.ok(view.getByText('412'));
+  assert.ok(view.getByText(t('interface.hoursMinutes', { hours: 1, minutes: 35 })));
+});
+
+test('signed out, the totals come from this device and the cloud is not asked', async () => {
+  const view = await renderScreen();
+  await view.flush();
+
+  assert.deepEqual(analytics.calls, []);
+  const totals = within(hostAncestors(view.getByText(t('readingActivity.chapters')))[0]);
+  assert.ok(totals.getByText(String(Object.keys(CHAPTERS_READ).length)));
+  assert.ok(totals.getByText(t('interface.minutesShort', { count: 0 })));
+  const streak = within(hostAncestors(view.getByText(t('readingActivity.currentStreak')))[0]);
+  assert.ok(streak.getByText('2'));
+  assert.ok(streak.getByText(t('readingActivity.streakUnit', { count: 2 })));
+});
+
+// On device the grid wrapped at six columns: seven cells sized width/7 from a measured
+// width did not fit one flex-wrapped line, so Sunday stood empty and every date sat
+// under the wrong weekday. Each week is now its own row of seven flex slots.
+const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+/** The grid's week rows, each as its seven slots in column order (null for a blank). */
+function weekRows(view: View) {
+  const grid = view.getByTestId('reading-activity-calendar');
+  const directChildren = (parent: ReactTestInstance) =>
+    ['View', 'Pressable']
+      .flatMap((type) => within(parent).queryAllByType(type))
+      .filter((node) => hostAncestors(node)[0] === parent);
+  const byTreeOrder = (parent: ReactTestInstance) => {
+    const order: ReactTestInstance[] = [];
+    const walk = (node: ReactTestInstance) => {
+      for (const child of node.children) {
+        if (typeof child === 'string') continue;
+        order.push(child);
+        walk(child);
+      }
+    };
+    walk(parent);
+    return (nodes: ReactTestInstance[]) =>
+      [...nodes].sort((left, right) => order.indexOf(left) - order.indexOf(right));
+  };
+  return byTreeOrder(grid)(directChildren(grid)).map((row) =>
+    byTreeOrder(row)(directChildren(row)).map((slot) =>
+      slot.props.accessibilityRole === 'button' ? slot : null
+    )
+  );
+}
+
+// No container width can wrap a column any more: nothing is sized from a measured
+// width (the grid has no onLayout), so 343pt (iPhone 13 mini/SE) and 382pt (Plus/Max)
+// grids lay out alike, as seven flex columns per week.
+test('every week is a row of seven columns, and each date sits under its weekday', async () => {
+  const view = await renderScreen();
+  const grid = view.getByTestId('reading-activity-calendar');
+  assert.equal(grid.props.onLayout, undefined, 'the layout does not wait for a measured width');
+
+  const rows = weekRows(view);
+  assert.equal(rows.length, 5, 'Monday 31 August to Wednesday 30 September is five weeks');
+  for (const [index, row] of rows.entries()) {
+    assert.equal(row.length, 7, `week ${index + 1} has seven columns`);
+    for (const slot of row) {
+      if (!slot) continue;
+      const style = flattenStyle(slot.props.style) ?? {};
+      assert.equal(style.flex, 1, 'a cell takes a seventh of its row');
+      assert.equal(style.width, undefined, 'no fixed cell width');
+    }
+  }
+
+  const labels = rows.map((row) => row.map((slot) => (slot ? accessibilityLabelOf(slot) : null)));
+  for (const row of labels) {
+    row.forEach((label, column) => {
+      if (label)
+        assert.ok(label.startsWith(`${WEEKDAYS[column]},`), `${label} in column ${column}`);
+    });
+  }
+  assert.equal(labels[3][3], 'Thursday, September 24');
+  assert.equal(labels[4][2], 'Wednesday, September 30');
+  assert.deepEqual(labels[4].slice(3), [null, null, null, null], 'the month ends mid-week');
+});
+
+test('the weekday headers share the week rows’ seven columns', async () => {
+  const view = await renderScreen();
+  const headers = view.getAllByText(/^[A-Z]$/);
+  assert.equal(headers.length, 7);
+  for (const header of headers) {
+    assert.equal(flattenStyle(header.props.style)?.flex, 1);
+    assert.equal(flattenStyle(header.props.style)?.width, undefined);
+  }
+});
+
+test('choosing a day re-renders only the two cells whose selection changed', async () => {
+  const view = await renderScreen();
+  const isDayCell = (props: Record<string, unknown>) =>
+    props.accessibilityRole === 'button' &&
+    typeof props.accessibilityLabel === 'string' &&
+    /^[A-Z][a-z]+day, [A-Z][a-z]+ \d+$/.test(props.accessibilityLabel);
+
+  const since = harness.renders.mark();
+  await view.press(cellNamed(view, 'Tuesday, September 22'));
+
+  assert.equal(isSelected(cellNamed(view, 'Tuesday, September 22')), true);
+  assert.deepEqual(
+    harness.renders
+      .since(since)
+      .filter((entry) => entry.type === 'Pressable' && isDayCell(entry.props))
+      .map((entry) => entry.props.accessibilityLabel)
+      .sort(),
+    ['Tuesday, September 22', 'Wednesday, September 23']
+  );
 });
