@@ -265,6 +265,20 @@ test('Sheet is a named, iOS-modal dialog whose backdrop closes it and whose titl
   assert.deepEqual(harness.rn.__recorded.announcements, ['Share verse']);
 });
 
+test("VoiceOver's escape gesture closes a Sheet", async () => {
+  const { Sheet } = await import('./Sheet');
+  const { Text } = harness.rn;
+  let closed = 0;
+  const view = await harness.render(
+    <Sheet visible title="Share verse" onClose={() => (closed += 1)}>
+      <Text>Body</Text>
+    </Sheet>
+  );
+
+  await view.fire(view.getByText('Body'), 'onAccessibilityEscape');
+  assert.equal(closed, 1);
+});
+
 test('a hidden Sheet renders nothing', async () => {
   const { Sheet } = await import('./Sheet');
   const { Text } = harness.rn;
