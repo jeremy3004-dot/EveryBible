@@ -528,6 +528,24 @@ test('validateTranslatorReviewPasscode omits the translation when the caller nam
   assert.deepEqual(bodies, [{ passcode: '123456', translationId: undefined, validateOnly: true }]);
 });
 
+test('batch review and audio refresh send the trimmed passcode too', async () => {
+  const bodies: Array<Record<string, unknown>> = [];
+  const client = {
+    invoke: async (_name: string, options: unknown) => {
+      bodies.push((options as { body: Record<string, unknown> }).body);
+      return { data: { success: true }, error: null };
+    },
+  };
+
+  await review.reviewPositiveFeedbackBatch(reviewInput, ['feedback-1'], client);
+  await review.refreshFeedbackAudioUrl({ ...reviewInput, feedbackId: 'audio-1' }, client);
+
+  assert.deepEqual(
+    bodies.map((body) => body.passcode),
+    ['123456', '123456']
+  );
+});
+
 test('fetchChapterFeedbackForTranslatorReview reports an empty queue as a success, not a failure', async () => {
   supabaseFake.respondToFunction(() => ({ data: { success: true, feedback: [] } }));
 

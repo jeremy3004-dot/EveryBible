@@ -541,13 +541,14 @@ export async function reviewPositiveFeedbackBatch(
   feedbackIds?: string[],
   client?: ChapterFeedbackReviewFunctionClient
 ): Promise<TranslatorFeedbackResolveResponse> {
+  const passcode = normalizeTranslatorReviewPasscode(input.passcode);
   const resolvedClient = client ?? (await resolveDefaultClient());
-  if (!resolvedClient || !input.passcode.trim())
-    return { success: false, error: 'Translator access denied' };
+  if (!resolvedClient || !passcode) return { success: false, error: 'Translator access denied' };
   try {
     const { data, error } = await resolvedClient.invoke('review-chapter-feedback', {
       body: {
         ...input,
+        passcode,
         apiVersion: 2,
         action: feedbackIds ? 'reviewPositiveIds' : 'positivePreview',
         feedbackIds,
@@ -568,11 +569,12 @@ export async function refreshFeedbackAudioUrl(
   input: ChapterFeedbackReviewInput & { feedbackId: string },
   client?: ChapterFeedbackReviewFunctionClient
 ): Promise<FeedbackAudioUrlResponse> {
+  const passcode = normalizeTranslatorReviewPasscode(input.passcode);
   const resolvedClient = client ?? (await resolveDefaultClient());
-  if (!resolvedClient || !input.passcode.trim()) return { success: false };
+  if (!resolvedClient || !passcode) return { success: false };
   try {
     const { data, error } = await resolvedClient.invoke('review-chapter-feedback', {
-      body: { ...input, apiVersion: 2, action: 'audioUrl' },
+      body: { ...input, passcode, apiVersion: 2, action: 'audioUrl' },
     });
     return error ? { success: false } : ((data as FeedbackAudioUrlResponse) ?? { success: false });
   } catch {
