@@ -174,6 +174,17 @@ test('Done on a blank note closes without saving', async () => {
   assert.deepEqual(calls, ['close']);
 });
 
+test('Done on a cleared existing note asks the reader to remove it', async () => {
+  const { view, calls } = await renderSheet({ existingNote: 'Remember this' });
+  await view.press(view.getByRole('button', { name: t('annotations.note') }));
+
+  await view.changeText(view.getByLabelText(t('annotations.noteHint')), '  ');
+  await view.press(view.getByRole('button', { name: t('common.done') }));
+  await view.flush();
+
+  assert.deepEqual(calls, ['note:', 'close']);
+});
+
 test('Cancel returns to the actions and keeps the draft for the next Note', async () => {
   const { view, calls } = await renderSheet();
   await view.press(view.getByRole('button', { name: t('annotations.note') }));

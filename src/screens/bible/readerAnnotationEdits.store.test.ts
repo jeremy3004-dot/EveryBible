@@ -124,3 +124,28 @@ test('removing a colour from the first verse of a highlight keeps the rest', asy
   assert.equal(await apply(planned), true);
   assert.deepEqual(await liveHighlights(), ['6-7 green']);
 });
+
+test('clearing a saved note removes it, and a later note on that verse starts fresh', async () => {
+  const saveNote = async (content: string) =>
+    apply(
+      edits.planReaderNoteSave({
+        book: 'JHN',
+        chapter: 3,
+        annotations: await chapterAnnotations(),
+        selectedVerses: [16],
+        createId,
+        content,
+      })
+    );
+  const liveNotes = async () =>
+    (await chapterAnnotations())
+      .filter((annotation) => annotation.type === 'note')
+      .map((annotation) => annotation.content);
+
+  assert.equal(await saveNote('God so loved'), true);
+  assert.equal(await saveNote(''), true);
+  assert.deepEqual(await liveNotes(), []);
+
+  assert.equal(await saveNote('Born again'), true);
+  assert.deepEqual(await liveNotes(), ['Born again']);
+});
