@@ -76,6 +76,25 @@ test('parseBibleDeepLink returns null for negative chapter', () => {
   assert.equal(parseBibleDeepLink('/bible/john/-1'), null);
 });
 
+test('parseBibleDeepLink returns null for a chapter past the end of the book', () => {
+  // Jude has one chapter and Psalms 150; these opened a reader with no verses in it.
+  assert.equal(parseBibleDeepLink('/bible/jude/2'), null);
+  assert.equal(parseBibleDeepLink('/bible/psalms/151'), null);
+  assert.deepEqual(parseBibleDeepLink('/bible/psalms/150'), {
+    bookId: 'PSA',
+    chapter: 150,
+    verse: undefined,
+  });
+});
+
+test('parseBibleDeepLink drops a verse 0 instead of focusing a verse that does not exist', () => {
+  assert.deepEqual(parseBibleDeepLink('/bible/john/3/0'), {
+    bookId: 'JHN',
+    chapter: 3,
+    verse: undefined,
+  });
+});
+
 // Non-bible path
 test('parseBibleDeepLink returns null for non-bible path', () => {
   assert.equal(parseBibleDeepLink('/other/path'), null);

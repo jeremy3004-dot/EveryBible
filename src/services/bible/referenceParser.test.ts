@@ -106,6 +106,44 @@ test('rejects bare book names, incomplete references, and plain-text searches', 
   assert.equal(parsePassageReference('love one another'), null);
 });
 
+test('opens chapter 1 of a single-chapter book typed with its chapter number', () => {
+  // The grammar reads "Jude 1" as the whole book, so these fell through to a word search.
+  for (const [query, bookId, label] of [
+    ['Jude 1', 'JUD', 'Jude 1'],
+    ['Obadiah 1', 'OBA', 'Obadiah 1'],
+    ['Philemon 1', 'PHM', 'Philemon 1'],
+    ['2 John 1', '2JN', '2 John 1'],
+    ['3 John 1', '3JN', '3 John 1'],
+  ] as const) {
+    assert.deepEqual(parsePassageReference(query), {
+      bookId,
+      chapter: 1,
+      focusVerse: undefined,
+      label,
+    });
+  }
+});
+
+test('reads a single-chapter book number as a verse, as the printed references do', () => {
+  assert.deepEqual(parsePassageReference('Jude 5'), {
+    bookId: 'JUD',
+    chapter: 1,
+    focusVerse: 5,
+    label: 'Jude 1:5',
+  });
+  assert.deepEqual(parsePassageReference('Jude 1:3'), {
+    bookId: 'JUD',
+    chapter: 1,
+    focusVerse: 3,
+    label: 'Jude 1:3',
+  });
+});
+
+test('still rejects a bare single-chapter book name', () => {
+  assert.equal(parsePassageReference('Jude'), null);
+  assert.equal(parsePassageReference('Obadiah'), null);
+});
+
 test('rejects empty and whitespace-only input', () => {
   assert.equal(parsePassageReference(''), null);
   assert.equal(parsePassageReference('   '), null);

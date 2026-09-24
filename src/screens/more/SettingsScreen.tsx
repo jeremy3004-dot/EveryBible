@@ -38,7 +38,6 @@ import {
   UserX,
   type LucideIcon,
 } from 'lucide-react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme, type ThemeMode } from '../../contexts/ThemeContext';
 import {
   AppButton,
@@ -54,7 +53,7 @@ import {
   getFeedbackParticipationMode,
   useTranslatorReviewStore,
 } from '../../stores/translatorReviewStore';
-import { mmkvInstance } from '../../stores/mmkvStorage';
+import { clearDeviceCaches } from '../../stores/deviceCaches';
 import { useDisplayFont, useFontSize, useI18n, useTabBarHeight } from '../../hooks';
 import { syncPreferences } from '../../services/sync';
 import {
@@ -66,7 +65,7 @@ import { normalizeChapterFeedbackIdentity } from '../../services/feedback/chapte
 import { closeParticipationAccess, submitParticipationAccess } from './participationAccess';
 import { TranslationNotCoveredNotice } from '../../components/feedback/TranslationNotCoveredNotice';
 import { SUPPORTED_LANGUAGES, type LanguageCode } from '../../constants/languages';
-import { deleteCurrentAccount } from '../../services/account';
+import { deleteAccountAndLocalData } from '../../services/account';
 import { localeSearchEngine } from '../../services/onboarding/localeSelection';
 import {
   getReminderEnablePlan,
@@ -91,8 +90,6 @@ const ROW_ICON_SIZE = 18;
 const ICON_STROKE = 2;
 /** ListRow insets its separator past the glyph; blocks in the card must match. */
 const ROW_SEPARATOR_INSET = ROW_ICON_SIZE + spacing.md;
-/** iOS switch off-track: the old `+ '55'` alpha suffix, expressed as a ratio. */
-const SWITCH_OFF_ALPHA = 0.33;
 /** The stepper's A-/A+ glyphs when the size is already at the end of the scale. */
 const STEPPER_DISABLED_ALPHA = 0.4;
 /** A row that cannot act yet still has to be legible, just clearly inert. */
@@ -113,7 +110,9 @@ export function SettingsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { colors, themeMode, setTheme } = useTheme();
   const displayFont = useDisplayFont();
-  const settingSwitchOffColor = hexWithAlpha(colors.secondaryText, SWITCH_OFF_ALPHA);
+  // The off track is the only outline an off switch has, so it takes the 3:1
+  // control boundary rather than a translucent tint of body text (1.6:1 light, 1.95:1 dark).
+  const settingSwitchOffColor = colors.controlBorder;
   const settingSwitchTrackColor = {
     false: settingSwitchOffColor,
     true: colors.accentPrimary,
@@ -163,7 +162,6 @@ export function SettingsScreen() {
   const [selectedHour, setSelectedHour] = useState(9);
   const [selectedMinute, setSelectedMinute] = useState('00');
   const user = useAuthStore((state) => state.user);
-  const signOut = useAuthStore((state) => state.signOut);
   const translatorReviewEnabled = useTranslatorReviewStore((state) => state.enabled);
   const enableTranslatorReviewMode = useTranslatorReviewStore((state) => state.enableWithPasscode);
   const disableTranslatorReviewMode = useTranslatorReviewStore((state) => state.disable);
@@ -436,25 +434,11 @@ export function SettingsScreen() {
       {
         text: t('settings.clear'),
         style: 'destructive',
-        onPress: async () => {
+        onPress: () => {
           try {
-            // Clear AsyncStorage (handles any legacy keys from before MMKV migration)
-            const allKeys = await AsyncStorage.getAllKeys();
-            // Preserve auth state and progress on both storage backends
-            const keysToPreserve = ['auth-storage', 'progress-storage', 'user-preferences'];
-            const keysToRemove = allKeys.filter(
-              (key) => !keysToPreserve.some((preserve) => key.includes(preserve))
-            );
-            if (keysToRemove.length > 0) {
-              await AsyncStorage.multiRemove(keysToRemove);
-            }
-            // Clear MMKV — delete all keys that are not in the preserve list
-            const mmkvKeys = mmkvInstance.getAllKeys();
-            for (const key of mmkvKeys) {
-              if (!keysToPreserve.some((preserve) => key.includes(preserve))) {
-                mmkvInstance.delete(key);
-              }
-            }
+            // Only re-downloadable caches: private notes of every account on
+            // this phone, and downloads, are not a cache (deviceCaches.ts).
+            clearDeviceCaches();
             Alert.alert(t('common.done'), t('settings.cacheClearedSuccess'));
           } catch {
             Alert.alert(t('common.error'), t('settings.cacheClearError'));
@@ -472,16 +456,14 @@ export function SettingsScreen() {
 
     setIsDeleting(true);
     try {
-      const result = await deleteCurrentAccount();
+      // Removes only this account's data from the device; other accounts and
+      // signed-out notes on a shared phone stay.
+      const result = await deleteAccountAndLocalData();
 
       if (!result.success) {
         Alert.alert(t('common.error'), t('settings.deleteAccountError'));
         return;
       }
-
-      await AsyncStorage.clear();
-      mmkvInstance.clearAll();
-      await signOut();
 
       setShowDeleteConfirm(false);
       Alert.alert(t('settings.accountDeleted'), t('settings.accountDeletedMessage'));
@@ -810,7 +792,7 @@ export function SettingsScreen() {
                       styles.feedbackIdentityInput,
                       {
                         color: colors.primaryText,
-                        borderColor: colors.borderStrong,
+                        borderColor: colors.controlBorder,
                         backgroundColor: colors.background,
                       },
                     ]}
@@ -837,7 +819,7 @@ export function SettingsScreen() {
                       styles.feedbackIdentityInput,
                       {
                         color: colors.primaryText,
-                        borderColor: colors.borderStrong,
+                        borderColor: colors.controlBorder,
                         backgroundColor: colors.background,
                       },
                     ]}
@@ -948,7 +930,7 @@ export function SettingsScreen() {
                       styles.translatorAccessInput,
                       {
                         color: colors.primaryText,
-                        borderColor: colors.borderStrong,
+                        borderColor: colors.controlBorder,
                         backgroundColor: colors.background,
                       },
                     ]}

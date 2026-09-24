@@ -426,8 +426,15 @@ export function isBundledBibleDatabaseReady(
   );
 }
 
+// A search word keeps its combining marks (Devanagari vowel signs and virama, Arabic harakat,
+// decomposed accents) and joiners, and an apostrophe between letters (Father's). Each word is
+// sent to FTS5 as one quoted phrase, so the index's own tokenizer splits it exactly as it split
+// the verse text; splitting it here instead turned प्रेम into three one-letter prefixes.
+const BIBLE_SEARCH_WORD_PATTERN =
+  /[\p{L}\p{N}][\p{L}\p{N}\p{M}\u200C\u200D]*(?:['’ʼ][\p{L}\p{N}][\p{L}\p{N}\p{M}\u200C\u200D]*)*/gu;
+
 export function buildBibleSearchQuery(query: string): string | null {
-  const tokens = query.match(/[\p{L}\p{N}]+/gu)?.map((token) => token.trim()) ?? [];
+  const tokens = query.match(BIBLE_SEARCH_WORD_PATTERN)?.map((token) => token.trim()) ?? [];
   const normalizedTokens = tokens.filter((token) => token.length > 0);
 
   if (normalizedTokens.length === 0) {

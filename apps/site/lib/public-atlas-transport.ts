@@ -46,6 +46,9 @@ export function decodePublicAtlas(value: unknown): AtlasIndex {
     const record = unpack(row, recordFields);
     record.location = record.location === null ? null : location(record.location);
     if (Array.isArray(record.locations)) record.locations = record.locations.map(location);
+    // The startup download omits the generated summary; the shared map's
+    // fallback hover text still expects a string.
+    if (typeof record.summary !== 'string') record.summary = '';
     return record as unknown as AtlasRecord;
   });
   return { ...metadata, schemaVersion: 1, records };

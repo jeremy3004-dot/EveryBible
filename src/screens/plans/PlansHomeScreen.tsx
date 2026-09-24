@@ -93,8 +93,8 @@ function SwipeablePlanRow({ onDelete, children }: SwipeablePlanRowProps) {
             accessibilityRole="button"
             accessibilityLabel={t('common.delete')}
           >
-            <Trash2 size={18} color={colors.onAccent} strokeWidth={2} />
-            <Text style={[swipeableStyles.deleteText, { color: colors.onAccent }]}>
+            <Trash2 size={18} color={colors.onError} strokeWidth={2} />
+            <Text style={[swipeableStyles.deleteText, { color: colors.onError }]}>
               {t('common.delete')}
             </Text>
           </PressableScale>
@@ -812,7 +812,7 @@ const createFindPlansStyles = (colors: ThemeColors) =>
       height: 44,
       borderWidth: 1,
       borderRadius: radius.lg,
-      borderColor: colors.cardBorder,
+      borderColor: colors.controlBorder,
       backgroundColor: colors.cardBackground,
       paddingHorizontal: spacing.md,
     },

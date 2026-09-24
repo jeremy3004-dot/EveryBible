@@ -358,7 +358,11 @@ test('PlansHomeScreen adds a compact fuzzy-search field to Find Plans', () => {
     'The Find Plans search strip is a 44pt paper strip, not a 48pt input well'
   );
   assert.match(searchStripBlockMatch?.[0] ?? '', /borderRadius:\s*radius\.lg/);
-  assert.match(searchStripBlockMatch?.[0] ?? '', /borderColor:\s*colors\.cardBorder/);
+  assert.match(
+    searchStripBlockMatch?.[0] ?? '',
+    /borderColor:\s*colors\.controlBorder/,
+    'The search strip is the input, so its outline is the 3:1 control boundary'
+  );
   assert.match(
     source,
     /<Search size=\{17\} color=\{colors\.secondaryText\} strokeWidth=\{2\} \/>/,

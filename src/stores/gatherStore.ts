@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { privateDataStorage, registerPrivateDataStore } from './privateDataScope';
 import { mergeGuestGather } from './privateDataAdoption';
+import { asStringArrayRecord, mergeSanitizedState } from './persistedShapeGuards';
 
 interface GatherState {
   // Completion tracking: parentId (foundation-1, topic-courage) -> lessonId[]
@@ -80,6 +81,11 @@ export const useGatherStore = create<GatherState>()(
         completedLessons: state.completedLessons,
         infoBannerDismissed: state.infoBannerDismissed,
       }),
+      merge: (persistedState, currentState) =>
+        mergeSanitizedState(persistedState, currentState, {
+          completedLessons: asStringArrayRecord,
+          infoBannerDismissed: (value) => value === true,
+        }),
     }
   )
 );

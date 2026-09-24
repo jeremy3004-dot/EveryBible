@@ -1,0 +1,16 @@
+Cài đặt, kế hoạch và ghi chú của bạn giờ luôn đồng nhất trên mọi thiết bị, Kế hoạch đọc có giao diện mới, và ứng dụng mở nhanh hơn.
+
+• Cài đặt giờ được đồng bộ riêng từng mục, nên thay đổi trên thiết bị này không còn xóa mất thay đổi trên thiết bị khác. Lần đầu đăng nhập trên một thiết bị, những lựa chọn bạn đã đặt trên đó vẫn được giữ nguyên.
+• Nếu bạn rời một kế hoạch đọc trên một thiết bị, kế hoạch đó cũng không quay lại trên các thiết bị khác. Các buổi đọc sáng, trưa và tối giờ cũng được đồng bộ.
+• Ghi chú, phần tô sáng, dấu trang và thư viện thuộc về tài khoản của bạn. Nếu người khác đăng nhập trên cùng thiết bị, họ sẽ không thấy chúng, và chúng sẽ trở lại khi bạn đăng nhập lại.
+• Kế hoạch đọc: các ngày của bạn hiển thị thành lưới chấm gọn gàng, tiêu đề được ghim ở trên khi cuộn, và bạn có thể vuốt để quay lại kế hoạch từ bài đọc. Mở một ngày trong kế hoạch không còn tự phát tiếp âm thanh bạn đã tạm dừng.
+• Tiêu đề đoạn ở đầu mỗi chương đã trở lại; trước đây bị thiếu ở hơn một nghìn chương. Kết quả tìm kiếm giờ đưa bạn thẳng đến câu Kinh Thánh đó.
+• Khi chia sẻ Câu Kinh Thánh hôm nay, giờ chỉ có câu Kinh Thánh và hình ảnh được chia sẻ, không kèm tên hay lời chào của bạn.
+• Nội dung chữ của ứng dụng đã được rà soát và sửa ở mọi ngôn ngữ, và tiếng Nga, tiếng Ả Rập giờ dùng đúng dạng số nhiều.
+• Tải âm thanh: hủy tải toàn bộ Kinh Thánh giờ thật sự dừng lại, các chương đã tải được kiểm tra để không giữ tệp bị hỏng, và bạn sẽ được báo trước nếu không đủ dung lượng.
+• Nhãn VoiceOver tốt hơn trong toàn bộ ứng dụng, và chữ tự xuống dòng thay vì bị cắt khi dùng cỡ chữ lớn. Trên iOS 26, thanh tab vẫn dễ đọc khi nằm trên văn bản Kinh Thánh.
+• Đã sửa lỗi mở ứng dụng khi không có mạng sau một thời gian dài có thể xóa tiến độ đọc và chuỗi ngày chưa được đồng bộ.
+• Dành cho nhóm dịch thuật: mỗi nhóm giờ có mã duyệt riêng, và ứng dụng cho biết mã của bạn mở được những bản dịch nào.
+• Khởi động nhanh hơn, cùng nhiều sửa lỗi nhỏ.
+
+Cảm ơn bạn đã cùng đọc với chúng tôi.

@@ -2,7 +2,18 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { privateDataStorage, registerPrivateDataStore } from './privateDataScope';
 import { mergeGuestFourFields } from './privateDataAdoption';
-import { FieldType, Group, GroupProgress } from '../types/course';
+import { FieldType, Group, GroupMember, GroupProgress } from '../types/course';
+import {
+  asBooleanRecord,
+  asNullableString,
+  asRecordArray,
+  asStringArray,
+  asStringArrayRecord,
+  asStringRecord,
+  mapRecordValues,
+  mergeSanitizedState,
+  type PersistedRecord,
+} from './persistedShapeGuards';
 
 interface FourFieldsState {
   // Progress tracking
@@ -82,6 +93,47 @@ type PersistedFourFieldsState = Partial<
 >;
 
 const VALID_FIELDS: FieldType[] = ['entry', 'gospel', 'discipleship', 'church', 'multiplication'];
+
+const isValidField = (value: unknown): value is FieldType =>
+  typeof value === 'string' && VALID_FIELDS.includes(value as FieldType);
+
+// Group taps (join, leave, lookups) index on `id` and walk `members`.
+const sanitizePersistedGroups = (value: unknown): Group[] =>
+  asRecordArray<PersistedRecord>(value, (group) => typeof group.id === 'string').map(
+    (group) =>
+      ({
+        ...group,
+        members: asRecordArray<GroupMember>(
+          group.members,
+          (member) => typeof member.id === 'string'
+        ),
+      }) as unknown as Group
+  );
+
+const sanitizePersistedGroupProgress = (value: unknown): Record<string, GroupProgress> =>
+  mapRecordValues(value, (progress, groupId) => ({
+    groupId: typeof progress.groupId === 'string' ? progress.groupId : groupId,
+    completedLessons: asStringArray(progress.completedLessons),
+    notes: asStringRecord(progress.notes),
+  }));
+
+// migrate only runs when the stored version differs; this runs on every hydrate,
+// so a current-version blob in the wrong shape is coerced too.
+const mergePersistedFourFieldsState = <S extends FourFieldsState>(
+  persistedState: unknown,
+  currentState: S
+): S =>
+  mergeSanitizedState<FourFieldsState>(persistedState, currentState, {
+    completedLessons: asStringArrayRecord,
+    practiceCompleted: asBooleanRecord,
+    taughtCompleted: asBooleanRecord,
+    currentField: (value) => (isValidField(value) ? value : 'entry'),
+    currentCourseId: asNullableString,
+    currentLessonId: asNullableString,
+    groups: sanitizePersistedGroups,
+    activeGroupId: asNullableString,
+    groupProgress: sanitizePersistedGroupProgress,
+  }) as S;
 
 function normalizePersistedState(
   persistedState: PersistedFourFieldsState
@@ -298,6 +350,7 @@ export const useFourFieldsStore = create<FourFieldsState>()(
       migrate: (persistedState: unknown, _version: number) => {
         return normalizePersistedState((persistedState ?? {}) as PersistedFourFieldsState);
       },
+      merge: mergePersistedFourFieldsState,
       partialize: (state) => ({
         completedLessons: state.completedLessons,
         practiceCompleted: state.practiceCompleted,

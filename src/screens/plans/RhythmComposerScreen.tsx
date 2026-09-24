@@ -295,7 +295,9 @@ export function RhythmComposerScreen({ navigation, route }: RhythmComposerScreen
 
     Alert.alert(
       t('readingPlans.deleteRhythmConfirmTitle'),
-      t('readingPlans.deleteRhythmConfirmBody', { title: currentRhythm.title }),
+      t('readingPlans.deleteRhythmConfirmBody', {
+        title: getLocalizedRhythmTitle(currentRhythm.title, t),
+      }),
       [
         { text: t('common.cancel', { defaultValue: 'Cancel' }), style: 'cancel' },
         {

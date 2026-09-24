@@ -15,6 +15,11 @@ mockModule(mock, '@react-navigation/native-stack', {
   }),
 });
 
+// The error-boundary screen layout pulls in the app's storage; it has its own tests.
+mockModule(mock, sourcePath('navigation/screenErrorLayout.ts'), {
+  renderScreenWithErrorBoundary: ({ children }: { children: ReactNode }) => children,
+});
+
 const BrowserScreen = () => null;
 const AuthScreen = () => null;
 const ResetPasswordScreen = () => null;

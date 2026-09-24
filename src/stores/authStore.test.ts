@@ -87,6 +87,15 @@ mockModule(mock, '@react-native-google-signin/google-signin', {
 mockExpoCrypto(mock);
 const secureStore = mockSecureStore(mock);
 
+// Session restore checks connectivity through a lazy `require(...).default`, so
+// the fake carries a self-reference (see queryClient.test.ts).
+const connectivity = { isConnected: true as boolean | null };
+const netInfoFake: Record<string, unknown> = {
+  fetch: async () => ({ isConnected: connectivity.isConnected, isInternetReachable: null }),
+};
+netInfoFake.default = netInfoFake;
+mockModule(mock, '@react-native-community/netinfo', netInfoFake);
+
 const events: string[] = [];
 let bibleResetCount = 0;
 mockModule(mock, sourcePath('stores/bibleStore.ts'), {
@@ -142,6 +151,7 @@ beforeEach(() => {
   Object.assign(supabaseFake.auth.handlers, defaultAuthHandlers);
   supabaseFake.auth.setSession(null);
   rn.Platform.OS = 'ios';
+  connectivity.isConnected = true;
   events.length = 0;
   bibleResetCount = 0;
   deactivatedTokensFor.length = 0;
@@ -158,6 +168,7 @@ beforeEach(() => {
     preferencesSyncBase: null,
     lastSyncedUserId: null,
     authGeneration: 0,
+    awaitingTokenRefresh: false,
   });
   useProgressStore.getState().resetForSignOut();
   readingPlansStore.getState().resetForSignOut();
@@ -948,6 +959,82 @@ test('a different account signing in after an offline cold start still gets a cl
   assert.equal(useAuthStore.getState().lastSyncedUserId, 'user-b');
 });
 
+const expiredSessionFor = (uid: string) =>
+  makeFakeSession({
+    access_token: 'expired-access-token',
+    expires_at: Math.floor(Date.now() / 1000) - 3600,
+    user: makeFakeUser({ id: uid, user_metadata: { full_name: 'Ruth' } }),
+  });
+
+test('an offline cold start with an expired token shows the signed-in reader at once, waiting for a token refresh', async () => {
+  // auth-js would retry the refresh for about 50 s: getSession never answers here.
+  connectivity.isConnected = false;
+  supabaseFake.auth.setSession(expiredSessionFor('user-a'));
+  authHandlers.getSession = () => new Promise(() => {});
+  useAuthStore.setState({ lastSyncedUserId: 'user-a' });
+  privateDataBelongsTo('user-a');
+  useAuthStore.getState().setPreferences({ fontSize: 'large', onboardingCompleted: true });
+  seedPerUserData();
+
+  await useAuthStore.getState().initialize();
+
+  const state = useAuthStore.getState();
+  assert.equal(state.isInitialized, true);
+  assert.equal(state.isAuthenticated, true);
+  assert.equal(state.user?.uid, 'user-a');
+  assert.equal(state.user?.displayName, 'Ruth');
+  assert.equal(state.awaitingTokenRefresh, true);
+  assert.equal(perUserDataIsCleared(), false);
+  assert.equal(state.preferences.fontSize, 'large');
+  assert.equal(privateDataScope.getPrivateDataOwner(), 'user-a');
+});
+
+test('the token refresh that completes when the network returns confirms the session', async () => {
+  connectivity.isConnected = false;
+  supabaseFake.auth.setSession(expiredSessionFor('user-a'));
+  authHandlers.getSession = () => new Promise(() => {});
+  await useAuthStore.getState().initialize();
+  const generation = useAuthStore.getState().authGeneration;
+  assert.equal(useAuthStore.getState().awaitingTokenRefresh, true);
+
+  supabaseFake.auth.emit(
+    'TOKEN_REFRESHED',
+    makeFakeSession({ access_token: 'fresh-access-token', user: makeFakeUser({ id: 'user-a' }) })
+  );
+
+  const state = useAuthStore.getState();
+  assert.equal(state.awaitingTokenRefresh, false);
+  assert.equal(state.session?.access_token, 'fresh-access-token');
+  assert.equal(state.authGeneration, generation);
+});
+
+test('a refresh token the server rejects after an offline cold start signs the reader out', async () => {
+  connectivity.isConnected = false;
+  supabaseFake.auth.setSession(expiredSessionFor('user-a'));
+  authHandlers.getSession = () => new Promise(() => {});
+  await useAuthStore.getState().initialize();
+  assert.equal(useAuthStore.getState().awaitingTokenRefresh, true);
+  seedPerUserData();
+
+  supabaseFake.auth.emit('SIGNED_OUT', null);
+
+  const state = useAuthStore.getState();
+  assert.equal(state.isAuthenticated, false);
+  assert.equal(state.user, null);
+  assert.equal(state.awaitingTokenRefresh, false);
+  assert.equal(perUserDataIsCleared(), true);
+  assert.equal(state.lastSyncedUserId, null);
+});
+
+test('an online cold start still waits for the refresh and never marks the session as waiting', async () => {
+  supabaseFake.auth.setSession(makeFakeSession({ user: makeFakeUser({ id: 'user-a' }) }));
+
+  await useAuthStore.getState().initialize();
+
+  assert.equal(useAuthStore.getState().isAuthenticated, true);
+  assert.equal(useAuthStore.getState().awaitingTokenRefresh, false);
+});
+
 test('initialize subscribes to Supabase auth changes exactly once', async () => {
   await useAuthStore.getState().initialize();
   useAuthStore.setState({ isInitialized: false });
@@ -977,12 +1064,19 @@ test('initialize survives a failure while reading the build configuration', asyn
 
 test('initialize reports the store as loading until the session has been restored', async () => {
   let releaseSession: () => void = () => {};
+  let sessionRequested: () => void = () => {};
+  const getSessionCalled = new Promise<void>((resolve) => {
+    sessionRequested = resolve;
+  });
   authHandlers.getSession = () =>
     new Promise((resolve) => {
       releaseSession = () => resolve({ data: { session: null }, error: null });
+      sessionRequested();
     });
 
   const initializing = useAuthStore.getState().initialize();
+  // The connectivity check runs first, so getSession is asked for a turn later.
+  await getSessionCalled;
 
   assert.equal(useAuthStore.getState().isLoading, true);
   assert.equal(useAuthStore.getState().isInitialized, false);

@@ -60,6 +60,7 @@ const authState = {
   authGeneration: 1,
   isAuthenticated: true,
   isInitialized: true,
+  awaitingTokenRefresh: false,
   reconcileUserBoundary: (userId: string) => {
     reconcileCalls.push(userId);
   },
@@ -116,6 +117,7 @@ beforeEach(() => {
   authState.authGeneration = 1;
   authState.isAuthenticated = true;
   authState.isInitialized = true;
+  authState.awaitingTokenRefresh = false;
 });
 
 afterEach(() => {
@@ -319,6 +321,17 @@ test('a sync requested with no user on the session is dropped', async () => {
   assert.deepEqual(syncAllCalls, []);
 });
 
+test('a sync requested while the session waits for its token refresh is dropped', async () => {
+  const handle = mountWithoutInitialSync();
+  authState.awaitingTokenRefresh = true;
+
+  await handle.sync();
+  await flush();
+
+  assert.deepEqual(pullCalls, []);
+  assert.deepEqual(syncAllCalls, []);
+});
+
 test('a sync requested for a different account than the one signed in is dropped', async () => {
   const handle = mountWithoutInitialSync();
 
@@ -362,6 +375,29 @@ test('mounting for a signed-in reader reconciles the boundary, pulls, then pushe
   await flush();
 
   assert.deepEqual(reconcileCalls, ['user-a']);
+  assert.deepEqual(pullCalls, ['user-a']);
+  assert.deepEqual(syncAllCalls, [{ userId: 'user-a', generation: 1 }]);
+});
+
+test('an offline launch waiting for its token refresh does not pull or push', async () => {
+  authState.awaitingTokenRefresh = true;
+
+  mountSync();
+  await flush();
+
+  assert.deepEqual(pullCalls, []);
+  assert.deepEqual(syncAllCalls, []);
+});
+
+test('the initial sync runs once the token refresh lands', async () => {
+  authState.awaitingTokenRefresh = true;
+  const handle = mountSync();
+  await flush();
+
+  authState.awaitingTokenRefresh = false;
+  handle.rerender();
+  await flush();
+
   assert.deepEqual(pullCalls, ['user-a']);
   assert.deepEqual(syncAllCalls, [{ userId: 'user-a', generation: 1 }]);
 });

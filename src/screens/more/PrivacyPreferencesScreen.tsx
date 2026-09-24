@@ -410,7 +410,7 @@ const createStyles = (colors: ThemeColors) =>
     input: {
       backgroundColor: colors.background,
       borderWidth: 1,
-      borderColor: colors.cardBorder,
+      borderColor: colors.controlBorder,
       borderRadius: radius.sm,
       paddingHorizontal: spacing.lg,
       paddingVertical: spacing.md,

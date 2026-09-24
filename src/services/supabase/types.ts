@@ -189,7 +189,8 @@ export interface GroupReadingPlan {
   id: string;
   group_id: string;
   plan_id: string;
-  assigned_by: string;
+  // Null once the account that assigned the plan is deleted; the group keeps the plan.
+  assigned_by: string | null;
   started_at: string;
 }
 
@@ -345,6 +346,13 @@ export interface Database {
       refresh_my_engagement: {
         Args: Record<PropertyKey, never>;
         Returns: void;
+      };
+      /** Migration 20260924041000: unions the caller's progress into their row; returns it. */
+      merge_user_progress: {
+        Args: {
+          p_progress: unknown;
+        };
+        Returns: UserProgress[];
       };
     };
     Tables: {

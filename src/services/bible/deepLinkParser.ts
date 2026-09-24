@@ -1,4 +1,4 @@
-import { bibleBooks } from '../../constants/books';
+import { bibleBooks, getBookById } from '../../constants/books';
 
 export interface BibleDeepLinkTarget {
   bookId: string;
@@ -29,7 +29,7 @@ const BOOK_ID_TO_SLUG: Record<string, string> = Object.fromEntries(
 /**
  * Parses a path like "/bible/john/3/16" or "/bible/john/3" into a BibleDeepLinkTarget.
  * Returns null if the path doesn't match the bible pattern, the book slug is unrecognized,
- * or the chapter number is invalid (< 1).
+ * or the chapter is not one of the book's chapters. A verse 0 is dropped.
  *
  * Example usage:
  *   parseBibleDeepLink('/bible/john/3/16')  => { bookId: 'JHN', chapter: 3, verse: 16 }
@@ -47,9 +47,11 @@ export const parseBibleDeepLink = (path: string): BibleDeepLinkTarget | null => 
   if (!bookId) return null;
 
   const chapter = parseInt(chapterStr ?? '0', 10);
-  if (!Number.isInteger(chapter) || chapter < 1) return null;
+  const chapterCount = getBookById(bookId)?.chapters ?? 0;
+  if (!Number.isInteger(chapter) || chapter < 1 || chapter > chapterCount) return null;
 
-  const verse = verseStr !== undefined ? parseInt(verseStr, 10) : undefined;
+  const parsedVerse = verseStr !== undefined ? parseInt(verseStr, 10) : undefined;
+  const verse = parsedVerse !== undefined && parsedVerse >= 1 ? parsedVerse : undefined;
   return { bookId, chapter, verse };
 };
 

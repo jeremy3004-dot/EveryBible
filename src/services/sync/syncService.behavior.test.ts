@@ -284,6 +284,18 @@ const remotePreferenceRow = (
   ...overrides,
 });
 
+const PROGRESS_MERGE_RPC_TABLE = 'rpc:merge_user_progress';
+// PostgREST's answer while migration 20260924041000 is not applied.
+const MISSING_PROGRESS_MERGE_RPC: SupabaseFakeResult = {
+  data: null,
+  error: {
+    code: 'PGRST202',
+    message:
+      'Could not find the function public.merge_user_progress(p_progress) in the schema cache',
+  },
+  status: 404,
+};
+
 const callsFor = (table: string, operation: SupabaseQueryCall['operation']) =>
   supabaseFake.callsFor(table).filter((call) => call.operation === operation);
 
@@ -329,7 +341,11 @@ beforeEach(() => {
   supabaseFake.auth.setUser(
     makeFakeUser({ id: USER_A, email: 'reader@example.com', user_metadata: {} })
   );
-  script = {};
+  // Most scenarios below describe the merge rules and the write the client sends,
+  // which are the same whichever way the row is written; they run against a
+  // server without merge_user_progress, so the write is the plain upsert. The
+  // merge RPC itself is covered in its own section.
+  script = { [PROGRESS_MERGE_RPC_TABLE]: { write: MISSING_PROGRESS_MERGE_RPC } };
   backendConfigured = true;
   resolveRemoteUserId = null;
   authStore.setState({
@@ -743,6 +759,147 @@ test('syncProgress without an expected account uses the currently signed-in read
     ['user_id', USER_A]
   );
   assert.deepEqual(callsFor('user_progress', 'upsert'), []);
+});
+
+// ---------------------------------------------------------------------------
+// syncProgress through merge_user_progress (finding 12)
+// ---------------------------------------------------------------------------
+
+const progressMergeCalls = () => callsFor(PROGRESS_MERGE_RPC_TABLE, 'rpc');
+const progressMergePayload = (index = 0): Record<string, unknown> =>
+  (progressMergeCalls()[index]?.payload as { p_progress: Record<string, unknown> }).p_progress;
+
+test('a progress push goes through the server-side merge instead of overwriting the row', async () => {
+  progressStore.setState({
+    chaptersRead: { ROM_8: 5000, JHN_3: 900 },
+    streakDays: 9,
+    lastReadDate: '2026-09-09',
+  });
+  bibleStore.setState({ currentBook: 'ROM', currentChapter: 8 });
+  script.user_progress = {
+    select: { data: remoteProgressRow({ chapters_read: { JHN_3: 900 }, streak_days: 2 }) },
+  };
+  script[PROGRESS_MERGE_RPC_TABLE] = {
+    write: {
+      data: remoteProgressRow({
+        chapters_read: { ROM_8: 5000, JHN_3: 900 },
+        streak_days: 9,
+        last_read_date: '2026-09-09',
+        current_book: 'ROM',
+        current_chapter: 8,
+      }),
+    },
+  };
+
+  const result = await syncProgress(USER_A);
+
+  assert.deepEqual(result, { success: true, merged: false });
+  assert.deepEqual(callsFor('user_progress', 'upsert'), []);
+  assert.equal(progressMergeCalls().length, 1);
+  assert.equal(progressMergeCalls()[0]?.single, true);
+  const { synced_at: syncedAt, ...payload } = progressMergePayload();
+  assert.deepEqual(payload, {
+    user_id: USER_A,
+    chapters_read: { ROM_8: 5000, JHN_3: 900 },
+    streak_days: 9,
+    last_read_date: '2026-09-09',
+    current_book: 'ROM',
+    current_chapter: 8,
+  });
+  assert.ok(Number.isFinite(Date.parse(String(syncedAt))));
+  assert.deepEqual(appliedProgress, []);
+});
+
+test('chapters another device merged in at the same moment come back from the push', async () => {
+  // Both phones read {JHN_3}; the other phone's GEN_1 reached the server first.
+  progressStore.setState({ chaptersRead: { JHN_3: 1000, ROM_8: 5000 } });
+  bibleStore.setState({ currentBook: 'ROM', currentChapter: 8 });
+  script.user_progress = { select: { data: remoteProgressRow() } };
+  script[PROGRESS_MERGE_RPC_TABLE] = {
+    write: {
+      data: remoteProgressRow({
+        chapters_read: { JHN_3: 1000, ROM_8: 5000, GEN_1: 7000 },
+        current_book: 'ROM',
+        current_chapter: 8,
+      }),
+    },
+  };
+
+  const result = await syncProgress(USER_A);
+
+  assert.deepEqual(result, { success: true, merged: true });
+  assert.deepEqual(progressMergePayload().chapters_read, { JHN_3: 1000, ROM_8: 5000 });
+  assert.deepEqual(progressStore.getState().chaptersRead, {
+    JHN_3: 1000,
+    ROM_8: 5000,
+    GEN_1: 7000,
+  });
+});
+
+for (const [name, missing] of [
+  ['PGRST202', { error: { code: 'PGRST202', message: 'function not found' } }],
+  ['Postgres 42883', { error: { code: '42883', message: 'function does not exist' } }],
+  ['HTTP 404', { error: { message: 'Not Found' }, status: 404 }],
+] as const) {
+  test(`a server without the merge function (${name}) gets the plain upsert instead`, async () => {
+    progressStore.setState({ chaptersRead: { GEN_1: 500 } });
+    script.user_progress = { select: { data: remoteProgressRow() } };
+    script[PROGRESS_MERGE_RPC_TABLE] = { write: { data: null, ...missing } };
+
+    const result = await syncProgress(USER_A);
+
+    assert.equal(result.success, true);
+    assert.equal(progressMergeCalls().length, 1);
+    assert.equal(callsFor('user_progress', 'upsert').length, 1);
+    assert.deepEqual(payloadOf('user_progress'), progressMergePayload());
+    assert.deepEqual(callsFor('user_progress', 'upsert')[0]?.options, { onConflict: 'user_id' });
+  });
+}
+
+test('a merge the server refuses is a failed push, never a blind upsert', async () => {
+  progressStore.setState({ chaptersRead: { GEN_1: 500 } });
+  script.user_progress = { select: { data: remoteProgressRow() } };
+  script[PROGRESS_MERGE_RPC_TABLE] = {
+    write: { data: null, error: { code: '22023', message: 'chapters_read must be an object' } },
+  };
+
+  assert.deepEqual(await syncProgress(USER_A), {
+    success: false,
+    error: 'chapters_read must be an object',
+  });
+  assert.deepEqual(callsFor('user_progress', 'upsert'), []);
+});
+
+test('a transient merge failure is retried by syncAll through the merge again', async () => {
+  progressStore.setState({ chaptersRead: { GEN_1: 500 } });
+  script.user_progress = { select: { data: remoteProgressRow() } };
+  let attempts = 0;
+  script[PROGRESS_MERGE_RPC_TABLE] = {
+    write: () =>
+      ++attempts === 1
+        ? { data: null, error: { message: 'fetch failed' } }
+        : { data: remoteProgressRow({ chapters_read: { GEN_1: 500, JHN_3: 1000 } }) },
+  };
+
+  const result = await withoutBackoffDelay(() => syncAll(USER_A));
+
+  assert.equal(result.success, true);
+  assert.equal(progressMergeCalls().length, 2);
+  assert.deepEqual(callsFor('user_progress', 'upsert'), []);
+});
+
+test('an account switch while the merge is in flight leaves the returned row unapplied', async () => {
+  progressStore.setState({ chaptersRead: { GEN_1: 500 } });
+  script.user_progress = { select: { data: remoteProgressRow() } };
+  script[PROGRESS_MERGE_RPC_TABLE] = {
+    write: () => {
+      authStore.setState({ user: { uid: USER_B } });
+      return { data: remoteProgressRow({ chapters_read: { GEN_1: 500, MAT_5: 9000 } }) };
+    },
+  };
+
+  assert.deepEqual(await syncProgress(USER_A), { success: false, error: STALE_SYNC_ERROR });
+  assert.equal(progressStore.getState().chaptersRead.MAT_5, undefined);
 });
 
 // ---------------------------------------------------------------------------

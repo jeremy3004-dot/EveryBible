@@ -1039,6 +1039,91 @@ test('searchVerses reports an unavailable index for a translation without verses
   );
 });
 
+test('searchVerses keeps a Devanagari word whole instead of splitting it at its vowel signs', async () => {
+  const { searchVerses, setBibleDatabaseSourceResolver } = await loadModule();
+  // Devanagari vowel signs and the virama are combining marks (Unicode category M), so a
+  // letters-and-digits-only tokenizer cut प्रेम ("love") into प, र and म. Those fragments then
+  // matched almost every Nepali verse: 21,046 of npiulb's verses instead of about 500.
+  writeSeedDatabase(`${installedDirectory}/devanagari.db`, {
+    verses: [
+      {
+        translationId: 'devanagari',
+        bookId: '1JN',
+        chapter: 4,
+        verse: 8,
+        text: 'परमेश्‍वर प्रेम हुनुहुन्छ।',
+      },
+      {
+        translationId: 'devanagari',
+        bookId: 'GEN',
+        chapter: 1,
+        verse: 1,
+        text: 'सुरुमा परमेश्‍वरले आकाश र पृथ्वी मलाई सृष्‍टि गर्नुभयो।',
+      },
+    ],
+  });
+  setBibleDatabaseSourceResolver((translationId) =>
+    translationId === 'devanagari' ? installedSource('devanagari', 'devanagari.db') : null
+  );
+
+  const results = await searchVerses('devanagari', 'प्रेम');
+
+  assert.deepEqual(
+    results.map((verse) => `${verse.bookId} ${verse.chapter}:${verse.verse}`),
+    ['1JN 4:8']
+  );
+});
+
+test('searchVerses treats an apostrophe inside a word as part of that word', async () => {
+  const { searchVerses, setBibleDatabaseSourceResolver } = await loadModule();
+  writeSeedDatabase(`${installedDirectory}/apostrophe.db`, {
+    verses: [
+      {
+        translationId: 'apostrophe',
+        bookId: 'LUK',
+        chapter: 2,
+        verse: 49,
+        text: 'Did you not know that I must be in My Father’s house?',
+      },
+      {
+        translationId: 'apostrophe',
+        bookId: 'GEN',
+        chapter: 2,
+        verse: 24,
+        text: 'For this reason a man will leave his father and mother; s is a letter.',
+      },
+    ],
+  });
+  setBibleDatabaseSourceResolver((translationId) =>
+    translationId === 'apostrophe' ? installedSource('apostrophe', 'apostrophe.db') : null
+  );
+
+  const straight = await searchVerses('apostrophe', "Father's");
+  const curly = await searchVerses('apostrophe', 'Father’s');
+
+  assert.deepEqual(
+    straight.map((verse) => `${verse.bookId} ${verse.chapter}:${verse.verse}`),
+    ['LUK 2:49']
+  );
+  assert.deepEqual(
+    curly.map((verse) => `${verse.bookId} ${verse.chapter}:${verse.verse}`),
+    ['LUK 2:49']
+  );
+});
+
+test('searchVerses treats SQL wildcard and quote characters as plain text', async () => {
+  const { searchVerses } = await loadModule();
+
+  assert.deepEqual(await searchVerses('bsb', '%'), []);
+  assert.deepEqual(await searchVerses('bsb', '_'), []);
+  assert.deepEqual(await searchVerses('bsb', "'"), []);
+  assert.deepEqual(await searchVerses('bsb', '"'), []);
+  assert.deepEqual(
+    (await searchVerses('bsb', '"loved" % the_world')).map((verse) => verse.text),
+    ['For God so loved the world that He gave His one and only Son.']
+  );
+});
+
 test('searchVerses rethrows when the indexed query itself fails', async () => {
   const { searchVerses, setBibleDatabaseSourceResolver } = await loadModule();
   // A plain table called verses_fts passes the "does the index exist" probe but cannot answer
