@@ -112,6 +112,10 @@ const service = {
   progressGate: null as Gate | null,
   onHydrate: null as (() => void) | null,
   unenrollError: null as string | null,
+  // A result the service can return without an error message, and a thrown
+  // failure — both distinct from unenrollError, which always carries a message.
+  unenrollFailsSilently: false,
+  unenrollThrows: null as unknown,
   listCalls: 0,
   hydrateCalls: 0,
   unenrolled: [] as string[],
@@ -131,9 +135,18 @@ mockModule(mock, sourcePath('services/plans/readingPlanService.ts'), {
   },
   unenrollFromPlan: async (planId: string) => {
     service.unenrolled.push(planId);
+    if (service.unenrollThrows) throw service.unenrollThrows;
     if (service.unenrollError) return { success: false, error: service.unenrollError };
+    if (service.unenrollFailsSilently) return { success: false };
     (await loadStore()).getState().unenrollPlan(planId);
     return { success: true };
+  },
+});
+
+const handledErrors: Array<{ source: string; error: unknown }> = [];
+mockModule(mock, sourcePath('services/diagnostics/crashReportQueue.ts'), {
+  reportHandledError: (source: string, error: unknown) => {
+    handledErrors.push({ source, error });
   },
 });
 
@@ -195,12 +208,15 @@ afterEach(async () => {
     progressGate: null,
     onHydrate: null,
     unenrollError: null,
+    unenrollFailsSilently: false,
+    unenrollThrows: null,
     listCalls: 0,
     hydrateCalls: 0,
     unenrolled: [],
   });
   plansWithoutArt.clear();
   swipeCloses.length = 0;
+  handledErrors.length = 0;
   progressStore.setState({ chaptersRead: {} });
   libraryStore.setState({ history: [] });
 });
@@ -388,6 +404,27 @@ test('the bundled catalog renders without waiting for remote progress hydration'
   assert.ok(service.hydrateCalls >= 1, 'hydration was started');
   assert.equal(await skeletonCount(view), 0);
   assert.ok(view.getByText(titleOf(PSALMS)));
+});
+
+// The mount effect and the focus effect both used to fire on first open, so the
+// catalog loaded twice (and the progress hydration ran twice) before the reader
+// ever left the screen.
+test('the first open loads the catalog once, a later focus reloads once more, and so does pull to refresh', async () => {
+  const view = await renderHome();
+
+  assert.equal(service.listCalls, 1, 'first open');
+  assert.equal(service.hydrateCalls, 1, 'first open');
+
+  await refocus();
+  assert.equal(service.listCalls, 2, 'a later focus');
+  assert.equal(service.hydrateCalls, 2, 'a later focus');
+
+  const [page] = view.queryAllByType('ScrollView');
+  await act(async () => {
+    await (page.props.refreshControl.props.onRefresh as () => Promise<void>)();
+  });
+  assert.equal(service.listCalls, 3, 'pull to refresh');
+  assert.equal(service.hydrateCalls, 3, 'pull to refresh');
 });
 
 test('the skeleton shows only while the catalog itself is still loading', async () => {
@@ -631,6 +668,44 @@ test('a failed delete keeps the plan and tells the reader', async () => {
   assert.equal(alert.title, t('common.error'));
   assert.equal(alert.message, t('common.unexpectedError'));
   assert.ok(view.getByRole('button', { name: titleOf(PSALMS) }));
+});
+
+// A failure with no error message used to fall through to the success haptic:
+// `!result.success && result.error` is false when `error` is undefined.
+test('a delete that fails without an error message still keeps the plan and tells the reader, not the success haptic', async () => {
+  await seed(progressRow(PSALMS));
+  service.unenrollFailsSilently = true;
+  const view = await renderHome();
+  const hapticsBefore = harness.haptics.length;
+
+  const row = view.queryAllByType('Swipeable')[0];
+  await view.press(within(row).getByRole('button', { name: t('common.delete') }));
+  await view.flush();
+
+  const [alert] = harness.rn.__recorded.alerts;
+  assert.equal(alert.title, t('common.error'));
+  assert.equal(alert.message, t('common.unexpectedError'));
+  assert.ok(view.getByRole('button', { name: titleOf(PSALMS) }), 'the row stays');
+  assert.equal(harness.haptics.length, hapticsBefore, 'no success haptic played');
+});
+
+test('a delete that throws is treated as a failure, tells the reader, keeps the plan, and is reported', async () => {
+  await seed(progressRow(PSALMS));
+  const thrown = new Error('offline');
+  service.unenrollThrows = thrown;
+  const view = await renderHome();
+  const hapticsBefore = harness.haptics.length;
+
+  const row = view.queryAllByType('Swipeable')[0];
+  await view.press(within(row).getByRole('button', { name: t('common.delete') }));
+  await view.flush();
+
+  const [alert] = harness.rn.__recorded.alerts;
+  assert.equal(alert.title, t('common.error'));
+  assert.equal(alert.message, t('common.unexpectedError'));
+  assert.ok(view.getByRole('button', { name: titleOf(PSALMS) }), 'the row stays');
+  assert.equal(harness.haptics.length, hapticsBefore, 'no success haptic played');
+  assert.deepEqual(handledErrors, [{ source: 'plans.delete', error: thrown }]);
 });
 
 // ---------------------------------------------------------------------------
@@ -1117,6 +1192,48 @@ test('progress on one active plan re-renders only that plan’s card', async () 
   );
 
   assert.deepEqual(drawn, [PSALMS]);
+});
+
+// A background sync restamps synced_at on every synced row without changing anything
+// the row shows. CatalogPlanRow used to take the whole progress object as a prop, so
+// a fresh (but equal) progress object from the store still failed its memo comparison.
+test('a sync that only stamps synced_at leaves the Find plans catalog row alone', async () => {
+  const store = await seed(
+    progressRow(PSALMS, { current_day: 3, started_at: '2026-09-22T09:00:00.000Z' })
+  );
+  const view = await renderHome();
+  await openTab(view, 'readingPlans.findPlans');
+  assert.ok(view.getByRole('button', { name: new RegExp(`^${titleOf(PSALMS)}, `) }), 'sanity');
+
+  const drawn = await rowRendersDuring(() =>
+    act(async () => {
+      const psalms = store.getState().progressByPlanId[PSALMS];
+      store.getState().upsertProgress({ ...psalms, synced_at: '2026-09-24T12:00:00.000Z' });
+    })
+  );
+
+  assert.deepEqual(drawn, []);
+});
+
+test('the Find plans catalog row still redraws when the day it shows actually changes', async () => {
+  const store = await seed(
+    progressRow(PSALMS, { current_day: 3, started_at: '2026-09-22T09:00:00.000Z' })
+  );
+  const view = await renderHome();
+  await openTab(view, 'readingPlans.findPlans');
+
+  await act(async () => {
+    store
+      .getState()
+      .upsertProgress({ ...store.getState().progressByPlanId[PSALMS], current_day: 4 });
+  });
+
+  assert.ok(
+    view.getByRole('button', {
+      name: `${titleOf(PSALMS)}, ${t('readingPlans.daysCount', { count: 30 })}, ${t('readingPlans.dayLabel', { day: 4 })}, ${t('readingPlans.enrolled')}`,
+    }),
+    'the row now reads day 4'
+  );
 });
 
 test('pull to refresh does not redraw plan rows that did not change', async () => {

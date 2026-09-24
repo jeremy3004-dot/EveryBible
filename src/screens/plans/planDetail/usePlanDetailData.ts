@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   getPlanEntries,
@@ -21,6 +21,10 @@ export function usePlanDetailData(planId: string) {
   const [relatedPlans, setRelatedPlans] = useState<ReadingPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Mirrors `entries` so a failed refresh can check what was already on screen
+  // without reading state from inside a setState updater (a side effect there
+  // can run more than once under StrictMode/concurrent rendering).
+  const entriesRef = useRef<ReadingPlanEntry[]>(entries);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -32,6 +36,7 @@ export function usePlanDetailData(planId: string) {
     ]);
 
     let foundPlan: ReadingPlan | null = null;
+    let nextError: string | null = null;
     if (plansResult.success) {
       foundPlan = (plansResult.data ?? []).find((p) => p.id === planId) ?? null;
       setPlan(foundPlan);
@@ -39,24 +44,22 @@ export function usePlanDetailData(planId: string) {
         // A persisted or notification-supplied id can outlive its catalog entry. Without
         // this the page rendered an empty ledger under a Start plan button that enrolled
         // the reader in a plan that does not exist.
-        setError(t('common.error'));
+        nextError = t('common.error');
       }
     } else {
-      setError(t('common.error'));
+      nextError = t('common.error');
     }
 
     if (entriesResult.success) {
-      setEntries(entriesResult.data ?? []);
-    } else {
+      entriesRef.current = entriesResult.data ?? [];
+      setEntries(entriesRef.current);
+    } else if (entriesRef.current.length === 0) {
       // Only surface an error when we have no entries to show; keep any
       // previously loaded rows visible on a transient refresh failure.
-      setEntries((prev) => {
-        if (prev.length === 0) {
-          setError(t('common.error'));
-        }
-        return prev;
-      });
+      nextError = t('common.error');
     }
+
+    if (nextError) setError(nextError);
 
     // Fetch related plans once we know the category
     if (foundPlan?.category) {

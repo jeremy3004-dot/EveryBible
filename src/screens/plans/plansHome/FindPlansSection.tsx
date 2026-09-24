@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { AppCard, EmptyState, SectionHeader } from '../../../components/ui';
 import { useTheme, type ThemeColors } from '../../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../../design/system';
+import { getActivePlanDayNumber } from '../../../services/plans/readingPlanModel';
 import type { ReadingPlan, UserReadingPlanProgress } from '../../../services/plans/types';
 import { CatalogPlanRow } from './CatalogPlanRow';
 import { getPlanCategoryLabel, groupCatalogPlans } from './plansHomeModel';
@@ -85,16 +86,21 @@ export function FindPlansSection({
             style={styles.sectionHeader}
           />
           <AppCard padding={0}>
-            {plans.map((plan, index) => (
-              <CatalogPlanRow
-                key={plan.id}
-                plan={plan}
-                progress={progressByPlanId.get(plan.id)}
-                today={today}
-                isFirst={index === 0}
-                onPlanPress={onPlanPress}
-              />
-            ))}
+            {plans.map((plan, index) => {
+              const progress = progressByPlanId.get(plan.id);
+              return (
+                <CatalogPlanRow
+                  key={plan.id}
+                  plan={plan}
+                  isEnrolled={progress !== undefined}
+                  activeDayNumber={
+                    progress ? getActivePlanDayNumber(plan, progress, today) : undefined
+                  }
+                  isFirst={index === 0}
+                  onPlanPress={onPlanPress}
+                />
+              );
+            })}
           </AppCard>
         </View>
       ))}
