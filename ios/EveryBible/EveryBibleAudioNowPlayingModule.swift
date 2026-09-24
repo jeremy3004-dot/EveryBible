@@ -275,7 +275,9 @@ class EveryBibleAudioNowPlayingModule: RCTEventEmitter {
       MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? playbackRate : 0,
     ]
 
-    if let image = artworkImage(from: payload) {
+    // Discreet mode: no artwork at all. The fallbacks below are the app icon and a
+    // generated cover naming the book, and the lock screen shows either to anyone.
+    if !boolValue(payload, key: "discreet"), let image = artworkImage(from: payload) {
       info[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
     }
 

@@ -159,6 +159,7 @@ export function installReaderRenderFixture(
   // through useAudioPosition, both from this store.
   const audioStore = create(() => ({
     status: 'idle' as AudioStatus,
+    error: null as string | null,
     currentTranslationId: null as string | null,
     currentBookId: null as string | null,
     currentChapter: null as number | null,
@@ -234,6 +235,7 @@ export function installReaderRenderFixture(
       const transport = audioStore(
         useShallow((state) => ({
           status: state.status,
+          error: state.error,
           currentTranslationId: state.currentTranslationId,
           currentBookId: state.currentBookId,
           currentChapter: state.currentChapter,

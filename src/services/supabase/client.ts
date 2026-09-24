@@ -2,6 +2,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import { publicRuntimeConfig } from '../startup/publicRuntimeConfig';
+import { createAuthSessionStorage, type AuthSessionStorage } from './authSessionStorage';
 import { createLazyClientAccessor } from './lazyClient';
 import { createRequestTimeoutFetch } from './requestTimeoutFetch';
 import { installSecureRandomValues } from './secureRandomValues';
@@ -37,29 +38,25 @@ const CLIENT_SUPABASE_PUBLIC_KEY = HAS_SUPABASE_CONFIG
   ? SUPABASE_PUBLIC_KEY
   : UNCONFIGURED_SUPABASE_PUBLIC_KEY;
 
-// SecureStore adapter for Supabase auth
-const ExpoSecureStoreAdapter = {
-  getItem: async (key: string): Promise<string | null> => {
-    if (Platform.OS === 'web') {
-      return localStorage.getItem(key);
-    }
-    return SecureStore.getItemAsync(key);
-  },
-  setItem: async (key: string, value: string): Promise<void> => {
-    if (Platform.OS === 'web') {
-      localStorage.setItem(key, value);
-      return;
-    }
-    await SecureStore.setItemAsync(key, value);
-  },
-  removeItem: async (key: string): Promise<void> => {
-    if (Platform.OS === 'web') {
-      localStorage.removeItem(key);
-      return;
-    }
-    await SecureStore.deleteItemAsync(key);
-  },
+// Supabase auth storage: localStorage on web, the OS keychain elsewhere. The keychain
+// adapter never throws (see authSessionStorage.ts); its first failure is reported
+// through the crash queue, loaded only when there is one.
+const reportKeychainFailure = (error: unknown): void => {
+  void import('../diagnostics/crashReportQueue')
+    .then(({ reportHandledError }) => reportHandledError('auth.keychain', error))
+    .catch(() => undefined);
 };
+
+const keychainAuthStorage = createAuthSessionStorage(SecureStore, reportKeychainFailure);
+
+const ExpoSecureStoreAdapter: AuthSessionStorage =
+  Platform.OS === 'web'
+    ? {
+        getItem: async (key) => localStorage.getItem(key),
+        setItem: async (key, value) => localStorage.setItem(key, value),
+        removeItem: async (key) => localStorage.removeItem(key),
+      }
+    : keychainAuthStorage;
 
 const getSupabaseClient = createLazyClientAccessor({
   createClient: () => {

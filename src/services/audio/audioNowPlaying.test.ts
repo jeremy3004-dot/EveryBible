@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test, { before, beforeEach, mock } from 'node:test';
-import { mockModule } from '../../testing/mockModules';
+import { mockModule, sourcePath } from '../../testing/mockModules';
 import { createReactNativeStub } from '../../testing/reactNativeStub';
 import type { BibleNowPlayingRemoteCommand } from './audioNowPlaying';
 
@@ -58,6 +58,27 @@ mockModule(mock, 'react-native', rn);
 // here it is simply not linked.
 mockModule(mock, 'expo', { requireOptionalNativeModule: () => null });
 
+// Discreet mode is read from the privacy store; tests flip it and tell its subscribers.
+type PrivacySnapshot = { isInitialized: boolean; mode: 'standard' | 'discreet' };
+let privacy: PrivacySnapshot = { isInitialized: true, mode: 'standard' };
+const privacyListeners = new Set<(state: PrivacySnapshot, previous: PrivacySnapshot) => void>();
+const setPrivacy = (next: PrivacySnapshot) => {
+  const previous = privacy;
+  privacy = next;
+  privacyListeners.forEach((listener) => listener(next, previous));
+};
+mockModule(mock, sourcePath('stores/privacyStore.ts'), {
+  usePrivacyStore: {
+    getState: () => privacy,
+    subscribe: (listener: (state: PrivacySnapshot, previous: PrivacySnapshot) => void) => {
+      privacyListeners.add(listener);
+      return () => privacyListeners.delete(listener);
+    },
+  },
+  isDiscreetModeActive: (state: PrivacySnapshot = privacy) =>
+    !state.isInitialized || state.mode === 'discreet',
+});
+
 // ---------------------------------------------------------------------------
 // Test scaffolding
 // ---------------------------------------------------------------------------
@@ -97,6 +118,7 @@ beforeEach(() => {
   rn.Platform.OS = 'ios';
   nativeModules.EveryBibleAudioNowPlayingModule = nativeModule;
   delete devFlag.__DEV__;
+  privacy = { isInitialized: true, mode: 'standard' };
 });
 
 test.after(() => {
@@ -159,6 +181,69 @@ test('an explicit translation name wins over the bundled catalog name', async ()
       ],
     },
   ]);
+});
+
+test('in discreet mode the lock screen names neither the chapter, the translation nor the app', async () => {
+  privacy = { isInitialized: true, mode: 'discreet' };
+
+  await mod.syncBibleNowPlaying({ ...genesisOne, discreetTitle: 'Now playing' });
+
+  assert.deepEqual(nativeCalls, [
+    {
+      method: 'syncBibleNowPlaying',
+      args: [
+        {
+          title: 'Now playing',
+          artist: '',
+          albumTitle: '',
+          elapsedSeconds: 30,
+          durationSeconds: 600,
+          playbackRate: 1,
+          isPlaying: true,
+          artworkUri: '',
+          canSkipNext: true,
+          canSkipPrevious: true,
+          discreet: true,
+        },
+      ],
+    },
+  ]);
+});
+
+test('privacy settings that have not loaded yet keep the lock screen neutral', async () => {
+  privacy = { isInitialized: false, mode: 'standard' };
+
+  await mod.syncBibleNowPlaying(genesisOne);
+
+  const payload = nativeCalls.at(-1)?.args[0] as { title: string; discreet?: boolean };
+  assert.deepEqual([payload.title, payload.discreet], ['', true]);
+});
+
+test('turning discreet mode on republishes the playing entry without the chapter', async () => {
+  await mod.syncBibleNowPlaying({ ...genesisOne, discreetTitle: 'Now playing' });
+  nativeCalls.length = 0;
+
+  setPrivacy({ isInitialized: true, mode: 'discreet' });
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(
+    nativeCalls.map((call) => {
+      const payload = call.args[0] as { title: string; artist: string; discreet?: boolean };
+      return [call.method, payload.title, payload.artist, payload.discreet];
+    }),
+    [['syncBibleNowPlaying', 'Now playing', '', true]]
+  );
+});
+
+test('a cleared lock screen stays cleared when discreet mode changes', async () => {
+  await mod.syncBibleNowPlaying(genesisOne);
+  await mod.clearBibleNowPlaying();
+  nativeCalls.length = 0;
+
+  setPrivacy({ isInitialized: true, mode: 'discreet' });
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(nativeCalls, []);
 });
 
 test('every sync pushes a freshly built payload rather than replaying the previous one', async () => {

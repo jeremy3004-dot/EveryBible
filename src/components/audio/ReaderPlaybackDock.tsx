@@ -12,6 +12,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useTheme } from '../../contexts/ThemeContext';
 import { mediumHaptic } from '../../utils/haptics';
+import { AudioPlaybackErrorNotice } from './AudioPlaybackErrorNotice';
 import { radius } from '../../design/system';
 import { READER_TAB_BAR_COLLAPSE_DISTANCE } from '../../navigation/readerTabBarMotion';
 import {
@@ -31,6 +32,8 @@ interface ReaderPlaybackDockProps {
   isCollapsed: boolean;
   isPlaying: boolean;
   isLoading: boolean;
+  /** Why the chapter failed to play, shown above the dock; Play tries again. */
+  errorMessage?: string | null;
   hasPreviousChapter: boolean;
   hasNextChapter: boolean;
   hidePlayButton?: boolean;
@@ -49,6 +52,7 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
   isCollapsed,
   isPlaying,
   isLoading,
+  errorMessage = null,
   hasPreviousChapter,
   hasNextChapter,
   hidePlayButton,
@@ -102,6 +106,12 @@ export const ReaderPlaybackDock = memo(function ReaderPlaybackDock({
 
   return (
     <View style={[styles.container]}>
+      {errorMessage ? (
+        // Floats above the discs so they keep their place over the tab capsule.
+        <View pointerEvents="none" style={styles.errorNoticeWrap}>
+          <AudioPlaybackErrorNotice message={errorMessage} />
+        </View>
+      ) : null}
       <Animated.View
         style={[styles.sideTransportWrap, sideTransportAnimatedStyle]}
         pointerEvents={arrowsHidden ? 'none' : 'auto'}
@@ -210,6 +220,14 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     justifyContent: 'space-between',
     width: '100%',
+  },
+  errorNoticeWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: '100%',
+    marginBottom: 12,
+    alignItems: 'center',
   },
   sideTransportWrap: {
     width: 56,

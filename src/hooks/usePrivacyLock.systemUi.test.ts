@@ -14,6 +14,13 @@ const runtime = createReactHookRuntime();
 mockModule(mock, 'react', runtime.react);
 
 let homeScreenIcon: 'standard' | 'discreet' = 'standard';
+/**
+ * Where the alert falls. On devices the change's completion comes first and the alert
+ * (and the 'inactive' under it) follows, well over a second later; a test sets this to
+ * false and raises the alert itself.
+ */
+let alertDuringChange = true;
+let changesMade = 0;
 let alertShown: (() => void) | null = null;
 /** Resolves once the icon alert is on screen (the app has gone inactive under it). */
 const nextIconAlert = () => new Promise<void>((resolve) => (alertShown = resolve));
@@ -25,9 +32,12 @@ const rn = createReactNativeStub({
       getCurrentAppIcon: async () => homeScreenIcon,
       setAppIcon: async (mode: 'standard' | 'discreet') => {
         iconAlerts.push(mode);
-        rn.AppState.emit('inactive');
-        alertShown?.();
+        if (alertDuringChange) {
+          rn.AppState.emit('inactive');
+          alertShown?.();
+        }
         homeScreenIcon = mode;
+        changesMade += 1;
         return true;
       },
     },
@@ -78,6 +88,8 @@ beforeEach(() => {
   usePrivacyStore.setState({ isInitialized: true, isLocked: false });
   rn.AppState.currentState = 'active';
   iconAlerts.length = 0;
+  alertDuringChange = true;
+  changesMade = 0;
 });
 
 afterEach(() => {
@@ -196,6 +208,64 @@ test('a prompt that never settles stops suppressing the lock after the cap', asy
   const { PRIVACY_LOCK_GRACE_MAX_PENDING_MS } =
     await import('../services/privacy/privacyLockGrace');
   void withPrivacyLockGrace(() => new Promise<void>(() => undefined));
+
+  mock.timers.tick(PRIVACY_LOCK_GRACE_MAX_PENDING_MS);
+  rn.AppState.emit('inactive');
+
+  assert.equal(usePrivacyStore.getState().isLocked, true);
+});
+
+// ─── An icon alert that follows the change ───────────────────────────────────
+
+/** Ticks the fake clock until the icon change has completed natively. */
+async function tickUntilIconChanged(changesBefore: number) {
+  for (let turn = 0; turn < 50 && changesMade === changesBefore; turn += 1) {
+    mock.timers.tick(50);
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+  // Let the store's own continuation after the native call run.
+  for (let turn = 0; turn < 5; turn += 1) await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(changesMade, changesBefore + 1, 'the icon change ran');
+}
+
+test('an icon alert raised well after the change completed does not lock', async () => {
+  alertDuringChange = false;
+  homeScreenIcon = 'discreet';
+  mock.timers.enable({ apis: ['setTimeout', 'Date'], now: Date.now() + 180_000 });
+  usePrivacyStore.setState({ mode: 'discreet', hasPin: true, isLocked: false });
+  mountPrivacyLock();
+
+  // Discreet mode is on but the home screen shows the standard icon: returning to the
+  // app retries the change, and iOS answers with its alert.
+  homeScreenIcon = 'standard';
+  rn.AppState.emit('background');
+  usePrivacyStore.setState({ isLocked: false });
+  const before = changesMade;
+  rn.AppState.emit('active');
+  await tickUntilIconChanged(before);
+
+  // Seen on an iOS 26.5 simulator: the alert came 1.527 s after the change completed.
+  mock.timers.tick(1_527);
+  rn.AppState.emit('inactive');
+  assert.equal(usePrivacyStore.getState().isLocked, false, 'the alert does not lock');
+
+  rn.AppState.emit('active');
+  rn.AppState.emit('inactive');
+  assert.equal(usePrivacyStore.getState().isLocked, true, 'leaving after the alert locks');
+});
+
+test('an icon change that raises no alert stops excusing an inactive app after the cap', async () => {
+  alertDuringChange = false;
+  mock.timers.enable({ apis: ['setTimeout', 'Date'], now: Date.now() + 240_000 });
+  usePrivacyStore.setState({ mode: 'discreet', hasPin: true, isLocked: false });
+  mountPrivacyLock();
+  const { PRIVACY_LOCK_GRACE_MAX_PENDING_MS } =
+    await import('../services/privacy/privacyLockGrace');
+
+  const before = changesMade;
+  homeScreenIcon = 'standard';
+  void usePrivacyStore.getState().reconcileAppIcon();
+  await tickUntilIconChanged(before);
 
   mock.timers.tick(PRIVACY_LOCK_GRACE_MAX_PENDING_MS);
   rn.AppState.emit('inactive');

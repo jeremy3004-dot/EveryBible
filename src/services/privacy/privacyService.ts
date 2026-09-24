@@ -146,7 +146,7 @@ export const applyPrivacyAppIcon = async (mode: PrivacyAppIconMode): Promise<voi
   if ((await getCurrentPrivacyAppIcon()) === mode) {
     return;
   }
-  if (!(await withPrivacyLockGrace(() => setPrivacyAppIcon(mode)))) {
+  if (!(await withPrivacyLockGrace(() => setPrivacyAppIcon(mode), { untilNextActive: true }))) {
     throw new Error(`Failed to apply the ${mode} privacy app icon`);
   }
 };
@@ -157,7 +157,9 @@ export const clearPrivacySettings = async (): Promise<void> => {
   // restore or the handset is left wearing the decoy icon with privacy silently
   // switched off. The mode is still discreet while iOS shows its icon alert, so the
   // change runs under the lock grace.
-  const didApplyStandardIcon = await withPrivacyLockGrace(() => setPrivacyAppIcon('standard'));
+  const didApplyStandardIcon = await withPrivacyLockGrace(() => setPrivacyAppIcon('standard'), {
+    untilNextActive: true,
+  });
   if (!didApplyStandardIcon && supportsDynamicAppIcon()) {
     throw new Error('Failed to apply the standard privacy app icon');
   }

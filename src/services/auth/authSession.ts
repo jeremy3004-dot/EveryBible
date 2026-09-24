@@ -2,6 +2,7 @@ import { supabase, isSupabaseConfigured } from '../supabase';
 import type { User } from '../../types';
 import type { Session } from '@supabase/supabase-js';
 import { isKeychainError } from '../privacy/keychainError';
+import { isAuthSessionStorageUnreadable } from '../supabase/authSessionStorage';
 
 // Session restore runs during critical startup (authStore.initialize), before
 // Home paints. It needs only the Supabase client, so it lives apart from
@@ -152,10 +153,15 @@ export const getCurrentSession = async (): Promise<RestoredAuthSession> => {
       return stored ? awaitingRefresh(stored) : { session: null, user: null, restoreFailed: true };
     }
 
+    // The keychain adapter answers a failed read with "no session" so anonymous
+    // requests still work; that answer is not a sign-out.
+    if (isAuthSessionStorageUnreadable()) {
+      return { session: null, user: null, restoreFailed: true };
+    }
+
     return { session: null, user: null };
   } catch (error) {
-    // An unreadable keychain (ERR_KEY_CHAIN) lands here too. It is not a sign-out: the
-    // app starts as a guest for now and auth-js keeps whatever it holds.
+    // Not a sign-out: the app starts as a guest for now and auth-js keeps whatever it holds.
     console.error('Failed to restore auth session:', error);
     reportRestoreFailure(error);
     return { session: null, user: null, restoreFailed: true };

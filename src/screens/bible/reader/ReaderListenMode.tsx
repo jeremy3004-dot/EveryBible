@@ -26,6 +26,8 @@ export interface ReaderListenModeProps {
   changeBackgroundMusicChoice: (choice: BackgroundMusicChoice) => void;
   changePlaybackRate: (rate: PlaybackRate) => Promise<void>;
   cycleRepeatMode: () => void;
+  /** The player's failure message, shown only while this chapter is the one that failed. */
+  errorMessage: string | null;
   feedback: ChapterFeedback;
   handleListenModeSeek: (positionMs: number) => void;
   handleNextListenChapter: () => Promise<void>;
@@ -55,6 +57,7 @@ export function ReaderListenMode({
   changeBackgroundMusicChoice,
   changePlaybackRate,
   cycleRepeatMode,
+  errorMessage,
   feedback,
   handleListenModeSeek,
   handleNextListenChapter,
@@ -146,6 +149,7 @@ export function ReaderListenMode({
           variant="chapter-only"
           showUtilityRow={false}
           status={listenStatus}
+          errorMessage={listenStatus === 'error' ? errorMessage : null}
           playbackRate={playbackRate}
           repeatMode={repeatMode}
           sleepTimerRemaining={sleepTimerRemaining}

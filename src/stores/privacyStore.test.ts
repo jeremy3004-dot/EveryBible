@@ -270,6 +270,40 @@ test('a keychain that never answers times out into a locked, retryable state', a
   assert.equal(consoleWarn.mock.callCount(), 1);
 });
 
+test('a discreet install whose keychain is too slow shows the calculator, not the error screen', async () => {
+  const consoleWarn = mock.method(console, 'warn', () => {});
+  mmkv.set('everybible.privacy.lockHint.v1', 'discreet');
+  pendingRead = createDeferred();
+  mock.timers.enable({ apis: ['setTimeout'] });
+
+  try {
+    const initializing = store().initialize();
+    await flush();
+    mock.timers.tick(3_500);
+    await initializing;
+  } finally {
+    mock.timers.reset();
+    consoleWarn.mock.restore();
+  }
+
+  assert.deepEqual(
+    {
+      isInitialized: store().isInitialized,
+      initializationError: store().initializationError,
+      mode: store().mode,
+      isLocked: store().isLocked,
+    },
+    { isInitialized: true, initializationError: null, mode: 'discreet', isLocked: true }
+  );
+
+  // The keychain answers late; the code is checked against what it holds.
+  pendingRead.resolve(JSON.stringify({ mode: 'discreet', pin: '1234' }));
+  await flush();
+  assert.equal(store().isLocked, true, 'the late answer does not reopen the app');
+  assert.equal(await store().unlock('1234'), true);
+  assert.equal(store().isLocked, false);
+});
+
 test('a keychain failure is reported as unavailable and leaves the app locked', async () => {
   const consoleError = mock.method(console, 'error', () => {});
   readFailure = new Error('keychain unavailable');
@@ -591,6 +625,33 @@ test('repeated wrong codes trip an exponential lockout that refuses further atte
   assert.equal(await store().unlock('1234'), false);
   assert.deepEqual(secureStoreReads, []);
   assert.equal(store().isLocked, true);
+});
+
+test('wrong codes submitted faster than the keychain answers each count as an attempt', async () => {
+  secureStore.set(PRIVACY_SETTINGS_KEY, JSON.stringify({ mode: 'discreet', pin: '1234' }));
+  await store().initialize();
+
+  // Rapid '=' presses (or an automated tapper) must not share one read of the counter.
+  const results = await Promise.all(
+    ['1111', '2222', '3333', '4444', '5555', '6666'].map((pin) => store().unlock(pin))
+  );
+
+  assert.deepEqual(results, [false, false, false, false, false, false]);
+  assert.equal(storedSettings()?.failedPinAttempts, 5, 'the sixth is refused by the lockout');
+  const lockedUntil = store().pinLockedUntil;
+  assert.ok(typeof lockedUntil === 'number' && lockedUntil > Date.now());
+  assert.equal(store().isLocked, true);
+});
+
+test('the right code queued behind wrong ones still unlocks once they are counted', async () => {
+  secureStore.set(PRIVACY_SETTINGS_KEY, JSON.stringify({ mode: 'discreet', pin: '1234' }));
+  await store().initialize();
+
+  const results = await Promise.all([store().unlock('9999'), store().unlock('1234')]);
+
+  assert.deepEqual(results, [false, true]);
+  assert.equal(store().isLocked, false);
+  assert.equal(storedSettings()?.failedPinAttempts, 0);
 });
 
 test('a persisted lockout survives a cold start', async () => {

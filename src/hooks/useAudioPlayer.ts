@@ -356,10 +356,13 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     audioPlayer.setCallbacks({
       onStatusUpdate: handleStatusUpdate,
       onPlaybackFinished: handlePlaybackFinished,
-      onError: () => {
+      onError: (message) => {
         // Some native commands report through this callback and still resolve.
         // Their callers must not replace this error with a successful status.
         session.playbackErrorId += 1;
+        session.lastPlaybackError = message;
+        // A chapter still loading reports its own failure once it has retried.
+        if (session.loadingPlayRequestId === session.playRequestId) return;
         chapterTransition.current = false;
         setError(t('interface.audioPlayFailed'));
       },
