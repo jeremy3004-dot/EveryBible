@@ -270,6 +270,40 @@ test('a keychain that never answers times out into a locked, retryable state', a
   assert.equal(consoleWarn.mock.callCount(), 1);
 });
 
+test('a discreet install whose keychain is too slow shows the calculator, not the error screen', async () => {
+  const consoleWarn = mock.method(console, 'warn', () => {});
+  mmkv.set('everybible.privacy.lockHint.v1', 'discreet');
+  pendingRead = createDeferred();
+  mock.timers.enable({ apis: ['setTimeout'] });
+
+  try {
+    const initializing = store().initialize();
+    await flush();
+    mock.timers.tick(3_500);
+    await initializing;
+  } finally {
+    mock.timers.reset();
+    consoleWarn.mock.restore();
+  }
+
+  assert.deepEqual(
+    {
+      isInitialized: store().isInitialized,
+      initializationError: store().initializationError,
+      mode: store().mode,
+      isLocked: store().isLocked,
+    },
+    { isInitialized: true, initializationError: null, mode: 'discreet', isLocked: true }
+  );
+
+  // The keychain answers late; the code is checked against what it holds.
+  pendingRead.resolve(JSON.stringify({ mode: 'discreet', pin: '1234' }));
+  await flush();
+  assert.equal(store().isLocked, true, 'the late answer does not reopen the app');
+  assert.equal(await store().unlock('1234'), true);
+  assert.equal(store().isLocked, false);
+});
+
 test('a keychain failure is reported as unavailable and leaves the app locked', async () => {
   const consoleError = mock.method(console, 'error', () => {});
   readFailure = new Error('keychain unavailable');

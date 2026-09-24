@@ -113,6 +113,21 @@ const syncAppIcon = async (mode: PrivacyAppIconMode): Promise<void> => {
 };
 
 export const usePrivacyStore = create<PrivacyState>()((set, get) => {
+  // Starts without the keychain record: mode and hasPin are assumed until unlock reads it.
+  const assumeModeWithoutKeychain = (mode: PrivacyAppIconMode): void => {
+    const locks = mode === 'discreet';
+    set({
+      isInitialized: true,
+      isLoading: false,
+      initializationError: null,
+      mode,
+      hasPin: locks,
+      isLocked: locks,
+      pinLockedUntil: null,
+      keychainUnreadable: true,
+    });
+  };
+
   const initialize = async (): Promise<void> => {
     if (get().isInitialized || get().isLoading) {
       return;
@@ -160,21 +175,18 @@ export const usePrivacyStore = create<PrivacyState>()((set, get) => {
         return;
       }
       if (assumedMode) {
-        const locks = assumedMode === 'discreet';
-        set({
-          isInitialized: true,
-          isLoading: false,
-          initializationError: null,
-          mode: assumedMode,
-          hasPin: locks,
-          isLocked: locks,
-          pinLockedUntil: null,
-          keychainUnreadable: true,
-        });
+        assumeModeWithoutKeychain(assumedMode);
         return;
       }
     } else {
       console.warn('Privacy mode initialization timed out; waiting for retry.');
+      // The retry screen wears the app's own look, so a discreet install waits behind the
+      // calculator instead. The late answer is dropped: unlocking reads the keychain again.
+      if (readPrivacyLockHint() === 'discreet') {
+        initializationGeneration += 1;
+        assumeModeWithoutKeychain('discreet');
+        return;
+      }
     }
 
     set({
