@@ -6,6 +6,7 @@ import i18n from '../../i18n';
 import { parseReminderTime } from '../preferences/reminderPreferences';
 import { supabase } from '../supabase';
 import { DAILY_REMINDER_NOTIFICATION_DATA } from './notificationTapRouting';
+import { notifyNotificationPermissionRequested } from './notificationPermissionEvents';
 export { setupNotificationHandler } from './notificationBootstrap';
 
 /**
@@ -151,11 +152,17 @@ export async function requestNotificationPermissionOutcome(): Promise<Notificati
     return 'granted';
   }
 
-  const { status, canAskAgain } = await Notifications.requestPermissionsAsync();
-  if (status === 'granted') {
+  let response: Awaited<ReturnType<typeof Notifications.requestPermissionsAsync>>;
+  try {
+    response = await Notifications.requestPermissionsAsync();
+  } finally {
+    // Whatever the answer, whoever shows or depends on the permission re-reads it.
+    notifyNotificationPermissionRequested();
+  }
+  if (response.status === 'granted') {
     return 'granted';
   }
-  return canAskAgain === false ? 'blocked' : 'denied';
+  return response.canAskAgain === false ? 'blocked' : 'denied';
 }
 
 export type NotificationPermissionStatus = 'granted' | 'denied' | 'undetermined';
@@ -173,23 +180,31 @@ export async function getNotificationPermissionStatus(): Promise<NotificationPer
 }
 
 /**
- * Whether the system will keep the daily reminder from appearing: the app's
- * notifications are denied, or (Android only) the user switched off the reminder's
- * own channel in system settings while the app-level permission stays granted.
+ * Whether the system lets the daily reminder appear on this device:
+ * - 'needs-permission': notifications have not been allowed, and asking would still
+ *   show the system prompt (never asked, or an Android denial it will ask about again).
+ *   A reminder synced on from another device lands here until the user is asked.
+ * - 'blocked': notifications are denied for good, or (Android only) the user switched
+ *   off the reminder's own channel while the app-level permission stays granted. Only
+ *   system settings can change it.
+ * - 'allowed': nothing in the system stands in the way.
  * A channel that cannot be read is not reported: a false alarm is worse than none.
  */
-export async function isDailyReminderBlockedBySystem(): Promise<boolean> {
-  if ((await getNotificationPermissionStatus()) === 'denied') {
-    return true;
+export type DailyReminderSystemState = 'allowed' | 'needs-permission' | 'blocked';
+
+export async function getDailyReminderSystemState(): Promise<DailyReminderSystemState> {
+  const { status, canAskAgain } = await Notifications.getPermissionsAsync();
+  if (status !== 'granted') {
+    return status === 'undetermined' || canAskAgain === true ? 'needs-permission' : 'blocked';
   }
   if (Platform.OS !== 'android') {
-    return false;
+    return 'allowed';
   }
   try {
     const channel = await Notifications.getNotificationChannelAsync(DAILY_REMINDER_CHANNEL_ID);
-    return channel?.importance === Notifications.AndroidImportance.NONE;
+    return channel?.importance === Notifications.AndroidImportance.NONE ? 'blocked' : 'allowed';
   } catch {
-    return false;
+    return 'allowed';
   }
 }
 

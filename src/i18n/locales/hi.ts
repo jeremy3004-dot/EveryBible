@@ -517,6 +517,9 @@ export const hi = {
     notificationsBlockedNotice:
       'आपके डिवाइस की सेटिंग में Every Bible की सूचनाएँ बंद हैं, इसलिए यह अनुस्मारक दिखाई नहीं दे सकता।',
     openDeviceSettings: 'सेटिंग खोलें',
+    notificationsNotAllowedNotice:
+      'यह अनुस्मारक दिखाने के लिए Every Bible को इस डिवाइस पर सूचनाएँ भेजने की अनुमति चाहिए।',
+    allowNotifications: 'सूचनाओं की अनुमति दें',
     selectLanguage: 'इंटरफ़ेस भाषा चुनें',
     deleteAccount: 'खाता हटाएँ',
     deleteAccountWarning:

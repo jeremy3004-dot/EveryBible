@@ -794,6 +794,9 @@ export const ur = {
     notificationsBlockedNotice:
       'آپ کی ڈیوائس کی ترتیبات میں Every Bible کی اطلاعات بند ہیں، اس لیے یہ یاد دہانی ظاہر نہیں ہو سکتی۔',
     openDeviceSettings: 'ترتیبات کھولیں',
+    notificationsNotAllowedNotice:
+      'یہ یاد دہانی ظاہر ہونے کے لیے Every Bible کو اس ڈیوائس پر اطلاعات بھیجنے کی اجازت درکار ہے۔',
+    allowNotifications: 'اطلاعات کی اجازت دیں',
     selectLanguage: 'انٹرفیس کی زبان منتخب کریں',
     deleteAccount: 'اکاؤنٹ حذف کریں',
     deleteAccountWarning:

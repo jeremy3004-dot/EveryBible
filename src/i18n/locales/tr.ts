@@ -805,6 +805,9 @@ export const tr = {
     notificationsBlockedNotice:
       'Every Bible bildirimleri cihaz ayarlarınızda kapalı, bu yüzden bu hatırlatma görünemez.',
     openDeviceSettings: 'Ayarları Aç',
+    notificationsNotAllowedNotice:
+      'Bu hatırlatmanın görünebilmesi için Every Bible’ın bu cihazda bildirim gönderme iznine ihtiyacı var.',
+    allowNotifications: 'Bildirimlere İzin Ver',
     selectLanguage: 'Arayüz dilini seçin',
     deleteAccount: 'Hesabı sil',
     deleteAccountWarning:

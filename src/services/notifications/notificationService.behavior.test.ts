@@ -90,7 +90,7 @@ mockModule(mock, 'expo-notifications', {
   setNotificationHandler: () => {},
   getPermissionsAsync: async () => {
     permissionCalls.push('get');
-    return { status: permission.current };
+    return { status: permission.current, canAskAgain: permission.canAskAgain };
   },
   requestPermissionsAsync: async () => {
     permissionCalls.push('request');
@@ -298,29 +298,46 @@ test('a reminder whose Android channel the user switched off is reported as bloc
   rn.Platform.OS = 'android';
   channelImportance.set('daily-reminder', 1);
 
-  assert.equal(await notifications.isDailyReminderBlockedBySystem(), true);
+  assert.equal(await notifications.getDailyReminderSystemState(), 'blocked');
 });
 
-test('a reminder channel that is on, or not created yet, is not reported as blocked', async () => {
+test('a reminder channel that is on, or not created yet, is allowed', async () => {
   rn.Platform.OS = 'android';
-  assert.equal(await notifications.isDailyReminderBlockedBySystem(), false);
+  assert.equal(await notifications.getDailyReminderSystemState(), 'allowed');
 
   channelImportance.set('daily-reminder', 3);
-  assert.equal(await notifications.isDailyReminderBlockedBySystem(), false);
+  assert.equal(await notifications.getDailyReminderSystemState(), 'allowed');
 });
 
-test('a reminder is reported as blocked when the app permission is denied', async () => {
+test('a reminder is reported as blocked when the system will not ask for permission again', async () => {
   permission.current = 'denied';
-  assert.equal(await notifications.isDailyReminderBlockedBySystem(), true);
+  permission.canAskAgain = false;
+  assert.equal(await notifications.getDailyReminderSystemState(), 'blocked');
 
   rn.Platform.OS = 'android';
-  assert.equal(await notifications.isDailyReminderBlockedBySystem(), true);
+  assert.equal(await notifications.getDailyReminderSystemState(), 'blocked');
+});
+
+test('a reminder on a device never asked for permission needs it, without prompting', async () => {
+  // The reminder was turned on on another device and arrived here by sync.
+  permission.current = 'undetermined';
+
+  assert.equal(await notifications.getDailyReminderSystemState(), 'needs-permission');
+  assert.deepEqual(permissionCalls, ['get']);
+});
+
+test('an Android denial the system would still ask about again needs permission, not settings', async () => {
+  rn.Platform.OS = 'android';
+  permission.current = 'denied';
+  permission.canAskAgain = true;
+
+  assert.equal(await notifications.getDailyReminderSystemState(), 'needs-permission');
 });
 
 test('iOS never reads Android channels when checking whether the reminder is blocked', async () => {
   channelImportance.set('daily-reminder', 1);
 
-  assert.equal(await notifications.isDailyReminderBlockedBySystem(), false);
+  assert.equal(await notifications.getDailyReminderSystemState(), 'allowed');
   assert.equal(channelReads, 0);
 });
 
@@ -328,7 +345,30 @@ test('an unreadable channel is not reported as blocked', async () => {
   rn.Platform.OS = 'android';
   channelReadFailure = new Error('notification service unavailable');
 
-  assert.equal(await notifications.isDailyReminderBlockedBySystem(), false);
+  assert.equal(await notifications.getDailyReminderSystemState(), 'allowed');
+});
+
+test('asking for permission tells listeners to re-read it, an existing grant does not', async () => {
+  const { addNotificationPermissionRequestListener } =
+    await import('./notificationPermissionEvents');
+  let notified = 0;
+  const subscription = addNotificationPermissionRequestListener(() => {
+    notified += 1;
+  });
+  try {
+    await notifications.requestNotificationPermissionOutcome();
+    assert.equal(notified, 0, 'already granted: nothing was asked');
+
+    permission.current = 'undetermined';
+    await notifications.requestNotificationPermissionOutcome();
+    assert.equal(notified, 1);
+
+    subscription.remove();
+    await notifications.requestNotificationPermissionOutcome();
+    assert.equal(notified, 1, 'a removed listener hears nothing');
+  } finally {
+    subscription.remove();
+  }
 });
 
 test('scheduling a reminder on Android waits for the channel its trigger names', async () => {

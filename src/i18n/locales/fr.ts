@@ -836,6 +836,9 @@ export const fr = {
     notificationsBlockedNotice:
       'Les notifications d’Every Bible sont désactivées dans les paramètres de votre appareil : ce rappel ne peut donc pas s’afficher.',
     openDeviceSettings: 'Ouvrir les paramètres',
+    notificationsNotAllowedNotice:
+      'Every Bible a besoin de votre autorisation pour envoyer des notifications sur cet appareil afin que ce rappel puisse s’afficher.',
+    allowNotifications: 'Autoriser les notifications',
     selectLanguage: 'Choisir la langue de l’interface',
     deleteAccount: 'Supprimer le compte',
     deleteAccountWarning:

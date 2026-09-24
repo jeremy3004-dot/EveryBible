@@ -805,6 +805,9 @@ export const id = {
     notificationsBlockedNotice:
       'Notifikasi Every Bible dimatikan di pengaturan perangkat Anda, jadi pengingat ini tidak dapat muncul.',
     openDeviceSettings: 'Buka Pengaturan',
+    notificationsNotAllowedNotice:
+      'Every Bible memerlukan izin untuk mengirim notifikasi di perangkat ini agar pengingat ini dapat muncul.',
+    allowNotifications: 'Izinkan Notifikasi',
     selectLanguage: 'Pilih bahasa antarmuka',
     deleteAccount: 'Hapus akun',
     deleteAccountWarning:
