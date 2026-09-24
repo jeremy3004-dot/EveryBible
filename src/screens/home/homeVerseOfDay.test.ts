@@ -38,7 +38,7 @@ function home({ withTranslation = true } = {}) {
   const load: VerseOfDayLoad = {
     requestIdRef: { current: 0 },
     translation: withTranslation ? BSB : undefined,
-    remoteAudioAvailable: false,
+    audioAvailable: false,
     loadBibleService: async () => {
       const moduleLoad = deferred<void>();
       moduleLoads.push(moduleLoad);

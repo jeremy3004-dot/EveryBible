@@ -13,7 +13,8 @@ export interface VerseOfDayBibleService {
 export interface VerseOfDayLoad {
   requestIdRef: { current: number };
   translation: VerseTranslation | undefined;
-  remoteAudioAvailable: boolean;
+  /** Whether today's chapter audio can play now: streamed while online, or downloaded. */
+  audioAvailable: boolean;
   /** The screen's lazy `import()` of bibleService, kept there so Home's graph stays light. */
   loadBibleService: () => Promise<VerseOfDayBibleService>;
   setIsLoadingVerse: (isLoading: boolean) => void;
@@ -48,7 +49,7 @@ export async function loadVerseOfDay(
 
     const { getDailyScripture } = await load.loadBibleService();
     if (requestId !== requestIdRef.current) return;
-    const scripture = await getDailyScripture(load.translation, load.remoteAudioAvailable, {
+    const scripture = await getDailyScripture(load.translation, load.audioAvailable, {
       allowInitialization,
     });
     if (requestId === requestIdRef.current) {

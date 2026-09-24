@@ -37,6 +37,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useDisplayFont } from '../../hooks/useDisplayFont';
 import { useLargeText } from '../../hooks/useLargeText';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
+import { useDeviceOffline } from '../../hooks/useDeviceOffline';
 import { useTranslationContentSummary } from '../../hooks/useTranslationContentSummary';
 import { GatherIconBadge } from '../../components/gather/GatherIconBadge';
 import { useAuthStore } from '../../stores/authStore';
@@ -247,9 +248,27 @@ export function HomeScreen() {
   // decides instead; until the manifest resolves it is undefined and Home stays optimistic.
   const dailyAudioChapters = useTranslationContentSummary(currentTranslationInfo)?.audioChapters;
   const dailyScriptureReference = getDailyScriptureReference(new Date(clockMs));
+  // Streaming needs the network and a stream that carries today's book (a New Testament
+  // audio set has no Isaiah); downloaded audio plays either way.
+  const isOffline = useDeviceOffline();
   const remoteAudioAvailable =
     config.features.audioEnabled &&
-    isRemoteAudioAvailable(currentTranslation) &&
+    !isOffline &&
+    isRemoteAudioAvailable(currentTranslation, dailyScriptureReference.bookId) &&
+    isChapterAudioCovered(
+      dailyAudioChapters,
+      dailyScriptureReference.bookId,
+      dailyScriptureReference.chapter
+    );
+  const dailyAudioPlayable =
+    currentTranslationInfo != null &&
+    getAudioAvailability({
+      featureEnabled: config.features.audioEnabled,
+      translationHasAudio: currentTranslationInfo.hasAudio,
+      remoteAudioAvailable,
+      downloadedAudioBooks: currentTranslationInfo.downloadedAudioBooks,
+      bookId: dailyScriptureReference.bookId,
+    }).canPlayAudio &&
     isChapterAudioCovered(
       dailyAudioChapters,
       dailyScriptureReference.bookId,
@@ -427,14 +446,14 @@ export function HomeScreen() {
         {
           requestIdRef: verseRequestIdRef,
           translation: currentTranslationInfo,
-          remoteAudioAvailable,
+          audioAvailable: dailyAudioPlayable,
           loadBibleService: () => import('../../services/bible/bibleService'),
           setIsLoadingVerse,
           setDailyScripture,
         },
         options
       ),
-    [currentTranslationInfo, remoteAudioAvailable]
+    [currentTranslationInfo, dailyAudioPlayable]
   );
 
   useEffect(
