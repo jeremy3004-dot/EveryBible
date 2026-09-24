@@ -1266,6 +1266,7 @@ export function BibleReaderScreen() {
         hasNextChapter={hasNextChapter}
         hasOtherIncompletePlanSessions={hasOtherIncompletePlanSessions}
         hasPrevChapter={hasPrevChapter}
+        isCollapsed={isReadBottomChromeCollapsed}
         isLastPlanChapter={isLastPlanChapter}
         planDayNumber={planDayNumber}
         planSessionBottomBarAnimatedStyle={planSessionBottomBarAnimatedStyle}
