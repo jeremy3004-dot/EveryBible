@@ -2307,6 +2307,23 @@ test('pausing during the initial stop prevents the pending chapter from starting
   assert.deepEqual(playerCalls('loadAndPlay'), []);
 });
 
+test('playChapter stops the current sound before it looks up the next chapter', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  recorded.audioLookups.length = 0;
+  const gate = deferPlayerOperation();
+  playerGates.set('stop', gate.promise);
+
+  const pending = player.rerender().playChapter('GEN', 2);
+  await flushPlayerOperations();
+  assert.deepEqual(recorded.audioLookups, [], 'nothing is resolved while the old sound plays');
+
+  gate.resolve();
+  await pending;
+  assert.equal(recorded.audioLookups.length, 1);
+  assert.equal(store().currentChapter, 2);
+});
+
 test('stopping during the initial stop prevents the pending chapter from starting', async () => {
   const player = mountPlayer();
   const gate = deferPlayerOperation();

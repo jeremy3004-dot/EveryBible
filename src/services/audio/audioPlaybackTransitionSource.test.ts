@@ -1,5 +1,5 @@
-// Source-shape guard by design: the remaining assertions cover ordering and wiring inside
-// useAudioPlayer.ts and BibleReaderScreen.tsx, which have no behavioural test seam here.
+// UI-only source check: the remaining assertions cover wiring inside BibleReaderScreen.tsx,
+// which has no component renderer in this suite.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -9,16 +9,8 @@ function readRelativeSource(relativePath: string): string {
   return readFileSync(fileURLToPath(new URL(relativePath, import.meta.url).href), 'utf8');
 }
 
-test('playChapter stops the active sound before resolving the next chapter source', () => {
-  const useAudioPlayerSource = readRelativeSource('../../hooks/useAudioPlayer.ts');
-
-  assert.match(
-    useAudioPlayerSource,
-    /await audioPlayer\.stop\(\);[\s\S]*let audioData = await getChapterAudioUrl/,
-    'useAudioPlayer should stop the current sound before loading the next chapter source'
-  );
-});
-
+// 'playChapter stops the active sound before resolving the next chapter source' now runs on
+// the real hook in useAudioPlayer.test.ts.
 test('reader chapter navigation keeps read mode separate from audio playback controls', () => {
   const readerSource = readRelativeSource('../../screens/bible/BibleReaderScreen.tsx');
 
