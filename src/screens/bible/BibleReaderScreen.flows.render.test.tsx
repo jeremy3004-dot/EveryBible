@@ -1,12 +1,13 @@
 import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
+import { act } from 'react-test-renderer';
 import { hostAncestors, within } from '../../testing/render';
 import { installReaderRenderFixture, JOHN_3, verseOf } from './BibleReaderScreen.renderFixture';
 
 // What a reader does with a chapter: select verses and act on them, act on the
 // whole chapter, and finish a plan day.
 const reader = installReaderRenderFixture(mock);
-const { harness, t, renderReader, chapters, serviceCalls } = reader;
+const { harness, t, renderReader, navigateReader, chapters, serviceCalls } = reader;
 
 type View = Awaited<ReturnType<typeof renderReader>>;
 
@@ -181,4 +182,51 @@ test('on the last chapter of a plan day the dock completes the day and ends play
   assert.deepEqual(callsNamed('markDayComplete'), [['markDayComplete', 'gospels-60-days', 1]]);
   assert.deepEqual(reader.audioCalls, [['stop']]);
   assert.deepEqual(resumeCleared, [['gospels-60-days', 1]]);
+});
+
+test('a plan reader left open overnight counts a listen for the new day, not against yesterday', async (context) => {
+  context.after(() => mock.timers.reset());
+  mock.timers.enable({ apis: ['Date'], now: new Date(2026, 8, 24, 21, 0) });
+  // Matthew 2 (the day's second chapter) was read yesterday evening, so it counted then.
+  reader.progressStore.setState({
+    chaptersRead: { MAT_2: new Date(2026, 8, 24, 20, 0).getTime() },
+  });
+  reader.readingPlansStore.setState({
+    progressByPlanId: {
+      'gospels-60-days': { plan_id: 'gospels-60-days', is_completed: false, completed_entries: {} },
+    },
+  });
+  // Audio-only chapters: the day is listened to on the listen page.
+  chapters.set('MAT:1', []);
+  chapters.set('MAT:2', []);
+  const view = await renderReader({
+    bookId: 'MAT',
+    chapter: 1,
+    planId: 'gospels-60-days',
+    planDayNumber: 1,
+    returnToPlanOnComplete: true,
+  });
+
+  // Suspended overnight on the reader: nothing refocuses it.
+  await act(async () => harness.rn.AppState.emit('background'));
+  mock.timers.setTime(new Date(2026, 8, 25, 7, 0).getTime());
+  await act(async () => harness.rn.AppState.emit('active'));
+  await view.flush();
+
+  // This morning: step to Matthew 2 and listen it through.
+  await navigateReader(view, { chapter: 2 });
+  await act(async () => {
+    reader.libraryStore.setState({
+      history: [
+        { id: 'MAT:2', bookId: 'MAT', chapter: 2, progress: 1, listenedAt: Date.now() },
+      ] as never[],
+    });
+  });
+  await view.flush();
+
+  // Yesterday's read belongs to yesterday: today's listen is what counts the chapter.
+  assert.ok(
+    view.getByText(t('readingPlans.listenChapterCounted', { reference: 'Matthew 2' })),
+    "the listen is counted for today's plan"
+  );
 });

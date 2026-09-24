@@ -37,6 +37,7 @@ import { useReadingPlansStore } from '../../stores/readingPlansStore';
 import { useAudioPlayer } from '../../hooks/useAudioPlayer';
 import { useFontSize } from '../../hooks/useFontSize';
 import { useLargeText } from '../../hooks/useLargeText';
+import { useLocalToday } from '../../hooks/useLocalToday';
 import { useShallow } from 'zustand/react/shallow';
 import { ReaderPlaybackDock } from '../../components/audio/ReaderPlaybackDock';
 import {
@@ -353,7 +354,10 @@ export function BibleReaderScreen() {
   const readingFontFamilyBold = getReadingFontFamily(currentTranslationInfo?.language, 700);
   const compactBookName = getCompactTranslatedBookName(bookId, t);
   const activeChapterKey = `${bookId}_${chapter}`;
-  const todayDateKey = formatLocalDateKey(new Date());
+  // A reader left open past midnight (or resumed the next morning) must count today's
+  // reads and listens toward today's plan day, not yesterday's.
+  const today = useLocalToday();
+  const todayDateKey = useMemo(() => formatLocalDateKey(today), [today]);
   const {
     activePlanChapterIndex,
     activePlanDayChapterItems,
@@ -390,6 +394,7 @@ export function BibleReaderScreen() {
     returnToPlanOnComplete,
     sessionContext,
     setPlanDayResume,
+    today,
     todayDateKey,
   });
   useAudioReturnTarget({
