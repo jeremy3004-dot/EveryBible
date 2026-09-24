@@ -24,11 +24,20 @@ await db.exec(`insert into analytics_events(event_name,event_properties,session_
 ('audio_playback_progress','{"listened_ms":60000,"translation_id":"bsb"}','listener',now(),'NP',28.229,83.999),
 ('audio_completed','{"duration_ms":600000,"translation_id":"bsb"}','zero-only',now(),'NP',28.209,83.989),
 ('audio_download_completed','{"download_units":3,"translation_id":"offline"}','downloader',now(),null,null,null);`);
-const j = (
-  await db.query(
-    `select get_admin_analytics_overview(date_trunc('day',now())-interval '6 days',7) overview`
+const overviewSql = `select get_admin_analytics_overview(date_trunc('day',now())-interval '6 days',7) overview`;
+const before = (await db.query(overviewSql)).rows[0].overview;
+// 20260924150000 rewrites the overview for speed; it must return the same JSON.
+await db.exec(
+  await fs.readFile(
+    new URL(
+      '../supabase/migrations/20260924150000_speed_up_admin_analytics_overview.sql',
+      import.meta.url
+    ),
+    'utf8'
   )
-).rows[0].overview;
+);
+const j = (await db.query(overviewSql)).rows[0].overview;
+assert.deepEqual(j, before);
 assert.equal(j.dailyListeningMinutes.at(-1).day, new Date().toISOString().slice(0, 10));
 assert.equal(
   j.dailyListeningMinutes.reduce((s, p) => s + p.value, 0),
