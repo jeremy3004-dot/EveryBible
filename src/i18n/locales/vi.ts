@@ -417,7 +417,7 @@ export const vi = {
     somethingWentWrong: 'Đã xảy ra lỗi',
     offlineTryAgain: 'Bạn đang ngoại tuyến. Hãy kết nối internet rồi thử lại.',
     tryAgain: 'Thử lại',
-    shareMessage: 'Hãy thử Every Bible nhé!',
+    shareMessage: 'Mình đang đọc và nghe Kinh Thánh trên Every Bible. Miễn phí nhé. Xem thử nha:',
     all: 'Tất cả',
   },
   tabs: {
@@ -1665,6 +1665,8 @@ export const vi = {
     sendInvitation: 'Gửi lời mời',
     gatherWithOthers: 'Nhóm họp cùng người khác',
     invitationDescription: 'Mời ai đó cùng khám phá Kinh Thánh.',
+    inviteShareMessage:
+      'Mình đang học “{{title}}” trên Every Bible. Bạn có muốn học cùng mình không?',
     upNext: 'Tiếp theo',
     fellowship: 'Thông công',
     story: 'Câu chuyện',

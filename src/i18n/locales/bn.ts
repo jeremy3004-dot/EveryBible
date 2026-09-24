@@ -105,7 +105,7 @@ export const bn = {
     somethingWentWrong: 'কিছু ভুল হয়েছে',
     offlineTryAgain: 'আপনি অফলাইনে আছেন। ইন্টারনেটে সংযুক্ত হয়ে আবার চেষ্টা করুন।',
     tryAgain: 'আবার চেষ্টা করুন',
-    shareMessage: 'Every Bible দেখুন!',
+    shareMessage: 'আমি Every Bible-এ বাইবেল পড়ছি ও শুনছি। এটি বিনামূল্যে। দেখে নিন:',
     all: 'সব',
   },
   tabs: {
@@ -1341,6 +1341,7 @@ export const bn = {
     sendInvitation: 'আমন্ত্রণ পাঠান',
     gatherWithOthers: 'অন্যদের সঙ্গে মিলিত হোন',
     invitationDescription: 'কাউকে একসঙ্গে বাইবেল আবিষ্কার করতে আমন্ত্রণ জানান।',
+    inviteShareMessage: 'আমি Every Bible-এ “{{title}}” পড়ছি। আপনি কি আমার সঙ্গে পড়বেন?',
     upNext: 'এরপর',
     fellowship: 'সহভাগিতা',
     story: 'গল্প',

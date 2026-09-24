@@ -424,7 +424,7 @@ export const pt = {
     somethingWentWrong: 'Algo deu errado',
     offlineTryAgain: 'Você está off-line. Conecte-se à internet e tente novamente.',
     tryAgain: 'Tentar novamente',
-    shareMessage: 'Confira o Every Bible!',
+    shareMessage: 'Estou lendo e ouvindo a Bíblia com o Every Bible. É grátis. Dá uma olhada:',
     all: 'Todos',
   },
   tabs: {
@@ -1702,6 +1702,7 @@ export const pt = {
     sendInvitation: 'Enviar um convite',
     gatherWithOthers: 'Reúna-se com outras pessoas',
     invitationDescription: 'Convide alguém para descobrir a Bíblia juntos.',
+    inviteShareMessage: 'Estou estudando “{{title}}” no Every Bible. Quer fazer comigo?',
     upNext: 'A seguir',
     fellowship: 'Comunhão',
     story: 'História',

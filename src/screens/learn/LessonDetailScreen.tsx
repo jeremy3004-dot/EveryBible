@@ -56,6 +56,7 @@ import { resolveFloatingBottomOffset } from '../../hooks/useTabBarHeight';
 import {
   lessonAudioTranslationCandidates,
   resolveLessonAudio,
+  type LessonAudioSource,
 } from '../../services/gather/lessonAudioSource';
 import {
   buildStoryPassageView,
@@ -64,6 +65,7 @@ import {
   type StoryStatus,
 } from './lessonPassageModel';
 import { readLessonPlaybackStatus } from './lessonAudioModel';
+import { useLessonFollowAlongVerse, type LessonFollowAlongVerse } from './lessonFollowAlong';
 import { createLessonSoundOwner } from './lessonSoundOwner';
 import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../design/largeTextLayout';
 
@@ -177,7 +179,8 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
   const [passageLoadFailed, setPassageLoadFailed] = useState(false);
   // Bumped by Retry to run the passage load again.
   const [passageLoadAttempt, setPassageLoadAttempt] = useState(0);
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [audioSource, setAudioSource] = useState<LessonAudioSource | null>(null);
+  const audioUrl = audioSource?.url ?? null;
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [audioPosition, setAudioPosition] = useState(0);
   const [audioDuration, setAudioDuration] = useState(0);
@@ -199,7 +202,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
     application: 0,
   });
   const resetAudioPlaybackState = useCallback(() => {
-    setAudioUrl(null);
+    setAudioSource(null);
     setAudioPosition(0);
     setAudioDuration(0);
     setIsAudioPlaying(false);
@@ -265,7 +268,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
     void resolveLessonAudio(lesson.references, audioCandidateKey.split('|'), getChapterAudioUrl)
       .then((source) => {
         if (!cancelled) {
-          setAudioUrl(source?.url ?? null);
+          setAudioSource(source);
         }
       })
       .catch(() => {
@@ -452,6 +455,20 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
       markLessonComplete(parentId, lessonId);
     }
   }, [isComplete, lessonId, markLessonComplete, parentId, unmarkLessonComplete]);
+
+  // The story highlights the verse the recording is on, as the Bible reader does.
+  const followAlongVerse = useLessonFollowAlongVerse({
+    source: audioSource,
+    textTranslationId:
+      passageBlocks.find(
+        (block) =>
+          block.verses[0]?.bookId === audioSource?.bookId &&
+          block.verses[0]?.chapter === audioSource?.chapter
+      )?.translationId ?? null,
+    positionMillis: audioPosition,
+    durationMillis: audioDuration,
+    started: isAudioPlaying || audioPosition > 0,
+  });
 
   const storyView = useMemo(
     () =>
@@ -663,6 +680,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
             })}
             onRetry={() => setPassageLoadAttempt((attempt) => attempt + 1)}
             view={storyView}
+            followAlongVerse={followAlongVerse}
             colors={colors}
             fontSizeMultiplier={fontSizeMultiplier}
             readingFontFamily={readingFontFamily}
@@ -961,6 +979,7 @@ interface StorySectionProps {
   status: StoryStatus;
   onRetry: () => void;
   view: StoryPassageView | null;
+  followAlongVerse: LessonFollowAlongVerse | null;
   colors: ThemeColors;
   fontSizeMultiplier: number;
   readingFontFamily: string | undefined;
@@ -972,6 +991,7 @@ function StorySection({
   status,
   onRetry,
   view,
+  followAlongVerse,
   colors,
   fontSizeMultiplier,
   readingFontFamily,
@@ -1052,6 +1072,11 @@ function StorySection({
             {block.verses.map((verse, verseIdx) => {
               const isFirst = verseIdx === 0;
               const hasHeading = Boolean(verse.heading);
+              const isFollowed =
+                followAlongVerse != null &&
+                verse.verse === followAlongVerse.verse &&
+                verse.chapter === followAlongVerse.chapter &&
+                verse.bookId === followAlongVerse.bookId;
               return (
                 <React.Fragment key={verse.id}>
                   {hasHeading && (
@@ -1067,11 +1092,21 @@ function StorySection({
                     </Text>
                   )}
                   {!isFirst && !hasHeading && ' '}
-                  <Text style={{ lineHeight: scaledLineHeight }}>
+                  <Text
+                    style={[
+                      { lineHeight: scaledLineHeight },
+                      isFollowed && { backgroundColor: colors.bibleFollowHighlight },
+                    ]}
+                  >
                     <Text
                       style={[
                         styles.verseNumber,
-                        { color: colors.accentPrimary, lineHeight: scaledLineHeight },
+                        {
+                          // The accent drops below contrast on the follow band, so the
+                          // number takes the band's own quiet foreground there.
+                          color: isFollowed ? colors.bibleFollowVerseNumber : colors.accentPrimary,
+                          lineHeight: scaledLineHeight,
+                        },
                       ]}
                     >
                       {/* RN has no baseline shift, so the marker is approximated

@@ -416,7 +416,8 @@ export const de = {
     somethingWentWrong: 'Etwas ist schiefgelaufen',
     offlineTryAgain: 'Du bist offline. Verbinde dich mit dem Internet und versuche es erneut.',
     tryAgain: 'Noch einmal versuchen',
-    shareMessage: 'Schau dir Every Bible an!',
+    shareMessage:
+      'Ich lese und höre die Bibel mit Every Bible. Die App ist kostenlos. Schau mal rein:',
     all: 'Alle',
   },
   tabs: {
@@ -1692,6 +1693,7 @@ export const de = {
     sendInvitation: 'Einladung senden',
     gatherWithOthers: 'Mit anderen zusammenkommen',
     invitationDescription: 'Lade jemanden ein, die Bibel gemeinsam zu entdecken.',
+    inviteShareMessage: 'Ich gehe gerade „{{title}}“ in Every Bible durch. Machst du mit?',
     upNext: 'Als Nächstes',
     fellowship: 'Gemeinschaft',
     story: 'Geschichte',

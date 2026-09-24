@@ -404,7 +404,7 @@ export const ur = {
     somethingWentWrong: 'کچھ غلط ہو گیا',
     offlineTryAgain: 'آپ آف لائن ہیں۔ انٹرنیٹ سے جڑیں اور دوبارہ کوشش کریں۔',
     tryAgain: 'دوبارہ کوشش کریں',
-    shareMessage: 'Every Bible ضرور دیکھیں!',
+    shareMessage: 'مجھے Every Bible پر بائبل پڑھنا اور سننا بہت اچھا لگتا ہے۔ یہ مفت ہے۔ دیکھیں:',
     all: 'تمام',
   },
   tabs: {
@@ -1642,6 +1642,8 @@ export const ur = {
     sendInvitation: 'دعوت نامہ بھیجیں',
     gatherWithOthers: 'دوسروں کے ساتھ جمع ہوں',
     invitationDescription: 'کسی کو بائبل ایک ساتھ دریافت کرنے کی دعوت دیں۔',
+    inviteShareMessage:
+      'آئیے، Every Bible میں “{{title}}” مل کر پڑھیں۔ کیا آپ میرے ساتھ شامل ہوں گے؟',
     upNext: 'اگلا',
     fellowship: 'رفاقت',
     story: 'کہانی',

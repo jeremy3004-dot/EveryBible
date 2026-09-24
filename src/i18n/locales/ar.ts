@@ -430,7 +430,7 @@ export const ar = {
     somethingWentWrong: 'حدث خطأ ما',
     offlineTryAgain: 'أنت غير متصل بالإنترنت. اتصل بالإنترنت ثم حاول مرة أخرى.',
     tryAgain: 'حاول مرة أخرى',
-    shareMessage: 'جرّب Every Bible!',
+    shareMessage: 'أقرأ الكتاب المقدس وأستمع إليه على Every Bible. التطبيق مجاني. ألقِ نظرة:',
     all: 'الكل',
   },
   tabs: {
@@ -1709,6 +1709,7 @@ export const ar = {
     sendInvitation: 'إرسال دعوة',
     gatherWithOthers: 'الاجتماع مع الآخرين',
     invitationDescription: 'ادعُ شخصًا لاكتشاف الكتاب المقدس معًا.',
+    inviteShareMessage: 'أنا أدرس «{{title}}» في Every Bible. هل تريد أن تدرسه معي؟',
     upNext: 'التالي',
     fellowship: 'الشركة',
     story: 'القصة',

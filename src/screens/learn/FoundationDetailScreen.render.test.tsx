@@ -146,6 +146,31 @@ test('a wisdom topic draws its own artwork in the hero', async () => {
   assert.ok(drawsArtwork(view.root, 'topic-courage'));
 });
 
+test('the invitation is a first-person message naming the foundation, with a link to the app', async () => {
+  const view = await renderFoundation('foundation-1');
+
+  // The card's caption ("Invite someone…") speaks to the sender; the friend gets the invitation.
+  await view.press(view.getByRole('button', { name: t('gather.gatherWithOthers') }));
+  await view.flush();
+
+  assert.deepEqual(harness.rn.__recorded.shares, [
+    {
+      message: `${t('gather.inviteShareMessage', { title: t('gather.foundation1Title') })}\nhttps://everybible.app`,
+    },
+  ]);
+});
+
+test('a wisdom topic invitation names the topic', async () => {
+  harness.rn.__recorded.shares.length = 0;
+  const view = await renderFoundation('topic-courage');
+
+  await view.press(view.getByRole('button', { name: t('gather.gatherWithOthers') }));
+  await view.flush();
+
+  const [shared] = harness.rn.__recorded.shares as Array<{ message: string }>;
+  assert.ok(shared?.message.includes(t('gather.topicCourage')));
+});
+
 test('the list ends clear of the floating tab bar so the up-next card is never hidden', async () => {
   const { TAB_BAR_CAPSULE_HEIGHT } = await import('../../hooks/useTabBarHeight');
   const view = await renderFoundation('foundation-1');

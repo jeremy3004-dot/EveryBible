@@ -105,7 +105,8 @@ export const ta = {
     somethingWentWrong: 'ஏதோ தவறாகிவிட்டது',
     offlineTryAgain: 'நீங்கள் ஆஃப்லைனில் உள்ளீர்கள். இணையத்துடன் இணைந்து மீண்டும் முயலவும்.',
     tryAgain: 'மீண்டும் முயற்சி',
-    shareMessage: 'Every Bible-ஐப் பாருங்கள்!',
+    shareMessage:
+      'நான் Every Bible-இல் வேதாகமத்தை வாசித்தும் கேட்டும் வருகிறேன். இது இலவசம். பாருங்கள்:',
     all: 'அனைத்தும்',
   },
   tabs: {
@@ -1394,6 +1395,8 @@ export const ta = {
     sendInvitation: 'அழைப்பிதழ் அனுப்பு',
     gatherWithOthers: 'மற்றவர்களுடன் ஒன்றுகூடுங்கள்',
     invitationDescription: 'ஒன்றாக வேதாகமத்தைக் கண்டறிய யாரையாவது அழையுங்கள்.',
+    inviteShareMessage:
+      'நான் Every Bible-இல் “{{title}}” படித்து வருகிறேன். என்னோடு சேர்ந்து படிக்க விரும்புகிறீர்களா?',
     upNext: 'அடுத்தது',
     fellowship: 'ஐக்கியம்',
     story: 'கதை',

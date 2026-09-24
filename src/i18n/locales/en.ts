@@ -394,7 +394,8 @@ export const en = {
     somethingWentWrong: 'Something went wrong',
     offlineTryAgain: "You're offline. Connect to the internet and try again.",
     tryAgain: 'Try Again',
-    shareMessage: 'Check out Every Bible!',
+    shareMessage:
+      "I've been reading and listening to the Bible with Every Bible. It's free. Have a look:",
     all: 'All',
   },
   tabs: {
@@ -1653,6 +1654,7 @@ export const en = {
     sendInvitation: 'Send an invitation',
     gatherWithOthers: 'Gather with others',
     invitationDescription: 'Invite someone to discover the Bible together.',
+    inviteShareMessage: "I'm going through “{{title}}” in Every Bible. Want to do it with me?",
     upNext: 'Up next',
     moreOptions: 'More options',
     fellowship: 'Fellowship',
