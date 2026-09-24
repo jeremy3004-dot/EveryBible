@@ -735,3 +735,17 @@ test('a note written, edited and deleted on-device needs nothing but the local s
   );
   assert.deepEqual(afterDelete.data, []);
 });
+
+test('subscribeToAnnotationChanges reports each change to the saved annotations until unsubscribed', async () => {
+  let changes = 0;
+  const unsubscribe = service.subscribeToAnnotationChanges(() => {
+    changes += 1;
+  });
+
+  await service.upsertAnnotation(makeAnnotation());
+  seedStore([]);
+  unsubscribe();
+  await service.upsertAnnotation(makeAnnotation());
+
+  assert.equal(changes, 2);
+});

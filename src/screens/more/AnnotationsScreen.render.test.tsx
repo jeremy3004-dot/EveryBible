@@ -187,3 +187,18 @@ test('the back button leaves the screen', async () => {
     ['goBack']
   );
 });
+
+test('coming back to the screen shows annotations changed in the reader meanwhile', async () => {
+  service.result = { success: true, data: [annotation({ id: 'n1', content: 'Old note' })] };
+  const view = await renderScreen();
+  assert.ok(view.getByText('Old note'));
+
+  // The user opened the note in the reader (the More stack stays mounted), deleted
+  // it and wrote another, then came back to this tab.
+  service.result = { success: true, data: [annotation({ id: 'n2', content: 'New note' })] };
+  harness.navigation.emit('focus', undefined);
+  await view.flush();
+
+  assert.equal(view.queryByText('Old note'), null);
+  assert.ok(view.getByText('New note'));
+});

@@ -22,6 +22,12 @@ export interface UseReaderAudioSyncInput {
   currentTranslation: string;
   currentTranslationInfo: BibleTranslation | undefined;
   focusVerse: number | undefined;
+  /**
+   * Verses are selected, so the verse sheet is open on this chapter (maybe with a note
+   * being typed). Following playback would clear the selection and close the sheet, so
+   * the reader waits and follows once the selection clears.
+   */
+  holdChapterFollow: boolean;
   isLoading: boolean;
   navigation: NavigationProp;
   playChapter: (bookId: string, chapter: number, verse?: number | undefined) => Promise<void>;
@@ -97,6 +103,7 @@ export function useReaderAudioSync({
   currentTranslation,
   currentTranslationInfo,
   focusVerse,
+  holdChapterFollow,
   isLoading,
   navigation,
   playChapter,
@@ -107,6 +114,8 @@ export function useReaderAudioSync({
   const previousActiveAudioChapterRef = useRef<number | null>(seenBeforeMount?.chapter ?? null);
   const previousActiveAudioBookIdRef = useRef<string | null>(seenBeforeMount?.bookId ?? null);
   const autoplayKeyRef = useRef<string | null>(null);
+  /** The chapter the reader stayed on while a follow was held back (holdChapterFollow). */
+  const heldFollowFromRef = useRef<string | null>(null);
   useEffect(() => {
     if (
       !shouldAutoplayChapterAudio({
@@ -178,7 +187,12 @@ export function useReaderAudioSync({
     if (!shouldSync || activeAudioChapter == null) {
       return;
     }
+    if (holdChapterFollow) {
+      heldFollowFromRef.current = `${bookId}:${chapter}`;
+      return;
+    }
 
+    heldFollowFromRef.current = null;
     navigation.setParams(
       buildReaderChapterRouteParams({
         bookId: activeAudioBookId ?? bookId,
@@ -194,8 +208,47 @@ export function useReaderAudioSync({
     bookId,
     chapter,
     chapterSessionMode,
+    holdChapterFollow,
     navigation,
     resolvePlanSessionRouteParams,
     routeKey,
+  ]);
+
+  // The follow held back while verses were selected, once they are not. Dropped if the
+  // reader was moved meanwhile or playback stopped or came back to this chapter.
+  useEffect(() => {
+    const heldFrom = heldFollowFromRef.current;
+    if (holdChapterFollow || heldFrom == null) {
+      return;
+    }
+    heldFollowFromRef.current = null;
+    if (
+      heldFrom !== `${bookId}:${chapter}` ||
+      !audioEnabled ||
+      activeAudioBookId == null ||
+      activeAudioChapter == null ||
+      (activeAudioBookId === bookId && activeAudioChapter === chapter)
+    ) {
+      return;
+    }
+
+    navigation.setParams(
+      buildReaderChapterRouteParams({
+        bookId: activeAudioBookId,
+        chapter: activeAudioChapter,
+        preferredMode: chapterSessionMode,
+        ...resolvePlanSessionRouteParams(activeAudioBookId, activeAudioChapter),
+      })
+    );
+  }, [
+    audioEnabled,
+    activeAudioBookId,
+    activeAudioChapter,
+    bookId,
+    chapter,
+    chapterSessionMode,
+    holdChapterFollow,
+    navigation,
+    resolvePlanSessionRouteParams,
   ]);
 }

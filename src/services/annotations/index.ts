@@ -4,6 +4,7 @@ export {
   softDeleteAnnotation,
   syncAnnotations,
   getAnnotationsForChapter,
+  subscribeToAnnotationChanges,
 } from './annotationService';
 
 export type { AnnotationResult, SyncAnnotationsResult } from './annotationService';

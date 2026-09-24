@@ -20,6 +20,12 @@ mockModule(mock, sourcePath('stores/progressStore.ts'), {
   selectCurrentStreakDays: (state: { streakDays: number }) => state.streakDays,
 });
 
+// Notes and highlights live only on this device (they are never uploaded).
+const useAnnotationStore = create(() => ({
+  annotations: [] as Array<{ id: string; deleted_at: string | null }>,
+}));
+mockModule(mock, sourcePath('stores/annotationStore.ts'), { useAnnotationStore });
+
 const authFlows: string[] = [];
 mockModule(mock, sourcePath('navigation/rootNavigation.ts'), {
   rootNavigationRef: { isReady: () => false },
@@ -95,6 +101,7 @@ const signedInUser = {
 
 beforeEach(() => {
   useProgressStore.setState({ listeningMsByDate: {} });
+  useAnnotationStore.setState({ annotations: [] });
   authFlows.length = 0;
   picker.result = { canceled: true, assets: [] };
   picker.launches = 0;
@@ -169,7 +176,6 @@ test('a signed-in reader sees their name, email and engagement summary', async (
   assert.ok(view.getByText(t('engagement.title')));
   assert.ok(view.getByText('88'));
   assert.ok(view.getByText('17'));
-  assert.ok(view.getByText('23'));
   assert.equal(view.queryByRole('button', { name: t('more.signInOrCreate') }), null);
 });
 
@@ -333,4 +339,22 @@ test('reading activity opens from the profile', async () => {
     harness.navigation.calls.map((call) => [call.method, call.args[0]]),
     [['navigate', 'ReadingActivity']]
   );
+});
+
+test("the notes and highlights count is this device's, which the cloud summary never sees", async () => {
+  signIn();
+  // Annotations stopped syncing, so the server's count is whatever an old build uploaded.
+  backend.engagement = { success: true, data: engagementSummary(0) };
+  useAnnotationStore.setState({
+    annotations: [
+      ...['a', 'b', 'c', 'd', 'e', 'f', 'g'].map((id) => ({ id, deleted_at: null })),
+      { id: 'gone', deleted_at: '2026-09-02T00:00:00.000Z' },
+    ],
+  });
+
+  const view = await renderScreen();
+
+  assert.ok(view.getByText(t('engagement.annotationsCreated')));
+  assert.ok(view.getByText('7'), 'seven live notes and highlights');
+  assert.equal(view.queryByText('23'), null);
 });

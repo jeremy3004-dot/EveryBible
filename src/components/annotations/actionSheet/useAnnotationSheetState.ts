@@ -76,8 +76,11 @@ export function useAnnotationSheetState({
       return;
     }
 
-    const note = getNoteToSave(noteText);
-    if (note) {
+    // A cleared field over a saved note removes it (an empty save); a blank new note is
+    // dropped, and an unchanged one is not saved again (that would mark it edited now).
+    const savedNote = getNoteToSave(existingNote ?? '');
+    const note = getNoteToSave(noteText) ?? (savedNote ? '' : null);
+    if (note !== null && note !== savedNote) {
       setIsSaving(true);
       try {
         await onNote(note);

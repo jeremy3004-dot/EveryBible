@@ -313,3 +313,33 @@ test('applying edits writes before it deletes and stops at the first failure', a
   assert.equal(succeeded, false);
   assert.deepEqual(calls, ['upsert first']);
 });
+
+test('saving a cleared note deletes the note the sheet opened with', () => {
+  // The sheet pre-fills the overlapping note, and clearing it is the only way to remove it.
+  const annotations = [
+    annotation('n1', 'note', 2, 3, { content: 'first thought' }),
+    annotation('h1', 'highlight', 2, null),
+  ];
+
+  const edits = planReaderNoteSave({
+    ...chapter,
+    annotations,
+    selectedVerses: [3],
+    content: '   ',
+    createId: idFactory(),
+  });
+
+  assert.deepEqual(edits, { softDeleteIds: ['n1'], upserts: [] });
+});
+
+test('saving a blank note where there is no note writes nothing', () => {
+  const edits = planReaderNoteSave({
+    ...chapter,
+    annotations: [annotation('gone', 'note', 1, null, { deleted_at: '2026-09-02T00:00:00.000Z' })],
+    selectedVerses: [1],
+    content: '',
+    createId: idFactory(),
+  });
+
+  assert.deepEqual(edits, { softDeleteIds: [], upserts: [] });
+});

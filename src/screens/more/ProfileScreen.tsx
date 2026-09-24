@@ -24,6 +24,7 @@ import type { UserEngagementSummary } from '../../services/supabase/types';
 import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
 import { useAuthStore } from '../../stores/authStore';
 import { selectCurrentStreakDays, useProgressStore } from '../../stores/progressStore';
+import { useAnnotationStore } from '../../stores/annotationStore';
 import type { MoreStackParamList } from '../../navigation/types';
 import { openAuthFlow } from '../../navigation/rootNavigation';
 import { layout, radius, spacing, typography } from '../../design/system';
@@ -48,6 +49,11 @@ export function ProfileScreen() {
   const chaptersRead = useProgressStore((state) => Object.keys(state.chaptersRead).length);
   const streakDays = useProgressStore(selectCurrentStreakDays);
   const listeningMsByDate = useProgressStore((state) => state.listeningMsByDate);
+  // Notes and highlights stay on this device and are never uploaded, so the cloud
+  // summary's count is stale (or 0); count what My Notes & Highlights lists.
+  const annotationCount = useAnnotationStore(
+    (state) => state.annotations.filter((annotation) => annotation.deleted_at == null).length
+  );
 
   const [avatarUri, setAvatarUri] = useState<string | null>(user?.photoURL ?? null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
@@ -264,7 +270,7 @@ export function ProfileScreen() {
               </View>
               <View style={styles.statItem}>
                 <Text maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE} style={styles.statNumber}>
-                  {engagement.annotations_created}
+                  {annotationCount}
                 </Text>
                 <Text style={styles.statLabel}>{t('engagement.annotationsCreated')}</Text>
               </View>

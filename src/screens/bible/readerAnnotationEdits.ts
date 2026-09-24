@@ -189,6 +189,7 @@ export function planReaderHighlightRemove(
 /**
  * Saves the note sheet. The sheet opens with the first note overlapping the selection
  * already filled in, so saving edits that note; only a selection with no note creates one.
+ * Saving it blank deletes that note: clearing the field is how a note is removed.
  */
 export function planReaderNoteSave(
   input: ReaderAnnotationEditInput & { content: string }
@@ -197,6 +198,9 @@ export function planReaderNoteSave(
   const existing = input.annotations.find(
     (annotation) => isActive(annotation, 'note') && overlapsSelection(annotation, selected)
   );
+  if (input.content.trim().length === 0) {
+    return { softDeleteIds: existing ? [existing.id] : [], upserts: [] };
+  }
   if (existing) {
     return {
       softDeleteIds: [],

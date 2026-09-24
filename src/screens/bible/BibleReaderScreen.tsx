@@ -20,7 +20,10 @@ import { config } from '../../constants/config';
 import { useTheme } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
 import { getReadingFontFamily } from '../../design/fonts';
-import { getAnnotationsForChapter } from '../../services/annotations/annotationService';
+import {
+  getAnnotationsForChapter,
+  subscribeToAnnotationChanges,
+} from '../../services/annotations/annotationService';
 import { getChapter, prefetchNextChapter } from '../../services/bible/bibleService';
 import { getChapterPresentationMode } from '../../services/bible/presentation';
 import { getChapterContentAvailability } from '../../services/bible/contentAvailability';
@@ -658,6 +661,7 @@ export function BibleReaderScreen() {
     currentTranslation,
     currentTranslationInfo,
     focusVerse,
+    holdChapterFollow: selectedVerses.length > 0,
     isLoading,
     navigation,
     playChapter,
@@ -677,6 +681,11 @@ export function BibleReaderScreen() {
       }
     };
     void loadAnnotations();
+    // A sign-in or sign-out elsewhere swaps whose annotations the store holds while this
+    // chapter stays open; without a reload it kept drawing the previous account's.
+    return subscribeToAnnotationChanges(() => {
+      void loadAnnotations();
+    });
   }, [bookId, chapter]);
 
   useReaderReadingTimer({ bookId, chapter, chapterSessionMode, currentTranslation });
