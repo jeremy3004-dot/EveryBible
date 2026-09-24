@@ -1,5 +1,6 @@
 import { access, readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { spawn } from 'node:child_process';
 
 import { generateR2TextPackManifest } from './generate-r2-text-pack-manifest';
@@ -174,8 +175,8 @@ async function generateR2Catalogs(repoRoot: string): Promise<GeneratedCatalogRec
   return generated;
 }
 
-async function main(): Promise<void> {
-  const { dryRun, repoRoot } = parseArgs();
+// Exported so the publish sequence can be tested with a temp repo and the aws CLI mocked.
+export async function publishBibleAssets({ dryRun, repoRoot }: ParsedArgs): Promise<void> {
   const bucket = requireEnv('R2_BUCKET');
   const endpoint = requireEnv('R2_ENDPOINT');
   const accessKeyId = requireEnv('R2_ACCESS_KEY_ID');
@@ -269,7 +270,9 @@ async function main(): Promise<void> {
   );
 }
 
-void main().catch((error) => {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exit(1);
-});
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  void publishBibleAssets(parseArgs()).catch((error) => {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  });
+}
