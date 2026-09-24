@@ -148,17 +148,35 @@ still appear in the map snapshot until the source is cleaned.
 **Macrolanguages.** ISO 639-3 groups some languages under a macrolanguage
 (Arabic, Chinese, Persian, Swahili, Malay, Quechua, ...). Scripture is recorded
 against the member languages, so the builder links the two with SIL's official
-mapping, committed as `apps/site/data/language-atlas/iso-639-3-macrolanguages.json`
-(active member rows only; retrieved 2026-09-24, with its source URL, SHA-256 and
-the ISO 639-3 terms of use inside). A macrolanguage page shows the best status of
-its own record and its members, credits the members it comes from ("Complete
-Bible via Standard Arabic"), lists every member with a page and a status, and
-never reads "No known Scripture" while a member has Scripture. Member pages
-link back ("Part of Arabic"). The rolled-up status is also what lists, the hub
-counts and related links show. The stored provider statuses are unchanged. To
-refresh, download `iso-639-3-macrolanguages.tab` from iso639-3.sil.org (the only
-authorized distribution site), keep rows with status `A`, group them by
-macrolanguage, update the metadata fields, and rerun `npm run atlas:pages:build`.
+mapping, `iso-639-3-macrolanguages.tab` (active `A` rows only). A macrolanguage
+page shows the best status of its own record and its members, credits the
+members it comes from ("Complete Bible via Standard Arabic"), lists every member
+with a page and a status, and never reads "No known Scripture" while a member has
+Scripture. Member pages link back ("Part of Arabic") and credit iso639-3.sil.org.
+The rolled-up status is also what lists, the hub counts and related links show.
+The stored provider statuses are unchanged.
+
+The SIL table is **not committed**. The
+[ISO 639-3 Code Tables Terms of Use](https://iso639-3.sil.org/code_tables/download_tables#termsofuse)
+allow the codes to be used in a product with attribution, provided the product
+"does not provide a means to redistribute the code set", and state that "the
+ISO 639-3 website is the only authorized distribution site" for the tables. A
+copy in this public repository would be such a means, so:
+
+- `npm run atlas:pages:build` (and `atlas:pages:check`) download the table from
+  iso639-3.sil.org (`ISO_MACROLANGUAGES_URL` in `apps/site/lib/iso-macrolanguages.ts`)
+  into the gitignored `.cache/language-atlas/` at the repo root and reuse it
+  there. Pass `-- --refresh` to download a newer table.
+- Only derived per-page facts reach the committed pages: a macrolanguage's
+  members that have pages, the macrolanguages a page belongs to, and the
+  rolled-up status. The Vercel build reads those committed pages and never
+  contacts SIL.
+- Offline with no cached table, the generator warns and recovers the mapping the
+  committed pages already use (`macrolanguageMapFromPages`), which rebuilds them
+  identically; a language new to the atlas is not linked to its macrolanguage
+  until the table can be downloaded. `npm test` uses that recovered mapping plus
+  a few-row fixture, never the network; `atlas:pages:check` is the check
+  against SIL's current table.
 
 **Thin pages.** About 675 tracker-only records have no ISO, Glottolog or ROLV
 code and no country, so their pages say almost nothing (`isThinLanguage` in
