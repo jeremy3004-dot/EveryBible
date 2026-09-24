@@ -845,6 +845,9 @@ export const ru = {
     notificationsBlockedNotice:
       'Уведомления Every Bible отключены в настройках устройства, поэтому это напоминание не сможет появиться.',
     openDeviceSettings: 'Открыть настройки',
+    notificationsNotAllowedNotice:
+      'Чтобы это напоминание появлялось, Every Bible нужно разрешение на отправку уведомлений на этом устройстве.',
+    allowNotifications: 'Разрешить уведомления',
     selectLanguage: 'Выберите язык интерфейса',
     deleteAccount: 'Удалить аккаунт',
     deleteAccountWarning:

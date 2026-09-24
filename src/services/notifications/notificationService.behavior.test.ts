@@ -2,6 +2,7 @@ import test, { before, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import type { DevicePushToken } from 'expo-notifications';
 import {
+  mockMmkvStorage,
   mockModule,
   mockReactNative,
   mockSupabaseModule,
@@ -16,6 +17,9 @@ import { createSupabaseFake, type SupabaseFakeResult } from '../../testing/supab
  * registration (see `nextUser` / the afterEach-style cleanup in each test).
  */
 const rn = mockReactNative(mock, { os: 'ios' });
+// Holds the persisted "a reminder may be scheduled" flag (dailyReminderScheduleMarker.ts).
+const mmkv = mockMmkvStorage(mock);
+const MAY_BE_SCHEDULED_KEY = 'daily-reminder-may-be-scheduled';
 
 const authState = {
   user: null as { uid: string } | null,
@@ -90,7 +94,7 @@ mockModule(mock, 'expo-notifications', {
   setNotificationHandler: () => {},
   getPermissionsAsync: async () => {
     permissionCalls.push('get');
-    return { status: permission.current };
+    return { status: permission.current, canAskAgain: permission.canAskAgain };
   },
   requestPermissionsAsync: async () => {
     permissionCalls.push('request');
@@ -183,6 +187,7 @@ before(async () => {
 
 beforeEach(() => {
   fake.reset();
+  mmkv.store.clear();
   installDeviceResponder();
   permissionCalls.length = 0;
   cancellations.length = 0;
@@ -298,29 +303,46 @@ test('a reminder whose Android channel the user switched off is reported as bloc
   rn.Platform.OS = 'android';
   channelImportance.set('daily-reminder', 1);
 
-  assert.equal(await notifications.isDailyReminderBlockedBySystem(), true);
+  assert.equal(await notifications.getDailyReminderSystemState(), 'blocked');
 });
 
-test('a reminder channel that is on, or not created yet, is not reported as blocked', async () => {
+test('a reminder channel that is on, or not created yet, is allowed', async () => {
   rn.Platform.OS = 'android';
-  assert.equal(await notifications.isDailyReminderBlockedBySystem(), false);
+  assert.equal(await notifications.getDailyReminderSystemState(), 'allowed');
 
   channelImportance.set('daily-reminder', 3);
-  assert.equal(await notifications.isDailyReminderBlockedBySystem(), false);
+  assert.equal(await notifications.getDailyReminderSystemState(), 'allowed');
 });
 
-test('a reminder is reported as blocked when the app permission is denied', async () => {
+test('a reminder is reported as blocked when the system will not ask for permission again', async () => {
   permission.current = 'denied';
-  assert.equal(await notifications.isDailyReminderBlockedBySystem(), true);
+  permission.canAskAgain = false;
+  assert.equal(await notifications.getDailyReminderSystemState(), 'blocked');
 
   rn.Platform.OS = 'android';
-  assert.equal(await notifications.isDailyReminderBlockedBySystem(), true);
+  assert.equal(await notifications.getDailyReminderSystemState(), 'blocked');
+});
+
+test('a reminder on a device never asked for permission needs it, without prompting', async () => {
+  // The reminder was turned on on another device and arrived here by sync.
+  permission.current = 'undetermined';
+
+  assert.equal(await notifications.getDailyReminderSystemState(), 'needs-permission');
+  assert.deepEqual(permissionCalls, ['get']);
+});
+
+test('an Android denial the system would still ask about again needs permission, not settings', async () => {
+  rn.Platform.OS = 'android';
+  permission.current = 'denied';
+  permission.canAskAgain = true;
+
+  assert.equal(await notifications.getDailyReminderSystemState(), 'needs-permission');
 });
 
 test('iOS never reads Android channels when checking whether the reminder is blocked', async () => {
   channelImportance.set('daily-reminder', 1);
 
-  assert.equal(await notifications.isDailyReminderBlockedBySystem(), false);
+  assert.equal(await notifications.getDailyReminderSystemState(), 'allowed');
   assert.equal(channelReads, 0);
 });
 
@@ -328,7 +350,30 @@ test('an unreadable channel is not reported as blocked', async () => {
   rn.Platform.OS = 'android';
   channelReadFailure = new Error('notification service unavailable');
 
-  assert.equal(await notifications.isDailyReminderBlockedBySystem(), false);
+  assert.equal(await notifications.getDailyReminderSystemState(), 'allowed');
+});
+
+test('asking for permission tells listeners to re-read it, an existing grant does not', async () => {
+  const { addNotificationPermissionRequestListener } =
+    await import('./notificationPermissionEvents');
+  let notified = 0;
+  const subscription = addNotificationPermissionRequestListener(() => {
+    notified += 1;
+  });
+  try {
+    await notifications.requestNotificationPermissionOutcome();
+    assert.equal(notified, 0, 'already granted: nothing was asked');
+
+    permission.current = 'undetermined';
+    await notifications.requestNotificationPermissionOutcome();
+    assert.equal(notified, 1);
+
+    subscription.remove();
+    await notifications.requestNotificationPermissionOutcome();
+    assert.equal(notified, 1, 'a removed listener hears nothing');
+  } finally {
+    subscription.remove();
+  }
 });
 
 test('scheduling a reminder on Android waits for the channel its trigger names', async () => {
@@ -609,6 +654,90 @@ test('a reminder that failed to schedule is tried again on the next reconcile', 
   assert.equal(schedules.length, 1);
 });
 
+test('a reminder synced on to a device that has not allowed notifications is not scheduled', async () => {
+  // Another device turned the reminder on; this one was never asked for permission.
+  // Scheduling here would look done while it can never appear, and prompting at
+  // launch is not ours to do: Settings offers the prompt instead.
+  for (const status of ['undetermined', 'denied']) {
+    await startWithNoReminder();
+    permission.current = status;
+    permissionCalls.length = 0;
+
+    await notifications.reconcileDailyReminder({
+      notificationsEnabled: true,
+      reminderTime: '07:30',
+    });
+
+    assert.deepEqual([status, schedules.length, permissionCalls], [status, 0, ['get']]);
+  }
+});
+
+test('a synced reminder is scheduled on the first reconcile after permission is granted', async () => {
+  await startWithNoReminder();
+  const preference = { notificationsEnabled: true, reminderTime: '07:30' };
+  permission.current = 'undetermined';
+  await notifications.reconcileDailyReminder(preference);
+
+  permission.current = 'granted';
+  await notifications.reconcileDailyReminder(preference);
+
+  assert.deepEqual(scheduledAt(), [[7, 30, 'settings.notificationTitle']]);
+});
+
+test('scheduling a reminder records that one may be scheduled, before the native call', async () => {
+  await startWithNoReminder();
+  scheduleFailure = new Error('alarm service unavailable');
+
+  await assert.rejects(() => notifications.scheduleDailyReminder(7, 30));
+
+  // A schedule that may or may not have reached the OS still counts.
+  assert.equal(mmkv.store.get(MAY_BE_SCHEDULED_KEY), '1');
+});
+
+test('only a cancel that succeeded clears the flag, so a failed one is retried next launch', async () => {
+  await notifications.scheduleDailyReminder(7, 30);
+  cancelFailure = new Error('notification service unavailable');
+  await notifications.cancelDailyReminder();
+  assert.equal(mmkv.store.get(MAY_BE_SCHEDULED_KEY), '1');
+
+  cancelFailure = null;
+  await notifications.cancelDailyReminder();
+  assert.equal(mmkv.store.get(MAY_BE_SCHEDULED_KEY), '0');
+});
+
+test('with the flag clear, an off reminder of unknown state is not cancelled natively', async () => {
+  // A failed schedule leaves this process not knowing what the OS holds.
+  await startWithNoReminder();
+  scheduleFailure = new Error('alarm service unavailable');
+  await assert.rejects(() => notifications.scheduleDailyReminder(7, 30));
+  scheduleFailure = null;
+  cancellations.length = 0;
+  const off = { notificationsEnabled: false, reminderTime: '07:30' };
+
+  // Android reconciles with the reminder off for its channel name; the flag spares the cancel.
+  mmkv.store.set(MAY_BE_SCHEDULED_KEY, '0');
+  await notifications.reconcileDailyReminder(off);
+  assert.deepEqual(cancellations, []);
+});
+
+test('with the flag set, an off reminder of unknown state is cancelled', async () => {
+  await startWithNoReminder();
+  scheduleFailure = new Error('alarm service unavailable');
+  await assert.rejects(() => notifications.scheduleDailyReminder(7, 30));
+  scheduleFailure = null;
+  cancellations.length = 0;
+
+  await notifications.reconcileDailyReminder({
+    notificationsEnabled: false,
+    reminderTime: '07:30',
+  });
+
+  assert.deepEqual(
+    [cancellations, mmkv.store.get(MAY_BE_SCHEDULED_KEY)],
+    [['daily-reading-reminder'], '0']
+  );
+});
+
 // ─── Discreet mode ───────────────────────────────────────────────────────────
 
 const scheduledContent = () =>
@@ -785,6 +914,22 @@ test('registration stops when notification permission was refused', async () => 
   assert.equal(await notifications.registerPushToken(uid), null);
   assert.deepEqual(tokenCalls, []);
   assert.equal(notifications.getCachedPushToken(), null);
+});
+
+test('permission granted after a refused registration registers once, and later tries reuse it', async () => {
+  // The app re-tries on every foreground and after its own permission prompt, so a
+  // device that is already registered must not write user_devices again.
+  const userId = nextUser();
+  permission.current = 'undetermined';
+  assert.equal(await notifications.registerPushToken(userId), null);
+
+  permission.current = 'granted';
+  assert.equal(await notifications.registerPushToken(userId), 'expo-token');
+  await notifications.registerPushToken(userId);
+  await notifications.registerPushToken(userId);
+
+  assert.deepEqual([upsertsFor(userId).length, tokenCalls.length], [1, 1]);
+  await notifications.deactivatePushToken(userId);
 });
 
 test('a native token failure on a simulator is non-fatal and caches nothing', async () => {

@@ -806,6 +806,9 @@ export const vi = {
     notificationsBlockedNotice:
       'Thông báo của Every Bible đang bị tắt trong cài đặt thiết bị, nên lời nhắc này không thể hiển thị.',
     openDeviceSettings: 'Mở Cài đặt',
+    notificationsNotAllowedNotice:
+      'Every Bible cần quyền gửi thông báo trên thiết bị này để lời nhắc này có thể hiển thị.',
+    allowNotifications: 'Cho phép thông báo',
     selectLanguage: 'Chọn ngôn ngữ giao diện',
     deleteAccount: 'Xóa tài khoản',
     deleteAccountWarning:

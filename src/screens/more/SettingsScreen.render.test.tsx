@@ -13,13 +13,13 @@ import {
   sourcePath,
 } from '../../testing/mockModules';
 
-// Whether the OS has blocked notifications while the in-app reminder is on.
-let notificationsBlocked = false;
+// Why the OS keeps the in-app reminder from appearing, if it does.
+let reminderBlock: 'needs-permission' | 'blocked' | null = null;
 const languageCalls: string[] = [];
 const harness = installRenderHarness(mock);
 // Settings and its sections import each hook from its own module, not the hooks barrel.
 mockModule(mock, sourcePath('hooks/useNotificationsBlockedBySystem.ts'), {
-  useNotificationsBlockedBySystem: (enabled: boolean) => enabled && notificationsBlocked,
+  useNotificationsBlockedBySystem: (enabled: boolean) => (enabled ? reminderBlock : null),
 });
 mockModule(mock, sourcePath('hooks/useFontSize.ts'), {
   useFontSize: () => ({
@@ -101,9 +101,14 @@ mockModule(mock, sourcePath('stores/deviceCaches.ts'), {
 mockModule(mock, sourcePath('services/onboarding/localeSelection.ts'), {
   localeSearchEngine: { getCountryDisplayName: (code: string) => `Country ${code}` },
 });
-const reminders: { permission: 'granted' | 'denied' | 'blocked'; calls: string[] } = {
+const reminders: {
+  permission: 'granted' | 'denied' | 'blocked';
+  calls: string[];
+  requests: number;
+} = {
   permission: 'granted',
   calls: [],
+  requests: 0,
 };
 mockModule(mock, sourcePath('services/notifications/index.ts'), {
   scheduleDailyReminder: async (hour: number, minute: number) => {
@@ -112,20 +117,24 @@ mockModule(mock, sourcePath('services/notifications/index.ts'), {
   cancelDailyReminder: async () => {
     reminders.calls.push('cancel');
   },
-  requestNotificationPermissionOutcome: async () => reminders.permission,
+  requestNotificationPermissionOutcome: async () => {
+    reminders.requests += 1;
+    return reminders.permission;
+  },
 });
 mockModule(mock, sourcePath('components/feedback/TranslationNotCoveredNotice.tsx'), {
   TranslationNotCoveredNotice: () => null,
 });
 
 afterEach(async () => {
-  notificationsBlocked = false;
+  reminderBlock = null;
   languageCalls.length = 0;
   account.result = { success: true };
   account.calls = 0;
   cacheClears.length = 0;
   reminders.permission = 'granted';
   reminders.calls.length = 0;
+  reminders.requests = 0;
   harness.rn.__recorded.alerts.length = 0;
   harness.rn.__recorded.openedUrls.length = 0;
   syncCalls.length = 0;
@@ -171,24 +180,76 @@ function switchNamed(view: View, label: string): ReactTestInstance {
 
 test('a reminder blocked by the system shows a translated notice that opens system settings', async () => {
   harness.authStore.getState().setPreferences({ notificationsEnabled: true });
-  notificationsBlocked = true;
+  reminderBlock = 'blocked';
   const view = await renderSettings();
 
   assert.ok(view.getByText(t('settings.notificationsBlockedNotice')));
+  assert.equal(view.queryByText(t('settings.notificationsNotAllowedNotice')), null);
   await view.press(view.getByRole('button', { name: t('settings.openDeviceSettings') }));
   assert.deepEqual(harness.rn.__recorded.openedUrls, ['app-settings:']);
 });
 
 test('no blocked-reminder notice while the reminder is off or the system allows it', async () => {
-  notificationsBlocked = true;
+  reminderBlock = 'blocked';
   const reminderOff = await renderSettings();
   assert.equal(reminderOff.queryByText(t('settings.notificationsBlockedNotice')), null);
   await reminderOff.unmount();
 
   harness.authStore.getState().setPreferences({ notificationsEnabled: true });
-  notificationsBlocked = false;
+  reminderBlock = null;
   const allowed = await renderSettings();
   assert.equal(allowed.queryByText(t('settings.notificationsBlockedNotice')), null);
+});
+
+test('a reminder synced on without permission here offers one tap that asks and schedules it', async () => {
+  // Turned on on another device: this one was never asked, so nothing is scheduled.
+  harness.authStore
+    .getState()
+    .setPreferences({ notificationsEnabled: true, reminderTime: '07:30' });
+  reminderBlock = 'needs-permission';
+  const view = await renderSettings();
+
+  assert.ok(view.getByText(t('settings.notificationsNotAllowedNotice')));
+  assert.equal(view.queryByText(t('settings.notificationsBlockedNotice')), null);
+  assert.equal(reminders.requests, 0, 'Settings does not prompt until asked');
+
+  await view.press(view.getByRole('button', { name: t('settings.allowNotifications') }));
+
+  assert.deepEqual([reminders.requests, reminders.calls], [1, ['schedule:7:30']]);
+  assert.equal(harness.authStore.getState().preferences.notificationsEnabled, true);
+  assert.equal(syncCalls.length, 0, 'the synced preference itself did not change');
+  assert.deepEqual(harness.rn.__recorded.openedUrls, []);
+});
+
+test('a synced reminder with no saved time asks for one once permission is allowed', async () => {
+  harness.authStore.getState().setPreferences({ notificationsEnabled: true, reminderTime: null });
+  reminderBlock = 'needs-permission';
+  const view = await renderSettings();
+
+  await view.press(view.getByRole('button', { name: t('settings.allowNotifications') }));
+
+  assert.ok(view.getByRole('header', { name: t('settings.setReminderTime') }));
+  assert.deepEqual(reminders.calls, []);
+});
+
+test('refusing the permission from the notice explains itself and schedules nothing', async () => {
+  harness.authStore
+    .getState()
+    .setPreferences({ notificationsEnabled: true, reminderTime: '07:30' });
+  reminderBlock = 'needs-permission';
+  reminders.permission = 'blocked';
+  const view = await renderSettings();
+
+  await view.press(view.getByRole('button', { name: t('settings.allowNotifications') }));
+
+  const [alert] = harness.rn.__recorded.alerts;
+  assert.equal(alert.title, t('settings.permissionRequired'));
+  assert.deepEqual(
+    (alert.buttons as Array<{ text: string }>).map((button) => button.text),
+    [t('common.cancel'), t('common.settings')]
+  );
+  assert.deepEqual(reminders.calls, []);
+  assert.equal(harness.authStore.getState().preferences.notificationsEnabled, true);
 });
 
 // --- Privacy shortcut -------------------------------------------------------

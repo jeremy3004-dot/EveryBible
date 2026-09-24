@@ -502,6 +502,9 @@ export const ta = {
     notificationsBlockedNotice:
       'உங்கள் சாதன அமைப்புகளில் Every Bible அறிவிப்புகள் முடக்கப்பட்டுள்ளன, எனவே இந்த நினைவூட்டல் தோன்றாது.',
     openDeviceSettings: 'அமைப்புகளைத் திற',
+    notificationsNotAllowedNotice:
+      'இந்த நினைவூட்டல் தோன்ற, இந்தச் சாதனத்தில் அறிவிப்புகளை அனுப்ப Every Bible-க்கு அனுமதி தேவை.',
+    allowNotifications: 'அறிவிப்புகளை அனுமதி',
     selectLanguage: 'இடைமுக மொழியைத் தேர்ந்தெடுக்கவும்',
     deleteAccount: 'கணக்கை நீக்கு',
     deleteAccountWarning:

@@ -501,6 +501,9 @@ export const te = {
     notificationsBlockedNotice:
       'మీ పరికర సెట్టింగ్‌లలో Every Bible నోటిఫికేషన్‌లు ఆఫ్ చేయబడ్డాయి, కాబట్టి ఈ రిమైండర్ కనిపించదు.',
     openDeviceSettings: 'సెట్టింగ్‌లను తెరవండి',
+    notificationsNotAllowedNotice:
+      'ఈ రిమైండర్ కనిపించాలంటే, ఈ పరికరంలో నోటిఫికేషన్‌లు పంపడానికి Every Bible కు అనుమతి కావాలి.',
+    allowNotifications: 'నోటిఫికేషన్‌లను అనుమతించండి',
     selectLanguage: 'ఇంటర్‌ఫేస్ భాషను ఎంచుకోండి',
     deleteAccount: 'ఖాతాను తొలగించండి',
     deleteAccountWarning:

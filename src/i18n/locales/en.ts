@@ -800,6 +800,9 @@ export const en = {
     notificationsBlockedNotice:
       "Notifications for Every Bible are turned off in your device settings, so this reminder can't appear.",
     openDeviceSettings: 'Open Settings',
+    notificationsNotAllowedNotice:
+      'Every Bible needs permission to send notifications on this device before this reminder can appear.',
+    allowNotifications: 'Allow Notifications',
     selectLanguage: 'Choose interface language',
     deleteAccount: 'Delete Account',
     deleteAccountWarning:

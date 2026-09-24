@@ -786,6 +786,9 @@ export const ko = {
     notificationsBlockedNotice:
       '기기 설정에서 Every Bible 알림이 꺼져 있어 이 일일 알림이 표시되지 않습니다.',
     openDeviceSettings: '설정 열기',
+    notificationsNotAllowedNotice:
+      '이 일일 알림을 표시하려면 이 기기에서 Every Bible의 알림을 허용해야 합니다.',
+    allowNotifications: '알림 허용',
     selectLanguage: '인터페이스 언어 선택',
     deleteAccount: '계정 삭제',
     deleteAccountWarning:

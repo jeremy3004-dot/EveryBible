@@ -16,6 +16,8 @@ interface NotificationSettingsSectionProps {
   reminderTimeLabel: string;
   onToggle: () => void;
   onOpenTimePicker: () => void;
+  /** Asks for notification permission and schedules the reminder once it is allowed. */
+  onAllowNotifications: () => void;
 }
 
 /** The daily reminder switch, its time, and the notice when the system blocks it. */
@@ -24,12 +26,16 @@ export function NotificationSettingsSection({
   reminderTimeLabel,
   onToggle,
   onOpenTimePicker,
+  onAllowNotifications,
 }: NotificationSettingsSectionProps) {
   const { colors } = useTheme();
   const displayFont = useDisplayFont();
   const { t } = useTranslation();
   const switchColors = useSettingSwitchColors();
-  const notificationsBlockedBySystem = useNotificationsBlockedBySystem(notificationsEnabled);
+  const systemBlock = useNotificationsBlockedBySystem(notificationsEnabled);
+  // A reminder synced on from another device, on a device never asked: one tap asks.
+  // Denied for good: only system settings can turn it back on.
+  const needsPermission = systemBlock === 'needs-permission';
 
   return (
     <View style={sectionStyles.group}>
@@ -53,22 +59,27 @@ export function NotificationSettingsSection({
           }
         />
 
-        {notificationsBlockedBySystem ? (
-          // On in the app, blocked by the system: the reminder can never appear,
-          // and only system settings can turn it back on.
+        {systemBlock ? (
+          // On in the app, but the system keeps the reminder from appearing.
           <View style={[styles.blockedNotice, { backgroundColor: colors.warningSoft }]}>
             <View style={styles.blockedNoticeCopy}>
               <TriangleAlert size={18} color={colors.onWarningSoft} strokeWidth={ICON_STROKE} />
               <Text style={[styles.blockedNoticeText, { color: colors.onWarningSoft }]}>
-                {t('settings.notificationsBlockedNotice')}
+                {t(
+                  needsPermission
+                    ? 'settings.notificationsNotAllowedNotice'
+                    : 'settings.notificationsBlockedNotice'
+                )}
               </Text>
             </View>
             <AppButton
-              label={t('settings.openDeviceSettings')}
+              label={t(
+                needsPermission ? 'settings.allowNotifications' : 'settings.openDeviceSettings'
+              )}
               variant="secondary"
               size="md"
               fullWidth={false}
-              onPress={() => void Linking.openSettings()}
+              onPress={needsPermission ? onAllowNotifications : () => void Linking.openSettings()}
               style={styles.blockedNoticeButton}
             />
           </View>

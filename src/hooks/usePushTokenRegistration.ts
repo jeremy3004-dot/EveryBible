@@ -1,11 +1,13 @@
 import { useEffect } from 'react';
+import { AppState, type AppStateStatus } from 'react-native';
 import { addPushTokenListener } from '../services/notifications/notificationBootstrap';
+import { addNotificationPermissionRequestListener } from '../services/notifications/notificationPermissionEvents';
 import { useAuthStore } from '../stores/authStore';
 
 /**
  * Registers this device's push token for the signed-in account, and re-registers when
- * the OS rotates the token. The notification service is imported lazily so it stays off
- * the startup path. Auth can change while that import resolves, so each registration
+ * the OS rotates the token or notification permission may have been granted since. The
+ * notification service is imported lazily so it stays off the startup path. Auth can change while that import resolves, so each registration
  * checks it is still for the same account and auth generation, and unmounting cancels
  * anything still pending. A session restored offline with an expired token registers
  * only once auth-js has refreshed it.
@@ -13,11 +15,20 @@ import { useAuthStore } from '../stores/authStore';
 export function usePushTokenRegistration(isAuthenticated: boolean, userId: string | undefined) {
   const awaitingTokenRefresh = useAuthStore((state) => state.awaitingTokenRefresh);
 
-  // Re-runs whenever the user changes, or their session's token is refreshed.
+  // Re-runs whenever the user changes, or their session's token is refreshed. Registration
+  // needs notification permission, which can be granted after launch: by the app's own
+  // prompt (announced in-app, since Android's prompt does not reliably background the
+  // app) or in system settings (seen on the return to the foreground). Both try again.
+  // The service reuses a registration it already made for this account and device
+  // without native or server work, so repeated tries do not write user_devices again.
   useEffect(() => {
+    if (!isAuthenticated || !userId || awaitingTokenRefresh) {
+      return;
+    }
     let isCurrentEffect = true;
-    const authGeneration = useAuthStore.getState().authGeneration;
-    if (isAuthenticated && userId && !awaitingTokenRefresh) {
+
+    const register = () => {
+      const authGeneration = useAuthStore.getState().authGeneration;
       void import('../services/notifications').then(({ registerPushToken }) => {
         const currentAuth = useAuthStore.getState();
         if (
@@ -30,9 +41,20 @@ export function usePushTokenRegistration(isAuthenticated: boolean, userId: strin
           return registerPushToken(userId);
         }
       });
-    }
+    };
+
+    register();
+    const appStateSubscription = AppState.addEventListener('change', (state: AppStateStatus) => {
+      if (state === 'active') {
+        register();
+      }
+    });
+    const permissionSubscription = addNotificationPermissionRequestListener(register);
+
     return () => {
       isCurrentEffect = false;
+      appStateSubscription.remove();
+      permissionSubscription.remove();
     };
   }, [isAuthenticated, userId, awaitingTokenRefresh]);
 

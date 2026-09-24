@@ -497,6 +497,9 @@ export const pa = {
     notificationsBlockedNotice:
       'ਤੁਹਾਡੀ ਡਿਵਾਈਸ ਦੀਆਂ ਸੈਟਿੰਗਾਂ ਵਿੱਚ Every Bible ਦੀਆਂ ਸੂਚਨਾਵਾਂ ਬੰਦ ਹਨ, ਇਸ ਲਈ ਇਹ ਰੀਮਾਈਂਡਰ ਦਿਖਾਈ ਨਹੀਂ ਦੇ ਸਕਦਾ।',
     openDeviceSettings: 'ਸੈਟਿੰਗਾਂ ਖੋਲ੍ਹੋ',
+    notificationsNotAllowedNotice:
+      'ਇਹ ਰੀਮਾਈਂਡਰ ਦਿਖਾਉਣ ਲਈ Every Bible ਨੂੰ ਇਸ ਡਿਵਾਈਸ ਉੱਤੇ ਸੂਚਨਾਵਾਂ ਭੇਜਣ ਦੀ ਇਜਾਜ਼ਤ ਚਾਹੀਦੀ ਹੈ।',
+    allowNotifications: 'ਸੂਚਨਾਵਾਂ ਦੀ ਇਜਾਜ਼ਤ ਦਿਓ',
     selectLanguage: 'ਇੰਟਰਫੇਸ ਭਾਸ਼ਾ ਚੁਣੋ',
     deleteAccount: 'ਖਾਤਾ ਮਿਟਾਓ',
     deleteAccountWarning:
