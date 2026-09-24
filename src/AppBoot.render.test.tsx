@@ -170,8 +170,11 @@ mockModule(mock, sourcePath('services/startup/AppRuntimeEffects.tsx'), {
     return createElement('AppRuntimeEffects');
   },
 });
+let androidChannelSetups = 0;
 mockModule(mock, sourcePath('services/notifications/index.ts'), {
-  setupAndroidChannels: async () => {},
+  setupAndroidChannels: async () => {
+    androidChannelSetups += 1;
+  },
 });
 let bibleInitError: Error | null = null;
 mockModule(mock, sourcePath('services/bible/bibleService.ts'), {
@@ -203,6 +206,8 @@ beforeEach(() => {
   handledReports.length = 0;
   bibleInitError = null;
   navigatorRenders = 0;
+  androidChannelSetups = 0;
+  harness.rn.Platform.OS = 'ios';
   privacyStore.setState(privacyStore.getInitialState(), true);
   authStore.setState(authStore.getInitialState(), true);
 });
@@ -431,4 +436,23 @@ test('a preference reset that clears onboarding still takes the app back to onbo
   });
   await settle();
   assert.equal(surface(view), 'onboarding');
+});
+
+// The notification service is ~120 modules; on iOS its only launch job here was
+// Android channel setup, a no-op there. Push-token registration and reminder
+// reconciliation load it themselves when they have work to do.
+test('an iOS launch does not load the notification service for Android channel setup', async () => {
+  privacyInitResult = { isInitialized: true, isLocked: false };
+  const view = await renderApp();
+  assert.equal(surface(view), 'navigator');
+
+  assert.equal(androidChannelSetups, 0);
+});
+
+test('an Android launch sets up the notification channels once, before onboarding finishes', async () => {
+  harness.rn.Platform.OS = 'android';
+  authStore.getState().setPreferences({ onboardingCompleted: false });
+  await renderApp();
+
+  assert.equal(androidChannelSetups, 1);
 });

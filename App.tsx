@@ -430,8 +430,14 @@ function AppContent() {
 
   useAppSessionAnalytics(Boolean(onboardingCompleted) && !isPrivacyLocked);
 
-  // Set up Android notification channels on mount (idempotent, no-op on iOS).
+  // Set up Android notification channels on mount (idempotent). Channels exist only
+  // on Android, and the import alone evaluates the whole notification service
+  // (~120 modules), so iOS skips it. Push-token registration and the daily-reminder
+  // reconciler load the service themselves when they have work to do.
   useEffect(() => {
+    if (Platform.OS !== 'android') {
+      return;
+    }
     const handle = InteractionManager.runAfterInteractions(() => {
       void import('./src/services/notifications')
         .then(({ setupAndroidChannels }) => setupAndroidChannels())
