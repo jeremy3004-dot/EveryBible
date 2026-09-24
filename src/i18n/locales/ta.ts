@@ -29,7 +29,7 @@ export const ta = {
     noMatching: 'இந்த வடிகட்டிகளுக்குப் பொருந்தும் பதில்கள் இல்லை.',
     waiting: 'உங்கள் முடிவுக்காகக் காத்திருப்பவை: {{count}}',
     startReview: 'மதிப்பாய்வைத் தொடங்கு',
-    progress: '{{total}} இல் {{current}}',
+    progress: '{{total}}-இல் {{current}}',
     skip: 'இப்போதைக்குத் தவிர்',
     everyone: 'அனைவரும்',
     sourceFilter: 'யாருடைய கருத்துகளைக் காட்ட வேண்டும்',
