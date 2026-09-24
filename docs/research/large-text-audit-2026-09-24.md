@@ -182,3 +182,53 @@ verse actions sheet in both modes, and note mode with the keyboard up and a
 note long enough to scroll inside the field (Done must stay above the
 keyboard, on iOS and Android); the sleep-timer and music dialogs at AX3,
 scrolled to their last option.
+
+## Release-build QA at AX5 and in Arabic (same day)
+
+A Release build on the iOS simulator at the largest text size
+(accessibility-extra-extra-extra-large, fontScale about 3.1) and in Arabic, plus
+an Android emulator at font scale 2.0, found issues the code reading missed.
+Uncapped, a 32pt display title renders at about 99pt, so one word ("Gather")
+is wider than the screen and iOS breaks it mid-word.
+
+### Shared scaling caps
+
+`src/design/largeTextLayout.ts` now holds the caps, so screens stop using
+their own literals:
+
+- `DISPLAY_TEXT_MAX_FONT_SCALE = 1.5`: screen titles, greetings, sheet titles
+  and big numerals in the display face (`displayHero`, `screenTitle`,
+  `pageTitle`, `numeralXL`, `numeralHero`, `numeralStreak`). This covers every
+  current use, including the Settings modals, `ui/Sheet`, the Profile stats and
+  the onboarding hero.
+- `CONTROL_LABEL_MAX_FONT_SCALE = 1.6`: labels in slots that cannot widen
+  (`TabSwitch` segments, the Settings size stepper value, tab bar labels, and
+  `AppButton` and Google sign-in labels, which already used 1.6).
+
+Body copy is still uncapped.
+
+| Surface                               | Found                                                  | Fix                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Display titles (Gather, Plans, More…) | "Gathe/r"                                              | Display cap                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `ui/TabSwitch`                        | "We/ek", "My pla…" (iOS); "Complete / d" (Android 2.0) | Labels capped at the control cap. From `LARGE_TEXT_FONT_SCALE`, a full-width switch (Plans tabs, Settings theme, lesson switches) stacks one segment per row with no line limit, and the thumb moves by the measured segment heights. Hugging `sm` switches stay in a row, and their labels wrap between words                                                                                                      |
+| Settings size stepper                 | "Med/ium"                                              | Control cap                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Home hero                             | "Good afterno…"; "THURSDAY · SEPTEMBER.." (Android)    | Greeting capped, with 3 lines at large text; date line 2 lines at large text                                                                                                                                                                                                                                                                                                                                        |
+| Home Gather card                      | "GATHER .." eyebrow cut (Android)                      | Eyebrow and lesson count take 2 lines at large text                                                                                                                                                                                                                                                                                                                                                                 |
+| Translation picker header             | 22pt close target; title broke mid-word                | Shared `bible/TranslationPickerHeader` (reader and Bible browser). The close control is 44×44 with -11pt margins, so the 22pt glyph and the header height are unchanged. The title is capped and shrinks beside the close control                                                                                                                                                                                   |
+| Tab bar (Arabic)                      | "الكتاب المـ…"                                         | Each tab gets a fifth of the capsule (about 69pt on a 375pt phone). "الكتاب المقدس" is the conventional name and a bare "الكتاب" is ambiguous, so the translation stays and the label shrinks to fit its slot (`adjustsFontSizeToFit`, minimum 0.7, allow-listed in `textScalingAccessibility.test.ts`), the way UITabBar fits its titles                                                                           |
+| Home streak (Arabic)                  | "1 أيام"                                               | `home.streakUnitLabel` is now a plural key (`_one`/`_other`, plus each locale's own categories: six in Arabic, four in Russian, `_many` in es/fr/pt) in all 21 locales                                                                                                                                                                                                                                              |
+| More locale row (Arabic)              | "United States" while Settings translated it           | New `services/onboarding/countryDisplayName.ts` resolves one country without the locale search engine. It checks `Intl.DisplayNames` first. That API is absent on Hermes: the RN 0.81 `hermes.framework` only has Collator, DateTimeFormat and NumberFormat. It then falls back to the generated CLDR table, which is required lazily. More runs the lookup after interactions and shows the stored name until then |
+
+Render tests: `TabSwitch.render.test.tsx` (cap at 3.12, stacking and thumb
+at 2.0, row at 1), `TabNavigator.render.test.tsx` (Arabic label at fontScale
+1), `HomeScreen.render.test.tsx` (greeting, date and Gather line limits;
+Arabic streak forms 1/2/3/11), `BibleReaderScreen.chrome.render.test.tsx`
+and `BibleBrowserScreen.render.test.tsx` (close target, capped title),
+`SettingsScreen`, `PlansHomeScreen`, `GatherScreen` and `MoreScreen` (Arabic
+country name with and without `Intl.DisplayNames`, and the locale engine left
+untouched).
+
+Device QA still needed: AX5 on iOS and 2.0 on Android in English, German and
+Arabic. Check the stacked Plans tabs in the sticky header, the stacked
+Settings theme switch, that the Arabic tab bar label shrinks rather than
+truncates, and the More locale row on first open.

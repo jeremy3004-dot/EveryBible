@@ -147,3 +147,92 @@ test('the tablist label is required by the component type', async () => {
   const element = <TabSwitch segments={segments} value="wisdom" onChange={() => {}} />;
   assert.ok(element);
 });
+
+// Release QA at iOS AX5 (fontScale ~3.1): segment labels grew until one word no
+// longer fit its segment and iOS broke it mid-word ("We/ek", "My pla…"), and on
+// Android at 2.0 the Plans switch showed "Complete / d".
+const AX5 = 3.12;
+
+async function renderFullWidth(value = 'foundations') {
+  const { TabSwitch } = await import('./TabSwitch');
+  const changes: string[] = [];
+  const view = await harness.render(
+    <TabSwitch
+      segments={segments}
+      value={value}
+      fullWidth
+      onChange={(key) => changes.push(key)}
+      accessibilityLabel="Lesson track"
+    />
+  );
+  return { view, changes };
+}
+
+test('segment labels cap their scaling so one word always fits its segment', async () => {
+  const { CONTROL_LABEL_MAX_FONT_SCALE } = await import('../../design/largeTextLayout');
+  harness.setFontScale(AX5);
+  for (const render of [() => renderSwitch('wisdom', 'sm'), () => renderFullWidth('wisdom')]) {
+    const { view } = await render();
+    for (const label of segments.map((segment) => segment.label)) {
+      assert.equal(view.getByText(label).props.maxFontSizeMultiplier, CONTROL_LABEL_MAX_FONT_SCALE);
+    }
+    view.unmount();
+  }
+});
+
+test('at default size a full-width switch keeps its equal segments in one row', async () => {
+  const { view } = await renderFullWidth();
+
+  assert.equal(flattenStyle(view.getByRole('tablist').props.style)?.flexDirection, 'row');
+  for (const tab of view.getAllByRole('tab')) {
+    assert.equal(flattenStyle(tab.props.style)?.flex, 1);
+  }
+  assert.equal(view.getByText('Foundations').props.numberOfLines, 2);
+});
+
+test('at large text a full-width switch stacks its segments, one full-width row each', async () => {
+  harness.setFontScale(2);
+  const { view, changes } = await renderFullWidth('wisdom');
+
+  const track = flattenStyle(view.getByRole('tablist').props.style);
+  assert.equal(track?.flexDirection, 'column');
+  assert.equal(track?.alignSelf, 'stretch');
+  for (const tab of view.getAllByRole('tab')) {
+    const style = flattenStyle(tab.props.style);
+    assert.equal(style?.flex, undefined, 'a stacked segment is as tall as its label, not a share');
+    assert.equal(style?.alignSelf, 'stretch');
+  }
+  for (const label of segments.map((segment) => segment.label)) {
+    assert.equal(view.getByText(label).props.numberOfLines, undefined, 'a full row never cuts');
+  }
+  assert.ok(view.getByRole('tab', { name: 'Wisdom', selected: true }));
+  await view.press(view.getByRole('tab', { name: 'Stories' }));
+  assert.deepEqual(changes, ['stories']);
+});
+
+test('a stacked switch slides its full-width thumb down by the measured segment heights', async () => {
+  harness.setFontScale(2);
+  const { view } = await renderFullWidth('stories');
+  let index = 0;
+  for (const tab of view.getAllByRole('tab')) {
+    await view.fire(tab, 'onLayout', {
+      nativeEvent: { layout: { width: 300, height: 40 + index * 10 } },
+    });
+    index += 1;
+  }
+
+  const thumb = view.queryAllByType('View').find((node) => node.props.pointerEvents === 'none');
+  assert.ok(thumb);
+  const style = flattenStyle(thumb.props.style);
+  assert.equal(style?.left, 3);
+  assert.equal(style?.right, 3, 'the thumb spans the track');
+  assert.equal(style?.height, 60, 'as tall as the selected segment');
+  assert.deepEqual(style?.transform, [{ translateY: 40 + 50 }]);
+});
+
+test('a hugging switch stays one row at large text: its labels wrap between words instead', async () => {
+  harness.setFontScale(AX5);
+  const { view } = await renderSwitch('foundations', 'sm');
+
+  assert.equal(flattenStyle(view.getByRole('tablist').props.style)?.flexDirection, 'row');
+});

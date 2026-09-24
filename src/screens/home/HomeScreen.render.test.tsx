@@ -593,7 +593,7 @@ test('the ledger counts chapters read and listened from the progress store', asy
 test('the streak unit keeps its two-line width at default size and loses the cap at large text', async () => {
   const unitStyle = async () => {
     const view = await renderHome();
-    const unit = view.getByText(t('home.streakUnitLabel'));
+    const unit = view.getByText(t('home.streakUnitLabel', { count: 0 }));
     return { style: flattenStyle(unit.props.style) ?? {}, lines: unit.props.numberOfLines };
   };
 
@@ -605,6 +605,80 @@ test('the streak unit keeps its two-line width at default size and loses the cap
   const large = await unitStyle();
   assert.equal(large.style.maxWidth, undefined, 'a fixed 54pt column fits only a word per line');
   assert.equal(large.lines, undefined, 'longer languages need a third line at 2.0');
+});
+
+// Release QA at iOS AX5 truncated the greeting to "Good afterno…"; Android at 2.0
+// cut the date line ("THURSDAY · SEPTEMBER..") and the Gather card eyebrow.
+test('at accessibility sizes the greeting is capped and the one-line eyebrows may wrap', async () => {
+  const { DISPLAY_TEXT_MAX_FONT_SCALE } = await import('../../design/largeTextLayout');
+  const lines = async () => {
+    const view = await renderHome();
+    const { screen } = heroes(view);
+    const greeting = screen.getByText(/^Good morning/);
+    const date = screen.getByText('Thursday · September 17');
+    const gatherEyebrow = view.getByText(new RegExp(`^${t('tabs.gather')} · `));
+    const [foundation] = gatherFoundations;
+    const gatherCount = view.getByText(
+      t('home.lessonsProgress', { completed: 0, total: foundation.lessons.length })
+    );
+    return {
+      greeting: [greeting.props.maxFontSizeMultiplier, greeting.props.numberOfLines],
+      date: date.props.numberOfLines,
+      gather: [gatherEyebrow.props.numberOfLines, gatherCount.props.numberOfLines],
+    };
+  };
+
+  assert.deepEqual(await lines(), {
+    greeting: [DISPLAY_TEXT_MAX_FONT_SCALE, 2],
+    date: 1,
+    gather: [1, 1],
+  });
+
+  harness.setFontScale(2);
+  assert.deepEqual(await lines(), {
+    greeting: [DISPLAY_TEXT_MAX_FONT_SCALE, 3],
+    date: 2,
+    gather: [2, 2],
+  });
+});
+
+// Release QA in Arabic read "1 أيام": the unit beside the numeral was one string
+// for every count. Arabic has six plural forms.
+test('the streak unit agrees with the count in every plural form', async () => {
+  const { ar } = await import('../../i18n/locales/ar');
+  harness.i18n.addResourceBundle('ar', 'translation', ar, true, true);
+  // The unit sits beside the numeral inside the one accessible streak element.
+  const unitFor = async (count: number) => {
+    progressStore.setState({ streakDays: count });
+    const view = await renderHome();
+    const streak = view
+      .queryAllByType('View')
+      .find(
+        (node) =>
+          node.props.accessible === true &&
+          within(node).queryAllByType('LucideIcon')[0]?.props.name === 'Flame'
+      ) as ReactTestInstance;
+    const [numeral, unit] = within(streak)
+      .queryAllByType('Text')
+      .map((node) => textContent(node));
+    view.unmount();
+    assert.equal(numeral, String(count));
+    return unit;
+  };
+
+  assert.equal(await unitFor(1), 'day streak');
+  assert.equal(await unitFor(12), 'day streak');
+
+  await harness.i18n.changeLanguage('ar');
+  try {
+    assert.equal(await unitFor(1), ar.home.streakUnitLabel_one);
+    assert.equal(await unitFor(2), ar.home.streakUnitLabel_two);
+    assert.equal(await unitFor(3), ar.home.streakUnitLabel_few);
+    assert.equal(await unitFor(11), ar.home.streakUnitLabel_many);
+    assert.notEqual(ar.home.streakUnitLabel_one, ar.home.streakUnitLabel_few);
+  } finally {
+    await harness.i18n.changeLanguage('en');
+  }
 });
 
 test('Home draws its glyphs with Lucide only', async () => {

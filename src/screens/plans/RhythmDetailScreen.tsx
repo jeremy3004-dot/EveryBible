@@ -39,6 +39,7 @@ import type {
   UserReadingPlanProgress,
 } from '../../services/plans/types';
 import { lightHaptic } from '../../utils';
+import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../design/largeTextLayout';
 
 interface RhythmSegmentViewModel {
   segment: ReadingPlanRhythmSessionSegment;
@@ -404,7 +405,10 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
         edges={['top']}
       >
         <View style={styles.errorContainer}>
-          <Text style={[styles.errorTitle, displayFont.bold, { color: colors.primaryText }]}>
+          <Text
+            maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
+            style={[styles.errorTitle, displayFont.bold, { color: colors.primaryText }]}
+          >
             {t('readingPlans.rhythms')}
           </Text>
           <Text style={[styles.errorBody, { color: colors.secondaryText }]}>
@@ -445,6 +449,7 @@ export function RhythmDetailScreen({ navigation, route }: RhythmDetailScreenProp
           </TouchableOpacity>
           <View style={styles.headerCopy}>
             <Text
+              maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
               accessibilityRole="header"
               style={[styles.title, displayFont.bold, { color: colors.primaryText }]}
               numberOfLines={2}

@@ -16,6 +16,7 @@ import Animated, {
 import type { LucideIcon } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { layout, motion, shadows, spacing, typography } from '../../design/system';
+import { CONTROL_LABEL_MAX_FONT_SCALE } from '../../design/largeTextLayout';
 import { PressableScale, type HapticFeedback } from './PressableScale';
 
 /**
@@ -66,7 +67,7 @@ const MIN_SPINNER_MS = 400;
 
 // Labels still scale with the user's text size, but stop short of the extreme
 // accessibility sizes where a CTA would eat the screen.
-const LABEL_MAX_FONT_SCALE = 1.6;
+const LABEL_MAX_FONT_SCALE = CONTROL_LABEL_MAX_FONT_SCALE;
 
 export function AppButton({
   label,

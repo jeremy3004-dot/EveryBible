@@ -96,6 +96,7 @@ import {
   type PlanLedgerDotPaint,
 } from './planLedgerGridModel';
 import { lightHaptic, successHaptic } from '../../utils';
+import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../design/largeTextLayout';
 
 // ---------------------------------------------------------------------------
 // Geometry the design fixes in absolute points
@@ -485,7 +486,12 @@ function ProgressCard({ plan, progress, currentDaySummary, today }: ProgressCard
             {t('readingPlans.day')}
           </Text>
           <View style={progressCardStyles.numeralRow}>
-            <Text style={[typography.numeralXL, { color: colors.primaryText }]}>{currentDay}</Text>
+            <Text
+              maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
+              style={[typography.numeralXL, { color: colors.primaryText }]}
+            >
+              {currentDay}
+            </Text>
             <Text style={[progressCardStyles.numeralTotal, { color: colors.secondaryText }]}>
               /{totalDays}
             </Text>
@@ -1492,6 +1498,7 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
             </Text>
           ) : null}
           <Text
+            maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
             accessibilityRole="header"
             style={[styles.coverTitle, displayFont.bold]}
             numberOfLines={2}

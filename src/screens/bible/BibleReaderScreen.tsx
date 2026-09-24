@@ -213,6 +213,7 @@ import {
   shouldEnableChapterFeedbackSubmit,
 } from './bibleReaderFeedbackModel';
 import { TranslationPickerList } from './TranslationPickerList';
+import { TranslationPickerHeader } from './TranslationPickerHeader';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
 
 type NavigationProp = NativeStackNavigationProp<BibleStackParamList>;
@@ -6166,18 +6167,11 @@ export function BibleReaderScreen() {
                 { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
               ]}
             >
-              <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: colors.biblePrimaryText }]}>
-                  {t('bible.selectTranslation')}
-                </Text>
-                <TouchableOpacity
-                  onPress={handleCloseTranslationSheet}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('interface.close')}
-                >
-                  <Ionicons name="close" size={22} color={colors.bibleSecondaryText} />
-                </TouchableOpacity>
-              </View>
+              <TranslationPickerHeader
+                onClose={handleCloseTranslationSheet}
+                style={styles.modalHeader}
+                titleStyle={styles.modalTitle}
+              />
               <TranslationPickerList
                 onRequestClose={handleCloseTranslationSheet}
                 onTranslationActivated={handleTranslationActivated}

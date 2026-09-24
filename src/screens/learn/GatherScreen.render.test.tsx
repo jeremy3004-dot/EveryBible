@@ -132,6 +132,16 @@ test('at large text the switch drops under the title instead of squeezing it out
   assert.notEqual(titleStyle?.flex, 1, 'no zero flex basis in an auto-height column');
 });
 
+// Release QA at iOS AX5 broke the uncapped 32pt title as "Gathe/r".
+test('the Gather title caps its scaling so the word never breaks', async () => {
+  const { DISPLAY_TEXT_MAX_FONT_SCALE } = await import('../../design/largeTextLayout');
+  harness.setFontScale(3.12);
+  const view = await renderGather();
+
+  const title = view.getByRole('header', { name: t('gather.title') });
+  assert.equal(title.props.maxFontSizeMultiplier, DISPLAY_TEXT_MAX_FONT_SCALE);
+});
+
 test('the sub-tabs are one shared tablist that swaps the foundations path for the wisdom library', async () => {
   const view = await renderGather();
 
