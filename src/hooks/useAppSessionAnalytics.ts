@@ -9,7 +9,10 @@ import { useAuthStore } from '../stores/authStore';
  * session_id context that audio and reading events use, without emitting a second
  * session_started. A signed-out session is owned by anonymous analytics. Auth is
  * read live when a session starts, and the session ends on the path it started on.
- * The analytics service is imported lazily so it stays off the startup path.
+ * A cold start's session is attributed once the session restore has finished, so a
+ * signed-in reader is not counted as anonymous; leaving the app first starts it with
+ * what is known then. The analytics service is imported lazily so it stays off the
+ * startup path.
  */
 export function useAppSessionAnalytics(enabled: boolean): void {
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
@@ -20,6 +23,8 @@ export function useAppSessionAnalytics(enabled: boolean): void {
     }
 
     let sessionWasAuthenticated = false;
+    // Starts a session still waiting for the session restore, straight away.
+    let startPendingSession: (() => void) | null = null;
     const startAnalyticsSessions = () => {
       void import('../services/analytics').then(
         ({
@@ -32,25 +37,44 @@ export function useAppSessionAnalytics(enabled: boolean): void {
           // flush — which fires on app-background when the network may be gone —
           // attaches cached location instead of losing the race to server IP.
           void primeGeoContext();
-          // Read auth live at call time so a mid-session sign-in/out is attributed
-          // correctly without tearing down the AppState listener on every auth change.
-          sessionWasAuthenticated = useAuthStore.getState().isAuthenticated;
-          if (sessionWasAuthenticated) {
-            // Authenticated path: the session lifecycle event (session_started /
-            // session_ended) is owned by analyticsService so it carries user_id.
-            // We still establish an anonymous session_id context so that
-            // audio_playback_progress and reading_ended — which always flow
-            // through trackAnonymousUsageEvent for ALL users — have a valid
-            // session_id. Without this setup those events would
-            // lazily create a new anonymous session and emit their own
-            // session_started, which is worse than just pre-creating the id.
-            const sessionId = initAnonymousSessionContext();
-            startSession(sessionId);
-          } else {
-            // Unauthenticated path: anonymous analytics owns both the session
-            // context and the session lifecycle event (session_started).
-            startAnonymousUsageSession();
+
+          const beginSession = () => {
+            startPendingSession = null;
+            // Read auth live at call time so a mid-session sign-in/out is attributed
+            // correctly without tearing down the AppState listener on every auth change.
+            sessionWasAuthenticated = useAuthStore.getState().isAuthenticated;
+            if (sessionWasAuthenticated) {
+              // Authenticated path: the session lifecycle event (session_started /
+              // session_ended) is owned by analyticsService so it carries user_id.
+              // We still establish an anonymous session_id context so that
+              // audio_playback_progress and reading_ended — which always flow
+              // through trackAnonymousUsageEvent for ALL users — have a valid
+              // session_id. Without this setup those events would
+              // lazily create a new anonymous session and emit their own
+              // session_started, which is worse than just pre-creating the id.
+              const sessionId = initAnonymousSessionContext();
+              startSession(sessionId);
+            } else {
+              // Unauthenticated path: anonymous analytics owns both the session
+              // context and the session lifecycle event (session_started).
+              startAnonymousUsageSession();
+            }
+          };
+
+          if (useAuthStore.getState().isInitialized) {
+            beginSession();
+            return;
           }
+          // Cold start: auth is not known until the session restore finishes.
+          const unsubscribe = useAuthStore.subscribe((state) => {
+            if (state.isInitialized) {
+              startPendingSession?.();
+            }
+          });
+          startPendingSession = () => {
+            unsubscribe();
+            beginSession();
+          };
         }
       );
     };
@@ -64,6 +88,7 @@ export function useAppSessionAnalytics(enabled: boolean): void {
           endSession,
           flushEvents,
         }) => {
+          startPendingSession?.();
           if (sessionWasAuthenticated) {
             // Authenticated path: session_ended is emitted by the authenticated
             // analytics path. We only reset the anonymous session_id context (no
