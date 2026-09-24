@@ -229,6 +229,20 @@ test('fonts and settings opens a sheet with the size steppers, themes and all se
   assert.equal(view.queryByRole('header', { name: 'John 3' }), null);
 });
 
+test('the reader text size steppers are one adjustable control that speaks the new size', async () => {
+  harness.authStore.getState().setPreferences({ fontSize: 'medium' });
+  const view = await renderReader();
+  await view.press(view.getByRole('button', { name: t('tabs.more') }));
+  await view.press(view.getByRole('button', { name: t('bible.readerFontsAndSettings') }));
+
+  const stepper = () => view.getByRole('adjustable', { name: t('settings.fontSize') });
+  assert.deepEqual(stepper().props.accessibilityValue, { text: t('settings.fontSizeMedium') });
+  await view.fire(stepper(), 'onAccessibilityAction', { nativeEvent: { actionName: 'increment' } });
+
+  assert.equal(harness.authStore.getState().preferences.fontSize, 'large');
+  assert.deepEqual(stepper().props.accessibilityValue, { text: t('settings.fontSizeLarge') });
+});
+
 test('the font sheet closes from its labelled backdrop and from the system back gesture', async () => {
   const openSheet = async (view: View) => {
     await view.press(view.getByRole('button', { name: t('tabs.more') }));

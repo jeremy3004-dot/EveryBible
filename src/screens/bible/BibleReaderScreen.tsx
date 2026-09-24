@@ -280,7 +280,14 @@ export function BibleReaderScreen() {
       downloadedAudioBooks: translation.downloadedAudioBooks,
       bookId: targetBookId,
     });
-  const { scaleValue, increase, decrease, canIncrease, canDecrease } = useFontSize();
+  const {
+    label: fontSizeLabel,
+    scaleValue,
+    increase,
+    decrease,
+    canIncrease,
+    canDecrease,
+  } = useFontSize();
   const {
     status,
     currentTranslationId: activeAudioTranslationId,
@@ -1316,6 +1323,7 @@ export function BibleReaderScreen() {
         canDecrease={canDecrease}
         canIncrease={canIncrease}
         decrease={decrease}
+        fontSizeLabel={fontSizeLabel}
         handleCloseFontSizeSheet={handleCloseFontSizeSheet}
         handleOpenAllSettings={handleOpenAllSettings}
         handleReaderThemeChange={handleReaderThemeChange}
