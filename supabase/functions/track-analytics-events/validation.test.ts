@@ -150,21 +150,32 @@ test('events are always attributed to the verified user, never a user named in t
 
 // ── body handling ───────────────────────────────────────────────────────────
 
-test('a body that is not JSON is treated as an empty batch and nothing is charged', async () => {
+const UNUSABLE_BODY = { success: false, error: 'Request body must include an events list' };
+
+test('a body that is not JSON is refused as a 400 and nothing is charged', async () => {
   const h = endpoint();
   const response = await h.post('{ events: [');
-  assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { success: true, inserted: 0, geo: null });
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), UNUSABLE_BODY);
   assert.equal(h.budgetCharges().length, 0);
 });
 
-test('a body without an events array, or with an empty one, stores nothing', async () => {
+test('a body without an events array is refused as a 400 and stores nothing', async () => {
   const h = endpoint();
-  for (const body of ['null', '{}', '{"events":"many"}', '{"events":[]}']) {
+  for (const body of ['null', '[]', '{}', '{"events":"many"}']) {
     const response = await h.post(body);
-    assert.equal(response.status, 200, body);
-    assert.equal((await response.json()).inserted, 0, body);
+    assert.equal(response.status, 400, body);
+    assert.deepEqual(await response.json(), UNUSABLE_BODY, body);
   }
+  assert.deepEqual(h.rows(), []);
+  assert.equal(h.budgetCharges().length, 0);
+});
+
+test('an empty events array is acknowledged without a write or a budget charge', async () => {
+  const h = endpoint();
+  const response = await h.post('{"events":[]}');
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { success: true, inserted: 0, geo: null });
   assert.deepEqual(h.rows(), []);
   assert.equal(h.budgetCharges().length, 0);
 });
@@ -208,8 +219,8 @@ test('payload geo from an untrusted source such as GPS is ignored in favour of r
   }
 });
 
-test('geo carried only inside event_properties is used when complete', async () => {
-  const h = endpoint();
+test('geo carried only inside event_properties is ignored in favour of request geo', async () => {
+  const h = endpoint({ lookup: () => Response.json({ country: 'NP', loc: '28.2096,83.9856' }) });
   await h.send([
     {
       ...baseEvent(),
@@ -227,20 +238,21 @@ test('geo carried only inside event_properties is used when complete', async () 
     },
   ]);
   const row = h.rows()[0];
-  assert.equal(h.lookups.length, 0);
+  assert.deepEqual(
+    h.lookups.map((url) => url.pathname),
+    ['/203.0.113.7/json']
+  );
   assert.deepEqual(
     [
       row?.geo_country_code,
       row?.geo_latitude,
       row?.geo_longitude,
       row?.geo_source,
-      row?.geo_timezone,
       row?.geo_city,
       row?.geo_region_name,
       row?.geo_region_code,
-      row?.geo_accuracy_km,
     ],
-    ['KE', -1.3, 36.8, 'cf-worker', 'Africa/Nairobi', 'Nairobi', 'Nairobi County', 'NB', null]
+    ['NP', 28.2, 84, 'ipinfo', null, null, null]
   );
 });
 
