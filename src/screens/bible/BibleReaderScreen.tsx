@@ -330,7 +330,9 @@ export function BibleReaderScreen() {
       downloadedAudioBooks: currentTranslationInfo?.downloadedAudioBooks ?? [],
       bookId,
     }).canPlayAudio && chapterHasCoveredAudio;
-  const translationLabel = currentTranslationInfo?.abbreviation || 'BSB';
+  // A translation the store has no entry for is named by its own id (as the Bible
+  // browser does); only BSB itself reads as BSB.
+  const translationLabel = currentTranslationInfo?.abbreviation || currentTranslation.toUpperCase();
   const feedback = useChapterFeedback({
     currentTranslation,
     currentTranslationInfo,
