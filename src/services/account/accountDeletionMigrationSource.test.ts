@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const migrationPath = path.join(
   repoRoot,
-  'supabase/migrations/20260924120000_account_deletion_leftovers.sql'
+  'supabase/migrations/20260924041136_account_deletion_leftovers.sql'
 );
 
 test('a plan assigned by a former group leader no longer blocks deleting that account', async () => {
