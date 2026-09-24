@@ -15,7 +15,7 @@
 --   1. This migration. Safe while the current admin build is still deployed: the old columns stay,
 --      and a transition trigger mirrors every write the old build makes to them into the side table.
 --   2. Deploy the admin app that reads/writes translation_catalog_admin.
---   3. 20260924120100_drop_translation_catalog_admin_columns.sql, only after step 2 is live on every
+--   3. 20260924014641_drop_translation_catalog_admin_columns.sql, only after step 2 is live on every
 --      admin instance (the old build selects these columns by name and would fail once they are dropped).
 --
 -- Access: RLS on, no policies, client grants revoked. The admin app and scripts use the service

@@ -360,7 +360,7 @@ build; it just stops returning them. Apply in this order:
    Safe while the old admin build is still serving.
 2. Deploy `apps/admin` (reads the side table through a PostgREST embed, writes notes and upstream
    provenance to it).
-3. `20260924120100_drop_translation_catalog_admin_columns` — only after step 2 is live everywhere;
+3. `20260924014641_drop_translation_catalog_admin_columns` — only after step 2 is live everywhere;
    the old build selects these columns by name. Drops the trigger, reconciles, drops the columns.
 
 Verify after step 3: `select column_name from information_schema.columns where table_name =
