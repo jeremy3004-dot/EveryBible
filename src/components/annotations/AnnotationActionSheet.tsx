@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,6 +25,9 @@ const HIGHLIGHT_COLORS = [
 ] as const;
 
 const PRESSED_SCALE = 0.96;
+// Past this OS text size five pills no longer fit one row with readable labels,
+// so the rail wraps to three per row instead of shrinking the words.
+const LARGE_TEXT_FONT_SCALE = 1.3;
 
 interface AnnotationActionSheetProps {
   visible: boolean;
@@ -53,11 +57,13 @@ interface ActionPillProps {
 
 function ActionPill({ icon, label, onPress, disabled = false }: ActionPillProps) {
   const { colors } = useTheme();
+  const { fontScale } = useWindowDimensions();
 
   return (
     <Pressable
       style={({ pressed }) => [
         styles.actionButton,
+        fontScale >= LARGE_TEXT_FONT_SCALE ? styles.actionButtonLargeText : null,
         {
           backgroundColor: colors.bibleElevatedSurface,
           borderColor: colors.bibleDivider,
@@ -75,14 +81,7 @@ function ActionPill({ icon, label, onPress, disabled = false }: ActionPillProps)
         size={16}
         color={disabled ? colors.bibleSecondaryText : colors.biblePrimaryText}
       />
-      <Text
-        style={[styles.actionLabel, { color: colors.biblePrimaryText }]}
-        numberOfLines={1}
-        adjustsFontSizeToFit
-        minimumFontScale={0.9}
-      >
-        {label}
-      </Text>
+      <Text style={[styles.actionLabel, { color: colors.biblePrimaryText }]}>{label}</Text>
     </Pressable>
   );
 }
@@ -453,12 +452,16 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     gap: 3,
   },
+  actionButtonLargeText: {
+    flexBasis: '30%',
+  },
   actionLabel: {
     ...typography.micro,
     textAlign: 'center',
   },
   actionButtonRail: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'stretch',
     justifyContent: 'space-between',
     gap: 8,
