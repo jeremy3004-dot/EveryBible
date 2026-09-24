@@ -37,37 +37,48 @@ export function useReminderSettings() {
 
   const closeTimePicker = () => setShowTimePicker(false);
 
+  /**
+   * Asks for notification permission, then schedules the reminder at its saved time or
+   * opens the picker for one. Used by the switch, and by the notice shown when the
+   * reminder is already on (synced from another device) but this device never allowed
+   * notifications; the preference and sync are only touched when they change.
+   */
+  const enableReminder = async () => {
+    const outcome = await requestNotificationPermissionOutcome();
+
+    if (outcome !== 'granted') {
+      // Once Android stops showing the prompt, the only way back is system settings.
+      Alert.alert(
+        t('settings.permissionRequired'),
+        t('settings.enableNotificationsMessage'),
+        outcome === 'blocked'
+          ? [
+              { text: t('common.cancel'), style: 'cancel' },
+              { text: t('common.settings'), onPress: () => void Linking.openSettings() },
+            ]
+          : [{ text: t('common.ok') }]
+      );
+      return;
+    }
+
+    const enablePlan = getReminderEnablePlan(reminderTime);
+
+    if (enablePlan.type === 'schedule-existing') {
+      await scheduleDailyReminder(enablePlan.schedule.hour, enablePlan.schedule.minute);
+      if (!notificationsEnabled) {
+        setPreferences({ notificationsEnabled: true });
+        syncPreferences().catch(() => {});
+      }
+      return;
+    }
+
+    openTimePicker();
+  };
+
   const handleNotificationToggle = async () => {
     lightHaptic();
     if (!notificationsEnabled) {
-      // Request permission when enabling
-      const outcome = await requestNotificationPermissionOutcome();
-
-      if (outcome !== 'granted') {
-        // Once Android stops showing the prompt, the only way back is system settings.
-        Alert.alert(
-          t('settings.permissionRequired'),
-          t('settings.enableNotificationsMessage'),
-          outcome === 'blocked'
-            ? [
-                { text: t('common.cancel'), style: 'cancel' },
-                { text: t('common.settings'), onPress: () => void Linking.openSettings() },
-              ]
-            : [{ text: t('common.ok') }]
-        );
-        return;
-      }
-
-      const enablePlan = getReminderEnablePlan(reminderTime);
-
-      if (enablePlan.type === 'schedule-existing') {
-        await scheduleDailyReminder(enablePlan.schedule.hour, enablePlan.schedule.minute);
-        setPreferences({ notificationsEnabled: true });
-        syncPreferences().catch(() => {});
-        return;
-      }
-
-      openTimePicker();
+      await enableReminder();
       return;
     }
 
@@ -77,6 +88,11 @@ export function useReminderSettings() {
     } finally {
       syncPreferences().catch(() => {});
     }
+  };
+
+  const handleAllowNotifications = async () => {
+    lightHaptic();
+    await enableReminder();
   };
 
   const handleTimeSelect = async () => {
@@ -100,6 +116,7 @@ export function useReminderSettings() {
     openTimePicker,
     closeTimePicker,
     handleNotificationToggle,
+    handleAllowNotifications,
     handleTimeSelect,
   };
 }

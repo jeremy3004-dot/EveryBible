@@ -1,11 +1,19 @@
 import test, { afterEach, before, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { mockModule, mockReactNative, sourcePath } from '../../testing/mockModules';
+import {
+  mockMmkvStorage,
+  mockModule,
+  mockReactNative,
+  sourcePath,
+} from '../../testing/mockModules';
 
 // The reconciler decides *when* the reminder is brought in line with the
 // preference; notificationService decides *what* that takes. So the service is
 // a recorder here, and the auth store and i18n are small fakes that can emit.
 const rn = mockReactNative(mock, { os: 'ios' });
+// The persisted "a reminder may be scheduled" flag (dailyReminderScheduleMarker.ts).
+const mmkv = mockMmkvStorage(mock);
+const MAY_BE_SCHEDULED_KEY = 'daily-reminder-may-be-scheduled';
 
 type Preferences = { theme: string; notificationsEnabled: boolean; reminderTime: string | null };
 type AuthState = { preferences: Preferences };
@@ -76,6 +84,8 @@ mockModule(mock, sourcePath('services/notifications/notificationService.ts'), {
   }) => {
     reconciles.push(preference);
     if (reconcileFailure) throw reconcileFailure;
+    // What the real service leaves behind: set when it schedules, cleared once cancelled.
+    mmkv.store.set(MAY_BE_SCHEDULED_KEY, preference.notificationsEnabled ? '1' : '0');
   },
 });
 
@@ -86,8 +96,13 @@ before(async () => {
 });
 
 let uninstall: (() => void) | null = null;
+/** How many times the reconciler reached for the notification service. */
+let serviceLoads = 0;
 const install = () => {
-  const handle = installDailyReminderReconciler();
+  const handle = installDailyReminderReconciler(() => {
+    serviceLoads += 1;
+    return import('./notificationService');
+  });
   uninstall = handle.uninstall;
   return handle;
 };
@@ -95,6 +110,9 @@ const install = () => {
 beforeEach(() => {
   reconciles.length = 0;
   reconcileFailure = null;
+  serviceLoads = 0;
+  mmkv.store.clear();
+  rn.Platform.OS = 'ios';
   privacy.state = { isInitialized: true, mode: 'standard' };
   auth.state = {
     preferences: { theme: 'light', notificationsEnabled: true, reminderTime: '07:30' },
@@ -207,4 +225,74 @@ test('uninstalling removes every listener it added', async () => {
     [auth.listeners.size, i18nListeners.size, rn.AppState.listenerCount(), privacy.listeners.size],
     [0, 0, 0, 0]
   );
+});
+
+// ─── Launch cost with the reminder off ───────────────────────────────────────
+
+test('with the reminder off and nothing left scheduled, launch and foreground skip the service', async () => {
+  auth.state = { preferences: { theme: 'light', notificationsEnabled: false, reminderTime: null } };
+  mmkv.store.set(MAY_BE_SCHEDULED_KEY, '0');
+  const reconciler = install();
+  await reconciler.idle();
+
+  rn.AppState.emit('active');
+  i18nListeners.forEach((listener) => listener());
+  privacy.set({ mode: 'discreet' });
+  await reconciler.idle();
+
+  assert.deepEqual([serviceLoads, reconciles.length], [0, 0]);
+});
+
+test('a reminder left scheduled is still cancelled at launch with the reminder off', async () => {
+  // Turned off on another device while this one was closed: it must stop firing.
+  auth.state = { preferences: { theme: 'light', notificationsEnabled: false, reminderTime: null } };
+  mmkv.store.set(MAY_BE_SCHEDULED_KEY, '1');
+  const reconciler = install();
+  await reconciler.idle();
+
+  assert.deepEqual(reconciles, [{ notificationsEnabled: false, reminderTime: null }]);
+  assert.equal(mmkv.store.get(MAY_BE_SCHEDULED_KEY), '0');
+
+  rn.AppState.emit('active');
+  await reconciler.idle();
+  assert.equal(serviceLoads, 1, 'once cancelled, the next foreground skips the service');
+});
+
+test('an install from before the flag existed cancels once at launch, whatever an older build left', async () => {
+  auth.state = { preferences: { theme: 'light', notificationsEnabled: false, reminderTime: null } };
+  const reconciler = install();
+  await reconciler.idle();
+
+  assert.deepEqual(reconciles, [{ notificationsEnabled: false, reminderTime: null }]);
+});
+
+test('turning the reminder off right after turning it on still cancels the one just scheduled', async () => {
+  auth.state = { preferences: { theme: 'light', notificationsEnabled: false, reminderTime: null } };
+  mmkv.store.set(MAY_BE_SCHEDULED_KEY, '0');
+  const reconciler = install();
+  await reconciler.idle();
+
+  // The "on" reconcile is still queued when the "off" arrives.
+  auth.setPreferences({ notificationsEnabled: true, reminderTime: '07:30' });
+  auth.setPreferences({ notificationsEnabled: false });
+  await reconciler.idle();
+
+  assert.deepEqual(
+    reconciles.map((preference) => preference.notificationsEnabled),
+    [true, false]
+  );
+  assert.equal(mmkv.store.get(MAY_BE_SCHEDULED_KEY), '0');
+});
+
+test('Android still reconciles with the reminder off, so the channel name follows language and discreet mode', async () => {
+  rn.Platform.OS = 'android';
+  auth.state = { preferences: { theme: 'light', notificationsEnabled: false, reminderTime: null } };
+  mmkv.store.set(MAY_BE_SCHEDULED_KEY, '0');
+  const reconciler = install();
+  await reconciler.idle();
+
+  privacy.set({ mode: 'discreet' });
+  await reconciler.idle();
+
+  assert.equal(reconciles.length, 2);
 });

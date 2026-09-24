@@ -519,6 +519,9 @@ export const ne = {
     notificationsBlockedNotice:
       'तपाईंको यन्त्रको सेटिङमा Every Bible का सूचनाहरू बन्द छन्, त्यसैले यो रिमाइन्डर देखिन सक्दैन।',
     openDeviceSettings: 'सेटिङ खोल्नुहोस्',
+    notificationsNotAllowedNotice:
+      'यो रिमाइन्डर देखिनका लागि Every Bible लाई यो यन्त्रमा सूचनाहरू पठाउने अनुमति चाहिन्छ।',
+    allowNotifications: 'सूचनाहरूलाई अनुमति दिनुहोस्',
     selectLanguage: 'इन्टरफेस भाषा छान्नुहोस्',
     deleteAccount: 'खाता हटाउनुहोस्',
     deleteAccountWarning:

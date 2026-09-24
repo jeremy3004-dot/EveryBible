@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import test, { afterEach, before, beforeEach, mock } from 'node:test';
 import type { DevicePushToken } from 'expo-notifications';
-import { mockModule, sourcePath } from '../testing/mockModules';
+import { mockModule, mockReactNative, sourcePath } from '../testing/mockModules';
 import { createReactHookRuntime } from '../testing/reactHookRuntime';
 
 const runtime = createReactHookRuntime();
 mockModule(mock, 'react', runtime.react);
+const rn = mockReactNative(mock);
 
 let tokenListener: ((token: DevicePushToken) => void) | null = null;
 let listenerRemovals = 0;
@@ -45,9 +46,12 @@ mockModule(mock, sourcePath('services/notifications/index.ts'), {
 
 type Hook = typeof import('./usePushTokenRegistration').usePushTokenRegistration;
 let usePushTokenRegistration: Hook;
+let notifyNotificationPermissionRequested: () => void;
 
 before(async () => {
   ({ usePushTokenRegistration } = await import('./usePushTokenRegistration'));
+  ({ notifyNotificationPermissionRequested } =
+    await import('../services/notifications/notificationPermissionEvents'));
   // Load the (mocked) service once up front, so every lazy import in a test resolves from
   // the module cache within the turns settle() waits for.
   await import('../services/notifications');
@@ -184,4 +188,80 @@ test('pending registrations are dropped when the user record disappears before t
   await settle();
 
   assert.deepEqual(registrations, []);
+});
+
+// Registration needs notification permission. A user who grants it after launch (from
+// the Settings reminder, or in system settings and then back to the app) used to have
+// no push token until the next launch. The service skips the native and server work
+// for a device it already registered, so asking again here costs nothing.
+
+test('granting notification permission in the app registers the token straight away', async () => {
+  mountApp();
+  await settle();
+  registrations.length = 0;
+
+  notifyNotificationPermissionRequested();
+  await settle();
+
+  assert.deepEqual(registrations, [{ userId: 'user-a' }]);
+});
+
+test('returning to the app (e.g. from system settings) registers again, backgrounding does not', async () => {
+  mountApp();
+  await settle();
+  registrations.length = 0;
+
+  rn.AppState.emit('background');
+  await settle();
+  assert.deepEqual(registrations, []);
+
+  rn.AppState.emit('active');
+  await settle();
+  assert.deepEqual(registrations, [{ userId: 'user-a' }]);
+});
+
+test('a permission change or foreground while signed out or awaiting a token refresh registers nothing', async () => {
+  auth.user = null;
+  auth.isAuthenticated = false;
+  const signedOut = mountApp(false, undefined);
+  notifyNotificationPermissionRequested();
+  rn.AppState.emit('active');
+  await settle();
+  signedOut.unmount();
+
+  auth.user = { uid: 'user-a' };
+  auth.isAuthenticated = true;
+  auth.awaitingTokenRefresh = true;
+  mountApp();
+  notifyNotificationPermissionRequested();
+  rn.AppState.emit('active');
+  await settle();
+
+  assert.deepEqual(registrations, []);
+});
+
+test('a foreground registration still pending is dropped when the account changes', async () => {
+  mountApp();
+  await settle();
+  registrations.length = 0;
+
+  rn.AppState.emit('active');
+  changeAuth('user-b');
+  await settle();
+
+  assert.deepEqual(registrations, []);
+});
+
+test('unmounting stops listening for the foreground and for permission requests', async () => {
+  const view = mountApp();
+  await settle();
+  registrations.length = 0;
+
+  view.unmount();
+  notifyNotificationPermissionRequested();
+  rn.AppState.emit('active');
+  await settle();
+
+  assert.deepEqual(registrations, []);
+  assert.equal(rn.AppState.listenerCount(), 0);
 });

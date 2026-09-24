@@ -45,6 +45,9 @@ export interface UseReaderPlanSessionInput {
   returnToPlanOnComplete: boolean;
   sessionContext: RhythmSessionContext | undefined;
   setPlanDayResume: (planId: string, dayNumber: number, bookId: string, chapter: number) => void;
+  /** The screen's local "now", refreshed at midnight and on foreground (useLocalToday). */
+  today: Date;
+  /** `today` as a local date key. */
   todayDateKey: string;
 }
 
@@ -66,6 +69,7 @@ export function useReaderPlanSession({
   returnToPlanOnComplete,
   sessionContext,
   setPlanDayResume,
+  today,
   todayDateKey,
 }: UseReaderPlanSessionInput) {
   const { t } = useTranslation();
@@ -240,6 +244,7 @@ export function useReaderPlanSession({
       chaptersRead,
       listeningHistory,
       dayNumber: planDayNumber,
+      today,
     });
   }, [
     activePlanEntries,
@@ -249,6 +254,7 @@ export function useReaderPlanSession({
     chaptersRead,
     listeningHistory,
     planDayNumber,
+    today,
   ]);
   const activePlanSessionSummary = useMemo(
     () =>

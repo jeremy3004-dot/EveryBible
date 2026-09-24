@@ -250,6 +250,7 @@ export function SettingsScreen() {
           )}
           onToggle={reminder.handleNotificationToggle}
           onOpenTimePicker={reminder.openTimePicker}
+          onAllowNotifications={reminder.handleAllowNotifications}
         />
 
         <DataSettingsSection

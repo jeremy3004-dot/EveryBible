@@ -16,20 +16,24 @@ const permission = {
 };
 // The notification service is imported lazily so Settings does not load it early.
 mockModule(mock, sourcePath('services/notifications/index.ts'), {
-  isDailyReminderBlockedBySystem: async () => {
+  getDailyReminderSystemState: async () => {
     permission.reads += 1;
     if (permission.failure) {
       throw permission.failure;
     }
-    return permission.status === 'denied' || permission.channelOff;
+    if (permission.status === 'undetermined') return 'needs-permission';
+    return permission.status === 'denied' || permission.channelOff ? 'blocked' : 'allowed';
   },
 });
 
 type Hook = typeof import('./useNotificationsBlockedBySystem').useNotificationsBlockedBySystem;
 let useNotificationsBlockedBySystem: Hook;
+let notifyNotificationPermissionRequested: () => void;
 
 before(async () => {
   ({ useNotificationsBlockedBySystem } = await import('./useNotificationsBlockedBySystem'));
+  ({ notifyNotificationPermissionRequested } =
+    await import('../services/notifications/notificationPermissionEvents'));
   await import('../services/notifications');
 });
 
@@ -63,7 +67,7 @@ test('a reminder that is on while the system blocks notifications is reported', 
 
   const view = await mountSettings(true);
 
-  assert.equal(view.result, true);
+  assert.equal(view.result, 'blocked');
 });
 
 test('a reminder whose Android channel was switched off in system settings is reported', async () => {
@@ -71,13 +75,35 @@ test('a reminder whose Android channel was switched off in system settings is re
 
   const view = await mountSettings(true);
 
-  assert.equal(view.result, true);
+  assert.equal(view.result, 'blocked');
 });
 
 test('a reminder with notification permission granted shows no warning', async () => {
   const view = await mountSettings(true);
 
-  assert.equal(view.result, false);
+  assert.equal(view.result, null);
+});
+
+test('a reminder synced on to a device never asked for permission reports that it needs it', async () => {
+  permission.status = 'undetermined';
+
+  const view = await mountSettings(true);
+
+  assert.equal(view.result, 'needs-permission');
+});
+
+test('the in-app permission prompt re-checks, so the notice clears once allowed', async () => {
+  // Android does not reliably send the app through the background for its prompt.
+  permission.status = 'undetermined';
+  const view = await mountSettings(true);
+  assert.equal(view.result, 'needs-permission');
+
+  permission.status = 'granted';
+  notifyNotificationPermissionRequested();
+  await settle();
+  view.rerender();
+
+  assert.equal(view.result, null);
 });
 
 test('a reminder that is off never warns and never reads the permission', async () => {
@@ -85,14 +111,14 @@ test('a reminder that is off never warns and never reads the permission', async 
 
   const view = await mountSettings(false);
 
-  assert.equal(view.result, false);
+  assert.equal(view.result, null);
   assert.equal(permission.reads, 0);
 });
 
 test('returning from system settings re-checks, so the warning clears once allowed', async () => {
   permission.status = 'denied';
   const view = await mountSettings(true);
-  assert.equal(view.result, true);
+  assert.equal(view.result, 'blocked');
 
   permission.status = 'granted';
   rn.AppState.emit('background');
@@ -100,20 +126,20 @@ test('returning from system settings re-checks, so the warning clears once allow
   await settle();
   view.rerender();
 
-  assert.equal(view.result, false);
+  assert.equal(view.result, null);
   assert.equal(permission.reads, 2, 'only the return to the foreground re-reads it');
 });
 
 test('a permission revoked while the app was in the background shows the warning on return', async () => {
   const view = await mountSettings(true);
-  assert.equal(view.result, false);
+  assert.equal(view.result, null);
 
   permission.status = 'denied';
   rn.AppState.emit('active');
   await settle();
   view.rerender();
 
-  assert.equal(view.result, true);
+  assert.equal(view.result, 'blocked');
 });
 
 test('a permission that cannot be read shows no warning rather than a false alarm', async () => {
@@ -121,14 +147,17 @@ test('a permission that cannot be read shows no warning rather than a false alar
 
   const view = await mountSettings(true);
 
-  assert.equal(view.result, false);
+  assert.equal(view.result, null);
 });
 
-test('unmounting stops listening for the app returning to the foreground', async () => {
+test('unmounting stops listening for the foreground and for in-app prompts', async () => {
   const view = await mountSettings(true);
   assert.equal(rn.AppState.listenerCount(), 1);
 
   view.unmount();
+  notifyNotificationPermissionRequested();
+  await settle();
 
   assert.equal(rn.AppState.listenerCount(), 0);
+  assert.equal(permission.reads, 1, 'a prompt after unmounting reads nothing');
 });

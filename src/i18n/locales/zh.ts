@@ -760,6 +760,8 @@ export const zh = {
     notificationBody: '每天读圣经的时间到了！',
     notificationsBlockedNotice: '设备设置中已关闭 Every Bible 的通知，因此此提醒无法显示。',
     openDeviceSettings: '打开设置',
+    notificationsNotAllowedNotice: '需要允许 Every Bible 在此设备上发送通知，此提醒才能显示。',
+    allowNotifications: '允许通知',
     selectLanguage: '选择界面语言',
     deleteAccount: '删除账户',
     deleteAccountWarning:

@@ -787,6 +787,9 @@ export const ja = {
     notificationsBlockedNotice:
       '端末の設定でEvery Bibleの通知がオフになっているため、このリマインダーは表示されません。',
     openDeviceSettings: '設定を開く',
+    notificationsNotAllowedNotice:
+      'このリマインダーを表示するには、この端末でEvery Bibleの通知を許可する必要があります。',
+    allowNotifications: '通知を許可',
     selectLanguage: '表示言語を選ぶ',
     deleteAccount: 'アカウントの削除',
     deleteAccountWarning:

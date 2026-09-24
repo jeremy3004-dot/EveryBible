@@ -509,6 +509,7 @@ export function HomeScreen() {
         bookId: currentBook,
         chapter: currentChapter,
       },
+      initial: false,
     });
   };
 
@@ -517,6 +518,7 @@ export function HomeScreen() {
       navigation.navigate('Plans', {
         screen: 'PlanDetail',
         params: { planId },
+        initial: false,
       });
     },
     [navigation]
@@ -615,6 +617,7 @@ export function HomeScreen() {
         preferredMode: 'listen',
         focusVerse: dailyScripture.verse,
       },
+      initial: false,
     });
   };
 
@@ -633,6 +636,7 @@ export function HomeScreen() {
           chapter: dailyScripture.chapter,
           focusVerse: dailyScripture.verse,
         },
+        initial: false,
       });
 
     // The reader always shows the selected translation, and borrowed text means that
