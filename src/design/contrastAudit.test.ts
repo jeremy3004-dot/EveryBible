@@ -236,6 +236,7 @@ test('the follow band carries both scripture and its verse numbers', () => {
 // controls, and both primitives also set accessibilityState.disabled so the
 // state is announced rather than relying on the dimming alone. Asserted here so
 // the exemption stays a decision with a stated basis.
+// UI-only source check: IconButton and ListRow render code; the suite has no renderer.
 test('the disabled treatment is opacity plus announced state, not colour alone', () => {
   const iconButton = readFileSync(
     fileURLToPath(new URL('../components/ui/IconButton.tsx', import.meta.url).href),
