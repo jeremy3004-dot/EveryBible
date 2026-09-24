@@ -16,6 +16,7 @@ const {
   translatorReviewStore,
   feedback,
   searches,
+  parserWarmups,
   verse,
   renderBrowser,
   wait,
@@ -169,6 +170,17 @@ test('the focusSearch launch flag focuses the search field, and only then', asyn
 
   assert.deepEqual(await focused({}), []);
   assert.deepEqual(await focused({ focusSearch: true }), [['TextInput', t('common.search')]]);
+});
+
+test('focusing the search field readies the reference parser for the interface language', async (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout'] });
+  const view = await renderBrowser();
+  assert.deepEqual(parserWarmups, [], 'opening the browser does not pay for the parser');
+
+  await view.fire(view.getByLabelText(t('common.search')), 'onFocus');
+  assert.deepEqual(parserWarmups, [], 'the warm-up waits until the focus has been handled');
+  await tickTimers(context, 0);
+  assert.deepEqual(parserWarmups, ['en']);
 });
 
 test('a typed reference offers a jump card that opens the passage', async () => {

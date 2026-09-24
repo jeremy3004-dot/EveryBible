@@ -16,6 +16,7 @@ import {
   parsePassageReference,
   parsePassageReferenceLocale,
   isSupportedParserLocale,
+  warmReferenceParser,
   type LocalizedBookName,
 } from './referenceParser';
 
@@ -454,4 +455,16 @@ test('a Russian numbered book opens with a bare number', async () => {
   assert.equal(parsePassageReferenceLocale('1 Коринфянам 13', 'ru', ruNames)?.bookId, '1CO');
   assert.equal(parsePassageReferenceLocale('1-е Коринфянам 13', 'ru', ruNames)?.bookId, '1CO');
   assert.equal(parsePassageReferenceLocale('2 Петра 1:3', 'ru', ruNames)?.bookId, '2PE');
+});
+
+test('warmReferenceParser readies the interface grammar and the English fallback, once each', () => {
+  const queries = ['Juan 3:16', 'John 3:16', 'Romanos 8', 'amor', 'the'];
+  const parseAll = () => queries.map((query) => parsePassageReferenceLocale(query, 'es'));
+  const before = parseAll();
+
+  assert.deepEqual(warmReferenceParser('es'), ['es', 'en']);
+  assert.deepEqual(warmReferenceParser('es'), [], 'a second warm-up does nothing');
+  assert.deepEqual(warmReferenceParser('fr'), [], 'French uses English, which is ready already');
+  assert.deepEqual(warmReferenceParser('hi'), ['hi']);
+  assert.deepEqual(parseAll(), before, 'warming leaves every answer as it was');
 });

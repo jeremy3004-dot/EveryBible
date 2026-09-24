@@ -17,6 +17,7 @@ import { create } from 'zustand';
 import { installRenderHarness } from '../../testing/render';
 import { mockBarrel, mockModule, sourcePath } from '../../testing/mockModules';
 import type { Verse } from '../../types';
+import * as referenceParser from '../../services/bible/referenceParser';
 import type { TranslationContentSummary } from '../../services/bible/contentAvailability';
 import type { TranslatorFeedbackChapterSummary } from '../../services/feedback/translatorFeedbackReviewModel';
 
@@ -117,6 +118,16 @@ export function installBrowserRenderFixture(mock: MockTracker) {
     VersesSkeleton: (props: Record<string, unknown>) => createElement('VersesSkeleton', props),
   });
 
+  // The real parser, except that warm-ups are recorded rather than run.
+  const parserWarmups: string[] = [];
+  mockModule(mock, sourcePath('services/bible/referenceParser.ts'), {
+    ...referenceParser,
+    warmReferenceParser: (locale: string) => {
+      parserWarmups.push(locale);
+      return [];
+    },
+  });
+
   // Each call gets a promise the test settles, so ordering and staleness can be driven.
   const searches: PendingSearch[] = [];
   mockModule(mock, sourcePath('services/bible/bibleService.ts'), {
@@ -138,6 +149,7 @@ export function installBrowserRenderFixture(mock: MockTracker) {
     feedback.requests.length = 0;
     feedback.result = { success: true, chapters: [] };
     feedback.gate = null;
+    parserWarmups.length = 0;
     content.summary = undefined;
     searches.length = 0;
     bookIconRenders.length = 0;
@@ -193,6 +205,7 @@ export function installBrowserRenderFixture(mock: MockTracker) {
     translatorReviewStore,
     feedback,
     searches,
+    parserWarmups,
     bookIconRenders,
     verse,
     renderBrowser,
