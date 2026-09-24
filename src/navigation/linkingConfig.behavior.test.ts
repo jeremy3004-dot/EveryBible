@@ -59,10 +59,13 @@ const parse = async (path: string) => {
     | undefined;
 };
 
+/** The route each nested stack shows: its last one. */
+const topRoute = (route: StateRoute): StateRoute | undefined => route.state?.routes.at(-1);
+
 const leafParams = (route: StateRoute): Record<string, unknown> | undefined => {
   let cursor: StateRoute = route;
-  while (cursor.state?.routes[0]) {
-    cursor = cursor.state.routes[0];
+  for (let next = topRoute(cursor); next; next = topRoute(cursor)) {
+    cursor = next;
   }
   return cursor.params;
 };
@@ -72,7 +75,7 @@ const routeChain = (route: StateRoute): string[] => {
   let cursor: StateRoute | undefined = route;
   while (cursor) {
     names.push(cursor.name);
-    cursor = cursor.state?.routes[0];
+    cursor = topRoute(cursor);
   }
   return names;
 };
@@ -136,6 +139,19 @@ test('the reset-password link resolves through the More > Auth > ResetPassword t
   assert.ok(state);
   assert.deepEqual(routeChain(state.routes[0]), ['More', 'Auth', 'ResetPassword']);
   assert.deepEqual(leafParams(state.routes[0]), { access_token: 'abc', type: 'recovery' });
+});
+
+// A cold-start reset link used to build More: [Auth] with no More page beneath the
+// modal: closing it fell through to the tab navigator, and the More tab kept showing
+// the modal afterwards with nothing to close back to.
+test("the reset-password link opens the modal over the More page, not as the tab's only screen", async () => {
+  const state = await parse('/reset-password?code=abc');
+  const more = state?.routes[0];
+  assert.equal(more?.name, 'More');
+  assert.deepEqual(
+    more?.state?.routes.map((route) => route.name),
+    ['MoreScreen', 'Auth']
+  );
 });
 
 test('a path no template covers yields no state rather than a wrong screen', async () => {

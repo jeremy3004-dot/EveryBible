@@ -144,6 +144,7 @@ const assertAllowedDestination = (url: string, state: State | undefined) => {
     `${JSON.stringify(url)} opened ${chain.join(' > ')}`
   );
   assert.equal(tab.name, 'More');
+  assert.equal(tab.state?.routes[0]?.name, 'MoreScreen', 'the More page stays under the modal');
 };
 
 test('no URL makes the link pipeline throw, and every state it yields is an allowed destination', async () => {

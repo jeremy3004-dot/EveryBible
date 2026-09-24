@@ -33,6 +33,9 @@ export const linkingConfig: LinkingOptions<RootTabParamList> = {
     // inbound template.
     screens: {
       More: {
+        // A cold-start link builds the More stack from this config alone; without an
+        // initial route it was [Auth] with no More page to close the modal back to.
+        initialRouteName: 'MoreScreen',
         screens: {
           Auth: {
             screens: {
