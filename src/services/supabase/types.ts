@@ -189,7 +189,8 @@ export interface GroupReadingPlan {
   id: string;
   group_id: string;
   plan_id: string;
-  assigned_by: string;
+  // Null once the account that assigned the plan is deleted; the group keeps the plan.
+  assigned_by: string | null;
   started_at: string;
 }
 

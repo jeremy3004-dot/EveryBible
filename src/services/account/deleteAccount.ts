@@ -1,5 +1,6 @@
 import { useAuthStore } from '../../stores/authStore';
 import { deletePrivateDataOf } from '../../stores/privateDataScope';
+import { anonymiseQueuedUsageEventsOf } from '../analytics/usageQueue';
 import { deleteCurrentAccount, type AccountActionResult } from './accountService';
 
 /**
@@ -27,8 +28,10 @@ export async function deleteAccountAndLocalData(): Promise<AccountActionResult> 
   try {
     await useAuthStore.getState().signOut();
   } finally {
-    // The account is gone on the server whatever sign-out did.
+    // The account is gone on the server whatever sign-out did. Anonymising
+    // after sign-out also covers events queued while sign-out was running.
     deletePrivateDataOf(userId);
+    anonymiseQueuedUsageEventsOf(userId);
   }
   return { success: true };
 }

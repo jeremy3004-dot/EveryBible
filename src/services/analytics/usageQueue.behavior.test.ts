@@ -629,3 +629,41 @@ test('a batch being delivered stays on disk until the server acknowledges it', a
 
   assert.equal(persisted().length, 0);
 });
+
+// ── account deletion ───────────────────────────────────────────────────────
+
+test("a deleted account's queued events are anonymised on disk and on delivery", async () => {
+  currentUid = 'user-deleted';
+  queue.enqueueUsageEvent('reading_started', { book: 'GEN' }, 'session-1');
+  currentUid = 'user-other';
+  queue.enqueueUsageEvent('reading_started', { book: 'EXO' }, 'session-2');
+  currentUid = null;
+  queue.enqueueUsageEvent('reading_started', { book: 'LEV' }, 'session-3');
+  const before = persisted();
+
+  queue.anonymiseQueuedUsageEventsOf('user-deleted');
+
+  // Same events, order and ids; only the deleted account's uid is gone.
+  assert.deepEqual(persisted(), [
+    { ...before[0], attribution_user_id: null },
+    before[1],
+    before[2],
+  ]);
+  supabase.respondToFunction(() => ({ data: { ok: true }, error: null }));
+  await queue.flushUsageQueue();
+  assert.deepEqual(
+    sentBatches()[0].map((event) => event.attribution_user_id),
+    [null, 'user-other', null]
+  );
+});
+
+test('anonymising an account with nothing queued leaves the queue untouched', async () => {
+  currentUid = 'user-other';
+  queue.enqueueUsageEvent('reading_started', {}, null);
+  const before = persisted();
+
+  queue.anonymiseQueuedUsageEventsOf('user-deleted');
+
+  assert.deepEqual(persisted(), before);
+  await drain();
+});
