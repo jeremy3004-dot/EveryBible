@@ -217,6 +217,14 @@ test('a runtime translation that needs its text downloads in place, then opens o
     iconNames(rowOf(view, NET)).includes('download-outline'),
     'the row says tapping it downloads'
   );
+  assert.deepEqual(rowOf(view, NET).props.accessibilityValue, {
+    text: t('translations.download'),
+  });
+  assert.equal(rowOf(view, BSB).props.accessibilityValue, undefined, 'an installed Bible opens');
+  assert.ok(
+    view.getByRole('button', { name: `${t('gather.moreOptions')}, ${NET.name}` }),
+    "each row's options button names its Bible"
+  );
 
   await view.press(rowOf(view, NET));
   assert.equal(lastAlert()?.title, NET.name);
