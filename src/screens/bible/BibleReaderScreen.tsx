@@ -10,9 +10,7 @@ import {
   FlatList,
   LayoutAnimation,
   ImageBackground,
-  Linking,
   InteractionManager,
-  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -20,12 +18,10 @@ import {
   Share,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import { Audio } from 'expo-av';
 import Animated, {
   useSharedValue,
   useReducedMotion,
@@ -45,7 +41,6 @@ import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/nativ
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import Svg, { Circle } from 'react-native-svg';
 import {
   getAdjacentBibleChapter,
   getBookById,
@@ -84,15 +79,6 @@ import { isRemoteAudioAvailable } from '../../services/audio/audioRemote';
 import { getAudioAvailability } from '../../services/audio/audioAvailability';
 import { describeAudioDownloadError } from '../../services/audio/audioDownloadErrorMessage';
 import { READING_PLAN_ENTRIES_BY_PLAN_ID, readingPlans } from '../../data/readingPlans.generated';
-import { submitChapterFeedback } from '../../services/feedback';
-import {
-  CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS,
-  CHAPTER_FEEDBACK_AUDIO_MIME_TYPE,
-  uploadChapterFeedbackAudio,
-  type ChapterFeedbackAudioDraft,
-} from '../../services/feedback/chapterFeedbackAudio';
-import { normalizeChapterFeedbackIdentity } from '../../services/feedback/chapterFeedbackIdentity';
-import type { ChapterFeedbackSourceScreen } from '../../services/feedback/chapterFeedbackService';
 import {
   buildPlanDayPlaybackSequenceEntries,
   getCurrentPlanDaySummary,
@@ -117,10 +103,6 @@ import { useBibleStore } from '../../stores/bibleStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { useProgressStore } from '../../stores/progressStore';
 import { useReadingPlansStore } from '../../stores/readingPlansStore';
-import {
-  getFeedbackParticipationMode,
-  useTranslatorReviewStore,
-} from '../../stores/translatorReviewStore';
 import { getAdjacentAudioPlaybackSequenceEntry } from '../../stores/audioPlaybackSequenceModel';
 import { useAudioPlayer } from '../../hooks/useAudioPlayer';
 import { useFontSize } from '../../hooks/useFontSize';
@@ -204,36 +186,28 @@ import {
   planReaderNoteSave,
   type ReaderAnnotationEdits,
 } from './readerAnnotationEdits';
-import {
-  normalizeChapterFeedbackComment,
-  shouldEnableChapterFeedbackSubmit,
-} from './bibleReaderFeedbackModel';
 import { TranslationPickerList } from './TranslationPickerList';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
 import {
   AudioRangeSelector,
+  ChapterFeedbackModal,
+  ListenFeedbackComposer,
   ReaderParagraphBlock,
   VerseImageSharePreview,
   loadAudioShareDependencies,
   tryLoadSharing,
   loadVideoTrimDependencies,
-  waitForFeedbackAudioActiveAppState,
-  restoreFeedbackAudioPlaybackMode,
   TOP_ACTION_HIT_SLOP,
   TOP_ACTION_ICON_SIZE,
   READER_REFERENCE_PILL_MAX_FONT_SCALE,
   PLAN_SESSION_BAR_MAX_FONT_SCALE,
   AUDIO_PORTION_MIN_DURATION_MS,
   AUDIO_PORTION_DEFAULT_DURATION_MS,
-  CHAPTER_FEEDBACK_AUDIO_TIMER_MS,
-  FEEDBACK_AUDIO_COUNTDOWN_SIZE,
-  FEEDBACK_AUDIO_COUNTDOWN_STROKE_WIDTH,
-  FEEDBACK_AUDIO_COUNTDOWN_RADIUS,
-  FEEDBACK_AUDIO_COUNTDOWN_CIRCUMFERENCE,
   READER_SCROLL_JS_UPDATE_INTERVAL_PX,
   styles,
+  useChapterFeedback,
 } from './reader';
-import type { AudioPortionShareDraft, ChapterFeedbackAudioState } from './reader';
+import type { AudioPortionShareDraft } from './reader';
 
 type NavigationProp = NativeStackNavigationProp<BibleStackParamList>;
 type VerseTimestamps = import('../../services/bible/verseTimestamps').VerseTimestamps;
@@ -261,7 +235,7 @@ export function BibleReaderScreen() {
     sessionContext,
   } = route.params;
   const { colors, themeMode, setTheme } = useTheme();
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const safeInsets = useSafeAreaInsets();
   const autoplayKeyRef = useRef<string | null>(null);
   const sessionKeyRef = useRef<string | null>(null);
@@ -330,51 +304,8 @@ export function BibleReaderScreen() {
   const [audioPortionEndMs, setAudioPortionEndMs] = useState(0);
   const [isSharingAudioPortion, setIsSharingAudioPortion] = useState(false);
   const [isPreviewingAudioPortion, setIsPreviewingAudioPortion] = useState(false);
-  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [showVerseImageSheet, setShowVerseImageSheet] = useState(false);
-  const [feedbackSentiment, setFeedbackSentiment] = useState<'up' | 'down' | null>(null);
-  const [feedbackComment, setFeedbackComment] = useState('');
-  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
-  const [feedbackAudioState, setFeedbackAudioState] = useState<ChapterFeedbackAudioState>('idle');
-  const [feedbackAudioDraft, setFeedbackAudioDraft] = useState<ChapterFeedbackAudioDraft | null>(
-    null
-  );
-  const [feedbackAudioElapsedMs, setFeedbackAudioElapsedMs] = useState(0);
-  const [feedbackAudioPermissionDenied, setFeedbackAudioPermissionDenied] = useState(false);
   const [isSharingVerseImage, setIsSharingVerseImage] = useState(false);
-  const [feedbackSubmitError, setFeedbackSubmitError] = useState<string | null>(null);
-  const feedbackAudioRecordingRef = useRef<Audio.Recording | null>(null);
-  const feedbackAudioStartedAtRef = useRef<number | null>(null);
-  const feedbackAudioTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const feedbackAudioPreviewSoundRef = useRef<Audio.Sound | null>(null);
-  // Bumped whenever a preview is stopped or the reader unmounts, so a preview that
-  // finishes loading afterwards knows nobody wants it any more.
-  const feedbackAudioPreviewRequestRef = useRef(0);
-  // Starting a recording awaits the permission prompt, the app becoming active and the
-  // recorder itself. The in-flight flag turns a double tap into one start; the request
-  // counter, bumped on unmount, tells a start that resumes afterwards to back out.
-  const feedbackAudioStartInFlightRef = useRef(false);
-  const feedbackAudioRecordingRequestRef = useRef(0);
-  useEffect(() => {
-    return () => {
-      if (feedbackAudioTimerRef.current) {
-        clearInterval(feedbackAudioTimerRef.current);
-      }
-      feedbackAudioRecordingRequestRef.current += 1;
-      feedbackAudioPreviewRequestRef.current += 1;
-      void feedbackAudioPreviewSoundRef.current?.unloadAsync();
-      const recording = feedbackAudioRecordingRef.current;
-      void (async () => {
-        try {
-          await recording?.stopAndUnloadAsync();
-        } catch {
-          // Recording teardown can race with native screen cleanup.
-        } finally {
-          await restoreFeedbackAudioPlaybackMode();
-        }
-      })();
-    };
-  }, []);
   const [listenCountedNotice, setListenCountedNotice] = useState<string | null>(null);
   const [chapterSessionMode, setChapterSessionMode] = useState<'listen' | 'read'>('read');
   const [annotations, setAnnotations] = useState<UserAnnotation[]>([]);
@@ -609,19 +540,6 @@ export function BibleReaderScreen() {
     setSelectedVerses([]);
   }, []);
 
-  const legacyFeedbackEnabled = useAuthStore((state) => state.preferences.chapterFeedbackEnabled);
-  const storedMode = useTranslatorReviewStore((state) => state.mode);
-  const participationMode = getFeedbackParticipationMode(
-    { mode: storedMode, enabled: useTranslatorReviewStore((state) => state.enabled) },
-    legacyFeedbackEnabled
-  );
-  const chapterFeedbackEnabled =
-    participationMode === 'community' || participationMode === 'scripture_council';
-  const councilPasscode = useTranslatorReviewStore((state) => state.councilPasscode);
-  const chapterFeedbackName = useAuthStore((state) => state.preferences.chapterFeedbackName);
-  const chapterFeedbackRole = useAuthStore((state) => state.preferences.chapterFeedbackRole);
-  const contentLanguageCode = useAuthStore((state) => state.preferences.contentLanguageCode);
-  const contentLanguageName = useAuthStore((state) => state.preferences.contentLanguageName);
   const hidePlayButtonFromReadingTab = useAuthStore(
     (state) => state.preferences.hidePlayButtonFromReadingTab
   );
@@ -722,6 +640,15 @@ export function BibleReaderScreen() {
       bookId,
     }).canPlayAudio && chapterHasCoveredAudio;
   const translationLabel = currentTranslationInfo?.abbreviation || 'BSB';
+  const feedback = useChapterFeedback({
+    currentTranslation,
+    currentTranslationInfo,
+    translationLabel,
+    bookId,
+    chapter,
+    onOpenChapterFeedback: () => setShowChapterActionsSheet(false),
+  });
+  const { chapterFeedbackEnabled, handleOpenChapterFeedback } = feedback;
   // Reading-surface serif family for this translation's script. Latin → Lora;
   // Devanagari/unsupported (e.g. Hindi, Nepali) → undefined = platform serif so
   // glyphs render instead of tofu. `language` is a display name ('Hindi').
@@ -1063,15 +990,6 @@ export function BibleReaderScreen() {
       ? t('bible.shareAudioPortion')
       : t('bible.shareChapterAudio');
   const audioPortionRangeDurationMs = Math.max(audioPortionEndMs - audioPortionStartMs, 0);
-  const savedChapterFeedbackIdentity = normalizeChapterFeedbackIdentity({
-    name: chapterFeedbackName ?? '',
-    role: chapterFeedbackRole ?? '',
-  });
-  const canSubmitFeedback =
-    shouldEnableChapterFeedbackSubmit({
-      sentiment: feedbackSentiment,
-      isSubmitting: isSubmittingFeedback || feedbackAudioState === 'recording',
-    }) && savedChapterFeedbackIdentity != null;
   const rawPresentationMode = getChapterPresentationMode({
     verses,
     translation: currentTranslationInfo,
@@ -2743,514 +2661,6 @@ export function BibleReaderScreen() {
     setShowTranslationSheet(true);
   };
 
-  const clearFeedbackAudioTimer = () => {
-    if (feedbackAudioTimerRef.current) {
-      clearInterval(feedbackAudioTimerRef.current);
-      feedbackAudioTimerRef.current = null;
-    }
-  };
-
-  const formatFeedbackAudioDuration = (durationMs: number) => {
-    const totalSeconds = Math.max(0, Math.round(durationMs / 1000));
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes}:${String(seconds).padStart(2, '0')}`;
-  };
-
-  const stopFeedbackAudioPreview = async () => {
-    feedbackAudioPreviewRequestRef.current += 1;
-    const sound = feedbackAudioPreviewSoundRef.current;
-    if (!sound) {
-      return;
-    }
-
-    feedbackAudioPreviewSoundRef.current = null;
-    await sound.unloadAsync().catch(() => undefined);
-  };
-
-  const stopFeedbackAudioRecording = async () => {
-    const recording = feedbackAudioRecordingRef.current;
-    if (!recording) {
-      await restoreFeedbackAudioPlaybackMode();
-      return;
-    }
-
-    clearFeedbackAudioTimer();
-    feedbackAudioRecordingRef.current = null;
-    setFeedbackAudioState('preview');
-
-    try {
-      const status = await recording.getStatusAsync();
-      await recording.stopAndUnloadAsync();
-      const uri = recording.getURI();
-
-      if (!uri) {
-        setFeedbackAudioState('error');
-        setFeedbackSubmitError(t('bible.chapterFeedbackAudioRecordingMissing'));
-        return;
-      }
-
-      const durationMs =
-        typeof status.durationMillis === 'number' ? status.durationMillis : feedbackAudioElapsedMs;
-      setFeedbackAudioDraft({
-        uri,
-        durationMs: Math.max(durationMs, feedbackAudioElapsedMs),
-        mimeType: CHAPTER_FEEDBACK_AUDIO_MIME_TYPE,
-      });
-      setFeedbackAudioElapsedMs(Math.max(durationMs, feedbackAudioElapsedMs));
-    } catch {
-      // The recorder's own error message is an English diagnostic, not reader copy.
-      setFeedbackAudioState('error');
-      setFeedbackSubmitError(t('bible.chapterFeedbackAudioStopError'));
-    } finally {
-      await restoreFeedbackAudioPlaybackMode();
-    }
-  };
-
-  const startFeedbackAudioRecording = async () => {
-    if (
-      isSubmittingFeedback ||
-      feedbackAudioState === 'recording' ||
-      feedbackAudioStartInFlightRef.current
-    ) {
-      return;
-    }
-
-    feedbackAudioStartInFlightRef.current = true;
-    const request = feedbackAudioRecordingRequestRef.current;
-    const isAbandoned = () => request !== feedbackAudioRecordingRequestRef.current;
-    try {
-      await stopFeedbackAudioPreview();
-      setFeedbackSubmitError(null);
-      setFeedbackAudioPermissionDenied(false);
-
-      try {
-        const permission = await Audio.requestPermissionsAsync();
-        if (isAbandoned()) {
-          return;
-        }
-        if (!permission.granted) {
-          setFeedbackAudioPermissionDenied(true);
-          setFeedbackAudioState('error');
-          setFeedbackSubmitError(t('bible.chapterFeedbackAudioPermissionDenied'));
-          return;
-        }
-
-        setFeedbackAudioDraft(null);
-        setFeedbackAudioElapsedMs(0);
-        const isAppActive = await waitForFeedbackAudioActiveAppState();
-        if (isAbandoned()) {
-          return;
-        }
-        if (!isAppActive) {
-          setFeedbackAudioState('error');
-          setFeedbackSubmitError(t('bible.chapterFeedbackAudioStartError'));
-          return;
-        }
-        await new Promise<void>((resolve) => {
-          InteractionManager.runAfterInteractions(() => resolve());
-        });
-        if (isAbandoned()) {
-          return;
-        }
-        await Audio.setAudioModeAsync({
-          allowsRecordingIOS: true,
-          playsInSilentModeIOS: true,
-        });
-        if (isAbandoned()) {
-          await restoreFeedbackAudioPlaybackMode();
-          return;
-        }
-
-        const { recording } = await Audio.Recording.createAsync(
-          Audio.RecordingOptionsPresets.HIGH_QUALITY
-        );
-        if (isAbandoned()) {
-          // The reader closed while the recorder started: release the microphone.
-          await recording.stopAndUnloadAsync().catch(() => undefined);
-          await restoreFeedbackAudioPlaybackMode();
-          return;
-        }
-
-        feedbackAudioRecordingRef.current = recording;
-        feedbackAudioStartedAtRef.current = Date.now();
-        setFeedbackAudioState('recording');
-        feedbackAudioTimerRef.current = setInterval(() => {
-          const elapsedMs = feedbackAudioStartedAtRef.current
-            ? Date.now() - feedbackAudioStartedAtRef.current
-            : 0;
-          setFeedbackAudioElapsedMs(Math.min(elapsedMs, CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS));
-
-          if (elapsedMs >= CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS) {
-            void stopFeedbackAudioRecording();
-          }
-        }, CHAPTER_FEEDBACK_AUDIO_TIMER_MS);
-      } catch {
-        clearFeedbackAudioTimer();
-        await restoreFeedbackAudioPlaybackMode();
-        if (isAbandoned()) {
-          return;
-        }
-        setFeedbackAudioState('error');
-        setFeedbackSubmitError(t('bible.chapterFeedbackAudioStartError'));
-      }
-    } finally {
-      feedbackAudioStartInFlightRef.current = false;
-    }
-  };
-
-  const playFeedbackAudioPreview = async () => {
-    if (!feedbackAudioDraft) {
-      return;
-    }
-
-    await stopFeedbackAudioPreview();
-    const request = feedbackAudioPreviewRequestRef.current;
-    await restoreFeedbackAudioPlaybackMode();
-    if (request !== feedbackAudioPreviewRequestRef.current) {
-      return;
-    }
-    const { sound } = await Audio.Sound.createAsync(
-      { uri: feedbackAudioDraft.uri },
-      { shouldPlay: true }
-    );
-    // A second tap or leaving the reader superseded this load: it must not play on untracked.
-    if (request !== feedbackAudioPreviewRequestRef.current) {
-      await sound.unloadAsync().catch(() => undefined);
-      return;
-    }
-    feedbackAudioPreviewSoundRef.current = sound;
-    sound.setOnPlaybackStatusUpdate((status) => {
-      if (!status.isLoaded || !status.didJustFinish) {
-        return;
-      }
-      // Only the current preview owns the ref; an older one finishing leaves it alone.
-      if (feedbackAudioPreviewSoundRef.current === sound) {
-        feedbackAudioPreviewSoundRef.current = null;
-      }
-      void sound.unloadAsync().catch(() => undefined);
-    });
-  };
-
-  const discardFeedbackAudioDraft = () => {
-    void stopFeedbackAudioPreview();
-    setFeedbackAudioDraft(null);
-    setFeedbackAudioElapsedMs(0);
-    setFeedbackAudioState('idle');
-    setFeedbackAudioPermissionDenied(false);
-    setFeedbackSubmitError(null);
-  };
-
-  const resetFeedbackDraft = () => {
-    if (feedbackAudioState === 'recording') {
-      void stopFeedbackAudioRecording();
-    }
-    void stopFeedbackAudioPreview();
-    setFeedbackSentiment(null);
-    setFeedbackComment('');
-    setFeedbackAudioDraft(null);
-    setFeedbackAudioElapsedMs(0);
-    setFeedbackAudioState('idle');
-    setFeedbackAudioPermissionDenied(false);
-    setFeedbackSubmitError(null);
-  };
-
-  const handleCloseFeedbackModal = () => {
-    if (isSubmittingFeedback) {
-      return;
-    }
-
-    setShowFeedbackModal(false);
-  };
-
-  const handleOpenChapterFeedback = () => {
-    setShowChapterActionsSheet(false);
-
-    setFeedbackSubmitError(null);
-    setShowFeedbackModal(true);
-  };
-
-  const handleSubmitChapterFeedback = async (sourceScreen: ChapterFeedbackSourceScreen) => {
-    if (!chapterFeedbackEnabled || !feedbackSentiment || isSubmittingFeedback) {
-      return;
-    }
-
-    setIsSubmittingFeedback(true);
-    if (feedbackAudioDraft) {
-      setFeedbackAudioState('uploading');
-    }
-    setFeedbackSubmitError(null);
-
-    const audioUploadResult = feedbackAudioDraft
-      ? await uploadChapterFeedbackAudio(feedbackAudioDraft, {
-          translationId: currentTranslation,
-          bookId,
-          chapter,
-        })
-      : null;
-
-    if (audioUploadResult && !audioUploadResult.success) {
-      setIsSubmittingFeedback(false);
-      setFeedbackAudioState('error');
-      setFeedbackSubmitError(t('bible.chapterFeedbackAudioUploadError'));
-      return;
-    }
-
-    const result = await submitChapterFeedback({
-      translationId: currentTranslation,
-      translationLanguage: currentTranslationInfo?.language ?? translationLabel,
-      bookId,
-      chapter,
-      sentiment: feedbackSentiment,
-      comment: normalizeChapterFeedbackComment(feedbackComment),
-      interfaceLanguage: i18n.resolvedLanguage ?? i18n.language ?? 'en',
-      contentLanguageCode,
-      contentLanguageName,
-      participantName: savedChapterFeedbackIdentity?.name ?? null,
-      participantRole: savedChapterFeedbackIdentity?.role ?? null,
-      contributorCategory:
-        participationMode === 'scripture_council' ? 'scripture_council' : 'community',
-      councilPasscode: participationMode === 'scripture_council' ? councilPasscode : undefined,
-      audioResponse: audioUploadResult?.data ?? null,
-      sourceScreen,
-      appPlatform: Platform.OS,
-      appVersion: config.version,
-    });
-
-    setIsSubmittingFeedback(false);
-
-    if (result.success) {
-      if (sourceScreen === 'reader') {
-        setShowFeedbackModal(false);
-      }
-      resetFeedbackDraft();
-
-      Alert.alert(t('bible.chapterFeedbackSuccessTitle'), t('bible.chapterFeedbackSuccess'));
-      return;
-    }
-
-    if (feedbackAudioDraft) {
-      setFeedbackAudioState('preview');
-    }
-    setFeedbackSubmitError(
-      result.requiresSignIn ? t('bible.chapterFeedbackSignInRequired') : t('common.unexpectedError')
-    );
-  };
-
-  const renderChapterFeedbackAudioControls = (compact = false) => {
-    const isRecording = feedbackAudioState === 'recording';
-    const isUploadingAudio = feedbackAudioState === 'uploading';
-    const previewDurationMs = feedbackAudioDraft?.durationMs ?? feedbackAudioElapsedMs;
-    const countdownElapsedMs = Math.min(
-      isRecording ? feedbackAudioElapsedMs : previewDurationMs,
-      CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS
-    );
-    const countdownRemainingMs = Math.max(
-      CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS - countdownElapsedMs,
-      0
-    );
-    const countdownProgress =
-      CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS > 0
-        ? countdownElapsedMs / CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS
-        : 0;
-    const countdownStrokeDashoffset = FEEDBACK_AUDIO_COUNTDOWN_CIRCUMFERENCE * countdownProgress;
-    const statusLabel = isRecording
-      ? t('bible.chapterFeedbackAudioRecording', {
-          duration: formatFeedbackAudioDuration(feedbackAudioElapsedMs),
-        })
-      : feedbackAudioDraft
-        ? t('bible.chapterFeedbackAudioReady', {
-            duration: formatFeedbackAudioDuration(previewDurationMs),
-          })
-        : t('bible.chapterFeedbackAudioIdle');
-
-    return (
-      <View
-        style={[
-          styles.feedbackAudioCard,
-          compact ? styles.feedbackAudioCardCompact : null,
-          {
-            backgroundColor: colors.bibleElevatedSurface,
-            borderColor: colors.bibleDivider,
-          },
-        ]}
-      >
-        <View style={styles.feedbackAudioHeader}>
-          <View style={styles.feedbackAudioHeaderMain}>
-            <View style={styles.feedbackAudioCountdown}>
-              <Svg
-                width={FEEDBACK_AUDIO_COUNTDOWN_SIZE}
-                height={FEEDBACK_AUDIO_COUNTDOWN_SIZE}
-                viewBox={`0 0 ${FEEDBACK_AUDIO_COUNTDOWN_SIZE} ${FEEDBACK_AUDIO_COUNTDOWN_SIZE}`}
-                style={styles.feedbackAudioCountdownSvg}
-              >
-                <Circle
-                  cx={FEEDBACK_AUDIO_COUNTDOWN_SIZE / 2}
-                  cy={FEEDBACK_AUDIO_COUNTDOWN_SIZE / 2}
-                  r={FEEDBACK_AUDIO_COUNTDOWN_RADIUS}
-                  stroke={colors.bibleDivider}
-                  strokeWidth={FEEDBACK_AUDIO_COUNTDOWN_STROKE_WIDTH}
-                  fill="none"
-                />
-                <Circle
-                  cx={FEEDBACK_AUDIO_COUNTDOWN_SIZE / 2}
-                  cy={FEEDBACK_AUDIO_COUNTDOWN_SIZE / 2}
-                  r={FEEDBACK_AUDIO_COUNTDOWN_RADIUS}
-                  stroke={isRecording ? colors.accentPrimary : colors.bibleAccent}
-                  strokeWidth={FEEDBACK_AUDIO_COUNTDOWN_STROKE_WIDTH}
-                  strokeLinecap="round"
-                  strokeDasharray={FEEDBACK_AUDIO_COUNTDOWN_CIRCUMFERENCE}
-                  strokeDashoffset={countdownStrokeDashoffset}
-                  fill="none"
-                  transform={`rotate(-90 ${FEEDBACK_AUDIO_COUNTDOWN_SIZE / 2} ${
-                    FEEDBACK_AUDIO_COUNTDOWN_SIZE / 2
-                  })`}
-                />
-              </Svg>
-              <Text style={[styles.feedbackAudioCountdownText, { color: colors.biblePrimaryText }]}>
-                {formatFeedbackAudioDuration(countdownRemainingMs)}
-              </Text>
-            </View>
-            <View style={styles.feedbackAudioStatus}>
-              <Ionicons
-                name={
-                  isRecording ? 'mic' : feedbackAudioDraft ? 'musical-notes-outline' : 'mic-outline'
-                }
-                size={18}
-                color={isRecording ? colors.error : colors.biblePrimaryText}
-              />
-              <Text style={[styles.feedbackAudioStatusText, { color: colors.biblePrimaryText }]}>
-                {statusLabel}
-              </Text>
-            </View>
-          </View>
-          <Text style={[styles.feedbackAudioLimitText, { color: colors.bibleSecondaryText }]}>
-            {t('bible.chapterFeedbackAudioLimit')}
-          </Text>
-        </View>
-
-        {feedbackAudioPermissionDenied ? (
-          <View style={styles.feedbackAudioHelpRow}>
-            <Text
-              style={[
-                styles.feedbackAudioHelpText,
-                styles.feedbackAudioHelpMessage,
-                { color: colors.bibleSecondaryText },
-              ]}
-            >
-              {t('bible.chapterFeedbackAudioPermissionHelp')}
-            </Text>
-            {/* Once the system stops re-prompting (Android "don't ask again"), settings is
-                the only way to turn the microphone back on. */}
-            <TouchableOpacity
-              onPress={() => void Linking.openSettings()}
-              accessibilityRole="button"
-              accessibilityLabel={t('common.settings')}
-              hitSlop={8}
-            >
-              <Text style={[styles.feedbackAudioHelpLink, { color: colors.bibleAccent }]}>
-                {t('common.settings')}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        ) : null}
-
-        <View style={styles.feedbackAudioActionRow}>
-          {!isRecording && !feedbackAudioDraft ? (
-            <TouchableOpacity
-              style={[
-                styles.feedbackAudioButton,
-                {
-                  borderColor: colors.bibleDivider,
-                  backgroundColor: colors.bibleSurface,
-                },
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel={t('bible.chapterFeedbackAudioRecord')}
-              onPress={() => {
-                void startFeedbackAudioRecording();
-              }}
-              disabled={isSubmittingFeedback}
-            >
-              <Ionicons name="mic-outline" size={17} color={colors.biblePrimaryText} />
-              <Text style={[styles.feedbackAudioButtonText, { color: colors.biblePrimaryText }]}>
-                {t('bible.chapterFeedbackAudioRecord')}
-              </Text>
-            </TouchableOpacity>
-          ) : null}
-
-          {isRecording ? (
-            <TouchableOpacity
-              style={[
-                styles.feedbackAudioButton,
-                {
-                  borderColor: colors.accentPrimary,
-                  backgroundColor: colors.accentPrimary,
-                },
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel={t('bible.chapterFeedbackAudioStop')}
-              onPress={() => {
-                void stopFeedbackAudioRecording();
-              }}
-            >
-              <Ionicons name="stop-outline" size={17} color={colors.cardBackground} />
-              <Text style={[styles.feedbackAudioButtonText, { color: colors.cardBackground }]}>
-                {t('bible.chapterFeedbackAudioStop')}
-              </Text>
-            </TouchableOpacity>
-          ) : null}
-
-          {feedbackAudioDraft ? (
-            <>
-              <TouchableOpacity
-                style={[
-                  styles.feedbackAudioIconButton,
-                  {
-                    borderColor: colors.bibleDivider,
-                    backgroundColor: colors.bibleSurface,
-                  },
-                ]}
-                accessibilityRole="button"
-                accessibilityLabel={t('bible.chapterFeedbackAudioPreview')}
-                onPress={() => {
-                  void playFeedbackAudioPreview();
-                }}
-                disabled={isSubmittingFeedback}
-              >
-                <Ionicons name="play-outline" size={18} color={colors.biblePrimaryText} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.feedbackAudioIconButton,
-                  {
-                    borderColor: colors.bibleDivider,
-                    backgroundColor: colors.bibleSurface,
-                  },
-                ]}
-                accessibilityRole="button"
-                accessibilityLabel={t('bible.chapterFeedbackAudioRerecord')}
-                onPress={discardFeedbackAudioDraft}
-                disabled={isSubmittingFeedback}
-              >
-                <Ionicons name="refresh-outline" size={18} color={colors.biblePrimaryText} />
-              </TouchableOpacity>
-            </>
-          ) : null}
-
-          {isUploadingAudio ? (
-            <View style={styles.feedbackAudioUploading}>
-              <ActivityIndicator size="small" color={colors.accentPrimary} />
-              <Text style={[styles.feedbackAudioHelpText, { color: colors.bibleSecondaryText }]}>
-                {t('bible.chapterFeedbackAudioUploading')}
-              </Text>
-            </View>
-          ) : null}
-        </View>
-      </View>
-    );
-  };
-
   const handlePlayDisplayedChapter = () => {
     // After a relaunch nothing is loaded and only the persisted last track remains.
     // togglePlayPause resumes it from its saved offset; playChapter would restart it.
@@ -3806,202 +3216,7 @@ export function BibleReaderScreen() {
         </View>
 
         {showInlineChapterFeedbackComposer ? (
-          <View
-            style={[
-              styles.listenFeedbackCard,
-              {
-                backgroundColor: colors.bibleSurface,
-                borderColor: colors.bibleDivider,
-              },
-            ]}
-          >
-            {/* At large text the identity pill takes its own line under the heading,
-                so "Name • Role" wraps instead of truncating beside it. */}
-            <View
-              style={[
-                styles.listenFeedbackHeader,
-                isLargeText && styles.listenFeedbackHeaderStacked,
-              ]}
-            >
-              <View
-                style={[styles.listenFeedbackCopy, isLargeText && styles.listenFeedbackCopyStacked]}
-              >
-                <Text style={[styles.listenFeedbackTitle, { color: colors.biblePrimaryText }]}>
-                  {t('bible.chapterFeedbackTitle')}
-                  {' · '}
-                  {t(
-                    participationMode === 'scripture_council'
-                      ? 'feedback.council'
-                      : 'feedback.community'
-                  )}
-                </Text>
-                <Text style={[styles.listenFeedbackBody, { color: colors.bibleSecondaryText }]}>
-                  {t(
-                    participationMode === 'scripture_council'
-                      ? 'feedback.submittingCouncil'
-                      : 'feedback.submittingCommunity'
-                  )}
-                </Text>
-              </View>
-              <View
-                style={[
-                  styles.listenFeedbackIdentityPill,
-                  {
-                    backgroundColor: colors.bibleElevatedSurface,
-                    borderColor: colors.bibleDivider,
-                  },
-                ]}
-              >
-                <Ionicons name="person-outline" size={14} color={colors.bibleSecondaryText} />
-                <Text
-                  style={[
-                    styles.listenFeedbackIdentityText,
-                    !isLargeText && styles.listenFeedbackIdentityTextCompact,
-                    { color: colors.bibleSecondaryText },
-                  ]}
-                  numberOfLines={isLargeText ? 2 : 1}
-                >
-                  {savedChapterFeedbackIdentity
-                    ? `${savedChapterFeedbackIdentity.name} • ${savedChapterFeedbackIdentity.role}`
-                    : t('common.notSet')}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.feedbackSentimentRow}>
-              <TouchableOpacity
-                accessibilityRole="button"
-                accessibilityLabel={t('bible.chapterFeedbackThumbsUp')}
-                accessibilityState={{ selected: feedbackSentiment === 'up' }}
-                style={[
-                  styles.listenSentimentButton,
-                  {
-                    backgroundColor:
-                      feedbackSentiment === 'up' ? colors.success : colors.bibleElevatedSurface,
-                    borderColor: feedbackSentiment === 'up' ? colors.success : colors.bibleDivider,
-                  },
-                ]}
-                onPress={() => {
-                  setFeedbackSentiment('up');
-                  if (feedbackSubmitError) {
-                    setFeedbackSubmitError(null);
-                  }
-                }}
-                disabled={isSubmittingFeedback}
-              >
-                <Ionicons
-                  name="checkmark-circle-outline"
-                  size={22}
-                  color={feedbackSentiment === 'up' ? colors.onAccent : colors.biblePrimaryText}
-                />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                accessibilityRole="button"
-                accessibilityLabel={t('bible.chapterFeedbackThumbsDown')}
-                accessibilityState={{ selected: feedbackSentiment === 'down' }}
-                style={[
-                  styles.listenSentimentButton,
-                  {
-                    backgroundColor:
-                      feedbackSentiment === 'down'
-                        ? colors.accentPrimary
-                        : colors.bibleElevatedSurface,
-                    borderColor:
-                      feedbackSentiment === 'down' ? colors.accentPrimary : colors.bibleDivider,
-                  },
-                ]}
-                onPress={() => {
-                  setFeedbackSentiment('down');
-                  if (feedbackSubmitError) {
-                    setFeedbackSubmitError(null);
-                  }
-                }}
-                disabled={isSubmittingFeedback}
-              >
-                <Ionicons
-                  name="close-circle-outline"
-                  size={22}
-                  color={feedbackSentiment === 'down' ? colors.onAccent : colors.biblePrimaryText}
-                />
-              </TouchableOpacity>
-            </View>
-
-            {feedbackSentiment ? (
-              <>
-                <TextInput
-                  value={feedbackComment}
-                  onChangeText={(value) => {
-                    setFeedbackComment(value);
-                    if (feedbackSubmitError) {
-                      setFeedbackSubmitError(null);
-                    }
-                  }}
-                  editable={!isSubmittingFeedback}
-                  multiline
-                  numberOfLines={3}
-                  maxLength={2000}
-                  placeholder={t('bible.chapterFeedbackPlaceholder')}
-                  placeholderTextColor={colors.bibleSecondaryText}
-                  accessibilityLabel={t('bible.chapterFeedbackPlaceholder')}
-                  style={[
-                    styles.listenFeedbackInput,
-                    {
-                      color: colors.biblePrimaryText,
-                      borderColor: colors.controlBorder,
-                      backgroundColor: colors.bibleElevatedSurface,
-                    },
-                  ]}
-                />
-                {renderChapterFeedbackAudioControls(true)}
-                <TouchableOpacity
-                  style={[
-                    styles.feedbackActionButton,
-                    styles.listenFeedbackSubmitButton,
-                    {
-                      backgroundColor: canSubmitFeedback
-                        ? colors.accentPrimary
-                        : colors.bibleDivider,
-                      borderColor: canSubmitFeedback ? colors.accentPrimary : colors.bibleDivider,
-                    },
-                  ]}
-                  onPress={() => {
-                    void handleSubmitChapterFeedback('listener');
-                  }}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('bible.chapterFeedbackSubmit')}
-                  accessibilityState={{ disabled: !canSubmitFeedback, busy: isSubmittingFeedback }}
-                  disabled={!canSubmitFeedback}
-                >
-                  {isSubmittingFeedback ? (
-                    <ActivityIndicator size="small" color={colors.cardBackground} />
-                  ) : (
-                    <Text
-                      style={[
-                        styles.feedbackActionLabel,
-                        { color: canSubmitFeedback ? colors.cardBackground : colors.secondaryText },
-                      ]}
-                    >
-                      {t('bible.chapterFeedbackSubmit')}
-                    </Text>
-                  )}
-                </TouchableOpacity>
-              </>
-            ) : (
-              <Text style={[styles.listenFeedbackHint, { color: colors.bibleSecondaryText }]}>
-                {t('bible.chapterFeedbackSelectionHint')}
-              </Text>
-            )}
-
-            {feedbackSubmitError ? (
-              <Text
-                accessibilityLiveRegion="polite"
-                style={[styles.feedbackErrorText, { color: colors.error }]}
-              >
-                {feedbackSubmitError}
-              </Text>
-            ) : null}
-          </View>
+          <ListenFeedbackComposer feedback={feedback} isLargeText={isLargeText} />
         ) : null}
       </View>
     );
@@ -5208,242 +4423,7 @@ export function BibleReaderScreen() {
         </TouchableOpacity>
       </Modal>
 
-      <Modal
-        visible={showFeedbackModal}
-        transparent
-        statusBarTranslucent
-        navigationBarTranslucent
-        animationType="fade"
-        onRequestClose={handleCloseFeedbackModal}
-      >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={safeInsets.top + spacing.lg}
-          style={[styles.feedbackModalOverlay, { backgroundColor: colors.overlay }]}
-        >
-          <TouchableOpacity
-            style={styles.feedbackModalBackdrop}
-            activeOpacity={1}
-            accessible={false}
-            importantForAccessibility="no-hide-descendants"
-            onPress={handleCloseFeedbackModal}
-          />
-          <View
-            style={[
-              styles.feedbackModalCard,
-              {
-                backgroundColor: colors.bibleSurface,
-                borderColor: colors.bibleDivider,
-              },
-            ]}
-          >
-            <ScrollView
-              style={styles.feedbackModalScroll}
-              contentContainerStyle={styles.feedbackModalScrollContent}
-              keyboardShouldPersistTaps="handled"
-              automaticallyAdjustKeyboardInsets
-              showsVerticalScrollIndicator={false}
-            >
-              <Text style={[styles.feedbackModalTitle, { color: colors.biblePrimaryText }]}>
-                {t('bible.chapterFeedbackTitle')}
-                {' · '}
-                {t(
-                  participationMode === 'scripture_council'
-                    ? 'feedback.council'
-                    : 'feedback.community'
-                )}
-              </Text>
-              <Text style={[styles.feedbackModalReference, { color: colors.bibleSecondaryText }]}>
-                {getTranslatedBookName(bookId, t)} {chapter}
-              </Text>
-              <Text style={[styles.feedbackModalBody, { color: colors.bibleSecondaryText }]}>
-                {t(
-                  participationMode === 'scripture_council'
-                    ? 'feedback.submittingCouncil'
-                    : 'feedback.submittingCommunity'
-                )}
-              </Text>
-
-              <View style={styles.feedbackSentimentRow}>
-                <TouchableOpacity
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: feedbackSentiment === 'up' }}
-                  accessibilityLabel={t('bible.chapterFeedbackThumbsUp')}
-                  style={[
-                    styles.feedbackSentimentButton,
-                    {
-                      // White on the `success` fill is 4.09:1 on vellum, short of AA
-                      // for this label; the soft tint pair clears it in both scopes.
-                      backgroundColor:
-                        feedbackSentiment === 'up'
-                          ? colors.successSoft
-                          : colors.bibleElevatedSurface,
-                      borderColor:
-                        feedbackSentiment === 'up' ? colors.success : colors.bibleDivider,
-                    },
-                  ]}
-                  onPress={() => {
-                    setFeedbackSentiment('up');
-                    if (feedbackSubmitError) {
-                      setFeedbackSubmitError(null);
-                    }
-                  }}
-                  disabled={isSubmittingFeedback}
-                >
-                  <Ionicons
-                    name="checkmark-circle-outline"
-                    size={18}
-                    color={
-                      feedbackSentiment === 'up' ? colors.onSuccessSoft : colors.biblePrimaryText
-                    }
-                  />
-                  <Text
-                    style={[
-                      styles.feedbackSentimentLabel,
-                      {
-                        color:
-                          feedbackSentiment === 'up'
-                            ? colors.onSuccessSoft
-                            : colors.biblePrimaryText,
-                      },
-                    ]}
-                  >
-                    {t('bible.chapterFeedbackThumbsUp')}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: feedbackSentiment === 'down' }}
-                  accessibilityLabel={t('bible.chapterFeedbackThumbsDown')}
-                  style={[
-                    styles.feedbackSentimentButton,
-                    {
-                      backgroundColor:
-                        feedbackSentiment === 'down'
-                          ? colors.accentPrimary
-                          : colors.bibleElevatedSurface,
-                      borderColor:
-                        feedbackSentiment === 'down' ? colors.accentPrimary : colors.bibleDivider,
-                    },
-                  ]}
-                  onPress={() => {
-                    setFeedbackSentiment('down');
-                    if (feedbackSubmitError) {
-                      setFeedbackSubmitError(null);
-                    }
-                  }}
-                  disabled={isSubmittingFeedback}
-                >
-                  <Ionicons
-                    name="close-circle-outline"
-                    size={18}
-                    color={feedbackSentiment === 'down' ? colors.onAccent : colors.biblePrimaryText}
-                  />
-                  <Text
-                    style={[
-                      styles.feedbackSentimentLabel,
-                      {
-                        color:
-                          feedbackSentiment === 'down' ? colors.onAccent : colors.biblePrimaryText,
-                      },
-                    ]}
-                  >
-                    {t('bible.chapterFeedbackThumbsDown')}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              <TextInput
-                value={feedbackComment}
-                onChangeText={setFeedbackComment}
-                editable={!isSubmittingFeedback}
-                multiline
-                numberOfLines={4}
-                maxLength={2000}
-                placeholder={t('bible.chapterFeedbackPlaceholder')}
-                placeholderTextColor={colors.bibleSecondaryText}
-                accessibilityLabel={t('bible.chapterFeedbackPlaceholder')}
-                style={[
-                  styles.feedbackCommentInput,
-                  {
-                    color: colors.biblePrimaryText,
-                    borderColor: colors.controlBorder,
-                    backgroundColor: colors.bibleElevatedSurface,
-                  },
-                ]}
-              />
-              <Text style={[styles.feedbackCharCount, { color: colors.bibleSecondaryText }]}>
-                {`${feedbackComment.length}/2000`}
-              </Text>
-
-              {renderChapterFeedbackAudioControls()}
-
-              {feedbackSubmitError ? (
-                <Text
-                  accessibilityLiveRegion="polite"
-                  style={[styles.feedbackErrorText, { color: colors.error }]}
-                >
-                  {feedbackSubmitError}
-                </Text>
-              ) : null}
-
-              <View style={styles.feedbackActionRow}>
-                <TouchableOpacity
-                  accessibilityRole="button"
-                  accessibilityLabel={t('common.cancel')}
-                  style={[
-                    styles.feedbackActionButton,
-                    {
-                      borderColor: colors.bibleDivider,
-                      backgroundColor: colors.bibleElevatedSurface,
-                    },
-                  ]}
-                  onPress={handleCloseFeedbackModal}
-                  disabled={isSubmittingFeedback}
-                >
-                  <Text style={[styles.feedbackActionLabel, { color: colors.biblePrimaryText }]}>
-                    {t('common.cancel')}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  accessibilityRole="button"
-                  accessibilityLabel={t('bible.chapterFeedbackSubmit')}
-                  accessibilityState={{ disabled: !canSubmitFeedback }}
-                  style={[
-                    styles.feedbackActionButton,
-                    styles.feedbackSubmitButton,
-                    {
-                      backgroundColor: canSubmitFeedback
-                        ? colors.accentPrimary
-                        : colors.bibleDivider,
-                      borderColor: canSubmitFeedback ? colors.accentPrimary : colors.bibleDivider,
-                    },
-                  ]}
-                  onPress={() => {
-                    void handleSubmitChapterFeedback('reader');
-                  }}
-                  disabled={!canSubmitFeedback}
-                >
-                  {isSubmittingFeedback ? (
-                    <ActivityIndicator size="small" color={colors.cardBackground} />
-                  ) : (
-                    <Text
-                      style={[
-                        styles.feedbackActionLabel,
-                        { color: canSubmitFeedback ? colors.cardBackground : colors.secondaryText },
-                      ]}
-                    >
-                      {t('bible.chapterFeedbackSubmit')}
-                    </Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      <ChapterFeedbackModal feedback={feedback} bookId={bookId} chapter={chapter} />
 
       <Modal
         visible={showChapterAudioShareSheet}

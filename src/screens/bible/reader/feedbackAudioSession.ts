@@ -46,3 +46,10 @@ export const restoreFeedbackAudioPlaybackMode = async (): Promise<void> => {
     // Audio cleanup should not hide the recording error or block the feedback flow.
   }
 };
+
+export const formatFeedbackAudioDuration = (durationMs: number) => {
+  const totalSeconds = Math.max(0, Math.round(durationMs / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+};

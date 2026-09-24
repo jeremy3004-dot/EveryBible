@@ -1,0 +1,251 @@
+import { ActivityIndicator, Linking, Text, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
+import Svg, { Circle } from 'react-native-svg';
+import { useTheme } from '../../../contexts/ThemeContext';
+import { CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS } from '../../../services/feedback/chapterFeedbackAudio';
+import { formatFeedbackAudioDuration } from './feedbackAudioSession';
+import type { ChapterFeedback } from './useChapterFeedback';
+import {
+  FEEDBACK_AUDIO_COUNTDOWN_SIZE,
+  FEEDBACK_AUDIO_COUNTDOWN_STROKE_WIDTH,
+  FEEDBACK_AUDIO_COUNTDOWN_RADIUS,
+  FEEDBACK_AUDIO_COUNTDOWN_CIRCUMFERENCE,
+} from './readerConstants';
+import { styles } from './readerStyles';
+
+interface ChapterFeedbackAudioControlsProps {
+  feedback: ChapterFeedback;
+  compact?: boolean;
+}
+
+/** Record, stop, preview and re-record the voice note, with a countdown ring to the limit. */
+export function ChapterFeedbackAudioControls({
+  feedback,
+  compact = false,
+}: ChapterFeedbackAudioControlsProps) {
+  const { colors } = useTheme();
+  const { t } = useTranslation();
+  const {
+    feedbackAudioState,
+    feedbackAudioDraft,
+    feedbackAudioElapsedMs,
+    feedbackAudioPermissionDenied,
+    isSubmittingFeedback,
+    startFeedbackAudioRecording,
+    stopFeedbackAudioRecording,
+    playFeedbackAudioPreview,
+    discardFeedbackAudioDraft,
+  } = feedback;
+  const isRecording = feedbackAudioState === 'recording';
+  const isUploadingAudio = feedbackAudioState === 'uploading';
+  const previewDurationMs = feedbackAudioDraft?.durationMs ?? feedbackAudioElapsedMs;
+  const countdownElapsedMs = Math.min(
+    isRecording ? feedbackAudioElapsedMs : previewDurationMs,
+    CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS
+  );
+  const countdownRemainingMs = Math.max(
+    CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS - countdownElapsedMs,
+    0
+  );
+  const countdownProgress =
+    CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS > 0
+      ? countdownElapsedMs / CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS
+      : 0;
+  const countdownStrokeDashoffset = FEEDBACK_AUDIO_COUNTDOWN_CIRCUMFERENCE * countdownProgress;
+  const statusLabel = isRecording
+    ? t('bible.chapterFeedbackAudioRecording', {
+        duration: formatFeedbackAudioDuration(feedbackAudioElapsedMs),
+      })
+    : feedbackAudioDraft
+      ? t('bible.chapterFeedbackAudioReady', {
+          duration: formatFeedbackAudioDuration(previewDurationMs),
+        })
+      : t('bible.chapterFeedbackAudioIdle');
+
+  return (
+    <View
+      style={[
+        styles.feedbackAudioCard,
+        compact ? styles.feedbackAudioCardCompact : null,
+        {
+          backgroundColor: colors.bibleElevatedSurface,
+          borderColor: colors.bibleDivider,
+        },
+      ]}
+    >
+      <View style={styles.feedbackAudioHeader}>
+        <View style={styles.feedbackAudioHeaderMain}>
+          <View style={styles.feedbackAudioCountdown}>
+            <Svg
+              width={FEEDBACK_AUDIO_COUNTDOWN_SIZE}
+              height={FEEDBACK_AUDIO_COUNTDOWN_SIZE}
+              viewBox={`0 0 ${FEEDBACK_AUDIO_COUNTDOWN_SIZE} ${FEEDBACK_AUDIO_COUNTDOWN_SIZE}`}
+              style={styles.feedbackAudioCountdownSvg}
+            >
+              <Circle
+                cx={FEEDBACK_AUDIO_COUNTDOWN_SIZE / 2}
+                cy={FEEDBACK_AUDIO_COUNTDOWN_SIZE / 2}
+                r={FEEDBACK_AUDIO_COUNTDOWN_RADIUS}
+                stroke={colors.bibleDivider}
+                strokeWidth={FEEDBACK_AUDIO_COUNTDOWN_STROKE_WIDTH}
+                fill="none"
+              />
+              <Circle
+                cx={FEEDBACK_AUDIO_COUNTDOWN_SIZE / 2}
+                cy={FEEDBACK_AUDIO_COUNTDOWN_SIZE / 2}
+                r={FEEDBACK_AUDIO_COUNTDOWN_RADIUS}
+                stroke={isRecording ? colors.accentPrimary : colors.bibleAccent}
+                strokeWidth={FEEDBACK_AUDIO_COUNTDOWN_STROKE_WIDTH}
+                strokeLinecap="round"
+                strokeDasharray={FEEDBACK_AUDIO_COUNTDOWN_CIRCUMFERENCE}
+                strokeDashoffset={countdownStrokeDashoffset}
+                fill="none"
+                transform={`rotate(-90 ${FEEDBACK_AUDIO_COUNTDOWN_SIZE / 2} ${
+                  FEEDBACK_AUDIO_COUNTDOWN_SIZE / 2
+                })`}
+              />
+            </Svg>
+            <Text style={[styles.feedbackAudioCountdownText, { color: colors.biblePrimaryText }]}>
+              {formatFeedbackAudioDuration(countdownRemainingMs)}
+            </Text>
+          </View>
+          <View style={styles.feedbackAudioStatus}>
+            <Ionicons
+              name={
+                isRecording ? 'mic' : feedbackAudioDraft ? 'musical-notes-outline' : 'mic-outline'
+              }
+              size={18}
+              color={isRecording ? colors.error : colors.biblePrimaryText}
+            />
+            <Text style={[styles.feedbackAudioStatusText, { color: colors.biblePrimaryText }]}>
+              {statusLabel}
+            </Text>
+          </View>
+        </View>
+        <Text style={[styles.feedbackAudioLimitText, { color: colors.bibleSecondaryText }]}>
+          {t('bible.chapterFeedbackAudioLimit')}
+        </Text>
+      </View>
+
+      {feedbackAudioPermissionDenied ? (
+        <View style={styles.feedbackAudioHelpRow}>
+          <Text
+            style={[
+              styles.feedbackAudioHelpText,
+              styles.feedbackAudioHelpMessage,
+              { color: colors.bibleSecondaryText },
+            ]}
+          >
+            {t('bible.chapterFeedbackAudioPermissionHelp')}
+          </Text>
+          {/* Once the system stops re-prompting (Android "don't ask again"), settings is
+                the only way to turn the microphone back on. */}
+          <TouchableOpacity
+            onPress={() => void Linking.openSettings()}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.settings')}
+            hitSlop={8}
+          >
+            <Text style={[styles.feedbackAudioHelpLink, { color: colors.bibleAccent }]}>
+              {t('common.settings')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
+      <View style={styles.feedbackAudioActionRow}>
+        {!isRecording && !feedbackAudioDraft ? (
+          <TouchableOpacity
+            style={[
+              styles.feedbackAudioButton,
+              {
+                borderColor: colors.bibleDivider,
+                backgroundColor: colors.bibleSurface,
+              },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={t('bible.chapterFeedbackAudioRecord')}
+            onPress={() => {
+              void startFeedbackAudioRecording();
+            }}
+            disabled={isSubmittingFeedback}
+          >
+            <Ionicons name="mic-outline" size={17} color={colors.biblePrimaryText} />
+            <Text style={[styles.feedbackAudioButtonText, { color: colors.biblePrimaryText }]}>
+              {t('bible.chapterFeedbackAudioRecord')}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
+
+        {isRecording ? (
+          <TouchableOpacity
+            style={[
+              styles.feedbackAudioButton,
+              {
+                borderColor: colors.accentPrimary,
+                backgroundColor: colors.accentPrimary,
+              },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={t('bible.chapterFeedbackAudioStop')}
+            onPress={() => {
+              void stopFeedbackAudioRecording();
+            }}
+          >
+            <Ionicons name="stop-outline" size={17} color={colors.cardBackground} />
+            <Text style={[styles.feedbackAudioButtonText, { color: colors.cardBackground }]}>
+              {t('bible.chapterFeedbackAudioStop')}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
+
+        {feedbackAudioDraft ? (
+          <>
+            <TouchableOpacity
+              style={[
+                styles.feedbackAudioIconButton,
+                {
+                  borderColor: colors.bibleDivider,
+                  backgroundColor: colors.bibleSurface,
+                },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={t('bible.chapterFeedbackAudioPreview')}
+              onPress={() => {
+                void playFeedbackAudioPreview();
+              }}
+              disabled={isSubmittingFeedback}
+            >
+              <Ionicons name="play-outline" size={18} color={colors.biblePrimaryText} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.feedbackAudioIconButton,
+                {
+                  borderColor: colors.bibleDivider,
+                  backgroundColor: colors.bibleSurface,
+                },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={t('bible.chapterFeedbackAudioRerecord')}
+              onPress={discardFeedbackAudioDraft}
+              disabled={isSubmittingFeedback}
+            >
+              <Ionicons name="refresh-outline" size={18} color={colors.biblePrimaryText} />
+            </TouchableOpacity>
+          </>
+        ) : null}
+
+        {isUploadingAudio ? (
+          <View style={styles.feedbackAudioUploading}>
+            <ActivityIndicator size="small" color={colors.accentPrimary} />
+            <Text style={[styles.feedbackAudioHelpText, { color: colors.bibleSecondaryText }]}>
+              {t('bible.chapterFeedbackAudioUploading')}
+            </Text>
+          </View>
+        ) : null}
+      </View>
+    </View>
+  );
+}
