@@ -146,3 +146,28 @@ test('clearing asks first and deletes the logs only once confirmed', async () =>
   assert.ok(view.getByText(t('settings.diagnostics.emptyTitle')));
   assert.equal(mmkv.has(CRASH_LOG_KEY), false);
 });
+
+// Builds before the on-device log was scrubbed stored messages and stacks as thrown. Those
+// rows survive the app update, so the screen and the export must scrub them on the way out.
+test('logs stored unscrubbed by an older build are shown and shared without emails or tokens', async () => {
+  const jwt = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyLTEifQ.c2lnbmF0dXJlLXZhbHVl';
+  seedLogs([
+    {
+      message: 'Sync failed for reader@example.com with Bearer abc123secret',
+      isFatal: true,
+      timestamp: Date.UTC(2026, 8, 2, 8),
+      stack: `Error: Sync failed\n  at fetch (https://x.supabase.co/rest/v1/profiles?access_token=${jwt})`,
+    },
+  ]);
+  const view = await renderScreen();
+
+  await view.press(view.getByText(t('interface.share')));
+
+  const [shared] = harness.rn.__recorded.shares as { message: string }[];
+  assert.ok(shared, 'the log was shared');
+  for (const secret of ['reader@example.com', 'abc123secret', jwt]) {
+    assert.equal(shared.message.includes(secret), false, `export leaks ${secret}`);
+    assert.equal(view.queryAllByText(new RegExp(secret.replace(/\./g, '\\.'))).length, 0);
+  }
+  assert.ok(shared.message.includes('FATAL: Sync failed for <email> with Bearer <token>'));
+});

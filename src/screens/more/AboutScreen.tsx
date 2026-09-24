@@ -1,4 +1,13 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, Image } from 'react-native';
+import {
+  Alert,
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Linking,
+  Image,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -32,7 +41,11 @@ export function AboutScreen() {
   const { contentClearance } = useTabBarHeight();
 
   const handleLink = (url: string) => {
-    Linking.openURL(url);
+    // With no mail app (or browser) the open rejects. Show where the link points, so the
+    // reader can still write to support or visit the page another way.
+    Linking.openURL(url).catch(() => {
+      Alert.alert(t('common.somethingWentWrong'), url.replace(/^mailto:/, ''));
+    });
   };
 
   return (

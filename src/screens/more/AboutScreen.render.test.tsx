@@ -106,3 +106,28 @@ test('the back button returns to the previous screen', async () => {
     ['goBack']
   );
 });
+
+// A phone with no mail app (or no browser) rejects the open. The tap used to do nothing
+// and leave an unhandled rejection; the reader needs the address to write to support.
+test('when no app can open a link, the reader is shown where it points instead of nothing happening', async (context) => {
+  const realOpenURL = harness.rn.Linking.openURL;
+  harness.rn.Linking.openURL = async (url: string) => {
+    throw new Error(`Could not open URL '${url}': No Activity found to handle Intent`);
+  };
+  context.after(() => {
+    harness.rn.Linking.openURL = realOpenURL;
+  });
+  const view = await renderAbout();
+
+  await view.press(view.getByRole('link', { name: 'hello@everybible.app' }));
+  await view.press(view.getByRole('link', { name: t('about.privacyPolicy') }));
+  await view.flush();
+
+  assert.deepEqual(
+    harness.rn.__recorded.alerts.map(({ title, message }) => ({ title, message })),
+    [
+      { title: t('common.somethingWentWrong'), message: 'hello@everybible.app' },
+      { title: t('common.somethingWentWrong'), message: 'https://everybible.app/privacy' },
+    ]
+  );
+});

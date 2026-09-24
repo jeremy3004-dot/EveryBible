@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -57,6 +57,9 @@ export function ProfileScreen() {
 
   const [avatarUri, setAvatarUri] = useState<string | null>(user?.photoURL ?? null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  // The button only disables once an upload starts; a second tap while the system
+  // picker is still opening must not launch another one.
+  const isPickingAvatarRef = useRef(false);
   const [engagement, setEngagement] = useState<UserEngagementSummary | null>(null);
   // Listening is banked on this device as it plays, and the cloud summary lags it
   // until queued events upload: show the larger, as Reading activity does.
@@ -93,17 +96,26 @@ export function ProfileScreen() {
   }, [user?.photoURL]);
 
   const handlePickAvatar = useCallback(async () => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || isPickingAvatarRef.current) return;
 
-    // The system photo picker can turn the app inactive; that must not lock discreet mode.
-    const result = await withPrivacyLockGrace(() =>
-      ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      })
-    );
+    let result: ImagePicker.ImagePickerResult;
+    isPickingAvatarRef.current = true;
+    try {
+      // The system photo picker can turn the app inactive; that must not lock discreet mode.
+      result = await withPrivacyLockGrace(() =>
+        ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images'],
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.8,
+        })
+      );
+    } catch {
+      Alert.alert(t('common.error'), t('profile.avatarUpdateFailed'));
+      return;
+    } finally {
+      isPickingAvatarRef.current = false;
+    }
 
     if (result.canceled || !result.assets[0]) return;
 
@@ -150,6 +162,18 @@ export function ProfileScreen() {
     }
   }, [isAuthenticated, user, setUser, t]);
 
+  // Email sign-up stores no display name: such an account is named by its email
+  // (shown once), never as a guest.
+  const accountName = user?.displayName?.trim() || null;
+  const userName = isAuthenticated
+    ? (accountName ?? user?.email ?? t('more.guestUser'))
+    : t('more.guestUser');
+  const userSubtitle = !isAuthenticated
+    ? t('more.signInToSync')
+    : accountName
+      ? (user?.email ?? null)
+      : null;
+
   const handleSignIn = () => {
     openAuthFlow('signIn');
   };
@@ -190,7 +214,12 @@ export function ProfileScreen() {
           >
             <View style={styles.avatar}>
               {avatarUri ? (
-                <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
+                <Image
+                  source={{ uri: avatarUri }}
+                  // Offline or an expired provider link: the placeholder, not an empty circle.
+                  onError={() => setAvatarUri(null)}
+                  style={styles.avatarImage}
+                />
               ) : (
                 <Ionicons name="person" size={48} color={colors.secondaryText} />
               )}
@@ -207,12 +236,8 @@ export function ProfileScreen() {
             )}
           </TouchableOpacity>
 
-          <Text style={styles.userName}>
-            {isAuthenticated && user?.displayName ? user.displayName : t('more.guestUser')}
-          </Text>
-          <Text style={styles.userEmail}>
-            {isAuthenticated && user?.email ? user.email : t('more.signInToSync')}
-          </Text>
+          <Text style={styles.userName}>{userName}</Text>
+          {userSubtitle ? <Text style={styles.userEmail}>{userSubtitle}</Text> : null}
           {isAuthenticated && isUploadingAvatar && (
             <Text style={styles.uploadingLabel}>{t('profile.uploadingAvatar')}</Text>
           )}

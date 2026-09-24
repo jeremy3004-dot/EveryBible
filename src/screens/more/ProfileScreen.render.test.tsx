@@ -35,19 +35,6 @@ mockModule(mock, sourcePath('navigation/rootNavigation.ts'), {
 });
 
 type PickerResult = { canceled: boolean; assets: { uri: string }[] };
-const picker = {
-  result: { canceled: true, assets: [] } as PickerResult,
-  launches: 0,
-  launchesUnderLockGrace: [] as boolean[],
-};
-mockPackage(mock, 'expo-image-picker', {
-  launchImageLibraryAsync: async () => {
-    picker.launches += 1;
-    picker.launchesUnderLockGrace.push(isPrivacyLockGraceActive());
-    return picker.result;
-  },
-});
-
 type Deferred<T> = { promise: Promise<T>; resolve: (value: T) => void };
 function deferred<T>(): Deferred<T> {
   let resolve!: (value: T) => void;
@@ -56,6 +43,24 @@ function deferred<T>(): Deferred<T> {
   });
   return { promise, resolve };
 }
+
+const picker = {
+  result: { canceled: true, assets: [] } as PickerResult,
+  launches: 0,
+  launchesUnderLockGrace: [] as boolean[],
+  // Holds the picker open until the test resolves it.
+  open: null as Deferred<PickerResult> | null,
+  throws: false,
+};
+mockPackage(mock, 'expo-image-picker', {
+  launchImageLibraryAsync: async () => {
+    picker.launches += 1;
+    picker.launchesUnderLockGrace.push(isPrivacyLockGraceActive());
+    if (picker.throws) throw new Error('ERR_MISSING_ACTIVITY');
+    if (picker.open) return picker.open.promise;
+    return picker.result;
+  },
+});
 
 const backend = {
   upload: null as Deferred<{ success: boolean; data?: string; error?: string }> | null,
@@ -106,6 +111,8 @@ beforeEach(() => {
   picker.result = { canceled: true, assets: [] };
   picker.launches = 0;
   picker.launchesUnderLockGrace = [];
+  picker.open = null;
+  picker.throws = false;
   backend.upload = null;
   backend.uploadResult = { success: true, data: 'https://cdn.test/avatar-new.jpg' };
   backend.uploadThrows = false;
@@ -145,6 +152,20 @@ test('a guest sees their local stats, cannot change an avatar, and can start sig
   await view.press(view.getByRole('button', { name: t('more.signInOrCreate') }));
   assert.deepEqual(authFlows, ['signIn']);
 });
+
+// Email sign-up stores no display name, so every email account has none.
+for (const displayName of [null, '   ']) {
+  test(`a signed-in reader with no display name (${JSON.stringify(displayName)}) is named by their email, not as a guest`, async () => {
+    harness.authStore.setState({
+      user: { ...signedInUser, displayName },
+      isAuthenticated: true,
+    });
+    const view = await renderScreen();
+
+    assert.equal(view.queryByText(t('more.guestUser')), null);
+    assert.equal(view.getAllByText(signedInUser.email).length, 1, 'the email is shown once');
+  });
+}
 
 test('a signed-in reader sees their name, email and engagement summary', async () => {
   signIn();
@@ -329,6 +350,60 @@ for (const [scenario, arrange] of [
     assert.ok(view.getByRole('button', { name: t('profile.changeAvatar'), disabled: false }));
   });
 }
+
+test('a second tap while the photo picker is opening does not open another picker', async () => {
+  signIn();
+  picker.open = deferred();
+  const view = await renderScreen();
+  const avatarButton = view.getByRole('button', { name: t('profile.changeAvatar') });
+
+  let first: Promise<void> = Promise.resolve();
+  let second: Promise<void> = Promise.resolve();
+  await act(async () => {
+    first = (avatarButton.props.onPress as () => Promise<void>)();
+  });
+  await act(async () => {
+    second = (avatarButton.props.onPress as () => Promise<void>)();
+  });
+  const open = picker.open;
+  await act(async () => {
+    open.resolve({ canceled: true, assets: [] });
+    await Promise.all([first, second]);
+  });
+
+  assert.equal(picker.launches, 1);
+});
+
+test('a photo picker that fails to open tells the reader instead of failing silently', async () => {
+  signIn();
+  picker.throws = true;
+  const view = await renderScreen();
+
+  await view.press(view.getByRole('button', { name: t('profile.changeAvatar') }));
+  await view.flush();
+
+  assert.deepEqual(
+    harness.rn.__recorded.alerts.map(({ title, message }) => ({ title, message })),
+    [{ title: t('common.error'), message: t('profile.avatarUpdateFailed') }]
+  );
+  assert.equal(avatarImageUri(view), signedInUser.photoURL);
+  // The next tap opens the picker again.
+  picker.throws = false;
+  await view.press(view.getByRole('button', { name: t('profile.changeAvatar') }));
+  assert.equal(picker.launches, 2);
+});
+
+test('an account photo that fails to load falls back to the placeholder instead of an empty circle', async () => {
+  signIn();
+  const view = await renderScreen();
+  const [photo] = view.queryAllByType('Image');
+  assert.ok(photo);
+
+  await view.fire(photo, 'onError', { nativeEvent: { error: 'HTTP 403' } });
+
+  assert.equal(avatarImageUri(view), null);
+  assert.ok(view.queryAllByType('Icon').some((icon) => icon.props.name === 'person'));
+});
 
 test('reading activity opens from the profile', async () => {
   const view = await renderScreen();

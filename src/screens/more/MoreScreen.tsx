@@ -103,14 +103,24 @@ export function MoreScreen() {
   const preferences = useAuthStore((state) => state.preferences);
   const preferencesUpdatedAt = useAuthStore((state) => state.preferencesUpdatedAt);
   const signOut = useAuthStore((state) => state.signOut);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const streakDays = useProgressStore(selectCurrentStreakDays);
   const annotations = useAnnotationStore((state) => state.annotations);
   const translations = useBibleStore((state) => state.translations);
   const currentTranslation = useBibleStore((state) => state.currentTranslation);
 
-  const displayName = isAuthenticated && user?.displayName ? user.displayName : t('more.guestUser');
-  const email = isAuthenticated && user?.email ? user.email : null;
+  // Email sign-up stores no display name: such an account is named by its email
+  // (shown once), never as a guest.
+  const accountName = user?.displayName?.trim() || null;
+  const displayName = isAuthenticated
+    ? (accountName ?? user?.email ?? t('more.guestUser'))
+    : t('more.guestUser');
+  const email = isAuthenticated && accountName && user?.email ? user.email : null;
   const initials = useMemo(() => initialsFrom(displayName), [displayName]);
+  // A photo that cannot load (offline, an expired provider link) would leave an empty
+  // circle; the initials stand in. Keyed by URL, so a new photo is tried again.
+  const [failedPhotoUrl, setFailedPhotoUrl] = useState<string | null>(null);
+  const photoUrl = user?.photoURL && user.photoURL !== failedPhotoUrl ? user.photoURL : null;
 
   const syncStatus = describeSyncStatus({
     isAuthenticated,
@@ -221,16 +231,22 @@ export function MoreScreen() {
   };
 
   const handleSignOut = () => {
+    if (isSigningOut) return;
     Alert.alert(t('more.signOut'), t('more.signOutConfirm'), [
       { text: t('common.cancel'), style: 'cancel' },
       {
         text: t('more.signOut'),
         style: 'destructive',
         onPress: async () => {
+          // Sign-out first retires this phone's push token over the network, so it
+          // can take seconds; until it ends a second sign-out must not start.
+          setIsSigningOut(true);
           try {
             await signOut();
           } catch {
             // Sign-out failure is non-fatal; the user stays signed in
+          } finally {
+            setIsSigningOut(false);
           }
         },
       },
@@ -263,9 +279,10 @@ export function MoreScreen() {
           accessibilityLabel={displayName}
         >
           <View style={styles.accountRow}>
-            {user?.photoURL ? (
+            {photoUrl ? (
               <Image
-                source={{ uri: user.photoURL }}
+                source={{ uri: photoUrl }}
+                onError={() => setFailedPhotoUrl(photoUrl)}
                 style={styles.avatar}
                 accessibilityIgnoresInvertColors
                 accessible={false}
@@ -354,9 +371,11 @@ export function MoreScreen() {
           {isAuthenticated ? (
             <PressableScale
               onPress={handleSignOut}
+              disabled={isSigningOut}
               pressEffect="translate"
               haptic="selection"
               accessibilityRole="button"
+              accessibilityState={{ busy: isSigningOut, disabled: isSigningOut }}
               accessibilityLabel={t('more.signOut')}
               hitSlop={8}
             >
@@ -379,9 +398,10 @@ export function MoreScreen() {
 
 function initialsFrom(name: string): string {
   const words = name.trim().split(/\s+/).filter(Boolean);
+  // By code point: `word[0]` is half of an emoji's surrogate pair, drawn as a box.
   return words
     .slice(0, 2)
-    .map((word) => word[0]?.toUpperCase() ?? '')
+    .map((word) => Array.from(word)[0]?.toUpperCase() ?? '')
     .join('');
 }
 

@@ -1,6 +1,7 @@
 import test, { afterEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { create } from 'zustand';
+import { act } from 'react-test-renderer';
 import type { ReactNode } from 'react';
 import { installRenderHarness, within } from '../../testing/render';
 import { mockModule, mockPackage, sourcePath } from '../../testing/mockModules';
@@ -284,4 +285,89 @@ test('the More stack registers no Library screen and no navigator has a Library 
     [retiredMoreRoute, retiredBibleRoute, retiredTab],
     ['Library', 'Library', 'Library']
   );
+});
+
+test('an account name starting with an emoji or astral-plane letter keeps whole characters in its initials', async () => {
+  harness.authStore.setState({
+    isAuthenticated: true,
+    user: { uid: 'user-2', displayName: '😀 𝒥oy', email: 'joy@example.com', photoURL: null },
+    preferencesUpdatedAt: null,
+  });
+  const view = await renderMore();
+
+  const card = view.getByRole('button', { name: '😀 𝒥oy' });
+  // A lone UTF-16 surrogate draws as a replacement box on device.
+  assert.ok(within(card).getByText('😀𝒥'));
+});
+
+// Email sign-up stores no display name, so every email account has none.
+test('a signed-in account with no display name is named by its email on the account card, not as a guest', async () => {
+  harness.authStore.setState({
+    isAuthenticated: true,
+    user: { uid: 'user-3', displayName: null, email: 'ruth@example.com', photoURL: null },
+    preferencesUpdatedAt: null,
+  });
+  const view = await renderMore();
+
+  assert.equal(view.queryByText(t('more.guestUser')), null);
+  const card = view.getByRole('button', { name: 'ruth@example.com' });
+  assert.equal(within(card).getAllByText('ruth@example.com').length, 1, 'the email is shown once');
+  assert.ok(within(card).getByText('R'));
+});
+
+test('while sign-out is running, Sign out is announced busy and cannot start a second sign-out', async () => {
+  let finishSignOut: () => void = () => {};
+  const signOutCalls: number[] = [];
+  harness.authStore.setState({
+    isAuthenticated: true,
+    user: { uid: 'user-1', displayName: 'Ruth Moab', email: 'ruth@example.com', photoURL: null },
+    preferencesUpdatedAt: null,
+    signOut: () => {
+      signOutCalls.push(1);
+      return new Promise<void>((resolve) => {
+        finishSignOut = resolve;
+      });
+    },
+  });
+  const view = await renderMore();
+
+  await view.press(view.getByRole('button', { name: t('more.signOut') }));
+  const confirm = (
+    harness.rn.__recorded.alerts[0]?.buttons as Array<{ style?: string; onPress?: () => unknown }>
+  ).find((button) => button.style === 'destructive');
+  await act(async () => {
+    void confirm?.onPress?.();
+  });
+
+  assert.ok(view.getByRole('button', { name: t('more.signOut'), busy: true, disabled: true }));
+  await view.press(view.getByRole('button', { name: t('more.signOut') }));
+  assert.equal(harness.rn.__recorded.alerts.length, 1, 'no second confirmation opens');
+  assert.equal(signOutCalls.length, 1);
+
+  await act(async () => {
+    finishSignOut();
+  });
+});
+
+test('an account photo that fails to load (offline, expired link) falls back to the initials', async () => {
+  harness.authStore.setState({
+    isAuthenticated: true,
+    user: {
+      uid: 'user-1',
+      displayName: 'Ruth Moab',
+      email: 'ruth@example.com',
+      photoURL: 'https://lh3.googleusercontent.test/expired',
+    },
+    preferencesUpdatedAt: null,
+  });
+  const view = await renderMore();
+  const card = view.getByRole('button', { name: 'Ruth Moab' });
+  const [photo] = within(card).queryAllByType('Image');
+  assert.ok(photo, 'the photo is shown while it can load');
+  assert.equal(within(card).queryByText('RM'), null);
+
+  await view.fire(photo, 'onError', { nativeEvent: { error: 'HTTP 403' } });
+
+  assert.equal(within(card).queryAllByType('Image').length, 0);
+  assert.ok(within(card).getByText('RM'));
 });

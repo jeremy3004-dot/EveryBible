@@ -59,18 +59,19 @@ async function finishRefresh(view: Awaited<ReturnType<typeof renderBrowser>>) {
   await view.flush();
 }
 
-test('the screen shows a spinner while the shared catalog refresh runs, then the shared picker', async () => {
+// Offline or on a stalled network the refresh can take up to a request timeout. The
+// translations on the phone must be pickable meanwhile, as in the reader's picker sheet.
+test('the shared picker shows at once while the shared catalog refresh runs in the background', async () => {
   const view = await renderBrowser();
 
   assert.equal(refresh.calls, 1, 'the catalog is refreshed through the shared helper once');
-  assert.equal(view.queryAllByType('ActivityIndicator').length, 1);
-  assert.equal(view.queryAllByType('TranslationPickerList').length, 0);
-
-  await finishRefresh(view);
-
   assert.equal(view.queryAllByType('ActivityIndicator').length, 0);
   assert.equal(view.queryAllByType('TranslationPickerList').length, 1);
   assert.ok(view.getByRole('header', { name: t('translations.title') }));
+
+  await finishRefresh(view);
+
+  assert.equal(view.queryAllByType('TranslationPickerList').length, 1);
 });
 
 test('the screen is only the shared picker: no reading, comparison or audio preference rows', async () => {

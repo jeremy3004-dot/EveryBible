@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -21,6 +21,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { hexWithAlpha } from '../../utils';
 import { isDeviceOffline } from '../../utils/connectivity';
 import type { MoreStackParamList } from '../../navigation/types';
+import { openAuthFlow } from '../../navigation/rootNavigation';
 
 type NavigationProp = NativeStackNavigationProp<MoreStackParamList, 'MyFeedback'>;
 
@@ -38,7 +39,12 @@ export function MyFeedbackScreen() {
   // This list lives only on the server, so offline it cannot load; say why.
   const [offline, setOffline] = useState(false);
 
+  // Only the latest load may write: one still out when the session ends (or a retry
+  // overtakes it) would otherwise list an earlier account's feedback.
+  const latestLoadRef = useRef(0);
+
   const loadFeedback = useCallback(async () => {
+    const load = ++latestLoadRef.current;
     if (!isAuthenticated) {
       setItems([]);
       setLoadError(false);
@@ -47,11 +53,14 @@ export function MyFeedbackScreen() {
     }
 
     const result = await fetchMyChapterFeedback();
+    if (load !== latestLoadRef.current) return;
     if (result.success) {
       setItems(result.feedback);
       setLoadError(false);
     } else {
-      setOffline(await isDeviceOffline());
+      const isOffline = await isDeviceOffline();
+      if (load !== latestLoadRef.current) return;
+      setOffline(isOffline);
       setLoadError(true);
     }
     setLoading(false);
@@ -60,6 +69,13 @@ export function MyFeedbackScreen() {
   useEffect(() => {
     loadFeedback(); // eslint-disable-line react-hooks/set-state-in-effect
   }, [loadFeedback]);
+
+  // Back to the loading state, so the retry shows progress and cannot be tapped again
+  // while its request is out.
+  const onRetry = () => {
+    setLoading(true);
+    void loadFeedback();
+  };
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -171,6 +187,17 @@ export function MyFeedbackScreen() {
           <Text style={[styles.emptyText, { color: colors.secondaryText }]}>
             {t('myFeedback.signInRequired')}
           </Text>
+          {/* The auth modal opens over this screen; signing in reloads the list here. */}
+          <TouchableOpacity
+            style={[styles.retryButton, { borderColor: colors.cardBorder }]}
+            onPress={() => openAuthFlow('signIn')}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.retryText, { color: colors.accentPrimary }]}>
+              {t('more.signInOrCreate')}
+            </Text>
+          </TouchableOpacity>
         </View>
       );
     }
@@ -188,7 +215,7 @@ export function MyFeedbackScreen() {
           </Text>
           <TouchableOpacity
             style={[styles.retryButton, { borderColor: colors.cardBorder }]}
-            onPress={loadFeedback}
+            onPress={onRetry}
             activeOpacity={0.85}
             accessibilityRole="button"
           >
@@ -239,6 +266,13 @@ export function MyFeedbackScreen() {
       {items.length > 0 ? (
         <Text style={[styles.subtitle, { color: colors.secondaryText }]}>
           {t('myFeedback.subtitle')}
+        </Text>
+      ) : null}
+
+      {/* A failed refresh keeps the last loaded list; say why it did not update. */}
+      {loadError && items.length > 0 ? (
+        <Text accessibilityRole="alert" style={[styles.subtitle, { color: colors.error }]}>
+          {offline ? t('common.offlineTryAgain') : t('common.somethingWentWrong')}
         </Text>
       ) : null}
 

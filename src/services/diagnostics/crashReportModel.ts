@@ -72,7 +72,10 @@ function scrubUrl(url: string): string {
     rest = rest.slice(at + 1);
   }
   const queryStart = rest.search(/[?#]/);
-  const kept = queryStart === -1 ? rest : `${rest.slice(0, queryStart)}?<redacted>`;
+  // A bare `?` is what an already scrubbed URL leaves before its `<redacted>` marker (the
+  // pattern stops at `<`), so scrubbing stored, already scrubbed text changes nothing.
+  const hasQuery = queryStart !== -1 && queryStart < rest.length - 1;
+  const kept = hasQuery ? `${rest.slice(0, queryStart)}?<redacted>` : rest;
   return `${url.slice(0, schemeEnd)}${kept}`;
 }
 

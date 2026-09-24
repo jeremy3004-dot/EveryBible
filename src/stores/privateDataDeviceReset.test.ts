@@ -303,3 +303,45 @@ test('a rejected account deletion keeps the account attributed on its queued ana
 
   assert.deepEqual(queuedAttributions().slice(-1), ['user-a']);
 });
+
+// Written feedback that could not be sent is queued on the device under its account
+// until a sync delivers it. A deleted account can never sign in to send it, and its
+// comments must not stay behind; another account's queued feedback still goes out.
+const queuedFeedbackOwners = () =>
+  (JSON.parse(mmkv.store.get('chapter-feedback-outbox') ?? '[]') as Array<{ userId: string }>).map(
+    (entry) => entry.userId
+  );
+
+test("deleting an account discards the chapter feedback it queued and keeps other accounts'", async () => {
+  const entry = (id: string, userId: string) => ({
+    id,
+    userId,
+    queuedAt: 1,
+    input: { bookId: 'JHN', chapter: 3, sentiment: 'down', comment: `${userId} comment` },
+  });
+  mmkv.store.set(
+    'chapter-feedback-outbox',
+    JSON.stringify([entry('1', 'user-b'), entry('2', 'user-a'), entry('3', 'user-a')])
+  );
+  signIn('user-a');
+
+  assert.deepEqual(await deleteAccountAndLocalData(), { success: true });
+
+  assert.deepEqual(queuedFeedbackOwners(), ['user-b']);
+});
+
+test('a rejected account deletion keeps the chapter feedback it queued', async () => {
+  mmkv.store.set(
+    'chapter-feedback-outbox',
+    JSON.stringify([{ id: '1', userId: 'user-a', queuedAt: 1, input: { comment: 'kept' } }])
+  );
+  signIn('user-a');
+  supabaseFake.respondToRpc('delete_my_account', () => ({
+    data: null,
+    error: { message: 'permission denied' },
+  }));
+
+  await deleteAccountAndLocalData();
+
+  assert.deepEqual(queuedFeedbackOwners(), ['user-a']);
+});

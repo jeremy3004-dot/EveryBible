@@ -15,12 +15,15 @@ const saveResult: {
 } = {
   current: { success: true },
 };
+// Holds a save open (a slow keychain write) until the test releases it.
+const saveGate: { current: Promise<void> | null } = { current: null };
 const usePrivacyStore = create(() => ({
   mode: 'standard' as 'standard' | 'discreet',
   hasPin: false,
   saveConfiguration: async (input: SaveInput) => {
     saved.push(input);
     events.push(`save:${input.mode}`);
+    if (saveGate.current) await saveGate.current;
     if (saveResult.current instanceof Error) {
       throw saveResult.current;
     }
@@ -64,6 +67,7 @@ type RecordedAlert = {
 const recordedAlerts = () => harness.rn.__recorded.alerts as RecordedAlert[];
 
 afterEach(() => {
+  saveGate.current = null;
   events.length = 0;
   saved.length = 0;
   saveResult.current = { success: true };
@@ -257,6 +261,47 @@ test('a standard-icon save that throws shows its error too', async () => {
 
   assert.deepEqual(harness.navigation.calls, []);
   assert.ok(view.getByText(t('common.unexpectedError')));
+});
+
+test('while a save runs, Done is announced busy and a keyboard submit cannot start a second save', async () => {
+  let release: () => void = () => {};
+  saveGate.current = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const view = await renderPrivacy();
+  await chooseDiscreetWithPin(view);
+
+  const done = view.getByRole('button', { name: t('common.done') });
+  await act(async () => {
+    void (done.props.onPress as () => unknown)();
+  });
+
+  assert.ok(view.getByRole('button', { name: t('common.done'), busy: true, disabled: true }));
+  const confirmField = view.getByLabelText(t('onboarding.pinConfirmPlaceholder'));
+  await act(async () => {
+    void (confirmField.props.onSubmitEditing as () => unknown)();
+  });
+  assert.equal(saved.length, 1, 'one save for one confirmation');
+
+  await act(async () => {
+    release();
+  });
+  await view.flush();
+  assert.deepEqual(events, ['save:discreet', 'lock after goBack']);
+});
+
+test('on Android a second Done while the close warning is up does not ask twice', async () => {
+  harness.rn.Platform.OS = 'android';
+  const view = await renderPrivacy();
+  await chooseDiscreetWithPin(view);
+
+  await view.press(view.getByRole('button', { name: t('common.done') }));
+  await view.press(view.getByRole('button', { name: t('common.done') }));
+  await view.flush();
+
+  await answerIconSwitchAlert('continue');
+  await view.flush();
+  assert.deepEqual(saved, [{ mode: 'discreet', pinInput: '2468' }]);
 });
 
 // On Android the icon is a launcher alias, and switching aliases closes the app to the
