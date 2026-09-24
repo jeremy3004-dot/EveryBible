@@ -143,6 +143,23 @@ test('done and future dots differ in shape, not only colour', () => {
   assert.ok(paint.today.borderWidth > paint.future.borderWidth, "today's ring is the heavier one");
 });
 
+test('a missed day is struck through, so it is not told from a day to come by colour alone', () => {
+  const paint = getPlanLedgerDotPaint({
+    accentPrimary: '#000001',
+    warning: '#000002',
+    warningSoft: '#000003',
+    muted: '#000004',
+    controlBorder: '#000005',
+  });
+
+  // Both are thin rings around a tinted well; only the stroke separates them.
+  assert.equal(paint.missed.borderWidth, paint.future.borderWidth);
+  assert.deepEqual(
+    Object.fromEntries(Object.entries(paint).map(([state, { slash }]) => [state, slash])),
+    { done: false, missed: true, today: false, future: false }
+  );
+});
+
 test('a day-of-month plan draws one dot per day of the current month', () => {
   const monthly = { duration_days: 31, scheduleMode: 'calendar-day-of-month' as const };
 

@@ -448,6 +448,11 @@ export const mr = {
     discreetNotificationTitle: 'स्मरणपत्र',
     discreetNotificationBody: 'आजसाठी तुमच्याकडे एक स्मरणपत्र आहे.',
     discreetNotificationChannel: 'स्मरणपत्रे',
+    iconSwitchCloseTitle: 'ॲप बंद होईल',
+    iconSwitchCloseToCalculator:
+      'चिन्ह बदलल्यावर ॲप बंद होते. ते कॅल्क्युलेटर चिन्हावरून पुन्हा उघडा.',
+    iconSwitchCloseToStandard:
+      'चिन्ह बदलल्यावर ॲप बंद होते. ते Every Bible चिन्हावरून पुन्हा उघडा.',
   },
   settings: {
     title: 'सेटिंग्ज',

@@ -448,6 +448,11 @@ export const hi = {
     discreetNotificationTitle: 'अनुस्मारक',
     discreetNotificationBody: 'आज के लिए आपका एक अनुस्मारक है।',
     discreetNotificationChannel: 'अनुस्मारक',
+    iconSwitchCloseTitle: 'ऐप बंद हो जाएगा',
+    iconSwitchCloseToCalculator:
+      'आइकन बदलने पर ऐप बंद हो जाता है। इसे कैलकुलेटर आइकन से फिर से खोलें।',
+    iconSwitchCloseToStandard:
+      'आइकन बदलने पर ऐप बंद हो जाता है। इसे Every Bible आइकन से फिर से खोलें।',
   },
   settings: {
     title: 'सेटिंग्स',

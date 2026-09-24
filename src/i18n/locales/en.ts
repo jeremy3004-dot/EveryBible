@@ -732,6 +732,11 @@ export const en = {
     discreetNotificationTitle: 'Reminder',
     discreetNotificationBody: 'You have a reminder for today.',
     discreetNotificationChannel: 'Reminders',
+    iconSwitchCloseTitle: 'The app will close',
+    iconSwitchCloseToCalculator:
+      'Changing the icon closes the app. Reopen it from the Calculator icon.',
+    iconSwitchCloseToStandard:
+      'Changing the icon closes the app. Reopen it from the Every Bible icon.',
   },
   settings: {
     title: 'Settings',

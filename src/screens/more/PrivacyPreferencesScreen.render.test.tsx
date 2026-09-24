@@ -46,7 +46,22 @@ mockModule(mock, sourcePath('services/diagnostics/crashReportQueue.ts'), {
   },
 });
 
+// Whether this build can switch the launcher icon at all (the native module is present).
+const iconSupport = { current: true };
+mockModule(mock, sourcePath('services/privacy/appIcon.ts'), {
+  supportsDynamicAppIcon: () => iconSupport.current,
+});
+
 const t = (key: string) => harness.i18n.t(key);
+
+type AlertButton = { text: string; style?: string; onPress?: () => void };
+type RecordedAlert = {
+  title: string;
+  message?: string;
+  buttons?: AlertButton[];
+  options?: { cancelable?: boolean; onDismiss?: () => void };
+};
+const recordedAlerts = () => harness.rn.__recorded.alerts as RecordedAlert[];
 
 afterEach(() => {
   events.length = 0;
@@ -56,6 +71,7 @@ afterEach(() => {
   reportWaiters = [];
   usePrivacyStore.setState(usePrivacyStore.getInitialState(), true);
   harness.rn.Platform.OS = 'ios';
+  iconSupport.current = true;
 });
 
 async function renderPrivacy() {
@@ -241,4 +257,141 @@ test('a standard-icon save that throws shows its error too', async () => {
 
   assert.deepEqual(harness.navigation.calls, []);
   assert.ok(view.getByText(t('common.unexpectedError')));
+});
+
+// On Android the icon is a launcher alias, and switching aliases closes the app to the
+// home screen (the task's launch component is disabled). Unwarned, that looks like a
+// crash, so Android asks first and says which icon to reopen from.
+async function answerIconSwitchAlert(choice: 'continue' | 'cancel' | 'dismiss') {
+  const alerts = recordedAlerts();
+  assert.equal(alerts.length, 1, 'one confirmation before the icon changes');
+  const [alert] = alerts;
+  await act(async () => {
+    if (choice === 'dismiss') {
+      alert!.options?.onDismiss?.();
+      return;
+    }
+    const label = choice === 'continue' ? t('common.continue') : t('common.cancel');
+    const button = alert!.buttons?.find((candidate) => candidate.text === label);
+    assert.ok(button, `the confirmation offers ${label}`);
+    button.onPress?.();
+  });
+}
+
+test('on Android turning discreet on warns the app will close and switches only after Continue', async () => {
+  harness.rn.Platform.OS = 'android';
+  const view = await renderPrivacy();
+  await chooseDiscreetWithPin(view);
+
+  await view.press(view.getByRole('button', { name: t('common.done') }));
+  await view.flush();
+
+  const [alert] = recordedAlerts();
+  assert.equal(alert?.title, t('privacy.iconSwitchCloseTitle'));
+  assert.equal(alert?.message, t('privacy.iconSwitchCloseToCalculator'));
+  assert.deepEqual(
+    alert?.buttons?.map((button) => [button.text, button.style ?? null]),
+    [
+      [t('common.cancel'), 'cancel'],
+      [t('common.continue'), null],
+    ]
+  );
+  assert.equal(alert?.options?.cancelable, true);
+  assert.deepEqual(saved, [], 'nothing is saved while the reader decides');
+  assert.deepEqual(harness.navigation.calls, []);
+
+  await answerIconSwitchAlert('continue');
+  await view.flush();
+
+  assert.deepEqual(saved, [{ mode: 'discreet', pinInput: '2468' }]);
+  assert.deepEqual(events, ['save:discreet', 'lock after goBack']);
+});
+
+test('on Android turning discreet off names the standard icon to reopen from', async () => {
+  harness.rn.Platform.OS = 'android';
+  usePrivacyStore.setState({ mode: 'discreet', hasPin: true });
+  const view = await renderPrivacy();
+
+  await view.press(view.getByRole('radio', { name: t('onboarding.standardIconTitle') }));
+  await view.press(view.getByRole('button', { name: t('common.done') }));
+  await view.flush();
+
+  const [alert] = recordedAlerts();
+  assert.equal(alert?.title, t('privacy.iconSwitchCloseTitle'));
+  assert.equal(alert?.message, t('privacy.iconSwitchCloseToStandard'));
+  assert.deepEqual(saved, []);
+
+  await answerIconSwitchAlert('continue');
+  await view.flush();
+
+  assert.deepEqual(saved, [{ mode: 'standard' }]);
+  assert.deepEqual(
+    harness.navigation.calls.map((call) => call.method),
+    ['goBack']
+  );
+});
+
+for (const choice of ['cancel', 'dismiss'] as const) {
+  test(`on Android ${choice === 'cancel' ? 'Cancel' : 'dismissing'} the warning keeps the current icon and stays on the screen`, async () => {
+    harness.rn.Platform.OS = 'android';
+    const view = await renderPrivacy();
+    await chooseDiscreetWithPin(view);
+
+    await view.press(view.getByRole('button', { name: t('common.done') }));
+    await view.flush();
+    await answerIconSwitchAlert(choice);
+    await view.flush();
+
+    assert.deepEqual(saved, [], 'the mode is not saved, so the icon never switches');
+    assert.deepEqual(events, [], 'nothing locks');
+    assert.deepEqual(harness.navigation.calls, [], 'the reader stays on the screen');
+    assert.ok(view.getByText(t('common.done')), 'Done can be pressed again');
+
+    // A second Done asks again rather than switching silently.
+    harness.rn.__recorded.alerts.length = 0;
+    await view.press(view.getByRole('button', { name: t('common.done') }));
+    await view.flush();
+    assert.equal(recordedAlerts().length, 1);
+    await answerIconSwitchAlert('continue');
+    await view.flush();
+    assert.deepEqual(saved, [{ mode: 'discreet', pinInput: '2468' }]);
+  });
+}
+
+test('on Android changing only the secure code keeps the icon, so it saves without a warning', async () => {
+  harness.rn.Platform.OS = 'android';
+  usePrivacyStore.setState({ mode: 'discreet', hasPin: true });
+  const view = await renderPrivacy();
+  await view.changeText(view.getByLabelText(t('onboarding.pinPlaceholder')), '1357');
+  await view.changeText(view.getByLabelText(t('onboarding.pinConfirmPlaceholder')), '1357');
+
+  await view.press(view.getByRole('button', { name: t('common.done') }));
+  await view.flush();
+
+  assert.deepEqual(recordedAlerts(), []);
+  assert.deepEqual(saved, [{ mode: 'discreet', pinInput: '1357' }]);
+});
+
+test('on an Android build that cannot switch icons nothing closes, so there is no warning', async () => {
+  harness.rn.Platform.OS = 'android';
+  iconSupport.current = false;
+  const view = await renderPrivacy();
+  await chooseDiscreetWithPin(view);
+
+  await view.press(view.getByRole('button', { name: t('common.done') }));
+  await view.flush();
+
+  assert.deepEqual(recordedAlerts(), []);
+  assert.deepEqual(saved, [{ mode: 'discreet', pinInput: '2468' }]);
+});
+
+test('on iOS the icon changes without an in-app warning (iOS keeps the app open)', async () => {
+  const view = await renderPrivacy();
+  await chooseDiscreetWithPin(view);
+
+  await view.press(view.getByRole('button', { name: t('common.done') }));
+  await view.flush();
+
+  assert.deepEqual(recordedAlerts(), []);
+  assert.deepEqual(saved, [{ mode: 'discreet', pinInput: '2468' }]);
 });

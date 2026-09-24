@@ -756,6 +756,11 @@ export const tr = {
     discreetNotificationTitle: 'Hatırlatma',
     discreetNotificationBody: 'Bugün için bir hatırlatmanız var.',
     discreetNotificationChannel: 'Hatırlatmalar',
+    iconSwitchCloseTitle: 'Uygulama kapanacak',
+    iconSwitchCloseToCalculator:
+      'Simgeyi değiştirmek uygulamayı kapatır. Uygulamayı Hesap Makinesi simgesinden yeniden açın.',
+    iconSwitchCloseToStandard:
+      'Simgeyi değiştirmek uygulamayı kapatır. Uygulamayı Every Bible simgesinden yeniden açın.',
   },
   settings: {
     title: 'Ayarlar',

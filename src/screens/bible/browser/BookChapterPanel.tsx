@@ -1,6 +1,7 @@
 import { memo, useEffect } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View, type LayoutChangeEvent } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { Ionicons } from '@expo/vector-icons';
 import { getTranslatedBookName, type BibleBook } from '../../../constants/books';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { radius, spacing, typography } from '../../../design/system';
@@ -29,6 +30,9 @@ export interface BookChapterPanelProps {
   unavailableChapterKey: string | null;
   onPressChapter: (bookId: string, chapter: number) => void;
 }
+
+/** Small enough to sit in a 48pt tile's corner clear of a three-digit number. */
+const CHAPTER_TILE_LOCK_SIZE = 10;
 
 interface ChapterTileProps {
   bookId: string;
@@ -74,6 +78,18 @@ const ChapterTile = memo(function ChapterTile({
       >
         {chapter}
       </Text>
+      {/* The dimming alone left "not available" to colour; the lock matches the
+          unavailable book row's. The tile's value already says it aloud. */}
+      {isAvailable ? null : (
+        <Ionicons
+          name="lock-closed"
+          size={CHAPTER_TILE_LOCK_SIZE}
+          color={colors.bibleSecondaryText}
+          style={styles.lockIcon}
+          accessibilityElementsHidden
+          importantForAccessibility="no"
+        />
+      )}
       <TranslatorFeedbackBadge status={feedbackStatus} />
     </TouchableOpacity>
   );
@@ -177,6 +193,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  // Bottom-right: the translator feedback badge owns the top-right corner.
+  lockIcon: {
+    position: 'absolute',
+    right: spacing.xs,
+    bottom: spacing.xs,
   },
   chapterNumber: {
     fontSize: 15,

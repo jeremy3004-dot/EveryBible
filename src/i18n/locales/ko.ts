@@ -740,6 +740,9 @@ export const ko = {
     discreetNotificationTitle: '알림',
     discreetNotificationBody: '오늘 확인할 알림이 있습니다.',
     discreetNotificationChannel: '알림',
+    iconSwitchCloseTitle: '앱이 닫힙니다',
+    iconSwitchCloseToCalculator: '아이콘을 바꾸면 앱이 닫힙니다. 계산기 아이콘에서 다시 여세요.',
+    iconSwitchCloseToStandard: '아이콘을 바꾸면 앱이 닫힙니다. Every Bible 아이콘에서 다시 여세요.',
   },
   settings: {
     title: '설정',
