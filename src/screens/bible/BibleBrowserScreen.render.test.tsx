@@ -1,146 +1,27 @@
-import test, { afterEach, mock } from 'node:test';
+import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { createElement } from 'react';
 import { act, type ReactTestInstance } from 'react-test-renderer';
-import { useTranslation } from 'react-i18next';
-import { create } from 'zustand';
-import { flattenStyle, hostAncestors, installRenderHarness, within } from '../../testing/render';
-import { mockBarrel, mockModule, sourcePath } from '../../testing/mockModules';
+import { flattenStyle, hostAncestors, within } from '../../testing/render';
 import { DEFAULT_APPEARANCE_PALETTE } from '../../constants/appearancePalettes';
-import type { Verse } from '../../types';
-import type { TranslatorFeedbackChapterSummary } from '../../services/feedback/translatorFeedbackReviewModel';
 import { BIBLE_SEARCH_DEBOUNCE_MS } from './bibleSearchModel';
+import { installBrowserRenderFixture } from './BibleBrowserScreen.renderFixture';
 
-const harness = installRenderHarness(mock, {
-  hooks: {
-    useI18n: () => {
-      const { t, i18n } = useTranslation();
-      return { t, i18n, currentLanguage: 'en' };
-    },
-    // No catalog summary: every book and chapter counts as available.
-    useTranslationContentSummary: () => undefined,
-  },
-});
-const t = (key: string, options?: Record<string, unknown>) => harness.i18n.t(key, options);
-
-// React Native provides these globally; Node does not.
-const timerGlobals = globalThis as unknown as {
-  requestAnimationFrame: (callback: () => void) => unknown;
-  cancelAnimationFrame: (id: unknown) => void;
-};
-timerGlobals.requestAnimationFrame ??= (callback) => setTimeout(callback, 0);
-timerGlobals.cancelAnimationFrame ??= (id) => clearTimeout(id as NodeJS.Timeout);
-
-const initialBibleState = {
-  currentBook: 'JHN',
-  currentTranslation: 'bsb',
-  translations: [{ id: 'bsb', name: 'Berean Standard Bible', abbreviation: 'BSB' }],
-  preferredChapterLaunchMode: 'listen' as 'listen' | 'read',
-};
-const bibleStore = create(() => ({ ...initialBibleState }));
-mockModule(mock, sourcePath('stores/bibleStore.ts'), { useBibleStore: bibleStore });
-
-const translatorReviewStore = create(() => ({
-  enabled: false,
-  accessPasscode: null as string | null,
-}));
-mockModule(mock, sourcePath('stores/translatorReviewStore.ts'), {
-  useTranslatorReviewStore: translatorReviewStore,
-});
-
-type SummaryResult =
-  | { success: true; chapters: TranslatorFeedbackChapterSummary[] }
-  | { success: false; code?: string };
-const feedback = {
-  requests: [] as Array<{ translationId: string; passcode: string }>,
-  result: { success: true, chapters: [] } as SummaryResult,
-};
-mockBarrel(mock, 'services/feedback/index.ts', {
-  provide: {
-    TRANSLATION_NOT_COVERED: 'translation_not_covered',
-    fetchChapterFeedbackReviewSummaryForTranslation: async (request: {
-      translationId: string;
-      passcode: string;
-    }) => {
-      feedback.requests.push(request);
-      return feedback.result;
-    },
-  },
-  real: ['getTranslatorFeedbackBookSummaryStatus', 'getTranslatorFeedbackChapterSummaryStatus'],
-});
-mockModule(mock, sourcePath('components/feedback/TranslationNotCoveredNotice.tsx'), {
-  TranslationNotCoveredNotice: () => null,
-});
-
-// Full-text search goes through the SQLite-backed service, loaded lazily by the screen.
-// Each call gets a promise the test settles, so ordering and staleness can be driven.
-interface PendingSearch {
-  translationId: string;
-  query: string;
-  resolve: (verses: Verse[]) => void;
-  reject: (error: Error) => void;
-}
-const searches: PendingSearch[] = [];
-mockModule(mock, sourcePath('services/bible/bibleService.ts'), {
-  searchBible: (translationId: string, query: string) =>
-    new Promise<Verse[]>((resolve, reject) => {
-      searches.push({ translationId, query, resolve, reject });
-    }),
-});
-
-// Another suite owns the real picker; here it is a host element carrying its props.
-mockModule(mock, sourcePath('screens/bible/TranslationPickerList.tsx'), {
-  TranslationPickerList: (props: Record<string, unknown>) =>
-    createElement('TranslationPickerList', props),
-});
-
-afterEach(() => {
-  bibleStore.setState({ ...initialBibleState }, true);
-  translatorReviewStore.setState({ enabled: false, accessPasscode: null }, true);
-  feedback.requests.length = 0;
-  feedback.result = { success: true, chapters: [] };
-  searches.length = 0;
-  harness.navigation.route.name = 'TestRoute';
-});
-
-let nextVerseId = 1;
-const verse = (bookId: string, chapter: number, verseNumber: number, text: string): Verse => ({
-  id: nextVerseId++,
-  bookId,
-  chapter,
-  verse: verseNumber,
-  text,
-});
-
-async function renderBrowser(
-  routeName: 'BibleBrowser' | 'BiblePicker' = 'BibleBrowser',
-  params: Record<string, unknown> = {}
-) {
-  harness.navigation.route.name = routeName;
-  harness.navigation.route.params = params;
-  const { BibleBrowserScreen } = await import('./BibleBrowserScreen');
-  const view = await harness.render(<BibleBrowserScreen />);
-  await view.flush();
-  return view;
-}
-
-/** Let real time pass inside act, so timers that set state are flushed. */
-async function wait(ms: number) {
-  await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, ms));
-  });
-}
-
-const bookList = (view: Awaited<ReturnType<typeof renderBrowser>>) => {
-  const [list] = view
-    .queryAllByType('FlatList')
-    .filter((node) => (node.props.data as unknown[]).length > 60);
-  assert.ok(list, 'the book list is rendered');
-  return list;
-};
-
-const translationEntry = (view: Awaited<ReturnType<typeof renderBrowser>>) =>
-  view.queryByRole('button', { name: t('bible.selectTranslation') });
+// Book list, reader navigation, search and the translation sheet. Availability,
+// the translator summary banner and store-driven updates live in
+// BibleBrowserScreen.states.render.test.tsx.
+const {
+  harness,
+  t,
+  bibleStore,
+  translatorReviewStore,
+  feedback,
+  searches,
+  verse,
+  renderBrowser,
+  wait,
+  bookList,
+  translationEntry,
+} = installBrowserRenderFixture(mock);
 
 test('every book row carries a stable key derived from the book', async () => {
   const view = await renderBrowser();
@@ -293,7 +174,11 @@ test('full-text search waits for the debounce window, then lists and announces r
   await view.changeText(view.getByLabelText(t('common.search')), 'love');
   await view.flush();
 
-  assert.equal(view.queryAllByType('VersesSkeleton').length, 0);
+  // With no results yet, the skeleton takes the surface while the query waits.
+  assert.deepEqual(
+    view.queryAllByType('VersesSkeleton').map((node) => node.props.count),
+    [6]
+  );
   assert.equal(view.queryByRole('button', { name: 'Genesis' }), null);
 
   await wait(BIBLE_SEARCH_DEBOUNCE_MS - 100);
