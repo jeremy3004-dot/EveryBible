@@ -100,7 +100,6 @@ test('App boot path avoids heavy barrel imports and defers the root navigator', 
     "from './src/services/analytics';",
     "from './src/services/notifications';",
     "from './src/hooks/useSync';",
-    "from './src/hooks/usePrivacyLock';",
     // No screen uses react-query yet; a root provider evaluated query-core first.
     "from '@tanstack/react-query';",
     "from './src/services/queryClient';",
@@ -135,7 +134,7 @@ test('App boot path avoids heavy barrel imports and defers the root navigator', 
   assert.match(
     appSource,
     /import\('\.\/src\/services\/startup\/AppRuntimeEffects'\)/,
-    'App.tsx should defer sync and privacy app-state hooks so NetInfo/cloud sync modules stay off the first render path'
+    'App.tsx should defer the sync and deep-link hooks so NetInfo/cloud sync modules stay off the first render path'
   );
   assert.match(
     appSource,
@@ -430,14 +429,31 @@ test('App wraps the providers, AppContent and the runtime-effects host in error 
     /<ErrorBoundary scope="runtime-effects" fallback=\{null\}>\s*<AppRuntimeEffectsHost/,
     'the runtime-effects host renders nothing, so on failure it must render nothing'
   );
+  // The privacy lock fails closed: its own boundary, outside the runtime-effects one, and
+  // a caught error locks a discreet install (LoadingScreen then shows the lock screen).
+  assert.match(
+    appSource,
+    /<ErrorBoundary\s+scope="privacy-lock"\s+fallback=\{null\}\s+onError=\{lockAfterPrivacyLockFailure\}\s*>\s*<PrivacyLockHost \/>\s*<\/ErrorBoundary>/,
+    'the privacy lock needs its own fail-closed boundary'
+  );
+  assert.match(
+    appSource,
+    /function PrivacyLockHost\(\) \{\s*usePrivacyLock\(\);\s*return null;\s*\}/,
+    'the privacy lock host mounts only the lock, so no other effect can take it down'
+  );
 });
 
-test('deferred runtime effects own sync and privacy hooks after boot', () => {
+test('deferred runtime effects own sync after boot, and the privacy lock is not deferred with them', () => {
   const source = readRelativeSource('./AppRuntimeEffects.tsx');
+  const appSource = readRelativeSource('../../../App.tsx');
 
   assert.match(source, /import \{ useSync \} from '\.\.\/\.\.\/hooks\/useSync';/);
-  assert.match(source, /import \{ usePrivacyLock \} from '\.\.\/\.\.\/hooks\/usePrivacyLock';/);
-  assert.match(source, /useSync\(\);[\s\S]*usePrivacyLock\(\);/);
+  assert.doesNotMatch(source, /usePrivacyLock/);
+  assert.match(
+    appSource,
+    /import \{ lockAfterPrivacyLockFailure, usePrivacyLock \} from '\.\/src\/hooks\/usePrivacyLock';/,
+    'the privacy lock loads with the app shell: its closure (privacyStore, AppState) is already there'
+  );
 });
 
 test('src/stores/index.ts is not a store barrel', () => {
