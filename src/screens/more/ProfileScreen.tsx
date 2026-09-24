@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -51,6 +51,9 @@ export function ProfileScreen() {
 
   const [avatarUri, setAvatarUri] = useState<string | null>(user?.photoURL ?? null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  // The button only disables once an upload starts; a second tap while the system
+  // picker is still opening must not launch another one.
+  const isPickingAvatarRef = useRef(false);
   const [engagement, setEngagement] = useState<UserEngagementSummary | null>(null);
   // Listening is banked on this device as it plays, and the cloud summary lags it
   // until queued events upload: show the larger, as Reading activity does.
@@ -87,17 +90,26 @@ export function ProfileScreen() {
   }, [user?.photoURL]);
 
   const handlePickAvatar = useCallback(async () => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || isPickingAvatarRef.current) return;
 
-    // The system photo picker can turn the app inactive; that must not lock discreet mode.
-    const result = await withPrivacyLockGrace(() =>
-      ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      })
-    );
+    let result: ImagePicker.ImagePickerResult;
+    isPickingAvatarRef.current = true;
+    try {
+      // The system photo picker can turn the app inactive; that must not lock discreet mode.
+      result = await withPrivacyLockGrace(() =>
+        ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images'],
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.8,
+        })
+      );
+    } catch {
+      Alert.alert(t('common.error'), t('profile.avatarUpdateFailed'));
+      return;
+    } finally {
+      isPickingAvatarRef.current = false;
+    }
 
     if (result.canceled || !result.assets[0]) return;
 
