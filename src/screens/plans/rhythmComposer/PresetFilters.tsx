@@ -29,7 +29,10 @@ export function PresetFilters({
   return (
     <>
       <View style={styles.filterSection}>
-        <Text style={[styles.sectionTitle, { color: colors.primaryText }]}>
+        <Text
+          accessibilityRole="header"
+          style={[styles.sectionTitle, { color: colors.primaryText }]}
+        >
           {t('plans.rhythmComposer.timeOfDay')}
         </Text>
         <ScrollView
@@ -50,7 +53,10 @@ export function PresetFilters({
       </View>
 
       <View style={styles.filterSection}>
-        <Text style={[styles.sectionTitle, { color: colors.primaryText }]}>
+        <Text
+          accessibilityRole="header"
+          style={[styles.sectionTitle, { color: colors.primaryText }]}
+        >
           {t('plans.rhythmComposer.tradition')}
         </Text>
         <ScrollView

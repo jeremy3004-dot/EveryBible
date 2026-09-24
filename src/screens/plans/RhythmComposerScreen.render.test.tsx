@@ -73,6 +73,9 @@ test('the "Any time" filter narrows the list to presets with no fixed slot and i
   const view = await renderComposer();
   const anytime = RHYTHM_PRESET_LIBRARY.filter((preset) => preset.slot === null);
   assert.ok(anytime.length > 0 && anytime.length < RHYTHM_PRESET_LIBRARY.length);
+  // Each filter group is a heading the rotor can jump to.
+  assert.ok(view.getByRole('header', { name: t('plans.rhythmComposer.timeOfDay') }));
+  assert.ok(view.getByRole('header', { name: t('plans.rhythmComposer.tradition') }));
 
   assert.ok(
     view.getByRole('button', { name: t('plans.rhythmComposer.filterAll'), selected: true })

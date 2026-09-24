@@ -22,7 +22,10 @@ export function RhythmSequenceSection({
   return (
     <>
       <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: colors.primaryText }]}>
+        <Text
+          accessibilityRole="header"
+          style={[styles.sectionTitle, { color: colors.primaryText }]}
+        >
           {t('readingPlans.rhythmSequence', { defaultValue: 'Rhythm sequence' })}
         </Text>
         <TouchableOpacity

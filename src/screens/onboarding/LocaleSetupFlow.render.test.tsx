@@ -92,7 +92,9 @@ test('first run opens straight on the Bible language step with search and the wh
       name: 'English, Berean Standard Bible (BSB) · Text, Recommended',
     })
   );
-  for (const letter of ['H', 'N']) assert.ok(view.getByText(letter), `section ${letter} is listed`);
+  for (const letter of ['H', 'N']) {
+    assert.ok(view.getByRole('header', { name: letter }), `section ${letter} is a heading`);
+  }
   for (const languageName of [
     /^Hausa, /,
     /^Hindi \/ हिन्दी, /,

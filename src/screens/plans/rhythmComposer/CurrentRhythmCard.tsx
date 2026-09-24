@@ -21,7 +21,7 @@ export function CurrentRhythmCard({ rhythm }: { rhythm: ReadingPlanRhythm }) {
         { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
       ]}
     >
-      <Text style={[styles.sectionTitle, { color: colors.primaryText }]}>
+      <Text accessibilityRole="header" style={[styles.sectionTitle, { color: colors.primaryText }]}>
         {t('plans.rhythmComposer.replaceCurrentTitle')}
       </Text>
       <Text style={[styles.currentRhythmTitle, { color: colors.primaryText }]}>
