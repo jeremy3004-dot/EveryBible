@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Platform } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { config } from '../../../constants/config';
@@ -7,6 +7,7 @@ import { uploadChapterFeedbackAudio } from '../../../services/feedback/chapterFe
 import { normalizeChapterFeedbackIdentity } from '../../../services/feedback/chapterFeedbackIdentity';
 import type { ChapterFeedbackSourceScreen } from '../../../services/feedback/chapterFeedbackService';
 import { useAuthStore } from '../../../stores/authStore';
+import { announceLiveRegionText } from '../../../utils/a11y';
 import {
   getFeedbackParticipationMode,
   useTranslatorReviewStore,
@@ -61,6 +62,12 @@ export function useChapterFeedback({
   const contentLanguageCode = useAuthStore((state) => state.preferences.contentLanguageCode);
   const contentLanguageName = useAuthStore((state) => state.preferences.contentLanguageName);
   const audio = useChapterFeedbackAudio({ isSubmittingFeedback, setFeedbackSubmitError });
+
+  // Both composers render this error in a live region, which only TalkBack
+  // reads; VoiceOver is told directly (offline, sign-in, microphone refused).
+  useEffect(() => {
+    if (feedbackSubmitError) announceLiveRegionText(feedbackSubmitError);
+  }, [feedbackSubmitError]);
   const { feedbackAudioState, setFeedbackAudioState, feedbackAudioDraft } = audio;
   const savedChapterFeedbackIdentity = normalizeChapterFeedbackIdentity({
     name: chapterFeedbackName ?? '',
