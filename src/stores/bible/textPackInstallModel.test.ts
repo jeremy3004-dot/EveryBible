@@ -52,6 +52,28 @@ test('byte progress is reported as a percentage of the expected size', () => {
   );
 });
 
+// The expected size is the response's advertised length, which the bytes written can pass
+// (a compressed response, say). The picker renders this value as `${progress}%`.
+test('a transfer that overshoots its expected size is reported as 100%, never more', () => {
+  assert.deepEqual(
+    [
+      mapTextPackDownloadProgress('esv1', {
+        phase: 'fetching',
+        totalVerses: 0,
+        versesDownloaded: 0,
+        bytesDownloaded: 1_340,
+        bytesTotal: 1_000,
+      }).progress,
+      mapTextPackDownloadProgress('esv1', {
+        phase: 'indexing',
+        totalVerses: 100,
+        versesDownloaded: 120,
+      }).progress,
+    ],
+    [100, 100]
+  );
+});
+
 test('without a byte total, progress falls back to verses indexed', () => {
   const progress = mapTextPackDownloadProgress('esv1', {
     phase: 'indexing',

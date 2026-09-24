@@ -6,6 +6,7 @@
  */
 import type { BibleTranslation, TranslationDownloadProgress } from '../../types';
 import type { TextPackInstallJournalEntry } from '../../services/bible/textPackInstallJournalModel';
+import { clampPercent } from './audioDownloadJobModel';
 
 /** What cloudTranslationService reports while a pack is transferred and indexed. */
 export interface TextPackTransferProgress {
@@ -24,11 +25,13 @@ export function mapTextPackDownloadProgress(
   translationId: string,
   progress: TextPackTransferProgress
 ): TranslationDownloadProgress {
+  // Clamped: bytesTotal is the response's advertised length, which the bytes written can
+  // pass (a compressed response, say), and the picker prints this value as a percentage.
   const pct =
     progress.bytesTotal && progress.bytesTotal > 0
-      ? Math.round(((progress.bytesDownloaded ?? 0) / progress.bytesTotal) * 100)
+      ? clampPercent(((progress.bytesDownloaded ?? 0) / progress.bytesTotal) * 100)
       : progress.totalVerses > 0
-        ? Math.round((progress.versesDownloaded / progress.totalVerses) * 100)
+        ? clampPercent((progress.versesDownloaded / progress.totalVerses) * 100)
         : 0;
   return {
     translationId,
