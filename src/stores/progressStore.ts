@@ -51,9 +51,11 @@ interface ProgressState {
   // chapters covered by ear as well as by eye. Local-only and offline-first —
   // the sync payload still carries reading progress alone.
   chaptersListened: Record<string, number>;
-  // Completed listening milliseconds accumulated per local calendar day
-  // ({ "2026-09-08": 1_260_000 }). A day key is tiny, survives re-listens that a
-  // chapter-keyed map would collapse, and lets any period sum its own minutes.
+  // Listening milliseconds accumulated per local calendar day
+  // ({ "2026-09-08": 1_260_000 }), banked segment by segment as audio plays, so
+  // a chapter left unfinished still counts. A day key is tiny, survives
+  // re-listens that a chapter-keyed map would collapse, and lets any period sum
+  // its own minutes. Local-only, like chaptersListened.
   listeningMsByDate: Record<string, number>;
   streakDays: number;
   lastReadDate: string | null;
@@ -66,7 +68,8 @@ interface ProgressState {
 
   // Actions
   markChapterRead: (bookId: string, chapter: number) => void;
-  markChapterListened: (bookId: string, chapter: number, durationMs: number) => void;
+  markChapterListened: (bookId: string, chapter: number) => void;
+  recordListeningTime: (durationMs: number) => void;
   isChapterRead: (bookId: string, chapter: number) => boolean;
   updateStreak: () => void;
   applySyncedProgress: (progress: {
@@ -253,23 +256,25 @@ export const useProgressStore = create<ProgressState>()(
         debouncedSyncProgress();
       },
 
-      markChapterListened: (bookId, chapter, durationMs) => {
+      markChapterListened: (bookId, chapter) => {
         const key = `${bookId}_${chapter}`;
-        const now = Date.now();
-        const dateKey = formatLocalDateKey(new Date(now));
-        const listenedMs =
-          Number.isFinite(durationMs) && durationMs > 0 ? Math.round(durationMs) : 0;
         set((state) => ({
           chaptersListened: {
             ...state.chaptersListened,
-            [key]: now,
+            [key]: Date.now(),
           },
-          listeningMsByDate: listenedMs
-            ? {
-                ...state.listeningMsByDate,
-                [dateKey]: (state.listeningMsByDate[dateKey] ?? 0) + listenedMs,
-              }
-            : state.listeningMsByDate,
+        }));
+      },
+
+      recordListeningTime: (durationMs) => {
+        if (!Number.isFinite(durationMs) || durationMs <= 0) return;
+        const listenedMs = Math.round(durationMs);
+        const dateKey = formatLocalDateKey(new Date());
+        set((state) => ({
+          listeningMsByDate: {
+            ...state.listeningMsByDate,
+            [dateKey]: (state.listeningMsByDate[dateKey] ?? 0) + listenedMs,
+          },
         }));
       },
 

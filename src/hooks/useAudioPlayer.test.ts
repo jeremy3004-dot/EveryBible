@@ -53,7 +53,8 @@ const recorded = {
   backgroundMusic: [] as { method: 'sync' | 'stop'; choice?: string; shouldPlay?: boolean }[],
   analytics: [] as { name: string; properties: Record<string, unknown> }[],
   history: [] as { bookId: string; chapter: number; progress: number }[],
-  listened: [] as { bookId: string; chapter: number; durationMs: number }[],
+  listened: [] as { bookId: string; chapter: number }[],
+  listeningMs: [] as number[],
   prefetch: [] as { translationId: string; bookId: string; chapter: number; count: number }[],
   deletedFiles: [] as string[],
   audioLookups: [] as { translationId: string; bookId: string; chapter: number }[],
@@ -255,8 +256,11 @@ mockModule(mock, sourcePath('stores/libraryStore.ts'), {
 mockModule(mock, sourcePath('stores/progressStore.ts'), {
   useProgressStore: {
     getState: () => ({
-      markChapterListened: (bookId: string, chapter: number, durationMs: number) => {
-        recorded.listened.push({ bookId, chapter, durationMs });
+      markChapterListened: (bookId: string, chapter: number) => {
+        recorded.listened.push({ bookId, chapter });
+      },
+      recordListeningTime: (durationMs: number) => {
+        recorded.listeningMs.push(durationMs);
       },
     }),
   },
@@ -416,6 +420,7 @@ beforeEach(() => {
   recorded.analytics.length = 0;
   recorded.history.length = 0;
   recorded.listened.length = 0;
+  recorded.listeningMs.length = 0;
   recorded.prefetch.length = 0;
   recorded.deletedFiles.length = 0;
   recorded.audioLookups.length = 0;
@@ -2000,9 +2005,7 @@ test('finishing records the completed listen for the reading ledger', async () =
   await finishPlayback();
 
   assert.deepEqual(recorded.history[0], { bookId: 'GEN', chapter: 1, progress: 1 });
-  assert.deepEqual(recorded.listened, [
-    { bookId: 'GEN', chapter: 1, durationMs: DEFAULT_DURATION_MS },
-  ]);
+  assert.deepEqual(recorded.listened, [{ bookId: 'GEN', chapter: 1 }]);
 });
 
 test('finishing the last chapter of a book continues into the next book', async () => {
@@ -2445,6 +2448,49 @@ test('the last stretch of a finished chapter is reported as a finish', async (t)
     })),
     [{ reason: 'finish', listened: 5_000 }]
   );
+});
+
+// Reading activity counts listening from this device's own record, so a guest
+// (no cloud summary) and an offline listener still see their minutes.
+const totalListenedMs = () => recorded.listeningMs.reduce((sum, ms) => sum + ms, 0);
+
+test('ten minutes into a long chapter, the ten minutes are banked on this device', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: BASE_TIME });
+  scenario.chapterAudio = async () => ({
+    url: 'https://cdn.example/bsb/PSA/119.mp3',
+    duration: 25 * 60_000,
+  });
+  const player = mountPlayer();
+  await player.api.playChapter('PSA', 119);
+  emitStatus({ isPlaying: true, positionMillis: 0, durationMillis: 25 * 60_000 });
+
+  t.mock.timers.tick(10 * 60_000);
+  assert.equal(totalListenedMs(), 10 * 60_000, 'banked while it plays, not only at the end');
+
+  t.mock.timers.tick(10_000);
+  await player.rerender().pause();
+
+  assert.equal(totalListenedMs(), 10 * 60_000 + 10_000);
+  assert.deepEqual(recorded.listened, [], 'an unfinished chapter is not marked as heard');
+});
+
+test('a finished chapter banks the time actually heard, once', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: BASE_TIME });
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  emitStatus({ isPlaying: true, positionMillis: 1_000, durationMillis: DEFAULT_DURATION_MS });
+  t.mock.timers.tick(5_000);
+
+  emitStatus({
+    isPlaying: false,
+    didJustFinish: true,
+    positionMillis: DEFAULT_DURATION_MS,
+    durationMillis: DEFAULT_DURATION_MS,
+  });
+  await finishPlayback();
+
+  assert.equal(totalListenedMs(), 5_000);
+  assert.deepEqual(recorded.listened, [{ bookId: 'GEN', chapter: 1 }]);
 });
 
 test('no listening progress is reported while the chapter duration is unknown', async (t) => {
