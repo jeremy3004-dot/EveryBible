@@ -81,6 +81,7 @@ import { TabSwitch } from '../../components/ui/TabSwitch';
 import { getReadingFontFamily } from '../../design/fonts';
 import type { DailyScripture } from '../../types';
 import type { RootTabParamList } from '../../navigation/types';
+import { gatherFoundationRoute } from '../../navigation/learnRoutes';
 import { layout, motion, radius, spacing, typography } from '../../design/system';
 import { lightHaptic } from '../../utils/haptics';
 import { createHomeReadyReporter } from '../../services/startup/homeStartupTiming';
@@ -885,12 +886,7 @@ export function HomeScreen() {
                 }),
                 t('home.nextLesson', { title: nextLessonTitle }),
               ].join(', ')}
-              onPress={() =>
-                navigation.navigate('Learn', {
-                  screen: 'FoundationDetail',
-                  params: { foundationId: foundation.id },
-                })
-              }
+              onPress={() => navigation.navigate('Learn', gatherFoundationRoute(foundation.id))}
             >
               <View style={styles.gatherHeader}>
                 <Text
