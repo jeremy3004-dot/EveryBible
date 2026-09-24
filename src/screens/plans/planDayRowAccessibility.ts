@@ -54,8 +54,8 @@ export function getPlanDayRowAccessibility(
 }
 
 /**
- * A session pill's state ("Morning" filled in once read). The fill is the only
- * mark of a finished session, so a finished one says so.
+ * A session pill's state ("Morning" filled in and ticked once read). The tick
+ * is drawn, not spoken, so a finished session says so.
  */
 export function getPlanSessionAccessibilityValue(
   t: TFunction,

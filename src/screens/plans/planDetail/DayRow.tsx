@@ -22,6 +22,7 @@ export const CURRENT_PLAN_DAY_ROW_TEST_ID = 'plan-detail-current-day-row';
 const LEDGER_DAY_WIDTH = 56;
 const NO_SESSION_ACTIONS: PlanDaySessionAction[] = [];
 const SESSION_PILL_HIT_SLOP = { top: 6, bottom: 6 };
+const SESSION_PILL_TICK_SIZE = 12;
 
 function formatChapterRef(
   entry: ReadingPlanEntry,
@@ -89,7 +90,8 @@ export const DayRow = memo(function DayRow({
   const sessionActionRow = hasSessionActions ? (
     <View style={styles.sessionActionRow}>
       {sessionActions.map((action) => {
-        const isFilled = action.state === 'done' || action.state === 'next';
+        const isDone = action.state === 'done';
+        const isFilled = isDone || action.state === 'next';
         return (
           <PressableScale
             key={`${dayNumber}-${action.sessionKey}`}
@@ -112,6 +114,15 @@ export const DayRow = memo(function DayRow({
               },
             ]}
           >
+            {/* Done and next share the accent fill; the tick tells them apart
+                without colour (the value says "Completed" to screen readers). */}
+            {isDone ? (
+              <Check
+                size={SESSION_PILL_TICK_SIZE}
+                color={colors.onAccentSurface}
+                strokeWidth={2.5}
+              />
+            ) : null}
             <Text
               style={[
                 styles.sessionActionLabel,
@@ -365,7 +376,10 @@ const styles = StyleSheet.create({
     minHeight: 32,
     borderRadius: radius.sm,
     borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'center',
+    gap: spacing.xs,
     paddingHorizontal: spacing.md,
   },
   sessionActionLabel: {

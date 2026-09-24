@@ -399,6 +399,36 @@ test("a multi-session day offers a button per session, and each opens exactly th
   );
 });
 
+test("a read session's pill carries a tick, so it is not told from the next session by fill alone", async () => {
+  const { readingPlans } = await import('../../data/readingPlans.generated');
+  const { buildPlanSessionCompletionKey } = await import('../../services/plans/readingPlanModel');
+  const kathisma = readingPlans.find((plan) => plan.id === KATHISMA);
+  assert.ok(kathisma, 'fixture: the weekly Kathisma plan');
+  await enroll(KATHISMA, {
+    started_at: '2026-09-20T09:00:00.000Z',
+    completed_sessions: {
+      [buildPlanSessionCompletionKey(kathisma, 5, 'morning', new Date(TODAY))]: TODAY,
+    },
+  });
+  const view = await renderPlan(KATHISMA);
+  const morning = view.getByRole('button', { name: 'Morning Kathismata for day 5' });
+  const evening = view.getByRole('button', { name: 'Evening Kathismata for day 5' });
+  const pillFill = (pill: ReactTestInstance) => flattenStyle(pill.props.style)?.backgroundColor;
+  const ticks = (pill: ReactTestInstance) =>
+    within(pill)
+      .queryAllByType('LucideIcon')
+      .map((icon) => icon.props.name);
+
+  // Done and next share the accent fill; only the tick separates them.
+  assert.deepEqual(morning.props.accessibilityValue, { text: t('readingPlans.completed') });
+  assert.equal(evening.props.accessibilityValue, undefined);
+  assert.equal(pillFill(morning), pillFill(evening), 'fixture: done and next share a fill');
+  assert.deepEqual(ticks(morning), ['Check']);
+  assert.deepEqual(ticks(evening), []);
+  // The label still names the pill; the tick is drawn inside the same button.
+  assert.ok(within(morning).getByText('Morning Kathismata'));
+});
+
 test('a past multi-session day offers its sessions to VoiceOver as custom actions that open them', async () => {
   await enroll(KATHISMA, { started_at: '2026-09-20T09:00:00.000Z' });
   const view = await renderPlan(KATHISMA);
