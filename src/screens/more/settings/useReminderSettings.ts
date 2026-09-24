@@ -15,6 +15,14 @@ import {
 import { lightHaptic } from '../../../utils';
 import { REMINDER_MINUTES, buildReminderTimeString } from './settingsScreenModel';
 
+// The crash queue is loaded only when there is a failure to report, and reporting never
+// throws into the reminder flow.
+function reportReminderScheduleFailure(error: unknown): void {
+  void import('../../../services/diagnostics/crashReportQueue')
+    .then(({ reportHandledError }) => reportHandledError('settings.reminderSchedule', error))
+    .catch(() => undefined);
+}
+
 /**
  * The daily reminder: the switch, the permission request behind it, and the time
  * picker it opens when no time has been chosen yet.
@@ -36,6 +44,23 @@ export function useReminderSettings() {
   };
 
   const closeTimePicker = () => setShowTimePicker(false);
+
+  /**
+   * Schedules the reminder, or explains and reports why it could not be. On failure the
+   * picker closes and the caller leaves the preference alone, so the switch never shows
+   * a reminder that was not scheduled.
+   */
+  const scheduleReminder = async (hour: number, minute: number): Promise<boolean> => {
+    try {
+      await scheduleDailyReminder(hour, minute);
+      return true;
+    } catch (error) {
+      setShowTimePicker(false);
+      Alert.alert(t('common.error'), t('common.unexpectedError'));
+      reportReminderScheduleFailure(error);
+      return false;
+    }
+  };
 
   /**
    * Asks for notification permission, then schedules the reminder at its saved time or
@@ -64,8 +89,11 @@ export function useReminderSettings() {
     const enablePlan = getReminderEnablePlan(reminderTime);
 
     if (enablePlan.type === 'schedule-existing') {
-      await scheduleDailyReminder(enablePlan.schedule.hour, enablePlan.schedule.minute);
-      if (!notificationsEnabled) {
+      const scheduled = await scheduleReminder(
+        enablePlan.schedule.hour,
+        enablePlan.schedule.minute
+      );
+      if (scheduled && !notificationsEnabled) {
         setPreferences({ notificationsEnabled: true });
         syncPreferences().catch(() => {});
       }
@@ -98,7 +126,9 @@ export function useReminderSettings() {
   const handleTimeSelect = async () => {
     const parsedMinute = parseInt(selectedMinute, 10);
     const timeString = buildReminderTimeString(selectedHour, selectedMinute);
-    await scheduleDailyReminder(selectedHour, parsedMinute);
+    if (!(await scheduleReminder(selectedHour, parsedMinute))) {
+      return;
+    }
 
     setPreferences({ notificationsEnabled: true, reminderTime: timeString });
     setShowTimePicker(false);

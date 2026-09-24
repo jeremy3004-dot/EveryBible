@@ -105,14 +105,18 @@ const reminders: {
   permission: 'granted' | 'denied' | 'blocked';
   calls: string[];
   requests: number;
+  /** Thrown by scheduleDailyReminder, as when the OS refuses to schedule. */
+  scheduleError: Error | null;
 } = {
   permission: 'granted',
   calls: [],
   requests: 0,
+  scheduleError: null,
 };
 mockModule(mock, sourcePath('services/notifications/index.ts'), {
   scheduleDailyReminder: async (hour: number, minute: number) => {
     reminders.calls.push(`schedule:${hour}:${minute}`);
+    if (reminders.scheduleError) throw reminders.scheduleError;
   },
   cancelDailyReminder: async () => {
     reminders.calls.push('cancel');
@@ -120,6 +124,18 @@ mockModule(mock, sourcePath('services/notifications/index.ts'), {
   requestNotificationPermissionOutcome: async () => {
     reminders.requests += 1;
     return reminders.permission;
+  },
+});
+const reported: { source: string; error: unknown }[] = [];
+let reportWaiters: (() => void)[] = [];
+/** Resolves on the next report: the reminder flow loads the crash queue lazily. */
+const nextReport = () => new Promise<void>((resolve) => reportWaiters.push(resolve));
+mockModule(mock, sourcePath('services/diagnostics/crashReportQueue.ts'), {
+  reportHandledError: (source: string, error: unknown) => {
+    reported.push({ source, error });
+    const waiters = reportWaiters;
+    reportWaiters = [];
+    waiters.forEach((resolve) => resolve());
   },
 });
 mockModule(mock, sourcePath('components/feedback/TranslationNotCoveredNotice.tsx'), {
@@ -135,6 +151,9 @@ afterEach(async () => {
   reminders.permission = 'granted';
   reminders.calls.length = 0;
   reminders.requests = 0;
+  reminders.scheduleError = null;
+  reported.length = 0;
+  reportWaiters = [];
   harness.rn.__recorded.alerts.length = 0;
   harness.rn.__recorded.openedUrls.length = 0;
   syncCalls.length = 0;
@@ -250,6 +269,62 @@ test('refusing the permission from the notice explains itself and schedules noth
   );
   assert.deepEqual(reminders.calls, []);
   assert.equal(harness.authStore.getState().preferences.notificationsEnabled, true);
+});
+
+// --- Reminder scheduling failures -------------------------------------------
+
+test('a reminder the system fails to schedule from its saved time stays off, explains and is reported', async () => {
+  harness.authStore
+    .getState()
+    .setPreferences({ notificationsEnabled: false, reminderTime: '07:30' });
+  const failure = new Error('scheduling refused');
+  reminders.scheduleError = failure;
+  const view = await renderSettings();
+
+  const reported$ = nextReport();
+  await view.fire(switchNamed(view, t('settings.dailyReminder')), 'onValueChange', true);
+  await reported$;
+
+  assert.deepEqual(reminders.calls, ['schedule:7:30']);
+  assert.deepEqual(
+    harness.rn.__recorded.alerts.map((alert) => [alert.title, alert.message]),
+    [[t('common.error'), t('common.unexpectedError')]]
+  );
+  assert.equal(harness.authStore.getState().preferences.notificationsEnabled, false);
+  assert.equal(switchNamed(view, t('settings.dailyReminder')).props.value, false);
+  assert.equal(syncCalls.length, 0);
+  assert.deepEqual(reported, [{ source: 'settings.reminderSchedule', error: failure }]);
+});
+
+test('a reminder time the system fails to schedule closes the picker, stays off and is reported', async () => {
+  harness.authStore.getState().setPreferences({ notificationsEnabled: false, reminderTime: null });
+  const view = await renderSettings();
+
+  await view.fire(switchNamed(view, t('settings.dailyReminder')), 'onValueChange', true);
+  assert.ok(view.getByRole('header', { name: t('settings.setReminderTime') }));
+
+  const failure = new Error('scheduling refused');
+  reminders.scheduleError = failure;
+  const reported$ = nextReport();
+  await view.press(view.getByRole('button', { name: t('settings.setTime') }));
+  await reported$;
+
+  assert.deepEqual(reminders.calls, ['schedule:9:0']);
+  assert.equal(view.queryByRole('header', { name: t('settings.setReminderTime') }), null);
+  assert.deepEqual(
+    harness.rn.__recorded.alerts.map((alert) => [alert.title, alert.message]),
+    [[t('common.error'), t('common.unexpectedError')]]
+  );
+  const { notificationsEnabled, reminderTime } = harness.authStore.getState().preferences;
+  assert.deepEqual(
+    { notificationsEnabled, reminderTime },
+    {
+      notificationsEnabled: false,
+      reminderTime: null,
+    }
+  );
+  assert.equal(syncCalls.length, 0);
+  assert.deepEqual(reported, [{ source: 'settings.reminderSchedule', error: failure }]);
 });
 
 // --- Privacy shortcut -------------------------------------------------------
