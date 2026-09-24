@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 
 import { requireAdminIdentity, type AdminIdentity } from '@/lib/admin-auth';
 import { writeAdminAuditLog } from '@/lib/audit-log';
-import { normalizeOptionalString } from '@/lib/format';
+import { normalizeOptionalString, normalizeUuid } from '@/lib/format';
 import { createAdminServiceClient } from '@/lib/supabase/service';
 import {
   TEAM_LABEL_MAX_LENGTH,
@@ -101,7 +101,7 @@ export async function createTranslatorTeamPasscodeAction(
 
 export async function revokeTranslatorTeamPasscodeAction(formData: FormData) {
   const admin = await requireAdminIdentity();
-  const teamId = normalizeOptionalString(formData.get('teamId'));
+  const teamId = normalizeUuid(formData.get('teamId'));
   if (!teamId) {
     redirect(`${PAGE}?error=Missing team id`);
   }
@@ -186,7 +186,7 @@ export async function rotateTranslatorTeamPasscodeAction(
   formData: FormData
 ): Promise<TeamPasscodeActionResult> {
   const admin = await requireAdminIdentity();
-  const teamId = normalizeOptionalString(formData.get('teamId'));
+  const teamId = normalizeUuid(formData.get('teamId'));
   if (!teamId) return failure('Missing team id');
   // Checked before the revoke so a bad choice leaves the team's current code working.
   const codeLength = parseTeamPasscodeLength(formData.get('codeLength'));

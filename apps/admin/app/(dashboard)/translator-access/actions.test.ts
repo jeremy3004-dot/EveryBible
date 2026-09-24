@@ -20,6 +20,7 @@ import {
 
 const ADMIN = { email: 'ops@everybible.app', id: 'admin-1', name: 'Ops Lead', role: 'super_admin' };
 const TEAM_TABLE = 'translator_team_passcodes';
+const TEAM_ID = '7e7e7e7e-0000-4000-8000-000000000007';
 
 const service = createSupabaseFake();
 let adminGate: 'admin' | 'signed_out' | 'forbidden' = 'admin';
@@ -65,7 +66,7 @@ beforeEach(() => {
   scriptedCodes.length = 0;
   activeRows = [];
   failOn = {};
-  revokableRow = { id: 'team-7', label: 'Nepali ULB team', translation_ids: ['npiulb'] };
+  revokableRow = { id: TEAM_ID, label: 'Nepali ULB team', translation_ids: ['npiulb'] };
   next.revalidatedPaths.length = 0;
   service.respondTo(TEAM_TABLE, (call: SupabaseQueryCall) => {
     const failure = failOn[call.operation as 'select' | 'insert' | 'update'];
@@ -87,7 +88,7 @@ const auditRows = () => service.callsFor('admin_audit_logs').map((call) => call.
 for (const gate of ['signed_out', 'forbidden'] as const) {
   test(`every translator-access action refuses a ${gate} caller before touching the database`, async () => {
     adminGate = gate;
-    const input = formData({ label: 'Team', translationIds: 'npiulb', teamId: 'team-7' });
+    const input = formData({ label: 'Team', translationIds: 'npiulb', teamId: TEAM_ID });
     for (const action of [
       createTranslatorTeamPasscodeAction,
       revokeTranslatorTeamPasscodeAction,
@@ -276,7 +277,7 @@ test('if active codes cannot be loaded, nothing is created', async () => {
 test('revoking stamps who and when on the active row only, audits it and returns to the list', async (t) => {
   t.mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-09-24T09:00:00.000Z') });
   const url = await captureRedirect(() =>
-    revokeTranslatorTeamPasscodeAction(formData({ teamId: 'team-7' }))
+    revokeTranslatorTeamPasscodeAction(formData({ teamId: TEAM_ID }))
   );
 
   const [update] = teamCalls('update');
@@ -284,14 +285,14 @@ test('revoking stamps who and when on the active row only, audits it and returns
     revoked_at: '2026-09-24T09:00:00.000Z',
     revoked_by: 'admin-1',
   });
-  assert.deepEqual(stepArgs(update, 'eq'), [['id', 'team-7']]);
+  assert.deepEqual(stepArgs(update, 'eq'), [['id', TEAM_ID]]);
   assert.deepEqual(stepArgs(update, 'is'), [['revoked_at', null]]);
   assert.deepEqual(auditRows(), [
     {
       action: 'translator_access.team_passcode.revoke',
       actor_email: 'ops@everybible.app',
       actor_user_id: 'admin-1',
-      entity_id: 'team-7',
+      entity_id: TEAM_ID,
       entity_type: 'translator_team_passcode',
       metadata: { label: 'Nepali ULB team', translationIds: ['npiulb'] },
       summary: 'Revoked the translator passcode for Nepali ULB team (npiulb).',
@@ -311,10 +312,23 @@ test('revoking without a team id changes nothing', async () => {
   assert.deepEqual(service.calls, []);
 });
 
+test('a team id that is not a uuid is refused before any write, not sent to Postgres', async () => {
+  // Postgres would answer with "invalid input syntax for type uuid", shown to the operator.
+  const url = await captureRedirect(() =>
+    revokeTranslatorTeamPasscodeAction(formData({ teamId: 'team-7' }))
+  );
+  assert.equal(url, '/translator-access?error=Missing team id');
+
+  const result = await rotateTranslatorTeamPasscodeAction(formData({ teamId: 'team-7' }));
+  assert.equal(result.ok, false);
+  assert.equal(result.error, 'Missing team id');
+  assert.deepEqual(service.calls, []);
+});
+
 test('revoking a passcode that is already revoked reports it and is not audited', async () => {
   revokableRow = null;
   const url = await captureRedirect(() =>
-    revokeTranslatorTeamPasscodeAction(formData({ teamId: 'team-7' }))
+    revokeTranslatorTeamPasscodeAction(formData({ teamId: TEAM_ID }))
   );
   assert.equal(
     url,
@@ -328,7 +342,7 @@ test('revoking a passcode that is already revoked reports it and is not audited'
 // ---------------------------------------------------------------------------
 
 test('rotating revokes the old code first, then issues a new one for the same team', async () => {
-  const result = await rotateTranslatorTeamPasscodeAction(formData({ teamId: 'team-7' }));
+  const result = await rotateTranslatorTeamPasscodeAction(formData({ teamId: TEAM_ID }));
 
   assert.equal(result.ok, true);
   assert.match(result.passcode ?? '', /^[0-9]{6}$/);
@@ -351,7 +365,7 @@ test('rotating revokes the old code first, then issues a new one for the same te
       metadata: {
         codeLength: 6,
         label: 'Nepali ULB team',
-        previousTeamPasscodeId: 'team-7',
+        previousTeamPasscodeId: TEAM_ID,
         translationIds: ['npiulb'],
       },
       summary: 'Rotated the translator passcode for Nepali ULB team (npiulb).',
@@ -362,7 +376,7 @@ test('rotating revokes the old code first, then issues a new one for the same te
 
 test('rotating can move a team to a longer code', async () => {
   const result = await rotateTranslatorTeamPasscodeAction(
-    formData({ teamId: 'team-7', codeLength: '10' })
+    formData({ teamId: TEAM_ID, codeLength: '10' })
   );
 
   assert.equal(result.ok, true);
@@ -371,7 +385,7 @@ test('rotating can move a team to a longer code', async () => {
 
 test('rotating with an unsupported code length leaves the current code working', async () => {
   const result = await rotateTranslatorTeamPasscodeAction(
-    formData({ teamId: 'team-7', codeLength: '7' })
+    formData({ teamId: TEAM_ID, codeLength: '7' })
   );
 
   assert.equal(result.error, 'Choose a code length of 6, 10 or 12 digits');
@@ -380,7 +394,7 @@ test('rotating with an unsupported code length leaves the current code working',
 
 test('rotating a code that is not active issues nothing', async () => {
   revokableRow = null;
-  const result = await rotateTranslatorTeamPasscodeAction(formData({ teamId: 'team-7' }));
+  const result = await rotateTranslatorTeamPasscodeAction(formData({ teamId: TEAM_ID }));
 
   assert.equal(result.ok, false);
   assert.equal(result.error, 'That passcode is already revoked or does not exist');
@@ -390,7 +404,7 @@ test('rotating a code that is not active issues nothing', async () => {
 
 test('if the replacement cannot be issued, the operator is told the old code is already revoked', async () => {
   failOn = { insert: 'insert failed' };
-  const result = await rotateTranslatorTeamPasscodeAction(formData({ teamId: 'team-7' }));
+  const result = await rotateTranslatorTeamPasscodeAction(formData({ teamId: TEAM_ID }));
 
   assert.equal(result.ok, false);
   assert.equal(result.passcode, null);

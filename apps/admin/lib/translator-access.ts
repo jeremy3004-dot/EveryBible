@@ -9,7 +9,7 @@ import {
   newTeamPasscodeSalt,
   type TeamPasscodeLength,
 } from '@/lib/translator-access-crypto';
-import { createAdminServiceClient } from '@/lib/supabase/service';
+import { getAuthorizedAdminServiceClient } from '@/lib/supabase/authorized-service';
 
 /**
  * Translator review access: one passcode per translation team, stored hashed in
@@ -123,7 +123,7 @@ export async function issueTeamPasscode(
 
 /** Active teams first, newest first. Never selects the salt or hash. */
 export async function getTranslatorTeams(): Promise<TranslatorTeamSummary[]> {
-  const service = createAdminServiceClient();
+  const service = await getAuthorizedAdminServiceClient();
   const { data, error } = await service
     .from('translator_team_passcodes')
     .select('id, label, translation_ids, created_at, revoked_at')
@@ -182,7 +182,7 @@ export interface SharedPasscodeSetting {
 
 /** The switch review-chapter-feedback reads. A missing row means "allowed", as in the function. */
 export async function getSharedPasscodeSetting(): Promise<SharedPasscodeSetting> {
-  const service = createAdminServiceClient();
+  const service = await getAuthorizedAdminServiceClient();
   const { data, error } = await service
     .from('translator_access_settings')
     .select('shared_passcode_enabled, updated_at')
@@ -238,7 +238,7 @@ export async function getSharedPasscodeUsage(
     truncated: false,
     byTranslation: [],
   };
-  const service = createAdminServiceClient();
+  const service = await getAuthorizedAdminServiceClient();
   // PostgREST caps each response at max_rows (1000 by default) whatever .limit() asks for, so
   // the total and the truncation flag come from the exact count rather than the rows returned.
   const { data, error, count } = await service
@@ -294,7 +294,7 @@ const FEEDBACK_ID_SCAN_MAX_ROWS = 200_000;
  * Shown as a hint when choosing what a new passcode covers.
  */
 export async function getTranslationIdsWithFeedback(): Promise<string[]> {
-  const service = createAdminServiceClient();
+  const service = await getAuthorizedAdminServiceClient();
   const ids = new Set<string>();
   // Page through every row: PostgREST caps a response at max_rows (1000 by default), and an id
   // missing here would also be missing from the "no active team passcode" warning.
