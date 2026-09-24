@@ -73,6 +73,12 @@ export const mergeChapterProgress = (
   const merged = { ...local };
 
   for (const [key, remoteTimestamp] of Object.entries(remote)) {
+    // A row written by an older build or by hand can hold null or a string here.
+    // Adopting it would put a non-number in the store and in the next upload,
+    // which merge_user_progress refuses outright (22023), stalling every sync.
+    if (typeof remoteTimestamp !== 'number' || !Number.isFinite(remoteTimestamp)) {
+      continue;
+    }
     const localTimestamp = local[key];
     if (!localTimestamp || remoteTimestamp > localTimestamp) {
       merged[key] = remoteTimestamp;
@@ -133,11 +139,18 @@ const resolveReadingPosition = (
     localState.currentChapter
   );
 
+  // Two positions read at the same instant: pick by the position itself, so both
+  // devices make the same choice and the server stops alternating between them.
+  const remoteWinsTie =
+    remoteTimestamp === localTimestamp &&
+    `${remoteData.current_book}_${remoteData.current_chapter}` >
+      `${localState.currentBook}_${localState.currentChapter}`;
   const shouldUseRemote =
     (localState.currentBook === 'GEN' &&
       localState.currentChapter === 1 &&
       Object.keys(localState.chaptersRead).length === 0) ||
-    remoteTimestamp > localTimestamp;
+    remoteTimestamp > localTimestamp ||
+    remoteWinsTie;
 
   if (shouldUseRemote) {
     return {
@@ -180,11 +193,17 @@ export const mergeReadingSnapshot = (
   // Keep the streak consistent with whichever side owns the most recent
   // lastReadDate rather than ratcheting with Math.max. A Math.max ratchet would
   // resurrect a stale higher streak from an old remote row even after a
-  // legitimate reset (see L13). Ties keep the local value.
+  // legitimate reset (see L13). When both sides read last on the same day, the
+  // longer run wins: each device only counts the days it saw, so the longer one
+  // is the truer count, and taking it on both sides is what lets two devices
+  // agree (keeping the local value made each device re-upload its own streak on
+  // every sync, flipping the server between them).
   const streakDays =
-    lastReadDate === remoteLastReadDate && lastReadDate !== localState.lastReadDate
-      ? remoteStreak
-      : localState.streakDays;
+    localState.lastReadDate !== null && localState.lastReadDate === remoteLastReadDate
+      ? Math.max(localState.streakDays, remoteStreak)
+      : lastReadDate === remoteLastReadDate && lastReadDate !== localState.lastReadDate
+        ? remoteStreak
+        : localState.streakDays;
 
   const progress = {
     chaptersRead,
@@ -197,7 +216,8 @@ export const mergeReadingSnapshot = (
     readingPosition,
     positionSource,
     changed:
-      positionSource === 'remote' ||
+      readingPosition.bookId !== localState.currentBook ||
+      readingPosition.chapter !== localState.currentChapter ||
       progress.streakDays !== localState.streakDays ||
       progress.lastReadDate !== localState.lastReadDate ||
       Object.keys(progress.chaptersRead).length !== Object.keys(localState.chaptersRead).length ||
@@ -223,6 +243,80 @@ export const readingMatchesRemote = (
     Object.keys(reading.progress.chaptersRead).length === Object.keys(chapters).length &&
     Object.entries(reading.progress.chaptersRead).every(([key, value]) => chapters[key] === value)
   );
+};
+
+/** The row uploaded to merge_user_progress (or, on an older server, upserted). */
+export interface RemoteProgressPayload {
+  user_id: string;
+  chapters_read: Record<string, number>;
+  streak_days: number | null;
+  last_read_date: string | null;
+  current_book: string | null;
+  current_chapter: number | null;
+  synced_at: string;
+}
+
+const MAX_UPLOADED_CHAPTERS = 5000;
+
+const isWholeNumberUpTo = (value: unknown, max: number): value is number =>
+  typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= max;
+
+const isCalendarDate = (value: unknown): value is string => {
+  const match = typeof value === 'string' ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(value) : null;
+  if (!match) {
+    return false;
+  }
+  const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return (
+    year >= 1 &&
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  );
+};
+
+const codePointLength = (text: string): number => Array.from(text).length;
+
+/**
+ * The upload for a merged reading state, shaped to what merge_user_progress
+ * accepts (migration 20260924051658 raises 22023 on anything else, refusing
+ * the whole call, so one bad value would stall this account's progress sync for
+ * good). A chapter whose time is not a number is left out, an unusable streak,
+ * date or position is sent as null, and the server keeps its own value for it.
+ */
+export const buildRemoteProgressPayload = (
+  userId: string,
+  reading: ReadingMergeResult,
+  syncedAt: string
+): RemoteProgressPayload => {
+  const chapters = Object.entries(reading.progress.chaptersRead).filter(
+    ([key, readAt]) =>
+      typeof readAt === 'number' &&
+      Number.isFinite(readAt) &&
+      codePointLength(key) >= 1 &&
+      codePointLength(key) <= 64
+  );
+  const { bookId, chapter } = reading.readingPosition;
+  const hasPosition =
+    typeof bookId === 'string' &&
+    codePointLength(bookId) >= 1 &&
+    codePointLength(bookId) <= 32 &&
+    isWholeNumberUpTo(chapter, 999_999);
+
+  return {
+    user_id: userId,
+    chapters_read: Object.fromEntries(chapters.slice(0, MAX_UPLOADED_CHAPTERS)),
+    streak_days: isWholeNumberUpTo(reading.progress.streakDays, 999_999_999)
+      ? reading.progress.streakDays
+      : null,
+    last_read_date: isCalendarDate(reading.progress.lastReadDate)
+      ? reading.progress.lastReadDate
+      : null,
+    current_book: hasPosition ? bookId : null,
+    current_chapter: hasPosition ? chapter : null,
+    synced_at: syncedAt,
+  };
 };
 
 // The profiles row can still hold a theme retired by the EL reskin ('low-light',

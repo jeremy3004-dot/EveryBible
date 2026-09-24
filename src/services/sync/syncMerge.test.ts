@@ -5,10 +5,12 @@ import path from 'node:path';
 import { defaultAuthPreferences } from '../../stores/persistedStateSanitizers';
 import { MIGRATIONS_DIR } from '../../testing/migrationSchema';
 import {
+  buildRemoteProgressPayload,
   mergeChapterProgress,
   mergePreferences,
   mergeReadingSnapshot,
   PREFERENCE_COLUMNS,
+  readingMatchesRemote,
 } from './syncMerge';
 import type { LocalPreferenceSnapshot, LocalReadingSnapshot } from './syncMerge';
 import type {
@@ -32,6 +34,120 @@ test('mergeChapterProgress keeps the newest timestamp per chapter', () => {
     GEN_1: 200,
     MAT_1: 300,
     JHN_3: 150,
+  });
+});
+
+// Regressions found by syncMerge.progress.property.test.ts (shrunk counterexamples).
+
+test('mergeChapterProgress skips remote chapter values that are not numbers', () => {
+  // A legacy upsert can leave null or a string in chapters_read. Adopting it put a
+  // non-number in the next upload, which merge_user_progress refuses (22023).
+  const merged = mergeChapterProgress({ GEN_1: 100 }, {
+    GEN_1: null,
+    EXO_1: '1727000000000',
+    MAT_1: null,
+  } as unknown as Record<string, number>);
+
+  assert.deepEqual(merged, { GEN_1: 100 });
+});
+
+test('two devices that last read on the same day agree on the longer streak', () => {
+  // Counterexample: device B read today on a 1-day streak, device A read yesterday
+  // and today (2 days). Each kept its own streak on a same-day tie, so every sync
+  // re-uploaded it and the server flipped between 1 and 2 forever.
+  const row = (streak: number): RemoteUserProgress => ({
+    id: 'progress-1',
+    user_id: 'user-1',
+    chapters_read: { GEN_1: 500 },
+    streak_days: streak,
+    last_read_date: '2026-09-21',
+    current_book: 'GEN',
+    current_chapter: 1,
+    synced_at: '2026-09-21T06:00:00.000Z',
+  });
+  const device = (streak: number): LocalReadingSnapshot => ({
+    chaptersRead: { GEN_1: 500 },
+    streakDays: streak,
+    lastReadDate: '2026-09-21',
+    currentBook: 'GEN',
+    currentChapter: 1,
+  });
+
+  assert.equal(mergeReadingSnapshot(device(1), row(2)).progress.streakDays, 2);
+  assert.equal(mergeReadingSnapshot(device(2), row(1)).progress.streakDays, 2);
+  assert.equal(readingMatchesRemote(mergeReadingSnapshot(device(1), row(2)), row(2)), true);
+});
+
+test('two positions read at the same instant resolve to the same one on both devices', () => {
+  // Counterexample: GEN 1 on one phone and REV 1 on the other, both stamped at the
+  // same millisecond. Each device kept its own, so they never agreed.
+  const chapters = { GEN_1: 500, REV_1: 500 };
+  const remoteAt = (book: string): RemoteUserProgress => ({
+    id: 'progress-1',
+    user_id: 'user-1',
+    chapters_read: chapters,
+    streak_days: 1,
+    last_read_date: '2026-09-21',
+    current_book: book,
+    current_chapter: 1,
+    synced_at: '2026-09-21T06:00:00.000Z',
+  });
+  const localAt = (book: string): LocalReadingSnapshot => ({
+    chaptersRead: chapters,
+    streakDays: 1,
+    lastReadDate: '2026-09-21',
+    currentBook: book,
+    currentChapter: 1,
+  });
+
+  assert.equal(mergeReadingSnapshot(localAt('GEN'), remoteAt('REV')).readingPosition.bookId, 'REV');
+  assert.equal(mergeReadingSnapshot(localAt('REV'), remoteAt('GEN')).readingPosition.bookId, 'REV');
+});
+
+test('adopting a remote position identical to the local one is not a change', () => {
+  // Counterexample: a fresh device and a fresh server row, both at GEN 1. The
+  // merge reported `changed` on every sync because the position came from remote.
+  const merged = mergeReadingSnapshot(
+    { chaptersRead: {}, streakDays: 0, lastReadDate: null, currentBook: 'GEN', currentChapter: 1 },
+    {
+      id: 'progress-1',
+      user_id: 'user-1',
+      chapters_read: {},
+      streak_days: 0,
+      last_read_date: null,
+      current_book: 'GEN',
+      current_chapter: 1,
+      synced_at: '2026-09-21T06:00:00.000Z',
+    }
+  );
+
+  assert.equal(merged.changed, false);
+});
+
+test('the progress upload leaves out values merge_user_progress would refuse', () => {
+  const payload = buildRemoteProgressPayload(
+    'user-1',
+    {
+      progress: {
+        chaptersRead: { GEN_1: 100, EXO_1: Number.NaN, ['x'.repeat(65)]: 5, '': 7 },
+        streakDays: 1.5,
+        lastReadDate: '2026-02-30',
+      },
+      readingPosition: { bookId: '', chapter: 3 },
+      positionSource: 'local',
+      changed: true,
+    },
+    '2026-09-24T00:00:00.000Z'
+  );
+
+  assert.deepEqual(payload, {
+    user_id: 'user-1',
+    chapters_read: { GEN_1: 100 },
+    streak_days: null,
+    last_read_date: null,
+    current_book: null,
+    current_chapter: null,
+    synced_at: '2026-09-24T00:00:00.000Z',
   });
 });
 

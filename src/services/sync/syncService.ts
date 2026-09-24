@@ -2,6 +2,7 @@ import { supabase, isSupabaseConfigured, getCurrentUserId } from '../supabase';
 import { useAuthStore } from '../../stores/authStore';
 import type { UserProgress, UserPreferences } from '../supabase/types';
 import {
+  buildRemoteProgressPayload,
   mapRemotePreferences,
   mergePreferences,
   mergeReadingSnapshot,
@@ -354,15 +355,7 @@ const syncProgressForIdentityImpl = async (identity: SyncIdentityBoundary): Prom
         : staleSyncResult();
     }
 
-    const row = {
-      user_id: userId,
-      chapters_read: mergedReading.progress.chaptersRead,
-      streak_days: mergedReading.progress.streakDays,
-      last_read_date: mergedReading.progress.lastReadDate,
-      current_book: mergedReading.readingPosition.bookId,
-      current_chapter: mergedReading.readingPosition.chapter,
-      synced_at: new Date().toISOString(),
-    };
+    const row = buildRemoteProgressPayload(userId, mergedReading, new Date().toISOString());
 
     // The server-side merge unions this row into the stored one under the row
     // lock, so a second device that read the same row before either wrote cannot
