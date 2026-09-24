@@ -607,6 +607,24 @@ test('the UI kit and onboarding do not load the audio or sync stack', () => {
   });
 });
 
+// reconcileTranslationPacks() runs in the deferred warmup after every launch and
+// imports cloudTranslationService for its text-pack journal recovery. That service
+// (like the EL manifest service) needs SHA-256 only; the P-256 verifier loads on the
+// first signature check.
+test('the integrity-hash importers do not load the P-256 curve', () => {
+  ['../bible/cloudTranslationService.ts', '../elMedia/elManifestService.ts'].forEach((entry) => {
+    const { packages } = collectStaticImports(fileURLToPath(new URL(entry, import.meta.url).href));
+    const curveImports = [...packages.keys()].filter((specifier) =>
+      specifier.startsWith('@noble/curves')
+    );
+    assert.deepEqual(curveImports, [], `${entry}'s static closure must not import the curve`);
+    assert.ok(
+      packages.has('@noble/hashes/sha2.js'),
+      `${entry} should still reach SHA-256 — check the walker if this fails`
+    );
+  });
+});
+
 test('restoring the session at launch does not load the native sign-in SDKs', () => {
   const { files, packages } = collectStaticImports(
     fileURLToPath(new URL('../auth/authSession.ts', import.meta.url).href)
