@@ -87,6 +87,8 @@ function AnnotationActionSheetContent({
       style={[styles.overlay, { paddingTop: insets.top }]}
     >
       <View
+        // VoiceOver's escape gesture closes the sheet, as Android back does.
+        onAccessibilityEscape={sheet.close}
         style={[
           styles.sheet,
           {
@@ -107,7 +109,10 @@ function AnnotationActionSheetContent({
         </View>
 
         <View style={styles.titleRow}>
-          <Text style={[styles.title, { color: colors.biblePrimaryText }]}>
+          <Text
+            accessibilityRole="header"
+            style={[styles.title, { color: colors.biblePrimaryText }]}
+          >
             {t('annotations.selected')}: {referenceLabel}
           </Text>
           <Pressable

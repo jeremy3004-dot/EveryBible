@@ -65,6 +65,16 @@ test('the Android back button closes the open sheet instead of leaving the reade
   assert.equal(view.queryByLabelText(t('annotations.noteHint')), null, 'back to the actions');
 });
 
+test("the sheet is titled by a heading and closes on VoiceOver's escape gesture", async () => {
+  const { AnnotationActionSheet } = await import('./AnnotationActionSheet');
+  let closed = 0;
+  const view = await harness.render(<AnnotationActionSheet {...sheetProps(() => (closed += 1))} />);
+
+  const title = view.getByRole('header', { name: `${t('annotations.selected')}: John 3:16` });
+  await view.fire(title, 'onAccessibilityEscape');
+  assert.equal(closed, 1);
+});
+
 // The reader hands the sheet a new onClose closure on every render; the back
 // handler kept calling the one from the render that opened the sheet.
 test('the back button closes through the latest onClose the reader passed', async () => {
