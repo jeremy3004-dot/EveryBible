@@ -5,6 +5,7 @@ import { create } from 'zustand';
 import { mockModule, mockPackage, sourcePath } from '../../testing/mockModules';
 import { installRenderHarness } from '../../testing/render';
 import type { UserEngagementSummary } from '../../services/supabase/types';
+import { isPrivacyLockGraceActive } from '../../services/privacy/privacyLockGrace';
 
 const harness = installRenderHarness(mock);
 const t = (key: string) => harness.i18n.t(key);
@@ -30,10 +31,12 @@ type PickerResult = { canceled: boolean; assets: { uri: string }[] };
 const picker = {
   result: { canceled: true, assets: [] } as PickerResult,
   launches: 0,
+  launchesUnderLockGrace: [] as boolean[],
 };
 mockPackage(mock, 'expo-image-picker', {
   launchImageLibraryAsync: async () => {
     picker.launches += 1;
+    picker.launchesUnderLockGrace.push(isPrivacyLockGraceActive());
     return picker.result;
   },
 });
@@ -93,6 +96,7 @@ beforeEach(() => {
   authFlows.length = 0;
   picker.result = { canceled: true, assets: [] };
   picker.launches = 0;
+  picker.launchesUnderLockGrace = [];
   backend.upload = null;
   backend.uploadResult = { success: true, data: 'https://cdn.test/avatar-new.jpg' };
   backend.uploadThrows = false;
@@ -185,6 +189,18 @@ test('cancelling the photo picker changes nothing', async () => {
   assert.equal(picker.launches, 1);
   assert.deepEqual(backend.uploadedUris, []);
   assert.equal(avatarImageUri(view), signedInUser.photoURL);
+});
+
+test('the photo picker opens under the privacy lock grace', async () => {
+  // iOS can turn the app inactive under the system photo picker; discreet mode must
+  // not take that for the reader leaving and lock mid-pick (see privacyLockGrace).
+  signIn();
+  const view = await renderScreen();
+
+  await view.press(view.getByRole('button', { name: t('profile.changeAvatar') }));
+  await view.flush();
+
+  assert.deepEqual(picker.launchesUnderLockGrace, [true]);
 });
 
 test('picking a photo shows it while uploading, then saves the uploaded URL on the account', async () => {

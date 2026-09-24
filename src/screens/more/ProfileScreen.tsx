@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import * as ImagePicker from 'expo-image-picker';
 import { updateUserProfile } from '../../services/auth';
 import { uploadAvatar } from '../../services/storage/storageService';
+import { withPrivacyLockGrace } from '../../services/privacy/privacyLockGrace';
 import { getEngagementSummary, refreshEngagement } from '../../services/analytics/analyticsService';
 import type { UserEngagementSummary } from '../../services/supabase/types';
 import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
@@ -80,12 +81,15 @@ export function ProfileScreen() {
   const handlePickAvatar = useCallback(async () => {
     if (!isAuthenticated) return;
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
+    // The system photo picker can turn the app inactive; that must not lock discreet mode.
+    const result = await withPrivacyLockGrace(() =>
+      ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      })
+    );
 
     if (result.canceled || !result.assets[0]) return;
 
