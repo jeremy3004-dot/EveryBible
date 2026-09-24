@@ -16,6 +16,7 @@ export function LanguageLayout({
   title,
   intro,
   status,
+  statusNote,
   children,
 }: {
   /** Last breadcrumb entry; omitted on the /languages hub itself. */
@@ -24,6 +25,8 @@ export function LanguageLayout({
   title: string;
   intro: string;
   status?: ScriptureStatus;
+  /** Shown under the badge, e.g. which member language a macrolanguage's status comes from. */
+  statusNote?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -56,6 +59,7 @@ export function LanguageLayout({
             <h1>{title}</h1>
             <p>{intro}</p>
             {status && <ScriptureStatusBadge status={status} large />}
+            {statusNote && <p className="language-status-note">{statusNote}</p>}
           </section>
 
           <article className="static-page__content">{children}</article>

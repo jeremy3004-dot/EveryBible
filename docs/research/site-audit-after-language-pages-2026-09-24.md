@@ -129,6 +129,14 @@ Today's main is live: the language pages are deployed.
 
 ## Open items (not changed here)
 
+> **Follow-up (same day).** Items 1 and 2 and the punctuation part of item 3
+> are now handled in the page builder; see Macrolanguages, Thin pages and
+> Display names in `docs/public-language-atlas.md`. The 59 macrolanguage pages
+> with Scripture in a member now show it, 675 thin pages are out of the sitemap
+> (267 point their canonical at the coded language of the same name, 408 are
+> noindex), and trailing tracker noise is removed from displayed names. Typos,
+> non-languages and bracketed notes in the tracker still need a source fix.
+
 1. **About 45 macrolanguage pages say "no known Scripture".** These are ISO
    macrolanguage records such as Arabic (`ara`), Chinese (`zho`), Persian
    (`fas`), Swahili (`swa`), Malay (`msa`), Nepali macrolanguage (`nep`),
