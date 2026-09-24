@@ -345,3 +345,65 @@ test('an unreadable stored outbox is treated as empty rather than crashing the f
     remaining: 0,
   });
 });
+
+// ---------------------------------------------------------------------------
+// Idempotency
+// ---------------------------------------------------------------------------
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+test('a submission that timed out is retried with the same client submission id', async () => {
+  // The first request may have been saved before the response was lost; the server
+  // recognises the retry by its id instead of storing the feedback twice.
+  h.respond = unreachable;
+  await outbox.submitChapterFeedbackOrQueue(baseInput, h.deps);
+  h.respond = sent;
+
+  await outbox.flushChapterFeedbackOutbox('user-a', h.deps);
+
+  const [first, retry] = h.submissions;
+  assert.match(first.clientSubmissionId ?? '', UUID);
+  assert.equal(retry.clientSubmissionId, first.clientSubmissionId);
+});
+
+test('each new submission gets its own client submission id', async () => {
+  await outbox.submitChapterFeedbackOrQueue(baseInput, h.deps);
+  await outbox.submitChapterFeedbackOrQueue(baseInput, h.deps);
+
+  const [first, second] = h.submissions;
+  assert.match(first.clientSubmissionId ?? '', UUID);
+  assert.match(second.clientSubmissionId ?? '', UUID);
+  assert.notEqual(first.clientSubmissionId, second.clientSubmissionId);
+});
+
+test('feedback queued offline keeps one id across flushes that fail and then succeed', async () => {
+  h.offline = true;
+  await outbox.submitChapterFeedbackOrQueue(baseInput, h.deps);
+  h.offline = false;
+  h.respond = unreachable;
+  await outbox.flushChapterFeedbackOutbox('user-a', h.deps);
+  h.respond = sent;
+
+  await outbox.flushChapterFeedbackOutbox('user-a', h.deps);
+
+  assert.equal(h.submissions.length, 2);
+  assert.match(h.submissions[0].clientSubmissionId ?? '', UUID);
+  assert.equal(h.submissions[1].clientSubmissionId, h.submissions[0].clientSubmissionId);
+});
+
+test('feedback queued by an older build gets one id that it keeps across retries', async () => {
+  mmkv.set(
+    'chapter-feedback-outbox',
+    JSON.stringify([
+      { id: 'legacy-1', userId: 'user-a', queuedAt: NOW - DAY_MS, input: { ...baseInput } },
+    ])
+  );
+  h.respond = unreachable;
+  await outbox.flushChapterFeedbackOutbox('user-a', h.deps);
+  h.respond = sent;
+
+  await outbox.flushChapterFeedbackOutbox('user-a', h.deps);
+
+  assert.match(h.submissions[0].clientSubmissionId ?? '', UUID);
+  assert.equal(h.submissions[1].clientSubmissionId, h.submissions[0].clientSubmissionId);
+});

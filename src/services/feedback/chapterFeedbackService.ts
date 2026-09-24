@@ -25,6 +25,12 @@ export interface ChapterFeedbackSubmissionInput {
   sourceScreen: ChapterFeedbackSourceScreen;
   appPlatform: string;
   appVersion: string;
+  /**
+   * A UUID made once per submission and sent with every attempt at it. A request can be
+   * saved and still time out on the way back; the server stores a retry that carries an id
+   * it has already seen as the same submission instead of a second one.
+   */
+  clientSubmissionId?: string;
 }
 
 export interface ChapterFeedbackAudioResponseInput {
