@@ -113,7 +113,9 @@ test('a Bible chosen during a download waits its turn, and can be taken out of t
   const view = await renderPicker();
   await startDownload(view, NET);
   await textProgress('engnet', 10);
-  assert.deepEqual(harness.rn.__recorded.announcements, [t('translations.downloading')]);
+  assert.deepEqual(harness.rn.__recorded.announcements, [
+    `${NET.name}: ${t('translations.downloading')}`,
+  ]);
 
   await view.changeText(view.getByTestId('translation-picker-search'), 'Reina');
   await startDownload(view, SPANISH_RV);
@@ -123,7 +125,10 @@ test('a Bible chosen during a download waits its turn, and can be taken out of t
   assert.deepEqual(queued.props.accessibilityValue, { text: t('translations.queued') });
   assert.equal(queued.props.disabled, true, 'a waiting row cannot be tapped again');
   assert.deepEqual(log, [['downloadTranslation', 'engnet']], 'only one download runs');
-  assert.equal(harness.rn.__recorded.announcements.at(-1), t('translations.queued'));
+  assert.equal(
+    harness.rn.__recorded.announcements.at(-1),
+    `${SPANISH_RV.name}: ${t('translations.queued')}`
+  );
 
   await view.press(within(queued).getByRole('button', { name: t('translations.cancelDownload') }));
   assert.equal(within(rowOf(view, SPANISH_RV)).queryByText(t('translations.queued')), null);
@@ -181,8 +186,8 @@ test('a download that stops without installing announces the Bible as available 
   await inAct(() => useBibleStore.setState({ downloadProgress: null }));
 
   assert.deepEqual(harness.rn.__recorded.announcements, [
-    t('translations.downloading'),
-    t('translations.available'),
+    `${NET.name}: ${t('translations.downloading')}`,
+    `${NET.name}: ${t('translations.available')}`,
   ]);
 });
 
@@ -212,8 +217,8 @@ test('a finished download announces the Bible installed once, as it moves to My 
     GOSPEL_AUDIO.name,
   ]);
   assert.deepEqual(harness.rn.__recorded.announcements, [
-    t('translations.downloading'),
-    t('translations.installed'),
+    `${NET.name}: ${t('translations.downloading')}`,
+    `${NET.name}: ${t('translations.installed')}`,
   ]);
 
   await inAct(() =>
