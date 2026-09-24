@@ -43,6 +43,11 @@ export const MAX_MESSAGE_CHARS = 500;
 export const MAX_STACK_FRAMES = 8;
 export const MAX_COMPONENT_NAMES = 12;
 export const MAX_CRASH_REPORTS_PER_DAY = 10;
+/**
+ * Handled errors (reportHandledError) may only use the first half of the daily budget, so
+ * a noisy catch site can never crowd out the crashes that follow it.
+ */
+export const MAX_HANDLED_REPORTS_PER_DAY = 5;
 
 const URL_PATTERN = /\b[a-z][a-z0-9+.-]*:\/\/[^\s'"<>()]+/gi;
 const JWT_PATTERN = /\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}(?:\.[A-Za-z0-9_-]*)?/g;
@@ -206,6 +211,36 @@ export function computeCrashFingerprint(
   return cyrb53(`${errorName}|${message.replace(/\d+/g, '#')}|${screen ?? ''}`);
 }
 
+const HANDLED_SOURCE = /^[A-Za-z][\w.-]{0,31}$/;
+
+/** A catch-site label such as `audio.load`; anything else becomes `unknown`. */
+export function toHandledErrorSource(source: unknown): string {
+  return typeof source === 'string' && HANDLED_SOURCE.test(source) ? source : 'unknown';
+}
+
+const TRANSIENT_NETWORK_NAMES = new Set(['AbortError', 'TimeoutError']);
+const TRANSIENT_NETWORK_MESSAGE =
+  /network request failed|network ?error|failed to fetch|timed out|timeout|aborted|offline|not connected to the internet|unable to resolve host|ENOTFOUND|ECONNRESET|ECONNREFUSED|NSURLErrorDomain|UnknownHostException|SocketTimeoutException/i;
+
+/**
+ * Offline, timeouts and cancellations are expected on phones and say nothing about a bug,
+ * so handled-error reporting skips them (uncaught ones are still reported as crashes).
+ */
+export function isTransientNetworkError(error: unknown): boolean {
+  try {
+    if (typeof error !== 'object' || error === null) {
+      return typeof error === 'string' && TRANSIENT_NETWORK_MESSAGE.test(error);
+    }
+    const { name, message } = error as { name?: unknown; message?: unknown };
+    return (
+      (typeof name === 'string' && TRANSIENT_NETWORK_NAMES.has(name)) ||
+      (typeof message === 'string' && TRANSIENT_NETWORK_MESSAGE.test(message))
+    );
+  } catch {
+    return false;
+  }
+}
+
 const ERROR_NAME = /^[A-Za-z_$][\w$.]{0,63}$/;
 const SCREEN_NAME = /^[\w:.[\]-]{1,64}$/;
 
@@ -220,6 +255,8 @@ export interface CrashReportInput {
   kind: CrashReportKind;
   screen: string | null;
   componentStack?: string | null;
+  /** Catch-site label for a handled error; prefixed to the message as `[source]`. */
+  source?: string | null;
   occurredAt: number;
   reportId: string;
   device: CrashReportDevice;
@@ -244,7 +281,9 @@ export function buildCrashReport(input: CrashReportInput): AppErrorReport {
   } catch {
     rawMessage = '';
   }
-  const message = scrubErrorText(rawMessage);
+  const message = scrubErrorText(
+    input.source ? `[${toHandledErrorSource(input.source)}] ${rawMessage}` : rawMessage
+  );
   const screen = input.screen && SCREEN_NAME.test(input.screen) ? input.screen : null;
   return {
     report_id: input.reportId,

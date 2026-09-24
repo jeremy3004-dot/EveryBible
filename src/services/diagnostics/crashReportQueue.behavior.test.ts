@@ -253,3 +253,67 @@ test('the pending queue keeps only the newest reports', async () => {
   assert.equal(persisted[0].message, 'old 1');
   assert.equal(persisted[19].message, 'newest');
 });
+
+const CRASH_LOG_KEY = 'diagnostics-crash-log';
+const localLog = (): Array<{ message: string; isFatal: boolean }> =>
+  JSON.parse(mmkv.store.get(CRASH_LOG_KEY) ?? '[]');
+
+test('a handled error is queued with its source and shown on the Diagnostics screen', async () => {
+  const queue = await load();
+  queue.reportHandledError('audio.load', new Error('decoder failed for jane@example.com'));
+
+  const [report] = persistedQueue();
+  assert.equal(persistedQueue().length, 1);
+  assert.equal(report.kind, 'error');
+  assert.equal(report.is_fatal, false);
+  assert.equal(report.message, '[audio.load] decoder failed for <email>');
+  assert.equal(report.screen, 'BibleReader');
+  assert.deepEqual(
+    localLog().map((entry) => [entry.message, entry.isFatal]),
+    [['[audio.load] decoder failed for jane@example.com', false]]
+  );
+});
+
+test('handled errors leave room in the daily budget for crashes', async () => {
+  const queue = await load();
+  for (let i = 0; i < 12; i++) {
+    queue.resetCrashReportSessionForTests({ keepStorage: true });
+    queue.reportHandledError('sync', new Error(`distinct sync failure ${'x'.repeat(i)}`));
+  }
+  const handled = persistedQueue().length;
+  assert.ok(handled > 0 && handled < 10, `handled errors took ${handled} of 10 daily slots`);
+
+  queue.queueCrashReport({ error: new Error('the crash that matters'), kind: 'fatal' });
+  assert.equal(persistedQueue().at(-1)?.message, 'the crash that matters');
+});
+
+test('transient network failures are not reported as handled errors', async () => {
+  const queue = await load();
+  const abort = new Error('The operation was aborted');
+  abort.name = 'AbortError';
+  queue.reportHandledError('sync', new TypeError('Network request failed'));
+  queue.reportHandledError('audio.load', abort);
+  queue.reportHandledError('textPack.install', new Error('The request timed out.'));
+  queue.reportHandledError('sync', { message: 'The Internet connection appears to be offline.' });
+
+  assert.deepEqual(persistedQueue(), []);
+});
+
+test('a source label that is not a plain identifier is not sent', async () => {
+  const queue = await load();
+  queue.reportHandledError('jane@example.com', new Error('odd label'));
+
+  assert.equal(persistedQueue()[0]?.message, '[unknown] odd label');
+});
+
+test('reporting a handled error never throws, even when storage fails', async () => {
+  const queue = await load();
+  const throwOnSet = mock.method(mmkv.mmkvInstance, 'set', () => {
+    throw new Error('MMKV full');
+  });
+  try {
+    assert.doesNotThrow(() => queue.reportHandledError('db.import', new Error('disk full')));
+  } finally {
+    throwOnSet.mock.restore();
+  }
+});

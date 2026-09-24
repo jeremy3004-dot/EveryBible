@@ -1,8 +1,13 @@
 import { mmkvInstance } from '../../stores/mmkvStorage';
 import { canReportUsage, subscribeToReportingPolicy } from '../analytics/reportingPolicy';
+import { recordCrashLog, toCrashLogEntry } from './crashLogStore';
 import {
   admitCrashReport,
   buildCrashReport,
+  isTransientNetworkError,
+  MAX_CRASH_REPORTS_PER_DAY,
+  MAX_HANDLED_REPORTS_PER_DAY,
+  toHandledErrorSource,
   type AppErrorReport,
   type CrashReportBudget,
   type CrashReportKind,
@@ -162,6 +167,8 @@ export interface QueueCrashReportInput {
   /** Screen for boundary errors; global errors use the current route. */
   screen?: string | null;
   componentStack?: string | null;
+  /** Set for handled errors (reportHandledError), which get a smaller daily budget. */
+  source?: string;
 }
 
 /**
@@ -179,6 +186,7 @@ export function queueCrashReport(input: QueueCrashReportInput): void {
       kind: input.kind,
       screen: input.screen !== undefined ? input.screen : getCurrentScreen(),
       componentStack: input.componentStack,
+      source: input.source,
       occurredAt: now,
       reportId: generateUUID(),
       device: {
@@ -190,7 +198,13 @@ export function queueCrashReport(input: QueueCrashReportInput): void {
       },
     });
     const day = new Date(now).toISOString().slice(0, 10);
-    const admission = admitCrashReport(readBudget(), sessionFingerprints, report.fingerprint, day);
+    const admission = admitCrashReport(
+      readBudget(),
+      sessionFingerprints,
+      report.fingerprint,
+      day,
+      input.source ? MAX_HANDLED_REPORTS_PER_DAY : MAX_CRASH_REPORTS_PER_DAY
+    );
     if (!admission.admitted) return;
     mmkvInstance.set(BUDGET_KEY, JSON.stringify(admission.budget));
     writeQueue([...readQueue(), report]);
@@ -200,6 +214,27 @@ export function queueCrashReport(input: QueueCrashReportInput): void {
     }
   } catch {
     // Reporting is best effort and must never throw from an error handler.
+  }
+}
+
+/**
+ * For a catch site that recovers from an error we would still want to hear about (a
+ * damaged database import, a failed text-pack install, audio that will not load, a sync
+ * cycle that failed). Recorded on the Diagnostics screen and queued as an `error` report
+ * whose message starts with `[source]`. Transient network failures are skipped, handled
+ * errors can use only half the daily budget, and it never throws.
+ *
+ *   reportHandledError('audio.load', error);
+ */
+export function reportHandledError(source: string, error: unknown): void {
+  try {
+    if (isTransientNetworkError(error)) return;
+    const label = toHandledErrorSource(source);
+    const entry = toCrashLogEntry(error, false, Date.now());
+    recordCrashLog({ ...entry, message: `[${label}] ${entry.message}` });
+    queueCrashReport({ error, kind: 'error', source: label });
+  } catch {
+    // Reporting is best effort and must never break the caller's recovery path.
   }
 }
 
