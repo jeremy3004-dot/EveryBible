@@ -139,11 +139,14 @@ export async function activatePendingPasswordRecovery(
 }
 
 function performResetPasswordNavigation(): void {
+  // `initial: false` keeps MoreScreen under the modal when the More tab never rendered
+  // (always so on a cold-start link); see openAuthFlow in navigation/rootNavigation.ts.
   rootNavigationRef.navigate('More', {
     screen: 'Auth',
     params: {
       screen: 'ResetPassword',
     },
+    initial: false,
   });
 }
 

@@ -46,9 +46,12 @@ mockModule(mock, sourcePath('navigation/rootNavigation.ts'), {
   openAuthFlow: () => {},
 });
 
+// `initial: false` keeps the More page under the modal when the More tab has never
+// rendered; without it the More stack was only [Auth], and closing the reset screen
+// left the More tab stuck on the modal with nothing beneath it.
 const RESET_PASSWORD_ROUTE = [
   'More',
-  { screen: 'Auth', params: { screen: 'ResetPassword' } },
+  { screen: 'Auth', params: { screen: 'ResetPassword' }, initial: false },
 ] as const;
 
 // auth-js keeps the PKCE verifier beside the session in auth storage and deletes it on every

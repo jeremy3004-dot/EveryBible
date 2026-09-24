@@ -224,8 +224,8 @@ test('a fatal JS error is also queued as an anonymous crash report for the next 
   assert.equal(report.message, 'verses is undefined for <email>');
   assert.equal(report.screen, 'Home');
   assert.equal(report.platform, 'ios');
-  // The crash log still gets the unscrubbed local entry first.
-  assert.equal(persisted()[0].message, 'verses is undefined for jane@example.com');
+  // The local crash log is exportable and outlives sign-out, so it is scrubbed too.
+  assert.equal(persisted()[0].message, 'verses is undefined for <email>');
 });
 
 test('a non-fatal global error is queued as an error report', () => {

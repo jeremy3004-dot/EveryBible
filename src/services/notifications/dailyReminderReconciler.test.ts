@@ -32,6 +32,29 @@ mockModule(mock, sourcePath('stores/authStore.ts'), {
   },
 });
 
+type PrivacyState = { isInitialized: boolean; mode: 'standard' | 'discreet' };
+type PrivacyListener = (state: PrivacyState, previous: PrivacyState) => void;
+const privacy = {
+  state: { isInitialized: true, mode: 'standard' } as PrivacyState,
+  listeners: new Set<PrivacyListener>(),
+  set(changes: Partial<PrivacyState>) {
+    const previous = privacy.state;
+    privacy.state = { ...previous, ...changes };
+    privacy.listeners.forEach((listener) => listener(privacy.state, previous));
+  },
+};
+mockModule(mock, sourcePath('stores/privacyStore.ts'), {
+  usePrivacyStore: {
+    getState: () => privacy.state,
+    subscribe: (listener: PrivacyListener) => {
+      privacy.listeners.add(listener);
+      return () => privacy.listeners.delete(listener);
+    },
+  },
+  isDiscreetModeActive: (state: PrivacyState = privacy.state) =>
+    !state.isInitialized || state.mode === 'discreet',
+});
+
 const i18nListeners = new Set<() => void>();
 mockModule(mock, sourcePath('i18n/index.ts'), {
   default: {
@@ -72,6 +95,7 @@ const install = () => {
 beforeEach(() => {
   reconciles.length = 0;
   reconcileFailure = null;
+  privacy.state = { isInitialized: true, mode: 'standard' };
   auth.state = {
     preferences: { theme: 'light', notificationsEnabled: true, reminderTime: '07:30' },
   };
@@ -131,6 +155,28 @@ test('returning to the foreground is reconciled, going to the background is not'
   assert.equal(reconciles.length, 2);
 });
 
+test('turning discreet mode on or off is reconciled so the reminder text is replaced', async () => {
+  const reconciler = install();
+  await reconciler.idle();
+
+  privacy.set({ mode: 'discreet' });
+  await reconciler.idle();
+  privacy.set({ mode: 'standard' });
+  await reconciler.idle();
+
+  assert.equal(reconciles.length, 3);
+});
+
+test('a privacy store update that leaves discreet mode unchanged does not touch the reminder', async () => {
+  const reconciler = install();
+  await reconciler.idle();
+
+  privacy.set({ mode: 'standard' });
+  await reconciler.idle();
+
+  assert.equal(reconciles.length, 1);
+});
+
 test('a failed reconcile is swallowed and the next trigger still runs', async () => {
   reconcileFailure = new Error('notifications unavailable');
   const reconciler = install();
@@ -150,14 +196,15 @@ test('uninstalling removes every listener it added', async () => {
     auth.listeners.size,
     i18nListeners.size,
     rn.AppState.listenerCount(),
+    privacy.listeners.size,
   ];
 
   reconciler.uninstall();
   uninstall = null;
 
-  assert.deepEqual(listenersWhileInstalled, [1, 1, 1]);
+  assert.deepEqual(listenersWhileInstalled, [1, 1, 1, 1]);
   assert.deepEqual(
-    [auth.listeners.size, i18nListeners.size, rn.AppState.listenerCount()],
-    [0, 0, 0]
+    [auth.listeners.size, i18nListeners.size, rn.AppState.listenerCount(), privacy.listeners.size],
+    [0, 0, 0, 0]
   );
 });

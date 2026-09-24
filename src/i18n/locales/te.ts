@@ -446,6 +446,9 @@ export const te = {
     pinInvalidCharacters: 'సంఖ్యలు మరియు కాలిక్యులేటర్ చిహ్నాలు మాత్రమే అనుమతించబడతాయి.',
     pinMismatch: 'సురక్షిత కోడ్‌లు ఇంకా సరిపోలలేదు.',
     incorrectPin: 'ఆ సురక్షిత కోడ్ సరైనది కాదు.',
+    discreetNotificationTitle: 'రిమైండర్',
+    discreetNotificationBody: 'ఈ రోజు మీకు ఒక రిమైండర్ ఉంది.',
+    discreetNotificationChannel: 'రిమైండర్‌లు',
   },
   settings: {
     title: 'సెట్టింగ్‌లు',

@@ -9,7 +9,7 @@ function readRelativeSource(relativePath: string): string {
 }
 
 test('Bible listen surfaces opt into the chapter-only transport variant', () => {
-  const readerSource = readRelativeSource('../../screens/bible/BibleReaderScreen.tsx');
+  const readerSource = readRelativeSource('../../screens/bible/reader/ReaderListenMode.tsx');
 
   assert.match(
     readerSource,

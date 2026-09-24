@@ -441,6 +441,9 @@ export const hi = {
     pinInvalidCharacters: 'केवल संख्याओं और कैलकुलेटर प्रतीकों की अनुमति है।',
     pinMismatch: 'सुरक्षित कोड अभी तक मेल नहीं खाते।',
     incorrectPin: 'वह सुरक्षित कोड सही नहीं है।',
+    discreetNotificationTitle: 'अनुस्मारक',
+    discreetNotificationBody: 'आज के लिए आपका एक अनुस्मारक है।',
+    discreetNotificationChannel: 'अनुस्मारक',
   },
   settings: {
     title: 'सेटिंग्स',

@@ -128,6 +128,47 @@ test('read days, today and idle days are announced differently', async () => {
   assert.notEqual(read, today, 'a read day sounds different from today');
 });
 
+test('left open overnight, the calendar moves today when the app comes back', async () => {
+  const view = await renderScreen();
+  const todayLabel = t('readingActivity.legendToday');
+  const value = (name: string) => cellNamed(view, name).props.accessibilityValue?.text ?? '';
+  assert.equal(value('Thursday, September 24'), todayLabel);
+
+  // Suspended overnight on this screen; nothing refocuses it.
+  harness.rn.AppState.emit('background');
+  mock.timers.setTime(new Date('2026-09-25T07:00:00.000Z').getTime());
+  harness.rn.AppState.emit('active');
+  await view.flush();
+
+  assert.equal(value('Thursday, September 24'), '');
+  assert.equal(value('Friday, September 25'), todayLabel);
+});
+
+test('choosing a day does not rebuild a date formatter for every calendar cell', async (context) => {
+  const view = await renderScreen();
+  // Each toLocaleDateString builds its own formatter, a JNI round trip on Hermes for
+  // Android; the grid has up to 37 cells and re-renders on every press.
+  const perCall = context.mock.method(Date.prototype, 'toLocaleDateString');
+  const RealDateTimeFormat = Intl.DateTimeFormat;
+  let constructed = 0;
+  context.mock.property(
+    Intl,
+    'DateTimeFormat',
+    new Proxy(RealDateTimeFormat, {
+      construct(target, args: ConstructorParameters<typeof Intl.DateTimeFormat>) {
+        constructed += 1;
+        return new target(...args);
+      },
+    })
+  );
+
+  await view.press(cellNamed(view, 'Tuesday, September 22'));
+
+  const formatted = perCall.mock.callCount() + constructed;
+  assert.ok(formatted <= 2, `formatted dates ${formatted} times for one press`);
+  assert.ok(cellNamed(view, 'Monday, August 31'), 'the cells keep their full-date names');
+});
+
 test('pressing a read day selects it and summarises that day in canonical order', async () => {
   const view = await renderScreen();
 

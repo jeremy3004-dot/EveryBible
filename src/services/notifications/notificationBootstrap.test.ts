@@ -68,6 +68,22 @@ test('foreground notifications show a banner and a list entry with sound but no 
   });
 });
 
+test('in discreet mode foreground notifications are neither shown, listed nor heard', async () => {
+  handlers.length = 0;
+  let discreet = true;
+  bootstrap.setupNotificationHandler({ isDiscreet: () => discreet });
+
+  assert.deepEqual(await handlers[0].handleNotification(), {
+    shouldShowBanner: false,
+    shouldShowList: false,
+    shouldPlaySound: false,
+    shouldSetBadge: false,
+  });
+
+  discreet = false;
+  assert.equal((await handlers[0].handleNotification()).shouldShowBanner, true);
+});
+
 test('App.tsx gets the tap listener, the launch tap and the push-token listener from the same modules the package root re-exports', () => {
   assert.equal(bootstrap.addNotificationResponseReceivedListener, responseListener);
   assert.equal(bootstrap.getLastNotificationResponseAsync, lastResponse);

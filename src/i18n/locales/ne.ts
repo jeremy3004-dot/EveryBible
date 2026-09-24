@@ -443,6 +443,9 @@ export const ne = {
     pinInvalidCharacters: 'अङ्क र क्याल्कुलेटरका चिन्ह मात्र प्रयोग गर्न मिल्छ।',
     pinMismatch: 'सुरक्षित कोडहरू अझै मेल खाँदैनन्।',
     incorrectPin: 'त्यो सुरक्षित कोड सही छैन।',
+    discreetNotificationTitle: 'रिमाइन्डर',
+    discreetNotificationBody: 'आजका लागि तपाईंसँग एउटा रिमाइन्डर छ।',
+    discreetNotificationChannel: 'रिमाइन्डरहरू',
   },
   settings: {
     title: 'सेटिङ',

@@ -778,6 +778,9 @@ export const ar = {
     pinInvalidCharacters: 'يُسمح فقط بالأرقام ورموز الآلة الحاسبة.',
     pinMismatch: 'الرمزان غير متطابقين بعد.',
     incorrectPin: 'هذا الرمز الآمن غير صحيح.',
+    discreetNotificationTitle: 'تذكير',
+    discreetNotificationBody: 'لديك تذكير لهذا اليوم.',
+    discreetNotificationChannel: 'التذكيرات',
   },
   settings: {
     title: 'الإعدادات',
