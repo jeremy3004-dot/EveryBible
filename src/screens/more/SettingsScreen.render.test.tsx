@@ -783,6 +783,16 @@ test('the community and council labels come from the active locale, not an Engli
 
 // --- Daily reminder ----------------------------------------------------------
 
+type SettingsView = Awaited<ReturnType<typeof renderSettings>>;
+
+/** What a screen reader hears for a reminder time column ("Hour" / "Minute"). */
+const columnValue = (view: SettingsView, labelKey: string) =>
+  view.getByRole('adjustable', { name: t(labelKey) }).props.accessibilityValue?.text;
+
+/** A sighted tap on one option; screen readers step the column instead. */
+const timeOption = (view: SettingsView, value: string, selected?: boolean) =>
+  view.getByRole('button', { name: value, selected, includeHidden: true });
+
 test('turning the reminder on without a saved time asks for one, then schedules and saves it', async () => {
   const view = await renderSettings();
 
@@ -792,11 +802,14 @@ test('turning the reminder on without a saved time asks for one, then schedules 
   await view.fire(switchNamed(view, t('settings.dailyReminder')), 'onValueChange', true);
   assert.ok(view.getByRole('header', { name: t('settings.setReminderTime') }));
   assert.deepEqual(reminders.calls, [], 'nothing scheduled before a time is chosen');
-  assert.ok(view.getByRole('button', { name: '09', selected: true }), 'defaults to 9:00');
+  assert.equal(columnValue(view, 'settings.reminderHourLabel'), '09', 'defaults to 9:00');
+  assert.equal(columnValue(view, 'settings.reminderMinuteLabel'), '00');
 
-  await view.press(view.getByRole('button', { name: '07' }));
-  await view.press(view.getByRole('button', { name: '30' }));
-  assert.ok(view.getByRole('button', { name: '07', selected: true }));
+  await view.press(timeOption(view, '07'));
+  await view.press(timeOption(view, '30'));
+  assert.ok(timeOption(view, '07', true));
+  assert.equal(columnValue(view, 'settings.reminderHourLabel'), '07');
+  assert.equal(columnValue(view, 'settings.reminderMinuteLabel'), '30');
   await view.press(view.getByRole('button', { name: t('settings.setTime') }));
 
   assert.deepEqual(reminders.calls, ['schedule:7:30']);
@@ -834,8 +847,10 @@ test('reopening the reminder time starts the picker on the saved time', async ()
   const view = await renderSettings();
 
   await view.press(view.getByRole('button', { name: rowNamed(t('settings.reminderTime')) }));
-  assert.ok(view.getByRole('button', { name: '18', selected: true }));
-  assert.ok(view.getByRole('button', { name: '45', selected: true }));
+  assert.ok(timeOption(view, '18', true));
+  assert.ok(timeOption(view, '45', true));
+  assert.equal(columnValue(view, 'settings.reminderHourLabel'), '18');
+  assert.equal(columnValue(view, 'settings.reminderMinuteLabel'), '45');
 
   await view.press(view.getByRole('button', { name: t('common.cancel') }));
   assert.equal(view.queryByRole('header', { name: t('settings.setReminderTime') }), null);
