@@ -894,6 +894,7 @@ export const vi = {
     "resetPasswordSuccess": "Mật khẩu của bạn đã được cập nhật",
     "resetPasswordError": "Không thể cập nhật mật khẩu của bạn",
     "resetLinkConfirmTitle": "Đặt mật khẩu mới?",
+    "resetLinkSignsOutCurrent": "Bạn đang đăng nhập trên thiết bị này. Nếu tiếp tục, bạn sẽ được đăng xuất trước, sau đó đăng nhập vào tài khoản mà liên kết này được gửi tới.",
     "resetLinkWrongDevice": "Liên kết đặt lại này chỉ hoạt động trên thiết bị mà bạn đã yêu cầu. Hãy mở liên kết trên thiết bị đó, hoặc gửi liên kết mới từ thiết bị này.",
     "sendNewResetLink": "Gửi liên kết mới",
     "resetPasswordInvalidSession": "Liên kết đặt lại này không hợp lệ hoặc đã hết hạn. Vui lòng yêu cầu một liên kết mới.",

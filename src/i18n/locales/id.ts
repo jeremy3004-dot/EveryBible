@@ -894,6 +894,7 @@ export const id = {
     "resetPasswordSuccess": "Kata sandi Anda telah diperbarui",
     "resetPasswordError": "Gagal memperbarui kata sandi Anda",
     "resetLinkConfirmTitle": "Atur kata sandi baru?",
+    "resetLinkSignsOutCurrent": "Anda sedang masuk di perangkat ini. Jika melanjutkan, Anda akan dikeluarkan terlebih dahulu, lalu masuk ke akun tujuan tautan ini.",
     "resetLinkWrongDevice": "Tautan pengaturan ulang ini hanya berfungsi di perangkat tempat Anda memintanya. Buka di sana, atau kirim tautan baru dari perangkat ini.",
     "sendNewResetLink": "Kirim Tautan Baru",
     "resetPasswordInvalidSession": "Tautan pengaturan ulang ini tidak valid atau sudah kedaluwarsa. Silakan minta tautan baru.",

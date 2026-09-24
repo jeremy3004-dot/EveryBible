@@ -938,6 +938,8 @@ export const en = {
     resetPasswordSuccess: 'Your password has been updated',
     resetPasswordError: 'Failed to update your password',
     resetLinkConfirmTitle: 'Set a new password?',
+    resetLinkSignsOutCurrent:
+      "You're signed in on this device. Continuing signs you out first, then signs you in to the account this link was sent for.",
     resetLinkWrongDevice:
       'This reset link only works on the device where you asked for it. Open it there, or send a new link from this device.',
     sendNewResetLink: 'Send a New Link',

@@ -909,6 +909,7 @@ export const fr = {
     "resetPasswordSuccess": "Votre mot de passe a été mis à jour",
     "resetPasswordError": "Échec de la mise à jour de votre mot de passe",
     "resetLinkConfirmTitle": "Définir un nouveau mot de passe ?",
+    "resetLinkSignsOutCurrent": "Vous êtes connecté sur cet appareil. Si vous continuez, vous serez d’abord déconnecté, puis connecté au compte auquel ce lien a été envoyé.",
     "resetLinkWrongDevice": "Ce lien de réinitialisation ne fonctionne que sur l’appareil depuis lequel vous l’avez demandé. Ouvrez-le sur cet appareil-là, ou envoyez un nouveau lien depuis celui-ci.",
     "sendNewResetLink": "Envoyer un nouveau lien",
     "resetPasswordInvalidSession": "Ce lien de réinitialisation est invalide ou a expiré. Veuillez en demander un nouveau.",

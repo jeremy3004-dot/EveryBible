@@ -894,6 +894,7 @@ export const ja = {
     "resetPasswordSuccess": "パスワードが更新されました",
     "resetPasswordError": "パスワードを更新できませんでした",
     "resetLinkConfirmTitle": "新しいパスワードを設定しますか？",
+    "resetLinkSignsOutCurrent": "この端末ではログイン中です。続けると、いったんログアウトしてから、このリンクの送信先のアカウントでログインします。",
     "resetLinkWrongDevice": "このリセットリンクは、リクエストした端末でのみ使用できます。その端末で開くか、この端末から新しいリンクを送信してください。",
     "sendNewResetLink": "新しいリンクを送信",
     "resetPasswordInvalidSession": "このリセットリンクは無効か期限切れです。新しいリンクをリクエストしてください。",

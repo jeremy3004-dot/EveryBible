@@ -894,6 +894,7 @@ export const ko = {
     "resetPasswordSuccess": "비밀번호가 업데이트되었습니다",
     "resetPasswordError": "비밀번호 업데이트에 실패했습니다",
     "resetLinkConfirmTitle": "새 비밀번호를 설정할까요?",
+    "resetLinkSignsOutCurrent": "이 기기에 로그인되어 있습니다. 계속하면 먼저 로그아웃된 다음, 이 링크를 받은 계정으로 로그인됩니다.",
     "resetLinkWrongDevice": "이 재설정 링크는 요청한 기기에서만 사용할 수 있습니다. 해당 기기에서 열거나, 이 기기에서 새 링크를 보내세요.",
     "sendNewResetLink": "새 링크 보내기",
     "resetPasswordInvalidSession": "이 재설정 링크는 유효하지 않거나 만료되었습니다. 새 링크를 요청하세요.",

@@ -158,6 +158,63 @@ test('activation exchanges the parked code for a recovery session, and only once
   assert.equal(supabaseFake.authCalls.length, 1);
 });
 
+// A PKCE code does not say whose account it opens, and redeeming it replaces whatever
+// session this device had. So a signed-in account is signed out first, through the app's
+// normal sign-out (push token, per-user stores, private data scope), and the recovered
+// account then signs in cleanly, whichever account the link was for.
+test('a signed-in account is signed out through the normal path before the code is exchanged', async () => {
+  const order: string[] = [];
+  authHandlers.exchangeCodeForSession = async () => {
+    order.push('exchange');
+    const next = { access_token: 'recovery', user: { id: 'user-b' } };
+    supabaseFake.auth.setSession(next as never);
+    return {
+      data: { session: next as never, user: next.user as never, redirectType: 'PASSWORD_RECOVERY' },
+    };
+  };
+  await authDeepLink.handleAuthDeepLinkUrl(RECOVERY_URL);
+
+  const result = await authDeepLink.activatePendingPasswordRecovery({
+    signedInUserId: 'user-a',
+    signOutCurrentAccount: async () => {
+      order.push('sign-out:user-a');
+    },
+  });
+
+  assert.deepEqual(result, { status: 'activated' });
+  assert.deepEqual(order, ['sign-out:user-a', 'exchange']);
+});
+
+test('with nobody signed in the code is exchanged without a sign-out', async () => {
+  let signOuts = 0;
+  await authDeepLink.handleAuthDeepLinkUrl(RECOVERY_URL);
+
+  const result = await authDeepLink.activatePendingPasswordRecovery({
+    signedInUserId: null,
+    signOutCurrentAccount: async () => {
+      signOuts += 1;
+    },
+  });
+
+  assert.deepEqual(result, { status: 'activated' });
+  assert.equal(signOuts, 0);
+});
+
+test('if the current account cannot be signed out, the code is not exchanged and stays parked', async () => {
+  await authDeepLink.handleAuthDeepLinkUrl(RECOVERY_URL);
+
+  const result = await authDeepLink.activatePendingPasswordRecovery({
+    signedInUserId: 'user-a',
+    signOutCurrentAccount: async () => {
+      throw new Error('sign-out failed');
+    },
+  });
+
+  assert.deepEqual(result, { status: 'failed', problem: 'network' });
+  assert.deepEqual(supabaseFake.authCalls, []);
+  assert.deepEqual(authDeepLink.getPendingPasswordRecovery(), { kind: 'code', code: CODE });
+});
+
 test('activation with nothing parked does not touch Supabase', async () => {
   assert.deepEqual(await authDeepLink.activatePendingPasswordRecovery(), { status: 'missing' });
 

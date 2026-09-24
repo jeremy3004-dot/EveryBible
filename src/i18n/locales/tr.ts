@@ -894,6 +894,7 @@ export const tr = {
     "resetPasswordSuccess": "Parolanız güncellendi",
     "resetPasswordError": "Parolanız güncellenemedi",
     "resetLinkConfirmTitle": "Yeni bir parola belirlensin mi?",
+    "resetLinkSignsOutCurrent": "Bu cihazda oturumunuz açık. Devam ederseniz önce oturumunuz kapatılır, ardından bu bağlantının gönderildiği hesapta oturum açılır.",
     "resetLinkWrongDevice": "Bu sıfırlama bağlantısı yalnızca istediğiniz cihazda çalışır. Bağlantıyı o cihazda açın veya bu cihazdan yeni bir bağlantı gönderin.",
     "sendNewResetLink": "Yeni Bağlantı Gönder",
     "resetPasswordInvalidSession": "Bu sıfırlama bağlantısı geçersiz veya süresi dolmuş. Lütfen yeni bir tane isteyin.",

@@ -910,6 +910,7 @@ export const pt = {
     "resetPasswordSuccess": "Sua senha foi atualizada",
     "resetPasswordError": "Falha ao atualizar sua senha",
     "resetLinkConfirmTitle": "Definir uma nova senha?",
+    "resetLinkSignsOutCurrent": "Você está conectado neste dispositivo. Ao continuar, você será desconectado primeiro e depois conectado à conta para a qual este link foi enviado.",
     "resetLinkWrongDevice": "Este link de redefinição só funciona no dispositivo em que você o solicitou. Abra-o lá ou envie um novo link a partir deste dispositivo.",
     "sendNewResetLink": "Enviar novo link",
     "resetPasswordInvalidSession": "Este link de redefinição é inválido ou expirou. Solicite um novo.",
