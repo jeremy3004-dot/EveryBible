@@ -11,6 +11,14 @@ type StateRoute = {
 export type NavigationState = { routes: StateRoute[] };
 
 /**
+ * Longest link path we parse. Real links are far shorter: a Bible reference is a
+ * few dozen characters and a reset link (code or error description) a few hundred.
+ * The vendor query parser is quadratic in the number of parameters, so an
+ * oversized URL from another app would otherwise hold the JS thread for seconds.
+ */
+export const MAX_LINK_PATH_LENGTH = 2048;
+
+/**
  * Build a Bible tab navigation state tree from a parsed reference target.
  */
 const buildBibleReaderState = (
@@ -49,6 +57,9 @@ export const buildBibleNavState = (
   ) => NavigationState | undefined,
   options: PathConfigMap<RootTabParamList>
 ): NavigationState | undefined => {
+  if (path.length > MAX_LINK_PATH_LENGTH) {
+    return undefined;
+  }
   try {
     // Reject malformed escapes before the vendor query parser's recursive decoder.
     // Validate only: forwarding the decoded value would decode valid tokens twice.
