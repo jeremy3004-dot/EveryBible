@@ -507,6 +507,8 @@ export const hi = {
     cacheClearError: 'कैश साफ़ करने में त्रुटि',
     setReminderTime: 'अनुस्मारक का समय तय करें',
     setTime: 'समय तय करें',
+    reminderHourLabel: 'घंटा',
+    reminderMinuteLabel: 'मिनट',
     permissionRequired: 'अनुमति आवश्यक है',
     enableNotifications:
       'दैनिक अनुस्मारक पाने के लिए कृपया अपने डिवाइस की सेटिंग में सूचनाएँ चालू करें।',

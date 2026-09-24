@@ -784,6 +784,8 @@ export const ur = {
     cacheClearError: 'کیشے صاف کرنے میں خرابی',
     setReminderTime: 'یاد دہانی کا وقت مقرر کریں',
     setTime: 'وقت مقرر کریں',
+    reminderHourLabel: 'گھنٹہ',
+    reminderMinuteLabel: 'منٹ',
     permissionRequired: 'اجازت درکار',
     enableNotifications:
       'روزانہ یاد دہانیاں پانے کے لیے براہِ کرم اپنی ڈیوائس کی ترتیبات میں اطلاعات آن کریں۔',

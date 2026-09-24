@@ -778,6 +778,8 @@ export const ja = {
     cacheClearError: 'キャッシュを削除できませんでした',
     setReminderTime: 'リマインダーの時刻を設定',
     setTime: '時刻を設定',
+    reminderHourLabel: '時',
+    reminderMinuteLabel: '分',
     permissionRequired: '許可が必要です',
     enableNotifications: '毎日のリマインダーを受け取るには、端末の設定で通知を許可してください。',
     enableNotificationsMessage:

@@ -25,6 +25,8 @@ export const sharedTranslationValues: Record<string, Record<string, string>> = {
     'common.error': 'Error',
   },
   fr: {
+    // Reviewed 2026-09-24: the reminder picker's minute column; the word is the same in English.
+    'settings.reminderMinuteLabel': 'Minute',
     // Brand names only: the app name and the Every Language organization name.
     'more.footerVersion': 'Every Bible {{version}} · Every Language',
     'readingPlans.plansCount_one': '{{count}} plan',
@@ -82,6 +84,8 @@ export const sharedTranslationValues: Record<string, Record<string, string>> = {
     'engagement.minutes': 'min',
   },
   de: {
+    // Reviewed 2026-09-24: the reminder picker's minute column; the word is the same in English.
+    'settings.reminderMinuteLabel': 'Minute',
     // Brand names only: the app name and the Every Language organization name.
     'more.footerVersion': 'Every Bible {{version}} · Every Language',
     'more.groupApp': 'App',

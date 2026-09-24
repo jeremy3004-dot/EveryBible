@@ -753,6 +753,8 @@ export const zh = {
     cacheClearError: '清除缓存时出错',
     setReminderTime: '设置提醒时间',
     setTime: '设定时间',
+    reminderHourLabel: '小时',
+    reminderMinuteLabel: '分钟',
     permissionRequired: '需要授权',
     enableNotifications: '请在设备设置中开启通知，以便接收每日提醒。',
     enableNotificationsMessage: '请在设备设置中开启通知，以便接收每日提醒。',

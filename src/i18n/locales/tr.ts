@@ -795,6 +795,8 @@ export const tr = {
     cacheClearError: 'Önbellek temizlenirken hata oluştu',
     setReminderTime: 'Hatırlatma saatini ayarla',
     setTime: 'Saati ayarla',
+    reminderHourLabel: 'Saat',
+    reminderMinuteLabel: 'Dakika',
     permissionRequired: 'İzin gerekli',
     enableNotifications:
       'Günlük hatırlatıcılar almak için lütfen cihaz ayarlarınızda bildirimleri etkinleştirin.',

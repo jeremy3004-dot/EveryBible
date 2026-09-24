@@ -824,6 +824,8 @@ export const ar = {
     cacheClearError: 'تعذّر مسح ذاكرة التخزين المؤقت',
     setReminderTime: 'ضبط وقت التذكير',
     setTime: 'ضبط الوقت',
+    reminderHourLabel: 'الساعة',
+    reminderMinuteLabel: 'الدقيقة',
     permissionRequired: 'الإذن مطلوب',
     enableNotifications: 'فعّل الإشعارات في إعدادات جهازك لتصلك التذكيرات اليومية.',
     enableNotificationsMessage: 'فعّل الإشعارات في إعدادات جهازك لتصلك التذكيرات اليومية.',

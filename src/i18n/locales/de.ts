@@ -804,6 +804,8 @@ export const de = {
     cacheClearError: 'Fehler beim Löschen des Caches',
     setReminderTime: 'Erinnerungszeit festlegen',
     setTime: 'Zeit einstellen',
+    reminderHourLabel: 'Stunde',
+    reminderMinuteLabel: 'Minute',
     permissionRequired: 'Berechtigung erforderlich',
     enableNotifications:
       'Bitte aktiviere Benachrichtigungen in deinen Geräteeinstellungen, um tägliche Erinnerungen zu erhalten.',

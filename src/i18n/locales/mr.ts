@@ -486,6 +486,8 @@ export const mr = {
     cacheClearError: 'कॅशे साफ करताना त्रुटी',
     setReminderTime: 'स्मरणपत्राची वेळ ठरवा',
     setTime: 'वेळ ठरवा',
+    reminderHourLabel: 'तास',
+    reminderMinuteLabel: 'मिनिट',
     permissionRequired: 'परवानगी आवश्यक',
     enableNotifications:
       'दररोज स्मरणपत्रे मिळण्यासाठी कृपया तुमच्या उपकरणाच्या सेटिंग्जमध्ये सूचना सुरू करा.',

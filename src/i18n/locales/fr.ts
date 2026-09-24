@@ -826,6 +826,8 @@ export const fr = {
     cacheClearError: 'Erreur lors du vidage du cache',
     setReminderTime: 'Définir l’heure du rappel',
     setTime: 'Régler l’heure',
+    reminderHourLabel: 'Heure',
+    reminderMinuteLabel: 'Minute',
     permissionRequired: 'Autorisation requise',
     enableNotifications:
       'Veuillez activer les notifications dans les paramètres de votre appareil pour recevoir des rappels quotidiens.',

@@ -487,6 +487,8 @@ export const pa = {
     cacheClearError: 'ਕੈਸ਼ ਸਾਫ਼ ਕਰਨ ਵਿੱਚ ਗਲਤੀ',
     setReminderTime: 'ਰੀਮਾਈਂਡਰ ਸਮਾਂ ਸੈੱਟ ਕਰੋ',
     setTime: 'ਸਮਾਂ ਸੈੱਟ ਕਰੋ',
+    reminderHourLabel: 'ਘੰਟਾ',
+    reminderMinuteLabel: 'ਮਿੰਟ',
     permissionRequired: 'ਇਜਾਜ਼ਤ ਦੀ ਲੋੜ ਹੈ',
     enableNotifications:
       'ਰੋਜ਼ਾਨਾ ਰੀਮਾਈਂਡਰ ਮਿਲਣ ਲਈ ਆਪਣੀ ਡਿਵਾਈਸ ਦੀਆਂ ਸੈਟਿੰਗਾਂ ਵਿੱਚ ਸੂਚਨਾਵਾਂ ਚਾਲੂ ਕਰੋ।',

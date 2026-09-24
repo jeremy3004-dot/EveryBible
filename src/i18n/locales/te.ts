@@ -491,6 +491,8 @@ export const te = {
     cacheClearError: 'కాష్‌ని క్లియర్ చేయడంలో లోపం',
     setReminderTime: 'రిమైండర్ సమయాన్ని సెట్ చేయండి',
     setTime: 'సమయాన్ని సెట్ చేయండి',
+    reminderHourLabel: 'గంట',
+    reminderMinuteLabel: 'నిమిషం',
     permissionRequired: 'అనుమతి అవసరం',
     enableNotifications:
       'దయచేసి రోజువారీ రిమైండర్‌లను స్వీకరించడానికి మీ పరికర సెట్టింగ్‌లలో నోటిఫికేషన్‌లను ప్రారంభించండి.',

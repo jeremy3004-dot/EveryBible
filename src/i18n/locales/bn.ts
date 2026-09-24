@@ -484,6 +484,8 @@ export const bn = {
     cacheClearError: 'ক্যাশে সাফ করার সময় ত্রুটি হয়েছে',
     setReminderTime: 'অনুস্মারক সময় সেট করুন',
     setTime: 'সময় সেট করুন',
+    reminderHourLabel: 'ঘণ্টা',
+    reminderMinuteLabel: 'মিনিট',
     permissionRequired: 'অনুমতি প্রয়োজন',
     enableNotifications: 'দৈনিক অনুস্মারক পেতে আপনার ডিভাইসের সেটিংসে বিজ্ঞপ্তি চালু করুন।',
     enableNotificationsMessage: 'দৈনিক অনুস্মারক পেতে আপনার ডিভাইসের সেটিংসে বিজ্ঞপ্তি চালু করুন।',

@@ -778,6 +778,8 @@ export const ko = {
     cacheClearError: '캐시를 지우는 중 오류가 발생했습니다',
     setReminderTime: '알림 시간 설정',
     setTime: '시간 설정',
+    reminderHourLabel: '시',
+    reminderMinuteLabel: '분',
     permissionRequired: '권한 필요',
     enableNotifications: '매일 알림을 받으려면 기기 설정에서 알림을 켜 주세요.',
     enableNotificationsMessage: '매일 알림을 받으려면 기기 설정에서 알림을 켜 주세요.',

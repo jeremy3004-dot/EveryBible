@@ -830,6 +830,8 @@ export const es = {
     cacheClearError: 'Error al borrar la caché',
     setReminderTime: 'Establecer hora del recordatorio',
     setTime: 'Establecer hora',
+    reminderHourLabel: 'Hora',
+    reminderMinuteLabel: 'Minuto',
     permissionRequired: 'Permiso requerido',
     enableNotifications:
       'Activa las notificaciones en los ajustes de tu dispositivo para recibir recordatorios diarios.',

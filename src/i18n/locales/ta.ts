@@ -492,6 +492,8 @@ export const ta = {
     cacheClearError: 'தற்காலிகச் சேமிப்பை அழிப்பதில் பிழை',
     setReminderTime: 'நினைவூட்டல் நேரத்தை அமைக்கவும்',
     setTime: 'நேரத்தை அமைக்கவும்',
+    reminderHourLabel: 'மணி',
+    reminderMinuteLabel: 'நிமிடம்',
     permissionRequired: 'அனுமதி தேவை',
     enableNotifications:
       'தினசரி நினைவூட்டல்களைப் பெற, உங்கள் சாதன அமைப்புகளில் அறிவிப்புகளை இயக்கவும்.',

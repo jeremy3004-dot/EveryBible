@@ -796,6 +796,8 @@ export const vi = {
     cacheClearError: 'Lỗi xóa bộ nhớ đệm',
     setReminderTime: 'Đặt thời gian nhắc nhở',
     setTime: 'Đặt thời gian',
+    reminderHourLabel: 'Giờ',
+    reminderMinuteLabel: 'Phút',
     permissionRequired: 'Cần cấp quyền',
     enableNotifications:
       'Vui lòng bật thông báo trong cài đặt thiết bị để nhận nhắc nhở hằng ngày.',

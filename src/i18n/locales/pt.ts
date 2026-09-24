@@ -811,6 +811,8 @@ export const pt = {
     cacheClearError: 'Erro ao limpar o cache',
     setReminderTime: 'Definir hora do lembrete',
     setTime: 'Definir hora',
+    reminderHourLabel: 'Hora',
+    reminderMinuteLabel: 'Minuto',
     permissionRequired: 'Permissão necessária',
     enableNotifications:
       'Ative as notificações nas configurações do seu dispositivo para receber lembretes diários.',

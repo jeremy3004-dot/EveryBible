@@ -795,6 +795,8 @@ export const id = {
     cacheClearError: 'Terjadi kesalahan saat menghapus cache',
     setReminderTime: 'Atur waktu pengingat',
     setTime: 'Atur waktu',
+    reminderHourLabel: 'Jam',
+    reminderMinuteLabel: 'Menit',
     permissionRequired: 'Izin diperlukan',
     enableNotifications:
       'Harap aktifkan notifikasi di pengaturan perangkat Anda untuk menerima pengingat harian.',

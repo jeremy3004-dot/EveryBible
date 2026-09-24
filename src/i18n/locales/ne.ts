@@ -509,6 +509,8 @@ export const ne = {
     cacheClearError: 'क्यास खाली गर्दा त्रुटि',
     setReminderTime: 'रिमाइन्डर समय सेट गर्नुहोस्',
     setTime: 'समय सेट गर्नुहोस्',
+    reminderHourLabel: 'घण्टा',
+    reminderMinuteLabel: 'मिनेट',
     permissionRequired: 'अनुमति आवश्यक छ',
     enableNotifications:
       'दैनिक रिमाइन्डर पाउन कृपया आफ्नो यन्त्रको सेटिङमा सूचना सक्रिय गर्नुहोस्।',

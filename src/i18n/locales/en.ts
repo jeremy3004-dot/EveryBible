@@ -790,6 +790,8 @@ export const en = {
     cacheClearError: 'Error clearing cache',
     setReminderTime: 'Set Reminder Time',
     setTime: 'Set Time',
+    reminderHourLabel: 'Hour',
+    reminderMinuteLabel: 'Minute',
     permissionRequired: 'Permission Required',
     enableNotifications:
       'Please enable notifications in your device settings to receive daily reminders.',
