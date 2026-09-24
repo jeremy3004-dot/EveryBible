@@ -1,5 +1,6 @@
 import test, { beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
+import { act } from 'react-test-renderer';
 import { mockBarrel, mockModule, sourcePath } from '../../testing/mockModules';
 import { installRenderHarness } from '../../testing/render';
 
@@ -8,6 +9,9 @@ const t = (key: string) => harness.i18n.t(key);
 
 // My feedback lists the reader's own submissions from the server; it has no local copy.
 const backend = {
+  fetches: 0,
+  // Holds the next fetch open until the test resolves it.
+  pending: null as ((result: typeof backend.result) => void) | null,
   offline: false,
   result: { success: false, feedback: [] as unknown[], error: 'Failed to fetch' } as {
     success: boolean;
@@ -16,7 +20,17 @@ const backend = {
   },
 };
 mockBarrel(mock, 'services/feedback/index.ts', {
-  provide: { fetchMyChapterFeedback: async () => backend.result },
+  provide: {
+    fetchMyChapterFeedback: async () => {
+      backend.fetches += 1;
+      if (backend.pending) {
+        return new Promise((resolve) => {
+          backend.pending = resolve;
+        });
+      }
+      return backend.result;
+    },
+  },
 });
 mockModule(mock, sourcePath('utils/connectivity.ts'), {
   isDeviceOffline: async () => backend.offline,
@@ -24,6 +38,8 @@ mockModule(mock, sourcePath('utils/connectivity.ts'), {
 mockBarrel(mock, 'constants/index.ts', { real: ['getTranslatedBookName'] });
 
 beforeEach(() => {
+  backend.fetches = 0;
+  backend.pending = null;
   backend.offline = false;
   backend.result = { success: false, feedback: [], error: 'Failed to fetch' };
   harness.authStore.setState({ isAuthenticated: true });
@@ -79,4 +95,29 @@ test('retrying after reconnecting shows the loaded feedback', async () => {
 
   assert.equal(view.queryByText(t('common.offlineTryAgain')), null);
   assert.ok(view.getByText('Clear'));
+});
+
+test('retrying shows the load in progress and ignores further taps until it answers', async () => {
+  const view = await renderScreen();
+  assert.equal(backend.fetches, 1);
+  backend.pending = () => {};
+
+  // Started in its own act and not awaited: the load stays open until answered below.
+  const retry = view.getByRole('button', { name: t('common.retry') });
+  await act(async () => {
+    void (retry.props.onPress as () => unknown)();
+  });
+
+  assert.equal(view.queryByRole('button', { name: t('common.retry') }), null);
+  assert.ok(view.getByLabelText(t('common.loading')));
+  assert.equal(view.queryByText(t('common.somethingWentWrong')), null);
+  assert.equal(backend.fetches, 2);
+
+  const answer = backend.pending;
+  backend.pending = null;
+  answer?.({ success: false, feedback: [], error: 'Failed to fetch' });
+  await view.flush();
+
+  assert.ok(view.getByRole('button', { name: t('common.retry') }));
+  assert.equal(backend.fetches, 2);
 });

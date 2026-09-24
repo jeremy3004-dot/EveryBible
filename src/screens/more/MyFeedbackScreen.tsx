@@ -61,6 +61,13 @@ export function MyFeedbackScreen() {
     loadFeedback(); // eslint-disable-line react-hooks/set-state-in-effect
   }, [loadFeedback]);
 
+  // Back to the loading state, so the retry shows progress and cannot be tapped again
+  // while its request is out.
+  const onRetry = () => {
+    setLoading(true);
+    void loadFeedback();
+  };
+
   const onRefresh = async () => {
     setRefreshing(true);
     await loadFeedback();
@@ -188,7 +195,7 @@ export function MyFeedbackScreen() {
           </Text>
           <TouchableOpacity
             style={[styles.retryButton, { borderColor: colors.cardBorder }]}
-            onPress={loadFeedback}
+            onPress={onRetry}
             activeOpacity={0.85}
             accessibilityRole="button"
           >
