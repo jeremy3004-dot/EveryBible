@@ -8,6 +8,30 @@ export { buildBibleNavState } from './buildBibleNavState';
 
 const prefix = Linking.createURL('/');
 
+/** React Navigation's own wait: getInitialURL can hang on Android (react-native#25675). */
+const INITIAL_URL_TIMEOUT_MS = 150;
+
+let hasDeliveredInitialUrl = false;
+
+/**
+ * The launch URL, once per JS runtime. Linking reports it for the life of the process,
+ * and NavigationContainer asks on every mount; the navigator unmounts behind the
+ * discreet-mode lock screen, so each unlock used to reopen the launch link wherever
+ * the reader had gone since. A link that arrives later comes through the 'url'
+ * listener instead. A launch during onboarding or behind the lock is still honoured:
+ * the navigator first mounts, and asks, only after both.
+ */
+const getInitialURLOnce = (): Promise<string | null> | null => {
+  if (hasDeliveredInitialUrl) {
+    return null;
+  }
+  hasDeliveredInitialUrl = true;
+  return Promise.race([
+    Linking.getInitialURL(),
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), INITIAL_URL_TIMEOUT_MS)),
+  ]);
+};
+
 /**
  * React Navigation linking config for deep links using the com.everybible.app:// scheme.
  *
@@ -21,6 +45,7 @@ const prefix = Linking.createURL('/');
  */
 export const linkingConfig: LinkingOptions<RootTabParamList> = {
   prefixes: [prefix, 'com.everybible.app://'],
+  getInitialURL: getInitialURLOnce,
   config: {
     // No `bible/...` template lives here on purpose. Bible paths are owned entirely
     // by getStateFromPath below (slug→bookId via buildBibleNavState). A template of

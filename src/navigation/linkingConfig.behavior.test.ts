@@ -27,6 +27,9 @@ type StateRoute = {
 type LoadedConfig = Awaited<ReturnType<typeof importConfig>>;
 
 const createUrlCalls: string[] = [];
+// Like the OS: Linking reports the URL that launched the app for the whole process.
+const LAUNCH_URL = 'com.everybible.app://bible/john/3/16';
+let getInitialUrlCalls = 0;
 
 async function importConfig() {
   // The vendor parser ships ESM only, so it has to be pulled in before the mocks
@@ -41,6 +44,10 @@ async function importConfig() {
     createURL: (path: string) => {
       createUrlCalls.push(path);
       return `${EXPO_PREFIX}${path.replace(/^\//, '')}`;
+    },
+    getInitialURL: async () => {
+      getInitialUrlCalls += 1;
+      return LAUNCH_URL;
     },
   });
   mockModule(mock, '@react-navigation/native', { getStateFromPath });
@@ -160,4 +167,17 @@ test('a path no template covers yields no state rather than a wrong screen', asy
 
 test('a malformed percent-escape is rejected before the vendor parser sees it', async () => {
   assert.equal(await parse('/reset-password?token=%E0%A4%A'), undefined);
+});
+
+// NavigationContainer asks linking.getInitialURL() on every mount, and the navigator
+// unmounts behind the discreet-mode lock screen. Unlocking remounted it, so an app
+// launched from a link reopened that chapter on every unlock for the rest of the
+// session, wherever the reader had gone since.
+test('the launch link is handed to the navigator once, not again when it remounts', async () => {
+  const config = await loadConfig();
+  assert.ok(config.getInitialURL);
+  assert.equal(await config.getInitialURL(), LAUNCH_URL, 'the first mount opens the launch link');
+  assert.equal(await config.getInitialURL(), null, 'a remount keeps where the reader is');
+  assert.equal(await config.getInitialURL(), null);
+  assert.equal(getInitialUrlCalls, 1);
 });
