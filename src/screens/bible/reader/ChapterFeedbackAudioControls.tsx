@@ -1,9 +1,11 @@
+import { useEffect, useRef } from 'react';
 import { StyleSheet, ActivityIndicator, Linking, Text, TouchableOpacity, View } from 'react-native';
 import { layout, radius, spacing } from '../../../design/system';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import Svg, { Circle } from 'react-native-svg';
 import { useTheme } from '../../../contexts/ThemeContext';
+import { CONTROL_LABEL_MAX_FONT_SCALE } from '../../../design/largeTextLayout';
 import { CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS } from '../../../services/feedback/chapterFeedbackAudio';
 import {
   FEEDBACK_AUDIO_COUNTDOWN_SIZE,
@@ -13,6 +15,7 @@ import {
 } from './readerConstants';
 import { formatFeedbackAudioDuration } from './feedbackAudioSession';
 import type { ChapterFeedback } from './useChapterFeedback';
+import { announceForAccessibility } from '../../../utils/a11y';
 
 interface ChapterFeedbackAudioControlsProps {
   feedback: ChapterFeedback;
@@ -63,6 +66,29 @@ export function ChapterFeedbackAudioControls({
         })
       : t('bible.chapterFeedbackAudioIdle');
 
+  // Record and Stop swap places under the user's finger, and the one-minute
+  // limit stops a recording on its own, so each phase change is spoken once
+  // (not the per-second timer). The first render only sets the baseline.
+  const phase = isRecording
+    ? 'recording'
+    : isUploadingAudio
+      ? 'uploading'
+      : feedbackAudioDraft
+        ? 'ready'
+        : 'idle';
+  const phaseAnnouncement =
+    phase === 'uploading'
+      ? t('bible.chapterFeedbackAudioUploading')
+      : phase === 'idle'
+        ? null
+        : statusLabel;
+  const announcedPhaseRef = useRef(phase);
+  useEffect(() => {
+    if (announcedPhaseRef.current === phase) return;
+    announcedPhaseRef.current = phase;
+    if (phaseAnnouncement) announceForAccessibility(phaseAnnouncement);
+  }, [phase, phaseAnnouncement]);
+
   return (
     <View
       style={[
@@ -76,7 +102,14 @@ export function ChapterFeedbackAudioControls({
     >
       <View style={styles.feedbackAudioHeader}>
         <View style={styles.feedbackAudioHeaderMain}>
-          <View style={styles.feedbackAudioCountdown}>
+          {/* The ring and its bare "0:47" are visual; the status beside it says
+              "Recording 0:13" in words. The time is capped so it stays inside the
+              58pt ring at accessibility sizes. */}
+          <View
+            style={styles.feedbackAudioCountdown}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          >
             <Svg
               width={FEEDBACK_AUDIO_COUNTDOWN_SIZE}
               height={FEEDBACK_AUDIO_COUNTDOWN_SIZE}
@@ -106,7 +139,10 @@ export function ChapterFeedbackAudioControls({
                 })`}
               />
             </Svg>
-            <Text style={[styles.feedbackAudioCountdownText, { color: colors.biblePrimaryText }]}>
+            <Text
+              maxFontSizeMultiplier={CONTROL_LABEL_MAX_FONT_SCALE}
+              style={[styles.feedbackAudioCountdownText, { color: colors.biblePrimaryText }]}
+            >
               {formatFeedbackAudioDuration(countdownRemainingMs)}
             </Text>
           </View>
