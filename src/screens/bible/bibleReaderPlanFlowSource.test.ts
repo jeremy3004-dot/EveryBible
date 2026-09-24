@@ -15,7 +15,7 @@ test('plan completion navigation follows remaining sessions instead of their tim
 
 test('verse-based plans focus the assigned passage in the reader', () => {
   assert.match(source, /getPlanChapterFocusVerse\(activePlanSessionEntries, bookId, chapter\)/);
-  assert.match(source, /const shouldRecordReadCompletion =[\s\S]*?!activePlanSessionEntries\.some\(\(entry\) => entry\.verse_start != null \|\| entry\.verse_end != null\)/);
+  assert.match(source, /const shouldRecordReadCompletion =[\s\S]*?!activePlanSessionEntries\.some\(\s*\(entry\) => entry\.verse_start != null \|\| entry\.verse_end != null\s*\)/);
 });
 
 test('BibleReaderScreen uses plan-day activity helpers to detect when todays target is complete', () => {

@@ -706,21 +706,29 @@ interface SwipeChapterNavigationInput {
   velocityX: number;
   hasNextChapter: boolean;
   hasPrevChapter: boolean;
+  /**
+   * A plan or rhythm session opened from the Plans tab lands in the Bible tab's
+   * stack, so there is no native screen behind it for the iOS back swipe. When
+   * set, a back swipe with no earlier session chapter leaves the session instead.
+   */
+  canExitSession?: boolean;
 }
 
-export type SwipeNavigationResult = 'next' | 'prev' | null;
+export type SwipeNavigationResult = 'next' | 'prev' | 'exit' | null;
 
 export const resolveSwipeChapterNavigation = ({
   translationX,
   velocityX,
   hasNextChapter,
   hasPrevChapter,
+  canExitSession = false,
 }: SwipeChapterNavigationInput): SwipeNavigationResult => {
   const wantsNext = translationX < -SWIPE_THRESHOLD || velocityX < -SWIPE_VELOCITY_MIN;
   const wantsPrev = translationX > SWIPE_THRESHOLD || velocityX > SWIPE_VELOCITY_MIN;
 
   if (wantsNext && hasNextChapter) return 'next';
   if (wantsPrev && hasPrevChapter) return 'prev';
+  if (wantsPrev && canExitSession) return 'exit';
   return null;
 };
 

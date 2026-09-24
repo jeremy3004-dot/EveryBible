@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Alert,
   AppState,
+  BackHandler,
   FlatList,
   LayoutAnimation,
   ImageBackground,
@@ -1902,6 +1903,42 @@ export function BibleReaderScreen() {
     }
   };
 
+  // A plan session is opened from the Plans tab into the Bible tab's stack, so
+  // nothing native sits behind it: every way out (top chevron, back swipe past
+  // the first session chapter, Android back) routes through here to the plan.
+  const handleExitPlanSession = useCallback(() => {
+    if (!showPlanSessionChrome || !activePlanId || !rootNavigationRef.isReady()) {
+      return;
+    }
+
+    if (activeRhythmSession) {
+      rootNavigationRef.navigate('Plans', {
+        screen: 'RhythmDetail',
+        params: { rhythmId: activeRhythmSession.rhythmId },
+      });
+      return;
+    }
+
+    rootNavigationRef.navigate('Plans', {
+      screen: 'PlanDetail',
+      params: { planId: activePlanId },
+    });
+  }, [activePlanId, activeRhythmSession, showPlanSessionChrome]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!showPlanSessionChrome) {
+        return undefined;
+      }
+
+      const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+        handleExitPlanSession();
+        return true;
+      });
+      return () => subscription.remove();
+    }, [handleExitPlanSession, showPlanSessionChrome])
+  );
+
   // Resolved on the JS thread so the shared, tested swipe model stays the single
   // source of truth for thresholds (worklets cannot call non-worklet functions).
   const handleSwipeEnd = (translationX: number, velocityX: number) => {
@@ -1912,10 +1949,15 @@ export function BibleReaderScreen() {
       velocityX,
       hasNextChapter,
       hasPrevChapter,
+      canExitSession: showPlanSessionChrome,
     });
     if (!direction) return;
 
     lightHaptic();
+    if (direction === 'exit') {
+      handleExitPlanSession();
+      return;
+    }
     handleSwipeNavigation(direction);
   };
 
@@ -2366,7 +2408,9 @@ export function BibleReaderScreen() {
     const shouldRecordReadCompletion =
       chapterSessionMode === 'read' &&
       activePlanChapterIndex >= 0 &&
-      !activePlanSessionEntries.some((entry) => entry.verse_start != null || entry.verse_end != null);
+      !activePlanSessionEntries.some(
+        (entry) => entry.verse_start != null || entry.verse_end != null
+      );
     if (activePlanChapterIndex < 0 || !isLastPlanChapter) {
       return;
     }
@@ -3931,25 +3975,6 @@ export function BibleReaderScreen() {
 
     await reloadAnnotations();
   };
-
-  const handleExitPlanSession = useCallback(() => {
-    if (!showPlanSessionChrome || !activePlanId || !rootNavigationRef.isReady()) {
-      return;
-    }
-
-    if (activeRhythmSession) {
-      rootNavigationRef.navigate('Plans', {
-        screen: 'RhythmDetail',
-        params: { rhythmId: activeRhythmSession.rhythmId },
-      });
-      return;
-    }
-
-    rootNavigationRef.navigate('Plans', {
-      screen: 'PlanDetail',
-      params: { planId: activePlanId },
-    });
-  }, [activePlanId, activeRhythmSession, showPlanSessionChrome]);
 
   const renderPlanSessionBottomBar = () => {
     if (!showPlanSessionChrome || !activePlanTitle || typeof planDayNumber !== 'number') {
