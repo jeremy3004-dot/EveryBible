@@ -2,12 +2,9 @@ import { ChapterFeedbackSummary } from '../../components/feedback';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
 import {
-  Alert,
   FlatList,
   InteractionManager,
-  Platform,
   ScrollView,
-  Share,
   Text,
   TouchableOpacity,
   View,
@@ -19,21 +16,17 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { getBookById, getCompactTranslatedBookName, getTranslatedBookName } from '../../constants';
 import { config } from '../../constants/config';
-import { useTheme, type ThemeMode } from '../../contexts/ThemeContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import { layout, spacing, typography } from '../../design/system';
 import { getReadingFontFamily } from '../../design/fonts';
-import { trackBibleExperienceEvent } from '../../services/analytics/bibleExperienceAnalytics';
 import { getAnnotationsForChapter } from '../../services/annotations/annotationService';
 import { getChapter, prefetchNextChapter } from '../../services/bible/bibleService';
-import { buildBibleDeepLink } from '../../services/bible/deepLinkParser';
 import { getChapterPresentationMode } from '../../services/bible/presentation';
 import { getChapterContentAvailability } from '../../services/bible/contentAvailability';
 import { useTranslationContentSummary } from '../../hooks/useTranslationContentSummary';
 import { isRemoteAudioAvailable } from '../../services/audio/audioRemote';
 import { getAudioAvailability } from '../../services/audio/audioAvailability';
-import { describeAudioDownloadError } from '../../services/audio/audioDownloadErrorMessage';
 import { formatLocalDateKey } from '../../services/progress/readingActivity';
-import { syncPreferences } from '../../services/sync';
 import { useAudioStore } from '../../stores/audioStore';
 import { useAuthStore } from '../../stores/authStore';
 import { useBibleStore } from '../../stores/bibleStore';
@@ -72,11 +65,9 @@ import {
   isActiveAudioTrackMatch,
   getNextFontSizeSheetVisibility,
   getNextTranslationSheetVisibility,
-  shouldReplayActiveAudioForTranslationChange,
 } from './bibleReaderModel';
 import type { ReaderParagraph } from './bibleReaderModel';
 import { loadReaderChapter, readerChapterKey, type CancellableTask } from './readerChapterLoader';
-import { rootNavigationRef } from '../../navigation/rootNavigation';
 import {
   AudioOptionsSheet,
   AudioPortionShareSheet,
@@ -96,10 +87,10 @@ import {
   styles,
   useAudioPortionShare,
   useAudioReturnTarget,
-  useChapterAudioShare,
   useChapterFeedback,
   usePlanDayCompletion,
   useReaderAudioSync,
+  useReaderChapterActions,
   useReaderChapterLifecycle,
   useReaderChapterNavigation,
   useReaderFollowAlongScroll,
@@ -797,194 +788,62 @@ export function BibleReaderScreen() {
     showPlanSessionChrome,
     togglePlayPause,
   });
-  const handleCloseFontSizeSheet = () => {
-    setShowFontSizeSheet(false);
-  };
-  const handleReaderThemeChange = (mode: ThemeMode) => {
-    setTheme(mode);
-    syncPreferences().catch(() => {});
-  };
-  const handleOpenAllSettings = () => {
-    handleCloseFontSizeSheet();
-
-    if (rootNavigationRef.isReady()) {
-      rootNavigationRef.navigate('More', { screen: 'Settings' });
-    }
-  };
-  const handleOpenBookPicker = () => {
-    navigation.push('BiblePicker', {
-      initialBookId: bookId,
-    });
-  };
-
-  const handleOpenBibleSearch = () => {
-    setShowAudioOptionsSheet(false);
-    setShowFontSizeSheet(false);
-    setShowTranslationSheet(false);
-    setShowChapterActionsSheet(false);
-    navigation.navigate('BibleBrowser', {
-      initialBookId: bookId,
-      focusSearch: true,
-    });
-  };
-
-  const handleCloseTranslationSheet = () => {
-    setShowTranslationSheet((current) =>
-      getNextTranslationSheetVisibility(current, canShowTranslationSheet, 'dismiss')
-    );
-  };
-
-  const handleTranslationActivated = (translation: BibleTranslation) => {
-    const audioAvailability = getTranslationAudioAvailability(translation, bookId);
-    const shouldReplayAudio = shouldReplayActiveAudioForTranslationChange({
-      currentTranslationId: currentTranslation,
-      nextTranslationId: translation.id,
-      audioEnabled: audioAvailability.canPlayAudio,
-      bookId,
-      chapter,
-      activeAudioTranslationId,
-      activeAudioBookId,
-      activeAudioChapter,
-    });
-
-    // Keeps the listener's intent: a playing chapter continues in the new
-    // translation, a paused one is re-targeted and stays paused until Play.
-    if (shouldReplayAudio) {
-      void navigateChapterForTranslation(
-        translation.id,
-        bookId,
-        chapter,
-        translation.audioGranularity === 'verse' ? focusVerse : undefined
-      );
-    }
-  };
-
-  const handleToggleFavorite = () => {
-    toggleFavorite(bookId, chapter);
-    trackBibleExperienceEvent({
-      name: 'library_action',
-      bookId,
-      chapter,
-      source: 'reader-actions',
-      detail: isFavorite ? 'unfavorite' : 'favorite',
-    });
-    setShowChapterActionsSheet(false);
-  };
-
-  const handleAddToPlaylist = () => {
-    addChapterToDefaultPlaylist(bookId, chapter);
-    trackBibleExperienceEvent({
-      name: 'library_action',
-      bookId,
-      chapter,
-      source: 'reader-actions',
-      detail: 'playlist',
-    });
-    setShowChapterActionsSheet(false);
-  };
-
-  const handleAddToQueue = () => {
-    addToQueue(bookId, chapter);
-    trackBibleExperienceEvent({
-      name: 'library_action',
-      bookId,
-      chapter,
-      source: 'reader-actions',
-      detail: 'queue',
-    });
-    setShowChapterActionsSheet(false);
-  };
-
-  const handleShareChapter = async () => {
-    setShowChapterActionsSheet(false);
-    trackBibleExperienceEvent({
-      name: 'library_action',
-      bookId,
-      chapter,
-      source: 'reader-actions',
-      detail: 'share',
-    });
-    const bookName = getTranslatedBookName(bookId, t);
-    const url = buildBibleDeepLink(bookId, chapter);
-    const text = `${bookName} ${chapter}`;
-    await Share.share(
-      Platform.OS === 'android'
-        ? { message: url ? `${text}\n${url}` : text }
-        : { message: text, url }
-    );
-  };
-
   const {
     chapterAudioShareActionLabel,
+    handleAddToPlaylist,
+    handleAddToQueue,
+    handleCloseFontSizeSheet,
+    handleCloseTranslationSheet,
+    handleDownloadCurrentBookAudio,
+    handleOpenAllSettings,
+    handleOpenBibleSearch,
+    handleOpenBookPicker,
     handleOpenChapterAudioShareSheet,
+    handleOpenFontSizeOptions,
+    handleOpenTranslationOptions,
+    handleReaderThemeChange,
     handleShareAudioPortion,
+    handleShareChapter,
     handleShareFullChapterAudio,
+    handleToggleFavorite,
+    handleTranslationActivated,
     pendingChapterAudioShareAction,
     setShowChapterAudioShareSheet,
     showChapterAudioShareSheet,
-  } = useChapterAudioShare({
+  } = useReaderChapterActions({
+    activeAudioBookId,
+    activeAudioChapter,
+    activeAudioTranslationId,
+    addChapterToDefaultPlaylist,
+    addToQueue,
+    audioEnabled,
     audioPositionRef,
     bookId,
+    canAdjustFontSize,
+    canShowTranslationSheet,
     chapter,
     chapterShareTitle,
     currentTranslation,
+    currentTranslationInfo,
+    downloadAudioForBook,
+    focusVerse,
+    getTranslationAudioAvailability,
     isCurrentAudioChapter,
+    isFavorite,
+    navigateChapterForTranslation,
+    navigation,
     setAudioPortionEndMs,
     setAudioPortionShareDraft,
     setAudioPortionStartMs,
+    setChapterSessionMode,
+    setPreferredChapterLaunchMode,
     setShowAudioOptionsSheet,
     setShowChapterActionsSheet,
+    setShowFontSizeSheet,
+    setShowTranslationSheet,
+    setTheme,
+    toggleFavorite,
   });
-
-  const handleDownloadCurrentBookAudio = async () => {
-    setShowChapterActionsSheet(false);
-
-    if (!currentTranslationInfo?.hasAudio || !audioEnabled) {
-      Alert.alert(t('common.error'), t('bible.audioDownloadFailed'));
-      return;
-    }
-
-    try {
-      await downloadAudioForBook(currentTranslation, bookId);
-      trackBibleExperienceEvent({
-        name: 'library_action',
-        bookId,
-        chapter,
-        source: 'reader-actions',
-        detail: 'download',
-      });
-      Alert.alert(t('common.ok'), t('bible.audioSavedOffline'));
-    } catch (downloadError) {
-      Alert.alert(t('common.error'), describeAudioDownloadError(downloadError, t));
-    }
-  };
-
-  const handleOpenFontSizeOptions = () => {
-    setShowAudioOptionsSheet(false);
-    setShowChapterActionsSheet(false);
-    setShowTranslationSheet(false);
-
-    if (!canAdjustFontSize) {
-      return;
-    }
-
-    setChapterSessionMode('read');
-    setPreferredChapterLaunchMode('read');
-    navigation.setParams({ preferredMode: 'read', autoplayAudio: false });
-    setShowFontSizeSheet(true);
-  };
-
-  const handleOpenTranslationOptions = () => {
-    setShowAudioOptionsSheet(false);
-    setShowChapterActionsSheet(false);
-    setShowFontSizeSheet(false);
-
-    if (!canShowTranslationSheet) {
-      return;
-    }
-
-    setShowTranslationSheet(true);
-  };
 
   const renderTranslatorFeedbackReviewTools = () => (
     <ChapterFeedbackSummary translationId={currentTranslation} bookId={bookId} chapter={chapter} />
