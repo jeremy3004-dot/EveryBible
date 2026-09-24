@@ -32,7 +32,7 @@ const MIGRATIONS = [
 // Applied after Supabase's default grants, as it would be on the live project.
 const HARDENING = [
   '20260924042617_harden_prayer_wall.sql',
-  '20260924180000_prayer_wall_moderation.sql',
+  '20260924045749_prayer_wall_moderation.sql',
 ];
 
 const db = new PGlite();

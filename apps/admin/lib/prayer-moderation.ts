@@ -2,7 +2,7 @@ import { createAdminServiceClient } from '@/lib/supabase/service';
 
 // Prayer wall moderation (App Store Guideline 1.2). Members report requests through the
 // report_prayer_request RPC; the tables below are service-only and read here for the admin
-// Reports page. Schema: supabase/migrations/20260924180000_prayer_wall_moderation.sql.
+// Reports page. Schema: supabase/migrations/20260924045749_prayer_wall_moderation.sql.
 
 /** English labels for the reasons the app offers (the RPC's CHECK constraint). */
 export const PRAYER_REPORT_REASON_LABELS: Record<string, string> = {

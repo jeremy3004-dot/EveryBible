@@ -125,7 +125,7 @@ Every action writes an `admin_audit_logs` row, the same way the other admin page
 
 ## Deploy order
 
-1. Apply `supabase/migrations/20260924180000_prayer_wall_moderation.sql`. It depends on
+1. Apply `supabase/migrations/20260924045749_prayer_wall_moderation.sql`. It depends on
    `20260924042617_harden_prayer_wall.sql`, which is already live. It changes no data. If you
    apply it with MCP `apply_migration`, rename the repo file to the version MCP records. Then
    run the post-apply checks at the end of the file.

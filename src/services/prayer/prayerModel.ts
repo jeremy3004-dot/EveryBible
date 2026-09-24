@@ -118,7 +118,7 @@ export type PrayerReportReason = (typeof PRAYER_REPORT_REASONS)[number];
 export type PrayerWriteErrorCode = 'rate_limited' | 'content_rejected' | 'banned';
 
 // Messages raised by the prayer wall triggers and report RPC
-// (20260924042617_harden_prayer_wall.sql, 20260924180000_prayer_wall_moderation.sql).
+// (20260924042617_harden_prayer_wall.sql, 20260924045749_prayer_wall_moderation.sql).
 const WRITE_ERROR_CODES: Record<string, PrayerWriteErrorCode> = {
   prayer_request_rate_limited: 'rate_limited',
   prayer_report_rate_limited: 'rate_limited',
