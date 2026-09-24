@@ -7,7 +7,7 @@ import {
   isReaderTabBarScrollHidden,
   shouldFollowReaderScroll,
 } from './readerTabBarMotion';
-import { buildTabBarCapsuleStyle } from './tabBarCapsuleStyle';
+import { buildTabBarCapsuleStyle, TAB_BAR_CAPSULE_ROW_INSET } from './tabBarCapsuleStyle';
 
 test('reader tabs follow continuous progress without a binary jump', () => {
   assert.equal(getReaderTabBarTranslation(0), 0);
@@ -56,7 +56,12 @@ test('capsule keeps reference geometry and native glass alpha during explicit co
     assert.equal(style.bottom, 22);
     assert.equal(style.opacity, undefined);
     assert.deepEqual(style.transform, [{ translateY: progress * 132 }]);
+    // Transparent: the material comes from the tab bar background component.
+    assert.equal(style.backgroundColor, 'transparent');
+    // 6pt of paper around the row, which is what leaves a 52pt pill in a 64pt capsule.
+    assert.equal(style.paddingHorizontal, TAB_BAR_CAPSULE_ROW_INSET);
   }
+  assert.equal(TAB_BAR_CAPSULE_ROW_INSET, 6);
 });
 
 // Dependency contract guard: reads the installed BottomTabBar's logical-edge defaults.

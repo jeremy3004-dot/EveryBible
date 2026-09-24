@@ -1,3 +1,5 @@
+// UI-only source check: TabNavigator and TabBarSelection are components and the suite has no
+// renderer; the capsule builder and tab manifest run on the real modules elsewhere.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -58,16 +60,7 @@ test('TabNavigator collapses the tab bar when BibleReader hides it instead of ha
     'TabNavigator should define a progress-driven tab-bar style for reader-driven hide/show motion'
   );
 
-  // Geometry lives in one place — see the de-duplication guard below.
-  const capsuleSource = readFileSync(
-    fileURLToPath(new URL('./tabBarCapsuleStyle.ts', import.meta.url).href),
-    'utf8'
-  );
-  assert.match(
-    capsuleSource,
-    /transform:\s*\[\{\s*translateY:\s*getReaderTabBarTranslation\(collapseProgress\)\s*\}\]/s,
-    'the collapsing capsule should slide clear of the screen, gap included'
-  );
+  // The capsule's slide-off transform runs on the real builder in readerTabBarMotion.test.ts.
 
   assert.match(
     source,
@@ -242,15 +235,8 @@ test('TabNavigator renders the tab bar as a floating glass capsule', () => {
 
   // The capsule floats: inset from the edges, lifted off the bottom, and
   // transparent so the blurred background component provides the material.
-  const capsuleSource = readFileSync(
-    fileURLToPath(new URL('./tabBarCapsuleStyle.ts', import.meta.url).href),
-    'utf8'
-  );
-  assert.match(
-    capsuleSource,
-    /backgroundColor: 'transparent',[\s\S]*start: sideInset,[\s\S]*end: sideInset,[\s\S]*bottom: bottomPadding,[\s\S]*height: barHeight,/s,
-    'the tab bar should be an inset, lifted, transparent capsule'
-  );
+  // (The inset, lifted, transparent geometry is asserted on the real builder in
+  // readerTabBarMotion.test.ts.)
   assert.match(
     source,
     /buildTabBarCapsuleStyle\(\{/,
@@ -409,7 +395,6 @@ test('the tab bar capsule geometry is defined in exactly one place', () => {
 test('the selected tab is a neutral ink pill inside the capsule padding', () => {
   const source = readRelativeSource('./TabNavigator.tsx');
   const selectionSource = readRelativeSource('./TabBarSelection.tsx');
-  const capsuleSource = readRelativeSource('./tabBarCapsuleStyle.ts');
 
   // Primary text at low alpha: a grey that belongs to the scope, never the accent.
   assert.match(
@@ -420,7 +405,6 @@ test('the selected tab is a neutral ink pill inside the capsule padding', () => 
   assert.doesNotMatch(source, /pillColor = colors\.accentSurface/);
 
   // 6pt of paper on every side of a 64pt capsule leaves a 52pt pill, radius 26.
-  assert.match(capsuleSource, /TAB_BAR_CAPSULE_ROW_INSET = 6;/);
   assert.match(selectionSource, /TAB_BAR_SELECTION_PILL_RADIUS = 26;/);
   assert.match(
     selectionSource,
@@ -435,7 +419,6 @@ test('the selected tab is a neutral ink pill inside the capsule padding', () => 
 
 test('tab glyphs are 22pt Lucide strokes taken from the manifest', () => {
   const source = readRelativeSource('./TabNavigator.tsx');
-  const manifestSource = readRelativeSource('./tabManifest.ts');
 
   assert.equal(
     source.includes('Ionicons'),
@@ -455,17 +438,8 @@ test('tab glyphs are 22pt Lucide strokes taken from the manifest', () => {
     'every glyph the manifest can name must be bound to a Lucide component'
   );
 
-  // The manifest stays a pure data module so it remains importable in Node.
-  assert.equal(
-    manifestSource.includes("from 'lucide-react-native'"),
-    false,
-    'tabManifest should not pull react-native in through the Lucide barrel'
-  );
-  assert.match(
-    manifestSource,
-    /export type RootTabIconName =\s*'house' \| 'book-open' \| 'users' \| 'calendar' \| 'ellipsis';/,
-    'the manifest stays the single source of truth for which glyph each tab draws'
-  );
+  // The manifest's glyph names and its Node-importability (no Lucide/react-native import)
+  // are covered by tabManifest.test.ts, which imports it directly.
 });
 
 test('tab labels are 11pt semibold on top of the shared tabLabel token', () => {
