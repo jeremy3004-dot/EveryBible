@@ -122,6 +122,7 @@ let useTranslatorReviewStore: typeof import('./translatorReviewStore').useTransl
 let defaultAuthPreferences: UserPreferences;
 /** State as it stood immediately after the persist middleware hydrated it. */
 let hydratedState: ReturnType<typeof useAuthStore.getState>;
+let privateDataScope: typeof import('./privateDataScope');
 
 before(async () => {
   ({ useAuthStore } = await import('./authStore'));
@@ -131,6 +132,7 @@ before(async () => {
   ({ useFourFieldsStore } = await import('./fourFieldsStore'));
   ({ useTranslatorReviewStore } = await import('./translatorReviewStore'));
   ({ defaultAuthPreferences } = await import('./persistedStateSanitizers'));
+  privateDataScope = await import('./privateDataScope');
 });
 
 beforeEach(() => {
@@ -159,6 +161,14 @@ beforeEach(() => {
   });
   useProgressStore.getState().resetForSignOut();
   readingPlansStore.getState().resetForSignOut();
+  // Private local data (Four Fields here) is account-scoped, not reset: start
+  // every test signed out with no account buckets left from earlier tests.
+  for (const key of Array.from(mmkv.store.keys())) {
+    if (privateDataScope.PRIVATE_DATA_STORE_NAMES.some((name) => key.startsWith(name))) {
+      mmkv.store.delete(key);
+    }
+  }
+  privateDataScope.switchPrivateDataOwner(null);
   useFourFieldsStore.getState().resetForSignOut();
   useTranslatorReviewStore.getState().resetForSignOut();
 });
@@ -179,6 +189,11 @@ const seedPerUserData = (): void => {
   useFourFieldsStore.setState({ activeGroupId: 'group-1' });
   useTranslatorReviewStore.setState({ enabled: true, accessPasscode: 'passcode' });
 };
+
+// Tests that plant an account with setState skip the boundary that makes it the
+// owner of the device's private (local-only) data; this puts the device where
+// that boundary would have left it.
+const privateDataBelongsTo = (uid: string): void => privateDataScope.switchPrivateDataOwner(uid);
 
 const perUserDataIsCleared = (): boolean =>
   Object.keys(useProgressStore.getState().chaptersRead).length === 0 &&
@@ -341,6 +356,7 @@ test('switching to a second account wipes the first account local data', () => {
 
 test('a stale account marker from a previous install resets local data on sign-in', () => {
   useAuthStore.setState({ lastSyncedUserId: 'user-a' });
+  privateDataBelongsTo('user-a');
   seedPerUserData();
 
   useAuthStore.getState().setUser(appUser('user-b'));
@@ -449,6 +465,7 @@ test('reconciling with only an account id takes the previous account from the st
   // useSync calls reconcileUserBoundary(userId) with one argument, so the
   // previous account has to come from the store's own user.
   useAuthStore.setState({ user: appUser('user-a'), isAuthenticated: true });
+  privateDataBelongsTo('user-a');
   seedPerUserData();
 
   useAuthStore.getState().reconcileUserBoundary('user-b');
@@ -712,6 +729,7 @@ test('initialize restores a live session and marks the app authenticated', async
 
 test('a cold start that cannot restore a session clears the previously synced account data', async () => {
   useAuthStore.setState({ lastSyncedUserId: 'user-a' });
+  privateDataBelongsTo('user-a');
   useAuthStore.getState().setPreferences({ fontSize: 'large' });
   seedPerUserData();
 
@@ -762,6 +780,7 @@ test('a different account signing in after an offline cold start still gets a cl
     error: { name: 'AuthRetryableFetchError', message: 'Network request failed', status: 0 },
   });
   useAuthStore.setState({ lastSyncedUserId: 'user-a' });
+  privateDataBelongsTo('user-a');
   seedPerUserData();
 
   await useAuthStore.getState().initialize();

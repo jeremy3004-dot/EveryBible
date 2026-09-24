@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { zustandStorage } from './mmkvStorage';
+import { privateDataStorage, registerPrivateDataStore } from './privateDataScope';
+import { mergeGuestLibrary } from './privateDataAdoption';
 import {
   addChapterToPlaylist,
   appendListeningHistoryEntry,
@@ -122,7 +123,8 @@ export const useLibraryStore = create<LibraryState>()(
     }),
     {
       name: 'library-storage',
-      storage: createJSONStorage(() => zustandStorage),
+      // Local-only and private: scoped to the signed-in account (see privateDataScope).
+      storage: createJSONStorage(() => privateDataStorage),
       merge: (persistedState, currentState) => ({
         ...currentState,
         ...sanitizePersistedLibraryState(persistedState),
@@ -130,3 +132,5 @@ export const useLibraryStore = create<LibraryState>()(
     }
   )
 );
+
+registerPrivateDataStore(useLibraryStore, mergeGuestLibrary);

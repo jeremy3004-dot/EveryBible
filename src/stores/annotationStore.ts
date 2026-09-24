@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { zustandStorage } from './mmkvStorage';
+import { privateDataStorage, registerPrivateDataStore } from './privateDataScope';
+import { mergeGuestAnnotations } from './privateDataAdoption';
 import type { UserAnnotation } from '../services/supabase/types';
 
 const LOCAL_USER_ID = 'local-device';
@@ -133,7 +134,8 @@ export const useAnnotationStore = create<AnnotationStoreState>()(
     }),
     {
       name: 'annotation-storage',
-      storage: createJSONStorage(() => zustandStorage),
+      // Local-only and private: scoped to the signed-in account (see privateDataScope).
+      storage: createJSONStorage(() => privateDataStorage),
     }
   )
 );
@@ -149,3 +151,7 @@ export const localAnnotationStore = {
     useAnnotationStore.getState().replaceAnnotations(annotations),
   clearAnnotations: () => useAnnotationStore.getState().clearAnnotations(),
 };
+
+registerPrivateDataStore(useAnnotationStore, (account, guest) => ({
+  annotations: sortAnnotations(mergeGuestAnnotations(account.annotations, guest.annotations)),
+}));
