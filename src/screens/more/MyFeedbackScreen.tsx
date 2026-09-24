@@ -249,6 +249,13 @@ export function MyFeedbackScreen() {
         </Text>
       ) : null}
 
+      {/* A failed refresh keeps the last loaded list; say why it did not update. */}
+      {loadError && items.length > 0 ? (
+        <Text accessibilityRole="alert" style={[styles.subtitle, { color: colors.error }]}>
+          {offline ? t('common.offlineTryAgain') : t('common.somethingWentWrong')}
+        </Text>
+      ) : null}
+
       <FlatList
         data={items}
         keyExtractor={(item) => item.id}

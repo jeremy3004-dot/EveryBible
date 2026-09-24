@@ -118,3 +118,45 @@ test('retrying shows the load in progress and ignores further taps until it answ
   assert.ok(view.getByRole('button', { name: t('common.retry') }));
   assert.equal(backend.fetches, 2);
 });
+
+test('a pull-to-refresh that fails keeps the list and says why it did not update', async () => {
+  backend.result = {
+    success: true,
+    feedback: [
+      {
+        id: 'f1',
+        bookId: 'JHN',
+        chapter: 3,
+        sentiment: 'up',
+        status: 'received',
+        comment: 'Clear',
+        resolutionNote: null,
+        hasAudio: false,
+        createdAt: '2026-09-20T10:00:00.000Z',
+      },
+    ],
+  };
+  const view = await renderScreen();
+  assert.ok(view.getByText('Clear'));
+  assert.equal(view.queryByText(t('common.offlineTryAgain')), null);
+
+  backend.offline = true;
+  backend.result = { success: false, feedback: [], error: 'Failed to fetch' };
+  const [list] = view.queryAllByType('FlatList');
+  assert.ok(list, 'the feedback list renders');
+  const pullToRefresh = async () => {
+    const control = list.props.refreshControl as { props: { onRefresh: () => Promise<void> } };
+    await act(async () => {
+      await control.props.onRefresh();
+    });
+  };
+  await pullToRefresh();
+
+  assert.ok(view.getByText('Clear'), 'the last loaded feedback stays listed');
+  assert.ok(view.getByText(t('common.offlineTryAgain')));
+
+  backend.offline = false;
+  backend.result = { success: true, feedback: [] };
+  await pullToRefresh();
+  assert.equal(view.queryByText(t('common.offlineTryAgain')), null);
+});
