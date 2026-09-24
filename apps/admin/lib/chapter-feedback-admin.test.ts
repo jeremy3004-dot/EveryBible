@@ -4,30 +4,27 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
+import { adminNavigation } from './admin-navigation';
+
+// The feedback data layer and the resolve action run on the real modules in
+// admin-data.behavior.test.ts (list filters, QA hiding, signed audio, the review model,
+// overview counts) and app/(dashboard)/serverActions.test.ts (mark fixed + audit).
+
+test('the admin navigation links Chapter Feedback to /feedback', () => {
+  const entry = adminNavigation.find((item) => item.label === 'Chapter Feedback');
+  assert.equal(entry?.href, '/feedback');
+});
+
+// UI-only source check: these pages are React server components and the suite has no
+// renderer, so their wiring is asserted on the page source.
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 
-test('admin backend exposes chapter feedback submissions', async () => {
-  const [adminData, navigation, page, actions, overview] = await Promise.all([
-    readFile(path.join(repoRoot, 'apps/admin/lib/admin-data.ts'), 'utf8'),
-    readFile(path.join(repoRoot, 'apps/admin/lib/admin-navigation.ts'), 'utf8'),
+test('the feedback page and the overview card render the review model', async () => {
+  const [page, overview] = await Promise.all([
     readFile(path.join(repoRoot, 'apps/admin/app/(dashboard)/feedback/page.tsx'), 'utf8'),
-    readFile(path.join(repoRoot, 'apps/admin/app/(dashboard)/feedback/actions.ts'), 'utf8'),
     readFile(path.join(repoRoot, 'apps/admin/app/(dashboard)/page.tsx'), 'utf8'),
   ]);
 
-  assert.match(adminData, /listChapterFeedback/);
-  assert.match(adminData, /getChapterFeedbackReviewModel/);
-  assert.match(adminData, /from\('chapter_feedback_submissions'\)/);
-  assert.match(adminData, /translation_language/);
-  assert.match(adminData, /book_id/);
-  assert.match(adminData, /chapter/);
-  assert.match(adminData, /audio_response_path/);
-  assert.match(adminData, /scripture_council_fixed_at/);
-  assert.match(adminData, /translationCoverage/);
-  assert.match(adminData, /createSignedUrl/);
-  assert.match(adminData, /feedbackCount/);
-  assert.match(navigation, /label:\s*'Chapter Feedback'/);
-  assert.match(navigation, /href:\s*'\/feedback'/);
   assert.match(overview, /href="\/feedback"/);
   assert.match(overview, /summary\.feedbackCount/);
   assert.match(page, /getChapterFeedbackReviewModel/);
@@ -42,15 +39,4 @@ test('admin backend exposes chapter feedback submissions', async () => {
   assert.match(page, /Awaiting review/);
   assert.match(page, /Chapter feedback/);
   assert.match(page, /<audio/);
-  assert.match(actions, /markChapterFeedbackScriptureCouncilFixedAction/);
-  assert.match(actions, /scripture_council_fixed_at/);
-  assert.match(actions, /chapter_feedback\.scripture_council_fix\.mark_fixed/);
-});
-
-test('admin resolution writes the same durable outcome as mobile', async () => {
-  const actions = await readFile(
-    path.join(repoRoot, 'apps/admin/app/(dashboard)/feedback/actions.ts'),
-    'utf8'
-  );
-  assert.match(actions, /scripture_council_resolution: 'fixed'/);
 });
