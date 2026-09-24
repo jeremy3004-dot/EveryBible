@@ -35,12 +35,30 @@ export interface EdgeHarnessOptions {
   storage?: Record<string, (...args: unknown[]) => unknown>;
   /** Replaces the recording client entirely (for stateful fakes); `calls` then stays empty. */
   client?: unknown;
+  /**
+   * Builds the client per `createClient(url, key, options)` call, for functions that create
+   * several clients with different credentials. Takes precedence over `client`.
+   */
+  createClient?: (url: string, key: string, options?: EdgeClientOptions) => unknown;
   fetch?: typeof fetch;
+}
+
+export interface EdgeClientOptions {
+  global?: { headers?: Record<string, string> };
+  auth?: Record<string, unknown>;
+}
+
+export interface EdgeClientCreation {
+  url: string;
+  key: string;
+  options?: EdgeClientOptions;
 }
 
 export interface EdgeHarness {
   handle: (request: Request) => Promise<Response>;
   calls: EdgeQueryCall[];
+  /** Every `createClient` call, in order, with the credentials it was given. */
+  clientsCreated: EdgeClientCreation[];
   /** Everything the function wrote with console.error, stringified. */
   loggedErrors: string[];
 }
@@ -164,9 +182,15 @@ function recordingClient(calls: EdgeQueryCall[], options: EdgeHarnessOptions): u
 
 export function loadEdgeFunction(entryFile: string, options: EdgeHarnessOptions = {}): EdgeHarness {
   const calls: EdgeQueryCall[] = [];
+  const clientsCreated: EdgeClientCreation[] = [];
   const loggedErrors: string[] = [];
+  const client = options.client ?? recordingClient(calls, options);
   const requestScope: EdgeRequestScope = {
-    client: options.client ?? recordingClient(calls, options),
+    createClient: (...args) => {
+      const [url, key, clientOptions] = args as [string, string, EdgeClientOptions | undefined];
+      clientsCreated.push({ url, key, ...(clientOptions ? { options: clientOptions } : {}) });
+      return options.createClient ? options.createClient(url, key, clientOptions) : client;
+    },
     env: {
       SUPABASE_URL: 'https://project.example',
       SUPABASE_ANON_KEY: 'anon-key',
@@ -185,6 +209,7 @@ export function loadEdgeFunction(entryFile: string, options: EdgeHarnessOptions 
   return {
     handle: (request) => edgeRequestScope.run(requestScope, () => handler(request)),
     calls,
+    clientsCreated,
     loggedErrors,
   };
 }

@@ -1,10 +1,11 @@
 // Stands in for `https://esm.sh/@supabase/supabase-js@2` when edgeFunctionHarness loads an edge
 // function under Node. The harness maps that URL here with a resolve hook; every `createClient`
-// call returns the client of the harness whose request is currently being handled.
+// call is answered by the harness whose request is currently being handled.
 import { AsyncLocalStorage } from 'node:async_hooks';
 
 export interface EdgeRequestScope {
-  client: unknown;
+  /** Answers every `createClient(url, key, options)` call made while handling the request. */
+  createClient: (...args: unknown[]) => unknown;
   env: Record<string, string | undefined>;
   loggedErrors: string[];
   fetch: typeof fetch;
@@ -20,7 +21,8 @@ export function activeEdgeScope(): EdgeRequestScope {
   return scope;
 }
 
-export const createClient = (..._args: unknown[]): unknown => activeEdgeScope().client;
+export const createClient = (...args: unknown[]): unknown =>
+  activeEdgeScope().createClient(...args);
 
 // Type-only imports of SupabaseClient are erased; this keeps value-position references loadable.
 export type SupabaseClient = unknown;
