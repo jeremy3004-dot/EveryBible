@@ -959,7 +959,9 @@ function StorySection({
       {view.blocks.map((block, blockIdx) => (
         <View key={block.key} style={blockIdx > 0 ? styles.passageBlockGap : undefined}>
           {block.heading ? (
+            // A heading per passage, and the only place a borrowed translation is named.
             <Text
+              accessibilityRole="header"
               style={[
                 typography.eyebrow,
                 displayFont.regular,

@@ -3645,19 +3645,31 @@ export function BibleReaderScreen() {
     playChapter,
     syncReaderReference,
   };
-  const handlePreviousListenChapter = () =>
-    navigateListenChapter({
+  // The arrows keep focus while the chapter swaps under them; say where they went,
+  // as the read-mode swipe does.
+  const announceChapterTarget = (target: { bookId: string; chapter: number } | null) => {
+    if (target) {
+      announceForAccessibility(`${getTranslatedBookName(target.bookId, t)} ${target.chapter}`);
+    }
+  };
+
+  const handlePreviousListenChapter = () => {
+    announceChapterTarget(previousNavigationTarget);
+    return navigateListenChapter({
       ...listenNavigation,
       stepPlayer: previousChapter,
       fallbackTarget: previousNavigationTarget,
     });
+  };
 
-  const handleNextListenChapter = () =>
-    navigateListenChapter({
+  const handleNextListenChapter = () => {
+    announceChapterTarget(nextNavigationTarget);
+    return navigateListenChapter({
       ...listenNavigation,
       stepPlayer: nextChapter,
       fallbackTarget: nextNavigationTarget,
     });
+  };
 
   const handleReadChapterNavigation = async (
     target: { bookId: string; chapter: number } | null
@@ -3874,6 +3886,7 @@ export function BibleReaderScreen() {
       )
     ) {
       setSelectedVerses([]);
+      announceForAccessibility(t('interface.highlightAdded'));
     }
   };
 
@@ -3888,6 +3901,7 @@ export function BibleReaderScreen() {
       )
     ) {
       setSelectedVerses([]);
+      announceForAccessibility(t('interface.highlightRemoved'));
     }
   };
 
@@ -3896,9 +3910,13 @@ export function BibleReaderScreen() {
       return;
     }
 
-    await commitAnnotationEdits(
-      planReaderNoteSave({ ...readerAnnotationEditInput(), content: text })
-    );
+    if (
+      await commitAnnotationEdits(
+        planReaderNoteSave({ ...readerAnnotationEditInput(), content: text })
+      )
+    ) {
+      announceForAccessibility(t('annotations.saved'));
+    }
   };
 
   const renderPlanSessionBottomBar = () => {
@@ -3924,7 +3942,7 @@ export function BibleReaderScreen() {
         : t('readingPlans.completeDayCta', {
             defaultValue: 'Complete day',
           })
-      : t('common.next');
+      : t('audio.nextChapter');
     const bannerColors = getPlanSessionBannerColors(colors);
     const trailingActionHint = showPlanCompletionAction
       ? showSessionCompletionCopy
@@ -3957,7 +3975,8 @@ export function BibleReaderScreen() {
                 onPress={() => void handlePreviousListenChapter()}
                 disabled={!hasPrevChapter}
                 accessibilityRole="button"
-                accessibilityLabel={t('common.previous')}
+                // "Previous" alone does not say previous what; the bar also steps days.
+                accessibilityLabel={t('audio.previousChapter')}
                 accessibilityHint={t('interface.previousChapterHint')}
               >
                 <Ionicons

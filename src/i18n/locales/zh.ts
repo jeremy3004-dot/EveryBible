@@ -89,6 +89,13 @@ export const zh = {
     "currentPlanDay": "当前计划第 {{day}} 天",
     "planDay": "第 {{day}} 天",
     "planSessionForDay": "第 {{day}} 天：{{session}}",
+    "prayerYouPrayed": "你已为此代祷事项祷告",
+    "prayerYouEncouraged": "你已鼓励此代祷事项",
+    "prayerPrayedRemoved": "已取消祷告标记",
+    "prayerEncouragedRemoved": "已取消鼓励",
+    "highlightAdded": "已添加高亮",
+    "highlightRemoved": "已取消高亮",
+    "searchResultCount": "结果：{{count}} 条",
     "music": {
       "off": {
         "label": "关闭",

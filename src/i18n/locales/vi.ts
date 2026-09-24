@@ -89,6 +89,13 @@ export const vi = {
     "currentPlanDay": "Ngày {{day}} của kế hoạch hiện tại",
     "planDay": "Ngày {{day}}",
     "planSessionForDay": "{{session}} cho ngày {{day}}",
+    "prayerYouPrayed": "Bạn đã cầu nguyện cho lời cầu xin này",
+    "prayerYouEncouraged": "Bạn đã khích lệ lời cầu xin này",
+    "prayerPrayedRemoved": "Đã bỏ dấu cầu nguyện",
+    "prayerEncouragedRemoved": "Đã bỏ khích lệ",
+    "highlightAdded": "Đã thêm tô sáng",
+    "highlightRemoved": "Đã xóa tô sáng",
+    "searchResultCount": "Kết quả: {{count}}",
     "music": {
       "off": {
         "label": "Tắt",

@@ -83,6 +83,10 @@ import {
 } from './planDetailHeaderModel';
 import { formatPlanProgressAnnouncement, formatPlanProgressTally } from './planProgressTally';
 import {
+  getPlanDayRowAccessibility,
+  getPlanSessionAccessibilityValue,
+} from './planDayRowAccessibility';
+import {
   PLAN_LEDGER_DENSE_GAP,
   PLAN_LEDGER_ROOMY_GAP,
   getPlanLedgerDotPaint,
@@ -607,9 +611,15 @@ const DayRow = React.memo(function DayRow({
 
   const { t } = useTranslation();
   const refs = entries.map((entry) => formatChapterRef(entry, t)).join(', ');
-  const accessibilityLabel = isCurrent
-    ? `${t('interface.currentPlanDay', { day: dayNumber })}${dateLabel ? `, ${dateLabel}` : ''}: ${refs}`
-    : `${t('interface.planDay', { day: dayNumber })}${dateLabel ? `, ${dateLabel}` : ''}: ${refs}`;
+  const { label: accessibilityLabel, value: accessibilityValue } = getPlanDayRowAccessibility(t, {
+    dayNumber,
+    dateLabel,
+    refs,
+    isCurrent,
+    isCompleted,
+    isNext,
+    subtitle,
+  });
   const hasSessionActions = sessionActions.length > 0;
 
   const sessionActionRow = hasSessionActions ? (
@@ -627,6 +637,7 @@ const DayRow = React.memo(function DayRow({
               session: action.label,
               day: dayNumber,
             })}
+            accessibilityValue={getPlanSessionAccessibilityValue(t, action.state)}
             style={[
               dayRowStyles.sessionActionButton,
               {
@@ -661,6 +672,7 @@ const DayRow = React.memo(function DayRow({
             onPress={() => onPress(dayNumber, launchSessionKey)}
             testID={isCurrent ? CURRENT_PLAN_DAY_ROW_TEST_ID : undefined}
             accessibilityLabel={accessibilityLabel}
+            accessibilityValue={accessibilityValue}
             accessibilityRole="button"
             style={dayRowStyles.todayContent}
           >
@@ -734,13 +746,7 @@ const DayRow = React.memo(function DayRow({
       accessibilityLabel={accessibilityLabel}
       accessibilityRole="button"
       // Completion is otherwise only a tick glyph.
-      accessibilityValue={
-        isCompleted
-          ? { text: t('readingPlans.completed') }
-          : isNext
-            ? { text: t('readingPlans.tomorrow') }
-            : undefined
-      }
+      accessibilityValue={accessibilityValue}
       // The session buttons inside this row are not reachable by VoiceOver, so
       // each one is also offered as a custom action.
       accessibilityActions={

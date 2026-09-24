@@ -1693,6 +1693,13 @@ export const ta = {
     "currentPlanDay": "திட்டத்தின் தற்போதைய நாள் {{day}}",
     "planDay": "நாள் {{day}}",
     "planSessionForDay": "நாள் {{day}}க்கான {{session}}",
+    "prayerYouPrayed": "நீங்கள் இதற்காக ஜெபித்தீர்கள்",
+    "prayerYouEncouraged": "நீங்கள் இதற்கு ஊக்கமளித்தீர்கள்",
+    "prayerPrayedRemoved": "ஜெபக் குறி அகற்றப்பட்டது",
+    "prayerEncouragedRemoved": "ஊக்கம் அகற்றப்பட்டது",
+    "highlightAdded": "சிறப்புக்குறி இடப்பட்டது",
+    "highlightRemoved": "சிறப்புக்குறி அகற்றப்பட்டது",
+    "searchResultCount": "முடிவுகள்: {{count}}",
     "music": {
       "off": {
         "label": "ஏதுமில்லை",
