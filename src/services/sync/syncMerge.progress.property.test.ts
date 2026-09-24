@@ -161,7 +161,7 @@ interface ServerProgressRow {
  */
 function serverMergeUserProgress(
   stored: ServerProgressRow | null,
-  payload: Record<string, unknown>,
+  payload: object,
   nowIso: string,
   rules: 'live' | 'proposed' = 'live'
 ): ServerProgressRow {
@@ -439,7 +439,7 @@ test('with the proposed tie rules, a stale upload merges on the server as the ap
       );
       const server = serverMergeUserProgress(
         stored,
-        staleUpload as unknown as Record<string, unknown>,
+        staleUpload,
         '2026-09-24T00:00:00.000Z',
         'proposed'
       );

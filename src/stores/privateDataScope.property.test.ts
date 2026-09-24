@@ -121,7 +121,11 @@ const opArb: fc.Arbitrary<Op> = fc.oneof(
 );
 
 // An install from before account scoping: device-wide keys, no owner marker.
-const legacyStartArb = fc.record({
+interface LegacyStart {
+  lastSyncedUserId: Owner;
+  notes: string[];
+}
+const legacyStartArb: fc.Arbitrary<LegacyStart> = fc.record({
   lastSyncedUserId: fc.constantFrom<Owner>(null, 'user-a'),
   notes: fc.uniqueArray(fc.constantFrom('legacy-1', 'legacy-2'), { maxLength: 2 }),
 });
@@ -140,7 +144,7 @@ const readBucket = (owner: Owner): Bucket => {
 
 const relaunch = () => scope.restartPrivateDataScopeForTests();
 
-function runScopeScenario(start: fc.Infer<typeof legacyStartArb>, ops: Op[]) {
+function runScopeScenario(start: LegacyStart, ops: Op[]) {
   mmkv.store.clear();
   if (start.notes.length > 0) {
     mmkv.store.set(NOTES, JSON.stringify({ state: { items: start.notes }, version: 0 }));

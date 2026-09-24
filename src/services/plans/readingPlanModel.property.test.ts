@@ -436,7 +436,7 @@ test('an unreadable start or leave time never ends an enrolment', () => {
   );
 });
 
-const planIdArb = fc.constantFrom(
+const planIdArb: fc.Arbitrary<string> = fc.constantFrom(
   'psalms-30-days',
   'gospels-60-days',
   'proverbs-31-days',
@@ -444,10 +444,12 @@ const planIdArb = fc.constantFrom(
 );
 
 test('reconciling a fetch never drops local-only progress and never revives a left plan', () => {
-  const rowsArb = fc
+  const rowsArb: fc.Arbitrary<UserReadingPlanProgress[]> = fc
     .uniqueArray(planIdArb, { maxLength: 4 })
     .chain((ids) =>
-      ids.length === 0 ? fc.constant([]) : fc.tuple(...ids.map((id) => progressArb(id)))
+      ids.length === 0
+        ? fc.constant<UserReadingPlanProgress[]>([])
+        : fc.tuple(...ids.map((id) => progressArb(id))).map((rows) => [...rows])
     );
   fc.assert(
     fc.property(

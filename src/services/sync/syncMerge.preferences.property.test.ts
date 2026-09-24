@@ -146,13 +146,14 @@ function upsertThroughTrigger(
     const incomingAt = incomingRaw === null ? null : Math.min(incomingRaw, nowMs);
     const storedAt = stampMs(stored.field_updated_at[column]);
     const changed =
-      JSON.stringify(next[column]) !== JSON.stringify((stored as Record<string, unknown>)[column]);
+      JSON.stringify(next[column]) !==
+      JSON.stringify((stored as unknown as Record<string, unknown>)[column]);
 
     let keptAt: number | null;
     if (legacyWriter) {
       keptAt = changed ? nowMs : storedAt;
     } else if (changed && storedAt !== null && (incomingAt === null || incomingAt <= storedAt)) {
-      next[column] = (stored as Record<string, unknown>)[column];
+      next[column] = (stored as unknown as Record<string, unknown>)[column];
       keptAt = storedAt;
     } else {
       keptAt =
@@ -165,7 +166,7 @@ function upsertThroughTrigger(
     if (keptAt !== null) stamps[column] = isoMs(keptAt);
   }
   next.field_updated_at = stamps;
-  return next as ServerRow;
+  return next as unknown as ServerRow;
 }
 
 // ---------------------------------------------------------------------------
@@ -366,7 +367,7 @@ function runPreferenceScenario(
         (write as Record<string, unknown>)[PREFERENCE_COLUMNS[field]] =
           field === op.field
             ? value
-            : (server as Record<string, unknown>)[PREFERENCE_COLUMNS[field]];
+            : (server as unknown as Record<string, unknown>)[PREFERENCE_COLUMNS[field]];
       }
       server = upsertThroughTrigger(server, write, nowMs);
     }
@@ -498,7 +499,8 @@ test('merging the same server row twice changes nothing the second time', () => 
           ) as PreferenceFieldStamps;
         const row = signupRow(BASE_MS) as ServerRow;
         for (const field of FIELDS) {
-          (row as Record<string, unknown>)[PREFERENCE_COLUMNS[field]] = remotePrefs[field];
+          (row as unknown as Record<string, unknown>)[PREFERENCE_COLUMNS[field]] =
+            remotePrefs[field];
         }
         row.field_updated_at = toRemoteFieldStamps(clean(remoteStamps));
 
