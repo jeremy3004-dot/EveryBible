@@ -300,6 +300,8 @@ as $$
 $$;
 
 revoke all on function private.normalize_prayer_text(text) from public, anon, authenticated;
+-- The term table's CHECK constraint calls it as the writing role: the admin (service role).
+grant execute on function private.normalize_prayer_text(text) to service_role;
 
 create table if not exists public.prayer_content_filter_terms (
   id bigint generated always as identity primary key,

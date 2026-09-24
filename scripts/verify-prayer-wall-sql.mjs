@@ -9,8 +9,9 @@
 //
 // It replays the repo migrations that define the group and prayer tables (the same state
 // production has; see docs/research/prayer-wall-health-check-2026-09-24.md), then the prayer
-// wall hardening and moderation migrations, and drives every request as `authenticated` with a JWT subject,
-// the way PostgREST does.
+// wall hardening and moderation migrations (docs/research/prayer-wall-moderation-2026-09-24.md),
+// and drives every request as `authenticated` with a JWT subject, the way PostgREST does. Admin
+// writes run as `service_role`.
 const { PGlite } = await import(process.env.PGLITE_MODULE || '@electric-sql/pglite');
 import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
@@ -36,7 +37,7 @@ const HARDENING = [
 
 const db = new PGlite();
 await db.exec(`
-create role anon nologin; create role authenticated nologin; create role service_role nologin;
+create role anon nologin; create role authenticated nologin; create role service_role nologin bypassrls;
 create schema auth;
 create function auth.uid() returns uuid language sql stable as
   $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
@@ -58,8 +59,8 @@ const replay = async (entries) => {
 await replay(MIGRATIONS);
 // Supabase's default table grants: RLS is the only thing standing between clients and rows.
 await db.exec(`
-grant usage on schema public to anon, authenticated;
-grant all on all tables in schema public to anon, authenticated;
+grant usage on schema public to anon, authenticated, service_role;
+grant all on all tables in schema public to anon, authenticated, service_role;
 `);
 await replay(HARDENING);
 
@@ -79,6 +80,12 @@ const as = (uid, sql, params = []) =>
   db.transaction(async (tx) => {
     await tx.query(`select set_config('request.jwt.claim.sub', $1, true)`, [uid ?? '']);
     await tx.exec(`set local role ${uid ? 'authenticated' : 'anon'}`);
+    return tx.query(sql, params);
+  });
+/** Runs one statement as the service role, the way the admin app (PostgREST) does. */
+const asService = (sql, params = []) =>
+  db.transaction(async (tx) => {
+    await tx.exec(`set local role service_role`);
     return tx.query(sql, params);
   });
 const one = async (sql, params = []) => (await db.query(sql, params)).rows[0];
@@ -427,7 +434,7 @@ const notPreHidden = await post(C, G1, 'hide me?', {
 assert.equal(notPreHidden.hidden_at, null);
 assert.equal(notPreHidden.hidden_reason, null);
 // The admin (service role) restores it: the group sees it again, the reporters still do not.
-await db.query(`update prayer_requests set hidden_at = null, hidden_reason = null where id = $1`, [
+await asService(`update prayer_requests set hidden_at = null, hidden_reason = null where id = $1`, [
   target.id,
 ]);
 assert.equal(await sees(B, target.id), 1);
@@ -476,7 +483,7 @@ assert.ok(
   (await one(`select count(*)::int n from prayer_content_filter_terms`)).n > 0,
   'the migration seeds a starter list'
 );
-await db.query(
+await asService(
   `insert into prayer_content_filter_terms (term, match_mode, language)
    values ('Zorblax', 'word', 'en'), ('drop dead now', 'word', 'en'), ('坏词', 'substring', 'zh')`
 );
@@ -494,7 +501,7 @@ await as(C, `update prayer_requests set is_answered = true where id = $1`, [notP
 console.log('PASS: the server rejects requests that contain a filtered term');
 
 // --- Moderation: ban ---------------------------------------------------------------------------
-await db.query(`insert into prayer_wall_bans (user_id, reason) values ($1, 'abuse')`, [H]);
+await asService(`insert into prayer_wall_bans (user_id, reason) values ($1, 'abuse')`, [H]);
 await assert.rejects(as(H, `select * from prayer_wall_bans`), /permission denied/);
 await assert.rejects(post(H, G1, 'still here'), /prayer_wall_banned/);
 await assert.rejects(
@@ -507,9 +514,33 @@ assert.equal(
   'a banned author can still delete their own requests'
 );
 await post(I, G1, 'others still post');
-await db.query(`delete from prayer_wall_bans where user_id = $1`, [H]);
+await asService(`delete from prayer_wall_bans where user_id = $1`, [H]);
 await post(H, G1, 'after unban');
 console.log('PASS: a banned author cannot post or edit on the wall');
+
+// The admin app's other writes, as the service role: a ban hides the author's requests, and
+// deleting a request takes its reports with it.
+await asService(
+  `update prayer_requests set hidden_at = now(), hidden_reason = 'admin'
+    where user_id = $1 and hidden_at is null`,
+  [H]
+);
+assert.equal(
+  (await as(I, `select count(*)::int n from prayer_requests where user_id = $1`, [H])).rows[0].n,
+  0
+);
+assert.equal(
+  (await asService(`delete from prayer_requests where id = $1 returning content`, [batch[9]]))
+    .rows[0].content,
+  'batch 10'
+);
+assert.equal(
+  await count(`select count(*)::int n from prayer_request_reports where request_id = $1`, [
+    batch[9],
+  ]),
+  0
+);
+console.log('PASS: the service role hides, restores and deletes for the admin Reports page');
 
 // Account deletion removes the member's reports and blocks with them.
 await as(I, `insert into user_blocks (blocker_id, blocked_id) values ($1, $2)`, [I, C]);
