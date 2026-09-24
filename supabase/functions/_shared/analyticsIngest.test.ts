@@ -163,12 +163,16 @@ test('a cached geo result is returned so no paid lookup is needed', async () => 
   assert.equal(budget.mayLookupGeo, false);
 });
 
-test('if the limiter is unavailable, ingestion continues but paid geo lookups stop', async () => {
+// Writes used to continue when the limiter was unavailable. With the 3 s limiter timeout, a
+// flood that queues on one address's throttle row makes the limiter "unavailable" on demand,
+// which waved that flood past its budget (security review 2026-09-24, pass 2). The collectors
+// now refuse with Retry-After; the app keeps the batch and retries it.
+test('if the limiter is unavailable, writes are refused for a minute and paid lookups stop', async () => {
   const fake = rpcFake({ error: { message: 'function does not exist' } });
   const budget = await ingest.consumeIngestBudget(fake.client, 'key', { events: 1, bytes: 10 });
   assert.deepEqual(budget, {
-    allowed: true,
-    retryAfterSeconds: 0,
+    allowed: false,
+    retryAfterSeconds: 60,
     cachedGeo: null,
     mayLookupGeo: false,
     degraded: true,
@@ -217,13 +221,13 @@ test('a limiter that returns a single row object (not a set) is read the same wa
   assert.equal(budget.degraded, false);
 });
 
-test('a limiter row without a boolean verdict fails open and blocks paid lookups', async () => {
+test('a limiter row without a boolean verdict refuses writes and paid lookups', async () => {
   for (const data of [[], [{ allowed: 'yes', claim_geo_lookup: true }]]) {
     const fake = rpcFake({ data });
     const budget = await ingest.consumeIngestBudget(fake.client, 'key', { events: 1, bytes: 10 });
     assert.deepEqual(budget, {
-      allowed: true,
-      retryAfterSeconds: 0,
+      allowed: false,
+      retryAfterSeconds: 60,
       cachedGeo: null,
       mayLookupGeo: false,
       degraded: true,
@@ -231,7 +235,7 @@ test('a limiter row without a boolean verdict fails open and blocks paid lookups
   }
 });
 
-test('a limiter that throws fails open and blocks paid lookups', async () => {
+test('a limiter that throws or times out refuses writes and paid lookups', async () => {
   const client = {
     ...rpcFake({}).client,
     rpc: async () => {
@@ -240,8 +244,8 @@ test('a limiter that throws fails open and blocks paid lookups', async () => {
   };
   const budget = await ingest.consumeIngestBudget(client, 'key', { events: 1, bytes: 10 });
   assert.deepEqual(budget, {
-    allowed: true,
-    retryAfterSeconds: 0,
+    allowed: false,
+    retryAfterSeconds: 60,
     cachedGeo: null,
     mayLookupGeo: false,
     degraded: true,

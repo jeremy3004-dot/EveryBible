@@ -142,7 +142,7 @@ export interface IngestBudget {
   cachedGeo: Record<string, unknown> | null;
   /** True only for the one request that claimed this key's external lookup. */
   mayLookupGeo: boolean;
-  /** The limiter could not be consulted; ingestion proceeds without paid lookups. */
+  /** The limiter could not be consulted; the request is refused and retried later. */
   degraded: boolean;
 }
 
@@ -164,9 +164,12 @@ export async function consumeIngestBudget(
   clientKey: string,
   usage: { events: number; bytes: number }
 ): Promise<IngestBudget> {
+  // Refused, like report-app-errors: failing open let any caller who could slow the limiter
+  // past LIMITER_TIMEOUT_MS (a flood queueing on its own throttle row) write without a budget.
+  // The app keeps a refused batch and retries it after Retry-After.
   const degraded: IngestBudget = {
-    allowed: true,
-    retryAfterSeconds: 0,
+    allowed: false,
+    retryAfterSeconds: 60,
     cachedGeo: null,
     mayLookupGeo: false,
     degraded: true,
@@ -194,10 +197,8 @@ export async function consumeIngestBudget(
         }
       | null
       | undefined;
-    // Fail open for writes (analytics is best-effort and the body/batch caps still apply) but
-    // closed for the paid lookup, so a limiter outage cannot turn into an ipinfo bill.
     if (error || !row || typeof row.allowed !== 'boolean') {
-      console.warn('analytics ingest limiter unavailable; skipping paid geo lookups');
+      console.warn('analytics ingest limiter unavailable; refusing writes');
       return degraded;
     }
     const cachedGeo =
@@ -212,7 +213,7 @@ export async function consumeIngestBudget(
       degraded: false,
     };
   } catch {
-    console.warn('analytics ingest limiter unavailable; skipping paid geo lookups');
+    console.warn('analytics ingest limiter unavailable; refusing writes');
     return degraded;
   }
 }
