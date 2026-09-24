@@ -261,19 +261,27 @@ const resolveJobStore = async (fileSystem: AudioFileSystemAdapter, rootUri?: str
       rootUri,
     });
   } catch {
-    return memoryJobStore;
+    return createFallbackAudioDownloadJobStore(rootUri ?? DEFAULT_AUDIO_ROOT_URI);
   }
 };
 
-const memoryJobStore: AudioDownloadJobStore = {
-  listJobs: async () => [],
-  getJob: async () => null,
-  upsertJob: async () => undefined,
-  removeJob: async () => undefined,
-};
+// The in-memory fallback keeps records (rather than discarding them) because fail/complete
+// treat a job missing from the store as removed and skip it.
+const MEMORY_JOB_STORE_KEY = 'memory://everybible-audio-jobs/';
 
 const resolveJobStoreOrMemory = (jobStore?: AudioDownloadJobStore): AudioDownloadJobStore =>
-  jobStore ?? memoryJobStore;
+  jobStore ?? createFallbackAudioDownloadJobStore(MEMORY_JOB_STORE_KEY);
+
+const isDevRuntime = (): boolean => typeof __DEV__ !== 'undefined' && __DEV__;
+
+// A job disappears from the store when the user cancels or deletes the translation's audio while
+// a transfer is still settling. Writing a record for it would invent an
+// `audio-download:unknown:translation:all` entry, so the caller's late fail/complete is dropped.
+const logMissingAudioJob = (action: 'fail' | 'complete', jobId: string) => {
+  if (isDevRuntime()) {
+    console.debug(`[AudioDownload] Skipping ${action} for job no longer in the store: ${jobId}`);
+  }
+};
 
 const fallbackJobStores = new Map<string, Map<string, AudioDownloadJobRecord>>();
 
@@ -394,15 +402,19 @@ export async function failAudioDownloadJob({
   jobStore,
   error,
   hooks,
-}: FailJobParams): Promise<AudioDownloadJobRecord> {
+}: FailJobParams): Promise<AudioDownloadJobRecord | null> {
   const activeJobStore = resolveJobStoreOrMemory(jobStore);
   const existing = await activeJobStore.getJob(jobId);
+  if (!existing) {
+    logMissingAudioJob('fail', jobId);
+    return null;
+  }
   const failed = createJobRecord(
-    existing?.translationId ?? 'unknown',
-    existing?.scope ?? 'translation',
-    existing?.bookId,
+    existing.translationId,
+    existing.scope,
+    existing.bookId,
     'failed',
-    existing ?? undefined
+    existing
   );
   failed.error = error.message;
   await upsertJob(activeJobStore, failed);
@@ -418,15 +430,19 @@ export async function completeAudioDownloadJob({
   jobId: string;
   jobStore: AudioDownloadJobStore;
   hooks?: AudioDownloadLifecycleHooks;
-}): Promise<AudioDownloadJobRecord> {
+}): Promise<AudioDownloadJobRecord | null> {
   const activeJobStore = resolveJobStoreOrMemory(jobStore);
   const existing = await activeJobStore.getJob(jobId);
+  if (!existing) {
+    logMissingAudioJob('complete', jobId);
+    return null;
+  }
   const completed = createJobRecord(
-    existing?.translationId ?? 'unknown',
-    existing?.scope ?? 'translation',
-    existing?.bookId,
+    existing.translationId,
+    existing.scope,
+    existing.bookId,
     'completed',
-    existing ?? undefined
+    existing
   );
   await upsertJob(activeJobStore, completed);
   hooks?.onComplete?.(completed);
