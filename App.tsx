@@ -41,6 +41,7 @@ import { setupNotificationHandler } from './src/services/notifications/notificat
 import { installGlobalErrorHandlers } from './src/services/diagnostics/globalErrorHandler';
 import { enforceLtrLayoutPolicy } from './src/services/startup/rtlPolicy';
 import { rootNavigationRef } from './src/navigation/rootNavigation';
+import { usePushTokenRegistration } from './src/hooks/usePushTokenRegistration';
 
 // KEEP THIS UNGUARDED. scripts/benchmark-android-startup.py and
 // scripts/android_startup_metrics.py parse `[EB-T] App:module-start` (and
@@ -629,27 +630,7 @@ function AppContent() {
     };
   }, []);
 
-  // Register push token after authentication. Re-runs whenever the user changes.
-  useEffect(() => {
-    let isCurrentEffect = true;
-    const authGeneration = useAuthStore.getState().authGeneration;
-    if (isAuthenticated && user?.uid) {
-      void import('./src/services/notifications').then(({ registerPushToken }) => {
-        const currentAuth = useAuthStore.getState();
-        if (
-          isCurrentEffect &&
-          currentAuth.isAuthenticated &&
-          currentAuth.user?.uid === user.uid &&
-          currentAuth.authGeneration === authGeneration
-        ) {
-          return registerPushToken(user.uid);
-        }
-      });
-    }
-    return () => {
-      isCurrentEffect = false;
-    };
-  }, [isAuthenticated, user?.uid]);
+  usePushTokenRegistration(isAuthenticated, user?.uid);
 
   // Push-token deactivation on sign-out is owned by authStore.signOut (it runs
   // before the supabase sign-out, while the session is still valid), so there is
@@ -666,31 +647,6 @@ function AppContent() {
       }
     });
     return () => subscription.remove();
-  }, []);
-
-  // Listen for push token refreshes and re-register with the updated token.
-  useEffect(() => {
-    let isMounted = true;
-    const subscription = Notifications.addPushTokenListener((devicePushToken) => {
-      const { user: currentUser, authGeneration } = useAuthStore.getState();
-      if (currentUser?.uid) {
-        void import('./src/services/notifications').then(({ registerPushToken }) => {
-          const currentAuth = useAuthStore.getState();
-          if (
-            isMounted &&
-            currentAuth.isAuthenticated &&
-            currentAuth.user?.uid === currentUser.uid &&
-            currentAuth.authGeneration === authGeneration
-          ) {
-            return registerPushToken(currentUser.uid, devicePushToken);
-          }
-        });
-      }
-    });
-    return () => {
-      isMounted = false;
-      subscription.remove();
-    };
   }, []);
 
   return (
