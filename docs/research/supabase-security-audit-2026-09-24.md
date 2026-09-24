@@ -367,3 +367,93 @@ Verify after step 3: `select column_name from information_schema.columns where t
 'translation_catalog'` lists none of the four; `has_table_privilege('anon',
 'public.translation_catalog_admin', 'SELECT')` is false; the admin translation detail page still
 shows notes and the upstream payload.
+
+---
+
+## Pass 2 — adversarial review of the day's changes (2026-09-24, evening)
+
+Scope: `git log --since="2026-09-24 00:00"` on `hardening/security` (base `91c0a8f4`): per-team
+translator passcodes, prayer-wall hardening and moderation, `app_error_reports` +
+`report-app-errors`, group create/join RPCs, throttles and `send-group-notification`, the atomic
+merge RPCs, account-deletion leftovers, per-account private data, and the PKCE reset link. Live
+state was checked read-only (MCP `execute_sql` with SELECT / `pg_get_functiondef`, a
+`begin read only; set local role authenticated` policy probe, `get_advisors`,
+`list_migrations`, `get_edge_function`). Nothing was applied or deployed.
+
+### Findings
+
+| # | Sev | Location | Exploit | Status |
+|---|---|---|---|---|
+| P2-1 | High | `review-chapter-feedback/index.ts` (lockout read at the top, failure recorded after the check); `_shared/councilAccess.ts` | Lockout was read-then-record. N parallel guesses from one address all read "under 10" and were each evaluated, and a correct guess answered 200 regardless. A 30-request burst tested 30 codes (reproduced in `councilAccess.test.ts`: 30 evaluated where the limit is 10). | **Fixed** + migration `20260924200000_claim_passcode_attempt` |
+| P2-2 | High | Shared translator and council secrets; `apps/admin` `DEFAULT_TEAM_PASSCODE_LENGTH = 6` | Codes are very likely 6 digits (keypad builds before today stop at 6), and the lockout is per IPv4 address only. With 1,000 rotating proxies at 10 guesses per 15 minutes each, a 10⁶ space falls in about 12 h on average. Every active team code adds another target per guess. | **Reported.** Rotate shared/council codes to ≥10 digits once the 12-digit keypad build is widespread; default team codes to 10. Not verified: the live secret lengths. |
+| P2-3 | Med | `submit-chapter-feedback/index.ts` (row count, then a later insert) | The 20/h limit (per user or hashed IP) was a COUNT in one request and an INSERT in another, after an optional 5 MB upload. A parallel burst stored unbounded rows and recordings, with no auth required. | **Fixed** + migration `20260924200100_feedback_submission_budget` |
+| P2-4 | Med | `send-group-notification/index.ts`; `user_devices` is unique on `(user_id, push_token)` | Deactivating the token on sign-out is best effort: it is skipped offline and impossible once the server has ended the session. After an account switch, the phone kept the previous account's active row and kept receiving its group pushes and group names. | **Fixed** server-side: a token goes only to its most recent registrant, which covers all shipped builds |
+| P2-5 | Low–Med | `_shared/analyticsIngest.ts` `consumeIngestBudget` (repo only, not deployed) | A limiter error or today's 3 s timeout failed open for writes. A flood that queues on its own throttle row made the limiter "unavailable" on demand and bypassed the per-address budget. | **Fixed**: degraded now refuses with `Retry-After: 60`; the app queue keeps the batch and retries it |
+| P2-6 | Low | `src/services/auth/authDeepLink.ts` `activatePendingPasswordRecovery` | auth-js 2.101.1 deletes the PKCE verifier on every sign-out (`GoTrueClient.js` 3169/3979). Signing a signed-in user out before the exchange guaranteed failure. Any crafted `reset-password?code=` link signed the user out, and reset their per-user stores, once they tapped Continue. | **Fixed** (ships with the next app build) |
+| P2-7 | Low | `groups` policy "Leaders can create groups" | `create_group()` replaced the direct insert, but the policy stayed. Any user can still POST `/rest/v1/groups` with a chosen id, join code, `created_at` and `archived_at`, and skip the leader membership. | **Migration** `20260924200200_retire_direct_group_inserts` |
+| P2-8 | Low | `submit-chapter-feedback/index.ts` pre-uploaded path check | Only a literal `..` or `\` was rejected, so `uid/%2e%2e/…`, `//` and `./` passed the prefix check. Not confirmed exploitable against Storage. | **Fixed**: segment allowlist, `.m4a` only |
+| P2-9 | Low | `_shared/passcodeAttempts.ts:55-59`; `chapter_feedback_submissions.client_ip_hash`, `translator_review_attempts.ip_hash` | Unsalted SHA-256 of an IPv4 address. Anyone with a DB export recovers every submitter IP by hashing all 2³² addresses. | Reported. Use HMAC-SHA256 with a new function secret (resets live lockout windows once). |
+| P2-10 | Low | `review-chapter-feedback/teamPasscodeHash.ts:9-13` | One SHA-256 over `salt:code`. A leaked table gives up 6-digit team codes instantly; the salt doesn't help with a 10⁶ space. | Reported. Add a server-side pepper (`sha256-salt-v2`, HMAC), with the matching change in `apps/admin`. |
+| P2-11 | Low (privacy) | `src/services/notifications/notificationBootstrap.ts:22-28` | Discreet (calculator) mode still shows banners labelled "Every Bible", the daily reminder text, and group names. | Reported. When discreet mode is on, return `shouldShowBanner: false`, neutralise or cancel the reminder, and flag the token so the server skips group pushes. |
+| P2-12 | Low | `src/services/privacy/privacyInstallationAdapter.ts` (fresh-install branch) | iOS keeps keychain items after uninstall. The fresh-install reset clears only the privacy PIN, so a reinstall restores the Supabase session and the translator/council passcodes. | Reported. Also delete `sb-<ref>-auth-token` (plus `-code-verifier`, `-user`) and both passcode keys there. |
+| P2-13 | Low | `src/services/diagnostics/crashLogEntry.ts:31-35` (owned by the diagnostics agent) | The on-device crash log keeps unscrubbed `error.message`/`stack`. It is shared across accounts, survives sign-out, and can be exported from Diagnostics. | Reported. Apply `scrubErrorText` to `message` and `stack` in `toCrashLogEntry`. |
+| P2-14 | Low | `prayer_interactions` policy `interaction_insert_member` | Checks membership only. A member can still react to a request hidden by reports or moderation, or by a user they blocked, if they hold its id. | Reported. Add `pr.hidden_at is null` to the policy's EXISTS. |
+| P2-15 | Low (pre-existing) | `storage.buckets` `study-materials` | `allowed_mime_types` is null, so any member can upload any type (HTML/SVG) up to 10 MB. The groups feature is unlaunched and the bucket holds 0 objects. | Reported. Set an allowlist before launch. |
+| P2-16 | Info | All 7 deployed edge functions | Every deployed function predates today's later repo commits. The access-control files are byte-identical. `submit-chapter-feedback` v7 lacks the text-length caps from 72d43ad5. | Redeploy (list below) |
+
+Also reported, with no fix proposed: account deletion has no re-authentication (a single confirm
+in `DeleteAccountModal.tsx`); the privacy PIN lockout is wall-clock based, so changing the device
+clock skips it; analytics and crash reporting continue in discreet mode. Repo migration
+`20260924130000_merge_user_progress_same_day_ties` is not applied live.
+
+### Checked and sound
+
+- All 28 SECURITY DEFINER functions in `public`/`private` pin `search_path`. Only `create_group`,
+  `join_group_by_code`, `leave_group`, `report_prayer_request`, `delete_my_account`,
+  `refresh_my_engagement`, and the `private` helpers used by policies are executable by
+  `authenticated`. Each one derives the caller from `auth.uid()`. `claim_group_session_notification`
+  and the budget/purge functions are service role only.
+- `private` is not exposed, and client roles have no USAGE on it. Policies still call
+  `private.is_group_member()` because stored expressions bind by OID. I reproduced this in PGlite
+  and did not treat it as a finding.
+- New tables (`translator_team_passcodes`, `translator_access_settings`,
+  `translator_shared_passcode_uses`, `prayer_request_reports`, `prayer_wall_bans`,
+  `prayer_content_filter_terms`, `app_error_reports`, `private.group_join_attempts`,
+  `private.group_session_notifications`) have RLS on and no client grants.
+- Prayer moderation columns cannot be written by clients. `protect_prayer_request_moderation`
+  resets `hidden_at`/`hidden_reason` for `anon`/`authenticated`, `stamp_prayer_request` pins
+  `created_at` (so the posting throttle can't be backdated), and `forbid_scope_change` pins
+  group/author.
+- The `join_group_by_code` throttle keys on `cf-connecting-ip`/`x-real-ip`, never
+  `x-forwarded-for`. Storage policies after H1 reference `objects.name`.
+- `send-group-notification` sends only server-written text, gated by the atomic claim. Push
+  `data` carries only the verified `groupId`, and the app routes no group payloads.
+- Reset links: exact scheme and host, PKCE code only, `access_token`/`refresh_token` fragments
+  refused, `detectSessionInUrl` off, constant redirect.
+- No live secrets in today's diffs. The JWT-shaped strings are test fixtures, `.env` has never
+  been tracked, and the dev passcode is read only under `__DEV__`.
+
+### Migrations written (NOT APPLIED)
+
+1. `20260924200000_claim_passcode_attempt.sql`: `claim_passcode_attempt(ip_hash, threshold,
+   window_seconds)`, service role only. It counts and records under an advisory lock, returns null
+   when locked out, and prunes rows older than 1 day about 1% of the time. Rollback:
+   `drop function if exists public.claim_passcode_attempt(text, integer, integer);`
+2. `20260924200100_feedback_submission_budget.sql`: `consume_feedback_submission_budget(key,
+   max, window_seconds)`, service role only, restricted to `feedback-submit:*` keys on the UNLOGGED
+   `analytics_ingest_throttle`. Rollback: drop the function and `delete from
+   public.analytics_ingest_throttle where client_key like 'feedback-submit:%';`
+3. `20260924200200_retire_direct_group_inserts.sql`: drops "Leaders can create groups" and
+   revokes INSERT on `groups` from anon/authenticated. Rollback: re-grant INSERT and recreate
+   the policy (SQL in the file header).
+
+1 and 2 were run in PGlite: threshold, window, release, other keys unaffected, analytics keys
+untouched, and client roles denied. 3 is covered by `scripts/verify-group-policies-sql.mjs`,
+which now fails without it. The edge functions fall back to their previous behaviour only while
+1 and 2 return PGRST202, so deploy order cannot lock translators out. Apply them first anyway.
+
+### Edge functions to redeploy (after the migrations)
+
+`review-chapter-feedback`, `submit-chapter-feedback`, `send-group-notification`,
+`track-analytics-events`, `track-anonymous-usage-events`, and `report-app-errors` (shares the
+drifted `_shared` helpers). `aggregate-engagement` is drifted with no security impact.
