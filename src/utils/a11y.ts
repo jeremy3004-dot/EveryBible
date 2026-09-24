@@ -1,4 +1,4 @@
-import { AccessibilityInfo } from 'react-native';
+import { AccessibilityInfo, Platform } from 'react-native';
 
 /**
  * Speak a short status update through the active screen reader.
@@ -16,4 +16,16 @@ export function announceForAccessibility(message: string): void {
   } catch {
     // Platforms without an accessibility bridge (or web) simply skip the announcement.
   }
+}
+
+/**
+ * Speak text that is also rendered inside an `accessibilityLiveRegion`.
+ *
+ * TalkBack reads a live region itself when it appears or changes, so announcing
+ * the same text on Android makes it speak twice. VoiceOver ignores live regions,
+ * so iOS still needs the announcement.
+ */
+export function announceLiveRegionText(message: string): void {
+  if (Platform.OS === 'android') return;
+  announceForAccessibility(message);
 }
