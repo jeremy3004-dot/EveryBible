@@ -472,18 +472,116 @@ test('the daily scripture joins exactly the verses the reference names', async (
   assert.equal(daily.text, named.map((verse) => verse.text).join(' '));
 });
 
-test('the daily scripture falls back to the chapter opening when the named verse is missing', async () => {
+test('a named verse missing from the chapter is read from the bundled BSB, never another verse under its label', async () => {
   const reference = dailyScripture.getDailyScriptureReference();
-  seedChapter({ translationId: 'bsb', bookId: reference.bookId, chapter: reference.chapter }, [
+  seedChapter({ translationId: 'npx', bookId: reference.bookId, chapter: reference.chapter }, [
     makeVerse(reference.bookId, reference.chapter, 999, 'Some other verse'),
+  ]);
+  seedChapter({ translationId: 'bsb', bookId: reference.bookId, chapter: reference.chapter }, [
+    makeVerse(reference.bookId, reference.chapter, reference.verse ?? 1, 'Bundled passage'),
   ]);
 
   const daily = await service.getDailyScripture(
-    { id: 'bsb', hasText: true, hasAudio: false, audioGranularity: 'none' },
+    { id: 'npx', hasText: true, hasAudio: false, audioGranularity: 'none' },
     false
   );
 
-  assert.equal(daily.text, 'Some other verse');
+  assert.equal(daily.kind, 'verse-text');
+  assert.equal(daily.text, 'Bundled passage');
+  assert.equal(daily.fallbackTranslationId, 'bsb');
+});
+
+test('a New Testament-only translation shows the bundled BSB passage on an Old Testament day', async (t) => {
+  const oldTestament = new Set(
+    service
+      .getAllBooks()
+      .slice(0, 39)
+      .map((book) => book.id)
+  );
+  let day = 1;
+  while (
+    !oldTestament.has(dailyScripture.getDailyScriptureReference(new Date(2026, 8, day)).bookId)
+  ) {
+    day += 1;
+  }
+  t.mock.timers.enable({ apis: ['Date'], now: new Date(2026, 8, day, 12) });
+  const reference = dailyScripture.getDailyScriptureReference();
+  seedChapter({ translationId: 'bsb', bookId: reference.bookId, chapter: reference.chapter }, [
+    makeVerse(reference.bookId, reference.chapter, reference.verse ?? 1, 'Old Testament promise'),
+  ]);
+
+  const daily = await service.getDailyScripture(
+    { id: 'ntonly', hasText: true, hasAudio: false, audioGranularity: 'none' },
+    false
+  );
+
+  assert.deepEqual(
+    { kind: daily.kind, bookId: daily.bookId, text: daily.text, from: daily.fallbackTranslationId },
+    { kind: 'verse-text', bookId: reference.bookId, text: 'Old Testament promise', from: 'bsb' }
+  );
+});
+
+test("an audio-only translation without today's chapter audio shows the bundled BSB passage", async () => {
+  const reference = dailyScripture.getDailyScriptureReference();
+  seedChapter({ translationId: 'bsb', bookId: reference.bookId, chapter: reference.chapter }, [
+    makeVerse(reference.bookId, reference.chapter, reference.verse ?? 1, 'Bundled passage'),
+  ]);
+
+  const daily = await service.getDailyScripture(
+    { id: 'elx', hasText: false, hasAudio: true, audioGranularity: 'chapter' },
+    false
+  );
+
+  assert.equal(daily.kind, 'verse-text');
+  assert.equal(daily.text, 'Bundled passage');
+  assert.equal(daily.fallbackTranslationId, 'bsb');
+});
+
+test('a translation that cannot be read falls back to the bundled BSB passage', async () => {
+  const reference = dailyScripture.getDailyScriptureReference();
+  db.chapterImpl = async (read) => {
+    if (read.translationId === 'broken') throw new Error('pack unreadable');
+    return [makeVerse(read.bookId, read.chapter, reference.verse ?? 1, 'Bundled passage')];
+  };
+
+  const daily = await service.getDailyScripture(
+    { id: 'broken', hasText: true, hasAudio: false, audioGranularity: 'none' },
+    false
+  );
+
+  assert.equal(daily.text, 'Bundled passage');
+  assert.equal(daily.fallbackTranslationId, 'bsb');
+});
+
+test('a read failure still reaches the caller when the bundled BSB has nothing either', async () => {
+  db.chapterError = new Error('database closed');
+
+  await assert.rejects(
+    service.getDailyScripture(
+      { id: 'broken', hasText: true, hasAudio: false, audioGranularity: 'none' },
+      false
+    ),
+    /database closed/
+  );
+});
+
+test("the reader's own text is read once and carries no fallback translation", async () => {
+  const reference = dailyScripture.getDailyScriptureReference();
+  seedChapter({ translationId: 'web', bookId: reference.bookId, chapter: reference.chapter }, [
+    makeVerse(reference.bookId, reference.chapter, reference.verse ?? 1, 'Own text'),
+  ]);
+
+  const daily = await service.getDailyScripture(
+    { id: 'web', hasText: true, hasAudio: false, audioGranularity: 'none' },
+    false
+  );
+
+  assert.equal(daily.text, 'Own text');
+  assert.equal(daily.fallbackTranslationId, undefined);
+  assert.deepEqual(
+    db.chapterReads.map((read) => read.translationId),
+    ['web']
+  );
 });
 
 test('the daily scripture reports no text when the chapter holds no verses at all', async () => {

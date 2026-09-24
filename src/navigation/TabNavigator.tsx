@@ -34,6 +34,7 @@ import {
   getTabBarCapsuleFill,
 } from './tabBarCapsuleStyle';
 import { typography } from '../design/system';
+import { CONTROL_LABEL_MAX_FONT_SCALE } from '../design/largeTextLayout';
 import { useTabBarHeight, TAB_BAR_CAPSULE_RADIUS } from '../hooks/useTabBarHeight';
 import { lightHaptic } from '../utils/haptics';
 import { hexWithAlpha } from '../utils/color';
@@ -45,7 +46,11 @@ const TAB_BAR_ICON_STROKE_WIDTH = 2;
 // The capsule is a fixed 64pt tall, so an unbounded accessibility text scale
 // clips the label against the glyph. Cap the label's own scaling instead of
 // letting it grow past the capsule.
-const TAB_BAR_LABEL_MAX_FONT_SCALE = 1.6;
+const TAB_BAR_LABEL_MAX_FONT_SCALE = CONTROL_LABEL_MAX_FONT_SCALE;
+// Each tab owns a fifth of the capsule (about 69pt on a 375pt phone). A label
+// longer than that — Arabic "الكتاب المقدس" at the cap — shrinks to its slot
+// rather than truncating, the way UITabBar fits its titles.
+const TAB_BAR_LABEL_MIN_FONT_SCALE = 0.7;
 
 // Binds each glyph the manifest names to its Lucide component.
 const TAB_BAR_ICONS: Record<RootTabIconName, LucideIcon> = {
@@ -422,6 +427,8 @@ export function TabNavigator() {
         tabBarLabel: ({ color }: { color: string }) => (
           <Text
             numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={TAB_BAR_LABEL_MIN_FONT_SCALE}
             maxFontSizeMultiplier={TAB_BAR_LABEL_MAX_FONT_SCALE}
             style={[styles.tabLabel, { color }]}
           >

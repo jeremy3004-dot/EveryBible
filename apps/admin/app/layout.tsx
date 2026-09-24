@@ -8,11 +8,13 @@ import './el-field.css';
 import './analytics-atlas.css';
 import './language-atlas.css';
 
+import { headers } from 'next/headers';
 import Script from 'next/script';
 import type { Viewport } from 'next';
 import type { ReactNode } from 'react';
 
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { CSP_NONCE_HEADER } from '@/lib/content-security-policy';
 import { getAdminThemeScript } from '@/lib/theme';
 
 export const metadata = {
@@ -27,7 +29,10 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  // Reading the request headers also keeps every admin page per-request rendered, which the
+  // nonce-based Content-Security-Policy needs: a prerendered page would carry no nonce.
+  const nonce = (await headers()).get(CSP_NONCE_HEADER) ?? undefined;
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -42,7 +47,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         />
       </head>
       <body>
-        <Script id="admin-theme-bootstrap" strategy="beforeInteractive">
+        <Script id="admin-theme-bootstrap" strategy="beforeInteractive" nonce={nonce}>
           {getAdminThemeScript()}
         </Script>
         <ThemeToggle />

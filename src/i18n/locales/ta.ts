@@ -103,6 +103,7 @@ export const ta = {
     notSet: 'அமைக்கப்படவில்லை',
     unexpectedError: 'மன்னிக்கவும், எதிர்பாராத ஒன்று நடந்தது. மீண்டும் முயற்சிக்கவும்.',
     somethingWentWrong: 'ஏதோ தவறாகிவிட்டது',
+    offlineTryAgain: 'நீங்கள் ஆஃப்லைனில் உள்ளீர்கள். இணையத்துடன் இணைந்து மீண்டும் முயலவும்.',
     tryAgain: 'மீண்டும் முயற்சி',
     shareMessage: 'Every Bible-ஐப் பாருங்கள்!',
     all: 'அனைத்தும்',
@@ -131,7 +132,8 @@ export const ta = {
     ledgerThisMonth_one: '{{month}} · {{count}} நாளில் {{active}}',
     ledgerThisMonth_other: '{{month}} · {{count}} நாட்களில் {{active}}',
     ledgerThisWeek: 'இந்த வாரம் · {{total}} நாட்களில் {{active}}',
-    streakUnitLabel: 'நாள் தொடர்',
+    streakUnitLabel_one: 'நாள் தொடர்',
+    streakUnitLabel_other: 'நாள் தொடர்',
     dayEyebrow: 'நாள்',
     lessonsProgress: '{{completed}} / {{total}} பாடங்கள்',
     nextLesson: 'அடுத்தது · {{title}}',
@@ -378,6 +380,11 @@ export const ta = {
     chapterFeedbackSuccess:
       'உங்கள் கருத்துக்கு நன்றி. அது எங்களுக்குக் கிடைத்துவிட்டது; எங்கள் மொழிபெயர்ப்புக் குழுக்கள் விரைவில் மதிப்பாய்வு செய்யும்.',
     chapterFeedbackSignInRequired: 'அத்தியாயத்தின் கருத்தை அனுப்பும் முன் உள்நுழையவும்.',
+    chapterFeedbackQueuedTitle: 'பின்னர் அனுப்ப சேமிக்கப்பட்டது',
+    chapterFeedbackQueued:
+      'நீங்கள் ஆஃப்லைனில் உள்ளீர்கள், எனவே உங்கள் கருத்து இந்தச் சாதனத்தில் சேமிக்கப்பட்டது. மீண்டும் இணைப்பு கிடைத்ததும் அது தானாக அனுப்பப்படும்.',
+    chapterFeedbackOffline:
+      'நீங்கள் ஆஃப்லைனில் உள்ளீர்கள். உங்கள் கருத்து இங்கேயே உள்ளது; இணைந்த பிறகு அனுப்புங்கள்.',
     translatorReviewTitle: 'துல்லிய மதிப்பாய்வு',
     translatorReviewSummary: 'நிலுவை முடிவுகள்: {{count}} இல் {{pending}}',
     translatorReviewSummaryComplete: 'துல்லியம் குறித்த அனைத்து மதிப்பாய்வுகளும் முடிந்தன',

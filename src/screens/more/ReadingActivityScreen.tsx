@@ -39,6 +39,7 @@ import {
   summarizeDayChapters,
   type ReadingActivityGridCell,
 } from './readingActivityCalendarModel';
+import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../design/largeTextLayout';
 
 type NavigationProp = NativeStackNavigationProp<MoreStackParamList>;
 
@@ -225,7 +226,12 @@ export function ReadingActivityScreen() {
               {t('readingActivity.currentStreak')}
             </Text>
             <View style={styles.heroStreakRow}>
-              <Text style={styles.heroStreakNumber}>{streakDays}</Text>
+              <Text
+                maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
+                style={styles.heroStreakNumber}
+              >
+                {streakDays}
+              </Text>
               <Text style={[styles.heroStreakUnit, displayFont.bold]}>
                 {t('readingActivity.streakUnit', { count: streakDays })}
               </Text>

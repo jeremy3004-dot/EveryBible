@@ -419,6 +419,7 @@ export const pt = {
     notSet: 'Não definido',
     unexpectedError: 'Lamentamos, mas algo inesperado aconteceu. Tente novamente.',
     somethingWentWrong: 'Algo deu errado',
+    offlineTryAgain: 'Você está off-line. Conecte-se à internet e tente novamente.',
     tryAgain: 'Tentar novamente',
     shareMessage: 'Confira o Every Bible!',
     all: 'Todos',
@@ -449,7 +450,9 @@ export const pt = {
     ledgerThisMonth_many: '{{month}} · {{active}} de {{count}} dias',
     ledgerThisMonth_other: '{{month}} · {{active}} de {{count}} dias',
     ledgerThisWeek: 'Esta semana · {{active}}/{{total}} dias',
-    streakUnitLabel: 'dias seguidos',
+    streakUnitLabel_one: 'dia seguido',
+    streakUnitLabel_many: 'dias seguidos',
+    streakUnitLabel_other: 'dias seguidos',
     dayEyebrow: 'Dia',
     lessonsProgress: '{{completed}} / {{total}} lições',
     nextLesson: 'A seguir · {{title}}',
@@ -697,6 +700,11 @@ export const pt = {
     chapterFeedbackSuccess:
       'Obrigado pelo seu feedback. Seu envio foi recebido e será analisado por nossas equipes de tradução o mais rápido possível.',
     chapterFeedbackSignInRequired: 'Entre antes de enviar o feedback do capítulo.',
+    chapterFeedbackQueuedTitle: 'Salvo para depois',
+    chapterFeedbackQueued:
+      'Você está off-line, então seu feedback foi salvo neste dispositivo. Ele será enviado automaticamente quando você voltar a ficar on-line.',
+    chapterFeedbackOffline:
+      'Você está off-line. Seu feedback continua aqui; envie-o quando estiver conectado.',
     translatorReviewTitle: 'Revisão de precisão',
     translatorReviewSummary: 'Decisões pendentes: {{pending}} de {{count}}',
     translatorReviewSummaryComplete: 'Todas as revisões de precisão foram processadas',

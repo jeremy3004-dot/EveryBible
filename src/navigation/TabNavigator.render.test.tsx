@@ -419,6 +419,33 @@ test('each tab is a button announcing its label and position, with a Lucide glyp
   });
 });
 
+// Release QA in Arabic: the Bible tab read "الكتاب المـ…". Each tab owns a fifth of
+// the capsule, (375 − 2 × 16) / 5 ≈ 69pt on a 375pt phone, and "الكتاب المقدس" is
+// the conventional name (a bare "الكتاب", "the book", is ambiguous), so the label
+// keeps its translation and shrinks to its slot instead of truncating. The
+// harness does not lay text out, so this pins the mechanism rather than a width.
+test('a tab label too long for its fifth of the capsule shrinks to fit instead of truncating', async () => {
+  const { ar } = await import('../i18n/locales/ar');
+  const { CONTROL_LABEL_MAX_FONT_SCALE } = await import('../design/largeTextLayout');
+  const { TAB_BAR_CAPSULE_SIDE_INSET } = await import('../hooks/useTabBarHeight');
+  harness.i18n.addResourceBundle('ar', 'translation', ar, true, true);
+  await harness.i18n.changeLanguage('ar');
+  try {
+    const { view } = await renderTabs();
+    const slot = (375 - 2 * TAB_BAR_CAPSULE_SIDE_INSET) / TAB_NAMES.length;
+    assert.ok(slot < 70, 'the narrowest supported phone leaves under 70pt per tab');
+
+    const label = within(view.getByTestId('tab-Bible')).getByText(ar.tabs.bible);
+    assert.equal(label.props.numberOfLines, 1);
+    assert.equal(label.props.adjustsFontSizeToFit, true);
+    assert.equal(label.props.minimumFontScale, 0.7);
+    assert.equal(label.props.maxFontSizeMultiplier, CONTROL_LABEL_MAX_FONT_SCALE);
+    assert.equal(label.props.ellipsizeMode, undefined);
+  } finally {
+    await harness.i18n.changeLanguage('en');
+  }
+});
+
 test('the tab button keeps the navigator press, test ID and item style while filling the capsule', async () => {
   const { view } = await renderTabs();
   const tab = view.getByRole('tab', { name: 'Plans, tab, 4 of 5' });

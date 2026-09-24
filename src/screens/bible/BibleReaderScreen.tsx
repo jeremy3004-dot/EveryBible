@@ -87,7 +87,7 @@ import { isRemoteAudioAvailable } from '../../services/audio/audioRemote';
 import { getAudioAvailability } from '../../services/audio/audioAvailability';
 import { describeAudioDownloadError } from '../../services/audio/audioDownloadErrorMessage';
 import { READING_PLAN_ENTRIES_BY_PLAN_ID, readingPlans } from '../../data/readingPlans.generated';
-import { submitChapterFeedback } from '../../services/feedback';
+import { submitChapterFeedbackOrQueue } from '../../services/feedback';
 import {
   CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS,
   CHAPTER_FEEDBACK_AUDIO_MIME_TYPE,
@@ -213,6 +213,7 @@ import {
   shouldEnableChapterFeedbackSubmit,
 } from './bibleReaderFeedbackModel';
 import { TranslationPickerList } from './TranslationPickerList';
+import { TranslationPickerHeader } from './TranslationPickerHeader';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
 
 type NavigationProp = NativeStackNavigationProp<BibleStackParamList>;
@@ -3373,7 +3374,8 @@ export function BibleReaderScreen() {
       return;
     }
 
-    const result = await submitChapterFeedback({
+    // Offline, a written response is kept on the device and sent by the next sync.
+    const result = await submitChapterFeedbackOrQueue({
       translationId: currentTranslation,
       translationLanguage: currentTranslationInfo?.language ?? translationLabel,
       bookId,
@@ -3402,6 +3404,10 @@ export function BibleReaderScreen() {
       }
       resetFeedbackDraft();
 
+      if (result.queued) {
+        Alert.alert(t('bible.chapterFeedbackQueuedTitle'), t('bible.chapterFeedbackQueued'));
+        return;
+      }
       Alert.alert(t('bible.chapterFeedbackSuccessTitle'), t('bible.chapterFeedbackSuccess'));
       return;
     }
@@ -3410,7 +3416,11 @@ export function BibleReaderScreen() {
       setFeedbackAudioState('preview');
     }
     setFeedbackSubmitError(
-      result.requiresSignIn ? t('bible.chapterFeedbackSignInRequired') : t('common.unexpectedError')
+      result.offline
+        ? t('bible.chapterFeedbackOffline')
+        : result.requiresSignIn
+          ? t('bible.chapterFeedbackSignInRequired')
+          : t('common.unexpectedError')
     );
   };
 
@@ -6157,18 +6167,11 @@ export function BibleReaderScreen() {
                 { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
               ]}
             >
-              <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: colors.biblePrimaryText }]}>
-                  {t('bible.selectTranslation')}
-                </Text>
-                <TouchableOpacity
-                  onPress={handleCloseTranslationSheet}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('interface.close')}
-                >
-                  <Ionicons name="close" size={22} color={colors.bibleSecondaryText} />
-                </TouchableOpacity>
-              </View>
+              <TranslationPickerHeader
+                onClose={handleCloseTranslationSheet}
+                style={styles.modalHeader}
+                titleStyle={styles.modalTitle}
+              />
               <TranslationPickerList
                 onRequestClose={handleCloseTranslationSheet}
                 onTranslationActivated={handleTranslationActivated}

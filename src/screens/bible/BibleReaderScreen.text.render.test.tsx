@@ -387,6 +387,45 @@ test('the listen page carries the feedback composer inline and submits it as lis
   assert.deepEqual([submission.bookId, submission.chapter], ['JHN', 3]);
 });
 
+/** Opens the listen page's inline composer, picks thumbs-up and submits. */
+async function submitListenerFeedback() {
+  enableFeedback();
+  chapters.set('JHN:3', []);
+  const view = await renderReader();
+  await view.press(view.getByRole('button', { name: t('bible.chapterFeedbackThumbsUp') }));
+  await view.press(view.getByRole('button', { name: t('bible.chapterFeedbackSubmit') }));
+  await view.flush();
+  return view;
+}
+
+test('feedback sent offline is kept for later, and the reader is told so rather than shown an error', async () => {
+  reader.feedbackOutcome.result = { success: true, saved: false, exported: false, queued: true };
+
+  const view = await submitListenerFeedback();
+
+  assert.equal(reader.feedbackSubmissions.length, 1);
+  const [alert] = harness.rn.__recorded.alerts;
+  assert.equal(alert?.title, t('bible.chapterFeedbackQueuedTitle'));
+  assert.equal(alert?.message, t('bible.chapterFeedbackQueued'));
+  assert.equal(view.queryByText(t('common.unexpectedError')), null);
+});
+
+test('feedback that cannot be kept offline stays in the composer with an offline notice', async () => {
+  reader.feedbackOutcome.result = {
+    success: false,
+    saved: false,
+    exported: false,
+    offline: true,
+    retryable: true,
+  };
+
+  const view = await submitListenerFeedback();
+
+  assert.ok(view.getByText(t('bible.chapterFeedbackOffline')));
+  assert.equal(view.queryByText(t('common.unexpectedError')), null);
+  assert.deepEqual(harness.rn.__recorded.alerts, []);
+});
+
 test('at large text the feedback identity drops under the heading and wraps instead of truncating', async () => {
   enableFeedback();
   chapters.set('JHN:3', []);

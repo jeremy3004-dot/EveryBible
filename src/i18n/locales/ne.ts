@@ -103,6 +103,7 @@ export const ne = {
     notSet: 'सेट गरिएको छैन',
     unexpectedError: 'माफ गर्नुहोस्, केही अनपेक्षित भयो। कृपया फेरि प्रयास गर्नुहोस्।',
     somethingWentWrong: 'केही गडबड भयो',
+    offlineTryAgain: 'तपाईं अफलाइन हुनुहुन्छ। इन्टरनेटमा जोडिएर फेरि प्रयास गर्नुहोस्।',
     tryAgain: 'फेरि प्रयास गर्नुहोस्',
     shareMessage: 'Every Bible हेर्नुहोस्!',
     all: 'सबै',
@@ -131,7 +132,8 @@ export const ne = {
     ledgerThisMonth_one: '{{month}} · {{count}} मध्ये {{active}} दिन',
     ledgerThisMonth_other: '{{month}} · {{count}} मध्ये {{active}} दिन',
     ledgerThisWeek: 'यो हप्ता · {{total}} मध्ये {{active}} दिन',
-    streakUnitLabel: 'दिनको शृङ्खला',
+    streakUnitLabel_one: 'दिनको शृङ्खला',
+    streakUnitLabel_other: 'दिनको शृङ्खला',
     dayEyebrow: 'दिन',
     lessonsProgress: '{{completed}} / {{total}} पाठ',
     nextLesson: 'अर्को · {{title}}',
@@ -307,6 +309,11 @@ export const ne = {
     chapterFeedbackSuccess:
       'तपाईंको प्रतिक्रियाका लागि धन्यवाद। तपाईंले पठाउनुभएको कुरा हामीले प्राप्त गर्‍यौँ र हाम्रा अनुवाद टोलीहरूले सकेसम्म चाँडो समीक्षा गर्नेछन्।',
     chapterFeedbackSignInRequired: 'अध्याय प्रतिक्रिया पठाउनुअघि कृपया साइन इन गर्नुहोस्।',
+    chapterFeedbackQueuedTitle: 'पछि पठाउन सुरक्षित गरियो',
+    chapterFeedbackQueued:
+      'तपाईं अफलाइन हुनुहुन्छ, त्यसैले तपाईंको प्रतिक्रिया यो उपकरणमा सुरक्षित गरिएको छ। फेरि अनलाइन हुँदा यो आफैं पठाइनेछ।',
+    chapterFeedbackOffline:
+      'तपाईं अफलाइन हुनुहुन्छ। तपाईंको प्रतिक्रिया यहीँ छ; इन्टरनेटमा जोडिएपछि पठाउनुहोस्।',
     translatorReviewTitle: 'शुद्धता समीक्षा',
     translatorReviewSummary: 'निर्णय बाँकी: {{count}} मध्ये {{pending}}',
     translatorReviewSummaryComplete: 'सबै शुद्धता समीक्षा पूरा भए',

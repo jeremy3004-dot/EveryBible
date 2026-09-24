@@ -103,6 +103,7 @@ export const pa = {
     notSet: 'ਸੈੱਟ ਨਹੀਂ ਹੈ',
     unexpectedError: 'ਸਾਨੂੰ ਅਫ਼ਸੋਸ ਹੈ, ਪਰ ਕੁਝ ਅਚਾਨਕ ਵਾਪਰਿਆ। ਕਿਰਪਾ ਕਰਕੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
     somethingWentWrong: 'ਕੁਝ ਗਲਤ ਹੋ ਗਿਆ',
+    offlineTryAgain: 'ਤੁਸੀਂ ਆਫ਼ਲਾਈਨ ਹੋ। ਇੰਟਰਨੈੱਟ ਨਾਲ ਜੁੜੋ ਅਤੇ ਮੁੜ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
     tryAgain: 'ਫਿਰ ਕੋਸ਼ਿਸ਼ ਕਰੋ',
     shareMessage: 'Every Bible ਦੇਖੋ!',
     all: 'ਸਾਰੇ',
@@ -131,7 +132,8 @@ export const pa = {
     ledgerThisMonth_one: '{{month}} · {{count}} ਵਿੱਚੋਂ {{active}} ਦਿਨ',
     ledgerThisMonth_other: '{{month}} · {{count}} ਵਿੱਚੋਂ {{active}} ਦਿਨ',
     ledgerThisWeek: 'ਇਸ ਹਫ਼ਤੇ · {{total}} ਵਿੱਚੋਂ {{active}} ਦਿਨ',
-    streakUnitLabel: 'ਦਿਨ ਦੀ ਲੜੀ',
+    streakUnitLabel_one: 'ਦਿਨ ਦੀ ਲੜੀ',
+    streakUnitLabel_other: 'ਦਿਨਾਂ ਦੀ ਲੜੀ',
     dayEyebrow: 'ਦਿਨ',
     lessonsProgress: '{{completed}} / {{total}} ਪਾਠ',
     nextLesson: 'ਅਗਲਾ · {{title}}',
@@ -374,6 +376,11 @@ export const pa = {
     chapterFeedbackSuccess:
       'ਤੁਹਾਡੀ ਰਾਏ ਲਈ ਧੰਨਵਾਦ। ਸਾਨੂੰ ਇਹ ਮਿਲ ਗਈ ਹੈ ਅਤੇ ਸਾਡੀਆਂ ਅਨੁਵਾਦ ਟੀਮਾਂ ਜਿੰਨੀ ਜਲਦੀ ਹੋ ਸਕੇ ਇਸ ਦੀ ਸਮੀਖਿਆ ਕਰਨਗੀਆਂ।',
     chapterFeedbackSignInRequired: 'ਅਧਿਆਇ ਬਾਰੇ ਰਾਏ ਭੇਜਣ ਤੋਂ ਪਹਿਲਾਂ ਸਾਈਨ ਇਨ ਕਰੋ।',
+    chapterFeedbackQueuedTitle: 'ਬਾਅਦ ਵਿੱਚ ਭੇਜਣ ਲਈ ਸੰਭਾਲੀ ਗਈ',
+    chapterFeedbackQueued:
+      "ਤੁਸੀਂ ਆਫ਼ਲਾਈਨ ਹੋ, ਇਸ ਲਈ ਤੁਹਾਡੀ ਰਾਏ ਇਸ ਡਿਵਾਈਸ 'ਤੇ ਸੰਭਾਲ ਲਈ ਗਈ ਹੈ। ਇੰਟਰਨੈੱਟ ਵਾਪਸ ਆਉਣ 'ਤੇ ਇਹ ਆਪਣੇ-ਆਪ ਭੇਜ ਦਿੱਤੀ ਜਾਵੇਗੀ।",
+    chapterFeedbackOffline:
+      "ਤੁਸੀਂ ਆਫ਼ਲਾਈਨ ਹੋ। ਤੁਹਾਡੀ ਰਾਏ ਇੱਥੇ ਹੀ ਸੰਭਾਲੀ ਹੋਈ ਹੈ; ਇੰਟਰਨੈੱਟ ਨਾਲ ਜੁੜਨ 'ਤੇ ਭੇਜੋ।",
     translatorReviewTitle: 'ਸ਼ੁੱਧਤਾ ਦੀ ਸਮੀਖਿਆ',
     translatorReviewSummary: 'ਬਾਕੀ ਫ਼ੈਸਲੇ: {{count}} ਵਿੱਚੋਂ {{pending}}',
     translatorReviewSummaryComplete: 'ਸ਼ੁੱਧਤਾ ਦੀਆਂ ਸਾਰੀਆਂ ਸਮੀਖਿਆਵਾਂ ਪੂਰੀਆਂ ਹੋਈਆਂ',

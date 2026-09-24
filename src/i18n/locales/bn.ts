@@ -103,6 +103,7 @@ export const bn = {
     notSet: 'সেট করা হয়নি',
     unexpectedError: 'দুঃখিত, অপ্রত্যাশিত কিছু ঘটেছে। অনুগ্রহ করে আবার চেষ্টা করুন।',
     somethingWentWrong: 'কিছু ভুল হয়েছে',
+    offlineTryAgain: 'আপনি অফলাইনে আছেন। ইন্টারনেটে সংযুক্ত হয়ে আবার চেষ্টা করুন।',
     tryAgain: 'আবার চেষ্টা করুন',
     shareMessage: 'Every Bible দেখুন!',
     all: 'সব',
@@ -131,7 +132,8 @@ export const bn = {
     ledgerThisMonth_one: '{{month}} · {{count}} দিনের মধ্যে {{active}} দিন',
     ledgerThisMonth_other: '{{month}} · {{count}} দিনের মধ্যে {{active}} দিন',
     ledgerThisWeek: 'এই সপ্তাহ · {{total}} দিনের মধ্যে {{active}} দিন',
-    streakUnitLabel: 'দিনের ধারা',
+    streakUnitLabel_one: 'দিনের ধারা',
+    streakUnitLabel_other: 'দিনের ধারা',
     dayEyebrow: 'দিন',
     lessonsProgress: '{{completed}} / {{total}} পাঠ',
     nextLesson: 'পরবর্তী · {{title}}',
@@ -373,6 +375,10 @@ export const bn = {
     chapterFeedbackSuccess:
       'আপনার মতামতের জন্য ধন্যবাদ। আপনার পাঠানো তথ্য আমরা পেয়েছি এবং যত দ্রুত সম্ভব আমাদের অনুবাদ দল তা পর্যালোচনা করবে।',
     chapterFeedbackSignInRequired: 'অধ্যায়ের মতামত পাঠানোর আগে সাইন ইন করুন।',
+    chapterFeedbackQueuedTitle: 'পরে পাঠানোর জন্য সংরক্ষিত',
+    chapterFeedbackQueued:
+      'আপনি অফলাইনে আছেন, তাই আপনার মতামত এই ডিভাইসে সংরক্ষণ করা হয়েছে। আবার অনলাইনে এলে এটি স্বয়ংক্রিয়ভাবে পাঠানো হবে।',
+    chapterFeedbackOffline: 'আপনি অফলাইনে আছেন। আপনার মতামত এখানেই আছে; সংযুক্ত হলে পাঠান।',
     translatorReviewTitle: 'নির্ভুলতা পর্যালোচনা',
     translatorReviewSummary: 'সিদ্ধান্ত বাকি: {{count}}টির মধ্যে {{pending}}টি',
     translatorReviewSummaryComplete: 'নির্ভুলতার সব পর্যালোচনা সম্পন্ন হয়েছে',
