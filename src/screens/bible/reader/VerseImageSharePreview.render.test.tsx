@@ -86,3 +86,13 @@ test('the reference sits on an opaque chip it clears 4.5:1 against, in every the
   }
   assert.deepEqual(failures, []);
 });
+
+test('the shared card draws at its own size, whatever the OS text size', async () => {
+  harness.setFontScale(3.12);
+  const view = await renderCard('en', 'For God so loved the world');
+
+  // The card is exported as an image of a fixed frame: OS scaling would push the
+  // verse past its eight lines at accessibility sizes and cut the shared picture.
+  assert.equal(view.getByText('"For God so loved the world"').props.allowFontScaling, false);
+  assert.equal(view.getByText('John 3:16 BSB').props.allowFontScaling, false);
+});

@@ -52,6 +52,11 @@ export function VerseImageSharePreview({
             numberOfLines={8}
             adjustsFontSizeToFit
             minimumFontScale={0.64}
+            // This card is the picture that gets shared, at a fixed size. Scaled by
+            // the OS text size, an AX-size verse overflowed the frame even at the
+            // minimum shrink and the shared image lost its end. Its words are
+            // still read in full by screen readers.
+            allowFontScaling={false}
           >
             {`"${verseText || referenceLabel}"`}
           </Text>
@@ -77,6 +82,7 @@ export function VerseImageSharePreview({
               numberOfLines={2}
               adjustsFontSizeToFit
               minimumFontScale={0.82}
+              allowFontScaling={false}
             >
               {referenceLabel}
             </Text>
