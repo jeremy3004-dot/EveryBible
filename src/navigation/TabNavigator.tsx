@@ -194,7 +194,12 @@ const resolveActiveNestedRoute = (route: {
       getFocusedRouteNameFromRoute(route as FocusedRouteArg) ??
       currentRoute.name ??
       fallbackNestedRouteName,
-    nestedRouteParams: currentRoute.params ?? fallbackNestedRouteParams,
+    // Before the nested stack has state, the tab route's own params are the
+    // `{ screen, params }` wrapper; the nested screen's params are inside it.
+    nestedRouteParams:
+      currentRoute === route
+        ? fallbackNestedRouteParams
+        : (currentRoute.params ?? fallbackNestedRouteParams),
   };
 };
 
