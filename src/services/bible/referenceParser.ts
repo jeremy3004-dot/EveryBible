@@ -211,11 +211,12 @@ export interface LocalizedBookName {
 
 type PreparedBookName = { bookId: string; names: string[] };
 
-// After the book name: a chapter, an optional verse, and an optional range end, which is
-// ignored like the grammar's ranges are. Digits are already ASCII (normalizeReferenceNumerals).
+// After the book name: a chapter, an optional verse (after ":", "." or a space, as the English
+// grammar reads "john 3 16"), and an optional range end, which is ignored like the grammar's
+// ranges are. Digits are already ASCII (normalizeReferenceNumerals).
 // Chinese, Japanese and Korean write "3章16节", "3章16節" and "3장 16절" (a psalm is 편/篇).
 const LOCALIZED_REFERENCE_NUMBERS_PATTERN =
-  /^\s*(\d{1,3})(?:\s*[章장篇편](?:\s*(\d{1,3})\s*[节節절]?)?|\s*[:.]\s*(\d{1,3}))?(?:\s*[-–—~～]\s*\d{1,3}(?:\s*[:.]\s*\d{1,3})?\s*[章장篇편节節절]?)?\s*$/;
+  /^\s*(\d{1,3})(?:\s*[章장篇편](?:\s*(\d{1,3})\s*[节節절]?)?|(?:\s*[:.]\s*|\s+)(\d{1,3}))?(?:\s*[-–—~～]\s*\d{1,3}(?:\s*[:.]\s*\d{1,3})?\s*[章장篇편节節절]?)?\s*$/;
 const WHITESPACE_RUN_PATTERN = /\s+/g;
 
 const MAX_NAMED_REFERENCE_LENGTH = 80;

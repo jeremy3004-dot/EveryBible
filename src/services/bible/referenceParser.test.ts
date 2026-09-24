@@ -415,3 +415,13 @@ test('an interface book name typed without its accents or with a plain apostroph
   assert.equal(parsePassageReferenceLocale('Giu-de 1', 'vi', viNames)?.bookId, 'JUD');
   assert.equal(parsePassageReferenceLocale("Mısır'dan Çıkış 20", 'tr', trNames)?.bookId, 'EXO');
 });
+
+test('an interface book name reads chapter and verse separated by a space, like English', () => {
+  // The English grammar reads "john 3 16" as John 3:16; "Jean 3 16" was a word search.
+  assert.equal(parsePassageReferenceLocale('Jean 3 16', 'fr', frNames)?.focusVerse, 16);
+  assert.equal(
+    parsePassageReferenceLocale('Johannes 3 16', 'de', interfaceBookNames(de.bible.books))
+      ?.focusVerse,
+    16
+  );
+});
