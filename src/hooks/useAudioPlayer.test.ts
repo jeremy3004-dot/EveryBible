@@ -1223,6 +1223,126 @@ test('navigating away from a chapter outside the plan session releases the pin',
   assert.deepEqual(store().playbackSequence, []);
 });
 
+const transportSnapshot = () => ({
+  currentChapter: store().currentChapter,
+  status: store().status,
+  currentPosition: store().currentPosition,
+  lastPosition: store().lastPosition,
+  duration: store().duration,
+});
+
+// Play, pause, then navigate: the target is selected unloaded and only sounds
+// once the listener presses play, whichever route (linear, queue, plan
+// session) the navigation takes.
+for (const direction of ['nextChapter', 'previousChapter'] as const) {
+  for (const mode of ['linear', 'queue', 'sequence'] as const) {
+    test(`${direction} from a paused chapter selects the ${mode} target silently until play`, async () => {
+      const player = mountPlayer();
+      await player.api.playChapter('JHN', 3);
+      await player.rerender().pause();
+      if (mode === 'queue') {
+        store().clearQueue();
+        store().addToQueue('bsb', 'JHN', 2);
+        store().addToQueue('bsb', 'JHN', 3);
+        store().addToQueue('bsb', 'JHN', 4);
+        store().syncQueueToTrack('bsb', 'JHN', 3);
+      }
+      if (mode === 'sequence') {
+        store().setPlaybackSequence([2, 3, 4].map((chapter) => ({ bookId: 'JHN', chapter })));
+      }
+      const targetChapter = direction === 'nextChapter' ? 4 : 2;
+      const lookupsBefore = recorded.audioLookups.length;
+      const loadsBefore = playerCalls('loadAndPlay').length;
+
+      const target = await player.rerender()[direction]();
+
+      assert.equal(target?.chapter, targetChapter);
+      assert.deepEqual(transportSnapshot(), {
+        currentChapter: targetChapter,
+        status: 'paused',
+        currentPosition: 0,
+        lastPosition: 0,
+        duration: 0,
+      });
+      assert.equal(recorded.audioLookups.length, lookupsBefore);
+      assert.equal(playerCalls('loadAndPlay').length, loadsBefore);
+
+      await player.rerender().togglePlayPause();
+
+      assert.equal(store().status, 'playing');
+      assert.equal(store().currentChapter, targetChapter);
+      assert.equal(playerCalls('loadAndPlay').length, loadsBefore + 1);
+    });
+  }
+}
+
+test('previousChapter from a playing chapter starts the new one immediately', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('JHN', 3);
+
+  await player.rerender().previousChapter();
+
+  assert.equal(store().status, 'playing');
+  assert.equal(store().currentChapter, 2);
+  assert.equal(playerCalls('loadAndPlay').length, 2);
+});
+
+test('pause, next, next, play starts only the last selected chapter from zero', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('JHN', 3);
+  store().setPosition(30_000);
+  await player.rerender().pause();
+
+  await player.rerender().nextChapter();
+  await player.rerender().nextChapter();
+
+  assert.equal(store().currentChapter, 5);
+  assert.equal(store().status, 'paused');
+  assert.equal(store().lastPosition, 0);
+  assert.equal(recorded.audioLookups.length, 1);
+  assert.equal(playerCalls('loadAndPlay').length, 1);
+
+  await player.rerender().togglePlayPause();
+
+  assert.equal(store().currentChapter, 5);
+  assert.equal(store().status, 'playing');
+  assert.equal(store().currentPosition, 0);
+  assert.deepEqual(playerCalls('seekTo'), []);
+  assert.deepEqual(recorded.audioLookups.at(-1), {
+    translationId: 'bsb',
+    bookId: 'JHN',
+    chapter: 5,
+  });
+  assert.equal(recorded.audioLookups.length, 2);
+  assert.equal(playerCalls('loadAndPlay').length, 2);
+});
+
+test('manual navigation observes a pause made after the controls last rendered', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('JHN', 3);
+  const controls = player.rerender();
+
+  await controls.pause();
+  await controls.nextChapter();
+
+  assert.equal(store().currentChapter, 4);
+  assert.equal(store().status, 'paused');
+  assert.equal(playerCalls('loadAndPlay').length, 1);
+});
+
+test('paused navigation does not escape a pinned plan session boundary', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('JHN', 3);
+  await player.rerender().pause();
+  store().setPlaybackSequence([{ bookId: 'JHN', chapter: 3 }]);
+
+  assert.equal(await player.rerender().nextChapter(), null);
+
+  assert.equal(store().currentChapter, 3);
+  assert.equal(store().status, 'paused');
+  assert.equal(playerCalls('loadAndPlay').length, 1);
+});
+
 // ---------------------------------------------------------------------------
 // Playback completion
 // ---------------------------------------------------------------------------
