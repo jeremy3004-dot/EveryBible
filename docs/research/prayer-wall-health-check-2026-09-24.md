@@ -74,3 +74,42 @@ Each **Fixed** item was fixed on this branch, test first.
    (PW5), and settle PW9 and PW10. Reporting, blocking and the filter are now built; see
    `docs/research/prayer-wall-moderation-2026-09-24.md` for what they do and what the owner
    still has to do.
+
+## Follow-up: listing and taps (PW13–PW15)
+
+Fixed test first on a later branch the same day.
+
+- **PW13 (Medium, latent): counts were cut off at 1000 rows.** `listPrayerRequests` read every
+  `prayer_interactions` row for the wall and counted on the device. PostgREST returns at most
+  1000 rows without an error, so in a busy group the counts came out low and "you already
+  prayed" could be missing, which let the next tap withdraw a real prayer. The requests
+  themselves were not paged either. **Fixed:** `public.list_prayer_requests(group, limit,
+before_created_at, before_id)` (migration `20260924120803_list_prayer_requests_with_counts.sql`)
+  returns one page, newest first, with `prayed_count`, `encouraged_count`, `viewer_has_prayed`
+  and `viewer_has_encouraged` counted in the database. It is `SECURITY INVOKER`, so membership,
+  hidden requests (the author still sees their own, as under review), blocks and reports apply
+  exactly as for a plain select. Pages follow a `(created_at, id)` cursor, and the new index
+  `idx_prayer_requests_group_created_id` replaces `idx_prayer_requests_group`. The wall loads the
+  next page of 50 when the reader reaches the end. While the function is missing (`PGRST202`,
+  `42883` or a 404) the app uses the old queries, now paged the same way and reading
+  interactions in 1000-row pages.
+- **PW14 (Low): a fast double tap sent two writes.** Both taps read the same "not prayed" state,
+  so the count went up by two and the writes fought. **Fixed:** one write per pill at a time; a
+  tap while that pill's write is in flight is ignored.
+- **PW15 (Low): a failed tap rolled back to a stale copy.** The rollback reapplied a delta
+  computed before the write, so a refresh that landed meanwhile was undone or double counted.
+  **Fixed:** the list holds only server-confirmed rows and in-flight taps are laid over it
+  (`withPendingInteractions`); a failure drops the overlay, and a success applies
+  `applyConfirmedInteraction`, which only moves the count when the flag actually changes.
+- **Known limit:** the prayer card on `GroupDetail` counts active requests in the first page
+  only, so it reads at most 50.
+
+Verification: the verifier gained 3 sections (counts in the database, including 700+700
+interactions on one request; hidden/blocked/reported rules; paging with tied `created_at`),
+which failed before the migration. `prayerService.test.ts` covers the RPC call, cursor and
+fallback, `prayerModel.test.ts` the tap model, and `PrayerWallScreen.render.test.tsx` the double
+tap, the rollback after a refresh, and loading the next page. `GroupListScreen` and
+`GroupDetailScreen` now have render tests (`groupScreens.renderFixture.tsx`).
+
+Live step: apply `20260924120803_list_prayer_requests_with_counts.sql` (no data changes; post-apply
+checks at the end of the file). The app works before and after.
