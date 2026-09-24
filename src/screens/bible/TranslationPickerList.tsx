@@ -37,6 +37,7 @@ import {
 import {
   buildTranslationPickerSections,
   buildTranslationLanguageFilters,
+  buildTranslationLanguageOptions,
   filterTranslationLanguagesBySearchQuery,
   filterTranslationsByLanguage,
   buildTranslationSearchIndex,
@@ -50,6 +51,7 @@ import {
   getTranslationSelectionState,
   normalizeTranslationLanguage,
   resolvePreferredTranslationLanguage,
+  startRuntimeCatalogHydration,
 } from './bibleTranslationModel';
 import { useTranslationPreferenceStore } from '../../stores/translationPreferenceStore';
 import { hasTranslationDownloadData } from '../../stores/bibleStoreModel';
@@ -196,17 +198,10 @@ export function TranslationPickerList({
     () => (searchQuery.trim() ? searchTranslationIndex(languageSearchIndex, searchQuery) : []),
     [searchQuery, languageSearchIndex]
   );
-  const languageOptions = useMemo(() => {
-    const countsByLanguage = new Map<string, number>();
-    for (const translation of visibleTranslations) {
-      const language = normalizeTranslationLanguage(translation.language);
-      countsByLanguage.set(language, (countsByLanguage.get(language) ?? 0) + 1);
-    }
-    return languageFilters.map((filter) => ({
-      ...filter,
-      count: countsByLanguage.get(filter.value) ?? 0,
-    }));
-  }, [languageFilters, visibleTranslations]);
+  const languageOptions = useMemo(
+    () => buildTranslationLanguageOptions(visibleTranslations, languageFilters),
+    [languageFilters, visibleTranslations]
+  );
 
   useEffect(() => {
     if (resolvedPreferredLanguage && preferredTranslationLanguage !== resolvedPreferredLanguage) {
@@ -220,26 +215,12 @@ export function TranslationPickerList({
     }
   }, [languageOptions.length, pickerMode]);
 
-  useEffect(() => {
-    let isMounted = true;
-
-    // Cached rows can belong to only one source. Let the shared per-launch gate decide
-    // whether a refresh is needed so reopening the picker retries partial failures.
-    setIsHydratingRuntimeCatalog(true);
-    void ensureRuntimeCatalogLoaded()
-      .catch((error) => {
-        console.warn('[Bible] Failed to hydrate runtime translation catalog:', error);
-      })
-      .finally(() => {
-        if (isMounted) {
-          setIsHydratingRuntimeCatalog(false);
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  // Cached rows can belong to only one source. Let the shared per-launch gate decide
+  // whether a refresh is needed so reopening the picker retries partial failures.
+  useEffect(
+    () => startRuntimeCatalogHydration(ensureRuntimeCatalogLoaded, setIsHydratingRuntimeCatalog),
+    []
+  );
 
   useEffect(() => {
     return () => {

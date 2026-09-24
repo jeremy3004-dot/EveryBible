@@ -1,7 +1,9 @@
+// UI-only source check: BibleBrowserScreen is a component; the suite has no renderer.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import type { BibleStackParamList } from '../../navigation/types';
 
 function readRelativeSource(relativePath: string): string {
   return readFileSync(fileURLToPath(new URL(relativePath, import.meta.url).href), 'utf8');
@@ -63,13 +65,9 @@ test('Bible browser keeps SQLite search services out of the first browser render
 
 test('Bible browser can focus search when launched from the reader chrome', () => {
   const source = readRelativeSource('./BibleBrowserScreen.tsx');
-  const navigationTypes = readRelativeSource('../../navigation/types.ts');
-
-  assert.match(
-    navigationTypes,
-    /BibleBrowser:[\s\S]*focusSearch\?: boolean;/,
-    'BibleBrowser route params should accept a focusSearch flag from the reader search button'
-  );
+  // Type-level contract, enforced by `npm run typecheck`: the route accepts focusSearch.
+  const params: BibleStackParamList['BibleBrowser'] = { focusSearch: true };
+  assert.deepEqual(params, { focusSearch: true });
 
   assert.match(
     source,

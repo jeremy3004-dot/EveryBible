@@ -1,3 +1,4 @@
+// Codebase-wide static lint (not a behaviour test): no src/ file imports the root expo-file-system module.
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';

@@ -73,7 +73,7 @@ export interface ThemeColors {
   bibleFollowVerseNumber: string;
 }
 
-interface ThemeContextValue {
+export interface ThemeContextValue {
   colors: ThemeColors;
   themeMode: ThemeMode;
   appearancePalette: AppearancePaletteId;
@@ -196,7 +196,7 @@ const baseLightColors: ThemeColors = {
 // dark uses the lighter primary so it reads on the near-black ground.
 const LIGHT_FAMILY_MODES: ReadonlySet<ThemeMode> = new Set(['light']);
 
-const createThemeColors = (mode: ThemeMode, paletteId: AppearancePaletteId): ThemeColors => {
+export const createThemeColors = (mode: ThemeMode, paletteId: AppearancePaletteId): ThemeColors => {
   const palette =
     APPEARANCE_PALETTES.find((entry) => entry.id === paletteId)?.swatches ?? defaultPaletteSwatches;
 
@@ -235,7 +235,8 @@ const createThemeColors = (mode: ThemeMode, paletteId: AppearancePaletteId): The
 export { baseDarkColors as darkColors, baseLightColors as lightColors };
 export type { AppearancePaletteId } from '../constants/appearancePalettes';
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
+/** The provider's value: stored preferences resolved to a live scope, palette and colors. */
+export function useThemeContextValue(): ThemeContextValue {
   const preferences = useAuthStore((state) => state.preferences);
   const setPreferences = useAuthStore((state) => state.setPreferences);
 
@@ -254,7 +255,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     [themeMode, appearancePalette]
   );
 
-  const value = useMemo<ThemeContextValue>(
+  return useMemo<ThemeContextValue>(
     () => ({
       colors,
       themeMode,
@@ -272,7 +273,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }),
     [appearancePalette, colors, setPreferences, themeMode]
   );
+}
 
+export function ThemeProvider({ children }: { children: ReactNode }) {
+  const value = useThemeContextValue();
   return <themeContext.Provider value={value}>{children}</themeContext.Provider>;
 }
 

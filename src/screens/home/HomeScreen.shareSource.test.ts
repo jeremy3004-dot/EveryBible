@@ -1,3 +1,4 @@
+// UI-only source check: asserts on component render code, which the suite cannot render (no component renderer); not a behaviour test.
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
@@ -36,7 +37,7 @@ test('HomeScreen captures a verse image and falls back to text sharing', () => {
 
   assert.match(
     source,
-    /const \{ getDailyScripture \} = await import\('\.\.\/\.\.\/services\/bible\/bibleService'\);/,
+    /loadBibleService: \(\) => import\('\.\.\/\.\.\/services\/bible\/bibleService'\)/,
     'HomeScreen should lazy-load Bible database access after interactions when loading verse-of-day text'
   );
 

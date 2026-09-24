@@ -44,6 +44,8 @@ test('unmounted Home cancels readiness and ignores an already queued callback', 
   assert.equal(reports, 0);
 });
 
+// Startup import-graph guard: Home must not pull the hooks/components/constants/utils barrels
+// onto the cold-start path (plus the one onLayout hook-up, UI-only); allowed by docs/testing.md.
 test('Home startup imports only the hooks, components and constants it renders', () => {
   const source = readFileSync(
     new URL('../../screens/home/HomeScreen.tsx', import.meta.url),

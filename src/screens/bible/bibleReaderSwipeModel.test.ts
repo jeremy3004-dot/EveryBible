@@ -142,6 +142,7 @@ test('SWIPE_VELOCITY_MIN constant is 600', () => {
   assert.equal(SWIPE_VELOCITY_MIN, 600);
 });
 
+// UI-only source check: component render code; the suite has no renderer.
 test('BibleReaderScreen gives haptic feedback when a swipe commits a chapter change', () => {
   const source = readFileSync(
     fileURLToPath(new URL('./BibleReaderScreen.tsx', import.meta.url).href),

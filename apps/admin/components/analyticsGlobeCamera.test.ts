@@ -1,3 +1,4 @@
+// UI-only source check: asserts on component render code, which the suite cannot render (no component renderer); not a behaviour test.
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';

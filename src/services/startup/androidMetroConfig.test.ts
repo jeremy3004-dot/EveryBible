@@ -1,47 +1,45 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
-import { fileURLToPath, URL } from 'node:url';
-import { runInNewContext } from 'node:vm';
-import test from 'node:test';
+import test, { mock } from 'node:test';
+import { mockModule } from '../../testing/mockModules';
+
+// The real metro.config.js, loaded through require with only Expo's default config replaced.
+type TransformOptions = {
+  transform: { inlineRequires: boolean; experimentalImportSupport: boolean };
+  preloadedModules: object;
+};
+type MetroConfig = {
+  resolver: { assetExts: string[] };
+  transformer: { getTransformOptions: (...args: unknown[]) => Promise<TransformOptions> };
+};
+
+const preloadedModules = { bootstrap: true };
+const expoCalls: unknown[][] = [];
+const projectRoots: string[] = [];
+mockModule(mock, 'expo/metro-config', {
+  getDefaultConfig: (projectRoot: string) => {
+    projectRoots.push(projectRoot);
+    return {
+      resolver: { assetExts: ['png'] },
+      transformer: {
+        getTransformOptions: async (...args: unknown[]) => {
+          expoCalls.push(args);
+          return {
+            transform: { inlineRequires: false, experimentalImportSupport: true },
+            preloadedModules,
+          };
+        },
+      },
+    };
+  },
+});
+
+const localRequire = createRequire(import.meta.url);
+const metroConfigPath = localRequire.resolve('../../../metro.config.js');
+const config = localRequire(metroConfigPath) as MetroConfig;
 
 test('Android release defers module evaluation while retaining Expo transform options', async () => {
-  const root = fileURLToPath(new URL('../../../', import.meta.url));
-  const module = {
-    exports: {} as {
-      transformer: {
-        getTransformOptions: (...args: unknown[]) => Promise<{
-          transform: { inlineRequires: boolean; experimentalImportSupport: boolean };
-          preloadedModules: object;
-        }>;
-      };
-    },
-  };
-  const preloadedModules = { bootstrap: true };
-  const calls: unknown[][] = [];
-  runInNewContext(readFileSync(path.join(root, 'metro.config.js'), 'utf8'), {
-    module,
-    __dirname: root,
-    require: (name: string) => {
-      if (name === 'path') return path;
-      if (name === 'fs') return { existsSync: () => false };
-      assert.equal(name, 'expo/metro-config');
-      return {
-        getDefaultConfig: () => ({
-          resolver: { assetExts: ['png'] },
-          transformer: {
-            getTransformOptions: async (...args: unknown[]) => {
-              calls.push(args);
-              return {
-                transform: { inlineRequires: false, experimentalImportSupport: true },
-                preloadedModules,
-              };
-            },
-          },
-        }),
-      };
-    },
-  });
   const entries = ['index.ts'];
   const getDependencies = async () => [];
   for (const options of [
@@ -49,14 +47,15 @@ test('Android release defers module evaluation while retaining Expo transform op
     { platform: 'android', dev: true },
     { platform: 'ios', dev: false },
   ]) {
-    const result = await module.exports.transformer.getTransformOptions(
-      entries,
-      options,
-      getDependencies
-    );
+    const result = await config.transformer.getTransformOptions(entries, options, getDependencies);
     assert.equal(result.transform.inlineRequires, options.platform === 'android' && !options.dev);
     assert.equal(result.transform.experimentalImportSupport, true);
     assert.equal(result.preloadedModules, preloadedModules);
-    assert.deepEqual(calls.at(-1), [entries, options, getDependencies]);
+    assert.deepEqual(expoCalls.at(-1), [entries, options, getDependencies]);
   }
+});
+
+test('the config is built for the project root and serves WebP book icons', () => {
+  assert.deepEqual(projectRoots, [path.dirname(metroConfigPath)]);
+  assert.deepEqual(config.resolver.assetExts, ['png', 'webp']);
 });

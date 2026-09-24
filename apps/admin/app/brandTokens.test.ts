@@ -1,3 +1,4 @@
+// Non-TypeScript artefact check: reads the admin CSS token files and the layout that loads them as text; there is no module to load for it.
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';

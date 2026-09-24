@@ -1,5 +1,5 @@
-// Backend-contract guard by design: asserts the Supabase config and Edge Function
-// the translator review flow depends on. Service behaviour lives in
+// Supabase config check (config.toml, not TypeScript): the review function relies on its
+// own passcode, not the runtime JWT gate. Service behaviour lives in
 // chapterFeedbackReviewService.behavior.test.ts.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -9,10 +9,6 @@ import { fileURLToPath } from 'node:url';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const CONFIG_PATH = path.join(REPO_ROOT, 'supabase/config.toml');
-const REVIEW_FUNCTION_PATH = path.join(
-  REPO_ROOT,
-  'supabase/functions/review-chapter-feedback/index.ts'
-);
 
 test('review-chapter-feedback disables the public edge JWT gate', () => {
   const config = readFileSync(CONFIG_PATH, 'utf8');
@@ -24,24 +20,6 @@ test('review-chapter-feedback disables the public edge JWT gate', () => {
   );
 });
 
-// Since per-team passcodes (2026-09-24) the shared secret is optional: unset, only team
-// passcodes work. Scoping behaviour is in supabase/functions/review-chapter-feedback/teamAccess.test.ts.
-test('review-chapter-feedback reads the shared translator passcode only from a Supabase secret', () => {
-  const source = readFileSync(REVIEW_FUNCTION_PATH, 'utf8');
-
-  assert.match(
-    source,
-    /Deno\.env\.get\('TRANSLATOR_REVIEW_PASSCODE'\)/,
-    'Expected translator review passcode validation to read from a Supabase secret'
-  );
-  assert.doesNotMatch(
-    source,
-    /\|\|\s*['"][0-9]+['"]/,
-    'Expected translator review passcode validation to avoid a bundled numeric fallback'
-  );
-  assert.match(
-    source,
-    /validateOnly === true[\s\S]*success: true/,
-    'Expected Settings unlocks to validate the passcode without requiring a chapter request'
-  );
-});
+// The function's own passcode handling (shared secret read from TRANSLATOR_REVIEW_PASSCODE,
+// no bundled fallback, validateOnly unlocks) runs on the real edge function in
+// supabase/functions/review-chapter-feedback/teamAccess.test.ts.

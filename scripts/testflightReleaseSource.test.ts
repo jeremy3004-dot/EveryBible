@@ -1,3 +1,4 @@
+// Non-TypeScript artefact check: reads package.json and the TestFlight shell script as text; there is no module to load for it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

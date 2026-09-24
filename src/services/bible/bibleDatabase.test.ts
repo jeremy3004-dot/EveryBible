@@ -949,6 +949,21 @@ test('searchVerses matches case-insensitively and on word prefixes', async () =>
   );
 });
 
+test('search results reinstate prose that stored poetry lines do not cover, like the reader', async () => {
+  const { searchVerses } = await loadModule();
+
+  const [verse] = await searchVerses('bsb', 'Word');
+
+  assert.equal(`${verse.bookId} ${verse.chapter}:${verse.verse}`, 'JHN 1:1');
+  assert.deepEqual(verse.formatting, {
+    mode: 'poetry',
+    lines: [
+      { text: 'In the beginning was the Word,', indentLevel: 1 },
+      { text: 'and the Word was with God, and the Word was God.', prose: true },
+    ],
+  });
+});
+
 test('searchVerses only returns verses from the requested translation', async () => {
   const { searchVerses } = await loadModule();
 

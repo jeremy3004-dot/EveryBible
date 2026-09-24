@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   buildTranslationPickerSections,
   buildTranslationLanguageFilters,
+  buildTranslationLanguageOptions,
   filterTranslationLanguagesBySearchQuery,
   filterTranslationsBySearchQuery,
   getTranslationAvailabilitySummary,
@@ -14,6 +15,7 @@ import {
   getTranslationSelectionState,
   isTranslationReadableLocally,
   isAudioOnlyTranslation,
+  startRuntimeCatalogHydration,
 } from './bibleTranslationModel';
 
 test('downloaded translations are selectable', () => {
@@ -694,4 +696,113 @@ test('availability summary labels text and audio coverage compactly', () => {
     ),
     'Text • Audio (New Testament)'
   );
+});
+
+test('picker language counts scan translations once rather than once per language', () => {
+  let languageReads = 0;
+  const visibleTranslations = Array.from({ length: 1200 }, (_, index) => ({
+    get language() {
+      languageReads += 1;
+      return `Language ${index % 600}`;
+    },
+  }));
+  const languageFilters = buildTranslationLanguageFilters(visibleTranslations);
+  languageReads = 0;
+
+  const options = buildTranslationLanguageOptions(visibleTranslations, languageFilters);
+
+  assert.equal(options.length, 600);
+  assert.ok(options.every(({ count }) => count === 2));
+  assert.deepEqual(options[0], { ...languageFilters[0], count: 2 });
+  assert.ok(
+    languageReads <= visibleTranslations.length * 2,
+    `Read language ${languageReads} times`
+  );
+});
+
+test('picker language options count unlabelled translations under Other and absent ones as zero', () => {
+  assert.deepEqual(
+    buildTranslationLanguageOptions(
+      [{ language: 'English' }, { language: ' English ' }, { language: null }],
+      [
+        { value: 'English', label: 'English' },
+        { value: 'Other', label: 'Other' },
+        { value: 'Spanish', label: 'Spanish' },
+      ]
+    ),
+    [
+      { value: 'English', label: 'English', count: 2 },
+      { value: 'Other', label: 'Other', count: 1 },
+      { value: 'Spanish', label: 'Spanish', count: 0 },
+    ]
+  );
+});
+
+function makeCatalogGate() {
+  let settle: (error?: Error) => void = () => {};
+  let calls = 0;
+  const ensureRuntimeCatalogLoaded = () => {
+    calls += 1;
+    return new Promise<void>((resolve, reject) => {
+      settle = (error) => (error ? reject(error) : resolve());
+    });
+  };
+  return {
+    ensureRuntimeCatalogLoaded,
+    settle: (error?: Error) => settle(error),
+    get calls() {
+      return calls;
+    },
+  };
+}
+
+// The hydration chain is plain promises (no lazy import), so one macrotask settles it.
+const settlePromiseChain = () => new Promise((resolve) => setImmediate(resolve));
+
+test('opening a picker with existing runtime rows still attempts the shared hydration gate', async () => {
+  const gate = makeCatalogGate();
+  const loadingStates: boolean[] = [];
+
+  startRuntimeCatalogHydration(gate.ensureRuntimeCatalogLoaded, (value) => {
+    loadingStates.push(value);
+  });
+
+  assert.equal(gate.calls, 1, 'cached rows must not suppress retry after a partial source failure');
+  assert.deepEqual(loadingStates, [true]);
+  gate.settle();
+  await settlePromiseChain();
+  assert.deepEqual(loadingStates, [true, false]);
+});
+
+test('a failed picker hydration is logged and still clears the loading state', async (t) => {
+  const warn = t.mock.method(console, 'warn', () => {});
+  const gate = makeCatalogGate();
+  const loadingStates: boolean[] = [];
+  const failure = new Error('catalog offline');
+
+  startRuntimeCatalogHydration(gate.ensureRuntimeCatalogLoaded, (value) => {
+    loadingStates.push(value);
+  });
+  gate.settle(failure);
+  await settlePromiseChain();
+
+  assert.deepEqual(loadingStates, [true, false]);
+  assert.deepEqual(warn.mock.calls[0]?.arguments, [
+    '[Bible] Failed to hydrate runtime translation catalog:',
+    failure,
+  ]);
+});
+
+test('closing the picker before hydration settles leaves its loading state untouched', async () => {
+  const gate = makeCatalogGate();
+  const loadingStates: boolean[] = [];
+
+  const cleanup = startRuntimeCatalogHydration(gate.ensureRuntimeCatalogLoaded, (value) => {
+    loadingStates.push(value);
+  });
+  cleanup();
+  gate.settle();
+  await settlePromiseChain();
+
+  assert.deepEqual(loadingStates, [true]);
 });

@@ -8,35 +8,6 @@
 
 import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-
-const storeSource = readFileSync(
-  fileURLToPath(new URL('./translatorReviewStore.ts', import.meta.url).href),
-  'utf8'
-);
-
-// --- S10: the dev passcode must be dead-code-eliminable in a release bundle -------------
-
-test('the dev passcode env read is confined to a __DEV__ branch', () => {
-  // Expo's Babel transform inlines process.env.EXPO_PUBLIC_* as a string literal at build
-  // time. Reading it unconditionally would bake the dev passcode into the production
-  // bundle; inside a __DEV__ branch the minifier drops it.
-  const match = storeSource.match(
-    /EXPO_PUBLIC_DEV_TRANSLATOR_REVIEW_PASSCODE:\s*([\s\S]{0,160}?),\n/
-  );
-  assert.ok(match, 'expected the env key to be assigned from a guarded expression');
-  const expression = match?.[1] ?? '';
-  assert.match(expression, /isDevRuntime\s*\?/);
-  assert.match(expression, /:\s*undefined/);
-  assert.match(storeSource, /const isDevRuntime = typeof __DEV__ !== 'undefined' && __DEV__;/);
-
-  // No unguarded read anywhere else in the file.
-  const occurrences = storeSource.match(
-    /process\.env\.EXPO_PUBLIC_DEV_TRANSLATOR_REVIEW_PASSCODE/g
-  );
-  assert.equal(occurrences?.length, 1);
-});
 
 // --- S7: the passcode must not be written to MMKV ---------------------------------------
 
@@ -93,6 +64,39 @@ async function loadStore(): Promise<typeof import('./translatorReviewStore') | n
   }
   return storeModule;
 }
+
+// --- S10: a release build never reads the dev passcode ---------------------------------
+
+test('a release runtime never reads the dev passcode env var, even when it is set', async (t) => {
+  // Expo inlines process.env.EXPO_PUBLIC_* at build time, so the read must sit inside a
+  // __DEV__ branch for the minifier to drop the literal. Under node --test there is no
+  // __DEV__ (a release runtime), so the store must load without touching the variable.
+  const realEnv = process.env;
+  const reads: string[] = [];
+  process.env = new Proxy(
+    { ...realEnv, EXPO_PUBLIC_DEV_TRANSLATOR_REVIEW_PASSCODE: 'dev-only-code' },
+    {
+      get(target, key, receiver) {
+        if (typeof key === 'string') reads.push(key);
+        return Reflect.get(target, key, receiver);
+      },
+    }
+  );
+  let store: Awaited<ReturnType<typeof loadStore>>;
+  try {
+    store = await loadStore();
+  } finally {
+    process.env = realEnv;
+  }
+  if (!store) {
+    t.skip('module mocking unavailable (run with --experimental-test-module-mocks)');
+    return;
+  }
+
+  assert.equal(reads.includes('EXPO_PUBLIC_DEV_TRANSLATOR_REVIEW_PASSCODE'), false);
+  assert.equal(store.useTranslatorReviewStore.getState().accessPasscode, null);
+  assert.equal(store.useTranslatorReviewStore.getState().enabled, false);
+});
 
 // Lets the queued (fire-and-forget) SecureStore writes settle.
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -243,22 +247,7 @@ test('a SecureStore failure does not throw out of a store action', async (t) => 
 
 // --- S7 migration: a legacy plaintext passcode moves into SecureStore and is scrubbed ----
 
-test('the v4 migration moves a persisted plaintext passcode into SecureStore', () => {
-  // The persisted snapshot below is what a pre-v4 install has on disk. Rather than
-  // re-importing the store under a second module registry, exercise the exported migrate
-  // contract structurally: version bumped, migration hook present, partialize passcode-free.
-  assert.match(storeSource, /version: 5,/);
-  assert.match(
-    storeSource,
-    /if \(version < 4 && accessPasscode\) \{\s*persistPasscodeToSecureStore\(accessPasscode\);/
-  );
-
-  const partialize = storeSource.match(/partialize: \(state\) => \(\{([\s\S]*?)\}\),/)?.[1] ?? '';
-  assert.ok(partialize.includes('enabled: state.enabled'));
-  assert.ok(partialize.includes('feedbackMarkers: state.feedbackMarkers'));
-  assert.equal(
-    partialize.includes('accessPasscode'),
-    false,
-    'partialize must not persist accessPasscode to MMKV'
-  );
-});
+// The v4 migration (plaintext passcode moved to SecureStore, version 5, passcode-free
+// snapshot) runs on the real store in translatorReviewStore.test.ts: 'migrating from v2
+// keeps a stored passcode ... into the keystore' and 'migration rewrites the stored
+// snapshot at the current version, passcode-free'.

@@ -788,6 +788,7 @@ test('cancelling a job stops the exact task and its per-chapter children', async
 // build guarded a call to `ensureDownloadsAreRunning`, which the package has never
 // exported, so resume was a permanent silent no-op. Resume goes through
 // `getExistingDownloadTasks` instead, and this keeps the double honest about that.
+// Dependency contract guard: the installed downloader package must keep this export surface.
 test('the background downloader package exports task listing, and no ensureDownloadsAreRunning', () => {
   const packageSource = readFileSync(
     fileURLToPath(

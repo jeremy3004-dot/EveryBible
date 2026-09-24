@@ -88,6 +88,33 @@ test('marking a chapter read persists it to MMKV', (t) => {
   assert.deepEqual(readPersisted().state.chaptersRead, { GEN_1: localNoon(2026, 9, 8) });
 });
 
+test('only the five ledgers hydration restores are persisted, not the computed getters', (t) => {
+  t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 8) });
+
+  state().markChapterRead('GEN', 1);
+
+  assert.deepEqual(Object.keys(readPersisted().state).sort(), [
+    'chaptersListened',
+    'chaptersRead',
+    'lastReadDate',
+    'listeningMsByDate',
+    'streakDays',
+  ]);
+});
+
+test('a mutation that leaves the persisted ledgers unchanged does not rewrite storage', (t) => {
+  t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 8) });
+  state().markChapterRead('GEN', 1);
+  const writes = t.mock.method(mmkv.zustandStorage, 'setItem');
+
+  state().updateStreak();
+  useProgressStore.setState({});
+  assert.equal(writes.mock.callCount(), 0);
+
+  state().markChapterRead('GEN', 2);
+  assert.equal(writes.mock.callCount(), 1);
+});
+
 test('re-reading a chapter overwrites its timestamp rather than adding a key', (t) => {
   t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 8) });
   state().markChapterRead('GEN', 1);

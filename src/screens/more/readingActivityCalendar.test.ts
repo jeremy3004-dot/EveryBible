@@ -14,6 +14,7 @@ import {
   summarizeDayChapters,
 } from './readingActivityCalendarModel';
 
+// UI-only source check (readScreen): ReadingActivityScreen render code; no renderer here.
 const readScreen = () =>
   readFileSync(fileURLToPath(new URL('./ReadingActivityScreen.tsx', import.meta.url)), 'utf8');
 

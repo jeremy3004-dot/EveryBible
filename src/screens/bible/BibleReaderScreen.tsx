@@ -73,11 +73,9 @@ import {
   upsertAnnotation,
 } from '../../services/annotations/annotationService';
 import { getChapter, prefetchNextChapter } from '../../services/bible/bibleService';
-import { MissingInstalledDatabaseError } from '../../services/bible/bibleDatabase';
 import { buildBibleDeepLink } from '../../services/bible/deepLinkParser';
 import {
   getChapterPresentationMode,
-  shouldAttemptChapterTextLoad,
   type ChapterPresentationMode,
 } from '../../services/bible/presentation';
 import {
@@ -189,9 +187,15 @@ import {
   shouldAutoplayChapterAudio,
   shouldReplayActiveAudioForTranslationChange,
   shouldSyncReaderToActiveAudioChapter,
-  shouldShowChapterLoadSkeleton,
 } from './bibleReaderModel';
 import type { ReaderParagraph } from './bibleReaderModel';
+import {
+  invalidateReaderChapterLoad,
+  loadReaderChapter,
+  readerChapterKey,
+  type CancellableTask,
+} from './readerChapterLoader';
+import { navigateListenChapter } from './readerListenNavigation';
 import {
   normalizeChapterFeedbackComment,
   shouldEnableChapterFeedbackSubmit,
@@ -791,9 +795,7 @@ export function BibleReaderScreen() {
   );
   const [isReadBottomChromeCollapsed, setIsReadBottomChromeCollapsed] = useState(false);
   const chapterLoadRequestIdRef = useRef(0);
-  const chapterPrefetchTaskRef = useRef<ReturnType<
-    typeof InteractionManager.runAfterInteractions
-  > | null>(null);
+  const chapterPrefetchTaskRef = useRef<CancellableTask | null>(null);
   const annotationLoadRequestIdRef = useRef(0);
   const lastStableSessionModeRef = useRef(chapterSessionMode);
   const readerBottomChromeCollapsedRef = useRef(false);
@@ -1603,7 +1605,7 @@ export function BibleReaderScreen() {
     : null;
   const activeFollowAlongVerse = followAlongPlaybackState.verse;
   const didRestartFollowAlongPlayback = followAlongPlaybackState.didRestart;
-  const isShowingRouteChapter = versesChapterKey === `${bookId}:${chapter}`;
+  const isShowingRouteChapter = versesChapterKey === readerChapterKey(bookId, chapter);
   const readerInlineActiveVerse = getReaderInlineActiveVerse({
     isCurrentAudioChapter,
     activeFollowAlongVerse,
@@ -2000,9 +2002,10 @@ export function BibleReaderScreen() {
   useEffect(() => {
     void loadChapter();
     return () => {
-      chapterLoadRequestIdRef.current += 1;
-      chapterPrefetchTaskRef.current?.cancel();
-      chapterPrefetchTaskRef.current = null;
+      invalidateReaderChapterLoad({
+        requestIdRef: chapterLoadRequestIdRef,
+        prefetchTaskRef: chapterPrefetchTaskRef,
+      });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookId, chapter, currentTranslation]);
@@ -2333,73 +2336,28 @@ export function BibleReaderScreen() {
     setIsPreviewingAudioPortion(false);
   }, [audioPortionStartMs, seekTo, togglePlayPause]);
 
-  async function loadChapter() {
-    const requestId = ++chapterLoadRequestIdRef.current;
-    chapterPrefetchTaskRef.current?.cancel();
-    chapterPrefetchTaskRef.current = null;
-    // HARD RULE (do not change): chapter-to-chapter transitions must NEVER show a
-    // loading skeleton. Only show the skeleton on the very first load (no verses yet).
-    // For chapter-to-chapter transitions, keep the old content visible to avoid a
-    // layout flash / button jump. This guard is what keeps `showPremiumReadMode`
-    // (which includes `!isLoading`, defined ~line 1589) from flashing the skeleton
-    // mid-chapter. See bibleReaderModel.test.ts:
-    // "isLoading stays false on chapter change with existing verses".
-    if (shouldShowChapterLoadSkeleton(verses.length)) {
-      setIsLoading(true);
-    }
-    setError(null);
-
-    // An audio-only translation has no text pack, so querying for one throws and
-    // the resulting error card would hide the audio-first chapter screen. Clear the
-    // verses instead: an empty chapter with audio available IS the audio-first state.
-    if (!shouldAttemptChapterTextLoad(currentTranslationInfo)) {
-      setVerses([]);
-      setVersesChapterKey(`${bookId}:${chapter}`);
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      const data = await getChapter(currentTranslation, bookId, chapter);
-      if (requestId !== chapterLoadRequestIdRef.current) {
-        return;
-      }
-      setVerses(data);
-      setVersesChapterKey(`${bookId}:${chapter}`);
-      if (data.length > 0) {
-        chapterPrefetchTaskRef.current = InteractionManager.runAfterInteractions(() => {
-          if (requestId !== chapterLoadRequestIdRef.current) {
-            return;
-          }
-          chapterPrefetchTaskRef.current = null;
-          void prefetchNextChapter(currentTranslation, bookId, chapter);
-        });
-      }
-      if (!returnToPlanOnComplete) {
-        markChapterRead(bookId, chapter);
-      }
-    } catch (err) {
-      if (requestId !== chapterLoadRequestIdRef.current) {
-        return;
-      }
-      const isMissingInstalledPack =
-        err instanceof MissingInstalledDatabaseError ||
-        (err instanceof Error && err.name === 'MissingInstalledDatabaseError');
-      if (isMissingInstalledPack) {
-        // Installed pack vanished mid-session (e.g. OS storage cleanup). Trigger the
-        // store self-heal to reset pack state and re-download, and surface a recoverable
-        // message instead of the generic load failure.
-        void useBibleStore.getState().recoverMissingInstalledPack(currentTranslation);
-        setError(t('bible.packMissingRecovering'));
-      } else {
-        setError(t('bible.failedToLoad'));
-      }
-      console.error('Error loading chapter:', err);
-    } finally {
-      if (requestId === chapterLoadRequestIdRef.current) {
-        setIsLoading(false);
-      }
-    }
+  function loadChapter() {
+    return loadReaderChapter({
+      requestIdRef: chapterLoadRequestIdRef,
+      prefetchTaskRef: chapterPrefetchTaskRef,
+      translationId: currentTranslation,
+      bookId,
+      chapter,
+      translation: currentTranslationInfo,
+      currentVerseCount: verses.length,
+      returnToPlanOnComplete,
+      getChapter,
+      prefetchNextChapter,
+      runAfterInteractions: (task) => InteractionManager.runAfterInteractions(task),
+      markChapterRead,
+      recoverMissingInstalledPack: (translationId) =>
+        useBibleStore.getState().recoverMissingInstalledPack(translationId),
+      setIsLoading,
+      setError,
+      setVerses,
+      setVersesChapterKey,
+      t,
+    });
   }
 
   const handleCompletePlanDay = useCallback(async () => {
@@ -3663,43 +3621,25 @@ export function BibleReaderScreen() {
     [isCurrentAudioChapter, resetFollowAlongClamp, seekTo]
   );
 
-  const handlePreviousListenChapter = async () => {
-    if (isCurrentAudioChapter) {
-      const target = await previousChapter();
-      if (target) {
-        syncReaderReference(target.bookId, target.chapter);
-      }
-      return;
-    }
-
-    if (!previousNavigationTarget) {
-      return;
-    }
-
-    if (useAudioStore.getState().status !== 'paused') {
-      await playChapter(previousNavigationTarget.bookId, previousNavigationTarget.chapter);
-    }
-    syncReaderReference(previousNavigationTarget.bookId, previousNavigationTarget.chapter);
+  const listenNavigation = {
+    isCurrentAudioChapter,
+    getAudioStatus: () => useAudioStore.getState().status,
+    playChapter,
+    syncReaderReference,
   };
+  const handlePreviousListenChapter = () =>
+    navigateListenChapter({
+      ...listenNavigation,
+      stepPlayer: previousChapter,
+      fallbackTarget: previousNavigationTarget,
+    });
 
-  const handleNextListenChapter = async () => {
-    if (isCurrentAudioChapter) {
-      const target = await nextChapter();
-      if (target) {
-        syncReaderReference(target.bookId, target.chapter);
-      }
-      return;
-    }
-
-    if (!nextNavigationTarget) {
-      return;
-    }
-
-    if (useAudioStore.getState().status !== 'paused') {
-      await playChapter(nextNavigationTarget.bookId, nextNavigationTarget.chapter);
-    }
-    syncReaderReference(nextNavigationTarget.bookId, nextNavigationTarget.chapter);
-  };
+  const handleNextListenChapter = () =>
+    navigateListenChapter({
+      ...listenNavigation,
+      stepPlayer: nextChapter,
+      fallbackTarget: nextNavigationTarget,
+    });
 
   const handleReadChapterNavigation = async (
     target: { bookId: string; chapter: number } | null

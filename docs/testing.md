@@ -39,9 +39,19 @@ Any `*.test.ts` under `src/`, `scripts/`, `apps/`, `packages/`, or
   the mocked operation is called, rather than before a lazy caller can handle them.
 
 Do not write source-text tests (`readFileSync` + regex on the code shape) for
-behaviour. They exist in this repo for startup-import-graph guards only and
-break on harmless refactors. Do not use the `ts.transpileModule` +
-`runInNewContext` trick either; it bypasses the loader and coverage.
+behaviour; they break on harmless refactors. Do not use the `ts.transpileModule` +
+`runInNewContext` trick either; it bypasses the loader and coverage. Logic that
+lives inside a screen or `App.tsx` gets extracted into a module or hook the
+component calls (see `readerChapterLoader.ts`, `useAppSessionAnalytics.ts`), and
+the test loads that. The source-text checks that remain say what they are in
+their first line: startup import-graph guards, codebase-wide static lints,
+dependency-contract guards (a read of `node_modules`), checks of non-TypeScript
+artefacts (config, SQL, native projects, docs), and UI-only checks of component
+render code, which stay until the suite has a component renderer.
+
+Edge functions load through `supabase/functions/_testing/edgeFunctionHarness.ts`
+(real module loader; `esm.sh` supabase-js and `Deno` are provided per harness).
+Admin server modules load through `apps/admin/lib/testing/adminTestHarness.ts`.
 
 ## Making native-backed modules loadable
 

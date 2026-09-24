@@ -1,7 +1,9 @@
-import test from 'node:test';
+// Non-TypeScript artefact check: reads the Python build script, a data JSON and the shipped .db (the readiness constant comes from the real module) as text; there is no module to load for it.
+import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { mockModule } from '../../testing/mockModules';
 import { BUNDLED_BIBLE_SCHEMA_VERSION } from './bibleDataModel';
 
 function readProjectFile(relativePath: string): string {
@@ -11,19 +13,16 @@ function readProjectFile(relativePath: string): string {
   );
 }
 
-function readRelativeSource(relativePath: string): string {
-  return readFileSync(fileURLToPath(new URL(relativePath, import.meta.url).href), 'utf8');
-}
-
-// bibleDatabase.ts imports expo-sqlite at module scope, which breaks the tsx/esbuild transform
-// used by this node test runner — so the constant is read out of the source text instead of
-// imported directly, matching the source-regex pattern used elsewhere in this test suite.
-function readDefaultMinimumReadyVerseCount(): number {
-  const source = readRelativeSource('./bibleDatabase.ts');
-  const match = source.match(/export const DEFAULT_MINIMUM_READY_VERSE_COUNT = (\d+);/);
-  assert.ok(match, 'bibleDatabase.ts should export DEFAULT_MINIMUM_READY_VERSE_COUNT as a numeric literal');
-  return Number(match[1]);
-}
+// bibleDatabase.ts loads expo-sqlite, expo-file-system/legacy and the bundled .db asset at
+// module scope. None is used to read its exported readiness constant, so each is stubbed
+// just enough for the real module to load (the same specifiers bibleDatabase.test.ts mocks).
+mockModule(
+  mock,
+  fileURLToPath(new URL('../../../assets/databases/bible-bsb-v2.db', import.meta.url).href),
+  { __bundledBibleAsset: true }
+);
+mockModule(mock, 'expo-sqlite', {});
+mockModule(mock, 'expo-file-system/legacy', {});
 
 test('bundled Bible database builder includes the Nepali text source', () => {
   const source = readProjectFile('scripts/build_bible_db.py');
@@ -77,7 +76,8 @@ test('shipped bundled database asset matches the schema-version and verse-count 
       'shipped bible-bsb-v2.db PRAGMA user_version must match BUNDLED_BIBLE_SCHEMA_VERSION or the app will treat every device as needing a re-import'
     );
 
-    const minimumReadyVerseCount = readDefaultMinimumReadyVerseCount();
+    const { DEFAULT_MINIMUM_READY_VERSE_COUNT: minimumReadyVerseCount } =
+      await import('./bibleDatabase');
     assert.ok(
       (verseCountRow?.count ?? 0) >= minimumReadyVerseCount,
       `shipped bible-bsb-v2.db has ${verseCountRow?.count ?? 0} verses, below DEFAULT_MINIMUM_READY_VERSE_COUNT (${minimumReadyVerseCount}) — the readiness gate would reject this asset on-device`

@@ -1,7 +1,11 @@
+// UI-only source check: BibleReaderScreen and its dock are components and the suite has no
+// renderer; the reader's modules are tested directly (bibleReaderModel, bibleDatabase, ...).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { READER_TAB_BAR_COLLAPSE_DISTANCE } from '../../navigation/readerTabBarMotion';
+import { READER_PLAY_COLLAPSE_TRAVEL } from './readerChromeMotion';
 
 function readRelativeSource(relativePath: string): string {
   return readFileSync(fileURLToPath(new URL(relativePath, import.meta.url).href), 'utf8');
@@ -107,19 +111,10 @@ test('BibleReaderScreen brings the shared top chrome back in sync with the colla
   );
 });
 
-test('BibleReaderScreen ignores stale chapter and annotation loads during rapid navigation', () => {
+// Stale chapter loads are covered behaviourally in readerChapterLoader.test.ts.
+test('BibleReaderScreen ignores stale annotation loads during rapid navigation', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
-  assert.match(
-    source,
-    /const chapterLoadRequestIdRef = useRef\(0\);/,
-    'BibleReaderScreen should track the latest chapter load request'
-  );
-  assert.match(
-    source,
-    /const requestId = \+\+chapterLoadRequestIdRef\.current;[\s\S]*await getChapter\(currentTranslation, bookId, chapter\);[\s\S]*if \(requestId !== chapterLoadRequestIdRef\.current\) \{[\s\S]*return;[\s\S]*\}/,
-    'BibleReaderScreen should ignore stale SQLite chapter results instead of replacing the current chapter'
-  );
   assert.match(
     source,
     /const annotationLoadRequestIdRef = useRef\(0\);[\s\S]*const requestId = \+\+annotationLoadRequestIdRef\.current;[\s\S]*await getAnnotationsForChapter\(bookId, chapter\);[\s\S]*if \(requestId !== annotationLoadRequestIdRef\.current\) \{[\s\S]*return;[\s\S]*\}/,
@@ -179,13 +174,7 @@ test('BibleReaderScreen avoids broad barrels on the reader open path', () => {
 
 test('BibleReaderScreen auto-scrolls inline audio highlights before they leave the viewport', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
-  const modelSource = readRelativeSource('./bibleReaderModel.ts');
-
-  assert.match(
-    modelSource,
-    /export const getReaderAutoScrollTarget =/,
-    'The reader model should expose a deterministic auto-scroll threshold helper'
-  );
+  // getReaderAutoScrollTarget itself is tested in bibleReaderModel.test.ts.
 
   assert.match(
     source,
@@ -692,11 +681,9 @@ test('BibleReaderScreen updates dock and root tab motion on every UI frame befor
 test('ReaderPlaybackDock keeps the play disc unchanged during collapse and uses actual transport state', () => {
   const source = readRelativeSource('../../components/audio/ReaderPlaybackDock.tsx');
   const readerSource = readRelativeSource('./BibleReaderScreen.tsx');
-  const motion = readRelativeSource('./readerChromeMotion.ts');
-  const tabMotion = readRelativeSource('../../navigation/readerTabBarMotion.ts');
 
-  assert.match(motion, /READER_PLAY_COLLAPSE_TRAVEL = 65;/);
-  assert.match(tabMotion, /READER_TAB_BAR_COLLAPSE_DISTANCE = 132;/);
+  assert.equal(READER_PLAY_COLLAPSE_TRAVEL, 65);
+  assert.equal(READER_TAB_BAR_COLLAPSE_DISTANCE, 132);
   assert.match(
     source,
     /\[0, READER_TAB_BAR_COLLAPSE_DISTANCE - READER_PLAY_COLLAPSE_TRAVEL\]/,
@@ -1504,19 +1491,9 @@ test('invisible animated top chrome excludes interaction without disabling liste
 
 test('the reader reinstates prose lead-ins inside poetry verses without emphasising them', () => {
   const readerSource = readRelativeSource('./BibleReaderScreen.tsx');
-  const databaseSource = readRelativeSource('../../services/bible/bibleDatabase.ts');
-
-  assert.equal(
-    databaseSource.includes('reconcileVerseFormattingWithText'),
-    true,
-    'Verses read from the bundled database must reconcile poetry lines against the verse text, or prose lead-ins like Hebrews 1:5 are dropped from the reader'
-  );
-
-  assert.equal(
-    (databaseSource.match(/reconcileVerseFormattingWithText\(/g) ?? []).length,
-    2,
-    'Both the chapter read path and the search read path must reconcile, so search results are not missing text either'
-  );
+  // Reconciling poetry lines against the verse text on both the chapter and the search read
+  // paths runs on the real module in bibleDatabase.test.ts ('getChapter reinstates prose ...',
+  // 'search results reinstate prose ...').
 
   assert.equal(
     readerSource.includes('structuredVerseProse'),
@@ -1601,10 +1578,17 @@ test('BibleReaderScreen keeps the audio position tick out of its own render body
     'BibleReaderScreen must not subscribe to the audio position tick; extracted leaves own it'
   );
 
-  assert.match(
-    bridgeSource,
-    /useAudioPosition\(track\)/,
+  assert.ok(
+    (bridgeSource.match(/useAudioPosition\(track\)/g) ?? []).length >= 4,
     'The extracted reader audio leaves should be the ones subscribing to the position tick'
+  );
+
+  // The leaves are scoped to the chapter on screen, so ticks from another chapter's
+  // audio are shallow-equal and re-render nothing (see useAudioPosition.test.ts).
+  assert.match(
+    source,
+    /const readerAudioTrack = useMemo\(\s*\(\) => \(\{ translationId: currentTranslation, bookId, chapter \}\)/,
+    'The reader should build its scoped audio track once and hand it to the leaves'
   );
 
   for (const leaf of [

@@ -1,3 +1,4 @@
+// Non-TypeScript artefact check: reads Supabase migration SQL as text; there is no module to load for it.
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';

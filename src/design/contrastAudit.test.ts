@@ -1,12 +1,18 @@
-import test from 'node:test';
+import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
-// appearancePalettes.ts is dependency-free, so importing it here does not drag
-// react-native's flow-typed sources into the node test runner. The base palette
-// hexes live in ThemeContext.tsx (which does import RN), so those are read from
-// source text — the same approach themeColors.test.ts uses.
 import { APPEARANCE_PALETTES } from '../constants/appearancePalettes';
+import { mockModule, sourcePath } from '../testing/mockModules';
+
+// The base palette hexes come from the real ThemeContext module. It only needs the auth
+// store at render time, so a stub keeps the native store graph out of the runner; it is
+// required synchronously because the per-palette tests below are declared at load time.
+mockModule(mock, sourcePath('stores/authStore.ts'), { useAuthStore: () => undefined });
+const theme = createRequire(import.meta.url)(
+  '../contexts/ThemeContext.tsx'
+) as typeof import('../contexts/ThemeContext');
 
 // ---------------------------------------------------------------------------
 // WCAG contrast audit for the Illuminated palette matrix: every core text/accent
@@ -18,21 +24,19 @@ const AA_TEXT = 4.5;
 const ON_ACCENT_DARK = '#1A140F';
 const ON_ACCENT_LIGHT = '#FFFFFF';
 
-function readThemeSource(): string {
-  return readFileSync(
-    fileURLToPath(new URL('../contexts/ThemeContext.tsx', import.meta.url).href),
-    'utf8'
-  );
-}
+const BASE_PALETTES: Record<string, Record<string, string>> = {
+  baseDarkColors: theme.darkColors as unknown as Record<string, string>,
+  baseLightColors: theme.lightColors as unknown as Record<string, string>,
+};
 
-function extractColorToken(source: string, objectName: string, tokenName: string): string {
-  const objectMatch = source.match(
-    new RegExp(`const ${objectName}(?::[^=]+)?\\s*=\\s*\\{([^}]+)\\}`, 's')
+function colorToken(objectName: string, tokenName: string): string {
+  const value = BASE_PALETTES[objectName]?.[tokenName];
+  assert.match(
+    value ?? '',
+    /^#[A-Fa-f0-9]{6}$/,
+    `${objectName}.${tokenName} should be a hex colour`
   );
-  assert.ok(objectMatch, `could not find ${objectName} in ThemeContext`);
-  const tokenMatch = objectMatch[1].match(new RegExp(`${tokenName}:\\s*['"](#[A-Fa-f0-9]{6})['"]`));
-  assert.ok(tokenMatch, `could not find ${tokenName} in ${objectName}`);
-  return tokenMatch[1];
+  return value!;
 }
 
 function relativeLuminance(hex: string): number {
@@ -50,8 +54,6 @@ function contrastRatio(foreground: string, background: string): number {
   return (Math.max(fg, bg) + 0.05) / (Math.min(fg, bg) + 0.05);
 }
 
-const source = readThemeSource();
-
 // The EL design system ships two scopes; low-light, parchment and midnight were
 // retired with the reskin.
 const MODES = [
@@ -61,10 +63,10 @@ const MODES = [
 
 for (const palette of APPEARANCE_PALETTES) {
   for (const mode of MODES) {
-    const background = extractColorToken(source, mode.object, 'background');
-    const cardBackground = extractColorToken(source, mode.object, 'cardBackground');
-    const primaryText = extractColorToken(source, mode.object, 'primaryText');
-    const secondaryText = extractColorToken(source, mode.object, 'secondaryText');
+    const background = colorToken(mode.object, 'background');
+    const cardBackground = colorToken(mode.object, 'cardBackground');
+    const primaryText = colorToken(mode.object, 'primaryText');
+    const secondaryText = colorToken(mode.object, 'secondaryText');
     const accent = mode.lightFamily ? palette.swatches.primaryDeep : palette.swatches.primary;
     const onAccent = mode.lightFamily ? ON_ACCENT_LIGHT : ON_ACCENT_DARK;
     // The selected-surface pair is per palette per scope: the "you are here"
@@ -77,8 +79,8 @@ for (const palette of APPEARANCE_PALETTES) {
       : palette.swatches.darkOnAccentSurface;
     // Status-chip pairs are scope tokens, not palette tokens, so they come from
     // the base palettes in ThemeContext.
-    const successSoft = extractColorToken(source, mode.object, 'successSoft');
-    const onSuccessSoft = extractColorToken(source, mode.object, 'onSuccessSoft');
+    const successSoft = colorToken(mode.object, 'successSoft');
+    const onSuccessSoft = colorToken(mode.object, 'onSuccessSoft');
 
     test(`contrast: ${palette.id} on ${mode.name}`, () => {
       const checks: Array<[string, string, string]> = [
@@ -111,9 +113,9 @@ for (const palette of APPEARANCE_PALETTES) {
 // design's own values so a future edit has to make the trade deliberately.
 test('warningSoft stays a legible tint under its warning border', () => {
   for (const mode of MODES) {
-    const warning = extractColorToken(source, mode.object, 'warning');
-    const warningSoft = extractColorToken(source, mode.object, 'warningSoft');
-    const cardBackground = extractColorToken(source, mode.object, 'cardBackground');
+    const warning = colorToken(mode.object, 'warning');
+    const warningSoft = colorToken(mode.object, 'warningSoft');
+    const cardBackground = colorToken(mode.object, 'cardBackground');
 
     const borderOnFill = contrastRatio(warning, warningSoft);
     assert.ok(
@@ -132,8 +134,8 @@ test('warningSoft stays a legible tint under its warning border', () => {
 // tracks. It has to sit *between* the page and the card, or the track disappears.
 test('muted reads as a well against both the page and card surfaces', () => {
   for (const mode of MODES) {
-    const muted = extractColorToken(source, mode.object, 'muted');
-    const primaryText = extractColorToken(source, mode.object, 'primaryText');
+    const muted = colorToken(mode.object, 'muted');
+    const primaryText = colorToken(mode.object, 'primaryText');
 
     const ratio = contrastRatio(primaryText, muted);
     assert.ok(
@@ -155,35 +157,19 @@ test('muted reads as a well against both the page and card surfaces', () => {
 // line can sit on — the page, a card, and the matching soft tint.
 test('the status foregrounds clear AA on page, card and their own tint', () => {
   for (const mode of MODES) {
-    const background = extractColorToken(source, mode.object, 'background');
-    const cardBackground = extractColorToken(source, mode.object, 'cardBackground');
+    const background = colorToken(mode.object, 'background');
+    const cardBackground = colorToken(mode.object, 'cardBackground');
 
     const pairs: Array<[string, string, string]> = [
-      [
-        'onSuccessSoft on background',
-        extractColorToken(source, mode.object, 'onSuccessSoft'),
-        background,
-      ],
-      [
-        'onSuccessSoft on cardBackground',
-        extractColorToken(source, mode.object, 'onSuccessSoft'),
-        cardBackground,
-      ],
+      ['onSuccessSoft on background', colorToken(mode.object, 'onSuccessSoft'), background],
+      ['onSuccessSoft on cardBackground', colorToken(mode.object, 'onSuccessSoft'), cardBackground],
       [
         'onWarningSoft on warningSoft',
-        extractColorToken(source, mode.object, 'onWarningSoft'),
-        extractColorToken(source, mode.object, 'warningSoft'),
+        colorToken(mode.object, 'onWarningSoft'),
+        colorToken(mode.object, 'warningSoft'),
       ],
-      [
-        'onWarningSoft on background',
-        extractColorToken(source, mode.object, 'onWarningSoft'),
-        background,
-      ],
-      [
-        'onWarningSoft on cardBackground',
-        extractColorToken(source, mode.object, 'onWarningSoft'),
-        cardBackground,
-      ],
+      ['onWarningSoft on background', colorToken(mode.object, 'onWarningSoft'), background],
+      ['onWarningSoft on cardBackground', colorToken(mode.object, 'onWarningSoft'), cardBackground],
     ];
 
     for (const [label, fg, bg] of pairs) {
@@ -200,9 +186,9 @@ test('the status foregrounds clear AA on page, card and their own tint', () => {
 // `warning` itself readable as body text on the page, this test is the place to
 // relax the rule deliberately rather than discovering it by shipping.
 test('success and warning stay fills, not text colours, on the light page', () => {
-  const background = extractColorToken(source, 'baseLightColors', 'background');
+  const background = colorToken('baseLightColors', 'background');
   for (const token of ['success', 'warning']) {
-    const ratio = contrastRatio(extractColorToken(source, 'baseLightColors', token), background);
+    const ratio = contrastRatio(colorToken('baseLightColors', token), background);
     assert.ok(
       ratio < AA_TEXT,
       `${token} now clears ${ratio.toFixed(2)}:1 on vellum — if that is intended, drop this guard ` +
@@ -217,21 +203,15 @@ test('success and warning stay fills, not text colours, on the light page', () =
 // hence `bibleFollowVerseNumber`.
 test('the follow band carries both scripture and its verse numbers', () => {
   for (const mode of MODES) {
-    const band = extractColorToken(source, mode.object, 'bibleFollowHighlight');
+    const band = colorToken(mode.object, 'bibleFollowHighlight');
 
-    const bodyRatio = contrastRatio(
-      extractColorToken(source, mode.object, 'biblePrimaryText'),
-      band
-    );
+    const bodyRatio = contrastRatio(colorToken(mode.object, 'biblePrimaryText'), band);
     assert.ok(
       bodyRatio >= AA_TEXT,
       `${mode.name} — biblePrimaryText on bibleFollowHighlight: ${bodyRatio.toFixed(2)}:1`
     );
 
-    const numberRatio = contrastRatio(
-      extractColorToken(source, mode.object, 'bibleFollowVerseNumber'),
-      band
-    );
+    const numberRatio = contrastRatio(colorToken(mode.object, 'bibleFollowVerseNumber'), band);
     assert.ok(
       numberRatio >= AA_TEXT,
       `${mode.name} — bibleFollowVerseNumber on bibleFollowHighlight: ${numberRatio.toFixed(2)}:1`
@@ -242,10 +222,7 @@ test('the follow band carries both scripture and its verse numbers', () => {
     // audible playback is the primary signal and the text on it stays >= 8:1 —
     // so it is deliberately below the 3:1 non-text floor. Raising it would put
     // a coloured slab through the middle of scripture.
-    const bandOnPage = contrastRatio(
-      band,
-      extractColorToken(source, mode.object, 'bibleBackground')
-    );
+    const bandOnPage = contrastRatio(band, colorToken(mode.object, 'bibleBackground'));
     assert.ok(
       bandOnPage < 3,
       `${mode.name} — the follow band is now ${bandOnPage.toFixed(2)}:1 against the page; if that ` +
@@ -259,6 +236,7 @@ test('the follow band carries both scripture and its verse numbers', () => {
 // controls, and both primitives also set accessibilityState.disabled so the
 // state is announced rather than relying on the dimming alone. Asserted here so
 // the exemption stays a decision with a stated basis.
+// UI-only source check: IconButton and ListRow render code; the suite has no renderer.
 test('the disabled treatment is opacity plus announced state, not colour alone', () => {
   const iconButton = readFileSync(
     fileURLToPath(new URL('../components/ui/IconButton.tsx', import.meta.url).href),
@@ -288,8 +266,8 @@ test('the disabled treatment is opacity plus announced state, not colour alone',
 // drift further while a deliberate fix is scheduled.
 test('error text on a dark card is held at its current near-AA value', () => {
   const ratio = contrastRatio(
-    extractColorToken(source, 'baseDarkColors', 'error'),
-    extractColorToken(source, 'baseDarkColors', 'cardBackground')
+    colorToken('baseDarkColors', 'error'),
+    colorToken('baseDarkColors', 'cardBackground')
   );
   assert.ok(
     ratio >= 4.35,
@@ -303,10 +281,7 @@ test('error text on a dark card is held at its current near-AA value', () => {
 // `success` is ever darkened far enough to carry white text, drop this guard and
 // the fills may go back to solid.
 test('white labels do not sit on the success fill in the light scope', () => {
-  const ratio = contrastRatio(
-    ON_ACCENT_LIGHT,
-    extractColorToken(source, 'baseLightColors', 'success')
-  );
+  const ratio = contrastRatio(ON_ACCENT_LIGHT, colorToken('baseLightColors', 'success'));
   assert.ok(
     ratio < AA_TEXT,
     `white on success now clears ${ratio.toFixed(2)}:1 — solid success fills may carry labels again`

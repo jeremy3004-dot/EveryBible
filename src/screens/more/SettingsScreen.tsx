@@ -63,6 +63,7 @@ import {
   validateTranslatorReviewPasscode,
 } from '../../services/feedback';
 import { normalizeChapterFeedbackIdentity } from '../../services/feedback/chapterFeedbackIdentity';
+import { closeParticipationAccess, submitParticipationAccess } from './participationAccess';
 import { TranslationNotCoveredNotice } from '../../components/feedback/TranslationNotCoveredNotice';
 import { SUPPORTED_LANGUAGES, type LanguageCode } from '../../constants/languages';
 import { deleteCurrentAccount } from '../../services/account';
@@ -351,14 +352,16 @@ export function SettingsScreen() {
     setShowTranslatorAccessModal(true);
   };
 
-  const closeTranslatorAccessModal = () => {
-    accessAttempt.current += 1;
-    setShowTranslatorAccessModal(false);
-    setIsCheckingTranslatorAccess(false);
-    setTranslatorAccessPasscode('');
-    setTranslatorAccessError(null);
-    setTranslatorAccessCoverage(null);
+  const accessModal = {
+    attemptRef: accessAttempt,
+    setIsChecking: setIsCheckingTranslatorAccess,
+    setShowModal: setShowTranslatorAccessModal,
+    setPasscode: setTranslatorAccessPasscode,
+    setError: setTranslatorAccessError,
+    setCoverage: setTranslatorAccessCoverage,
   };
+
+  const closeTranslatorAccessModal = () => closeParticipationAccess(accessModal);
 
   const handleTranslatorReviewToggle = (enabled: boolean) => {
     if (enabled) {
@@ -379,58 +382,22 @@ export function SettingsScreen() {
     }
   };
 
-  const handleTranslatorAccessSubmit = async () => {
-    if (isCheckingTranslatorAccess) {
-      return;
-    }
-
-    const attempt = ++accessAttempt.current;
-    setIsCheckingTranslatorAccess(true);
-    setTranslatorAccessError(null);
-
-    try {
-      const result =
-        accessKind === 'scripture_council'
-          ? await validateScriptureCouncilPasscode(translatorAccessPasscode)
-          : await validateTranslatorReviewPasscode(translatorAccessPasscode, currentTranslation);
-
-      if (attempt !== accessAttempt.current) return;
-      if (!result.success) {
-        setTranslatorAccessError(
-          result.error === 'Translator access denied' || result.error === 'Council access denied'
-            ? t('feedback.incorrectCode')
-            : t('common.unexpectedError')
-        );
-        return;
-      }
-
-      if (accessKind === 'scripture_council') {
-        const enabled = useTranslatorReviewStore
-          .getState()
-          .enableCouncilWithPasscode(translatorAccessPasscode);
-        if (!enabled) {
-          setTranslatorAccessError(t('feedback.incorrectCode'));
-          return;
-        }
-      } else {
-        const enabled = enableTranslatorReviewMode(translatorAccessPasscode);
-        if (!enabled) {
-          setTranslatorAccessError(t('feedback.incorrectCode'));
-          return;
-        }
-      }
-      setPreferences({ chapterFeedbackEnabled: accessKind === 'scripture_council' });
-      void syncPreferences();
-      setTranslatorAccessPasscode('');
-      if (accessKind === 'translator' && result.coversTranslation === false) {
-        setTranslatorAccessCoverage(result.translationIds ?? []);
-        return;
-      }
-      setShowTranslatorAccessModal(false);
-    } finally {
-      if (attempt === accessAttempt.current) setIsCheckingTranslatorAccess(false);
-    }
-  };
+  const handleTranslatorAccessSubmit = () =>
+    submitParticipationAccess({
+      ...accessModal,
+      kind: accessKind,
+      isChecking: isCheckingTranslatorAccess,
+      passcode: translatorAccessPasscode,
+      translationId: currentTranslation,
+      validateCouncil: validateScriptureCouncilPasscode,
+      validateTranslator: validateTranslatorReviewPasscode,
+      enableCouncil: (passcode) =>
+        useTranslatorReviewStore.getState().enableCouncilWithPasscode(passcode),
+      enableTranslator: enableTranslatorReviewMode,
+      setPreferences,
+      syncPreferences,
+      t,
+    });
 
   const localeSummary = resolveLocaleSummary({
     countryCode: preferences.countryCode ?? null,

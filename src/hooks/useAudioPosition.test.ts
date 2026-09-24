@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import test, { before, beforeEach, mock } from 'node:test';
+import { shallow } from 'zustand/shallow';
 import { mockModule, sourcePath } from '../testing/mockModules';
 
 // ---------------------------------------------------------------------------
@@ -129,4 +130,42 @@ test('the selector is registered through useShallow so ticks do not re-render co
 
   assert.equal(shallowWrapped.length, 1);
   assert.equal(typeof shallowWrapped[0], 'function');
+});
+
+// zustand re-renders a useShallow consumer only when `shallow` sees a change, so
+// these run the hook's registered selector the way the store does.
+const registeredSelector = (track?: typeof JOHN_3) => {
+  mod.useAudioPosition(track);
+  const selector = shallowWrapped.at(-1) as (slice: AudioSlice) => Record<string, number>;
+  assert.equal(typeof selector, 'function');
+  return () => selector(state);
+};
+
+test('a reader on another chapter is not re-rendered by any of 240 playback ticks', () => {
+  const read = registeredSelector({ translationId: 'bsb', bookId: 'JHN', chapter: 4 });
+  const initial = read();
+  let updates = 0;
+  for (let position = 250; position <= 60_000; position += 250) {
+    state = { ...state, currentPosition: position };
+    if (!shallow(initial, read())) updates += 1;
+  }
+  assert.equal(updates, 0);
+});
+
+test('the playing chapter keeps exact progress through backward seeks and duration fixes', () => {
+  const read = registeredSelector(JOHN_3);
+  for (const position of [250, 60_123, 5_123]) {
+    state = { ...state, currentPosition: position, duration: 100_001 };
+    assert.deepEqual(read(), { currentPosition: position, duration: 100_001 });
+  }
+  state = { ...state, currentTranslationId: 'web' };
+  assert.deepEqual(read(), { currentPosition: 0, duration: 0 });
+  state = { ...state, currentTranslationId: 'bsb' };
+  assert.deepEqual(read(), { currentPosition: 5_123, duration: 100_001 });
+});
+
+test('an unscoped consumer follows every live position tick', () => {
+  const read = registeredSelector();
+  state = { ...state, currentPosition: 45_678 };
+  assert.deepEqual(read(), { currentPosition: 45_678, duration: 90_000 });
 });

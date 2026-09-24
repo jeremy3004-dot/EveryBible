@@ -261,6 +261,10 @@ test('App.tsx static import closure never reaches heavy runtime modules', () => 
     'src/services/analytics/index.ts',
     'src/services/analytics/analyticsService.ts',
     'src/services/analytics/anonymousUsageAnalytics.ts',
+    // Push registration and download recovery run from hooks App imports statically, so
+    // the notification service and the Bible store must stay behind their import()s.
+    'src/services/notifications/index.ts',
+    'src/services/notifications/notificationService.ts',
   ];
 
   const closurePaths = [...closure];

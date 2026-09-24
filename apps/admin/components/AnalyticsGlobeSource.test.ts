@@ -2,15 +2,14 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
+// UI-only source check for AnalyticsGlobe.tsx (a MapLibre client component, no renderer
+// here); the basemap helpers are exercised on the real lib/atlas-basemap module below.
 const read = (file: string) => readFile(new URL(file, import.meta.url), 'utf8');
 
 test('atlas retains MapLibre and theme-aware basemaps with accessible alternative detail', async () => {
   const source = await read('./AnalyticsGlobe.tsx');
   assert.match(source, /from 'maplibre-gl'/);
-  const basemap = await read('../lib/atlas-basemap.ts');
   assert.match(source, /from '@\/lib\/atlas-basemap'/);
-  assert.match(basemap, /positron-gl-style/);
-  assert.match(basemap, /dark-matter-gl-style/);
   assert.match(source, /MutationObserver/);
   assert.match(source, /ResizeObserver/);
   assert.match(source, /aria-label="Geographic detail"/);
@@ -26,6 +25,32 @@ test('map clicks resolve a unique coordinate identity and layer updates follow c
   assert.match(source, /map\.on\('style.load'/);
   assert.match(source, /syncLayers\(map\)/);
   assert.match(source, /map\.remove\(\)/);
+});
+
+test('the basemap loads Positron for light and Dark Matter for dark', async (t) => {
+  const { loadAtlasBasemap } = await import('../lib/atlas-basemap');
+  const requested: string[] = [];
+  t.mock.method(globalThis, 'fetch', async (url: string) => {
+    requested.push(url);
+    return Response.json({ version: 8, sources: {}, layers: [] });
+  });
+  const styles: unknown[] = [];
+  const map = { setStyle: (style: unknown) => styles.push(style) };
+
+  await loadAtlasBasemap(
+    map as Parameters<typeof loadAtlasBasemap>[0],
+    'light',
+    new AbortController().signal
+  );
+  await loadAtlasBasemap(
+    map as Parameters<typeof loadAtlasBasemap>[0],
+    'dark',
+    new AbortController().signal
+  );
+
+  assert.match(requested[0], /positron-gl-style/);
+  assert.match(requested[1], /dark-matter-gl-style/);
+  assert.equal(styles.length, 2);
 });
 
 test('shared basemap theme repaint preserves GeoJSON data-layer colors', async () => {

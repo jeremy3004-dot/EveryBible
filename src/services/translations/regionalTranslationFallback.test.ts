@@ -2,7 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { BibleTranslation } from '../../types';
-import { resolveRegionalFallbackTranslation } from './regionalTranslationFallback';
+import {
+  REGIONAL_FALLBACK_TRANSLATION_IDS,
+  resolveRegionalFallbackTranslation,
+} from './regionalTranslationFallback';
 
 function makeTranslation(
   overrides: Partial<BibleTranslation> & Pick<BibleTranslation, 'id' | 'name' | 'language'>
@@ -99,4 +102,35 @@ test('resolveRegionalFallbackTranslation maps India language misses to bundled H
   );
 
   assert.equal(fallback?.id, 'hincv');
+});
+
+test('a language spoken in both Nepal and India falls back to Nepali first', () => {
+  const bundled = [
+    makeTranslation({
+      id: 'hincv',
+      name: 'Hindi Contemporary Version',
+      language: 'Hindi',
+      hasText: true,
+      isDownloaded: true,
+      source: 'bundled',
+    }),
+    makeTranslation({
+      id: 'npiulb',
+      name: 'Nepali Bible',
+      language: 'Nepali',
+      hasText: true,
+      isDownloaded: true,
+      source: 'bundled',
+    }),
+  ];
+  const maithili = makeTranslation({
+    id: 'mai',
+    name: 'Maithili Bible',
+    language: 'Maithili',
+    hasText: true,
+    source: 'runtime',
+  });
+
+  assert.equal(resolveRegionalFallbackTranslation(bundled, maithili, 'IN')?.id, 'npiulb');
+  assert.deepEqual(REGIONAL_FALLBACK_TRANSLATION_IDS, { IN: 'hincv', NP: 'npiulb' });
 });

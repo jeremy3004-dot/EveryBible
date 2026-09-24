@@ -1,7 +1,13 @@
-import { test } from 'node:test';
+import { mock, test } from 'node:test';
 import assert from 'node:assert/strict';
 
+import { mockMmkvStorage } from '../../testing/mockModules';
 import { EL_PINNED_JWKS, getElKeys, __resetElJwksRuntimeForTests } from './elJwks';
+
+// elJwks requires mmkvStorage lazily (at call time), so this module-scope mock is in place
+// before the first getElKeys() call even though the import above is static.
+const mmkv = mockMmkvStorage(mock);
+const LEGACY_JWKS_CACHE_KEY = 'el-media:jwks-cache';
 
 const PINNED_DEV_KID = 'lqd-dev-2026-a';
 const PINNED_PROD_KID = 'lqd-prod-2026-a';
@@ -20,10 +26,7 @@ test('EL_PINNED_JWKS pins exactly the prod + dev keys from the contract', () => 
 test('getElKeys returns the pinned trust set and nothing else', async () => {
   __resetElJwksRuntimeForTests();
   const keys = await getElKeys();
-  assert.deepEqual(
-    keys.map((k) => k.kid).sort(),
-    [PINNED_DEV_KID, PINNED_PROD_KID]
-  );
+  assert.deepEqual(keys.map((k) => k.kid).sort(), [PINNED_DEV_KID, PINNED_PROD_KID]);
 });
 
 test('getElKeys hands back a copy — callers cannot mutate the pinned trust set', async () => {
@@ -71,15 +74,37 @@ test('getElKeys performs no network call for an unknown kid', async () => {
   }
 });
 
-test('the source no longer reads the legacy JWKS discovery cache', async () => {
-  const { readFileSync } = await import('node:fs');
-  const { fileURLToPath } = await import('node:url');
-  const source = readFileSync(fileURLToPath(new URL('./elJwks.ts', import.meta.url).href), 'utf8');
-
-  assert.ok(!/getItem\(/.test(source), 'elJwks must not read any cached key material');
-  assert.ok(!/setItem\(/.test(source), 'elJwks must not persist any key material');
-  assert.ok(
-    /mmkvInstance\.delete\(/.test(source),
-    'elJwks must purge the legacy discovery cache so a poisoned key cannot linger'
+test('a key cached by the old discovery path is purged and never trusted', async () => {
+  __resetElJwksRuntimeForTests();
+  const poisoned = {
+    kty: 'EC',
+    crv: 'P-256',
+    x: 'ZZZZ',
+    y: 'YYYY',
+    kid: 'attacker-key',
+    alg: 'ES256',
+    use: 'sig',
+  };
+  mmkv.store.set(
+    LEGACY_JWKS_CACHE_KEY,
+    JSON.stringify({ keys: [poisoned], fetchedAt: Date.now() })
   );
+  const writes = mock.method(mmkv.mmkvInstance, 'set');
+
+  const keys = await getElKeys();
+
+  assert.equal(mmkv.store.has(LEGACY_JWKS_CACHE_KEY), false, 'the legacy cache is deleted');
+  assert.ok(!keys.some((key) => key.kid === 'attacker-key'), 'a cached key is never read back');
+  assert.equal(writes.mock.callCount(), 0, 'no key material is persisted');
+  writes.mock.restore();
+});
+
+test('the legacy cache purge runs once per launch', async () => {
+  __resetElJwksRuntimeForTests();
+  await getElKeys();
+  mmkv.store.set(LEGACY_JWKS_CACHE_KEY, 'written-after-launch');
+
+  await getElKeys();
+
+  assert.equal(mmkv.store.get(LEGACY_JWKS_CACHE_KEY), 'written-after-launch');
 });

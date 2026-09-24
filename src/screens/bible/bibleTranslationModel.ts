@@ -197,6 +197,59 @@ export const buildTranslationLanguageFilters = <T extends { language: string | n
     .map((label) => ({ value: label, label: getTranslationLanguageDisplayLabel(label) }));
 };
 
+export interface TranslationLanguageOption extends TranslationLanguageFilter {
+  count: number;
+}
+
+/**
+ * Attach per-language translation counts to the picker's language filters. Counts are
+ * gathered in one pass over the translations rather than one filter pass per language,
+ * which made the picker quadratic on large catalogs.
+ */
+export const buildTranslationLanguageOptions = (
+  translations: readonly { language: string | null | undefined }[],
+  languageFilters: readonly TranslationLanguageFilter[]
+): TranslationLanguageOption[] => {
+  const countsByLanguage = new Map<string, number>();
+  for (const translation of translations) {
+    const language = normalizeTranslationLanguage(translation.language);
+    countsByLanguage.set(language, (countsByLanguage.get(language) ?? 0) + 1);
+  }
+  return languageFilters.map((filter) => ({
+    ...filter,
+    count: countsByLanguage.get(filter.value) ?? 0,
+  }));
+};
+
+/**
+ * Picker-open hydration of the runtime translation catalog. Cached rows can belong to
+ * only one source, so this always defers to the shared per-launch gate (which decides
+ * whether a refresh is needed) instead of skipping when rows already exist; reopening
+ * the picker then retries a partial failure. Returns the effect cleanup, after which a
+ * settling load no longer touches picker state.
+ */
+export function startRuntimeCatalogHydration(
+  ensureRuntimeCatalogLoaded: () => Promise<void>,
+  setIsHydratingRuntimeCatalog: (isHydrating: boolean) => void
+): () => void {
+  let isMounted = true;
+
+  setIsHydratingRuntimeCatalog(true);
+  void ensureRuntimeCatalogLoaded()
+    .catch((error) => {
+      console.warn('[Bible] Failed to hydrate runtime translation catalog:', error);
+    })
+    .finally(() => {
+      if (isMounted) {
+        setIsHydratingRuntimeCatalog(false);
+      }
+    });
+
+  return () => {
+    isMounted = false;
+  };
+}
+
 function getTranslationSearchAvailabilityTerms(
   translation: Pick<BibleTranslation, 'id' | 'hasText' | 'hasAudio' | 'catalog'>
 ): string[] {

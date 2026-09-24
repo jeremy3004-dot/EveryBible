@@ -1,3 +1,4 @@
+// Non-TypeScript artefact check: reads app.json, app.config.js, eas.json and native config as text; there is no module to load for it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';

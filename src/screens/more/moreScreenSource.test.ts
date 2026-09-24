@@ -1,7 +1,9 @@
+// UI-only source check: MoreScreen and MoreStack are components; the suite has no renderer.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import type { MoreStackParamList } from '../../navigation/types';
 
 function readRelativeSource(relativePath: string): string {
   return readFileSync(fileURLToPath(new URL(relativePath, import.meta.url).href), 'utf8');
@@ -10,7 +12,6 @@ function readRelativeSource(relativePath: string): string {
 test('More tab stays focused on profile and settings instead of a saved library hub', () => {
   const moreScreenSource = readRelativeSource('./MoreScreen.tsx');
   const moreStackSource = readRelativeSource('../../navigation/MoreStack.tsx');
-  const navTypesSource = readRelativeSource('../../navigation/types.ts');
 
   assert.equal(
     moreScreenSource.includes("title: 'Saved Library'"),
@@ -24,11 +25,10 @@ test('More tab stays focused on profile and settings instead of a saved library 
     'MoreStack should not register a dedicated Library screen once the More tab is settings-focused again'
   );
 
-  assert.equal(
-    navTypesSource.includes('Library: undefined;'),
-    false,
-    'navigation types should drop the Library route from MoreStackParamList'
-  );
+  // Type-level contract, enforced by `npm run typecheck`: MoreStack has no Library route.
+  // @ts-expect-error 'Library' must not be a MoreStackParamList route.
+  const retiredRoute: keyof MoreStackParamList = 'Library';
+  assert.equal(retiredRoute, 'Library');
 });
 
 test('guest CTAs open the shared auth flow instead of directly navigating to a split auth screen', () => {

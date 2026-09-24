@@ -1,384 +1,215 @@
-import test from 'node:test';
+import test, { afterEach, before, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-// Dependency-free, so importing it does not drag react-native into the runner.
-import { APPEARANCE_PALETTES } from '../constants/appearancePalettes';
+import { mockModule, sourcePath } from '../testing/mockModules';
+import { createReactHookRuntime } from '../testing/reactHookRuntime';
+import type { UserPreferences } from '../types';
+import {
+  APPEARANCE_PALETTE_IDS,
+  APPEARANCE_PALETTES,
+  DEFAULT_APPEARANCE_PALETTE,
+} from '../constants/appearancePalettes';
+import { DEFAULT_THEME_MODE, THEME_MODES, resolveThemeMode } from '../design/themeMode';
+import {
+  defaultAuthPreferences,
+  sanitizeUserPreferences,
+} from '../stores/persistedStateSanitizers';
+import { mergePreferences } from '../services/sync/syncMerge';
 
-// ---------------------------------------------------------------------------
-// Read theme source directly — avoids importing React / RN at test time
-// ---------------------------------------------------------------------------
+// The real ThemeContext, loaded with `react` replaced by the shared hook runtime and the
+// auth store by a mutable preferences object. The provider's value comes from
+// useThemeContextValue, so it is mounted as a hook rather than rendered.
+const runtime = createReactHookRuntime();
+mockModule(mock, 'react', runtime.react);
 
-function readThemeSource(): string {
-  return readFileSync(fileURLToPath(new URL('./ThemeContext.tsx', import.meta.url).href), 'utf8');
-}
+let preferences: Partial<UserPreferences> = {};
+const setPreferencesCalls: Partial<UserPreferences>[] = [];
+const authState = {
+  get preferences() {
+    return preferences;
+  },
+  setPreferences: (update: Partial<UserPreferences>) => {
+    setPreferencesCalls.push(update);
+  },
+};
+mockModule(mock, sourcePath('stores/authStore.ts'), {
+  useAuthStore: <T>(selector: (state: typeof authState) => T) => selector(authState),
+});
 
-// Extract a color palette object from raw source text.
-// Looks for `const <name>: ThemeColors = { ... }` blocks.
-function extractPaletteKeys(source: string, paletteName: string): string[] {
-  const paletteMatcher = new RegExp(
-    `const ${paletteName}:\\s*ThemeColors\\s*=\\s*\\{([^}]+)\\}`,
-    's'
-  );
-  const match = source.match(paletteMatcher);
-  if (!match) {
-    return [];
-  }
-  // Pull out the property keys from the block
-  return [...match[1].matchAll(/^\s{2}(\w+):/gm)].map((m) => m[1]);
-}
+type ThemeModule = typeof import('./ThemeContext');
+let theme: ThemeModule;
 
-function extractColorToken(source: string, objectName: string, tokenName: string): string | null {
-  const objectMatcher = new RegExp(`const ${objectName}(?::[^=]+)?\\s*=\\s*\\{([^}]+)\\}`, 's');
-  const objectMatch = source.match(objectMatcher);
-  if (!objectMatch) {
-    return null;
-  }
+before(async () => {
+  theme = await import('./ThemeContext');
+});
 
-  const tokenMatcher = new RegExp(`${tokenName}:\\s*['"](#(?:[A-Fa-f0-9]{6}))['"]`);
-  return objectMatch[1].match(tokenMatcher)?.[1] ?? null;
-}
+afterEach(() => {
+  runtime.unmountAll();
+  preferences = {};
+  setPreferencesCalls.length = 0;
+});
 
-function colorContrastRatio(foreground: string, background: string): number {
+const themeFor = (stored: Partial<UserPreferences>) => {
+  preferences = stored;
+  return runtime.mount(theme.useThemeContextValue).result;
+};
+
+function contrastRatio(foreground: string, background: string): number {
   const luminance = (hex: string) => {
-    const [red, green, blue] = [...hex.matchAll(/[A-Fa-f0-9]{2}/g)].map(
-      ([channel]) => parseInt(channel, 16) / 255
-    );
-    const [r, g, b] = [red, green, blue].map((channel) =>
-      channel <= 0.03928 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4)
-    );
+    const [r, g, b] = [...hex.matchAll(/[A-Fa-f0-9]{2}/g)]
+      .map(([channel]) => parseInt(channel, 16) / 255)
+      .map((channel) =>
+        channel <= 0.03928 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4)
+      );
     return 0.2126 * r + 0.7152 * g + 0.0722 * b;
   };
-
-  const foregroundLum = luminance(foreground);
-  const backgroundLum = luminance(background);
-  return (
-    (Math.max(foregroundLum, backgroundLum) + 0.05) /
-    (Math.min(foregroundLum, backgroundLum) + 0.05)
-  );
+  const [light, dark] = [luminance(foreground), luminance(background)].sort((a, b) => b - a);
+  return (light + 0.05) / (dark + 0.05);
 }
 
 // ---------------------------------------------------------------------------
-// S16 — Theme palette completeness and consistency
+// Palettes
 // ---------------------------------------------------------------------------
 
-test('all base theme palettes declare the same set of color keys', () => {
-  const source = readThemeSource();
-
-  const darkKeys = extractPaletteKeys(source, 'baseDarkColors');
-  const lightKeys = extractPaletteKeys(source, 'baseLightColors');
-
-  assert.ok(darkKeys.length > 0, 'baseDarkColors palette should declare color properties');
-  assert.ok(lightKeys.length > 0, 'baseLightColors palette should declare color properties');
-
-  assert.deepEqual(
-    [...lightKeys].sort(),
-    [...darkKeys].sort(),
-    'baseLightColors must define the same keys as baseDarkColors'
-  );
+test('both base scopes declare the same set of color keys', () => {
+  assert.deepEqual(Object.keys(theme.lightColors).sort(), Object.keys(theme.darkColors).sort());
+  assert.ok(Object.keys(theme.darkColors).length > 0);
 });
 
-test('ThemeContext exports theme palettes and appearance options as named constants', () => {
-  const source = readThemeSource();
-
-  assert.match(
-    source,
-    /export\s*\{[^}]*baseDarkColors\s+as\s+darkColors/,
-    'darkColors must be a named export'
-  );
-  assert.match(
-    source,
-    /export\s*\{[^}]*baseLightColors\s+as\s+lightColors/,
-    'lightColors must be a named export'
-  );
-  // appearancePaletteOptions was removed with the accent-palette picker: it had
-  // no consumers and carried stale Ember copy on the el-blue id.
-  assert.doesNotMatch(
-    source,
-    /appearancePaletteOptions/,
-    'the dead palette-options export should stay deleted'
-  );
+test('the dead palette-options export stays deleted', () => {
+  assert.equal('appearancePaletteOptions' in theme, false);
 });
 
-test('ThemeContext ships exactly the two scopes the EL design system defines', () => {
-  // Match against code only — the retired mode names still appear in comments
-  // that document why they were dropped and where saved preferences land.
-  const source = readThemeSource()
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/\/\/[^\n]*/g, '');
-
-  const modeSource = readFileSync(
-    fileURLToPath(new URL('../design/themeMode.ts', import.meta.url).href),
-    'utf8'
-  );
-  assert.match(
-    modeSource,
-    /export type ThemeMode = 'dark' \| 'light';/,
-    'ThemeMode should be exactly the vellum and Field dark scopes'
-  );
-  for (const retired of ['low-light', 'parchment', 'midnight']) {
-    assert.doesNotMatch(
-      source,
-      new RegExp(`'${retired}'`),
-      `${retired} was retired with the EL reskin and must not resolve to a palette`
-    );
-  }
-  for (const retired of ['baseLowLightColors', 'baseParchmentColors', 'baseMidnightColors']) {
-    assert.doesNotMatch(source, new RegExp(retired), `${retired} should be removed`);
-  }
-});
-
-test('a persisted theme retired by the EL reskin falls back to vellum', () => {
-  // Narrowing the validation list is the migration: anything outside it resolves
-  // to the default scope rather than leaving the provider in a scope it cannot
-  // render.
-  const source = readThemeSource();
-
-  // All three boundaries share one resolver so they cannot drift apart.
-  assert.match(
-    source,
-    /resolveThemeMode\(preferences\.theme\)/,
-    'ThemeProvider should resolve the stored preference through the shared resolver'
-  );
-
-  const modeSource = readFileSync(
-    fileURLToPath(new URL('../design/themeMode.ts', import.meta.url).href),
-    'utf8'
-  );
-  assert.match(
-    modeSource,
-    /return value === 'parchment' \? 'light' : DEFAULT_THEME_MODE;/,
-    'parchment was a light-paper mode and should resolve to vellum, not Field dark'
-  );
-  assert.match(
-    modeSource,
-    /DEFAULT_THEME_MODE: ThemeMode = 'light'/,
-    'the EL redesign makes vellum the default scope'
-  );
-
-  const sanitizerSource = readFileSync(
-    fileURLToPath(new URL('../stores/persistedStateSanitizers.ts', import.meta.url).href),
-    'utf8'
-  );
-  assert.match(
-    sanitizerSource,
-    /resolveThemeMode\(value\.theme\)/,
-    'the persisted-state sanitizer should use the shared resolver'
-  );
-
-  // The Supabase column can still hold a retired value for anyone who has not
-  // synced since the reskin, so the sync boundary must normalize it too.
-  const syncSource = readFileSync(
-    fileURLToPath(new URL('../services/sync/syncMerge.ts', import.meta.url).href),
-    'utf8'
-  );
-  assert.match(
-    syncSource,
-    /normalizeRemoteTheme/,
-    'remote preferences should be normalized before reaching the theme provider'
-  );
-});
-
-test('Light-family accents (primaryDeep) stay readable on vellum surfaces', () => {
-  const source = readThemeSource();
-  const paletteSource = readFileSync(
-    fileURLToPath(new URL('../constants/appearancePalettes.ts', import.meta.url).href),
-    'utf8'
-  );
-
-  // The vellum scope renders accents via the palette's `primaryDeep` variant.
-  const deepAccents = [...paletteSource.matchAll(/primaryDeep:\s*'(#[A-Fa-f0-9]{6})'/g)].map(
-    (match) => match[1]
-  );
-  assert.ok(deepAccents.length >= 1, 'each appearance palette should define a primaryDeep accent');
-
-  const lightBackground = extractColorToken(source, 'baseLightColors', 'background');
-  const lightCard = extractColorToken(source, 'baseLightColors', 'cardBackground');
-
-  assert.ok(lightBackground, 'Vellum theme should define a page background');
-  assert.ok(lightCard, 'Vellum theme should define a card background');
-
-  for (const accent of deepAccents) {
-    assert.ok(
-      colorContrastRatio(accent, lightBackground) >= 4.5,
-      `Deep accent ${accent} must be readable on the vellum page background`
-    );
-    assert.ok(
-      colorContrastRatio(accent, lightCard) >= 4.5,
-      `Deep accent ${accent} must be readable on lit-paper card backgrounds`
-    );
-  }
-});
-
-test('every palette ships a scope-specific selected-surface pair', () => {
-  // accentSurface/onAccentSurface are the "you are here" fill and its foreground
-  // (active tab pill, chips, avatar wells). They must travel with the palette so
-  // switching accents cannot leave a terracotta well under a blue glyph.
-  const source = readThemeSource();
-
-  for (const key of [
-    'lightAccentSurface',
-    'lightOnAccentSurface',
-    'darkAccentSurface',
-    'darkOnAccentSurface',
-  ]) {
-    for (const palette of APPEARANCE_PALETTES) {
-      assert.equal(
-        typeof palette.swatches[key as keyof typeof palette.swatches],
-        'string',
-        `${palette.id} must define ${key}`
-      );
-    }
-  }
-
-  assert.match(
-    source,
-    /const accentSurface = isLightFamily\s*\?\s*palette\.lightAccentSurface\s*:\s*palette\.darkAccentSurface/,
-    'accentSurface must be resolved per palette, not frozen into the base scopes'
-  );
-  assert.match(
-    source,
-    /const onAccentSurface = isLightFamily\s*\?\s*palette\.lightOnAccentSurface\s*:\s*palette\.darkOnAccentSurface/,
-    'onAccentSurface must be resolved per palette too'
-  );
-  assert.match(
-    source,
-    /tabActive: onAccentSurface/,
-    'the active tab glyph is the accent-surface foreground, not a second copy of the accent'
-  );
+test('the design system ships exactly the vellum and Field dark scopes', () => {
+  assert.deepEqual([...THEME_MODES], ['dark', 'light']);
 });
 
 test('both scopes declare the EL status and muted tokens the redesign added', () => {
-  const source = readThemeSource();
-
   const expected: Record<string, [string, string]> = {
     // token: [light value, dark value]
     muted: ['#EAE6DD', '#221F19'],
     successSoft: ['#C9EBD3', '#12321E'],
     onSuccessSoft: ['#1F6A3F', '#8FD8A6'],
     warningSoft: ['#F6E3CC', '#3A2A12'],
-    // The `warningSoft` counterpart to `onSuccessSoft`, added by the a11y pass:
-    // `warning` itself is only 2.83:1 on vellum, so amber *words* use this.
+    // `warning` itself is only 2.83:1 on vellum, so amber words use this.
     onWarningSoft: ['#8D4F11', '#EFBF7B'],
-    // Verse numbers on the audio follow band; `bibleSecondaryText` was 3.18:1
-    // on the light band.
+    // Verse numbers on the audio follow band; bibleSecondaryText was 3.18:1 there.
     bibleFollowVerseNumber: ['#494437', '#B7B1A4'],
     onAccentSurface: ['#9F503B', '#F0C8B8'],
   };
+  const light = theme.lightColors as unknown as Record<string, string>;
+  const dark = theme.darkColors as unknown as Record<string, string>;
 
-  for (const [token, [light, dark]] of Object.entries(expected)) {
-    assert.equal(
-      extractColorToken(source, 'baseLightColors', token),
-      light,
-      `vellum ${token} should be ${light}`
+  for (const [token, [lightValue, darkValue]] of Object.entries(expected)) {
+    assert.equal(light[token], lightValue, `vellum ${token} should be ${lightValue}`);
+    assert.equal(dark[token], darkValue, `Field dark ${token} should be ${darkValue}`);
+  }
+});
+
+test('the vellum accent (primaryDeep) of every palette is readable on page and card', () => {
+  for (const palette of APPEARANCE_PALETTES) {
+    const colors = theme.createThemeColors('light', palette.id);
+    assert.equal(colors.accentPrimary, palette.swatches.primaryDeep);
+    assert.ok(
+      contrastRatio(colors.accentPrimary, theme.lightColors.background) >= 4.5,
+      `${palette.id} accent must be readable on the vellum page`
     );
-    assert.equal(
-      extractColorToken(source, 'baseDarkColors', token),
-      dark,
-      `Field dark ${token} should be ${dark}`
+    assert.ok(
+      contrastRatio(colors.accentPrimary, theme.lightColors.cardBackground) >= 4.5,
+      `${palette.id} accent must be readable on lit-paper cards`
     );
   }
 });
 
-test('the terracotta palette preserves the stored id and retired ids stay retired', () => {
-  // The palette definition lives in appearancePalettes.ts; ThemeContext no
-  // longer carries a picker-options list (it was dead code with stale copy).
-  const paletteSource = readFileSync(
-    fileURLToPath(new URL('../constants/appearancePalettes.ts', import.meta.url).href),
-    'utf8'
-  );
+test('every palette carries its own selected-surface pair into both scopes', () => {
+  // accentSurface/onAccentSurface are the "you are here" fill and its foreground
+  // (tab pill, chips, avatar wells); they travel with the palette.
+  for (const palette of APPEARANCE_PALETTES) {
+    const light = theme.createThemeColors('light', palette.id);
+    const dark = theme.createThemeColors('dark', palette.id);
 
-  assert.match(paletteSource, /id:\s*'el-blue'/, 'The existing storage id should be preserved');
-  assert.match(
-    paletteSource,
-    /id:\s*'el-blue-brand'/,
-    'the EL brand blue ships alongside terracotta so the accent can be A/B tested'
-  );
-  assert.match(
-    paletteSource,
-    /DEFAULT_APPEARANCE_PALETTE: AppearancePaletteId = 'el-blue'/,
-    'terracotta stays the default accent'
-  );
+    assert.equal(light.accentSurface, palette.swatches.lightAccentSurface);
+    assert.equal(light.onAccentSurface, palette.swatches.lightOnAccentSurface);
+    assert.equal(dark.accentSurface, palette.swatches.darkAccentSurface);
+    assert.equal(dark.onAccentSurface, palette.swatches.darkOnAccentSurface);
+    // The active tab glyph is the accent-surface foreground, not a copy of the accent.
+    assert.equal(light.tabActive, light.onAccentSurface);
+    assert.equal(dark.tabActive, dark.onAccentSurface);
+  }
+});
+
+test('terracotta keeps the stored el-blue id and default; retired ids stay retired', () => {
+  assert.deepEqual([...APPEARANCE_PALETTE_IDS], ['el-blue', 'el-blue-brand']);
+  assert.equal(DEFAULT_APPEARANCE_PALETTE, 'el-blue');
   for (const retired of ['ember', 'sapphire', 'teal', 'olive']) {
-    assert.doesNotMatch(
-      paletteSource,
-      new RegExp(`id:\\s*'${retired}'`),
-      `${retired} palette should be retired`
-    );
+    assert.ok(!APPEARANCE_PALETTES.some((palette) => palette.id === retired), retired);
   }
 });
 
-test('ThemeContext exposes the isDark flag', () => {
-  const source = readThemeSource();
-
-  assert.match(source, /isDark/, 'ThemeContextValue should include isDark');
-  // isLowLight went with the low-light mode; nothing consumed it any more.
-  assert.doesNotMatch(source, /isLowLight/, 'isLowLight should be retired with the low-light mode');
-});
-
-test('ThemeContext resolves themeMode from stored preference with a vellum fallback', () => {
-  const source = readThemeSource();
-
-  assert.match(source, /preferences\.theme/, 'should read theme from stored preferences');
-  assert.match(
-    source,
-    /resolveThemeMode\(preferences\.theme\)/,
-    'the fallback lives in the shared resolver, not inline in the provider'
-  );
-
-  const modeSource = readFileSync(
-    fileURLToPath(new URL('../design/themeMode.ts', import.meta.url).href),
-    'utf8'
-  );
-  assert.match(
-    modeSource,
-    /DEFAULT_THEME_MODE: ThemeMode = 'light'/,
-    'new users should open on vellum, the canonical EL scope'
-  );
-});
-
 // ---------------------------------------------------------------------------
-// S16 — Supabase client URL validation (pure logic via source inspection)
+// Resolving the stored preference
 // ---------------------------------------------------------------------------
 
-test('Supabase client validates URL by requiring https protocol', () => {
-  const clientSource = readFileSync(
-    fileURLToPath(new URL('../services/supabase/client.ts', import.meta.url).href),
-    'utf8'
-  );
+test('a stored theme preference picks the scope, and isDark follows it', () => {
+  const dark = themeFor({ theme: 'dark', appearancePalette: 'el-blue' });
+  assert.equal(dark.themeMode, 'dark');
+  assert.equal(dark.isDark, true);
+  assert.deepEqual(dark.colors, theme.createThemeColors('dark', 'el-blue'));
 
-  assert.match(
-    clientSource,
-    // Accept either the WHATWG URL protocol check or a direct https:// scheme
-    // test — both enforce the https: protocol for the Supabase URL.
-    /url\.protocol === ['"]https:['"]|protocol.*https|\/\^https:\\\/\\\//,
-    'client.ts must enforce the https: protocol when validating the Supabase URL'
-  );
+  const light = themeFor({ theme: 'light', appearancePalette: 'el-blue-brand' });
+  assert.equal(light.themeMode, 'light');
+  assert.equal(light.isDark, false);
+  assert.equal(light.appearancePalette, 'el-blue-brand');
+  assert.equal('isLowLight' in light, false, 'isLowLight went with the low-light mode');
 });
 
-test('Supabase client falls back gracefully when env vars are absent', () => {
-  const clientSource = readFileSync(
-    fileURLToPath(new URL('../services/supabase/client.ts', import.meta.url).href),
-    'utf8'
-  );
+test('a missing preference opens on vellum with the default accent', () => {
+  const value = themeFor({});
 
-  // The file should default to an empty string (not throw) when vars are missing
-  assert.match(
-    clientSource,
-    /\|\|\s*['"]{2}/,
-    'client.ts should fall back to an empty string for missing env vars'
-  );
+  assert.equal(DEFAULT_THEME_MODE, 'light');
+  assert.equal(value.themeMode, 'light');
+  assert.equal(value.appearancePalette, DEFAULT_APPEARANCE_PALETTE);
 });
 
-test('isSupabaseConfigured is exported so callers can guard network calls', () => {
-  const clientSource = readFileSync(
-    fileURLToPath(new URL('../services/supabase/client.ts', import.meta.url).href),
-    'utf8'
-  );
+test('a retired theme or palette falls back at the provider, the sanitizer and sync', () => {
+  for (const retired of ['low-light', 'parchment', 'midnight']) {
+    const value = themeFor({ theme: retired as UserPreferences['theme'] });
+    assert.equal(value.themeMode, 'light', `provider: ${retired}`);
+    assert.equal(resolveThemeMode(retired), 'light', `resolver: ${retired}`);
+    assert.equal(
+      sanitizeUserPreferences({ theme: retired }).theme,
+      'light',
+      `sanitizer: ${retired}`
+    );
 
-  assert.match(
-    clientSource,
-    /export\s+const\s+isSupabaseConfigured/,
-    'client.ts must export isSupabaseConfigured'
-  );
+    const merged = mergePreferences(
+      { preferences: defaultAuthPreferences, updatedAt: '2026-01-01T00:00:00.000Z' },
+      {
+        id: 'prefs-1',
+        user_id: 'user-1',
+        font_size: 'medium',
+        theme: retired,
+        appearance_palette: 'ember',
+        language: 'en',
+        synced_at: '2026-09-01T00:00:00.000Z',
+      } as Parameters<typeof mergePreferences>[1]
+    );
+    assert.equal(merged.preferences.theme, 'light', `sync: ${retired}`);
+    assert.equal(merged.preferences.appearancePalette, DEFAULT_APPEARANCE_PALETTE);
+  }
+
+  assert.equal(themeFor({ appearancePalette: 'ember' as never }).appearancePalette, 'el-blue');
+});
+
+test('the theme actions write the preference', () => {
+  const value = themeFor({ theme: 'dark' });
+
+  value.toggleTheme();
+  value.setTheme('dark');
+  value.setAppearancePalette('el-blue-brand');
+
+  assert.deepEqual(setPreferencesCalls, [
+    { theme: 'light' },
+    { theme: 'dark' },
+    { appearancePalette: 'el-blue-brand' },
+  ]);
 });

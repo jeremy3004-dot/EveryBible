@@ -125,6 +125,8 @@ test('skips AsyncStorage reads after the one-time migration marker is set', asyn
   assert.equal(mmkvStore.get('auth-storage'), undefined);
 });
 
+// Startup import-graph guard: once migrated, cold start must not load AsyncStorage at all
+// (behaviour cannot tell a require from no require); allowed by docs/testing.md.
 test('completed native migration returns before requiring AsyncStorage', () => {
   const source = readSource();
   const markerCheckIndex = source.indexOf(

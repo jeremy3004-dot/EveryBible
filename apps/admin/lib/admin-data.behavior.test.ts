@@ -859,6 +859,123 @@ test('the resolution filter is independent of the accuracy filter', async () => 
   assert.deepEqual(await ids({ fixStatus: 'fixed' }), ['accurate-reviewed', 'needs-work-fixed']);
 });
 
+test('a recorded audio response comes back with a one-hour signed URL', async () => {
+  const base = {
+    translation_id: 'npiulb',
+    translation_language: 'Nepali',
+    book_id: 'GEN',
+    chapter: 3,
+    sentiment: 'down',
+    created_at: '2026-09-24',
+    user_id: null,
+  };
+  service.respondTo('chapter_feedback_submissions', () => ({
+    data: [
+      {
+        ...base,
+        id: 'spoken',
+        audio_response_bucket: 'chapter-feedback-audio',
+        audio_response_path: 'npiulb/GEN/3/spoken.m4a',
+        audio_response_duration_ms: 12_000,
+        audio_response_mime_type: 'audio/mp4',
+      },
+      { ...base, id: 'written', comment: 'Verse 4 wording.' },
+    ],
+  }));
+
+  const [spoken, written] = await data.listChapterFeedback();
+
+  assert.equal(
+    spoken.audioResponse?.signedUrl,
+    `${service.storage.publicUrlBase}/chapter-feedback-audio/npiulb/GEN/3/spoken.m4a?signed`
+  );
+  assert.deepEqual(
+    service.storageCalls.map(({ bucket, method, args }) => [bucket, method, args]),
+    [['chapter-feedback-audio', 'createSignedUrl', ['npiulb/GEN/3/spoken.m4a', 3600]]]
+  );
+  assert.equal(written.audioResponse, null);
+});
+
+test('the review model summarises feedback by language and by translation, open fixes first', async () => {
+  const optionRows = [
+    ['English', 'bsb', 'GEN', 1, 'up', null, null, '2026-09-20'],
+    ['English', 'bsb', 'GEN', 1, 'up', null, null, '2026-09-18'],
+    ['English', 'bsb', 'EXO', 1, 'up', null, null, '2026-09-17'],
+    ['English', 'bsb', 'GEN', 2, 'down', null, '2026-09-22', '2026-09-21'],
+    ['Nepali', 'npiulb', 'JHN', 3, 'down', 'a.m4a', null, '2026-09-23'],
+    ['Nepali', 'npiulb', 'JHN', 3, 'down', null, null, '2026-09-24'],
+    ['Nepali', 'npiulb', 'MRK', 1, 'up', null, null, '2026-09-19'],
+  ].map(([language, translation, book, chapter, sentiment, audio, fixedAt, createdAt]) => ({
+    translation_language: language,
+    translation_id: translation,
+    book_id: book,
+    chapter,
+    sentiment,
+    audio_response_path: audio,
+    scripture_council_fixed_at: fixedAt,
+    created_at: createdAt,
+  }));
+  // The review list and the option scan both read the table; the scan asks for 2000 rows.
+  service.respondTo('chapter_feedback_submissions', (call) => ({
+    data: stepArgs(call, 'limit')[0]?.[0] === 2000 ? optionRows : [],
+  }));
+
+  const model = await data.getChapterFeedbackReviewModel();
+
+  assert.equal(model.totalAvailable, 7);
+  // Languages are ranked by volume.
+  assert.deepEqual(model.coverage, [
+    {
+      language: 'English',
+      submissionCount: 4,
+      audioCount: 0,
+      bookCount: 2,
+      chapterCount: 3,
+      latestAt: '2026-09-21',
+    },
+    {
+      language: 'Nepali',
+      submissionCount: 3,
+      audioCount: 1,
+      bookCount: 2,
+      chapterCount: 2,
+      latestAt: '2026-09-24',
+    },
+  ]);
+  // Translations with open council fixes come first, whatever their volume.
+  assert.deepEqual(model.translationCoverage, [
+    {
+      translationId: 'npiulb',
+      language: 'Nepali',
+      submissionCount: 3,
+      openCouncilFixCount: 2,
+      fixedCount: 0,
+      latestAt: '2026-09-24',
+    },
+    {
+      translationId: 'bsb',
+      language: 'English',
+      submissionCount: 4,
+      openCouncilFixCount: 0,
+      fixedCount: 1,
+      latestAt: '2026-09-21',
+    },
+  ]);
+  assert.deepEqual(model.filters.languages, [
+    { value: 'English', label: 'English', count: 4 },
+    { value: 'Nepali', label: 'Nepali', count: 3 },
+  ]);
+  assert.deepEqual(
+    model.filters.books.map((option) => [option.value, option.count]),
+    [
+      ['GEN', 3],
+      ['JHN', 2],
+      ['EXO', 1],
+      ['MRK', 1],
+    ]
+  );
+});
+
 // ---------------------------------------------------------------------------
 // Health
 // ---------------------------------------------------------------------------

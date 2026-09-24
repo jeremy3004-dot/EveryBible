@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import AdmZip from 'adm-zip';
 import { createClient } from '@supabase/supabase-js';
@@ -596,6 +597,29 @@ async function assertPublishedCatalogAssets(summary: TranslationStageSummary): P
   }
 }
 
+/**
+ * A catalog row is what surfaces a translation in the app, so each row is written only
+ * after the R2 objects it points at are confirmed to exist; a failed check stops the run
+ * before that translation (or any later one) is advertised.
+ */
+export async function upsertVerifiedCatalogRows<
+  Summary extends { catalogRow: TranslationStageSummary['catalogRow'] },
+>(
+  summaries: Summary[],
+  deps: {
+    verify: (summary: Summary) => Promise<void>;
+    upsert: (row: Summary['catalogRow']) => Promise<void>;
+  } = {
+    verify: (summary) => assertPublishedCatalogAssets(summary as unknown as TranslationStageSummary),
+    upsert: upsertCatalogRow,
+  }
+): Promise<void> {
+  for (const summary of summaries) {
+    await deps.verify(summary);
+    await deps.upsert(summary.catalogRow);
+  }
+}
+
 function summarizeBookStats(bookSummaries: Map<string, MutableBookSummary>): {
   audioBooks: Record<string, { totalBytes: number; totalChapters: number }>;
   manifestBooks: Record<string, OpenBiblePilotManifestBook>;
@@ -1106,10 +1130,7 @@ async function main(): Promise<void> {
     }
 
     await loadLocalEnvFile(args.repoRoot);
-    for (const summary of summaries) {
-      await assertPublishedCatalogAssets(summary);
-      await upsertCatalogRow(summary.catalogRow);
-    }
+    await upsertVerifiedCatalogRows(summaries);
   }
 
   if (
@@ -1179,7 +1200,9 @@ async function main(): Promise<void> {
   );
 }
 
-void main().catch((error) => {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exit(1);
-});
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  void main().catch((error) => {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  });
+}

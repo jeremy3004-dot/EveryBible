@@ -109,6 +109,8 @@ function transformLikeMetro(sourcePath: string, source: string): string {
   );
 }
 
+// Codebase-wide static lint (not a behaviour test): every icon import in App.tsx and src/
+// resolves, through the real plugin, to a file the icon packages ship.
 test('every icon the app imports is rewritten to a file the package ships', () => {
   const lucideFiles = new Set<string>();
   const vectorIconFiles = new Set<string>();

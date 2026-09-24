@@ -1,3 +1,4 @@
+// Codebase-wide static lint (not a behaviour test): interface text wraps instead of adjustsFontSizeToFit.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';

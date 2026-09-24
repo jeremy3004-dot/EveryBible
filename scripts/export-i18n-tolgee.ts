@@ -75,7 +75,7 @@ const getLocaleTree = (code: LanguageCode): TranslationTree => {
   return locale;
 };
 
-const exportLocales = async ({ outDir }: ExportOptions): Promise<void> => {
+export const exportLocales = async ({ outDir }: ExportOptions): Promise<void> => {
   const absoluteOutDir = path.resolve(process.cwd(), outDir);
   await mkdir(absoluteOutDir, { recursive: true });
 
