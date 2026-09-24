@@ -697,3 +697,39 @@ test('reader scroll never moves the bar on another tab', async () => {
   assert.deepEqual(styleOf(wrapper.props.style).transform, [{ translateY: 0 }]);
   expectInteractive(wrapper);
 });
+
+test('a reader that collapses the bar itself is not also slid by reader scroll', async () => {
+  readerProgress.value = 1;
+  focusTab('Bible', {
+    state: { index: 0, routes: [{ name: 'BibleReader', params: { tabBarCollapseProgress: 0.5 } }] },
+  });
+  let tabs = await renderTabs();
+
+  assert.deepEqual(styleOf(tabs.bar.props.style).transform, [
+    { translateY: getReaderTabBarTranslation(0.5) },
+  ]);
+  assert.deepEqual(styleOf(tabs.wrapper.props.style).transform, [{ translateY: 0 }]);
+  expectInteractive(tabs.wrapper);
+  await tabs.view.unmount();
+
+  // Collapsed all the way by the reader: off-screen, so no touch or VoiceOver.
+  readerProgress.value = 0;
+  focusTab('Bible', {
+    state: { index: 0, routes: [{ name: 'BibleReader', params: { tabBarCollapseProgress: 1 } }] },
+  });
+  tabs = await renderTabs();
+  assert.deepEqual(styleOf(tabs.wrapper.props.style).transform, [{ translateY: 0 }]);
+  expectCollapsed(tabs.wrapper);
+});
+
+test('a tab bar hidden by a screen with tabBarVisible false leaves touch and VoiceOver', async () => {
+  focusTab('More', {
+    state: {
+      index: 1,
+      routes: [{ name: 'MoreHome' }, { name: 'About', params: { tabBarVisible: false } }],
+    },
+  });
+  const { wrapper } = await renderTabs();
+
+  expectCollapsed(wrapper);
+});
