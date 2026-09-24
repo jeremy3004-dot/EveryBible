@@ -17,6 +17,7 @@
  *
  * See docs/testing.md ("Rendering components") for the full contract.
  */
+import { createRequire } from 'node:module';
 import { afterEach, type MockTracker } from 'node:test';
 import {
   createElement,
@@ -68,6 +69,20 @@ export {
   isHiddenFromAccessibility,
   textContent,
 } from './renderQueries';
+
+// Metro turns `require('./icon.png')` into an asset id; Node would try to parse
+// the PNG as JavaScript. Give every asset require a stable stand-in instead,
+// carrying the path so a test can tell which image a component chose.
+const ASSET_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.ttf', '.otf', '.mp3', '.m4a'];
+const requireExtensions = createRequire(import.meta.url).extensions as unknown as Record<
+  string,
+  (module: { exports: unknown }, filename: string) => void
+>;
+for (const extension of ASSET_EXTENSIONS) {
+  requireExtensions[extension] ??= (module, filename) => {
+    module.exports = { testUri: filename };
+  };
+}
 
 // React 19: opt in to act() semantics and keep react-test-renderer quiet about
 // its deprecation (it is still React's only renderer that runs without a DOM).
@@ -189,6 +204,8 @@ function createFakeAuthStore(theme: 'light' | 'dark') {
     user: null,
     session: null,
     isAuthenticated: false,
+    setUser: (user: unknown) => set({ user, isAuthenticated: Boolean(user) }),
+    setSession: (session: unknown) => set({ session, isAuthenticated: Boolean(session) }),
   }));
 }
 
