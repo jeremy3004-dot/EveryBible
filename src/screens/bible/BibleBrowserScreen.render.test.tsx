@@ -354,6 +354,22 @@ test('translator review badges mark pending and addressed feedback on books and 
   assert.ok(view.getByRole('button', { name: t('translatorQueue.title') }), 'queue shortcut');
 });
 
+test('a book whose summary rows carry no feedback shows no badge, like its chapters', async () => {
+  translatorReviewStore.setState({ enabled: true, accessPasscode: '2468' });
+  feedback.result = {
+    success: true,
+    chapters: [
+      { bookId: 'JHN', chapter: 3, total: 0, unresolvedDown: 0, unresolvedUp: 0 },
+      { bookId: 'JHN', chapter: 4, total: 0, unresolvedDown: 0, unresolvedUp: 0 },
+    ],
+  };
+  const view = await renderBrowser();
+  await view.flush();
+
+  assert.deepEqual(feedback.requests, [{ translationId: 'bsb', passcode: '2468' }]);
+  assert.equal(view.queryAllByRole('image').length, 0);
+});
+
 test('normal readers see no feedback badges and never request the review summary', async () => {
   translatorReviewStore.setState({ enabled: false, accessPasscode: '2468' });
   feedback.result = {
