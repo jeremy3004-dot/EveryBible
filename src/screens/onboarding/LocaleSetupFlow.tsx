@@ -48,6 +48,7 @@ import {
 } from '../../services/onboarding/localeSelection';
 import {
   buildInitialOnboardingLanguageOptions,
+  filterInitialOnboardingLanguageOptions,
   getInitialBibleLanguageListState,
   getInitialInterfaceLanguageCode,
   getInterfaceLanguageSelectionResult,
@@ -84,11 +85,12 @@ import { useDisplayFont } from '../../hooks/useDisplayFont';
 import { useKeyboardBottomInset } from '../../hooks/useKeyboardBottomInset';
 import type { BibleTranslation } from '../../types';
 import {
-  filterTranslationsBySearchQuery,
+  buildTranslationSearchIndex,
   getTranslationAvailabilitySummary,
   getTranslationSelectionState,
   getVisibleTranslationsForPicker,
   normalizeTranslationLanguage,
+  searchTranslationIndex,
 } from '../bible/bibleTranslationModel';
 import { getAudioAvailability } from '../../services/audio/audioAvailability';
 import { isRemoteAudioAvailable } from '../../services/audio/audioRemote';
@@ -643,14 +645,27 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
       );
     });
   }, [translationDisplayDataById, visibleTranslations]);
+  // Grouping, sorting and the search index are built once per catalog change. A keystroke
+  // only matches against the prebuilt index and filters the presorted options, so typing
+  // never re-collates the list (slow on Hermes).
+  const allOnboardingLanguageOptions = useMemo(
+    () => buildInitialOnboardingLanguageOptions(eligibleOnboardingTranslations),
+    [eligibleOnboardingTranslations]
+  );
+  const onboardingTranslationSearchIndex = useMemo(
+    () => buildTranslationSearchIndex(eligibleOnboardingTranslations),
+    [eligibleOnboardingTranslations]
+  );
   const onboardingLanguageOptions = useMemo(() => {
-    const matchingTranslations = filterTranslationsBySearchQuery(
-      eligibleOnboardingTranslations,
-      debouncedTranslationQuery
-    );
+    if (!debouncedTranslationQuery.trim()) {
+      return allOnboardingLanguageOptions;
+    }
 
-    return buildInitialOnboardingLanguageOptions(matchingTranslations);
-  }, [eligibleOnboardingTranslations, debouncedTranslationQuery]);
+    return filterInitialOnboardingLanguageOptions(
+      allOnboardingLanguageOptions,
+      searchTranslationIndex(onboardingTranslationSearchIndex, debouncedTranslationQuery)
+    );
+  }, [allOnboardingLanguageOptions, debouncedTranslationQuery, onboardingTranslationSearchIndex]);
   const onboardingLanguageSections = useMemo(() => {
     const sections: Array<{
       groupLabel: string;
