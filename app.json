@@ -76,6 +76,7 @@
       "expo-image-picker",
       "expo-localization",
       "./plugins/withBrandedSplashAsset",
+      "./plugins/withGradleJvmHeap",
       "@react-native-google-signin/google-signin",
       [
         "expo-build-properties",

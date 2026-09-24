@@ -26,7 +26,7 @@ import {
   fourFieldsCourses,
   fieldInfo,
   FIELD_TITLE_KEYS,
-  FOUR_FIELDS_LESSON_TITLE_KEYS,
+  getFourFieldsLessonTitle,
 } from '../../data/fourFieldsCourses';
 import {
   buildGroupDetailSnapshot,
@@ -339,11 +339,7 @@ export function GroupDetailScreen() {
               {currentCourse.title}
             </Text>
             <Text style={[styles.currentLesson, { color: colors.secondaryText }]}>
-              {t('groups.nextLesson', {
-                title: t(FOUR_FIELDS_LESSON_TITLE_KEYS[currentLesson.id], {
-                  defaultValue: currentLesson.title,
-                }),
-              })}
+              {t('groups.nextLesson', { title: getFourFieldsLessonTitle(currentLesson, t) })}
             </Text>
             {canStartSession ? (
               <TouchableOpacity

@@ -327,12 +327,20 @@ test('default getKeys (un-injected) verifies the pinned-kid catalog with ZERO JW
     } as unknown as Response;
   }) as unknown as typeof fetch;
 
-  const catalog = await refreshElCatalog(CATALOG_URL, {
-    fetchFn,
-    storage,
-    // getKeys intentionally NOT injected — prove defaultGetKeys pinned-first wiring works.
-    isVerificationSupported: supported,
-  });
+  // The fixture is dev-key-signed, and the dev key is only trusted in a __DEV__ runtime.
+  const globals = globalThis as { __DEV__?: boolean };
+  globals.__DEV__ = true;
+  let catalog: Awaited<ReturnType<typeof refreshElCatalog>>;
+  try {
+    catalog = await refreshElCatalog(CATALOG_URL, {
+      fetchFn,
+      storage,
+      // getKeys intentionally NOT injected — prove defaultGetKeys pinned-first wiring works.
+      isVerificationSupported: supported,
+    });
+  } finally {
+    delete globals.__DEV__;
+  }
 
   assert.ok(catalog, 'catalog should verify and parse via the pinned trust store');
   assert.equal(catalog.schemaVersion, 'lqd-catalog/v1');
@@ -343,6 +351,23 @@ test('default getKeys (un-injected) verifies the pinned-kid catalog with ZERO JW
   assert.equal(jwksFetches, 0, `expected zero JWKS fetches, got ${jwksFetches} (${jwksUrl})`);
 
   __resetElJwksRuntimeForTests();
+});
+
+test('a release build rejects a catalog signed with the fixture-pack dev key', async () => {
+  // No __DEV__ under node --test, so this is the store-build trust set: production key only.
+  __resetElJwksRuntimeForTests();
+  const storage = createMemoryStorage();
+  const fetcher = makeFetch(catalogEnvelope);
+
+  const catalog = await refreshElCatalog(CATALOG_URL, {
+    fetchFn: fetcher.fetchFn,
+    storage,
+    isVerificationSupported: supported,
+  });
+
+  assert.equal(catalog, null);
+  assert.equal(fetcher.calls, 1);
+  assert.equal(storage.raw.has(LAST_CATALOG_KEY), false, 'nothing unverified is persisted');
 });
 
 test('a catalog signed by a valid-but-unpinned key is REJECTED with zero JWKS fetches', async () => {

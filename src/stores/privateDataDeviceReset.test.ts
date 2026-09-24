@@ -61,6 +61,7 @@ let useGatherStore: typeof import('./gatherStore').useGatherStore;
 let scope: typeof import('./privateDataScope');
 let clearDeviceCaches: typeof import('./deviceCaches').clearDeviceCaches;
 let deleteAccountAndLocalData: typeof import('../services/account/deleteAccount').deleteAccountAndLocalData;
+let enqueueUsageEvent: typeof import('../services/analytics/usageQueue').enqueueUsageEvent;
 
 before(async () => {
   ({ useAuthStore } = await import('./authStore'));
@@ -71,6 +72,7 @@ before(async () => {
   scope = await import('./privateDataScope');
   ({ clearDeviceCaches } = await import('./deviceCaches'));
   ({ deleteAccountAndLocalData } = await import('../services/account/deleteAccount'));
+  ({ enqueueUsageEvent } = await import('../services/analytics/usageQueue'));
   await useAuthStore.getState().initialize();
 });
 
@@ -262,4 +264,42 @@ test('account deletion does nothing when nobody is signed in', async () => {
 
   assert.deepEqual(supabaseFake.callsFor('rpc:delete_my_account'), []);
   assert.deepEqual(new Map(mmkv.store), everything);
+});
+
+// Analytics queued while signed in carry the uid until they are uploaded. The
+// server keeps analytics of a deleted account without the user link
+// (analytics_events.user_id ON DELETE SET NULL), so events still waiting on the
+// phone are anonymised the same way instead of carrying the deleted uid.
+const queuedAttributions = () =>
+  (
+    JSON.parse(mmkv.store.get('analytics-usage-queue-v1') ?? '[]') as Array<{
+      attribution_user_id: string | null;
+    }>
+  ).map((event) => event.attribution_user_id);
+
+test("deleting an account anonymises the analytics it queued and keeps other accounts' uids", async () => {
+  signIn('user-b');
+  enqueueUsageEvent('reading_started', {}, null);
+  await signOut();
+  signIn('user-a');
+  enqueueUsageEvent('reading_started', {}, null);
+  enqueueUsageEvent('reading_completed', {}, null);
+  assert.deepEqual(queuedAttributions(), ['user-b', 'user-a', 'user-a']);
+
+  assert.deepEqual(await deleteAccountAndLocalData(), { success: true });
+
+  assert.deepEqual(queuedAttributions(), ['user-b', null, null]);
+});
+
+test('a rejected account deletion keeps the account attributed on its queued analytics', async () => {
+  signIn('user-a');
+  enqueueUsageEvent('reading_started', {}, null);
+  supabaseFake.respondToRpc('delete_my_account', () => ({
+    data: null,
+    error: { message: 'permission denied' },
+  }));
+
+  await deleteAccountAndLocalData();
+
+  assert.deepEqual(queuedAttributions().slice(-1), ['user-a']);
 });

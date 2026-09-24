@@ -112,7 +112,12 @@ async function resolveDefaultAuthClient(
       (current.user?.uid ?? null) === expectedUserId && current.authGeneration === authGeneration
     );
   };
-  const getStoredAccessToken = () => useAuthStore.getState().session?.access_token ?? null;
+  // A session restored offline keeps its expired token until auth-js refreshes
+  // it; getSession() below waits for that refresh instead.
+  const getStoredAccessToken = () => {
+    const { session, awaitingTokenRefresh } = useAuthStore.getState();
+    return awaitingTokenRefresh ? null : (session?.access_token ?? null);
+  };
 
   return {
     isCurrent,

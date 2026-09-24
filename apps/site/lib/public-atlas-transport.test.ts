@@ -17,12 +17,16 @@ const data = new URL('../data/language-atlas/', import.meta.url);
 const original = JSON.parse(
   gunzipSync(readFileSync(new URL('index.json.gz', data))).toString()
 ) as AtlasIndex;
+// The startup transport omits the generated `summary` (the public map never
+// shows it); the decoder restores the field as an empty string.
 const expected = {
   ...original,
-  records: original.records.filter((record) => record.kind !== 'people-group'),
+  records: original.records
+    .filter((record) => record.kind !== 'people-group')
+    .map((record) => ({ ...record, summary: '' })),
 };
 
-test('startup transport restores every public field, optional field, profile and placement exactly', () => {
+test('startup transport restores every displayed field, optional field, profile and placement exactly', () => {
   const gzip = gunzipSync(readFileSync(new URL(`startup-${version}.json.gz`, data)));
   const brotli = brotliDecompressSync(readFileSync(new URL(`startup-${version}.json.br`, data)));
   assert.deepEqual(brotli, gzip);
@@ -37,10 +41,15 @@ test('startup transport restores every public field, optional field, profile and
       filterRecords(expected.records, { ...DEFAULT_FILTERS, query })
     );
   }
-  assert.ok(gzip.byteLength < 20_000_000, 'decoded startup data stays below 20 MB');
+  assert.equal(
+    JSON.parse(gzip.toString()).recordFields.flat().includes('summary'),
+    false,
+    'the startup download does not carry the unused generated summaries'
+  );
+  assert.ok(gzip.byteLength < 12_000_000, 'decoded startup data stays below 12 MB');
   assert.ok(
-    readFileSync(new URL(`startup-${version}.json.br`, data)).byteLength < 2_200_000,
-    'initial Brotli download stays below 2.2 MB'
+    readFileSync(new URL(`startup-${version}.json.br`, data)).byteLength < 1_700_000,
+    'initial Brotli download stays below 1.7 MB'
   );
 });
 
@@ -83,10 +92,11 @@ test('packed rows unpack by their own layout and share location objects by index
   assert.equal('recordFields' in decoded, false);
   assert.equal('locations' in decoded, false);
   assert.deepEqual(decoded.records, [
-    { id: 'iso:unmapped', name: 'Unmapped', location: null },
+    { id: 'iso:unmapped', name: 'Unmapped', location: null, summary: '' },
     {
       id: 'iso:multi',
       name: 'Multi',
+      summary: '',
       location: { latitude: 27.7, longitude: 85.3, precision: 'language-area' },
       locations: [
         { latitude: 27.7, longitude: 85.3, precision: 'language-area' },

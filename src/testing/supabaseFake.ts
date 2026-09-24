@@ -309,8 +309,24 @@ export function createSupabaseFake() {
 
   const defaultAuthHandlers = { ...authHandlers };
 
+  // auth-js keeps the persisted session in `storage` under `storageKey`, even
+  // when a refresh of it failed. The fake persists whatever session is current.
+  const AUTH_STORAGE_KEY = 'sb-fake-auth-token';
+  const authStorage = {
+    getItem: async (key: string) =>
+      key === AUTH_STORAGE_KEY && authState.session ? JSON.stringify(authState.session) : null,
+    setItem: async () => undefined,
+    removeItem: async () => undefined,
+  };
+
   const auth = new Proxy({} as Record<string, unknown>, {
     get(_target, property: string) {
+      if (property === 'storageKey') {
+        return AUTH_STORAGE_KEY;
+      }
+      if (property === 'storage') {
+        return authStorage;
+      }
       if (property === 'onAuthStateChange') {
         return (listener: AuthListener) => {
           recordAuth('onAuthStateChange', []);
