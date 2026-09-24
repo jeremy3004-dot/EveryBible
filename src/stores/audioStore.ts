@@ -60,6 +60,8 @@ interface AudioState {
     chapter: number | null
   ) => void;
   setPosition: (position: number) => void;
+  /** Drops the durable resume point, e.g. once a chapter has been heard to the end. */
+  clearResumePosition: () => void;
   setDuration: (duration: number) => void;
   setError: (error: string | null) => void;
   syncQueueToTrack: (translationId: string, bookId: string, chapter: number) => void;
@@ -202,6 +204,10 @@ export const useAudioStore = create<AudioState>()(
         if (state.currentPosition !== position || state.lastPosition !== lastPosition) {
           set({ currentPosition: position, lastPosition });
         }
+      },
+
+      clearResumePosition: () => {
+        if (get().lastPosition !== 0) set({ lastPosition: 0 });
       },
 
       setDuration: (duration) => {

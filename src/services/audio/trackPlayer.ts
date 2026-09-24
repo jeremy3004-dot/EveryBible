@@ -194,8 +194,12 @@ function handleAVStatus(status: AVPlaybackStatus): void {
   });
 
   if (status.didJustFinish) {
-    emit(Event.PlaybackQueueEnded, {});
+    // Report the stopped state before the queue ends. The queue-ended handler decides
+    // what follows (the next chapter, or idle with the lock screen cleared at the end
+    // of the Bible or a plan); a state event after it would turn that idle back into
+    // "paused" and re-publish the lock-screen entry it had just cleared.
     setState(State.Ready);
+    emit(Event.PlaybackQueueEnded, {});
     return;
   }
 
