@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { ChapterFeedbackSubmission, UserPreferences } from '../supabase/types';
 
+// Migration SQL and the ops runbook are checked as text (non-TS artefacts).
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 
 const resolveRepoPath = (relativePath: string): string => path.join(REPO_ROOT, relativePath);
@@ -131,139 +133,35 @@ test('chapter feedback backend migration creates the durable preference flag and
   );
 });
 
-test('review-chapter-feedback returns server-computed unresolved counts per chapter', () => {
-  const reviewFunction = readRepoFile('supabase/functions/review-chapter-feedback/index.ts');
-
-  assert.match(
-    reviewFunction,
-    /ChapterFeedbackSummaryRow/,
-    'Expected the translator review function to model summary rows'
-  );
-  assert.match(
-    reviewFunction,
-    /chapters: Array\.from\(summaryByChapter\.values\(\)\)/,
-    'Expected the translator review function to return grouped chapter summaries'
-  );
-  assert.match(
-    reviewFunction,
-    /unresolvedDown/,
-    'Expected chapter summaries to expose unresolved counts computed from server resolution state'
-  );
-});
-
-test('review-chapter-feedback persists translator resolutions server-side', () => {
-  const reviewFunction = readRepoFile('supabase/functions/review-chapter-feedback/index.ts');
-
-  assert.match(
-    reviewFunction,
-    /action === 'resolve'/,
-    'Expected the review function to accept a resolve action'
-  );
-  assert.match(
-    reviewFunction,
-    /action === 'reopen'/,
-    'Expected the review function to accept a reopen action'
-  );
-  assert.match(
-    reviewFunction,
-    /scripture_council_resolution/,
-    'Expected resolutions to write the scripture_council_resolution column'
-  );
-  assert.match(
-    reviewFunction,
-    /scripture_council_fixed_at/,
-    'Expected resolutions to stamp scripture_council_fixed_at server-side'
-  );
-});
-
+// Type-level contract, enforced by `npm run typecheck`: the Supabase row types expose
+// the preference flag and the feedback record with its audio metadata.
 test('chapter feedback backend contract is wired into the Supabase row types', () => {
-  const supabaseTypes = readRepoFile('src/services/supabase/types.ts');
-
-  assert.match(
-    supabaseTypes,
-    /chapter_feedback_enabled/,
-    'Expected Supabase user preference types to include chapter_feedback_enabled'
-  );
-  assert.match(
-    supabaseTypes,
-    /export interface ChapterFeedbackSubmission/,
-    'Expected Supabase types to expose a ChapterFeedbackSubmission record'
-  );
-  assert.match(
-    supabaseTypes,
-    /audio_response_path/,
-    'Expected Supabase feedback types to expose audio response metadata'
+  const preference: Pick<UserPreferences, 'chapter_feedback_enabled'> = {
+    chapter_feedback_enabled: false,
+  };
+  const submission: Pick<ChapterFeedbackSubmission, 'audio_response_path'> = {
+    audio_response_path: null,
+  };
+  assert.deepEqual(
+    [preference, submission],
+    [{ chapter_feedback_enabled: false }, { audio_response_path: null }]
   );
 });
 
-test('chapter feedback function and ops doc preserve the Supabase admin review contract', () => {
-  const functionPath = 'supabase/functions/submit-chapter-feedback/index.ts';
+// The submit function's behaviour (row shape, required name and role, no manufactured id
+// number, audio upload, export_status, no Sheets export) runs on the real function in
+// supabase/functions/submit-chapter-feedback/index.test.ts.
+test('the chapter feedback ops doc describes the Supabase admin review pipeline', () => {
   const docsPath = 'docs/chapter-feedback-ops.md';
 
-  assert.equal(
-    existsSync(resolveRepoPath(functionPath)),
-    true,
-    'Expected a submit-chapter-feedback Edge Function implementation'
-  );
   assert.equal(
     existsSync(resolveRepoPath(docsPath)),
     true,
     'Expected an operator runbook for the chapter feedback pipeline'
   );
 
-  const functionSource = readRepoFile(functionPath);
   const docs = readRepoFile(docsPath);
 
-  assert.match(
-    functionSource,
-    /chapter_feedback_submissions/,
-    'Expected the Edge Function to insert into chapter_feedback_submissions before export'
-  );
-  assert.match(
-    functionSource,
-    /participant_name/,
-    'Expected the Edge Function to persist the reviewer name'
-  );
-  assert.match(
-    functionSource,
-    /participant_role/,
-    'Expected the Edge Function to persist the reviewer role'
-  );
-  assert.match(
-    functionSource,
-    /participant_id_number/,
-    'Expected the Edge Function to persist the reviewer id number'
-  );
-  assert.match(
-    functionSource,
-    /participant_id_number:\s*null/,
-    'Expected the Edge Function not to manufacture a participant ID number from an account UUID'
-  );
-  assert.match(
-    functionSource,
-    /participantName and participantRole are required/,
-    'Expected the Edge Function to accept self-identified participants only after name and role are supplied'
-  );
-  assert.match(
-    functionSource,
-    /audio_response_path/,
-    'Expected the Edge Function to persist audio response metadata'
-  );
-  assert.match(
-    functionSource,
-    /audio responses must include upload data/,
-    'Expected audio submissions to upload through the Edge Function'
-  );
-  assert.match(
-    functionSource,
-    /export_status:\s*'exported'/,
-    'Expected the Edge Function to mark database-saved feedback as ready for admin review'
-  );
-  assert.doesNotMatch(
-    functionSource,
-    /GOOGLE_SHEETS_SPREADSHEET_ID|createGoogleAccessToken|appendSheetRow/,
-    'Expected the Edge Function to avoid the retired Google Sheets export path'
-  );
   assert.doesNotMatch(
     docs,
     /GOOGLE_SHEETS_SPREADSHEET_ID|GOOGLE_SERVICE_ACCOUNT/,
@@ -286,44 +184,6 @@ test('chapter feedback function and ops doc preserve the Supabase admin review c
   );
 });
 
-test('review-chapter-feedback never leaks the submitter auth UUID and scopes mutations by translation (S4)', () => {
-  const reviewFunction = readRepoFile('supabase/functions/review-chapter-feedback/index.ts');
-  const reviewClient = readRepoFile('src/services/feedback/chapterFeedbackReviewService.ts');
-  const reader = readRepoFile('src/screens/bible/BibleReaderScreen.tsx');
-
-  // Translators authenticate with one shared passcode, so anything in this payload is
-  // readable by every passcode holder. The raw Supabase user id is not theirs to see.
-  assert.doesNotMatch(
-    reviewFunction,
-    /userId:\s*row\.user_id/,
-    'Expected the review payload to stop emitting the submitter auth UUID'
-  );
-  assert.doesNotMatch(
-    reviewClient,
-    /^\s*userId:/m,
-    'Expected the review item type/parser to drop the userId field'
-  );
-  assert.doesNotMatch(
-    reader,
-    /item\.userId/,
-    'Expected the reader participant label to stop falling back to the raw UUID'
-  );
-
-  // A mutation must always name the translation it acts on, so a passcode holder cannot
-  // resolve or reopen another translation's feedback by replaying a feedback UUID.
-  assert.match(
-    reviewFunction,
-    /if \(!translationId\)[\s\S]{0,200}translationId is required/,
-    'Expected translationId to be mandatory for resolve/reopen'
-  );
-  const mutationScopes = reviewFunction.match(/\.eq\('translation_id', translationId\)/g) ?? [];
-  assert.ok(
-    mutationScopes.length >= 3,
-    'Expected the existence check and both the resolve and reopen updates to filter on translation_id'
-  );
-  assert.doesNotMatch(
-    reviewFunction,
-    /if \(translationId\) \{[\s\S]{0,120}existingQuery/,
-    'Expected translation scoping to no longer be an optional extra filter'
-  );
-});
+// Resolutions, translation-scoped mutations and the chapter summary run on the real function
+// in supabase/functions/review-chapter-feedback/resolutions.test.ts and teamAccess.test.ts;
+// the review payload never carrying the submitter's auth UUID is reviewPayload.test.ts.
