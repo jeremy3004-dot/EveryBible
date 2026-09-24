@@ -452,16 +452,68 @@ test('a zero, negative or non-finite listening time leaves the ledger alone', (t
   assert.equal(state().listeningMsByDate, before, 'no store write for nothing heard');
 });
 
-test('listening never touches the read ledger, the streak, or the sync trigger', (t) => {
+test('listening never writes the read ledger', (t) => {
   t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 8) });
 
   state().markChapterListened('GEN', 1);
   state().recordListeningTime(60_000);
-  t.mock.timers.tick(5000);
 
   assert.deepEqual(state().chaptersRead, {});
-  assert.equal(state().streakDays, 0);
-  assert.deepEqual(syncCalls, []);
+});
+
+// Reading and listening are one activity, so a day of listening keeps the
+// streak exactly as a day of reading does.
+test('a chapter heard to the end counts the day for the streak and syncs it', async (t) => {
+  t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 8) });
+  state().markChapterRead('GEN', 1);
+  t.mock.timers.tick(5000);
+  await flushSync();
+  syncCalls.length = 0;
+
+  t.mock.timers.setTime(localNoon(2026, 9, 9));
+  state().markChapterListened('GEN', 2);
+  t.mock.timers.tick(5000);
+  await flushSync();
+
+  assert.equal(state().streakDays, 2);
+  assert.equal(state().lastReadDate, '2026-09-09');
+  assert.deepEqual(syncCalls, [['user-1', 3]]);
+});
+
+test('a minute of listening counts the day for the streak; a stray tap does not', (t) => {
+  t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 8) });
+
+  state().recordListeningTime(20_000);
+  assert.equal(state().streakDays, 0, 'twenty seconds is not a day in the Word');
+
+  state().recordListeningTime(40_000);
+  assert.equal(state().streakDays, 1);
+  assert.equal(state().lastReadDate, '2026-09-08');
+});
+
+test('reading today continues a streak kept yesterday by listening alone', (t) => {
+  t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 8) });
+  state().recordListeningTime(5 * 60_000);
+
+  t.mock.timers.setTime(localNoon(2026, 9, 9));
+  state().markChapterRead('GEN', 1);
+
+  assert.equal(state().streakDays, 2);
+});
+
+test('a listening day restored without its date still proves yesterday for the streak', (t) => {
+  // Builds that kept only chapter timestamps for the fallback forgot a day kept
+  // by listening when lastReadDate trailed it (the pre-local-day UTC dates).
+  t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 9) });
+  useProgressStore.setState({
+    streakDays: 3,
+    lastReadDate: '2026-09-06',
+    listeningMsByDate: { '2026-09-08': 5 * 60_000 },
+  });
+
+  state().markChapterRead('GEN', 1);
+
+  assert.equal(state().streakDays, 4);
 });
 
 // ---------------------------------------------------------------------------

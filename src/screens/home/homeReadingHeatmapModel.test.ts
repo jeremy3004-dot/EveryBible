@@ -4,11 +4,11 @@ import {
   HEATMAP_MAX_WEEKS,
   HEATMAP_MIN_WEEKS,
   buildHomeReadingHeatmap,
-  getDailyChapterCounts,
   getHeatmapLevel,
   getHeatmapWeekCount,
   type HomeHeatmapActivity,
 } from './homeReadingHeatmapModel';
+import { getDailyChapterCounts } from '../../services/progress/readingActivity';
 
 const at = (year: number, month: number, day: number, hour = 12) =>
   new Date(year, month - 1, day, hour, 0, 0, 0);

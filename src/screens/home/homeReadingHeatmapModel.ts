@@ -1,4 +1,4 @@
-import { formatLocalDateKey } from '../../services/progress/readingActivity';
+import { formatLocalDateKey, getDailyChapterCounts } from '../../services/progress/readingActivity';
 
 /**
  * Pure grid maths for the Home reading heatmap: one square per local day, a
@@ -44,14 +44,6 @@ export const HEATMAP_MAX_WEEKS = 26;
 export const HEATMAP_TARGET_CELL = 16;
 export const HEATMAP_GAP = 3;
 
-/**
- * Listening counts the same as reading. A chapter's audio runs about four
- * minutes, so time heard converts at that rate; a stray tap under a minute is
- * not a day in the Word.
- */
-const LISTENING_MS_PER_CHAPTER = 4 * 60_000;
-const MIN_LISTENING_MS = 60_000;
-
 /** As many weeks as fit at roughly the target square size. */
 export const getHeatmapWeekCount = (width: number): number => {
   if (!Number.isFinite(width) || width <= 0) {
@@ -68,51 +60,12 @@ export const getHeatmapLevel = (count: number): HomeHeatmapLevel => {
   return 3;
 };
 
-const listeningChapters = (ms: number | undefined): number =>
-  ms !== undefined && ms >= MIN_LISTENING_MS
-    ? Math.max(1, Math.round(ms / LISTENING_MS_PER_CHAPTER))
-    : 0;
-
-/**
- * Chapters per local day. The tally is exact from the build that added it; the
- * chapter timestamps fill in earlier days (a lower bound, since a reread moves a
- * chapter's timestamp forward) and anything synced from another device. Each
- * source undercounts in its own way, so a day takes the largest of the three
- * rather than their sum, which would count one chapter twice.
- */
-export const getDailyChapterCounts = (activity: HomeHeatmapActivity): Map<string, number> => {
-  const chaptersByDay = new Map<string, Set<string>>();
-  const addTimestamps = (ledger: Record<string, number>) => {
-    for (const [chapterKey, timestamp] of Object.entries(ledger)) {
-      if (!Number.isFinite(timestamp)) continue;
-      const dateKey = formatLocalDateKey(new Date(timestamp));
-      const chapters = chaptersByDay.get(dateKey) ?? new Set<string>();
-      chapters.add(chapterKey);
-      chaptersByDay.set(dateKey, chapters);
-    }
-  };
-  addTimestamps(activity.chaptersRead);
-  addTimestamps(activity.chaptersListened);
-
-  const counts = new Map<string, number>();
-  const raise = (dateKey: string, count: number) => {
-    if (count > (counts.get(dateKey) ?? 0)) counts.set(dateKey, count);
-  };
-  chaptersByDay.forEach((chapters, dateKey) => raise(dateKey, chapters.size));
-  for (const [dateKey, count] of Object.entries(activity.chaptersByDate)) {
-    raise(dateKey, count);
-  }
-  for (const [dateKey, ms] of Object.entries(activity.listeningMsByDate)) {
-    raise(dateKey, listeningChapters(ms));
-  }
-  return counts;
-};
-
 export const buildHomeReadingHeatmap = (
   activity: HomeHeatmapActivity,
   weekCount: number,
   now: Date
 ): HomeHeatmap => {
+  // Reading and listening count together, by the same day rule as the calendar.
   const counts = getDailyChapterCounts(activity);
   const todayKey = formatLocalDateKey(now);
   // Monday of the current week, then back to the Monday of the oldest column.
