@@ -1,4 +1,5 @@
 import { recordCrashLog, toCrashLogEntry } from './crashLogStore';
+import { queueCrashReport } from './crashReportQueue';
 
 type ErrorHandler = (error: unknown, isFatal?: boolean) => void;
 
@@ -43,7 +44,10 @@ export function installGlobalErrorHandlers(): void {
   if (errorUtils) {
     const originalHandler = errorUtils.getGlobalHandler();
     errorUtils.setGlobalHandler((error, isFatal) => {
+      // Local log first, then the scrubbed remote report; both are synchronous
+      // MMKV writes because a fatal error may end the process right after.
       recordCrashLog(toCrashLogEntry(error, Boolean(isFatal), Date.now()));
+      queueCrashReport({ error, kind: isFatal ? 'fatal' : 'error' });
       originalHandler(error, isFatal);
     });
   }
@@ -54,6 +58,7 @@ export function installGlobalErrorHandlers(): void {
       allRejections: true,
       onUnhandled: (_id, error) => {
         recordCrashLog(toCrashLogEntry(error, false, Date.now()));
+        queueCrashReport({ error, kind: 'rejection' });
         console.error('[GlobalErrorHandler] Unhandled promise rejection:', error);
       },
     });

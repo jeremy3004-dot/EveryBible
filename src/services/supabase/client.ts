@@ -90,6 +90,11 @@ export const isSupabaseConfigured = (): boolean => {
   return HAS_SUPABASE_CONFIG;
 };
 
+// The project's public (anon/publishable) key. Callers that must not send the
+// signed-in user's token (anonymous crash reports) pass it as Authorization so
+// supabase-js does not attach the session JWT.
+export const getSupabasePublicKey = (): string => CLIENT_SUPABASE_PUBLIC_KEY;
+
 // Get current user ID helper
 export const getCurrentUserId = async (): Promise<string | null> => {
   if (!HAS_SUPABASE_CONFIG) {

@@ -116,6 +116,7 @@ export function mockSupabaseModule(
     supabase: fake.client,
     isSupabaseConfigured: isConfigured,
     getCurrentUserId,
+    getSupabasePublicKey: () => 'test-public-key',
   };
   mockModule(mocker, sourcePath('services/supabase/index.ts'), exports);
   mockModule(mocker, sourcePath('services/supabase/client.ts'), exports);

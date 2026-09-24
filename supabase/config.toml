@@ -386,6 +386,10 @@ verify_jwt = false
 [functions.track-anonymous-usage-events]
 verify_jwt = false
 
+# Anonymous crash reports: the app deliberately sends the public key, never a user token.
+[functions.report-app-errors]
+verify_jwt = false
+
 [functions.aggregate-engagement]
 verify_jwt = true
 

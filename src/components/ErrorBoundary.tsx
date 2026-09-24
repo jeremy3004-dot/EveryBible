@@ -6,6 +6,8 @@ import { darkColors, useTheme, type ThemeColors } from '../contexts/ThemeContext
 import { radius, spacing, typography } from '../design/system';
 import { recordCrashLog } from '../services/diagnostics/crashLogStore';
 import { toRenderErrorCrashLogEntry } from '../services/diagnostics/crashLogEntry';
+import { screenFromBoundaryScope } from '../services/diagnostics/crashReportModel';
+import { queueCrashReport } from '../services/diagnostics/crashReportQueue';
 
 // Resolve theme colors defensively: if the ThemeProvider is itself part of the
 // crash (missing/broken context), fall back to the dark palette so the fallback
@@ -97,6 +99,13 @@ export class ErrorBoundary extends Component<Props, State> {
         Date.now()
       )
     );
+    // Scrubbed copy for remote reporting; queueCrashReport never throws either.
+    queueCrashReport({
+      error,
+      kind: 'boundary',
+      screen: screenFromBoundaryScope(this.props.scope),
+      componentStack: errorInfo?.componentStack,
+    });
   }
 
   handleRetry = () => {
