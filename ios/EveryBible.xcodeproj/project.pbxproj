@@ -17,7 +17,6 @@
 		1CB0C076DEFC4C8990ADCF1F /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = FFA186B90AA84415B4A0B2EF /* InfoPlist.strings */; };
 		1FD0731F4CCF46B6B5B0569F /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = B169939049404C10AD9F86CD /* InfoPlist.strings */; };
 		23171530E3764C3EAF029713 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 45E058C47C514E48A5E23762 /* InfoPlist.strings */; };
-		2D8E260753F24AC18AFB065D /* bible-bsb-v2.db in Resources */ = {isa = PBXBuildFile; fileRef = EB03F0E6BD374FD099D01177 /* bible-bsb-v2.db */; };
 		3334DD91F45243BDBB0601DA /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 9692A66FE605491699EB4B54 /* InfoPlist.strings */; };
 		3E461D99554A48A4959DE609 /* EveryBibleLaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* EveryBibleLaunchScreen.storyboard */; };
 		648ADF6CF74247A0859C5120 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 5CA2141E7B4B4594B55DC34B /* InfoPlist.strings */; };
@@ -79,7 +78,6 @@
 		DF3DE59CAE25422DB213064F /* InfoPlist.strings */ = {isa = PBXFileReference; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = text.plist.strings; name = InfoPlist.strings; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		DF757E238F564473B95C1AF4 /* InfoPlist.strings */ = {isa = PBXFileReference; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = text.plist.strings; name = InfoPlist.strings; path = ko.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		E24B5D555A4440E5BEC2A9D0 /* InfoPlist.strings */ = {isa = PBXFileReference; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = text.plist.strings; name = InfoPlist.strings; path = "zh-Hans.lproj/InfoPlist.strings"; sourceTree = "<group>"; };
-		EB03F0E6BD374FD099D01177 /* bible-bsb-v2.db */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "bible-bsb-v2.db"; path = "../assets/databases/bible-bsb-v2.db"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = EveryBible/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* EveryBible-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "EveryBible-Bridging-Header.h"; path = "EveryBible/EveryBible-Bridging-Header.h"; sourceTree = "<group>"; };
@@ -372,7 +370,6 @@
 		D069371DE46C4D9B846A964A /* Resources */ = {
 			isa = PBXGroup;
 			children = (
-				EB03F0E6BD374FD099D01177 /* bible-bsb-v2.db */,
 			);
 			name = Resources;
 			path = "";
@@ -482,7 +479,6 @@
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* EveryBibleLaunchScreen.storyboard in Resources */,
 				13B9648EC37BCFE93DE0C96C /* PrivacyInfo.xcprivacy in Resources */,
-				2D8E260753F24AC18AFB065D /* bible-bsb-v2.db in Resources */,
 				C356B614930844DC9C09A40D /* InfoPlist.strings in Resources */,
 				A707CB98AB81463A9E387FEA /* InfoPlist.strings in Resources */,
 				08717C359D2046D0BB40F293 /* InfoPlist.strings in Resources */,

@@ -137,24 +137,28 @@ test('native RTL layout is disabled before React starts, not only from JS on the
   );
 });
 
-test('ios Xcode project bundles the configured bible SQLite asset', () => {
+test('the bundled bible SQLite database ships once, through the Metro asset require only', () => {
+  // bibleDatabase.ts hands `require('../../../assets/databases/bible-bsb-v2.db')` to
+  // expo-sqlite's importDatabaseFromAssetAsync, which resolves it with expo-asset: on iOS the
+  // Metro copy under <app>/assets/assets/databases/, on Android the res/raw resource. Also
+  // listing the file in the expo-asset config plugin (or the Xcode Resources phase) embedded a
+  // second, never-read 44.7 MB copy at the .app root / Android assets/.
   const appConfig = readRootJson<AppConfig>('app.json');
   const pbxproj = readRootFile('ios/EveryBible.xcodeproj/project.pbxproj');
-  const configuredBundledAssets = getBundledAssetEntries(appConfig.expo.plugins);
 
   assert.ok(
-    configuredBundledAssets.includes(BUNDLED_BIBLE_DATABASE_PATH),
-    'Expected app.json expo-asset plugin to keep the bundled bible database configured'
+    !getBundledAssetEntries(appConfig.expo.plugins).includes(BUNDLED_BIBLE_DATABASE_PATH),
+    'app.json must not embed the bible database through the expo-asset plugin; Metro already bundles it'
+  );
+  assert.doesNotMatch(
+    pbxproj,
+    /bible-bsb-v2\.db/,
+    'the iOS Xcode project must not copy the bible database into app resources; Metro already bundles it'
   );
   assert.match(
-    pbxproj,
-    /bible-bsb-v2\.db in Resources/,
-    'Expected the iOS Xcode project to copy the bundled bible database into app resources'
-  );
-  assert.match(
-    pbxproj,
-    /path = "\.\.\/assets\/databases\/bible-bsb-v2\.db"/,
-    'Expected the iOS Xcode project to reference the configured bible database asset path'
+    readRootFile('src/services/bible/bibleDatabase.ts'),
+    /require\('\.\.\/\.\.\/\.\.\/assets\/databases\/bible-bsb-v2\.db'\)/,
+    'bibleDatabase.ts must keep resolving the bundled database through the Metro asset require'
   );
 });
 
