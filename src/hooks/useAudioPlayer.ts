@@ -657,7 +657,9 @@ export function useAudioPlayer(translationId: string = 'bsb') {
           clearInterval(interpolationTimerRef.current);
           interpolationTimerRef.current = null;
         }
-        emitAudioPlaybackProgress('pause', true);
+        // The stopped snapshot of a finished chapter arrives before the finish
+        // handler, so it closes out the last segment as a finish.
+        emitAudioPlaybackProgress(snapshot.didJustFinish ? 'finish' : 'pause', true);
         stopAudioProgressTelemetryTimer();
 
         if (snapshot.isBuffering) {

@@ -33,7 +33,7 @@ interface ProgressSnapshot {
   durationMillis: number;
   isPlaying: boolean;
   isBuffering: boolean;
-  didJustFinish: false;
+  didJustFinish: boolean;
 }
 
 interface AudioAsset {
@@ -2055,6 +2055,33 @@ test('pausing flushes the listening segment that was in flight', async (t) => {
   const progress = recorded.analytics.filter((event) => event.name === 'audio_playback_progress');
   assert.equal(progress.length, 1);
   assert.equal(progress[0]?.properties.reason, 'pause');
+});
+
+test('the last stretch of a finished chapter is reported as a finish', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: BASE_TIME });
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  emitStatus({ isPlaying: true, positionMillis: 1_000, durationMillis: DEFAULT_DURATION_MS });
+  t.mock.timers.tick(5_000);
+  recorded.analytics.length = 0;
+
+  // The native player reports the stopped state first, then ends the queue.
+  emitStatus({
+    isPlaying: false,
+    didJustFinish: true,
+    positionMillis: DEFAULT_DURATION_MS,
+    durationMillis: DEFAULT_DURATION_MS,
+  });
+  await finishPlayback();
+
+  const progress = recorded.analytics.filter((event) => event.name === 'audio_playback_progress');
+  assert.deepEqual(
+    progress.map((event) => ({
+      reason: event.properties.reason,
+      listened: event.properties.listened_ms,
+    })),
+    [{ reason: 'finish', listened: 5_000 }]
+  );
 });
 
 test('no listening progress is reported while the chapter duration is unknown', async (t) => {
