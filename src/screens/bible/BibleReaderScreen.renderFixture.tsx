@@ -90,6 +90,15 @@ export interface FakeSound {
   ) => void;
 }
 
+type ScrollWorklet = (payload: unknown, scope: Record<string, unknown>) => void;
+interface ScrollWorkletSet {
+  onScroll?: ScrollWorklet;
+  onBeginDrag?: ScrollWorklet;
+  onEndDrag?: ScrollWorklet;
+  onMomentumBegin?: ScrollWorklet;
+  onMomentumEnd?: ScrollWorklet;
+}
+
 export function installReaderRenderFixture(
   mocker: MockTracker,
   options: RenderHarnessOptions = {}
@@ -111,16 +120,18 @@ export function installReaderRenderFixture(
   const useFakeScrollHandler = reanimated.useAnimatedScrollHandler as (
     handlers: unknown
   ) => (event: unknown) => void;
+  // The real handler also receives the list's drag and momentum events natively; the
+  // fake list only fires onScroll, so the scroll helpers below call these directly.
+  const scrollWorklets: { latest: ScrollWorklet | ScrollWorkletSet | null } = { latest: null };
   mockPackage(mocker, 'react-native-reanimated', {
     ...reanimated,
-    useAnimatedScrollHandler: (handlers: unknown) => {
+    useAnimatedScrollHandler: (handlers: ScrollWorklet | ScrollWorkletSet) => {
       const latest = useRef(handlers);
       latest.current = handlers;
+      scrollWorklets.latest = handlers;
       const dispatch = useFakeScrollHandler({
         onScroll: (event: unknown, context: Record<string, unknown>) => {
-          const current = latest.current as
-            | ((payload: unknown, scope: Record<string, unknown>) => void)
-            | { onScroll?: (payload: unknown, scope: Record<string, unknown>) => void };
+          const current = latest.current;
           if (typeof current === 'function') current(event, context);
           else current.onScroll?.(event, context);
         },
@@ -148,6 +159,7 @@ export function installReaderRenderFixture(
   // through useAudioPosition, both from this store.
   const audioStore = create(() => ({
     status: 'idle' as AudioStatus,
+    error: null as string | null,
     currentTranslationId: null as string | null,
     currentBookId: null as string | null,
     currentChapter: null as number | null,
@@ -223,6 +235,7 @@ export function installReaderRenderFixture(
       const transport = audioStore(
         useShallow((state) => ({
           status: state.status,
+          error: state.error,
           currentTranslationId: state.currentTranslationId,
           currentBookId: state.currentBookId,
           currentChapter: state.currentChapter,
@@ -530,19 +543,44 @@ export function installReaderRenderFixture(
     return list;
   };
 
-  /** Scroll the read-mode list like a finger would, one native frame. */
-  async function scrollReader(
-    view: RenderResult,
+  interface ScrollFrame {
+    viewport?: number;
+    content?: number;
+  }
+  const scrollPayload = (y: number, { viewport = 700, content = 3000 }: ScrollFrame) => ({
+    contentOffset: { x: 0, y },
+    layoutMeasurement: { width: 390, height: viewport },
+    contentSize: { width: 390, height: content },
+    velocity: { x: 0, y: 0 },
+  });
+  /** Deliver one native drag or momentum event to the list's animated scroll handler. */
+  async function dispatchScrollWorklet(
+    name: Exclude<keyof ScrollWorkletSet, 'onScroll'>,
     y: number,
-    { viewport = 700, content = 3000 }: { viewport?: number; content?: number } = {}
+    frame: ScrollFrame
   ) {
-    await view.fire(readerList(view), 'onScroll', {
-      nativeEvent: {
-        contentOffset: { x: 0, y },
-        layoutMeasurement: { width: 390, height: viewport },
-        contentSize: { width: 390, height: content },
-      },
+    const handlers = scrollWorklets.latest;
+    if (handlers == null || typeof handlers === 'function') return;
+    await act(async () => {
+      handlers[name]?.(scrollPayload(y, frame), {});
     });
+  }
+
+  /**
+   * Move the read-mode list one native frame without a finger on it: where the
+   * reader's own scrollToOffset/scrollToIndex (chapter reset, focus verse,
+   * follow-along) or a layout change leaves it.
+   */
+  async function settleReaderScroll(view: RenderResult, y: number, frame: ScrollFrame = {}) {
+    await view.fire(readerList(view), 'onScroll', { nativeEvent: scrollPayload(y, frame) });
+    await view.flush();
+  }
+
+  /** Scroll the read-mode list like a finger would: one dragged frame, then release. */
+  async function scrollReader(view: RenderResult, y: number, frame: ScrollFrame = {}) {
+    await dispatchScrollWorklet('onBeginDrag', y, frame);
+    await settleReaderScroll(view, y, frame);
+    await dispatchScrollWorklet('onEndDrag', y, frame);
     await view.flush();
   }
 
@@ -601,6 +639,7 @@ export function installReaderRenderFixture(
     navigateReader,
     readerList,
     scrollReader,
+    settleReaderScroll,
     setParamsCalls,
     topChrome,
   };

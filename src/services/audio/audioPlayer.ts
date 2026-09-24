@@ -134,10 +134,11 @@ class AudioPlayer {
         if (data.state === State.Error) this.loaded = false;
         this.lastIsPlaying = data.state === State.Playing;
         // Until Play starts a chapter being loaded, its first status (paused) and
-        // Ready are part of loading it, not a pause.
+        // Ready are part of loading it, not a pause. So is a failure: the load rejects
+        // with it, and its caller may retry before anything is shown.
         const isStartingChapter =
           this.pendingLoadRequestId !== null &&
-          (data.state === State.Paused || data.state === State.Ready);
+          (data.state === State.Paused || data.state === State.Ready || data.state === State.Error);
         this.lastIsBuffering =
           data.state === State.Buffering || data.state === State.Loading || isStartingChapter;
         // Stopped only follows stop(), whose caller has already reset playback to idle;

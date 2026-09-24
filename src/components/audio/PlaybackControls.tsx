@@ -8,6 +8,7 @@ import type {
   SleepTimerOption,
 } from '../../types';
 import { mediumHaptic } from '../../utils';
+import { AudioPlaybackErrorNotice } from './AudioPlaybackErrorNotice';
 import {
   BackgroundMusicButton,
   BackgroundMusicSheet,
@@ -30,6 +31,8 @@ import {
 interface PlaybackControlsProps {
   variant?: PlaybackControlsVariant;
   status: AudioStatus;
+  /** Why the chapter failed to play, shown under the transport; Play tries again. */
+  errorMessage?: string | null;
   playbackRate: PlaybackRate;
   repeatMode: RepeatMode;
   sleepTimerRemaining: number | null;
@@ -65,6 +68,7 @@ const noop = () => {};
 export function PlaybackControls({
   variant = 'default',
   status,
+  errorMessage = null,
   playbackRate,
   repeatMode,
   sleepTimerRemaining,
@@ -156,6 +160,10 @@ export function PlaybackControls({
             />
           ) : null}
         </View>
+      ) : null}
+
+      {layout.showTransport && errorMessage ? (
+        <AudioPlaybackErrorNotice message={errorMessage} />
       ) : null}
 
       {showUtilityRow ? (

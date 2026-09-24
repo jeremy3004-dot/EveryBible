@@ -40,6 +40,11 @@ export type BibleNowPlayingInput = {
   canSkipPrevious?: boolean;
   /** Android notification strings; see BibleNowPlayingLocalizedStrings. */
   localized?: BibleNowPlayingLocalizedStrings;
+  /**
+   * Neutral title ("Now playing") that replaces the chapter on the iOS lock screen in
+   * discreet mode. Android takes it from `localized.channelName`.
+   */
+  discreetTitle?: string;
 };
 
 export type BibleNowPlayingPayload = {
@@ -53,6 +58,8 @@ export type BibleNowPlayingPayload = {
   artworkUri: string;
   canSkipNext: boolean;
   canSkipPrevious: boolean;
+  /** Discreet mode: the native side shows no artwork (not even the app icon) either. */
+  discreet?: boolean;
 };
 
 function toSeconds(milliseconds: number): number {
@@ -88,4 +95,16 @@ export function buildBibleNowPlayingPayload(
     canSkipNext: input.canSkipNext ?? true,
     canSkipPrevious: input.canSkipPrevious ?? true,
   };
+}
+
+/**
+ * The lock-screen entry in discreet mode. The lock screen, Control Center and a car's
+ * display show it to anyone, so it keeps the controls and progress but names neither the
+ * chapter, the translation nor the app, and carries no artwork.
+ */
+export function toDiscreetNowPlayingPayload(
+  payload: BibleNowPlayingPayload,
+  title = ''
+): BibleNowPlayingPayload {
+  return { ...payload, title, artist: '', albumTitle: '', artworkUri: '', discreet: true };
 }

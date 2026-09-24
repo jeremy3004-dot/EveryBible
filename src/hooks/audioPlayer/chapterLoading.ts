@@ -7,11 +7,16 @@ import {
 } from '../../services/audio';
 import { expoAudioFileSystemAdapter } from '../../services/audio/audioDownloadStorage';
 import { fetchRemoteChapterAudio } from '../../services/audio/audioRemote';
+import {
+  AudioLoadTimeoutError,
+  shouldRetryAudioLoad,
+} from '../../services/audio/audioLoadRetryModel';
 import { hasSleepTimerExpired } from '../../services/audio/audioSleepTimerModel';
 import { reportHandledError } from '../../services/diagnostics/crashReportQueue';
 import { useAudioStore } from '../../stores/audioStore';
 import { hasAudioPlaybackSequenceEntry } from '../../stores/audioPlaybackSequenceModel';
 import { useLibraryStore } from '../../stores/libraryStore';
+import type { PlaybackRate } from '../../types';
 import { emitAudioPlaybackProgress, stopAudioProgressTelemetry } from './listeningTelemetry';
 import type {
   AudioPlayerSession,
@@ -21,6 +26,86 @@ import type {
   Translate,
 } from './playerSession';
 import { chapterTransition, pausedByListener } from './sharedPlaybackState';
+
+/**
+ * The most one attempt at loading a chapter may take before it is abandoned. Cold
+ * chapters on the media CDN took 4-11 s to first byte on device, and the player makes
+ * several requests before it can start, so this is generous. It bounds a load that
+ * never settles; a native timeout that fires sooner is retried the same way.
+ */
+export const CHAPTER_AUDIO_LOAD_TIMEOUT_MS = 30_000;
+
+const isDownloadedAudioUrl = (url: string) => url.startsWith('file://');
+
+/**
+ * One attempt at loading and starting `url`, abandoned after
+ * CHAPTER_AUDIO_LOAD_TIMEOUT_MS. The native player also reports some failures through
+ * its error callback while the load itself resolves; those fail the attempt too.
+ */
+async function loadChapterAudioOnce(
+  session: AudioPlayerSession,
+  playRequestId: number,
+  url: string,
+  playbackRate: () => PlaybackRate,
+  startPositionMs: number
+): Promise<void> {
+  const errorId = session.playbackErrorId;
+  let deadline: ReturnType<typeof setTimeout> | undefined;
+  const load = audioPlayer.loadAndPlay(url, playbackRate(), startPositionMs);
+  try {
+    await Promise.race([
+      load,
+      new Promise<never>((_, reject) => {
+        deadline = setTimeout(
+          () => reject(new AudioLoadTimeoutError(CHAPTER_AUDIO_LOAD_TIMEOUT_MS)),
+          CHAPTER_AUDIO_LOAD_TIMEOUT_MS
+        );
+      }),
+    ]);
+  } catch (error) {
+    if (error instanceof AudioLoadTimeoutError) {
+      // Whatever the abandoned load does later is of no interest.
+      load.catch(() => {});
+      // Unload it, or a stream that turns up after the listener was told it failed
+      // would start playing. A newer command already owns the player.
+      if (playRequestId === session.playRequestId) await audioPlayer.stop();
+    }
+    throw error;
+  } finally {
+    clearTimeout(deadline);
+  }
+  if (errorId !== session.playbackErrorId) {
+    throw new Error(session.lastPlaybackError ?? 'Native playback failed');
+  }
+}
+
+/**
+ * Loads and starts a chapter, trying a stream once more when the first attempt timed
+ * out or lost the connection: a cold chapter's first request can time out while the
+ * CDN edge fetches it, and the second is served warm. The chapter stays "loading"
+ * throughout; only the second failure is the caller's to surface.
+ */
+async function loadChapterAudio(
+  session: AudioPlayerSession,
+  playRequestId: number,
+  url: string,
+  playbackRate: () => PlaybackRate,
+  startPositionMs: number
+): Promise<void> {
+  try {
+    await loadChapterAudioOnce(session, playRequestId, url, playbackRate, startPositionMs);
+  } catch (error) {
+    if (
+      playRequestId !== session.playRequestId ||
+      isDownloadedAudioUrl(url) ||
+      !shouldRetryAudioLoad(error)
+    ) {
+      throw error;
+    }
+    useAudioStore.getState().setStatus('loading');
+    await loadChapterAudioOnce(session, playRequestId, url, playbackRate, startPositionMs);
+  }
+}
 
 interface HeldTrack {
   translationId: string;
@@ -156,15 +241,18 @@ export async function loadChapterForTranslation(
       return;
     }
 
+    session.loadingPlayRequestId = playRequestId;
     try {
-      const errorId = session.playbackErrorId;
-      await audioPlayer.loadAndPlay(audioData.url, livePlaybackRate(), startPositionMs);
-      if (errorId !== session.playbackErrorId) {
-        throw new Error('Native playback failed');
-      }
+      await loadChapterAudio(
+        session,
+        playRequestId,
+        audioData.url,
+        livePlaybackRate,
+        startPositionMs
+      );
     } catch (initialLoadError) {
       if (playRequestId !== session.playRequestId) return;
-      const shouldRetryWithRemoteFallback = audioData.url.startsWith('file://');
+      const shouldRetryWithRemoteFallback = isDownloadedAudioUrl(audioData.url);
       if (!shouldRetryWithRemoteFallback) {
         throw initialLoadError;
       }
@@ -181,11 +269,13 @@ export async function loadChapterForTranslation(
         throw initialLoadError;
       }
 
-      const fallbackErrorId = session.playbackErrorId;
-      await audioPlayer.loadAndPlay(remoteFallback.url, livePlaybackRate(), startPositionMs);
-      if (fallbackErrorId !== session.playbackErrorId) {
-        throw new Error('Native playback failed');
-      }
+      await loadChapterAudio(
+        session,
+        playRequestId,
+        remoteFallback.url,
+        livePlaybackRate,
+        startPositionMs
+      );
       if (playRequestId !== session.playRequestId) return;
       audioData = remoteFallback;
 
@@ -195,6 +285,8 @@ export async function loadChapterForTranslation(
       if (initialAudioUrl && expoAudioFileSystemAdapter.deleteFile) {
         await expoAudioFileSystemAdapter.deleteFile(initialAudioUrl).catch(() => {});
       }
+    } finally {
+      if (session.loadingPlayRequestId === playRequestId) session.loadingPlayRequestId = null;
     }
 
     if (playRequestId !== session.playRequestId) {
@@ -242,7 +334,10 @@ export async function loadChapterForTranslation(
       return;
     }
 
-    reportHandledError('audio.load', error);
+    // A chapter that ran out of time even after its retry is a failure worth hearing
+    // about; being offline is not.
+    reportHandledError('audio.load', error, { reportTimeouts: true });
+    chapterTransition.current = false;
     store.setError(t('interface.audioPlayFailed'));
     void clearBibleNowPlaying();
   }

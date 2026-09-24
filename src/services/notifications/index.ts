@@ -14,6 +14,7 @@ export {
   type DailyReminderPreference,
   registerPushToken,
   deactivatePushToken,
+  suspendPushTokenForDiscreetMode,
   getCachedPushToken,
 } from './notificationService';
 export { installDailyReminderReconciler } from './dailyReminderReconciler';

@@ -86,6 +86,9 @@ export function syncPlayerNowPlaying(
           skipForward: t('audio.skipForward'),
         }
       : undefined;
+  // iOS publishes the entry natively; in discreet mode this neutral title replaces the
+  // chapter there (Android uses `localized.channelName`).
+  const discreetTitle = Platform.OS === 'ios' ? t('audio.nowPlaying') : undefined;
 
   const signature = bibleNowPlayingSignature({
     translationId: resolvedTranslationId,
@@ -118,5 +121,6 @@ export function syncPlayerNowPlaying(
     canSkipNext: resolvedCanSkipNext,
     canSkipPrevious: resolvedCanSkipPrevious,
     ...(localized ? { localized } : {}),
+    ...(discreetTitle ? { discreetTitle } : {}),
   });
 }

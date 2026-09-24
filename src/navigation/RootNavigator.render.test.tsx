@@ -93,6 +93,8 @@ test('after the discreet-mode lock, the remounted navigator reopens where the re
   rootState = readerState;
   const locked = await renderRoot();
   assert.equal(locked.container.props.initialState, undefined, 'a first mount follows linking');
+  // The container reports every state it reaches; the last one is what the lock holds.
+  await locked.view.fire(locked.container, 'onReady');
 
   privacyStore.setState({ isLocked: true });
   await locked.view.unmount();
@@ -110,6 +112,7 @@ test('after the discreet-mode lock, the remounted navigator reopens where the re
 test('a navigator unmounted for any reason but the lock remounts fresh', async () => {
   rootState = readerState;
   const first = await renderRoot();
+  await first.view.fire(first.container, 'onReady');
   await first.view.unmount();
 
   // Locking while no navigator is mounted (onboarding, say) holds nothing either.

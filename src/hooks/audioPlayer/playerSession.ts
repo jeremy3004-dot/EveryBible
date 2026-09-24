@@ -30,6 +30,13 @@ export interface AudioPlayerSession {
   playRequestId: number;
   /** Bumped when the native player reports an error through its callback. */
   playbackErrorId: number;
+  /** What the native player last reported through its error callback. */
+  lastPlaybackError: string | null;
+  /**
+   * The play request whose chapter is being loaded. That load reports its own failure,
+   * after retrying a stalled stream, so a native error meanwhile is not shown yet.
+   */
+  loadingPlayRequestId: number | null;
   isMounted: boolean;
   interpolationTimer: ReturnType<typeof setInterval> | null;
   // The last real poll, so position can be estimated between native snapshots
@@ -47,6 +54,8 @@ function createAudioPlayerSession(): AudioPlayerSession {
   return {
     playRequestId: 0,
     playbackErrorId: 0,
+    lastPlaybackError: null,
+    loadingPlayRequestId: null,
     isMounted: false,
     interpolationTimer: null,
     lastPollPosition: 0,

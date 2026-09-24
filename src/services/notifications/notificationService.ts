@@ -31,6 +31,8 @@ let registrationInFlight: {
   promise: Promise<string | null>;
 } | null = null;
 const invalidatedAuthGenerations = new Map<string, number>();
+/** The account and auth generation whose device row discreet mode already deactivated. */
+let discreetSuspension: { userId: string; authGeneration: number } | null = null;
 // Only database writes and their cleanup belong here, never native token acquisition.
 // Serialize each user's writes so old cleanup cannot deactivate a newer registration.
 const deviceWrites = new Map<string, Promise<unknown>>();
@@ -62,15 +64,18 @@ function isDiscreetMode(): boolean {
   }
 }
 
-async function markPushTokenInactive(userId: string, token: string): Promise<void> {
+/** Resolves whether the backend confirmed the change; it never rejects. */
+async function markPushTokenInactive(userId: string, token: string): Promise<boolean> {
   try {
-    await supabase
+    const { error } = await supabase
       .from('user_devices')
       .update({ is_active: false, updated_at: new Date().toISOString() })
       .eq('user_id', userId)
       .eq('push_token', token);
+    return !error;
   } catch {
     // Best-effort: an unavailable backend must not prevent sign-out.
+    return false;
   }
 }
 
@@ -400,7 +405,11 @@ export async function registerPushToken(
   devicePushToken?: DevicePushToken
 ): Promise<string | null> {
   const auth = getAuthIdentity();
-  if (auth?.userId !== userId || invalidatedAuthGenerations.get(userId) === auth.generation) {
+  if (
+    auth?.userId !== userId ||
+    invalidatedAuthGenerations.get(userId) === auth.generation ||
+    isDiscreetMode()
+  ) {
     return null;
   }
   const authGeneration = auth.generation;
@@ -430,7 +439,8 @@ export async function registerPushToken(
       sequence === registrationSequence &&
       currentAuth?.userId === userId &&
       currentAuth.generation === authGeneration &&
-      invalidatedAuthGenerations.get(userId) !== authGeneration
+      invalidatedAuthGenerations.get(userId) !== authGeneration &&
+      !isDiscreetMode()
     );
   };
   const promise = Promise.resolve().then(async () => {
@@ -472,6 +482,7 @@ export async function registerPushToken(
           if (error || !isCurrentRegistration()) return null;
 
           cachedPushToken = tokenResult.data;
+          discreetSuspension = null;
           lastRegisteredUserId = userId;
           lastRegisteredAuthGeneration = authGeneration;
           lastRegisteredDevicePushTokenKey = devicePushTokenKey;
@@ -532,6 +543,75 @@ export async function deactivatePushToken(userId: string): Promise<void> {
     await cleanup;
   } finally {
     if (deviceWrites.get(userId) === cleanup) deviceWrites.delete(userId);
+  }
+}
+
+/**
+ * Discreet mode takes this device off the push list. Pushes are written by the server,
+ * which does not know the device is disguised, and the OS shows them on the lock screen
+ * under the app's real name (a group push also names the group); the foreground handler
+ * only hides them while the app is open. So the device row is marked inactive, whether
+ * this launch registered it or an earlier one did (then the token is read from the
+ * device), and registerPushToken refuses until discreet mode is off again.
+ *
+ * Done once per account and auth generation; a refused update is tried again next time.
+ */
+export async function suspendPushTokenForDiscreetMode(userId: string): Promise<void> {
+  const auth = getAuthIdentity();
+  if (auth?.userId !== userId) {
+    return;
+  }
+  if (
+    discreetSuspension?.userId === userId &&
+    discreetSuspension.authGeneration === auth.generation
+  ) {
+    return;
+  }
+  // A registration still in flight must not activate the row after this.
+  if (registrationInFlight?.userId === userId) {
+    registrationSequence++;
+    registrationInFlight = null;
+  }
+  let token = lastRegisteredUserId === userId ? cachedPushToken : null;
+  if (lastRegisteredUserId === userId) {
+    cachedPushToken = null;
+    lastRegisteredUserId = null;
+    lastRegisteredAuthGeneration = null;
+    lastRegisteredDevicePushTokenKey = null;
+  }
+
+  const previousWrite = deviceWrites.get(userId);
+  const cleanup = (async () => {
+    if (previousWrite) await previousWrite;
+    token ??= await readThisDevicePushToken();
+    // Without permission (or a token) the OS shows no push from this device anyway.
+    if (token && (await markPushTokenInactive(userId, token))) {
+      discreetSuspension = { userId, authGeneration: auth.generation };
+    }
+  })();
+  deviceWrites.set(userId, cleanup);
+  try {
+    await cleanup;
+  } finally {
+    if (deviceWrites.get(userId) === cleanup) deviceWrites.delete(userId);
+  }
+}
+
+/** This device's Expo push token when notifications are allowed; null otherwise. */
+async function readThisDevicePushToken(): Promise<string | null> {
+  try {
+    const projectId = Constants.expoConfig?.extra?.eas?.projectId as string | undefined;
+    if (!projectId) return null;
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== 'granted') return null;
+    await disableExpoAutoServerRegistration();
+    const { data } = await Notifications.getExpoPushTokenAsync({
+      projectId,
+      baseUrl: EXPO_NOTIFICATIONS_BASE_URL,
+    });
+    return data;
+  } catch {
+    return null;
   }
 }
 
