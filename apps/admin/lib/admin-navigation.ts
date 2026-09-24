@@ -36,6 +36,12 @@ export const adminNavigation: AdminNavigationItem[] = [
     group: 'Insights',
   },
   {
+    label: 'Translator Access',
+    href: '/translator-access',
+    description: 'Create, rotate, and revoke per-team translator review passcodes.',
+    group: 'Operations',
+  },
+  {
     label: 'Health',
     href: '/health',
     description: 'Catch stale syncs and translation delivery problems early.',
