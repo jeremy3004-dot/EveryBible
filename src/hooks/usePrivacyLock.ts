@@ -1,6 +1,10 @@
 import { useEffect } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
-import { isPrivacyLockGraceActive, shouldLockForAppStateChange } from '../services/privacy';
+import {
+  isPrivacyLockGraceActive,
+  notePrivacyLockAppState,
+  shouldLockForAppStateChange,
+} from '../services/privacy';
 import { usePrivacyStore } from '../stores/privacyStore';
 
 const shouldStayLocked = (): boolean => {
@@ -65,6 +69,7 @@ export const usePrivacyLock = () => {
       inactiveLockDeferred = false;
 
       try {
+        notePrivacyLockAppState(nextState);
         const leavesForeground =
           shouldLockForAppStateChange(leaving, nextState) ||
           (lockDeferred && nextState === 'background');

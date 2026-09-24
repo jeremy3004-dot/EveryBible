@@ -1173,6 +1173,108 @@ test('a delayed sign-out for an old account cannot clear the new account cache',
   await notifications.deactivatePushToken(second);
 });
 
+// ─── Discreet mode ───────────────────────────────────────────────────────────
+
+const deactivationsFor = (userId: string) =>
+  fake
+    .callsFor('user_devices')
+    .filter(
+      (call) =>
+        call.operation === 'update' &&
+        (call.payload as { is_active: boolean }).is_active === false &&
+        call.steps.some((step) => step.method === 'eq' && step.args[1] === userId)
+    )
+    .map(
+      (call) =>
+        call.steps.find((step) => step.method === 'eq' && step.args[0] === 'push_token')?.args[1]
+    );
+
+test('in discreet mode the device registers no push token', async () => {
+  const uid = nextUser();
+  privacyState.discreet = true;
+
+  assert.equal(await notifications.registerPushToken(uid, deviceToken('native-token')), null);
+
+  assert.deepEqual(tokenCalls, []);
+  assert.deepEqual(upsertsFor(uid), []);
+});
+
+test('turning discreet mode on takes the registered device off the push list', async () => {
+  const uid = nextUser();
+  await notifications.registerPushToken(uid);
+  privacyState.discreet = true;
+
+  await notifications.suspendPushTokenForDiscreetMode(uid);
+
+  assert.deepEqual(deactivationsFor(uid), ['expo-token']);
+  assert.equal(notifications.getCachedPushToken(), null);
+});
+
+test('a discreet launch deactivates the row an earlier session left, reading the token from the device', async () => {
+  const uid = nextUser();
+  privacyState.discreet = true;
+
+  await notifications.suspendPushTokenForDiscreetMode(uid);
+
+  assert.equal(tokenCalls.length, 1);
+  assert.deepEqual(deactivationsFor(uid), ['expo-token']);
+  assert.deepEqual(upsertsFor(uid), []);
+});
+
+test('a registration still in flight when discreet mode turns on never activates the device', async () => {
+  const uid = nextUser();
+  const native = deferred<{ data: string }>();
+  getToken = () => native.promise;
+  const registration = notifications.registerPushToken(uid);
+  await settle();
+
+  privacyState.discreet = true;
+  native.resolve({ data: 'expo-token' });
+
+  assert.equal(await registration, null);
+  assert.deepEqual(upsertsFor(uid), []);
+});
+
+test('a device without notification permission is left alone in discreet mode', async () => {
+  const uid = nextUser();
+  permission.current = 'denied';
+  privacyState.discreet = true;
+
+  await notifications.suspendPushTokenForDiscreetMode(uid);
+
+  assert.deepEqual(tokenCalls, []);
+  assert.deepEqual(deactivationsFor(uid), []);
+});
+
+test('the device is taken off once per session, and leaving discreet mode registers it again', async () => {
+  const uid = nextUser();
+  privacyState.discreet = true;
+  await notifications.suspendPushTokenForDiscreetMode(uid);
+  await notifications.suspendPushTokenForDiscreetMode(uid);
+  assert.equal(deactivationsFor(uid).length, 1);
+
+  privacyState.discreet = false;
+  assert.equal(await notifications.registerPushToken(uid), 'expo-token');
+  assert.equal((upsertsFor(uid)[0]?.payload as { is_active: boolean }).is_active, true);
+
+  // Going discreet again after that registration takes it off again.
+  privacyState.discreet = true;
+  await notifications.suspendPushTokenForDiscreetMode(uid);
+  assert.equal(deactivationsFor(uid).length, 2);
+});
+
+test('a deactivation the backend refused is tried again next time', async () => {
+  const uid = nextUser();
+  privacyState.discreet = true;
+  updateResult = async () => ({ error: { message: 'offline' } });
+  await notifications.suspendPushTokenForDiscreetMode(uid);
+
+  updateResult = async () => ({ error: null });
+  await notifications.suspendPushTokenForDiscreetMode(uid);
+
+  assert.equal(deactivationsFor(uid).length, 2);
+});
+
 test('setupNotificationHandler is re-exported so callers need one notifications entry point', () => {
   assert.equal(typeof notifications.setupNotificationHandler, 'function');
 });
