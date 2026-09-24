@@ -207,6 +207,7 @@ export function BibleReaderScreen() {
     rootTabBarCollapseProgressRef,
     rootTabBarHeight,
     rootTabBarScrollProgress,
+    screenReaderEnabled,
     shouldForceHideRootTabBar,
   } = useReaderTabBarMotion({
     activePlanId,
@@ -575,6 +576,7 @@ export function BibleReaderScreen() {
     rootTabBarCollapseProgressRef,
     rootTabBarHeight,
     rootTabBarScrollProgress,
+    screenReaderEnabled,
     setIsReadBottomChromeCollapsed,
     shouldForceHideRootTabBar,
     showPremiumReadMode,

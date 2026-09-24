@@ -6,6 +6,7 @@ import { LayoutAnimation } from 'react-native';
 import { useSharedValue, useReducedMotion } from 'react-native-reanimated';
 import { useFocusEffect } from '@react-navigation/native';
 import { layout, spacing } from '../../../design/system';
+import { useScreenReaderEnabled } from '../../../hooks/useScreenReaderEnabled';
 import { useTabBarHeight } from '../../../hooks/useTabBarHeight';
 import { buildTabBarCapsuleStyle } from '../../../navigation/tabBarCapsuleStyle';
 import { useReaderChromeOwner, useReaderChromeProgress } from '../../../stores/readerChromeStore';
@@ -53,6 +54,8 @@ export function useReaderTabBarMotion({
   // only scrolling that may collapse the chrome. See useReaderScrollChrome.
   const readerChromeFingerScrollShared = useSharedValue(false);
   const reduceMotion = useReducedMotion();
+  // VoiceOver/TalkBack scrolling must not slide the chrome away. See useReaderScrollChrome.
+  const screenReaderEnabled = useScreenReaderEnabled();
   const readerRouteKey = route.key;
 
   // Retained readers keep local motion. Only the focused route may publish to
@@ -275,6 +278,7 @@ export function useReaderTabBarMotion({
     rootTabBarCollapseProgressRef,
     rootTabBarHeight,
     rootTabBarScrollProgress,
+    screenReaderEnabled,
     shouldForceHideRootTabBar,
   };
 }
