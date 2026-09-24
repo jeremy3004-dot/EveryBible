@@ -1,5 +1,94 @@
 # Supabase migration drift reconciliation — 2026-09-24
 
+## Current state (re-checked 2026-09-24, after today's migrations)
+
+Checked against branch `claude/integrate-2026-09-24e`. Read-only: `list_migrations`,
+`list_extensions`, and SELECT-only `execute_sql`. Nothing was applied.
+
+**History and repo files match one to one.** There are 107 live history rows and 107 repo
+files, with the same 107 versions. (The new file described below is the 108th and is not
+recorded yet.) Only three names differ, and only in wording:
+`20260412084907` (repo `remote_history_placeholder`, live `add_plan_slug_…`),
+`20260710094049` (repo `…_draft`), and `20260710094508` (live `…_datebased`). The CLI matches
+on version, so none of these block anything.
+
+**Recorded SQL matches the files.** I compared the normalized statements hash (comments,
+whitespace, `;`, and `BEGIN`/`COMMIT` wrappers removed) for every version:
+
+- 98 of 107 files are identical to what production recorded. That includes all 31 migrations
+  applied on 2026-09-23 and 09-24. Six of those were recorded without their `begin;`/`commit;`
+  lines, which is the only difference.
+- The 9 that differ are the ones already explained below: the placeholders `20260412084907`,
+  `20260612153524`, `20260710094049`, and `20260918100723`; `20260402210000` (comment
+  strings); `20260710095248` (`$do$` vs `$$`); the adjacent-literal COMMENTs in
+  `20260910090000`, `…093000`, and `…094000`; and `20260402233500` (recorded with a
+  transaction wrapper).
+
+**Schema objects vs repo (live → repo direction).** Every live function in `public` and
+`private` (57), all 30 non-platform triggers (27 distinct names), every RLS policy (89 across public and
+storage), every public/private table except the backups, and all 7 storage buckets are
+created by a repo migration. The storage policy expressions now match the repo too,
+including today's `(select auth.role())` wraps and the `groups g` qualification fixes. In the
+other direction, the repo defines only two functions that are not live, and later repo
+migrations drop both: `get_live_homepage_content` and
+`mirror_translation_catalog_admin_columns`.
+
+**Objects that exist only live.** These are now captured in
+`supabase/migrations/20260710095000_capture_live_only_objects.sql`, which is **not applied**:
+
+| Object | Live | Repo before this file |
+|---|---|---|
+| extension `pg_cron` 1.6.4 | pg_catalog | only used behind guards, never created |
+| extension `pg_net` 0.19.5 | extension schema `public` (functions in `net`) | never created |
+| vault secret `aggregate_engagement_service_key` (name only) | exists since 2026-06-12 | absent; the file checks the name and never holds the value |
+| cron `nightly-aggregate-engagement` `0 2 * * *` | `net.http_post` to the prod `aggregate-engagement` URL with Bearer from vault; 3 of 3 runs succeeded in the last 3 days | absent. The file creates it only if missing, reads the URL (`project_url`) and key from vault at run time, and skips the call until both secrets exist |
+| bucket `bible-audio` limits | `file_size_limit` NULL, `allowed_mime_types` NULL | repo says 50 MB plus 5 audio types. Its `ON CONFLICT DO NOTHING` insert lost to a bucket made by hand at 15:56 on 03-22 |
+
+Not captured, on purpose: schema `backups` (7 snapshot tables, including the new
+`schema_migrations_20260924`, `translation_catalog_admin_columns_20260924`,
+`user_preferences_20260924`, and `user_reading_plan_progress_20260924`),
+`translation_catalog_availability_backup_2026_08_25`, the role `cli_login_postgres` (created
+by the CLI), the empty `supabase_realtime` publication, and the platform-default extensions
+and default ACLs. The other two cron jobs, `nightly-analytics-maintenance` and
+`nightly-app-error-reports-purge`, are already created by repo migrations.
+
+**Why the file's version is 20260710095000 and not today's date.** A fresh replay currently
+breaks at two earlier migrations:
+
+- `20260710095248` fails with `relation cron.job does not exist`. Its combined
+  `IF EXISTS(pg_cron) AND NOT EXISTS(cron.job …)` is planned as a single expression.
+- `20260923233714` fails at `GRANT USAGE ON SCHEMA net` when pg_net is absent.
+
+Placing the capture just before `20260710095248` installs both extensions first, so neither
+applied file needs editing. On production, record it with
+`supabase migration repair --status applied 20260710095000`, which runs no DDL. Because the
+version sorts before the latest applied one, a plain `db push` asks for `--include-all`.
+Running it that way is also a no-op, because every statement is guarded.
+
+**Live security gap: migration 20260923233714 did not take effect.** It is recorded as
+applied, but live `anon` and `authenticated` still have `EXECUTE` on `net.http_post` through
+PUBLIC (the ACL is `=X/supabase_admin`), and still have `USAGE` on schema `net`. This is the
+ownership caveat the migration itself warns about: the objects are owned by `supabase_admin`,
+so the migration role could not revoke. `supabase/tests/pg_net_client_access.sql` would fail
+against production. The fix is to run the same REVOKEs as `supabase_admin`, through a
+Supabase support ticket. Exposure is low, because `net` is not exposed through PostgREST.
+
+**Still unverified.** I could not run a full fresh replay (`supabase db reset`) because Docker
+is not running on this machine. The new file was checked with the Postgres 17 parser
+(`libpg-query`), but it has not been executed. A replay may surface other order-dependent
+failures that static reading missed. Auth settings, edge-function deployments, and vault
+secret values remain out of scope.
+
+**Fresh-environment steps after `db reset`/new project:** create the vault secrets
+`project_url` and `aggregate_engagement_service_key` with `vault.create_secret(...)`. The
+values must never be committed. Then decide whether `bible-audio` should really have no size
+or MIME limit. The capture reproduces production's loose setting; tightening production is
+the alternative.
+
+---
+
+## Earlier report (first pass, 2026-09-24): kept for history
+
 Project: EveryBible production, ref `ganmududzdzpruvdulkg`
 Repo baseline: `main` @ `63ba5cf9` (73 files in `supabase/migrations/`)
 Live baseline: 76 rows in `supabase_migrations.schema_migrations`
