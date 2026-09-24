@@ -933,7 +933,7 @@ export const fr = {
       signInToSync: 'Connectez-vous pour synchroniser',
       source: 'Source : cet appareil',
       sourceSynced: 'Source : cet appareil · synchronisé {{relative}}',
-      synced: 'Synchronisé',
+      notSyncedYet: 'Pas encore synchronisé',
       syncedAgo: 'Synchronisé {{relative}}',
     },
     title: 'Plus',

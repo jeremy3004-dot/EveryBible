@@ -583,7 +583,7 @@ export const mr = {
       signInToSync: 'समक्रमित करण्यासाठी साइन इन करा',
       source: 'स्रोत: हे उपकरण',
       sourceSynced: 'स्रोत: हे उपकरण · {{relative}} समक्रमित झाले',
-      synced: 'समक्रमित',
+      notSyncedYet: 'अद्याप समक्रमित झाले नाही',
       syncedAgo: '{{relative}} समक्रमित झाले',
     },
     title: 'अधिक',

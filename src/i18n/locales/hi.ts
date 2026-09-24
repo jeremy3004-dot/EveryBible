@@ -583,7 +583,7 @@ export const hi = {
       signInToSync: 'सिंक करने के लिए साइन इन करें',
       source: 'स्रोत: यह डिवाइस',
       sourceSynced: 'स्रोत: यह डिवाइस · {{relative}} सिंक हुआ',
-      synced: 'सिंक किया गया',
+      notSyncedYet: 'अभी तक सिंक नहीं हुआ',
       syncedAgo: '{{relative}} सिंक हुआ',
     },
     title: 'अधिक',

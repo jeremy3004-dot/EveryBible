@@ -876,7 +876,7 @@ export const ja = {
       signInToSync: '同期するにはログイン',
       source: '保存元：この端末',
       sourceSynced: '保存元：この端末 · {{relative}}に同期',
-      synced: '同期済み',
+      notSyncedYet: 'まだ同期されていません',
       syncedAgo: '{{relative}}に同期',
     },
     title: 'その他',

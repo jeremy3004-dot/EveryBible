@@ -873,7 +873,7 @@ export const en = {
     reminderValue: '{{time}} reminder',
     footerVersion: 'Every Bible {{version}} · Every Language',
     sync: {
-      synced: 'Synced',
+      notSyncedYet: 'Not synced yet',
       syncedAgo: 'Synced {{relative}}',
       signInToSync: 'Sign in to sync',
       source: 'Source: this device',

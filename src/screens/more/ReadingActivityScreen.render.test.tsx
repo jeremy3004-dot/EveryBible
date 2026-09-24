@@ -40,6 +40,17 @@ mockModule(mock, sourcePath('stores/progressStore.ts'), {
   selectCurrentStreakDays: (state: { streakDays: number }) => state.streakDays,
 });
 
+// The last successful sync per account, as the sync hook records it.
+const useSyncStatusStore = create(() => ({
+  lastSuccessfulSyncAtByUser: {} as Record<string, string>,
+}));
+mockModule(mock, sourcePath('stores/syncStatusStore.ts'), {
+  useSyncStatusStore,
+  selectLastSuccessfulSyncAt:
+    (userId: string | null) => (state: { lastSuccessfulSyncAtByUser: Record<string, string> }) =>
+      userId ? (state.lastSuccessfulSyncAtByUser[userId] ?? null) : null,
+});
+
 // Signed out by default, so the cloud engagement summary is never fetched.
 const analytics = {
   calls: [] as string[],

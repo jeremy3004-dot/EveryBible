@@ -924,7 +924,7 @@ export const ru = {
       signInToSync: 'Войдите для синхронизации',
       source: 'Источник: это устройство',
       sourceSynced: 'Источник: это устройство · синхронизировано {{relative}}',
-      synced: 'Синхронизировано',
+      notSyncedYet: 'Ещё не синхронизировано',
       syncedAgo: 'Синхронизировано {{relative}}',
     },
     title: 'Ещё',

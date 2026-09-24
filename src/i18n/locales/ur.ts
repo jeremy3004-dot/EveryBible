@@ -884,7 +884,7 @@ export const ur = {
       signInToSync: 'ہم آہنگی کے لیے سائن اِن کریں',
       source: 'ماخذ: یہی ڈیوائس',
       sourceSynced: 'ماخذ: یہی ڈیوائس · {{relative}} ہم آہنگ ہوا',
-      synced: 'ہم آہنگ ہو گیا',
+      notSyncedYet: 'ابھی ہم آہنگ نہیں ہوا',
       syncedAgo: '{{relative}} ہم آہنگ ہوا',
     },
     title: 'مزید',

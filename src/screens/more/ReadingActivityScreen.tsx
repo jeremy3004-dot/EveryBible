@@ -10,6 +10,7 @@ import { useDisplayFont } from '../../hooks/useDisplayFont';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { selectCurrentStreakDays, useProgressStore } from '../../stores/progressStore';
 import { useAuthStore } from '../../stores/authStore';
+import { selectLastSuccessfulSyncAt, useSyncStatusStore } from '../../stores/syncStatusStore';
 import type { MoreStackParamList } from '../../navigation/types';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
 import { summarizeReadingActivity } from '../../services/progress/readingActivity';
@@ -41,7 +42,10 @@ export function ReadingActivityScreen() {
   const listeningMsByDate = useProgressStore((state) => state.listeningMsByDate);
   const streakDays = useProgressStore(selectCurrentStreakDays);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const preferencesUpdatedAt = useAuthStore((state) => state.preferencesUpdatedAt);
+  const userId = useAuthStore((state) =>
+    state.isAuthenticated ? (state.user?.uid ?? null) : null
+  );
+  const lastSyncedAt = useSyncStatusStore(selectLastSuccessfulSyncAt(userId));
   const engagement = useEngagementSummary(isAuthenticated);
 
   const activitySummary = useMemo(() => summarizeReadingActivity(chaptersRead), [chaptersRead]);
@@ -63,7 +67,7 @@ export function ReadingActivityScreen() {
   );
   const syncStatus = describeSyncStatus({
     isAuthenticated,
-    lastSyncedAt: preferencesUpdatedAt,
+    lastSyncedAt,
     t,
   });
 

@@ -938,7 +938,7 @@ export const ar = {
       signInToSync: 'سجّل الدخول للمزامنة',
       source: 'المصدر: هذا الجهاز',
       sourceSynced: 'المصدر: هذا الجهاز · تمت المزامنة {{relative}}',
-      synced: 'تمت المزامنة',
+      notSyncedYet: 'لم تتم المزامنة بعد',
       syncedAgo: 'تمت المزامنة {{relative}}',
     },
     title: 'المزيد',

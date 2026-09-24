@@ -30,6 +30,17 @@ mockModule(mock, sourcePath('stores/progressStore.ts'), {
 });
 mockModule(mock, sourcePath('stores/annotationStore.ts'), { useAnnotationStore });
 
+// The last successful sync per account, as the sync hook records it.
+const useSyncStatusStore = create(() => ({
+  lastSuccessfulSyncAtByUser: {} as Record<string, string>,
+}));
+mockModule(mock, sourcePath('stores/syncStatusStore.ts'), {
+  useSyncStatusStore,
+  selectLastSuccessfulSyncAt:
+    (userId: string | null) => (state: { lastSuccessfulSyncAtByUser: Record<string, string> }) =>
+      userId ? (state.lastSuccessfulSyncAtByUser[userId] ?? null) : null,
+});
+
 const authFlowModes: string[] = [];
 mockModule(mock, sourcePath('navigation/rootNavigation.ts'), {
   rootNavigationRef: { isReady: () => false },
@@ -76,6 +87,7 @@ mockModule(mock, sourcePath('navigation/screenErrorLayout.ts'), {
 });
 
 afterEach(() => {
+  useSyncStatusStore.setState({ lastSuccessfulSyncAtByUser: {} });
   authFlowModes.length = 0;
   registeredRoutes.length = 0;
 });
@@ -370,4 +382,39 @@ test('an account photo that fails to load (offline, expired link) falls back to 
 
   assert.equal(within(card).queryAllByType('Image').length, 0);
   assert.ok(within(card).getByText('RM'));
+});
+
+test('a signed-in account that has never synced says so, even right after a local settings change', async () => {
+  signIn();
+  // Changing a setting stamps the preferences locally; that is not a sync.
+  harness.authStore.setState({ preferencesUpdatedAt: new Date().toISOString() });
+  const view = await renderMore();
+
+  const card = within(view.getByRole('button', { name: 'Ruth Moab' }));
+  assert.equal(card.queryAllByType('Text').at(-1)?.props.children, t('more.sync.notSyncedYet'));
+  assert.equal(
+    view.queryByText(t('more.sync.syncedAgo', { relative: t('more.sync.relativeNow') })),
+    null
+  );
+});
+
+test('the account card shows when this account last synced, never another account’s time', async () => {
+  signIn();
+  const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60_000 - 60_000).toISOString();
+  useSyncStatusStore.setState({
+    lastSuccessfulSyncAtByUser: { 'user-2': new Date().toISOString() },
+  });
+  let view = await renderMore();
+  let card = within(view.getByRole('button', { name: 'Ruth Moab' }));
+  assert.equal(card.queryAllByType('Text').at(-1)?.props.children, t('more.sync.notSyncedYet'));
+
+  useSyncStatusStore.setState({
+    lastSuccessfulSyncAtByUser: { 'user-1': twoHoursAgo, 'user-2': new Date().toISOString() },
+  });
+  view = await renderMore();
+  card = within(view.getByRole('button', { name: 'Ruth Moab' }));
+  assert.equal(
+    card.queryAllByType('Text').at(-1)?.props.children,
+    t('more.sync.syncedAgo', { relative: t('more.sync.relativeHours', { count: 2 }) })
+  );
 });

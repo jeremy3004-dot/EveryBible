@@ -2,9 +2,8 @@ import type { TFunction } from 'i18next';
 
 // The More header eyebrow and the Reading activity footer both state the same
 // fact — "this device, last synced N ago" — so the wording lives in one place.
-// The app has no dedicated last-sync clock; `authStore.preferencesUpdatedAt` is
-// the closest persisted signal, because the sync cycle stamps it with the
-// server's `synced_at` on every pull/push that lands.
+// The time is the account's last *successful* sync (stores/syncStatusStore.ts);
+// an account that has none on this device is not described as synced.
 
 const MINUTE_MS = 60_000;
 const HOUR_MS = 60 * MINUTE_MS;
@@ -21,7 +20,7 @@ export interface SyncStatus {
 
 export interface SyncStatusInput {
   isAuthenticated: boolean;
-  /** ISO timestamp of the last sync, or null when nothing has synced yet. */
+  /** ISO timestamp of this account's last successful sync, or null when it never has. */
   lastSyncedAt: string | null;
   t: TFunction;
   now?: number;
@@ -57,9 +56,9 @@ export function describeSyncStatus({
   const parsed = lastSyncedAt ? new Date(lastSyncedAt).getTime() : Number.NaN;
   if (!Number.isFinite(parsed)) {
     return {
-      label: t('more.sync.synced'),
+      label: t('more.sync.notSyncedYet'),
       sourceLabel: t('more.sync.source'),
-      isSynced: true,
+      isSynced: false,
     };
   }
 

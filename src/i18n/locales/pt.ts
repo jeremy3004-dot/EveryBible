@@ -917,7 +917,7 @@ export const pt = {
       signInToSync: 'Entre para sincronizar',
       source: 'Origem: este dispositivo',
       sourceSynced: 'Origem: este dispositivo · sincronizado {{relative}}',
-      synced: 'Sincronizado',
+      notSyncedYet: 'Ainda não sincronizado',
       syncedAgo: 'Sincronizado {{relative}}',
     },
     title: 'Mais',
