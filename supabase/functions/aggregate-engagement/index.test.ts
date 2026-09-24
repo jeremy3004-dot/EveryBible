@@ -1,84 +1,70 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import vm from 'node:vm';
-import ts from 'typescript';
+import { fileURLToPath } from 'node:url';
+import {
+  loadEdgeFunction,
+  type EdgeClientOptions,
+  type EdgeHarnessOptions,
+} from '../_testing/edgeFunctionHarness';
 
-function loadFunction(
-  serviceRoleKey: string | undefined = 'trusted-service-key',
-  authorizationResult?: { data: boolean | null; error: unknown }
+const ENTRY = fileURLToPath(new URL('./index.ts', import.meta.url));
+const SERVICE_KEY = 'trusted-service-key';
+const ANON_KEY = 'public-anon-key';
+const SUMMARY = { success: true, refreshed: 0, errors: 0, total_users: 0 };
+
+type RpcResult = { data: unknown; error: unknown };
+
+// The verifier client (anon key + caller's bearer) asks PostgREST whether the credential may
+// refresh; the privileged client (service key, no caller header) runs the refresh. The fake
+// answers by credential, the way PostgREST would.
+function load(
+  options: {
+    serviceRoleKey?: string;
+    authorizationResult?: RpcResult;
+  } = {}
 ) {
-  let handler: (request: Request) => Promise<Response>;
-  let clientCalls = 0;
-  let privilegedCalls = 0;
-  const source = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
-  const compiled = ts.transpileModule(source, {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-  }).outputText;
-  vm.runInNewContext(compiled, {
-    exports: {},
-    Request,
-    Response,
-    console,
-    Deno: {
-      env: {
-        get: (name: string) =>
-          name === 'SUPABASE_SERVICE_ROLE_KEY'
-            ? serviceRoleKey
-            : name === 'SUPABASE_ANON_KEY'
-              ? 'public-anon-key'
-              : 'https://example.invalid',
-      },
-      serve: (callback: typeof handler) => {
-        handler = callback;
-      },
-    },
-    require: (specifier: string) => {
-      assert.equal(specifier, 'https://esm.sh/@supabase/supabase-js@2');
-      return {
-        createClient: (
-          _url: string,
-          key: string,
-          options?: { global?: { headers?: { Authorization?: string } } }
-        ) => {
-          clientCalls += 1;
-          if (key === 'public-anon-key') {
-            return {
-              rpc: async (name: string) => {
-                assert.equal(name, 'authorize_engagement_refresh');
-                const token = options?.global?.headers?.Authorization;
-                return (
-                  authorizationResult ??
-                  (token === 'Bearer trusted-service-key' ||
-                  token === 'Bearer existing-valid-service-key'
-                    ? { data: true, error: null }
-                    : { data: null, error: { code: '42501' } })
-                );
-              },
-            };
-          }
-          assert.equal(key, serviceRoleKey);
-          assert.equal(options?.global?.headers?.Authorization, undefined);
-          privilegedCalls += 1;
-          return { rpc: async (name: string) => {
-            assert.equal(name, 'refresh_engagement_summaries');
-            return { data: { success: true, refreshed: 0, errors: 0, total_users: 0 }, error: null };
-          } };
-        },
-      };
+  const rpcCalls: Array<{ key: string; fn: string; args: unknown }> = [];
+  const createClient: EdgeHarnessOptions['createClient'] = (
+    _url: string,
+    key: string,
+    clientOptions?: EdgeClientOptions
+  ) => ({
+    rpc: async (fn: string, args?: unknown): Promise<RpcResult> => {
+      rpcCalls.push({ key, fn, args });
+      if (key === ANON_KEY && fn === 'authorize_engagement_refresh') {
+        const token = clientOptions?.global?.headers?.Authorization;
+        return (
+          options.authorizationResult ??
+          (token === `Bearer ${SERVICE_KEY}` || token === 'Bearer existing-valid-service-key'
+            ? { data: true, error: null }
+            : { data: null, error: { code: '42501' } })
+        );
+      }
+      if (key === SERVICE_KEY && fn === 'refresh_engagement_summaries') {
+        return { data: SUMMARY, error: null };
+      }
+      return { data: null, error: { message: `unexpected ${fn} with ${key}` } };
     },
   });
+  const harness = loadEdgeFunction(ENTRY, {
+    env: {
+      SUPABASE_URL: 'https://example.invalid',
+      SUPABASE_ANON_KEY: ANON_KEY,
+      SUPABASE_SERVICE_ROLE_KEY: options.serviceRoleKey ?? SERVICE_KEY,
+    },
+    createClient,
+  });
   return {
-    request: (method: string, authorization?: string) =>
-      handler(
+    harness,
+    privilegedCalls: () => rpcCalls.filter((call) => call.fn === 'refresh_engagement_summaries'),
+    request: (method: string, authorization?: string, body = '{}') =>
+      harness.handle(
         new Request('https://example.invalid', {
           method,
           headers: authorization ? { authorization } : {},
-          ...(method === 'POST' ? { body: '{}' } : {}),
+          ...(method === 'POST' ? { body } : {}),
         })
       ),
-    clientCalls: () => clientCalls,
-    privilegedCalls: () => privilegedCalls,
   };
 }
 
@@ -89,32 +75,52 @@ for (const [label, token] of [
   ['wrong scheme', 'Basic trusted-service-key'],
 ] as const) {
   test(`aggregate engagement rejects ${label} before privileged database access`, async () => {
-    const runtime = loadFunction();
+    const runtime = load();
     assert.equal((await runtime.request('POST', token)).status, 401);
-    assert.equal(runtime.privilegedCalls(), 0);
+    assert.deepEqual(runtime.privilegedCalls(), []);
+    assert.equal(
+      runtime.harness.clientsCreated.some((client) => client.key === SERVICE_KEY),
+      false
+    );
   });
 }
 
 test('aggregate engagement fails closed without its service key', async () => {
-  const runtime = loadFunction('');
+  const runtime = load({ serviceRoleKey: '' });
   assert.equal((await runtime.request('POST', 'Bearer ')).status, 503);
-  assert.equal(runtime.clientCalls(), 0);
+  assert.deepEqual(runtime.harness.clientsCreated, []);
 });
 
 for (const token of ['trusted-service-key', 'existing-valid-service-key']) {
   test(`aggregate engagement accepts verified backend credential ${token}`, async () => {
-    const runtime = loadFunction();
+    const runtime = load();
     const response = await runtime.request('POST', `Bearer ${token}`);
     assert.equal(response.status, 200);
-    assert.equal(runtime.privilegedCalls(), 1);
-    assert.deepEqual(await response.json(), {
-      success: true,
-      refreshed: 0,
-      errors: 0,
-      total_users: 0,
-    });
+    assert.equal(runtime.privilegedCalls().length, 1);
+    assert.deepEqual(await response.json(), SUMMARY);
   });
 }
+
+test('the caller credential is checked with the public key and never forwarded to the service client', async () => {
+  const runtime = load();
+  await runtime.request('POST', `Bearer ${SERVICE_KEY}`);
+  const [verifier, privileged] = runtime.harness.clientsCreated;
+  assert.equal(runtime.harness.clientsCreated.length, 2);
+  assert.equal(verifier.key, ANON_KEY);
+  assert.equal(verifier.options?.global?.headers?.Authorization, `Bearer ${SERVICE_KEY}`);
+  assert.equal(privileged.key, SERVICE_KEY);
+  assert.equal(privileged.options?.global?.headers?.Authorization, undefined);
+});
+
+test('a requested user id is passed to the refresh; otherwise every user is refreshed', async () => {
+  const runtime = load();
+  await runtime.request('POST', `Bearer ${SERVICE_KEY}`, JSON.stringify({ user_id: 'user-1' }));
+  await runtime.request('POST', `Bearer ${SERVICE_KEY}`);
+  assert.deepEqual(
+    runtime.privilegedCalls().map((call) => call.args),
+    [{ p_user_id: 'user-1' }, { p_user_id: null }]
+  );
+});
 
 for (const result of [
   { data: true, error: { message: 'Verification failed' } },
@@ -122,14 +128,14 @@ for (const result of [
   { data: null, error: null },
 ]) {
   test(`aggregate engagement rejects failed authorization ${JSON.stringify(result)}`, async () => {
-    const runtime = loadFunction('trusted-service-key', result);
+    const runtime = load({ authorizationResult: result });
     assert.equal((await runtime.request('POST', 'Bearer trusted-service-key')).status, 401);
-    assert.equal(runtime.privilegedCalls(), 0);
+    assert.deepEqual(runtime.privilegedCalls(), []);
   });
 }
 
 test('aggregate engagement CORS preflight never accesses data', async () => {
-  const runtime = loadFunction();
+  const runtime = load();
   assert.equal((await runtime.request('OPTIONS')).status, 200);
-  assert.equal(runtime.clientCalls(), 0);
+  assert.deepEqual(runtime.harness.clientsCreated, []);
 });
