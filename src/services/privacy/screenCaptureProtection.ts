@@ -16,6 +16,14 @@
  *   the package blocks them by re-parenting the whole key window's layer under a secure
  *   text field, which is too fragile to put under every screen of the app.
  *
+ * FLAG_SECURE belongs to one activity window, and turning discreet mode on switches the
+ * launcher alias, which brings the app back in a new activity whose window lacks it. The
+ * package cannot see that: it tracks keys in JS and treats a key it already holds as
+ * applied, so preventing again with the same key never reaches the native module. So on
+ * Android, while protection is on, every new window (each return to the foreground, and
+ * each completed icon change) is protected again under a fresh key, and the previous key
+ * is released only afterwards, so the flag is never lifted in between.
+ *
  * The package is loaded with import() the first time protection is wanted, so a standard
  * install never evaluates it. Failures are reported and never thrown.
  */
@@ -56,6 +64,11 @@ export interface ScreenCaptureProtectionOptions {
   loadScreenCapture?: () => Promise<ScreenCaptureApi>;
   /** Test seam; defaults to the crash report queue, loaded lazily. */
   reportFailure?: (error: unknown) => void;
+  /**
+   * Calls the listener whenever the app may be drawing into a new window: it became
+   * active, or an app icon change completed. Only Android re-applies protection on it.
+   */
+  subscribeToWindowChanges?: (listener: () => void) => () => void;
 }
 
 export interface ScreenCaptureProtectionHandle {
@@ -85,17 +98,21 @@ export function shouldProtectScreenCapture(
 
 const PLATFORM_PROTECTION: Record<
   string,
-  (api: ScreenCaptureApi, protect: boolean) => Promise<void>
+  (api: ScreenCaptureApi, protect: boolean, key: string) => Promise<void>
 > = {
-  android: (api, protect) =>
-    protect
-      ? api.preventScreenCaptureAsync(DISCREET_SCREEN_CAPTURE_KEY)
-      : api.allowScreenCaptureAsync(DISCREET_SCREEN_CAPTURE_KEY),
+  android: (api, protect, key) =>
+    protect ? api.preventScreenCaptureAsync(key) : api.allowScreenCaptureAsync(key),
   ios: (api, protect) =>
     protect
       ? api.enableAppSwitcherProtectionAsync(APP_SWITCHER_BLUR_INTENSITY)
       : api.disableAppSwitcherProtectionAsync(),
 };
+
+/** Platforms whose protection belongs to a window that can be replaced mid-session. */
+const PER_WINDOW_PLATFORMS = new Set(['android']);
+
+const screenCaptureKey = (generation: number): string =>
+  generation === 0 ? DISCREET_SCREEN_CAPTURE_KEY : `${DISCREET_SCREEN_CAPTURE_KEY}:${generation}`;
 
 const loadScreenCaptureModule = (): Promise<ScreenCaptureApi> => import('expo-screen-capture');
 
@@ -117,6 +134,7 @@ export function startScreenCaptureProtection({
   readLockHint,
   loadScreenCapture = loadScreenCaptureModule,
   reportFailure = reportScreenCaptureFailure,
+  subscribeToWindowChanges,
 }: ScreenCaptureProtectionOptions): ScreenCaptureProtectionHandle {
   const applyProtection = PLATFORM_PROTECTION[platform];
   let queue: Promise<void> = Promise.resolve();
@@ -136,6 +154,9 @@ export function startScreenCaptureProtection({
   // The window starts unprotected, so nothing is loaded until protection is wanted.
   let applied = false;
   let wanted = false;
+  // The package key the current protection is held under; see screenCaptureKey.
+  let generation = 0;
+  let reassertQueued = false;
 
   const sync = async (): Promise<void> => {
     if (wanted === applied) {
@@ -145,7 +166,7 @@ export function startScreenCaptureProtection({
     let api: ScreenCaptureApi | null = null;
     try {
       api = await loadScreenCapture();
-      await applyProtection(api, target);
+      await applyProtection(api, target, screenCaptureKey(generation));
       applied = target;
     } catch (error) {
       report(error);
@@ -153,9 +174,45 @@ export function startScreenCaptureProtection({
         // The package marks its key active before the native call (Android throws
         // MissingActivity before the window attaches), and a key still marked makes every
         // retry a no-op. Clearing it lets the next privacy change try again.
-        await applyProtection(api, false).catch(() => undefined);
+        await applyProtection(api, false, screenCaptureKey(generation)).catch(() => undefined);
       }
     }
+  };
+
+  // Protects the current window under a new key, then releases the old key. The package
+  // only reaches the native module for a key it does not hold, and only clears the flag
+  // once no key is held, so this sets the flag without ever lifting it.
+  const reassert = async (): Promise<void> => {
+    reassertQueued = false;
+    if (!applied || !wanted) {
+      return;
+    }
+    const heldKey = screenCaptureKey(generation);
+    const freshKey = screenCaptureKey(generation + 1);
+    let api: ScreenCaptureApi | null = null;
+    try {
+      api = await loadScreenCapture();
+      await applyProtection(api, true, freshKey);
+      generation += 1;
+    } catch (error) {
+      report(error);
+      // Release the fresh key the package marked before failing; the held key keeps the
+      // earlier protection (and its bookkeeping) in place, and the next window retries.
+      if (api) {
+        await applyProtection(api, false, freshKey).catch(() => undefined);
+      }
+      return;
+    }
+    await applyProtection(api, false, heldKey).catch(report);
+  };
+
+  const requestReassert = (): void => {
+    // One re-assert per activation: triggers that arrive before it runs share it.
+    if (reassertQueued) {
+      return;
+    }
+    reassertQueued = true;
+    queue = queue.then(reassert);
   };
 
   const evaluate = (state: ScreenCapturePrivacyState): void => {
@@ -171,6 +228,16 @@ export function startScreenCaptureProtection({
 
   evaluate(store.getState());
   const unsubscribe = store.subscribe(evaluate);
+  const unsubscribeFromWindows =
+    subscribeToWindowChanges && PER_WINDOW_PLATFORMS.has(platform)
+      ? subscribeToWindowChanges(requestReassert)
+      : () => undefined;
 
-  return { stop: unsubscribe, settled: () => queue };
+  return {
+    stop: () => {
+      unsubscribe();
+      unsubscribeFromWindows();
+    },
+    settled: () => queue,
+  };
 }
