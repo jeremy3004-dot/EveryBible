@@ -5,6 +5,7 @@ import {
   loadEdgeFunction,
   type EdgeHarnessOptions,
   type EdgeQueryCall,
+  type EdgeQueryResult,
 } from '../_testing/edgeFunctionHarness';
 
 // Behaviour of the public chapter-feedback endpoint (verify_jwt = false): who may submit,
@@ -55,7 +56,11 @@ interface Scenario {
   userId?: string | null;
   download?: Blob | null;
   env?: EdgeHarnessOptions['env'];
+  /** Answer of consume_feedback_submission_budget(); unscripted means "not deployed". */
+  budget?: EdgeQueryResult;
 }
+
+const BUDGET_RPC = 'rpc:consume_feedback_submission_budget';
 
 function endpoint(scenario: Scenario = {}) {
   const storage: Array<{ method: string; args: unknown[] }> = [];
@@ -72,6 +77,7 @@ function endpoint(scenario: Scenario = {}) {
       error: null,
     }),
     respond: (call) => {
+      if (call.table === BUDGET_RPC) return scenario.budget ?? {};
       if (call.table !== 'chapter_feedback_submissions') return {};
       if (call.steps.some((step) => step.method === 'insert')) {
         return scenario.insertError
@@ -153,10 +159,11 @@ test('an anonymous participant with a name and role is saved to chapter_feedback
   );
   assert.match(String(row.client_ip_hash), /^[0-9a-f]{64}$/);
   assert.ok(!String(row.client_ip_hash).includes('203.0.113.9'));
-  // Only the feedback table is touched: no account-preference gate, no other export.
+  // Only the feedback table and the submission budget are touched: no account-preference
+  // gate, no other export.
   assert.deepEqual(
     [...new Set(h.harness.calls.map((call) => call.table))],
-    ['chapter_feedback_submissions']
+    ['chapter_feedback_submissions', BUDGET_RPC]
   );
 });
 
@@ -253,6 +260,61 @@ test('if the counter cannot be read, the submission is refused rather than waved
 
 // ── Recordings ───────────────────────────────────────────────────────────────
 
+// The row count above is read in one request and the row inserted in another, so parallel
+// submissions all passed it (security review 2026-09-24, pass 2). An atomic budget is now
+// charged before any upload.
+test('an exhausted submission budget refuses the request before any upload or insert', async () => {
+  const h = endpoint({ budget: { data: [{ allowed: false, retry_after_seconds: 1800 }] } });
+
+  const response = await h.send({ ...validBody, audioResponse: audio() });
+
+  assert.equal(response.status, 429);
+  assert.equal(response.headers.get('Retry-After'), '1800');
+  assert.equal(await errorOf(response), 'Too many submissions. Please try again later.');
+  assert.deepEqual(h.storage, []);
+  assert.deepEqual(h.inserts(), []);
+});
+
+test('the budget is charged per hashed address for anonymous and per account when signed in', async () => {
+  const allowed = { data: [{ allowed: true, retry_after_seconds: 0 }] };
+  const anonymous = endpoint({ budget: allowed });
+  const signedIn = endpoint({ budget: allowed, userId: 'user-7' });
+
+  assert.equal((await anonymous.send(validBody)).status, 200);
+  assert.equal((await signedIn.send(validBody, 'valid-token')).status, 200);
+
+  const argsOf = (h: ReturnType<typeof endpoint>) =>
+    h.harness.calls.find((call) => call.table === BUDGET_RPC)?.steps[0].args[0] as Record<
+      string,
+      unknown
+    >;
+  const anonymousKey = String(argsOf(anonymous).p_client_key);
+  assert.match(anonymousKey, /^feedback-submit:ip:[0-9a-f]{64}$/);
+  assert.ok(!anonymousKey.includes('203.0.113.9'));
+  assert.deepEqual(argsOf(signedIn), {
+    p_client_key: 'feedback-submit:user:user-7',
+    p_max_requests: 20,
+    p_window_seconds: 3600,
+  });
+});
+
+test('a budget that cannot be charged refuses the submission rather than waving it through', async () => {
+  const h = endpoint({ budget: { error: { code: '57014', message: 'statement timeout' } } });
+
+  const response = await h.send({ ...validBody, audioResponse: audio() });
+
+  assert.equal(response.status, 503);
+  assert.deepEqual(h.storage, []);
+  assert.deepEqual(h.inserts(), []);
+});
+
+test('while the budget function is not deployed, the row count alone applies', async () => {
+  const h = endpoint();
+
+  assert.equal((await h.send(validBody)).status, 200);
+  assert.equal(h.inserts().length, 1);
+});
+
 test('a recording is uploaded with the service role and linked to the saved row', async () => {
   const h = endpoint();
 
@@ -321,6 +383,14 @@ test('a preuploaded path outside the caller’s folder, or with traversal, is re
     'other-user/clip.m4a',
     'user-1/../other-user/clip.m4a',
     'user-1\\..\\x.m4a',
+    // Encoded or empty segments a storage URL or normaliser could resolve outside the folder.
+    'user-1/%2e%2e/other-user/clip.m4a',
+    'user-1//other-user/clip.m4a',
+    'user-1/./clip.m4a',
+    'user-1/.hidden.m4a',
+    'user-1/clip.m4a?download=other',
+    'user-1/clip.mp3',
+    'user-1/',
   ]) {
     const h = endpoint({ userId: 'user-1' });
     const response = await h.send(

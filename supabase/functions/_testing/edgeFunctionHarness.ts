@@ -130,8 +130,26 @@ function entryHandler(entryFile: string): Handler {
   return servedHandler;
 }
 
+// claim_passcode_attempt() (migration 20260924200000) answers null for "locked out", and
+// consume_feedback_submission_budget() (20260924200100) must answer a row, so an unscripted
+// `{}` would read as a lockout or an outage. Until a test scripts one of these RPCs with an
+// explicit `data` or `error`, it answers as PostgREST does while the function is not
+// deployed, and the callers take their previous paths, which those tests script.
+const FUNCTION_NOT_DEPLOYED: EdgeQueryResult = {
+  error: { code: 'PGRST202', message: 'Could not find the function in the schema cache' },
+};
+const UNSCRIPTED_DEFAULTS: Record<string, EdgeQueryResult> = {
+  'rpc:claim_passcode_attempt': FUNCTION_NOT_DEPLOYED,
+  'rpc:consume_feedback_submission_budget': FUNCTION_NOT_DEPLOYED,
+};
+
 function recordingClient(calls: EdgeQueryCall[], options: EdgeHarnessOptions): unknown {
-  const respond = options.respond ?? (() => ({ data: null, error: null }));
+  const scripted = options.respond ?? (() => ({ data: null, error: null }));
+  const respond = (call: EdgeQueryCall): EdgeQueryResult => {
+    const result = scripted(call);
+    const fallback = UNSCRIPTED_DEFAULTS[call.table];
+    return fallback && !('data' in result) && !('error' in result) ? fallback : result;
+  };
   const chain = (call: EdgeQueryCall): unknown => {
     calls.push(call);
     const proxy: unknown = new Proxy(() => undefined, {

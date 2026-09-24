@@ -2,8 +2,9 @@ import { readBodyWithinLimit } from '../_shared/analyticsIngest.ts';
 import { verifyCouncilAccess } from '../_shared/councilAccess.ts';
 import {
   hashPasscodeAttemptKey,
+  claimPasscodeAttempt,
   readPasscodeLockout,
-  recordFailedPasscodeAttempt,
+  settlePasscodeAttempt,
 } from '../_shared/passcodeAttempts.ts';
 import {
   AUDIO_URL_TTL_SECONDS,
@@ -224,9 +225,11 @@ Deno.serve(async (request) => {
         error: 'Unable to verify translator access. Try again later.',
       });
 
-    const lockout = await readPasscodeLockout(service, ipHash);
-    if (lockout === 'unavailable') return accessUnavailable();
-    if (lockout === 'locked') return tooManyAttempts();
+    // The attempt is reserved (and counted as a failure) before the passcode is evaluated, so
+    // parallel guesses cannot all slip under the lockout threshold.
+    const claim = await claimPasscodeAttempt(service, ipHash);
+    if (claim.state === 'unavailable') return accessUnavailable();
+    if (claim.state === 'locked') return tooManyAttempts();
 
     const resolved = await resolveTranslatorAccess(
       service,
@@ -259,13 +262,11 @@ Deno.serve(async (request) => {
 
     // A switched-off shared code is answered exactly like a wrong code, including the lockout.
     if (resolved.status === 'denied') {
-      // Record the failed attempt FIRST, then evaluate the lockout from a count
-      // that includes it. Recording-then-counting closes the check-then-insert
-      // race where parallel wrong-passcode requests all read count < threshold
-      // before any INSERT lands (each otherwise getting a fresh guess). Combined
-      // with the un-spoofable cf-connecting-ip key, a burst can no longer exceed
-      // the window budget.
-      if (!(await recordFailedPasscodeAttempt(service, ipHash))) return accessUnavailable();
+      // The claimed attempt already counts as a failure (the fallback path records it now).
+      // The recount answers 429 to the guess that used up the budget.
+      if (!(await settlePasscodeAttempt(service, ipHash, claim.attemptId, false))) {
+        return accessUnavailable();
+      }
       const afterFailure = await readPasscodeLockout(service, ipHash);
       if (afterFailure === 'unavailable') return accessUnavailable();
       if (afterFailure === 'locked') return tooManyAttempts();
@@ -273,6 +274,7 @@ Deno.serve(async (request) => {
     }
 
     const access: TranslatorAccess = resolved.access;
+    await settlePasscodeAttempt(service, ipHash, claim.attemptId, true);
 
     if (body.validateOnly === true) {
       // The unlock screen learns the code's scope here. Unlocking always succeeds for a valid

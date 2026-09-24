@@ -620,3 +620,37 @@ await assert.rejects(
   /permission denied/
 );
 console.log('PASS: pushes are claimed once per fresh session, by a current member, within limits');
+
+// --- S1: create_group() is the only way to create a group ------------------------------------
+// 20260924200200 retires the direct INSERT the client used before create_group() existed: it let
+// a client pick the id, join code, timestamps and archive state, and skip the leader membership.
+// Replayed last because the setup above still creates its fixtures through that old path.
+await db.exec(
+  await fs.readFile(
+    new URL(
+      '../supabase/migrations/20260924200200_retire_direct_group_inserts.sql',
+      import.meta.url
+    ),
+    'utf8'
+  )
+);
+for (const uid of [D, null]) {
+  await assert.rejects(
+    as(
+      uid,
+      `insert into groups (name, leader_id, join_code, archived_at)
+       values ('Chosen code', $1, 'AAAAAA', now()) returning id`,
+      [uid]
+    ),
+    /permission denied|row-level security/
+  );
+}
+const afterRetirement = (await as(D, `select * from create_group('Still works')`)).rows[0];
+assert.match(afterRetirement.join_code, JOIN_CODE);
+assert.equal(
+  (await as(D, `update groups set name = 'Renamed' where id = $1`, [afterRetirement.id]))
+    .affectedRows,
+  1,
+  'leaders keep editing their groups'
+);
+console.log('PASS: direct group inserts are refused; create_group() and leader edits still work');

@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { loadEdgeFunction, type EdgeHarnessOptions } from '../_testing/edgeFunctionHarness';
+import {
+  loadEdgeFunction,
+  type EdgeHarnessOptions,
+  type EdgeQueryCall,
+  type EdgeQueryResult,
+} from '../_testing/edgeFunctionHarness';
 
 // Audit 2026-09-24 L7: this endpoint runs with verify_jwt = false, so anyone can reach the
 // token check, and signed-in callers must not see database internals either.
@@ -24,6 +29,15 @@ const event = {
   geo_timezone: 'Asia/Kathmandu',
 };
 
+// The ingest limiter admits the request; an unanswered limiter now refuses writes.
+const ADMITTED = {
+  data: [{ allowed: true, retry_after_seconds: 0, cached_geo: null, claim_geo_lookup: false }],
+};
+const admitted =
+  (respond: (call: EdgeQueryCall) => EdgeQueryResult = () => ({})) =>
+  (call: EdgeQueryCall): EdgeQueryResult =>
+    call.table === 'rpc:consume_analytics_ingest_budget' ? ADMITTED : respond(call);
+
 const send = (options: EdgeHarnessOptions) => {
   const harness = loadEdgeFunction(ENTRY, options);
   const response = harness.handle(
@@ -44,7 +58,7 @@ const signedIn: EdgeHarnessOptions['getUser'] = () => ({
 test('a failed insert returns a generic error and logs the database detail', async () => {
   const { harness, response } = send({
     getUser: signedIn,
-    respond: () => ({ error: { code: '23503', message: DB_DETAIL } }),
+    respond: admitted(() => ({ error: { code: '23503', message: DB_DETAIL } })),
   });
 
   const result = await response;
@@ -69,7 +83,7 @@ test('a rejected token is refused without echoing the auth server message', asyn
 });
 
 test('a stored batch still reports how many events were inserted', async () => {
-  const { response } = send({ getUser: signedIn });
+  const { response } = send({ getUser: signedIn, respond: admitted() });
 
   const result = await response;
   const body = await result.json();

@@ -66,7 +66,8 @@ const hangingRpc = () => {
   };
 };
 
-test('an analytics budget RPC that never answers degrades after the timeout', async () => {
+// A timed-out limiter used to admit the write, so slowing the limiter was a budget bypass.
+test('an analytics budget RPC that never answers refuses the write after the timeout', async () => {
   mock.timers.enable({ apis: ['setTimeout'] });
   try {
     const rpc = hangingRpc();
@@ -74,8 +75,8 @@ test('an analytics budget RPC that never answers degrades after the timeout', as
     await rpc.called;
     mock.timers.tick(LIMITER_TIMEOUT_MS);
     assert.deepEqual(await pending, {
-      allowed: true,
-      retryAfterSeconds: 0,
+      allowed: false,
+      retryAfterSeconds: 60,
       cachedGeo: null,
       mayLookupGeo: false,
       degraded: true,

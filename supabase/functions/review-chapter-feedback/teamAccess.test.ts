@@ -90,6 +90,8 @@ const run = async (scenario: Scenario, body: Record<string, unknown>) => {
         ? {}
         : { data: { id: FEEDBACK_ID, translation_id: body.translationId, sentiment: 'up' } };
     }
+    // Pre-migration answer: the passcode gate uses its read-then-record lockout scripted above.
+    if (call.table === 'rpc:claim_passcode_attempt') return { error: { code: 'PGRST202' } };
     if (call.table.startsWith('rpc:')) {
       return { data: { chapters: [], rows: [], nextCursor: null, positiveCount: 0 } };
     }
@@ -220,7 +222,12 @@ test('a team passcode cannot resolve, reopen or bulk-review another translation'
     assert.equal(result.status, 403, `${JSON.stringify(body)} must be refused`);
     assert.equal(result.json.code, 'translation_not_covered');
     assert.deepEqual(result.touched(FEEDBACK_TABLE), []);
-    assert.ok(result.harness.calls.every((call) => !call.table.startsWith('rpc:')));
+    assert.ok(
+      result.harness.calls.every(
+        (call) => !call.table.startsWith('rpc:') || call.table === 'rpc:claim_passcode_attempt'
+      ),
+      'no feedback RPC runs'
+    );
   }
 });
 

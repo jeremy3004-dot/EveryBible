@@ -89,3 +89,59 @@ export async function recordFailedPasscodeAttempt(
     .insert({ ip_hash: ipHash, succeeded: false });
   return !error;
 }
+
+// PostgREST's answer when a function is not in its schema cache (the migration is not applied).
+const RPC_MISSING = 'PGRST202';
+
+export type PasscodeAttemptClaim =
+  | { state: 'claimed'; attemptId: string | null }
+  | { state: 'locked' }
+  | { state: 'unavailable' };
+
+// Reserves one attempt BEFORE the passcode is evaluated. Reading the count and recording a
+// failure only afterwards let a burst of parallel guesses all read "under the limit", so each
+// was evaluated and a correct one was accepted (security review 2026-09-24, pass 2).
+// claim_passcode_attempt() counts and records under an advisory lock and returns the new row's
+// id, or null when this client is locked out. The attempt counts as a failure until
+// settlePasscodeAttempt() releases it after a correct passcode. While the function is not deployed the previous
+// read-then-record path is used (attemptId null); any other error refuses the request.
+export async function claimPasscodeAttempt(
+  service: SupabaseClient,
+  ipHash: string,
+  now: number = Date.now()
+): Promise<PasscodeAttemptClaim> {
+  const { data, error } = await service.rpc('claim_passcode_attempt', {
+    p_ip_hash: ipHash,
+    p_threshold: PASSCODE_LOCKOUT_THRESHOLD,
+    p_window_seconds: PASSCODE_LOCKOUT_WINDOW_MS / 1000,
+  });
+  if (error) {
+    if ((error as { code?: unknown }).code !== RPC_MISSING) return { state: 'unavailable' };
+    const lockout = await readPasscodeLockout(service, ipHash, now);
+    return lockout === 'open' ? { state: 'claimed', attemptId: null } : { state: lockout };
+  }
+  if (data == null) return { state: 'locked' };
+  return typeof data === 'string'
+    ? { state: 'claimed', attemptId: data }
+    : { state: 'unavailable' };
+}
+
+// Returns false only when a failure could not be recorded on the fallback path (a free guess),
+// so callers refuse the request. A claimed attempt is already recorded as a failure; after a
+// correct passcode its row is deleted (the table only ever held failures). That is best
+// effort: a missed delete only costs the caller one attempt.
+export async function settlePasscodeAttempt(
+  service: SupabaseClient,
+  ipHash: string,
+  attemptId: string | null,
+  succeeded: boolean
+): Promise<boolean> {
+  if (attemptId === null) {
+    return succeeded ? true : recordFailedPasscodeAttempt(service, ipHash);
+  }
+  if (succeeded) {
+    const { error } = await service.from('translator_review_attempts').delete().eq('id', attemptId);
+    if (error) console.warn('claimed passcode attempt could not be released');
+  }
+  return true;
+}
