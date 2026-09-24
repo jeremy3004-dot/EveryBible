@@ -1848,6 +1848,30 @@ test('searchVerses rethrows when the indexed query itself fails', async () => {
   await assert.rejects(() => searchVerses('fakeindex', 'beginning'), /no such column: verses_fts/);
 });
 
+test('searchVerses matches a nukta letter whether the keyboard typed it composed or not', async () => {
+  const { searchVerses, setBibleDatabaseSourceResolver } = await loadModule();
+  // Verse text is stored in NFC, where ज़ is ज + nukta (U+095B is a composition exclusion).
+  // Some Hindi keyboards type the single code point U+095B instead, which the FTS index never
+  // saw, so ज़मीन ("land") found nothing.
+  writeSeedDatabase(`${installedDirectory}/nukta.db`, {
+    verses: [
+      {
+        translationId: 'nukta',
+        bookId: 'GEN',
+        chapter: 1,
+        verse: 10,
+        text: 'परमेश्वर ने सूखी भूमि को \u091C\u093Cमीन कहा।',
+      },
+    ],
+  });
+  setBibleDatabaseSourceResolver((translationId) =>
+    translationId === 'nukta' ? installedSource('nukta', 'nukta.db') : null
+  );
+
+  assert.deepEqual(verseRefs(await searchVerses('nukta', '\u095Bमीन')), ['GEN 1:10']);
+  assert.deepEqual(verseRefs(await searchVerses('nukta', '\u091C\u093Cमीन')), ['GEN 1:10']);
+});
+
 // ─── Search without spaces between words (CJK, Thai) ──────────────────────────
 
 const CJK_PACK_VERSES: SeedVerse[] = [

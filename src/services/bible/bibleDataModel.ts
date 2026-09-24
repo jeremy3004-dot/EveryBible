@@ -435,8 +435,14 @@ export function isBundledBibleDatabaseReady(
 const BIBLE_SEARCH_WORD_PATTERN =
   /[\p{L}\p{N}][\p{L}\p{N}\p{M}\u200C\u200D]*(?:['’ʼ][\p{L}\p{N}][\p{L}\p{N}\p{M}\u200C\u200D]*)*/gu;
 
+// NFC, like the stored verse text: a keyboard that types a composition exclusion (U+095B ज़)
+// or decomposed letters otherwise sends a token the index never saw.
 export function buildBibleSearchQuery(query: string): string | null {
-  const tokens = query.match(BIBLE_SEARCH_WORD_PATTERN)?.map((token) => token.trim()) ?? [];
+  const tokens =
+    query
+      .normalize('NFC')
+      .match(BIBLE_SEARCH_WORD_PATTERN)
+      ?.map((token) => token.trim()) ?? [];
   const normalizedTokens = tokens.filter((token) => token.length > 0);
 
   if (normalizedTokens.length === 0) {
