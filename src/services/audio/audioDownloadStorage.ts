@@ -113,10 +113,12 @@ export const expoAudioFileSystemAdapter: AudioFileSystemAdapter = {
   deleteFile: async (fileUri) => {
     await FileSystem.deleteAsync(fileUri, { idempotent: true });
   },
-  readBase64File: async (fileUri) => {
+  readBase64Chunk: async (fileUri, position, length) => {
     try {
       return await FileSystem.readAsStringAsync(fileUri, {
         encoding: FileSystem.EncodingType.Base64,
+        position,
+        length,
       });
     } catch {
       return null;

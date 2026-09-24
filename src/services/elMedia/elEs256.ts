@@ -32,9 +32,9 @@ const BASE64URL_REVERSE: Int8Array = (() => {
 /**
  * Non-throwing base64url → bytes, implemented by hand.
  *
- * Deliberately does NOT use `atob`: React Native ships no atob polyfill (neither RN nor Expo
- * defines one), so relying on it would be a guess about the engine. This has no runtime
- * dependency and behaves the same everywhere.
+ * Deliberately does NOT use `atob`. Hermes 0.81 does define it, but it returns a binary
+ * string that would need a second pass into bytes; this has no runtime dependency and behaves
+ * the same under Hermes, JSC and Node.
  */
 export function base64UrlToBytes(value: string): Uint8Array | null {
   // Tolerate (but do not require) '=' padding; JWS segments are unpadded.
@@ -72,6 +72,53 @@ export function sha256HexSync(bytes: Uint8Array): string {
   const digest = sha256(bytes);
   let hex = '';
   for (const byte of digest) hex += byte.toString(16).padStart(2, '0');
+  return hex;
+}
+
+// 192 KiB: a multiple of 3, so every chunk's base64 is unpadded, and small enough that decoding
+// plus hashing one chunk on Hermes (no JIT) stays well under a frame budget on a budget phone.
+const DEFAULT_HASH_CHUNK_BYTES = 3 * 64 * 1024;
+
+const toBase64Url = (base64: string) => base64.replace(/\+/g, '-').replace(/\//g, '_');
+
+/**
+ * SHA-256 of a file read as bounded base64 chunks (`readAsStringAsync` with position/length).
+ *
+ * Reading a whole downloaded file as one base64 string held the file ~3x over in the JS heap
+ * (the string, two `replace` copies, the decoded bytes) and decoded it in one uninterrupted
+ * loop — tens of MB for a text pack, and a blocked JS thread per chapter during a whole-Bible
+ * audio download. This keeps one chunk alive at a time. Each chunk read is an async native
+ * call, so the JS thread is released between chunks; pass `yieldToRuntime` for an extra
+ * macrotask turn (e.g. `setTimeout(0)`) where touch handling must stay snappy.
+ *
+ * Returns null when a chunk cannot be decoded or comes back short, so callers fail closed.
+ */
+export async function sha256HexOfBase64Chunks({
+  size,
+  readChunk,
+  chunkBytes = DEFAULT_HASH_CHUNK_BYTES,
+  throwIfCancelled,
+  yieldToRuntime,
+}: {
+  size: number;
+  readChunk: (position: number, length: number) => Promise<string | null>;
+  chunkBytes?: number;
+  throwIfCancelled?: () => void;
+  yieldToRuntime?: () => Promise<void>;
+}): Promise<string | null> {
+  const hasher = sha256.create();
+  for (let position = 0; position < size; position += chunkBytes) {
+    throwIfCancelled?.();
+    const length = Math.min(chunkBytes, size - position);
+    const base64 = await readChunk(position, length);
+    const bytes = base64 == null ? null : base64UrlToBytes(toBase64Url(base64));
+    if (!bytes || bytes.length !== length) return null;
+    hasher.update(bytes);
+    await yieldToRuntime?.();
+  }
+  throwIfCancelled?.();
+  let hex = '';
+  for (const byte of hasher.digest()) hex += byte.toString(16).padStart(2, '0');
   return hex;
 }
 

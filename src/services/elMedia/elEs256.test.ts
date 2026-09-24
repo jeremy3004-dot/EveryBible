@@ -2,7 +2,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { p256 } from '@noble/curves/nist.js';
 
-import { base64UrlToBytes, sha256HexSync, verifyEs256CompactJws } from './elEs256';
+import { createHash } from 'node:crypto';
+
+import {
+  base64UrlToBytes,
+  sha256HexOfBase64Chunks,
+  sha256HexSync,
+  verifyEs256CompactJws,
+} from './elEs256';
 
 const toB64Url = (bytes: Uint8Array) => Buffer.from(bytes).toString('base64url');
 
@@ -52,7 +59,13 @@ test('sha256HexSync matches known SHA-256 vectors', () => {
 });
 
 test('verifyEs256CompactJws rejects malformed keys, signatures, and headers', () => {
-  const jwk = { kty: 'EC', crv: 'P-256', kid: 'k', x: toB64Url(new Uint8Array(32)), y: toB64Url(new Uint8Array(32)) };
+  const jwk = {
+    kty: 'EC',
+    crv: 'P-256',
+    kid: 'k',
+    x: toB64Url(new Uint8Array(32)),
+    y: toB64Url(new Uint8Array(32)),
+  };
   const sig = toB64Url(new Uint8Array(64));
   const header = toB64Url(new TextEncoder().encode(JSON.stringify({ alg: 'ES256', kid: 'k' })));
   const payload = toB64Url(new TextEncoder().encode('{}'));
@@ -61,10 +74,16 @@ test('verifyEs256CompactJws rejects malformed keys, signatures, and headers', ()
   assert.equal(verifyEs256CompactJws('a.b', jwk), null);
   // Non-EC / wrong curve keys.
   assert.equal(verifyEs256CompactJws(`${header}.${payload}.${sig}`, { ...jwk, kty: 'RSA' }), null);
-  assert.equal(verifyEs256CompactJws(`${header}.${payload}.${sig}`, { ...jwk, crv: 'P-384' }), null);
+  assert.equal(
+    verifyEs256CompactJws(`${header}.${payload}.${sig}`, { ...jwk, crv: 'P-384' }),
+    null
+  );
   // Coordinates that are not exactly 32 bytes.
   assert.equal(
-    verifyEs256CompactJws(`${header}.${payload}.${sig}`, { ...jwk, x: toB64Url(new Uint8Array(31)) }),
+    verifyEs256CompactJws(`${header}.${payload}.${sig}`, {
+      ...jwk,
+      x: toB64Url(new Uint8Array(31)),
+    }),
     null
   );
   // Signature that is not exactly 64 bytes (e.g. a DER-encoded one).
@@ -108,4 +127,96 @@ test('verifyEs256CompactJws forces noble to parse the fixed-width compact format
   }
 
   assert.deepEqual(options, { format: 'compact', lowS: false });
+});
+
+const fileOf = (size: number) => {
+  const bytes = new Uint8Array(size);
+  for (let i = 0; i < size; i += 1) bytes[i] = (i * 131 + 7) & 0xff;
+  return bytes;
+};
+
+const chunkReader = (bytes: Uint8Array, reads: { position: number; length: number }[]) => {
+  return async (position: number, length: number) => {
+    reads.push({ position, length });
+    return Buffer.from(bytes.subarray(position, position + length)).toString('base64');
+  };
+};
+
+test('sha256HexOfBase64Chunks hashes a file in bounded reads and matches Node', async () => {
+  for (const size of [0, 1, 5, 6, 7, 1000, 4096, 10_001]) {
+    const bytes = fileOf(size);
+    const reads: { position: number; length: number }[] = [];
+    let yields = 0;
+
+    const digest = await sha256HexOfBase64Chunks({
+      size,
+      chunkBytes: 6,
+      readChunk: chunkReader(bytes, reads),
+      yieldToRuntime: async () => {
+        yields += 1;
+      },
+    });
+
+    assert.equal(digest, createHash('sha256').update(bytes).digest('hex'), `size ${size}`);
+    assert.ok(
+      reads.every(({ length }) => length > 0 && length <= 6),
+      'never asks for more than one chunk'
+    );
+    assert.equal(
+      reads.reduce((total, { length }) => total + length, 0),
+      size,
+      'reads cover the file exactly once and never past the end'
+    );
+    assert.equal(yields, reads.length, 'yields to the UI thread after every chunk');
+  }
+});
+
+test('sha256HexOfBase64Chunks returns null for undecodable or short chunks', async () => {
+  assert.equal(
+    await sha256HexOfBase64Chunks({ size: 10, readChunk: async () => 'not base64!%' }),
+    null
+  );
+  assert.equal(
+    await sha256HexOfBase64Chunks({
+      size: 10,
+      chunkBytes: 6,
+      readChunk: async () => Buffer.from([1, 2]).toString('base64'),
+    }),
+    null,
+    'a truncated read must not hash as if the file were complete'
+  );
+});
+
+test('sha256HexOfBase64Chunks stops as soon as the caller cancels', async () => {
+  const reads: { position: number; length: number }[] = [];
+  let cancelled = false;
+  await assert.rejects(
+    sha256HexOfBase64Chunks({
+      size: 30,
+      chunkBytes: 6,
+      readChunk: async (position, length) => {
+        const chunk = await chunkReader(fileOf(30), reads)(position, length);
+        cancelled = reads.length === 2;
+        return chunk;
+      },
+      throwIfCancelled: () => {
+        if (cancelled) throw new Error('cancelled');
+      },
+    }),
+    /cancelled/
+  );
+  assert.equal(reads.length, 2);
+});
+
+test('the default chunk size is a whole number of base64 groups', async () => {
+  const bytes = fileOf(1_000_000);
+  const reads: { position: number; length: number }[] = [];
+  const digest = await sha256HexOfBase64Chunks({
+    size: bytes.length,
+    readChunk: chunkReader(bytes, reads),
+    yieldToRuntime: async () => {},
+  });
+  assert.equal(digest, createHash('sha256').update(bytes).digest('hex'));
+  assert.ok(reads.length > 1, 'a 1MB file is not read in one piece');
+  assert.equal(reads[0].length % 3, 0);
 });

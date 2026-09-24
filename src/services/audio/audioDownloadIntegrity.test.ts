@@ -31,11 +31,15 @@ function integrityRuntime(remote: Partial<service.RemoteAudioAsset>) {
   const discardWaiters = new Map<number, () => void>();
   let written: Uint8Array = CHAPTER_BYTES;
   let attempts = 0;
+  const base64Reads: number[] = [];
   const fileSystem: service.AudioFileSystemAdapter = {
     ensureDirectory: async () => {},
     fileExists: async () => false,
     getFileSize: async () => (attempts === 0 ? null : written.byteLength),
-    readBase64File: async () => (attempts === 0 ? null : toBase64(written)),
+    readBase64Chunk: async (_fileUri, position, length) => {
+      base64Reads.push(length);
+      return attempts === 0 ? null : toBase64(written.subarray(position, position + length));
+    },
     deleteFile: async (fileUri) => {
       deleted.push(fileUri);
       discardWaiters.get(deleted.length)?.();
@@ -67,6 +71,7 @@ function integrityRuntime(remote: Partial<service.RemoteAudioAsset>) {
       });
     },
     attemptCount: () => attempts,
+    base64Reads,
     setWritten: (bytes: Uint8Array) => {
       written = bytes;
     },
@@ -115,6 +120,21 @@ test('a chapter matching both bytes and sha256 completes', async () => {
   const result = await runtime.start();
   assert.equal(result.chapterCount, 1);
   assert.deepEqual(runtime.deleted, []);
+  assert.deepEqual(runtime.base64Reads, [CHAPTER_BYTES.byteLength]);
+});
+
+test('sha256 verification reads a large chapter in bounded chunks', async () => {
+  const large = new Uint8Array(1_000_000).fill(3);
+  const runtime = integrityRuntime({ bytes: large.byteLength, sha256: sha256HexSync(large) });
+  runtime.setWritten(large);
+  const result = await runtime.start();
+  assert.equal(result.chapterCount, 1);
+  assert.ok(runtime.base64Reads.length > 1, 'a 1MB chapter is not read as one string');
+  assert.ok(runtime.base64Reads.every((length) => length <= 256 * 1024));
+  assert.equal(
+    runtime.base64Reads.reduce((total, length) => total + length, 0),
+    large.byteLength
+  );
 });
 
 test('with neither bytes nor sha256 known the 1KB floor still guards the download', async (t) => {

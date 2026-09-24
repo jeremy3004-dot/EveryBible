@@ -82,9 +82,10 @@ export interface AudioFileSystemAdapter {
   writeTextFile?: (fileUri: string, contents: string) => Promise<void>;
   deleteFile?: (fileUri: string) => Promise<void>;
   getFileSize?: (fileUri: string) => Promise<number | null>;
-  // Base64 payload of a downloaded chapter, used only for sha256 verification. Optional so
-  // adapters without it simply fall back to size-only validation.
-  readBase64File?: (fileUri: string) => Promise<string | null>;
+  // One base64 chunk of a downloaded chapter, used only for sha256 verification. Chunked so a
+  // long chapter is never held whole in the JS heap. Optional so adapters without it simply
+  // fall back to size-only validation.
+  readBase64Chunk?: (fileUri: string, position: number, length: number) => Promise<string | null>;
   // Free bytes on the volume holding the audio root, for the pre-flight in (N25).
   getFreeDiskBytes?: () => Promise<number | null>;
 }
@@ -817,17 +818,22 @@ async function verifyDownloadedChapterAudio({
   }
 
   // Hermes has no Web Crypto, so this reuses the same pure-JS hasher as text-pack verification.
-  if (expected.sha256 && fileSystem.readBase64File) {
-    const [{ base64UrlToBytes, sha256HexSync }, base64] = await Promise.all([
-      import('../elMedia/elEs256'),
-      fileSystem.readBase64File(fileUri),
-    ]);
-    const bytes = base64 ? base64UrlToBytes(base64.replace(/\+/g, '-').replace(/\//g, '_')) : null;
-    if (!bytes) {
+  const readBase64Chunk = fileSystem.readBase64Chunk;
+  if (expected.sha256 && readBase64Chunk) {
+    const { sha256HexOfBase64Chunks } = await import('../elMedia/elEs256');
+    const size = (await fileSystem.getFileSize?.(fileUri)) ?? expected.bytes ?? 0;
+    const digest =
+      size > 0
+        ? await sha256HexOfBase64Chunks({
+            size,
+            readChunk: (position, length) => readBase64Chunk(fileUri, position, length),
+          })
+        : null;
+    if (!digest) {
       await discard();
       throw new Error(`Downloaded audio could not be read for verification: ${fileUri}`);
     }
-    if (sha256HexSync(bytes) !== expected.sha256.toLowerCase()) {
+    if (digest !== expected.sha256.toLowerCase()) {
       await discard();
       throw new Error(`Downloaded audio failed integrity verification (checksum): ${fileUri}`);
     }
