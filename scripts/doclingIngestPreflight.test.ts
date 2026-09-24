@@ -1,27 +1,26 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
-import { readFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
 import { DEFAULT_OUT, buildManifest, parseArgs, writeManifest } from './docling-ingest-preflight';
 
-const source = readFileSync(
-  path.join(process.cwd(), 'scripts', 'docling-ingest-preflight.ts'),
-  'utf8'
-);
+// Importing the script at all shows it pulls in no React Native, Expo or Docling module:
+// none of those can load under Node.
+test('the manifest tells operators Docling runs server-side only, never on mobile', async () => {
+  const manifest = await buildManifest(
+    { source: 'https://example.com/source.pdf', kind: 'pdf', out: DEFAULT_OUT },
+    new Date('2026-05-09T00:00:00.000Z')
+  );
 
-test('docling preflight source keeps Docling server-side only', () => {
-  assert.match(source, /Docling server-side only/);
-  assert.match(source, /server-side worker, batch job, or MCP-backed ingestion service/);
-  assert.doesNotMatch(source, /from ['"]docling/);
-});
-
-test('docling preflight source does not import React Native or mobile runtimes', () => {
-  assert.doesNotMatch(source, /from ['"]react-native/);
-  assert.doesNotMatch(source, /from ['"]expo/);
-  assert.doesNotMatch(source, /@react-native/);
+  assert.match(manifest.recommendedExecutionMode, /^Docling server-side only/);
+  assert.match(manifest.recommendedExecutionMode, /do not import Docling into React Native/);
+  const gate = manifest.requiredGates.find((item) => item.id === 'server-side-only');
+  assert.match(
+    gate?.description ?? '',
+    /server-side worker, batch job, or MCP-backed ingestion service; never in the React Native mobile runtime/
+  );
 });
 
 test('docling preflight defaults output under tmp', () => {

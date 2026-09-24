@@ -59,6 +59,7 @@ test('capsule keeps reference geometry and native glass alpha during explicit co
   }
 });
 
+// Dependency contract guard: reads the installed BottomTabBar's logical-edge defaults.
 test('capsule overrides React Navigation logical edges in both layout directions', () => {
   const navigationSource = readFileSync(
     fileURLToPath(
