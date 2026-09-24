@@ -1129,6 +1129,28 @@ test('a newer tap during the retry cancels it', async (t) => {
   assert.deepEqual(recorded.reports, []);
 });
 
+test("a closed reader's stalled load cannot stop what a reopened reader plays", async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  scenario.loadScript.set(GEN_1, ['stall', 'ok']);
+  const closedReader = mountPlayer();
+  const stalled = closedReader.api.playChapter('GEN', 1);
+  await settleUntil(() => playerCalls('loadAndPlay').length === 1);
+  closedReader.unmount();
+
+  const reopenedReader = mountPlayer();
+  await reopenedReader.api.playChapter('GEN', 2);
+  recorded.player.length = 0;
+  // The closed reader's load reaches its deadline after the new chapter took over.
+  t.mock.timers.tick(30_000);
+  await stalled;
+
+  assert.equal(store().currentChapter, 2);
+  assert.equal(store().status, 'playing');
+  assert.equal(store().error, null);
+  assert.deepEqual(recorded.player, [], 'the stale load touched the new chapter');
+  assert.deepEqual(recorded.reports, []);
+});
+
 test('a chapter the server does not have is not retried', async () => {
   const notFound = 'Source error: Response code: 404';
   scenario.loadScript.set(GEN_1, [{ nativeError: notFound }, 'ok']);

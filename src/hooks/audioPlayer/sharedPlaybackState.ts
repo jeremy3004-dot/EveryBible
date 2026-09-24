@@ -18,5 +18,18 @@ export const pausedByListener = { current: false };
  */
 export const chapterTransition = { current: false };
 
+/**
+ * The latest command to take over playback, from any player: every mounted reader
+ * drives the one native player, so a closed reader's stalled load must see that a
+ * reopened reader has since played something else, and leave it alone.
+ */
+export const playRequest = { current: 0 };
+
+/**
+ * The play request whose chapter is being loaded. That load reports its own failure,
+ * after retrying a stalled stream, so a native error meanwhile is not shown yet.
+ */
+export const loadingPlayRequest: { current: number | null } = { current: null };
+
 /** Whether the native player holds a sound, asked lazily by the playback models. */
 export const isAudioLoaded = (): boolean => audioPlayer.isLoaded();
