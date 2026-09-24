@@ -79,24 +79,28 @@ export function viewerInteractionsByRequest(
   return viewerMap;
 }
 
-export type PrayerRequestAction = 'edit' | 'markAnswered' | 'delete';
+export type PrayerRequestAction = 'edit' | 'markAnswered' | 'report' | 'block' | 'delete';
 
 /**
- * The long-press actions a viewer gets on one request. The author manages their own
- * request; the group leader may remove anyone's (RLS: prayer_delete_creator_or_leader),
- * which is the wall's only moderation tool. Edit needs a text prompt, which only iOS has.
+ * The actions a viewer gets on one request. The author manages their own request. Every
+ * other signed-in member can report it or block its author (App Store Guideline 1.2), and
+ * the group leader may also remove it (RLS: prayer_delete_creator_or_leader). Edit needs a
+ * text prompt, which only iOS has.
  */
 export function prayerRequestActions({
+  isSignedIn,
   isOwner,
   isLeader,
   isAnswered,
   canEdit,
 }: {
+  isSignedIn: boolean;
   isOwner: boolean;
   isLeader: boolean;
   isAnswered: boolean;
   canEdit: boolean;
 }): PrayerRequestAction[] {
+  if (!isSignedIn) return [];
   if (isOwner) {
     return [
       ...(canEdit ? (['edit'] as const) : []),
@@ -104,5 +108,36 @@ export function prayerRequestActions({
       'delete',
     ];
   }
-  return isLeader ? ['delete'] : [];
+  return ['report', 'block', ...(isLeader ? (['delete'] as const) : [])];
+}
+
+/** The reasons report_prayer_request accepts (its CHECK constraint), in display order. */
+export const PRAYER_REPORT_REASONS = ['spam', 'abuse', 'sexual', 'harm', 'other'] as const;
+export type PrayerReportReason = (typeof PRAYER_REPORT_REASONS)[number];
+
+export type PrayerWriteErrorCode = 'rate_limited' | 'content_rejected' | 'banned';
+
+// Messages raised by the prayer wall triggers and report RPC
+// (20260924042617_harden_prayer_wall.sql, 20260924180000_prayer_wall_moderation.sql).
+const WRITE_ERROR_CODES: Record<string, PrayerWriteErrorCode> = {
+  prayer_request_rate_limited: 'rate_limited',
+  prayer_report_rate_limited: 'rate_limited',
+  prayer_request_blocked_content: 'content_rejected',
+  prayer_wall_banned: 'banned',
+};
+
+/** Maps a server refusal to a code the wall explains with its own message. */
+export function prayerWriteErrorCode(message: string): PrayerWriteErrorCode | undefined {
+  return WRITE_ERROR_CODES[message];
+}
+
+/**
+ * A request hidden by moderation stays visible to its author only (RLS), so the author is
+ * the only viewer who can be shown that it is under review.
+ */
+export function isUnderReviewForViewer(
+  request: { hidden_at?: string | null },
+  isOwner: boolean
+): boolean {
+  return isOwner && Boolean(request.hidden_at);
 }

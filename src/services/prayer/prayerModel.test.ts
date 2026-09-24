@@ -3,7 +3,10 @@ import assert from 'node:assert/strict';
 import {
   aggregateInteractionCounts,
   attachCountsToPrayerRequests,
+  isUnderReviewForViewer,
+  PRAYER_REPORT_REASONS,
   prayerRequestActions,
+  prayerWriteErrorCode,
 } from './prayerModel';
 import type { PrayerRequest } from '../supabase/types';
 
@@ -122,37 +125,67 @@ test('attachCountsToPrayerRequests preserves all original request fields', () =>
 // prayerRequestActions
 // ---------------------------------------------------------------------------
 
+const actionsFor = (overrides: Partial<Parameters<typeof prayerRequestActions>[0]>) =>
+  prayerRequestActions({
+    isSignedIn: true,
+    isOwner: false,
+    isLeader: false,
+    isAnswered: false,
+    canEdit: true,
+    ...overrides,
+  });
+
 test('the author can edit, mark answered and delete an open request', () => {
-  assert.deepEqual(
-    prayerRequestActions({ isOwner: true, isLeader: false, isAnswered: false, canEdit: true }),
-    ['edit', 'markAnswered', 'delete']
-  );
+  assert.deepEqual(actionsFor({ isOwner: true }), ['edit', 'markAnswered', 'delete']);
 });
 
 test('an answered request no longer offers mark answered', () => {
-  assert.deepEqual(
-    prayerRequestActions({ isOwner: true, isLeader: false, isAnswered: true, canEdit: true }),
-    ['edit', 'delete']
-  );
+  assert.deepEqual(actionsFor({ isOwner: true, isAnswered: true }), ['edit', 'delete']);
 });
 
 test('edit is left out where the platform has no text prompt', () => {
-  assert.deepEqual(
-    prayerRequestActions({ isOwner: true, isLeader: true, isAnswered: false, canEdit: false }),
-    ['markAnswered', 'delete']
-  );
+  assert.deepEqual(actionsFor({ isOwner: true, isLeader: true, canEdit: false }), [
+    'markAnswered',
+    'delete',
+  ]);
 });
 
-test("the group leader can only remove someone else's request", () => {
-  assert.deepEqual(
-    prayerRequestActions({ isOwner: false, isLeader: true, isAnswered: false, canEdit: true }),
-    ['delete']
-  );
+test("members can report someone else's request or block its author", () => {
+  assert.deepEqual(actionsFor({}), ['report', 'block']);
 });
 
-test("other members get no actions on someone else's request", () => {
-  assert.deepEqual(
-    prayerRequestActions({ isOwner: false, isLeader: false, isAnswered: false, canEdit: true }),
-    []
-  );
+test("the group leader can also remove someone else's request", () => {
+  assert.deepEqual(actionsFor({ isLeader: true }), ['report', 'block', 'delete']);
+});
+
+test('the author is never offered report or block on their own request', () => {
+  const own = actionsFor({ isOwner: true, isLeader: true });
+  assert.ok(!own.includes('report') && !own.includes('block'));
+});
+
+test('a signed-out reader gets no actions', () => {
+  assert.deepEqual(actionsFor({ isSignedIn: false, isLeader: true }), []);
+});
+
+// ---------------------------------------------------------------------------
+// prayerWriteErrorCode / report reasons
+// ---------------------------------------------------------------------------
+
+test('server moderation refusals map to codes the wall can explain', () => {
+  assert.equal(prayerWriteErrorCode('prayer_request_rate_limited'), 'rate_limited');
+  assert.equal(prayerWriteErrorCode('prayer_report_rate_limited'), 'rate_limited');
+  assert.equal(prayerWriteErrorCode('prayer_request_blocked_content'), 'content_rejected');
+  assert.equal(prayerWriteErrorCode('prayer_wall_banned'), 'banned');
+  assert.equal(prayerWriteErrorCode('permission denied'), undefined);
+});
+
+test('the report reasons are the ones the server accepts, in display order', () => {
+  assert.deepEqual([...PRAYER_REPORT_REASONS], ['spam', 'abuse', 'sexual', 'harm', 'other']);
+});
+
+test('only the author sees that their request is under review', () => {
+  assert.equal(isUnderReviewForViewer({ hidden_at: '2026-09-24T00:00:00Z' }, true), true);
+  assert.equal(isUnderReviewForViewer({ hidden_at: '2026-09-24T00:00:00Z' }, false), false);
+  assert.equal(isUnderReviewForViewer({ hidden_at: null }, true), false);
+  assert.equal(isUnderReviewForViewer({}, true), false);
 });

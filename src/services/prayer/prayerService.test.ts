@@ -770,3 +770,163 @@ for (const [action, table, invoke] of nonErrorFailures) {
     assert.equal((await invoke()).error, 'Unknown error');
   });
 }
+
+// ─── Moderation: server refusals ─────────────────────────────────────────────
+
+test('a request the content filter refuses is reported as content_rejected', async () => {
+  fake.respondTo('prayer_requests', () => ({
+    data: null,
+    error: { message: 'prayer_request_blocked_content', code: 'PT422' },
+  }));
+
+  assert.deepEqual(await prayer.createPrayerRequest('group-1', 'help'), {
+    success: false,
+    error: 'prayer_request_blocked_content',
+    code: 'content_rejected',
+  });
+});
+
+test('an edit the content filter refuses is reported as content_rejected', async () => {
+  fake.respondTo('prayer_requests', () => ({
+    data: null,
+    error: { message: 'prayer_request_blocked_content', code: 'PT422' },
+  }));
+
+  assert.equal((await prayer.updatePrayerRequest('req-1', 'text')).code, 'content_rejected');
+});
+
+test('a member banned from the wall is told so when posting or editing', async () => {
+  fake.respondTo('prayer_requests', () => ({
+    data: null,
+    error: { message: 'prayer_wall_banned', code: 'PT403' },
+  }));
+
+  assert.equal((await prayer.createPrayerRequest('group-1', 'help')).code, 'banned');
+  assert.equal((await prayer.updatePrayerRequest('req-1', 'text')).code, 'banned');
+});
+
+// ─── Moderation: reporting ───────────────────────────────────────────────────
+
+test('reporting a request calls the report RPC with the reason and a trimmed note', async () => {
+  fake.respondToRpc('report_prayer_request', () => ({ data: null }));
+
+  assert.deepEqual(await prayer.reportPrayerRequest('req-9', 'abuse', '  mocks the group  '), {
+    success: true,
+  });
+  assert.deepEqual(lastCall('rpc:report_prayer_request').payload, {
+    p_request_id: 'req-9',
+    p_reason: 'abuse',
+    p_note: 'mocks the group',
+  });
+});
+
+test('a report without a note sends a null note', async () => {
+  fake.respondToRpc('report_prayer_request', () => ({ data: null }));
+
+  await prayer.reportPrayerRequest('req-9', 'spam', '   ');
+
+  assert.deepEqual(lastCall('rpc:report_prayer_request').payload, {
+    p_request_id: 'req-9',
+    p_reason: 'spam',
+    p_note: null,
+  });
+});
+
+test('reporting past the server limit is reported as rate_limited', async () => {
+  fake.respondToRpc('report_prayer_request', () => ({
+    data: null,
+    error: { message: 'prayer_report_rate_limited', code: 'PT429' },
+  }));
+
+  assert.deepEqual(await prayer.reportPrayerRequest('req-9', 'spam'), {
+    success: false,
+    error: 'prayer_report_rate_limited',
+    code: 'rate_limited',
+  });
+});
+
+test('a signed-out visitor is asked to sign in before reporting', async () => {
+  fake.auth.setSession(null);
+
+  assert.deepEqual(await prayer.reportPrayerRequest('req-9', 'spam'), {
+    success: false,
+    error: 'You must be signed in to report a prayer request',
+  });
+  assert.deepEqual(fake.callsFor('rpc:report_prayer_request'), []);
+});
+
+test('reporting without a backend explains the build is not configured', async () => {
+  backend.configured = false;
+
+  assert.equal(
+    (await prayer.reportPrayerRequest('req-9', 'spam')).error,
+    'EveryBible backend is not configured for this build yet.'
+  );
+});
+
+// ─── Moderation: blocking ────────────────────────────────────────────────────
+
+test('blocking an author stores one row for the signed-in blocker, ignoring repeats', async () => {
+  fake.respondTo('user_blocks', () => ({ data: null }));
+
+  assert.deepEqual(await prayer.blockUser('user-2'), { success: true });
+  const call = lastCall('user_blocks');
+  assert.equal(call.operation, 'upsert');
+  assert.deepEqual(call.payload, { blocker_id: 'user-1', blocked_id: 'user-2' });
+  assert.deepEqual(call.options, { onConflict: 'blocker_id,blocked_id', ignoreDuplicates: true });
+});
+
+test('a member cannot block themselves', async () => {
+  assert.deepEqual(await prayer.blockUser('user-1'), {
+    success: false,
+    error: 'You cannot block yourself',
+  });
+  assert.deepEqual(fake.callsFor('user_blocks'), []);
+});
+
+test('unblocking deletes only the signed-in member own block row', async () => {
+  fake.respondTo('user_blocks', () => ({ data: null }));
+
+  assert.deepEqual(await prayer.unblockUser('user-2'), { success: true });
+  const call = lastCall('user_blocks');
+  assert.equal(call.operation, 'delete');
+  assert.deepEqual(filtersOf(call), [
+    ['blocker_id', 'user-1'],
+    ['blocked_id', 'user-2'],
+  ]);
+});
+
+test('a rejected block surfaces the database error', async () => {
+  fake.respondTo('user_blocks', () => ({ error: { message: 'permission denied' } }));
+
+  assert.deepEqual(await prayer.blockUser('user-2'), {
+    success: false,
+    error: 'permission denied',
+  });
+});
+
+test('a signed-out visitor is asked to sign in before blocking or unblocking', async () => {
+  fake.auth.setSession(null);
+
+  assert.equal((await prayer.blockUser('user-2')).error, 'You must be signed in to block someone');
+  assert.equal(
+    (await prayer.unblockUser('user-2')).error,
+    'You must be signed in to block someone'
+  );
+});
+
+const moderationCalls: Array<[string, string, () => Promise<{ error?: string }>]> = [
+  ['reporting', 'rpc:report_prayer_request', () => prayer.reportPrayerRequest('req-9', 'spam')],
+  ['blocking', 'user_blocks', () => prayer.blockUser('user-2')],
+  ['unblocking', 'user_blocks', () => prayer.unblockUser('user-2')],
+];
+
+for (const [action, table, invoke] of moderationCalls) {
+  test(`a network exception while ${action} is reported with its message`, async () => {
+    fake.respondTo(table, () => {
+      throw new Error('Network request failed');
+    });
+
+    assert.equal((await invoke()).error, 'Network request failed');
+  });
+}
