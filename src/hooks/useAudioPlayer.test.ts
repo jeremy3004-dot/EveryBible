@@ -87,6 +87,8 @@ const scenario = {
   ) => Promise<AudioAsset | null>,
   failLoadUrls: new Set<string>(),
   contentSummary: undefined as { audioChapters?: AudioChapterMap } | undefined,
+  /** The native side released the loaded sound without telling JS (Android). */
+  nativeSoundReleased: false,
 };
 
 interface AudioPlayerCallbacks {
@@ -99,12 +101,13 @@ interface AudioPlayerDouble {
   loaded: boolean;
   callbacks: AudioPlayerCallbacks;
   setCallbacks(callbacks: AudioPlayerCallbacks): void;
-  loadAndPlay(url: string, rate: number): Promise<void>;
+  loadAndPlay(url: string, rate: number, startPositionMs?: number): Promise<void>;
   pause(): Promise<void>;
   resume(): Promise<void>;
   stop(): Promise<void>;
   seekTo(positionMs: number): Promise<void>;
   setRate(rate: number): Promise<void>;
+  verifyLoaded(): Promise<void>;
   isLoaded(): boolean;
 }
 
@@ -115,8 +118,12 @@ const audioPlayerDouble: AudioPlayerDouble = {
     audioPlayerDouble.callbacks = callbacks;
     recorded.player.push({ method: 'setCallbacks', args: [] });
   },
-  async loadAndPlay(url: string, rate: number) {
-    recorded.player.push({ method: 'loadAndPlay', args: [url, rate] });
+  async loadAndPlay(url: string, rate: number, startPositionMs?: number) {
+    recorded.player.push({
+      method: 'loadAndPlay',
+      // A load from the top (offset 0) is recorded as [url, rate].
+      args: startPositionMs ? [url, rate, startPositionMs] : [url, rate],
+    });
     if (scenario.failLoadUrls.has(url)) {
       throw new Error(`decode failed: ${url}`);
     }
@@ -147,6 +154,13 @@ const audioPlayerDouble: AudioPlayerDouble = {
   },
   async setRate(rate: number) {
     recorded.player.push({ method: 'setRate', args: [rate] });
+  },
+  async verifyLoaded() {
+    recorded.player.push({ method: 'verifyLoaded', args: [] });
+    if (scenario.nativeSoundReleased && audioPlayerDouble.loaded) {
+      audioPlayerDouble.loaded = false;
+      audioPlayerDouble.callbacks.onError?.('Player does not exist.');
+    }
   },
   isLoaded() {
     return audioPlayerDouble.loaded;
@@ -336,6 +350,10 @@ const mountPlayer = (translationId = 'bsb'): MountedPlayer => {
 
 const store = () => useAudioStore.getState();
 
+/** Where the most recent chapter load was asked to start (0 = the top). */
+const loadedStartOffset = () =>
+  (playerCalls('loadAndPlay').at(-1)?.args[2] as number | undefined) ?? 0;
+
 const playerCalls = (method: string) => recorded.player.filter((call) => call.method === method);
 
 const snapshotOf = (overrides: Partial<ProgressSnapshot> = {}): ProgressSnapshot => ({
@@ -393,6 +411,7 @@ beforeEach(() => {
   scenario.remoteFallback = async () => null;
   scenario.failLoadUrls = new Set();
   scenario.contentSummary = undefined;
+  scenario.nativeSoundReleased = false;
   activeTranslate = (key) => key;
 
   audioPlayerDouble.loaded = false;
@@ -603,7 +622,8 @@ test('playChapterForTranslation resumes from a stored position', async () => {
     startPositionMs: 42_000,
   });
 
-  assert.deepEqual(playerCalls('seekTo'), [{ method: 'seekTo', args: [42_000] }]);
+  assert.equal(loadedStartOffset(), 42_000);
+  assert.deepEqual(playerCalls('seekTo'), []);
   assert.equal(store().currentPosition, 42_000);
 });
 
@@ -937,6 +957,58 @@ test('resume after a cold restart falls back to the durable resume anchor', asyn
   assert.equal(recorded.nowPlaying.at(-1)?.positionMs, 45_000);
 });
 
+// After a relaunch the chapter is loaded again from the saved offset. Selecting the
+// track zeroed that offset before the load had even started, so a load that failed
+// (offline, a stream error) or a second tap while it was slow began the chapter
+// again from 0:00, and the saved place was gone for good.
+const coldStartAt = (positionMs: number) => {
+  useAudioStore.setState({
+    lastPlayedTranslationId: 'bsb',
+    lastPlayedBookId: 'GEN',
+    lastPlayedChapter: 1,
+    lastPosition: positionMs,
+  });
+};
+
+test('a resume that fails to load keeps the saved place for the next try', async () => {
+  const player = mountPlayer();
+  coldStartAt(180_000);
+  scenario.failLoadUrls.add('https://cdn.example/bsb/GEN/1.mp3');
+
+  await player.rerender().togglePlayPause();
+  assert.equal(store().status, 'error');
+  assert.equal(store().lastPosition, 180_000);
+
+  scenario.failLoadUrls.clear();
+  recorded.player.length = 0;
+  await player.rerender().togglePlayPause();
+
+  assert.equal(loadedStartOffset(), 180_000);
+  assert.equal(store().status, 'playing');
+});
+
+test('a second Play while a resume is still loading resumes at the same place', async () => {
+  let release!: () => void;
+  playerGates.set(
+    'load:https://cdn.example/bsb/GEN/1.mp3',
+    new Promise<void>((resolve) => {
+      release = resolve;
+    })
+  );
+  const player = mountPlayer();
+  coldStartAt(180_000);
+
+  const first = player.rerender().togglePlayPause();
+  await new Promise((resolve) => setImmediate(resolve));
+  playerGates.clear();
+  const second = player.rerender().togglePlayPause();
+  release();
+  await Promise.all([first, second]);
+
+  assert.equal(loadedStartOffset(), 180_000);
+  assert.equal(store().currentPosition, 180_000);
+});
+
 test('stop tears playback down and silences the background bed', async () => {
   const player = mountPlayer();
   await player.api.playChapter('GEN', 1);
@@ -988,7 +1060,89 @@ test('togglePlayPause reloads the current chapter from its resume anchor when un
   await player.rerender().togglePlayPause();
 
   assert.equal(playerCalls('loadAndPlay').length, 1);
-  assert.deepEqual(playerCalls('seekTo'), [{ method: 'seekTo', args: [60_000] }]);
+  assert.equal(loadedStartOffset(), 60_000);
+});
+
+// A stream that fails mid-chapter makes expo-av release the sound. iOS says so at
+// once; Android only rejects the next command. Either way Play has to load the
+// chapter again where it stopped, not fail on the dead sound again and again.
+test('Play after the stream failed mid-chapter reloads the chapter where it stopped', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  emitStatus({ isPlaying: true, positionMillis: 120_000, durationMillis: DEFAULT_DURATION_MS });
+  audioPlayerDouble.loaded = false;
+  audioPlayerDouble.callbacks.onError?.('The network connection was lost.');
+  assert.equal(store().status, 'error');
+  recorded.player.length = 0;
+
+  await player.rerender().togglePlayPause();
+
+  assert.equal(playerCalls('loadAndPlay').length, 1);
+  assert.equal(loadedStartOffset(), 120_000);
+  assert.equal(store().status, 'playing');
+});
+
+test('Play on a sound the native side released reloads the chapter in one tap', async (t) => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  emitStatus({ isPlaying: true, positionMillis: 120_000, durationMillis: DEFAULT_DURATION_MS });
+  await player.rerender().pause();
+  // Android: the pause went through, then the stream failed and the sound was
+  // released without a word. The next command finds out.
+  const seekTo = audioPlayerDouble.seekTo;
+  t.mock.method(audioPlayerDouble, 'seekTo', async (positionMs: number) => {
+    if (!audioPlayerDouble.loaded) return seekTo(positionMs);
+    recorded.player.push({ method: 'seekTo', args: [positionMs] });
+    audioPlayerDouble.loaded = false;
+    audioPlayerDouble.callbacks.onError?.('Player does not exist.');
+  });
+  recorded.player.length = 0;
+
+  await player.rerender().togglePlayPause();
+
+  assert.equal(playerCalls('loadAndPlay').length, 1);
+  assert.equal(loadedStartOffset(), 120_000);
+  assert.equal(store().status, 'playing');
+  assert.equal(store().error, null);
+});
+
+// On Android a stream that fails while buffering is released without any event, so
+// the chapter sat on an endless spinner with the in-app controls disabled. While it
+// buffers the player checks that the sound still exists and reports the failure.
+test('a chapter stuck buffering on a released stream turns into an error Play can recover', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: BASE_TIME });
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  emitStatus({ isPlaying: true, positionMillis: 90_000, durationMillis: DEFAULT_DURATION_MS });
+  emitStatus({ isBuffering: true, positionMillis: 90_000, durationMillis: DEFAULT_DURATION_MS });
+  player.rerender();
+  assert.equal(store().status, 'loading');
+
+  t.mock.timers.tick(5_000);
+  assert.equal(playerCalls('verifyLoaded').length, 1);
+  assert.equal(store().status, 'loading');
+
+  scenario.nativeSoundReleased = true;
+  t.mock.timers.tick(5_000);
+  assert.equal(store().status, 'error');
+
+  recorded.player.length = 0;
+  await player.rerender().togglePlayPause();
+  assert.equal(playerCalls('loadAndPlay').length, 1);
+  assert.equal(loadedStartOffset(), 90_000);
+  emitStatus({ isPlaying: false, positionMillis: 90_000 });
+});
+
+test('the first load of a chapter is not checked as a stalled stream', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: BASE_TIME });
+  const player = mountPlayer();
+  store().setCurrentTrack('bsb', 'GEN', 1);
+  store().setStatus('loading');
+  player.rerender();
+
+  t.mock.timers.tick(15_000);
+
+  assert.deepEqual(playerCalls('verifyLoaded'), []);
 });
 
 test('togglePlayPause starts the last played chapter when nothing is loaded', async () => {
@@ -1077,6 +1231,30 @@ test('a chapter started after a rate change is loaded at that rate', async () =>
   await player.rerender().playChapter('GEN', 1);
 
   assert.equal(playerCalls('loadAndPlay').at(-1)?.args[1], 1.25);
+});
+
+// Resolving a chapter can take a manifest lookup and the load itself a few seconds on
+// a slow network. A speed picked in that window was dropped by the not-yet-loaded
+// player, so the chapter played at the old speed while the control showed the new one.
+test('a speed change while the chapter is still resolving is used for that chapter', async () => {
+  let release!: () => void;
+  const resolving = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  scenario.chapterAudio = async (translationId, bookId, chapter) => {
+    await resolving;
+    return defaultChapterAudio(translationId, bookId, chapter);
+  };
+  const player = mountPlayer();
+
+  const starting = player.api.playChapter('GEN', 1);
+  await Promise.resolve();
+  await player.rerender().changePlaybackRate(1.5);
+  release();
+  await starting;
+
+  assert.equal(playerCalls('loadAndPlay').at(-1)?.args[1], 1.5);
+  assert.equal(store().playbackRate, 1.5);
 });
 
 test('addToQueue queues a chapter of the hook translation', () => {
@@ -2247,11 +2425,10 @@ test('background music is stopped once while the setting is off', () => {
 });
 
 test('choosing a background bed while idle keeps it silent', () => {
-  const player = mountPlayer();
-  store().setBackgroundMusicChoice('piano');
+  mountPlayer();
   recorded.backgroundMusic.length = 0;
 
-  player.rerender();
+  store().setBackgroundMusicChoice('piano');
 
   assert.deepEqual(recorded.backgroundMusic, [
     { method: 'sync', choice: 'piano', shouldPlay: false },
@@ -2261,22 +2438,24 @@ test('choosing a background bed while idle keeps it silent', () => {
 test('the chosen background bed plays alongside the chapter', async () => {
   const player = mountPlayer();
   store().setBackgroundMusicChoice('piano');
-  await player.rerender().playChapter('GEN', 1);
   recorded.backgroundMusic.length = 0;
 
-  player.rerender();
+  await player.rerender().playChapter('GEN', 1);
 
-  assert.deepEqual(recorded.backgroundMusic, [
-    { method: 'sync', choice: 'piano', shouldPlay: true },
-  ]);
+  assert.equal(store().status, 'playing');
+  assert.deepEqual(recorded.backgroundMusic.at(-1), {
+    method: 'sync',
+    choice: 'piano',
+    shouldPlay: true,
+  });
 });
 
 test('the background bed keeps playing while the next chapter loads', async () => {
   const player = mountPlayer();
   store().setBackgroundMusicChoice('piano');
-  store().setStatus('loading');
   recorded.backgroundMusic.length = 0;
 
+  store().setStatus('loading');
   player.rerender();
 
   assert.deepEqual(recorded.backgroundMusic, [
@@ -2290,15 +2469,16 @@ test('the background bed keeps playing when a chapter transition fails', async (
   await player.rerender().playChapter('GEN', 1);
   player.rerender();
   scenario.chapterAudio = async () => null;
-  await player.api.playChapter('GEN', 2);
   recorded.backgroundMusic.length = 0;
 
+  await player.api.playChapter('GEN', 2);
   player.rerender();
 
   assert.equal(store().status, 'error');
-  assert.deepEqual(recorded.backgroundMusic, [
-    { method: 'sync', choice: 'piano', shouldPlay: true },
-  ]);
+  assert.equal(
+    recorded.backgroundMusic.some((call) => call.shouldPlay === false),
+    false
+  );
 });
 
 test('turning the background bed off stops it again', async () => {
@@ -2311,6 +2491,83 @@ test('turning the background bed off stops it again', async () => {
   player.rerender();
 
   assert.deepEqual(recorded.backgroundMusic, [{ method: 'stop' }]);
+});
+
+// The reader is the only screen that mounts the player, but lock-screen pause, the
+// sleep timer and the end of playback all reach the narration after it has closed.
+// The music bed has to stop with the narration, or it plays on under a paused chapter
+// (all night, for a sleep timer) with no control left on screen to silence it.
+const pausedBed = { method: 'sync', choice: 'piano', shouldPlay: false };
+const lastBedCall = () => recorded.backgroundMusic.at(-1);
+
+const playWithBedThenCloseReader = async () => {
+  const player = mountPlayer();
+  store().setBackgroundMusicChoice('piano');
+  await player.rerender().playChapter('GEN', 1);
+  player.rerender();
+  player.unmount();
+  recorded.backgroundMusic.length = 0;
+};
+
+test('a lock screen pause after the reader closed pauses the background bed too', async () => {
+  await playWithBedThenCloseReader();
+
+  await remoteCommandListener?.({ command: 'pause' });
+
+  assert.deepEqual(lastBedCall(), pausedBed);
+});
+
+test('a lock screen play after the reader closed brings the background bed back', async () => {
+  await playWithBedThenCloseReader();
+  store().setPosition(30_000);
+  await remoteCommandListener?.({ command: 'pause' });
+
+  await remoteCommandListener?.({ command: 'play' });
+
+  assert.deepEqual(lastBedCall(), { method: 'sync', choice: 'piano', shouldPlay: true });
+  await remoteCommandListener?.({ command: 'pause' });
+});
+
+test('the sleep timer silences the background bed after the reader has closed', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: BASE_TIME });
+  await playWithBedThenCloseReader();
+  store().setSleepTimer(5);
+
+  t.mock.timers.tick(5 * 60 * 1000);
+  emitStatus({ isPlaying: true, positionMillis: 300_000, durationMillis: DEFAULT_DURATION_MS });
+  await Promise.resolve();
+
+  assert.equal(store().status, 'paused');
+  assert.deepEqual(lastBedCall(), pausedBed);
+  emitStatus({ isPlaying: false, positionMillis: 300_000 });
+});
+
+test('the end of playback after the reader closed silences the background bed', async () => {
+  await playWithBedThenCloseReader();
+  store().setAutoAdvanceChapter(false);
+
+  emitStatus({ isPlaying: false, didJustFinish: true, positionMillis: DEFAULT_DURATION_MS });
+  await finishPlayback();
+
+  assert.equal(store().status, 'idle');
+  assert.deepEqual(lastBedCall(), pausedBed);
+});
+
+test('the background bed plays straight through an auto-advance to the next chapter', async () => {
+  await playWithBedThenCloseReader();
+
+  // The native player reports the finished chapter as stopped before the finish
+  // handler moves on; the bed must not dip for that instant.
+  emitStatus({ isPlaying: false, didJustFinish: true, positionMillis: DEFAULT_DURATION_MS });
+  await finishPlayback();
+
+  assert.equal(store().currentChapter, 2);
+  assert.equal(store().status, 'playing');
+  assert.equal(
+    recorded.backgroundMusic.some((call) => call.shouldPlay === false),
+    false
+  );
+  await remoteCommandListener?.({ command: 'pause' });
 });
 
 // ---------------------------------------------------------------------------
@@ -2459,6 +2716,118 @@ test('the remote pause command pauses playback', async () => {
   await remoteCommandListener?.({ command: 'pause' });
 
   assert.equal(store().status, 'paused');
+});
+
+// The headset button (wired or Bluetooth) and CarPlay send a toggle, not play or
+// pause. iOS delivered it as "play", which is ignored while playing, so the button
+// could start the audio but never pause it.
+test('the remote toggle command pauses a chapter that is playing', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  player.rerender();
+
+  await remoteCommandListener?.({ command: 'toggle' });
+
+  assert.equal(store().status, 'paused');
+  assert.equal(playerCalls('pause').length, 1);
+});
+
+test('the remote toggle command resumes a paused chapter', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setPosition(30_000);
+  await player.rerender().pause();
+  recorded.player.length = 0;
+
+  await remoteCommandListener?.({ command: 'toggle' });
+
+  assert.equal(store().status, 'playing');
+  assert.equal(playerCalls('resume').length, 1);
+});
+
+test('the remote toggle command pauses a chapter that is still loading', async () => {
+  let release!: () => void;
+  playerGates.set(
+    'load:https://cdn.example/bsb/GEN/1.mp3',
+    new Promise<void>((resolve) => {
+      release = resolve;
+    })
+  );
+  const player = mountPlayer();
+  const starting = player.api.playChapter('GEN', 1);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(store().status, 'loading');
+
+  await remoteCommandListener?.({ command: 'toggle' });
+  release();
+  await starting;
+
+  assert.equal(store().status, 'paused');
+  assert.equal(playerCalls('loadAndPlay').length, 1);
+});
+
+// When a phone call or another app's audio ends, iOS tells the app it may resume.
+// That is right for a chapter the call interrupted, but the native module also sent
+// it for a chapter the listener had paused (or the sleep timer had stopped) before
+// the call, which then started playing again by itself.
+test('the end of an interruption resumes a chapter the interruption paused', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  emitStatus({ isPlaying: true, positionMillis: 30_000, durationMillis: DEFAULT_DURATION_MS });
+  // The system paused it: a native snapshot, not the listener.
+  emitStatus({ isPlaying: false, positionMillis: 30_000, durationMillis: DEFAULT_DURATION_MS });
+  player.rerender();
+  recorded.player.length = 0;
+
+  await remoteCommandListener?.({ command: 'interruption-ended' });
+
+  assert.equal(store().status, 'playing');
+  assert.equal(playerCalls('resume').length, 1);
+});
+
+test('the end of an interruption leaves a chapter the listener paused alone', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setPosition(30_000);
+  await player.rerender().pause();
+  recorded.player.length = 0;
+
+  await remoteCommandListener?.({ command: 'interruption-ended' });
+
+  assert.equal(store().status, 'paused');
+  assert.deepEqual(recorded.player, []);
+});
+
+test('the end of an interruption leaves a chapter the sleep timer stopped alone', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: BASE_TIME });
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setSleepTimer(5);
+  player.rerender();
+  tickSeconds(t.mock.timers, 5 * 60);
+  await Promise.resolve();
+  assert.equal(store().status, 'paused');
+  recorded.player.length = 0;
+
+  await remoteCommandListener?.({ command: 'interruption-ended' });
+
+  assert.equal(store().status, 'paused');
+  assert.deepEqual(recorded.player, []);
+});
+
+test('the end of an interruption does not restart a chapter that had finished', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setAutoAdvanceChapter(false);
+  player.rerender();
+  await finishPlayback();
+  assert.equal(store().status, 'idle');
+  recorded.player.length = 0;
+
+  await remoteCommandListener?.({ command: 'interruption-ended' });
+
+  assert.equal(store().status, 'idle');
+  assert.deepEqual(recorded.player, []);
 });
 
 test('the remote play command resumes a loaded chapter', async () => {

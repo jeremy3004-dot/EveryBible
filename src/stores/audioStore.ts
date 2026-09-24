@@ -58,10 +58,15 @@ interface AudioState {
 
   // Playback actions
   setStatus: (status: AudioStatus) => void;
+  /**
+   * Selects the chapter to play. `startPosition` is where it will start (a resume
+   * point), kept as the durable resume anchor until playback moves on from it.
+   */
   setCurrentTrack: (
     translationId: string | null,
     bookId: string | null,
-    chapter: number | null
+    chapter: number | null,
+    startPosition?: number
   ) => void;
   setPosition: (position: number) => void;
   /** Drops the durable resume point, e.g. once a chapter has been heard to the end. */
@@ -216,17 +221,17 @@ export const useAudioStore = create<AudioState>()(
         }
       },
 
-      setCurrentTrack: (translationId, bookId, chapter) =>
+      setCurrentTrack: (translationId, bookId, chapter, startPosition = 0) =>
         set({
           currentTranslationId: translationId,
           currentBookId: bookId,
           currentChapter: chapter,
-          currentPosition: 0,
+          currentPosition: startPosition,
           duration: 0,
           lastPlayedTranslationId: translationId,
           lastPlayedBookId: bookId,
           lastPlayedChapter: chapter,
-          lastPosition: 0,
+          lastPosition: startPosition,
         }),
 
       setPosition: (position) => {
