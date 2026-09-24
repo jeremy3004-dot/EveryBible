@@ -1382,39 +1382,52 @@ export function useAudioPlayer(translationId: string = 'bsb') {
 
   useEffect(() => {
     activeRemoteCommandUnsubscribe?.();
+    const playFromRemote = async () => {
+      const store = useAudioStore.getState();
+
+      if (store.status === 'playing') {
+        return;
+      }
+
+      if (canResumeLoadedChapter(store)) {
+        await resume();
+        return;
+      }
+
+      if (store.currentBookId && store.currentChapter) {
+        await playChapterForTranslation(
+          store.currentTranslationId ?? translationId,
+          store.currentBookId,
+          store.currentChapter,
+          undefined,
+          { startPositionMs: store.lastPosition }
+        );
+        return;
+      }
+
+      if (store.lastPlayedBookId && store.lastPlayedChapter) {
+        await playChapterForTranslation(
+          store.lastPlayedTranslationId ?? translationId,
+          store.lastPlayedBookId,
+          store.lastPlayedChapter,
+          undefined,
+          { startPositionMs: store.lastPosition }
+        );
+      }
+    };
+
     activeRemoteCommandUnsubscribe = subscribeBibleNowPlayingRemoteCommands(async (command) => {
       switch (command.command) {
-        case 'play': {
-          const store = useAudioStore.getState();
-
-          if (store.status === 'playing') {
-            return;
-          }
-
-          if (canResumeLoadedChapter(store)) {
-            await resume();
-            return;
-          }
-
-          if (store.currentBookId && store.currentChapter) {
-            await playChapterForTranslation(
-              store.currentTranslationId ?? translationId,
-              store.currentBookId,
-              store.currentChapter,
-              undefined,
-              { startPositionMs: store.lastPosition }
-            );
-            return;
-          }
-
-          if (store.lastPlayedBookId && store.lastPlayedChapter) {
-            await playChapterForTranslation(
-              store.lastPlayedTranslationId ?? translationId,
-              store.lastPlayedBookId,
-              store.lastPlayedChapter,
-              undefined,
-              { startPositionMs: store.lastPosition }
-            );
+        case 'play':
+          await playFromRemote();
+          return;
+        case 'toggle': {
+          // A chapter still loading is on its way to playing, so the button pauses it.
+          const { status: statusAtToggle } = useAudioStore.getState();
+          if (statusAtToggle === 'playing' || statusAtToggle === 'loading') {
+            await pause();
+          } else {
+            await playFromRemote();
           }
           return;
         }

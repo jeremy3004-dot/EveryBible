@@ -2718,6 +2718,54 @@ test('the remote pause command pauses playback', async () => {
   assert.equal(store().status, 'paused');
 });
 
+// The headset button (wired or Bluetooth) and CarPlay send a toggle, not play or
+// pause. iOS delivered it as "play", which is ignored while playing, so the button
+// could start the audio but never pause it.
+test('the remote toggle command pauses a chapter that is playing', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  player.rerender();
+
+  await remoteCommandListener?.({ command: 'toggle' });
+
+  assert.equal(store().status, 'paused');
+  assert.equal(playerCalls('pause').length, 1);
+});
+
+test('the remote toggle command resumes a paused chapter', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setPosition(30_000);
+  await player.rerender().pause();
+  recorded.player.length = 0;
+
+  await remoteCommandListener?.({ command: 'toggle' });
+
+  assert.equal(store().status, 'playing');
+  assert.equal(playerCalls('resume').length, 1);
+});
+
+test('the remote toggle command pauses a chapter that is still loading', async () => {
+  let release!: () => void;
+  playerGates.set(
+    'load:https://cdn.example/bsb/GEN/1.mp3',
+    new Promise<void>((resolve) => {
+      release = resolve;
+    })
+  );
+  const player = mountPlayer();
+  const starting = player.api.playChapter('GEN', 1);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(store().status, 'loading');
+
+  await remoteCommandListener?.({ command: 'toggle' });
+  release();
+  await starting;
+
+  assert.equal(store().status, 'paused');
+  assert.equal(playerCalls('loadAndPlay').length, 1);
+});
+
 test('the remote play command resumes a loaded chapter', async () => {
   const player = mountPlayer();
   await player.api.playChapter('GEN', 1);

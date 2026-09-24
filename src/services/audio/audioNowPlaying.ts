@@ -11,7 +11,9 @@ type RemoteCommandName =
   | 'previous'
   | 'seek-forward'
   | 'seek-backward'
-  | 'seek-position';
+  | 'seek-position'
+  // The headset / Bluetooth / CarPlay play-pause button (iOS togglePlayPauseCommand).
+  | 'toggle';
 
 export interface BibleNowPlayingRemoteCommand {
   command: RemoteCommandName;
@@ -61,7 +63,8 @@ function coerceRemoteCommandName(value: unknown): RemoteCommandName | null {
     value === 'previous' ||
     value === 'seek-forward' ||
     value === 'seek-backward' ||
-    value === 'seek-position'
+    value === 'seek-position' ||
+    value === 'toggle'
   ) {
     return value;
   }

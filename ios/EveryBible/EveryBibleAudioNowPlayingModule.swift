@@ -151,8 +151,10 @@ class EveryBibleAudioNowPlayingModule: RCTEventEmitter {
       self?.sendCommand("pause")
       return .success
     }
+    // The headset, Bluetooth and CarPlay play/pause button. JS decides which way to
+    // go from the live player state; "play" here could never pause.
     center.togglePlayPauseCommand.addTarget { [weak self] _ in
-      self?.sendCommand("play")
+      self?.sendCommand("toggle")
       return .success
     }
     center.stopCommand.addTarget { [weak self] _ in
