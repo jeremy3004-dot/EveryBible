@@ -622,7 +622,7 @@ await assert.rejects(
 console.log('PASS: pushes are claimed once per fresh session, by a current member, within limits');
 
 // --- S1: create_group() is the only way to create a group ------------------------------------
-// 20260924200200 retires the direct INSERT the client used before create_group() existed: it let
+// 20260924113024 retires the direct INSERT the client used before create_group() existed: it let
 // a client pick the id, join code, timestamps and archive state, and skip the leader membership.
 // Replayed last because the setup above still creates its fixtures through that old path.
 await db.exec(

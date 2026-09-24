@@ -1,5 +1,5 @@
 -- Retire direct INSERTs into public.groups (security review 2026-09-24, pass 2, finding S1).
--- NOT YET APPLIED.
+-- Applied live 2026-09-24.
 --
 -- 20260924042319 added public.create_group() so a group, its leader's membership and a
 -- server-drawn join code are created in one transaction (health check G9/G6: codes used to come

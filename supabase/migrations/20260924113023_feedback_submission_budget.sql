@@ -1,5 +1,5 @@
 -- Chapter-feedback submission rate-limit race (security review 2026-09-24, pass 2, finding E3).
--- NOT YET APPLIED.
+-- Applied live 2026-09-24.
 --
 -- submit-chapter-feedback runs with verify_jwt = false. Its 20-per-hour limit (per user, or per
 -- hashed client address for anonymous callers) was a COUNT over chapter_feedback_submissions,

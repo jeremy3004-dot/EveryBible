@@ -1,4 +1,4 @@
--- Passcode lockout race (security review 2026-09-24, pass 2, finding E1). NOT YET APPLIED.
+-- Passcode lockout race (security review 2026-09-24, pass 2, finding E1). Applied live 2026-09-24.
 --
 -- review-chapter-feedback and the Scripture Council gate read the failure count for a client
 -- address once, then checked the passcode, and only recorded a failure afterwards. N parallel
