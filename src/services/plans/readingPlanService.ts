@@ -558,10 +558,11 @@ async function mergeServerRowsBeforePush(
       serverRows.forEach(mergeServerRowIntoLive);
     });
     const storedPlanIds = new Set(serverRows.map((row) => row.plan_id));
+    const [firstRawRow] = rawRows;
     return merged.applied
       ? {
           outcome: 'merged',
-          sessionColumns: rawRows.length > 0 ? 'completed_sessions' in rawRows[0] : null,
+          sessionColumns: firstRawRow ? 'completed_sessions' in firstRawRow : null,
           unenrollments,
           clockPlanIds: new Set(
             planIds.filter((planId) => unenrollments?.has(planId) && !storedPlanIds.has(planId))

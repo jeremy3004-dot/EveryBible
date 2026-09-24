@@ -1,10 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readingPlanEntriesByPlanId } from '../../data/readingPlans.generated';
+import { assertDefined } from '../../utils/assertDefined';
 import { formatPlanPassageReference, getPlanChapterFocusVerse } from './readingPlanPassage';
 
 test('Sermon on the Mount shows all seven exact verse assignments and focuses their first verse', () => {
-  const entries = readingPlanEntriesByPlanId['sermon-on-the-mount-7-days'];
+  const entries = assertDefined(
+    readingPlanEntriesByPlanId['sermon-on-the-mount-7-days'],
+    'the Sermon on the Mount entries'
+  );
   assert.deepEqual(
     entries.map((entry) => formatPlanPassageReference(entry, 'Matthew')),
     [
@@ -27,9 +31,15 @@ test('Sermon on the Mount shows all seven exact verse assignments and focuses th
 });
 
 test('whole-chapter assignments retain their references and default scroll position', () => {
-  const entry = readingPlanEntriesByPlanId['bible-in-30-days'][0];
+  const entry = assertDefined(
+    readingPlanEntriesByPlanId['bible-in-30-days']?.[0],
+    'the first Bible-in-30-days entry'
+  );
   assert.equal(formatPlanPassageReference(entry, 'Genesis'), 'Genesis 1–40');
   assert.equal(getPlanChapterFocusVerse([entry], 'GEN', 1), undefined);
-  const proverb = readingPlanEntriesByPlanId['proverbs-31-days'][0];
+  const proverb = assertDefined(
+    readingPlanEntriesByPlanId['proverbs-31-days']?.[0],
+    'the first Proverbs entry'
+  );
   assert.equal(formatPlanPassageReference(proverb, 'Proverbs'), 'Proverbs 1');
 });
