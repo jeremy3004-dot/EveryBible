@@ -130,6 +130,33 @@ test('a disabled ListRow is announced as disabled and ignores presses', async ()
   assert.deepEqual(harness.haptics, [], 'a disabled row does not buzz either');
 });
 
+// The 0.45 dimming alone falls below AA, so disabled must also be announced
+// (WCAG 1.4.1 — state is not carried by colour alone). contrastAudit.test.ts
+// records why the dimming itself is exempt.
+test('a disabled IconButton is dimmed, announced as disabled, and ignores presses', async () => {
+  const { IconButton } = await import('./IconButton');
+  const Glyph = (() => null) as unknown as import('lucide-react-native').LucideIcon;
+  let pressed = 0;
+  const view = await harness.render(
+    <IconButton icon={Glyph} accessibilityLabel="Share" disabled onPress={() => (pressed += 1)} />
+  );
+
+  const button = view.getByRole('button', { name: 'Share', disabled: true });
+  assert.equal(button.props.accessibilityState?.disabled, true);
+  assert.equal(flattenStyle(button.props.style).opacity, 0.45);
+  await view.press(button);
+  assert.equal(pressed, 0);
+  assert.deepEqual(harness.haptics, []);
+
+  await view.rerender(
+    <IconButton icon={Glyph} accessibilityLabel="Share" onPress={() => (pressed += 1)} />
+  );
+  const enabled = view.getByRole('button', { name: 'Share', disabled: false });
+  assert.equal(flattenStyle(enabled.props.style).opacity, undefined);
+  await view.press(enabled);
+  assert.equal(pressed, 1);
+});
+
 test('ListRow passes accessible={false} through so a trailing Switch stays its own focus stop', async () => {
   const { ListRow } = await import('./ListRow');
   const { Switch } = harness.rn;
