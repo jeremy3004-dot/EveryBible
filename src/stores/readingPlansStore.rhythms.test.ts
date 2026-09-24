@@ -247,7 +247,7 @@ test('leaving a plan removes it from its rhythm and drops a rhythm left empty', 
   store.getState().enrollPlan('plan-b');
 
   store.getState().unenrollPlan('plan-a');
-  store.getState().endPlanLeftElsewhere('plan-b');
+  store.getState().endPlanLeftElsewhere('plan-b', new Date().toISOString());
 
   assert.deepEqual(describeItems(store.getState().getRhythm(mixed?.id ?? '')?.items), ['PSA 1']);
   assert.equal(store.getState().getRhythm(onlyPlan?.id ?? ''), null);

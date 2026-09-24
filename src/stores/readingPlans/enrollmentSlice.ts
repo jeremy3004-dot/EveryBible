@@ -107,10 +107,12 @@ export const createEnrollmentSlice: ReadingPlansSliceCreator<EnrollmentSlice> = 
     }));
   },
 
-  endPlanLeftElsewhere: (planId) => {
+  endPlanLeftElsewhere: (planId, storedLeftAt) => {
     set((state) => ({
       ...state,
       ...withoutPlan(state, planId),
+      // A re-join here starts after it, as after this phone's own confirmed leave.
+      serverLeftAtByPlanId: { ...state.serverLeftAtByPlanId, [planId]: storedLeftAt },
     }));
   },
 

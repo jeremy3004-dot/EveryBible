@@ -1,6 +1,6 @@
 import { readingPlansStore, type ReadingPlansStoreApi } from '../../../stores/readingPlansStore';
 import { mergePlanProgress } from '../readingPlanModel';
-import type { UserReadingPlanProgress } from '../types';
+import type { ReadingPlansStoreState, UserReadingPlanProgress } from '../types';
 import {
   getPlansTheServerSkipped,
   getProgressEndedElsewhere,
@@ -61,10 +61,23 @@ export function getLivePushableProgress(planIds: string[]): UserReadingPlanProgr
     .filter((progress): progress is UserReadingPlanProgress => progress !== null);
 }
 
+/** Ends a plan a server tombstone ended, remembering that leave as the server stored it. */
+function endPlanWithStoredLeave(
+  store: ReadingPlansStoreState,
+  planId: string,
+  unenrollments: Map<string, string>
+): void {
+  const storedLeftAt = unenrollments.get(planId);
+  if (storedLeftAt !== undefined) {
+    store.endPlanLeftElsewhere(planId, storedLeftAt);
+  }
+}
+
 /**
  * Removes live enrolments that were left on another device. Re-reads the live row,
- * so a re-join made while the tombstones were in flight is kept. Call inside the
- * identity boundary.
+ * so a re-join made while the tombstones were in flight is kept. The leave is remembered as
+ * the server stored it, so a re-join here starts after it even on a phone whose clock runs
+ * slow. Call inside the identity boundary.
  */
 export function endPlansLeftElsewhere(unenrollments: Map<string, string> | null): void {
   if (!unenrollments) {
@@ -72,7 +85,7 @@ export function endPlansLeftElsewhere(unenrollments: Map<string, string> | null)
   }
   const store = readingPlansStore.getState();
   getProgressEndedElsewhere(Object.values(store.progressByPlanId), unenrollments).forEach(
-    (planId) => store.endPlanLeftElsewhere(planId)
+    (planId) => endPlanWithStoredLeave(store, planId, unenrollments)
   );
 }
 
@@ -115,8 +128,8 @@ export function withRebasedLiveStart(
 }
 
 /**
- * Drops the plans the server skipped as ended (see getPlansTheServerSkipped). Call inside the
- * identity boundary.
+ * Drops the plans the server skipped as ended (see getPlansTheServerSkipped), remembering the
+ * leave that ended each. Call inside the identity boundary.
  */
 export function endPlansTheServerSkipped(
   sentPlanIds: string[],
@@ -132,7 +145,7 @@ export function endPlansTheServerSkipped(
     storedRows,
     unenrollments,
     (planId) => !store.pendingUnenrollPlanIds.includes(planId) && store.getProgress(planId) !== null
-  ).forEach((planId) => store.endPlanLeftElsewhere(planId));
+  ).forEach((planId) => endPlanWithStoredLeave(store, planId, unenrollments));
 }
 
 /**
