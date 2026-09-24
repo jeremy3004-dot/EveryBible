@@ -391,3 +391,48 @@ test('starting and queueing downloads redraws only the rows whose state changed'
   await startDownload(view, SPANISH_RV);
   assert.deepEqual(rowRenders(mark), { RV: 1 }, 'only the queued row changes');
 });
+
+test('typing within a language match keeps the language row and the Bible rows as they were', async () => {
+  const view = await renderPicker();
+  const search = () => view.getByTestId('translation-picker-search');
+  await view.changeText(search(), 'spanis');
+  assert.ok(view.getByTestId('translation-picker-language-search-result'));
+
+  const mark = harness.renders.mark();
+  await view.changeText(search(), 'spanish');
+  assert.equal(
+    harness.renders.count(
+      mark,
+      'TouchableOpacity',
+      (props) => props.testID === 'translation-picker-language-search-result'
+    ),
+    0
+  );
+  assert.deepEqual(rowRenders(mark), {});
+});
+
+test('a download starting leaves the language pill alone', async () => {
+  const view = await renderPicker();
+  const mark = harness.renders.mark();
+  await startDownload(view, NET);
+
+  assert.equal(
+    harness.renders.count(
+      mark,
+      'TouchableOpacity',
+      (props) => props.testID === 'translation-picker-language-pill'
+    ),
+    0
+  );
+});
+
+test('the language list closes itself when the catalog drops to one language', async () => {
+  const view = await renderPicker();
+  await view.press(view.getByTestId('translation-picker-language-pill'));
+  assert.equal(view.queryByTestId('translation-picker-search'), null);
+
+  await inAct(() => useBibleStore.setState({ translations: [BSB, KJV, NET] }));
+
+  assert.ok(view.getByTestId('translation-picker-search'), 'back on the translation list');
+  assert.equal(view.queryByTestId('translation-picker-language-pill'), null);
+});
