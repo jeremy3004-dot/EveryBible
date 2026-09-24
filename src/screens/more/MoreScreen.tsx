@@ -381,7 +381,8 @@ function initialsFrom(name: string): string {
   const words = name.trim().split(/\s+/).filter(Boolean);
   return words
     .slice(0, 2)
-    .map((word) => word[0]?.toUpperCase() ?? '')
+    // By code point: `word[0]` is half of an emoji's surrogate pair, drawn as a box.
+    .map((word) => Array.from(word)[0]?.toUpperCase() ?? '')
     .join('');
 }
 

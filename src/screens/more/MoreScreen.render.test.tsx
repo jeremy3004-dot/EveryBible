@@ -285,3 +285,16 @@ test('the More stack registers no Library screen and no navigator has a Library 
     ['Library', 'Library', 'Library']
   );
 });
+
+test('an account name starting with an emoji or astral-plane letter keeps whole characters in its initials', async () => {
+  harness.authStore.setState({
+    isAuthenticated: true,
+    user: { uid: 'user-2', displayName: '😀 𝒥oy', email: 'joy@example.com', photoURL: null },
+    preferencesUpdatedAt: null,
+  });
+  const view = await renderMore();
+
+  const card = view.getByRole('button', { name: '😀 𝒥oy' });
+  // A lone UTF-16 surrogate draws as a replacement box on device.
+  assert.ok(within(card).getByText('😀𝒥'));
+});
