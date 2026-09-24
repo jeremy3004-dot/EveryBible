@@ -348,4 +348,22 @@ Applied to production (versions as recorded in `supabase_migrations.schema_migra
 | L8 profile email | `20260923233721_protect_profile_email` | 0 profile/auth email mismatches |
 | L7 raw errors, L9 account deletion | edge deploys above; L9 ships with the next app release | — |
 
-Still open: per-team translator passcodes / contributor-name policy (see `translator-access-options-2026-09-24.md`), leaked-password protection and TOTP MFA (dashboard settings), and moving admin-only catalog columns to a side table.
+Still open: per-team translator passcodes / contributor-name policy (see `translator-access-options-2026-09-24.md`), leaked-password protection and TOTP MFA (dashboard settings), and the M3 side-table move below.
+
+**M3 follow-up (written, not applied).** `admin_notes`, `upstream_payload`, `upstream_external_id`
+and `sync_run_id` move from `translation_catalog` to `translation_catalog_admin` (RLS on, no
+policies, client grants revoked). Dropping the columns keeps `select('*')` working in every shipped
+build; it just stops returning them. Apply in this order:
+
+1. `20260924120000_add_translation_catalog_admin_side_table` — creates and backfills the side table
+   and installs a transition trigger that mirrors the old admin build's writes to the old columns.
+   Safe while the old admin build is still serving.
+2. Deploy `apps/admin` (reads the side table through a PostgREST embed, writes notes and upstream
+   provenance to it).
+3. `20260924120100_drop_translation_catalog_admin_columns` — only after step 2 is live everywhere;
+   the old build selects these columns by name. Drops the trigger, reconciles, drops the columns.
+
+Verify after step 3: `select column_name from information_schema.columns where table_name =
+'translation_catalog'` lists none of the four; `has_table_privilege('anon',
+'public.translation_catalog_admin', 'SELECT')` is false; the admin translation detail page still
+shows notes and the upstream payload.

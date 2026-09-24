@@ -131,3 +131,132 @@ test('client roles hold no write privileges on translation_catalog', () => {
     'Expected a migration that revokes catalog write privileges from anon and authenticated'
   );
 });
+
+// ---------------------------------------------------------------------------
+// Admin-only columns (M3 follow-up)
+//
+// admin_notes, upstream_payload, upstream_external_id and sync_run_id are operator data. Because
+// shipped builds select('*') and client SELECT cannot be revoked per column, the only way to hide
+// them from anon/authenticated is to move them out of translation_catalog into a side table that
+// client roles cannot read at all.
+// ---------------------------------------------------------------------------
+
+const ADMIN_ONLY_COLUMNS = [
+  'admin_notes',
+  'upstream_payload',
+  'upstream_external_id',
+  'sync_run_id',
+] as const;
+const SIDE_TABLE = String.raw`(?:public\.)?"?translation_catalog_admin"?`;
+
+/** Columns of translation_catalog added or dropped by ALTER TABLE, replayed in filename order. */
+function replayAdminOnlyCatalogColumns(): Set<string> {
+  const present = new Set<string>();
+  const alterPattern = new RegExp(String.raw`^alter table (?:if exists )?(?:only )?${TABLE} (.*)$`);
+  const columnChange = /\b(add|drop) column (?:if (?:not )?exists )?"?(\w+)"?/g;
+
+  for (const file of migrationFiles()) {
+    for (const statement of statementsIn(file)) {
+      const altered = alterPattern.exec(statement);
+      if (!altered) {
+        continue;
+      }
+      for (const [, action, column] of altered[1].matchAll(columnChange)) {
+        if (!(ADMIN_ONLY_COLUMNS as readonly string[]).includes(column)) {
+          continue;
+        }
+        if (action === 'add') {
+          present.add(column);
+        } else {
+          present.delete(column);
+        }
+      }
+    }
+  }
+
+  return present;
+}
+
+test('admin-only columns no longer live on translation_catalog after all migrations', () => {
+  assert.deepEqual([...replayAdminOnlyCatalogColumns()], []);
+});
+
+test('the admin-only side table exists with RLS on and no client access', () => {
+  const statements = migrationFiles().flatMap((file) => statementsIn(file));
+
+  assert.ok(
+    statements.some((statement) =>
+      new RegExp(String.raw`^create table (?:if not exists )?${SIDE_TABLE} \(`).test(statement)
+    ),
+    'Expected a migration that creates translation_catalog_admin'
+  );
+  for (const column of ADMIN_ONLY_COLUMNS) {
+    assert.ok(
+      statements.some(
+        (statement) =>
+          new RegExp(String.raw`^create table (?:if not exists )?${SIDE_TABLE} \(`).test(
+            statement
+          ) && new RegExp(String.raw`\b${column}\b`).test(statement)
+      ),
+      `translation_catalog_admin must carry ${column}`
+    );
+  }
+  assert.ok(
+    statements.some((statement) =>
+      new RegExp(String.raw`^alter table ${SIDE_TABLE} enable row level security$`).test(statement)
+    ),
+    'translation_catalog_admin must have RLS enabled'
+  );
+  assert.ok(
+    statements.some((statement) =>
+      new RegExp(
+        String.raw`^revoke all(?: privileges)? on (?:table )?${SIDE_TABLE} from (?=.*\banon\b)(?=.*\bauthenticated\b)`
+      ).test(statement)
+    ),
+    'translation_catalog_admin must revoke the default client grants'
+  );
+  for (const statement of statements) {
+    assert.doesNotMatch(
+      statement,
+      new RegExp(String.raw`^create policy .* on ${SIDE_TABLE} `),
+      'translation_catalog_admin must have no RLS policies (service role only)'
+    );
+    if (new RegExp(String.raw`^grant .* on (?:table )?${SIDE_TABLE} to `).test(statement)) {
+      assert.ok(
+        !CLIENT_ROLES.some((role) => new RegExp(String.raw`\b${role}\b`).test(statement)),
+        `translation_catalog_admin must not be granted to a client role: ${statement}`
+      );
+    }
+  }
+});
+
+test('the column drop runs in a later migration than the side table, after the mirror trigger is removed', () => {
+  const files = migrationFiles();
+  const createFile = files.find((file) =>
+    statementsIn(file).some((statement) =>
+      new RegExp(String.raw`^create table (?:if not exists )?${SIDE_TABLE} \(`).test(statement)
+    )
+  );
+  const dropFile = files.find((file) =>
+    statementsIn(file).some((statement) =>
+      new RegExp(String.raw`^alter table (?:if exists )?${TABLE} .*\bdrop column\b`).test(statement)
+    )
+  );
+  assert.ok(createFile && dropFile, 'Expected both the side-table and the column-drop migrations');
+  assert.ok(
+    createFile < dropFile,
+    'Columns must be dropped in a separate, later migration so the old admin build keeps working until the new one is deployed'
+  );
+
+  const dropStatements = statementsIn(dropFile);
+  const dropTriggerIndex = dropStatements.findIndex((statement) =>
+    new RegExp(String.raw`^drop trigger (?:if exists )?\w+ on ${TABLE}$`).test(statement)
+  );
+  const dropColumnIndex = dropStatements.findIndex((statement) =>
+    /\bdrop column\b/.test(statement)
+  );
+  assert.ok(
+    dropTriggerIndex >= 0 && dropTriggerIndex < dropColumnIndex,
+    'The transition mirror trigger must be dropped before its columns'
+  );
+});
