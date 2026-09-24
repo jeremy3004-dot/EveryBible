@@ -309,6 +309,31 @@ test('a flood from one address makes one paid geo lookup and reuses the cached r
   assert.ok(rows.every((row) => row.geo_country_code === 'US' && row.geo_city === 'New York'));
 });
 
+test('a client-sent x-forwarded-for is never used for the geo lookup', async () => {
+  const h = collector();
+  const { geo_source: _source, ...needsRequestGeo } = h.event;
+  const response = await h.send([needsRequestGeo], {
+    'cf-connecting-ip': '',
+    'x-forwarded-for': '198.51.100.4',
+  });
+  assert.equal(response.status, 200);
+  assert.equal(h.geoLookups(), 0);
+  const row = [...h.stored.values()][0];
+  assert.equal(row.geo_country_code, 'GB');
+  assert.equal(row.geo_source, 'cf_ipcountry');
+});
+
+test('the edge-stamped x-real-ip is used when Cloudflare supplies no address', async () => {
+  const h = collector();
+  const { geo_source: _source, ...needsRequestGeo } = h.event;
+  await h.send([needsRequestGeo], {
+    'cf-connecting-ip': '',
+    'x-forwarded-for': '198.51.100.4',
+    'x-real-ip': '198.51.100.9',
+  });
+  assert.equal(h.geoLookups(), 1);
+});
+
 test('when the limiter is unavailable events are still stored but no paid lookup is made', async () => {
   const h = collector(null, 'unavailable');
   const { geo_source: _source, ...needsRequestGeo } = h.event;
