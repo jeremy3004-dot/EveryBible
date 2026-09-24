@@ -227,6 +227,7 @@ export function BibleBrowserScreen() {
           results={search.searchResults}
           isSearching={search.isSearching}
           error={search.searchError}
+          hasNoResults={search.hasNoResults}
           contentContainerStyle={searchResultsContentStyle}
           onPressResult={handleSearchResultPress}
         />

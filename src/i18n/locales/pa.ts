@@ -258,6 +258,7 @@ export const pa = {
     translationDownloadFailedTitle: 'ਡਾਊਨਲੋਡ ਅਸਫਲ ਰਿਹਾ',
     translationDownloadFailed:
       'ਇਹ ਬਾਈਬਲ ਪੂਰੀ ਡਾਊਨਲੋਡ ਨਹੀਂ ਹੋ ਸਕੀ। ਆਪਣਾ ਇੰਟਰਨੈੱਟ ਕਨੈਕਸ਼ਨ ਅਤੇ ਖਾਲੀ ਥਾਂ ਜਾਂਚੋ, ਫਿਰ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
+    searchNoResults: 'ਤੁਹਾਡੀ ਖੋਜ ਨਾਲ ਮੇਲ ਖਾਂਦੀ ਕੋਈ ਆਇਤ ਨਹੀਂ ਮਿਲੀ।',
     searchUnavailable: 'ਇਸ ਅਨੁਵਾਦ ਲਈ ਪੂਰੀ-ਪਾਠ ਖੋਜ ਅਜੇ ਉਪਲਬਧ ਨਹੀਂ ਹੈ।',
     noVersesAvailable: '{{book}} {{chapter}} ਦਾ ਲਿਖਤੀ ਪਾਠ ਅਜੇ ਉਪਲਬਧ ਨਹੀਂ ਹੈ।',
     fullBibleComingSoon: 'ਇਹ ਅਧਿਆਇ ਇਸ ਅਨੁਵਾਦ ਵਿੱਚ ਅਜੇ ਲਿਖਤ ਜਾਂ ਆਡੀਓ ਵਜੋਂ ਉਪਲਬਧ ਨਹੀਂ ਹੈ।',

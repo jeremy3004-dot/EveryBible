@@ -19,6 +19,8 @@ export interface BibleSearchState {
   searchResults: Verse[];
   isSearching: boolean;
   searchError: string | null;
+  /** The current full-text query finished and matched nothing. */
+  hasNoResults: boolean;
   /** Resolves the live (not deferred) query, for a keyboard submit. */
   resolveSubmitIntent: () => BibleSearchIntent;
 }
@@ -38,6 +40,9 @@ export function useBibleSearch(
   const [searchResults, setSearchResults] = useState<Verse[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  // Which translation + query the current results answer, so "no results" is shown only
+  // for a search that actually finished, not while a new query waits for its debounce.
+  const [completedSearchKey, setCompletedSearchKey] = useState<string | null>(null);
   const searchRequestIdRef = useRef(0);
   const deferredSearchQuery = useDeferredValue(searchQuery);
 
@@ -56,6 +61,7 @@ export function useBibleSearch(
     if (searchIntent.kind !== 'full-text') {
       searchRequestIdRef.current += 1;
       setSearchResults([]);
+      setCompletedSearchKey(null);
       setSearchError(null);
       setIsSearching(false);
 
@@ -77,6 +83,7 @@ export function useBibleSearch(
 
           if (!isCancelled && requestId === searchRequestIdRef.current) {
             setSearchResults(results);
+            setCompletedSearchKey(toSearchKey(translationId, searchIntent.query));
             // Results land under the search field while focus stays in it; without
             // this a screen-reader user cannot tell a finished search (or an empty
             // one) from a search still running.
@@ -107,6 +114,13 @@ export function useBibleSearch(
     };
   }, [translationId, searchIntent, failedToLoadMessage, searchUnavailableMessage, t]);
 
+  const hasNoResults =
+    searchIntent.kind === 'full-text' &&
+    completedSearchKey === toSearchKey(translationId, searchIntent.query) &&
+    !isSearching &&
+    searchError === null &&
+    searchResults.length === 0;
+
   const clearSearch = useCallback(() => setSearchQuery(''), []);
   const resolveSubmitIntent = useCallback(
     () => resolveBibleSearchIntent(searchQuery, parseRef),
@@ -121,6 +135,11 @@ export function useBibleSearch(
     searchResults,
     isSearching,
     searchError,
+    hasNoResults,
     resolveSubmitIntent,
   };
+}
+
+function toSearchKey(translationId: string, query: string): string {
+  return `${translationId}\u0000${query}`;
 }

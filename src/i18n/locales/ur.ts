@@ -554,6 +554,7 @@ export const ur = {
     translationDownloadFailedTitle: 'ڈاؤن لوڈ ناکام ہو گیا',
     translationDownloadFailed:
       'یہ بائبل مکمل ڈاؤن لوڈ نہیں ہو سکی۔ اپنا انٹرنیٹ کنکشن اور خالی جگہ چیک کریں، پھر دوبارہ کوشش کریں۔',
+    searchNoResults: 'آپ کی تلاش سے کوئی آیت نہیں ملی۔',
     searchUnavailable: 'اس ترجمے میں مکمل متن کی تلاش ابھی دستیاب نہیں ہے۔',
     noVersesAvailable: '{{book}} {{chapter}} کا تحریری متن ابھی دستیاب نہیں ہے۔',
     fullBibleComingSoon: 'یہ باب اس ترجمے میں ابھی متن یا آڈیو کے طور پر دستیاب نہیں ہے۔',
