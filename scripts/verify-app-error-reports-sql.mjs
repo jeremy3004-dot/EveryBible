@@ -1,5 +1,5 @@
 // An isolated in-memory Postgres check for the app-error-report migration
-// (supabase/migrations/20260924120000_app_error_reports.sql). It never connects to Supabase.
+// (supabase/migrations/20260924043614_app_error_reports.sql). It never connects to Supabase.
 //
 // Install @electric-sql/pglite in a temporary folder and set PGLITE_MODULE to its entrypoint:
 //   npm i --prefix /tmp/pglite @electric-sql/pglite
@@ -15,7 +15,7 @@ import assert from 'node:assert/strict';
 
 const MIGRATIONS = [
   '20260923233256_analytics_ingest_throttle.sql',
-  '20260924120000_app_error_reports.sql',
+  '20260924043614_app_error_reports.sql',
 ];
 
 const db = new PGlite();

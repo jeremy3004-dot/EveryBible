@@ -72,7 +72,7 @@ synchronous code: render, effects, tap handlers, and native callbacks.
 - **Remote crash reporting.** Done in a follow-up without touching analytics: a
   dedicated anonymous path (`src/services/diagnostics/crashReportQueue.ts` →
   `supabase/functions/report-app-errors` → `app_error_reports`, migration
-  `20260924120000_app_error_reports.sql`) and the admin "App errors" page. Native
+  `20260924043614_app_error_reports.sql`) and the admin "App errors" page. Native
   crashes (outside JS) still need a crash SDK (Sentry or Crashlytics) and external
   account setup.
 - **Findings 8 and 9** (listed above).
