@@ -45,6 +45,21 @@ export interface InterfaceLanguageSelectionResult {
   changeLanguageError: unknown | null;
 }
 
+/**
+ * First run (and the re-run after sign-out) starts from the language the interface is
+ * actually showing; the stored preference there is only the app default. Settings starts
+ * from the stored choice.
+ */
+export function getInitialInterfaceLanguageCode(
+  mode: SetupMode,
+  {
+    currentLanguage,
+    preferredLanguage,
+  }: { currentLanguage: LanguageCode; preferredLanguage: LanguageCode }
+): LanguageCode {
+  return mode === 'initial' ? currentLanguage : preferredLanguage;
+}
+
 export function getLocaleSetupSteps(mode: SetupMode): SetupStep[] {
   if (mode === 'settings') {
     return ['country', 'contentLanguage'];

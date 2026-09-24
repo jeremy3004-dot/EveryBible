@@ -20,6 +20,7 @@ import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { PrivacyLockScreen } from './src/components/privacy/PrivacyLockScreen';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import i18n, { changeLanguage } from './src/i18n';
+import { getStoredInterfaceLanguageToApply } from './src/i18n/interfaceLanguagePolicy';
 import {
   createAuthInitializer,
   createPrivacyRetryInitializer,
@@ -310,11 +311,12 @@ function LoadingScreen() {
     )
   );
 
+  const storedInterfaceLanguage = getStoredInterfaceLanguageToApply(preferences);
   useEffect(() => {
-    if (preferences.language) {
-      void changeLanguage(preferences.language);
+    if (storedInterfaceLanguage) {
+      void changeLanguage(storedInterfaceLanguage);
     }
-  }, [preferences.language]);
+  }, [storedInterfaceLanguage]);
 
   useEffect(() => {
     if (!isReady || !preferences.onboardingCompleted || !isPrivacyInitialized || isPrivacyLocked) {
