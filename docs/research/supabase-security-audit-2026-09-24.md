@@ -404,7 +404,7 @@ state was checked read-only (MCP `execute_sql` with SELECT / `pg_get_functiondef
 Also reported, with no fix proposed: account deletion has no re-authentication (a single confirm
 in `DeleteAccountModal.tsx`); the privacy PIN lockout is wall-clock based, so changing the device
 clock skips it; analytics and crash reporting continue in discreet mode. Repo migration
-`20260924130000_merge_user_progress_same_day_ties` is not applied live.
+`20260924111958_merge_user_progress_same_day_ties` (repo name was 20260924130000) was applied live on 2026-09-24.
 
 ### Checked and sound
 
