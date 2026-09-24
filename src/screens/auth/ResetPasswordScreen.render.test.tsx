@@ -146,3 +146,65 @@ test('an unconfigured backend says so and does not offer a new link', async () =
   assert.ok(view.getByText(t('auth.backendNotConfigured')));
   assert.equal(view.queryByRole('button', { name: t('auth.sendNewResetLink') }), null);
 });
+
+test('a new password shorter than six characters, or not repeated exactly, is not sent', async () => {
+  const view = await renderReset();
+  await continueToForm(view);
+
+  await view.changeText(view.getByLabelText(t('auth.newPassword')), '12345');
+  await view.changeText(view.getByLabelText(t('auth.confirmNewPassword')), '12345');
+  await view.press(view.getByRole('button', { name: t('auth.resetPasswordSubmit') }));
+  assert.ok(view.getByLabelText(`${t('auth.newPassword')}, ${t('auth.passwordMinLength')}`));
+
+  await view.changeText(
+    view.getByLabelText(`${t('auth.newPassword')}, ${t('auth.passwordMinLength')}`),
+    'new-secret'
+  );
+  await view.changeText(view.getByLabelText(t('auth.confirmNewPassword')), 'new-secre');
+  await view.press(view.getByRole('button', { name: t('auth.resetPasswordSubmit') }));
+  assert.ok(view.getByText(t('auth.passwordsDoNotMatch')));
+
+  assert.deepEqual(pulls, []);
+  assert.equal(
+    harness.rn.__recorded.alerts.some((alert) => alert.title === t('auth.resetPasswordSuccess')),
+    false
+  );
+});
+
+test('a password update refused while the service is down says so, translated', async () => {
+  recovery.updateResult = { success: false, code: 'service_unavailable', error: 'raw 503' };
+  const view = await renderReset();
+  await continueToForm(view);
+  await submitNewPassword(view);
+
+  assert.ok(view.getByText(t('auth.serviceUnavailable')));
+  assert.equal(view.queryByText('raw 503'), null);
+});
+
+test('a failed request for a new link keeps the reader on the screen with the reason', async () => {
+  recovery.pending = null;
+  recovery.resetResult = { success: false };
+  const view = await renderReset();
+
+  await view.changeText(view.getByLabelText(t('auth.email')), 'ruth@example.com');
+  await view.press(view.getByRole('button', { name: t('auth.sendNewResetLink') }));
+
+  assert.deepEqual(recovery.resets, ['ruth@example.com']);
+  assert.ok(view.getByLabelText(`${t('auth.email')}, ${t('auth.resetEmailError')}`));
+  assert.equal(
+    harness.rn.__recorded.alerts.some((alert) => alert.title === t('auth.checkYourEmail')),
+    false
+  );
+});
+
+test('cancelling a reset closes the flow without exchanging anything', async () => {
+  const view = await renderReset();
+
+  await view.press(view.getAllByRole('button', { name: t('common.cancel') })[0]);
+
+  assert.equal(recovery.signOuts, 0);
+  assert.deepEqual(
+    harness.navigation.calls.map((call) => call.method),
+    ['goBack']
+  );
+});
