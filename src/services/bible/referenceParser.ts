@@ -296,7 +296,7 @@ export const parsePassageReference = (query: string): PassageReferenceTarget | n
  *
  * When the locale-specific parser does not find a match, the English parser is tried
  * as a secondary fallback so that English references still work regardless of UI language,
- * and then `bookNames`, the book names the interface shows, when given.
+ * and then, for a language without a grammar, `bookNames`: the book names the interface shows.
  */
 export const parsePassageReferenceLocale = (
   query: string,
@@ -319,5 +319,9 @@ export const parsePassageReferenceLocale = (
     }
   }
 
-  return bookNames ? parseWithBookNames(query, bookNames) : null;
+  // Only where no grammar covers the language: a grammar that rejected "John 3:99" knows the
+  // verse counts, which the name fallback does not.
+  return bookNames && !isSupportedParserLocale(locale)
+    ? parseWithBookNames(query, bookNames)
+    : null;
 };

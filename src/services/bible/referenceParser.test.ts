@@ -361,3 +361,10 @@ test('reads the chapter-and-verse counters Chinese, Japanese and Korean referenc
   assert.equal(parsePassageReferenceLocale('시편 23편', 'ko', koNames)?.chapter, 23);
   assert.equal(parsePassageReferenceLocale('约翰福音 3节', 'zh', zhNames), null);
 });
+
+test('interface book names do not override a grammar that rejected the reference', () => {
+  // The English grammar knows John 3 has 36 verses; the name fallback does not.
+  const enNames = bibleBooks.map((book) => ({ bookId: book.id, name: book.name }));
+  assert.equal(parsePassageReferenceLocale('John 3:99', 'en', enNames), null);
+  assert.equal(parsePassageReferenceLocale('Juan 3:99', 'es', enNames), null);
+});
