@@ -230,7 +230,7 @@ export function BibleReaderScreen() {
     ] ?? SHARE_VERSE_BACKGROUND_SOURCES[0];
   const dismissSelectedVerseSelection = useCallback(() => {
     setShowVerseImageSheet(false);
-    setSelectedVerses([]);
+    setSelectedVerses((current) => (current.length === 0 ? current : []));
   }, []);
 
   const hidePlayButtonFromReadingTab = useAuthStore(

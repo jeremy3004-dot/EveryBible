@@ -135,7 +135,8 @@ export function useReaderChapterLifecycle({
     }
     readerFocusScrollRef.current.request(focusVerse ?? null);
     pendingReaderAutoScrollVerseRef.current = null;
-    setSelectedVerses([]);
+    // Keep an already-empty selection: a fresh [] re-rendered the screen and verse list.
+    setSelectedVerses((current) => (current.length === 0 ? current : []));
     // Reset monotonic follow-along state on chapter change
     resetFollowAlongClamp();
     if (focusVerse == null) {

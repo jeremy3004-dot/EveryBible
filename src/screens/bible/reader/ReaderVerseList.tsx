@@ -9,7 +9,7 @@ import {
 } from '../bibleReaderModel';
 import type { ScrollHandlerProcessed } from 'react-native-reanimated';
 import type { createReaderFocusScroll } from '../readerFocusScroll';
-import type { Dispatch, RefObject, SetStateAction, ReactElement } from 'react';
+import { memo, type Dispatch, type RefObject, type SetStateAction, type ReactElement } from 'react';
 import Animated from 'react-native-reanimated';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { selectionHaptic } from '../../../utils/haptics';
@@ -67,8 +67,15 @@ export interface ReaderVerseListProps {
   verses: Verse[];
 }
 
-/** The chapter's paragraphs: headings, inline or stacked verses with selection, highlights and the follow-along band, virtualized in read mode. */
-export function ReaderVerseList({
+/**
+ * The chapter's paragraphs: headings, inline or stacked verses with selection, highlights and the follow-along band, virtualized in read mode.
+ *
+ * Memoized: the screen re-renders for sheets, menus and playback state the list never
+ * reads, and every prop it passes keeps its identity across those renders. Anything the
+ * list draws from must arrive as a prop (renderParagraph below closes over props only),
+ * so a skipped render can never leave a stale renderer behind.
+ */
+export const ReaderVerseList = memo(function ReaderVerseList({
   usePremiumTypography,
   renderVirtualized = false,
   canShowTranslationSheet,
@@ -402,7 +409,7 @@ export function ReaderVerseList({
       ))}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   premiumReaderScrollContent: {
