@@ -2,6 +2,7 @@ import test, { after, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { act } from 'react-test-renderer';
 import { installIntervalLeakGuard } from '../../testing/reactHookRuntime';
+import { isPrivacyLockGraceActive } from '../../services/privacy/privacyLockGrace';
 import { installReaderRenderFixture } from './BibleReaderScreen.renderFixture';
 
 // Chapter-feedback voice notes: recording and previewing them must never leave
@@ -57,6 +58,22 @@ test('a double tap on record starts one recording, not two', async () => {
     1,
     'the second tap is ignored while the first start is in flight'
   );
+  assert.ok(view.getByRole('button', { name: t('bible.chapterFeedbackAudioStop') }));
+  await view.unmount();
+});
+
+test('the microphone prompt runs under the privacy lock grace', async () => {
+  // iOS turns the app inactive under its microphone prompt; discreet mode must not
+  // take that for the reader leaving and lock mid-recording (see privacyLockGrace).
+  const view = await renderComposer();
+  feedbackAv.hold('requestPermissionsAsync');
+
+  await view.press(recordButton(view));
+  assert.equal(feedbackAv.waiting('requestPermissionsAsync'), 1, 'the prompt is open');
+  assert.equal(isPrivacyLockGraceActive(), true);
+
+  await feedbackAv.release('requestPermissionsAsync');
+  await view.flush();
   assert.ok(view.getByRole('button', { name: t('bible.chapterFeedbackAudioStop') }));
   await view.unmount();
 });
