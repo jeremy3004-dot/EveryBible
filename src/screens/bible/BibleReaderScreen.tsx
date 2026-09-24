@@ -177,6 +177,7 @@ import {
   getNextBibleTabBarVisibility,
   getReaderAutoScrollTarget,
   getReaderInlineActiveVerse,
+  getPlanSessionBannerColors,
   getReaderVerseContentOffset,
   getInitialChapterSessionMode,
   LISTEN_COUNTED_NOTICE_TEST_ID,
@@ -4007,6 +4008,7 @@ export function BibleReaderScreen() {
             defaultValue: 'Complete day',
           })
       : t('common.next');
+    const bannerColors = getPlanSessionBannerColors(colors);
     const trailingActionHint = showPlanCompletionAction
       ? showSessionCompletionCopy
         ? t('readingPlans.completeSessionHint')
@@ -4019,8 +4021,8 @@ export function BibleReaderScreen() {
           styles.planSessionBottomBar,
           planSessionBottomBarAnimatedStyle,
           {
-            backgroundColor: colors.accentPrimary,
-            borderTopColor: colors.primaryText + '18',
+            backgroundColor: bannerColors.fill,
+            borderTopColor: bannerColors.border,
             height: planSessionBottomBarHeight,
             paddingBottom: rootTabBarBottomPadding + spacing.xs,
           },
@@ -4044,7 +4046,7 @@ export function BibleReaderScreen() {
                 <Ionicons
                   name="chevron-back"
                   size={22}
-                  color={hasPrevChapter ? colors.primaryText : colors.primaryText + '66'}
+                  color={hasPrevChapter ? bannerColors.icon : bannerColors.disabledIcon}
                 />
               </TouchableOpacity>
             ) : (
@@ -4063,12 +4065,12 @@ export function BibleReaderScreen() {
             ]}
           >
             <Text
-              style={[styles.planSessionBottomBarTitle, { color: colors.primaryText }]}
+              style={[styles.planSessionBottomBarTitle, { color: bannerColors.text }]}
               numberOfLines={1}
             >
               {activePlanTitle}
             </Text>
-            <Text style={[styles.planSessionBottomBarMeta, { color: colors.primaryText }]}>
+            <Text style={[styles.planSessionBottomBarMeta, { color: bannerColors.text }]}>
               {t('readingPlans.dayLabel', {
                 day: planDayNumber,
                 defaultValue: `Day ${planDayNumber}`,
@@ -4090,7 +4092,7 @@ export function BibleReaderScreen() {
                 showPlanCompletionAction
                   ? [
                       styles.planSessionBottomBarCompleteButton,
-                      { backgroundColor: colors.primaryText },
+                      { backgroundColor: bannerColors.completeFill },
                     ]
                   : null,
                 !trailingActionEnabled ? styles.disabledSessionModeButton : null,
@@ -4112,9 +4114,9 @@ export function BibleReaderScreen() {
                 color={
                   trailingActionEnabled
                     ? showPlanCompletionAction
-                      ? colors.accentPrimary
-                      : colors.primaryText
-                    : colors.primaryText + '66'
+                      ? bannerColors.completeIcon
+                      : bannerColors.icon
+                    : bannerColors.disabledIcon
                 }
               />
             </TouchableOpacity>

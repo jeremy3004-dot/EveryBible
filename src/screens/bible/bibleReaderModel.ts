@@ -246,6 +246,40 @@ export const getNextTranslationSheetVisibility = (
   return false;
 };
 
+interface PlanSessionBannerThemeColors {
+  accentPrimary: string;
+  onAccent: string;
+  primaryText: string;
+}
+
+export interface PlanSessionBannerColors {
+  fill: string;
+  text: string;
+  icon: string;
+  disabledIcon: string;
+  border: string;
+  completeFill: string;
+  completeIcon: string;
+}
+
+/**
+ * The plan strip is a solid accent fill. `primaryText` flips with the scope and
+ * only reaches ~2-3:1 on it; `onAccent` is the foreground the theme pairs with
+ * the accent (>= 4.5:1 in both scopes), so everything on the strip uses it.
+ */
+export const getPlanSessionBannerColors = ({
+  accentPrimary,
+  onAccent,
+}: PlanSessionBannerThemeColors): PlanSessionBannerColors => ({
+  fill: accentPrimary,
+  text: onAccent,
+  icon: onAccent,
+  disabledIcon: `${onAccent}66`,
+  border: `${onAccent}18`,
+  completeFill: onAccent,
+  completeIcon: accentPrimary,
+});
+
 export const buildReaderChapterRouteParams = ({
   bookId,
   chapter,
