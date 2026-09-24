@@ -29,6 +29,7 @@ import {
 
 let db: SQLite.SQLiteDatabase | null = null;
 const installedDatabaseCache = new Map<string, SQLite.SQLiteDatabase>();
+const pendingInstalledDatabaseOpens = new Map<string, Promise<SQLite.SQLiteDatabase>>();
 // Search-index cache keys whose index is known to be complete. Only a ready index is cached: a
 // pack's index can finish building in the background, so "not ready" is probed again.
 const searchIndexReadyCache = new Set<string>();
@@ -120,6 +121,9 @@ export async function invalidateInstalledBibleDatabaseAtPath(localPath: string):
 
   const cacheKey = getSourceCacheKey(source);
   forgetSearchIndexReadiness(cacheKey);
+  // A first open still in flight caches its handle when it lands; wait for it so that handle is
+  // closed here too, rather than cached on a file the caller is about to replace.
+  await pendingInstalledDatabaseOpens.get(cacheKey)?.catch(() => undefined);
   const cachedDatabase = installedDatabaseCache.get(cacheKey);
 
   if (!cachedDatabase) {
@@ -457,6 +461,24 @@ export async function getDatabase(translationId: string = 'bsb'): Promise<SQLite
     return cachedDatabase;
   }
 
+  // The reader, its prefetch and a search open a pack together on first use. Separate opens
+  // would each cache a handle, and the one overwritten in the cache would never be closed when
+  // the pack is replaced, keeping the old file and its WAL open underneath the new one.
+  const pendingOpen = pendingInstalledDatabaseOpens.get(cacheKey);
+  if (pendingOpen) {
+    return pendingOpen;
+  }
+  const opening = openInstalledDatabase(source, cacheKey).finally(() => {
+    pendingInstalledDatabaseOpens.delete(cacheKey);
+  });
+  pendingInstalledDatabaseOpens.set(cacheKey, opening);
+  return opening;
+}
+
+async function openInstalledDatabase(
+  source: Extract<BibleDatabaseSource, { kind: 'installed' }>,
+  cacheKey: string
+): Promise<SQLite.SQLiteDatabase> {
   const localPath = `${source.directory}/${source.databaseName}`;
   const FileSystem = await import('expo-file-system/legacy');
   const fileInfo = await FileSystem.getInfoAsync(localPath);

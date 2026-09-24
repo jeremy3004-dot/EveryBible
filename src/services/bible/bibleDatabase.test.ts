@@ -1191,6 +1191,81 @@ test('getDatabase treats a zero-byte installed pack as missing', async () => {
   assert.deepEqual(opens, []);
 });
 
+function seedInstalledPack(translationId: string): string {
+  const localPath = `${installedDirectory}/${translationId}.db`;
+  writeSeedDatabase(localPath, {
+    verses: [{ translationId, bookId: 'GEN', chapter: 1, verse: 1, text: 'In the beginning.' }],
+  });
+  return localPath;
+}
+
+test('concurrent first reads of an installed pack share one handle', async () => {
+  const { getDatabase, invalidateInstalledBibleDatabaseAtPath, setBibleDatabaseSourceResolver } =
+    await loadModule();
+  const localPath = seedInstalledPack('twice');
+  setBibleDatabaseSourceResolver((translationId) =>
+    translationId === 'twice' ? installedSource('twice', 'twice.db') : null
+  );
+  resetRecorders();
+  const before = new Set(liveHandles);
+
+  // The reader, its next-chapter prefetch and a search all open the pack on the first launch
+  // after it was installed.
+  const [reader, prefetch, search] = await Promise.all([
+    getDatabase('twice'),
+    getDatabase('twice'),
+    getDatabase('twice'),
+  ]);
+
+  assert.equal(reader, prefetch);
+  assert.equal(reader, search);
+  assert.equal(opens.length, 1, 'a second handle would never be closed by an invalidation');
+
+  await invalidateInstalledBibleDatabaseAtPath(localPath);
+  assert.deepEqual(
+    handlesOpenedSince(before),
+    [],
+    'replacing the pack must be able to close every handle on its file'
+  );
+});
+
+test('invalidating a pack whose first open is still in flight closes the handle it produces', async () => {
+  const { getDatabase, invalidateInstalledBibleDatabaseAtPath, setBibleDatabaseSourceResolver } =
+    await loadModule();
+  const localPath = seedInstalledPack('midopen');
+  setBibleDatabaseSourceResolver((translationId) =>
+    translationId === 'midopen' ? installedSource('midopen', 'midopen.db') : null
+  );
+  resetRecorders();
+  const before = new Set(liveHandles);
+  const openStarted = deferred();
+  const releaseOpen = deferred();
+  sqliteFaults.beforeStatement = async (_handleId, sql) => {
+    if (sql === 'PRAGMA journal_mode = WAL') {
+      openStarted.resolve();
+      await releaseOpen.promise;
+    }
+  };
+
+  const opening = getDatabase('midopen');
+  await openStarted.promise;
+  const invalidation = invalidateInstalledBibleDatabaseAtPath(localPath);
+  releaseOpen.resolve();
+  await opening;
+  await invalidation;
+  sqliteFaults.beforeStatement = null;
+
+  assert.deepEqual(
+    handlesOpenedSince(before),
+    [],
+    'a handle cached after the invalidation would keep the replaced file open'
+  );
+  resetRecorders();
+  await getDatabase('midopen');
+  assert.equal(opens.length, 1, 'the next read opens the replacement afresh');
+  await invalidateInstalledBibleDatabaseAtPath(localPath);
+});
+
 test('invalidateInstalledBibleDatabaseAtPath closes and forgets the cached handle', async () => {
   const { getDatabase, invalidateInstalledBibleDatabaseAtPath, setBibleDatabaseSourceResolver } =
     await loadModule();
