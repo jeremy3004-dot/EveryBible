@@ -173,13 +173,13 @@ test('Continue loads the next page and adds only the feedback not already listed
   responders.fetch = async (input) =>
     input.cursor
       ? feedbackPage({ feedback: [settled, newer] })
-      : feedbackPage({ nextCursor: { createdAt: '2026-09-01T12:00:00Z', id: 's1' } });
+      : feedbackPage({ nextCursor: { snapshot: 1, sequence: 3, sentiment: 'down' } });
   const view = await renderReview();
 
   await view.press(view.getByRole('button', { name: t('common.continue') }));
   await view.flush();
 
-  assert.deepEqual(lastFetch().cursor, { createdAt: '2026-09-01T12:00:00Z', id: 's1' });
+  assert.deepEqual(lastFetch().cursor, { snapshot: 1, sequence: 3, sentiment: 'down' });
   assert.equal(view.getAllByText('Old concern').length, 1, 'no duplicate card');
   assert.ok(view.getByText('A later concern'));
   assert.equal(view.queryByRole('button', { name: t('common.continue') }), null, 'last page');
@@ -188,7 +188,8 @@ test('Continue loads the next page and adds only the feedback not already listed
 test('reaching the end of the list loads the next page once, and not without a cursor', async () => {
   let release: (() => void) | null = null;
   responders.fetch = async (input) => {
-    if (!input.cursor) return feedbackPage({ nextCursor: { createdAt: 'c', id: 'x' } });
+    if (!input.cursor)
+      return feedbackPage({ nextCursor: { snapshot: 1, sequence: 3, sentiment: 'up' } });
     await new Promise<void>((resolve) => (release = resolve));
     return feedbackPage({ feedback: [newer] });
   };

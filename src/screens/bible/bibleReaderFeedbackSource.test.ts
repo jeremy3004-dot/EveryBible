@@ -170,7 +170,7 @@ test('BibleReaderScreen restores speaker playback mode after feedback recording 
     '';
   const previewBlock =
     source.match(/const playFeedbackAudioPreview = async \(\) => \{[\s\S]*?\n {2}\};/)?.[0] ?? '';
-  const translatorPlaybackBlock = readRelativeSource('./ChapterFeedbackReviewScreen.tsx');
+  const translatorPlaybackBlock = readRelativeSource('./feedbackReview/useFeedbackVoiceNote.ts');
   const unmountCleanupBlock =
     source.match(
       /const recording = feedbackAudioRecordingRef\.current;[\s\S]*?void \(async \(\) => \{[\s\S]*?\n {6}\}\)\(\);/
