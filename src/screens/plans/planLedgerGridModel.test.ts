@@ -157,7 +157,10 @@ test('sequential and weekly plans draw every plan day whatever the month', () =>
 
   assert.equal(getPlanLedgerGridDayCount({ duration_days: 365 }, september), 365);
   assert.equal(
-    getPlanLedgerGridDayCount({ duration_days: 7, scheduleMode: 'calendar-day-of-week' }, september),
+    getPlanLedgerGridDayCount(
+      { duration_days: 7, scheduleMode: 'calendar-day-of-week' },
+      september
+    ),
     7
   );
   assert.equal(getPlanLedgerGridDayCount({ duration_days: 31 }, new Date(2026, 1, 10)), 31);
