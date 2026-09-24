@@ -22,12 +22,14 @@ const harness = installRenderHarness(mock);
 mockModule(mock, sourcePath('hooks/useNotificationsBlockedBySystem.ts'), {
   useNotificationsBlockedBySystem: (enabled: boolean) => (enabled ? reminderBlock : null),
 });
+const fontSteps: string[] = [];
+const fontSize = { canIncrease: true };
 mockModule(mock, sourcePath('hooks/useFontSize.ts'), {
   useFontSize: () => ({
     label: 'Medium',
-    increase: () => {},
-    decrease: () => {},
-    canIncrease: true,
+    increase: () => void fontSteps.push('increase'),
+    decrease: () => void fontSteps.push('decrease'),
+    canIncrease: fontSize.canIncrease,
     canDecrease: true,
   }),
 });
@@ -562,6 +564,30 @@ test('a long locale summary is truncated to one line inside a bounded, stable-he
   while (column && (column.type as unknown) !== 'View') column = column.parent;
   assert.equal(flattenStyle(column?.props.style)?.flex, 1, 'the text column flexes');
   assert.equal(flattenStyle(row.props.style)?.minHeight, 52, 'a stable row height');
+});
+
+test('the text size stepper is one adjustable control that speaks the size and steps it', async () => {
+  const view = await renderSettings();
+
+  const stepper = view.getByRole('adjustable', { name: t('settings.fontSize') });
+  assert.deepEqual(stepper.props.accessibilityValue, { text: 'Medium' });
+  await view.fire(stepper, 'onAccessibilityAction', { nativeEvent: { actionName: 'increment' } });
+  await view.fire(stepper, 'onAccessibilityAction', { nativeEvent: { actionName: 'decrement' } });
+  assert.deepEqual(fontSteps.splice(0), ['increase', 'decrease']);
+});
+
+test('the text size stepper ignores a step past the end of the scale', async () => {
+  fontSize.canIncrease = false;
+  try {
+    const view = await renderSettings();
+    const stepper = view.getByRole('adjustable', { name: t('settings.fontSize') });
+    await view.fire(stepper, 'onAccessibilityAction', {
+      nativeEvent: { actionName: 'increment' },
+    });
+    assert.deepEqual(fontSteps.splice(0), []);
+  } finally {
+    fontSize.canIncrease = true;
+  }
 });
 
 // --- Large text ---------------------------------------------------------------
