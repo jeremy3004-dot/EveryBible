@@ -39,7 +39,9 @@ type VerseIdRange = { first: number; last: number } | null;
 const verseIdRangeCache = new WeakMap<SQLite.SQLiteDatabase, Map<string, VerseIdRange>>();
 const DATABASE_NAME = 'bible-bsb-v2.db';
 const DATABASE_ASSET_ID: number = require('../../../assets/databases/bible-bsb-v2.db');
-export const DEFAULT_MINIMUM_READY_VERSE_COUNT = 120000;
+// The shipped database's exact verse count (BSB 31,086 + WEB 31,098 + ASV 31,086 + NPIULB
+// 31,102). Raise it with BUNDLED_BIBLE_SCHEMA_VERSION on every rebuild (CLAUDE.md rule 11).
+export const DEFAULT_MINIMUM_READY_VERSE_COUNT = 124372;
 const SQLITE_OPEN_OPTIONS = {
   finalizeUnusedStatementsBeforeClosing: false,
 } as const;
