@@ -18,6 +18,7 @@ function collector(userId: string | null = null, budgetMode: BudgetMode = 'norma
   const writtenTables: string[] = [];
   const verifiedTokens: string[] = [];
   let geoLookups = 0;
+  const geoUrls: string[] = [];
   const rpcCalls: Array<Record<string, unknown>> = [];
   // The only token Auth accepts is the one this collector's signed-in user sends.
   const userToken = userId ? jwt({ role: 'authenticated', sub: userId }) : null;
@@ -84,8 +85,9 @@ function collector(userId: string | null = null, budgetMode: BudgetMode = 'norma
   const harness = loadEdgeFunction(ENTRY, {
     env: { SUPABASE_SERVICE_ROLE_KEY: SERVICE_KEY, IPINFO_TOKEN: 'ipinfo-token' },
     client,
-    fetch: (async () => {
+    fetch: (async (input: string | URL) => {
       geoLookups++;
+      geoUrls.push(String(input));
       return Response.json({
         country_code: 'US',
         country: 'US',
@@ -123,6 +125,7 @@ function collector(userId: string | null = null, budgetMode: BudgetMode = 'norma
     event,
     rpcCalls,
     geoLookups: () => geoLookups,
+    geoUrls,
     send: (events: unknown[], extraHeaders: Record<string, string> = {}) =>
       harness.handle(
         new Request('https://collector.example', {
@@ -421,4 +424,32 @@ test('a country-only payload fix is never combined with request coordinates', as
     [row.geo_country_code, row.geo_latitude, row.geo_longitude, row.geo_city],
     ['NP', null, null, null]
   );
+});
+
+// Client IP trust: only cf-connecting-ip and x-real-ip are stamped by the edge. A client-sent
+// x-forwarded-for reaches the function verbatim, so an anonymous caller could otherwise choose
+// which address is geolocated (and where its events land on the heat map).
+test('a client-sent x-forwarded-for address is never looked up', async () => {
+  const h = collector();
+  const { geo_source: _source, ...needsRequestGeo } = h.event;
+  const response = await h.send([needsRequestGeo], {
+    'cf-connecting-ip': '',
+    'x-forwarded-for': '198.51.100.4, 10.0.0.1',
+  });
+  assert.equal(response.status, 200);
+  assert.deepEqual(h.geoUrls, []);
+  const row = [...h.stored.values()][0];
+  assert.equal(row.geo_country_code, 'GB');
+  assert.equal(row.geo_source, 'cf_ipcountry');
+});
+
+test('the edge-stamped x-real-ip wins over a client-sent x-forwarded-for', async () => {
+  const h = collector();
+  const { geo_source: _source, ...needsRequestGeo } = h.event;
+  await h.send([needsRequestGeo], {
+    'cf-connecting-ip': '',
+    'x-forwarded-for': '198.51.100.4',
+    'x-real-ip': '198.51.100.9',
+  });
+  assert.deepEqual(h.geoUrls, ['https://ipinfo.io/198.51.100.9/json?token=ipinfo-token']);
 });
