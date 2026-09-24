@@ -607,12 +607,29 @@ function getActiveDateLocale(): string | undefined {
   }
 }
 
+let scheduledDayLabelFormatter: { locale: string | undefined; format: Intl.DateTimeFormat } | null =
+  null;
+
+/**
+ * One formatter per language, built on first use. Plan Detail labels every day of
+ * a plan in one pass (365 for a year plan) and each toLocaleDateString builds a
+ * formatter of its own, a JNI round trip on Hermes for Android.
+ */
+function getScheduledDayLabelFormatter(locale: string | undefined): Intl.DateTimeFormat {
+  if (!scheduledDayLabelFormatter || scheduledDayLabelFormatter.locale !== locale) {
+    scheduledDayLabelFormatter = {
+      locale,
+      format: new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }),
+    };
+  }
+  return scheduledDayLabelFormatter.format;
+}
+
 export function formatScheduledPlanDayLabel(startedAt: string, dayNumber: number): string {
   // L22: format day labels in the in-app language, not a pinned en-US locale.
-  return getScheduledPlanDayDate(startedAt, dayNumber).toLocaleDateString(getActiveDateLocale(), {
-    month: 'short',
-    day: 'numeric',
-  });
+  return getScheduledDayLabelFormatter(getActiveDateLocale()).format(
+    getScheduledPlanDayDate(startedAt, dayNumber)
+  );
 }
 
 function getPlanDayDateKey(
