@@ -30,6 +30,7 @@ import {
 import { coastalLayout, referenceDots } from './coastal-layout';
 import { createCoastMask } from './coast-mask';
 import { captureSpreadPositions, movingSpreadPoints } from './spread-motion';
+import { isLocationOccluded } from './location-occlusion';
 
 interface Props {
   highlightedIds?: ReadonlySet<string>;
@@ -166,9 +167,7 @@ export function SpreadDots({
         (point) => {
           const coordinate = coordinates.get(point.id)!;
           const screen = map.project(coordinate);
-          // Use the same occlusion test as MapLibre's own Marker implementation. MapLibre 6
-          // moved the camera transform behind `_camera` and exposes no public equivalent yet.
-          return { ...screen, occluded: map._camera.transform.isLocationOccluded(coordinate) };
+          return { ...screen, occluded: isLocationOccluded(map, coordinate) };
         },
         width,
         height
