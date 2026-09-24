@@ -115,8 +115,12 @@ mockModule(mock, sourcePath('services/diagnostics/crashLogStore.ts'), {
   recordCrashLog: () => {},
 });
 let launchCrashFlushes = 0;
+const handledReports: Array<[string, unknown]> = [];
 mockModule(mock, sourcePath('services/diagnostics/crashReportQueue.ts'), {
   queueCrashReport: () => {},
+  reportHandledError: (source: string, error: unknown) => {
+    handledReports.push([source, error]);
+  },
   flushPendingCrashReportsAtLaunch: async () => {
     launchCrashFlushes += 1;
     return { success: true, sent: 0 };
@@ -165,7 +169,12 @@ mockModule(mock, sourcePath('services/startup/AppRuntimeEffects.tsx'), {
 mockModule(mock, sourcePath('services/notifications/index.ts'), {
   setupAndroidChannels: async () => {},
 });
-mockModule(mock, sourcePath('services/bible/bibleService.ts'), { initBibleData: async () => {} });
+let bibleInitError: Error | null = null;
+mockModule(mock, sourcePath('services/bible/bibleService.ts'), {
+  initBibleData: async () => {
+    if (bibleInitError) throw bibleInitError;
+  },
+});
 mockModule(mock, sourcePath('services/translations/index.ts'), {
   bootstrapRuntimeTranslationsAndPreferences: async () => {},
 });
@@ -187,6 +196,8 @@ beforeEach(() => {
   tapRoutingThrows = false;
   runtimeEffectsThrow = false;
   launchCrashFlushes = 0;
+  handledReports.length = 0;
+  bibleInitError = null;
   privacyStore.setState(privacyStore.getInitialState(), true);
   authStore.setState(authStore.getInitialState(), true);
 });
@@ -345,6 +356,16 @@ test('pending crash reports are flushed once at launch, before onboarding and pr
   assert.equal(surface(view), 'boot shell');
   assert.equal(view.queryAllByType('AppRuntimeEffects').length, 0);
   assert.equal(launchCrashFlushes, 1);
+});
+
+// A bundled Bible database that cannot be imported is caught by the warmup, so without
+// a report we would only hear about it from users who cannot read.
+test('a failed Bible database warmup is reported as a handled error', async () => {
+  privacyInitResult = { isInitialized: true, isLocked: false };
+  bibleInitError = new Error('Bundled database is not ready after recovery (0 verses)');
+  await renderApp();
+
+  assert.deepEqual(handledReports, [['startup.warmup', bibleInitError]]);
 });
 
 test('the runtime-effects host loads once onboarding and privacy are done', async () => {

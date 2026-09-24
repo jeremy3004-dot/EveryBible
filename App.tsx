@@ -28,7 +28,10 @@ import {
 } from './src/services/startup';
 import { setupNotificationHandler } from './src/services/notifications/notificationBootstrap';
 import { installGlobalErrorHandlers } from './src/services/diagnostics/globalErrorHandler';
-import { flushPendingCrashReportsAtLaunch } from './src/services/diagnostics/crashReportQueue';
+import {
+  flushPendingCrashReportsAtLaunch,
+  reportHandledError,
+} from './src/services/diagnostics/crashReportQueue';
 import { enforceLtrLayoutPolicy } from './src/services/startup/rtlPolicy';
 import { rootNavigationRef } from './src/navigation/rootNavigation';
 import { usePushTokenRegistration } from './src/hooks/usePushTokenRegistration';
@@ -178,6 +181,9 @@ function LoadingScreen() {
         },
         onWarmupError: (error) => {
           console.error('Deferred startup warmup failed:', error);
+          // Covers a bundled Bible database that cannot be imported and a failed
+          // translation bootstrap; both are caught here, so report them.
+          reportHandledError('startup.warmup', error);
         },
         onCriticalTimeout: (taskName) => {
           console.warn(
