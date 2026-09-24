@@ -15,10 +15,10 @@
  */
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, statSync } from 'node:fs';
-import { createRequire } from 'node:module';
+import { createRequire, registerHooks } from 'node:module';
 import { dirname, join } from 'node:path';
 import type { MockTracker } from 'node:test';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createReactNativeStub, type ReactNativeStubOptions } from './reactNativeStub';
 import type { SupabaseFake } from './supabaseFake';
 
@@ -70,12 +70,41 @@ export function mockPackage(
     // Not installed (or not resolvable with the require condition): the bare mock is enough.
   }
   if (requirePath) {
+    skipRealSource(requirePath);
     try {
       mockModule(mocker, requirePath, exports);
     } catch (error) {
       // Single-entry packages resolve to the file the bare mock already covers.
       if ((error as { code?: string }).code !== 'ERR_INVALID_STATE') throw error;
     }
+  }
+}
+
+/**
+ * Node's module mock still asks the loader chain for the real file's source
+ * before substituting the mock, so tsx tries to compile it. Packages that ship
+ * untranspiled Flow or JSX (react-native-view-shot's `src/index.js`) fail right
+ * there, and the error surfaces wherever the package is imported. Hand the
+ * chain an empty module for mocked package files instead; the mock replaces it.
+ *
+ * The hook must be registered before the first `mock.module` call of the
+ * process (Node's mock hooks then run ahead of it), hence at import time here.
+ */
+const skippedSources = new Set<string>();
+if (typeof registerHooks === 'function') {
+  registerHooks({
+    load(url, context, nextLoad) {
+      if (skippedSources.has(url.split(/[?#]/)[0])) {
+        return { format: 'commonjs', source: 'module.exports = {};', shortCircuit: true };
+      }
+      return nextLoad(url, context);
+    },
+  });
+}
+
+function skipRealSource(filePath: string) {
+  if (filePath.includes(join('node_modules', ''))) {
+    skippedSources.add(pathToFileURL(filePath).href);
   }
 }
 

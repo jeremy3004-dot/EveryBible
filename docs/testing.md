@@ -130,7 +130,7 @@ default to the production implementation.
 | `mockReactNative(mock, { os, version, width, height })` / `createReactNativeStub()` | `Platform`, `AppState.emit()`, `Keyboard.emit()`, `Linking`, `Alert`, `I18nManager`, `NativeEventEmitter`, `NativeModules`; recorded side effects under `__recorded`. Add fields to the stub before mocking if a module needs more.                                                             |
 | `installRenderHarness(mock, options)` (`render.tsx`)                                | Component rendering: renderable RN and native-UI fakes, real ThemeProvider and `en` i18n, Testing-Library-style queries, `press`. See "Rendering components".                                                                                                                                   |
 | `mockBarrel(mock, 'stores/index.ts', { provide, real })`                            | Replaces a barrel without loading what it re-exports; unprovided exports throw a descriptive error when used.                                                                                                                                                                                   |
-| `mockPackage(mock, specifier, exports)`                                             | `mockModule` under both the import and the require resolution of a dual package.                                                                                                                                                                                                                |
+| `mockPackage(mock, specifier, exports)`                                             | `mockModule` for a third-party package: covers both its import and require resolutions and keeps its real source out of the loader.                                                                                                                                                             |
 | `createReactHookRuntime()`                                                          | A `react` replacement (`runtime.react`) plus `mount(hook, ...args)` → `{ result, renderCount, cleanupCount, rerender, flushEffects, commit, unmount }`, `mountedInstances` / `unmountAll()` for `afterEach`, `setContextValue()`, and `installIntervalLeakGuard()`.                             |
 
 ### Gotchas the first wave hit
@@ -288,7 +288,10 @@ Role and label queries skip elements a screen reader cannot reach
 `aria-hidden` on the element or an ancestor); pass `{ includeHidden: true }` to
 see them, and use `isHiddenFromAccessibility(node)` to assert decorative content.
 `within(node)` scopes the queries to one subtree. `flattenStyle(node.props.style)`
-merges a style array for layout and colour assertions.
+merges a style array for layout and colour assertions. `hostAncestors(node)` lists
+the enclosing host elements nearest first; use it instead of counting `.parent`
+hops, which alternate between host elements and the components that rendered them.
+Assets a component `require()`s (`.png`, fonts, audio) load as `{ testUri: path }`.
 
 Things that trip people up:
 
@@ -301,9 +304,15 @@ Things that trip people up:
   your fakes, `real` ones load from their defining file, and anything else throws
   a message naming what to provide as soon as it is used. Fake Zustand stores are
   real `create()` stores holding just the fields the component selects.
-- **Dual packages** (an `exports` map with separate `import` and `require` files)
-  must be mocked under both resolutions: `mockPackage(mock, 'pkg', exports)`. The
-  harness does this for its own fakes.
+- **Mock third-party packages with `mockPackage(mock, 'pkg', exports)`**, not
+  `mockModule`. It mocks both the import and the require resolution (dual packages
+  such as lucide resolve differently for each), and it keeps the real file from
+  ever reaching tsx: Node's mock still asks the loader for the original source,
+  and a package that ships untranspiled Flow (react-native-view-shot) fails to
+  compile there, which surfaces as a swallowed error inside whatever `try` did the
+  import. The harness uses it for its own fakes.
+- **Stores are imported by path** (`stores/index.ts` is not a barrel of stores):
+  `mockModule(mock, sourcePath('stores/bibleStore.ts'), { useBibleStore })`.
 - **Layout is not computed.** A component that waits for `onLayout` needs
   `view.fire(node, 'onLayout', { nativeEvent: { layout: { width, height } } })`.
 - **Reanimated worklets run at render time**, so an animated style reflects the

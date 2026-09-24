@@ -77,6 +77,15 @@ function ancestorsAndSelf(node: ReactTestInstance): ReactTestInstance[] {
 }
 
 /**
+ * The host elements enclosing `node`, nearest first. `node.parent` alternates
+ * between host elements and the component wrappers that rendered them, so walk
+ * this list rather than counting `.parent` hops.
+ */
+export function hostAncestors(node: ReactTestInstance): ReactTestInstance[] {
+  return ancestorsAndSelf(node).slice(1).filter(isHost);
+}
+
+/**
  * True when a screen reader cannot reach `node`: it or an ancestor is hidden
  * with `importantForAccessibility="no-hide-descendants"`,
  * `accessibilityElementsHidden` or `aria-hidden`.

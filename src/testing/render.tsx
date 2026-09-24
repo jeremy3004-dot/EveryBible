@@ -73,6 +73,7 @@ export { flattenStyle } from './reactNativeHost';
 export {
   accessibilityLabelOf,
   debugTree,
+  hostAncestors,
   isHiddenFromAccessibility,
   textContent,
 } from './renderQueries';
