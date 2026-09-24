@@ -229,6 +229,14 @@ test('the selected-day card tells a screen reader what was read, not only the da
   assert.ok(view.getByRole('button', { name: /Psalms 21–22/ }));
 });
 
+test('day numbers are capped so a two-digit day stays inside its cell at AX sizes', async () => {
+  const { CONTROL_LABEL_MAX_FONT_SCALE } = await import('../../design/largeTextLayout');
+  const view = await renderScreen();
+
+  const day = within(cellNamed(view, 'Tuesday, September 22')).getByText('22');
+  assert.equal(day.props.maxFontSizeMultiplier, CONTROL_LABEL_MAX_FONT_SCALE);
+});
+
 test('the legend wraps so the day count cannot run off the card at large text sizes', async () => {
   const view = await renderScreen();
   const progress = view.getByText(t('readingActivity.legendProgress', { read: 2, count: 24 }));

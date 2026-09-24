@@ -3,6 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 import type { ThemeColors } from '../../../contexts/ThemeContext';
 import type { ReadingActivityGridCell } from '../readingActivityCalendarModel';
 import type { CalendarStyles } from './calendarStyles';
+import { CONTROL_LABEL_MAX_FONT_SCALE } from '../../../design/largeTextLayout';
 
 interface CalendarCellProps {
   cell: ReadingActivityGridCell;
@@ -51,6 +52,9 @@ export const CalendarCell = memo(function CalendarCell({
         ]}
       >
         <Text
+          // A grid cell is about 42pt wide: uncapped at AX sizes a two-digit day
+          // outgrew it. Capped like other in-control labels, and still larger.
+          maxFontSizeMultiplier={CONTROL_LABEL_MAX_FONT_SCALE}
           style={[
             styles.cellLabel,
             {
