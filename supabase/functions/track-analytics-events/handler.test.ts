@@ -1,29 +1,25 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { runInNewContext } from 'node:vm';
-import ts from 'typescript';
+import { fileURLToPath } from 'node:url';
+import { loadEdgeFunction } from '../_testing/edgeFunctionHarness';
 
-// Deno edge function: loaded like track-anonymous-usage-events/collector.test.ts, with the
-// shared ingest module wired in and supabase-js replaced by a recording fake.
+// Behaviour of the signed-in analytics endpoint, with a stateful stand-in for the database
+// (auth, the ingest-budget RPC and its geo cache, and analytics_events) and for the geo APIs.
+const ENTRY = fileURLToPath(new URL('./index.ts', import.meta.url));
 
 type BudgetMode = 'normal' | 'over';
-
-function transpile(url: URL): string {
-  return ts.transpileModule(readFileSync(url, 'utf8'), {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-  }).outputText;
-}
 
 const USER_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const DAY = 24 * 60 * 60 * 1000;
 
-function endpoint(budgetMode: BudgetMode = 'normal') {
-  let handle!: (request: Request) => Promise<Response>;
+function endpoint(
+  options: { budgetMode?: BudgetMode; env?: Record<string, string | undefined> } = {}
+) {
+  const budgetMode = options.budgetMode ?? 'normal';
   const stored: Array<Record<string, unknown>> = [];
   const rpcCalls: Array<Record<string, unknown>> = [];
   const throttle = new Map<string, { claimed: boolean; geo: unknown }>();
-  let geoLookups = 0;
+  const geoRequests: string[] = [];
 
   const rpc = async (_fn: string, args: Record<string, unknown>) => {
     rpcCalls.push(args);
@@ -71,40 +67,28 @@ function endpoint(budgetMode: BudgetMode = 'normal') {
     }),
   };
 
-  const globals = {
-    Request,
-    Response,
-    URL,
-    AbortSignal,
-    AbortController,
-    setTimeout,
-    clearTimeout,
-    crypto,
-    TextEncoder,
-    TextDecoder,
-    Uint8Array,
-    console: { log() {}, warn() {} },
-  };
-  const shared = {};
-  runInNewContext(transpile(new URL('../_shared/analyticsIngest.ts', import.meta.url)), {
-    ...globals,
-    exports: shared,
-  });
-  runInNewContext(transpile(new URL('./index.ts', import.meta.url)), {
-    ...globals,
-    exports: {},
-    Deno: {
-      env: { get: () => 'configured' },
-      serve: (handler: typeof handle) => {
-        handle = handler;
-      },
-    },
-    fetch: async () => {
-      geoLookups++;
-      return Response.json({ country: 'NP', loc: '28.2096,83.9856', city: 'Pokhara' });
-    },
-    require: (id: string) =>
-      id.includes('_shared/analyticsIngest') ? shared : { createClient: () => client },
+  const harness = loadEdgeFunction(ENTRY, {
+    env: { IPINFO_TOKEN: 'ipinfo-token', ...options.env },
+    client,
+    fetch: (async (input: string | URL) => {
+      const url = String(input);
+      geoRequests.push(url);
+      if (url.startsWith('https://ipinfo.io/')) {
+        return Response.json({
+          country: 'NP',
+          loc: '28.2096,83.9856',
+          city: 'Pokhara',
+          timezone: 'Asia/Kathmandu',
+        });
+      }
+      return Response.json({
+        country_code: 'NP',
+        latitude: 27.7172,
+        longitude: 85.324,
+        city: 'Kathmandu',
+        timezone: 'Asia/Kathmandu',
+      });
+    }) as typeof fetch,
   });
 
   const event = {
@@ -115,13 +99,13 @@ function endpoint(budgetMode: BudgetMode = 'normal') {
     session_id: 'session',
     queued_at: new Date().toISOString(),
   };
-  const request = (body: string, token = 'valid-user-token') =>
+  const defaultHeaders = { 'cf-connecting-ip': '203.0.113.7', 'cf-ipcountry': 'NP' };
+  const request = (body: string, token = 'valid-user-token', headers = defaultHeaders) =>
     new Request('https://collector.example', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'cf-connecting-ip': '203.0.113.7',
-        'cf-ipcountry': 'NP',
+        ...headers,
         authorization: `Bearer ${token}`,
       },
       body,
@@ -130,9 +114,11 @@ function endpoint(budgetMode: BudgetMode = 'normal') {
     stored,
     rpcCalls,
     event,
-    geoLookups: () => geoLookups,
-    send: (events: unknown[], token?: string) => handle(request(JSON.stringify({ events }), token)),
-    sendRaw: (body: string) => handle(request(body)),
+    geoLookups: () => geoRequests.length,
+    geoRequests,
+    send: (events: unknown[], token?: string, headers?: Record<string, string>) =>
+      harness.handle(request(JSON.stringify({ events }), token, headers)),
+    sendRaw: (body: string) => harness.handle(request(body)),
   };
 }
 
@@ -197,7 +183,7 @@ test('a request body over 512 KB is refused before authentication or any write',
 });
 
 test('an account over its ingest budget gets 429 with Retry-After', async () => {
-  const h = endpoint('over');
+  const h = endpoint({ budgetMode: 'over' });
   const response = await h.send([h.event]);
   assert.equal(response.status, 429);
   assert.equal(response.headers.get('Retry-After'), '90');
@@ -240,4 +226,77 @@ test('an over-long geo value smuggled in event_properties cannot reach a bounded
   ).json();
   assert.equal(body.inserted, 1);
   assert.equal(body.rejected, 1);
+});
+
+test('without Cloudflare, the first x-forwarded-for address is looked up via ipinfo', async () => {
+  const h = endpoint();
+  await h.send([h.event], undefined, { 'x-forwarded-for': '198.51.100.4, 10.0.0.1' });
+  assert.deepEqual(h.geoRequests, ['https://ipinfo.io/198.51.100.4/json?token=ipinfo-token']);
+  assert.equal(h.stored[0].geo_city, 'Pokhara');
+  assert.equal(h.stored[0].geo_source, 'ipinfo');
+});
+
+test('x-real-ip is used when no other client address header is present', async () => {
+  const h = endpoint();
+  await h.send([h.event], undefined, { 'x-real-ip': '198.51.100.9' });
+  assert.deepEqual(h.geoRequests, ['https://ipinfo.io/198.51.100.9/json?token=ipinfo-token']);
+});
+
+test('without an ipinfo token the free ipapi lookup is used', async () => {
+  const h = endpoint({ env: { IPINFO_TOKEN: undefined } });
+  await h.send([h.event]);
+  assert.deepEqual(h.geoRequests, ['https://ipapi.co/203.0.113.7/json/']);
+  assert.equal(h.stored[0].geo_source, 'ipapi');
+  assert.equal(h.stored[0].geo_city, 'Kathmandu');
+  assert.equal(h.stored[0].geo_latitude, 27.7);
+  assert.equal(h.stored[0].geo_longitude, 85.3);
+});
+
+test('complete payload geo is stored as sent and no request geo lookup is made', async () => {
+  const h = endpoint();
+  const body = await (
+    await h.send([
+      {
+        ...h.event,
+        geo_country_code: 'in',
+        geo_latitude: 19.0761,
+        geo_longitude: 72.8775,
+        geo_source: 'cf-worker',
+        geo_timezone: 'Asia/Kolkata',
+      },
+    ])
+  ).json();
+  assert.equal(h.geoLookups(), 0);
+  assert.deepEqual(
+    {
+      country: h.stored[0].geo_country_code,
+      latitude: h.stored[0].geo_latitude,
+      longitude: h.stored[0].geo_longitude,
+      source: h.stored[0].geo_source,
+      timezone: h.stored[0].geo_timezone,
+    },
+    {
+      country: 'IN',
+      latitude: 19.1,
+      longitude: 72.9,
+      source: 'cf-worker',
+      timezone: 'Asia/Kolkata',
+    }
+  );
+  assert.equal(body.geo, 'IN');
+});
+
+test('partial payload geo wins field by field and request geo fills the gaps', async () => {
+  const h = endpoint();
+  await h.send([
+    { ...h.event, geo_country_code: 'IN' },
+    { ...h.event, event_properties: { geo_latitude_bucket: 10.04, geo_longitude_bucket: 20.06 } },
+  ]);
+  assert.equal(h.geoLookups(), 1);
+  assert.equal(h.stored[0].geo_country_code, 'IN');
+  assert.equal(h.stored[0].geo_latitude, 28.2);
+  assert.equal(h.stored[0].geo_city, 'Pokhara');
+  assert.equal(h.stored[1].geo_country_code, 'NP');
+  assert.equal(h.stored[1].geo_latitude, 10);
+  assert.equal(h.stored[1].geo_longitude, 20.1);
 });
