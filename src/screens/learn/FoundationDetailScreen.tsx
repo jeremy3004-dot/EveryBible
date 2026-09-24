@@ -49,7 +49,7 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
             {
               borderBottomColor: colors.cardBorder,
               paddingTop: insets.top,
-              height: 56 + insets.top,
+              minHeight: 56 + insets.top,
             },
           ]}
           onPress={() => navigation.goBack()}
@@ -114,7 +114,7 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
           {
             borderBottomColor: colors.cardBorder,
             paddingTop: insets.top,
-            height: 56 + insets.top,
+            minHeight: 56 + insets.top,
           },
         ]}
       >
@@ -371,8 +371,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   // Header bar
+  // minHeight, not height: the title must not clip at large accessibility text sizes.
   headerBar: {
-    height: 56,
+    minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: layout.screenPadding,

@@ -39,8 +39,9 @@ test('FoundationDetailScreen shows the full foundation description without a tog
 test('FoundationDetailScreen lowers the back button below the safe-area cutout', () => {
   const source = readRelativeSource('./FoundationDetailScreen.tsx');
 
+  // A floor rather than a fixed height, so large text sizes do not clip the title.
   assert.equal(
-    source.includes('height: 56 + insets.top'),
+    source.includes('minHeight: 56 + insets.top'),
     true,
     'FoundationDetailScreen should expand the header height to include the top safe-area inset'
   );
