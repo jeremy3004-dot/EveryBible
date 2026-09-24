@@ -14,7 +14,7 @@ import ts from 'typescript';
 const SHRINK_TO_FIT_ALLOWED: Record<string, number> = {
   // The verse-image preview is the shared picture itself: a fixed-aspect image
   // whose text must fit the frame it is exported at, not interface text.
-  'src/screens/bible/BibleReaderScreen.tsx': 2,
+  'src/components/bible/VerseImageSharePreview.tsx': 2,
   // The discreet-mode calculator display fits its number on one line, as the
   // system calculator does; the value is also exposed as its accessibility label.
   'src/components/privacy/PrivacyLockScreen.tsx': 1,

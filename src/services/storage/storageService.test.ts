@@ -63,13 +63,18 @@ beforeEach(() => {
 
 test('uploading an avatar stores it under the user folder and returns its public URL', async () => {
   files.set('file:///tmp/pick.png', base64('png-bytes'));
+  mock.timers.enable({ apis: ['Date'], now: 1_758_700_000_000 });
 
-  const result = await storage.uploadAvatar('file:///tmp/pick.png');
+  try {
+    const result = await storage.uploadAvatar('file:///tmp/pick.png');
 
-  assert.deepEqual(result, {
-    success: true,
-    data: `${fake.storage.publicUrlBase}/avatars/user-1/avatar.png`,
-  });
+    assert.deepEqual(result, {
+      success: true,
+      data: `${fake.storage.publicUrlBase}/avatars/user-1/avatar.png?v=1758700000000`,
+    });
+  } finally {
+    mock.timers.reset();
+  }
   const [upload] = uploadsTo('avatars');
   assert.equal(upload.args[0], 'user-1/avatar.png');
   assert.deepEqual(upload.args[1], bytesOf('png-bytes'));
@@ -209,6 +214,27 @@ test('a re-upload with a different extension writes a second object under the sa
     ['user-1/avatar.png', 'user-1/avatar.jpg'],
     'the extension comes from the source file, so a re-upload leaves a stale variant behind'
   );
+});
+
+test('a replacement avatar gets a new URL, so screens and caches holding the old one refetch it', async () => {
+  // The object path is fixed ({uid}/avatar.{ext}) and upserted, so the bare public URL of
+  // the new picture equals the old one: photoURL would not change, the Image cache and the
+  // storage CDN would keep serving the previous picture and the change would look lost.
+  files.set('file:///tmp/first.jpg', base64('one'));
+  files.set('file:///tmp/second.jpg', base64('two'));
+  mock.timers.enable({ apis: ['Date'], now: 1_758_700_000_000 });
+
+  try {
+    const first = await storage.uploadAvatar('file:///tmp/first.jpg');
+    mock.timers.tick(60_000);
+    const second = await storage.uploadAvatar('file:///tmp/second.jpg');
+
+    assert.equal(first.success && second.success, true);
+    assert.notEqual(first.data, second.data);
+    assert.ok(second.data?.startsWith(`${fake.storage.publicUrlBase}/avatars/user-1/avatar.jpg?`));
+  } finally {
+    mock.timers.reset();
+  }
 });
 
 // ─── Group images ────────────────────────────────────────────────────────────

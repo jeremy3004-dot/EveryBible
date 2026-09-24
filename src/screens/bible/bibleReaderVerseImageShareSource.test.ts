@@ -79,7 +79,7 @@ test('BibleReaderScreen opens a verse-image background picker and captures the s
 
   assert.match(
     source,
-    /ImageBackground[\s\S]*selectedVerseImageBackground/,
-    'BibleReaderScreen should render the selected background inside the preview card'
+    /<VerseImageSharePreview[\s\S]*backgroundSource=\{selectedVerseImageBackground\}/,
+    'BibleReaderScreen should render the selected background inside the preview card (the card itself is render-tested in VerseImageSharePreview.render.test.tsx)'
   );
 });

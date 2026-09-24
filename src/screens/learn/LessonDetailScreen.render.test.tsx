@@ -508,8 +508,12 @@ test('the application prompts offer to replay the story and to share the app', a
   assert.equal(sounds.length, 1, 'and starts the chapter audio');
   assert.equal(sounds[0].sound.isPlaying, true);
 
+  // The invitation has to carry somewhere to get the app: "Check out Every Bible!" on its
+  // own leaves the friend with nothing to tap.
   await view.press(view.getByRole('button', { name: t('learn.shareApp') }));
-  assert.deepEqual(harness.rn.__recorded.shares, [{ message: t('common.shareMessage') }]);
+  assert.deepEqual(harness.rn.__recorded.shares, [
+    { message: `${t('common.shareMessage')}\nhttps://everybible.app` },
+  ]);
 });
 
 test('a wisdom lesson titles itself by the wisdom and draws the wisdom’s artwork', async () => {
