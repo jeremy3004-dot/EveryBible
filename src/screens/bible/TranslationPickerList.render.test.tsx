@@ -12,309 +12,45 @@
 // the downloadProgress selector lives, the GroupPosition type, style-token spreading
 // (rowTitle/rowMeta), the count of section-heading style keys, and FlashList's estimated row
 // size / getItemType (virtualization tuning; the harness renders FlashList eagerly).
-import test, { afterEach, mock } from 'node:test';
+//
+// Download queue states, selection routing, pinning and hiding, and render counts live in
+// TranslationPickerList.states.render.test.tsx; both files share TranslationPickerList.renderFixture.
+import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { useTranslation } from 'react-i18next';
-import { act, type ReactTestInstance } from 'react-test-renderer';
-import { create } from 'zustand';
-import { flattenStyle, hostAncestors, installRenderHarness, within } from '../../testing/render';
-import { mockBarrel, mockModule, sourcePath } from '../../testing/mockModules';
-import type { BibleTranslation, TranslationDownloadProgress } from '../../types';
+import { type ReactTestInstance } from 'react-test-renderer';
+import { flattenStyle, hostAncestors, within } from '../../testing/render';
+import {
+  BSB,
+  GOSPEL_AUDIO,
+  KJV,
+  LONG_SPANISH_NAME,
+  LUTHER,
+  NET,
+  SPANISH_RV,
+  UNKNOWN_COVERAGE_AUDIO,
+  ALL,
+  bible,
+  installPickerRenderFixture,
+} from './TranslationPickerList.renderFixture';
 
-const harness = installRenderHarness(mock);
-// The picker imports useI18n from its own module, not the hooks barrel.
-mockModule(mock, sourcePath('hooks/useI18n.ts'), {
-  useI18n: () => {
-    const { t } = useTranslation();
-    return { t, currentLanguage: 'en' };
-  },
-});
-const t = (key: string, options?: Record<string, unknown>) => harness.i18n.t(key, options);
-
-mockModule(mock, 'expo-constants', { default: { expoConfig: { extra: {} } } });
-mockBarrel(mock, 'components/ui/index.ts', { real: ['ProgressBar'] });
-
-// ---------------------------------------------------------------------------
-// Fixtures
-// ---------------------------------------------------------------------------
-
-function bible(
-  overrides: Partial<BibleTranslation> &
-    Pick<BibleTranslation, 'id' | 'name' | 'abbreviation' | 'language'>
-): BibleTranslation {
-  return {
-    description: '',
-    copyright: '',
-    isDownloaded: false,
-    downloadedBooks: [],
-    downloadedAudioBooks: [],
-    totalBooks: 66,
-    sizeInMB: 4,
-    hasText: true,
-    hasAudio: false,
-    audioGranularity: 'none',
-    source: 'bundled',
-    ...overrides,
-  };
-}
-
-const runtimeText = (id: string) => ({
-  source: 'runtime' as const,
-  catalog: {
-    version: '1',
-    updatedAt: '2026-09-01',
-    text: {
-      format: 'sqlite' as const,
-      version: '1',
-      downloadUrl: `https://example.test/${id}.sqlite`,
-      sha256: 'x',
-    },
-  },
-});
-
-const BSB = bible({
-  id: 'bsb',
-  name: 'Berean Standard Bible',
-  abbreviation: 'BSB',
-  language: 'English',
-  isDownloaded: true,
-  hasAudio: true,
-  audioGranularity: 'chapter',
-});
-const KJV = bible({
-  id: 'kjv',
-  name: 'King James Version',
-  abbreviation: 'KJV',
-  language: 'English',
-  isDownloaded: true,
-});
-const NET = bible({
-  id: 'engnet',
-  name: 'New English Translation',
-  abbreviation: 'NET',
-  language: 'English',
-  ...runtimeText('engnet'),
-});
-const LONG_SPANISH_NAME =
-  'La Santa Biblia en Español Contemporáneo: Edición de Estudio Completa con Notas';
-const SPANISH_LONG = bible({
-  id: 'spa-long',
-  name: LONG_SPANISH_NAME,
-  abbreviation: 'SBEC',
-  language: 'Spanish',
-  ...runtimeText('spa-long'),
-});
-const SPANISH_RV = bible({
-  id: 'spa-rv',
-  name: 'Reina-Valera',
-  abbreviation: 'RV',
-  language: 'Spanish',
-  ...runtimeText('spa-rv'),
-});
-const LUTHER = bible({
-  id: 'deu-luther',
-  name: 'Lutherbibel',
-  abbreviation: 'LUT',
-  language: 'German',
-  ...runtimeText('deu-luther'),
-});
-// Audio for two Gospels only: no whole-testament collection, just by-book rows.
-const GOSPEL_AUDIO = bible({
-  id: 'eng-audio',
-  name: 'Gospel Audio',
-  abbreviation: 'GA',
-  language: 'English',
-  hasText: false,
-  hasAudio: true,
-  audioGranularity: 'chapter',
-  source: 'runtime',
-  catalog: {
-    version: '1',
-    updatedAt: '2026-09-01',
-    audio: { strategy: 'stream-template', books: { MAT: {}, MRK: {} } },
-  },
-});
-// Has audio, but the catalog says nothing about which books.
-const UNKNOWN_COVERAGE_AUDIO = bible({
-  id: 'eng-unknown-audio',
-  name: 'Unknown Coverage Audio',
-  abbreviation: 'UCA',
-  language: 'English',
-  isDownloaded: true,
-  hasAudio: true,
-  audioGranularity: 'chapter',
-});
-
-const ALL = [BSB, KJV, NET, SPANISH_LONG, SPANISH_RV, LUTHER, GOSPEL_AUDIO, UNKNOWN_COVERAGE_AUDIO];
-
-// ---------------------------------------------------------------------------
-// Fakes
-// ---------------------------------------------------------------------------
-
-/** Every store action and picker callback, in the order they happened. */
-const log: unknown[][] = [];
-
-type Deferred<T> = { resolve: (value: T) => void; reject: (error: unknown) => void };
-const pending: { download: Deferred<'installed' | 'cancelled'> | null } = { download: null };
-const audio: { failure: unknown } = { failure: null };
-
-interface FakeBibleState {
-  currentBook: string;
-  currentTranslation: string;
-  preferredTranslationLanguage: string | null;
-  translations: BibleTranslation[];
-  downloadProgress: TranslationDownloadProgress | null;
-  [action: string]: unknown;
-}
-
-const recordAudio =
-  (name: string) =>
-  async (...args: unknown[]) => {
-    log.push([name, ...args]);
-    if (audio.failure) throw audio.failure;
-  };
-
-const useBibleStore = create<FakeBibleState>()((set) => ({
-  currentBook: 'JHN',
-  currentTranslation: 'bsb',
-  preferredTranslationLanguage: 'English',
-  translations: ALL,
-  downloadProgress: null,
-  setCurrentTranslation: (id: string) => {
-    log.push(['setCurrentTranslation', id]);
-    set({ currentTranslation: id });
-  },
-  setCurrentBook: (id: string) => log.push(['setCurrentBook', id]),
-  setCurrentChapter: (chapter: number) => log.push(['setCurrentChapter', chapter]),
-  setPreferredTranslationLanguage: (language: string) => {
-    log.push(['setPreferredTranslationLanguage', language]);
-    set({ preferredTranslationLanguage: language });
-  },
-  downloadTranslation: (id: string) => {
-    log.push(['downloadTranslation', id]);
-    return new Promise((resolve, reject) => {
-      pending.download = { resolve, reject };
-    });
-  },
-  cancelDownload: () => log.push(['cancelDownload']),
-  downloadAudioForBook: recordAudio('downloadAudioForBook'),
-  downloadAudioForBooks: recordAudio('downloadAudioForBooks'),
-  downloadAudioForTranslation: recordAudio('downloadAudioForTranslation'),
-  deleteTranslation: (id: string) => log.push(['deleteTranslation', id]),
-}));
-mockModule(mock, sourcePath('stores/bibleStore.ts'), { useBibleStore });
-
-const usePreferenceStore = create<{
-  pinnedIds: string[];
-  hiddenIds: string[];
-  pin: (id: string) => void;
-  unpin: (id: string) => void;
-  hide: (id: string) => void;
-}>()((set) => ({
-  pinnedIds: [],
-  hiddenIds: [],
-  pin: (id) => {
-    log.push(['pin', id]);
-    set((state) => ({ pinnedIds: [...state.pinnedIds, id] }));
-  },
-  unpin: (id) => {
-    log.push(['unpin', id]);
-    set((state) => ({ pinnedIds: state.pinnedIds.filter((pinned) => pinned !== id) }));
-  },
-  hide: (id) => {
-    log.push(['hide', id]);
-    set((state) => ({ hiddenIds: [...state.hiddenIds, id] }));
-  },
-}));
-mockModule(mock, sourcePath('stores/translationPreferenceStore.ts'), {
-  useTranslationPreferenceStore: usePreferenceStore,
-});
-
-// The runtime catalog load the picker kicks off on mount; held open when a test sets `hold`.
-const catalog = { loads: 0, hold: false, finish: () => {} };
-mockModule(mock, sourcePath('services/translations/index.ts'), {
-  ensureRuntimeCatalogLoaded: () => {
-    catalog.loads += 1;
-    if (!catalog.hold) return Promise.resolve();
-    return new Promise<void>((resolve) => {
-      catalog.finish = resolve;
-    });
-  },
-  hasRuntimeCatalogTranslations: (translations: BibleTranslation[]) =>
-    translations.some((translation) => translation.source === 'runtime' && translation.catalog),
-});
-
-// Remote audio: available everywhere except the `translation:book` pairs listed here.
-const remote = { unavailable: new Set<string>(), calls: [] as string[] };
-mockModule(mock, sourcePath('services/audio/audioRemote.ts'), {
-  isRemoteAudioAvailable: (translationId: string, bookId: string) => {
-    remote.calls.push(`${translationId}:${bookId}`);
-    return !remote.unavailable.has(`${translationId}:${bookId}`) && !remote.unavailable.has('*');
-  },
-  getFirstAvailableAudioBook: () => null,
-});
-
-afterEach(() => {
-  log.length = 0;
-  pending.download = null;
-  audio.failure = null;
-  catalog.loads = 0;
-  catalog.hold = false;
-  remote.unavailable.clear();
-  remote.calls.length = 0;
-  useBibleStore.setState(useBibleStore.getInitialState(), true);
-  usePreferenceStore.setState(usePreferenceStore.getInitialState(), true);
-});
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-async function renderPicker() {
-  const { TranslationPickerList } = await import('./TranslationPickerList');
-  const view = await harness.render(
-    <TranslationPickerList
-      onRequestClose={() => log.push(['close'])}
-      onTranslationActivated={(translation) => log.push(['activated', translation.id])}
-    />
-  );
-  await view.flush();
-  return view;
-}
-type View = Awaited<ReturnType<typeof renderPicker>>;
-
-const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-/** A translation row is announced as "<name>, <abbreviation> · <availability>". */
-const rowOf = (view: View, translation: BibleTranslation) =>
-  view.getByRole('button', { name: new RegExp(`^${escapeRegExp(translation.name)},`) });
-const rowNames = (view: View) =>
-  view
-    .getAllByRole('button')
-    .map((node) => String(node.props.accessibilityLabel ?? ''))
-    .filter((label) => ALL.some((translation) => label.startsWith(`${translation.name},`)))
-    .map((label) => label.split(',')[0]);
-const iconNames = (node: ReactTestInstance) =>
-  within(node)
-    .queryAllByType('Icon')
-    .map((icon) => icon.props.name);
-
-async function openManageSheet(view: View, translation: BibleTranslation) {
-  await view.press(view.getByTestId(`translation-picker-more-${translation.id}`));
-  const [sheet] = view.queryAllByType('Modal');
-  assert.ok(sheet, 'the manage sheet opens');
-  return sheet;
-}
-
-const inAct = async (work: () => unknown) => {
-  await act(async () => {
-    await work();
-  });
-};
-
-type AlertButton = { text: string; style?: string; onPress?: () => void };
-const lastAlert = () => harness.rn.__recorded.alerts.at(-1);
-const alertButton = (text: string) =>
-  (lastAlert()?.buttons as AlertButton[]).find((button) => button.text === text);
+const {
+  harness,
+  t,
+  log,
+  pending,
+  audio,
+  catalog,
+  remote,
+  useBibleStore,
+  renderPicker,
+  rowOf,
+  rowNames,
+  iconNames,
+  openManageSheet,
+  inAct,
+  lastAlert,
+  alertButton,
+} = installPickerRenderFixture(mock);
 
 // ---------------------------------------------------------------------------
 // Layout
