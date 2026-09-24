@@ -5,6 +5,7 @@ import {
   type AudioPlaybackProgressReason,
 } from '../../services/audio/audioListeningProgressModel';
 import { useAudioStore } from '../../stores/audioStore';
+import { useProgressStore } from '../../stores/progressStore';
 
 // The listening telemetry interval is started from the native playback callbacks,
 // so a closed reader can start one after it unmounts. A per-player ref would leave
@@ -43,6 +44,13 @@ export function emitAudioPlaybackProgress(
     return;
   }
 
+  // Bank the segment on this device first. Reading activity counts listening from
+  // this record, so a guest or an offline listener sees their minutes without the
+  // cloud summary, and time spent in a chapter left unfinished still counts.
+  const { listened_ms: listenedMs } = properties;
+  if (typeof listenedMs === 'number') {
+    useProgressStore.getState().recordListeningTime(listenedMs);
+  }
   trackAnonymousUsageEvent('audio_playback_progress', properties);
   audioProgressTelemetryLastEmittedAt.current = now;
 }
