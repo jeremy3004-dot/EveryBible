@@ -263,21 +263,14 @@ const parseWithBookNames = (
 
     const first = Number(numbers[1]);
     const verseDigits = numbers[2] ?? numbers[3];
-    const second = verseDigits === undefined ? undefined : Number(verseDigits);
-    // Like the grammar, a lone number after a one-chapter book is a verse ("3 John 5").
-    const isVerseOfOnlyChapter = book.chapters === 1 && second === undefined && first > 1;
-    const chapter = isVerseOfOnlyChapter ? 1 : first;
-    const focusVerse = isVerseOfOnlyChapter ? first : second;
-    if (chapter < 1 || chapter > book.chapters || focusVerse === 0) {
-      return null;
-    }
-
-    return {
-      bookId,
-      chapter,
-      focusVerse,
-      label: focusVerse ? `${book.name} ${chapter}:${focusVerse}` : `${book.name} ${chapter}`,
-    };
+    // Restated with the English name, the English grammar checks the chapter and verse against
+    // the book's real counts (John 3 has 36 verses) and reads a lone number after a one-chapter
+    // book as a verse, exactly as for a reference typed in English.
+    const englishReference =
+      verseDigits === undefined
+        ? `${book.name} ${first}`
+        : `${book.name} ${first}:${Number(verseDigits)}`;
+    return parseWithParser(englishReference, getParser('en'));
   }
 
   return null;
@@ -296,7 +289,8 @@ export const parsePassageReference = (query: string): PassageReferenceTarget | n
  *
  * When the locale-specific parser does not find a match, the English parser is tried
  * as a secondary fallback so that English references still work regardless of UI language,
- * and then, for a language without a grammar, `bookNames`: the book names the interface shows.
+ * and then `bookNames`, the book names the interface shows, which the grammars do not cover
+ * for 17 languages and only partly for Nepali.
  */
 export const parsePassageReferenceLocale = (
   query: string,
@@ -319,9 +313,5 @@ export const parsePassageReferenceLocale = (
     }
   }
 
-  // Only where no grammar covers the language: a grammar that rejected "John 3:99" knows the
-  // verse counts, which the name fallback does not.
-  return bookNames && !isSupportedParserLocale(locale)
-    ? parseWithBookNames(query, bookNames)
-    : null;
+  return bookNames ? parseWithBookNames(query, bookNames) : null;
 };

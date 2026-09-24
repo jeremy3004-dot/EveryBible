@@ -1,11 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { bibleBooks } from '../../constants/books';
+import { localeLoaders } from '../../i18n/localeLoaders';
 import { ar } from '../../i18n/locales/ar';
 import { de } from '../../i18n/locales/de';
 import { fr } from '../../i18n/locales/fr';
 import { ja } from '../../i18n/locales/ja';
 import { ko } from '../../i18n/locales/ko';
+import { ne } from '../../i18n/locales/ne';
 import { zh } from '../../i18n/locales/zh';
 import {
   parsePassageReference,
@@ -362,9 +364,37 @@ test('reads the chapter-and-verse counters Chinese, Japanese and Korean referenc
   assert.equal(parsePassageReferenceLocale('约翰福音 3节', 'zh', zhNames), null);
 });
 
-test('interface book names do not override a grammar that rejected the reference', () => {
-  // The English grammar knows John 3 has 36 verses; the name fallback does not.
+test('a reference typed with interface book names is checked against the verse counts', () => {
   const enNames = bibleBooks.map((book) => ({ bookId: book.id, name: book.name }));
+  // John 3 has 36 verses.
   assert.equal(parsePassageReferenceLocale('John 3:99', 'en', enNames), null);
-  assert.equal(parsePassageReferenceLocale('Juan 3:99', 'es', enNames), null);
+  assert.equal(parsePassageReferenceLocale('Jean 3:99', 'fr', frNames), null);
+  assert.equal(parsePassageReferenceLocale('Jean 3:36', 'fr', frNames)?.focusVerse, 36);
+});
+
+test('Nepali interface book names the Nepali grammar does not know still open the passage', () => {
+  // The app calls Psalms भजनसङ्ग्रह and Acts प्रेरितका काम; the grammar knew neither.
+  const neNames = interfaceBookNames(ne.bible.books);
+  assert.deepEqual(parsePassageReferenceLocale('भजनसङ्ग्रह २३', 'ne', neNames), {
+    bookId: 'PSA',
+    chapter: 23,
+    focusVerse: undefined,
+    label: 'Psalms 23',
+  });
+  assert.equal(parsePassageReferenceLocale('प्रेरितका काम 2:4', 'ne', neNames)?.bookId, 'ACT');
+  assert.equal(parsePassageReferenceLocale('एफेसी 2:8', 'ne', neNames)?.bookId, 'EPH');
+});
+
+test('every interface language opens every book by the name the app shows for it', async () => {
+  for (const [code, load] of Object.entries(localeLoaders)) {
+    const resource = (await load()) as { bible: { books: Record<string, string> } };
+    const names = interfaceBookNames(resource.bible.books);
+    for (const { bookId, name } of names) {
+      const book = bibleBooks.find((candidate) => candidate.id === bookId);
+      const first = parsePassageReferenceLocale(`${name} 1:1`, code, names);
+      const last = parsePassageReferenceLocale(`${name} ${book?.chapters}`, code, names);
+      assert.equal(first?.bookId, bookId, `${code}: ${name} 1:1`);
+      assert.equal(last?.bookId, bookId, `${code}: ${name} ${book?.chapters}`);
+    }
+  }
 });
