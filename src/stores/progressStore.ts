@@ -6,7 +6,7 @@ import {
   type StorageValue,
 } from 'zustand/middleware';
 import { zustandStorage } from './mmkvStorage';
-import { sanitizePersistedProgressState } from './persistedStateSanitizers';
+import { sanitizePersistedProgressState } from './sanitizers/progressState';
 
 let syncDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
