@@ -572,6 +572,41 @@ test('the constants barrel, the launch warmup and onboarding never import the bo
   });
 });
 
+// ListRow, Sheet, EmptyState and SectionHeader took one font hook each from the
+// `hooks` barrel, which also re-exports useAudioPlayer and useSync. That put the
+// audio player (expo-av), the download service and cloud sync into every screen
+// built from the UI kit, including the first-launch onboarding flow.
+test('the UI kit and onboarding do not load the audio or sync stack', () => {
+  const entries = ['../../components/ui/index.ts', '../../screens/onboarding/LocaleSetupFlow.tsx'];
+  const bannedFiles = [
+    'src/hooks/index.ts',
+    'src/hooks/useAudioPlayer.ts',
+    'src/hooks/useSync.ts',
+    'src/services/audio/audioPlayer.ts',
+    'src/services/sync/syncService.ts',
+  ];
+
+  entries.forEach((entry) => {
+    const { files, packages } = collectStaticImports(
+      fileURLToPath(new URL(entry, import.meta.url).href)
+    );
+    const closurePaths = [...files].map((file) => file.replace(/\\/g, '/'));
+    bannedFiles.forEach((suffix) => {
+      const hit = closurePaths.find((file) => file.endsWith(suffix));
+      assert.equal(hit, undefined, `${entry}'s static closure must not reach ${suffix}`);
+    });
+    assert.equal(
+      packages.has('expo-av'),
+      false,
+      `${entry}'s static closure must not import expo-av`
+    );
+    assert.ok(
+      closurePaths.some((file) => file.endsWith('src/hooks/useDisplayFont.ts')),
+      `${entry} should still reach useDisplayFont — check the walker if this fails`
+    );
+  });
+});
+
 test('restoring the session at launch does not load the native sign-in SDKs', () => {
   const { files, packages } = collectStaticImports(
     fileURLToPath(new URL('../auth/authSession.ts', import.meta.url).href)

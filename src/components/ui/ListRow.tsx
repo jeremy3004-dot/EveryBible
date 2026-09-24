@@ -2,7 +2,8 @@ import { type ReactNode } from 'react';
 import { type GestureResponderEvent, StyleSheet, Text, View } from 'react-native';
 import { ChevronRight, type LucideIcon } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
-import { useDisplayFont, useLargeText } from '../../hooks';
+import { useDisplayFont } from '../../hooks/useDisplayFont';
+import { useLargeText } from '../../hooks/useLargeText';
 import { spacing, typography } from '../../design/system';
 import { PressableScale, type HapticFeedback } from './PressableScale';
 
