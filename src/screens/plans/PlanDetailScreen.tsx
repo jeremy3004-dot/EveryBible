@@ -81,6 +81,7 @@ import {
   getPlanDetailCompactHeaderHeight,
   isPlanDetailCompactHeaderVisible,
 } from './planDetailHeaderModel';
+import { formatPlanProgressTally } from './planProgressTally';
 import { lightHaptic, successHaptic } from '../../utils';
 
 // ---------------------------------------------------------------------------
@@ -412,10 +413,11 @@ function ProgressCard({ plan, progress, currentDaySummary, today }: ProgressCard
 
   const doneCount = cellStates.filter((state) => state === 'done').length;
   const missedCount = cellStates.filter((state) => state === 'missed').length;
-  const tallyLabel =
-    missedCount > 0
-      ? t('readingPlans.readMissedSummary', { read: doneCount, missed: missedCount })
-      : t('readingPlans.readSummary', { read: doneCount });
+  const tallyLabel = formatPlanProgressTally(t, {
+    done: doneCount,
+    missed: missedCount,
+    totalDays,
+  });
 
   return (
     <AppCard padding={layout.cardPaddingWide}>
