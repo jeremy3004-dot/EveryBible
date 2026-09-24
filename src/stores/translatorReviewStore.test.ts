@@ -763,3 +763,31 @@ test('a persisted non-translator mode always hydrates with translator access off
   assert.equal(state().mode, 'community');
   assert.equal(state().enabled, false);
 });
+
+// An unsigned iOS build rejects every keychain call (ERR_KEY_CHAIN). Both cold-start
+// hydrations run un-awaited at import, so a rejection they let through would be unhandled.
+test('cold-start passcode hydration settles quietly when the keychain cannot be read', async (t) => {
+  t.mock.method(console, 'warn', () => {});
+  const unhandled: unknown[] = [];
+  const onUnhandled = (reason: unknown) => unhandled.push(reason);
+  process.on('unhandledRejection', onUnhandled);
+  t.after(() => process.off('unhandledRejection', onUnhandled));
+  secureStore.state.failure = Object.assign(new Error('Keychain unavailable'), {
+    code: 'ERR_KEY_CHAIN',
+  });
+
+  useTranslatorReviewStore.setState({ mode: 'translator', enabled: true, accessPasscode: null });
+  await assert.doesNotReject(hydrateTranslatorReviewPasscode());
+  assert.equal(state().accessPasscode, null);
+
+  useTranslatorReviewStore.setState({ mode: 'scripture_council', enabled: false });
+  await assert.doesNotReject(hydrateCouncilPasscode());
+  assert.equal(state().councilPasscode, null);
+
+  await flushSecureStore();
+  assert.deepEqual(
+    secureStore.calls.map((call) => call.op),
+    ['get', 'get']
+  );
+  assert.deepEqual(unhandled, []);
+});
