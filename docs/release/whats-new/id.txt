@@ -1,0 +1,16 @@
+Pengaturan, rencana, dan catatan Anda kini tetap sama di semua perangkat, Rencana bacaan tampil baru, dan aplikasi terbuka lebih cepat.
+
+• Pengaturan kini disinkronkan satu per satu, jadi perubahan di satu perangkat tidak lagi membatalkan perubahan di perangkat lain. Saat pertama kali masuk di sebuah perangkat, pilihan yang sudah Anda buat di sana tetap dipertahankan.
+• Jika Anda keluar dari sebuah rencana bacaan di satu perangkat, rencana itu tidak muncul lagi di perangkat lain. Sesi pagi, siang, dan malam kini juga disinkronkan.
+• Catatan, sorotan, penanda, dan perpustakaan Anda milik akun Anda. Jika orang lain masuk di perangkat yang sama, mereka tidak akan melihatnya, dan semuanya kembali saat Anda masuk lagi.
+• Rencana bacaan: hari-hari Anda tampil dalam kisi titik yang ringkas, judul tetap tersemat saat menggulir, dan Anda bisa menggeser untuk kembali dari bacaan ke rencananya. Membuka satu hari dalam rencana tidak lagi melanjutkan audio yang sedang Anda jeda.
+• Judul perikop di awal setiap pasal kembali tampil; sebelumnya hilang di lebih dari seribu pasal. Hasil pencarian kini langsung membawa Anda ke ayatnya.
+• Membagikan Ayat hari ini kini hanya membagikan ayat dan fotonya, tanpa nama atau sapaan Anda.
+• Teks aplikasi sudah ditinjau dan diperbaiki di semua bahasa, dan bahasa Rusia serta Arab kini memakai bentuk jamak yang benar.
+• Unduhan audio: membatalkan unduhan seluruh Alkitab kini benar-benar menghentikannya, pasal yang diunduh diperiksa agar tidak ada berkas rusak, dan Anda diberi tahu lebih dulu jika ruang penyimpanan tidak cukup.
+• Label VoiceOver yang lebih baik di seluruh aplikasi, dan teks pindah ke baris berikutnya alih-alih terpotong pada ukuran huruf besar. Di iOS 26, bilah tab tetap mudah dibaca di atas teks Alkitab.
+• Memperbaiki masalah ketika membuka aplikasi tanpa koneksi setelah lama tidak dipakai bisa menghapus kemajuan membaca dan rentetan hari yang belum tersinkron.
+• Untuk tim penerjemah: setiap tim kini punya kode peninjauan sendiri, dan aplikasi menunjukkan terjemahan mana saja yang dibuka oleh kode Anda.
+• Pembukaan lebih cepat, plus perbaikan kecil di berbagai tempat.
+
+Terima kasih telah membaca bersama kami.
