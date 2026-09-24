@@ -2,7 +2,7 @@ import test, { afterEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import type { Mutate } from 'zustand/vanilla';
 import { mockMmkvStorage } from '../../testing/mockModules';
-import { installRenderHarness, within } from '../../testing/render';
+import { installRenderHarness, renderedText, within } from '../../testing/render';
 import { RHYTHM_PRESET_LIBRARY } from '../../services/plans/rhythmPresets';
 import type { RhythmComposerScreenProps } from '../../navigation/types';
 import type { ReadingPlansStoreApi } from '../../stores/readingPlansStore';
@@ -317,4 +317,24 @@ test('after a rejected save the reader can pick another preset', async () => {
   assert.equal(attempts, 2);
   assert.equal(store.getState().rhythmOrder.length, 1);
   assert.equal(callsTo('replace').length, 1);
+});
+
+test('narrowing the filters leaves the preset cards that stay on screen un-rendered', async () => {
+  const view = await renderComposer();
+  const tradition = RHYTHM_PRESET_LIBRARY[0].tradition;
+  const kept = new Set(
+    RHYTHM_PRESET_LIBRARY.filter((preset) => preset.tradition === tradition).map(
+      (preset) => preset.title
+    )
+  );
+
+  const since = harness.renders.mark();
+  await view.press(view.getByRole('button', { name: tradition }));
+
+  assert.deepEqual(presetTitles(view), [...kept]);
+  assert.equal(
+    harness.renders.count(since, 'Text', (props) => kept.has(renderedText(props.children))),
+    0,
+    'a card whose preset is still shown does not re-render'
+  );
 });
