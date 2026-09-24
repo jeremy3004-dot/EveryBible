@@ -17,10 +17,7 @@ import { useTranslation } from 'react-i18next';
 import * as ImagePicker from 'expo-image-picker';
 import { updateUserProfile } from '../../services/auth';
 import { uploadAvatar } from '../../services/storage/storageService';
-import {
-  getEngagementSummary,
-  refreshEngagement,
-} from '../../services/analytics/analyticsService';
+import { getEngagementSummary, refreshEngagement } from '../../services/analytics/analyticsService';
 import type { UserEngagementSummary } from '../../services/supabase/types';
 import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
 import { useAuthStore } from '../../stores/authStore';
@@ -29,16 +26,9 @@ import type { MoreStackParamList } from '../../navigation/types';
 import { openAuthFlow } from '../../navigation/rootNavigation';
 import { layout, radius, spacing, typography } from '../../design/system';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
+import { formatListeningTime } from '../../i18n/interfaceFormatting';
 
 type NavigationProp = NativeStackNavigationProp<MoreStackParamList>;
-
-// Format listening minutes as "Xh Ym" for long durations or "Xm" for short.
-const formatListeningTime = (minutes: number): string => {
-  if (minutes < 60) return `${minutes}m`;
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return m > 0 ? `${h}h ${m}m` : `${h}h`;
-};
 
 export function ProfileScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -161,7 +151,9 @@ export function ProfileScreen() {
         >
           <Ionicons name="arrow-back" size={24} color={colors.primaryText} />
         </TouchableOpacity>
-        <Text accessibilityRole="header" style={styles.headerTitle}>{t('more.profile')}</Text>
+        <Text accessibilityRole="header" style={styles.headerTitle}>
+          {t('more.profile')}
+        </Text>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -232,7 +224,7 @@ export function ProfileScreen() {
             <View style={styles.statsGrid}>
               <View style={styles.statItem}>
                 <Text style={styles.statNumber}>
-                  {formatListeningTime(engagement.total_listening_minutes)}
+                  {formatListeningTime(engagement.total_listening_minutes, t)}
                 </Text>
                 <Text style={styles.statLabel}>{t('engagement.listeningTime')}</Text>
               </View>
@@ -276,9 +268,7 @@ export function ProfileScreen() {
           <View style={styles.signInCard}>
             <Ionicons name="cloud-outline" size={48} color={colors.accentPrimary} />
             <Text style={styles.signInTitle}>{t('more.syncYourProgress')}</Text>
-            <Text style={styles.signInDescription}>
-              {t('auth.signInSubtitle')}
-            </Text>
+            <Text style={styles.signInDescription}>{t('auth.signInSubtitle')}</Text>
             <TouchableOpacity
               style={styles.signInButton}
               onPress={handleSignIn}

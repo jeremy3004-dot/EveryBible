@@ -3,7 +3,8 @@
 -- Before 20260923233710_revoke_client_grants_on_service_only_tables.sql this fails:
 -- anon and authenticated held every table privilege on these RLS-without-policy tables.
 -- translator_team_passcodes (hashed team review passcodes) is created without client grants
--- by 20260924014137_add_translator_team_passcodes.sql.
+-- by 20260924014137_add_translator_team_passcodes.sql; translator_access_settings and
+-- translator_shared_passcode_uses by 20260924035827_translator_shared_passcode_switch.sql.
 BEGIN;
 
 DO $$
@@ -17,7 +18,9 @@ BEGIN
     'analytics_monthly_rollup',
     'content_images',
     'translation_sync_runs',
+    'translator_access_settings',
     'translator_review_attempts',
+    'translator_shared_passcode_uses',
     'translator_team_passcodes',
     'verse_of_day_entries'
   ]) AS t(table_name)
@@ -43,6 +46,8 @@ BEGIN
      OR NOT has_table_privilege('service_role', 'public.translator_review_attempts', 'INSERT')
      OR NOT has_table_privilege('service_role', 'public.translator_team_passcodes', 'SELECT')
      OR NOT has_table_privilege('service_role', 'public.translator_team_passcodes', 'UPDATE')
+     OR NOT has_table_privilege('service_role', 'public.translator_access_settings', 'UPDATE')
+     OR NOT has_table_privilege('service_role', 'public.translator_shared_passcode_uses', 'INSERT')
      OR NOT has_table_privilege('service_role', 'public.verse_of_day_entries', 'SELECT') THEN
     RAISE EXCEPTION 'service_role must keep access to the service-only tables';
   END IF;

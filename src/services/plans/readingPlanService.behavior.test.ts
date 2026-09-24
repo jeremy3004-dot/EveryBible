@@ -84,6 +84,16 @@ const signOut = () => {
 };
 
 const UNENROLLMENTS = 'user_reading_plan_unenrollments';
+const MERGE_RPC = 'merge_reading_plan_progress';
+// PostgREST's answer for a function the server does not have yet.
+const MISSING_MERGE_RPC = {
+  data: null,
+  error: {
+    code: 'PGRST202',
+    message: 'Could not find the function public.merge_reading_plan_progress(p_rows)',
+  },
+  status: 404,
+};
 
 const remoteRow = (overrides: Partial<Record<string, unknown>> = {}) => ({
   id: 'remote-1',
@@ -128,6 +138,9 @@ test.beforeEach(() => {
   storeModule.readingPlansStore.getState().resetAll();
   mmkv.store.clear();
   supabaseFake.reset();
+  // Most scenarios describe a server without migration 20260924035821, so plan
+  // pushes take the upsert path; the merge-RPC tests below install the function.
+  supabaseFake.respondToRpc(MERGE_RPC, () => MISSING_MERGE_RPC);
   backend.configured = true;
   authControl.readsThrow = false;
   signOut();
@@ -1662,6 +1675,7 @@ test('markPlanSessionComplete pushes the session tick to the account in the back
   await service.enrollInPlan('kathisma-weekly');
   await flushBackgroundWork();
   supabaseFake.reset();
+  supabaseFake.respondToRpc(MERGE_RPC, () => MISSING_MERGE_RPC);
   let pushed!: (payload: Record<string, unknown>) => void;
   const push = new Promise<Record<string, unknown>>((resolve) => {
     pushed = resolve;
@@ -2134,4 +2148,181 @@ test('every column a plan push writes exists in the migrated table', async () =>
     []
   );
   assert.equal(checkAdmits(schema, 'current_session', 'evening'), true);
+});
+
+// ---------------------------------------------------------------------------
+// Plan pushes merge on the server in one statement, so two phones syncing at
+// the same instant keep each other's days
+// (docs/research/sync-offline-review-2026-09-24.md, finding 12)
+// ---------------------------------------------------------------------------
+
+type MergeRpcArgs = { p_rows: Array<SessionPayload & Record<string, unknown>> };
+
+const mergeRpcCalls = () => supabaseFake.callsFor(`rpc:${MERGE_RPC}`);
+
+test('a plan sync merges through the server RPC and keeps a day another phone wrote meanwhile', async () => {
+  signIn('user-a', 2);
+  planStore().upsertProgress(
+    localProgress('psalms-30-days', {
+      completed_entries: { '3': '2026-03-03T00:00:00.000Z' },
+      completed_sessions: { '3:morning': '2026-03-03T06:00:00.000Z' },
+      current_day: 4,
+    })
+  );
+  // The pre-push read sees days 1-2 (and the session columns) ...
+  serveRows([
+    remoteRow({
+      completed_entries: {
+        '1': '2026-03-01T00:00:00.000Z',
+        '2': '2026-03-02T00:00:00.000Z',
+      },
+      completed_sessions: {},
+      current_session: null,
+      current_day: 3,
+    }),
+  ]);
+  // ... and another phone lands day 4 before this push: the server merges into it.
+  supabaseFake.respondToRpc(MERGE_RPC, (call) => {
+    const [row] = (call.payload as MergeRpcArgs).p_rows;
+    return {
+      data: [
+        remoteRow({
+          id: 'server-merged',
+          completed_entries: { ...row?.completed_entries, '4': '2026-03-04T00:00:00.000Z' },
+          completed_sessions: row?.completed_sessions,
+          current_day: 5,
+        }),
+      ],
+    };
+  });
+
+  const result = await service.syncPlanProgress(Object.values(planStore().progressByPlanId));
+
+  assert.equal(result.success, true);
+  assert.deepEqual(upsertPayloads(), [], 'no read-modify-write upsert when the RPC exists');
+  const [call] = mergeRpcCalls();
+  assert.equal(call?.single, false);
+  const [pushed] = (call?.payload as MergeRpcArgs).p_rows;
+  assert.equal(pushed?.plan_slug, 'psalms-30-days');
+  assert.deepEqual(Object.keys(pushed?.completed_entries ?? {}).sort(), ['1', '2', '3']);
+  assert.deepEqual(pushed?.completed_sessions, { '3:morning': '2026-03-03T06:00:00.000Z' });
+  const live = planStore().getProgress('psalms-30-days');
+  assert.equal(live?.id, 'server-merged');
+  assert.deepEqual(Object.keys(live?.completed_entries ?? {}).sort(), ['1', '2', '3', '4']);
+  assert.deepEqual(live?.completed_sessions, { '3:morning': '2026-03-03T06:00:00.000Z' });
+  assert.equal(live?.current_day, 5);
+  assert.deepEqual(
+    result.data?.map((row) => row.id),
+    ['server-merged']
+  );
+});
+
+test('a day completed on this phone is pushed through the merge RPC and adopts the merged row', async () => {
+  signIn('user-a', 4);
+  planStore().enrollPlan('psalms-30-days');
+  serveRows([]);
+  const merged = new Promise<void>((resolve) => {
+    supabaseFake.respondToRpc(MERGE_RPC, (call) => {
+      const [row] = (call.payload as MergeRpcArgs).p_rows;
+      resolve();
+      return {
+        data: remoteRow({
+          id: 'server-merged',
+          completed_entries: { ...row?.completed_entries, '2': '2026-03-02T00:00:00.000Z' },
+          current_day: 3,
+        }),
+      };
+    });
+  });
+
+  await service.markDayComplete('psalms-30-days', 1);
+  await merged;
+  await flushBackgroundWork();
+
+  const [call] = mergeRpcCalls();
+  assert.equal(call?.single, true);
+  assert.equal((call?.payload as MergeRpcArgs).p_rows.length, 1);
+  assert.deepEqual(upsertPayloads(), []);
+  const live = planStore().getProgress('psalms-30-days');
+  assert.deepEqual(Object.keys(live?.completed_entries ?? {}).sort(), ['1', '2']);
+  assert.equal(live?.current_day, 3);
+});
+
+for (const [label, missing] of [
+  ['PGRST202', MISSING_MERGE_RPC],
+  [
+    'an undefined-function error',
+    { data: null, error: { code: '42883', message: 'function does not exist' } },
+  ],
+  ['a bare 404', { data: null, error: { message: 'Not Found' }, status: 404 }],
+] as const) {
+  test(`a server without the merge RPC (${label}) still syncs through the upsert`, async () => {
+    signIn('user-a', 2);
+    planStore().upsertProgress(
+      localProgress('psalms-30-days', {
+        completed_entries: { '3': '2026-03-03T00:00:00.000Z' },
+        current_day: 4,
+      })
+    );
+    // The server has the session columns, so the merge function is worth trying.
+    serveRows([remoteRow({ completed_sessions: {}, current_session: null })]);
+    supabaseFake.respondToRpc(MERGE_RPC, () => missing);
+
+    const result = await service.syncPlanProgress(Object.values(planStore().progressByPlanId));
+
+    assert.equal(result.success, true);
+    assert.equal(mergeRpcCalls().length, 1);
+    const [pushed] = upsertPayloads();
+    assert.deepEqual(Object.keys(pushed?.completed_entries ?? {}).sort(), ['1', '3']);
+    assert.equal(planStore().getProgress('psalms-30-days')?.id, 'server-psalms-30-days');
+  });
+}
+
+test('a merge the server refuses is not retried as a blind upsert', async () => {
+  signIn('user-a', 2);
+  const rows = [localProgress('psalms-30-days', { completed_entries: { '3': 'x' } })];
+  planStore().upsertProgress(rows[0]!);
+  serveRows([]);
+  supabaseFake.respondToRpc(MERGE_RPC, () => ({
+    data: null,
+    error: { code: '22023', message: 'p_rows names a plan_slug more than once' },
+    status: 400,
+  }));
+
+  const result = await service.syncPlanProgress(rows);
+
+  assert.equal(result.success, true);
+  assert.deepEqual(upsertPayloads(), []);
+  assert.deepEqual(planStore().getProgress('psalms-30-days')?.completed_entries, { '3': 'x' });
+});
+
+test('every column the merge RPC is sent exists in the migrated table', async () => {
+  const schema = replayTableMigrations('user_reading_plan_progress', readRepoMigrations());
+  signIn('user-a', 2);
+  planStore().upsertProgress(localProgress('kathisma-weekly', { current_session: 'evening' }));
+  serveRows([]);
+  supabaseFake.respondToRpc(MERGE_RPC, () => ({ data: [] }));
+
+  await service.syncPlanProgress(Object.values(planStore().progressByPlanId));
+
+  const [pushed] = (mergeRpcCalls()[0]?.payload as MergeRpcArgs).p_rows;
+  assert.ok(pushed);
+  assert.deepEqual(
+    Object.keys(pushed).filter((column) => !schema.columns.has(column)),
+    []
+  );
+});
+
+test('a server without the session columns is not asked for the merge RPC', async () => {
+  signIn('user-a', 2);
+  planStore().upsertProgress(localProgress('psalms-30-days'));
+  // Rows without completed_sessions: migration 20260924023342 (and so the merge
+  // function, which needs its columns) is not applied.
+  serveRows([remoteRow()]);
+
+  const result = await service.syncPlanProgress(Object.values(planStore().progressByPlanId));
+
+  assert.equal(result.success, true);
+  assert.equal(mergeRpcCalls().length, 0);
+  assert.equal(upsertPayloads().length, 1);
 });

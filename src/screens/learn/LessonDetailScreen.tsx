@@ -860,7 +860,7 @@ function CompleteToggle({ isComplete, onPress, colors }: CompleteToggleProps) {
         styles.completeToggle,
         {
           backgroundColor: isComplete ? colors.successSoft : 'transparent',
-          borderColor: isComplete ? colors.successSoft : colors.borderStrong,
+          borderColor: isComplete ? colors.successSoft : colors.controlBorder,
         },
       ]}
     >

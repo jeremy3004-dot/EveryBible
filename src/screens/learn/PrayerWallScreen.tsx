@@ -497,7 +497,11 @@ export function PrayerWallScreen() {
           ref={inputRef}
           style={[
             styles.textInput,
-            { color: colors.primaryText, backgroundColor: colors.background },
+            {
+              color: colors.primaryText,
+              backgroundColor: colors.background,
+              borderColor: colors.controlBorder,
+            },
           ]}
           placeholder={t('prayer.requestPlaceholder')}
           placeholderTextColor={colors.secondaryText}
@@ -673,6 +677,7 @@ const styles = StyleSheet.create({
   },
   textInput: {
     ...typography.body,
+    borderWidth: 1,
     borderRadius: radius.lg,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,

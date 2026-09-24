@@ -3,7 +3,7 @@
 export const sharedTranslationValues: Record<string, Record<string, string>> = {
   es: {
     // Brand names only: the app name and the Every Language organization name.
-    'more.footerVersion': 'EveryBible {{version}} · Every Language',
+    'more.footerVersion': 'Every Bible {{version}} · Every Language',
     'readingPlans.plansCount_one': '{{count}} plan',
     'interface.minutesShort': '{{count}} min',
     'interface.daysShort': '{{count}} d',
@@ -22,11 +22,11 @@ export const sharedTranslationValues: Record<string, Record<string, string>> = {
     'readingPlans.planItemLabel': 'Plan',
     'readingPlans.kathisma.title': 'Kathisma',
     // Reviewed 2026-09-11: the natural target-language value is byte-identical to English.
-    "common.error": "Error",
+    'common.error': 'Error',
   },
   fr: {
     // Brand names only: the app name and the Every Language organization name.
-    'more.footerVersion': 'EveryBible {{version}} · Every Language',
+    'more.footerVersion': 'Every Bible {{version}} · Every Language',
     'readingPlans.plansCount_one': '{{count}} plan',
     'readingPlans.plansCount_other': '{{count}} plans',
     'interface.minutesShort': '{{count}} min',
@@ -59,14 +59,14 @@ export const sharedTranslationValues: Record<string, Record<string, string>> = {
     'gather.topicStress': 'Stress',
     'plans.rhythmComposer.tradition': 'Tradition',
     // Reviewed 2026-09-11: the natural target-language value is byte-identical to English.
-    "about.version": "Version {{version}}",
-    "bible.books.LAM": "Lamentations",
-    "gather.topicCourage": "Courage",
-    "gather.topicJustice": "Justice",
+    'about.version': 'Version {{version}}',
+    'bible.books.LAM': 'Lamentations',
+    'gather.topicCourage': 'Courage',
+    'gather.topicJustice': 'Justice',
   },
   pt: {
     // Brand names only: the app name and the Every Language organization name.
-    'more.footerVersion': 'EveryBible {{version}} · Every Language',
+    'more.footerVersion': 'Every Bible {{version}} · Every Language',
     'interface.minutesShort': '{{count}} min',
     'interface.daysShort': '{{count}} d',
     'interface.music.piano.label': 'Piano',
@@ -83,7 +83,7 @@ export const sharedTranslationValues: Record<string, Record<string, string>> = {
   },
   de: {
     // Brand names only: the app name and the Every Language organization name.
-    'more.footerVersion': 'EveryBible {{version}} · Every Language',
+    'more.footerVersion': 'Every Bible {{version}} · Every Language',
     'more.groupApp': 'App',
     'more.translationsValue': '{{abbreviation}} · {{count}} offline',
     'interface.music.sitar.label': 'Sitar',
@@ -107,27 +107,27 @@ export const sharedTranslationValues: Record<string, Record<string, string>> = {
     'readingPlans.planItemLabel': 'Plan',
     'plans.rhythmComposer.tradition': 'Tradition',
     // Reviewed 2026-09-11: the natural target-language value is byte-identical to English.
-    "annotations.colors.orange": "Orange",
-    "bible.audioDownloads": "Audio",
-    "audio.showText": "Text",
-    "auth.name": "Name",
-    "about.version": "Version {{version}}",
-    "gather.wisdomLessons.crisis.l5": "Jesus in Gethsemane",
-    "gather.topicStress": "Stress",
-    "interface.rhythmPresets.anglican-morning-prayer.historicRoots": "Book of Common Prayer",
-    "interface.rhythmPresets.anglican-evening-prayer.historicRoots": "Book of Common Prayer",
-    "interface.rhythmPresets.anglican-compline.historicRoots": "Book of Common Prayer",
+    'annotations.colors.orange': 'Orange',
+    'bible.audioDownloads': 'Audio',
+    'audio.showText': 'Text',
+    'auth.name': 'Name',
+    'about.version': 'Version {{version}}',
+    'gather.wisdomLessons.crisis.l5': 'Jesus in Gethsemane',
+    'gather.topicStress': 'Stress',
+    'interface.rhythmPresets.anglican-morning-prayer.historicRoots': 'Book of Common Prayer',
+    'interface.rhythmPresets.anglican-evening-prayer.historicRoots': 'Book of Common Prayer',
+    'interface.rhythmPresets.anglican-compline.historicRoots': 'Book of Common Prayer',
   },
   ru: {
     // Brand names only: the app name and the Every Language organization name.
-    'more.footerVersion': 'EveryBible {{version}} · Every Language',
+    'more.footerVersion': 'Every Bible {{version}} · Every Language',
     'auth.emailPlaceholder': 'you@example.com',
     // Reviewed 2026-09-11: the natural target-language value is byte-identical to English.
-    "interface.rhythmPresets.catholic-lectio-divina.historicRoots": "Lectio Divina",
+    'interface.rhythmPresets.catholic-lectio-divina.historicRoots': 'Lectio Divina',
   },
   tr: {
     // Brand names only: the app name and the Every Language organization name.
-    'more.footerVersion': 'EveryBible {{version}} · Every Language',
+    'more.footerVersion': 'Every Bible {{version}} · Every Language',
     'readingPlans.plansCount_one': '{{count}} plan',
     'interface.music.sitar.label': 'Sitar',
     'interface.rhythmPresets.catholic-lectio-divina.historicRoots': 'Lectio Divina',
@@ -146,35 +146,35 @@ export const sharedTranslationValues: Record<string, Record<string, string>> = {
   },
   zh: {
     // Brand names only: the app name and the Every Language organization name.
-    'more.footerVersion': 'EveryBible {{version}} · Every Language',
+    'more.footerVersion': 'Every Bible {{version}} · Every Language',
     'auth.emailPlaceholder': 'you@example.com',
     'readingPlans.kathisma.title': 'Kathisma',
   },
   hi: {
     // Brand names only: the app name and the Every Language organization name.
-    'more.footerVersion': 'EveryBible {{version}} · Every Language',
+    'more.footerVersion': 'Every Bible {{version}} · Every Language',
     'auth.emailPlaceholder': 'you@example.com',
   },
   ar: {
     // Brand names only: the app name and the Every Language organization name.
-    'more.footerVersion': 'EveryBible {{version}} · Every Language',
+    'more.footerVersion': 'Every Bible {{version}} · Every Language',
     'auth.emailPlaceholder': 'you@example.com',
     'readingPlans.kathisma.title': 'Kathisma',
   },
   bn: {
     // Brand names only: the app name and the Every Language organization name.
-    'more.footerVersion': 'EveryBible {{version}} · Every Language',
+    'more.footerVersion': 'Every Bible {{version}} · Every Language',
     'auth.emailPlaceholder': 'you@example.com',
   },
   ur: {
     // Brand names only: the app name and the Every Language organization name.
-    'more.footerVersion': 'EveryBible {{version}} · Every Language',
+    'more.footerVersion': 'Every Bible {{version}} · Every Language',
     'auth.emailPlaceholder': 'you@example.com',
     'readingPlans.kathisma.title': 'Kathisma',
   },
   id: {
     // Brand names only: the app name and the Every Language organization name.
-    'more.footerVersion': 'EveryBible {{version}} · Every Language',
+    'more.footerVersion': 'Every Bible {{version}} · Every Language',
     'auth.emailPlaceholder': 'you@example.com',
     'readingPlans.kathisma.title': 'Kathisma',
     'interface.music.piano.label': 'Piano',
@@ -195,49 +195,49 @@ export const sharedTranslationValues: Record<string, Record<string, string>> = {
   },
   ja: {
     // Brand names only: the app name and the Every Language organization name.
-    'more.footerVersion': 'EveryBible {{version}} · Every Language',
+    'more.footerVersion': 'Every Bible {{version}} · Every Language',
     'auth.emailPlaceholder': 'you@example.com',
     'readingPlans.kathisma.title': 'Kathisma',
     // Reviewed 2026-09-11: the natural target-language value is byte-identical to English.
-    "common.ok": "OK",
+    'common.ok': 'OK',
   },
   pa: {
     // Brand names only: the app name and the Every Language organization name.
-    'more.footerVersion': 'EveryBible {{version}} · Every Language',
+    'more.footerVersion': 'Every Bible {{version}} · Every Language',
     'auth.emailPlaceholder': 'you@example.com',
   },
   mr: {
     // Brand names only: the app name and the Every Language organization name.
-    'more.footerVersion': 'EveryBible {{version}} · Every Language',
+    'more.footerVersion': 'Every Bible {{version}} · Every Language',
     'auth.emailPlaceholder': 'you@example.com',
   },
   te: {
     // Brand names only: the app name and the Every Language organization name.
-    'more.footerVersion': 'EveryBible {{version}} · Every Language',
+    'more.footerVersion': 'Every Bible {{version}} · Every Language',
     'auth.emailPlaceholder': 'you@example.com',
   },
   ta: {
     // Brand names only: the app name and the Every Language organization name.
-    'more.footerVersion': 'EveryBible {{version}} · Every Language',
+    'more.footerVersion': 'Every Bible {{version}} · Every Language',
     'auth.emailPlaceholder': 'you@example.com',
   },
   ko: {
     // Brand names only: the app name and the Every Language organization name.
-    'more.footerVersion': 'EveryBible {{version}} · Every Language',
+    'more.footerVersion': 'Every Bible {{version}} · Every Language',
     'auth.emailPlaceholder': 'you@example.com',
     'readingPlans.kathisma.title': 'Kathisma',
   },
   ne: {
     // Brand names only: the app name and the Every Language organization name.
-    'more.footerVersion': 'EveryBible {{version}} · Every Language',
+    'more.footerVersion': 'Every Bible {{version}} · Every Language',
     'auth.emailPlaceholder': 'you@example.com',
   },
   vi: {
     // Brand names only: the app name and the Every Language organization name.
-    'more.footerVersion': 'EveryBible {{version}} · Every Language',
+    'more.footerVersion': 'Every Bible {{version}} · Every Language',
     'readingPlans.kathisma.title': 'Kathisma',
     // Reviewed 2026-09-11: the natural target-language value is byte-identical to English.
-    "interface.rhythmPresets.catholic-lectio-divina.historicRoots": "Lectio Divina",
-    "interface.rhythmPresets.benedictine-psalm-and-work.historicRoots": "Ora et labora",
+    'interface.rhythmPresets.catholic-lectio-divina.historicRoots': 'Lectio Divina',
+    'interface.rhythmPresets.benedictine-psalm-and-work.historicRoots': 'Ora et labora',
   },
 };

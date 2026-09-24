@@ -13,10 +13,10 @@ EveryBible is a mobile Bible study app built with Expo/React Native. It provides
 
 1. **TypeScript strict mode is enabled** - Why: Catch type errors at compile time, app handles sensitive user data
 2. **Never commit .env file** - Why: Contains Supabase keys, OAuth credentials, API keys
-3. **Always use barrel exports (index.ts)** - Why: Maintains clean import paths across codebase
+3. **Always use barrel exports (index.ts)** - Why: Maintains clean import paths across codebase. Exception: `src/stores/index.ts` is deliberately *not* a barrel — it re-exports only the shared MMKV plumbing, so importing one store never hydrates all of them. Import each store from its own module (e.g. `../stores/authStore`), never from `../stores`.
 4. **Theme context for all colors** - Why: App supports dark mode, hardcoded colors break theming
 5. **Translation keys for ALL user-facing text** - Why: App ships a broad interface language set, and hardcoded strings break localization coverage
-6. **Use Zustand stores for global state** - Why: Lightweight, persistent via AsyncStorage, already established pattern
+6. **Use Zustand stores for global state** - Why: Lightweight, persistent via MMKV, already established pattern
 7. **Offline-first architecture** - Why: Bible data is SQLite-based for offline access
 8. **Test on both iOS and Android** - Why: Platform-specific issues with audio, notifications, OAuth
 9. **Use Expo's native modules** - Why: Custom native modules require ejecting from managed workflow
@@ -39,10 +39,11 @@ EveryBible is a mobile Bible study app built with Expo/React Native. It provides
   /data           - Static data files
   /hooks          - Custom React hooks (useAudioPlayer, useFontSize, useI18n, useSync)
   /i18n           - Internationalization (21 bundled interface locales)
-  /navigation     - Navigation stacks (AuthStack, BibleStack, HomeStack, LearnStack, MoreStack, TabNavigator)
-  /screens        - Screen components organized by feature (auth, bible, home, learn, more)
-  /services       - Business logic (audio, auth, bible, courses, supabase, sync)
-  /stores         - Zustand stores (authStore, bibleStore, audioStore, progressStore, fourFieldsStore)
+  /design         - Design tokens/system (colors, spacing, fonts) - see Theming & Styling
+  /navigation     - RootNavigator, TabNavigator + stacks (AuthStack, BibleStack, HomeStack, LearnStack, PlansStack, MoreStack)
+  /screens        - Screen components organized by feature (auth, bible, home, learn, plans, more)
+  /services       - Business logic (audio, auth, bible, courses, supabase, sync, groups, plans, feedback)
+  /stores         - Zustand stores, MMKV-persisted (see State Management below); `index.ts` is NOT a barrel
   /types          - TypeScript type definitions
   /utils          - Utility functions (platform, haptics)
 
@@ -54,14 +55,14 @@ EveryBible is a mobile Bible study app built with Expo/React Native. It provides
 
 ### Patterns We Use
 
-- **State Management:** Zustand with AsyncStorage persistence (authStore, bibleStore, audioStore, progressStore, fourFieldsStore)
+- **State Management:** Zustand persisted to MMKV (`react-native-mmkv` v2, pinned for old-architecture compatibility) via `stores/mmkvStorage.ts`, not AsyncStorage. Private, device-only data (annotations, library/downloads, Gather progress, Four Fields) is additionally scoped per signed-in account by `stores/privateDataScope.ts` — see State Management below.
 - **Navigation:** React Navigation v7 (Bottom Tabs + Native Stack navigators)
 - **Styling:** StyleSheet.create() with ThemeContext colors - no inline styles
 - **API Layer:** Supabase client for backend, SQLite for Bible data
 - **Reading Plans:** Plan catalog and plan entries are bundled locally in `src/data/readingPlans.generated.ts`; Supabase may sync user progress, but it is not the source of truth for which plans exist
 - **Error Handling:** ErrorBoundary component wraps app, try/catch in async operations
 - **i18n:** react-i18next with expo-localization for device locale detection
-- **Routing:** Tab-based with nested stacks (Home, Bible, Harvest/Learn, More)
+- **Routing:** Tab-based with nested stacks (Home, Bible, Learn/Gather, Plans, More)
 
 ### Patterns We AVOID
 
@@ -88,7 +89,7 @@ npm run web            # Start web version (limited functionality)
 npm run lint           # ESLint check
 npm run typecheck      # TypeScript compile check
 npm run test:release   # Focused release regression suite
-npm run release:verify # Lint + typecheck + release metadata + release regressions
+npm run release:verify # Lint + typecheck + full test suite (npm test) + expo config check
 npm run lint:fix       # Auto-fix ESLint issues
 npm run format         # Format code with Prettier
 npm run format:check   # Check code formatting
@@ -96,12 +97,14 @@ npm run format:check   # Check code formatting
 
 ### EAS Build & Deploy
 
+**Local builds only — never a bare cloud `eas build`.** The account has exhausted EAS cloud build credits; every `eas build` invocation must carry `--local` (or run inside the GitHub Actions runner, which also uses `--local`). For day-to-day dev/simulator work, prefer `npx expo run:ios` / `npx expo run:android` over invoking EAS at all.
+
 ```bash
-eas build --platform ios --profile development    # Dev build with dev client (launches via Metro)
-eas build --platform ios --profile preview        # Internal distribution build with embedded JS bundle
-eas build --platform ios --profile production     # Store/TestFlight submission build with embedded JS bundle
-eas build --platform android --profile production # Android production build
-eas submit --platform android --profile production # Submit Android to Play Store
+npx expo run:ios                                              # Local dev build + launch (simulator/device)
+npx expo run:android                                          # Local dev build + launch (emulator/device)
+npm run testflight:build-local                                # iOS production IPA, local build, synced build number
+eas build --platform android --profile production --local     # Android production AAB, local build (also what CI runs)
+eas submit --platform android --profile production            # Submit Android to Play Store (upload only, not a build)
 ```
 
 ### iOS Release Credential Rule
@@ -125,6 +128,8 @@ supabase db reset    # Reset local database
 supabase db push     # Push migrations to remote
 supabase status      # Check local Supabase status
 ```
+
+**Migration file versions must match what's live.** Applying a migration through the Supabase MCP `apply_migration` tool records it under the timestamp *MCP* assigns, which can differ from the repo filename. If that happens, rename the repo file to the live version (or run `supabase migration repair`) so `list_migrations`/`db push` stay in sync — a mismatch here blocks `db push` and silently drifts the history table without changing the live schema. Check `list_migrations` for drift before trusting that a repo file and the live database agree; see `docs/research/supabase-migration-drift-2026-09-24.md` for a worked example.
 
 ### Common Tasks
 
@@ -183,7 +188,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Button } from '../components';
 
 // 4. Services, stores, hooks
-import { useAuthStore } from '../stores';
+import { useAuthStore } from '../stores/authStore';
 import { supabase } from '../services/supabase';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -229,7 +234,7 @@ import { BOOKS } from '../constants';
 - **Progress Tracking:** Tracks verses read, courses completed, time spent - syncs to Supabase
 - **Reading Plans:** The Plans tab must render from bundled local data first so the catalog is available offline on-device
 - **Offline Mode:** App works fully offline except OAuth, sync, and any remote-only audio streams that have not been downloaded yet
-- **User Preferences:** Font size, theme, language, notifications - persist via AsyncStorage
+- **User Preferences:** Font size, theme, language, notifications - persist via MMKV
 
 ### Four Fields Model
 
@@ -244,7 +249,7 @@ Each field has lessons, courses, and tracking. Groups conduct sessions following
 
 ### External Dependencies
 
-- **Supabase:** Backend (auth, profiles, progress, groups). Tables: profiles, user_progress, groups, group_members, group_sessions
+- **Supabase:** Backend (auth, profiles, progress, groups, reading plans, chapter feedback, analytics, admin tooling). Grown well past the original 5 tables — 94 migrations as of this writing. Core tables: `profiles`, `user_progress`, `user_preferences`, `groups`, `group_members`, `group_sessions`, `reading_plans`, `reading_plan_entries`, `user_reading_plan_progress`, `translation_catalog`, `translation_versions`, `user_annotations`, `chapter_feedback_submissions`, `translator_review_attempts`, `analytics_events`. Treat `supabase/migrations/` as the source of truth rather than any list here.
 - **Bible.is API:** Optional streaming source only for any future translations that still use Bible.is filesets
 - **Google OAuth:** Sign in with Google (uses the supported web + iOS client IDs)
 - **Apple Sign-In:** iOS native authentication (configured in app.json)
@@ -259,7 +264,7 @@ Each field has lessons, courses, and tracking. Groups conduct sessions following
 - **Google Sign-In on iOS:** Release builds must inject the reversed iOS client ID as the Google URL scheme via the Expo config plugin. If `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` is present but the plugin does not receive `iosUrlScheme`, tapping Google sign-in can abort natively before JS receives an error.
 - **Expo Go Limitations:** Dev builds required for Apple Sign-In, Google Sign-In, notifications
 - **CocoaPods:** May need manual installation (see global CLAUDE.md for fix)
-- **AsyncStorage Persistence:** Zustand stores persist user/session but NOT session tokens (security)
+- **MMKV Persistence:** Zustand stores persist user/session but NOT session tokens (security); private per-device data is additionally bucketed per signed-in account (see State Management)
 
 ---
 
@@ -267,38 +272,19 @@ Each field has lessons, courses, and tracking. Groups conduct sessions following
 
 ### Zustand Stores
 
-All stores use zustand with AsyncStorage persistence:
+All stores persist through `zustandStorage` (MMKV, not AsyncStorage — see `stores/mmkvStorage.ts`). `stores/index.ts` only re-exports that shared MMKV plumbing; import each store directly from its own module (`../stores/authStore`, etc.) so importing one store doesn't hydrate every store.
 
-**authStore.ts**
+Original five, still present:
 
-- User authentication state (user, session, isAuthenticated)
-- User preferences (fontSize, theme, language, notifications)
-- Actions: setUser, setSession, setPreferences, signOut, initialize
-- Persists: user, preferences (NOT session tokens for security)
+- **authStore.ts** — user/session, preferences (fontSize, theme, language, notifications). Persists user + preferences, NOT session tokens.
+- **bibleStore.ts** — current reading position, bookmarks/history, translation + downloads state (see `bibleStoreModel.ts`, `bibleTranslationPersistence.ts`).
+- **audioStore.ts** — playback state, queue, playback sequence/resume (delegates to `audioQueueModel.ts`, `audioPlaybackSequenceModel.ts`, `audioPlaybackCompletionModel.ts`).
+- **progressStore.ts** — reading/course progress, syncs to Supabase when online.
+- **fourFieldsStore.ts** — Four Fields group state and actions.
 
-**bibleStore.ts**
+Added since: **annotationStore** (highlights/notes/bookmarks), **libraryStore** (offline audio library/downloads), **gatherStore** (Four Fields/Gather lesson progress), **privacyStore** (privacy lock preferences), **readingPlansStore**, **translationPreferenceStore**, **translatorReviewStore** (translator queue + dev-passcode-gated review), **readerChromeStore** (reader UI chrome state).
 
-- Current reading state (book, chapter, verse)
-- Reading history and bookmarks
-- Font size and reading preferences
-- Actions: setCurrentBook, setCurrentChapter, addBookmark, etc.
-
-**audioStore.ts**
-
-- Audio playback state (isPlaying, currentChapter, position)
-- Playlist management
-- Actions: play, pause, seek, next, previous
-
-**progressStore.ts**
-
-- User progress tracking (verses read, courses completed, time)
-- Syncs to Supabase when online
-- Actions: trackProgress, syncProgress
-
-**fourFieldsStore.ts**
-
-- Four Fields group state (groups, group progress/notes)
-- Actions: createGroup, joinGroup, leaveGroup, updateGroupLesson, markGroupLessonComplete, addGroupNote, resetForSignOut
+**Account-scoped private data (`stores/privateDataScope.ts`):** annotations, library, gather, and Four Fields data are device-only (never synced), so they're bucketed per owner (`<store>:user:<uid>`, or the bare key for guests) rather than wiped at sign-in/out. Signing in for the first time merges the guest bucket into the account; switching accounts swaps buckets without deleting either. `stores/migrateFromAsyncStorage.ts` handles the one-time move for installs that predate MMKV.
 
 ### When to Use Zustand vs React State
 
@@ -311,18 +297,20 @@ All stores use zustand with AsyncStorage persistence:
 
 ### Structure
 
+Five root tabs, defined in `navigation/tabManifest.ts`: Home, Bible, Learn (labelled "Gather" — `tabs.gather`), Plans, More.
+
 ```
 RootNavigator (NavigationContainer)
 └── TabNavigator (Bottom Tabs)
     ├── HomeStack (Stack Navigator)
-    │   ├── HomeScreen
-    │   ├── DailyReadingScreen
-    │   └── ProgressScreen
+    │   └── HomeScreen
     ├── BibleStack (Stack Navigator)
-    │   ├── BibleReaderScreen
-    │   ├── ChapterSelectorScreen
-    │   └── BookSelectorScreen
-    ├── LearnStack (Stack Navigator - "Harvest"/"Gather" tab)
+    │   ├── BibleBrowser / BiblePicker (modal) (BibleBrowserScreen)
+    │   ├── ChapterSelector (ChapterSelectorScreen)
+    │   ├── BibleReader (BibleReaderScreen)
+    │   ├── TranslatorQueue (TranslatorReviewQueueScreen)
+    │   └── ChapterFeedbackReview (ChapterFeedbackReviewScreen)
+    ├── LearnStack (Stack Navigator - "Gather" tab)
     │   ├── GatherHome (GatherScreen)
     │   ├── FoundationDetail (FoundationDetailScreen)
     │   ├── LessonDetail (LessonDetailScreen)
@@ -330,11 +318,16 @@ RootNavigator (NavigationContainer)
     │   ├── GroupList (GroupListScreen)
     │   ├── GroupDetail (GroupDetailScreen)
     │   └── GroupSession (GroupSessionScreen)
+    ├── PlansStack (Stack Navigator)
+    │   ├── PlansHome (PlansHomeScreen)
+    │   ├── PlanDetail (PlanDetailScreen)
+    │   ├── RhythmDetail (RhythmDetailScreen)
+    │   └── RhythmComposer (RhythmComposerScreen)
     └── MoreStack (Stack Navigator)
-        ├── MoreScreen
-        ├── SettingsScreen
-        ├── AccountScreen
-        └── AboutScreen
+        ├── MoreScreen, Settings, LocalePreferences, PrivacyPreferences
+        ├── Profile, ReadingActivity, Annotations, MyFeedback
+        ├── TranslationBrowser, About, Diagnostics
+        └── Auth (modal) → AuthStack (AuthScreen, ResetPasswordScreen)
 ```
 
 ### Navigation Types
@@ -352,8 +345,8 @@ type Props = NativeStackScreenProps<BibleStackParamList, 'BibleReader'>;
 
 - Unauthenticated users can browse Bible, learn content (limited)
 - Auth required for: progress tracking, groups, syncing, personalization
-- No separate AuthStack - auth screens in MoreStack
-- useAuthStore.isAuthenticated determines feature access
+- `AuthStack.tsx` (AuthScreen, ResetPasswordScreen) exists as its own stack but is only reachable as a modal `Auth` route inside `MoreStack` — there's no top-level auth stack in `RootNavigator`
+- `useAuthStore().isAuthenticated` determines feature access
 
 ---
 
@@ -447,10 +440,14 @@ See `/src/constants/colors.ts` for full palette:
 - `cardBackground` - Card/section backgrounds
 - `primaryText` - Main text color
 - `secondaryText` - Muted text
-- `accentGreen` - Primary accent (brand color)
+- `accentPrimary` - Primary accent (terracotta by default; historically called "el-blue" as a storage id, with an alternate `el-blue-brand` palette also available)
 - `tabActive` / `tabInactive` - Tab bar colors
 - `errorText` - Error messages
 - And many more...
+
+### Design System (Every Language / "EL" redesign)
+
+The app runs the "Every Language" (EL) design system (`src/design/system.ts`, `src/constants/appearancePalettes.ts`): a warm, paper-like "vellum" default surface, tighter EL corner-radius tokens, and Lucide icons (`lucide-react-native`, see `navigation/tabManifest.ts`). Two font families are bundled and loaded at startup (`App.tsx`): **Alte Haas Grotesk** as the identity/display face (screen titles, chapter numerals — Latin-only, so `getDisplayFontFamily()` falls back to the platform UI font for the ~14 of 21 interface languages it can't render) and **Lora** as the reading serif (via `getReadingFontFamily()`, with the same non-Latin fallback). Alte Haas Grotesk is used on both the mobile app and the marketing site — it is not web-only.
 
 ### Font Sizes
 
@@ -498,8 +495,8 @@ EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=xxx
 import { signInWithGoogle } from '../services/auth';
 const { user, error } = await signInWithGoogle();
 
-// Check auth state
-import { useAuthStore } from '../stores';
+// Check auth state — import the store directly; '../stores' is not a barrel
+import { useAuthStore } from '../stores/authStore';
 const { isAuthenticated, user } = useAuthStore();
 
 // Sign out
@@ -513,7 +510,7 @@ await signOut();
 - All Supabase operations use Row Level Security (RLS)
 - User can only access their own data (profiles, progress, groups they're in)
 - API keys in .env, never committed (use .env.example as template)
-- Session stored in memory, NOT AsyncStorage (security)
+- Session stored in memory, NOT persisted to MMKV (security)
 
 ---
 
@@ -529,28 +526,7 @@ await signOut();
 
 ### Supabase Schema
 
-**profiles table:**
-
-- User profile data (display_name, avatar_url, preferences)
-- One-to-one with auth.users
-
-**user_progress table:**
-
-- Reading progress, course completion, time tracking
-- JSON fields for flexible progress tracking
-
-**groups table:**
-
-- Study groups (name, description, leader_id)
-- Four Fields group management
-
-**group_members table:**
-
-- Group membership (many-to-many)
-
-**group_sessions table:**
-
-- Session records (date, field, notes, attendance)
+See "External Dependencies" above for the current core table list (`profiles`, `user_progress`, `groups`, `group_members`, `group_sessions`, plus reading plans, feedback, translation catalog, and analytics tables added since). `supabase/migrations/` (94 files) is the source of truth, not this doc.
 
 ### Sync Strategy
 
@@ -575,7 +551,7 @@ await signOut();
 ```typescript
 import { useAudioPlayer } from '../hooks';
 
-const { isPlaying, currentChapter, play, pause, seek } = useAudioPlayer();
+const { status, currentChapter, playChapter, pause, resume } = useAudioPlayer('bsb');
 ```
 
 ### Audio Issues
@@ -583,7 +559,7 @@ const { isPlaying, currentChapter, play, pause, seek } = useAudioPlayer();
 - iOS: Must configure background modes in app.json
 - Android: Foreground service permission required
 - Remote streaming requires network, but downloaded chapter audio is available offline
-- expo-av handles playback
+- `expo-av` still does the actual playback (not `expo-audio`). `services/audio/trackPlayer.ts` wraps it behind the `react-native-track-player` v4 API surface as a stopgap — real native track-player needs a bare-workflow eject — so most call sites are already written against that contract. `expo-media-control` (Android only; excluded from iOS autolinking) drives the Android lock-screen/notification MediaSession via `services/audio/androidMediaSession.ts`, since expo-av doesn't expose one itself.
 
 ---
 
@@ -603,7 +579,7 @@ Read `docs/testing.md` before writing or changing tests. Summary:
 - Bug fixes are test-first: failing test, minimal fix, passing test, same commit.
 
 ```bash
-npm test                                   # whole workspace, ~20s
+npm test                                   # whole workspace (~450 *.test.ts files; see docs/testing.md for current timing)
 node --test --experimental-test-module-mocks --import tsx src/path/to/file.test.ts
 npm run typecheck                          # tests are type-checked too
 ```
@@ -663,8 +639,10 @@ npm run release:prepare
 # iOS Production
 npm run testflight:build-local
 
-# Android Production
-eas build --platform android --profile production
+# Android Production — always --local; never a bare cloud `eas build`.
+# In practice this runs in CI: .github/workflows/android-production-release.yml
+# builds on push to main via `eas build --platform android --profile production --local --non-interactive`.
+eas build --platform android --profile production --local
 
 # Preflight iOS submission artifact
 bash scripts/testflight_precheck.sh /absolute/path/to/app.ipa
@@ -769,7 +747,7 @@ rm -rf node_modules && npm install
 
 **Expo Go doesn't support feature:**
 
-- Create development build: `eas build --profile development`
+- Create a development build locally: `npx expo run:ios` / `npx expo run:android` (never a bare cloud `eas build`)
 
 ---
 
@@ -787,14 +765,17 @@ rm -rf node_modules && npm install
 
 ### Key Dependencies
 
-- **expo:** ~54.0.32 - Platform and build system
+- **expo:** ~54.0.36 - Platform and build system
 - **react-native:** 0.81.5 - UI framework
 - **@supabase/supabase-js:** ^2.91.0 - Backend client
 - **zustand:** ^5.0.10 - State management
+- **react-native-mmkv:** 2.12.2 - Zustand persistence (pinned to v2 for old-architecture compatibility; patched via patch-package for Android 16KB page-size compliance)
 - **react-navigation:** ^7.x - Navigation
 - **i18next / react-i18next:** ^25.x / ^16.x - Internationalization
 - **expo-sqlite:** ~16.0.10 - Local Bible database
-- **expo-av:** ~16.0.8 - Audio playback
+- **expo-av:** ~16.0.8 - Audio playback (not expo-audio)
+- **expo-media-control:** 1.0.12 - Android lock-screen/notification MediaSession
+- **lucide-react-native:** ^1.38.0 - Icon set (tab bar and elsewhere)
 - **expo-apple-authentication:** ~8.0.8 - Apple Sign-In
 - **@react-native-google-signin/google-signin:** ^16.1.1 - Google Sign-In
 

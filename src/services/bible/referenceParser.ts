@@ -129,10 +129,7 @@ export const isSupportedParserLocale = (code: string): code is ReferenceParserLo
  * Attempt to parse a natural-language Bible reference using the specified locale parser.
  * Falls back to the English parser when the locale is not directly supported.
  */
-const parseWithParser = (
-  query: string,
-  parser: bcv_parser,
-): PassageReferenceTarget | null => {
+const parseWithParser = (query: string, parser: bcv_parser): PassageReferenceTarget | null => {
   const normalizedQuery = query.trim();
   if (normalizedQuery.length === 0 || /[:,-]\s*$/.test(normalizedQuery)) {
     return null;
@@ -151,15 +148,23 @@ const parseWithParser = (
   }
 
   const parsedToken = firstOsisToken.match(OSIS_SEGMENT_PATTERN);
-  if (!parsedToken || !parsedToken[2]) {
+  if (!parsedToken) {
     return null;
   }
 
   const [, osisBookId, chapterValue, verseValue] = parsedToken;
   const bookId = OSIS_TO_BOOK_ID[osisBookId];
-  const chapter = Number(chapterValue);
-  const focusVerse = verseValue ? Number(verseValue) : undefined;
   const book = bookId ? getBookById(bookId) : undefined;
+  // The grammar reports "Jude 1" as the whole book (OSIS "Jude"). A bare book name stays a
+  // word search, but a single-chapter book typed with a number means its one chapter.
+  const isSingleChapterBookWithNumber =
+    !chapterValue && book?.chapters === 1 && /\p{Nd}$/u.test(normalizedQuery);
+  if (!chapterValue && !isSingleChapterBookWithNumber) {
+    return null;
+  }
+
+  const chapter = chapterValue ? Number(chapterValue) : 1;
+  const focusVerse = verseValue ? Number(verseValue) : undefined;
 
   if (!book || !Number.isInteger(chapter) || chapter < 1 || chapter > book.chapters) {
     return null;
@@ -191,7 +196,7 @@ export const parsePassageReference = (query: string): PassageReferenceTarget | n
  */
 export const parsePassageReferenceLocale = (
   query: string,
-  locale: string,
+  locale: string
 ): PassageReferenceTarget | null => {
   const parserLocale: ReferenceParserLocale = isSupportedParserLocale(locale) ? locale : 'en';
 

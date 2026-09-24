@@ -15,7 +15,9 @@ import {
 import {
   accessCoversTranslation,
   parseSharedPasscodeScope,
+  recordSharedPasscodeUse,
   resolveTranslatorAccess,
+  sharedPasscodeRequestKind,
   type TranslatorAccess,
 } from './translatorAccess.ts';
 import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -187,6 +189,20 @@ Deno.serve(async (request) => {
     );
     if (resolved.status === 'unavailable') return accessUnavailable();
 
+    // Shows the owner who still depends on the shared code before (and after) it is switched off.
+    const sharedOutcome =
+      resolved.status === 'granted'
+        ? resolved.access.kind === 'shared' ? 'allowed' : null
+        : resolved.sharedPasscodeRefused ? 'refused' : null;
+    if (sharedOutcome) {
+      await recordSharedPasscodeUse(service, {
+        translationId: body.translationId,
+        requestKind: sharedPasscodeRequestKind(body),
+        outcome: sharedOutcome,
+      });
+    }
+
+    // A switched-off shared code is answered exactly like a wrong code, including the lockout.
     if (resolved.status === 'denied') {
       // Record the failed attempt FIRST, then evaluate the lockout from a count
       // that includes it. Recording-then-counting closes the check-then-insert

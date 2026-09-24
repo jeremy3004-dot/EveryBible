@@ -1,0 +1,16 @@
+Seus ajustes, planos e notas agora ficam iguais em todos os seus dispositivos, os Planos de leitura ganharam um visual novo e o app abre mais rápido.
+
+• Os ajustes agora são sincronizados um a um, então uma mudança em um dispositivo não desfaz mais uma mudança em outro. Na primeira vez que você entra em um dispositivo, as escolhas que já tinha feito nele são mantidas.
+• Se você sair de um plano de leitura em um dispositivo, ele não volta a aparecer nos outros. As sessões da manhã, do meio-dia e da noite agora também são sincronizadas.
+• Suas notas, destaques, marcadores e biblioteca pertencem à sua conta. Se outra pessoa entrar no mesmo dispositivo, não vai vê-los, e eles voltam quando você entrar de novo.
+• Planos de leitura: seus dias aparecem em uma grade compacta de pontos, o título fica fixo enquanto você rola a tela e dá para deslizar para voltar da leitura ao plano. Abrir um dia do plano não retoma mais o áudio que você tinha pausado.
+• O título de seção no início de cada capítulo voltou; ele estava faltando em mais de mil capítulos. Os resultados da busca agora levam você direto ao versículo.
+• Ao compartilhar o Versículo do dia, agora só o versículo e a foto são compartilhados, sem o seu nome ou a saudação.
+• Os textos do app foram revisados e corrigidos em todos os idiomas, e o russo e o árabe agora usam as formas de plural corretas.
+• Downloads de áudio: cancelar o download da Bíblia inteira agora realmente o interrompe, os capítulos baixados são verificados para não guardar arquivos danificados e você é avisado antes se não houver espaço suficiente.
+• Rótulos do VoiceOver melhores em todo o app, e o texto quebra a linha em vez de ser cortado com letras grandes. No iOS 26, a barra de abas continua legível sobre o texto bíblico.
+• Corrigimos um problema em que abrir o app sem conexão depois de muito tempo podia apagar o progresso de leitura e as sequências de dias ainda não sincronizados.
+• Para equipes de tradução: cada equipe agora tem seu próprio código de revisão, e o app mostra quais traduções o seu código abre.
+• Abertura mais rápida e pequenas correções em todo o app.
+
+Obrigado por ler com a gente.

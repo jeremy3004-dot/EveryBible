@@ -12,7 +12,12 @@ import { successHaptic } from '../../utils';
 import type { LearnStackParamList } from '../../navigation/types';
 import { useFourFieldsStore } from '../../stores/fourFieldsStore';
 import { useAuthStore } from '../../stores/authStore';
-import { fourFieldsCourses, fieldInfo, FIELD_TITLE_KEYS } from '../../data/fourFieldsCourses';
+import {
+  fourFieldsCourses,
+  fieldInfo,
+  FIELD_TITLE_KEYS,
+  getFourFieldsLessonTitle,
+} from '../../data/fourFieldsCourses';
 import { LessonSectionRenderer } from '../../components/fourfields';
 import {
   buildGroupDetailSnapshot,
@@ -354,7 +359,7 @@ export function GroupSessionScreen() {
               </Text>
             </View>
             <Text style={[styles.lessonTitle, { color: colors.primaryText }]}>
-              {currentLesson.title}
+              {getFourFieldsLessonTitle(currentLesson, t)}
             </Text>
           </View>
         )}

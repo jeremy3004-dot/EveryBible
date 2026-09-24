@@ -535,6 +535,9 @@ export function isPlanCompleted(durationDays: number, completedCount: number): b
  * - completed_at: local value when present, otherwise remote
  * - synced_at: caller-supplied timestamp
  *
+ * The server applies the same rules atomically in merge_reading_plan_progress
+ * (migration 20260924035821); keep the two in step.
+ *
  * Returns a new object — inputs are not mutated.
  */
 export function mergePlanProgress(

@@ -301,7 +301,7 @@ export function ReadingActivityScreen() {
             <Text style={[styles.legendProgress, displayFont.regular]}>
               {t('readingActivity.legendProgress', {
                 read: grid.readDays,
-                elapsed: grid.elapsedDays,
+                count: grid.elapsedDays,
               })}
             </Text>
           </View>

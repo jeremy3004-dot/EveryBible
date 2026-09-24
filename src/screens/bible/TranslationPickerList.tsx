@@ -18,6 +18,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useI18n, useKeyboardBottomInset } from '../../hooks';
 import { getAudioAvailability } from '../../services/audio/audioAvailability';
+import { describeAudioDownloadError } from '../../services/audio/audioDownloadErrorMessage';
 import {
   isAudioBookDownloaded,
   isTranslationAudioDownloaded,
@@ -477,7 +478,7 @@ export function TranslationPickerList({
     <View
       style={[
         styles.searchInputShell,
-        { backgroundColor: colors.bibleElevatedSurface, borderColor: colors.bibleDivider },
+        { backgroundColor: colors.bibleElevatedSurface, borderColor: colors.controlBorder },
       ]}
     >
       <Ionicons name="search" size={18} color={colors.bibleSecondaryText} />
@@ -1016,9 +1017,7 @@ function TranslationManageSheet({
         await downloadAudioForTranslation(translation.id);
       }
     } catch (downloadError) {
-      const message =
-        downloadError instanceof Error ? downloadError.message : t('bible.audioDownloadFailed');
-      Alert.alert(t('common.error'), message);
+      Alert.alert(t('common.error'), describeAudioDownloadError(downloadError, t));
     } finally {
       setActiveAudioDownloadKey(null);
     }
@@ -1034,9 +1033,7 @@ function TranslationManageSheet({
     try {
       await downloadAudioForBook(translation.id, bookId);
     } catch (downloadError) {
-      const message =
-        downloadError instanceof Error ? downloadError.message : t('bible.audioDownloadFailed');
-      Alert.alert(t('common.error'), message);
+      Alert.alert(t('common.error'), describeAudioDownloadError(downloadError, t));
     } finally {
       setActiveAudioDownloadKey(null);
     }

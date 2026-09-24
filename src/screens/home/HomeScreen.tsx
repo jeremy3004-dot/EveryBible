@@ -362,7 +362,9 @@ export function HomeScreen() {
     return t('home.ledgerThisMonth', {
       month: new Intl.DateTimeFormat(i18n.language, { month: 'long' }).format(now),
       active: readingStats.activeDays,
-      total,
+      // Passed as `count` so the day noun agrees with the month's elapsed days
+      // ("0 of 1 day" on the 1st).
+      count: total,
     });
   }, [i18n.language, ledgerPeriod, readingStats, t]);
 
