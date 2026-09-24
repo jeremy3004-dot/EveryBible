@@ -1,18 +1,21 @@
-Une recherche améliorée dans toutes les langues, vos notes et plans en sécurité sur tous vos appareils, des plans de lecture repensés et une app plus rapide et plus stable.
+La recherche dans plus de langues, vos notes et plans en sécurité sur tous vos appareils, un audio plus stable et une app plus légère et plus rapide.
 
-• La recherche trouve des mots entiers en hindi, en népalais et dans d’autres écritures indiennes, ainsi que des mots en chinois, japonais, coréen et thaï. Elle fonctionne désormais aussi dans les Bibles que vous téléchargez. Saisir « Jude 1 » ouvre directement le chapitre.
-• Paramètres, plans et progression de lecture restent synchronisés sur tous vos appareils. Une modification sur un appareil n’annule plus celle faite sur un autre, et lors de votre première connexion, les choix déjà faits sur cet appareil sont conservés.
+• La recherche trouve des mots entiers en hindi, en népalais et dans d’autres écritures indiennes, ainsi que des mots en chinois, japonais, coréen et thaï. Elle fonctionne aussi dans les Bibles que vous téléchargez, et vous l’indique clairement quand aucun verset ne correspond. Saisir « Jude 1 » ouvre directement le chapitre.
+• Paramètres, plans et progression de lecture restent synchronisés sur tous vos appareils. Une modification sur un appareil n’annule plus celle faite sur un autre, et une Bible choisie hors connexion reste sélectionnée.
 • Vos notes, surlignages, signets et votre bibliothèque sont liés à votre compte. Si quelqu’un d’autre se connecte sur le même appareil, il ne les verra pas, et vous les retrouverez en vous reconnectant.
-• Plans de lecture : vos jours s’affichent sous forme de grille de points, le titre reste visible pendant le défilement et vous pouvez balayer vers l’arrière pour revenir d’une lecture à son plan. Terminer un jour du plan compte désormais tous ses chapitres, et les séries de jours sont plus précises.
-• Touchez le rappel quotidien pour ouvrir directement votre plan. Le rappel suit votre langue et votre fuseau horaire, et les Paramètres vous signalent si les notifications sont désactivées.
-• Audio : les commandes de l’écran verrouillé et la minuterie de veille continuent de fonctionner quand vous quittez l’écran de lecture, et la minuterie se met en pause quand vous mettez l’audio en pause. Annuler ou supprimer un téléchargement l’arrête vraiment.
-• Surlignages : vous pouvez changer ou retirer la couleur d’une partie d’un surlignage, et modifier une note ne crée plus de doublon.
-• Le titre de section au début de chaque chapitre est de retour, et chaque Verset du jour est une phrase complète. Partager le Verset du jour ne partage que le verset et la photo.
+• Audio : le bouton du casque met en pause et relance la lecture, un appel ne relance plus un audio que vous aviez mis en pause, et la musique de fond suit la narration. Les commandes de l’écran verrouillé et la minuterie de veille continuent de fonctionner quand vous quittez l’écran de lecture, et une fois la minuterie écoulée, le chapitre suivant ne démarre pas. L’enchaînement automatique saute les chapitres sans audio.
+• Votre temps d’écoute compte désormais dans l’Activité de lecture et sur votre profil.
+• Partager un verset en image fonctionne de manière fiable, avec une référence lisible sur chaque arrière-plan et des caractères adaptés à l’écriture de la Bible. Partager le Verset du jour ne partage que le verset et la photo.
+• Plans de lecture : vos jours s’affichent sous forme de grille de points, le titre reste visible pendant le défilement et vous pouvez balayer vers l’arrière pour revenir d’une lecture à son plan. Les jours du plan sont bien comptés après minuit, et les séries de jours sont plus précises.
+• Rappel quotidien : touchez-le pour ouvrir directement votre plan. Il suit votre langue et votre fuseau horaire, les Paramètres vous signalent si les notifications sont désactivées, et un rappel activé depuis un autre téléphone demande ici l’autorisation en un seul geste.
+• Le mode discret ne se verrouille plus lorsque les propres fenêtres de l’app sont ouvertes, et le déverrouillage vous ramène là où vous étiez.
+• Surlignages : changez ou retirez la couleur d’une partie d’un surlignage. Modifier une note ne crée plus de doublon.
+• Le titre de section au début de chaque chapitre est de retour, et chaque Verset du jour est une phrase complète. Le calendrier de lecture affiche des semaines complètes.
 • Les liens de réinitialisation du mot de passe sont plus sûrs : un lien ne fonctionne que sur l’appareil qui l’a demandé.
 • La configuration s’affiche dans votre langue dès le premier écran et vous indique clairement si un élément ne peut pas être téléchargé.
 • Les textes de l’app ont été relus dans toutes les langues, et le russe et l’arabe utilisent les bonnes formes du pluriel.
-• Meilleure prise en charge de VoiceOver dans toute l’app, et des mises en page qui passent à la ligne au lieu de couper les mots en grande taille de texte.
-• Si un problème survient sur un écran, le reste de l’app continue de fonctionner.
-• Démarrage plus rapide, app plus légère et de nombreuses petites corrections.
+• Meilleure prise en charge de VoiceOver, et des mises en page qui passent à la ligne au lieu de couper les mots en grande taille de texte.
+• Lecture, choix de la Bible et écran Plans plus fluides. L’app occupe environ 45 MB de moins et démarre plus vite.
+• Si un problème survient sur un écran, le reste de l’app continue de fonctionner, et de nombreuses corrections améliorent l’usage avec une connexion faible ou absente.
 
 Merci de lire avec nous.

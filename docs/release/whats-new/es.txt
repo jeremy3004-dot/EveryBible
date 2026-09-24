@@ -1,18 +1,21 @@
-Búsqueda mejorada en todos los idiomas, tus notas y planes a salvo en todos tus dispositivos, Planes de lectura renovados y una app más rápida y estable.
+Búsqueda en más idiomas, tus notas y planes a salvo en todos tus dispositivos, audio más estable y una app más ligera y rápida.
 
-• La búsqueda encuentra palabras completas en hindi, nepalí y otras escrituras de la India, y encuentra palabras en chino, japonés, coreano y tailandés. Ahora también puedes buscar en las Biblias que descargues. Al escribir «Judas 1» o «Abdías 1» se abre el capítulo.
-• Los ajustes, los planes y el progreso de lectura se mantienen al día en todos tus dispositivos. Un cambio en un dispositivo ya no deshace un cambio en otro, y la primera vez que inicias sesión se conservan las opciones que ya habías elegido en ese dispositivo.
+• La búsqueda encuentra palabras completas en hindi, nepalí y otras escrituras de la India, y encuentra palabras en chino, japonés, coreano y tailandés. También funciona en las Biblias que descargues, y te avisa con claridad cuando ningún versículo coincide. Al escribir «Judas 1» o «Abdías 1» se abre el capítulo.
+• Los ajustes, los planes y el progreso de lectura se mantienen al día en todos tus dispositivos. Un cambio en un dispositivo ya no deshace un cambio en otro, y la Biblia que eliges sin conexión sigue seleccionada.
 • Tus notas, resaltados, marcadores y biblioteca pertenecen a tu cuenta. Si otra persona inicia sesión en el mismo dispositivo, no los verá, y volverán cuando inicies sesión de nuevo.
-• Planes de lectura: tus días aparecen en una cuadrícula de puntos, el título queda fijo al desplazarte y puedes deslizar hacia atrás desde una lectura para volver a su plan. Completar un día del plan ahora cuenta todos sus capítulos, y las rachas son más precisas.
-• Toca el recordatorio diario para ir directo a tu plan. El recordatorio sigue tu idioma y tu zona horaria, y Ajustes te avisa si las notificaciones están desactivadas.
-• Audio: los controles de la pantalla de bloqueo y el temporizador de apagado siguen funcionando cuando sales de la pantalla de lectura, y el temporizador se pausa cuando pausas el audio. Cancelar o eliminar una descarga ahora la detiene de verdad.
-• Resaltados: puedes cambiar o quitar el color de una parte de un resaltado, y editar una nota ya no crea una copia.
-• Vuelve el título de sección al comienzo de cada capítulo, y cada Versículo del día es una frase completa. Al compartir el Versículo del día solo se comparten el versículo y la foto.
+• Audio: el botón de los auriculares pausa y reanuda, una llamada ya no reinicia el audio que habías pausado y la música de fondo acompaña a la narración. Los controles de la pantalla de bloqueo y el temporizador de apagado siguen funcionando cuando sales de la pantalla de lectura, y cuando el temporizador termina, no empieza el siguiente capítulo. El avance automático se salta los capítulos que no tienen audio.
+• Tu tiempo de escucha ahora cuenta en Actividad de lectura y en tu perfil.
+• Compartir un versículo como imagen funciona de forma fiable, con una referencia clara sobre cualquier fondo y letras adecuadas a la escritura de cada Biblia. Al compartir el Versículo del día solo se comparten el versículo y la foto.
+• Planes de lectura: tus días aparecen en una cuadrícula de puntos, el título queda fijo al desplazarte y puedes deslizar hacia atrás desde una lectura para volver a su plan. Los días del plan se cuentan bien después de medianoche, y las rachas son más precisas.
+• Recordatorio diario: tócalo para ir directo a tu plan. Sigue tu idioma y tu zona horaria, Ajustes te avisa si las notificaciones están desactivadas, y un recordatorio activado desde otro teléfono te pide permiso aquí con un solo toque.
+• El modo discreto ya no se bloquea mientras hay avisos de la propia app abiertos, y al desbloquear vuelves a donde estabas.
+• Resaltados: cambia o quita el color de una parte de un resaltado. Editar una nota ya no crea una copia.
+• Vuelve el título de sección al comienzo de cada capítulo, y cada Versículo del día es una frase completa. El calendario de lectura muestra semanas completas.
 • Los enlaces para restablecer la contraseña son más seguros: solo funcionan en el dispositivo que los solicitó.
 • La configuración inicial aparece en tu idioma desde la primera pantalla y te avisa con claridad si algo no se puede descargar.
 • Revisamos los textos de la app en todos los idiomas, y el ruso y el árabe usan las formas de plural correctas.
-• Mejor compatibilidad con VoiceOver en toda la app, y el texto pasa a la línea siguiente en lugar de cortar palabras con tamaños de letra grandes.
-• Si algo falla en una pantalla, el resto de la app sigue funcionando.
-• Inicio más rápido, una app más ligera y muchas pequeñas correcciones.
+• Mejor compatibilidad con VoiceOver, y el texto pasa a la línea siguiente en lugar de cortar palabras con tamaños de letra grandes.
+• La lectura, el selector de Biblias y Planes funcionan con más fluidez. La app ocupa unos 45 MB menos y se inicia más rápido.
+• Si algo falla en una pantalla, el resto de la app sigue funcionando, y hay muchas correcciones para cuando la conexión es débil o no hay conexión.
 
 Gracias por leer con nosotros.

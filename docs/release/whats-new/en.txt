@@ -1,18 +1,21 @@
-Better search in every language, your notes and plans kept safe across devices, a refreshed Reading Plans, and a faster, steadier app.
+Search in more languages, your notes and plans kept safe across devices, steadier audio, and a smaller, faster app.
 
-• Search finds whole words in Hindi, Nepali and other Indian scripts, and finds words in Chinese, Japanese, Korean and Thai. Search now also works in Bibles you download. Typing "Jude 1" or "Obadiah 1" opens the chapter.
-• Settings, plans and reading progress stay in step across your devices. A change on one device no longer undoes a change on another, and the first time you sign in, the choices you made on that device are kept.
+• Search finds whole words in Hindi, Nepali and other Indian scripts, and finds words in Chinese, Japanese, Korean and Thai. It also works in Bibles you download, and says so plainly when no verses match. Typing "Jude 1" or "Obadiah 1" opens the chapter.
+• Settings, plans and reading progress stay in step across your devices. A change on one device no longer undoes a change on another, and a Bible you switch to while offline stays chosen.
 • Your notes, highlights, bookmarks and library belong to your account. If someone else signs in on the same device, they won't see them, and they come back when you sign in again.
-• Reading Plans: your days appear as a dot grid, the title stays pinned while you scroll, and you can swipe back from a reading to its plan. Finishing a plan day now counts every chapter in it, and streaks are more accurate.
-• Tap the daily reminder to go straight to your plan. The reminder follows your language and time zone, and Settings tells you if notifications are turned off.
-• Audio: lock-screen controls and the sleep timer keep working after you leave the reading screen, and the sleep timer pauses when you pause. Cancelling or deleting a download really stops it.
-• Highlights: you can change or remove the colour on part of a highlight, and editing a note no longer creates a copy.
-• The section heading at the start of each chapter is back, and every Verse of the Day is a complete sentence. Sharing the Verse of the Day shares only the verse and the photo.
+• Audio: the headset button pauses and plays, a phone call no longer restarts audio you had paused, and background music follows the narration. Lock-screen controls and the sleep timer keep working after you leave the reading screen, and once the sleep timer ends, the next chapter doesn't start. Auto-advance skips chapters that have no audio.
+• Your listening time now counts in Reading activity and on your profile.
+• Sharing a verse as an image works reliably, with a clear reference on every background and lettering that suits the Bible's script. Sharing the Verse of the Day shares only the verse and the photo.
+• Reading Plans: your days appear as a dot grid, the title stays pinned while you scroll, and you can swipe back from a reading to its plan. Plan days count correctly after midnight, and streaks are more accurate.
+• Daily reminder: tap it to go straight to your plan. It follows your language and time zone, Settings tells you if notifications are off, and a reminder turned on from another phone asks for permission here with one tap.
+• Discreet mode no longer locks while the app's own prompts are open, and unlocking takes you back to where you were.
+• Highlights: change or remove the colour on part of a highlight. Editing a note no longer creates a copy.
+• The section heading at the start of each chapter is back, and every Verse of the Day is a complete sentence. The reading calendar shows full weeks.
 • Password-reset links are safer: a link works only on the device that asked for it.
 • Setup stays in your language from the first screen, and tells you clearly if something can't download.
 • The app's wording has been reviewed in every language, and Russian and Arabic use the right plural forms.
-• Better VoiceOver support throughout, and layouts that wrap instead of cutting words off at larger text sizes.
-• If something goes wrong on one screen, the rest of the app keeps working.
-• Faster start-up, a smaller app, and many small fixes.
+• Better VoiceOver support, and layouts that wrap instead of cutting words off at larger text sizes.
+• Smoother reading, Bible picker and Plans screens. The app takes about 45 MB less space and starts faster.
+• If something goes wrong on one screen, the rest of the app keeps working, plus many fixes for weak or no connection.
 
 Thank you for reading with us.

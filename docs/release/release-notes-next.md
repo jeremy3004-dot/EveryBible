@@ -1,11 +1,13 @@
 # Release notes: next release (draft, not shipped)
 
 Drafted 2026-09-24 from `origin/main` @ `195717e1`, then updated the same day to `d57229c6`
-(section A2 and the second technical changelog). This is a draft. Nothing here has been
-uploaded to App Store Connect or Google Play.
+(section A2 and the second technical changelog) and to `3316e4b2` for tonight's 1.0.9
+TestFlight build (section A3 and the third technical changelog). This is a draft. Nothing
+here has been uploaded to App Store Connect or Google Play.
 
 Phone testing still to do before release: `device-qa-checklist.md`. Decisions waiting on the
-owner: `owner-decisions-2026-09-24.md`.
+owner: `owner-decisions-2026-09-24.md`. TestFlight "What to Test" text for tonight's build:
+`testflight-what-to-test.md`.
 
 ## Baselines
 
@@ -24,7 +26,9 @@ Section A below lists the changes since 447, as requested. Section B lists the 1
 TestFlight work that store users have not received yet.
 
 Commit ranges: A = `adac656b..195717e1` (189 non-merge commits, 80 of them test/docs only).
-B = `fda08d60..adac656b` (75 non-merge commits).
+A2 = `195717e1..d57229c6` (200 non-merge commits). A3 = `d57229c6..3316e4b2` (336 non-merge
+commits, most of them tests, docs and file splits). B = `fda08d60..adac656b` (75 non-merge
+commits).
 
 ---
 
@@ -223,6 +227,95 @@ B = `fda08d60..adac656b` (75 non-merge commits).
 - The chapter feedback screen is now a simple list with Open and Done tabs. Each concern
   has "Mark addressed" and "No change needed", each with a short reason.
 - The English text now calls the translator code a "passcode" everywhere.
+
+### A3. New in tonight's 1.0.9 TestFlight build (landed in the evening of 2026-09-24)
+
+Items already listed in A or A2 are not repeated here.
+
+**Sharing**
+
+- Sharing a verse as an image works every time. Before, on iPhone the share sheet often
+  never appeared and the Share button kept spinning. The reference sits on a solid chip in
+  the reader's text colour, so it is readable on every background, and the lettering uses a
+  font that has the Bible's script (Hindi, Arabic and so on).
+- Sharing the app from a Gather lesson now includes the link to everybible.app.
+- A new profile photo shows straight away instead of the old one staying cached.
+
+**Listening**
+
+- Listening time is counted on the phone as you listen. Reading activity and your profile
+  now show it, even before it syncs.
+- iPhone: the wired or Bluetooth headset button (and CarPlay) pauses and plays Bible audio.
+  Before, it could start a chapter but never pause it.
+- After a phone call, audio resumes only if the call interrupted it. Audio you had paused
+  stays paused.
+- Background music pauses and plays with the narration, also after you leave the reading
+  screen, and pauses when the next chapter fails to load.
+- When the sleep timer runs out, the next chapter does not start.
+- Auto-advance and the lock-screen next button skip chapters that have no audio in that
+  Bible, instead of stopping on an error.
+- A chapter you resume starts from where you left it, also after the app was closed.
+- A stream that dies while loading shows an error and a working Play button, instead of
+  spinning for ever. A speed picked while a chapter loads is kept.
+- A download that runs out of space part-way tells you so.
+- Android: the Now playing notification uses a neutral icon, and its progress bar stays put
+  while paused.
+
+**Reminders and notifications**
+
+- A daily reminder turned on from another phone now shows a one-tap button to allow
+  notifications on this phone. Before, it looked on but could never arrive.
+- A reminder the phone fails to schedule is reported instead of silently looking on.
+- The reminder time picker opens on the saved time, and the time is written in the app
+  language's clock format.
+- In discreet mode, notifications stay neutral.
+
+**Discreet mode**
+
+- The app no longer locks itself while its own prompts are open (microphone permission,
+  profile photo picker and other system screens it raised).
+- Unlocking takes you back to where you were in the reader.
+- Android: the code form stays above the keyboard.
+- The app still starts if the phone's keychain can't be read, and a failed icon change is
+  reported and retried.
+
+**Reading, Bibles and search**
+
+- A Bible you switch to while offline is still chosen after the next launch.
+- A full-text search with no results says "No verses match your search."
+- Android: removing a highlight clears it at once, without reloading the chapter. Splitting
+  or recolouring part of a highlight no longer reports an error.
+- A chapter that loaded no verses is not marked read.
+- A failed English download never falls back to a regional Bible, and a Bible picked while
+  the saved one is still downloading at launch is kept.
+- A book outside the catalog shows a way back.
+- The reader, the Bible picker and Plans redraw less: tapping a verse redraws only its
+  paragraph, and download progress no longer redraws Home or the picker.
+
+**Reading plans, calendar and Home**
+
+- Plan days count correctly overnight: a reading or listen after midnight counts for the new
+  day, and Plans home, plan pages and the reading calendar move to the new date while open.
+- The reading calendar is laid out as weeks of seven days, and its legend wraps at large
+  text sizes.
+- A double tap on a rhythm preset saves one rhythm, a rhythm's edits show on its open page,
+  and a plan delete that fails says so.
+- Home's greeting changes at noon and 5 pm while Home stays open, the Verse of the Day falls
+  back to the Berean Bible (and says so) when your Bible lacks it, and Listen appears only
+  when that audio can play.
+
+**Offline and robustness**
+
+- Stalled server requests time out, so spinners no longer hang for ever. Screens that need
+  the server say "you're offline".
+- Chapter feedback written offline is kept and sent on the next sync.
+- Many fixes for damaged saved data, interrupted Bible downloads and storage errors.
+
+**Size and permissions**
+
+- The app takes about 45 MB less space: the built-in Bible was packaged twice.
+- Android: the unused camera and "display over other apps" permissions are removed, so they
+  no longer show on the Play listing.
 
 ### B. In 1.0.9 TestFlight builds (440–447) but not yet on the App Store
 
@@ -475,6 +568,144 @@ B = `fda08d60..adac656b` (75 non-merge commits).
 
 ---
 
+## Internal technical changelog, part 3 (`d57229c6..3316e4b2`)
+
+336 non-merge commits. Most are characterization tests and file splits with no intended
+behaviour change. The user-visible ones are in A3.
+
+### Native / build (needs a new binary)
+
+- `edf5661b`: the bundled `bible-bsb-v2.db` was packaged twice. The `expo-asset` plugin
+  entry in `app.json` and the matching pbxproj "Copy Bundle Resources" entry are gone; the
+  Metro asset copy is the only one (−44.7 MB). Existing installs keep their imported copy.
+- `7adbbed5`: the native now-playing module sends `toggle` for `togglePlayPauseCommand`.
+  Older binaries keep sending `play`.
+- `bcaaf226`: `blockedPermissions` removes `CAMERA` and `SYSTEM_ALERT_WINDOW` from the
+  Android manifest. `RECORD_AUDIO` stays.
+- `e1eefea0`: required-reason APIs declared in `app.json` `privacyManifests`. `e9a4d95b`:
+  the feedback purpose string is the base microphone description.
+- `25c6357d`: neutral small icon on the Android Now playing notification.
+- `b21cd441`: Gradle metaspace cap raised so local release builds finish.
+
+### Audio
+
+- `847a7626`, `c9ad6e6d`, `3a54dd02`, `c6505bc7`: listening time banked on the device as it
+  plays; Reading activity and Profile show device or cloud minutes; one telemetry timer
+  across reader mounts.
+- `8cd2547c`, `ca48b8eb`, `5029bd2a`, `c6250bed`, `09477d10` (new
+  `services/audio/audioChapterCoverage`): call interruption, music bed, sleep timer holding
+  the next chapter, per-translation coverage for auto-advance.
+- `41ecf30b`, `a7f77268`, `dec4200d`, `491b9974`, `22d24751`, `76bbfe8f`, `8eb2175a`,
+  `1f66fddc`, `2037c14d`, `1d63f34b`, `234ec2db`, `51a26ac2`: resume offsets, loading vs
+  paused state, dead-stream recovery, speed kept mid-load, out-of-space, first concurrent
+  failure reported, Android notification progress on pause.
+- `3f04a3f4`, `e2e00b31`, `4fce9334`, `98aa3da8`: `useAudioPlayer` (1,666 → 510 lines),
+  `audioDownloadService` and `PlaybackControls` split into modules; pure player models.
+
+### Privacy (discreet mode)
+
+- `240b9b0f`, `40ea1e2b`, `5e248e78`, `af32ac83`: lock grace while the app's own system UI
+  is up (not for share sheets). `9151392f`: restore the reader route after unlock.
+- `fb8e11f8`, `aca9ad77`, `ea315f52`, `d8dbb918`: keychain read failure, icon change retry,
+  Android-only code-form keyboard avoider.
+- `b65cda52` (P2-11), `086ae916` (P2-12), `04592e4f` (P2-13): neutral notifications,
+  keychain wiped after an iOS reinstall, scrubbed on-device crash log.
+
+### Reader, sharing, translations and search
+
+- `9188c0f0`, `d5b0395f`, `d53d7f63`, `4c49d662`: verse-image share after the picker's
+  `onDismiss`, opaque reference chip, script-aware font, versioned avatar URLs, share-app link.
+- `20ab9b02`: the current-translation choice carries its own timestamp, so an offline switch
+  wins over an older saved primary. `74743dce`, `09a7bc73`, `aee2e1b6`, `ce85a88e`,
+  `9654109a`, `74a4a4bb`: download fallbacks, launch-time pick kept, labels by id, picker
+  load recovery, onboarding "Continue" only for user downloads.
+- `f179f998`: visible "No verses match" message. `dd1e9640`, `24e308c1`: highlight removal
+  and splitting. `7cda2e81`, `c1ef07b3`, `c16496f6`, `864dede9`, `69ad3119`, `820e947d`.
+- Links: `d919e3d5`, `b77bd519`, `a55572c6`, `f62f8a73`, `17007586`.
+- Text packs and the Bible DB: `3224b9b1`, `9ec96038`, `e0f880d1`, `e61cde89`, `019e66ee`,
+  `2fbb774f`, `0ad3e1be`, `a31f3e74`, `e83a4022`, `9315ec86`, `0f0c14a8`.
+
+### Plans, calendar, reminders and Home
+
+- `43d0c33f`, `bfc56035`, `b32c2573`, `96306e6c`: after-midnight day attribution; Plans
+  home, rhythm detail, plan detail and the calendar follow the date overnight.
+- `48730fd2`, `0bfbc5a6`: calendar as week rows of seven; legend wraps.
+- `e9bf1d28`, `571753e4`, `d0a7617f`, `16234a0a`, `ca49c73c`, `069c69e0`, `d85c8ba3`,
+  `586d1738`, `6df1e4cd`, `f54790a5`, `ed0bed2b`, `8391e4e0`, `95b8580c`, `c1bb46ce`.
+- `36538d0c`, `a9a13049`, `344b31d8`, `3be73fc2`, `10d6ac48`, `32769c96`, `ceb8eee9`: synced
+  reminder without permission (one-tap allow), push token after a mid-session grant,
+  schedule failure, picker time and clock format.
+- Home: `2281619c`, `8176259b`, `7a52e494`, `2b9be352`, `98b259d6`, `99f31a24`, `672552f8`,
+  `562dfa0a`.
+
+### Sign-in, sync and storage
+
+- `d4df97ac`, `19658334`, `76f1780a` / `43c4dad4`, `fce55651`: Apple double-tap guard, late
+  recovery session ended, reset verifier kept across the pre-exchange sign-out, trimmed email.
+- `8616c8b1`, `3aaf5959`, `3289736d`: client-side bounds on read dates and chapter times,
+  plus server-side migrations that the commits themselves mark **not applied**
+  (`20260924122045_merge_user_progress_clock_bound`,
+  `20260924111958_merge_user_progress_same_day_ties`). Check `list_migrations` before
+  release.
+- `6f273f0a`, `ab9e7c09`, `c86984c5`, `bf883147`, `3ae8d624`: MMKV and AsyncStorage failures,
+  interrupted guest adoption, translator-review hydration.
+- `791fd9e6`, `2be97353`, `ddd721bb`, `5b1bd3ed`: Supabase request timeouts, offline
+  messages, offline chapter feedback queued.
+
+### Diagnostics
+
+- `27c96d0e`, `495305e1`, `b00265d5`, `32b9c633`, `f7b5da5c`, `7b3f2f8f`, `e166850d`: audio
+  and text-pack failures reported, startup warm-up failures, reports sent at launch,
+  `reportHandledError`, redaction and message-encoding fixes.
+
+### Performance
+
+- `c2927e9c`, `16f2bc33`, `75e44cd9`: reader redraws only the tapped paragraph; memoized
+  verse list and follow-along sheet.
+- `b07dfd7a`, `be0b4831`, `56b5705c`, `f7a9349b`, `f1cb2a9b`: picker indexes and rows stay
+  still on audio ticks and host re-renders.
+- `d615aa12`, `eebb3f5c`, `a31ab4e4`, `908a3db0`, `3004ee65`: Plans rows and date formatters.
+- `174b4834`, `d4abf674`, `b34e1b8b`, `45a86372`, `5faf42c7`, `39e662fd`, `ec06e95c`,
+  `f9b054b8`, `3ac26829`, `e927e499`, `514971b1`, `d07591dc`: startup and provider re-render
+  trims.
+- `b102fd49`, `2ccaa122`, `730744b1`: lossless image recompression.
+
+### Accessibility and i18n
+
+- `11295a67`, `f4b46fcf`, `de195358`, `edeb2a9b`, `ba37db1e`, `4d1c0d87`, `b7a0246e`.
+- `a0bd5fb1`, `26f8dd27`: native review of the new strings across all 20 locales.
+
+### Feedback, Gather, Prayer Wall and groups
+
+- `9180ce4e` (`20260924121042_chapter_feedback_client_submission_id`), `83e51ebd`,
+  `1a04baaa`, `d9f28b50` (`20260924113023_feedback_submission_budget`), `0b935009`,
+  `09c40d8b`, `03cb5716`, `c14907a5`.
+- Prayer Wall and groups (still switched off): `5223bee6`, `cc9f4722`, `78e1f1f5`,
+  `36dd603f`, `6219c0f0`.
+
+### Backend (server-side; deploy and migration status not checked for this draft)
+
+- Edge functions changed: `_shared`, `aggregate-engagement`, `report-app-errors`,
+  `review-chapter-feedback`, `send-group-notification`, `submit-chapter-feedback`,
+  `track-analytics-events`, `track-anonymous-usage-events` (`f70af308`, `350337a1`,
+  `72d43ad5`, `77551abe`, `cd011160`, `21d9641a`, `28dad6ef`, `e991ba3b`).
+- 13 new migrations, `20260924080029` to `20260924122045` (`85b0ad73`, `97eb982f`,
+  `291bc7fa` and the ones above). Diff `list_migrations` against the repo before shipping.
+
+### Refactors with no intended behaviour change
+
+- Files split into modules: `bibleStore`, `useAudioPlayer`, `readingPlanService`,
+  `readingPlansStore`, `persistedStateSanitizers`, `audioDownloadService`,
+  `TranslationPickerList`, `RhythmDetailScreen`, `RhythmComposerScreen`,
+  `ReadingActivityScreen`, `AuthScreen`, `ResetPasswordScreen`, `PlaybackControls`. Persisted
+  bytes were pinned by tests before each store split.
+
+### Web / admin (not in the mobile binary)
+
+- `2d5d6865` (security headers), `169212fb`, `9529168b`.
+
+---
+
 ## Store copy files
 
 | File                                       | Use                       | Limit           |
@@ -488,6 +719,11 @@ The App Store text leaves out Android-only items. The Play text leads with lock-
 rewritten to include the A2 changes. es, fr, pt, ru, id, de, ja, tr, vi and ko were then
 re-translated from the new English (both App Store and Play), and so were zh, hi, ar, bn,
 ur, pa, mr, te, ta and ne. All 21 locales now match the new English.
+
+**Update 2026-09-24 evening (A3):** `en.txt` and `play/en.txt` were rewritten again to add
+the A3 changes (verse-image sharing, listening time, audio fixes, discreet mode, reminders,
+overnight plan days, the calendar, the offline Bible switch, "no verses match", the 45 MB
+smaller app). All 20 other locales in both folders were re-translated from that English.
 
 Locale mapping when a store localization exists:
 

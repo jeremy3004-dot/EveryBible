@@ -1,18 +1,21 @@
-Bessere Suche in allen Sprachen, deine Notizen und Pläne sicher auf all deinen Geräten, überarbeitete Lesepläne und eine schnellere, stabilere App.
+Suche in mehr Sprachen, deine Notizen und Pläne sicher auf all deinen Geräten, stabileres Audio und eine kleinere, schnellere App.
 
-• Die Suche findet ganze Wörter auf Hindi, Nepali und in anderen Sprachen mit indischer Schrift sowie Wörter auf Chinesisch, Japanisch, Koreanisch und Thai. Außerdem funktioniert die Suche jetzt auch in heruntergeladenen Bibeln. Gibst du ein Buch mit nur einem Kapitel samt Kapitelnummer ein, öffnet sich das Kapitel.
-• Einstellungen, Pläne und Lesefortschritt bleiben auf all deinen Geräten auf dem gleichen Stand. Eine Änderung auf einem Gerät macht eine Änderung auf einem anderen nicht mehr rückgängig, und bei der ersten Anmeldung bleibt erhalten, was du auf diesem Gerät schon eingestellt hattest.
+• Die Suche findet ganze Wörter auf Hindi, Nepali und in anderen Sprachen mit indischer Schrift sowie Wörter auf Chinesisch, Japanisch, Koreanisch und Thai. Sie funktioniert auch in heruntergeladenen Bibeln und sagt dir klar, wenn kein Vers passt. Gibst du ein Buch mit nur einem Kapitel samt Kapitelnummer ein, öffnet sich das Kapitel.
+• Einstellungen, Pläne und Lesefortschritt bleiben auf all deinen Geräten auf dem gleichen Stand. Eine Änderung auf einem Gerät macht eine Änderung auf einem anderen nicht mehr rückgängig, und eine Bibel, zu der du offline wechselst, bleibt ausgewählt.
 • Deine Notizen, Markierungen, Lesezeichen und deine Bibliothek gehören zu deinem Konto. Meldet sich jemand anderes auf demselben Gerät an, sieht er sie nicht, und sie sind wieder da, sobald du dich erneut anmeldest.
-• Lesepläne: Deine Tage erscheinen als Punkteraster, der Titel bleibt beim Scrollen sichtbar, und du kannst von einer Lesung zurück zu ihrem Plan wischen. Wenn du einen Plantag abschließt, zählen jetzt alle Kapitel darin, und Tagesserien sind genauer.
-• Tippe auf die tägliche Erinnerung, um direkt zu deinem Plan zu gelangen. Die Erinnerung richtet sich nach deiner Sprache und Zeitzone, und die Einstellungen zeigen dir, wenn Benachrichtigungen ausgeschaltet sind.
-• Audio: Die Steuerung auf dem Sperrbildschirm und der Einschlaftimer funktionieren weiter, wenn du die Leseansicht verlässt, und der Einschlaftimer pausiert, wenn du die Wiedergabe pausierst. Das Abbrechen oder Löschen eines Downloads stoppt ihn jetzt wirklich.
-• Markierungen: Du kannst die Farbe für einen Teil einer Markierung ändern oder entfernen, und das Bearbeiten einer Notiz erzeugt keine Kopie mehr.
-• Die Abschnittsüberschrift am Anfang jedes Kapitels ist zurück, und jeder Vers des Tages ist ein vollständiger Satz. Beim Teilen des Verses des Tages werden nur der Vers und das Foto geteilt.
+• Audio: Die Taste am Headset pausiert und setzt fort, ein Anruf startet pausiertes Audio nicht mehr neu, und die Hintergrundmusik folgt der Lesung. Die Steuerung auf dem Sperrbildschirm und der Einschlaftimer funktionieren weiter, wenn du die Leseansicht verlässt, und wenn der Einschlaftimer abgelaufen ist, startet das nächste Kapitel nicht. Die automatische Weiterschaltung überspringt Kapitel ohne Audio.
+• Deine Hörzeit zählt jetzt in der Leseaktivität und in deinem Profil.
+• Einen Vers als Bild zu teilen funktioniert zuverlässig, mit gut lesbarer Stellenangabe auf jedem Hintergrund und einer Schrift, die zur Schrift der jeweiligen Bibel passt. Beim Teilen des Verses des Tages werden nur der Vers und das Foto geteilt.
+• Lesepläne: Deine Tage erscheinen als Punkteraster, der Titel bleibt beim Scrollen sichtbar, und du kannst von einer Lesung zurück zu ihrem Plan wischen. Plantage werden nach Mitternacht richtig gezählt, und Tagesserien sind genauer.
+• Tägliche Erinnerung: Tippe darauf, um direkt zu deinem Plan zu gelangen. Sie richtet sich nach deiner Sprache und Zeitzone, die Einstellungen zeigen dir, wenn Benachrichtigungen ausgeschaltet sind, und eine auf einem anderen Handy eingeschaltete Erinnerung fragt hier mit einem Tippen nach der Berechtigung.
+• Der diskrete Modus sperrt nicht mehr, während Abfragen der App selbst geöffnet sind, und nach dem Entsperren bist du wieder dort, wo du warst.
+• Markierungen: Ändere oder entferne die Farbe für einen Teil einer Markierung. Das Bearbeiten einer Notiz erzeugt keine Kopie mehr.
+• Die Abschnittsüberschrift am Anfang jedes Kapitels ist zurück, und jeder Vers des Tages ist ein vollständiger Satz. Der Lesekalender zeigt ganze Wochen.
 • Links zum Zurücksetzen des Passworts sind sicherer: Ein Link funktioniert nur auf dem Gerät, das ihn angefordert hat.
 • Die Einrichtung erscheint ab dem ersten Bildschirm in deiner Sprache und sagt dir klar, wenn sich etwas nicht herunterladen lässt.
 • Die Texte der App wurden in allen Sprachen überprüft, und Russisch und Arabisch verwenden die richtigen Pluralformen.
-• Bessere VoiceOver-Unterstützung in der ganzen App und Layouts, die bei großer Schrift umbrechen, statt Wörter abzuschneiden.
-• Wenn auf einem Bildschirm etwas schiefgeht, funktioniert der Rest der App weiter.
-• Schnellerer Start, eine kleinere App und viele kleine Korrekturen.
+• Bessere VoiceOver-Unterstützung und Layouts, die bei großer Schrift umbrechen, statt Wörter abzuschneiden.
+• Flüssigere Leseansicht, Bibelauswahl und Pläne. Die App braucht rund 45 MB weniger Speicher und startet schneller.
+• Wenn auf einem Bildschirm etwas schiefgeht, funktioniert der Rest der App weiter, dazu viele Korrekturen für schwache oder fehlende Verbindung.
 
 Danke, dass du mit uns liest.
