@@ -8,6 +8,10 @@ import {
   rotateTranslatorTeamPasscodeAction,
 } from '@/app/(dashboard)/translator-access/actions';
 import type { TeamPasscodeActionResult } from '@/lib/translator-access';
+import {
+  DEFAULT_TEAM_PASSCODE_LENGTH,
+  TEAM_PASSCODE_LENGTHS,
+} from '@/lib/translator-access-options';
 
 type PasscodeState = TeamPasscodeActionResult | null;
 
@@ -44,6 +48,36 @@ function PasscodeReveal({ result }: { result: TeamPasscodeActionResult }) {
   );
 }
 
+// Six digits is the default because app builds from before the 2026-09-24 keypad change cannot
+// type a longer code. See the note on the page for when to switch.
+function CodeLengthSelect({ compact = false }: { compact?: boolean }) {
+  const select = (
+    <select
+      name="codeLength"
+      defaultValue={String(DEFAULT_TEAM_PASSCODE_LENGTH)}
+      aria-label="Code length"
+    >
+      {TEAM_PASSCODE_LENGTHS.map((length) => (
+        <option key={length} value={length}>
+          {compact
+            ? `${length} digits`
+            : length === DEFAULT_TEAM_PASSCODE_LENGTH
+              ? `${length} digits (works on every app build)`
+              : `${length} digits (needs the updated app)`}
+        </option>
+      ))}
+    </select>
+  );
+  return compact ? (
+    select
+  ) : (
+    <label>
+      Code length
+      {select}
+    </label>
+  );
+}
+
 function ActionError({ state }: { state: PasscodeState }) {
   return state && !state.ok && state.error ? (
     <p className="notice notice--warning" role="alert">
@@ -69,6 +103,7 @@ export function CreateTeamPasscodeForm() {
           Translation IDs (comma-separated, exactly as the app uses them)
           <input name="translationIds" required placeholder="npiulb, npi-audio" />
         </label>
+        <CodeLengthSelect />
         <div>
           <button type="submit" className="button button--primary" disabled={pending}>
             {pending ? 'Creating…' : 'Create passcode'}
@@ -104,12 +139,14 @@ export function TeamPasscodeRowActions({
       {revoked ? null : (
         <div className="stack-inline">
           <form
+            className="stack-inline"
             action={rotateAction}
             onSubmit={confirmFirst(
               `Rotate the passcode for ${label}? The current code stops working immediately.`
             )}
           >
             <input type="hidden" name="teamId" value={teamId} />
+            <CodeLengthSelect compact />
             <button type="submit" className="button button-secondary" disabled={pending}>
               {pending ? 'Rotating…' : 'Rotate'}
             </button>

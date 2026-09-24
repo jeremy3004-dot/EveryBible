@@ -15,8 +15,8 @@ import {
   type TranslatorFeedbackChapterSummary,
 } from './translatorFeedbackReviewModel';
 
-// Team passcodes are digit strings typed on the Settings keypad. Builds before September 2026
-// stopped at six digits; the keypad now accepts up to twelve so longer team codes fit.
+// Team passcodes are digit strings typed on the Settings keypad. Builds released before
+// 2026-09-24 stop at six digits; the keypad now accepts up to twelve so longer team codes fit.
 test('the access keypad accepts codes longer than six digits, up to twelve', () => {
   let code = '';
   for (const digit of '9876543210987654') code = appendAccessPasscodeDigit(code, digit);

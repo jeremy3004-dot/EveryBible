@@ -45,8 +45,7 @@ export default async function TranslatorAccessPage({ searchParams }: TranslatorA
     <div className="page-stack">
       <PageHeader eyebrow="Translator access" title="One review passcode per translation team">
         A team passcode opens the translator review queue for its own translations only. Codes are
-        six digits so every installed app build can enter them, are stored only as salted hashes,
-        and are shown once when created or rotated.
+        digits, stored only as salted hashes, and shown once when created or rotated.
       </PageHeader>
       {notice ? <p className="notice notice--success">{notice}</p> : null}
       {error ? <p className="notice notice--warning">{error}</p> : null}
@@ -56,6 +55,14 @@ export default async function TranslatorAccessPage({ searchParams }: TranslatorA
           Translation IDs with feedback so far:{' '}
           {feedbackTranslationIds.length > 0 ? feedbackTranslationIds.join(', ') : 'none yet'}. IDs
           are case-sensitive.
+        </p>
+        <p className="table-note">
+          <strong>Code length.</strong> Keep 6 digits for now: app builds from before the 2026-09-24
+          keypad change stop at six digits, so a longer code cannot be typed on them. Six digits
+          rely on the lockout (10 wrong tries per 15 minutes per client) to stop guessing, which
+          someone switching networks can spread out. Once nearly every translator has installed the
+          app release after that change, choose 10 or 12 digits for new codes and rotate existing
+          teams to a longer code.
         </p>
         <CreateTeamPasscodeForm />
       </AdminCard>

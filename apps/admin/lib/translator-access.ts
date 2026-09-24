@@ -1,10 +1,13 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import {
+  DEFAULT_TEAM_PASSCODE_LENGTH,
   TEAM_PASSCODE_HASH_ALGORITHM,
+  TEAM_PASSCODE_LENGTHS,
   generateTeamPasscode,
   hashTeamPasscode,
   newTeamPasscodeSalt,
+  type TeamPasscodeLength,
 } from '@/lib/translator-access-crypto';
 import { createAdminServiceClient } from '@/lib/supabase/service';
 
@@ -51,6 +54,20 @@ export function parseTeamTranslationIds(
   return invalid ? { error: `Invalid translation ID: ${invalid}` } : { ids };
 }
 
+const CODE_LENGTH_ERROR = `Choose a code length of ${TEAM_PASSCODE_LENGTHS.slice(0, -1).join(
+  ', '
+)} or ${TEAM_PASSCODE_LENGTHS[TEAM_PASSCODE_LENGTHS.length - 1]} digits`;
+
+/** The form's code length; absent means the default every installed app build accepts. */
+export function parseTeamPasscodeLength(
+  raw: FormDataEntryValue | null
+): { length: TeamPasscodeLength } | { error: string } {
+  const value = typeof raw === 'string' ? raw.trim() : '';
+  if (value === '') return { length: DEFAULT_TEAM_PASSCODE_LENGTH };
+  const length = TEAM_PASSCODE_LENGTHS.find((option) => String(option) === value);
+  return length ? { length } : { error: CODE_LENGTH_ERROR };
+}
+
 interface ActiveHashRow {
   passcode_salt: string;
   passcode_hash: string;
@@ -62,7 +79,12 @@ interface ActiveHashRow {
  */
 export async function issueTeamPasscode(
   service: SupabaseClient,
-  input: { label: string; translationIds: string[]; createdBy: string }
+  input: {
+    label: string;
+    translationIds: string[];
+    createdBy: string;
+    codeLength: TeamPasscodeLength;
+  }
 ): Promise<{ ok: true; id: string; passcode: string } | { ok: false; error: string }> {
   const { data: active, error: activeError } = await service
     .from('translator_team_passcodes')
@@ -73,7 +95,7 @@ export async function issueTeamPasscode(
   const activeRows = (active ?? []) as ActiveHashRow[];
   let passcode: string | null = null;
   for (let attempt = 0; attempt < MAX_GENERATION_ATTEMPTS && passcode === null; attempt += 1) {
-    const candidate = generateTeamPasscode();
+    const candidate = generateTeamPasscode(input.codeLength);
     const clashes = activeRows.some(
       (row) => hashTeamPasscode(row.passcode_salt, candidate) === row.passcode_hash
     );

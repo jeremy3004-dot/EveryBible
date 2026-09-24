@@ -3,8 +3,9 @@ import test from 'node:test';
 
 import * as edgeHashModule from '../../../supabase/functions/review-chapter-feedback/teamPasscodeHash';
 import {
+  DEFAULT_TEAM_PASSCODE_LENGTH,
   TEAM_PASSCODE_HASH_ALGORITHM,
-  TEAM_PASSCODE_LENGTH,
+  TEAM_PASSCODE_LENGTHS,
   generateTeamPasscode,
   hashTeamPasscode,
   newTeamPasscodeSalt,
@@ -41,8 +42,24 @@ test('salts are 32 lowercase hex characters and differ per call', () => {
   for (const salt of salts) assert.match(salt, /^[0-9a-f]{32}$/);
 });
 
-test('generated passcodes fit the app keypad: six digits', () => {
+test('generated passcodes default to six digits, which every installed app build accepts', () => {
+  assert.equal(DEFAULT_TEAM_PASSCODE_LENGTH, 6);
   for (let index = 0; index < 200; index += 1) {
-    assert.match(generateTeamPasscode(), new RegExp(`^[0-9]{${TEAM_PASSCODE_LENGTH}}$`));
+    assert.match(generateTeamPasscode(), /^[0-9]{6}$/);
   }
+});
+
+test('longer codes are digits of exactly the chosen length, up to the new keypad limit of 12', () => {
+  assert.deepEqual([...TEAM_PASSCODE_LENGTHS], [6, 10, 12]);
+  for (const length of TEAM_PASSCODE_LENGTHS) {
+    for (let index = 0; index < 50; index += 1) {
+      assert.match(generateTeamPasscode(length), new RegExp(`^[0-9]{${length}}$`));
+    }
+  }
+});
+
+test('a twelve-digit code hashes the same in the admin and the edge function', async () => {
+  const salt = newTeamPasscodeSalt();
+  const passcode = generateTeamPasscode(12);
+  assert.equal(hashTeamPasscode(salt, passcode), await edgeHash.hashTeamPasscode(salt, passcode));
 });
