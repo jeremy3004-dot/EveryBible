@@ -1,3 +1,4 @@
+// Non-TypeScript artefact check: reads Swift, asset-catalog JSON and the icon build script as text; there is no module to load for it.
 // Native/asset configuration guard by design: these assertions read iOS Swift, asset
 // catalog, and build-script files that a runtime test cannot reach.
 import test from 'node:test';

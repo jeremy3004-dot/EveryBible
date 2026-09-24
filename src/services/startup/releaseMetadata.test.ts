@@ -1,3 +1,4 @@
+// Non-TypeScript artefact check: reads package.json, app.json, eas.json and the native projects (the runtime version comes from the real config module) as text; there is no module to load for it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';

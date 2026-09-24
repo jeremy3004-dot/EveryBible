@@ -66,6 +66,7 @@ test('getOperatorLauncherConfig reads process.env by default', (t) => {
   assert.equal(getOperatorLauncherConfig(), null);
 });
 
+// UI-only source check: component render code; the suite has no renderer.
 test('RootLayout renders the operator launcher globally', () => {
   const source = readFileSync(new URL('../app/layout.tsx', import.meta.url), 'utf8');
 

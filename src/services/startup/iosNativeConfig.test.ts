@@ -1,3 +1,4 @@
+// Non-TypeScript artefact check: reads app.json, Info.plist and the Xcode project as text; there is no module to load for it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

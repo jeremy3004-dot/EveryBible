@@ -1,3 +1,4 @@
+// Non-TypeScript artefact check: reads the Python build script, a data JSON and the shipped .db (the readiness constant comes from the real module) as text; there is no module to load for it.
 import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

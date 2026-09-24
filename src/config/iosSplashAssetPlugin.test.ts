@@ -1,3 +1,4 @@
+// Non-TypeScript artefact check: reads native asset catalog JSON as text; there is no module to load for it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';

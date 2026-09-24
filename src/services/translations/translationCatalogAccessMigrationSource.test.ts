@@ -1,3 +1,4 @@
+// Non-TypeScript artefact check: reads Supabase migration SQL as text; there is no module to load for it.
 /**
  * Replays the repo's migration history for `translation_catalog` access and checks the end state.
  *
