@@ -2,6 +2,7 @@ import test, { before, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import type { DevicePushToken } from 'expo-notifications';
 import {
+  mockMmkvStorage,
   mockModule,
   mockReactNative,
   mockSupabaseModule,
@@ -16,6 +17,9 @@ import { createSupabaseFake, type SupabaseFakeResult } from '../../testing/supab
  * registration (see `nextUser` / the afterEach-style cleanup in each test).
  */
 const rn = mockReactNative(mock, { os: 'ios' });
+// Holds the persisted "a reminder may be scheduled" flag (dailyReminderScheduleMarker.ts).
+const mmkv = mockMmkvStorage(mock);
+const MAY_BE_SCHEDULED_KEY = 'daily-reminder-may-be-scheduled';
 
 const authState = {
   user: null as { uid: string } | null,
@@ -183,6 +187,7 @@ before(async () => {
 
 beforeEach(() => {
   fake.reset();
+  mmkv.store.clear();
   installDeviceResponder();
   permissionCalls.length = 0;
   cancellations.length = 0;
@@ -677,6 +682,60 @@ test('a synced reminder is scheduled on the first reconcile after permission is 
   await notifications.reconcileDailyReminder(preference);
 
   assert.deepEqual(scheduledAt(), [[7, 30, 'settings.notificationTitle']]);
+});
+
+test('scheduling a reminder records that one may be scheduled, before the native call', async () => {
+  await startWithNoReminder();
+  scheduleFailure = new Error('alarm service unavailable');
+
+  await assert.rejects(() => notifications.scheduleDailyReminder(7, 30));
+
+  // A schedule that may or may not have reached the OS still counts.
+  assert.equal(mmkv.store.get(MAY_BE_SCHEDULED_KEY), '1');
+});
+
+test('only a cancel that succeeded clears the flag, so a failed one is retried next launch', async () => {
+  await notifications.scheduleDailyReminder(7, 30);
+  cancelFailure = new Error('notification service unavailable');
+  await notifications.cancelDailyReminder();
+  assert.equal(mmkv.store.get(MAY_BE_SCHEDULED_KEY), '1');
+
+  cancelFailure = null;
+  await notifications.cancelDailyReminder();
+  assert.equal(mmkv.store.get(MAY_BE_SCHEDULED_KEY), '0');
+});
+
+test('with the flag clear, an off reminder of unknown state is not cancelled natively', async () => {
+  // A failed schedule leaves this process not knowing what the OS holds.
+  await startWithNoReminder();
+  scheduleFailure = new Error('alarm service unavailable');
+  await assert.rejects(() => notifications.scheduleDailyReminder(7, 30));
+  scheduleFailure = null;
+  cancellations.length = 0;
+  const off = { notificationsEnabled: false, reminderTime: '07:30' };
+
+  // Android reconciles with the reminder off for its channel name; the flag spares the cancel.
+  mmkv.store.set(MAY_BE_SCHEDULED_KEY, '0');
+  await notifications.reconcileDailyReminder(off);
+  assert.deepEqual(cancellations, []);
+});
+
+test('with the flag set, an off reminder of unknown state is cancelled', async () => {
+  await startWithNoReminder();
+  scheduleFailure = new Error('alarm service unavailable');
+  await assert.rejects(() => notifications.scheduleDailyReminder(7, 30));
+  scheduleFailure = null;
+  cancellations.length = 0;
+
+  await notifications.reconcileDailyReminder({
+    notificationsEnabled: false,
+    reminderTime: '07:30',
+  });
+
+  assert.deepEqual(
+    [cancellations, mmkv.store.get(MAY_BE_SCHEDULED_KEY)],
+    [['daily-reading-reminder'], '0']
+  );
 });
 
 // ─── Discreet mode ───────────────────────────────────────────────────────────

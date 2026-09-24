@@ -7,6 +7,11 @@ import { parseReminderTime } from '../preferences/reminderPreferences';
 import { supabase } from '../supabase';
 import { DAILY_REMINDER_NOTIFICATION_DATA } from './notificationTapRouting';
 import { notifyNotificationPermissionRequested } from './notificationPermissionEvents';
+import {
+  markDailyReminderCancelled,
+  markDailyReminderMayBeScheduled,
+  mayDailyReminderBeScheduled,
+} from './dailyReminderScheduleMarker';
 export { setupNotificationHandler } from './notificationBootstrap';
 
 /**
@@ -283,6 +288,8 @@ export async function scheduleDailyReminder(hour: number, minute: number): Promi
 
   const content = getReminderContent();
   const signature = getReminderSignature(hour, minute, content);
+  // Recorded before the native call: a schedule that fails partway may still be armed.
+  markDailyReminderMayBeScheduled();
   await Notifications.scheduleNotificationAsync({
     identifier: DAILY_REMINDER_ID,
     content: {
@@ -309,7 +316,13 @@ export async function scheduleDailyReminder(hour: number, minute: number): Promi
  * group session alerts) that the user may have enabled.
  */
 export async function cancelDailyReminder(): Promise<void> {
-  await Notifications.cancelScheduledNotificationAsync(DAILY_REMINDER_ID).catch(() => {});
+  try {
+    await Notifications.cancelScheduledNotificationAsync(DAILY_REMINDER_ID);
+    // Only a cancel that worked lets a later launch skip this (see dailyReminderScheduleMarker).
+    markDailyReminderCancelled();
+  } catch {
+    // Not an error for the caller; the flag stays set, so the next launch cancels again.
+  }
   scheduledReminderSignature = 'off';
 }
 
@@ -341,6 +354,11 @@ export async function reconcileDailyReminder({
   const schedule = notificationsEnabled ? parseReminderTime(reminderTime) : null;
 
   if (!schedule) {
+    // Unknown in this process (a fresh launch), but nothing was scheduled since the last
+    // cancel that succeeded: there is nothing to cancel.
+    if (scheduledReminderSignature === null && !mayDailyReminderBeScheduled()) {
+      scheduledReminderSignature = 'off';
+    }
     if (scheduledReminderSignature !== 'off') {
       await cancelDailyReminder();
     }
