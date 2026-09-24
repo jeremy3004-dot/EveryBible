@@ -2,7 +2,7 @@ import { sha256 } from '@noble/hashes/sha2.js';
 
 import type { ElJwk } from './elEnvelope';
 
-type NobleNist = typeof import('@noble/curves/nist.js');
+type ElP256Module = typeof import('./elP256');
 
 /**
  * Pure-JS ES256 (ECDSA / P-256 / SHA-256) verification and SHA-256 hashing.
@@ -187,7 +187,7 @@ export function verifyEs256CompactJws(
     // The curve is only needed here. The text-pack and audio integrity checks import this
     // module for SHA-256 alone, and the text-pack journal recovery that loads them runs after
     // every launch, so the P-256 implementation loads on the first signature check instead.
-    const { p256 } = require('@noble/curves/nist.js') as NobleNist;
+    const { p256 } = require('./elP256') as ElP256Module;
     isValid = p256.verify(signature, sha256(signingInput), publicKey, {
       // JWS signatures are fixed-width R||S, while noble otherwise tries DER first when no
       // format is provided. Force compact parsing so a DER-shaped 64-byte signature cannot be
