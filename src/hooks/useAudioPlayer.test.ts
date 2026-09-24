@@ -2766,6 +2766,70 @@ test('the remote toggle command pauses a chapter that is still loading', async (
   assert.equal(playerCalls('loadAndPlay').length, 1);
 });
 
+// When a phone call or another app's audio ends, iOS tells the app it may resume.
+// That is right for a chapter the call interrupted, but the native module also sent
+// it for a chapter the listener had paused (or the sleep timer had stopped) before
+// the call, which then started playing again by itself.
+test('the end of an interruption resumes a chapter the interruption paused', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  emitStatus({ isPlaying: true, positionMillis: 30_000, durationMillis: DEFAULT_DURATION_MS });
+  // The system paused it: a native snapshot, not the listener.
+  emitStatus({ isPlaying: false, positionMillis: 30_000, durationMillis: DEFAULT_DURATION_MS });
+  player.rerender();
+  recorded.player.length = 0;
+
+  await remoteCommandListener?.({ command: 'interruption-ended' });
+
+  assert.equal(store().status, 'playing');
+  assert.equal(playerCalls('resume').length, 1);
+});
+
+test('the end of an interruption leaves a chapter the listener paused alone', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setPosition(30_000);
+  await player.rerender().pause();
+  recorded.player.length = 0;
+
+  await remoteCommandListener?.({ command: 'interruption-ended' });
+
+  assert.equal(store().status, 'paused');
+  assert.deepEqual(recorded.player, []);
+});
+
+test('the end of an interruption leaves a chapter the sleep timer stopped alone', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: BASE_TIME });
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setSleepTimer(5);
+  player.rerender();
+  tickSeconds(t.mock.timers, 5 * 60);
+  await Promise.resolve();
+  assert.equal(store().status, 'paused');
+  recorded.player.length = 0;
+
+  await remoteCommandListener?.({ command: 'interruption-ended' });
+
+  assert.equal(store().status, 'paused');
+  assert.deepEqual(recorded.player, []);
+});
+
+test('the end of an interruption does not restart a chapter that had finished', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setAutoAdvanceChapter(false);
+  player.rerender();
+  await finishPlayback();
+  assert.equal(store().status, 'idle');
+  recorded.player.length = 0;
+
+  await remoteCommandListener?.({ command: 'interruption-ended' });
+
+  assert.equal(store().status, 'idle');
+  assert.deepEqual(recorded.player, []);
+});
+
 test('the remote play command resumes a loaded chapter', async () => {
   const player = mountPlayer();
   await player.api.playChapter('GEN', 1);

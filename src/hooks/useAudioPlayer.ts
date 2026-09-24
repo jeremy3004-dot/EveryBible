@@ -82,6 +82,11 @@ const audioProgressTelemetryTimer: { current: ReturnType<typeof setInterval> | n
 };
 const audioProgressTelemetryLastEmittedAt = { current: 0 };
 
+// Whether the listener (or the sleep timer) paused playback, as opposed to the system
+// (a call, another app's audio, a headphone unplug). Only a system pause may be undone
+// when iOS reports that an interruption has ended.
+const pausedByListener = { current: false };
+
 /** How often a loaded chapter that is buffering checks that its sound still exists. */
 const STALLED_STREAM_CHECK_INTERVAL_MS = 5000;
 
@@ -444,6 +449,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       }
 
       const playRequestId = ++playRequestIdRef.current;
+      pausedByListener.current = false;
 
       // Read at call time: auto-advance and lock-screen commands reach this after the
       // reader has unmounted, when this render's track and settings are stale.
@@ -974,6 +980,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
   // Pause playback
   const pause = useCallback(async () => {
     playRequestIdRef.current += 1;
+    pausedByListener.current = true;
     chapterTransition.current = false;
     // Stop interpolation immediately so position freezes at pause point
     if (interpolationTimerRef.current) {
@@ -1053,6 +1060,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
   // Resume playback
   const resume = useCallback(async () => {
     const requestId = ++playRequestIdRef.current;
+    pausedByListener.current = false;
     const errorId = playbackErrorIdRef.current;
     const store = useAudioStore.getState();
     // Live resume: the loaded player already holds the true offset, and
@@ -1115,6 +1123,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
   // Stop playback completely
   const stop = useCallback(async () => {
     playRequestIdRef.current += 1;
+    pausedByListener.current = true;
     const requestId = playRequestIdRef.current;
     chapterTransition.current = false;
     if (interpolationTimerRef.current) {
@@ -1428,6 +1437,20 @@ export function useAudioPlayer(translationId: string = 'bsb') {
             await pause();
           } else {
             await playFromRemote();
+          }
+          return;
+        }
+        case 'interruption-ended': {
+          // Resume only a chapter the interruption paused. One the listener or the
+          // sleep timer paused before the call stays paused, and a finished one is
+          // not started again.
+          const store = useAudioStore.getState();
+          if (
+            !pausedByListener.current &&
+            store.status === 'paused' &&
+            canResumeLoadedChapter(store)
+          ) {
+            await resume();
           }
           return;
         }

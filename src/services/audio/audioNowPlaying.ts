@@ -13,7 +13,9 @@ type RemoteCommandName =
   | 'seek-backward'
   | 'seek-position'
   // The headset / Bluetooth / CarPlay play-pause button (iOS togglePlayPauseCommand).
-  | 'toggle';
+  | 'toggle'
+  // iOS says an audio-session interruption (a call, another app's audio) has ended.
+  | 'interruption-ended';
 
 export interface BibleNowPlayingRemoteCommand {
   command: RemoteCommandName;
@@ -64,7 +66,8 @@ function coerceRemoteCommandName(value: unknown): RemoteCommandName | null {
     value === 'seek-forward' ||
     value === 'seek-backward' ||
     value === 'seek-position' ||
-    value === 'toggle'
+    value === 'toggle' ||
+    value === 'interruption-ended'
   ) {
     return value;
   }

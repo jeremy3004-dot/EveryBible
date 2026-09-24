@@ -215,6 +215,7 @@ test('every supported remote command reaches the listener', async () => {
     'seek-backward',
     'seek-position',
     'toggle',
+    'interruption-ended',
   ]) {
     emitters[0].emit(EVENT_NAME, { command });
   }
@@ -232,6 +233,7 @@ test('every supported remote command reaches the listener', async () => {
       'seek-backward',
       'seek-position',
       'toggle',
+      'interruption-ended',
     ]
   );
 });

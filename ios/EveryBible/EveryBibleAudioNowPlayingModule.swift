@@ -76,8 +76,8 @@ class EveryBibleAudioNowPlayingModule: RCTEventEmitter {
       object: nil
     )
     // Handle AVAudioSession interruptions (phone calls, other audio apps, screen lock in some
-    // configurations). When the interruption ends with shouldResume=true, send a 'play' command
-    // back to JS so expo-av's Sound object can be resumed by useAudioPlayer.
+    // configurations). When the interruption ends with shouldResume=true, tell JS so
+    // useAudioPlayer can resume a chapter the interruption paused.
     NotificationCenter.default.addObserver(
       self,
       selector: #selector(handleAudioSessionInterruption(_:)),
@@ -128,10 +128,10 @@ class EveryBibleAudioNowPlayingModule: RCTEventEmitter {
         DispatchQueue.main.async {
           self.activateAudioSession()
           self.republishLatestNowPlayingSnapshot()
-          // Tell JS to resume expo-av playback. useAudioPlayer's
-          // subscribeBibleNowPlayingRemoteCommands handler handles 'play' by
-          // resuming if paused or replaying the current chapter.
-          self.sendCommand("play")
+          // Tell JS the interruption is over. useAudioPlayer resumes the chapter
+          // only if the interruption paused it; one the listener (or the sleep
+          // timer) paused before the call stays paused.
+          self.sendCommand("interruption-ended")
         }
       }
     }
