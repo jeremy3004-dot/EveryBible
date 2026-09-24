@@ -105,7 +105,9 @@ test('first run opens straight on the Bible language step with search and the wh
 
   // App language is an inline control, not a step of its own.
   const appLanguage = view.getByTestId('onboarding-interface-language-toggle');
-  assert.ok(within(appLanguage).getByRole('button', { name: 'App language' }));
+  assert.ok(
+    within(appLanguage).getByRole('button', { name: 'App language, English', expanded: false })
+  );
   assert.equal(view.queryByTestId('onboarding-interface-language-search'), null);
   assert.equal(view.queryByTestId('onboarding-interface-language-inline-picker'), null);
 
@@ -247,11 +249,13 @@ test('choosing an app language closes the picker and stays on the Bible step eve
   const warn = mock.method(console, 'warn', () => {});
   try {
     const view = await fakes.renderFlow();
-    await view.press(view.getByRole('button', { name: 'App language' }));
+    await view.press(view.getByRole('button', { name: 'App language, English' }));
+    assert.ok(view.getByRole('button', { name: 'App language, English', expanded: true }));
 
+    // Each language is read by its own name and its English name, as shown.
     const picker = view.getByTestId('onboarding-interface-language-inline-picker');
-    assert.ok(within(picker).getByRole('button', { name: /^App language/, selected: true }));
-    await view.press(within(picker).getByRole('button', { name: /^Idioma de la app/ }));
+    assert.ok(within(picker).getByRole('button', { name: 'English', selected: true }));
+    await view.press(within(picker).getByRole('button', { name: 'Español, Spanish' }));
     await view.flush();
 
     assert.deepEqual(fakes.changeLanguage.calls, ['es']);

@@ -197,7 +197,8 @@ export const InterfaceLanguageRow = memo(function InterfaceLanguageRow({
       subtitle={language.nativeName !== language.name ? language.name : null}
       isLast={isLast}
       colors={colors}
-      accessibilityLabel={language.appLanguageLabel}
+      // Read by its own name (and English name), as shown; its "App language"
+      // phrase named every row the same and left English with no name at all.
       isSelected={isSelected}
       trailing={<SelectionMark isSelected={isSelected} colors={colors} />}
       onPress={() => onSelect(language)}
