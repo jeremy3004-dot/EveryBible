@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../contexts/ThemeContext';
-import { useDisplayFont } from '../../../hooks';
+import { useDisplayFont } from '../../../hooks/useDisplayFont';
 import { AppButton } from '../../../components/ui';
 import { radius, spacing, typography } from '../../../design/system';
 import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../../design/largeTextLayout';

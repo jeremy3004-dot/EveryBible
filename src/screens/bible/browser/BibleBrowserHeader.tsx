@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../../design/system';
 import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../../design/largeTextLayout';
-import { useDisplayFont } from '../../../hooks';
+import { useDisplayFont } from '../../../hooks/useDisplayFont';
 
 interface BibleBrowserHeaderProps {
   translationName: string | undefined;

@@ -2,7 +2,7 @@ import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'rea
 import { CheckCircle2 } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../contexts/ThemeContext';
-import { useDisplayFont } from '../../../hooks';
+import { useDisplayFont } from '../../../hooks/useDisplayFont';
 import { AppButton } from '../../../components/ui';
 import { SUPPORTED_LANGUAGES, type LanguageCode } from '../../../constants/languages';
 import { radius, spacing, typography } from '../../../design/system';

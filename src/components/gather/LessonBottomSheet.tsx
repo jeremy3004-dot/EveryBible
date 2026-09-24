@@ -14,10 +14,10 @@ import { useTranslation } from 'react-i18next';
 import { FOUNDATION_LESSON_TITLE_KEYS } from '../../data/gatherFoundations';
 import { WISDOM_LESSON_TITLE_KEYS } from '../../data/gatherWisdom';
 import { useTheme } from '../../contexts/ThemeContext';
-import { useDisplayFont } from '../../hooks';
+import { useDisplayFont } from '../../hooks/useDisplayFont';
 import { spacing, typography } from '../../design/system';
 import { AppButton, ListRow, Sheet } from '../ui';
-import { getTranslatedBookName } from '../../constants';
+import { getTranslatedBookName } from '../../constants/books';
 import { formatBibleReferenceLabel } from '../../services/gather/gatherReferenceLabel';
 import {
   getPassageText,

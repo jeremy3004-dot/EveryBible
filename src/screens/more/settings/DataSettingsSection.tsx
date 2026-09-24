@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Bug, CheckCircle2, CloudDownload, Trash2, UserX } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../contexts/ThemeContext';
-import { useDisplayFont } from '../../../hooks';
+import { useDisplayFont } from '../../../hooks/useDisplayFont';
 import { AppCard, ListRow } from '../../../components/ui';
 import { spacing, typography } from '../../../design/system';
 import { ICON_STROKE, ROW_ICON_SIZE, sectionStyles } from './settingsStyles';

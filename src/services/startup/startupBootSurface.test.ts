@@ -2,7 +2,7 @@
 // import closure, which runtime tests cannot observe.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createPrivacyInstallationBootstrap } from '../privacy/privacyInstallationAdapter';
@@ -514,6 +514,9 @@ test('nothing evaluated before Home imports the large bundled data tables', () =
     /\/src\/constants\/bookIconVectors\.generated\.json$/,
     // Its grammars are ~45 KB each; only the Bible browser's search needs them.
     /\/src\/services\/bible\/referenceParser\.ts$/,
+    // Expands every plan into its daily entries at module eval; Home lists plans
+    // from an effect, and readingPlanService requires the catalog on that call.
+    /\/src\/data\/readingPlans\.generated\.ts$/,
   ];
   const entries = [...PATH_TO_HOME, '../bible/verseTimestamps.ts', '../../data/gatherArtwork.ts'];
 
@@ -543,6 +546,119 @@ test('nothing evaluated before Home imports the large bundled data tables', () =
     [...home].some((file) => file.endsWith('src/data/gatherArtwork.ts')),
     'HomeScreen should reach the Gather artwork registry — check the walker if this fails'
   );
+});
+
+// bookIcons is re-exported by the `constants` barrel, so a static import of the
+// ~290 KB vector table reached every closure that touches the barrel: the Bible
+// data warmup App.tsx runs after every launch, the first-launch onboarding flow,
+// and most screens. BookIcon loads it when it first draws.
+test('the constants barrel, the launch warmup and onboarding never import the book icon vectors', () => {
+  const entries = [
+    '../../constants/index.ts',
+    '../bible/bibleService.ts',
+    '../../screens/onboarding/LocaleSetupFlow.tsx',
+  ];
+
+  entries.forEach((entry) => {
+    const closurePaths = [
+      ...collectStaticImportClosure(fileURLToPath(new URL(entry, import.meta.url).href)),
+    ].map((file) => file.replace(/\\/g, '/'));
+    const hit = closurePaths.find((file) => file.endsWith('/bookIconVectors.generated.json'));
+    assert.equal(hit, undefined, `${entry}'s static closure must not reach ${hit}`);
+    assert.ok(
+      closurePaths.some((file) => file.endsWith('src/constants/bookIcons.ts')),
+      `${entry} should still reach bookIcons through the barrel — check the walker if this fails`
+    );
+  });
+});
+
+// ListRow, Sheet, EmptyState and SectionHeader took one font hook each from the
+// `hooks` barrel, which also re-exports useAudioPlayer and useSync. That put the
+// audio player (expo-av), the download service and cloud sync into every screen
+// built from the UI kit, including the first-launch onboarding flow.
+test('the UI kit and onboarding do not load the audio or sync stack', () => {
+  const entries = ['../../components/ui/index.ts', '../../screens/onboarding/LocaleSetupFlow.tsx'];
+  const bannedFiles = [
+    'src/hooks/index.ts',
+    'src/hooks/useAudioPlayer.ts',
+    'src/hooks/useSync.ts',
+    'src/services/audio/audioPlayer.ts',
+    'src/services/sync/syncService.ts',
+  ];
+
+  entries.forEach((entry) => {
+    const { files, packages } = collectStaticImports(
+      fileURLToPath(new URL(entry, import.meta.url).href)
+    );
+    const closurePaths = [...files].map((file) => file.replace(/\\/g, '/'));
+    bannedFiles.forEach((suffix) => {
+      const hit = closurePaths.find((file) => file.endsWith(suffix));
+      assert.equal(hit, undefined, `${entry}'s static closure must not reach ${suffix}`);
+    });
+    assert.equal(
+      packages.has('expo-av'),
+      false,
+      `${entry}'s static closure must not import expo-av`
+    );
+    assert.ok(
+      closurePaths.some((file) => file.endsWith('src/hooks/useDisplayFont.ts')),
+      `${entry} should still reach useDisplayFont — check the walker if this fails`
+    );
+  });
+});
+
+// The Bible, Plans and More tabs and their detail screens used the hooks barrel for
+// font and layout hooks, which evaluated the audio player and cloud sync on first
+// open. Only files owned outside this guard (the Learn tab) still import it.
+test('screens and components import concrete hooks instead of the hooks barrel', () => {
+  const repoRoot = fileURLToPath(new URL('../../../', import.meta.url).href);
+  const barrelImporters = (['src/screens', 'src/components'] as const).flatMap((directory) =>
+    readdirSync(join(repoRoot, directory), { recursive: true, encoding: 'utf8' })
+      .filter((file) => /\.tsx?$/.test(file) && !/\.test\.tsx?$/.test(file))
+      .map((file) => `${directory}/${file.replace(/\\/g, '/')}`)
+      .filter((file) =>
+        /^\s*import\s+(?!type\b)[\s\S]*?\bfrom\s+['"](?:\.\.\/)+hooks['"]/m.test(
+          readFileSync(join(repoRoot, file), 'utf8')
+        )
+      )
+  );
+
+  assert.deepEqual(barrelImporters.sort(), [
+    'src/screens/learn/GroupListScreen.tsx',
+    'src/screens/learn/LessonDetailScreen.tsx',
+  ]);
+
+  [
+    '../../screens/bible/BibleBrowserScreen.tsx',
+    '../../screens/plans/PlansHomeScreen.tsx',
+    '../../screens/plans/PlanDetailScreen.tsx',
+    '../../screens/more/MoreScreen.tsx',
+    '../../screens/more/SettingsScreen.tsx',
+  ].forEach((entry) => {
+    const closurePaths = [
+      ...collectStaticImportClosure(fileURLToPath(new URL(entry, import.meta.url).href)),
+    ].map((file) => file.replace(/\\/g, '/'));
+    const hit = closurePaths.find((file) => file.endsWith('src/hooks/index.ts'));
+    assert.equal(hit, undefined, `${entry}'s static closure must not reach the hooks barrel`);
+  });
+});
+
+// reconcileTranslationPacks() runs in the deferred warmup after every launch and
+// imports cloudTranslationService for its text-pack journal recovery. That service
+// (like the EL manifest service) needs SHA-256 only; the P-256 verifier loads on the
+// first signature check.
+test('the integrity-hash importers do not load the P-256 curve', () => {
+  ['../bible/cloudTranslationService.ts', '../elMedia/elManifestService.ts'].forEach((entry) => {
+    const { packages } = collectStaticImports(fileURLToPath(new URL(entry, import.meta.url).href));
+    const curveImports = [...packages.keys()].filter((specifier) =>
+      specifier.startsWith('@noble/curves')
+    );
+    assert.deepEqual(curveImports, [], `${entry}'s static closure must not import the curve`);
+    assert.ok(
+      packages.has('@noble/hashes/sha2.js'),
+      `${entry} should still reach SHA-256 — check the walker if this fails`
+    );
+  });
 });
 
 test('restoring the session at launch does not load the native sign-in SDKs', () => {

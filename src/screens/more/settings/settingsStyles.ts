@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native';
 import { useTheme } from '../../../contexts/ThemeContext';
-import { useLargeText } from '../../../hooks';
+import { useLargeText } from '../../../hooks/useLargeText';
 import { layout, radius, spacing, typography } from '../../../design/system';
 
 /** Matches ListRow's own leading glyph so block rows line up with list rows. */

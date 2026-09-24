@@ -54,14 +54,16 @@ export function installBrowserRenderFixture(mock: MockTracker) {
   // No catalog summary by default: every book and chapter counts as available.
   const content: { summary: TranslationContentSummary | undefined } = { summary: undefined };
 
-  const harness = installRenderHarness(mock, {
-    hooks: {
-      useI18n: () => {
-        const { t, i18n } = useTranslation();
-        return { t, i18n, currentLanguage: 'en' };
-      },
-      useTranslationContentSummary: () => content.summary,
+  const harness = installRenderHarness(mock);
+  // The browser imports each hook from its own module, not the hooks barrel.
+  mockModule(mock, sourcePath('hooks/useI18n.ts'), {
+    useI18n: () => {
+      const { t, i18n } = useTranslation();
+      return { t, i18n, currentLanguage: 'en' };
     },
+  });
+  mockModule(mock, sourcePath('hooks/useTranslationContentSummary.ts'), {
+    useTranslationContentSummary: () => content.summary,
   });
   const t = (key: string, options?: Record<string, unknown>) => harness.i18n.t(key, options);
 

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { Testament } from '../../../constants/books';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { spacing, typography } from '../../../design/system';
-import { useDisplayFont } from '../../../hooks';
+import { useDisplayFont } from '../../../hooks/useDisplayFont';
 
 /** The ruled heading that opens a testament in the book list. */
 export const TestamentDivider = memo(function TestamentDivider({

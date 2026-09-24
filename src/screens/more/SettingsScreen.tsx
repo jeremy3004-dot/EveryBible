@@ -13,7 +13,9 @@ import {
   getFeedbackParticipationMode,
   useTranslatorReviewStore,
 } from '../../stores/translatorReviewStore';
-import { useDisplayFont, useI18n, useTabBarHeight } from '../../hooks';
+import { useDisplayFont } from '../../hooks/useDisplayFont';
+import { useI18n } from '../../hooks/useI18n';
+import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { syncPreferences } from '../../services/sync';
 import { type LanguageCode } from '../../constants/languages';
 import { localeSearchEngine } from '../../services/onboarding/localeSelection';
