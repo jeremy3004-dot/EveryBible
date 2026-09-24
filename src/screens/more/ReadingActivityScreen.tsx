@@ -15,6 +15,7 @@ import { useTranslation } from 'react-i18next';
 import { formatListeningTime } from '../../i18n/interfaceFormatting';
 import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
 import { useDisplayFont } from '../../hooks/useDisplayFont';
+import { useLocalToday } from '../../hooks/useLocalToday';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { selectCurrentStreakDays, useProgressStore } from '../../stores/progressStore';
 import { useAuthStore } from '../../stores/authStore';
@@ -93,6 +94,8 @@ export function ReadingActivityScreen() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const preferencesUpdatedAt = useAuthStore((state) => state.preferencesUpdatedAt);
   const [viewDate, setViewDate] = useState(() => new Date());
+  // Which cell is today, refreshed on foreground and at midnight as well as on focus.
+  const today = useLocalToday();
   const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
   const [engagement, setEngagement] = useState<UserEngagementSummary | null>(null);
   const [gridWidth, setGridWidth] = useState(0);
@@ -132,8 +135,9 @@ export function ReadingActivityScreen() {
         daysByDateKey: activitySummary.daysByDateKey,
         viewDate,
         selectedDateKey: effectiveSelectedDateKey,
+        today,
       }),
-    [activitySummary.daysByDateKey, viewDate, effectiveSelectedDateKey]
+    [activitySummary.daysByDateKey, viewDate, effectiveSelectedDateKey, today]
   );
   const weekdayInitials = useMemo(() => buildWeekdayInitials(i18n.language), [i18n.language]);
   const selectedDay = effectiveSelectedDateKey

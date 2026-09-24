@@ -128,6 +128,22 @@ test('read days, today and idle days are announced differently', async () => {
   assert.notEqual(read, today, 'a read day sounds different from today');
 });
 
+test('left open overnight, the calendar moves today when the app comes back', async () => {
+  const view = await renderScreen();
+  const todayLabel = t('readingActivity.legendToday');
+  const value = (name: string) => cellNamed(view, name).props.accessibilityValue?.text ?? '';
+  assert.equal(value('Thursday, September 24'), todayLabel);
+
+  // Suspended overnight on this screen; nothing refocuses it.
+  harness.rn.AppState.emit('background');
+  mock.timers.setTime(new Date('2026-09-25T07:00:00.000Z').getTime());
+  harness.rn.AppState.emit('active');
+  await view.flush();
+
+  assert.equal(value('Thursday, September 24'), '');
+  assert.equal(value('Friday, September 25'), todayLabel);
+});
+
 test('pressing a read day selects it and summarises that day in canonical order', async () => {
   const view = await renderScreen();
 
