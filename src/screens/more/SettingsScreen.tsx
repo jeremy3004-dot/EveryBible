@@ -775,7 +775,7 @@ export function SettingsScreen() {
           onRequestClose={closeChapterFeedbackIdentityModal}
         >
           <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}
           >
             <TouchableOpacity

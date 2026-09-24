@@ -453,7 +453,7 @@ export function ChapterFeedbackReviewScreen({ route, navigation }: Props) {
   };
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={[styles.screen, { paddingTop: insets.top, backgroundColor: colors.background }]}
     >
       <View style={styles.top}>
