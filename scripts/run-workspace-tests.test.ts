@@ -8,7 +8,11 @@ import { discoverTestFiles, runTestFiles } from './run-workspace-tests';
 
 function runFixture(fixture: string) {
   // Start outside node:test's worker context so Node runs the nested fixture.
-  const env = { ...process.env };
+  // Fixtures live at a fresh temp path, so they always miss tsx's disk cache. A
+  // miss makes tsx (>=4.23) walk its whole shared cache directory to expire old
+  // entries, and the process cannot exit until that walk ends — minutes when the
+  // machine's cache holds hundreds of thousands of files.
+  const env = { ...process.env, TSX_DISABLE_CACHE: '1' };
   delete env.NODE_TEST_CONTEXT;
   return spawnSync(
     process.execPath,
