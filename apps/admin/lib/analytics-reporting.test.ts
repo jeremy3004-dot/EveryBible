@@ -28,8 +28,8 @@ test('mapCountryRollupsToMetrics enriches backend country rollups with globe coo
 
   assert.equal(metrics.length, 2);
   assert.equal(metrics[0]?.code, 'NP');
-  assert.equal(metrics[0]?.latitude > 0, true);
-  assert.equal(metrics[0]?.longitude > 0, true);
+  assert.equal((metrics[0]?.latitude ?? 0) > 0, true);
+  assert.equal((metrics[0]?.longitude ?? 0) > 0, true);
   assert.equal(metrics[0]?.readingMinutes, 0);
   assert.equal(metrics[1]?.code, 'US');
   assert.equal(metrics[1]?.downloadUnits, 5);
@@ -272,4 +272,76 @@ test('location rollups carry reading activity through to the atlas', () => {
     },
   ]);
   assert.equal(points[0].readingMinutes, 10);
+});
+
+test('country rows with no known geography stay in the country table under a readable name', () => {
+  // IP providers report pseudo-codes (EU, AP, A1, ...) that are not countries.
+  // Their activity is real and the RPC counts it, so the table keeps the row;
+  // it has no coordinates, so the map cannot place it.
+  const metrics = mapCountryRollupsToMetrics([
+    { code: 'NP', name: 'Nepal', listeningMinutes: 40, downloadUnits: 1, listenerCount: 2 },
+    { code: 'eu', name: 'EU', listeningMinutes: 30, downloadUnits: 2, listenerCount: 3 },
+    { code: 'AP', name: '', listeningMinutes: 20, downloadUnits: 0, listenerCount: 1 },
+    { code: 'A1', name: 'A1', listeningMinutes: 10, downloadUnits: 0, listenerCount: 1 },
+    { code: 'QQ', name: '', listeningMinutes: 5, downloadUnits: 0, listenerCount: 1 },
+    { code: ' ', name: 'Nowhere', listeningMinutes: 1, downloadUnits: 0, listenerCount: 1 },
+  ]);
+
+  assert.deepEqual(
+    metrics.map(({ code, name, latitude, longitude, listeningMinutes, listenerCount }) => ({
+      code,
+      name,
+      placed: latitude !== null && longitude !== null,
+      listeningMinutes,
+      listenerCount,
+    })),
+    [
+      { code: 'NP', name: 'Nepal', placed: true, listeningMinutes: 40, listenerCount: 2 },
+      {
+        code: 'EU',
+        name: 'Europe (unspecified)',
+        placed: false,
+        listeningMinutes: 30,
+        listenerCount: 3,
+      },
+      {
+        code: 'AP',
+        name: 'Asia/Pacific (unspecified)',
+        placed: false,
+        listeningMinutes: 20,
+        listenerCount: 1,
+      },
+      {
+        code: 'A1',
+        name: 'Anonymous proxy',
+        placed: false,
+        listeningMinutes: 10,
+        listenerCount: 1,
+      },
+      {
+        code: 'QQ',
+        name: 'Unknown region (QQ)',
+        placed: false,
+        listeningMinutes: 5,
+        listenerCount: 1,
+      },
+    ]
+  );
+});
+
+test('approximate points reported under a pseudo-code keep that code so the country row can focus them', () => {
+  const [point] = mapLocationRollupsToMetrics([
+    {
+      countryCode: 'EU',
+      latitude: 50.11,
+      longitude: 8.68,
+      listeningMinutes: 3,
+      downloadUnits: 0,
+      listenerCount: 1,
+    },
+  ]);
+  assert.deepEqual(
+    { code: point.code, name: point.name, latitude: point.latitude, longitude: point.longitude },
+    { code: 'EU', name: 'Europe (unspecified)', latitude: 50.1, longitude: 8.7 }
+  );
 });

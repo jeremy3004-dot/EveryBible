@@ -40,6 +40,12 @@ verbatim and never max-merges country rows.
 | **Active map locations** (metric card) | `activeLocationCount` | Distinct approximate lat/lng buckets — several per country. |
 | **Map buckets** (per-translation table) | `translationLocationMetrics[t].length` | Coordinate buckets for one translation (NOT countries). |
 
+A country row whose code has no known geography (IP providers report
+pseudo-codes such as `EU`, `AP` and `A1`) keeps its totals in the country table
+under a readable name ("Europe (unspecified)", "Anonymous proxy",
+"Unknown region (XX)") with no coordinates. Only the map skips it, so the table
+never loses a row the RPC counted in `activeCountryCount`.
+
 "Countries" (`activeCountryCount`) and "Active map locations"
 (`activeLocationCount`) are different denominators — the old globe showed the
 bucket count under a "Countries" label, which is why it read 68 when there were

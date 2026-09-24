@@ -1,4 +1,4 @@
-import { getCountryGeography } from './country-geography';
+import { describeUnplacedRegion, getCountryGeography } from './country-geography';
 
 export interface DailyMetricPoint {
   day: string;
@@ -11,13 +11,19 @@ export interface CountryMetric {
   subregion?: string;
   code: string;
   downloadUnits: number;
-  latitude: number;
+  // Null when the reported code has no known geography (IP pseudo-codes such as
+  // EU, AP and A1). The row still carries real totals for the country table;
+  // only the map layer skips it.
+  latitude: number | null;
   listenerCount: number;
   listeningMinutes: number;
   readingMinutes: number;
-  longitude: number;
+  longitude: number | null;
   name: string;
 }
+
+/** A country or location row that can be placed on the map. */
+export type MappableCountryMetric = CountryMetric & { latitude: number; longitude: number };
 
 export interface CountryMetricRollup {
   code: string;
@@ -65,23 +71,27 @@ function compareCountryMetrics(left: CountryMetric, right: CountryMetric): numbe
 export function mapCountryRollupsToMetrics(countryRollups: CountryMetricRollup[]): CountryMetric[] {
   return countryRollups
     .map((rollup): CountryMetric | null => {
-      const geography = getCountryGeography(rollup.code);
-      if (!geography) {
+      const code = (rollup.code ?? '').trim().toUpperCase();
+      if (!code) {
         return null;
       }
 
+      // A code without known geography (EU, AP, A1, ...) is still activity the
+      // RPC counted in activeCountryCount, so it keeps its table row.
+      const geography = getCountryGeography(code);
+
       return {
         locationKind: 'country' as const,
-        region: geography.region,
-        subregion: geography.subregion,
-        code: geography.code,
+        region: geography?.region,
+        subregion: geography?.subregion,
+        code: geography?.code ?? code,
         downloadUnits: Math.max(0, Math.round(Number(rollup.downloadUnits) || 0)),
-        latitude: geography.latitude,
+        latitude: geography?.latitude ?? null,
         listenerCount: Math.max(0, Math.round(Number(rollup.listenerCount) || 0)),
         listeningMinutes: roundToSingleDecimal(Number(rollup.listeningMinutes) || 0),
         readingMinutes: roundToSingleDecimal(Number(rollup.readingMinutes) || 0),
-        longitude: geography.longitude,
-        name: geography.name,
+        longitude: geography?.longitude ?? null,
+        name: geography?.name ?? describeUnplacedRegion(code, rollup.name),
       };
     })
     .filter((metric): metric is CountryMetric => metric !== null)
@@ -278,12 +288,13 @@ export function buildTranslationBreakdown(
 
 export function mapLocationRollupsToMetrics(
   locationRollups: LocationMetricRollup[]
-): CountryMetric[] {
-  const bucketedMetrics = new Map<string, CountryMetric>();
+): MappableCountryMetric[] {
+  const bucketedMetrics = new Map<string, MappableCountryMetric>();
 
   for (const rollup of locationRollups) {
     const hasCoords = rollup.latitude != null && rollup.longitude != null;
-    const geography = getCountryGeography(rollup.countryCode, rollup.countryName);
+    const reportedCode = rollup.countryCode?.trim().toUpperCase() || null;
+    const geography = getCountryGeography(reportedCode, rollup.countryName);
     const latitude = hasCoords ? (rollup.latitude as number) : geography?.latitude;
     const longitude = hasCoords ? (rollup.longitude as number) : geography?.longitude;
 
@@ -305,7 +316,7 @@ export function mapLocationRollupsToMetrics(
     const bucketLongitude = roundCoordinateToBucket(longitude);
     const bucketKey = [
       hasCoords ? 'approximate' : 'country',
-      geography?.code ?? rollup.countryCode ?? 'UNKNOWN',
+      geography?.code ?? reportedCode ?? 'UNKNOWN',
       bucketLatitude.toFixed(APPROXIMATE_LOCATION_BUCKET_DECIMALS),
       bucketLongitude.toFixed(APPROXIMATE_LOCATION_BUCKET_DECIMALS),
     ].join(':');
@@ -333,14 +344,20 @@ export function mapLocationRollupsToMetrics(
       locationKind: hasCoords ? 'approximate' : 'country',
       region: geography?.region,
       subregion: geography?.subregion,
-      code: geography?.code ?? bucketKey,
+      // A pseudo-code keeps its reported code so selecting that country row
+      // focuses its points; a row with no code at all is its own bucket.
+      code: geography?.code ?? reportedCode ?? bucketKey,
       downloadUnits,
       latitude: bucketLatitude,
       listenerCount,
       listeningMinutes,
       readingMinutes,
       longitude: bucketLongitude,
-      name: geography?.name ?? rollup.countryName ?? 'Unknown location',
+      name:
+        geography?.name ??
+        (reportedCode
+          ? describeUnplacedRegion(reportedCode, rollup.countryName)
+          : (rollup.countryName ?? 'Unknown location')),
     });
   }
 

@@ -1,4 +1,8 @@
-import type { CountryMetric, TranslationBreakdownEntry } from './analytics-reporting';
+import type {
+  CountryMetric,
+  MappableCountryMetric,
+  TranslationBreakdownEntry,
+} from './analytics-reporting';
 
 export type AtlasMetric = 'listeningMinutes' | 'readingMinutes' | 'downloadUnits';
 export const ATLAS_METRICS: { key: AtlasMetric; label: string; unit: string }[] = [
@@ -12,7 +16,11 @@ export const metricLabel = (mode: AtlasMetric) =>
   ATLAS_METRICS.find((item) => item.key === mode)!.unit;
 export const pointId = (point: CountryMetric) =>
   `${point.locationKind ?? 'approximate'}:${point.code}:${point.latitude}:${point.longitude}`;
-export const isValidPoint = (point: CountryMetric) =>
+// Only the map needs coordinates. A country row without them (a pseudo-code
+// such as EU) still belongs in the country table and rankings.
+export const isValidPoint = (point: CountryMetric): point is MappableCountryMetric =>
+  point.latitude !== null &&
+  point.longitude !== null &&
   Number.isFinite(point.latitude) &&
   Number.isFinite(point.longitude) &&
   Math.abs(point.latitude) <= 90 &&
@@ -39,8 +47,8 @@ export function getAtlasScope(
 export function getAtlasPoints(
   scope: { countries: CountryMetric[]; locations: CountryMetric[] },
   mode: AtlasMetric
-): CountryMetric[] {
-  const points = scope.locations.filter((point) => isValidPoint(point) && point[mode] > 0);
+): MappableCountryMetric[] {
+  const points = scope.locations.filter(isValidPoint).filter((point) => point[mode] > 0);
   // Country-only events are real activity too. Show their additive remainder
   // at the country center, alongside known buckets, without duplicating totals.
   const locatedByCountry = new Map<string, number>();
@@ -70,7 +78,7 @@ export function getMetricWeight(value: number, maximum: number): number {
 }
 
 export function buildAtlasFeatures(points: CountryMetric[], mode: AtlasMetric) {
-  const valid = points.filter((point) => isValidPoint(point) && point[mode] > 0);
+  const valid = points.filter(isValidPoint).filter((point) => point[mode] > 0);
   const maximum = Math.max(1, ...valid.map((point) => point[mode]));
   return {
     type: 'FeatureCollection' as const,

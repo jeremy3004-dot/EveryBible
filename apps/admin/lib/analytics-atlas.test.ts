@@ -137,3 +137,26 @@ test('reading uses collected approximate coordinates when available', () => {
   assert.equal(points.length, 1);
   assert.equal(points[0].latitude, 27.7);
 });
+
+test('a country row without coordinates is ranked but never placed on the map', () => {
+  const unplaced: CountryMetric = {
+    ...country,
+    code: 'EU',
+    name: 'Europe (unspecified)',
+    latitude: null,
+    longitude: null,
+    listeningMinutes: 500,
+  };
+  const points = getAtlasPoints(
+    { countries: [country, unplaced], locations: [location] },
+    'listeningMinutes'
+  );
+  assert.deepEqual(
+    points.map((point) => [point.code, point.locationKind, point.listeningMinutes]),
+    [
+      ['NP', undefined, 20],
+      ['NP', 'country', 80],
+    ]
+  );
+  assert.equal(buildAtlasFeatures([unplaced, ...points], 'listeningMinutes').features.length, 2);
+});

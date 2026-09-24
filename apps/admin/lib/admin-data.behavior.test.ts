@@ -239,6 +239,47 @@ test('country rollups become globe rows placed at each country and ranked by lis
   }
 });
 
+test('countries the RPC counted keep their table rows even when they have no map position', async () => {
+  service.respondToRpc('get_admin_analytics_overview', () => ({
+    data: {
+      activeCountryCount: 2,
+      countryMetrics: [
+        {
+          code: 'NP',
+          name: 'Nepal',
+          listeningMinutes: 20,
+          readingMinutes: 0,
+          listenerCount: 2,
+          downloadUnits: 0,
+        },
+        {
+          code: 'EU',
+          name: 'EU',
+          listeningMinutes: 12,
+          readingMinutes: 3,
+          listenerCount: 1,
+          downloadUnits: 5,
+        },
+      ],
+    },
+  }));
+  const { activeCountryCount, countryMetrics } = await data.getAnalyticsOverview(30);
+  assert.equal(countryMetrics.length, activeCountryCount);
+  assert.deepEqual(countryMetrics[1], {
+    locationKind: 'country',
+    region: undefined,
+    subregion: undefined,
+    code: 'EU',
+    downloadUnits: 5,
+    latitude: null,
+    listenerCount: 1,
+    listeningMinutes: 12,
+    readingMinutes: 3,
+    longitude: null,
+    name: 'Europe (unspecified)',
+  });
+});
+
 test('approximate location rollups become 0.1° map buckets and country-only rows sit at the country centre', async () => {
   service.respondToRpc('get_admin_analytics_overview', () => ({
     data: {
