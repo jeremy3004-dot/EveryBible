@@ -5,9 +5,22 @@
 import assert from 'node:assert/strict';
 import test, { beforeEach, mock } from 'node:test';
 
-import { createSupabaseFake, formData, mockModule, stepArgs } from './testing/adminTestHarness';
+import {
+  createSupabaseFake,
+  formData,
+  mockModule,
+  stepArgs,
+  type SupabaseQueryCall,
+} from './testing/adminTestHarness';
 
 const service = createSupabaseFake();
+let isAdmin = true;
+mockModule(mock, '@/lib/admin-auth', {
+  requireAdminIdentity: async () => {
+    if (!isAdmin) throw new Error('Admin identity required');
+    return { id: 'admin-1', role: 'super_admin' };
+  },
+});
 mockModule(mock, '@/lib/supabase/service', { createAdminServiceClient: () => service.client });
 
 const { getPrayerFilterTerms, getPrayerReportQueue, groupPrayerReports, parseFilterTermInput } =
@@ -41,7 +54,14 @@ const request = (overrides: Record<string, unknown> = {}) => ({
 
 beforeEach(() => {
   service.reset();
+  isAdmin = true;
 });
+
+/** Serves `rows` a range at a time, capped like PostgREST's max_rows (1000). */
+const pagedRows = (rows: unknown[]) => (call: SupabaseQueryCall) => {
+  const [from, to] = (stepArgs(call, 'range')[0] ?? [0, rows.length - 1]) as [number, number];
+  return { data: rows.slice(from, Math.min(to + 1, from + 1000)) };
+};
 
 // ---------------------------------------------------------------------------
 // groupPrayerReports
@@ -175,6 +195,25 @@ test('a filter term defaults to whole-word matching and no language', () => {
   });
 });
 
+test('a term with no letter or number is refused, as the database would refuse it', () => {
+  // The database strips spaces and punctuation before matching, so such a term can never
+  // match; its CHECK constraint refuses it with a raw error unless the form catches it first.
+  for (const term of ['!!!', '- -', '...?']) {
+    assert.deepEqual(parseFilterTermInput(formData({ term })), {
+      error: 'A term needs at least one letter or number',
+    });
+  }
+});
+
+test('the 100-character limit counts characters as the database does, not UTF-16 units', () => {
+  const term = '𝐚'.repeat(100); // each is one character but two UTF-16 code units
+  assert.deepEqual(parseFilterTermInput(formData({ term })), {
+    term,
+    matchMode: 'word',
+    language: null,
+  });
+});
+
 test('a blank, over-long or badly tagged filter term is refused with a reason', () => {
   assert.deepEqual(parseFilterTermInput(formData({ term: '   ' })), {
     error: 'A term of 1 to 100 characters is required',
@@ -263,5 +302,113 @@ test('filter terms are listed by language, then term', async () => {
   assert.deepEqual(stepArgs(service.callsFor('prayer_content_filter_terms')[0], 'order'), [
     ['language', { ascending: true, nullsFirst: false }],
     ['term', { ascending: true }],
+    ['id', { ascending: true }],
   ]);
+});
+
+// ---------------------------------------------------------------------------
+// Admin guard and row limits
+// ---------------------------------------------------------------------------
+
+test('every loader checks for an admin before it reads anything', async () => {
+  isAdmin = false;
+  await assert.rejects(getPrayerReportQueue('open'), /Admin identity required/);
+  await assert.rejects(getPrayerFilterTerms(), /Admin identity required/);
+  for (const table of [
+    'prayer_request_reports',
+    'prayer_wall_bans',
+    'prayer_content_filter_terms',
+  ]) {
+    assert.deepEqual(service.callsFor(table), [], table);
+  }
+});
+
+test('the queue reports its exact total, so a capped queue says it is showing only the newest', async () => {
+  service.respondTo('prayer_request_reports', () => ({
+    data: Array.from({ length: 500 }, (_, index) =>
+      report({ id: `rep-${index}`, request_id: `req-${index % 3}` })
+    ),
+    count: 750,
+  }));
+  service.respondTo('prayer_requests', () => ({ data: [] }));
+  service.respondTo('prayer_wall_bans', () => ({ data: [] }));
+  service.respondTo('groups', () => ({ data: [] }));
+
+  const queue = await getPrayerReportQueue('open');
+
+  assert.equal(queue.reportTotal, 750);
+  assert.equal(queue.reportsShown, 500);
+  assert.equal(queue.truncated, true);
+  assert.deepEqual(stepArgs(service.callsFor('prayer_request_reports')[0], 'select')[0][1], {
+    count: 'exact',
+  });
+});
+
+test('a queue under the cap is not flagged as truncated', async () => {
+  service.respondTo('prayer_request_reports', () => ({ data: [report()], count: 1 }));
+  service.respondTo('prayer_requests', () => ({ data: [request()] }));
+  service.respondTo('prayer_wall_bans', () => ({ data: [] }));
+  service.respondTo('groups', () => ({ data: [] }));
+
+  const queue = await getPrayerReportQueue('open');
+
+  assert.equal(queue.reportTotal, 1);
+  assert.equal(queue.truncated, false);
+});
+
+test('reported requests and groups are read in batches, keeping each request URL short', async () => {
+  // Five hundred uuids in one `in` filter make a URL of about 19 kB, past what the API
+  // gateway accepts.
+  service.respondTo('prayer_request_reports', () => ({
+    data: Array.from({ length: 250 }, (_, index) =>
+      report({ id: `rep-${index}`, request_id: `req-${index}`, group_id: `group-${index}` })
+    ),
+    count: 250,
+  }));
+  service.respondTo('prayer_requests', (call) => ({
+    data: (stepArgs(call, 'in')[0][1] as string[]).map((id) => request({ id })),
+  }));
+  service.respondTo('prayer_wall_bans', () => ({ data: [] }));
+  service.respondTo('groups', () => ({ data: [] }));
+
+  const queue = await getPrayerReportQueue('all');
+
+  const batches = service
+    .callsFor('prayer_requests')
+    .map((call) => (stepArgs(call, 'in')[0][1] as string[]).length);
+  assert.deepEqual(batches, [100, 100, 50]);
+  assert.deepEqual(
+    service.callsFor('groups').map((call) => (stepArgs(call, 'in')[0][1] as string[]).length),
+    [100, 100, 50]
+  );
+  assert.equal(queue.items.filter((item) => item.requestExists).length, 250);
+});
+
+test('bans and filter terms are read past the 1,000-row page PostgREST returns', async () => {
+  service.respondTo('prayer_request_reports', () => ({ data: [], count: 0 }));
+  service.respondTo(
+    'prayer_wall_bans',
+    pagedRows(
+      Array.from({ length: 1500 }, (_, index) => ({
+        user_id: `user-${index}`,
+        reason: null,
+        created_at: '2026-09-24T00:00:00Z',
+      }))
+    )
+  );
+  service.respondTo(
+    'prayer_content_filter_terms',
+    pagedRows(
+      Array.from({ length: 1200 }, (_, index) => ({
+        id: index + 1,
+        term: `term${index}`,
+        match_mode: 'word',
+        language: null,
+        created_at: '2026-09-24T00:00:00Z',
+      }))
+    )
+  );
+
+  assert.equal((await getPrayerReportQueue('open')).bans.length, 1500);
+  assert.equal((await getPrayerFilterTerms()).length, 1200);
 });

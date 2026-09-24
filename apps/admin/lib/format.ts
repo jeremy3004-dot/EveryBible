@@ -28,6 +28,18 @@ export function normalizeOptionalString(value: FormDataEntryValue | null): strin
   return trimmed.length > 0 ? trimmed : null;
 }
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+/**
+ * A form field holding a row id, lower-cased, or null when it is not a uuid. Checking here
+ * keeps a tampered or stale form from reaching Postgres, which would answer with a raw
+ * "invalid input syntax for type uuid" error.
+ */
+export function normalizeUuid(value: FormDataEntryValue | null): string | null {
+  const trimmed = normalizeOptionalString(value)?.toLowerCase() ?? null;
+  return trimmed && UUID_PATTERN.test(trimmed) ? trimmed : null;
+}
+
 /**
  * Masks a sensitive token (e.g. a push token) for display in support tooling.
  * Keeps only a short suffix so staff can correlate a device without exposing
@@ -46,12 +58,16 @@ export function maskToken(value: string | null | undefined): string {
   return `••••${trimmed.slice(-6)}`;
 }
 
-export function getNotice(searchParams: Record<string, string | string[] | undefined>): string | null {
+export function getNotice(
+  searchParams: Record<string, string | string[] | undefined>
+): string | null {
   const value = searchParams.notice;
   return typeof value === 'string' ? value : null;
 }
 
-export function getError(searchParams: Record<string, string | string[] | undefined>): string | null {
+export function getError(
+  searchParams: Record<string, string | string[] | undefined>
+): string | null {
   const value = searchParams.error;
   return typeof value === 'string' ? value : null;
 }

@@ -60,6 +60,24 @@ test('cron rejects a missing, wrong or un-prefixed token without running the syn
   assert.deepEqual(actors, []);
 });
 
+test('near misses of the token are rejected: same length, prefix, extension and case', async () => {
+  // The comparison is constant-time (sha256 digests through timingSafeEqual). A unit test
+  // cannot observe timing, so this pins that the rewritten comparison still matches exactly.
+  // (Trailing spaces are not a case: the Fetch Headers class strips them before the route.)
+  for (const authorization of [
+    'Bearer configured-secreT',
+    'Bearer configured-secre',
+    'Bearer configured-secretX',
+    'bearer configured-secret',
+    'Bearer  configured-secret',
+    'Bearer CONFIGURED-SECRET',
+  ]) {
+    const response = await GET(cronRequest(authorization));
+    assert.equal(response.status, 401, authorization);
+  }
+  assert.deepEqual(actors, []);
+});
+
 test('the configured bearer token runs the sync with no admin actor and an uncached result', async () => {
   const response = await GET(cronRequest('Bearer configured-secret'));
   assert.equal(response.status, 200);

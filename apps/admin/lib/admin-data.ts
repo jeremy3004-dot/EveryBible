@@ -210,13 +210,16 @@ export interface SupportUserSummary {
 
 export interface SupportUserDetail {
   engagement: UserEngagementRow | null;
-  feedbackCount: number;
-  planCount: number;
+  /** Null when the count failed; zero is a real answer. */
+  feedbackCount: number | null;
+  /** Null when the count failed; zero is a real answer. */
+  planCount: number | null;
   preferences: UserPreferencesRow | null;
   profile: ProfileRow | null;
   progress: UserProgressRow | null;
   recentAuditLogs: AuditLogRow[];
-  sessionCount: number;
+  /** Null when the count failed; zero is a real answer. */
+  sessionCount: number | null;
 }
 
 export interface ChapterFeedbackListItem {
@@ -1073,13 +1076,15 @@ export async function getSupportUserDetail(userId: string): Promise<SupportUserD
 
   return {
     engagement: (engagement.data ?? null) as UserEngagementRow | null,
-    feedbackCount: feedback.count ?? 0,
-    planCount: plans.count ?? 0,
+    feedbackCount: feedback.error ? null : (feedback.count ?? 0),
+    planCount: plans.error ? null : (plans.count ?? 0),
     preferences: (preferences.data ?? null) as UserPreferencesRow | null,
     profile: profile.data,
     progress: (progress.data ?? null) as UserProgressRow | null,
     recentAuditLogs: (audits.data ?? []) as AuditLogRow[],
-    sessionCount: Math.max(0, Math.round(Number(sessionCount.data) || 0)),
+    sessionCount: sessionCount.error
+      ? null
+      : Math.max(0, Math.round(Number(sessionCount.data) || 0)),
   };
 }
 

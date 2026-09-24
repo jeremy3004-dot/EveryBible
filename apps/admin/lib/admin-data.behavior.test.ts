@@ -567,6 +567,31 @@ test('user detail shows zero sessions when the session count is unavailable', as
   assert.equal((await data.getSupportUserDetail('u1'))?.sessionCount, 0);
 });
 
+test('a failed count reads as unavailable, not as zero', async () => {
+  // Zero is a real answer ("this account has never opened the app"); a failed count must not
+  // look like one to the support operator.
+  service.respondTo('profiles', () => ({ data: { id: 'u1' } }));
+  service.respondToRpc('count_user_sessions', () => ({
+    data: null,
+    error: { message: 'function count_user_sessions(uuid) does not exist' },
+  }));
+  service.respondTo('user_reading_plan_progress', () => ({
+    data: null,
+    count: null,
+    error: { message: 'statement timeout' },
+  }));
+  service.respondTo('chapter_feedback_submissions', () => ({
+    data: null,
+    count: null,
+    error: { message: 'statement timeout' },
+  }));
+
+  const detail = await data.getSupportUserDetail('u1');
+  assert.equal(detail?.sessionCount, null);
+  assert.equal(detail?.planCount, null);
+  assert.equal(detail?.feedbackCount, null);
+});
+
 test('user detail is null for an unknown user', async () => {
   assert.equal(await data.getSupportUserDetail('missing-user'), null);
 });

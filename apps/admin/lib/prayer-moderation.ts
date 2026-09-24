@@ -1,4 +1,6 @@
-import { createAdminServiceClient } from '@/lib/supabase/service';
+import type { SupabaseClient } from '@supabase/supabase-js';
+
+import { getAuthorizedAdminServiceClient } from '@/lib/supabase/authorized-service';
 
 // Prayer wall moderation (App Store Guideline 1.2). Members report requests through the
 // report_prayer_request RPC; the tables below are service-only and read here for the admin
@@ -17,6 +19,13 @@ export const PRAYER_REPORT_REASON_LABELS: Record<string, string> = {
 export const PRAYER_REPORT_AUTO_HIDE_THRESHOLD = 3;
 
 const QUEUE_LIMIT = 500;
+// Ids per `in` filter. Each uuid adds about 37 bytes to the request URL, and a few hundred of
+// them pass what the API gateway accepts.
+const IN_FILTER_BATCH = 100;
+// PostgREST returns at most max_rows (1000 by default) rows whatever the query asks for.
+const PAGE_SIZE = 1000;
+// A backstop so a runaway table cannot turn one page load into an unbounded scan.
+const MAX_PAGED_ROWS = 50_000;
 
 export type PrayerReportQueueFilter = 'open' | 'all';
 
@@ -98,6 +107,45 @@ export interface PrayerFilterTerm {
   createdAt: string;
 }
 
+interface QueryResult {
+  data: unknown;
+  error: { message: string } | null;
+}
+
+/** Reads every row `page` returns, one PostgREST page at a time. */
+async function readAllPages<T>(
+  page: (from: number, to: number) => PromiseLike<QueryResult>
+): Promise<{ rows: T[]; error: { message: string } | null }> {
+  const rows: T[] = [];
+  for (let from = 0; from < MAX_PAGED_ROWS; from += PAGE_SIZE) {
+    const { data, error } = await page(from, from + PAGE_SIZE - 1);
+    if (error) return { rows, error };
+    const batch = (data ?? []) as T[];
+    rows.push(...batch);
+    if (batch.length < PAGE_SIZE) break;
+  }
+  return { rows, error: null };
+}
+
+/** Reads the rows whose id is in `ids`, a batch of ids per request. */
+async function readByIds<T>(
+  service: SupabaseClient,
+  table: string,
+  columns: string,
+  ids: string[]
+): Promise<{ rows: T[]; error: { message: string } | null }> {
+  const batches: string[][] = [];
+  for (let index = 0; index < ids.length; index += IN_FILTER_BATCH) {
+    batches.push(ids.slice(index, index + IN_FILTER_BATCH));
+  }
+  const results = await Promise.all(
+    batches.map((batch) => service.from(table).select(columns).in('id', batch))
+  );
+  const failed = results.find((result) => result.error);
+  if (failed?.error) return { rows: [], error: failed.error };
+  return { rows: results.flatMap((result) => (result.data ?? []) as T[]), error: null };
+}
+
 const newestFirst = (a: { created_at: string }, b: { created_at: string }) =>
   b.created_at.localeCompare(a.created_at);
 
@@ -163,42 +211,59 @@ export function groupPrayerReports({
   );
 }
 
+export interface PrayerReportQueue {
+  items: ReportedPrayerRequest[];
+  bans: PrayerWallBan[];
+  /** Reports matching the filter in the database. */
+  reportTotal: number;
+  /** Reports read for this page: the newest, up to the queue limit. */
+  reportsShown: number;
+  /** True when older reports were left out, so some requests may be missing. */
+  truncated: boolean;
+}
+
 export async function getPrayerReportQueue(
   filter: PrayerReportQueueFilter
-): Promise<{ items: ReportedPrayerRequest[]; bans: PrayerWallBan[] }> {
-  const service = createAdminServiceClient();
+): Promise<PrayerReportQueue> {
+  const service = await getAuthorizedAdminServiceClient();
   let reportsQuery = service
     .from('prayer_request_reports')
     .select(
-      'id, request_id, reporter_id, request_author_id, group_id, content_snapshot, reason, note, status, created_at, reviewed_at'
+      'id, request_id, reporter_id, request_author_id, group_id, content_snapshot, reason, note, status, created_at, reviewed_at',
+      { count: 'exact' }
     );
   if (filter === 'open') {
     reportsQuery = reportsQuery.eq('status', 'open');
   }
-  const { data: reportData, error: reportsError } = await reportsQuery
-    .order('created_at', { ascending: false })
-    .limit(QUEUE_LIMIT);
+  const {
+    data: reportData,
+    error: reportsError,
+    count,
+  } = await reportsQuery.order('created_at', { ascending: false }).limit(QUEUE_LIMIT);
   if (reportsError) {
     throw new Error(`Unable to load prayer reports: ${reportsError.message}`);
   }
   const reports = (reportData ?? []) as ReportRow[];
+  const reportTotal = typeof count === 'number' ? Math.max(count, reports.length) : reports.length;
   const requestIds = [...new Set(reports.map((row) => row.request_id))];
   const groupIds = [...new Set(reports.map((row) => row.group_id))];
 
   const [requestsResult, bansResult, groupsResult] = await Promise.all([
-    requestIds.length > 0
-      ? service
-          .from('prayer_requests')
-          .select('id, group_id, user_id, content, hidden_at, hidden_reason, created_at')
-          .in('id', requestIds)
-      : Promise.resolve({ data: [], error: null }),
-    service
-      .from('prayer_wall_bans')
-      .select('user_id, reason, created_at')
-      .order('created_at', { ascending: false }),
-    groupIds.length > 0
-      ? service.from('groups').select('id, name').in('id', groupIds)
-      : Promise.resolve({ data: [], error: null }),
+    readByIds<RequestRow>(
+      service,
+      'prayer_requests',
+      'id, group_id, user_id, content, hidden_at, hidden_reason, created_at',
+      requestIds
+    ),
+    readAllPages<BanRow>((from, to) =>
+      service
+        .from('prayer_wall_bans')
+        .select('user_id, reason, created_at')
+        .order('created_at', { ascending: false })
+        .order('user_id', { ascending: true })
+        .range(from, to)
+    ),
+    readByIds<GroupRow>(service, 'groups', 'id, name', groupIds),
   ]);
   for (const [label, result] of [
     ['prayer requests', requestsResult],
@@ -209,43 +274,48 @@ export async function getPrayerReportQueue(
       throw new Error(`Unable to load ${label}: ${result.error.message}`);
     }
   }
-  const bans = (bansResult.data ?? []) as BanRow[];
+  const bans = bansResult.rows;
 
   return {
     items: groupPrayerReports({
       reports,
-      requests: (requestsResult.data ?? []) as RequestRow[],
+      requests: requestsResult.rows,
       bans,
-      groups: (groupsResult.data ?? []) as GroupRow[],
+      groups: groupsResult.rows,
     }),
     bans: bans.map((row) => ({
       userId: row.user_id,
       reason: row.reason,
       createdAt: row.created_at,
     })),
+    reportTotal,
+    reportsShown: reports.length,
+    truncated: reportTotal > reports.length,
   };
 }
 
 export async function getPrayerFilterTerms(): Promise<PrayerFilterTerm[]> {
-  const service = createAdminServiceClient();
-  const { data, error } = await service
-    .from('prayer_content_filter_terms')
-    .select('id, term, match_mode, language, created_at')
-    .order('language', { ascending: true, nullsFirst: false })
-    .order('term', { ascending: true });
+  const service = await getAuthorizedAdminServiceClient();
+  const { rows, error } = await readAllPages<{
+    id: number;
+    term: string;
+    match_mode: 'word' | 'substring';
+    language: string | null;
+    created_at: string;
+  }>((from, to) =>
+    service
+      .from('prayer_content_filter_terms')
+      .select('id, term, match_mode, language, created_at')
+      .order('language', { ascending: true, nullsFirst: false })
+      .order('term', { ascending: true })
+      .order('id', { ascending: true })
+      .range(from, to)
+  );
   if (error) {
     throw new Error(`Unable to load prayer filter terms: ${error.message}`);
   }
 
-  return (
-    (data ?? []) as Array<{
-      id: number;
-      term: string;
-      match_mode: 'word' | 'substring';
-      language: string | null;
-      created_at: string;
-    }>
-  ).map((row) => ({
+  return rows.map((row) => ({
     id: row.id,
     term: row.term,
     matchMode: row.match_mode,
@@ -254,14 +324,23 @@ export async function getPrayerFilterTerms(): Promise<PrayerFilterTerm[]> {
   }));
 }
 
+export const FILTER_TERM_MAX_LENGTH = 100;
+
 /** Reads the add-term form. The database repeats these checks. */
 export function parseFilterTermInput(
   formData: FormData
 ): { term: string; matchMode: 'word' | 'substring'; language: string | null } | { error: string } {
   const rawTerm = formData.get('term');
   const term = typeof rawTerm === 'string' ? rawTerm.trim() : '';
-  if (term.length < 1 || term.length > 100) {
-    return { error: 'A term of 1 to 100 characters is required' };
+  // Characters, not UTF-16 units, as Postgres's length() counts them.
+  const length = Array.from(term).length;
+  if (length < 1 || length > FILTER_TERM_MAX_LENGTH) {
+    return { error: `A term of 1 to ${FILTER_TERM_MAX_LENGTH} characters is required` };
+  }
+  // Matching ignores spaces and punctuation, so a term needs something else to match on. The
+  // database's CHECK constraint refuses it otherwise.
+  if (!/[\p{L}\p{N}]/u.test(term)) {
+    return { error: 'A term needs at least one letter or number' };
   }
 
   const rawMode = formData.get('matchMode');

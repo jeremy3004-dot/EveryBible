@@ -10,9 +10,7 @@ interface SupportUserDetailPageProps {
   params: Promise<{ userId: string }>;
 }
 
-export default async function SupportUserDetailPage({
-  params,
-}: SupportUserDetailPageProps) {
+export default async function SupportUserDetailPage({ params }: SupportUserDetailPageProps) {
   const missingKeys = getAdminRequiredEnvKeys();
   if (missingKeys.length > 0) {
     return <AdminSetupCard missingKeys={missingKeys} />;
@@ -32,8 +30,8 @@ export default async function SupportUserDetailPage({
           <p className="eyebrow">Support detail</p>
           <h2>{detail.profile.display_name ?? detail.profile.email ?? 'EveryBible user'}</h2>
           <p className="page-copy">
-            Read-only support context across profile, preferences, sessions, and recent
-            admin actions tied to this user.
+            Read-only support context across profile, preferences, sessions, and recent admin
+            actions tied to this user.
           </p>
         </div>
         <Link href="/support/users" className="button">
@@ -44,15 +42,15 @@ export default async function SupportUserDetailPage({
       <section className="metric-grid">
         <article className="metric-card">
           <span>Sessions</span>
-          <strong>{detail.sessionCount}</strong>
+          <strong>{detail.sessionCount ?? 'Unavailable'}</strong>
         </article>
         <article className="metric-card">
           <span>Plans</span>
-          <strong>{detail.planCount}</strong>
+          <strong>{detail.planCount ?? 'Unavailable'}</strong>
         </article>
         <article className="metric-card">
           <span>Feedback items</span>
-          <strong>{detail.feedbackCount}</strong>
+          <strong>{detail.feedbackCount ?? 'Unavailable'}</strong>
         </article>
       </section>
 

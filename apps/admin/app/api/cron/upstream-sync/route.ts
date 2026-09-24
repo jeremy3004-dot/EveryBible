@@ -1,3 +1,5 @@
+import { createHash, timingSafeEqual } from 'node:crypto';
+
 import { NextResponse } from 'next/server';
 
 import { runUpstreamTranslationSync } from '@/lib/upstream-sync';
@@ -14,13 +16,24 @@ import { runUpstreamTranslationSync } from '@/lib/upstream-sync';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+const sha256 = (value: string) => createHash('sha256').update(value).digest();
+
+/**
+ * Compares in constant time, so response timing cannot reveal how much of a guessed token
+ * was right. Hashing first gives both sides the same length, which timingSafeEqual needs,
+ * and hides the secret's length too.
+ */
+function bearerTokenMatches(authorization: string | null, secret: string): boolean {
+  if (authorization === null) return false;
+  return timingSafeEqual(sha256(authorization), sha256(`Bearer ${secret}`));
+}
+
 export async function GET(request: Request) {
   const cronSecret = process.env.CRON_SECRET?.trim();
   if (!cronSecret) {
     return NextResponse.json({ error: 'Cron is not configured' }, { status: 503 });
   }
-  const authorization = request.headers.get('authorization');
-  if (authorization !== `Bearer ${cronSecret}`) {
+  if (!bearerTokenMatches(request.headers.get('authorization'), cronSecret)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

@@ -4,6 +4,13 @@ import test, { beforeEach, mock } from 'node:test';
 import { createSupabaseFake, mockModule, stepArgs } from './testing/adminTestHarness';
 
 const service = createSupabaseFake();
+let isAdmin = true;
+mockModule(mock, '@/lib/admin-auth', {
+  requireAdminIdentity: async () => {
+    if (!isAdmin) throw new Error('Admin identity required');
+    return { id: 'admin-1', role: 'super_admin' };
+  },
+});
 mockModule(mock, '@/lib/supabase/service', { createAdminServiceClient: () => service.client });
 
 const {
@@ -16,7 +23,24 @@ const {
   translationsWithoutTeamCode,
 } = await import('./translator-access');
 
-beforeEach(() => service.reset());
+beforeEach(() => {
+  service.reset();
+  isAdmin = true;
+});
+
+test('every loader checks for an admin before it reads anything', async () => {
+  // The page guards too, but a loader imported by a future page must not rely on that.
+  isAdmin = false;
+  for (const load of [
+    getTranslatorTeams,
+    getSharedPasscodeSetting,
+    () => getSharedPasscodeUsage(),
+    getTranslationIdsWithFeedback,
+  ]) {
+    await assert.rejects(load(), /Admin identity required/);
+  }
+  assert.deepEqual(service.calls, []);
+});
 
 test('the team list never reads passcode salts or hashes', async () => {
   service.respondTo('translator_team_passcodes', () => ({
