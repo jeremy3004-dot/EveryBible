@@ -103,6 +103,7 @@ export function MoreScreen() {
   const preferences = useAuthStore((state) => state.preferences);
   const preferencesUpdatedAt = useAuthStore((state) => state.preferencesUpdatedAt);
   const signOut = useAuthStore((state) => state.signOut);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const streakDays = useProgressStore(selectCurrentStreakDays);
   const annotations = useAnnotationStore((state) => state.annotations);
   const translations = useBibleStore((state) => state.translations);
@@ -226,16 +227,22 @@ export function MoreScreen() {
   };
 
   const handleSignOut = () => {
+    if (isSigningOut) return;
     Alert.alert(t('more.signOut'), t('more.signOutConfirm'), [
       { text: t('common.cancel'), style: 'cancel' },
       {
         text: t('more.signOut'),
         style: 'destructive',
         onPress: async () => {
+          // Sign-out first retires this phone's push token over the network, so it
+          // can take seconds; until it ends a second sign-out must not start.
+          setIsSigningOut(true);
           try {
             await signOut();
           } catch {
             // Sign-out failure is non-fatal; the user stays signed in
+          } finally {
+            setIsSigningOut(false);
           }
         },
       },
@@ -359,9 +366,11 @@ export function MoreScreen() {
           {isAuthenticated ? (
             <PressableScale
               onPress={handleSignOut}
+              disabled={isSigningOut}
               pressEffect="translate"
               haptic="selection"
               accessibilityRole="button"
+              accessibilityState={{ busy: isSigningOut, disabled: isSigningOut }}
               accessibilityLabel={t('more.signOut')}
               hitSlop={8}
             >

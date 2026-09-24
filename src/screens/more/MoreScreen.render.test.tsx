@@ -1,6 +1,7 @@
 import test, { afterEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { create } from 'zustand';
+import { act } from 'react-test-renderer';
 import type { ReactNode } from 'react';
 import { installRenderHarness, within } from '../../testing/render';
 import { mockModule, mockPackage, sourcePath } from '../../testing/mockModules';
@@ -312,4 +313,38 @@ test('a signed-in account with no display name is named by its email on the acco
   const card = view.getByRole('button', { name: 'ruth@example.com' });
   assert.equal(within(card).getAllByText('ruth@example.com').length, 1, 'the email is shown once');
   assert.ok(within(card).getByText('R'));
+});
+
+test('while sign-out is running, Sign out is announced busy and cannot start a second sign-out', async () => {
+  let finishSignOut: () => void = () => {};
+  const signOutCalls: number[] = [];
+  harness.authStore.setState({
+    isAuthenticated: true,
+    user: { uid: 'user-1', displayName: 'Ruth Moab', email: 'ruth@example.com', photoURL: null },
+    preferencesUpdatedAt: null,
+    signOut: () => {
+      signOutCalls.push(1);
+      return new Promise<void>((resolve) => {
+        finishSignOut = resolve;
+      });
+    },
+  });
+  const view = await renderMore();
+
+  await view.press(view.getByRole('button', { name: t('more.signOut') }));
+  const confirm = (
+    harness.rn.__recorded.alerts[0]?.buttons as Array<{ style?: string; onPress?: () => unknown }>
+  ).find((button) => button.style === 'destructive');
+  await act(async () => {
+    void confirm?.onPress?.();
+  });
+
+  assert.ok(view.getByRole('button', { name: t('more.signOut'), busy: true, disabled: true }));
+  await view.press(view.getByRole('button', { name: t('more.signOut') }));
+  assert.equal(harness.rn.__recorded.alerts.length, 1, 'no second confirmation opens');
+  assert.equal(signOutCalls.length, 1);
+
+  await act(async () => {
+    finishSignOut();
+  });
 });
