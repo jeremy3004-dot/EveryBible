@@ -444,7 +444,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     input: {
       backgroundColor: colors.cardBackground,
-      borderColor: colors.cardBorder,
+      borderColor: colors.controlBorder,
       borderRadius: radius.md,
       borderWidth: 1,
       color: colors.primaryText,

@@ -15,7 +15,8 @@ const authState: {
   user: { uid: string } | null;
   authGeneration: number;
   session: { access_token: string } | null;
-} = { user: null, authGeneration: 0, session: null };
+  awaitingTokenRefresh: boolean;
+} = { user: null, authGeneration: 0, session: null, awaitingTokenRefresh: false };
 
 mockModule(mock, sourcePath('stores/authStore.ts'), {
   useAuthStore: { getState: () => authState },
@@ -95,6 +96,7 @@ test.beforeEach(() => {
   authState.user = null;
   authState.authGeneration = 0;
   authState.session = null;
+  authState.awaitingTokenRefresh = false;
   supabaseFake.auth.setSession(null);
 });
 
@@ -135,6 +137,21 @@ test('submitChapterFeedback reads the access token from Supabase when the store 
 
   assert.deepEqual(sentAuthorizations(), [{ Authorization: 'Bearer session-token' }]);
   assert.equal(supabaseFake.authCalls.filter((call) => call.method === 'getSession').length, 1);
+});
+
+test('submitChapterFeedback never sends a stored token that is waiting for its refresh', async () => {
+  // An offline launch restored the session with its expired token; Supabase
+  // hands out the refreshed one once auth-js has refreshed it.
+  signIn('user-a', 'expired-token');
+  authState.awaitingTokenRefresh = true;
+  supabaseFake.auth.setSession(
+    makeFakeSession({ user: makeFakeUser({ id: 'user-a' }), access_token: 'refreshed-token' })
+  );
+  supabaseFake.respondToFunction(() => ({ data: succeed() }));
+
+  await service.submitChapterFeedback(baseInput);
+
+  assert.deepEqual(sentAuthorizations(), [{ Authorization: 'Bearer refreshed-token' }]);
 });
 
 test('submitChapterFeedback sends no Authorization header for a signed-out reader', async () => {

@@ -360,6 +360,16 @@
   font-size: 13px;
   line-height: 1.45;
 }
+.pa-profile-page-link {
+  display: inline-block;
+  margin-top: 8px;
+  color: hsl(var(--primary));
+  font-size: 13px;
+  font-weight: 600;
+}
+.pa-profile-page-link:hover {
+  text-decoration: underline;
+}
 .pa-profile-where {
   margin-top: 14px;
 }

@@ -22,6 +22,8 @@ import {
   WISDOM_TITLE_KEYS,
 } from '../../data/gatherWisdom';
 import { useGatherStore } from '../../stores/gatherStore';
+import { getTranslatedBookName } from '../../constants/books';
+import { formatBibleReferenceLabel } from '../../services/gather/gatherReferenceLabel';
 import type { LearnStackParamList } from '../../navigation/types';
 
 type NavProp = NativeStackNavigationProp<LearnStackParamList, 'GatherHome'>;
@@ -249,7 +251,9 @@ export function GatherScreen() {
                   </Text>
                   <Text style={[styles.upNextMeta, { color: colors.secondaryText }]}>
                     {t('gather.upNextSubtitle', {
-                      reference: upNext.lesson.referenceLabel,
+                      reference: formatBibleReferenceLabel(upNext.lesson.references, (bookId) =>
+                        getTranslatedBookName(bookId, t)
+                      ),
                       parent: translate(
                         FOUNDATION_TITLE_KEYS[upNext.foundation.id],
                         upNext.foundation.title

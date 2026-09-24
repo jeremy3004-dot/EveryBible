@@ -86,11 +86,15 @@ export function pageMetadata({ title, description, path }: PageMetadataInput): M
   };
 }
 
-/** Indexable pages. `/download` is a device redirect and `/api` is data only. */
+/**
+ * Indexable pages. `/download` is a device redirect and `/api` is data only.
+ * Individual language pages have their own sitemaps (app/languages/sitemap.ts).
+ */
 export const SITEMAP_PATHS = [
   '/',
   '/about',
   '/give',
+  '/languages',
   EVERYBIBLE_SUPPORT_PATH,
   EVERYBIBLE_PRIVACY_PATH,
   EVERYBIBLE_TERMS_PATH,
@@ -101,14 +105,16 @@ export function buildSitemap(lastModified: Date): MetadataRoute.Sitemap {
     url: new URL(path, EVERYBIBLE_SITE_URL).toString(),
     lastModified,
     changeFrequency: path === '/' ? 'weekly' : 'monthly',
-    priority: path === '/' ? 1 : path === '/about' || path === '/give' ? 0.8 : 0.5,
+    priority:
+      path === '/' ? 1 : path === '/about' || path === '/give' || path === '/languages' ? 0.8 : 0.5,
   }));
 }
 
-export function buildRobots(): MetadataRoute.Robots {
+/** `additionalSitemaps` are absolute URLs, such as the language page sitemaps. */
+export function buildRobots(additionalSitemaps: readonly string[] = []): MetadataRoute.Robots {
   return {
     rules: [{ userAgent: '*', allow: '/', disallow: ['/api/'] }],
-    sitemap: `${EVERYBIBLE_SITE_URL}/sitemap.xml`,
+    sitemap: [`${EVERYBIBLE_SITE_URL}/sitemap.xml`, ...additionalSitemaps],
   };
 }
 

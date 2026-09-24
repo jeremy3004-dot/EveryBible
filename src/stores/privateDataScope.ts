@@ -279,6 +279,21 @@ export function switchPrivateDataOwner(
   }
 }
 
+/**
+ * Deletes one account's private data from the device, for when that account is
+ * deleted. Other accounts' buckets and the guest bucket are untouched. If the
+ * account's data is still showing, the guest bucket is shown first so nothing
+ * in memory can write the deleted data back.
+ */
+export function deletePrivateDataOf(owner: string): void {
+  if (resolveActiveOwner() === owner) {
+    switchPrivateDataOwner(null);
+  }
+  for (const name of PRIVATE_DATA_STORE_NAMES) {
+    mmkvInstance.delete(privateDataStorageKey(name, owner));
+  }
+}
+
 /** The owner whose private data is visible (null = the guest bucket). */
 export const getPrivateDataOwner = (): string | null => resolveActiveOwner();
 

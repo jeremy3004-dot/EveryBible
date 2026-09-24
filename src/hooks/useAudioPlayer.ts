@@ -247,12 +247,14 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       const resolvedCanSkipPrevious =
         overrides.canSkipPrevious ??
         Boolean(state.queue[state.queueIndex - 1] ?? resolvedAdjacentChapter(-1));
-      // Android builds its media notification from JS, so it needs the strings in
-      // the interface language. iOS publishes natively and keeps its payload as is.
+      // Both lock screens title the entry with the book in the interface language.
+      const bookName = getTranslatedBookName(resolvedBookId, t);
+      // Android builds its media notification from JS, so it also needs the control
+      // labels in the interface language. iOS publishes those natively.
       const localized: BibleNowPlayingLocalizedStrings | undefined =
         Platform.OS === 'android'
           ? {
-              bookName: getTranslatedBookName(resolvedBookId, t),
+              bookName,
               channelName: t('audio.nowPlaying'),
               play: t('interface.playChapterAudio'),
               pause: t('interface.pauseChapterAudio'),
@@ -273,7 +275,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
         resolvedPlaybackRate,
         resolvedCanSkipNext ? '1' : '0',
         resolvedCanSkipPrevious ? '1' : '0',
-        localized?.bookName ?? '',
+        bookName,
       ].join('|');
 
       if (!force && lastNowPlayingSignatureRef.current === signature) {
@@ -285,6 +287,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
         translationId: resolvedTranslationId,
         translationName: resolvedTranslationName,
         bookId: resolvedBookId,
+        bookName,
         chapter: resolvedChapter,
         positionMs: resolvedPositionMs,
         durationMs: resolvedDurationMs,

@@ -555,10 +555,56 @@ type LivePlanUpsert =
   | { status: 'nothing' }
   | { status: 'done'; data: unknown; error: { code?: string; message?: string } | null };
 
+const PLAN_PROGRESS_MERGE_RPC = 'merge_reading_plan_progress';
+
 /**
- * Upserts the live rows for these plans. Session ticks go along unless the
- * server is known to lack their columns; when it turns out to lack them the
- * write is retried without, so a release that beats its migration still syncs.
+ * PostgREST (PGRST202, HTTP 404) or Postgres (42883) reporting that the merge
+ * function does not exist: the app shipped before migration 20260924035821.
+ */
+const isMissingMergeRpcError = (
+  error: { code?: string } | null | undefined,
+  httpStatus: number | undefined
+): boolean =>
+  Boolean(error) && (error?.code === 'PGRST202' || error?.code === '42883' || httpStatus === 404);
+
+/**
+ * Sends the live rows to merge_reading_plan_progress, which unions them into the
+ * stored rows in one statement. The read-merge-upsert path lets two phones that
+ * read the same row each overwrite the other's newest days (finding 12); the
+ * server-side merge cannot. Returns null when the server has no such function.
+ */
+async function mergeLivePlanProgressOnServer(
+  supabase: SupabaseModule['supabase'],
+  identity: SyncIdentityBoundary,
+  planIds: string[],
+  single: boolean
+): Promise<LivePlanUpsert | null> {
+  const write = await identity.runIfCurrent(() => {
+    const rows = getLivePushableProgress(planIds).map((progress) =>
+      buildRemoteReadingPlanProgressPayload(progress, identity.expectedUserId, true)
+    );
+    if (rows.length === 0) {
+      return null;
+    }
+    const query = supabase.rpc(PLAN_PROGRESS_MERGE_RPC, { p_rows: rows });
+    return single ? query.single() : query;
+  });
+  if (!write.applied) {
+    return { status: 'stale' };
+  }
+  if (!write.value) {
+    return { status: 'nothing' };
+  }
+  const { data, error, status } = await write.value;
+  return isMissingMergeRpcError(error, status) ? null : { status: 'done', data, error };
+}
+
+/**
+ * Writes the live rows for these plans: through the server-side merge when the
+ * server has it, otherwise with the upsert. Upserted session ticks go along
+ * unless the server is known to lack their columns; when it turns out to lack
+ * them the write is retried without, so a release that beats its migration
+ * still syncs.
  */
 async function upsertLivePlanProgress(
   supabase: SupabaseModule['supabase'],
@@ -567,6 +613,15 @@ async function upsertLivePlanProgress(
   sessionColumns: boolean | null,
   single: boolean
 ): Promise<LivePlanUpsert> {
+  // The merge function needs the session columns (it ships after them), so a
+  // server known to lack them cannot have it either.
+  if (sessionColumns !== false) {
+    const merged = await mergeLivePlanProgressOnServer(supabase, identity, planIds, single);
+    if (merged) {
+      return merged;
+    }
+  }
+
   const attempt = async (withSessions: boolean): Promise<LivePlanUpsert> => {
     const write = await identity.runIfCurrent(() => {
       const rows = getLivePushableProgress(planIds).map((progress) =>

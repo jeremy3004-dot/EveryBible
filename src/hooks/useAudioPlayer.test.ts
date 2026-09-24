@@ -527,6 +527,9 @@ test('playChapter publishes the chapter to the lock screen with skip availabilit
     translationId: 'bsb',
     translationName: 'Berean Standard Bible',
     bookId: 'GEN',
+    // The lock-screen title uses the interface-language book name on both platforms;
+    // the identity translator has no `bible.books.GEN`, so the English name stands in.
+    bookName: 'Genesis',
     chapter: 1,
     positionMs: 0,
     durationMs: DEFAULT_DURATION_MS,

@@ -700,11 +700,19 @@ export function BibleBrowserScreen() {
     );
   };
 
+  // The parser labels references with English book names; show the interface language's.
+  const referenceLabel =
+    searchIntent.kind === 'reference'
+      ? `${getTranslatedBookName(searchIntent.target.bookId, t)} ${searchIntent.target.chapter}${
+          searchIntent.target.focusVerse ? `:${searchIntent.target.focusVerse}` : ''
+        }`
+      : null;
+
   const referenceMeta =
     searchIntent.kind === 'reference'
       ? searchIntent.target.focusVerse
-        ? `${t('bible.chapter')} ${searchIntent.target.chapter} • ${t('bible.verse')} ${searchIntent.target.focusVerse}`
-        : `${t('bible.chapter')} ${searchIntent.target.chapter}`
+        ? `${t('interface.chapterNumber', { chapter: searchIntent.target.chapter })} • ${t('interface.verseNumber', { verse: searchIntent.target.focusVerse })}`
+        : t('interface.chapterNumber', { chapter: searchIntent.target.chapter })
       : null;
 
   return (
@@ -789,7 +797,7 @@ export function BibleBrowserScreen() {
         <View
           style={[
             styles.searchInputShell,
-            { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
+            { backgroundColor: colors.bibleSurface, borderColor: colors.controlBorder },
           ]}
         >
           <Ionicons name="search" size={18} color={colors.bibleSecondaryText} />
@@ -869,7 +877,7 @@ export function BibleBrowserScreen() {
         >
           <View style={styles.searchResultHeader}>
             <Text style={[styles.searchReference, { color: colors.bibleAccent }]}>
-              {searchIntent.target.label}
+              {referenceLabel}
             </Text>
             <Ionicons name="arrow-forward" size={18} color={colors.bibleSecondaryText} />
           </View>

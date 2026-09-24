@@ -117,6 +117,67 @@ export async function revokeTranslatorTeamPasscodeAction(formData: FormData) {
 }
 
 /**
+ * Turns the old shared TRANSLATOR_REVIEW_PASSCODE off (or back on) without a deploy.
+ * review-chapter-feedback reads this switch on every translator request; while it is off the
+ * shared code is refused exactly like a wrong code. Team passcodes are unaffected.
+ */
+export async function setSharedPasscodeAllowedAction(formData: FormData) {
+  const admin = await requireAdminIdentity();
+  const choice = normalizeOptionalString(formData.get('allowed'));
+  if (choice !== 'true' && choice !== 'false') {
+    redirect(`${PAGE}?error=${encodeURIComponent('Choose whether to allow the shared passcode')}`);
+  }
+  const allowed = choice === 'true';
+  if (!allowed && normalizeOptionalString(formData.get('confirm')) !== 'yes') {
+    redirect(
+      `${PAGE}?error=${encodeURIComponent(
+        'Tick the box to confirm before turning the shared passcode off'
+      )}`
+    );
+  }
+
+  const { error } = await createAdminServiceClient().from('translator_access_settings').upsert(
+    {
+      id: true,
+      shared_passcode_enabled: allowed,
+      updated_at: new Date().toISOString(),
+      updated_by: admin.id,
+    },
+    { onConflict: 'id' }
+  );
+  if (error) {
+    redirect(
+      `${PAGE}?error=${encodeURIComponent(
+        `Could not change the shared passcode setting: ${error.message}`
+      )}`
+    );
+  }
+
+  await writeAdminAuditLog({
+    action: allowed
+      ? 'translator_access.shared_passcode.enable'
+      : 'translator_access.shared_passcode.disable',
+    actorEmail: admin.email,
+    actorUserId: admin.id,
+    entityId: 'shared_passcode',
+    entityType: 'translator_access_settings',
+    metadata: { allowed },
+    summary: allowed
+      ? 'Allowed the shared translator passcode again.'
+      : 'Turned off the shared translator passcode.',
+  });
+
+  revalidatePath(PAGE);
+  redirect(
+    `${PAGE}?notice=${encodeURIComponent(
+      allowed
+        ? 'The shared passcode is allowed again.'
+        : 'The shared passcode is off. Only team passcodes open the review queue now.'
+    )}`
+  );
+}
+
+/**
  * Revokes a team's code and issues a new one for the same label and translations. The old
  * code is revoked first, so a failure part-way leaves the team with no working code (the
  * safe outcome) rather than two.

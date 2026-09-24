@@ -33,6 +33,13 @@ export interface RestoredAuthSession {
    * a sign-out, or an offline cold start erases the account's unsynced data.
    */
   restoreFailed?: true;
+  /**
+   * True when `session` is the stored session whose access token expired and
+   * could not be refreshed yet (offline launch). It identifies the reader, but
+   * its token must not be used: auth-js refreshes it when the network returns
+   * (TOKEN_REFRESHED), or signs out if the server rejects it (SIGNED_OUT).
+   */
+  awaitingTokenRefresh?: true;
 }
 
 // auth-js names the error class explicitly, so the name survives minification.
@@ -41,12 +48,83 @@ const isRetryableAuthFetchError = (error: unknown): boolean =>
   error !== null &&
   (error as { name?: unknown }).name === 'AuthRetryableFetchError';
 
+// auth-js treats a token as expired this long before expires_at (EXPIRY_MARGIN_MS).
+const TOKEN_EXPIRY_MARGIN_MS = 90_000;
+
+// Cheap offline check at launch: one NetInfo read, no network. Loaded lazily so
+// NetInfo stays off the import graph of everything that imports this module.
+const isDeviceOffline = async (): Promise<boolean> => {
+  try {
+    const NetInfo = require('@react-native-community/netinfo')
+      .default as typeof import('@react-native-community/netinfo').default;
+    const { isConnected, isInternetReachable } = await NetInfo.fetch();
+    return isConnected === false || isInternetReachable === false;
+  } catch {
+    return false;
+  }
+};
+
+const isStoredSession = (value: unknown): value is Session => {
+  const candidate = value as Partial<Session> | null;
+  return (
+    typeof candidate === 'object' &&
+    candidate !== null &&
+    typeof candidate.access_token === 'string' &&
+    typeof candidate.refresh_token === 'string' &&
+    candidate.refresh_token.length > 0 &&
+    typeof candidate.expires_at === 'number' &&
+    typeof candidate.user?.id === 'string'
+  );
+};
+
+/**
+ * The session auth-js persisted, read without refreshing it, when its access
+ * token has expired. Reading through the client's own storage and key keeps
+ * this in step with auth-js. Null when there is none or it cannot be read.
+ */
+const readExpiredStoredSession = async (): Promise<Session | null> => {
+  try {
+    const { storage, storageKey } = supabase.auth as unknown as {
+      storage?: { getItem: (key: string) => Promise<string | null> | string | null };
+      storageKey?: unknown;
+    };
+    if (!storage || typeof storageKey !== 'string') {
+      return null;
+    }
+    const raw = await storage.getItem(storageKey);
+    const stored: unknown = raw ? JSON.parse(raw) : null;
+    if (!isStoredSession(stored)) {
+      return null;
+    }
+    const expired = (stored.expires_at ?? 0) * 1000 - Date.now() < TOKEN_EXPIRY_MARGIN_MS;
+    return expired ? stored : null;
+  } catch {
+    return null;
+  }
+};
+
+const awaitingRefresh = (session: Session): RestoredAuthSession => ({
+  session,
+  user: mapSupabaseUser(session.user),
+  awaitingTokenRefresh: true,
+});
+
 export const getCurrentSession = async (): Promise<RestoredAuthSession> => {
   if (!isSupabaseConfigured()) {
     return { session: null, user: null };
   }
 
   try {
+    // getSession() refreshes an expired token first, and offline auth-js retries
+    // that refresh for about 50 s. Offline, restore the stored session at once
+    // instead; the refresh carries on in the background.
+    if (await isDeviceOffline()) {
+      const stored = await readExpiredStoredSession();
+      if (stored) {
+        return awaitingRefresh(stored);
+      }
+    }
+
     const {
       data: { session },
       error,
@@ -57,7 +135,9 @@ export const getCurrentSession = async (): Promise<RestoredAuthSession> => {
     }
 
     if (isRetryableAuthFetchError(error)) {
-      return { session: null, user: null, restoreFailed: true };
+      // The network failed although NetInfo reported one: auth-js kept the session.
+      const stored = await readExpiredStoredSession();
+      return stored ? awaitingRefresh(stored) : { session: null, user: null, restoreFailed: true };
     }
 
     return { session: null, user: null };
