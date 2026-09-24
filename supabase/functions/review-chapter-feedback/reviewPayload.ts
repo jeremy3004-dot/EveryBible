@@ -1,5 +1,5 @@
 // Response shaping for review-chapter-feedback. Everything in these payloads is readable by
-// anyone holding the shared translator passcode, so each field has to earn its place.
+// anyone holding a translator passcode for that translation, so each field has to earn its place.
 
 export type ReviewResolution = 'fixed' | 'no_change_needed';
 
