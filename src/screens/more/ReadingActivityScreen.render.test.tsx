@@ -107,30 +107,26 @@ test('each day is a button named by its full date, and only the chosen day is an
   }
 });
 
-test(
-  'read days, today and idle days are announced differently',
-  {
-    todo: 'BUG: a cell exposes only its date and `selected`; read/today/idle is colour-only, so a screen reader cannot tell a read day from an idle one',
-  },
-  async () => {
-    const view = await renderScreen();
-    const announcement = (name: string) => {
-      const cell = cellNamed(view, name);
-      return JSON.stringify({
-        extraLabel: accessibilityLabelOf(cell)?.replace(name, ''),
-        value: cell.props.accessibilityValue,
-        hint: cell.props.accessibilityHint,
-      });
-    };
+// Read, today and idle differ only in fill, so the state has to be spoken too
+// (WCAG 1.4.1: colour is not the only carrier of meaning).
+test('read days, today and idle days are announced differently', async () => {
+  const view = await renderScreen();
+  const announcement = (name: string) => {
+    const cell = cellNamed(view, name);
+    return JSON.stringify({
+      extraLabel: accessibilityLabelOf(cell)?.replace(name, ''),
+      value: cell.props.accessibilityValue,
+      hint: cell.props.accessibilityHint,
+    });
+  };
 
-    const read = announcement('Tuesday, September 22');
-    const today = announcement('Thursday, September 24');
-    const idle = announcement('Friday, September 25');
-    assert.notEqual(read, idle, 'a read day sounds different from an idle day');
-    assert.notEqual(today, idle, 'today sounds different from an idle day');
-    assert.notEqual(read, today, 'a read day sounds different from today');
-  }
-);
+  const read = announcement('Tuesday, September 22');
+  const today = announcement('Thursday, September 24');
+  const idle = announcement('Friday, September 25');
+  assert.notEqual(read, idle, 'a read day sounds different from an idle day');
+  assert.notEqual(today, idle, 'today sounds different from an idle day');
+  assert.notEqual(read, today, 'a read day sounds different from today');
+});
 
 test('pressing a read day selects it and summarises that day in canonical order', async () => {
   const view = await renderScreen();
@@ -165,18 +161,14 @@ test('pressing the selected-day card opens the reader at the day’s first chapt
   ]);
 });
 
-test(
-  'the selected-day card tells a screen reader what was read, not only the date',
-  {
-    todo: 'BUG: the pressable card is labelled with the date alone, which replaces its children, so VoiceOver/TalkBack never hear the chapter summary',
-  },
-  async () => {
-    const view = await renderScreen();
-    await view.press(cellNamed(view, 'Tuesday, September 22'));
+// The card's label replaces its children for VoiceOver/TalkBack, so it has to
+// carry the summary, not just the date.
+test('the selected-day card tells a screen reader what was read, not only the date', async () => {
+  const view = await renderScreen();
+  await view.press(cellNamed(view, 'Tuesday, September 22'));
 
-    assert.ok(view.getByRole('button', { name: /Psalms 21–22/ }));
-  }
-);
+  assert.ok(view.getByRole('button', { name: /Psalms 21–22/ }));
+});
 
 test('month buttons are named and step the grid, legend and selection a month at a time', async () => {
   const view = await renderScreen();
