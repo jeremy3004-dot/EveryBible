@@ -36,6 +36,8 @@ export interface PlanServiceResult<T = undefined> {
   success: boolean;
   data?: T;
   error?: string;
+  /** Applied on the device; the server write is queued and retries on the next sync. */
+  pendingSync?: boolean;
 }
 
 export interface ReadingPlanService {
@@ -1099,13 +1101,14 @@ export async function unenrollFromPlan(planId: string): Promise<PlanServiceResul
     return { success: true };
   }
 
-  // M12: do NOT swallow the delete failure as success — an unconfirmed delete
-  // leaves the tombstone in place for syncReadingPlans to retry.
+  // M12: an unconfirmed delete (offline, server error) leaves the tombstone in
+  // place for syncReadingPlans to retry. The leave itself already happened on
+  // the device, so the reader is told it is pending sync, not that it failed:
+  // an error alert here stranded them on the detail screen of a plan they had
+  // already left.
   const deleted = await deleteRemotePlanProgress(planId, expectedUserId, expectedGeneration);
 
-  return deleted
-    ? { success: true }
-    : { success: false, error: 'Unable to confirm leaving this plan; it will retry on next sync' };
+  return deleted ? { success: true } : { success: true, pendingSync: true };
 }
 
 export async function assignPlanToGroup(
