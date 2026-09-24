@@ -169,3 +169,16 @@ export const getAnnotationsForChapter = async (
     };
   }
 };
+
+// ---------------------------------------------------------------------------
+// subscribeToAnnotationChanges
+// ---------------------------------------------------------------------------
+
+/**
+ * Calls `listener` whenever the local annotations change: an edit, or a sign-in or
+ * sign-out swapping in another account's private annotations. A screen that stays
+ * mounted (the reader) reloads on it rather than keep showing the last account's.
+ * Returns the unsubscribe function.
+ */
+export const subscribeToAnnotationChanges = (listener: () => void): (() => void) =>
+  localAnnotationStore.subscribe(listener);

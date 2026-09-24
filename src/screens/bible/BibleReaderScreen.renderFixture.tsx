@@ -283,7 +283,15 @@ export function installReaderRenderFixture(
   let holdAnnotationLoads = false;
   /** The saved annotations, as the local annotation store keeps them (soft deletes included). */
   const annotationRows: UserAnnotation[] = [];
+  /** Readers of the annotation store's changes (subscribeToAnnotationChanges). */
+  const annotationChangeListeners = new Set<() => void>();
   mockModule(mocker, sourcePath('services/annotations/annotationService.ts'), {
+    subscribeToAnnotationChanges: (listener: () => void) => {
+      annotationChangeListeners.add(listener);
+      return () => {
+        annotationChangeListeners.delete(listener);
+      };
+    },
     getAnnotationsForChapter: (bookId: string, chapter: number) =>
       holdAnnotationLoads
         ? new Promise((resolve) => {
@@ -490,6 +498,7 @@ export function installReaderRenderFixture(
     feedbackOutcome.result = { success: true };
     annotationLoads.length = 0;
     annotationRows.length = 0;
+    annotationChangeListeners.clear();
     serviceCalls.length = 0;
     av.log.length = 0;
     av.held.clear();
@@ -624,6 +633,16 @@ export function installReaderRenderFixture(
     chapterRequests,
     annotationLoads,
     annotationRows,
+    /**
+     * Replace the saved annotations from outside the reader (a sign-in or sign-out swaps
+     * the account's private data in the store) and tell the store's subscribers.
+     */
+    replaceAnnotationsElsewhere: async (rows: UserAnnotation[]) => {
+      annotationRows.splice(0, annotationRows.length, ...rows);
+      await act(async () => {
+        annotationChangeListeners.forEach((listener) => listener());
+      });
+    },
     holdAnnotations: () => {
       holdAnnotationLoads = true;
     },

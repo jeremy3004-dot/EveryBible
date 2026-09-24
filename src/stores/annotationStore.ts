@@ -164,6 +164,13 @@ export const localAnnotationStore = {
   replaceAnnotations: (annotations: UserAnnotation[]) =>
     useAnnotationStore.getState().replaceAnnotations(annotations),
   clearAnnotations: () => useAnnotationStore.getState().clearAnnotations(),
+  /** Calls `listener` whenever the saved annotations change, including an account switch. */
+  subscribe: (listener: () => void): (() => void) =>
+    useAnnotationStore.subscribe((state, previous) => {
+      if (state.annotations !== previous.annotations) {
+        listener();
+      }
+    }),
 };
 
 registerPrivateDataStore(useAnnotationStore, (account, guest) => ({
