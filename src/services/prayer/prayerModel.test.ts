@@ -2,11 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   aggregateInteractionCounts,
+  applyConfirmedInteraction,
   attachCountsToPrayerRequests,
   isUnderReviewForViewer,
   PRAYER_REPORT_REASONS,
   prayerRequestActions,
   prayerWriteErrorCode,
+  withPendingInteractions,
 } from './prayerModel';
 import type { PrayerRequest } from '../supabase/types';
 
@@ -188,4 +190,53 @@ test('only the author sees that their request is under review', () => {
   assert.equal(isUnderReviewForViewer({ hidden_at: '2026-09-24T00:00:00Z' }, false), false);
   assert.equal(isUnderReviewForViewer({ hidden_at: null }, true), false);
   assert.equal(isUnderReviewForViewer({}, true), false);
+});
+
+// ---------------------------------------------------------------------------
+// Prayed / Encouraged taps: confirmed state and the optimistic overlay
+// ---------------------------------------------------------------------------
+
+type WallRow = Parameters<typeof applyConfirmedInteraction>[0];
+const wallRow = (overrides: Partial<WallRow> = {}): WallRow => ({
+  prayed_count: 4,
+  encouraged_count: 2,
+  viewer_prayed: false,
+  viewer_encouraged: true,
+  ...overrides,
+});
+
+test('a confirmed prayer sets the flag and adds one to the count', () => {
+  assert.deepEqual(
+    applyConfirmedInteraction(wallRow(), 'prayed', true),
+    wallRow({ prayed_count: 5, viewer_prayed: true })
+  );
+});
+
+test('a confirmed withdrawal clears the flag and takes one off', () => {
+  assert.deepEqual(
+    applyConfirmedInteraction(wallRow(), 'encouraged', false),
+    wallRow({ encouraged_count: 1, viewer_encouraged: false })
+  );
+});
+
+test('a confirmation the row already reflects (a reload got there first) changes nothing', () => {
+  const row = wallRow({ prayed_count: 9, viewer_prayed: true });
+  assert.equal(applyConfirmedInteraction(row, 'prayed', true), row);
+});
+
+test('a withdrawal never takes a count below zero', () => {
+  const row = wallRow({ encouraged_count: 0 });
+  assert.equal(applyConfirmedInteraction(row, 'encouraged', false).encouraged_count, 0);
+});
+
+test('a pending tap shows its target on top of the latest confirmed row', () => {
+  assert.deepEqual(
+    withPendingInteractions(wallRow(), { prayed: true, encouraged: false }),
+    wallRow({ prayed_count: 5, viewer_prayed: true, encouraged_count: 1, viewer_encouraged: false })
+  );
+});
+
+test('with nothing pending, the confirmed row is shown as it is', () => {
+  const row = wallRow();
+  assert.equal(withPendingInteractions(row, {}), row);
 });

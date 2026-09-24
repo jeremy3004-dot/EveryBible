@@ -1018,6 +1018,12 @@ export const sanitizePersistedBibleState = (
   const selectedTranslation = normalizedCurrentTranslation
     ? translations.find((translation) => translation.id === normalizedCurrentTranslation)
     : null;
+  const keepsCurrentTranslation = Boolean(
+    normalizedCurrentTranslation &&
+    translationIds.has(normalizedCurrentTranslation) &&
+    selectedTranslation &&
+    isReadableTranslation(selectedTranslation)
+  );
 
   return {
     currentBook,
@@ -1026,12 +1032,16 @@ export const sanitizePersistedBibleState = (
     preferredChapterLaunchMode,
     preferredTranslationLanguage,
     currentTranslation:
-      normalizedCurrentTranslation &&
-      translationIds.has(normalizedCurrentTranslation) &&
-      selectedTranslation &&
-      isReadableTranslation(selectedTranslation)
+      keepsCurrentTranslation && normalizedCurrentTranslation
         ? normalizedCurrentTranslation
         : 'bsb',
+    // The stamp belongs to the persisted choice; a choice that fell back to BSB has none.
+    currentTranslationChosenAt:
+      keepsCurrentTranslation &&
+      typeof persisted.currentTranslationChosenAt === 'string' &&
+      Number.isFinite(Date.parse(persisted.currentTranslationChosenAt))
+        ? persisted.currentTranslationChosenAt
+        : null,
     translations,
   };
 };

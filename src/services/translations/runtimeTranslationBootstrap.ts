@@ -1,6 +1,7 @@
 import type { BibleTranslation } from '../../types';
 import { useBibleStore } from '../../stores/bibleStore';
-import { getUserTranslationPreferences } from './translationService';
+import { getUserTranslationPreferences, setUserTranslationPreferences } from './translationService';
+import { isStampLater } from './translationPreferenceStamps';
 import { resolveRegionalFallbackTranslation } from './regionalTranslationFallback';
 import { refreshRuntimeCatalog, shouldMarkRuntimeCatalogHydrated } from './runtimeCatalogRefresh';
 
@@ -67,14 +68,39 @@ export async function ensureRuntimeCatalogLoaded(): Promise<boolean> {
   return runtimeCatalogHydrationPromise;
 }
 
+/**
+ * Last write wins between this device's Bible choice and the one saved to the account.
+ * A switch made offline never reached the server, so at the next launch the saved value
+ * is older than it; the local choice is kept and uploaded. A newer saved value (the
+ * reader switched on another device since) replaces the local one.
+ */
 export async function reconcilePrimaryTranslationPreference(): Promise<void> {
   const preferenceResult = await getUserTranslationPreferences();
-  if (!preferenceResult.success || !preferenceResult.data?.primary_translation) {
+  if (!preferenceResult.success) {
     return;
   }
 
-  const preferredId = preferenceResult.data.primary_translation.trim().toLowerCase();
+  const remote = preferenceResult.data ?? null;
+  const savedPrimary = remote?.primary_translation?.trim().toLowerCase() ?? '';
   const state = useBibleStore.getState();
+  const localChosenAt = state.currentTranslationChosenAt;
+  if (localChosenAt && (!savedPrimary || isStampLater(localChosenAt, remote?.synced_at))) {
+    if (savedPrimary !== state.currentTranslation) {
+      await setUserTranslationPreferences({
+        primary: state.currentTranslation,
+        chosenAt: localChosenAt,
+      });
+    }
+    return;
+  }
+
+  if (!savedPrimary) {
+    return;
+  }
+
+  const preferredId = savedPrimary;
+  // Adopted with the saved stamp and not uploaded back: it is already the saved value.
+  const adopted = { chosenAt: remote?.synced_at ?? null };
   const preferredTranslation = state.translations.find(
     (translation) => translation.id === preferredId
   );
@@ -91,7 +117,7 @@ export async function reconcilePrimaryTranslationPreference(): Promise<void> {
         if (downloadResult === 'cancelled' || readerChoseMeanwhile()) {
           return;
         }
-        useBibleStore.getState().setCurrentTranslation(preferredId);
+        useBibleStore.getState().setCurrentTranslation(preferredId, adopted);
       } catch (error) {
         const fallbackTranslation = readerChoseMeanwhile()
           ? null
@@ -111,7 +137,7 @@ export async function reconcilePrimaryTranslationPreference(): Promise<void> {
   }
 
   if (state.currentTranslation !== preferredId) {
-    state.setCurrentTranslation(preferredId);
+    state.setCurrentTranslation(preferredId, adopted);
   }
 }
 
