@@ -1,11 +1,17 @@
-// Loads a Deno edge function under Node for behavioral tests. Edge functions import
-// `https://esm.sh/...` and call `Deno.serve`, neither of which Node can load, so the entry
-// file (and any `../_shared/*.ts` it imports) is transpiled to CommonJS and run in a vm
-// context with a scripted Supabase client. Same approach as aggregate-engagement/index.test.ts.
-import { readFileSync } from 'node:fs';
+// Loads a Deno edge function under Node for behavioral tests, through the real module loader
+// (tsx), so the function's own files are what run and what coverage sees. Node cannot fetch
+// `https://esm.sh/...` or provide `Deno`, so this module:
+// - maps `https://esm.sh/@supabase/supabase-js@*` to ./supabaseJsStub.ts with a resolve hook,
+// - installs a `Deno` global whose `env.get` and `serve` are scoped to the harness in use,
+// - routes `fetch` and `console.*` inside a request to that harness (logs are captured, the
+//   network is disabled unless a test supplies `fetch`).
+// Each entry file is loaded once per test process; every harness reuses its `Deno.serve`
+// handler and supplies its own client, env and fetch through an AsyncLocalStorage scope.
+import { createRequire, registerHooks } from 'node:module';
 import path from 'node:path';
-import { runInNewContext } from 'node:vm';
-import ts from 'typescript';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+import { edgeRequestScope, type EdgeRequestScope } from './supabaseJsStub';
 
 export interface EdgeQueryCall {
   /** Table name, or `rpc:<fn>` for Postgres function calls. */
@@ -27,6 +33,8 @@ export interface EdgeHarnessOptions {
   getUser?: (token: string) => { data: { user: { id: string } | null }; error: unknown };
   /** Overrides for `storage.from(bucket).<method>(...)`. */
   storage?: Record<string, (...args: unknown[]) => unknown>;
+  /** Replaces the recording client entirely (for stateful fakes); `calls` then stays empty. */
+  client?: unknown;
   fetch?: typeof fetch;
 }
 
@@ -37,31 +45,75 @@ export interface EdgeHarness {
   loggedErrors: string[];
 }
 
-const transpile = (file: string): string =>
-  ts.transpileModule(readFileSync(file, 'utf8'), {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-  }).outputText;
+type Handler = (request: Request) => Promise<Response>;
 
-// Errors created inside the vm context fail `instanceof Error` here, so match on shape.
+const HARNESS_DIR = path.dirname(fileURLToPath(import.meta.url));
+const SUPABASE_JS_STUB = pathToFileURL(path.join(HARNESS_DIR, 'supabaseJsStub.ts')).href;
+const SUPABASE_JS_URL = /^https:\/\/esm\.sh\/@supabase\/supabase-js(?:@[^/]+)?$/;
+
+registerHooks({
+  resolve(specifier, context, nextResolve) {
+    if (SUPABASE_JS_URL.test(specifier)) {
+      return nextResolve(SUPABASE_JS_STUB, context);
+    }
+    return nextResolve(specifier, context);
+  },
+});
+
 const describe = (value: unknown): string => {
   if (typeof value === 'string') return value;
+  // Database errors are plain `{ code, message }` objects, so match on shape, not Error.
   if (value && typeof value === 'object' && typeof (value as Error).message === 'string') {
     return (value as Error).message;
   }
   return JSON.stringify(value) ?? String(value);
 };
 
-export function loadEdgeFunction(entryFile: string, options: EdgeHarnessOptions = {}): EdgeHarness {
-  const calls: EdgeQueryCall[] = [];
-  const loggedErrors: string[] = [];
-  const respond = options.respond ?? (() => ({ data: null, error: null }));
-  const env: Record<string, string | undefined> = {
-    SUPABASE_URL: 'https://project.example',
-    SUPABASE_ANON_KEY: 'anon-key',
-    SUPABASE_SERVICE_ROLE_KEY: 'service-key',
-    ...options.env,
-  };
+const scope = (): EdgeRequestScope | undefined => edgeRequestScope.getStore();
 
+let servedHandler: Handler | undefined;
+(globalThis as { Deno?: unknown }).Deno = {
+  env: { get: (name: string) => scope()?.env[name] },
+  serve: (handler: Handler) => {
+    servedHandler = handler;
+  },
+};
+
+const realFetch = globalThis.fetch;
+globalThis.fetch = ((...args: Parameters<typeof fetch>) => {
+  const active = scope();
+  return active ? active.fetch(...args) : realFetch(...args);
+}) as typeof fetch;
+
+for (const level of ['log', 'info', 'warn', 'error'] as const) {
+  const original = console[level].bind(console);
+  console[level] = (...args: unknown[]) => {
+    const active = scope();
+    if (!active) {
+      original(...args);
+      return;
+    }
+    if (level === 'error') active.loggedErrors.push(args.map(describe).join(' '));
+  };
+}
+
+const handlers = new Map<string, Handler>();
+const requireEntry = createRequire(import.meta.url);
+
+function entryHandler(entryFile: string): Handler {
+  const cached = handlers.get(entryFile);
+  if (cached) return cached;
+  servedHandler = undefined;
+  requireEntry(entryFile);
+  if (!servedHandler) {
+    throw new Error(`${entryFile} did not call Deno.serve`);
+  }
+  handlers.set(entryFile, servedHandler);
+  return servedHandler;
+}
+
+function recordingClient(calls: EdgeQueryCall[], options: EdgeHarnessOptions): unknown {
+  const respond = options.respond ?? (() => ({ data: null, error: null }));
   const chain = (call: EdgeQueryCall): unknown => {
     calls.push(call);
     const proxy: unknown = new Proxy(() => undefined, {
@@ -84,7 +136,7 @@ export function loadEdgeFunction(entryFile: string, options: EdgeHarnessOptions 
     return proxy;
   };
 
-  const client = {
+  return {
     from: (table: string) => chain({ table, steps: [] }),
     rpc: (fn: string, args?: unknown) =>
       chain({ table: `rpc:${fn}`, steps: [{ method: 'rpc', args: [args] }] }),
@@ -108,66 +160,31 @@ export function loadEdgeFunction(entryFile: string, options: EdgeHarnessOptions 
         ),
     },
   };
+}
 
-  let handle: ((request: Request) => Promise<Response>) | undefined;
-  const moduleCache = new Map<string, unknown>();
-
-  const load = (file: string): unknown => {
-    const cached = moduleCache.get(file);
-    if (cached) return cached;
-    const exports: Record<string, unknown> = {};
-    moduleCache.set(file, exports);
-    runInNewContext(transpile(file), {
-      exports,
-      require: (specifier: string) => {
-        if (specifier.startsWith('https://esm.sh/@supabase/supabase-js')) {
-          return { createClient: () => client };
-        }
-        if (specifier.startsWith('.')) {
-          return load(path.resolve(path.dirname(file), specifier));
-        }
-        throw new Error(`Unexpected import in edge function: ${specifier}`);
-      },
-      Deno: {
-        env: { get: (name: string) => env[name] },
-        serve: (handler: (request: Request) => Promise<Response>) => {
-          handle = handler;
-        },
-      },
-      console: {
-        log: () => undefined,
-        info: () => undefined,
-        warn: () => undefined,
-        error: (...args: unknown[]) => {
-          loggedErrors.push(args.map(describe).join(' '));
-        },
-      },
-      Request,
-      Response,
-      Headers,
-      URL,
-      TextEncoder,
-      TextDecoder,
-      AbortController,
-      AbortSignal,
-      setTimeout,
-      clearTimeout,
-      crypto,
-      atob,
-      btoa,
-      fetch:
-        options.fetch ??
-        (async () => {
-          throw new Error('network disabled in tests');
-        }),
-    });
-    return exports;
+export function loadEdgeFunction(entryFile: string, options: EdgeHarnessOptions = {}): EdgeHarness {
+  const calls: EdgeQueryCall[] = [];
+  const loggedErrors: string[] = [];
+  const requestScope: EdgeRequestScope = {
+    client: options.client ?? recordingClient(calls, options),
+    env: {
+      SUPABASE_URL: 'https://project.example',
+      SUPABASE_ANON_KEY: 'anon-key',
+      SUPABASE_SERVICE_ROLE_KEY: 'service-key',
+      ...options.env,
+    },
+    loggedErrors,
+    fetch:
+      options.fetch ??
+      (async () => {
+        throw new Error('network disabled in tests');
+      }),
   };
+  const handler = entryHandler(path.resolve(entryFile));
 
-  load(entryFile);
-  if (!handle) {
-    throw new Error(`${entryFile} did not call Deno.serve`);
-  }
-
-  return { handle, calls, loggedErrors };
+  return {
+    handle: (request) => edgeRequestScope.run(requestScope, () => handler(request)),
+    calls,
+    loggedErrors,
+  };
 }
