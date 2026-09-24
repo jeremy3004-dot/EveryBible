@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
-import { shouldLockForAppStateChange } from '../services/privacy';
+import { isPrivacyLockGraceActive, shouldLockForAppStateChange } from '../services/privacy';
 import { usePrivacyStore } from '../stores/privacyStore';
 
 const shouldStayLocked = (): boolean => {
@@ -43,6 +43,10 @@ const reconcileAppIcon = (): void => {
  * captured at mount, so the lock never waits on its host re-rendering after privacy
  * settings change.
  *
+ * Going inactive under system UI the app raised itself (an icon-change alert, a
+ * permission prompt; see privacyLockGrace) does not lock, but backgrounding from there
+ * still does.
+ *
  * It also retries an app icon change that did not take (iOS refuses one while the app is
  * not in the foreground): once privacy settings have loaded, and on every return to the
  * foreground, an icon that differs from the saved mode is changed again.
@@ -50,14 +54,26 @@ const reconcileAppIcon = (): void => {
 export const usePrivacyLock = () => {
   useEffect(() => {
     let previousState: AppStateStatus = AppState.currentState;
+    // An inactive spell left unlocked for the app's own system UI. Backgrounding from it
+    // must still lock, though inactive -> background is not otherwise a lock trigger.
+    let inactiveLockDeferred = false;
 
     const subscription = AppState.addEventListener('change', (nextState) => {
       const leaving = previousState;
       previousState = nextState;
+      const lockDeferred = inactiveLockDeferred;
+      inactiveLockDeferred = false;
 
       try {
-        if (shouldLockForAppStateChange(leaving, nextState) && shouldStayLocked()) {
-          usePrivacyStore.getState().lock();
+        const leavesForeground =
+          shouldLockForAppStateChange(leaving, nextState) ||
+          (lockDeferred && nextState === 'background');
+        if (leavesForeground && shouldStayLocked()) {
+          if (nextState === 'inactive' && isPrivacyLockGraceActive()) {
+            inactiveLockDeferred = true;
+          } else {
+            usePrivacyStore.getState().lock();
+          }
         }
       } catch (error) {
         lockAfterPrivacyLockFailure(error);

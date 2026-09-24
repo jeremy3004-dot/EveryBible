@@ -12,6 +12,7 @@ import {
   mockSecureStore,
   sourcePath,
 } from '../../testing/mockModules';
+import { isPrivacyLockGraceActive } from '../../services/privacy/privacyLockGrace';
 
 // Why the OS keeps the in-app reminder from appearing, if it does.
 let reminderBlock: 'needs-permission' | 'blocked' | null = null;
@@ -105,12 +106,15 @@ const reminders: {
   permission: 'granted' | 'denied' | 'blocked';
   calls: string[];
   requests: number;
+  /** Whether discreet mode's lock was holding off for each permission prompt. */
+  promptsUnderLockGrace: boolean[];
   /** Thrown by scheduleDailyReminder, as when the OS refuses to schedule. */
   scheduleError: Error | null;
 } = {
   permission: 'granted',
   calls: [],
   requests: 0,
+  promptsUnderLockGrace: [],
   scheduleError: null,
 };
 mockModule(mock, sourcePath('services/notifications/index.ts'), {
@@ -123,6 +127,7 @@ mockModule(mock, sourcePath('services/notifications/index.ts'), {
   },
   requestNotificationPermissionOutcome: async () => {
     reminders.requests += 1;
+    reminders.promptsUnderLockGrace.push(isPrivacyLockGraceActive());
     return reminders.permission;
   },
 });
@@ -151,6 +156,7 @@ afterEach(async () => {
   reminders.permission = 'granted';
   reminders.calls.length = 0;
   reminders.requests = 0;
+  reminders.promptsUnderLockGrace.length = 0;
   reminders.scheduleError = null;
   reported.length = 0;
   reportWaiters = [];
@@ -249,6 +255,8 @@ test('a synced reminder with no saved time asks for one once permission is allow
 
   assert.ok(view.getByRole('header', { name: t('settings.setReminderTime') }));
   assert.deepEqual(reminders.calls, []);
+  // iOS turns the app inactive under the prompt; discreet mode must not lock for it.
+  assert.deepEqual(reminders.promptsUnderLockGrace, [true]);
 });
 
 test('refusing the permission from the notice explains itself and schedules nothing', async () => {
