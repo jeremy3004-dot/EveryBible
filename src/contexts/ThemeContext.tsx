@@ -257,17 +257,18 @@ export type { AppearancePaletteId } from '../constants/appearancePalettes';
 
 /** The provider's value: stored preferences resolved to a live scope, palette and colors. */
 export function useThemeContextValue(): ThemeContextValue {
-  const preferences = useAuthStore((state) => state.preferences);
+  // The two fields the scope is built from, not the whole preferences object: the
+  // provider sits at the app root and should not re-render on unrelated writes.
+  const storedTheme = useAuthStore((state) => state.preferences.theme);
+  const storedPalette = useAuthStore((state) => state.preferences.appearancePalette);
   const setPreferences = useAuthStore((state) => state.setPreferences);
 
   // Retired modes fold onto a live scope here rather than leaving the provider
   // in a scope it can no longer render.
-  const themeMode: ThemeMode = resolveThemeMode(preferences.theme);
+  const themeMode: ThemeMode = resolveThemeMode(storedTheme);
 
-  const appearancePalette: AppearancePaletteId = APPEARANCE_PALETTE_IDS.includes(
-    preferences.appearancePalette
-  )
-    ? preferences.appearancePalette
+  const appearancePalette: AppearancePaletteId = APPEARANCE_PALETTE_IDS.includes(storedPalette)
+    ? storedPalette
     : DEFAULT_APPEARANCE_PALETTE;
 
   const colors = useMemo(

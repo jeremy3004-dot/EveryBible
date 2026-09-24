@@ -7,16 +7,18 @@ import { syncPreferences } from '../services/sync';
 
 export function useI18n() {
   const { t, i18n } = useTranslation();
-  const preferences = useAuthStore((state) => state.preferences);
+  // Only the language: almost every screen calls this hook, so subscribing to the
+  // whole preferences object re-rendered all of them on any preference write.
+  const language = useAuthStore((state) => state.preferences.language);
   const setPreferences = useAuthStore((state) => state.setPreferences);
 
-  // Sync i18n language with preferences on mount and when preferences change
+  // Sync i18n language with the stored preference on mount and when it changes
   useEffect(() => {
     const currentLang = getCurrentLanguage();
-    if (preferences.language && preferences.language !== currentLang) {
-      void changeLanguage(preferences.language);
+    if (language && language !== currentLang) {
+      void changeLanguage(language);
     }
-  }, [preferences.language]);
+  }, [language]);
 
   const setLanguage = useCallback(
     async (language: LanguageCode) => {
@@ -27,7 +29,7 @@ export function useI18n() {
     [setPreferences]
   );
 
-  const currentLanguage = preferences.language || 'en';
+  const currentLanguage = language || 'en';
   const languageInfo = LANGUAGES[currentLanguage];
 
   return {
