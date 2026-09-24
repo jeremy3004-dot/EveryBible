@@ -1,7 +1,5 @@
 import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { mockModule, sourcePath } from '../testing/mockModules';
 
 const ErrorBoundary = function ErrorBoundaryStub() {
@@ -65,18 +63,5 @@ test('a crashed stack root offers no Back action because there is nowhere to go 
   assert.equal((element.props as { onGoBack?: unknown }).onGoBack, undefined);
 });
 
-// UI-only source check: asserts on navigator render code, which the suite cannot render (no component renderer); not a behaviour test.
-test('every stack navigator wraps its screens in the per-screen error boundary', () => {
-  const navigationDir = fileURLToPath(new URL('.', import.meta.url).href);
-  const stackFiles = readdirSync(navigationDir).filter((file) => /Stack\.tsx$/.test(file));
-
-  assert.ok(stackFiles.length >= 6, `expected every *Stack.tsx, found ${stackFiles.join(', ')}`);
-  for (const file of stackFiles) {
-    const source = readFileSync(`${navigationDir}/${file}`, 'utf8');
-    assert.match(
-      source,
-      /<Stack\.Navigator[^>]*screenLayout=\{renderScreenWithErrorBoundary\}/s,
-      `${file} must pass screenLayout={renderScreenWithErrorBoundary} so one screen's render error cannot blank the whole app`
-    );
-  }
-});
+// That every *Stack.tsx passes this as its screenLayout is rendered in
+// stackRoutes.render.test.tsx.

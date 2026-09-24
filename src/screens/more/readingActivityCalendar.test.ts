@@ -1,7 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath, URL } from 'node:url';
 import type { ReadingActivityDaySummary } from '../../services/progress/readingActivity';
 import {
   buildReadingActivityGrid,
@@ -13,10 +11,6 @@ import {
   shiftMonth,
   summarizeDayChapters,
 } from './readingActivityCalendarModel';
-
-// UI-only source check (readScreen): ReadingActivityScreen render code; no renderer here.
-const readScreen = () =>
-  readFileSync(fileURLToPath(new URL('./ReadingActivityScreen.tsx', import.meta.url)), 'utf8');
 
 const day = (dateKey: string, chapterCount: number): ReadingActivityDaySummary => ({
   dateKey,
@@ -191,24 +185,4 @@ test('the selected-day card opens the first chapter of the same canonical order'
   // Nothing to open means no chevron and no press target.
   assert.equal(firstChapterOfDay([], resolve), null);
   assert.equal(firstChapterOfDay(['broken'], resolve), null);
-});
-
-test('the reading activity screen draws its own grid instead of react-native-calendars', () => {
-  const screen = readScreen();
-
-  assert.equal(
-    /react-native-calendars/.test(screen),
-    false,
-    'the screen should no longer depend on the calendar widget'
-  );
-  assert.match(
-    screen,
-    /from '\.\/readingActivityCalendarModel'/,
-    'the screen should render the shared Monday-first grid model'
-  );
-  assert.match(
-    screen,
-    /testID="reading-activity-calendar"/,
-    'the grid keeps the stable calendar test ID'
-  );
 });

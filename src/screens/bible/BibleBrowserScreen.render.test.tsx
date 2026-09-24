@@ -4,13 +4,7 @@ import { createElement } from 'react';
 import { act, type ReactTestInstance } from 'react-test-renderer';
 import { useTranslation } from 'react-i18next';
 import { create } from 'zustand';
-import {
-  flattenStyle,
-  hostAncestors,
-  hostNodeCalls,
-  installRenderHarness,
-  within,
-} from '../../testing/render';
+import { flattenStyle, hostAncestors, installRenderHarness, within } from '../../testing/render';
 import { mockBarrel, mockModule, sourcePath } from '../../testing/mockModules';
 import { DEFAULT_APPEARANCE_PALETTE } from '../../constants/appearancePalettes';
 import type { Verse } from '../../types';
@@ -175,7 +169,7 @@ test('without a route book the list reopens on the saved book, expanded and scro
   assert.equal(list.props.initialScrollIndex, johnRow);
 
   await wait(5);
-  const scrolls = hostNodeCalls.filter((call) => call.method === 'scrollToIndex');
+  const scrolls = harness.refCalls.filter((call) => call.method === 'scrollToIndex');
   assert.deepEqual(
     scrolls.map((call) => [call.type, call.args]),
     [['FlatList', [{ index: johnRow, animated: false, viewPosition: 0.15 }]]]
@@ -195,7 +189,7 @@ test('a valid route book overrides the saved one and opens without an imperative
 
   await wait(5);
   assert.deepEqual(
-    hostNodeCalls.filter((call) => call.method === 'scrollToIndex'),
+    harness.refCalls.filter((call) => call.method === 'scrollToIndex'),
     []
   );
 });
@@ -255,11 +249,11 @@ test('the focusSearch launch flag focuses the search field, and only then', asyn
   const focused = async (params: Record<string, unknown>) => {
     const view = await renderBrowser('BibleBrowser', params);
     await wait(5);
-    const calls = hostNodeCalls
+    const calls = harness.refCalls
       .filter((call) => call.method === 'focus')
       .map((call) => [call.type, call.props.accessibilityLabel]);
     await view.unmount();
-    hostNodeCalls.length = 0;
+    harness.refCalls.length = 0;
     return calls;
   };
 

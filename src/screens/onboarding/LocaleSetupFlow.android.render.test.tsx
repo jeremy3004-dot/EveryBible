@@ -2,7 +2,6 @@ import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { isValidElement } from 'react';
 import { act } from 'react-test-renderer';
-import { hostNodeCalls } from '../../testing/render';
 import { installLocaleSetupFlowFakes } from './localeSetupFlowRenderFixtures';
 
 // Android only: the hardware back button, and the keyboard overlap the flow
@@ -62,7 +61,7 @@ test('on keyboard show the flow measures its uncollapsed list wrapper, where the
     });
   });
 
-  const measured = hostNodeCalls.filter((call) => call.method === 'measureInWindow');
+  const measured = harness.refCalls.filter((call) => call.method === 'measureInWindow');
   assert.equal(measured.length, 1);
   const [{ type, props }] = measured;
   assert.equal(type, 'View');

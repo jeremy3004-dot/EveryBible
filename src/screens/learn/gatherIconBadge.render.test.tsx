@@ -27,7 +27,13 @@ const ARTWORK: Record<string, string> = {
   // A bitmap wrapped in an SVG shell.
   bitmap: `<svg width="326" height="512" viewBox="0 0 326 512"><image width="326" height="512" xlink:href="${BITMAP_URI}"/></svg>`,
 };
-mockModule(mock, sourcePath('data/gatherArtwork.ts'), { gatherArtworkXml: ARTWORK });
+// Same contract as the real lazy registry: known keys resolve to their markup,
+// anything else to undefined.
+const hasArtwork = (key: string) => Object.prototype.hasOwnProperty.call(ARTWORK, key);
+mockModule(mock, sourcePath('data/gatherArtwork.ts'), {
+  hasGatherArtwork: hasArtwork,
+  getGatherArtworkXml: (key: string) => (hasArtwork(key) ? ARTWORK[key] : undefined),
+});
 
 const INK = '#123456';
 

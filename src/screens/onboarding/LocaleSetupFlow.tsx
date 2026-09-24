@@ -90,6 +90,7 @@ import {
 // A barrel import here would undo the deferred-import work below.
 import { useDisplayFont } from '../../hooks/useDisplayFont';
 import { useKeyboardBottomInset } from '../../hooks/useKeyboardBottomInset';
+import { Skeleton } from '../../components/skeleton/Skeleton';
 import { announceForAccessibility } from '../../utils/a11y';
 import type { BibleTranslation } from '../../types';
 import {
@@ -102,6 +103,12 @@ import {
 } from '../bible/bibleTranslationModel';
 import { showTranslationDownloadFailedAlert } from '../bible/translationDownloadFailureAlert';
 import { showOnboardingFinishFailedAlert } from './onboardingFinishFailureAlert';
+import {
+  pickRecommendedOnboardingOption,
+  rankRecommendedOnboardingOptions,
+  resolveSeedRecommendationLanguage,
+  type OnboardingRecommendation,
+} from './onboardingRecommendation';
 import { getAudioAvailability } from '../../services/audio/audioAvailability';
 import { isRemoteAudioAvailable } from '../../services/audio/audioRemote';
 import { config } from '../../constants';
@@ -600,6 +607,10 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     queuedId: null,
   });
   const [showInterfaceLanguagePicker, setShowInterfaceLanguagePicker] = useState(false);
+  // Flips once the prewarm below has loaded the locale search engine. Until then
+  // nothing rendered may ask the engine anything — even when an earlier screen
+  // already warmed it, so the first frame costs the same on every path.
+  const [isLocaleEngineWarm, setIsLocaleEngineWarm] = useState(false);
   const [footerHeight, setFooterHeight] = useState(ESTIMATED_FOOTER_HEIGHT);
 
   // Debounced mirrors of the raw search inputs. The result memos below consume
@@ -726,90 +737,48 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
 
     return sections;
   }, [onboardingLanguageOptions]);
-  const recommendedOnboardingLanguageOptions = useMemo(() => {
+  // The first frame ranks from the small seed of interface languages and pins a
+  // Bible only when the seed proves it is the one the engine will choose; otherwise
+  // the slot holds a placeholder until the engine is warm. The engine's ranking is
+  // unchanged, so the pinned Bible never changes once shown (short of a catalog
+  // refresh or a new interface language, which re-rank as they always did).
+  const onboardingRecommendation = useMemo<
+    OnboardingRecommendation<InitialOnboardingLanguageOption<BibleTranslation>>
+  >(() => {
     if (mode !== 'initial') {
-      return [];
+      return { status: 'ready', option: null };
     }
 
-    const normalizedDeviceCountryCode = deviceCountryCode?.toUpperCase() ?? null;
-    const scoreOption = (option: InitialOnboardingLanguageOption<BibleTranslation>) => {
-      const translation = option.primaryTranslation;
-      const translationLanguage = localeSearchEngine.getLanguageByName(translation.language);
-      const normalizedTranslationLanguage = normalizeTranslationLanguage(
-        translation.language
-      ).toLowerCase();
-      let score = 0;
-
-      if (translationLanguage?.iso6391 === deviceLanguageCode) {
-        score -= 500;
-      }
-
-      if (translationLanguage?.iso6391 === selectedInterfaceLanguageCode) {
-        score -= 300;
-      }
-
-      if (
-        normalizedDeviceCountryCode &&
-        translationLanguage?.countryCodes.includes(normalizedDeviceCountryCode)
-      ) {
-        score -= 250;
-      }
-
-      if (normalizedTranslationLanguage === 'english' && translation.id.toLowerCase() === 'bsb') {
-        score -= 100;
-      }
-
-      if (translation.isDownloaded) {
-        score -= 60;
-      }
-
-      if (translation.hasText) {
-        score -= 40;
-      }
-
-      if (translation.hasAudio) {
-        score -= 20;
-      }
-
-      return score;
+    const context = {
+      deviceLanguageCode,
+      deviceCountryCode,
+      interfaceLanguageCode: selectedInterfaceLanguageCode,
     };
-
-    // Precompute each option's score once rather than recomputing it twice per
-    // comparison inside sort().
-    const scoreByKey = new Map<string, number>();
-    for (const option of onboardingLanguageOptions) {
-      scoreByKey.set(option.key, scoreOption(option));
+    if (!isLocaleEngineWarm) {
+      return pickRecommendedOnboardingOption(
+        onboardingLanguageOptions,
+        context,
+        resolveSeedRecommendationLanguage
+      );
     }
 
-    return [...onboardingLanguageOptions]
-      .sort((left, right) => {
-        const scoreDelta = (scoreByKey.get(left.key) ?? 0) - (scoreByKey.get(right.key) ?? 0);
-        if (scoreDelta !== 0) {
-          return scoreDelta;
-        }
-
-        // Plain code-point compare for the tiebreak instead of ICU
-        // localeCompare: this sort runs on every keystroke, and localeCompare
-        // is a slow ICU call on Hermes (no JIT). The tiebreak only needs a
-        // stable deterministic order, not linguistic collation.
-        if (left.label < right.label) {
-          return -1;
-        }
-        if (left.label > right.label) {
-          return 1;
-        }
-        return 0;
-      })
-      .slice(0, 5);
+    const [option] = rankRecommendedOnboardingOptions(onboardingLanguageOptions, context, (name) =>
+      localeSearchEngine.getLanguageByName(name)
+    );
+    return { status: 'ready', option: option ?? null };
   }, [
     deviceCountryCode,
     deviceLanguageCode,
+    isLocaleEngineWarm,
     mode,
     onboardingLanguageOptions,
     selectedInterfaceLanguageCode,
   ]);
+  const isPrimaryOnboardingOptionPending = onboardingRecommendation.status === 'pending';
   const primaryOnboardingLanguageOption =
-    recommendedOnboardingLanguageOptions[0] ?? onboardingLanguageOptions[0] ?? null;
+    onboardingRecommendation.status === 'ready'
+      ? (onboardingRecommendation.option ?? onboardingLanguageOptions[0] ?? null)
+      : null;
 
   const countryResults = useMemo(
     () =>
@@ -866,6 +835,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
         sections: onboardingLanguageSections,
         primaryOption: primaryOnboardingLanguageOption,
         showsPrimaryOption: mode === 'initial',
+        isPrimaryOptionPending: isPrimaryOnboardingOptionPending,
         pinsRecommendedOption: bibleLanguageListState.pinsRecommendedOption,
         showsFullList: bibleLanguageListState.showsFullList,
         isHydratingRuntimeCatalog,
@@ -903,6 +873,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     bibleLanguageListState.showsFullList,
     debouncedCountryQuery,
     isHydratingRuntimeCatalog,
+    isPrimaryOnboardingOptionPending,
     languageResults.global,
     languageResults.recommended,
     listedCountries,
@@ -955,6 +926,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
   useEffect(() => {
     const task = InteractionManager.runAfterInteractions(() => {
       prewarmLocaleSearchEngine();
+      setIsLocaleEngineWarm(true);
     });
 
     return () => task.cancel();
@@ -1563,6 +1535,25 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
               </AppCard>
             </View>
           );
+        // Same card and row height as the pinned Bible, so nothing below it moves
+        // when the recommendation lands. Hidden from screen readers: it says nothing.
+        case 'primaryOptionPlaceholder':
+          return (
+            <View
+              testID="onboarding-primary-recommendation-placeholder"
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+            >
+              <AppCard accentRule padding={0}>
+                <View style={styles.optionRow}>
+                  <View style={styles.placeholderCopy}>
+                    <Skeleton width="45%" height={16} />
+                    <Skeleton width="70%" height={12} />
+                  </View>
+                </View>
+              </AppCard>
+            </View>
+          );
         case 'option':
           return renderOnboardingLanguageRow(item.option, false, item.position);
         case 'suggestedCountry':
@@ -1974,6 +1965,10 @@ const styles = StyleSheet.create({
   },
   loadingRow: {
     paddingTop: spacing.lg,
+  },
+  placeholderCopy: {
+    flex: 1,
+    gap: spacing.xs,
   },
   listSection: {
     marginTop: spacing.lg,

@@ -49,6 +49,14 @@ function layoutAnimation(name: string) {
   return builder;
 }
 
+type ScrollWorklet = (event: unknown, context: Record<string, unknown>) => void;
+type ScrollHandlers = Partial<
+  Record<
+    'onScroll' | 'onBeginDrag' | 'onEndDrag' | 'onMomentumBegin' | 'onMomentumEnd',
+    ScrollWorklet
+  >
+>;
+
 export interface AnimationCall {
   kind: 'timing' | 'spring';
   toValue: unknown;
@@ -80,7 +88,8 @@ export function createReanimatedFake(state: ReanimatedFakeState) {
     Text: hostComponent('Text'),
     Image: hostComponent('Image'),
     ScrollView: hostComponent('ScrollView'),
-    FlatList: hostComponent('FlatList'),
+    // Renders every item like the react-native FlatList fake.
+    FlatList,
     createAnimatedComponent: <T,>(component: T) => component,
   };
   const layoutNames = [
@@ -130,7 +139,16 @@ export function createReanimatedFake(state: ReanimatedFakeState) {
         react(current, previous);
       });
     },
-    useAnimatedScrollHandler: () => () => {},
+    // The returned handler runs the worklet on the JS thread, so a test can
+    // `fire(list, 'onScroll', { nativeEvent: { contentOffset: { y } ... } })`.
+    useAnimatedScrollHandler: (handlers: ScrollHandlers | ScrollWorklet) => {
+      const context: Record<string, unknown> = {};
+      return (event: { nativeEvent?: unknown } | undefined) => {
+        const payload = event?.nativeEvent ?? event;
+        if (typeof handlers === 'function') handlers(payload, context);
+        else handlers.onScroll?.(payload, context);
+      };
+    },
     useAnimatedRef: () => ({ current: null }),
     useScrollViewOffset: () => ({ value: 0 }),
     withTiming: animate('timing'),
@@ -325,9 +343,11 @@ export function createHapticsFake(calls: HapticsCall[]) {
 /** A chainable gesture builder: every configuration method returns the gesture. */
 function gestureBuilder(kind: string) {
   const gesture: Record<string, unknown> = { __gesture: kind };
-  return new Proxy(gesture, {
-    get: (target, property) => (property in target ? target[property as string] : () => gesture),
+  // Every method returns the proxy itself, so chains of any length keep working.
+  const proxy: Record<string, unknown> = new Proxy(gesture, {
+    get: (target, property) => (property in target ? target[property as string] : () => proxy),
   });
+  return proxy;
 }
 
 export function createGestureHandlerFake() {

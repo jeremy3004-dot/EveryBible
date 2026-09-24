@@ -292,9 +292,11 @@ The historical public snapshot for the initial overview update had SHA-256
 
 ### Startup performance verification
 
-The homepage preloads the versioned snapshot with anonymous CORS credentials,
-matching the browser fetch, and includes the map module in its initial script
-loading graph. Keep these aligned: a mismatched preload can create two requests.
+The homepage does not preload the versioned snapshot. It fetches it after the
+window `load` event, so the 1.6 MB download never competes with the fonts and
+scripts the headline needs, and decodes it in slices
+(`decodePublicAtlasInSlices`) so the page stays responsive. The map module and
+MapLibre's stylesheet load in their own chunk (`components/atlas/LazyLanguageMap.tsx`).
 The public map suppresses its empty-selection message until data is ready.
 
 The initial September 2026 startup snapshot was 1,991,632 Brotli bytes (2,494,993 gzip bytes),

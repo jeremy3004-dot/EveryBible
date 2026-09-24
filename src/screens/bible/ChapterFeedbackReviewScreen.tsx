@@ -19,10 +19,9 @@ import { layout, spacing, typography } from '../../design/system';
 import { getTranslatedBookName } from '../../constants';
 import { useTranslatorReviewStore } from '../../stores/translatorReviewStore';
 import {
-  buildReviewQueue,
   fetchChapterFeedbackForTranslatorReview,
   getChapterReviewHeadline,
-  advanceReviewSession,
+  requiresResolutionNote,
   resolveTranslatorFeedbackOnServer,
   reopenTranslatorFeedbackOnServer,
   reviewPositiveFeedbackBatch,
@@ -36,7 +35,7 @@ import {
   type TranslatorFeedbackResolution,
 } from '../../services/feedback';
 import {
-  FeedbackFocusedReview,
+  FeedbackResolveSheet,
   FeedbackResponseCard,
   TranslationNotCoveredNotice,
 } from '../../components/feedback';
@@ -54,14 +53,6 @@ import {
 import type { BibleStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<BibleStackParamList, 'ChapterFeedbackReview'>;
-
-/** A focused review walks a snapshot of the open items, so reloads never reshuffle it. */
-interface ReviewSession {
-  queue: string[];
-  byId: Record<string, ChapterFeedbackReviewItem>;
-  currentId: string | null;
-  handled: ReadonlySet<string>;
-}
 
 const SOURCE_FILTERS: { value: FeedbackCategoryFilter; labelKey: string }[] = [
   { value: 'all', labelKey: 'feedback.everyone' },
@@ -91,8 +82,12 @@ export function ChapterFeedbackReviewScreen({ route, navigation }: Props) {
   // Set when this passcode does not open the translation; holds what it does open.
   const [notCovered, setNotCovered] = useState<{ coveredTranslationIds?: string[] } | null>(null);
   const [sourcePickerOpen, setSourcePickerOpen] = useState(false);
-  const [review, setReview] = useState<ReviewSession | null>(null);
-  const [reviewFailed, setReviewFailed] = useState(false);
+  // The item a translator is settling while the reason sheet is open.
+  const [resolving, setResolving] = useState<{
+    item: ChapterFeedbackReviewItem;
+    resolution: TranslatorFeedbackResolution;
+  } | null>(null);
+  const [resolveFailed, setResolveFailed] = useState(false);
   const [playing, setPlaying] = useState<string | null>(null);
   const sound = useRef<Audio.Sound | null>(null);
   const soundId = useRef<string | null>(null);
@@ -279,53 +274,40 @@ export function ChapterFeedbackReviewScreen({ route, navigation }: Props) {
     }
   };
 
-  const startReview = (startId?: string) => {
-    const queue = buildReviewQueue(items, startId);
-    if (!queue.length) return;
-    setReviewFailed(false);
-    setReview({
-      queue,
-      byId: Object.fromEntries(items.map((item) => [item.id, item])),
-      currentId: queue[0],
-      handled: new Set(),
-    });
+  // A concern needs its reason written down, so it opens the sheet; praise settles at once.
+  const chooseResolution = (
+    item: ChapterFeedbackReviewItem,
+    resolution: TranslatorFeedbackResolution
+  ) => {
+    if (requiresResolutionNote(item)) {
+      setResolveFailed(false);
+      setResolving({ item, resolution });
+      return;
+    }
+    void resolveFromList(item, resolution);
   };
 
-  // Functional: a decision advances after its save, when the review may have been
-  // skipped on or closed; advancing the snapshot it started from reopened a closed review.
-  const advanceReview = (id: string) => {
-    stopAudio();
-    setReviewFailed(false);
-    setReview((session) => advanceReviewSession(session, id));
-  };
-
-  const decide = async (resolution: TranslatorFeedbackResolution) => {
-    const current = review?.currentId ? review.byId[review.currentId] : null;
-    if (!review || !current) return;
-    if (await resolve(current, resolution)) {
-      advanceReview(current.id);
+  const confirmResolution = async () => {
+    if (!resolving) return;
+    const { item, resolution } = resolving;
+    if (await resolve(item, resolution)) {
+      setResolving(null);
+      announceForAccessibility(feedbackDecisionAnnouncement(t, item, resolution));
     } else {
-      setReviewFailed(true);
+      setResolveFailed(true);
     }
   };
 
-  const closeReview = () => {
-    stopAudio();
-    setReview(null);
-  };
-
   const headline = getChapterReviewHeadline(summary, loading);
-  const hasOpenItems = items.some((item) => !item.resolution);
   const sourceLabelKey =
     SOURCE_FILTERS.find((filter) => filter.value === category)?.labelKey ?? 'feedback.everyone';
-  const reviewItem = review?.currentId ? review.byId[review.currentId] : null;
 
   const header = (
     <View style={styles.header}>
       <View style={styles.headline}>
-        {headline.kind === 'waiting' ? (
+        {headline.kind === 'open' ? (
           <Text style={[styles.headlineText, { color: colors.primaryText }]}>
-            {t('feedback.waiting', { count: headline.count })}
+            {t('feedback.openCount', { count: headline.count })}
           </Text>
         ) : headline.kind === 'caughtUp' ? (
           <View style={styles.caughtUp}>
@@ -334,25 +316,17 @@ export function ChapterFeedbackReviewScreen({ route, navigation }: Props) {
               {t('feedback.complete')}
             </Text>
           </View>
-        ) : (
+        ) : headline.kind === 'empty' ? (
           <Text style={[styles.body, { color: colors.secondaryText }]}>
-            {t(headline.kind === 'loading' ? 'common.loading' : 'bible.translatorReviewEmpty')}
+            {t('bible.translatorReviewEmpty')}
           </Text>
-        )}
-        {status === 'pending' && hasOpenItems && (
-          <AppButton
-            label={t('feedback.startReview')}
-            variant="primary"
-            size="md"
-            onPress={() => startReview()}
-          />
-        )}
+        ) : null}
       </View>
 
       <TabSwitch
         segments={[
-          { key: 'pending', label: t('feedback.needsReview') },
-          { key: 'reviewed', label: t('feedback.reviewed') },
+          { key: 'pending', label: t('feedback.openTab') },
+          { key: 'reviewed', label: t('feedback.doneTab') },
         ]}
         value={status}
         onChange={(key) => setStatus(key as FeedbackStatusFilter)}
@@ -450,10 +424,7 @@ export function ChapterFeedbackReviewScreen({ route, navigation }: Props) {
       onPlay={() => {
         void play(item);
       }}
-      onReview={() => startReview(item.id)}
-      onMarkReviewed={() => {
-        void resolveFromList(item, 'no_change_needed');
-      }}
+      onResolve={(resolution) => chooseResolution(item, resolution)}
       onReopen={() => {
         void resolveFromList(item, null);
       }}
@@ -468,7 +439,7 @@ export function ChapterFeedbackReviewScreen({ route, navigation }: Props) {
     !failed &&
     !!summary?.total &&
     (positiveOnly || positiveCount === 0) &&
-    !(status === 'pending' && headline.kind !== 'waiting');
+    !(status === 'pending' && headline.kind !== 'open');
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top, backgroundColor: colors.background }]}>
@@ -518,7 +489,8 @@ export function ChapterFeedbackReviewScreen({ route, navigation }: Props) {
             ) : null
           }
           ListFooterComponent={
-            loading ? (
+            // The first load already shows the pull-to-refresh spinner; this one is for later pages.
+            loading && items.length > 0 ? (
               <ActivityIndicator color={colors.accentPrimary} />
             ) : cursor ? (
               <AppButton
@@ -561,30 +533,20 @@ export function ChapterFeedbackReviewScreen({ route, navigation }: Props) {
         ))}
       </Sheet>
 
-      <FeedbackFocusedReview
-        visible={!!review}
-        item={reviewItem}
-        position={(review?.handled.size ?? 0) + 1}
-        total={review?.queue.length ?? 0}
-        chapterLabel={chapterLabel}
-        language={i18n.language}
-        note={reviewItem ? (notes[reviewItem.id] ?? '') : ''}
+      <FeedbackResolveSheet
+        target={resolving}
+        note={resolving ? (notes[resolving.item.id] ?? '') : ''}
         onChangeNote={(value) => {
-          if (reviewItem) setNotes((previous) => ({ ...previous, [reviewItem.id]: value }));
+          if (resolving) {
+            setNotes((previous) => ({ ...previous, [resolving.item.id]: value }));
+          }
         }}
         busy={mutating}
-        failed={reviewFailed}
-        isPlaying={!!reviewItem && playing === reviewItem.id}
-        onPlay={() => {
-          if (reviewItem) void play(reviewItem);
+        failed={resolveFailed}
+        onConfirm={() => {
+          void confirmResolution();
         }}
-        onResolve={(resolution) => {
-          void decide(resolution);
-        }}
-        onSkip={() => {
-          if (reviewItem) advanceReview(reviewItem.id);
-        }}
-        onClose={closeReview}
+        onClose={() => setResolving(null)}
       />
     </View>
   );

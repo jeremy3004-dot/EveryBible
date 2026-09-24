@@ -1,0 +1,269 @@
+{
+  "metadata": {
+    "source": "src/data/localeCatalog.json",
+    "generator": "scripts/generate-onboarding-seed-languages.ts"
+  },
+  "languages": [
+    {
+      "iso6391": "ar",
+      "countryCodes": [
+        "DZ",
+        "BH",
+        "TD",
+        "KM",
+        "DJ",
+        "EG",
+        "ER",
+        "IQ",
+        "IL",
+        "JO",
+        "KW",
+        "LB",
+        "LY",
+        "MR",
+        "MA",
+        "NE",
+        "OM",
+        "QA",
+        "SA",
+        "SO",
+        "SD",
+        "SY",
+        "TN",
+        "AE",
+        "YE"
+      ],
+      "names": ["arabic", "العربية"]
+    },
+    {
+      "iso6391": "bn",
+      "countryCodes": ["BD", "IN"],
+      "names": ["bangla", "bengali", "বাংলা"]
+    },
+    {
+      "iso6391": "de",
+      "countryCodes": ["AT", "BE", "DE", "LI", "LU", "IT", "CH"],
+      "names": ["deutsch", "german"]
+    },
+    {
+      "iso6391": "en",
+      "countryCodes": [
+        "AG",
+        "AU",
+        "BS",
+        "BB",
+        "BZ",
+        "BW",
+        "CM",
+        "CA",
+        "CW",
+        "DM",
+        "ER",
+        "FJ",
+        "GM",
+        "GH",
+        "GD",
+        "GY",
+        "HK",
+        "IN",
+        "IE",
+        "JM",
+        "KE",
+        "KI",
+        "LS",
+        "LR",
+        "MW",
+        "MY",
+        "MT",
+        "MH",
+        "MU",
+        "FM",
+        "NA",
+        "NR",
+        "NZ",
+        "NG",
+        "PK",
+        "PW",
+        "PG",
+        "PH",
+        "RW",
+        "KN",
+        "LC",
+        "VC",
+        "WS",
+        "SC",
+        "SL",
+        "SG",
+        "SX",
+        "SB",
+        "ZA",
+        "SS",
+        "LK",
+        "SD",
+        "SZ",
+        "TZ",
+        "TO",
+        "TT",
+        "TV",
+        "UG",
+        "GB",
+        "US",
+        "VU",
+        "ZM",
+        "ZW"
+      ],
+      "names": ["english"]
+    },
+    {
+      "iso6391": "es",
+      "countryCodes": [
+        "AR",
+        "BO",
+        "CL",
+        "CO",
+        "CR",
+        "CU",
+        "DO",
+        "EC",
+        "SV",
+        "GQ",
+        "GT",
+        "HN",
+        "MX",
+        "NI",
+        "PA",
+        "PY",
+        "PE",
+        "PR",
+        "ES",
+        "UY",
+        "VE",
+        "EH"
+      ],
+      "names": ["castellano", "castilian", "español", "spanish"]
+    },
+    {
+      "iso6391": "fr",
+      "countryCodes": [
+        "BE",
+        "BJ",
+        "BF",
+        "BI",
+        "CM",
+        "CA",
+        "CF",
+        "TD",
+        "KM",
+        "CI",
+        "CD",
+        "CG",
+        "DJ",
+        "GQ",
+        "FR",
+        "GF",
+        "PF",
+        "GP",
+        "MQ",
+        "YT",
+        "NC",
+        "RE",
+        "BL",
+        "PM",
+        "WF",
+        "GA",
+        "GN",
+        "HT",
+        "IT",
+        "JE",
+        "LU",
+        "MG",
+        "ML",
+        "MU",
+        "MC",
+        "NE",
+        "RW",
+        "SN",
+        "SC",
+        "CH",
+        "TG",
+        "VU"
+      ],
+      "names": ["français", "french", "langue française"]
+    },
+    {
+      "iso6391": "hi",
+      "countryCodes": ["IN", "FJ"],
+      "names": ["hindi", "हिंदी", "हिन्दी"]
+    },
+    {
+      "iso6391": "id",
+      "countryCodes": ["ID"],
+      "names": ["bahasa indonesia", "indonesian"]
+    },
+    {
+      "iso6391": "ja",
+      "countryCodes": ["JP"],
+      "names": ["japanese", "日本語 (にほんご)"]
+    },
+    {
+      "iso6391": "ko",
+      "countryCodes": ["KP", "KR"],
+      "names": ["korean", "조선어", "한국어"]
+    },
+    {
+      "iso6391": "mr",
+      "countryCodes": [],
+      "names": ["marathi (marāṭhī)", "मराठी"]
+    },
+    {
+      "iso6391": "ne",
+      "countryCodes": ["NP"],
+      "names": ["nepali", "नेपाली"]
+    },
+    {
+      "iso6391": "pa",
+      "countryCodes": ["IN"],
+      "names": ["panjabi", "punjabi", "پنجابی‎", "ਪੰਜਾਬੀ"]
+    },
+    {
+      "iso6391": "pt",
+      "countryCodes": ["AO", "BR", "CV", "TL", "GQ", "GW", "MO", "MZ", "PT", "ST"],
+      "names": ["portuguese", "português"]
+    },
+    {
+      "iso6391": "ru",
+      "countryCodes": ["RU", "BY", "KZ", "KG", "TJ"],
+      "names": ["russian", "русский язык"]
+    },
+    {
+      "iso6391": "ta",
+      "countryCodes": ["IN", "SG", "LK", "MY", "MU"],
+      "names": ["tamil", "தமிழ்"]
+    },
+    {
+      "iso6391": "te",
+      "countryCodes": ["IN"],
+      "names": ["telugu", "తెలుగు"]
+    },
+    {
+      "iso6391": "tr",
+      "countryCodes": ["TR", "CY"],
+      "names": ["turkish", "türkçe"]
+    },
+    {
+      "iso6391": "ur",
+      "countryCodes": ["PK", "FJ"],
+      "names": ["urdu", "اردو"]
+    },
+    {
+      "iso6391": "vi",
+      "countryCodes": ["VN"],
+      "names": ["tiếng việt", "vietnamese"]
+    },
+    {
+      "iso6391": "zh",
+      "countryCodes": ["HK", "MO", "CN", "TW", "SG"],
+      "names": ["chinese", "中文 (zhōngwén)", "汉语", "漢語"]
+    }
+  ]
+}

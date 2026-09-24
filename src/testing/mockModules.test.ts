@@ -28,6 +28,15 @@ mockModule(mock, 'expo-file-system/legacy', {
   readAsStringAsync: async () => '',
 });
 
+// A repo file mocked by path and loaded with `import()`. The real module imports
+// expo-haptics, which is not mocked here and cannot load under Node.
+const mockedLightHaptic = () => {};
+const mockedSelectionHaptic = () => {};
+mockModule(mock, sourcePath('utils/haptics.ts'), {
+  lightHaptic: mockedLightHaptic,
+  selectionHaptic: mockedSelectionHaptic,
+});
+
 test('sourcePath resolves repo files relative to src/', () => {
   assert.match(sourcePath('stores/mmkvStorage.ts'), /\/src\/stores\/mmkvStorage\.ts$/);
 });
@@ -80,4 +89,11 @@ test('a configured getter lets one file flip the backend off without re-mocking'
 
   backendConfigured = true;
   assert.equal(isSupabaseConfigured(), true);
+});
+
+test('an import() of a repo file mocked by path gets the mock, not the real module', async () => {
+  const haptics = await import('../utils/haptics');
+
+  assert.equal(haptics.lightHaptic, mockedLightHaptic);
+  assert.equal(haptics.selectionHaptic, mockedSelectionHaptic);
 });

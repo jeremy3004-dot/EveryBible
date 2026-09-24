@@ -14,10 +14,14 @@ const archivo = Archivo({
   display: 'swap',
   variable: '--font-archivo',
 });
+/* Mono is only set at 400, 500 and 600. Naming those weights gets Google's
+   variable file cut to that part of the weight axis: 31 KB instead of 40 KB
+   for the full 100–800 range, with the same letterforms at these weights. */
 const jetbrainsMono = JetBrains_Mono({
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-jetbrains-mono',
+  weight: ['400', '500', '600'],
 });
 
 export const metadata: Metadata = siteMetadata;
@@ -35,10 +39,11 @@ export default function RootLayout({
       data-theme="dark"
     >
       <head>
-        {/* The homepage headline (the LCP element) is set in the bold face. */}
+        {/* The homepage headline (the LCP element) is set in the bold face;
+            its basic-Latin subset covers every character in it. */}
         <link
           rel="preload"
-          href="/fonts/AlteHaasGrotesk-Bold.woff2"
+          href="/fonts/AlteHaasGrotesk-Bold-latin.woff2"
           as="font"
           type="font/woff2"
           crossOrigin="anonymous"

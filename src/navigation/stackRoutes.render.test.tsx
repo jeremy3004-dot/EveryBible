@@ -1,23 +1,28 @@
 import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { createElement, Fragment, type ReactNode } from 'react';
+import { readdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { createElement, type ReactNode } from 'react';
 import { mockModule, sourcePath } from '../testing/mockModules';
 import { installRenderHarness } from '../testing/render';
 
 const harness = installRenderHarness(mock);
 
-// A native-stack double: the navigator renders its screens as host `Screen`
-// elements, so a test reads the registered routes and their options.
+// A native-stack double: the navigator renders as a host `Navigator` carrying its
+// props, and its screens as host `Screen` elements, so a test reads the registered
+// routes, their options and the navigator-wide layout.
 mockModule(mock, '@react-navigation/native-stack', {
   createNativeStackNavigator: () => ({
-    Navigator: ({ children }: { children: ReactNode }) => createElement(Fragment, null, children),
+    Navigator: (props: { children: ReactNode }) => createElement('Navigator', props),
     Screen: (props: Record<string, unknown>) => createElement('Screen', props),
   }),
 });
 
-// The error-boundary screen layout pulls in the app's storage; it has its own tests.
+// The error-boundary screen layout pulls in the app's storage; it has its own tests
+// (screenErrorLayout.test.ts). Here it only needs an identity to look for.
+const renderScreenWithErrorBoundary = ({ children }: { children: ReactNode }) => children;
 mockModule(mock, sourcePath('navigation/screenErrorLayout.ts'), {
-  renderScreenWithErrorBoundary: ({ children }: { children: ReactNode }) => children,
+  renderScreenWithErrorBoundary,
 });
 
 const BrowserScreen = () => null;
@@ -61,4 +66,35 @@ test('BibleStack presents the reader chapter picker as a modal that reuses the b
     undefined,
     'the browser tab itself is a normal page'
   );
+});
+
+// Without the per-screen boundary, one screen's render error blanks the whole app
+// instead of showing that screen's recovery view.
+test('every stack navigator wraps each of its screens in the per-screen error boundary', async () => {
+  const stacks: Record<string, () => Promise<Record<string, () => ReactNode>>> = {
+    AuthStack: () => import('./AuthStack'),
+    BibleStack: () => import('./BibleStack'),
+    HomeStack: () => import('./HomeStack'),
+    LearnStack: () => import('./LearnStack'),
+    MoreStack: () => import('./MoreStack'),
+    PlansStack: () => import('./PlansStack'),
+  };
+  const onDisk = readdirSync(fileURLToPath(new URL('.', import.meta.url).href))
+    .filter((file) => /Stack\.tsx$/.test(file))
+    .map((file) => file.replace(/\.tsx$/, ''))
+    .sort();
+  assert.deepEqual(Object.keys(stacks), onDisk, 'a new *Stack.tsx must be added here');
+
+  for (const [name, load] of Object.entries(stacks)) {
+    const Stack = (await load())[name];
+    const view = await harness.render(<Stack />);
+    const [navigator] = view.queryAllByType('Navigator');
+    assert.equal(
+      navigator.props.screenLayout,
+      renderScreenWithErrorBoundary,
+      `${name} must pass screenLayout={renderScreenWithErrorBoundary}`
+    );
+    assert.ok(view.queryAllByType('Screen').length > 0, `${name} registers its screens`);
+    await view.unmount();
+  }
 });

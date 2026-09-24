@@ -4,7 +4,6 @@ import { act, type ReactTestInstance } from 'react-test-renderer';
 import {
   flattenStyle,
   hostAncestors,
-  hostNodeCalls,
   textContent,
   within,
   type RenderResult,
@@ -233,18 +232,22 @@ test('the first frame of the Bible step never builds nation names or searches th
     fakes.log.indexOf('render:before') + 1,
     fakes.log.indexOf('render:after')
   );
-  // Recommendation scoring still looks each Bible's language up by name during
-  // this render (see the report on the engine guard); nothing else may.
-  assert.deepEqual(
-    [...new Set(firstPass)].filter((entry) => entry !== 'engine:getLanguageByName'),
-    []
-  );
-  assert.equal(firstPass.includes('prewarm'), false, 'the prewarm waits for interactions');
+  assert.deepEqual(firstPass, [], 'the first render touches neither the engine nor the prewarm');
   assert.equal(fakes.prewarmCalls.count, 1, 'the engine is prewarmed once after mount');
+  const prewarmAt = fakes.log.indexOf('prewarm');
   assert.deepEqual(
-    fakes.log.filter((entry) => /^engine:(?!getLanguageByName$)/.test(entry)),
+    fakes.log.slice(0, prewarmAt).filter((entry) => entry.startsWith('engine:')),
     [],
-    'no nation lookup, display-name build or search ever runs on the Bible step'
+    'nothing reads the locale engine before the off-critical-path prewarm'
+  );
+  // Once warm, ranking the pinned Bible may look languages up by name; nothing
+  // else (nation lookups, display names, searches) belongs to the Bible step.
+  assert.deepEqual(
+    fakes.log.filter(
+      (entry) => entry.startsWith('engine:') && entry !== 'engine:getLanguageByName'
+    ),
+    [],
+    'no nation lookup, display-name build or search runs on the Bible step'
   );
 });
 
@@ -272,7 +275,7 @@ test('the search field is the same mounted input while the list re-filters, and 
   context.mock.timers.enable({ apis: ['setTimeout'] });
   const view = await fakes.renderFlow();
   const search = view.getByTestId('onboarding-translation-search');
-  const scrolls = () => hostNodeCalls.filter((call) => call.method === 'scrollToOffset');
+  const scrolls = () => harness.refCalls.filter((call) => call.method === 'scrollToOffset');
 
   await view.changeText(search, 'Hau');
   await pause(context.mock.timers, 150);

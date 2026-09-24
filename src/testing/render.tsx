@@ -41,8 +41,8 @@ import { en } from '../i18n/locales/en';
 import { mockBarrel, mockModule, mockPackage, sourcePath } from './mockModules';
 import {
   createHostNodeMock,
-  hostNodeCalls,
   createReactNativeRenderStub,
+  type HostRefCall,
   type ReactNativeRenderStub,
 } from './reactNativeHost';
 import {
@@ -70,7 +70,7 @@ import {
   type Queries,
 } from './renderQueries';
 
-export { flattenStyle, hostNodeCalls, type HostNodeCall } from './reactNativeHost';
+export { flattenStyle, type HostRefCall } from './reactNativeHost';
 export {
   accessibilityLabelOf,
   debugTree,
@@ -262,6 +262,8 @@ export interface RenderHarness {
   haptics: HapticsCall[];
   /** Every reanimated `withTiming` / `withSpring` call since the test started. */
   animations: AnimationCall[];
+  /** Imperative ref calls (`scrollToOffset`, `focus`, ...) since the test started. */
+  refCalls: HostRefCall[];
   insets: Insets;
   /** Read by reanimated's `useReducedMotion` and `AccessibilityInfo`. Reset after each test. */
   setReduceMotion: (value: boolean) => void;
@@ -288,6 +290,7 @@ export function installRenderHarness(
   });
   const insets: Insets = { top: 47, right: 0, bottom: 34, left: 0, ...options.insets };
   const haptics: HapticsCall[] = [];
+  const refCalls: HostRefCall[] = [];
   const navigation = createNavigationFake();
   const authStore = createFakeAuthStore(options.theme ?? 'light');
   const i18n = createTestI18n();
@@ -324,12 +327,12 @@ export function installRenderHarness(
     await cleanup();
     navigation.reset();
     haptics.length = 0;
+    refCalls.length = 0;
     motion.animations.length = 0;
     motion.reduceMotion = false;
     rn.__recorded.alerts.length = 0;
     rn.__recorded.announcements.length = 0;
     rn.__recorded.shares.length = 0;
-    hostNodeCalls.length = 0;
     authStore.setState(authStore.getInitialState(), true);
   });
 
@@ -346,7 +349,7 @@ export function installRenderHarness(
     let renderer!: ReactTestRenderer;
     await act(async () => {
       renderer = TestRenderer.create(wrap(element), {
-        createNodeMock: createHostNodeMock,
+        createNodeMock: (element: ReactElement) => createHostNodeMock(element, refCalls),
         // Honoured when IS_REACT_NATIVE_TEST_ENVIRONMENT is set; missing from the types.
         unstable_isConcurrent: true,
       } as TestRendererOptions);
@@ -404,6 +407,7 @@ export function installRenderHarness(
     navigation,
     haptics,
     animations: motion.animations,
+    refCalls,
     insets,
     setReduceMotion: (value) => {
       motion.reduceMotion = value;

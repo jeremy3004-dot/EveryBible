@@ -447,49 +447,46 @@ export function createReactNativeRenderStub(options: ReactNativeRenderStubOption
 
 export type ReactNativeRenderStub = ReturnType<typeof createReactNativeRenderStub>;
 
-export interface HostNodeCall {
+/** An imperative call a component made through a host element's ref. */
+export interface HostRefCall {
+  /** Host type the ref points at (`FlatList`, `ScrollView`, `TextInput`, ...). */
+  type: string;
   method: string;
-  /** The host element the ref points at (`'TextInput'`, `'FlatList'`, ...). */
-  type: unknown;
-  props: Record<string, unknown>;
   args: unknown[];
+  /** Props of the host element the ref points at (its label, `collapsable`, ...). */
+  props: Record<string, unknown>;
 }
 
 /**
- * Every imperative call a component made on a host ref (`focus()`,
- * `scrollToIndex(...)`), oldest first. Cleared after each test by the harness.
+ * Ref targets for host elements: the imperative methods components call on refs.
+ * Pass `calls` to record them (scrolls, focus) so a test can assert what a
+ * component asked the native view to do.
  */
-export const hostNodeCalls: HostNodeCall[] = [];
-
-const HOST_NODE_METHODS = [
-  'focus',
-  'blur',
-  'clear',
-  'measure',
-  'measureInWindow',
-  'measureLayout',
-  'setNativeProps',
-  'scrollTo',
-  'scrollToEnd',
-  'scrollToOffset',
-  'scrollToIndex',
-  'scrollToLocation',
-  'flashScrollIndicators',
-];
-
-/** Ref targets for host elements: the imperative methods components call on refs, recorded. */
 export function createHostNodeMock(
-  element: ReactElement
+  element: ReactElement,
+  calls?: HostRefCall[]
 ): Record<string, (...args: unknown[]) => void> {
-  const record =
-    (method: string) =>
+  const type = typeof element.type === 'string' ? element.type : 'Component';
+  const method =
+    (name: string) =>
     (...args: unknown[]) => {
-      hostNodeCalls.push({
-        method,
-        type: element.type,
-        props: element.props as Record<string, unknown>,
-        args,
-      });
+      calls?.push({ type, method: name, args, props: element.props as Record<string, unknown> });
     };
-  return Object.fromEntries(HOST_NODE_METHODS.map((method) => [method, record(method)]));
+  return Object.fromEntries(
+    [
+      'focus',
+      'blur',
+      'clear',
+      'measure',
+      'measureInWindow',
+      'measureLayout',
+      'setNativeProps',
+      'scrollTo',
+      'scrollToEnd',
+      'scrollToOffset',
+      'scrollToIndex',
+      'scrollToLocation',
+      'flashScrollIndicators',
+    ].map((name) => [name, method(name)])
+  );
 }

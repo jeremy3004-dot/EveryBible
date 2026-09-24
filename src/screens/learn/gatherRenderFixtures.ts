@@ -6,15 +6,15 @@ import type { MockTracker } from 'node:test';
 import type { i18n as I18nInstance } from 'i18next';
 import type { ReactTestInstance } from 'react-test-renderer';
 import { create } from 'zustand';
-import { gatherArtworkXml } from '../../data/gatherArtwork';
+import { getGatherArtworkXml } from '../../data/gatherArtwork';
 import { mockPackage } from '../../testing/mockModules';
 import { createSvgFake } from '../../testing/nativePackageFakes';
 
 /**
  * The harness's react-native-svg fake has a component as its default export.
  * Node's CommonJS module mocks refuse named exports beside a non-object
- * default, and GatherIconBadge (which also calls `require()`) loads as
- * CommonJS under tsx. Install the harness with `skip: ['react-native-svg']`
+ * default, and GatherIconBadge (whose artwork registry calls `require()`)
+ * loads as CommonJS under tsx. Install the harness with `skip: ['react-native-svg']`
  * and call this instead: same host components, object default.
  */
 export function mockSvgForCommonJs(mocker: MockTracker): void {
@@ -59,7 +59,7 @@ export function createFakeGatherStore() {
  * produces: the embedded bitmap for wrapped exports, otherwise the first path.
  */
 export function artworkFingerprint(key: string): string {
-  const xml = gatherArtworkXml[key];
+  const xml = getGatherArtworkXml(key);
   if (!xml) throw new Error(`no gather artwork registered for ${key}`);
   const bitmap = xml.match(/(?:xlink:href|href)="(data:image\/[^"]+)"/i);
   if (bitmap) return bitmap[1];

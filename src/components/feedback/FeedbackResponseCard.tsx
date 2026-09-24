@@ -8,12 +8,11 @@ import {
   formatVoiceNoteDuration,
   getFeedbackOutcomeKey,
   getFeedbackSourceKey,
+  getResolutionChoices,
+  getResolutionLabelKey,
   type ChapterFeedbackReviewItem,
+  type TranslatorFeedbackResolution,
 } from '../../services/feedback';
-import {
-  buildFeedbackResponseAccessibilityLabel,
-  getFeedbackCardActions,
-} from './feedbackResponseAccessibility';
 
 export interface FeedbackVerdictProps {
   item: ChapterFeedbackReviewItem;
@@ -75,21 +74,20 @@ export interface FeedbackResponseCardProps {
   isPlaying: boolean;
   busy: boolean;
   onPlay: () => void;
-  /** Open items: start the focused review at this item. */
-  onReview: () => void;
-  /** Open praise: settle it without leaving the list. */
-  onMarkReviewed: () => void;
+  /** Open items: settle this item one way or the other. */
+  onResolve: (resolution: TranslatorFeedbackResolution) => void;
   onReopen: () => void;
 }
 
+// A card is read, not opened: its Listen, Mark, and Reopen buttons are each their own
+// screen-reader stop, so the card itself takes no label or custom actions.
 export function FeedbackResponseCard({
   item,
   language,
   isPlaying,
   busy,
   onPlay,
-  onReview,
-  onMarkReviewed,
+  onResolve,
   onReopen,
 }: FeedbackResponseCardProps) {
   const { colors } = useTheme();
@@ -97,54 +95,30 @@ export function FeedbackResponseCard({
   const isOpen = !item.resolution;
   const name = item.participantName || t('bible.translatorReviewUnknownUser');
   const date = new Date(item.createdAt).toLocaleDateString(language);
-  const cardActions = getFeedbackCardActions(t, item, { isPlaying, busy });
 
   return (
-    <AppCard
-      onPress={isOpen ? onReview : undefined}
-      // Settled cards take no label: AppCard would make the card one element and swallow
-      // the Listen and Reopen buttons, which have no other way in.
-      accessibilityLabel={
-        isOpen ? buildFeedbackResponseAccessibilityLabel(t, item, date) : undefined
-      }
-      // An open card is one button, so the audio and Mark reviewed buttons inside it
-      // are unreachable by VoiceOver; they are offered again as custom actions.
-      accessibilityActions={isOpen && cardActions.length > 0 ? cardActions : undefined}
-      onAccessibilityAction={(event) => {
-        const action = event.nativeEvent.actionName;
-        if (action === 'play') onPlay();
-        else if (action === 'markReviewed') onMarkReviewed();
-      }}
-    >
+    <AppCard>
       <View style={styles.body}>
         <FeedbackVerdict item={item} />
         {!!item.comment && (
-          <Text style={[styles.comment, { color: colors.primaryText }]} numberOfLines={4}>
-            {item.comment}
-          </Text>
+          <Text style={[styles.comment, { color: colors.primaryText }]}>{item.comment}</Text>
         )}
         <FeedbackAudioButton item={item} isPlaying={isPlaying} onPlay={onPlay} />
         <Text style={[styles.meta, { color: colors.secondaryText }]}>{`${name} · ${date}`}</Text>
 
         {isOpen ? (
           <View style={[styles.actions, { borderTopColor: colors.cardBorder }]}>
-            {item.sentiment === 'down' ? (
+            {getResolutionChoices(item).map((resolution) => (
               <AppButton
-                label={t('feedback.reviewFeedback')}
-                variant="outline"
-                size="md"
-                onPress={onReview}
-              />
-            ) : (
-              <AppButton
-                label={t('feedback.markReviewed')}
-                leadingIcon={Check}
+                key={resolution}
+                label={t(getResolutionLabelKey(item, resolution))}
+                leadingIcon={resolution === 'fixed' || item.sentiment === 'up' ? Check : undefined}
                 variant="outline"
                 size="md"
                 disabled={busy}
-                onPress={onMarkReviewed}
+                onPress={() => onResolve(resolution)}
               />
-            )}
+            ))}
           </View>
         ) : (
           <View style={[styles.actions, { borderTopColor: colors.cardBorder }]}>
@@ -189,6 +163,7 @@ const styles = StyleSheet.create({
   audioButton: { alignSelf: 'flex-start' },
   actions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.md,

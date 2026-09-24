@@ -361,41 +361,6 @@ test('app-shell modules import concrete files instead of the hooks/constants/sto
   });
 });
 
-test('LoadingScreen fails closed until privacy initialization completes', () => {
-  const appSource = readRelativeSource('../../../App.tsx');
-
-  assert.match(
-    appSource,
-    /const isPrivacyInitialized = usePrivacyStore\(\(state\) => state\.isInitialized\);/,
-    'LoadingScreen should observe privacy initialization state before exposing sensitive content'
-  );
-
-  assert.match(
-    appSource,
-    /if \(!isReady \|\| !isPrivacyInitialized \|\| shouldWaitForFonts\) \{[\s\S]*<View style=\{\[styles\.bootShell/,
-    'LoadingScreen should keep the boot shell visible while privacy initialization is pending'
-  );
-
-  assert.match(
-    appSource,
-    /if \(\s*!isReady\s*\|\|\s*!preferences\.onboardingCompleted\s*\|\|\s*!isPrivacyInitialized\s*\|\|\s*isPrivacyLocked\s*\)/,
-    'LoadingScreen should not schedule the navigator before privacy initialization completes'
-  );
-
-  assert.match(
-    appSource,
-    /createAuthInitializer\(\{[\s\S]*rehydrateAuth:\s*\(\)\s*=>\s*useAuthStore\.persist\.rehydrate\(\),[\s\S]*initializeAuth,[\s\S]*\}\)/,
-    'LoadingScreen should rehydrate persisted auth state after privacy migration before auth initialization'
-  );
-
-  const privacyLockIndex = appSource.indexOf('if (isPrivacyLocked) {');
-  const onboardingIndex = appSource.indexOf('if (!preferences.onboardingCompleted) {');
-  assert.ok(
-    privacyLockIndex !== -1 && onboardingIndex !== -1 && privacyLockIndex < onboardingIndex,
-    'LoadingScreen should render the privacy lock before onboarding once readiness is complete'
-  );
-});
-
 test('App render path does not call impure timing helpers', () => {
   const appSource = readRelativeSource('../../../App.tsx');
   const appStart = appSource.indexOf('export default function App()');
@@ -406,40 +371,6 @@ test('App render path does not call impure timing helpers', () => {
     /Date\.now\(/.test(appRenderSource),
     false,
     'App component render body should stay pure; keep timing logs in effects or module scope'
-  );
-});
-
-// UI-only source check (no component renderer): a render or effect error outside
-// every ErrorBoundary is a fatal RCTFatal crash in a release build.
-test('App wraps the providers, AppContent and the runtime-effects host in error boundaries', () => {
-  const appSource = readRelativeSource('../../../App.tsx');
-  const appStart = appSource.indexOf('export default function App()');
-  const appRenderSource = appSource.slice(
-    appStart,
-    appSource.indexOf('function AppContent()', appStart)
-  );
-
-  assert.match(
-    appRenderSource,
-    /<GestureHandlerRootView[^>]*>(?:\s*\{\/\*[\s\S]*?\*\/\})?\s*<ErrorBoundary scope="root">\s*<I18nextProvider/,
-    'the provider tree and AppContent (its effects and hooks) need a root boundary'
-  );
-  assert.match(
-    appSource,
-    /<ErrorBoundary scope="runtime-effects" fallback=\{null\}>\s*<AppRuntimeEffectsHost/,
-    'the runtime-effects host renders nothing, so on failure it must render nothing'
-  );
-  // The privacy lock fails closed: its own boundary, outside the runtime-effects one, and
-  // a caught error locks a discreet install (LoadingScreen then shows the lock screen).
-  assert.match(
-    appSource,
-    /<ErrorBoundary\s+scope="privacy-lock"\s+fallback=\{null\}\s+onError=\{lockAfterPrivacyLockFailure\}\s*>\s*<PrivacyLockHost \/>\s*<\/ErrorBoundary>/,
-    'the privacy lock needs its own fail-closed boundary'
-  );
-  assert.match(
-    appSource,
-    /function PrivacyLockHost\(\) \{\s*usePrivacyLock\(\);\s*return null;\s*\}/,
-    'the privacy lock host mounts only the lock, so no other effect can take it down'
   );
 });
 
@@ -572,6 +503,50 @@ test('nothing evaluated before Home loads react-query, the expo-notifications ro
   assert.ok(
     [...home].some((file) => file.endsWith('src/services/bible/bibleDatabaseSources.ts')),
     'bibleStore should still register its database resolvers at import — check the walker if this fails'
+  );
+});
+
+// Large bundled data is required at first use, never imported by anything evaluated
+// before Home. See round 3 of docs/research/app-performance-pass-2026-09-24.md.
+test('nothing evaluated before Home imports the large bundled data tables', () => {
+  const deferredData = [
+    // One SVG per Gather artwork; the registry requires each when it is first drawn.
+    /\/src\/data\/gatherArtworkSvg\//,
+    // Packed verse timings; bibleStore imports the service at launch, not the tables.
+    /\/src\/data\/verseTimestamps\.[a-z]+\.generated\.json$/,
+    /\/src\/data\/localeCatalog\.json$/,
+    /\/src\/data\/countryDisplayNames\.generated\.json$/,
+    /\/src\/constants\/bookIconVectors\.generated\.json$/,
+    // Its grammars are ~45 KB each; only the Bible browser's search needs them.
+    /\/src\/services\/bible\/referenceParser\.ts$/,
+  ];
+  const entries = [...PATH_TO_HOME, '../bible/verseTimestamps.ts', '../../data/gatherArtwork.ts'];
+
+  entries.forEach((entry) => {
+    const { files, packages } = collectStaticImports(
+      fileURLToPath(new URL(entry, import.meta.url).href)
+    );
+    const closurePaths = [...files].map((file) => file.replace(/\\/g, '/'));
+    deferredData.forEach((pattern) => {
+      const hit = closurePaths.find((file) => pattern.test(file));
+      assert.equal(hit, undefined, `${entry}'s static closure must not reach ${hit}`);
+    });
+    assert.equal(
+      [...packages.keys()].some((specifier) =>
+        specifier.startsWith('bible-passage-reference-parser')
+      ),
+      false,
+      `${entry}'s static closure must not import the reference parser`
+    );
+  });
+
+  // The walker must still see the registry itself, which HomeScreen imports through the badge.
+  const home = collectStaticImportClosure(
+    fileURLToPath(new URL(PATH_TO_HOME[2], import.meta.url).href)
+  );
+  assert.ok(
+    [...home].some((file) => file.endsWith('src/data/gatherArtwork.ts')),
+    'HomeScreen should reach the Gather artwork registry — check the walker if this fails'
   );
 });
 

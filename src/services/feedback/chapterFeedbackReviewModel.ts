@@ -9,7 +9,7 @@ export type ChapterReviewHeadline =
   | { kind: 'loading' }
   | { kind: 'empty' }
   | { kind: 'caughtUp' }
-  | { kind: 'waiting'; count: number };
+  | { kind: 'open'; count: number };
 
 export function getChapterReviewHeadline(
   summary: TranslatorFeedbackChapterSummary | null,
@@ -19,7 +19,7 @@ export function getChapterReviewHeadline(
     return loading ? { kind: 'loading' } : { kind: 'empty' };
   }
   const count = summary.unresolvedDown + summary.unresolvedUp;
-  return count > 0 ? { kind: 'waiting', count } : { kind: 'caughtUp' };
+  return count > 0 ? { kind: 'open', count } : { kind: 'caughtUp' };
 }
 
 export type FeedbackSourceKey = 'feedback.council' | 'feedback.community' | 'feedback.legacy';
@@ -60,44 +60,13 @@ export function getResolutionChoices(
   return item.sentiment === 'down' ? ['fixed', 'no_change_needed'] : ['no_change_needed'];
 }
 
-/**
- * The open items a focused review walks through: every unresolved item on screen, in
- * the server's order (concerns first), starting at the one the reviewer tapped.
- */
-export function buildReviewQueue(items: ChapterFeedbackReviewItem[], startId?: string): string[] {
-  const open = items.filter((item) => !item.resolution).map((item) => item.id);
-  const start = startId ? open.indexOf(startId) : -1;
-  return start > 0 ? [...open.slice(start), ...open.slice(0, start)] : open;
-}
-
-/**
- * The next item to show after `currentId`, skipping everything already decided or
- * skipped this session; null once nothing is left.
- */
-export function getNextQueuedId(
-  queue: string[],
-  handled: ReadonlySet<string>,
-  currentId: string | null
-): string | null {
-  const from = currentId ? queue.indexOf(currentId) : -1;
-  for (let step = 1; step <= queue.length; step += 1) {
-    const id = queue[(from + step + queue.length) % queue.length];
-    if (id !== currentId && !handled.has(id)) return id;
-  }
-  return null;
-}
-
-/**
- * The session after `id` is decided or skipped: it joins the handled set and the next open
- * item comes up. A decision is saved before it advances, so it must advance whatever the
- * session is by then: a review closed meanwhile stays closed (null) rather than reopening.
- */
-export function advanceReviewSession<
-  T extends { queue: string[]; currentId: string | null; handled: ReadonlySet<string> },
->(session: T | null, id: string): T | null {
-  if (!session) return null;
-  const handled = new Set(session.handled).add(id);
-  return { ...session, handled, currentId: getNextQueuedId(session.queue, handled, id) };
+/** The button and sheet title for settling an item one way or the other. */
+export function getResolutionLabelKey(
+  item: ChapterFeedbackReviewItem,
+  resolution: TranslatorFeedbackResolution
+): 'feedback.markAddressed' | 'feedback.markReviewed' | 'feedback.noChange' {
+  if (resolution === 'fixed') return 'feedback.markAddressed';
+  return item.sentiment === 'up' ? 'feedback.markReviewed' : 'feedback.noChange';
 }
 
 export function formatVoiceNoteDuration(durationMs: number): string {

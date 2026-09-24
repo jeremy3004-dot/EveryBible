@@ -176,6 +176,17 @@ export function ReadingActivityScreen() {
   const sessionMinutes = selectedDay
     ? Math.round((selectedDay.lastReadAt - selectedDay.firstReadAt) / MINUTE_MS)
     : 0;
+  const daySummary = selectedDay
+    ? t('readingActivity.dayChapters', { count: selectedDay.chapterCount, books: selectedBooks })
+    : t('readingActivity.noReading');
+  const dayWindow =
+    selectedDay && sessionMinutes > 0
+      ? t('readingActivity.sessionWindow', {
+          start: formatTime(selectedDay.firstReadAt, i18n.language),
+          end: formatTime(selectedDay.lastReadAt, i18n.language),
+          duration: formatListeningTime(sessionMinutes, t),
+        })
+      : null;
   // The card's chevron has to lead somewhere: it reopens the day's first
   // chapter, the same cross-tab jump the annotations list makes.
   const selectedChapter = selectedDay
@@ -284,6 +295,15 @@ export function ReadingActivityScreen() {
                 colors={colors}
                 styles={styles}
                 label={formatDayEyebrow(cell.dateKey, i18n.language)}
+                // The fill is the only visual cue, so the state is spoken as the value.
+                stateLabel={
+                  [
+                    cell.state === 'read' ? t('readingActivity.legendRead') : null,
+                    cell.isToday ? t('readingActivity.legendToday') : null,
+                  ]
+                    .filter(Boolean)
+                    .join(', ') || undefined
+                }
                 onPress={() => setSelectedDateKey(cell.dateKey)}
               />
             ))}
@@ -313,9 +333,13 @@ export function ReadingActivityScreen() {
           style={styles.dayCard}
           pressable={Boolean(selectedChapter)}
           onPress={selectedChapter ? openSelectedChapter : undefined}
+          // The label replaces the card's children for a screen reader, so it
+          // carries the summary as well as the date.
           accessibilityLabel={
             effectiveSelectedDateKey
-              ? formatDayEyebrow(effectiveSelectedDateKey, i18n.language)
+              ? [formatDayEyebrow(effectiveSelectedDateKey, i18n.language), daySummary, dayWindow]
+                  .filter(Boolean)
+                  .join(', ')
               : undefined
           }
         >
@@ -328,25 +352,14 @@ export function ReadingActivityScreen() {
               </Text>
               {selectedDay ? (
                 <>
-                  <Text style={styles.daySummary}>
-                    {t('readingActivity.dayChapters', {
-                      count: selectedDay.chapterCount,
-                      books: selectedBooks,
-                    })}
-                  </Text>
-                  {sessionMinutes > 0 ? (
-                    <Text style={[styles.dayWindow, displayFont.regular]}>
-                      {t('readingActivity.sessionWindow', {
-                        start: formatTime(selectedDay.firstReadAt, i18n.language),
-                        end: formatTime(selectedDay.lastReadAt, i18n.language),
-                        duration: formatListeningTime(sessionMinutes, t),
-                      })}
-                    </Text>
+                  <Text style={styles.daySummary}>{daySummary}</Text>
+                  {dayWindow ? (
+                    <Text style={[styles.dayWindow, displayFont.regular]}>{dayWindow}</Text>
                   ) : null}
                 </>
               ) : (
                 <>
-                  <Text style={styles.daySummary}>{t('readingActivity.noReading')}</Text>
+                  <Text style={styles.daySummary}>{daySummary}</Text>
                   <Text style={[styles.dayWindow, displayFont.regular]}>
                     {t('readingActivity.noReadingHint')}
                   </Text>
@@ -371,6 +384,7 @@ interface CalendarCellProps {
   colors: ThemeColors;
   styles: ReturnType<typeof createStyles>;
   label: string;
+  stateLabel?: string;
   onPress: () => void;
 }
 
@@ -378,7 +392,15 @@ interface CalendarCellProps {
 // accent hairline, everything else is an inert `muted` well. The selection ring
 // is drawn as two nested borders bleeding into the 6pt gutter so it never
 // changes the cell's own size.
-function CalendarCell({ cell, size, colors, styles, label, onPress }: CalendarCellProps) {
+function CalendarCell({
+  cell,
+  size,
+  colors,
+  styles,
+  label,
+  stateLabel,
+  onPress,
+}: CalendarCellProps) {
   const isRead = cell.state === 'read';
   const isToday = cell.state === 'today';
 
@@ -388,6 +410,7 @@ function CalendarCell({ cell, size, colors, styles, label, onPress }: CalendarCe
       style={[styles.cellSlot, { width: size, height: size }, !cell.inMonth && styles.cellLeading]}
       accessibilityRole="button"
       accessibilityLabel={label}
+      accessibilityValue={stateLabel ? { text: stateLabel } : undefined}
       accessibilityState={{ selected: cell.isSelected }}
     >
       <View

@@ -701,7 +701,10 @@
 .public-atlas .maplibregl-popup-anchor-bottom .maplibregl-popup-tip {
   border-top-color: hsl(var(--popover));
 }
-.public-atlas .maplibregl-ctrl-attrib {
+/* MapLibre's stylesheet now loads after this one (with the map chunk), so
+   overrides of its rules must win on specificity, not source order: its
+   compact attribution rule is two classes. */
+.public-atlas .maplibregl-ctrl.maplibregl-ctrl-attrib {
   background: hsl(var(--card) / 0.8);
   color: hsl(var(--muted-foreground));
   font-size: 12px;
@@ -1540,6 +1543,17 @@
   }
 }
 @media (max-width: 760px) {
+  /* The server renders the desktop layout because it cannot know the
+     viewport; PublicLanguageAtlas drops these once it hydrates on a phone.
+     Hiding them here keeps them from flashing over the map before then, and
+     keeps the phone from downloading the regular display face just for the
+     dock's placeholder counts. */
+  .pa-rail,
+  .pa-dock,
+  .pa-search-wrap > .pa-browse,
+  .pa-search-hints > p {
+    display: none;
+  }
   .pa-search-hints {
     display: contents;
   }

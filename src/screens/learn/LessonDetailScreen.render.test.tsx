@@ -89,6 +89,8 @@ type StatusListener = (status: Record<string, unknown>) => void;
 interface FakeSound {
   calls: { method: string; args: unknown[] }[];
   listener: StatusListener;
+  /** Like expo-av: starts as `shouldPlay` asked, then follows playAsync/pauseAsync. */
+  isPlaying: boolean;
 }
 const sounds: { source: unknown; initial: Record<string, unknown>; sound: FakeSound }[] = [];
 mockPackage(mock, 'expo-av', {
@@ -106,11 +108,18 @@ mockPackage(mock, 'expo-av', {
           async (...args: unknown[]) => {
             calls.push({ method, args });
           };
+        const playing =
+          (isPlaying: boolean) =>
+          async (...args: unknown[]) => {
+            await record(isPlaying ? 'playAsync' : 'pauseAsync')(...args);
+            sound.isPlaying = isPlaying;
+          };
         const sound = {
           calls,
           listener,
-          playAsync: record('playAsync'),
-          pauseAsync: record('pauseAsync'),
+          isPlaying: initial.shouldPlay === true,
+          playAsync: playing(true),
+          pauseAsync: playing(false),
           unloadAsync: record('unloadAsync'),
           setRateAsync: record('setRateAsync'),
           setPositionAsync: record('setPositionAsync'),
@@ -335,18 +344,17 @@ test('play starts the chapter at the chosen speed and the same control pauses it
   await view.press(view.getByRole('button', { name: PLAY() }));
   assert.equal(sounds.length, 1);
   assert.deepEqual(sounds[0].source, { uri: 'https://audio.test/web/GEN/1.mp3' });
-  assert.equal(sounds[0].initial.shouldPlay, true);
+  assert.equal(sounds[0].sound.isPlaying, true, 'the chapter is playing');
   assert.equal(sounds[0].initial.rate, 1);
 
   await view.press(view.getByRole('button', { name: PAUSE() }));
-  assert.deepEqual(
-    sounds[0].sound.calls.map((call) => call.method),
-    ['pauseAsync']
-  );
+  assert.equal(sounds[0].sound.isPlaying, false, 'the same control pauses it');
+  assert.equal(sounds[0].sound.calls.at(-1)?.method, 'pauseAsync');
   assert.ok(view.getByRole('button', { name: PLAY() }));
 
   await view.press(view.getByRole('button', { name: PLAY() }));
   assert.equal(sounds.length, 1, 'the loaded sound is resumed, not reloaded');
+  assert.equal(sounds[0].sound.isPlaying, true);
   assert.deepEqual(sounds[0].sound.calls.at(-1)?.method, 'playAsync');
 });
 
@@ -476,7 +484,7 @@ test('the application prompts offer to replay the story and to share the app', a
   await view.flush();
   assert.equal(scrolls.length, 1, 'jumps back to the story');
   assert.equal(sounds.length, 1, 'and starts the chapter audio');
-  assert.equal(sounds[0].initial.shouldPlay, true);
+  assert.equal(sounds[0].sound.isPlaying, true);
 
   await view.press(view.getByRole('button', { name: t('learn.shareApp') }));
   assert.deepEqual(harness.rn.__recorded.shares, [{ message: t('common.shareMessage') }]);
