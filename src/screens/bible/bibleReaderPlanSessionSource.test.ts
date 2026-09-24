@@ -128,7 +128,7 @@ test('BibleReaderScreen renders plan chrome with a top-left exit arrow and botto
   );
   assert.match(
     source,
-    /renderPlanSessionBottomBar/,
+    /<PlanSessionBottomBar/,
     'BibleReaderScreen should render a dedicated bottom strip for plan context'
   );
   assert.match(

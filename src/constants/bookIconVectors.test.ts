@@ -20,7 +20,7 @@ test('every existing book-art placement uses the shared vector renderer and its 
   const placements = [
     ['../screens/bible/BibleBrowserScreen.tsx', 'book.id'],
     ['../screens/bible/ChapterSelectorScreen.tsx', 'book.id'],
-    ['../screens/bible/BibleReaderScreen.tsx', 'bookId'],
+    ['../screens/bible/reader/ReaderListenMode.tsx', 'bookId'],
     ['../components/bible/CompanionCard.tsx', 'item.target.bookId'],
   ];
   for (const [file, bookId] of placements) {

@@ -21,7 +21,7 @@ const TOUCHABLES = new Set([
 // Verses are read as scripture, not announced as buttons; they expose
 // `selected` instead. Counted per file so a new unroled touchable still fails.
 const ROLELESS_ALLOWED: Record<string, number> = {
-  'src/screens/bible/BibleReaderScreen.tsx': 2,
+  'src/screens/bible/reader/ReaderVerseList.tsx': 2,
   'src/components/bible/HighlightedVerseText.tsx': 1,
 };
 

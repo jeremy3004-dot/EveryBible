@@ -1,5 +1,4 @@
 import { ChapterFeedbackSummary } from '../../components/feedback';
-import { BookIcon } from '../../components/bible/BookIcon';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
 import {
@@ -10,7 +9,6 @@ import {
   LayoutAnimation,
   InteractionManager,
   Platform,
-  Pressable,
   ScrollView,
   Share,
   Text,
@@ -27,8 +25,6 @@ import Animated, {
   Extrapolation,
   withSpring,
   runOnJS,
-  SlideInDown,
-  SlideOutDown,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -108,16 +104,13 @@ import { ReaderPlaybackDock } from '../../components/audio/ReaderPlaybackDock';
 import {
   ReaderAudioPortionPreviewGuard,
   ReaderAudioPositionBridge,
-  ReaderListenProgress,
 } from './ReaderAudioPositionParts';
 import type {
   ReaderAudioPositionBridgeHandle,
   ReaderAudioPositionSnapshot,
   ReaderFollowAlongPlaybackState,
 } from './ReaderAudioPositionParts';
-import { PlaybackControls } from '../../components/audio/PlaybackControls';
 import { AnnotationActionSheet } from '../../components/annotations/AnnotationActionSheet';
-import { HighlightedVerseText } from '../../components/bible/HighlightedVerseText';
 import { VersesSkeleton } from '../../components/skeleton/VersesSkeleton';
 import type { BibleTranslation, Verse } from '../../types';
 import type { UserAnnotation } from '../../services/supabase/types';
@@ -128,7 +121,6 @@ import {
   extractBibleSelectionText,
   formatBibleSelectionReference,
   getBibleSelectionShareTranslationLabel,
-  toggleBibleSelectionVerse,
 } from './bibleSelectionModel';
 import {
   buildReaderHighlightIndex,
@@ -141,17 +133,13 @@ import { getHomeVerseBackgroundIndex } from '../../data/homeVerseBackgroundSelec
 import {
   buildReaderParagraphs,
   buildReaderChapterRouteParams,
-  getListenCountedNoticeViewModel,
   getPlanSessionTrailingActionState,
   getNextBibleTabBarVisibility,
   getReaderAutoScrollTarget,
   getReaderInlineActiveVerse,
   getAnnotationsForDisplayedVerses,
-  canSelectDisplayedVerse,
-  getPlanSessionBannerColors,
   getReaderVerseContentOffset,
   getInitialChapterSessionMode,
-  LISTEN_COUNTED_NOTICE_TEST_ID,
   getReaderVerseLineHeight,
   resolveSwipeChapterNavigation,
   isActiveAudioTrackMatch,
@@ -185,15 +173,16 @@ import {
   ChapterAudioShareSheet,
   ChapterFeedbackModal,
   FollowAlongTextSheet,
-  ListenFeedbackComposer,
+  PlanSessionBottomBar,
   ReaderFontSheet,
+  ReaderListenMode,
   ReaderParagraphBlock,
   ReaderTranslationSheet,
+  ReaderVerseList,
   VerseImageShareSheet,
   TOP_ACTION_HIT_SLOP,
   TOP_ACTION_ICON_SIZE,
   READER_REFERENCE_PILL_MAX_FONT_SCALE,
-  PLAN_SESSION_BAR_MAX_FONT_SCALE,
   READER_SCROLL_JS_UPDATE_INTERVAL_PX,
   styles,
   useAudioPortionShare,
@@ -2599,255 +2588,9 @@ export function BibleReaderScreen() {
     }
   };
 
-  const renderPlanSessionBottomBar = () => {
-    if (!showPlanSessionChrome || !activePlanTitle || typeof planDayNumber !== 'number') {
-      return null;
-    }
-
-    const planSessionBottomBarHeight = rootTabBarHeight;
-    const showPlanChapterArrows = chapterSessionMode === 'listen';
-    const showPlanPreviousChapterButton = hasPrevChapter;
-    const trailingActionState = getPlanSessionTrailingActionState({
-      isLastPlanChapter,
-      hasNextChapter,
-    });
-    const showPlanCompletionAction = trailingActionState.showCompletionAction;
-    const trailingActionEnabled = trailingActionState.isEnabled;
-    const showSessionCompletionCopy = hasOtherIncompletePlanSessions;
-    const trailingActionLabel = showPlanCompletionAction
-      ? showSessionCompletionCopy
-        ? t('readingPlans.completeSessionCta', {
-            defaultValue: 'Complete session',
-          })
-        : t('readingPlans.completeDayCta', {
-            defaultValue: 'Complete day',
-          })
-      : t('audio.nextChapter');
-    const bannerColors = getPlanSessionBannerColors(colors);
-    const trailingActionHint = showPlanCompletionAction
-      ? showSessionCompletionCopy
-        ? t('readingPlans.completeSessionHint')
-        : t('readingPlans.completeDayHint')
-      : t('bible.nextChapterHint');
-
-    return (
-      <Animated.View
-        style={[
-          styles.planSessionBottomBar,
-          planSessionBottomBarAnimatedStyle,
-          {
-            backgroundColor: bannerColors.fill,
-            borderTopColor: bannerColors.border,
-            // A floor, not a fixed height: the capped labels can still need a
-            // few points more than the tab bar's height at the largest sizes.
-            minHeight: planSessionBottomBarHeight,
-            paddingBottom: rootTabBarBottomPadding + spacing.xs,
-          },
-        ]}
-      >
-        <View style={styles.planSessionBottomBarContent}>
-          {showPlanChapterArrows ? (
-            showPlanPreviousChapterButton ? (
-              <TouchableOpacity
-                style={[
-                  styles.planSessionBottomBarArrowButton,
-                  !hasPrevChapter ? styles.disabledSessionModeButton : null,
-                ]}
-                activeOpacity={0.85}
-                onPress={() => void handlePreviousListenChapter()}
-                disabled={!hasPrevChapter}
-                accessibilityRole="button"
-                // "Previous" alone does not say previous what; the bar also steps days.
-                accessibilityLabel={t('audio.previousChapter')}
-                accessibilityHint={t('interface.previousChapterHint')}
-              >
-                <Ionicons
-                  name="chevron-back"
-                  size={22}
-                  color={hasPrevChapter ? bannerColors.icon : bannerColors.disabledIcon}
-                />
-              </TouchableOpacity>
-            ) : (
-              <View style={styles.planSessionBottomBarArrowSpacer} />
-            )
-          ) : (
-            <View style={styles.planSessionBottomBarArrowSpacer} />
-          )}
-
-          <View
-            style={[
-              styles.planSessionBottomBarCopy,
-              showPlanChapterArrows
-                ? styles.planSessionBottomBarCopyCentered
-                : styles.planSessionBottomBarCopyListenMode,
-            ]}
-          >
-            <Text
-              style={[styles.planSessionBottomBarTitle, { color: bannerColors.text }]}
-              numberOfLines={1}
-              maxFontSizeMultiplier={PLAN_SESSION_BAR_MAX_FONT_SCALE}
-            >
-              {activePlanTitle}
-            </Text>
-            <Text
-              style={[styles.planSessionBottomBarMeta, { color: bannerColors.text }]}
-              maxFontSizeMultiplier={PLAN_SESSION_BAR_MAX_FONT_SCALE}
-            >
-              {t('readingPlans.dayLabel', {
-                day: planDayNumber,
-                defaultValue: `Day ${planDayNumber}`,
-              })}
-              {activePlanSessionTitle ? ` • ${activePlanSessionTitle}` : ''}
-              {' • '}
-              {t('readingPlans.chapterProgress', {
-                current: activePlanChapterIndex + 1,
-                total: activePlanDayChapterItems.length,
-                defaultValue: `${activePlanChapterIndex + 1} of ${activePlanDayChapterItems.length}`,
-              })}
-            </Text>
-          </View>
-
-          {showPlanChapterArrows ? (
-            <TouchableOpacity
-              style={[
-                styles.planSessionBottomBarArrowButton,
-                showPlanCompletionAction
-                  ? [
-                      styles.planSessionBottomBarCompleteButton,
-                      { backgroundColor: bannerColors.completeFill },
-                    ]
-                  : null,
-                !trailingActionEnabled ? styles.disabledSessionModeButton : null,
-              ]}
-              activeOpacity={0.85}
-              onPress={() =>
-                void (showPlanCompletionAction
-                  ? handleCompletePlanDay()
-                  : handleNextListenChapter())
-              }
-              disabled={!trailingActionEnabled}
-              accessibilityRole="button"
-              accessibilityLabel={trailingActionLabel}
-              accessibilityHint={trailingActionHint}
-            >
-              <Ionicons
-                name={showPlanCompletionAction ? 'checkmark' : 'chevron-forward'}
-                size={22}
-                color={
-                  trailingActionEnabled
-                    ? showPlanCompletionAction
-                      ? bannerColors.completeIcon
-                      : bannerColors.icon
-                    : bannerColors.disabledIcon
-                }
-              />
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.planSessionBottomBarArrowSpacer} />
-          )}
-        </View>
-      </Animated.View>
-    );
-  };
-
   const renderTranslatorFeedbackReviewTools = () => (
     <ChapterFeedbackSummary translationId={currentTranslation} bookId={bookId} chapter={chapter} />
   );
-
-  const renderListenMode = () => {
-    const listenStatus = isCurrentAudioChapter ? status : 'idle';
-    const listenCountedNoticeViewModel = getListenCountedNoticeViewModel(listenCountedNotice);
-
-    return (
-      <View style={styles.listenColumn}>
-        <View
-          style={[
-            styles.listenArtworkFrame,
-            {
-              backgroundColor: colors.bibleElevatedSurface,
-              borderColor: colors.bibleDivider,
-            },
-          ]}
-        >
-          <BookIcon bookId={bookId} style={styles.listenArtwork} />
-        </View>
-
-        <View
-          style={[
-            styles.listenPlayerCard,
-            {
-              backgroundColor: 'transparent',
-              borderColor: 'transparent',
-            },
-          ]}
-        >
-          <ReaderListenProgress
-            track={readerAudioTrack}
-            isCurrentAudioChapter={isCurrentAudioChapter}
-            onSeek={handleListenModeSeek}
-            trackColor={colors.bibleDivider}
-            fillColor={colors.bibleAccent}
-            timeTextColor={colors.bibleSecondaryText}
-            containerStyle={styles.listenProgressTouch}
-            trackStyle={styles.listenProgressTrack}
-            fillStyle={styles.listenProgressFill}
-            timeRowStyle={styles.listenTimeRow}
-            timeTextStyle={styles.listenTimeText}
-          >
-            {listenCountedNoticeViewModel ? (
-              <Animated.View
-                testID={LISTEN_COUNTED_NOTICE_TEST_ID}
-                accessibilityLabel={listenCountedNoticeViewModel.accessibilityLabel}
-                entering={SlideInDown.springify().damping(20).stiffness(220)}
-                exiting={SlideOutDown.duration(180)}
-                style={[
-                  styles.listenCountedNoticeCard,
-                  {
-                    backgroundColor: colors.bibleSurface,
-                    borderColor: colors.accentGreen,
-                  },
-                ]}
-              >
-                <Ionicons name="checkmark-circle" size={16} color={colors.accentGreen} />
-                <Text
-                  style={[styles.listenCountedNoticeText, { color: colors.biblePrimaryText }]}
-                  numberOfLines={2}
-                >
-                  {listenCountedNoticeViewModel.text}
-                </Text>
-              </Animated.View>
-            ) : null}
-          </ReaderListenProgress>
-
-          <PlaybackControls
-            variant="chapter-only"
-            showUtilityRow={false}
-            status={listenStatus}
-            playbackRate={playbackRate}
-            repeatMode={repeatMode}
-            sleepTimerRemaining={sleepTimerRemaining}
-            backgroundMusicChoice={backgroundMusicChoice}
-            hasPreviousChapter={hasPrevChapter}
-            hasNextChapter={hasNextChapter}
-            onPlayPause={handlePlayDisplayedChapter}
-            showChapterNavigation={!showPlanSessionChrome}
-            onPreviousChapter={() => void handlePreviousListenChapter()}
-            onNextChapter={() => void handleNextListenChapter()}
-            onSkipBackward={() => void skipBackward()}
-            onSkipForward={() => void skipForward()}
-            onChangePlaybackRate={changePlaybackRate}
-            onCycleRepeatMode={cycleRepeatMode}
-            onSetSleepTimer={startSleepTimer}
-            onChangeBackgroundMusicChoice={changeBackgroundMusicChoice}
-          />
-        </View>
-
-        {showInlineChapterFeedbackComposer ? (
-          <ListenFeedbackComposer feedback={feedback} isLargeText={isLargeText} />
-        ) : null}
-      </View>
-    );
-  };
 
   // The virtualized reader always uses premium typography, so its render signature
   // and FlatList renderItem can be hoisted here and kept stable across renders.
@@ -2888,376 +2631,6 @@ export function BibleReaderScreen() {
     [premiumParagraphRenderSignature, readerInlineActiveVerse]
   );
 
-  const renderReaderVerses = (usePremiumTypography: boolean, renderVirtualized = false) => {
-    const verseFontSize = usePremiumTypography
-      ? scaleValue(typography.readingBody.fontSize)
-      : scaleValue(20);
-    const verseLineHeight = getReaderVerseLineHeight(verseFontSize);
-    const verseNumberSize = usePremiumTypography
-      ? scaleValue(typography.readingVerseNumber.fontSize)
-      : scaleValue(12);
-    const headingFontSize = scaleValue(typography.readingHeading.fontSize);
-
-    const paragraphs = usePremiumTypography
-      ? premiumReaderParagraphs
-      : buildReaderParagraphs(verses);
-
-    const textStyle = [
-      styles.verseText,
-      usePremiumTypography ? styles.premiumVerseText : null,
-      {
-        fontSize: verseFontSize,
-        lineHeight: verseLineHeight,
-        color: colors.biblePrimaryText,
-        // undefined for non-Latin scripts overrides the token's Lora → platform serif.
-        fontFamily: readingFontFamily,
-      },
-    ];
-    const verseNumberStyle = [
-      styles.inlineVerseNumber,
-      usePremiumTypography ? styles.premiumVerseNumber : null,
-      {
-        fontSize: verseNumberSize,
-        lineHeight: verseLineHeight,
-        color: colors.bibleSecondaryText,
-      },
-    ];
-    // `bibleSecondaryText` only reaches 3.18:1 on the follow band, so a verse
-    // number sitting on it swaps to the band's own quiet foreground.
-    const followVerseNumberStyle = [...verseNumberStyle, { color: colors.bibleFollowVerseNumber }];
-    const structuredVerseIndentSize = scaleValue(spacing.lg);
-
-    const getVersePresentation = (verse: Verse) => {
-      const highlightAnnotation = highlightByVerse.get(verse.verse);
-      const isFocused = verse.verse === readerInlineActiveVerse;
-      const verseBackgroundColor = isFocused
-        ? colors.bibleFollowHighlight
-        : highlightAnnotation?.color
-          ? highlightAnnotation.color + '33'
-          : undefined;
-
-      return {
-        highlightAnnotation,
-        isFocused,
-        isSelected: selectedVerseSet.has(verse.verse),
-        verseBackgroundColor,
-      };
-    };
-
-    const updateInlineParagraphVerseOffsets = (
-      paragraphVerses: Verse[],
-      paragraphOffsetY: number,
-      paragraphHeight: number
-    ) => {
-      const totalWeight = paragraphVerses.reduce(
-        (sum, verse) => sum + Math.max(verse.text.length, 12),
-        0
-      );
-      if (totalWeight <= 0) {
-        for (const verse of paragraphVerses) {
-          verseOffsetsRef.current[verse.verse] = paragraphOffsetY;
-        }
-        return;
-      }
-
-      let cumulativeWeight = 0;
-      for (const verse of paragraphVerses) {
-        verseOffsetsRef.current[verse.verse] =
-          paragraphOffsetY + (cumulativeWeight / totalWeight) * paragraphHeight;
-        cumulativeWeight += Math.max(verse.text.length, 12);
-      }
-    };
-
-    const handleToggleVerseSelection = (verse: Verse) => {
-      if (!canSelectDisplayedVerse({ isShowingRouteChapter: isShowingRouteChapterRef.current })) {
-        return;
-      }
-      selectionHaptic();
-      setSelectedVerses((current) => toggleBibleSelectionVerse(current, verse.verse));
-    };
-
-    const renderStackedVerse = (verse: Verse) => {
-      const { highlightAnnotation, isFocused, isSelected, verseBackgroundColor } =
-        getVersePresentation(verse);
-      const formattingLines = verse.formatting?.lines.length ? verse.formatting.lines : null;
-      const focusRenderKey = isFocused ? 'focused' : 'idle';
-
-      if (formattingLines) {
-        return (
-          <Pressable
-            key={`${verse.id}-formatted-${focusRenderKey}`}
-            onPress={() => handleToggleVerseSelection(verse)}
-            accessibilityState={{ selected: isSelected }}
-            style={[
-              styles.readerVerse,
-              styles.structuredVerse,
-              usePremiumTypography ? styles.premiumStructuredVerse : null,
-              verseBackgroundColor ? { backgroundColor: verseBackgroundColor } : null,
-            ]}
-          >
-            {formattingLines.map((line, lineIndex) => (
-              <Text
-                key={`${verse.id}-line-${lineIndex}`}
-                style={[
-                  textStyle,
-                  styles.structuredVerseLine,
-                  lineIndex > 0 ? styles.structuredVerseContinuation : null,
-                  isSelected ? selectedVerseDecorationStyle : null,
-                  line.indentLevel
-                    ? { marginLeft: structuredVerseIndentSize * line.indentLevel }
-                    : null,
-                ]}
-              >
-                {lineIndex === 0 ? (
-                  <>
-                    <Text style={verseNumberStyle}>{verse.verse}</Text>
-                    {'\u00A0'}
-                  </>
-                ) : null}
-                {line.text}
-              </Text>
-            ))}
-          </Pressable>
-        );
-      }
-
-      if (highlightAnnotation?.color) {
-        return (
-          <View
-            key={`${verse.id}-${highlightAnnotation.color}-${verseFontSize}-${verseLineHeight}-${focusRenderKey}`}
-            style={styles.readerVerse}
-          >
-            <HighlightedVerseText
-              verseNumber={verse.verse}
-              verseText={verse.text}
-              verseTextStyle={textStyle}
-              verseNumberStyle={verseNumberStyle}
-              selectedStyle={isSelected ? selectedVerseDecorationStyle : null}
-              highlightColor={highlightAnnotation.color}
-              isSelected={isSelected}
-              onPress={() => handleToggleVerseSelection(verse)}
-            />
-          </View>
-        );
-      }
-
-      return (
-        <Pressable
-          key={`${verse.id}-${focusRenderKey}`}
-          onPress={() => handleToggleVerseSelection(verse)}
-          accessibilityState={{ selected: isSelected }}
-          style={styles.readerVerse}
-        >
-          <Text
-            style={[
-              textStyle,
-              isSelected ? selectedVerseDecorationStyle : null,
-              isFocused ? { backgroundColor: colors.bibleFollowHighlight } : null,
-            ]}
-          >
-            <Text style={isFocused ? followVerseNumberStyle : verseNumberStyle}>{verse.verse}</Text>
-            {'\u00A0'}
-            {verse.text}
-          </Text>
-        </Pressable>
-      );
-    };
-
-    const renderParagraph = (paragraph: ReaderParagraph, _pIndex: number): ReactElement => (
-      <View
-        key={paragraph.key}
-        style={[
-          styles.readerBlock,
-          usePremiumTypography
-            ? [styles.premiumReaderBlock, styles.premiumReaderContentShell]
-            : null,
-        ]}
-        onLayout={(event) => {
-          const y = event.nativeEvent.layout.y;
-          paragraphHeightsRef.current[paragraph.key] = event.nativeEvent.layout.height;
-          // Virtualized cells measure `y` against their own cell wrapper, so it
-          // is always ~0 and must never be stored as a scroll offset; those
-          // readers resolve offsets from the measured heights above instead.
-          if (renderVirtualized) {
-            flushPendingReaderAutoScroll(true);
-            return;
-          }
-
-          const hasFormattedVerse = paragraph.verses.some(
-            (verse) => (verse.formatting?.lines.length ?? 0) > 0
-          );
-          if (usePremiumTypography && !hasFormattedVerse) {
-            updateInlineParagraphVerseOffsets(paragraph.verses, y, event.nativeEvent.layout.height);
-            flushPendingReaderAutoScroll(true);
-            return;
-          }
-
-          for (const v of paragraph.verses) {
-            verseOffsetsRef.current[v.verse] = y;
-          }
-          flushPendingReaderAutoScroll(true);
-        }}
-      >
-        {paragraph.heading ? (
-          <Text
-            // Lets VoiceOver/TalkBack users jump between pericopes with the headings rotor.
-            accessibilityRole="header"
-            style={[
-              styles.sectionHeading,
-              usePremiumTypography ? styles.premiumSectionHeading : null,
-              {
-                fontSize: headingFontSize,
-                color: colors.biblePrimaryText,
-                // Must be the bold face, not `readingFontFamily`: that is the regular weight
-                // and silently overrode the heading token's own semi-bold family, which is
-                // why section titles rendered at body weight.
-                fontFamily: readingFontFamilyBold ?? readingFontFamily,
-              },
-            ]}
-          >
-            {paragraph.heading}
-          </Text>
-        ) : null}
-        <View style={styles.readerParagraph}>
-          {usePremiumTypography &&
-          !paragraph.verses.some((verse) => (verse.formatting?.lines.length ?? 0) > 0) ? (
-            <Text style={[textStyle, styles.premiumParagraphText]}>
-              {paragraph.verses.map((verse, verseIndex) => {
-                const { isFocused, isSelected, verseBackgroundColor } = getVersePresentation(verse);
-                const focusRenderKey = isFocused ? 'focused' : 'idle';
-
-                return (
-                  <Text
-                    key={`${verse.id}-${verseFontSize}-${verseLineHeight}-${focusRenderKey}`}
-                    suppressHighlighting
-                    onPress={() => handleToggleVerseSelection(verse)}
-                    style={[
-                      styles.premiumInlineVerse,
-                      isSelected ? selectedVerseDecorationStyle : null,
-                      verseBackgroundColor ? { backgroundColor: verseBackgroundColor } : null,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        isFocused ? followVerseNumberStyle : verseNumberStyle,
-                        styles.premiumInlineVerseNumber,
-                      ]}
-                    >
-                      {verse.verse}
-                    </Text>
-                    {'\u00A0'}
-                    {verse.text}
-                    {verseIndex < paragraph.verses.length - 1 ? ' ' : ''}
-                  </Text>
-                );
-              })}
-            </Text>
-          ) : (
-            paragraph.verses.map((verse) => renderStackedVerse(verse))
-          )}
-        </View>
-      </View>
-    );
-
-    renderParagraphRef.current = renderParagraph;
-    // Signature of every non-position input that affects paragraph output. When
-    // this changes we let memoized cells re-render; raw position ticks are absent
-    // here, so ticks alone never invalidate cells.
-    const paragraphRenderSignature = usePremiumTypography
-      ? premiumParagraphRenderSignature
-      : buildReaderParagraphRenderSignature({
-          premium: false,
-          verseFontSize,
-          verseLineHeight,
-          verseNumberSize,
-          headingFontSize,
-          readingFontFamily,
-          readingFontFamilyBold,
-          colors,
-          selectedVerses,
-          annotations: displayedAnnotations,
-        });
-    const premiumReaderListExtraData = `${readerInlineActiveVerse ?? 'none'}|${paragraphRenderSignature}`;
-
-    if (renderVirtualized) {
-      return (
-        <Animated.FlatList
-          ref={premiumReaderListRef}
-          data={paragraphs}
-          keyExtractor={(paragraph) => paragraph.key}
-          renderItem={renderParagraphBlock}
-          extraData={premiumReaderListExtraData}
-          ListHeaderComponent={renderTranslatorFeedbackReviewTools}
-          style={styles.scrollView}
-          showsVerticalScrollIndicator={false}
-          scrollEventThrottle={16}
-          onScroll={scrollHandler}
-          onLayout={(event) => {
-            readerScrollViewportHeightRef.current = event.nativeEvent.layout.height;
-            flushPendingReaderAutoScroll(false);
-          }}
-          onScrollToIndexFailed={(info) => {
-            const focusTarget = readerFocusScrollRef.current.pendingVerse;
-            premiumReaderListRef.current?.scrollToOffset({
-              offset: Math.max(info.averageItemLength * info.index - sharedTopChromeTop, 0),
-              animated: true,
-            });
-            requestAnimationFrame(() => {
-              if (focusTarget != null) {
-                pendingReaderAutoScrollVerseRef.current = null;
-                scrollReaderToVerseParagraph(focusTarget, false);
-                flushPendingReaderFocus();
-              } else if (readerInlineActiveVerse != null) {
-                pendingReaderAutoScrollVerseRef.current = readerInlineActiveVerse;
-                scrollReaderToVerseParagraph(readerInlineActiveVerse, true);
-                flushPendingReaderAutoScroll(true);
-              }
-            });
-          }}
-          onScrollBeginDrag={() => {
-            handleReaderScrollBeginDrag();
-            setShowFontSizeSheet((current) =>
-              getNextFontSizeSheetVisibility(current, 'scrollStart')
-            );
-            setShowTranslationSheet((current) =>
-              getNextTranslationSheetVisibility(current, canShowTranslationSheet, 'dismiss')
-            );
-          }}
-          onScrollEndDrag={handleReaderScrollEndDrag}
-          onMomentumScrollEnd={handleReaderMomentumScrollEnd}
-          removeClippedSubviews
-          initialNumToRender={8}
-          maxToRenderPerBatch={6}
-          windowSize={7}
-          updateCellsBatchingPeriod={32}
-          contentContainerStyle={[
-            styles.premiumReaderScrollContent,
-            {
-              paddingTop: readerContentTopPadding,
-              paddingBottom: premiumReaderBottomPadding,
-            },
-          ]}
-          ListFooterComponent={<View style={styles.premiumReaderVirtualFooter} />}
-        />
-      );
-    }
-
-    return (
-      <View style={[styles.readerColumn, usePremiumTypography ? styles.premiumReaderColumn : null]}>
-        {paragraphs.map((paragraph, pIndex) => (
-          <ReaderParagraphBlock
-            key={paragraph.key}
-            paragraph={paragraph}
-            index={pIndex}
-            renderSignature={paragraphRenderSignature}
-            activeVerse={readerInlineActiveVerse}
-            renderParagraphRef={renderParagraphRef}
-          />
-        ))}
-      </View>
-    );
-  };
-
   const renderLegacyContent = () => {
     if (isLoading) {
       return <VersesSkeleton count={10} />;
@@ -3290,7 +2663,37 @@ export function BibleReaderScreen() {
     }
 
     if (verses.length === 0 && chapterPresentationMode === 'audio-first') {
-      return <View style={styles.audioFirstShell}>{renderListenMode()}</View>;
+      return (
+        <View style={styles.audioFirstShell}>
+          <ReaderListenMode
+            backgroundMusicChoice={backgroundMusicChoice}
+            bookId={bookId}
+            changeBackgroundMusicChoice={changeBackgroundMusicChoice}
+            changePlaybackRate={changePlaybackRate}
+            cycleRepeatMode={cycleRepeatMode}
+            feedback={feedback}
+            handleListenModeSeek={handleListenModeSeek}
+            handleNextListenChapter={handleNextListenChapter}
+            handlePlayDisplayedChapter={handlePlayDisplayedChapter}
+            handlePreviousListenChapter={handlePreviousListenChapter}
+            hasNextChapter={hasNextChapter}
+            hasPrevChapter={hasPrevChapter}
+            isCurrentAudioChapter={isCurrentAudioChapter}
+            isLargeText={isLargeText}
+            listenCountedNotice={listenCountedNotice}
+            playbackRate={playbackRate}
+            readerAudioTrack={readerAudioTrack}
+            repeatMode={repeatMode}
+            showInlineChapterFeedbackComposer={showInlineChapterFeedbackComposer}
+            showPlanSessionChrome={showPlanSessionChrome}
+            skipBackward={skipBackward}
+            skipForward={skipForward}
+            sleepTimerRemaining={sleepTimerRemaining}
+            startSleepTimer={startSleepTimer}
+            status={status}
+          />
+        </View>
+      );
     }
 
     if (verses.length === 0) {
@@ -3314,7 +2717,47 @@ export function BibleReaderScreen() {
       );
     }
 
-    return renderReaderVerses(false);
+    return (
+      <ReaderVerseList
+        usePremiumTypography={false}
+        canShowTranslationSheet={canShowTranslationSheet}
+        displayedAnnotations={displayedAnnotations}
+        flushPendingReaderAutoScroll={flushPendingReaderAutoScroll}
+        flushPendingReaderFocus={flushPendingReaderFocus}
+        handleReaderMomentumScrollEnd={handleReaderMomentumScrollEnd}
+        handleReaderScrollBeginDrag={handleReaderScrollBeginDrag}
+        handleReaderScrollEndDrag={handleReaderScrollEndDrag}
+        highlightByVerse={highlightByVerse}
+        isShowingRouteChapterRef={isShowingRouteChapterRef}
+        paragraphHeightsRef={paragraphHeightsRef}
+        pendingReaderAutoScrollVerseRef={pendingReaderAutoScrollVerseRef}
+        premiumParagraphRenderSignature={premiumParagraphRenderSignature}
+        premiumReaderBottomPadding={premiumReaderBottomPadding}
+        premiumReaderListRef={premiumReaderListRef}
+        premiumReaderParagraphs={premiumReaderParagraphs}
+        readerContentTopPadding={readerContentTopPadding}
+        readerFocusScrollRef={readerFocusScrollRef}
+        readerInlineActiveVerse={readerInlineActiveVerse}
+        readerScrollViewportHeightRef={readerScrollViewportHeightRef}
+        readingFontFamily={readingFontFamily}
+        readingFontFamilyBold={readingFontFamilyBold}
+        renderParagraphBlock={renderParagraphBlock}
+        renderParagraphRef={renderParagraphRef}
+        renderTranslatorFeedbackReviewTools={renderTranslatorFeedbackReviewTools}
+        scaleValue={scaleValue}
+        scrollHandler={scrollHandler}
+        scrollReaderToVerseParagraph={scrollReaderToVerseParagraph}
+        selectedVerseDecorationStyle={selectedVerseDecorationStyle}
+        selectedVerseSet={selectedVerseSet}
+        selectedVerses={selectedVerses}
+        setSelectedVerses={setSelectedVerses}
+        setShowFontSizeSheet={setShowFontSizeSheet}
+        setShowTranslationSheet={setShowTranslationSheet}
+        sharedTopChromeTop={sharedTopChromeTop}
+        verseOffsetsRef={verseOffsetsRef}
+        verses={verses}
+      />
+    );
   };
 
   const renderPremiumReadLayout = () => (
@@ -3323,7 +2766,46 @@ export function BibleReaderScreen() {
         <Animated.View style={[{ flex: 1 }, swipeStyle]}>
           {renderSharedTopChrome(true)}
 
-          {renderReaderVerses(true, true)}
+          <ReaderVerseList
+            usePremiumTypography={true}
+            renderVirtualized={true}
+            canShowTranslationSheet={canShowTranslationSheet}
+            displayedAnnotations={displayedAnnotations}
+            flushPendingReaderAutoScroll={flushPendingReaderAutoScroll}
+            flushPendingReaderFocus={flushPendingReaderFocus}
+            handleReaderMomentumScrollEnd={handleReaderMomentumScrollEnd}
+            handleReaderScrollBeginDrag={handleReaderScrollBeginDrag}
+            handleReaderScrollEndDrag={handleReaderScrollEndDrag}
+            highlightByVerse={highlightByVerse}
+            isShowingRouteChapterRef={isShowingRouteChapterRef}
+            paragraphHeightsRef={paragraphHeightsRef}
+            pendingReaderAutoScrollVerseRef={pendingReaderAutoScrollVerseRef}
+            premiumParagraphRenderSignature={premiumParagraphRenderSignature}
+            premiumReaderBottomPadding={premiumReaderBottomPadding}
+            premiumReaderListRef={premiumReaderListRef}
+            premiumReaderParagraphs={premiumReaderParagraphs}
+            readerContentTopPadding={readerContentTopPadding}
+            readerFocusScrollRef={readerFocusScrollRef}
+            readerInlineActiveVerse={readerInlineActiveVerse}
+            readerScrollViewportHeightRef={readerScrollViewportHeightRef}
+            readingFontFamily={readingFontFamily}
+            readingFontFamilyBold={readingFontFamilyBold}
+            renderParagraphBlock={renderParagraphBlock}
+            renderParagraphRef={renderParagraphRef}
+            renderTranslatorFeedbackReviewTools={renderTranslatorFeedbackReviewTools}
+            scaleValue={scaleValue}
+            scrollHandler={scrollHandler}
+            scrollReaderToVerseParagraph={scrollReaderToVerseParagraph}
+            selectedVerseDecorationStyle={selectedVerseDecorationStyle}
+            selectedVerseSet={selectedVerseSet}
+            selectedVerses={selectedVerses}
+            setSelectedVerses={setSelectedVerses}
+            setShowFontSizeSheet={setShowFontSizeSheet}
+            setShowTranslationSheet={setShowTranslationSheet}
+            sharedTopChromeTop={sharedTopChromeTop}
+            verseOffsetsRef={verseOffsetsRef}
+            verses={verses}
+          />
 
           <Animated.View
             pointerEvents="box-none"
@@ -3614,7 +3096,25 @@ export function BibleReaderScreen() {
         />
       ) : null}
       {showPremiumReadMode ? renderPremiumReadLayout() : renderLegacyReaderLayout()}
-      {renderPlanSessionBottomBar()}
+      <PlanSessionBottomBar
+        activePlanChapterIndex={activePlanChapterIndex}
+        activePlanDayChapterItems={activePlanDayChapterItems}
+        activePlanSessionTitle={activePlanSessionTitle}
+        activePlanTitle={activePlanTitle}
+        chapterSessionMode={chapterSessionMode}
+        handleCompletePlanDay={handleCompletePlanDay}
+        handleNextListenChapter={handleNextListenChapter}
+        handlePreviousListenChapter={handlePreviousListenChapter}
+        hasNextChapter={hasNextChapter}
+        hasOtherIncompletePlanSessions={hasOtherIncompletePlanSessions}
+        hasPrevChapter={hasPrevChapter}
+        isLastPlanChapter={isLastPlanChapter}
+        planDayNumber={planDayNumber}
+        planSessionBottomBarAnimatedStyle={planSessionBottomBarAnimatedStyle}
+        rootTabBarBottomPadding={rootTabBarBottomPadding}
+        rootTabBarHeight={rootTabBarHeight}
+        showPlanSessionChrome={showPlanSessionChrome}
+      />
 
       <AudioOptionsSheet
         backgroundMusicChoice={backgroundMusicChoice}

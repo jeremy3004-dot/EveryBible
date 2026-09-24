@@ -102,7 +102,7 @@ test('BibleReaderScreen keeps rhythm completions inside the reader until the fin
 test('BibleReaderScreen renders the simplified listen-mode plan chrome without the old progress card', () => {
   assert.match(
     source,
-    /renderPlanSessionBottomBar/,
+    /<PlanSessionBottomBar/,
     'BibleReaderScreen should render a shared bottom plan strip while listening or reading'
   );
   assert.match(
