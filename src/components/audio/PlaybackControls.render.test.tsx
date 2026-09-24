@@ -412,3 +412,181 @@ test('at large text the speed and music dialogs are bounded and scroll the same 
     await view.fire(view.queryAllByType('Modal')[0], 'onRequestClose');
   }
 });
+
+test('while audio loads the play button is busy with a spinner, and the transport ignores presses', async () => {
+  const { view, calls } = await renderControls({ status: 'loading' });
+
+  const play = view.getByRole('button', {
+    name: t('interface.playChapterAudio'),
+    busy: true,
+    disabled: true,
+  });
+  assert.equal(within(play).queryAllByType('ActivityIndicator').length, 1);
+  assert.equal(within(play).queryAllByType('Icon').length, 0);
+  for (const name of [
+    t('audio.previousChapter'),
+    t('audio.skipBackward'),
+    t('audio.skipForward'),
+    t('audio.nextChapter'),
+  ]) {
+    await view.press(view.getByRole('button', { name, disabled: true }));
+  }
+  await view.press(play);
+  assert.deepEqual(calls, []);
+  assert.deepEqual(harness.haptics, []);
+
+  // The utilities stay usable while loading.
+  await view.press(view.getByRole('button', { name: t('audio.repeatOff') }));
+  assert.deepEqual(calls, [['repeat']]);
+});
+
+test('the play icon switches to pause while playing and is nudged right only as play', async () => {
+  const paused = await renderControls({ status: 'paused' });
+  const [playIcon] = within(
+    paused.view.getByRole('button', { name: t('interface.playChapterAudio') })
+  ).queryAllByType('Icon');
+  assert.equal(playIcon.props.name, 'play');
+  assert.equal(flattenStyle(playIcon.props.style)?.marginLeft, 2);
+  await paused.view.unmount();
+
+  const playing = await renderControls({ status: 'playing' });
+  const [pauseIcon] = within(
+    playing.view.getByRole('button', { name: t('interface.pauseChapterAudio') })
+  ).queryAllByType('Icon');
+  assert.equal(pauseIcon.props.name, 'pause');
+  assert.equal(pauseIcon.props.style, undefined);
+});
+
+const isGlyphOrText = (node: ReactTestInstance) => ['Icon', 'Text'].includes(String(node.type));
+
+test('the skip buttons show "10" beside their direction arrow', async () => {
+  const { view } = await renderControls();
+  const back = view.getByRole('button', { name: t('audio.skipBackward') });
+  const forward = view.getByRole('button', { name: t('audio.skipForward') });
+  assert.deepEqual(
+    back.findAll((node) => isGlyphOrText(node)).map((node) => String(node.type)),
+    ['Icon', 'Text']
+  );
+  assert.equal(within(back).queryAllByType('Icon')[0].props.name, 'play-back');
+  assert.ok(within(back).getByText('10'));
+  assert.deepEqual(
+    forward.findAll((node) => isGlyphOrText(node)).map((node) => String(node.type)),
+    ['Text', 'Icon']
+  );
+  assert.equal(within(forward).queryAllByType('Icon')[0].props.name, 'play-forward');
+});
+
+test('the chapter-only transport can drop its chapter buttons and keep play', async () => {
+  const { view } = await renderControls({ variant: 'chapter-only', showChapterNavigation: false });
+
+  assert.equal(view.queryByRole('button', { name: t('audio.previousChapter') }), null);
+  assert.equal(view.queryByRole('button', { name: t('audio.nextChapter') }), null);
+  assert.ok(view.getByRole('button', { name: t('interface.playChapterAudio') }));
+});
+
+test('the default transport ignores showChapterNavigation=false', async () => {
+  const { view } = await renderControls({ showChapterNavigation: false });
+  assert.ok(view.getByRole('button', { name: t('audio.previousChapter') }));
+  assert.ok(view.getByRole('button', { name: t('audio.nextChapter') }));
+});
+
+test('a running sleep timer shows and announces the minutes left', async () => {
+  const { view } = await renderControls({ sleepTimerRemaining: 12 });
+
+  const timer = view.getByRole('button', { name: t('audio.sleepTimer') });
+  const minutes = t('interface.minutesShort', { count: 12 });
+  assert.deepEqual(timer.props.accessibilityValue, { text: minutes });
+  assert.ok(within(timer).getByText(minutes));
+  assert.equal(within(timer).queryAllByType('Icon')[0].props.name, 'timer');
+});
+
+test('without a sleep timer the button is icon-only with no value', async () => {
+  const { view } = await renderControls({ sleepTimerRemaining: null });
+
+  const timer = view.getByRole('button', { name: t('audio.sleepTimer') });
+  assert.equal(timer.props.accessibilityValue, undefined);
+  assert.equal(within(timer).queryAllByType('Text').length, 0);
+  assert.equal(within(timer).queryAllByType('Icon')[0].props.name, 'timer-outline');
+});
+
+test('the sleep-timer sheet marks the remembered length while a countdown runs, else Off', async () => {
+  audioStore.setState({ sleepTimerMinutes: 30 });
+  try {
+    const running = await renderControls({ sleepTimerRemaining: 7 });
+    await running.view.press(running.view.getByRole('button', { name: t('audio.sleepTimer') }));
+    assert.deepEqual(
+      running.view
+        .getAllByRole('button', { selected: true })
+        .map((row) => row.props.accessibilityLabel),
+      [t('interface.minutesShort', { count: 30 })]
+    );
+    await running.view.press(running.view.getByText(t('interface.music.off.label')));
+    assert.deepEqual(running.calls, [['sleepTimer', null]]);
+    await running.view.unmount();
+
+    const stopped = await renderControls({ sleepTimerRemaining: null });
+    await stopped.view.press(stopped.view.getByRole('button', { name: t('audio.sleepTimer') }));
+    assert.deepEqual(
+      stopped.view
+        .getAllByRole('button', { selected: true })
+        .map((row) => row.props.accessibilityLabel),
+      [t('interface.music.off.label')]
+    );
+  } finally {
+    audioStore.setState({ sleepTimerMinutes: null });
+  }
+});
+
+test('the speed button shows and announces the current rate', async () => {
+  const { view } = await renderControls({ playbackRate: 1.25 as PlaybackRate });
+
+  const speed = view.getByRole('button', { name: t('audio.playbackSpeed') });
+  assert.deepEqual(speed.props.accessibilityValue, { text: '1.25x' });
+  assert.ok(within(speed).getByText('1.25x'));
+  await view.press(speed);
+  assert.deepEqual(
+    view.getAllByRole('button', { selected: true }).map((row) => row.props.accessibilityLabel),
+    ['1.25x']
+  );
+});
+
+test('the music sheet lists every background layer with its description', async () => {
+  const { BACKGROUND_MUSIC_OPTIONS } = await import('../../services/audio/backgroundMusicCatalog');
+  const { view } = await renderControls({ backgroundMusicChoice: 'piano' });
+  await view.press(
+    view.getByRole('button', {
+      name: t('interface.backgroundMusicLabel', { name: t('interface.music.piano.label') }),
+    })
+  );
+
+  assert.ok(view.getByText(t('audio.chooseBackgroundLayer')));
+  for (const option of BACKGROUND_MUSIC_OPTIONS) {
+    const row = view.getByRole('button', {
+      name: `${t(`interface.music.${option.id}.label`)}, ${t(`interface.music.${option.id}.description`)}`,
+    });
+    assert.equal(row.props.accessibilityState.selected, option.id === 'piano', option.id);
+    assert.equal(within(row).queryAllByType('Icon').length, option.id === 'piano' ? 1 : 0);
+  }
+});
+
+test('the repeat utility press passes no press event through', async () => {
+  const received: unknown[][] = [];
+  const { view } = await renderControls({
+    onCycleRepeatMode: (...args: unknown[]) => {
+      received.push(args);
+    },
+  });
+  await view.press(view.getByRole('button', { name: t('audio.repeatOff') }));
+  assert.deepEqual(received, [[]]);
+});
+
+test('an unknown background-music choice reads as the first option', async () => {
+  const { view } = await renderControls({
+    backgroundMusicChoice: 'retired-track' as BackgroundMusicChoice,
+  });
+  assert.ok(
+    view.getByRole('button', {
+      name: t('interface.backgroundMusicLabel', { name: t('interface.music.off.label') }),
+    })
+  );
+});
