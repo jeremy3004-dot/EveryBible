@@ -347,6 +347,36 @@ test('cycle days that ran before the reader joined are neither missed nor comple
   assert.equal(ledgerRow(view, 5).props.accessibilityValue, undefined);
 });
 
+test('in the dot grid a missed day is struck through and a day to come is not', async () => {
+  await enroll(PROVERBS, { started_at: '2026-09-20T09:00:00.000Z' });
+  const view = await renderPlan(PROVERBS);
+  const { createThemeColors } = await import('../../contexts/ThemeContext');
+  const { DEFAULT_APPEARANCE_PALETTE } = await import('../../constants/appearancePalettes');
+  const paint = getPlanLedgerDotPaint(createThemeColors('light', DEFAULT_APPEARANCE_PALETTE));
+
+  const grid = view.root.find(
+    (node) => typeof node.type === 'string' && node.props.accessibilityElementsHidden === true
+  );
+  const dots = grid.findAll(
+    (node) => typeof node.type === 'string' && flattenStyle(node.props.style)?.aspectRatio === 1
+  );
+  const strokes = (dot: ReactTestInstance) =>
+    dot.findAll((node) => typeof node.type === 'string' && node !== dot);
+  const fillOf = (dot: ReactTestInstance) => flattenStyle(dot.props.style)?.backgroundColor;
+
+  // The 20th to the 23rd were due since joining and were missed; the 25th is to come.
+  const missed = dots[20];
+  const future = dots[25];
+  assert.equal(fillOf(missed), paint.missed.fill, 'fixture: day 21 is missed');
+  assert.equal(fillOf(future), paint.future.fill, 'fixture: day 26 is to come');
+  assert.equal(strokes(missed).length, 1, 'a missed day carries one stroke');
+  assert.equal(flattenStyle(strokes(missed)[0].props.style)?.backgroundColor, paint.missed.border);
+  assert.deepEqual(strokes(future), []);
+  // The stroke stays inside the dot, so it adds nothing to the grid's height.
+  assert.equal(flattenStyle(missed.props.style)?.overflow, 'hidden');
+  assert.equal(flattenStyle(strokes(missed)[0].props.style)?.position, 'absolute');
+});
+
 // ---------------------------------------------------------------------------
 // Multi-session days
 // ---------------------------------------------------------------------------

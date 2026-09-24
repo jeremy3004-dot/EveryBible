@@ -45,12 +45,22 @@ export function LedgerCells({ states }: { states: ReadingPlanLedgerDayState[] })
       border
         ? { backgroundColor: fill, borderWidth, borderColor: border }
         : { backgroundColor: fill };
+    const toSlash = ({ slash, border, fill }: PlanLedgerDotPaint): ViewStyle | null =>
+      slash ? { backgroundColor: border ?? fill } : null;
     return {
-      done: toStyle(paint.done),
-      missed: toStyle(paint.missed),
-      today: toStyle(paint.today),
-      future: toStyle(paint.future),
-    } satisfies Record<ReadingPlanLedgerDayState, ViewStyle>;
+      dot: {
+        done: toStyle(paint.done),
+        missed: toStyle(paint.missed),
+        today: toStyle(paint.today),
+        future: toStyle(paint.future),
+      } satisfies Record<ReadingPlanLedgerDayState, ViewStyle>,
+      slash: {
+        done: toSlash(paint.done),
+        missed: toSlash(paint.missed),
+        today: toSlash(paint.today),
+        future: toSlash(paint.future),
+      } satisfies Record<ReadingPlanLedgerDayState, ViewStyle | null>,
+    };
   }, [colors]);
 
   return (
@@ -68,6 +78,7 @@ export function LedgerCells({ states }: { states: ReadingPlanLedgerDayState[] })
             if (state === null) {
               return <View key={`empty-${index}`} style={styles.cell} />;
             }
+            const slash = palette.slash[state];
             return (
               <Animated.View
                 key={`${state}-${index}`}
@@ -80,12 +91,21 @@ export function LedgerCells({ states }: { states: ReadingPlanLedgerDayState[] })
                 }
                 style={[
                   styles.cell,
-                  palette[state],
+                  palette.dot[state],
+                  slash ? styles.slashedCell : null,
                   // An 8pt ring is small; let today's swell into the gap so it
                   // still reads as the marker without changing the row height.
                   state === 'today' && isDense ? styles.denseToday : null,
                 ]}
-              />
+              >
+                {/* Missed and future share a thin ring; the stroke tells a
+                    missed day apart without relying on its amber tint. */}
+                {slash ? (
+                  <View
+                    style={[styles.slash, isDense ? styles.denseSlash : styles.roomySlash, slash]}
+                  />
+                ) : null}
+              </Animated.View>
             );
           })}
         </View>
@@ -114,5 +134,24 @@ const styles = StyleSheet.create({
   },
   denseToday: {
     transform: [{ scale: 1.25 }],
+  },
+  // The stroke is a diameter turned 45°, so it ends on the dot's edge.
+  slashedCell: {
+    overflow: 'hidden',
+  },
+  slash: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: '50%',
+    transform: [{ rotate: '-45deg' }],
+  },
+  denseSlash: {
+    height: 1,
+    marginTop: -0.5,
+  },
+  roomySlash: {
+    height: 1.5,
+    marginTop: -0.75,
   },
 });

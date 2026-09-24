@@ -91,23 +91,27 @@ export interface PlanLedgerDotPaint {
   /** The ring, when the state draws one; `null` for a solid dot. */
   border: string | null;
   borderWidth: number;
+  /** A diagonal stroke across the dot, drawn in the border colour. */
+  slash: boolean;
 }
 
 /**
  * How each day state is painted. The dots sit on the progress card, and each
- * state is told apart by shape as well as colour: done is solid, today is a
- * thick accent ring, missed is a tinted dot in an amber ring, future is a thin
- * neutral ring around an un-tinted well. Every mark clears 3:1 on the card
- * (WCAG 1.4.11), which is why the future ring is `controlBorder` rather than a
+ * state is told apart by shape as well as colour (WCAG 1.4.1): done is solid,
+ * today is a thick accent ring, missed is a tinted dot in an amber ring struck
+ * through with an amber diagonal, future is a thin neutral ring around an
+ * un-tinted well. Missed and future share the thin ring, so the stroke is what
+ * separates them without colour. Every mark clears 3:1 on the card (WCAG
+ * 1.4.11), which is why the future ring is `controlBorder` rather than a
  * decorative separator tone.
  */
 export function getPlanLedgerDotPaint(
   colors: PlanLedgerDotTokens
 ): Record<ReadingPlanLedgerDayState, PlanLedgerDotPaint> {
   return {
-    done: { fill: colors.accentPrimary, border: null, borderWidth: 0 },
-    missed: { fill: colors.warningSoft, border: colors.warning, borderWidth: 1 },
-    today: { fill: 'transparent', border: colors.accentPrimary, borderWidth: 2 },
-    future: { fill: colors.muted, border: colors.controlBorder, borderWidth: 1 },
+    done: { fill: colors.accentPrimary, border: null, borderWidth: 0, slash: false },
+    missed: { fill: colors.warningSoft, border: colors.warning, borderWidth: 1, slash: true },
+    today: { fill: 'transparent', border: colors.accentPrimary, borderWidth: 2, slash: false },
+    future: { fill: colors.muted, border: colors.controlBorder, borderWidth: 1, slash: false },
   };
 }
