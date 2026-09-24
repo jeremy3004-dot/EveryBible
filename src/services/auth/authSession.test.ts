@@ -17,7 +17,8 @@ const connectivity: {
   error: Error | null;
 } = { isConnected: true, isInternetReachable: true, error: null };
 // authSession reaches NetInfo through a lazy CommonJS `require(...).default`, so
-// the fake carries a self-reference (see queryClient.test.ts).
+// the fake carries a self-reference: it answers whether the loader hands back
+// the namespace or the interop default.
 const netInfoFake: Record<string, unknown> = {
   fetch: async () => {
     if (connectivity.error) {

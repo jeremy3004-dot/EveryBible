@@ -113,3 +113,20 @@ for (const componentStack of [null, undefined, '   \n  ']) {
     assert.equal(entry.message, '[Plans] no trail');
   });
 }
+
+test('toCrashLogEntry never throws for a value that cannot be stringified', () => {
+  const entry = toCrashLogEntry(Object.create(null), true, 5);
+  assert.deepEqual(entry, { message: '[unprintable value]', isFatal: true, timestamp: 5 });
+});
+
+test('toCrashLogEntry survives an Error whose message getter throws', () => {
+  const error = new Error('hidden');
+  Object.defineProperty(error, 'message', {
+    get() {
+      throw new Error('getter exploded');
+    },
+  });
+  const entry = toCrashLogEntry(error, false, 6);
+  assert.equal(entry.message, '[unprintable value]');
+  assert.equal(entry.isFatal, false);
+});

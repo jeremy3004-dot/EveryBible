@@ -4,13 +4,6 @@ import type { PlanSessionKey, RhythmSessionContext } from '../services/plans/typ
 
 export type AudioStatus = 'idle' | 'loading' | 'playing' | 'paused' | 'error';
 
-export interface AudioTrack {
-  bookId: string;
-  chapter: number;
-  audioUrl: string;
-  duration?: number; // milliseconds
-}
-
 export interface AudioPlaybackSequenceEntry {
   bookId: string;
   chapter: number;
@@ -26,23 +19,6 @@ export interface AudioReturnTarget {
   planSessionKey?: PlanSessionKey;
   returnToPlanOnComplete?: boolean;
   sessionContext?: RhythmSessionContext;
-}
-
-export interface AudioPlaybackState {
-  status: AudioStatus;
-  currentBookId: string | null;
-  currentChapter: number | null;
-  currentPosition: number; // milliseconds
-  duration: number; // milliseconds
-  playbackRate: number;
-}
-
-export interface AudioSettings {
-  playbackRate: number; // 0.5 - 2.5
-  autoAdvanceChapter: boolean;
-  repeatMode: RepeatMode;
-  sleepTimerMinutes: number | null;
-  backgroundMusicChoice: BackgroundMusicChoice;
 }
 
 export type PlaybackRate = 0.75 | 1.0 | 1.25 | 1.5 | 1.75 | 2.0 | 2.25 | 2.5;
@@ -86,7 +62,7 @@ export const BACKGROUND_MUSIC_CHOICES: BackgroundMusicChoice[] = [
 ];
 
 // Bible.is API response types
-export interface BibleIsAudioFile {
+interface BibleIsAudioFile {
   book_id: string;
   chapter_start: number;
   chapter_end: number;

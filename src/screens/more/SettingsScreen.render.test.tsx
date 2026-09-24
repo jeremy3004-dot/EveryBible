@@ -15,25 +15,32 @@ import {
 
 // Whether the OS has blocked notifications while the in-app reminder is on.
 let notificationsBlocked = false;
-const harness = installRenderHarness(mock, {
-  hooks: {
-    useNotificationsBlockedBySystem: (enabled: boolean) => enabled && notificationsBlocked,
-    useFontSize: () => ({
-      label: 'Medium',
-      increase: () => {},
-      decrease: () => {},
-      canIncrease: true,
-      canDecrease: true,
-    }),
-    useI18n: () => {
-      const { t } = useTranslation();
-      return {
-        t,
-        currentLanguage: 'en',
-        setLanguage: async () => {},
-        availableLanguages: { en: { nativeName: 'English' } },
-      };
-    },
+const languageCalls: string[] = [];
+const harness = installRenderHarness(mock);
+// Settings and its sections import each hook from its own module, not the hooks barrel.
+mockModule(mock, sourcePath('hooks/useNotificationsBlockedBySystem.ts'), {
+  useNotificationsBlockedBySystem: (enabled: boolean) => enabled && notificationsBlocked,
+});
+mockModule(mock, sourcePath('hooks/useFontSize.ts'), {
+  useFontSize: () => ({
+    label: 'Medium',
+    increase: () => {},
+    decrease: () => {},
+    canIncrease: true,
+    canDecrease: true,
+  }),
+});
+mockModule(mock, sourcePath('hooks/useI18n.ts'), {
+  useI18n: () => {
+    const { t } = useTranslation();
+    return {
+      t,
+      currentLanguage: 'en',
+      setLanguage: async (code: string) => {
+        languageCalls.push(code);
+      },
+      availableLanguages: { en: { nativeName: 'English' } },
+    };
   },
 });
 
@@ -74,16 +81,38 @@ mockModule(mock, sourcePath('stores/bibleStore.ts'), { useBibleStore });
 mockPackage(mock, '@react-native-async-storage/async-storage', {
   default: { getAllKeys: async () => [], multiRemove: async () => {}, clear: async () => {} },
 });
+const account: { result: { success: boolean }; calls: number } = {
+  result: { success: true },
+  calls: 0,
+};
 mockModule(mock, sourcePath('services/account/index.ts'), {
   deleteCurrentAccount: async () => ({ success: true }),
+  deleteAccountAndLocalData: async () => {
+    account.calls += 1;
+    return account.result;
+  },
+});
+const cacheClears: number[] = [];
+mockModule(mock, sourcePath('stores/deviceCaches.ts'), {
+  clearDeviceCaches: () => {
+    cacheClears.push(1);
+  },
 });
 mockModule(mock, sourcePath('services/onboarding/localeSelection.ts'), {
   localeSearchEngine: { getCountryDisplayName: (code: string) => `Country ${code}` },
 });
+const reminders: { permission: 'granted' | 'denied' | 'blocked'; calls: string[] } = {
+  permission: 'granted',
+  calls: [],
+};
 mockModule(mock, sourcePath('services/notifications/index.ts'), {
-  scheduleDailyReminder: async () => {},
-  cancelDailyReminder: async () => {},
-  requestNotificationPermissionOutcome: async () => 'granted',
+  scheduleDailyReminder: async (hour: number, minute: number) => {
+    reminders.calls.push(`schedule:${hour}:${minute}`);
+  },
+  cancelDailyReminder: async () => {
+    reminders.calls.push('cancel');
+  },
+  requestNotificationPermissionOutcome: async () => reminders.permission,
 });
 mockModule(mock, sourcePath('components/feedback/TranslationNotCoveredNotice.tsx'), {
   TranslationNotCoveredNotice: () => null,
@@ -91,6 +120,13 @@ mockModule(mock, sourcePath('components/feedback/TranslationNotCoveredNotice.tsx
 
 afterEach(async () => {
   notificationsBlocked = false;
+  languageCalls.length = 0;
+  account.result = { success: true };
+  account.calls = 0;
+  cacheClears.length = 0;
+  reminders.permission = 'granted';
+  reminders.calls.length = 0;
+  harness.rn.__recorded.alerts.length = 0;
   harness.rn.__recorded.openedUrls.length = 0;
   syncCalls.length = 0;
   access.translator = { success: true, coversTranslation: true };
@@ -454,4 +490,186 @@ test('the community and council labels come from the active locale, not an Engli
   } finally {
     await harness.i18n.changeLanguage('en');
   }
+});
+
+// --- Daily reminder ----------------------------------------------------------
+
+test('turning the reminder on without a saved time asks for one, then schedules and saves it', async () => {
+  const view = await renderSettings();
+
+  const inert = view.getByRole('button', { name: t('settings.reminderTime'), disabled: true });
+  assert.ok(inert, 'the reminder time is inert while the reminder is off');
+
+  await view.fire(switchNamed(view, t('settings.dailyReminder')), 'onValueChange', true);
+  assert.ok(view.getByRole('header', { name: t('settings.setReminderTime') }));
+  assert.deepEqual(reminders.calls, [], 'nothing scheduled before a time is chosen');
+  assert.ok(view.getByRole('button', { name: '09', selected: true }), 'defaults to 9:00');
+
+  await view.press(view.getByRole('button', { name: '07' }));
+  await view.press(view.getByRole('button', { name: '30' }));
+  assert.ok(view.getByRole('button', { name: '07', selected: true }));
+  await view.press(view.getByRole('button', { name: t('settings.setTime') }));
+
+  assert.deepEqual(reminders.calls, ['schedule:7:30']);
+  const { preferences } = harness.authStore.getState();
+  assert.equal(preferences.notificationsEnabled, true);
+  assert.equal(preferences.reminderTime, '07:30');
+  assert.equal(syncCalls.length, 1);
+  assert.equal(view.queryByRole('header', { name: t('settings.setReminderTime') }), null);
+  const expectedLabel = new Date(0, 0, 0, 7, 30).toLocaleTimeString('en', {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+  assert.ok(
+    view.getByRole('button', { name: `${t('settings.reminderTime')}, ${expectedLabel}` }),
+    'the row shows the chosen time in the app language'
+  );
+});
+
+test('turning the reminder on with a saved time schedules it straight away', async () => {
+  harness.authStore.getState().setPreferences({ reminderTime: '20:15' });
+  const view = await renderSettings();
+
+  await view.fire(switchNamed(view, t('settings.dailyReminder')), 'onValueChange', true);
+
+  assert.deepEqual(reminders.calls, ['schedule:20:15']);
+  assert.equal(harness.authStore.getState().preferences.notificationsEnabled, true);
+  assert.equal(syncCalls.length, 1);
+  assert.equal(view.queryByRole('header', { name: t('settings.setReminderTime') }), null);
+});
+
+test('reopening the reminder time starts the picker on the saved time', async () => {
+  harness.authStore
+    .getState()
+    .setPreferences({ notificationsEnabled: true, reminderTime: '18:45' });
+  const view = await renderSettings();
+
+  await view.press(view.getByRole('button', { name: rowNamed(t('settings.reminderTime')) }));
+  assert.ok(view.getByRole('button', { name: '18', selected: true }));
+  assert.ok(view.getByRole('button', { name: '45', selected: true }));
+
+  await view.press(view.getByRole('button', { name: t('common.cancel') }));
+  assert.equal(view.queryByRole('header', { name: t('settings.setReminderTime') }), null);
+  assert.deepEqual(reminders.calls, []);
+});
+
+test('turning the reminder off cancels it and syncs', async () => {
+  harness.authStore
+    .getState()
+    .setPreferences({ notificationsEnabled: true, reminderTime: '06:00' });
+  const view = await renderSettings();
+
+  await view.fire(switchNamed(view, t('settings.dailyReminder')), 'onValueChange', false);
+
+  assert.deepEqual(reminders.calls, ['cancel']);
+  assert.equal(harness.authStore.getState().preferences.notificationsEnabled, false);
+  assert.equal(syncCalls.length, 1);
+});
+
+test('a refused notification permission explains itself, and a blocked one offers system settings', async () => {
+  reminders.permission = 'denied';
+  const view = await renderSettings();
+
+  await view.fire(switchNamed(view, t('settings.dailyReminder')), 'onValueChange', true);
+  const [denied] = harness.rn.__recorded.alerts;
+  assert.equal(denied.title, t('settings.permissionRequired'));
+  assert.deepEqual(
+    (denied.buttons as Array<{ text: string }>).map((button) => button.text),
+    [t('common.ok')]
+  );
+
+  reminders.permission = 'blocked';
+  await view.fire(switchNamed(view, t('settings.dailyReminder')), 'onValueChange', true);
+  const blocked = harness.rn.__recorded.alerts[1];
+  const buttons = blocked.buttons as Array<{ text: string; onPress?: () => void }>;
+  assert.deepEqual(
+    buttons.map((button) => button.text),
+    [t('common.cancel'), t('common.settings')]
+  );
+  buttons[1].onPress?.();
+  assert.deepEqual(harness.rn.__recorded.openedUrls, ['app-settings:']);
+  assert.equal(harness.authStore.getState().preferences.notificationsEnabled, false);
+  assert.deepEqual(reminders.calls, []);
+});
+
+// --- Appearance and language --------------------------------------------------
+
+test('choosing the dark appearance stores the theme and syncs', async () => {
+  const view = await renderSettings();
+
+  await view.press(view.getByRole('tab', { name: t('settings.themeDark') }));
+
+  assert.equal(harness.authStore.getState().preferences.theme, 'dark');
+  assert.equal(syncCalls.length, 1);
+});
+
+test('the language row opens the interface language list and a choice switches and closes it', async () => {
+  const view = await renderSettings();
+
+  await view.press(view.getByRole('button', { name: `${t('settings.language')}, English` }));
+  assert.ok(view.getByRole('header', { name: t('settings.selectLanguage') }));
+  assert.ok(view.getByRole('button', { name: /^English/, selected: true }));
+
+  await view.press(view.getByRole('button', { name: /^Español/ }));
+  assert.deepEqual(languageCalls, ['es']);
+  assert.equal(view.queryByRole('header', { name: t('settings.selectLanguage') }), null);
+});
+
+// --- Data --------------------------------------------------------------------
+
+test('clearing the cache asks first, then clears only device caches', async () => {
+  const view = await renderSettings();
+
+  await view.press(view.getByRole('button', { name: t('settings.clearCache') }));
+  const [confirm] = harness.rn.__recorded.alerts;
+  assert.equal(confirm.title, t('settings.clearCache'));
+  assert.deepEqual(cacheClears, [], 'nothing cleared before confirming');
+
+  const buttons = confirm.buttons as Array<{ text: string; style?: string; onPress?: () => void }>;
+  assert.equal(buttons[1].style, 'destructive');
+  buttons[1].onPress?.();
+  assert.deepEqual(cacheClears, [1]);
+  assert.equal(harness.rn.__recorded.alerts.at(-1)?.message, t('settings.cacheClearedSuccess'));
+});
+
+test('Delete Account is offered only when signed in and confirms before deleting', async () => {
+  const signedOut = await renderSettings();
+  assert.equal(signedOut.queryByRole('button', { name: t('settings.deleteAccount') }), null);
+  await signedOut.unmount();
+
+  harness.authStore.setState({ user: { uid: 'u1', displayName: 'Lydia' } });
+  const view = await renderSettings();
+  await view.press(view.getByRole('button', { name: t('settings.deleteAccount') }));
+  assert.ok(view.getByRole('header', { name: t('settings.deleteAccount') }));
+  assert.ok(view.getByText(t('settings.deleteAccountWarning')));
+  assert.equal(account.calls, 0);
+
+  account.result = { success: false };
+  await view.press(view.getByRole('button', { name: t('settings.delete') }));
+  assert.equal(account.calls, 1);
+  assert.equal(harness.rn.__recorded.alerts.at(-1)?.message, t('settings.deleteAccountError'));
+  assert.ok(view.getByText(t('settings.deleteAccountWarning')), 'stays open after a failure');
+
+  account.result = { success: true };
+  await view.press(view.getByRole('button', { name: t('settings.delete') }));
+  assert.equal(account.calls, 2);
+  assert.equal(harness.rn.__recorded.alerts.at(-1)?.title, t('settings.accountDeleted'));
+  assert.equal(view.queryByText(t('settings.deleteAccountWarning')), null);
+});
+
+// --- Legacy content language ---------------------------------------------------
+
+test('a stored "Creoles and pidgins" content language is reset to English and synced', async () => {
+  harness.authStore.getState().setPreferences({
+    contentLanguageCode: 'cpe',
+    contentLanguageName: 'Creoles and pidgins, English-based',
+    contentLanguageNativeName: 'Creoles and pidgins, English-based',
+  });
+  await renderSettings();
+
+  const { preferences } = harness.authStore.getState();
+  assert.equal(preferences.contentLanguageCode, 'en');
+  assert.equal(preferences.contentLanguageName, 'English');
+  assert.equal(preferences.contentLanguageNativeName, 'English');
+  assert.equal(syncCalls.length, 1);
 });

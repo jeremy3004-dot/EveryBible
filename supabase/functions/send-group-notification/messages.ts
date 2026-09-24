@@ -68,7 +68,12 @@ export function cleanGroupName(name: unknown): string {
 /** Unknown or missing languages (no saved preference) fall back to English. */
 export function groupSessionMessage(language: unknown, groupName: string): GroupSessionMessage {
   const code = typeof language === 'string' ? language.trim().toLowerCase().split(/[-_]/)[0] : 'en';
-  const message = GROUP_SESSION_MESSAGES[code] ?? GROUP_SESSION_MESSAGES.en;
+  // Own keys only: the language is a member-chosen preference, and 'constructor' or
+  // '__proto__' would otherwise resolve to an Object.prototype value, throw, and cancel the
+  // push for the whole group.
+  const message = Object.prototype.hasOwnProperty.call(GROUP_SESSION_MESSAGES, code)
+    ? GROUP_SESSION_MESSAGES[code]
+    : GROUP_SESSION_MESSAGES.en;
   return {
     title: message.title,
     body: message.body.replace('{{groupName}}', () => groupName),

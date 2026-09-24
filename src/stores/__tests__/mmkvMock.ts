@@ -24,5 +24,3 @@ export function createMockMMKV() {
     },
   };
 }
-
-export type MockMMKV = ReturnType<typeof createMockMMKV>;

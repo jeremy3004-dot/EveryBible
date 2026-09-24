@@ -567,6 +567,7 @@ export const vi = {
     translationDownloadFailedTitle: 'Tải xuống không thành công',
     translationDownloadFailed:
       'Bản Kinh Thánh này chưa tải xuống xong. Hãy kiểm tra kết nối internet và dung lượng trống, rồi thử lại.',
+    searchNoResults: 'Không tìm thấy câu nào phù hợp.',
     searchUnavailable: 'Bản dịch này chưa hỗ trợ tìm kiếm toàn văn.',
     noVersesAvailable: '{{book}} {{chapter}} chưa có phần chữ.',
     fullBibleComingSoon: 'Chương này chưa có phần chữ hoặc âm thanh trong bản dịch này.',

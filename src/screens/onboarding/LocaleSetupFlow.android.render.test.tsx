@@ -46,10 +46,12 @@ test('first-run onboarding has one step, so hardware back is never swallowed', a
 test('unmounting the flow removes its hardware back subscription', async () => {
   const view = await renderSettings();
   await view.press(view.getByRole('button', { name: 'Continue with United States' }));
+  assert.equal(harness.rn.BackHandler.listenerCount(), 1, 'the step change replaced its handler');
 
   await view.unmount();
 
   assert.equal(await pressHardwareBack(), false, 'no stale handler steps a gone flow back');
+  assert.equal(harness.rn.BackHandler.listenerCount(), 0);
 });
 
 test('on keyboard show the flow measures its uncollapsed list wrapper, where the footer rests', async () => {

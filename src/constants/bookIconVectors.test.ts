@@ -18,7 +18,7 @@ const directory = new URL('../../assets/book-icons-vector/', import.meta.url);
 // renders the shared BookIcon; the renderer itself is checked below on real data.
 test('every existing book-art placement uses the shared vector renderer and its own book ID', () => {
   const placements = [
-    ['../screens/bible/BibleBrowserScreen.tsx', 'book.id'],
+    ['../screens/bible/browser/BibleBookRow.tsx', 'book.id'],
     ['../screens/bible/ChapterSelectorScreen.tsx', 'book.id'],
     ['../screens/bible/reader/ReaderListenMode.tsx', 'bookId'],
     ['../components/bible/CompanionCard.tsx', 'item.target.bookId'],
@@ -36,15 +36,17 @@ test('every existing book-art placement uses the shared vector renderer and its 
 });
 
 test('all 66 books have a native vector icon and exactly 57 drawings are stored', async () => {
-  const { BOOK_ICONS, getBookIcon } = await loadVectors();
-  assert.equal(Object.keys(BOOK_ICONS).length, 66);
-  assert.equal(new Set(Object.values(BOOK_ICONS)).size, 57);
+  const { getBookIcon } = await loadVectors();
+  assert.equal(bibleBooks.length, 66);
+  const drawings = new Set();
   for (const book of bibleBooks) {
     const icon = getBookIcon(book.id);
     assert.ok(icon, book.id);
     assert.ok(icon.paths.length > 0, book.id);
     assert.equal(icon.viewBox, '0 0 768 768');
+    drawings.add(icon);
   }
+  assert.equal(drawings.size, 57);
 });
 
 test('numbered books share the exact drawing, while the Gospel of John stays distinct', async () => {

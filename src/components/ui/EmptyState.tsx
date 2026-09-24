@@ -1,7 +1,7 @@
 import { type StyleProp, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../contexts/ThemeContext';
-import { useDisplayFont } from '../../hooks';
+import { useDisplayFont } from '../../hooks/useDisplayFont';
 import { radius, spacing, typography } from '../../design/system';
 import { AppButton } from './AppButton';
 

@@ -105,6 +105,7 @@ export function createReactNativeStub(options: ReactNativeStubOptions = {}) {
     addEventListener: (event: string, listener: Listener) =>
       dimensionsRegistry.add(event, listener),
     emit: (payload: unknown) => dimensionsRegistry.emit('change', payload),
+    listenerCount: () => dimensionsRegistry.count('change'),
   };
 
   const Keyboard = {
@@ -127,6 +128,7 @@ export function createReactNativeStub(options: ReactNativeStubOptions = {}) {
     getInitialURL: async () => null as string | null,
     addEventListener: (event: string, listener: Listener) => linkingRegistry.add(event, listener),
     emit: (url: string) => linkingRegistry.emit('url', { url }),
+    listenerCount: () => linkingRegistry.count('url'),
   };
 
   const Alert = {

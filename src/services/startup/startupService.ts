@@ -96,10 +96,16 @@ export const createStartupCoordinator = ({
 
     startDeferredWarmups: () =>
       scheduleTask(async () => {
-        try {
-          if (preloadRuntimeTranslations) {
+        // Separate guards: the bundled Bible database does not depend on the runtime catalog, so
+        // an offline launch (catalog fetch fails) must still warm it.
+        if (preloadRuntimeTranslations) {
+          try {
             await preloadRuntimeTranslations();
+          } catch (error) {
+            onWarmupError?.(error);
           }
+        }
+        try {
           await preloadBibleData();
         } catch (error) {
           onWarmupError?.(error);

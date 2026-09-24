@@ -32,7 +32,7 @@ export interface PrepareChapterAudioShareAssetOptions {
   ) => Promise<RemoteAudioAsset | null>;
 }
 
-export const AUDIO_SHARE_EXPORT_ROOT_URI = 'file:///everybible-audio-share/';
+const AUDIO_SHARE_EXPORT_ROOT_URI = 'file:///everybible-audio-share/';
 
 const SAFE_FILE_EXTENSION_RE = /^[a-z0-9]{1,8}$/i;
 

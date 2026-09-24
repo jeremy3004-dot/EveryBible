@@ -1,4 +1,4 @@
-export type TextPackInstallPhase = 'downloading' | 'activating';
+type TextPackInstallPhase = 'downloading' | 'activating';
 
 export interface TextPackInstallJournalEntry {
   operationId: string;

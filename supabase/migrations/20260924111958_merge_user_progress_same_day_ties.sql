@@ -1,8 +1,8 @@
 -- merge_user_progress: settle same-day ties the way the app now does.
 --
--- NOT APPLIED. Written from randomised two-device tests of the reading-progress
+-- Applied live 2026-09-24 (version 20260924111958). Written from randomised two-device tests of the reading-progress
 -- merge (src/services/sync/syncMerge.progress.property.test.ts, 2026-09-24);
--- review before applying. The app does not depend on it: its own merge already
+-- The app does not depend on it: its own merge already
 -- resolves these ties before it uploads, so devices converge with or without it.
 -- This keeps the server in step for two uploads that race each other.
 --

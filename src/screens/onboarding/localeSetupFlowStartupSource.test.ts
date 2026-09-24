@@ -5,7 +5,8 @@
 // LocaleSetupFlow.render.test.tsx and LocaleSetupFlow.android.render.test.tsx.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 function readRelativeSource(relativePath: string): string {
@@ -43,6 +44,29 @@ test('LocaleSetupFlow reaches preference sync (and so Supabase) only through a d
     /const syncPreferencesAfterOnboarding = \(\): void => \{[\s\S]*?import\('\.\.\/\.\.\/services\/sync'\)[\s\S]*?\.then\(\(\{ syncPreferences \}\) => syncPreferences\(\)\)/
   );
   assert.doesNotMatch(flowSource, /^import[^;]*from '\.\.\/\.\.\/services\/sync';/m);
+});
+
+test('the modules LocaleSetupFlow is composed from keep the hooks barrel and sync off the first run', () => {
+  // The flow's sections, rows and hooks live in ./localeSetup and are evaluated
+  // with it, so the same two static imports would undo the deferral from there.
+  const folder = fileURLToPath(new URL('./localeSetup/', import.meta.url).href);
+  const modules = readdirSync(folder).filter(
+    (name) => /\.tsx?$/.test(name) && !/\.test\.tsx?$/.test(name)
+  );
+  assert.ok(modules.length > 5, 'the composed modules are found');
+  for (const name of modules) {
+    const source = readFileSync(join(folder, name), 'utf8');
+    assert.doesNotMatch(
+      source,
+      /^import(?!\s+type)[^;]*from '\.\.\/\.\.\/\.\.\/hooks';/m,
+      `${name} imports the hooks barrel`
+    );
+    assert.doesNotMatch(
+      source,
+      /^import(?!\s+type)[^;]*from '\.\.\/\.\.\/\.\.\/services\/sync(?:\/index)?';/m,
+      `${name} imports services/sync statically`
+    );
+  }
 });
 
 test('LocaleSetupFlow imports its hooks from their own modules, not the hooks barrel', () => {

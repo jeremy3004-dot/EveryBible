@@ -6,7 +6,8 @@
 // Deliberately free of Deno and supabase-js imports so the unit tests can load it directly.
 // The scrubbing patterns mirror crashReportModel.ts; appErrorIngest.test.ts pins the parity.
 
-import { getClientIp, resolveQueuedAt } from './analyticsIngest.ts';
+import { getClientIp, resolveQueuedAt, withinLimiterTimeout } from './analyticsIngest.ts';
+import { toStorableText } from './storableText.ts';
 
 // A full client request is at most 10 reports of ~2.5 KB each.
 export const MAX_APP_ERROR_BODY_BYTES = 64 * 1024;
@@ -134,7 +135,10 @@ export async function normalizeAppErrorReport(
   if (occurredAt === 'invalid' || occurredAt === 'too_old') return occurredAt;
 
   const errorName = matching(report.error_name, ERROR_NAME) ?? 'Error';
-  const message = typeof report.message === 'string' ? scrubErrorText(report.message) : '';
+  // The scrubber mirrors the app's, so it keeps a NUL byte and its 500-character cut can split
+  // an emoji into a lone surrogate. Postgres refuses both, which failed the whole batch.
+  const message =
+    typeof report.message === 'string' ? toStorableText(scrubErrorText(report.message)) : '';
   const screen = matching(report.screen, SCREEN);
   const stackFrames = Array.isArray(report.stack_frames)
     ? report.stack_frames
@@ -197,16 +201,18 @@ export async function consumeAppErrorBudget(
 ): Promise<AppErrorBudget> {
   const unavailable = { allowed: false, retryAfterSeconds: 60, unavailable: true };
   try {
-    const { data, error } = await service.rpc('consume_app_error_ingest_budget', {
-      p_client_key: clientKey,
-      p_report_count: usage.reports,
-      p_byte_count: usage.bytes,
-      p_window_seconds: APP_ERROR_RATE_WINDOW_SECONDS,
-      p_max_requests: APP_ERROR_MAX_REQUESTS_PER_WINDOW,
-      p_max_reports: APP_ERROR_MAX_REPORTS_PER_WINDOW,
-      p_max_bytes: APP_ERROR_MAX_BYTES_PER_WINDOW,
-      p_max_global_reports: APP_ERROR_MAX_GLOBAL_REPORTS_PER_WINDOW,
-    });
+    const { data, error } = await withinLimiterTimeout(
+      service.rpc('consume_app_error_ingest_budget', {
+        p_client_key: clientKey,
+        p_report_count: usage.reports,
+        p_byte_count: usage.bytes,
+        p_window_seconds: APP_ERROR_RATE_WINDOW_SECONDS,
+        p_max_requests: APP_ERROR_MAX_REQUESTS_PER_WINDOW,
+        p_max_reports: APP_ERROR_MAX_REPORTS_PER_WINDOW,
+        p_max_bytes: APP_ERROR_MAX_BYTES_PER_WINDOW,
+        p_max_global_reports: APP_ERROR_MAX_GLOBAL_REPORTS_PER_WINDOW,
+      })
+    );
     const row = (Array.isArray(data) ? data[0] : data) as
       | { allowed?: unknown; retry_after_seconds?: unknown }
       | null

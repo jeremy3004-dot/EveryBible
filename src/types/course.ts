@@ -1,25 +1,17 @@
-export interface Lesson {
+interface Lesson {
   id: string;
   title: string;
   content: string;
   order: number;
 }
 
-export interface Course {
+interface Course {
   id: string;
   title: string;
   description: string;
   imageUrl?: string;
   lessons: Lesson[];
   featured: boolean;
-}
-
-export interface CourseProgress {
-  courseId: string;
-  started: boolean;
-  completed: boolean;
-  currentLesson: number;
-  completedLessons: string[];
 }
 
 // Four Fields Types

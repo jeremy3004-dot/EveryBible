@@ -1,8 +1,14 @@
 import { mmkvInstance } from '../../stores/mmkvStorage';
 import { canReportUsage, subscribeToReportingPolicy } from '../analytics/reportingPolicy';
+import { isReportingNetworkUsable } from '../analytics/reportingNetwork';
+import { recordCrashLog, toCrashLogEntry } from './crashLogStore';
 import {
   admitCrashReport,
   buildCrashReport,
+  isTransientNetworkError,
+  MAX_CRASH_REPORTS_PER_DAY,
+  MAX_HANDLED_REPORTS_PER_DAY,
+  toHandledErrorSource,
   type AppErrorReport,
   type CrashReportBudget,
   type CrashReportKind,
@@ -162,6 +168,8 @@ export interface QueueCrashReportInput {
   /** Screen for boundary errors; global errors use the current route. */
   screen?: string | null;
   componentStack?: string | null;
+  /** Set for handled errors (reportHandledError), which get a smaller daily budget. */
+  source?: string;
 }
 
 /**
@@ -179,6 +187,7 @@ export function queueCrashReport(input: QueueCrashReportInput): void {
       kind: input.kind,
       screen: input.screen !== undefined ? input.screen : getCurrentScreen(),
       componentStack: input.componentStack,
+      source: input.source,
       occurredAt: now,
       reportId: generateUUID(),
       device: {
@@ -190,7 +199,13 @@ export function queueCrashReport(input: QueueCrashReportInput): void {
       },
     });
     const day = new Date(now).toISOString().slice(0, 10);
-    const admission = admitCrashReport(readBudget(), sessionFingerprints, report.fingerprint, day);
+    const admission = admitCrashReport(
+      readBudget(),
+      sessionFingerprints,
+      report.fingerprint,
+      day,
+      input.source ? MAX_HANDLED_REPORTS_PER_DAY : MAX_CRASH_REPORTS_PER_DAY
+    );
     if (!admission.admitted) return;
     mmkvInstance.set(BUDGET_KEY, JSON.stringify(admission.budget));
     writeQueue([...readQueue(), report]);
@@ -203,12 +218,35 @@ export function queueCrashReport(input: QueueCrashReportInput): void {
   }
 }
 
+/**
+ * For a catch site that recovers from an error we would still want to hear about (a
+ * damaged database import, a failed text-pack install, audio that will not load, a sync
+ * cycle that failed). Recorded on the Diagnostics screen and queued as an `error` report
+ * whose message starts with `[source]`. Transient network failures are skipped, handled
+ * errors can use only half the daily budget, and it never throws.
+ *
+ *   reportHandledError('audio.load', error);
+ */
+export function reportHandledError(source: string, error: unknown): void {
+  try {
+    if (isTransientNetworkError(error)) return;
+    const label = toHandledErrorSource(source);
+    const entry = toCrashLogEntry(error, false, Date.now());
+    recordCrashLog({ ...entry, message: `[${label}] ${entry.message}` });
+    queueCrashReport({ error, kind: 'error', source: label });
+  } catch {
+    // Reporting is best effort and must never break the caller's recovery path.
+  }
+}
+
 function isPermanentUploadError(error: unknown): boolean {
   const status = (error as { context?: { status?: number } } | null)?.context?.status;
   return status === 400 || status === 413 || status === 422;
 }
 
-async function uploadPending(): Promise<CrashReportFlushResult> {
+async function uploadPending(
+  canSend: () => boolean = canReportUsage
+): Promise<CrashReportFlushResult> {
   const { supabase, isSupabaseConfigured, getSupabasePublicKey } =
     require('../supabase') as typeof import('../supabase');
   if (!isSupabaseConfigured()) return { success: true, sent: 0, deferred: true };
@@ -216,7 +254,7 @@ async function uploadPending(): Promise<CrashReportFlushResult> {
   for (let request = 0; request < MAX_REQUESTS_PER_FLUSH; request++) {
     const batch = readQueue().slice(0, MAX_REPORTS_PER_REQUEST);
     if (batch.length === 0) break;
-    if (!canReportUsage()) return { success: true, sent, deferred: true };
+    if (!canSend()) return { success: true, sent, deferred: true };
     const { error } = await supabase.functions.invoke(CRASH_REPORT_ENDPOINT, {
       body: { reports: batch },
       headers: { Authorization: `Bearer ${getSupabasePublicKey()}` },
@@ -238,6 +276,45 @@ export function flushCrashReports(): Promise<CrashReportFlushResult> {
       flushPromise = null;
     });
   return flushPromise;
+}
+
+const DEFERRED: CrashReportFlushResult = { success: true, sent: 0, deferred: true };
+
+function isAppInForeground(): boolean {
+  try {
+    const { AppState } = require('react-native') as typeof import('react-native');
+    return AppState.currentState === 'active';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Called once per launch by App.tsx after the first interactions, whether or not
+ * onboarding has finished. The reporting policy is owned by the runtime effects, which
+ * mount only after onboarding, so without this a crash during onboarding (or a
+ * first-launch crash loop, which keeps onboarding from ever finishing) would never be
+ * sent. Same rules as the policy, checked once: foreground, connected, not metered.
+ * Does no native work when nothing is pending, and never rejects.
+ */
+export async function flushPendingCrashReportsAtLaunch(): Promise<CrashReportFlushResult> {
+  try {
+    if (flushPromise) return await flushPromise;
+    if (readQueue().length === 0) return { success: true, sent: 0 };
+    if (!isAppInForeground()) return DEFERRED;
+    const NetInfo = require('@react-native-community/netinfo')
+      .default as typeof import('@react-native-community/netinfo').default;
+    if (!isReportingNetworkUsable(await NetInfo.fetch())) return DEFERRED;
+    if (flushPromise) return await flushPromise;
+    flushPromise = uploadPending(isAppInForeground)
+      .catch(() => ({ success: false, sent: 0 }))
+      .finally(() => {
+        flushPromise = null;
+      });
+    return await flushPromise;
+  } catch {
+    return { success: false, sent: 0 };
+  }
 }
 
 /** Owned by AppRuntimeEffects: uploads pending reports whenever reporting is allowed. */

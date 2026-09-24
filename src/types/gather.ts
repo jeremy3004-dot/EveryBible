@@ -25,7 +25,7 @@ export interface GatherFoundation {
   lessons: GatherLesson[];
 }
 
-export interface GatherWisdom {
+interface GatherWisdom {
   id: string; // e.g. 'topic-courage'
   title: string;
   iconName: string; // Ionicons name (fallback when iconImage absent)
@@ -34,12 +34,7 @@ export interface GatherWisdom {
   lessons: GatherLesson[];
 }
 
-export type GatherWisdomCategoryName =
-  | 'The Inner Life'
-  | 'Challenge'
-  | 'Money'
-  | 'People'
-  | 'Knowing God';
+type GatherWisdomCategoryName = 'The Inner Life' | 'Challenge' | 'Money' | 'People' | 'Knowing God';
 
 export interface GatherWisdomCategory {
   id: string;

@@ -5,17 +5,17 @@ export type BibleCompanionModuleKind =
   | 'playlists'
   | 'figures';
 
-export type BibleCompanionModuleState = 'ready' | 'coming-soon';
-export type BibleBookArtworkVariant = 'ember' | 'meadow' | 'midnight' | 'river' | 'sunrise';
+type BibleCompanionModuleState = 'ready' | 'coming-soon';
+type BibleBookArtworkVariant = 'ember' | 'meadow' | 'midnight' | 'river' | 'sunrise';
 
-export interface BibleCompanionReference {
+interface BibleCompanionReference {
   bookId: string;
   chapter: number;
   verseStart?: number;
   verseEnd?: number;
 }
 
-export interface BibleCompanionBaseItem {
+interface BibleCompanionBaseItem {
   id: string;
   title: string;
   summary: string;
@@ -24,32 +24,32 @@ export interface BibleCompanionBaseItem {
   state?: BibleCompanionModuleState;
 }
 
-export interface PassageItem extends BibleCompanionBaseItem {
+interface PassageItem extends BibleCompanionBaseItem {
   kind: 'passages';
   reference: BibleCompanionReference;
   durationMinutes?: number;
 }
 
-export interface DevotionalItem extends BibleCompanionBaseItem {
+interface DevotionalItem extends BibleCompanionBaseItem {
   kind: 'devotionals';
   reference: BibleCompanionReference;
   speaker?: string;
   durationMinutes?: number;
 }
 
-export interface PlanItem extends BibleCompanionBaseItem {
+interface PlanItem extends BibleCompanionBaseItem {
   kind: 'plans';
   days: number;
   entries: BibleCompanionReference[];
 }
 
-export interface PlaylistItem extends BibleCompanionBaseItem {
+interface PlaylistItem extends BibleCompanionBaseItem {
   kind: 'playlists';
   itemCount: number;
   entries: BibleCompanionReference[];
 }
 
-export interface FigureItem extends BibleCompanionBaseItem {
+interface FigureItem extends BibleCompanionBaseItem {
   kind: 'figures';
   personName: string;
   role: string;
@@ -63,7 +63,7 @@ export type BibleCompanionItem =
   | PlaylistItem
   | FigureItem;
 
-export interface BibleCompanionModule {
+interface BibleCompanionModule {
   id: string;
   kind: BibleCompanionModuleKind;
   title: string;

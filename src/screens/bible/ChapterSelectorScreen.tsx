@@ -11,7 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { getBookById, getTranslatedBookName } from '../../constants';
 import { CompanionSection } from '../../components/bible/CompanionSection';
 import { useTheme } from '../../contexts/ThemeContext';
-import { useDisplayFont } from '../../hooks';
+import { useDisplayFont } from '../../hooks/useDisplayFont';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useProgressStore } from '../../stores/progressStore';

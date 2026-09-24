@@ -187,3 +187,68 @@ test('admission caps reports per day and resets on a new day', () => {
     budget: { day: '2026-09-25', count: 1 },
   });
 });
+
+// Postgres refuses a NUL byte and a lone UTF-16 surrogate, so either one used to fail the
+// whole upload batch. The client must never produce them, even when cutting mid-emoji.
+const hasLoneSurrogate = (text: string) =>
+  /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/.test(text);
+
+test('truncation never splits an emoji into a lone surrogate', () => {
+  // 48 ASCII characters then emoji: a UTF-16 cut at 49 lands between a surrogate pair.
+  // (Words, not one long run, which would be scrubbed as a token.)
+  const words48 = 'ab '.repeat(16);
+  const scrubbed = scrubErrorText(`${words48}${'😀'.repeat(10)}`, 50);
+  assert.equal(hasLoneSurrogate(scrubbed), false);
+  assert.ok(scrubbed.length <= 50, 'still within the server limit in UTF-16 units');
+  assert.equal(scrubbed, `${words48}…`);
+});
+
+test('an emoji that fits before the cut is kept whole', () => {
+  const words47 = `${'ab '.repeat(15)}ab`;
+  const scrubbed = scrubErrorText(`${words47}${'😀'.repeat(10)}`, 50);
+  assert.equal(scrubbed, `${words47}😀…`);
+});
+
+test('NUL bytes are removed from the message', () => {
+  assert.equal(scrubErrorText('bad\u0000 value\u0000'), 'bad value');
+});
+
+test('lone surrogates already present in the error text are replaced', () => {
+  const scrubbed = scrubErrorText('broken \ud83d text and \ude00 tail');
+  assert.equal(hasLoneSurrogate(scrubbed), false);
+  assert.equal(scrubbed, 'broken � text and � tail');
+});
+
+// Translator/council passcodes and the privacy PIN are short digit runs the long-number
+// rule does not catch, so a labelled secret is redacted by its label.
+test('labelled secrets are redacted even when the value is short', () => {
+  assert.equal(
+    scrubErrorText(
+      'Rejected passcode=4821, {"pin":"1234"} password: hunter2 refresh_token=abc api_key=xyz'
+    ),
+    'Rejected passcode=<redacted>, {"pin":"<redacted>"} password: <redacted> ' +
+      'refresh_token=<redacted> api_key=<redacted>'
+  );
+});
+
+test('parser errors that mention a token keep the offending character', () => {
+  assert.equal(
+    scrubErrorText('JSON Parse error: Unexpected token: }'),
+    'JSON Parse error: Unexpected token: }'
+  );
+});
+
+// Libraries and native modules often reject with a plain `{ message, code }` object; the
+// report used to say only "[object Object]".
+test('a non-Error rejection reason with a message keeps that message', () => {
+  const report = buildCrashReport({
+    error: { message: 'Download failed for jane@example.com', code: 'E_DOWNLOAD' },
+    kind: 'rejection',
+    screen: null,
+    occurredAt: 0,
+    reportId: '11111111-2222-4333-8444-555555555555',
+    device: DEVICE,
+  });
+  assert.equal(report.error_name, 'NonError');
+  assert.equal(report.message, 'Download failed for <email>');
+});

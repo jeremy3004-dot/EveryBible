@@ -8,9 +8,7 @@ export type ReadingPlanCategory =
 export type ReadingPlanScheduleMode = 'relative' | 'calendar-day-of-month' | 'calendar-day-of-week';
 export type ReadingPlanFormat = 'single-session' | 'multi-session';
 export type PlanSessionKey = 'morning' | 'midday' | 'evening';
-export type ReadingPlanWeekStartsOn = 'sunday' | 'monday';
-
-export type ReadingPlansTabKey = 'myPlans' | 'findPlans' | 'savedPlans' | 'completedPlans';
+type ReadingPlanWeekStartsOn = 'sunday' | 'monday';
 export type ReadingPlanCoverKey =
   | 'dunes'
   | 'faithObedience'
@@ -98,13 +96,13 @@ export type RhythmId = string;
 export type RhythmItemId = string;
 export type RhythmSlot = 'morning' | 'afternoon' | 'evening';
 
-export interface ReadingPlanRhythmPlanItem {
+interface ReadingPlanRhythmPlanItem {
   id: RhythmItemId;
   type: 'plan';
   planId: string;
 }
 
-export interface ReadingPlanRhythmPassageItem {
+interface ReadingPlanRhythmPassageItem {
   id: RhythmItemId;
   type: 'passage';
   title: string;

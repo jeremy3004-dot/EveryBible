@@ -9,6 +9,8 @@ interface AppConfig {
   expo: {
     android?: {
       googleServicesFile?: string;
+      permissions?: string[];
+      blockedPermissions?: string[];
     };
   };
 }
@@ -48,5 +50,29 @@ test('android production builds give the Gradle daemon enough heap for R8', () =
     '-Dorg.gradle.jvmargs=-Xmx4g',
     'The production bundle enables R8/resource shrinking and needs more than the generated ' +
       '2 GiB Gradle heap on clean CI runners.'
+  );
+});
+
+test('android release manifest drops permissions the app never uses', () => {
+  // expo-image-picker's library manifest merges CAMERA in, and the prebuild template adds
+  // SYSTEM_ALERT_WINDOW. The app only opens the photo library (ProfileScreen) and never
+  // draws over other apps, so both would appear on the Play listing and in review for no
+  // reason. blockedPermissions writes tools:node="remove" into the generated manifest.
+  const appConfig = readRootJson<AppConfig>('app.json');
+  const blocked = appConfig.expo.android?.blockedPermissions ?? [];
+
+  for (const permission of [
+    'android.permission.CAMERA',
+    'android.permission.SYSTEM_ALERT_WINDOW',
+  ]) {
+    assert.ok(blocked.includes(permission), `Expected app.json to block ${permission}`);
+  }
+  assert.ok(
+    appConfig.expo.android?.permissions?.includes('android.permission.RECORD_AUDIO'),
+    'Chapter feedback voice notes need RECORD_AUDIO'
+  );
+  assert.ok(
+    !blocked.includes('android.permission.RECORD_AUDIO'),
+    'Do not block RECORD_AUDIO: chapter feedback records voice notes'
   );
 });
