@@ -870,6 +870,43 @@ test('a merge the server refuses is a failed push, never a blind upsert', async 
   assert.deepEqual(callsFor('user_progress', 'upsert'), []);
 });
 
+// The server refuses a payload naming another account with 42501 (migration
+// 20260924063000): the session switched accounts while the push was in flight.
+// That push belongs to nobody now; it is dropped, never retried as an upsert.
+test('a merge refused as another account (42501) drops the push and reports the sync as stale', async () => {
+  progressStore.setState({ chaptersRead: { GEN_1: 500 } });
+  script.user_progress = { select: { data: remoteProgressRow() } };
+  script[PROGRESS_MERGE_RPC_TABLE] = {
+    write: {
+      data: null,
+      error: { code: '42501', message: 'p_progress is progress for another account' },
+      status: 403,
+    },
+  };
+
+  const result = await withoutBackoffDelay(() => syncAll(USER_A));
+
+  assert.equal(result.success, false);
+  assert.equal(progressMergeCalls().length, 1, 'not retried');
+  assert.equal(progressMergePayload().user_id, USER_A);
+  assert.deepEqual(callsFor('user_progress', 'upsert'), []);
+});
+
+test('syncProgress reports a merge refused as another account as a stale sync', async () => {
+  progressStore.setState({ chaptersRead: { GEN_1: 500 } });
+  script.user_progress = { select: { data: remoteProgressRow() } };
+  script[PROGRESS_MERGE_RPC_TABLE] = {
+    write: {
+      data: null,
+      error: { code: '42501', message: 'p_progress is progress for another account' },
+      status: 403,
+    },
+  };
+
+  assert.deepEqual(await syncProgress(USER_A), { success: false, error: STALE_SYNC_ERROR });
+  assert.deepEqual(callsFor('user_progress', 'upsert'), []);
+});
+
 test('a merge that stores the row but returns nothing keeps the local state as pushed', async () => {
   progressStore.setState({ chaptersRead: { GEN_1: 500 } });
   script.user_progress = { select: { data: remoteProgressRow() } };

@@ -51,9 +51,10 @@ const isRetryableAuthFetchError = (error: unknown): boolean =>
 // auth-js treats a token as expired this long before expires_at (EXPIRY_MARGIN_MS).
 const TOKEN_EXPIRY_MARGIN_MS = 90_000;
 
-// Cheap offline check at launch: one NetInfo read, no network. Loaded lazily so
-// NetInfo stays off the import graph of everything that imports this module.
-const isDeviceOffline = async (): Promise<boolean> => {
+// Cheap offline check (session restore at launch, sign-out): one NetInfo read,
+// no network. Loaded lazily so NetInfo stays off the import graph of everything
+// that imports this module. An unreadable state counts as online.
+export const isDeviceOffline = async (): Promise<boolean> => {
   try {
     const NetInfo = require('@react-native-community/netinfo')
       .default as typeof import('@react-native-community/netinfo').default;

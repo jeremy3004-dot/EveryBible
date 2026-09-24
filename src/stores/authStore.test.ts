@@ -884,6 +884,74 @@ test('initialize on a build with no backend leaves the app signed out and subscr
   assert.deepEqual(supabaseFake.authCalls, []);
 });
 
+// A password-reset link can be redeemed (exchangeCodeForSession, which signs the
+// reader in and emits SIGNED_IN) while startup is still restoring the session:
+// the reset screen can open once the startup timeout lets the app render. The
+// store must hear that sign-in, and the restore, read before it, must not undo it.
+const redeemResetLinkDuringRestore = async (
+  restored: ReturnType<typeof makeFakeSession> | null
+): Promise<void> => {
+  let restoreStarted: () => void = () => {};
+  const restoring = new Promise<void>((resolve) => {
+    restoreStarted = resolve;
+  });
+  let finishRestore: () => void = () => {};
+  authHandlers.getSession = () =>
+    new Promise((resolve) => {
+      finishRestore = () => resolve({ data: { session: restored }, error: null });
+      restoreStarted();
+    });
+
+  const initializing = useAuthStore.getState().initialize();
+  await restoring;
+  const recovery = makeFakeSession({ user: makeFakeUser({ id: 'user-reset' }) });
+  supabaseFake.auth.setSession(recovery);
+  supabaseFake.auth.emit('SIGNED_IN', recovery);
+  finishRestore();
+  await initializing;
+};
+
+test('a reset link redeemed before startup has subscribed to auth changes still signs the reader in', async () => {
+  // Runs before the first successful initialize, while no subscription exists.
+  assert.equal(supabaseFake.auth.listenerCount, 0);
+
+  await redeemResetLinkDuringRestore(null);
+
+  assert.equal(useAuthStore.getState().user?.uid, 'user-reset');
+  assert.equal(useAuthStore.getState().isAuthenticated, true);
+});
+
+test('the session restore read before a reset link was redeemed does not undo that sign-in', async () => {
+  await redeemResetLinkDuringRestore(makeFakeSession({ user: makeFakeUser({ id: 'user-a' }) }));
+
+  assert.equal(useAuthStore.getState().user?.uid, 'user-reset');
+});
+
+test('an empty INITIAL_SESSION during the restore does not stop the restored session applying', async () => {
+  let finishRestore: () => void = () => {};
+  let restoreStarted: () => void = () => {};
+  const restoring = new Promise<void>((resolve) => {
+    restoreStarted = resolve;
+  });
+  authHandlers.getSession = () =>
+    new Promise((resolve) => {
+      finishRestore = () =>
+        resolve({
+          data: { session: makeFakeSession({ user: makeFakeUser({ id: 'user-a' }) }) },
+          error: null,
+        });
+      restoreStarted();
+    });
+
+  const initializing = useAuthStore.getState().initialize();
+  await restoring;
+  supabaseFake.auth.emit('INITIAL_SESSION', null);
+  finishRestore();
+  await initializing;
+
+  assert.equal(useAuthStore.getState().user?.uid, 'user-a');
+});
+
 test('initialize restores a live session and marks the app authenticated', async () => {
   supabaseFake.auth.setSession(makeFakeSession({ user: makeFakeUser({ id: 'user-a' }) }));
 

@@ -10,7 +10,7 @@ import { Platform } from 'react-native';
 import type { User } from '../../types';
 import { publicRuntimeConfig } from '../startup/publicRuntimeConfig';
 import { createGoogleSignInInitializer } from './googleSignIn';
-import { mapSupabaseUser } from './authSession';
+import { isDeviceOffline, mapSupabaseUser } from './authSession';
 import type { AuthErrorCode } from './authErrors';
 import {
   configurationAuthError,
@@ -292,6 +292,14 @@ export const signInWithGoogle = async (): Promise<AuthResult> => {
 export const signOut = async (): Promise<{ success: boolean; error?: string }> => {
   if (!isSupabaseConfigured()) {
     return { success: true }; // No session to sign out from
+  }
+
+  // Offline, auth-js first refreshes an expired token and retries that refresh
+  // for about 25 s before its sign-out request fails anyway. End the session on
+  // this device at once; the server session is left to expire.
+  if (await isDeviceOffline()) {
+    await endSessionOnThisDevice();
+    return { success: true };
   }
 
   try {

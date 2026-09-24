@@ -27,6 +27,7 @@ import type {
 } from './types';
 import {
   createSyncIdentityBoundary,
+  isMergeRefusedForAccount,
   STALE_SYNC_ERROR,
   type SyncIdentityBoundary,
 } from '../sync/syncIdentity';
@@ -596,6 +597,9 @@ async function mergeLivePlanProgressOnServer(
     return { status: 'nothing' };
   }
   const { data, error, status } = await write.value;
+  if (isMergeRefusedForAccount(error)) {
+    return { status: 'stale' };
+  }
   return isMissingMergeRpcError(error, status) ? null : { status: 'done', data, error };
 }
 

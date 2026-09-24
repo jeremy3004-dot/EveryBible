@@ -356,6 +356,17 @@ await db.exec(
     'utf8'
   )
 );
+// Both merge functions as replaced by 20260924063000 (payload owner check); every
+// merge check below runs against this version.
+await db.exec(
+  await fs.readFile(
+    new URL(
+      '../supabase/migrations/20260924063000_merge_rpcs_reject_foreign_owner.sql',
+      import.meta.url
+    ),
+    'utf8'
+  )
+);
 
 // The installed builds' progress upsert (syncService.ts @ a608f1d7): the whole row, on
 // conflict (user_id), replacing chapters_read.
@@ -480,30 +491,55 @@ assert.ok(new Date(progress.rows[0].synced_at).getTime() >= Date.now() - 60_000,
 await db.query(`update public.user_progress set chapters_read = null where user_id = $1`, [
   OTHER_READER,
 ]);
-progress = await mergeProgress(OTHER_READER, upload({ chapters_read: { GEN_1: 10 } }));
+progress = await mergeProgress(
+  OTHER_READER,
+  upload({ user_id: OTHER_READER, chapters_read: { GEN_1: 10 } })
+);
 assert.deepEqual(progress.rows[0].chapters_read, { GEN_1: 10 });
 await db.query(
   `update public.user_progress set chapters_read = '{"GEN_1": "x", "GEN_3": 30}'
      where user_id = $1`,
   [OTHER_READER]
 );
-progress = await mergeProgress(OTHER_READER, upload({ chapters_read: {} }));
+progress = await mergeProgress(OTHER_READER, upload({ user_id: OTHER_READER, chapters_read: {} }));
 assert.deepEqual(progress.rows[0].chapters_read, { GEN_3: 30 });
 
-// The owner is always the caller: a user_id in the payload is ignored, and another
-// account's row is never touched.
+// The owner is always the caller. A payload that names another account (the session
+// switched accounts while the push was in flight) is refused with 42501, and neither
+// account's row is touched; a payload without user_id (older clients) is accepted.
 const otherBefore = await progressOf(OTHER_READER);
+const readerBefore = await progressOf(READER);
+await assert.rejects(
+  mergeProgress(READER, upload({ user_id: OTHER_READER, chapters_read: { X_1: 1 } })),
+  { code: '42501' },
+  'a payload for another account is refused'
+);
+await assert.rejects(
+  mergeProgress(READER, upload({ user_id: 'not-a-uuid', chapters_read: { X_1: 1 } })),
+  { code: '42501' },
+  'a payload whose owner is not the caller in any form is refused'
+);
+assert.deepEqual(await progressOf(OTHER_READER), otherBefore);
+assert.deepEqual(await progressOf(READER), readerBefore);
 progress = await mergeProgress(
   READER,
-  upload({ user_id: OTHER_READER, chapters_read: { X_1: 1 } })
+  upload({ user_id: READER.toUpperCase(), chapters_read: { X_2: 2 } })
 );
-assert.equal(progress.rows[0].user_id, READER);
-assert.deepEqual(await progressOf(OTHER_READER), otherBefore);
+assert.equal(progress.rows[0].chapters_read.X_2, 2, "the caller's own id is accepted in any case");
+const { user_id: _omitted, ...withoutOwner } = upload({ chapters_read: { X_3: 3 } });
+progress = await mergeProgress(READER, withoutOwner);
+assert.equal(progress.rows[0].user_id, READER, 'a payload without user_id is still accepted');
+assert.equal(progress.rows[0].chapters_read.X_3, 3);
+progress = await mergeProgress(READER, upload({ user_id: null, chapters_read: { X_4: 4 } }));
+assert.equal(progress.rows[0].chapters_read.X_4, 4, 'a null user_id counts as absent');
 
 // An account with no row yet (the signup insert missed) gets one from the upload.
 const NO_ROW = '33333333-3333-4333-8333-333333333333';
 await signUp(NO_ROW);
-progress = await mergeProgress(NO_ROW, upload({ chapters_read: { GEN_1: 7 }, streak_days: 2 }));
+progress = await mergeProgress(
+  NO_ROW,
+  upload({ user_id: NO_ROW, chapters_read: { GEN_1: 7 }, streak_days: 2 })
+);
 assert.equal(progress.rows[0].user_id, NO_ROW);
 assert.deepEqual(progress.rows[0].chapters_read, { GEN_1: 7 });
 assert.equal(progress.rows[0].streak_days, 2);
@@ -806,20 +842,80 @@ assert.deepEqual(
   ['2']
 );
 
-// The owner is always the caller: a user_id in the payload is ignored, and another
-// account's row is never touched.
+// The owner is always the caller. A row that names another account is refused with
+// 42501 and the whole call writes nothing; rows without user_id are accepted.
 const beforeOther = await planRow(A, SESSION_PLAN);
-merged = await merge(D, [
-  clientRow({ user_id: A, plan_slug: SESSION_PLAN, completed_entries: entries(9) }),
-]);
-assert.equal(merged.rows[0].user_id, D);
+const beforeOwn = await planRow(D, RACE_PLAN);
+for (const rows of [
+  [clientRow({ user_id: A, plan_slug: SESSION_PLAN, completed_entries: entries(9) })],
+  [
+    clientRow({ completed_entries: entries(9) }),
+    clientRow({ user_id: A, plan_slug: 'another-plan', completed_entries: entries(9) }),
+  ],
+]) {
+  await assert.rejects(merge(D, rows), { code: '42501' }, 'a row for another account is refused');
+}
 assert.deepEqual((await planRow(A, SESSION_PLAN)).completed_entries, beforeOther.completed_entries);
+assert.deepEqual(await planRow(D, RACE_PLAN), beforeOwn, 'nothing in a refused call is written');
+assert.equal(await planRow(D, 'another-plan'), undefined);
+const { user_id: _noOwner, ...ownerless } = clientRow({ completed_entries: entries(10) });
+merged = await merge(D, [ownerless, clientRow({ plan_slug: 'null-owner', user_id: null })]);
+assert.deepEqual(
+  merged.rows.map((row) => row.user_id),
+  [D, D],
+  'rows without user_id are accepted'
+);
 
 // An ended enrolment is skipped by the tombstone trigger, exactly as for the upsert.
 await as(D, NEW_CLIENT_UNENROL, [D, 'left-plan', hoursAgo(1)]);
 merged = await merge(D, [clientRow({ plan_slug: 'left-plan', started_at: hoursAgo(2) })]);
 assert.equal(merged.rows.length, 0, 'a push of a left enrolment is skipped, not resurrected');
 assert.equal(await planRow(D, 'left-plan'), undefined);
+
+// A stale phone still holding the enrolment the reader left must not merge into the
+// plan they re-joined since. The merge keeps the stored (re-joined) started_at on a
+// conflict, but the BEFORE INSERT tombstone trigger sees the proposed row, with the
+// stale started_at, before the conflict is resolved, and skips it (the rule the
+// client applies with isEnrolmentEndedBy).
+const REJOIN_PLAN = 'rejoined-plan';
+const firstEnrolment = hoursAgo(10);
+merged = await merge(D, [
+  clientRow({ plan_slug: REJOIN_PLAN, started_at: firstEnrolment, completed_entries: entries(1) }),
+]);
+assert.equal(merged.rows.length, 1);
+await as(D, NEW_CLIENT_UNENROL, [D, REJOIN_PLAN, hoursAgo(5)]);
+assert.equal(await planRow(D, REJOIN_PLAN), undefined, 'leaving ends the first enrolment');
+const secondEnrolment = hoursAgo(2);
+merged = await merge(D, [
+  clientRow({ plan_slug: REJOIN_PLAN, started_at: secondEnrolment, completed_entries: entries(7) }),
+]);
+assert.equal(merged.rows.length, 1, 're-joining after the leave is accepted');
+merged = await merge(D, [
+  clientRow({
+    plan_slug: REJOIN_PLAN,
+    started_at: firstEnrolment,
+    completed_entries: entries(1, 2, 3),
+    current_day: 4,
+    is_completed: true,
+    completed_at: day(3),
+  }),
+  clientRow({ plan_slug: 'still-live', completed_entries: entries(1) }),
+]);
+assert.deepEqual(
+  merged.rows.map((row) => row.plan_slug),
+  ['still-live'],
+  'the stale pre-leave row is skipped; the rest of the batch lands'
+);
+const rejoined = await planRow(D, REJOIN_PLAN);
+assert.deepEqual(Object.keys(rejoined.completed_entries), ['7']);
+assert.equal(rejoined.current_day, 1);
+assert.equal(rejoined.is_completed, false);
+assert.equal(new Date(rejoined.started_at).toISOString(), new Date(secondEnrolment).toISOString());
+// A push of the re-joined enrolment itself still merges.
+merged = await merge(D, [
+  clientRow({ plan_slug: REJOIN_PLAN, started_at: secondEnrolment, completed_entries: entries(8) }),
+]);
+assert.deepEqual(Object.keys(merged.rows[0].completed_entries).sort(), ['7', '8']);
 
 // Installed builds keep writing with the plain upsert after the RPC exists.
 upserted = await as(D, OLD_CLIENT_PLAN_UPSERT, [D, 'fresh-plan', enrolledAt, '{}', 1]);
