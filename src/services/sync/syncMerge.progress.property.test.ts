@@ -156,11 +156,14 @@ interface ServerProgressRow {
 /**
  * merge_user_progress's merge step (after validation) with the uploaded payload
  * as "in" and the locked row as "stored". `nowIso` stands in for now().
+ * `rules`: 'live' is 20260924051658; 'proposed' adds the same-day tie rules of
+ * 20260924130000 (not applied).
  */
 function serverMergeUserProgress(
   stored: ServerProgressRow | null,
   payload: Record<string, unknown>,
-  nowIso: string
+  nowIso: string,
+  rules: 'live' | 'proposed' = 'live'
 ): ServerProgressRow {
   const p = JSON.parse(JSON.stringify(payload)) as Record<string, unknown>;
   const inChapters = (p.chapters_read ?? {}) as Record<string, number>;
@@ -202,9 +205,11 @@ function serverMergeUserProgress(
           ? stored.last_read_date
           : inLast;
   const streak =
-    last === stored.last_read_date && last !== inLast
-      ? (stored.streak_days ?? 0)
-      : (inStreak ?? stored.streak_days ?? 0);
+    rules === 'proposed' && inLast !== null && inLast === stored.last_read_date
+      ? Math.max(inStreak ?? 0, stored.streak_days ?? 0)
+      : last === stored.last_read_date && last !== inLast
+        ? (stored.streak_days ?? 0)
+        : (inStreak ?? stored.streak_days ?? 0);
 
   let book = stored.current_book;
   let chapter = stored.current_chapter;
@@ -219,7 +224,11 @@ function serverMergeUserProgress(
       const inTs = chapters[`${inBook}_${inChapter}`] ?? 0;
       const freshUpload =
         inBook === 'GEN' && inChapter === 1 && Object.keys(inChapters).length === 0;
-      if (!(freshUpload || storedTs > inTs)) {
+      const storedWinsTie =
+        rules === 'proposed' &&
+        storedTs === inTs &&
+        `${stored.current_book}_${stored.current_chapter}` > `${inBook}_${inChapter}`;
+      if (!(freshUpload || storedTs > inTs || storedWinsTie)) {
         book = inBook;
         chapter = inChapter;
       }
@@ -401,6 +410,48 @@ test('the client merge and merge_user_progress agree on chapters, last read date
       );
       assert.equal(server.last_read_date, client.progress.lastReadDate);
       assert.equal(server.streak_days, client.progress.streakDays);
+    }),
+    FC_PARAMS
+  );
+});
+
+test('with the proposed tie rules, a stale upload merges on the server as the app would merge it', () => {
+  // Two devices racing: an upload built before the other device's write reaches
+  // the row without the app's merge of it. With the live rules the upload wins a
+  // same-day streak tie or a position tie; migration 20260924130000 (not applied)
+  // makes the server pick what mergeReadingSnapshot picks.
+  fc.assert(
+    fc.property(localSnapshotArb, serverRowArb, (local, stored) => {
+      const client = mergeReadingSnapshot(local, asRemoteRow(stored));
+      const staleUpload = buildRemoteProgressPayload(
+        USER_ID,
+        {
+          progress: {
+            chaptersRead: local.chaptersRead,
+            streakDays: local.streakDays,
+            lastReadDate: local.lastReadDate,
+          },
+          readingPosition: { bookId: local.currentBook, chapter: local.currentChapter },
+          positionSource: 'local',
+          changed: false,
+        },
+        '2026-09-24T00:00:00.000Z'
+      );
+      const server = serverMergeUserProgress(
+        stored,
+        staleUpload as unknown as Record<string, unknown>,
+        '2026-09-24T00:00:00.000Z',
+        'proposed'
+      );
+      assert.deepEqual(
+        [server.last_read_date, server.streak_days, server.current_book, server.current_chapter],
+        [
+          client.progress.lastReadDate,
+          client.progress.streakDays,
+          client.readingPosition.bookId,
+          client.readingPosition.chapter,
+        ]
+      );
     }),
     FC_PARAMS
   );
