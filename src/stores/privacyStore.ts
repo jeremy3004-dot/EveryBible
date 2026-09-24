@@ -3,11 +3,15 @@ import type { PrivacyAppIconMode } from '../types';
 import {
   applyPrivacyAppIcon,
   clearPrivacySettings,
+  getCurrentPrivacyAppIcon,
   hasPrivacyPin,
+  isKeychainError,
   loadPrivacySettings,
+  readPrivacyLockHint,
   updatePrivacyMode,
   validatePrivacyPin,
   verifyPrivacyPinCandidates,
+  writePrivacyLockHint,
 } from '../services/privacy';
 import { initializePrivacyWithTimeout } from '../services/privacy/privacyInitialization';
 import { initializePrivacyInstallationOnStartup } from '../services/privacy/privacyInstallationAdapter';
@@ -31,6 +35,11 @@ interface PrivacyState {
   isLocked: boolean;
   /** Epoch ms until which unlock attempts are refused after repeated failures. */
   pinLockedUntil: number | null;
+  /**
+   * Startup could not read the keychain and went on from the lock hint (or the decoy
+   * icon) instead; mode and hasPin are assumed until an unlock reads the real record.
+   */
+  keychainUnreadable: boolean;
   initialize: () => Promise<void>;
   retryInitialize: () => Promise<void>;
   saveConfiguration: (
@@ -51,11 +60,46 @@ let initializationGeneration = 0;
 
 // The crash queue opens MMKV and the reporting policy, which nothing else here needs, so
 // it is loaded only when there is a failure to report.
-const reportIconChangeFailure = (error: unknown): void => {
+const reportPrivacyFailure = (source: string, error: unknown): void => {
   void import('../services/diagnostics/crashReportQueue')
-    .then(({ reportHandledError }) => reportHandledError('privacy.iconChange', error))
+    .then(({ reportHandledError }) => reportHandledError(source, error))
     .catch(() => undefined);
 };
+
+const ICON_READ_TIMEOUT_MS = 1_000;
+
+const reportIconChangeFailure = (error: unknown): void =>
+  reportPrivacyFailure('privacy.iconChange', error);
+
+const reportUnreadablePrivacySettings = (error: unknown): void =>
+  reportPrivacyFailure(
+    isKeychainError(error) ? 'privacy.keychain' : 'privacy.initialization',
+    error
+  );
+
+/**
+ * Whether discreet mode locks, when the keychain holding its record cannot be read.
+ * Fails closed: the lock hint or the decoy icon on the home screen saying discreet keeps
+ * the app locked; only a hint saying standard opens it. Null when nothing says either,
+ * which leaves the retry screen.
+ */
+const resolveLockWithoutKeychain = async (): Promise<PrivacyAppIconMode | null> => {
+  const hint = readPrivacyLockHint();
+  if (hint === 'discreet') {
+    return 'discreet';
+  }
+  // Bounded: startup waits on this, and a native call that never answers counts as unknown.
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const icon = await Promise.race([
+    getCurrentPrivacyAppIcon(),
+    new Promise<null>((resolve) => {
+      timeoutId = setTimeout(() => resolve(null), ICON_READ_TIMEOUT_MS);
+    }),
+  ]).finally(() => clearTimeout(timeoutId));
+  return icon === 'discreet' ? 'discreet' : hint;
+};
+
+const lockHintFor = (locks: boolean) => (locks ? 'discreet' : 'standard');
 
 // An icon change that fails is reported and left for reconcileAppIcon to retry; it never
 // undoes the saved mode, which is what the lock screen follows.
@@ -92,6 +136,7 @@ export const usePrivacyStore = create<PrivacyState>()((set, get) => {
     if (result.status === 'ready') {
       const hasPin = hasPrivacyPin(result.settings);
       const shouldStartLocked = result.settings.mode === 'discreet' && hasPin;
+      writePrivacyLockHint(lockHintFor(shouldStartLocked));
 
       set({
         isInitialized: true,
@@ -101,12 +146,32 @@ export const usePrivacyStore = create<PrivacyState>()((set, get) => {
         hasPin,
         isLocked: shouldStartLocked,
         pinLockedUntil: result.settings.pinLockedUntil,
+        keychainUnreadable: false,
       });
       return;
     }
 
     if (result.status === 'unavailable') {
       console.error('Failed to initialize privacy mode:', result.error);
+      reportUnreadablePrivacySettings(result.error);
+      const assumedMode = await resolveLockWithoutKeychain();
+      if (generation !== initializationGeneration) {
+        return;
+      }
+      if (assumedMode) {
+        const locks = assumedMode === 'discreet';
+        set({
+          isInitialized: true,
+          isLoading: false,
+          initializationError: null,
+          mode: assumedMode,
+          hasPin: locks,
+          isLocked: locks,
+          pinLockedUntil: null,
+          keychainUnreadable: true,
+        });
+        return;
+      }
     } else {
       console.warn('Privacy mode initialization timed out; waiting for retry.');
     }
@@ -127,6 +192,7 @@ export const usePrivacyStore = create<PrivacyState>()((set, get) => {
     hasPin: false,
     isLocked: true,
     pinLockedUntil: null,
+    keychainUnreadable: false,
 
     initialize,
 
@@ -156,6 +222,9 @@ export const usePrivacyStore = create<PrivacyState>()((set, get) => {
           };
         }
 
+        // Hint first: if the keychain write lands and anything after it fails, a later
+        // launch that cannot read the keychain still keeps the app locked.
+        writePrivacyLockHint('discreet');
         await updatePrivacyMode('discreet', validation.normalized);
         set({
           isInitialized: true,
@@ -164,6 +233,7 @@ export const usePrivacyStore = create<PrivacyState>()((set, get) => {
           hasPin: true,
           isLocked: false,
           pinLockedUntil: null,
+          keychainUnreadable: false,
         });
 
         // Defer icon change until after navigation and re-renders complete to
@@ -179,12 +249,14 @@ export const usePrivacyStore = create<PrivacyState>()((set, get) => {
       }
 
       await updatePrivacyMode('standard', null);
+      writePrivacyLockHint('standard');
       set({
         isInitialized: true,
         initializationError: null,
         mode: 'standard',
         hasPin: false,
         isLocked: false,
+        keychainUnreadable: false,
       });
 
       // Defer icon change until after navigation and re-renders complete.
@@ -208,6 +280,31 @@ export const usePrivacyStore = create<PrivacyState>()((set, get) => {
         return false;
       }
 
+      if (get().keychainUnreadable) {
+        // Locked on an assumption; read the real record before judging the code.
+        let settings: Awaited<ReturnType<typeof loadPrivacySettings>>;
+        try {
+          settings = await loadPrivacySettings();
+        } catch (error) {
+          reportUnreadablePrivacySettings(error);
+          return false;
+        }
+        const hasPin = hasPrivacyPin(settings);
+        const locks = settings.mode === 'discreet' && hasPin;
+        writePrivacyLockHint(lockHintFor(locks));
+        set({
+          keychainUnreadable: false,
+          mode: settings.mode,
+          hasPin,
+          pinLockedUntil: settings.pinLockedUntil,
+        });
+        if (!locks) {
+          // Privacy is off after all: there is nothing to unlock with.
+          set({ isLocked: false });
+          return true;
+        }
+      }
+
       const lockedUntil = get().pinLockedUntil;
       if (lockedUntil !== null && Date.now() < lockedUntil) {
         return false;
@@ -225,7 +322,14 @@ export const usePrivacyStore = create<PrivacyState>()((set, get) => {
 
       // A whole batch of candidates derived from one key sequence counts as a
       // single attempt, so the backoff tracks real guesses rather than taps.
-      const result = await verifyPrivacyPinCandidates(candidates);
+      let result: Awaited<ReturnType<typeof verifyPrivacyPinCandidates>>;
+      try {
+        result = await verifyPrivacyPinCandidates(candidates);
+      } catch (error) {
+        // The lock screen cannot show a failure without hinting a code exists; stay locked.
+        reportUnreadablePrivacySettings(error);
+        return false;
+      }
 
       set({ pinLockedUntil: result.lockedUntil });
 
@@ -245,6 +349,7 @@ export const usePrivacyStore = create<PrivacyState>()((set, get) => {
 
     disablePrivacy: async () => {
       await clearPrivacySettings();
+      writePrivacyLockHint('standard');
       set({
         isInitialized: true,
         initializationError: null,
@@ -252,6 +357,7 @@ export const usePrivacyStore = create<PrivacyState>()((set, get) => {
         hasPin: false,
         isLocked: false,
         pinLockedUntil: null,
+        keychainUnreadable: false,
       });
     },
   };

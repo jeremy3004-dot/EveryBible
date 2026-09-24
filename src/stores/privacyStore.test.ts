@@ -770,3 +770,136 @@ test('a refused retry is reported', async () => {
     ['privacy.iconChange']
   );
 });
+
+// ─── An unreadable keychain ───────────────────────────────────────────────────
+// A keychain that cannot be read (ERR_KEY_CHAIN: an unsigned build, a launch while the
+// device is locked) used to leave every install on the full-screen retry error. The app
+// now starts from what it last knew about the mode, and a discreet install stays locked.
+
+const keychainError = () =>
+  Object.assign(new Error('The operation couldn’t be completed.'), { code: 'ERR_KEY_CHAIN' });
+
+/** Cold-starts the store again, as a relaunch would, with the keychain refusing reads. */
+const relaunchWithUnreadableKeychain = async () => {
+  usePrivacyStore.setState(usePrivacyStore.getInitialState(), true);
+  readFailure = keychainError();
+  const consoleError = mock.method(console, 'error', () => {});
+  try {
+    await store().initialize();
+  } finally {
+    consoleError.mock.restore();
+  }
+};
+
+const lockState = () => ({
+  isInitialized: store().isInitialized,
+  initializationError: store().initializationError,
+  mode: store().mode,
+  hasPin: store().hasPin,
+  isLocked: store().isLocked,
+});
+
+test('a standard install whose keychain cannot be read starts open, and the failure is reported', async () => {
+  await store().initialize();
+
+  const reported = nextReport();
+  await relaunchWithUnreadableKeychain();
+  // Bounded only so a missing report fails instead of hanging the file.
+  await Promise.race([reported, new Promise((resolve) => setTimeout(resolve, 2_000))]);
+
+  assert.deepEqual(lockState(), {
+    isInitialized: true,
+    initializationError: null,
+    mode: 'standard',
+    hasPin: false,
+    isLocked: false,
+  });
+  assert.deepEqual(reportedErrors, [
+    { source: 'privacy.keychain', message: 'The operation couldn’t be completed.' },
+  ]);
+});
+
+test('a fresh install whose keychain cannot be read starts open in standard mode', async () => {
+  mmkv.delete(PRIVACY_INSTALLATION_MARKER_KEY);
+
+  await relaunchWithUnreadableKeychain();
+
+  assert.deepEqual(lockState(), {
+    isInitialized: true,
+    initializationError: null,
+    mode: 'standard',
+    hasPin: false,
+    isLocked: false,
+  });
+});
+
+test('a discreet install whose keychain cannot be read stays locked behind the calculator', async () => {
+  await store().saveConfiguration({ mode: 'discreet', pinInput: '1234' });
+  await settleIconChange();
+
+  await relaunchWithUnreadableKeychain();
+
+  assert.deepEqual(lockState(), {
+    isInitialized: true,
+    initializationError: null,
+    mode: 'discreet',
+    hasPin: true,
+    isLocked: true,
+  });
+});
+
+test('an install wearing the discreet icon stays locked though the app kept no record', async () => {
+  secureStore.set(PRIVACY_SETTINGS_KEY, JSON.stringify({ mode: 'discreet', pin: '1234' }));
+  currentIcon = 'discreet';
+
+  await relaunchWithUnreadableKeychain();
+
+  assert.equal(store().isLocked, true);
+  assert.equal(store().mode, 'discreet');
+});
+
+test('with nothing known about the mode, an unreadable keychain keeps the retry screen', async () => {
+  secureStore.set(PRIVACY_SETTINGS_KEY, JSON.stringify({ mode: 'discreet', pin: '1234' }));
+
+  await relaunchWithUnreadableKeychain();
+
+  assert.deepEqual(
+    [store().initializationError, store().isInitialized, store().isLocked],
+    ['unavailable', false, true]
+  );
+});
+
+test('a locked discreet install unlocks with its code once the keychain answers again', async () => {
+  await store().saveConfiguration({ mode: 'discreet', pinInput: '1234' });
+  await settleIconChange();
+  await relaunchWithUnreadableKeychain();
+
+  const consoleError = mock.method(console, 'error', () => {});
+  try {
+    assert.equal(await store().unlock('1234'), false, 'the keychain still refuses');
+  } finally {
+    consoleError.mock.restore();
+  }
+  assert.equal(store().isLocked, true);
+
+  readFailure = null;
+  assert.equal(await store().unlock('9999'), false, 'a wrong code still fails');
+  assert.equal(await store().unlock('1234'), true);
+  assert.deepEqual(lockState(), {
+    isInitialized: true,
+    initializationError: null,
+    mode: 'discreet',
+    hasPin: true,
+    isLocked: false,
+  });
+});
+
+test('a lock assumed from the icon alone opens once the keychain shows privacy is off', async () => {
+  currentIcon = 'discreet';
+  await relaunchWithUnreadableKeychain();
+  assert.equal(store().isLocked, true);
+
+  readFailure = null;
+  assert.equal(await store().unlock('1234'), true);
+  assert.deepEqual([store().mode, store().hasPin, store().isLocked], ['standard', false, false]);
+});
