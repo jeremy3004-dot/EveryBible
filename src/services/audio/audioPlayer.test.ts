@@ -78,6 +78,10 @@ const trackPlayerDouble = {
   stop: () => record('stop'),
   seekTo: (positionSeconds: number) => record('seekTo', [positionSeconds]),
   setRate: (rate: number) => record('setRate', [rate]),
+  verifyActiveTrack: async () => {
+    await record('verifyActiveTrack');
+    return true;
+  },
   loadAndPlay: (url: string, rate: number, startPositionSeconds?: number) =>
     record(
       'loadAndPlay',
@@ -489,6 +493,17 @@ test('a rate change while a chapter is loading reaches the wrapper for that chap
   await loading;
 
   assert.deepEqual(trackPlayerCalls, [{ method: 'setRate', args: [1.5] }]);
+});
+
+test('verifyLoaded checks the loaded sound with the wrapper, and only a loaded one', async () => {
+  await mod.audioPlayer.verifyLoaded();
+  assert.deepEqual(trackPlayerCalls, []);
+
+  await mod.audioPlayer.loadAndPlay('https://audio.test/john3.mp3');
+  trackPlayerCalls.length = 0;
+  await mod.audioPlayer.verifyLoaded();
+
+  assert.deepEqual(trackPlayerCalls, [{ method: 'verifyActiveTrack', args: [] }]);
 });
 
 test('seekTo converts the millisecond position the UI uses into seconds', async () => {

@@ -82,6 +82,9 @@ const audioProgressTelemetryTimer: { current: ReturnType<typeof setInterval> | n
 };
 const audioProgressTelemetryLastEmittedAt = { current: 0 };
 
+/** How often a loaded chapter that is buffering checks that its sound still exists. */
+const STALLED_STREAM_CHECK_INTERVAL_MS = 5000;
+
 // A chapter change briefly reports a stopped player between two chapters, and the
 // music bed must play through that gap. Shared for the same reason as the timer
 // above: the finish handler that starts a transition can belong to a closed reader.
@@ -940,6 +943,20 @@ export function useAudioPlayer(translationId: string = 'bsb') {
   useEffect(() => {
     followPlaybackWithBackgroundMusic();
   }, []);
+
+  // A loaded chapter that is buffering mid-stream may be waiting on a sound the
+  // native side has already released (Android does so silently when the stream
+  // fails), which would leave an endless spinner with the controls disabled. Check
+  // now and then that the sound still exists; a released one surfaces as an error
+  // that Play recovers from. The first load of a chapter is not loaded yet, so it is
+  // left to its own load error.
+  useEffect(() => {
+    if (status !== 'loading') return;
+    const timer = setInterval(() => {
+      if (audioPlayer.isLoaded()) void audioPlayer.verifyLoaded();
+    }, STALLED_STREAM_CHECK_INTERVAL_MS);
+    return () => clearInterval(timer);
+  }, [status]);
 
   const sleepTimerRemaining = useMemo(() => {
     // A paused timer is frozen in the store, so the countdown shown matches

@@ -454,6 +454,22 @@ async function getProgress(): Promise<Progress> {
   }
 }
 
+/**
+ * Checks that the active sound still exists natively. Android releases a sound whose
+ * stream fails while buffering without any event, which leaves it "buffering" for
+ * good; a released sound is dropped and reported as an error. Resolves whether the
+ * sound is still usable.
+ */
+async function verifyActiveTrack(): Promise<boolean> {
+  const ref = sound;
+  if (!ref) return false;
+  if (!(await isSoundReleased(ref))) return true;
+  if (ref !== sound) return false;
+  dropReleasedSound(ref);
+  emit(Event.PlaybackError, { code: 'PLAYER_RELEASED', message: 'The player was released' });
+  return false;
+}
+
 async function getActiveTrack(): Promise<Track | null> {
   return activeTrack;
 }
@@ -526,6 +542,7 @@ const TrackPlayer = {
   getPlaybackState,
   getProgress,
   getActiveTrack,
+  verifyActiveTrack,
   reset,
   destroy,
   addEventListener,

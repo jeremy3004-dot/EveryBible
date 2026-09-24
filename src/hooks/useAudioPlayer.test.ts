@@ -87,6 +87,8 @@ const scenario = {
   ) => Promise<AudioAsset | null>,
   failLoadUrls: new Set<string>(),
   contentSummary: undefined as { audioChapters?: AudioChapterMap } | undefined,
+  /** The native side released the loaded sound without telling JS (Android). */
+  nativeSoundReleased: false,
 };
 
 interface AudioPlayerCallbacks {
@@ -105,6 +107,7 @@ interface AudioPlayerDouble {
   stop(): Promise<void>;
   seekTo(positionMs: number): Promise<void>;
   setRate(rate: number): Promise<void>;
+  verifyLoaded(): Promise<void>;
   isLoaded(): boolean;
 }
 
@@ -151,6 +154,13 @@ const audioPlayerDouble: AudioPlayerDouble = {
   },
   async setRate(rate: number) {
     recorded.player.push({ method: 'setRate', args: [rate] });
+  },
+  async verifyLoaded() {
+    recorded.player.push({ method: 'verifyLoaded', args: [] });
+    if (scenario.nativeSoundReleased && audioPlayerDouble.loaded) {
+      audioPlayerDouble.loaded = false;
+      audioPlayerDouble.callbacks.onError?.('Player does not exist.');
+    }
   },
   isLoaded() {
     return audioPlayerDouble.loaded;
@@ -401,6 +411,7 @@ beforeEach(() => {
   scenario.remoteFallback = async () => null;
   scenario.failLoadUrls = new Set();
   scenario.contentSummary = undefined;
+  scenario.nativeSoundReleased = false;
   activeTranslate = (key) => key;
 
   audioPlayerDouble.loaded = false;
@@ -1093,6 +1104,45 @@ test('Play on a sound the native side released reloads the chapter in one tap', 
   assert.equal(loadedStartOffset(), 120_000);
   assert.equal(store().status, 'playing');
   assert.equal(store().error, null);
+});
+
+// On Android a stream that fails while buffering is released without any event, so
+// the chapter sat on an endless spinner with the in-app controls disabled. While it
+// buffers the player checks that the sound still exists and reports the failure.
+test('a chapter stuck buffering on a released stream turns into an error Play can recover', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: BASE_TIME });
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  emitStatus({ isPlaying: true, positionMillis: 90_000, durationMillis: DEFAULT_DURATION_MS });
+  emitStatus({ isBuffering: true, positionMillis: 90_000, durationMillis: DEFAULT_DURATION_MS });
+  player.rerender();
+  assert.equal(store().status, 'loading');
+
+  t.mock.timers.tick(5_000);
+  assert.equal(playerCalls('verifyLoaded').length, 1);
+  assert.equal(store().status, 'loading');
+
+  scenario.nativeSoundReleased = true;
+  t.mock.timers.tick(5_000);
+  assert.equal(store().status, 'error');
+
+  recorded.player.length = 0;
+  await player.rerender().togglePlayPause();
+  assert.equal(playerCalls('loadAndPlay').length, 1);
+  assert.equal(loadedStartOffset(), 90_000);
+  emitStatus({ isPlaying: false, positionMillis: 90_000 });
+});
+
+test('the first load of a chapter is not checked as a stalled stream', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: BASE_TIME });
+  const player = mountPlayer();
+  store().setCurrentTrack('bsb', 'GEN', 1);
+  store().setStatus('loading');
+  player.rerender();
+
+  t.mock.timers.tick(15_000);
+
+  assert.deepEqual(playerCalls('verifyLoaded'), []);
 });
 
 test('togglePlayPause starts the last played chapter when nothing is loaded', async () => {

@@ -631,6 +631,33 @@ test('a failed command on a sound that is still loaded keeps it', async () => {
   assert.deepEqual(soundInstances[0].methods(), ['playAsync']);
 });
 
+// Android releases a sound whose stream fails while it buffers without telling JS,
+// so a chapter that lost its network mid-stream sat "buffering" forever. The wrapper
+// can check that the sound still exists.
+test('verifyActiveTrack drops and reports a sound the native side released', async () => {
+  await mod.default.add(track('gen1'));
+  soundInstances[0].rejections.set('getStatusAsync', new Error('Player does not exist.'));
+  const events = recordEvents();
+
+  assert.equal(await mod.default.verifyActiveTrack(), false);
+
+  assert.deepEqual(
+    events.map((entry) => entry.event),
+    [mod.Event.PlaybackState, mod.Event.PlaybackError]
+  );
+  assert.equal(await mod.default.getActiveTrack(), null);
+});
+
+test('verifyActiveTrack leaves a live sound alone', async () => {
+  await mod.default.add(track('gen1'));
+  const events = recordEvents();
+
+  assert.equal(await mod.default.verifyActiveTrack(), true);
+
+  assert.deepEqual(events, []);
+  assert.notEqual(await mod.default.getActiveTrack(), null);
+});
+
 test('an unloaded status without an error is ignored', async () => {
   await mod.default.add(track('gen1'));
   const events = recordEvents();

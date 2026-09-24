@@ -239,6 +239,15 @@ class AudioPlayer {
     }
   }
 
+  /**
+   * Checks that the loaded sound still exists natively. A released one is reported
+   * through onError and leaves the player unloaded, so Play loads the chapter again.
+   */
+  async verifyLoaded(): Promise<void> {
+    if (!this.loaded) return;
+    await TrackPlayer.verifyActiveTrack();
+  }
+
   async getStatus(): Promise<TrackPlayerProgressSnapshot | null> {
     if (!this.loaded) return null;
 
