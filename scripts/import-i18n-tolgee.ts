@@ -16,7 +16,7 @@ interface ImportOptions {
   help: boolean;
 }
 
-const usage = `Usage: tsx scripts/import-i18n-tolgee.ts [--in tmp/tolgee-import] [--out tmp/tolgee-generated]
+export const usage = `Usage: tsx scripts/import-i18n-tolgee.ts [--in tmp/tolgee-import] [--out tmp/tolgee-generated]
 
 Generates TypeScript locale files from Tolgee-exported nested JSON.
 By default this writes to tmp/tolgee-generated, never src/i18n/locales.
@@ -38,7 +38,7 @@ const readOptionValue = (argv: string[], index: number, flag: string): string =>
   return value;
 };
 
-const parseArgs = (argv: string[]): ImportOptions => {
+export const parseArgs = (argv: string[]): ImportOptions => {
   const options: ImportOptions = {
     inDir: DEFAULT_IN_DIR,
     outDir: DEFAULT_OUT_DIR,
@@ -117,7 +117,7 @@ const localeTsSource = (code: LanguageCode, tree: TranslationTree): string => {
   return `export const ${code} = ${json} as const;${translationKeysExport}\n`;
 };
 
-const importLocales = async ({ inDir, outDir }: ImportOptions): Promise<void> => {
+export const importLocales = async ({ inDir, outDir }: ImportOptions): Promise<void> => {
   const absoluteInDir = path.resolve(process.cwd(), inDir);
   const absoluteOutDir = path.resolve(process.cwd(), outDir);
 

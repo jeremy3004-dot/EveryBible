@@ -36,7 +36,7 @@
     "i18n:native:check": "node --import tsx scripts/sync-native-localizations.mjs --check",
     "i18n:tolgee:export": "tsx scripts/export-i18n-tolgee.ts",
     "i18n:tolgee:import": "tsx scripts/import-i18n-tolgee.ts",
-    "test:i18n:tolgee": "node --test --import tsx scripts/i18nTolgeeSource.test.ts",
+    "test:i18n:tolgee": "node --test --experimental-test-module-mocks --import tsx scripts/i18nTolgee.test.ts",
     "verify:expo-config": "npx expo config --json >/dev/null",
     "perf:android": "bash scripts/android_perf_smoke.sh",
     "perf:android:audio": "node --import tsx scripts/benchmark-android-audio.ts",
