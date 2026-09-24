@@ -1700,6 +1700,13 @@ export const ne = {
     "currentPlanDay": "योजनाको हालको दिन {{day}}",
     "planDay": "दिन {{day}}",
     "planSessionForDay": "दिन {{day}} को {{session}}",
+    "prayerYouPrayed": "तपाईंले यसका लागि प्रार्थना गर्नुभयो",
+    "prayerYouEncouraged": "तपाईंले यसलाई प्रोत्साहन दिनुभयो",
+    "prayerPrayedRemoved": "प्रार्थनाको चिन्ह हटाइयो",
+    "prayerEncouragedRemoved": "प्रोत्साहन हटाइयो",
+    "highlightAdded": "हाइलाइट थपियो",
+    "highlightRemoved": "हाइलाइट हटाइयो",
+    "searchResultCount": "नतिजा: {{count}}",
     "music": {
       "off": {
         "label": "बन्द",

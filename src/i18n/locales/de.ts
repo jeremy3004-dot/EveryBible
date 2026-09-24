@@ -95,6 +95,13 @@ export const de = {
     "currentPlanDay": "Aktueller Plantag: {{day}}",
     "planDay": "Tag {{day}}",
     "planSessionForDay": "{{session}} für Tag {{day}}",
+    "prayerYouPrayed": "Du hast dafür gebetet",
+    "prayerYouEncouraged": "Du hast diese Bitte ermutigt",
+    "prayerPrayedRemoved": "Gebetsmarkierung entfernt",
+    "prayerEncouragedRemoved": "Ermutigung entfernt",
+    "highlightAdded": "Markierung hinzugefügt",
+    "highlightRemoved": "Markierung entfernt",
+    "searchResultCount": "Ergebnisse: {{count}}",
     "music": {
       "off": {
         "label": "Aus",

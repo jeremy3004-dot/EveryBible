@@ -89,6 +89,13 @@ export const ur = {
     "currentPlanDay": "منصوبے کا موجودہ دن {{day}}",
     "planDay": "دن {{day}}",
     "planSessionForDay": "دن {{day}} کی {{session}}",
+    "prayerYouPrayed": "آپ نے اس کے لیے دعا کی",
+    "prayerYouEncouraged": "آپ نے اس کا حوصلہ بڑھایا",
+    "prayerPrayedRemoved": "دعا کا نشان ہٹا دیا گیا",
+    "prayerEncouragedRemoved": "حوصلہ افزائی ہٹا دی گئی",
+    "highlightAdded": "نمایاں کر دیا گیا",
+    "highlightRemoved": "نمایاں ہٹا دیا گیا",
+    "searchResultCount": "نتائج: {{count}}",
     "music": {
       "off": {
         "label": "بند",

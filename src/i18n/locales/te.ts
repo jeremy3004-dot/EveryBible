@@ -1700,6 +1700,13 @@ export const te = {
     "currentPlanDay": "ప్రణాళికలో ప్రస్తుత రోజు {{day}}",
     "planDay": "రోజు {{day}}",
     "planSessionForDay": "రోజు {{day}} కోసం {{session}}",
+    "prayerYouPrayed": "మీరు దీని కోసం ప్రార్థించారు",
+    "prayerYouEncouraged": "మీరు దీనిని ప్రోత్సహించారు",
+    "prayerPrayedRemoved": "ప్రార్థన గుర్తు తీసివేయబడింది",
+    "prayerEncouragedRemoved": "ప్రోత్సాహం తీసివేయబడింది",
+    "highlightAdded": "హైలైట్ జోడించబడింది",
+    "highlightRemoved": "హైలైట్ తీసివేయబడింది",
+    "searchResultCount": "ఫలితాలు: {{count}}",
     "music": {
       "off": {
         "label": "ఆఫ్",

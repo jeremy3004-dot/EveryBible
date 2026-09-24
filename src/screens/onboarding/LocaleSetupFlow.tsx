@@ -46,6 +46,7 @@ import {
   prewarmLocaleSearchEngine,
   type LocaleLanguage,
 } from '../../services/onboarding/localeSelection';
+import { getLocaleOptionRowAccessibility } from './localeOptionRowAccessibility';
 import {
   buildInitialOnboardingLanguageOptions,
   filterInitialOnboardingLanguageOptions,
@@ -213,6 +214,12 @@ interface OptionRowProps {
   disabled?: boolean;
   colors: ThemeColors;
   accessibilityLabel?: string;
+  /** The status chip in `trailing`, restated for screen readers. */
+  statusLabel?: string | null;
+  /** Rows with a radio mark in `trailing`. */
+  isSelected?: boolean;
+  isBusy?: boolean;
+  progress?: number | null;
   testID?: string;
   onPress: () => void;
 }
@@ -225,9 +232,22 @@ function OptionRow({
   disabled = false,
   colors,
   accessibilityLabel,
+  statusLabel,
+  isSelected,
+  isBusy,
+  progress,
   testID,
   onPress,
 }: OptionRowProps) {
+  const a11y = getLocaleOptionRowAccessibility({
+    title,
+    subtitle,
+    accessibilityLabel,
+    statusLabel,
+    isSelected,
+    isBusy,
+    progress,
+  });
   return (
     <PressableScale
       onPress={onPress}
@@ -235,7 +255,9 @@ function OptionRow({
       pressEffect="translate"
       haptic="selection"
       accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel ?? title}
+      accessibilityLabel={a11y.label}
+      accessibilityState={a11y.state}
+      accessibilityValue={a11y.value}
       testID={testID}
       style={[
         styles.optionRow,
@@ -340,6 +362,7 @@ const CountryRow = memo(function CountryRow({
       subtitle={countrySubtitle}
       isLast={isLast}
       colors={colors}
+      isSelected={isSelected}
       trailing={<SelectionMark isSelected={isSelected} colors={colors} />}
       onPress={() => onSelect(countryCode)}
     />
@@ -377,6 +400,8 @@ const LanguageRow = memo(function LanguageRow({
       subtitle={language.name}
       isLast={isLast}
       colors={colors}
+      isSelected={isSelected}
+      statusLabel={isRecommended ? recommendedBadgeLabel : null}
       trailing={
         <View style={styles.optionRowTrailing}>
           {isRecommended ? (
@@ -457,6 +482,9 @@ const OnboardingLanguageRow = memo(function OnboardingLanguageRow({
       isLast={isLast}
       disabled={isInstalling}
       colors={colors}
+      statusLabel={isInstalling ? null : isRecommended ? recommendedBadgeLabel : statusLabel}
+      isBusy={isInstalling}
+      progress={progress}
       trailing={trailing}
       onPress={() => onPress(translation)}
     />
@@ -487,6 +515,7 @@ const InterfaceLanguageRow = memo(function InterfaceLanguageRow({
       isLast={isLast}
       colors={colors}
       accessibilityLabel={language.appLanguageLabel}
+      isSelected={isSelected}
       trailing={<SelectionMark isSelected={isSelected} colors={colors} />}
       onPress={() => onSelect(language)}
     />
@@ -1408,13 +1437,20 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
         countryCode,
         selectedInterfaceLanguageCode
       );
+      const countryA11y = getLocaleOptionRowAccessibility({
+        title: countryName,
+        subtitle: getCountrySubtitle(countryCode, countryName),
+        statusLabel: t('onboarding.suggestedBadge'),
+        isSelected: selectedCountryCode === countryCode,
+      });
 
       return (
         <AppCard
           accentRule
           pressable
           padding={layout.cardPadding}
-          accessibilityLabel={countryName}
+          accessibilityLabel={countryA11y.label}
+          accessibilityState={countryA11y.state}
           onPress={() => handleCountrySelect(countryCode)}
         >
           <View style={styles.suggestedRow}>

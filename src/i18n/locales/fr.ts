@@ -101,6 +101,13 @@ export const fr = {
     "currentPlanDay": "Jour actuel du plan : {{day}}",
     "planDay": "Jour {{day}}",
     "planSessionForDay": "{{session}} du jour {{day}}",
+    "prayerYouPrayed": "Vous avez prié pour cette demande",
+    "prayerYouEncouraged": "Vous avez encouragé cette demande",
+    "prayerPrayedRemoved": "Marque de prière retirée",
+    "prayerEncouragedRemoved": "Encouragement retiré",
+    "highlightAdded": "Surlignage ajouté",
+    "highlightRemoved": "Surlignage supprimé",
+    "searchResultCount": "Résultats : {{count}}",
     "music": {
       "off": {
         "label": "Désactivée",

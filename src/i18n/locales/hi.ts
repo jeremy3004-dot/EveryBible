@@ -1700,6 +1700,13 @@ export const hi = {
     "currentPlanDay": "योजना का वर्तमान दिन {{day}}",
     "planDay": "दिन {{day}}",
     "planSessionForDay": "दिन {{day}} का {{session}}",
+    "prayerYouPrayed": "आपने इसके लिए प्रार्थना की",
+    "prayerYouEncouraged": "आपने इसे प्रोत्साहित किया",
+    "prayerPrayedRemoved": "प्रार्थना का चिह्न हटाया गया",
+    "prayerEncouragedRemoved": "प्रोत्साहन हटाया गया",
+    "highlightAdded": "हाइलाइट जोड़ा गया",
+    "highlightRemoved": "हाइलाइट हटाया गया",
+    "searchResultCount": "परिणाम: {{count}}",
     "music": {
       "off": {
         "label": "बंद",

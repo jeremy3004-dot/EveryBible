@@ -1700,6 +1700,13 @@ export const mr = {
     "currentPlanDay": "योजनेचा सध्याचा दिवस {{day}}",
     "planDay": "दिवस {{day}}",
     "planSessionForDay": "दिवस {{day}} साठी {{session}}",
+    "prayerYouPrayed": "तुम्ही यासाठी प्रार्थना केली",
+    "prayerYouEncouraged": "तुम्ही याला प्रोत्साहन दिले",
+    "prayerPrayedRemoved": "प्रार्थनेची खूण काढली",
+    "prayerEncouragedRemoved": "प्रोत्साहन काढले",
+    "highlightAdded": "हायलाइट जोडले",
+    "highlightRemoved": "हायलाइट काढले",
+    "searchResultCount": "निकाल: {{count}}",
     "music": {
       "off": {
         "label": "बंद",

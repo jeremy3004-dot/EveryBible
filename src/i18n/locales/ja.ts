@@ -89,6 +89,13 @@ export const ja = {
     "currentPlanDay": "現在のプランの{{day}}日目",
     "planDay": "{{day}}日目",
     "planSessionForDay": "{{day}}日目の{{session}}",
+    "prayerYouPrayed": "この祈りの課題のために祈りました",
+    "prayerYouEncouraged": "この祈りの課題に励ましを送りました",
+    "prayerPrayedRemoved": "祈りの印を取り消しました",
+    "prayerEncouragedRemoved": "励ましを取り消しました",
+    "highlightAdded": "ハイライトを追加しました",
+    "highlightRemoved": "ハイライトを削除しました",
+    "searchResultCount": "検索結果: {{count}}件",
     "music": {
       "off": {
         "label": "オフ",

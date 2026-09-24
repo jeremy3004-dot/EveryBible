@@ -1700,6 +1700,13 @@ export const bn = {
     "currentPlanDay": "পরিকল্পনার বর্তমান দিন {{day}}",
     "planDay": "দিন {{day}}",
     "planSessionForDay": "দিন {{day}}-এর {{session}}",
+    "prayerYouPrayed": "আপনি এর জন্য প্রার্থনা করেছেন",
+    "prayerYouEncouraged": "আপনি এতে উৎসাহ দিয়েছেন",
+    "prayerPrayedRemoved": "প্রার্থনার চিহ্ন সরানো হয়েছে",
+    "prayerEncouragedRemoved": "উৎসাহ সরানো হয়েছে",
+    "highlightAdded": "হাইলাইট যোগ করা হয়েছে",
+    "highlightRemoved": "হাইলাইট সরানো হয়েছে",
+    "searchResultCount": "ফলাফল: {{count}}",
     "music": {
       "off": {
         "label": "বন্ধ",

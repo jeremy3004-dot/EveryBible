@@ -113,6 +113,13 @@ export const ar = {
     "currentPlanDay": "اليوم الحالي في الخطة: {{day}}",
     "planDay": "اليوم {{day}}",
     "planSessionForDay": "{{session}} لليوم {{day}}",
+    "prayerYouPrayed": "صلّيت لأجل هذا الطلب",
+    "prayerYouEncouraged": "شجّعت صاحب هذا الطلب",
+    "prayerPrayedRemoved": "أُزيلت علامة الصلاة",
+    "prayerEncouragedRemoved": "أُزيل التشجيع",
+    "highlightAdded": "أُضيف التظليل",
+    "highlightRemoved": "أُزيل التظليل",
+    "searchResultCount": "النتائج: {{count}}",
     "music": {
       "off": {
         "label": "إيقاف",

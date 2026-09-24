@@ -9,6 +9,7 @@ import { config } from '../../constants';
 import { useTheme } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
 import { successHaptic } from '../../utils';
+import { announceForAccessibility } from '../../utils/a11y';
 import type { LearnStackParamList } from '../../navigation/types';
 import { useFourFieldsStore } from '../../stores/fourFieldsStore';
 import { useAuthStore } from '../../stores/authStore';
@@ -208,10 +209,13 @@ export function GroupSessionScreen() {
 
   const currentPhaseIndex = PHASES.findIndex((p) => p.id === currentPhase);
 
+  // Next / Previous keep focus while the phase content swaps above them, so the
+  // new phase is spoken rather than only highlighted in the tabs.
   const handleNextPhase = () => {
     const nextIndex = currentPhaseIndex + 1;
     if (nextIndex < PHASES.length) {
       setCurrentPhase(PHASES[nextIndex].id);
+      announceForAccessibility(PHASES[nextIndex].title);
     }
   };
 
@@ -219,6 +223,7 @@ export function GroupSessionScreen() {
     const prevIndex = currentPhaseIndex - 1;
     if (prevIndex >= 0) {
       setCurrentPhase(PHASES[prevIndex].id);
+      announceForAccessibility(PHASES[prevIndex].title);
     }
   };
 
@@ -299,7 +304,10 @@ export function GroupSessionScreen() {
       </View>
 
       {/* Phase Tabs */}
-      <View style={[styles.phaseTabs, { backgroundColor: colors.cardBackground }]}>
+      <View
+        style={[styles.phaseTabs, { backgroundColor: colors.cardBackground }]}
+        accessibilityRole="tablist"
+      >
         {PHASES.map((phase, index) => {
           const isActive = phase.id === currentPhase;
           const isCompleted = index < currentPhaseIndex;

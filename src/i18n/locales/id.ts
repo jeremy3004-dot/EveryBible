@@ -89,6 +89,13 @@ export const id = {
     "currentPlanDay": "Hari rencana saat ini: {{day}}",
     "planDay": "Hari {{day}}",
     "planSessionForDay": "{{session}} untuk hari {{day}}",
+    "prayerYouPrayed": "Anda sudah mendoakan ini",
+    "prayerYouEncouraged": "Anda sudah menguatkan ini",
+    "prayerPrayedRemoved": "Tanda doa dihapus",
+    "prayerEncouragedRemoved": "Tanda menguatkan dihapus",
+    "highlightAdded": "Sorotan ditambahkan",
+    "highlightRemoved": "Sorotan dihapus",
+    "searchResultCount": "Hasil: {{count}}",
     "music": {
       "off": {
         "label": "Nonaktif",

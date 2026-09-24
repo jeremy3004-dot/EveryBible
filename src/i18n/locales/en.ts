@@ -84,6 +84,13 @@ export const en = {
     currentPlanDay: 'Current plan day {{day}}',
     planDay: 'Day {{day}}',
     planSessionForDay: '{{session}} for day {{day}}',
+    prayerYouPrayed: 'You prayed for this',
+    prayerYouEncouraged: 'You encouraged this',
+    prayerPrayedRemoved: 'Prayer mark removed',
+    prayerEncouragedRemoved: 'Encouragement removed',
+    highlightAdded: 'Highlight added',
+    highlightRemoved: 'Highlight removed',
+    searchResultCount: 'Results: {{count}}',
     music: {
       off: {
         label: 'Off',

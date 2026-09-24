@@ -95,6 +95,13 @@ export const tr = {
     "currentPlanDay": "Planın şu anki günü: {{day}}",
     "planDay": "{{day}}. gün",
     "planSessionForDay": "{{day}}. gün için {{session}}",
+    "prayerYouPrayed": "Bunun için dua ettiniz",
+    "prayerYouEncouraged": "Bu isteği yüreklendirdiniz",
+    "prayerPrayedRemoved": "Dua işareti kaldırıldı",
+    "prayerEncouragedRemoved": "Yüreklendirme kaldırıldı",
+    "highlightAdded": "Vurgu eklendi",
+    "highlightRemoved": "Vurgu kaldırıldı",
+    "searchResultCount": "Sonuçlar: {{count}}",
     "music": {
       "off": {
         "label": "Kapalı",

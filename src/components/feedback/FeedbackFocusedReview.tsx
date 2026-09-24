@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
@@ -22,6 +23,7 @@ import {
   type TranslatorFeedbackResolution,
 } from '../../services/feedback';
 import { FeedbackAudioButton, FeedbackVerdict } from './FeedbackResponseCard';
+import { announceForAccessibility } from '../../utils/a11y';
 
 export interface FeedbackFocusedReviewProps {
   visible: boolean;
@@ -70,6 +72,30 @@ export function FeedbackFocusedReview({
   const choices = item ? getResolutionChoices(item) : [];
   const ready = item ? canSubmitResolution(item, note) : false;
 
+  const headerLabel = item
+    ? `${chapterLabel} · ${t('feedback.progress', { current: position, total })}`
+    : chapterLabel;
+
+  // Deciding swaps the page in place and the focus stays on the pressed button, so
+  // a screen reader hears nothing unless the new position, the end of the queue, or
+  // a failure is spoken. The first page needs none: opening the sheet reads it.
+  const announcedItemId = useRef<string | null>(null);
+  const itemId = item?.id ?? null;
+  useEffect(() => {
+    if (!visible) {
+      announcedItemId.current = null;
+      return;
+    }
+    const previous = announcedItemId.current;
+    announcedItemId.current = itemId;
+    if (previous === null || previous === itemId) return;
+    announceForAccessibility(itemId ? headerLabel : t('feedback.complete'));
+  }, [headerLabel, itemId, t, visible]);
+
+  useEffect(() => {
+    if (visible && failed) announceForAccessibility(t('common.unexpectedError'));
+  }, [failed, t, visible]);
+
   const choiceLabel = (resolution: TranslatorFeedbackResolution) =>
     resolution === 'fixed'
       ? t('feedback.markAddressed')
@@ -92,18 +118,23 @@ export function FeedbackFocusedReview({
       >
         <View style={styles.header}>
           <IconButton icon={X} onPress={onClose} accessibilityLabel={t('interface.close')} />
-          <Text style={[styles.headerLabel, { color: colors.secondaryText }]} numberOfLines={2}>
-            {item
-              ? `${chapterLabel} · ${t('feedback.progress', { current: position, total })}`
-              : chapterLabel}
+          <Text
+            accessibilityRole="header"
+            style={[styles.headerLabel, { color: colors.secondaryText }]}
+            numberOfLines={2}
+          >
+            {headerLabel}
           </Text>
           <View style={styles.headerSpacer} />
         </View>
-        <ProgressBar
-          progress={total ? (item ? (position - 1) / total : 1) : 0}
-          height={3}
-          style={styles.progress}
-        />
+        {/* The header already says "3 of 7"; the bar is its picture. */}
+        <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+          <ProgressBar
+            progress={total ? (item ? (position - 1) / total : 1) : 0}
+            height={3}
+            style={styles.progress}
+          />
+        </View>
 
         {item ? (
           <>
@@ -174,7 +205,10 @@ export function FeedbackFocusedReview({
         ) : (
           <View style={styles.finished}>
             <CheckCheck size={40} color={colors.success} strokeWidth={1.8} />
-            <Text style={[styles.finishedTitle, { color: colors.primaryText }]}>
+            <Text
+              accessibilityRole="header"
+              style={[styles.finishedTitle, { color: colors.primaryText }]}
+            >
               {t('feedback.complete')}
             </Text>
             <AppButton label={t('common.done')} variant="primary" size="lg" onPress={onClose} />

@@ -107,6 +107,13 @@ export const ru = {
     "currentPlanDay": "Текущий день плана: {{day}}",
     "planDay": "День {{day}}",
     "planSessionForDay": "{{session}} на день {{day}}",
+    "prayerYouPrayed": "Вы помолились об этой просьбе",
+    "prayerYouEncouraged": "Вы поддержали эту просьбу",
+    "prayerPrayedRemoved": "Отметка о молитве снята",
+    "prayerEncouragedRemoved": "Поддержка снята",
+    "highlightAdded": "Выделение добавлено",
+    "highlightRemoved": "Выделение удалено",
+    "searchResultCount": "Результаты: {{count}}",
     "music": {
       "off": {
         "label": "Без музыки",

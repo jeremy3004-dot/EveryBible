@@ -1700,6 +1700,13 @@ export const pa = {
     "currentPlanDay": "ਯੋਜਨਾ ਦਾ ਮੌਜੂਦਾ ਦਿਨ {{day}}",
     "planDay": "ਦਿਨ {{day}}",
     "planSessionForDay": "ਦਿਨ {{day}} ਲਈ {{session}}",
+    "prayerYouPrayed": "ਤੁਸੀਂ ਇਸ ਲਈ ਪ੍ਰਾਰਥਨਾ ਕੀਤੀ",
+    "prayerYouEncouraged": "ਤੁਸੀਂ ਇਸ ਨੂੰ ਉਤਸ਼ਾਹਿਤ ਕੀਤਾ",
+    "prayerPrayedRemoved": "ਪ੍ਰਾਰਥਨਾ ਦਾ ਨਿਸ਼ਾਨ ਹਟਾਇਆ ਗਿਆ",
+    "prayerEncouragedRemoved": "ਉਤਸ਼ਾਹ ਹਟਾਇਆ ਗਿਆ",
+    "highlightAdded": "ਹਾਈਲਾਈਟ ਜੋੜੀ ਗਈ",
+    "highlightRemoved": "ਹਾਈਲਾਈਟ ਹਟਾਈ ਗਈ",
+    "searchResultCount": "ਨਤੀਜੇ: {{count}}",
     "music": {
       "off": {
         "label": "ਬੰਦ",

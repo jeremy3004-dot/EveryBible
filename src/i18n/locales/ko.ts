@@ -89,6 +89,13 @@ export const ko = {
     "currentPlanDay": "현재 계획 {{day}}일차",
     "planDay": "{{day}}일차",
     "planSessionForDay": "{{day}}일차 {{session}}",
+    "prayerYouPrayed": "이 기도 제목을 위해 기도했어요",
+    "prayerYouEncouraged": "이 기도 제목을 격려했어요",
+    "prayerPrayedRemoved": "기도 표시를 취소했어요",
+    "prayerEncouragedRemoved": "격려를 취소했어요",
+    "highlightAdded": "하이라이트를 추가했어요",
+    "highlightRemoved": "하이라이트를 제거했어요",
+    "searchResultCount": "검색 결과: {{count}}개",
     "music": {
       "off": {
         "label": "끄기",
