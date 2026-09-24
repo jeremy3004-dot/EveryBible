@@ -28,6 +28,7 @@ import {
 } from './src/services/startup';
 import { setupNotificationHandler } from './src/services/notifications/notificationBootstrap';
 import { installGlobalErrorHandlers } from './src/services/diagnostics/globalErrorHandler';
+import { flushPendingCrashReportsAtLaunch } from './src/services/diagnostics/crashReportQueue';
 import { enforceLtrLayoutPolicy } from './src/services/startup/rtlPolicy';
 import { rootNavigationRef } from './src/navigation/rootNavigation';
 import { usePushTokenRegistration } from './src/hooks/usePushTokenRegistration';
@@ -431,6 +432,18 @@ function AppContent() {
       handle.cancel();
     };
   }, []);
+
+  // Crash reports from an earlier launch go out once, after the first interactions,
+  // whether or not onboarding has finished. The runtime effects that own ongoing uploads
+  // mount only after onboarding, so a crash loop during onboarding would never be sent.
+  useEffect(
+    () =>
+      scheduleAfterInteractions(
+        () => void flushPendingCrashReportsAtLaunch(),
+        Platform.OS === 'android' ? ANDROID_BACKGROUND_STARTUP_DELAY_MS : 0
+      ),
+    []
+  );
 
   // Password-reset deep links must be handled regardless of onboarding state — a
   // reset link tapped on a never-onboarded install still needs to establish the

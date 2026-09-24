@@ -1,4 +1,5 @@
 import type { NetInfoState } from '@react-native-community/netinfo';
+import { isReportingNetworkUsable } from './reportingNetwork';
 
 // Unknown connectivity defers optional work. Once connected, unknown
 // reachability/cost is usable until the OS explicitly reports otherwise.
@@ -42,12 +43,7 @@ export function installReportingPolicy(onChange: () => void): () => void {
   let refreshing = false;
   const update = () => {
     if (disposed) return;
-    const next =
-      active &&
-      !refreshing &&
-      state?.isConnected === true &&
-      state.isInternetReachable !== false &&
-      state.details?.isConnectionExpensive !== true;
+    const next = active && !refreshing && isReportingNetworkUsable(state);
     if (next === allowed) return;
     allowed = next;
     onChange();

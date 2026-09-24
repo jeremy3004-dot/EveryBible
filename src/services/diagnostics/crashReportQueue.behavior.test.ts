@@ -19,7 +19,25 @@ import type { AppErrorReport } from './crashReportModel';
 // The real queue over an in-memory MMKV, a scripted reporting policy and the
 // Supabase fake, so each test asserts what is persisted and what is sent.
 const mmkv = mockMmkvStorage(mock);
-mockReactNative(mock, { os: 'android', version: 34 });
+const rn = mockReactNative(mock, { os: 'android', version: 34 });
+// One-shot connectivity read used by the launch flush (before the reporting policy exists).
+const goodNetwork = {
+  isConnected: true,
+  isInternetReachable: true,
+  details: { isConnectionExpensive: false },
+};
+let networkState: unknown = goodNetwork;
+let networkFetches = 0;
+mockModule(mock, '@react-native-community/netinfo', {
+  default: {
+    default: {
+      fetch: async () => {
+        networkFetches += 1;
+        return networkState;
+      },
+    },
+  },
+});
 const backend = createSupabaseFake();
 mockSupabaseModule(mock, backend);
 mockModule(mock, createRequire(import.meta.url).resolve('expo-constants'), {
@@ -76,6 +94,9 @@ beforeEach(async () => {
   respond = () => ({ error: null });
   currentRoute = 'BibleReader';
   backend.auth.setSession(null);
+  rn.AppState.currentState = 'active';
+  networkState = goodNetwork;
+  networkFetches = 0;
 });
 
 test('a fatal error is persisted synchronously with the current screen and device details', async () => {
@@ -316,4 +337,48 @@ test('reporting a handled error never throws, even when storage fails', async ()
   } finally {
     throwOnSet.mock.restore();
   }
+});
+
+// The reporting policy is owned by the runtime effects, which mount only after onboarding.
+// Without a launch flush, a crash during onboarding (or a first-launch crash loop) would
+// sit in the queue until the user finished onboarding, which a crash loop prevents.
+test('a pending crash is sent at launch before the reporting policy exists', async () => {
+  const queue = await load();
+  queue.queueCrashReport({ error: new Error('crashed during onboarding'), kind: 'fatal' });
+  queue.resetCrashReportSessionForTests({ keepStorage: true });
+
+  const result = await queue.flushPendingCrashReportsAtLaunch();
+
+  assert.deepEqual(result, { success: true, sent: 1 });
+  assert.equal(sent[0]?.reports[0]?.message, 'crashed during onboarding');
+  assert.deepEqual(persistedQueue(), []);
+});
+
+test('the launch flush waits when the connection is metered or offline', async () => {
+  const queue = await load();
+  queue.queueCrashReport({ error: new Error('wait for wifi'), kind: 'fatal' });
+
+  networkState = { ...goodNetwork, details: { isConnectionExpensive: true } };
+  assert.equal((await queue.flushPendingCrashReportsAtLaunch()).deferred, true);
+  networkState = { ...goodNetwork, isConnected: false };
+  assert.equal((await queue.flushPendingCrashReportsAtLaunch()).deferred, true);
+
+  assert.equal(sent.length, 0);
+  assert.equal(persistedQueue().length, 1);
+});
+
+test('the launch flush does nothing in the background', async () => {
+  const queue = await load();
+  queue.queueCrashReport({ error: new Error('background launch'), kind: 'fatal' });
+  rn.AppState.currentState = 'background';
+
+  assert.equal((await queue.flushPendingCrashReportsAtLaunch()).deferred, true);
+  assert.equal(sent.length, 0);
+});
+
+test('the launch flush reads nothing native when no report is pending', async () => {
+  const queue = await load();
+
+  assert.deepEqual(await queue.flushPendingCrashReportsAtLaunch(), { success: true, sent: 0 });
+  assert.equal(networkFetches, 0);
 });

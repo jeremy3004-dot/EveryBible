@@ -1,5 +1,6 @@
 import { mmkvInstance } from '../../stores/mmkvStorage';
 import { canReportUsage, subscribeToReportingPolicy } from '../analytics/reportingPolicy';
+import { isReportingNetworkUsable } from '../analytics/reportingNetwork';
 import { recordCrashLog, toCrashLogEntry } from './crashLogStore';
 import {
   admitCrashReport,
@@ -243,7 +244,9 @@ function isPermanentUploadError(error: unknown): boolean {
   return status === 400 || status === 413 || status === 422;
 }
 
-async function uploadPending(): Promise<CrashReportFlushResult> {
+async function uploadPending(
+  canSend: () => boolean = canReportUsage
+): Promise<CrashReportFlushResult> {
   const { supabase, isSupabaseConfigured, getSupabasePublicKey } =
     require('../supabase') as typeof import('../supabase');
   if (!isSupabaseConfigured()) return { success: true, sent: 0, deferred: true };
@@ -251,7 +254,7 @@ async function uploadPending(): Promise<CrashReportFlushResult> {
   for (let request = 0; request < MAX_REQUESTS_PER_FLUSH; request++) {
     const batch = readQueue().slice(0, MAX_REPORTS_PER_REQUEST);
     if (batch.length === 0) break;
-    if (!canReportUsage()) return { success: true, sent, deferred: true };
+    if (!canSend()) return { success: true, sent, deferred: true };
     const { error } = await supabase.functions.invoke(CRASH_REPORT_ENDPOINT, {
       body: { reports: batch },
       headers: { Authorization: `Bearer ${getSupabasePublicKey()}` },
@@ -273,6 +276,45 @@ export function flushCrashReports(): Promise<CrashReportFlushResult> {
       flushPromise = null;
     });
   return flushPromise;
+}
+
+const DEFERRED: CrashReportFlushResult = { success: true, sent: 0, deferred: true };
+
+function isAppInForeground(): boolean {
+  try {
+    const { AppState } = require('react-native') as typeof import('react-native');
+    return AppState.currentState === 'active';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Called once per launch by App.tsx after the first interactions, whether or not
+ * onboarding has finished. The reporting policy is owned by the runtime effects, which
+ * mount only after onboarding, so without this a crash during onboarding (or a
+ * first-launch crash loop, which keeps onboarding from ever finishing) would never be
+ * sent. Same rules as the policy, checked once: foreground, connected, not metered.
+ * Does no native work when nothing is pending, and never rejects.
+ */
+export async function flushPendingCrashReportsAtLaunch(): Promise<CrashReportFlushResult> {
+  try {
+    if (flushPromise) return await flushPromise;
+    if (readQueue().length === 0) return { success: true, sent: 0 };
+    if (!isAppInForeground()) return DEFERRED;
+    const NetInfo = require('@react-native-community/netinfo')
+      .default as typeof import('@react-native-community/netinfo').default;
+    if (!isReportingNetworkUsable(await NetInfo.fetch())) return DEFERRED;
+    if (flushPromise) return await flushPromise;
+    flushPromise = uploadPending(isAppInForeground)
+      .catch(() => ({ success: false, sent: 0 }))
+      .finally(() => {
+        flushPromise = null;
+      });
+    return await flushPromise;
+  } catch {
+    return { success: false, sent: 0 };
+  }
 }
 
 /** Owned by AppRuntimeEffects: uploads pending reports whenever reporting is allowed. */

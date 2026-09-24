@@ -114,8 +114,13 @@ mockModule(mock, sourcePath('services/startup/rtlPolicy.ts'), {
 mockModule(mock, sourcePath('services/diagnostics/crashLogStore.ts'), {
   recordCrashLog: () => {},
 });
+let launchCrashFlushes = 0;
 mockModule(mock, sourcePath('services/diagnostics/crashReportQueue.ts'), {
   queueCrashReport: () => {},
+  flushPendingCrashReportsAtLaunch: async () => {
+    launchCrashFlushes += 1;
+    return { success: true, sent: 0 };
+  },
 });
 mockModule(mock, sourcePath('navigation/rootNavigation.ts'), {
   rootNavigationRef: { isReady: () => false },
@@ -181,6 +186,7 @@ beforeEach(() => {
   privacyInitResult = {};
   tapRoutingThrows = false;
   runtimeEffectsThrow = false;
+  launchCrashFlushes = 0;
   privacyStore.setState(privacyStore.getInitialState(), true);
   authStore.setState(authStore.getInitialState(), true);
 });
@@ -328,6 +334,17 @@ test('a failing runtime-effects host cannot switch off the privacy lock', async 
   await settle();
 
   assert.equal(surface(view), 'lock screen');
+});
+
+// The runtime effects own ongoing crash uploads but mount only after onboarding; a crash
+// loop during onboarding must still reach us, so pending reports go out once per launch.
+test('pending crash reports are flushed once at launch, before onboarding and privacy finish', async () => {
+  authStore.getState().setPreferences({ onboardingCompleted: false });
+  const view = await renderApp();
+
+  assert.equal(surface(view), 'boot shell');
+  assert.equal(view.queryAllByType('AppRuntimeEffects').length, 0);
+  assert.equal(launchCrashFlushes, 1);
 });
 
 test('the runtime-effects host loads once onboarding and privacy are done', async () => {
