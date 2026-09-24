@@ -423,6 +423,25 @@ test('play, pause and resume delegate once a track is loaded', async () => {
   ]);
 });
 
+test('a rate change while a chapter is loading reaches the wrapper for that chapter', async () => {
+  let release!: () => void;
+  gates.set(
+    'loadAndPlay',
+    new Promise<void>((resolve) => {
+      release = resolve;
+    })
+  );
+  const loading = mod.audioPlayer.loadAndPlay('https://audio.test/john3.mp3');
+  await new Promise((resolve) => setImmediate(resolve));
+  trackPlayerCalls.length = 0;
+
+  await mod.audioPlayer.setRate(1.5);
+  release();
+  await loading;
+
+  assert.deepEqual(trackPlayerCalls, [{ method: 'setRate', args: [1.5] }]);
+});
+
 test('seekTo converts the millisecond position the UI uses into seconds', async () => {
   await mod.audioPlayer.loadAndPlay('https://audio.test/john3.mp3');
   trackPlayerCalls.length = 0;

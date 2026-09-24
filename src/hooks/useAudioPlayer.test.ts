@@ -1122,6 +1122,30 @@ test('a chapter started after a rate change is loaded at that rate', async () =>
   assert.equal(playerCalls('loadAndPlay').at(-1)?.args[1], 1.25);
 });
 
+// Resolving a chapter can take a manifest lookup and the load itself a few seconds on
+// a slow network. A speed picked in that window was dropped by the not-yet-loaded
+// player, so the chapter played at the old speed while the control showed the new one.
+test('a speed change while the chapter is still resolving is used for that chapter', async () => {
+  let release!: () => void;
+  const resolving = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  scenario.chapterAudio = async (translationId, bookId, chapter) => {
+    await resolving;
+    return defaultChapterAudio(translationId, bookId, chapter);
+  };
+  const player = mountPlayer();
+
+  const starting = player.api.playChapter('GEN', 1);
+  await Promise.resolve();
+  await player.rerender().changePlaybackRate(1.5);
+  release();
+  await starting;
+
+  assert.equal(playerCalls('loadAndPlay').at(-1)?.args[1], 1.5);
+  assert.equal(store().playbackRate, 1.5);
+});
+
 test('addToQueue queues a chapter of the hook translation', () => {
   const player = mountPlayer('web');
 

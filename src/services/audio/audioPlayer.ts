@@ -217,7 +217,9 @@ class AudioPlayer {
   }
 
   async setRate(rate: PlaybackRate): Promise<void> {
-    if (!this.loaded) return;
+    // A chapter still loading takes the new speed too; the wrapper applies it once
+    // the sound exists.
+    if (!this.loaded && this.pendingLoadRequestId === null) return;
     try {
       await TrackPlayer.setRate(rate);
     } catch (error) {

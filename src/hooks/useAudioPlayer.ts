@@ -450,8 +450,10 @@ export function useAudioPlayer(translationId: string = 'bsb') {
         currentPosition: positionBeforeSwitch,
         duration: durationBeforeSwitch,
         playbackSequence,
-        playbackRate,
       } = useAudioStore.getState();
+      // Read when the sound is created: resolving the chapter and loading it can take
+      // seconds, and a speed picked meanwhile belongs to this chapter.
+      const livePlaybackRate = () => useAudioStore.getState().playbackRate;
 
       // Any call that replaces an already-active chapter is a transition — mark
       // it so the background music keeps running during the gap.
@@ -500,7 +502,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
 
         try {
           const errorId = playbackErrorIdRef.current;
-          await audioPlayer.loadAndPlay(audioData.url, playbackRate);
+          await audioPlayer.loadAndPlay(audioData.url, livePlaybackRate());
           if (errorId !== playbackErrorIdRef.current) {
             throw new Error('Native playback failed');
           }
@@ -524,7 +526,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
           }
 
           const fallbackErrorId = playbackErrorIdRef.current;
-          await audioPlayer.loadAndPlay(remoteFallback.url, playbackRate);
+          await audioPlayer.loadAndPlay(remoteFallback.url, livePlaybackRate());
           if (fallbackErrorId !== playbackErrorIdRef.current) {
             throw new Error('Native playback failed');
           }
@@ -563,7 +565,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
             positionMs: startPositionMs,
             durationMs: audioData.duration,
             isPlaying: true,
-            playbackRate,
+            playbackRate: livePlaybackRate(),
           },
           true
         );

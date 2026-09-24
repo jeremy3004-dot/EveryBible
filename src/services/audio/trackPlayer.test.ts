@@ -878,6 +878,22 @@ test('loadAndPlay re-applies a non-default rate with pitch correction before pla
   ]);
 });
 
+test('a rate change while the chapter loads is applied before it starts playing', async () => {
+  const gate = createDeferred();
+  nextCreateGate = gate.promise;
+  const loading = mod.default.loadAndPlay('https://audio.test/john3.mp3', 1);
+  await flush();
+
+  await mod.default.setRate(1.5);
+  gate.resolve();
+  await loading;
+
+  assert.deepEqual(soundInstances[0].calls, [
+    { method: 'setRateAsync', args: [1.5, true] },
+    { method: 'playAsync', args: [] },
+  ]);
+});
+
 test('loadAndPlay skips the redundant rate call at 1x', async () => {
   await mod.default.loadAndPlay('https://audio.test/john3.mp3');
 

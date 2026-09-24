@@ -493,9 +493,10 @@ async function loadAndPlay(url: string, rate: PlaybackRate = 1.0): Promise<void>
   // Explicitly apply rate + pitch correction via setRateAsync after load.
   // createAsync's `rate` option doesn't reliably enable pitch correction on iOS;
   // setRateAsync(rate, true) is the authoritative call that prevents the chipmunk
-  // effect when advancing chapters at non-1x speed.
-  if (sound && rate !== 1.0) {
-    await sound.setRateAsync(rate, true);
+  // effect when advancing chapters at non-1x speed. `currentRate`, not `rate`: a
+  // speed picked while the chapter was loading belongs to this chapter too.
+  if (sound && (currentRate !== 1.0 || rate !== 1.0)) {
+    await sound.setRateAsync(currentRate, true);
   }
   if (requestId !== loadRequestId) return;
   await play();
