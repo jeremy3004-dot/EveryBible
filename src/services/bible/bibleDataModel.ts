@@ -501,16 +501,28 @@ export function buildBibleSubstringSearchTerms(query: string): string[] | null {
   return terms.length > 0 ? terms.slice(0, MAX_SUBSTRING_SEARCH_TERMS) : null;
 }
 
+const APOSTROPHES = ["'", '’', 'ʼ'];
+const HAS_APOSTROPHE_PATTERN = /['’ʼ]/;
+const APOSTROPHE_PATTERN = /['’ʼ]/g;
+
 // Substring terms for a text pack whose FTS index is not built yet (or failed to build). Each
 // inner list holds spellings of one word, any of which may match: as typed, lowercase,
 // capitalised and uppercase. instr() is case-sensitive and SQLite's lower() only folds ASCII,
 // so this covers "lord", "Lord" and "LORD" in any cased script without an ICU build.
+// A word with an apostrophe also gets each apostrophe spelling, since keyboards type ' where
+// the text prints ’ (the FTS tokenizer treats them all as separators, so it needs none of this).
 export function buildBibleFallbackSearchTerms(query: string): string[][] {
   const words = [...new Set(query.normalize('NFC').match(BIBLE_SEARCH_WORD_PATTERN) ?? [])];
 
   return words.slice(0, MAX_SUBSTRING_SEARCH_TERMS).map((word) => {
     const lower = word.toLowerCase();
     const [first = '', ...rest] = [...lower];
-    return [...new Set([word, lower, first.toUpperCase() + rest.join(''), word.toUpperCase()])];
+    const caseSpellings = [word, lower, first.toUpperCase() + rest.join(''), word.toUpperCase()];
+    const spellings = HAS_APOSTROPHE_PATTERN.test(word)
+      ? caseSpellings.flatMap((spelling) =>
+          APOSTROPHES.map((apostrophe) => spelling.replace(APOSTROPHE_PATTERN, apostrophe))
+        )
+      : caseSpellings;
+    return [...new Set(spellings)];
   });
 }

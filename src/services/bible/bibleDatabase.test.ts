@@ -1648,6 +1648,30 @@ test('the substring fallback requires every word and caps results at the limit',
   await scheduleTextPackSearchIndexBuild('noindex');
 });
 
+test('the substring fallback matches a straight apostrophe against a curly one and back', async () => {
+  const { searchVerses, setBibleDatabaseSourceResolver, scheduleTextPackSearchIndexBuild } =
+    await loadModule();
+  // Keyboards type ' while most translations print ’ (BSB has 3,182 of them and no '), so
+  // "Father's" found nothing while a downloaded pack's index was still being built.
+  installPackWithoutIndex('noindex-apostrophe.db', [
+    {
+      translationId: 'noindex',
+      bookId: 'LUK',
+      chapter: 2,
+      verse: 49,
+      text: 'Did you not know that I must be in My Father’s house?',
+    },
+    { translationId: 'noindex', bookId: 'JHN', chapter: 14, verse: 2, text: "My Father's house." },
+  ]);
+  setBibleDatabaseSourceResolver((translationId) =>
+    translationId === 'noindex' ? installedSource('noindex', 'noindex-apostrophe.db') : null
+  );
+
+  assert.deepEqual(verseRefs(await searchVerses('noindex', "father's")), ['LUK 2:49', 'JHN 14:2']);
+  assert.deepEqual(verseRefs(await searchVerses('noindex', 'Father’s')), ['LUK 2:49', 'JHN 14:2']);
+  await scheduleTextPackSearchIndexBuild('noindex');
+});
+
 test('a pack replaced at the same path is searched without the old index and indexed again', async () => {
   const {
     invalidateInstalledBibleDatabaseAtPath,
