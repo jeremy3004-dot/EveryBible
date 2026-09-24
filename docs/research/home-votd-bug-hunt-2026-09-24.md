@@ -30,11 +30,18 @@ Each fix started with a failing test.
 - **Gather card.** The in-progress foundation wins. If none is started it shows the first, and if all are done it shows the last.
 - **Streak.** `selectCurrentStreakDays` runs on every render. After the clock fix, Home re-renders at midnight and on resume, so a streak that lapsed overnight drops to 0.
 
+## Fixed in a follow-up (same day)
+
+- The greeting now also turns over at 12:00 and 17:00 while Home stays open
+  (`getMillisecondsUntilNextGreetingChange`, a clock-only timer in `startVerseOfDayRefresh`).
+- The hero photograph counts local days continuously, so 31 Dec and 1 Jan never share a photo.
+- "Read …" on a verse borrowed from BSB asks first, then switches the reader to BSB and
+  opens the chapter. Cancel leaves the translation alone.
+- Listen follows NetInfo (`useDeviceOffline`) and asks `isRemoteAudioAvailable` about
+  today's book, so it shows only for downloaded audio or, online, a stream that carries
+  the book. Chapter maps still decide for Every Language sets.
+
 ## Open (not fixed)
 
-- **Low.** While Home stays in the foreground, the greeting changes only at midnight and on resume, not at 12:00 or 17:00. A timer for those two boundaries would close this.
-- **Low.** In non-leap years the hero photograph repeats from 31 Dec to 1 Jan: `(dayOfYear - 1) % 14`, and 364 is a multiple of 14. The cause is in `homeVerseBackgroundSelection.ts`.
-- **Low, unconfirmed.** When the verse is borrowed from BSB, "Read Isaiah 40" opens the reader in the reader's own translation, which lacks the book. The `BibleReader` route has no translation parameter, so the reader's missing-book handling decides what happens. I did not check this on a device.
-- **Low, unconfirmed.** For translations without an EL chapter map, `isChapterAudioCovered` assumes coverage, and streaming audio counts as playable without a network check. Listen may appear for a chapter the stream lacks, or while offline.
 - **Low.** If the silent midnight refresh throws, yesterday's verse stays under today's date. The error is only logged.
 - **Unconfirmed:** I did not query the live `translation_catalog` for New Testament-only text packs, because this task allowed no live Supabase access. Gather's comments and tests treat them as real.

@@ -80,9 +80,9 @@ Each fix landed with its failing test in the same commit:
 - **Voice chapter feedback offline** is not queued. The recording is several
   MB of base64, and queueing it would need a file-backed outbox, not the
   shared MMKV file.
-- **Offline wording** for the translator queue, chapter feedback review and
-  the prayer wall. These still say "Something went wrong". They now
-  terminate, and the prayer wall card already has a cloud-offline icon.
+- **Offline wording** for chapter feedback review, which still says
+  "Something went wrong". (The translator queue and the prayer wall now say
+  the reader is offline.)
 - The Translation browser has no offline banner; it silently shows the
   persisted catalog.
 
