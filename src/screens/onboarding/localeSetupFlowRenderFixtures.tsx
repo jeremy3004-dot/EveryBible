@@ -66,6 +66,7 @@ function makeTranslation(
     hasAudio: false,
     audioGranularity: 'none',
     source: 'bundled',
+    installState: 'seeded',
     ...overrides,
   } as BibleTranslation;
 }
@@ -79,6 +80,11 @@ export const BUNDLED_BIBLES: BibleTranslation[] = [
   makeTranslation({ id: 'npiulb', name: 'Nepali Unlocked Bible', language: 'Nepali' }),
 ];
 
+/** A runtime-catalog Bible the user has already downloaded on this device. */
+export function installedBible(id: string, languageName: string): BibleTranslation {
+  return { ...downloadableBible(id, languageName), isDownloaded: true, installState: 'installed' };
+}
+
 /** A runtime-catalog Bible that must be downloaded before it can be read. */
 export function downloadableBible(id: string, languageName: string): BibleTranslation {
   return makeTranslation({
@@ -87,6 +93,7 @@ export function downloadableBible(id: string, languageName: string): BibleTransl
     language: languageName,
     source: 'runtime',
     isDownloaded: false,
+    installState: 'remote-only',
     catalog: {
       text: { downloadUrl: `https://example.test/${id}.zip` },
     } as unknown as BibleTranslation['catalog'],
@@ -98,7 +105,8 @@ export interface LocaleSetupFlowFakes {
   /** Every locale-search-engine call, in order, interleaved with probe renders. */
   log: string[];
   prewarmCalls: { count: number };
-  deviceLocale: { languageCode: string; regionCode: string; languageTag: string };
+  /** `regionCode: null` is a device with no region set. */
+  deviceLocale: { languageCode: string; regionCode: string | null; languageTag: string };
   useBibleStore: ReturnType<typeof createBibleStore>;
   bibleCalls: Array<{ method: string; args: unknown[] }>;
   /** Replace to make a download fail or hang. */
@@ -159,7 +167,11 @@ export function installLocaleSetupFlowFakes(
   });
   const log: string[] = [];
   const prewarmCalls = { count: 0 };
-  const deviceLocale = { languageCode: 'en', regionCode: 'US', languageTag: 'en-US' };
+  const deviceLocale: LocaleSetupFlowFakes['deviceLocale'] = {
+    languageCode: 'en',
+    regionCode: 'US',
+    languageTag: 'en-US',
+  };
   const bibleCalls: LocaleSetupFlowFakes['bibleCalls'] = [];
   const download: LocaleSetupFlowFakes['download'] = { impl: async () => 'installed' };
   const catalog: LocaleSetupFlowFakes['catalog'] = { loads: 0, impl: async () => {} };

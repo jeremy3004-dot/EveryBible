@@ -15,6 +15,7 @@ import {
   getTranslationSelectionState,
 } from '../../bible/bibleTranslationModel';
 import { isLastInLocaleSetupGroup, type LocaleSetupGroupPosition } from '../localeSetupListModel';
+import { getOnboardingTranslationStatus } from './localeSetupFlowModel';
 import type { SetupStep } from '../localeSetupModel';
 import type { OnboardingBibleSelectionState } from '../onboardingBibleSelectionQueue';
 import {
@@ -95,10 +96,13 @@ export function useStepItemRenderer({
           source: translation.source,
           textPackLocalPath: translation.textPackLocalPath,
         });
+      const status = getOnboardingTranslationStatus(translation, selectionState);
       const statusLabel =
-        selectionState.reason === 'download-required'
+        status === 'download'
           ? t('translations.download')
-          : t('common.continue');
+          : status === 'continue'
+            ? t('common.continue')
+            : null;
       const translationLabel = translation.abbreviation
         ? `${translation.name} (${translation.abbreviation})`
         : translation.name;

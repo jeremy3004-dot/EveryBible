@@ -11,6 +11,7 @@ import {
 import {
   BUNDLED_BIBLES,
   downloadableBible,
+  installedBible,
   installLocaleSetupFlowFakes,
 } from './localeSetupFlowRenderFixtures';
 import { getRuntimeCatalogHydrationPolicy } from './localeSetupModel';
@@ -296,6 +297,48 @@ for (const { region, failedLanguage, fallbackId } of [
     assert.deepEqual(harness.rn.__recorded.alerts, [], 'no download-failed alert');
   });
 }
+
+// A Bible that ships inside the app is not something the user is "continuing":
+// on a fresh install nothing is in progress, so only a Bible the user downloaded
+// themselves says Continue. The pin stays English on an English device wherever it is.
+for (const region of ['US', 'NP', 'IN', null]) {
+  test(`a fresh English device in ${region ?? 'no region'} pins English and marks no bundled Bible Continue`, async () => {
+    fakes.deviceLocale.regionCode = region;
+    const view = await fakes.renderFlow();
+    await view.flush();
+
+    const recommendation = view.getByTestId('onboarding-primary-recommendation');
+    assert.ok(
+      within(recommendation).getByRole('button', {
+        name: 'English, Berean Standard Bible (BSB) · Text, Recommended',
+      })
+    );
+    assert.ok(
+      view.getByRole('button', { name: 'Nepali / नेपाली, Nepali Unlocked Bible (NPIULB) · Text' })
+    );
+    assert.deepEqual(view.queryAllByText(t('common.continue')), [], 'no row says Continue');
+  });
+}
+
+test('only a Bible the user downloaded says Continue; one still to fetch says Download', async () => {
+  fakes.useBibleStore.setState({
+    translations: [
+      ...BUNDLED_BIBLES,
+      installedBible('mai', 'Maithili'),
+      downloadableBible('awa', 'Awadhi'),
+    ],
+  });
+  const view = await fakes.renderFlow();
+  await view.flush();
+
+  assert.ok(view.getByRole('button', { name: /^Maithili, .*, Continue$/ }));
+  assert.ok(view.getByRole('button', { name: /^Awadhi, .*, Download$/ }));
+  assert.ok(
+    view.getByRole('button', { name: /^Hindi \/ हिन्दी, [^,]*$/ }),
+    'bundled rows carry no chip'
+  );
+  assert.equal(view.queryAllByText(t('common.continue')).length, 1);
+});
 
 test('the first frame of the Bible step never builds nation names or searches the locale catalog', async () => {
   const view = await fakes.renderFlow({}, { probes: true });
