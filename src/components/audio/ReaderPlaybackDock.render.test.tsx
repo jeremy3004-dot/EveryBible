@@ -4,8 +4,10 @@ import type { ComponentProps } from 'react';
 import type { ReactTestInstance } from 'react-test-renderer';
 import {
   flattenStyle,
+  hostAncestors,
   installRenderHarness,
   isHiddenFromAccessibility,
+  within,
 } from '../../testing/render';
 
 const harness = installRenderHarness(mock);
@@ -171,4 +173,19 @@ test('hidePlayButton leaves only the chapter arrows', async () => {
 
   assert.equal(view.queryByTestId('reader-play-pause'), null);
   assert.equal(view.getAllByRole('button').length, 2);
+});
+
+test('the transport row shares a bottom edge so the larger play disc grows upward', async () => {
+  const { view } = await renderDock();
+
+  // Centring the row pushed the 64pt disc's lower edge below the 40pt arrows and
+  // under the tab bar; the row is bottom-aligned instead.
+  const play = view.getByRole('button', { name: t('interface.playChapterAudio') });
+  const row = hostAncestors(play).find(
+    (node) =>
+      flattenStyle(node.props.style)?.flexDirection === 'row' &&
+      within(node).queryAllByRole('button').length === 3
+  );
+  assert.ok(row, 'the transport row');
+  assert.equal(flattenStyle(row.props.style)?.alignItems, 'flex-end');
 });

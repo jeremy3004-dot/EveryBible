@@ -1,6 +1,6 @@
 import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { installRenderHarness, isHiddenFromAccessibility, within } from './render';
 
@@ -195,4 +195,55 @@ test('an assertion that fails on a found element reports promptly', { timeout: 5
 
   // Printing the element must not walk the whole React tree behind it.
   assert.throws(() => assert.equal(view.getByRole('header'), null), assert.AssertionError);
+});
+
+test('a reanimated list renders its items and its scroll handler runs the onScroll worklet', async () => {
+  const reanimated = await import('react-native-reanimated');
+  const offsets: number[] = [];
+  function List() {
+    const onScroll = reanimated.useAnimatedScrollHandler({
+      onScroll: (event) => {
+        offsets.push(event.contentOffset.y);
+      },
+    });
+    return (
+      <reanimated.default.FlatList
+        data={['a', 'b']}
+        renderItem={({ item }: { item: string }) => <Text>{item}</Text>}
+        onScroll={onScroll}
+      />
+    );
+  }
+  const view = await harness.render(<List />);
+
+  assert.ok(view.getByText('b'));
+  await view.fire(view.queryAllByType('FlatList')[0], 'onScroll', {
+    nativeEvent: { contentOffset: { x: 0, y: 120 } },
+  });
+  assert.deepEqual(offsets, [120]);
+});
+
+test('gesture builders chain any configuration', async () => {
+  const { Gesture } = await import('react-native-gesture-handler');
+
+  const pan = Gesture.Pan()
+    .activeOffsetX([-15, 15])
+    .failOffsetY([-10, 10])
+    .onEnd(() => {});
+  assert.equal((pan as unknown as { __gesture: string }).__gesture, 'Pan');
+});
+
+test('imperative ref calls are recorded against their host element', async () => {
+  function Jumper() {
+    const ref = useRef<{ scrollToOffset: (options: unknown) => void } | null>(null);
+    useEffect(() => {
+      ref.current?.scrollToOffset({ offset: 40, animated: false });
+    }, []);
+    return <FlatList ref={ref as never} data={[]} renderItem={() => null} />;
+  }
+  await harness.render(<Jumper />);
+
+  assert.deepEqual(harness.refCalls, [
+    { type: 'FlatList', method: 'scrollToOffset', args: [{ offset: 40, animated: false }] },
+  ]);
 });
