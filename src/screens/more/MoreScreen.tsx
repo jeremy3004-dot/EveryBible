@@ -379,9 +379,9 @@ export function MoreScreen() {
 
 function initialsFrom(name: string): string {
   const words = name.trim().split(/\s+/).filter(Boolean);
+  // By code point: `word[0]` is half of an emoji's surrogate pair, drawn as a box.
   return words
     .slice(0, 2)
-    // By code point: `word[0]` is half of an emoji's surrogate pair, drawn as a box.
     .map((word) => Array.from(word)[0]?.toUpperCase() ?? '')
     .join('');
 }
