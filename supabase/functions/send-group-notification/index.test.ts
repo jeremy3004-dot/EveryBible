@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import vm from 'node:vm';
-import ts from 'typescript';
+import { fileURLToPath } from 'node:url';
+import { loadEdgeFunction } from '../_testing/edgeFunctionHarness';
 
+const ENTRY = fileURLToPath(new URL('./index.ts', import.meta.url));
 const groupId = '11111111-1111-4111-8111-111111111111';
 const callerId = '22222222-2222-4222-8222-222222222222';
 const recipientId = '33333333-3333-4333-8333-333333333333';
@@ -26,8 +26,6 @@ function loadFunction(
     pushStatus?: number;
   } = {}
 ) {
-  let handler: (request: Request) => Promise<Response>;
-  let clientCalls = 0;
   const authCalls: string[] = [];
   const queries: Query[] = [];
   const pushes: Push[][] = [];
@@ -37,21 +35,74 @@ function loadFunction(
     SUPABASE_SERVICE_ROLE_KEY: 'private-service-key',
     ...options.env,
   };
-  const source = ts.transpileModule(readFileSync(new URL('./index.ts', import.meta.url), 'utf8'), {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-  }).outputText;
-  vm.runInNewContext(source, {
-    exports: {},
-    Request,
-    Response,
-    console: { error() {} },
-    Deno: {
-      env: { get: (name: keyof typeof env) => env[name] },
-      serve(callback: typeof handler) {
-        handler = callback;
+  const client = {
+    auth: {
+      async getUser(token: string) {
+        authCalls.push(token);
+        if (options.authThrows) throw new Error('Auth unavailable');
+        const id =
+          token === 'member-token' ? callerId : token === 'outsider-token' ? outsiderId : null;
+        return {
+          data: { user: id ? { id } : null },
+          error: !id || options.authError ? { message: 'Invalid token' } : null,
+        };
       },
     },
-    fetch: async (url: string, init: RequestInit) => {
+    from(table: string) {
+      const filters: Record<string, unknown> = {};
+      function execute(single: boolean) {
+        queries.push({ table, filters: structuredClone(filters) });
+        if (table === 'group_members') {
+          const membership = Object.hasOwn(filters, 'user_id');
+          const error = membership ? options.membershipError : options.memberQueryError;
+          if (error) return { data: null, error: { message: 'Private database error' } };
+          const matches =
+            filters.group_id === groupId
+              ? members
+                  .filter((id) => !membership || id === filters.user_id)
+                  .map((user_id) => ({ user_id }))
+              : [];
+          return { data: single ? (matches[0] ?? null) : matches, error: null };
+        }
+        assert.equal(table, 'user_devices');
+        if (options.deviceQueryError)
+          return { data: null, error: { message: 'Private device query error' } };
+        const recipientIds = filters.user_id as string[];
+        const devices = [
+          { user_id: callerId, push_token: 'caller-token' },
+          ...(options.tokens ?? ['recipient-token']).map((push_token) => ({
+            user_id: recipientId,
+            push_token,
+          })),
+        ].filter((device) => recipientIds.includes(device.user_id));
+        return { data: devices, error: null };
+      }
+      const query = {
+        select() {
+          return query;
+        },
+        eq(column: string, value: unknown) {
+          filters[column] = value;
+          return query;
+        },
+        in(column: string, values: unknown[]) {
+          filters[column] = values;
+          return query;
+        },
+        async maybeSingle() {
+          return execute(true);
+        },
+        then(resolve: (value: unknown) => unknown) {
+          return Promise.resolve(execute(false)).then(resolve);
+        },
+      };
+      return query;
+    },
+  };
+  const harness = loadEdgeFunction(ENTRY, {
+    env,
+    client,
+    fetch: (async (url: string, init: RequestInit) => {
       assert.equal(url, 'https://exp.host/--/api/v2/push/send');
       const batch = JSON.parse(String(init.body)) as Push[];
       pushes.push(batch);
@@ -61,96 +112,14 @@ function loadFunction(
         }),
         { status: options.pushStatus ?? 200 }
       );
-    },
-    require(specifier: string) {
-      assert.equal(specifier, 'https://esm.sh/@supabase/supabase-js@2');
-      return {
-        createClient(
-          url: string,
-          key: string,
-          clientOptions?: { global?: { headers?: { Authorization?: string } } }
-        ) {
-          clientCalls += 1;
-          assert.equal(url, env.SUPABASE_URL);
-          assert.equal(key, env.SUPABASE_SERVICE_ROLE_KEY);
-          assert.equal(clientOptions?.global?.headers?.Authorization, undefined);
-          return {
-            auth: {
-              async getUser(token: string) {
-                authCalls.push(token);
-                if (options.authThrows) throw new Error('Auth unavailable');
-                const id =
-                  token === 'member-token'
-                    ? callerId
-                    : token === 'outsider-token'
-                      ? outsiderId
-                      : null;
-                return {
-                  data: { user: id ? { id } : null },
-                  error: !id || options.authError ? { message: 'Invalid token' } : null,
-                };
-              },
-            },
-            from(table: string) {
-              const filters: Record<string, unknown> = {};
-              function execute(single: boolean) {
-                queries.push({ table, filters: structuredClone(filters) });
-                if (table === 'group_members') {
-                  const membership = Object.hasOwn(filters, 'user_id');
-                  const error = membership ? options.membershipError : options.memberQueryError;
-                  if (error) return { data: null, error: { message: 'Private database error' } };
-                  const matches =
-                    filters.group_id === groupId
-                      ? members
-                          .filter((id) => !membership || id === filters.user_id)
-                          .map((user_id) => ({ user_id }))
-                      : [];
-                  return { data: single ? (matches[0] ?? null) : matches, error: null };
-                }
-                assert.equal(table, 'user_devices');
-                if (options.deviceQueryError)
-                  return { data: null, error: { message: 'Private device query error' } };
-                const recipientIds = filters.user_id as string[];
-                const devices = [
-                  { user_id: callerId, push_token: 'caller-token' },
-                  ...(options.tokens ?? ['recipient-token']).map((push_token) => ({
-                    user_id: recipientId,
-                    push_token,
-                  })),
-                ].filter((device) => recipientIds.includes(device.user_id));
-                return { data: devices, error: null };
-              }
-              const query = {
-                select() {
-                  return query;
-                },
-                eq(column: string, value: unknown) {
-                  filters[column] = value;
-                  return query;
-                },
-                in(column: string, values: unknown[]) {
-                  filters[column] = values;
-                  return query;
-                },
-                async maybeSingle() {
-                  return execute(true);
-                },
-                then(resolve: (value: unknown) => unknown) {
-                  return Promise.resolve(execute(false)).then(resolve);
-                },
-              };
-              return query;
-            },
-          };
-        },
-      };
-    },
+    }) as typeof fetch,
   });
   return {
     authCalls,
     queries,
     pushes,
-    clientCalls: () => clientCalls,
+    clientsCreated: harness.clientsCreated,
+    loggedErrors: harness.loggedErrors,
     request({
       method = 'POST',
       authorization = 'Bearer member-token',
@@ -162,7 +131,7 @@ function loadFunction(
       body?: unknown;
       rawBody?: string;
     } = {}) {
-      return handler(
+      return harness.handle(
         new Request('https://backend.example/functions/v1/send-group-notification', {
           method,
           headers: authorization ? { authorization, 'content-type': 'application/json' } : {},
@@ -208,6 +177,16 @@ test('an authenticated nonmember cannot trigger group fanout', async () => {
   assert.equal(runtime.pushes.length, 0);
 });
 
+test('the service client uses server config and never carries the caller credential', async () => {
+  const runtime = loadFunction();
+  assert.equal((await runtime.request()).status, 200);
+  assert.equal(runtime.clientsCreated.length, 1);
+  const [serviceClient] = runtime.clientsCreated;
+  assert.equal(serviceClient.url, 'https://backend.example');
+  assert.equal(serviceClient.key, 'private-service-key');
+  assert.equal(serviceClient.options?.global?.headers?.Authorization, undefined);
+});
+
 test('membership lookup errors do not permit fanout or expose backend details', async () => {
   const runtime = loadFunction({ membershipError: true });
   const response = await runtime.request();
@@ -222,7 +201,7 @@ for (const field of ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']) {
     test(`missing config ${field}=${JSON.stringify(value)} fails closed`, async () => {
       const runtime = loadFunction({ env: { [field]: value } });
       assert.equal((await runtime.request()).status, 503);
-      assert.equal(runtime.clientCalls(), 0);
+      assert.deepEqual(runtime.clientsCreated, []);
       assert.equal(runtime.pushes.length, 0);
     });
   }
@@ -232,7 +211,7 @@ for (const method of ['GET', 'PUT', 'DELETE', 'OPTIONS']) {
   test(`${method} does not access authentication or group data`, async () => {
     const runtime = loadFunction();
     assert.equal((await runtime.request({ method })).status, method === 'OPTIONS' ? 200 : 405);
-    assert.equal(runtime.clientCalls(), 0);
+    assert.deepEqual(runtime.clientsCreated, []);
     assert.equal(runtime.pushes.length, 0);
   });
 }
