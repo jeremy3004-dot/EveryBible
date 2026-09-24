@@ -132,11 +132,10 @@ mockBarrel(mock, 'services/feedback/index.ts', {
     TRANSLATION_NOT_COVERED: 'translation_not_covered',
   },
   real: [
-    'buildReviewQueue',
     'getChapterReviewHeadline',
-    'advanceReviewSession',
     'canSubmitResolution',
     'getResolutionChoices',
+    'getResolutionLabelKey',
     'requiresResolutionNote',
     'formatVoiceNoteDuration',
     'getFeedbackOutcomeKey',
@@ -184,11 +183,9 @@ async function renderReview() {
 
 type View = Awaited<ReturnType<typeof renderReview>>;
 
-async function openFocusedReview(view: View) {
-  await view.press(view.getByRole('button', { name: t('feedback.startReview') }));
+function visibleSheet(view: View) {
   const [sheet] = view.queryAllByType('Modal').filter((node) => node.props.visible);
-  assert.ok(sheet, 'the focused review is open');
-  return within(sheet);
+  return sheet ? within(sheet) : null;
 }
 
 test('the review lists the chapter feedback the server returns for this translation', async () => {
@@ -208,45 +205,69 @@ test('the review lists the chapter feedback the server returns for this translat
     },
   ]);
   assert.ok(view.getByRole('header', { name: 'John 3' }));
-  assert.ok(view.getByText(t('feedback.waiting', { count: 2 })));
+  assert.ok(view.getByText(t('feedback.openCount', { count: 2 })));
   for (const comment of ['The name is misspelled', 'Reads clearly', 'Old concern']) {
     assert.ok(view.getByText(comment));
   }
 });
 
-test('a concern is decided with Mark addressed and a written reason, saved on the server', async () => {
+test('the list is for reading, with no review walkthrough to start', async () => {
   const view = await renderReview();
-  const sheet = await openFocusedReview(view);
+
+  assert.equal(view.queryByText('Start review'), null);
+  assert.equal(visibleSheet(view), null);
+});
+
+test('a concern is marked addressed from its card with a written reason, saved on the server', async () => {
+  const view = await renderReview();
+  await view.press(view.getByRole('button', { name: t('feedback.markAddressed') }));
+  const sheet = visibleSheet(view);
+  assert.ok(sheet, 'the reason sheet is open');
 
   assert.ok(sheet.getByText('The name is misspelled'));
-  assert.ok(sheet.getByRole('button', { name: t('feedback.noChange') }));
   // A concern cannot be settled without saying why.
-  const addressed = () => sheet.getByRole('button', { name: t('feedback.markAddressed') });
+  const confirm = () => sheet.getByRole('button', { name: t('feedback.markAddressed') });
   assert.ok(sheet.getByRole('button', { name: t('feedback.markAddressed'), disabled: true }));
-  await view.press(addressed());
+  await view.press(confirm());
   assert.deepEqual(resolveCalls, []);
 
   await view.changeText(sheet.getByLabelText(t('feedback.explanation')), 'Fixed the spelling');
-  await view.press(addressed());
+  await view.press(confirm());
   await view.flush();
 
   assert.deepEqual(resolveCalls, [
     { ...passcodeArgs, feedbackId: 'c1', resolution: 'fixed', note: 'Fixed the spelling' },
   ]);
+  assert.equal(visibleSheet(view), null, 'the sheet closes once saved');
   assert.deepEqual(reopenCalls, []);
 });
 
-test('praise is settled with Mark reviewed, and the review moves on to it after a concern', async () => {
+test('No change needed on a concern also asks for the reason before saving', async () => {
   const view = await renderReview();
-  const sheet = await openFocusedReview(view);
-  await view.press(sheet.getByRole('button', { name: t('feedback.skip') }));
+  await view.press(view.getByRole('button', { name: t('feedback.noChange') }));
+  const sheet = visibleSheet(view);
+  assert.ok(sheet, 'the reason sheet is open');
 
-  const next = within(view.queryAllByType('Modal').filter((node) => node.props.visible)[0]);
-  assert.ok(next.getByText('Reads clearly'));
-  assert.equal(next.queryByText(t('feedback.markAddressed')), null);
-  await view.press(next.getByRole('button', { name: t('feedback.markReviewed') }));
+  await view.changeText(sheet.getByLabelText(t('feedback.explanation')), 'Spelling is standard');
+  await view.press(sheet.getByRole('button', { name: t('feedback.noChange') }));
   await view.flush();
 
+  assert.deepEqual(resolveCalls, [
+    {
+      ...passcodeArgs,
+      feedbackId: 'c1',
+      resolution: 'no_change_needed',
+      note: 'Spelling is standard',
+    },
+  ]);
+});
+
+test('praise is settled straight from its card with Mark reviewed', async () => {
+  const view = await renderReview();
+  await view.press(view.getByRole('button', { name: t('feedback.markReviewed') }));
+  await view.flush();
+
+  assert.equal(visibleSheet(view), null, 'praise needs no reason');
   assert.deepEqual(resolveCalls, [
     { ...passcodeArgs, feedbackId: 'p1', resolution: 'no_change_needed', note: '' },
   ]);
@@ -254,7 +275,9 @@ test('praise is settled with Mark reviewed, and the review moves on to it after 
 
 test('no control claims the chapter is accurate', async () => {
   const view = await renderReview();
-  const sheet = await openFocusedReview(view);
+  await view.press(view.getByRole('button', { name: t('feedback.markAddressed') }));
+  const sheet = visibleSheet(view);
+  assert.ok(sheet);
 
   for (const scope of [view, sheet]) {
     assert.equal(scope.queryByText(t('bible.translatorReviewConfirmAccurate')), null);
@@ -273,7 +296,9 @@ test('Reopen on settled feedback reopens it on the server instead of resolving i
 
 test('the review screen offers no way to switch feedback participation', async () => {
   const view = await renderReview();
-  const sheet = await openFocusedReview(view);
+  await view.press(view.getByRole('button', { name: t('feedback.markAddressed') }));
+  const sheet = visibleSheet(view);
+  assert.ok(sheet);
 
   for (const scope of [view, sheet]) {
     assert.deepEqual(scope.queryAllByType('Switch'), []);
@@ -289,9 +314,8 @@ test('the review screen offers no way to switch feedback participation', async (
 
 test('review audio has named play and pause buttons and marks the item listened', async () => {
   const view = await renderReview();
-  const sheet = await openFocusedReview(view);
   const audioButton = (key: string) =>
-    sheet.getByRole('button', { name: `${t(key)}, ${t('myFeedback.audioLabel')}` });
+    view.getByRole('button', { name: `${t(key)}, ${t('myFeedback.audioLabel')}` });
 
   await view.press(audioButton('bible.translatorReviewListen'));
   await view.flush();
