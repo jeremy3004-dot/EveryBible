@@ -131,6 +131,53 @@ test('a job update never attaches another translation download job to the wrong 
   assert.equal(activeJobOf('elx'), null);
 });
 
+/** Every translation row other than `id`, by identity, so churn shows up as a new object. */
+const otherRows = (id: string) =>
+  useBibleStore.getState().translations.filter((translation) => translation.id !== id);
+
+test('an audio job starting and finishing replaces only its own translation row', async () => {
+  withTranslations([
+    makeRuntimeTranslation({ id: 'elx', hasAudio: true, audioGranularity: 'chapter' }),
+  ]);
+  const before = otherRows('bsb');
+  const bsbBefore = findTranslation('bsb');
+  let whileRunning: BibleTranslation[] = [];
+  doubles.audio.runBookDownload = async (call) => {
+    call.hooks.onStart?.(
+      makeAudioJob({ id: 'job-1', translationId: 'bsb', bookId: 'GEN', status: 'downloading' })
+    );
+    whileRunning = otherRows('bsb');
+    call.hooks.onComplete?.(
+      makeAudioJob({ id: 'job-1', translationId: 'bsb', bookId: 'GEN', status: 'completed' })
+    );
+  };
+
+  await useBibleStore.getState().downloadAudioForBook('bsb', 'GEN');
+
+  // Subscribers that select one translation (the reader, a picker row) must not
+  // re-render because a different translation's audio job started or ended.
+  assert.ok(before.length > 1);
+  assert.ok(whileRunning.every((row, index) => row === before[index]));
+  assert.ok(otherRows('bsb').every((row, index) => row === before[index]));
+  assert.notEqual(findTranslation('bsb'), bsbBefore);
+});
+
+test('reattaching audio downloads leaves translations with no in-flight job untouched', async () => {
+  withTranslations([
+    makeRuntimeTranslation({ id: 'elx', hasAudio: true, audioGranularity: 'chapter' }),
+  ]);
+  const before = otherRows('elx');
+  doubles.audio.jobs.push(
+    makeAudioJob({ id: 'job-1', translationId: 'elx', bookId: 'GEN', status: 'downloading' })
+  );
+
+  await useBibleStore.getState().reattachAudioDownloads();
+
+  assert.ok(otherRows('elx').every((row, index) => row === before[index]));
+  assert.equal(activeJobOf('elx')?.id, 'job-1');
+  await flushAsyncWork();
+});
+
 test('chapter progress updates the job percentage and the progress banner', async (t) => {
   t.mock.timers.enable({ apis: ['Date'], now: 9_000 });
   let midway: { job: TranslationDownloadJob | null | undefined; progress: unknown } | null = null;

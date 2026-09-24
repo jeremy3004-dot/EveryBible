@@ -39,11 +39,14 @@ export interface ReaderParagraphAppearance {
     | 'bibleFollowHighlight'
     | 'bibleFollowVerseNumber'
   >;
-  selectedVerses: readonly number[];
   annotations: readonly ReaderAnnotation[];
 }
 
-/** Shared by the virtualized and compact readers. Audio position is deliberately absent. */
+/**
+ * Shared by the virtualized and compact readers. Audio position and verse
+ * selection are deliberately absent: both are compared per paragraph, so a
+ * tick or a tap redraws only the paragraphs it touches.
+ */
 export function buildReaderParagraphRenderSignature(input: ReaderParagraphAppearance): string {
   return JSON.stringify([
     input.premium ? '1' : '0',
@@ -58,7 +61,6 @@ export function buildReaderParagraphRenderSignature(input: ReaderParagraphAppear
     input.colors.bibleFollowVerseNumber,
     input.readingFontFamily,
     input.readingFontFamilyBold,
-    input.selectedVerses,
     input.annotations.map((annotation) => [
       annotation.type,
       annotation.verse_start,
@@ -67,4 +69,14 @@ export function buildReaderParagraphRenderSignature(input: ReaderParagraphAppear
       annotation.deleted_at,
     ]),
   ]);
+}
+
+/** Whether any verse of a paragraph entered or left the selection. */
+export function hasParagraphSelectionChanged(
+  verses: readonly { verse: number }[],
+  previous: ReadonlySet<number>,
+  next: ReadonlySet<number>
+): boolean {
+  if (previous === next) return false;
+  return verses.some(({ verse }) => previous.has(verse) !== next.has(verse));
 }

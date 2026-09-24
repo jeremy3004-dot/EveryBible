@@ -751,7 +751,7 @@ export const vi = {
     pinMismatch: 'Mã bảo mật chưa khớp.',
     incorrectPin: 'Mã bảo mật đó không chính xác.',
     discreetNotificationTitle: 'Nhắc nhở',
-    discreetNotificationBody: 'Bạn có một nhắc nhở cho hôm nay.',
+    discreetNotificationBody: 'Bạn có một lời nhắc cho hôm nay.',
     discreetNotificationChannel: 'Nhắc nhở',
   },
   settings: {

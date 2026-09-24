@@ -750,7 +750,7 @@ export const id = {
     pinMismatch: 'Kode aman belum cocok.',
     incorrectPin: 'Kode aman salah.',
     discreetNotificationTitle: 'Pengingat',
-    discreetNotificationBody: 'Anda punya pengingat untuk hari ini.',
+    discreetNotificationBody: 'Ada pengingat untuk Anda hari ini.',
     discreetNotificationChannel: 'Pengingat',
   },
   settings: {

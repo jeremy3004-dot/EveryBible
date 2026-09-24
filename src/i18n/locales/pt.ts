@@ -822,7 +822,7 @@ export const pt = {
       'As notificações do Every Bible estão desativadas nas configurações do seu dispositivo, então este lembrete não pode aparecer.',
     openDeviceSettings: 'Abrir configurações',
     notificationsNotAllowedNotice:
-      'O Every Bible precisa de permissão para enviar notificações neste dispositivo para que este lembrete possa aparecer.',
+      'Para que este lembrete apareça, o Every Bible precisa de permissão para enviar notificações neste dispositivo.',
     allowNotifications: 'Permitir notificações',
     selectLanguage: 'Escolha o idioma da interface',
     deleteAccount: 'Excluir conta',
