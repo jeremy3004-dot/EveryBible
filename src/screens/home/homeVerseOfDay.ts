@@ -144,7 +144,7 @@ export function formatHomeDateLabel(language: string, now: Date): string {
     .filter((part) => part.type !== 'weekday')
     .map((part) => part.value)
     .join('')
-    .replace(/^[\s,.·、，]+/, '')
-    .replace(/[\s,.·、，]+$/, '');
+    .replace(/^[\s,.·、，،]+/, '')
+    .replace(/[\s,.·、，،]+$/, '');
   return weekday && rest ? `${weekday} · ${rest}` : weekday || rest;
 }
