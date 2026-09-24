@@ -63,11 +63,31 @@ const PASSAGE = [
   {
     label: 'Genesis 1',
     verses: [
-      { id: 'gen-1-1', verse: 1, text: 'In the beginning God created the heavens and the earth.' },
-      { id: 'gen-1-2', verse: 2, text: 'Now the earth was formless and void.' },
+      {
+        id: 'gen-1-1',
+        bookId: 'GEN',
+        chapter: 1,
+        verse: 1,
+        text: 'In the beginning God created the heavens and the earth.',
+      },
+      {
+        id: 'gen-1-2',
+        bookId: 'GEN',
+        chapter: 1,
+        verse: 2,
+        text: 'Now the earth was formless and void.',
+      },
     ],
   },
 ];
+// The story follows the recording through the whole chapter, as the reader does.
+const chapterTimestamps = { value: null as Record<number, number> | null };
+mockModule(mock, sourcePath('services/bible/verseTimestamps.ts'), {
+  getChapterTimestamps: async () => chapterTimestamps.value,
+});
+mockModule(mock, sourcePath('services/bible/bibleService.ts'), {
+  getChapter: async () => PASSAGE[0].verses,
+});
 mockModule(mock, sourcePath('services/gather/gatherBibleService.ts'), {
   getPassageText: async (
     references: BibleReference[],
@@ -151,6 +171,7 @@ beforeEach(() => {
   sounds.length = 0;
   network.offline = false;
   audioUrl.value = 'https://audio.test/web/GEN/1.mp3';
+  chapterTimestamps.value = null;
   fontScale.value = 1;
   bibleStore.setState({ currentTranslation: 'web' });
   gatherStore.setState({ completedLessons: {} });
@@ -441,6 +462,77 @@ test('tapping along the progress rule seeks to that point in the chapter', async
   await view.fire(rule, 'onPress', { nativeEvent: { locationX: 50 } });
 
   assert.deepEqual(sounds[0].sound.calls.at(-1), { method: 'setPositionAsync', args: [15_000] });
+});
+
+/** The Text wrapping one verse's number and words, found by its words. */
+function verseSpan(view: View, words: RegExp): ReactTestInstance {
+  const span = view
+    .queryAllByType('Text')
+    .find((node) => node.children.length === 2 && words.test(textContent(node)));
+  assert.ok(span, `the verse ${words} is rendered`);
+  return span;
+}
+
+test('the story highlights the verse the audio is on, following it through the chapter', async () => {
+  // Verse 2 starts 4 s in (timings are in seconds).
+  chapterTimestamps.value = { 1: 0, 2: 4 };
+  const palette = await lightPalette();
+  const view = await renderLesson();
+  const followed = (words: RegExp) =>
+    flattenStyle(verseSpan(view, words).props.style)?.backgroundColor ===
+    palette.bibleFollowHighlight;
+
+  assert.equal(followed(/In the beginning/), false, 'nothing is highlighted before playing');
+
+  await view.press(view.getByRole('button', { name: PLAY() }));
+  await view.flush();
+  const tick = async (positionMillis: number) => {
+    await act(async () => {
+      sounds[0].sound.listener({
+        isLoaded: true,
+        positionMillis,
+        durationMillis: 60_000,
+        isPlaying: true,
+      });
+    });
+    await view.flush();
+  };
+
+  await tick(1_000);
+  assert.equal(followed(/In the beginning/), true);
+  assert.equal(followed(/formless and void/), false);
+
+  await tick(5_000);
+  assert.equal(followed(/In the beginning/), false);
+  assert.equal(followed(/formless and void/), true, 'the highlight moves with the audio');
+
+  // The story ends: the sound rewinds and stops, and the highlight clears.
+  await act(async () => {
+    sounds[0].sound.listener({ isLoaded: true, didJustFinish: true, durationMillis: 60_000 });
+  });
+  await view.flush();
+  assert.equal(followed(/formless and void/), false);
+});
+
+test('without verse timings the highlight is estimated from the length of each verse', async () => {
+  const palette = await lightPalette();
+  const view = await renderLesson();
+  await view.press(view.getByRole('button', { name: PLAY() }));
+  await view.flush();
+  await act(async () => {
+    sounds[0].sound.listener({
+      isLoaded: true,
+      positionMillis: 59_000,
+      durationMillis: 60_000,
+      isPlaying: true,
+    });
+  });
+  await view.flush();
+
+  assert.equal(
+    flattenStyle(verseSpan(view, /formless and void/).props.style)?.backgroundColor,
+    palette.bibleFollowHighlight
+  );
 });
 
 test('the completion pill toggles the lesson in the gather store and fills when complete', async () => {
