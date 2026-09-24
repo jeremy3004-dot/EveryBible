@@ -335,6 +335,20 @@ const normalizeRemotePalette = (
     ? (palette as UserPreferences['appearancePalette'])
     : DEFAULT_APPEARANCE_PALETTE;
 
+// reminder_time is a Postgres TIME column, which reads back as "HH:MM:SS" for
+// the "HH:MM" the app writes. Adopted as is, the seconds broke the equality with
+// the device's value, and the persisted-state sanitizer (which accepts only
+// "HH:MM") dropped the reminder at the next launch.
+const normalizeRemoteReminderTime = (
+  reminderTime: RemoteUserPreferences['reminder_time']
+): UserPreferences['reminderTime'] => {
+  const match =
+    typeof reminderTime === 'string'
+      ? /^(\d{2}:\d{2})(?::\d{2}(?:\.\d+)?)?$/.exec(reminderTime)
+      : null;
+  return match ? match[1] : null;
+};
+
 /**
  * The server column for each synced preference. Its values are also the keys of
  * `user_preferences.field_updated_at`, and must match the column list in the
@@ -381,7 +395,7 @@ export const mapRemotePreferences = (
   chapterFeedbackEnabled: remotePreferences.chapter_feedback_enabled,
   hidePlayButtonFromReadingTab: remotePreferences.hide_play_button_from_reading_tab,
   notificationsEnabled: remotePreferences.notifications_enabled,
-  reminderTime: remotePreferences.reminder_time,
+  reminderTime: normalizeRemoteReminderTime(remotePreferences.reminder_time),
 });
 
 const preferencesEqual = (left: UserPreferences, right: UserPreferences): boolean =>
@@ -587,20 +601,41 @@ const mergeWithFieldStamps = (
     if (takeRemote) {
       writable[field] = remoteValue;
     }
-    const stamp = takeRemote ? remoteStamp : localStamp;
+    let stamp = takeRemote ? remoteStamp : localStamp;
+    if (
+      field === 'onboardingCompleted' &&
+      !takeRemote &&
+      remoteTime !== null &&
+      (localTime === null || localTime <= remoteTime)
+    ) {
+      // Kept against a newer "not finished" (an installed build that never
+      // finished onboarding upserts its whole row). The server refuses a value
+      // whose stamp is not newer than its own, and the upload's read-back would
+      // then reopen onboarding here, so re-assert it just after the server's.
+      stamp = new Date(remoteTime + 1).toISOString();
+    }
     if (stamp) {
       stamps[field] = stamp;
     }
   }
 
+  // With the server's stamps unchanged, the only values that can still differ
+  // are ones nobody chose on either side (the device's app default against the
+  // row's DB default: theme 'light' against 'dark'), or finished onboarding.
+  // The stamp trigger reads an upload whose stamps arrive unchanged as an
+  // installed build's write and records every value it changes as chosen now,
+  // so uploading a default here made it beat a real choice made earlier on
+  // another device. Such a default stays on this device and is not uploaded.
   const needsUpload =
-    !preferencesEqual(preferences, remoteSnapshot) || !fieldStampsEqual(stamps, remoteStamps);
+    !fieldStampsEqual(stamps, remoteStamps) ||
+    preferences.onboardingCompleted !== remoteSnapshot.onboardingCompleted;
   const changedLocally =
     !preferencesEqual(preferences, local) || !fieldStampsEqual(stamps, localStamps);
   const source: PreferenceSource = !needsUpload ? 'remote' : !changedLocally ? 'local' : 'merged';
 
   return {
-    preferences: source === 'remote' ? remoteSnapshot : preferences,
+    // Equal to the server's values except for never-chosen defaults (above).
+    preferences,
     updatedAt:
       source === 'remote' ? (remotePreferences.synced_at ?? null) : localSnapshot.updatedAt,
     source,

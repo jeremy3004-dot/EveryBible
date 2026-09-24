@@ -6,6 +6,7 @@ import { defaultAuthPreferences } from '../../stores/persistedStateSanitizers';
 import { MIGRATIONS_DIR } from '../../testing/migrationSchema';
 import {
   buildRemoteProgressPayload,
+  mapRemotePreferences,
   mergeChapterProgress,
   mergePreferences,
   mergeReadingSnapshot,
@@ -587,7 +588,12 @@ test('a first sign-in never lets the signup row defaults replace the device sett
   const merged = mergePreferences(local, signupRow());
 
   assert.equal(merged.preferences.theme, 'light');
-  assert.notEqual(merged.source, 'remote', 'the device values must be uploaded over the defaults');
+  // Nothing is uploaded yet: neither side has chosen anything, and an upload
+  // whose stamps match the row's is read by the stamp trigger as an installed
+  // build's write, which would record these defaults as chosen now (see the
+  // property-test regression below). The first real choice uploads them.
+  assert.equal(merged.source, 'remote');
+  assert.equal(merged.changed, false);
 });
 
 test('a first sign-in keeps what the device chose and takes what the account chose', () => {
@@ -616,6 +622,62 @@ test('a first sign-in keeps what the device chose and takes what the account cho
   assert.equal(merged.preferences.theme, 'dark');
   assert.equal(merged.preferences.language, 'es');
   assert.equal(merged.preferences.onboardingCompleted, true);
+});
+
+// Regressions found by syncMerge.preferences.property.test.ts.
+
+test('a reminder time read back from the TIME column keeps the HH:MM the app uses', () => {
+  // Postgres returns "07:30:00" for the "07:30" the app wrote. The seconds made
+  // the two sides differ on every sync, and the persisted-state sanitizer (HH:MM
+  // only) dropped the adopted reminder at the next launch.
+  const row = stampedRow(
+    { reminder_time: '07:30:00' },
+    { reminder_time: '2026-09-20T09:00:00.000Z' }
+  );
+
+  assert.equal(mapRemotePreferences(row).reminderTime, '07:30');
+  assert.equal(
+    mapRemotePreferences({ ...row, reminder_time: '07:30:00.123' }).reminderTime,
+    '07:30'
+  );
+  assert.equal(mapRemotePreferences({ ...row, reminder_time: 'soon' }).reminderTime, null);
+});
+
+test('a default nobody chose is not uploaded when it would look like an installed build write', () => {
+  // Counterexample: a device that had chosen nothing synced before the phone
+  // where the reader had picked the dark theme. Its upload carried the row's
+  // stamps unchanged ({}), which the stamp trigger reads as an installed build's
+  // write, so the device's default theme was recorded as chosen just now and then
+  // beat the real choice. The default now stays on the device.
+  const merged = mergePreferences(
+    { preferences: defaultAuthPreferences, updatedAt: null, fieldStamps: {} },
+    stampedRow({ theme: 'dark', onboarding_completed: false }, {})
+  );
+
+  assert.equal(merged.source, 'remote', 'nothing to upload');
+  assert.equal(merged.preferences.theme, defaultAuthPreferences.theme);
+  assert.equal(merged.changed, false);
+});
+
+test('finished onboarding is re-asserted over a newer "not finished" from an installed build', () => {
+  // Counterexample: a 1.0.9 phone upserted onboarding_completed false, stamped
+  // by the server just now. Keeping true with the older local stamp was refused
+  // by the trigger, and adopting the read-back reopened onboarding here.
+  const merged = mergePreferences(
+    {
+      preferences: onboarded,
+      updatedAt: '2026-09-20T08:00:00.000Z',
+      fieldStamps: { onboardingCompleted: '2026-09-20T08:00:00.000Z' },
+    },
+    stampedRow(
+      { onboarding_completed: false },
+      { onboarding_completed: '2026-09-20T10:00:00.000Z' }
+    )
+  );
+
+  assert.equal(merged.preferences.onboardingCompleted, true);
+  assert.equal(merged.fieldStamps?.onboardingCompleted, '2026-09-20T10:00:00.001Z');
+  assert.notEqual(merged.source, 'remote');
 });
 
 // Schema contract, not behaviour: the trigger's column list and the client's
