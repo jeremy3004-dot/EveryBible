@@ -276,7 +276,13 @@ test("Read opens today's chapter in the reader's own translation", async () => {
     method: 'navigate',
     args: [
       'Bible',
-      { screen: 'BibleReader', params: { bookId: 'JHN', chapter: 3, focusVerse: 16 } },
+      // initial: false keeps the Bible browser under the reader, so back returns there
+      // even when the Bible tab was never opened.
+      {
+        screen: 'BibleReader',
+        params: { bookId: 'JHN', chapter: 3, focusVerse: 16 },
+        initial: false,
+      },
     ],
   });
 });
@@ -315,7 +321,13 @@ test('Read on a verse borrowed from BSB asks first, then opens the chapter in BS
     method: 'navigate',
     args: [
       'Bible',
-      { screen: 'BibleReader', params: { bookId: 'JHN', chapter: 3, focusVerse: 16 } },
+      // initial: false keeps the Bible browser under the reader, so back returns there
+      // even when the Bible tab was never opened.
+      {
+        screen: 'BibleReader',
+        params: { bookId: 'JHN', chapter: 3, focusVerse: 16 },
+        initial: false,
+      },
     ],
   });
 });
@@ -672,8 +684,9 @@ test('tapping the plan card opens that plan', async () => {
   const [call] = harness.navigation.calls;
   assert.equal(call.method, 'navigate');
   assert.equal(call.args[0], 'Plans');
-  const target = call.args[1] as { screen: string; params: { planId: string } };
+  const target = call.args[1] as { screen: string; params: { planId: string }; initial?: boolean };
   assert.equal(target.screen, 'PlanDetail');
+  assert.equal(target.initial, false, 'the plans list stays under the plan, so back returns there');
   assert.ok(catalog.some((plan) => plan.id === target.params.planId));
 });
 

@@ -5,6 +5,7 @@ import type {
   UserTranslationPreferences,
 } from '../supabase/types';
 import { filterInstallableCatalogEntries } from './translationCatalogModel';
+import { isStampLater } from './translationPreferenceStamps';
 
 export {
   buildCatalogLanguageFilters,
@@ -22,6 +23,12 @@ export interface TranslationPreferencesInput {
   primary?: string;
   secondary?: string | null;
   audio?: string | null;
+  /**
+   * When the reader made this choice (ISO time). It is saved as the row's `synced_at`,
+   * so a choice uploaded late (made offline) still carries its own time, and a choice
+   * older than the one already saved (another device switched since) is not written.
+   */
+  chosenAt?: string;
 }
 
 // ─── Catalog ──────────────────────────────────────────────────────────────────
@@ -217,6 +224,10 @@ export const setUserTranslationPreferences = async (
 
     const current = existing as UserTranslationPreferences | null;
 
+    if (prefs.chosenAt && current && isStampLater(current.synced_at, prefs.chosenAt)) {
+      return { success: true };
+    }
+
     const upsertPayload = {
       user_id: userId,
       // Fall back to existing value, then a safe default for primary only
@@ -225,7 +236,7 @@ export const setUserTranslationPreferences = async (
         prefs.secondary !== undefined ? prefs.secondary : (current?.secondary_translation ?? null),
       audio_translation:
         prefs.audio !== undefined ? prefs.audio : (current?.audio_translation ?? null),
-      synced_at: new Date().toISOString(),
+      synced_at: prefs.chosenAt ?? new Date().toISOString(),
     };
 
     const { error } = await supabase

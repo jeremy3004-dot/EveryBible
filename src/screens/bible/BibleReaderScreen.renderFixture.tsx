@@ -10,11 +10,13 @@
  */
 import { afterEach, beforeEach, type MockTracker } from 'node:test';
 import assert from 'node:assert/strict';
+import { useRef } from 'react';
 import { act, type ReactTestInstance } from 'react-test-renderer';
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
 import type { BibleTranslation, Verse } from '../../types';
 import { hostComponent } from '../../testing/reactNativeHost';
+import { createReanimatedFake, type ReanimatedFakeState } from '../../testing/nativePackageFakes';
 import {
   mockBarrel,
   mockMmkvStorage,
@@ -91,7 +93,41 @@ export function installReaderRenderFixture(
   mocker: MockTracker,
   options: RenderHarnessOptions = {}
 ) {
-  const harness = installRenderHarness(mocker, options);
+  const harness = installRenderHarness(mocker, {
+    ...options,
+    skip: [...(options.skip ?? []), 'react-native-reanimated'],
+  });
+  // Reanimated as the harness fakes it, except that useAnimatedScrollHandler keeps its
+  // identity across renders as the real one does (useEvent returns a ref), so the
+  // memoized verse list can be shown to skip re-renders it takes nothing from.
+  const motion: ReanimatedFakeState = { reduceMotion: false, animations: harness.animations };
+  const setHarnessReduceMotion = harness.setReduceMotion;
+  harness.setReduceMotion = (value) => {
+    setHarnessReduceMotion(value);
+    motion.reduceMotion = value;
+  };
+  const reanimated = createReanimatedFake(motion);
+  const useFakeScrollHandler = reanimated.useAnimatedScrollHandler as (
+    handlers: unknown
+  ) => (event: unknown) => void;
+  mockPackage(mocker, 'react-native-reanimated', {
+    ...reanimated,
+    useAnimatedScrollHandler: (handlers: unknown) => {
+      const latest = useRef(handlers);
+      latest.current = handlers;
+      const dispatch = useFakeScrollHandler({
+        onScroll: (event: unknown, context: Record<string, unknown>) => {
+          const current = latest.current as
+            | ((payload: unknown, scope: Record<string, unknown>) => void)
+            | { onScroll?: (payload: unknown, scope: Record<string, unknown>) => void };
+          if (typeof current === 'function') current(event, context);
+          else current.onScroll?.(event, context);
+        },
+      });
+      const stable = useRef(dispatch);
+      return stable.current;
+    },
+  });
   mockMmkvStorage(mocker);
   mockSecureStore(mocker);
 
@@ -204,15 +240,8 @@ export function installReaderRenderFixture(
       };
     },
   });
-  mockModule(mocker, sourcePath('hooks/useFontSize.ts'), {
-    useFontSize: () => ({
-      scaleValue: (value: number) => value,
-      increase: () => {},
-      decrease: () => {},
-      canIncrease: true,
-      canDecrease: true,
-    }),
-  });
+  // useFontSize runs for real on the harness auth store: its scaleValue keeps its
+  // identity until the size preference changes, which the memoized verse list relies on.
   const contentSummary: { audioChapters?: Record<string, readonly number[]> } = {};
   mockModule(mocker, sourcePath('hooks/useTranslationContentSummary.ts'), {
     useTranslationContentSummary: () =>
@@ -412,6 +441,7 @@ export function installReaderRenderFixture(
   });
 
   afterEach(() => {
+    motion.reduceMotion = false;
     audioCalls.length = 0;
     chapterRequests.length = 0;
     rootTabCalls.length = 0;

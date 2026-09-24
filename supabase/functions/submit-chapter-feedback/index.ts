@@ -30,6 +30,7 @@ interface ChapterFeedbackRequest {
   sourceScreen?: string;
   appPlatform?: string | null;
   appVersion?: string | null;
+  clientSubmissionId?: string | null;
 }
 
 interface ChapterFeedbackAudioRequest {
@@ -68,6 +69,8 @@ interface ChapterFeedbackInsert {
   app_version: string | null;
   client_ip_hash: string | null;
   export_status: 'pending' | 'exported' | 'failed';
+  /** Only present when the app sent one; builds before it existed do not. */
+  client_submission_id?: string;
 }
 
 interface ChapterFeedbackRow extends ChapterFeedbackInsert {
@@ -94,6 +97,7 @@ const MAX_REQUEST_BODY_BYTES = AUDIO_RESPONSE_MAX_BASE64_LENGTH + 64 * 1024;
 const MAX_SHORT_TEXT_CHARS = 128;
 const ISO_TIMESTAMP =
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?(?:Z|[+-]\d{2}:\d{2})$/;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Max submissions per account or anonymous identity per rolling hour.
 const SUBMISSION_RATE_LIMIT_PER_HOUR = 20;
@@ -313,6 +317,16 @@ const validateRequest = (
     return { error: 'Text fields must not contain control or invalid characters' };
   }
 
+  // Optional: builds before it existed do not send one. A malformed id would fail the uuid
+  // column's insert, so it is refused here instead.
+  const clientSubmissionId = body.clientSubmissionId ?? null;
+  if (
+    clientSubmissionId !== null &&
+    (typeof clientSubmissionId !== 'string' || !UUID.test(clientSubmissionId))
+  ) {
+    return { error: 'clientSubmissionId must be a UUID' };
+  }
+
   const normalizedBookId = bookId.toUpperCase();
   const bookChapterCount = BOOK_CHAPTER_COUNTS[normalizedBookId];
   if (bookChapterCount === undefined) {
@@ -464,10 +478,39 @@ const validateRequest = (
       // Filled in by the handler, which owns the Request and therefore the client IP.
       client_ip_hash: null,
       export_status: 'exported',
+      ...(clientSubmissionId ? { client_submission_id: clientSubmissionId.toLowerCase() } : {}),
     },
     pendingAudioUpload,
   };
 };
+
+interface PostgrestError {
+  code?: unknown;
+  message?: unknown;
+  details?: unknown;
+}
+
+const mentionsClientSubmissionId = (error: PostgrestError): boolean =>
+  [error.message, error.details].some(
+    (text) => typeof text === 'string' && text.includes('client_submission_id')
+  );
+
+// The app sends each submission with the same client_submission_id on every attempt. An
+// attempt whose response was lost (a timeout after the row was saved) comes back as a retry;
+// the unique index turns that retry into this violation, which means "already saved".
+const isDuplicateSubmission = (error: unknown): boolean =>
+  typeof error === 'object' &&
+  error !== null &&
+  (error as PostgrestError).code === '23505' &&
+  mentionsClientSubmissionId(error as PostgrestError);
+
+// PostgREST answers PGRST204 for a column it does not know: the function is live but the
+// client_submission_id migration is not applied yet.
+const isMissingClientSubmissionIdColumn = (error: unknown): boolean =>
+  typeof error === 'object' &&
+  error !== null &&
+  (error as PostgrestError).code === 'PGRST204' &&
+  mentionsClientSubmissionId(error as PostgrestError);
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -671,11 +714,37 @@ Deno.serve(async (req) => {
       client_ip_hash: clientIpHash,
     };
 
-    const { data: insertedRow, error: insertError } = await supabase
-      .from('chapter_feedback_submissions')
-      .insert(insertPayload)
-      .select('*')
-      .single();
+    const insertRow = (row: ChapterFeedbackInsert) =>
+      supabase.from('chapter_feedback_submissions').insert(row).select('*').single();
+
+    let { data: insertedRow, error: insertError } = await insertRow(insertPayload);
+    if (isMissingClientSubmissionIdColumn(insertError)) {
+      const { client_submission_id: _unsupported, ...withoutClientSubmissionId } = insertPayload;
+      ({ data: insertedRow, error: insertError } = await insertRow(withoutClientSubmissionId));
+    }
+
+    if (insertPayload.client_submission_id && isDuplicateSubmission(insertError)) {
+      // This submission was saved by an earlier attempt; its recording is already stored
+      // with that row, so the copy uploaded for this attempt goes.
+      if (uploadedAudioPath) {
+        await supabase.storage.from('chapter-feedback-audio').remove([uploadedAudioPath]);
+      }
+      const { data: savedRow, error: lookupError } = await supabase
+        .from('chapter_feedback_submissions')
+        .select('id')
+        .eq('client_submission_id', insertPayload.client_submission_id)
+        .maybeSingle();
+      const savedId = (savedRow as { id?: unknown } | null)?.id;
+      if (lookupError || typeof savedId !== 'string') {
+        return internalErrorResponse('duplicate submission lookup failed', lookupError);
+      }
+      return jsonResponse(200, {
+        success: true,
+        saved: true,
+        exported: true,
+        feedbackId: savedId,
+      });
+    }
 
     if (insertError || !insertedRow) {
       // Don't orphan the just-uploaded audio object if the row insert fails (S7).

@@ -237,6 +237,17 @@ test('reading outside a plan marks the chapter read; a plan session leaves that 
   assert.deepEqual(inPlan.recorded.markedRead, []);
 });
 
+test('a chapter that loads no verses is not marked read', async () => {
+  // Nothing was on the page to read (an audio-only chapter, a gap in the pack), so it
+  // must not tick the streak, the reading calendar or a plan step.
+  const { load, recorded } = reader({ returnToPlanOnComplete: false, getChapter: async () => [] });
+
+  await loadReaderChapter(load);
+
+  assert.deepEqual(recorded.verses, [[]]);
+  assert.deepEqual(recorded.markedRead, []);
+});
+
 test('a vanished installed pack triggers the self-heal and a recoverable message', async () => {
   const missing = Object.assign(new Error('Installed database file is missing'), {
     name: 'MissingInstalledDatabaseError',
