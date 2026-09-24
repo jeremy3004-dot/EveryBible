@@ -67,6 +67,22 @@ html.dark .language-breadcrumb a {
   height: 12px;
 }
 
+/* "via Standard Arabic" under a macrolanguage's badge. */
+.static-page__hero .language-status-note {
+  margin-top: 6px;
+  color: hsl(var(--muted-foreground));
+  font-size: 14px;
+}
+
+.language-status-note a {
+  color: hsl(var(--primary-deep));
+  font-weight: 700;
+}
+
+html.dark .language-status-note a {
+  color: hsl(var(--primary));
+}
+
 .language-status[data-status='bible'] i {
   background: hsl(var(--reef));
 }

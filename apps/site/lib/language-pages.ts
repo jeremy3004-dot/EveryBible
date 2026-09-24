@@ -12,11 +12,25 @@ import type {
   AtlasSource,
   ScriptureStatus,
 } from '../../admin/lib/language-atlas/types';
+import { normalizeLanguageName } from './language-name';
 import { hasLanguagePage, languageCode, languageShard, languageSlug } from './language-slug';
 import type { AtlasProject } from './public-atlas-projects';
 
 export const LANGUAGE_PAGE_SHARD_COUNT = 64;
-export const LANGUAGE_PAGES_SCHEMA_VERSION = 1;
+export const LANGUAGE_PAGES_SCHEMA_VERSION = 2;
+
+/** Best first: a macrolanguage takes the first of these that it or a member has. */
+export const SCRIPTURE_STATUS_ORDER: readonly ScriptureStatus[] = [
+  'bible',
+  'nt',
+  'portions',
+  'started',
+  'needed',
+  'unknown',
+];
+
+/** ISO 639-3 macrolanguage code → active member language codes. */
+export type MacrolanguageMap = Readonly<Record<string, readonly string[]>>;
 /** Neighbours on each side in the primary country's alphabetical list. */
 const RELATED_EACH_SIDE = 4;
 
@@ -55,7 +69,26 @@ export interface LanguagePage {
   countries: LanguagePageCountry[];
   /** Source-reported; never inherited from a parent or people group. */
   population: number | null;
+  /**
+   * The status shown. For an ISO 639-3 macrolanguage it is the best of its own
+   * and its members' statuses, so "Arabic" is not red while Standard Arabic
+   * has a Bible.
+   */
   status: ScriptureStatus;
+  /** Members whose Scripture gives a macrolanguage its status; empty when the status is its own. */
+  statusVia: LanguagePageLink[];
+  /** ISO 639-3 member languages when this is a macrolanguage, best status first. */
+  members: LanguagePageLink[];
+  /** The macrolanguages this language is a member of. */
+  memberOf: LanguagePageLink[];
+  /**
+   * A page with no code and no country says almost nothing. It stays reachable
+   * but is left out of the sitemap, and either points search engines at the
+   * coded language of the same name (`canonicalSlug`) or asks them not to index it.
+   */
+  indexable: boolean;
+  /** The page search engines should treat as the original; usually this page. */
+  canonicalSlug: string;
   sourceIds: string[];
   dialects: LanguagePageDialect[];
   projects: AtlasProject[];
@@ -68,6 +101,8 @@ export interface LanguageIndexEntry {
   status: ScriptureStatus;
   /** An Every Language recording project is linked to this language or a dialect. */
   project: boolean;
+  /** Listed in the sitemap: not a thin page. */
+  sitemap: boolean;
 }
 
 export interface LanguagePagesMeta {
@@ -75,6 +110,8 @@ export interface LanguagePagesMeta {
   generatedAt: string;
   shardCount: number;
   languageCount: number;
+  /** Pages listed in the sitemap. */
+  sitemapCount: number;
   statusCounts: Partial<Record<ScriptureStatus, number>>;
   sources: LanguagePageSource[];
 }
@@ -94,6 +131,37 @@ const collator = new Intl.Collator('en', { sensitivity: 'base', numeric: true })
  */
 export function shouldPrerenderLanguage(entry: Pick<LanguageIndexEntry, 'status' | 'project'>) {
   return entry.status === 'bible' || entry.status === 'nt' || entry.project;
+}
+
+/** Records with no ISO, Glottolog or ROLV code and no country: thin, tracker-only pages. */
+export function isThinLanguage(record: {
+  iso6393: string | null;
+  glottocode: string | null;
+  rolvCode: string | null;
+  countryCodes: readonly string[];
+}): boolean {
+  return !record.iso6393 && !record.glottocode && !record.rolvCode && !record.countryCodes.length;
+}
+
+const statusRank = (status: ScriptureStatus) => SCRIPTURE_STATUS_ORDER.indexOf(status);
+
+/**
+ * A macrolanguage's status is the best of its own and its members'; members
+ * are credited only when they beat its own. Scripture is recorded against the
+ * member languages, so "Arabic" alone would otherwise read "No known Scripture".
+ */
+export function rollUpScriptureStatus(
+  own: ScriptureStatus,
+  members: readonly LanguagePageLink[]
+): { status: ScriptureStatus; via: LanguagePageLink[] } {
+  const best = members.reduce<ScriptureStatus>(
+    (status, member) => (statusRank(member.status) < statusRank(status) ? member.status : status),
+    own
+  );
+  return {
+    status: best,
+    via: best === own ? [] : members.filter((member) => member.status === best),
+  };
 }
 
 /** The nearest `language` ancestor, following dialect-of-dialect chains safely. */
@@ -142,22 +210,42 @@ function primaryCountry(language: AtlasRecord): string | null {
   return null;
 }
 
+/** "Tamang: Eastern" is shown as "Eastern" on the Tamang page, matching the source or cleaned name. */
 function dialectName(dialect: AtlasRecord, language: AtlasRecord): string {
-  const prefix = `${language.name}:`;
-  return dialect.name.startsWith(prefix)
-    ? dialect.name.slice(prefix.length).trim() || dialect.name
-    : dialect.name;
+  const name = dialect.name.replace(/\s+/g, ' ').trim();
+  for (const languageName of new Set([language.name, normalizeLanguageName(language.name)])) {
+    const prefix = `${languageName}:`;
+    const rest = name.startsWith(prefix) ? name.slice(prefix.length).trim() : '';
+    if (rest) return normalizeLanguageName(rest);
+  }
+  return normalizeLanguageName(name);
+}
+
+function cleanAliases(aliases: readonly string[], name: string): string[] {
+  const key = (value: string) => value.toLocaleLowerCase('en');
+  const seen = new Set([key(name)]);
+  const cleaned: string[] = [];
+  for (const alias of aliases) {
+    const value = normalizeLanguageName(alias);
+    if (!value || seen.has(key(value))) continue;
+    seen.add(key(value));
+    cleaned.push(value);
+  }
+  return cleaned;
 }
 
 /**
  * Titles must be unique, but 300+ language names are shared. Shared names get
  * their main country when that tells them apart ("Aari (Nepal)"), otherwise a
  * code, and as a last resort the (unique) slug. A qualifier is never allowed
- * to reproduce another language's title.
+ * to reproduce another language's title. When only one language sharing a
+ * name is more than a thin tracker entry, it keeps the plain name ("Arabic"),
+ * and the thin entries are qualified instead.
  */
 function labelsFor(
   languages: readonly AtlasRecord[],
-  countryNames: ReadonlyMap<string, string>
+  countryNames: ReadonlyMap<string, string>,
+  slugs: ReadonlyMap<string, string>
 ): Map<string, string> {
   const key = (value: string) => value.toLocaleLowerCase('en');
   const groups = new Map<string, AtlasRecord[]>();
@@ -166,10 +254,14 @@ function labelsFor(
   }
   const labels = new Map<string, string>();
   const taken = new Set<string>();
+  const plain = new Map<AtlasRecord[], AtlasRecord>();
   for (const group of groups.values()) {
-    if (group.length > 1) continue;
-    labels.set(group[0].id, group[0].name);
-    taken.add(key(group[0].name));
+    const full = group.filter((language) => !isThinLanguage(language));
+    const owner = group.length === 1 ? group[0] : full.length === 1 ? full[0] : undefined;
+    if (!owner) continue;
+    plain.set(group, owner);
+    labels.set(owner.id, owner.name);
+    taken.add(key(owner.name));
   }
   for (const group of groups.values()) {
     if (group.length === 1) continue;
@@ -179,6 +271,7 @@ function labelsFor(
     };
     const countries = group.map(country);
     for (const language of group) {
+      if (language === plain.get(group)) continue;
       const name = country(language);
       const distinctCountry =
         name && countries.filter((candidate) => candidate === name).length === 1 ? name : null;
@@ -187,7 +280,7 @@ function labelsFor(
         language.iso6393,
         language.glottocode,
         languageCode(language),
-        languageSlug(language),
+        slugs.get(language.id),
       ];
       const label = qualifiers
         .filter((qualifier): qualifier is string => Boolean(qualifier))
@@ -218,23 +311,30 @@ function relatedLanguages(
 export function buildLanguagePages(
   index: AtlasIndex,
   projects: readonly AtlasProject[],
-  shardCount = LANGUAGE_PAGE_SHARD_COUNT
+  shardCount = LANGUAGE_PAGE_SHARD_COUNT,
+  macrolanguages: MacrolanguageMap = {}
 ): LanguagePagesBuild {
   const byId = new Map(index.records.map((record) => [record.id, record]));
   const countryNames = new Map(index.countries.map((country) => [country.code, country.name]));
-  const languages = index.records.filter(
+  const pageRecords = index.records.filter(
     (record) => record.kind === 'language' && hasLanguagePage(record)
   );
 
+  // Slugs come from the source name so a tidied display name never moves a URL;
+  // the atlas client builds the same slug from the same record.
   const slugs = new Map<string, string>();
   const seen = new Set<string>();
-  for (const language of languages) {
+  for (const language of pageRecords) {
     const slug = languageSlug(language);
     if (seen.has(slug)) throw new Error(`Duplicate language slug ${slug} (${language.id})`);
     seen.add(slug);
     slugs.set(language.id, slug);
   }
-  const labels = labelsFor(languages, countryNames);
+  const languages = pageRecords.map((language) => ({
+    ...language,
+    name: normalizeLanguageName(language.name),
+  }));
+  const labels = labelsFor(languages, countryNames, slugs);
 
   const dialects = new Map<string, LanguagePageDialect[]>();
   for (const record of index.records) {
@@ -242,7 +342,10 @@ export function buildLanguagePages(
     const language = languageAncestor(record, byId);
     if (!language) continue;
     const list = dialects.get(language.id) ?? [];
-    const dialect = { name: dialectName(record, language), status: scriptureStatus(record) };
+    const dialect = {
+      name: dialectName(record, language),
+      status: scriptureStatus(record),
+    };
     // Unreconciled source records can repeat a variety; show each name and status once.
     if (!list.some((item) => item.name === dialect.name && item.status === dialect.status))
       list.push(dialect);
@@ -260,12 +363,78 @@ export function buildLanguagePages(
       ]);
   }
 
+  const link = (language: AtlasRecord, status = scriptureStatus(language)): LanguagePageLink => ({
+    slug: slugs.get(language.id)!,
+    label: labels.get(language.id)!,
+    status,
+  });
+  const byStatusThenLabel = (a: LanguagePageLink, b: LanguagePageLink) =>
+    statusRank(a.status) - statusRank(b.status) || collator.compare(a.label, b.label);
+
+  // ISO 639-3 macrolanguages: members are the page languages carrying a member code.
+  const byIso = new Map<string, AtlasRecord[]>();
+  for (const language of languages) {
+    if (language.iso6393)
+      byIso.set(language.iso6393, [...(byIso.get(language.iso6393) ?? []), language]);
+  }
+  const members = new Map<string, LanguagePageLink[]>();
+  const macrolanguageOf = new Map<string, AtlasRecord[]>();
+  for (const language of languages) {
+    const codes = language.iso6393 ? macrolanguages[language.iso6393] : undefined;
+    if (!codes) continue;
+    const list = codes
+      .flatMap((code) => byIso.get(code) ?? [])
+      .filter((member) => member.id !== language.id);
+    if (!list.length) continue;
+    // Within a status, the most widely spoken member comes first, so the badge
+    // reads "via Standard Arabic" rather than the alphabetically first member.
+    const reach = (member: AtlasRecord) => [member.population ?? -1, member.countryCodes.length];
+    const ranked = [...list].sort((a, b) => {
+      const [populationA, countriesA] = reach(a);
+      const [populationB, countriesB] = reach(b);
+      return (
+        statusRank(scriptureStatus(a)) - statusRank(scriptureStatus(b)) ||
+        populationB - populationA ||
+        countriesB - countriesA ||
+        collator.compare(labels.get(a.id)!, labels.get(b.id)!)
+      );
+    });
+    members.set(
+      language.id,
+      ranked.map((member) => link(member))
+    );
+    for (const member of list)
+      macrolanguageOf.set(member.id, [...(macrolanguageOf.get(member.id) ?? []), language]);
+  }
+  const rollUps = new Map(
+    languages.map((language) => [
+      language.id,
+      rollUpScriptureStatus(scriptureStatus(language), members.get(language.id) ?? []),
+    ])
+  );
+  const statusOf = (language: AtlasRecord) => rollUps.get(language.id)!.status;
+
+  // A thin page named exactly like one coded language defers to that language's page.
+  const nameKey = (name: string) => name.toLocaleLowerCase('en');
+  const codedByName = new Map<string, AtlasRecord[]>();
+  for (const language of languages) {
+    if (!(language.iso6393 || language.glottocode || language.rolvCode)) continue;
+    const key = nameKey(language.name);
+    codedByName.set(key, [...(codedByName.get(key) ?? []), language]);
+  }
+  const canonicalOf = (language: AtlasRecord): string | null => {
+    if (!isThinLanguage(language)) return null;
+    const matches = codedByName.get(nameKey(language.name)) ?? [];
+    return matches.length === 1 ? slugs.get(matches[0].id)! : null;
+  };
+
   const entries: LanguageIndexEntry[] = languages
     .map((language) => ({
       slug: slugs.get(language.id)!,
       label: labels.get(language.id)!,
-      status: scriptureStatus(language),
+      status: statusOf(language),
       project: projectsByLanguage.has(language.id),
+      sitemap: !isThinLanguage(language),
     }))
     .sort((a, b) => collator.compare(a.label, b.label) || a.slug.localeCompare(b.slug));
   const entryBySlug = new Map(entries.map((entry) => [entry.slug, entry]));
@@ -285,7 +454,8 @@ export function buildLanguagePages(
   const statusCounts: Partial<Record<ScriptureStatus, number>> = {};
   for (const language of languages) {
     const slug = slugs.get(language.id)!;
-    const status = scriptureStatus(language);
+    const status = statusOf(language);
+    const canonical = canonicalOf(language);
     statusCounts[status] = (statusCounts[status] ?? 0) + 1;
     const primary = primaryCountry(language);
     const neighbours = primary ? byCountry.get(primary) : undefined;
@@ -294,7 +464,7 @@ export function buildLanguagePages(
       id: language.id,
       name: language.name,
       label: labels.get(language.id)!,
-      aliases: language.aliases,
+      aliases: cleanAliases(language.aliases, language.name),
       iso6393: language.iso6393,
       glottocode: language.glottocode,
       rolvCode: language.rolvCode,
@@ -312,6 +482,13 @@ export function buildLanguagePages(
           ? language.population
           : null,
       status,
+      statusVia: rollUps.get(language.id)!.via,
+      members: members.get(language.id) ?? [],
+      memberOf: (macrolanguageOf.get(language.id) ?? [])
+        .map((macrolanguage) => link(macrolanguage, statusOf(macrolanguage)))
+        .sort(byStatusThenLabel),
+      indexable: !isThinLanguage(language) || canonical !== null,
+      canonicalSlug: canonical ?? slug,
       sourceIds: language.sourceIds,
       dialects: (dialects.get(language.id) ?? []).sort((a, b) => collator.compare(a.name, b.name)),
       projects: projectsByLanguage.get(language.id) ?? [],
@@ -339,6 +516,7 @@ export function buildLanguagePages(
       generatedAt: index.generatedAt,
       shardCount,
       languageCount: languages.length,
+      sitemapCount: entries.filter((entry) => entry.sitemap).length,
       statusCounts,
       sources: index.sources.map(({ id, name, url, attribution, license }) => ({
         id,

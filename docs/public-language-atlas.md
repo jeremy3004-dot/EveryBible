@@ -130,8 +130,8 @@ audio or long biographies.
 
 ## Language pages
 
-`/languages/<slug>` gives each of the 9,770 language records its own indexable
-page (title, description, canonical URL, `WebPage`/`Language`/`BreadcrumbList`
+`/languages/<slug>` gives each of the 9,770 language records its own
+page (indexable except the thin pages described below) (title, description, canonical URL, `WebPage`/`Language`/`BreadcrumbList`
 JSON-LD), with its Scripture status, countries, identifiers, dialects, any Every
 Language recording project, neighbouring languages and source credits. `/languages`
 lists status counts, project languages and languages with a complete Bible.
@@ -144,6 +144,37 @@ not presented as language families (`language-family.ts`). Test and retired
 entries from the Every Language project tracker ("Test 6a", "Mangala {Delete}")
 get no page or map-profile link (`hasLanguagePage` in `language-slug.ts`); they
 still appear in the map snapshot until the source is cleaned.
+
+**Macrolanguages.** ISO 639-3 groups some languages under a macrolanguage
+(Arabic, Chinese, Persian, Swahili, Malay, Quechua, ...). Scripture is recorded
+against the member languages, so the builder links the two with SIL's official
+mapping, committed as `apps/site/data/language-atlas/iso-639-3-macrolanguages.json`
+(active member rows only; retrieved 2026-09-24, with its source URL, SHA-256 and
+the ISO 639-3 terms of use inside). A macrolanguage page shows the best status of
+its own record and its members, credits the members it comes from ("Complete
+Bible via Standard Arabic"), lists every member with a page and a status, and
+never reads "No known Scripture" while a member has Scripture. Member pages
+link back ("Part of Arabic"). The rolled-up status is also what lists, the hub
+counts and related links show. The stored provider statuses are unchanged. To
+refresh, download `iso-639-3-macrolanguages.tab` from iso639-3.sil.org (the only
+authorized distribution site), keep rows with status `A`, group them by
+macrolanguage, update the metadata fields, and rerun `npm run atlas:pages:build`.
+
+**Thin pages.** About 675 tracker-only records have no ISO, Glottolog or ROLV
+code and no country, so their pages say almost nothing (`isThinLanguage` in
+`language-pages.ts`). They keep their pages and links but are left out of the
+sitemap. When one has exactly the name (ignoring case) of a single coded
+language, its canonical URL is that language's page, and the coded language
+keeps the plain title ("Arabic", not "Arabic (ara)"). The rest get
+`robots: noindex, follow`.
+
+**Display names.** `normalizeLanguageName` (`language-name.ts`) removes tracker
+noise from page names, labels, aliases and dialect names: runs of spaces,
+trailing `{Delete}`-style notes, trailing "(change to ...)" notes, and trailing
+stray punctuation ("Marwari.", "Farsi:"). A period after a one- or two-letter
+abbreviation, leading click spellings ("/=Haba") and bracketed qualifiers
+("Buru [Nigeria]") are kept. Slugs still come from the source name, so URLs do
+not move; the source data and the map snapshot are unchanged.
 
 Slugs are `<name>-<code>` from `apps/site/lib/language-slug.ts` (`yoruba-yor`,
 `gane-gane1238`, `oung-el-15876f53`); the code comes from the record id, so a
