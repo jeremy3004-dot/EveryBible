@@ -28,7 +28,11 @@ import { useTheme } from '../contexts/ThemeContext';
 import { rootTabManifest } from './tabManifest';
 import type { RootTabIconName } from './tabManifest';
 import { shouldHideTabBarOnNestedRoute } from './tabBarVisibility';
-import { buildTabBarCapsuleStyle } from './tabBarCapsuleStyle';
+import {
+  TAB_BAR_GLASS_EFFECT_STYLE,
+  buildTabBarCapsuleStyle,
+  getTabBarCapsuleFill,
+} from './tabBarCapsuleStyle';
 import { typography } from '../design/system';
 import { useTabBarHeight, TAB_BAR_CAPSULE_RADIUS } from '../hooks/useTabBarHeight';
 import { lightHaptic } from '../utils/haptics';
@@ -56,9 +60,10 @@ function TabBarIcon({ icon: Icon, color }: { icon: LucideIcon; color: string }) 
   return <Icon size={TAB_BAR_ICON_SIZE} color={color} strokeWidth={TAB_BAR_ICON_STROKE_WIDTH} />;
 }
 
-// Liquid glass capsule. Native glass supplies its own material on iOS 26+;
-// older platforms get a tinted blur so the page still shows through. The
-// tint is the paper colour at partial alpha so the bar belongs to the scope.
+// Liquid glass capsule. On iOS 26+ the paper backing sits BEHIND frosted
+// regular glass, so the glass samples mostly paper and verse text under the bar
+// cannot lens through the labels; older platforms get a blur under the same
+// paper tint. Both keep a little translucency so the bar floats over the page.
 function TabBarBackground({
   isDark,
   fill,
@@ -70,12 +75,15 @@ function TabBarBackground({
 }) {
   if (Platform.OS === 'ios' && isLiquidGlassAvailable() && isGlassEffectAPIAvailable()) {
     return (
-      <GlassView
-        pointerEvents="none"
-        glassEffectStyle="clear"
-        colorScheme={isDark ? 'dark' : 'light'}
-        style={styles.capsule}
-      />
+      <View style={styles.capsule} pointerEvents="none">
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: fill }]} />
+        <GlassView
+          pointerEvents="none"
+          glassEffectStyle={TAB_BAR_GLASS_EFFECT_STYLE}
+          colorScheme={isDark ? 'dark' : 'light'}
+          style={styles.capsule}
+        />
+      </View>
     );
   }
   return (
@@ -306,14 +314,14 @@ function getBibleTabResumeState() {
 export function TabNavigator() {
   const { colors, isDark } = useTheme();
   const { t } = useTranslation();
-  // Translucent paper tint over the glass. The reader variant tints off the
-  // reading surface so the bar sits on the same material as the page behind it.
+  // Paper backing for the glass. The reader variant tints off the reading
+  // surface so the bar sits on the same material as the page behind it.
   const capsuleFill = useMemo(
-    () => hexWithAlpha(colors.cardBackground, 0.62),
+    () => getTabBarCapsuleFill(colors.cardBackground),
     [colors.cardBackground]
   );
   const readerCapsuleFill = useMemo(
-    () => hexWithAlpha(colors.bibleSurface, 0.62),
+    () => getTabBarCapsuleFill(colors.bibleSurface),
     [colors.bibleSurface]
   );
   const {

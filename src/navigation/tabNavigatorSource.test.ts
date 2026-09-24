@@ -160,22 +160,29 @@ test('TabNavigator uses the base tab bar height instead of adding the bottom saf
   );
 });
 
-test('TabNavigator fills the floating capsule with liquid glass, not opaque paper', () => {
+test('TabNavigator fills the floating capsule with backed liquid glass, not opaque paper', () => {
   const source = readRelativeSource('./TabNavigator.tsx');
 
-  // Native glass on iOS 26+, a tinted blur elsewhere; the tint is the paper
-  // colour at partial alpha so the page shows through in both scopes.
+  // Native glass on iOS 26+, a tinted blur elsewhere. The glass is the shared
+  // frosted material with the paper backing drawn BEHIND it, so busy reader
+  // text cannot lens through the labels (tabBarCapsuleStyle.test.ts pins the
+  // material and backing strength).
   assert.match(source, /isLiquidGlassAvailable\(\) && isGlassEffectAPIAvailable\(\)/);
-  assert.match(source, /<GlassView[\s\S]*?glassEffectStyle="clear"/);
+  assert.match(
+    source,
+    /backgroundColor: fill \}\]\} \/>\s*<GlassView[\s\S]*?glassEffectStyle=\{TAB_BAR_GLASS_EFFECT_STYLE\}/,
+    'the paper backing should sit behind the glass'
+  );
+  assert.doesNotMatch(source, /glassEffectStyle="clear"/);
   assert.match(source, /<BlurView[\s\S]*?tint=\{isDark \? 'dark' : 'light'\}/);
   assert.match(
     source,
-    /const capsuleFill = useMemo\(\s*\(\) => hexWithAlpha\(colors\.cardBackground, 0\.62\)/,
-    'the capsule tint should be the card surface at partial alpha'
+    /const capsuleFill = useMemo\(\s*\(\) => getTabBarCapsuleFill\(colors\.cardBackground\)/,
+    'the capsule backing should be the card surface through the shared fill'
   );
   assert.match(
     source,
-    /const readerCapsuleFill = useMemo\(\s*\(\) => hexWithAlpha\(colors\.bibleSurface, 0\.62\)/,
+    /const readerCapsuleFill = useMemo\(\s*\(\) => getTabBarCapsuleFill\(colors\.bibleSurface\)/,
     'the reader variant should tint off the reading surface'
   );
   assert.match(
