@@ -246,13 +246,15 @@ const foldForNameMatch = (text: string): string =>
     .replace(/đ/g, 'd');
 
 // Folded once per list, longest first so "1 Jean" wins over "Jean". A hyphenated name
-// (Vietnamese "Ê-sai") also matches with a space in place of each hyphen, a German numbered
-// book ("1. Korinther") without the period after its number, and any name without its spaces
+// (Vietnamese "Ê-sai") also matches with a space in place of each hyphen, a numbered book
+// ("1. Korinther", "1-е Коринфянам") with its bare number, and any name without its spaces
 // ("1Jean 4:8", "1Korinther 13").
 const nameSpellings = (name: string): string[] => {
   const folded = foldForNameMatch(name.trim());
   const spellings = new Set<string>();
-  for (const base of [folded, folded.replace(/-/g, ' '), folded.replace(/\./g, '')]) {
+  // The leading number alone: "1-е коринфянам" as "1 коринфянам", "1. korinther" as "1 korinther".
+  const bareNumber = folded.replace(/^(\d+)\S+\s+/, '$1 ');
+  for (const base of [folded, folded.replace(/-/g, ' '), bareNumber]) {
     const spaced = base.replace(WHITESPACE_RUN_PATTERN, ' ').trim();
     spellings.add(spaced);
     spellings.add(spaced.replace(/[\s-]/g, ''));

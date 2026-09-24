@@ -446,3 +446,12 @@ test('a German numbered book opens with or without the period after its number',
   assert.equal(parsePassageReferenceLocale('Johannes 4:8', 'de', deNames)?.bookId, 'JHN');
   assert.equal(parsePassageReferenceLocale('1 Mose 1', 'de', deNames)?.bookId, 'GEN');
 });
+
+test('a Russian numbered book opens with a bare number', async () => {
+  const { ru } = await import('../../i18n/locales/ru');
+  const ruNames = interfaceBookNames(ru.bible.books);
+  // The app shows "1-е Коринфянам"; people type "1 Коринфянам 13".
+  assert.equal(parsePassageReferenceLocale('1 Коринфянам 13', 'ru', ruNames)?.bookId, '1CO');
+  assert.equal(parsePassageReferenceLocale('1-е Коринфянам 13', 'ru', ruNames)?.bookId, '1CO');
+  assert.equal(parsePassageReferenceLocale('2 Петра 1:3', 'ru', ruNames)?.bookId, '2PE');
+});
