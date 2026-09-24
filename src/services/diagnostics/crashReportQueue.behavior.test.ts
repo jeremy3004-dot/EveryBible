@@ -19,7 +19,25 @@ import type { AppErrorReport } from './crashReportModel';
 // The real queue over an in-memory MMKV, a scripted reporting policy and the
 // Supabase fake, so each test asserts what is persisted and what is sent.
 const mmkv = mockMmkvStorage(mock);
-mockReactNative(mock, { os: 'android', version: 34 });
+const rn = mockReactNative(mock, { os: 'android', version: 34 });
+// One-shot connectivity read used by the launch flush (before the reporting policy exists).
+const goodNetwork = {
+  isConnected: true,
+  isInternetReachable: true,
+  details: { isConnectionExpensive: false },
+};
+let networkState: unknown = goodNetwork;
+let networkFetches = 0;
+mockModule(mock, '@react-native-community/netinfo', {
+  default: {
+    default: {
+      fetch: async () => {
+        networkFetches += 1;
+        return networkState;
+      },
+    },
+  },
+});
 const backend = createSupabaseFake();
 mockSupabaseModule(mock, backend);
 mockModule(mock, createRequire(import.meta.url).resolve('expo-constants'), {
@@ -76,6 +94,9 @@ beforeEach(async () => {
   respond = () => ({ error: null });
   currentRoute = 'BibleReader';
   backend.auth.setSession(null);
+  rn.AppState.currentState = 'active';
+  networkState = goodNetwork;
+  networkFetches = 0;
 });
 
 test('a fatal error is persisted synchronously with the current screen and device details', async () => {
@@ -252,4 +273,112 @@ test('the pending queue keeps only the newest reports', async () => {
   assert.equal(persisted.length, 20);
   assert.equal(persisted[0].message, 'old 1');
   assert.equal(persisted[19].message, 'newest');
+});
+
+const CRASH_LOG_KEY = 'diagnostics-crash-log';
+const localLog = (): Array<{ message: string; isFatal: boolean }> =>
+  JSON.parse(mmkv.store.get(CRASH_LOG_KEY) ?? '[]');
+
+test('a handled error is queued with its source and shown on the Diagnostics screen', async () => {
+  const queue = await load();
+  queue.reportHandledError('audio.load', new Error('decoder failed for jane@example.com'));
+
+  const [report] = persistedQueue();
+  assert.equal(persistedQueue().length, 1);
+  assert.equal(report.kind, 'error');
+  assert.equal(report.is_fatal, false);
+  assert.equal(report.message, '[audio.load] decoder failed for <email>');
+  assert.equal(report.screen, 'BibleReader');
+  assert.deepEqual(
+    localLog().map((entry) => [entry.message, entry.isFatal]),
+    [['[audio.load] decoder failed for jane@example.com', false]]
+  );
+});
+
+test('handled errors leave room in the daily budget for crashes', async () => {
+  const queue = await load();
+  for (let i = 0; i < 12; i++) {
+    queue.resetCrashReportSessionForTests({ keepStorage: true });
+    queue.reportHandledError('sync', new Error(`distinct sync failure ${'x'.repeat(i)}`));
+  }
+  const handled = persistedQueue().length;
+  assert.ok(handled > 0 && handled < 10, `handled errors took ${handled} of 10 daily slots`);
+
+  queue.queueCrashReport({ error: new Error('the crash that matters'), kind: 'fatal' });
+  assert.equal(persistedQueue().at(-1)?.message, 'the crash that matters');
+});
+
+test('transient network failures are not reported as handled errors', async () => {
+  const queue = await load();
+  const abort = new Error('The operation was aborted');
+  abort.name = 'AbortError';
+  queue.reportHandledError('sync', new TypeError('Network request failed'));
+  queue.reportHandledError('audio.load', abort);
+  queue.reportHandledError('textPack.install', new Error('The request timed out.'));
+  queue.reportHandledError('sync', { message: 'The Internet connection appears to be offline.' });
+
+  assert.deepEqual(persistedQueue(), []);
+});
+
+test('a source label that is not a plain identifier is not sent', async () => {
+  const queue = await load();
+  queue.reportHandledError('jane@example.com', new Error('odd label'));
+
+  assert.equal(persistedQueue()[0]?.message, '[unknown] odd label');
+});
+
+test('reporting a handled error never throws, even when storage fails', async () => {
+  const queue = await load();
+  const throwOnSet = mock.method(mmkv.mmkvInstance, 'set', () => {
+    throw new Error('MMKV full');
+  });
+  try {
+    assert.doesNotThrow(() => queue.reportHandledError('db.import', new Error('disk full')));
+  } finally {
+    throwOnSet.mock.restore();
+  }
+});
+
+// The reporting policy is owned by the runtime effects, which mount only after onboarding.
+// Without a launch flush, a crash during onboarding (or a first-launch crash loop) would
+// sit in the queue until the user finished onboarding, which a crash loop prevents.
+test('a pending crash is sent at launch before the reporting policy exists', async () => {
+  const queue = await load();
+  queue.queueCrashReport({ error: new Error('crashed during onboarding'), kind: 'fatal' });
+  queue.resetCrashReportSessionForTests({ keepStorage: true });
+
+  const result = await queue.flushPendingCrashReportsAtLaunch();
+
+  assert.deepEqual(result, { success: true, sent: 1 });
+  assert.equal(sent[0]?.reports[0]?.message, 'crashed during onboarding');
+  assert.deepEqual(persistedQueue(), []);
+});
+
+test('the launch flush waits when the connection is metered or offline', async () => {
+  const queue = await load();
+  queue.queueCrashReport({ error: new Error('wait for wifi'), kind: 'fatal' });
+
+  networkState = { ...goodNetwork, details: { isConnectionExpensive: true } };
+  assert.equal((await queue.flushPendingCrashReportsAtLaunch()).deferred, true);
+  networkState = { ...goodNetwork, isConnected: false };
+  assert.equal((await queue.flushPendingCrashReportsAtLaunch()).deferred, true);
+
+  assert.equal(sent.length, 0);
+  assert.equal(persistedQueue().length, 1);
+});
+
+test('the launch flush does nothing in the background', async () => {
+  const queue = await load();
+  queue.queueCrashReport({ error: new Error('background launch'), kind: 'fatal' });
+  rn.AppState.currentState = 'background';
+
+  assert.equal((await queue.flushPendingCrashReportsAtLaunch()).deferred, true);
+  assert.equal(sent.length, 0);
+});
+
+test('the launch flush reads nothing native when no report is pending', async () => {
+  const queue = await load();
+
+  assert.deepEqual(await queue.flushPendingCrashReportsAtLaunch(), { success: true, sent: 0 });
+  assert.equal(networkFetches, 0);
 });

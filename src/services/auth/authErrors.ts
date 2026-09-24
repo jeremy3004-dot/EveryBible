@@ -59,11 +59,7 @@ const getErrorStatus = (error: unknown): number | null => {
   return null;
 };
 
-export const authFailure = (
-  code: AuthErrorCode,
-  error: unknown,
-  fallback?: string
-): AuthFailure => ({
+const authFailure = (code: AuthErrorCode, error: unknown, fallback?: string): AuthFailure => ({
   success: false,
   code,
   error: getErrorMessage(error, fallback),

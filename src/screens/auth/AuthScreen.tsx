@@ -19,7 +19,7 @@ import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
-import { useDisplayFont } from '../../hooks';
+import { useDisplayFont } from '../../hooks/useDisplayFont';
 import { layout, motion, radius, shadows, spacing, typography } from '../../design/system';
 import {
   CONTROL_LABEL_MAX_FONT_SCALE,

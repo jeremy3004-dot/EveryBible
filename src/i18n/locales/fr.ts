@@ -589,6 +589,7 @@ export const fr = {
     translationDownloadFailedTitle: 'Échec du téléchargement',
     translationDownloadFailed:
       'Le téléchargement de cette Bible n’a pas abouti. Vérifiez votre connexion Internet et l’espace de stockage disponible, puis réessayez.',
+    searchNoResults: 'Aucun verset ne correspond à votre recherche.',
     searchUnavailable:
       'La recherche en texte intégral n’est pas encore disponible pour cette traduction.',
     noVersesAvailable: '{{book}} {{chapter}} n’a pas encore de texte écrit.',

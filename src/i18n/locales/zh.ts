@@ -533,6 +533,7 @@ export const zh = {
     failedToLoad: '暂时无法加载本章。',
     translationDownloadFailedTitle: '下载失败',
     translationDownloadFailed: '这本圣经未能完成下载。请检查网络连接和可用存储空间，然后重试。',
+    searchNoResults: '未找到匹配的经文。',
     searchUnavailable: '此译本尚不支持全文搜索。',
     noVersesAvailable: '{{book}} {{chapter}} 尚未提供文字内容。',
     fullBibleComingSoon: '此译本的本章尚未提供文字或音频。',

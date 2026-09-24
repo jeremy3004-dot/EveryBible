@@ -1162,7 +1162,8 @@ test('directory failure marks the job failed and releases its cancellation contr
   runtime.fileSystem.ensureDirectory = async () => {
     throw new Error('ENOSPC: mkdir');
   };
-  await assert.rejects(runtime.start(), /ENOSPC/);
+  // A full disk is reported as the not-enough-space error the reader is shown.
+  await assert.rejects(runtime.start(), /Not enough free space/);
   assert.equal([...runtime.jobs.values()][0]?.status, 'failed');
   assert.equal(runtime.failures.length, 1);
   const abort = t.mock.method(AbortController.prototype, 'abort');

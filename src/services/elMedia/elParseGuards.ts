@@ -2,7 +2,7 @@
 // Kept dependency-free so both parsers can guard untrusted JSON identically.
 
 /** Matches a lowercase 64-char hex SHA-256 digest. */
-export const SHA256_HEX_RE = /^[0-9a-f]{64}$/;
+const SHA256_HEX_RE = /^[0-9a-f]{64}$/;
 
 export const isNonEmptyString = (value: unknown): value is string =>
   typeof value === 'string' && value.length > 0;

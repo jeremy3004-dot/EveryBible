@@ -26,13 +26,15 @@ export const ASYNC_STORAGE_MIGRATION_COMPLETED_KEY = 'async-storage-mmkv-migrati
 /**
  * Core migration loop extracted for testability.
  * Accepts injected read/write functions so tests can pass plain Map-based mocks.
+ * Resolves to the keys that could not be migrated.
  */
 export async function migrateStoreKeys(
   keys: readonly string[],
   getAsyncValue: (key: string) => Promise<string | null>,
   getMmkvValue: (key: string) => string | undefined,
   setMmkvValue: (key: string, value: string) => void
-): Promise<void> {
+): Promise<string[]> {
+  const failedKeys: string[] = [];
   for (const key of keys) {
     // Skip if MMKV already has this key (already migrated or fresh user)
     if (getMmkvValue(key) !== undefined) {
@@ -45,9 +47,11 @@ export async function migrateStoreKeys(
       }
     } catch (error) {
       // Best-effort migration — a single key failure must not block others
+      failedKeys.push(key);
       console.warn(`[MMKV Migration] Failed to migrate key "${key}":`, error);
     }
   }
+  return failedKeys;
 }
 
 export async function migrateStoreKeysIfNeeded(
@@ -61,8 +65,13 @@ export async function migrateStoreKeysIfNeeded(
     return false;
   }
 
-  await migrateStoreKeys(keys, getAsyncValue, getMmkvValue, setMmkvValue);
-  setMmkvValue(completedKey, '1');
+  const failedKeys = await migrateStoreKeys(keys, getAsyncValue, getMmkvValue, setMmkvValue);
+  // The marker ends AsyncStorage reads for good, so a key that failed (a locked database, a full
+  // MMKV file) would be stranded there. Leave the marker unset and retry next launch; keys that
+  // did move are skipped then because MMKV already holds them.
+  if (failedKeys.length === 0) {
+    setMmkvValue(completedKey, '1');
+  }
   return true;
 }
 

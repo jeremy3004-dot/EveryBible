@@ -25,26 +25,9 @@ export interface Verse {
   formatting?: VerseFormatting;
 }
 
-export interface Chapter {
-  bookId: string;
-  chapter: number;
-  verses: Verse[];
-}
-
-export interface ReadingProgress {
-  bookId: string;
-  chapter: number;
-  verse?: number;
-  timestamp: number;
-}
-
-export interface ChapterRead {
-  [key: string]: number; // e.g., "GEN_1": timestamp
-}
-
 export type AudioGranularity = 'none' | 'chapter' | 'verse';
 export type AudioProvider = 'bible-is' | 'ebible-webbe';
-export type TranslationSource = 'bundled' | 'runtime';
+type TranslationSource = 'bundled' | 'runtime';
 export type TranslationInstallState =
   | 'seeded'
   | 'remote-only'
@@ -55,20 +38,12 @@ export type TranslationInstallState =
   | 'failed'
   | 'rollback-available'
   | 'update-available';
-export type TranslationTextFormat = 'sqlite';
-export type TranslationAudioStrategy =
-  | 'provider'
-  | 'stream-template'
-  | 'audio-pack'
-  | 'el-manifest';
-export type TranslationTimingStrategy = 'stream-template';
+type TranslationTextFormat = 'sqlite';
+type TranslationAudioStrategy = 'provider' | 'stream-template' | 'audio-pack' | 'el-manifest';
+type TranslationTimingStrategy = 'stream-template';
 export type TranslationAudioCoverage = 'full-bible' | 'new-testament' | 'partial';
-export type TranslationDownloadJobKind =
-  | 'text-pack'
-  | 'audio-pack'
-  | 'audio-book'
-  | 'translation-audio';
-export type TranslationDownloadJobState =
+type TranslationDownloadJobKind = 'text-pack' | 'audio-pack' | 'audio-book' | 'translation-audio';
+type TranslationDownloadJobState =
   | 'queued'
   | 'running'
   | 'paused'
@@ -213,8 +188,8 @@ export interface TranslationDownloadProgress {
   error?: string;
 }
 
-export type DailyScriptureKind = 'verse-text' | 'verse-audio' | 'section-audio' | 'empty';
-export type DailyScripturePlayScope = 'none' | 'verse' | 'chapter';
+type DailyScriptureKind = 'verse-text' | 'verse-audio' | 'section-audio' | 'empty';
+type DailyScripturePlayScope = 'none' | 'verse' | 'chapter';
 
 export interface DailyScriptureReference {
   bookId: string;

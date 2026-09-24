@@ -249,3 +249,36 @@ test('an unhandled rejection is queued as a rejection report', () => {
   assert.equal(pendingReports()[0]?.kind, 'rejection');
   assert.equal(pendingReports()[0]?.message, 'rejected fetch');
 });
+
+// `throw Object.create(null)` (or a value whose toString throws) cannot be turned into a
+// string. Building the log entry for it used to throw inside the handler, before the
+// remote report and before RN's original handler, so the crash vanished entirely.
+test('a thrown value that cannot be stringified still reaches the original handler', () => {
+  reset();
+  const unprintable = Object.create(null) as object;
+
+  assert.doesNotThrow(() => installedHandler(unprintable, true));
+
+  assert.deepEqual(handledByOriginal, [{ error: unprintable, isFatal: true }]);
+  assert.equal(persisted().length, 1, 'the crash is still logged locally');
+  assert.equal(pendingReports().length, 1, 'and still queued for upload');
+  assert.equal(pendingReports()[0].kind, 'fatal');
+});
+
+test('an unprintable rejection reason never throws out of the tracker callback', () => {
+  reset();
+  const consoleError = mock.method(console, 'error', () => {});
+  const reason = {
+    toString() {
+      throw new Error('toString exploded');
+    },
+  };
+  try {
+    assert.doesNotThrow(() => trackerOptions[0].onUnhandled(10, reason));
+  } finally {
+    consoleError.mock.restore();
+  }
+
+  // (Its remote report shares the previous test's fingerprint, so the session dedupe drops it.)
+  assert.equal(persisted()[0]?.message, '[unprintable value]');
+});

@@ -1,4 +1,4 @@
-import test, { before, beforeEach, mock } from 'node:test';
+import test, { before, beforeEach, mock, type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
@@ -346,6 +346,54 @@ test('an adoption killed before the owner was saved re-adopts on the next sign-i
   assert.equal(mmkv.store.has(NOTES), false);
 });
 
+/**
+ * Runs a guest adoption into `uid` and kills the app at the first owner-marker
+ * write after the account bucket took the merged notes, then relaunches.
+ */
+const adoptionKilledAfterMerge = (t: TestContext, uid: string) => {
+  const write = mmkv.mmkvInstance.set;
+  let accountWritten = false;
+  const kill = t.mock.method(mmkv.mmkvInstance, 'set', (key: string, value: string) => {
+    if (accountWritten && key === scope.PRIVATE_DATA_OWNER_KEY) throw new Error('killed');
+    write(key, value);
+    if (key === userKey(NOTES, uid)) accountWritten = true;
+  });
+  assert.throws(() => switchOwner(uid), /killed/);
+  kill.mock.restore();
+  relaunch();
+};
+
+test('an adoption killed after merging never also hands the guest notes to the next account', (t) => {
+  useNotes.getState().addNote('guest note');
+  adoptionKilledAfterMerge(t, 'user-a');
+  assert.deepEqual(stored(userKey(NOTES, 'user-a')), { notes: ['guest note'] });
+
+  switchOwner('user-b');
+
+  assert.deepEqual(useNotes.getState().notes, []);
+  assert.equal(stored(userKey(NOTES, 'user-b')), undefined);
+  assert.equal(mmkv.store.has(NOTES), false, 'the adoption into user-a was finished');
+  assert.deepEqual(stored(userKey(NOTES, 'user-a')), { notes: ['guest note'] });
+  switchOwner(null);
+  assert.deepEqual(useNotes.getState().notes, []);
+  switchOwner('user-a');
+  assert.deepEqual(useNotes.getState().notes, ['guest note']);
+});
+
+test('an adoption killed after merging is finished once when the same account signs in again', (t) => {
+  useNotes.getState().addNote('guest note');
+  adoptionKilledAfterMerge(t, 'user-a');
+  // Until then nothing changed for the signed-out reader.
+  assert.equal(scope.getPrivateDataOwner(), null);
+  assert.deepEqual(useNotes.getState().notes, ['guest note']);
+
+  switchOwner('user-a');
+
+  assert.deepEqual(useNotes.getState().notes, ['guest note']);
+  assert.equal(mmkv.store.has(NOTES), false);
+  assert.deepEqual(marker(), { owner: 'user-a' });
+});
+
 test('an adoption killed after the owner was saved clears the adopted guest bucket on launch', () => {
   mmkv.store.set(
     scope.PRIVATE_DATA_OWNER_KEY,
@@ -454,6 +502,91 @@ test('a persist write that would not change the bucket does not rewrite MMKV', (
     set.mock.calls.map((call) => call.arguments[0]),
     [userKey(NOTES, 'user-a')]
   );
+});
+
+// ─── Native failures ──────────────────────────────────────────────────────────
+
+// A JSI call that throws for one key, as a damaged or full MMKV file does.
+const failReadsOf = (t: TestContext, key: string) => {
+  const read = mmkv.mmkvInstance.getString;
+  return t.mock.method(mmkv.mmkvInstance, 'getString', (candidate: string) => {
+    if (candidate === key) throw new Error('MMKV: failed to read');
+    return read(candidate);
+  });
+};
+const failWritesOf = (t: TestContext, key: string) => {
+  const write = mmkv.mmkvInstance.set;
+  return t.mock.method(mmkv.mmkvInstance, 'set', (candidate: string, value: string) => {
+    if (candidate === key) throw new Error('MMKV: no space left on device');
+    write(candidate, value);
+  });
+};
+
+test('a private store action still succeeds when MMKV cannot write, keeping the change in memory', (t) => {
+  const warn = t.mock.method(console, 'warn', () => {});
+  useNotes.getState().addNote('saved');
+  const fault = failWritesOf(t, NOTES);
+
+  // Zustand persists inside set(), so a throw here escaped from the press handler.
+  assert.doesNotThrow(() => useNotes.getState().addNote('unsaved'));
+  assert.deepEqual(useNotes.getState().notes, ['saved', 'unsaved']);
+  assert.deepEqual(stored(NOTES), { notes: ['saved'] });
+  assert.ok(warn.mock.callCount() > 0, 'the failed write is reported, not silently dropped');
+
+  fault.mock.restore();
+  useNotes.getState().addNote('later');
+  assert.deepEqual(stored(NOTES), { notes: ['saved', 'unsaved', 'later'] });
+});
+
+test('a private bucket that could not be read is not overwritten by the defaults', (t) => {
+  t.mock.method(console, 'warn', () => {});
+  mmkv.store.set(NOTES, blob({ notes: ['saved'] }));
+  const fault = failReadsOf(t, NOTES);
+  assert.doesNotThrow(() => relaunch());
+  fault.mock.restore();
+  assert.deepEqual(useNotes.getState().notes, []);
+
+  useNotes.getState().addNote('after a failed read');
+
+  assert.deepEqual(stored(NOTES), { notes: ['saved'] });
+  relaunch();
+  assert.deepEqual(useNotes.getState().notes, ['saved'], 'the next successful read restores it');
+  useNotes.getState().addNote('new');
+  assert.deepEqual(stored(NOTES), { notes: ['saved', 'new'] }, 'once read, writes resume');
+});
+
+test('a private store write still happens when the unchanged-payload check cannot read MMKV', (t) => {
+  t.mock.method(console, 'warn', () => {});
+  useNotes.getState().addNote('first');
+  failReadsOf(t, NOTES);
+
+  assert.doesNotThrow(() => useNotes.getState().addNote('second'));
+  assert.deepEqual(JSON.parse(mmkv.store.get(NOTES) ?? '{}').state, {
+    notes: ['first', 'second'],
+  });
+});
+
+test('a sign-in whose account bucket cannot be written keeps the guest data on disk', (t) => {
+  t.mock.method(console, 'warn', () => {});
+  useNotes.getState().addNote('guest note');
+  failWritesOf(t, userKey(NOTES, 'user-a'));
+
+  assert.doesNotThrow(() => switchOwner('user-a'));
+
+  assert.deepEqual(useNotes.getState().notes, ['guest note']);
+  assert.deepEqual(stored(NOTES), { notes: ['guest note'] }, 'the only copy is not deleted');
+});
+
+test('a sign-in whose account bucket cannot be read keeps the guest data on disk', (t) => {
+  t.mock.method(console, 'warn', () => {});
+  mmkv.store.set(userKey(NOTES, 'user-a'), blob({ notes: ['a note'] }));
+  useNotes.getState().addNote('guest note');
+  failReadsOf(t, userKey(NOTES, 'user-a'));
+
+  assert.doesNotThrow(() => switchOwner('user-a'));
+
+  assert.deepEqual(stored(userKey(NOTES, 'user-a')), { notes: ['a note'] });
+  assert.deepEqual(stored(NOTES), { notes: ['guest note'] }, 'the only copy is not deleted');
 });
 
 test('registering a store without a persist name is rejected', () => {

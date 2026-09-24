@@ -13,6 +13,10 @@
  * - A -> signed out: the guest bucket is shown; A's bucket stays on disk.
  * - A -> B, directly or via a sign-out: B's bucket. A's data returns when A
  *   signs in again. Nothing is deleted.
+ * - An adoption into A cut short (app killed, bucket write refused) is finished
+ *   into A at the next sign-in from the guest, whichever account that is, so
+ *   the guest data never lands in two accounts. Guest notes made in between go
+ *   to A as well.
  * - A launch that cannot refresh the session offline is not a boundary: nobody
  *   calls switchPrivateDataOwner, so the persisted owner's data stays visible.
  *
@@ -25,6 +29,7 @@
 import type { StateStorage } from 'zustand/middleware';
 import type { StoreApi } from 'zustand';
 import { mmkvInstance } from './mmkvStorage';
+import { createGuardedStringStorage } from './guardedMmkvStorage';
 
 /** MMKV key holding whose bucket is active: `{ owner: uid | null }`. */
 export const PRIVATE_DATA_OWNER_KEY = 'private-data-owner';
@@ -55,6 +60,10 @@ interface OwnerMarker {
   // so a kill in that window cannot leave the adopted notes visible to the next
   // signed-out reader or account.
   clearGuest?: boolean;
+  // Written before the guest bucket is merged into this account and kept until
+  // the guest bucket is gone: the merge may already be (partly) in that account's
+  // bucket, so the guest data belongs to it and must not be adopted by another.
+  adoptingInto?: string;
 }
 
 type PersistedStore<S> = StoreApi<S> & {
@@ -76,6 +85,8 @@ const registry = new Map<string, RegisteredPrivateStore>();
 
 // undefined until the first read resolves it from disk.
 let activeOwner: string | null | undefined;
+// The account an unfinished guest adoption belongs to (resolved with activeOwner).
+let pendingAdoption: string | null = null;
 let writesSuspended = false;
 
 const readOwnerMarker = (): OwnerMarker | null => {
@@ -84,11 +95,21 @@ const readOwnerMarker = (): OwnerMarker | null => {
     if (!raw) {
       return null;
     }
-    const parsed = JSON.parse(raw) as { owner?: unknown; clearGuest?: unknown };
+    const parsed = JSON.parse(raw) as {
+      owner?: unknown;
+      clearGuest?: unknown;
+      adoptingInto?: unknown;
+    };
     if (parsed.owner !== null && (typeof parsed.owner !== 'string' || parsed.owner === '')) {
       return null;
     }
-    return { owner: parsed.owner, clearGuest: parsed.clearGuest === true };
+    return {
+      owner: parsed.owner,
+      clearGuest: parsed.clearGuest === true,
+      ...(typeof parsed.adoptingInto === 'string' && parsed.adoptingInto !== ''
+        ? { adoptingInto: parsed.adoptingInto }
+        : {}),
+    };
   } catch {
     return null;
   }
@@ -96,6 +117,11 @@ const readOwnerMarker = (): OwnerMarker | null => {
 
 const writeOwnerMarker = (marker: OwnerMarker): void => {
   mmkvInstance.set(PRIVATE_DATA_OWNER_KEY, JSON.stringify(marker));
+};
+
+// The owner marker for `owner`, carrying any unfinished adoption along.
+const saveOwner = (owner: string | null): void => {
+  writeOwnerMarker(pendingAdoption === null ? { owner } : { owner, adoptingInto: pendingAdoption });
 };
 
 // The account whose data the device's stores held before scoping existed:
@@ -151,10 +177,12 @@ const resolveActiveOwner = (): string | null => {
   }
 
   const marker = readOwnerMarker();
+  pendingAdoption = marker?.adoptingInto ?? null;
   if (marker) {
     activeOwner = marker.owner;
     if (marker.clearGuest && marker.owner !== null) {
       clearGuestBuckets();
+      pendingAdoption = null;
       writeOwnerMarker({ owner: marker.owner });
     }
     return activeOwner;
@@ -178,22 +206,28 @@ const withWritesSuspended = (run: () => void): void => {
   }
 };
 
+// Failed reads and writes degrade as they do for every other store (guardedMmkvStorage.ts).
+const guardedBuckets = createGuardedStringStorage(mmkvInstance, (name) =>
+  privateDataStorageKey(name, resolveActiveOwner())
+);
+
+// Counts writes that did not reach the active bucket, so a guest adoption can tell whether
+// the account bucket really took the guest data before it deletes the guest copy.
+let droppedWrites = 0;
+
 /**
  * StateStorage for the private stores: reads and writes the active owner's
  * bucket. Pass it to `createJSONStorage` in place of `zustandStorage`.
  */
 export const privateDataStorage: StateStorage = {
-  getItem: (name) =>
-    mmkvInstance.getString(privateDataStorageKey(name, resolveActiveOwner())) ?? null,
+  getItem: guardedBuckets.getItem,
   setItem: (name, value) => {
     if (writesSuspended) {
       return;
     }
-    const key = privateDataStorageKey(name, resolveActiveOwner());
-    if (mmkvInstance.getString(key) === value) {
-      return;
+    if (!guardedBuckets.setItem(name, value)) {
+      droppedWrites += 1;
     }
-    mmkvInstance.set(key, value);
   },
   removeItem: (name) => {
     if (writesSuspended) {
@@ -256,27 +290,54 @@ export function switchPrivateDataOwner(
   }
 
   if (currentOwner === null && nextOwner !== null) {
-    options.loadStores?.();
-    const applyGuest = Array.from(registry.values(), (store) => store.captureGuest());
-    activeOwner = nextOwner;
-    for (const store of registry.values()) {
-      store.reload();
+    // An adoption into another account was cut short (app killed, or its bucket
+    // refused the write): finish it there, or the guest data would end up in both.
+    const adoptInto = pendingAdoption ?? nextOwner;
+    adoptGuestInto(adoptInto, options);
+    if (adoptInto !== nextOwner) {
+      showOwner(nextOwner);
     }
-    // Writes the merged state into the account's bucket.
-    for (const apply of applyGuest) {
-      apply();
-    }
-    writeOwnerMarker({ owner: nextOwner, clearGuest: true });
-    clearGuestBuckets();
-    writeOwnerMarker({ owner: nextOwner });
     return;
   }
 
-  activeOwner = nextOwner;
-  writeOwnerMarker({ owner: nextOwner });
+  showOwner(nextOwner);
+}
+
+function showOwner(owner: string | null): void {
+  activeOwner = owner;
+  saveOwner(owner);
   for (const store of registry.values()) {
     store.reload();
   }
+}
+
+// Merges the guest bucket into `owner`'s and deletes it. Every step is safe to
+// repeat after a kill: the intent is saved before the merge and cleared only
+// with the guest bucket, and the merges are idempotent.
+function adoptGuestInto(owner: string, options: SwitchPrivateDataOwnerOptions): void {
+  options.loadStores?.();
+  const applyGuest = Array.from(registry.values(), (store) => store.captureGuest());
+  pendingAdoption = owner;
+  writeOwnerMarker({ owner: null, adoptingInto: owner });
+  activeOwner = owner;
+  for (const store of registry.values()) {
+    store.reload();
+  }
+  // Writes the merged state into the account's bucket.
+  const droppedBeforeAdoption = droppedWrites;
+  for (const apply of applyGuest) {
+    apply();
+  }
+  if (droppedWrites !== droppedBeforeAdoption) {
+    // The account bucket did not take the guest data, so the guest bucket is still its
+    // only copy on disk. Keep it; the next adoption merges it again (merges are idempotent).
+    saveOwner(owner);
+    return;
+  }
+  writeOwnerMarker({ owner, clearGuest: true });
+  clearGuestBuckets();
+  pendingAdoption = null;
+  writeOwnerMarker({ owner });
 }
 
 /**
@@ -291,6 +352,12 @@ export function deletePrivateDataOf(owner: string): void {
   }
   for (const name of PRIVATE_DATA_STORE_NAMES) {
     mmkvInstance.delete(privateDataStorageKey(name, owner));
+  }
+  // What the unfinished adoption had merged went with the account; the guest
+  // bucket still holds the data and is the guest's again.
+  if (pendingAdoption === owner) {
+    pendingAdoption = null;
+    saveOwner(resolveActiveOwner());
   }
 }
 

@@ -438,16 +438,22 @@ test('a pending unenroll remembers when the reader left, across a reload, until 
   assert.deepEqual(restored.getState().pendingUnenrollAtByPlanId, {});
 });
 
-test('re-enrolling drops the pending leave time along with the tombstone', async () => {
+test('re-enrolling keeps the unsent leave queued and starts after it', async (t) => {
   const mod = await import('./readingPlansStore');
   const store = mod.createReadingPlansStore(createMemoryStorage());
   store.getState().enrollPlan('psalms-30-days');
   store.getState().unenrollPlan('psalms-30-days');
+  const leftAt = '2026-05-01T12:00:00.000Z';
+  store.setState({ pendingUnenrollAtByPlanId: { 'psalms-30-days': leftAt } });
+  // The clock has gone back since the leave (a corrected fast clock).
+  t.mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-05-01T11:00:00.000Z') });
 
-  store.getState().enrollPlan('psalms-30-days');
+  const rejoined = store.getState().enrollPlan('psalms-30-days');
 
-  assert.deepEqual(store.getState().pendingUnenrollPlanIds, []);
-  assert.deepEqual(store.getState().pendingUnenrollAtByPlanId, {});
+  assert.deepEqual(store.getState().pendingUnenrollPlanIds, ['psalms-30-days']);
+  assert.deepEqual(store.getState().pendingUnenrollAtByPlanId, { 'psalms-30-days': leftAt });
+  assert.equal(rejoined.started_at, '2026-05-01T12:00:00.001Z');
+  assert.deepEqual(store.getState().enrolledPlanIds, ['psalms-30-days']);
 });
 
 test('a plan left on another device is removed without queuing a leave of its own', async () => {

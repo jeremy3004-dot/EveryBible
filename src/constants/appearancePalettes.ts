@@ -6,7 +6,7 @@ export const APPEARANCE_PALETTE_IDS = ['el-blue', 'el-blue-brand'] as const;
 
 export type AppearancePaletteId = (typeof APPEARANCE_PALETTE_IDS)[number];
 
-export interface AppearancePaletteSwatches {
+interface AppearancePaletteSwatches {
   // Accent for dark-family modes (dark, low-light, midnight) — a light pastel
   // that reads as text/fills on near-black surfaces.
   primary: string;

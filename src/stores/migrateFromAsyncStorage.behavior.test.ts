@@ -44,3 +44,53 @@ test('a completed migration reads nothing from AsyncStorage and writes nothing t
   assert.deepEqual(asyncReads, []);
   assert.deepEqual(mmkv.store, before);
 });
+
+test('a key whose AsyncStorage read fails is copied on the next launch, not abandoned', async (t) => {
+  t.mock.method(console, 'warn', () => {});
+  const { migrateFromAsyncStorage } = await import('./migrateFromAsyncStorage');
+  mmkv.store.clear();
+  asyncStore.set('bible-storage', '{"state":{"currentBook":"JHN"}}');
+  const getItem = t.mock.method(asyncStorage, 'getItem', async (key: string) => {
+    if (key === 'bible-storage') throw new Error('AsyncStorage: database is locked');
+    return asyncStore.get(key) ?? null;
+  });
+
+  await migrateFromAsyncStorage();
+
+  assert.equal(mmkv.store.get('auth-storage'), '{"user":null}', 'the readable keys still move');
+  assert.equal(mmkv.store.has('bible-storage'), false);
+  assert.notEqual(
+    mmkv.store.get(ASYNC_STORAGE_MIGRATION_COMPLETED_KEY),
+    '1',
+    'marking the migration done here would strand the reading position in AsyncStorage forever'
+  );
+
+  getItem.mock.restore();
+  await migrateFromAsyncStorage();
+
+  assert.equal(mmkv.store.get('bible-storage'), '{"state":{"currentBook":"JHN"}}');
+  assert.equal(mmkv.store.get('auth-storage'), '{"user":null}');
+  assert.equal(mmkv.store.get(ASYNC_STORAGE_MIGRATION_COMPLETED_KEY), '1');
+  asyncStore.delete('bible-storage');
+});
+
+test('a key MMKV refuses to store is retried on the next launch', async (t) => {
+  t.mock.method(console, 'warn', () => {});
+  const { migrateFromAsyncStorage } = await import('./migrateFromAsyncStorage');
+  mmkv.store.clear();
+  const set = t.mock.method(mmkv.mmkvInstance, 'set', (key: string, value: string) => {
+    if (key === 'auth-storage') throw new Error('MMKV: no space left on device');
+    mmkv.store.set(key, String(value));
+  });
+
+  await migrateFromAsyncStorage();
+
+  assert.equal(mmkv.store.has('auth-storage'), false);
+  assert.notEqual(mmkv.store.get(ASYNC_STORAGE_MIGRATION_COMPLETED_KEY), '1');
+
+  set.mock.restore();
+  await migrateFromAsyncStorage();
+
+  assert.equal(mmkv.store.get('auth-storage'), '{"user":null}');
+  assert.equal(mmkv.store.get(ASYNC_STORAGE_MIGRATION_COMPLETED_KEY), '1');
+});

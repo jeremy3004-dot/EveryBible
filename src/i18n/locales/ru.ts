@@ -583,6 +583,7 @@ export const ru = {
     translationDownloadFailedTitle: 'Не удалось скачать',
     translationDownloadFailed:
       'Эта Библия не скачалась до конца. Проверьте подключение к интернету и свободное место на устройстве, затем попробуйте ещё раз.',
+    searchNoResults: 'Подходящие стихи не найдены.',
     searchUnavailable: 'Полнотекстовый поиск пока недоступен для этого перевода.',
     noVersesAvailable: '{{book}} {{chapter}}: письменного текста пока нет.',
     fullBibleComingSoon: 'Эта глава пока недоступна в этом переводе — ни текстом, ни аудио.',

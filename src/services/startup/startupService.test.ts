@@ -307,7 +307,7 @@ test('deferred warmup preloads runtime translations before the bible data', asyn
   assert.deepEqual(calls, ['translations', 'bible']);
 });
 
-test('a failed runtime-translation warmup is reported and skips the bible preload', async () => {
+test('a failed runtime-translation warmup is reported and the bundled bible preload still runs', async () => {
   const calls: string[] = [];
   const reported: unknown[] = [];
   const failure = new Error('catalog offline');
@@ -322,8 +322,28 @@ test('a failed runtime-translation warmup is reported and skips the bible preloa
     onWarmupError: (error) => reported.push(error),
   });
 
-  assert.deepEqual(calls, []);
+  // The bundled database does not depend on the runtime catalog, so an offline launch still
+  // warms it instead of leaving the import to the first chapter open.
+  assert.deepEqual(calls, ['bible']);
   assert.deepEqual(reported, [failure]);
+});
+
+test('both warmup failures are reported when translations and the bible preload fail', async () => {
+  const reported: unknown[] = [];
+  const translationsFailure = new Error('catalog offline');
+  const bibleFailure = new Error('bundled import failed');
+
+  await runWarmupsNow({
+    preloadRuntimeTranslations: async () => {
+      throw translationsFailure;
+    },
+    preloadBibleData: async () => {
+      throw bibleFailure;
+    },
+    onWarmupError: (error) => reported.push(error),
+  });
+
+  assert.deepEqual(reported, [translationsFailure, bibleFailure]);
 });
 
 test('a warmup failure without an error reporter is still swallowed', async () => {

@@ -190,6 +190,26 @@ test('dismissing the keyboard returns the inset to zero', async () => {
   unmountHook();
 });
 
+test('a measurement that lands after the keyboard hid does not bring the inset back', async () => {
+  // measureInWindow answers asynchronously on device; hold its answer until after the hide.
+  const pending: (() => void)[] = [];
+  const surfaceRef = {
+    current: {
+      measureInWindow: (callback) => {
+        pending.push(() => callback(0, 0, 360, 915));
+      },
+    } satisfies KeyboardMeasurableSurface,
+  };
+  await mountHook({ surfaceRef });
+  didShow(635);
+
+  rn.Keyboard.emit('keyboardDidHide', {});
+  pending.forEach((answer) => answer());
+
+  assert.equal(await rerenderHook({ surfaceRef }), 0);
+  unmountHook();
+});
+
 test('unmounting removes both keyboard listeners', async () => {
   await mountHook({ surfaceRef: { current: surfaceAt(0, 915) } });
 

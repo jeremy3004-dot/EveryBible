@@ -594,6 +594,7 @@ export const ar = {
     translationDownloadFailedTitle: 'فشل التنزيل',
     translationDownloadFailed:
       'لم يكتمل تنزيل هذه النسخة من الكتاب المقدس. تحقّق من اتصالك بالإنترنت ومن مساحة التخزين المتاحة، ثم حاول مرة أخرى.',
+    searchNoResults: 'لا توجد آيات مطابقة لبحثك.',
     searchUnavailable: 'البحث في النص الكامل غير متاح لهذه الترجمة بعد.',
     noVersesAvailable: 'لا يتوفر نص مكتوب لـ{{book}} {{chapter}} بعد.',
     fullBibleComingSoon: 'هذا الإصحاح غير متوفر كنص أو صوت في هذه الترجمة بعد.',

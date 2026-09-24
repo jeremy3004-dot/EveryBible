@@ -16,7 +16,8 @@ import { FlashList } from '@shopify/flash-list';
 import { bibleBooks, config, getTranslatedBookName, newTestamentBooks } from '../../constants';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useBibleStore } from '../../stores/bibleStore';
-import { useI18n, useKeyboardBottomInset } from '../../hooks';
+import { useI18n } from '../../hooks/useI18n';
+import { useKeyboardBottomInset } from '../../hooks/useKeyboardBottomInset';
 import { getAudioAvailability } from '../../services/audio/audioAvailability';
 import { describeAudioDownloadError } from '../../services/audio/audioDownloadErrorMessage';
 import {
@@ -56,7 +57,10 @@ import {
 } from './bibleTranslationModel';
 import { useTranslationPreferenceStore } from '../../stores/translationPreferenceStore';
 import { hasTranslationDownloadData } from '../../stores/bibleStoreModel';
-import { showTranslationDownloadFailedAlert } from './translationDownloadFailureAlert';
+import {
+  reportTranslationDownloadFailure,
+  showTranslationDownloadFailedAlert,
+} from './translationDownloadFailureAlert';
 import {
   createTranslationPickerDownloadQueue,
   type TranslationPickerDownloadDeps,
@@ -255,7 +259,8 @@ export function TranslationPickerList({
           .translations.find((candidate) => candidate.id === translation.id) ?? translation
       );
     },
-    onDownloadFailed: (translation) => {
+    onDownloadFailed: (translation, error) => {
+      reportTranslationDownloadFailure(error);
       showTranslationDownloadFailedAlert(t, () => {
         void downloadQueue.request(translation);
       });

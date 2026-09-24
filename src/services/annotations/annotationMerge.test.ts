@@ -262,3 +262,26 @@ test('selectAnnotationsToPush includes soft-deleted local annotations so deletio
   const toPush = selectAnnotationsToPush([deleted], remoteByKey);
   assert.equal(toPush.length, 1);
 });
+
+// Regression found by annotationMerge.property.test.ts (shrunk counterexample).
+test('a re-created highlight is not replaced by its deleted predecessor from the same list', () => {
+  // The store keeps a deleted highlight next to the one re-created on the same
+  // verse, newest first. Seeding the local list in order let the older, deleted
+  // row overwrite the live one.
+  const deleted = makeAnnotation({
+    id: 'local-annotation-1',
+    type: 'highlight',
+    color: 'amber',
+    updated_at: '2026-09-20T06:00:01.000Z',
+    deleted_at: '2026-09-20T06:00:01.000Z',
+  });
+  const recreated = makeAnnotation({
+    id: 'local-annotation-2',
+    type: 'highlight',
+    color: 'amber',
+    updated_at: '2026-09-20T06:00:05.000Z',
+  });
+  const merged = mergeAnnotationLists([recreated, deleted], []);
+
+  assert.deepEqual(merged, [recreated]);
+});

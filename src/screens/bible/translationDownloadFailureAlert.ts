@@ -20,3 +20,14 @@ export function showTranslationDownloadFailedAlert(
     { text: t('common.retry'), onPress: onRetry },
   ]);
 }
+
+/**
+ * Records a failed text-pack download for crash reporting. The crash queue is loaded on failure
+ * only (it opens MMKV, which first-launch setup does not otherwise need), and reporting never
+ * throws into the download flow.
+ */
+export function reportTranslationDownloadFailure(error: unknown): void {
+  void import('../../services/diagnostics/crashReportQueue')
+    .then(({ reportHandledError }) => reportHandledError('textPack.install', error))
+    .catch(() => undefined);
+}

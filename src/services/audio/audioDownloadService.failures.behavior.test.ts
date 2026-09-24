@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { getBookById, type BibleBook } from '../../constants/books';
 import {
+  AUDIO_DOWNLOAD_ESTIMATED_CHAPTER_BYTES,
   AudioDownloadCancelledError,
+  AudioDownloadInsufficientSpaceError,
   completeAudioDownloadJob,
   createAudioDownloadJobId,
   createAudioDownloadJobStore,
@@ -627,6 +629,91 @@ test('a volume that cannot report its free space never blocks a download', async
 
     assert.equal(downloads.length, 1);
   }
+});
+
+const CHAPTER_ESTIMATE_WITH_HEADROOM = AUDIO_DOWNLOAD_ESTIMATED_CHAPTER_BYTES * 1.05;
+
+/** A device with room for the pre-flight check that fills up once the transfers start. */
+function fillingFileSystem(freeAfterFull: number | null) {
+  const { fileSystem, downloads } = sizedFileSystem();
+  let spaceChecks = 0;
+  fileSystem.getFreeDiskBytes = async () => {
+    spaceChecks += 1;
+    return spaceChecks === 1 ? 10 * 1024 ** 3 : freeAfterFull;
+  };
+  fileSystem.downloadFile = async (from, to, options) => {
+    downloads.push({ from, to, options });
+    throw new Error('java.io.IOException: write failed: ENOSPC (No space left on device)');
+  };
+  return { fileSystem, downloads };
+}
+
+test('running out of space mid-download fails with the not-enough-space error, not a generic one', async () => {
+  const { fileSystem, downloads } = fillingFileSystem(100 * 1024);
+  const { jobs, store } = memoryJobStore();
+  const recorder = recordingHooks();
+
+  const error = await downloadAudioBook({
+    translationId: 'bsb',
+    book: book('RUT'),
+    fileSystem,
+    jobStore: store,
+    hooks: recorder.hooks,
+    resolveRemoteAudio: resolvePhm,
+  }).then(
+    () => assert.fail('the download should fail'),
+    (failure: unknown) => failure
+  );
+
+  assert.ok(error instanceof AudioDownloadInsufficientSpaceError);
+  assert.equal(error.freeBytes, 100 * 1024);
+  assert.equal(error.requiredBytes, Math.ceil(4 * CHAPTER_ESTIMATE_WITH_HEADROOM));
+  assert.equal(downloads.length, 4, 'a full disk is not retried');
+  assert.equal(jobs.get('audio-download:bsb:book:RUT')?.status, 'failed');
+  assert.deepEqual(recorder.failures, [error]);
+});
+
+test('a full device that cannot report its free space still gets the not-enough-space error', async () => {
+  const { fileSystem } = fillingFileSystem(null);
+
+  const error = await downloadAudioBook({
+    translationId: 'bsb',
+    book: book('PHM'),
+    fileSystem,
+    jobStore: memoryJobStore().store,
+    resolveRemoteAudio: resolvePhm,
+  }).then(
+    () => assert.fail('the download should fail'),
+    (failure: unknown) => failure
+  );
+
+  assert.ok(error instanceof AudioDownloadInsufficientSpaceError);
+  assert.equal(error.freeBytes, 0);
+  assert.ok(error.requiredBytes > error.freeBytes);
+});
+
+test('a translation that runs out of space reports the room its remaining chapters need', async () => {
+  const { fileSystem } = fillingFileSystem(100 * 1024);
+  const { jobs, store } = memoryJobStore();
+  const recorder = recordingHooks();
+
+  const error = await downloadAudioTranslation({
+    translationId: 'bsb',
+    books: [book('RUT'), book('PHM')],
+    fileSystem,
+    jobStore: store,
+    hooks: recorder.hooks,
+    resolveRemoteAudio: resolvePhm,
+  }).then(
+    () => assert.fail('the download should fail'),
+    (failure: unknown) => failure
+  );
+
+  assert.ok(error instanceof AudioDownloadInsufficientSpaceError);
+  assert.equal(error.freeBytes, 100 * 1024);
+  assert.equal(error.requiredBytes, Math.ceil(5 * CHAPTER_ESTIMATE_WITH_HEADROOM));
+  assert.equal(jobs.get(TRANSLATION_JOB_ID)?.status, 'failed');
+  assert.deepEqual(recorder.failures, [error]);
 });
 
 // ---------------------------------------------------------------------------

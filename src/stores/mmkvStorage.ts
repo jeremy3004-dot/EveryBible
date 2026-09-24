@@ -15,21 +15,19 @@
  */
 import { MMKV } from 'react-native-mmkv';
 import type { StateStorage } from 'zustand/middleware';
+import { createGuardedStringStorage } from './guardedMmkvStorage';
 
 export const mmkvInstance = new MMKV();
 
+// Read and write failures degrade to "not persisted" (see guardedMmkvStorage.ts), and a
+// store whose blob could not be read does not overwrite it with its defaults.
+const guardedStorage = createGuardedStringStorage(mmkvInstance);
+
 export const zustandStorage: StateStorage = {
   setItem: (name, value) => {
-    if (mmkvInstance.getString(name) === value) {
-      return;
-    }
-
-    mmkvInstance.set(name, value);
+    guardedStorage.setItem(name, value);
   },
-  getItem: (name) => {
-    const value = mmkvInstance.getString(name);
-    return value ?? null;
-  },
+  getItem: guardedStorage.getItem,
   removeItem: (name) => {
     mmkvInstance.delete(name);
   },

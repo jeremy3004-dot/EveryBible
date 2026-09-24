@@ -610,10 +610,13 @@ test('a legacy null chapter map is repaired rather than failing the unchanged-co
   assert.deepEqual(payloadOf('user_progress').chapters_read, {});
 });
 
-test('a locally reset streak is uploaded even when chapters and position match', async () => {
+test('a streak that differs from the cloud is uploaded even when chapters and position match', async () => {
+  // Same last read day on both sides: the longer run is kept and pushed up (a
+  // same-day tie used to keep each device's own count, so two devices flipped the
+  // server between them on every sync).
   progressStore.setState({
     chaptersRead: { JHN_3: 1000 },
-    streakDays: 0,
+    streakDays: 6,
     lastReadDate: '2026-09-01',
   });
   bibleStore.setState({ currentBook: 'JHN', currentChapter: 3 });
@@ -621,7 +624,7 @@ test('a locally reset streak is uploaded even when chapters and position match',
 
   await syncProgress(USER_A);
 
-  assert.equal(payloadOf('user_progress').streak_days, 0);
+  assert.equal(payloadOf('user_progress').streak_days, 6);
 });
 
 test('a device that has read more recently keeps its own position and pushes it up', async () => {

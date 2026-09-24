@@ -46,7 +46,7 @@ export function TabBarSelection({
 }
 
 // 52pt tall inside the 64pt capsule's 6pt padding, radius 26.
-export const TAB_BAR_SELECTION_PILL_RADIUS = 26;
+const TAB_BAR_SELECTION_PILL_RADIUS = 26;
 
 const styles = StyleSheet.create({
   pill: {

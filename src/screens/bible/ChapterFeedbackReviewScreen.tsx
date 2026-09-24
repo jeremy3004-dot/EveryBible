@@ -91,6 +91,9 @@ export function ChapterFeedbackReviewScreen({ route, navigation }: Props) {
   const [playing, setPlaying] = useState<string | null>(null);
   const sound = useRef<Audio.Sound | null>(null);
   const soundId = useRef<string | null>(null);
+  // Bumped whenever the loaded voice note is replaced or stopped, so a load that
+  // settles afterwards knows it is stale and must not start playing.
+  const soundRequestId = useRef(0);
   const requestId = useRef(0);
   const busy = useRef(false);
   const chapterLabel = `${getTranslatedBookName(bookId, t)} ${chapter}`;
@@ -149,6 +152,7 @@ export function ChapterFeedbackReviewScreen({ route, navigation }: Props) {
   );
 
   const stopAudio = useCallback(() => {
+    ++soundRequestId.current;
     void sound.current?.unloadAsync().catch(() => {});
     sound.current = null;
     soundId.current = null;
@@ -231,6 +235,8 @@ export function ChapterFeedbackReviewScreen({ route, navigation }: Props) {
   };
 
   const play = async (item: ChapterFeedbackReviewItem) => {
+    let request = soundRequestId.current;
+    const isStale = () => request !== soundRequestId.current;
     try {
       if (soundId.current === item.id && sound.current) {
         if (playing === item.id) {
@@ -242,16 +248,26 @@ export function ChapterFeedbackReviewScreen({ route, navigation }: Props) {
         }
         return;
       }
-      await sound.current?.unloadAsync();
+      request = ++soundRequestId.current;
+      const previous = sound.current;
       sound.current = null;
       soundId.current = item.id;
+      setPlaying(null);
+      await previous?.unloadAsync();
       const audio = await refreshFeedbackAudioUrl({ ...input(), feedbackId: item.id });
+      if (isStale()) return;
       if (!audio.success || !audio.playbackUrl) throw new Error('Audio unavailable');
       await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true });
+      if (isStale()) return;
       const created = await Audio.Sound.createAsync(
         { uri: audio.playbackUrl },
         { shouldPlay: true }
       );
+      if (isStale()) {
+        // A newer Listen or leaving the screen superseded this load; nothing can stop it later.
+        void created.sound.unloadAsync().catch(() => {});
+        return;
+      }
       sound.current = created.sound;
       setPlaying(item.id);
       created.sound.setOnPlaybackStatusUpdate((playback) => {
@@ -263,12 +279,15 @@ export function ChapterFeedbackReviewScreen({ route, navigation }: Props) {
           useTranslatorReviewStore.getState().markListened(item.id);
         }
         if (playback.didJustFinish) {
-          setPlaying(null);
           void created.sound.unloadAsync();
+          // An older clip finishing must not clear the state of the one playing now.
+          if (sound.current !== created.sound) return;
+          setPlaying(null);
           sound.current = null;
         }
       });
     } catch {
+      if (isStale()) return;
       setPlaying(null);
       Alert.alert(t('common.error'), t('bible.translatorReviewAudioError'));
     }

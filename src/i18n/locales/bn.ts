@@ -258,6 +258,7 @@ export const bn = {
     translationDownloadFailedTitle: 'ডাউনলোড ব্যর্থ হয়েছে',
     translationDownloadFailed:
       'এই বাইবেলটির ডাউনলোড শেষ হয়নি। আপনার ইন্টারনেট সংযোগ ও খালি জায়গা পরীক্ষা করে আবার চেষ্টা করুন।',
+    searchNoResults: 'আপনার অনুসন্ধানের সাথে মেলে এমন কোনো পদ পাওয়া যায়নি।',
     searchUnavailable: 'এই অনুবাদে এখনও সম্পূর্ণ পাঠ্যে অনুসন্ধান করা যায় না।',
     noVersesAvailable: '{{book}} {{chapter}}-এ এখনও লিখিত পাঠ নেই।',
     fullBibleComingSoon: 'এই অধ্যায়টি এই অনুবাদে এখনও লিখিত বা অডিও আকারে পাওয়া যায় না।',

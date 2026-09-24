@@ -16,7 +16,8 @@ import {
 } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
-import { useDisplayFont, useTabBarHeight } from '../../hooks';
+import { useDisplayFont } from '../../hooks/useDisplayFont';
+import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { config } from '../../constants/config';
 import { useAuthStore } from '../../stores/authStore';
 import { useBibleStore } from '../../stores/bibleStore';

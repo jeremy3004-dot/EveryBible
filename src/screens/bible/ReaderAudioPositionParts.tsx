@@ -18,7 +18,7 @@ import type { Verse } from '../../types';
 import { getEstimatedFollowAlongVerse, hasAudioPositionRestarted } from './bibleReaderModel';
 import { useAudioPosition } from '../../hooks/useAudioPosition';
 
-export interface ReaderAudioTrack {
+interface ReaderAudioTrack {
   translationId: string;
   bookId: string;
   chapter: number;

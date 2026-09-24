@@ -21,7 +21,7 @@ import type { ThemeColors } from '../../contexts/ThemeContext';
 import type { BibleTranslation } from '../../types';
 import type { LocaleCountry, LocaleLanguage } from '../../services/onboarding/localeSelection';
 
-export const COUNTRIES: LocaleCountry[] = [
+const COUNTRIES: LocaleCountry[] = [
   { code: 'IN', name: 'India', languageCodes: ['hin', 'eng'] },
   { code: 'NP', name: 'Nepal', languageCodes: ['npi'] },
   { code: 'US', name: 'United States', languageCodes: ['eng', 'spa'] },
@@ -43,14 +43,14 @@ const language = (
   countryCodes,
 });
 
-export const LANGUAGES: LocaleLanguage[] = [
+const LANGUAGES: LocaleLanguage[] = [
   language('eng', 'en', 'English', 'English', ['US', 'IN']),
   language('hin', 'hi', 'Hindi', 'हिन्दी', ['IN']),
   language('npi', 'ne', 'Nepali', 'नेपाली', ['NP']),
   language('spa', 'es', 'Spanish', 'Español', ['US']),
 ];
 
-export function makeTranslation(
+function makeTranslation(
   overrides: Partial<BibleTranslation> & Pick<BibleTranslation, 'id' | 'name' | 'language'>
 ): BibleTranslation {
   return {

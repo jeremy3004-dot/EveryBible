@@ -97,6 +97,17 @@ function deletePasscodeFromSecureStore(): void {
   );
 }
 
+// A fresh install hands merge `undefined`, and a damaged blob can decode to null or a non-object.
+// Reading fields off either threw, and zustand then skipped hydration silently. With nothing
+// saved, merge keeps the initial state (a dev build's configured passcode starts it enabled).
+function isPersistedRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function asPersistedTranslatorReviewState(value: unknown): Partial<TranslatorReviewState> {
+  return isPersistedRecord(value) ? (value as Partial<TranslatorReviewState>) : {};
+}
+
 export const useTranslatorReviewStore = create<TranslatorReviewState>()(
   persist(
     (set, get) => ({
@@ -170,7 +181,7 @@ export const useTranslatorReviewStore = create<TranslatorReviewState>()(
       version: 5,
       storage: createJSONStorage(() => zustandStorage),
       migrate: (persistedState, version) => {
-        const state = persistedState as Partial<TranslatorReviewState>;
+        const state = asPersistedTranslatorReviewState(persistedState);
         const accessPasscode = normalizeTranslatorReviewPasscode(state.accessPasscode ?? '');
         const feedbackMarkers = stripResolutionFromMarkers(state.feedbackMarkers);
 
@@ -193,6 +204,9 @@ export const useTranslatorReviewStore = create<TranslatorReviewState>()(
         };
       },
       merge: (persisted, current) => {
+        if (!isPersistedRecord(persisted)) {
+          return current;
+        }
         const saved = persisted as Partial<TranslatorReviewState>;
         const mode = saved.mode ?? (saved.enabled ? 'translator' : null);
         return { ...current, ...saved, mode, enabled: mode === 'translator' };

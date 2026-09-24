@@ -372,6 +372,39 @@ test('a failed cloud download records the failure on the translation and rethrow
   assert.equal(useBibleStore.getState().downloadProgress, null);
 });
 
+test('retrying a failed cloud download installs the pack and clears the failure', async () => {
+  withTranslations([makeRuntimeTranslation({ id: 'esv1' })]);
+  doubles.cloud.run = async () => {
+    throw new Error('The network connection was lost.');
+  };
+  await assert.rejects(() => useBibleStore.getState().downloadTranslation('esv1'), /lost/);
+  assert.equal(useBibleStore.getState().error, 'The network connection was lost.');
+
+  doubles.cloud.run = async () => 'file:///packs/esv1.db';
+  const result = await useBibleStore.getState().downloadTranslation('esv1');
+
+  const installed = findTranslation('esv1');
+  assert.equal(result, 'installed');
+  assert.deepEqual(
+    {
+      installState: installed?.installState,
+      isDownloaded: installed?.isDownloaded,
+      textPackLocalPath: installed?.textPackLocalPath,
+      lastInstallError: installed?.lastInstallError ?? null,
+      error: useBibleStore.getState().error,
+      downloadProgress: useBibleStore.getState().downloadProgress,
+    },
+    {
+      installState: 'installed',
+      isDownloaded: true,
+      textPackLocalPath: 'file:///packs/esv1.db',
+      lastInstallError: null,
+      error: null,
+      downloadProgress: null,
+    }
+  );
+});
+
 test('a failed download clears its own row even after another download took over the banner', async () => {
   withTranslations([
     makeRuntimeTranslation({ id: 'esv1' }),

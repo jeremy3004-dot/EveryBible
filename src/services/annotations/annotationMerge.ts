@@ -21,21 +21,35 @@ export const mergeAnnotationLists = (
 ): UserAnnotation[] => {
   const mergedByKey = new Map<AnnotationCompositeKey, UserAnnotation>();
 
-  // Seed with local entries
-  for (const annotation of local) {
-    mergedByKey.set(makeAnnotationCompositeKey(annotation), annotation);
-  }
-
-  // Overlay remote entries where remote is newer
-  for (const annotation of remote) {
+  // One list can hold several records for a key (the store keeps a deleted
+  // highlight next to the one re-created on the same verse, newest first), so
+  // local entries are compared too: seeding them in order let an older one
+  // replace a newer one.
+  for (const annotation of [...local, ...remote]) {
     const key = makeAnnotationCompositeKey(annotation);
     const existing = mergedByKey.get(key);
-    if (!existing || annotation.updated_at > existing.updated_at) {
+    if (!existing || supersedes(annotation, existing)) {
       mergedByKey.set(key, annotation);
     }
   }
 
   return Array.from(mergedByKey.values());
+};
+
+/**
+ * Whether `candidate` wins over `existing` at the same verse and type: the later
+ * edit; on the same instant a deletion (the later act on a record); then a
+ * fixed order, so the result never depends on which list was local.
+ */
+const supersedes = (candidate: UserAnnotation, existing: UserAnnotation): boolean => {
+  if (candidate.updated_at !== existing.updated_at) {
+    return candidate.updated_at > existing.updated_at;
+  }
+  const candidateDeleted = candidate.deleted_at != null;
+  if (candidateDeleted !== (existing.deleted_at != null)) {
+    return candidateDeleted;
+  }
+  return JSON.stringify(candidate) > JSON.stringify(existing);
 };
 
 /**

@@ -49,6 +49,7 @@ import {
   reconcileMissingRuntimeTranslationPacks,
   hasTranslationDownloadData,
   resetTranslationDownloadState,
+  settleInterruptedInstallState,
 } from './bibleStoreModel';
 import {
   readTextPackInstallJournal,
@@ -817,14 +818,28 @@ export const useBibleStore = create<BibleState>()(
 
         const localPath = translation.textPackLocalPath;
         if (localPath) {
+          let closed = false;
           try {
             await invalidateInstalledBibleDatabaseAtPath(localPath);
+            closed = true;
           } catch (error) {
             console.warn(
               '[Bible] Failed to invalidate missing installed pack:',
               translationId,
               error
             );
+          }
+          // The reset below forgets this path, so a corrupt pack (and its -wal/-shm)
+          // left here would only waste space; a reinstall writes to a new path. Only
+          // once its connection is closed, and a vanished pack makes this a no-op.
+          if (closed) {
+            try {
+              const { deleteCatalogTextPackArtifacts } =
+                await import('../services/bible/cloudTranslationService');
+              await deleteCatalogTextPackArtifacts(localPath);
+            } catch (error) {
+              console.warn('[Bible] Failed to delete damaged text pack:', translationId, error);
+            }
           }
         }
 
@@ -1160,6 +1175,8 @@ export const useBibleStore = create<BibleState>()(
                     installState: 'installed' as const,
                     textPackLocalPath: localPath,
                     activeTextPackVersion: textPack?.version ?? '1',
+                    // A retry that succeeds supersedes the failure an earlier attempt recorded.
+                    lastInstallError: null,
                   }
                 : t
             ),
@@ -1874,9 +1891,11 @@ export const useBibleStore = create<BibleState>()(
           console.log('[EB-T] bible:merge-start', Date.now());
         }
         // Single read + single pass over the cached catalog; the deltas then join against it by id.
+        const persisted = sanitizePersistedBibleState(persistedState, readRuntimeCatalogSnapshot());
         const result = {
           ...currentState,
-          ...sanitizePersistedBibleState(persistedState, readRuntimeCatalogSnapshot()),
+          ...persisted,
+          translations: persisted.translations.map(settleInterruptedInstallState),
         };
         if (typeof __DEV__ !== 'undefined' && __DEV__) {
           console.log('[EB-T] bible:merge-done', Date.now());
