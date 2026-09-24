@@ -90,12 +90,12 @@ function toStorableText(text: string): string {
     const code = text.charCodeAt(i);
     if (code === 0) continue;
     if (isHighSurrogate(code) && i + 1 < text.length && isLowSurrogate(text.charCodeAt(i + 1))) {
-      result += text[i] + text[i + 1];
+      result += text.slice(i, i + 2);
       i += 1;
     } else if (isHighSurrogate(code) || isLowSurrogate(code)) {
       result += '\ufffd';
     } else {
-      result += text[i];
+      result += text.charAt(i);
     }
   }
   return result;
@@ -133,7 +133,7 @@ const JSC_FRAME = /^(.*?)@(.+?):(\d+):(\d+)$/;
 const BUNDLE_FILE = /\.(?:jsbundle|bundle|hbc)$/;
 
 function bundleFileName(location: string): string | null {
-  const withoutQuery = location.split(/[?&]/)[0].replace(/\/+$/, '');
+  const withoutQuery = (location.split(/[?&]/)[0] ?? '').replace(/\/+$/, '');
   const name = withoutQuery.slice(withoutQuery.lastIndexOf('/') + 1);
   return BUNDLE_FILE.test(name) ? name : null;
 }
@@ -158,9 +158,11 @@ export function extractBundleFrames(
     const line = rawLine.trim();
     const match = V8_FRAME.exec(line) ?? JSC_FRAME.exec(line);
     if (!match) continue;
-    const file = bundleFileName(match[2]);
+    // Both frame patterns always capture location, line and column; only the function name is optional.
+    const [, functionName, location = '', lineNumber, columnNumber] = match;
+    const file = bundleFileName(location);
     if (!file) continue;
-    frames.push(`${cleanFunctionName(match[1])} (${file}:${match[3]}:${match[4]})`);
+    frames.push(`${cleanFunctionName(functionName)} (${file}:${lineNumber}:${columnNumber})`);
   }
   return frames;
 }
@@ -174,8 +176,8 @@ export function summarizeComponentStack(
   const names: string[] = [];
   for (const rawLine of componentStack.split('\n')) {
     if (names.length >= max) break;
-    const match = /^(?:in|at)\s+([A-Za-z_$][\w$.]{0,63})/.exec(rawLine.trim());
-    if (match) names.push(match[1]);
+    const name = /^(?:in|at)\s+([A-Za-z_$][\w$.]{0,63})/.exec(rawLine.trim())?.[1];
+    if (name) names.push(name);
   }
   return names.length > 0 ? names.join(' < ') : null;
 }

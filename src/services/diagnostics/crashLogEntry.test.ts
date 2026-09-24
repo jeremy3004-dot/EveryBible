@@ -68,7 +68,7 @@ test('appendCrashLogEntry keeps only the newest MAX_CRASH_LOG_ENTRIES entries by
   const result = appendCrashLogEntry(existing, entry);
 
   assert.equal(result.length, MAX_CRASH_LOG_ENTRIES);
-  assert.equal(result[0].message, 'entry-1');
+  assert.equal(result[0]?.message, 'entry-1');
   assert.deepEqual(result.at(-1), entry);
 });
 

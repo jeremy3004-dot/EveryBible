@@ -9,6 +9,7 @@ import {
 } from '../../testing/mockModules';
 import type { CrashLogEntry } from './crashLogEntry';
 import type { AppErrorReport } from './crashReportModel';
+import { assertDefined } from '../../utils/assertDefined';
 
 /**
  * The real crashLogStore (and the real `toCrashLogEntry`) is used here — only
@@ -46,6 +47,8 @@ const originalHermesInternal = globals.HermesInternal;
 
 const handledByOriginal: Array<{ error: unknown; isFatal?: boolean }> = [];
 const trackerOptions: RejectionOptions[] = [];
+/** The single tracker the `before` hook registers with HermesInternal. */
+const rejectionTracker = () => assertDefined(trackerOptions[0], 'the registered rejection tracker');
 let installedHandler: ErrorHandler = () => {};
 const originalHandler: ErrorHandler = (error, isFatal) => {
   handledByOriginal.push({ error, isFatal });
@@ -97,9 +100,9 @@ test('a fatal JS error is persisted to the crash log before the original handler
 
   const entries = persisted();
   assert.equal(entries.length, 1);
-  assert.equal(entries[0].message, 'render exploded');
-  assert.equal(entries[0].isFatal, true);
-  assert.match(entries[0].stack ?? '', /render exploded/);
+  assert.equal(entries[0]?.message, 'render exploded');
+  assert.equal(entries[0]?.isFatal, true);
+  assert.match(entries[0]?.stack ?? '', /render exploded/);
   assert.deepEqual(handledByOriginal, [{ error, isFatal: true }]);
 });
 
@@ -109,7 +112,7 @@ test('a non-fatal JS error is recorded as non-fatal and still chained', () => {
 
   installedHandler(error, false);
 
-  assert.equal(persisted()[0].isFatal, false);
+  assert.equal(persisted()[0]?.isFatal, false);
   assert.deepEqual(handledByOriginal, [{ error, isFatal: false }]);
 });
 
@@ -118,8 +121,8 @@ test('an error reported without an isFatal flag is recorded as non-fatal', () =>
 
   installedHandler('a thrown string');
 
-  assert.equal(persisted()[0].message, 'a thrown string');
-  assert.equal(persisted()[0].isFatal, false);
+  assert.equal(persisted()[0]?.message, 'a thrown string');
+  assert.equal(persisted()[0]?.isFatal, false);
 });
 
 test('successive crashes accumulate in the log rather than replacing each other', () => {
@@ -147,11 +150,11 @@ test('recorded entries are stamped with the time the error surfaced', () => {
     mock.timers.reset();
   }
 
-  assert.equal(persisted()[0].timestamp, 1_760_000_000_000);
+  assert.equal(persisted()[0]?.timestamp, 1_760_000_000_000);
 });
 
 test('the Hermes tracker is asked for all rejections, not just late ones', () => {
-  assert.equal(trackerOptions[0].allRejections, true);
+  assert.equal(rejectionTracker().allRejections, true);
 });
 
 test('an unhandled promise rejection is recorded as a non-fatal crash entry', () => {
@@ -159,18 +162,18 @@ test('an unhandled promise rejection is recorded as a non-fatal crash entry', ()
   const consoleError = mock.method(console, 'error', () => {});
 
   try {
-    trackerOptions[0].onUnhandled(7, new Error('dangling await'));
+    rejectionTracker().onUnhandled(7, new Error('dangling await'));
   } finally {
     consoleError.mock.restore();
   }
 
   const entries = persisted();
   assert.equal(entries.length, 1);
-  assert.equal(entries[0].message, 'dangling await');
-  assert.equal(entries[0].isFatal, false);
-  assert.match(entries[0].stack ?? '', /dangling await/);
+  assert.equal(entries[0]?.message, 'dangling await');
+  assert.equal(entries[0]?.isFatal, false);
+  assert.match(entries[0]?.stack ?? '', /dangling await/);
   assert.equal(consoleError.mock.callCount(), 1);
-  assert.match(String(consoleError.mock.calls[0].arguments[0]), /Unhandled promise rejection/);
+  assert.match(String(consoleError.mock.calls[0]?.arguments[0]), /Unhandled promise rejection/);
 });
 
 test('a rejection with a non-Error reason is still recorded', () => {
@@ -178,7 +181,7 @@ test('a rejection with a non-Error reason is still recorded', () => {
   const consoleError = mock.method(console, 'error', () => {});
 
   try {
-    trackerOptions[0].onUnhandled(8, { code: 'ENOENT' });
+    rejectionTracker().onUnhandled(8, { code: 'ENOENT' });
   } finally {
     consoleError.mock.restore();
   }
@@ -216,8 +219,8 @@ test('a fatal JS error is also queued as an anonymous crash report for the next 
 
   installedHandler(error, true);
 
-  const [report] = pendingReports();
   assert.equal(pendingReports().length, 1);
+  const report = assertDefined(pendingReports()[0], 'the pending crash report');
   assert.equal(report.kind, 'fatal');
   assert.equal(report.is_fatal, true);
   assert.equal(report.error_name, 'TypeError');
@@ -225,7 +228,7 @@ test('a fatal JS error is also queued as an anonymous crash report for the next 
   assert.equal(report.screen, 'Home');
   assert.equal(report.platform, 'ios');
   // The local crash log is exportable and outlives sign-out, so it is scrubbed too.
-  assert.equal(persisted()[0].message, 'verses is undefined for <email>');
+  assert.equal(persisted()[0]?.message, 'verses is undefined for <email>');
 });
 
 test('a non-fatal global error is queued as an error report', () => {
@@ -241,7 +244,7 @@ test('an unhandled rejection is queued as a rejection report', () => {
   reset();
   const consoleError = mock.method(console, 'error', () => {});
   try {
-    trackerOptions[0].onUnhandled(9, new Error('rejected fetch'));
+    rejectionTracker().onUnhandled(9, new Error('rejected fetch'));
   } finally {
     consoleError.mock.restore();
   }
@@ -262,7 +265,7 @@ test('a thrown value that cannot be stringified still reaches the original handl
   assert.deepEqual(handledByOriginal, [{ error: unprintable, isFatal: true }]);
   assert.equal(persisted().length, 1, 'the crash is still logged locally');
   assert.equal(pendingReports().length, 1, 'and still queued for upload');
-  assert.equal(pendingReports()[0].kind, 'fatal');
+  assert.equal(pendingReports()[0]?.kind, 'fatal');
 });
 
 test('an unprintable rejection reason never throws out of the tracker callback', () => {
@@ -274,7 +277,7 @@ test('an unprintable rejection reason never throws out of the tracker callback',
     },
   };
   try {
-    assert.doesNotThrow(() => trackerOptions[0].onUnhandled(10, reason));
+    assert.doesNotThrow(() => rejectionTracker().onUnhandled(10, reason));
   } finally {
     consoleError.mock.restore();
   }

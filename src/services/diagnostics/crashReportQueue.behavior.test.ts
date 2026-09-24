@@ -15,6 +15,7 @@ import {
   type SupabaseFakeError,
 } from '../../testing/supabaseFake';
 import type { AppErrorReport } from './crashReportModel';
+import { assertDefined } from '../../utils/assertDefined';
 
 // The real queue over an in-memory MMKV, a scripted reporting policy and the
 // Supabase fake, so each test asserts what is persisted and what is sent.
@@ -106,8 +107,8 @@ test('a fatal error is persisted synchronously with the current screen and devic
 
   queue.queueCrashReport({ error, kind: 'fatal' });
 
-  const [report] = persistedQueue();
   assert.equal(persistedQueue().length, 1);
+  const report = assertDefined(persistedQueue()[0], 'the persisted crash report');
   assert.equal(report.kind, 'fatal');
   assert.equal(report.is_fatal, true);
   assert.equal(report.screen, 'BibleReader');
@@ -135,7 +136,9 @@ test('the install id is stable across reports and never a user id', async () => 
   queue.queueCrashReport({ error: new Error('one'), kind: 'error' });
   queue.queueCrashReport({ error: new Error('two'), kind: 'error' });
 
-  const [first, second] = persistedQueue();
+  const [firstReport, secondReport] = persistedQueue();
+  const first = assertDefined(firstReport, 'the first queued report');
+  const second = assertDefined(secondReport, 'the second queued report');
   assert.equal(first.install_id, second.install_id);
   assert.ok(!JSON.stringify(persistedQueue()).includes(backend.auth.user?.id ?? 'no-user'));
 });
@@ -175,7 +178,7 @@ test('boundary reports carry the screen and component names, not the raw stack',
     componentStack: '\n    in PlanDay (at PlanDetail.tsx:12)\n    in PlanDetail',
   });
 
-  const [report] = persistedQueue();
+  const report = assertDefined(persistedQueue()[0], 'the persisted crash report');
   assert.equal(report.screen, 'PlanDetail');
   assert.equal(report.component_stack, 'PlanDay < PlanDetail');
 });
@@ -193,9 +196,9 @@ test('queued reports wait for the reporting policy, then send anonymously and cl
   await settle();
 
   assert.equal(sent.length, 1);
-  assert.equal(sent[0].name, 'report-app-errors');
-  assert.equal(sent[0].authorization, 'Bearer test-public-key');
-  assert.equal(sent[0].reports[0].message, 'offline failure');
+  assert.equal(sent[0]?.name, 'report-app-errors');
+  assert.equal(sent[0]?.authorization, 'Bearer test-public-key');
+  assert.equal(sent[0]?.reports[0]?.message, 'offline failure');
   assert.deepEqual(persistedQueue(), []);
   stop();
 });
@@ -211,7 +214,7 @@ test('a report from a previous launch is sent when reporting starts', async () =
   await settle();
 
   assert.equal(sent.length, 1);
-  assert.equal(sent[0].reports[0].kind, 'fatal');
+  assert.equal(sent[0]?.reports[0]?.kind, 'fatal');
   stop();
 });
 
@@ -271,8 +274,8 @@ test('the pending queue keeps only the newest reports', async () => {
 
   const persisted = persistedQueue();
   assert.equal(persisted.length, 20);
-  assert.equal(persisted[0].message, 'old 1');
-  assert.equal(persisted[19].message, 'newest');
+  assert.equal(persisted[0]?.message, 'old 1');
+  assert.equal(persisted[19]?.message, 'newest');
 });
 
 const CRASH_LOG_KEY = 'diagnostics-crash-log';
@@ -283,8 +286,8 @@ test('a handled error is queued with its source and shown on the Diagnostics scr
   const queue = await load();
   queue.reportHandledError('audio.load', new Error('decoder failed for jane@example.com'));
 
-  const [report] = persistedQueue();
   assert.equal(persistedQueue().length, 1);
+  const report = assertDefined(persistedQueue()[0], 'the persisted crash report');
   assert.equal(report.kind, 'error');
   assert.equal(report.is_fatal, false);
   assert.equal(report.message, '[audio.load] decoder failed for <email>');
