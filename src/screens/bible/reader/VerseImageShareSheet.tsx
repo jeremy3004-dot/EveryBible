@@ -22,6 +22,8 @@ import { VerseImageSharePreview } from './VerseImageSharePreview';
 export interface VerseImageShareSheetProps {
   handleSelectVerseImageBackground: (backgroundIndex: number) => void;
   handleShareSelectedVerseImage: () => Promise<void>;
+  /** Called once the picker has finished closing (iOS only), so a share sheet can present. */
+  handleVerseImageSheetDismissed?: () => void;
   isSharingVerseImage: boolean;
   selectedVerseImageBackground: ImageSourcePropType;
   selectedVerseImageBackgroundIndex: number;
@@ -39,6 +41,7 @@ export interface VerseImageShareSheetProps {
 export function VerseImageShareSheet({
   handleSelectVerseImageBackground,
   handleShareSelectedVerseImage,
+  handleVerseImageSheetDismissed,
   isSharingVerseImage,
   selectedVerseImageBackground,
   selectedVerseImageBackgroundIndex,
@@ -60,6 +63,7 @@ export function VerseImageShareSheet({
       navigationBarTranslucent
       animationType="fade"
       onRequestClose={() => setShowVerseImageSheet(false)}
+      onDismiss={handleVerseImageSheetDismissed}
     >
       <View style={[styles.verseImageSheetOverlay, { backgroundColor: colors.overlay }]}>
         <TouchableOpacity

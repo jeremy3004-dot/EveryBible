@@ -2,7 +2,7 @@ import test, { afterEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import type { Mutate } from 'zustand/vanilla';
 import { mockMmkvStorage } from '../../testing/mockModules';
-import { installRenderHarness, within } from '../../testing/render';
+import { installRenderHarness, renderedText, within } from '../../testing/render';
 import { RHYTHM_PRESET_LIBRARY } from '../../services/plans/rhythmPresets';
 import type { RhythmComposerScreenProps } from '../../navigation/types';
 import type { ReadingPlansStoreApi } from '../../stores/readingPlansStore';
@@ -241,4 +241,100 @@ test('each preset card lists its tradition, historic roots and included passages
   assert.ok(scoped.getByText(preset.tradition));
   assert.ok(scoped.getByText(t('plans.rhythmComposer.historicRoots')));
   assert.ok(scoped.getByText(t('plans.rhythmComposer.includes')));
+});
+
+test('a save the store rejects explains why and stays on the composer', async () => {
+  const store = await loadStore();
+  const { RHYTHM_MUTATION_ERROR_CODES } = await import('../../stores/readingPlansStore');
+  store.setState({
+    createRhythm: () => ({
+      success: false,
+      error: RHYTHM_MUTATION_ERROR_CODES.planInAnotherRhythm,
+    }),
+  });
+  const view = await renderComposer();
+
+  await view.press(view.getByText(RHYTHM_PRESET_LIBRARY[0].title));
+
+  const [alert] = harness.rn.__recorded.alerts;
+  assert.equal(alert.title, t('common.error'));
+  assert.equal(alert.message, t('plans.rhythmComposer.errorPlanInAnotherRhythm'));
+  assert.deepEqual(callsTo('replace'), []);
+  assert.deepEqual(harness.haptics, [], 'no success haptic');
+});
+
+test('the filters are grouped under their time-of-day and tradition headings', async () => {
+  const view = await renderComposer();
+
+  assert.ok(view.getByText(t('plans.rhythmComposer.timeOfDay')));
+  assert.ok(view.getByText(t('plans.rhythmComposer.tradition')));
+  assert.ok(
+    view.getByRole('button', { name: t('plans.rhythmComposer.allTraditions'), selected: true })
+  );
+  for (const name of [
+    t('readingPlans.morningLabel'),
+    t('plans.rhythmComposer.midday'),
+    t('readingPlans.eveningLabel'),
+  ]) {
+    assert.ok(view.getByRole('button', { name, selected: false }), name);
+  }
+  assert.ok(
+    view.getByText(t('plans.rhythmComposer.presetCount', { count: RHYTHM_PRESET_LIBRARY.length }))
+  );
+});
+
+// The composer stays on screen through the replace transition, so a second tap lands.
+test('tapping a preset twice before the composer leaves creates one rhythm', async () => {
+  const store = await loadStore();
+  const view = await renderComposer();
+  const card = view.getByText(RHYTHM_PRESET_LIBRARY[0].title);
+
+  await view.press(card);
+  await view.press(card);
+
+  assert.equal(store.getState().rhythmOrder.length, 1);
+  assert.equal(callsTo('replace').length, 1);
+});
+
+test('after a rejected save the reader can pick another preset', async () => {
+  const store = await loadStore();
+  const { RHYTHM_MUTATION_ERROR_CODES } = await import('../../stores/readingPlansStore');
+  const realCreate = store.getState().createRhythm;
+  let attempts = 0;
+  store.setState({
+    createRhythm: (input) => {
+      attempts += 1;
+      return attempts === 1
+        ? { success: false, error: RHYTHM_MUTATION_ERROR_CODES.emptyItems }
+        : realCreate(input);
+    },
+  });
+  const view = await renderComposer();
+
+  await view.press(view.getByText(RHYTHM_PRESET_LIBRARY[0].title));
+  await view.press(view.getByText(RHYTHM_PRESET_LIBRARY[1].title));
+
+  assert.equal(attempts, 2);
+  assert.equal(store.getState().rhythmOrder.length, 1);
+  assert.equal(callsTo('replace').length, 1);
+});
+
+test('narrowing the filters leaves the preset cards that stay on screen un-rendered', async () => {
+  const view = await renderComposer();
+  const tradition = RHYTHM_PRESET_LIBRARY[0].tradition;
+  const kept = new Set(
+    RHYTHM_PRESET_LIBRARY.filter((preset) => preset.tradition === tradition).map(
+      (preset) => preset.title
+    )
+  );
+
+  const since = harness.renders.mark();
+  await view.press(view.getByRole('button', { name: tradition }));
+
+  assert.deepEqual(presetTitles(view), [...kept]);
+  assert.equal(
+    harness.renders.count(since, 'Text', (props) => kept.has(renderedText(props.children))),
+    0,
+    'a card whose preset is still shown does not re-render'
+  );
 });
