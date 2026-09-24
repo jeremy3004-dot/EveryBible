@@ -9,7 +9,7 @@ import type {
   TranslationCatalogManifestTranslation,
   TranslationTextCatalog,
 } from '../../types';
-import { sanitizeBibleAssetReference } from './bibleAssetBaseUrl';
+import { requireSecureMediaUrl, sanitizeBibleAssetReference } from './bibleAssetBaseUrl';
 
 export const BUNDLED_BIBLE_SCHEMA_VERSION = 7;
 
@@ -198,7 +198,7 @@ const parseAudioCatalog = (value: unknown): TranslationAudioCatalog | null => {
       strategy,
       manifestUrl,
       audioVersion,
-      catalogBaseUrl,
+      catalogBaseUrl: requireSecureMediaUrl(catalogBaseUrl),
       ...(sanitizeRequiredString(value.fileExtension)
         ? { fileExtension: sanitizeRequiredString(value.fileExtension) ?? undefined }
         : {}),

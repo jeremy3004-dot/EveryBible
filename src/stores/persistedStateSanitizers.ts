@@ -28,7 +28,10 @@ import type {
   User,
   UserPreferences,
 } from '../types';
-import { sanitizeBibleAssetReference } from '../services/bible/bibleAssetBaseUrl';
+import {
+  requireSecureMediaUrl,
+  sanitizeBibleAssetReference,
+} from '../services/bible/bibleAssetBaseUrl';
 import { DEFAULT_THEME_MODE, resolveThemeMode } from '../design/themeMode';
 import { normalizeCatalogTranslationId } from '../services/translations/translationCatalogModel';
 
@@ -248,7 +251,7 @@ const sanitizeTranslationAudioCatalog = (value: unknown): TranslationAudioCatalo
       strategy,
       manifestUrl,
       audioVersion,
-      catalogBaseUrl,
+      catalogBaseUrl: requireSecureMediaUrl(catalogBaseUrl),
       fileExtension: sanitizeOptionalString(value.fileExtension) ?? undefined,
       mimeType: sanitizeOptionalString(value.mimeType) ?? undefined,
       signature: sanitizeOptionalString(value.signature) ?? undefined,

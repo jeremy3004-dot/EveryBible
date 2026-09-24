@@ -541,6 +541,76 @@ test('sanitizePersistedBibleState preserves a valid el-manifest audio catalog on
   assert.equal(lqd.catalog?.audio?.fileExtension, 'mp3');
 });
 
+test('sanitizePersistedBibleState upgrades persisted plain-http media urls to https', () => {
+  const sanitized = sanitizePersistedBibleState({
+    currentTranslation: 'bsb',
+    translations: [
+      {
+        id: 'lqdtest',
+        name: 'LangQuest Distribution Test',
+        abbreviation: 'LQDT',
+        language: 'Test Language',
+        description: 'Every Language audio-only entry',
+        copyright: 'Public Domain audio (CC0 1.0)',
+        isDownloaded: false,
+        downloadedBooks: [],
+        downloadedAudioBooks: [],
+        totalBooks: 66,
+        sizeInMB: 0,
+        hasText: false,
+        hasAudio: true,
+        audioGranularity: 'chapter',
+        source: 'runtime',
+        installState: 'remote-only',
+        catalog: {
+          version: 'v2026-07-20-1',
+          updatedAt: '2026-07-20T00:00:00.000Z',
+          audio: {
+            strategy: 'el-manifest',
+            manifestUrl: '/manifests/audio/lqdtest/v2026-07-20-1.json',
+            audioVersion: 'v2026-07-20-1',
+            catalogBaseUrl: 'http://lqd-media.example.com',
+          },
+        },
+      },
+      {
+        id: 'npiulb',
+        name: 'Nepali ULB',
+        abbreviation: 'NPIULB',
+        language: 'Nepali',
+        description: 'Streamed audio',
+        copyright: 'CC BY-SA 4.0',
+        isDownloaded: false,
+        downloadedBooks: [],
+        downloadedAudioBooks: [],
+        totalBooks: 66,
+        sizeInMB: 0,
+        hasText: false,
+        hasAudio: true,
+        audioGranularity: 'chapter',
+        source: 'runtime',
+        installState: 'remote-only',
+        catalog: {
+          version: '1',
+          updatedAt: '2026-07-20T00:00:00.000Z',
+          audio: {
+            strategy: 'stream-template',
+            baseUrl: 'http://cdn.example.com/audio/npiulb',
+            chapterPathTemplate: '{bookId}/{chapter}.mp3',
+          },
+        },
+      },
+    ],
+  });
+
+  const byId = new Map(sanitized.translations.map((translation) => [translation.id, translation]));
+  assert.equal(
+    byId.get('lqdtest')?.catalog?.audio?.catalogBaseUrl,
+    'https://lqd-media.example.com'
+  );
+  assert.equal(byId.get('npiulb')?.catalog?.audio?.baseUrl, 'https://cdn.example.com/audio/npiulb');
+});
+
 test('sanitizePersistedBibleState rejects an el-manifest audio catalog missing required fields', () => {
   const sanitized = sanitizePersistedBibleState({
     currentTranslation: 'bsb',
