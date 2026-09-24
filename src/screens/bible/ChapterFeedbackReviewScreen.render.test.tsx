@@ -234,6 +234,29 @@ test('each source label may wrap under its verdict instead of truncating beside 
   }
 });
 
+test('at large text the reason sheet scrolls inside its height cap, reason field and save included', async () => {
+  harness.setFontScale(2);
+  const view = await renderReview();
+  await view.press(view.getByRole('button', { name: t('feedback.markAddressed') }));
+  const sheet = visibleSheet(view);
+  assert.ok(sheet, 'the reason sheet is open');
+
+  const input = sheet.getByLabelText(t('feedback.explanation'));
+  const save = sheet.getByRole('button', { name: t('feedback.markAddressed') });
+  const scrollAround = (node: typeof input) =>
+    hostAncestors(node).find((ancestor) => (ancestor.type as unknown) === 'ScrollView');
+  const scroll = scrollAround(save);
+  assert.ok(scroll, 'the verdict, comment, reason field and buttons scroll');
+  assert.equal(scrollAround(input), scroll);
+  // A tap on Save while the keyboard is up must save, not just drop the keyboard.
+  assert.equal(scroll.props.keyboardShouldPersistTaps, 'handled');
+
+  const surface = hostAncestors(scroll).find((node) => node.props.accessibilityViewIsModal);
+  assert.ok(surface);
+  const maxHeight = Number(flattenStyle(surface.props.style)?.maxHeight);
+  assert.ok(maxHeight > 0 && maxHeight < 844 - harness.insets.top, `capped (${maxHeight})`);
+});
+
 test('a concern is marked addressed from its card with a written reason, saved on the server', async () => {
   const view = await renderReview();
   await view.press(view.getByRole('button', { name: t('feedback.markAddressed') }));

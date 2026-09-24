@@ -94,7 +94,7 @@ layout differs.
 | `onboarding/LocaleSetupFlow`                             | Suggested-country subtitle and chip; Bible and language row chips              | Fixed  | Subtitle two lines; at large text every status chip (Suggested, Recommended, Download/Continue) moves under the row copy; the chevron or radio stays |
 | `onboarding/LocaleSetupFlow` (new)                       | Download queue rows (queued and downloading)                                   | OK     | A queued or downloading row swaps its chip for a spinner or a 72pt progress bar, so only a narrow indicator sits beside the wrapping copy            |
 | `learn/PrayerWallScreen`                                 | Header group name                                                              | Fixed  | Two lines, centred                                                                                                                                   |
-| `learn/PrayerReportSheet` (new)                          | Reasons, note and Send inside the shared `Sheet`                               | Fixed  | The form scrolls inside a cap of 60% of the window; at 2.0 five wrapped reasons, the note and Send outgrew the screen                                |
+| `learn/PrayerReportSheet` (new)                          | Reasons, note and Send inside the shared `Sheet`                               | Fixed  | At 2.0 five wrapped reasons, the note and Send outgrew the screen; now covered by the shared `Sheet` cap below (its own 60% scroll view is gone)     |
 | `learn/GroupSessionScreen`                               | Previous / Next footer row                                                     | Fixed  | Stacks at large text (`column-reverse`, Next on top); the lesson is padded by the footer's measured height instead of a fixed 140pt                  |
 | `auth/ResetPasswordScreen` (new)                         | Fields and buttons                                                             | OK     | Inputs and buttons size by padding, not fixed heights, and every label wraps                                                                         |
 | `more/SettingsScreen` blocked-notifications notice (new) | Notice text and Open Settings button                                           | OK     | The text is `flex: 1` beside an 18pt icon and the button sits on its own line                                                                        |
@@ -105,10 +105,29 @@ layout differs.
 | `more/ProfileScreen`                                     | Two-up stats grid                                                              | Kept   | Labels wrap inside each half and stay readable at 2.0                                                                                                |
 | `audio/PlaybackControls`, `audio/ReaderPlaybackDock`     | Fixed-size buttons                                                             | Kept   | Icon-only, so text size does not apply                                                                                                               |
 
-Still open: the shared `ui/Sheet` has no height bound or scroll of its own. The
-report sheet now scrolls its own content, but any other sheet whose content can
-outgrow the screen at large text needs the same treatment, or `Sheet` itself
-should bound its body.
+### Shared `ui/Sheet` height cap (same day)
+
+`ui/Sheet` now bounds itself: the surface's `maxHeight` is 90% of the window
+below the top safe-area inset, and everything under the handle and title sits
+in a `ScrollView` (`keyboardShouldPersistTaps="handled"`, so Send or Save
+presses with the keyboard up). The keyboard avoider now fills the modal below
+the status bar and the sheet has `flexShrink: 1`, so with the keyboard up the
+sheet shrinks and scrolls instead of pushing its title off the top; the avoider's
+bottom edge is unchanged, so the keyboard-overlap maths is the same as before.
+A caller that sets its own `height` through `contentStyle` gets neither the cap
+nor the scroll view. Every current `Sheet` user (prayer report, lesson actions
+sheet, lesson playback-and-text sheet, feedback source filter, feedback resolve
+sheet) takes the default. Render tests at 2.0: `primitives.render.test.tsx`
+(cap, scroll, avoider, own-height opt-out), `PrayerReportSheet`, the feedback
+resolve sheet (`ChapterFeedbackReviewScreen`, reason field + Save) and the lesson
+playback sheet (`LessonDetailScreen`).
+
+Not on `Sheet`, so not covered by the cap: the reader's verse actions sheet
+(`annotations/AnnotationActionSheet`, an in-screen overlay; its note mode with
+the keyboard up is the likeliest to overflow on a small phone), the audio speed,
+sleep-timer and music dialogs (`audio/PlaybackControls`, centred modals; the
+music list with descriptions is the tallest), and the translation picker and
+Bible browser modals, which set their own `82%` / `60%` heights.
 
 ## Absolutely positioned elements over text
 
@@ -137,3 +156,8 @@ download), the Rhythm detail sequence cards, the group session footer over a
 long lesson, the prayer report sheet with the keyboard up, the reader's
 listen-feedback composer, the translator queue header, the error fallback, and
 the verse actions sheet title.
+
+From the `Sheet` cap: each `Sheet` at AX3 on a small phone (iPhone SE) with and
+without the keyboard (feedback resolve reason, prayer report note), on iOS and
+Android, checking the title stays on screen and the last button scrolls into
+reach.

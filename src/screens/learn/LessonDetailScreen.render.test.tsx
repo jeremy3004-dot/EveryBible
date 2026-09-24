@@ -12,7 +12,13 @@ import {
 import type { LessonDetailScreenProps } from '../../navigation/types';
 import type { BibleReference } from '../../types/gather';
 import { mockBarrel, mockModule, mockPackage, sourcePath } from '../../testing/mockModules';
-import { flattenStyle, installRenderHarness, textContent, within } from '../../testing/render';
+import {
+  flattenStyle,
+  hostAncestors,
+  installRenderHarness,
+  textContent,
+  within,
+} from '../../testing/render';
 import {
   createFakeGatherStore,
   distinguishTranslatedCopy,
@@ -378,6 +384,22 @@ test('choosing a playback speed in the sheet reaches the loaded sound', async ()
 
   assert.deepEqual(sounds[0].sound.calls.at(-1), { method: 'setRateAsync', args: [1.5, true] });
   assert.ok(view.getByRole('tab', { name: '1.5×', selected: true }));
+});
+
+test('at large text the playback sheet scrolls inside its height cap', async () => {
+  harness.setFontScale(2);
+  const view = await renderLesson();
+  await view.press(view.getByRole('button', { name: SETTINGS() }));
+
+  // Speed, text size and the rest stack tall at 2.0; the last control must stay
+  // reachable rather than being cut off below the screen.
+  const speed = view.getByRole('tablist', { name: t('learn.playbackSpeed') });
+  const scroll = hostAncestors(speed).find((node) => (node.type as unknown) === 'ScrollView');
+  assert.ok(scroll, 'the sheet body scrolls');
+  const surface = hostAncestors(scroll).find((node) => node.props.accessibilityViewIsModal);
+  assert.ok(surface, 'inside the sheet surface');
+  const maxHeight = Number(flattenStyle(surface.props.style)?.maxHeight);
+  assert.ok(maxHeight > 0 && maxHeight < 844 - harness.insets.top, `capped (${maxHeight})`);
 });
 
 test('tapping along the progress rule seeks to that point in the chapter', async () => {

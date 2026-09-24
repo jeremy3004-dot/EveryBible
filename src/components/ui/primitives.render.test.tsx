@@ -289,6 +289,66 @@ test('Sheet uses the caller close label when one is given', async () => {
   assert.ok(view.getByRole('button', { name: 'Dismiss picker' }));
 });
 
+/** The sheet surface: the one view VoiceOver is scoped to while the sheet is up. */
+function sheetSurface(view: Awaited<ReturnType<typeof harness.render>>) {
+  const surface = view.queryAllByType('View').find((node) => node.props.accessibilityViewIsModal);
+  assert.ok(surface, 'the sheet surface is rendered');
+  return surface;
+}
+
+test('Sheet bounds its height below the status bar and scrolls a body that outgrows it', async () => {
+  const { Sheet } = await import('./Sheet');
+  const { Text } = harness.rn;
+  harness.setFontScale(2);
+  const view = await harness.render(
+    <Sheet visible title="Report" onClose={() => {}}>
+      <Text>Body</Text>
+    </Sheet>
+  );
+
+  const surface = sheetSurface(view);
+  const style = flattenStyle(surface.props.style) ?? {};
+  const maxHeight = Number(style.maxHeight);
+  const available = 844 - harness.insets.top;
+  assert.ok(maxHeight > available / 2 && maxHeight < available, `cap ${maxHeight}`);
+  assert.equal(style.flexShrink, 1, 'the keyboard can squeeze the sheet further');
+
+  // The title and handle stay put; only the body scrolls.
+  const scroll = hostAncestors(view.getByText('Body')).find(
+    (node) => (node.type as unknown) === 'ScrollView'
+  );
+  assert.ok(scroll, 'the body sits in a scroll view');
+  assert.ok(hostAncestors(scroll).includes(surface));
+  assert.equal(scroll.props.keyboardShouldPersistTaps, 'handled');
+  assert.equal(
+    hostAncestors(view.getByText('Report')).includes(scroll),
+    false,
+    'the title does not scroll away'
+  );
+
+  // The avoider fills the modal below the status bar, so the keyboard's padding
+  // shrinks the room the sheet has instead of pushing its top off the screen.
+  const [avoider] = view.queryAllByType('KeyboardAvoidingView');
+  const avoiderStyle = flattenStyle(avoider.props.style) ?? {};
+  assert.equal(avoiderStyle.flex, 1);
+  assert.equal(avoiderStyle.paddingTop, harness.insets.top);
+});
+
+test('a Sheet that sets its own height keeps it, with no cap or scroll view added', async () => {
+  const { Sheet } = await import('./Sheet');
+  const { Text } = harness.rn;
+  const view = await harness.render(
+    <Sheet visible onClose={() => {}} contentStyle={{ height: '60%' }}>
+      <Text>Body</Text>
+    </Sheet>
+  );
+
+  const style = flattenStyle(sheetSurface(view).props.style) ?? {};
+  assert.equal(style.height, '60%');
+  assert.equal(style.maxHeight, undefined);
+  assert.equal(view.queryAllByType('ScrollView').length, 0);
+});
+
 test('ProgressBar announces a named progress bar', async () => {
   const { ProgressBar } = await import('./ProgressBar');
   const view = await harness.render(<ProgressBar progress={0.4} accessibilityLabel="Download" />);

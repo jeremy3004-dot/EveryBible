@@ -5,9 +5,11 @@ import {
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   type StyleProp,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
   type ViewStyle,
 } from 'react-native';
@@ -24,6 +26,11 @@ export interface SheetProps {
   onClose: () => void;
   children: ReactNode;
   title?: string;
+  /**
+   * Styles the sheet surface. A caller that sets its own `height` keeps it: the
+   * default height cap and the scrolling body are then left out, so a sheet
+   * that lays out its own list (or `flex: 1` content) behaves as before.
+   */
   contentStyle?: StyleProp<ViewStyle>;
   /**
    * Accessible label for the dismiss backdrop. Defaults to the translated
@@ -36,12 +43,23 @@ export interface SheetProps {
 // THE bottom sheet: sheet-radius top corners, one pill-handle recipe, a blurred
 // (iOS) + dimmed backdrop, a spring slide-in, keyboard avoidance, and the
 // floating shadow. All modal surfaces adopt this so sheets feel identical.
+//
+// Height: the sheet grows with its content up to a share of the window below
+// the status bar, then its body scrolls (handle and title stay put). Without
+// the cap a body that outgrows the screen at large text was cut off at the top.
+// The cap is a share rather than the full height so a strip of backdrop stays
+// visible to tap away.
+const SHEET_MAX_HEIGHT_SHARE = 0.9;
+
 export function Sheet({ visible, onClose, children, title, contentStyle, closeLabel }: SheetProps) {
   const { colors, isDark } = useTheme();
   const { t } = useTranslation();
   const displayFont = useDisplayFont();
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const reduceMotion = useReducedMotion();
+  const hasOwnHeight = StyleSheet.flatten(contentStyle)?.height != null;
+  const maxHeight = Math.round((windowHeight - insets.top) * SHEET_MAX_HEIGHT_SHARE);
 
   const resolvedCloseLabel = closeLabel ?? t('interface.close');
 
@@ -96,7 +114,10 @@ export function Sheet({ visible, onClose, children, title, contentStyle, closeLa
           // translucent status bar the modal now draws behind.
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={Platform.OS === 'android' ? insets.top : 0}
-          style={styles.avoider}
+          // Filling the modal below the status bar, the avoider's keyboard
+          // padding (or Android's shrunken height) takes room from the sheet,
+          // which shrinks and scrolls rather than pushing its top off screen.
+          style={[styles.avoider, { paddingTop: insets.top }]}
           pointerEvents="box-none"
         >
           <Animated.View
@@ -112,6 +133,7 @@ export function Sheet({ visible, onClose, children, title, contentStyle, closeLa
                 backgroundColor: colors.cardBackground,
                 paddingBottom: insets.bottom + spacing.lg,
               },
+              hasOwnHeight ? null : [styles.boundedSheet, { maxHeight }],
               contentStyle,
             ]}
           >
@@ -128,7 +150,19 @@ export function Sheet({ visible, onClose, children, title, contentStyle, closeLa
                 {title}
               </Text>
             ) : null}
-            {children}
+            {hasOwnHeight ? (
+              children
+            ) : (
+              <ScrollView
+                style={styles.body}
+                // A tap on a button while the keyboard is up should press it,
+                // not only dismiss the keyboard.
+                keyboardShouldPersistTaps="handled"
+                alwaysBounceVertical={false}
+              >
+                {children}
+              </ScrollView>
+            )}
           </Animated.View>
         </KeyboardAvoidingView>
       </View>
@@ -142,6 +176,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   avoider: {
+    flex: 1,
     justifyContent: 'flex-end',
   },
   sheet: {
@@ -149,6 +184,13 @@ const styles = StyleSheet.create({
     borderTopRightRadius: radius.sheet,
     paddingTop: spacing.sm,
     paddingHorizontal: spacing.lg,
+  },
+  boundedSheet: {
+    flexShrink: 1,
+  },
+  body: {
+    flexGrow: 0,
+    flexShrink: 1,
   },
   handle: {
     width: 36,

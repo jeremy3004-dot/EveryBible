@@ -26,14 +26,19 @@ test('a report needs a reason, then sends it with the note', async () => {
   assert.deepEqual(sent, [['spam', 'Advert']]);
 });
 
-test('the report form scrolls inside a height cap, so Send stays reachable at large text', async () => {
+test('the report form scrolls inside the sheet cap, so Send stays reachable at large text', async () => {
   harness.setFontScale(2);
   const view = await renderSheet();
 
+  // Five two-line reasons, the note and Send outgrow the screen at 2.0; the
+  // shared Sheet bounds them, so the form adds no scroll view of its own.
   const send = view.getByRole('button', { name: t('prayer.reportSend') });
-  const scroll = hostAncestors(send).find((node) => (node.type as unknown) === 'ScrollView');
-  assert.ok(scroll, 'five two-line reasons, a note and Send outgrow the screen at 2.0');
-  assert.equal(scroll.props.keyboardShouldPersistTaps, 'handled');
-  const maxHeight = Number(flattenStyle(scroll.props.style)?.maxHeight);
-  assert.ok(maxHeight > 0 && maxHeight < 844, `capped below the window (${maxHeight})`);
+  const ancestors = hostAncestors(send);
+  const scrolls = ancestors.filter((node) => (node.type as unknown) === 'ScrollView');
+  assert.equal(scrolls.length, 1, 'one scroll view, the sheet body');
+  assert.equal(scrolls[0].props.keyboardShouldPersistTaps, 'handled');
+  const surface = ancestors.find((node) => node.props.accessibilityViewIsModal);
+  assert.ok(surface && hostAncestors(scrolls[0]).includes(surface));
+  const maxHeight = Number(flattenStyle(surface.props.style)?.maxHeight);
+  assert.ok(maxHeight > 0 && maxHeight < 844 - harness.insets.top, `capped (${maxHeight})`);
 });
