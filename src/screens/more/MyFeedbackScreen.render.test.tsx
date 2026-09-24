@@ -33,8 +33,16 @@ mockModule(mock, sourcePath('utils/connectivity.ts'), {
   isDeviceOffline: async () => backend.offline,
 });
 mockBarrel(mock, 'constants/index.ts', { real: ['getTranslatedBookName'] });
+const authFlows: string[] = [];
+mockModule(mock, sourcePath('navigation/rootNavigation.ts'), {
+  rootNavigationRef: { isReady: () => false },
+  openAuthFlow: (mode: string) => {
+    authFlows.push(mode);
+  },
+});
 
 beforeEach(() => {
+  authFlows.length = 0;
   backend.fetches = 0;
   backend.pending = null;
   backend.offline = false;
@@ -195,4 +203,14 @@ test('feedback that arrives after the reader was signed out is not shown', async
 
   assert.equal(view.queryByText('Private note from the previous account'), null);
   assert.ok(view.getByText(t('myFeedback.signInRequired')));
+});
+
+test('a guest is told to sign in and can start sign-in from here', async () => {
+  harness.authStore.setState({ isAuthenticated: false });
+  const view = await renderScreen();
+
+  assert.ok(view.getByText(t('myFeedback.signInRequired')));
+  await view.press(view.getByRole('button', { name: t('more.signInOrCreate') }));
+  assert.deepEqual(authFlows, ['signIn']);
+  assert.equal(backend.fetches, 0, 'nothing is requested for a guest');
 });

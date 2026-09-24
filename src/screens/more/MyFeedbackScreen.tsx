@@ -21,6 +21,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { hexWithAlpha } from '../../utils';
 import { isDeviceOffline } from '../../utils/connectivity';
 import type { MoreStackParamList } from '../../navigation/types';
+import { openAuthFlow } from '../../navigation/rootNavigation';
 
 type NavigationProp = NativeStackNavigationProp<MoreStackParamList, 'MyFeedback'>;
 
@@ -186,6 +187,17 @@ export function MyFeedbackScreen() {
           <Text style={[styles.emptyText, { color: colors.secondaryText }]}>
             {t('myFeedback.signInRequired')}
           </Text>
+          {/* The auth modal opens over this screen; signing in reloads the list here. */}
+          <TouchableOpacity
+            style={[styles.retryButton, { borderColor: colors.cardBorder }]}
+            onPress={() => openAuthFlow('signIn')}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.retryText, { color: colors.accentPrimary }]}>
+              {t('more.signInOrCreate')}
+            </Text>
+          </TouchableOpacity>
         </View>
       );
     }
