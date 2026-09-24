@@ -17,6 +17,8 @@ import { useTranslation } from 'react-i18next';
 import * as ImagePicker from 'expo-image-picker';
 import { updateUserProfile } from '../../services/auth';
 import { uploadAvatar } from '../../services/storage/storageService';
+import { withPrivacyLockGrace } from '../../services/privacy/privacyLockGrace';
+import { totalListeningMinutes } from '../../services/progress/listeningTime';
 import { getEngagementSummary, refreshEngagement } from '../../services/analytics/analyticsService';
 import type { UserEngagementSummary } from '../../services/supabase/types';
 import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
@@ -45,10 +47,17 @@ export function ProfileScreen() {
 
   const chaptersRead = useProgressStore((state) => Object.keys(state.chaptersRead).length);
   const streakDays = useProgressStore(selectCurrentStreakDays);
+  const listeningMsByDate = useProgressStore((state) => state.listeningMsByDate);
 
   const [avatarUri, setAvatarUri] = useState<string | null>(user?.photoURL ?? null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [engagement, setEngagement] = useState<UserEngagementSummary | null>(null);
+  // Listening is banked on this device as it plays, and the cloud summary lags it
+  // until queued events upload: show the larger, as Reading activity does.
+  const listeningMinutes = useMemo(
+    () => totalListeningMinutes(listeningMsByDate, engagement?.total_listening_minutes),
+    [engagement?.total_listening_minutes, listeningMsByDate]
+  );
 
   // Refresh then fetch engagement summary once on mount when authenticated
   useEffect(() => {
@@ -80,12 +89,15 @@ export function ProfileScreen() {
   const handlePickAvatar = useCallback(async () => {
     if (!isAuthenticated) return;
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
+    // The system photo picker can turn the app inactive; that must not lock discreet mode.
+    const result = await withPrivacyLockGrace(() =>
+      ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      })
+    );
 
     if (result.canceled || !result.assets[0]) return;
 
@@ -229,7 +241,7 @@ export function ProfileScreen() {
             <View style={styles.statsGrid}>
               <View style={styles.statItem}>
                 <Text maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE} style={styles.statNumber}>
-                  {formatListeningTime(engagement.total_listening_minutes, t)}
+                  {formatListeningTime(listeningMinutes, t)}
                 </Text>
                 <Text style={styles.statLabel}>{t('engagement.listeningTime')}</Text>
               </View>

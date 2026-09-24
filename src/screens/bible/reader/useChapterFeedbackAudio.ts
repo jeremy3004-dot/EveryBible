@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { InteractionManager } from 'react-native';
 import { Audio } from 'expo-av';
 import { useTranslation } from 'react-i18next';
+import { withPrivacyLockGrace } from '../../../services/privacy/privacyLockGrace';
 import {
   CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS,
   CHAPTER_FEEDBACK_AUDIO_MIME_TYPE,
@@ -137,7 +138,9 @@ export function useChapterFeedbackAudio({
       setFeedbackAudioPermissionDenied(false);
 
       try {
-        const permission = await Audio.requestPermissionsAsync();
+        // iOS turns the app inactive under the microphone prompt; that must not lock
+        // discreet mode mid-recording.
+        const permission = await withPrivacyLockGrace(() => Audio.requestPermissionsAsync());
         if (isAbandoned()) {
           return;
         }

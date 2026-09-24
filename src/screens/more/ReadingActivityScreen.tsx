@@ -13,6 +13,7 @@ import { useAuthStore } from '../../stores/authStore';
 import type { MoreStackParamList } from '../../navigation/types';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
 import { summarizeReadingActivity } from '../../services/progress/readingActivity';
+import { totalListeningMinutes } from '../../services/progress/listeningTime';
 import { layout, spacing, typography } from '../../design/system';
 import { describeSyncStatus } from '../../utils/syncStatus';
 import { BackArrowIcon, IconButton } from '../../components/ui';
@@ -22,7 +23,6 @@ import {
   createDayLabelFormatter,
   ReadingActivityHero,
   SelectedDayCard,
-  totalListeningMinutes,
   useEngagementSummary,
   useReadingActivityCalendar,
 } from './readingActivity';
