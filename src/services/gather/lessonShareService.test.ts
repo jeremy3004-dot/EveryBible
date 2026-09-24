@@ -167,3 +167,18 @@ test('a downloaded-only recording is never shared as a meaningless local file pa
   assert.equal(result, 'link');
   assert.deepEqual(calls, [`message:${JSON.stringify({ message: 'Creation' })}`]);
 });
+
+test('share audio falls back to the recording URL when the share sheet refuses the file', async () => {
+  const { calls, deps } = recordingDeps({
+    shareFile: async () => {
+      throw new Error('No activity found to handle the share intent');
+    },
+    os: 'android',
+  });
+
+  assert.equal(await shareLessonAudio(source, 'Creation', deps), 'link');
+  assert.deepEqual(calls, [
+    'prepare:bsb:GEN:1',
+    `message:${JSON.stringify({ message: `Creation\n${source.url}` })}`,
+  ]);
+});

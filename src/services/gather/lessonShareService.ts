@@ -161,8 +161,13 @@ export async function shareLessonAudio(
       asset = null;
     }
     if (asset) {
-      await deps.shareFile(asset.uri, asset.mimeType);
-      return 'file';
+      try {
+        await deps.shareFile(asset.uri, asset.mimeType);
+        return 'file';
+      } catch {
+        // The sheet refused the file (no app takes audio, a native error), not a
+        // user cancel, which resolves. Fall through to sharing the link.
+      }
     }
   }
 
