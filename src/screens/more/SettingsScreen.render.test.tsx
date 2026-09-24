@@ -1,6 +1,6 @@
 import test, { afterEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import type { ReactTestInstance } from 'react-test-renderer';
+import { act, type ReactTestInstance } from 'react-test-renderer';
 import { useTranslation } from 'react-i18next';
 import { create } from 'zustand';
 import { flattenStyle, hostAncestors, installRenderHarness, within } from '../../testing/render';
@@ -214,6 +214,24 @@ test('a reminder blocked by the system shows a translated notice that opens syst
   assert.equal(view.queryByText(t('settings.notificationsNotAllowedNotice')), null);
   await view.press(view.getByRole('button', { name: t('settings.openDeviceSettings') }));
   assert.deepEqual(harness.rn.__recorded.openedUrls, ['app-settings:']);
+});
+
+test('turning a blocked reminder on speaks the notice that says it will not appear', async () => {
+  reminderBlock = 'blocked';
+  harness.authStore.getState().setPreferences({ notificationsEnabled: true });
+  const opened = await renderSettings();
+  assert.ok(opened.getByText(t('settings.notificationsBlockedNotice')));
+  assert.deepEqual(harness.rn.__recorded.announcements, [], 'opening Settings is not a change');
+  await opened.unmount();
+
+  harness.authStore.getState().setPreferences({ notificationsEnabled: false });
+  const view = await renderSettings();
+  await act(async () => {
+    harness.authStore.getState().setPreferences({ notificationsEnabled: true });
+  });
+
+  assert.ok(view.getByText(t('settings.notificationsBlockedNotice')));
+  assert.deepEqual(harness.rn.__recorded.announcements, [t('settings.notificationsBlockedNotice')]);
 });
 
 test('no blocked-reminder notice while the reminder is off or the system allows it', async () => {
