@@ -81,7 +81,7 @@ interface FlatListProps extends ListSlots {
 }
 
 /** FlatList renders every item (no virtualisation), plus its header/empty/footer slots. */
-function FlatList({
+export function FlatList({
   data,
   renderItem,
   keyExtractor,

@@ -106,7 +106,7 @@ export interface RenderHarnessOptions {
    * Modules NOT to fake, when a test file installs its own mock for one.
    * Keys: 'react-native', 'react-native-reanimated', 'react-native-safe-area-context',
    * 'react-native-svg', '@expo/vector-icons', 'lucide-react-native',
-   * 'expo-linear-gradient', 'expo-blur', 'expo-haptics',
+   * 'expo-linear-gradient', 'expo-blur', '@shopify/flash-list', 'expo-haptics',
    * 'react-native-gesture-handler', '@react-navigation/native', 'authStore', 'hooks'.
    */
   skip?: string[];

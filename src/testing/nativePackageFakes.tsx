@@ -20,7 +20,7 @@ import {
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { hostComponent } from './reactNativeHost';
+import { FlatList, hostComponent } from './reactNativeHost';
 
 type AnyProps = Record<string, unknown> & { children?: ReactNode };
 
@@ -415,7 +415,8 @@ export function createReactNavigationFake(fake: NavigationFake) {
     useNavigationState: (selector: (state: unknown) => unknown) =>
       selector(fake.navigation.getState()),
     useLinkTo: () => () => {},
-    NavigationContainer: Passthrough,
+    // A host element, so a test can fire onReady / onStateChange on it.
+    NavigationContainer: hostComponent('NavigationContainer'),
     createNavigationContainerRef: () => ({
       current: null,
       isReady: () => false,
@@ -445,4 +446,6 @@ export function createReactNavigationFake(fake: NavigationFake) {
 export const simpleHostExports = {
   'expo-linear-gradient': () => ({ LinearGradient: hostComponent('LinearGradient') }),
   'expo-blur': () => ({ BlurView: hostComponent('BlurView') }),
+  // FlashList renders like the eager FlatList fake (every item, header/empty/footer).
+  '@shopify/flash-list': () => ({ FlashList: FlatList as ComponentType<AnyProps> }),
 } satisfies Record<string, () => Record<string, ComponentType<AnyProps>>>;

@@ -52,8 +52,16 @@ export function mockModule(
 export function mockPackage(
   mocker: MockTracker,
   specifier: string,
-  exports: Record<string, unknown>
+  moduleExports: Record<string, unknown>
 ): void {
+  // A CommonJS `require()` of a mock gets its default export with the named
+  // exports assigned onto it, which Node refuses when the default is a function
+  // (react-native-svg's default is the `Svg` component). Hand such packages over
+  // as an ES-module-shaped object instead; tsx's import interop unwraps it.
+  const exports =
+    typeof moduleExports.default === 'function'
+      ? { default: { __esModule: true, ...moduleExports } }
+      : moduleExports;
   mockModule(mocker, specifier, exports);
   let requirePath: string | null = null;
   try {
