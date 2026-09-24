@@ -56,11 +56,23 @@ function purgeLegacyJwksCache(): void {
   }
 }
 
+const EL_PROD_KID = 'lqd-prod-2026-a';
+
+// Guarded because node --test has no __DEV__ (and so behaves like a release build).
+const isDevRuntime = (): boolean => typeof __DEV__ !== 'undefined' && __DEV__;
+
 // The trust set for every EL envelope: the pinned keys, nothing else. Async only so the
 // injectable `getKeys` seams in elCatalogService / elManifestService keep one shape.
+//
+// Release builds trust the production key alone. The dev key signed Every Language's offline
+// fixture pack, which is shared far more loosely than the production signing key; trusting it
+// in a store build would let anyone holding it forge a catalog or audio manifest that
+// verifies. Dev builds keep it so the fixture pack and local EL tooling still verify; the
+// catalog path follows the same __DEV__ split (see elMediaConfig.ts).
 export async function getElKeys(): Promise<ElJwk[]> {
   purgeLegacyJwksCache();
-  return [...EL_PINNED_JWKS];
+  const includeDevKey = isDevRuntime();
+  return EL_PINNED_JWKS.filter((key) => includeDevKey || key.kid === EL_PROD_KID);
 }
 
 // Test-only: clears per-launch in-memory state so each test starts cold.
