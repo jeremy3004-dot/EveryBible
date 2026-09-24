@@ -44,24 +44,75 @@ test('guest annotations on other verses are added to the account', () => {
   assert.deepEqual(active(merged), ['account', 'guest']);
 });
 
-test('when both have an active annotation of one type on one verse, the newer stays visible and the older is kept hidden', () => {
+test('when both have an active highlight on one verse, the newer colour stays visible and the older is kept hidden', () => {
   const merged = mergeGuestAnnotations(
-    [
-      annotation({
-        id: 'account',
-        type: 'note',
-        content: 'old',
-        updated_at: '2026-01-01T00:00:00Z',
-      }),
-    ],
-    [annotation({ id: 'guest', type: 'note', content: 'new', updated_at: '2026-02-01T00:00:00Z' })]
+    [annotation({ id: 'account', color: 'amber', updated_at: '2026-01-01T00:00:00Z' })],
+    [annotation({ id: 'guest', color: 'sky', updated_at: '2026-02-01T00:00:00Z' })]
   );
 
   assert.deepEqual(ids(merged), ['account', 'guest']);
   assert.deepEqual(active(merged), ['guest']);
+  assert.equal(merged.find((item) => item.id === 'guest')?.color, 'sky');
   const hidden = merged.find((item) => item.id === 'account');
-  assert.equal(hidden?.content, 'old');
+  assert.equal(hidden?.color, 'amber');
   assert.equal(hidden?.deleted_at, '2026-02-01T00:00:00Z');
+});
+
+const note = (overrides: Partial<UserAnnotation>) => annotation({ type: 'note', ...overrides });
+
+test('when both have a note on one verse, one note shows both texts, older edit first', () => {
+  const merged = mergeGuestAnnotations(
+    [note({ id: 'account', content: 'Written on the phone', updated_at: '2026-02-01T00:00:00Z' })],
+    [note({ id: 'guest', content: 'Written signed out', updated_at: '2026-01-01T00:00:00Z' })]
+  );
+
+  assert.deepEqual(ids(merged), ['account', 'guest']);
+  assert.deepEqual(active(merged), ['account']);
+  const visible = merged.find((item) => item.id === 'account');
+  assert.equal(visible?.content, 'Written signed out\n\nWritten on the phone');
+  assert.equal(visible?.updated_at, '2026-02-01T00:00:00Z');
+  // The other note is hidden, not dropped: its own text is still stored.
+  const hidden = merged.find((item) => item.id === 'guest');
+  assert.equal(hidden?.content, 'Written signed out');
+  assert.equal(hidden?.deleted_at, '2026-02-01T00:00:00Z');
+});
+
+test('two notes on one verse with the same text are not joined into a repeat', () => {
+  const merged = mergeGuestAnnotations(
+    [note({ id: 'account', content: 'Grace', updated_at: '2026-01-01T00:00:00Z' })],
+    [note({ id: 'guest', content: 'Grace', updated_at: '2026-02-01T00:00:00Z' })]
+  );
+
+  assert.deepEqual(active(merged), ['guest']);
+  assert.equal(merged.find((item) => item.id === 'guest')?.content, 'Grace');
+});
+
+test('a deleted note is not joined into the note on its verse', () => {
+  const merged = mergeGuestAnnotations(
+    [note({ id: 'account', content: 'Kept', updated_at: '2026-01-01T00:00:00Z' })],
+    [
+      note({
+        id: 'guest',
+        content: 'Deleted',
+        updated_at: '2026-02-01T00:00:00Z',
+        deleted_at: '2026-02-01T00:00:00Z',
+      }),
+    ]
+  );
+
+  assert.deepEqual(active(merged), ['account']);
+  assert.equal(merged.find((item) => item.id === 'account')?.content, 'Kept');
+});
+
+test('merging the same guest notes again does not join them a second time', () => {
+  const account = [note({ id: 'account', content: 'One', updated_at: '2026-01-01T00:00:00Z' })];
+  const guest = [note({ id: 'guest', content: 'Two', updated_at: '2026-02-01T00:00:00Z' })];
+
+  const once = mergeGuestAnnotations(account, guest);
+  const twice = mergeGuestAnnotations(once, guest);
+
+  assert.equal(once.find((item) => item.id === 'guest')?.content, 'One\n\nTwo');
+  assert.deepEqual(twice, once);
 });
 
 test('the same annotation id keeps its newer version', () => {
