@@ -241,6 +241,28 @@ test('ListRow passes accessible={false} through so a trailing Switch stays its o
   assert.equal(view.queryAllByType('Switch').length, 1);
 });
 
+test('a ListRow reports a current choice as selected and a toggle row as a checked switch', async () => {
+  const { ListRow } = await import('./ListRow');
+  const view = await harness.render(
+    <>
+      <ListRow title="Community" value="✓" selected onPress={() => {}} />
+      <ListRow title="Council" selected={false} onPress={() => {}} />
+      <ListRow title="Translator access" checked onPress={() => {}} />
+      <ListRow title="Plain" onPress={() => {}} />
+    </>
+  );
+
+  assert.ok(view.getByRole('button', { name: 'Community, ✓', selected: true }));
+  assert.ok(view.getByRole('button', { name: 'Council', selected: false }));
+  assert.ok(view.getByRole('switch', { name: 'Translator access', checked: true }));
+  const plain = view.getByRole('button', { name: 'Plain' });
+  assert.deepEqual(plain.props.accessibilityState, {
+    disabled: false,
+    selected: undefined,
+    checked: undefined,
+  });
+});
+
 test('Sheet is a named, iOS-modal dialog whose backdrop closes it and whose title is announced', async () => {
   const { Sheet } = await import('./Sheet');
   const { Text } = harness.rn;

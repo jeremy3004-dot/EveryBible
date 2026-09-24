@@ -45,6 +45,17 @@ export interface ListRowProps {
   disabled?: boolean;
   accessibilityLabel?: string;
   /**
+   * The row is one choice of several and this is the current one. Shown by a
+   * glyph or value; this carries it to screen readers, which never see those.
+   */
+  selected?: boolean;
+  /**
+   * The row toggles a setting (its `trailing` is a Switch the row repeats). The
+   * row becomes one focus stop announced as a switch with this state, because
+   * the Switch inside an accessible row is unreachable.
+   */
+  checked?: boolean;
+  /**
    * Escape hatch for rows whose `trailing` control has to stay its own focus
    * stop (a Switch a screen reader must be able to toggle directly). Forwarded
    * verbatim to the pressable; leave it unset for the default grouped row.
@@ -70,6 +81,8 @@ export function ListRow({
   haptic = 'selection',
   disabled = false,
   accessibilityLabel,
+  selected,
+  checked,
   accessible,
 }: ListRowProps) {
   const { colors } = useTheme();
@@ -159,10 +172,10 @@ export function ListRow({
           pressEffect="translate"
           haptic={haptic}
           accessible={accessible}
-          accessibilityRole="button"
+          accessibilityRole={checked === undefined ? 'button' : 'switch'}
           accessibilityLabel={composedLabel}
           // `disabled` and accessibilityState.disabled always travel together.
-          accessibilityState={{ disabled }}
+          accessibilityState={{ disabled, selected, checked }}
           // The row's own 52pt box already clears the touch floor, but the
           // separator gap between rows was dead space; 8pt closes it.
           hitSlop={ROW_HIT_SLOP}

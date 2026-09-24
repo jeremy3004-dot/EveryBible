@@ -477,8 +477,13 @@ test('the chapter feedback switch opts in immediately as community and syncs pre
     null,
     'no code asked'
   );
-  assert.ok(view.getByRole('button', { name: t('feedback.community') }));
-  assert.ok(view.getByRole('button', { name: t('feedback.council') }));
+  assert.ok(view.getByRole('button', { name: t('feedback.community'), selected: true }));
+  assert.ok(
+    view.getByRole('button', {
+      name: `${t('feedback.council')}, ${t('feedback.councilCodeRequired')}`,
+      selected: false,
+    })
+  );
 
   await view.fire(switchNamed(view, t('settings.chapterFeedback')), 'onValueChange', false);
   assert.equal(harness.authStore.getState().preferences.chapterFeedbackEnabled, false);
@@ -608,7 +613,10 @@ test('Translator Access unlocks through a numeric keypad passcode modal', async 
   const store = await reviewStore();
   const view = await renderSettings();
 
-  await view.press(view.getByRole('button', { name: t('settings.translatorAccess') }));
+  // The row is one switch stop: the Switch inside a pressable row is unreachable.
+  await view.press(
+    view.getByRole('switch', { name: t('settings.translatorAccess'), checked: false })
+  );
   assert.ok(view.getByRole('header', { name: t('settings.translatorAccessTitle') }));
   const passcode = view.getByLabelText(t('settings.translatorAccessPlaceholder'));
   assert.equal(passcode.props.keyboardType, 'number-pad');
@@ -628,6 +636,7 @@ test('Translator Access unlocks through a numeric keypad passcode modal', async 
   assert.equal(store.getState().enabled, true);
   assert.equal(view.queryByRole('header', { name: t('settings.translatorAccessTitle') }), null);
   assert.equal(switchNamed(view, t('settings.translatorAccess')).props.value, true);
+  assert.ok(view.getByRole('switch', { name: t('settings.translatorAccess'), checked: true }));
 });
 
 test('a rejected translator passcode shows the incorrect-code message and stays locked', async () => {
@@ -635,7 +644,7 @@ test('a rejected translator passcode shows the incorrect-code message and stays 
   const store = await reviewStore();
   const view = await renderSettings();
 
-  await view.press(view.getByRole('button', { name: t('settings.translatorAccess') }));
+  await view.press(view.getByRole('switch', { name: t('settings.translatorAccess') }));
   await view.press(view.getByRole('button', { name: '7' }));
   await view.press(view.getByRole('button', { name: t('settings.translatorAccessUnlock') }));
 
@@ -684,8 +693,11 @@ test('the community and Scripture Council choices carry their own labels and cou
   store.getState().enableCommunityFeedback();
   const view = await renderSettings();
 
-  assert.ok(view.getByRole('button', { name: t('feedback.community') }));
-  await view.press(view.getByRole('button', { name: t('feedback.council') }));
+  // The current choice is otherwise only a drawn ✓.
+  assert.ok(view.getByRole('button', { name: t('feedback.community'), selected: true }));
+  const council = `${t('feedback.council')}, ${t('feedback.councilCodeRequired')}`;
+  assert.ok(view.getByRole('button', { name: council, selected: false }));
+  await view.press(view.getByRole('button', { name: council }));
 
   assert.ok(view.getByRole('header', { name: t('feedback.council') }));
   assert.ok(view.getByText(t('feedback.councilAccessBody')));
@@ -717,7 +729,7 @@ test('the community and council labels come from the active locale, not an Engli
     assert.ok(view.getByText('Comunidad XX'), 'the row title is localized too');
     assert.ok(view.getByText('Consejo XX'));
     assert.equal(view.queryByText(/^(Community|Scripture Council)$/), null);
-    await view.press(view.getByRole('button', { name: 'Consejo XX' }));
+    await view.press(view.getByRole('button', { name: /^Consejo XX, / }));
     assert.ok(view.getByRole('header', { name: 'Consejo XX' }));
     assert.ok(view.getByText('Cuerpo del consejo XX'));
   } finally {
