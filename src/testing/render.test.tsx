@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { installRenderHarness, isHiddenFromAccessibility, within } from './render';
+import { assertDefined } from '../utils/assertDefined';
 
 // The harness's own contract: what the fakes render and how the queries and
 // actions behave. Component tests rely on these semantics matching RN.
@@ -83,7 +84,7 @@ test('Pressable resolves function children and styles with the resting state', a
   );
 
   assert.ok(view.getByText('up'));
-  assert.deepEqual(view.queryAllByType('Pressable')[0].props.style, { opacity: 1 });
+  assert.deepEqual(view.queryAllByType('Pressable')[0]?.props.style, { opacity: 1 });
 });
 
 test('FlatList renders every item with separators, or its empty slot', async () => {
@@ -217,7 +218,7 @@ test('a reanimated list renders its items and its scroll handler runs the onScro
   const view = await harness.render(<List />);
 
   assert.ok(view.getByText('b'));
-  await view.fire(view.queryAllByType('FlatList')[0], 'onScroll', {
+  await view.fire(assertDefined(view.queryAllByType('FlatList')[0], 'the FlatList'), 'onScroll', {
     nativeEvent: { contentOffset: { x: 0, y: 120 } },
   });
   assert.deepEqual(offsets, [120]);
@@ -247,7 +248,7 @@ test('imperative ref calls are recorded against their host element', async () =>
     harness.refCalls.map(({ type, method, args }) => ({ type, method, args })),
     [{ type: 'FlatList', method: 'scrollToOffset', args: [{ offset: 40, animated: false }] }]
   );
-  assert.deepEqual(harness.refCalls[0].props.data, [], 'the call carries the host props');
+  assert.deepEqual(harness.refCalls[0]?.props.data, [], 'the call carries the host props');
 });
 
 test('setFontScale drives the OS text scale that useLargeText reads, and resets after each test', async () => {

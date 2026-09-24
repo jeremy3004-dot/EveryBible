@@ -20,6 +20,7 @@ import {
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { assertDefined } from '../utils/assertDefined';
 import { FlatList, hostComponent } from './reactNativeHost';
 
 type AnyProps = Record<string, unknown> & { children?: ReactNode };
@@ -166,14 +167,16 @@ export function createReanimatedFake(state: ReanimatedFakeState) {
       (...args: A) =>
         fn(...args),
     interpolate: (value: number, input: number[], output: number[]) => {
-      if (value <= input[0]) return output[0];
+      const at = (range: number[], index: number) =>
+        assertDefined(range[index], `interpolate range entry ${index}`);
+      if (value <= at(input, 0)) return at(output, 0);
       for (let i = 1; i < input.length; i += 1) {
-        if (value <= input[i]) {
-          const t = (value - input[i - 1]) / (input[i] - input[i - 1]);
-          return output[i - 1] + t * (output[i] - output[i - 1]);
+        if (value <= at(input, i)) {
+          const t = (value - at(input, i - 1)) / (at(input, i) - at(input, i - 1));
+          return at(output, i - 1) + t * (at(output, i) - at(output, i - 1));
         }
       }
-      return output[output.length - 1];
+      return at(output, output.length - 1);
     },
     interpolateColor: (_value: number, _input: number[], output: string[]) => output[0],
     Extrapolation: { CLAMP: 'clamp', EXTEND: 'extend', IDENTITY: 'identity' },
@@ -280,10 +283,10 @@ function lucideNamesUsedInSource(): Set<string> {
         visit(entryPath);
       } else if (/\.tsx?$/.test(entry.name)) {
         const source = readFileSync(entryPath, 'utf8');
-        for (const match of source.matchAll(
+        for (const [, importList = ''] of source.matchAll(
           /import\s*\{([^}]*)\}\s*from\s*'lucide-react-native'/g
         )) {
-          for (const raw of match[1].split(',')) {
+          for (const raw of importList.split(',')) {
             const name = raw.trim().split(/\s+as\s+/)[0];
             if (name && !name.startsWith('type ')) names.add(name);
           }
@@ -377,10 +380,34 @@ export interface NavigationCall {
   args: unknown[];
 }
 
+type FakeNavigationMethod = (...args: unknown[]) => unknown;
+
+/** Every method createNavigationFake defines, so reading one needs no undefined check; tests may add more. */
+export interface FakeNavigation extends Record<string, FakeNavigationMethod> {
+  navigate: FakeNavigationMethod;
+  push: FakeNavigationMethod;
+  replace: FakeNavigationMethod;
+  goBack: FakeNavigationMethod;
+  pop: FakeNavigationMethod;
+  popToTop: FakeNavigationMethod;
+  popTo: FakeNavigationMethod;
+  reset: FakeNavigationMethod;
+  dispatch: FakeNavigationMethod;
+  setParams: FakeNavigationMethod;
+  setOptions: FakeNavigationMethod;
+  canGoBack: FakeNavigationMethod;
+  isFocused: FakeNavigationMethod;
+  getState: FakeNavigationMethod;
+  getId: FakeNavigationMethod;
+  addListener: FakeNavigationMethod;
+  removeListener: FakeNavigationMethod;
+  getParent: FakeNavigationMethod;
+}
+
 export interface NavigationFake {
   calls: NavigationCall[];
   route: { key: string; name: string; params?: Record<string, unknown> };
-  navigation: Record<string, (...args: unknown[]) => unknown>;
+  navigation: FakeNavigation;
   /** Listeners added through `navigation.addListener(event, fn)`. */
   emit: (event: string, payload?: unknown) => void;
   reset: () => void;
@@ -419,8 +446,8 @@ export function createNavigationFake(): NavigationFake {
       return () => set.delete(listener as (payload: unknown) => void);
     },
     removeListener: () => {},
+    getParent: () => navigation,
   };
-  navigation.getParent = () => navigation;
   return {
     calls,
     route,

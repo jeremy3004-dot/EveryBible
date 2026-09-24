@@ -78,18 +78,20 @@ const splitTopLevel = (text: string, separator: string): string[] => {
 const unquoteIdentifier = (identifier: string): string => identifier.replace(/^"|"$/g, '');
 
 const parseInCheck = (text: string): InCheck | null => {
-  const match = /check\s*\(\s*\(?\s*"?([a-z_][a-z0-9_]*)"?\s+in\s*\(([^)]*)\)/i.exec(text);
-  if (!match) return null;
-  const values = [...match[2].matchAll(/'((?:[^']|'')*)'/g)].map((value) =>
-    value[1].replace(/''/g, "'")
+  const [, column, valueList] =
+    /check\s*\(\s*\(?\s*"?([a-z_][a-z0-9_]*)"?\s+in\s*\(([^)]*)\)/i.exec(text) ?? [];
+  if (column === undefined || valueList === undefined) return null;
+  // The quoted-value group is mandatory, so the '' default is never used.
+  const values = [...valueList.matchAll(/'((?:[^']|'')*)'/g)].map(([, value = '']) =>
+    value.replace(/''/g, "'")
   );
-  return { column: match[1].toLowerCase(), values };
+  return { column: column.toLowerCase(), values };
 };
 
 const tablePattern = (table: string): string => `(?:public\\.)?"?${table}"?`;
 
 const applyColumnDefinition = (table: string, state: MigratedTable, definition: string): void => {
-  const [rawName] = definition.split(/\s+/);
+  const [rawName = definition] = definition.split(/\s+/);
   const column = unquoteIdentifier(rawName).toLowerCase();
   state.columns.add(column);
   const check = parseInCheck(definition);
@@ -104,7 +106,7 @@ const applyStatement = (table: string, state: MigratedTable, statement: string):
   if (create) {
     const body = statement.slice(create[0].length, statement.lastIndexOf(')'));
     for (const entry of splitTopLevel(body, ',')) {
-      const keyword = entry.split(/\s+/)[0].toLowerCase();
+      const keyword = (entry.split(/\s+/)[0] ?? entry).toLowerCase();
       if (!CONSTRAINT_KEYWORDS.has(keyword)) applyColumnDefinition(table, state, entry);
     }
     return;
@@ -117,29 +119,32 @@ const applyStatement = (table: string, state: MigratedTable, statement: string):
   if (!alter) return;
 
   for (const action of splitTopLevel(statement.slice(alter[0].length), ',')) {
-    let match = /^add\s+column\s+(?:if\s+not\s+exists\s+)?([\s\S]+)$/i.exec(action);
-    if (match) {
-      applyColumnDefinition(table, state, match[1]);
+    const addedColumn = /^add\s+column\s+(?:if\s+not\s+exists\s+)?([\s\S]+)$/i.exec(action)?.[1];
+    if (addedColumn !== undefined) {
+      applyColumnDefinition(table, state, addedColumn);
       continue;
     }
-    match = /^drop\s+column\s+(?:if\s+exists\s+)?"?([a-z0-9_]+)"?/i.exec(action);
-    if (match) {
-      const column = match[1].toLowerCase();
+    const droppedColumn = /^drop\s+column\s+(?:if\s+exists\s+)?"?([a-z0-9_]+)"?/i.exec(action)?.[1];
+    if (droppedColumn !== undefined) {
+      const column = droppedColumn.toLowerCase();
       state.columns.delete(column);
       for (const [name, check] of state.checks) {
         if (check.column === column) state.checks.delete(name);
       }
       continue;
     }
-    match = /^drop\s+constraint\s+(?:if\s+exists\s+)?"?([a-z0-9_]+)"?/i.exec(action);
-    if (match) {
-      state.checks.delete(match[1].toLowerCase());
+    const droppedConstraint = /^drop\s+constraint\s+(?:if\s+exists\s+)?"?([a-z0-9_]+)"?/i.exec(
+      action
+    )?.[1];
+    if (droppedConstraint !== undefined) {
+      state.checks.delete(droppedConstraint.toLowerCase());
       continue;
     }
-    match = /^add\s+constraint\s+"?([a-z0-9_]+)"?\s+([\s\S]+)$/i.exec(action);
-    if (match) {
-      const check = parseInCheck(match[2]);
-      if (check) state.checks.set(match[1].toLowerCase(), check);
+    const [, constraintName, constraintBody] =
+      /^add\s+constraint\s+"?([a-z0-9_]+)"?\s+([\s\S]+)$/i.exec(action) ?? [];
+    if (constraintName !== undefined && constraintBody !== undefined) {
+      const check = parseInCheck(constraintBody);
+      if (check) state.checks.set(constraintName.toLowerCase(), check);
     }
   }
 };

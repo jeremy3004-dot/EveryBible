@@ -98,7 +98,7 @@ if (typeof registerHooks === 'function') {
       if (legacyMockSource !== null) {
         return { format: 'commonjs', source: legacyMockSource, shortCircuit: true };
       }
-      if (skippedSources.has(url.split(/[?#]/)[0])) {
+      if (skippedSources.has(url.split(/[?#]/)[0] ?? url)) {
         return { format: 'commonjs', source: 'module.exports = {};', shortCircuit: true };
       }
       return nextLoad(url, context);
@@ -369,23 +369,26 @@ function resolveSourceFile(fromFile: string, specifier: string): string {
 function readValueExports(file: string): Map<string, [string, string]> {
   const source = readFileSync(file, 'utf8');
   const found = new Map<string, [string, string]>();
-  for (const match of source.matchAll(/export\s*\{([^}]*)\}\s*from\s*'([^']+)'/g)) {
-    const target = resolveSourceFile(file, match[2]);
-    for (const raw of match[1].split(',')) {
+  // Every capture group below is mandatory, so the '' defaults are never used.
+  for (const [, exportList = '', specifier = ''] of source.matchAll(
+    /export\s*\{([^}]*)\}\s*from\s*'([^']+)'/g
+  )) {
+    const target = resolveSourceFile(file, specifier);
+    for (const raw of exportList.split(',')) {
       const entry = raw.trim();
       if (!entry || entry.startsWith('type ')) continue;
-      const [original, alias] = entry.split(/\s+as\s+/);
+      const [original = entry, alias] = entry.split(/\s+as\s+/);
       found.set(alias ?? original, [target, original]);
     }
   }
-  for (const match of source.matchAll(/export\s*\*\s*from\s*'([^']+)'/g)) {
-    const target = resolveSourceFile(file, match[1]);
+  for (const [, specifier = ''] of source.matchAll(/export\s*\*\s*from\s*'([^']+)'/g)) {
+    const target = resolveSourceFile(file, specifier);
     for (const [name, origin] of readValueExports(target)) found.set(name, origin);
   }
-  for (const match of source.matchAll(
+  for (const [, name = ''] of source.matchAll(
     /export\s+(?:declare\s+)?(?:async\s+)?(?:const|let|var|function\*?|class|enum)\s+(\w+)/g
   )) {
-    found.set(match[1], [file, match[1]]);
+    found.set(name, [file, name]);
   }
   return found;
 }

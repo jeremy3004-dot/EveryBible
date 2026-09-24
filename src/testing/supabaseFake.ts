@@ -16,6 +16,7 @@
  *   assert.equal(fake.calls[0].table, 'profiles');
  */
 import type { Session, SupabaseClient, User } from '@supabase/supabase-js';
+import { assertDefined } from '../utils/assertDefined';
 
 export interface SupabaseFakeError {
   message: string;
@@ -406,7 +407,7 @@ export function createSupabaseFake() {
     from: (table: string) => createBuilder(table, null),
     rpc: (fn: string, args?: unknown, options?: unknown) => {
       const builder = createBuilder(`rpc:${fn}`, 'rpc');
-      const call = calls[calls.length - 1];
+      const call = assertDefined(calls[calls.length - 1], 'the call createBuilder just recorded');
       call.payload = args;
       call.options = options;
       return builder;

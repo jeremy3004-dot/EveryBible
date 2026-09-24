@@ -23,9 +23,9 @@ test('query builder records the chain and resolves the scripted per-table result
     steps: ['select', 'eq', 'order', 'limit', 'maybeSingle'],
   });
   assert.equal(fake.calls.length, 1);
-  assert.equal(fake.calls[0].operation, 'select');
-  assert.equal(fake.calls[0].maybeSingle, true);
-  assert.deepEqual(fake.calls[0].steps[1], { method: 'eq', args: ['id', 'u1'] });
+  assert.equal(fake.calls[0]?.operation, 'select');
+  assert.equal(fake.calls[0]?.maybeSingle, true);
+  assert.deepEqual(fake.calls[0]?.steps[1], { method: 'eq', args: ['id', 'u1'] });
 });
 
 test('write operations capture payload and options; unscripted tables resolve empty', async () => {
@@ -40,10 +40,10 @@ test('write operations capture payload and options; unscripted tables resolve em
   assert.deepEqual(upsert, { data: [], error: null, count: null, status: 200, statusText: 'OK' });
   assert.equal(single.data, null, 'single() defaults to null data');
   assert.equal(removed.error, null);
-  assert.equal(fake.calls[0].operation, 'upsert');
-  assert.deepEqual(fake.calls[0].payload, { user_id: 'u1', streak_days: 3 });
-  assert.deepEqual(fake.calls[0].options, { onConflict: 'user_id' });
-  assert.equal(fake.calls[2].operation, 'delete');
+  assert.equal(fake.calls[0]?.operation, 'upsert');
+  assert.deepEqual(fake.calls[0]?.payload, { user_id: 'u1', streak_days: 3 });
+  assert.deepEqual(fake.calls[0]?.options, { onConflict: 'user_id' });
+  assert.equal(fake.calls[2]?.operation, 'delete');
   assert.deepEqual(fake.callsFor('groups').length, 1);
 });
 
@@ -66,7 +66,7 @@ test('rpc and edge functions are recorded and scriptable', async () => {
   const fn = await fake.client.functions.invoke('track-analytics-events', { body: { n: 1 } });
 
   assert.equal(rpc.data, true);
-  assert.deepEqual(fake.callsFor('rpc:delete_current_user')[0].payload, { reason: 'test' });
+  assert.deepEqual(fake.callsFor('rpc:delete_current_user')[0]?.payload, { reason: 'test' });
   assert.deepEqual(fn.data, { echoed: 'track-analytics-events', options: { body: { n: 1 } } });
   assert.deepEqual(fake.functionCalls, [
     { name: 'track-analytics-events', options: { body: { n: 1 } } },
