@@ -1145,7 +1145,10 @@ export async function getAnalyticsOverview(
     retrievedAt: new Date().toISOString(),
     collectionHealth: overview.collectionHealth,
     activeCountryCount: Number(overview.activeCountryCount ?? 0),
-    activeLocationCount: locationMetrics.length,
+    // METRICS.md: the RPC owns this denominator. Counting the mapped rows would
+    // report the buckets that survived client-side geo filtering and merging,
+    // not the distinct approximate locations the database saw.
+    activeLocationCount: Number(overview.activeLocationCount ?? 0),
     averageEngagementScore: Number(overview.averageEngagementScore ?? 0),
     engagementScoreComputedAt,
     countryMetrics,

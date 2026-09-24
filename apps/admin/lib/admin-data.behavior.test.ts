@@ -146,6 +146,25 @@ test('headline metrics are taken from the RPC and Postgres numerics are coerced 
   );
 });
 
+test('active map locations is the RPC’s activeLocationCount, not the number of rows the client could map', async () => {
+  // METRICS.md: "Active map locations" traces to `activeLocationCount`. The
+  // client drops rows it cannot place and merges rows that share a bucket, so
+  // counting what survived would report a different denominator.
+  service.respondToRpc('get_admin_analytics_overview', () => ({
+    data: {
+      activeLocationCount: '143',
+      locationMetrics: [
+        { countryCode: 'NP', latitude: 27.71, longitude: 85.32, listeningMinutes: 4 },
+        { countryCode: 'NP', latitude: 27.72, longitude: 85.33, listeningMinutes: 2 },
+        { countryCode: 'XX', latitude: null, longitude: null, listeningMinutes: 1 },
+      ],
+    },
+  }));
+  const overview = await data.getAnalyticsOverview(180);
+  assert.equal(overview.activeLocationCount, 143);
+  assert.equal(overview.locationMetrics.length, 1);
+});
+
 test('daily series keep their UTC days and map values to minutes or download units', async () => {
   service.respondToRpc('get_admin_analytics_overview', () => ({
     data: {
