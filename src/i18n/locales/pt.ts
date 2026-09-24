@@ -773,6 +773,11 @@ export const pt = {
     discreetNotificationTitle: 'Lembrete',
     discreetNotificationBody: 'Você tem um lembrete para hoje.',
     discreetNotificationChannel: 'Lembretes',
+    iconSwitchCloseTitle: 'O aplicativo será fechado',
+    iconSwitchCloseToCalculator:
+      'Trocar o ícone fecha o aplicativo. Abra-o de novo pelo ícone da Calculadora.',
+    iconSwitchCloseToStandard:
+      'Trocar o ícone fecha o aplicativo. Abra-o de novo pelo ícone do Every Bible.',
   },
   settings: {
     title: 'Configurações',

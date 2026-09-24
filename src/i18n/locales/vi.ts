@@ -757,6 +757,11 @@ export const vi = {
     discreetNotificationTitle: 'Nhắc nhở',
     discreetNotificationBody: 'Bạn có một lời nhắc cho hôm nay.',
     discreetNotificationChannel: 'Nhắc nhở',
+    iconSwitchCloseTitle: 'Ứng dụng sẽ đóng',
+    iconSwitchCloseToCalculator:
+      'Đổi biểu tượng sẽ đóng ứng dụng. Hãy mở lại từ biểu tượng máy tính bỏ túi.',
+    iconSwitchCloseToStandard:
+      'Đổi biểu tượng sẽ đóng ứng dụng. Hãy mở lại từ biểu tượng Every Bible.',
   },
   settings: {
     title: 'Cài đặt',

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   InteractionManager,
   KeyboardAvoidingView,
@@ -20,9 +21,11 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
 import { usePrivacyStore } from '../../stores/privacyStore';
 import { getPrivacySettingsSavePlan } from '../../services/privacy/privacyPreferences';
+import { supportsDynamicAppIcon } from '../../services/privacy/appIcon';
 import type { PrivacyAppIconMode } from '../../types';
 import type { MoreStackParamList } from '../../navigation/types';
 import { radius, layout, spacing, typography } from '../../design/system';
@@ -38,6 +41,33 @@ function reportPrivacySaveFailure(error: unknown): void {
   void import('../../services/diagnostics/crashReportQueue')
     .then(({ reportHandledError }) => reportHandledError('privacy.save', error))
     .catch(() => undefined);
+}
+
+/**
+ * On Android the icon is a launcher alias, and switching aliases closes the app to the
+ * home screen (the component that launched the task is disabled; the process lives on).
+ * Unwarned, that looks like a crash, so Android asks first and names the icon to reopen
+ * from. Resolves false on Cancel or when the dialog is dismissed. iOS keeps the app open
+ * and shows its own icon alert, so it never asks. This dialog belongs to the activity
+ * and does not pause it, so it needs no privacy lock grace; the switch itself already
+ * runs under one (applyPrivacyAppIcon).
+ */
+function confirmAndroidIconSwitch(t: TFunction, nextMode: PrivacyAppIconMode): Promise<boolean> {
+  return new Promise((resolve) => {
+    Alert.alert(
+      t('privacy.iconSwitchCloseTitle'),
+      t(
+        nextMode === 'discreet'
+          ? 'privacy.iconSwitchCloseToCalculator'
+          : 'privacy.iconSwitchCloseToStandard'
+      ),
+      [
+        { text: t('common.cancel'), style: 'cancel', onPress: () => resolve(false) },
+        { text: t('common.continue'), onPress: () => resolve(true) },
+      ],
+      { cancelable: true, onDismiss: () => resolve(false) }
+    );
+  });
 }
 
 export function PrivacyPreferencesScreen() {
@@ -98,6 +128,14 @@ export function PrivacyPreferencesScreen() {
     if (savePlan.type === 'noop') {
       navigation.goBack();
       return;
+    }
+
+    // Only a mode change switches the icon; a new code for discreet mode keeps it.
+    const switchesIcon = savePlan.input.mode !== currentMode && supportsDynamicAppIcon();
+    if (Platform.OS === 'android' && switchesIcon) {
+      if (!(await confirmAndroidIconSwitch(t, savePlan.input.mode))) {
+        return;
+      }
     }
 
     setIsSaving(true);

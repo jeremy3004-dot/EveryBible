@@ -745,6 +745,11 @@ export const ur = {
     discreetNotificationTitle: 'یاد دہانی',
     discreetNotificationBody: 'آج کے لیے آپ کی ایک یاد دہانی ہے۔',
     discreetNotificationChannel: 'یاد دہانیاں',
+    iconSwitchCloseTitle: 'ایپ بند ہو جائے گی',
+    iconSwitchCloseToCalculator:
+      'آئیکن بدلنے سے ایپ بند ہو جاتی ہے۔ اسے کیلکولیٹر آئیکن سے دوبارہ کھولیں۔',
+    iconSwitchCloseToStandard:
+      'آئیکن بدلنے سے ایپ بند ہو جاتی ہے۔ اسے Every Bible آئیکن سے دوبارہ کھولیں۔',
   },
   settings: {
     title: 'ترتیبات',

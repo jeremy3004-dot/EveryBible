@@ -777,6 +777,11 @@ export const ru = {
     discreetNotificationTitle: 'Напоминание',
     discreetNotificationBody: 'У вас есть напоминание на сегодня.',
     discreetNotificationChannel: 'Напоминания',
+    iconSwitchCloseTitle: 'Приложение закроется',
+    iconSwitchCloseToCalculator:
+      'При смене значка приложение закрывается. Откройте его снова через значок «Калькулятор».',
+    iconSwitchCloseToStandard:
+      'При смене значка приложение закрывается. Откройте его снова через значок Every Bible.',
   },
   settings: {
     title: 'Настройки',

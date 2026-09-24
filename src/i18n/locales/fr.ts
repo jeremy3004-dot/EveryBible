@@ -788,6 +788,11 @@ export const fr = {
     discreetNotificationTitle: 'Rappel',
     discreetNotificationBody: 'Vous avez un rappel pour aujourd’hui.',
     discreetNotificationChannel: 'Rappels',
+    iconSwitchCloseTitle: 'L’application va se fermer',
+    iconSwitchCloseToCalculator:
+      'Changer l’icône ferme l’application. Rouvrez-la depuis l’icône Calculatrice.',
+    iconSwitchCloseToStandard:
+      'Changer l’icône ferme l’application. Rouvrez-la depuis l’icône Every Bible.',
   },
   settings: {
     title: 'Paramètres',
