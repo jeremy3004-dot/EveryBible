@@ -1,13 +1,12 @@
-import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { layout, radius, spacing, typography } from '../../../design/system';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme, type ThemeMode } from '../../../contexts/ThemeContext';
-import { spacing, typography } from '../../../design/system';
 import { readerThemePreviews } from '../../../design/readerThemePreviews';
 import { hexWithAlpha } from '../../../utils/color';
-import { styles } from './readerStyles';
 
 export interface ReaderFontSheetProps {
   canAdjustFontSize: boolean;
@@ -250,3 +249,136 @@ export function ReaderFontSheet({
     </Modal>
   ) : null;
 }
+
+const styles = StyleSheet.create({
+  fontSheetOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  fontSheetBackdrop: {
+    flex: 1,
+  },
+  fontSheet: {
+    borderTopWidth: 1,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: 16,
+    gap: 16,
+  },
+  fontSheetHandle: {
+    width: 44,
+    height: 4,
+    borderRadius: radius.pill,
+    alignSelf: 'center',
+  },
+  fontSheetTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  readerFontStepperRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  readerFontStepperButton: {
+    flex: 1,
+    minHeight: 64,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  readerFontStepperButtonLarge: {
+    flex: 1.2,
+  },
+  readerFontStepperDisabled: {
+    opacity: 0.48,
+  },
+  readerFontStepperText: {
+    fontWeight: '500',
+  },
+  readerFontStepperSmallText: {
+    fontSize: 26,
+    lineHeight: 32,
+  },
+  readerFontStepperLargeText: {
+    fontSize: 42,
+    lineHeight: 48,
+  },
+  readerFontPreview: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.md,
+    paddingVertical: spacing.md,
+  },
+  readerFontPreviewSpecimen: {
+    textAlign: 'center',
+  },
+  readerThemeModeRail: {
+    gap: 10,
+    paddingRight: 2,
+  },
+  readerThemeTileColumn: {
+    width: 128,
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  readerThemeTileLabel: {
+    ...typography.micro,
+    textAlign: 'center',
+  },
+  readerThemeTile: {
+    width: 128,
+    height: 112,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    padding: 10,
+    justifyContent: 'space-between',
+    overflow: 'hidden',
+  },
+  readerThemePaper: {
+    minHeight: 60,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    padding: 10,
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 3,
+  },
+  readerThemeLineStack: {
+    gap: 8,
+  },
+  readerThemeLine: {
+    width: '82%',
+    height: 4,
+    borderRadius: radius.pill,
+    opacity: 0.88,
+  },
+  readerThemeLineMedium: {
+    width: '64%',
+  },
+  readerThemeLineShort: {
+    width: '48%',
+  },
+  readerThemeCheckCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+  },
+  readerAllSettingsButton: {
+    minHeight: layout.minTouchTarget,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  readerAllSettingsLabel: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+});

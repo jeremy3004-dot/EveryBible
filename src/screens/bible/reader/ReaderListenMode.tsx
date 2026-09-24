@@ -1,3 +1,9 @@
+import { StyleSheet, Text, View } from 'react-native';
+import { radius, spacing, typography } from '../../../design/system';
+import {
+  getListenCountedNoticeViewModel,
+  LISTEN_COUNTED_NOTICE_TEST_ID,
+} from '../bibleReaderModel';
 import type {
   AudioStatus,
   BackgroundMusicChoice,
@@ -6,19 +12,13 @@ import type {
   SleepTimerOption,
 } from '../../../types/audio';
 import { BookIcon } from '../../../components/bible/BookIcon';
-import { Text, View } from 'react-native';
 import Animated, { SlideInDown, SlideOutDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { ReaderListenProgress } from '../ReaderAudioPositionParts';
 import { PlaybackControls } from '../../../components/audio/PlaybackControls';
-import {
-  getListenCountedNoticeViewModel,
-  LISTEN_COUNTED_NOTICE_TEST_ID,
-} from '../bibleReaderModel';
 import type { ChapterFeedback } from './useChapterFeedback';
 import { ListenFeedbackComposer } from './ListenFeedbackComposer';
-import { styles } from './readerStyles';
 
 export interface ReaderListenModeProps {
   backgroundMusicChoice: BackgroundMusicChoice;
@@ -171,3 +171,67 @@ export function ReaderListenMode({
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  listenColumn: {
+    flex: 1,
+    gap: 20,
+    justifyContent: 'flex-start',
+  },
+  listenArtworkFrame: {
+    alignSelf: 'stretch',
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  listenArtwork: {
+    width: '100%',
+    height: '100%',
+  },
+  listenPlayerCard: {
+    paddingBottom: 0,
+    gap: 12,
+  },
+  listenCountedNoticeCard: {
+    borderWidth: 1,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    gap: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  listenCountedNoticeText: {
+    flex: 1,
+    ...typography.micro,
+    fontWeight: '700',
+  },
+  listenProgressTouch: {
+    justifyContent: 'center',
+    height: 22,
+  },
+  listenProgressTrack: {
+    height: 5,
+    borderRadius: radius.pill,
+    overflow: 'hidden',
+  },
+  listenProgressFill: {
+    height: '100%',
+    borderRadius: radius.pill,
+  },
+  listenTimeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+    gap: 12,
+  },
+  listenTimeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    minWidth: 42,
+    fontVariant: ['tabular-nums'],
+  },
+});

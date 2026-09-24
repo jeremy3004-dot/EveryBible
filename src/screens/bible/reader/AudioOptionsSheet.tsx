@@ -1,19 +1,19 @@
+import { StyleSheet, Modal, Text, TouchableOpacity, View } from 'react-native';
+import { shadows, spacing, typography } from '../../../design/system';
 import type {
   BackgroundMusicChoice,
   PlaybackRate,
   RepeatMode,
   SleepTimerOption,
+  AudioStatus,
 } from '../../../types/audio';
-import type { AudioStatus } from '../../../types/audio';
 import type { Dispatch, SetStateAction } from 'react';
-import { Modal, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../contexts/ThemeContext';
-import { spacing } from '../../../design/system';
 import { PlaybackControls } from '../../../components/audio/PlaybackControls';
-import { styles } from './readerStyles';
+import { readerSharedStyles } from './readerSharedStyles';
 
 export interface AudioOptionsSheetProps {
   backgroundMusicChoice: BackgroundMusicChoice;
@@ -75,7 +75,7 @@ export function AudioOptionsSheet({
     >
       <TouchableOpacity
         style={[
-          styles.audioShareBackdrop,
+          readerSharedStyles.audioShareBackdrop,
           {
             backgroundColor: colors.overlay,
             paddingBottom: Math.max(safeInsets.bottom, 12) + spacing.md,
@@ -145,3 +145,38 @@ export function AudioOptionsSheet({
     </Modal>
   );
 }
+
+const styles = StyleSheet.create({
+  audioOptionsSheet: {
+    borderRadius: 20,
+    borderWidth: 1,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+    gap: spacing.md,
+    ...shadows.floating,
+  },
+  audioOptionsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  audioOptionsTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flex: 1,
+  },
+  audioOptionsTitle: {
+    ...typography.cardTitle,
+    fontSize: 18,
+    lineHeight: 22,
+  },
+  sheetCloseButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

@@ -1,6 +1,5 @@
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
 import type { PlanSessionKey, RhythmSessionContext } from '../../../services/plans/types';
-import { useEffect } from 'react';
 import { type ChapterPresentationMode } from '../../../services/bible/presentation';
 import type { BibleTranslation } from '../../../types';
 import {

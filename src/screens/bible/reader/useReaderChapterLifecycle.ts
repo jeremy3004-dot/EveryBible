@@ -1,7 +1,6 @@
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
 import type { AudioPlaybackSequenceEntry } from '../../../types/audio';
 import type { Dispatch, RefObject, SetStateAction } from 'react';
-import { useEffect } from 'react';
 import { type ChapterPresentationMode } from '../../../services/bible/presentation';
 import type { Verse } from '../../../types';
 import { getInitialChapterSessionMode } from '../bibleReaderModel';

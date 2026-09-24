@@ -1,6 +1,5 @@
-import type { AudioReturnTarget } from '../../../types/audio';
+import type { AudioReturnTarget, AudioStatus } from '../../../types/audio';
 import type { PlanSessionKey, RhythmSessionContext } from '../../../services/plans/types';
-import type { AudioStatus } from '../../../types/audio';
 import { useEffect } from 'react';
 
 export interface UseAudioReturnTargetInput {

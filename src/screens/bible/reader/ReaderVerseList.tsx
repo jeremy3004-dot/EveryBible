@@ -1,17 +1,5 @@
-import type { ScrollHandlerProcessed } from 'react-native-reanimated';
-import type { createReaderFocusScroll } from '../readerFocusScroll';
-import type { Dispatch, RefObject, SetStateAction } from 'react';
-import type { ReactElement } from 'react';
-import { FlatList, Pressable, Text, View } from 'react-native';
-import Animated from 'react-native-reanimated';
-import { useTheme } from '../../../contexts/ThemeContext';
-import { spacing, typography } from '../../../design/system';
-import { selectionHaptic } from '../../../utils/haptics';
-import { HighlightedVerseText } from '../../../components/bible/HighlightedVerseText';
-import type { Verse } from '../../../types';
-import type { UserAnnotation } from '../../../services/supabase/types';
-import { toggleBibleSelectionVerse } from '../bibleSelectionModel';
-import { buildReaderParagraphRenderSignature } from '../bibleReaderRenderModel';
+import { StyleSheet, FlatList, Pressable, Text, View } from 'react-native';
+import { radius, spacing, typography } from '../../../design/system';
 import {
   buildReaderParagraphs,
   canSelectDisplayedVerse,
@@ -19,9 +7,20 @@ import {
   getNextFontSizeSheetVisibility,
   getNextTranslationSheetVisibility,
 } from '../bibleReaderModel';
+import type { ScrollHandlerProcessed } from 'react-native-reanimated';
+import type { createReaderFocusScroll } from '../readerFocusScroll';
+import type { Dispatch, RefObject, SetStateAction, ReactElement } from 'react';
+import Animated from 'react-native-reanimated';
+import { useTheme } from '../../../contexts/ThemeContext';
+import { selectionHaptic } from '../../../utils/haptics';
+import { HighlightedVerseText } from '../../../components/bible/HighlightedVerseText';
+import type { Verse } from '../../../types';
+import type { UserAnnotation } from '../../../services/supabase/types';
+import { toggleBibleSelectionVerse } from '../bibleSelectionModel';
+import { buildReaderParagraphRenderSignature } from '../bibleReaderRenderModel';
 import type { ReaderParagraph } from '../bibleReaderModel';
+import { readerSharedStyles } from './readerSharedStyles';
 import { ReaderParagraphBlock } from './ReaderParagraphBlock';
-import { styles } from './readerStyles';
 
 export interface ReaderVerseListProps {
   usePremiumTypography: boolean;
@@ -410,7 +409,7 @@ export function ReaderVerseList({
         renderItem={renderParagraphBlock}
         extraData={premiumReaderListExtraData}
         ListHeaderComponent={renderTranslatorFeedbackReviewTools}
-        style={styles.scrollView}
+        style={readerSharedStyles.scrollView}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
         onScroll={scrollHandler}
@@ -477,3 +476,84 @@ export function ReaderVerseList({
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  premiumReaderScrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: spacing.xl,
+  },
+  premiumReaderContentShell: {
+    maxWidth: 560,
+    width: '100%',
+    alignSelf: 'center',
+  },
+  premiumReaderVirtualFooter: {
+    height: 1,
+  },
+  readerColumn: {
+    gap: 20,
+  },
+  premiumReaderColumn: {
+    gap: 20,
+  },
+  readerParagraph: {
+    gap: 0,
+  },
+  readerBlock: {
+    gap: 10,
+    paddingHorizontal: 12,
+  },
+  premiumReaderBlock: {
+    gap: 6,
+    paddingHorizontal: 0,
+  },
+  readerVerse: {
+    alignSelf: 'stretch',
+  },
+  structuredVerse: {
+    borderRadius: radius.sm,
+    paddingVertical: 2,
+  },
+  premiumStructuredVerse: {
+    paddingVertical: 4,
+  },
+  structuredVerseLine: {
+    alignSelf: 'stretch',
+  },
+  structuredVerseContinuation: {
+    marginTop: 2,
+  },
+  sectionHeading: {
+    ...typography.readingHeading,
+    // Carried for the platform-serif fallback used by non-Latin scripts, where no named
+    // bold family is available and fontWeight is what actually thickens the glyphs.
+    fontWeight: '700',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  premiumSectionHeading: {
+    ...typography.readingHeading,
+    textTransform: 'none',
+    marginTop: 18,
+    marginBottom: 8,
+  },
+  verseText: {
+    fontWeight: '400',
+    letterSpacing: 0.2,
+  },
+  premiumVerseText: {
+    ...typography.readingBody,
+    letterSpacing: 0,
+  },
+  inlineVerseNumber: {
+    fontWeight: '600',
+  },
+  premiumVerseNumber: {
+    ...typography.readingVerseNumber,
+  },
+  premiumParagraphText: {
+    includeFontPadding: false,
+  },
+  premiumInlineVerse: {},
+  premiumInlineVerseNumber: {},
+});

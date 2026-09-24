@@ -1,7 +1,5 @@
-import { ChapterFeedbackSummary } from '../../components/feedback';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ReactElement } from 'react';
 import {
+  StyleSheet,
   FlatList,
   InteractionManager,
   ScrollView,
@@ -9,6 +7,18 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { layout, radius, spacing, typography } from '../../design/system';
+import {
+  buildReaderParagraphs,
+  getReaderInlineActiveVerse,
+  getReaderVerseLineHeight,
+  isActiveAudioTrackMatch,
+  getNextFontSizeSheetVisibility,
+  getNextTranslationSheetVisibility,
+} from './bibleReaderModel';
+import { ChapterFeedbackSummary } from '../../components/feedback';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { ReactElement } from 'react';
 import Animated from 'react-native-reanimated';
 import { GestureDetector } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,7 +27,6 @@ import { useTranslation } from 'react-i18next';
 import { getBookById, getCompactTranslatedBookName, getTranslatedBookName } from '../../constants';
 import { config } from '../../constants/config';
 import { useTheme } from '../../contexts/ThemeContext';
-import { layout, spacing, typography } from '../../design/system';
 import { getReadingFontFamily } from '../../design/fonts';
 import { getAnnotationsForChapter } from '../../services/annotations/annotationService';
 import { getChapter, prefetchNextChapter } from '../../services/bible/bibleService';
@@ -58,14 +67,6 @@ import { createReaderFocusScroll } from './readerFocusScroll';
 import { HOME_VERSE_BACKGROUND_SOURCES } from '../../data/homeVerseBackgrounds';
 import { SHARE_VERSE_BACKGROUND_SOURCES } from '../../data/shareVerseBackgrounds';
 import { getHomeVerseBackgroundIndex } from '../../data/homeVerseBackgroundSelection';
-import {
-  buildReaderParagraphs,
-  getReaderInlineActiveVerse,
-  getReaderVerseLineHeight,
-  isActiveAudioTrackMatch,
-  getNextFontSizeSheetVisibility,
-  getNextTranslationSheetVisibility,
-} from './bibleReaderModel';
 import type { ReaderParagraph } from './bibleReaderModel';
 import { loadReaderChapter, readerChapterKey, type CancellableTask } from './readerChapterLoader';
 import {
@@ -84,7 +85,7 @@ import {
   ReaderTranslationSheet,
   ReaderVerseList,
   VerseImageShareSheet,
-  styles,
+  readerSharedStyles,
   useAudioPortionShare,
   useAudioReturnTarget,
   useChapterFeedback,
@@ -1148,7 +1149,7 @@ export function BibleReaderScreen() {
 
       <ScrollView
         ref={scrollViewRef}
-        style={styles.scrollView}
+        style={readerSharedStyles.scrollView}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets
@@ -1401,3 +1402,75 @@ export function BibleReaderScreen() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  premiumReaderLayout: {
+    flex: 1,
+  },
+  dynamicIslandTopMask: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 29,
+  },
+  floatingReaderChapterNavOverlay: {
+    position: 'absolute',
+    left: spacing.lg,
+    right: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    zIndex: 26,
+  },
+  content: {
+    paddingHorizontal: 12,
+    paddingTop: spacing.lg,
+  },
+  immersiveContent: {
+    flexGrow: 1,
+  },
+  readerShell: {
+    maxWidth: 560,
+    width: '100%',
+    alignSelf: 'center',
+  },
+  immersiveReaderShell: {
+    flex: 1,
+  },
+  audioFirstShell: {
+    flex: 1,
+  },
+  feedbackCard: {
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    padding: 24,
+    gap: 14,
+    minHeight: 220,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+  },
+  feedbackTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  feedbackBody: {
+    fontSize: 15,
+    lineHeight: 24,
+  },
+  feedbackButton: {
+    borderRadius: radius.lg,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    minHeight: layout.minTouchTarget,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  feedbackButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+});

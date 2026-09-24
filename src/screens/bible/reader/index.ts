@@ -20,7 +20,7 @@ export * from './VerseImageShareSheet';
 export * from './audioShareDependencies';
 export * from './feedbackAudioSession';
 export * from './readerConstants';
-export * from './readerStyles';
+export * from './readerSharedStyles';
 export * from './useAudioPortionShare';
 export * from './useAudioReturnTarget';
 export * from './useChapterAudioShare';

@@ -1,5 +1,6 @@
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { layout, radius, spacing, typography } from '../../../design/system';
 import type { Dispatch, SetStateAction } from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -10,7 +11,6 @@ import {
   TOP_ACTION_ICON_SIZE,
   READER_REFERENCE_PILL_MAX_FONT_SCALE,
 } from './readerConstants';
-import { styles } from './readerStyles';
 
 export interface ReaderTopChromeProps {
   useAnimatedChrome: boolean;
@@ -245,3 +245,100 @@ export function ReaderTopChrome({
     </Animated.View>
   );
 }
+
+const styles = StyleSheet.create({
+  floatingReaderTopBar: {
+    position: 'absolute',
+    left: 24,
+    right: 22,
+    zIndex: 30,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  floatingReaderReferenceCluster: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    flexShrink: 1,
+  },
+  floatingReaderTopActionGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: spacing.xs,
+    flexShrink: 0,
+  },
+  floatingReaderPlanExitButton: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  floatingReaderReferencePill: {
+    minWidth: 124,
+    maxWidth: 212,
+    height: layout.minTouchTarget,
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    alignSelf: 'center',
+    flexShrink: 1,
+  },
+  floatingReaderReferencePillBackground: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 2,
+    height: layout.iconButton,
+    borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
+  },
+  floatingReaderReferencePillSegment: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    minWidth: layout.minTouchTarget,
+    flexShrink: 1,
+  },
+  floatingReaderReferencePillBookSegment: {
+    paddingHorizontal: 16,
+  },
+  floatingReaderReferencePillPrimary: {
+    ...typography.label,
+    fontSize: 14,
+    lineHeight: 17,
+    fontWeight: '700',
+    letterSpacing: 0,
+    flexShrink: 1,
+  },
+  floatingReaderReferencePillDivider: {
+    width: 1,
+    height: 32,
+    alignSelf: 'center',
+    opacity: 0.55,
+  },
+  floatingReaderReferencePillTranslation: {
+    ...typography.label,
+    fontSize: 14,
+    lineHeight: 17,
+    fontWeight: '700',
+    letterSpacing: 0,
+    flexShrink: 1,
+  },
+  floatingReaderMenuButton: {
+    width: layout.iconButton,
+    height: layout.iconButton,
+    borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+  },
+  floatingReaderMenuButtonContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

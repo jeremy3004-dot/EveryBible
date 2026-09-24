@@ -1,9 +1,9 @@
+import { StyleSheet, Modal, TouchableOpacity, View } from 'react-native';
+import { radius } from '../../../design/system';
 import { TranslationPickerHeader } from '../TranslationPickerHeader';
-import { Modal, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../../contexts/ThemeContext';
 import type { BibleTranslation } from '../../../types';
 import { TranslationPickerList } from '../TranslationPickerList';
-import { styles } from './readerStyles';
 
 export interface ReaderTranslationSheetProps {
   canShowTranslationSheet: boolean;
@@ -57,3 +57,32 @@ export function ReaderTranslationSheet({
     </Modal>
   ) : null;
 }
+
+const styles = StyleSheet.create({
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  modalBackdrop: {
+    flex: 1,
+  },
+  modalContent: {
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
+    borderWidth: 1,
+    paddingTop: 20,
+    height: '78%',
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    marginBottom: 12,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+});

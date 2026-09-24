@@ -1,9 +1,9 @@
+import { StyleSheet, PanResponder, View } from 'react-native';
+import { radius, spacing } from '../../../design/system';
 import { useCallback, useMemo, useState } from 'react';
 import type { AccessibilityActionEvent, LayoutChangeEvent } from 'react-native';
-import { PanResponder, View } from 'react-native';
 import { formatClockTime } from '../ReaderAudioPositionParts';
 import { AUDIO_PORTION_HANDLE_WIDTH, AUDIO_PORTION_A11Y_STEP_MS } from './readerConstants';
-import { styles } from './readerStyles';
 
 export interface AudioRangeSelectorProps {
   durationMs: number;
@@ -218,3 +218,67 @@ export function AudioRangeSelector({
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  audioPortionRangeSelector: {
+    height: 72,
+    borderRadius: 16,
+    justifyContent: 'center',
+    marginTop: spacing.xs,
+    marginBottom: spacing.xs,
+    overflow: 'hidden',
+  },
+  audioPortionRangeTrack: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 16,
+    opacity: 0.45,
+  },
+  audioPortionRangeSelection: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    borderRadius: 16,
+    opacity: 0.6,
+  },
+  audioPortionWaveRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    height: 54,
+  },
+  audioPortionWaveBar: {
+    width: 3,
+    borderRadius: radius.pill,
+    opacity: 0.95,
+  },
+  audioPortionPreviewNeedle: {
+    position: 'absolute',
+    top: 6,
+    bottom: 6,
+    width: 2,
+    borderRadius: radius.pill,
+    marginLeft: -1,
+  },
+  audioPortionHandle: {
+    position: 'absolute',
+    top: 8,
+    bottom: 8,
+    width: AUDIO_PORTION_HANDLE_WIDTH,
+    borderRadius: radius.pill,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  audioPortionHandleStart: {
+    marginLeft: 0,
+  },
+  audioPortionHandleEnd: {
+    marginLeft: 0,
+  },
+  audioPortionHandleGrip: {
+    width: 2,
+    height: 22,
+    borderRadius: radius.pill,
+    opacity: 0.88,
+  },
+});

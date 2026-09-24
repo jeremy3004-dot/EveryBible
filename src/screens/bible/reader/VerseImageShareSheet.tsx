@@ -1,23 +1,23 @@
-import type { ImageSourcePropType } from 'react-native';
-import type { Dispatch, RefObject, SetStateAction } from 'react';
 import {
+  StyleSheet,
   ActivityIndicator,
   ImageBackground,
   Modal,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { layout, radius, spacing, typography } from '../../../design/system';
+import type { ImageSourcePropType } from 'react-native';
+import type { Dispatch, RefObject, SetStateAction } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { SHARE_VERSE_BACKGROUND_SOURCES } from '../../../data/shareVerseBackgrounds';
 import { VerseImageSharePreview } from './VerseImageSharePreview';
-import { styles } from './readerStyles';
 
 export interface VerseImageShareSheetProps {
   handleSelectVerseImageBackground: (backgroundIndex: number) => void;
@@ -222,3 +222,104 @@ export function VerseImageShareSheet({
     </Modal>
   );
 }
+
+const styles = StyleSheet.create({
+  verseImageSheetOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+  verseImageSheetBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  verseImageSheetCard: {
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    overflow: 'hidden',
+    maxHeight: '88%',
+  },
+  verseImageSheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.md,
+  },
+  verseImageSheetHeaderCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  verseImageSheetTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  verseImageSheetReference: {
+    ...typography.label,
+    fontSize: 12,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  verseImageSheetCloseButton: {
+    width: layout.minTouchTarget,
+    height: layout.minTouchTarget,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    borderWidth: 1,
+  },
+  verseImageBackgroundRail: {
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.md,
+  },
+  verseImageBackgroundButton: {
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  verseImageBackgroundTile: {
+    width: 88,
+    height: 118,
+    justifyContent: 'flex-end',
+  },
+  verseImageBackgroundTileImage: {
+    borderRadius: radius.lg,
+  },
+  verseImageBackgroundSelectedBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 22,
+    height: 22,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  verseImageSheetActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
+    paddingTop: spacing.xs,
+  },
+  verseImageSheetActionButton: {
+    flex: 1,
+    minHeight: layout.minTouchTarget,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  verseImageSheetShareButton: {
+    minWidth: 132,
+  },
+  verseImageSheetActionText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+});

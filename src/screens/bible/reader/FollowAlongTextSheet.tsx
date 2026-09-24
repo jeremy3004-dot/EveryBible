@@ -1,14 +1,14 @@
+import { StyleSheet, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { radius, spacing, typography } from '../../../design/system';
+import { FOLLOW_ALONG_VERSE_LINE_HEIGHT } from '../bibleReaderModel';
 import type { Dispatch, RefObject, SetStateAction } from 'react';
-import { Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import Animated, { SlideInDown, SlideOutDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { getTranslatedBookName } from '../../../constants';
 import { useTheme } from '../../../contexts/ThemeContext';
-import { spacing } from '../../../design/system';
 import type { Verse } from '../../../types';
-import { styles } from './readerStyles';
 
 export interface FollowAlongTextSheetProps {
   activeFollowAlongVerse: number | null;
@@ -142,3 +142,83 @@ export function FollowAlongTextSheet({
     </Modal>
   );
 }
+
+const styles = StyleSheet.create({
+  followAlongContainer: {
+    flex: 1,
+  },
+  followAlongHeader: {
+    paddingHorizontal: 18,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  followAlongTitleCenter: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  followAlongEyebrow: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginBottom: 2,
+  },
+  followAlongTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  followAlongCloseButton: {
+    borderWidth: 1,
+    borderRadius: radius.pill,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    zIndex: 1,
+  },
+  followAlongCloseLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  followAlongScrollView: {
+    flex: 1,
+  },
+  followAlongContent: {
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingBottom: 28,
+    gap: 12,
+  },
+  followAlongVerseRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  followAlongVerseIndicator: {
+    width: 3,
+    alignSelf: 'stretch',
+    borderRadius: radius.pill,
+    minHeight: FOLLOW_ALONG_VERSE_LINE_HEIGHT,
+  },
+  followAlongVerseContent: {
+    flex: 1,
+    gap: 8,
+  },
+  followAlongHeading: {
+    ...typography.readingHeading,
+  },
+  followAlongVerseText: {
+    ...typography.readingBody,
+    fontSize: 18,
+    lineHeight: FOLLOW_ALONG_VERSE_LINE_HEIGHT,
+  },
+  followAlongVerseNumber: {
+    ...typography.readingVerseNumber,
+    fontSize: 12,
+  },
+});

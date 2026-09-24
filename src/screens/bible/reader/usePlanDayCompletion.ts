@@ -2,9 +2,12 @@ import type {
   CurrentPlanDaySummary,
   PlanChapterListenStatus,
 } from '../../../services/plans/readingPlanActivity';
-import type { ReadingPlanEntry } from '../../../services/plans/types';
+import type {
+  ReadingPlanEntry,
+  PlanSessionKey,
+  ReadingPlanProgress,
+} from '../../../services/plans/types';
 import type { Dispatch, SetStateAction } from 'react';
-import type { PlanSessionKey, ReadingPlanProgress } from '../../../services/plans/types';
 import { useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getTranslatedBookName } from '../../../constants';

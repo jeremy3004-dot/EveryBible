@@ -1,6 +1,5 @@
 import { memo } from 'react';
-import type { RefObject } from 'react';
-import type { ReactElement } from 'react';
+import type { RefObject, ReactElement } from 'react';
 import type { ReaderParagraph } from '../bibleReaderModel';
 
 export interface ReaderParagraphBlockProps {

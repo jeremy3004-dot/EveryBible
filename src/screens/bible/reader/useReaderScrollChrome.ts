@@ -13,9 +13,8 @@ import {
 } from 'react-native-reanimated';
 import { spacing } from '../../../design/system';
 import { getNextReaderChromeProgress, READER_PLAY_COLLAPSE_TRAVEL } from '../readerChromeMotion';
-import type { RootTabNavigationHandle } from './readerConstants';
+import type { RootTabNavigationHandle, NavigationProp } from './readerConstants';
 import { READER_SCROLL_JS_UPDATE_INTERVAL_PX } from './readerConstants';
-import type { NavigationProp } from './readerConstants';
 
 export interface UseReaderScrollChromeInput {
   getRootTabBarStyle: (collapseProgress: number) => ViewStyle;

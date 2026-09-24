@@ -1,18 +1,18 @@
-import { ActivityIndicator, Linking, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, ActivityIndicator, Linking, Text, TouchableOpacity, View } from 'react-native';
+import { layout, radius, spacing } from '../../../design/system';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import Svg, { Circle } from 'react-native-svg';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS } from '../../../services/feedback/chapterFeedbackAudio';
-import { formatFeedbackAudioDuration } from './feedbackAudioSession';
-import type { ChapterFeedback } from './useChapterFeedback';
 import {
   FEEDBACK_AUDIO_COUNTDOWN_SIZE,
   FEEDBACK_AUDIO_COUNTDOWN_STROKE_WIDTH,
   FEEDBACK_AUDIO_COUNTDOWN_RADIUS,
   FEEDBACK_AUDIO_COUNTDOWN_CIRCUMFERENCE,
 } from './readerConstants';
-import { styles } from './readerStyles';
+import { formatFeedbackAudioDuration } from './feedbackAudioSession';
+import type { ChapterFeedback } from './useChapterFeedback';
 
 interface ChapterFeedbackAudioControlsProps {
   feedback: ChapterFeedback;
@@ -249,3 +249,103 @@ export function ChapterFeedbackAudioControls({
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  feedbackAudioCard: {
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  feedbackAudioCardCompact: {
+    padding: spacing.sm,
+  },
+  feedbackAudioHeader: {
+    gap: 4,
+  },
+  feedbackAudioHeaderMain: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  feedbackAudioCountdown: {
+    width: FEEDBACK_AUDIO_COUNTDOWN_SIZE,
+    height: FEEDBACK_AUDIO_COUNTDOWN_SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  feedbackAudioCountdownSvg: {
+    position: 'absolute',
+  },
+  feedbackAudioCountdownText: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
+  feedbackAudioStatus: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  feedbackAudioStatusText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  feedbackAudioLimitText: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  feedbackAudioHelpText: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  feedbackAudioHelpRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  feedbackAudioHelpMessage: {
+    flex: 1,
+  },
+  feedbackAudioHelpLink: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '600',
+  },
+  feedbackAudioActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  feedbackAudioButton: {
+    minHeight: layout.minTouchTarget,
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+    gap: spacing.xs,
+  },
+  feedbackAudioButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  feedbackAudioIconButton: {
+    width: layout.minTouchTarget,
+    height: layout.minTouchTarget,
+    borderWidth: 1,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  feedbackAudioUploading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+});

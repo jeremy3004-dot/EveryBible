@@ -1,8 +1,8 @@
+import { StyleSheet, ImageBackground, Text, View } from 'react-native';
+import { radius, spacing, typography } from '../../../design/system';
 import type { RefObject } from 'react';
-import { ImageBackground, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../../contexts/ThemeContext';
-import { styles } from './readerStyles';
 
 export function VerseImageSharePreview({
   previewRef,
@@ -76,3 +76,40 @@ export interface VerseImageSharePreviewProps {
   referenceLabel: string;
   selectedText: string;
 }
+
+const styles = StyleSheet.create({
+  verseImagePreviewFrame: {
+    marginHorizontal: spacing.lg,
+    borderRadius: radius.lg,
+    overflow: 'hidden',
+    aspectRatio: 1.08,
+  },
+  verseImagePreviewBackground: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  verseImagePreviewImage: {
+    borderRadius: radius.lg,
+  },
+  verseImagePreviewOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  verseImagePreviewContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xl,
+    gap: spacing.lg,
+  },
+  verseImagePreviewText: {
+    ...typography.readingDisplay,
+    textAlign: 'center',
+    letterSpacing: -0.2,
+  },
+  verseImagePreviewReference: {
+    ...typography.label,
+    textAlign: 'center',
+    fontWeight: '700',
+  },
+});

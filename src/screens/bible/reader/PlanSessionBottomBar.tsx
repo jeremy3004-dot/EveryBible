@@ -1,12 +1,11 @@
-import { Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { layout, spacing, typography } from '../../../design/system';
+import { getPlanSessionTrailingActionState, getPlanSessionBannerColors } from '../bibleReaderModel';
 import Animated from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../contexts/ThemeContext';
-import { spacing } from '../../../design/system';
-import { getPlanSessionTrailingActionState, getPlanSessionBannerColors } from '../bibleReaderModel';
 import { PLAN_SESSION_BAR_MAX_FONT_SCALE } from './readerConstants';
-import { styles } from './readerStyles';
 
 export interface PlanSessionBottomBarProps {
   activePlanChapterIndex: number;
@@ -198,3 +197,65 @@ export function PlanSessionBottomBar({
     </Animated.View>
   );
 }
+
+const styles = StyleSheet.create({
+  planSessionBottomBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 40,
+    borderTopWidth: 1,
+  },
+  planSessionBottomBarContent: {
+    flex: 1,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+  },
+  planSessionBottomBarArrowButton: {
+    width: layout.minTouchTarget,
+    height: layout.minTouchTarget,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  planSessionBottomBarCompleteButton: {
+    borderRadius: layout.minTouchTarget / 2,
+  },
+  planSessionBottomBarArrowSpacer: {
+    width: layout.minTouchTarget,
+    height: layout.minTouchTarget,
+  },
+  planSessionBottomBarCopy: {
+    flex: 1,
+    gap: 2,
+    justifyContent: 'center',
+  },
+  planSessionBottomBarCopyCentered: {
+    alignItems: 'center',
+  },
+  planSessionBottomBarCopyListenMode: {
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+  planSessionBottomBarTitle: {
+    ...typography.bodyStrong,
+    fontSize: 15,
+    lineHeight: 19,
+    letterSpacing: -0.2,
+    textAlign: 'center',
+  },
+  planSessionBottomBarMeta: {
+    ...typography.micro,
+    fontVariant: ['tabular-nums'],
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  disabledSessionModeButton: {
+    opacity: 0.45,
+  },
+});

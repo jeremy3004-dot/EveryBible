@@ -1,12 +1,13 @@
-import { ActivityIndicator, Modal, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, ActivityIndicator, Modal, Text, TouchableOpacity, View } from 'react-native';
+import { layout, radius, shadows, spacing, typography } from '../../../design/system';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { ReaderAudioPositionValue, formatClockTime } from '../ReaderAudioPositionParts';
+import { AUDIO_PORTION_MIN_DURATION_MS } from './readerConstants';
+import { readerSharedStyles } from './readerSharedStyles';
 import type { AudioPortionShareDraft } from './audioShareDependencies';
 import { AudioRangeSelector } from './AudioRangeSelector';
-import { AUDIO_PORTION_MIN_DURATION_MS } from './readerConstants';
-import { styles } from './readerStyles';
 
 export interface AudioPortionShareSheetProps {
   audioPortionEndMs: number;
@@ -53,9 +54,9 @@ export function AudioPortionShareSheet({
       animationType="fade"
       onRequestClose={handleCloseAudioPortionSheet}
     >
-      <View style={[styles.feedbackModalOverlay, { backgroundColor: colors.overlay }]}>
+      <View style={[readerSharedStyles.feedbackModalOverlay, { backgroundColor: colors.overlay }]}>
         <TouchableOpacity
-          style={styles.feedbackModalBackdrop}
+          style={readerSharedStyles.feedbackModalBackdrop}
           activeOpacity={1}
           accessible={false}
           importantForAccessibility="no-hide-descendants"
@@ -206,3 +207,81 @@ export function AudioPortionShareSheet({
     </Modal>
   );
 }
+
+const styles = StyleSheet.create({
+  audioPortionSheet: {
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    padding: spacing.lg,
+    gap: spacing.sm,
+    ...shadows.floating,
+  },
+  audioPortionTitle: {
+    ...typography.cardTitle,
+    fontSize: 20,
+    lineHeight: 24,
+  },
+  audioPortionReference: {
+    ...typography.label,
+    fontSize: 12,
+    lineHeight: 17,
+    letterSpacing: 0.3,
+  },
+  audioPortionRangeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.xs,
+    gap: spacing.md,
+  },
+  audioPortionRangeLabelWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  audioPortionRangeTime: {
+    ...typography.bodyStrong,
+    fontSize: 14,
+    lineHeight: 18,
+    fontVariant: ['tabular-nums'],
+  },
+  audioPortionPreviewButton: {
+    alignSelf: 'center',
+    minHeight: 36,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 2,
+    marginBottom: 4,
+  },
+  audioPortionPreviewLabel: {
+    ...typography.label,
+    fontVariant: ['tabular-nums'],
+  },
+  audioPortionActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  audioPortionActionButton: {
+    flex: 1,
+    minHeight: layout.minTouchTarget,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+  },
+  audioPortionShareButton: {
+    flex: 1.2,
+  },
+  audioPortionActionLabel: {
+    ...typography.button,
+    fontSize: 15,
+    lineHeight: 20,
+  },
+});

@@ -1,4 +1,5 @@
 import {
+  StyleSheet,
   ActivityIndicator,
   KeyboardAvoidingView,
   Modal,
@@ -9,15 +10,15 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { radius, spacing, typography } from '../../../design/system';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { getTranslatedBookName } from '../../../constants';
 import { useTheme } from '../../../contexts/ThemeContext';
-import { spacing } from '../../../design/system';
+import { readerSharedStyles } from './readerSharedStyles';
 import { ChapterFeedbackAudioControls } from './ChapterFeedbackAudioControls';
 import type { ChapterFeedback } from './useChapterFeedback';
-import { styles } from './readerStyles';
 
 interface ChapterFeedbackModalProps {
   feedback: ChapterFeedback;
@@ -57,10 +58,10 @@ export function ChapterFeedbackModal({ feedback, bookId, chapter }: ChapterFeedb
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={safeInsets.top + spacing.lg}
-        style={[styles.feedbackModalOverlay, { backgroundColor: colors.overlay }]}
+        style={[readerSharedStyles.feedbackModalOverlay, { backgroundColor: colors.overlay }]}
       >
         <TouchableOpacity
-          style={styles.feedbackModalBackdrop}
+          style={readerSharedStyles.feedbackModalBackdrop}
           activeOpacity={1}
           accessible={false}
           importantForAccessibility="no-hide-descendants"
@@ -102,7 +103,7 @@ export function ChapterFeedbackModal({ feedback, bookId, chapter }: ChapterFeedb
               )}
             </Text>
 
-            <View style={styles.feedbackSentimentRow}>
+            <View style={readerSharedStyles.feedbackSentimentRow}>
               <TouchableOpacity
                 accessibilityRole="button"
                 accessibilityState={{ selected: feedbackSentiment === 'up' }}
@@ -215,7 +216,7 @@ export function ChapterFeedbackModal({ feedback, bookId, chapter }: ChapterFeedb
             {feedbackSubmitError ? (
               <Text
                 accessibilityLiveRegion="polite"
-                style={[styles.feedbackErrorText, { color: colors.error }]}
+                style={[readerSharedStyles.feedbackErrorText, { color: colors.error }]}
               >
                 {feedbackSubmitError}
               </Text>
@@ -226,7 +227,7 @@ export function ChapterFeedbackModal({ feedback, bookId, chapter }: ChapterFeedb
                 accessibilityRole="button"
                 accessibilityLabel={t('common.cancel')}
                 style={[
-                  styles.feedbackActionButton,
+                  readerSharedStyles.feedbackActionButton,
                   {
                     borderColor: colors.bibleDivider,
                     backgroundColor: colors.bibleElevatedSurface,
@@ -235,7 +236,12 @@ export function ChapterFeedbackModal({ feedback, bookId, chapter }: ChapterFeedb
                 onPress={handleCloseFeedbackModal}
                 disabled={isSubmittingFeedback}
               >
-                <Text style={[styles.feedbackActionLabel, { color: colors.biblePrimaryText }]}>
+                <Text
+                  style={[
+                    readerSharedStyles.feedbackActionLabel,
+                    { color: colors.biblePrimaryText },
+                  ]}
+                >
                   {t('common.cancel')}
                 </Text>
               </TouchableOpacity>
@@ -245,7 +251,7 @@ export function ChapterFeedbackModal({ feedback, bookId, chapter }: ChapterFeedb
                 accessibilityLabel={t('bible.chapterFeedbackSubmit')}
                 accessibilityState={{ disabled: !canSubmitFeedback }}
                 style={[
-                  styles.feedbackActionButton,
+                  readerSharedStyles.feedbackActionButton,
                   styles.feedbackSubmitButton,
                   {
                     backgroundColor: canSubmitFeedback ? colors.accentPrimary : colors.bibleDivider,
@@ -262,7 +268,7 @@ export function ChapterFeedbackModal({ feedback, bookId, chapter }: ChapterFeedb
                 ) : (
                   <Text
                     style={[
-                      styles.feedbackActionLabel,
+                      readerSharedStyles.feedbackActionLabel,
                       { color: canSubmitFeedback ? colors.cardBackground : colors.secondaryText },
                     ]}
                   >
@@ -277,3 +283,69 @@ export function ChapterFeedbackModal({ feedback, bookId, chapter }: ChapterFeedb
     </Modal>
   );
 }
+
+const styles = StyleSheet.create({
+  feedbackModalCard: {
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    maxHeight: '85%',
+    overflow: 'hidden',
+  },
+  feedbackModalScroll: {
+    maxHeight: '100%',
+  },
+  feedbackModalScrollContent: {
+    gap: spacing.md,
+    padding: spacing.lg,
+  },
+  feedbackModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  feedbackModalReference: {
+    ...typography.label,
+    fontSize: 12,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
+  feedbackModalBody: {
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  feedbackSentimentButton: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+  },
+  feedbackSentimentLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  feedbackCommentInput: {
+    minHeight: 120,
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    fontSize: 15,
+    lineHeight: 21,
+    textAlignVertical: 'top',
+  },
+  feedbackCharCount: {
+    ...typography.micro,
+    alignSelf: 'flex-end',
+    marginTop: spacing.xs,
+  },
+  feedbackActionRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  feedbackSubmitButton: {
+    minWidth: 132,
+  },
+});

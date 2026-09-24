@@ -1,12 +1,11 @@
+import { StyleSheet, Modal, Text, TouchableOpacity, View } from 'react-native';
+import { radius, spacing } from '../../../design/system';
 import type { Dispatch, SetStateAction } from 'react';
-import { Modal, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { getTranslatedBookName } from '../../../constants';
 import { useTheme } from '../../../contexts/ThemeContext';
-import { spacing } from '../../../design/system';
-import { styles } from './readerStyles';
 
 export interface ChapterActionsSheetProps {
   bookId: string;
@@ -180,3 +179,35 @@ export function ChapterActionsSheet({
     </Modal>
   );
 }
+
+const styles = StyleSheet.create({
+  modalBackdropFill: {
+    flex: 1,
+    justifyContent: 'flex-start',
+    paddingHorizontal: 16,
+  },
+  actionSheet: {
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    padding: 18,
+    gap: 8,
+  },
+  actionSheetTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  actionRow: {
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  actionLabel: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+});

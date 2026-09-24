@@ -1,10 +1,18 @@
-import { ActivityIndicator, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  StyleSheet,
+  ActivityIndicator,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { layout, radius, spacing } from '../../../design/system';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../contexts/ThemeContext';
+import { readerSharedStyles } from './readerSharedStyles';
 import { ChapterFeedbackAudioControls } from './ChapterFeedbackAudioControls';
 import type { ChapterFeedback } from './useChapterFeedback';
-import { styles } from './readerStyles';
 
 interface ListenFeedbackComposerProps {
   feedback: ChapterFeedback;
@@ -85,7 +93,7 @@ export function ListenFeedbackComposer({ feedback, isLargeText }: ListenFeedback
         </View>
       </View>
 
-      <View style={styles.feedbackSentimentRow}>
+      <View style={readerSharedStyles.feedbackSentimentRow}>
         <TouchableOpacity
           accessibilityRole="button"
           accessibilityLabel={t('bible.chapterFeedbackThumbsUp')}
@@ -171,7 +179,7 @@ export function ListenFeedbackComposer({ feedback, isLargeText }: ListenFeedback
           <ChapterFeedbackAudioControls feedback={feedback} compact />
           <TouchableOpacity
             style={[
-              styles.feedbackActionButton,
+              readerSharedStyles.feedbackActionButton,
               styles.listenFeedbackSubmitButton,
               {
                 backgroundColor: canSubmitFeedback ? colors.accentPrimary : colors.bibleDivider,
@@ -191,7 +199,7 @@ export function ListenFeedbackComposer({ feedback, isLargeText }: ListenFeedback
             ) : (
               <Text
                 style={[
-                  styles.feedbackActionLabel,
+                  readerSharedStyles.feedbackActionLabel,
                   { color: canSubmitFeedback ? colors.cardBackground : colors.secondaryText },
                 ]}
               >
@@ -209,7 +217,7 @@ export function ListenFeedbackComposer({ feedback, isLargeText }: ListenFeedback
       {feedbackSubmitError ? (
         <Text
           accessibilityLiveRegion="polite"
-          style={[styles.feedbackErrorText, { color: colors.error }]}
+          style={[readerSharedStyles.feedbackErrorText, { color: colors.error }]}
         >
           {feedbackSubmitError}
         </Text>
@@ -217,3 +225,79 @@ export function ListenFeedbackComposer({ feedback, isLargeText }: ListenFeedback
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  listenFeedbackCard: {
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    padding: 16,
+    gap: 14,
+  },
+  listenFeedbackHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  listenFeedbackHeaderStacked: {
+    flexDirection: 'column',
+  },
+  listenFeedbackCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  listenFeedbackCopyStacked: {
+    // flex: 1 in a column would try to fill a height the card does not have.
+    flex: 0,
+  },
+  listenFeedbackTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  listenFeedbackBody: {
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  listenFeedbackIdentityPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  listenFeedbackIdentityText: {
+    flexShrink: 1,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  listenFeedbackIdentityTextCompact: {
+    maxWidth: 110,
+  },
+  listenSentimentButton: {
+    flex: 1,
+    minHeight: layout.minTouchTarget,
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  listenFeedbackInput: {
+    minHeight: 96,
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    fontSize: 15,
+    lineHeight: 21,
+    textAlignVertical: 'top',
+  },
+  listenFeedbackHint: {
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  listenFeedbackSubmitButton: {
+    minWidth: 0,
+  },
+});

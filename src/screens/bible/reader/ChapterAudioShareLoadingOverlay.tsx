@@ -1,7 +1,7 @@
-import { ActivityIndicator, Text, View } from 'react-native';
+import { StyleSheet, ActivityIndicator, Text, View } from 'react-native';
+import { radius, spacing } from '../../../design/system';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../contexts/ThemeContext';
-import { styles } from './readerStyles';
 
 export interface ChapterAudioShareLoadingOverlayProps {
   chapterAudioShareActionLabel: string;
@@ -37,3 +37,32 @@ export function ChapterAudioShareLoadingOverlay({
     </View>
   ) : null;
 }
+
+const styles = StyleSheet.create({
+  chapterAudioShareLoadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    zIndex: 50,
+  },
+  chapterAudioShareLoadingCard: {
+    minWidth: 220,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  chapterAudioShareLoadingTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  chapterAudioShareLoadingBody: {
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+});
