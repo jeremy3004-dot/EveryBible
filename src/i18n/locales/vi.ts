@@ -412,6 +412,7 @@ export const vi = {
     notSet: 'Chưa đặt',
     unexpectedError: 'Rất tiếc, đã có sự cố ngoài dự kiến. Vui lòng thử lại.',
     somethingWentWrong: 'Đã xảy ra lỗi',
+    offlineTryAgain: 'Bạn đang ngoại tuyến. Hãy kết nối internet rồi thử lại.',
     tryAgain: 'Thử lại',
     shareMessage: 'Hãy thử Every Bible nhé!',
     all: 'Tất cả',
@@ -440,11 +441,16 @@ export const vi = {
     ledgerThisMonth_one: '{{month}} · {{active}}/{{count}} ngày',
     ledgerThisMonth_other: '{{month}} · {{active}}/{{count}} ngày',
     ledgerThisWeek: 'Tuần này · {{active}}/{{total}} ngày',
-    streakUnitLabel: 'ngày liên tiếp',
+    streakUnitLabel_one: 'ngày liên tiếp',
+    streakUnitLabel_other: 'ngày liên tiếp',
     dayEyebrow: 'Ngày',
     lessonsProgress: '{{completed}} / {{total}} bài học',
     nextLesson: 'Tiếp theo · {{title}}',
     readPassage: 'Đọc {{passage}}',
+    borrowedPassageTitle: '{{translation}} không có {{passage}}',
+    borrowedPassageBody:
+      'Câu Kinh Thánh hôm nay lấy từ {{fallback}}. Đọc chương này ở đó sẽ chuyển Kinh Thánh của bạn sang {{fallback}}; bạn có thể chuyển lại bất cứ lúc nào.',
+    readInTranslation: 'Đọc bằng {{translation}}',
     goodMorning: 'Chào buổi sáng',
     goodAfternoon: 'Chào buổi chiều',
     goodEvening: 'Chào buổi tối',
@@ -683,6 +689,11 @@ export const vi = {
     chapterFeedbackSuccess:
       'Cảm ơn bạn đã gửi phản hồi. Chúng tôi đã nhận được và các nhóm dịch sẽ xem xét trong thời gian sớm nhất.',
     chapterFeedbackSignInRequired: 'Vui lòng đăng nhập trước khi gửi phản hồi về chương.',
+    chapterFeedbackQueuedTitle: 'Đã lưu để gửi sau',
+    chapterFeedbackQueued:
+      'Bạn đang ngoại tuyến nên phản hồi đã được lưu trên thiết bị này. Phản hồi sẽ tự động được gửi khi bạn có mạng trở lại.',
+    chapterFeedbackOffline:
+      'Bạn đang ngoại tuyến. Phản hồi của bạn vẫn còn ở đây; hãy gửi khi đã kết nối.',
     translatorReviewTitle: 'Đánh giá độ chính xác',
     translatorReviewSummary: 'Quyết định đang chờ: {{pending}}/{{count}}',
     translatorReviewSummaryComplete: 'Đã xử lý tất cả các đánh giá độ chính xác',

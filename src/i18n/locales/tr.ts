@@ -409,6 +409,7 @@ export const tr = {
     notSet: 'Ayarlanmadı',
     unexpectedError: 'Üzgünüz ama beklenmedik bir şey oldu. Lütfen tekrar deneyin.',
     somethingWentWrong: 'Bir şeyler ters gitti',
+    offlineTryAgain: 'Çevrimdışısınız. İnternete bağlanıp yeniden deneyin.',
     tryAgain: 'Tekrar dene',
     shareMessage: 'Every Bible’a göz atın!',
     all: 'Tümü',
@@ -437,11 +438,16 @@ export const tr = {
     ledgerThisMonth_one: '{{month}} · {{count}} günün {{active}} günü',
     ledgerThisMonth_other: '{{month}} · {{count}} günün {{active}} günü',
     ledgerThisWeek: 'Bu hafta · {{total}} günün {{active}} günü',
-    streakUnitLabel: 'günlük seri',
+    streakUnitLabel_one: 'günlük seri',
+    streakUnitLabel_other: 'günlük seri',
     dayEyebrow: 'Gün',
     lessonsProgress: '{{completed}} / {{total}} ders',
     nextLesson: 'Sıradaki · {{title}}',
     readPassage: 'Oku: {{passage}}',
+    borrowedPassageTitle: '{{passage}}, {{translation}} içinde yok',
+    borrowedPassageBody:
+      'Günün ayeti {{fallback}} çevirisinden alındı. Bölümü orada okumak Kutsal Kitabınızı {{fallback}} çevirisine geçirir; istediğiniz zaman geri dönebilirsiniz.',
+    readInTranslation: '{{translation}} ile oku',
     goodMorning: 'Günaydın',
     goodAfternoon: 'İyi günler',
     goodEvening: 'İyi akşamlar',
@@ -681,6 +687,11 @@ export const tr = {
     chapterFeedbackSuccess:
       'Geri bildiriminiz için teşekkür ederiz. Gönderiminiz alındı ve en kısa sürede çeviri ekiplerimiz tarafından incelenecek.',
     chapterFeedbackSignInRequired: 'Bölüm geri bildirimi göndermeden önce lütfen oturum açın.',
+    chapterFeedbackQueuedTitle: 'Sonra gönderilmek üzere kaydedildi',
+    chapterFeedbackQueued:
+      'Çevrimdışısınız, bu yüzden geri bildiriminiz bu cihaza kaydedildi. Yeniden çevrimiçi olduğunuzda otomatik olarak gönderilecek.',
+    chapterFeedbackOffline:
+      'Çevrimdışısınız. Geri bildiriminiz hâlâ burada; bağlandığınızda gönderin.',
     translatorReviewTitle: 'Doğruluk incelemesi',
     translatorReviewSummary: '{{count}} geri bildirimin {{pending}} tanesi karar bekliyor',
     translatorReviewSummaryComplete: 'Tüm doğruluk incelemeleri tamamlandı',

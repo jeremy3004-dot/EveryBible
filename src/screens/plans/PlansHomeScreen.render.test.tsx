@@ -313,6 +313,23 @@ test('the three plan tabs are one full-width switch, pinned in the sticky header
   assert.ok(within(pageChildren[0]).getByRole('header', { name: t('readingPlans.plans') }));
 });
 
+// Release QA: at iOS AX5 the title and "My pla…" were cut, and on Android at 2.0
+// the Completed tab broke as "Complete / d".
+test('at large text the plan tabs stack one per row and the title caps its scaling', async () => {
+  const { DISPLAY_TEXT_MAX_FONT_SCALE } = await import('../../design/largeTextLayout');
+  harness.setFontScale(2);
+  const view = await renderHome();
+
+  const tablist = view.getByRole('tablist', { name: t('readingPlans.plans') });
+  assert.equal(flattenStyle(tablist.props.style)?.flexDirection, 'column');
+  for (const tab of within(tablist).getAllByRole('tab')) {
+    const label = within(tab).getByText(accessibilityLabelOf(tab)!);
+    assert.equal(label.props.numberOfLines, undefined, 'a full-width row never cuts a label');
+  }
+  const title = view.getByRole('header', { name: t('readingPlans.plans') });
+  assert.equal(title.props.maxFontSizeMultiplier, DISPLAY_TEXT_MAX_FONT_SCALE);
+});
+
 test('the page scrolls clear of the floating tab bar', async () => {
   const { TAB_BAR_CAPSULE_HEIGHT, TAB_BAR_CONTENT_GAP } =
     await import('../../hooks/useTabBarHeight');

@@ -22,6 +22,7 @@ import { layout, radius, spacing, typography } from '../../design/system';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { lightHaptic, successHaptic } from '../../utils';
 import { announceForAccessibility } from '../../utils/a11y';
+import { isDeviceOffline } from '../../utils/connectivity';
 import type { LearnStackParamList } from '../../navigation/types';
 import { openAuthFlow } from '../../navigation/rootNavigation';
 import { useAuthStore } from '../../stores/authStore';
@@ -67,6 +68,8 @@ export function PrayerWallScreen() {
   const [requests, setRequests] = useState<PrayerRequestWithCounts[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  // Set with loadError: the wall lives only on the server, so offline it cannot load.
+  const [offline, setOffline] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [submitText, setSubmitText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -94,6 +97,7 @@ export function PrayerWallScreen() {
     } else {
       // Distinguish a genuine load failure (offline / server error) from an
       // empty group so we never render "no prayers yet" over a fetch failure.
+      setOffline(await isDeviceOffline());
       setLoadError(true);
     }
   }, [groupId]);
@@ -733,11 +737,14 @@ export function PrayerWallScreen() {
         <View style={styles.errorContainer}>
           <Ionicons name="cloud-offline-outline" size={48} color={colors.secondaryText} />
           <Text style={[styles.emptyTitle, { color: colors.primaryText }]}>
-            {t('common.somethingWentWrong')}
+            {offline ? t('common.offlineTryAgain') : t('common.somethingWentWrong')}
           </Text>
-          <Text style={[styles.emptyBody, { color: colors.secondaryText }]}>
-            {t('common.tryAgain')}
-          </Text>
+          {/* The offline message already asks the reader to try again. */}
+          {offline ? null : (
+            <Text style={[styles.emptyBody, { color: colors.secondaryText }]}>
+              {t('common.tryAgain')}
+            </Text>
+          )}
           <TouchableOpacity
             style={[styles.errorRetryButton, { backgroundColor: colors.accentPrimary }]}
             onPress={() => {

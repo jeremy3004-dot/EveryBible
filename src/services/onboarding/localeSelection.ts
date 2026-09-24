@@ -4,6 +4,7 @@ import {
   SUPPORTED_LANGUAGES,
   type LanguageCode,
 } from '../../constants/languages';
+import { COUNTRY_DISPLAY_LOCALES } from './countryDisplayName';
 
 export interface LocaleCountry {
   code: string;
@@ -60,29 +61,7 @@ interface LanguageSearchEntry {
   nameHaystacks: string[];
 }
 
-export const COUNTRY_DISPLAY_LOCALES: Record<LanguageCode, string[]> = {
-  en: ['en'],
-  zh: ['zh-Hans', 'zh'],
-  hi: ['hi'],
-  es: ['es'],
-  ar: ['ar'],
-  fr: ['fr'],
-  bn: ['bn'],
-  pt: ['pt'],
-  ru: ['ru'],
-  ur: ['ur'],
-  id: ['id'],
-  de: ['de'],
-  ja: ['ja'],
-  pa: ['pa-Guru', 'pa'],
-  mr: ['mr'],
-  te: ['te'],
-  tr: ['tr'],
-  ta: ['ta'],
-  vi: ['vi'],
-  ko: ['ko'],
-  ne: ['ne'],
-};
+export { COUNTRY_DISPLAY_LOCALES };
 
 const normalizeSearchText = (value: string): string =>
   value

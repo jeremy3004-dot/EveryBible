@@ -55,6 +55,7 @@ import {
   resolveBibleSearchIntent,
 } from './bibleSearchModel';
 import { useTranslatorFeedbackFocusRefresh } from './useTranslatorFeedbackFocusRefresh';
+import { TranslationPickerHeader } from './TranslationPickerHeader';
 import { layout, radius, spacing, typography } from '../../design/system';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { announceForAccessibility, announceLiveRegionText } from '../../utils/a11y';
@@ -66,6 +67,7 @@ import {
 } from './chapterTileLayout';
 import { VersesSkeleton } from '../../components/skeleton/VersesSkeleton';
 import { TranslationNotCoveredNotice } from '../../components/feedback/TranslationNotCoveredNotice';
+import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../design/largeTextLayout';
 
 type NavigationProp = NativeStackNavigationProp<BibleStackParamList>;
 type BibleBrowserRoute =
@@ -748,6 +750,7 @@ export function BibleBrowserScreen() {
             ) : null}
             <View>
               <Text
+                maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
                 accessibilityRole="header"
                 style={[styles.title, displayFont.bold, { color: colors.biblePrimaryText }]}
               >
@@ -937,19 +940,11 @@ export function BibleBrowserScreen() {
                 { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
               ]}
             >
-              <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: colors.biblePrimaryText }]}>
-                  {t('bible.selectTranslation')}
-                </Text>
-                <TouchableOpacity
-                  onPress={() => setShowTranslationModal(false)}
-                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('interface.close')}
-                >
-                  <Ionicons name="close" size={22} color={colors.bibleSecondaryText} />
-                </TouchableOpacity>
-              </View>
+              <TranslationPickerHeader
+                onClose={() => setShowTranslationModal(false)}
+                style={styles.modalHeader}
+                titleStyle={styles.modalTitle}
+              />
               {TranslationPickerComponent ? (
                 <TranslationPickerComponent onRequestClose={() => setShowTranslationModal(false)} />
               ) : (

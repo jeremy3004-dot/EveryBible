@@ -10,6 +10,7 @@ import type { SetupMode, SetupStep } from '../localeSetupModel';
 import { InterfaceLanguageList } from './LocaleSetupCards';
 import { SectionEyebrow } from './LocaleSetupOptionRow';
 import { getFlagEmoji } from './localeSetupFlowModel';
+import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../../design/largeTextLayout';
 
 const SEARCH_FIELD_HEIGHT = 46;
 
@@ -107,7 +108,11 @@ export function LocaleSetupListHeader({
     <View>
       {step === 'interfaceLanguage' ? (
         <>
-          <Text accessibilityRole="header" style={heroTitleStyle}>
+          <Text
+            maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
+            accessibilityRole="header"
+            style={heroTitleStyle}
+          >
             {t('onboarding.interfaceLanguageTitle')}
           </Text>
           <Text style={heroBodyStyle}>{t('onboarding.interfaceLanguageBody')}</Text>
@@ -122,7 +127,11 @@ export function LocaleSetupListHeader({
 
       {step === 'translation' ? (
         <>
-          <Text accessibilityRole="header" style={heroTitleStyle}>
+          <Text
+            maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
+            accessibilityRole="header"
+            style={heroTitleStyle}
+          >
             {t('onboarding.languageTitle')}
           </Text>
 
@@ -185,7 +194,11 @@ export function LocaleSetupListHeader({
 
       {step === 'country' ? (
         <>
-          <Text accessibilityRole="header" style={heroTitleStyle}>
+          <Text
+            maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
+            accessibilityRole="header"
+            style={heroTitleStyle}
+          >
             {t('onboarding.countryTitle')}
           </Text>
           <Text style={heroBodyStyle}>{t('onboarding.countryBody')}</Text>
@@ -204,7 +217,11 @@ export function LocaleSetupListHeader({
 
       {step === 'contentLanguage' ? (
         <>
-          <Text accessibilityRole="header" style={heroTitleStyle}>
+          <Text
+            maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
+            accessibilityRole="header"
+            style={heroTitleStyle}
+          >
             {t('onboarding.languageTitle')}
           </Text>
           <Text style={heroBodyStyle}>

@@ -46,9 +46,13 @@ export interface ChapterFeedbackFunctionResponse {
   // Set when the backend rejected the request for want of a signed-in user (401), so the
   // UI can show a localized sign-in prompt instead of the raw server message.
   requiresSignIn?: boolean;
+  // Set when the request never got a considered answer (offline, timed out, server
+  // outage), so the same submission may succeed later; see chapterFeedbackOutbox.
+  retryable?: boolean;
 }
 
 interface ChapterFeedbackFunctionError {
+  name?: string;
   message?: string;
   context?:
     | Response
@@ -190,6 +194,19 @@ function getFunctionErrorStatus(error: ChapterFeedbackFunctionError | null): num
     typeof response.status === 'number'
     ? response.status
     : null;
+}
+
+// functions-js reports a request that never reached the function (no network,
+// aborted by the client's timeout) as FunctionsFetchError, and a relay failure
+// as FunctionsRelayError.
+const NETWORK_ERROR_NAMES = new Set(['FunctionsFetchError', 'FunctionsRelayError']);
+
+function isRetryableFunctionError(error: ChapterFeedbackFunctionError): boolean {
+  if (error.name && NETWORK_ERROR_NAMES.has(error.name)) {
+    return true;
+  }
+  const status = getFunctionErrorStatus(error);
+  return status !== null && (status >= 500 || status === 429);
 }
 
 const EDGE_RUNTIME_401_MESSAGES = new Set(['Invalid JWT', 'Missing authorization header']);
@@ -347,6 +364,7 @@ export async function submitChapterFeedback(
         exported: false,
         error: resolvedErrorMessage,
         requiresSignIn,
+        ...(isRetryableFunctionError(error) ? { retryable: true } : {}),
       };
     }
 
@@ -367,6 +385,7 @@ export async function submitChapterFeedback(
       exported: false,
       error:
         error instanceof Error ? error.message : 'Unable to submit chapter feedback right now.',
+      retryable: true,
     };
   }
 }

@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useDisplayFont } from '../../hooks';
 import { motion, radius, shadows, spacing, typography } from '../../design/system';
+import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../design/largeTextLayout';
 
 export interface SheetProps {
   visible: boolean;
@@ -140,6 +141,7 @@ export function Sheet({ visible, onClose, children, title, contentStyle, closeLa
             <View style={[styles.handle, { backgroundColor: colors.borderStrong }]} />
             {title ? (
               <Text
+                maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
                 style={[
                   typography.pageTitle,
                   displayFont.bold,

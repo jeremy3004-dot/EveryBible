@@ -4,6 +4,7 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import { useDisplayFont } from '../../../hooks';
 import { AppButton } from '../../../components/ui';
 import { radius, spacing, typography } from '../../../design/system';
+import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../../design/largeTextLayout';
 import { modalStyles, useModalButtonsStyle } from './settingsStyles';
 import { REMINDER_HOURS, REMINDER_MINUTES } from './settingsScreenModel';
 
@@ -49,6 +50,7 @@ export function ReminderTimePickerModal({
           ]}
         >
           <Text
+            maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
             accessibilityRole="header"
             style={[modalStyles.modalTitle, displayFont.bold, { color: colors.primaryText }]}
           >

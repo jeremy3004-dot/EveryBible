@@ -8,6 +8,7 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import { useDisplayFont } from '../../../hooks';
 import { layout, spacing, typography } from '../../../design/system';
 import { BackArrowIcon, IconButton } from '../../../components/ui';
+import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../../design/largeTextLayout';
 import type { getReadingPlanCoverSource } from '../../../services/plans/readingPlanAssets';
 
 /** The photographic hero. Its lower third fades into the page background. */
@@ -126,6 +127,7 @@ export function PlanDetailHero({
           </Text>
         ) : null}
         <Text
+          maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
           accessibilityRole="header"
           style={[styles.coverTitle, displayFont.bold]}
           numberOfLines={2}

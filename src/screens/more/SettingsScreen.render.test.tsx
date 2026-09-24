@@ -338,6 +338,10 @@ test('at large text the font-size stepper and the offline status sit under their
     .find((node) => flattenStyle(node.props.style)?.minWidth !== undefined);
   assert.ok(fontValue, 'the size name');
   assert.equal(fontValue.props.numberOfLines, 2);
+  // Release QA at AX5 broke "Med/ium" between the A-/A+ buttons: the size name
+  // is a control value and caps like a segmented-control label.
+  const { CONTROL_LABEL_MAX_FONT_SCALE } = await import('../../design/largeTextLayout');
+  assert.equal(fontValue.props.maxFontSizeMultiplier, CONTROL_LABEL_MAX_FONT_SCALE);
 
   const offlineTitle = view.getByText(t('settings.downloadForOffline'));
   const available = within(hostAncestors(offlineTitle)[0]).getByText(t('common.available'));

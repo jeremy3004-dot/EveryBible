@@ -6,6 +6,7 @@ import { AppButton } from '../../../components/ui';
 import { TranslationNotCoveredNotice } from '../../../components/feedback/TranslationNotCoveredNotice';
 import { layout, radius, spacing, typography } from '../../../design/system';
 import type { ParticipationAccessKind } from '../participationAccess';
+import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../../design/largeTextLayout';
 import { modalStyles, useModalButtonsStyle } from './settingsStyles';
 import {
   ACCESS_KEYPAD_ROWS,
@@ -70,6 +71,7 @@ export function ParticipationAccessModal({
           ]}
         >
           <Text
+            maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
             accessibilityRole="header"
             style={[modalStyles.modalTitle, displayFont.bold, { color: colors.primaryText }]}
           >

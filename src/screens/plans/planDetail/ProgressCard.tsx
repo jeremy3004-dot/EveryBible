@@ -10,6 +10,7 @@ import { getActivePlanDayNumber } from '../../../services/plans/readingPlanModel
 import type { ReadingPlan, UserReadingPlanProgress } from '../../../services/plans/types';
 import { formatPlanProgressAnnouncement, formatPlanProgressTally } from '../planProgressTally';
 import { getPlanLedgerGridDayCount } from '../planLedgerGridModel';
+import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../../design/largeTextLayout';
 import { LedgerCells } from './LedgerCells';
 import { getLedgerCellStates } from './planDetailLedgerModel';
 
@@ -72,7 +73,12 @@ export function ProgressCard({ plan, progress, currentDaySummary, today }: Progr
             {t('readingPlans.day')}
           </Text>
           <View style={styles.numeralRow}>
-            <Text style={[typography.numeralXL, { color: colors.primaryText }]}>{currentDay}</Text>
+            <Text
+              maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
+              style={[typography.numeralXL, { color: colors.primaryText }]}
+            >
+              {currentDay}
+            </Text>
             <Text style={[styles.numeralTotal, { color: colors.secondaryText }]}>/{totalDays}</Text>
           </View>
         </View>

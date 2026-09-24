@@ -4,6 +4,7 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import { useDisplayFont, useFontSize } from '../../../hooks';
 import { radius, spacing, typography } from '../../../design/system';
 import { hexWithAlpha } from '../../../utils';
+import { CONTROL_LABEL_MAX_FONT_SCALE } from '../../../design/largeTextLayout';
 
 /** The stepper's A-/A+ glyphs when the size is already at the end of the scale. */
 const STEPPER_DISABLED_ALPHA = 0.4;
@@ -50,6 +51,7 @@ export function FontSizeStepper() {
       <Text
         style={[styles.fontSizeValue, displayFont.regular, { color: colors.secondaryText }]}
         numberOfLines={2}
+        maxFontSizeMultiplier={CONTROL_LABEL_MAX_FONT_SCALE}
       >
         {fontSizeLabel}
       </Text>

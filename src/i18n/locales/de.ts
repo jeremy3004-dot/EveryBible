@@ -411,6 +411,7 @@ export const de = {
     notSet: 'Nicht festgelegt',
     unexpectedError: 'Es tut uns leid, etwas Unerwartetes ist passiert. Bitte versuche es erneut.',
     somethingWentWrong: 'Etwas ist schiefgelaufen',
+    offlineTryAgain: 'Du bist offline. Verbinde dich mit dem Internet und versuche es erneut.',
     tryAgain: 'Noch einmal versuchen',
     shareMessage: 'Schau dir Every Bible an!',
     all: 'Alle',
@@ -439,11 +440,16 @@ export const de = {
     ledgerThisMonth_one: '{{month}} · {{active}} von {{count}} Tag',
     ledgerThisMonth_other: '{{month}} · {{active}} von {{count}} Tagen',
     ledgerThisWeek: 'Diese Woche · {{active}}/{{total}} Tage',
-    streakUnitLabel: 'Tage in Folge',
+    streakUnitLabel_one: 'Tag in Folge',
+    streakUnitLabel_other: 'Tage in Folge',
     dayEyebrow: 'Tag',
     lessonsProgress: '{{completed}} / {{total}} Lektionen',
     nextLesson: 'Nächste · {{title}}',
     readPassage: '{{passage}} lesen',
+    borrowedPassageTitle: '{{passage}} ist nicht in {{translation}} enthalten',
+    borrowedPassageBody:
+      'Der Vers des Tages stammt aus {{fallback}}. Wenn du das Kapitel dort liest, wechselt deine Bibel zu {{fallback}}; du kannst jederzeit zurückwechseln.',
+    readInTranslation: 'In {{translation}} lesen',
     goodMorning: 'Guten Morgen',
     goodAfternoon: 'Guten Tag',
     goodEvening: 'Guten Abend',
@@ -690,6 +696,11 @@ export const de = {
       'Vielen Dank für deine Rückmeldung. Sie ist bei uns eingegangen und wird von unseren Übersetzungsteams so schnell wie möglich geprüft.',
     chapterFeedbackSignInRequired:
       'Bitte melde dich an, bevor du eine Rückmeldung zu einem Kapitel sendest.',
+    chapterFeedbackQueuedTitle: 'Für später gespeichert',
+    chapterFeedbackQueued:
+      'Du bist offline, deshalb wurde deine Rückmeldung auf diesem Gerät gespeichert. Sie wird automatisch gesendet, sobald du wieder online bist.',
+    chapterFeedbackOffline:
+      'Du bist offline. Deine Rückmeldung ist noch da – sende sie, sobald du verbunden bist.',
     translatorReviewTitle: 'Textprüfung',
     translatorReviewSummary: 'Offene Rückmeldungen: {{pending}} von {{count}}',
     translatorReviewSummaryComplete: 'Alle Textprüfungen sind abgeschlossen',

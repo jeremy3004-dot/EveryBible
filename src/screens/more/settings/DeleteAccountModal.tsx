@@ -5,6 +5,7 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import { useDisplayFont } from '../../../hooks';
 import { AppButton } from '../../../components/ui';
 import { spacing, typography } from '../../../design/system';
+import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../../design/largeTextLayout';
 import { ICON_STROKE, modalStyles, useModalButtonsStyle } from './settingsStyles';
 
 interface DeleteAccountModalProps {
@@ -49,6 +50,7 @@ export function DeleteAccountModal({
             style={styles.deleteWarningIcon}
           />
           <Text
+            maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
             accessibilityRole="header"
             style={[modalStyles.modalTitle, displayFont.bold, { color: colors.primaryText }]}
           >

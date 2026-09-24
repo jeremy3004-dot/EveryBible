@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, Image } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Alert, Image, InteractionManager } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -26,7 +26,9 @@ import type { MoreStackParamList } from '../../navigation/types';
 import { openAuthFlow } from '../../navigation/rootNavigation';
 import { layout, spacing, typography } from '../../design/system';
 import { describeSyncStatus } from '../../utils/syncStatus';
+import { getLocalizedCountryName } from '../../services/onboarding/countryDisplayName';
 import { AppCard, ListRow, PressableScale } from '../../components/ui';
+import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../design/largeTextLayout';
 
 type NavigationProp = NativeStackNavigationProp<MoreStackParamList>;
 
@@ -63,12 +65,37 @@ function getBuildNumber(): string | null {
   }
 }
 
+// The saved country in the interface language. The stored name is English (it
+// comes from the onboarding catalog), so it shows for the first paint and the
+// translation replaces it once the tab has settled: on Hermes the lookup
+// requires the generated CLDR name table, which should not delay opening More.
+function useLocalizedCountryName(
+  countryCode: string | null,
+  language: string,
+  storedName: string | null
+): string | null {
+  const key = `${countryCode ?? ''}:${language}`;
+  const [resolved, setResolved] = useState<{ key: string; name: string | null } | null>(null);
+
+  useEffect(() => {
+    if (!countryCode) {
+      return undefined;
+    }
+    const task = InteractionManager.runAfterInteractions(() => {
+      setResolved({ key, name: getLocalizedCountryName(countryCode, language) });
+    });
+    return () => task.cancel();
+  }, [countryCode, key, language]);
+
+  return (resolved?.key === key ? resolved.name : null) ?? storedName;
+}
+
 export function MoreScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { colors } = useTheme();
   const displayFont = useDisplayFont();
   const { contentClearance } = useTabBarHeight();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const preferences = useAuthStore((state) => state.preferences);
@@ -96,9 +123,13 @@ export function MoreScreen() {
   const currentAbbreviation =
     translations.find((translation) => translation.id === currentTranslation)?.abbreviation ??
     currentTranslation;
+  const countryName = useLocalizedCountryName(
+    preferences.countryCode ?? null,
+    i18n.language,
+    preferences.countryName ?? null
+  );
   const localeValue =
-    [preferences.countryName, preferences.contentLanguageNativeName].filter(Boolean).join(' · ') ||
-    undefined;
+    [countryName, preferences.contentLanguageNativeName].filter(Boolean).join(' · ') || undefined;
   const reminderValue =
     preferences.notificationsEnabled && preferences.reminderTime
       ? t('more.reminderValue', { time: preferences.reminderTime })
@@ -205,6 +236,7 @@ export function MoreScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: contentClearance }]}
       >
         <Text
+          maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
           accessibilityRole="header"
           style={[styles.title, displayFont.bold, { color: colors.primaryText }]}
         >

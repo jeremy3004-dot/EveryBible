@@ -399,6 +399,7 @@ export const ur = {
     notSet: 'مقرر نہیں',
     unexpectedError: 'معذرت، کچھ غیر متوقع ہو گیا۔ براہِ کرم دوبارہ کوشش کریں۔',
     somethingWentWrong: 'کچھ غلط ہو گیا',
+    offlineTryAgain: 'آپ آف لائن ہیں۔ انٹرنیٹ سے جڑیں اور دوبارہ کوشش کریں۔',
     tryAgain: 'دوبارہ کوشش کریں',
     shareMessage: 'Every Bible ضرور دیکھیں!',
     all: 'تمام',
@@ -427,11 +428,16 @@ export const ur = {
     ledgerThisMonth_one: '{{month}} · {{count}} میں سے {{active}} دن',
     ledgerThisMonth_other: '{{month}} · {{count}} میں سے {{active}} دن',
     ledgerThisWeek: 'اس ہفتے · {{total}} میں سے {{active}} دن',
-    streakUnitLabel: 'دن کا تسلسل',
+    streakUnitLabel_one: 'دن کا تسلسل',
+    streakUnitLabel_other: 'دن کا تسلسل',
     dayEyebrow: 'دن',
     lessonsProgress: '{{completed}} / {{total}} اسباق',
     nextLesson: 'اگلا · {{title}}',
     readPassage: '{{passage}} پڑھیں',
+    borrowedPassageTitle: '{{translation}} میں {{passage}} موجود نہیں ہے',
+    borrowedPassageBody:
+      'آج کی آیت {{fallback}} سے لی گئی ہے۔ وہاں باب پڑھنے سے آپ کی بائبل {{fallback}} پر بدل جائے گی؛ آپ کسی بھی وقت واپس بدل سکتے ہیں۔',
+    readInTranslation: '{{translation}} میں پڑھیں',
     goodMorning: 'صبح بخیر',
     goodAfternoon: 'دوپہر بخیر',
     goodEvening: 'شام بخیر',
@@ -671,6 +677,11 @@ export const ur = {
     chapterFeedbackSuccess:
       'آپ کی رائے کا شکریہ۔ ہمیں آپ کی رائے موصول ہو گئی ہے اور ہماری ترجمے کی ٹیمیں جلد از جلد اس کا جائزہ لیں گی۔',
     chapterFeedbackSignInRequired: 'باب پر رائے بھیجنے سے پہلے براہِ کرم سائن اِن کریں۔',
+    chapterFeedbackQueuedTitle: 'بعد میں بھیجنے کے لیے محفوظ',
+    chapterFeedbackQueued:
+      'آپ آف لائن ہیں، اس لیے آپ کی رائے اس ڈیوائس پر محفوظ کر لی گئی ہے۔ انٹرنیٹ بحال ہونے پر یہ خود بخود بھیج دی جائے گی۔',
+    chapterFeedbackOffline:
+      'آپ آف لائن ہیں۔ آپ کی رائے یہیں محفوظ ہے؛ انٹرنیٹ سے جڑنے پر اسے بھیجیں۔',
     translatorReviewTitle: 'درستگی کا جائزہ',
     translatorReviewSummary: 'زیرِ انتظار فیصلے: {{count}} میں سے {{pending}}',
     translatorReviewSummaryComplete: 'درستگی کے تمام جائزے مکمل ہو گئے',

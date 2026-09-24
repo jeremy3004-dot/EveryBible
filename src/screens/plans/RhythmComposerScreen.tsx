@@ -32,6 +32,7 @@ import type { RhythmSlot } from '../../services/plans/types';
 import { RHYTHM_MUTATION_ERROR_CODES } from '../../stores/readingPlansStore';
 import { useReadingPlansStore } from '../../stores/readingPlansStore';
 import { mediumHaptic, successHaptic } from '../../utils';
+import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../design/largeTextLayout';
 
 type SlotFilter = 'all' | 'anytime' | RhythmSlot;
 
@@ -320,7 +321,10 @@ export function RhythmComposerScreen({ navigation, route }: RhythmComposerScreen
         edges={['top']}
       >
         <View style={styles.errorContainer}>
-          <Text style={[styles.errorTitle, displayFont.bold, { color: colors.primaryText }]}>
+          <Text
+            maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
+            style={[styles.errorTitle, displayFont.bold, { color: colors.primaryText }]}
+          >
             {t('readingPlans.rhythms')}
           </Text>
           <Text style={[styles.errorBody, { color: colors.secondaryText }]}>
@@ -362,6 +366,7 @@ export function RhythmComposerScreen({ navigation, route }: RhythmComposerScreen
           </TouchableOpacity>
           <View style={styles.headerCopy}>
             <Text
+              maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
               accessibilityRole="header"
               style={[styles.screenTitle, displayFont.bold, { color: colors.primaryText }]}
             >

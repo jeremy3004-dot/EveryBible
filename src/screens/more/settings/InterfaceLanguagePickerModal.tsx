@@ -6,6 +6,7 @@ import { useDisplayFont } from '../../../hooks';
 import { AppButton } from '../../../components/ui';
 import { SUPPORTED_LANGUAGES, type LanguageCode } from '../../../constants/languages';
 import { radius, spacing, typography } from '../../../design/system';
+import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../../design/largeTextLayout';
 import { ICON_STROKE, modalStyles } from './settingsStyles';
 
 interface InterfaceLanguagePickerModalProps {
@@ -43,6 +44,7 @@ export function InterfaceLanguagePickerModal({
           ]}
         >
           <Text
+            maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
             accessibilityRole="header"
             style={[modalStyles.modalTitle, displayFont.bold, { color: colors.primaryText }]}
           >
