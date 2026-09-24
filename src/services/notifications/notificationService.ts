@@ -3,6 +3,7 @@ import * as Notifications from 'expo-notifications';
 import type { DevicePushToken } from 'expo-notifications';
 import Constants from 'expo-constants';
 import i18n from '../../i18n';
+import { parseReminderTime } from '../preferences/reminderPreferences';
 import { supabase } from '../supabase';
 export { setupNotificationHandler } from './notificationBootstrap';
 
@@ -131,6 +132,31 @@ export async function requestNotificationPermissions(): Promise<boolean> {
   return (await requestNotificationPermissionOutcome()) === 'granted';
 }
 
+const DAILY_REMINDER_ID = 'daily-reading-reminder';
+
+/**
+ * What the scheduled reminder was last set to in this process: `null` when
+ * unknown (a fresh launch — a reminder from an older build, or one left behind
+ * by a signed-out account, may still be armed), `'off'` once it is cancelled,
+ * otherwise a signature of everything that is fixed at scheduling time.
+ */
+let scheduledReminderSignature: string | null = null;
+
+/**
+ * Everything a scheduled reminder bakes in: its time, its text (resolved in the
+ * app language of the moment) and the zone offset Android turned that local time
+ * into an absolute alarm with. When any of them changes it must be rescheduled.
+ */
+function getReminderSignature(hour: number, minute: number): string {
+  return JSON.stringify([
+    hour,
+    minute,
+    i18n.t('settings.notificationTitle'),
+    i18n.t('settings.notificationBody'),
+    new Date().getTimezoneOffset(),
+  ]);
+}
+
 /**
  * Schedule a daily reading reminder at the given hour and minute.
  *
@@ -147,10 +173,12 @@ export async function scheduleDailyReminder(hour: number, minute: number): Promi
 
   // Cancel the existing scheduled notification first (if any).
   // Use catch() so that a missing notification does not throw.
-  await Notifications.cancelScheduledNotificationAsync('daily-reading-reminder').catch(() => {});
+  scheduledReminderSignature = null;
+  await Notifications.cancelScheduledNotificationAsync(DAILY_REMINDER_ID).catch(() => {});
 
+  const signature = getReminderSignature(hour, minute);
   await Notifications.scheduleNotificationAsync({
-    identifier: 'daily-reading-reminder',
+    identifier: DAILY_REMINDER_ID,
     content: {
       title: i18n.t('settings.notificationTitle'),
       body: i18n.t('settings.notificationBody'),
@@ -163,6 +191,7 @@ export async function scheduleDailyReminder(hour: number, minute: number): Promi
       channelId: 'daily-reminder',
     },
   });
+  scheduledReminderSignature = signature;
 }
 
 /**
@@ -173,7 +202,43 @@ export async function scheduleDailyReminder(hour: number, minute: number): Promi
  * group session alerts) that the user may have enabled.
  */
 export async function cancelDailyReminder(): Promise<void> {
-  await Notifications.cancelScheduledNotificationAsync('daily-reading-reminder').catch(() => {});
+  await Notifications.cancelScheduledNotificationAsync(DAILY_REMINDER_ID).catch(() => {});
+  scheduledReminderSignature = 'off';
+}
+
+export interface DailyReminderPreference {
+  notificationsEnabled: boolean;
+  reminderTime: string | null;
+}
+
+/**
+ * Brings the device's scheduled reminder in line with the saved preference.
+ *
+ * Settings schedules the reminder when the user picks a time, but the schedule
+ * then drifts from the preference: its text stays in the language it was set in,
+ * Android keeps the old zone's alarm after travel, a preference pulled from
+ * another device (or reset by sign-out) never touches this device's schedule.
+ * Reconciling on launch, on foreground and on each change closes all of those.
+ * Only work that would change something reaches the native module.
+ */
+export async function reconcileDailyReminder({
+  notificationsEnabled,
+  reminderTime,
+}: DailyReminderPreference): Promise<void> {
+  const schedule = notificationsEnabled ? parseReminderTime(reminderTime) : null;
+
+  if (!schedule) {
+    if (scheduledReminderSignature !== 'off') {
+      await cancelDailyReminder();
+    }
+    return;
+  }
+
+  if (scheduledReminderSignature === getReminderSignature(schedule.hour, schedule.minute)) {
+    return;
+  }
+
+  await scheduleDailyReminder(schedule.hour, schedule.minute);
 }
 
 /**
