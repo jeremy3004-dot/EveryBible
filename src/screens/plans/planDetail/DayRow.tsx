@@ -21,6 +21,7 @@ export const CURRENT_PLAN_DAY_ROW_TEST_ID = 'plan-detail-current-day-row';
 /** The mono day column in a ledger row. */
 const LEDGER_DAY_WIDTH = 56;
 const NO_SESSION_ACTIONS: PlanDaySessionAction[] = [];
+const SESSION_PILL_HIT_SLOP = { top: 6, bottom: 6 };
 
 function formatChapterRef(
   entry: ReadingPlanEntry,
@@ -95,6 +96,8 @@ export const DayRow = memo(function DayRow({
             pressEffect="translate"
             haptic="light"
             onPress={() => onPress(dayNumber, action.sessionKey)}
+            // The pill is 32pt tall; 6pt above and below reach the 44pt floor.
+            hitSlop={SESSION_PILL_HIT_SLOP}
             accessibilityRole="button"
             accessibilityLabel={t('interface.planSessionForDay', {
               session: action.label,

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { radius, spacing, typography } from '../../../design/system';
 import {
@@ -15,6 +16,7 @@ import { BookIcon } from '../../../components/bible/BookIcon';
 import Animated, { SlideInDown, SlideOutDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../contexts/ThemeContext';
+import { announceLiveRegionText } from '../../../utils/a11y';
 import { ReaderListenProgress } from '../ReaderAudioPositionParts';
 import { PlaybackControls } from '../../../components/audio/PlaybackControls';
 import type { ChapterFeedback } from './useChapterFeedback';
@@ -83,6 +85,13 @@ export function ReaderListenMode({
 
   const listenStatus = isCurrentAudioChapter ? status : 'idle';
   const listenCountedNoticeViewModel = getListenCountedNoticeViewModel(listenCountedNotice);
+  const countedNoticeLabel = listenCountedNoticeViewModel?.accessibilityLabel ?? null;
+
+  // The notice slides in and leaves on a timer while the reader listens; it is
+  // spoken so plan progress is not recorded in silence.
+  useEffect(() => {
+    if (countedNoticeLabel) announceLiveRegionText(countedNoticeLabel);
+  }, [countedNoticeLabel]);
 
   return (
     <View style={styles.listenColumn}>
@@ -123,6 +132,9 @@ export function ReaderListenMode({
           {listenCountedNoticeViewModel ? (
             <Animated.View
               testID={LISTEN_COUNTED_NOTICE_TEST_ID}
+              // iOS drops a View's label unless the View is an element itself.
+              accessible
+              accessibilityLiveRegion="polite"
               accessibilityLabel={listenCountedNoticeViewModel.accessibilityLabel}
               entering={SlideInDown.springify().damping(20).stiffness(220)}
               exiting={SlideOutDown.duration(180)}

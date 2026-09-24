@@ -54,7 +54,11 @@ export function AudioPortionShareSheet({
       animationType="fade"
       onRequestClose={handleCloseAudioPortionSheet}
     >
-      <View style={[readerSharedStyles.feedbackModalOverlay, { backgroundColor: colors.overlay }]}>
+      <View
+        style={[readerSharedStyles.feedbackModalOverlay, { backgroundColor: colors.overlay }]}
+        // VoiceOver's escape gesture closes it, as Android back does.
+        onAccessibilityEscape={handleCloseAudioPortionSheet}
+      >
         <TouchableOpacity
           style={readerSharedStyles.feedbackModalBackdrop}
           activeOpacity={1}

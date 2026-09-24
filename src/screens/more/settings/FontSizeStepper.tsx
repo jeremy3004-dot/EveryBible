@@ -21,7 +21,21 @@ export function FontSizeStepper() {
   const { label: fontSizeLabel, increase, decrease, canIncrease, canDecrease } = useFontSize();
 
   return (
-    <View style={styles.fontSizeControls}>
+    // One adjustable element for screen readers: swipe up/down steps the size and
+    // the new size is spoken as the value. As two buttons, a press said nothing
+    // and the size between them had to be found separately.
+    <View
+      style={styles.fontSizeControls}
+      accessible
+      accessibilityRole="adjustable"
+      accessibilityLabel={t('settings.fontSize')}
+      accessibilityValue={{ text: fontSizeLabel }}
+      accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+      onAccessibilityAction={(event) => {
+        if (event.nativeEvent.actionName === 'increment' && canIncrease) increase();
+        if (event.nativeEvent.actionName === 'decrement' && canDecrease) decrease();
+      }}
+    >
       <TouchableOpacity
         style={[
           styles.fontSizeButton,

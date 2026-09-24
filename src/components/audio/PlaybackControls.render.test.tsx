@@ -111,6 +111,8 @@ test('the chapter-only transport can hide its utility row and keep play, previou
 test('the repeat utility announces the current mode and cycles it when pressed', async () => {
   const off = await renderControls({ repeatMode: 'off' });
   const repeatOff = off.view.getByRole('button', { name: t('audio.repeatOff') });
+  // A 38pt icon-only pill widened to the 44pt touch floor.
+  assert.deepEqual(repeatOff.props.hitSlop, { top: 4, bottom: 4, left: 3, right: 3 });
   assert.equal(repeatOff.props.accessibilityHint, t('interface.repeatHint'));
   assert.equal(within(repeatOff).queryByText('1'), null);
   await off.view.press(repeatOff);

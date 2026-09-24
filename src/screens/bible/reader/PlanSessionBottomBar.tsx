@@ -19,6 +19,8 @@ export interface PlanSessionBottomBarProps {
   hasNextChapter: boolean;
   hasOtherIncompletePlanSessions: boolean;
   hasPrevChapter: boolean;
+  /** The strip has scrolled out with the rest of the reader chrome. */
+  isCollapsed: boolean;
   isLastPlanChapter: boolean;
   planDayNumber: number | undefined;
   planSessionBottomBarAnimatedStyle: { transform: { translateY: number }[]; opacity: number };
@@ -40,6 +42,7 @@ export function PlanSessionBottomBar({
   hasNextChapter,
   hasOtherIncompletePlanSessions,
   hasPrevChapter,
+  isCollapsed,
   isLastPlanChapter,
   planDayNumber,
   planSessionBottomBarAnimatedStyle,
@@ -82,6 +85,12 @@ export function PlanSessionBottomBar({
 
   return (
     <Animated.View
+      // Collapsed, the strip is transparent and below the screen edge but still
+      // mounted: without this VoiceOver kept landing on (and taps kept hitting)
+      // its invisible Previous and Complete day buttons.
+      pointerEvents={isCollapsed ? 'none' : 'auto'}
+      accessibilityElementsHidden={isCollapsed}
+      importantForAccessibility={isCollapsed ? 'no-hide-descendants' : 'auto'}
       style={[
         styles.planSessionBottomBar,
         planSessionBottomBarAnimatedStyle,

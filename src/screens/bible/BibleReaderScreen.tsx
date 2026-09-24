@@ -281,7 +281,14 @@ export function BibleReaderScreen() {
       downloadedAudioBooks: translation.downloadedAudioBooks,
       bookId: targetBookId,
     });
-  const { scaleValue, increase, decrease, canIncrease, canDecrease } = useFontSize();
+  const {
+    label: fontSizeLabel,
+    scaleValue,
+    increase,
+    decrease,
+    canIncrease,
+    canDecrease,
+  } = useFontSize();
   const {
     status,
     error: audioError,
@@ -1272,6 +1279,7 @@ export function BibleReaderScreen() {
         hasNextChapter={hasNextChapter}
         hasOtherIncompletePlanSessions={hasOtherIncompletePlanSessions}
         hasPrevChapter={hasPrevChapter}
+        isCollapsed={isReadBottomChromeCollapsed}
         isLastPlanChapter={isLastPlanChapter}
         planDayNumber={planDayNumber}
         planSessionBottomBarAnimatedStyle={planSessionBottomBarAnimatedStyle}
@@ -1321,6 +1329,7 @@ export function BibleReaderScreen() {
         canDecrease={canDecrease}
         canIncrease={canIncrease}
         decrease={decrease}
+        fontSizeLabel={fontSizeLabel}
         handleCloseFontSizeSheet={handleCloseFontSizeSheet}
         handleOpenAllSettings={handleOpenAllSettings}
         handleReaderThemeChange={handleReaderThemeChange}

@@ -478,6 +478,10 @@ test('feedback that cannot be kept offline stays in the composer with an offline
   assert.ok(view.getByText(t('bible.chapterFeedbackOffline')));
   assert.equal(view.queryByText(t('common.unexpectedError')), null);
   assert.deepEqual(harness.rn.__recorded.alerts, []);
+  assert.ok(
+    harness.rn.__recorded.announcements.includes(t('bible.chapterFeedbackOffline')),
+    'VoiceOver hears the notice, which is otherwise only a TalkBack live region'
+  );
 });
 
 test('at large text the feedback identity drops under the heading and wraps instead of truncating', async () => {

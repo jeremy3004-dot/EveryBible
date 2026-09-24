@@ -174,6 +174,7 @@ export function ReadingSettingsSection({
               title={t('feedback.community')}
               leadingIcon={User}
               value={participationMode === 'community' ? '✓' : undefined}
+              selected={participationMode === 'community'}
               accessibilityLabel={t('feedback.community')}
               onPress={onSelectCommunity}
             />
@@ -182,7 +183,9 @@ export function ReadingSettingsSection({
               leadingIcon={KeyRound}
               subtitle={t('feedback.councilCodeRequired')}
               value={participationMode === 'scripture_council' ? '✓' : undefined}
-              accessibilityLabel={t('feedback.council')}
+              selected={participationMode === 'scripture_council'}
+              // The glyph value is left out, but the code requirement is read.
+              accessibilityLabel={`${t('feedback.council')}, ${t('feedback.councilCodeRequired')}`}
               onPress={onSelectCouncil}
             />
           </>
@@ -198,6 +201,7 @@ export function ReadingSettingsSection({
           leadingIcon={KeyRound}
           onPress={() => onTranslatorReviewToggle(!translatorReviewEnabled)}
           accessibilityLabel={t('settings.translatorAccess')}
+          checked={translatorReviewEnabled}
           trailing={
             <Switch
               value={translatorReviewEnabled}

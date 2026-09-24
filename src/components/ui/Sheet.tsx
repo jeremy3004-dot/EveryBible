@@ -127,6 +127,10 @@ export function Sheet({ visible, onClose, children, title, contentStyle, closeLa
             // wander back into the screen behind it. iOS-only: Android uses
             // importantForAccessibility, which the RN Modal already applies.
             accessibilityViewIsModal={Platform.OS === 'ios'}
+            // VoiceOver's two-finger scrub ("escape") closes the sheet, as the
+            // Android back button does through onRequestClose. An RN Modal does
+            // not answer the gesture on its own.
+            onAccessibilityEscape={onClose}
             style={[
               styles.sheet,
               shadows.floating,

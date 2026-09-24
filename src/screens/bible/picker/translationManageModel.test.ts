@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import type { BibleTranslation } from '../../../types';
 import {
   buildTranslationManageModel,
+  getManageRowAccessibilityValue,
   getNewTestamentAudioBookIds,
   type TranslationManageModelInput,
 } from './translationManageModel';
@@ -172,4 +173,29 @@ test('no audio section without manageable audio or known book coverage', () => {
     assert.equal(result.showsAudio, false);
     assert.deepEqual([result.audioRows, result.audioBookRows], [[], []]);
   }
+});
+
+test('a manage row states its download status in words, since it is otherwise only a glyph', () => {
+  const t = (key: string) => `<${key}>`;
+
+  assert.deepEqual(
+    [
+      getManageRowAccessibilityValue({ state: 'done' }, t),
+      getManageRowAccessibilityValue({ state: 'unavailable' }, t),
+      getManageRowAccessibilityValue({ state: 'download' }, t),
+      getManageRowAccessibilityValue({ state: 'download', meta: '1.2 GB' }, t),
+      getManageRowAccessibilityValue({ state: 'busy', progress: 40 }, t),
+      getManageRowAccessibilityValue({ state: 'busy', progress: 40, indeterminate: true }, t),
+      getManageRowAccessibilityValue({ state: 'busy' }, t),
+    ],
+    [
+      '<translations.installed>',
+      '<bible.notAvailableYet>',
+      '<translations.download>',
+      '<translations.download>, 1.2 GB',
+      '40%',
+      '<translations.downloading>',
+      '<translations.downloading>',
+    ]
+  );
 });

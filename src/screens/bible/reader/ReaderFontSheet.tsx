@@ -13,6 +13,8 @@ export interface ReaderFontSheetProps {
   canDecrease: boolean;
   canIncrease: boolean;
   decrease: () => void;
+  /** The current size's name ("Medium"), spoken as the stepper's value. */
+  fontSizeLabel: string;
   handleCloseFontSizeSheet: () => void;
   handleOpenAllSettings: () => void;
   handleReaderThemeChange: (mode: ThemeMode) => void;
@@ -29,6 +31,7 @@ export function ReaderFontSheet({
   canDecrease,
   canIncrease,
   decrease,
+  fontSizeLabel,
   handleCloseFontSizeSheet,
   handleOpenAllSettings,
   handleReaderThemeChange,
@@ -50,7 +53,11 @@ export function ReaderFontSheet({
       animationType="fade"
       onRequestClose={handleCloseFontSizeSheet}
     >
-      <View style={[styles.fontSheetOverlay, { backgroundColor: colors.overlay }]}>
+      <View
+        style={[styles.fontSheetOverlay, { backgroundColor: colors.overlay }]}
+        // VoiceOver's escape gesture closes it, as Android back does.
+        onAccessibilityEscape={handleCloseFontSizeSheet}
+      >
         <TouchableOpacity
           style={styles.fontSheetBackdrop}
           activeOpacity={1}
@@ -97,7 +104,20 @@ export function ReaderFontSheet({
               Aa
             </Text>
           </View>
-          <View style={styles.readerFontStepperRow}>
+          <View
+            style={styles.readerFontStepperRow}
+            // One adjustable element for screen readers: the size preview above
+            // is hidden from them, so two plain buttons stepped the size silently.
+            accessible
+            accessibilityRole="adjustable"
+            accessibilityLabel={t('settings.fontSize')}
+            accessibilityValue={{ text: fontSizeLabel }}
+            accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+            onAccessibilityAction={(event) => {
+              if (event.nativeEvent.actionName === 'increment' && canIncrease) increase();
+              if (event.nativeEvent.actionName === 'decrement' && canDecrease) decrease();
+            }}
+          >
             <TouchableOpacity
               style={[
                 styles.readerFontStepperButton,

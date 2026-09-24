@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -5,6 +6,7 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import { useDisplayFont } from '../../../hooks/useDisplayFont';
 import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../../design/largeTextLayout';
 import { layout, radius, spacing, typography } from '../../../design/system';
+import { announceLiveRegionText } from '../../../utils/a11y';
 
 type RhythmStatusViewProps =
   | { status: 'loading' }
@@ -18,22 +20,40 @@ export function RhythmStatusView(props: RhythmStatusViewProps) {
   const { colors } = useTheme();
   const displayFont = useDisplayFont();
   const { t } = useTranslation();
+  const errorMessage = props.status === 'error' ? props.message : null;
+
+  // The error replaces the spinner in place, so it is spoken (a live region
+  // covers TalkBack).
+  useEffect(() => {
+    if (errorMessage) announceLiveRegionText(errorMessage);
+  }, [errorMessage]);
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top']}>
       {props.status === 'loading' ? (
-        <View style={styles.loadingContainer}>
+        <View
+          style={styles.loadingContainer}
+          accessible
+          accessibilityState={{ busy: true }}
+          accessibilityLabel={t('common.loading')}
+        >
           <ActivityIndicator size="large" color={colors.accentPrimary} />
         </View>
       ) : (
         <View style={styles.errorContainer}>
           <Text
             maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
+            accessibilityRole="header"
             style={[styles.errorTitle, displayFont.bold, { color: colors.primaryText }]}
           >
             {t('readingPlans.rhythms')}
           </Text>
-          <Text style={[styles.errorBody, { color: colors.secondaryText }]}>{props.message}</Text>
+          <Text
+            accessibilityLiveRegion="polite"
+            style={[styles.errorBody, { color: colors.secondaryText }]}
+          >
+            {props.message}
+          </Text>
           <TouchableOpacity
             onPress={props.onBack}
             activeOpacity={0.85}

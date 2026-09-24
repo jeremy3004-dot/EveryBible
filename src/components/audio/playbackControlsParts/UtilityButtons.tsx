@@ -16,7 +16,9 @@ import { playbackControlsStyles as styles } from './playbackControlsStyles';
 // Each utility is memoised on plain values and stable handlers, so the sleep
 // timer's minute countdown redraws the timer pill and nothing else.
 
-const UTILITY_HIT_SLOP = { top: 4, bottom: 4 };
+// Pills are 38pt at their smallest (icon-only), so 3pt a side reaches the
+// 44pt touch floor without reaching into the 12pt gap's far half.
+const UTILITY_HIT_SLOP = { top: 4, bottom: 4, left: 3, right: 3 };
 
 function useUtilitySurface() {
   const { colors } = useTheme();

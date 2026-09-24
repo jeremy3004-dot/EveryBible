@@ -10,6 +10,8 @@ import { AuthFieldError } from './AuthFieldError';
 import { useAuthScreenStyles } from './authScreenStyles';
 import type { AuthFlow } from './useAuthFlow';
 
+const EYE_HIT_SLOP = { top: 8, bottom: 8, left: 13, right: 13 };
+
 type AuthEmailFormProps = Pick<
   AuthFlow,
   | 'mode'
@@ -113,7 +115,9 @@ export function AuthEmailForm({
             style={styles.eyeButton}
             onPress={toggleShowPassword}
             disabled={isLoading}
-            hitSlop={8}
+            // An 18pt glyph: 13pt a side makes the 44pt-wide target; the
+            // button already spans the field's height.
+            hitSlop={EYE_HIT_SLOP}
             haptic="light"
             accessibilityRole="button"
             accessibilityLabel={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}

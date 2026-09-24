@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { Linking, StyleSheet, Switch, Text, View } from 'react-native';
 import { Bell, Clock, TriangleAlert } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
@@ -7,6 +8,7 @@ import { useNotificationsBlockedBySystem } from '../../../hooks/useNotifications
 import { AppButton, AppCard, ListRow } from '../../../components/ui';
 import { radius, spacing, typography } from '../../../design/system';
 import { ICON_STROKE, sectionStyles, useSettingSwitchColors } from './settingsStyles';
+import { announceForAccessibility } from '../../../utils/a11y';
 
 /** A row that cannot act yet still has to be legible, just clearly inert. */
 const DISABLED_ROW_OPACITY = 0.45;
@@ -36,6 +38,23 @@ export function NotificationSettingsSection({
   // A reminder synced on from another device, on a device never asked: one tap asks.
   // Denied for good: only system settings can turn it back on.
   const needsPermission = systemBlock === 'needs-permission';
+  const blockedNotice = systemBlock
+    ? t(
+        needsPermission
+          ? 'settings.notificationsNotAllowedNotice'
+          : 'settings.notificationsBlockedNotice'
+      )
+    : null;
+
+  // Turning the reminder on reads back "on" while the system still blocks it;
+  // the notice that appears below says it will never fire, so it is spoken.
+  // Opening Settings with the notice already up is not a change.
+  const shownNoticeRef = useRef(blockedNotice);
+  useEffect(() => {
+    if (shownNoticeRef.current === blockedNotice) return;
+    shownNoticeRef.current = blockedNotice;
+    if (blockedNotice) announceForAccessibility(blockedNotice);
+  }, [blockedNotice]);
 
   return (
     <View style={sectionStyles.group}>
@@ -65,11 +84,7 @@ export function NotificationSettingsSection({
             <View style={styles.blockedNoticeCopy}>
               <TriangleAlert size={18} color={colors.onWarningSoft} strokeWidth={ICON_STROKE} />
               <Text style={[styles.blockedNoticeText, { color: colors.onWarningSoft }]}>
-                {t(
-                  needsPermission
-                    ? 'settings.notificationsNotAllowedNotice'
-                    : 'settings.notificationsBlockedNotice'
-                )}
+                {blockedNotice}
               </Text>
             </View>
             <AppButton

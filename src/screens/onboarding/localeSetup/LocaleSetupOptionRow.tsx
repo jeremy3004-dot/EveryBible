@@ -180,6 +180,9 @@ interface SectionEyebrowProps {
 export function SectionEyebrow({ label, colors, eyebrowFont }: SectionEyebrowProps) {
   return (
     <Text
+      // Section labels ("Suggested", "All nations") are the list's headings, so
+      // the rotor can jump between them in a long list.
+      accessibilityRole="header"
       style={[
         typography.eyebrow,
         eyebrowFont,

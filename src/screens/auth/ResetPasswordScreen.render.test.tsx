@@ -191,6 +191,11 @@ test('a new password shorter than six characters, or not repeated exactly, is no
   await view.changeText(view.getByLabelText(t('auth.confirmNewPassword')), 'new-secre');
   await view.press(view.getByRole('button', { name: t('auth.resetPasswordSubmit') }));
   assert.ok(view.getByText(t('auth.passwordsDoNotMatch')));
+  // Live regions are TalkBack-only, so VoiceOver is told each refusal.
+  assert.deepEqual(harness.rn.__recorded.announcements, [
+    t('auth.passwordMinLength'),
+    t('auth.passwordsDoNotMatch'),
+  ]);
 
   assert.deepEqual(pulls, []);
   assert.equal(
@@ -207,6 +212,7 @@ test('a password update refused while the service is down says so, translated', 
 
   assert.ok(view.getByText(t('auth.serviceUnavailable')));
   assert.equal(view.queryByText('raw 503'), null);
+  assert.deepEqual(harness.rn.__recorded.announcements, [t('auth.serviceUnavailable')]);
 });
 
 test('a failed request for a new link keeps the reader on the screen with the reason', async () => {
@@ -219,6 +225,7 @@ test('a failed request for a new link keeps the reader on the screen with the re
 
   assert.deepEqual(recovery.resets, ['ruth@example.com']);
   assert.ok(view.getByLabelText(`${t('auth.email')}, ${t('auth.resetEmailError')}`));
+  assert.deepEqual(harness.rn.__recorded.announcements, [t('auth.resetEmailError')]);
   assert.equal(
     harness.rn.__recorded.alerts.some((alert) => alert.title === t('auth.checkYourEmail')),
     false

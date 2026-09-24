@@ -358,6 +358,8 @@ test("a multi-session day offers a button per session, and each opens exactly th
   const morning = view.getByRole('button', { name: 'Morning Kathismata for day 5' });
   const evening = view.getByRole('button', { name: 'Evening Kathismata for day 5' });
   assert.ok(morning);
+  // 32pt pills reach the 44pt touch floor through their slop.
+  assert.deepEqual(morning.props.hitSlop, { top: 6, bottom: 6 });
 
   await view.press(evening);
 

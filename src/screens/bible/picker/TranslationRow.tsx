@@ -25,7 +25,8 @@ interface TranslationRowProps {
   onCancelQueued: (id: string) => void;
 }
 
-const CANCEL_HIT_SLOP = { top: 8, bottom: 8, left: 8, right: 8 };
+// A 20pt glyph: 12pt a side makes the 44pt touch floor.
+const CANCEL_HIT_SLOP = { top: 12, bottom: 12, left: 12, right: 12 };
 const MORE_HIT_SLOP = { top: 6, bottom: 6, left: 6, right: 6 };
 
 // One row per Bible. Tap the row to read it (or start its download); the
@@ -105,7 +106,10 @@ export const TranslationRow = memo(function TranslationRow({
               }
             : showsQueued
               ? { text: t('translations.queued') }
-              : undefined
+              : needsTextDownload && !isSelected
+                ? // Only the download glyph says a tap fetches it rather than opens it.
+                  { text: t('translations.download') }
+                : undefined
         }
         // The nested cancel button is not reachable by VoiceOver inside this
         // row, so it is also offered as a custom action.
@@ -195,7 +199,9 @@ export const TranslationRow = memo(function TranslationRow({
         onPress={() => onManage(translation.id)}
         hitSlop={MORE_HIT_SLOP}
         accessibilityRole="button"
-        accessibilityLabel={t('gather.moreOptions')}
+        // Every row has one; naming the Bible tells them apart (and gives Voice
+        // Control a unique name).
+        accessibilityLabel={`${t('gather.moreOptions')}, ${translation.name}`}
         testID={`translation-picker-more-${translation.id}`}
       >
         <Ionicons name="ellipsis-horizontal" size={18} color={colors.bibleSecondaryText} />

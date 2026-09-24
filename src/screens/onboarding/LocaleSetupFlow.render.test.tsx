@@ -92,7 +92,9 @@ test('first run opens straight on the Bible language step with search and the wh
       name: 'English, Berean Standard Bible (BSB) · Text, Recommended',
     })
   );
-  for (const letter of ['H', 'N']) assert.ok(view.getByText(letter), `section ${letter} is listed`);
+  for (const letter of ['H', 'N']) {
+    assert.ok(view.getByRole('header', { name: letter }), `section ${letter} is a heading`);
+  }
   for (const languageName of [
     /^Hausa, /,
     /^Hindi \/ हिन्दी, /,
@@ -105,7 +107,9 @@ test('first run opens straight on the Bible language step with search and the wh
 
   // App language is an inline control, not a step of its own.
   const appLanguage = view.getByTestId('onboarding-interface-language-toggle');
-  assert.ok(within(appLanguage).getByRole('button', { name: 'App language' }));
+  assert.ok(
+    within(appLanguage).getByRole('button', { name: 'App language, English', expanded: false })
+  );
   assert.equal(view.queryByTestId('onboarding-interface-language-search'), null);
   assert.equal(view.queryByTestId('onboarding-interface-language-inline-picker'), null);
 
@@ -247,11 +251,13 @@ test('choosing an app language closes the picker and stays on the Bible step eve
   const warn = mock.method(console, 'warn', () => {});
   try {
     const view = await fakes.renderFlow();
-    await view.press(view.getByRole('button', { name: 'App language' }));
+    await view.press(view.getByRole('button', { name: 'App language, English' }));
+    assert.ok(view.getByRole('button', { name: 'App language, English', expanded: true }));
 
+    // Each language is read by its own name and its English name, as shown.
     const picker = view.getByTestId('onboarding-interface-language-inline-picker');
-    assert.ok(within(picker).getByRole('button', { name: /^App language/, selected: true }));
-    await view.press(within(picker).getByRole('button', { name: /^Idioma de la app/ }));
+    assert.ok(within(picker).getByRole('button', { name: 'English', selected: true }));
+    await view.press(within(picker).getByRole('button', { name: 'Español, Spanish' }));
     await view.flush();
 
     assert.deepEqual(fakes.changeLanguage.calls, ['es']);
@@ -577,6 +583,20 @@ test('the footer fades the list out and its primary action names the chosen nati
 
   assert.ok(within(action).getByRole('button', { name: 'Continue with India' }));
   assert.ok(view.getByText(t('onboarding.searchAboveHint')));
+});
+
+test('the settings header Done grows past its 56pt slot instead of breaking mid-word', async () => {
+  const { CONTROL_LABEL_MAX_FONT_SCALE } = await import('../../design/largeTextLayout');
+  harness.setFontScale(3);
+  const view = await renderSettings();
+
+  const done = within(view.getByRole('button', { name: t('common.done') })).getByText(
+    t('common.done')
+  );
+  assert.equal(done.props.maxFontSizeMultiplier, CONTROL_LABEL_MAX_FONT_SCALE);
+  const slot = hostAncestors(done).find((node) => flattenStyle(node.props.style)?.minWidth === 56);
+  assert.ok(slot, 'the side slot is a floor');
+  assert.equal(flattenStyle(slot.props.style)?.width, undefined);
 });
 
 test('backward navigation is the header icon button only, and in settings it closes the flow', async () => {

@@ -19,6 +19,7 @@ import {
   buildTranslationManageModel,
   type ManageDownloadRowModel,
   type ManageLibraryAction,
+  getManageRowAccessibilityValue,
 } from './translationManageModel';
 import { groupPosition } from './translationPickerRowsModel';
 import { useManageAudioDownloads } from './useManageAudioDownloads';
@@ -245,7 +246,10 @@ export function TranslationManageSheet({
 
         {model.showsAudio ? (
           <>
-            <Text style={[styles.sectionEyebrow, { color: colors.bibleSecondaryText }]}>
+            <Text
+              accessibilityRole="header"
+              style={[styles.sectionEyebrow, { color: colors.bibleSecondaryText }]}
+            >
               {t('bible.byBook')}
             </Text>
             {model.audioBookRows.map((row, index) => (
@@ -262,6 +266,8 @@ export function TranslationManageSheet({
                 activeOpacity={row.canStart ? 0.82 : 1}
                 accessibilityRole="button"
                 accessibilityLabel={getTranslatedBookName(row.bookId, t)}
+                accessibilityValue={{ text: getManageRowAccessibilityValue(row, t) }}
+                accessibilityState={{ disabled: !row.canStart, busy: row.state === 'busy' }}
               >
                 <Text style={[styles.rowTitle, styles.rowText, { color: colors.biblePrimaryText }]}>
                   {getTranslatedBookName(row.bookId, t)}

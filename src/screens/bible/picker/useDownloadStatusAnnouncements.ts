@@ -37,6 +37,6 @@ export function useDownloadStatusAnnouncements(
       queuedId
     );
     statusesRef.current = statuses;
-    announcements.forEach((key) => announceForAccessibility(t(key)));
+    announcements.forEach(({ key, name }) => announceForAccessibility(`${name}: ${t(key)}`));
   }, [downloadTarget, queuedId, rows, t]);
 }

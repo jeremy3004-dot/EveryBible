@@ -56,6 +56,8 @@ export function ChapterFeedbackModal({ feedback, bookId, chapter }: ChapterFeedb
       onRequestClose={handleCloseFeedbackModal}
     >
       <KeyboardAvoidingView
+        // VoiceOver's escape gesture closes it, as Android back does.
+        onAccessibilityEscape={handleCloseFeedbackModal}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={safeInsets.top + spacing.lg}
         style={[readerSharedStyles.feedbackModalOverlay, { backgroundColor: colors.overlay }]}

@@ -432,6 +432,9 @@ test('the skeleton shows only while the catalog itself is still loading', async 
   const view = await renderHome();
 
   assert.ok((await skeletonCount(view)) > 0);
+  const loading = view.getByLabelText(t('common.loading'));
+  assert.equal(loading.props.accessible, true, 'the skeleton is one element, read as loading');
+  assert.deepEqual(loading.props.accessibilityState, { busy: true });
   assert.equal(view.queryByText(t('readingPlans.noActivePlans')), null);
 
   service.catalogGate.open();
@@ -1031,6 +1034,24 @@ test('completed plans list the most recently started first, and a row without a 
   );
   assert.equal(within(rows[0]).queryByText(/\d{4}/), null);
   assert.ok(within(rows[1]).getByText('Sep 20, 2026'));
+});
+
+test('a completed row reads its status and finish date, and offers Delete as a VoiceOver action', async () => {
+  await seed(
+    progressRow(GOSPELS, { is_completed: true, completed_at: '2026-09-20T10:00:00.000Z' })
+  );
+  const view = await renderHome();
+  await openTab(view, 'readingPlans.completed');
+
+  const row = view.getByRole('button', { name: titleOf(GOSPELS) });
+  assert.deepEqual(row.props.accessibilityValue, {
+    text: `${t('readingPlans.completed')}, Sep 20, 2026`,
+  });
+  assert.deepEqual(row.props.accessibilityActions, [{ name: 'delete', label: t('common.delete') }]);
+
+  await view.fire(row, 'onAccessibilityAction', { nativeEvent: { actionName: 'delete' } });
+  await view.flush();
+  assert.deepEqual(service.unenrolled, [GOSPELS]);
 });
 
 // ---- Large text ------------------------------------------------------------------

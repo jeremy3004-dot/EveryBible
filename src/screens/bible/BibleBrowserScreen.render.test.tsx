@@ -378,7 +378,8 @@ test('translator review badges mark pending and addressed feedback on books and 
     };
   };
   const pending = {
-    label: t('translatorQueue.title'),
+    // Not "Feedback queue": that is the header shortcut's name.
+    label: t('feedback.needsReview'),
     icon: 'alert',
     iconColor: colors.onAccent,
     background: colors.accentPrimary,

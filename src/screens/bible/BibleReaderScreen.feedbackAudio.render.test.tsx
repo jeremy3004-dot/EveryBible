@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { act } from 'react-test-renderer';
 import { installIntervalLeakGuard } from '../../testing/reactHookRuntime';
 import { isPrivacyLockGraceActive } from '../../services/privacy/privacyLockGrace';
+import { isHiddenFromAccessibility } from '../../testing/render';
 import { installReaderRenderFixture } from './BibleReaderScreen.renderFixture';
 
 // Chapter-feedback voice notes: recording and previewing them must never leave
@@ -41,6 +42,28 @@ async function recordDraft(view: View) {
 }
 
 // ---- Recording ------------------------------------------------------------------
+
+test('starting and stopping a voice note is spoken, since Record and Stop swap under the finger', async () => {
+  const view = await renderComposer();
+  const before = harness.rn.__recorded.announcements.length;
+
+  await view.press(recordButton(view));
+  await view.flush();
+  const recording = t('bible.chapterFeedbackAudioRecording', { duration: '0:00' });
+  assert.deepEqual(harness.rn.__recorded.announcements.slice(before), [recording]);
+
+  await view.press(view.getByRole('button', { name: t('bible.chapterFeedbackAudioStop') }));
+  await view.flush();
+  assert.deepEqual(harness.rn.__recorded.announcements.slice(before), [
+    recording,
+    t('bible.chapterFeedbackAudioReady', { duration: '0:04' }),
+  ]);
+  // The ring's bare remaining time is decoration next to the worded status.
+  const countdown = view.queryAllByType('Text').find((node) => node.props.children === '0:56');
+  assert.ok(countdown, 'the ring shows the remaining time');
+  assert.equal(isHiddenFromAccessibility(countdown), true);
+  await view.unmount();
+});
 
 test('a double tap on record starts one recording, not two', async () => {
   const view = await renderComposer();

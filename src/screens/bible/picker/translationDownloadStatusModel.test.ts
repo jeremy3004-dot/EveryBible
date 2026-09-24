@@ -22,6 +22,7 @@ const job = (state: Job['state'], progress = 30): Job => ({
 
 const runtime = {
   id: 'engnet',
+  name: 'NET Bible',
   isDownloaded: false,
   textPackLocalPath: null,
   activeDownloadJob: null,
@@ -33,7 +34,13 @@ const runtime = {
   },
 } as Pick<
   BibleTranslation,
-  'id' | 'isDownloaded' | 'textPackLocalPath' | 'activeDownloadJob' | 'hasAudio' | 'catalog'
+  | 'id'
+  | 'name'
+  | 'isDownloaded'
+  | 'textPackLocalPath'
+  | 'activeDownloadJob'
+  | 'hasAudio'
+  | 'catalog'
 >;
 
 const textTick = (progress: number, extra: Partial<TranslationDownloadProgress> = {}) => ({
@@ -147,11 +154,18 @@ test('the download target drops percent and bytes, so ticks keep the same shape'
 });
 
 const statuses = (entries: [string, TranslationRowDownloadStatus][]) => new Map(entries);
-const kjv = { ...runtime, id: 'kjv' };
+const keys = (result: { announcements: { key: string }[] }) =>
+  result.announcements.map((announcement) => announcement.key);
+const kjv = { ...runtime, id: 'kjv', name: 'King James Version' };
 
 test('starting, queueing and settling are each announced once, by Bible id', () => {
   const started = getDownloadStatusAnnouncements(statuses([]), [runtime, kjv], textTick(0), 'kjv');
-  assert.deepEqual(started.announcements, ['translations.downloading', 'translations.queued']);
+  assert.deepEqual(keys(started), ['translations.downloading', 'translations.queued']);
+  assert.deepEqual(
+    started.announcements.map((announcement) => announcement.name),
+    [runtime.name, kjv.name],
+    'each announcement names its Bible'
+  );
   assert.deepEqual(
     [...started.statuses],
     [
@@ -166,7 +180,7 @@ test('starting, queueing and settling are each announced once, by Bible id', () 
     textTick(0),
     'kjv'
   );
-  assert.deepEqual(unchanged.announcements, []);
+  assert.deepEqual(keys(unchanged), []);
 
   // The finished Bible arrives as a new object (under a new row) with its pack installed.
   const settled = getDownloadStatusAnnouncements(
@@ -175,7 +189,7 @@ test('starting, queueing and settling are each announced once, by Bible id', () 
     null,
     null
   );
-  assert.deepEqual(settled.announcements, ['translations.installed']);
+  assert.deepEqual(keys(settled), ['translations.installed']);
 });
 
 test('a download that stops without installing says available; a cancelled wait says nothing', () => {
@@ -188,18 +202,18 @@ test('a download that stops without installing says available; a cancelled wait 
     null,
     null
   );
-  assert.deepEqual(stopped.announcements, ['translations.available']);
+  assert.deepEqual(keys(stopped), ['translations.available']);
 });
 
 test('an audio job is announced while it runs, and a Bible that left the list is forgotten', () => {
   const audioRunning = { ...runtime, activeDownloadJob: job('running') };
   const running = getDownloadStatusAnnouncements(statuses([]), [audioRunning], null, null);
-  assert.deepEqual(running.announcements, ['translations.downloading']);
+  assert.deepEqual(keys(running), ['translations.downloading']);
 
   const hidden = getDownloadStatusAnnouncements(running.statuses, [kjv], null, null);
-  assert.deepEqual(hidden.announcements, []);
+  assert.deepEqual(keys(hidden), []);
   assert.equal(hidden.statuses.has('engnet'), false);
 
   const shownAgain = getDownloadStatusAnnouncements(hidden.statuses, [audioRunning], null, null);
-  assert.deepEqual(shownAgain.announcements, ['translations.downloading']);
+  assert.deepEqual(keys(shownAgain), ['translations.downloading']);
 });

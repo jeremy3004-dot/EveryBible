@@ -51,7 +51,11 @@ export function ReminderTimePickerModal({
       animationType="fade"
       onRequestClose={onClose}
     >
-      <View style={[modalStyles.modalOverlay, { backgroundColor: colors.overlay }]}>
+      <View
+        style={[modalStyles.modalOverlay, { backgroundColor: colors.overlay }]}
+        // VoiceOver's escape gesture closes it, as Android back does.
+        onAccessibilityEscape={onClose}
+      >
         <View
           style={[
             modalStyles.modalContent,

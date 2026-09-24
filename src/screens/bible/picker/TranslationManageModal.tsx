@@ -33,7 +33,11 @@ export function TranslationManageModal({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
+      <View
+        style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}
+        // VoiceOver's escape gesture closes it, as Android back does.
+        onAccessibilityEscape={onClose}
+      >
         <TouchableOpacity
           style={styles.modalBackdrop}
           activeOpacity={1}

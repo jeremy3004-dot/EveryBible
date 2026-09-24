@@ -4,6 +4,7 @@ import type { ThemeColors } from '../../../contexts/ThemeContext';
 import { layout, spacing, typography } from '../../../design/system';
 import { BackArrowIcon, IconButton } from '../../../components/ui';
 import type { SetupStep } from '../localeSetupModel';
+import { CONTROL_LABEL_MAX_FONT_SCALE } from '../../../design/largeTextLayout';
 
 // EL geometry for this screen. The step bar is a fixed 120pt rail regardless of
 // how many segments it carries, so the header reads the same on every step.
@@ -73,7 +74,10 @@ export function LocaleSetupHeaderBar({
             accessibilityLabel={t('common.done')}
             hitSlop={12}
           >
-            <Text style={[typography.captionStrong, { color: colors.accentPrimary }]}>
+            <Text
+              maxFontSizeMultiplier={CONTROL_LABEL_MAX_FONT_SCALE}
+              style={[typography.captionStrong, { color: colors.accentPrimary }]}
+            >
               {t('common.done')}
             </Text>
           </TouchableOpacity>
@@ -93,7 +97,9 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
   },
   headerSide: {
-    width: 56,
+    // A floor, not a width: a fixed 56pt broke "Fertig" or a large "Done"
+    // mid-word. The label is also capped, as a control label.
+    minWidth: 56,
     minHeight: layout.iconButton,
     justifyContent: 'center',
   },

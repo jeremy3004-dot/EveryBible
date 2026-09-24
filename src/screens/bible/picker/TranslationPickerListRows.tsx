@@ -10,7 +10,8 @@ import { groupRowStyle, pickerStyles as styles } from './pickerStyles';
 // The picker list's non-Bible rows: the search field above the list, a language
 // match while searching, the language pill, and the section headings.
 
-const CLEAR_HIT_SLOP = { top: 8, bottom: 8, left: 8, right: 8 };
+// An 18pt glyph: 13pt a side makes the 44pt touch floor.
+const CLEAR_HIT_SLOP = { top: 13, bottom: 13, left: 13, right: 13 };
 
 // The search field is deliberately NOT a row: rows are recycled cells, so a
 // scroll far enough down would unmount the focused TextInput and drop the

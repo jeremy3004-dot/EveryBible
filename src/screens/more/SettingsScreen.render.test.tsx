@@ -1,6 +1,6 @@
 import test, { afterEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import type { ReactTestInstance } from 'react-test-renderer';
+import { act, type ReactTestInstance } from 'react-test-renderer';
 import { useTranslation } from 'react-i18next';
 import { create } from 'zustand';
 import { flattenStyle, hostAncestors, installRenderHarness, within } from '../../testing/render';
@@ -22,12 +22,14 @@ const harness = installRenderHarness(mock);
 mockModule(mock, sourcePath('hooks/useNotificationsBlockedBySystem.ts'), {
   useNotificationsBlockedBySystem: (enabled: boolean) => (enabled ? reminderBlock : null),
 });
+const fontSteps: string[] = [];
+const fontSize = { canIncrease: true };
 mockModule(mock, sourcePath('hooks/useFontSize.ts'), {
   useFontSize: () => ({
     label: 'Medium',
-    increase: () => {},
-    decrease: () => {},
-    canIncrease: true,
+    increase: () => void fontSteps.push('increase'),
+    decrease: () => void fontSteps.push('decrease'),
+    canIncrease: fontSize.canIncrease,
     canDecrease: true,
   }),
 });
@@ -212,6 +214,24 @@ test('a reminder blocked by the system shows a translated notice that opens syst
   assert.equal(view.queryByText(t('settings.notificationsNotAllowedNotice')), null);
   await view.press(view.getByRole('button', { name: t('settings.openDeviceSettings') }));
   assert.deepEqual(harness.rn.__recorded.openedUrls, ['app-settings:']);
+});
+
+test('turning a blocked reminder on speaks the notice that says it will not appear', async () => {
+  reminderBlock = 'blocked';
+  harness.authStore.getState().setPreferences({ notificationsEnabled: true });
+  const opened = await renderSettings();
+  assert.ok(opened.getByText(t('settings.notificationsBlockedNotice')));
+  assert.deepEqual(harness.rn.__recorded.announcements, [], 'opening Settings is not a change');
+  await opened.unmount();
+
+  harness.authStore.getState().setPreferences({ notificationsEnabled: false });
+  const view = await renderSettings();
+  await act(async () => {
+    harness.authStore.getState().setPreferences({ notificationsEnabled: true });
+  });
+
+  assert.ok(view.getByText(t('settings.notificationsBlockedNotice')));
+  assert.deepEqual(harness.rn.__recorded.announcements, [t('settings.notificationsBlockedNotice')]);
 });
 
 test('no blocked-reminder notice while the reminder is off or the system allows it', async () => {
@@ -477,8 +497,13 @@ test('the chapter feedback switch opts in immediately as community and syncs pre
     null,
     'no code asked'
   );
-  assert.ok(view.getByRole('button', { name: t('feedback.community') }));
-  assert.ok(view.getByRole('button', { name: t('feedback.council') }));
+  assert.ok(view.getByRole('button', { name: t('feedback.community'), selected: true }));
+  assert.ok(
+    view.getByRole('button', {
+      name: `${t('feedback.council')}, ${t('feedback.councilCodeRequired')}`,
+      selected: false,
+    })
+  );
 
   await view.fire(switchNamed(view, t('settings.chapterFeedback')), 'onValueChange', false);
   assert.equal(harness.authStore.getState().preferences.chapterFeedbackEnabled, false);
@@ -559,6 +584,30 @@ test('a long locale summary is truncated to one line inside a bounded, stable-he
   assert.equal(flattenStyle(row.props.style)?.minHeight, 52, 'a stable row height');
 });
 
+test('the text size stepper is one adjustable control that speaks the size and steps it', async () => {
+  const view = await renderSettings();
+
+  const stepper = view.getByRole('adjustable', { name: t('settings.fontSize') });
+  assert.deepEqual(stepper.props.accessibilityValue, { text: 'Medium' });
+  await view.fire(stepper, 'onAccessibilityAction', { nativeEvent: { actionName: 'increment' } });
+  await view.fire(stepper, 'onAccessibilityAction', { nativeEvent: { actionName: 'decrement' } });
+  assert.deepEqual(fontSteps.splice(0), ['increase', 'decrease']);
+});
+
+test('the text size stepper ignores a step past the end of the scale', async () => {
+  fontSize.canIncrease = false;
+  try {
+    const view = await renderSettings();
+    const stepper = view.getByRole('adjustable', { name: t('settings.fontSize') });
+    await view.fire(stepper, 'onAccessibilityAction', {
+      nativeEvent: { actionName: 'increment' },
+    });
+    assert.deepEqual(fontSteps.splice(0), []);
+  } finally {
+    fontSize.canIncrease = true;
+  }
+});
+
 // --- Large text ---------------------------------------------------------------
 
 test('at large text the font-size stepper and the offline status sit under their row titles', async () => {
@@ -608,7 +657,10 @@ test('Translator Access unlocks through a numeric keypad passcode modal', async 
   const store = await reviewStore();
   const view = await renderSettings();
 
-  await view.press(view.getByRole('button', { name: t('settings.translatorAccess') }));
+  // The row is one switch stop: the Switch inside a pressable row is unreachable.
+  await view.press(
+    view.getByRole('switch', { name: t('settings.translatorAccess'), checked: false })
+  );
   assert.ok(view.getByRole('header', { name: t('settings.translatorAccessTitle') }));
   const passcode = view.getByLabelText(t('settings.translatorAccessPlaceholder'));
   assert.equal(passcode.props.keyboardType, 'number-pad');
@@ -628,6 +680,7 @@ test('Translator Access unlocks through a numeric keypad passcode modal', async 
   assert.equal(store.getState().enabled, true);
   assert.equal(view.queryByRole('header', { name: t('settings.translatorAccessTitle') }), null);
   assert.equal(switchNamed(view, t('settings.translatorAccess')).props.value, true);
+  assert.ok(view.getByRole('switch', { name: t('settings.translatorAccess'), checked: true }));
 });
 
 test('a rejected translator passcode shows the incorrect-code message and stays locked', async () => {
@@ -635,7 +688,7 @@ test('a rejected translator passcode shows the incorrect-code message and stays 
   const store = await reviewStore();
   const view = await renderSettings();
 
-  await view.press(view.getByRole('button', { name: t('settings.translatorAccess') }));
+  await view.press(view.getByRole('switch', { name: t('settings.translatorAccess') }));
   await view.press(view.getByRole('button', { name: '7' }));
   await view.press(view.getByRole('button', { name: t('settings.translatorAccessUnlock') }));
 
@@ -684,8 +737,11 @@ test('the community and Scripture Council choices carry their own labels and cou
   store.getState().enableCommunityFeedback();
   const view = await renderSettings();
 
-  assert.ok(view.getByRole('button', { name: t('feedback.community') }));
-  await view.press(view.getByRole('button', { name: t('feedback.council') }));
+  // The current choice is otherwise only a drawn ✓.
+  assert.ok(view.getByRole('button', { name: t('feedback.community'), selected: true }));
+  const council = `${t('feedback.council')}, ${t('feedback.councilCodeRequired')}`;
+  assert.ok(view.getByRole('button', { name: council, selected: false }));
+  await view.press(view.getByRole('button', { name: council }));
 
   assert.ok(view.getByRole('header', { name: t('feedback.council') }));
   assert.ok(view.getByText(t('feedback.councilAccessBody')));
@@ -717,7 +773,7 @@ test('the community and council labels come from the active locale, not an Engli
     assert.ok(view.getByText('Comunidad XX'), 'the row title is localized too');
     assert.ok(view.getByText('Consejo XX'));
     assert.equal(view.queryByText(/^(Community|Scripture Council)$/), null);
-    await view.press(view.getByRole('button', { name: 'Consejo XX' }));
+    await view.press(view.getByRole('button', { name: /^Consejo XX, / }));
     assert.ok(view.getByRole('header', { name: 'Consejo XX' }));
     assert.ok(view.getByText('Cuerpo del consejo XX'));
   } finally {
@@ -848,6 +904,19 @@ test('the language row opens the interface language list and a choice switches a
   assert.equal(view.queryByRole('header', { name: t('settings.selectLanguage') }), null);
 });
 
+test("VoiceOver's escape gesture closes the interface language list without choosing", async () => {
+  const view = await renderSettings();
+
+  await view.press(view.getByRole('button', { name: `${t('settings.language')}, English` }));
+  await view.fire(
+    view.getByRole('header', { name: t('settings.selectLanguage') }),
+    'onAccessibilityEscape'
+  );
+
+  assert.equal(view.queryByRole('header', { name: t('settings.selectLanguage') }), null);
+  assert.deepEqual(languageCalls, []);
+});
+
 // --- Data --------------------------------------------------------------------
 
 test('clearing the cache asks first, then clears only device caches', async () => {
@@ -888,6 +957,15 @@ test('Delete Account is offered only when signed in and confirms before deleting
   assert.equal(account.calls, 2);
   assert.equal(harness.rn.__recorded.alerts.at(-1)?.title, t('settings.accountDeleted'));
   assert.equal(view.queryByText(t('settings.deleteAccountWarning')), null);
+});
+
+test("the delete-account dialog closes on VoiceOver's escape gesture without deleting", async () => {
+  harness.authStore.setState({ user: { uid: 'u1', displayName: 'Lydia' } });
+  const view = await renderSettings();
+  await view.press(view.getByRole('button', { name: t('settings.deleteAccount') }));
+  await view.fire(view.getByText(t('settings.deleteAccountWarning')), 'onAccessibilityEscape');
+  assert.equal(view.queryByText(t('settings.deleteAccountWarning')), null);
+  assert.equal(account.calls, 0);
 });
 
 // --- Legacy content language ---------------------------------------------------

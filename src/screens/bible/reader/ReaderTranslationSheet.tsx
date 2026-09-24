@@ -29,7 +29,11 @@ export function ReaderTranslationSheet({
       animationType="slide"
       onRequestClose={handleCloseTranslationSheet}
     >
-      <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
+      <View
+        style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}
+        // VoiceOver's escape gesture closes it, as Android back does.
+        onAccessibilityEscape={handleCloseTranslationSheet}
+      >
         <TouchableOpacity
           style={styles.modalBackdrop}
           activeOpacity={1}

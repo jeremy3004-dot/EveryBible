@@ -21,6 +21,33 @@ export type ManageLibraryAction = 'pin' | 'unpin' | 'hide' | 'delete';
 
 export type ManageRowState = 'done' | 'download' | 'unavailable' | 'busy';
 
+/**
+ * What a manage row says about its state. The state is otherwise only a glyph
+ * (tick, cloud, spinner), and a row that cannot start reads "dimmed" whether it
+ * is already downloaded or cannot be downloaded at all.
+ */
+export function getManageRowAccessibilityValue(
+  {
+    state,
+    progress = null,
+    indeterminate = false,
+    meta = null,
+  }: {
+    state: ManageRowState;
+    progress?: number | null;
+    indeterminate?: boolean;
+    meta?: string | null;
+  },
+  t: (key: string) => string
+): string {
+  if (state === 'busy') {
+    return progress != null && !indeterminate ? `${progress}%` : t('translations.downloading');
+  }
+  if (state === 'done') return t('translations.installed');
+  if (state === 'unavailable') return t('bible.notAvailableYet');
+  return [t('translations.download'), meta].filter(Boolean).join(', ');
+}
+
 export interface ManageDownloadRowModel {
   key: 'text' | 'full-bible' | 'new-testament';
   /** Size or downloaded-book count shown beside the status glyph. */

@@ -142,7 +142,10 @@ export function LocaleSetupListHeader({
                   pressable
                   padding={14}
                   style={styles.inlinePreferenceCard}
-                  accessibilityLabel={selectedInterfaceLanguage.appLanguageLabel}
+                  // The label replaces the card's text, so the current language is
+                  // restated; expanded says the list below opens and closes here.
+                  accessibilityLabel={`${selectedInterfaceLanguage.appLanguageLabel}, ${selectedInterfaceLanguage.nativeName}`}
+                  accessibilityState={{ expanded: showInterfaceLanguagePicker }}
                   onPress={onToggleInterfaceLanguagePicker}
                 >
                   <View style={styles.inlinePreferenceRow}>

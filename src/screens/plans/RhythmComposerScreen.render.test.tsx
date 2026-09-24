@@ -58,6 +58,15 @@ test('the composer offers every historic preset as a card under the "Historic rh
     view.getAllByText(t('plans.rhythmComposer.addRhythm')).length,
     RHYTHM_PRESET_LIBRARY.length
   );
+
+  // Each card leads with what a tap does and the preset's name, not sixty-odd
+  // words of card copy with the action last.
+  const [first] = RHYTHM_PRESET_LIBRARY;
+  const card = view.getByRole('button', {
+    name: `${t('plans.rhythmComposer.addRhythm')}: ${first.title}`,
+  });
+  assert.match(String(card.props.accessibilityValue?.text), new RegExp(first.tradition));
+  assert.ok(String(card.props.accessibilityHint).includes(t('plans.rhythmComposer.includes')));
   // Presets replaced the old drag-and-build composer: no name field, passage picker or steppers.
   assert.equal(view.queryAllByType('TextInput').length, 0);
   for (const key of [
@@ -73,6 +82,9 @@ test('the "Any time" filter narrows the list to presets with no fixed slot and i
   const view = await renderComposer();
   const anytime = RHYTHM_PRESET_LIBRARY.filter((preset) => preset.slot === null);
   assert.ok(anytime.length > 0 && anytime.length < RHYTHM_PRESET_LIBRARY.length);
+  // Each filter group is a heading the rotor can jump to.
+  assert.ok(view.getByRole('header', { name: t('plans.rhythmComposer.timeOfDay') }));
+  assert.ok(view.getByRole('header', { name: t('plans.rhythmComposer.tradition') }));
 
   assert.ok(
     view.getByRole('button', { name: t('plans.rhythmComposer.filterAll'), selected: true })

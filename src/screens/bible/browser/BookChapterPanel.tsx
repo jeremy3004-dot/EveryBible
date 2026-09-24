@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useEffect } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View, type LayoutChangeEvent } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { getTranslatedBookName, type BibleBook } from '../../../constants/books';
@@ -17,6 +17,7 @@ import { CHAPTER_TILE_GAP, CHAPTER_TILE_MAX_FONT_SCALE } from '../chapterTileLay
 import { chapterKey, getChapterNumbers, isUnavailableChapterInBook } from './bibleBrowserModel';
 import { browserStyles } from './browserStyles';
 import { TranslatorFeedbackBadge } from './TranslatorFeedbackBadge';
+import { announceLiveRegionText } from '../../../utils/a11y';
 import { CHAPTER_GRID_HORIZONTAL_INSET, type ChapterTileSizeStyle } from './useChapterTileLayout';
 
 export interface BookChapterPanelProps {
@@ -60,7 +61,9 @@ const ChapterTile = memo(function ChapterTile({
       onPress={() => onPress(bookId, chapter)}
       activeOpacity={0.7}
       accessibilityRole="button"
-      accessibilityHint={isAvailable ? undefined : t('bible.notAvailableYet')}
+      // A value, not a hint: hints can be switched off, and the dimmed tile is
+      // otherwise the only sign the chapter will not open.
+      accessibilityValue={isAvailable ? undefined : { text: t('bible.notAvailableYet') }}
     >
       <Text
         maxFontSizeMultiplier={CHAPTER_TILE_MAX_FONT_SCALE}
@@ -87,7 +90,6 @@ export function BookChapterPanel({
   onPressChapter,
 }: BookChapterPanelProps & { book: BibleBook }) {
   const { colors } = useTheme();
-  const { t } = useTranslation();
 
   return (
     <View
@@ -113,11 +115,32 @@ export function BookChapterPanel({
         })}
       </View>
       {isUnavailableChapterInBook(unavailableChapterKey, book.id) && (
-        <Text style={[styles.noticeBody, { color: colors.bibleSecondaryText }]}>
-          {t('bible.fullBibleComingSoon')}
-        </Text>
+        <ComingSoonNote chapterKey={unavailableChapterKey} />
       )}
     </View>
+  );
+}
+
+/**
+ * Why a tapped chapter did not open. It appears below the grid while focus stays
+ * on the tile, so it is spoken each time another unavailable chapter is tapped.
+ */
+function ComingSoonNote({ chapterKey: tappedChapterKey }: { chapterKey: string | null }) {
+  const { colors } = useTheme();
+  const { t } = useTranslation();
+  const message = t('bible.fullBibleComingSoon');
+
+  useEffect(() => {
+    announceLiveRegionText(message);
+  }, [message, tappedChapterKey]);
+
+  return (
+    <Text
+      accessibilityLiveRegion="polite"
+      style={[styles.noticeBody, { color: colors.bibleSecondaryText }]}
+    >
+      {message}
+    </Text>
   );
 }
 

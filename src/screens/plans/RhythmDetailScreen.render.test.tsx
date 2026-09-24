@@ -110,7 +110,7 @@ test('the rhythm shows its slot, its ordered sequence and what comes next', asyn
   assert.ok(view.getByRole('header', { name: 'Dawn office' }));
   assert.ok(view.getByText(t('readingPlans.morningRhythm')));
   assert.ok(view.getByText(t('readingPlans.rhythmItemCount', { count: 2 })));
-  assert.ok(view.getByText(t('readingPlans.rhythmSequence')));
+  assert.ok(view.getByRole('header', { name: t('readingPlans.rhythmSequence') }));
   assert.ok(view.getByText(t('readingPlans.nextUp', { value: 'Evening psalm' })));
 
   const titles = ['Evening psalm', t('readingPlans.psalms30.title')];

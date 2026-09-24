@@ -4,10 +4,11 @@ import { ProgressBar } from '../../../components/ui';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useI18n } from '../../../hooks/useI18n';
 import { DOWNLOAD_PROGRESS_HEIGHT, groupRowStyle, pickerStyles as styles } from './pickerStyles';
-import type { ManageRowState } from './translationManageModel';
+import { getManageRowAccessibilityValue, type ManageRowState } from './translationManageModel';
 import type { GroupPosition } from './translationPickerRowsModel';
 
-const CANCEL_HIT_SLOP = { top: 8, bottom: 8, left: 8, right: 8 };
+// A 20pt glyph: 12pt a side makes the 44pt touch floor.
+const CANCEL_HIT_SLOP = { top: 12, bottom: 12, left: 12, right: 12 };
 
 /** The trailing status of a manage-sheet download row: tick, cloud, download, or spinner. */
 export function ManageStatusGlyph({ state }: { state: ManageRowState }) {
@@ -67,16 +68,7 @@ export function ManageDownloadRow({
       accessibilityLabel={label}
       // The status is otherwise only a glyph (tick, cloud, spinner).
       accessibilityValue={{
-        text:
-          state === 'busy'
-            ? progress != null && !indeterminate
-              ? `${progress}%`
-              : t('translations.downloading')
-            : state === 'done'
-              ? t('translations.installed')
-              : state === 'unavailable'
-                ? t('bible.notAvailableYet')
-                : [t('translations.download'), meta].filter(Boolean).join(', '),
+        text: getManageRowAccessibilityValue({ state, progress, indeterminate, meta }, t),
       }}
       accessibilityActions={
         progress != null

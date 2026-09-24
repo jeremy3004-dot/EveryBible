@@ -134,7 +134,8 @@ export type DownloadStatusAnnouncementKey =
 export interface DownloadStatusAnnouncements {
   /** Each listed Bible's status now; pass it back as `previous` next time. */
   statuses: ReadonlyMap<string, TranslationRowDownloadStatus>;
-  announcements: DownloadStatusAnnouncementKey[];
+  /** Each names its Bible: with a queue, "Downloading" alone did not say which one. */
+  announcements: { key: DownloadStatusAnnouncementKey; name: string }[];
 }
 
 /**
@@ -145,12 +146,12 @@ export interface DownloadStatusAnnouncements {
  */
 export function getDownloadStatusAnnouncements(
   previous: ReadonlyMap<string, TranslationRowDownloadStatus>,
-  translations: readonly StatusTranslation[],
+  translations: readonly (StatusTranslation & Pick<BibleTranslation, 'name'>)[],
   downloadTarget: TranslationDownloadTarget | null,
   queuedId: string | null
 ): DownloadStatusAnnouncements {
   const statuses = new Map<string, TranslationRowDownloadStatus>();
-  const announcements: DownloadStatusAnnouncementKey[] = [];
+  const announcements: DownloadStatusAnnouncements['announcements'] = [];
 
   for (const translation of translations) {
     const activity = getTranslationDownloadActivity(translation, downloadTarget);
@@ -160,13 +161,14 @@ export function getDownloadStatusAnnouncements(
     if (status === previousStatus) continue;
 
     if (status === 'downloading') {
-      announcements.push('translations.downloading');
+      announcements.push({ key: 'translations.downloading', name: translation.name });
     } else if (status === 'queued') {
-      announcements.push('translations.queued');
+      announcements.push({ key: 'translations.queued', name: translation.name });
     } else if (previousStatus === 'downloading') {
-      announcements.push(
-        activity.isTextDownloaded ? 'translations.installed' : 'translations.available'
-      );
+      announcements.push({
+        key: activity.isTextDownloaded ? 'translations.installed' : 'translations.available',
+        name: translation.name,
+      });
     }
   }
 
