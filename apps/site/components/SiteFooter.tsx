@@ -1,7 +1,12 @@
-import Image from 'next/image';
-
+/* eslint-disable @next/next/no-img-element -- staticImageProps gives next/image's
+   optimized srcset without its client component (see lib/static-image.ts). */
 import { footerColumns } from '../lib/site-content';
 import { EVERY_LANGUAGE_URL } from '../lib/site-links';
+import { staticImageProps } from '../lib/static-image';
+
+const everyLanguageWordmark = staticImageProps('/everylanguage/wordmark-blue.png', 878, 242, {
+  sizes: '104px',
+});
 
 /**
  * Shared marketing footer. Used by the homepage and every static page.
@@ -28,13 +33,7 @@ export function SiteFooter() {
               rel="noreferrer"
             >
               An
-              <Image
-                src="/everylanguage/wordmark-blue.png"
-                alt="Every Language"
-                width={878}
-                height={242}
-                sizes="104px"
-              />
+              <img {...everyLanguageWordmark} alt="Every Language" />
               project
             </a>
           </div>
@@ -58,7 +57,9 @@ export function SiteFooter() {
         <div className="site-footer__bottom">
           <p className="site-footer__meta">A digital ministry. Free to use, free to share.</p>
           <div className="site-footer__legal">
-            <a className="site-footer__support" href="/support">App support</a>
+            <a className="site-footer__support" href="/support">
+              App support
+            </a>
             <a href="/privacy">Privacy</a>
             <a href="/terms">Terms</a>
           </div>

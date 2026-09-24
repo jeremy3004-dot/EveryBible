@@ -1,11 +1,20 @@
-import Image from 'next/image';
-
+/* eslint-disable @next/next/no-img-element -- staticImageProps gives next/image's
+   optimized srcset without its client component (see lib/static-image.ts). */
 import { projectSnapshot } from '../lib/public-atlas-projects';
 import {
   EVERYBIBLE_APP_STORE_URL,
   EVERYBIBLE_DOWNLOAD_ANCHOR,
   EVERYBIBLE_GOOGLE_PLAY_URL,
 } from '../lib/site-links';
+import { staticImageProps } from '../lib/static-image';
+
+const downloadQr = staticImageProps('/everybible/download-qr.svg', 104, 104, {
+  unoptimized: true,
+});
+const appStoreBadge = staticImageProps('/everybible/badge-app-store.svg', 140, 42, {
+  unoptimized: true,
+});
+const googlePlayBadge = staticImageProps('/everybible/badge-google-play.png', 141, 42);
 
 const PROMISES = ['Free, forever', 'No ads, no purchases', 'Works offline'];
 
@@ -61,34 +70,17 @@ export function HomeBelowAtlas() {
               href="/download"
               aria-label="Download EveryBible for your phone"
             >
-              <Image
-                src="/everybible/download-qr.svg"
-                alt="Scan to download EveryBible"
-                width={104}
-                height={104}
-                unoptimized
-              />
+              <img {...downloadQr} alt="Scan to download EveryBible" />
             </a>
             <div>
               <h3>Get EveryBible</h3>
               <p>Scan with your phone, or choose your store.</p>
               <div className="home-stores">
                 <a href={EVERYBIBLE_APP_STORE_URL}>
-                  <Image
-                    src="/everybible/badge-app-store.svg"
-                    alt="Download on the App Store"
-                    width={140}
-                    height={42}
-                    unoptimized
-                  />
+                  <img {...appStoreBadge} alt="Download on the App Store" />
                 </a>
                 <a href={EVERYBIBLE_GOOGLE_PLAY_URL}>
-                  <Image
-                    src="/everybible/badge-google-play.png"
-                    alt="Get it on Google Play"
-                    width={141}
-                    height={42}
-                  />
+                  <img {...googlePlayBadge} alt="Get it on Google Play" />
                 </a>
               </div>
             </div>

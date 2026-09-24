@@ -3,7 +3,11 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { brotliDecompressSync, gunzipSync } from 'node:zlib';
-import { decodePublicAtlas } from './public-atlas-transport';
+import {
+  decodePublicAtlas,
+  decodePublicAtlasInSlices,
+  PUBLIC_ATLAS_DECODE_SLICE,
+} from './public-atlas-transport';
 import { version } from './public-atlas-version.json';
 import {
   buildFeatures,
@@ -123,5 +127,34 @@ test('malformed rows and dangling location references fail loudly', () => {
     () => decodePublicAtlas(packed({ locations: [[0, 1, 2]] })),
     /Invalid atlas row/,
     'a location row must match its layout too'
+  );
+});
+
+test('the sliced decoder gives the same atlas and hands control back between slices', async () => {
+  const gzip = gunzipSync(readFileSync(new URL(`startup-${version}.json.gz`, data)));
+  const snapshot = JSON.parse(gzip.toString()) as { records: unknown[]; locations: unknown[] };
+  let pauses = 0;
+  const decoded = await decodePublicAtlasInSlices(snapshot, async () => {
+    pauses += 1;
+  });
+  assert.deepEqual(decoded, decodePublicAtlas(snapshot));
+  // The snapshot has ~35,000 records and ~24,000 locations. Decoding them in
+  // one task would block the page while it hydrates, so it yields repeatedly.
+  const rows = snapshot.records.length + snapshot.locations.length;
+  assert.ok(
+    pauses >= Math.floor(rows / PUBLIC_ATLAS_DECODE_SLICE) - 1,
+    `expected a pause about every ${PUBLIC_ATLAS_DECODE_SLICE} rows, got ${pauses}`
+  );
+});
+
+test('the sliced decoder shares locations and rejects malformed data like the sync one', async () => {
+  const noPause = async () => {};
+  const decoded = await decodePublicAtlasInSlices(packed(), noPause);
+  assert.deepEqual(decoded, decodePublicAtlas(packed()));
+  assert.equal(decoded.records[1].location, decoded.records[1].locations?.[0]);
+  await assert.rejects(decodePublicAtlasInSlices(null, noPause), /Invalid atlas/);
+  await assert.rejects(
+    decodePublicAtlasInSlices(packed({ records: [[0, 'iso:x', 'X', 9]] }), noPause),
+    /Invalid atlas location/
   );
 });

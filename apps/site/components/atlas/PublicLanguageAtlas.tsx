@@ -21,29 +21,24 @@ import type {
   AtlasIndex,
   AtlasProjection,
 } from '../../../admin/lib/language-atlas/types';
-import { publicAtlasHover } from '../../lib/public-atlas-hover';
+import type { publicAtlasHover } from '../../lib/public-atlas-hover';
 import { selectPublicAtlasRecords } from '../../lib/public-atlas-records';
-import { decodePublicAtlas } from '../../lib/public-atlas-transport';
+import { decodePublicAtlasInSlices } from '../../lib/public-atlas-transport';
 import {
   projectSnapshot,
   filterProjects,
   type AtlasProject,
 } from '../../lib/public-atlas-projects';
 import atlasVersionData from '../../lib/public-atlas-version.json';
-import { ProjectList } from './ProjectList';
-import { UnmappedProjectProfile } from './ProjectProgress';
-import { AtlasRecordProfile, AtlasSources } from './PublicAtlasDetails';
 import { AtlasLegend, AtlasMapSettings, AtlasGroupRecords } from './PublicAtlasTools';
 
 /* MapLibre is ~1 MB of JavaScript. Loading the map in its own chunk lets the
    headline, search and story hydrate first instead of waiting for it; the
    placeholder is the same markup LanguageMap renders before its map is
-   ready, so the swap causes no layout shift. */
+   ready, so the swap causes no layout shift. The chunk also carries
+   MapLibre's stylesheet, so it does not block the first paint. */
 const LanguageMap = dynamic(
-  () =>
-    import('../../../admin/components/language-atlas/LanguageMap').then(
-      (module) => module.LanguageMap
-    ),
+  () => import('./LazyLanguageMap').then((module) => module.LanguageMap),
   {
     ssr: false,
     loading: () => (
@@ -59,6 +54,25 @@ const LanguageMap = dynamic(
   }
 );
 
+/* Profiles, sources, project lists and the hover card can only appear once
+   the atlas data has loaded, so their code is left out of the first download
+   and fetched alongside the data instead. */
+const AtlasRecordProfile = dynamic(
+  () => import('./PublicAtlasDetails').then((module) => module.AtlasRecordProfile),
+  { ssr: false }
+);
+const AtlasSources = dynamic(
+  () => import('./PublicAtlasDetails').then((module) => module.AtlasSources),
+  { ssr: false }
+);
+const UnmappedProjectProfile = dynamic(
+  () => import('./ProjectProgress').then((module) => module.UnmappedProjectProfile),
+  { ssr: false }
+);
+const ProjectList = dynamic(() => import('./ProjectList').then((module) => module.ProjectList), {
+  ssr: false,
+});
+
 const EMPTY_RECORDS: AtlasIndex['records'] = [];
 const INITIAL_FILTERS: AtlasFilters = DEFAULT_FILTERS;
 const PAGE_SIZE = 30;
@@ -66,10 +80,11 @@ const PAGE_SIZE = 30;
 const SEARCH_HINTS = ['Tamang', 'Yoruba', 'Quechua', 'Hmong'];
 export function PublicLanguageAtlas() {
   const [index, setIndex] = useState<AtlasIndex | null>(null);
+  const [hoverCard, setHoverCard] = useState<typeof publicAtlasHover | null>(null);
   const renderHoverSummary = useCallback(
     (record: AtlasRecord, location: AtlasLocation | undefined) =>
-      publicAtlasHover(record, location, index!),
-    [index]
+      hoverCard!(record, location, index!),
+    [hoverCard, index]
   );
   const [loadError, setLoadError] = useState(false);
   const [retry, setRetry] = useState(0);
@@ -105,12 +120,35 @@ export function PublicLanguageAtlas() {
   }, []);
   useEffect(() => {
     const controller = new AbortController();
-    void fetch(`/api/language-atlas/startup/${atlasVersionData.version}`, {
-      signal: controller.signal,
-    })
+    // Wait for the page's own fonts, scripts and images before starting the
+    // 1.6 MB snapshot, so it never competes with them for bandwidth.
+    const pageLoaded =
+      document.readyState === 'complete'
+        ? Promise.resolve()
+        : new Promise<void>((resolve) =>
+            window.addEventListener('load', () => resolve(), {
+              once: true,
+              signal: controller.signal,
+            })
+          );
+    const hoverModule = pageLoaded.then(() => import('../../lib/public-atlas-hover'));
+    // Warm the panel chunks so the first profile opens without a wait.
+    void pageLoaded
+      .then(() => Promise.all([import('./PublicAtlasDetails'), import('./ProjectList')]))
+      .catch(() => {});
+    void pageLoaded
+      .then(() =>
+        fetch(`/api/language-atlas/startup/${atlasVersionData.version}`, {
+          signal: controller.signal,
+        })
+      )
       .then(async (response) => {
         if (!response.ok) throw new Error('Atlas unavailable');
-        const decoded = decodePublicAtlas(await response.json());
+        // Decoded in slices so taps and scrolling stay responsive meanwhile.
+        const decoded = await decodePublicAtlasInSlices(await response.json());
+        const { publicAtlasHover: hover } = await hoverModule;
+        if (controller.signal.aborted) return;
+        setHoverCard(() => hover);
         setIndex(decoded);
         // Language pages link to `/?language=<record id>` to open that profile here.
         const requested = new URLSearchParams(window.location.search).get('language');
@@ -285,7 +323,7 @@ export function PublicLanguageAtlas() {
         controlsTarget={null}
         onSelectGroup={mobile ? selectGroup : undefined}
         showHoverSummary={!mobile}
-        renderHoverSummary={index ? renderHoverSummary : undefined}
+        renderHoverSummary={index && hoverCard ? renderHoverSummary : undefined}
       />
 
       {!mobile && (
