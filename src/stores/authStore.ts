@@ -65,6 +65,9 @@ interface AuthState {
 }
 
 let authSubscription: Subscription | null = null;
+// Counts the auth changes the subscription has applied. initialize() compares it
+// across its session restore: a change heard meanwhile is newer than the restore.
+let authChangesApplied = 0;
 
 // @supabase/supabase-js (~520KB) and the native sign-in SDKs (google-signin,
 // expo-apple-authentication) are only ever touched inside async actions, but a
@@ -491,6 +494,33 @@ export const useAuthStore = create<AuthState>()(
         try {
           const { isSupabaseConfigured } = getSupabaseModule();
           const hasSupabaseConfig = isSupabaseConfigured();
+
+          // Subscribe before restoring. A password-reset link can be redeemed
+          // (exchangeCodeForSession emits SIGNED_IN) while the restore is still
+          // running, since the app renders once startup times out; a sign-in
+          // emitted before the subscription exists would never reach the store.
+          if (hasSupabaseConfig && !authSubscription) {
+            const { supabase } = getSupabaseModule();
+            const { data } = supabase.auth.onAuthStateChange((event, session) => {
+              if (session?.user) {
+                // Route auth callbacks through the same boundary-aware action
+                // as interactive sign-in so an account swap resets local
+                // per-user stores before any sync continuation can run.
+                authChangesApplied += 1;
+                get().setSession(session);
+              } else if (event === 'INITIAL_SESSION') {
+                // initialize() applies the restored session. A null here
+                // repeats a restore that could not be checked (offline
+                // refresh), which must not reset the account.
+              } else {
+                authChangesApplied += 1;
+                get().setSession(null);
+              }
+            });
+            authSubscription = data.subscription;
+          }
+
+          const changesBeforeRestore = authChangesApplied;
           const restored = hasSupabaseConfig
             ? await getAuthSessionModule().getCurrentSession()
             : { session: null, user: null };
@@ -504,33 +534,17 @@ export const useAuthStore = create<AuthState>()(
           // will refresh it when the network returns. Treating it as one would
           // erase the account's unsynced reading data on every offline launch.
           // An offline launch restores the stored session without waiting for
-          // its token refresh; the subscription below confirms or ends it.
-          if (restoredState.session || !('restoreFailed' in restored && restored.restoreFailed)) {
+          // its token refresh; the subscription confirms or ends it.
+          // An auth change applied while the restore ran is newer than what the
+          // restore read, so the restore is dropped rather than undoing it.
+          const restoreIsCurrent = authChangesApplied === changesBeforeRestore;
+          if (
+            restoreIsCurrent &&
+            (restoredState.session || !('restoreFailed' in restored && restored.restoreFailed))
+          ) {
             get().setSession(restoredState.session, {
               awaitingTokenRefresh: restored.awaitingTokenRefresh === true,
             });
-          }
-
-          if (hasSupabaseConfig) {
-            // Get current session
-            if (!authSubscription) {
-              const { supabase } = getSupabaseModule();
-              const { data } = supabase.auth.onAuthStateChange((event, session) => {
-                if (session?.user) {
-                  // Route auth callbacks through the same boundary-aware action
-                  // as interactive sign-in so an account swap resets local
-                  // per-user stores before any sync continuation can run.
-                  get().setSession(session);
-                } else if (event === 'INITIAL_SESSION') {
-                  // initialize() has already applied the restored session. A
-                  // null here repeats a restore that could not be checked
-                  // (offline refresh), which must not reset the account.
-                } else {
-                  get().setSession(null);
-                }
-              });
-              authSubscription = data.subscription;
-            }
           }
         } catch (error) {
           console.error('Auth initialization error:', error);
