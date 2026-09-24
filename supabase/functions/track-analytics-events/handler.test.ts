@@ -216,11 +216,33 @@ test('a batch above the 500-event ceiling is refused outright', async () => {
   assert.equal(h.stored.length, 0);
 });
 
-test('an over-long geo value smuggled in event_properties cannot reach a bounded column', async () => {
+test('geo sent inside event_properties is never stored', async () => {
   const h = endpoint();
   const body = await (
     await h.send([
-      { ...h.event, event_properties: { geo_source: 'ipinfo', geo_city: 'y'.repeat(300) } },
+      {
+        ...h.event,
+        event_properties: {
+          geo_source: 'cf-worker',
+          geo_country_code: 'IN',
+          geo_city: 'y'.repeat(300),
+          geo_latitude: 19.07,
+          geo_longitude: 72.87,
+        },
+      },
+    ])
+  ).json();
+  assert.equal(body.inserted, 1);
+  assert.equal(h.stored[0].geo_country_code, 'NP');
+  assert.equal(h.stored[0].geo_city, 'Pokhara');
+  assert.equal(h.stored[0].geo_latitude, 28.2);
+});
+
+test('an over-long top-level payload geo value cannot reach a bounded column', async () => {
+  const h = endpoint();
+  const body = await (
+    await h.send([
+      { ...h.event, geo_source: 'cf-worker', geo_country_code: 'IN', geo_city: 'y'.repeat(300) },
       h.event,
     ])
   ).json();
@@ -300,17 +322,110 @@ test('complete payload geo is stored as sent and no request geo lookup is made',
   assert.equal(body.geo, 'IN');
 });
 
-test('partial payload geo wins field by field and request geo fills the gaps', async () => {
+// Same rule as track-anonymous-usage-events: payload geo is accepted only as a whole
+// cf-worker fix that carries a country; it is never combined field by field with request geo.
+test('a cf-worker payload fix is kept whole and never mixed with request geo', async () => {
   const h = endpoint();
   await h.send([
-    { ...h.event, geo_country_code: 'IN' },
-    { ...h.event, event_properties: { geo_latitude_bucket: 10.04, geo_longitude_bucket: 20.06 } },
+    { ...h.event, geo_source: 'cf-worker', geo_country_code: 'IN' },
+    { ...h.event, geo_source: 'cf-worker', geo_latitude: 10.04, geo_longitude: 20.06 },
   ]);
   assert.equal(h.geoLookups(), 1);
+  // A country-only fix stays country-only: no request coordinates or city grafted on.
   assert.equal(h.stored[0].geo_country_code, 'IN');
-  assert.equal(h.stored[0].geo_latitude, 28.2);
-  assert.equal(h.stored[0].geo_city, 'Pokhara');
+  assert.equal(h.stored[0].geo_source, 'cf-worker');
+  assert.equal(h.stored[0].geo_latitude, null);
+  assert.equal(h.stored[0].geo_longitude, null);
+  assert.equal(h.stored[0].geo_city, null);
+  // A fix without a country is not used at all: the request geo is stored whole.
   assert.equal(h.stored[1].geo_country_code, 'NP');
-  assert.equal(h.stored[1].geo_latitude, 10);
-  assert.equal(h.stored[1].geo_longitude, 20.1);
+  assert.equal(h.stored[1].geo_source, 'ipinfo');
+  assert.equal(h.stored[1].geo_latitude, 28.2);
+  assert.equal(h.stored[1].geo_longitude, 84);
+});
+
+test('payload geo from any source other than the cf-worker is ignored', async () => {
+  const h = endpoint();
+  await h.send([
+    {
+      ...h.event,
+      geo_source: 'gps',
+      geo_country_code: 'US',
+      geo_latitude: 12.34567,
+      geo_longitude: 45.67891,
+      geo_city: 'Somewhere',
+    },
+  ]);
+  assert.equal(h.geoLookups(), 1);
+  assert.equal(h.stored[0].geo_country_code, 'NP');
+  assert.equal(h.stored[0].geo_source, 'ipinfo');
+  assert.equal(h.stored[0].geo_city, 'Pokhara');
+});
+
+// -- Per-event validation: one bad event must not fail the whole batch --------
+
+test('events missing a name, platform or app version are dropped and counted', async () => {
+  const h = endpoint();
+  const { event_name: _name, ...noName } = h.event;
+  const { device_platform: _platform, ...noPlatform } = h.event;
+  const { app_version: _version, ...noVersion } = h.event;
+  const response = await h.send([
+    noName,
+    noPlatform,
+    noVersion,
+    { ...h.event, event_name: '   ' },
+    { ...h.event, device_platform: 42 },
+    null,
+    'not-an-event',
+    h.event,
+  ]);
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.inserted, 1);
+  assert.equal(body.rejected, 7);
+  assert.equal(h.stored.length, 1);
+  assert.equal(h.stored[0].event_name, 'reading_ended');
+  assert.equal(h.rpcCalls[0].p_event_count, 1);
+});
+
+test('stored text fields are trimmed', async () => {
+  const h = endpoint();
+  await h.send([{ ...h.event, event_name: ' reading_ended ', app_version: ' 1.0.9 ' }]);
+  assert.equal(h.stored[0].event_name, 'reading_ended');
+  assert.equal(h.stored[0].app_version, '1.0.9');
+});
+
+test('a batch where every event is invalid is acknowledged with nothing written', async () => {
+  const h = endpoint();
+  const { event_name: _name, ...noName } = h.event;
+  const response = await h.send([noName, noName]);
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.inserted, 0);
+  assert.equal(body.rejected, 2);
+  assert.equal(h.stored.length, 0);
+  assert.equal(h.geoLookups(), 0);
+});
+
+const malformedBodies: Array<[string, string]> = [
+  ['unparseable JSON', '{"events": ['],
+  ['a JSON array instead of an object', JSON.stringify([{ event_name: 'x' }])],
+  ['a missing events list', JSON.stringify({ event: [] })],
+  ['an events value that is not a list', JSON.stringify({ events: { event_name: 'x' } })],
+];
+for (const [label, raw] of malformedBodies) {
+  test(`a malformed body (${label}) is refused with 400 and nothing is written`, async () => {
+    const h = endpoint();
+    const response = await h.sendRaw(raw);
+    assert.equal(response.status, 400);
+    assert.equal(h.stored.length, 0);
+    assert.equal(h.rpcCalls.length, 0);
+  });
+}
+
+test('an empty events list is still acknowledged', async () => {
+  const h = endpoint();
+  const response = await h.send([]);
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).inserted, 0);
 });

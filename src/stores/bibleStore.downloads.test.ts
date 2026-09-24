@@ -372,6 +372,46 @@ test('a failed cloud download records the failure on the translation and rethrow
   assert.equal(useBibleStore.getState().downloadProgress, null);
 });
 
+test('a failed download clears its own row even after another download took over the banner', async () => {
+  withTranslations([
+    makeRuntimeTranslation({ id: 'esv1' }),
+    makeRuntimeTranslation({ id: 'kjv2' }),
+  ]);
+  const pending = new Map<
+    string,
+    { resolve: (path: string) => void; reject: (e: Error) => void }
+  >();
+  let signalBothStarted!: () => void;
+  const bothStarted = new Promise<void>((resolve) => {
+    signalBothStarted = resolve;
+  });
+  doubles.cloud.run = (call) =>
+    new Promise<string>((resolve, reject) => {
+      pending.set(call.translationId, { resolve, reject });
+      if (pending.size === 2) signalBothStarted();
+    });
+
+  const first = useBibleStore.getState().downloadTranslation('esv1');
+  const failedFirst = assert.rejects(first, /network unreachable/);
+  await flushAsyncWork();
+  const second = useBibleStore.getState().downloadTranslation('kjv2');
+  await bothStarted;
+  assert.equal(useBibleStore.getState().downloadProgress?.translationId, 'kjv2');
+
+  pending.get('esv1')?.reject(new Error('network unreachable'));
+  await failedFirst;
+
+  const failed = findTranslation('esv1');
+  assert.equal(failed?.installState, 'failed');
+  assert.equal(failed?.lastInstallError, 'network unreachable');
+  // The banner still belongs to the download that is running.
+  assert.equal(useBibleStore.getState().downloadProgress?.translationId, 'kjv2');
+  assert.equal(findTranslation('kjv2')?.installState, 'downloading');
+
+  pending.get('kjv2')?.resolve('file:///packs/kjv2.db');
+  assert.equal(await second, 'installed');
+});
+
 test('a cloud download that rejects with a non-Error still surfaces a download error', async () => {
   withTranslations([makeRuntimeTranslation({ id: 'esv1' })]);
   doubles.cloud.run = async () => {
