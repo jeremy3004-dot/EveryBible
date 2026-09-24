@@ -390,6 +390,27 @@ test('the bundled catalog renders without waiting for remote progress hydration'
   assert.ok(view.getByText(titleOf(PSALMS)));
 });
 
+// The mount effect and the focus effect both used to fire on first open, so the
+// catalog loaded twice (and the progress hydration ran twice) before the reader
+// ever left the screen.
+test('the first open loads the catalog once, a later focus reloads once more, and so does pull to refresh', async () => {
+  const view = await renderHome();
+
+  assert.equal(service.listCalls, 1, 'first open');
+  assert.equal(service.hydrateCalls, 1, 'first open');
+
+  await refocus();
+  assert.equal(service.listCalls, 2, 'a later focus');
+  assert.equal(service.hydrateCalls, 2, 'a later focus');
+
+  const [page] = view.queryAllByType('ScrollView');
+  await act(async () => {
+    await (page.props.refreshControl.props.onRefresh as () => Promise<void>)();
+  });
+  assert.equal(service.listCalls, 3, 'pull to refresh');
+  assert.equal(service.hydrateCalls, 3, 'pull to refresh');
+});
+
 test('the skeleton shows only while the catalog itself is still loading', async () => {
   service.catalogGate = gate();
   const view = await renderHome();
