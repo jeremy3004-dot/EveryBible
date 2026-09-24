@@ -29,12 +29,30 @@ export const PresetCard = memo(function PresetCard({
   const { t } = useTranslation();
   const localizedPreset = localizeRhythmPreset(preset, t);
   const slotMeta = preset.slot ? RHYTHM_SLOT_META[preset.slot] : null;
+  const slotLabel = getRhythmSlotLabel(preset.slot, t);
+  const passagesLabel = t('readingPlans.chapterCount', {
+    count: preset.items.length,
+    defaultValue: `${preset.items.length} passages`,
+  });
+  const itemPreview = buildPresetItemPreview(localizedPreset);
 
   return (
     <TouchableOpacity
       onPress={() => onApply(preset)}
       activeOpacity={0.85}
       accessibilityRole="button"
+      // Read whole, the card was sixty-odd words with its action last. It now
+      // leads with what a tap does, gives the facts as the value, and keeps the
+      // longer copy (description, roots, what it includes) as the hint.
+      accessibilityLabel={`${actionLabel}: ${localizedPreset.title}`}
+      accessibilityValue={{
+        text: [localizedPreset.tradition, slotLabel, passagesLabel].join(', '),
+      }}
+      accessibilityHint={[
+        localizedPreset.description,
+        `${t('plans.rhythmComposer.historicRoots')}: ${localizedPreset.historicRoots}`,
+        `${t('plans.rhythmComposer.includes')}: ${itemPreview}`,
+      ].join('. ')}
       style={[
         styles.presetCard,
         { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder },
@@ -65,14 +83,8 @@ export const PresetCard = memo(function PresetCard({
 
       <View style={metaPillRowStyle}>
         <MetaPill label={localizedPreset.tradition} colors={colors} accent />
-        <MetaPill label={getRhythmSlotLabel(preset.slot, t)} colors={colors} />
-        <MetaPill
-          label={t('readingPlans.chapterCount', {
-            count: preset.items.length,
-            defaultValue: `${preset.items.length} passages`,
-          })}
-          colors={colors}
-        />
+        <MetaPill label={slotLabel} colors={colors} />
+        <MetaPill label={passagesLabel} colors={colors} />
       </View>
 
       <View style={styles.sourceBlock}>
@@ -88,9 +100,7 @@ export const PresetCard = memo(function PresetCard({
         <Text style={[styles.sourceLabel, { color: colors.secondaryText }]}>
           {t('plans.rhythmComposer.includes')}
         </Text>
-        <Text style={[styles.includesValue, { color: colors.primaryText }]}>
-          {buildPresetItemPreview(localizedPreset)}
-        </Text>
+        <Text style={[styles.includesValue, { color: colors.primaryText }]}>{itemPreview}</Text>
       </View>
 
       <View style={[styles.inlineAction, { backgroundColor: colors.accentPrimary }]}>
