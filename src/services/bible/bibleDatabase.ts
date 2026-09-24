@@ -29,6 +29,7 @@ import {
 
 let db: SQLite.SQLiteDatabase | null = null;
 const installedDatabaseCache = new Map<string, SQLite.SQLiteDatabase>();
+const pendingInstalledDatabaseOpens = new Map<string, Promise<SQLite.SQLiteDatabase>>();
 // Search-index cache keys whose index is known to be complete. Only a ready index is cached: a
 // pack's index can finish building in the background, so "not ready" is probed again.
 const searchIndexReadyCache = new Set<string>();
@@ -49,16 +50,33 @@ export class BibleSearchUnavailableError extends Error {
   }
 }
 
+/**
+ * The installed pack for a translation cannot be read: its file is gone, or it is no longer a
+ * SQLite database. Either way the only way back is a re-download, which the reader offers when
+ * it sees this error (matched by name).
+ */
 export class MissingInstalledDatabaseError extends Error {
   readonly translationId: string;
   readonly localPath: string;
+  readonly reason: 'missing' | 'corrupt';
 
-  constructor(translationId: string, localPath: string) {
-    super(`Installed database file is missing for translation "${translationId}": ${localPath}`);
+  constructor(translationId: string, localPath: string, reason: 'missing' | 'corrupt' = 'missing') {
+    super(`Installed database file is ${reason} for translation "${translationId}": ${localPath}`);
     this.name = 'MissingInstalledDatabaseError';
     this.translationId = translationId;
     this.localPath = localPath;
+    this.reason = reason;
   }
+}
+
+// SQLITE_NOTADB and SQLITE_CORRUPT. expo-sqlite wraps SQLite's message in its own text on both
+// platforms, so match the message rather than a code. A busy or locked database is transient and
+// deliberately does not match: treating it as corruption would throw away a working install.
+const CORRUPT_DATABASE_MESSAGE =
+  /file is not a database|database disk image is malformed|SQLITE_(?:NOTADB|CORRUPT)\b/i;
+
+function isCorruptDatabaseError(error: unknown): boolean {
+  return CORRUPT_DATABASE_MESSAGE.test(error instanceof Error ? error.message : String(error));
 }
 
 export {
@@ -120,6 +138,9 @@ export async function invalidateInstalledBibleDatabaseAtPath(localPath: string):
 
   const cacheKey = getSourceCacheKey(source);
   forgetSearchIndexReadiness(cacheKey);
+  // A first open still in flight caches its handle when it lands; wait for it so that handle is
+  // closed here too, rather than cached on a file the caller is about to replace.
+  await pendingInstalledDatabaseOpens.get(cacheKey)?.catch(() => undefined);
   const cachedDatabase = installedDatabaseCache.get(cacheKey);
 
   if (!cachedDatabase) {
@@ -389,7 +410,9 @@ export async function inspectBundledDatabaseStatus(
     }
   }
 
-  let temporaryDb: SQLite.SQLiteDatabase | null = null;
+  // A handle this probe opened itself. It is closed on the way out unless it became the shared
+  // handle; the shared handle, when one exists, is only borrowed.
+  let probeDb: SQLite.SQLiteDatabase | null = null;
 
   try {
     // On a fresh install nothing has imported the asset yet. Opening the missing file would
@@ -399,17 +422,25 @@ export async function inspectBundledDatabaseStatus(
       return notReadyStatus();
     }
 
-    temporaryDb = db ?? (await SQLite.openDatabaseAsync(DATABASE_NAME, SQLITE_OPEN_OPTIONS));
-    const status = await inspectOpenDatabase(temporaryDb);
+    const database =
+      db ?? (probeDb = await SQLite.openDatabaseAsync(DATABASE_NAME, SQLITE_OPEN_OPTIONS));
+    const status = await inspectOpenDatabase(database);
     const ready = isBundledBibleDatabaseReady(status, minimumReadyVerseCount);
 
-    if (!db && temporaryDb && ready) {
-      await temporaryDb.execAsync('PRAGMA journal_mode = WAL');
-      await temporaryDb.execAsync('PRAGMA cache_size = -4096');
-      await temporaryDb.execAsync('PRAGMA temp_store = MEMORY');
-      await ensurePerformanceIndexes(temporaryDb);
-      db = temporaryDb;
-      temporaryDb = null;
+    // An initialization can start while the probe is reading (the check above ran before it).
+    // It owns the file then: it may be replacing it and will install its own shared handle, so
+    // adopting the probe would leave one of the two handles open forever.
+    const initializationOwnsFile = () => db !== null || bundledInitPromise !== null;
+    if (ready && probeDb && !initializationOwnsFile()) {
+      const candidate = probeDb;
+      await candidate.execAsync('PRAGMA journal_mode = WAL');
+      await candidate.execAsync('PRAGMA cache_size = -4096');
+      await candidate.execAsync('PRAGMA temp_store = MEMORY');
+      await ensurePerformanceIndexes(candidate);
+      if (!initializationOwnsFile()) {
+        db = candidate;
+        probeDb = null;
+      }
     }
 
     return {
@@ -420,8 +451,8 @@ export async function inspectBundledDatabaseStatus(
     console.warn('[Bible] Failed to inspect bundled database status:', error);
     return notReadyStatus();
   } finally {
-    if (!db && temporaryDb) {
-      await temporaryDb.closeAsync();
+    if (probeDb) {
+      await probeDb.closeAsync();
     }
   }
 }
@@ -447,6 +478,24 @@ export async function getDatabase(translationId: string = 'bsb'): Promise<SQLite
     return cachedDatabase;
   }
 
+  // The reader, its prefetch and a search open a pack together on first use. Separate opens
+  // would each cache a handle, and the one overwritten in the cache would never be closed when
+  // the pack is replaced, keeping the old file and its WAL open underneath the new one.
+  const pendingOpen = pendingInstalledDatabaseOpens.get(cacheKey);
+  if (pendingOpen) {
+    return pendingOpen;
+  }
+  const opening = openInstalledDatabase(source, cacheKey).finally(() => {
+    pendingInstalledDatabaseOpens.delete(cacheKey);
+  });
+  pendingInstalledDatabaseOpens.set(cacheKey, opening);
+  return opening;
+}
+
+async function openInstalledDatabase(
+  source: Extract<BibleDatabaseSource, { kind: 'installed' }>,
+  cacheKey: string
+): Promise<SQLite.SQLiteDatabase> {
   const localPath = `${source.directory}/${source.databaseName}`;
   const FileSystem = await import('expo-file-system/legacy');
   const fileInfo = await FileSystem.getInfoAsync(localPath);
@@ -454,14 +503,46 @@ export async function getDatabase(translationId: string = 'bsb'): Promise<SQLite
     throw new MissingInstalledDatabaseError(source.translationId, localPath);
   }
 
-  const database = await SQLite.openDatabaseAsync(
-    source.databaseName,
-    SQLITE_OPEN_OPTIONS,
-    source.directory
-  );
-  await database.execAsync('PRAGMA journal_mode = WAL');
+  let database: SQLite.SQLiteDatabase | null = null;
+  try {
+    database = await SQLite.openDatabaseAsync(
+      source.databaseName,
+      SQLITE_OPEN_OPTIONS,
+      source.directory
+    );
+    // The first statement on a file that is not (or no longer) a database fails here.
+    await database.execAsync('PRAGMA journal_mode = WAL');
+  } catch (error) {
+    await database?.closeAsync().catch(() => undefined);
+    if (isCorruptDatabaseError(error)) {
+      throw new MissingInstalledDatabaseError(source.translationId, localPath, 'corrupt');
+    }
+    throw error;
+  }
   installedDatabaseCache.set(cacheKey, database);
   return database;
+}
+
+/**
+ * Damage that only shows once a page is read (a pack truncated or overwritten after install)
+ * surfaces from a query on a handle that opened fine. Drop that handle and report the pack as
+ * unreadable so the reader resets the install instead of failing on every chapter.
+ */
+async function toInstalledDatabaseReadError(
+  translationId: string,
+  error: unknown
+): Promise<unknown> {
+  const source = resolveBibleDatabaseSource(translationId);
+  if (source.kind !== 'installed' || !isCorruptDatabaseError(error)) {
+    return error;
+  }
+  const localPath = `${source.directory}/${source.databaseName}`;
+  try {
+    await invalidateInstalledBibleDatabaseAtPath(localPath);
+  } catch (invalidateError) {
+    console.warn('[Bible] Failed to drop the handle on a damaged text pack:', invalidateError);
+  }
+  return new MissingInstalledDatabaseError(source.translationId, localPath, 'corrupt');
 }
 
 export async function getChapter(
@@ -470,23 +551,20 @@ export async function getChapter(
   chapter: number
 ): Promise<Verse[]> {
   const database = await getDatabase(translationId);
-  const results = await database.getAllAsync<{
-    id: number;
-    book_id: string;
-    chapter: number;
-    verse: number;
-    text: string;
-    heading: string | null;
-    formatting: string | null;
-  }>(
-    `
-      SELECT id, book_id, chapter, verse, text, heading, formatting
-      FROM verses
-      WHERE translation_id = ? AND book_id = ? AND chapter = ?
-      ORDER BY verse
-    `,
-    [translationId, bookId, chapter]
-  );
+  let results: VerseRow[];
+  try {
+    results = await database.getAllAsync<VerseRow>(
+      `
+        SELECT id, book_id, chapter, verse, text, heading, formatting
+        FROM verses
+        WHERE translation_id = ? AND book_id = ? AND chapter = ?
+        ORDER BY verse
+      `,
+      [translationId, bookId, chapter]
+    );
+  } catch (error) {
+    throw await toInstalledDatabaseReadError(translationId, error);
+  }
 
   return results.map((row) => ({
     id: row.id,

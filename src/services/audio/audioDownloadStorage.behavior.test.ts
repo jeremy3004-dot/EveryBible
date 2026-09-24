@@ -49,6 +49,8 @@ interface DownloadScript {
 let downloadScript: DownloadScript = {};
 /** Scripted failure for `FileSystem.deleteAsync` (cleanup paths). */
 let deleteError: unknown = null;
+/** Scripted failure for `FileSystem.moveAsync` (moving a finished download into place). */
+let moveError: unknown = null;
 /** Runs inside every `getInfoAsync`, so a test can land an abort mid-validation. */
 let onGetInfo: ((uri: string) => void) | null = null;
 /** What `getFreeDiskStorageAsync` reports; an Error instance is thrown instead. */
@@ -151,6 +153,7 @@ mockModule(mock, 'expo-file-system/legacy', {
   },
   moveAsync: async ({ from, to }: { from: string; to: string }): Promise<void> => {
     fsCalls.push({ method: 'moveAsync', args: [from, to] });
+    if (moveError) throw moveError;
     const file = files.get(from);
     if (!file) throw new Error(`ENOENT: ${from}`);
     if (files.has(to)) throw new Error(`EEXIST: ${to}`);
@@ -311,6 +314,7 @@ beforeEach(() => {
   resumeErrors.clear();
   existingTasksError = null;
   deleteError = null;
+  moveError = null;
   lastOnProgress = undefined;
   onGetInfo = null;
   freeDiskStorage = 0;
@@ -642,6 +646,59 @@ test('a download that leaves no file behind is rejected as zero bytes', async ()
       ),
     /too small \(0 bytes\)/
   );
+});
+
+const CHAPTER_URI = 'file:///documents/everybible-audio/bsb/GEN/1.m4a';
+const PARTIAL_URI = `${CHAPTER_URI}.download`;
+
+test('every error answer, and a redirect the transport did not follow, leaves no chapter behind', async () => {
+  for (const status of [301, 302, 403, 404, 500, 503]) {
+    files.clear();
+    downloadScript = { result: { status }, writeSize: VALID_AUDIO_BYTES };
+
+    await assert.rejects(
+      () =>
+        mod.expoAudioFileSystemAdapter.downloadFile('https://media.test/GEN/1.m4a', CHAPTER_URI),
+      new RegExp(`HTTP ${status}`),
+      `HTTP ${status}`
+    );
+    assert.deepEqual([...files.keys()], [], `HTTP ${status}: neither a chapter nor a partial`);
+  }
+});
+
+test('a disk that fills up mid-transfer surfaces the error and discards the partial', async () => {
+  downloadScript = {
+    error: Object.assign(new Error('ENOSPC: no space left on device'), { code: 'ENOSPC' }),
+    partialSize: 3_000,
+  };
+
+  await assert.rejects(
+    () => mod.expoAudioFileSystemAdapter.downloadFile('https://media.test/GEN/1.m4a', CHAPTER_URI),
+    /ENOSPC/
+  );
+
+  assert.deepEqual([...files.keys()], [], 'the partial must not linger and use up more space');
+});
+
+test('a finished download that cannot be moved into place surfaces the error, never a chapter', async () => {
+  moveError = Object.assign(new Error('ENOSPC: no space left on device, rename'), {
+    code: 'ENOSPC',
+  });
+
+  await assert.rejects(
+    () => mod.expoAudioFileSystemAdapter.downloadFile('https://media.test/GEN/1.m4a', CHAPTER_URI),
+    /ENOSPC/
+  );
+
+  assert.equal(files.has(CHAPTER_URI), false, 'nothing is reported as a downloaded chapter');
+  moveError = null;
+  await mod.expoAudioFileSystemAdapter.downloadFile('https://media.test/GEN/1.m4a', CHAPTER_URI);
+  assert.deepEqual(
+    [...files.keys()],
+    [CHAPTER_URI],
+    'the retry clears the stranded partial and lands the chapter'
+  );
+  assert.equal(files.has(PARTIAL_URI), false);
 });
 
 test('a cleanup delete that fails is surfaced instead of the original download error', async () => {

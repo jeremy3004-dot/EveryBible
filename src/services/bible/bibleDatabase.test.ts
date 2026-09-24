@@ -227,21 +227,68 @@ function resetRecorders(): void {
 
 const toParams = (params: unknown[] | undefined): SqlParam[] => (params ?? []) as SqlParam[];
 
+// ─── Failure injection ────────────────────────────────────────────────────────
+
+/**
+ * Native failures to inject into the fake. Each queue is consumed one call at a time: an Error
+ * makes that call throw, null lets it through, and an empty queue means "healthy".
+ */
+const sqliteFaults = {
+  importAsset: [] as Array<Error | null>,
+  open: [] as Array<Error | null>,
+  /** Makes the next query whose SQL matches throw, `remaining` times. */
+  query: null as { match: RegExp; error: Error; remaining: number } | null,
+  /** Awaited before every statement, with the id of the handle it runs on. */
+  beforeStatement: null as ((handleId: number, sql: string) => Promise<void> | void) | null,
+  /** Awaited before every asset import. */
+  beforeImport: null as (() => Promise<void> | void) | null,
+};
+let handleSequence = 0;
+/** Ids of fake handles that were opened and not yet closed. */
+const liveHandles = new Set<number>();
+
+function resetSqliteFaults(): void {
+  sqliteFaults.importAsset.length = 0;
+  sqliteFaults.open.length = 0;
+  sqliteFaults.query = null;
+  sqliteFaults.beforeStatement = null;
+  sqliteFaults.beforeImport = null;
+}
+
+const takeFault = (queue: Array<Error | null>): void => {
+  const fault = queue.shift();
+  if (fault) throw fault;
+};
+
+async function beforeStatement(handleId: number, sql: string): Promise<void> {
+  await sqliteFaults.beforeStatement?.(handleId, sql);
+  const fault = sqliteFaults.query;
+  if (fault && fault.remaining > 0 && fault.match.test(sql)) {
+    fault.remaining -= 1;
+    throw fault.error;
+  }
+}
+
 function createDatabaseAdapter(path: string) {
   const handle = new DatabaseSync(path);
+  const handleId = ++handleSequence;
+  liveHandles.add(handleId);
   let closed = false;
 
   const statements = {
     async execAsync(sql: string): Promise<void> {
       queries.push({ path, sql, params: [] });
+      await beforeStatement(handleId, sql);
       handle.exec(sql);
     },
     async getFirstAsync<T>(sql: string, params?: unknown[]): Promise<T | null> {
       queries.push({ path, sql, params: params ?? [] });
+      await beforeStatement(handleId, sql);
       return (handle.prepare(sql).get(...toParams(params)) as T | undefined) ?? null;
     },
     async getAllAsync<T>(sql: string, params?: unknown[]): Promise<T[]> {
       queries.push({ path, sql, params: params ?? [] });
+      await beforeStatement(handleId, sql);
       return handle.prepare(sql).all(...toParams(params)) as T[];
     },
     async runAsync(sql: string, params?: unknown[]) {
@@ -275,6 +322,7 @@ function createDatabaseAdapter(path: string) {
       events.push(`close:${path}`);
       if (!closed) {
         closed = true;
+        liveHandles.delete(handleId);
         handle.close();
       }
     },
@@ -298,6 +346,7 @@ mockModule(mock, 'expo-sqlite', {
     const path = `${resolvedDirectory}/${name}`;
     opens.push({ name, directory: resolvedDirectory, path, options });
     events.push(`open:${path}`);
+    takeFault(sqliteFaults.open);
     return createDatabaseAdapter(path);
   },
   importDatabaseFromAssetAsync: async (
@@ -306,6 +355,8 @@ mockModule(mock, 'expo-sqlite', {
   ) => {
     assetImports.push({ databaseName, assetId, forceOverwrite: Boolean(forceOverwrite) });
     events.push(`import:${databaseName}:${forceOverwrite ? 'force' : 'keep'}`);
+    await sqliteFaults.beforeImport?.();
+    takeFault(sqliteFaults.importAsset);
     const target = `${sqliteDirectory}/${databaseName}`;
     if (!forceOverwrite && existsSync(target)) {
       return;
@@ -359,6 +410,7 @@ const loadModule = async (): Promise<BibleDatabaseModule> => {
  * "drop the broken handle" path, so no private state is touched.
  */
 async function resetBundledDatabase(): Promise<void> {
+  resetSqliteFaults();
   const { initDatabase } = await loadModule();
   await assert.rejects(initDatabase(Number.MAX_SAFE_INTEGER));
   resetRecorders();
@@ -649,6 +701,256 @@ test('concurrent cold-start initializations share a single asset import', async 
   assert.equal(opens.length, 1);
 });
 
+// ─── Injected native failures ─────────────────────────────────────────────────
+
+const diskFull = () =>
+  Object.assign(new Error('ENOSPC: no space left on device, copyfile'), { code: 'ENOSPC' });
+
+/** Handles opened since `before` was taken that are still open. */
+const handlesOpenedSince = (before: ReadonlySet<number>): number[] =>
+  [...liveHandles].filter((id) => !before.has(id));
+
+function deferred(): { promise: Promise<void>; resolve: () => void } {
+  let resolve!: () => void;
+  const promise = new Promise<void>((settle) => {
+    resolve = settle;
+  });
+  return { promise, resolve };
+}
+
+test('an asset copy that fails for lack of space rejects with that error and is retried next time', async (t) => {
+  const { initDatabase } = await loadModule();
+  t.mock.method(console, 'warn', () => {});
+  await resetBundledDatabase();
+  rmSync(bundledDatabasePath, { force: true });
+  const before = new Set(liveHandles);
+  sqliteFaults.importAsset.push(diskFull(), diskFull());
+
+  await assert.rejects(() => initDatabase(READY_VERSE_COUNT), /ENOSPC/);
+
+  assert.deepEqual(
+    assetImports.map((entry) => entry.forceOverwrite),
+    [false, true],
+    'the forced recovery copy is attempted before giving up'
+  );
+  assert.deepEqual(handlesOpenedSince(before), [], 'a failed start leaves no handle open');
+
+  resetRecorders();
+  const status = await initDatabase(READY_VERSE_COUNT);
+
+  assert.equal(
+    status.verseCount,
+    READY_VERSE_COUNT,
+    'the failure is not latched: the next call copies the asset'
+  );
+  assert.equal(assetImports.length, 1);
+});
+
+test('an asset copy that fails once is recovered by the forced copy in the same launch', async (t) => {
+  const { initDatabase } = await loadModule();
+  t.mock.method(console, 'warn', () => {});
+  await resetBundledDatabase();
+  rmSync(bundledDatabasePath, { force: true });
+  sqliteFaults.importAsset.push(diskFull());
+
+  const status = await initDatabase(READY_VERSE_COUNT);
+
+  assert.equal(status.verseCount, READY_VERSE_COUNT);
+  assert.deepEqual(
+    assetImports.map((entry) => entry.forceOverwrite),
+    [false, true]
+  );
+});
+
+test('a database that cannot be opened is recovered by the forced copy', async (t) => {
+  const { initDatabase } = await loadModule();
+  t.mock.method(console, 'warn', () => {});
+  await resetBundledDatabase();
+  sqliteFaults.open.push(new Error('SQLITE_CANTOPEN: unable to open database file'));
+
+  const status = await initDatabase(READY_VERSE_COUNT);
+
+  assert.equal(status.verseCount, READY_VERSE_COUNT);
+  assert.deepEqual(
+    assetImports.map((entry) => entry.forceOverwrite),
+    [false, true]
+  );
+});
+
+test('an integrity check that errors is treated as a failed check and the copy is replaced', async (t) => {
+  const { initDatabase } = await loadModule();
+  t.mock.method(console, 'warn', () => {});
+  await resetBundledDatabase();
+  const before = new Set(liveHandles);
+  sqliteFaults.query = {
+    match: /quick_check/,
+    error: new Error('SQLITE_IOERR: disk I/O error'),
+    remaining: 1,
+  };
+
+  const status = await initDatabase(READY_VERSE_COUNT);
+
+  assert.equal(status.verseCount, READY_VERSE_COUNT);
+  assert.deepEqual(
+    assetImports.map((entry) => entry.forceOverwrite),
+    [false, true]
+  );
+  assert.equal(handlesOpenedSince(before).length, 1, 'the handle that failed its check was closed');
+});
+
+test('a copy the app was killed in the middle of is replaced on the next launch, not trusted', async (t) => {
+  const { initDatabase } = await loadModule();
+  t.mock.method(console, 'warn', () => {});
+  await resetBundledDatabase();
+  // The native copy writes in place. A process kill leaves the first half of the file, which the
+  // next launch's non-forced import skips because a file already exists at the path.
+  writeSeedDatabase(bundledDatabasePath, { padRows: 400 });
+  const whole = readFileSync(bundledDatabasePath);
+  writeFileSync(bundledDatabasePath, whole.subarray(0, Math.floor(whole.length / 2)));
+
+  const status = await initDatabase(READY_VERSE_COUNT);
+
+  assert.equal(status.verseCount, READY_VERSE_COUNT);
+  assert.deepEqual(
+    assetImports.map((entry) => entry.forceOverwrite),
+    [false, true]
+  );
+  assert.equal(statSync(bundledDatabasePath).size, statSync(assetSeedPath).size);
+});
+
+test('an empty file left by a copy killed before its first write is replaced', async (t) => {
+  const { initDatabase } = await loadModule();
+  t.mock.method(console, 'warn', () => {});
+  await resetBundledDatabase();
+  writeFileSync(bundledDatabasePath, '');
+
+  const status = await initDatabase(READY_VERSE_COUNT);
+
+  assert.equal(status.verseCount, READY_VERSE_COUNT);
+  assert.deepEqual(
+    assetImports.map((entry) => entry.forceOverwrite),
+    [false, true]
+  );
+});
+
+test('a database the OS removed between launches is copied again without a forced recovery', async () => {
+  const { initDatabase } = await loadModule();
+  await resetBundledDatabase();
+  for (const suffix of ['', '-wal', '-shm']) {
+    rmSync(`${bundledDatabasePath}${suffix}`, { force: true });
+  }
+
+  const status = await initDatabase(READY_VERSE_COUNT);
+
+  assert.equal(status.verseCount, READY_VERSE_COUNT);
+  assert.deepEqual(
+    assetImports.map((entry) => entry.forceOverwrite),
+    [false]
+  );
+});
+
+test('a copy with a newer schema version than the asset is kept rather than downgraded', async () => {
+  const { initDatabase } = await loadModule();
+  await resetBundledDatabase();
+  writeSeedDatabase(bundledDatabasePath, { schemaVersion: BUNDLED_BIBLE_SCHEMA_VERSION + 1 });
+
+  const status = await initDatabase(READY_VERSE_COUNT);
+
+  assert.equal(status.schemaVersion, BUNDLED_BIBLE_SCHEMA_VERSION + 1);
+  assert.deepEqual(
+    assetImports.map((entry) => entry.forceOverwrite),
+    [false]
+  );
+});
+
+test('a chapter query that fails reaches the caller and the next read succeeds', async () => {
+  const { initDatabase, getChapter } = await loadModule();
+  await resetBundledDatabase();
+  await initDatabase(READY_VERSE_COUNT);
+  sqliteFaults.query = {
+    match: /FROM verses\s+WHERE translation_id = \? AND book_id/,
+    error: new Error('SQLITE_IOERR: disk I/O error'),
+    remaining: 1,
+  };
+
+  await assert.rejects(() => getChapter('bsb', 'GEN', 1), /SQLITE_IOERR/);
+  const verses = await getChapter('bsb', 'GEN', 1);
+
+  assert.equal(verses.length, 3);
+});
+
+test('a readiness probe that finishes after initialization leaves only the shared handle open', async () => {
+  const { initDatabase, inspectBundledDatabaseStatus } = await loadModule();
+  await resetBundledDatabase();
+  const before = new Set(liveHandles);
+  const probeStarted = deferred();
+  const releaseProbe = deferred();
+  let probeHandle: number | null = null;
+  sqliteFaults.beforeStatement = async (handleId) => {
+    if (probeHandle === null) {
+      probeHandle = handleId;
+      probeStarted.resolve();
+    }
+    if (handleId === probeHandle) await releaseProbe.promise;
+  };
+
+  // Home asks whether the Bible is ready while the reader's first read initialises it.
+  const probe = inspectBundledDatabaseStatus(READY_VERSE_COUNT);
+  await probeStarted.promise;
+  const initStatus = await initDatabase(READY_VERSE_COUNT);
+  releaseProbe.resolve();
+  const probeStatus = await probe;
+
+  assert.equal(initStatus.verseCount, READY_VERSE_COUNT);
+  assert.equal(probeStatus.ready, true);
+  assert.equal(
+    handlesOpenedSince(before).length,
+    1,
+    'the probe must close its own handle once initialization has installed the shared one'
+  );
+});
+
+test('a readiness probe does not adopt its handle while an initialization is replacing the database', async () => {
+  const { initDatabase, inspectBundledDatabaseStatus, getDatabase } = await loadModule();
+  await resetBundledDatabase();
+  const before = new Set(liveHandles);
+  const probeStarted = deferred();
+  const releaseProbe = deferred();
+  const importStarted = deferred();
+  const releaseImport = deferred();
+  let probeHandle: number | null = null;
+  sqliteFaults.beforeStatement = async (handleId) => {
+    if (probeHandle === null) {
+      probeHandle = handleId;
+      probeStarted.resolve();
+    }
+    if (handleId === probeHandle) await releaseProbe.promise;
+  };
+  sqliteFaults.beforeImport = async () => {
+    importStarted.resolve();
+    await releaseImport.promise;
+  };
+
+  const probe = inspectBundledDatabaseStatus(READY_VERSE_COUNT);
+  await probeStarted.promise;
+  const initialization = initDatabase(READY_VERSE_COUNT);
+  await importStarted.promise;
+  releaseProbe.resolve();
+  await probe;
+  releaseImport.resolve();
+  await initialization;
+  sqliteFaults.beforeStatement = null;
+  sqliteFaults.beforeImport = null;
+
+  assert.equal(
+    handlesOpenedSince(before).length,
+    1,
+    'an adopted probe would be overwritten by the initialization and never closed'
+  );
+  const shared = await getDatabase('bsb');
+  assert.ok(shared, 'the initialization handle is the one readers get');
+});
+
 // ─── Status inspection ────────────────────────────────────────────────────────
 
 test('inspectBundledDatabaseStatus adopts a ready database as the shared handle', async () => {
@@ -887,6 +1189,186 @@ test('getDatabase treats a zero-byte installed pack as missing', async () => {
 
   await assert.rejects(() => getDatabase('empty'), /Installed database file is missing/);
   assert.deepEqual(opens, []);
+});
+
+function seedInstalledPack(translationId: string): string {
+  const localPath = `${installedDirectory}/${translationId}.db`;
+  writeSeedDatabase(localPath, {
+    verses: [{ translationId, bookId: 'GEN', chapter: 1, verse: 1, text: 'In the beginning.' }],
+  });
+  return localPath;
+}
+
+test('concurrent first reads of an installed pack share one handle', async () => {
+  const { getDatabase, invalidateInstalledBibleDatabaseAtPath, setBibleDatabaseSourceResolver } =
+    await loadModule();
+  const localPath = seedInstalledPack('twice');
+  setBibleDatabaseSourceResolver((translationId) =>
+    translationId === 'twice' ? installedSource('twice', 'twice.db') : null
+  );
+  resetRecorders();
+  const before = new Set(liveHandles);
+
+  // The reader, its next-chapter prefetch and a search all open the pack on the first launch
+  // after it was installed.
+  const [reader, prefetch, search] = await Promise.all([
+    getDatabase('twice'),
+    getDatabase('twice'),
+    getDatabase('twice'),
+  ]);
+
+  assert.equal(reader, prefetch);
+  assert.equal(reader, search);
+  assert.equal(opens.length, 1, 'a second handle would never be closed by an invalidation');
+
+  await invalidateInstalledBibleDatabaseAtPath(localPath);
+  assert.deepEqual(
+    handlesOpenedSince(before),
+    [],
+    'replacing the pack must be able to close every handle on its file'
+  );
+});
+
+test('an installed pack that is no longer a database is reported so the reader can recover it', async () => {
+  const { getChapter, setBibleDatabaseSourceResolver, MissingInstalledDatabaseError } =
+    await loadModule();
+  const localPath = `${installedDirectory}/scrambled.db`;
+  // Storage corruption, or a backup restore that wrote something other than the pack.
+  writeFileSync(localPath, Buffer.alloc(16_384, 0x5a));
+  setBibleDatabaseSourceResolver((translationId) =>
+    translationId === 'scrambled' ? installedSource('scrambled', 'scrambled.db') : null
+  );
+  resetRecorders();
+  const before = new Set(liveHandles);
+
+  await assert.rejects(
+    () => getChapter('scrambled', 'GEN', 1),
+    (error: unknown) => {
+      // The reader matches this by name to reset the install and offer a re-download; any
+      // other error leaves the translation failing on every open, with no way back.
+      assert.ok(error instanceof MissingInstalledDatabaseError);
+      assert.equal(error.name, 'MissingInstalledDatabaseError');
+      assert.equal(error.translationId, 'scrambled');
+      assert.equal(error.localPath, localPath);
+      assert.match(error.message, /corrupt/);
+      return true;
+    }
+  );
+  assert.deepEqual(handlesOpenedSince(before), [], 'the handle on the bad file is closed');
+});
+
+test('an installed pack truncated after install fails its read as a recoverable missing pack', async () => {
+  const { getChapter, getDatabase, setBibleDatabaseSourceResolver, MissingInstalledDatabaseError } =
+    await loadModule();
+  const localPath = `${installedDirectory}/cut.db`;
+  writeSeedDatabase(localPath, {
+    verses: SEED_VERSES.filter((verse) => verse.translationId === 'bsb').map((verse) => ({
+      ...verse,
+      translationId: 'cut',
+    })),
+    padRows: 400,
+  });
+  // Only the schema page and the first table page survive; every b-tree below them is gone.
+  writeFileSync(localPath, readFileSync(localPath).subarray(0, 8192));
+  setBibleDatabaseSourceResolver((translationId) =>
+    translationId === 'cut' ? installedSource('cut', 'cut.db') : null
+  );
+  resetRecorders();
+
+  await assert.rejects(
+    () => getChapter('cut', 'JHN', 3),
+    (error: unknown) => error instanceof MissingInstalledDatabaseError
+  );
+
+  resetRecorders();
+  await assert.rejects(
+    () => getDatabase('cut'),
+    (error: unknown) => error instanceof MissingInstalledDatabaseError
+  );
+  assert.equal(opens.length, 1, 'the handle on the damaged file is not cached for later reads');
+  assert.equal(closes.length, 1, 'and the retry closes the handle it opened');
+});
+
+test('corruption met while reading an open pack drops its handle and is reported as recoverable', async () => {
+  const { getChapter, getDatabase, setBibleDatabaseSourceResolver, MissingInstalledDatabaseError } =
+    await loadModule();
+  seedInstalledPack('rotted');
+  setBibleDatabaseSourceResolver((translationId) =>
+    translationId === 'rotted' ? installedSource('rotted', 'rotted.db') : null
+  );
+  await getDatabase('rotted');
+  sqliteFaults.query = {
+    match: /FROM verses\s+WHERE translation_id = \? AND book_id/,
+    error: new Error('Error code 11: database disk image is malformed'),
+    remaining: 1,
+  };
+  resetRecorders();
+
+  await assert.rejects(
+    () => getChapter('rotted', 'GEN', 1),
+    (error: unknown) => error instanceof MissingInstalledDatabaseError
+  );
+
+  assert.deepEqual(closes, [`${installedDirectory}/rotted.db`], 'the damaged handle is closed');
+});
+
+test('a locked installed pack is not mistaken for a corrupt one', async () => {
+  const { getChapter, setBibleDatabaseSourceResolver, MissingInstalledDatabaseError } =
+    await loadModule();
+  seedInstalledPack('busy');
+  setBibleDatabaseSourceResolver((translationId) =>
+    translationId === 'busy' ? installedSource('busy', 'busy.db') : null
+  );
+  sqliteFaults.query = {
+    match: /FROM verses\s+WHERE translation_id = \? AND book_id/,
+    error: new Error('database is locked'),
+    remaining: 1,
+  };
+
+  await assert.rejects(
+    () => getChapter('busy', 'GEN', 1),
+    (error: unknown) =>
+      !(error instanceof MissingInstalledDatabaseError) && /database is locked/.test(String(error)),
+    'resetting a working install over a transient lock would throw the download away'
+  );
+  assert.equal((await getChapter('busy', 'GEN', 1)).length, 1);
+});
+
+test('invalidating a pack whose first open is still in flight closes the handle it produces', async () => {
+  const { getDatabase, invalidateInstalledBibleDatabaseAtPath, setBibleDatabaseSourceResolver } =
+    await loadModule();
+  const localPath = seedInstalledPack('midopen');
+  setBibleDatabaseSourceResolver((translationId) =>
+    translationId === 'midopen' ? installedSource('midopen', 'midopen.db') : null
+  );
+  resetRecorders();
+  const before = new Set(liveHandles);
+  const openStarted = deferred();
+  const releaseOpen = deferred();
+  sqliteFaults.beforeStatement = async (_handleId, sql) => {
+    if (sql === 'PRAGMA journal_mode = WAL') {
+      openStarted.resolve();
+      await releaseOpen.promise;
+    }
+  };
+
+  const opening = getDatabase('midopen');
+  await openStarted.promise;
+  const invalidation = invalidateInstalledBibleDatabaseAtPath(localPath);
+  releaseOpen.resolve();
+  await opening;
+  await invalidation;
+  sqliteFaults.beforeStatement = null;
+
+  assert.deepEqual(
+    handlesOpenedSince(before),
+    [],
+    'a handle cached after the invalidation would keep the replaced file open'
+  );
+  resetRecorders();
+  await getDatabase('midopen');
+  assert.equal(opens.length, 1, 'the next read opens the replacement afresh');
+  await invalidateInstalledBibleDatabaseAtPath(localPath);
 });
 
 test('invalidateInstalledBibleDatabaseAtPath closes and forgets the cached handle', async () => {

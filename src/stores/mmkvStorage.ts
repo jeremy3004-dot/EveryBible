@@ -18,17 +18,44 @@ import type { StateStorage } from 'zustand/middleware';
 
 export const mmkvInstance = new MMKV();
 
+// Keys whose stored blob could not be read this session. The store behind such a key hydrated
+// from its defaults, so its next write would replace everything the user had saved; skipping
+// those writes keeps the blob for a later launch whose read succeeds.
+const unreadableKeys = new Set<string>();
+
+// A native MMKV call can throw (a damaged or full file). Zustand calls setItem synchronously
+// inside every set(), so a throw here would escape from whatever action ran it, which is a fatal
+// error in a press handler. Storage failures degrade to "not persisted" instead.
 export const zustandStorage: StateStorage = {
   setItem: (name, value) => {
-    if (mmkvInstance.getString(name) === value) {
+    if (unreadableKeys.has(name)) {
       return;
     }
 
-    mmkvInstance.set(name, value);
+    try {
+      if (mmkvInstance.getString(name) === value) {
+        return;
+      }
+    } catch {
+      // The unchanged-payload check is only an optimisation; fall through to the write.
+    }
+
+    try {
+      mmkvInstance.set(name, value);
+    } catch (error) {
+      console.warn(`[MMKV] Failed to persist "${name}"; the change is kept in memory:`, error);
+    }
   },
   getItem: (name) => {
-    const value = mmkvInstance.getString(name);
-    return value ?? null;
+    try {
+      const value = mmkvInstance.getString(name);
+      unreadableKeys.delete(name);
+      return value ?? null;
+    } catch (error) {
+      unreadableKeys.add(name);
+      console.warn(`[MMKV] Failed to read "${name}"; starting from defaults:`, error);
+      return null;
+    }
   },
   removeItem: (name) => {
     mmkvInstance.delete(name);

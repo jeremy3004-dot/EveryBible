@@ -49,6 +49,7 @@ import {
   reconcileMissingRuntimeTranslationPacks,
   hasTranslationDownloadData,
   resetTranslationDownloadState,
+  settleInterruptedInstallState,
 } from './bibleStoreModel';
 import {
   readTextPackInstallJournal,
@@ -1160,6 +1161,8 @@ export const useBibleStore = create<BibleState>()(
                     installState: 'installed' as const,
                     textPackLocalPath: localPath,
                     activeTextPackVersion: textPack?.version ?? '1',
+                    // A retry that succeeds supersedes the failure an earlier attempt recorded.
+                    lastInstallError: null,
                   }
                 : t
             ),
@@ -1874,9 +1877,11 @@ export const useBibleStore = create<BibleState>()(
           console.log('[EB-T] bible:merge-start', Date.now());
         }
         // Single read + single pass over the cached catalog; the deltas then join against it by id.
+        const persisted = sanitizePersistedBibleState(persistedState, readRuntimeCatalogSnapshot());
         const result = {
           ...currentState,
-          ...sanitizePersistedBibleState(persistedState, readRuntimeCatalogSnapshot()),
+          ...persisted,
+          translations: persisted.translations.map(settleInterruptedInstallState),
         };
         if (typeof __DEV__ !== 'undefined' && __DEV__) {
           console.log('[EB-T] bible:merge-done', Date.now());

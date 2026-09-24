@@ -61,6 +61,42 @@ test('stored JSON that is not a journal shape reads as an empty journal', async 
   }
 });
 
+test('journal entries of the wrong shape are dropped and the well-formed ones are kept', async () => {
+  const { readTextPackInstallJournal } = await loadJournal();
+  const deletion = {
+    operationId: 'del-1',
+    translationId: 'esv1',
+    paths: ['/translations/esv1.db'],
+    updatedAt: 2,
+  };
+  // Recovery reads finalPath/stagingPath/rollbackPath and iterates paths. An entry without them
+  // throws inside its try on every pass, is never retired, and so re-runs the whole recovery
+  // (a filesystem sweep of every cloud translation) before every chapter read, forever.
+  mmkv.store.set(
+    JOURNAL_KEY,
+    JSON.stringify({
+      installs: {
+        npiulb: install,
+        nullEntry: null,
+        noPaths: { operationId: 'op-2', translationId: 'noPaths', version: '1' },
+        numericPath: { ...install, translationId: 'numericPath', finalPath: 42 },
+        list: [install],
+      },
+      deletions: {
+        esv1: deletion,
+        pathsNotAList: { ...deletion, translationId: 'pathsNotAList', paths: '/x.db' },
+        pathsWithJunk: { ...deletion, translationId: 'pathsWithJunk', paths: ['/y.db', 7] },
+        noOperation: { translationId: 'noOperation', paths: [] },
+      },
+    })
+  );
+
+  assert.deepEqual(readTextPackInstallJournal(), {
+    installs: { npiulb: install },
+    deletions: { esv1: deletion },
+  });
+});
+
 test('corrupt stored bytes read as an empty journal rather than throwing', async () => {
   const { readTextPackInstallJournal } = await loadJournal();
   mmkv.store.set(JOURNAL_KEY, '{"installs":');

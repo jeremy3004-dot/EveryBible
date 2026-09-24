@@ -1,13 +1,49 @@
 import { mmkvInstance } from '../../stores/mmkvStorage';
 import {
   emptyTextPackInstallJournal,
+  type TextPackDeletionJournalEntry,
   type TextPackInstallJournal,
+  type TextPackInstallJournalEntry,
 } from './textPackInstallJournalModel';
 
 export const TEXT_PACK_INSTALL_JOURNAL_KEY = 'bible.textPackInstallJournal.v1';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+const isString = (value: unknown): value is string => typeof value === 'string';
+
+// Recovery dereferences these fields. An entry missing one would throw on every recovery pass and
+// never be retired, which keeps recovery (and its filesystem sweep) running before every read.
+function isInstallEntry(value: unknown): value is TextPackInstallJournalEntry {
+  return (
+    isRecord(value) &&
+    isString(value.operationId) &&
+    isString(value.translationId) &&
+    isString(value.finalPath) &&
+    isString(value.stagingPath) &&
+    isString(value.rollbackPath)
+  );
+}
+
+function isDeletionEntry(value: unknown): value is TextPackDeletionJournalEntry {
+  return (
+    isRecord(value) &&
+    isString(value.operationId) &&
+    isString(value.translationId) &&
+    Array.isArray(value.paths) &&
+    value.paths.every(isString)
+  );
+}
+
+function keepEntries<T>(
+  entries: Record<string, unknown>,
+  isEntry: (value: unknown) => value is T
+): Record<string, T> {
+  return Object.fromEntries(
+    Object.entries(entries).filter((entry): entry is [string, T] => isEntry(entry[1]))
+  );
 }
 
 function parseJournal(raw: string | undefined): TextPackInstallJournal {
@@ -18,8 +54,8 @@ function parseJournal(raw: string | undefined): TextPackInstallJournal {
       return emptyTextPackInstallJournal();
     }
     return {
-      installs: parsed.installs as TextPackInstallJournal['installs'],
-      deletions: parsed.deletions as TextPackInstallJournal['deletions'],
+      installs: keepEntries(parsed.installs, isInstallEntry),
+      deletions: keepEntries(parsed.deletions, isDeletionEntry),
     };
   } catch {
     return emptyTextPackInstallJournal();
