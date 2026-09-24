@@ -69,11 +69,15 @@ function getDevicePushTokenKey(devicePushToken?: DevicePushToken): string | null
   return `${devicePushToken.type}:${typeof devicePushToken.data === 'string' ? devicePushToken.data : JSON.stringify(devicePushToken.data)}`;
 }
 
-// One in-flight/completed channel setup per launch. Startup fires this and the
-// reminder scheduler awaits it, so without memoization the two racing callers
+const DAILY_REMINDER_CHANNEL_ID = 'daily-reminder';
+
+// One in-flight/completed channel setup per channel name. Startup fires this and
+// the reminder scheduler awaits it, so without memoization the two racing callers
 // would configure the channels twice — and a scheduled reminder could still name
-// a channel Android has not been told about yet.
-let androidChannelSetup: Promise<void> | null = null;
+// a channel Android has not been told about yet. Keyed by the localized name
+// because startup usually runs before a non-English interface language has
+// loaded; the next caller after it loads renames the channel.
+let androidChannelSetup: { name: string; promise: Promise<void> } | null = null;
 
 /**
  * Create Android notification channels required for scheduled notifications.
@@ -86,20 +90,26 @@ export async function setupAndroidChannels(): Promise<void> {
     return;
   }
 
-  if (!androidChannelSetup) {
-    androidChannelSetup = (async () => {
-      await Notifications.setNotificationChannelAsync('daily-reminder', {
-        name: i18n.t('notifications.channelDailyReminder'),
-        importance: Notifications.AndroidImportance.DEFAULT,
-        sound: 'default',
-      });
-    })().catch((error) => {
-      androidChannelSetup = null;
-      throw error;
-    });
+  const name = i18n.t('notifications.channelDailyReminder');
+  if (!androidChannelSetup || androidChannelSetup.name !== name) {
+    const setup = { name, promise: Promise.resolve() };
+    setup.promise = Notifications.setNotificationChannelAsync(DAILY_REMINDER_CHANNEL_ID, {
+      name,
+      importance: Notifications.AndroidImportance.DEFAULT,
+      sound: 'default',
+    }).then(
+      () => undefined,
+      (error: unknown) => {
+        if (androidChannelSetup === setup) {
+          androidChannelSetup = null;
+        }
+        throw error;
+      }
+    );
+    androidChannelSetup = setup;
   }
 
-  await androidChannelSetup;
+  await androidChannelSetup.promise;
 }
 
 /**
@@ -141,6 +151,27 @@ export async function getNotificationPermissionStatus(): Promise<NotificationPer
     return status;
   }
   return 'undetermined';
+}
+
+/**
+ * Whether the system will keep the daily reminder from appearing: the app's
+ * notifications are denied, or (Android only) the user switched off the reminder's
+ * own channel in system settings while the app-level permission stays granted.
+ * A channel that cannot be read is not reported: a false alarm is worse than none.
+ */
+export async function isDailyReminderBlockedBySystem(): Promise<boolean> {
+  if ((await getNotificationPermissionStatus()) === 'denied') {
+    return true;
+  }
+  if (Platform.OS !== 'android') {
+    return false;
+  }
+  try {
+    const channel = await Notifications.getNotificationChannelAsync(DAILY_REMINDER_CHANNEL_ID);
+    return channel?.importance === Notifications.AndroidImportance.NONE;
+  } catch {
+    return false;
+  }
 }
 
 export async function requestNotificationPermissions(): Promise<boolean> {
@@ -204,7 +235,7 @@ export async function scheduleDailyReminder(hour: number, minute: number): Promi
       type: Notifications.SchedulableTriggerInputTypes.DAILY,
       hour,
       minute,
-      channelId: 'daily-reminder',
+      channelId: DAILY_REMINDER_CHANNEL_ID,
     },
   });
   scheduledReminderSignature = signature;

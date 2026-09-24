@@ -65,8 +65,21 @@ let getToken: (options: TokenOptions) => Promise<{ data: string }> = async () =>
   data: 'expo-token',
 });
 
+// Importance of each channel the OS knows about; the user can lower it to NONE.
+const channelImportance = new Map<string, number>();
+let channelReads = 0;
+let channelReadFailure: Error | null = null;
+
 mockModule(mock, 'expo-notifications', {
-  AndroidImportance: { DEFAULT: 3, HIGH: 4 },
+  AndroidImportance: { NONE: 1, DEFAULT: 3, HIGH: 4 },
+  getNotificationChannelAsync: async (id: string) => {
+    channelReads += 1;
+    if (channelReadFailure) {
+      throw channelReadFailure;
+    }
+    const importance = channelImportance.get(id);
+    return importance === undefined ? null : { id, importance };
+  },
   SchedulableTriggerInputTypes: { DAILY: 'daily' },
   setNotificationHandler: () => {},
   getPermissionsAsync: async () => {
@@ -177,6 +190,9 @@ beforeEach(() => {
   cancelFailure = null;
   scheduleFailure = null;
   channelFailure = null;
+  channelImportance.clear();
+  channelReads = 0;
+  channelReadFailure = null;
   authState.throws = false;
   expoConfig.extra = { eas: { projectId: 'project-id' } };
   rn.Platform.OS = 'ios';
@@ -252,6 +268,60 @@ test('the channel setup is memoized per launch, so repeated callers configure it
   await Promise.all([notifications.setupAndroidChannels(), notifications.setupAndroidChannels()]);
 
   assert.deepEqual(channels, [], 'the first successful setup is the only one');
+});
+
+test('the channel is renamed once the app language has loaded, then memoized again', async () => {
+  // Startup creates the channel before a non-English interface language has loaded,
+  // so its name (shown in Android's notification settings) was stuck in English.
+  rn.Platform.OS = 'android';
+  i18nState.language = 'ru:';
+
+  await notifications.setupAndroidChannels();
+  await notifications.setupAndroidChannels();
+
+  assert.deepEqual(
+    channels.map(({ id, options }) => [id, options.name]),
+    [['daily-reminder', 'ru:notifications.channelDailyReminder']]
+  );
+});
+
+test('a reminder whose Android channel the user switched off is reported as blocked', async () => {
+  // Android lets the user turn off one notification category while the app-level
+  // permission stays granted; the reminder then never appears.
+  rn.Platform.OS = 'android';
+  channelImportance.set('daily-reminder', 1);
+
+  assert.equal(await notifications.isDailyReminderBlockedBySystem(), true);
+});
+
+test('a reminder channel that is on, or not created yet, is not reported as blocked', async () => {
+  rn.Platform.OS = 'android';
+  assert.equal(await notifications.isDailyReminderBlockedBySystem(), false);
+
+  channelImportance.set('daily-reminder', 3);
+  assert.equal(await notifications.isDailyReminderBlockedBySystem(), false);
+});
+
+test('a reminder is reported as blocked when the app permission is denied', async () => {
+  permission.current = 'denied';
+  assert.equal(await notifications.isDailyReminderBlockedBySystem(), true);
+
+  rn.Platform.OS = 'android';
+  assert.equal(await notifications.isDailyReminderBlockedBySystem(), true);
+});
+
+test('iOS never reads Android channels when checking whether the reminder is blocked', async () => {
+  channelImportance.set('daily-reminder', 1);
+
+  assert.equal(await notifications.isDailyReminderBlockedBySystem(), false);
+  assert.equal(channelReads, 0);
+});
+
+test('an unreadable channel is not reported as blocked', async () => {
+  rn.Platform.OS = 'android';
+  channelReadFailure = new Error('notification service unavailable');
+
+  assert.equal(await notifications.isDailyReminderBlockedBySystem(), false);
 });
 
 test('scheduling a reminder on Android waits for the channel its trigger names', async () => {

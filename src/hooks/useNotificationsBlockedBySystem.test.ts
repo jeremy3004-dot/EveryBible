@@ -9,17 +9,19 @@ const rn = mockReactNative(mock);
 
 const permission = {
   status: 'granted' as 'granted' | 'denied' | 'undetermined',
+  /** Android: the user switched off the reminder's own notification channel. */
+  channelOff: false,
   failure: null as Error | null,
   reads: 0,
 };
 // The notification service is imported lazily so Settings does not load it early.
 mockModule(mock, sourcePath('services/notifications/index.ts'), {
-  getNotificationPermissionStatus: async () => {
+  isDailyReminderBlockedBySystem: async () => {
     permission.reads += 1;
     if (permission.failure) {
       throw permission.failure;
     }
-    return permission.status;
+    return permission.status === 'denied' || permission.channelOff;
   },
 });
 
@@ -33,6 +35,7 @@ before(async () => {
 
 beforeEach(() => {
   permission.status = 'granted';
+  permission.channelOff = false;
   permission.failure = null;
   permission.reads = 0;
 });
@@ -57,6 +60,14 @@ async function mountSettings(reminderEnabled: boolean) {
 
 test('a reminder that is on while the system blocks notifications is reported', async () => {
   permission.status = 'denied';
+
+  const view = await mountSettings(true);
+
+  assert.equal(view.result, true);
+});
+
+test('a reminder whose Android channel was switched off in system settings is reported', async () => {
+  permission.channelOff = true;
 
   const view = await mountSettings(true);
 
