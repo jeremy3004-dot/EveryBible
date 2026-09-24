@@ -37,7 +37,8 @@ function appSources(): string[] {
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
       const entryPath = path.join(directory, entry.name);
       if (entry.isDirectory()) {
-        walk(entryPath);
+        // src/testing is node:test infrastructure, never bundled by Metro.
+        if (entry.name !== 'testing') walk(entryPath);
       } else if (/\.tsx?$/.test(entry.name) && !entry.name.includes('.test.')) {
         sources.push(entryPath);
       }

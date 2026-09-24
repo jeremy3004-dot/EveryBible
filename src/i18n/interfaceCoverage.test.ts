@@ -18,9 +18,12 @@ function flatten(tree: object, prefix = ''): Record<string, string> {
 function sourceFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const file = path.join(directory, entry.name);
+    // Tests (including *.test.tsx render tests) and src/testing are not app UI.
     return entry.isDirectory()
-      ? sourceFiles(file)
-      : /\.tsx?$/.test(file) && !file.endsWith('.test.ts')
+      ? entry.name === 'testing'
+        ? []
+        : sourceFiles(file)
+      : /\.tsx?$/.test(file) && !/\.test\.tsx?$/.test(file)
         ? [file]
         : [];
   });
