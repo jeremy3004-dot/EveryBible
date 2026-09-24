@@ -62,7 +62,7 @@ export const ja = {
     "daysAgo_one": "{{count}}日前",
     "daysAgo_other": "{{count}}日前",
     "activePrayerCount": "{{count}}件進行中",
-    "groupShareMessage": "EveryBibleの弟子訓練グループ「{{name}}」に参加しませんか！\n\n参加コード：{{code}}",
+    "groupShareMessage": "Every Bibleの弟子訓練グループ「{{name}}」に参加しませんか！\n\n参加コード：{{code}}",
     "groupAboutTitle": "グループセッションについて",
     "groupAboutBody": "グループセッションは、世界の弟子訓練運動で使われている3分の3形式で進めます：",
     "groupLookBack": "どのように従いましたか。誰に分かち合いましたか。",
@@ -307,7 +307,7 @@ export const ja = {
     },
     "translationDescriptions": {
       "bsb": "パブリックドメインのベレアン聖書本文と、直接再生できるCC0の章音声",
-      "web": "EveryBibleライブラリのパブリックドメイン英国版本文と章音声",
+      "web": "Every Bibleライブラリのパブリックドメイン英国版本文と章音声",
       "kjv": "1611年の欽定訳聖書",
       "asv": "1901年刊行の欽定訳改訂版。本文はインストール済み",
       "bbe": "読みやすいように限られた語彙を使用",
@@ -373,7 +373,7 @@ export const ja = {
     "unexpectedError": "申し訳ありません。予期しない問題が発生しました。もう一度お試しください。",
     "somethingWentWrong": "問題が発生しました",
     "tryAgain": "もう一度試す",
-    "shareMessage": "EveryBibleを使ってみませんか！",
+    "shareMessage": "Every Bibleを使ってみませんか！",
     "all": "すべて"
   },
   "tabs": {
@@ -737,7 +737,7 @@ export const ja = {
       "clear": "クリア",
       "clearTitle": "診断情報をクリア",
       "clearConfirm": "この端末に記録されたエラーとクラッシュのログをすべて削除しますか？",
-      "exportHeader": "EveryBible 診断レポート",
+      "exportHeader": "Every Bible 診断レポート",
       "exportError": "診断レポートを共有できませんでした。",
     },
     "delete": "削除",
@@ -768,7 +768,7 @@ export const ja = {
     "groupSessionBody": "{{groupName}}でセッションが記録されました"
   },
   "more": {
-    "footerVersion": "EveryBible {{version}} · Every Language",
+    "footerVersion": "Every Bible {{version}} · Every Language",
     "groupAccount": "アカウント",
     "groupApp": "アプリ",
     "groupContent": "コンテンツ",
@@ -801,7 +801,7 @@ export const ja = {
     "signOutConfirm": "ログアウトしてもよろしいですか？この端末の読書の進捗はそのまま残ります。",
     "profile": "プロフィール",
     "settings": "設定",
-    "about": "EveryBibleについて",
+    "about": "Every Bibleについて",
     "syncYourProgress": "進捗を同期"
   },
   "auth": {
@@ -850,8 +850,8 @@ export const ja = {
     "googleSignInFailed": "Googleでのログインに失敗しました",
     "signInAlreadyInProgress": "ログイン処理を実行中です",
     "providerUnavailable": "このログイン方法は現在ご利用いただけません",
-    "serviceUnavailable": "EveryBibleがサーバーに接続できませんでした。しばらくしてからもう一度お試しください。",
-    "backendNotConfigured": "このビルドのEveryBibleはまだ設定されていません。",
+    "serviceUnavailable": "Every Bibleがサーバーに接続できませんでした。しばらくしてからもう一度お試しください。",
+    "backendNotConfigured": "このバージョンのEvery Bibleでは、アカウント機能はまだご利用いただけません。",
     "somethingWentWrong": "問題が発生しました。もう一度お試しください。",
     "checkYourEmail": "メールを確認してください",
     "resetLinkSent": "パスワード再設定用のリンクを送信しました",

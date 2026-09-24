@@ -62,7 +62,7 @@ export const zh = {
     "daysAgo_one": "{{count}} 天前",
     "daysAgo_other": "{{count}} 天前",
     "activePrayerCount": "{{count}} 项进行中",
-    "groupShareMessage": "欢迎加入我在 EveryBible 的门徒训练小组“{{name}}”！\n\n邀请码：{{code}}",
+    "groupShareMessage": "欢迎加入我在 Every Bible 的门徒训练小组“{{name}}”！\n\n邀请码：{{code}}",
     "groupAboutTitle": "关于小组聚会",
     "groupAboutBody": "小组聚会采用全球门徒训练运动使用的三段式（3/3）模式：",
     "groupLookBack": "你是怎样顺服的？你向谁分享了？",
@@ -307,7 +307,7 @@ export const zh = {
     },
     "translationDescriptions": {
       "bsb": "《庇哩亚标准圣经》公有领域文本，附可直接播放的 CC0 章节音频",
-      "web": "公有领域的英式英语文本与章节音频，来自 EveryBible 资料库",
+      "web": "公有领域的英式英语文本与章节音频，来自 Every Bible 资料库",
       "kjv": "1611 年颁行的《英王钦定本》",
       "asv": "1901 年出版的《英王钦定本》修订版，文本已内置",
       "bbe": "词汇量有限，读起来更轻松",
@@ -373,7 +373,7 @@ export const zh = {
     "unexpectedError": "很抱歉，出现了意外错误。请再试一次。",
     "somethingWentWrong": "出了点问题",
     "tryAgain": "再试一次",
-    "shareMessage": "快来看看 EveryBible！",
+    "shareMessage": "快来看看 Every Bible！",
     "all": "全部"
   },
   "tabs": {
@@ -737,7 +737,7 @@ export const zh = {
       "clear": "清除",
       "clearTitle": "清除诊断",
       "clearConfirm": "要从这台设备移除所有错误和崩溃日志吗？",
-      "exportHeader": "EveryBible 诊断报告",
+      "exportHeader": "Every Bible 诊断报告",
       "exportError": "无法分享诊断报告。",
     },
     "delete": "删除",
@@ -768,7 +768,7 @@ export const zh = {
     "groupSessionBody": "{{groupName}} 记录了一次聚会"
   },
   "more": {
-    "footerVersion": "EveryBible {{version}} · Every Language",
+    "footerVersion": "Every Bible {{version}} · Every Language",
     "groupAccount": "账户",
     "groupApp": "应用",
     "groupContent": "内容",
@@ -801,7 +801,7 @@ export const zh = {
     "signOutConfirm": "确定要退出登录吗？本地的阅读进度会保留。",
     "profile": "个人资料",
     "settings": "设置",
-    "about": "关于 EveryBible",
+    "about": "关于 Every Bible",
     "syncYourProgress": "同步你的进度"
   },
   "auth": {
@@ -850,8 +850,8 @@ export const zh = {
     "googleSignInFailed": "Google 登录失败",
     "signInAlreadyInProgress": "登录已在进行中",
     "providerUnavailable": "此登录方式目前不可用",
-    "serviceUnavailable": "EveryBible 无法连接到服务器。请稍后再试。",
-    "backendNotConfigured": "此版本尚未配置 EveryBible。",
+    "serviceUnavailable": "Every Bible 无法连接到服务器。请稍后再试。",
+    "backendNotConfigured": "此版本的 Every Bible 暂不支持账户功能。",
     "somethingWentWrong": "出了点问题，请再试一次。",
     "checkYourEmail": "请查收邮件",
     "resetLinkSent": "我们已向你发送密码重置链接",

@@ -62,7 +62,7 @@ export const id = {
     "daysAgo_one": "{{count}} hari lalu",
     "daysAgo_other": "{{count}} hari lalu",
     "activePrayerCount": "{{count}} aktif",
-    "groupShareMessage": "Bergabunglah dengan kelompok pemuridan saya \"{{name}}\" di EveryBible!\n\nKode bergabung: {{code}}",
+    "groupShareMessage": "Bergabunglah dengan kelompok pemuridan saya \"{{name}}\" di Every Bible!\n\nKode bergabung: {{code}}",
     "groupAboutTitle": "Tentang sesi kelompok",
     "groupAboutBody": "Sesi kelompok memakai pola tiga bagian (3/3) yang digunakan dalam gerakan pemuridan di seluruh dunia:",
     "groupLookBack": "Bagaimana Anda sudah taat? Kepada siapa Anda sudah bercerita?",
@@ -307,7 +307,7 @@ export const id = {
     },
     "translationDescriptions": {
       "bsb": "Teks Berean domain publik dengan audio pasal CC0 langsung",
-      "web": "Teks edisi Britania dan audio pasal domain publik dari pustaka EveryBible",
+      "web": "Teks edisi Britania dan audio pasal domain publik dari pustaka Every Bible",
       "kjv": "Terjemahan King James resmi tahun 1611",
       "asv": "Revisi KJV terbitan 1901, teks sudah terpasang",
       "bbe": "Menggunakan kosakata terbatas agar mudah dibaca",
@@ -373,7 +373,7 @@ export const id = {
     "unexpectedError": "Maaf, terjadi kesalahan yang tidak terduga. Silakan coba lagi.",
     "somethingWentWrong": "Ada yang tidak beres",
     "tryAgain": "Coba lagi",
-    "shareMessage": "Coba EveryBible!",
+    "shareMessage": "Coba Every Bible!",
     "all": "Semua"
   },
   "tabs": {
@@ -737,7 +737,7 @@ export const id = {
       "clear": "Hapus",
       "clearTitle": "Hapus diagnostik",
       "clearConfirm": "Hapus semua catatan kesalahan dan kegagalan dari perangkat ini?",
-      "exportHeader": "Laporan diagnostik EveryBible",
+      "exportHeader": "Laporan diagnostik Every Bible",
       "exportError": "Tidak dapat membagikan laporan diagnostik.",
     },
     "delete": "Hapus",
@@ -768,7 +768,7 @@ export const id = {
     "groupSessionBody": "Sebuah sesi dicatat di {{groupName}}"
   },
   "more": {
-    "footerVersion": "EveryBible {{version}} · Every Language",
+    "footerVersion": "Every Bible {{version}} · Every Language",
     "groupAccount": "Akun",
     "groupApp": "Aplikasi",
     "groupContent": "Konten",
@@ -801,7 +801,7 @@ export const id = {
     "signOutConfirm": "Apakah Anda yakin ingin keluar? Kemajuan membaca di perangkat ini tetap tersimpan.",
     "profile": "Profil",
     "settings": "Pengaturan",
-    "about": "Tentang EveryBible",
+    "about": "Tentang Every Bible",
     "syncYourProgress": "Sinkronkan kemajuan Anda"
   },
   "auth": {
@@ -850,8 +850,8 @@ export const id = {
     "googleSignInFailed": "Gagal masuk dengan Google",
     "signInAlreadyInProgress": "Proses masuk sedang berlangsung",
     "providerUnavailable": "Metode masuk ini tidak tersedia saat ini",
-    "serviceUnavailable": "EveryBible tidak dapat terhubung ke server. Silakan coba lagi sesaat lagi.",
-    "backendNotConfigured": "EveryBible belum dikonfigurasi untuk versi ini.",
+    "serviceUnavailable": "Every Bible tidak dapat terhubung ke server. Silakan coba lagi sesaat lagi.",
+    "backendNotConfigured": "Akun belum tersedia di versi Every Bible ini.",
     "somethingWentWrong": "Ada yang tidak beres. Silakan coba lagi.",
     "checkYourEmail": "Periksa email Anda",
     "resetLinkSent": "Kami telah mengirimkan tautan untuk mengatur ulang kata sandi",

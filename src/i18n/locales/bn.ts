@@ -95,7 +95,7 @@ export const bn = {
     "unexpectedError": "দুঃখিত, অপ্রত্যাশিত কিছু ঘটেছে। অনুগ্রহ করে আবার চেষ্টা করুন।",
     "somethingWentWrong": "কিছু ভুল হয়েছে",
     "tryAgain": "আবার চেষ্টা করুন",
-    "shareMessage": "EveryBible দেখুন!",
+    "shareMessage": "Every Bible দেখুন!",
     "all": "সব"
   },
   "tabs": {
@@ -459,7 +459,7 @@ export const bn = {
       "clear": "সাফ করুন",
       "clearTitle": "ডায়াগনস্টিকস সাফ করুন",
       "clearConfirm": "এই ডিভাইস থেকে রেকর্ড হওয়া সব ত্রুটি ও ক্র্যাশ লগ সরিয়ে ফেলবেন?",
-      "exportHeader": "EveryBible ডায়াগনস্টিকস প্রতিবেদন",
+      "exportHeader": "Every Bible ডায়াগনস্টিকস প্রতিবেদন",
       "exportError": "ডায়াগনস্টিকস প্রতিবেদন শেয়ার করা যায়নি।",
     },
     "delete": "মুছুন",
@@ -490,7 +490,7 @@ export const bn = {
     "groupSessionBody": "{{groupName}}-এ একটি সভা রেকর্ড করা হয়েছে"
   },
   "more": {
-    "footerVersion": "EveryBible {{version}} · Every Language",
+    "footerVersion": "Every Bible {{version}} · Every Language",
     "groupAccount": "অ্যাকাউন্ট",
     "groupApp": "অ্যাপ",
     "groupContent": "বিষয়বস্তু",
@@ -523,7 +523,7 @@ export const bn = {
     "signOutConfirm": "আপনি কি সত্যিই সাইন আউট করতে চান? এই ডিভাইসে আপনার পড়ার অগ্রগতি থেকে যাবে।",
     "profile": "প্রোফাইল",
     "settings": "সেটিংস",
-    "about": "EveryBible সম্পর্কে",
+    "about": "Every Bible সম্পর্কে",
     "syncYourProgress": "আপনার অগ্রগতি সিঙ্ক করুন"
   },
   "auth": {
@@ -572,8 +572,8 @@ export const bn = {
     "googleSignInFailed": "Google দিয়ে সাইন ইন করা যায়নি",
     "signInAlreadyInProgress": "সাইন ইন ইতিমধ্যে চলছে",
     "providerUnavailable": "এই সাইন ইন পদ্ধতি এখন উপলব্ধ নয়",
-    "serviceUnavailable": "EveryBible সার্ভারের সঙ্গে সংযোগ করতে পারেনি। অনুগ্রহ করে একটু পরে আবার চেষ্টা করুন।",
-    "backendNotConfigured": "এই বিল্ডের জন্য EveryBible এখনও কনফিগার করা হয়নি।",
+    "serviceUnavailable": "Every Bible সার্ভারের সঙ্গে সংযোগ করতে পারেনি। অনুগ্রহ করে একটু পরে আবার চেষ্টা করুন।",
+    "backendNotConfigured": "Every Bible-এর এই সংস্করণে অ্যাকাউন্ট এখনও উপলব্ধ নয়।",
     "somethingWentWrong": "কিছু ভুল হয়েছে। আবার চেষ্টা করুন।",
     "checkYourEmail": "আপনার ইমেইল দেখুন",
     "resetLinkSent": "আমরা আপনাকে একটি পাসওয়ার্ড রিসেট লিঙ্ক পাঠিয়েছি",
@@ -1660,7 +1660,7 @@ export const bn = {
     "daysAgo_one": "{{count}} দিন আগে",
     "daysAgo_other": "{{count}} দিন আগে",
     "activePrayerCount": "{{count}}টি সক্রিয়",
-    "groupShareMessage": "EveryBible-এ আমার \"{{name}}\" শিষ্যত্ব দলে যোগ দিন!\n\nযোগদানের কোড: {{code}}",
+    "groupShareMessage": "Every Bible-এ আমার \"{{name}}\" শিষ্যত্ব দলে যোগ দিন!\n\nযোগদানের কোড: {{code}}",
     "groupAboutTitle": "দলীয় সভা সম্পর্কে",
     "groupAboutBody": "দলীয় সভায় বিশ্বজুড়ে শিষ্য গড়ার আন্দোলনে প্রচলিত তিন ভাগের পদ্ধতি অনুসরণ করা হয়:",
     "groupLookBack": "কীভাবে মেনে চলেছেন? কার সঙ্গে ভাগ করেছেন?",
@@ -1905,7 +1905,7 @@ export const bn = {
     },
     "translationDescriptions": {
       "bsb": "সর্বসাধারণের ব্যবহারযোগ্য বেরিয়ান পাঠ ও সরাসরি CC0 অধ্যায়ের অডিও",
-      "web": "EveryBible সংগ্রহের সর্বসাধারণের ব্যবহারযোগ্য ব্রিটিশ সংস্করণের পাঠ ও অধ্যায়ের অডিও",
+      "web": "Every Bible সংগ্রহের সর্বসাধারণের ব্যবহারযোগ্য ব্রিটিশ সংস্করণের পাঠ ও অধ্যায়ের অডিও",
       "kjv": "1611 সালের অনুমোদিত কিং জেমস সংস্করণ",
       "asv": "1901 সালে প্রকাশিত KJV-এর সংশোধন, আগে থেকেই ইনস্টল করা পাঠ",
       "bbe": "সহজে পড়ার জন্য সীমিত শব্দভাণ্ডার ব্যবহার করা হয়েছে",

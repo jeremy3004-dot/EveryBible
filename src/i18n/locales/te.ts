@@ -95,7 +95,7 @@ export const te = {
     "unexpectedError": "క్షమించండి, ఏదో అనుకోనిది జరిగింది. దయచేసి మళ్లీ ప్రయత్నించండి.",
     "somethingWentWrong": "ఏదో తప్పు జరిగింది",
     "tryAgain": "మళ్లీ ప్రయత్నించండి",
-    "shareMessage": "EveryBible చూడండి!",
+    "shareMessage": "Every Bible చూడండి!",
     "all": "అన్నీ"
   },
   "tabs": {
@@ -459,7 +459,7 @@ export const te = {
       "clear": "క్లియర్ చేయండి",
       "clearTitle": "డయాగ్నస్టిక్స్ క్లియర్ చేయండి",
       "clearConfirm": "ఈ పరికరం నుండి నమోదు చేయబడిన అన్ని లోప, క్రాష్ లాగ్‌లను తీసివేయాలా?",
-      "exportHeader": "EveryBible డయాగ్నస్టిక్స్ నివేదిక",
+      "exportHeader": "Every Bible డయాగ్నస్టిక్స్ నివేదిక",
       "exportError": "డయాగ్నస్టిక్స్ నివేదికను పంచుకోలేకపోయాము.",
     },
     "delete": "తొలగించండి",
@@ -490,7 +490,7 @@ export const te = {
     "groupSessionBody": "{{groupName}} బృందంలో ఒక సమావేశం నమోదైంది"
   },
   "more": {
-    "footerVersion": "EveryBible {{version}} · Every Language",
+    "footerVersion": "Every Bible {{version}} · Every Language",
     "groupAccount": "ఖాతా",
     "groupApp": "యాప్",
     "groupContent": "కంటెంట్",
@@ -523,7 +523,7 @@ export const te = {
     "signOutConfirm": "మీరు ఖచ్చితంగా సైన్ అవుట్ చేయాలనుకుంటున్నారా? మీ స్థానిక పఠన పురోగతి భద్రపరచబడుతుంది.",
     "profile": "ప్రొఫైల్",
     "settings": "సెట్టింగ్‌లు",
-    "about": "EveryBible గురించి",
+    "about": "Every Bible గురించి",
     "syncYourProgress": "మీ పురోగతిని సమకాలీకరించండి"
   },
   "auth": {
@@ -572,8 +572,8 @@ export const te = {
     "googleSignInFailed": "Google సైన్ ఇన్ విఫలమైంది",
     "signInAlreadyInProgress": "సైన్ ఇన్ ఇప్పటికే జరుగుతోంది",
     "providerUnavailable": "ఈ సైన్ ఇన్ పద్ధతి ప్రస్తుతం అందుబాటులో లేదు",
-    "serviceUnavailable": "EveryBible సర్వర్‌ను చేరుకోలేకపోయింది. దయచేసి కొద్దిసేపటి తర్వాత మళ్లీ ప్రయత్నించండి.",
-    "backendNotConfigured": "ఈ బిల్డ్‌లో EveryBible ఇంకా సిద్ధం కాలేదు.",
+    "serviceUnavailable": "Every Bible సర్వర్‌ను చేరుకోలేకపోయింది. దయచేసి కొద్దిసేపటి తర్వాత మళ్లీ ప్రయత్నించండి.",
+    "backendNotConfigured": "Every Bible యొక్క ఈ వెర్షన్‌లో ఖాతాలు ఇంకా అందుబాటులో లేవు.",
     "somethingWentWrong": "ఏదో తప్పు జరిగింది. దయచేసి మళ్లీ ప్రయత్నించండి.",
     "checkYourEmail": "మీ ఇమెయిల్‌ను తనిఖీ చేయండి",
     "resetLinkSent": "మేము మీకు పాస్‌వర్డ్ రీసెట్ లింక్‌ని పంపాము",
@@ -1660,7 +1660,7 @@ export const te = {
     "daysAgo_one": "{{count}} రోజు క్రితం",
     "daysAgo_other": "{{count}} రోజుల క్రితం",
     "activePrayerCount": "కొనసాగుతున్నవి: {{count}}",
-    "groupShareMessage": "EveryBibleలో నా \"{{name}}\" శిష్యత్వ బృందంలో చేరండి!\n\nచేరడానికి కోడ్: {{code}}",
+    "groupShareMessage": "Every Bibleలో నా \"{{name}}\" శిష్యత్వ బృందంలో చేరండి!\n\nచేరడానికి కోడ్: {{code}}",
     "groupAboutTitle": "బృంద సమావేశాల గురించి",
     "groupAboutBody": "బృంద సమావేశాలు ప్రపంచవ్యాప్తంగా శిష్యులను తయారుచేసే ఉద్యమాల్లో వాడే మూడు సమాన భాగాల పద్ధతిని అనుసరిస్తాయి:",
     "groupLookBack": "మీరు ఎలా విధేయత చూపారు? ఎవరితో పంచుకున్నారు?",
@@ -1905,7 +1905,7 @@ export const te = {
     },
     "translationDescriptions": {
       "bsb": "ప్రజా వినియోగానికి అందుబాటులో ఉన్న బెరియన్ పాఠం, ప్రత్యక్ష CC0 అధ్యాయ ఆడియో",
-      "web": "EveryBible గ్రంథాలయం నుంచి ప్రజా వినియోగానికి అందుబాటులో ఉన్న బ్రిటిష్ సంచిక పాఠం, అధ్యాయ ఆడియో",
+      "web": "Every Bible గ్రంథాలయం నుంచి ప్రజా వినియోగానికి అందుబాటులో ఉన్న బ్రిటిష్ సంచిక పాఠం, అధ్యాయ ఆడియో",
       "kjv": "1611 నాటి అధికారిక కింగ్ జేమ్స్ అనువాదం",
       "asv": "1901లో ప్రచురితమైన KJV సవరణ, ముందే ఇన్‌స్టాల్ చేసిన పాఠం",
       "bbe": "సులభ పఠనం కోసం పరిమిత పదజాలాన్ని ఉపయోగిస్తుంది",

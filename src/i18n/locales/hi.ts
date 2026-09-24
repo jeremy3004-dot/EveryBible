@@ -95,7 +95,7 @@ export const hi = {
     "unexpectedError": "हमें खेद है, लेकिन कुछ अप्रत्याशित हुआ। कृपया पुनः प्रयास करें।",
     "somethingWentWrong": "कुछ गलत हो गया",
     "tryAgain": "फिर से कोशिश करें",
-    "shareMessage": "EveryBible देखें!",
+    "shareMessage": "Every Bible देखें!",
     "all": "सभी"
   },
   "tabs": {
@@ -478,7 +478,7 @@ export const hi = {
       "clear": "साफ़ करें",
       "clearTitle": "डायग्नोस्टिक्स साफ़ करें",
       "clearConfirm": "इस डिवाइस से सभी दर्ज त्रुटि और क्रैश लॉग हटा दें?",
-      "exportHeader": "EveryBible डायग्नोस्टिक्स रिपोर्ट",
+      "exportHeader": "Every Bible डायग्नोस्टिक्स रिपोर्ट",
       "exportError": "डायग्नोस्टिक्स रिपोर्ट साझा नहीं की जा सकी।",
     },
     "delete": "हटाएँ"
@@ -490,7 +490,7 @@ export const hi = {
     "groupSessionBody": "{{groupName}} में एक सत्र दर्ज किया गया"
   },
   "more": {
-    "footerVersion": "EveryBible {{version}} · Every Language",
+    "footerVersion": "Every Bible {{version}} · Every Language",
     "groupAccount": "खाता",
     "groupApp": "ऐप",
     "groupContent": "सामग्री",
@@ -524,7 +524,7 @@ export const hi = {
     "signOutConfirm": "क्या आप वाकई साइन आउट करना चाहते हैं? आपकी स्थानीय पठन प्रगति सुरक्षित रहेगी।",
     "profile": "प्रोफ़ाइल",
     "settings": "सेटिंग्स",
-    "about": "EveryBible के बारे में"
+    "about": "Every Bible के बारे में"
   },
   "auth": {
     "accountEyebrow": "खाता",
@@ -572,8 +572,8 @@ export const hi = {
     "googleSignInFailed": "Google साइन इन विफल रहा",
     "signInAlreadyInProgress": "साइन इन पहले से जारी है",
     "providerUnavailable": "यह साइन इन तरीका अभी उपलब्ध नहीं है",
-    "serviceUnavailable": "EveryBible सर्वर से जुड़ नहीं सका। कृपया थोड़ी देर बाद पुनः प्रयास करें।",
-    "backendNotConfigured": "इस बिल्ड के लिए EveryBible अभी कॉन्फ़िगर नहीं किया गया है।",
+    "serviceUnavailable": "Every Bible सर्वर से जुड़ नहीं सका। कृपया थोड़ी देर बाद पुनः प्रयास करें।",
+    "backendNotConfigured": "Every Bible के इस संस्करण में खाते अभी उपलब्ध नहीं हैं।",
     "somethingWentWrong": "कुछ गलत हो गया। कृपया फिर से कोशिश करें।",
     "checkYourEmail": "अपने ईमेल की जाँच करें",
     "resetLinkSent": "हमने आपको एक पासवर्ड रीसेट लिंक भेजा है",
@@ -1660,7 +1660,7 @@ export const hi = {
     "daysAgo_one": "{{count}} दिन पहले",
     "daysAgo_other": "{{count}} दिन पहले",
     "activePrayerCount": "{{count}} सक्रिय",
-    "groupShareMessage": "EveryBible में मेरे शिष्यत्व समूह \"{{name}}\" से जुड़ें!\n\nजुड़ने का कोड: {{code}}",
+    "groupShareMessage": "Every Bible में मेरे शिष्यत्व समूह \"{{name}}\" से जुड़ें!\n\nजुड़ने का कोड: {{code}}",
     "groupAboutTitle": "समूह सत्रों के बारे में",
     "groupAboutBody": "समूह सत्र दुनिया भर के शिष्य बनाने वाले आंदोलनों में प्रचलित तीन समान भागों का प्रारूप अपनाते हैं:",
     "groupLookBack": "आपने कैसे आज्ञा मानी? किसके साथ साझा किया?",
@@ -1905,7 +1905,7 @@ export const hi = {
     },
     "translationDescriptions": {
       "bsb": "सार्वजनिक स्वामित्व वाला बेरियन पाठ और सीधे उपलब्ध CC0 अध्याय ऑडियो",
-      "web": "EveryBible पुस्तकालय का सार्वजनिक स्वामित्व वाला ब्रिटिश संस्करण का पाठ और अध्याय ऑडियो",
+      "web": "Every Bible पुस्तकालय का सार्वजनिक स्वामित्व वाला ब्रिटिश संस्करण का पाठ और अध्याय ऑडियो",
       "kjv": "1611 का अधिकृत किंग जेम्स संस्करण",
       "asv": "1901 में प्रकाशित KJV का संशोधन, पहले से स्थापित पाठ",
       "bbe": "आसानी से पढ़ने के लिए सीमित शब्दावली का उपयोग",

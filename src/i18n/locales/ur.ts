@@ -62,7 +62,7 @@ export const ur = {
     "daysAgo_one": "{{count}} دن پہلے",
     "daysAgo_other": "{{count}} دن پہلے",
     "activePrayerCount": "{{count}} جاری",
-    "groupShareMessage": "EveryBible میں میرے شاگرد سازی کے گروپ \"{{name}}\" میں شامل ہو جائیں!\n\nشمولیت کا کوڈ: {{code}}",
+    "groupShareMessage": "Every Bible میں میرے شاگرد سازی کے گروپ \"{{name}}\" میں شامل ہو جائیں!\n\nشمولیت کا کوڈ: {{code}}",
     "groupAboutTitle": "گروپ کی نشستوں کے بارے میں",
     "groupAboutBody": "گروپ کی نشستیں دنیا بھر کی شاگرد سازی کی تحریکوں میں استعمال ہونے والے تین حصوں کے طریقے پر چلتی ہیں:",
     "groupLookBack": "آپ نے کیسے فرمانبرداری کی؟ کس کے ساتھ پیغام بانٹا؟",
@@ -307,7 +307,7 @@ export const ur = {
     },
     "translationDescriptions": {
       "bsb": "عوامی ملکیت کا بیرین متن، براہِ راست CC0 باب آڈیو کے ساتھ",
-      "web": "EveryBible لائبریری سے عوامی ملکیت کا برطانوی ایڈیشن اور باب آڈیو",
+      "web": "Every Bible لائبریری سے عوامی ملکیت کا برطانوی ایڈیشن اور باب آڈیو",
       "kjv": "1611 کا منظور شدہ کنگ جیمز ترجمہ",
       "asv": "1901 میں شائع شدہ کنگ جیمز ترجمے کی نظرِ ثانی، متن پہلے سے نصب ہے",
       "bbe": "آسان مطالعے کے لیے محدود ذخیرۂ الفاظ استعمال کرتا ہے",
@@ -373,7 +373,7 @@ export const ur = {
     "unexpectedError": "معذرت، کچھ غیر متوقع ہو گیا۔ براہِ کرم دوبارہ کوشش کریں۔",
     "somethingWentWrong": "کچھ غلط ہو گیا",
     "tryAgain": "دوبارہ کوشش کریں",
-    "shareMessage": "EveryBible ضرور دیکھیں!",
+    "shareMessage": "Every Bible ضرور دیکھیں!",
     "all": "تمام"
   },
   "tabs": {
@@ -737,7 +737,7 @@ export const ur = {
       "clear": "صاف کریں",
       "clearTitle": "تشخیصی ریکارڈ صاف کریں",
       "clearConfirm": "اس ڈیوائس سے خرابی اور کریش کے تمام ریکارڈ ہٹا دیں؟",
-      "exportHeader": "EveryBible تشخیصی رپورٹ",
+      "exportHeader": "Every Bible تشخیصی رپورٹ",
       "exportError": "تشخیصی رپورٹ شیئر نہیں کی جا سکی۔",
     },
     "delete": "حذف کریں",
@@ -768,7 +768,7 @@ export const ur = {
     "groupSessionBody": "{{groupName}} میں ایک نشست ریکارڈ ہوئی"
   },
   "more": {
-    "footerVersion": "EveryBible {{version}} · Every Language",
+    "footerVersion": "Every Bible {{version}} · Every Language",
     "groupAccount": "اکاؤنٹ",
     "groupApp": "ایپ",
     "groupContent": "مواد",
@@ -801,7 +801,7 @@ export const ur = {
     "signOutConfirm": "کیا آپ واقعی سائن آؤٹ کرنا چاہتے ہیں؟ آپ کے مطالعے کی مقامی پیش رفت محفوظ رہے گی۔",
     "profile": "پروفائل",
     "settings": "ترتیبات",
-    "about": "EveryBible کے بارے میں",
+    "about": "Every Bible کے بارے میں",
     "syncYourProgress": "اپنی پیش رفت ہم آہنگ کریں"
   },
   "auth": {
@@ -850,8 +850,8 @@ export const ur = {
     "googleSignInFailed": "Google سے سائن اِن ناکام ہو گیا",
     "signInAlreadyInProgress": "سائن اِن پہلے ہی جاری ہے",
     "providerUnavailable": "سائن اِن کا یہ طریقہ فی الحال دستیاب نہیں ہے",
-    "serviceUnavailable": "EveryBible سرور تک نہیں پہنچ سکا۔ براہِ کرم تھوڑی دیر بعد دوبارہ کوشش کریں۔",
-    "backendNotConfigured": "اس بلڈ کے لیے EveryBible ابھی ترتیب نہیں دیا گیا۔",
+    "serviceUnavailable": "Every Bible سرور تک نہیں پہنچ سکا۔ براہِ کرم تھوڑی دیر بعد دوبارہ کوشش کریں۔",
+    "backendNotConfigured": "Every Bible کے اس ورژن میں اکاؤنٹس ابھی دستیاب نہیں ہیں۔",
     "somethingWentWrong": "کچھ غلط ہو گیا۔ براہِ کرم دوبارہ کوشش کریں۔",
     "checkYourEmail": "اپنا ای میل دیکھیں",
     "resetLinkSent": "ہم نے آپ کو پاس ورڈ ری سیٹ کرنے کا لنک بھیج دیا ہے",

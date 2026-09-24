@@ -68,7 +68,7 @@ export const tr = {
     "daysAgo_one": "{{count}} gün önce",
     "daysAgo_other": "{{count}} gün önce",
     "activePrayerCount": "{{count}} etkin",
-    "groupShareMessage": "EveryBible’da “{{name}}” adlı öğrencilik grubuma katılın!\n\nKatılım kodu: {{code}}",
+    "groupShareMessage": "Every Bible’da “{{name}}” adlı öğrencilik grubuma katılın!\n\nKatılım kodu: {{code}}",
     "groupAboutTitle": "Grup buluşmaları hakkında",
     "groupAboutBody": "Grup buluşmalarında, dünya genelindeki öğrenci yetiştirme hareketlerinde kullanılan 3/3 biçimi uygulanır:",
     "groupLookBack": "Nasıl itaat ettiniz? Kiminle paylaştınız?",
@@ -313,7 +313,7 @@ export const tr = {
     },
     "translationDescriptions": {
       "bsb": "Kamu malı Berean metni ve doğrudan CC0 bölüm sesleri",
-      "web": "EveryBible kitaplığından kamu malı Britanya baskısı metni ve bölüm sesleri",
+      "web": "Every Bible kitaplığından kamu malı Britanya baskısı metni ve bölüm sesleri",
       "kjv": "1611 tarihli resmî King James Çevirisi",
       "asv": "KJV’nin 1901’de yayımlanan gözden geçirilmiş sürümü; metin önceden yüklüdür",
       "bbe": "Kolay okuma için sınırlı bir sözcük dağarcığı kullanır",
@@ -373,7 +373,7 @@ export const tr = {
     "unexpectedError": "Üzgünüz ama beklenmedik bir şey oldu. Lütfen tekrar deneyin.",
     "somethingWentWrong": "Bir şeyler ters gitti",
     "tryAgain": "Tekrar dene",
-    "shareMessage": "EveryBible’a göz atın!",
+    "shareMessage": "Every Bible’a göz atın!",
     "all": "Tümü"
   },
   "tabs": {
@@ -737,7 +737,7 @@ export const tr = {
       "clear": "Temizle",
       "clearTitle": "Tanılamayı temizle",
       "clearConfirm": "Bu cihazdan kaydedilen tüm hata ve çökme günlükleri kaldırılsın mı?",
-      "exportHeader": "EveryBible tanılama raporu",
+      "exportHeader": "Every Bible tanılama raporu",
       "exportError": "Tanılama raporu paylaşılamadı.",
     },
     "delete": "Sil",
@@ -768,7 +768,7 @@ export const tr = {
     "groupSessionBody": "{{groupName}} grubunda bir buluşma kaydedildi"
   },
   "more": {
-    "footerVersion": "EveryBible {{version}} · Every Language",
+    "footerVersion": "Every Bible {{version}} · Every Language",
     "groupAccount": "Hesap",
     "groupApp": "Uygulama",
     "groupContent": "İçerik",
@@ -801,7 +801,7 @@ export const tr = {
     "signOutConfirm": "Oturumu kapatmak istediğinizden emin misiniz? Yerel okuma ilerlemeniz korunacaktır.",
     "profile": "Profil",
     "settings": "Ayarlar",
-    "about": "EveryBible hakkında",
+    "about": "Every Bible hakkında",
     "syncYourProgress": "İlerlemenizi senkronize edin"
   },
   "auth": {
@@ -850,8 +850,8 @@ export const tr = {
     "googleSignInFailed": "Google oturum açma işlemi başarısız oldu",
     "signInAlreadyInProgress": "Oturum açma zaten devam ediyor",
     "providerUnavailable": "Bu oturum açma yöntemi şu anda kullanılamıyor",
-    "serviceUnavailable": "EveryBible sunucuya ulaşamadı. Lütfen birazdan tekrar deneyin.",
-    "backendNotConfigured": "EveryBible bu sürüm için henüz yapılandırılmadı.",
+    "serviceUnavailable": "Every Bible sunucuya ulaşamadı. Lütfen birazdan tekrar deneyin.",
+    "backendNotConfigured": "Hesaplar, Every Bible’ın bu sürümünde henüz kullanılamıyor.",
     "somethingWentWrong": "Bir şeyler ters gitti. Lütfen tekrar deneyin.",
     "checkYourEmail": "E-postanızı kontrol edin",
     "resetLinkSent": "Size bir parola sıfırlama bağlantısı gönderdik",

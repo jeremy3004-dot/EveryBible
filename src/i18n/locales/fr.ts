@@ -74,7 +74,7 @@ export const fr = {
     "daysAgo_many": "Il y a {{count}} j",
     "daysAgo_other": "Il y a {{count}} j",
     "activePrayerCount": "{{count}} en cours",
-    "groupShareMessage": "Rejoignez mon groupe de formation de disciples « {{name}} » dans EveryBible !\n\nCode d’invitation : {{code}}",
+    "groupShareMessage": "Rejoignez mon groupe de formation de disciples « {{name}} » dans Every Bible !\n\nCode d’invitation : {{code}}",
     "groupAboutTitle": "À propos des rencontres de groupe",
     "groupAboutBody": "Les rencontres de groupe suivent le format des trois tiers, utilisé par les mouvements de formation de disciples dans le monde entier :",
     "groupLookBack": "Comment avez-vous obéi ? Avec qui en avez-vous parlé ?",
@@ -319,7 +319,7 @@ export const fr = {
     },
     "translationDescriptions": {
       "bsb": "Texte de la Bible béréenne du domaine public avec audio des chapitres sous CC0",
-      "web": "Texte et audio des chapitres de l’édition britannique, dans le domaine public, issus de la bibliothèque EveryBible",
+      "web": "Texte et audio des chapitres de l’édition britannique, dans le domaine public, issus de la bibliothèque Every Bible",
       "kjv": "La version autorisée du roi Jacques de 1611",
       "asv": "Révision de la KJV publiée en 1901, avec texte préinstallé",
       "bbe": "Utilise un vocabulaire limité pour faciliter la lecture",
@@ -380,7 +380,7 @@ export const fr = {
     "unexpectedError": "Désolé, une erreur inattendue s’est produite. Veuillez réessayer.",
     "somethingWentWrong": "Une erreur est survenue",
     "tryAgain": "Réessayer",
-    "shareMessage": "Découvrez EveryBible !",
+    "shareMessage": "Découvrez Every Bible !",
     "all": "Tous"
   },
   "tabs": {
@@ -748,7 +748,7 @@ export const fr = {
       "clear": "Effacer",
       "clearTitle": "Effacer les diagnostics",
       "clearConfirm": "Supprimer tous les journaux d’erreurs et de plantages enregistrés sur cet appareil ?",
-      "exportHeader": "Rapport de diagnostics EveryBible",
+      "exportHeader": "Rapport de diagnostics Every Bible",
       "exportError": "Impossible de partager le rapport de diagnostics.",
     },
     "delete": "Supprimer",
@@ -779,7 +779,7 @@ export const fr = {
     "groupSessionBody": "Une rencontre a été enregistrée dans {{groupName}}"
   },
   "more": {
-    "footerVersion": "EveryBible {{version}} · Every Language",
+    "footerVersion": "Every Bible {{version}} · Every Language",
     "groupAccount": "Compte",
     "groupApp": "Application",
     "groupContent": "Contenu",
@@ -816,7 +816,7 @@ export const fr = {
     "signOutConfirm": "Voulez-vous vraiment vous déconnecter ? Votre progression de lecture locale sera conservée.",
     "profile": "Profil",
     "settings": "Paramètres",
-    "about": "À propos d’EveryBible",
+    "about": "À propos d’Every Bible",
     "syncYourProgress": "Synchronisez votre progression"
   },
   "auth": {
@@ -865,8 +865,8 @@ export const fr = {
     "googleSignInFailed": "Échec de la connexion avec Google",
     "signInAlreadyInProgress": "Connexion déjà en cours",
     "providerUnavailable": "Cette méthode de connexion n’est pas disponible pour le moment",
-    "serviceUnavailable": "EveryBible n’a pas pu joindre le serveur. Veuillez réessayer dans un instant.",
-    "backendNotConfigured": "EveryBible n’est pas encore configuré pour cette version.",
+    "serviceUnavailable": "Every Bible n’a pas pu joindre le serveur. Veuillez réessayer dans un instant.",
+    "backendNotConfigured": "Les comptes ne sont pas encore disponibles dans cette version d’Every Bible.",
     "somethingWentWrong": "Une erreur est survenue. Veuillez réessayer.",
     "checkYourEmail": "Vérifiez vos e-mails",
     "resetLinkSent": "Nous vous avons envoyé un lien de réinitialisation",

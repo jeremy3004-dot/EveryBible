@@ -75,7 +75,7 @@ export const es = {
     "daysAgo_many": "Hace {{count}} d",
     "daysAgo_other": "Hace {{count}} d",
     "activePrayerCount": "Activas: {{count}}",
-    "groupShareMessage": "¡Únete a mi grupo de discipulado «{{name}}» en EveryBible!\n\nCódigo de acceso: {{code}}",
+    "groupShareMessage": "¡Únete a mi grupo de discipulado «{{name}}» en Every Bible!\n\nCódigo de acceso: {{code}}",
     "groupAboutTitle": "Acerca de las sesiones de grupo",
     "groupAboutBody": "Las sesiones de grupo usan el formato de tres tercios que emplean los movimientos de discipulado en todo el mundo:",
     "groupLookBack": "¿Cómo obedeciste? ¿Con quién compartiste?",
@@ -320,7 +320,7 @@ export const es = {
     },
     "translationDescriptions": {
       "bsb": "Texto de la Biblia Bereana de dominio público con audio de capítulos bajo CC0",
-      "web": "Texto de la edición británica en dominio público y audio de capítulos de la biblioteca de EveryBible",
+      "web": "Texto de la edición británica en dominio público y audio de capítulos de la biblioteca de Every Bible",
       "kjv": "La Versión Autorizada del rey Jacobo, publicada en 1611",
       "asv": "Revisión de la KJV publicada en 1901, con texto preinstalado",
       "bbe": "Usa un vocabulario limitado para facilitar la lectura",
@@ -381,7 +381,7 @@ export const es = {
     "unexpectedError": "Lo sentimos, ocurrió algo inesperado. Inténtalo de nuevo.",
     "somethingWentWrong": "Algo salió mal",
     "tryAgain": "Intentar de nuevo",
-    "shareMessage": "¡Descubre EveryBible!",
+    "shareMessage": "¡Descubre Every Bible!",
     "all": "Todos"
   },
   "tabs": {
@@ -762,7 +762,7 @@ export const es = {
       "clear": "Borrar",
       "clearTitle": "Borrar diagnóstico",
       "clearConfirm": "¿Eliminar todos los registros de errores y fallos guardados en este dispositivo?",
-      "exportHeader": "Informe de diagnóstico de EveryBible",
+      "exportHeader": "Informe de diagnóstico de Every Bible",
       "exportError": "No se pudo compartir el informe de diagnóstico.",
     },
     "delete": "Eliminar",
@@ -780,7 +780,7 @@ export const es = {
     "groupSessionBody": "Se registró una sesión en {{groupName}}"
   },
   "more": {
-    "footerVersion": "EveryBible {{version}} · Every Language",
+    "footerVersion": "Every Bible {{version}} · Every Language",
     "groupAccount": "Cuenta",
     "groupApp": "Aplicación",
     "groupContent": "Contenido",
@@ -818,7 +818,7 @@ export const es = {
     "signOutConfirm": "¿Seguro que quieres cerrar sesión? Tu progreso de lectura local se conservará.",
     "profile": "Perfil",
     "settings": "Ajustes",
-    "about": "Acerca de EveryBible"
+    "about": "Acerca de Every Bible"
   },
   "auth": {
     "accountEyebrow": "Cuenta",
@@ -866,8 +866,8 @@ export const es = {
     "googleSignInFailed": "No se pudo iniciar sesión con Google",
     "signInAlreadyInProgress": "El inicio de sesión ya está en curso",
     "providerUnavailable": "Este método de inicio de sesión no está disponible en este momento",
-    "serviceUnavailable": "EveryBible no pudo conectarse al servidor. Inténtalo de nuevo en un momento.",
-    "backendNotConfigured": "EveryBible aún no está configurado para esta versión.",
+    "serviceUnavailable": "Every Bible no pudo conectarse al servidor. Inténtalo de nuevo en un momento.",
+    "backendNotConfigured": "Las cuentas aún no están disponibles en esta versión de Every Bible.",
     "somethingWentWrong": "Algo salió mal. Inténtalo de nuevo.",
     "checkYourEmail": "Revisa tu correo electrónico",
     "resetLinkSent": "Te enviamos un enlace para restablecer tu contraseña",

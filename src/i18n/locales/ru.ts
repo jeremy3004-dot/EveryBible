@@ -80,7 +80,7 @@ export const ru = {
     "daysAgo_many": "{{count}} дн. назад",
     "daysAgo_other": "{{count}} дн. назад",
     "activePrayerCount": "Активных: {{count}}",
-    "groupShareMessage": "Присоединяйтесь к моей группе ученичества «{{name}}» в EveryBible!\n\nКод для вступления: {{code}}",
+    "groupShareMessage": "Присоединяйтесь к моей группе ученичества «{{name}}» в Every Bible!\n\nКод для вступления: {{code}}",
     "groupAboutTitle": "О групповых встречах",
     "groupAboutBody": "Групповые встречи проходят по формату «трёх третей», принятому в движениях ученичества по всему миру:",
     "groupLookBack": "Как вы проявили послушание? С кем поделились?",
@@ -325,7 +325,7 @@ export const ru = {
     },
     "translationDescriptions": {
       "bsb": "Текст Верийской стандартной Библии в общественном достоянии и аудио глав по лицензии CC0",
-      "web": "Текст британского издания и аудио глав в общественном достоянии из библиотеки EveryBible",
+      "web": "Текст британского издания и аудио глав в общественном достоянии из библиотеки Every Bible",
       "kjv": "Официальный перевод 1611 года — Библия короля Якова",
       "asv": "Переработанное издание Библии короля Якова 1901 года; текст предустановлен",
       "bbe": "Ограниченный словарный запас для удобного чтения",
@@ -387,7 +387,7 @@ export const ru = {
     "unexpectedError": "Извините, произошло что-то непредвиденное. Пожалуйста, попробуйте ещё раз.",
     "somethingWentWrong": "Что-то пошло не так",
     "tryAgain": "Попробовать снова",
-    "shareMessage": "Посмотрите EveryBible!",
+    "shareMessage": "Посмотрите Every Bible!",
     "all": "Все"
   },
   "tabs": {
@@ -778,7 +778,7 @@ export const ru = {
       "clear": "Очистить",
       "clearTitle": "Очистить диагностику",
       "clearConfirm": "Удалить все записанные журналы ошибок и сбоев с этого устройства?",
-      "exportHeader": "Отчёт диагностики EveryBible",
+      "exportHeader": "Отчёт диагностики Every Bible",
       "exportError": "Не удалось поделиться отчётом диагностики.",
     },
     "delete": "Удалить"
@@ -790,7 +790,7 @@ export const ru = {
     "groupSessionBody": "Встреча записана в группе {{groupName}}"
   },
   "more": {
-    "footerVersion": "EveryBible {{version}} · Every Language",
+    "footerVersion": "Every Bible {{version}} · Every Language",
     "groupAccount": "Аккаунт",
     "groupApp": "Приложение",
     "groupContent": "Материалы",
@@ -831,7 +831,7 @@ export const ru = {
     "signOutConfirm": "Вы уверены, что хотите выйти? Локальный прогресс чтения сохранится.",
     "profile": "Профиль",
     "settings": "Настройки",
-    "about": "О приложении EveryBible",
+    "about": "О приложении Every Bible",
     "syncYourProgress": "Синхронизируйте свой прогресс"
   },
   "auth": {
@@ -880,8 +880,8 @@ export const ru = {
     "googleSignInFailed": "Не удалось войти через Google",
     "signInAlreadyInProgress": "Вход уже выполняется",
     "providerUnavailable": "Этот способ входа сейчас недоступен",
-    "serviceUnavailable": "EveryBible не удалось подключиться к серверу. Пожалуйста, попробуйте ещё раз чуть позже.",
-    "backendNotConfigured": "EveryBible ещё не настроен для этой сборки.",
+    "serviceUnavailable": "Every Bible не удалось подключиться к серверу. Пожалуйста, попробуйте ещё раз чуть позже.",
+    "backendNotConfigured": "В этой версии Every Bible учётные записи пока недоступны.",
     "somethingWentWrong": "Что-то пошло не так. Пожалуйста, попробуйте ещё раз.",
     "checkYourEmail": "Проверьте почту",
     "resetLinkSent": "Мы отправили вам ссылку для сброса пароля",

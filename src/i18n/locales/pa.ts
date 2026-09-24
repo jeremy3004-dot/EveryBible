@@ -95,7 +95,7 @@ export const pa = {
     "unexpectedError": "ਸਾਨੂੰ ਅਫ਼ਸੋਸ ਹੈ, ਪਰ ਕੁਝ ਅਚਾਨਕ ਵਾਪਰਿਆ। ਕਿਰਪਾ ਕਰਕੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
     "somethingWentWrong": "ਕੁਝ ਗਲਤ ਹੋ ਗਿਆ",
     "tryAgain": "ਫਿਰ ਕੋਸ਼ਿਸ਼ ਕਰੋ",
-    "shareMessage": "EveryBible ਦੇਖੋ!",
+    "shareMessage": "Every Bible ਦੇਖੋ!",
     "all": "ਸਾਰੇ"
   },
   "tabs": {
@@ -459,7 +459,7 @@ export const pa = {
       "clear": "ਸਾਫ਼ ਕਰੋ",
       "clearTitle": "ਡਾਇਗਨੌਸਟਿਕਸ ਸਾਫ਼ ਕਰੋ",
       "clearConfirm": "ਇਸ ਡਿਵਾਈਸ ਤੋਂ ਸਾਰੇ ਰਿਕਾਰਡ ਕੀਤੇ ਗਲਤੀ ਅਤੇ ਕ੍ਰੈਸ਼ ਲੌਗ ਹਟਾਉਣੇ ਹਨ?",
-      "exportHeader": "EveryBible ਡਾਇਗਨੌਸਟਿਕਸ ਰਿਪੋਰਟ",
+      "exportHeader": "Every Bible ਡਾਇਗਨੌਸਟਿਕਸ ਰਿਪੋਰਟ",
       "exportError": "ਡਾਇਗਨੌਸਟਿਕਸ ਰਿਪੋਰਟ ਸਾਂਝੀ ਨਹੀਂ ਕੀਤੀ ਜਾ ਸਕੀ।",
     },
     "delete": "ਮਿਟਾਓ",
@@ -490,7 +490,7 @@ export const pa = {
     "groupSessionBody": "{{groupName}} ਵਿੱਚ ਇੱਕ ਸੈਸ਼ਨ ਦਰਜ ਕੀਤਾ ਗਿਆ"
   },
   "more": {
-    "footerVersion": "EveryBible {{version}} · Every Language",
+    "footerVersion": "Every Bible {{version}} · Every Language",
     "groupAccount": "ਖਾਤਾ",
     "groupApp": "ਐਪ",
     "groupContent": "ਸਮੱਗਰੀ",
@@ -523,7 +523,7 @@ export const pa = {
     "signOutConfirm": "ਕੀ ਤੁਸੀਂ ਪੱਕਾ ਸਾਈਨ ਆਊਟ ਕਰਨਾ ਚਾਹੁੰਦੇ ਹੋ? ਤੁਹਾਡੀ ਇਸ ਡਿਵਾਈਸ ਵਾਲੀ ਪੜ੍ਹਨ ਦੀ ਪ੍ਰਗਤੀ ਸੁਰੱਖਿਅਤ ਰਹੇਗੀ।",
     "profile": "ਪ੍ਰੋਫ਼ਾਈਲ",
     "settings": "ਸੈਟਿੰਗਾਂ",
-    "about": "EveryBible ਬਾਰੇ",
+    "about": "Every Bible ਬਾਰੇ",
     "syncYourProgress": "ਆਪਣੀ ਪ੍ਰਗਤੀ ਨੂੰ ਸਿੰਕ ਕਰੋ"
   },
   "auth": {
@@ -572,8 +572,8 @@ export const pa = {
     "googleSignInFailed": "Google ਸਾਈਨ ਇਨ ਅਸਫਲ ਰਿਹਾ",
     "signInAlreadyInProgress": "ਸਾਈਨ ਇਨ ਪਹਿਲਾਂ ਹੀ ਜਾਰੀ ਹੈ",
     "providerUnavailable": "ਇਹ ਸਾਈਨ ਇਨ ਢੰਗ ਇਸ ਵੇਲੇ ਉਪਲਬਧ ਨਹੀਂ ਹੈ",
-    "serviceUnavailable": "EveryBible ਸਰਵਰ ਨਾਲ ਜੁੜ ਨਹੀਂ ਸਕਿਆ। ਕਿਰਪਾ ਕਰਕੇ ਥੋੜ੍ਹੀ ਦੇਰ ਬਾਅਦ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
-    "backendNotConfigured": "ਇਸ ਬਿਲਡ ਲਈ EveryBible ਅਜੇ ਸੰਰਚਿਤ ਨਹੀਂ ਹੈ।",
+    "serviceUnavailable": "Every Bible ਸਰਵਰ ਨਾਲ ਜੁੜ ਨਹੀਂ ਸਕਿਆ। ਕਿਰਪਾ ਕਰਕੇ ਥੋੜ੍ਹੀ ਦੇਰ ਬਾਅਦ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
+    "backendNotConfigured": "Every Bible ਦੇ ਇਸ ਸੰਸਕਰਣ ਵਿੱਚ ਖਾਤੇ ਅਜੇ ਉਪਲਬਧ ਨਹੀਂ ਹਨ।",
     "somethingWentWrong": "ਕੁਝ ਗਲਤ ਹੋ ਗਿਆ। ਕਿਰਪਾ ਕਰਕੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
     "checkYourEmail": "ਆਪਣੀ ਈਮੇਲ ਦੀ ਜਾਂਚ ਕਰੋ",
     "resetLinkSent": "ਅਸੀਂ ਤੁਹਾਨੂੰ ਇੱਕ ਪਾਸਵਰਡ ਰੀਸੈਟ ਲਿੰਕ ਭੇਜਿਆ ਹੈ",
@@ -1660,7 +1660,7 @@ export const pa = {
     "daysAgo_one": "{{count}} ਦਿਨ ਪਹਿਲਾਂ",
     "daysAgo_other": "{{count}} ਦਿਨ ਪਹਿਲਾਂ",
     "activePrayerCount": "{{count}} ਸਰਗਰਮ",
-    "groupShareMessage": "EveryBible ਉੱਤੇ ਮੇਰੇ \"{{name}}\" ਚੇਲਾਪਣ ਸਮੂਹ ਵਿੱਚ ਸ਼ਾਮਲ ਹੋਵੋ!\n\nਸ਼ਾਮਲ ਹੋਣ ਦਾ ਕੋਡ: {{code}}",
+    "groupShareMessage": "Every Bible ਉੱਤੇ ਮੇਰੇ \"{{name}}\" ਚੇਲਾਪਣ ਸਮੂਹ ਵਿੱਚ ਸ਼ਾਮਲ ਹੋਵੋ!\n\nਸ਼ਾਮਲ ਹੋਣ ਦਾ ਕੋਡ: {{code}}",
     "groupAboutTitle": "ਸਮੂਹ ਸੈਸ਼ਨਾਂ ਬਾਰੇ",
     "groupAboutBody": "ਸਮੂਹ ਸੈਸ਼ਨ ਦੁਨੀਆ ਭਰ ਦੀਆਂ ਚੇਲੇ ਬਣਾਉਣ ਵਾਲੀਆਂ ਲਹਿਰਾਂ ਵਿੱਚ ਵਰਤਿਆ ਜਾਂਦਾ ਤਿੰਨ ਬਰਾਬਰ ਹਿੱਸਿਆਂ ਦਾ ਢਾਂਚਾ ਅਪਣਾਉਂਦੇ ਹਨ:",
     "groupLookBack": "ਤੁਸੀਂ ਕਿਵੇਂ ਆਗਿਆ ਮੰਨੀ? ਕਿਸ ਨਾਲ ਸਾਂਝਾ ਕੀਤਾ?",
@@ -1905,7 +1905,7 @@ export const pa = {
     },
     "translationDescriptions": {
       "bsb": "ਜਨਤਕ ਮਾਲਕੀ ਵਾਲਾ ਬੇਰੀਅਨ ਪਾਠ ਅਤੇ ਸਿੱਧੀ CC0 ਅਧਿਆਇ ਆਡੀਓ",
-      "web": "EveryBible ਸੰਗ੍ਰਹਿ ਦਾ ਜਨਤਕ ਮਾਲਕੀ ਵਾਲਾ ਬ੍ਰਿਟਿਸ਼ ਸੰਸਕਰਨ ਪਾਠ ਅਤੇ ਅਧਿਆਇ ਆਡੀਓ",
+      "web": "Every Bible ਸੰਗ੍ਰਹਿ ਦਾ ਜਨਤਕ ਮਾਲਕੀ ਵਾਲਾ ਬ੍ਰਿਟਿਸ਼ ਸੰਸਕਰਨ ਪਾਠ ਅਤੇ ਅਧਿਆਇ ਆਡੀਓ",
       "kjv": "1611 ਦਾ ਅਧਿਕਾਰਤ ਕਿੰਗ ਜੇਮਜ਼ ਸੰਸਕਰਨ",
       "asv": "1901 ਵਿੱਚ ਛਪੀ KJV ਦੀ ਸੋਧ, ਪਹਿਲਾਂ ਤੋਂ ਸਥਾਪਤ ਪਾਠ",
       "bbe": "ਸੌਖੇ ਪਾਠ ਲਈ ਸੀਮਤ ਸ਼ਬਦਾਵਲੀ ਵਰਤਦਾ ਹੈ",

@@ -62,7 +62,7 @@ export const ko = {
     "daysAgo_one": "{{count}}일 전",
     "daysAgo_other": "{{count}}일 전",
     "activePrayerCount": "진행 중 {{count}}개",
-    "groupShareMessage": "EveryBible에서 제 제자 훈련 그룹 \"{{name}}\"에 참여하세요!\n\n참여 코드: {{code}}",
+    "groupShareMessage": "Every Bible에서 제 제자 훈련 그룹 \"{{name}}\"에 참여하세요!\n\n참여 코드: {{code}}",
     "groupAboutTitle": "그룹 세션 소개",
     "groupAboutBody": "그룹 세션은 전 세계 제자 배가 운동에서 사용하는 3/3 형식을 따릅니다:",
     "groupLookBack": "어떻게 순종했나요? 누구와 나누었나요?",
@@ -307,7 +307,7 @@ export const ko = {
     },
     "translationDescriptions": {
       "bsb": "베뢰아 표준 성경(공개 도메인) 본문과 바로 재생되는 CC0 장 오디오",
-      "web": "EveryBible 라이브러리의 공개 도메인 영국판 본문과 장 오디오",
+      "web": "Every Bible 라이브러리의 공개 도메인 영국판 본문과 장 오디오",
       "kjv": "1611년 공인 킹제임스 성경",
       "asv": "1901년에 출판된 킹제임스 성경 개정판, 본문 기본 설치",
       "bbe": "읽기 쉽도록 제한된 어휘 사용",
@@ -373,7 +373,7 @@ export const ko = {
     "unexpectedError": "죄송합니다. 예상치 못한 일이 발생했습니다. 다시 시도해 주세요.",
     "somethingWentWrong": "문제가 발생했습니다",
     "tryAgain": "다시 시도",
-    "shareMessage": "EveryBible을 한번 써 보세요!",
+    "shareMessage": "Every Bible을 한번 써 보세요!",
     "all": "모두"
   },
   "tabs": {
@@ -737,7 +737,7 @@ export const ko = {
       "clear": "지우기",
       "clearTitle": "진단 지우기",
       "clearConfirm": "이 기기에서 기록된 모든 오류 및 충돌 로그를 제거할까요?",
-      "exportHeader": "EveryBible 진단 보고서",
+      "exportHeader": "Every Bible 진단 보고서",
       "exportError": "진단 보고서를 공유할 수 없습니다.",
     },
     "delete": "삭제",
@@ -768,7 +768,7 @@ export const ko = {
     "groupSessionBody": "{{groupName}}에 세션이 기록되었습니다"
   },
   "more": {
-    "footerVersion": "EveryBible {{version}} · Every Language",
+    "footerVersion": "Every Bible {{version}} · Every Language",
     "groupAccount": "계정",
     "groupApp": "앱",
     "groupContent": "콘텐츠",
@@ -801,7 +801,7 @@ export const ko = {
     "signOutConfirm": "정말 로그아웃하시겠습니까? 이 기기에 저장된 읽기 진행 상황은 그대로 유지됩니다.",
     "profile": "프로필",
     "settings": "설정",
-    "about": "EveryBible 소개",
+    "about": "Every Bible 소개",
     "syncYourProgress": "진행 상황을 동기화하세요"
   },
   "auth": {
@@ -850,8 +850,8 @@ export const ko = {
     "googleSignInFailed": "Google 로그인 실패",
     "signInAlreadyInProgress": "로그인이 이미 진행 중입니다",
     "providerUnavailable": "이 로그인 방법은 현재 사용할 수 없습니다",
-    "serviceUnavailable": "EveryBible이 서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.",
-    "backendNotConfigured": "이 빌드에서는 EveryBible이 아직 구성되지 않았습니다.",
+    "serviceUnavailable": "Every Bible이 서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+    "backendNotConfigured": "이 버전의 Every Bible에서는 아직 계정을 사용할 수 없습니다.",
     "somethingWentWrong": "문제가 발생했습니다. 다시 시도해 주세요.",
     "checkYourEmail": "이메일을 확인하세요",
     "resetLinkSent": "비밀번호 재설정 링크를 보냈습니다",

@@ -62,7 +62,7 @@ export const vi = {
     "daysAgo_one": "{{count}} ngày trước",
     "daysAgo_other": "{{count}} ngày trước",
     "activePrayerCount": "{{count}} đang chờ",
-    "groupShareMessage": "Tham gia nhóm môn đồ hóa “{{name}}” của mình trên EveryBible nhé!\n\nMã tham gia: {{code}}",
+    "groupShareMessage": "Tham gia nhóm môn đồ hóa “{{name}}” của mình trên Every Bible nhé!\n\nMã tham gia: {{code}}",
     "groupAboutTitle": "Về các buổi nhóm",
     "groupAboutBody": "Các buổi nhóm dùng mô hình 3/3 quen thuộc trong các phong trào môn đồ hóa khắp thế giới:",
     "groupLookBack": "Bạn đã vâng lời như thế nào? Bạn đã chia sẻ với ai?",
@@ -307,7 +307,7 @@ export const vi = {
     },
     "translationDescriptions": {
       "bsb": "Bản văn Berean thuộc phạm vi công cộng, kèm âm thanh chương theo giấy phép CC0",
-      "web": "Bản văn ấn bản Anh và âm thanh chương thuộc phạm vi công cộng, từ thư viện EveryBible",
+      "web": "Bản văn ấn bản Anh và âm thanh chương thuộc phạm vi công cộng, từ thư viện Every Bible",
       "kjv": "Bản dịch King James được chuẩn nhận năm 1611",
       "asv": "Bản hiệu đính KJV xuất bản năm 1901, văn bản được cài sẵn",
       "bbe": "Sử dụng vốn từ giới hạn để dễ đọc",
@@ -373,7 +373,7 @@ export const vi = {
     "unexpectedError": "Rất tiếc, đã có sự cố ngoài dự kiến. Vui lòng thử lại.",
     "somethingWentWrong": "Đã xảy ra lỗi",
     "tryAgain": "Thử lại",
-    "shareMessage": "Hãy thử EveryBible nhé!",
+    "shareMessage": "Hãy thử Every Bible nhé!",
     "all": "Tất cả"
   },
   "tabs": {
@@ -737,7 +737,7 @@ export const vi = {
       "clear": "Xóa",
       "clearTitle": "Xóa chẩn đoán",
       "clearConfirm": "Xóa tất cả nhật ký lỗi và sự cố được ghi lại khỏi thiết bị này?",
-      "exportHeader": "Báo cáo chẩn đoán EveryBible",
+      "exportHeader": "Báo cáo chẩn đoán Every Bible",
       "exportError": "Không thể chia sẻ báo cáo chẩn đoán.",
     },
     "delete": "Xóa",
@@ -768,7 +768,7 @@ export const vi = {
     "groupSessionBody": "Một buổi nhóm đã được ghi lại trong {{groupName}}"
   },
   "more": {
-    "footerVersion": "EveryBible {{version}} · Every Language",
+    "footerVersion": "Every Bible {{version}} · Every Language",
     "groupAccount": "Tài khoản",
     "groupApp": "Ứng dụng",
     "groupContent": "Nội dung",
@@ -801,7 +801,7 @@ export const vi = {
     "signOutConfirm": "Bạn có chắc muốn đăng xuất không? Tiến trình đọc trên máy vẫn được giữ lại.",
     "profile": "Hồ sơ",
     "settings": "Cài đặt",
-    "about": "Giới thiệu về EveryBible",
+    "about": "Giới thiệu về Every Bible",
     "syncYourProgress": "Đồng bộ tiến trình của bạn"
   },
   "auth": {
@@ -850,8 +850,8 @@ export const vi = {
     "googleSignInFailed": "Đăng nhập Google không thành công",
     "signInAlreadyInProgress": "Đang trong quá trình đăng nhập",
     "providerUnavailable": "Phương thức đăng nhập này hiện không khả dụng",
-    "serviceUnavailable": "EveryBible không thể kết nối với máy chủ. Vui lòng thử lại sau giây lát.",
-    "backendNotConfigured": "EveryBible chưa được cấu hình cho bản dựng này.",
+    "serviceUnavailable": "Every Bible không thể kết nối với máy chủ. Vui lòng thử lại sau giây lát.",
+    "backendNotConfigured": "Phiên bản Every Bible này chưa hỗ trợ tài khoản.",
     "somethingWentWrong": "Đã xảy ra lỗi. Vui lòng thử lại.",
     "checkYourEmail": "Kiểm tra email của bạn",
     "resetLinkSent": "Chúng tôi đã gửi cho bạn liên kết đặt lại mật khẩu",

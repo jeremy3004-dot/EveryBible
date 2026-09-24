@@ -95,7 +95,7 @@ export const ta = {
     "unexpectedError": "மன்னிக்கவும், எதிர்பாராத ஒன்று நடந்தது. மீண்டும் முயற்சிக்கவும்.",
     "somethingWentWrong": "ஏதோ தவறாகிவிட்டது",
     "tryAgain": "மீண்டும் முயற்சி",
-    "shareMessage": "EveryBible-ஐப் பாருங்கள்!",
+    "shareMessage": "Every Bible-ஐப் பாருங்கள்!",
     "all": "அனைத்தும்"
   },
   "tabs": {
@@ -459,7 +459,7 @@ export const ta = {
       "clear": "அழி",
       "clearTitle": "கண்டறிதல்களை அழி",
       "clearConfirm": "இந்தச் சாதனத்தில் பதிவான அனைத்துப் பிழை, செயலிழப்புப் பதிவுகளையும் அகற்றவா?",
-      "exportHeader": "EveryBible கண்டறிதல் அறிக்கை",
+      "exportHeader": "Every Bible கண்டறிதல் அறிக்கை",
       "exportError": "கண்டறிதல் அறிக்கையைப் பகிர முடியவில்லை.",
     },
     "delete": "நீக்கு",
@@ -490,7 +490,7 @@ export const ta = {
     "groupSessionBody": "{{groupName}} இல் ஒரு அமர்வு பதிவு செய்யப்பட்டது"
   },
   "more": {
-    "footerVersion": "EveryBible {{version}} · Every Language",
+    "footerVersion": "Every Bible {{version}} · Every Language",
     "groupAccount": "கணக்கு",
     "groupApp": "செயலி",
     "groupContent": "உள்ளடக்கம்",
@@ -523,7 +523,7 @@ export const ta = {
     "signOutConfirm": "நிச்சயமாக வெளியேற விரும்புகிறீர்களா? உங்கள் உள்ளூர் வாசிப்பு முன்னேற்றம் பாதுகாக்கப்படும்.",
     "profile": "சுயவிவரம்",
     "settings": "அமைப்புகள்",
-    "about": "EveryBible பற்றி",
+    "about": "Every Bible பற்றி",
     "syncYourProgress": "உங்கள் முன்னேற்றத்தை ஒத்திசைக்கவும்"
   },
   "auth": {
@@ -572,8 +572,8 @@ export const ta = {
     "googleSignInFailed": "Google உள்நுழைவு தோல்வியடைந்தது",
     "signInAlreadyInProgress": "உள்நுழைவு ஏற்கனவே நடந்து கொண்டிருக்கிறது",
     "providerUnavailable": "இந்த உள்நுழைவு முறை தற்போது கிடைக்கவில்லை",
-    "serviceUnavailable": "EveryBible சேவையகத்துடன் இணைக்க முடியவில்லை. சிறிது நேரம் கழித்து மீண்டும் முயற்சிக்கவும்.",
-    "backendNotConfigured": "இந்தப் பதிப்புக்கு EveryBible இன்னும் கட்டமைக்கப்படவில்லை.",
+    "serviceUnavailable": "Every Bible சேவையகத்துடன் இணைக்க முடியவில்லை. சிறிது நேரம் கழித்து மீண்டும் முயற்சிக்கவும்.",
+    "backendNotConfigured": "Every Bible-இன் இந்தப் பதிப்பில் கணக்குகள் இன்னும் கிடைக்கவில்லை.",
     "somethingWentWrong": "ஏதோ தவறாகிவிட்டது. மீண்டும் முயற்சிக்கவும்.",
     "checkYourEmail": "உங்கள் மின்னஞ்சலைச் சரிபார்க்கவும்",
     "resetLinkSent": "கடவுச்சொல் மீட்டமைப்பு இணைப்பை உங்களுக்கு அனுப்பியுள்ளோம்",
@@ -1660,7 +1660,7 @@ export const ta = {
     "daysAgo_one": "{{count}} நாளுக்கு முன்",
     "daysAgo_other": "{{count}} நாட்களுக்கு முன்",
     "activePrayerCount": "{{count}} செயலில்",
-    "groupShareMessage": "EveryBible-இல் எனது \"{{name}}\" சீடத்துவக் குழுவில் இணையுங்கள்!\n\nஇணைவுக் குறியீடு: {{code}}",
+    "groupShareMessage": "Every Bible-இல் எனது \"{{name}}\" சீடத்துவக் குழுவில் இணையுங்கள்!\n\nஇணைவுக் குறியீடு: {{code}}",
     "groupAboutTitle": "குழு அமர்வுகள் பற்றி",
     "groupAboutBody": "உலகெங்கும் சீடர்களை உருவாக்கும் இயக்கங்களில் பயன்படும் மூன்று சம பகுதிகள் கொண்ட முறையைக் குழு அமர்வுகள் பின்பற்றுகின்றன:",
     "groupLookBack": "எப்படிக் கீழ்ப்படிந்தீர்கள்? யாருடன் பகிர்ந்தீர்கள்?",
@@ -1905,7 +1905,7 @@ export const ta = {
     },
     "translationDescriptions": {
       "bsb": "பொதுவுடைமையான பெரேயன் உரையும் நேரடி CC0 அத்தியாய ஒலியும்",
-      "web": "EveryBible நூலகத்திலிருந்து பொதுவுடைமையான பிரிட்டிஷ் பதிப்பு உரையும் அத்தியாய ஒலியும்",
+      "web": "Every Bible நூலகத்திலிருந்து பொதுவுடைமையான பிரிட்டிஷ் பதிப்பு உரையும் அத்தியாய ஒலியும்",
       "kjv": "1611 ஆம் ஆண்டின் அங்கீகரிக்கப்பட்ட கிங் ஜேம்ஸ் பதிப்பு",
       "asv": "1901 இல் வெளியான KJV திருத்தம், முன்பே நிறுவப்பட்ட உரை",
       "bbe": "எளிதாக வாசிக்க வரையறுக்கப்பட்ட சொற்களஞ்சியத்தைப் பயன்படுத்துகிறது",

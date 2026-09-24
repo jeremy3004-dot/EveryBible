@@ -68,7 +68,7 @@ export const de = {
     "daysAgo_one": "Vor {{count}} T.",
     "daysAgo_other": "Vor {{count}} T.",
     "activePrayerCount": "{{count}} aktiv",
-    "groupShareMessage": "Komm in meine Jüngerschaftsgruppe „{{name}}“ in EveryBible!\n\nBeitrittscode: {{code}}",
+    "groupShareMessage": "Komm in meine Jüngerschaftsgruppe „{{name}}“ in Every Bible!\n\nBeitrittscode: {{code}}",
     "groupAboutTitle": "Über die Gruppentreffen",
     "groupAboutBody": "Die Treffen folgen dem weltweit in Jüngerschaftsbewegungen genutzten Drei-Drittel-Format:",
     "groupLookBack": "Wie hast du das Gehörte umgesetzt? Mit wem hast du es geteilt?",
@@ -313,7 +313,7 @@ export const de = {
     },
     "translationDescriptions": {
       "bsb": "Gemeinfreier Text der Berean Bible mit direkt verfügbarem Kapitel-Audio unter CC0",
-      "web": "Gemeinfreier Text der britischen Ausgabe und Kapitel-Audio aus der EveryBible-Bibliothek",
+      "web": "Gemeinfreier Text der britischen Ausgabe und Kapitel-Audio aus der Every Bible-Bibliothek",
       "kjv": "Die autorisierte King-James-Bibel von 1611",
       "asv": "1901 veröffentlichte Überarbeitung der KJV, Text vorinstalliert",
       "bbe": "Begrenzter Wortschatz für leichtes Lesen",
@@ -373,7 +373,7 @@ export const de = {
     "unexpectedError": "Es tut uns leid, etwas Unerwartetes ist passiert. Bitte versuche es erneut.",
     "somethingWentWrong": "Etwas ist schiefgelaufen",
     "tryAgain": "Noch einmal versuchen",
-    "shareMessage": "Schau dir EveryBible an!",
+    "shareMessage": "Schau dir Every Bible an!",
     "all": "Alle"
   },
   "tabs": {
@@ -737,7 +737,7 @@ export const de = {
       "clear": "Löschen",
       "clearTitle": "Diagnose löschen",
       "clearConfirm": "Alle aufgezeichneten Fehler- und Absturzprotokolle von diesem Gerät entfernen?",
-      "exportHeader": "EveryBible-Diagnosebericht",
+      "exportHeader": "Every Bible-Diagnosebericht",
       "exportError": "Der Diagnosebericht konnte nicht geteilt werden.",
     },
     "delete": "Löschen",
@@ -768,7 +768,7 @@ export const de = {
     "groupSessionBody": "In {{groupName}} wurde ein Treffen festgehalten"
   },
   "more": {
-    "footerVersion": "EveryBible {{version}} · Every Language",
+    "footerVersion": "Every Bible {{version}} · Every Language",
     "groupAccount": "Konto",
     "groupApp": "App",
     "groupContent": "Inhalte",
@@ -801,7 +801,7 @@ export const de = {
     "signOutConfirm": "Möchtest du dich wirklich abmelden? Dein lokaler Lesefortschritt bleibt erhalten.",
     "profile": "Profil",
     "settings": "Einstellungen",
-    "about": "Über EveryBible",
+    "about": "Über Every Bible",
     "syncYourProgress": "Synchronisiere deinen Fortschritt"
   },
   "auth": {
@@ -850,8 +850,8 @@ export const de = {
     "googleSignInFailed": "Google-Anmeldung fehlgeschlagen",
     "signInAlreadyInProgress": "Anmeldung läuft bereits",
     "providerUnavailable": "Diese Anmeldemethode ist derzeit nicht verfügbar",
-    "serviceUnavailable": "EveryBible konnte den Server nicht erreichen. Bitte versuche es gleich noch einmal.",
-    "backendNotConfigured": "EveryBible ist für diese Version noch nicht konfiguriert.",
+    "serviceUnavailable": "Every Bible konnte den Server nicht erreichen. Bitte versuche es gleich noch einmal.",
+    "backendNotConfigured": "Konten sind in dieser Version von Every Bible noch nicht verfügbar.",
     "somethingWentWrong": "Etwas ist schiefgelaufen. Bitte versuche es erneut.",
     "checkYourEmail": "Prüfe deine E-Mails",
     "resetLinkSent": "Wir haben dir einen Link zum Zurücksetzen des Passworts geschickt",

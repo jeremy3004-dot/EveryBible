@@ -86,7 +86,7 @@ export const ar = {
     "daysAgo_many": "قبل {{count}} يومًا",
     "daysAgo_other": "قبل {{count}} يوم",
     "activePrayerCount": "{{count}} نشطة",
-    "groupShareMessage": "انضم إلى مجموعة التلمذة «{{name}}» معي في EveryBible!\n\nرمز الانضمام: {{code}}",
+    "groupShareMessage": "انضم إلى مجموعة التلمذة «{{name}}» معي في Every Bible!\n\nرمز الانضمام: {{code}}",
     "groupAboutTitle": "عن لقاءات المجموعة",
     "groupAboutBody": "تتبع لقاءات المجموعة نموذج الأثلاث الثلاثة المستخدم في حركات التلمذة حول العالم:",
     "groupLookBack": "كيف أطعت؟ ومع من شاركت؟",
@@ -331,7 +331,7 @@ export const ar = {
     },
     "translationDescriptions": {
       "bsb": "نص بيريان ضمن الملكية العامة مع صوت مباشر للإصحاحات بترخيص CC0",
-      "web": "نص الطبعة البريطانية وصوت الإصحاحات ضمن الملكية العامة من مكتبة EveryBible",
+      "web": "نص الطبعة البريطانية وصوت الإصحاحات ضمن الملكية العامة من مكتبة Every Bible",
       "kjv": "ترجمة الملك جيمس المعتمدة لعام 1611",
       "asv": "مراجعة لترجمة الملك جيمس نُشرت عام 1901، والنص مثبّت مسبقًا",
       "bbe": "يستخدم مفردات محدودة لتسهيل القراءة",
@@ -401,7 +401,7 @@ export const ar = {
     "unexpectedError": "نأسف، فقد حدث خطأ غير متوقع. حاول مرة أخرى.",
     "somethingWentWrong": "حدث خطأ ما",
     "tryAgain": "حاول مرة أخرى",
-    "shareMessage": "جرّب EveryBible!",
+    "shareMessage": "جرّب Every Bible!",
     "all": "الكل"
   },
   "tabs": {
@@ -781,7 +781,7 @@ export const ar = {
       "clear": "مسح",
       "clearTitle": "مسح التشخيصات",
       "clearConfirm": "إزالة جميع سجلات الأخطاء والأعطال المسجّلة من هذا الجهاز؟",
-      "exportHeader": "تقرير تشخيصات EveryBible",
+      "exportHeader": "تقرير تشخيصات Every Bible",
       "exportError": "تعذّرت مشاركة تقرير التشخيصات.",
     },
     "delete": "حذف",
@@ -812,7 +812,7 @@ export const ar = {
     "groupSessionBody": "تم تسجيل جلسة في {{groupName}}"
   },
   "more": {
-    "footerVersion": "EveryBible {{version}} · Every Language",
+    "footerVersion": "Every Bible {{version}} · Every Language",
     "groupAccount": "الحساب",
     "groupApp": "التطبيق",
     "groupContent": "المحتوى",
@@ -861,7 +861,7 @@ export const ar = {
     "signOutConfirm": "هل تريد تسجيل الخروج؟ سيبقى تقدّمك المحفوظ على هذا الجهاز كما هو.",
     "profile": "الملف الشخصي",
     "settings": "الإعدادات",
-    "about": "عن EveryBible",
+    "about": "عن Every Bible",
     "syncYourProgress": "مزامنة تقدّمك"
   },
   "auth": {
@@ -910,8 +910,8 @@ export const ar = {
     "googleSignInFailed": "فشل تسجيل الدخول عبر Google",
     "signInAlreadyInProgress": "تسجيل الدخول قيد التنفيذ بالفعل",
     "providerUnavailable": "طريقة تسجيل الدخول هذه غير متوفرة حاليًا",
-    "serviceUnavailable": "تعذّر على EveryBible الوصول إلى الخادم. حاول مرة أخرى بعد قليل.",
-    "backendNotConfigured": "لم يُعدّ EveryBible لهذا الإصدار بعد.",
+    "serviceUnavailable": "تعذّر على Every Bible الوصول إلى الخادم. حاول مرة أخرى بعد قليل.",
+    "backendNotConfigured": "الحسابات غير متاحة بعد في هذا الإصدار من Every Bible.",
     "somethingWentWrong": "حدث خطأ ما. حاول مرة أخرى.",
     "checkYourEmail": "تحقق من بريدك الإلكتروني",
     "resetLinkSent": "لقد أرسلنا لك رابط إعادة تعيين كلمة المرور",
