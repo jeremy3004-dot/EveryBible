@@ -9,7 +9,14 @@ import {
 } from '../bibleReaderModel';
 import type { ScrollHandlerProcessed } from 'react-native-reanimated';
 import type { createReaderFocusScroll } from '../readerFocusScroll';
-import { memo, type Dispatch, type RefObject, type SetStateAction, type ReactElement } from 'react';
+import {
+  memo,
+  useEffect,
+  type Dispatch,
+  type RefObject,
+  type SetStateAction,
+  type ReactElement,
+} from 'react';
 import Animated from 'react-native-reanimated';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { selectionHaptic } from '../../../utils/haptics';
@@ -21,6 +28,7 @@ import type { ReaderParagraph } from '../bibleReaderModel';
 import { renderStackedVerse, type StackedVerseContext } from './renderStackedVerse';
 import { readerSharedStyles } from './readerSharedStyles';
 import { ReaderParagraphBlock } from './ReaderParagraphBlock';
+import { traceReaderVerseLayout } from '../../../services/diagnostics/screenReaderTrace';
 
 export interface ReaderVerseListProps {
   usePremiumTypography: boolean;
@@ -119,6 +127,14 @@ export const ReaderVerseList = memo(function ReaderVerseList({
   verses,
 }: ReaderVerseListProps) {
   const { colors } = useTheme();
+
+  // Device-debugging breadcrumb only (see screenReaderTrace): which layout the prose
+  // paragraphs below take, logged when it changes.
+  const verseLayout =
+    usePremiumTypography && !screenReaderEnabled ? 'inlineParagraphs' : 'perVerse';
+  useEffect(() => {
+    traceReaderVerseLayout(verseLayout, { virtualized: renderVirtualized, screenReaderEnabled });
+  }, [verseLayout, renderVirtualized, screenReaderEnabled]);
 
   const verseFontSize = usePremiumTypography
     ? scaleValue(typography.readingBody.fontSize)
