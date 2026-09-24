@@ -36,9 +36,11 @@ interface DownloadScript {
   gate?: Promise<void>;
   error?: unknown;
   /** `null` models expo-file-system returning no result (a cancellation). */
-  result?: { status: number } | null;
+  result?: { status: number; headers?: Record<string, string> } | null;
   /** Bytes the download leaves at the destination. */
   writeSize?: number;
+  /** Bytes written to the destination as soon as the transfer starts (a partial). */
+  partialSize?: number;
   cancelError?: unknown;
   /** Held open so a test can observe that cancellation is awaited before the reject. */
   cancelGate?: Promise<void>;
@@ -64,7 +66,13 @@ const createDownloadResumable = (
   lastOnProgress = onProgress;
   const script = downloadScript;
   return {
-    downloadAsync: async (): Promise<{ status: number } | null> => {
+    downloadAsync: async (): Promise<{
+      status: number;
+      headers?: Record<string, string>;
+    } | null> => {
+      if (script.partialSize != null) {
+        files.set(to, { size: script.partialSize });
+      }
       for (const tick of script.progress ?? []) {
         onProgress?.(tick);
       }
@@ -121,6 +129,14 @@ mockModule(mock, 'expo-file-system/legacy', {
   writeAsStringAsync: async (uri: string, contents: string): Promise<void> => {
     fsCalls.push({ method: 'writeAsStringAsync', args: [uri, contents] });
     files.set(uri, { size: contents.length, contents });
+  },
+  moveAsync: async ({ from, to }: { from: string; to: string }): Promise<void> => {
+    fsCalls.push({ method: 'moveAsync', args: [from, to] });
+    const file = files.get(from);
+    if (!file) throw new Error(`ENOENT: ${from}`);
+    if (files.has(to)) throw new Error(`EEXIST: ${to}`);
+    files.delete(from);
+    files.set(to, file);
   },
   createDownloadResumable,
 });
@@ -421,14 +437,119 @@ test('downloadFile reports progress and leaves a validated file behind', async (
   assert.deepEqual(downloadCalls, [
     {
       from: 'https://media.test/GEN/1.m4a',
-      to: 'file:///documents/everybible-audio/bsb/GEN/1.m4a',
+      to: 'file:///documents/everybible-audio/bsb/GEN/1.m4a.download',
     },
   ]);
   assert.deepEqual(progress, [
     { bytesDownloaded: 1_000, bytesTotal: 4_096 },
     { bytesDownloaded: 4_096, bytesTotal: 4_096 },
   ]);
-  assert.equal(fsMethods().includes('deleteAsync'), false);
+  assert.deepEqual([...files.keys()], ['file:///documents/everybible-audio/bsb/GEN/1.m4a']);
+});
+
+// A download killed mid-transfer (app terminated) never reaches the final path, so
+// playback and the next download run can never mistake a partial for a chapter.
+test('downloadFile writes to a temporary file and moves it into place only when complete', async () => {
+  downloadScript = { gate: new Promise<void>(() => {}) };
+
+  void mod.expoAudioFileSystemAdapter.downloadFile(
+    'https://media.test/GEN/1.m4a',
+    'file:///documents/everybible-audio/bsb/GEN/1.m4a'
+  );
+  await flush();
+
+  assert.deepEqual(
+    downloadCalls.map((call) => call.to),
+    ['file:///documents/everybible-audio/bsb/GEN/1.m4a.download']
+  );
+  assert.equal(fsMethods().includes('moveAsync'), false);
+});
+
+test('a leftover partial from a killed download is cleared before downloading again', async () => {
+  files.set('file:///documents/everybible-audio/bsb/GEN/1.m4a.download', { size: 2_000 });
+
+  await mod.expoAudioFileSystemAdapter.downloadFile(
+    'https://media.test/GEN/1.m4a',
+    'file:///documents/everybible-audio/bsb/GEN/1.m4a'
+  );
+
+  const methods = fsMethods();
+  assert.ok(methods.indexOf('deleteAsync') < methods.indexOf('moveAsync'));
+  assert.deepEqual(
+    fsCalls.find((call) => call.method === 'deleteAsync')?.args[0],
+    'file:///documents/everybible-audio/bsb/GEN/1.m4a.download'
+  );
+  assert.equal(
+    files.get('file:///documents/everybible-audio/bsb/GEN/1.m4a')?.size,
+    VALID_AUDIO_BYTES
+  );
+});
+
+test('a completed download replaces an older file at the final path', async () => {
+  files.set('file:///documents/everybible-audio/bsb/GEN/1.m4a', { size: 2_000 });
+
+  await mod.expoAudioFileSystemAdapter.downloadFile(
+    'https://media.test/GEN/1.m4a',
+    'file:///documents/everybible-audio/bsb/GEN/1.m4a'
+  );
+
+  assert.equal(
+    files.get('file:///documents/everybible-audio/bsb/GEN/1.m4a')?.size,
+    VALID_AUDIO_BYTES
+  );
+});
+
+test('a download shorter than its Content-Length is discarded and never reaches the final path', async () => {
+  downloadScript = {
+    result: { status: 200, headers: { 'content-length': '8192' } },
+    writeSize: VALID_AUDIO_BYTES,
+  };
+
+  await assert.rejects(
+    () =>
+      mod.expoAudioFileSystemAdapter.downloadFile(
+        'https://media.test/GEN/1.m4a',
+        'file:///documents/everybible-audio/bsb/GEN/1.m4a'
+      ),
+    /incomplete \(4096 of 8192 bytes\)/
+  );
+
+  assert.deepEqual([...files.keys()], []);
+});
+
+test('a download shorter than the size it reported while running is discarded', async () => {
+  downloadScript = {
+    progress: [{ totalBytesWritten: 1_000, totalBytesExpectedToWrite: 9_000 }],
+    writeSize: VALID_AUDIO_BYTES,
+  };
+
+  await assert.rejects(
+    () =>
+      mod.expoAudioFileSystemAdapter.downloadFile(
+        'https://media.test/GEN/1.m4a',
+        'file:///documents/everybible-audio/bsb/GEN/1.m4a'
+      ),
+    /incomplete \(4096 of 9000 bytes\)/
+  );
+
+  assert.deepEqual([...files.keys()], []);
+});
+
+test('a download matching its Content-Length is kept', async () => {
+  downloadScript = {
+    result: { status: 200, headers: { 'Content-Length': String(VALID_AUDIO_BYTES) } },
+    writeSize: VALID_AUDIO_BYTES,
+  };
+
+  await mod.expoAudioFileSystemAdapter.downloadFile(
+    'https://media.test/GEN/1.m4a',
+    'file:///documents/everybible-audio/bsb/GEN/1.m4a'
+  );
+
+  assert.equal(
+    files.get('file:///documents/everybible-audio/bsb/GEN/1.m4a')?.size,
+    VALID_AUDIO_BYTES
+  );
 });
 
 test('downloadFile deletes and rejects when the server answered with an error status', async () => {
@@ -475,8 +596,7 @@ test('downloadFile treats an empty download result as a cancellation', async () 
 });
 
 test('downloadFile surfaces a native download error after deleting the partial file', async () => {
-  downloadScript = { error: new Error('connection reset') };
-  files.set('file:///documents/everybible-audio/bsb/GEN/1.m4a', { size: 12 });
+  downloadScript = { error: new Error('connection reset'), partialSize: 2_000 };
 
   await assert.rejects(
     () =>
@@ -487,7 +607,7 @@ test('downloadFile surfaces a native download error after deleting the partial f
     /connection reset/
   );
 
-  assert.equal(files.has('file:///documents/everybible-audio/bsb/GEN/1.m4a'), false);
+  assert.deepEqual([...files.keys()], []);
 });
 
 test('a download that leaves no file behind is rejected as zero bytes', async () => {
@@ -563,7 +683,7 @@ test('downloadFile cancels the native download when the request is aborted mid-f
   controller.abort();
 
   await assert.rejects(pending, (error: unknown) => service.isAudioDownloadCancellation(error));
-  assert.deepEqual(cancelCalls, ['file:///documents/everybible-audio/bsb/GEN/1.m4a']);
+  assert.deepEqual(cancelCalls, ['file:///documents/everybible-audio/bsb/GEN/1.m4a.download']);
 });
 
 test('a native cancel that fails is reported as a stop error so the path is not reused', async () => {
@@ -672,7 +792,7 @@ test('a chapter with no task id falls straight through to the file-system downlo
   await transport.downloadFile('https://media.test/GEN/1.m4a', 'file:///documents/a.m4a');
 
   assert.deepEqual(downloadCalls, [
-    { from: 'https://media.test/GEN/1.m4a', to: 'file:///documents/a.m4a' },
+    { from: 'https://media.test/GEN/1.m4a', to: 'file:///documents/a.m4a.download' },
   ]);
   assert.deepEqual(backgroundCalls, []);
 });
@@ -686,7 +806,7 @@ test('a background task that errors falls back to the file-system download', asy
   });
 
   assert.deepEqual(downloadCalls, [
-    { from: 'https://media.test/GEN/1.m4a', to: 'file:///documents/a.m4a' },
+    { from: 'https://media.test/GEN/1.m4a', to: 'file:///documents/a.m4a.download' },
   ]);
   assert.equal(warnings.length, 1);
   assert.match(String(warnings[0][0]), /Background downloader failed/);
@@ -913,7 +1033,7 @@ test('the persistent job store can be pointed at another root', async () => {
 // would read as a complete chapter forever. Cancelling therefore discards it —
 // but only once the native cancel has resolved and the path is safe to touch.
 test('a cancelled download discards its partial file once the native cancel resolves', async () => {
-  downloadScript = { gate: new Promise<void>(() => {}) };
+  downloadScript = { gate: new Promise<void>(() => {}), partialSize: 2_000 };
   const controller = new AbortController();
 
   const pending = mod.expoAudioFileSystemAdapter.downloadFile(
@@ -925,14 +1045,15 @@ test('a cancelled download discards its partial file once the native cancel reso
   controller.abort();
 
   await assert.rejects(pending, (error: unknown) => service.isAudioDownloadCancellation(error));
-  assert.equal(fsMethods().includes('deleteAsync'), true);
-  assert.deepEqual(cancelCalls, ['file:///documents/everybible-audio/bsb/GEN/1.m4a']);
+  assert.deepEqual([...files.keys()], []);
+  assert.deepEqual(cancelCalls, ['file:///documents/everybible-audio/bsb/GEN/1.m4a.download']);
 });
 
 test('a cancel that fails leaves the partial file alone rather than racing the native task', async () => {
   downloadScript = {
     gate: new Promise<void>(() => {}),
     cancelError: new Error('native cancel exploded'),
+    partialSize: 2_000,
   };
   const controller = new AbortController();
 
@@ -948,7 +1069,10 @@ test('a cancel that fails leaves the partial file alone rather than racing the n
     pending,
     (error: unknown) => error instanceof service.AudioDownloadStopError
   );
-  assert.equal(fsMethods().includes('deleteAsync'), false);
+  assert.deepEqual(
+    [...files.keys()],
+    ['file:///documents/everybible-audio/bsb/GEN/1.m4a.download']
+  );
 });
 
 test('a cancelled download does not settle until the native cancel has finished', async () => {
@@ -977,7 +1101,7 @@ test('a cancelled download does not settle until the native cancel has finished'
   controller.abort();
   await flush();
 
-  assert.deepEqual(cancelCalls, ['file:///documents/everybible-audio/bsb/GEN/1.m4a']);
+  assert.deepEqual(cancelCalls, ['file:///documents/everybible-audio/bsb/GEN/1.m4a.download']);
   assert.equal(settled, false);
 
   cancelGate.resolve();

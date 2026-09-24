@@ -34,6 +34,7 @@ const State = {
   Stopped: 'stopped',
   Buffering: 'buffering',
   Loading: 'loading',
+  Ended: 'ended',
   Error: 'error',
 } as const;
 
@@ -261,6 +262,22 @@ test('the merged snapshot keeps position and state from separate events', async 
     isBuffering: false,
     didJustFinish: false,
   });
+});
+
+test('the Ended state reaches onStatusUpdate as a just-finished stop, once', async () => {
+  const snapshots: Array<{ isPlaying: boolean; didJustFinish: boolean }> = [];
+  mod.audioPlayer.setCallbacks({
+    onStatusUpdate: (status) =>
+      snapshots.push({ isPlaying: status.isPlaying, didJustFinish: status.didJustFinish }),
+  });
+
+  emit(Event.PlaybackState, { state: State.Ended });
+  emit(Event.PlaybackProgressUpdated, { position: 60, duration: 60, buffered: 60 });
+
+  assert.deepEqual(snapshots, [
+    { isPlaying: false, didJustFinish: true },
+    { isPlaying: false, didJustFinish: false },
+  ]);
 });
 
 test('a queue-ended event invokes onPlaybackFinished', async () => {

@@ -1104,7 +1104,13 @@ function TranslationManageSheet({
       },
     });
   }
-  if (hasTranslationDownloadData(translation) && !isBusy) {
+  // Deleting stops a running audio download first, so Delete stays available during one.
+  if (
+    (hasTranslationDownloadData(translation) ||
+      isActiveAudioJob ||
+      activeAudioDownloadKey !== null) &&
+    !isTextDownloadActive
+  ) {
     libraryRows.push({
       key: 'delete',
       icon: 'trash-outline',

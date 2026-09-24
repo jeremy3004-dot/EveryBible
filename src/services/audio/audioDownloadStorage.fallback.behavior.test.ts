@@ -29,6 +29,12 @@ mockModule(mock, 'expo-file-system/legacy', {
   },
   readAsStringAsync: async (): Promise<string> => '',
   writeAsStringAsync: async (): Promise<void> => {},
+  moveAsync: async ({ from, to }: { from: string; to: string }): Promise<void> => {
+    const size = files.get(from);
+    if (size == null) throw new Error(`ENOENT: ${from}`);
+    files.delete(from);
+    files.set(to, size);
+  },
   createDownloadResumable: (from: string, to: string) => ({
     downloadAsync: async (): Promise<{ status: number }> => {
       downloadCalls.push({ from, to });
@@ -72,9 +78,10 @@ test('the fallback transport still downloads chapters even when a task id is sup
   assert.deepEqual(downloadCalls, [
     {
       from: 'https://media.test/GEN/1.m4a',
-      to: 'file:///documents/everybible-audio/bsb/GEN/1.m4a',
+      to: 'file:///documents/everybible-audio/bsb/GEN/1.m4a.download',
     },
   ]);
+  assert.deepEqual([...files.keys()], ['file:///documents/everybible-audio/bsb/GEN/1.m4a']);
 });
 
 test('ensuring background downloads are running is a no-op without the native downloader', async () => {

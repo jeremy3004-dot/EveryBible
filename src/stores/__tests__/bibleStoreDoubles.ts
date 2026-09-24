@@ -137,6 +137,12 @@ export interface BibleStoreDoubles {
     cancelledJobIds: string[];
     cancelJobError: Error | null;
     cancellationRequests: string[];
+    /** Translation ids whose running downloads the store asked to stop. */
+    translationCancellations: string[];
+    /** Scripted completion of that stop; resolves at once by default. */
+    runTranslationCancellation: (translationId: string) => Promise<void>;
+    /** Called as the native transport is asked to stop a job. */
+    onCancelJob: ((jobId: string) => void) | null;
     ensureRunningCalls: number;
     bookDownloads: RecordedBookDownload[];
     translationDownloads: RecordedTranslationDownload[];
@@ -198,6 +204,9 @@ export function installBibleStoreDoubles(mocker: MockTracker): BibleStoreDoubles
       cancelledJobIds: [],
       cancelJobError: null,
       cancellationRequests: [],
+      translationCancellations: [],
+      runTranslationCancellation: async () => {},
+      onCancelJob: null,
       ensureRunningCalls: 0,
       bookDownloads: [],
       translationDownloads: [],
@@ -244,6 +253,9 @@ export function installBibleStoreDoubles(mocker: MockTracker): BibleStoreDoubles
       doubles.audio.cancelledJobIds.length = 0;
       doubles.audio.cancelJobError = null;
       doubles.audio.cancellationRequests.length = 0;
+      doubles.audio.translationCancellations.length = 0;
+      doubles.audio.runTranslationCancellation = async () => {};
+      doubles.audio.onCancelJob = null;
       doubles.audio.ensureRunningCalls = 0;
       doubles.audio.bookDownloads.length = 0;
       doubles.audio.translationDownloads.length = 0;
@@ -391,6 +403,10 @@ export function installBibleStoreDoubles(mocker: MockTracker): BibleStoreDoubles
     requestAudioDownloadCancellation: (jobId: string) => {
       doubles.audio.cancellationRequests.push(jobId);
     },
+    cancelAudioDownloadsForTranslation: async (translationId: string) => {
+      doubles.audio.translationCancellations.push(translationId);
+      await doubles.audio.runTranslationCancellation(translationId);
+    },
   });
 
   mockModule(mocker, sourcePath('services/audio/audioDownloadStorage.ts'), {
@@ -413,6 +429,7 @@ export function installBibleStoreDoubles(mocker: MockTracker): BibleStoreDoubles
         cancelJob: doubles.audio.supportsCancel
           ? async (jobId: string) => {
               doubles.audio.cancelledJobIds.push(jobId);
+              doubles.audio.onCancelJob?.(jobId);
               if (doubles.audio.cancelJobError) {
                 throw doubles.audio.cancelJobError;
               }
