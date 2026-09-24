@@ -1,6 +1,6 @@
 -- merge_user_progress: bound read dates and chapter times from a clock running ahead.
 --
--- NOT APPLIED. Written 2026-09-24 on branch hardening/syncclock; apply it, then
+-- Applied live 2026-09-24 (version 20260924122045). Written on branch hardening/syncclock; then
 -- check list_migrations records it under this version (rename the file if not).
 --
 -- A device whose clock is set ahead uploads a future last_read_date and future

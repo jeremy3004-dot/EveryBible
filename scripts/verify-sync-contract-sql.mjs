@@ -1104,12 +1104,12 @@ assert.equal(
 );
 
 // ---------------------------------------------------------------------------
-// merge_user_progress clock bound (20260924220000, on top of 20260924111958)
+// merge_user_progress clock bound (20260924122045, on top of 20260924111958)
 // ---------------------------------------------------------------------------
 
 for (const file of [
   '20260924111958_merge_user_progress_same_day_ties.sql',
-  '20260924220000_merge_user_progress_clock_bound.sql',
+  '20260924122045_merge_user_progress_clock_bound.sql',
 ]) {
   await db.exec(
     await fs.readFile(new URL(`../supabase/migrations/${file}`, import.meta.url), 'utf8')

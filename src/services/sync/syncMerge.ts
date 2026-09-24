@@ -213,7 +213,7 @@ interface ClockBound {
  * happened yet, so it is taken as happening now: a read date becomes this
  * device's today and a chapter time this instant. merge_user_progress applies
  * the same bound (UTC current_date + 1, now() + 1 day) from migration
- * 20260924220000; keep the two in step.
+ * 20260924122045; keep the two in step.
  */
 const clockBound = (now: Date): ClockBound | null => {
   const nowMs = now.getTime();
