@@ -21,7 +21,7 @@ const SHRINK_TO_FIT_ALLOWED: Record<string, number> = {
   // Tab bar labels cannot wrap: each owns a fixed fifth of the 64pt capsule, as
   // in UITabBar. A long translation (Arabic "الكتاب المقدس") shrinks to its slot
   // instead of truncating; short labels still scale up to the control cap.
-  'src/navigation/TabNavigator.tsx': 1,
+  'src/navigation/tabNavigatorParts/TabBarChrome.tsx': 1,
 };
 
 function sourceFiles(directory: string): string[] {

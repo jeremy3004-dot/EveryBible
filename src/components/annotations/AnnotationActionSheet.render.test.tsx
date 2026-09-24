@@ -65,6 +65,22 @@ test('the Android back button closes the open sheet instead of leaving the reade
   assert.equal(view.queryByLabelText(t('annotations.noteHint')), null, 'back to the actions');
 });
 
+// The reader hands the sheet a new onClose closure on every render; the back
+// handler kept calling the one from the render that opened the sheet.
+test('the back button closes through the latest onClose the reader passed', async () => {
+  const { AnnotationActionSheet } = await import('./AnnotationActionSheet');
+  const closes: string[] = [];
+  const view = await harness.render(
+    <AnnotationActionSheet {...sheetProps(() => closes.push('first render'))} />
+  );
+  await view.rerender(
+    <AnnotationActionSheet {...sheetProps(() => closes.push('latest render'))} />
+  );
+
+  assert.equal(await pressBack(), true);
+  assert.deepEqual(closes, ['latest render']);
+});
+
 test('once the sheet is hidden, the back button falls through to the reader again', async () => {
   const { AnnotationActionSheet } = await import('./AnnotationActionSheet');
   let closed = 0;

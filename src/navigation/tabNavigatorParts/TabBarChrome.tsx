@@ -1,0 +1,143 @@
+import { Platform, StyleSheet, Text, View } from 'react-native';
+import { BlurView } from 'expo-blur';
+import { GlassView, isGlassEffectAPIAvailable, isLiquidGlassAvailable } from 'expo-glass-effect';
+import type { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
+import { BookOpen, Calendar, Ellipsis, House, Users } from 'lucide-react-native';
+import type { LucideIcon } from 'lucide-react-native';
+import { PlatformPressable } from '@react-navigation/elements';
+import type { RootTabIconName } from '../tabManifest';
+import { TAB_BAR_GLASS_EFFECT_STYLE } from '../tabBarCapsuleStyle';
+import { typography } from '../../design/system';
+import { CONTROL_LABEL_MAX_FONT_SCALE } from '../../design/largeTextLayout';
+import { TAB_BAR_CAPSULE_RADIUS } from '../../hooks/useTabBarHeight';
+
+// Lucide ships one stroke weight per glyph, so the selected state is carried by
+// the sliding accent pill behind the icon rather than a filled variant.
+const TAB_BAR_ICON_SIZE = 22;
+const TAB_BAR_ICON_STROKE_WIDTH = 2;
+// The capsule is a fixed 64pt tall, so an unbounded accessibility text scale
+// clips the label against the glyph. Cap the label's own scaling instead of
+// letting it grow past the capsule.
+const TAB_BAR_LABEL_MAX_FONT_SCALE = CONTROL_LABEL_MAX_FONT_SCALE;
+// Each tab owns a fifth of the capsule (about 69pt on a 375pt phone). A label
+// longer than that — Arabic "الكتاب المقدس" at the cap — shrinks to its slot
+// rather than truncating, the way UITabBar fits its titles.
+const TAB_BAR_LABEL_MIN_FONT_SCALE = 0.7;
+
+// Binds each glyph the manifest names to its Lucide component.
+const TAB_BAR_ICONS: Record<RootTabIconName, LucideIcon> = {
+  house: House,
+  'book-open': BookOpen,
+  users: Users,
+  calendar: Calendar,
+  ellipsis: Ellipsis,
+};
+
+export function TabBarIcon({ iconName, color }: { iconName: RootTabIconName; color: string }) {
+  const Icon = TAB_BAR_ICONS[iconName];
+  return <Icon size={TAB_BAR_ICON_SIZE} color={color} strokeWidth={TAB_BAR_ICON_STROKE_WIDTH} />;
+}
+
+// Rendered by the navigator's tabBarLabel rather than left to the library so the
+// label can cap its own font scaling inside the fixed-height capsule.
+export function TabBarLabel({ label, color }: { label: string; color: string }) {
+  return (
+    <Text
+      numberOfLines={1}
+      adjustsFontSizeToFit
+      minimumFontScale={TAB_BAR_LABEL_MIN_FONT_SCALE}
+      maxFontSizeMultiplier={TAB_BAR_LABEL_MAX_FONT_SCALE}
+      style={[styles.tabLabel, { color }]}
+    >
+      {label}
+    </Text>
+  );
+}
+
+// Liquid glass capsule. On iOS 26+ the paper backing sits BEHIND frosted
+// regular glass, so the glass samples mostly paper and verse text under the bar
+// cannot lens through the labels; older platforms get a blur under the same
+// paper tint. Both keep a little translucency so the bar floats over the page.
+export function TabBarBackground({
+  isDark,
+  fill,
+  stroke,
+}: {
+  isDark: boolean;
+  fill: string;
+  stroke: string;
+}) {
+  if (Platform.OS === 'ios' && isLiquidGlassAvailable() && isGlassEffectAPIAvailable()) {
+    return (
+      <View style={styles.capsule} pointerEvents="none">
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: fill }]} />
+        <GlassView
+          pointerEvents="none"
+          glassEffectStyle={TAB_BAR_GLASS_EFFECT_STYLE}
+          colorScheme={isDark ? 'dark' : 'light'}
+          style={styles.capsule}
+        />
+      </View>
+    );
+  }
+  return (
+    <View style={styles.capsule} pointerEvents="none">
+      <BlurView
+        intensity={Platform.OS === 'ios' ? 40 : 24}
+        tint={isDark ? 'dark' : 'light'}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: fill }]} />
+      <View style={[StyleSheet.absoluteFill, styles.capsuleStroke, { borderColor: stroke }]} />
+    </View>
+  );
+}
+
+// Keep React Navigation semantics, test IDs, links, and all press callbacks intact.
+export function TabBarButton(props: BottomTabBarButtonProps) {
+  return (
+    <PlatformPressable {...props} style={[props.style, styles.tabButton]}>
+      <View style={styles.tabContent}>{props.children}</View>
+    </PlatformPressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  capsule: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: TAB_BAR_CAPSULE_RADIUS,
+    overflow: 'hidden',
+  },
+  capsuleStroke: {
+    borderRadius: TAB_BAR_CAPSULE_RADIUS,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  tabButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'stretch',
+  },
+  tabContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+  },
+  // EL tab labels are a notch smaller than the shared tabLabel token so the
+  // glyph and label both sit inside the 52pt selection pill.
+  tabLabel: {
+    ...typography.tabLabel,
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '600',
+  },
+});
+
+/** Fills the capsule height; the item adds no padding of its own. */
+export const tabItemStyle = StyleSheet.create({
+  tabItem: {
+    height: '100%',
+    paddingTop: 0,
+    paddingBottom: 0,
+  },
+}).tabItem;

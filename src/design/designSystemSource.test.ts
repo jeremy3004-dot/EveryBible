@@ -45,7 +45,7 @@ test('high-traffic app surfaces consume the shared design system', () => {
     '../screens/more/MoreScreen.tsx',
     '../screens/more/ProfileScreen.tsx',
     '../screens/more/ReadingActivityScreen.tsx',
-    '../navigation/TabNavigator.tsx',
+    '../navigation/tabNavigatorParts/TabBarChrome.tsx',
     '../navigation/RootNavigator.tsx',
   ];
 
