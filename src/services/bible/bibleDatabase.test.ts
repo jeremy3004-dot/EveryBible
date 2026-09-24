@@ -29,7 +29,8 @@ import {
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { mockModule } from '../../testing/mockModules';
-import { BUNDLED_BIBLE_SCHEMA_VERSION } from './bibleDataModel';
+import { BUNDLED_BIBLE_SCHEMA_VERSION, buildBibleSearchQuery } from './bibleDataModel';
+import { assertDefined } from '../../utils/assertDefined';
 import type { Verse } from '../../types';
 
 // ─── Temp filesystem ──────────────────────────────────────────────────────────
@@ -2202,4 +2203,127 @@ test('insertVerses rolls the whole batch back when one row violates the unique i
     (await getChapter('writable', 'JHN', 1)).map((verse) => verse.text),
     ['In the beginning was the Word.', 'He was with God in the beginning.']
   );
+});
+
+// Three translations whose rows interleave (ids 1, 4, 7… belong to one of them), so no id range
+// holds one translation alone. Every fifth verse repeats a line in another book, so bm25 ties
+// and the book/chapter/verse tie-break decides the order.
+const MIXED_TRANSLATIONS = ['mxa', 'mxb', 'mxc'];
+const MIXED_WORDS = ['the', 'God', 'love', 'loved', 'world', 'light', 'them', 'then', 'there'];
+const MIXED_FILLER = ['and', 'in', 'of', 'shepherd', 'bread', 'water', 'city', 'mountain'];
+
+function mixedTranslationVerses(): SeedVerse[] {
+  const books = ['GEN', 'EXO', 'PSA', 'JHN', '1JN', 'REV'];
+  let seed = 7;
+  const next = () => {
+    seed = (seed * 48271) % 2147483647;
+    return seed;
+  };
+  const verses: SeedVerse[] = [];
+  for (let index = 0; index < 40; index += 1) {
+    for (const translationId of MIXED_TRANSLATIONS) {
+      const words = Array.from({ length: 3 + (next() % 12) }, () => {
+        const pool = next() % 3 === 0 ? MIXED_WORDS : MIXED_FILLER;
+        return pool[next() % pool.length];
+      });
+      verses.push({
+        translationId,
+        bookId: assertDefined(books[index % books.length]),
+        chapter: 1 + (index % 3),
+        verse: index + 1,
+        text: index % 5 === 0 ? 'the light of the world' : words.join(' '),
+      });
+    }
+  }
+  return verses;
+}
+
+function installMixedTranslationPack(name: string): string {
+  const path = `${installedDirectory}/${name}`;
+  for (const suffix of ['', '-wal', '-shm']) {
+    rmSync(`${path}${suffix}`, { force: true });
+  }
+  writeSeedDatabase(path, { verses: mixedTranslationVerses() });
+  return path;
+}
+
+type VerseKey = [number, string, number, number, string];
+
+// The ranking every search had before it was confined to one translation: bm25 over the matches
+// of all translations, then the translation filter, then the limit.
+function searchEveryTranslationThenFilter(
+  path: string,
+  translationId: string,
+  query: string,
+  limit: number
+): VerseKey[] {
+  const database = new DatabaseSync(path, { readOnly: true });
+  try {
+    const rows = database
+      .prepare(
+        `SELECT v.* FROM verses_fts JOIN verses v ON v.id = verses_fts.rowid
+         WHERE verses_fts MATCH ? AND v.translation_id = ?
+         ORDER BY bm25(verses_fts), v.book_id, v.chapter, v.verse
+         LIMIT ?`
+      )
+      .all(assertDefined(buildBibleSearchQuery(query)), translationId, limit) as {
+      id: number;
+      book_id: string;
+      chapter: number;
+      verse: number;
+      text: string;
+    }[];
+    return rows.map((row) => [row.id, row.book_id, row.chapter, row.verse, row.text]);
+  } finally {
+    database.close();
+  }
+}
+
+const verseKeys = (verses: Verse[]): VerseKey[] =>
+  verses.map((verse) => [verse.id, verse.bookId, verse.chapter, verse.verse, verse.text]);
+
+test('searchVerses ranks and limits exactly like ranking every translation then filtering', async () => {
+  const { searchVerses, setBibleDatabaseSourceResolver } = await loadModule();
+  const path = installMixedTranslationPack('mixed.db');
+  setBibleDatabaseSourceResolver((translationId) =>
+    MIXED_TRANSLATIONS.includes(translationId) ? installedSource(translationId, 'mixed.db') : null
+  );
+
+  let compared = 0;
+  for (const translationId of MIXED_TRANSLATIONS) {
+    for (const query of ['the', 'God', 'love', 'light world', 'the them', 'zebra']) {
+      for (const limit of [1, 5, 50]) {
+        const expected = searchEveryTranslationThenFilter(path, translationId, query, limit);
+        assert.deepEqual(
+          verseKeys(await searchVerses(translationId, query, limit)),
+          expected,
+          `${translationId} "${query}" limit ${limit}`
+        );
+        compared += expected.length;
+      }
+    }
+  }
+  assert.ok(compared > 200, 'the fixture needs plenty of matches for the comparison to mean much');
+});
+
+test('a verse added to a translation after a search is found once it is indexed', async () => {
+  const { searchVerses, insertVerses, setBibleDatabaseSourceResolver } = await loadModule();
+  const path = installMixedTranslationPack('mixed-insert.db');
+  setBibleDatabaseSourceResolver((translationId) =>
+    MIXED_TRANSLATIONS.includes(translationId)
+      ? installedSource(translationId, 'mixed-insert.db')
+      : null
+  );
+  assert.deepEqual(await searchVerses('mxa', 'Melchizedek'), []);
+
+  // A new row gets an id past every translation's current rows.
+  await insertVerses('mxa', [
+    { bookId: 'HEB', chapter: 7, verse: 1, text: 'This Melchizedek was king of Salem.' },
+  ]);
+  const sideChannel = new DatabaseSync(path);
+  sideChannel.exec("INSERT INTO verses_fts(verses_fts) VALUES ('rebuild')");
+  sideChannel.close();
+
+  assert.deepEqual(verseRefs(await searchVerses('mxa', 'Melchizedek')), ['HEB 7:1']);
+  assert.deepEqual(await searchVerses('mxb', 'Melchizedek'), []);
 });
