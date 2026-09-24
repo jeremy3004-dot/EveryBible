@@ -561,3 +561,29 @@ test('the plan validator model refuses what the migration refuses', () => {
     assert.equal(validateMergePlanPayload(payload), expected);
   }
 });
+
+test('a year-long plan done on two devices merges into one valid payload with every day and tick', () => {
+  const days = Array.from({ length: 365 }, (_, index) => String(index + 1));
+  const ticks = days.flatMap((day) => SESSIONS.map((session) => `${day}:${session}`));
+  const side = (offsetMs: number, keep: (index: number) => boolean): UserReadingPlanProgress => ({
+    ...enrolled(),
+    plan_id: 'bible-in-1-year',
+    completed_entries: Object.fromEntries(
+      days.filter((_, index) => keep(index)).map((day) => [day, iso(BASE_MS + offsetMs)])
+    ),
+    completed_sessions: Object.fromEntries(
+      ticks.filter((_, index) => keep(index)).map((tick) => [tick, iso(BASE_MS + offsetMs)])
+    ),
+    current_day: 366,
+  });
+  const a = side(0, (index) => index % 2 === 0);
+  const b = side(1000, (index) => index % 2 === 1 || index % 3 === 0);
+
+  const merged = mergePlanProgress(a, b, iso(BASE_MS));
+  const payload = buildRemoteReadingPlanProgressPayload(merged, USER_ID, true);
+
+  assert.equal(validateMergePlanPayload([payload]), null);
+  assert.equal(Object.keys(merged.completed_entries).length, 365);
+  assert.equal(Object.keys(merged.completed_sessions ?? {}).length, 1095);
+  assert.deepEqual(withoutSyncedAt(merged), withoutSyncedAt(mergePlanProgress(b, a, iso(BASE_MS))));
+});
