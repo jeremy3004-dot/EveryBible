@@ -1,7 +1,8 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../contexts/ThemeContext';
-import { useDisplayFont, useFontSize } from '../../../hooks';
+import { useDisplayFont } from '../../../hooks/useDisplayFont';
+import { useFontSize } from '../../../hooks/useFontSize';
 import { radius, spacing, typography } from '../../../design/system';
 import { hexWithAlpha } from '../../../utils';
 import { CONTROL_LABEL_MAX_FONT_SCALE } from '../../../design/largeTextLayout';

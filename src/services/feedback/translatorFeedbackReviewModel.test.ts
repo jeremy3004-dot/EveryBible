@@ -181,6 +181,19 @@ test('book summary status is pending when any chapter still has unresolved feedb
   assert.equal(getTranslatorFeedbackBookSummaryStatus('LEV', summaries), null);
 });
 
+test('book summary status is null when none of its chapters has any feedback', () => {
+  const summaries: TranslatorFeedbackChapterSummary[] = [
+    { bookId: 'RUT', chapter: 1, total: 0, unresolvedDown: 0, unresolvedUp: 0 },
+    { bookId: 'RUT', chapter: 2, total: 0, unresolvedDown: 0, unresolvedUp: 0 },
+    { bookId: 'EST', chapter: 1, total: 0, unresolvedDown: 0, unresolvedUp: 0 },
+    { bookId: 'EST', chapter: 2, total: 1, unresolvedDown: 0, unresolvedUp: 0 },
+  ];
+
+  // A book's badge agrees with its chapters' badges: none when no chapter shows one.
+  assert.equal(getTranslatorFeedbackBookSummaryStatus('RUT', summaries), null);
+  assert.equal(getTranslatorFeedbackBookSummaryStatus('EST', summaries), 'addressed');
+});
+
 test('queue sorts unresolved chapters by thumbs-down urgency then volume', () => {
   const summaries: TranslatorFeedbackChapterSummary[] = [
     { bookId: 'GEN', chapter: 5, total: 4, unresolvedDown: 0, unresolvedUp: 0 },

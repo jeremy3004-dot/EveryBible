@@ -1,6 +1,6 @@
 import { type StyleProp, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
-import { useDisplayFont } from '../../hooks';
+import { useDisplayFont } from '../../hooks/useDisplayFont';
 import { spacing, typography } from '../../design/system';
 import { PressableScale } from './PressableScale';
 

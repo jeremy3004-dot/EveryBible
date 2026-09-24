@@ -4,7 +4,7 @@ import Animated, { FadeIn, FadeOut, useReducedMotion } from 'react-native-reanim
 import { Ellipsis } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../contexts/ThemeContext';
-import { useDisplayFont } from '../../../hooks';
+import { useDisplayFont } from '../../../hooks/useDisplayFont';
 import { layout, motion, spacing, typography } from '../../../design/system';
 import { BackArrowIcon, IconButton } from '../../../components/ui';
 

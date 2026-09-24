@@ -27,6 +27,19 @@ mockModule(mock, '@/lib/supabase/service', {
 });
 mockNextServerRuntime(mock);
 
+// Model of React's server `cache`: shared inside one render request, a plain call
+// outside one (the same model admin-data-auth.test.ts uses).
+let requestCache: Map<() => unknown, unknown> | null = null;
+mockModule(mock, 'react', {
+  cache(callback: () => unknown) {
+    return () => {
+      if (!requestCache) return callback();
+      if (!requestCache.has(callback)) requestCache.set(callback, callback());
+      return requestCache.get(callback);
+    };
+  },
+});
+
 const { getAdminIdentity, requireAdminIdentity } = await import('./admin-auth');
 
 function signIn(overrides: Parameters<typeof makeFakeUser>[0] = {}) {
@@ -44,6 +57,7 @@ beforeEach(() => {
   serviceClient.reset();
   sessionClient.auth.setUser(null);
   serviceClientCreations = 0;
+  requestCache = null;
 });
 
 test('a signed-out visitor has no admin identity and no profile is read', async () => {
@@ -59,6 +73,46 @@ test('the signed-in user is resolved through the server-verified getUser, not th
   assert.deepEqual(
     sessionClient.authCalls.map((call) => call.method),
     ['getUser']
+  );
+});
+
+test('requireAdminIdentity verifies the session with one getUser round trip', async () => {
+  signIn();
+  profileRow({ id: 'user-7', email: null, display_name: null, admin_role: 'super_admin' });
+  await requireAdminIdentity();
+  assert.deepEqual(
+    sessionClient.authCalls.map((call) => call.method),
+    ['getUser']
+  );
+  assert.equal(serviceClient.callsFor('profiles').length, 1);
+});
+
+test('layout, page and data checks in one render share a single verification', async () => {
+  signIn();
+  profileRow({ id: 'user-7', email: null, display_name: null, admin_role: 'super_admin' });
+  requestCache = new Map();
+  const identities = await Promise.all([
+    requireAdminIdentity(),
+    requireAdminIdentity(),
+    requireAdminIdentity(),
+  ]);
+  requestCache = null;
+  assert.equal(new Set(identities).size, 1);
+  assert.deepEqual(
+    sessionClient.authCalls.map((call) => call.method),
+    ['getUser']
+  );
+  assert.equal(serviceClient.callsFor('profiles').length, 1);
+});
+
+test('outside a render every requireAdminIdentity call verifies again', async () => {
+  signIn();
+  profileRow({ id: 'user-7', email: null, display_name: null, admin_role: 'super_admin' });
+  await requireAdminIdentity();
+  await requireAdminIdentity();
+  assert.deepEqual(
+    sessionClient.authCalls.map((call) => call.method),
+    ['getUser', 'getUser']
   );
 });
 

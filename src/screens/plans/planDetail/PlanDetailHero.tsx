@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BookOpen, Ellipsis } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../contexts/ThemeContext';
-import { useDisplayFont } from '../../../hooks';
+import { useDisplayFont } from '../../../hooks/useDisplayFont';
 import { layout, spacing, typography } from '../../../design/system';
 import { BackArrowIcon, IconButton } from '../../../components/ui';
 import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../../design/largeTextLayout';

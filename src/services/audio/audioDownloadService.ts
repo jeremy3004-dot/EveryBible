@@ -2,7 +2,10 @@ import type { BibleBook } from '../../constants/books';
 import { assertSafeAssetId } from '../bible/assetIdentifiers';
 import { buildAudioChapterTargets } from './audioDownloads';
 import { getRemoteAudioFileExtension } from './audioRemote';
-import { AudioDownloadInsufficientSpaceError } from './audioDownloadErrorMessage';
+import {
+  AudioDownloadInsufficientSpaceError,
+  isOutOfSpaceError,
+} from './audioDownloadErrorMessage';
 
 const DEFAULT_AUDIO_ROOT_URI = 'file:///everybible-audio/';
 const DEFAULT_CHAPTER_DOWNLOAD_CONCURRENCY = 4;
@@ -714,6 +717,8 @@ async function downloadChapterWithInactivityTimeoutAndRetry(
         : error instanceof Error
           ? error
           : new Error(String(error));
+      // A full device fails every retry the same way; stop and say so.
+      if (isOutOfSpaceError(lastError)) throw lastError;
     } finally {
       active = false;
       clearInactivityTimer();
@@ -893,6 +898,34 @@ async function assertEnoughFreeSpaceForAudioDownload({
   if (freeBytes < requiredBytes) {
     throw new AudioDownloadInsufficientSpaceError(requiredBytes, freeBytes);
   }
+}
+
+// A chapter write that ran the device out of space surfaces as whatever the platform said (ENOSPC,
+// NSFileWriteOutOfSpaceError), which the reader only ever saw as "could not download". Restate it
+// as the pre-flight's error so they are told to free up space. The write just failed, so however
+// low the estimate, the room still needed is more than what is free.
+async function toInsufficientSpaceError(
+  fileSystem: AudioFileSystemAdapter,
+  remainingChapters: number
+): Promise<AudioDownloadInsufficientSpaceError> {
+  let freeBytes = 0;
+  try {
+    const reported = await fileSystem.getFreeDiskBytes?.();
+    if (reported != null && Number.isFinite(reported) && reported > 0) {
+      freeBytes = reported;
+    }
+  } catch {
+    // Unknown free space on a device that just refused a write: report none.
+  }
+  const estimatedBytes = Math.ceil(
+    Math.max(1, remainingChapters) *
+      AUDIO_DOWNLOAD_ESTIMATED_CHAPTER_BYTES *
+      AUDIO_DOWNLOAD_FREE_SPACE_HEADROOM
+  );
+  return new AudioDownloadInsufficientSpaceError(
+    Math.max(estimatedBytes, freeBytes + AUDIO_DOWNLOAD_ESTIMATED_CHAPTER_BYTES),
+    freeBytes
+  );
 }
 
 // Post-download validation. Preference order: an exact byte count, then a sha256, then the crude
@@ -1138,7 +1171,7 @@ export async function downloadAudioBook({
       throw new AudioDownloadCancelledError();
     }
   } catch (error) {
-    const failure = error instanceof Error ? error : new Error(String(error));
+    let failure = error instanceof Error ? error : new Error(String(error));
 
     // A cancellation is a first-class terminal state, not a failure. Remove the persisted job so
     // it can't resurrect as a phantom "Loading… 0%" on the next launch, and skip failAudioDownloadJob
@@ -1146,6 +1179,14 @@ export async function downloadAudioBook({
     if (failure instanceof AudioDownloadCancelledError) {
       await activeJobStore.removeJob(job.id);
       throw failure;
+    }
+
+    if (isOutOfSpaceError(failure) && !(failure instanceof AudioDownloadInsufficientSpaceError)) {
+      failure = await toInsufficientSpaceError(
+        fileSystem,
+        chapterTargets.filter((target) => chapterProgressByNumber.get(target.chapter) !== 100)
+          .length
+      );
     }
 
     await failAudioDownloadJob({
@@ -1212,34 +1253,29 @@ export async function downloadAudioTranslation({
     // Aggregate chapters across every book so a whole-Bible download reports real progress instead
     // of sitting at 0% until an entire book finishes. Coalesced exactly like the per-book emitter
     // so the set() rate stays where the June ANR fix put it. (N25)
-    onProgress: hooks?.onProgress
-      ? (event) => {
-          completedChaptersByBook.set(event.bookId, event.completedChapters);
-          if (totalChapters === 0) return;
-          let completedChapters = 0;
-          completedChaptersByBook.forEach((count) => {
-            completedChapters += count;
-          });
-          const progress = clampProgress((completedChapters / totalChapters) * 100);
-          if (
-            progress === lastEmittedProgress &&
-            completedChapters === lastEmittedCompletedChapters
-          ) {
-            return;
-          }
-          lastEmittedProgress = progress;
-          lastEmittedCompletedChapters = completedChapters;
-          hooks.onProgress?.({
-            translationId,
-            bookId: event.bookId,
-            chapter: event.chapter,
-            progress,
-            completedChapters,
-            totalChapters,
-            jobId: translationJob.id,
-          });
-        }
-      : undefined,
+    onProgress: (event) => {
+      completedChaptersByBook.set(event.bookId, event.completedChapters);
+      if (!hooks?.onProgress || totalChapters === 0) return;
+      let completedChapters = 0;
+      completedChaptersByBook.forEach((count) => {
+        completedChapters += count;
+      });
+      const progress = clampProgress((completedChapters / totalChapters) * 100);
+      if (progress === lastEmittedProgress && completedChapters === lastEmittedCompletedChapters) {
+        return;
+      }
+      lastEmittedProgress = progress;
+      lastEmittedCompletedChapters = completedChapters;
+      hooks.onProgress?.({
+        translationId,
+        bookId: event.bookId,
+        chapter: event.chapter,
+        progress,
+        completedChapters,
+        totalChapters,
+        jobId: translationJob.id,
+      });
+    },
   };
 
   try {
@@ -1276,7 +1312,17 @@ export async function downloadAudioTranslation({
         throw new AudioDownloadCancelledError();
       }
     } catch (error) {
-      const failure = error instanceof Error ? error : new Error(String(error));
+      let failure = error instanceof Error ? error : new Error(String(error));
+
+      // A book that ran out of space counted only its own chapters: restate the room every
+      // chapter still missing from the translation needs.
+      if (isOutOfSpaceError(failure)) {
+        let completedChapters = 0;
+        completedChaptersByBook.forEach((count) => {
+          completedChapters += count;
+        });
+        failure = await toInsufficientSpaceError(fileSystem, totalChapters - completedChapters);
+      }
 
       // Cancellation is terminal-but-not-a-failure: drop the persisted job and re-throw without
       // firing onFailure, so cancelling a full-Bible audio download doesn't surface an error alert

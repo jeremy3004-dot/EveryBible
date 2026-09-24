@@ -21,12 +21,12 @@ import { flattenStyle, hostAncestors, installRenderHarness, within } from '../..
 import { mockBarrel, mockModule, sourcePath } from '../../testing/mockModules';
 import type { BibleTranslation, TranslationDownloadProgress } from '../../types';
 
-const harness = installRenderHarness(mock, {
-  hooks: {
-    useI18n: () => {
-      const { t } = useTranslation();
-      return { t, currentLanguage: 'en' };
-    },
+const harness = installRenderHarness(mock);
+// The picker imports useI18n from its own module, not the hooks barrel.
+mockModule(mock, sourcePath('hooks/useI18n.ts'), {
+  useI18n: () => {
+    const { t } = useTranslation();
+    return { t, currentLanguage: 'en' };
   },
 });
 const t = (key: string, options?: Record<string, unknown>) => harness.i18n.t(key, options);

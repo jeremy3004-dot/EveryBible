@@ -29,7 +29,9 @@ import {
 } from '../../components/ui';
 import { Skeleton } from '../../components/skeleton/Skeleton';
 import { useTheme } from '../../contexts/ThemeContext';
-import { useDisplayFont, useLargeText, useTabBarHeight } from '../../hooks';
+import { useDisplayFont } from '../../hooks/useDisplayFont';
+import { useLargeText } from '../../hooks/useLargeText';
+import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import type { ThemeColors } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
 import { lightHaptic, successHaptic } from '../../utils';

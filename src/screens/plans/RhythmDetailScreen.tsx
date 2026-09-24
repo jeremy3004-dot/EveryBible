@@ -16,7 +16,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
 import { useTheme } from '../../contexts/ThemeContext';
-import { useDisplayFont, useLargeText } from '../../hooks';
+import { useDisplayFont } from '../../hooks/useDisplayFont';
+import { useLargeText } from '../../hooks/useLargeText';
 import { layout, radius, spacing, typography } from '../../design/system';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
 import type { RhythmDetailScreenProps } from '../../navigation/types';

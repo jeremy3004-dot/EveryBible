@@ -4,45 +4,80 @@
 // browser's first render on device — the SQLite search service and the shared
 // translation picker (catalog + audio helpers) must not load until the user
 // types a full-text query or opens the translation sheet. Behaviour (search,
-// the lazily rendered picker, navigation) is covered by
-// BibleBrowserScreen.render.test.tsx.
+// the lazily rendered picker, navigation) is covered by the
+// BibleBrowserScreen.*.render.test.tsx files.
+//
+// The screen's sections, hooks and model live in ./browser, so the guard reads
+// the screen and every non-test module there.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-const source = readFileSync(
-  fileURLToPath(new URL('./BibleBrowserScreen.tsx', import.meta.url).href),
-  'utf8'
-);
+const read = (relativePath: string) =>
+  readFileSync(fileURLToPath(new URL(relativePath, import.meta.url).href), 'utf8');
+
+const browserModules = readdirSync(fileURLToPath(new URL('./browser', import.meta.url).href))
+  .filter((name) => /\.tsx?$/.test(name) && !/\.test\.tsx?$/.test(name))
+  .map((name) => ({ name: `browser/${name}`, source: read(`./browser/${name}`) }));
+const startupGraph = [
+  { name: 'BibleBrowserScreen.tsx', source: read('./BibleBrowserScreen.tsx') },
+  ...browserModules,
+];
+
+test('the guard reads the screen and its browser modules', () => {
+  const names = startupGraph.map(({ name }) => name);
+  for (const expected of ['browser/useBibleSearch.ts', 'browser/TranslationPickerSheet.tsx']) {
+    assert.ok(names.includes(expected), `${expected} is part of the guarded graph`);
+  }
+});
 
 test('the SQLite-backed search service loads only inside the debounced full-text search', () => {
-  assert.doesNotMatch(
-    source,
-    /^import[^;]*from '\.\.\/\.\.\/services\/bible\/bibleService';/m,
-    'BibleBrowserScreen must not statically import the search service'
-  );
-  assert.doesNotMatch(
-    source,
-    /from '\.\.\/\.\.\/services\/bible\/bibleDatabase'/,
-    'BibleBrowserScreen must not import the database module just to classify search errors'
-  );
+  for (const { name, source } of startupGraph) {
+    assert.doesNotMatch(
+      source,
+      /^(import|export)[^;]*from '(\.\.\/)+services\/bible\/bibleService';/m,
+      `${name} must not statically import the search service`
+    );
+    assert.doesNotMatch(
+      source,
+      /from '(\.\.\/)+services\/bible\/bibleDatabase'/,
+      `${name} must not import the database module just to classify search errors`
+    );
+  }
   assert.match(
-    source,
-    /const \{ searchBible \} = await import\('\.\.\/\.\.\/services\/bible\/bibleService'\);/
+    read('./browser/useBibleSearch.ts'),
+    /const \{ searchBible \} = await import\('\.\.\/\.\.\/\.\.\/services\/bible\/bibleService'\);/
   );
 });
 
 test('the shared translation picker is imported only once the translation sheet opens', () => {
-  assert.doesNotMatch(
-    source,
-    /^import[^;]*from '\.\/TranslationPickerList';/m,
-    'a static import pulls catalog and audio helpers into the browser first render'
-  );
-  assert.match(source, /void import\('\.\/TranslationPickerList'\)\.then/);
+  for (const { name, source } of startupGraph) {
+    assert.doesNotMatch(
+      source,
+      /^(import|export)[^;]*from '\.{1,2}\/TranslationPickerList';/m,
+      `${name}: a static import pulls catalog and audio helpers into the browser first render`
+    );
+  }
+  const sheet = read('./browser/TranslationPickerSheet.tsx');
+  assert.match(sheet, /return import\('\.\.\/TranslationPickerList'\)\.then/);
   assert.match(
-    source,
-    /!showTranslationModal \|\| TranslationPickerComponent/,
+    sheet,
+    /!visible \|\| TranslationPickerComponent/,
     'the dynamic import is gated on the sheet being opened'
+  );
+});
+
+test('the crash queue (and so MMKV) loads only when a picker load failure is reported', () => {
+  for (const { name, source } of startupGraph) {
+    assert.doesNotMatch(
+      source,
+      /^(import|export)[^;]*from '(\.\.\/)+services\/diagnostics\/crashReportQueue';/m,
+      `${name} must not statically import the crash queue`
+    );
+  }
+  assert.match(
+    read('./browser/TranslationPickerSheet.tsx'),
+    /void import\('\.\.\/\.\.\/\.\.\/services\/diagnostics\/crashReportQueue'\)/
   );
 });

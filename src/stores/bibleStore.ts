@@ -818,14 +818,28 @@ export const useBibleStore = create<BibleState>()(
 
         const localPath = translation.textPackLocalPath;
         if (localPath) {
+          let closed = false;
           try {
             await invalidateInstalledBibleDatabaseAtPath(localPath);
+            closed = true;
           } catch (error) {
             console.warn(
               '[Bible] Failed to invalidate missing installed pack:',
               translationId,
               error
             );
+          }
+          // The reset below forgets this path, so a corrupt pack (and its -wal/-shm)
+          // left here would only waste space; a reinstall writes to a new path. Only
+          // once its connection is closed, and a vanished pack makes this a no-op.
+          if (closed) {
+            try {
+              const { deleteCatalogTextPackArtifacts } =
+                await import('../services/bible/cloudTranslationService');
+              await deleteCatalogTextPackArtifacts(localPath);
+            } catch (error) {
+              console.warn('[Bible] Failed to delete damaged text pack:', translationId, error);
+            }
           }
         }
 

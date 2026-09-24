@@ -51,6 +51,7 @@ beforeEach(() => {
   syncResult = { runId: 'run-9', insertedCount: 3, updatedCount: 5, failedCount: 0 };
   syncFailure = null;
   next.revalidatedPaths.length = 0;
+  next.revalidatedTags.length = 0;
   loggedErrors.length = 0;
 });
 
@@ -343,11 +344,13 @@ test('refreshing engagement invokes the aggregate-engagement edge function with 
     { name: 'aggregate-engagement', options: { body: {}, method: 'POST' } },
   ]);
   assert.deepEqual(service.calls, []);
+  assert.deepEqual(next.revalidatedTags, ['admin-analytics-overview']);
 });
 
 test('a failed engagement refresh is reported to the operator', async () => {
   service.respondToFunction(() => ({ error: { message: 'Edge Function returned 500' } }));
   await assert.rejects(refreshEngagementStats(), {
     message: 'Engagement refresh failed: Edge Function returned 500',
-  });
+  }); // The cached overview is still dropped, so the follow-up refresh shows live data.
+  assert.deepEqual(next.revalidatedTags, ['admin-analytics-overview']);
 });

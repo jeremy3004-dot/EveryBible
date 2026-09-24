@@ -552,6 +552,7 @@ export const ja = {
     translationDownloadFailedTitle: 'ダウンロードに失敗しました',
     translationDownloadFailed:
       'この聖書のダウンロードが完了しませんでした。インターネット接続と空き容量を確認してから、もう一度お試しください。',
+    searchNoResults: '該当する節が見つかりません。',
     searchUnavailable: 'この翻訳では全文検索はまだ利用できません。',
     noVersesAvailable: '{{book}}{{chapter}}章にはまだ本文がありません。',
     fullBibleComingSoon: 'この章は、この翻訳ではまだ本文でも音声でもご利用いただけません。',

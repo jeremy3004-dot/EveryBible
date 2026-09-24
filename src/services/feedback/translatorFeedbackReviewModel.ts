@@ -120,16 +120,21 @@ export function getTranslatorFeedbackBookSummaryStatus(
   bookId: string,
   summaries: TranslatorFeedbackChapterSummary[]
 ): TranslatorFeedbackAggregateStatus | null {
-  const bookSummaries = summaries.filter((summary) => summary.bookId === bookId);
-  if (bookSummaries.length === 0) {
-    return null;
+  // Derived from the chapter statuses so the book badge never disagrees with its chapter
+  // tiles: a summary row with no feedback (total 0) marks neither.
+  let status: TranslatorFeedbackAggregateStatus | null = null;
+  for (const summary of summaries) {
+    if (summary.bookId !== bookId) {
+      continue;
+    }
+    const chapterStatus = getTranslatorFeedbackChapterSummaryStatus(summary);
+    if (chapterStatus === 'pending') {
+      return 'pending';
+    }
+    status = chapterStatus ?? status;
   }
 
-  const hasPendingFeedback = bookSummaries.some(
-    (summary) => getTranslatorFeedbackChapterSummaryStatus(summary) === 'pending'
-  );
-
-  return hasPendingFeedback ? 'pending' : 'addressed';
+  return status;
 }
 
 // Chapters sorted for the translator queue: most unresolved thumbs-down first (highest

@@ -2,7 +2,7 @@ import { Modal, StyleSheet, Text, View } from 'react-native';
 import { TriangleAlert } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../contexts/ThemeContext';
-import { useDisplayFont } from '../../../hooks';
+import { useDisplayFont } from '../../../hooks/useDisplayFont';
 import { AppButton } from '../../../components/ui';
 import { spacing, typography } from '../../../design/system';
 import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../../design/largeTextLayout';

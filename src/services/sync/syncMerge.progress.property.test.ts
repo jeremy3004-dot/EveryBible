@@ -157,7 +157,7 @@ interface ServerProgressRow {
  * merge_user_progress's merge step (after validation) with the uploaded payload
  * as "in" and the locked row as "stored". `nowIso` stands in for now().
  * `rules`: 'live' is 20260924051658; 'proposed' adds the same-day tie rules of
- * 20260924130000 (not applied).
+ * 20260924111958 (applied live 2026-09-24).
  */
 function serverMergeUserProgress(
   stored: ServerProgressRow | null,
@@ -418,7 +418,7 @@ test('the client merge and merge_user_progress agree on chapters, last read date
 test('with the proposed tie rules, a stale upload merges on the server as the app would merge it', () => {
   // Two devices racing: an upload built before the other device's write reaches
   // the row without the app's merge of it. With the live rules the upload wins a
-  // same-day streak tie or a position tie; migration 20260924130000 (not applied)
+  // same-day streak tie or a position tie; migration 20260924111958 (applied live 2026-09-24)
   // makes the server pick what mergeReadingSnapshot picks.
   fc.assert(
     fc.property(localSnapshotArb, serverRowArb, (local, stored) => {

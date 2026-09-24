@@ -16,7 +16,8 @@ import { FlashList } from '@shopify/flash-list';
 import { bibleBooks, config, getTranslatedBookName, newTestamentBooks } from '../../constants';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useBibleStore } from '../../stores/bibleStore';
-import { useI18n, useKeyboardBottomInset } from '../../hooks';
+import { useI18n } from '../../hooks/useI18n';
+import { useKeyboardBottomInset } from '../../hooks/useKeyboardBottomInset';
 import { getAudioAvailability } from '../../services/audio/audioAvailability';
 import { describeAudioDownloadError } from '../../services/audio/audioDownloadErrorMessage';
 import {

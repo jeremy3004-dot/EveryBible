@@ -1,3 +1,4 @@
+import { unstable_cache } from 'next/cache';
 import { cache } from 'react';
 import { requireAdminIdentity } from '@/lib/admin-auth';
 import { analyticsWindowStart } from '@/lib/analytics-window';
@@ -1107,12 +1108,25 @@ export function normalizeAnalyticsWindow(value: unknown): AnalyticsWindowDays {
     : DEFAULT_ANALYTICS_WINDOW_DAYS;
 }
 
-export async function getAnalyticsOverview(
-  windowDays: AnalyticsWindowDays = DEFAULT_ANALYTICS_WINDOW_DAYS
-): Promise<AnalyticsOverview> {
-  const service = await getAuthorizedAdminServiceClient();
-  const since = analyticsWindowStart(windowDays);
+// The overview is aggregate-only and identical for every admin, so the database
+// part is shared across requests for a short time: the overview page, the
+// analytics page and the operator assistant all ask for it. "Refresh stats"
+// invalidates the tag. Shaping stays outside the cache so a deploy that changes
+// it takes effect at once.
+export const ANALYTICS_OVERVIEW_CACHE_TAG = 'admin-analytics-overview';
+export const ANALYTICS_OVERVIEW_CACHE_SECONDS = 60;
 
+interface AnalyticsOverviewSnapshot {
+  engagementScoreComputedAt: string | null;
+  overview: AnalyticsOverviewRpcPayload;
+  retrievedAt: string;
+}
+
+async function fetchAnalyticsOverviewSnapshot(
+  service: ReturnType<typeof createAdminServiceClient>,
+  since: string,
+  windowDays: AnalyticsWindowDays
+): Promise<AnalyticsOverviewSnapshot> {
   // S16: engagement scores are pre-computed by the nightly cron, NOT within this
   // window — expose when they were last refreshed. The RPC doesn't return this,
   // so query the summary table's freshest updated_at in parallel. Its error is
@@ -1133,13 +1147,32 @@ export async function getAnalyticsOverview(
 
   const { data, error } = overviewResult;
   if (error) {
+    // Thrown, so unstable_cache never stores a failure.
     throw new Error(`Unable to load shared analytics overview: ${error.message}`);
   }
 
-  const engagementScoreComputedAt =
-    (engagementResult.data as { updated_at?: string } | null)?.updated_at ?? null;
+  return {
+    engagementScoreComputedAt:
+      (engagementResult.data as { updated_at?: string } | null)?.updated_at ?? null,
+    overview: ((data ?? {}) as AnalyticsOverviewRpcPayload) ?? {},
+    retrievedAt: new Date().toISOString(),
+  };
+}
 
-  const overview = ((data ?? {}) as AnalyticsOverviewRpcPayload) ?? {};
+export async function getAnalyticsOverview(
+  windowDays: AnalyticsWindowDays = DEFAULT_ANALYTICS_WINDOW_DAYS
+): Promise<AnalyticsOverview> {
+  // Authorize before touching the cache: a cached entry must never reach a caller
+  // the admin guard would have refused.
+  const service = await getAuthorizedAdminServiceClient();
+  const since = analyticsWindowStart(windowDays);
+
+  const { engagementScoreComputedAt, overview, retrievedAt } = await unstable_cache(
+    () => fetchAnalyticsOverviewSnapshot(service, since, windowDays),
+    ['admin-analytics-overview', since, String(windowDays)],
+    { revalidate: ANALYTICS_OVERVIEW_CACHE_SECONDS, tags: [ANALYTICS_OVERVIEW_CACHE_TAG] }
+  )();
+
   const countryMetrics = overview.countryMetrics?.length
     ? mapCountryRollupsToMetrics(overview.countryMetrics as CountryMetricRollup[])
     : [];
@@ -1164,7 +1197,7 @@ export async function getAnalyticsOverview(
   );
 
   return {
-    retrievedAt: new Date().toISOString(),
+    retrievedAt,
     collectionHealth: overview.collectionHealth,
     activeCountryCount: Number(overview.activeCountryCount ?? 0),
     // METRICS.md: the RPC owns this denominator. Counting the mapped rows would
