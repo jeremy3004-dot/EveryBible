@@ -423,6 +423,11 @@ export function PlaybackControls({
                 setShowBackgroundMusicModal(false);
               }}
               accessibilityRole="button"
+              // Named explicitly: Android otherwise folds the checkmark's icon-font
+              // glyph into the name derived from the row's children.
+              accessibilityLabel={`${t(`interface.music.${option.id}.label`)}, ${t(
+                `interface.music.${option.id}.description`
+              )}`}
               accessibilityState={{ selected: isSelected }}
             >
               <View style={styles.backgroundMusicCopy}>
@@ -469,6 +474,7 @@ export function PlaybackControls({
               setShowSpeedModal(false);
             }}
             accessibilityRole="button"
+            accessibilityLabel={`${rate}x`}
             accessibilityState={{ selected: rate === playbackRate }}
           >
             <Text
@@ -499,6 +505,10 @@ export function PlaybackControls({
             sleepTimerMinutes,
             sleepTimerRemaining
           );
+          const label =
+            option.value == null
+              ? t('interface.music.off.label')
+              : t('interface.minutesShort', { count: option.value });
           return (
             <TouchableOpacity
               key={option.value ?? 'off'}
@@ -511,6 +521,7 @@ export function PlaybackControls({
                 setShowTimerModal(false);
               }}
               accessibilityRole="button"
+              accessibilityLabel={label}
               accessibilityState={{ selected: isSelected }}
             >
               <Text
@@ -519,9 +530,7 @@ export function PlaybackControls({
                   { color: isSelected ? colors.bibleAccent : colors.biblePrimaryText },
                 ]}
               >
-                {option.value == null
-                  ? t('interface.music.off.label')
-                  : t('interface.minutesShort', { count: option.value })}
+                {label}
               </Text>
               {isSelected ? (
                 <Ionicons name="checkmark" size={20} color={colors.bibleAccent} />

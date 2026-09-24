@@ -86,6 +86,9 @@ function ActionPill({ icon, label, onPress, disabled = false }: ActionPillProps)
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"
+      // Named explicitly: Android otherwise folds the icon-font glyph into the
+      // name it derives from the pill's children.
+      accessibilityLabel={label}
       hitSlop={8}
     >
       <Ionicons

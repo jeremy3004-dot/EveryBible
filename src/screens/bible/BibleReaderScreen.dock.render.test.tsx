@@ -159,6 +159,34 @@ test('the dock play button plays the displayed chapter, or toggles it once it is
   assert.deepEqual(reader.audioCalls.at(-1), ['togglePlayPause']);
 });
 
+// After a relaunch nothing is loaded, only the persisted last track and its
+// resume offset. Playing that chapter from the dock must resume it (the hook's
+// togglePlayPause restores lastPosition); playChapter restarted it from 0:00
+// (seen on the Android release build after a sleep-timer pause and a relaunch).
+test('after a relaunch the dock play button resumes the last-played chapter instead of restarting it', async () => {
+  await reader.setAudio({
+    lastPlayedTranslationId: 'bsb',
+    lastPlayedBookId: 'JHN',
+    lastPlayedChapter: 3,
+  });
+  const view = await renderReader();
+
+  await view.press(playButton(view));
+  assert.deepEqual(reader.audioCalls, [['togglePlayPause']]);
+});
+
+test('a different last-played chapter does not hijack the dock play button', async () => {
+  await reader.setAudio({
+    lastPlayedTranslationId: 'bsb',
+    lastPlayedBookId: 'GEN',
+    lastPlayedChapter: 3,
+  });
+  const view = await renderReader();
+
+  await view.press(playButton(view));
+  assert.deepEqual(reader.audioCalls, [['playChapter', 'JHN', 3]]);
+});
+
 test('the hide-play-button preference leaves the dock with its chapter arrows', async () => {
   harness.authStore.getState().setPreferences({ hidePlayButtonFromReadingTab: true });
   const view = await renderReader();
