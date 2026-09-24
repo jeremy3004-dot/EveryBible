@@ -24,9 +24,30 @@ export function appendCrashLogEntry(
   return next.length > max ? next.slice(next.length - max) : next;
 }
 
-export function toCrashLogEntry(error: unknown, isFatal: boolean, timestamp: number): CrashLogEntry {
+export function toCrashLogEntry(
+  error: unknown,
+  isFatal: boolean,
+  timestamp: number
+): CrashLogEntry {
   if (error instanceof Error) {
     return { message: error.message, stack: error.stack, isFatal, timestamp };
   }
   return { message: String(error), isFatal, timestamp };
+}
+
+/**
+ * Entry for a render error an ErrorBoundary caught. Not fatal (the boundary
+ * kept the app alive), tagged with the boundary's scope so the Diagnostics
+ * screen says which screen failed, with React's component stack appended.
+ */
+export function toRenderErrorCrashLogEntry(
+  error: unknown,
+  scope: string,
+  componentStack: string | null | undefined,
+  timestamp: number
+): CrashLogEntry {
+  const base = toCrashLogEntry(error, false, timestamp);
+  const componentTrail = componentStack?.trim() ? `\nComponent stack:${componentStack}` : '';
+  const stack = `${base.stack ?? base.message}${componentTrail}`;
+  return { ...base, message: `[${scope}] ${base.message}`, stack };
 }
