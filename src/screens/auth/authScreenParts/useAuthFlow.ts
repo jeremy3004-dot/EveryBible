@@ -3,6 +3,7 @@ import { Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
+import { announceForAccessibility, announceLiveRegionText } from '../../../utils/a11y';
 import { errorHaptic } from '../../../utils/haptics';
 import type { AuthScreenMode, AuthStackParamList } from '../../../navigation/types';
 import {
@@ -129,6 +130,14 @@ export function useAuthFlow(initialMode: AuthScreenMode): AuthFlow {
     const nextErrors = validateAuthForm(email, password);
     setErrors(nextErrors);
     if (hasFormErrors(nextErrors)) {
+      // The field errors are live regions, which only TalkBack reads; VoiceOver
+      // otherwise hears nothing after Sign in beyond the error haptic.
+      announceLiveRegionText(
+        [nextErrors.email, nextErrors.password]
+          .filter((key): key is string => Boolean(key))
+          .map((key) => t(key))
+          .join('. ')
+      );
       return;
     }
 
@@ -151,6 +160,8 @@ export function useAuthFlow(initialMode: AuthScreenMode): AuthFlow {
         }
 
         setVerificationNotice(true);
+        // The notice appears above the form while focus stays on the submit button.
+        announceForAccessibility(`${t('auth.accountCreated')}. ${t('auth.verifyEmailMessage')}`);
         setPassword('');
         return;
       }

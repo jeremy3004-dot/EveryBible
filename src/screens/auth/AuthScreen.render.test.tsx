@@ -187,6 +187,9 @@ test('a sign-up awaiting email verification shows the notice and clears the pass
   assert.ok(view.getByText(t('auth.verifyEmailMessage')));
   assert.equal(view.getByLabelText(t('auth.password')).props.value, '');
   assert.deepEqual(pulls, []);
+  assert.deepEqual(harness.rn.__recorded.announcements, [
+    `${t('auth.accountCreated')}. ${t('auth.verifyEmailMessage')}`,
+  ]);
 });
 
 test('invalid input shows field errors that are part of each field label', async () => {
@@ -442,6 +445,10 @@ test('an empty form asks for both fields, and typing clears only that field erro
     view.queryAllByType('LucideIcon').filter((icon) => icon.props.name === 'CircleAlert').length,
     2
   );
+  // Live regions are TalkBack-only, so VoiceOver is told the errors directly.
+  assert.deepEqual(harness.rn.__recorded.announcements, [
+    `${t('auth.emailRequired')}. ${t('auth.passwordRequired')}`,
+  ]);
 
   await view.changeText(view.getByLabelText(`${t('auth.email')}, ${t('auth.emailRequired')}`), 'r');
   assert.equal(view.queryByText(t('auth.emailRequired')), null);
