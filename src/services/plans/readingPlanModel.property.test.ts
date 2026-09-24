@@ -346,7 +346,7 @@ const runPlanScenario = (ops: PlanOp[]) => {
 
 test('two devices converge on one plan row: every day and tick done anywhere is kept', () => {
   fc.assert(
-    fc.property(fc.array(planOpArb, { maxLength: 20 }), (ops) => {
+    fc.property(fc.array(planOpArb, { minLength: 4, maxLength: 24 }), (ops) => {
       const { devices, server, done, ticks } = runPlanScenario(ops);
       assert.ok(server);
       for (const row of [...devices, server]) {
@@ -360,7 +360,7 @@ test('two devices converge on one plan row: every day and tick done anywhere is 
 
 test('two devices converge on the same completion times, day and next session', () => {
   fc.assert(
-    fc.property(fc.array(planOpArb, { maxLength: 20 }), (ops) => {
+    fc.property(fc.array(planOpArb, { minLength: 4, maxLength: 24 }), (ops) => {
       const { devices, server } = runPlanScenario(ops);
       assert.ok(server);
       const view = (row: UserReadingPlanProgress | ServerPlanRow) => ({

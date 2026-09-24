@@ -386,7 +386,7 @@ const skewArb = fc.tuple(
 test('two devices and the server converge on every preference and its stamp', () => {
   fc.assert(
     fc.property(
-      fc.array(prefOpArb, { maxLength: 20 }),
+      fc.array(prefOpArb, { minLength: 4, maxLength: 24 }),
       skewArb,
       fc.boolean(),
       (ops, skews, legacy) => {
@@ -411,14 +411,18 @@ test('two devices and the server converge on every preference and its stamp', ()
 
 test('with honest clocks, each preference ends on the value chosen last', () => {
   fc.assert(
-    fc.property(fc.array(prefOpArb, { maxLength: 20 }), fc.boolean(), (ops, legacy) => {
-      // Distinct edit times, so "last" is well defined.
-      const spaced = ops.map((op) => ({ ...op, advanceMs: op.advanceMs + 1 }));
-      const { devices, latestEdit } = runPreferenceScenario(spaced, [0, 0], legacy);
-      for (const [field, edit] of Object.entries(latestEdit) as [Field, { value: unknown }][]) {
-        assert.equal(devices[0].preferences[field], edit.value, field);
+    fc.property(
+      fc.array(prefOpArb, { minLength: 4, maxLength: 24 }),
+      fc.boolean(),
+      (ops, legacy) => {
+        // Distinct edit times, so "last" is well defined.
+        const spaced = ops.map((op) => ({ ...op, advanceMs: op.advanceMs + 1 }));
+        const { devices, latestEdit } = runPreferenceScenario(spaced, [0, 0], legacy);
+        for (const [field, edit] of Object.entries(latestEdit) as [Field, { value: unknown }][]) {
+          assert.equal(devices[0].preferences[field], edit.value, field);
+        }
       }
-    }),
+    ),
     FC_PARAMS
   );
 });
@@ -426,7 +430,7 @@ test('with honest clocks, each preference ends on the value chosen last', () => 
 test('a device that has shown onboarding as finished never shows it unfinished again', () => {
   fc.assert(
     fc.property(
-      fc.array(prefOpArb, { maxLength: 20 }),
+      fc.array(prefOpArb, { minLength: 4, maxLength: 24 }),
       skewArb,
       fc.boolean(),
       (ops, skews, legacy) => {
@@ -440,7 +444,7 @@ test('a device that has shown onboarding as finished never shows it unfinished a
 test('a settled device merges the server row as a no-op', () => {
   fc.assert(
     fc.property(
-      fc.array(prefOpArb, { maxLength: 20 }),
+      fc.array(prefOpArb, { minLength: 4, maxLength: 24 }),
       skewArb,
       fc.boolean(),
       (ops, skews, legacy) => {

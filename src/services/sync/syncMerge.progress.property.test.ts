@@ -520,7 +520,7 @@ const runProgressScenario = (ops: ProgressOp[]) => {
 
 test('two devices converge: every chapter read anywhere reaches both devices and the server', () => {
   fc.assert(
-    fc.property(fc.array(progressOpArb, { maxLength: 24 }), (ops) => {
+    fc.property(fc.array(progressOpArb, { minLength: 4, maxLength: 24 }), (ops) => {
       const { devices, server, allReads } = runProgressScenario(ops);
       assert.ok(server);
       const everyRead = maxByKey(allReads);
@@ -547,7 +547,7 @@ test('two devices converge: every chapter read anywhere reaches both devices and
 
 test('two devices converge on the last read date, the streak and the reading position', () => {
   fc.assert(
-    fc.property(fc.array(progressOpArb, { maxLength: 24 }), (ops) => {
+    fc.property(fc.array(progressOpArb, { minLength: 4, maxLength: 24 }), (ops) => {
       const { devices, server } = runProgressScenario(ops);
       assert.ok(server);
       const summary = (device: Device) => [
@@ -570,7 +570,7 @@ test('two devices converge on the last read date, the streak and the reading pos
 
 test('once settled, another sync changes nothing and uploads nothing', () => {
   fc.assert(
-    fc.property(fc.array(progressOpArb, { maxLength: 24 }), (ops) => {
+    fc.property(fc.array(progressOpArb, { minLength: 4, maxLength: 24 }), (ops) => {
       const { devices, server } = runProgressScenario(ops);
       for (const device of devices) {
         const merged = mergeReadingSnapshot(device, server ? asRemoteRow(server) : null);
