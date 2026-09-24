@@ -9,6 +9,13 @@
  * and briefly after it settles, going 'inactive' does not lock. Going to the background
  * always locks, and so does backgrounding after an ignored inactive (see usePrivacyLock),
  * so the grace never keeps content visible outside the app.
+ *
+ * It covers short, self-contained system UI that hands straight back to the same screen:
+ * the icon alert, permission prompts (notifications, microphone) and the photo picker.
+ * Share sheets stay outside it on purpose: they stay open as long as the reader likes,
+ * over scripture and previewing it, while a pending grace would keep an app-switcher
+ * 'inactive' from locking for up to 10s. If one does turn the app inactive, discreet
+ * mode fails closed and locks.
  */
 
 /** How long after the app's own system UI settles its 'inactive' echo is still ignored. */
