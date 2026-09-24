@@ -59,7 +59,8 @@ test('starting and stopping a voice note is spoken, since Record and Stop swap u
     t('bible.chapterFeedbackAudioReady', { duration: '0:04' }),
   ]);
   // The ring's bare remaining time is decoration next to the worded status.
-  const countdown = view.getByText('0:56', { includeHidden: true });
+  const countdown = view.queryAllByType('Text').find((node) => node.props.children === '0:56');
+  assert.ok(countdown, 'the ring shows the remaining time');
   assert.equal(isHiddenFromAccessibility(countdown), true);
   await view.unmount();
 });
