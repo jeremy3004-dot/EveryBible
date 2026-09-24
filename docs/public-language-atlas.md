@@ -90,9 +90,10 @@ location, country and source fields. The public artifact is
 `apps/site/data/language-atlas/index.json.gz`. New fields added upstream do not
 automatically become public. The compatibility artifact retains all 51,486
 reviewed records and 75,182 source placements. The versioned startup artifact
-(`startup-<sha256>.json.br` or `.json.gz`) keeps the same fields and placements
-for the 35,015 language and dialect records used by the public map, while
-omitting the separate people-group overlay from the initial download. Locations
+(`startup-<sha256>.json.br` or `.json.gz`) keeps every displayed field and all
+placements for the 35,015 language and dialect records used by the public map,
+while omitting the separate people-group overlay and the generated one-line
+`summary` (never shown publicly; the decoder restores it as an empty string). Locations
 are stored once and referenced by index, so every dot and profile location is
 restored exactly in the browser. Original source evidence shards, raw imports,
 raw active-project data, identities and operational APIs are not included in the
@@ -126,6 +127,43 @@ attribution, and each provider's source links and terms. The public view adds
 cross-registry language/dialect identity, exact-scope Scripture distinctions,
 and explicitly labeled location precision; it does not copy source photos,
 audio or long biographies.
+
+## Language pages
+
+`/languages/<slug>` gives each of the 9,795 language records its own indexable
+page (title, description, canonical URL, `WebPage`/`Language`/`BreadcrumbList`
+JSON-LD), with its Scripture status, countries, identifiers, dialects, any Every
+Language recording project, neighbouring languages and source credits. `/languages`
+lists status counts, project languages and languages with a complete Bible.
+Dialects appear on their parent language's page rather than on their own.
+
+Slugs are `<name>-<code>` from `apps/site/lib/language-slug.ts` (`yoruba-yor`,
+`gane-gane1238`, `oung-el-15876f53`); the code comes from the record id, so a
+slug stays stable while the id and name do. The atlas profile links a language,
+or a dialect's parent, to its page, and `/?language=<record id>` opens a profile
+on the map.
+
+The pages never load the atlas snapshot. `apps/site/data/language-atlas/pages/`
+holds `meta.json`, a listing `index.json.gz` and 64 `shard-NN.json.gz` files
+(~30 KB each, keyed by slug hash); a render reads one shard. Languages with a
+complete Bible, a New Testament or a recording project (~2,640) are prerendered;
+the rest render on first request and are then cached (`dynamicParams`). Page
+sitemaps are `/languages/sitemap/<n>.xml`, split at 50,000 URLs and listed in
+`robots.txt`.
+
+The pages do not name Bibles in the EveryBible app, whose library is published
+remotely and changes; only Bibles built into the app are named
+(`apps/site/lib/everybible-app-bibles.ts`). Recording progress does not establish
+availability in the app, and the page says so.
+
+Regenerate after `build_public_atlas.py` or `build_public_projects.py`:
+
+```sh
+npm run atlas:pages:build
+npm run atlas:pages:check
+```
+
+`language-pages.test.ts` fails when the committed pages are stale.
 
 ## App downloads
 
@@ -326,3 +364,11 @@ The current public map has 35,015 language/dialect records. Startup version:
 (1,901,629 Brotli bytes; 2,355,025 gzip bytes; 15,742,669 decoded bytes).
 See the [completion report](research/language-atlas/reconciliation-naming-completion.md)
 for approved groups, exclusions and conservation checks.
+
+### Startup without summaries (2026-09-24)
+
+Dropping the unused generated `summary` from the startup artifact gives version
+`598b0450c44ea4f14cf56364d36b3f8bd14799b43efe28046136f4445503fd25`
+(1,623,450 Brotli bytes, -15%; 2,004,500 gzip bytes; 11,114,798 decoded bytes,
+-29% JSON to parse on the main thread). The previous `66821d61…` files stay for
+pages cached before the deploy; the older `177aae7b…` files were removed.

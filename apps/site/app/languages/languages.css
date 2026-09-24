@@ -1,0 +1,198 @@
+/* /languages pages. Built on the shared .static-page styles in globals.css. */
+
+.language-breadcrumb {
+  margin-bottom: 40px;
+  font-size: 14px;
+}
+
+.language-breadcrumb ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: hsl(var(--muted-foreground));
+}
+
+.language-breadcrumb li + li::before {
+  content: '›';
+  margin-right: 6px;
+}
+
+.language-breadcrumb a {
+  color: hsl(var(--primary-deep));
+  font-weight: 700;
+}
+
+.language-breadcrumb a:hover {
+  color: hsl(var(--primary));
+}
+
+.language-page .static-page__hero h1 {
+  overflow-wrap: anywhere;
+}
+
+.language-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: hsl(var(--foreground));
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.language-status i {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: hsl(var(--neutral));
+}
+
+.language-status--large {
+  margin-top: 16px;
+  font-size: 16px;
+}
+
+.language-status--large i {
+  width: 12px;
+  height: 12px;
+}
+
+.language-status[data-status='bible'] i {
+  background: hsl(var(--reef));
+}
+.language-status[data-status='nt'] i {
+  background: hsl(var(--ochre));
+}
+.language-status[data-status='portions'] i {
+  background: hsl(var(--clay));
+}
+.language-status[data-status='no-scripture'] i {
+  background: hsl(var(--danger));
+}
+
+.static-page__content .language-note {
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.language-count {
+  color: hsl(var(--muted-foreground));
+  font-family: var(--font-ui);
+  font-size: 0.6em;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.static-page__content .language-list,
+.static-page__content .language-countries,
+.static-page__content .language-columns,
+.static-page__content .language-sources,
+.static-page__content .language-projects {
+  padding: 0;
+  list-style: none;
+}
+
+.static-page__content .language-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+  margin: 0;
+  padding: 10px 0;
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.static-page__content .language-list--grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  column-gap: 32px;
+}
+
+.static-page__content .language-list li > :first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.static-page__content .language-countries {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.static-page__content .language-countries li {
+  margin: 0;
+  padding: 4px 12px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 999px;
+  color: hsl(var(--foreground));
+  font-size: 14px;
+}
+
+.static-page__content .language-columns {
+  columns: 3 180px;
+  column-gap: 24px;
+}
+
+.static-page__content .language-columns li {
+  margin: 0 0 6px;
+  break-inside: avoid;
+}
+
+.language-details {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+
+.language-details div {
+  display: grid;
+  grid-template-columns: minmax(120px, 180px) 1fr;
+  gap: 16px;
+}
+
+.language-details dt {
+  color: hsl(var(--foreground));
+  font-weight: 600;
+}
+
+.language-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.static-page__content .language-sources li {
+  display: grid;
+  gap: 2px;
+}
+
+.static-page__content .language-sources small {
+  font-size: 13px;
+}
+
+.language-stores {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.static-page__content .language-stores a {
+  display: inline-flex;
+  text-decoration: none;
+}
+
+.language-stores img {
+  display: block;
+}
+
+@media (max-width: 520px) {
+  .language-details div {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}
