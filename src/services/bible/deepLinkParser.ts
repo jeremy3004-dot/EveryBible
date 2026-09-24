@@ -67,8 +67,10 @@ export const parseBibleDeepLink = (path: string): BibleDeepLinkTarget | null => 
 
   // A verse that is not a real position (0, or too long to be a safe integer) is dropped.
   const verseMatch = VERSE_SEGMENT.exec(verseStr);
+  // A single verse has no range end; it then ranges over itself.
+  const [, verseStart = '', verseEnd = verseStart] = verseMatch ?? [];
   const firstVerse = verseMatch
-    ? Math.min(parseInt(verseMatch[1], 10), parseInt(verseMatch[2] ?? verseMatch[1], 10))
+    ? Math.min(parseInt(verseStart, 10), parseInt(verseEnd, 10))
     : undefined;
   const verse = isVerseNumber(firstVerse) ? firstVerse : undefined;
   return { bookId, chapter, verse };

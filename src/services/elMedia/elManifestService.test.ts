@@ -11,6 +11,7 @@ import {
 import type { ElCatalogTranslation } from './elCatalogModel';
 import type { ElJwk } from './elEnvelope';
 import { __resetElJwksRuntimeForTests } from './elJwks';
+import { assertDefined } from '../../utils/assertDefined';
 
 const fixturesDir = new URL('./fixtures/', import.meta.url);
 const readFixtureBytes = (name: string) =>
@@ -18,6 +19,7 @@ const readFixtureBytes = (name: string) =>
 const readJson = (name: string) => JSON.parse(readFixtureBytes(name).toString('utf8'));
 
 const jwks = readJson('dev.jwks.json').keys as ElJwk[];
+const devJwk = assertDefined(jwks[0], 'the dev fixture key');
 // The fixture catalog's manifest_sha256 is the sha256 of these exact manifest FILE bytes.
 const manifestBytes = readFixtureBytes('manifest-lqdtest.json');
 
@@ -184,7 +186,7 @@ test('cached payload is the verified manifest JSON (not the envelope)', async ()
     k.startsWith('el-media:manifest:')
   );
   assert.equal(diskEntries.length, 1);
-  const cached = JSON.parse(diskEntries[0][1]) as {
+  const cached = JSON.parse(assertDefined(diskEntries[0], 'first disk entry')[1]) as {
     keyId: string;
     payload: Record<string, unknown>;
   };
@@ -210,7 +212,7 @@ test('a cached manifest verified by a key this build does not trust is not serve
   const manifest = await getElManifest(baseEntry(), CATALOG_BASE_URL, {
     fetchFn: offline.fetchFn,
     storage,
-    getKeys: async () => [{ ...jwks[0], kid: 'lqd-prod-2026-a' }],
+    getKeys: async () => [{ ...devJwk, kid: 'lqd-prod-2026-a' }],
   });
 
   assert.equal(manifest, null);
@@ -556,7 +558,7 @@ test('an unpinned manifest kid is REJECTED with zero JWKS fetches', async () => 
       jwksFetches += 1;
       return {
         ok: true,
-        json: async () => ({ keys: [{ ...jwks[0], kid: unknownKid }] }),
+        json: async () => ({ keys: [{ ...devJwk, kid: unknownKid }] }),
       } as unknown as Response;
     }
     return {

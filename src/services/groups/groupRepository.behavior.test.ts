@@ -1,6 +1,7 @@
 import test, { before, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { mockMmkvStorage } from '../../testing/mockModules';
+import { assertDefined } from '../../utils/assertDefined';
 import type { Group, GroupProgress } from '../../types/course';
 import type { SyncedGroupSummaryRecord } from './groupRepository';
 
@@ -97,15 +98,18 @@ test('a locally created group is summarised from the fourFields store, tagged lo
   const created = useFourFieldsStore.getState().createGroup('Harvest', 'leader-1', 'Ada');
   useFourFieldsStore.getState().joinGroup(created.joinCode, 'member-1', 'Bo');
 
-  assert.deepEqual(repository.buildLocalGroupSummary(localGroups()[0]), {
-    id: created.id,
-    name: 'Harvest',
-    joinCode: created.joinCode,
-    memberCount: 2,
-    currentCourseId: 'entry-course',
-    currentLessonId: 'entry-1',
-    source: 'local',
-  });
+  assert.deepEqual(
+    repository.buildLocalGroupSummary(assertDefined(localGroups()[0], 'first local group')),
+    {
+      id: created.id,
+      name: 'Harvest',
+      joinCode: created.joinCode,
+      memberCount: 2,
+      currentCourseId: 'entry-course',
+      currentLessonId: 'entry-1',
+      source: 'local',
+    }
+  );
 });
 
 test('a synced group summary maps snake_case columns onto the shared shape', () => {
@@ -332,8 +336,8 @@ test('a local group detail carries member names, roles and its completed-lesson 
   useFourFieldsStore.getState().markGroupLessonComplete(created.id, 'entry-1');
 
   const detail = repository.buildGroupDetailSnapshot({
-    localGroup: localGroups()[0],
-    localProgress: localProgress()[created.id],
+    localGroup: localGroups()[0] ?? null,
+    localProgress: localProgress()[created.id] ?? null,
     syncedGroup: null,
     currentUserId: 'leader-1',
   });
@@ -355,7 +359,7 @@ test('a local group member who is not the leader is not marked as one', () => {
   useFourFieldsStore.getState().joinGroup(created.joinCode, 'member-1', 'Bo');
 
   const detail = repository.buildGroupDetailSnapshot({
-    localGroup: localGroups()[0],
+    localGroup: localGroups()[0] ?? null,
     localProgress: null,
     syncedGroup: null,
     currentUserId: 'member-1',
@@ -368,7 +372,7 @@ test('a local group with no recorded progress reports zero completed lessons, no
   useFourFieldsStore.getState().createGroup('Harvest', 'leader-1', 'Ada');
 
   const detail = repository.buildGroupDetailSnapshot({
-    localGroup: localGroups()[0],
+    localGroup: localGroups()[0] ?? null,
     localProgress: null,
     syncedGroup: null,
     currentUserId: 'leader-1',
@@ -381,7 +385,7 @@ test('a local group always wins over a synced group of the same id', () => {
   useFourFieldsStore.getState().createGroup('Local wins', 'leader-1', 'Ada');
 
   const detail = repository.buildGroupDetailSnapshot({
-    localGroup: localGroups()[0],
+    localGroup: localGroups()[0] ?? null,
     localProgress: null,
     syncedGroup: makeSyncedGroup(),
     currentUserId: 'leader-1',
@@ -666,7 +670,7 @@ test('a local group is never led by nobody either', () => {
   useFourFieldsStore.getState().createGroup('Tuesday Night', 'leader-1', 'Lee');
 
   const detail = repository.buildGroupDetailSnapshot({
-    localGroup: localGroups()[0],
+    localGroup: localGroups()[0] ?? null,
     localProgress: null,
     syncedGroup: null,
     currentUserId: null,
@@ -703,7 +707,7 @@ test('an unparseable joined_at currently becomes NaN rather than the null the ty
     currentUserId: 'member-remote',
   });
 
-  assert.equal(Number.isNaN(detail?.members[0].joinedAt), true);
+  assert.equal(Number.isNaN(detail?.members[0]?.joinedAt), true);
 });
 
 test('progress recorded for a different group is not counted against this one', async () => {

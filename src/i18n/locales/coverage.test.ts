@@ -112,7 +112,8 @@ test('every supported locale translates user-facing English strings', async () =
       const localeValue = localeEntries[key];
       const englishValue = englishEntries[key];
       return (
-        localeValue === englishValue && /[A-Za-z]/.test(localeValue.replace(/\{\{[^}]+\}\}/g, ''))
+        localeValue === englishValue &&
+        /[A-Za-z]/.test((localeValue ?? '').replace(/\{\{[^}]+\}\}/g, ''))
       );
     });
 

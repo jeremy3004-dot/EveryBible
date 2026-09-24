@@ -12,6 +12,7 @@ import {
 } from './bibleTranslationPersistence';
 import { sanitizePersistedBibleState } from './persistedStateSanitizers';
 import type { RuntimeCatalogSnapshotStorage } from './bibleTranslationPersistence';
+import { assertDefined } from '../utils/assertDefined';
 
 function createMemoryStorage(seed: Record<string, string> = {}): RuntimeCatalogSnapshotStorage & {
   readonly values: Map<string, string>;
@@ -313,7 +314,7 @@ test('migration leaves the legacy shape in place when the snapshot cannot be wri
   };
 
   assert.ok(
-    'catalog' in migrated.translations[0],
+    'catalog' in assertDefined(migrated.translations[0], 'first migrated translation'),
     'a failed snapshot write must not strip metadata that has nowhere else to live'
   );
 });
@@ -415,10 +416,11 @@ test('the runtime catalog snapshot excludes bundled translations and user-mutabl
   ]);
 
   assert.equal(snapshot.length, 1);
-  assert.equal(snapshot[0].id, 'tglulb');
-  assert.equal('textPackLocalPath' in snapshot[0], false);
-  assert.equal('isDownloaded' in snapshot[0], false);
-  assert.equal('installState' in snapshot[0], false);
+  const first = assertDefined(snapshot[0], 'first snapshot entry');
+  assert.equal(first.id, 'tglulb');
+  assert.equal('textPackLocalPath' in first, false);
+  assert.equal('isDownloaded' in first, false);
+  assert.equal('installState' in first, false);
 });
 
 test('a corrupt runtime catalog snapshot degrades to no snapshot instead of throwing', () => {

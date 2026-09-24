@@ -6,6 +6,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildPublicRuntimeConfig } from './publicRuntimeConfig';
+import { assertDefined } from '../../utils/assertDefined';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const require = createRequire(import.meta.url);
@@ -32,7 +33,10 @@ const readExpoConfig = (): { expo: { newArchEnabled?: boolean; scheme?: string }
 const readPlistStringArray = (contents: string, key: string): string[] => {
   const match = contents.match(new RegExp(`<key>${key}</key>\\s*<array>([\\s\\S]*?)</array>`));
   assert.ok(match, `Expected ${key} array in plist`);
-  return Array.from(match[1].matchAll(/<string>([^<]+)<\/string>/g)).map((item) => item[1]);
+  const arrayBody = assertDefined(match[1], `${key} array body`);
+  return Array.from(arrayBody.matchAll(/<string>([^<]+)<\/string>/g)).map((item) =>
+    assertDefined(item[1], `${key} array entry`)
+  );
 };
 
 const readGradleProperty = (contents: string, propertyName: string): string | null => {
@@ -148,9 +152,9 @@ test('eas build profiles carry the EL media base URL and enable the flag in prod
     );
   }
 
-  assert.equal(easConfig.build.development.env?.EXPO_PUBLIC_EL_MEDIA_SOURCE, 'true');
-  assert.equal(easConfig.build.preview.env?.EXPO_PUBLIC_EL_MEDIA_SOURCE, 'true');
-  assert.equal(easConfig.build.production.env?.EXPO_PUBLIC_EL_MEDIA_SOURCE, 'true');
+  assert.equal(easConfig.build.development?.env?.EXPO_PUBLIC_EL_MEDIA_SOURCE, 'true');
+  assert.equal(easConfig.build.preview?.env?.EXPO_PUBLIC_EL_MEDIA_SOURCE, 'true');
+  assert.equal(easConfig.build.production?.env?.EXPO_PUBLIC_EL_MEDIA_SOURCE, 'true');
 });
 
 test('app config derives the iOS Google URL scheme for the Expo config plugin', () => {
@@ -192,7 +196,9 @@ test('local xcode node override points to an installed executable when present',
   const nodeBinaryMatch = xcodeEnvLocal.match(/^\s*export\s+NODE_BINARY=(.+)$/m);
   assert.ok(nodeBinaryMatch, 'Expected NODE_BINARY export in ios/.xcode.env.local');
 
-  const configuredValue = nodeBinaryMatch[1].trim().replace(/^['"]|['"]$/g, '');
+  const configuredValue = assertDefined(nodeBinaryMatch[1], 'NODE_BINARY value')
+    .trim()
+    .replace(/^['"]|['"]$/g, '');
 
   if (configuredValue.includes('command -v node')) {
     return;

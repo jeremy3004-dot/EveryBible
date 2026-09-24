@@ -9,6 +9,7 @@ import {
   sourcePath,
 } from '../../testing/mockModules';
 import { createSupabaseFake } from '../../testing/supabaseFake';
+import { assertDefined } from '../../utils/assertDefined';
 
 mock.timers.enable({ apis: ['setTimeout'] });
 const rn = mockReactNative(mock);
@@ -99,11 +100,11 @@ test('optional reporting waits durably for foreground suitable connectivity and 
   await settle();
   assert.equal(backend.functionCalls.length, 1);
   const delivered = (
-    backend.functionCalls[0].options as {
+    assertDefined(backend.functionCalls[0], 'first function call').options as {
       body: { events: Array<{ attribution_user_id: string | null }> };
     }
   ).body.events;
-  assert.equal(delivered[0].attribution_user_id, null);
+  assert.equal(delivered[0]?.attribution_user_id, null);
   assert.ok(delivered.slice(1).every((event) => event.attribution_user_id === 'original-user'));
   assert.equal(queue.getPendingUsageEventCount(), 0);
 

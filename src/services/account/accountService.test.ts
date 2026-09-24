@@ -68,7 +68,9 @@ test('deleteCurrentAccount asks Postgres to delete the caller and reports succes
 test('deleteCurrentAccount sends no arguments to the delete function', async () => {
   await accountService.deleteCurrentAccount();
 
-  assert.equal(supabaseFake.callsFor('rpc:delete_my_account')[0].payload, undefined);
+  const [call] = supabaseFake.callsFor('rpc:delete_my_account');
+  assert.ok(call, 'the delete function was called');
+  assert.equal(call.payload, undefined);
 });
 
 test('deleteCurrentAccount surfaces a rejected delete so the UI can keep the account', async () => {

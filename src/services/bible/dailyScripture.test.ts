@@ -26,6 +26,10 @@ test('local calendar days remain stable until midnight and advance across New Ye
   );
 });
 
+test('an invalid date starts the rotation instead of returning no reference', () => {
+  assert.equal(getDailyScriptureReference(new Date(Number.NaN)), POPULAR_VERSE_REFERENCES[0]);
+});
+
 test('daylight-saving and leap-day boundaries advance exactly one entry', () => {
   for (const date of [new Date(2026, 2, 8), new Date(2026, 10, 1), new Date(2028, 1, 29)]) {
     const previous = new Date(date.getFullYear(), date.getMonth(), date.getDate() - 1);

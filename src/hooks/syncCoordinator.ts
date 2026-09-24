@@ -35,35 +35,42 @@ export const createSyncCoordinator = (): SyncCoordinator => {
   const queued: Request[] = [];
   let preparedIdentity: SyncIdentity | null = null;
 
+  // Removes the matching queued requests in place and returns them newest first, the
+  // order they have always been settled in.
+  const removeQueued = (shouldRemove: (request: Request) => boolean): Request[] => {
+    const removed = queued.filter(shouldRemove);
+    queued.splice(0, queued.length, ...queued.filter((request) => !shouldRemove(request)));
+    return removed.reverse();
+  };
+
   const resolveStaleQueue = (identity: SyncIdentity) => {
     if (preparedIdentity && !sameIdentity(preparedIdentity, identity)) {
       preparedIdentity = null;
     }
-    for (let index = queued.length - 1; index >= 0; index -= 1) {
-      const request = queued[index];
-      if (!sameIdentity(request.identity, identity)) {
-        queued.splice(index, 1);
-        request.resolve(request.operation === 'pull' ? false : undefined);
-      }
+    for (const request of removeQueued(
+      (queuedRequest) => !sameIdentity(queuedRequest.identity, identity)
+    )) {
+      request.resolve(request.operation === 'pull' ? false : undefined);
     }
   };
 
   const discardPendingPush = (identity: SyncIdentity) => {
-    for (let index = queued.length - 1; index >= 0; index -= 1) {
-      const request = queued[index];
-      if (request.operation === 'push' && sameIdentity(request.identity, identity)) {
-        queued.splice(index, 1);
-        request.resolve(undefined);
-      }
+    const isPendingPush = (request: Request) =>
+      request.operation === 'push' && sameIdentity(request.identity, identity);
+    for (const request of removeQueued(isPendingPush)) {
+      request.resolve(undefined);
     }
   };
 
   const startNext = () => {
-    if (active || queued.length === 0) {
+    if (active) {
       return;
     }
 
-    const request = queued.shift()!;
+    const request = queued.shift();
+    if (!request) {
+      return;
+    }
     active = request;
     const completion = Promise.resolve()
       .then(request.run)

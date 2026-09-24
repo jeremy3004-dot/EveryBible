@@ -76,9 +76,9 @@ test('uploading an avatar stores it under the user folder and returns its public
     mock.timers.reset();
   }
   const [upload] = uploadsTo('avatars');
-  assert.equal(upload.args[0], 'user-1/avatar.png');
-  assert.deepEqual(upload.args[1], bytesOf('png-bytes'));
-  assert.deepEqual(upload.args[2], { contentType: 'image/png', upsert: true });
+  assert.equal(upload?.args[0], 'user-1/avatar.png');
+  assert.deepEqual(upload?.args[1], bytesOf('png-bytes'));
+  assert.deepEqual(upload?.args[2], { contentType: 'image/png', upsert: true });
 });
 
 test('the avatar is read as base64 from the local URI', async () => {
@@ -104,7 +104,7 @@ for (const [extension, contentType] of [
     await storage.uploadAvatar(`file:///tmp/pick.${extension}`);
 
     assert.equal(
-      (uploadsTo('avatars')[0].args[2] as { contentType: string }).contentType,
+      (uploadsTo('avatars')[0]?.args[2] as { contentType: string }).contentType,
       contentType
     );
   });
@@ -116,8 +116,8 @@ test('an uppercase extension is normalised before the mime type is chosen', asyn
   await storage.uploadAvatar('file:///tmp/PICK.PNG');
 
   const [upload] = uploadsTo('avatars');
-  assert.equal(upload.args[0], 'user-1/avatar.png');
-  assert.equal((upload.args[2] as { contentType: string }).contentType, 'image/png');
+  assert.equal(upload?.args[0], 'user-1/avatar.png');
+  assert.equal((upload?.args[2] as { contentType: string }).contentType, 'image/png');
 });
 
 test('a query string after the extension does not confuse extension detection', async () => {
@@ -125,7 +125,7 @@ test('a query string after the extension does not confuse extension detection', 
 
   await storage.uploadAvatar('file:///tmp/pick.webp?width=200');
 
-  assert.equal(uploadsTo('avatars')[0].args[0], 'user-1/avatar.webp');
+  assert.equal(uploadsTo('avatars')[0]?.args[0], 'user-1/avatar.webp');
 });
 
 test('an Android content:// URI with no extension falls back to a jpeg avatar', async () => {
@@ -134,8 +134,8 @@ test('an Android content:// URI with no extension falls back to a jpeg avatar', 
   await storage.uploadAvatar('content://media/external/images/1');
 
   const [upload] = uploadsTo('avatars');
-  assert.equal(upload.args[0], 'user-1/avatar.jpg');
-  assert.equal((upload.args[2] as { contentType: string }).contentType, 'image/jpeg');
+  assert.equal(upload?.args[0], 'user-1/avatar.jpg');
+  assert.equal((upload?.args[2] as { contentType: string }).contentType, 'image/jpeg');
 });
 
 test('an unknown extension falls back to a jpeg content type', async () => {
@@ -144,8 +144,8 @@ test('an unknown extension falls back to a jpeg content type', async () => {
   await storage.uploadAvatar('file:///tmp/pick.bmp');
 
   const [upload] = uploadsTo('avatars');
-  assert.equal(upload.args[0], 'user-1/avatar.bmp');
-  assert.equal((upload.args[2] as { contentType: string }).contentType, 'image/jpeg');
+  assert.equal(upload?.args[0], 'user-1/avatar.bmp');
+  assert.equal((upload?.args[2] as { contentType: string }).contentType, 'image/jpeg');
 });
 
 test('uploading an avatar without a backend reports that Supabase is unconfigured', async () => {
@@ -249,9 +249,9 @@ test('uploading a group cover stores it under the group folder and returns its p
     data: `${fake.storage.publicUrlBase}/group-images/group-7/cover.jpeg`,
   });
   const [upload] = uploadsTo('group-images');
-  assert.equal(upload.args[0], 'group-7/cover.jpeg');
-  assert.deepEqual(upload.args[1], bytesOf('cover-bytes'));
-  assert.deepEqual(upload.args[2], { contentType: 'image/jpeg', upsert: true });
+  assert.equal(upload?.args[0], 'group-7/cover.jpeg');
+  assert.deepEqual(upload?.args[1], bytesOf('cover-bytes'));
+  assert.deepEqual(upload?.args[2], { contentType: 'image/jpeg', upsert: true });
 });
 
 test('uploading a group cover without a backend reports that Supabase is unconfigured', async () => {

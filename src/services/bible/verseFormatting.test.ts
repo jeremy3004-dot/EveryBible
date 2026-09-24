@@ -120,7 +120,7 @@ test('reconcileVerseFormattingWithText tolerates whitespace differences between 
     lines: [{ text: '“Adah and Zillah, hear my voice;' }],
   });
   const result = reconcileVerseFormattingWithText(text, formatting);
-  assert.equal(result?.lines[0].text, 'Then Lamech said to his wives:');
+  assert.equal(result?.lines[0]?.text, 'Then Lamech said to his wives:');
   assert.equal(result?.lines[0].prose, true);
   assert.equal(result?.lines.length, 2);
 });

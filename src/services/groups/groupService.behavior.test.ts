@@ -2,6 +2,7 @@ import test, { before, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { mockModule, sourcePath } from '../../testing/mockModules';
 import { createSupabaseFake, makeFakeSession, makeFakeUser } from '../../testing/supabaseFake';
+import { assertDefined } from '../../utils/assertDefined';
 
 // Local helper instead of `mockSupabaseModule`: that helper bakes
 // `isSupabaseConfigured()` in at mock time, and this file needs to flip the
@@ -97,9 +98,9 @@ test('listing synced groups asks for non-archived groups with their members, new
 
   assert.deepEqual(groups, [{ id: 'g1', group_members: [] }]);
   const [call] = supabase.callsFor('groups');
-  assert.equal(call.columns, '*, group_members(*)');
+  assert.equal(call?.columns, '*, group_members(*)');
   assert.deepEqual(
-    call.steps.map((step) => [step.method, step.args]),
+    call?.steps.map((step) => [step.method, step.args]),
     [
       ['select', ['*, group_members(*)']],
       ['is', ['archived_at', null]],
@@ -139,8 +140,8 @@ test('getting a synced group filters by id and tolerates a missing row', async (
   assert.equal(await service.getSyncedGroup('g1'), null);
 
   const [call] = supabase.callsFor('groups');
-  assert.equal(call.maybeSingle, true);
-  assert.deepEqual(call.steps.find((step) => step.method === 'eq')?.args, ['id', 'g1']);
+  assert.equal(call?.maybeSingle, true);
+  assert.deepEqual(call?.steps.find((step) => step.method === 'eq')?.args, ['id', 'g1']);
 });
 
 test('getting a synced group returns the row with its members', async () => {
@@ -194,7 +195,7 @@ test('creating a group makes one create_group call and returns the leader member
 
   const group = await service.createSyncedGroup('  Alpha  ');
 
-  assert.deepEqual(supabase.callsFor('rpc:create_group')[0].payload, {
+  assert.deepEqual(supabase.callsFor('rpc:create_group')[0]?.payload, {
     group_name: 'Alpha',
     starting_course_id: 'entry-course',
     starting_lesson_id: 'entry-1',
@@ -215,7 +216,7 @@ test('create_group receives explicit course and lesson overrides', async () => {
     currentLessonId: 'gospel-2',
   });
 
-  assert.deepEqual(supabase.callsFor('rpc:create_group')[0].payload, {
+  assert.deepEqual(supabase.callsFor('rpc:create_group')[0]?.payload, {
     group_name: 'Alpha',
     starting_course_id: 'gospel-course',
     starting_lesson_id: 'gospel-2',
@@ -244,8 +245,8 @@ test('without the create_group RPC, creation falls back to inserting the group t
   await service.createSyncedGroup('Alpha');
 
   assert.equal(supabase.callsFor('rpc:create_group').length, 1);
-  assert.equal(supabase.callsFor('groups')[0].operation, 'insert');
-  assert.equal(supabase.callsFor('group_members')[0].operation, 'insert');
+  assert.equal(supabase.callsFor('groups')[0]?.operation, 'insert');
+  assert.equal(supabase.callsFor('group_members')[0]?.operation, 'insert');
 });
 
 test('creating a group trims the name and defaults the starting lesson', async () => {
@@ -253,7 +254,8 @@ test('creating a group trims the name and defaults the starting lesson', async (
 
   const group = await service.createSyncedGroup('  Alpha  ');
 
-  const insert = supabase.callsFor('groups')[0].payload as Record<string, unknown>;
+  const insert = assertDefined(supabase.callsFor('groups')[0], 'groups insert call')
+    .payload as Record<string, unknown>;
   assert.equal(insert.name, 'Alpha');
   assert.equal(insert.leader_id, 'user-1');
   assert.equal(insert.current_course_id, 'entry-course');
@@ -269,7 +271,8 @@ test('creating a group honours explicit course and lesson overrides', async () =
     currentLessonId: 'gospel-2',
   });
 
-  const insert = supabase.callsFor('groups')[0].payload as Record<string, unknown>;
+  const insert = assertDefined(supabase.callsFor('groups')[0], 'groups insert call')
+    .payload as Record<string, unknown>;
   assert.equal(insert.current_course_id, 'gospel-course');
   assert.equal(insert.current_lesson_id, 'gospel-2');
 });
@@ -279,7 +282,9 @@ test('creating a group generates a six-character join code from the unambiguous 
 
   await service.createSyncedGroup('Alpha');
 
-  const insert = supabase.callsFor('groups')[0].payload as { join_code: string };
+  const insert = assertDefined(supabase.callsFor('groups')[0], 'groups insert call').payload as {
+    join_code: string;
+  };
   assert.match(insert.join_code, /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/);
 });
 
@@ -296,7 +301,9 @@ test('every join-code position is drawn independently from the alphabet', async 
     random.mock.restore();
   }
 
-  const insert = supabase.callsFor('groups')[0].payload as { join_code: string };
+  const insert = assertDefined(supabase.callsFor('groups')[0], 'groups insert call').payload as {
+    join_code: string;
+  };
   assert.equal(insert.join_code, 'ABCK39');
 });
 
@@ -305,7 +312,10 @@ test('creating a group enrols the creator as leader and returns them in the grou
 
   const group = await service.createSyncedGroup('Alpha');
 
-  const memberInsert = supabase.callsFor('group_members')[0].payload as Record<string, unknown>;
+  const memberInsert = assertDefined(
+    supabase.callsFor('group_members')[0],
+    'group_members insert call'
+  ).payload as Record<string, unknown>;
   assert.equal(memberInsert.group_id, 'g1');
   assert.equal(memberInsert.user_id, 'user-1');
   assert.equal(memberInsert.role, 'leader');
@@ -385,7 +395,7 @@ test('a failed leader enrolment rolls the new group back and reports the member 
 
   await assert.rejects(service.createSyncedGroup('Alpha'), /group_members insert denied/);
 
-  const rollback = supabase.callsFor('groups')[1];
+  const rollback = assertDefined(supabase.callsFor('groups')[1], 'rollback delete call');
   assert.equal(rollback.operation, 'delete');
   assert.deepEqual(rollback.steps.find((step) => step.method === 'eq')?.args, ['id', 'g1']);
 });
@@ -405,7 +415,7 @@ test('joining normalises the code to trimmed uppercase before calling the RPC', 
 
   await service.joinSyncedGroup('  abc234 ');
 
-  assert.deepEqual(supabase.callsFor('rpc:join_group_by_code')[0].payload, {
+  assert.deepEqual(supabase.callsFor('rpc:join_group_by_code')[0]?.payload, {
     group_join_code: 'ABC234',
   });
 });
@@ -425,7 +435,7 @@ test('joining returns the freshly joined group', async () => {
 
   assert.equal(group?.id, 'g1');
   assert.deepEqual(
-    supabase.callsFor('groups')[0].steps.find((step) => step.method === 'eq')?.args,
+    supabase.callsFor('groups')[0]?.steps.find((step) => step.method === 'eq')?.args,
     ['id', 'g1']
   );
 });
@@ -466,7 +476,7 @@ test('leaving calls the leave_group RPC with the target group', async () => {
 
   await service.leaveSyncedGroup('g1');
 
-  assert.deepEqual(supabase.callsFor('rpc:leave_group')[0].payload, { target_group_id: 'g1' });
+  assert.deepEqual(supabase.callsFor('rpc:leave_group')[0]?.payload, { target_group_id: 'g1' });
 });
 
 test('leaving surfaces an RPC failure', async () => {
@@ -523,7 +533,7 @@ test('updating the group lesson writes both pointers to the target row', async (
     current_lesson_id: 'gospel-2',
   });
 
-  const [call] = supabase.callsFor('groups');
+  const call = assertDefined(supabase.callsFor('groups')[0], 'groups update call');
   assert.equal(call.operation, 'update');
   assert.deepEqual(call.payload, {
     current_course_id: 'gospel-course',
@@ -582,7 +592,8 @@ test('recording a session stores the lesson, the author and empty notes by defau
   });
   await flushMicrotasks();
 
-  const insert = supabase.callsFor('group_sessions')[0].payload as Record<string, unknown>;
+  const insert = assertDefined(supabase.callsFor('group_sessions')[0], 'group_sessions insert call')
+    .payload as Record<string, unknown>;
   assert.deepEqual(insert, {
     group_id: 'g1',
     course_id: 'c1',
@@ -607,7 +618,8 @@ test('session notes are stored as given', async () => {
   });
   await flushMicrotasks();
 
-  const insert = supabase.callsFor('group_sessions')[0].payload as Record<string, unknown>;
+  const insert = assertDefined(supabase.callsFor('group_sessions')[0], 'group_sessions insert call')
+    .payload as Record<string, unknown>;
   assert.deepEqual(insert.notes, { lookBack: 'went well' });
 });
 
@@ -742,7 +754,7 @@ test('an empty join code is still sent to the RPC, which owns the rejection', as
   supabase.respondToRpc('join_group_by_code', () => ({ data: null }));
 
   assert.equal(await service.joinSyncedGroup('   '), null);
-  assert.deepEqual(supabase.callsFor('rpc:join_group_by_code')[0].payload, {
+  assert.deepEqual(supabase.callsFor('rpc:join_group_by_code')[0]?.payload, {
     group_join_code: '',
   });
 });

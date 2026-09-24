@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import plist from '@expo/plist';
+import { assertDefined } from '../../utils/assertDefined';
 
 interface PrivacyManifest {
   NSPrivacyAccessedAPITypes?: {
@@ -45,7 +46,10 @@ const escapeForRegex = (value: string): string => value.replace(/[.*+?^${}()|[\]
 const readPlistStringArray = (contents: string, key: string): string[] => {
   const match = contents.match(new RegExp(`<key>${key}</key>\\s*<array>([\\s\\S]*?)</array>`));
   assert.ok(match, `Expected ${key} array in plist`);
-  return Array.from(match[1].matchAll(/<string>([^<]+)<\/string>/g)).map((item) => item[1]);
+  const arrayBody = assertDefined(match[1], `${key} array body`);
+  return Array.from(arrayBody.matchAll(/<string>([^<]+)<\/string>/g)).map((item) =>
+    assertDefined(item[1], `${key} array entry`)
+  );
 };
 
 const getBundledAssetEntries = (plugins: ExpoPlugin[] | undefined): string[] => {

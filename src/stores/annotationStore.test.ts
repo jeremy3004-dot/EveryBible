@@ -2,6 +2,7 @@ import test, { before, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { mockMmkvStorage } from '../testing/mockModules';
 import type { UserAnnotation } from '../services/supabase/types';
+import { assertDefined } from '../utils/assertDefined';
 
 // One mock configuration per file: this persisted store only needs MMKV.
 const mmkv = mockMmkvStorage(mock);
@@ -337,7 +338,7 @@ test('a freshly saved annotation is sorted to the front of older rows', () => {
     deleted_at: null,
   });
 
-  assert.equal(state().annotations[0].id, saved.id);
+  assert.equal(state().annotations[0]?.id, saved.id);
 });
 
 // ---------------------------------------------------------------------------
@@ -349,7 +350,7 @@ test('soft deleting stamps deleted_at, updated_at and synced_at together', () =>
 
   assert.equal(state().softDeleteAnnotation('a1'), true);
 
-  const [annotation] = state().annotations;
+  const annotation = assertDefined(state().annotations[0], 'first annotation');
   assert.notEqual(annotation.deleted_at, null);
   assert.equal(annotation.updated_at, annotation.deleted_at);
   assert.equal(annotation.synced_at, annotation.deleted_at);
@@ -368,7 +369,7 @@ test('soft deleting an unknown id reports failure and changes nothing', () => {
   useAnnotationStore.setState({ annotations: [makeRemoteAnnotation({ id: 'a1' })] });
 
   assert.equal(state().softDeleteAnnotation('missing'), false);
-  assert.equal(state().annotations[0].deleted_at, null);
+  assert.equal(assertDefined(state().annotations[0], 'the stored annotation').deleted_at, null);
 });
 
 test('soft deleting an already-deleted annotation reports failure and keeps the first tombstone', () => {
@@ -377,7 +378,7 @@ test('soft deleting an already-deleted annotation reports failure and keeps the 
   });
 
   assert.equal(state().softDeleteAnnotation('a1'), false);
-  assert.equal(state().annotations[0].deleted_at, '2026-02-02T00:00:00.000Z');
+  assert.equal(state().annotations[0]?.deleted_at, '2026-02-02T00:00:00.000Z');
 });
 
 test('soft deleting one row leaves its siblings untouched', () => {
@@ -527,7 +528,7 @@ test('the facade soft delete writes through and reports its result', () => {
 
   assert.equal(localAnnotationStore.softDeleteAnnotation('a1'), true);
   assert.equal(localAnnotationStore.softDeleteAnnotation('a1'), false);
-  assert.notEqual(state().annotations[0].deleted_at, null);
+  assert.notEqual(assertDefined(state().annotations[0], 'the stored annotation').deleted_at, null);
 });
 
 test('the facade replace and clear write through to the store', () => {
@@ -548,7 +549,7 @@ test('the facade replace and clear write through to the store', () => {
 test('replaceAnnotations keeps the remote owner rather than stamping the local user id', () => {
   state().replaceAnnotations([makeRemoteAnnotation({ id: 'from-server', user_id: 'user-7' })]);
 
-  assert.equal(state().annotations[0].user_id, 'user-7');
+  assert.equal(state().annotations[0]?.user_id, 'user-7');
 });
 
 test('replacing with a list carrying tombstones keeps them so the reader can filter', () => {
@@ -626,7 +627,7 @@ test('two highlights starting on the same verse but ending differently collapse 
   state().upsertAnnotation({ ...base, verse_end: 7 });
 
   assert.equal(state().annotations.length, 1);
-  assert.equal(state().annotations[0].verse_end, 7);
+  assert.equal(state().annotations[0]?.verse_end, 7);
 });
 
 // Documents current behaviour: the `existing.deleted_at == null` guard that stops

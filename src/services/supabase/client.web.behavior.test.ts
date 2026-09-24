@@ -106,7 +106,7 @@ test('a build with only the legacy anon key still counts as configured', () => {
 });
 
 test('the legacy anon key is used when no publishable key is present', () => {
-  assert.equal(createClientCalls[0].key, 'legacy_anon_key');
+  assert.equal(createClientCalls[0]?.key, 'legacy_anon_key');
 });
 
 test('the auth storage adapter round-trips session tokens through localStorage on web', async () => {

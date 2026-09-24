@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { bibleTranslations } from './translations';
+import { assertDefined } from '../utils/assertDefined';
 
 /**
  * The app treats a missing `source` as bundled — isTranslationReadableLocally checks
@@ -32,7 +33,9 @@ function builderTranslationIds(): Set<string> {
     'utf8'
   );
   const block = source.slice(source.indexOf('SOURCE_DATA = ['), source.indexOf('def parse_args'));
-  const ids = [...block.matchAll(/"translation_id":\s*"([^"]+)"/g)].map((match) => match[1]);
+  const ids = [...block.matchAll(/"translation_id":\s*"([^"]+)"/g)].map((match) =>
+    assertDefined(match[1], 'translation_id capture group')
+  );
   assert.ok(ids.length > 0, 'could not parse SOURCE_DATA out of scripts/build_bible_db.py');
   return new Set(ids);
 }

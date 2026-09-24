@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 import { verifyElEnvelope } from './elEnvelope';
 import { parseElManifestPayload, resolveElChapterFromManifest } from './elManifestModel';
+import { assertDefined } from '../../utils/assertDefined';
 
 const fixturesDir = new URL('./fixtures/', import.meta.url);
 const readJson = (name: string) =>
@@ -44,11 +45,11 @@ test('parses the real signed fixture manifest payload', async () => {
   assert.equal(manifest.fileExt, 'mp3');
   assert.equal(manifest.mimeType, 'audio/mpeg');
   assert.deepEqual(Object.keys(manifest.books), ['JHN']);
-  assert.equal(manifest.books.JHN.length, 2);
-  assert.equal(manifest.books.JHN[0].chapter, 1);
-  assert.equal(manifest.books.JHN[0].bytes, 2703104);
-  assert.equal(manifest.books.JHN[0].durationMs, 225000);
-  assert.equal(manifest.books.JHN[1].chapter, 2);
+  assert.equal(manifest.books.JHN?.length, 2);
+  assert.equal(manifest.books.JHN?.[0]?.chapter, 1);
+  assert.equal(manifest.books.JHN?.[0]?.bytes, 2703104);
+  assert.equal(manifest.books.JHN?.[0]?.durationMs, 225000);
+  assert.equal(manifest.books.JHN?.[1]?.chapter, 2);
 });
 
 test('resolves absolute chapter URLs from the fixture manifest', async () => {
@@ -66,7 +67,7 @@ test('resolves absolute chapter URLs from the fixture manifest', async () => {
   assert.equal(resolved.bytes, 2703104);
   // The audio download service verifies completed chapters against this checksum.
   assert.match(resolved.sha256, /^[0-9a-f]{64}$/);
-  assert.equal(resolved.sha256, manifest.books.JHN[0].sha256);
+  assert.equal(resolved.sha256, manifest.books.JHN?.[0]?.sha256);
   assert.equal(resolved.durationMs, 225000);
 });
 
@@ -121,7 +122,7 @@ test('skips malformed chapters but keeps the valid ones in a book', () => {
   );
   assert.ok(manifest);
   assert.deepEqual(
-    manifest.books.JHN.map((c) => c.chapter),
+    assertDefined(manifest.books.JHN, 'JHN book').map((c) => c.chapter),
     [1, 6]
   );
 });
@@ -160,7 +161,8 @@ test('omits durationMs when it is not a number', () => {
     validManifest({ books: { JHN: { chapters: [chapter] } } })
   );
   assert.ok(manifest);
-  assert.equal(manifest.books.JHN[0].durationMs, undefined);
+  assert.equal(manifest.books.JHN?.[0]?.chapter, 1);
+  assert.equal(manifest.books.JHN?.[0]?.durationMs, undefined);
   const resolved = resolveElChapterFromManifest(manifest, 'JHN', 1);
   assert.ok(resolved);
   assert.equal(resolved.durationMs, undefined);
@@ -180,9 +182,9 @@ test('drops durationMs when it is NaN, Infinity, or negative but keeps the chapt
       validManifest({ books: { JHN: { chapters: [chapter] } } })
     );
     assert.ok(manifest, `manifest should parse for duration_ms=${badDuration}`);
-    assert.equal(manifest.books.JHN.length, 1);
-    assert.equal(manifest.books.JHN[0].chapter, 1);
-    assert.equal(manifest.books.JHN[0].durationMs, undefined);
+    assert.equal(manifest.books.JHN?.length, 1);
+    assert.equal(manifest.books.JHN?.[0]?.chapter, 1);
+    assert.equal(manifest.books.JHN?.[0]?.durationMs, undefined);
   }
 });
 
@@ -221,7 +223,7 @@ test('drops a chapter whose path is protocol-relative', () => {
   );
   assert.ok(manifest);
   assert.deepEqual(
-    manifest.books.JHN.map((c) => c.chapter),
+    assertDefined(manifest.books.JHN, 'JHN book').map((c) => c.chapter),
     [1]
   );
 });

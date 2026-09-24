@@ -62,7 +62,7 @@ export function getLocalizedCountryName(
   if (!REGION_CODE.test(code)) {
     return null;
   }
-  const base = (languageCode ?? '').split('-')[0].toLowerCase();
+  const [base = ''] = (languageCode ?? '').toLowerCase().split('-');
   const language = (base in COUNTRY_DISPLAY_LOCALES ? base : DEFAULT_LANGUAGE) as LanguageCode;
 
   const native = nativeCountryName(code, COUNTRY_DISPLAY_LOCALES[language]);

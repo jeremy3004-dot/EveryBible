@@ -13,6 +13,7 @@ import { afterEach, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 import { bibleBooks } from '../../constants/books';
+import { assertDefined } from '../../utils/assertDefined';
 
 type TimestampModule = typeof import('./verseTimestamps');
 
@@ -167,7 +168,9 @@ describe('verseTimestamps — every bundled chapter ships', () => {
         if (!file.endsWith('.json') || file === 'manifest.json') {
           continue;
         }
-        const [, bookId, chapter] = /^(\w+)_(\d{3})\.json$/.exec(file) ?? [];
+        const match = /^(\w+)_(\d{3})\.json$/.exec(file);
+        const bookId = assertDefined(match?.[1], `book id from ${file}`);
+        const chapter = assertDefined(match?.[2], `chapter number from ${file}`);
         const source = JSON.parse(readFileSync(path.join(directory, file), 'utf8')) as Record<
           string,
           number

@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 import { verifyElEnvelope } from './elEnvelope';
 import { parseElCatalogPayload } from './elCatalogModel';
+import { assertDefined } from '../../utils/assertDefined';
 
 const fixturesDir = new URL('./fixtures/', import.meta.url);
 const readJson = (name: string) =>
@@ -47,7 +48,7 @@ test('parses the real signed fixture catalog payload', async () => {
   assert.equal(catalog.sequence, 1);
   assert.equal(catalog.baseUrl, 'http://localhost:8787');
   assert.equal(catalog.translations.length, 1);
-  const t = catalog.translations[0];
+  const t = assertDefined(catalog.translations[0], 'first catalog translation');
   assert.equal(t.translationId, 'lqdtest');
   assert.equal(t.languageIso6393, 'eng');
   assert.equal(t.languageName, 'English (EL test)');
@@ -152,12 +153,12 @@ test('keeps el-prefixed translation ids from the production catalog', () => {
   );
   assert.ok(catalog);
   assert.equal(catalog.translations.length, 2);
-  assert.equal(catalog.translations[0].translationId, 'el-bhujel');
+  assert.equal(catalog.translations[0]?.translationId, 'el-bhujel');
   assert.equal(
-    catalog.translations[0].manifestUrl,
+    catalog.translations[0]?.manifestUrl,
     '/manifests/audio/el-bhujel/v2026-08-15-2.json'
   );
-  assert.equal(catalog.translations[1].translationId, 'lqdtest');
+  assert.equal(catalog.translations[1]?.translationId, 'lqdtest');
 });
 
 // `mis` is ISO 639-3's own "uncoded languages" value; many EL field languages have no
@@ -178,8 +179,8 @@ test('accepts the ISO uncoded-language value and unknown source labels', () => {
   );
   assert.ok(catalog);
   assert.equal(catalog.translations.length, 1);
-  assert.equal(catalog.translations[0].languageIso6393, 'mis');
-  assert.equal(catalog.translations[0].source, 'some-future-source');
+  assert.equal(catalog.translations[0]?.languageIso6393, 'mis');
+  assert.equal(catalog.translations[0]?.source, 'some-future-source');
 });
 
 test('drops an invalid text_direction but keeps the entry', () => {
@@ -188,7 +189,7 @@ test('drops an invalid text_direction but keeps the entry', () => {
   );
   assert.ok(catalog);
   assert.equal(catalog.translations.length, 1);
-  assert.equal(catalog.translations[0].textDirection, undefined);
+  assert.equal(catalog.translations[0]?.textDirection, undefined);
 });
 
 test('drops an invalid manifest_sha256', () => {

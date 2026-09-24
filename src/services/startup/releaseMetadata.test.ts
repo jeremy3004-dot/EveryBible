@@ -5,6 +5,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { config } from '../../constants/config';
+import { assertDefined } from '../../utils/assertDefined';
 
 interface AppConfig {
   expo: {
@@ -56,29 +57,29 @@ const readRootJson = <T>(relativePathFromRepoRoot: string): T =>
 const readPlistString = (contents: string, key: string): string => {
   const match = contents.match(new RegExp(`<key>${key}</key>\\s*<string>([^<]+)</string>`));
   assert.ok(match, `Expected ${key} in Info.plist`);
-  return match[1];
+  return assertDefined(match[1], `${key} plist value`);
 };
 
 const readGradleNumber = (contents: string, key: string): string => {
   const match = contents.match(new RegExp(`${key}\\s+(\\d+)`));
   assert.ok(match, `Expected ${key} in build.gradle`);
-  return match[1];
+  return assertDefined(match[1], `${key} gradle number`);
 };
 
 const readGradleString = (contents: string, key: string): string => {
   const match = contents.match(new RegExp(`${key}\\s+"([^"]+)"`));
   assert.ok(match, `Expected ${key} in build.gradle`);
-  return match[1];
+  return assertDefined(match[1], `${key} gradle string`);
 };
 
 const readPbxprojValue = (contents: string, key: string): string => {
   const matches = Array.from(contents.matchAll(new RegExp(`${key} = ([^;]+);`, 'g'))).map((match) =>
-    match[1].trim()
+    assertDefined(match[1], `${key} pbxproj value`).trim()
   );
 
   assert.ok(matches.length > 0, `Expected ${key} in project.pbxproj`);
   assert.equal(new Set(matches).size, 1, `${key} should stay consistent across Xcode configs`);
-  return matches[0];
+  return assertDefined(matches[0], `${key} pbxproj value`);
 };
 
 interface NativeReleaseFiles {

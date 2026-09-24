@@ -70,7 +70,7 @@ test('storage transfers are left alone, since a large upload may legitimately ru
   await Promise.resolve();
 
   assert.equal(stalled.calls.length, 1);
-  assert.equal(stalled.calls[0].signal, undefined);
+  assert.equal(stalled.calls[0]?.signal, undefined);
 });
 
 test('a caller that passes its own abort signal keeps control of the request', async (t) => {
@@ -82,7 +82,7 @@ test('a caller that passes its own abort signal keeps control of the request', a
   const pending = timeoutFetch(`${BASE}/rest/v1/profiles`, { signal: controller.signal });
   t.mock.timers.tick(SUPABASE_REQUEST_TIMEOUT_MS * 2);
   await Promise.resolve();
-  assert.equal(stalled.calls[0].signal, controller.signal);
+  assert.equal(stalled.calls[0]?.signal, controller.signal);
 
   controller.abort();
   await assert.rejects(pending, { name: 'AbortError' });

@@ -12,9 +12,10 @@ interface BookIconCatalog {
 // this module, so a static import put the whole table into every closure that
 // touches the barrel: the onboarding flow, the Bible data warmup that runs after
 // every launch, and most screens. Load it when the first book icon is drawn.
-let bookIcons: Readonly<Record<string, BookIconVector>> | null = null;
+// Partial: a bookToIcon entry naming an icon the catalog lacks yields no icon.
+let bookIcons: Readonly<Partial<Record<string, BookIconVector>>> | null = null;
 
-function loadBookIcons(): Readonly<Record<string, BookIconVector>> {
+function loadBookIcons(): Readonly<Partial<Record<string, BookIconVector>>> {
   if (!bookIcons) {
     const catalog = require('./bookIconVectors.generated.json') as BookIconCatalog;
     // Numbered books share the same drawing object and stored paths.

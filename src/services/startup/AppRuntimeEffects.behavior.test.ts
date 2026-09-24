@@ -2,6 +2,7 @@ import test, { beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { mockModule, sourcePath } from '../../testing/mockModules';
+import { assertDefined } from '../../utils/assertDefined';
 
 // AppRuntimeEffects renders nothing; its job is to mount two effect hooks and
 // to own the deferred usage-queue reporting install, so the hook modules, the
@@ -146,7 +147,7 @@ test('the reporting install effect has an empty dependency list so a re-render d
   AppRuntimeEffects();
 
   assert.equal(effects.length, 1);
-  assert.deepEqual(effects[0].deps, []);
+  assert.deepEqual(effects[0]?.deps, []);
 });
 
 test('a hook that throws leaves the reporting install effect unqueued', async () => {
@@ -167,7 +168,7 @@ test('optional reporting listeners install only after commit and clean up on unm
   assert.equal(reportingInstallCount, 1);
   assert.equal(reportingCleanupCount, 0);
   assert.equal(cleanups.length, 1);
-  cleanups[0]();
+  assertDefined(cleanups[0], 'reporting cleanup')();
   assert.equal(reportingCleanupCount, 1);
 });
 
@@ -191,6 +192,6 @@ test('crash-report uploads install with usage reporting and clean up with it', a
   assert.equal(crashReportingInstallCount, 0);
   commit();
   assert.equal(crashReportingInstallCount, 1);
-  cleanups[0]();
+  assertDefined(cleanups[0], 'crash reporting cleanup')();
   assert.equal(crashReportingCleanupCount, 1);
 });

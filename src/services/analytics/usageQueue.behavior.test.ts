@@ -9,6 +9,7 @@ import {
   sourcePath,
 } from '../../testing/mockModules';
 import { createSupabaseFake, makeFakeSession } from '../../testing/supabaseFake';
+import { assertDefined } from '../../utils/assertDefined';
 
 // Behaviour tests that load the real queue through the loader. Restore-from-disk
 // paths need their own module cache and live in usageQueue.restore*.test.ts;
@@ -116,9 +117,9 @@ test('an enqueued event carries the name, properties and schema version', async 
   queue.enqueueUsageEvent('reading_started', { book: 'GEN' }, 'session-1');
 
   const [event] = persisted();
-  assert.equal(event.event_name, 'reading_started');
-  assert.deepEqual(event.event_properties, { book: 'GEN', analytics_schema_version: 2 });
-  assert.equal(event.session_id, 'session-1');
+  assert.equal(event?.event_name, 'reading_started');
+  assert.deepEqual(event?.event_properties, { book: 'GEN', analytics_schema_version: 2 });
+  assert.equal(event?.session_id, 'session-1');
   await drain();
 });
 
@@ -126,8 +127,8 @@ test('an enqueued event records the device platform and app version', async () =
   queue.enqueueUsageEvent('reading_started', {}, null);
 
   const [event] = persisted();
-  assert.equal(event.device_platform, 'ios');
-  assert.equal(event.app_version, '4.5.6');
+  assert.equal(event?.device_platform, 'ios');
+  assert.equal(event?.app_version, '4.5.6');
   await drain();
 });
 
@@ -135,15 +136,15 @@ test('an enqueued event gets a v4 event id and an ISO queue timestamp', async ()
   queue.enqueueUsageEvent('reading_started', {}, null);
 
   const [event] = persisted();
-  assert.match(String(event.event_id), UUID_PATTERN);
-  assert.equal(new Date(String(event.queued_at)).toISOString(), event.queued_at);
+  assert.match(String(event?.event_id), UUID_PATTERN);
+  assert.equal(new Date(String(event?.queued_at)).toISOString(), event?.queued_at);
   await drain();
 });
 
 test('a signed-out event is attributed to no user', async () => {
   queue.enqueueUsageEvent('reading_started', {}, null);
 
-  assert.equal(persisted()[0].attribution_user_id, null);
+  assert.equal(persisted()[0]?.attribution_user_id, null);
   await drain();
 });
 
@@ -152,7 +153,7 @@ test('an event captures the signed-in uid at enqueue time', async () => {
 
   queue.enqueueUsageEvent('reading_started', {}, null);
 
-  assert.equal(persisted()[0].attribution_user_id, 'user-77');
+  assert.equal(persisted()[0]?.attribution_user_id, 'user-77');
   await drain();
 });
 
@@ -180,7 +181,7 @@ test('cached geo is attached at enqueue time so an offline event keeps its own l
 
   queue.enqueueUsageEvent('reading_started', {}, null);
 
-  assert.equal(persisted()[0].geo_country_code, 'NP');
+  assert.equal(persisted()[0]?.geo_country_code, 'NP');
   await drain();
 });
 
@@ -214,7 +215,7 @@ test('the twentieth event flushes the queue without waiting for the timer', asyn
   await settle();
 
   assert.equal(supabase.functionCalls.length, 1);
-  assert.equal(sentBatches()[0].length, 20);
+  assert.equal(sentBatches()[0]?.length, 20);
 });
 
 // ── delivery ───────────────────────────────────────────────────────────────
@@ -226,8 +227,8 @@ test('a flush posts the batch to the single unified ingestion endpoint', async (
   const result = await queue.flushUsageQueue();
 
   assert.deepEqual(result, { success: true });
-  assert.equal(supabase.functionCalls[0].name, queue.UNIFIED_USAGE_ENDPOINT);
-  assert.equal(sentBatches()[0][0].event_name, 'reading_started');
+  assert.equal(supabase.functionCalls[0]?.name, queue.UNIFIED_USAGE_ENDPOINT);
+  assert.equal(sentBatches()[0]?.[0]?.event_name, 'reading_started');
 });
 
 test('a signed-out flush sends no Authorization header', async () => {
@@ -236,7 +237,9 @@ test('a signed-out flush sends no Authorization header', async () => {
 
   await queue.flushUsageQueue();
 
-  const options = supabase.functionCalls[0].options as { headers?: unknown };
+  const options = assertDefined(supabase.functionCalls[0], 'first function call').options as {
+    headers?: unknown;
+  };
   assert.equal(options.headers, undefined);
 });
 
@@ -247,7 +250,9 @@ test('a signed-in flush attaches the access token so the server can attribute th
 
   await queue.flushUsageQueue();
 
-  const options = supabase.functionCalls[0].options as { headers?: Record<string, string> };
+  const options = assertDefined(supabase.functionCalls[0], 'first function call').options as {
+    headers?: Record<string, string>;
+  };
   assert.deepEqual(options.headers, { Authorization: 'Bearer token-abc' });
 });
 
@@ -258,7 +263,9 @@ test('a whitespace-only access token is treated as no token at all', async () =>
 
   await queue.flushUsageQueue();
 
-  const options = supabase.functionCalls[0].options as { headers?: unknown };
+  const options = assertDefined(supabase.functionCalls[0], 'first function call').options as {
+    headers?: unknown;
+  };
   assert.equal(options.headers, undefined);
 });
 
@@ -322,7 +329,7 @@ test('events arriving during delivery are not dropped when the batch is acknowle
   await flushing;
 
   assert.equal(queue.getPendingUsageEventCount(), 1);
-  assert.equal(persisted()[0].event_name, 'arrived-late');
+  assert.equal(persisted()[0]?.event_name, 'arrived-late');
   await drain();
 });
 
@@ -354,7 +361,7 @@ test('an event queued without geo is enriched from the upload network', async ()
 
   await queue.flushUsageQueue();
 
-  assert.equal(sentBatches()[0][0].geo_country_code, 'GB');
+  assert.equal(sentBatches()[0]?.[0]?.geo_country_code, 'GB');
 });
 
 test('an event that already captured geo keeps it rather than taking the upload network', async () => {
@@ -365,7 +372,7 @@ test('an event that already captured geo keeps it rather than taking the upload 
 
   await queue.flushUsageQueue();
 
-  assert.equal(sentBatches()[0][0].geo_country_code, 'NP');
+  assert.equal(sentBatches()[0]?.[0]?.geo_country_code, 'NP');
 });
 
 // ── failure handling ───────────────────────────────────────────────────────
@@ -389,11 +396,11 @@ test('a retried event keeps its original event id so the collector can dedupe', 
   queue.enqueueUsageEvent('reading_started', {}, null);
 
   await queue.flushUsageQueue();
-  const firstId = sentBatches()[0][0].event_id;
+  const firstId = assertDefined(sentBatches()[0]?.[0], 'the first attempted event').event_id;
   supabase.respondToFunction(() => ({ data: { ok: true }, error: null }));
   await queue.flushUsageQueue();
 
-  assert.equal(sentBatches()[1][0].event_id, firstId);
+  assert.equal(sentBatches()[1]?.[0]?.event_id, firstId);
   await resetBackoff();
 });
 
@@ -547,7 +554,7 @@ test('an event arriving at a full queue is dropped rather than evicting queued w
     persisted().some((event) => event.event_name === 'overflow'),
     false
   );
-  assert.equal(persisted()[0].event_name, 'event-0', 'the oldest event must survive');
+  assert.equal(persisted()[0]?.event_name, 'event-0', 'the oldest event must survive');
   await drain();
   await resetBackoff();
 });
@@ -585,7 +592,7 @@ test('a guest event stays unattributed even when a reader signs in before delive
 
   await queue.flushUsageQueue();
 
-  assert.equal(sentBatches()[0][0].attribution_user_id, null);
+  assert.equal(sentBatches()[0]?.[0]?.attribution_user_id, null);
 });
 
 test('a queued event keeps its uid when the reader switches accounts before delivery', async () => {
@@ -596,7 +603,7 @@ test('a queued event keeps its uid when the reader switches accounts before deli
 
   await queue.flushUsageQueue();
 
-  assert.equal(sentBatches()[0][0].attribution_user_id, 'user-first');
+  assert.equal(sentBatches()[0]?.[0]?.attribution_user_id, 'user-first');
 });
 
 test('a queued event keeps its uid when the reader signs out before delivery', async () => {
@@ -607,7 +614,7 @@ test('a queued event keeps its uid when the reader signs out before delivery', a
 
   await queue.flushUsageQueue();
 
-  assert.equal(sentBatches()[0][0].attribution_user_id, 'user-first');
+  assert.equal(sentBatches()[0]?.[0]?.attribution_user_id, 'user-first');
 });
 
 test('a batch being delivered stays on disk until the server acknowledges it', async () => {
@@ -652,7 +659,7 @@ test("a deleted account's queued events are anonymised on disk and on delivery",
   supabase.respondToFunction(() => ({ data: { ok: true }, error: null }));
   await queue.flushUsageQueue();
   assert.deepEqual(
-    sentBatches()[0].map((event) => event.attribution_user_id),
+    sentBatches()[0]?.map((event) => event.attribution_user_id),
     [null, 'user-other', null]
   );
 });

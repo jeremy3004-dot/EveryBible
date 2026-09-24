@@ -1,6 +1,7 @@
 import { bibleBooks, type AdjacentBibleChapter, type BibleBook } from '../../constants/books';
 import type { TranslationAudioCoverage } from '../../types';
 import type { ElAudioManifest } from '../elMedia/elManifestModel';
+import { assertDefined } from '../../utils/assertDefined';
 
 interface AudioBookCoverage {
   totalChapters?: number;
@@ -195,7 +196,7 @@ export function findAdjacentAvailableChapter(
   }
 
   for (let index = startIndex; index >= 0 && index < bibleBooks.length; index += direction) {
-    const candidateBookId = bibleBooks[index].id;
+    const candidateBookId = assertDefined(bibleBooks[index], 'a book inside the canon').id;
     const chapters = getAudioChaptersForBook(audioChapters, candidateBookId);
     if (!chapters || chapters.length === 0) {
       continue;
@@ -209,14 +210,12 @@ export function findAdjacentAvailableChapter(
         ? ordered.filter((entry) => (direction === 1 ? entry > chapter : entry < chapter))
         : ordered;
 
-    if (reachable.length === 0) {
+    const nextChapter = direction === 1 ? reachable[0] : reachable[reachable.length - 1];
+    if (nextChapter === undefined) {
       continue;
     }
 
-    return {
-      bookId: candidateBookId,
-      chapter: direction === 1 ? reachable[0] : reachable[reachable.length - 1],
-    };
+    return { bookId: candidateBookId, chapter: nextChapter };
   }
 
   return null;
