@@ -23,6 +23,7 @@ function settings(
     preferences: [] as object[],
     checking: [] as boolean[],
     modal: [] as boolean[],
+    coverage: [] as (string[] | null)[],
     syncs: 0,
   };
   const access: ParticipationAccessSubmit = {
@@ -51,6 +52,7 @@ function settings(
     setShowModal: (value) => recorded.modal.push(value),
     setPasscode: () => {},
     setError: (value) => recorded.errors.push(value),
+    setCoverage: (value) => recorded.coverage.push(value),
     setPreferences: (value) => recorded.preferences.push(value),
     syncPreferences: async () => {
       recorded.syncs += 1;
@@ -65,6 +67,45 @@ function settings(
     recorded,
   };
 }
+
+test('a team code that does not cover the open translation unlocks and lists what it covers', async () => {
+  const h = settings('translator');
+  const pending = h.submit();
+  h.complete({ success: true, translationIds: ['npiulb'], coversTranslation: false });
+  await pending;
+
+  assert.deepEqual(h.recorded.enabled, ['translator:entered-code']);
+  // The dialog stays open to say which translations the code opens and offer to switch.
+  assert.deepEqual(h.recorded.coverage.at(-1), ['npiulb']);
+  assert.ok(!h.recorded.modal.includes(false));
+});
+
+test('a code that covers the open translation closes the dialog as before', async () => {
+  const h = settings('translator');
+  const pending = h.submit();
+  h.complete({ success: true, translationIds: ['bsb'], coversTranslation: true });
+  await pending;
+
+  assert.deepEqual(h.recorded.enabled, ['translator:entered-code']);
+  assert.ok(h.recorded.modal.includes(false));
+  assert.ok(!h.recorded.coverage.some((value) => value !== null));
+});
+
+test('a council code never shows translation coverage', async () => {
+  const h = settings('scripture_council');
+  const pending = h.submit();
+  h.complete({ success: true, translationIds: [], coversTranslation: false });
+  await pending;
+
+  assert.ok(h.recorded.modal.includes(false));
+  assert.deepEqual(h.recorded.coverage, []);
+});
+
+test('closing the dialog clears any coverage notice', () => {
+  const h = settings('translator');
+  h.cancel();
+  assert.deepEqual(h.recorded.coverage, [null]);
+});
 
 for (const role of ['translator', 'scripture_council'] as const) {
   test(`${role} changes mode only after successful validation`, async () => {

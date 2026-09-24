@@ -2,9 +2,12 @@ import { supabase, isSupabaseConfigured, getCurrentUserId } from '../supabase';
 import { useAuthStore } from '../../stores/authStore';
 import type { UserProgress, UserPreferences } from '../supabase/types';
 import {
+  mapRemotePreferences,
   mergePreferences,
   mergeReadingSnapshot,
   readingMatchesRemote,
+  readRemoteFieldStamps,
+  toRemoteFieldStamps,
   type LocalPreferenceSnapshot,
   type PreferenceMergeResult,
 } from './syncMerge';
@@ -61,8 +64,22 @@ const getLocalPreferenceSnapshot = (): LocalPreferenceSnapshot => {
     preferences: authState.preferences,
     updatedAt: authState.preferencesUpdatedAt,
     base: authState.preferencesSyncBase ?? null,
+    fieldStamps: authState.preferenceFieldStamps ?? {},
   };
 };
+
+/**
+ * PostgREST's answer to a payload naming a column the database does not have
+ * (PGRST204), or Postgres's (42703). The app can ship before the migration that
+ * adds `field_updated_at` is applied; the upload then falls back to the legacy
+ * payload instead of failing every preference sync.
+ */
+const isMissingFieldStampColumn = (error: { code?: string; message?: string } | null): boolean =>
+  Boolean(
+    error &&
+    (error.code === 'PGRST204' || error.code === '42703') &&
+    /field_updated_at/.test(error.message ?? '')
+  );
 
 /**
  * Applies a merge result to the store. A 'merged' result is shown locally at
@@ -74,12 +91,20 @@ const applyPreferenceMergeLocally = (
   merge: PreferenceMergeResult,
   localSnapshot: LocalPreferenceSnapshot
 ): void => {
+  const fieldStamps = merge.fieldStamps ?? undefined;
   if (merge.source === 'remote') {
-    useAuthStore.getState().applySyncedPreferences(merge.preferences, merge.updatedAt);
+    useAuthStore
+      .getState()
+      .applySyncedPreferences(merge.preferences, merge.updatedAt, undefined, fieldStamps);
   } else if (merge.source === 'merged' && merge.remotePreferences) {
     useAuthStore
       .getState()
-      .applySyncedPreferences(merge.preferences, localSnapshot.updatedAt, merge.remotePreferences);
+      .applySyncedPreferences(
+        merge.preferences,
+        localSnapshot.updatedAt,
+        merge.remotePreferences,
+        fieldStamps
+      );
   }
 };
 
@@ -420,42 +445,65 @@ const syncPreferencesForIdentityImpl = async (
     }
 
     const syncedAt = new Date().toISOString();
-    const write = await identity.runIfCurrent(() =>
-      supabase.from('user_preferences').upsert(
-        {
-          user_id: userId,
-          font_size: mergedPreferences.preferences.fontSize,
-          theme: mergedPreferences.preferences.theme,
-          appearance_palette: mergedPreferences.preferences.appearancePalette,
-          language: mergedPreferences.preferences.language,
-          country_code: mergedPreferences.preferences.countryCode,
-          country_name: mergedPreferences.preferences.countryName,
-          content_language_code: mergedPreferences.preferences.contentLanguageCode,
-          content_language_name: mergedPreferences.preferences.contentLanguageName,
-          content_language_native_name: mergedPreferences.preferences.contentLanguageNativeName,
-          chapter_feedback_name: mergedPreferences.preferences.chapterFeedbackName,
-          chapter_feedback_role: mergedPreferences.preferences.chapterFeedbackRole,
-          onboarding_completed: mergedPreferences.preferences.onboardingCompleted,
-          chapter_feedback_enabled: mergedPreferences.preferences.chapterFeedbackEnabled,
-          hide_play_button_from_reading_tab:
-            mergedPreferences.preferences.hidePlayButtonFromReadingTab,
-          notifications_enabled: mergedPreferences.preferences.notificationsEnabled,
-          reminder_time: mergedPreferences.preferences.reminderTime,
-          synced_at: syncedAt,
-        },
-        { onConflict: 'user_id' }
-      )
-    );
+    const legacyRow = {
+      user_id: userId,
+      font_size: mergedPreferences.preferences.fontSize,
+      theme: mergedPreferences.preferences.theme,
+      appearance_palette: mergedPreferences.preferences.appearancePalette,
+      language: mergedPreferences.preferences.language,
+      country_code: mergedPreferences.preferences.countryCode,
+      country_name: mergedPreferences.preferences.countryName,
+      content_language_code: mergedPreferences.preferences.contentLanguageCode,
+      content_language_name: mergedPreferences.preferences.contentLanguageName,
+      content_language_native_name: mergedPreferences.preferences.contentLanguageNativeName,
+      chapter_feedback_name: mergedPreferences.preferences.chapterFeedbackName,
+      chapter_feedback_role: mergedPreferences.preferences.chapterFeedbackRole,
+      onboarding_completed: mergedPreferences.preferences.onboardingCompleted,
+      chapter_feedback_enabled: mergedPreferences.preferences.chapterFeedbackEnabled,
+      hide_play_button_from_reading_tab: mergedPreferences.preferences.hidePlayButtonFromReadingTab,
+      notifications_enabled: mergedPreferences.preferences.notificationsEnabled,
+      reminder_time: mergedPreferences.preferences.reminderTime,
+      synced_at: syncedAt,
+    };
+    const upload = (withFieldStamps: boolean) =>
+      identity.runIfCurrent(() =>
+        withFieldStamps && mergedPreferences.fieldStamps
+          ? // Read the row back: the server may clamp a stamp or keep its own
+            // newer value for a field another device changed meanwhile.
+            supabase
+              .from('user_preferences')
+              .upsert(
+                {
+                  ...legacyRow,
+                  field_updated_at: toRemoteFieldStamps(mergedPreferences.fieldStamps),
+                },
+                { onConflict: 'user_id' }
+              )
+              .select('*')
+              .single()
+          : supabase.from('user_preferences').upsert(legacyRow, { onConflict: 'user_id' })
+      );
 
+    let write = await upload(mergedPreferences.fieldStamps !== null);
     if (!write.applied) {
       return staleSyncResult();
     }
+    let { data: storedRow, error: upsertError } = await write.value!;
 
-    const { error: upsertError } = await write.value!;
+    if (mergedPreferences.fieldStamps !== null && isMissingFieldStampColumn(upsertError)) {
+      write = await upload(false);
+      if (!write.applied) {
+        return staleSyncResult();
+      }
+      ({ data: storedRow, error: upsertError } = await write.value!);
+    }
 
     if (upsertError) {
       return { success: false, error: upsertError.message };
     }
+
+    const stored = storedRow as UserPreferences | null;
+    const storedStamps = stored ? readRemoteFieldStamps(stored) : null;
 
     const applied = await identity.runIfCurrent(() => {
       const current = getLocalPreferenceSnapshot();
@@ -463,7 +511,21 @@ const syncPreferencesForIdentityImpl = async (
         current.preferences === expectedPreferences &&
         current.updatedAt === localSnapshot.updatedAt
       ) {
-        useAuthStore.getState().applySyncedPreferences(mergedPreferences.preferences, syncedAt);
+        if (stored && storedStamps) {
+          const storedPreferences = mapRemotePreferences(stored);
+          useAuthStore
+            .getState()
+            .applySyncedPreferences(storedPreferences, syncedAt, storedPreferences, storedStamps);
+        } else {
+          useAuthStore
+            .getState()
+            .applySyncedPreferences(
+              mergedPreferences.preferences,
+              syncedAt,
+              undefined,
+              mergedPreferences.fieldStamps ?? undefined
+            );
+        }
       } else {
         // An edit landed during the upload: keep it pending, but record what the
         // server now holds so the next merge compares against the right base.

@@ -9,7 +9,9 @@ mockModule(mock, 'react', runtime.react);
 
 let tokenListener: ((token: DevicePushToken) => void) | null = null;
 let listenerRemovals = 0;
-mockModule(mock, 'expo-notifications', {
+// The hook listens through the startup-light bootstrap module, never the
+// expo-notifications root (see notificationBootstrap.ts).
+mockModule(mock, sourcePath('services/notifications/notificationBootstrap.ts'), {
   addPushTokenListener: (callback: (token: DevicePushToken) => void) => {
     tokenListener = callback;
     return {

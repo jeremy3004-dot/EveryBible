@@ -7,6 +7,8 @@ import {
   Image,
   type ColorValue,
   type LayoutChangeEvent,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   StyleSheet,
   Text,
   View,
@@ -16,7 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { FlashList } from '@shopify/flash-list';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut, useReducedMotion } from 'react-native-reanimated';
 import { BookOpen, Check, Ellipsis, Play } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 
@@ -31,6 +33,7 @@ import {
   PressableScale,
   SectionHeader,
 } from '../../components/ui';
+import { useAudioStore } from '../../stores/audioStore';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { useProgressStore } from '../../stores/progressStore';
@@ -46,6 +49,7 @@ import {
 import {
   getCurrentPlanDaySummary,
   buildPlanDayPlaybackSequenceEntries,
+  shouldAutoplayPlanDayLaunch,
   formatScheduledPlanDayLabel,
   resolvePlanDayPlaybackStartEntry,
   type CurrentPlanDaySummary,
@@ -73,6 +77,11 @@ import type {
 import type { PlanDetailScreenProps } from '../../navigation/types';
 import { getTranslatedBookName } from '../../constants';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
+import {
+  getPlanDetailCompactHeaderHeight,
+  isPlanDetailCompactHeaderVisible,
+} from './planDetailHeaderModel';
+import { formatPlanProgressTally } from './planProgressTally';
 import { lightHaptic, successHaptic } from '../../utils';
 
 // ---------------------------------------------------------------------------
@@ -404,10 +413,11 @@ function ProgressCard({ plan, progress, currentDaySummary, today }: ProgressCard
 
   const doneCount = cellStates.filter((state) => state === 'done').length;
   const missedCount = cellStates.filter((state) => state === 'missed').length;
-  const tallyLabel =
-    missedCount > 0
-      ? t('readingPlans.readMissedSummary', { read: doneCount, missed: missedCount })
-      : t('readingPlans.readSummary', { read: doneCount });
+  const tallyLabel = formatPlanProgressTally(t, {
+    done: doneCount,
+    missed: missedCount,
+    totalDays,
+  });
 
   return (
     <AppCard padding={layout.cardPaddingWide}>
@@ -896,6 +906,7 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
   const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   const tabBar = useTabBarHeight();
+  const reduceMotion = useReducedMotion();
   const progress = useReadingPlansStore((state) => state.progressByPlanId[planId] ?? null);
   const getPlanDayResume = useReadingPlansStore((state) => state.getPlanDayResume);
 
@@ -1039,13 +1050,18 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
       if (!launch) return;
 
       const { playbackSequenceEntries, playbackStartEntry } = launch;
+      const autoplayAudio = shouldAutoplayPlanDayLaunch({
+        trigger: 'open',
+        preferredMode: preferredChapterLaunchMode,
+        audioStatus: useAudioStore.getState().status,
+      });
 
       rootNavigationRef.navigate('Bible', {
         screen: 'BibleReader',
         params: {
           bookId: playbackStartEntry.bookId,
           chapter: playbackStartEntry.chapter,
-          ...(preferredChapterLaunchMode === 'listen' ? { autoplayAudio: true } : {}),
+          ...(autoplayAudio ? { autoplayAudio: true } : {}),
           preferredMode: preferredChapterLaunchMode,
           playbackSequenceEntries,
           planId,
@@ -1313,6 +1329,20 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
     [colors.background]
   );
   const controlTop = Math.max(insets.top + spacing.sm, COVER_CONTROL_TOP);
+  const compactHeaderHeight = getPlanDetailCompactHeaderHeight(insets.top);
+  const [isCompactHeaderVisible, setIsCompactHeaderVisible] = useState(false);
+  const handleListScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const nextVisible = isPlanDetailCompactHeaderVisible({
+        scrollOffsetY: event.nativeEvent.contentOffset.y,
+        coverHeight: COVER_HEIGHT,
+        heroTextBottom: HERO_TEXT_BOTTOM,
+        headerHeight: compactHeaderHeight,
+      });
+      setIsCompactHeaderVisible((current) => (current === nextVisible ? current : nextVisible));
+    },
+    [compactHeaderHeight]
+  );
   const listContentStyle = React.useMemo(
     () => ({ paddingBottom: tabBar.contentClearance }),
     [tabBar.contentClearance]
@@ -1526,7 +1556,51 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
         showsVerticalScrollIndicator={false}
         estimatedItemSize={48}
         extraData={colors}
+        onScroll={handleListScroll}
+        scrollEventThrottle={16}
       />
+
+      {/* Once the hero has scrolled away, this keeps the status bar backed and the
+          page's title and back control in reach at any scroll offset. */}
+      {isCompactHeaderVisible ? (
+        <Animated.View
+          entering={reduceMotion ? undefined : FadeIn.duration(motion.duration.fast)}
+          exiting={reduceMotion ? undefined : FadeOut.duration(motion.duration.fast)}
+          style={[
+            styles.compactHeader,
+            {
+              height: compactHeaderHeight,
+              paddingTop: insets.top + spacing.sm,
+              backgroundColor: colors.background,
+              borderBottomColor: colors.borderStrong,
+            },
+          ]}
+        >
+          <IconButton
+            icon={BackArrowIcon}
+            variant="paper"
+            onPress={() => navigation.goBack()}
+            accessibilityLabel={t('common.back')}
+          />
+          <Text
+            accessibilityRole="header"
+            style={[styles.compactHeaderTitle, displayFont.bold, { color: colors.primaryText }]}
+            numberOfLines={1}
+          >
+            {planTitle}
+          </Text>
+          {isEnrolled ? (
+            <IconButton
+              icon={Ellipsis}
+              variant="paper"
+              onPress={handleLeavePlan}
+              accessibilityLabel={t('readingPlans.planOptions')}
+            />
+          ) : (
+            <View style={styles.compactHeaderSpacer} />
+          )}
+        </Animated.View>
+      ) : null}
     </View>
   );
 }
@@ -1604,6 +1678,27 @@ const styles = StyleSheet.create({
     color: ON_PHOTO_TEXT,
   },
 
+  compactHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: layout.screenPadding,
+    paddingBottom: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  compactHeaderTitle: {
+    ...typography.rowTitle,
+    flex: 1,
+    textAlign: 'center',
+  },
+  compactHeaderSpacer: {
+    width: layout.iconButton,
+  },
+
   // Content column
   headerBody: {
     marginTop: -COVER_CONTENT_OVERLAP,
@@ -1612,8 +1707,12 @@ const styles = StyleSheet.create({
   todayWrap: {
     marginTop: spacing.lg,
   },
+  // The content column rises COVER_CONTENT_OVERLAP into the hero's fade, which is
+  // right for the progress and today cards (they carry their own surface) but not
+  // for bare text: in the vellum scope the description's first line landed on the
+  // still-dark end of the scrim. Plain copy starts where the fade has finished.
   introBlock: {
-    marginTop: spacing.lg,
+    marginTop: COVER_CONTENT_OVERLAP,
     gap: spacing.lg,
   },
   description: {

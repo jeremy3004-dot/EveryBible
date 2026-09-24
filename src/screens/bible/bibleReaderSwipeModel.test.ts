@@ -80,6 +80,48 @@ test('returns null when swipe wants prev but hasPrevChapter is false', () => {
   );
 });
 
+// A plan-mode reader is opened from the Plans tab into the Bible tab's stack, so
+// there is no native screen behind it to swipe back to. Swiping back past the
+// session's first chapter is the gesture's only way home.
+test('returns exit when a back swipe has no previous chapter and the session can be left', () => {
+  assert.equal(
+    resolveSwipeChapterNavigation({
+      translationX: SWIPE_THRESHOLD + 1,
+      velocityX: 0,
+      hasNextChapter: true,
+      hasPrevChapter: false,
+      canExitSession: true,
+    }),
+    'exit'
+  );
+});
+
+test('a back swipe still steps to the previous session chapter before it exits', () => {
+  assert.equal(
+    resolveSwipeChapterNavigation({
+      translationX: SWIPE_THRESHOLD + 1,
+      velocityX: 0,
+      hasNextChapter: true,
+      hasPrevChapter: true,
+      canExitSession: true,
+    }),
+    'prev'
+  );
+});
+
+test('a forward swipe never exits the session', () => {
+  assert.equal(
+    resolveSwipeChapterNavigation({
+      translationX: -(SWIPE_THRESHOLD + 1),
+      velocityX: 0,
+      hasNextChapter: false,
+      hasPrevChapter: false,
+      canExitSession: true,
+    }),
+    null
+  );
+});
+
 test('returns null when translationX and velocity are both below thresholds', () => {
   assert.equal(
     resolveSwipeChapterNavigation({

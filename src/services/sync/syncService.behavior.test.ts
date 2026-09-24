@@ -17,7 +17,7 @@ import {
   replayTableMigrations,
 } from '../../testing/migrationSchema';
 import { STALE_SYNC_ERROR } from './syncIdentity';
-import type { UserPreferences } from '../../types';
+import type { PreferenceFieldStamps, UserPreferences } from '../../types';
 import type {
   UserPreferences as RemoteUserPreferences,
   UserProgress as RemoteUserProgress,
@@ -94,10 +94,12 @@ interface AuthStubState {
   preferences: UserPreferences;
   preferencesUpdatedAt: string | null;
   preferencesSyncBase?: UserPreferences | null;
+  preferenceFieldStamps?: PreferenceFieldStamps;
   applySyncedPreferences: (
     preferences: UserPreferences,
     updatedAt: string | null,
-    base?: UserPreferences
+    base?: UserPreferences,
+    fieldStamps?: PreferenceFieldStamps
   ) => void;
   markPreferencesSynced: (base: UserPreferences) => void;
 }
@@ -121,12 +123,14 @@ const authStore: StoreStub<AuthStubState> = createStoreStub<AuthStubState>({
   preferences: LOCAL_PREFERENCES,
   preferencesUpdatedAt: null,
   preferencesSyncBase: null,
-  applySyncedPreferences: (preferences, updatedAt, base) => {
+  preferenceFieldStamps: {},
+  applySyncedPreferences: (preferences, updatedAt, base, fieldStamps) => {
     appliedPreferences.push(base ? { preferences, updatedAt, base } : { preferences, updatedAt });
     authStore.setState({
       preferences,
       preferencesUpdatedAt: updatedAt,
       preferencesSyncBase: base ?? preferences,
+      ...(fieldStamps ? { preferenceFieldStamps: fieldStamps } : {}),
     });
   },
   markPreferencesSynced: (base) => {
@@ -334,6 +338,7 @@ beforeEach(() => {
     preferences: LOCAL_PREFERENCES,
     preferencesUpdatedAt: null,
     preferencesSyncBase: null,
+    preferenceFieldStamps: {},
   });
   progressStore.setState({ chaptersRead: {}, streakDays: 0, lastReadDate: null });
   bibleStore.setState({ currentBook: 'GEN', currentChapter: 1 });
@@ -1817,4 +1822,175 @@ test('a successful upload records the uploaded values as the new sync base', asy
   await syncPreferences(USER_A);
 
   assert.equal(authStore.getState().preferencesSyncBase?.fontSize, 'large');
+});
+
+// ---------------------------------------------------------------------------
+// Per-field edit stamps once migration 20260924023259 is live
+// (docs/research/sync-offline-review-2026-09-24.md, finding 7)
+// ---------------------------------------------------------------------------
+
+const stampedCloudRow = (
+  preferences: UserPreferences,
+  fieldUpdatedAt: Record<string, string>,
+  syncedAt = SYNCED_AT
+): RemoteUserPreferences => ({
+  ...cloudRowFor(preferences, syncedAt),
+  field_updated_at: fieldUpdatedAt,
+});
+
+test('a newer local edit is uploaded with its stamp and the server copy is adopted', async () => {
+  const editedAt = '2026-09-11T00:00:00.000Z';
+  authStore.setState({
+    preferences: { ...LOCAL_PREFERENCES, theme: 'dark' },
+    preferencesUpdatedAt: editedAt,
+    preferenceFieldStamps: { theme: editedAt },
+  });
+  // The other phone uploaded later, but its theme edit is older than this one.
+  const cloud = stampedCloudRow(
+    LOCAL_PREFERENCES,
+    { theme: '2026-09-10T00:00:00.000Z', font_size: '2026-09-01T00:00:00.000Z' },
+    '2026-09-12T00:00:00.000Z'
+  );
+  // What the server stores after its trigger runs (it may clamp or refuse stamps).
+  const stored = stampedCloudRow(
+    { ...LOCAL_PREFERENCES, theme: 'dark' },
+    { theme: '2026-09-11T00:00:00.000Z', font_size: '2026-09-01T00:00:00.000Z' }
+  );
+  script.user_preferences = {
+    select: { data: cloud },
+    write: { data: stored },
+  };
+
+  const result = await syncPreferences(USER_A);
+
+  assert.equal(result.success, true);
+  const [upsert] = callsFor('user_preferences', 'upsert');
+  assert.deepEqual((upsert?.payload as Record<string, unknown>).field_updated_at, {
+    theme: editedAt,
+    font_size: '2026-09-01T00:00:00.000Z',
+  });
+  assert.equal((upsert?.payload as Record<string, unknown>).theme, 'dark');
+  assert.equal(upsert?.single, true, 'the upload reads back what the server kept');
+  assert.equal(authStore.getState().preferences.theme, 'dark');
+  assert.deepEqual(authStore.getState().preferenceFieldStamps, {
+    theme: '2026-09-11T00:00:00.000Z',
+    fontSize: '2026-09-01T00:00:00.000Z',
+  });
+});
+
+test('a value the server refused on upload is taken from the server copy it returns', async () => {
+  authStore.setState({
+    preferences: { ...LOCAL_PREFERENCES, fontSize: 'small' },
+    preferencesUpdatedAt: '2026-09-11T00:00:00.000Z',
+    preferenceFieldStamps: { fontSize: '2026-09-11T00:00:00.000Z' },
+  });
+  script.user_preferences = {
+    select: { data: stampedCloudRow(LOCAL_PREFERENCES, {}) },
+    // Another phone chose large at 12:00 between this device's read and its write.
+    write: {
+      data: stampedCloudRow(
+        { ...LOCAL_PREFERENCES, fontSize: 'large' },
+        { font_size: '2026-09-11T12:00:00.000Z' }
+      ),
+    },
+  };
+
+  const result = await syncPreferences(USER_A);
+
+  assert.equal(result.success, true);
+  assert.equal(authStore.getState().preferences.fontSize, 'large');
+  assert.deepEqual(authStore.getState().preferenceFieldStamps, {
+    fontSize: '2026-09-11T12:00:00.000Z',
+  });
+});
+
+test('an older local edit adopts the newer cloud value without uploading anything', async () => {
+  authStore.setState({
+    preferences: { ...LOCAL_PREFERENCES, fontSize: 'small' },
+    preferencesUpdatedAt: '2026-09-20T00:00:00.000Z',
+    preferenceFieldStamps: { fontSize: '2026-09-08T00:00:00.000Z' },
+  });
+  script.user_preferences = {
+    select: {
+      data: stampedCloudRow(
+        { ...LOCAL_PREFERENCES, fontSize: 'large' },
+        { font_size: '2026-09-09T00:00:00.000Z' }
+      ),
+    },
+  };
+
+  const result = await syncPreferences(USER_A);
+
+  assert.deepEqual(result, { success: true, merged: true });
+  assert.equal(authStore.getState().preferences.fontSize, 'large');
+  assert.deepEqual(authStore.getState().preferenceFieldStamps, {
+    fontSize: '2026-09-09T00:00:00.000Z',
+  });
+  assert.deepEqual(callsFor('user_preferences', 'upsert'), []);
+});
+
+test('an upload refused because the stamp column is missing is retried without it', async () => {
+  // The app shipped before the migration was applied: the account has no row to
+  // detect the column from, so the first upload offers the stamps.
+  authStore.setState({
+    preferencesUpdatedAt: '2026-09-11T00:00:00.000Z',
+    preferenceFieldStamps: { fontSize: '2026-09-11T00:00:00.000Z' },
+  });
+  let writes = 0;
+  script.user_preferences = {
+    select: NO_ROWS,
+    write: () => {
+      writes += 1;
+      return writes === 1
+        ? {
+            data: null,
+            error: {
+              code: 'PGRST204',
+              message: "Could not find the 'field_updated_at' column of 'user_preferences'",
+            },
+          }
+        : { data: null, error: null };
+    },
+  };
+
+  const result = await syncPreferences(USER_A);
+
+  assert.equal(result.success, true);
+  assert.equal(writes, 2);
+  assert.ok('field_updated_at' in payloadOf('user_preferences', 0));
+  assert.equal('field_updated_at' in payloadOf('user_preferences', 1), false);
+});
+
+test('a row from a database without the stamp column is never sent stamps', async () => {
+  authStore.setState({
+    preferences: { ...LOCAL_PREFERENCES, fontSize: 'small' },
+    preferencesUpdatedAt: '2026-09-11T00:00:00.000Z',
+    preferenceFieldStamps: { fontSize: '2026-09-11T00:00:00.000Z' },
+  });
+  script.user_preferences = { select: { data: cloudRowFor(LOCAL_PREFERENCES, SYNCED_AT) } };
+
+  const result = await syncPreferences(USER_A);
+
+  assert.equal(result.success, true);
+  assert.equal(payloadOf('user_preferences').font_size, 'small');
+  assert.equal('field_updated_at' in payloadOf('user_preferences'), false);
+});
+
+test('every column a stamped preference upsert writes exists in the migrated table', async () => {
+  const schema = replayTableMigrations('user_preferences', readRepoMigrations());
+  authStore.setState({
+    preferences: { ...LOCAL_PREFERENCES, fontSize: 'small' },
+    preferencesUpdatedAt: '2026-09-11T00:00:00.000Z',
+    preferenceFieldStamps: { fontSize: '2026-09-11T00:00:00.000Z' },
+  });
+  script.user_preferences = { select: { data: stampedCloudRow(LOCAL_PREFERENCES, {}) } };
+
+  await syncPreferences(USER_A);
+
+  const payload = payloadOf('user_preferences');
+  assert.ok('field_updated_at' in payload);
+  assert.deepEqual(
+    Object.keys(payload).filter((column) => !schema.columns.has(column)),
+    []
+  );
 });

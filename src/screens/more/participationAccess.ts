@@ -3,6 +3,10 @@ export type ParticipationAccessKind = 'translator' | 'scripture_council';
 export interface ParticipationAccessResult {
   success: boolean;
   error?: string;
+  /** Translations a translator team code opens (translator validation only). */
+  translationIds?: string[];
+  /** False when the team code is valid but does not open the translation being read. */
+  coversTranslation?: boolean;
 }
 
 /** State the Settings access modal owns; the attempt ref makes a cancelled check stale. */
@@ -12,6 +16,11 @@ export interface ParticipationAccessModal {
   setShowModal: (show: boolean) => void;
   setPasscode: (passcode: string) => void;
   setError: (error: string | null) => void;
+  /**
+   * The translations an unlocked team code opens, shown in place of the keypad when the
+   * code does not open the translation being read; null hides that notice.
+   */
+  setCoverage: (translationIds: string[] | null) => void;
 }
 
 export interface ParticipationAccessSubmit extends ParticipationAccessModal {
@@ -38,6 +47,7 @@ export function closeParticipationAccess(modal: ParticipationAccessModal): void 
   modal.setIsChecking(false);
   modal.setPasscode('');
   modal.setError(null);
+  modal.setCoverage(null);
 }
 
 /**
@@ -80,8 +90,14 @@ export async function submitParticipationAccess(access: ParticipationAccessSubmi
     }
     access.setPreferences({ chapterFeedbackEnabled: access.kind === 'scripture_council' });
     void access.syncPreferences();
-    access.setShowModal(false);
     access.setPasscode('');
+    // A valid team code for other translations still unlocks translator mode, but the
+    // dialog stays open to say which translations it opens and offer to switch.
+    if (access.kind === 'translator' && result.coversTranslation === false) {
+      access.setCoverage(result.translationIds ?? []);
+      return;
+    }
+    access.setShowModal(false);
   } finally {
     if (attempt === access.attemptRef.current) access.setIsChecking(false);
   }

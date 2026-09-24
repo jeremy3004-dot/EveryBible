@@ -25,6 +25,7 @@ import {
   resolvePlanDayPlaybackStartEntry,
   resolvePlaybackSequenceIndex,
   resolveFirstIncompleteRhythmSessionSegment,
+  shouldAutoplayPlanDayLaunch,
 } from './readingPlanActivity';
 
 test('every plan day preserves the catalog passage order in targets and rhythm playback', () => {
@@ -999,5 +1000,45 @@ test('reading plan rhythm summary reports completed and remaining plans from exi
       completedPlanCount: 1,
       remainingPlanCount: 2,
     }
+  );
+});
+
+test('an explicit Listen on a plan day always starts audio', () => {
+  for (const audioStatus of ['idle', 'playing', 'paused'] as const) {
+    assert.equal(
+      shouldAutoplayPlanDayLaunch({ trigger: 'listen', preferredMode: 'read', audioStatus }),
+      true
+    );
+  }
+});
+
+test('opening a plan day under the listen preference starts audio unless it was paused', () => {
+  assert.equal(
+    shouldAutoplayPlanDayLaunch({ trigger: 'open', preferredMode: 'listen', audioStatus: 'idle' }),
+    true
+  );
+  assert.equal(
+    shouldAutoplayPlanDayLaunch({
+      trigger: 'open',
+      preferredMode: 'listen',
+      audioStatus: 'playing',
+    }),
+    true
+  );
+  // Tapping a day row is navigation, not a play request: it must not undo a pause.
+  assert.equal(
+    shouldAutoplayPlanDayLaunch({
+      trigger: 'open',
+      preferredMode: 'listen',
+      audioStatus: 'paused',
+    }),
+    false
+  );
+});
+
+test('opening a plan day under the read preference never starts audio', () => {
+  assert.equal(
+    shouldAutoplayPlanDayLaunch({ trigger: 'open', preferredMode: 'read', audioStatus: 'idle' }),
+    false
   );
 });

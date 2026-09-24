@@ -58,11 +58,13 @@ import { mmkvInstance } from '../../stores/mmkvStorage';
 import { useDisplayFont, useFontSize, useI18n, useTabBarHeight } from '../../hooks';
 import { syncPreferences } from '../../services/sync';
 import {
+  appendAccessPasscodeDigit,
   validateScriptureCouncilPasscode,
   validateTranslatorReviewPasscode,
 } from '../../services/feedback';
 import { normalizeChapterFeedbackIdentity } from '../../services/feedback/chapterFeedbackIdentity';
 import { closeParticipationAccess, submitParticipationAccess } from './participationAccess';
+import { TranslationNotCoveredNotice } from '../../components/feedback/TranslationNotCoveredNotice';
 import { SUPPORTED_LANGUAGES, type LanguageCode } from '../../constants/languages';
 import { deleteCurrentAccount } from '../../services/account';
 import { localeSearchEngine } from '../../services/onboarding/localeSelection';
@@ -146,6 +148,9 @@ export function SettingsScreen() {
   const [showTranslatorAccessModal, setShowTranslatorAccessModal] = useState(false);
   const [translatorAccessPasscode, setTranslatorAccessPasscode] = useState('');
   const [translatorAccessError, setTranslatorAccessError] = useState<string | null>(null);
+  // After an unlock whose team code does not open the translation being read: the translations
+  // it does open, shown in place of the keypad so the translator can switch to one.
+  const [translatorAccessCoverage, setTranslatorAccessCoverage] = useState<string[] | null>(null);
   const [isCheckingTranslatorAccess, setIsCheckingTranslatorAccess] = useState(false);
   const [pendingChapterFeedbackEnabled, setPendingChapterFeedbackEnabled] = useState(false);
   const [chapterFeedbackIdentityName, setChapterFeedbackIdentityName] = useState('');
@@ -343,6 +348,7 @@ export function SettingsScreen() {
     setAccessKind(kind);
     setTranslatorAccessPasscode('');
     setTranslatorAccessError(null);
+    setTranslatorAccessCoverage(null);
     setShowTranslatorAccessModal(true);
   };
 
@@ -352,6 +358,7 @@ export function SettingsScreen() {
     setShowModal: setShowTranslatorAccessModal,
     setPasscode: setTranslatorAccessPasscode,
     setError: setTranslatorAccessError,
+    setCoverage: setTranslatorAccessCoverage,
   };
 
   const closeTranslatorAccessModal = () => closeParticipationAccess(accessModal);
@@ -369,7 +376,7 @@ export function SettingsScreen() {
   };
 
   const handleTranslatorAccessDigit = (digit: string) => {
-    setTranslatorAccessPasscode((current) => `${current}${digit}`.slice(0, 6));
+    setTranslatorAccessPasscode((current) => appendAccessPasscodeDigit(current, digit));
     if (translatorAccessError) {
       setTranslatorAccessError(null);
     }
@@ -904,106 +911,128 @@ export function SettingsScreen() {
                   ? t('feedback.council')
                   : t('settings.translatorAccessTitle')}
               </Text>
-              <Text style={[styles.translatorAccessBody, { color: colors.secondaryText }]}>
-                {accessKind === 'scripture_council'
-                  ? t('feedback.councilAccessBody')
-                  : t('settings.translatorAccessBody')}
-              </Text>
-              <TextInput
-                value={translatorAccessPasscode}
-                accessibilityLabel={t('settings.translatorAccessPlaceholder')}
-                editable={false}
-                secureTextEntry
-                keyboardType="number-pad"
-                placeholder={t('settings.translatorAccessPlaceholder')}
-                placeholderTextColor={colors.secondaryText}
-                style={[
-                  styles.translatorAccessInput,
-                  {
-                    color: colors.primaryText,
-                    borderColor: colors.borderStrong,
-                    backgroundColor: colors.background,
-                  },
-                ]}
-              />
-              {translatorAccessError ? (
-                <Text
-                  accessibilityLiveRegion="polite"
-                  style={[styles.feedbackIdentityError, { color: colors.error }]}
-                >
-                  {translatorAccessError}
-                </Text>
-              ) : null}
-              <View style={styles.translatorKeypad}>
-                {[
-                  ['1', '2', '3', '4'],
-                  ['5', '6', '7', '8'],
-                  ['9', '0', 'clear', 'delete'],
-                ].map((row, rowIndex) => (
-                  <View key={rowIndex} style={styles.translatorKeyRow}>
-                    {row.map((key) => (
-                      <TouchableOpacity
-                        key={key}
-                        style={[
-                          styles.translatorKey,
-                          {
-                            backgroundColor:
-                              key === 'clear' || key === 'delete'
-                                ? colors.muted
-                                : colors.background,
-                          },
-                        ]}
-                        accessibilityRole="button"
-                        onPress={() => {
-                          if (key === 'clear') {
-                            setTranslatorAccessPasscode('');
-                            setTranslatorAccessError(null);
-                            return;
-                          }
+              {translatorAccessCoverage !== null ? (
+                <>
+                  <TranslationNotCoveredNotice
+                    translationId={currentTranslation}
+                    coveredTranslationIds={translatorAccessCoverage}
+                    onSwitched={closeTranslatorAccessModal}
+                  />
+                  <View style={styles.modalButtons}>
+                    <AppButton
+                      label={t('common.done')}
+                      variant="primary"
+                      size="md"
+                      fullWidth={false}
+                      onPress={closeTranslatorAccessModal}
+                      style={styles.modalButtonFlex}
+                    />
+                  </View>
+                </>
+              ) : (
+                <>
+                  <Text style={[styles.translatorAccessBody, { color: colors.secondaryText }]}>
+                    {accessKind === 'scripture_council'
+                      ? t('feedback.councilAccessBody')
+                      : t('settings.translatorAccessBody')}
+                  </Text>
+                  <TextInput
+                    value={translatorAccessPasscode}
+                    accessibilityLabel={t('settings.translatorAccessPlaceholder')}
+                    editable={false}
+                    secureTextEntry
+                    keyboardType="number-pad"
+                    placeholder={t('settings.translatorAccessPlaceholder')}
+                    placeholderTextColor={colors.secondaryText}
+                    style={[
+                      styles.translatorAccessInput,
+                      {
+                        color: colors.primaryText,
+                        borderColor: colors.borderStrong,
+                        backgroundColor: colors.background,
+                      },
+                    ]}
+                  />
+                  {translatorAccessError ? (
+                    <Text
+                      accessibilityLiveRegion="polite"
+                      style={[styles.feedbackIdentityError, { color: colors.error }]}
+                    >
+                      {translatorAccessError}
+                    </Text>
+                  ) : null}
+                  <View style={styles.translatorKeypad}>
+                    {[
+                      ['1', '2', '3', '4'],
+                      ['5', '6', '7', '8'],
+                      ['9', '0', 'clear', 'delete'],
+                    ].map((row, rowIndex) => (
+                      <View key={rowIndex} style={styles.translatorKeyRow}>
+                        {row.map((key) => (
+                          <TouchableOpacity
+                            key={key}
+                            style={[
+                              styles.translatorKey,
+                              {
+                                backgroundColor:
+                                  key === 'clear' || key === 'delete'
+                                    ? colors.muted
+                                    : colors.background,
+                              },
+                            ]}
+                            accessibilityRole="button"
+                            onPress={() => {
+                              if (key === 'clear') {
+                                setTranslatorAccessPasscode('');
+                                setTranslatorAccessError(null);
+                                return;
+                              }
 
-                          if (key === 'delete') {
-                            setTranslatorAccessPasscode((current) => current.slice(0, -1));
-                            setTranslatorAccessError(null);
-                            return;
-                          }
+                              if (key === 'delete') {
+                                setTranslatorAccessPasscode((current) => current.slice(0, -1));
+                                setTranslatorAccessError(null);
+                                return;
+                              }
 
-                          handleTranslatorAccessDigit(key);
-                        }}
-                      >
-                        <Text style={[styles.translatorKeyText, { color: colors.primaryText }]}>
-                          {key === 'clear'
-                            ? t('privacy.clearKey')
-                            : key === 'delete'
-                              ? t('privacy.deleteKey')
-                              : key}
-                        </Text>
-                      </TouchableOpacity>
+                              handleTranslatorAccessDigit(key);
+                            }}
+                          >
+                            <Text style={[styles.translatorKeyText, { color: colors.primaryText }]}>
+                              {key === 'clear'
+                                ? t('privacy.clearKey')
+                                : key === 'delete'
+                                  ? t('privacy.deleteKey')
+                                  : key}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
                     ))}
                   </View>
-                ))}
-              </View>
-              <View style={styles.modalButtons}>
-                <AppButton
-                  label={t('common.cancel')}
-                  variant="secondary"
-                  size="md"
-                  fullWidth={false}
-                  onPress={closeTranslatorAccessModal}
-                  style={styles.modalButtonFlex}
-                />
-                <AppButton
-                  label={t('settings.translatorAccessUnlock')}
-                  variant="primary"
-                  size="md"
-                  fullWidth={false}
-                  loading={isCheckingTranslatorAccess}
-                  disabled={translatorAccessPasscode.length === 0 || isCheckingTranslatorAccess}
-                  onPress={() => {
-                    void handleTranslatorAccessSubmit();
-                  }}
-                  style={styles.modalButtonFlex}
-                />
-              </View>
+                  <View style={styles.modalButtons}>
+                    <AppButton
+                      label={t('common.cancel')}
+                      variant="secondary"
+                      size="md"
+                      fullWidth={false}
+                      onPress={closeTranslatorAccessModal}
+                      style={styles.modalButtonFlex}
+                    />
+                    <AppButton
+                      label={t('settings.translatorAccessUnlock')}
+                      variant="primary"
+                      size="md"
+                      fullWidth={false}
+                      loading={isCheckingTranslatorAccess}
+                      disabled={translatorAccessPasscode.length === 0 || isCheckingTranslatorAccess}
+                      onPress={() => {
+                        void handleTranslatorAccessSubmit();
+                      }}
+                      style={styles.modalButtonFlex}
+                    />
+                  </View>
+                </>
+              )}
             </View>
           </View>
         </Modal>

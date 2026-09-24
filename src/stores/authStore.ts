@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { zustandStorage } from './mmkvStorage';
-import type { User, UserPreferences } from '../types';
+import type { PreferenceFieldStamps, User, UserPreferences } from '../types';
 import type { Session, Subscription } from '@supabase/supabase-js';
 import {
   applyAuthBoundaryEffects,
@@ -10,6 +10,7 @@ import {
   shouldResetPerUserStateAtAuthBoundary,
 } from './authSessionState';
 import { defaultAuthPreferences, sanitizePersistedAuthState } from './persistedStateSanitizers';
+import { switchPrivateDataOwner } from './privateDataScope';
 
 interface AuthState {
   user: User | null;
@@ -23,6 +24,10 @@ interface AuthState {
   // it. The sync merges per field against this base, so an edit on another
   // device to a different field is not reverted. Null until the first sync.
   preferencesSyncBase: UserPreferences | null;
+  // When each preference was last chosen: stamped here on a local edit, or
+  // adopted from the server with its value. The sync merges per field on these,
+  // so the newest edit wins rather than the newest upload.
+  preferenceFieldStamps: PreferenceFieldStamps;
   // uid of the account whose per-user data currently lives in the local stores.
   // Used to detect an account switch on sign-in so account B never inherits
   // account A's local reading data (H2).
@@ -38,10 +43,12 @@ interface AuthState {
   setPreferences: (prefs: Partial<UserPreferences>) => void;
   // `base` defaults to `preferences`: pass the server's values instead when the
   // applied preferences still have local edits waiting to upload.
+  // `fieldStamps` replaces the per-field stamps when given.
   applySyncedPreferences: (
     preferences: UserPreferences,
     updatedAt: string | null,
-    base?: UserPreferences
+    base?: UserPreferences,
+    fieldStamps?: PreferenceFieldStamps
   ) => void;
   markPreferencesSynced: (base: UserPreferences) => void;
   signOut: () => Promise<void>;
@@ -63,6 +70,10 @@ const getSupabaseModule = (): typeof import('../services/supabase') =>
   require('../services/supabase');
 
 const getAuthModule = (): typeof import('../services/auth') => require('../services/auth');
+// Session restore runs before Home; the auth barrel would also load the Google
+// and Apple sign-in SDKs, which only the sign-in screens need.
+const getAuthSessionModule = (): typeof import('../services/auth/authSession') =>
+  require('../services/auth/authSession');
 
 // Minimal structural view of a store that exposes resetForSignOut. Used so this
 // module does not depend on the full (and still-evolving) types of the sibling
@@ -88,7 +99,7 @@ const resetPerUserStores = (): void => {
     require('./bibleStore').useBibleStore,
     // Exported as `readingPlansStore` (not the use-prefixed name).
     require('./readingPlansStore').readingPlansStore,
-    require('./fourFieldsStore').useFourFieldsStore,
+    // Four Fields is local-only, so it is account-scoped below rather than reset.
     // Translator mode and per-device listened-markers must not bleed across
     // account switches (A1). The passcode is a shared secret but enabled state
     // and markers are per-session and should be cleared here.
@@ -99,6 +110,22 @@ const resetPerUserStores = (): void => {
     store.getState().resetForSignOut?.();
   }
 };
+
+// Private data that never leaves the device (highlights, notes, bookmarks, the
+// library, Gather and Four Fields) is not reset at a boundary: that would
+// delete the only copy. It is scoped per account instead (privateDataScope):
+// another account sees none of it and it returns when its owner signs in.
+// The stores are loaded only before a guest's data is adopted by a first
+// sign-in, so a store no screen has opened yet is adopted too.
+const loadPrivateDataStores = (): void => {
+  require('./annotationStore');
+  require('./libraryStore');
+  require('./gatherStore');
+  require('./fourFieldsStore');
+};
+
+const showPrivateDataOf = (userId: string | null): void =>
+  switchPrivateDataOwner(userId, { loadStores: loadPrivateDataStores });
 
 const preferencesDiffer = (left: UserPreferences, right: UserPreferences): boolean =>
   left.fontSize !== right.fontSize ||
@@ -117,6 +144,77 @@ const preferencesDiffer = (left: UserPreferences, right: UserPreferences): boole
   left.hidePlayButtonFromReadingTab !== right.hidePlayButtonFromReadingTab ||
   left.notificationsEnabled !== right.notificationsEnabled ||
   left.reminderTime !== right.reminderTime;
+
+const fieldStampsEqual = (left: PreferenceFieldStamps, right: PreferenceFieldStamps): boolean => {
+  const leftKeys = Object.keys(left) as (keyof UserPreferences)[];
+  return (
+    leftKeys.length === Object.keys(right).length &&
+    leftKeys.every((field) => left[field] === right[field])
+  );
+};
+
+// The persisted-state upgrades from versions 0-2, unchanged since they shipped.
+const migrateLegacyPreferences = (typedState: AuthState, version: number): AuthState => {
+  if (version < 2) {
+    return {
+      ...typedState,
+      preferences: {
+        ...defaultAuthPreferences,
+        ...typedState.preferences,
+        // Existing installs should not be blocked by the new onboarding gate.
+        onboardingCompleted: typedState.preferences?.onboardingCompleted ?? true,
+      },
+      preferencesUpdatedAt: null,
+    };
+  }
+
+  if (version < 3) {
+    return {
+      ...typedState,
+      preferences: {
+        ...defaultAuthPreferences,
+        ...typedState.preferences,
+      },
+      preferencesUpdatedAt: null,
+    };
+  }
+
+  return {
+    ...typedState,
+    preferences: {
+      ...defaultAuthPreferences,
+      ...typedState.preferences,
+    },
+  };
+};
+
+/**
+ * Per-field stamps for an install from before they existed (persist version 4).
+ * Its only clock is the whole-row preferencesUpdatedAt, so each field that
+ * clock plausibly covers gets it:
+ * - with a sync base, only the fields changed since the last sync;
+ * - a device that has synced an account keeps whole-row semantics (every field),
+ *   exactly how it merged before;
+ * - a guest device only the fields it moved off the app defaults, so its
+ *   untouched defaults never overwrite an account's choices on first sign-in.
+ */
+const seedLegacyPreferenceStamps = (state: AuthState): PreferenceFieldStamps => {
+  const updatedAt = state.preferencesUpdatedAt;
+  if (typeof updatedAt !== 'string' || !Number.isFinite(Date.parse(updatedAt))) {
+    return {};
+  }
+  const preferences = state.preferences;
+  const base = state.preferencesSyncBase;
+  const fields = (Object.keys(defaultAuthPreferences) as (keyof UserPreferences)[]).filter(
+    (field) =>
+      base
+        ? preferences[field] !== base[field]
+        : state.lastSyncedUserId
+          ? true
+          : preferences[field] !== defaultAuthPreferences[field]
+  );
+  return Object.fromEntries(fields.map((field) => [field, updatedAt]));
+};
 
 // Convert Supabase user to app User type
 const mapSupabaseUser = (supabaseUser: {
@@ -148,6 +246,7 @@ export const useAuthStore = create<AuthState>()(
       preferences: defaultAuthPreferences,
       preferencesUpdatedAt: null,
       preferencesSyncBase: null,
+      preferenceFieldStamps: {},
       lastSyncedUserId: null,
       authGeneration: 0,
 
@@ -189,11 +288,17 @@ export const useAuthStore = create<AuthState>()(
                   preferences: defaultAuthPreferences,
                   preferencesUpdatedAt: null,
                   preferencesSyncBase: null,
+                  preferenceFieldStamps: {},
                   lastSyncedUserId: null,
                 }),
               clearGuestTombstones: clearGuestPlanTombstones,
             }
           );
+        }
+        // Any definitive sign-out hides the account's private data. (An offline
+        // launch that could not refresh never reaches here with a null session.)
+        if (!nextUserId) {
+          showPrivateDataOf(null);
         }
       },
 
@@ -232,36 +337,79 @@ export const useAuthStore = create<AuthState>()(
                   preferences: defaultAuthPreferences,
                   preferencesUpdatedAt: null,
                   preferencesSyncBase: null,
+                  preferenceFieldStamps: {},
                   lastSyncedUserId: null,
                 }),
               clearGuestTombstones: clearGuestPlanTombstones,
             }
           );
         }
+        // Any definitive sign-out hides the account's private data. (An offline
+        // launch that could not refresh never reaches here with a null session.)
+        if (!nextUserId) {
+          showPrivateDataOf(null);
+        }
       },
 
       setLoading: (isLoading) => set({ isLoading }),
 
       setPreferences: (prefs) =>
-        set((state) => ({
-          preferences: { ...state.preferences, ...prefs },
-          preferencesUpdatedAt: new Date().toISOString(),
-        })),
+        set((state) => {
+          const now = new Date().toISOString();
+          const preferences = { ...state.preferences, ...prefs };
+          // Stamp only what actually changed: re-saving a value (onboarding
+          // writes several at once) is not a new choice, and a stamp is what lets
+          // this value beat another device's.
+          const stamped = (Object.keys(prefs) as (keyof UserPreferences)[]).filter(
+            (field) => preferences[field] !== state.preferences[field]
+          );
+          return {
+            preferences,
+            preferencesUpdatedAt: now,
+            preferenceFieldStamps:
+              stamped.length === 0
+                ? state.preferenceFieldStamps
+                : {
+                    ...state.preferenceFieldStamps,
+                    ...Object.fromEntries(stamped.map((field) => [field, now])),
+                  },
+          };
+        }),
 
-      applySyncedPreferences: (preferences, updatedAt, base = preferences) =>
+      applySyncedPreferences: (preferences, updatedAt, base = preferences, fieldStamps) =>
         set((state) => {
           const preferencesChanged = preferencesDiffer(state.preferences, preferences);
+          // Without server stamps (the column is not live yet), a stamp only
+          // survives on a value the sync left alone: it described this device's
+          // choice, not the value that replaced it.
+          const nextStamps =
+            fieldStamps ??
+            Object.fromEntries(
+              Object.entries(state.preferenceFieldStamps).filter(
+                ([field]) =>
+                  preferences[field as keyof UserPreferences] ===
+                  state.preferences[field as keyof UserPreferences]
+              )
+            );
+          const stampUpdate = !fieldStampsEqual(state.preferenceFieldStamps, nextStamps)
+            ? { preferenceFieldStamps: nextStamps }
+            : {};
 
           if (!preferencesChanged && state.preferencesUpdatedAt === updatedAt) {
-            return state.preferencesSyncBase && !preferencesDiffer(state.preferencesSyncBase, base)
+            const baseUpdate =
+              state.preferencesSyncBase && !preferencesDiffer(state.preferencesSyncBase, base)
+                ? {}
+                : { preferencesSyncBase: base };
+            return Object.keys(baseUpdate).length + Object.keys(stampUpdate).length === 0
               ? state
-              : { preferencesSyncBase: base };
+              : { ...baseUpdate, ...stampUpdate };
           }
 
           return {
             preferences,
             preferencesUpdatedAt: updatedAt,
             preferencesSyncBase: base,
+            ...stampUpdate,
           };
         }),
 
@@ -286,6 +434,7 @@ export const useAuthStore = create<AuthState>()(
         // Clear all per-user local stores so the next account on this device
         // never inherits or merges this account's reading data (H2).
         resetPerUserStores();
+        showPrivateDataOf(null);
 
         set({
           user: null,
@@ -294,6 +443,7 @@ export const useAuthStore = create<AuthState>()(
           preferences: defaultAuthPreferences,
           preferencesUpdatedAt: null,
           preferencesSyncBase: null,
+          preferenceFieldStamps: {},
           lastSyncedUserId: null,
           authGeneration: get().authGeneration + (previousUserId ? 1 : 0),
         });
@@ -314,10 +464,12 @@ export const useAuthStore = create<AuthState>()(
                 preferences: defaultAuthPreferences,
                 preferencesUpdatedAt: null,
                 preferencesSyncBase: null,
+                preferenceFieldStamps: {},
               }),
             clearGuestTombstones: clearGuestPlanTombstones,
           }
         );
+        showPrivateDataOf(userId);
         if (lastSyncedUserId !== userId) {
           set({ lastSyncedUserId: userId });
         }
@@ -332,7 +484,7 @@ export const useAuthStore = create<AuthState>()(
           const { isSupabaseConfigured } = getSupabaseModule();
           const hasSupabaseConfig = isSupabaseConfigured();
           const restored = hasSupabaseConfig
-            ? await getAuthModule().getCurrentSession()
+            ? await getAuthSessionModule().getCurrentSession()
             : { session: null, user: null };
           const restoredState = resolveInitializedAuthState(restored);
 
@@ -377,7 +529,7 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'auth-storage',
-      version: 3,
+      version: 4,
       storage: createJSONStorage(() => zustandStorage),
       migrate: (persistedState: unknown, version) => {
         if (!persistedState || typeof persistedState !== 'object') {
@@ -385,42 +537,16 @@ export const useAuthStore = create<AuthState>()(
         }
 
         const typedState = persistedState as AuthState;
-        if (version < 2) {
-          return {
-            ...typedState,
-            preferences: {
-              ...defaultAuthPreferences,
-              ...typedState.preferences,
-              // Existing installs should not be blocked by the new onboarding gate.
-              onboardingCompleted: typedState.preferences?.onboardingCompleted ?? true,
-            },
-            preferencesUpdatedAt: null,
-          };
-        }
-
-        if (version < 3) {
-          return {
-            ...typedState,
-            preferences: {
-              ...defaultAuthPreferences,
-              ...typedState.preferences,
-            },
-            preferencesUpdatedAt: null,
-          };
-        }
-
-        return {
-          ...typedState,
-          preferences: {
-            ...defaultAuthPreferences,
-            ...typedState.preferences,
-          },
-        };
+        const migrated = migrateLegacyPreferences(typedState, version);
+        return version < 4
+          ? { ...migrated, preferenceFieldStamps: seedLegacyPreferenceStamps(migrated) }
+          : migrated;
       },
       partialize: (state) => ({
         preferences: state.preferences,
         preferencesUpdatedAt: state.preferencesUpdatedAt,
         preferencesSyncBase: state.preferencesSyncBase,
+        preferenceFieldStamps: state.preferenceFieldStamps,
         lastSyncedUserId: state.lastSyncedUserId,
       }),
       merge: (persistedState, currentState) => {
@@ -442,6 +568,7 @@ export const useAuthStore = create<AuthState>()(
           preferences: sanitized.preferences,
           preferencesUpdatedAt: sanitized.preferencesUpdatedAt,
           preferencesSyncBase: sanitized.preferencesSyncBase,
+          preferenceFieldStamps: sanitized.preferenceFieldStamps,
           lastSyncedUserId: persistedLastSyncedUserId,
         };
         if (typeof __DEV__ !== 'undefined' && __DEV__) {

@@ -4,6 +4,23 @@ import { getTranslationById } from '../../constants/translations';
 const DEFAULT_ALBUM_TITLE = 'Every Bible';
 const DEFAULT_ARTWORK_URI = 'everybible://artwork/default';
 
+/**
+ * Interface-language strings for the Android media notification. iOS builds its
+ * lock-screen entry natively and ignores these.
+ */
+export type BibleNowPlayingLocalizedStrings = {
+  /** Book name in the interface language, e.g. "Génesis". */
+  bookName: string;
+  /** Name of the Android notification channel shown in system settings. */
+  channelName: string;
+  play: string;
+  pause: string;
+  previous: string;
+  next: string;
+  skipBackward: string;
+  skipForward: string;
+};
+
 export type BibleNowPlayingInput = {
   translationId: string;
   /** Display name for the translation. Caller should supply this for runtime
@@ -19,6 +36,8 @@ export type BibleNowPlayingInput = {
   canSkipNext?: boolean;
   /** Whether a previous chapter/track is available for the skip-previous lock screen button. */
   canSkipPrevious?: boolean;
+  /** Android notification strings; see BibleNowPlayingLocalizedStrings. */
+  localized?: BibleNowPlayingLocalizedStrings;
 };
 
 export type BibleNowPlayingPayload = {

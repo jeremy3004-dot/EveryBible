@@ -38,8 +38,8 @@ test('PlanDetailScreen launches plan chapters with explicit plan-session params'
   );
   assert.match(
     detailSource,
-    /\.\.\.\(preferredChapterLaunchMode === 'listen' \? \{ autoplayAudio: true \} : \{\}\),/,
-    'PlanDetailScreen should request autoplay when the persisted launch preference is listen'
+    /shouldAutoplayPlanDayLaunch\(\{\s*trigger: 'open',\s*preferredMode: preferredChapterLaunchMode,[\s\S]*?\.\.\.\(autoplayAudio \? \{ autoplayAudio: true \} : \{\}\),/,
+    'PlanDetailScreen should request autoplay under the listen preference through the shared rule that keeps a paused listener paused'
   );
   assert.match(
     detailSource,

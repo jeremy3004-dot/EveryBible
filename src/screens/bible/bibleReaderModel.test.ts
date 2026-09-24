@@ -655,6 +655,30 @@ test('uses the live audio verse for inline reader highlighting when the displaye
   );
 });
 
+// A chapter change keeps the previous chapter's text on screen until the new one
+// loads (no skeleton between chapters). The route and the audio already point at
+// the new chapter by then, so its live verse must not be painted onto the old text.
+test('draws no inline audio or focus highlight while the previous chapter is still on screen', () => {
+  assert.equal(
+    getReaderInlineActiveVerse({
+      isCurrentAudioChapter: true,
+      activeFollowAlongVerse: 1,
+      focusVerse: 3,
+      isShowingRouteChapter: false,
+    }),
+    null
+  );
+
+  assert.equal(
+    getReaderInlineActiveVerse({
+      isCurrentAudioChapter: true,
+      activeFollowAlongVerse: 1,
+      isShowingRouteChapter: true,
+    }),
+    1
+  );
+});
+
 test('auto-scrolls the inline audio highlight to the top before it reaches the playback dock', () => {
   assert.equal(
     getReaderAutoScrollTarget({

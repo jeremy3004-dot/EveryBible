@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import * as Notifications from 'expo-notifications';
+import { addPushTokenListener } from '../services/notifications/notificationBootstrap';
 import { useAuthStore } from '../stores/authStore';
 
 /**
@@ -34,7 +34,7 @@ export function usePushTokenRegistration(isAuthenticated: boolean, userId: strin
 
   useEffect(() => {
     let isMounted = true;
-    const subscription = Notifications.addPushTokenListener((devicePushToken) => {
+    const subscription = addPushTokenListener((devicePushToken) => {
       const { user: currentUser, authGeneration } = useAuthStore.getState();
       if (currentUser?.uid) {
         void import('../services/notifications').then(({ registerPushToken }) => {

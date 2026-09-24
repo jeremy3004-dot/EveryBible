@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { zustandStorage } from './mmkvStorage';
+import { privateDataStorage, registerPrivateDataStore } from './privateDataScope';
+import { mergeGuestFourFields } from './privateDataAdoption';
 import { FieldType, Group, GroupProgress } from '../types/course';
 
 interface FourFieldsState {
@@ -291,7 +292,8 @@ export const useFourFieldsStore = create<FourFieldsState>()(
     }),
     {
       name: 'four-fields-storage',
-      storage: createJSONStorage(() => zustandStorage),
+      // Local-only and private: scoped to the signed-in account (see privateDataScope).
+      storage: createJSONStorage(() => privateDataStorage),
       version: 1, // Increment version to trigger migration
       migrate: (persistedState: unknown, _version: number) => {
         return normalizePersistedState((persistedState ?? {}) as PersistedFourFieldsState);
@@ -310,3 +312,5 @@ export const useFourFieldsStore = create<FourFieldsState>()(
     }
   )
 );
+
+registerPrivateDataStore(useFourFieldsStore, mergeGuestFourFields);

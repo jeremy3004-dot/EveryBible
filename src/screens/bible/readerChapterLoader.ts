@@ -27,7 +27,18 @@ export interface ReaderChapterLoad extends ReaderChapterLoadRefs {
   setIsLoading: (isLoading: boolean) => void;
   setError: (message: string | null) => void;
   setVerses: (verses: Verse[]) => void;
+  /** Records which chapter `verses` now holds (see readerChapterKey). */
+  setVersesChapterKey: (key: string) => void;
   t: (key: 'bible.packMissingRecovering' | 'bible.failedToLoad') => string;
+}
+
+/**
+ * Identifies the chapter the reader's verses belong to. A chapter change keeps the old
+ * verses visible until the new ones load, so the reader compares this key with the
+ * route's chapter before highlighting anything (e.g. the audio follow-along verse).
+ */
+export function readerChapterKey(bookId: string, chapter: number): string {
+  return `${bookId}:${chapter}`;
 }
 
 /** Makes any in-flight load and its queued text prefetch stale. */
@@ -65,6 +76,7 @@ export async function loadReaderChapter(load: ReaderChapterLoad): Promise<void> 
   // verses instead: an empty chapter with audio available IS the audio-first state.
   if (!shouldAttemptChapterTextLoad(load.translation)) {
     load.setVerses([]);
+    load.setVersesChapterKey(readerChapterKey(bookId, chapter));
     load.setIsLoading(false);
     return;
   }
@@ -75,6 +87,7 @@ export async function loadReaderChapter(load: ReaderChapterLoad): Promise<void> 
       return;
     }
     load.setVerses(data);
+    load.setVersesChapterKey(readerChapterKey(bookId, chapter));
     if (data.length > 0) {
       prefetchTaskRef.current = load.runAfterInteractions(() => {
         if (requestId !== requestIdRef.current) {

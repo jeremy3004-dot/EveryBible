@@ -1,4 +1,4 @@
-import { bibleBooks, getBookById } from '../../constants/books';
+import { bibleBooks, getAdjacentBibleChapter, getBookById } from '../../constants/books';
 
 /**
  * Pure period maths for the Home reading ledger.
@@ -119,6 +119,29 @@ export const getChapterCoverageTimes = (activity: HomeReadingActivity): Map<stri
   }
 
   return coverage;
+};
+
+/**
+ * The chapter the ledger's "Next up" line should name. The reader's resume
+ * point stays on the chapter they last opened, so once that chapter has been
+ * read or heard to the end the next one is up: Genesis 1 finished means
+ * Genesis 2, and the last chapter of a book rolls into the next book. `null`
+ * when there is nothing left to point at (an unknown book, or Revelation 22
+ * finished).
+ */
+export const getHomeNextUpChapter = (
+  current: ParsedChapterKey,
+  activity: Pick<HomeReadingActivity, 'chaptersRead' | 'chaptersListened'>
+): ParsedChapterKey | null => {
+  if (!getBookById(current.bookId)) {
+    return null;
+  }
+
+  const key = `${current.bookId}_${current.chapter}`;
+  const isFinished =
+    activity.chaptersRead?.[key] != null || activity.chaptersListened?.[key] != null;
+
+  return isFinished ? getAdjacentBibleChapter(current.bookId, current.chapter, 1) : current;
 };
 
 /**

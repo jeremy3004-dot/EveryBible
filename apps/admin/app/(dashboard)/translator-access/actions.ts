@@ -10,6 +10,7 @@ import { createAdminServiceClient } from '@/lib/supabase/service';
 import {
   TEAM_LABEL_MAX_LENGTH,
   issueTeamPasscode,
+  parseTeamPasscodeLength,
   parseTeamTranslationIds,
   type TeamPasscodeActionResult,
 } from '@/lib/translator-access';
@@ -67,11 +68,14 @@ export async function createTranslatorTeamPasscodeAction(
   }
   const parsed = parseTeamTranslationIds(formData.get('translationIds'));
   if ('error' in parsed) return failure(parsed.error);
+  const codeLength = parseTeamPasscodeLength(formData.get('codeLength'));
+  if ('error' in codeLength) return failure(codeLength.error);
 
   const issued = await issueTeamPasscode(createAdminServiceClient(), {
     label,
     translationIds: parsed.ids,
     createdBy: admin.id,
+    codeLength: codeLength.length,
   });
   if (!issued.ok) return failure(issued.error);
 
@@ -81,7 +85,7 @@ export async function createTranslatorTeamPasscodeAction(
     actorUserId: admin.id,
     entityId: issued.id,
     entityType: 'translator_team_passcode',
-    metadata: { label, translationIds: parsed.ids },
+    metadata: { codeLength: codeLength.length, label, translationIds: parsed.ids },
     summary: `Created a translator passcode for ${describeTeam(label, parsed.ids)}.`,
   });
 
@@ -123,6 +127,9 @@ export async function rotateTranslatorTeamPasscodeAction(
   const admin = await requireAdminIdentity();
   const teamId = normalizeOptionalString(formData.get('teamId'));
   if (!teamId) return failure('Missing team id');
+  // Checked before the revoke so a bad choice leaves the team's current code working.
+  const codeLength = parseTeamPasscodeLength(formData.get('codeLength'));
+  if ('error' in codeLength) return failure(codeLength.error);
 
   const { data: revoked, error: revokeError } = await revokeActiveTeamPasscode(admin, teamId);
   if (revokeError) return failure(revokeError.message);
@@ -132,6 +139,7 @@ export async function rotateTranslatorTeamPasscodeAction(
     label: revoked.label,
     translationIds: revoked.translation_ids,
     createdBy: admin.id,
+    codeLength: codeLength.length,
   });
   if (!issued.ok) {
     await auditRevoke(admin, revoked);
@@ -149,6 +157,7 @@ export async function rotateTranslatorTeamPasscodeAction(
     entityId: issued.id,
     entityType: 'translator_team_passcode',
     metadata: {
+      codeLength: codeLength.length,
       label: revoked.label,
       previousTeamPasscodeId: revoked.id,
       translationIds: revoked.translation_ids,

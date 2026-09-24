@@ -7,8 +7,10 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useTranslatorReviewStore } from '../../stores/translatorReviewStore';
 import {
   fetchChapterFeedbackReviewSummaryForTranslation,
+  TRANSLATION_NOT_COVERED,
   type TranslatorFeedbackChapterSummary,
 } from '../../services/feedback';
+import { TranslationNotCoveredNotice } from './TranslationNotCoveredNotice';
 import type { BibleStackParamList } from '../../navigation/types';
 
 export function ChapterFeedbackSummary({
@@ -28,6 +30,8 @@ export function ChapterFeedbackSummary({
   const [summary, setSummary] = useState<TranslatorFeedbackChapterSummary | null>(null);
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
+  // Set when this passcode does not open the translation; holds what it does open.
+  const [notCovered, setNotCovered] = useState<{ coveredTranslationIds?: string[] } | null>(null);
   const [refresh, setRefresh] = useState(0);
   useFocusEffect(
     useCallback(() => {
@@ -36,6 +40,7 @@ export function ChapterFeedbackSummary({
       if (!enabled || !passcode) return;
       setLoading(true);
       setFailed(false);
+      setNotCovered(null);
       void fetchChapterFeedbackReviewSummaryForTranslation({
         translationId,
         bookId,
@@ -44,6 +49,11 @@ export function ChapterFeedbackSummary({
         if (!active) return;
         setLoading(false);
         setFailed(!result.success);
+        setNotCovered(
+          result.code === TRANSLATION_NOT_COVERED
+            ? { coveredTranslationIds: result.coveredTranslationIds }
+            : null
+        );
         setSummary(result.chapters.find((item) => item.chapter === chapter) ?? null);
       });
       return () => {
@@ -63,6 +73,13 @@ export function ChapterFeedbackSummary({
       <Text style={[styles.title, { color: colors.biblePrimaryText }]}>{t('feedback.title')}</Text>
       {loading ? (
         <ActivityIndicator color={colors.accentPrimary} />
+      ) : notCovered ? (
+        <TranslationNotCoveredNotice
+          tone="reader"
+          translationId={translationId}
+          coveredTranslationIds={notCovered.coveredTranslationIds}
+          onRetry={() => setRefresh((value) => value + 1)}
+        />
       ) : failed ? (
         <TouchableOpacity
           accessibilityRole="button"
@@ -88,17 +105,19 @@ export function ChapterFeedbackSummary({
           )}
         </>
       )}
-      <TouchableOpacity
-        accessibilityRole="button"
-        style={styles.link}
-        onPress={() =>
-          navigation.navigate('ChapterFeedbackReview', { translationId, bookId, chapter })
-        }
-      >
-        <Text style={[styles.title, { color: colors.accentPrimary }]}>
-          {t('feedback.reviewFeedback')}
-        </Text>
-      </TouchableOpacity>
+      {notCovered ? null : (
+        <TouchableOpacity
+          accessibilityRole="button"
+          style={styles.link}
+          onPress={() =>
+            navigation.navigate('ChapterFeedbackReview', { translationId, bookId, chapter })
+          }
+        >
+          <Text style={[styles.title, { color: colors.accentPrimary }]}>
+            {t('feedback.reviewFeedback')}
+          </Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }

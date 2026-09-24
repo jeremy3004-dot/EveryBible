@@ -1,4 +1,5 @@
 import type { ViewStyle } from 'react-native';
+import { hexWithAlpha } from '../utils/color';
 import { getReaderTabBarTranslation } from './readerTabBarMotion';
 
 // The one definition of the floating tab-bar capsule.
@@ -49,4 +50,20 @@ export function buildTabBarCapsuleStyle({
     // stays visible when the reader hides the bar.
     transform: [{ translateY: getReaderTabBarTranslation(collapseProgress) }],
   };
+}
+
+/**
+ * The capsule's material. Clear liquid glass lenses whatever is behind it, and
+ * over the Bible reader that meant a magnified copy of the verse text smeared
+ * under the tab labels. The capsule instead uses the frosted regular glass,
+ * backed by the scope's own surface at high alpha: the glass then samples
+ * mostly paper, busy content behind it is reduced to a soft shadow, and the
+ * bar still reads as a floating translucent pill. The same backing tints the
+ * blur fallback on platforms without native glass.
+ */
+export const TAB_BAR_GLASS_EFFECT_STYLE = 'regular' as const;
+export const TAB_BAR_CAPSULE_FILL_ALPHA = 0.84;
+
+export function getTabBarCapsuleFill(surfaceColor: string): string {
+  return hexWithAlpha(surfaceColor, TAB_BAR_CAPSULE_FILL_ALPHA);
 }

@@ -30,7 +30,7 @@ export interface ListeningHistoryEntry {
 
 // Keep enough per-chapter listening history to cover the highest-volume plan days
 // without losing earlier completed chapters before plan auto-complete can count them.
-const HISTORY_LIMIT = 256;
+export const HISTORY_LIMIT = 256;
 
 export function toggleFavoriteChapter(
   favorites: FavoriteChapter[],

@@ -1,5 +1,5 @@
 import type { ListeningHistoryEntry } from '../../stores/libraryModel';
-import type { AudioPlaybackSequenceEntry } from '../../types';
+import type { AudioPlaybackSequenceEntry, AudioStatus } from '../../types';
 import { readingPlansById } from '../../data/readingPlans.generated';
 import type {
   PlanSessionKey,
@@ -138,6 +138,31 @@ export function buildPlanDayPlaybackSequenceEntries(
 
     return chapterEntries;
   });
+}
+
+export interface PlanDayLaunchAutoplayInput {
+  /** `listen` is the day's own play button; `open` is a row, Read, or Continue. */
+  trigger: 'listen' | 'open';
+  preferredMode: 'listen' | 'read';
+  audioStatus: AudioStatus;
+}
+
+/**
+ * Whether a plan-day launch starts audio when the reader opens. The play button
+ * is an explicit request, so it always plays. Opening a day under the persisted
+ * listen preference is navigation: it opens the listen view, but it must not
+ * undo a pause the listener made.
+ */
+export function shouldAutoplayPlanDayLaunch({
+  trigger,
+  preferredMode,
+  audioStatus,
+}: PlanDayLaunchAutoplayInput): boolean {
+  if (trigger === 'listen') {
+    return true;
+  }
+
+  return preferredMode === 'listen' && audioStatus !== 'paused';
 }
 
 export function resolvePlanDayPlaybackStartEntry(

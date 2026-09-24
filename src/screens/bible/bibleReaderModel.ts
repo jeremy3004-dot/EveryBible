@@ -131,6 +131,12 @@ interface ReaderInlineActiveVerseInput {
   isCurrentAudioChapter: boolean;
   activeFollowAlongVerse: number | null;
   focusVerse?: number;
+  /**
+   * False while a chapter change still shows the previous chapter's verses. The
+   * route (and the audio) already name the new chapter, so neither its live
+   * verse nor its focus verse belongs on the text that is visible.
+   */
+  isShowingRouteChapter?: boolean;
 }
 
 interface ReaderAutoScrollTargetInput {
@@ -239,6 +245,40 @@ export const getNextTranslationSheetVisibility = (
 
   return false;
 };
+
+interface PlanSessionBannerThemeColors {
+  accentPrimary: string;
+  onAccent: string;
+  primaryText: string;
+}
+
+export interface PlanSessionBannerColors {
+  fill: string;
+  text: string;
+  icon: string;
+  disabledIcon: string;
+  border: string;
+  completeFill: string;
+  completeIcon: string;
+}
+
+/**
+ * The plan strip is a solid accent fill. `primaryText` flips with the scope and
+ * only reaches ~2-3:1 on it; `onAccent` is the foreground the theme pairs with
+ * the accent (>= 4.5:1 in both scopes), so everything on the strip uses it.
+ */
+export const getPlanSessionBannerColors = ({
+  accentPrimary,
+  onAccent,
+}: PlanSessionBannerThemeColors): PlanSessionBannerColors => ({
+  fill: accentPrimary,
+  text: onAccent,
+  icon: onAccent,
+  disabledIcon: `${onAccent}66`,
+  border: `${onAccent}18`,
+  completeFill: onAccent,
+  completeIcon: accentPrimary,
+});
 
 export const buildReaderChapterRouteParams = ({
   bookId,
@@ -484,7 +524,12 @@ export const getReaderInlineActiveVerse = ({
   isCurrentAudioChapter,
   activeFollowAlongVerse,
   focusVerse,
+  isShowingRouteChapter = true,
 }: ReaderInlineActiveVerseInput): number | null => {
+  if (!isShowingRouteChapter) {
+    return null;
+  }
+
   if (isCurrentAudioChapter && activeFollowAlongVerse != null) {
     return activeFollowAlongVerse;
   }
@@ -706,21 +751,29 @@ interface SwipeChapterNavigationInput {
   velocityX: number;
   hasNextChapter: boolean;
   hasPrevChapter: boolean;
+  /**
+   * A plan or rhythm session opened from the Plans tab lands in the Bible tab's
+   * stack, so there is no native screen behind it for the iOS back swipe. When
+   * set, a back swipe with no earlier session chapter leaves the session instead.
+   */
+  canExitSession?: boolean;
 }
 
-export type SwipeNavigationResult = 'next' | 'prev' | null;
+export type SwipeNavigationResult = 'next' | 'prev' | 'exit' | null;
 
 export const resolveSwipeChapterNavigation = ({
   translationX,
   velocityX,
   hasNextChapter,
   hasPrevChapter,
+  canExitSession = false,
 }: SwipeChapterNavigationInput): SwipeNavigationResult => {
   const wantsNext = translationX < -SWIPE_THRESHOLD || velocityX < -SWIPE_VELOCITY_MIN;
   const wantsPrev = translationX > SWIPE_THRESHOLD || velocityX > SWIPE_VELOCITY_MIN;
 
   if (wantsNext && hasNextChapter) return 'next';
   if (wantsPrev && hasPrevChapter) return 'prev';
+  if (wantsPrev && canExitSession) return 'exit';
   return null;
 };
 

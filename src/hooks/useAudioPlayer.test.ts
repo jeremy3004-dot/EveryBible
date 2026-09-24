@@ -505,6 +505,28 @@ test('playChapter publishes the chapter to the lock screen with skip availabilit
   });
 });
 
+test('on Android the lock-screen update carries interface-language notification strings', async (t) => {
+  rn.Platform.OS = 'android';
+  t.after(() => {
+    rn.Platform.OS = 'ios';
+  });
+  const player = mountPlayer();
+
+  await player.api.playChapter('GEN', 1);
+
+  assert.deepEqual(recorded.nowPlaying.at(-1)?.localized, {
+    // The identity translator has no `bible.books.GEN`, so the English name stands in.
+    bookName: 'Genesis',
+    channelName: 'audio.nowPlaying',
+    play: 'interface.playChapterAudio',
+    pause: 'interface.pauseChapterAudio',
+    previous: 'audio.previousChapter',
+    next: 'audio.nextChapter',
+    skipBackward: 'audio.skipBackward',
+    skipForward: 'audio.skipForward',
+  });
+});
+
 test('playChapter prefetches the chapters that follow', async () => {
   const player = mountPlayer();
 

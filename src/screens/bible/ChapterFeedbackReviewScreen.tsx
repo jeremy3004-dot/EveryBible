@@ -26,6 +26,7 @@ import {
   reopenTranslatorFeedbackOnServer,
   reviewPositiveFeedbackBatch,
   refreshFeedbackAudioUrl,
+  TRANSLATION_NOT_COVERED,
   type ChapterFeedbackReviewItem,
   type FeedbackCategoryFilter,
   type FeedbackStatusFilter,
@@ -33,6 +34,7 @@ import {
   type TranslatorFeedbackChapterSummary,
   type TranslatorFeedbackResolution,
 } from '../../services/feedback';
+import { TranslationNotCoveredNotice } from '../../components/feedback';
 import type { BibleStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<BibleStackParamList, 'ChapterFeedbackReview'>;
@@ -56,6 +58,8 @@ export function ChapterFeedbackReviewScreen({ route, navigation }: Props) {
   const [loading, setLoading] = useState(false);
   const [mutating, setMutating] = useState(false);
   const [failed, setFailed] = useState(false);
+  // Set when this passcode does not open the translation; holds what it does open.
+  const [notCovered, setNotCovered] = useState<{ coveredTranslationIds?: string[] } | null>(null);
   const [playing, setPlaying] = useState<string | null>(null);
   const sound = useRef<Audio.Sound | null>(null);
   const soundId = useRef<string | null>(null);
@@ -82,6 +86,7 @@ export function ChapterFeedbackReviewScreen({ route, navigation }: Props) {
       busy.current = true;
       setLoading(true);
       setFailed(false);
+      setNotCovered(null);
       if (!page) {
         setItems([]);
         setCursor(null);
@@ -92,6 +97,9 @@ export function ChapterFeedbackReviewScreen({ route, navigation }: Props) {
       setLoading(false);
       if (!result.success) {
         setFailed(true);
+        if (result.code === TRANSLATION_NOT_COVERED) {
+          setNotCovered({ coveredTranslationIds: result.coveredTranslationIds });
+        }
         return;
       }
       setItems((previous) =>
@@ -301,10 +309,23 @@ export function ChapterFeedbackReviewScreen({ route, navigation }: Props) {
             )}
         </View>
       )}
-      {failed &&
+      {notCovered ? (
+        // This screen is pinned to one translation, so after switching the reader go back to
+        // it; the reader then shows the new translation's feedback summary.
+        <TranslationNotCoveredNotice
+          translationId={translationId}
+          coveredTranslationIds={notCovered.coveredTranslationIds}
+          onRetry={() => {
+            void load();
+          }}
+          onSwitched={() => navigation.goBack()}
+        />
+      ) : (
+        failed &&
         button(t('common.retry'), () => {
           void load();
-        })}
+        })
+      )}
     </View>
   );
   const renderItem = ({ item }: { item: ChapterFeedbackReviewItem }) => {

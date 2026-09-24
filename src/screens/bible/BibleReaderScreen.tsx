@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Alert,
   AppState,
+  BackHandler,
   FlatList,
   LayoutAnimation,
   ImageBackground,
@@ -174,6 +175,7 @@ import {
   getNextBibleTabBarVisibility,
   getReaderAutoScrollTarget,
   getReaderInlineActiveVerse,
+  getPlanSessionBannerColors,
   getReaderVerseContentOffset,
   getInitialChapterSessionMode,
   LISTEN_COUNTED_NOTICE_TEST_ID,
@@ -190,6 +192,7 @@ import type { ReaderParagraph } from './bibleReaderModel';
 import {
   invalidateReaderChapterLoad,
   loadReaderChapter,
+  readerChapterKey,
   type CancellableTask,
 } from './readerChapterLoader';
 import { navigateListenChapter } from './readerListenNavigation';
@@ -727,6 +730,9 @@ export function BibleReaderScreen() {
     );
   }, []);
   const [verses, setVerses] = useState<Verse[]>([]);
+  // Which chapter `verses` holds. A chapter change keeps the old verses visible
+  // until the new ones load, so this can lag the route's bookId/chapter.
+  const [versesChapterKey, setVersesChapterKey] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showFontSizeSheet, setShowFontSizeSheet] = useState(false);
@@ -1599,10 +1605,12 @@ export function BibleReaderScreen() {
     : null;
   const activeFollowAlongVerse = followAlongPlaybackState.verse;
   const didRestartFollowAlongPlayback = followAlongPlaybackState.didRestart;
+  const isShowingRouteChapter = versesChapterKey === readerChapterKey(bookId, chapter);
   const readerInlineActiveVerse = getReaderInlineActiveVerse({
     isCurrentAudioChapter,
     activeFollowAlongVerse,
     focusVerse,
+    isShowingRouteChapter,
   });
   const showPremiumReadMode =
     chapterPresentationMode === 'text' && verses.length > 0 && !isLoading && error == null;
@@ -1903,6 +1911,42 @@ export function BibleReaderScreen() {
     }
   };
 
+  // A plan session is opened from the Plans tab into the Bible tab's stack, so
+  // nothing native sits behind it: every way out (top chevron, back swipe past
+  // the first session chapter, Android back) routes through here to the plan.
+  const handleExitPlanSession = useCallback(() => {
+    if (!showPlanSessionChrome || !activePlanId || !rootNavigationRef.isReady()) {
+      return;
+    }
+
+    if (activeRhythmSession) {
+      rootNavigationRef.navigate('Plans', {
+        screen: 'RhythmDetail',
+        params: { rhythmId: activeRhythmSession.rhythmId },
+      });
+      return;
+    }
+
+    rootNavigationRef.navigate('Plans', {
+      screen: 'PlanDetail',
+      params: { planId: activePlanId },
+    });
+  }, [activePlanId, activeRhythmSession, showPlanSessionChrome]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!showPlanSessionChrome) {
+        return undefined;
+      }
+
+      const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+        handleExitPlanSession();
+        return true;
+      });
+      return () => subscription.remove();
+    }, [handleExitPlanSession, showPlanSessionChrome])
+  );
+
   // Resolved on the JS thread so the shared, tested swipe model stays the single
   // source of truth for thresholds (worklets cannot call non-worklet functions).
   const handleSwipeEnd = (translationX: number, velocityX: number) => {
@@ -1913,10 +1957,15 @@ export function BibleReaderScreen() {
       velocityX,
       hasNextChapter,
       hasPrevChapter,
+      canExitSession: showPlanSessionChrome,
     });
     if (!direction) return;
 
     lightHaptic();
+    if (direction === 'exit') {
+      handleExitPlanSession();
+      return;
+    }
     handleSwipeNavigation(direction);
   };
 
@@ -2306,6 +2355,7 @@ export function BibleReaderScreen() {
       setIsLoading,
       setError,
       setVerses,
+      setVersesChapterKey,
       t,
     });
   }
@@ -2324,7 +2374,9 @@ export function BibleReaderScreen() {
     const shouldRecordReadCompletion =
       chapterSessionMode === 'read' &&
       activePlanChapterIndex >= 0 &&
-      !activePlanSessionEntries.some((entry) => entry.verse_start != null || entry.verse_end != null);
+      !activePlanSessionEntries.some(
+        (entry) => entry.verse_start != null || entry.verse_end != null
+      );
     if (activePlanChapterIndex < 0 || !isLastPlanChapter) {
       return;
     }
@@ -3872,25 +3924,6 @@ export function BibleReaderScreen() {
     await reloadAnnotations();
   };
 
-  const handleExitPlanSession = useCallback(() => {
-    if (!showPlanSessionChrome || !activePlanId || !rootNavigationRef.isReady()) {
-      return;
-    }
-
-    if (activeRhythmSession) {
-      rootNavigationRef.navigate('Plans', {
-        screen: 'RhythmDetail',
-        params: { rhythmId: activeRhythmSession.rhythmId },
-      });
-      return;
-    }
-
-    rootNavigationRef.navigate('Plans', {
-      screen: 'PlanDetail',
-      params: { planId: activePlanId },
-    });
-  }, [activePlanId, activeRhythmSession, showPlanSessionChrome]);
-
   const renderPlanSessionBottomBar = () => {
     if (!showPlanSessionChrome || !activePlanTitle || typeof planDayNumber !== 'number') {
       return null;
@@ -3915,6 +3948,7 @@ export function BibleReaderScreen() {
             defaultValue: 'Complete day',
           })
       : t('common.next');
+    const bannerColors = getPlanSessionBannerColors(colors);
     const trailingActionHint = showPlanCompletionAction
       ? showSessionCompletionCopy
         ? t('readingPlans.completeSessionHint')
@@ -3927,8 +3961,8 @@ export function BibleReaderScreen() {
           styles.planSessionBottomBar,
           planSessionBottomBarAnimatedStyle,
           {
-            backgroundColor: colors.accentPrimary,
-            borderTopColor: colors.primaryText + '18',
+            backgroundColor: bannerColors.fill,
+            borderTopColor: bannerColors.border,
             height: planSessionBottomBarHeight,
             paddingBottom: rootTabBarBottomPadding + spacing.xs,
           },
@@ -3952,7 +3986,7 @@ export function BibleReaderScreen() {
                 <Ionicons
                   name="chevron-back"
                   size={22}
-                  color={hasPrevChapter ? colors.primaryText : colors.primaryText + '66'}
+                  color={hasPrevChapter ? bannerColors.icon : bannerColors.disabledIcon}
                 />
               </TouchableOpacity>
             ) : (
@@ -3971,12 +4005,12 @@ export function BibleReaderScreen() {
             ]}
           >
             <Text
-              style={[styles.planSessionBottomBarTitle, { color: colors.primaryText }]}
+              style={[styles.planSessionBottomBarTitle, { color: bannerColors.text }]}
               numberOfLines={1}
             >
               {activePlanTitle}
             </Text>
-            <Text style={[styles.planSessionBottomBarMeta, { color: colors.primaryText }]}>
+            <Text style={[styles.planSessionBottomBarMeta, { color: bannerColors.text }]}>
               {t('readingPlans.dayLabel', {
                 day: planDayNumber,
                 defaultValue: `Day ${planDayNumber}`,
@@ -3998,7 +4032,7 @@ export function BibleReaderScreen() {
                 showPlanCompletionAction
                   ? [
                       styles.planSessionBottomBarCompleteButton,
-                      { backgroundColor: colors.primaryText },
+                      { backgroundColor: bannerColors.completeFill },
                     ]
                   : null,
                 !trailingActionEnabled ? styles.disabledSessionModeButton : null,
@@ -4020,9 +4054,9 @@ export function BibleReaderScreen() {
                 color={
                   trailingActionEnabled
                     ? showPlanCompletionAction
-                      ? colors.accentPrimary
-                      : colors.primaryText
-                    : colors.primaryText + '66'
+                      ? bannerColors.completeIcon
+                      : bannerColors.icon
+                    : bannerColors.disabledIcon
                 }
               />
             </TouchableOpacity>
@@ -6152,7 +6186,7 @@ export function BibleReaderScreen() {
             showsVerticalScrollIndicator={false}
           >
             {verses.map((verse) => {
-              const isActive = verse.verse === activeFollowAlongVerse;
+              const isActive = isShowingRouteChapter && verse.verse === activeFollowAlongVerse;
 
               return (
                 <View

@@ -325,6 +325,13 @@ export const en = {
     pendingCount: '{{count}} chapters to review',
     chapterCounts: '{{down}} to fix \u00b7 {{up}} to confirm',
     openLabel: 'Open {{reference}}',
+    notCoveredTitle: "Your access code doesn't cover {{translation}}",
+    notCoveredBody: 'It opens feedback for these translations:',
+    notCoveredNone:
+      "It doesn't open any translations yet. Ask whoever gave you the code to check it.",
+    switchTo: 'Switch to {{translation}}',
+    switchNeedsDownload:
+      'Download {{translation}} from the translation list first, then try again.',
   },
   myFeedback: {
     title: 'My feedback',
@@ -1101,6 +1108,7 @@ export const en = {
     progress: 'Progress',
     noPlans: 'No reading plans available',
     noActivePlans: "You haven't started any plans yet",
+    noActivePlansBody: 'Browse reading plans to start one.',
     addFirstPlan: 'Add your first plan',
     findPlans: 'Find plans',
     saved: 'Saved',
@@ -1127,8 +1135,8 @@ export const en = {
     durationDays_other: '{{count}} days',
     dayChapterCount_one: '{{count}} chapter',
     dayChapterCount_other: '{{count}} chapters',
-    readSummary: '{{read}} read',
-    readMissedSummary: '{{read}} read · {{missed}} missed',
+    daysReadSummary: '{{read}} of {{days}}',
+    daysReadMissedSummary: '{{read}} of {{days}} · {{missed}} missed',
     planOptions: 'Plan options',
     leavePlan: 'Leave plan',
     leavePlanConfirmBody: 'Your progress for this plan will be removed from this device.',

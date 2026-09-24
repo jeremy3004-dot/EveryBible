@@ -47,6 +47,9 @@ export interface UserPreferences {
   notifications_enabled: boolean;
   reminder_time: string | null;
   synced_at: string;
+  // Per-column edit stamps (migration 20260924023259). Absent from rows read
+  // before that migration is applied, which is how the client detects it.
+  field_updated_at?: Record<string, string> | null;
 }
 
 export interface ChapterFeedbackSubmission {

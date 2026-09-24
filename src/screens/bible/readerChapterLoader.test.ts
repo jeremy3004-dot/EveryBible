@@ -4,6 +4,7 @@ import type { Verse } from '../../types';
 import {
   invalidateReaderChapterLoad,
   loadReaderChapter,
+  readerChapterKey,
   type ReaderChapterLoad,
 } from './readerChapterLoader';
 
@@ -26,6 +27,7 @@ function reader(overrides: Partial<ReaderChapterLoad> = {}) {
   const recorded = {
     prefetched: [] as number[],
     verses: [] as Verse[][],
+    chapterKeys: [] as string[],
     loading: [] as boolean[],
     errors: [] as (string | null)[],
     markedRead: [] as number[],
@@ -60,6 +62,7 @@ function reader(overrides: Partial<ReaderChapterLoad> = {}) {
     setIsLoading: (value) => recorded.loading.push(value),
     setError: (message) => recorded.errors.push(message),
     setVerses: (value) => recorded.verses.push(value),
+    setVersesChapterKey: (key) => recorded.chapterKeys.push(key),
     t: (key) => `t:${key}`,
     ...overrides,
   };
@@ -125,6 +128,43 @@ test('a stale chapter result never replaces the chapter the reader moved to', as
   assert.deepEqual(recorded.loading, [true, true, false], 'the stale load leaves loading alone');
 });
 
+test('a loaded chapter records which chapter the verses belong to', async () => {
+  const { load, recorded } = reader();
+
+  await loadReaderChapter(load);
+
+  assert.deepEqual(recorded.chapterKeys, [readerChapterKey('JHN', 3)]);
+});
+
+test('the verses stay tagged with the old chapter until the new chapter arrives', async () => {
+  // Old verses stay on screen during a chapter change, so anything keyed to the new
+  // route chapter (the audio follow-along highlight) must not paint on them.
+  const next = deferred<Verse[]>();
+  const results = [Promise.resolve([verse(1)]), next.promise];
+  const { load, recorded } = reader({ getChapter: () => results.shift()! });
+
+  await loadReaderChapter(load);
+  const moving = loadReaderChapter({ ...load, chapter: 4, currentVerseCount: 1 });
+  assert.deepEqual(recorded.chapterKeys, ['JHN:3']);
+  next.resolve([verse(1)]);
+  await moving;
+
+  assert.deepEqual(recorded.chapterKeys, ['JHN:3', 'JHN:4']);
+});
+
+test('a stale chapter result never tags the verses with its chapter', async () => {
+  const slow = deferred<Verse[]>();
+  const results = [slow.promise, Promise.resolve([verse(2)])];
+  const { load, recorded } = reader({ getChapter: () => results.shift()! });
+
+  const first = loadReaderChapter(load);
+  await loadReaderChapter({ ...load, chapter: 4 });
+  slow.resolve([verse(1)]);
+  await first;
+
+  assert.deepEqual(recorded.chapterKeys, ['JHN:4']);
+});
+
 test('an empty chapter is shown but queues no prefetch', async () => {
   const { load, tasks, recorded } = reader({ getChapter: async () => [] });
 
@@ -150,6 +190,7 @@ test('an audio-only translation skips the text query and clears the verses', asy
   assert.deepEqual(recorded.verses, [[]]);
   assert.deepEqual(recorded.loading, [true, false]);
   assert.equal(tasks.length, 0);
+  assert.deepEqual(recorded.chapterKeys, ['JHN:3'], 'the empty chapter is the route chapter');
 });
 
 test('a chapter change with verses on screen never shows the loading skeleton', async () => {

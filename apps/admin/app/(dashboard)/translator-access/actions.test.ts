@@ -36,7 +36,8 @@ mockModule(mock, '@/lib/admin-auth', {
 mockModule(mock, '@/lib/supabase/service', { createAdminServiceClient: () => service.client });
 mockModule(mock, '@/lib/translator-access-crypto', {
   ...realCrypto,
-  generateTeamPasscode: () => scriptedCodes.shift() ?? realCrypto.generateTeamPasscode(),
+  generateTeamPasscode: (length?: realCrypto.TeamPasscodeLength) =>
+    scriptedCodes.shift() ?? realCrypto.generateTeamPasscode(length),
 });
 const next = mockNextServerRuntime(mock);
 
@@ -152,7 +153,7 @@ test('the audit row names the team and translations but never the code or its ha
       actor_user_id: 'admin-1',
       entity_id: 'team-new',
       entity_type: 'translator_team_passcode',
-      metadata: { label: 'Nepali ULB team', translationIds: ['npiulb'] },
+      metadata: { codeLength: 6, label: 'Nepali ULB team', translationIds: ['npiulb'] },
       summary: 'Created a translator passcode for Nepali ULB team (npiulb).',
     },
   ]);
@@ -184,6 +185,22 @@ test('a new code never matches another active team code', async () => {
   assert.deepEqual(stepArgs(lookup, 'is'), [['revoked_at', null]]);
 });
 
+test('an operator can issue a longer code once the new app build is widely installed', async () => {
+  const result = await createTranslatorTeamPasscodeAction(
+    formData({ label: 'Nepali ULB team', translationIds: 'npiulb', codeLength: '12' })
+  );
+
+  assert.equal(result.ok, true);
+  assert.match(result.passcode ?? '', /^[0-9]{12}$/);
+  const [insert] = teamCalls('insert');
+  const row = insert.payload as { passcode_salt: string; passcode_hash: string };
+  assert.equal(
+    row.passcode_hash,
+    realCrypto.hashTeamPasscode(row.passcode_salt, result.passcode ?? '')
+  );
+  assert.equal((auditRows()[0] as { metadata: { codeLength: number } }).metadata.codeLength, 12);
+});
+
 for (const [label, fields, error] of [
   [
     'a missing team name',
@@ -204,6 +221,11 @@ for (const [label, fields, error] of [
     'a malformed translation ID',
     { label: 'Team', translationIds: 'npiulb, bad id!' },
     'Invalid translation ID: bad id!',
+  ],
+  [
+    'an unsupported code length',
+    { label: 'Team', translationIds: 'npiulb', codeLength: '8' },
+    'Choose a code length of 6, 10 or 12 digits',
   ],
   [
     'too many translations',
@@ -327,6 +349,7 @@ test('rotating revokes the old code first, then issues a new one for the same te
       entity_id: 'team-new',
       entity_type: 'translator_team_passcode',
       metadata: {
+        codeLength: 6,
         label: 'Nepali ULB team',
         previousTeamPasscodeId: 'team-7',
         translationIds: ['npiulb'],
@@ -335,6 +358,24 @@ test('rotating revokes the old code first, then issues a new one for the same te
     },
   ]);
   assert.ok(!JSON.stringify(auditRows()).includes(result.passcode ?? '---'));
+});
+
+test('rotating can move a team to a longer code', async () => {
+  const result = await rotateTranslatorTeamPasscodeAction(
+    formData({ teamId: 'team-7', codeLength: '10' })
+  );
+
+  assert.equal(result.ok, true);
+  assert.match(result.passcode ?? '', /^[0-9]{10}$/);
+});
+
+test('rotating with an unsupported code length leaves the current code working', async () => {
+  const result = await rotateTranslatorTeamPasscodeAction(
+    formData({ teamId: 'team-7', codeLength: '7' })
+  );
+
+  assert.equal(result.error, 'Choose a code length of 6, 10 or 12 digits');
+  assert.deepEqual(service.calls, []);
 });
 
 test('rotating a code that is not active issues nothing', async () => {

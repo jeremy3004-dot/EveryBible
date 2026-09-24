@@ -1,0 +1,171 @@
+diff --git a/node_modules/expo-media-control/android/src/main/java/expo/modules/mediacontrol/ExpoMediaControlModule.kt b/node_modules/expo-media-control/android/src/main/java/expo/modules/mediacontrol/ExpoMediaControlModule.kt
+index cbbbf5a..77f1809 100644
+--- a/node_modules/expo-media-control/android/src/main/java/expo/modules/mediacontrol/ExpoMediaControlModule.kt
++++ b/node_modules/expo-media-control/android/src/main/java/expo/modules/mediacontrol/ExpoMediaControlModule.kt
+@@ -458,8 +458,12 @@ class ExpoMediaControlModule : Module() {
+       // Mark as disabled immediately to prevent new operations
+       isControlsEnabled = false
+       
+-      // Perform cleanup asynchronously to avoid blocking the main thread
+-      moduleScope.launch {
++      // Perform cleanup asynchronously to avoid blocking the main thread.
++      // EveryBible patch: cancel the scope this cleanup ran on, not whatever
++      // `moduleScope` points at when it finishes. A quick disable -> enable
++      // replaces `moduleScope`, and cancelling the new one killed the enable.
++      val disableScope = moduleScope
++      disableScope.launch {
+         try {
+           val context = appContext.reactContext
+           
+@@ -505,7 +509,7 @@ class ExpoMediaControlModule : Module() {
+         } finally {
+           // Cancel all ongoing coroutines to prevent memory leaks
+           try {
+-            moduleScope.cancel()
++            disableScope.cancel()
+             println("🤖 Coroutine scope canceled")
+           } catch (e: Exception) {
+             println("⚠️ Error canceling coroutine scope: ${e.message}")
+diff --git a/node_modules/expo-media-control/android/src/main/java/expo/modules/mediacontrol/MediaPlaybackService.kt b/node_modules/expo-media-control/android/src/main/java/expo/modules/mediacontrol/MediaPlaybackService.kt
+index d234e79..310cdf5 100644
+--- a/node_modules/expo-media-control/android/src/main/java/expo/modules/mediacontrol/MediaPlaybackService.kt
++++ b/node_modules/expo-media-control/android/src/main/java/expo/modules/mediacontrol/MediaPlaybackService.kt
+@@ -74,6 +74,14 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
+ 
+   // Configuration options
+   private var skipInterval = 15.0 // Default 15 seconds
++
++  // EveryBible patch: localized notification channel name and action labels
++  // supplied by JS through the `android` options (English fallbacks below).
++  private var channelName = "Media Playback"
++  private val actionLabels = ConcurrentHashMap<String, String>()
++
++  private fun actionLabel(key: String, fallback: String): String =
++    actionLabels[key] ?: fallback
+   private var artworkLoadJob: Job? = null // Cancel stale artwork loads on track change
+   private var capabilities: List<String>? = null // null = all enabled (backward compat)
+   private var compactCapabilities: List<String>? = null
+@@ -171,7 +179,24 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
+       e.printStackTrace()
+     }
+     
+-    return START_STICKY
++    // EveryBible patch: never let the OS resurrect this service after the
++    // process dies. A restarted service has no player and no JS listener, so it
++    // would only post an "Unknown" notification whose buttons do nothing.
++    return START_NOT_STICKY
++  }
++
++  // EveryBible patch: swiping the app away destroys the React host, which
++  // releases every expo-av sound. Drop the notification with it instead of
++  // leaving dead controls behind.
++  override fun onTaskRemoved(rootIntent: Intent?) {
++    super.onTaskRemoved(rootIntent)
++    try {
++      stopForeground(true)
++    } catch (e: Exception) {
++      println("⚠️ Error stopping foreground on task removal: ${e.message}")
++    }
++    isForegroundService = false
++    stopSelf()
+   }
+ 
+   // =============================================
+@@ -360,6 +385,16 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
+       skipInterval = (it as? Number)?.toDouble() ?: 15.0
+       println("🤖 MediaPlaybackService: Skip interval updated to $skipInterval seconds")
+     }
++    (config["channelName"] as? String)?.takeIf { it.isNotBlank() }?.let {
++      channelName = it
++      // Re-creating a channel with the same id only updates its user-visible name.
++      createNotificationChannel()
++    }
++    (config["actionLabels"] as? Map<*, *>)?.forEach { (key, value) ->
++      if (key is String && value is String && value.isNotBlank()) {
++        actionLabels[key] = value
++      }
++    }
+   }
+ 
+   fun updateCapabilities(
+@@ -506,7 +541,7 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
+     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+       val channel = NotificationChannel(
+         NOTIFICATION_CHANNEL_ID,
+-        "Media Playback",
++        channelName,
+         NotificationManager.IMPORTANCE_LOW
+       ).apply {
+         description = "Controls for media playback"
+@@ -533,8 +568,8 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
+ 
+     val builder = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
+       .setSmallIcon(getSmallIconResource())
+-      .setContentTitle(mediaMetadata?.getString(MediaMetadataCompat.METADATA_KEY_TITLE) ?: "Unknown")
+-      .setContentText(mediaMetadata?.getString(MediaMetadataCompat.METADATA_KEY_ARTIST) ?: "Unknown Artist")
++      .setContentTitle(mediaMetadata?.getString(MediaMetadataCompat.METADATA_KEY_TITLE) ?: "")
++      .setContentText(mediaMetadata?.getString(MediaMetadataCompat.METADATA_KEY_ARTIST) ?: "")
+       .setLargeIcon(mediaMetadata?.getBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART))
+       .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+       .setPriority(NotificationCompat.PRIORITY_LOW)
+@@ -618,7 +653,7 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
+         "previousTrack" -> {
+           builder.addAction(
+             android.R.drawable.ic_media_previous,
+-            "Previous",
++            actionLabel("previousTrack", "Previous"),
+             createPendingIntent(ACTION_PREVIOUS)
+           )
+           addedCommands.add("previousTrack")
+@@ -627,13 +662,13 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
+           if (currentPlaybackState == PlaybackStateCompat.STATE_PLAYING) {
+             builder.addAction(
+               android.R.drawable.ic_media_pause,
+-              "Pause",
++              actionLabel("pause", "Pause"),
+               createPendingIntent(ACTION_PAUSE)
+             )
+           } else {
+             builder.addAction(
+               android.R.drawable.ic_media_play,
+-              "Play",
++              actionLabel("play", "Play"),
+               createPendingIntent(ACTION_PLAY)
+             )
+           }
+@@ -642,7 +677,7 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
+         "nextTrack" -> {
+           builder.addAction(
+             android.R.drawable.ic_media_next,
+-            "Next",
++            actionLabel("nextTrack", "Next"),
+             createPendingIntent(ACTION_NEXT)
+           )
+           addedCommands.add("nextTrack")
+@@ -650,7 +685,7 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
+         "skipForward" -> {
+           builder.addAction(
+             android.R.drawable.ic_media_ff,
+-            "Skip Forward",
++            actionLabel("skipForward", "Skip Forward"),
+             createPendingIntent(ACTION_SKIP_FORWARD)
+           )
+           addedCommands.add("skipForward")
+@@ -658,7 +693,7 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
+         "skipBackward" -> {
+           builder.addAction(
+             android.R.drawable.ic_media_rew,
+-            "Skip Backward",
++            actionLabel("skipBackward", "Skip Backward"),
+             createPendingIntent(ACTION_SKIP_BACKWARD)
+           )
+           addedCommands.add("skipBackward")
+@@ -666,7 +701,7 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
+         "stop" -> {
+           builder.addAction(
+             android.R.drawable.ic_media_pause,
+-            "Stop",
++            actionLabel("stop", "Stop"),
+             createPendingIntent(ACTION_STOP)
+           )
+           addedCommands.add("stop")

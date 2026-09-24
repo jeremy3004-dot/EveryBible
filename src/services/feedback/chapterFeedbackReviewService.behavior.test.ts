@@ -536,13 +536,99 @@ test('fetchChapterFeedbackForTranslatorReview reports an empty queue as a succes
   assert.deepEqual(result, { success: true, feedback: [] });
 });
 
-
 test('refreshes an expired recording URL within the selected chapter scope', async () => {
-  supabaseFake.respondToFunction(() => ({ data: { success: true, playbackUrl: 'https://audio.test/fresh' } }));
+  supabaseFake.respondToFunction(() => ({
+    data: { success: true, playbackUrl: 'https://audio.test/fresh' },
+  }));
   const result = await review.refreshFeedbackAudioUrl({ ...reviewInput, feedbackId: 'audio-1' });
   assert.equal(result.playbackUrl, 'https://audio.test/fresh');
   assert.equal(sentBody().body.action, 'audioUrl');
   assert.equal(sentBody().body.feedbackId, 'audio-1');
   assert.equal(sentBody().body.translationId, 'bsb');
   assert.equal(sentBody().body.bookId, 'JHN');
+});
+
+// ---------------------------------------------------------------------------
+// Team passcode scope (translation_not_covered)
+// ---------------------------------------------------------------------------
+
+const NOT_COVERED_BODY = {
+  success: false,
+  error: 'This access code does not cover this translation',
+  code: 'translation_not_covered',
+};
+
+/** Answers review reads with 403 translation_not_covered and unlock checks with `scope`. */
+type FunctionResponder = Parameters<typeof supabaseFake.respondToFunction>[0];
+const respondNotCovered = (scope: () => ReturnType<FunctionResponder>) =>
+  supabaseFake.respondToFunction((_name, options) => {
+    const body = (options as { body: Record<string, unknown> }).body;
+    if (body.validateOnly === true) return scope();
+    return edgeError({ context: { json: async () => NOT_COVERED_BODY } });
+  });
+
+test('unlocking reports which translations the code covers', async () => {
+  supabaseFake.respondToFunction(() => ({
+    data: { success: true, translationIds: ['npiulb', 'npi-audio', 42], coversTranslation: false },
+  }));
+
+  const result = await review.validateTranslatorReviewPasscode('615203', 'bsb');
+
+  assert.deepEqual(result, {
+    success: true,
+    error: undefined,
+    translationIds: ['npiulb', 'npi-audio'],
+    coversTranslation: false,
+  });
+});
+
+test('a queue load for an uncovered translation says so and lists the covered translations', async () => {
+  respondNotCovered(() => ({ data: { success: true, translationIds: ['npiulb'] } }));
+
+  const result = await review.fetchChapterFeedbackReviewSummaryForTranslation(summaryInput);
+
+  assert.deepEqual(result, {
+    success: false,
+    chapters: [],
+    error: NOT_COVERED_BODY.error,
+    code: 'translation_not_covered',
+    coveredTranslationIds: ['npiulb'],
+  });
+  // The follow-up is an unlock check with the same code, which never counts as a wrong guess.
+  assert.deepEqual((supabaseFake.functionCalls[1]?.options as { body: unknown }).body, {
+    passcode: '123456',
+    translationId: 'bsb',
+    validateOnly: true,
+  });
+});
+
+test('a chapter review load for an uncovered translation reports the covered translations', async () => {
+  respondNotCovered(() => ({ data: { success: true, translationIds: ['npiulb', 'npi-audio'] } }));
+
+  const result = await review.fetchChapterFeedbackForTranslatorReview(reviewInput);
+
+  assert.equal(result.success, false);
+  assert.equal(result.code, 'translation_not_covered');
+  assert.deepEqual(result.coveredTranslationIds, ['npiulb', 'npi-audio']);
+  assert.deepEqual(result.feedback, []);
+});
+
+test('an uncovered translation is still reported when the covered list cannot be fetched', async () => {
+  respondNotCovered(() => edgeError());
+
+  const result = await review.fetchChapterFeedbackReviewSummaryForTranslation(summaryInput);
+
+  assert.equal(result.code, 'translation_not_covered');
+  assert.equal(result.coveredTranslationIds, undefined);
+});
+
+test('other review failures carry no coverage code and make no follow-up request', async () => {
+  supabaseFake.respondToFunction(() =>
+    edgeError({ context: { json: async () => ({ error: 'Translator access denied' }) } })
+  );
+
+  const result = await review.fetchChapterFeedbackReviewSummaryForTranslation(summaryInput);
+
+  assert.deepEqual(result, { success: false, chapters: [], error: 'Translator access denied' });
+  assert.equal(supabaseFake.functionCalls.length, 1);
 });

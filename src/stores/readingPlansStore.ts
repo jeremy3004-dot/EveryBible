@@ -50,7 +50,17 @@ const createEmptyState = (): ReadingPlansPersistedState => ({
   rhythmsById: {},
   rhythmOrder: [],
   pendingUnenrollPlanIds: [],
+  pendingUnenrollAtByPlanId: {},
 });
+
+const withoutKey = (record: Record<string, string>, key: string): Record<string, string> => {
+  if (!(key in record)) {
+    return record;
+  }
+  const next = { ...record };
+  delete next[key];
+  return next;
+};
 
 const buildPlanDayResumeKey = (planId: string, dayNumber: number): string => `${planId}:${dayNumber}`;
 
@@ -86,6 +96,17 @@ const normalizeProgressByPlanId = (
       normalizeProgressRecord(progress),
     ])
   );
+
+// Persisted before leave times existed (or corrupted): keep only real timestamps.
+const normalizePendingUnenrollTimes = (value: unknown): Record<string, string> =>
+  value && typeof value === 'object' && !Array.isArray(value)
+    ? Object.fromEntries(
+        Object.entries(value as Record<string, unknown>).filter(
+          (entry): entry is [string, string] =>
+            typeof entry[1] === 'string' && Number.isFinite(Date.parse(entry[1]))
+        )
+      )
+    : {};
 
 const createRhythmId = (): RhythmId => `reading-plan-rhythm-${Date.now()}-${(rhythmSequence += 1)}`;
 const createRhythmItemId = (): RhythmItemId =>
@@ -661,6 +682,7 @@ export function createReadingPlansStore(storage: StateStorage = lazyDefaultStora
             ...applyProgressUpdate(state, progress),
             // Re-enrolling clears any pending unenroll tombstone (M12).
             pendingUnenrollPlanIds: state.pendingUnenrollPlanIds.filter((id) => id !== planId),
+            pendingUnenrollAtByPlanId: withoutKey(state.pendingUnenrollAtByPlanId, planId),
           }));
           return progress;
         },
@@ -843,6 +865,10 @@ export function createReadingPlansStore(storage: StateStorage = lazyDefaultStora
             pendingUnenrollPlanIds: state.pendingUnenrollPlanIds.includes(planId)
               ? state.pendingUnenrollPlanIds
               : [...state.pendingUnenrollPlanIds, planId],
+            pendingUnenrollAtByPlanId: {
+              ...state.pendingUnenrollAtByPlanId,
+              [planId]: new Date().toISOString(),
+            },
           }));
         },
 
@@ -850,7 +876,14 @@ export function createReadingPlansStore(storage: StateStorage = lazyDefaultStora
           set((state) =>
             state.pendingUnenrollPlanIds.includes(planId)
               ? state
-              : { ...state, pendingUnenrollPlanIds: [...state.pendingUnenrollPlanIds, planId] }
+              : {
+                  ...state,
+                  pendingUnenrollPlanIds: [...state.pendingUnenrollPlanIds, planId],
+                  pendingUnenrollAtByPlanId: {
+                    ...state.pendingUnenrollAtByPlanId,
+                    [planId]: state.pendingUnenrollAtByPlanId[planId] ?? new Date().toISOString(),
+                  },
+                }
           );
         },
 
@@ -858,6 +891,7 @@ export function createReadingPlansStore(storage: StateStorage = lazyDefaultStora
           set((state) => ({
             ...state,
             pendingUnenrollPlanIds: state.pendingUnenrollPlanIds.filter((id) => id !== planId),
+            pendingUnenrollAtByPlanId: withoutKey(state.pendingUnenrollAtByPlanId, planId),
           }));
         },
 
@@ -865,6 +899,16 @@ export function createReadingPlansStore(storage: StateStorage = lazyDefaultStora
           set((state) => ({
             ...state,
             pendingUnenrollPlanIds: [],
+            pendingUnenrollAtByPlanId: {},
+          }));
+        },
+
+        endPlanLeftElsewhere: (planId) => {
+          set((state) => ({
+            ...state,
+            ...removePlanFromCollections(state, planId),
+            ...removePlanDayResumeEntries(state, planId),
+            ...removePlanFromRhythms(state, planId),
           }));
         },
 
@@ -910,6 +954,7 @@ export function createReadingPlansStore(storage: StateStorage = lazyDefaultStora
           rhythmsById: state.rhythmsById,
           rhythmOrder: state.rhythmOrder,
           pendingUnenrollPlanIds: state.pendingUnenrollPlanIds,
+          pendingUnenrollAtByPlanId: state.pendingUnenrollAtByPlanId,
         }),
         merge: (persistedState, currentState) => {
           const mergedState = {
@@ -917,6 +962,9 @@ export function createReadingPlansStore(storage: StateStorage = lazyDefaultStora
             ...(persistedState as Partial<ReadingPlansPersistedState>),
             progressByPlanId: normalizeProgressByPlanId(
               (persistedState as Partial<ReadingPlansPersistedState>)?.progressByPlanId
+            ),
+            pendingUnenrollAtByPlanId: normalizePendingUnenrollTimes(
+              (persistedState as Partial<ReadingPlansPersistedState>)?.pendingUnenrollAtByPlanId
             ),
             rhythmsById: normalizePersistedRhythmsById(
               (persistedState as Partial<ReadingPlansPersistedState>)?.rhythmsById

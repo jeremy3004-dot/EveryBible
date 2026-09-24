@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  ACCESS_PASSCODE_MAX_DIGITS,
+  appendAccessPasscodeDigit,
   getTranslatorFeedbackBookSummaryStatus,
   getTranslatorFeedbackChapterSummaryStatus,
   getTranslatorFeedbackReviewStatus,
@@ -8,9 +10,52 @@ import {
   markTranslatorFeedbackListened,
   normalizeTranslatorReviewPasscode,
   resolveDevelopmentTranslatorReviewPasscode,
+  resolveTranslatorCoverageOptions,
   sortTranslatorFeedbackQueue,
   type TranslatorFeedbackChapterSummary,
 } from './translatorFeedbackReviewModel';
+
+// Team passcodes are digit strings typed on the Settings keypad. Builds released before
+// 2026-09-24 stop at six digits; the keypad now accepts up to twelve so longer team codes fit.
+test('the access keypad accepts codes longer than six digits, up to twelve', () => {
+  let code = '';
+  for (const digit of '9876543210987654') code = appendAccessPasscodeDigit(code, digit);
+
+  assert.equal(ACCESS_PASSCODE_MAX_DIGITS, 12);
+  assert.equal(code, '987654321098');
+});
+
+test('six-digit codes are entered exactly as before', () => {
+  let code = '';
+  for (const digit of '615203') code = appendAccessPasscodeDigit(code, digit);
+
+  assert.equal(code, '615203');
+});
+
+test('the access keypad only ever appends a single digit', () => {
+  assert.equal(appendAccessPasscodeDigit('12', 'a'), '12');
+  assert.equal(appendAccessPasscodeDigit('12', '34'), '12');
+  assert.equal(appendAccessPasscodeDigit('12', ''), '12');
+  assert.equal(appendAccessPasscodeDigit('12', '٣'), '12');
+});
+
+test('covered translations are offered by their reader names, in the order the code lists them', () => {
+  const translations = [
+    { id: 'bsb', name: 'Berean Standard Bible' },
+    { id: 'npiulb', name: 'Nepali ULB' },
+  ];
+
+  assert.deepEqual(
+    resolveTranslatorCoverageOptions(['npi-audio', 'npiulb', 'npiulb', 'bsb'], translations, 'bsb'),
+    [
+      // Not in this device's translation list: shown by id so the translator can still tell
+      // their team leader which one it is.
+      { id: 'npi-audio', label: 'npi-audio' },
+      { id: 'npiulb', label: 'Nepali ULB' },
+    ]
+  );
+  assert.deepEqual(resolveTranslatorCoverageOptions([], translations, 'bsb'), []);
+});
 
 test('translator review passcodes are normalized without validating the secret client-side', () => {
   assert.equal(normalizeTranslatorReviewPasscode(' reviewer-code '), 'reviewer-code');

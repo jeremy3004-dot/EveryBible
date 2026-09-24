@@ -248,6 +248,30 @@ test('a team passcode resolves feedback in its own translation', async () => {
   );
 });
 
+// The admin dashboard can issue 10- and 12-digit team codes once the app keypad accepts them.
+// Codes are compared as whole strings, so no function change is needed for longer codes.
+test('a twelve-digit team code unlocks and reads, and its six-digit prefix does not', async () => {
+  const longCode = '615203948172';
+  const team = await teamRow('team-long', longCode, ['npiulb']);
+
+  const unlock = await run(
+    { teams: [team] },
+    { passcode: longCode, validateOnly: true, translationId: 'npiulb' }
+  );
+  assert.equal(unlock.status, 200);
+  assert.equal(unlock.json.coversTranslation, true);
+
+  const read = await run({ teams: [team] }, chapterRead('npiulb', longCode));
+  assert.equal(read.status, 200);
+
+  const prefix = await run(
+    { teams: [team] },
+    { passcode: longCode.slice(0, 6), validateOnly: true }
+  );
+  assert.equal(prefix.status, 403);
+  assert.equal(prefix.failedAttemptsRecorded, 1);
+});
+
 test('a revoked team passcode is refused and counts as a failed attempt', async () => {
   const result = await run(
     { teams: [await nepaliTeam(), await revokedTeam()] },

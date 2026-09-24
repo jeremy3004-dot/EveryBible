@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { zustandStorage } from './mmkvStorage';
+import { privateDataStorage, registerPrivateDataStore } from './privateDataScope';
+import { mergeGuestGather } from './privateDataAdoption';
 
 interface GatherState {
   // Completion tracking: parentId (foundation-1, topic-courage) -> lessonId[]
@@ -72,7 +73,8 @@ export const useGatherStore = create<GatherState>()(
     }),
     {
       name: 'gather-storage',
-      storage: createJSONStorage(() => zustandStorage),
+      // Local-only and private: scoped to the signed-in account (see privateDataScope).
+      storage: createJSONStorage(() => privateDataStorage),
       // Only persist completion data and UI state, not action functions
       partialize: (state) => ({
         completedLessons: state.completedLessons,
@@ -81,3 +83,5 @@ export const useGatherStore = create<GatherState>()(
     }
   )
 );
+
+registerPrivateDataStore(useGatherStore, mergeGuestGather);

@@ -37,6 +37,38 @@ export interface TranslatorFeedbackReviewStatus {
 
 export type TranslatorFeedbackAggregateStatus = 'pending' | 'addressed';
 
+// Translator and council codes are typed on a digits-only keypad (Settings), which basic
+// phones handle without switching keyboards. Builds released before 2026-09-24 stop at six
+// digits, so six-digit team codes keep working; the limit is twelve so the admin dashboard can
+// issue longer, harder-to-guess team codes once this build is widely installed.
+export const ACCESS_PASSCODE_MAX_DIGITS = 12;
+
+export function appendAccessPasscodeDigit(current: string, digit: string): string {
+  if (!/^[0-9]$/.test(digit)) return current;
+  return `${current}${digit}`.slice(0, ACCESS_PASSCODE_MAX_DIGITS);
+}
+
+export interface TranslatorCoverageOption {
+  id: string;
+  label: string;
+}
+
+// The translations a team passcode opens, named the way the reader names them. Ids unknown to
+// this device keep the raw id rather than disappearing, so the translator can still report it.
+export function resolveTranslatorCoverageOptions(
+  coveredTranslationIds: readonly string[],
+  translations: ReadonlyArray<{ id: string; name: string }>,
+  currentTranslation: string
+): TranslatorCoverageOption[] {
+  const options: TranslatorCoverageOption[] = [];
+  for (const id of coveredTranslationIds) {
+    if (id === currentTranslation || options.some((option) => option.id === id)) continue;
+    const name = translations.find((translation) => translation.id === id)?.name.trim();
+    options.push({ id, label: name || id });
+  }
+  return options;
+}
+
 export function normalizeTranslatorReviewPasscode(passcode: string): string | null {
   const trimmed = passcode.trim();
   return trimmed.length > 0 ? trimmed : null;

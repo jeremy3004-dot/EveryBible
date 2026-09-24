@@ -6,8 +6,12 @@ import { createSupabaseFake, mockModule } from './testing/adminTestHarness';
 const service = createSupabaseFake();
 mockModule(mock, '@/lib/supabase/service', { createAdminServiceClient: () => service.client });
 
-const { getTranslationIdsWithFeedback, getTranslatorTeams, parseTeamTranslationIds } =
-  await import('./translator-access');
+const {
+  getTranslationIdsWithFeedback,
+  getTranslatorTeams,
+  parseTeamPasscodeLength,
+  parseTeamTranslationIds,
+} = await import('./translator-access');
 
 beforeEach(() => service.reset());
 
@@ -59,4 +63,16 @@ test('translation ids keep their case and are split on commas and new lines', ()
     ids: ['BSB', 'bsb', 'el-nep'],
   });
   assert.deepEqual(parseTeamTranslationIds(null), { error: 'Enter at least one translation ID' });
+});
+
+test('the code length defaults to six and accepts only the offered lengths', () => {
+  assert.deepEqual(parseTeamPasscodeLength(null), { length: 6 });
+  assert.deepEqual(parseTeamPasscodeLength(''), { length: 6 });
+  assert.deepEqual(parseTeamPasscodeLength('10'), { length: 10 });
+  assert.deepEqual(parseTeamPasscodeLength(' 12 '), { length: 12 });
+  for (const raw of ['8', '13', '6.5', 'twelve']) {
+    assert.deepEqual(parseTeamPasscodeLength(raw), {
+      error: 'Choose a code length of 6, 10 or 12 digits',
+    });
+  }
 });
