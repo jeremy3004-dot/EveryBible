@@ -84,7 +84,7 @@ Fixed test first on a later branch the same day.
   1000 rows without an error, so in a busy group the counts came out low and "you already
   prayed" could be missing, which let the next tap withdraw a real prayer. The requests
   themselves were not paged either. **Fixed:** `public.list_prayer_requests(group, limit,
-before_created_at, before_id)` (migration `20260924115100_list_prayer_requests_with_counts.sql`)
+before_created_at, before_id)` (migration `20260924120803_list_prayer_requests_with_counts.sql`)
   returns one page, newest first, with `prayed_count`, `encouraged_count`, `viewer_has_prayed`
   and `viewer_has_encouraged` counted in the database. It is `SECURITY INVOKER`, so membership,
   hidden requests (the author still sees their own, as under review), blocks and reports apply
@@ -111,5 +111,5 @@ fallback, `prayerModel.test.ts` the tap model, and `PrayerWallScreen.render.test
 tap, the rollback after a refresh, and loading the next page. `GroupListScreen` and
 `GroupDetailScreen` now have render tests (`groupScreens.renderFixture.tsx`).
 
-Live step: apply `20260924115100_list_prayer_requests_with_counts.sql` (no data changes; post-apply
+Live step: apply `20260924120803_list_prayer_requests_with_counts.sql` (no data changes; post-apply
 checks at the end of the file). The app works before and after.

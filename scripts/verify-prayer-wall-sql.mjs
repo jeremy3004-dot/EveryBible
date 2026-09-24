@@ -34,7 +34,7 @@ const HARDENING = [
   '20260924042617_harden_prayer_wall.sql',
   '20260924045749_prayer_wall_moderation.sql',
   '20260924114931_prayer_interactions_skip_hidden.sql',
-  '20260924115100_list_prayer_requests_with_counts.sql',
+  '20260924120803_list_prayer_requests_with_counts.sql',
 ];
 
 const db = new PGlite();
