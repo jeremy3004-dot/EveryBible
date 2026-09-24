@@ -91,6 +91,25 @@ test('the sheet is drawn inline, not in a modal, so the Bible stays tappable aro
   assert.ok(view.getByRole('button', { name: 'Close verse actions' }));
 });
 
+// Unnamed, Android derives each pill's name from its children, and the Ionicons
+// glyph is a private-use icon-font character: TalkBack got ", Note"
+// (seen on the Android release build).
+test('each verse action is named by its label alone, not by its icon glyph', async () => {
+  const { AnnotationActionSheet } = await import('./AnnotationActionSheet');
+  const view = await harness.render(<AnnotationActionSheet {...sheetProps(() => {})} />);
+
+  for (const key of [
+    'annotations.note',
+    'annotations.copy',
+    'groups.share',
+    'bible.shareVerseImage',
+    'bible.shareChapterAudio',
+  ]) {
+    const pill = view.getByRole('button', { name: t(key) });
+    assert.equal(pill.props.accessibilityLabel, t(key), key);
+  }
+});
+
 test('a wrapped sheet title stays clear of the close button pinned beside it', async () => {
   const { AnnotationActionSheet } = await import('./AnnotationActionSheet');
   const view = await harness.render(

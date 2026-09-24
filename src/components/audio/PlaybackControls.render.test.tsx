@@ -313,6 +313,40 @@ test('the speed and sleep-timer sheets report the chosen option', async () => {
   assert.equal(view.queryAllByType('Modal').length, 0);
 });
 
+// Without an explicit label Android derives a row's name from all of its
+// children, and the selected row's Ionicons checkmark is a private-use icon-font
+// glyph, so TalkBack heard e.g. "Off, " (seen on the Android release build).
+test('option rows in the speed, sleep-timer and music sheets are named by their label alone', async () => {
+  const { view } = await renderControls({ playbackRate: 1.0 as PlaybackRate });
+
+  await view.press(view.getByRole('button', { name: t('audio.playbackSpeed') }));
+  const speed = view.getAllByRole('button', { selected: true });
+  assert.deepEqual(
+    speed.map((row) => row.props.accessibilityLabel),
+    ['1x']
+  );
+  await view.press(view.getByText('1.5x'));
+
+  await view.press(view.getByRole('button', { name: t('audio.sleepTimer') }));
+  const timer = view.getAllByRole('button', { selected: true });
+  assert.deepEqual(
+    timer.map((row) => row.props.accessibilityLabel),
+    [t('interface.music.off.label')]
+  );
+  await view.press(view.getByText(t('interface.minutesShort', { count: 10 })));
+
+  await view.press(
+    view.getByRole('button', {
+      name: t('interface.backgroundMusicLabel', { name: t('interface.music.off.label') }),
+    })
+  );
+  const music = view.getAllByRole('button', { selected: true });
+  assert.deepEqual(
+    music.map((row) => row.props.accessibilityLabel),
+    [`${t('interface.music.off.label')}, ${t('interface.music.off.description')}`]
+  );
+});
+
 const isScrollView = (node: ReactTestInstance) => (node.type as unknown) === 'ScrollView';
 
 /** Open the dialog behind `button` and return its surface and title. */
