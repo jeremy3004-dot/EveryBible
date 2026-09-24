@@ -68,7 +68,7 @@
     "verify:android-page-size": "node scripts/check_android_page_size.mjs",
     "postinstall": "patch-package",
     "play:publish-listing": "node scripts/publish_google_play_listing.mjs",
-    "verify:workspace": "npm run lint && npm run lint --workspaces --if-present && npm run typecheck && npm run typecheck --workspaces --if-present && npm test"
+    "verify:workspace": "npm run format:check && npm run lint && npm run lint --workspaces --if-present && npm run typecheck && npm run typecheck --workspaces --if-present && npm test"
   },
   "dependencies": {
     "@expo-google-fonts/lora": "^0.4.2",
