@@ -2394,6 +2394,20 @@ test('the remote seek-position command works in seconds', async () => {
   assert.equal(store().currentPosition, 42_000);
 });
 
+test('a remote seek past the end of the chapter stops at its length', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  player.rerender();
+  recorded.player.length = 0;
+
+  await remoteCommandListener?.({ command: 'seek-position', positionSeconds: 5_000 });
+
+  assert.deepEqual(playerCalls('seekTo'), [{ method: 'seekTo', args: [DEFAULT_DURATION_MS] }]);
+  assert.equal(store().currentPosition, DEFAULT_DURATION_MS);
+  // The durable resume point must not land beyond the chapter either.
+  assert.ok(store().lastPosition <= DEFAULT_DURATION_MS);
+});
+
 test('a remote seek-position without a position is ignored', async () => {
   const player = mountPlayer();
   await player.api.playChapter('GEN', 1);

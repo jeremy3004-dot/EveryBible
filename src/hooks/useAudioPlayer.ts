@@ -1059,7 +1059,14 @@ export function useAudioPlayer(translationId: string = 'bsb') {
 
   // Seek to position
   const seekTo = useCallback(
-    async (positionMs: number) => {
+    async (requestedPositionMs: number) => {
+      // Lock-screen and notification scrubbers can report a position past the end.
+      // Kept unclamped, it became the visible position and the durable resume point.
+      const { duration } = useAudioStore.getState();
+      const positionMs = Math.max(
+        0,
+        duration > 0 ? Math.min(requestedPositionMs, duration) : requestedPositionMs
+      );
       // Reset interpolation anchor to the seek target so we don't overshoot
       lastPollPositionRef.current = positionMs;
       lastPollTimeRef.current = Date.now();
