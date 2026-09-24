@@ -14,6 +14,8 @@ import {
   failAudioDownloadJob,
   reattachAudioDownloadJob,
   requestAudioDownloadCancellation,
+  cancelAudioDownloadsForTranslation,
+  isAudioDownloadCancellation,
   startAudioDownloadJob,
   getChapterAudioFileUri,
   getDownloadedChapterAudioUri,
@@ -487,6 +489,142 @@ test('downloadAudioBook deletes and re-downloads an existing file that is below 
     from: 'https://audio.test/PHM/1.mp3',
     to: fileUri,
   });
+});
+
+const createSizedFileSystemDouble = (initial: Array<[string, number]>) => {
+  const fileSizes = new Map<string, number>(initial);
+  const deletedFiles: string[] = [];
+  const downloads: Array<{ from: string; to: string }> = [];
+  const fileSystem: AudioFileSystemAdapter = {
+    ensureDirectory: async () => undefined,
+    fileExists: async (uri) => fileSizes.has(uri),
+    getFileSize: async (uri) => fileSizes.get(uri) ?? null,
+    deleteFile: async (uri) => {
+      deletedFiles.push(uri);
+      fileSizes.delete(uri);
+    },
+    downloadFile: async (from, to) => {
+      downloads.push({ from, to });
+      fileSizes.set(to, 5000);
+    },
+  };
+  return { fileSystem, fileSizes, deletedFiles, downloads };
+};
+
+test('an existing chapter whose size differs from the published byte count is downloaded again', async () => {
+  const fileUri = getChapterAudioFileUri('bsb', 'PHM', 1);
+  // Over the 1KB floor, so only the published size can tell it is a truncated transfer.
+  const disk = createSizedFileSystemDouble([[fileUri, 3000]]);
+
+  await downloadAudioBook({
+    translationId: 'bsb',
+    book: getBookById('PHM')!,
+    fileSystem: disk.fileSystem,
+    resolveRemoteAudio: async () => ({
+      url: 'https://audio.test/PHM/1.mp3',
+      duration: 1,
+      bytes: 5000,
+    }),
+  });
+
+  assert.deepEqual(disk.deletedFiles, [fileUri]);
+  assert.deepEqual(disk.downloads, [{ from: 'https://audio.test/PHM/1.mp3', to: fileUri }]);
+  assert.equal(disk.fileSizes.get(fileUri), 5000);
+});
+
+test('an existing chapter matching the published byte count is kept', async () => {
+  const fileUri = getChapterAudioFileUri('bsb', 'PHM', 1);
+  const disk = createSizedFileSystemDouble([[fileUri, 5000]]);
+
+  await downloadAudioBook({
+    translationId: 'bsb',
+    book: getBookById('PHM')!,
+    fileSystem: disk.fileSystem,
+    resolveRemoteAudio: async () => ({
+      url: 'https://audio.test/PHM/1.mp3',
+      duration: 1,
+      bytes: 5000,
+    }),
+  });
+
+  assert.deepEqual(disk.deletedFiles, []);
+  assert.deepEqual(disk.downloads, []);
+});
+
+test('an existing chapter is kept when its published size cannot be looked up', async (t) => {
+  t.mock.method(console, 'warn', () => {});
+  const fileUri = getChapterAudioFileUri('bsb', 'PHM', 1);
+  const disk = createSizedFileSystemDouble([[fileUri, 3000]]);
+
+  const result = await downloadAudioBook({
+    translationId: 'bsb',
+    book: getBookById('PHM')!,
+    fileSystem: disk.fileSystem,
+    resolveRemoteAudio: async () => {
+      throw new Error('offline');
+    },
+  });
+
+  assert.equal(result.chapterCount, 1);
+  assert.deepEqual(disk.deletedFiles, []);
+  assert.deepEqual(disk.downloads, []);
+});
+
+test('cancelling a translation stops its running download and waits for it to settle', async () => {
+  const { fileSystem } = createFileSystemDouble();
+  const releaseStop: Array<() => void> = [];
+  let bsbStarted!: () => void;
+  const bsbRunning = new Promise<void>((resolve) => {
+    bsbStarted = resolve;
+  });
+  const transport = {
+    downloadFile: async (
+      _from: string,
+      to: string,
+      options?: { signal?: AbortSignal }
+    ): Promise<void> => {
+      if (!to.includes('/bsb/')) return;
+      bsbStarted();
+      // Like the native transports: settle only once the writer has stopped.
+      await new Promise<void>((_resolve, reject) => {
+        options?.signal?.addEventListener('abort', () => {
+          releaseStop.push(() => reject(new Error('stopped')));
+        });
+      });
+    },
+  };
+  const download = (translationId: string) =>
+    downloadAudioBook({
+      translationId,
+      book: getBookById('PHM')!,
+      fileSystem,
+      transport,
+      resolveRemoteAudio: async () => ({ url: 'https://audio.test/PHM/1.mp3', duration: 1 }),
+    });
+  const bsb = download('bsb');
+  const bsbOutcome = bsb.then(
+    () => 'completed',
+    (error: unknown) => (isAudioDownloadCancellation(error) ? 'cancelled' : 'failed')
+  );
+  const web = download('web');
+  await bsbRunning;
+
+  let cancelSettled = false;
+  const cancelling = cancelAudioDownloadsForTranslation('bsb').then(() => {
+    cancelSettled = true;
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  const settledWhileWriterRuns = cancelSettled;
+  releaseStop.forEach((release) => release());
+  await cancelling;
+
+  assert.equal(settledWhileWriterRuns, false);
+  assert.equal(await bsbOutcome, 'cancelled');
+  assert.equal((await web).chapterCount, 1);
+});
+
+test('cancelling a translation with nothing downloading resolves at once', async () => {
+  await cancelAudioDownloadsForTranslation('bsb');
 });
 
 test('downloadAudioBook uses bounded concurrency instead of downloading chapters strictly serially', async () => {

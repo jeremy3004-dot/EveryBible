@@ -38,29 +38,36 @@ component renderer. Verify them on device.
   still coalesced to whole-percent or completed-chapter changes, per book and per collection.
 - **Listener leaks.** AppState and interpolation are removed on unmount. The trackPlayer listeners are
   wired once. The Android session's `subscribe` returns its remover.
-- **Deleting a translation during its download.** The picker hides Delete while a job is active.
+- **Deleting a translation during its download.** Fixed in the follow-up below; Delete is now
+  offered during an audio download.
 - **Background downloader writes.** Files go to `.tmp` and are moved on completion (both platforms), so an
   in-flight partial is never at the final path.
 
 ## Open findings (not fixed)
 
-- **Sleep timer while paused (product call).** The end time is wall-clock, but the countdown
-  interval stops while paused. The displayed "3 min" freezes, and resuming after the end time
-  has passed pauses within about 1 s. Decide: pause the countdown with playback, or keep counting
-  and show that.
-- **Fallback download path (low).** When the background downloader is unavailable,
-  expo-file-system writes straight to the final path on Android. A killed download leaves a
-  partial file over the 1 KB floor, and both playback and the next download run treat it as
-  complete. When the source publishes `bytes` (Every Language), the skip check could compare
-  against that.
-- **`deleteTranslation` does not abort the in-JS download loop** (`requestAudioDownloadCancellation`).
-  The UI prevents this today, but the store action alone is unsafe.
 - **Prefetch** resolves URLs only. It does not cross into the next book and does not consult the
   sparse chapter map. This is harmless: it builds a URL for, or does a manifest lookup on, a missing chapter.
-- **Telemetry.** Because of fix #2, the final segment of a chapter is now reported with reason `pause`
-  rather than `finish`, since the stopped snapshot flushes first. No server query reads `reason`.
 - **Repeat tap on Home's daily audio after Stop** does not replay the same chapter (existing autoplay
   key dedupe). This did not change here.
+- **Chapters downloaded by the background downloader, or before the fallback fix, from a source that
+  publishes no size** (everything except Every Language) cannot be re-checked later: only the 1 KB
+  floor applies to a file already on disk.
+
+## Follow-up fixes (same day)
+
+- **Sleep timer while paused.** The timer now pauses with playback (podcast/audiobook convention).
+  Pausing or stopping freezes the remaining time in `audioStore`; resuming moves the end time. A timer
+  set while paused waits for playback. Buffering counts as playing.
+- **Fallback download path.** The in-app download writes to `<chapter>.download` and moves the file
+  into place only after it passes validation, including a size check against Content-Length (or the
+  total the transfer reported). A leftover partial is deleted before the next attempt. An existing
+  chapter whose size differs from the source's published `bytes` is deleted and downloaded again.
+- **Deleting during a download.** `deleteTranslation` stops the translation's in-JS download loops
+  (`cancelAudioDownloadsForTranslation`, which waits for them to settle), then its native tasks, and
+  only then deletes the audio folder (which holds any partials). The picker offers Delete while an
+  audio download runs.
+- **Telemetry.** `trackPlayer` reports `State.Ended` for a finished track, and the final segment is
+  reported with reason `finish` again.
 
 ## Device QA to add
 
@@ -71,3 +78,7 @@ component renderer. Verify them on device.
    entry disappears, and in-app Play restarts the chapter from 0:00.
 4. Pause, then switch translation in the reader: nothing plays until Play, and Play starts the new
    translation.
+5. Set a 5-minute sleep timer, pause after 2 minutes, wait 10 minutes: the timer still shows 3 min,
+   and after Play audio pauses about 3 minutes later.
+6. Start a whole-Bible audio download, open the translation's manage sheet, Delete: the download
+   stops, and no chapters or books reappear afterwards.

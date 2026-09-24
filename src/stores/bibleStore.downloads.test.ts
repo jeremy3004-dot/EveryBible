@@ -679,6 +679,82 @@ test('deleting a translation cancels and removes only its own download jobs', as
   assert.deepEqual(doubles.audio.removedJobIds, ['job-esv1']);
 });
 
+test('deleting a translation stops its running audio download before removing its audio', async () => {
+  withTranslations([makeRuntimeTranslation({ id: 'esv1', downloadedAudioBooks: ['GEN'] })]);
+  let finishStopping!: () => void;
+  doubles.audio.runTranslationCancellation = () =>
+    new Promise<void>((resolve) => {
+      finishStopping = resolve;
+    });
+  const audioFolder = `${AUDIO_ROOT_URI}esv1/`;
+
+  const deleting = useBibleStore.getState().deleteTranslation('esv1');
+  await flushAsyncWork();
+  const removedWhileStopping = doubles.fileSystem.deleted.map((entry) => entry.path);
+  finishStopping();
+  await deleting;
+
+  assert.deepEqual(doubles.audio.translationCancellations, ['esv1']);
+  assert.equal(removedWhileStopping.includes(audioFolder), false);
+  assert.ok(doubles.fileSystem.deleted.some((entry) => entry.path === audioFolder));
+});
+
+test('deleting a translation stops its native download tasks before removing its audio', async () => {
+  withTranslations([makeRuntimeTranslation({ id: 'esv1', downloadedAudioBooks: ['GEN'] })]);
+  doubles.audio.jobs.push(makeAudioJob({ id: 'job-esv1', translationId: 'esv1' }));
+  const removedBeforeNativeStop: string[] = [];
+  doubles.audio.onCancelJob = () => {
+    removedBeforeNativeStop.push(...doubles.fileSystem.deleted.map((entry) => entry.path));
+  };
+
+  await useBibleStore.getState().deleteTranslation('esv1');
+
+  assert.deepEqual(doubles.audio.cancelledJobIds, ['job-esv1']);
+  assert.equal(removedBeforeNativeStop.includes(`${AUDIO_ROOT_URI}esv1/`), false);
+});
+
+test('a translation whose first audio download is still running can be deleted', async () => {
+  withTranslations([
+    makeRuntimeTranslation({
+      id: 'esv1',
+      activeDownloadJob: {
+        id: 'audio-download:esv1:book:GEN',
+        kind: 'audio-book',
+        state: 'running',
+        progress: 10,
+        startedAt: 1,
+        updatedAt: 1,
+      },
+    }),
+  ]);
+  useBibleStore.setState({
+    downloadProgress: {
+      translationId: 'esv1',
+      bookId: 'GEN',
+      jobId: 'audio-download:esv1:book:GEN',
+      progress: 10,
+      status: 'downloading',
+    },
+  });
+
+  await useBibleStore.getState().deleteTranslation('esv1');
+
+  assert.deepEqual(doubles.audio.translationCancellations, ['esv1']);
+  assert.ok(doubles.fileSystem.deleted.some((entry) => entry.path === `${AUDIO_ROOT_URI}esv1/`));
+  assert.equal(findTranslation('esv1')?.activeDownloadJob, null);
+  assert.equal(useBibleStore.getState().downloadProgress, null);
+});
+
+test('deleting a translation asks only its own audio downloads to stop', async () => {
+  withTranslations([
+    makeRuntimeTranslation({ id: 'esv1', textPackLocalPath: 'file:///packs/esv1.db' }),
+  ]);
+
+  await useBibleStore.getState().deleteTranslation('esv1');
+
+  assert.deepEqual(doubles.audio.translationCancellations, ['esv1']);
+});
+
 test('deleting a translation still removes a job the native transport cannot cancel', async (t) => {
   const warn = t.mock.method(console, 'warn', () => {});
   withTranslations([

@@ -20,6 +20,27 @@ export const AUDIO_DOWNLOAD_ROOT_URI = `${
 
 export const AUDIO_DOWNLOAD_JOB_REGISTRY_FILENAME = 'download-jobs.json';
 
+// The in-app download writes here and moves the file to its final path only once it is complete
+// and verified. A transfer killed with the app (Android has no OS-owned download to finish it)
+// leaves its partial at this path, where nothing treats it as a downloaded chapter.
+export const AUDIO_DOWNLOAD_PARTIAL_SUFFIX = '.download';
+
+// Content-Length describes the bytes on the wire, which are the file's bytes only when the body
+// is not content-encoded.
+function getExpectedDownloadBytes(headers: Record<string, string> | undefined): number | null {
+  if (!headers) return null;
+  let contentLength: string | undefined;
+  let contentEncoding: string | undefined;
+  for (const [name, value] of Object.entries(headers)) {
+    const key = name.toLowerCase();
+    if (key === 'content-length') contentLength = value;
+    else if (key === 'content-encoding') contentEncoding = value;
+  }
+  if (contentEncoding && contentEncoding.trim().toLowerCase() !== 'identity') return null;
+  const bytes = Number(contentLength);
+  return contentLength != null && Number.isInteger(bytes) && bytes > 0 ? bytes : null;
+}
+
 export const getAudioDownloadJobRegistryUri = (rootUri: string = AUDIO_DOWNLOAD_ROOT_URI): string =>
   `${rootUri}${AUDIO_DOWNLOAD_JOB_REGISTRY_FILENAME}`;
 
@@ -38,16 +59,24 @@ export const expoAudioFileSystemAdapter: AudioFileSystemAdapter = {
   downloadFile: async (from, to, options) => {
     const signal = options?.signal;
     if (signal?.aborted) throw new AudioDownloadCancelledError();
+    const partialUri = `${to}${AUDIO_DOWNLOAD_PARTIAL_SUFFIX}`;
+    // A download killed with the app can leave a partial here.
+    await FileSystem.deleteAsync(partialUri, { idempotent: true });
+    if (signal?.aborted) throw new AudioDownloadCancelledError();
+    let reportedTotalBytes: number | null = null;
     await downloadAndValidateAudioFile({
       sourceUrl: from,
       // The chapter worker owns a progress-reset inactivity deadline.
       timeoutMs: null,
       runDownload: () =>
-        new Promise<{ status: number }>((resolve, reject) => {
+        new Promise<{ status: number; expectedBytes: number | null }>((resolve, reject) => {
           let settled = false;
           let cancelling = false;
-          const download = FileSystem.createDownloadResumable(from, to, {}, (progress) => {
+          const download = FileSystem.createDownloadResumable(from, partialUri, {}, (progress) => {
             if (settled || cancelling || signal?.aborted) return;
+            if (progress.totalBytesExpectedToWrite > 0) {
+              reportedTotalBytes = progress.totalBytesExpectedToWrite;
+            }
             options?.onProgress?.({
               bytesDownloaded: progress.totalBytesWritten,
               bytesTotal: progress.totalBytesExpectedToWrite,
@@ -68,7 +97,7 @@ export const expoAudioFileSystemAdapter: AudioFileSystemAdapter = {
             // partials, so a preserved one over the 1KB floor would look complete forever. (N23)
             void download.cancelAsync().then(
               () =>
-                void discardPartialAudioFile(to).then(() =>
+                void discardPartialAudioFile(partialUri).then(() =>
                   settle(() => reject(new AudioDownloadCancelledError()))
                 ),
               (error: unknown) => settle(() => reject(new AudioDownloadStopError(error)))
@@ -82,7 +111,14 @@ export const expoAudioFileSystemAdapter: AudioFileSystemAdapter = {
           void download.downloadAsync().then(
             (result) => {
               if (cancelling) return;
-              settle(() => (result ? resolve(result) : reject(new AudioDownloadCancelledError())));
+              settle(() =>
+                result
+                  ? resolve({
+                      status: result.status,
+                      expectedBytes: getExpectedDownloadBytes(result.headers) ?? reportedTotalBytes,
+                    })
+                  : reject(new AudioDownloadCancelledError())
+              );
             },
             (error: unknown) => {
               if (!cancelling) settle(() => reject(error));
@@ -90,15 +126,22 @@ export const expoAudioFileSystemAdapter: AudioFileSystemAdapter = {
           );
         }),
       getFileSize: async () => {
-        const info = await FileSystem.getInfoAsync(to);
+        const info = await FileSystem.getInfoAsync(partialUri);
         if (signal?.aborted) throw new AudioDownloadCancelledError();
         return info.exists ? info.size : 0;
       },
       deleteFile: async () => {
         if (signal?.aborted) throw new AudioDownloadCancelledError();
-        await FileSystem.deleteAsync(to, { idempotent: true });
+        await FileSystem.deleteAsync(partialUri, { idempotent: true });
       },
     });
+    if (signal?.aborted) {
+      await discardPartialAudioFile(partialUri);
+      throw new AudioDownloadCancelledError();
+    }
+    // The move fails if the destination exists, and anything already there is being replaced.
+    await FileSystem.deleteAsync(to, { idempotent: true });
+    await FileSystem.moveAsync({ from: partialUri, to });
   },
   readTextFile: async (fileUri) => {
     try {

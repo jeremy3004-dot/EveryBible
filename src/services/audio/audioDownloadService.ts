@@ -146,23 +146,51 @@ export function audioDownloadTaskIdMatchesJob(taskId: string, jobId: string): bo
   return taskId.startsWith(`${segments[0]}:${segments[1]}:`);
 }
 
+interface ActiveAudioDownload {
+  controller: AbortController;
+  // Resolves once the job's chapter loop has returned, i.e. every transport it started has
+  // settled and nothing is still writing into the translation's directory.
+  settled: Promise<void>;
+  markSettled: () => void;
+}
+
 // Keyed by job id so a caller holding only the id (e.g. bibleStore's cancelDownload) can
 // abort the exact in-flight runWithConcurrency loop driving that job, without needing a
 // reference to the download promise itself.
-const activeDownloadAbortControllers = new Map<string, AbortController>();
+const activeAudioDownloads = new Map<string, ActiveAudioDownload>();
 
-function registerAudioDownloadAbortController(jobId: string): AbortController {
-  const controller = new AbortController();
-  activeDownloadAbortControllers.set(jobId, controller);
-  return controller;
+function registerAudioDownloadAbortController(jobId: string): ActiveAudioDownload {
+  let markSettled = () => {};
+  const settled = new Promise<void>((resolve) => {
+    markSettled = resolve;
+  });
+  const entry = { controller: new AbortController(), settled, markSettled };
+  activeAudioDownloads.set(jobId, entry);
+  return entry;
 }
 
-function releaseAudioDownloadAbortController(jobId: string): void {
-  activeDownloadAbortControllers.delete(jobId);
+function releaseAudioDownloadAbortController(jobId: string, entry: ActiveAudioDownload): void {
+  if (activeAudioDownloads.get(jobId) === entry) activeAudioDownloads.delete(jobId);
+  entry.markSettled();
 }
 
 export function requestAudioDownloadCancellation(jobId: string): void {
-  activeDownloadAbortControllers.get(jobId)?.abort();
+  activeAudioDownloads.get(jobId)?.controller.abort();
+}
+
+/**
+ * Aborts every in-JS download loop for a translation (its translation job and every nested book
+ * job) and resolves once they have all stopped. Deleting a translation's files while a loop is
+ * still running would let it write chapters back into the deleted directory and report them
+ * downloaded.
+ */
+export async function cancelAudioDownloadsForTranslation(translationId: string): Promise<void> {
+  const prefix = `${AUDIO_DOWNLOAD_JOB_ID_PREFIX}${translationId}:`;
+  const running = Array.from(activeAudioDownloads.entries())
+    .filter(([jobId]) => jobId.startsWith(prefix))
+    .map(([, entry]) => entry);
+  running.forEach((entry) => entry.controller.abort());
+  await Promise.all(running.map((entry) => entry.settled));
 }
 
 interface DownloadContext {
@@ -484,6 +512,15 @@ async function isValidDownloadedAudioFile(
   return false;
 }
 
+async function isCachedChapterSizeWrong(
+  fileSystem: AudioFileSystemAdapter,
+  fileUri: string,
+  expectedBytes: number | undefined
+): Promise<boolean> {
+  if (expectedBytes == null || !fileSystem.getFileSize) return false;
+  return (await fileSystem.getFileSize(fileUri)) !== expectedBytes;
+}
+
 const AUDIO_DOWNLOAD_TIMEOUT_MS = 60_000;
 
 // Per-chapter download tuning. The timeout is an INACTIVITY timeout (reset on every progress tick)
@@ -615,14 +652,15 @@ export async function downloadAndValidateAudioFile({
   minValidBytes = AUDIO_DOWNLOAD_MIN_VALID_BYTES,
 }: {
   sourceUrl: string;
-  runDownload: () => Promise<{ status: number }>;
+  // expectedBytes: the size the server declared (Content-Length), when known.
+  runDownload: () => Promise<{ status: number; expectedBytes?: number | null }>;
   getFileSize: () => Promise<number>;
   deleteFile: () => Promise<void>;
   // Progress-aware transports use the chapter inactivity deadline instead.
   timeoutMs?: number | null;
   minValidBytes?: number;
 }): Promise<void> {
-  let result: { status: number };
+  let result: { status: number; expectedBytes?: number | null };
   try {
     result =
       timeoutMs === null
@@ -647,6 +685,13 @@ export async function downloadAndValidateAudioFile({
   if (size < minValidBytes) {
     await deleteFile();
     throw new Error(`Downloaded file too small (${size} bytes): ${sourceUrl}`);
+  }
+
+  // A connection dropped mid-body can still report success with a truncated file.
+  const expectedBytes = result.expectedBytes;
+  if (expectedBytes != null && expectedBytes > 0 && size !== expectedBytes) {
+    await deleteFile();
+    throw new Error(`Downloaded file incomplete (${size} of ${expectedBytes} bytes): ${sourceUrl}`);
   }
 }
 
@@ -866,7 +911,8 @@ export async function downloadAudioBook({
   // job id (the native transport's task namespace, a reattach, a stale downloadProgress.jobId)
   // could not abort it. The parent signal is chained into the child so cancelling the translation
   // still stops every book. (N22)
-  const ownAbortController = registerAudioDownloadAbortController(job.id);
+  const activeDownload = registerAudioDownloadAbortController(job.id);
+  const ownAbortController = activeDownload.controller;
   const signal = ownAbortController.signal;
   const onExternalAbort = () => ownAbortController.abort();
   if (externalSignal) {
@@ -925,14 +971,29 @@ export async function downloadAudioBook({
           target.chapter,
           resolvedRootUri
         );
+        let remoteAudio: RemoteAudioAsset | null;
         if (await isValidDownloadedAudioFile(fileSystem, fileUri, true)) {
           if (signal.aborted) throw new AudioDownloadCancelledError();
-          chapterProgressByNumber.set(target.chapter, 100);
-          emitBookProgress(target.chapter);
-          return;
+          // A file over the 1KB floor can still be a truncated transfer (an interrupted download
+          // from an older build wrote straight to this path). When the source publishes the
+          // chapter's size, a mismatch means incomplete: delete it and download again. A lookup
+          // failure keeps the file, as before, rather than failing a download that is done.
+          remoteAudio = await resolveRemoteAudio(
+            translationId,
+            target.bookId,
+            target.chapter
+          ).catch(() => null);
+          if (signal.aborted) throw new AudioDownloadCancelledError();
+          if (!(await isCachedChapterSizeWrong(fileSystem, fileUri, remoteAudio?.bytes))) {
+            chapterProgressByNumber.set(target.chapter, 100);
+            emitBookProgress(target.chapter);
+            return;
+          }
+          await fileSystem.deleteFile?.(fileUri);
+        } else {
+          remoteAudio = await resolveRemoteAudio(translationId, target.bookId, target.chapter);
         }
 
-        const remoteAudio = await resolveRemoteAudio(translationId, target.bookId, target.chapter);
         if (!remoteAudio?.url) {
           throw new Error(`Audio is not available for ${target.bookId} ${target.chapter}`);
         }
@@ -993,7 +1054,7 @@ export async function downloadAudioBook({
     throw failure;
   } finally {
     externalSignal?.removeEventListener('abort', onExternalAbort);
-    releaseAudioDownloadAbortController(job.id);
+    releaseAudioDownloadAbortController(job.id, activeDownload);
   }
 
   await completeAudioDownloadJob({
@@ -1032,8 +1093,8 @@ export async function downloadAudioTranslation({
 
   // Passing this signal into every nested downloadAudioBook means cancelling the
   // translation job also stops whichever book's chapter loop is currently in flight.
-  const ownAbortController = registerAudioDownloadAbortController(translationJob.id);
-  const signal = ownAbortController.signal;
+  const activeDownload = registerAudioDownloadAbortController(translationJob.id);
+  const signal = activeDownload.controller.signal;
 
   // Book-scope lifecycle events must NOT reach the caller: startAudioDownloadJob fires onStart for
   // each nested BOOK job, which used to overwrite the UI's downloadProgress.jobId with a job id
@@ -1128,7 +1189,7 @@ export async function downloadAudioTranslation({
       throw failure;
     }
   } finally {
-    releaseAudioDownloadAbortController(translationJob.id);
+    releaseAudioDownloadAbortController(translationJob.id, activeDownload);
   }
 
   await completeAudioDownloadJob({
