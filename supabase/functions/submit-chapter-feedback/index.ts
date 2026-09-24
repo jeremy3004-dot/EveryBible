@@ -169,12 +169,17 @@ const BOOK_CHAPTER_COUNTS: Record<string, number> = {
   REV: 22,
 };
 
-const jsonResponse = (status: number, body: Record<string, unknown>) =>
+const jsonResponse = (
+  status: number,
+  body: Record<string, unknown>,
+  extraHeaders: Record<string, string> = {}
+) =>
   new Response(JSON.stringify(body), {
     status,
     headers: {
       ...corsHeaders,
       'Content-Type': 'application/json',
+      ...extraHeaders,
     },
   });
 
@@ -564,6 +569,46 @@ Deno.serve(async (req) => {
         exported: false,
         error: 'Too many submissions. Please try again later.',
       });
+    }
+
+    // The count above and the insert below are separate requests, so parallel submissions all
+    // passed the count. This atomic budget is charged before any upload (security review
+    // 2026-09-24, pass 2). It is skipped only while its migration is not applied (PGRST202).
+    const { data: budgetRows, error: budgetError } = await supabase.rpc(
+      'consume_feedback_submission_budget',
+      {
+        p_client_key: userId
+          ? `feedback-submit:user:${userId}`
+          : `feedback-submit:ip:${clientIpHash}`,
+        p_max_requests: SUBMISSION_RATE_LIMIT_PER_HOUR,
+        p_window_seconds: 60 * 60,
+      }
+    );
+    if (!budgetError || (budgetError as { code?: unknown }).code !== 'PGRST202') {
+      const budget = (Array.isArray(budgetRows) ? budgetRows[0] : budgetRows) as
+        | { allowed?: unknown; retry_after_seconds?: unknown }
+        | null
+        | undefined;
+      if (budgetError || typeof budget?.allowed !== 'boolean') {
+        return jsonResponse(503, {
+          success: false,
+          saved: false,
+          exported: false,
+          error: 'Unable to accept feedback right now. Please try again later.',
+        });
+      }
+      if (!budget.allowed) {
+        return jsonResponse(
+          429,
+          {
+            success: false,
+            saved: false,
+            exported: false,
+            error: 'Too many submissions. Please try again later.',
+          },
+          { 'Retry-After': String(Math.max(1, Number(budget.retry_after_seconds) || 1)) }
+        );
+      }
     }
 
     let uploadedAudioPath: string | null = null;
