@@ -26,11 +26,11 @@ await db.exec(`insert into analytics_events(event_name,event_properties,session_
 ('audio_download_completed','{"download_units":3,"translation_id":"offline"}','downloader',now(),null,null,null);`);
 const overviewSql = `select get_admin_analytics_overview(date_trunc('day',now())-interval '6 days',7) overview`;
 const before = (await db.query(overviewSql)).rows[0].overview;
-// 20260924150000 rewrites the overview for speed; it must return the same JSON.
+// 20260924112156 rewrites the overview for speed; it must return the same JSON.
 await db.exec(
   await fs.readFile(
     new URL(
-      '../supabase/migrations/20260924150000_speed_up_admin_analytics_overview.sql',
+      '../supabase/migrations/20260924112156_speed_up_admin_analytics_overview.sql',
       import.meta.url
     ),
     'utf8'

@@ -1,4 +1,4 @@
--- Input backstops from 20260924150200. Run against a local or linked database as
+-- Input backstops from 20260924112238. Run against a local or linked database as
 -- postgres; every fixture rolls back.
 BEGIN;
 SET LOCAL statement_timeout = '10s';

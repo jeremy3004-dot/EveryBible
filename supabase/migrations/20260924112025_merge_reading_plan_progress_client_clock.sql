@@ -1,6 +1,6 @@
 -- Reading plans: judge a phone's join and leave times by the server's clock.
 --
--- NOT APPLIED. Written from randomised failure-injection tests of reading-plan
+-- Applied live 2026-09-24 (version 20260924112025). Written from randomised failure-injection tests of reading-plan
 -- sync (2026-09-24); review before applying. The app works with or without it:
 -- an older server ignores the new key, and the app already follows whatever the
 -- server decides.

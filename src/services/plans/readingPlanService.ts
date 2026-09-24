@@ -416,7 +416,7 @@ const isMissingTableError = (error: { code?: string } | null | undefined): boole
 
 /**
  * PostgREST (PGRST204) or Postgres (42703) refusing the tombstone's client_clock_at
- * column: the server predates migration 20260924140000.
+ * column: the server predates migration 20260924112025.
  */
 const isMissingClockColumnError = (
   error: { code?: string; message?: string } | null | undefined
@@ -620,7 +620,7 @@ async function mergeLivePlanProgressOnServer(
     const batch = planIds.slice(start, start + PLAN_PROGRESS_MERGE_BATCH_SIZE);
     const write = await identity.runIfCurrent(() => {
       // Stamped as the request is built: the server reads the gap to its own clock
-      // as this phone's clock error (migration 20260924140000; older servers ignore it).
+      // as this phone's clock error (migration 20260924112025; older servers ignore it).
       const sentAt = new Date().toISOString();
       const rows = getLivePushableProgress(batch).map((progress) => {
         const payload = buildRemoteReadingPlanProgressPayload(
@@ -1169,7 +1169,7 @@ async function deleteRemotePlanProgress(
               ? {
                   unenrolled_at: unenrolledAt,
                   // This phone's clock as it sends the leave time it stamped, so the
-                  // server can place the leave on its own clock (migration 20260924140000).
+                  // server can place the leave on its own clock (migration 20260924112025).
                   ...(withClock ? { client_clock_at: new Date().toISOString() } : {}),
                 }
               : {}),

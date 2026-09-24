@@ -879,7 +879,7 @@ test('a server without the tombstone clock column still records the leave', asyn
   await service.enrollInPlan('psalms-30-days');
   await flushBackgroundWork();
   supabaseFake.reset();
-  // Migration 20260924140000 not applied: PostgREST refuses the unknown column.
+  // Migration 20260924112025 not applied: PostgREST refuses the unknown column.
   supabaseFake.respondTo(UNENROLLMENTS, (call) =>
     'client_clock_at' in (call.payload as Record<string, unknown>)
       ? {
@@ -2497,7 +2497,7 @@ test('a single-plan push refused as another account (42501) is not retried as an
 });
 
 // A phone whose clock runs ahead stamps an enrolment made before a leave elsewhere
-// with a start after it. Migration 20260924140000 moves the start onto the server's
+// with a start after it. Migration 20260924112025 moves the start onto the server's
 // clock using the phone's clock at send time (client_clock_at) and skips the row.
 test('an enrolment pushed after a leave elsewhere carries the phone clock and ends when the server skips it', async () => {
   signIn('user-a', 2);

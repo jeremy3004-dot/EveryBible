@@ -2,7 +2,7 @@
 -- database as postgres; every fixture rolls back.
 --
 -- Fixtures live in a January 2001 window so no real event overlaps them. They pin
--- the rules 20260924150000 inlined from public.safe_numeric() and
+-- the rules 20260924112156 inlined from public.safe_numeric() and
 -- public.analytics_listened_ms(): trimming, the numeric regex, the 1e9 magnitude
 -- cap, playback-rate normalisation, analytics_schema_version 2, and the
 -- audio_completed cutoff at the first audio_playback_progress tick.

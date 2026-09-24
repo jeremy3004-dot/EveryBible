@@ -945,13 +945,13 @@ assert.equal(fnSecurity.prosecdef, false, 'runs as the caller, under RLS');
 assert.deepEqual(fnSecurity.proconfig, ['search_path=""']);
 
 // ---------------------------------------------------------------------------
-// A phone's start judged by the server's clock (20260924140000)
+// A phone's start judged by the server's clock (20260924112025)
 // ---------------------------------------------------------------------------
 
 await db.exec(
   await fs.readFile(
     new URL(
-      '../supabase/migrations/20260924140000_merge_reading_plan_progress_client_clock.sql',
+      '../supabase/migrations/20260924112025_merge_reading_plan_progress_client_clock.sql',
       import.meta.url
     ),
     'utf8'
