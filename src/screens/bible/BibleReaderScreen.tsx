@@ -197,6 +197,13 @@ import {
 } from './readerChapterLoader';
 import { navigateListenChapter } from './readerListenNavigation';
 import {
+  applyReaderAnnotationEdits,
+  planReaderHighlightApply,
+  planReaderHighlightRemove,
+  planReaderNoteSave,
+  type ReaderAnnotationEdits,
+} from './readerAnnotationEdits';
+import {
   normalizeChapterFeedbackComment,
   shouldEnableChapterFeedbackSubmit,
 } from './bibleReaderFeedbackModel';
@@ -3825,39 +3832,38 @@ export function BibleReaderScreen() {
     }
   };
 
+  const commitAnnotationEdits = async (edits: ReaderAnnotationEdits) => {
+    const succeeded = await applyReaderAnnotationEdits(edits, {
+      softDelete: softDeleteAnnotation,
+      upsert: upsertAnnotation,
+    });
+    if (!succeeded) {
+      Alert.alert(t('common.error'), t('common.unexpectedError'));
+    }
+    await reloadAnnotations();
+    return succeeded;
+  };
+
+  const readerAnnotationEditInput = () => ({
+    book: bookId,
+    chapter,
+    annotations,
+    selectedVerses,
+    createId: () => Math.random().toString(36).slice(2),
+  });
+
   const handleHighlightSelectedVerses = async (color: string) => {
     if (selectedVerseRanges.length === 0) {
       return;
     }
 
-    for (const range of selectedVerseRanges) {
-      const existing = annotations.find(
-        (annotation) =>
-          annotation.type === 'highlight' &&
-          !annotation.deleted_at &&
-          annotation.verse_start === range.verse_start &&
-          getAnnotationVerseEnd(annotation) === range.verse_end
-      );
-
-      const result = await upsertAnnotation({
-        id: existing?.id ?? Math.random().toString(36).slice(2),
-        book: bookId,
-        chapter,
-        verse_start: range.verse_start,
-        verse_end: range.verse_start === range.verse_end ? null : range.verse_end,
-        type: 'highlight',
-        color,
-        content: null,
-        deleted_at: null,
-      });
-      if (!result.success) {
-        Alert.alert(t('common.error'), t('common.unexpectedError'));
-        return;
-      }
+    if (
+      await commitAnnotationEdits(
+        planReaderHighlightApply({ ...readerAnnotationEditInput(), color })
+      )
+    ) {
+      setSelectedVerses([]);
     }
-
-    await reloadAnnotations();
-    setSelectedVerses([]);
   };
 
   const handleRemoveHighlightSelectedVerses = async (color: string) => {
@@ -3865,29 +3871,13 @@ export function BibleReaderScreen() {
       return;
     }
 
-    for (const range of selectedVerseRanges) {
-      const existing = annotations.find(
-        (annotation) =>
-          annotation.type === 'highlight' &&
-          !annotation.deleted_at &&
-          annotation.color === color &&
-          annotation.verse_start === range.verse_start &&
-          getAnnotationVerseEnd(annotation) === range.verse_end
-      );
-
-      if (!existing) {
-        continue;
-      }
-
-      const result = await softDeleteAnnotation(existing.id);
-      if (!result.success) {
-        Alert.alert(t('common.error'), t('common.unexpectedError'));
-        return;
-      }
+    if (
+      await commitAnnotationEdits(
+        planReaderHighlightRemove({ ...readerAnnotationEditInput(), color })
+      )
+    ) {
+      setSelectedVerses([]);
     }
-
-    await reloadAnnotations();
-    setSelectedVerses([]);
   };
 
   const handleNoteSelectedVerses = async (text: string) => {
@@ -3895,33 +3885,9 @@ export function BibleReaderScreen() {
       return;
     }
 
-    for (const range of selectedVerseRanges) {
-      const existing = annotations.find(
-        (annotation) =>
-          annotation.type === 'note' &&
-          !annotation.deleted_at &&
-          annotation.verse_start === range.verse_start &&
-          getAnnotationVerseEnd(annotation) === range.verse_end
-      );
-
-      const result = await upsertAnnotation({
-        id: existing?.id ?? Math.random().toString(36).slice(2),
-        book: bookId,
-        chapter,
-        verse_start: range.verse_start,
-        verse_end: range.verse_start === range.verse_end ? null : range.verse_end,
-        type: 'note',
-        color: null,
-        content: text,
-        deleted_at: null,
-      });
-      if (!result.success) {
-        Alert.alert(t('common.error'), t('common.unexpectedError'));
-        return;
-      }
-    }
-
-    await reloadAnnotations();
+    await commitAnnotationEdits(
+      planReaderNoteSave({ ...readerAnnotationEditInput(), content: text })
+    );
   };
 
   const renderPlanSessionBottomBar = () => {
