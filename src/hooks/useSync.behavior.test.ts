@@ -470,6 +470,41 @@ test('a new auth generation for the same uid starts a fresh initial sync', async
   assert.deepEqual(syncAllCalls[1], { userId: 'user-a', generation: 2 });
 });
 
+test('switching to another account in the same auth generation starts its own initial pull', async () => {
+  const handle = mountSync();
+  await flush();
+
+  authState.user = { uid: 'user-b' };
+  handle.rerender();
+  await flush();
+
+  assert.deepEqual(pullCalls, ['user-a', 'user-b']);
+  assert.deepEqual(syncAllCalls.at(-1), { userId: 'user-b', generation: 1 });
+});
+
+test('a queued initial pull whose auth generation goes stale before it runs never pulls', async () => {
+  let releaseFirstPull = (): void => {};
+  pullResult = () =>
+    new Promise((resolve) => {
+      releaseFirstPull = () => resolve({ success: true });
+    });
+  const handle = mountSync();
+  await flush();
+
+  // A second session queues its initial pull behind the first...
+  authState.authGeneration = 2;
+  handle.rerender();
+  await flush();
+  // ...and the auth boundary moves again before that queued pull gets its turn.
+  authState.authGeneration = 3;
+  pullResult = async () => ({ success: true });
+  releaseFirstPull();
+  await flush();
+
+  assert.deepEqual(pullCalls, ['user-a']);
+  assert.deepEqual(syncAllCalls, []);
+});
+
 test('unmounting while the initial pull is in flight abandons the push', async () => {
   let releasePull = (): void => {};
   pullResult = () =>
