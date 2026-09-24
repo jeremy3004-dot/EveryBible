@@ -567,3 +567,15 @@ test('LocaleSetupFlow lifts its footer by the measured keyboard overlap', () => 
     'the safe-area correction now lives in the hook, so the flow must not subtract it a second time'
   );
 });
+
+test('LocaleSetupFlow option-row subtitles wrap instead of truncating beside a status chip', () => {
+  const flowSource = readRelativeSource('./LocaleSetupFlow.tsx');
+
+  // The recommended Bible row carries a "RECOMMENDED" chip in its trailing slot,
+  // which squeezed a one-line subtitle down to "Berean Standard Bible (BS…".
+  assert.match(
+    flowSource,
+    /style=\{\[styles\.optionRowSubtitle, \{ color: colors\.secondaryText \}\]\}\s*numberOfLines=\{2\}/,
+    'the OptionRow subtitle should allow two lines so the translation name stays readable'
+  );
+});

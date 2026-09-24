@@ -238,10 +238,12 @@ function OptionRow({
         <Text style={[styles.optionRowTitle, { color: colors.primaryText }]} numberOfLines={2}>
           {title}
         </Text>
+        {/* The subtitle wraps too: a trailing status chip ("RECOMMENDED") narrows
+            the copy column enough to cut a translation name mid-word. */}
         {subtitle ? (
           <Text
             style={[styles.optionRowSubtitle, { color: colors.secondaryText }]}
-            numberOfLines={1}
+            numberOfLines={2}
           >
             {subtitle}
           </Text>
