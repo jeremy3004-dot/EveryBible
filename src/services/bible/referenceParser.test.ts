@@ -237,3 +237,30 @@ test('isSupportedParserLocale returns false for unsupported locales', () => {
   assert.equal(isSupportedParserLocale('de'), false);
   assert.equal(isSupportedParserLocale(''), false);
 });
+
+// ---------------------------------------------------------------------------
+// Native-script and full-width digits
+// ---------------------------------------------------------------------------
+
+test('reads a Devanagari-numeral reference typed on a Hindi or Nepali keyboard', () => {
+  const expected = { bookId: 'JHN', chapter: 3, focusVerse: 16, label: 'John 3:16' };
+  assert.deepEqual(parsePassageReferenceLocale('यूहन्ना ३:१६', 'hi'), expected);
+  assert.deepEqual(parsePassageReferenceLocale('यूहन्ना ३:१६', 'ne'), expected);
+});
+
+test('reads Bengali, Arabic-Indic and full-width digits and a full-width colon', () => {
+  const expected = { bookId: 'JHN', chapter: 3, focusVerse: 16, label: 'John 3:16' };
+  assert.deepEqual(parsePassageReferenceLocale('John ৩:১৬', 'bn'), expected);
+  assert.deepEqual(parsePassageReferenceLocale('John ٣:١٦', 'ar'), expected);
+  assert.deepEqual(parsePassageReferenceLocale('John ۳:۱۶', 'ur'), expected);
+  assert.deepEqual(parsePassageReferenceLocale('John ３：１６', 'zh'), expected);
+});
+
+test('a single-chapter book typed with a native numeral opens its one chapter', () => {
+  assert.deepEqual(parsePassageReferenceLocale('Jude १', 'hi'), {
+    bookId: 'JUD',
+    chapter: 1,
+    focusVerse: undefined,
+    label: 'Jude 1',
+  });
+});

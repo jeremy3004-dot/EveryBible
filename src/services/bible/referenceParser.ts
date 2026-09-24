@@ -20,6 +20,29 @@ export type ReferenceParserLocale = 'en' | 'es' | 'hi' | 'ne';
 
 const OSIS_SEGMENT_PATTERN = /^([1-3]?[A-Za-z]+)(?:\.(\d+))?(?:\.(\d+))?$/;
 
+// The grammars only read ASCII digits, but Hindi, Nepali, Bengali, Arabic and Urdu keyboards
+// type their own numerals and Chinese/Japanese IMEs type full-width ones, so "यूहन्ना ३:१६" or
+// "John ３：１６" was treated as a word search. Each block is ten contiguous code points from its
+// zero; every replacement is one UTF-16 unit, so match indices still line up with the query.
+const NATIVE_DIGIT_ZEROS = [
+  0x0660, 0x06f0, 0x0966, 0x09e6, 0x0a66, 0x0ae6, 0x0b66, 0x0be6, 0x0c66, 0x0ce6, 0x0d66, 0x0e50,
+  0x0ed0, 0x1040, 0x17e0, 0xff10,
+];
+const NATIVE_DIGIT_OR_COLON_PATTERN =
+  /[\u0660-\u0669\u06F0-\u06F9\u0966-\u096F\u09E6-\u09EF\u0A66-\u0A6F\u0AE6-\u0AEF\u0B66-\u0B6F\u0BE6-\u0BEF\u0C66-\u0C6F\u0CE6-\u0CEF\u0D66-\u0D6F\u0E50-\u0E59\u0ED0-\u0ED9\u1040-\u1049\u17E0-\u17E9\uFF10-\uFF19\uFF1A]/g;
+
+const toAsciiDigitOrColon = (character: string): string => {
+  const code = character.charCodeAt(0);
+  if (code === 0xff1a) {
+    return ':';
+  }
+  const zero = NATIVE_DIGIT_ZEROS.find((start) => code >= start && code < start + 10);
+  return zero === undefined ? character : String(code - zero);
+};
+
+const normalizeReferenceNumerals = (query: string): string =>
+  query.replace(NATIVE_DIGIT_OR_COLON_PATTERN, toAsciiDigitOrColon);
+
 /** One parser instance per supported locale, lazily built on first access. */
 const parserCache = new Map<ReferenceParserLocale, bcv_parser>();
 
@@ -130,7 +153,7 @@ export const isSupportedParserLocale = (code: string): code is ReferenceParserLo
  * Falls back to the English parser when the locale is not directly supported.
  */
 const parseWithParser = (query: string, parser: bcv_parser): PassageReferenceTarget | null => {
-  const normalizedQuery = query.trim();
+  const normalizedQuery = normalizeReferenceNumerals(query.trim());
   if (normalizedQuery.length === 0 || /[:,-]\s*$/.test(normalizedQuery)) {
     return null;
   }
