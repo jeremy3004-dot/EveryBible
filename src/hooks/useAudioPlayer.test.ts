@@ -126,6 +126,8 @@ const audioPlayerDouble: AudioPlayerDouble = {
   },
   async pause() {
     recorded.player.push({ method: 'pause', args: [] });
+    const gate = playerGates.get('pause');
+    if (gate) await gate;
   },
   async resume() {
     recorded.player.push({ method: 'resume', args: [] });
@@ -1796,6 +1798,22 @@ test('the position is interpolated between native progress polls', async (t) => 
   assert.equal(store().currentPosition, 1_250);
 });
 
+test('interpolation never runs past the known chapter length', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: BASE_TIME });
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  emitStatus({
+    isPlaying: true,
+    positionMillis: DEFAULT_DURATION_MS - 100,
+    durationMillis: DEFAULT_DURATION_MS,
+  });
+
+  t.mock.timers.tick(250);
+  t.mock.timers.tick(250);
+
+  assert.equal(store().currentPosition, DEFAULT_DURATION_MS);
+});
+
 test('interpolation stops as soon as the player reports it is not playing', async (t) => {
   t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: BASE_TIME });
   const player = mountPlayer();
@@ -2287,6 +2305,50 @@ test('pausing during the initial stop prevents the pending chapter from starting
   assert.equal(store().status, 'paused');
   assert.deepEqual(recorded.audioLookups, []);
   assert.deepEqual(playerCalls('loadAndPlay'), []);
+});
+
+test('stopping during the initial stop prevents the pending chapter from starting', async () => {
+  const player = mountPlayer();
+  const gate = deferPlayerOperation();
+  playerGates.set('stop', gate.promise);
+  const pending = player.api.playChapter('GEN', 1);
+  await flushPlayerOperations();
+  const stopping = player.api.stop();
+  gate.resolve();
+  await Promise.all([pending, stopping]);
+
+  assert.equal(store().status, 'idle');
+  assert.deepEqual(recorded.audioLookups, []);
+  assert.deepEqual(playerCalls('loadAndPlay'), []);
+});
+
+test('pause shows the paused state before the native pause settles', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  const gate = deferPlayerOperation();
+  playerGates.set('pause', gate.promise);
+
+  const pausing = player.rerender().pause();
+  await flushPlayerOperations();
+  assert.equal(store().status, 'paused');
+
+  gate.resolve();
+  await pausing;
+});
+
+test('stop clears the playback state before native teardown settles', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  const gate = deferPlayerOperation();
+  playerGates.set('stop', gate.promise);
+
+  const stopping = player.rerender().stop();
+  await flushPlayerOperations();
+  assert.equal(store().status, 'idle');
+  assert.equal(store().currentBookId, null);
+
+  gate.resolve();
+  await stopping;
 });
 
 test('a stale completed load never stops the newer chapter', async () => {
