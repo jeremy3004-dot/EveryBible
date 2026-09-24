@@ -1396,6 +1396,49 @@ test('finishing with no chapter loaded simply stops', async () => {
   assert.equal(recorded.listened.length, 0);
 });
 
+// A daily proverb or rhythm pins a playback session. Global repeat and queued
+// audio must never carry playback past the session's last chapter.
+for (const repeatMode of ['off', 'chapter', 'book'] as const) {
+  for (const queued of [false, true]) {
+    test(`a one-chapter session ends after its chapter with repeat ${repeatMode}${queued ? ' and a queued chapter' : ''}`, async () => {
+      const player = mountPlayer();
+      await player.api.playChapter('PRO', 7);
+      store().setPlaybackSequence([{ bookId: 'PRO', chapter: 7 }]);
+      store().setRepeatMode(repeatMode);
+      if (queued) store().addToQueue('bsb', 'PRO', 8);
+      player.rerender();
+      recorded.player.length = 0;
+
+      await finishPlayback();
+
+      assert.equal(store().status, 'idle');
+      assert.equal(store().currentChapter, 7);
+      assert.deepEqual(playerCalls('loadAndPlay'), []);
+    });
+  }
+}
+
+test('a multi-chapter session plays its own next chapter ahead of repeat and queued audio', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('PRO', 7);
+  store().setPlaybackSequence([
+    { bookId: 'PRO', chapter: 7 },
+    { bookId: 'PRO', chapter: 9 },
+  ]);
+  store().setRepeatMode('book');
+  store().addToQueue('bsb', 'PRO', 8);
+  player.rerender();
+  recorded.player.length = 0;
+
+  await finishPlayback();
+
+  assert.equal(store().currentChapter, 9);
+  assert.deepEqual(
+    playerCalls('loadAndPlay').map((call) => call.args[0]),
+    ['https://cdn.example/bsb/PRO/9.mp3']
+  );
+});
+
 // ---------------------------------------------------------------------------
 // Progress snapshots from the native player
 // ---------------------------------------------------------------------------
