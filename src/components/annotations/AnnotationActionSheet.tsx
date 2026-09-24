@@ -18,6 +18,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useLargeText } from '../../hooks/useLargeText';
 import { radius, shadows, spacing, typography } from '../../design/system';
 import { hexWithAlpha } from '../../utils';
+import { useLatestCallback } from '../audio/playbackControlsParts/useLatestCallback';
 
 const HIGHLIGHT_COLORS = [
   { id: 'red', hex: '#D95B57' },
@@ -138,15 +139,17 @@ function AnnotationActionSheetContent({
     onClose();
   };
 
+  // Subscribed once per opening, but closes through the latest props: the reader
+  // passes a new onClose on every render.
+  const closeFromBackButton = useLatestCallback(handleClose);
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      handleClose();
+      closeFromBackButton();
       return true;
     });
 
     return () => subscription.remove();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [closeFromBackButton]);
 
   const handleHighlightColor = async (color: string, isActive: boolean) => {
     if (!canAnnotate || isSaving) {
