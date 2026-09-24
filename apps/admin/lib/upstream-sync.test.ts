@@ -1,11 +1,16 @@
+/**
+ * The upstream translation sync (lib/upstream-sync.ts) loaded through the real
+ * module loader. Only the Supabase service client (an in-memory table fake),
+ * the server env, the network and the clock are replaced.
+ */
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import test from 'node:test';
-import { runInNewContext } from 'node:vm';
-import ts from 'typescript';
+import test, { afterEach, beforeEach, mock } from 'node:test';
+
+import { mockModule } from './testing/adminTestHarness';
 
 type Row = Record<string, unknown>;
 type Write = { table: string; operation: string; values: Row };
+type QueryResult = { data: Row[] | null; error: { message: string } | null };
 const now = '2026-09-05T12:00:00.000Z';
 const publishedAt = '2024-01-15T12:00:00.000Z';
 // Operator-only columns live in translation_catalog_admin, which client roles cannot read.
@@ -16,7 +21,7 @@ const ADMIN_ONLY_COLUMNS = [
   'sync_run_id',
 ];
 
-// Run the real sync module with only Supabase, environment, network, and time replaced.
+// An in-memory stand-in for the tables the sync reads and writes.
 function createSyncFixture({
   payload,
   catalog = [],
@@ -79,9 +84,7 @@ function createSyncFixture({
           rows[table].push({ ...values, id: 'run-1' });
           return { data: { id: 'run-1' }, error: null };
         },
-        then(
-          resolve: (result: { data: Row[] | null; error: { message: string } | null }) => unknown
-        ) {
+        then(resolve: (result: QueryResult) => unknown) {
           if (operation === 'select') {
             const selected = rows[table]
               .filter(matches)
@@ -120,45 +123,54 @@ function createSyncFixture({
       return query;
     },
   };
-  const dependencies: Record<string, unknown> = {
-    '@/lib/supabase/service': { createAdminServiceClient: () => service },
-    '@/lib/env': {
-      getAdminServerEnv: () => ({
-        upstreamApiBaseUrl: 'https://upstream.example',
-        upstreamApiKey: 'test-key',
-      }),
-    },
-  };
-  const { outputText } = ts.transpileModule(
-    readFileSync(new URL('./upstream-sync.ts', import.meta.url), 'utf8'),
-    { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }
-  );
-  const exports = {};
-  runInNewContext(outputText, {
-    exports,
-    require(name: string) {
-      assert.ok(Object.hasOwn(dependencies, name), `Unexpected dependency: ${name}`);
-      return dependencies[name];
-    },
-    Date: class extends Date {
-      constructor(value?: string | number) {
-        super(value ?? now);
-      }
-    },
-    fetch: async () => ({ ok: true, json: async () => payload }),
+  return { rows, writes, service, payload };
+}
+
+type SyncFixture = ReturnType<typeof createSyncFixture>;
+let current: SyncFixture | null = null;
+const upstreamRequests: Array<{ url: string; init: RequestInit | undefined }> = [];
+
+mockModule(mock, '@/lib/supabase/service', {
+  createAdminServiceClient: () => {
+    assert.ok(current, 'a test must install a sync fixture first');
+    return current.service;
+  },
+});
+mockModule(mock, '@/lib/env', {
+  getAdminServerEnv: () => ({
+    upstreamApiBaseUrl: 'https://upstream.example',
+    upstreamApiKey: 'test-key',
+  }),
+});
+
+const { runUpstreamTranslationSync } = await import('./upstream-sync');
+
+beforeEach(() => {
+  current = null;
+  upstreamRequests.length = 0;
+  mock.timers.enable({ apis: ['Date'], now: new Date(now) });
+  mock.method(globalThis, 'fetch', async (url: string, init?: RequestInit) => {
+    upstreamRequests.push({ url, init });
+    assert.ok(current);
+    return Response.json(current.payload);
   });
-  return {
-    rows,
-    writes,
-    run: (exports as { runUpstreamTranslationSync: (actor: string | null) => Promise<unknown> })
-      .runUpstreamTranslationSync,
-  };
+});
+
+afterEach(() => {
+  mock.timers.reset();
+  mock.restoreAll();
+});
+
+function syncFixture(options: Parameters<typeof createSyncFixture>[0]) {
+  const fixture = createSyncFixture(options);
+  current = fixture;
+  return { ...fixture, run: (actor: string | null) => runUpstreamTranslationSync(actor) };
 }
 
 for (const distributionState of ['hidden', 'published', 'draft', 'ready']) {
   for (const conflictingControls of [false, true]) {
     test(`sync preserves ${distributionState} operator controls with ${conflictingControls ? 'conflicting' : 'missing'} upstream controls`, async () => {
-      const fixture = createSyncFixture({
+      const fixture = syncFixture({
         catalog: [
           {
             translation_id: 'eng',
@@ -210,7 +222,7 @@ for (const distributionState of ['hidden', 'published', 'draft', 'ready']) {
 }
 
 test('sync preserves operator edits made after the catalog read', async () => {
-  const fixture = createSyncFixture({
+  const fixture = syncFixture({
     catalog: [
       {
         translation_id: 'eng',
@@ -236,7 +248,7 @@ test('sync preserves operator edits made after the catalog read', async () => {
 });
 
 test('sync records upstream identity, payload and run on the admin-only side table', async () => {
-  const fixture = createSyncFixture({
+  const fixture = syncFixture({
     catalog: [{ translation_id: 'eng', catalog: {} }],
     admin: [{ translation_id: 'eng', admin_notes: 'Keep', upstream_payload: { stale: true } }],
     payload: [{ translation_id: 'eng', external_id: 'up-7', name: 'English' }],
@@ -269,7 +281,7 @@ for (const incomingVersions of [undefined, [{ version_number: 1 }]]) {
       total_verses: 31102,
       is_current: true,
     };
-    const fixture = createSyncFixture({
+    const fixture = syncFixture({
       payload: [{ translation_id: 'eng', versions: incomingVersions }],
       catalog: [{ translation_id: 'eng', catalog: {} }],
       versions: [version, { ...version, version_number: 2, is_current: false }],
@@ -284,7 +296,7 @@ for (const incomingVersions of [undefined, [{ version_number: 1 }]]) {
 }
 
 test('sync merges partial catalog sections and preserves sections omitted upstream', async () => {
-  const fixture = createSyncFixture({
+  const fixture = syncFixture({
     catalog: [
       {
         translation_id: 'eng',
@@ -314,7 +326,7 @@ test('sync merges partial catalog sections and preserves sections omitted upstre
 });
 
 test('new catalog rows keep default controls and only new versions receive the sync timestamp', async () => {
-  const fixture = createSyncFixture({
+  const fixture = syncFixture({
     catalog: [{ translation_id: 'eng', catalog: {} }],
     payload: [
       { translation_id: 'new' },
@@ -353,10 +365,24 @@ test('new catalog rows keep default controls and only new versions receive the s
   );
   assert.equal(fixture.rows.translation_sync_runs[0].state, 'succeeded');
   assert.equal(fixture.rows.translation_sync_runs[0].triggered_by, 'admin-user');
+  assert.deepEqual(
+    upstreamRequests.map(({ url, init }) => [url, init?.cache, init?.headers]),
+    [
+      [
+        'https://upstream.example/translations',
+        'no-store',
+        {
+          Accept: 'application/json',
+          Authorization: 'Bearer test-key',
+          'x-api-key': 'test-key',
+        },
+      ],
+    ]
+  );
 });
 
 test('new rows accept initial upstream controls and explicit version publication dates', async () => {
-  const fixture = createSyncFixture({
+  const fixture = syncFixture({
     payload: [
       {
         translationId: 'new',
@@ -375,7 +401,7 @@ test('new rows accept initial upstream controls and explicit version publication
 });
 
 test('explicit upstream publication date refreshes an existing version', async () => {
-  const fixture = createSyncFixture({
+  const fixture = syncFixture({
     catalog: [{ translation_id: 'eng', catalog: {} }],
     versions: [{ translation_id: 'eng', version_number: 1, published_at: publishedAt }],
     payload: [
@@ -390,14 +416,14 @@ test('explicit upstream publication date refreshes an existing version', async (
 });
 
 test('sync rejects when recording successful completion fails', async () => {
-  const fixture = createSyncFixture({ payload: [{ translation_id: 'eng' }], finishError: true });
+  const fixture = syncFixture({ payload: [{ translation_id: 'eng' }], finishError: true });
   await assert.rejects(fixture.run(null), /Unable to finish sync run: finalization unavailable/);
   assert.equal(fixture.rows.translation_sync_runs[0].state, 'failed');
   assert.match(String(fixture.rows.translation_sync_runs[0].message), /finalization unavailable/);
 });
 
 test('a concurrently created catalog row is not overwritten by initial upstream controls', async () => {
-  const fixture = createSyncFixture({
+  const fixture = syncFixture({
     payload: [{ translation_id: 'eng', distribution_state: 'published', is_available: true }],
     beforeCatalogWrite(rows) {
       rows.translation_catalog.push({
