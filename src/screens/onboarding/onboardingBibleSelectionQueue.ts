@@ -25,6 +25,12 @@ export interface OnboardingBibleSelectionDeps<T extends { id: string }> {
   complete: (translation: T) => Promise<void>;
   /** A download failed and no other choice is waiting behind it. */
   onDownloadFailed: (translation: T, error: unknown) => Promise<void> | void;
+  /**
+   * Finishing onboarding threw (for example switching the interface language). Onboarding
+   * stays open; the screen tells the user and can retry with `chooseReady(translation)`,
+   * which for a download is the installed Bible, so it is not downloaded again.
+   */
+  onCompleteFailed: (translation: T, error: unknown) => void;
   onStateChange: (state: OnboardingBibleSelectionState) => void;
 }
 
@@ -52,13 +58,15 @@ export function createOnboardingBibleSelectionQueue<T extends { id: string }>(
       queuedId: queued?.id ?? null,
     });
 
+  // Never rejects: both callers are fire-and-forget taps, where a rejection would vanish
+  // and leave the user on a screen that silently did nothing.
   const complete = async (translation: T) => {
     completed = true;
     try {
       await getDeps().complete(translation);
     } catch (error) {
       completed = false;
-      throw error;
+      getDeps().onCompleteFailed(translation, error);
     }
   };
 

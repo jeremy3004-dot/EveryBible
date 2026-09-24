@@ -27,6 +27,7 @@ function createHarness() {
   const events: string[] = [];
   const completed: FakeTranslation[] = [];
   const failures: Array<{ id: string; error: unknown }> = [];
+  const completeFailures: Array<{ translation: FakeTranslation; error: unknown }> = [];
   const states: OnboardingBibleSelectionState[] = [];
   let downloadStarted = deferred<string>();
 
@@ -46,6 +47,9 @@ function createHarness() {
     onDownloadFailed: (translation, error) => {
       failures.push({ id: translation.id, error });
     },
+    onCompleteFailed: (translation, error) => {
+      completeFailures.push({ translation, error });
+    },
     onStateChange: (state) => states.push(state),
   }));
 
@@ -54,6 +58,7 @@ function createHarness() {
     events,
     completed,
     failures,
+    completeFailures,
     states,
     /** Waits until the next download starts, so a test never races the queue. */
     nextDownloadStart: () => {
@@ -237,23 +242,56 @@ test('a cancelled download does not finish onboarding', async () => {
   assert.deepEqual(harness.states.at(-1), { downloadingId: null, queuedId: null });
 });
 
-test('if finishing onboarding throws, the user can still choose again', async () => {
+function createFailingCompletionQueue() {
   let attempts = 0;
+  const completeFailures: Array<{ translation: FakeTranslation; error: unknown }> = [];
+  const downloadFailures: string[] = [];
   const queue = createOnboardingBibleSelectionQueue<FakeTranslation>(() => ({
     download: async () => 'installed',
-    getInstalled: (translation) => translation,
+    getInstalled: (translation) => ({ ...translation, installed: true }),
     complete: async () => {
       attempts += 1;
       if (attempts === 1) {
         throw new Error('locale chunk failed');
       }
     },
-    onDownloadFailed: () => {},
+    onDownloadFailed: (translation) => {
+      downloadFailures.push(translation.id);
+    },
+    onCompleteFailed: (translation, error) => {
+      completeFailures.push({ translation, error });
+    },
     onStateChange: () => {},
   }));
+  return { queue, completeFailures, downloadFailures, attempts: () => attempts };
+}
 
-  await assert.rejects(queue.chooseReady({ id: 'bsb' }), /locale chunk failed/);
-  await queue.chooseReady({ id: 'bsb' });
+test('if finishing onboarding throws, the failure is reported and the user can still choose again', async () => {
+  const harness = createFailingCompletionQueue();
 
-  assert.equal(attempts, 2);
+  await harness.queue.chooseReady({ id: 'bsb' });
+
+  assert.equal(harness.completeFailures.length, 1);
+  assert.deepEqual(harness.completeFailures[0]?.translation, { id: 'bsb' });
+  assert.match(String(harness.completeFailures[0]?.error), /locale chunk failed/);
+
+  await harness.queue.chooseReady({ id: 'bsb' });
+  assert.equal(harness.attempts(), 2);
+  assert.equal(harness.completeFailures.length, 1);
+});
+
+test('if finishing onboarding throws after a download, the installed Bible is reported for a retry', async () => {
+  const harness = createFailingCompletionQueue();
+
+  // Resolves: the failure goes to the screen, not to an unhandled rejection.
+  await harness.queue.chooseDownload({ id: 'hincv' });
+
+  assert.deepEqual(harness.downloadFailures, [], 'the download itself succeeded');
+  assert.equal(harness.completeFailures.length, 1);
+  const reported = harness.completeFailures[0]!.translation;
+  assert.deepEqual(reported, { id: 'hincv', installed: true });
+
+  await harness.queue.chooseReady(reported);
+  assert.equal(harness.attempts(), 2);
+  assert.equal(harness.completeFailures.length, 1);
 });
