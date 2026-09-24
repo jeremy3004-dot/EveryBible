@@ -99,7 +99,7 @@ interface AudioPlayerDouble {
   loaded: boolean;
   callbacks: AudioPlayerCallbacks;
   setCallbacks(callbacks: AudioPlayerCallbacks): void;
-  loadAndPlay(url: string, rate: number): Promise<void>;
+  loadAndPlay(url: string, rate: number, startPositionMs?: number): Promise<void>;
   pause(): Promise<void>;
   resume(): Promise<void>;
   stop(): Promise<void>;
@@ -115,8 +115,12 @@ const audioPlayerDouble: AudioPlayerDouble = {
     audioPlayerDouble.callbacks = callbacks;
     recorded.player.push({ method: 'setCallbacks', args: [] });
   },
-  async loadAndPlay(url: string, rate: number) {
-    recorded.player.push({ method: 'loadAndPlay', args: [url, rate] });
+  async loadAndPlay(url: string, rate: number, startPositionMs?: number) {
+    recorded.player.push({
+      method: 'loadAndPlay',
+      // A load from the top (offset 0) is recorded as [url, rate].
+      args: startPositionMs ? [url, rate, startPositionMs] : [url, rate],
+    });
     if (scenario.failLoadUrls.has(url)) {
       throw new Error(`decode failed: ${url}`);
     }
@@ -335,6 +339,10 @@ const mountPlayer = (translationId = 'bsb'): MountedPlayer => {
 };
 
 const store = () => useAudioStore.getState();
+
+/** Where the most recent chapter load was asked to start (0 = the top). */
+const loadedStartOffset = () =>
+  (playerCalls('loadAndPlay').at(-1)?.args[2] as number | undefined) ?? 0;
 
 const playerCalls = (method: string) => recorded.player.filter((call) => call.method === method);
 
@@ -603,7 +611,8 @@ test('playChapterForTranslation resumes from a stored position', async () => {
     startPositionMs: 42_000,
   });
 
-  assert.deepEqual(playerCalls('seekTo'), [{ method: 'seekTo', args: [42_000] }]);
+  assert.equal(loadedStartOffset(), 42_000);
+  assert.deepEqual(playerCalls('seekTo'), []);
   assert.equal(store().currentPosition, 42_000);
 });
 
@@ -963,7 +972,7 @@ test('a resume that fails to load keeps the saved place for the next try', async
   recorded.player.length = 0;
   await player.rerender().togglePlayPause();
 
-  assert.deepEqual(playerCalls('seekTo'), [{ method: 'seekTo', args: [180_000] }]);
+  assert.equal(loadedStartOffset(), 180_000);
   assert.equal(store().status, 'playing');
 });
 
@@ -985,7 +994,7 @@ test('a second Play while a resume is still loading resumes at the same place', 
   release();
   await Promise.all([first, second]);
 
-  assert.deepEqual(playerCalls('seekTo'), [{ method: 'seekTo', args: [180_000] }]);
+  assert.equal(loadedStartOffset(), 180_000);
   assert.equal(store().currentPosition, 180_000);
 });
 
@@ -1040,7 +1049,7 @@ test('togglePlayPause reloads the current chapter from its resume anchor when un
   await player.rerender().togglePlayPause();
 
   assert.equal(playerCalls('loadAndPlay').length, 1);
-  assert.deepEqual(playerCalls('seekTo'), [{ method: 'seekTo', args: [60_000] }]);
+  assert.equal(loadedStartOffset(), 60_000);
 });
 
 // A stream that fails mid-chapter makes expo-av release the sound. iOS says so at
@@ -1058,7 +1067,7 @@ test('Play after the stream failed mid-chapter reloads the chapter where it stop
   await player.rerender().togglePlayPause();
 
   assert.equal(playerCalls('loadAndPlay').length, 1);
-  assert.deepEqual(playerCalls('seekTo'), [{ method: 'seekTo', args: [120_000] }]);
+  assert.equal(loadedStartOffset(), 120_000);
   assert.equal(store().status, 'playing');
 });
 
@@ -1081,7 +1090,7 @@ test('Play on a sound the native side released reloads the chapter in one tap', 
   await player.rerender().togglePlayPause();
 
   assert.equal(playerCalls('loadAndPlay').length, 1);
-  assert.deepEqual(playerCalls('seekTo').at(-1), { method: 'seekTo', args: [120_000] });
+  assert.equal(loadedStartOffset(), 120_000);
   assert.equal(store().status, 'playing');
   assert.equal(store().error, null);
 });

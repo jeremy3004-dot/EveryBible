@@ -894,6 +894,19 @@ test('a rate change while the chapter loads is applied before it starts playing'
   ]);
 });
 
+// A resumed chapter used to start from the top and be seeked afterwards: a downloaded
+// chapter played its opening words before jumping, and a stream fetched its start
+// only to throw it away. The sound is created at the resume point instead.
+test('loadAndPlay creates a resumed chapter at its offset instead of seeking after play', async () => {
+  await mod.default.loadAndPlay('https://audio.test/john3.mp3', 1, 42.5);
+
+  assert.equal(
+    (createCalls[0].initialStatus as { positionMillis?: number }).positionMillis,
+    42_500
+  );
+  assert.deepEqual(soundInstances[0].methods(), ['playAsync']);
+});
+
 test('loadAndPlay skips the redundant rate call at 1x', async () => {
   await mod.default.loadAndPlay('https://audio.test/john3.mp3');
 

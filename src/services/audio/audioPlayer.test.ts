@@ -78,7 +78,11 @@ const trackPlayerDouble = {
   stop: () => record('stop'),
   seekTo: (positionSeconds: number) => record('seekTo', [positionSeconds]),
   setRate: (rate: number) => record('setRate', [rate]),
-  loadAndPlay: (url: string, rate: number) => record('loadAndPlay', [url, rate]),
+  loadAndPlay: (url: string, rate: number, startPositionSeconds?: number) =>
+    record(
+      'loadAndPlay',
+      startPositionSeconds === undefined ? [url, rate] : [url, rate, startPositionSeconds]
+    ),
   getProgress: async () => {
     await record('getProgress');
     return progressResult;
@@ -382,6 +386,15 @@ test('loadAndPlay forwards the url and rate and marks the player loaded', async 
     { method: 'loadAndPlay', args: ['https://audio.test/john3.mp3', 1.5] },
   ]);
   assert.equal(mod.audioPlayer.isLoaded(), true);
+});
+
+test('loadAndPlay hands a resume offset to the wrapper in seconds', async () => {
+  await mod.audioPlayer.loadAndPlay('https://audio.test/john3.mp3', 1.25, 42_500);
+
+  assert.deepEqual(
+    trackPlayerCalls.filter((call) => call.method === 'loadAndPlay'),
+    [{ method: 'loadAndPlay', args: ['https://audio.test/john3.mp3', 1.25, 42.5] }]
+  );
 });
 
 test('loadAndPlay defaults to 1x playback', async () => {

@@ -292,8 +292,10 @@ async function add(track: Track | Track[]): Promise<number | undefined> {
   if (tracks.length === 0) return;
 
   // Only supports single-track loading; queue managed by audioStore
-  const target = tracks[0];
+  return loadTrack(tracks[0]);
+}
 
+async function loadTrack(target: Track, startPositionMillis = 0): Promise<number | undefined> {
   const requestId = ++loadRequestId;
   await setupPlayer();
   if (requestId !== loadRequestId) return;
@@ -312,6 +314,9 @@ async function add(track: Track | Track[]): Promise<number | undefined> {
         rate: currentRate,
         shouldCorrectPitch: true,
         progressUpdateIntervalMillis: 1000,
+        // A resumed chapter starts where it left off rather than playing its
+        // opening before a seek, and a stream is not fetched from the top.
+        ...(startPositionMillis > 0 ? { positionMillis: startPositionMillis } : {}),
       },
       (status) => {
         // Ignore pending sounds superseded by another load or transport command.
@@ -485,10 +490,14 @@ function addEventListener<E extends Event>(event: E, listener: EventListener<E>)
 // existing AudioPlayer.loadAndPlay usage for a smooth migration)
 // ---------------------------------------------------------------------------
 
-async function loadAndPlay(url: string, rate: PlaybackRate = 1.0): Promise<void> {
+async function loadAndPlay(
+  url: string,
+  rate: PlaybackRate = 1.0,
+  startPositionSeconds = 0
+): Promise<void> {
   currentRate = rate;
   const trackId = `${Date.now()}`;
-  const requestId = await add({ id: trackId, url });
+  const requestId = await loadTrack({ id: trackId, url }, Math.max(0, startPositionSeconds) * 1000);
   if (requestId === undefined || requestId !== loadRequestId) return;
   // Explicitly apply rate + pitch correction via setRateAsync after load.
   // createAsync's `rate` option doesn't reliably enable pitch correction on iOS;

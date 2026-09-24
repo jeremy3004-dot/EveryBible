@@ -504,7 +504,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
 
         try {
           const errorId = playbackErrorIdRef.current;
-          await audioPlayer.loadAndPlay(audioData.url, livePlaybackRate());
+          await audioPlayer.loadAndPlay(audioData.url, livePlaybackRate(), startPositionMs);
           if (errorId !== playbackErrorIdRef.current) {
             throw new Error('Native playback failed');
           }
@@ -528,7 +528,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
           }
 
           const fallbackErrorId = playbackErrorIdRef.current;
-          await audioPlayer.loadAndPlay(remoteFallback.url, livePlaybackRate());
+          await audioPlayer.loadAndPlay(remoteFallback.url, livePlaybackRate(), startPositionMs);
           if (fallbackErrorId !== playbackErrorIdRef.current) {
             throw new Error('Native playback failed');
           }
@@ -549,11 +549,8 @@ export function useAudioPlayer(translationId: string = 'bsb') {
           return;
         }
 
+        // The sound was created at the resume point, so there is nothing to seek.
         if (startPositionMs > 0) {
-          await audioPlayer.seekTo(startPositionMs);
-          if (playRequestId !== playRequestIdRef.current) {
-            return;
-          }
           setPosition(startPositionMs);
         }
         setDuration(audioData.duration);

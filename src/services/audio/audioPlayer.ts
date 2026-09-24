@@ -156,7 +156,8 @@ class AudioPlayer {
 
   // -- playback controls ---------------------------------------------------
 
-  async loadAndPlay(url: string, rate: PlaybackRate = 1.0): Promise<void> {
+  /** `startPositionMs` resumes the chapter at that offset instead of the top. */
+  async loadAndPlay(url: string, rate: PlaybackRate = 1.0, startPositionMs = 0): Promise<void> {
     const requestId = ++this.loadRequestId;
     this.pendingLoadRequestId = requestId;
     this.loaded = false;
@@ -164,11 +165,15 @@ class AudioPlayer {
       await this.configure();
       if (requestId !== this.loadRequestId) return;
       // Reset merged state for new track
-      this.lastPositionMillis = 0;
+      this.lastPositionMillis = startPositionMs;
       this.lastDurationMillis = 0;
       this.lastIsPlaying = false;
       this.lastIsBuffering = true;
-      await TrackPlayer.loadAndPlay(url, rate);
+      if (startPositionMs > 0) {
+        await TrackPlayer.loadAndPlay(url, rate, startPositionMs / 1000);
+      } else {
+        await TrackPlayer.loadAndPlay(url, rate);
+      }
       if (requestId === this.loadRequestId) this.loaded = true;
     } finally {
       if (this.pendingLoadRequestId === requestId) this.pendingLoadRequestId = null;
