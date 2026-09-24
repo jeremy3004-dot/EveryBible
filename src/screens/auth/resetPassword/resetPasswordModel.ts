@@ -1,6 +1,9 @@
 import type { AuthErrorCode } from '../../../services/auth/authErrors';
 import type { ActivateRecoverySessionResult } from '../../../services/auth/authDeepLink';
-import type { RecoveryProblem } from '../../../services/auth/authRecoveryLink';
+import {
+  recoveryProblemMessageKey,
+  type RecoveryProblem,
+} from '../../../services/auth/authRecoveryLink';
 import { passwordErrorKey } from '../authScreenParts/authFormModel';
 
 // The screen is only reachable from a password-reset deep link. The link's PKCE
@@ -49,4 +52,38 @@ export function resetFailureMessageKey(code: AuthErrorCode | undefined): string 
   if (code === 'service_unavailable') return 'auth.serviceUnavailable';
   if (code === 'configuration') return 'auth.backendNotConfigured';
   return 'auth.resetPasswordInvalidSession';
+}
+
+export interface ResetStepCopy {
+  titleKey: string;
+  subtitleKey: string;
+  /** The problem step's reason is announced when it appears. */
+  liveSubtitle: boolean;
+}
+
+/** Each step's title and the line under it. */
+export function resetStepCopy(
+  phase: ResetPhase,
+  problem: RecoveryProblem,
+  isSignedIn: boolean
+): ResetStepCopy {
+  if (phase === 'problem') {
+    return {
+      titleKey: 'auth.resetPasswordTitle',
+      subtitleKey: recoveryProblemMessageKey(problem),
+      liveSubtitle: true,
+    };
+  }
+  if (phase === 'confirm') {
+    return {
+      titleKey: 'auth.resetLinkConfirmTitle',
+      subtitleKey: isSignedIn ? 'auth.resetLinkSignsOutCurrent' : 'auth.resetPasswordSubtitle',
+      liveSubtitle: false,
+    };
+  }
+  return {
+    titleKey: 'auth.resetPasswordTitle',
+    subtitleKey: 'auth.resetPasswordSubtitle',
+    liveSubtitle: false,
+  };
 }

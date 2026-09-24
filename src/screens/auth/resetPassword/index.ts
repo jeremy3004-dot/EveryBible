@@ -1,7 +1,6 @@
 export { NewPasswordStep } from './NewPasswordStep';
 export { ResetPrimaryButton, ResetSecondaryButton } from './ResetButtons';
 export { ResetConfirmStep } from './ResetConfirmStep';
-export { ResetHeading } from './ResetHeading';
 export * from './resetPasswordModel';
 export {
   createResetPasswordStyles,

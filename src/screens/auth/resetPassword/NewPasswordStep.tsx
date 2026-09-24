@@ -3,7 +3,6 @@ import { Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../contexts/ThemeContext';
-import { ResetHeading } from './ResetHeading';
 import { ResetPrimaryButton } from './ResetButtons';
 import { useResetPasswordStyles } from './resetPasswordStyles';
 import type { ResetPasswordFlow } from './useResetPasswordFlow';
@@ -43,97 +42,91 @@ export function NewPasswordStep({
   const confirmError = errors.confirmPassword ? t(errors.confirmPassword) : undefined;
 
   return (
-    <>
-      <ResetHeading
-        title={t('auth.resetPasswordTitle')}
-        subtitle={t('auth.resetPasswordSubtitle')}
-      />
-      <View style={styles.form}>
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>{t('auth.newPassword')}</Text>
-          <View style={styles.passwordContainer}>
-            <TextInput
-              style={[styles.input, styles.passwordInput, passwordError && styles.inputError]}
-              value={password}
-              onChangeText={changePassword}
-              placeholder={t('auth.newPasswordPlaceholder')}
-              placeholderTextColor={colors.secondaryText}
-              secureTextEntry={!showPassword}
-              autoCapitalize="none"
-              autoComplete="new-password"
-              textContentType="newPassword"
-              editable={!isSaving}
-              returnKeyType="next"
-              onSubmitEditing={() => confirmPasswordInputRef.current?.focus()}
-              blurOnSubmit={false}
-              accessibilityLabel={
-                passwordError ? `${t('auth.newPassword')}, ${passwordError}` : t('auth.newPassword')
-              }
-            />
-            <TouchableOpacity
-              style={styles.eyeButton}
-              onPress={toggleShowPassword}
-              disabled={isSaving}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
-              accessibilityState={{ disabled: isSaving }}
-            >
-              <Ionicons
-                name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                size={22}
-                color={colors.secondaryText}
-              />
-            </TouchableOpacity>
-          </View>
-          {passwordError ? (
-            <Text style={styles.errorText} accessibilityLiveRegion="polite">
-              {passwordError}
-            </Text>
-          ) : null}
-        </View>
-
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>{t('auth.confirmNewPassword')}</Text>
+    <View style={styles.form}>
+      <View style={styles.inputContainer}>
+        <Text style={styles.label}>{t('auth.newPassword')}</Text>
+        <View style={styles.passwordContainer}>
           <TextInput
-            ref={confirmPasswordInputRef}
-            style={[styles.input, confirmError && styles.inputError]}
-            value={confirmPassword}
-            onChangeText={changeConfirmPassword}
-            placeholder={t('auth.confirmPasswordPlaceholder')}
+            style={[styles.input, styles.passwordInput, passwordError && styles.inputError]}
+            value={password}
+            onChangeText={changePassword}
+            placeholder={t('auth.newPasswordPlaceholder')}
             placeholderTextColor={colors.secondaryText}
             secureTextEntry={!showPassword}
             autoCapitalize="none"
             autoComplete="new-password"
             textContentType="newPassword"
             editable={!isSaving}
-            returnKeyType="done"
-            onSubmitEditing={submitNewPassword}
+            returnKeyType="next"
+            onSubmitEditing={() => confirmPasswordInputRef.current?.focus()}
+            blurOnSubmit={false}
             accessibilityLabel={
-              confirmError
-                ? `${t('auth.confirmNewPassword')}, ${confirmError}`
-                : t('auth.confirmNewPassword')
+              passwordError ? `${t('auth.newPassword')}, ${passwordError}` : t('auth.newPassword')
             }
           />
-          {confirmError ? (
-            <Text style={styles.errorText} accessibilityLiveRegion="polite">
-              {confirmError}
-            </Text>
-          ) : null}
+          <TouchableOpacity
+            style={styles.eyeButton}
+            onPress={toggleShowPassword}
+            disabled={isSaving}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
+            accessibilityState={{ disabled: isSaving }}
+          >
+            <Ionicons
+              name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+              size={22}
+              color={colors.secondaryText}
+            />
+          </TouchableOpacity>
         </View>
-
-        {formError ? (
+        {passwordError ? (
           <Text style={styles.errorText} accessibilityLiveRegion="polite">
-            {formError}
+            {passwordError}
           </Text>
         ) : null}
-
-        <ResetPrimaryButton
-          label={t('auth.resetPasswordSubmit')}
-          onPress={submitNewPassword}
-          busy={isSaving}
-        />
       </View>
-    </>
+
+      <View style={styles.inputContainer}>
+        <Text style={styles.label}>{t('auth.confirmNewPassword')}</Text>
+        <TextInput
+          ref={confirmPasswordInputRef}
+          style={[styles.input, confirmError && styles.inputError]}
+          value={confirmPassword}
+          onChangeText={changeConfirmPassword}
+          placeholder={t('auth.confirmPasswordPlaceholder')}
+          placeholderTextColor={colors.secondaryText}
+          secureTextEntry={!showPassword}
+          autoCapitalize="none"
+          autoComplete="new-password"
+          textContentType="newPassword"
+          editable={!isSaving}
+          returnKeyType="done"
+          onSubmitEditing={submitNewPassword}
+          accessibilityLabel={
+            confirmError
+              ? `${t('auth.confirmNewPassword')}, ${confirmError}`
+              : t('auth.confirmNewPassword')
+          }
+        />
+        {confirmError ? (
+          <Text style={styles.errorText} accessibilityLiveRegion="polite">
+            {confirmError}
+          </Text>
+        ) : null}
+      </View>
+
+      {formError ? (
+        <Text style={styles.errorText} accessibilityLiveRegion="polite">
+          {formError}
+        </Text>
+      ) : null}
+
+      <ResetPrimaryButton
+        label={t('auth.resetPasswordSubmit')}
+        onPress={submitNewPassword}
+        busy={isSaving}
+      />
+    </View>
   );
 }

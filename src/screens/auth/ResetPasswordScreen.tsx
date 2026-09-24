@@ -1,24 +1,37 @@
-import { KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity, View } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useDisplayFont } from '../../hooks/useDisplayFont';
+import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../design/largeTextLayout';
 import {
   NewPasswordStep,
   ResetConfirmStep,
   ResetProblemStep,
+  resetStepCopy,
   useResetPasswordFlow,
   useResetPasswordStyles,
 } from './resetPassword';
 
-// Reachable only from a password-reset deep link; see resetPassword/resetPasswordModel.ts
-// for the confirm → form / problem steps.
+// Reachable only from a password-reset deep link. It asks before the link's code is
+// exchanged (confirm), then takes the new password (form); a link that cannot be
+// used explains why and can email a new one (problem). See resetPassword/.
 export function ResetPasswordScreen() {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = useResetPasswordStyles();
+  const displayFont = useDisplayFont();
   const insets = useSafeAreaInsets();
   const flow = useResetPasswordFlow();
+  const copy = resetStepCopy(flow.phase, flow.problem, flow.signedInUserId !== null);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -46,6 +59,20 @@ export function ResetPasswordScreen() {
           </View>
 
           <View style={styles.content}>
+            <Text
+              maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
+              accessibilityRole="header"
+              style={[styles.title, displayFont.bold]}
+            >
+              {t(copy.titleKey)}
+            </Text>
+            <Text
+              style={styles.subtitle}
+              accessibilityLiveRegion={copy.liveSubtitle ? 'polite' : undefined}
+            >
+              {t(copy.subtitleKey)}
+            </Text>
+
             {flow.phase === 'problem' ? (
               <ResetProblemStep
                 problem={flow.problem}
@@ -58,7 +85,6 @@ export function ResetPasswordScreen() {
               />
             ) : flow.phase === 'confirm' ? (
               <ResetConfirmStep
-                signedInUserId={flow.signedInUserId}
                 isActivating={flow.isActivating}
                 confirmAccount={flow.confirmAccount}
                 cancel={flow.cancel}

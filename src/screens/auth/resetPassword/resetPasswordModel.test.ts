@@ -5,6 +5,7 @@ import {
   canRequestNewLink,
   initialResetPhase,
   resetFailureMessageKey,
+  resetStepCopy,
   validateNewPassword,
 } from './resetPasswordModel';
 
@@ -47,4 +48,30 @@ test('a refused update maps its code, and anything else reads as an invalid sess
   assert.equal(resetFailureMessageKey('configuration'), 'auth.backendNotConfigured');
   assert.equal(resetFailureMessageKey('unknown'), 'auth.resetPasswordInvalidSession');
   assert.equal(resetFailureMessageKey(undefined), 'auth.resetPasswordInvalidSession');
+});
+
+test('each step has its own title and subtitle, and only the problem is announced', () => {
+  assert.deepEqual(resetStepCopy('confirm', 'expired', false), {
+    titleKey: 'auth.resetLinkConfirmTitle',
+    subtitleKey: 'auth.resetPasswordSubtitle',
+    liveSubtitle: false,
+  });
+  assert.equal(
+    resetStepCopy('confirm', 'expired', true).subtitleKey,
+    'auth.resetLinkSignsOutCurrent'
+  );
+  assert.deepEqual(resetStepCopy('form', 'expired', true), {
+    titleKey: 'auth.resetPasswordTitle',
+    subtitleKey: 'auth.resetPasswordSubtitle',
+    liveSubtitle: false,
+  });
+  assert.deepEqual(resetStepCopy('problem', 'wrong-device', false), {
+    titleKey: 'auth.resetPasswordTitle',
+    subtitleKey: 'auth.resetLinkWrongDevice',
+    liveSubtitle: true,
+  });
+  assert.equal(
+    resetStepCopy('problem', 'configuration', false).subtitleKey,
+    'auth.backendNotConfigured'
+  );
 });
