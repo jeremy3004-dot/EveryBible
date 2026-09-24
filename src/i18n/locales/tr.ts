@@ -1066,6 +1066,7 @@ export const tr = {
     "progress": "İlerleme",
     "noPlans": "Okuma planı yok",
     "noActivePlans": "Henüz herhangi bir plan başlatmadınız",
+    "noActivePlansBody": "Birini başlatmak için okuma planlarına göz atın.",
     "findPlans": "Plan bul",
     "saved": "Kaydedildi",
     "completions": "{{count}} kez tamamlandı",

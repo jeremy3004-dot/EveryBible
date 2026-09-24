@@ -1108,6 +1108,7 @@ export const en = {
     progress: 'Progress',
     noPlans: 'No reading plans available',
     noActivePlans: "You haven't started any plans yet",
+    noActivePlansBody: 'Browse reading plans to start one.',
     addFirstPlan: 'Add your first plan',
     findPlans: 'Find plans',
     saved: 'Saved',

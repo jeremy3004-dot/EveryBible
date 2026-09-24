@@ -790,6 +790,7 @@ export const pa = {
     "progress": "ਪ੍ਰਗਤੀ",
     "noPlans": "ਕੋਈ ਪੜ੍ਹਨ ਦੀ ਯੋਜਨਾ ਉਪਲਬਧ ਨਹੀਂ",
     "noActivePlans": "ਤੁਸੀਂ ਅਜੇ ਕੋਈ ਯੋਜਨਾ ਸ਼ੁਰੂ ਨਹੀਂ ਕੀਤੀ",
+    "noActivePlansBody": "ਕੋਈ ਯੋਜਨਾ ਸ਼ੁਰੂ ਕਰਨ ਲਈ ਪੜ੍ਹਨ ਦੀਆਂ ਯੋਜਨਾਵਾਂ ਵੇਖੋ।",
     "findPlans": "ਯੋਜਨਾਵਾਂ ਲੱਭੋ",
     "saved": "ਸੰਭਾਲਿਆ",
     "completions": "{{count}} ਵਾਰ ਪੂਰੀ ਕੀਤੀ",

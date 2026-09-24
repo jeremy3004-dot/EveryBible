@@ -1066,6 +1066,7 @@ export const de = {
     "progress": "Fortschritt",
     "noPlans": "Keine Lesepläne verfügbar",
     "noActivePlans": "Du hast noch keinen Plan begonnen",
+    "noActivePlansBody": "Entdecke Lesepläne und beginne einen.",
     "findPlans": "Pläne finden",
     "saved": "Gespeichert",
     "completions": "Abschlüsse: {{count}}",

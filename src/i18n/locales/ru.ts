@@ -1084,6 +1084,7 @@ export const ru = {
     "progress": "Прогресс",
     "noPlans": "Нет доступных планов чтения",
     "noActivePlans": "Вы ещё не начали ни один план",
+    "noActivePlansBody": "Просмотрите планы чтения, чтобы начать один из них.",
     "findPlans": "Найти планы",
     "saved": "Сохранённые",
     "completions": "Завершений: {{count}}",

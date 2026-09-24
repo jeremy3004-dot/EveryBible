@@ -282,6 +282,13 @@ test('PlansHomeScreen keeps My Plans on the main plans surface and sends add-pla
     /activePlans\.length === 0[\s\S]*<EmptyState[\s\S]*cta=\{\{ label: t\('readingPlans\.addFirstPlan'\), onPress: onAddPlan \}\}/s,
     'PlansHomeScreen should show the add-plan CTA inside the shared EmptyState when there are no active plans yet'
   );
+  // The body is a sentence of its own. It used to reuse the terse "Find plans"
+  // button label, which read as a stray control under the title.
+  assert.match(
+    source,
+    /activePlans\.length === 0[\s\S]*<EmptyState[\s\S]*body=\{t\('readingPlans\.noActivePlansBody'\)\}/s,
+    'the empty My Plans state should explain how to start a plan, not repeat a button label'
+  );
   assert.equal(
     source.includes('styles.iconButton'),
     false,

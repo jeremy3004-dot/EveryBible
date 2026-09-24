@@ -1066,6 +1066,7 @@ export const id = {
     "progress": "Kemajuan",
     "noPlans": "Belum ada rencana bacaan yang tersedia",
     "noActivePlans": "Anda belum memulai rencana apa pun",
+    "noActivePlansBody": "Telusuri rencana bacaan untuk memulai salah satunya.",
     "findPlans": "Cari rencana",
     "saved": "Tersimpan",
     "completions": "{{count}} kali selesai",

@@ -1066,6 +1066,7 @@ export const ko = {
     "progress": "진행 상황",
     "noPlans": "이용할 수 있는 읽기 계획이 없습니다",
     "noActivePlans": "아직 시작한 계획이 없습니다",
+    "noActivePlansBody": "읽기 계획을 둘러보고 하나를 시작해 보세요.",
     "findPlans": "계획 찾기",
     "saved": "저장됨",
     "completions": "{{count}}회 완료",

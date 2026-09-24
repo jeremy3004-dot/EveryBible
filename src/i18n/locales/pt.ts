@@ -1076,6 +1076,7 @@ export const pt = {
     "progress": "Progresso",
     "noPlans": "Nenhum plano de leitura disponível",
     "noActivePlans": "Você ainda não iniciou nenhum plano",
+    "noActivePlansBody": "Explore os planos de leitura para começar um.",
     "findPlans": "Encontrar planos",
     "saved": "Salvo",
     "completions": "Conclusões: {{count}}",

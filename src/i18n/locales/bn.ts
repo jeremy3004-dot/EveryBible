@@ -790,6 +790,7 @@ export const bn = {
     "progress": "অগ্রগতি",
     "noPlans": "কোনো পড়ার পরিকল্পনা নেই",
     "noActivePlans": "আপনি এখনও কোনো পরিকল্পনা শুরু করেননি",
+    "noActivePlansBody": "একটি শুরু করতে পড়ার পরিকল্পনাগুলো দেখুন।",
     "findPlans": "পরিকল্পনা খুঁজুন",
     "saved": "সংরক্ষিত",
     "completions": "{{count}} বার সম্পূর্ণ",

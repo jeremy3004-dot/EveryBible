@@ -1066,6 +1066,7 @@ export const vi = {
     "progress": "Tiến độ",
     "noPlans": "Chưa có kế hoạch đọc nào",
     "noActivePlans": "Bạn chưa bắt đầu bất kỳ kế hoạch nào",
+    "noActivePlansBody": "Xem các kế hoạch đọc để bắt đầu một kế hoạch.",
     "findPlans": "Tìm kế hoạch",
     "saved": "Đã lưu",
     "completions": "{{count}} lần hoàn thành",

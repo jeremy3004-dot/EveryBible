@@ -408,7 +408,7 @@ function MyPlansSection({
         <EmptyState
           icon="book-outline"
           title={t('readingPlans.noActivePlans')}
-          body={t('readingPlans.findPlans')}
+          body={t('readingPlans.noActivePlansBody')}
           cta={{ label: t('readingPlans.addFirstPlan'), onPress: onAddPlan }}
         />
       </View>

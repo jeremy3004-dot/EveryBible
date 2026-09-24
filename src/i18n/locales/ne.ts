@@ -1229,6 +1229,7 @@ export const ne = {
     "progress": "प्रगति",
     "noPlans": "कुनै पठन योजना उपलब्ध छैन",
     "noActivePlans": "तपाईंले अझै कुनै योजना सुरु गर्नुभएको छैन",
+    "noActivePlansBody": "कुनै योजना सुरु गर्न पठन योजनाहरू हेर्नुहोस्।",
     "findPlans": "योजना खोज्नुहोस्",
     "saved": "सुरक्षित",
     "completions": "{{count}} पूरा",

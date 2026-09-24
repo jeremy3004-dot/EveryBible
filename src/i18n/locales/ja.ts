@@ -1066,6 +1066,7 @@ export const ja = {
     "progress": "進捗",
     "noPlans": "利用できる読書プランはありません",
     "noActivePlans": "まだプランを始めていません",
+    "noActivePlansBody": "読書プランを見て、始めるプランを選びましょう。",
     "findPlans": "プランを探す",
     "saved": "保存済み",
     "completions": "{{count}}回完了",

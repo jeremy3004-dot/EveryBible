@@ -805,6 +805,7 @@ export const hi = {
     "progress": "प्रगति",
     "noPlans": "कोई पढ़ने की योजना उपलब्ध नहीं",
     "noActivePlans": "आपने अभी तक कोई योजना शुरू नहीं की है",
+    "noActivePlansBody": "कोई योजना शुरू करने के लिए पढ़ने की योजनाएँ देखें।",
     "findPlans": "योजनाएँ खोजें",
     "saved": "सहेजे गए",
     "completions": "{{count}} बार पूरा",

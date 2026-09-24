@@ -790,6 +790,7 @@ export const mr = {
     "progress": "प्रगती",
     "noPlans": "वाचन योजना उपलब्ध नाहीत",
     "noActivePlans": "तुम्ही अद्याप कोणतीही योजना सुरू केलेली नाही",
+    "noActivePlansBody": "एखादी योजना सुरू करण्यासाठी वाचन योजना पाहा.",
     "findPlans": "योजना शोधा",
     "saved": "जतन केले",
     "completions": "{{count}} वेळा पूर्ण",

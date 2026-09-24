@@ -1102,6 +1102,7 @@ export const ar = {
     "progress": "التقدّم",
     "noPlans": "لا توجد خطط قراءة متاحة",
     "noActivePlans": "لم تبدأ أي خطط بعد",
+    "noActivePlansBody": "تصفح خطط القراءة لتبدأ إحداها.",
     "findPlans": "ابحث عن الخطط",
     "saved": "تم الحفظ",
     "completions": "أُكملت {{count}} مرة",

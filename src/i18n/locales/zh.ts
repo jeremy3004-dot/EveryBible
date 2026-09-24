@@ -1066,6 +1066,7 @@ export const zh = {
     "progress": "进度",
     "noPlans": "没有可用的阅读计划",
     "noActivePlans": "你还没有开始任何计划",
+    "noActivePlansBody": "浏览阅读计划，开始其中一个。",
     "findPlans": "查找计划",
     "saved": "已保存",
     "completions": "{{count}} 次完成",

@@ -1515,6 +1515,7 @@ export const es = {
     "progress": "Progreso",
     "noPlans": "No hay planes de lectura disponibles",
     "noActivePlans": "Aún no has iniciado ningún plan",
+    "noActivePlansBody": "Explora los planes de lectura para empezar uno.",
     "findPlans": "Buscar planes",
     "saved": "Guardados",
     "completions": "Veces completado: {{count}}",

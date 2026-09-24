@@ -1066,6 +1066,7 @@ export const ur = {
     "progress": "پیش رفت",
     "noPlans": "کوئی مطالعہ منصوبہ دستیاب نہیں",
     "noActivePlans": "آپ نے ابھی تک کوئی منصوبہ شروع نہیں کیا",
+    "noActivePlansBody": "کوئی منصوبہ شروع کرنے کے لیے پڑھنے کے منصوبے دیکھیں۔",
     "findPlans": "منصوبے تلاش کریں",
     "saved": "محفوظ ہو گیا",
     "completions": "{{count}} بار مکمل",
