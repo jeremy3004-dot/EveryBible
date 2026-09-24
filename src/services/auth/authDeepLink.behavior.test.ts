@@ -57,6 +57,26 @@ const authHandlers = supabaseFake.auth.handlers as unknown as Record<
   (...args: unknown[]) => unknown
 >;
 
+// auth-js keeps the reset request's code verifier in its auth storage beside the session, and
+// deletes it whenever it removes a session. The shared fake does not model the verifier, so
+// this file does: one is stored before each test unless the test removes it.
+type AuthStorage = {
+  getItem: (key: string) => Promise<string | null>;
+  setItem: (key: string, value: string) => Promise<void>;
+};
+const fakeAuth = supabaseFake.client.auth as unknown as {
+  storage: AuthStorage;
+  storageKey: string;
+};
+const VERIFIER_KEY = `${fakeAuth.storageKey}-code-verifier`;
+const storedAuthItems = new Map<string, string>();
+const fakeSessionGetItem = fakeAuth.storage.getItem;
+fakeAuth.storage.getItem = async (key) =>
+  storedAuthItems.get(key) ?? (key === VERIFIER_KEY ? null : fakeSessionGetItem(key));
+fakeAuth.storage.setItem = async (key, value) => {
+  storedAuthItems.set(key, value);
+};
+
 let authDeepLink: typeof import('./authDeepLink');
 
 before(async () => {
@@ -71,6 +91,8 @@ beforeEach(() => {
   navigator.ready = true;
   navigator.navigations = [];
   authDeepLink.clearPendingPasswordRecovery();
+  storedAuthItems.clear();
+  storedAuthItems.set(VERIFIER_KEY, JSON.stringify('verifier/PASSWORD_RECOVERY'));
 });
 
 /**
@@ -183,6 +205,47 @@ test('a signed-in account is signed out through the normal path before the code 
 
   assert.deepEqual(result, { status: 'activated' });
   assert.deepEqual(order, ['sign-out:user-a', 'exchange']);
+});
+
+test('signing the account out does not cost the reset its code verifier', async () => {
+  let verifierAtExchange: string | undefined;
+  authHandlers.exchangeCodeForSession = async () => {
+    verifierAtExchange = storedAuthItems.get(VERIFIER_KEY);
+    const next = { access_token: 'recovery', user: { id: 'user-a' } };
+    return {
+      data: { session: next as never, user: next.user as never, redirectType: 'PASSWORD_RECOVERY' },
+    };
+  };
+  await authDeepLink.handleAuthDeepLinkUrl(RECOVERY_URL);
+
+  const result = await authDeepLink.activatePendingPasswordRecovery({
+    signedInUserId: 'user-a',
+    // As auth-js does when it removes the session.
+    signOutCurrentAccount: async () => {
+      storedAuthItems.delete(VERIFIER_KEY);
+    },
+  });
+
+  assert.deepEqual(result, { status: 'activated' });
+  assert.equal(verifierAtExchange, JSON.stringify('verifier/PASSWORD_RECOVERY'));
+});
+
+test('a signed-in account is not signed out for a link whose verifier is not on this device', async () => {
+  storedAuthItems.delete(VERIFIER_KEY);
+  let signOuts = 0;
+  await authDeepLink.handleAuthDeepLinkUrl(RECOVERY_URL);
+
+  const result = await authDeepLink.activatePendingPasswordRecovery({
+    signedInUserId: 'user-a',
+    signOutCurrentAccount: async () => {
+      signOuts += 1;
+    },
+  });
+
+  assert.deepEqual(result, { status: 'failed', problem: 'wrong-device' });
+  assert.equal(signOuts, 0);
+  assert.deepEqual(supabaseFake.authCalls, []);
+  assert.equal(authDeepLink.getPendingPasswordRecovery(), null, 'the code cannot be retried');
 });
 
 test('with nobody signed in the code is exchanged without a sign-out', async () => {

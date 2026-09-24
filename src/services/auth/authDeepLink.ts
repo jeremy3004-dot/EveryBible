@@ -29,6 +29,45 @@ export function clearPendingPasswordRecovery(): void {
   pendingPasswordRecovery = null;
 }
 
+// auth-js keeps the reset request's PKCE code verifier in its own storage and deletes it
+// whenever it removes a session, so signing the current account out would leave the parked
+// code unredeemable. `storage` and `storageKey` are not public API;
+// passwordRecoveryPkce.realClient.behavior.test.ts pins them against the installed auth-js.
+// Null when the client does not have that shape: the sign-out then runs as it always did.
+async function readStoredCodeVerifier(): Promise<{
+  value: string | null;
+  restore: () => Promise<void>;
+} | null> {
+  try {
+    const auth = supabase.auth as unknown as {
+      storage?: {
+        getItem: (key: string) => Promise<string | null> | string | null;
+        setItem: (key: string, value: string) => Promise<void> | void;
+      };
+      storageKey?: string;
+    };
+    const { storage, storageKey } = auth;
+    if (!storage || typeof storageKey !== 'string') {
+      return null;
+    }
+    const key = `${storageKey}-code-verifier`;
+    const value = await storage.getItem(key);
+    return {
+      value,
+      restore: async () => {
+        if (value === null) return;
+        try {
+          await storage.setItem(key, value);
+        } catch {
+          // The exchange then reports the link as unusable on this device.
+        }
+      },
+    };
+  } catch {
+    return null;
+  }
+}
+
 export type ActivateRecoverySessionResult =
   | { status: 'activated' }
   | { status: 'missing' }
@@ -67,10 +106,19 @@ export async function activatePendingPasswordRecovery(
   }
 
   if (options.signedInUserId && options.signOutCurrentAccount) {
+    const verifier = await readStoredCodeVerifier();
+    if (verifier && verifier.value === null) {
+      // The exchange cannot succeed here; do not sign anyone out finding that out.
+      pendingPasswordRecovery = null;
+      return { status: 'failed', problem: 'wrong-device' };
+    }
     try {
       await options.signOutCurrentAccount();
     } catch {
       return { status: 'failed', problem: 'network' };
+    } finally {
+      // Removing the session also deletes the verifier the exchange below needs.
+      await verifier?.restore();
     }
   }
 
