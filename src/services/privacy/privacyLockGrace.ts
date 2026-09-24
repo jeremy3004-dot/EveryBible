@@ -20,21 +20,59 @@
 
 /** How long after the app's own system UI settles its 'inactive' echo is still ignored. */
 export const PRIVACY_LOCK_GRACE_AFTER_SYSTEM_UI_MS = 1_500;
-/** A request that never settles stops suppressing the lock after this long. */
+/**
+ * A request that never settles stops suppressing the lock after this long, and so does a
+ * grace held for an alert that follows the request (`untilNextActive`) but never came.
+ */
 export const PRIVACY_LOCK_GRACE_MAX_PENDING_MS = 10_000;
 
-const pendingSince = new Set<{ startedAt: number }>();
+export interface PrivacyLockGraceOptions {
+  /**
+   * The system UI can come after the task settles: iOS completes an app icon change
+   * first and shows its alert (turning the app inactive) over a second later, 1.5 s was
+   * not enough on an iOS 26.5 simulator. The grace then stays until the app is next
+   * active again, capped at PRIVACY_LOCK_GRACE_MAX_PENDING_MS, unless the app already
+   * went inactive while the task ran.
+   */
+  untilNextActive?: boolean;
+}
+
+type PendingGrace = { startedAt: number; sawInactive: boolean };
+
+const pendingSince = new Set<PendingGrace>();
 let graceUntil = 0;
+let heldUntilActiveSince: number | null = null;
 
 /** Runs a task that shows system UI (an icon alert, a permission prompt) under the grace. */
-export async function withPrivacyLockGrace<T>(task: () => Promise<T>): Promise<T> {
-  const entry = { startedAt: Date.now() };
+export async function withPrivacyLockGrace<T>(
+  task: () => Promise<T>,
+  options: PrivacyLockGraceOptions = {}
+): Promise<T> {
+  const entry: PendingGrace = { startedAt: Date.now(), sawInactive: false };
   pendingSince.add(entry);
   try {
     return await task();
   } finally {
     pendingSince.delete(entry);
-    graceUntil = Math.max(graceUntil, Date.now() + PRIVACY_LOCK_GRACE_AFTER_SYSTEM_UI_MS);
+    const settledAt = Date.now();
+    graceUntil = Math.max(graceUntil, settledAt + PRIVACY_LOCK_GRACE_AFTER_SYSTEM_UI_MS);
+    if (options.untilNextActive && !entry.sawInactive) {
+      heldUntilActiveSince = settledAt;
+    }
+  }
+}
+
+/**
+ * Told every app state change (by usePrivacyLock). Returning to 'active' ends a grace held
+ * until then; going 'inactive' is recorded against the requests still pending.
+ */
+export function notePrivacyLockAppState(nextState: string): void {
+  if (nextState === 'active') {
+    heldUntilActiveSince = null;
+  } else if (nextState === 'inactive') {
+    pendingSince.forEach((entry) => {
+      entry.sawInactive = true;
+    });
   }
 }
 
@@ -42,6 +80,12 @@ export async function withPrivacyLockGrace<T>(task: () => Promise<T>): Promise<T
 export function isPrivacyLockGraceActive(): boolean {
   const now = Date.now();
   if (now < graceUntil) {
+    return true;
+  }
+  if (
+    heldUntilActiveSince !== null &&
+    now - heldUntilActiveSince < PRIVACY_LOCK_GRACE_MAX_PENDING_MS
+  ) {
     return true;
   }
   for (const entry of pendingSince) {
