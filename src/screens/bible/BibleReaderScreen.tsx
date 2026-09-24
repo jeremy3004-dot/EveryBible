@@ -649,6 +649,7 @@ export function BibleReaderScreen() {
     isLoading,
     navigation,
     playChapter,
+    routeKey: route.key,
     resolvePlanSessionRouteParams,
   });
 
