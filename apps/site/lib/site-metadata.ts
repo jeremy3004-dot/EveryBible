@@ -3,6 +3,7 @@ import type { Metadata, MetadataRoute, Viewport } from 'next';
 import {
   EVERY_LANGUAGE_URL,
   EVERYBIBLE_APP_STORE_URL,
+  EVERYBIBLE_DELETE_ACCOUNT_PATH,
   EVERYBIBLE_GOOGLE_PLAY_URL,
   EVERYBIBLE_PRIVACY_PATH,
   EVERYBIBLE_SITE_URL,
@@ -98,6 +99,7 @@ export const SITEMAP_PATHS = [
   EVERYBIBLE_SUPPORT_PATH,
   EVERYBIBLE_PRIVACY_PATH,
   EVERYBIBLE_TERMS_PATH,
+  EVERYBIBLE_DELETE_ACCOUNT_PATH,
 ] as const;
 
 export function buildSitemap(lastModified: Date): MetadataRoute.Sitemap {
