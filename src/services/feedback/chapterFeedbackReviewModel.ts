@@ -87,6 +87,19 @@ export function getNextQueuedId(
   return null;
 }
 
+/**
+ * The session after `id` is decided or skipped: it joins the handled set and the next open
+ * item comes up. A decision is saved before it advances, so it must advance whatever the
+ * session is by then: a review closed meanwhile stays closed (null) rather than reopening.
+ */
+export function advanceReviewSession<
+  T extends { queue: string[]; currentId: string | null; handled: ReadonlySet<string> },
+>(session: T | null, id: string): T | null {
+  if (!session) return null;
+  const handled = new Set(session.handled).add(id);
+  return { ...session, handled, currentId: getNextQueuedId(session.queue, handled, id) };
+}
+
 export function formatVoiceNoteDuration(durationMs: number): string {
   const totalSeconds = Math.max(0, Math.round(durationMs / 1000));
   const minutes = Math.floor(totalSeconds / 60);
