@@ -542,6 +542,55 @@ test('a failed install with no regional fallback leaves the reader on its curren
   assert.equal(warnings.length, 1, 'an unrecoverable install failure is reported, not swallowed');
 });
 
+// The launch download of the saved primary can take a while; a Bible the reader picks
+// meanwhile is their choice and must not be replaced when the download ends.
+test('a translation the reader picks while the saved primary downloads is kept', async () => {
+  reset();
+  const { reconcilePrimaryTranslationPreference } = await loadModule();
+  storeState.translations = [
+    makeTranslation({ id: 'web', source: 'runtime', hasText: true, catalog: downloadableCatalog }),
+  ];
+  preferencesResult = async () => ({ success: true, data: makePreferences('web') });
+  downloadOutcome = async () => {
+    storeState.setCurrentTranslation('asv');
+  };
+
+  await reconcilePrimaryTranslationPreference();
+
+  assert.equal(storeState.currentTranslation, 'asv');
+  assert.deepEqual(events, ['preferences', 'download:web', 'current:asv']);
+});
+
+test('a translation the reader picks while a failing download runs is not replaced by the fallback', async () => {
+  reset();
+  const { reconcilePrimaryTranslationPreference } = await loadModule();
+  storeState.translations = [
+    makeTranslation({
+      id: 'hindi-other',
+      language: 'Hindi',
+      source: 'runtime',
+      hasText: true,
+      catalog: downloadableCatalog,
+    }),
+    makeTranslation({ id: 'hincv', language: 'Hindi', isDownloaded: true }),
+  ];
+  preferencesResult = async () => ({ success: true, data: makePreferences('hindi-other') });
+  downloadOutcome = async () => {
+    storeState.setCurrentTranslation('asv');
+    throw new Error('download failed');
+  };
+  const warn = mock.method(console, 'warn', () => {});
+
+  try {
+    await reconcilePrimaryTranslationPreference();
+  } finally {
+    warn.mock.restore();
+  }
+
+  assert.equal(storeState.currentTranslation, 'asv');
+  assert.equal(warn.mock.callCount(), 1, 'the failed install is still reported');
+});
+
 // ─── bootstrapRuntimeTranslationsAndPreferences ───────────────────────────────
 
 test('the combined bootstrap applies the catalog before reconciling the preference', async () => {
