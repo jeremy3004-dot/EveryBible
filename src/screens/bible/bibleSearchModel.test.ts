@@ -62,10 +62,29 @@ test('resolves a parsed scripture reference into a direct navigation intent', ()
 });
 
 test('falls back to full-text search when reference parsing does not match', () => {
-  assert.deepEqual(resolveBibleSearchIntent(' love one another ', () => null), {
-    kind: 'full-text',
-    query: 'love one another',
-  });
+  assert.deepEqual(
+    resolveBibleSearchIntent(' love one another ', () => null),
+    {
+      kind: 'full-text',
+      query: 'love one another',
+    }
+  );
+});
+
+test('runs a one-character search for a Chinese, Japanese or Korean word', () => {
+  // One Han character is a whole word (爱 "love", 神 "God"), so the two-character minimum
+  // that keeps a lone Latin letter idle must not block it.
+  assert.equal(shouldRunBibleSearch('爱'), true);
+  assert.equal(shouldRunBibleSearch(' 神 '), true);
+  assert.equal(shouldRunBibleSearch('愛'), true);
+  assert.equal(shouldRunBibleSearch('빛'), true);
+  assert.deepEqual(
+    resolveBibleSearchIntent('爱', () => null),
+    {
+      kind: 'full-text',
+      query: '爱',
+    }
+  );
 });
 
 test('keeps short queries idle and does not ask the parser to resolve them', () => {
