@@ -857,6 +857,22 @@ test('registration stops when notification permission was refused', async () => 
   assert.equal(notifications.getCachedPushToken(), null);
 });
 
+test('permission granted after a refused registration registers once, and later tries reuse it', async () => {
+  // The app re-tries on every foreground and after its own permission prompt, so a
+  // device that is already registered must not write user_devices again.
+  const userId = nextUser();
+  permission.current = 'undetermined';
+  assert.equal(await notifications.registerPushToken(userId), null);
+
+  permission.current = 'granted';
+  assert.equal(await notifications.registerPushToken(userId), 'expo-token');
+  await notifications.registerPushToken(userId);
+  await notifications.registerPushToken(userId);
+
+  assert.deepEqual([upsertsFor(userId).length, tokenCalls.length], [1, 1]);
+  await notifications.deactivatePushToken(userId);
+});
+
 test('a native token failure on a simulator is non-fatal and caches nothing', async () => {
   const uid = nextUser();
   getToken = async () => {
