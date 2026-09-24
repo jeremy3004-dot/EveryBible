@@ -36,7 +36,8 @@ mockModule(mock, '@/lib/admin-data', {
   normalizeAnalyticsWindow: (value: unknown) => Number(value) || 180,
 });
 
-const { OPERATOR_TOOL_EXECUTORS: tools } = await import('./operator-tools');
+const { OPERATOR_TOOL_DECLARATIONS: declarations, OPERATOR_TOOL_EXECUTORS: tools } =
+  await import('./operator-tools');
 
 beforeEach(() => {
   for (const name of Object.keys(handlers)) delete handlers[name];
@@ -190,4 +191,51 @@ test('health, translation and sync tools never forward unknown fields or raw ups
       name
     );
   }
+});
+
+const READ_ONLY_TOOLS = [
+  'get_health_snapshot',
+  'get_analytics_overview',
+  'list_translations',
+  'get_translation_detail',
+  'list_chapter_feedback',
+  'get_support_user',
+  'list_audit_logs',
+  'list_sync_runs',
+];
+
+test('the model is offered exactly the read-only tools, each with an executor', () => {
+  assert.deepEqual(
+    declarations.map((declaration) => declaration.name),
+    READ_ONLY_TOOLS
+  );
+  assert.deepEqual(Object.keys(tools), READ_ONLY_TOOLS);
+});
+
+test('every tool reaches only the read-only admin-data loaders', async () => {
+  const readLoaders: Record<string, unknown> = {
+    getAnalyticsOverview: { countryMetrics: [], translationBreakdown: [] },
+    getDashboardSummary: {},
+    getHealthIssues: [],
+    getRecentAuditLogs: [],
+    getSupportUserDetail: null,
+    getTranslationDetail: null,
+    listChapterFeedback: [],
+    listSupportUsers: [],
+    listSyncRuns: [],
+    listTranslations: [],
+  };
+  for (const [name, result] of Object.entries(readLoaders)) {
+    handlers[name] = async () => result;
+  }
+  const args = { translationId: 'bsb', query: 'person', search: 'gen', limit: 5, windowDays: 30 };
+  for (const name of READ_ONLY_TOOLS) {
+    const before = received.length;
+    await assert.doesNotReject(tools[name](args), name);
+    assert.ok(received.length > before, `${name} must read live admin data`);
+  }
+  assert.deepEqual(
+    received.map(([name]) => name).filter((name) => !Object.hasOwn(readLoaders, name)),
+    []
+  );
 });
