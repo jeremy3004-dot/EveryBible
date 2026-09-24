@@ -4,6 +4,7 @@ import test from 'node:test';
 import { gunzipSync } from 'node:zlib';
 
 import type { AtlasIndex, AtlasRecord } from '../../admin/lib/language-atlas/types';
+import { macrolanguageMapFromPages, parseMacrolanguageTable } from './iso-macrolanguages';
 import { languagePageTitle } from './language-page-seo';
 import { isLanguageSlug, languageShard } from './language-slug';
 import {
@@ -16,7 +17,6 @@ import {
   type LanguagePage,
 } from './language-pages';
 import type { AtlasProject } from './public-atlas-projects';
-import isoMacrolanguages from '../data/language-atlas/iso-639-3-macrolanguages.json';
 import projectSnapshot from '../data/language-atlas/projects.json';
 
 function record(overrides: Partial<AtlasRecord> & Pick<AtlasRecord, 'id' | 'name'>): AtlasRecord {
@@ -242,6 +242,50 @@ test('a macrolanguage takes the best status among its members, credited to them'
   assert.equal(judeoArabic.members.length, 1);
 
   assert.deepEqual(pageFor(build, 'gulf-arabic-afb').members, [], 'members are not macrolanguages');
+});
+
+test('pages rebuilt from the membership they carry are identical, so offline rebuilds match', () => {
+  // A few rows in the layout of SIL's iso-639-3-macrolanguages.tab
+  // (ISO 639-3 codes from iso639-3.sil.org); `ajp` is a retired member.
+  const mapping = parseMacrolanguageTable(
+    [
+      'M_Id\tI_Id\tI_Status',
+      'aka\tfat\tA',
+      'aka\ttwi\tA',
+      'ara\taao\tA',
+      'ara\tafb\tA',
+      'ara\tajp\tR',
+      'ara\tapd\tA',
+      'ara\tarb\tA',
+      'jrb\tyhd\tA',
+    ].join('\n')
+  );
+  const index = atlas([
+    record({ id: 'iso:ara', name: 'Arabic', iso6393: 'ara', countryCodes: ['NP'] }),
+    record({ id: 'iso:arb', name: 'Standard Arabic', iso6393: 'arb', scriptureStatus: 'bible' }),
+    record({ id: 'iso:afb', name: 'Gulf Arabic', iso6393: 'afb', scriptureStatus: 'portions' }),
+    record({
+      id: 'iso:ajp',
+      name: 'South Levantine Arabic',
+      iso6393: 'ajp',
+      scriptureStatus: 'nt',
+    }),
+    record({ id: 'iso:aka', name: 'Akan', iso6393: 'aka' }),
+    record({ id: 'iso:twi', name: 'Twi', iso6393: 'twi', scriptureStatus: 'nt' }),
+    record({ id: 'iso:jrb', name: 'Judeo-Arabic', iso6393: 'jrb' }),
+  ]);
+  const build = buildLanguagePages(index, [], 4, mapping);
+  assert.deepEqual(
+    pageFor(build, 'arabic-ara').members.map((member) => member.slug),
+    ['standard-arabic-arb', 'gulf-arabic-afb'],
+    'retired members are not linked'
+  );
+  const recovered = macrolanguageMapFromPages(Object.assign({}, ...build.shards));
+  assert.deepEqual(recovered, { aka: ['twi'], ara: ['afb', 'arb'] });
+  assert.deepEqual(
+    languagePageFiles(buildLanguagePages(index, [], 4, recovered)),
+    languagePageFiles(build)
+  );
 });
 
 test('the roll-up never reports no known Scripture while a member has some', () => {
@@ -499,6 +543,18 @@ test('sources keep public attribution and drop internal notes', () => {
 
 const pagesDirectory = new URL('../data/language-atlas/pages/', import.meta.url);
 
+function committedPages(): Record<string, LanguagePage> {
+  return Object.assign(
+    {},
+    ...readdirSync(pagesDirectory)
+      .filter((name) => name.startsWith('shard-'))
+      .map((name) => JSON.parse(gunzipSync(readFileSync(new URL(name, pagesDirectory))).toString()))
+  );
+}
+
+// SIL's macrolanguage table is not in the repo (iso639-3.sil.org is its only
+// authorized distribution site), so this compares against the membership the
+// committed pages carry; `npm run atlas:pages:check` compares against SIL's table.
 test('the committed language pages match the public atlas snapshot', () => {
   const index = JSON.parse(
     gunzipSync(
@@ -510,7 +566,7 @@ test('the committed language pages match the public atlas snapshot', () => {
       index,
       projectSnapshot.projects,
       LANGUAGE_PAGE_SHARD_COUNT,
-      isoMacrolanguages.macrolanguages
+      macrolanguageMapFromPages(committedPages())
     )
   );
   assert.deepEqual(readdirSync(pagesDirectory).sort(), Object.keys(expected).sort());
@@ -546,12 +602,7 @@ test('every committed language has a unique, URL-safe slug and a unique title la
 });
 
 test('committed macrolanguage pages show their members, never red while a member has Scripture', () => {
-  const pages: Record<string, LanguagePage> = Object.assign(
-    {},
-    ...readdirSync(pagesDirectory)
-      .filter((name) => name.startsWith('shard-'))
-      .map((name) => JSON.parse(gunzipSync(readFileSync(new URL(name, pagesDirectory))).toString()))
-  );
+  const pages = committedPages();
   const macrolanguages = Object.values(pages).filter((page) => page.members.length > 0);
   assert.ok(macrolanguages.length >= 45, `${macrolanguages.length} macrolanguage pages`);
   for (const page of macrolanguages) {
