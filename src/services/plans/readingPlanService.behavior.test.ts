@@ -859,6 +859,51 @@ test('unenrollFromPlan records when the reader left as a server tombstone', asyn
   assert.ok(Number.isFinite(Date.parse(payload.unenrolled_at)), 'the leave time is sent');
 });
 
+test('a leave is sent with the phone clock so the server can place it on its own', async () => {
+  signIn('user-a', 3);
+  await service.enrollInPlan('psalms-30-days');
+  await flushBackgroundWork();
+  supabaseFake.reset();
+  const before = Date.now();
+
+  await service.unenrollFromPlan('psalms-30-days');
+
+  const [tombstone] = supabaseFake.callsFor(UNENROLLMENTS);
+  const sentClock = (tombstone?.payload as { client_clock_at?: string }).client_clock_at;
+  assert.equal(typeof sentClock, 'string');
+  assert.ok(Date.parse(sentClock!) >= before && Date.parse(sentClock!) <= Date.now());
+});
+
+test('a server without the tombstone clock column still records the leave', async () => {
+  signIn('user-a', 3);
+  await service.enrollInPlan('psalms-30-days');
+  await flushBackgroundWork();
+  supabaseFake.reset();
+  // Migration 20260924140000 not applied: PostgREST refuses the unknown column.
+  supabaseFake.respondTo(UNENROLLMENTS, (call) =>
+    'client_clock_at' in (call.payload as Record<string, unknown>)
+      ? {
+          data: null,
+          error: {
+            code: 'PGRST204',
+            message:
+              "Could not find the 'client_clock_at' column of 'user_reading_plan_unenrollments' in the schema cache",
+          },
+        }
+      : { data: null }
+  );
+
+  const result = await service.unenrollFromPlan('psalms-30-days');
+
+  assert.deepEqual(result, { success: true });
+  const upserts = supabaseFake
+    .callsFor(UNENROLLMENTS)
+    .filter((call) => call.operation === 'upsert');
+  assert.equal(upserts.length, 2);
+  assert.equal('client_clock_at' in (upserts[1]?.payload as Record<string, unknown>), false);
+  assert.deepEqual(storeModule.readingPlansStore.getState().pendingUnenrollPlanIds, []);
+});
+
 test('a leave the server cannot confirm (offline) is kept on the device and reported as pending sync', async () => {
   signIn('user-a', 3);
   await service.enrollInPlan('psalms-30-days');

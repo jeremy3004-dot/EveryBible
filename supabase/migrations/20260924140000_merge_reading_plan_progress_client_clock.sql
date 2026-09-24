@@ -1,4 +1,4 @@
--- merge_reading_plan_progress: judge a new enrolment's start by the server's clock.
+-- Reading plans: judge a phone's join and leave times by the server's clock.
 --
 -- NOT APPLIED. Written from randomised failure-injection tests of reading-plan
 -- sync (2026-09-24); review before applying. The app works with or without it:
@@ -30,13 +30,52 @@
 -- shifted again). A phone whose clock was changed between joining and pushing
 -- is still judged by its current error.
 --
+-- The leave needs the same treatment, or a fast phone that leaves and re-joins
+-- offline has its re-join judged against a leave clamped to the upload time:
+-- user_reading_plan_unenrollments gains a client_clock_at column, which the new
+-- app sends with the time the reader left; normalize_reading_plan_unenrollment
+-- moves unenrolled_at onto the server's clock the same way and clears the column
+-- (it is never stored), before its existing clamp to now() and never-move-back
+-- rule. The installed builds' DELETE path writes now() and is unaffected.
+--
 -- Rows without client_clock_at (installed builds, and every other push) are
 -- merged exactly as before. client_clock_at must be a timestamp string or null;
 -- anything else is 22023 (a malformed timestamp string fails the cast, 22007).
 --
--- Everything else is identical to 20260924051658. CREATE OR REPLACE keeps the
--- grants; they are restated for a fresh database. Backward compatible: same
--- signature; jsonb_to_recordset on the old definition ignores the extra key.
+-- Apart from client_clock_at, merge_reading_plan_progress is identical to
+-- 20260924051658 and normalize_reading_plan_unenrollment to 20260924023340.
+-- CREATE OR REPLACE keeps the grants; they are restated for a fresh database.
+-- Backward compatible: same signature; jsonb_to_recordset on the old definition
+-- ignores the extra key, and a server without the column refuses the new app's
+-- tombstone upsert with PGRST204, which the app retries without it.
+
+ALTER TABLE public.user_reading_plan_unenrollments
+  ADD COLUMN IF NOT EXISTS client_clock_at timestamptz;
+
+COMMENT ON COLUMN public.user_reading_plan_unenrollments.client_clock_at IS
+  'Write-only: the sender''s clock when it sent the row. The trigger moves unenrolled_at onto '
+  'the server''s clock with it and clears it.';
+
+-- A tombstone never lies in the future and never moves back: a retried leave
+-- recorded earlier cannot shorten a later one.
+CREATE OR REPLACE FUNCTION public.normalize_reading_plan_unenrollment()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
+BEGIN
+  -- The phone's leave time moved onto the server's clock, as for an enrolment start.
+  IF NEW.client_clock_at IS NOT NULL THEN
+    NEW.unenrolled_at := NEW.unenrolled_at + (now() - NEW.client_clock_at);
+    NEW.client_clock_at := NULL;
+  END IF;
+  NEW.unenrolled_at := LEAST(COALESCE(NEW.unenrolled_at, now()), now());
+  IF TG_OP = 'UPDATE' THEN
+    NEW.unenrolled_at := GREATEST(NEW.unenrolled_at, OLD.unenrolled_at);
+  END IF;
+  RETURN NEW;
+END;
+$$;
 
 CREATE OR REPLACE FUNCTION public.merge_reading_plan_progress(p_rows jsonb)
 RETURNS SETOF public.user_reading_plan_progress

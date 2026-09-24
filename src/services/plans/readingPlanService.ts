@@ -414,6 +414,19 @@ function applyLocalSnapshotRow(snapshotRow: UserReadingPlanProgress): void {
 const isMissingTableError = (error: { code?: string } | null | undefined): boolean =>
   error?.code === 'PGRST205' || error?.code === '42P01';
 
+/**
+ * PostgREST (PGRST204) or Postgres (42703) refusing the tombstone's client_clock_at
+ * column: the server predates migration 20260924140000.
+ */
+const isMissingClockColumnError = (
+  error: { code?: string; message?: string } | null | undefined
+): boolean =>
+  Boolean(
+    error &&
+    (error.code === 'PGRST204' || error.code === '42703') &&
+    /client_clock_at/.test(error.message ?? '')
+  );
+
 interface RemotePlanUnenrollmentRow {
   plan_slug: string;
   unenrolled_at: string;
@@ -1146,21 +1159,39 @@ async function deleteRemotePlanProgress(
     // Record the leave as a server tombstone; the server then deletes the ended
     // enrolment and refuses any device that pushes it back (finding 9).
     const unenrolledAt = readingPlansStore.getState().pendingUnenrollAtByPlanId[planId];
-    const tombstone = await identity.runIfCurrent(() =>
-      supabase.from(PLAN_UNENROLLMENTS_TABLE).upsert(
-        {
-          user_id: identity.expectedUserId,
-          plan_slug: planId,
-          ...(unenrolledAt ? { unenrolled_at: unenrolledAt } : {}),
-        },
-        { onConflict: 'user_id,plan_slug' }
-      )
-    );
+    const upsertTombstone = (withClock: boolean) =>
+      identity.runIfCurrent(() =>
+        supabase.from(PLAN_UNENROLLMENTS_TABLE).upsert(
+          {
+            user_id: identity.expectedUserId,
+            plan_slug: planId,
+            ...(unenrolledAt
+              ? {
+                  unenrolled_at: unenrolledAt,
+                  // This phone's clock as it sends the leave time it stamped, so the
+                  // server can place the leave on its own clock (migration 20260924140000).
+                  ...(withClock ? { client_clock_at: new Date().toISOString() } : {}),
+                }
+              : {}),
+          },
+          { onConflict: 'user_id,plan_slug' }
+        )
+      );
+    let tombstone = await upsertTombstone(true);
     if (!tombstone.applied) {
       return false;
     }
 
     let { error } = await tombstone.value!;
+
+    if (isMissingClockColumnError(error)) {
+      // A server without that migration: the leave as before, clamped to its clock.
+      tombstone = await upsertTombstone(false);
+      if (!tombstone.applied) {
+        return false;
+      }
+      ({ error } = await tombstone.value!);
+    }
 
     if (isMissingTableError(error)) {
       // No tombstone table yet (migration not applied): the pre-tombstone delete.

@@ -1028,6 +1028,59 @@ const noClockStart = hoursAgo(3);
 merged = await merge(D, [clientRow({ plan_slug: 'no-clock', started_at: noClockStart })]);
 assert.equal(new Date(merged.rows[0].started_at).toISOString(), noClockStart);
 
+// The leave is moved onto the server's clock too. A phone three hours fast leaves an hour
+// ago and re-joins half an hour ago, both offline, then syncs: its leave, clamped to the
+// upload time, would end the corrected re-join; with its clock it lands where it happened.
+// The new app's tombstone upsert (deleteRemotePlanProgress): PostgREST sends every
+// payload column in the insert and in the DO UPDATE.
+const NEW_CLIENT_UNENROL_WITH_CLOCK = `
+  insert into public.user_reading_plan_unenrollments
+    (user_id, plan_slug, unenrolled_at, client_clock_at)
+  values ($1, $2, $3::timestamptz, $4::timestamptz)
+  on conflict (user_id, plan_slug) do update set
+    unenrolled_at = excluded.unenrolled_at, client_clock_at = excluded.client_clock_at
+  returning *`;
+for (const [slug, clock] of [
+  ['fast-rejoin-unclocked', null],
+  ['fast-rejoin', phoneClock(3 * HOUR)],
+]) {
+  merged = await merge(D, [clientRow({ plan_slug: slug, started_at: hoursAgo(20) })]);
+  assert.equal(merged.rows.length, 1);
+  const left = await as(D, NEW_CLIENT_UNENROL_WITH_CLOCK, [
+    D,
+    slug,
+    phoneClock(3 * HOUR, -HOUR),
+    clock,
+  ]);
+  assert.equal(left.rows[0].client_clock_at, null, 'the phone clock is never stored');
+  merged = await merge(D, [
+    clientRow({
+      plan_slug: slug,
+      started_at: phoneClock(3 * HOUR, -0.5 * HOUR),
+      client_clock_at: phoneClock(3 * HOUR),
+    }),
+  ]);
+  if (clock === null) {
+    assert.equal(merged.rows.length, 0, 'without the leave clock the re-join is lost');
+  } else {
+    assert.equal(merged.rows.length, 1, 'with both clocks the re-join is kept');
+    const leftAt = new Date((await tombstone(D, slug)).unenrolled_at).getTime();
+    assert.ok(Math.abs(leftAt - (Date.now() - HOUR)) < 60_000, 'the leave is where it happened');
+  }
+}
+// A retried leave with the phone clock still never moves a tombstone back.
+const laterLeave = (await tombstone(D, 'fast-rejoin')).unenrolled_at;
+await as(D, NEW_CLIENT_UNENROL_WITH_CLOCK, [
+  D,
+  'fast-rejoin',
+  phoneClock(3 * HOUR, -5 * HOUR),
+  phoneClock(3 * HOUR),
+]);
+assert.equal(
+  new Date((await tombstone(D, 'fast-rejoin')).unenrolled_at).getTime(),
+  new Date(laterLeave).getTime()
+);
+
 // client_clock_at is a timestamp string or null.
 merged = await merge(D, [clientRow({ plan_slug: 'null-clock', client_clock_at: null })]);
 assert.equal(merged.rows.length, 1);
