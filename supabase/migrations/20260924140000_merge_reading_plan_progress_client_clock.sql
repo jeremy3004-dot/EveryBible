@@ -20,8 +20,10 @@
 -- is the enrolment's start on the server's clock (at most the travel time late).
 -- The proposed row carries the corrected start, so the tombstone trigger judges
 -- the real order of join and leave, and a new row stores a start that later
--- tombstone checks can compare directly. The same correction also rescues a
--- genuine re-join from a phone whose clock runs slow.
+-- tombstone checks can compare directly. The server would also accept a genuine
+-- re-join from a phone whose clock runs slow, but the app still drops such a row
+-- before pushing it (it compares the start with the tombstone on its own clock),
+-- so that case, documented in 20260924023340, is unchanged.
 --
 -- The app sends client_clock_at only for a plan that has a tombstone and no
 -- stored row when it pushes: the only case where the start decides anything, and
