@@ -219,6 +219,8 @@ export function installReaderRenderFixture(
   });
 
   // ---- Services --------------------------------------------------------------
+  /** Writes the reader made through services and native packages, in order. */
+  const serviceCalls: Array<[string, ...unknown[]]> = [];
   const chapters = new Map<string, Verse[]>();
   const chapterRequests: string[] = [];
   mockModule(mocker, sourcePath('services/bible/bibleService.ts'), {
@@ -245,8 +247,14 @@ export function installReaderRenderFixture(
             });
           })
         : Promise.resolve({ success: true, data: [] }),
-    upsertAnnotation: async () => ({ success: true }),
-    softDeleteAnnotation: async () => ({ success: true }),
+    upsertAnnotation: async (annotation: Record<string, unknown>) => {
+      serviceCalls.push(['upsertAnnotation', annotation]);
+      return { success: true };
+    },
+    softDeleteAnnotation: async (id: string) => {
+      serviceCalls.push(['softDeleteAnnotation', id]);
+      return { success: true };
+    },
   });
   let timestamps: Record<number, number> | null = null;
   mockModule(mocker, sourcePath('services/bible/verseTimestamps.ts'), {
@@ -279,8 +287,14 @@ export function installReaderRenderFixture(
     uploadChapterFeedbackAudio: async () => ({ success: true }),
   });
   mockModule(mocker, sourcePath('services/plans/readingPlanService.ts'), {
-    markDayComplete: async () => ({ success: true }),
-    markPlanSessionComplete: async () => ({ success: true }),
+    markDayComplete: async (...args: unknown[]) => {
+      serviceCalls.push(['markDayComplete', ...args]);
+      return { success: true };
+    },
+    markPlanSessionComplete: async (...args: unknown[]) => {
+      serviceCalls.push(['markPlanSessionComplete', ...args]);
+      return { success: true };
+    },
   });
   mockBarrel(mocker, 'services/plans/index.ts', { real: ['getPlanChapterFocusVerse'] });
   mockBarrel(mocker, 'services/sync/index.ts', {
@@ -296,7 +310,12 @@ export function installReaderRenderFixture(
   mockModule(mocker, sourcePath('screens/bible/TranslationPickerList.tsx'), {
     TranslationPickerList: hostComponent('TranslationPickerList'),
   });
-  mockPackage(mocker, 'expo-clipboard', { setStringAsync: async () => true });
+  mockPackage(mocker, 'expo-clipboard', {
+    setStringAsync: async (text: string) => {
+      serviceCalls.push(['Clipboard.setStringAsync', text]);
+      return true;
+    },
+  });
   // expo-av for chapter-feedback recording and preview. Every call is logged; a
   // held operation waits until the test releases it, so a test can unmount or tap
   // again while the reader is mid-await.
@@ -392,6 +411,7 @@ export function installReaderRenderFixture(
     rootTabCalls.length = 0;
     feedbackSubmissions.length = 0;
     annotationLoads.length = 0;
+    serviceCalls.length = 0;
     av.log.length = 0;
     av.held.clear();
     av.pending.length = 0;
@@ -500,6 +520,7 @@ export function installReaderRenderFixture(
     },
     feedbackSubmissions,
     feedbackAv,
+    serviceCalls,
     rootTabCalls,
     renderReader,
     navigateReader,
