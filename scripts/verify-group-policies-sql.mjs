@@ -22,6 +22,7 @@ const MIGRATIONS = [
   '20260711100100_revoke_group_membership_helpers_from_public.sql',
   '20260910093000_restrict_group_members_direct_insert.sql',
   '20260923233220_pin_group_scope_and_harden_group_helpers.sql',
+  '20260924150000_groups_leader_read_and_leave_guard.sql',
 ];
 
 const db = new PGlite();
@@ -76,15 +77,19 @@ const assertBlocked = async (request) => {
 
 // --- Client flows that must keep working (src/services/groups/groupService.ts) -------------
 // createSyncedGroup: insert groups row, then the leader's own membership row.
+// The client reads the new row back (`.insert().select('*')`, which PostgREST runs as
+// INSERT ... RETURNING), so the groups SELECT policy must admit the leader before their
+// membership row exists.
 for (const [uid, gid, code] of [
   [A, G1, 'ABC234'],
   [C, G2, 'XYZ789'],
 ]) {
-  await as(
+  const created = await as(
     uid,
-    `insert into groups (id, name, leader_id, join_code) values ($1, 'Group', $2, $3)`,
+    `insert into groups (id, name, leader_id, join_code) values ($1, 'Group', $2, $3) returning id`,
     [gid, uid, code]
   );
+  assert.equal(created.rows[0].id, gid, 'the creating leader can read the new group back');
   await as(uid, `insert into group_members (group_id, user_id, role) values ($1, $2, 'leader')`, [
     gid,
     uid,
@@ -285,3 +290,30 @@ await assert.rejects(
   /permission denied/
 );
 console.log('PASS: join_group_by_code locks out after 10 misses per hour and hides the log');
+
+// --- Leaders leave only through leave_group() ------------------------------------------------
+// G2: C leads; A and D joined by code above. A leader deleting their own membership row
+// directly skipped leave_group()'s hand-over: groups.leader_id kept pointing at them, so they
+// kept every leader right (update, delete, member removal) and could re-add themselves.
+assert.equal(
+  (await as(C, `delete from group_members where group_id = $1 and user_id = $2`, [G2, C]))
+    .affectedRows,
+  0,
+  'a leader cannot drop their own membership row directly'
+);
+assert.equal((await one(`select leader_id from groups where id = $1`, [G2])).leader_id, C);
+assert.equal(
+  (await as(C, `delete from group_members where group_id = $1 and user_id = $2`, [G2, D]))
+    .affectedRows,
+  1,
+  'a leader can still remove another member'
+);
+assert.equal(
+  (await as(A, `delete from group_members where group_id = $1 and user_id = $2`, [G2, A]))
+    .affectedRows,
+  1,
+  'a member can still remove their own membership'
+);
+await as(C, `select leave_group($1)`, [G2]); // the last member leaving deletes the group
+assert.equal((await one(`select count(*)::int n from groups where id = $1`, [G2])).n, 0);
+console.log('PASS: leaders cannot bypass leave_group(); member removal and leaving still work');
