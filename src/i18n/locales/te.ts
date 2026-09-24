@@ -453,6 +453,11 @@ export const te = {
     discreetNotificationTitle: 'రిమైండర్',
     discreetNotificationBody: 'ఈ రోజు మీకు ఒక రిమైండర్ ఉంది.',
     discreetNotificationChannel: 'రిమైండర్‌లు',
+    iconSwitchCloseTitle: 'యాప్ మూసివేయబడుతుంది',
+    iconSwitchCloseToCalculator:
+      'చిహ్నాన్ని మార్చితే యాప్ మూసివేయబడుతుంది. కాలిక్యులేటర్ చిహ్నం నుండి దాన్ని మళ్లీ తెరవండి.',
+    iconSwitchCloseToStandard:
+      'చిహ్నాన్ని మార్చితే యాప్ మూసివేయబడుతుంది. Every Bible చిహ్నం నుండి దాన్ని మళ్లీ తెరవండి.',
   },
   settings: {
     title: 'సెట్టింగ్‌లు',

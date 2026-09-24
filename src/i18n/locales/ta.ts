@@ -453,6 +453,11 @@ export const ta = {
     discreetNotificationTitle: 'நினைவூட்டல்',
     discreetNotificationBody: 'இன்றைக்கு உங்களுக்கு ஒரு நினைவூட்டல் உள்ளது.',
     discreetNotificationChannel: 'நினைவூட்டல்கள்',
+    iconSwitchCloseTitle: 'செயலி மூடப்படும்',
+    iconSwitchCloseToCalculator:
+      'சின்னத்தை மாற்றினால் செயலி மூடப்படும். கால்குலேட்டர் சின்னத்திலிருந்து அதை மீண்டும் திறக்கவும்.',
+    iconSwitchCloseToStandard:
+      'சின்னத்தை மாற்றினால் செயலி மூடப்படும். Every Bible சின்னத்திலிருந்து அதை மீண்டும் திறக்கவும்.',
   },
   settings: {
     title: 'அமைப்புகள்',

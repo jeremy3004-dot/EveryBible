@@ -777,6 +777,11 @@ export const es = {
     discreetNotificationTitle: 'Recordatorio',
     discreetNotificationBody: 'Tienes un recordatorio para hoy.',
     discreetNotificationChannel: 'Recordatorios',
+    iconSwitchCloseTitle: 'La aplicación se cerrará',
+    iconSwitchCloseToCalculator:
+      'Al cambiar el icono, la aplicación se cierra. Vuelve a abrirla desde el icono de la Calculadora.',
+    iconSwitchCloseToStandard:
+      'Al cambiar el icono, la aplicación se cierra. Vuelve a abrirla desde el icono de Every Bible.',
   },
   settings: {
     title: 'Ajustes',

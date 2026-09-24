@@ -715,6 +715,9 @@ export const zh = {
     discreetNotificationTitle: '提醒',
     discreetNotificationBody: '你今天有一条提醒。',
     discreetNotificationChannel: '提醒事项',
+    iconSwitchCloseTitle: '应用将会关闭',
+    iconSwitchCloseToCalculator: '更改图标会关闭应用。请从计算器图标重新打开。',
+    iconSwitchCloseToStandard: '更改图标会关闭应用。请从 Every Bible 图标重新打开。',
   },
   settings: {
     title: '设置',

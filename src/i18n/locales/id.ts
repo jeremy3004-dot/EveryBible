@@ -756,6 +756,11 @@ export const id = {
     discreetNotificationTitle: 'Pengingat',
     discreetNotificationBody: 'Ada pengingat untuk Anda hari ini.',
     discreetNotificationChannel: 'Pengingat',
+    iconSwitchCloseTitle: 'Aplikasi akan ditutup',
+    iconSwitchCloseToCalculator:
+      'Mengganti ikon akan menutup aplikasi. Buka lagi dari ikon Kalkulator.',
+    iconSwitchCloseToStandard:
+      'Mengganti ikon akan menutup aplikasi. Buka lagi dari ikon Every Bible.',
   },
   settings: {
     title: 'Pengaturan',
