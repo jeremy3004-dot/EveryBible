@@ -288,7 +288,7 @@ test('the manage sheet for the current Bible offers pin, the installed text, and
   assert.ok(scope.getByRole('header', { name: t('bible.audioDownloads') }));
   assert.ok(scope.getByRole('button', { name: t('bible.fullBible') }));
   assert.ok(scope.getByRole('button', { name: t('bible.newTestament') }));
-  assert.ok(scope.getByText(t('bible.byBook')));
+  assert.ok(scope.getByRole('header', { name: t('bible.byBook') }));
   assert.ok(scope.getByRole('button', { name: 'Genesis' }));
   assert.ok(scope.getByRole('button', { name: 'Revelation' }));
 
@@ -312,6 +312,8 @@ test('BSB with downloaded audio can be hidden or deleted, and its downloaded boo
   const genesis = within(sheet).getByRole('button', { name: 'Genesis' });
   assert.ok(iconNames(genesis).includes('checkmark-circle'));
   assert.equal(genesis.props.disabled, true, 'a downloaded book has nothing left to do');
+  // Otherwise "Genesis, dimmed" sounds the same as a book that cannot be fetched.
+  assert.deepEqual(genesis.props.accessibilityValue, { text: t('translations.installed') });
 
   const deleteRow = within(sheet).getByRole('button', { name: t('translations.delete') });
   assert.ok(iconNames(deleteRow).includes('trash-outline'));
@@ -390,9 +392,11 @@ test('each by-book row checks remote audio for its own book, not the book being 
   const mark = scope.getByRole('button', { name: 'Mark' });
   assert.equal(mark.props.disabled, true);
   assert.ok(iconNames(mark).includes('cloud-offline-outline'));
+  assert.deepEqual(mark.props.accessibilityValue, { text: t('bible.notAvailableYet') });
 
   const matthew = scope.getByRole('button', { name: 'Matthew' });
   assert.ok(iconNames(matthew).includes('download-outline'));
+  assert.deepEqual(matthew.props.accessibilityValue, { text: t('translations.download') });
   await view.press(matthew);
   assert.deepEqual(log, [['downloadAudioForBook', 'eng-audio', 'MAT']]);
   assert.ok(remote.calls.includes('eng-audio:MAT') && remote.calls.includes('eng-audio:MRK'));
