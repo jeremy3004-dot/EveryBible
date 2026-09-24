@@ -661,6 +661,7 @@ export function BibleReaderScreen() {
     currentTranslation,
     currentTranslationInfo,
     focusVerse,
+    holdChapterFollow: selectedVerses.length > 0,
     isLoading,
     navigation,
     playChapter,
