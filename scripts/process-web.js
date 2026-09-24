@@ -48,7 +48,9 @@ for (const line of lines) {
 
   const [, , , bookId, chapter, startVerse, endVerse, verseText] = match;
   if (startVerse !== endVerse) {
-    throw new Error(`Unsupported verse range encountered: ${bookId} ${chapter}:${startVerse}-${endVerse}`);
+    throw new Error(
+      `Unsupported verse range encountered: ${bookId} ${chapter}:${startVerse}-${endVerse}`
+    );
   }
 
   processedData.verses.push({

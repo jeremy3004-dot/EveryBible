@@ -26,7 +26,10 @@ type ExistingManifestFile = {
   version?: string;
 };
 
-type ExistingManifestSeed = Pick<TextPackManifestItem, 'abbreviation' | 'name' | 'sourceTranslationId'>;
+type ExistingManifestSeed = Pick<
+  TextPackManifestItem,
+  'abbreviation' | 'name' | 'sourceTranslationId'
+>;
 
 type TranslationCsvRow = {
   abbreviation: string;
@@ -229,7 +232,9 @@ async function listLatestTextObjects(): Promise<TextObjectRecord[]> {
   );
 }
 
-async function downloadTextObjectToTemp(objectKey: string): Promise<{ filePath: string; sha256: string }> {
+async function downloadTextObjectToTemp(
+  objectKey: string
+): Promise<{ filePath: string; sha256: string }> {
   const env = getBibleMediaEnv();
   const client = getBibleMediaClient(env);
   const response = await client.send(
@@ -263,7 +268,10 @@ async function downloadTextObjectToTemp(objectKey: string): Promise<{ filePath: 
 }
 
 async function queryVerseCount(filePath: string): Promise<number> {
-  const { stdout } = await execFileAsync('/usr/bin/sqlite3', [filePath, 'SELECT COUNT(*) FROM verses;']);
+  const { stdout } = await execFileAsync('/usr/bin/sqlite3', [
+    filePath,
+    'SELECT COUNT(*) FROM verses;',
+  ]);
   const verseCount = Number.parseInt(stdout.trim(), 10);
 
   if (!Number.isFinite(verseCount) || verseCount <= 0) {

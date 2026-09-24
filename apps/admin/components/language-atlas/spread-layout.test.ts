@@ -38,13 +38,19 @@ const record = (id: string): AtlasRecord => ({
 });
 
 test('global views retain overlap; optional separation begins only at regional zoom', () => {
-  const anchors = [{ id: 'a', x: 200, y: 200 }, { id: 'b', x: 200, y: 200 }];
+  const anchors = [
+    { id: 'a', x: 200, y: 200 },
+    { id: 'b', x: 200, y: 200 },
+  ];
   for (const zoom of [0.6, 2.75, 3.99]) {
     const points = layoutSpreadPointsAtZoom(anchors, 800, 600, zoom);
-    assert.deepEqual(points.map(({x,y})=>({x,y})), anchors.map(({x,y})=>({x,y})));
+    assert.deepEqual(
+      points.map(({ x, y }) => ({ x, y })),
+      anchors.map(({ x, y }) => ({ x, y }))
+    );
   }
   const regional = layoutSpreadPointsAtZoom(anchors, 800, 600, 4);
-  assert.notDeepEqual([regional[0].x,regional[0].y], [regional[1].x,regional[1].y]);
+  assert.notDeepEqual([regional[0].x, regional[0].y], [regional[1].x, regional[1].y]);
 });
 
 test('one representative point per record preserves source placements and separate ROLV identities', () => {

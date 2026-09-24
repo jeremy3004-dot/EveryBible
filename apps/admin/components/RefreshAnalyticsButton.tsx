@@ -26,12 +26,7 @@ export function RefreshAnalyticsButton() {
 
   return (
     <div className="refresh-analytics">
-      <button
-        type="button"
-        className="button"
-        disabled={pending}
-        onClick={handleClick}
-      >
+      <button type="button" className="button" disabled={pending} onClick={handleClick}>
         {pending ? 'Refreshing…' : 'Refresh stats'}
       </button>
       {lastRefreshed ? (

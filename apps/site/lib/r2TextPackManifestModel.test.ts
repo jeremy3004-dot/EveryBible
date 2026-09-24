@@ -1,27 +1,18 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import {
-  buildTextPackManifestItem,
-  parseTextPackObjectKey,
-} from './r2TextPackManifestModel';
+import { buildTextPackManifestItem, parseTextPackObjectKey } from './r2TextPackManifestModel';
 
 test('parseTextPackObjectKey extracts translation ids and file names from R2 text object keys', () => {
-  assert.deepEqual(
-    parseTextPackObjectKey('text/npiulb/npiulb-2026.03.24-v1.db'),
-    {
-      translationId: 'npiulb',
-      fileName: 'npiulb-2026.03.24-v1.db',
-    }
-  );
+  assert.deepEqual(parseTextPackObjectKey('text/npiulb/npiulb-2026.03.24-v1.db'), {
+    translationId: 'npiulb',
+    fileName: 'npiulb-2026.03.24-v1.db',
+  });
 
-  assert.deepEqual(
-    parseTextPackObjectKey('text/eng-web/eng-web-2026.04.03-v1.db'),
-    {
-      translationId: 'eng-web',
-      fileName: 'eng-web-2026.04.03-v1.db',
-    }
-  );
+  assert.deepEqual(parseTextPackObjectKey('text/eng-web/eng-web-2026.04.03-v1.db'), {
+    translationId: 'eng-web',
+    fileName: 'eng-web-2026.04.03-v1.db',
+  });
 });
 
 test('parseTextPackObjectKey rejects non-db or malformed keys', () => {

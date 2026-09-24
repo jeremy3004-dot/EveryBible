@@ -9,12 +9,7 @@ interface AdminCardProps {
   as?: AdminCardElement;
 }
 
-export function AdminCard({
-  children,
-  eyebrow,
-  title,
-  as: Component = 'section',
-}: AdminCardProps) {
+export function AdminCard({ children, eyebrow, title, as: Component = 'section' }: AdminCardProps) {
   const hasHeader = eyebrow || title;
 
   return (

@@ -18,7 +18,10 @@ test('public endpoint streams only its prebuilt snapshot and returns a retryable
 
     await mkdir(path.join(temporary, 'data/language-atlas'), { recursive: true });
     const payload = { schemaVersion: 1, records: [{ id: 'example', scriptureStatus: 'unknown' }] };
-    await writeFile(path.join(temporary, 'data/language-atlas/index.json.gz'), gzipSync(JSON.stringify(payload)));
+    await writeFile(
+      path.join(temporary, 'data/language-atlas/index.json.gz'),
+      gzipSync(JSON.stringify(payload))
+    );
     const response = await GET();
     assert.equal(response.status, 200);
     assert.equal(response.headers.get('content-encoding'), 'gzip');

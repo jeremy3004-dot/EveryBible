@@ -8,7 +8,9 @@ export default function AnalyticsLoading() {
         <div>
           <p className="eyebrow">Usage analytics</p>
           <h2>Global reach</h2>
-          <p className="analytics-page__note">Loading live map, listening totals, and engagement&hellip;</p>
+          <p className="analytics-page__note">
+            Loading live map, listening totals, and engagement&hellip;
+          </p>
         </div>
       </div>
 

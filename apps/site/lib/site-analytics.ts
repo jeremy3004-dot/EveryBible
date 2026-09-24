@@ -12,7 +12,8 @@ export interface SiteAnalyticsBoundary {
 export const siteAnalyticsBoundaries: SiteAnalyticsBoundary[] = [
   {
     event: 'site_primary_cta_clicked',
-    description: 'Tracks engagement with the main hero CTA without introducing user-level identity assumptions.',
+    description:
+      'Tracks engagement with the main hero CTA without introducing user-level identity assumptions.',
   },
   {
     event: 'site_secondary_cta_clicked',
@@ -24,6 +25,7 @@ export const siteAnalyticsBoundaries: SiteAnalyticsBoundary[] = [
   },
   {
     event: 'site_section_viewed',
-    description: 'Tracks major section exposure only if implemented in a lightweight, privacy-respecting way.',
+    description:
+      'Tracks major section exposure only if implemented in a lightweight, privacy-respecting way.',
   },
 ];

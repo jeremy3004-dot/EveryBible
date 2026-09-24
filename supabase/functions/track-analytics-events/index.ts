@@ -124,11 +124,18 @@ async function lookupViaIpinfo(ip: string, token: string): Promise<GeoResult | n
   try {
     const url = new URL(`https://ipinfo.io/${encodeURIComponent(ip)}/json`);
     url.searchParams.set('token', token);
-    const resp = await fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(2000) });
+    const resp = await fetch(url, {
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(2000),
+    });
     if (!resp.ok) return null;
-    const p = (await resp.json().catch(() => null)) as
-      | { country?: unknown; loc?: unknown; timezone?: unknown; city?: unknown; region?: unknown }
-      | null;
+    const p = (await resp.json().catch(() => null)) as {
+      country?: unknown;
+      loc?: unknown;
+      timezone?: unknown;
+      city?: unknown;
+      region?: unknown;
+    } | null;
     if (!p) return null;
     let latitude: number | null = null;
     let longitude: number | null = null;
@@ -136,19 +143,25 @@ async function lookupViaIpinfo(ip: string, token: string): Promise<GeoResult | n
       const parts = p.loc.split(',');
       const lat = parseFloat(parts[0] ?? '');
       const lng = parseFloat(parts[1] ?? '');
-      if (Number.isFinite(lat) && Number.isFinite(lng)) { latitude = lat; longitude = lng; }
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        latitude = lat;
+        longitude = lng;
+      }
     }
     return {
       accuracyKm: null,
       countryCode: normalizeCountryCode(p.country),
-      latitude, longitude,
+      latitude,
+      longitude,
       source: 'ipinfo',
       timezone: getText(p.timezone),
       city: getText(p.city),
       region: getText(p.region),
       regionCode: null,
     };
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 async function lookupViaIpapi(ip: string): Promise<GeoResult | null> {
@@ -159,18 +172,16 @@ async function lookupViaIpapi(ip: string): Promise<GeoResult | null> {
       signal: AbortSignal.timeout(2000),
     });
     if (!resp.ok) return null;
-    const p = (await resp.json().catch(() => null)) as
-      | {
-          country_code?: unknown;
-          latitude?: unknown;
-          longitude?: unknown;
-          timezone?: unknown;
-          city?: unknown;
-          region?: unknown;
-          region_code?: unknown;
-          error?: unknown;
-        }
-      | null;
+    const p = (await resp.json().catch(() => null)) as {
+      country_code?: unknown;
+      latitude?: unknown;
+      longitude?: unknown;
+      timezone?: unknown;
+      city?: unknown;
+      region?: unknown;
+      region_code?: unknown;
+      error?: unknown;
+    } | null;
     if (!p || p.error) return null;
     const lat = typeof p.latitude === 'number' ? p.latitude : null;
     const lng = typeof p.longitude === 'number' ? p.longitude : null;
@@ -185,7 +196,9 @@ async function lookupViaIpapi(ip: string): Promise<GeoResult | null> {
       region: getText(p.region),
       regionCode: getText(p.region_code)?.toUpperCase() ?? null,
     };
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 // Same payload-geo rule as track-anonymous-usage-events: only the approximate IP fix from the
@@ -211,17 +224,19 @@ function resolveEventGeo(event: QueuedAnalyticsEvent): GeoResult | null {
 // so a country-only fix stays country-only; otherwise the request geo is stored whole.
 function selectGeo(requestGeo: GeoResult | null, payloadGeo: GeoResult | null): GeoResult {
   if (payloadGeo?.countryCode) return payloadGeo;
-  return requestGeo ?? {
-    accuracyKm: null,
-    countryCode: null,
-    latitude: null,
-    longitude: null,
-    source: null,
-    timezone: null,
-    city: null,
-    region: null,
-    regionCode: null,
-  };
+  return (
+    requestGeo ?? {
+      accuracyKm: null,
+      countryCode: null,
+      latitude: null,
+      longitude: null,
+      source: null,
+      timezone: null,
+      city: null,
+      region: null,
+      regionCode: null,
+    }
+  );
 }
 
 function geoFromCache(cached: Record<string, unknown>): GeoResult {
@@ -281,12 +296,14 @@ async function lookupRequestGeo(req: Request, cfCountry: string | null): Promise
     const ipinfoToken = Deno.env.get('IPINFO_TOKEN')?.trim();
     if (ipinfoToken) {
       const result = await lookupViaIpinfo(clientIp, ipinfoToken);
-      if (result) return { ...result, accuracyKm: null, countryCode: result.countryCode ?? cfCountry };
+      if (result)
+        return { ...result, accuracyKm: null, countryCode: result.countryCode ?? cfCountry };
     }
 
     // Tier 2: ipapi.co free fallback — always attempted when no paid token.
     const result = await lookupViaIpapi(clientIp);
-    if (result) return { ...result, accuracyKm: null, countryCode: result.countryCode ?? cfCountry };
+    if (result)
+      return { ...result, accuracyKm: null, countryCode: result.countryCode ?? cfCountry };
   }
   return null;
 }
@@ -320,8 +337,15 @@ function acceptEvent(raw: unknown, now: number): QueuedAnalyticsEvent | null {
   const geo = resolveEventGeo(event);
   if (
     !textFieldsWithinLimit([
-      eventName, devicePlatform, appVersion, sessionId,
-      geo?.timezone, geo?.city, geo?.regionCode, geo?.region, geo?.countryCode,
+      eventName,
+      devicePlatform,
+      appVersion,
+      sessionId,
+      geo?.timezone,
+      geo?.city,
+      geo?.regionCode,
+      geo?.region,
+      geo?.countryCode,
     ])
   ) {
     return null;
@@ -339,7 +363,8 @@ function acceptEvent(raw: unknown, now: number): QueuedAnalyticsEvent | null {
 
 function coarseCoordinate(value: number | null, limit: number): number | null {
   return value != null && Number.isFinite(value) && Math.abs(value) <= limit
-    ? Math.round(value * 10) / 10 : null;
+    ? Math.round(value * 10) / 10
+    : null;
 }
 
 // verify_jwt is off, so anyone can reach this handler. Database details go to the function
@@ -422,7 +447,10 @@ Deno.serve(async (req) => {
     // service-role insert from one request. The app batches far below this in practice.
     if (rawEvents.length > MAX_EVENTS_PER_BATCH) {
       return new Response(
-        JSON.stringify({ success: false, error: `A batch may contain at most ${MAX_EVENTS_PER_BATCH} events` }),
+        JSON.stringify({
+          success: false,
+          error: `A batch may contain at most ${MAX_EVENTS_PER_BATCH} events`,
+        }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -464,7 +492,8 @@ Deno.serve(async (req) => {
     const requiresRequestGeo = payloadGeos.some((geo) => !geo?.countryCode);
     const requestGeo = requiresRequestGeo
       ? await resolveRequestGeo(req, budget, (geo) =>
-          rememberIngestGeo(supabase, clientKey, { ...geo }))
+          rememberIngestGeo(supabase, clientKey, { ...geo })
+        )
       : null;
     const now = new Date(receivedAt).toISOString();
 
@@ -481,8 +510,10 @@ Deno.serve(async (req) => {
         geo_accuracy_km: null, // No measured radius supplied by IP providers.
         geo_city: geo.city,
         geo_country_code: geo.countryCode,
-        geo_latitude: coarseCoordinate(geo.longitude, 180) == null ? null : coarseCoordinate(geo.latitude, 90),
-        geo_longitude: coarseCoordinate(geo.latitude, 90) == null ? null : coarseCoordinate(geo.longitude, 180),
+        geo_latitude:
+          coarseCoordinate(geo.longitude, 180) == null ? null : coarseCoordinate(geo.latitude, 90),
+        geo_longitude:
+          coarseCoordinate(geo.latitude, 90) == null ? null : coarseCoordinate(geo.longitude, 180),
         geo_region_code: geo.regionCode,
         geo_region_name: geo.region,
         geo_source: geo.source,

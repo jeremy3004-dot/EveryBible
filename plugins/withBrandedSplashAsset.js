@@ -21,8 +21,18 @@ const ANDROID_ICON_SPECS = [
   { density: 'xxxhdpi' },
 ];
 const DISCREET_APP_ICON_SPECS = [
-  { filename: `${DISCREET_APP_ICON_NAME}-60x60@2x.png`, idiom: 'iphone', size: '60x60', scale: '2x' },
-  { filename: `${DISCREET_APP_ICON_NAME}-60x60@3x.png`, idiom: 'iphone', size: '60x60', scale: '3x' },
+  {
+    filename: `${DISCREET_APP_ICON_NAME}-60x60@2x.png`,
+    idiom: 'iphone',
+    size: '60x60',
+    scale: '2x',
+  },
+  {
+    filename: `${DISCREET_APP_ICON_NAME}-60x60@3x.png`,
+    idiom: 'iphone',
+    size: '60x60',
+    scale: '3x',
+  },
   { filename: `${DISCREET_APP_ICON_NAME}-76x76@1x.png`, idiom: 'ipad', size: '76x76', scale: '1x' },
   { filename: `${DISCREET_APP_ICON_NAME}-76x76@2x.png`, idiom: 'ipad', size: '76x76', scale: '2x' },
   {

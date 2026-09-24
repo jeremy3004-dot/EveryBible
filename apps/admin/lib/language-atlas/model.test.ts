@@ -52,7 +52,9 @@ test('search finds aliases and exact identifier strings without losing ROLV zero
 
 test('reconciled source IDs find one canonical variety', () => {
   const row = record({ alternateIds: ['glottolog:paac1238'] });
-  assert.deepEqual(filterRecords([row], { ...DEFAULT_FILTERS, query: 'glottolog:paac1238' }), [row]);
+  assert.deepEqual(filterRecords([row], { ...DEFAULT_FILTERS, query: 'glottolog:paac1238' }), [
+    row,
+  ]);
 });
 
 test('country uses source associations, not representative dot country, and filters combine', () => {
@@ -227,31 +229,58 @@ test('the actual hit stays first while overlapping locations merge into unique r
   );
 });
 
-
 test('an exact dialect status update changes its point and legend filter without inheriting parent coverage', () => {
-  const dialect = record({kind: 'dialect', scriptureScope: 'unknown', scriptureStatus: 'unknown', languageContextStatus: 'bible'});
+  const dialect = record({
+    kind: 'dialect',
+    scriptureScope: 'unknown',
+    scriptureStatus: 'unknown',
+    languageContextStatus: 'bible',
+  });
   const original = structuredClone(dialect);
   assert.equal(buildFeatures([dialect]).features[0].properties.category, 'no-scripture');
   assert.equal(scriptureStatus(dialect), 'unknown');
   assert.deepEqual(dialect, original);
   for (const status of ['portions', 'nt', 'bible'] as const) {
-    const verified = {...dialect, scriptureStatus: status, scriptureScope: 'dialect' as const};
+    const verified = { ...dialect, scriptureStatus: status, scriptureScope: 'dialect' as const };
     assert.equal(buildFeatures([verified]).features[0].properties.category, status);
-    assert.equal(filterRecords([verified], {...DEFAULT_FILTERS, scripture: status}).length, 1);
-    assert.equal(filterRecords([verified], {...DEFAULT_FILTERS, scripture: 'no-scripture'}).length, 0);
+    assert.equal(filterRecords([verified], { ...DEFAULT_FILTERS, scripture: status }).length, 1);
+    assert.equal(
+      filterRecords([verified], { ...DEFAULT_FILTERS, scripture: 'no-scripture' }).length,
+      0
+    );
   }
 });
 
-
 test('unknown Scripture uses requested wording without discarding identity or changing evidence', () => {
-  const language = record({name:'Agbirigba', scriptureStatus:'unknown', summary:'Agbirigba is a language record. Classified in Speech Register. Associated with Nigeria. Language-level Scripture status is unreported.'});
-  assert.equal(atlasBiography(language), 'Agbirigba is a language record. Classified in Speech Register. Associated with Nigeria. No known Scripture in this language.');
+  const language = record({
+    name: 'Agbirigba',
+    scriptureStatus: 'unknown',
+    summary:
+      'Agbirigba is a language record. Classified in Speech Register. Associated with Nigeria. Language-level Scripture status is unreported.',
+  });
+  assert.equal(
+    atlasBiography(language),
+    'Agbirigba is a language record. Classified in Speech Register. Associated with Nigeria. No known Scripture in this language.'
+  );
   assert.equal(scriptureLabel(language), 'No known Scripture in this language');
-  const dialect = record({kind:'dialect', scriptureStatus:'unknown', summary:'Bhalu is a Glottolog dialect associated with Sampang. Scripture availability for this specific variety is unconfirmed.'});
-  assert.equal(atlasBiography(dialect), 'Bhalu is a Glottolog dialect associated with Sampang. No known Scripture in this dialect.');
+  const dialect = record({
+    kind: 'dialect',
+    scriptureStatus: 'unknown',
+    summary:
+      'Bhalu is a Glottolog dialect associated with Sampang. Scripture availability for this specific variety is unconfirmed.',
+  });
+  assert.equal(
+    atlasBiography(dialect),
+    'Bhalu is a Glottolog dialect associated with Sampang. No known Scripture in this dialect.'
+  );
   assert.equal(scriptureLabel(dialect), 'No known Scripture in this dialect');
   assert.equal(language.scriptureStatus, 'unknown');
-  const verified = record({kind:'dialect', scriptureScope:'dialect', scriptureStatus:'nt', summary:'Confirmed NT.'});
+  const verified = record({
+    kind: 'dialect',
+    scriptureScope: 'dialect',
+    scriptureStatus: 'nt',
+    summary: 'Confirmed NT.',
+  });
   assert.equal(atlasBiography(verified), 'Confirmed NT.');
   assert.equal(scriptureLabel(verified), 'New Testament');
 });

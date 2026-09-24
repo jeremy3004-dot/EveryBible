@@ -1118,7 +1118,9 @@ textarea {
   aspect-ratio: 1;
   border-radius: 50%;
   background: hsl(var(--map-land));
-  box-shadow: 0 0 0 1px hsl(var(--border)), 0 0 80px hsl(var(--primary) / 0.12);
+  box-shadow:
+    0 0 0 1px hsl(var(--border)),
+    0 0 80px hsl(var(--primary) / 0.12);
   position: relative;
   overflow: hidden;
 }
@@ -1133,16 +1135,24 @@ textarea {
 }
 
 @keyframes globe-skeleton-shimmer {
-  to { transform: translateX(100%); }
+  to {
+    transform: translateX(100%);
+  }
 }
 
 @keyframes globe-skeleton-fade {
-  from { opacity: 1; }
-  to { opacity: 1; }
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .globe-card__skeleton-orb::after { animation: none; }
+  .globe-card__skeleton-orb::after {
+    animation: none;
+  }
 }
 
 .translation-chip--more {
@@ -1428,7 +1438,9 @@ textarea {
 .metric-card {
   border-radius: var(--radius-md);
   padding: 1rem 1rem 1.1rem;
-  transition: transform 160ms ease, box-shadow 160ms ease;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease;
 }
 
 .metric-card:hover {
@@ -1811,7 +1823,9 @@ textarea {
   font-family: var(--font-ui);
   font-size: 0.8rem;
   cursor: pointer;
-  transition: background 140ms ease, color 140ms ease;
+  transition:
+    background 140ms ease,
+    color 140ms ease;
 }
 
 .segmented-control__button--active {
@@ -1842,7 +1856,9 @@ textarea {
   border: 1px solid hsl(var(--border));
   border-radius: 0;
   padding: 0.5rem 2rem 0.5rem 0.75rem;
-  background: hsl(var(--muted)) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M2 4l4 4 4-4'/%3E%3C/svg%3E") no-repeat right 0.6rem center;
+  background: hsl(var(--muted))
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M2 4l4 4 4-4'/%3E%3C/svg%3E")
+    no-repeat right 0.6rem center;
   color: hsl(var(--foreground));
   font-size: 0.88rem;
   cursor: pointer;
@@ -2140,7 +2156,6 @@ textarea {
   color: hsl(var(--muted-foreground));
 }
 
-
 @media (max-width: 1200px) {
   .metric-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -2220,5 +2235,4 @@ textarea {
   .bar-chart__row {
     grid-template-columns: 1fr;
   }
-
 }

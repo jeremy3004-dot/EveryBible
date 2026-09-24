@@ -50,11 +50,11 @@ Both themes ship. Light is the default; the shell stamps `data-theme="dark"` on
 
 Three files load in this order from `app/layout.tsx`:
 
-| File | Role |
-|---|---|
-| `app/globals.css` | The `:root` token mirror (light), the `[data-theme='dark'] / .dark` and `.hc` scopes, plus the base shell rules. |
-| `app/neo-swiss.css` | Shell structure and per-component layout. Reads every colour from the tokens above. |
-| `app/el-field.css` | **Loads last.** The design-system decisions rather than values: paper surfaces, the type system, the geometry scale, the interaction states, the nav rail, and the materiality. |
+| File                | Role                                                                                                                                                                            |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `app/globals.css`   | The `:root` token mirror (light), the `[data-theme='dark'] / .dark` and `.hc` scopes, plus the base shell rules.                                                                |
+| `app/neo-swiss.css` | Shell structure and per-component layout. Reads every colour from the tokens above.                                                                                             |
+| `app/el-field.css`  | **Loads last.** The design-system decisions rather than values: paper surfaces, the type system, the geometry scale, the interaction states, the nav rail, and the materiality. |
 
 Prefer the semantic tokens (`--background`, `--card`, `--primary`) over the raw
 `--brand-*` / `--series-*` ones. Reach for the raw tokens only when the role
@@ -64,14 +64,14 @@ really is brand or data.
 
 Loaded from Google Fonts in `app/layout.tsx`.
 
-| Role | Family | Size | Weight | Notes |
-|---|---|---|---|---|
-| Display | Bricolage Grotesque | `--text-display` `clamp(40px, 6vw, 72px)` | 800 | `-.04em`, `.92` line height |
-| H1 / H2 / H3 | Bricolage Grotesque | 32 / 24 / 18px | 800 | `-.025em` |
-| Body, UI | Archivo | 15–16px | 400–600 | 1.5 line height |
-| Caption | Archivo | 13px | 400 | `--muted-foreground` |
-| Eyebrow | JetBrains Mono | 11px | 600 | uppercase, `.18em` |
-| Metadata, IDs, JSON | JetBrains Mono | 11–13px | 400–600 | timestamps, `⌘K` |
+| Role                | Family              | Size                                      | Weight  | Notes                       |
+| ------------------- | ------------------- | ----------------------------------------- | ------- | --------------------------- |
+| Display             | Bricolage Grotesque | `--text-display` `clamp(40px, 6vw, 72px)` | 800     | `-.04em`, `.92` line height |
+| H1 / H2 / H3        | Bricolage Grotesque | 32 / 24 / 18px                            | 800     | `-.025em`                   |
+| Body, UI            | Archivo             | 15–16px                                   | 400–600 | 1.5 line height             |
+| Caption             | Archivo             | 13px                                      | 400     | `--muted-foreground`        |
+| Eyebrow             | JetBrains Mono      | 11px                                      | 600     | uppercase, `.18em`          |
+| Metadata, IDs, JSON | JetBrains Mono      | 11–13px                                   | 400–600 | timestamps, `⌘K`            |
 
 **Sentence case** for headings and UI labels — "Average completion across Bible
 projects", not Title Case. **UPPERCASE only in mono eyebrows and metadata**;
@@ -132,7 +132,7 @@ plus `--shadow-focus` for the 3px 35%-alpha blue focus ring.
 Quick and physically restrained: `90ms / 150ms / 240ms / 400ms` with
 `cubic-bezier(.22, 1, .36, 1)`. Transform and opacity only.
 
-- **Hover** is a *colour* change — canvas to pale blue accent, text to deep
+- **Hover** is a _colour_ change — canvas to pale blue accent, text to deep
   blue. Not an opacity change.
 - **Active/press** is `translateY(1px)`. No scale-down, no colour darkening.
 - **Focus** is `--shadow-focus`, always visible.

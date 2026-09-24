@@ -29,7 +29,9 @@ export function SiteHeader({
             <a
               key={item.label}
               href={item.href}
-              className={item.href === '/give' ? 'site-nav__link site-nav__link--give' : 'site-nav__link'}
+              className={
+                item.href === '/give' ? 'site-nav__link site-nav__link--give' : 'site-nav__link'
+              }
             >
               {item.label}
             </a>

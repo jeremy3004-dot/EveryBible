@@ -22,15 +22,13 @@ async function verifyPublicAtlasProjects(page, baseUrl = 'http://127.0.0.1:3101'
   console.log('Visible project markers', await page.locator('.la-project-marker:visible').count());
   await page.screenshot({ path: '/tmp/everybible-our-projects-desktop.png' });
   // Some markers sit under the explorer panel or header; click one a visitor can reach.
-  const reachable = await page
-    .locator('.la-project-marker:visible')
-    .evaluateAll((markers) =>
-      markers.findIndex((element) => {
-        const box = element.getBoundingClientRect();
-        const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
-        return Boolean(hit && element.contains(hit));
-      })
-    );
+  const reachable = await page.locator('.la-project-marker:visible').evaluateAll((markers) =>
+    markers.findIndex((element) => {
+      const box = element.getBoundingClientRect();
+      const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+      return Boolean(hit && element.contains(hit));
+    })
+  );
   if (reachable < 0) throw Error('No project marker is reachable on the map');
   const marker = page.locator('.la-project-marker:visible').nth(reachable);
   if (
@@ -71,11 +69,14 @@ async function verifyPublicAtlasProjects(page, baseUrl = 'http://127.0.0.1:3101'
     throw Error('Reduced motion must disable pulse');
   const search = page.getByRole('searchbox', { name: 'Search languages and dialects' });
   await search.fill('Singaporean');
-  await page.waitForFunction(() => document.querySelectorAll('.pa-project-list .pa-record-list > button').length === 1);
+  await page.waitForFunction(
+    () => document.querySelectorAll('.pa-project-list .pa-record-list > button').length === 1
+  );
   await page.locator('.pa-project-list .pa-record-list > button').click();
   await page.getByRole('button', { name: 'Close project', exact: true }).waitFor();
   const unmapped = await page.locator('.pa-project-progress').innerText();
-  if (!unmapped.includes('12 chapters recorded') || !unmapped.includes('1%')) throw Error('Unmapped project must retain progress');
+  if (!unmapped.includes('12 chapters recorded') || !unmapped.includes('1%'))
+    throw Error('Unmapped project must retain progress');
   await page.getByRole('button', { name: 'Close project', exact: true }).click();
   await search.fill('');
   await browseProjects();
@@ -89,9 +90,10 @@ async function verifyPublicAtlasProjects(page, baseUrl = 'http://127.0.0.1:3101'
   for (const width of [390, 320]) {
     await page.setViewportSize({ width, height: 844 });
     const boxes = await Promise.all(
-      [projectFocus(), ...['Legend', 'Settings'].map((name) =>
-        page.getByRole('button', { name, exact: true })
-      )].map((button) => button.boundingBox())
+      [
+        projectFocus(),
+        ...['Legend', 'Settings'].map((name) => page.getByRole('button', { name, exact: true })),
+      ].map((button) => button.boundingBox())
     );
     if (boxes[0].x + boxes[0].width > boxes[1].x)
       throw Error('Mobile focus overlaps controls ' + width);

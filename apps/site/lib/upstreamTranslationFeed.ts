@@ -342,11 +342,7 @@ export async function fetchUpstreamTranslations(): Promise<UpstreamTranslationRe
     }
 
     records.push(
-      mapToUpstreamRecord(
-        sourceRow,
-        textPackManifest.get(override.translationId) ?? null,
-        override
-      )
+      mapToUpstreamRecord(sourceRow, textPackManifest.get(override.translationId) ?? null, override)
     );
   }
 

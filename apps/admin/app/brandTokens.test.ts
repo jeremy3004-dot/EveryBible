@@ -15,8 +15,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../
 // it. These assertions fail loudly if the mirror drifts, or if the retired
 // ember "Illuminated" palette creeps back in.
 
-const readAdmin = (file: string) =>
-  readFile(path.join(repoRoot, 'apps/admin/app', file), 'utf8');
+const readAdmin = (file: string) => readFile(path.join(repoRoot, 'apps/admin/app', file), 'utf8');
 
 test('admin globals.css mirrors the EL token set', async () => {
   const css = await readAdmin('globals.css');
@@ -44,7 +43,11 @@ test('admin ships both theme scopes, keyed to the shell data-theme attribute', a
 test('admin uses the three EL type families', async () => {
   const css = await readAdmin('globals.css');
 
-  assert.match(css, /--font-display:\s*'Bricolage Grotesque'/, 'display font is Bricolage Grotesque');
+  assert.match(
+    css,
+    /--font-display:\s*'Bricolage Grotesque'/,
+    'display font is Bricolage Grotesque'
+  );
   assert.match(css, /--font-ui:\s*'Archivo'/, 'UI and reading font is Archivo');
   assert.match(css, /--font-mono:\s*'JetBrains Mono'/, 'mono font is JetBrains Mono');
 

@@ -19,8 +19,10 @@ function patch(lang, replacements) {
   let changed = 0;
   for (const [from, to] of replacements) {
     const next = content.replace(from, to);
-    if (next !== content) { changed++; content = next; }
-    else console.warn(`  ⚠️  [${lang}] pattern not found: ${String(from).slice(0, 60)}`);
+    if (next !== content) {
+      changed++;
+      content = next;
+    } else console.warn(`  ⚠️  [${lang}] pattern not found: ${String(from).slice(0, 60)}`);
   }
   fs.writeFileSync(file, content);
   console.log(`  ✅ ${lang}.ts — ${changed}/${replacements.length} replacements applied`);
@@ -74,39 +76,27 @@ patch('zh', [
 
 // ── Arabic: MRK was "علامة" (sign/mark noun) — correct: مَرْقُس (Marqos) ────
 console.log('\nar.ts');
-patch('ar', [
-  [/"MRK": "علامة"/, '"MRK": "مرقس"'],
-]);
+patch('ar', [[/"MRK": "علامة"/, '"MRK": "مرقس"']]);
 
 // ── Bengali: MRK was "চিহ্নিত করুন" (to mark, imperative) — correct: মার্ক ──
 console.log('\nbn.ts');
-patch('bn', [
-  [/"MRK": "চিহ্নিত করুন"/, '"MRK": "মার্ক"'],
-]);
+patch('bn', [[/"MRK": "চিহ্নিত করুন"/, '"MRK": "মার্ক"']]);
 
 // ── French: MRK was "Marque" (brand/mark noun) — correct: Marc ───────────────
 console.log('\nfr.ts');
-patch('fr', [
-  [/"MRK": "Marque"/, '"MRK": "Marc"'],
-]);
+patch('fr', [[/"MRK": "Marque"/, '"MRK": "Marc"']]);
 
 // ── Japanese: MRK was "をマーク" (to mark, object particle form) — correct: マルコ
 console.log('\nja.ts');
-patch('ja', [
-  [/"MRK": "をマーク"/, '"MRK": "マルコ"'],
-]);
+patch('ja', [[/"MRK": "をマーク"/, '"MRK": "マルコ"']]);
 
 // ── Marathi: MRK was "चिन्हांकित करा" (imperative "mark this") — correct: मार्क
 console.log('\nmr.ts');
-patch('mr', [
-  [/"MRK": "चिन्हांकित करा"/, '"MRK": "मार्क"'],
-]);
+patch('mr', [[/"MRK": "चिन्हांकित करा"/, '"MRK": "मार्क"']]);
 
 // ── Punjabi: MRK was "ਨਿਸ਼ਾਨ" (sign/mark noun) — correct: ਮਰਕੁਸ (Markus) ───
 console.log('\npa.ts');
-patch('pa', [
-  [/"MRK": "ਨਿਸ਼ਾਨ"/, '"MRK": "ਮਰਕੁਸ"'],
-]);
+patch('pa', [[/"MRK": "ਨਿਸ਼ਾਨ"/, '"MRK": "ਮਰਕੁਸ"']]);
 
 // ── Vietnamese: MRK, ACT, HEB all machine-translated as common nouns ─────────
 console.log('\nvi.ts');

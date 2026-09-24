@@ -20,12 +20,12 @@ old bug where a filtered subset (BSB, 381) exceeded the whole (377).
 
 ## Listener counts (dedup basis: `DISTINCT COALESCE(user_id::text, session_id)`)
 
-| Display | RPC field | Meaning | Invariant |
-|---|---|---|---|
-| **Listeners · total** (metric card) | `userCountWithListening` | Distinct listeners across ALL audio in the window, geo or not. | The universe. |
-| **Listeners (located)** (globe coverage) | `locatedListenerCount` | Distinct listeners whose audio resolved to a map location. | `<= userCountWithListening` |
-| **Listeners** (per translation, table + filtered globe) | `translationListenerCounts[t]` | Distinct listeners of one translation. | `<= userCountWithListening` |
-| **Listeners** (per country, country table) | `countryMetrics[].listenerCount` | Distinct listeners in one country. | per-country, not additive |
+| Display                                                 | RPC field                        | Meaning                                                        | Invariant                   |
+| ------------------------------------------------------- | -------------------------------- | -------------------------------------------------------------- | --------------------------- |
+| **Listeners · total** (metric card)                     | `userCountWithListening`         | Distinct listeners across ALL audio in the window, geo or not. | The universe.               |
+| **Listeners (located)** (globe coverage)                | `locatedListenerCount`           | Distinct listeners whose audio resolved to a map location.     | `<= userCountWithListening` |
+| **Listeners** (per translation, table + filtered globe) | `translationListenerCounts[t]`   | Distinct listeners of one translation.                         | `<= userCountWithListening` |
+| **Listeners** (per country, country table)              | `countryMetrics[].listenerCount` | Distinct listeners in one country.                             | per-country, not additive   |
 
 Listener counts are **dedup counts, not sums** — you cannot add them across
 countries or translations (the same person can appear in several). Only the RPC
@@ -34,11 +34,11 @@ verbatim and never max-merges country rows.
 
 ## Country vs location
 
-| Display | RPC field | Meaning |
-|---|---|---|
-| **Countries** (globe coverage) | `activeCountryCount` | Distinct ISO countries with activity. |
-| **Active map locations** (metric card) | `activeLocationCount` | Distinct approximate lat/lng buckets — several per country. |
-| **Map buckets** (per-translation table) | `translationLocationMetrics[t].length` | Coordinate buckets for one translation (NOT countries). |
+| Display                                 | RPC field                              | Meaning                                                     |
+| --------------------------------------- | -------------------------------------- | ----------------------------------------------------------- |
+| **Countries** (globe coverage)          | `activeCountryCount`                   | Distinct ISO countries with activity.                       |
+| **Active map locations** (metric card)  | `activeLocationCount`                  | Distinct approximate lat/lng buckets — several per country. |
+| **Map buckets** (per-translation table) | `translationLocationMetrics[t].length` | Coordinate buckets for one translation (NOT countries).     |
 
 A country row whose code has no known geography (IP providers report
 pseudo-codes such as `EU`, `AP` and `A1`) keeps its totals in the country table

@@ -244,7 +244,7 @@ function parseTranslationsCsv(csvText: string): TranslationCsvRow[] {
       languageCode: row['languageCode'] ?? row['Language'] ?? '',
       languageNameInEnglish: normalizeLanguageName(
         row['languageCode'] ?? '',
-        row['languageNameInEnglish'] ?? row['LanguageName'] ?? '',
+        row['languageNameInEnglish'] ?? row['LanguageName'] ?? ''
       ),
       otBooks: parseInt(row['OTbooks'] ?? row['OT'] ?? '0', 10),
       ntBooks: parseInt(row['NTbooks'] ?? row['NT'] ?? '0', 10),
@@ -258,7 +258,7 @@ function parseTranslationsCsv(csvText: string): TranslationCsvRow[] {
 
 function filterFullBibles(rows: TranslationCsvRow[]): TranslationCsvRow[] {
   return rows.filter(
-    (r) => r.otBooks === 39 && r.ntBooks === 27 && r.redistributable && r.downloadable,
+    (r) => r.otBooks === 39 && r.ntBooks === 27 && r.redistributable && r.downloadable
   );
 }
 
@@ -343,7 +343,7 @@ const BATCH_SIZE = 500;
 
 async function upsertCatalogRow(
   supabase: AnySupabaseClient,
-  translation: TranslationCsvRow,
+  translation: TranslationCsvRow
 ): Promise<void> {
   const abbreviation = translation.shortTitle.split(/\s+/)[0] ?? translation.translationId;
   const { error } = await supabase.from('translation_catalog').upsert(
@@ -365,15 +365,16 @@ async function upsertCatalogRow(
       is_available: true,
       text_direction: translation.textDirection || 'ltr',
     },
-    { onConflict: 'translation_id' },
+    { onConflict: 'translation_id' }
   );
-  if (error) throw new Error(`catalog upsert failed for ${translation.translationId}: ${error.message}`);
+  if (error)
+    throw new Error(`catalog upsert failed for ${translation.translationId}: ${error.message}`);
 }
 
 async function upsertVersesBatch(
   supabase: AnySupabaseClient,
   batch: VerseRow[],
-  translationId: string,
+  translationId: string
 ): Promise<void> {
   const { error } = await supabase
     .from('bible_verses')
@@ -384,7 +385,7 @@ async function upsertVersesBatch(
 async function upsertVersionRow(
   supabase: AnySupabaseClient,
   translationId: string,
-  totalVerses: number,
+  totalVerses: number
 ): Promise<void> {
   const { error } = await supabase.from('translation_versions').upsert(
     {
@@ -393,7 +394,7 @@ async function upsertVersionRow(
       is_current: true,
       total_verses: totalVerses,
     },
-    { onConflict: 'translation_id,version_number' },
+    { onConflict: 'translation_id,version_number' }
   );
   if (error) throw new Error(`versions upsert failed for ${translationId}: ${error.message}`);
 }
@@ -406,11 +407,11 @@ async function upsertVersionRow(
 export async function importTranslation(
   supabase: AnySupabaseClient,
   translation: TranslationCsvRow,
-  download: (url: string) => Promise<Buffer> = fetchUrl,
+  download: (url: string) => Promise<Buffer> = fetchUrl
 ): Promise<void> {
   const { translationId } = translation;
   console.log(
-    `[import] Importing ${translationId} (${translation.languageNameInEnglish} — ${translation.shortTitle})...`,
+    `[import] Importing ${translationId} (${translation.languageNameInEnglish} — ${translation.shortTitle})...`
   );
 
   // 1. Download VPL zip
@@ -435,14 +436,16 @@ export async function importTranslation(
       // List entries for debugging
       const entryNames = zip.getEntries().map((e) => e.entryName);
       console.warn(
-        `[import] WARNING: No VPL XML/TXT found in zip for ${translationId}. Entries: ${entryNames.join(', ')}. Skipping.`,
+        `[import] WARNING: No VPL XML/TXT found in zip for ${translationId}. Entries: ${entryNames.join(', ')}. Skipping.`
       );
       return;
     }
     vplContent = entry.getData().toString('utf8');
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.warn(`[import] WARNING: Failed to extract zip for ${translationId} — ${msg}. Skipping.`);
+    console.warn(
+      `[import] WARNING: Failed to extract zip for ${translationId} — ${msg}. Skipping.`
+    );
     return;
   }
 
@@ -480,8 +483,7 @@ async function main(): Promise<void> {
   const { translationIds, languageCodes, all, dryRun } = parseArgs();
 
   // Resolve Supabase credentials
-  const supabaseUrl =
-    process.env.SUPABASE_URL ?? process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
+  const supabaseUrl = process.env.SUPABASE_URL ?? process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
 
   if (!dryRun) {
@@ -510,7 +512,7 @@ async function main(): Promise<void> {
   const fullBibles = filterFullBibles(allTranslations);
 
   console.log(
-    `[import] Found ${fullBibles.length} redistributable full Bibles (OT=39, NT=27) out of ${allTranslations.length} total.`,
+    `[import] Found ${fullBibles.length} redistributable full Bibles (OT=39, NT=27) out of ${allTranslations.length} total.`
   );
 
   // Filter to requested translations
@@ -526,7 +528,7 @@ async function main(): Promise<void> {
     const missing = translationIds.filter((id) => !found.has(id));
     if (missing.length > 0) {
       console.warn(
-        `[import] WARNING: These translation IDs were not found in filtered catalog: ${missing.join(', ')}`,
+        `[import] WARNING: These translation IDs were not found in filtered catalog: ${missing.join(', ')}`
       );
     }
   } else if (languageCodes) {
@@ -548,7 +550,7 @@ async function main(): Promise<void> {
     console.log(`\n[dry-run] Would import ${selected.length} translation(s):\n`);
     for (const t of selected) {
       console.log(
-        `  ${t.translationId.padEnd(20)} ${t.languageCode.padEnd(8)} ${t.languageNameInEnglish.padEnd(30)} ${t.shortTitle}`,
+        `  ${t.translationId.padEnd(20)} ${t.languageCode.padEnd(8)} ${t.languageNameInEnglish.padEnd(30)} ${t.shortTitle}`
       );
     }
     console.log('\n[dry-run] No data was downloaded or inserted.');
@@ -576,7 +578,7 @@ async function main(): Promise<void> {
   }
 
   console.log(
-    `\n[import] Complete. ${successCount} succeeded, ${failCount} failed out of ${selected.length} translations.`,
+    `\n[import] Complete. ${successCount} succeeded, ${failCount} failed out of ${selected.length} translations.`
   );
   if (failCount > 0) {
     process.exit(1);

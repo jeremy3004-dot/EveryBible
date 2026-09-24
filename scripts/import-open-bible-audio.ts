@@ -22,13 +22,13 @@ type ScriptArgs = {
 type CatalogPayload = {
   version: string;
   updatedAt: string;
-    audio: {
-      strategy: 'stream-template';
-      coverage: 'new-testament';
-      baseUrl: string;
-      chapterPathTemplate: string;
-      fileExtension: 'mp3';
-      mimeType: 'audio/mpeg';
+  audio: {
+    strategy: 'stream-template';
+    coverage: 'new-testament';
+    baseUrl: string;
+    chapterPathTemplate: string;
+    fileExtension: 'mp3';
+    mimeType: 'audio/mpeg';
   };
   timing: {
     strategy: 'stream-template';
@@ -111,10 +111,7 @@ function parseArgs(): ScriptArgs {
 }
 
 function requireSupabaseUrl(): string {
-  const value =
-    process.env.SUPABASE_URL ??
-    process.env.EXPO_PUBLIC_SUPABASE_URL ??
-    '';
+  const value = process.env.SUPABASE_URL ?? process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
 
   if (!value) {
     throw new Error('Missing SUPABASE_URL or EXPO_PUBLIC_SUPABASE_URL for catalog generation.');
@@ -140,7 +137,10 @@ async function loadLocalEnvFile(): Promise<void> {
       }
 
       const key = trimmed.slice(0, separatorIndex).trim();
-      const value = trimmed.slice(separatorIndex + 1).trim().replace(/^['"]|['"]$/g, '');
+      const value = trimmed
+        .slice(separatorIndex + 1)
+        .trim()
+        .replace(/^['"]|['"]$/g, '');
       if (!process.env[key]) {
         process.env[key] = value;
       }
@@ -252,10 +252,7 @@ async function writeTimingEntry(
   return true;
 }
 
-function assertExpectedCounts(
-  label: string,
-  counts: Map<string, number>
-): void {
+function assertExpectedCounts(label: string, counts: Map<string, number>): void {
   const missing: string[] = [];
   const mismatched: string[] = [];
 

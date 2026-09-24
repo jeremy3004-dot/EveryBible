@@ -14,12 +14,7 @@ export const adminServerEnvKeys = [
 
 export type AdminRole = 'super_admin';
 
-export type AdminNavigationGroup =
-  | 'Overview'
-  | 'Delivery'
-  | 'Insights'
-  | 'Operations'
-  | 'Admin';
+export type AdminNavigationGroup = 'Overview' | 'Delivery' | 'Insights' | 'Operations' | 'Admin';
 
 export const adminNavigationGroupOrder: readonly AdminNavigationGroup[] = [
   'Overview',

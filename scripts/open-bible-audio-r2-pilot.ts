@@ -91,10 +91,7 @@ type PublishOperation = {
   source: string;
 };
 
-const DEFAULT_REGISTRY_PATH = path.resolve(
-  'docs',
-  'open-bible-audio-r2-pilot-registry.json'
-);
+const DEFAULT_REGISTRY_PATH = path.resolve('docs', 'open-bible-audio-r2-pilot-registry.json');
 const DEFAULT_STAGE_ROOT = path.resolve('tmp', 'open-bible-r2-pilot');
 const DEFAULT_TEXT_MANIFEST_PATH = path.resolve(
   'apps',
@@ -103,9 +100,7 @@ const DEFAULT_TEXT_MANIFEST_PATH = path.resolve(
   'r2-text-pack-manifest.json'
 );
 const CANONICAL_BOOK_ORDER = bibleBooks.map((book) => book.id);
-const CANONICAL_BOOK_INDEX = new Map(
-  CANONICAL_BOOK_ORDER.map((bookId, index) => [bookId, index])
-);
+const CANONICAL_BOOK_INDEX = new Map(CANONICAL_BOOK_ORDER.map((bookId, index) => [bookId, index]));
 
 function parseArgs(): ParsedArgs {
   const args = process.argv.slice(2);
@@ -146,8 +141,7 @@ function parseArgs(): ParsedArgs {
     }
 
     if (arg === '--translation' && args[index + 1]) {
-      translationIds = args[index + 1]!
-        .split(',')
+      translationIds = args[index + 1]!.split(',')
         .map((value) => value.trim().toLowerCase())
         .filter((value) => value.length > 0);
       index += 1;
@@ -320,12 +314,14 @@ function buildTextSeedMap(
 function compareBookIds(left: string, right: string): number {
   return (
     (CANONICAL_BOOK_INDEX.get(left) ?? Number.MAX_SAFE_INTEGER) -
-      (CANONICAL_BOOK_INDEX.get(right) ?? Number.MAX_SAFE_INTEGER) ||
-    left.localeCompare(right)
+      (CANONICAL_BOOK_INDEX.get(right) ?? Number.MAX_SAFE_INTEGER) || left.localeCompare(right)
   );
 }
 
-function compareArtifacts(left: OpenBibleManifestArtifact, right: OpenBibleManifestArtifact): number {
+function compareArtifacts(
+  left: OpenBibleManifestArtifact,
+  right: OpenBibleManifestArtifact
+): number {
   return left.fileName.localeCompare(right.fileName);
 }
 
@@ -393,7 +389,10 @@ function buildStagePaths(
   };
 }
 
-function buildPublishOperations(paths: ReturnType<typeof buildStagePaths>, summary: TranslationStageSummary): PublishOperation[] {
+function buildPublishOperations(
+  paths: ReturnType<typeof buildStagePaths>,
+  summary: TranslationStageSummary
+): PublishOperation[] {
   const operations: PublishOperation[] = [
     {
       source: paths.audioDir,
@@ -496,11 +495,11 @@ function buildRcloneS3Remote(
   return `:s3,provider=Cloudflare,region=auto,access_key_id=${accessKeyId},secret_access_key=${secretAccessKey},endpoint=${normalizedEndpoint}:${bucket}`;
 }
 
-async function upsertCatalogRow(row: ReturnType<typeof buildOpenBiblePilotCatalogRow>): Promise<void> {
+async function upsertCatalogRow(
+  row: ReturnType<typeof buildOpenBiblePilotCatalogRow>
+): Promise<void> {
   const supabaseUrl =
-    process.env.SUPABASE_URL?.trim() ??
-    process.env.EXPO_PUBLIC_SUPABASE_URL?.trim() ??
-    '';
+    process.env.SUPABASE_URL?.trim() ?? process.env.EXPO_PUBLIC_SUPABASE_URL?.trim() ?? '';
 
   if (!supabaseUrl) {
     throw new Error('Missing SUPABASE_URL or EXPO_PUBLIC_SUPABASE_URL.');
@@ -513,7 +512,9 @@ async function upsertCatalogRow(row: ReturnType<typeof buildOpenBiblePilotCatalo
     .upsert(row, { onConflict: 'translation_id' });
 
   if (error) {
-    throw new Error(`Failed to upsert translation_catalog row for ${row.translation_id}: ${error.message}`);
+    throw new Error(
+      `Failed to upsert translation_catalog row for ${row.translation_id}: ${error.message}`
+    );
   }
 }
 
@@ -610,7 +611,8 @@ export async function upsertVerifiedCatalogRows<
     verify: (summary: Summary) => Promise<void>;
     upsert: (row: Summary['catalogRow']) => Promise<void>;
   } = {
-    verify: (summary) => assertPublishedCatalogAssets(summary as unknown as TranslationStageSummary),
+    verify: (summary) =>
+      assertPublishedCatalogAssets(summary as unknown as TranslationStageSummary),
     upsert: upsertCatalogRow,
   }
 ): Promise<void> {
@@ -744,10 +746,7 @@ async function stageTranslation(args: {
 
         const chapterKey = `${normalized.bookId}:${normalized.chapter}`;
         if (!selectedAudioKeys.has(chapterKey)) {
-          if (
-            chapterSampleLimit !== null &&
-            selectedAudioKeys.size >= chapterSampleLimit
-          ) {
+          if (chapterSampleLimit !== null && selectedAudioKeys.size >= chapterSampleLimit) {
             continue;
           }
 
@@ -796,10 +795,7 @@ async function stageTranslation(args: {
         );
       }
 
-      if (
-        chapterSampleLimit !== null &&
-        selectedAudioKeys.size >= chapterSampleLimit
-      ) {
+      if (chapterSampleLimit !== null && selectedAudioKeys.size >= chapterSampleLimit) {
         break;
       }
     }
@@ -884,16 +880,11 @@ async function stageTranslation(args: {
     }
   }
 
-  const {
-    audioBooks,
-    manifestBooks,
-    totalAudioBytes,
-    totalAudioChapters,
-    totalTimingChapters,
-  } = summarizeBookStats(bookSummaries);
+  const { audioBooks, manifestBooks, totalAudioBytes, totalAudioChapters, totalTimingChapters } =
+    summarizeBookStats(bookSummaries);
   const textSeed =
     translation.hasTextPack && translation.textPackTranslationId
-      ? textSeedMap.get(translation.textPackTranslationId.toLowerCase()) ?? null
+      ? (textSeedMap.get(translation.textPackTranslationId.toLowerCase()) ?? null)
       : null;
   const catalog = buildOpenBiblePilotCatalog({
     translation,
@@ -958,19 +949,11 @@ async function loadStagedSummary(args: {
   translation: OpenBiblePilotRegistryTranslation;
   version: string;
 }): Promise<TranslationStageSummary> {
-  const stagePaths = buildStagePaths(
-    args.stageRoot,
-    args.translation.translationId,
-    args.version
-  );
+  const stagePaths = buildStagePaths(args.stageRoot, args.translation.translationId, args.version);
   const [catalog, catalogRow, manifest, publishPlan] = await Promise.all([
     readJsonFile<ReturnType<typeof buildOpenBiblePilotCatalog>>(stagePaths.catalogFile),
-    readJsonFile<ReturnType<typeof buildOpenBiblePilotCatalogRow>>(
-      stagePaths.catalogRowFile
-    ),
-    readJsonFile<ReturnType<typeof buildOpenBiblePilotAudioManifest>>(
-      stagePaths.manifestFile
-    ),
+    readJsonFile<ReturnType<typeof buildOpenBiblePilotCatalogRow>>(stagePaths.catalogRowFile),
+    readJsonFile<ReturnType<typeof buildOpenBiblePilotAudioManifest>>(stagePaths.manifestFile),
     readJsonFile<{
       operations: PublishOperation[];
       publishTiming: boolean;
@@ -1116,7 +1099,9 @@ async function main(): Promise<void> {
 
   if (args.publish) {
     if (args.chapterSampleLimit !== null) {
-      throw new Error('Refusing to publish a sampled pilot stage. Remove --chapter-sample-limit first.');
+      throw new Error(
+        'Refusing to publish a sampled pilot stage. Remove --chapter-sample-limit first.'
+      );
     }
 
     for (const summary of summaries) {
@@ -1126,18 +1111,16 @@ async function main(): Promise<void> {
 
   if (args.upsertCatalog) {
     if (args.chapterSampleLimit !== null) {
-      throw new Error('Refusing to upsert sampled catalog rows. Remove --chapter-sample-limit first.');
+      throw new Error(
+        'Refusing to upsert sampled catalog rows. Remove --chapter-sample-limit first.'
+      );
     }
 
     await loadLocalEnvFile(args.repoRoot);
     await upsertVerifiedCatalogRows(summaries);
   }
 
-  if (
-    !args.dryRun &&
-    args.chapterSampleLimit === null &&
-    !args.skipRegistryUpdate
-  ) {
+  if (!args.dryRun && args.chapterSampleLimit === null && !args.skipRegistryUpdate) {
     if (args.publish) {
       await writeUpdatedRegistry({
         generatedAt,
@@ -1178,10 +1161,7 @@ async function main(): Promise<void> {
     })),
   };
 
-  await writeJsonFile(
-    path.join(args.stageRoot, 'last-run-summary.json'),
-    output
-  );
+  await writeJsonFile(path.join(args.stageRoot, 'last-run-summary.json'), output);
 
   if (args.dryRun || !args.publish) {
     console.log(JSON.stringify(output, null, 2));

@@ -20,11 +20,14 @@ export default function GivePage() {
       <section>
         <h2>Be part of the work</h2>
         <p>
-          EveryBible is part of Every Language. Give toward the vision of the whole Bible
-          for every language community.
+          EveryBible is part of Every Language. Give toward the vision of the whole Bible for every
+          language community.
         </p>
         <p>
-          <a className="giving-button" href="https://www.paypal.com/donate?hosted_button_id=4KH6QMKS42RC4">
+          <a
+            className="giving-button"
+            href="https://www.paypal.com/donate?hosted_button_id=4KH6QMKS42RC4"
+          >
             Give to Every Language
           </a>
         </p>
@@ -38,9 +41,12 @@ export default function GivePage() {
           </a>
         </p>
         <p>
-          Questions about giving? Email <a href="mailto:TEAM@EveryLanguage.com">team@everylanguage.com</a>.
+          Questions about giving? Email{' '}
+          <a href="mailto:TEAM@EveryLanguage.com">team@everylanguage.com</a>.
         </p>
-        <p><a href="https://everylanguage.com/give/">Learn more at Every Language</a></p>
+        <p>
+          <a href="https://everylanguage.com/give/">Learn more at Every Language</a>
+        </p>
       </section>
     </StaticPageLayout>
   );

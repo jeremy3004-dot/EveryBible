@@ -27,25 +27,28 @@ const images: ImageConfig[] = [
   {
     filename: 'home-hero.png',
     description: 'Home screen hero image - welcoming family environment',
-    prompt: "Warm mountain home interior with traditional Tibetan decorations, maroon and gold chuba robes hanging on wall, cozy firelight creating welcoming atmosphere, low wooden table with tea cups, Himalayan mountain village visible through window at golden sunset, sense of home and belonging, Procreate digital painting style, rich warm color palette"
+    prompt:
+      'Warm mountain home interior with traditional Tibetan decorations, maroon and gold chuba robes hanging on wall, cozy firelight creating welcoming atmosphere, low wooden table with tea cups, Himalayan mountain village visible through window at golden sunset, sense of home and belonging, Procreate digital painting style, rich warm color palette',
   },
   {
     filename: 'field-gospel.png',
     description: 'Gospel field illustration - prayer and contemplation',
-    prompt: "Simple Tibetan mountain home interior with prayer space, open scripture book on meditation cushion, soft morning light streaming through window, prayer beads and incense, serene Himalayan landscape visible outside, sense of spiritual contemplation and peace, Procreate digital painting style, maroon and saffron color palette, warm and inviting atmosphere"
+    prompt:
+      'Simple Tibetan mountain home interior with prayer space, open scripture book on meditation cushion, soft morning light streaming through window, prayer beads and incense, serene Himalayan landscape visible outside, sense of spiritual contemplation and peace, Procreate digital painting style, maroon and saffron color palette, warm and inviting atmosphere',
   },
   {
     filename: 'field-discipleship.png',
     description: 'Discipleship field illustration - peace and reconciliation',
-    prompt: "Peaceful monastery courtyard in Tibetan mountains, traditional prayer flags connecting buildings, warm golden hour sunlight, meditation garden with stone pathway, sense of healing and peace, maroon monastery walls, open doorway showing welcoming interior light, Procreate digital painting style, warm maroon and gold tones, emphasis on tranquility and harmony"
-  }
+    prompt:
+      'Peaceful monastery courtyard in Tibetan mountains, traditional prayer flags connecting buildings, warm golden hour sunlight, meditation garden with stone pathway, sense of healing and peace, maroon monastery walls, open doorway showing welcoming interior light, Procreate digital painting style, warm maroon and gold tones, emphasis on tranquility and harmony',
+  },
 ];
 
 /**
  * Sleep utility for rate limiting
  */
 function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**
@@ -67,7 +70,6 @@ async function generateImage(config: ImageConfig, retries = 3): Promise<void> {
       console.log(`  Output path: ${outputPath}`);
 
       return; // Success
-
     } catch (error) {
       console.error(`✗ Attempt ${attempt} failed:`, error);
 
@@ -92,7 +94,7 @@ async function main() {
 
   const results: { success: string[]; failed: string[] } = {
     success: [],
-    failed: []
+    failed: [],
   };
 
   // Generate images sequentially
@@ -109,7 +111,6 @@ async function main() {
         console.log(`\nWaiting ${DELAY_MS}ms before next generation...`);
         await sleep(DELAY_MS);
       }
-
     } catch (error) {
       console.error(`✗ Failed to generate: ${config.filename}`);
       console.error(error);
@@ -124,12 +125,12 @@ async function main() {
 
   if (results.success.length > 0) {
     console.log('\nSuccessful generations:');
-    results.success.forEach(f => console.log(`  - ${f}`));
+    results.success.forEach((f) => console.log(`  - ${f}`));
   }
 
   if (results.failed.length > 0) {
     console.log('\nFailed generations:');
-    results.failed.forEach(f => console.log(`  - ${f}`));
+    results.failed.forEach((f) => console.log(`  - ${f}`));
   }
 
   console.log('\nRun verification:');
@@ -143,7 +144,7 @@ export { images, generateImage };
 
 // Run if executed directly
 if (require.main === module) {
-  main().catch(error => {
+  main().catch((error) => {
     console.error('Fatal error:', error);
     process.exit(1);
   });

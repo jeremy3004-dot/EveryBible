@@ -64,8 +64,8 @@ export default async function SettingsPage() {
           {auditLogs.length === 0 ? (
             <tr>
               <td colSpan={auditColumns.length} className="data-table__empty">
-                No admin actions recorded yet — actions appear here when you publish,
-                sync, or moderate.
+                No admin actions recorded yet — actions appear here when you publish, sync, or
+                moderate.
               </td>
             </tr>
           ) : (

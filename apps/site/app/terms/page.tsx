@@ -19,11 +19,7 @@ export const metadata: Metadata = pageMetadata({
 
 export default function TermsPage() {
   return (
-    <StaticPageLayout
-      eyebrow="Legal"
-      title="Terms of Service"
-      intro="Last updated: April 3, 2026"
-    >
+    <StaticPageLayout eyebrow="Legal" title="Terms of Service" intro="Last updated: April 3, 2026">
       <section>
         <p>
           Welcome to EveryBible. By downloading, installing, accessing, or using our app, website,
@@ -34,9 +30,9 @@ export default function TermsPage() {
       <section>
         <h2>1. Acceptance of Terms</h2>
         <p>
-          If you do not agree to these Terms, do not use EveryBible. If you use EveryBible on
-          behalf of an organization, you confirm that you have authority to bind that organization
-          to these Terms.
+          If you do not agree to these Terms, do not use EveryBible. If you use EveryBible on behalf
+          of an organization, you confirm that you have authority to bind that organization to these
+          Terms.
         </p>
       </section>
 
@@ -55,8 +51,8 @@ export default function TermsPage() {
         <p>
           Some features require an account created through supported sign-in providers. You are
           responsible for maintaining the confidentiality of your account and for activity that
-          occurs under it. You agree to provide accurate information and to notify us if you
-          believe your account has been used without authorization.
+          occurs under it. You agree to provide accurate information and to notify us if you believe
+          your account has been used without authorization.
         </p>
       </section>
 
@@ -66,7 +62,9 @@ export default function TermsPage() {
           <li>Do not use the app for unlawful purposes.</li>
           <li>Do not attempt unauthorized access to our systems.</li>
           <li>Do not interfere with service functionality, availability, or security.</li>
-          <li>Do not scrape, copy, or redistribute protected content unless a license allows it.</li>
+          <li>
+            Do not scrape, copy, or redistribute protected content unless a license allows it.
+          </li>
           <li>Do not upload malicious code, spam, or abusive content into EveryBible services.</li>
         </ul>
       </section>
@@ -75,8 +73,8 @@ export default function TermsPage() {
         <h2>5. Content and intellectual property</h2>
         <p>
           The app and its original content, excluding Bible texts and other third-party content
-          distributed under their own licenses, are owned by EveryBible and protected by
-          applicable law.
+          distributed under their own licenses, are owned by EveryBible and protected by applicable
+          law.
         </p>
         <p>
           Some Bible text, audio, and translation metadata available through EveryBible come from
@@ -88,8 +86,8 @@ export default function TermsPage() {
       <section>
         <h2>6. Service availability and changes</h2>
         <p>
-          We may update, improve, suspend, or discontinue parts of EveryBible at any time. We do
-          not guarantee that every feature, translation, or audio source will always be available.
+          We may update, improve, suspend, or discontinue parts of EveryBible at any time. We do not
+          guarantee that every feature, translation, or audio source will always be available.
         </p>
       </section>
 
@@ -104,8 +102,8 @@ export default function TermsPage() {
       <section>
         <h2>8. Limitation of Liability</h2>
         <p>
-          To the maximum extent permitted by law, EveryBible is not liable for indirect,
-          incidental, special, or consequential damages arising from your use of the service.
+          To the maximum extent permitted by law, EveryBible is not liable for indirect, incidental,
+          special, or consequential damages arising from your use of the service.
         </p>
       </section>
 
@@ -113,8 +111,7 @@ export default function TermsPage() {
         <h2>9. Termination</h2>
         <p>
           We may suspend or terminate access for violations of these Terms or to protect the
-          service, our users, or our ministry operations. You may stop using EveryBible at any
-          time.
+          service, our users, or our ministry operations. You may stop using EveryBible at any time.
         </p>
       </section>
 

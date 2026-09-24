@@ -209,13 +209,9 @@ async function main() {
       screenImage,
     });
 
-    await sharp(Buffer.from(svg))
-      .png()
-      .toFile(scaffoldPath);
+    await sharp(Buffer.from(svg)).png().toFile(scaffoldPath);
 
-    await sharp(Buffer.from(svg))
-      .png()
-      .toFile(uploadPath);
+    await sharp(Buffer.from(svg)).png().toFile(uploadPath);
 
     manifest.push({
       ...slide,

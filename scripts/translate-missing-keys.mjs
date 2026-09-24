@@ -33,27 +33,48 @@ const LANGUAGE_NAMES = {
 // Missing keys with their English values and insertion context
 const MISSING_KEYS = [
   // home section - insert after "goodEvening"
-  { path: ['home', 'greetingWithName'], value: '{{greeting}}, {{name}}', insertAfter: 'goodEvening' },
+  {
+    path: ['home', 'greetingWithName'],
+    value: '{{greeting}}, {{name}}',
+    insertAfter: 'goodEvening',
+  },
   { path: ['home', 'guestName'], value: 'friend', insertAfter: 'greetingWithName' },
   { path: ['home', 'beginToday'], value: 'Begin today', insertAfter: 'welcome' },
   { path: ['home', 'todaysScripture'], value: "Today's Scripture", insertAfter: 'beginToday' },
-  { path: ['home', 'sharePrompt'], value: 'Share light. Encourage someone today.', insertAfter: 'continueReading' },
+  {
+    path: ['home', 'sharePrompt'],
+    value: 'Share light. Encourage someone today.',
+    insertAfter: 'continueReading',
+  },
   { path: ['home', 'plan'], value: 'Plan', insertAfter: 'sharePrompt' },
   { path: ['home', 'minutesLeft'], value: '{{count}} min left', insertAfter: 'plan' },
   { path: ['home', 'percentComplete'], value: '{{percent}}%', insertAfter: 'minutesLeft' },
   { path: ['home', 'fieldLabel'], value: 'Field {{number}}', insertAfter: 'percentComplete' },
-  { path: ['home', 'notificationSettings'], value: 'Notification settings', insertAfter: 'fieldLabel' },
+  {
+    path: ['home', 'notificationSettings'],
+    value: 'Notification settings',
+    insertAfter: 'fieldLabel',
+  },
   // settings section - insert after "reading"
-  { path: ['settings', 'hidePlayButtonFromReadingTab'], value: 'Hide play button from reading tab', insertAfter: 'reading' },
+  {
+    path: ['settings', 'hidePlayButtonFromReadingTab'],
+    value: 'Hide play button from reading tab',
+    insertAfter: 'reading',
+  },
   // readingPlans section
   { path: ['readingPlans', 'dailyReadings'], value: 'Daily Readings', insertAfter: 'dailyRhythms' },
   { path: ['readingPlans', 'dailyRhythms'], value: 'Daily Rhythms', insertAfter: 'browsePlans' },
   // readingPlans.kathisma subsection — entire object is missing
-  { path: ['readingPlans', 'kathisma'], value: null, insertAfter: 'proverbs31', isObject: true,
+  {
+    path: ['readingPlans', 'kathisma'],
+    value: null,
+    insertAfter: 'proverbs31',
+    isObject: true,
     children: {
       title: 'Kathisma',
-      description: 'Read the appointed morning and evening kathismata for each weekday, repeating every week.',
-    }
+      description:
+        'Read the appointed morning and evening kathismata for each weekday, repeating every week.',
+    },
   },
 ];
 
@@ -151,10 +172,7 @@ function insertObjectAfter(content, section, insertAfterKey, objectKey, objectVa
   }
 
   // Match the block after insertAfterKey — a multi-line object ending with },
-  const afterBlockPattern = new RegExp(
-    `([ \\t]*"${insertAfterKey}":\\s*\\{[^}]*\\},?)\\n`,
-    's'
-  );
+  const afterBlockPattern = new RegExp(`([ \\t]*"${insertAfterKey}":\\s*\\{[^}]*\\},?)\\n`, 's');
   const sectionContent = content.slice(sectionMatch.index);
   const afterMatch = afterBlockPattern.exec(sectionContent);
   if (!afterMatch) {
@@ -206,7 +224,13 @@ async function patchLocaleFile(lang, translations) {
       const translatedValue = translations[flatKey] ?? key.value;
       // Escape double quotes in value
       const escaped = String(translatedValue).replace(/"/g, '\\"');
-      content = insertKeyAfter(content, section, key.insertAfterKey ?? key.insertAfter, keyName, escaped);
+      content = insertKeyAfter(
+        content,
+        section,
+        key.insertAfterKey ?? key.insertAfter,
+        keyName,
+        escaped
+      );
       console.log(`  + inserted ${flatKey}: "${translatedValue}"`);
     }
   }

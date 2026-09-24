@@ -49,7 +49,12 @@ export function scriptureStatus(record: AtlasRecord): ScriptureStatus {
 export function scriptureLabel(record: AtlasRecord): string {
   const status = scriptureStatus(record);
   if (status !== 'unknown') return SCRIPTURE_LABELS[status];
-  const subject = record.kind === 'dialect' ? 'dialect' : record.kind === 'people-group' ? 'primary language' : 'language';
+  const subject =
+    record.kind === 'dialect'
+      ? 'dialect'
+      : record.kind === 'people-group'
+        ? 'primary language'
+        : 'language';
   return `No known Scripture in this ${subject}`;
 }
 
@@ -57,7 +62,10 @@ export function atlasBiography(record: AtlasRecord, biography = record.summary):
   if (scriptureStatus(record) !== 'unknown') return biography;
   return biography
     .replace('Language-level Scripture status is unreported.', `${scriptureLabel(record)}.`)
-    .replace('Scripture availability for this specific variety is unconfirmed.', `${scriptureLabel(record)}.`);
+    .replace(
+      'Scripture availability for this specific variety is unconfirmed.',
+      `${scriptureLabel(record)}.`
+    );
 }
 
 function validLocation(location: AtlasLocation | null): location is AtlasLocation {

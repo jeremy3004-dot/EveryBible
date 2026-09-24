@@ -106,11 +106,18 @@ async function lookupViaIpinfo(ip: string, token: string): Promise<GeoResult | n
   try {
     const url = new URL(`https://ipinfo.io/${encodeURIComponent(ip)}/json`);
     url.searchParams.set('token', token);
-    const resp = await fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(2000) });
+    const resp = await fetch(url, {
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(2000),
+    });
     if (!resp.ok) return null;
-    const p = (await resp.json().catch(() => null)) as
-      | { country?: unknown; loc?: unknown; timezone?: unknown; city?: unknown; region?: unknown }
-      | null;
+    const p = (await resp.json().catch(() => null)) as {
+      country?: unknown;
+      loc?: unknown;
+      timezone?: unknown;
+      city?: unknown;
+      region?: unknown;
+    } | null;
     if (!p) return null;
     let latitude: number | null = null;
     let longitude: number | null = null;
@@ -118,19 +125,25 @@ async function lookupViaIpinfo(ip: string, token: string): Promise<GeoResult | n
       const parts = p.loc.split(',');
       const lat = parseFloat(parts[0] ?? '');
       const lng = parseFloat(parts[1] ?? '');
-      if (Number.isFinite(lat) && Number.isFinite(lng)) { latitude = lat; longitude = lng; }
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        latitude = lat;
+        longitude = lng;
+      }
     }
     return {
       accuracyKm: null,
       countryCode: normalizeCountryCode(p.country),
-      latitude, longitude,
+      latitude,
+      longitude,
       source: 'ipinfo',
       timezone: getText(p.timezone),
       city: getText(p.city),
       region: getText(p.region),
       regionCode: null,
     };
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 async function lookupViaIpapi(ip: string): Promise<GeoResult | null> {
@@ -141,32 +154,33 @@ async function lookupViaIpapi(ip: string): Promise<GeoResult | null> {
       signal: AbortSignal.timeout(2000),
     });
     if (!resp.ok) return null;
-    const p = (await resp.json().catch(() => null)) as
-      | {
-          country_code?: unknown;
-          latitude?: unknown;
-          longitude?: unknown;
-          timezone?: unknown;
-          city?: unknown;
-          region?: unknown;
-          region_code?: unknown;
-          error?: unknown;
-        }
-      | null;
+    const p = (await resp.json().catch(() => null)) as {
+      country_code?: unknown;
+      latitude?: unknown;
+      longitude?: unknown;
+      timezone?: unknown;
+      city?: unknown;
+      region?: unknown;
+      region_code?: unknown;
+      error?: unknown;
+    } | null;
     if (!p || p.error) return null;
     const lat = typeof p.latitude === 'number' ? p.latitude : null;
     const lng = typeof p.longitude === 'number' ? p.longitude : null;
     return {
       accuracyKm: null,
       countryCode: normalizeCountryCode(p.country_code),
-      latitude: lat, longitude: lng,
+      latitude: lat,
+      longitude: lng,
       source: 'ipapi',
       timezone: getText(p.timezone),
       city: getText(p.city),
       region: getText(p.region),
       regionCode: getText(p.region_code)?.toUpperCase() ?? null,
     };
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 function resolveEventGeo(event: AnonymousUsageEvent): GeoResult | null {
@@ -278,8 +292,11 @@ function mergeGeo(requestGeo: GeoResult, payloadGeo: GeoResult | null): GeoResul
   const geo = payloadGeo?.countryCode ? payloadGeo : requestGeo;
   const latitude = normalizeCoordinate(geo.latitude, 90);
   const longitude = normalizeCoordinate(geo.longitude, 180);
-  return { ...geo, latitude: longitude == null ? null : latitude,
-    longitude: latitude == null ? null : longitude };
+  return {
+    ...geo,
+    latitude: longitude == null ? null : latitude,
+    longitude: latitude == null ? null : longitude,
+  };
 }
 
 function getText(value: unknown): string | null {
@@ -317,7 +334,9 @@ function looksLikeUserToken(token: string): boolean {
   try {
     const json = atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'));
     const payload = JSON.parse(json) as { role?: unknown; sub?: unknown };
-    return payload.role === 'authenticated' && typeof payload.sub === 'string' && payload.sub.length > 0;
+    return (
+      payload.role === 'authenticated' && typeof payload.sub === 'string' && payload.sub.length > 0
+    );
   } catch {
     return false;
   }
@@ -334,10 +353,7 @@ type AuthCapableClient = {
   };
 };
 
-async function resolveUserId(
-  req: Request,
-  supabase: AuthCapableClient
-): Promise<string | null> {
+async function resolveUserId(req: Request, supabase: AuthCapableClient): Promise<string | null> {
   const token = getAccessToken(req);
   if (!token || !looksLikeUserToken(token)) return null;
   try {
@@ -359,7 +375,8 @@ async function resolveUserId(
 function parseBatchRequest(body: unknown): AnonymousUsageRequestBody | null {
   if (!body || typeof body !== 'object') return null;
   const events = (body as { events?: unknown }).events;
-  if (!Array.isArray(events) || events.length === 0 || events.length > MAX_EVENTS_PER_BATCH) return null;
+  if (!Array.isArray(events) || events.length === 0 || events.length > MAX_EVENTS_PER_BATCH)
+    return null;
 
   const normalizedEvents: AnonymousUsageEvent[] = [];
   // S5: oversized / too-old events are DROPPED individually rather than failing the batch.
@@ -373,9 +390,20 @@ function parseBatchRequest(body: unknown): AnonymousUsageRequestBody | null {
     const devicePlatform = getText(raw.device_platform);
     const appVersion = getText(raw.app_version);
     const queuedAt = getText(raw.queued_at);
-    if (!eventName || !devicePlatform || !appVersion || !queuedAt || !Number.isFinite(Date.parse(queuedAt))) return null;
+    if (
+      !eventName ||
+      !devicePlatform ||
+      !appVersion ||
+      !queuedAt ||
+      !Number.isFinite(Date.parse(queuedAt))
+    )
+      return null;
     const eventId = getText(raw.event_id);
-    if (eventId && !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(eventId)) return null;
+    if (
+      eventId &&
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(eventId)
+    )
+      return null;
     const createdAt = resolveQueuedAt(queuedAt);
     if (createdAt === 'invalid') return null;
     // Oversized strings would otherwise fail the analytics_events CHECK constraints and turn
@@ -383,15 +411,25 @@ function parseBatchRequest(body: unknown): AnonymousUsageRequestBody | null {
     if (
       createdAt === 'too_old' ||
       !textFieldsWithinLimit([
-        raw.event_name, raw.device_platform, raw.app_version, raw.session_id, raw.attribution_user_id,
-        raw.geo_source, raw.geo_timezone, raw.geo_city, raw.geo_region_code, raw.geo_region_name,
+        raw.event_name,
+        raw.device_platform,
+        raw.app_version,
+        raw.session_id,
+        raw.attribution_user_id,
+        raw.geo_source,
+        raw.geo_timezone,
+        raw.geo_city,
+        raw.geo_region_code,
+        raw.geo_region_name,
       ])
     ) {
       rejected += 1;
       continue;
     }
     const eventProperties =
-      raw.event_properties && typeof raw.event_properties === 'object' && !Array.isArray(raw.event_properties)
+      raw.event_properties &&
+      typeof raw.event_properties === 'object' &&
+      !Array.isArray(raw.event_properties)
         ? (raw.event_properties as Record<string, unknown>)
         : {};
     if (!eventPropertiesWithinLimit(eventProperties)) {
@@ -400,7 +438,8 @@ function parseBatchRequest(body: unknown): AnonymousUsageRequestBody | null {
     }
     normalizedEvents.push({
       event_id: eventId ?? undefined,
-      attribution_user_id: raw.attribution_user_id === undefined ? undefined : getText(raw.attribution_user_id),
+      attribution_user_id:
+        raw.attribution_user_id === undefined ? undefined : getText(raw.attribution_user_id),
       app_version: appVersion,
       device_platform: devicePlatform,
       event_name: eventName as AnonymousUsageEvent['event_name'],
@@ -417,7 +456,10 @@ function parseBatchRequest(body: unknown): AnonymousUsageRequestBody | null {
       geo_region_code: raw.geo_region_code == null ? null : getText(raw.geo_region_code),
       geo_region_name: raw.geo_region_name == null ? null : getText(raw.geo_region_name),
       queued_at: createdAt,
-      session_id: raw.session_id === null || getText(raw.session_id) === null ? null : getText(raw.session_id),
+      session_id:
+        raw.session_id === null || getText(raw.session_id) === null
+          ? null
+          : getText(raw.session_id),
     });
   }
   return { events: normalizedEvents, rejected };
@@ -448,7 +490,10 @@ Deno.serve(async (request) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     if (!supabaseUrl || !serviceRoleKey) {
-      return internalErrorResponse('missing configuration', 'SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not set');
+      return internalErrorResponse(
+        'missing configuration',
+        'SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not set'
+      );
     }
 
     // M1: cap the body while streaming it, before JSON parsing or any database work.
@@ -490,17 +535,32 @@ Deno.serve(async (request) => {
     // no reason to spend a geo lookup — acknowledge so the client clears its queue instead of
     // retrying the same rejected events forever.
     if (batch.events.length === 0) {
-      return jsonResponse({ inserted: 0, rejected: batch.rejected, ok: true, attributed: false, geo: null, geo_source: null });
+      return jsonResponse({
+        inserted: 0,
+        rejected: batch.rejected,
+        ok: true,
+        attributed: false,
+        geo: null,
+        geo_source: null,
+      });
     }
 
-    const needsRequestGeo = batch.events.some(event => !resolveEventGeo(event)?.countryCode);
+    const needsRequestGeo = batch.events.some((event) => !resolveEventGeo(event)?.countryCode);
     const requestGeo: GeoResult = needsRequestGeo
       ? await resolveRequestGeo(request, budget, (geo) =>
-          rememberIngestGeo(supabase, clientKey, { ...geo }))
+          rememberIngestGeo(supabase, clientKey, { ...geo })
+        )
       : {
-      accuracyKm: null, countryCode: null, latitude: null, longitude: null,
-      source: null, timezone: null, city: null, region: null, regionCode: null,
-    };
+          accuracyKm: null,
+          countryCode: null,
+          latitude: null,
+          longitude: null,
+          source: null,
+          timezone: null,
+          city: null,
+          region: null,
+          regionCode: null,
+        };
     // Auth-optional: attribute user_id when a genuine user token is present.
     const userId = await resolveUserId(request, supabase);
 
@@ -509,7 +569,10 @@ Deno.serve(async (request) => {
 
       return {
         id: event.event_id ?? crypto.randomUUID(),
-        user_id: event.attribution_user_id === undefined || event.attribution_user_id === userId ? userId : null,
+        user_id:
+          event.attribution_user_id === undefined || event.attribution_user_id === userId
+            ? userId
+            : null,
         event_name: event.event_name,
         event_properties: event.event_properties,
         session_id: event.session_id,
@@ -529,7 +592,9 @@ Deno.serve(async (request) => {
       };
     });
 
-    const { error } = await supabase.from('analytics_events').upsert(rows, { onConflict: 'id', ignoreDuplicates: true });
+    const { error } = await supabase
+      .from('analytics_events')
+      .upsert(rows, { onConflict: 'id', ignoreDuplicates: true });
     if (error) return internalErrorResponse('analytics_events write failed', error);
 
     return jsonResponse({

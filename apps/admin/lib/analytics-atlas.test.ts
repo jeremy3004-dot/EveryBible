@@ -127,13 +127,22 @@ test('CSV escapes quotes and disables spreadsheet formulas in text', () => {
 });
 
 test('country-only activity stays visible alongside approximate locations without double-counting', () => {
-  const points = getAtlasPoints({ countries: [country], locations: [location] }, 'listeningMinutes');
-  assert.equal(points.reduce((sum, point) => sum + point.listeningMinutes, 0), 100);
-  assert.equal(points.find(point => point.locationKind === 'country')?.listeningMinutes, 80);
+  const points = getAtlasPoints(
+    { countries: [country], locations: [location] },
+    'listeningMinutes'
+  );
+  assert.equal(
+    points.reduce((sum, point) => sum + point.listeningMinutes, 0),
+    100
+  );
+  assert.equal(points.find((point) => point.locationKind === 'country')?.listeningMinutes, 80);
 });
 
 test('reading uses collected approximate coordinates when available', () => {
-  const points = getAtlasPoints({ countries: [country], locations: [{ ...location, readingMinutes: 30 }] }, 'readingMinutes');
+  const points = getAtlasPoints(
+    { countries: [country], locations: [{ ...location, readingMinutes: 30 }] },
+    'readingMinutes'
+  );
   assert.equal(points.length, 1);
   assert.equal(points[0].latitude, 27.7);
 });

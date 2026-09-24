@@ -442,7 +442,9 @@ textarea {
   background: hsl(var(--background));
   color: hsl(var(--foreground));
   font-size: 0.95rem;
-  transition: border-color 150ms ease, box-shadow 150ms ease;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
 }
 
 input:focus,
@@ -578,7 +580,6 @@ label {
 .theme-toggle {
   display: none;
 }
-
 
 .theme-toggle__button {
   display: inline-flex;
@@ -1170,7 +1171,12 @@ label {
   background:
     linear-gradient(90deg, hsl(var(--card)) 30%, hsl(var(--card) / 0)) left / 24px 100% no-repeat,
     linear-gradient(90deg, hsl(var(--card) / 0), hsl(var(--card)) 70%) right / 24px 100% no-repeat,
-    radial-gradient(farthest-side at 100% 50%, hsl(var(--foreground) / 0.14), hsl(var(--foreground) / 0)) right / 14px 100% no-repeat;
+    radial-gradient(
+        farthest-side at 100% 50%,
+        hsl(var(--foreground) / 0.14),
+        hsl(var(--foreground) / 0)
+      )
+      right / 14px 100% no-repeat;
   background-attachment: local, local, scroll;
 }
 

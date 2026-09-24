@@ -130,15 +130,11 @@ function Profile({
       </p>
       <div className="la-status">
         <i className={`la-dot la-dot--${scriptureVisualCategory(status)}`} />
-        <strong>
-          {scriptureLabel(record)}
-        </strong>
+        <strong>{scriptureLabel(record)}</strong>
         {record.kind === 'people-group' && <span>Primary-language context</span>}
       </div>
       {record.kind === 'dialect' && status !== 'unknown' && (
-        <p className="la-scope-note">
-          This claim is scoped to this variety.
-        </p>
+        <p className="la-scope-note">This claim is scoped to this variety.</p>
       )}
       {record.languageContextStatus && (
         <div className="la-context">

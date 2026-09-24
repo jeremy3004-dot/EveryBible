@@ -17,7 +17,8 @@ interface AdminNavLinkProps {
  */
 export function AdminNavLink({ href, label, description }: AdminNavLinkProps) {
   const pathname = usePathname();
-  const isCurrent = href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`);
+  const isCurrent =
+    href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`);
 
   return (
     <Link href={href} className="nav-link" aria-current={isCurrent ? 'page' : undefined}>

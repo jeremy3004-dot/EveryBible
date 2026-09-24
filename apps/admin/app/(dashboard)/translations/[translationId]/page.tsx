@@ -43,8 +43,8 @@ export default async function TranslationDetailPage({
           </h2>
           <p className="page-copy">
             Separate upstream state from EveryBible-local delivery controls. This page is where
-            super-admins adjust internal readiness and availability without pretending to author
-            the translation itself.
+            super-admins adjust internal readiness and availability without pretending to author the
+            translation itself.
           </p>
         </div>
         <Link href="/translations" className="button">
@@ -128,7 +128,11 @@ export default async function TranslationDetailPage({
           </dl>
 
           <pre className="json-block">
-            {JSON.stringify(detail.upstreamPayload ?? { message: 'No upstream payload stored yet.' }, null, 2)}
+            {JSON.stringify(
+              detail.upstreamPayload ?? { message: 'No upstream payload stored yet.' },
+              null,
+              2
+            )}
           </pre>
         </article>
       </section>

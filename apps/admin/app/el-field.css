@@ -41,7 +41,12 @@ body {
   line-height: var(--leading-body);
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-family: var(--font-display);
   font-weight: 800;
   letter-spacing: var(--tracking-heading);
@@ -213,9 +218,15 @@ textarea,
 }
 
 /* Data series in order — never cherry-picked for decoration. */
-.bar-chart__fill { background: hsl(var(--series-1)); }
-.bar-chart__fill--secondary { background: hsl(var(--series-2)); }
-.bar-chart__fill--tertiary { background: hsl(var(--series-3)); }
+.bar-chart__fill {
+  background: hsl(var(--series-1));
+}
+.bar-chart__fill--secondary {
+  background: hsl(var(--series-2));
+}
+.bar-chart__fill--tertiary {
+  background: hsl(var(--series-3));
+}
 
 /* The single definition of the legend ramp. Three earlier copies disagreed
    with each other and the most specific one ended on --primary, which put
@@ -358,7 +369,9 @@ select,
   min-height: var(--control-height);
 }
 
-textarea { min-height: calc(var(--control-height) * 2); }
+textarea {
+  min-height: calc(var(--control-height) * 2);
+}
 
 /* ── Theme switch ───────────────────────────────────────────────
    The kit ships both themes and a ThemeSwitch, so the toggle that
@@ -436,7 +449,9 @@ textarea { min-height: calc(var(--control-height) * 2); }
    decorative motion in a dashboard. */
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     scroll-behavior: auto !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
@@ -475,9 +490,15 @@ textarea { min-height: calc(var(--control-height) * 2); }
   .issue-card,
   .map-card,
   .globe-card,
-  .table-wrap { box-shadow: none; }
+  .table-wrap {
+    box-shadow: none;
+  }
 
-  body::before { display: none; }
+  body::before {
+    display: none;
+  }
   .theme-toggle,
-  .operator-launcher { display: none; }
+  .operator-launcher {
+    display: none;
+  }
 }

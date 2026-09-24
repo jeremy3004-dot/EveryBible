@@ -5,10 +5,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-const globePath = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  'AnalyticsGlobe.tsx'
-);
+const globePath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 'AnalyticsGlobe.tsx');
 
 const readGlobe = () => readFile(globePath, 'utf8');
 

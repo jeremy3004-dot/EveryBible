@@ -75,7 +75,12 @@ async function main() {
   }
 
   for (const [sourceFile, outputFile] of playMappings) {
-    await exportSizedCopy(path.join(ios67Root, sourceFile), path.join(playRoot, outputFile), 1290, 2796);
+    await exportSizedCopy(
+      path.join(ios67Root, sourceFile),
+      path.join(playRoot, outputFile),
+      1290,
+      2796
+    );
   }
 
   await writeReadme(
@@ -140,7 +145,9 @@ Do not upload older five-shot sets for this release. Use this seven-shot pack.
 `
   );
 
-  console.log('Exported iOS 6.5-inch and Google Play screenshot variants from the 6.7-inch master pack.');
+  console.log(
+    'Exported iOS 6.5-inch and Google Play screenshot variants from the 6.7-inch master pack.'
+  );
 }
 
 main().catch((error) => {

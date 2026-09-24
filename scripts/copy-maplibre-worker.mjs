@@ -15,5 +15,6 @@ export function copyMaplibreWorker(appDir) {
   const dist = path.join(path.dirname(require.resolve('maplibre-gl/package.json')), 'dist');
   const destination = path.join(appDir, 'public', 'maplibre');
   mkdirSync(destination, { recursive: true });
-  for (const file of WORKER_FILES) copyFileSync(path.join(dist, file), path.join(destination, file));
+  for (const file of WORKER_FILES)
+    copyFileSync(path.join(dist, file), path.join(destination, file));
 }

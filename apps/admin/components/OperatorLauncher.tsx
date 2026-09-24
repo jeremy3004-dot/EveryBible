@@ -1,6 +1,13 @@
 'use client';
 
-import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from 'react';
 
 interface ChatMessage {
   content: string;
@@ -211,7 +218,7 @@ export function OperatorLauncher() {
         setAvailability({
           available: Boolean(payload.available),
           model: typeof payload.model === 'string' ? payload.model : 'gpt-4o-mini',
-          reason: 'reason' in payload ? payload.reason ?? null : null,
+          reason: 'reason' in payload ? (payload.reason ?? null) : null,
         });
       }
     } catch {
@@ -263,9 +270,10 @@ export function OperatorLauncher() {
         method: 'POST',
       });
 
-      const payload = (await response.json().catch(() => null)) as
-        | { error?: string; reply?: string }
-        | null;
+      const payload = (await response.json().catch(() => null)) as {
+        error?: string;
+        reply?: string;
+      } | null;
 
       if (!response.ok) {
         throw new Error(
@@ -379,7 +387,6 @@ export function OperatorLauncher() {
             </button>
           </div>
         </form>
-
       </div>
     </div>
   );

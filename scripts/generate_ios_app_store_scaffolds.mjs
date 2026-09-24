@@ -95,10 +95,7 @@ async function buildImageDataUri(imagePath) {
 
 function buildSlideSvg({ action, benefitLines, screenImage }) {
   const benefitText = benefitLines
-    .map(
-      (line, index) =>
-        `<tspan x="645" dy="${index === 0 ? 0 : 90}">${escapeXml(line)}</tspan>`
-    )
+    .map((line, index) => `<tspan x="645" dy="${index === 0 ? 0 : 90}">${escapeXml(line)}</tspan>`)
     .join('');
 
   return `
@@ -193,9 +190,7 @@ async function main() {
       screenImage,
     });
 
-    await sharp(Buffer.from(svg))
-      .png()
-      .toFile(scaffoldPath);
+    await sharp(Buffer.from(svg)).png().toFile(scaffoldPath);
 
     manifest.push({
       ...slide,

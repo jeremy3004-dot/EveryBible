@@ -32,8 +32,8 @@ export default async function SupportUsersPage({ searchParams }: SupportUsersPag
   return (
     <div className="page-stack">
       <PageHeader eyebrow="Operations" title="User and support visibility">
-        Give internal staff enough account, engagement, and sync context to answer support
-        questions safely without exposing write-heavy tooling too early.
+        Give internal staff enough account, engagement, and sync context to answer support questions
+        safely without exposing write-heavy tooling too early.
       </PageHeader>
 
       <AdminCard>

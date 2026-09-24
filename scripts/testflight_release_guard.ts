@@ -116,8 +116,7 @@ const requireFile = (filePath: string): void => {
   }
 };
 
-const readJson = <T>(filePath: string): T =>
-  JSON.parse(readFileSync(filePath, 'utf8')) as T;
+const readJson = <T>(filePath: string): T => JSON.parse(readFileSync(filePath, 'utf8')) as T;
 
 const runCommand = (
   command: string,
@@ -131,9 +130,7 @@ const runCommand = (
   }).toString();
 
 const extractPlistValue = (plistXml: string, key: string): string => {
-  const match = plistXml.match(
-    new RegExp(`<key>${key}</key>\\s*<string>([^<]+)</string>`, 'm')
-  );
+  const match = plistXml.match(new RegExp(`<key>${key}</key>\\s*<string>([^<]+)</string>`, 'm'));
 
   if (!match) {
     throw new Error(`Missing ${key} in provisioning profile`);
@@ -165,23 +162,42 @@ const extractFirstDeveloperCertificateBase64 = (plistXml: string): string => {
 };
 
 const fingerprintFromDer = (derBytes: Buffer): string => {
-  const output = runCommand('openssl', ['x509', '-inform', 'der', '-noout', '-fingerprint', '-sha1'], {
-    input: derBytes,
-  });
+  const output = runCommand(
+    'openssl',
+    ['x509', '-inform', 'der', '-noout', '-fingerprint', '-sha1'],
+    {
+      input: derBytes,
+    }
+  );
   return normalizeSha1Fingerprint(output);
 };
 
 const fingerprintFromPem = (pem: string): string => {
-  const output = runCommand('openssl', ['x509', '-inform', 'pem', '-noout', '-fingerprint', '-sha1'], {
-    input: pem,
-  });
+  const output = runCommand(
+    'openssl',
+    ['x509', '-inform', 'pem', '-noout', '-fingerprint', '-sha1'],
+    {
+      input: pem,
+    }
+  );
   return normalizeSha1Fingerprint(output);
 };
 
 const readLatestUploadedBuildNumber = (repoRoot: string, appId: string): number => {
   const output = runCommand(
     'asc',
-    ['builds', 'list', '--app', appId, '--sort', '-uploadedDate', '--limit', '1', '--output', 'json'],
+    [
+      'builds',
+      'list',
+      '--app',
+      appId,
+      '--sort',
+      '-uploadedDate',
+      '--limit',
+      '1',
+      '--output',
+      'json',
+    ],
     { cwd: repoRoot }
   );
   const payload = JSON.parse(output) as {
@@ -200,7 +216,15 @@ const readLatestUploadedBuildNumber = (repoRoot: string, appId: string): number 
 const readRemoteEasBuildNumber = (repoRoot: string): number => {
   const output = runCommand(
     'eas',
-    ['build:version:get', '--platform', 'ios', '--profile', 'production', '--json', '--non-interactive'],
+    [
+      'build:version:get',
+      '--platform',
+      'ios',
+      '--profile',
+      'production',
+      '--json',
+      '--non-interactive',
+    ],
     { cwd: repoRoot }
   );
   const jsonMatch = output.match(/\{[\s\S]*\}\s*$/);
@@ -270,9 +294,7 @@ const main = (): void => {
     const password = credentials.ios?.distributionCertificate?.password?.trim();
 
     if (!password) {
-      throw new Error(
-        `Missing ios.distributionCertificate.password in ${credentialsJsonPath}`
-      );
+      throw new Error(`Missing ios.distributionCertificate.password in ${credentialsJsonPath}`);
     }
 
     const profileXml = runCommand('security', ['cms', '-D', '-i', profilePath], { cwd: repoRoot });
@@ -316,10 +338,7 @@ const main = (): void => {
       : { ok: true, errors: [] };
 
   const result = {
-    ok:
-      remoteBuildVersionResult.ok &&
-      localCredentialsPolicyResult.ok &&
-      signingResult.ok,
+    ok: remoteBuildVersionResult.ok && localCredentialsPolicyResult.ok && signingResult.ok,
     errors: [
       ...remoteBuildVersionResult.errors,
       ...localCredentialsPolicyResult.errors,

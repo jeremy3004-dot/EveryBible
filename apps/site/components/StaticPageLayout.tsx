@@ -11,12 +11,7 @@ interface StaticPageLayoutProps {
   children: ReactNode;
 }
 
-export function StaticPageLayout({
-  eyebrow,
-  title,
-  intro,
-  children,
-}: StaticPageLayoutProps) {
+export function StaticPageLayout({ eyebrow, title, intro, children }: StaticPageLayoutProps) {
   return (
     <>
       <SiteHeader />

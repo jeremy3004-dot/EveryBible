@@ -102,11 +102,14 @@ async function callGemini(
   for (let attempt = 0; attempt < 3; attempt += 1) {
     let response: Response;
     try {
-      response = await fetch(`${GEMINI_BASE}/${model}:generateContent?key=${encodeURIComponent(apiKey)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
+      response = await fetch(
+        `${GEMINI_BASE}/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        }
+      );
     } catch (error) {
       lastError = error instanceof Error ? error.message : 'Network error calling Gemini.';
       await delay(400 * (attempt + 1));
@@ -115,7 +118,10 @@ async function callGemini(
 
     const raw = await response.text();
     if (!response.ok || raw.trim().length === 0) {
-      lastError = raw.trim().length > 0 ? extractGeminiError(raw) : `Gemini returned HTTP ${response.status}.`;
+      lastError =
+        raw.trim().length > 0
+          ? extractGeminiError(raw)
+          : `Gemini returned HTTP ${response.status}.`;
       await delay(400 * (attempt + 1));
       continue;
     }
@@ -159,7 +165,12 @@ export async function runOperatorChat(params: {
   }));
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
-    const modelContent = await callGemini(params.apiKey, params.model, params.systemPrompt, contents);
+    const modelContent = await callGemini(
+      params.apiKey,
+      params.model,
+      params.systemPrompt,
+      contents
+    );
     const functionCalls = modelContent.parts.filter((part) => part.functionCall);
 
     if (functionCalls.length === 0) {

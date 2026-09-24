@@ -4,9 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
-const packageJson = JSON.parse(
-  readFileSync(path.join(process.cwd(), 'package.json'), 'utf8')
-) as {
+const packageJson = JSON.parse(readFileSync(path.join(process.cwd(), 'package.json'), 'utf8')) as {
   scripts?: Record<string, string>;
 };
 

@@ -23,10 +23,34 @@ const androidIconSizes = [
 ];
 
 const iosIconSpecs = [
-  { filename: 'DiscreetAppIcon-60x60@2x.png', size: 120, idiom: 'iphone', logicalSize: '60x60', scale: '2x' },
-  { filename: 'DiscreetAppIcon-60x60@3x.png', size: 180, idiom: 'iphone', logicalSize: '60x60', scale: '3x' },
-  { filename: 'DiscreetAppIcon-76x76@1x.png', size: 76, idiom: 'ipad', logicalSize: '76x76', scale: '1x' },
-  { filename: 'DiscreetAppIcon-76x76@2x.png', size: 152, idiom: 'ipad', logicalSize: '76x76', scale: '2x' },
+  {
+    filename: 'DiscreetAppIcon-60x60@2x.png',
+    size: 120,
+    idiom: 'iphone',
+    logicalSize: '60x60',
+    scale: '2x',
+  },
+  {
+    filename: 'DiscreetAppIcon-60x60@3x.png',
+    size: 180,
+    idiom: 'iphone',
+    logicalSize: '60x60',
+    scale: '3x',
+  },
+  {
+    filename: 'DiscreetAppIcon-76x76@1x.png',
+    size: 76,
+    idiom: 'ipad',
+    logicalSize: '76x76',
+    scale: '1x',
+  },
+  {
+    filename: 'DiscreetAppIcon-76x76@2x.png',
+    size: 152,
+    idiom: 'ipad',
+    logicalSize: '76x76',
+    scale: '2x',
+  },
   {
     filename: 'DiscreetAppIcon-83.5x83.5@2x.png',
     size: 167,
@@ -102,12 +126,18 @@ await ensureDirectory(iosGeneratedAssetsRoot);
 await writePng(masterOutputPath, 1024);
 
 for (const spec of iosIconSpecs) {
-  const outputBuffer = await sharp(Buffer.from(masterSvg)).resize(spec.size, spec.size).png().toBuffer();
+  const outputBuffer = await sharp(Buffer.from(masterSvg))
+    .resize(spec.size, spec.size)
+    .png()
+    .toBuffer();
   await fs.writeFile(path.join(iosGeneratedAssetsRoot, spec.filename), outputBuffer);
   await fs.writeFile(path.join(iosIconSetPath, spec.filename), outputBuffer);
 }
 
-await fs.writeFile(path.join(iosIconSetPath, 'Contents.json'), JSON.stringify(iosContents, null, 2));
+await fs.writeFile(
+  path.join(iosIconSetPath, 'Contents.json'),
+  JSON.stringify(iosContents, null, 2)
+);
 
 for (const [density, size] of androidIconSizes) {
   const directory = path.join(androidResPath, `mipmap-${density}`);

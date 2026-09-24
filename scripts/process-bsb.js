@@ -30,10 +30,7 @@ function extractVerseText(content) {
     }
   }
 
-  return parts
-    .join(' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+  return parts.join(' ').replace(/\s+/g, ' ').trim();
 }
 
 function normalizeLineText(text) {
@@ -108,10 +105,10 @@ for (const book of bsbData.books) {
 
         if (text) {
           processedData.verses.push({
-            b: book.id,      // bookId
-            c: chapterNum,   // chapter
-            v: item.number,  // verse
-            t: text,         // text
+            b: book.id, // bookId
+            c: chapterNum, // chapter
+            v: item.number, // verse
+            t: text, // text
             ...(currentHeading && { h: currentHeading }), // heading (optional)
             ...(formatting && { f: formatting }), // line/poetry formatting (optional)
           });
@@ -122,7 +119,9 @@ for (const book of bsbData.books) {
       }
     }
   }
-  console.log(`  Processed ${book.name}: ${book.chapters.length} chapters, ${bookVerseCount} verses`);
+  console.log(
+    `  Processed ${book.name}: ${book.chapters.length} chapters, ${bookVerseCount} verses`
+  );
 }
 
 processedData.translation.totalVerses = totalVerses;

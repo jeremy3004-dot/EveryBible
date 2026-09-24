@@ -1,11 +1,6 @@
 export type EnvMap = Record<string, string | undefined>;
 
-export type ContentImageKind =
-  | 'hero'
-  | 'verse_of_day'
-  | 'promo'
-  | 'feature'
-  | 'social';
+export type ContentImageKind = 'hero' | 'verse_of_day' | 'promo' | 'feature' | 'social';
 
 export interface MobileContentOverridePayload {
   generatedAt: string;

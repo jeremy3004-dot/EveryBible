@@ -54,7 +54,9 @@ export function OperatorLauncher() {
         type="button"
         className="operator-launcher__toggle"
         aria-expanded={isOpen}
-        aria-label={isOpen ? 'Close EveryBible AI chat launcher' : 'Open EveryBible AI chat launcher'}
+        aria-label={
+          isOpen ? 'Close EveryBible AI chat launcher' : 'Open EveryBible AI chat launcher'
+        }
         onClick={() => setIsOpen((current) => !current)}
       >
         <span className="operator-launcher__icon" aria-hidden="true">

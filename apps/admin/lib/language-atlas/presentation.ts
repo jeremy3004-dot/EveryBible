@@ -1,11 +1,6 @@
 import type { ScriptureStatus } from './types';
 
-export type ScriptureVisualCategory =
-  | 'bible'
-  | 'nt'
-  | 'portions'
-  | 'no-scripture'
-  | 'unknown';
+export type ScriptureVisualCategory = 'bible' | 'nt' | 'portions' | 'no-scripture' | 'unknown';
 
 export const SCRIPTURE_VISUAL_ORDER: ScriptureVisualCategory[] = [
   'bible',
@@ -47,9 +42,7 @@ export const SCRIPTURE_PRESENTATION: Record<
   unknown: { label: 'Unknown', color: SCRIPTURE_COLORS.light.unknown },
 };
 
-export function scriptureVisualCategory(
-  status: ScriptureStatus
-): ScriptureVisualCategory {
+export function scriptureVisualCategory(status: ScriptureStatus): ScriptureVisualCategory {
   // No known Scripture is a display category; source evidence remains unchanged.
   if (status === 'unknown') return 'no-scripture';
   if (status === 'started' || status === 'needed') return 'no-scripture';

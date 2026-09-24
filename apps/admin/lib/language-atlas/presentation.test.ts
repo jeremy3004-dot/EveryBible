@@ -8,12 +8,7 @@ import {
 } from './presentation';
 
 test('Scripture presentation uses FIELD labels and canonical theme colors', () => {
-  assert.deepEqual(SCRIPTURE_VISUAL_ORDER, [
-    'bible',
-    'nt',
-    'portions',
-    'no-scripture',
-  ]);
+  assert.deepEqual(SCRIPTURE_VISUAL_ORDER, ['bible', 'nt', 'portions', 'no-scripture']);
   assert.deepEqual(SCRIPTURE_PRESENTATION, {
     bible: { label: 'Full Bible', color: '#1e8a7a' },
     nt: { label: 'New Testament', color: '#db9b1a' },
@@ -35,7 +30,6 @@ test('unknown and progress states share the red display category', () => {
   assert.equal(scriptureVisualCategory('needed'), 'no-scripture');
   assert.equal(scriptureVisualCategory('unknown'), 'no-scripture');
 });
-
 
 test('confirmed Scripture availability retains its own color', () => {
   assert.equal(scriptureVisualCategory('unknown'), 'no-scripture');

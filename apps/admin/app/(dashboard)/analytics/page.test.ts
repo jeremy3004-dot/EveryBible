@@ -19,7 +19,11 @@ test('analytics page renders a whitelisted time-range picker + client explorer',
     /normalizeAnalyticsWindow\(\(await searchParams\)\.window\)/,
     'the window must come from a whitelisted search param (P3 S14)'
   );
-  assert.match(page, /getAnalyticsOverview\(windowDays\)/, 'the overview fetch is parameterized by the selected window');
+  assert.match(
+    page,
+    /getAnalyticsOverview\(windowDays\)/,
+    'the overview fetch is parameterized by the selected window'
+  );
   assert.match(page, /<AnalyticsTimeRangePicker/, 'time-range picker present');
   assert.match(
     page,
@@ -27,7 +31,11 @@ test('analytics page renders a whitelisted time-range picker + client explorer',
     'the client explorer receives the overview + window'
   );
   // Globe + tables live in the client explorer now (for filter sync), not inline.
-  assert.doesNotMatch(page, /<AnalyticsGlobe/, 'globe should render inside the explorer, not the page');
+  assert.doesNotMatch(
+    page,
+    /<AnalyticsGlobe/,
+    'globe should render inside the explorer, not the page'
+  );
 });
 
 test('analytics explorer distinguishes global totals from linked geographic filters', async () => {

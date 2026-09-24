@@ -172,9 +172,11 @@ Deno.serve(async (request) => {
     });
 
     if (body.accessRole === 'scripture_council') {
-      if (body.validateOnly !== true) return jsonResponse(403, { success: false, error: 'Translator access required' });
+      if (body.validateOnly !== true)
+        return jsonResponse(403, { success: false, error: 'Translator access required' });
       const denied = await verifyCouncilAccess(service, request, body.passcode);
-      return denied ? jsonResponse(denied.status, { success: false, error: denied.error })
+      return denied
+        ? jsonResponse(denied.status, { success: false, error: denied.error })
         : jsonResponse(200, { success: true });
     }
 
@@ -208,8 +210,12 @@ Deno.serve(async (request) => {
     // Shows the owner who still depends on the shared code before (and after) it is switched off.
     const sharedOutcome =
       resolved.status === 'granted'
-        ? resolved.access.kind === 'shared' ? 'allowed' : null
-        : resolved.sharedPasscodeRefused ? 'refused' : null;
+        ? resolved.access.kind === 'shared'
+          ? 'allowed'
+          : null
+        : resolved.sharedPasscodeRefused
+          ? 'refused'
+          : null;
     if (sharedOutcome) {
       await recordSharedPasscodeUse(service, {
         translationId: body.translationId,
@@ -314,7 +320,10 @@ Deno.serve(async (request) => {
         return jsonResponse(400, { success: false, error: 'An explanation is required.' });
       }
       if (note.length > 1000) {
-        return jsonResponse(400, { success: false, error: 'note must be 1000 characters or fewer' });
+        return jsonResponse(400, {
+          success: false,
+          error: 'note must be 1000 characters or fewer',
+        });
       }
 
       const fixedBy = await resolveActingUserId(request, service);
@@ -365,51 +374,75 @@ Deno.serve(async (request) => {
       if (!hasChapter || !trimRequiredText(body.feedbackId)) {
         return jsonResponse(400, { success: false, error: 'Chapter and feedbackId required' });
       }
-      const { data: audio, error } = await service.from('chapter_feedback_submissions')
-        .select('audio_response_bucket, audio_response_path').eq('id', body.feedbackId)
-        .eq('translation_id', translationId).eq('book_id', bookId).eq('chapter', body.chapter)
+      const { data: audio, error } = await service
+        .from('chapter_feedback_submissions')
+        .select('audio_response_bucket, audio_response_path')
+        .eq('id', body.feedbackId)
+        .eq('translation_id', translationId)
+        .eq('book_id', bookId)
+        .eq('chapter', body.chapter)
         .maybeSingle();
       if (error) return internalErrorResponse('recording lookup failed', error);
       if (!audio?.audio_response_path || !audio.audio_response_bucket) {
         return jsonResponse(404, { success: false, error: 'Recording not found' });
       }
-      const signed = await service.storage.from(audio.audio_response_bucket)
+      const signed = await service.storage
+        .from(audio.audio_response_bucket)
         .createSignedUrl(audio.audio_response_path, AUDIO_URL_TTL_SECONDS);
-      return signed.error ? jsonResponse(500, { success: false, error: 'Recording unavailable' })
+      return signed.error
+        ? jsonResponse(500, { success: false, error: 'Recording unavailable' })
         : jsonResponse(200, { success: true, playbackUrl: signed.data.signedUrl });
     }
 
     if (body.apiVersion === 2) {
       const category = body.category ?? 'all';
       const status = body.status ?? 'pending';
-      if (!['all', 'community', 'scripture_council'].includes(category)
-          || !['pending', 'reviewed', 'all'].includes(status)) {
+      if (
+        !['all', 'community', 'scripture_council'].includes(category) ||
+        !['pending', 'reviewed', 'all'].includes(status)
+      ) {
         return jsonResponse(400, { success: false, error: 'Invalid feedback filter' });
       }
       if (body.action === 'positivePreview' || body.action === 'reviewPositiveIds') {
         if (!hasChapter) return jsonResponse(400, { success: false, error: 'Chapter required' });
-        if (body.action === 'reviewPositiveIds' && (!Array.isArray(body.feedbackIds)
-            || body.feedbackIds.length > 500 || !body.feedbackIds.every(id => typeof id === 'string'))) {
+        if (
+          body.action === 'reviewPositiveIds' &&
+          (!Array.isArray(body.feedbackIds) ||
+            body.feedbackIds.length > 500 ||
+            !body.feedbackIds.every((id) => typeof id === 'string'))
+        ) {
           return jsonResponse(400, { success: false, error: 'Invalid response selection' });
         }
-        const { data, error } = body.action === 'positivePreview'
-          ? await service.rpc('chapter_feedback_positive_preview', {
-              p_translation: translationId, p_book: bookId, p_chapter: body.chapter, p_category: category,
-            })
-          : await service.rpc('chapter_feedback_review_positive_ids', {
-              p_translation: translationId, p_book: bookId, p_chapter: body.chapter,
-              p_ids: body.feedbackIds, p_actor: await resolveActingUserId(request, service),
-            });
+        const { data, error } =
+          body.action === 'positivePreview'
+            ? await service.rpc('chapter_feedback_positive_preview', {
+                p_translation: translationId,
+                p_book: bookId,
+                p_chapter: body.chapter,
+                p_category: category,
+              })
+            : await service.rpc('chapter_feedback_review_positive_ids', {
+                p_translation: translationId,
+                p_book: bookId,
+                p_chapter: body.chapter,
+                p_ids: body.feedbackIds,
+                p_actor: await resolveActingUserId(request, service),
+              });
         if (error) return internalErrorResponse('positive feedback query failed', error);
-        return jsonResponse(200, { success: true, feedbackIds: body.action === 'positivePreview' ? data : undefined,
-          reviewedCount: body.action === 'reviewPositiveIds' ? data : undefined });
+        return jsonResponse(200, {
+          success: true,
+          feedbackIds: body.action === 'positivePreview' ? data : undefined,
+          reviewedCount: body.action === 'reviewPositiveIds' ? data : undefined,
+        });
       }
     }
 
     if (!hasChapter && body.apiVersion !== 2) {
       let summaryQuery = service
         .from('chapter_feedback_submissions')
-        .select('id, book_id, chapter, sentiment, scripture_council_resolution, audio_response_path')
+        .select(
+          'id, book_id, chapter, sentiment, scripture_council_resolution, audio_response_path'
+        )
         .eq('translation_id', translationId)
         .order('book_id', { ascending: true })
         .order('chapter', { ascending: true })
@@ -445,16 +478,14 @@ Deno.serve(async (request) => {
 
       rows.forEach((row) => {
         const key = `${row.book_id}:${row.chapter}`;
-        const summary =
-          summaryByChapter.get(key) ??
-          {
-            bookId: row.book_id,
-            chapter: row.chapter,
-            total: 0,
-            unresolvedDown: 0,
-            unresolvedUp: 0,
-            feedback: [] as Array<{ id: string; hasAudio: boolean }>,
-          };
+        const summary = summaryByChapter.get(key) ?? {
+          bookId: row.book_id,
+          chapter: row.chapter,
+          total: 0,
+          unresolvedDown: 0,
+          unresolvedUp: 0,
+          feedback: [] as Array<{ id: string; hasAudio: boolean }>,
+        };
 
         summary.total += 1;
         summary.feedback.push({ id: row.id, hasAudio: row.audio_response_path != null });
@@ -486,14 +517,19 @@ Deno.serve(async (request) => {
       .order('created_at', { ascending: false })
       .limit(200);
 
-    const { data, error } = body.apiVersion === 2
-      ? await service.rpc('chapter_feedback_review_v2', {
-          p_translation: translationId, p_book: bookId, p_chapter: body.chapter ?? null,
-          p_category: body.category ?? 'all', p_status: body.status ?? 'pending',
-          p_cursor: body.cursor ?? null, p_positive_only: body.positiveOnly ?? false,
-          p_summary_only: body.summaryOnly ?? false,
-        })
-      : await legacyQuery;
+    const { data, error } =
+      body.apiVersion === 2
+        ? await service.rpc('chapter_feedback_review_v2', {
+            p_translation: translationId,
+            p_book: bookId,
+            p_chapter: body.chapter ?? null,
+            p_category: body.category ?? 'all',
+            p_status: body.status ?? 'pending',
+            p_cursor: body.cursor ?? null,
+            p_positive_only: body.positiveOnly ?? false,
+            p_summary_only: body.summaryOnly ?? false,
+          })
+        : await legacyQuery;
 
     if (error) {
       return internalErrorResponse('chapter review query failed', error);
@@ -502,10 +538,14 @@ Deno.serve(async (request) => {
     if (body.apiVersion === 2 && (!hasChapter || body.summaryOnly)) {
       return jsonResponse(200, { success: true, chapters: data.chapters });
     }
-    const rows = (body.apiVersion === 2 ? data.rows : data ?? []) as ChapterFeedbackReviewRow[];
+    const rows = (body.apiVersion === 2 ? data.rows : (data ?? [])) as ChapterFeedbackReviewRow[];
     const signedAudioUrls = await Promise.all(
       rows.map(async (row) => {
-        if (!signsListAudio(body.apiVersion) || !row.audio_response_bucket || !row.audio_response_path) {
+        if (
+          !signsListAudio(body.apiVersion) ||
+          !row.audio_response_bucket ||
+          !row.audio_response_path
+        ) {
           return null;
         }
 
@@ -523,7 +563,13 @@ Deno.serve(async (request) => {
 
     return jsonResponse(200, {
       success: true,
-      ...(body.apiVersion === 2 ? { summary: data.chapters[0] ?? null, nextCursor: data.nextCursor, positiveCount: data.positiveCount } : {}),
+      ...(body.apiVersion === 2
+        ? {
+            summary: data.chapters[0] ?? null,
+            nextCursor: data.nextCursor,
+            positiveCount: data.positiveCount,
+          }
+        : {}),
       feedback: rows.map((row, index) =>
         toReviewFeedbackItem(row, body.apiVersion, signedAudioUrls[index])
       ),

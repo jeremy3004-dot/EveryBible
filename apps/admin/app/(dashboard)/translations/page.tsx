@@ -23,10 +23,7 @@ export default async function TranslationsPage({ searchParams }: TranslationsPag
   const notice = getNotice(resolvedSearchParams);
   const error = getError(resolvedSearchParams);
 
-  const [translations, syncRuns] = await Promise.all([
-    listTranslations(query),
-    listSyncRuns(),
-  ]);
+  const [translations, syncRuns] = await Promise.all([listTranslations(query), listSyncRuns()]);
 
   return (
     <div className="page-stack">

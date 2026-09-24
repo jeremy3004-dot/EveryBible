@@ -19,17 +19,13 @@ export const metadata: Metadata = pageMetadata({
 
 export default function PrivacyPage() {
   return (
-    <StaticPageLayout
-      eyebrow="Legal"
-      title="Privacy Policy"
-      intro="Last updated: April 3, 2026"
-    >
+    <StaticPageLayout eyebrow="Legal" title="Privacy Policy" intro="Last updated: April 3, 2026">
       <section>
         <p>
-          EveryBible (&quot;we&quot;, &quot;our&quot;, or &quot;us&quot;) exists to help people read,
-          listen to, and share Scripture. This Privacy Policy explains what information we collect,
-          how we use it, when it is shared with service providers, and the choices you have when
-          you use the EveryBible app, website, and related support services.
+          EveryBible (&quot;we&quot;, &quot;our&quot;, or &quot;us&quot;) exists to help people
+          read, listen to, and share Scripture. This Privacy Policy explains what information we
+          collect, how we use it, when it is shared with service providers, and the choices you have
+          when you use the EveryBible app, website, and related support services.
         </p>
       </section>
 
@@ -44,7 +40,9 @@ export default function PrivacyPage() {
         </ul>
 
         <h3>Reading and app activity</h3>
-        <p>We may store information needed to run the app and keep your experience in sync, such as:</p>
+        <p>
+          We may store information needed to run the app and keep your experience in sync, such as:
+        </p>
         <ul>
           <li>Reading progress and history</li>
           <li>Bookmarks and highlights</li>
@@ -74,10 +72,18 @@ export default function PrivacyPage() {
 
       <section>
         <h2>How We Share Information</h2>
-        <p>We do not sell your personal information. We may share limited information with service providers that help us operate EveryBible, including:</p>
+        <p>
+          We do not sell your personal information. We may share limited information with service
+          providers that help us operate EveryBible, including:
+        </p>
         <ul>
-          <li><strong>Supabase</strong> for authentication, database, and storage services</li>
-          <li><strong>Apple</strong> and <strong>Google</strong> for sign-in and app distribution services</li>
+          <li>
+            <strong>Supabase</strong> for authentication, database, and storage services
+          </li>
+          <li>
+            <strong>Apple</strong> and <strong>Google</strong> for sign-in and app distribution
+            services
+          </li>
           <li>Infrastructure providers that securely deliver website and app content</li>
         </ul>
       </section>
@@ -87,20 +93,20 @@ export default function PrivacyPage() {
         <p>
           We may collect product analytics and basic operational diagnostics, such as minutes
           listened, sessions or time spent, chapter completion, playback progress, platform, app
-          version, and feature engagement, to understand what is working and what needs to
-          improve. Where possible, we keep this usage data separate from your account and use it
-          only for analytics and app improvements, not for advertising profiles or cross-app
-          tracking. If you sign in, we separately store reading progress, bookmarks, and
-          preferences linked to your account so your experience can sync across devices.
+          version, and feature engagement, to understand what is working and what needs to improve.
+          Where possible, we keep this usage data separate from your account and use it only for
+          analytics and app improvements, not for advertising profiles or cross-app tracking. If you
+          sign in, we separately store reading progress, bookmarks, and preferences linked to your
+          account so your experience can sync across devices.
         </p>
       </section>
 
       <section>
         <h2>Retention and deletion</h2>
         <p>
-          We keep personal information for as long as it is needed to operate the service,
-          comply with legal obligations, resolve disputes, or enforce our agreements. You can
-          request account or data deletion by contacting us at{' '}
+          We keep personal information for as long as it is needed to operate the service, comply
+          with legal obligations, resolve disputes, or enforce our agreements. You can request
+          account or data deletion by contacting us at{' '}
           <a href={EVERYBIBLE_SUPPORT_EMAIL}>{EVERYBIBLE_SUPPORT_EMAIL_ADDRESS}</a>.
         </p>
       </section>
@@ -108,7 +114,9 @@ export default function PrivacyPage() {
       <section>
         <h2>Your choices</h2>
         <ul>
-          <li>Update or correct account information through your sign-in provider where available</li>
+          <li>
+            Update or correct account information through your sign-in provider where available
+          </li>
           <li>Remove locally stored content by deleting downloads or uninstalling the app</li>
           <li>Request access to or deletion of your personal data by contacting us</li>
         </ul>
@@ -117,10 +125,9 @@ export default function PrivacyPage() {
       <section>
         <h2>Children&apos;s privacy</h2>
         <p>
-          EveryBible is built to be used by people of all ages. We do not knowingly collect
-          personal information from children in violation of applicable law. If you believe a
-          child provided personal information improperly, contact us so we can review and remove
-          it if needed.
+          EveryBible is built to be used by people of all ages. We do not knowingly collect personal
+          information from children in violation of applicable law. If you believe a child provided
+          personal information improperly, contact us so we can review and remove it if needed.
         </p>
       </section>
 

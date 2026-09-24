@@ -230,10 +230,7 @@ const writeAdaptiveLegacyOutput = async (outputPath, size, round = false) => {
     const circleMask = Buffer.from(
       `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg"><circle cx="${size / 2}" cy="${size / 2}" r="${size / 2}" fill="white"/></svg>`
     );
-    pipeline = pipeline.composite([
-      { input: foreground },
-      { input: circleMask, blend: 'dest-in' },
-    ]);
+    pipeline = pipeline.composite([{ input: foreground }, { input: circleMask, blend: 'dest-in' }]);
   }
 
   await pipeline.webp({ lossless: true }).toFile(outputPath);
@@ -296,11 +293,7 @@ async function generateIcons() {
   for (const [density, size] of launcherSizes) {
     const densityDir = path.join(androidResDir, `mipmap-${density}`);
     await writeAdaptiveLegacyOutput(path.join(densityDir, 'ic_launcher.webp'), size);
-    await writeAdaptiveLegacyOutput(
-      path.join(densityDir, 'ic_launcher_round.webp'),
-      size,
-      true
-    );
+    await writeAdaptiveLegacyOutput(path.join(densityDir, 'ic_launcher_round.webp'), size, true);
   }
 
   for (const [density, size] of adaptiveSizes) {
@@ -347,7 +340,9 @@ async function generateIcons() {
   console.log('- apps/site/public/everybible/app-icon.png');
   console.log('- assets/splash-icon.png');
   console.log('- ios/EveryBible/Images.xcassets/AppIcon.appiconset/App-Icon-1024x1024@1x.png');
-  console.log('- ios/EveryBible/Images.xcassets/NowPlayingAppIcon.imageset/App-Icon-1024x1024@1x.png');
+  console.log(
+    '- ios/EveryBible/Images.xcassets/NowPlayingAppIcon.imageset/App-Icon-1024x1024@1x.png'
+  );
   console.log('- ios/EveryBible/Images.xcassets/SplashScreenBrand.imageset/image*.png');
   console.log('- android/app/src/main/res/drawable-*/splashscreen_logo.png');
   console.log('- android/app/src/main/res/mipmap-*/ic_launcher*.webp');
