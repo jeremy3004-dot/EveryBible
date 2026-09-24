@@ -56,7 +56,10 @@ import {
 } from './bibleTranslationModel';
 import { useTranslationPreferenceStore } from '../../stores/translationPreferenceStore';
 import { hasTranslationDownloadData } from '../../stores/bibleStoreModel';
-import { showTranslationDownloadFailedAlert } from './translationDownloadFailureAlert';
+import {
+  reportTranslationDownloadFailure,
+  showTranslationDownloadFailedAlert,
+} from './translationDownloadFailureAlert';
 import {
   createTranslationPickerDownloadQueue,
   type TranslationPickerDownloadDeps,
@@ -255,7 +258,8 @@ export function TranslationPickerList({
           .translations.find((candidate) => candidate.id === translation.id) ?? translation
       );
     },
-    onDownloadFailed: (translation) => {
+    onDownloadFailed: (translation, error) => {
+      reportTranslationDownloadFailure(error);
       showTranslationDownloadFailedAlert(t, () => {
         void downloadQueue.request(translation);
       });

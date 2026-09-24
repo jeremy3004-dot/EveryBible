@@ -12,7 +12,10 @@ import { changeLanguage } from '../../../i18n';
 import { resolveRegionalFallbackTranslation } from '../../../services/translations/regionalTranslationFallback';
 import { localeSearchEngine } from '../../../services/onboarding/localeSelection';
 import { normalizeTranslationLanguage } from '../../bible/bibleTranslationModel';
-import { showTranslationDownloadFailedAlert } from '../../bible/translationDownloadFailureAlert';
+import {
+  reportTranslationDownloadFailure,
+  showTranslationDownloadFailedAlert,
+} from '../../bible/translationDownloadFailureAlert';
 import { showOnboardingFinishFailedAlert } from '../onboardingFinishFailureAlert';
 import {
   createOnboardingBibleSelectionQueue,
@@ -91,7 +94,8 @@ export function useOnboardingBibleSelection({
       useBibleStore.getState().translations.find((candidate) => candidate.id === translation.id) ??
       translation,
     complete: completeInitialSetup,
-    onDownloadFailed: async (translation) => {
+    onDownloadFailed: async (translation, error) => {
+      reportTranslationDownloadFailure(error);
       const fallbackTranslation = resolveRegionalFallbackTranslation(
         useBibleStore.getState().translations,
         translation,

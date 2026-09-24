@@ -38,6 +38,7 @@ import {
   type AudioChapterMap,
 } from '../services/bible/contentAvailability';
 import { useTranslationContentSummary } from './useTranslationContentSummary';
+import { reportHandledError } from '../services/diagnostics/crashReportQueue';
 import {
   getAdjacentAudioPlaybackSequenceEntry,
   hasAudioPlaybackSequenceEntry,
@@ -523,11 +524,12 @@ export function useAudioPlayer(translationId: string = 'bsb') {
 
         // Prefetch next chapters
         prefetchChapterAudio(targetTranslationId, bookId, chapter + 1, 2);
-      } catch {
+      } catch (error) {
         if (playRequestId !== playRequestIdRef.current) {
           return;
         }
 
+        reportHandledError('audio.load', error);
         const message = t('interface.audioPlayFailed');
         setError(message);
         void clearBibleNowPlaying();
