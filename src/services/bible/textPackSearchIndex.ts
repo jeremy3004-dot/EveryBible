@@ -10,13 +10,16 @@ import * as SQLite from 'expo-sqlite';
 // its index with it. See docs/research/pack-search-index-2026-09-24.md.
 
 /** Bump when the index definition or tokenizer changes; older indexes are then rebuilt. */
-export const PACK_SEARCH_INDEX_SCHEMA_VERSION = 1;
+export const PACK_SEARCH_INDEX_SCHEMA_VERSION = 2;
 
-// Must stay identical to the bundled database (scripts/build_bible_db.py) and to the optional
-// shipped index in scripts/export_translation_text_packs.py. The query side keeps combining
-// marks and apostrophes inside a word (buildBibleSearchQuery), which relies on unicode61.
+// Must stay identical to the optional shipped index in scripts/export_translation_text_packs.py.
+// The query side keeps combining marks and apostrophes inside a word (buildBibleSearchQuery),
+// which relies on unicode61. remove_diacritics 2 (schema version 2) also folds letters that
+// carry two marks, so Vietnamese "troi" finds "Trời" and "nguoi" finds "người"; the default
+// (1) kept ờ, ư, ơ and ệ. The bundled database (scripts/build_bible_db.py, English and Nepali)
+// still uses the default until it is next rebuilt; each file is queried with its own tokenizer.
 const CREATE_VERSES_FTS_SQL =
-  "CREATE VIRTUAL TABLE IF NOT EXISTS verses_fts USING fts5(text, content='verses', content_rowid='id', tokenize='unicode61')";
+  "CREATE VIRTUAL TABLE IF NOT EXISTS verses_fts USING fts5(text, content='verses', content_rowid='id', tokenize='unicode61 remove_diacritics 2')";
 
 // One row. completed_at stays NULL until every verse is indexed; last_indexed_id is the resume
 // point. The exporter writes the same table when it ships a prebuilt index.

@@ -1672,6 +1672,39 @@ test('the substring fallback matches a straight apostrophe against a curly one a
   await scheduleTextPackSearchIndexBuild('noindex');
 });
 
+test('a built pack index finds Vietnamese words typed without their tone marks', async () => {
+  const { searchVerses, setBibleDatabaseSourceResolver, scheduleTextPackSearchIndexBuild } =
+    await loadModule();
+  // unicode61's default folding only removes a single diacritic, so ờ, ư, ơ and ệ (two marks)
+  // were kept: "Chua Troi" and "nguoi" found nothing, while "chua" alone did.
+  installPackWithoutIndex('vietnamese.db', [
+    {
+      translationId: 'vie',
+      bookId: 'JHN',
+      chapter: 3,
+      verse: 16,
+      text: 'Vì Đức Chúa Trời yêu thương thế gian, đến nỗi đã ban Con một của Ngài, hầu cho hễ ai tin Con ấy không bị hư mất mà được sự sống đời đời.',
+    },
+    {
+      translationId: 'vie',
+      bookId: 'MAT',
+      chapter: 5,
+      verse: 3,
+      text: 'Phước cho những người có lòng khó khăn.',
+    },
+  ]);
+  setBibleDatabaseSourceResolver((translationId) =>
+    translationId === 'vie' ? installedSource('vie', 'vietnamese.db') : null
+  );
+  assert.equal(await scheduleTextPackSearchIndexBuild('vie'), 'ready');
+
+  assert.deepEqual(verseRefs(await searchVerses('vie', 'Chua Troi')), ['JHN 3:16']);
+  assert.deepEqual(verseRefs(await searchVerses('vie', 'nguoi')), ['MAT 5:3']);
+  assert.deepEqual(verseRefs(await searchVerses('vie', 'phuoc')), ['MAT 5:3']);
+  // Typed with its marks, a word still finds itself.
+  assert.deepEqual(verseRefs(await searchVerses('vie', 'Trời')), ['JHN 3:16']);
+});
+
 test('a pack replaced at the same path is searched without the old index and indexed again', async () => {
   const {
     invalidateInstalledBibleDatabaseAtPath,

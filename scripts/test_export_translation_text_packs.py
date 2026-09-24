@@ -188,7 +188,10 @@ class BuildSqliteDatabaseTest(unittest.TestCase):
 
         self.assertEqual(matches, [2])
         self.assertEqual(love, [3])
-        self.assertEqual(state, [(1, "2026.09.24-v4", 3, 3, "2026-09-24T00:00:00Z")])
+        self.assertEqual(
+            state,
+            [(exporter.PACK_SEARCH_INDEX_SCHEMA_VERSION, "2026.09.24-v4", 3, 3, "2026-09-24T00:00:00Z")],
+        )
 
     def test_the_shipped_index_matches_the_one_the_app_builds(self):
         # A pack index with another definition or schema version would be rebuilt on every

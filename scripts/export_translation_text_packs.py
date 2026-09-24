@@ -44,12 +44,12 @@ SCHEMA_VERSION = 5
 PAGE_SIZE = 1000
 
 # Must match PACK_SEARCH_INDEX_SCHEMA_VERSION and the verses_fts definition in
-# src/services/bible/textPackSearchIndex.ts (and the bundled database in build_bible_db.py).
+# src/services/bible/textPackSearchIndex.ts.
 # The app rebuilds an index whose schema version differs.
-PACK_SEARCH_INDEX_SCHEMA_VERSION = 1
+PACK_SEARCH_INDEX_SCHEMA_VERSION = 2
 CREATE_VERSES_FTS_SQL = (
     "CREATE VIRTUAL TABLE IF NOT EXISTS verses_fts USING fts5("
-    "text, content='verses', content_rowid='id', tokenize='unicode61')"
+    "text, content='verses', content_rowid='id', tokenize='unicode61 remove_diacritics 2')"
 )
 CREATE_SEARCH_INDEX_STATE_SQL = """
   CREATE TABLE IF NOT EXISTS search_index_state (

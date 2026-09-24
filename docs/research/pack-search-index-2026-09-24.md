@@ -20,6 +20,10 @@ The index is built on the device, so the packs already on R2 do not need to be p
   apostrophes inside a word (`buildBibleSearchQuery`, from the reader bug hunt), which relies
   on `unicode61`, the same as the bundled index. Because the index is part of the file, deleting
   or replacing the pack deletes its index. Nothing else has to be cleaned up.
+  Index schema version 2 changed the pack tokenizer to `unicode61 remove_diacritics 2`, which
+  also folds letters carrying two marks (Vietnamese ờ, ư, ơ, ệ), so "troi" finds "Trời". Packs
+  indexed at version 1 are rebuilt on their next search. The bundled database keeps the default
+  folding until it is next rebuilt.
 - **Build marker.** The `search_index_state` table (one row) records `index_schema_version`,
   `pack_version` (the catalog text version, from `activeTextPackVersion`), `last_indexed_id`,
   `indexed_count` and `completed_at`. The status is one of:
