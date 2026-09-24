@@ -9,7 +9,11 @@ import {
   mockSupabaseModule,
   sourcePath,
 } from '../../testing/mockModules';
-import { createSupabaseFake, makeFakeSession } from '../../testing/supabaseFake';
+import {
+  createSupabaseFake,
+  makeFakeSession,
+  type SupabaseFakeError,
+} from '../../testing/supabaseFake';
 import type { AppErrorReport } from './crashReportModel';
 
 // The real queue over an in-memory MMKV, a scripted reporting policy and the
@@ -45,7 +49,10 @@ const setReportingAllowed = (value: boolean) => {
 
 type Sent = { name: string; reports: AppErrorReport[]; authorization?: string };
 const sent: Sent[] = [];
-let respond: () => { error: unknown } = () => ({ error: null });
+let respond: () => { error: SupabaseFakeError | null } = () => ({ error: null });
+// supabase-js FunctionsHttpError carries the HTTP response as `context`.
+const httpError = (message: string, status: number) =>
+  ({ message, context: { status } }) as SupabaseFakeError;
 backend.respondToFunction((name, options) => {
   const { body, headers } = options as {
     body: { reports: AppErrorReport[] };
@@ -190,7 +197,7 @@ test('a report from a previous launch is sent when reporting starts', async () =
 test('a throttled or failed upload keeps the reports for later', async () => {
   const queue = await load();
   reportingAllowed = true;
-  respond = () => ({ error: { message: 'Too many', context: { status: 429 } } });
+  respond = () => ({ error: httpError('Too many', 429) });
   queue.queueCrashReport({ error: new Error('keep me'), kind: 'error' });
   const result = await queue.flushCrashReports();
 
@@ -201,7 +208,7 @@ test('a throttled or failed upload keeps the reports for later', async () => {
 test('a rejected payload is dropped so it cannot wedge the queue', async () => {
   const queue = await load();
   reportingAllowed = true;
-  respond = () => ({ error: { message: 'Bad request', context: { status: 400 } } });
+  respond = () => ({ error: httpError('Bad request', 400) });
   queue.queueCrashReport({ error: new Error('malformed'), kind: 'error' });
   await queue.flushCrashReports();
 

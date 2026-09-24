@@ -1,5 +1,3 @@
-import { Platform } from 'react-native';
-
 import { mmkvInstance } from '../../stores/mmkvStorage';
 import { canReportUsage, subscribeToReportingPolicy } from '../analytics/reportingPolicy';
 import {
@@ -112,7 +110,19 @@ function getInstallId(): string | null {
 
 // Lazy so a native module missing under tests (or a broken config) degrades to
 // "unknown" instead of throwing inside an error handler.
-function getAppVersions(): { appVersion: string; buildNumber: string | null } {
+function getPlatform(): { os: string; version: string | null } {
+  try {
+    const { Platform } = require('react-native') as typeof import('react-native');
+    return {
+      os: Platform.OS,
+      version: Platform.Version == null ? null : String(Platform.Version),
+    };
+  } catch {
+    return { os: 'unknown', version: null };
+  }
+}
+
+function getAppVersions(os: string): { appVersion: string; buildNumber: string | null } {
   try {
     // Same lookup as the More screen's version footer.
     const Constants = require('expo-constants').default as {
@@ -125,7 +135,7 @@ function getAppVersions(): { appVersion: string; buildNumber: string | null } {
     };
     const config = Constants?.expoConfig;
     const configuredBuild =
-      Platform.OS === 'android' ? config?.android?.versionCode : config?.ios?.buildNumber;
+      os === 'android' ? config?.android?.versionCode : config?.ios?.buildNumber;
     return {
       appVersion: config?.version ?? 'unknown',
       buildNumber:
@@ -162,7 +172,8 @@ export function queueCrashReport(input: QueueCrashReportInput): void {
   try {
     if (typeof __DEV__ !== 'undefined' && __DEV__) return;
     const now = Date.now();
-    const { appVersion, buildNumber } = getAppVersions();
+    const platform = getPlatform();
+    const { appVersion, buildNumber } = getAppVersions(platform.os);
     const report = buildCrashReport({
       error: input.error,
       kind: input.kind,
@@ -173,8 +184,8 @@ export function queueCrashReport(input: QueueCrashReportInput): void {
       device: {
         appVersion,
         buildNumber,
-        platform: Platform.OS,
-        osVersion: Platform.Version == null ? null : String(Platform.Version),
+        platform: platform.os,
+        osVersion: platform.version,
         installId: getInstallId(),
       },
     });

@@ -2,6 +2,8 @@ import test, { beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { mockMmkvStorage, mockModule, sourcePath } from '../testing/mockModules';
 import { createReactNativeStub } from '../testing/reactNativeStub';
+import { createRequire } from 'node:module';
+import type { AppErrorReport } from '../services/diagnostics/crashReportModel';
 
 // The boundary's render-time collaborators are replaced; the crash log is the
 // real store over an in-memory MMKV, so the assertions read what a user would
@@ -19,6 +21,12 @@ mockModule(mock, sourcePath('contexts/ThemeContext.tsx'), {
   darkColors: {},
   useTheme: () => ({ colors: {} }),
 });
+
+mockModule(mock, createRequire(import.meta.url).resolve('expo-constants'), {
+  default: { default: { expoConfig: { version: '1.0.9' } } },
+});
+const pendingReports = (): AppErrorReport[] =>
+  JSON.parse(mmkv.store.get('diagnostics-crash-report-queue-v1') ?? '[]');
 
 // componentDidCatch also logs to the console; keep the test output readable.
 mock.method(console, 'error', () => {});
@@ -41,6 +49,23 @@ test('a caught render error is written to the on-device crash log with its scree
   assert.equal(entry.message, '[screen:BibleReader] Cannot read property map of null');
   assert.match(entry.stack ?? '', /Cannot read property map of null/);
   assert.match(entry.stack ?? '', /in VerseList\n\s+in BibleReader/);
+});
+
+test('a caught render error is also queued as a scrubbed boundary crash report', async () => {
+  const { ErrorBoundary } = await import('./ErrorBoundary');
+  const boundary = new ErrorBoundary({ children: null, scope: 'screen:PlanDetail' });
+
+  boundary.componentDidCatch(new Error('plan 1234567 missing for jane@example.com'), {
+    componentStack: '\n    in PlanDay (at PlanDetail.tsx:12)\n    in PlanDetail',
+  });
+
+  const [report] = pendingReports();
+  assert.equal(pendingReports().length, 1);
+  assert.equal(report.kind, 'boundary');
+  assert.equal(report.is_fatal, false);
+  assert.equal(report.screen, 'PlanDetail');
+  assert.equal(report.message, 'plan <n> missing for <email>');
+  assert.equal(report.component_stack, 'PlanDay < PlanDetail');
 });
 
 test('an unscoped boundary records its errors as app-level', async () => {
