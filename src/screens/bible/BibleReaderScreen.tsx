@@ -791,11 +791,17 @@ export function BibleReaderScreen() {
   // Bumped whenever a preview is stopped or the reader unmounts, so a preview that
   // finishes loading afterwards knows nobody wants it any more.
   const feedbackAudioPreviewRequestRef = useRef(0);
+  // Starting a recording awaits the permission prompt, the app becoming active and the
+  // recorder itself. The in-flight flag turns a double tap into one start; the request
+  // counter, bumped on unmount, tells a start that resumes afterwards to back out.
+  const feedbackAudioStartInFlightRef = useRef(false);
+  const feedbackAudioRecordingRequestRef = useRef(0);
   useEffect(() => {
     return () => {
       if (feedbackAudioTimerRef.current) {
         clearInterval(feedbackAudioTimerRef.current);
       }
+      feedbackAudioRecordingRequestRef.current += 1;
       feedbackAudioPreviewRequestRef.current += 1;
       void feedbackAudioPreviewSoundRef.current?.unloadAsync();
       const recording = feedbackAudioRecordingRef.current;
@@ -3243,61 +3249,94 @@ export function BibleReaderScreen() {
   };
 
   const startFeedbackAudioRecording = async () => {
-    if (isSubmittingFeedback || feedbackAudioState === 'recording') {
+    if (
+      isSubmittingFeedback ||
+      feedbackAudioState === 'recording' ||
+      feedbackAudioStartInFlightRef.current
+    ) {
       return;
     }
 
-    await stopFeedbackAudioPreview();
-    setFeedbackSubmitError(null);
-    setFeedbackAudioPermissionDenied(false);
-
+    feedbackAudioStartInFlightRef.current = true;
+    const request = feedbackAudioRecordingRequestRef.current;
+    const isAbandoned = () => request !== feedbackAudioRecordingRequestRef.current;
     try {
-      const permission = await Audio.requestPermissionsAsync();
-      if (!permission.granted) {
-        setFeedbackAudioPermissionDenied(true);
-        setFeedbackAudioState('error');
-        setFeedbackSubmitError(t('bible.chapterFeedbackAudioPermissionDenied'));
-        return;
-      }
+      await stopFeedbackAudioPreview();
+      setFeedbackSubmitError(null);
+      setFeedbackAudioPermissionDenied(false);
 
-      setFeedbackAudioDraft(null);
-      setFeedbackAudioElapsedMs(0);
-      const isAppActive = await waitForFeedbackAudioActiveAppState();
-      if (!isAppActive) {
+      try {
+        const permission = await Audio.requestPermissionsAsync();
+        if (isAbandoned()) {
+          return;
+        }
+        if (!permission.granted) {
+          setFeedbackAudioPermissionDenied(true);
+          setFeedbackAudioState('error');
+          setFeedbackSubmitError(t('bible.chapterFeedbackAudioPermissionDenied'));
+          return;
+        }
+
+        setFeedbackAudioDraft(null);
+        setFeedbackAudioElapsedMs(0);
+        const isAppActive = await waitForFeedbackAudioActiveAppState();
+        if (isAbandoned()) {
+          return;
+        }
+        if (!isAppActive) {
+          setFeedbackAudioState('error');
+          setFeedbackSubmitError(t('bible.chapterFeedbackAudioStartError'));
+          return;
+        }
+        await new Promise<void>((resolve) => {
+          InteractionManager.runAfterInteractions(() => resolve());
+        });
+        if (isAbandoned()) {
+          return;
+        }
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: true,
+          playsInSilentModeIOS: true,
+        });
+        if (isAbandoned()) {
+          await restoreFeedbackAudioPlaybackMode();
+          return;
+        }
+
+        const { recording } = await Audio.Recording.createAsync(
+          Audio.RecordingOptionsPresets.HIGH_QUALITY
+        );
+        if (isAbandoned()) {
+          // The reader closed while the recorder started: release the microphone.
+          await recording.stopAndUnloadAsync().catch(() => undefined);
+          await restoreFeedbackAudioPlaybackMode();
+          return;
+        }
+
+        feedbackAudioRecordingRef.current = recording;
+        feedbackAudioStartedAtRef.current = Date.now();
+        setFeedbackAudioState('recording');
+        feedbackAudioTimerRef.current = setInterval(() => {
+          const elapsedMs = feedbackAudioStartedAtRef.current
+            ? Date.now() - feedbackAudioStartedAtRef.current
+            : 0;
+          setFeedbackAudioElapsedMs(Math.min(elapsedMs, CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS));
+
+          if (elapsedMs >= CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS) {
+            void stopFeedbackAudioRecording();
+          }
+        }, CHAPTER_FEEDBACK_AUDIO_TIMER_MS);
+      } catch {
+        clearFeedbackAudioTimer();
+        await restoreFeedbackAudioPlaybackMode();
+        if (isAbandoned()) {
+          return;
+        }
         setFeedbackAudioState('error');
         setFeedbackSubmitError(t('bible.chapterFeedbackAudioStartError'));
-        return;
       }
-      await new Promise<void>((resolve) => {
-        InteractionManager.runAfterInteractions(() => resolve());
-      });
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
-
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
-
-      feedbackAudioRecordingRef.current = recording;
-      feedbackAudioStartedAtRef.current = Date.now();
-      setFeedbackAudioState('recording');
-      feedbackAudioTimerRef.current = setInterval(() => {
-        const elapsedMs = feedbackAudioStartedAtRef.current
-          ? Date.now() - feedbackAudioStartedAtRef.current
-          : 0;
-        setFeedbackAudioElapsedMs(Math.min(elapsedMs, CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS));
-
-        if (elapsedMs >= CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS) {
-          void stopFeedbackAudioRecording();
-        }
-      }, CHAPTER_FEEDBACK_AUDIO_TIMER_MS);
-    } catch {
-      clearFeedbackAudioTimer();
-      await restoreFeedbackAudioPlaybackMode();
-      setFeedbackAudioState('error');
-      setFeedbackSubmitError(t('bible.chapterFeedbackAudioStartError'));
+    } finally {
+      feedbackAudioStartInFlightRef.current = false;
     }
   };
 

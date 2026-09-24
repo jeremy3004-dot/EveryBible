@@ -1,12 +1,15 @@
-import test, { mock } from 'node:test';
+import test, { after, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { act } from 'react-test-renderer';
+import { installIntervalLeakGuard } from '../../testing/reactHookRuntime';
 import { installReaderRenderFixture } from './BibleReaderScreen.renderFixture';
 
 // Chapter-feedback voice notes: recording and previewing them must never leave
 // the microphone, a sound or the recording timer running once nobody wants them.
 const reader = installReaderRenderFixture(mock);
 const { harness, t, renderReader, chapters, feedbackAv } = reader;
+const intervals = installIntervalLeakGuard();
+after(() => intervals.restore());
 
 type View = Awaited<ReturnType<typeof renderReader>>;
 
@@ -24,14 +27,70 @@ async function renderComposer() {
   return view;
 }
 
+const recordButton = (view: View) =>
+  view.getByRole('button', { name: t('bible.chapterFeedbackAudioRecord') });
+
 /** Record and stop, leaving a draft voice note ready to preview. */
 async function recordDraft(view: View) {
-  await view.press(view.getByRole('button', { name: t('bible.chapterFeedbackAudioRecord') }));
+  await view.press(recordButton(view));
   await view.flush();
   await view.press(view.getByRole('button', { name: t('bible.chapterFeedbackAudioStop') }));
   await view.flush();
   return view.getByRole('button', { name: t('bible.chapterFeedbackAudioPreview') });
 }
+
+// ---- Recording ------------------------------------------------------------------
+
+test('a double tap on record starts one recording, not two', async () => {
+  const view = await renderComposer();
+  feedbackAv.hold('requestPermissionsAsync');
+
+  await view.press(recordButton(view));
+  await view.press(recordButton(view));
+  while (feedbackAv.waiting('requestPermissionsAsync') > 0) {
+    await feedbackAv.release('requestPermissionsAsync');
+  }
+  await view.flush();
+
+  assert.equal(
+    feedbackAv.log.filter((entry) => entry === 'Recording.createAsync').length,
+    1,
+    'the second tap is ignored while the first start is in flight'
+  );
+  assert.ok(view.getByRole('button', { name: t('bible.chapterFeedbackAudioStop') }));
+  await view.unmount();
+});
+
+test('leaving the reader during the microphone prompt never starts the recording', async () => {
+  const view = await renderComposer();
+  feedbackAv.hold('requestPermissionsAsync');
+
+  await view.press(recordButton(view));
+  await view.unmount();
+  await feedbackAv.release('requestPermissionsAsync');
+  await act(async () => {});
+
+  assert.equal(feedbackAv.log.includes('Recording.createAsync'), false);
+  assert.equal(intervals.liveCount, 0, 'no recording timer is left running');
+});
+
+test('a recording that finishes starting after the reader closed is stopped at once', async () => {
+  const view = await renderComposer();
+  feedbackAv.hold('Recording.createAsync');
+
+  await view.press(recordButton(view));
+  await view.flush();
+  assert.equal(feedbackAv.waiting('Recording.createAsync'), 1);
+  await view.unmount();
+  await feedbackAv.release('Recording.createAsync');
+  await act(async () => {});
+
+  assert.ok(
+    feedbackAv.log.includes('recording1.stopAndUnload'),
+    'the microphone is released instead of recording on'
+  );
+  assert.equal(intervals.liveCount, 0, 'no recording timer is left running');
+});
 
 // ---- Preview ------------------------------------------------------------------------
 
