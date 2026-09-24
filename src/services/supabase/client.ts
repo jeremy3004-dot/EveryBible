@@ -20,6 +20,21 @@ const hasValidSupabaseUrl = (value: string): boolean =>
 
 const HAS_SUPABASE_CONFIG = hasValidSupabaseUrl(SUPABASE_URL) && Boolean(SUPABASE_PUBLIC_KEY);
 
+// A build without usable backend config still gets a working client object:
+// createClient('') throws "supabaseUrl is required", and callers such as
+// useSync touch `supabase.auth` on mount, so a missing URL used to crash the
+// app at launch. The `.invalid` TLD is reserved never to resolve (RFC 2606),
+// so every request from this client fails as an ordinary `{ error }` result,
+// auth reports no session, and the offline-first app keeps working with sync
+// and analytics off. Callers should still gate network work on
+// isSupabaseConfigured().
+const UNCONFIGURED_SUPABASE_URL = 'https://unconfigured.supabase.invalid';
+const UNCONFIGURED_SUPABASE_PUBLIC_KEY = 'unconfigured';
+const CLIENT_SUPABASE_URL = HAS_SUPABASE_CONFIG ? SUPABASE_URL : UNCONFIGURED_SUPABASE_URL;
+const CLIENT_SUPABASE_PUBLIC_KEY = HAS_SUPABASE_CONFIG
+  ? SUPABASE_PUBLIC_KEY
+  : UNCONFIGURED_SUPABASE_PUBLIC_KEY;
+
 // SecureStore adapter for Supabase auth
 const ExpoSecureStoreAdapter = {
   getItem: async (key: string): Promise<string | null> => {
@@ -46,7 +61,7 @@ const ExpoSecureStoreAdapter = {
 
 const getSupabaseClient = createLazyClientAccessor({
   createClient: () =>
-    createClient(SUPABASE_URL, SUPABASE_PUBLIC_KEY, {
+    createClient(CLIENT_SUPABASE_URL, CLIENT_SUPABASE_PUBLIC_KEY, {
       auth: {
         storage: ExpoSecureStoreAdapter,
         autoRefreshToken: true,
