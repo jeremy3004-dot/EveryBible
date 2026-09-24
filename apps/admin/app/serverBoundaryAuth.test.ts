@@ -31,7 +31,7 @@ import {
 const PUBLIC_HANDLERS: Record<string, string> = {
   'app/(auth)/login/actions.ts': 'Sign-in and sign-out must work before an admin session exists.',
   'app/api/cron/upstream-sync/route.ts':
-    'Vercel Cron bearer secret (lib/security-boundaries.test.ts).',
+    'Vercel Cron bearer secret (app/api/cron/upstream-sync/route.test.ts).',
 };
 
 const sessionClient = createSupabaseFake();

@@ -1,292 +1,201 @@
+/**
+ * Authorization lifecycle of the admin data layer (lib/admin-data.ts), loaded
+ * through the real module loader. admin-data authorizes once per server render
+ * with React's request-scoped `cache`; this file replaces `react` with a model
+ * of that contract (shared inside one request, never across requests or outside
+ * a render) so the sharing rules can be observed. Per-loader data shaping lives
+ * in admin-data.behavior.test.ts.
+ */
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import test from 'node:test';
-import { runInNewContext } from 'node:vm';
-import ts from 'typescript';
-import * as analyticsWindow from './analytics-window';
-import * as navigation from './admin-navigation';
-import * as reporting from './analytics-reporting';
+import test, { beforeEach, mock } from 'node:test';
 
-type Row = Record<string, unknown>;
+import { createSupabaseFake, mockModule } from './testing/adminTestHarness';
+
 type Identity = 'super_admin' | 'unauthenticated' | 'ordinary_user';
+
+const service = createSupabaseFake();
+const authFailure = new Error('Admin identity required');
+const events: string[] = [];
+let identity: Identity = 'unauthenticated';
+let requestCache: Map<() => unknown, unknown> | null = null;
+
+mockModule(mock, 'react', {
+  cache(callback: () => unknown) {
+    return () => {
+      if (!requestCache) return callback();
+      if (!requestCache.has(callback)) requestCache.set(callback, callback());
+      return requestCache.get(callback);
+    };
+  },
+});
+mockModule(mock, '@/lib/admin-auth', {
+  requireAdminIdentity: async () => {
+    events.push(`auth:${identity}`);
+    if (identity !== 'super_admin') throw authFailure;
+    return { id: 'admin-user', role: 'super_admin' };
+  },
+});
+mockModule(mock, '@/lib/supabase/service', {
+  createAdminServiceClient: () => {
+    events.push('service');
+    return service.client;
+  },
+});
+
+const data = await import('./admin-data');
+const { adminNavigation } = await import('./admin-navigation');
+
 type Loader = (argument?: unknown) => Promise<unknown>;
+const api = data as unknown as Record<string, Loader>;
 const loaderNames = [
-  'getDashboardSummary',
-  'getRecentAuditLogs',
-  'listTranslations',
-  'getTranslationDetail',
-  'listSyncRuns',
-  'listChapterFeedback',
-  'getChapterFeedbackReviewModel',
-  'getHealthIssues',
-  'listSupportUsers',
-  'getSupportUserDetail',
   'getAnalyticsOverview',
+  'getChapterFeedbackReviewModel',
+  'getDashboardSummary',
+  'getHealthIssues',
+  'getRecentAuditLogs',
+  'getSupportUserDetail',
+  'getTranslationDetail',
+  'listChapterFeedback',
+  'listSupportUsers',
+  'listSyncRuns',
+  'listTranslations',
 ] as const;
 
-function loadDataModule(tables: Record<string, Row[]> = {}, analytics: Row = {}) {
-  let identity: Identity = 'unauthenticated';
-  let requestCache: Map<() => unknown, unknown> | null = null;
-  const events: string[] = [];
-  const authFailure = new Error('Admin identity required');
-  const service = {
-    from(table: string) {
-      events.push(`from:${table}`);
-      const filters: Array<(row: Row) => boolean> = [];
-      let head = false;
-      const result = () => {
-        const data = (tables[table] ?? []).filter((row) => filters.every((filter) => filter(row)));
-        return { data: head ? null : data, error: null, count: data.length };
-      };
-      const query = {
-        select(_selection: string, options?: { head?: boolean }) {
-          head = !!options?.head;
-          return query;
-        },
-        order() {
-          return query;
-        },
-        limit() {
-          return query;
-        },
-        or() {
-          return query;
-        },
-        eq(column: string, value: unknown) {
-          filters.push((row) => row[column] === value);
-          return query;
-        },
-        in(column: string, values: unknown[]) {
-          filters.push((row) => values.includes(row[column]));
-          return query;
-        },
-        is(column: string, value: unknown) {
-          return query.eq(column, value);
-        },
-        not(column: string, _operator: string, value: unknown) {
-          filters.push((row) => row[column] !== value);
-          return query;
-        },
-        contains() {
-          return query;
-        },
-        async maybeSingle() {
-          return { ...result(), data: result().data?.[0] ?? null };
-        },
-        then(resolve: (result: unknown) => unknown) {
-          return Promise.resolve(result()).then(resolve);
-        },
-      };
-      return query;
-    },
-    async rpc(name: string) {
-      events.push(`rpc:${name}`);
-      return { data: analytics, error: null };
-    },
-    storage: {
-      from(bucket: string) {
-        events.push(`storage:${bucket}`);
-        return {
-          async createSignedUrl(path: string, ttl: number) {
-            assert.equal(ttl, 3600);
-            return {
-              data: { signedUrl: `https://storage.example/${bucket}/${path}?signed` },
-              error: null,
-            };
-          },
-        };
-      },
-    },
-  };
-  const dependencies: Record<string, unknown> = {
-    react: {
-      // Model React's per-render request cache, never a process-global memoization.
-      cache(callback: () => unknown) {
-        return () => {
-          if (!requestCache) return callback();
-          if (!requestCache.has(callback)) requestCache.set(callback, callback());
-          return requestCache.get(callback);
-        };
-      },
-    },
-    '@/lib/admin-auth': {
-      async requireAdminIdentity() {
-        events.push(`auth:${identity}`);
-        if (identity !== 'super_admin') throw authFailure;
-        return { id: 'admin-user', role: 'super_admin' };
-      },
-    },
-    '@/lib/supabase/service': {
-      createAdminServiceClient() {
-        events.push('service');
-        return service;
-      },
-    },
-    '@/lib/analytics-window': analyticsWindow,
-    '@/lib/admin-navigation': navigation,
-    '@/lib/analytics-reporting': reporting,
-  };
-  const { outputText } = ts.transpileModule(
-    readFileSync(new URL('./admin-data.ts', import.meta.url), 'utf8'),
-    {
-      compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-    }
-  );
-  const exports = {};
-  runInNewContext(outputText, {
-    exports,
-    require(name: string) {
-      assert.ok(Object.hasOwn(dependencies, name), `Unexpected dependency ${name}`);
-      return dependencies[name];
-    },
-  });
-  return {
-    api: exports as Record<string, Loader>,
-    events,
-    authFailure,
-    async request<T>(role: Identity, callback: () => Promise<T>) {
-      identity = role;
-      requestCache = new Map();
-      try {
-        return await callback();
-      } finally {
-        requestCache = null;
-      }
-    },
-    async outsideRender<T>(role: Identity, callback: () => Promise<T>) {
-      identity = role;
-      return callback();
-    },
-  };
+beforeEach(() => {
+  service.reset();
+  events.length = 0;
+  identity = 'unauthenticated';
+  requestCache = null;
+});
+
+/** Runs `callback` as one server render request for `role`. */
+async function request<T>(role: Identity, callback: () => Promise<T>): Promise<T> {
+  identity = role;
+  requestCache = new Map();
+  try {
+    return await callback();
+  } finally {
+    requestCache = null;
+  }
 }
 
-function invoke(api: Record<string, Loader>, name: string) {
+function invoke(name: string) {
   return api[name](
     name === 'getTranslationDetail' ? 'eng' : name === 'getSupportUserDetail' ? 'user-1' : undefined
   );
 }
 
-function plain(value: unknown) {
-  return JSON.parse(JSON.stringify(value));
+function backendAccess() {
+  return [
+    ...service.calls.map((call) => call.table),
+    ...service.storageCalls.map((call) => `storage:${call.bucket}`),
+  ];
 }
 
-test('authorization coverage includes every async data export', () => {
-  const runtime = loadDataModule();
-  const asyncExports = Object.entries(runtime.api)
+test('the authorization lifecycle covers every async data export', () => {
+  const asyncExports = Object.entries(data)
     .filter(
       ([, value]) => typeof value === 'function' && value.constructor.name === 'AsyncFunction'
     )
     .map(([name]) => name)
     .sort();
-  assert.deepEqual(asyncExports, [...loaderNames].sort());
+  assert.deepEqual(asyncExports, [...loaderNames]);
 });
 
-for (const name of loaderNames) {
-  for (const identity of ['unauthenticated', 'ordinary_user'] as const) {
-    test(`${name} rejects ${identity} before service, query, RPC, or storage access`, async () => {
-      const runtime = loadDataModule();
+for (const role of ['unauthenticated', 'ordinary_user'] as const) {
+  test(`an ${role} request reaches no loader's service client, query, RPC or storage`, async () => {
+    for (const name of loaderNames) {
       await assert.rejects(
-        runtime.request(identity, () => invoke(runtime.api, name)),
-        (error) => error === runtime.authFailure
+        request(role, () => invoke(name)),
+        (error) => error === authFailure,
+        name
       );
-      assert.deepEqual(runtime.events, [`auth:${identity}`]);
-    });
-  }
-  test(`${name} still returns its empty-data contract for an authorized admin`, async () => {
-    const runtime = loadDataModule();
-    const result = plain(await runtime.request('super_admin', () => invoke(runtime.api, name)));
-    assert.equal(runtime.events[0], 'auth:super_admin');
-    assert.equal(runtime.events[1], 'service');
-    assert.equal(runtime.events.filter((event) => event === 'service').length, 1);
-    if (name === 'getDashboardSummary') {
-      assert.deepEqual(result, {
-        adminPathCount: navigation.adminNavigation.length,
-        failedSyncCount: 0,
-        feedbackCount: 0,
-        supportUserCount: 0,
-        translationCount: 0,
-      });
-    } else if (name === 'getTranslationDetail' || name === 'getSupportUserDetail') {
-      assert.equal(result, null);
-    } else if (name === 'getChapterFeedbackReviewModel') {
-      assert.deepEqual(result, {
-        coverage: [],
-        feedback: [],
-        filters: { books: [], languages: [], translations: [] },
-        translationCoverage: [],
-        totalAvailable: 0,
-      });
-    } else if (name === 'getHealthIssues') {
-      assert.deepEqual(
-        result.map((issue: { title: string }) => issue.title),
-        ['Upstream metadata sync not running']
-      );
-    } else if (name === 'getAnalyticsOverview') {
-      assert.equal(result.listeningTotalMinutes, 0);
-      assert.equal(result.engagementScoreComputedAt, null);
-      assert.deepEqual(result.translationBreakdown, []);
-      assert.ok(runtime.events.includes('rpc:get_admin_analytics_overview'));
-    } else {
-      assert.deepEqual(result, []);
     }
+    assert.ok(events.every((event) => event === `auth:${role}`));
+    assert.deepEqual(backendAccess(), []);
   });
 }
 
-test('concurrent and nested data readers share authorization only within one render request', async () => {
-  const runtime = loadDataModule();
-  await runtime.request('super_admin', () =>
-    Promise.all(loaderNames.map((name) => invoke(runtime.api, name)))
+test('every loader returns its empty-data contract to an authorized admin', async () => {
+  const results = Object.fromEntries(
+    await Promise.all(
+      loaderNames.map(async (name) => [
+        name,
+        JSON.parse(JSON.stringify(await request('super_admin', () => invoke(name)))),
+      ])
+    )
   );
-  assert.equal(runtime.events.filter((event) => event.startsWith('auth:')).length, 1);
-  assert.equal(runtime.events.filter((event) => event === 'service').length, 1);
-  runtime.events.length = 0;
-  await assert.rejects(
-    runtime.request('unauthenticated', () => runtime.api.getRecentAuditLogs()),
-    (error) => error === runtime.authFailure
-  );
-  assert.deepEqual(runtime.events, ['auth:unauthenticated']);
-  runtime.events.length = 0;
-  await runtime.request('super_admin', () => runtime.api.getRecentAuditLogs());
-  assert.deepEqual(runtime.events, ['auth:super_admin', 'service', 'from:admin_audit_logs']);
-});
-
-test('operator calls outside a server render still verify each request', async () => {
-  const runtime = loadDataModule();
-  await runtime.outsideRender('super_admin', () => runtime.api.getRecentAuditLogs());
-  runtime.events.length = 0;
-  await assert.rejects(
-    runtime.outsideRender('ordinary_user', () => runtime.api.getRecentAuditLogs()),
-    (error) => error === runtime.authFailure
-  );
-  assert.deepEqual(runtime.events, ['auth:ordinary_user']);
-});
-
-test('authorized audit and analytics readers retain backend values', async () => {
-  const audit = { id: 'audit-1', summary: 'Catalog updated', metadata: { targetUserId: 'user-1' } };
-  const runtime = loadDataModule(
-    {
-      admin_audit_logs: [audit],
-      user_engagement_summary: [{ updated_at: '2026-09-05T00:00:00Z' }],
-    },
-    {
-      listeningTotalMinutes: 25,
-      userCountWithListening: 3,
-      dailyListeningMinutes: [{ day: '2026-09-05', value: 25 }],
-    }
-  );
-  await runtime.request('super_admin', async () => {
-    assert.deepEqual(plain(await runtime.api.getRecentAuditLogs()), [audit]);
-    const overview = plain(await runtime.api.getAnalyticsOverview(30));
-    assert.equal(overview.listeningTotalMinutes, 25);
-    assert.equal(overview.userCountWithListening, 3);
-    assert.equal(overview.engagementScoreComputedAt, '2026-09-05T00:00:00Z');
-    assert.deepEqual(overview.dailyListeningMinutes, [{ day: '2026-09-05', minutes: 25 }]);
+  assert.deepEqual(results.getDashboardSummary, {
+    adminPathCount: adminNavigation.length,
+    failedSyncCount: 0,
+    feedbackCount: 0,
+    supportUserCount: 0,
+    translationCount: 0,
   });
+  assert.equal(results.getTranslationDetail, null);
+  assert.equal(results.getSupportUserDetail, null);
+  assert.deepEqual(results.getChapterFeedbackReviewModel, {
+    coverage: [],
+    feedback: [],
+    filters: { books: [], languages: [], translations: [] },
+    translationCoverage: [],
+    totalAvailable: 0,
+  });
+  assert.deepEqual(
+    results.getHealthIssues.map((issue: { title: string }) => issue.title),
+    ['Upstream metadata sync not running']
+  );
+  assert.equal(results.getAnalyticsOverview.listeningTotalMinutes, 0);
+  assert.deepEqual(results.getAnalyticsOverview.translationBreakdown, []);
+  for (const name of [
+    'getRecentAuditLogs',
+    'listChapterFeedback',
+    'listSupportUsers',
+    'listSyncRuns',
+    'listTranslations',
+  ]) {
+    assert.deepEqual(results[name], [], name);
+  }
 });
 
-test('authorized feedback preserves reviewer mappings and signs audio only after identity verification', async () => {
-  const runtime = loadDataModule({
-    chapter_feedback_submissions: [
+test('concurrent readers in one render share a single authorization and service client', async () => {
+  await request('super_admin', () => Promise.all(loaderNames.map((name) => invoke(name))));
+  assert.deepEqual(
+    events.filter((event) => !event.startsWith('from:')),
+    ['auth:super_admin', 'service']
+  );
+});
+
+test('a new render request is authorized again, so one admin render never vouches for the next', async () => {
+  await request('super_admin', () => data.getRecentAuditLogs());
+  events.length = 0;
+  service.reset();
+  await assert.rejects(
+    request('unauthenticated', () => data.getRecentAuditLogs()),
+    (error) => error === authFailure
+  );
+  assert.deepEqual(events, ['auth:unauthenticated']);
+  assert.deepEqual(backendAccess(), []);
+});
+
+test('calls outside a server render, such as operator tools, verify the caller every time', async () => {
+  identity = 'super_admin';
+  await data.getRecentAuditLogs();
+  await data.getRecentAuditLogs();
+  identity = 'ordinary_user';
+  await assert.rejects(data.getRecentAuditLogs(), (error) => error === authFailure);
+  assert.deepEqual(events, [
+    'auth:super_admin',
+    'service',
+    'auth:super_admin',
+    'service',
+    'auth:ordinary_user',
+  ]);
+});
+
+test('feedback audio is signed for one hour, and only after the admin is verified', async () => {
+  service.respondTo('chapter_feedback_submissions', () => ({
+    data: [
       {
         id: 'feedback-1',
         user_id: 'reviewer-1',
@@ -302,17 +211,27 @@ test('authorized feedback preserves reviewer mappings and signs audio only after
         audio_response_mime_type: 'audio/mp4',
       },
     ],
-    profiles: [{ id: 'reviewer-1', display_name: 'Reviewer', email: 'reviewer@church.org' }],
-  });
-  const result = plain(
-    await runtime.request('super_admin', () => runtime.api.listChapterFeedback())
+  }));
+  service.respondTo('profiles', () => ({
+    data: [{ id: 'reviewer-1', display_name: 'Reviewer', email: 'reviewer@church.org' }],
+  }));
+
+  await assert.rejects(
+    request('ordinary_user', () => data.listChapterFeedback()),
+    (error) => error === authFailure
   );
-  assert.equal(result[0].reviewerDisplayName, 'Reviewer');
+  assert.deepEqual(service.storageCalls, []);
+
+  const [item] = await request('super_admin', () => data.listChapterFeedback());
   assert.equal(
-    result[0].audioResponse.signedUrl,
-    'https://storage.example/feedback-audio/reviewer-1/response.m4a?signed'
+    item.audioResponse?.signedUrl,
+    `${service.storage.publicUrlBase}/feedback-audio/reviewer-1/response.m4a?signed`
   );
-  assert.equal(runtime.events[0], 'auth:super_admin');
-  assert.equal(runtime.events.filter((event) => event === 'service').length, 1);
-  assert.ok(runtime.events.includes('storage:feedback-audio'));
+  assert.deepEqual(service.storageCalls, [
+    {
+      bucket: 'feedback-audio',
+      method: 'createSignedUrl',
+      args: ['reviewer-1/response.m4a', 3600],
+    },
+  ]);
 });

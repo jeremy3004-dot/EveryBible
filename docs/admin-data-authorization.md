@@ -11,7 +11,7 @@ This change is local to the admin data-access module. Shared service-client crea
 Behavioral regressions execute the actual data module with identity, request-cache, and database/storage boundaries replaced. They cover every async export, denied callers, authorized results, audio signing, concurrent readers, and cache isolation between requests:
 
 ```bash
-node --test --import tsx apps/admin/lib/admin-data-auth.test.ts
+node --test --experimental-test-module-mocks --import tsx apps/admin/lib/admin-data-auth.test.ts
 ```
 
 React cache semantics: [official React cache reference](https://react.dev/reference/react/cache).

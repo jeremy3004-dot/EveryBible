@@ -845,3 +845,82 @@ test('a catalog check that could not run is reported instead of claiming all che
     },
   ]);
 });
+
+test('health reports a stale sync and published-but-hidden translations from sync and catalog data only', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-09-24T12:00:00.000Z') });
+  service.respondTo('translation_sync_runs', () => ({
+    data: [{ id: 'run-1', state: 'succeeded', started_at: '2026-09-22T12:00:00.000Z' }],
+  }));
+  service.respondTo('translation_catalog', () => ({
+    data: [{ translation_id: 'bsb', distribution_state: 'published', is_available: false }],
+  }));
+  const issues = await data.getHealthIssues();
+  assert.deepEqual(
+    issues.map((issue) => [issue.severity, issue.title, issue.href]),
+    [
+      ['warning', 'Translation sync is stale', '/translations'],
+      ['info', 'Published translations are hidden', '/translations'],
+    ]
+  );
+  // An empty editorial library (verse of the day, images) is not a health issue.
+  assert.deepEqual(service.calls.map((call) => call.table).sort(), [
+    'translation_catalog',
+    'translation_sync_runs',
+  ]);
+});
+
+test('a never-successful upstream sync is informational, not an outage', async () => {
+  service.respondTo('translation_sync_runs', () => ({
+    data: [{ id: 'run-1', state: 'failed', started_at: new Date().toISOString() }],
+  }));
+  assert.deepEqual(
+    (await data.getHealthIssues()).map((issue) => [issue.severity, issue.title]),
+    [['info', 'Upstream metadata sync not running']]
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Dashboard summary
+// ---------------------------------------------------------------------------
+
+test('the overview counts translations, failed syncs, users and feedback without loading rows', async () => {
+  const counts: Record<string, number> = {
+    translation_catalog: 12,
+    translation_sync_runs: 2,
+    profiles: 7,
+    chapter_feedback_submissions: 3,
+  };
+  for (const [table, count] of Object.entries(counts)) {
+    service.respondTo(table, () => ({ data: null, count }));
+  }
+  const summary = await data.getDashboardSummary();
+  assert.deepEqual(
+    { ...summary, adminPathCount: undefined },
+    {
+      adminPathCount: undefined,
+      failedSyncCount: 2,
+      feedbackCount: 3,
+      supportUserCount: 7,
+      translationCount: 12,
+    }
+  );
+  assert.ok(summary.adminPathCount > 0);
+  assert.deepEqual(stepArgs(onlyCall('translation_sync_runs'), 'eq'), [['state', 'failed']]);
+  for (const call of service.calls) {
+    assert.deepEqual(stepArgs(call, 'select')[0][1], { count: 'exact', head: true }, call.table);
+  }
+  assert.deepEqual(service.calls.map((call) => call.table).sort(), Object.keys(counts).sort());
+});
+
+test('an empty backend renders a zeroed overview', async () => {
+  const summary = await data.getDashboardSummary();
+  assert.deepEqual(
+    [
+      summary.failedSyncCount,
+      summary.feedbackCount,
+      summary.supportUserCount,
+      summary.translationCount,
+    ],
+    [0, 0, 0, 0]
+  );
+});
