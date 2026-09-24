@@ -149,6 +149,15 @@ async function closeBundledDatabase(): Promise<void> {
   forgetSearchIndexReadiness(getSourceCacheKey(bundledBibleDatabaseSource));
 }
 
+// expo-sqlite's defaultDatabaseDirectory is a bare filesystem path on iOS and Android. The legacy
+// FileSystem API needs a file:// URI: it treats a bare path as a read-only bundled resource, so a
+// delete is refused and an existence check always reports "missing".
+function bundledDatabaseFileUri(suffix = ''): string {
+  const directory = SQLite.defaultDatabaseDirectory.replace(/\/*$/, '');
+  const directoryUri = directory.startsWith('file://') ? directory : `file://${directory}`;
+  return `${directoryUri}/${DATABASE_NAME}${suffix}`;
+}
+
 // A forced re-import replaces the .db file, but SQLite may still have -wal/-shm sidecars from the
 // prior (possibly corrupt or interrupted) database on disk. Leaving them means the fresh copy can
 // get WAL frames replayed onto it on next open, silently reintroducing the state we're recovering
@@ -156,10 +165,9 @@ async function closeBundledDatabase(): Promise<void> {
 async function deleteStaleJournalSiblings(): Promise<void> {
   try {
     const FileSystem = await import('expo-file-system/legacy');
-    const directory = SQLite.defaultDatabaseDirectory.replace(/\/*$/, '');
     await Promise.all(
       ['-wal', '-shm'].map((suffix) =>
-        FileSystem.deleteAsync(`${directory}/${DATABASE_NAME}${suffix}`, { idempotent: true })
+        FileSystem.deleteAsync(bundledDatabaseFileUri(suffix), { idempotent: true })
       )
     );
   } catch (error) {
@@ -353,6 +361,22 @@ export async function initDatabase(
   return inspectOpenDatabase(database);
 }
 
+function notReadyStatus(): BibleDatabaseStatus {
+  return {
+    verseCount: 0,
+    schemaVersion: 0,
+    hasSearchIndex: false,
+    formattedVerseCount: 0,
+    ready: false,
+  };
+}
+
+async function bundledDatabaseFileExists(): Promise<boolean> {
+  const FileSystem = await import('expo-file-system/legacy');
+  const info = await FileSystem.getInfoAsync(bundledDatabaseFileUri());
+  return info.exists;
+}
+
 export async function inspectBundledDatabaseStatus(
   minimumReadyVerseCount = DEFAULT_MINIMUM_READY_VERSE_COUNT
 ): Promise<BibleDatabaseStatus> {
@@ -368,6 +392,13 @@ export async function inspectBundledDatabaseStatus(
   let temporaryDb: SQLite.SQLiteDatabase | null = null;
 
   try {
+    // On a fresh install nothing has imported the asset yet. Opening the missing file would
+    // create an empty database, and the native asset import skips any file that already exists,
+    // so the first launch would fall through to the forced-recovery import.
+    if (!db && !(await bundledDatabaseFileExists())) {
+      return notReadyStatus();
+    }
+
     temporaryDb = db ?? (await SQLite.openDatabaseAsync(DATABASE_NAME, SQLITE_OPEN_OPTIONS));
     const status = await inspectOpenDatabase(temporaryDb);
     const ready = isBundledBibleDatabaseReady(status, minimumReadyVerseCount);
@@ -387,13 +418,7 @@ export async function inspectBundledDatabaseStatus(
     };
   } catch (error) {
     console.warn('[Bible] Failed to inspect bundled database status:', error);
-    return {
-      verseCount: 0,
-      schemaVersion: 0,
-      hasSearchIndex: false,
-      formattedVerseCount: 0,
-      ready: false,
-    };
+    return notReadyStatus();
   } finally {
     if (!db && temporaryDb) {
       await temporaryDb.closeAsync();
