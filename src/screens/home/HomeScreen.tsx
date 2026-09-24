@@ -10,6 +10,9 @@ import {
   Share,
   AppState,
   type AppStateStatus,
+  type LayoutChangeEvent,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from 'react-native';
 import Animated, { FadeIn, FadeInDown, useReducedMotion } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -177,7 +180,7 @@ export function HomeScreen() {
     []
   );
   useEffect(() => () => homeReadyReporter.cancel(), [homeReadyReporter]);
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const displayFont = useDisplayFont();
   const { t, i18n } = useTranslation();
   const reduceMotion = useReducedMotion();
@@ -198,6 +201,31 @@ export function HomeScreen() {
   const [isSharingVerse, setIsSharingVerse] = useState(false);
   const [readingPlans, setReadingPlans] = useState<ReadingPlan[]>([]);
   const verseRequestIdRef = useRef(0);
+  // Edge-to-edge: the photograph owns the status-bar strip at rest, but once it
+  // scrolls away the page would run under the glyphs. From then on the strip
+  // gets a page-coloured backdrop (the reader's mask) and theme-coloured glyphs.
+  const [heroHeight, setHeroHeight] = useState<number | null>(null);
+  const [isStatusBarOverPage, setIsStatusBarOverPage] = useState(false);
+  const scrollOffsetRef = useRef(0);
+  const photoLeavesStatusBarAt =
+    heroHeight === null ? null : heroHeight - HERO_ACTION_OVERHANG - insets.top;
+  useEffect(() => {
+    setIsStatusBarOverPage(
+      photoLeavesStatusBarAt !== null && scrollOffsetRef.current > photoLeavesStatusBarAt
+    );
+  }, [photoLeavesStatusBarAt]);
+  const handleHeroLayout = useCallback((event: LayoutChangeEvent) => {
+    setHeroHeight(event.nativeEvent.layout.height);
+  }, []);
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const offset = event.nativeEvent.contentOffset.y;
+      scrollOffsetRef.current = offset;
+      // Only a crossing re-renders: the same boolean is a no-op for React.
+      setIsStatusBarOverPage(photoLeavesStatusBarAt !== null && offset > photoLeavesStatusBarAt);
+    },
+    [photoLeavesStatusBarAt]
+  );
   const midnightRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const verseSharePreviewRef = useRef<View | null>(null);
@@ -627,6 +655,7 @@ export function HomeScreen() {
 
     return (
       <View
+        onLayout={isScreenVariant ? handleHeroLayout : undefined}
         style={[
           styles.hero,
           {
@@ -755,9 +784,13 @@ export function HomeScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* The photograph bleeds under the status bar, so its glyphs go light while
           Home owns the screen and revert to the app default on the next tab. */}
-      {isFocused ? <StatusBar style="light" /> : null}
+      {isFocused ? (
+        <StatusBar style={isStatusBarOverPage ? (isDark ? 'light' : 'dark') : 'light'} />
+      ) : null}
       <ScrollView
         onLayout={homeReadyReporter.onLayout}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
         style={styles.scrollView}
         contentContainerStyle={[
           styles.content,
@@ -1072,6 +1105,13 @@ export function HomeScreen() {
         </View>
       </ScrollView>
 
+      {isStatusBarOverPage ? (
+        <View
+          pointerEvents="none"
+          style={[styles.statusBarMask, { height: insets.top, backgroundColor: colors.background }]}
+        />
+      ) : null}
+
       <View
         ref={verseSharePreviewRef}
         collapsable={false}
@@ -1090,6 +1130,12 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  statusBarMask: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
   },
   content: {
     flexGrow: 1,

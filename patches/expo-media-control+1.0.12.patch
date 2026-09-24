@@ -27,10 +27,18 @@ index cbbbf5a..77f1809 100644
            } catch (e: Exception) {
              println("⚠️ Error canceling coroutine scope: ${e.message}")
 diff --git a/node_modules/expo-media-control/android/src/main/java/expo/modules/mediacontrol/MediaPlaybackService.kt b/node_modules/expo-media-control/android/src/main/java/expo/modules/mediacontrol/MediaPlaybackService.kt
-index d234e79..310cdf5 100644
+index d234e79..60ac527 100644
 --- a/node_modules/expo-media-control/android/src/main/java/expo/modules/mediacontrol/MediaPlaybackService.kt
 +++ b/node_modules/expo-media-control/android/src/main/java/expo/modules/mediacontrol/MediaPlaybackService.kt
-@@ -74,6 +74,14 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
+@@ -13,6 +13,7 @@ import android.os.Binder
+ import android.os.Build
+ import android.os.Bundle
+ import android.os.IBinder
++import android.os.SystemClock
+ import android.support.v4.media.MediaBrowserCompat
+ import android.support.v4.media.MediaDescriptionCompat
+ import android.support.v4.media.MediaMetadataCompat
+@@ -74,6 +75,14 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
  
    // Configuration options
    private var skipInterval = 15.0 // Default 15 seconds
@@ -45,7 +53,7 @@ index d234e79..310cdf5 100644
    private var artworkLoadJob: Job? = null // Cancel stale artwork loads on track change
    private var capabilities: List<String>? = null // null = all enabled (backward compat)
    private var compactCapabilities: List<String>? = null
-@@ -171,7 +179,24 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
+@@ -171,7 +180,24 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
        e.printStackTrace()
      }
      
@@ -71,7 +79,31 @@ index d234e79..310cdf5 100644
    }
  
    // =============================================
-@@ -360,6 +385,16 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
+@@ -231,7 +257,9 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
+   private val mediaSessionCallback = object : MediaSessionCompat.Callback() {
+     override fun onPlay() {
+       try {
++        currentPosition = livePositionMs()
+         currentPlaybackState = PlaybackStateCompat.STATE_PLAYING
++        if (currentPlaybackRate <= 0f) currentPlaybackRate = lastPlayingRate
+         updatePlaybackState()
+         sendEventToModule("play", null)
+         
+@@ -258,7 +286,13 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
+ 
+     override fun onPause() {
+       try {
++        // EveryBible patch: freeze the bar where playback actually is. The
++        // stored position is only the last one JS sent (often the chapter
++        // start), so pausing from the notification snapped the bar to it until
++        // JS reported the real position a moment later.
++        currentPosition = livePositionMs()
+         currentPlaybackState = PlaybackStateCompat.STATE_PAUSED
++        currentPlaybackRate = 0.0f
+         updatePlaybackState()
+         sendEventToModule("pause", null)
+         updateNotification()
+@@ -360,6 +394,16 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
        skipInterval = (it as? Number)?.toDouble() ?: 15.0
        println("🤖 MediaPlaybackService: Skip interval updated to $skipInterval seconds")
      }
@@ -88,7 +120,57 @@ index d234e79..310cdf5 100644
    }
  
    fun updateCapabilities(
-@@ -506,7 +541,7 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
+@@ -431,6 +475,11 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
+   }
+ 
+   fun updatePlaybackState(state: Int, position: Double?, playbackRate: Double?) {
++    // EveryBible patch: a state change without a position keeps the live
++    // position instead of the stale last-reported one.
++    if (position == null) {
++      currentPosition = livePositionMs()
++    }
+     currentPlaybackState = when (state) {
+       0 -> PlaybackStateCompat.STATE_NONE
+       1 -> PlaybackStateCompat.STATE_STOPPED
+@@ -452,11 +501,37 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
+       // Fallback to default behavior when rate is not provided
+       currentPlaybackRate = if (currentPlaybackState == PlaybackStateCompat.STATE_PLAYING) 1.0f else 0.0f
+     }
++    if (currentPlaybackState == PlaybackStateCompat.STATE_PLAYING && currentPlaybackRate > 0f) {
++      lastPlayingRate = currentPlaybackRate
++    }
+ 
+     updatePlaybackState()
+     updateNotification()
+   }
+ 
++  // EveryBible patch: the speed to resume at when play comes from the notification.
++  private var lastPlayingRate = 1.0f
++
++  /**
++   * EveryBible patch: where playback is now, extrapolated the same way Android
++   * draws the progress bar (last position + elapsed time x speed while playing).
++   */
++  private fun livePositionMs(): Long {
++    val state = try {
++      mediaSession.controller?.playbackState
++    } catch (e: Exception) {
++      null
++    } ?: return currentPosition
++    if (state.state != PlaybackStateCompat.STATE_PLAYING || state.playbackSpeed <= 0f) {
++      return state.position
++    }
++    val elapsedMs = SystemClock.elapsedRealtime() - state.lastPositionUpdateTime
++    var live = state.position + (elapsedMs * state.playbackSpeed).toLong()
++    val durationMs = mediaMetadata?.getLong(MediaMetadataCompat.METADATA_KEY_DURATION) ?: 0L
++    if (durationMs > 0L && live > durationMs) live = durationMs
++    return if (live < 0L) 0L else live
++  }
++
+   private fun updatePlaybackState() {
+     // Use the stored playback rate which reflects actual playback speed
+     // This allows Android to calculate progress correctly between updates
+@@ -506,7 +581,7 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
        val channel = NotificationChannel(
          NOTIFICATION_CHANNEL_ID,
@@ -97,7 +179,7 @@ index d234e79..310cdf5 100644
          NotificationManager.IMPORTANCE_LOW
        ).apply {
          description = "Controls for media playback"
-@@ -533,8 +568,8 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
+@@ -533,8 +608,8 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
  
      val builder = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
        .setSmallIcon(getSmallIconResource())
@@ -108,7 +190,7 @@ index d234e79..310cdf5 100644
        .setLargeIcon(mediaMetadata?.getBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART))
        .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
        .setPriority(NotificationCompat.PRIORITY_LOW)
-@@ -618,7 +653,7 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
+@@ -618,7 +693,7 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
          "previousTrack" -> {
            builder.addAction(
              android.R.drawable.ic_media_previous,
@@ -117,7 +199,7 @@ index d234e79..310cdf5 100644
              createPendingIntent(ACTION_PREVIOUS)
            )
            addedCommands.add("previousTrack")
-@@ -627,13 +662,13 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
+@@ -627,13 +702,13 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
            if (currentPlaybackState == PlaybackStateCompat.STATE_PLAYING) {
              builder.addAction(
                android.R.drawable.ic_media_pause,
@@ -133,7 +215,7 @@ index d234e79..310cdf5 100644
                createPendingIntent(ACTION_PLAY)
              )
            }
-@@ -642,7 +677,7 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
+@@ -642,7 +717,7 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
          "nextTrack" -> {
            builder.addAction(
              android.R.drawable.ic_media_next,
@@ -142,7 +224,7 @@ index d234e79..310cdf5 100644
              createPendingIntent(ACTION_NEXT)
            )
            addedCommands.add("nextTrack")
-@@ -650,7 +685,7 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
+@@ -650,7 +725,7 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
          "skipForward" -> {
            builder.addAction(
              android.R.drawable.ic_media_ff,
@@ -151,7 +233,7 @@ index d234e79..310cdf5 100644
              createPendingIntent(ACTION_SKIP_FORWARD)
            )
            addedCommands.add("skipForward")
-@@ -658,7 +693,7 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
+@@ -658,7 +733,7 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
          "skipBackward" -> {
            builder.addAction(
              android.R.drawable.ic_media_rew,
@@ -160,7 +242,7 @@ index d234e79..310cdf5 100644
              createPendingIntent(ACTION_SKIP_BACKWARD)
            )
            addedCommands.add("skipBackward")
-@@ -666,7 +701,7 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
+@@ -666,7 +741,7 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
          "stop" -> {
            builder.addAction(
              android.R.drawable.ic_media_pause,
