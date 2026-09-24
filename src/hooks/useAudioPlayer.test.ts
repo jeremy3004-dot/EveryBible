@@ -1114,6 +1114,52 @@ test('the transport subscription ignores 240 position ticks and twelve resume ch
   assert.equal(store().lastPosition, 60_000);
 });
 
+test('the hook exposes no live position or duration; useAudioPosition owns those', () => {
+  const { api } = mountPlayer();
+
+  assert.equal('currentPosition' in api, false);
+  assert.equal('duration' in api, false);
+});
+
+// The hook does not re-render on position ticks, so every action that needs the position
+// must read it from the store when it runs, not from the render that created it.
+test('actions read the live position even through controls from an earlier render', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  const controls = player.rerender();
+  recorded.history.length = 0;
+  recorded.player.length = 0;
+
+  store().setPosition(30_000);
+  await controls.skipForward();
+  assert.deepEqual(playerCalls('seekTo'), [{ method: 'seekTo', args: [40_000] }]);
+
+  store().setPosition(120_000);
+  await controls.pause();
+  assert.deepEqual(recorded.history.at(-1), { bookId: 'GEN', chapter: 1, progress: 0.2 });
+
+  // Status is part of the render, so toggle from a fresh one; the position still comes from
+  // the store because the hook never subscribes to it.
+  await player.rerender().togglePlayPause();
+  assert.equal(playerCalls('resume').length, 1, 'a part-way chapter resumes rather than reloads');
+
+  store().setPosition(150_000);
+  await controls.playChapter('GEN', 2);
+  assert.deepEqual(recorded.history.at(-2), { bookId: 'GEN', chapter: 1, progress: 0.25 });
+});
+
+test('stop checkpoints the live position even through controls from an earlier render', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  const controls = player.rerender();
+  recorded.history.length = 0;
+
+  store().setPosition(300_000);
+  await controls.stop();
+
+  assert.deepEqual(recorded.history, [{ bookId: 'GEN', chapter: 1, progress: 0.5 }]);
+});
+
 test('the transport subscription still sees status, track and playback settings changes', () => {
   const select = transportSelector();
   const changes = {
@@ -1587,6 +1633,30 @@ test('finishing records the completed listen for the reading ledger', async () =
   assert.deepEqual(recorded.listened, [
     { bookId: 'GEN', chapter: 1, durationMs: DEFAULT_DURATION_MS },
   ]);
+});
+
+test('finishing the last chapter of a book continues into the next book', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 50);
+  player.rerender();
+
+  await finishPlayback();
+
+  assert.equal(store().currentBookId, 'EXO');
+  assert.equal(store().currentChapter, 1);
+  assert.equal(store().status, 'playing');
+});
+
+test('finishing the final chapter still records the completed listen', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('REV', 22);
+  player.rerender();
+  recorded.history.length = 0;
+
+  await finishPlayback();
+
+  assert.equal(store().status, 'idle');
+  assert.deepEqual(recorded.history, [{ bookId: 'REV', chapter: 22, progress: 1 }]);
 });
 
 test('finishing reports the completed chapter to analytics', async () => {
