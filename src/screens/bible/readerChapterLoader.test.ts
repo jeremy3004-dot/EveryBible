@@ -133,7 +133,7 @@ test('a loaded chapter records which chapter the verses belong to', async () => 
 
   await loadReaderChapter(load);
 
-  assert.deepEqual(recorded.chapterKeys, [readerChapterKey('JHN', 3)]);
+  assert.deepEqual(recorded.chapterKeys, [readerChapterKey('bsb', 'JHN', 3)]);
 });
 
 test('the verses stay tagged with the old chapter until the new chapter arrives', async () => {
@@ -145,11 +145,33 @@ test('the verses stay tagged with the old chapter until the new chapter arrives'
 
   await loadReaderChapter(load);
   const moving = loadReaderChapter({ ...load, chapter: 4, currentVerseCount: 1 });
-  assert.deepEqual(recorded.chapterKeys, ['JHN:3']);
+  assert.deepEqual(recorded.chapterKeys, [readerChapterKey('bsb', 'JHN', 3)]);
   next.resolve([verse(1)]);
   await moving;
 
-  assert.deepEqual(recorded.chapterKeys, ['JHN:3', 'JHN:4']);
+  assert.deepEqual(recorded.chapterKeys, [
+    readerChapterKey('bsb', 'JHN', 3),
+    readerChapterKey('bsb', 'JHN', 4),
+  ]);
+});
+
+test('the verses stay tagged with the old translation until the new translation arrives', async () => {
+  // A translation switch also keeps the old text on screen while the new one loads; a verse
+  // selected there would be shared under the new translation's name with the old wording.
+  const next = deferred<Verse[]>();
+  const results = [Promise.resolve([verse(1)]), next.promise];
+  const { load, recorded } = reader({ getChapter: () => results.shift()! });
+
+  await loadReaderChapter(load);
+  const switching = loadReaderChapter({ ...load, translationId: 'web', currentVerseCount: 1 });
+  assert.notEqual(recorded.chapterKeys[0], readerChapterKey('web', 'JHN', 3));
+  next.resolve([verse(1)]);
+  await switching;
+
+  assert.deepEqual(recorded.chapterKeys, [
+    readerChapterKey('bsb', 'JHN', 3),
+    readerChapterKey('web', 'JHN', 3),
+  ]);
 });
 
 test('a stale chapter result never tags the verses with its chapter', async () => {
@@ -162,7 +184,7 @@ test('a stale chapter result never tags the verses with its chapter', async () =
   slow.resolve([verse(1)]);
   await first;
 
-  assert.deepEqual(recorded.chapterKeys, ['JHN:4']);
+  assert.deepEqual(recorded.chapterKeys, [readerChapterKey('bsb', 'JHN', 4)]);
 });
 
 test('an empty chapter is shown but queues no prefetch', async () => {
@@ -190,7 +212,11 @@ test('an audio-only translation skips the text query and clears the verses', asy
   assert.deepEqual(recorded.verses, [[]]);
   assert.deepEqual(recorded.loading, [true, false]);
   assert.equal(tasks.length, 0);
-  assert.deepEqual(recorded.chapterKeys, ['JHN:3'], 'the empty chapter is the route chapter');
+  assert.deepEqual(
+    recorded.chapterKeys,
+    [readerChapterKey('bsb', 'JHN', 3)],
+    'the empty chapter is the route chapter'
+  );
 });
 
 test('a chapter change with verses on screen never shows the loading skeleton', async () => {

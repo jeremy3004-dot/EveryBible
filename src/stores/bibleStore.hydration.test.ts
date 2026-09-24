@@ -233,6 +233,34 @@ test('an out-of-range persisted reading position falls back to Genesis 1', async
   assert.equal(state.hasReaderHistory, false);
 });
 
+test('a persisted chapter its book does not have falls back to chapter 1', async () => {
+  // The chapter used to be checked only for >= 1, and was kept even when the book itself
+  // was dropped: Jude 2 restored as Jude 2, and an unknown book with chapter 50 as Genesis 50.
+  for (const [persisted, expected] of [
+    [
+      { currentBook: 'JUD', currentChapter: 2 },
+      { book: 'JUD', chapter: 1, hasReaderHistory: false },
+    ],
+    [
+      { currentBook: 'NOPE', currentChapter: 50 },
+      { book: 'GEN', chapter: 1, hasReaderHistory: false },
+    ],
+  ] as const) {
+    await rehydrateWith(persisted);
+
+    const state = useBibleStore.getState();
+    assert.deepEqual(
+      {
+        book: state.currentBook,
+        chapter: state.currentChapter,
+        hasReaderHistory: state.hasReaderHistory,
+      },
+      expected,
+      JSON.stringify(persisted)
+    );
+  }
+});
+
 test('a corrupt persisted payload hydrates to the default translation list', async () => {
   await rehydrateWith({ translations: 'not-an-array', currentTranslation: 42 });
 

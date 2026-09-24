@@ -175,6 +175,8 @@ import {
   getNextBibleTabBarVisibility,
   getReaderAutoScrollTarget,
   getReaderInlineActiveVerse,
+  getAnnotationsForDisplayedVerses,
+  canSelectDisplayedVerse,
   getPlanSessionBannerColors,
   getReaderVerseContentOffset,
   getInitialChapterSessionMode,
@@ -196,6 +198,13 @@ import {
   type CancellableTask,
 } from './readerChapterLoader';
 import { navigateListenChapter } from './readerListenNavigation';
+import {
+  applyReaderAnnotationEdits,
+  planReaderHighlightApply,
+  planReaderHighlightRemove,
+  planReaderNoteSave,
+  type ReaderAnnotationEdits,
+} from './readerAnnotationEdits';
 import {
   normalizeChapterFeedbackComment,
   shouldEnableChapterFeedbackSubmit,
@@ -1551,13 +1560,23 @@ export function BibleReaderScreen() {
     [colors.bibleAccent]
   );
   const selectedVerseSet = useMemo(() => new Set(selectedVerses), [selectedVerses]);
+  const isShowingRouteChapter =
+    versesChapterKey === readerChapterKey(currentTranslation, bookId, chapter);
+  // Read at press time: memoized paragraph blocks keep the verse press handler they last
+  // rendered with, which can predate the chapter change.
+  const isShowingRouteChapterRef = useRef(isShowingRouteChapter);
+  isShowingRouteChapterRef.current = isShowingRouteChapter;
+  const displayedAnnotations = getAnnotationsForDisplayedVerses({
+    annotations,
+    isShowingRouteChapter,
+  });
   const highlightByVerse = useMemo(
     () =>
       buildReaderHighlightIndex(
-        annotations,
+        displayedAnnotations,
         verses.reduce((lastVerse, verse) => Math.max(lastVerse, verse.verse), 0)
       ),
-    [annotations, verses]
+    [displayedAnnotations, verses]
   );
   // One pass over the annotation list per selection change instead of three
   // chained filters on every render (this used to run on every position tick).
@@ -1605,7 +1624,6 @@ export function BibleReaderScreen() {
     : null;
   const activeFollowAlongVerse = followAlongPlaybackState.verse;
   const didRestartFollowAlongPlayback = followAlongPlaybackState.didRestart;
-  const isShowingRouteChapter = versesChapterKey === readerChapterKey(bookId, chapter);
   const readerInlineActiveVerse = getReaderInlineActiveVerse({
     isCurrentAudioChapter,
     activeFollowAlongVerse,
@@ -3825,39 +3843,38 @@ export function BibleReaderScreen() {
     }
   };
 
+  const commitAnnotationEdits = async (edits: ReaderAnnotationEdits) => {
+    const succeeded = await applyReaderAnnotationEdits(edits, {
+      softDelete: softDeleteAnnotation,
+      upsert: upsertAnnotation,
+    });
+    if (!succeeded) {
+      Alert.alert(t('common.error'), t('common.unexpectedError'));
+    }
+    await reloadAnnotations();
+    return succeeded;
+  };
+
+  const readerAnnotationEditInput = () => ({
+    book: bookId,
+    chapter,
+    annotations,
+    selectedVerses,
+    createId: () => Math.random().toString(36).slice(2),
+  });
+
   const handleHighlightSelectedVerses = async (color: string) => {
     if (selectedVerseRanges.length === 0) {
       return;
     }
 
-    for (const range of selectedVerseRanges) {
-      const existing = annotations.find(
-        (annotation) =>
-          annotation.type === 'highlight' &&
-          !annotation.deleted_at &&
-          annotation.verse_start === range.verse_start &&
-          getAnnotationVerseEnd(annotation) === range.verse_end
-      );
-
-      const result = await upsertAnnotation({
-        id: existing?.id ?? Math.random().toString(36).slice(2),
-        book: bookId,
-        chapter,
-        verse_start: range.verse_start,
-        verse_end: range.verse_start === range.verse_end ? null : range.verse_end,
-        type: 'highlight',
-        color,
-        content: null,
-        deleted_at: null,
-      });
-      if (!result.success) {
-        Alert.alert(t('common.error'), t('common.unexpectedError'));
-        return;
-      }
+    if (
+      await commitAnnotationEdits(
+        planReaderHighlightApply({ ...readerAnnotationEditInput(), color })
+      )
+    ) {
+      setSelectedVerses([]);
     }
-
-    await reloadAnnotations();
-    setSelectedVerses([]);
   };
 
   const handleRemoveHighlightSelectedVerses = async (color: string) => {
@@ -3865,29 +3882,13 @@ export function BibleReaderScreen() {
       return;
     }
 
-    for (const range of selectedVerseRanges) {
-      const existing = annotations.find(
-        (annotation) =>
-          annotation.type === 'highlight' &&
-          !annotation.deleted_at &&
-          annotation.color === color &&
-          annotation.verse_start === range.verse_start &&
-          getAnnotationVerseEnd(annotation) === range.verse_end
-      );
-
-      if (!existing) {
-        continue;
-      }
-
-      const result = await softDeleteAnnotation(existing.id);
-      if (!result.success) {
-        Alert.alert(t('common.error'), t('common.unexpectedError'));
-        return;
-      }
+    if (
+      await commitAnnotationEdits(
+        planReaderHighlightRemove({ ...readerAnnotationEditInput(), color })
+      )
+    ) {
+      setSelectedVerses([]);
     }
-
-    await reloadAnnotations();
-    setSelectedVerses([]);
   };
 
   const handleNoteSelectedVerses = async (text: string) => {
@@ -3895,33 +3896,9 @@ export function BibleReaderScreen() {
       return;
     }
 
-    for (const range of selectedVerseRanges) {
-      const existing = annotations.find(
-        (annotation) =>
-          annotation.type === 'note' &&
-          !annotation.deleted_at &&
-          annotation.verse_start === range.verse_start &&
-          getAnnotationVerseEnd(annotation) === range.verse_end
-      );
-
-      const result = await upsertAnnotation({
-        id: existing?.id ?? Math.random().toString(36).slice(2),
-        book: bookId,
-        chapter,
-        verse_start: range.verse_start,
-        verse_end: range.verse_start === range.verse_end ? null : range.verse_end,
-        type: 'note',
-        color: null,
-        content: text,
-        deleted_at: null,
-      });
-      if (!result.success) {
-        Alert.alert(t('common.error'), t('common.unexpectedError'));
-        return;
-      }
-    }
-
-    await reloadAnnotations();
+    await commitAnnotationEdits(
+      planReaderNoteSave({ ...readerAnnotationEditInput(), content: text })
+    );
   };
 
   const renderPlanSessionBottomBar = () => {
@@ -4364,9 +4341,16 @@ export function BibleReaderScreen() {
         readingFontFamilyBold,
         colors,
         selectedVerses,
-        annotations,
+        annotations: displayedAnnotations,
       }),
-    [annotations, colors, readingFontFamily, readingFontFamilyBold, scaleValue, selectedVerses]
+    [
+      displayedAnnotations,
+      colors,
+      readingFontFamily,
+      readingFontFamilyBold,
+      scaleValue,
+      selectedVerses,
+    ]
   );
   const renderParagraphBlock = useCallback(
     ({ item, index }: { item: ReaderParagraph; index: number }): ReactElement => (
@@ -4462,6 +4446,9 @@ export function BibleReaderScreen() {
     };
 
     const handleToggleVerseSelection = (verse: Verse) => {
+      if (!canSelectDisplayedVerse({ isShowingRouteChapter: isShowingRouteChapterRef.current })) {
+        return;
+      }
       selectionHaptic();
       setSelectedVerses((current) => toggleBibleSelectionVerse(current, verse.verse));
     };
@@ -4665,7 +4652,7 @@ export function BibleReaderScreen() {
           readingFontFamilyBold,
           colors,
           selectedVerses,
-          annotations,
+          annotations: displayedAnnotations,
         });
     const premiumReaderListExtraData = `${readerInlineActiveVerse ?? 'none'}|${paragraphRenderSignature}`;
 
