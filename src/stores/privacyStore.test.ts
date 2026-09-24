@@ -593,6 +593,33 @@ test('repeated wrong codes trip an exponential lockout that refuses further atte
   assert.equal(store().isLocked, true);
 });
 
+test('wrong codes submitted faster than the keychain answers each count as an attempt', async () => {
+  secureStore.set(PRIVACY_SETTINGS_KEY, JSON.stringify({ mode: 'discreet', pin: '1234' }));
+  await store().initialize();
+
+  // Rapid '=' presses (or an automated tapper) must not share one read of the counter.
+  const results = await Promise.all(
+    ['1111', '2222', '3333', '4444', '5555', '6666'].map((pin) => store().unlock(pin))
+  );
+
+  assert.deepEqual(results, [false, false, false, false, false, false]);
+  assert.equal(storedSettings()?.failedPinAttempts, 5, 'the sixth is refused by the lockout');
+  const lockedUntil = store().pinLockedUntil;
+  assert.ok(typeof lockedUntil === 'number' && lockedUntil > Date.now());
+  assert.equal(store().isLocked, true);
+});
+
+test('the right code queued behind wrong ones still unlocks once they are counted', async () => {
+  secureStore.set(PRIVACY_SETTINGS_KEY, JSON.stringify({ mode: 'discreet', pin: '1234' }));
+  await store().initialize();
+
+  const results = await Promise.all([store().unlock('9999'), store().unlock('1234')]);
+
+  assert.deepEqual(results, [false, true]);
+  assert.equal(store().isLocked, false);
+  assert.equal(storedSettings()?.failedPinAttempts, 0);
+});
+
 test('a persisted lockout survives a cold start', async () => {
   const lockedUntil = Date.now() + 60_000;
   secureStore.set(

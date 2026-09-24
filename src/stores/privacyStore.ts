@@ -57,6 +57,7 @@ interface PrivacyState {
 }
 
 let initializationGeneration = 0;
+let unlockQueue: Promise<unknown> = Promise.resolve();
 
 // The crash queue opens MMKV and the reporting policy, which nothing else here needs, so
 // it is loaded only when there is a failure to report.
@@ -184,6 +185,71 @@ export const usePrivacyStore = create<PrivacyState>()((set, get) => {
     });
   };
 
+  const attemptUnlock = async (pinInput: string | string[]): Promise<boolean> => {
+    if (!get().isInitialized) {
+      return false;
+    }
+
+    if (get().keychainUnreadable) {
+      // Locked on an assumption; read the real record before judging the code.
+      let settings: Awaited<ReturnType<typeof loadPrivacySettings>>;
+      try {
+        settings = await loadPrivacySettings();
+      } catch (error) {
+        reportUnreadablePrivacySettings(error);
+        return false;
+      }
+      const hasPin = hasPrivacyPin(settings);
+      const locks = settings.mode === 'discreet' && hasPin;
+      writePrivacyLockHint(lockHintFor(locks));
+      set({
+        keychainUnreadable: false,
+        mode: settings.mode,
+        hasPin,
+        pinLockedUntil: settings.pinLockedUntil,
+      });
+      if (!locks) {
+        // Privacy is off after all: there is nothing to unlock with.
+        set({ isLocked: false });
+        return true;
+      }
+    }
+
+    const lockedUntil = get().pinLockedUntil;
+    if (lockedUntil !== null && Date.now() < lockedUntil) {
+      return false;
+    }
+
+    const rawCandidates = Array.isArray(pinInput) ? pinInput : [pinInput];
+    const candidates = rawCandidates
+      .map((candidate) => validatePrivacyPin(candidate))
+      .filter((validation) => validation.isValid)
+      .map((validation) => validation.normalized);
+
+    if (candidates.length === 0) {
+      return false;
+    }
+
+    // A whole batch of candidates derived from one key sequence counts as a
+    // single attempt, so the backoff tracks real guesses rather than taps.
+    let result: Awaited<ReturnType<typeof verifyPrivacyPinCandidates>>;
+    try {
+      result = await verifyPrivacyPinCandidates(candidates);
+    } catch (error) {
+      // The lock screen cannot show a failure without hinting a code exists; stay locked.
+      reportUnreadablePrivacySettings(error);
+      return false;
+    }
+
+    set({ pinLockedUntil: result.lockedUntil });
+
+    if (result.success) {
+      set({ isLocked: false });
+    }
+
+    return result.success;
+  };
+
   return {
     isInitialized: false,
     isLoading: false,
@@ -275,69 +341,13 @@ export const usePrivacyStore = create<PrivacyState>()((set, get) => {
         isLocked: !state.isInitialized || (state.mode === 'discreet' && state.hasPin),
       })),
 
-    unlock: async (pinInput) => {
-      if (!get().isInitialized) {
-        return false;
-      }
-
-      if (get().keychainUnreadable) {
-        // Locked on an assumption; read the real record before judging the code.
-        let settings: Awaited<ReturnType<typeof loadPrivacySettings>>;
-        try {
-          settings = await loadPrivacySettings();
-        } catch (error) {
-          reportUnreadablePrivacySettings(error);
-          return false;
-        }
-        const hasPin = hasPrivacyPin(settings);
-        const locks = settings.mode === 'discreet' && hasPin;
-        writePrivacyLockHint(lockHintFor(locks));
-        set({
-          keychainUnreadable: false,
-          mode: settings.mode,
-          hasPin,
-          pinLockedUntil: settings.pinLockedUntil,
-        });
-        if (!locks) {
-          // Privacy is off after all: there is nothing to unlock with.
-          set({ isLocked: false });
-          return true;
-        }
-      }
-
-      const lockedUntil = get().pinLockedUntil;
-      if (lockedUntil !== null && Date.now() < lockedUntil) {
-        return false;
-      }
-
-      const rawCandidates = Array.isArray(pinInput) ? pinInput : [pinInput];
-      const candidates = rawCandidates
-        .map((candidate) => validatePrivacyPin(candidate))
-        .filter((validation) => validation.isValid)
-        .map((validation) => validation.normalized);
-
-      if (candidates.length === 0) {
-        return false;
-      }
-
-      // A whole batch of candidates derived from one key sequence counts as a
-      // single attempt, so the backoff tracks real guesses rather than taps.
-      let result: Awaited<ReturnType<typeof verifyPrivacyPinCandidates>>;
-      try {
-        result = await verifyPrivacyPinCandidates(candidates);
-      } catch (error) {
-        // The lock screen cannot show a failure without hinting a code exists; stay locked.
-        reportUnreadablePrivacySettings(error);
-        return false;
-      }
-
-      set({ pinLockedUntil: result.lockedUntil });
-
-      if (result.success) {
-        set({ isLocked: false });
-      }
-
-      return result.success;
+    // One attempt at a time: each reads the failure count from the keychain and writes it
+    // back, so attempts that overlapped (rapid '=' presses, an automated tapper) all read
+    // the same count and the backoff only ever saw one of them.
+    unlock: (pinInput) => {
+      const attempt = unlockQueue.then(() => attemptUnlock(pinInput));
+      unlockQueue = attempt.catch(() => undefined);
+      return attempt;
     },
 
     reconcileAppIcon: async () => {
