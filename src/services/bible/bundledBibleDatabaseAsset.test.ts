@@ -132,3 +132,26 @@ test('shipped bundled database asset matches the schema-version and verse-count 
     database.close();
   }
 });
+
+test('shipped bundled search index uses the text-pack tokenizer and short prefix indexes', async () => {
+  // Every search word is sent as a prefix query ("word"*). Without the 1-3 character prefix
+  // indexes, a short word merges every term that starts with it ("the" took ~25 ms instead of
+  // ~13 ms on a desktop). The tokenizer must match textPackSearchIndex.ts, so a word folds the
+  // same way in the bundled translations and in downloaded packs.
+  const { DatabaseSync } = await import('node:sqlite');
+  const database = new DatabaseSync(
+    fileURLToPath(new URL('../../../assets/databases/bible-bsb-v2.db', import.meta.url).href),
+    { readOnly: true }
+  );
+
+  try {
+    const row = database
+      .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'verses_fts'")
+      .get() as { sql: string } | undefined;
+
+    assert.match(row?.sql ?? '', /tokenize='unicode61 remove_diacritics 2'/);
+    assert.match(row?.sql ?? '', /prefix='1 2 3'/);
+  } finally {
+    database.close();
+  }
+});

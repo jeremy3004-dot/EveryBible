@@ -10,7 +10,9 @@ import type {
 } from '../../types';
 import { requireSecureMediaUrl, sanitizeBibleAssetReference } from './bibleAssetBaseUrl';
 
-export const BUNDLED_BIBLE_SCHEMA_VERSION = 7;
+// PRAGMA user_version of assets/databases/bible-bsb-v2.db (SCHEMA_VERSION in
+// scripts/build_bible_db.py). 8: verses_fts rebuilt with the pack tokenizer and prefix indexes.
+export const BUNDLED_BIBLE_SCHEMA_VERSION = 8;
 
 const validAudioGranularities = new Set<AudioGranularity>(['none', 'chapter', 'verse']);
 const validAudioStrategies = new Set<TranslationAudioCatalog['strategy']>([

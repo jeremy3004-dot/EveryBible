@@ -153,7 +153,7 @@ function writeSeedDatabase(path: string, options: SeedOptions = {}): void {
   `);
   if (options.searchIndex !== false) {
     database.exec(
-      "CREATE VIRTUAL TABLE verses_fts USING fts5(text, content='verses', content_rowid='id', tokenize='unicode61')"
+      "CREATE VIRTUAL TABLE verses_fts USING fts5(text, content='verses', content_rowid='id', tokenize='unicode61 remove_diacritics 2', prefix='1 2 3')"
     );
   }
 

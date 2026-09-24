@@ -16,8 +16,8 @@ export const PACK_SEARCH_INDEX_SCHEMA_VERSION = 2;
 // The query side keeps combining marks and apostrophes inside a word (buildBibleSearchQuery),
 // which relies on unicode61. remove_diacritics 2 (schema version 2) also folds letters that
 // carry two marks, so Vietnamese "troi" finds "Trời" and "nguoi" finds "người"; the default
-// (1) kept ờ, ư, ơ and ệ. The bundled database (scripts/build_bible_db.py, English and Nepali)
-// still uses the default until it is next rebuilt; each file is queried with its own tokenizer.
+// (1) kept ờ, ư, ơ and ệ. The bundled database (scripts/build_bible_db.py) uses the same
+// tokenizer, plus 1-3 character prefix indexes that packs leave out to stay small.
 const CREATE_VERSES_FTS_SQL =
   "CREATE VIRTUAL TABLE IF NOT EXISTS verses_fts USING fts5(text, content='verses', content_rowid='id', tokenize='unicode61 remove_diacritics 2')";
 

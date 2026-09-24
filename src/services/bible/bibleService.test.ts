@@ -66,7 +66,7 @@ const makeVerse = (bookId: string, chapter: number, verse: number, text: string)
 });
 
 mockModule(mock, sourcePath('services/bible/bibleDatabase.ts'), {
-  DEFAULT_MINIMUM_READY_VERSE_COUNT: 120000,
+  DEFAULT_MINIMUM_READY_VERSE_COUNT: 124372,
   inspectBundledDatabaseStatus: async (minimum?: number) => {
     db.minimumsSeen.push(minimum);
     if (db.inspectError) {
@@ -141,7 +141,7 @@ test('the bundled data is not ready while the database holds too few verses', as
   db.ready = false;
 
   assert.equal(await service.isBibleDataReady(), false);
-  assert.deepEqual(db.minimumsSeen, [120000]);
+  assert.deepEqual(db.minimumsSeen, [124372]);
 });
 
 test('a database that cannot be inspected is reported as not ready', async (t) => {
@@ -155,7 +155,7 @@ test('a database that cannot be inspected is reported as not ready', async (t) =
 test('initialising rejects when the bundled database has too few verses to read', async () => {
   db.verseCount = 10;
 
-  await assert.rejects(() => service.initBibleData(), /not ready \(10\/120000\)/);
+  await assert.rejects(() => service.initBibleData(), /not ready \(10\/124372\)/);
   assert.equal(await service.isBibleDataReady(), false);
 });
 

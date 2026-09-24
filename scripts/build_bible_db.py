@@ -11,7 +11,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 OUTPUT_PATH = ROOT / "assets" / "databases" / "bible-bsb-v2.db"
-SCHEMA_VERSION = 7
+# Bump with BUNDLED_BIBLE_SCHEMA_VERSION (bibleDataModel.ts) and DEFAULT_MINIMUM_READY_VERSE_COUNT
+# (bibleDatabase.ts) on every rebuild, or existing installs keep their old copy (CLAUDE.md rule 11).
+SCHEMA_VERSION = 8
 SOURCE_DATA = [
     {
         "translation_id": "bsb",
@@ -97,11 +99,17 @@ def build_database() -> None:
 
             CREATE INDEX idx_verses_translation_book_chapter
               ON verses(translation_id, book_id, chapter, verse);
+            -- The tokenizer matches downloaded text packs (textPackSearchIndex.ts,
+            -- export_translation_text_packs.py): remove_diacritics 2 also folds letters with
+            -- two marks. Every search word is a prefix query ("word"*), so the 1-3 character
+            -- prefix indexes let FTS5 read one short term list instead of merging every term
+            -- that starts with a short word ("the": ~25 -> ~13 ms). They add ~19 MB.
             CREATE VIRTUAL TABLE verses_fts USING fts5(
               text,
               content='verses',
               content_rowid='id',
-              tokenize='unicode61'
+              tokenize='unicode61 remove_diacritics 2',
+              prefix='1 2 3'
             );
             """
         )
