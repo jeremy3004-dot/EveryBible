@@ -31,10 +31,18 @@ function initializer(name: string): string {
 }
 
 function harness(role: 'translator' | 'scripture_council') {
-  let complete!: (value: { success: boolean; error?: string }) => void;
-  const response = new Promise<{ success: boolean; error?: string }>((resolve) => {
+  type Validation = {
+    success: boolean;
+    error?: string;
+    translationIds?: string[];
+    coversTranslation?: boolean;
+  };
+  let complete!: (value: Validation) => void;
+  const response = new Promise<Validation>((resolve) => {
     complete = resolve;
   });
+  const modalVisibility: boolean[] = [];
+  const coverage: (string[] | null)[] = [];
   const changes: string[] = [];
   const errors: (string | null)[] = [];
   const preferences: object[] = [];
@@ -48,7 +56,8 @@ function harness(role: 'translator' | 'scripture_council') {
     validateScriptureCouncilPasscode: () => response,
     validateTranslatorReviewPasscode: () => response,
     setIsCheckingTranslatorAccess: () => {},
-    setShowTranslatorAccessModal: () => {},
+    setShowTranslatorAccessModal: (visible: boolean) => modalVisibility.push(visible),
+    setTranslatorAccessCoverage: (value: string[] | null) => coverage.push(value),
     setTranslatorAccessPasscode: () => {},
     setTranslatorAccessError: (value: string | null) => errors.push(value),
     setPreferences: (value: object) => preferences.push(value),
@@ -75,8 +84,33 @@ function harness(role: 'translator' | 'scripture_council') {
     changes,
     errors,
     preferences,
+    modalVisibility,
+    coverage,
   };
 }
+
+test('a team code that does not cover the open translation unlocks and lists what it covers', async () => {
+  const h = harness('translator');
+  const pending = h.submit();
+  h.complete({ success: true, translationIds: ['npiulb'], coversTranslation: false });
+  await pending;
+
+  assert.deepEqual(h.changes, ['translator']);
+  // The dialog stays open to say which translations the code opens and offer to switch.
+  assert.deepEqual(h.coverage.at(-1), ['npiulb']);
+  assert.ok(!h.modalVisibility.includes(false));
+});
+
+test('a code that covers the open translation closes the dialog as before', async () => {
+  const h = harness('translator');
+  const pending = h.submit();
+  h.complete({ success: true, translationIds: ['bsb'], coversTranslation: true });
+  await pending;
+
+  assert.deepEqual(h.changes, ['translator']);
+  assert.ok(h.modalVisibility.includes(false));
+  assert.ok(!h.coverage.some((value) => value !== null));
+});
 
 for (const role of ['translator', 'scripture_council'] as const) {
   test(`${role} changes mode only after successful validation`, async () => {

@@ -337,6 +337,11 @@ export const ar = {
     pendingCount: "{{count}} إصحاح للمراجعة",
     chapterCounts: "{{down}} للتصحيح · {{up}} للتأكيد",
     openLabel: "فتح {{reference}}",
+    notCoveredTitle: "رمز الدخول الخاص بك لا يشمل {{translation}}",
+    notCoveredBody: "يفتح هذا الرمز الملاحظات الخاصة بهذه الترجمات:",
+    notCoveredNone: "لا يفتح هذا الرمز أي ترجمة بعد. اطلب من الشخص الذي أعطاك الرمز أن يتحقق منه.",
+    switchTo: "التبديل إلى {{translation}}",
+    switchNeedsDownload: "نزّل {{translation}} من قائمة الترجمات أولًا، ثم حاول مجددًا.",
   },
   myFeedback: {
     title: "ملاحظاتي",

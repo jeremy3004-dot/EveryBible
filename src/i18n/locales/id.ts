@@ -329,6 +329,11 @@ export const id = {
     pendingCount: "{{count}} pasal perlu ditinjau",
     chapterCounts: "{{down}} perlu diperbaiki · {{up}} perlu dikonfirmasi",
     openLabel: "Buka {{reference}}",
+    notCoveredTitle: "Kode akses Anda tidak mencakup {{translation}}",
+    notCoveredBody: "Kode ini membuka masukan untuk terjemahan berikut:",
+    notCoveredNone: "Kode ini belum membuka terjemahan apa pun. Minta orang yang memberi Anda kode untuk memeriksanya.",
+    switchTo: "Beralih ke {{translation}}",
+    switchNeedsDownload: "Unduh {{translation}} dari daftar terjemahan terlebih dahulu, lalu coba lagi.",
   },
   myFeedback: {
     title: "Masukan saya",

@@ -53,6 +53,11 @@ export const bn = {
     pendingCount: "পর্যালোচনার জন্য {{count}}টি অধ্যায়",
     chapterCounts: "{{down}}টি সংশোধন করতে হবে · {{up}}টি নিশ্চিত করতে হবে",
     openLabel: "{{reference}} খুলুন",
+    notCoveredTitle: "আপনার প্রবেশ কোডে {{translation}} অন্তর্ভুক্ত নেই",
+    notCoveredBody: "এই কোড দিয়ে এই অনুবাদগুলোর মতামত খোলা যায়:",
+    notCoveredNone: "এই কোড দিয়ে এখনো কোনো অনুবাদ খোলা যায় না। যিনি কোডটি দিয়েছেন তাঁকে যাচাই করতে বলুন।",
+    switchTo: "{{translation}}-এ যান",
+    switchNeedsDownload: "আগে অনুবাদের তালিকা থেকে {{translation}} ডাউনলোড করুন, তারপর আবার চেষ্টা করুন।",
   },
   myFeedback: {
     title: "আমার মতামত",

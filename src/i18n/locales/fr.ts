@@ -331,6 +331,11 @@ export const fr = {
     pendingCount: "Chapitres à examiner : {{count}}",
     chapterCounts: "{{down}} à corriger · {{up}} à confirmer",
     openLabel: "Ouvrir {{reference}}",
+    notCoveredTitle: "Votre code d’accès ne couvre pas {{translation}}",
+    notCoveredBody: "Il donne accès aux retours de ces traductions :",
+    notCoveredNone: "Il ne donne encore accès à aucune traduction. Demandez à la personne qui vous l’a donné de le vérifier.",
+    switchTo: "Passer à {{translation}}",
+    switchNeedsDownload: "Téléchargez d’abord {{translation}} depuis la liste des traductions, puis réessayez.",
   },
   myFeedback: {
     title: "Mes retours",

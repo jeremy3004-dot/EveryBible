@@ -92,7 +92,21 @@ export interface ChapterFeedbackReviewSummaryInput {
   passcode: string;
 }
 
-export interface ChapterFeedbackReviewResponse {
+// A team passcode opens only its own translations. The review endpoint answers a request for
+// any other translation with 403 and this code (it is not a wrong guess and never locks out).
+export const TRANSLATION_NOT_COVERED = 'translation_not_covered';
+
+/**
+ * Present on a failed read when the passcode does not cover the requested translation.
+ * `coveredTranslationIds` lists the translations the code does open; it is absent when that
+ * list could not be fetched (for example, offline).
+ */
+export interface TranslatorCoverageFailure {
+  code?: typeof TRANSLATION_NOT_COVERED;
+  coveredTranslationIds?: string[];
+}
+
+export interface ChapterFeedbackReviewResponse extends TranslatorCoverageFailure {
   nextCursor?: FeedbackPageCursor | null;
   summary?: TranslatorFeedbackChapterSummary | null;
   positiveCount?: number;
@@ -101,7 +115,7 @@ export interface ChapterFeedbackReviewResponse {
   error?: string;
 }
 
-export interface ChapterFeedbackReviewSummaryResponse {
+export interface ChapterFeedbackReviewSummaryResponse extends TranslatorCoverageFailure {
   success: boolean;
   chapters: TranslatorFeedbackChapterSummary[];
   error?: string;
@@ -110,6 +124,10 @@ export interface ChapterFeedbackReviewSummaryResponse {
 export interface TranslatorReviewPasscodeValidationResponse {
   success: boolean;
   error?: string;
+  /** Translations the code opens (team passcodes, September 2026 servers onward). */
+  translationIds?: string[];
+  /** Whether the code opens the translation named in the request, when one was named. */
+  coversTranslation?: boolean;
 }
 
 type ChapterFeedbackReviewResolveBody = {
@@ -149,17 +167,22 @@ interface ChapterFeedbackReviewFunctionClient {
   }>;
 }
 
-async function readEdgeFunctionErrorMessage(
-  error: { message?: string; context?: { json?: () => Promise<unknown> } },
+type EdgeFunctionError = { message?: string; context?: { json?: () => Promise<unknown> } };
+
+async function readEdgeFunctionError(
+  error: EdgeFunctionError,
   fallback: string
-): Promise<string> {
+): Promise<{ message: string; code?: string }> {
+  let code: string | undefined;
   try {
     const body = await error.context?.json?.();
 
-    if (body && typeof body === 'object' && 'error' in body) {
+    if (body && typeof body === 'object') {
+      const bodyCode = (body as { code?: unknown }).code;
+      if (typeof bodyCode === 'string' && bodyCode) code = bodyCode;
       const bodyError = (body as { error?: unknown }).error;
       if (typeof bodyError === 'string' && bodyError.trim()) {
-        return bodyError;
+        return { message: bodyError, code };
       }
     }
   } catch {
@@ -167,10 +190,45 @@ async function readEdgeFunctionErrorMessage(
   }
 
   if (!error.message?.trim() || error.message === 'Edge Function returned a non-2xx status code') {
-    return fallback;
+    return { message: fallback, code };
   }
 
-  return error.message;
+  return { message: error.message, code };
+}
+
+async function readEdgeFunctionErrorMessage(
+  error: EdgeFunctionError,
+  fallback: string
+): Promise<string> {
+  return (await readEdgeFunctionError(error, fallback)).message;
+}
+
+function readTranslationIds(value: unknown): string[] | undefined {
+  return Array.isArray(value)
+    ? value.filter((id): id is string => typeof id === 'string' && id.length > 0)
+    : undefined;
+}
+
+// A read refused with translation_not_covered carries no scope, so ask the unlock check (which
+// returns the code's translations and never counts as a wrong guess) what the code does open.
+async function describeReadFailure(
+  error: EdgeFunctionError,
+  fallback: string,
+  passcode: string,
+  translationId: string,
+  client: ChapterFeedbackReviewFunctionClient
+): Promise<{ error: string } & TranslatorCoverageFailure> {
+  const { message, code } = await readEdgeFunctionError(error, fallback);
+  if (code !== TRANSLATION_NOT_COVERED) return { error: message };
+
+  const scope = await validateTranslatorReviewPasscode(passcode, translationId, client);
+  return {
+    error: message,
+    code: TRANSLATION_NOT_COVERED,
+    ...(scope.success && scope.translationIds
+      ? { coveredTranslationIds: scope.translationIds }
+      : {}),
+  };
 }
 
 async function resolveDefaultClient(): Promise<ChapterFeedbackReviewFunctionClient | null> {
@@ -224,9 +282,19 @@ export async function validateTranslatorReviewPasscode(
       };
     }
 
-    return data && 'success' in data
-      ? { success: data.success, error: data.error }
-      : { success: false, error: 'Unable to verify translator access.' };
+    if (!data || !('success' in data)) {
+      return { success: false, error: 'Unable to verify translator access.' };
+    }
+    const validation = data as TranslatorReviewPasscodeValidationResponse;
+    const translationIds = readTranslationIds(validation.translationIds);
+    return {
+      success: validation.success,
+      error: validation.error,
+      ...(translationIds ? { translationIds } : {}),
+      ...(typeof validation.coversTranslation === 'boolean'
+        ? { coversTranslation: validation.coversTranslation }
+        : {}),
+    };
   } catch (error) {
     return {
       success: false,
@@ -275,10 +343,13 @@ export async function fetchChapterFeedbackForTranslatorReview(
       return {
         success: false,
         feedback: [],
-        error: await readEdgeFunctionErrorMessage(
+        ...(await describeReadFailure(
           error,
-          'Unable to load translator feedback right now.'
-        ),
+          'Unable to load translator feedback right now.',
+          passcode,
+          input.translationId,
+          resolvedClient
+        )),
       };
     }
 
@@ -329,10 +400,13 @@ export async function fetchChapterFeedbackReviewSummaryForTranslation(
       return {
         success: false,
         chapters: [],
-        error: await readEdgeFunctionErrorMessage(
+        ...(await describeReadFailure(
           error,
-          'Unable to load translator feedback right now.'
-        ),
+          'Unable to load translator feedback right now.',
+          passcode,
+          input.translationId,
+          resolvedClient
+        )),
       };
     }
 

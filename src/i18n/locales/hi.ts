@@ -53,6 +53,11 @@ export const hi = {
     pendingCount: "समीक्षा के लिए {{count}} अध्याय",
     chapterCounts: "{{down}} में सुधार चाहिए · {{up}} की पुष्टि चाहिए",
     openLabel: "{{reference}} खोलें",
+    notCoveredTitle: "आपके प्रवेश कोड में {{translation}} शामिल नहीं है",
+    notCoveredBody: "यह कोड इन अनुवादों की प्रतिक्रियाएँ खोलता है:",
+    notCoveredNone: "यह कोड अभी कोई अनुवाद नहीं खोलता। जिसने आपको कोड दिया है, उनसे इसे जाँचने को कहें।",
+    switchTo: "{{translation}} पर जाएँ",
+    switchNeedsDownload: "पहले अनुवादों की सूची से {{translation}} डाउनलोड करें, फिर दोबारा कोशिश करें।",
   },
   myFeedback: {
     title: "मेरी प्रतिक्रियाएँ",

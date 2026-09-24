@@ -10,6 +10,7 @@ import {
   markTranslatorFeedbackListened,
   normalizeTranslatorReviewPasscode,
   resolveDevelopmentTranslatorReviewPasscode,
+  resolveTranslatorCoverageOptions,
   sortTranslatorFeedbackQueue,
   type TranslatorFeedbackChapterSummary,
 } from './translatorFeedbackReviewModel';
@@ -36,6 +37,24 @@ test('the access keypad only ever appends a single digit', () => {
   assert.equal(appendAccessPasscodeDigit('12', '34'), '12');
   assert.equal(appendAccessPasscodeDigit('12', ''), '12');
   assert.equal(appendAccessPasscodeDigit('12', '٣'), '12');
+});
+
+test('covered translations are offered by their reader names, in the order the code lists them', () => {
+  const translations = [
+    { id: 'bsb', name: 'Berean Standard Bible' },
+    { id: 'npiulb', name: 'Nepali ULB' },
+  ];
+
+  assert.deepEqual(
+    resolveTranslatorCoverageOptions(['npi-audio', 'npiulb', 'npiulb', 'bsb'], translations, 'bsb'),
+    [
+      // Not in this device's translation list: shown by id so the translator can still tell
+      // their team leader which one it is.
+      { id: 'npi-audio', label: 'npi-audio' },
+      { id: 'npiulb', label: 'Nepali ULB' },
+    ]
+  );
+  assert.deepEqual(resolveTranslatorCoverageOptions([], translations, 'bsb'), []);
 });
 
 test('translator review passcodes are normalized without validating the secret client-side', () => {

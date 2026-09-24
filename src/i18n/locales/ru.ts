@@ -333,6 +333,11 @@ export const ru = {
     pendingCount: "Глав для проверки: {{count}}",
     chapterCounts: "Исправить: {{down}} · Подтвердить: {{up}}",
     openLabel: "Открыть {{reference}}",
+    notCoveredTitle: "Ваш код доступа не распространяется на {{translation}}",
+    notCoveredBody: "Он открывает отзывы для этих переводов:",
+    notCoveredNone: "Этот код пока не открывает ни одного перевода. Попросите того, кто дал вам код, проверить его.",
+    switchTo: "Перейти на {{translation}}",
+    switchNeedsDownload: "Сначала скачайте {{translation}} из списка переводов, затем попробуйте снова.",
   },
   myFeedback: {
     title: "Мои отзывы",

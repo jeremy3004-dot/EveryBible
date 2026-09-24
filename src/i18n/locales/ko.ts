@@ -329,6 +329,11 @@ export const ko = {
     pendingCount: "검토할 장 {{count}}개",
     chapterCounts: "수정할 항목 {{down}}개 · 확인할 항목 {{up}}개",
     openLabel: "{{reference}} 열기",
+    notCoveredTitle: "이 접근 코드로는 {{translation}}을(를) 볼 수 없습니다",
+    notCoveredBody: "이 코드로 다음 번역의 피드백을 볼 수 있습니다:",
+    notCoveredNone: "이 코드로 열 수 있는 번역이 아직 없습니다. 코드를 준 사람에게 확인을 요청하세요.",
+    switchTo: "{{translation}}(으)로 전환",
+    switchNeedsDownload: "먼저 번역 목록에서 {{translation}}을(를) 다운로드한 후 다시 시도하세요.",
   },
   myFeedback: {
     title: "내 피드백",

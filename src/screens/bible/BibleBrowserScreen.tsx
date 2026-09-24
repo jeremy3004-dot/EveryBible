@@ -43,6 +43,7 @@ import {
   fetchChapterFeedbackReviewSummaryForTranslation,
   getTranslatorFeedbackBookSummaryStatus,
   getTranslatorFeedbackChapterSummaryStatus,
+  TRANSLATION_NOT_COVERED,
   type TranslatorFeedbackAggregateStatus,
   type TranslatorFeedbackChapterSummary,
 } from '../../services/feedback';
@@ -55,6 +56,7 @@ import { layout, radius, spacing, typography } from '../../design/system';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { BookIcon } from '../../components/bible/BookIcon';
 import { VersesSkeleton } from '../../components/skeleton/VersesSkeleton';
+import { TranslationNotCoveredNotice } from '../../components/feedback/TranslationNotCoveredNotice';
 
 type NavigationProp = NativeStackNavigationProp<BibleStackParamList>;
 type BibleBrowserRoute =
@@ -104,6 +106,10 @@ export function BibleBrowserScreen() {
   >([]);
   const [isLoadingTranslatorSummary, setIsLoadingTranslatorSummary] = useState(false);
   const [translatorSummaryError, setTranslatorSummaryError] = useState<string | null>(null);
+  // Set when this passcode does not open the current translation; holds what it does open.
+  const [translatorNotCovered, setTranslatorNotCovered] = useState<{
+    coveredTranslationIds?: string[];
+  } | null>(null);
   const searchRequestIdRef = useRef(0);
   const translatorFeedbackSummaryRequestIdRef = useRef(0);
   const searchInputRef = useRef<TextInputType | null>(null);
@@ -279,6 +285,7 @@ export function BibleBrowserScreen() {
       translatorFeedbackSummaryRequestIdRef.current += 1;
       setTranslatorFeedbackSummaries([]);
       setTranslatorSummaryError(null);
+      setTranslatorNotCovered(null);
       setIsLoadingTranslatorSummary(false);
       return;
     }
@@ -287,6 +294,7 @@ export function BibleBrowserScreen() {
     translatorFeedbackSummaryRequestIdRef.current = requestId;
     setIsLoadingTranslatorSummary(true);
     setTranslatorSummaryError(null);
+    setTranslatorNotCovered(null);
 
     const result = await fetchChapterFeedbackReviewSummaryForTranslation({
       translationId: currentTranslation,
@@ -302,6 +310,11 @@ export function BibleBrowserScreen() {
     if (!result.success) {
       setTranslatorFeedbackSummaries([]);
       setTranslatorSummaryError(t('common.unexpectedError'));
+      setTranslatorNotCovered(
+        result.code === TRANSLATION_NOT_COVERED
+          ? { coveredTranslationIds: result.coveredTranslationIds }
+          : null
+      );
       return;
     }
 
@@ -438,6 +451,27 @@ export function BibleBrowserScreen() {
           <Text style={[styles.translatorSummaryBannerText, { color: colors.bibleSecondaryText }]}>
             {t('bible.translatorReviewLoading')}
           </Text>
+        </View>
+      );
+    }
+
+    if (translatorNotCovered) {
+      return (
+        <View
+          style={[
+            styles.translatorSummaryErrorCard,
+            styles.translatorNotCoveredCard,
+            { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
+          ]}
+        >
+          <TranslationNotCoveredNotice
+            tone="reader"
+            translationId={currentTranslation}
+            coveredTranslationIds={translatorNotCovered.coveredTranslationIds}
+            onRetry={() => {
+              void loadTranslatorFeedbackSummaries();
+            }}
+          />
         </View>
       );
     }
@@ -833,6 +867,7 @@ export function BibleBrowserScreen() {
             translatorReviewEnabled,
             isLoadingTranslatorSummary,
             translatorSummaryError,
+            translatorNotCovered,
           }}
         />
       )}
@@ -1038,6 +1073,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: radius.lg,
     padding: spacing.md,
+  },
+  translatorNotCoveredCard: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
   },
   translatorSummaryRetryText: {
     ...typography.label,

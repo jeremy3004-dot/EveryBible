@@ -329,6 +329,11 @@ export const vi = {
     pendingCount: "{{count}} chương cần xem xét",
     chapterCounts: "{{down}} cần sửa · {{up}} cần xác nhận",
     openLabel: "Mở {{reference}}",
+    notCoveredTitle: "Mã truy cập của bạn không bao gồm {{translation}}",
+    notCoveredBody: "Mã này mở phản hồi cho các bản dịch sau:",
+    notCoveredNone: "Mã này chưa mở được bản dịch nào. Hãy nhờ người đã đưa mã cho bạn kiểm tra lại.",
+    switchTo: "Chuyển sang {{translation}}",
+    switchNeedsDownload: "Hãy tải {{translation}} từ danh sách bản dịch trước, rồi thử lại.",
   },
   myFeedback: {
     title: "Phản hồi của tôi",

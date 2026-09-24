@@ -329,6 +329,11 @@ export const ja = {
     pendingCount: "確認が必要な章：{{count}}章",
     chapterCounts: "修正待ち {{down}}件 · 確認待ち {{up}}件",
     openLabel: "{{reference}}を開く",
+    notCoveredTitle: "このアクセスコードでは{{translation}}を確認できません",
+    notCoveredBody: "このコードで確認できる翻訳は次のとおりです：",
+    notCoveredNone: "このコードで確認できる翻訳はまだありません。コードを受け取った相手に確認を依頼してください。",
+    switchTo: "{{translation}}に切り替える",
+    switchNeedsDownload: "先に翻訳の一覧から{{translation}}をダウンロードしてから、もう一度お試しください。",
   },
   myFeedback: {
     title: "自分のフィードバック",

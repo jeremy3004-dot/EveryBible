@@ -53,6 +53,11 @@ export const te = {
     pendingCount: "సమీక్షించాల్సిన అధ్యాయాలు: {{count}}",
     chapterCounts: "{{down}} సరిచేయాలి · {{up}} నిర్ధారించాలి",
     openLabel: "{{reference}} తెరవండి",
+    notCoveredTitle: "మీ ప్రవేశ కోడ్‌లో {{translation}} లేదు",
+    notCoveredBody: "ఈ కోడ్ ఈ అనువాదాల అభిప్రాయాలను తెరుస్తుంది:",
+    notCoveredNone: "ఈ కోడ్ ఇంకా ఏ అనువాదాన్నీ తెరవదు. కోడ్ ఇచ్చిన వారిని దాన్ని తనిఖీ చేయమని అడగండి.",
+    switchTo: "{{translation}}కి మారండి",
+    switchNeedsDownload: "ముందుగా అనువాదాల జాబితా నుండి {{translation}}ని డౌన్‌లోడ్ చేసి, ఆపై మళ్లీ ప్రయత్నించండి.",
   },
   myFeedback: {
     title: "నా అభిప్రాయాలు",

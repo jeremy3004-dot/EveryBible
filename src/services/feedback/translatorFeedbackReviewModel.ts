@@ -48,6 +48,27 @@ export function appendAccessPasscodeDigit(current: string, digit: string): strin
   return `${current}${digit}`.slice(0, ACCESS_PASSCODE_MAX_DIGITS);
 }
 
+export interface TranslatorCoverageOption {
+  id: string;
+  label: string;
+}
+
+// The translations a team passcode opens, named the way the reader names them. Ids unknown to
+// this device keep the raw id rather than disappearing, so the translator can still report it.
+export function resolveTranslatorCoverageOptions(
+  coveredTranslationIds: readonly string[],
+  translations: ReadonlyArray<{ id: string; name: string }>,
+  currentTranslation: string
+): TranslatorCoverageOption[] {
+  const options: TranslatorCoverageOption[] = [];
+  for (const id of coveredTranslationIds) {
+    if (id === currentTranslation || options.some((option) => option.id === id)) continue;
+    const name = translations.find((translation) => translation.id === id)?.name.trim();
+    options.push({ id, label: name || id });
+  }
+  return options;
+}
+
 export function normalizeTranslatorReviewPasscode(passcode: string): string | null {
   const trimmed = passcode.trim();
   return trimmed.length > 0 ? trimmed : null;

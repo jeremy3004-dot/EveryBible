@@ -329,6 +329,11 @@ export const de = {
     pendingCount: "{{count}} Kapitel zu prüfen",
     chapterCounts: "{{down}} zu korrigieren · {{up}} zu bestätigen",
     openLabel: "{{reference}} öffnen",
+    notCoveredTitle: "Dein Zugangscode gilt nicht für {{translation}}",
+    notCoveredBody: "Er öffnet Rückmeldungen zu diesen Übersetzungen:",
+    notCoveredNone: "Er öffnet noch keine Übersetzung. Bitte die Person, die dir den Code gegeben hat, ihn zu prüfen.",
+    switchTo: "Zu {{translation}} wechseln",
+    switchNeedsDownload: "Lade {{translation}} zuerst aus der Übersetzungsliste herunter und versuche es dann erneut.",
   },
   myFeedback: {
     title: "Meine Rückmeldungen",

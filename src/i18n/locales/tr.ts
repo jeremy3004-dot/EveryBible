@@ -329,6 +329,11 @@ export const tr = {
     pendingCount: "İncelenecek {{count}} bölüm",
     chapterCounts: "Düzeltilecek: {{down}} · Onaylanacak: {{up}}",
     openLabel: "Aç: {{reference}}",
+    notCoveredTitle: "Erişim kodunuz {{translation}} çevirisini kapsamıyor",
+    notCoveredBody: "Bu kod şu çevirilerin geri bildirimlerini açar:",
+    notCoveredNone: "Bu kod henüz hiçbir çeviriyi açmıyor. Kodu size veren kişiden kontrol etmesini isteyin.",
+    switchTo: "{{translation}} çevirisine geç",
+    switchNeedsDownload: "Önce çeviri listesinden {{translation}} çevirisini indirin, ardından tekrar deneyin.",
   },
   myFeedback: {
     title: "Geri bildirimlerim",

@@ -20,8 +20,10 @@ import {
   fetchChapterFeedbackReviewSummaryForTranslation,
   getTranslatorFeedbackUnresolvedCount,
   sortTranslatorFeedbackQueue,
+  TRANSLATION_NOT_COVERED,
   type TranslatorFeedbackChapterSummary,
 } from '../../services/feedback';
+import { TranslationNotCoveredNotice } from '../../components/feedback';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useTranslatorReviewStore } from '../../stores/translatorReviewStore';
 import { hexWithAlpha } from '../../utils';
@@ -42,6 +44,8 @@ export function TranslatorReviewQueueScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState(false);
+  // Set when this passcode does not open the current translation; holds what it does open.
+  const [notCovered, setNotCovered] = useState<{ coveredTranslationIds?: string[] } | null>(null);
 
   const loadQueueRequestIdRef = useRef(0);
 
@@ -50,6 +54,7 @@ export function TranslatorReviewQueueScreen() {
       loadQueueRequestIdRef.current += 1;
       setQueue([]);
       setLoadError(false);
+      setNotCovered(null);
       setLoading(false);
       return;
     }
@@ -69,8 +74,15 @@ export function TranslatorReviewQueueScreen() {
     if (result.success) {
       setQueue(sortTranslatorFeedbackQueue(result.chapters));
       setLoadError(false);
+      setNotCovered(null);
     } else {
+      setQueue([]);
       setLoadError(true);
+      setNotCovered(
+        result.code === TRANSLATION_NOT_COVERED
+          ? { coveredTranslationIds: result.coveredTranslationIds }
+          : null
+      );
     }
     setLoading(false);
   }, [currentTranslation, translatorReviewEnabled, translatorReviewPasscode]);
@@ -151,6 +163,21 @@ export function TranslatorReviewQueueScreen() {
       return (
         <View style={styles.emptyState}>
           <ActivityIndicator size="large" color={colors.accentPrimary} />
+        </View>
+      );
+    }
+
+    if (notCovered) {
+      // Switching the reader's translation changes loadQueue, so the focus effect reloads.
+      return (
+        <View style={styles.notCovered}>
+          <TranslationNotCoveredNotice
+            translationId={currentTranslation}
+            coveredTranslationIds={notCovered.coveredTranslationIds}
+            onRetry={() => {
+              void loadQueue();
+            }}
+          />
         </View>
       );
     }
@@ -300,6 +327,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingTop: spacing.xxxl * 2,
     gap: spacing.md,
+  },
+  notCovered: {
+    paddingTop: spacing.xl,
   },
   emptyText: {
     ...typography.body,

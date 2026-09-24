@@ -329,6 +329,11 @@ export const zh = {
     pendingCount: "{{count}} 章待审核",
     chapterCounts: "{{down}} 项待修正 · {{up}} 项待确认",
     openLabel: "打开 {{reference}}",
+    notCoveredTitle: "你的访问码不包括{{translation}}",
+    notCoveredBody: "这个访问码可以查看以下译本的反馈：",
+    notCoveredNone: "这个访问码目前还不能查看任何译本。请让给你访问码的人核实一下。",
+    switchTo: "切换到{{translation}}",
+    switchNeedsDownload: "请先从译本列表下载{{translation}}，然后再试一次。",
   },
   myFeedback: {
     title: "我的反馈",

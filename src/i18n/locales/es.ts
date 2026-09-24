@@ -332,6 +332,11 @@ export const es = {
     pendingCount: "Capítulos por revisar: {{count}}",
     chapterCounts: "{{down}} por corregir · {{up}} por confirmar",
     openLabel: "Abrir {{reference}}",
+    notCoveredTitle: "Tu código de acceso no incluye {{translation}}",
+    notCoveredBody: "Abre los comentarios de estas traducciones:",
+    notCoveredNone: "Todavía no abre ninguna traducción. Pide a quien te dio el código que lo revise.",
+    switchTo: "Cambiar a {{translation}}",
+    switchNeedsDownload: "Primero descarga {{translation}} desde la lista de traducciones y vuelve a intentarlo.",
   },
   myFeedback: {
     title: "Mis comentarios",

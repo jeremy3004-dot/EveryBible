@@ -329,6 +329,11 @@ export const ur = {
     pendingCount: "جائزے کے لیے {{count}} باب باقی",
     chapterCounts: "{{down}} درست کرنے کے لیے · {{up}} تصدیق کے لیے",
     openLabel: "{{reference}} کھولیں",
+    notCoveredTitle: "آپ کے رسائی کوڈ میں {{translation}} شامل نہیں ہے",
+    notCoveredBody: "یہ کوڈ ان تراجم کی آراء کھولتا ہے:",
+    notCoveredNone: "یہ کوڈ ابھی کوئی ترجمہ نہیں کھولتا۔ جس نے آپ کو کوڈ دیا ہے اس سے اسے جانچنے کو کہیں۔",
+    switchTo: "{{translation}} پر جائیں",
+    switchNeedsDownload: "پہلے تراجم کی فہرست سے {{translation}} ڈاؤن لوڈ کریں، پھر دوبارہ کوشش کریں۔",
   },
   myFeedback: {
     title: "میری آراء",

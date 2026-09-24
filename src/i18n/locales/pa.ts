@@ -53,6 +53,11 @@ export const pa = {
     pendingCount: "ਸਮੀਖਿਆ ਲਈ {{count}} ਅਧਿਆਇ",
     chapterCounts: "ਸੋਧਣੇ: {{down}} · ਪੁਸ਼ਟੀ ਕਰਨੀ: {{up}}",
     openLabel: "{{reference}} ਖੋਲ੍ਹੋ",
+    notCoveredTitle: "ਤੁਹਾਡੇ ਪ੍ਰਵੇਸ਼ ਕੋਡ ਵਿੱਚ {{translation}} ਸ਼ਾਮਲ ਨਹੀਂ ਹੈ",
+    notCoveredBody: "ਇਹ ਕੋਡ ਇਨ੍ਹਾਂ ਅਨੁਵਾਦਾਂ ਦੀਆਂ ਰਾਵਾਂ ਖੋਲ੍ਹਦਾ ਹੈ:",
+    notCoveredNone: "ਇਹ ਕੋਡ ਅਜੇ ਕੋਈ ਅਨੁਵਾਦ ਨਹੀਂ ਖੋਲ੍ਹਦਾ। ਜਿਸ ਨੇ ਤੁਹਾਨੂੰ ਕੋਡ ਦਿੱਤਾ ਹੈ, ਉਸ ਨੂੰ ਇਸ ਦੀ ਜਾਂਚ ਕਰਨ ਲਈ ਕਹੋ।",
+    switchTo: "{{translation}} ’ਤੇ ਜਾਓ",
+    switchNeedsDownload: "ਪਹਿਲਾਂ ਅਨੁਵਾਦਾਂ ਦੀ ਸੂਚੀ ਤੋਂ {{translation}} ਡਾਊਨਲੋਡ ਕਰੋ, ਫਿਰ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
   },
   myFeedback: {
     title: "ਮੇਰੀਆਂ ਰਾਵਾਂ",
