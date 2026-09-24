@@ -16,12 +16,8 @@ test('SettingsScreen places translator access directly after chapter feedback', 
 test('SettingsScreen unlocks translator review mode through a numeric passcode modal', () => {
   assert.match(source, /showTranslatorAccessModal/);
   assert.match(source, /keyboardType="number-pad"/);
-  assert.match(
-    source,
-    /validateTranslatorReviewPasscode\(\s*translatorAccessPasscode,\s*currentTranslation\s*\)/
-  );
-  assert.match(source, /enableTranslatorReviewMode\(translatorAccessPasscode\)/);
-  assert.match(source, /feedback\.incorrectCode/);
+  // Validating against the current translation, enabling with the entered code and the
+  // incorrect-code message are covered behaviourally in participationAccess.test.ts.
 });
 
 test('SettingsScreen lets translators toggle review mode off and requires passcode to turn it back on', () => {
