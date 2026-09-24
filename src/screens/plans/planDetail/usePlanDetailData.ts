@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import {
   getPlanEntries,
@@ -72,15 +71,4 @@ export function usePlanDetailData(planId: string) {
   }, [load]);
 
   return { plan, entries, relatedPlans, loading, error, load };
-}
-
-/** Today's date, refreshed whenever the screen regains focus (a plan left open overnight). */
-export function useFocusedToday(): Date {
-  const [today, setToday] = useState(() => new Date());
-  useFocusEffect(
-    useCallback(() => {
-      setToday(new Date());
-    }, [])
-  );
-  return today;
 }
