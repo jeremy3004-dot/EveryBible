@@ -4,18 +4,26 @@
 // minification on runs R8 out of memory at 2 GB. eas.json's production profile
 // passes GRADLE_OPTS for EAS builds, but a plain `./gradlew assembleRelease`
 // only sees gradle.properties, so the heap is raised there.
+//
+// The metaspace cap is raised too. Lint and KSP run as workers inside the Gradle
+// daemon, and on a release build they exhausted the template's 512 MB metaspace
+// ("OutOfMemoryError: Metaspace"). EAS never hit this: its GRADLE_OPTS replaces the
+// whole jvmargs line, so EAS builds run with no metaspace cap at all.
 
 const { withGradleProperties } = require('expo/config-plugins');
 
 const JVM_ARGS_KEY = 'org.gradle.jvmargs';
 const GRADLE_JVM_HEAP = '-Xmx4096m';
-// Gradle's own fallback metaspace (384m) is lower than the Expo template's, so a
-// jvmargs line created from scratch keeps the template value.
-const DEFAULT_JVM_ARGS = `${GRADLE_JVM_HEAP} -XX:MaxMetaspaceSize=512m`;
+const GRADLE_JVM_METASPACE = '-XX:MaxMetaspaceSize=1024m';
+const DEFAULT_JVM_ARGS = `${GRADLE_JVM_HEAP} ${GRADLE_JVM_METASPACE}`;
 
 const withHeap = (jvmArgs) => {
-  const otherArgs = jvmArgs.split(/\s+/).filter((arg) => arg !== '' && !arg.startsWith('-Xmx'));
-  return [GRADLE_JVM_HEAP, ...otherArgs].join(' ');
+  const otherArgs = jvmArgs
+    .split(/\s+/)
+    .filter(
+      (arg) => arg !== '' && !arg.startsWith('-Xmx') && !arg.startsWith('-XX:MaxMetaspaceSize=')
+    );
+  return [GRADLE_JVM_HEAP, GRADLE_JVM_METASPACE, ...otherArgs].join(' ');
 };
 
 const applyGradleJvmHeap = (properties) => {
@@ -42,4 +50,5 @@ const withGradleJvmHeap = (config) =>
 
 module.exports = withGradleJvmHeap;
 module.exports.GRADLE_JVM_HEAP = GRADLE_JVM_HEAP;
+module.exports.GRADLE_JVM_METASPACE = GRADLE_JVM_METASPACE;
 module.exports.applyGradleJvmHeap = applyGradleJvmHeap;
