@@ -399,13 +399,18 @@ function OnboardingHost() {
 export default function App() {
   return (
     <GestureHandlerRootView style={styles.gestureRoot}>
-      <I18nextProvider i18n={i18n}>
-        <SafeAreaProvider>
-          <ThemeProvider>
-            <AppContent />
-          </ThemeProvider>
-        </SafeAreaProvider>
-      </I18nextProvider>
+      {/* Last-resort boundary: a throw in a provider or in AppContent's own hooks
+          and effects (deep links, push registration, session analytics) had no
+          boundary and was a fatal crash. Its fallback needs neither provider. */}
+      <ErrorBoundary scope="root">
+        <I18nextProvider i18n={i18n}>
+          <SafeAreaProvider>
+            <ThemeProvider>
+              <AppContent />
+            </ThemeProvider>
+          </SafeAreaProvider>
+        </I18nextProvider>
+      </ErrorBoundary>
     </GestureHandlerRootView>
   );
 }
