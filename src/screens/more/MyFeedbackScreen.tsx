@@ -19,6 +19,7 @@ import { getTranslatedBookName } from '../../constants';
 import { fetchMyChapterFeedback, type MyChapterFeedbackItem } from '../../services/feedback';
 import { useAuthStore } from '../../stores/authStore';
 import { hexWithAlpha } from '../../utils';
+import { isDeviceOffline } from '../../utils/connectivity';
 import type { MoreStackParamList } from '../../navigation/types';
 
 type NavigationProp = NativeStackNavigationProp<MoreStackParamList, 'MyFeedback'>;
@@ -34,6 +35,8 @@ export function MyFeedbackScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState(false);
+  // This list lives only on the server, so offline it cannot load; say why.
+  const [offline, setOffline] = useState(false);
 
   const loadFeedback = useCallback(async () => {
     if (!isAuthenticated) {
@@ -48,6 +51,7 @@ export function MyFeedbackScreen() {
       setItems(result.feedback);
       setLoadError(false);
     } else {
+      setOffline(await isDeviceOffline());
       setLoadError(true);
     }
     setLoading(false);
@@ -180,7 +184,7 @@ export function MyFeedbackScreen() {
             color={hexWithAlpha(colors.secondaryText, 0.6)}
           />
           <Text style={[styles.emptyText, { color: colors.secondaryText }]}>
-            {t('common.somethingWentWrong')}
+            {offline ? t('common.offlineTryAgain') : t('common.somethingWentWrong')}
           </Text>
           <TouchableOpacity
             style={[styles.retryButton, { borderColor: colors.cardBorder }]}
