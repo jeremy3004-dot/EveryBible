@@ -6,7 +6,6 @@ import {
   FlatList,
   Image,
   type ColorValue,
-  type LayoutChangeEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   StyleSheet,
@@ -82,6 +81,7 @@ import {
   isPlanDetailCompactHeaderVisible,
 } from './planDetailHeaderModel';
 import { formatPlanProgressTally } from './planProgressTally';
+import { getPlanLedgerGridRows } from './planLedgerGridModel';
 import { lightHaptic, successHaptic } from '../../utils';
 
 // ---------------------------------------------------------------------------
@@ -313,21 +313,11 @@ const coverImageStyles = StyleSheet.create({
 function LedgerCells({ states }: { states: ReadingPlanLedgerDayState[] }) {
   const { colors } = useTheme();
   const reduceMotion = useReducedMotion();
-  const [innerWidth, setInnerWidth] = useState(0);
 
-  const handleLayout = useCallback((event: LayoutChangeEvent) => {
-    setInnerWidth(event.nativeEvent.layout.width);
-  }, []);
-
-  // Measured, never hardcoded: the grid has to divide whatever width the card's
-  // padding leaves it, on every device size.
-  const cellSize =
-    innerWidth > 0
-      ? Math.max(
-          6,
-          Math.floor((innerWidth - LEDGER_CELL_GAP * (LEDGER_COLUMNS - 1)) / LEDGER_COLUMNS)
-        )
-      : 0;
+  // Full rows of flex squares, never a measured cell size: measuring the card
+  // first meant its first frame had no grid, and a 365-day grid then landed a
+  // frame later ~500pt tall, shoving Today and the ledger under the reader's tap.
+  const rows = useMemo(() => getPlanLedgerGridRows(states, LEDGER_COLUMNS), [states]);
 
   const palette: Record<ReadingPlanLedgerDayState, ViewStyle> = {
     done: { backgroundColor: colors.accentPrimary },
@@ -339,39 +329,50 @@ function LedgerCells({ states }: { states: ReadingPlanLedgerDayState[] }) {
   return (
     <View
       style={cellStyles.grid}
-      onLayout={handleLayout}
       // The read/missed tally above already says this in words; the squares are
       // a picture of it, so screen readers should not walk 365 of them.
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >
-      {cellSize > 0
-        ? states.map((state, index) => (
-            <Animated.View
-              key={`${state}-${index}`}
-              entering={
-                reduceMotion
-                  ? undefined
-                  : FadeIn.duration(motion.duration.fast).delay(
-                      Math.min(index * LEDGER_DRAW_IN_STEP, LEDGER_DRAW_IN_MAX_DELAY)
-                    )
-              }
-              style={[cellStyles.cell, { width: cellSize, height: cellSize }, palette[state]]}
-            />
-          ))
-        : null}
+      {rows.map((row, rowIndex) => (
+        <View key={rowIndex} style={cellStyles.row}>
+          {row.map((state, columnIndex) => {
+            const index = rowIndex * LEDGER_COLUMNS + columnIndex;
+            if (state === null) {
+              return <View key={`empty-${index}`} style={cellStyles.cell} />;
+            }
+            return (
+              <Animated.View
+                key={`${state}-${index}`}
+                entering={
+                  reduceMotion
+                    ? undefined
+                    : FadeIn.duration(motion.duration.fast).delay(
+                        Math.min(index * LEDGER_DRAW_IN_STEP, LEDGER_DRAW_IN_MAX_DELAY)
+                      )
+                }
+                style={[cellStyles.cell, palette[state]]}
+              />
+            );
+          })}
+        </View>
+      ))}
     </View>
   );
 }
 
 const cellStyles = StyleSheet.create({
   grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: LEDGER_CELL_GAP,
     marginTop: spacing.lg,
   },
+  row: {
+    flexDirection: 'row',
+    gap: LEDGER_CELL_GAP,
+  },
   cell: {
+    flex: 1,
+    aspectRatio: 1,
     borderRadius: LEDGER_CELL_RADIUS,
   },
 });

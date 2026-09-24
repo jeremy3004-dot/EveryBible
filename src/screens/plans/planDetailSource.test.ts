@@ -222,8 +222,8 @@ test('PlanDetailScreen surfaces today target progress on the progress card', () 
   );
   assert.match(
     source,
-    /Math\.floor\(\(innerWidth - LEDGER_CELL_GAP \* \(LEDGER_COLUMNS - 1\)\) \/ LEDGER_COLUMNS\)/,
-    'PlanDetailScreen should size ledger cells from the measured card width instead of a hardcoded cell size'
+    /getPlanLedgerGridRows\(states, LEDGER_COLUMNS\)/,
+    'PlanDetailScreen should lay the cell ledger out as full flex rows so it has its height on the first frame'
   );
 });
 
