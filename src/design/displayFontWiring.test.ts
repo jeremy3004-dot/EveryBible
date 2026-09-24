@@ -99,17 +99,6 @@ test('every display-token surface merges the useDisplayFont override', () => {
   }
 });
 
-// The shared primitives are the highest-leverage case: one missing merge there is
-// tofu on every More row and every section header at once, so pin the exact slot.
-test('the shared primitives merge the override on their translated display slots', () => {
-  assert.match(
-    read('../components/ui/SectionHeader.tsx').replace(/\s+/g, ' '),
-    /typography\.eyebrow, displayFont\.regular,/,
-    "SectionHeader's eyebrow renders translated counts and must merge the fallback"
-  );
-  assert.match(
-    read('../components/ui/ListRow.tsx').replace(/\s+/g, ' '),
-    /typography\.mono, displayFont\.regular,/,
-    "ListRow's trailing value renders translated metadata and must merge the fallback"
-  );
-});
+// The shared primitives (SectionHeader eyebrow/title, ListRow value) are the
+// highest-leverage case; their fallback is rendered under a Cyrillic locale in
+// components/ui/primitives.render.test.tsx.

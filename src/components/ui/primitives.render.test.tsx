@@ -102,6 +102,51 @@ test('a pressable AppCard is a button that runs its handler', async () => {
   assert.equal(opened, 1);
 });
 
+// Alte Haas covers Latin-1 only. SectionHeader's eyebrow and title and ListRow's
+// trailing value carry translated text, so in a language the face cannot draw
+// they must drop to the platform font and its natural tracking, or every
+// section header and settings value renders as tofu.
+test('SectionHeader and ListRow fall back from the display face in a language it cannot draw', async () => {
+  const { SectionHeader } = await import('./SectionHeader');
+  const { ListRow } = await import('./ListRow');
+  const { displayFamily } = await import('../../design/fonts');
+  const surfaces = (
+    <>
+      <SectionHeader title="Планы" eyebrow="2 ПЛАНА" />
+      <ListRow title="Язык" value="Русский" onPress={() => {}} />
+    </>
+  );
+  const slots = (view: Awaited<ReturnType<typeof harness.render>>) => ({
+    title: flattenStyle(view.getByText('Планы').props.style),
+    eyebrow: flattenStyle(view.getByText('2 ПЛАНА').props.style),
+    value: flattenStyle(view.getByText('Русский').props.style),
+  });
+
+  // Each view unmounts before the language changes, so no mounted tree re-renders
+  // outside act().
+  const latinView = await harness.render(surfaces);
+  const latin = slots(latinView);
+  await latinView.unmount();
+  assert.equal(latin.title.fontFamily, displayFamily(700));
+  assert.equal(latin.eyebrow.fontFamily, displayFamily(400));
+  assert.equal(latin.value.fontFamily, displayFamily(400));
+  assert.notEqual(latin.eyebrow.letterSpacing, 0, 'Latin keeps the EL eyebrow tracking');
+
+  await harness.i18n.changeLanguage('ru');
+  try {
+    const cyrillicView = await harness.render(surfaces);
+    const cyrillic = slots(cyrillicView);
+    await cyrillicView.unmount();
+    for (const [slot, style] of Object.entries(cyrillic)) {
+      assert.equal(style.fontFamily, undefined, `${slot} must fall back to the platform face`);
+      assert.equal(style.letterSpacing, 0, `${slot} must drop the display tracking`);
+      assert.equal(style.lineHeight, undefined, `${slot} must not clip tall scripts`);
+    }
+  } finally {
+    await harness.i18n.changeLanguage('en');
+  }
+});
+
 test('ListRow announces its value and subtitle along with its title', async () => {
   const { ListRow } = await import('./ListRow');
   const view = await harness.render(
