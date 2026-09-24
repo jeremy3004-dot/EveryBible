@@ -60,6 +60,7 @@ test('the sitemap lists every indexable page as an absolute URL and skips redire
       'https://everybible.app/support',
       'https://everybible.app/privacy',
       'https://everybible.app/terms',
+      'https://everybible.app/delete-account',
     ]
   );
   assert.ok(entries.every((entry) => entry.lastModified === lastModified));

@@ -1,5 +1,6 @@
 import {
   EVERYBIBLE_APP_STORE_URL,
+  EVERYBIBLE_DELETE_ACCOUNT_PATH,
   EVERYBIBLE_GOOGLE_PLAY_URL,
   EVERYBIBLE_PRIVACY_PATH,
   EVERYBIBLE_SMART_DOWNLOAD_PATH,
@@ -75,6 +76,7 @@ export const footerColumns: FooterColumn[] = [
       { label: 'About the data', href: '/#atlas-sources' },
       { label: 'Privacy policy', href: EVERYBIBLE_PRIVACY_PATH },
       { label: 'Terms of service', href: EVERYBIBLE_TERMS_PATH },
+      { label: 'Delete your account', href: EVERYBIBLE_DELETE_ACCOUNT_PATH },
       { label: 'Get the app', href: EVERYBIBLE_SMART_DOWNLOAD_PATH },
     ],
   },

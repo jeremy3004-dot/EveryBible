@@ -4,6 +4,7 @@ export const EVERY_LANGUAGE_URL = 'https://everylanguage.com';
 export const EVERYBIBLE_SUPPORT_PATH = '/support';
 export const EVERYBIBLE_PRIVACY_PATH = '/privacy';
 export const EVERYBIBLE_TERMS_PATH = '/terms';
+export const EVERYBIBLE_DELETE_ACCOUNT_PATH = '/delete-account';
 export const EVERYBIBLE_SMART_DOWNLOAD_PATH = '/download';
 /** Homepage element id that desktop visitors to /download land on. */
 export const EVERYBIBLE_DOWNLOAD_ANCHOR = 'download';
@@ -14,6 +15,7 @@ export const EVERYBIBLE_GOOGLE_PLAY_URL =
 export const EVERYBIBLE_PRIVACY_URL = `${EVERYBIBLE_SITE_URL}${EVERYBIBLE_PRIVACY_PATH}`;
 export const EVERYBIBLE_TERMS_URL = `${EVERYBIBLE_SITE_URL}${EVERYBIBLE_TERMS_PATH}`;
 export const EVERYBIBLE_SUPPORT_URL = `${EVERYBIBLE_SITE_URL}${EVERYBIBLE_SUPPORT_PATH}`;
+export const EVERYBIBLE_DELETE_ACCOUNT_URL = `${EVERYBIBLE_SITE_URL}${EVERYBIBLE_DELETE_ACCOUNT_PATH}`;
 export const EVERYBIBLE_SMART_DOWNLOAD_URL = `${EVERYBIBLE_SITE_URL}${EVERYBIBLE_SMART_DOWNLOAD_PATH}`;
 
 export const EVERYBIBLE_SUPPORT_EMAIL_ADDRESS = 'hello@everybible.app';

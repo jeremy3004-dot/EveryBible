@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint app components lib next.config.mjs --ext .ts,.tsx,.js,.mjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "legal:mirrors": "TSX_DISABLE_CACHE=1 tsx scripts/generate-legal-mirrors.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1022.0",
