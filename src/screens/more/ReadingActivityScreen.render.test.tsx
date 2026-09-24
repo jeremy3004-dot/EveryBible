@@ -30,6 +30,8 @@ const CHAPTERS_READ: Record<string, number> = {
 
 const useProgressStore = create(() => ({
   chaptersRead: CHAPTERS_READ,
+  // Listening banked on this device, per local day, in milliseconds.
+  listeningMsByDate: {} as Record<string, number>,
   streakDays: 2,
   lastReadDate: '2026-09-23',
 }));
@@ -325,14 +327,32 @@ test('signed in, the cloud totals replace the local chapter count and fill in li
   assert.ok(view.getByText(t('interface.hoursMinutes', { hours: 1, minutes: 35 })));
 });
 
+test('signed in, listening this device has not uploaded yet still shows while the cloud lags', async () => {
+  harness.authStore.setState({ isAuthenticated: true });
+  useProgressStore.setState({ listeningMsByDate: { '2026-09-24': 12 * 60_000 } });
+  analytics.summary = {
+    success: true,
+    data: { total_chapters_read: 412, total_listening_minutes: 0 },
+  };
+  const view = await renderScreen();
+  await view.flush();
+
+  assert.ok(view.getByText('412'));
+  assert.ok(view.getByText(t('interface.minutesShort', { count: 12 })));
+});
+
 test('signed out, the totals come from this device and the cloud is not asked', async () => {
+  // On device a guest heard over ten minutes of chapter audio and this read 0 min.
+  useProgressStore.setState({
+    listeningMsByDate: { '2026-09-23': 3 * 60_000, '2026-09-24': 7 * 60_000 + 30_000 },
+  });
   const view = await renderScreen();
   await view.flush();
 
   assert.deepEqual(analytics.calls, []);
   const totals = within(hostAncestors(view.getByText(t('readingActivity.chapters')))[0]);
   assert.ok(totals.getByText(String(Object.keys(CHAPTERS_READ).length)));
-  assert.ok(totals.getByText(t('interface.minutesShort', { count: 0 })));
+  assert.ok(totals.getByText(t('interface.minutesShort', { count: 10 })));
   const streak = within(hostAncestors(view.getByText(t('readingActivity.currentStreak')))[0]);
   assert.ok(streak.getByText('2'));
   assert.ok(streak.getByText(t('readingActivity.streakUnit', { count: 2 })));
