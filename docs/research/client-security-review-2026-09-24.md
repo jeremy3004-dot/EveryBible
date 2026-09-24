@@ -91,6 +91,10 @@ are the complementary, longer-term fix.
   `getChapterAudioFileUri`, which asserts both ids and throws. Catalog parsers also drop unsafe ids.
   Add the assert at the builder anyway, to match `audioDownloadService.ts:412` and
   `cloudTranslationService.ts:83`.
+  **Fixed (follow-up pass).** `getAudioShareDirectoryUri` now asserts both ids, and
+  `getChapterAudioShareFileUri` also rejects a non-positive-integer chapter and an extension that
+  is not 1–8 alphanumerics. `prepareChapterAudioShareAsset` therefore throws before any
+  `ensureDirectory` or `downloadFile` call (`audioShareService.test.ts`).
 - **C-L2: Absolute `http://` asset URLs are accepted from catalog data.**
   `bibleAssetBaseUrl.ts:36-53` passes through `http://` URLs. iOS ATS
   (`NSAllowsArbitraryLoads=false`) and Android's default cleartext block stop them at the transport
@@ -98,11 +102,36 @@ are the complementary, longer-term fix.
   still permits local or `.local` hosts. Text packs are SHA-256 checked (sha256 is mandatory in
   `bibleDataModel.ts:111`). Audio is size- or SHA-checked only when it is downloaded, not when it is
   streamed. Tighten the check to `https://` and drop `NSAllowsLocalNetworking` from release builds.
+  **Fixed (follow-up pass), in two parts.**
+  1. URLs. `requireSecureMediaUrl` in `bibleAssetBaseUrl.ts` upgrades `http://` to `https://`
+     unless `__DEV__` is set, which keeps a LAN media server usable in dev builds. It runs at each
+     boundary where remote data enters: `sanitizeBibleAssetReference` (text-pack `downloadUrl`,
+     audio-pack `downloadUrl`, stream-template `baseUrl`, verse-timing bases), EL
+     `catalogBaseUrl` in both the catalog parser and the persisted-state sanitizer, and Bible.is
+     `path` values. It upgrades rather than drops, so an asset keeps working when its host also
+     serves https. Release builds could never load plain http from a non-local host anyway.
+  2. ATS. The committed `Info.plist` keeps `NSAllowsLocalNetworking=true`, because Debug
+     dev-client builds load JS from Metro over http on localhost or the LAN. A new last build
+     phase, `[EveryBible] Strip local-networking ATS exception (Release)`, deletes the key from
+     the built product's Info.plist in every non-Debug configuration before signing. It fails the
+     build if the plist is missing or the key survives. The phase comes from
+     `plugins/withReleaseAtsLockdown.js`, which is registered in `app.json` so prebuild reproduces
+     it, and it was applied to the committed `project.pbxproj`. `src/config/iosReleaseAtsLockdown.test.ts`
+     runs the script against a binary plist for Release and Debug. A local
+     `xcodebuild -configuration Release -sdk iphonesimulator` confirmed the key is absent from the
+     built `EveryBible.app/Info.plist`, while `NSAllowsArbitraryLoads=false` remains.
 - **C-L3: The Supabase session keychain item uses the default accessibility.** The adapter in
   `supabase/client.ts:38-58` does not pass `keychainAccessible`, so the refresh token is stored as
   `WHEN_UNLOCKED` rather than `…_THIS_DEVICE_ONLY`. That means it migrates to a new device through
   encrypted backups. The privacy PIN already uses `WHEN_UNLOCKED_THIS_DEVICE_ONLY`. Changing the
   accessibility of an existing item needs a read-then-rewrite migration, or users get signed out.
+  **Decision (follow-up pass): left as is and documented.** No zero-risk change exists.
+  `…_THIS_DEVICE_ONLY` has one intended effect: a device restored from an encrypted backup comes
+  up signed out. That is a visible regression for every existing user who changes phones. It also
+  needs a rewrite migration for items already stored, and that migration can only be checked on
+  a device, since the keychain is not available under `node --test`. The token is already
+  encrypted in the backup and bound to this app's keychain access group. Revisit if account
+  takeover through backups becomes part of the threat model.
 - **C-L4: The Bible.is API key ships in the app config.** `EXPO_PUBLIC_BIBLE_IS_API_KEY` goes
   through `app.config.js` into `extra.publicRuntimeConfig`, and `audioRemote.ts:521` puts it in the
   query string. It is public by design and needed at runtime, but anyone can extract it, which
@@ -111,11 +140,26 @@ are the complementary, longer-term fix.
 - **C-L5: Google sign-in sends no nonce.** `authService.ts:239` sends no nonce, while Apple
   sign-in has a mandatory one. The native Google SDK token is audience-bound, so this is only
   replay hardening. Add a nonce when `@react-native-google-signin` exposes one for this flow.
+  **Assessed (follow-up pass): not supported on the installed version, so not implemented.**
+  In `@react-native-google-signin/google-signin` 16.1.1 (the free "Original" API), `SignInParams`
+  has only `loginHint`, and the package source (JS, iOS and Android) contains no `nonce` at all.
+  The iOS module calls the GoogleSignIn SDK without its `nonce:` overload, and the Android side
+  uses the legacy `GoogleSignInClient`, which has no nonce option. Supabase's
+  `signInWithIdToken({ nonce })` does accept one, so only the client side is missing. Adding it
+  would mean patching the native modules (patch-package plus a rebuilt binary and device OAuth
+  testing) or moving to the library's Universal / One Tap API, which takes a `nonce` but is a
+  paid package that uses Credential Manager on Android. Revisit when a release of the free
+  package exposes a nonce.
 - **C-L6: The MMKV store is plaintext and included in Android backups.** Notes, annotations,
   reading history, and the feedback-mode flag live in MMKV (not encrypted). Expo's Android default
   is `allowBackup=true`, so this data goes to the user's Google backup. No credentials are in MMKV:
   the passcodes and the session are in SecureStore, and `authStore` persists only preferences
   (`authStore.ts:545-551`). This is accepted risk; note it in the privacy policy.
+  **Decision (follow-up pass): left as is.** `allowBackup=false`, or backup rules that exclude
+  the MMKV directory, would stop notes, highlights and reading history from reaching the user's
+  Google backup. They would also make that data disappear when the user moves to a new phone,
+  since this data is device-only and never synced. That is user-visible data loss, and it can
+  only be verified with a device restore, so it does not count as a zero-risk change.
 
 ## Verified in place (no finding)
 

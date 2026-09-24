@@ -429,6 +429,7 @@
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */,
 				EE88B553358FC8DB381A8EFE /* [CP] Embed Pods Frameworks */,
+				70A0A0AD3AFB40F79A8260CD /* [EveryBible] Strip local-networking ATS exception (Release) */,
 			);
 			buildRules = (
 			);
@@ -669,6 +670,22 @@
 			shellPath = /bin/sh;
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-EveryBible/Pods-EveryBible-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
+		};
+		70A0A0AD3AFB40F79A8260CD /* [EveryBible] Strip local-networking ATS exception (Release) */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			name = "[EveryBible] Strip local-networking ATS exception (Release)";
+			inputPaths = (
+				"$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)",
+			);
+			outputPaths = (
+			);
+			shellPath = /bin/sh;
+			shellScript = "case \"$CONFIGURATION\" in\n  *Debug*) exit 0 ;;\nesac\nPLIST=\"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\"\nPLISTBUDDY=/usr/libexec/PlistBuddy\nKEY=\":NSAppTransportSecurity:NSAllowsLocalNetworking\"\nif [ ! -f \"$PLIST\" ]; then\n  echo \"error: built Info.plist not found at $PLIST\"\n  exit 1\nfi\nif \"$PLISTBUDDY\" -c \"Print $KEY\" \"$PLIST\" >/dev/null 2>&1; then\n  \"$PLISTBUDDY\" -c \"Delete $KEY\" \"$PLIST\"\nfi\nif \"$PLISTBUDDY\" -c \"Print $KEY\" \"$PLIST\" >/dev/null 2>&1; then\n  echo \"error: NSAllowsLocalNetworking is still set in $PLIST\"\n  exit 1\nfi\n";
+			alwaysOutOfDate = 1;
 		};
 /* End PBXShellScriptBuildPhase section */
 
