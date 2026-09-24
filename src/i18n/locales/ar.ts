@@ -1084,7 +1084,7 @@ export const ar = {
     "plansCount_other": "{{count}} خطة",
     "plansCount_two": "{{count}} خطة",
     "plansCount_zero": "{{count}} خطة",
-    "daysReadMissedSummary": "{{read}} من {{days}} · {{missed}} فائت",
+    "daysReadMissedSummary": "{{read}} من {{days}} · فاتك {{missed}}",
     "daysReadSummary": "{{read}} من {{days}}",
     "searchPlansCount": "ابحث في {{count}} خطة",
     "start": "ابدأ",

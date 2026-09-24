@@ -55,7 +55,7 @@ export const hi = {
     openLabel: "{{reference}} खोलें",
     notCoveredTitle: "आपके प्रवेश कोड में {{translation}} शामिल नहीं है",
     notCoveredBody: "यह कोड इन अनुवादों की प्रतिक्रियाएँ खोलता है:",
-    notCoveredNone: "यह कोड अभी कोई अनुवाद नहीं खोलता। जिसने आपको कोड दिया है, उनसे इसे जाँचने को कहें।",
+    notCoveredNone: "यह कोड अभी कोई अनुवाद नहीं खोलता। जिन्होंने आपको कोड दिया है, उनसे इसे जाँचने को कहें।",
     switchTo: "{{translation}} पर जाएँ",
     switchNeedsDownload: "पहले अनुवादों की सूची से {{translation}} डाउनलोड करें, फिर दोबारा कोशिश करें।",
   },

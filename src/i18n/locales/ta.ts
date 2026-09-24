@@ -772,7 +772,7 @@ export const ta = {
     "planOptions": "திட்ட விருப்பங்கள்",
     "plansCount_one": "{{count}} திட்டம்",
     "plansCount_other": "{{count}} திட்டங்கள்",
-    "daysReadMissedSummary": "{{read}}/{{days}} · {{missed}} தவறியது",
+    "daysReadMissedSummary": "{{read}}/{{days}} · தவறியவை: {{missed}}",
     "daysReadSummary": "{{read}}/{{days}}",
     "searchPlansCount": "{{count}} திட்டங்களில் தேடுங்கள்",
     "start": "தொடங்கு",

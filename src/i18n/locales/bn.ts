@@ -772,7 +772,7 @@ export const bn = {
     "planOptions": "পরিকল্পনার বিকল্প",
     "plansCount_one": "{{count}}টি পরিকল্পনা",
     "plansCount_other": "{{count}}টি পরিকল্পনা",
-    "daysReadMissedSummary": "{{read}}/{{days}} · {{missed}}টি বাদ",
+    "daysReadMissedSummary": "{{read}}/{{days}} · {{missed}} দিন বাদ",
     "daysReadSummary": "{{read}}/{{days}}",
     "searchPlansCount": "{{count}}টি পরিকল্পনায় খুঁজুন",
     "start": "শুরু করুন",
