@@ -242,3 +242,30 @@ test('at large text a sequence card moves its status pill under the title, and p
   const status = within(titleColumn).getByText(t('common.next'));
   assert.equal(status.props.numberOfLines, 2, 'a pill label wraps rather than truncates');
 });
+
+test('a rhythm left open overnight offers the new day of a calendar plan when the app comes back', async (context) => {
+  context.after(() => mock.timers.reset());
+  mock.timers.enable({ apis: ['Date'], now: new Date(2026, 8, 24, 21, 0) });
+  const PROVERBS = 'proverbs-31-days';
+  const store = await loadStore();
+  store.setState({
+    enrolledPlanIds: [PROVERBS],
+    progressByPlanId: { [PROVERBS]: progress({ id: 'progress-proverbs', plan_id: PROVERBS }) },
+  });
+  const result = store.getState().createRhythm({
+    title: 'Wisdom',
+    slot: 'evening',
+    items: [{ id: '', type: 'plan', planId: PROVERBS }],
+  });
+  assert.ok(result.success);
+  const view = await renderDetail(result.rhythm!.id);
+  assert.ok(view.getByText(t('readingPlans.dayOf', { current: 24, total: 31 })));
+
+  // Suspended overnight on this screen: nothing refocuses it.
+  harness.rn.AppState.emit('background');
+  mock.timers.setTime(new Date(2026, 8, 25, 7, 0).getTime());
+  harness.rn.AppState.emit('active');
+  await view.flush();
+
+  assert.ok(view.getByText(t('readingPlans.dayOf', { current: 25, total: 31 })));
+});
