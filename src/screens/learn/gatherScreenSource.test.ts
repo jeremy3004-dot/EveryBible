@@ -86,9 +86,10 @@ test('GatherScreen resumes the first incomplete lesson from the up-next card', (
     'the up-next card should label its position in the path from a translation key'
   );
 
+  // Which lesson is up next is behaviour, covered by gatherPathModel.test.ts.
   assert.match(
     source,
-    /completedLessons\[foundation\.id\]/,
+    /resolveGatherUpNext\(completedLessons,/,
     'up next should be derived from the gather store completion map'
   );
 });

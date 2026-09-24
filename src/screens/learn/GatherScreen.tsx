@@ -22,6 +22,8 @@ import {
   WISDOM_TITLE_KEYS,
 } from '../../data/gatherWisdom';
 import { useGatherStore } from '../../stores/gatherStore';
+import { getTranslatedBookName } from '../../constants';
+import { resolveGatherUpNext } from './gatherPathModel';
 import type { LearnStackParamList } from '../../navigation/types';
 
 type NavProp = NativeStackNavigationProp<LearnStackParamList, 'GatherHome'>;
@@ -38,20 +40,6 @@ const FOUNDATION_LESSON_TOTAL = gatherFoundations.reduce(
   (total, foundation) => total + foundation.lessons.length,
   0
 );
-
-// The path is linear, so "up next" is simply the first lesson nobody has ticked
-// off yet. Once every lesson is complete there is nothing to resume and the
-// caller drops the card rather than pointing back at finished work.
-function findUpNext(completedLessons: Record<string, string[]>) {
-  for (const foundation of gatherFoundations) {
-    const done = completedLessons[foundation.id] ?? [];
-    const lesson = foundation.lessons.find((candidate) => !done.includes(candidate.id));
-    if (lesson) {
-      return { foundation, lesson };
-    }
-  }
-  return null;
-}
 
 // The lesson ledger: one 4pt cell per lesson, filled left to right as lessons
 // complete. A row with nothing done collapses to a single unbroken bar — an
@@ -162,7 +150,9 @@ export function GatherScreen() {
   const translate = (key: string | undefined, fallback: string) =>
     key ? t(key as Parameters<typeof t>[0]) : fallback;
 
-  const upNext = findUpNext(completedLessons);
+  const upNext = resolveGatherUpNext(completedLessons, (bookId) =>
+    getTranslatedBookName(bookId, t)
+  );
 
   const openFoundation = (foundationId: string) =>
     navigation.navigate('FoundationDetail', { foundationId });
@@ -193,7 +183,10 @@ export function GatherScreen() {
           <Text style={[typography.eyebrow, displayFont.regular, { color: colors.secondaryText }]}>
             {t('gather.discoveryBibleStudy')}
           </Text>
-          <Text style={[typography.displayHero, displayFont.bold, { color: colors.primaryText }]}>
+          <Text
+            accessibilityRole="header"
+            style={[typography.displayHero, displayFont.bold, { color: colors.primaryText }]}
+          >
             {t('gather.title')}
           </Text>
         </View>
@@ -249,7 +242,7 @@ export function GatherScreen() {
                   </Text>
                   <Text style={[styles.upNextMeta, { color: colors.secondaryText }]}>
                     {t('gather.upNextSubtitle', {
-                      reference: upNext.lesson.referenceLabel,
+                      reference: upNext.referenceLabel,
                       parent: translate(
                         FOUNDATION_TITLE_KEYS[upNext.foundation.id],
                         upNext.foundation.title
@@ -463,9 +456,11 @@ const styles = StyleSheet.create({
   pathTitle: {
     ...typography.rowTitle,
   },
+  // A floor, not a fixed width: "10/10" at a large accessibility text size
+  // would otherwise truncate to "1…".
   pathCount: {
     ...typography.mono,
-    width: 30,
+    minWidth: 30,
     textAlign: 'right',
   },
   ledgerTrack: {
