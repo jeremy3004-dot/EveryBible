@@ -479,7 +479,9 @@ export function installReaderRenderFixture(
     chapters.set('JHN:3', JOHN_3);
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    const { forgetReaderAudioFollowMemory } = await import('./reader/useReaderAudioSync');
+    forgetReaderAudioFollowMemory();
     motion.reduceMotion = false;
     audioCalls.length = 0;
     chapterRequests.length = 0;
@@ -509,9 +511,16 @@ export function installReaderRenderFixture(
 
   const t = (key: string, values?: Record<string, unknown>) => harness.i18n.t(key, values);
 
-  async function renderReader(params: Record<string, unknown> = {}) {
+  /**
+   * Mount the reader. The route key stays 'reader-route' unless given: a remount with
+   * the same key is the same route coming back (as after the discreet-mode lock).
+   */
+  async function renderReader(
+    params: Record<string, unknown> = {},
+    { routeKey = 'reader-route' }: { routeKey?: string } = {}
+  ) {
     harness.navigation.route.name = 'BibleReader';
-    harness.navigation.route.key = 'reader-route';
+    harness.navigation.route.key = routeKey;
     harness.navigation.route.params = { bookId: 'JHN', chapter: 3, ...params };
     const { BibleReaderScreen } = await import('./BibleReaderScreen');
     const view = await harness.render(<BibleReaderScreen />);

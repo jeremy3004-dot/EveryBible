@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import type { PlanSessionKey, RhythmSessionContext } from '../../../services/plans/types';
 import { type ChapterPresentationMode } from '../../../services/bible/presentation';
 import type { BibleTranslation } from '../../../types';
@@ -25,6 +25,8 @@ export interface UseReaderAudioSyncInput {
   isLoading: boolean;
   navigation: NavigationProp;
   playChapter: (bookId: string, chapter: number, verse?: number | undefined) => Promise<void>;
+  /** The reader route's key: a remount with the same key is the same route coming back. */
+  routeKey: string;
   resolvePlanSessionRouteParams: (
     nextBookId: string,
     nextChapter: number
@@ -50,6 +52,37 @@ export interface UseReaderAudioSyncInput {
       };
 }
 
+interface SeenActiveAudioChapter {
+  bookId: string | null;
+  chapter: number | null;
+}
+
+const MAX_REMEMBERED_READER_ROUTES = 8;
+
+/**
+ * The playing chapter each reader route last saw, by route key, in memory only.
+ * Following depends on it: the reader moves with playback only off the chapter that
+ * was playing. The discreet-mode lock unmounts the navigator and brings the same routes
+ * back on unlock; a remounted reader that started from nothing could not tell it had
+ * been showing the chapter playback has since left, so it stayed there behind a Play
+ * button while the next chapters played.
+ */
+const seenActiveAudioByRouteKey = new Map<string, SeenActiveAudioChapter>();
+
+function rememberSeenActiveAudio(routeKey: string, seen: SeenActiveAudioChapter): void {
+  seenActiveAudioByRouteKey.delete(routeKey);
+  seenActiveAudioByRouteKey.set(routeKey, seen);
+  if (seenActiveAudioByRouteKey.size > MAX_REMEMBERED_READER_ROUTES) {
+    const oldest = seenActiveAudioByRouteKey.keys().next().value;
+    if (oldest !== undefined) seenActiveAudioByRouteKey.delete(oldest);
+  }
+}
+
+/** Forgets every reader route's last seen playing chapter (between tests). */
+export function forgetReaderAudioFollowMemory(): void {
+  seenActiveAudioByRouteKey.clear();
+}
+
 /** Plays the chapter when the reader was opened to listen, and follows the player onto the next chapter it moves to. */
 export function useReaderAudioSync({
   activeAudioBookId,
@@ -67,10 +100,12 @@ export function useReaderAudioSync({
   isLoading,
   navigation,
   playChapter,
+  routeKey,
   resolvePlanSessionRouteParams,
 }: UseReaderAudioSyncInput) {
-  const previousActiveAudioChapterRef = useRef<number | null>(null);
-  const previousActiveAudioBookIdRef = useRef<string | null>(null);
+  const [seenBeforeMount] = useState(() => seenActiveAudioByRouteKey.get(routeKey) ?? null);
+  const previousActiveAudioChapterRef = useRef<number | null>(seenBeforeMount?.chapter ?? null);
+  const previousActiveAudioBookIdRef = useRef<string | null>(seenBeforeMount?.bookId ?? null);
   const autoplayKeyRef = useRef<string | null>(null);
   useEffect(() => {
     if (
@@ -135,6 +170,10 @@ export function useReaderAudioSync({
 
     previousActiveAudioBookIdRef.current = activeAudioBookId;
     previousActiveAudioChapterRef.current = activeAudioChapter;
+    rememberSeenActiveAudio(routeKey, {
+      bookId: activeAudioBookId,
+      chapter: activeAudioChapter,
+    });
 
     if (!shouldSync || activeAudioChapter == null) {
       return;
@@ -157,5 +196,6 @@ export function useReaderAudioSync({
     chapterSessionMode,
     navigation,
     resolvePlanSessionRouteParams,
+    routeKey,
   ]);
 }
