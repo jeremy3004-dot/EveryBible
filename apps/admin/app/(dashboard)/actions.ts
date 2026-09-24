@@ -67,6 +67,24 @@ export async function updateTranslationMetadataAction(formData: FormData) {
     );
 
   if (notesError) {
+    // The catalog update above has already committed (it can publish or hide a translation),
+    // so it must still be audited even though the notes write failed.
+    await writeAdminAuditLog({
+      action: 'translation.metadata.update',
+      actorEmail: admin.email,
+      actorUserId: admin.id,
+      entityId: translationId,
+      entityType: 'translation',
+      metadata: {
+        adminNotesError: notesError.message,
+        distributionState,
+        isAvailable,
+      },
+      summary: `Updated EveryBible-local metadata for ${translationId} (admin notes were not saved).`,
+    });
+    revalidatePath('/translations');
+    revalidatePath(`/translations/${translationId}`);
+    revalidatePath('/health');
     redirect(`/translations/${translationId}?error=${encodeURIComponent(notesError.message)}`);
   }
 
