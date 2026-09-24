@@ -16,6 +16,7 @@ import { useLibraryStore } from '../../stores/libraryStore';
 import { useProgressStore } from '../../stores/progressStore';
 import { emitAudioPlaybackProgress, stopAudioProgressTelemetry } from './listeningTelemetry';
 import type { AudioPlayerSession, ResolveAudioCoverage } from './playerSession';
+import { followAutoAdvancedChapter } from './readingPositionFollow';
 import { chapterTransition, pausedByListener } from './sharedPlaybackState';
 import { getAdjacentAudioChapter } from './useAudioCoverage';
 
@@ -57,6 +58,17 @@ export async function finishChapterAndAdvance({
     playbackSequence,
   } = store;
 
+  // Every chapter this handler starts is audio moving on by itself, not a listener's pick,
+  // so a listener who was following along keeps following (with the reader open or not).
+  const followTo = (nextBookId: string, nextChapter: number) => {
+    if (bookId && chapterNum) {
+      followAutoAdvancedChapter(
+        { bookId, chapter: chapterNum },
+        { bookId: nextBookId, chapter: nextChapter }
+      );
+    }
+  };
+
   emitAudioPlaybackProgress(fallbackTranslationId, 'finish', true);
   stopAudioProgressTelemetry();
 
@@ -96,6 +108,7 @@ export async function finishChapterAndAdvance({
       : null;
   if (nextSequenceEntry && session.playChapterForTranslation) {
     chapterTransition.current = true;
+    followTo(nextSequenceEntry.bookId, nextSequenceEntry.chapter);
     await session.playChapterForTranslation(
       store.currentTranslationId ?? fallbackTranslationId,
       nextSequenceEntry.bookId,
@@ -148,6 +161,7 @@ export async function finishChapterAndAdvance({
   });
   if (repeatTarget && session.playChapterForTranslation) {
     chapterTransition.current = true;
+    followTo(repeatTarget.bookId, repeatTarget.chapter);
     await session.playChapterForTranslation(
       finishedCoverageTranslationId,
       repeatTarget.bookId,
@@ -170,6 +184,7 @@ export async function finishChapterAndAdvance({
 
     chapterTransition.current = true;
     setQueueIndex(nextQueuedEntry.queueIndex);
+    followTo(entry.bookId, entry.chapter);
     await session.playChapterForTranslation(entry.translationId, entry.bookId, entry.chapter);
     return;
   }
@@ -184,6 +199,7 @@ export async function finishChapterAndAdvance({
   const adjacentChapter = getAdjacentAudioChapter(bookId, chapterNum, 1, coverage);
   if (adjacentChapter && session.playChapterForTranslation) {
     chapterTransition.current = true;
+    followTo(adjacentChapter.bookId, adjacentChapter.chapter);
     await session.playChapterForTranslation(
       finishedCoverageTranslationId,
       adjacentChapter.bookId,
