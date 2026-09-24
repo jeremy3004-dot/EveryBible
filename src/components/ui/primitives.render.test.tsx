@@ -410,3 +410,16 @@ test('PressableScale is typed as a button only when it takes a press', async () 
   );
   assert.equal(inert.queryByRole('button'), null);
 });
+
+// The Settings A-/A+ stepper ran past the card at the largest text size: hugging
+// its content under the title, its middle label never had a width to shrink into.
+test('a trailing control moved under the title spans the title column', async () => {
+  const { ListRow } = await import('./ListRow');
+  const { Text } = harness.rn;
+  harness.setFontScale(3);
+  const view = await harness.render(
+    <ListRow title="Font size" trailing={<Text>A- Medium A+</Text>} stackTrailingAtLargeText />
+  );
+  const [wrapper] = hostAncestors(view.getByText('A- Medium A+'));
+  assert.equal(flattenStyle(wrapper.props.style)?.alignSelf, 'stretch');
+});

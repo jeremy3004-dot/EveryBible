@@ -200,8 +200,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginLeft: spacing.md,
   },
+  // Stretched, not hugging: a stepper sized to its content ran past the card at
+  // the largest text size because its middle label never had a width to shrink to.
   trailingBelowTitle: {
-    alignSelf: 'flex-start',
+    alignSelf: 'stretch',
     marginTop: spacing.xs,
   },
   chevronAfterValue: {

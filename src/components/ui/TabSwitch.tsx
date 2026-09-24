@@ -212,9 +212,12 @@ export function TabSwitch({
 }
 
 const styles = StyleSheet.create({
+  // Hugs its labels, but never wider than its container: at accessibility text
+  // sizes the segments narrow and their labels wrap instead of running off-card.
   track: {
     flexDirection: 'row',
     alignSelf: 'flex-start',
+    maxWidth: '100%',
     alignItems: 'stretch',
     borderRadius: radius.md,
     borderWidth: 1,
@@ -232,6 +235,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 1,
     paddingHorizontal: 14,
   },
   icon: {

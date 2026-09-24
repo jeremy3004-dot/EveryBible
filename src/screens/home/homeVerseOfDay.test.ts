@@ -294,3 +294,12 @@ test('the weekday and date are joined by the EL separator, never a comma, withou
     assert.equal(/\d{4}/.test(label), false, `${language} should not carry the year`);
   }
 });
+
+// Arabic and Urdu put the Arabic comma (U+060C) after the weekday, which the Latin
+// comma trim missed: the release build on iOS showed "الخميس · ، 24 سبتمبر".
+test('the Arabic-script comma after the weekday is dropped like any other separator', () => {
+  for (const language of ['ar', 'ur']) {
+    const label = formatHomeDateLabel(language, SATURDAY);
+    assert.match(label, /^[^,،]+ · [^,،]+$/, `${language} should render "weekday · date"`);
+  }
+});

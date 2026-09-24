@@ -112,6 +112,26 @@ test('every visible label on the Gather home is translated copy, never a raw key
   assert.deepEqual(rawKeys, []);
 });
 
+// At the largest text size the switch took the whole header row, so the title
+// column beside it collapsed to nothing and "Gather" vanished.
+test('at large text the switch drops under the title instead of squeezing it out', async () => {
+  const header = (view: View) => enclosingView(view.getByRole('tablist'));
+
+  const regular = await renderGather();
+  assert.equal(flattenStyle(header(regular).props.style)?.flexDirection, 'row');
+  await regular.unmount();
+
+  harness.setFontScale(3);
+  const large = await renderGather();
+  const largeHeader = flattenStyle(header(large).props.style);
+  assert.equal(largeHeader?.flexDirection, 'column');
+  assert.equal(largeHeader?.alignItems, 'flex-start');
+  const titles = enclosingView(large.getByRole('header', { name: t('gather.title') }));
+  const titleStyle = flattenStyle(titles.props.style);
+  assert.equal(titleStyle?.alignSelf, 'stretch');
+  assert.notEqual(titleStyle?.flex, 1, 'no zero flex basis in an auto-height column');
+});
+
 test('the sub-tabs are one shared tablist that swaps the foundations path for the wisdom library', async () => {
   const view = await renderGather();
 

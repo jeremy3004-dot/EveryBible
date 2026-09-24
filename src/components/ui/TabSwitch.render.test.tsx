@@ -129,6 +129,18 @@ for (const theme of ['light', 'dark'] as const) {
   });
 }
 
+// At accessibility text sizes a hugging `sm` switch measured wider than the screen:
+// Home's Week/Month/All time ran past its card and Gather's Wisdom tab off the edge.
+test('a hugging switch is capped at its container and lets its labels wrap instead', async () => {
+  const { view } = await renderSwitch('foundations', 'sm');
+
+  const trackStyle = flattenStyle(view.getByRole('tablist').props.style);
+  assert.equal(trackStyle?.maxWidth, '100%');
+  for (const tab of view.getAllByRole('tab')) {
+    assert.equal(flattenStyle(tab.props.style)?.flexShrink, 1, 'each segment can narrow');
+  }
+});
+
 test('the tablist label is required by the component type', async () => {
   const { TabSwitch } = await import('./TabSwitch');
   // @ts-expect-error -- a tablist without a name announces as a bare group
