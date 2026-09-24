@@ -108,8 +108,13 @@ export function MoreScreen() {
   const translations = useBibleStore((state) => state.translations);
   const currentTranslation = useBibleStore((state) => state.currentTranslation);
 
-  const displayName = isAuthenticated && user?.displayName ? user.displayName : t('more.guestUser');
-  const email = isAuthenticated && user?.email ? user.email : null;
+  // Email sign-up stores no display name: such an account is named by its email
+  // (shown once), never as a guest.
+  const accountName = user?.displayName?.trim() || null;
+  const displayName = isAuthenticated
+    ? (accountName ?? user?.email ?? t('more.guestUser'))
+    : t('more.guestUser');
+  const email = isAuthenticated && accountName && user?.email ? user.email : null;
   const initials = useMemo(() => initialsFrom(displayName), [displayName]);
 
   const syncStatus = describeSyncStatus({

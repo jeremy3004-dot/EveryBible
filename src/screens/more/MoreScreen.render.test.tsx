@@ -298,3 +298,18 @@ test('an account name starting with an emoji or astral-plane letter keeps whole 
   // A lone UTF-16 surrogate draws as a replacement box on device.
   assert.ok(within(card).getByText('😀𝒥'));
 });
+
+// Email sign-up stores no display name, so every email account has none.
+test('a signed-in account with no display name is named by its email on the account card, not as a guest', async () => {
+  harness.authStore.setState({
+    isAuthenticated: true,
+    user: { uid: 'user-3', displayName: null, email: 'ruth@example.com', photoURL: null },
+    preferencesUpdatedAt: null,
+  });
+  const view = await renderMore();
+
+  assert.equal(view.queryByText(t('more.guestUser')), null);
+  const card = view.getByRole('button', { name: 'ruth@example.com' });
+  assert.equal(within(card).getAllByText('ruth@example.com').length, 1, 'the email is shown once');
+  assert.ok(within(card).getByText('R'));
+});

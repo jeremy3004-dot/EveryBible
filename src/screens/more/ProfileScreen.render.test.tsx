@@ -146,6 +146,20 @@ test('a guest sees their local stats, cannot change an avatar, and can start sig
   assert.deepEqual(authFlows, ['signIn']);
 });
 
+// Email sign-up stores no display name, so every email account has none.
+for (const displayName of [null, '   ']) {
+  test(`a signed-in reader with no display name (${JSON.stringify(displayName)}) is named by their email, not as a guest`, async () => {
+    harness.authStore.setState({
+      user: { ...signedInUser, displayName },
+      isAuthenticated: true,
+    });
+    const view = await renderScreen();
+
+    assert.equal(view.queryByText(t('more.guestUser')), null);
+    assert.equal(view.getAllByText(signedInUser.email).length, 1, 'the email is shown once');
+  });
+}
+
 test('a signed-in reader sees their name, email and engagement summary', async () => {
   signIn();
   backend.engagement = {

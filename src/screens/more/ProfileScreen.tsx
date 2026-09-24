@@ -156,6 +156,18 @@ export function ProfileScreen() {
     }
   }, [isAuthenticated, user, setUser, t]);
 
+  // Email sign-up stores no display name: such an account is named by its email
+  // (shown once), never as a guest.
+  const accountName = user?.displayName?.trim() || null;
+  const userName = isAuthenticated
+    ? (accountName ?? user?.email ?? t('more.guestUser'))
+    : t('more.guestUser');
+  const userSubtitle = !isAuthenticated
+    ? t('more.signInToSync')
+    : accountName
+      ? (user?.email ?? null)
+      : null;
+
   const handleSignIn = () => {
     openAuthFlow('signIn');
   };
@@ -213,12 +225,8 @@ export function ProfileScreen() {
             )}
           </TouchableOpacity>
 
-          <Text style={styles.userName}>
-            {isAuthenticated && user?.displayName ? user.displayName : t('more.guestUser')}
-          </Text>
-          <Text style={styles.userEmail}>
-            {isAuthenticated && user?.email ? user.email : t('more.signInToSync')}
-          </Text>
+          <Text style={styles.userName}>{userName}</Text>
+          {userSubtitle ? <Text style={styles.userEmail}>{userSubtitle}</Text> : null}
           {isAuthenticated && isUploadingAvatar && (
             <Text style={styles.uploadingLabel}>{t('profile.uploadingAvatar')}</Text>
           )}
