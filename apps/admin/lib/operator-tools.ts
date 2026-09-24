@@ -104,7 +104,10 @@ export const OPERATOR_TOOL_DECLARATIONS: GeminiFunctionDeclaration[] = [
       properties: {
         search: { type: 'string' },
         sentiment: { type: 'string', description: '"up" (accurate) or "down" (needs work).' },
-        fixStatus: { type: 'string', description: '"open" or "fixed".' },
+        fixStatus: {
+          type: 'string',
+          description: '"open" (not yet resolved by the council) or "fixed" (resolved).',
+        },
       },
     },
   },

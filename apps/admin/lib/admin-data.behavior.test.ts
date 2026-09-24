@@ -766,6 +766,48 @@ test('feedback filters narrow the query by language, translation, book, chapter 
   assert.ok(String(stepArgs(call, 'or')[0][0]).includes('comment.ilike.%verse  wording%'));
 });
 
+test('the resolution filter is independent of the accuracy filter', async () => {
+  // "Accurate" is sentiment 'up'. The council resolves those too (as "no change
+  // needed"), so "Accurate" + "Open" means accurate reviews still awaiting
+  // review. Live data has all four combinations.
+  const rows = [
+    { id: 'accurate-open', sentiment: 'up', scripture_council_fixed_at: null },
+    { id: 'accurate-reviewed', sentiment: 'up', scripture_council_fixed_at: '2026-09-20' },
+    { id: 'needs-work-open', sentiment: 'down', scripture_council_fixed_at: null },
+    { id: 'needs-work-fixed', sentiment: 'down', scripture_council_fixed_at: '2026-09-21' },
+  ].map((row) => ({
+    ...row,
+    translation_id: 'bsb',
+    translation_language: 'English',
+    book_id: 'GEN',
+    chapter: 1,
+    created_at: '2026-09-24',
+    user_id: null,
+  }));
+  // Apply the eq / is / not filters the loader chained, as PostgREST would.
+  service.respondTo('chapter_feedback_submissions', (call) => ({
+    data: rows.filter((row) =>
+      call.steps.every(({ method, args }) => {
+        const value = (row as Record<string, unknown>)[String(args[0])];
+        if (method === 'eq') return value === args[1];
+        if (method === 'is') return value === args[1];
+        if (method === 'not') return value !== args[2];
+        return true;
+      })
+    ),
+  }));
+
+  const ids = async (filters: Parameters<typeof data.listChapterFeedback>[0]) =>
+    (await data.listChapterFeedback(filters)).map((item) => item.id).sort();
+
+  assert.deepEqual(await ids({ sentiment: 'up', fixStatus: 'open' }), ['accurate-open']);
+  assert.deepEqual(await ids({ sentiment: 'up', fixStatus: 'fixed' }), ['accurate-reviewed']);
+  assert.deepEqual(await ids({ sentiment: 'down', fixStatus: 'open' }), ['needs-work-open']);
+  assert.deepEqual(await ids({ sentiment: 'down', fixStatus: 'fixed' }), ['needs-work-fixed']);
+  assert.deepEqual(await ids({ fixStatus: 'open' }), ['accurate-open', 'needs-work-open']);
+  assert.deepEqual(await ids({ fixStatus: 'fixed' }), ['accurate-reviewed', 'needs-work-fixed']);
+});
+
 // ---------------------------------------------------------------------------
 // Health
 // ---------------------------------------------------------------------------
