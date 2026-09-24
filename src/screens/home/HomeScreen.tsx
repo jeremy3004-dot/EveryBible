@@ -237,11 +237,52 @@ export function HomeScreen() {
   const currentBook = useBibleStore((state) => state.currentBook);
   const currentChapter = useBibleStore((state) => state.currentChapter);
   const hasReaderHistory = useBibleStore((state) => state.hasReaderHistory);
-  const translations = useBibleStore((state) =>
-    Array.isArray(state.translations) ? state.translations : bibleTranslations
+  // Only the current row: another translation's download progress or a catalog
+  // refresh replaces its own row in `translations`, which must not re-render Home.
+  const currentTranslationInfo = useBibleStore((state) =>
+    (Array.isArray(state.translations) ? state.translations : bibleTranslations).find(
+      (translation) => translation.id === state.currentTranslation
+    )
   );
-  const currentTranslationInfo = translations.find(
-    (translation) => translation.id === currentTranslation
+  // Likewise only the row today's borrowed Scripture came from, when it is borrowed.
+  const dailyFallbackTranslationId = dailyScripture?.fallbackTranslationId;
+  const dailyFallbackTranslationInfo = useBibleStore((state) =>
+    dailyFallbackTranslationId
+      ? (Array.isArray(state.translations) ? state.translations : bibleTranslations).find(
+          (translation) => translation.id === dailyFallbackTranslationId
+        )
+      : undefined
+  );
+  // The verse load reads four fields, plus the text pack it reads them from.
+  // Keying it on those rather than on the row object stops a rebuilt-but-equal
+  // row (download ticks, catalog hydration) from reloading the verse behind a
+  // spinner, while an installed or replaced text pack still reloads it.
+  const verseTranslationId = currentTranslationInfo?.id;
+  const verseTranslationHasText = currentTranslationInfo?.hasText;
+  const verseTranslationHasAudio = currentTranslationInfo?.hasAudio;
+  const verseTranslationAudioGranularity = currentTranslationInfo?.audioGranularity;
+  const verseTranslationIsDownloaded = currentTranslationInfo?.isDownloaded;
+  const verseTranslationTextPackPath = currentTranslationInfo?.textPackLocalPath;
+  const verseTranslation = useMemo(
+    () =>
+      verseTranslationId === undefined
+        ? undefined
+        : {
+            id: verseTranslationId,
+            hasText: Boolean(verseTranslationHasText),
+            hasAudio: Boolean(verseTranslationHasAudio),
+            audioGranularity: verseTranslationAudioGranularity ?? 'none',
+            isDownloaded: Boolean(verseTranslationIsDownloaded),
+            textPackLocalPath: verseTranslationTextPackPath,
+          },
+    [
+      verseTranslationAudioGranularity,
+      verseTranslationHasAudio,
+      verseTranslationHasText,
+      verseTranslationId,
+      verseTranslationIsDownloaded,
+      verseTranslationTextPackPath,
+    ]
   );
   // isRemoteAudioAvailable() can only say an Every Language manifest is addressable, never
   // that today's chapter is inside it, so an audio-only set with no Matthew (Bhujel) used to
@@ -446,7 +487,7 @@ export function HomeScreen() {
       loadVerseOfDayFromBible(
         {
           requestIdRef: verseRequestIdRef,
-          translation: currentTranslationInfo,
+          translation: verseTranslation,
           audioAvailable: dailyAudioPlayable,
           loadBibleService: () => import('../../services/bible/bibleService'),
           setIsLoadingVerse,
@@ -454,7 +495,7 @@ export function HomeScreen() {
         },
         options
       ),
-    [currentTranslationInfo, dailyAudioPlayable]
+    [verseTranslation, dailyAudioPlayable]
   );
 
   useEffect(
@@ -564,13 +605,9 @@ export function HomeScreen() {
     dailyAudioKind === 'section-audio' ? t('home.sectionOfTheDay') : t('home.verseOfTheDay');
   // Scripture borrowed from the bundled BSB (the reader's own translation lacks today's
   // passage) names its source, on screen and in what is shared.
-  const dailyTextTranslation = dailyScripture?.fallbackTranslationId
-    ? (translations.find(
-        (translation) => translation.id === dailyScripture.fallbackTranslationId
-      ) ??
-      bibleTranslations.find(
-        (translation) => translation.id === dailyScripture.fallbackTranslationId
-      ))
+  const dailyTextTranslation = dailyFallbackTranslationId
+    ? (dailyFallbackTranslationInfo ??
+      bibleTranslations.find((translation) => translation.id === dailyFallbackTranslationId))
     : currentTranslationInfo;
   const dailyFallbackAbbreviation = dailyScripture?.fallbackTranslationId
     ? (dailyTextTranslation?.abbreviation ?? dailyScripture.fallbackTranslationId.toUpperCase())

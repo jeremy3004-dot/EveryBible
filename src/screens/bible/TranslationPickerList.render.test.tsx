@@ -495,3 +495,79 @@ test('the language pill opens a language list whose choice persists through the 
     view.getByRole('header', { name: `${t('translations.available')} · Spanish / Español` })
   );
 });
+
+// ---------------------------------------------------------------------------
+// Re-render reach during downloads
+// ---------------------------------------------------------------------------
+
+/** Renders of each translation row (its touchable) since `mark`, keyed by abbreviation. */
+const rowRenders = (mark: number) =>
+  Object.fromEntries(
+    ALL.map((translation) => [
+      translation.abbreviation,
+      harness.renders.count(mark, 'TouchableOpacity', (props) =>
+        String(props.accessibilityLabel ?? '').startsWith(`${translation.name},`)
+      ),
+    ])
+  );
+const onlyRow = (abbreviation: string, count = 1) =>
+  Object.fromEntries(
+    ALL.map((translation) => [translation.abbreviation, 0]).concat([[abbreviation, count]])
+  );
+
+const textProgress = (progress: number, bytesDownloaded: number) =>
+  inAct(() =>
+    useBibleStore.setState({
+      downloadProgress: {
+        translationId: 'engnet',
+        progress,
+        status: 'downloading',
+        bytesDownloaded,
+        bytesTotal: 1_000,
+      },
+    })
+  );
+
+test('text download progress redraws only its row, and only when the percentage moves', async () => {
+  const view = await renderPicker();
+  await view.press(rowOf(view, NET));
+  await inAct(() => alertButton(t('translations.download'))?.onPress?.());
+  await textProgress(40, 400);
+
+  // Bytes arrive in many small chunks between whole-percent steps.
+  let mark = harness.renders.mark();
+  await textProgress(40, 404);
+  assert.deepEqual(rowRenders(mark), onlyRow('NET', 0));
+
+  mark = harness.renders.mark();
+  await textProgress(41, 410);
+  assert.deepEqual(rowRenders(mark), onlyRow('NET'));
+  assert.ok(within(rowOf(view, NET)).getByText('41%'));
+});
+
+test('an audio job tick on one translation redraws only that row', async () => {
+  await renderPicker();
+  const mark = harness.renders.mark();
+
+  await inAct(() =>
+    useBibleStore.setState((state) => ({
+      translations: state.translations.map((translation) =>
+        translation.id === 'bsb'
+          ? {
+              ...translation,
+              activeDownloadJob: {
+                id: 'job-1',
+                kind: 'translation-audio',
+                state: 'running',
+                progress: 10,
+                startedAt: 0,
+                updatedAt: 1,
+              },
+            }
+          : translation
+      ),
+    }))
+  );
+
+  assert.deepEqual(rowRenders(mark), onlyRow('BSB'));
+});

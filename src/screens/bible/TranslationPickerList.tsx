@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useShallow } from 'zustand/react/shallow';
 import { Ionicons } from '@expo/vector-icons';
 import { FlashList } from '@shopify/flash-list';
 import { bibleBooks, config, getTranslatedBookName, newTestamentBooks } from '../../constants';
@@ -31,7 +32,7 @@ import {
 import { ProgressBar } from '../../components/ui';
 import { layout, radius, spacing, typography } from '../../design/system';
 import { announceForAccessibility, hexWithAlpha } from '../../utils';
-import type { BibleTranslation } from '../../types';
+import type { BibleTranslation, TranslationDownloadProgress } from '../../types';
 import {
   ensureRuntimeCatalogLoaded,
   hasRuntimeCatalogTranslations,
@@ -767,6 +768,28 @@ export function TranslationPickerList({
   );
 }
 
+/**
+ * The parts of the shared download banner a row draws. A text pack reports its
+ * bytes chunk by chunk, many times per visible percent; selecting the whole
+ * banner object re-rendered the row on every chunk.
+ */
+function selectRowDownloadProgress(
+  progress: TranslationDownloadProgress | null,
+  translationId: string
+): Pick<
+  TranslationDownloadProgress,
+  'translationId' | 'bookId' | 'progress' | 'isIndeterminate'
+> | null {
+  return progress?.translationId === translationId
+    ? {
+        translationId,
+        bookId: progress.bookId,
+        progress: progress.progress,
+        isIndeterminate: progress.isIndeterminate,
+      }
+    : null;
+}
+
 // One row per Bible. Tap the row to read it (or start its download); the
 // trailing glyph says which of those will happen. Everything else — audio,
 // pinning, hiding, deleting — lives behind the "more" button so the list stays
@@ -793,8 +816,8 @@ const TranslationRow = memo(function TranslationRow({
 }) {
   const { colors } = useTheme();
   const { t } = useI18n();
-  const downloadProgress = useBibleStore((state) =>
-    state.downloadProgress?.translationId === translation.id ? state.downloadProgress : null
+  const downloadProgress = useBibleStore(
+    useShallow((state) => selectRowDownloadProgress(state.downloadProgress, translation.id))
   );
   const cancelDownload = useBibleStore((state) => state.cancelDownload);
 
@@ -1006,8 +1029,8 @@ function TranslationManageSheet({
 }) {
   const { colors } = useTheme();
   const { t } = useI18n();
-  const downloadProgress = useBibleStore((state) =>
-    state.downloadProgress?.translationId === translation.id ? state.downloadProgress : null
+  const downloadProgress = useBibleStore(
+    useShallow((state) => selectRowDownloadProgress(state.downloadProgress, translation.id))
   );
   const downloadAudioForBook = useBibleStore((state) => state.downloadAudioForBook);
   const downloadAudioForBooks = useBibleStore((state) => state.downloadAudioForBooks);

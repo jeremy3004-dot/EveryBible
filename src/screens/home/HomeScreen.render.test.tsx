@@ -2,10 +2,11 @@ import test, { afterEach, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import type { ReactTestInstance } from 'react-test-renderer';
 import { create } from 'zustand';
+import { act } from 'react-test-renderer';
 import { gatherFoundations } from '../../data/gatherFoundations';
 import { readingPlans as bundledReadingPlans } from '../../data/readingPlans.generated';
 import type { ReadingPlan, UserReadingPlanProgress } from '../../services/plans/types';
-import type { DailyScripture } from '../../types';
+import type { BibleTranslation, DailyScripture } from '../../types';
 import { hostComponent } from '../../testing/reactNativeHost';
 import { mockModule, mockPackage, sourcePath } from '../../testing/mockModules';
 import { createReactNavigationFake } from '../../testing/nativePackageFakes';
@@ -32,6 +33,7 @@ mockPackage(mock, '@react-navigation/native', {
 // ---- Stores: real Zustand stores holding only what Home selects -------------
 const translationSwitches: string[] = [];
 const bibleStore = create(() => ({
+  translations: bibleTranslations as BibleTranslation[],
   currentTranslation: 'bsb',
   currentBook: 'JHN',
   currentChapter: 3,
@@ -86,9 +88,12 @@ const verseOf = (overrides: Partial<DailyScripture> = {}) =>
 let dailyScripture = verseOf();
 // What Home told the service about today's audio, newest last.
 const audioAvailableArgs: boolean[] = [];
+/** The translation id of every verse-of-the-day database read. */
+const verseLoads: string[] = [];
 // Home reaches the Bible database through a lazy import; this is what it loads.
 mockModule(mock, sourcePath('services/bible/bibleService.ts'), {
-  getDailyScripture: async (_translation: unknown, audioAvailable: boolean) => {
+  getDailyScripture: async (translation: { id: string }, audioAvailable: boolean) => {
+    verseLoads.push(translation.id);
     audioAvailableArgs.push(audioAvailable);
     return dailyScripture;
   },
@@ -154,6 +159,7 @@ beforeEach(() => {
   network.offline = false;
   audioAvailableArgs.length = 0;
   translationSwitches.length = 0;
+  verseLoads.length = 0;
   sharing.available = true;
   sharing.captureError = null;
   sharing.captures.length = 0;
@@ -192,6 +198,67 @@ function heroes(view: HomeView) {
 const verseEyebrow = (reference: string) => `${t('home.todaysScripture')} · ${reference}`;
 
 // ---- Verse of the day --------------------------------------------------------
+
+/** Replace translation rows the way a download tick or catalog refresh does. */
+async function replaceTranslations(ids: readonly string[], patch: Partial<BibleTranslation> = {}) {
+  await act(async () => {
+    bibleStore.setState((state) => ({
+      translations: state.translations.map((translation) =>
+        ids.includes(translation.id) ? { ...translation, ...patch } : translation
+      ),
+    }));
+  });
+}
+
+test('a refreshed copy of the current translation does not reload or re-spin the verse', async () => {
+  const view = await renderHome();
+  assert.deepEqual(verseLoads, ['bsb']);
+
+  // Download progress and catalog hydration rebuild the row without changing it.
+  await replaceTranslations(['bsb'], { activeDownloadJob: null });
+  await view.flush();
+  await view.flush();
+
+  assert.deepEqual(verseLoads, ['bsb'], 'no second database read');
+  assert.ok(heroes(view).screen.getByText(JOHN_3_16), 'the verse stays up');
+});
+
+test('another translation changing does not re-render Home', async () => {
+  const other = bibleTranslations.find((translation) => translation.id !== 'bsb');
+  assert.ok(other);
+  await renderHome();
+  const mark = harness.renders.mark();
+
+  await replaceTranslations([other.id], { downloadedAudioBooks: ['GEN'] });
+
+  assert.equal(harness.renders.count(mark), 0);
+});
+
+test('switching the current translation still loads its verse', async () => {
+  const other = bibleTranslations.find(
+    (translation) => translation.id !== 'bsb' && translation.hasText
+  );
+  assert.ok(other);
+  const view = await renderHome();
+
+  await act(async () => {
+    bibleStore.setState({ currentTranslation: other.id });
+  });
+  await view.flush();
+  await view.flush();
+
+  assert.deepEqual(verseLoads, ['bsb', other.id]);
+});
+
+test('installing the current translation’s text pack reloads its verse', async () => {
+  const view = await renderHome();
+
+  await replaceTranslations(['bsb'], { textPackLocalPath: 'file:///packs/bsb.sqlite' });
+  await view.flush();
+  await view.flush();
+
+  assert.deepEqual(verseLoads, ['bsb', 'bsb']);
+});
 
 test('the hero shows the rotating daily verse and its reference, not a fixed passage', async () => {
   const first = await renderHome();

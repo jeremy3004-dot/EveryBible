@@ -24,12 +24,29 @@ import { createReactNativeStub, type ReactNativeStubOptions } from './reactNativ
 
 type AnyProps = Record<string, unknown> & { children?: ReactNode };
 
+/** One render of a fake host primitive: its host type and the props it rendered with. */
+export interface HostRender {
+  type: string;
+  props: AnyProps;
+}
+
+/**
+ * Every render of a fake primitive, in order. A render here means React called
+ * the primitive again, which only happens when its parent re-rendered: a
+ * memoised subtree that bailed out adds nothing. Render tests count entries to
+ * prove an update stayed in the components it concerns. Cleared after each test.
+ */
+export const hostRenderLog: HostRender[] = [];
+
 // React 19 passes `ref` to function components as an ordinary prop, so these
 // forward it to the host element by spreading props; no forwardRef needed.
 
 /** A component that renders a host element of the same name with its props. */
 export function hostComponent(name: string) {
-  const Component = (props: AnyProps) => createElement(name, props);
+  const Component = (props: AnyProps) => {
+    hostRenderLog.push({ type: name, props });
+    return createElement(name, props);
+  };
   Component.displayName = name;
   return Component;
 }
@@ -38,7 +55,9 @@ const PRESS_STATE = { pressed: false, hovered: false, focused: false };
 type PressRender = (state: typeof PRESS_STATE) => ReactNode;
 
 /** Pressable resolves its function style/children with the resting state. */
-function Pressable({ children, style, ...rest }: AnyProps) {
+function Pressable(props: AnyProps) {
+  hostRenderLog.push({ type: 'Pressable', props });
+  const { children, style, ...rest } = props;
   const content =
     typeof children === 'function' ? (children as PressRender)(PRESS_STATE) : children;
   const resolvedStyle =
@@ -91,6 +110,7 @@ export function FlatList({
   ItemSeparatorComponent,
   ...rest
 }: FlatListProps) {
+  hostRenderLog.push({ type: 'FlatList', props: { ...rest, data } });
   const items = data ? Array.from(data) : [];
   const rows = items.map((item, index) =>
     createElement(
