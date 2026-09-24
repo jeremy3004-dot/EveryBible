@@ -157,18 +157,31 @@ interface ServerProgressRow {
  * merge_user_progress's merge step (after validation) with the uploaded payload
  * as "in" and the locked row as "stored". `nowIso` stands in for now().
  * `rules`: 'live' is 20260924051658; 'proposed' adds the same-day tie rules of
- * 20260924111958 (applied live 2026-09-24).
+ * 20260924111958 (applied live 2026-09-24); 'clock' adds the clock bound of
+ * 20260924220000 (not applied yet): no date past UTC current_date + 1 and no
+ * chapter time past now() + 1 day, on either side.
  */
 function serverMergeUserProgress(
   stored: ServerProgressRow | null,
   payload: object,
   nowIso: string,
-  rules: 'live' | 'proposed' = 'live'
+  rules: 'live' | 'proposed' | 'clock' = 'live'
 ): ServerProgressRow {
   const p = JSON.parse(JSON.stringify(payload)) as Record<string, unknown>;
-  const inChapters = (p.chapters_read ?? {}) as Record<string, number>;
+  const bounded = rules === 'clock';
+  const boundMs = Date.parse(nowIso) + DAY_MS;
+  const boundDate = new Date(boundMs).toISOString().slice(0, 10);
+  const boundDay = (date: string | null) =>
+    bounded && date !== null && date > boundDate ? boundDate : date;
+  const boundTime = (readAt: number) => (bounded ? Math.min(readAt, boundMs) : readAt);
+  const inChapters = Object.fromEntries(
+    Object.entries((p.chapters_read ?? {}) as Record<string, number>).map(([key, readAt]) => [
+      key,
+      boundTime(readAt),
+    ])
+  );
   const inStreak = (p.streak_days ?? null) as number | null;
-  const inLast = (p.last_read_date ?? null) as string | null;
+  const inLast = boundDay((p.last_read_date ?? null) as string | null);
   const inBook = (p.current_book ?? null) as string | null;
   const inChapter = (p.current_chapter ?? null) as number | null;
 
@@ -191,23 +204,25 @@ function serverMergeUserProgress(
   for (const source of [storedChapters, inChapters]) {
     for (const [key, value] of Object.entries(source)) {
       if (typeof value !== 'number') continue;
-      chapters[key] = key in chapters ? Math.max(chapters[key], value) : value;
+      const readAt = boundTime(value);
+      chapters[key] = key in chapters ? Math.max(chapters[key], readAt) : readAt;
     }
   }
 
   // GREATEST ignores NULLs; dates in one format compare as strings.
+  const storedLast = boundDay(stored.last_read_date);
   const last =
-    stored.last_read_date === null
+    storedLast === null
       ? inLast
       : inLast === null
-        ? stored.last_read_date
-        : stored.last_read_date > inLast
-          ? stored.last_read_date
+        ? storedLast
+        : storedLast > inLast
+          ? storedLast
           : inLast;
   const streak =
-    rules === 'proposed' && inLast !== null && inLast === stored.last_read_date
+    rules !== 'live' && inLast !== null && inLast === storedLast
       ? Math.max(inStreak ?? 0, stored.streak_days ?? 0)
-      : last === stored.last_read_date && last !== inLast
+      : last === storedLast && last !== inLast
         ? (stored.streak_days ?? 0)
         : (inStreak ?? stored.streak_days ?? 0);
 
@@ -225,7 +240,7 @@ function serverMergeUserProgress(
       const freshUpload =
         inBook === 'GEN' && inChapter === 1 && Object.keys(inChapters).length === 0;
       const storedWinsTie =
-        rules === 'proposed' &&
+        rules !== 'live' &&
         storedTs === inTs &&
         `${stored.current_book}_${stored.current_chapter}` > `${inBook}_${inChapter}`;
       if (!(freshUpload || storedTs > inTs || storedWinsTie)) {
@@ -514,7 +529,7 @@ const syncDevice = (
   nowIso: string
 ): { device: Device; server: ServerProgressRow | null } => {
   const apply = (snapshot: Device, remote: RemoteUserProgress | null) => {
-    const merged = mergeReadingSnapshot(snapshot, remote);
+    const merged = mergeReadingSnapshot(snapshot, remote, new Date(nowIso));
     return {
       merged,
       device: merged.changed
@@ -540,6 +555,7 @@ const syncDevice = (
 const runProgressScenario = (ops: ProgressOp[]) => {
   let devices: [Device, Device] = [freshDevice(), freshDevice()];
   let server: ServerProgressRow | null = null;
+  // The devices' shared clock: it never runs behind a read that has happened.
   let clock = BASE_MS;
   const allReads: Record<string, number>[] = [];
   const tick = () => new Date((clock += 1000)).toISOString();
@@ -554,6 +570,7 @@ const runProgressScenario = (ops: ProgressOp[]) => {
     if (op.kind === 'read') {
       const readAt = BASE_MS + op.day * DAY_MS + op.minutes * 60_000;
       const date = new Date(BASE_MS + op.day * DAY_MS).toISOString().slice(0, 10);
+      clock = Math.max(clock, readAt);
       allReads.push({ [op.key]: readAt });
       const next = readLocally(devices[op.device], op.key, readAt, date);
       devices = op.device === 0 ? [next, devices[1]] : [devices[0], next];
@@ -738,3 +755,297 @@ test('the SQL validator model refuses what the migration refuses', () => {
     );
   }
 });
+
+// ---------------------------------------------------------------------------
+// A device whose clock runs ahead
+// ---------------------------------------------------------------------------
+
+// A real instant at any hour of 2026-09-24, so the device's local day and the
+// server's UTC day fall both ways round.
+const realNowArb = fc
+  .integer({ min: 0, max: 23 * 60 })
+  .map((minutes) => Date.parse('2026-09-24T00:00:00.000Z') + minutes * 60_000);
+// How far a wrong clock runs ahead: from just past the one-day slack to over a year.
+const skewArb = fc.integer({ min: DAY_MS + 60_000, max: 400 * DAY_MS });
+
+/** The device's local calendar day (what progressStore writes), `shift` days from `ms`. */
+const localDay = (ms: number, shift = 0): string => {
+  const day = new Date(ms);
+  day.setDate(day.getDate() + shift);
+  return [
+    day.getFullYear(),
+    String(day.getMonth() + 1).padStart(2, '0'),
+    String(day.getDate()).padStart(2, '0'),
+  ].join('-');
+};
+const utcDay = (ms: number): string => new Date(ms).toISOString().slice(0, 10);
+
+/** The streak a screen shows (progressStore.selectCurrentStreakDays). */
+const shownStreak = (device: Device, nowMs: number): number =>
+  device.lastReadDate !== null &&
+  [localDay(nowMs, -1), localDay(nowMs), localDay(nowMs, 1)].includes(device.lastReadDate)
+    ? device.streakDays
+    : 0;
+
+/** A snapshot whose dates and chapter times may be up to a year past `nowMs`. */
+const snapshotAroundArb = (nowMs: number): fc.Arbitrary<LocalReadingSnapshot> =>
+  fc
+    .record({
+      chaptersRead: fc.dictionary(
+        chapterKeyArb,
+        fc.oneof(
+          fc.integer({ min: -3 * DAY_MS, max: 0 }),
+          fc.integer({ min: 0, max: 400 * DAY_MS })
+        ),
+        { maxKeys: 8, noNullPrototype: true }
+      ),
+      streakDays: fc.integer({ min: 0, max: 9 }),
+      lastReadDate: fc.option(
+        fc.oneof(fc.integer({ min: -3, max: 1 }), fc.integer({ min: 2, max: 400 })),
+        { nil: null }
+      ),
+      position: positionArb,
+    })
+    .map(({ chaptersRead, lastReadDate, position, ...rest }) => ({
+      ...rest,
+      chaptersRead: Object.fromEntries(
+        Object.entries(chaptersRead).map(([key, offset]) => [key, nowMs + offset])
+      ),
+      lastReadDate: lastReadDate === null ? null : localDay(nowMs, lastReadDate),
+      currentBook: position[0],
+      currentChapter: position[1],
+    }));
+
+const aheadPairArb = realNowArb.chain((nowMs) =>
+  fc.tuple(fc.constant(nowMs), snapshotAroundArb(nowMs), snapshotAroundArb(nowMs))
+);
+
+const rowOf = (snapshot: LocalReadingSnapshot, syncedAtMs: number): RemoteUserProgress =>
+  asRemoteRow({
+    chapters_read: snapshot.chaptersRead,
+    streak_days: snapshot.streakDays,
+    last_read_date: snapshot.lastReadDate,
+    current_book: snapshot.currentBook,
+    current_chapter: snapshot.currentChapter,
+    synced_at: new Date(syncedAtMs).toISOString(),
+  });
+
+const adopt = (merged: ReturnType<typeof mergeReadingSnapshot>): LocalReadingSnapshot => ({
+  ...merged.progress,
+  currentBook: merged.readingPosition.bookId,
+  currentChapter: merged.readingPosition.chapter,
+});
+
+test('after a merge no date is past tomorrow and no chapter time is more than a day ahead', () => {
+  fc.assert(
+    fc.property(aheadPairArb, ([nowMs, local, remote]) => {
+      const merged = mergeReadingSnapshot(local, rowOf(remote, nowMs), new Date(nowMs));
+      const payload = buildRemoteProgressPayload(USER_ID, merged, new Date(nowMs).toISOString());
+      for (const date of [merged.progress.lastReadDate, payload.last_read_date]) {
+        assert.ok(date === null || date <= localDay(nowMs, 1), `date ${date}`);
+      }
+      for (const map of [merged.progress.chaptersRead, payload.chapters_read]) {
+        for (const [key, readAt] of Object.entries(map)) {
+          assert.ok(readAt <= nowMs + DAY_MS, `${key} at ${readAt}`);
+        }
+      }
+      assert.equal(validateMergeUserProgressPayload(payload), null);
+    }),
+    FC_PARAMS
+  );
+});
+
+test('with clocks running ahead, the merge is still commutative and idempotent', () => {
+  fc.assert(
+    fc.property(aheadPairArb, ([nowMs, a, b]) => {
+      const now = new Date(nowMs);
+      const ab = mergeReadingSnapshot(a, rowOf(b, nowMs), now);
+      const ba = mergeReadingSnapshot(b, rowOf(a, nowMs), now);
+      assert.deepEqual(
+        sortedEntries(ab.progress.chaptersRead),
+        sortedEntries(ba.progress.chaptersRead)
+      );
+      assert.equal(ab.progress.lastReadDate, ba.progress.lastReadDate);
+      if (a.lastReadDate !== null || b.lastReadDate !== null) {
+        assert.equal(ab.progress.streakDays, ba.progress.streakDays);
+      }
+
+      // Merging the same row again, or the result with itself, changes nothing.
+      const merged = adopt(ab);
+      assert.equal(mergeReadingSnapshot(merged, rowOf(b, nowMs), now).changed, false);
+      const self = mergeReadingSnapshot(merged, rowOf(merged, nowMs), now);
+      assert.equal(self.changed, false);
+      assert.equal(readingMatchesRemote(self, rowOf(merged, nowMs)), true);
+    }),
+    FC_PARAMS
+  );
+});
+
+test('with no clock ahead, the clock-bound server merge is the live one', () => {
+  fc.assert(
+    fc.property(localSnapshotArb, serverRowArb, (local, stored) => {
+      const payload = buildRemoteProgressPayload(
+        USER_ID,
+        mergeReadingSnapshot(local, asRemoteRow(stored)),
+        '2026-09-24T00:00:00.000Z'
+      );
+      assert.deepEqual(
+        serverMergeUserProgress(stored, payload, '2026-09-24T00:00:00.000Z', 'clock'),
+        serverMergeUserProgress(stored, payload, '2026-09-24T00:00:00.000Z', 'proposed')
+      );
+    }),
+    FC_PARAMS
+  );
+});
+
+test('the clock-bound server never stores a date past UTC tomorrow or a time past a day ahead', () => {
+  fc.assert(
+    fc.property(aheadPairArb, fc.boolean(), ([nowMs, uploaded, stored], hasRow) => {
+      // The stored row may predate the bound (written by a clock running ahead).
+      const row = hasRow
+        ? {
+            chapters_read: stored.chaptersRead,
+            streak_days: stored.streakDays,
+            last_read_date: stored.lastReadDate,
+            current_book: stored.currentBook,
+            current_chapter: stored.currentChapter,
+            synced_at: new Date(nowMs).toISOString(),
+          }
+        : null;
+      // What a device with its clock ahead by up to a year sends: no client bound.
+      const payload = {
+        user_id: USER_ID,
+        chapters_read: uploaded.chaptersRead,
+        streak_days: uploaded.streakDays,
+        last_read_date: uploaded.lastReadDate,
+        current_book: uploaded.currentBook,
+        current_chapter: uploaded.currentChapter,
+      };
+      const result = serverMergeUserProgress(row, payload, new Date(nowMs).toISOString(), 'clock');
+      assert.ok(
+        result.last_read_date === null || result.last_read_date <= utcDay(nowMs + DAY_MS),
+        `stored ${result.last_read_date}`
+      );
+      for (const [key, readAt] of Object.entries(result.chapters_read ?? {})) {
+        assert.ok((readAt as number) <= nowMs + DAY_MS, `${key} at ${String(readAt)}`);
+      }
+    }),
+    FC_PARAMS
+  );
+});
+
+type ClockOp =
+  | { kind: 'aheadRead'; key: string }
+  | { kind: 'aheadSync' }
+  | { kind: 'honestRead'; key: string }
+  | { kind: 'honestSync' };
+
+const clockOpArb: fc.Arbitrary<ClockOp> = fc.oneof(
+  fc.record({ kind: fc.constant('aheadRead' as const), key: chapterKeyArb }),
+  fc.record({ kind: fc.constant('aheadSync' as const) }),
+  fc.record({ kind: fc.constant('honestRead' as const), key: chapterKeyArb }),
+  fc.record({ kind: fc.constant('honestSync' as const) })
+);
+
+/** A read as progressStore records it: markChapterRead, updateStreak and the reader position. */
+const readAtClock = (device: Device, key: string, clockMs: number): Device => {
+  const today = localDay(clockMs);
+  const counted = device.lastReadDate === today || device.lastReadDate === localDay(clockMs, 1);
+  const continues = device.lastReadDate === localDay(clockMs, -1);
+  return {
+    chaptersRead: { ...device.chaptersRead, [key]: clockMs },
+    streakDays: counted ? device.streakDays : continues ? device.streakDays + 1 : 1,
+    lastReadDate: counted ? device.lastReadDate : today,
+    currentBook: key.slice(0, key.lastIndexOf('_')),
+    currentChapter: Number(key.slice(key.lastIndexOf('_') + 1)),
+  };
+};
+
+/** syncProgress on a device whose clock reads `clockMs`, against a server at real time. */
+const syncAtClock = (
+  device: Device,
+  server: ServerProgressRow | null,
+  clockMs: number,
+  serverNowIso: string,
+  rules: 'proposed' | 'clock'
+): { device: Device; server: ServerProgressRow | null } => {
+  const now = new Date(clockMs);
+  const remote = server ? asRemoteRow(server) : null;
+  const merged = mergeReadingSnapshot(device, remote, now);
+  const next = merged.changed ? adopt(merged) : device;
+  if (readingMatchesRemote(merged, remote)) {
+    return { device: next, server };
+  }
+  const payload = buildRemoteProgressPayload(USER_ID, merged, now.toISOString());
+  assert.equal(validateMergeUserProgressPayload(payload), null);
+  const stored = serverMergeUserProgress(server, payload, serverNowIso, rules);
+  const back = mergeReadingSnapshot(next, asRemoteRow(stored), now);
+  return { device: back.changed ? adopt(back) : next, server: stored };
+};
+
+for (const rules of ['proposed', 'clock'] as const) {
+  const serverName = rules === 'clock' ? 'with the clock-bound server' : 'on the live server';
+  test(`one device with its clock ahead cannot zero another device's streak (${serverName})`, () => {
+    fc.assert(
+      fc.property(
+        realNowArb,
+        skewArb,
+        fc.integer({ min: 1, max: 30 }),
+        fc.boolean(),
+        fc.array(clockOpArb, { minLength: 1, maxLength: 16 }),
+        (nowMs, skewMs, streakDays, readToday, ops) => {
+          // Everything happens at one real instant; only the one device's clock is wrong.
+          const serverNowIso = new Date(nowMs).toISOString();
+          const aheadMs = nowMs + skewMs;
+          let honest: Device = {
+            chaptersRead: { JHN_3: nowMs - 60 * 60_000 },
+            streakDays,
+            lastReadDate: localDay(nowMs, readToday ? 0 : -1),
+            currentBook: 'JHN',
+            currentChapter: 3,
+          };
+          let ahead: Device = freshDevice();
+          let server: ServerProgressRow | null = null;
+          ({ device: honest, server } = syncAtClock(honest, server, nowMs, serverNowIso, rules));
+          assert.ok(shownStreak(honest, nowMs) > 0);
+
+          for (const op of ops) {
+            if (op.kind === 'aheadRead') ahead = readAtClock(ahead, op.key, aheadMs);
+            if (op.kind === 'honestRead') honest = readAtClock(honest, op.key, nowMs);
+            if (op.kind === 'aheadSync') {
+              ({ device: ahead, server } = syncAtClock(
+                ahead,
+                server,
+                aheadMs,
+                serverNowIso,
+                rules
+              ));
+            }
+            if (op.kind === 'honestSync') {
+              ({ device: honest, server } = syncAtClock(
+                honest,
+                server,
+                nowMs,
+                serverNowIso,
+                rules
+              ));
+            }
+            assert.ok(shownStreak(honest, nowMs) > 0, `after ${op.kind}`);
+          }
+          ({ device: ahead, server } = syncAtClock(ahead, server, aheadMs, serverNowIso, rules));
+          ({ device: honest, server } = syncAtClock(honest, server, nowMs, serverNowIso, rules));
+
+          assert.ok(shownStreak(honest, nowMs) > 0, `shows ${shownStreak(honest, nowMs)}`);
+          for (const [key, readAt] of Object.entries(honest.chaptersRead)) {
+            assert.ok(readAt <= nowMs + DAY_MS, `${key} at ${readAt}`);
+          }
+          // Every chapter the other device read still arrives.
+          for (const key of Object.keys(ahead.chaptersRead)) {
+            assert.ok(key in honest.chaptersRead, key);
+          }
+        }
+      ),
+      FC_PARAMS
+    );
+  });
+}
