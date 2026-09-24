@@ -528,15 +528,21 @@ export function isPlanCompleted(durationDays: number, completedCount: number): b
  * Merges a local UserReadingPlanProgress row with a remote one.
  *
  * Merge rules (mirrors syncPlanProgress in readingPlanService.ts):
- * - completed_entries: union of both (local wins on same key)
- * - completed_sessions: union of both (local wins on same key)
- * - current_day: highest of the two; current_session from the side further along
+ * - completed_entries: union of both (a day done on both sides keeps the earlier time)
+ * - completed_sessions: union of both (likewise)
+ * - current_day: highest of the two; current_session from the side further along,
+ *   and on the same day the later session of the two
  * - is_completed: true if either side is completed
- * - completed_at: local value when present, otherwise remote
+ * - completed_at: the earlier of the two
  * - synced_at: caller-supplied timestamp
  *
- * The server applies the same rules atomically in merge_reading_plan_progress
- * (migration 20260924035821); keep the two in step.
+ * Every rule gives the same answer whichever side is "local", so two devices
+ * settle on one row. (Letting the local side win a shared key made each device
+ * push its own time for the same day on every sync, and the server row flipped
+ * between them.) The server applies these rules atomically in
+ * merge_reading_plan_progress (migration 20260924035821), except that there the
+ * uploaded value wins a shared key; the upload already carries this merge of the
+ * server row, so the two agree.
  *
  * Returns a new object — inputs are not mutated.
  */
@@ -545,19 +551,13 @@ export function mergePlanProgress(
   remote: UserReadingPlanProgress,
   syncedAt: string
 ): UserReadingPlanProgress {
-  const mergedEntries: Record<string, string> = {
-    ...remote.completed_entries,
-    ...local.completed_entries,
-  };
-  const mergedCompletedSessions: Record<string, string> = {
-    ...(remote.completed_sessions ?? {}),
-    ...(local.completed_sessions ?? {}),
-  };
-
   return {
     ...remote,
-    completed_entries: mergedEntries,
-    completed_sessions: mergedCompletedSessions,
+    completed_entries: unionKeepingEarlier(remote.completed_entries, local.completed_entries),
+    completed_sessions: unionKeepingEarlier(
+      remote.completed_sessions ?? {},
+      local.completed_sessions ?? {}
+    ),
     current_day: Math.max(local.current_day, remote.current_day),
     // The next-session pointer belongs to its day: take it from the side that is
     // further through the plan, and only fall back across sides on the same day.
@@ -566,11 +566,50 @@ export function mergePlanProgress(
         ? (remote.current_session ?? null)
         : local.current_day > remote.current_day
           ? (local.current_session ?? null)
-          : (local.current_session ?? remote.current_session ?? null),
+          : laterSession(local.current_session ?? null, remote.current_session ?? null),
     is_completed: local.is_completed || remote.is_completed,
-    completed_at: local.completed_at ?? remote.completed_at,
+    completed_at:
+      local.completed_at && remote.completed_at
+        ? earlierStamp(local.completed_at, remote.completed_at)
+        : (local.completed_at ?? remote.completed_at),
     synced_at: syncedAt,
   };
+}
+
+/** The earlier of two completion times; the same pick whichever is passed first. */
+function earlierStamp(left: string, right: string): string {
+  const leftTime = Date.parse(left);
+  const rightTime = Date.parse(right);
+  if (Number.isFinite(leftTime) && Number.isFinite(rightTime) && leftTime !== rightTime) {
+    return leftTime < rightTime ? left : right;
+  }
+  return left <= right ? left : right;
+}
+
+function unionKeepingEarlier(
+  left: Record<string, string>,
+  right: Record<string, string>
+): Record<string, string> {
+  const merged: Record<string, string> = { ...left };
+  for (const [key, completedAt] of Object.entries(right)) {
+    const existing = merged[key];
+    merged[key] =
+      typeof existing === 'string' && typeof completedAt === 'string'
+        ? earlierStamp(existing, completedAt)
+        : completedAt;
+  }
+  return merged;
+}
+
+/** On the same day, the session further along (either one when only one is set). */
+function laterSession(
+  left: PlanSessionKey | null,
+  right: PlanSessionKey | null
+): PlanSessionKey | null {
+  if (left === null || right === null) {
+    return left ?? right;
+  }
+  return PLAN_SESSION_ORDER.indexOf(left) >= PLAN_SESSION_ORDER.indexOf(right) ? left : right;
 }
 
 /**
