@@ -411,3 +411,24 @@ test('the weekday headers share the week rows’ seven columns', async () => {
     assert.equal(flattenStyle(header.props.style)?.width, undefined);
   }
 });
+
+test('choosing a day re-renders only the two cells whose selection changed', async () => {
+  const view = await renderScreen();
+  const isDayCell = (props: Record<string, unknown>) =>
+    props.accessibilityRole === 'button' &&
+    typeof props.accessibilityLabel === 'string' &&
+    /^[A-Z][a-z]+day, [A-Z][a-z]+ \d+$/.test(props.accessibilityLabel);
+
+  const since = harness.renders.mark();
+  await view.press(cellNamed(view, 'Tuesday, September 22'));
+
+  assert.equal(isSelected(cellNamed(view, 'Tuesday, September 22')), true);
+  assert.deepEqual(
+    harness.renders
+      .since(since)
+      .filter((entry) => entry.type === 'Pressable' && isDayCell(entry.props))
+      .map((entry) => entry.props.accessibilityLabel)
+      .sort(),
+    ['Tuesday, September 22', 'Wednesday, September 23']
+  );
+});
