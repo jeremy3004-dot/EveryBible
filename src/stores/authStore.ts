@@ -348,10 +348,21 @@ export const useAuthStore = create<AuthState>()(
       applySyncedPreferences: (preferences, updatedAt, base = preferences, fieldStamps) =>
         set((state) => {
           const preferencesChanged = preferencesDiffer(state.preferences, preferences);
-          const stampUpdate =
-            fieldStamps && !fieldStampsEqual(state.preferenceFieldStamps, fieldStamps)
-              ? { preferenceFieldStamps: fieldStamps }
-              : {};
+          // Without server stamps (the column is not live yet), a stamp only
+          // survives on a value the sync left alone: it described this device's
+          // choice, not the value that replaced it.
+          const nextStamps =
+            fieldStamps ??
+            Object.fromEntries(
+              Object.entries(state.preferenceFieldStamps).filter(
+                ([field]) =>
+                  preferences[field as keyof UserPreferences] ===
+                  state.preferences[field as keyof UserPreferences]
+              )
+            );
+          const stampUpdate = !fieldStampsEqual(state.preferenceFieldStamps, nextStamps)
+            ? { preferenceFieldStamps: nextStamps }
+            : {};
 
           if (!preferencesChanged && state.preferencesUpdatedAt === updatedAt) {
             const baseUpdate =

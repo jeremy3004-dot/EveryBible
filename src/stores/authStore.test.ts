@@ -266,6 +266,30 @@ test('synced preferences carry the server stamps when they are given', () => {
   assert.deepEqual(useAuthStore.getState().preferenceFieldStamps, stamps);
 });
 
+// Before the server has stamps, a sync can replace a value without one. The old
+// stamp described the replaced value; kept, it would later make the adopted
+// value look like this device's newer choice.
+test('a value replaced by a sync without stamps loses its local stamp', () => {
+  useAuthStore
+    .getState()
+    .applySyncedPreferences({ ...defaultAuthPreferences }, '2026-06-01T00:00:00.000Z', undefined, {
+      fontSize: '2026-06-01T00:00:00.000Z',
+      theme: '2026-06-01T00:00:00.000Z',
+    });
+
+  useAuthStore.getState().applySyncedPreferences(
+    {
+      ...defaultAuthPreferences,
+      fontSize: defaultAuthPreferences.fontSize === 'large' ? 'small' : 'large',
+    },
+    '2026-06-02T00:00:00.000Z'
+  );
+
+  assert.deepEqual(useAuthStore.getState().preferenceFieldStamps, {
+    theme: '2026-06-01T00:00:00.000Z',
+  });
+});
+
 test('new stamps alone are adopted even when the values and sync time are unchanged', () => {
   const stamp = '2026-06-01T00:00:00.000Z';
   useAuthStore
