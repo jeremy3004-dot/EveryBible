@@ -99,6 +99,44 @@ export function buildTranslationPickerRows({
   return rows;
 }
 
+/** The fields the search and language indexes read; nothing about downloads or install state. */
+type IndexedTranslationFields = Pick<
+  BibleTranslation,
+  'id' | 'name' | 'abbreviation' | 'description' | 'language' | 'hasText' | 'hasAudio' | 'catalog'
+>;
+
+const INDEXED_TRANSLATION_FIELDS: readonly (keyof IndexedTranslationFields)[] = [
+  'id',
+  'name',
+  'abbreviation',
+  'description',
+  'language',
+  'hasText',
+  'hasAudio',
+  'catalog',
+];
+
+/**
+ * Whether two catalog snapshots index identically. The store copies a Bible on every audio
+ * progress tick, so the arrays differ while every name, language and catalog entry is the same
+ * one; an unchanged Bible is still the same object and costs one comparison.
+ */
+export function hasSameIndexedCatalog<T extends IndexedTranslationFields>(
+  previous: readonly T[],
+  next: readonly T[]
+): boolean {
+  if (previous === next) return true;
+  if (previous.length !== next.length) return false;
+  return previous.every((before, index) => {
+    const after = next[index];
+    return (
+      before === after ||
+      (after !== undefined &&
+        INDEXED_TRANSLATION_FIELDS.every((field) => Object.is(before[field], after[field])))
+    );
+  });
+}
+
 // Module-level so the list keeps one identity for them across renders.
 export const translationPickerRowKey = (row: TranslationPickerRow) => row.id;
 export const translationPickerRowType = (row: TranslationPickerRow) => row.type;

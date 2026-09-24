@@ -14,6 +14,8 @@ import { create } from 'zustand';
 import { installRenderHarness, within } from '../../testing/render';
 import { mockBarrel, mockModule, sourcePath } from '../../testing/mockModules';
 import type { BibleTranslation, TranslationDownloadProgress } from '../../types';
+// Loaded for real before the picker's copy is replaced by the counting wrapper below.
+import * as translationModel from './bibleTranslationModel';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -161,6 +163,58 @@ export function installPickerRenderFixture(mock: MockTracker) {
   const t = (key: string, options?: Record<string, unknown>) => harness.i18n.t(key, options);
 
   mockModule(mock, 'expo-constants', { default: { expoConfig: { extra: {} } } });
+
+  // The catalog-wide builders the picker runs over every visible Bible, counted per call so a
+  // test can tell a rebuild from a reused index.
+  const modelCalls = {
+    buildTranslationSearchIndex: 0,
+    buildTranslationLanguageSearchIndex: 0,
+    buildTranslationLanguageFilters: 0,
+    buildTranslationLanguageOptions: 0,
+    resolvePreferredTranslationLanguage: 0,
+  };
+  const counted =
+    <Args extends unknown[], Result>(
+      name: keyof typeof modelCalls,
+      run: (...args: Args) => Result
+    ) =>
+    (...args: Args) => {
+      modelCalls[name] += 1;
+      return run(...args);
+    };
+  // A CommonJS-compiled module's namespace also carries `default`, which the mock would take
+  // for the module's default export.
+  const realModel = Object.fromEntries(
+    Object.entries(translationModel).filter(([name]) => name !== 'default')
+  );
+  mockModule(mock, sourcePath('screens/bible/bibleTranslationModel.ts'), {
+    ...realModel,
+    buildTranslationSearchIndex: counted(
+      'buildTranslationSearchIndex',
+      translationModel.buildTranslationSearchIndex<BibleTranslation>
+    ),
+    buildTranslationLanguageSearchIndex: counted(
+      'buildTranslationLanguageSearchIndex',
+      translationModel.buildTranslationLanguageSearchIndex<BibleTranslation>
+    ),
+    buildTranslationLanguageFilters: counted(
+      'buildTranslationLanguageFilters',
+      translationModel.buildTranslationLanguageFilters<BibleTranslation>
+    ),
+    buildTranslationLanguageOptions: counted(
+      'buildTranslationLanguageOptions',
+      translationModel.buildTranslationLanguageOptions
+    ),
+    resolvePreferredTranslationLanguage: counted(
+      'resolvePreferredTranslationLanguage',
+      translationModel.resolvePreferredTranslationLanguage<BibleTranslation>
+    ),
+  });
+  const resetModelCalls = () => {
+    for (const name of Object.keys(modelCalls) as (keyof typeof modelCalls)[]) {
+      modelCalls[name] = 0;
+    }
+  };
   mockBarrel(mock, 'components/ui/index.ts', { real: ['ProgressBar'] });
 
   /** Every store action and picker callback, in the order they happened. */
@@ -291,6 +345,7 @@ export function installPickerRenderFixture(mock: MockTracker) {
     remote.calls.length = 0;
     remote.firstAudioBook = null;
     crashReports.length = 0;
+    resetModelCalls();
     useBibleStore.setState(useBibleStore.getInitialState(), true);
     usePreferenceStore.setState(usePreferenceStore.getInitialState(), true);
   });
@@ -359,6 +414,8 @@ export function installPickerRenderFixture(mock: MockTracker) {
     remote,
     crashReports,
     nextCrashReport,
+    modelCalls,
+    resetModelCalls,
     useBibleStore,
     usePreferenceStore,
     renderPicker,
