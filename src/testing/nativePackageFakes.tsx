@@ -115,7 +115,21 @@ export function createReanimatedFake(state: ReanimatedFakeState) {
     useDerivedValue: <T,>(fn: () => T) => ({ value: fn() }),
     useAnimatedStyle: (worklet: () => unknown) => worklet(),
     useAnimatedProps: (worklet: () => unknown) => worklet(),
-    useAnimatedReaction: () => {},
+    // Like the real hook: `prepare` is read on every render and `react` runs after
+    // commit whenever the prepared value changed (previous is null the first time).
+    useAnimatedReaction: <T,>(
+      prepare: () => T,
+      react: (current: T, previous: T | null) => void
+    ) => {
+      const current = prepare();
+      const last = useRef<{ value: T } | null>(null);
+      useEffect(() => {
+        if (last.current && Object.is(last.current.value, current)) return;
+        const previous = last.current ? last.current.value : null;
+        last.current = { value: current };
+        react(current, previous);
+      });
+    },
     useAnimatedScrollHandler: () => () => {},
     useAnimatedRef: () => ({ current: null }),
     useScrollViewOffset: () => ({ value: 0 }),
@@ -369,6 +383,7 @@ export function createNavigationFake(): NavigationFake {
     goBack: record('goBack'),
     pop: record('pop'),
     popToTop: record('popToTop'),
+    popTo: record('popTo'),
     reset: record('reset'),
     dispatch: record('dispatch'),
     setParams: record('setParams'),
@@ -423,9 +438,17 @@ export function createReactNavigationFake(fake: NavigationFake) {
       navigate: () => {},
       getCurrentRoute: () => undefined,
     }),
+    // Like the real helper: the nested state's focused route, else (before the
+    // nested navigator has state) the `screen` param the route was opened with.
     getFocusedRouteNameFromRoute: (value: {
       state?: { routes: Array<{ name: string }>; index?: number };
-    }) => value?.state?.routes[value.state.index ?? 0]?.name,
+      params?: { screen?: unknown };
+    }) =>
+      value?.state
+        ? value.state.routes[value.state.index ?? 0]?.name
+        : typeof value?.params?.screen === 'string'
+          ? value.params.screen
+          : undefined,
     getStateFromPath: () => undefined,
     CommonActions: {
       navigate: action('NAVIGATE'),

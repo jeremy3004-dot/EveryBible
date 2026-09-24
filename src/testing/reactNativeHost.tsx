@@ -102,7 +102,8 @@ export function FlatList({
   );
   return createElement(
     'FlatList',
-    { ...rest, data },
+    // keyExtractor stays visible on the host: it is the list's row-identity contract.
+    { ...rest, data, keyExtractor },
     renderSlot(ListHeaderComponent),
     items.length === 0 ? renderSlot(ListEmptyComponent) : rows,
     renderSlot(ListFooterComponent)
@@ -446,22 +447,49 @@ export function createReactNativeRenderStub(options: ReactNativeRenderStubOption
 
 export type ReactNativeRenderStub = ReturnType<typeof createReactNativeRenderStub>;
 
-/** Ref targets for host elements: the imperative methods components call on refs. */
-export function createHostNodeMock(_element: ReactElement): Record<string, () => void> {
-  const noop = () => {};
-  return {
-    focus: noop,
-    blur: noop,
-    clear: noop,
-    measure: noop,
-    measureInWindow: noop,
-    measureLayout: noop,
-    setNativeProps: noop,
-    scrollTo: noop,
-    scrollToEnd: noop,
-    scrollToOffset: noop,
-    scrollToIndex: noop,
-    scrollToLocation: noop,
-    flashScrollIndicators: noop,
-  };
+export interface HostNodeCall {
+  method: string;
+  /** The host element the ref points at (`'TextInput'`, `'FlatList'`, ...). */
+  type: unknown;
+  props: Record<string, unknown>;
+  args: unknown[];
+}
+
+/**
+ * Every imperative call a component made on a host ref (`focus()`,
+ * `scrollToIndex(...)`), oldest first. Cleared after each test by the harness.
+ */
+export const hostNodeCalls: HostNodeCall[] = [];
+
+const HOST_NODE_METHODS = [
+  'focus',
+  'blur',
+  'clear',
+  'measure',
+  'measureInWindow',
+  'measureLayout',
+  'setNativeProps',
+  'scrollTo',
+  'scrollToEnd',
+  'scrollToOffset',
+  'scrollToIndex',
+  'scrollToLocation',
+  'flashScrollIndicators',
+];
+
+/** Ref targets for host elements: the imperative methods components call on refs, recorded. */
+export function createHostNodeMock(
+  element: ReactElement
+): Record<string, (...args: unknown[]) => void> {
+  const record =
+    (method: string) =>
+    (...args: unknown[]) => {
+      hostNodeCalls.push({
+        method,
+        type: element.type,
+        props: element.props as Record<string, unknown>,
+        args,
+      });
+    };
+  return Object.fromEntries(HOST_NODE_METHODS.map((method) => [method, record(method)]));
 }

@@ -1,0 +1,56 @@
+// Startup import-graph guards for first-run onboarding. These stay source checks
+// because rendering cannot observe them: they are about which modules load, and
+// when, on the cold-start path (App.tsx boot, and what LocaleSetupFlow's own
+// module evaluation pulls in). Everything the flow renders and does is covered by
+// LocaleSetupFlow.render.test.tsx and LocaleSetupFlow.android.render.test.tsx.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
+function readRelativeSource(relativePath: string): string {
+  return readFileSync(fileURLToPath(new URL(relativePath, import.meta.url).href), 'utf8');
+}
+
+const appSource = readRelativeSource('../../../App.tsx');
+const flowSource = readRelativeSource('./LocaleSetupFlow.tsx');
+
+test('App.tsx gates first run behind onboarding before rendering the main shell', () => {
+  assert.match(
+    appSource,
+    /if \(!preferences\.onboardingCompleted\) \{[\s\S]*?<OnboardingHost \/>[\s\S]*?\}/
+  );
+});
+
+test('App.tsx loads LocaleSetupFlow lazily instead of importing it onto the boot render path', () => {
+  assert.match(
+    appSource,
+    /function OnboardingHost\(\) \{[\s\S]*?import\('\.\/src\/screens\/onboarding\/LocaleSetupFlow'\)[\s\S]*?return LocaleSetupFlow \? <LocaleSetupFlow mode="initial" onComplete=\{\(\) => undefined\} \/> : null;/,
+    'OnboardingHost should dynamic-import the flow and render it in initial mode'
+  );
+  assert.doesNotMatch(
+    appSource,
+    /^import[^;]*from '\.\/src\/screens\/onboarding(?:\/LocaleSetupFlow)?';/m,
+    'App.tsx should not statically import LocaleSetupFlow'
+  );
+});
+
+test('LocaleSetupFlow reaches preference sync (and so Supabase) only through a deferred import', () => {
+  // services/sync evaluates the Supabase client; a static import would load it
+  // with the onboarding screen at first mount.
+  assert.match(
+    flowSource,
+    /const syncPreferencesAfterOnboarding = \(\): void => \{[\s\S]*?import\('\.\.\/\.\.\/services\/sync'\)[\s\S]*?\.then\(\(\{ syncPreferences \}\) => syncPreferences\(\)\)/
+  );
+  assert.doesNotMatch(flowSource, /^import[^;]*from '\.\.\/\.\.\/services\/sync';/m);
+});
+
+test('LocaleSetupFlow imports its hooks from their own modules, not the hooks barrel', () => {
+  // The hooks barrel re-exports useSync, which transitively evaluates the
+  // Supabase client and would undo the deferred sync import above.
+  assert.match(
+    flowSource,
+    /import \{ useKeyboardBottomInset \} from '\.\.\/\.\.\/hooks\/useKeyboardBottomInset';/
+  );
+  assert.doesNotMatch(flowSource, /from '\.\.\/\.\.\/hooks';/);
+});

@@ -41,6 +41,7 @@ import { en } from '../i18n/locales/en';
 import { mockBarrel, mockModule, mockPackage, sourcePath } from './mockModules';
 import {
   createHostNodeMock,
+  hostNodeCalls,
   createReactNativeRenderStub,
   type ReactNativeRenderStub,
 } from './reactNativeHost';
@@ -69,7 +70,7 @@ import {
   type Queries,
 } from './renderQueries';
 
-export { flattenStyle } from './reactNativeHost';
+export { flattenStyle, hostNodeCalls, type HostNodeCall } from './reactNativeHost';
 export {
   accessibilityLabelOf,
   debugTree,
@@ -328,6 +329,7 @@ export function installRenderHarness(
     rn.__recorded.alerts.length = 0;
     rn.__recorded.announcements.length = 0;
     rn.__recorded.shares.length = 0;
+    hostNodeCalls.length = 0;
     authStore.setState(authStore.getInitialState(), true);
   });
 
