@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { config } from '../../constants/config';
 
 interface AppConfig {
   expo: {
@@ -166,10 +167,10 @@ test('release metadata stays aligned across tracked config and generated native 
   const infoPlist = readOptionalRootFile('ios/EveryBible/Info.plist');
   const pbxproj = readRootFile('ios/EveryBible.xcodeproj/project.pbxproj');
   const androidGradle = readOptionalRootFile('android/app/build.gradle');
-  const runtimeConfig = readRootFile('src/constants/config.ts');
 
   const appVersion = appConfig.expo.version;
-  const runtimeConfigVersion = runtimeConfig.match(/version:\s*'([^']+)'/)?.[1];
+  // The version the app reports at runtime, read from the real module.
+  const runtimeConfigVersion = config.version;
   const iosMarketingVersion = readPbxprojValue(pbxproj, 'MARKETING_VERSION');
   const appDescription = appConfig.expo.description?.trim() ?? '';
   const privacyPolicyUrl = appConfig.expo.extra?.privacyPolicyUrl?.trim() ?? '';

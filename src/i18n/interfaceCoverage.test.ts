@@ -1,3 +1,4 @@
+// Codebase-wide static lint (not a behaviour test): every t('key') in src/ exists in en.ts and no JSX or accessibility text is hardcoded.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
