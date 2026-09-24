@@ -45,6 +45,11 @@ export const en = {
         'Allow Every Bible to access your photo library so you can choose a profile photo.',
       NSFaceIDUsageDescription: 'Allow Every Bible to use Face ID to protect your saved sign-in.',
     },
+    // Android launcher name while discreet mode shows the calculator icon. Use the word the
+    // phone's own calculator app shows in this language so the disguise blends in.
+    nativeLauncher: {
+      discreetAppName: 'Calculator',
+    },
     audioUnavailableTranslation: 'Audio is not available for this translation.',
     audioUnavailableChapter: 'Audio is not available for this chapter.',
     audioPlayFailed: 'We could not play this audio. Please try again.',

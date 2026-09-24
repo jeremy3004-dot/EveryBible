@@ -4,5 +4,8 @@
     "NSMicrophoneUsageDescription": "अध्यायों की प्रतिक्रियाएँ आवाज़ में रिकॉर्ड करने के लिए Every Bible को अनुमति दें।",
     "NSPhotoLibraryUsageDescription": "प्रोफ़ाइल फ़ोटो चुनने के लिए Every Bible को आपकी फ़ोटो लाइब्रेरी इस्तेमाल करने की अनुमति दें।",
     "NSFaceIDUsageDescription": "सहेजे हुए साइन-इन की सुरक्षा के लिए Every Bible को Face ID इस्तेमाल करने की अनुमति दें।"
+  },
+  "android": {
+    "app_name_discreet": "कैलकुलेटर"
   }
 }

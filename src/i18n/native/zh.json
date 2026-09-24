@@ -4,5 +4,8 @@
     "NSMicrophoneUsageDescription": "允许 Every Bible 录制语音回复，用于章节反馈。",
     "NSPhotoLibraryUsageDescription": "请允许 Every Bible 访问你的照片图库，以便选择个人资料照片。",
     "NSFaceIDUsageDescription": "请允许 Every Bible 使用 Face ID 保护你保存的登录信息。"
+  },
+  "android": {
+    "app_name_discreet": "计算器"
   }
 }

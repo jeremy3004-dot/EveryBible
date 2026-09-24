@@ -2115,5 +2115,8 @@ export const te = {
       NSFaceIDUsageDescription:
         'భద్రపరచిన సైన్-ఇన్‌ను రక్షించడానికి Every Bibleకు Face ID ఉపయోగించే అనుమతి ఇవ్వండి.',
     },
+    nativeLauncher: {
+      discreetAppName: 'కాలిక్యులేటర్',
+    },
   },
 } as const;

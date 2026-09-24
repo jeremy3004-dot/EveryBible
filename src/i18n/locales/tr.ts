@@ -65,6 +65,9 @@ export const tr = {
       NSFaceIDUsageDescription:
         'Every Bible’ın kayıtlı oturum açma bilgilerinizi korumak için Face ID kullanmasına izin verin.',
     },
+    nativeLauncher: {
+      discreetAppName: 'Hesap Makinesi',
+    },
     close: 'Kapat',
     share: 'Paylaş',
     minutesShort: '{{count}} dk',

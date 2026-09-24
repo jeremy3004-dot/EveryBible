@@ -6,6 +6,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const { SUPPORTED_LANGUAGES } = require('../src/constants/languages.ts');
+const { ANDROID_DISCREET_APP_LABEL_NAME } = require('../plugins/withBrandedSplashAsset.js');
 const configPath = path.join(root, 'app.json');
 const config = JSON.parse(await fs.readFile(configPath, 'utf8'));
 const check = process.argv.includes('--check');
@@ -21,7 +22,15 @@ for (const { code } of SUPPORTED_LANGUAGES) {
   const nativeCode = code === 'zh' ? 'zh-Hans' : code;
   const relative = `./src/i18n/native/${code}.json`;
   locales[nativeCode] = relative;
-  files.push([path.join(root, relative), `${JSON.stringify({ ios: permissions }, null, 2)}\n`]);
+  // Expo's Android locale mod writes the `android` keys to res/values-b+<lang>/strings.xml,
+  // so the discreet launcher alias shows the phone's own word for its calculator app.
+  const android = {
+    [ANDROID_DISCREET_APP_LABEL_NAME]: locale.interface.nativeLauncher.discreetAppName,
+  };
+  files.push([
+    path.join(root, relative),
+    `${JSON.stringify({ ios: permissions, android }, null, 2)}\n`,
+  ]);
   // Escape OpenStep strings before comparing/writing the native resources.
   const strings = Object.entries(permissions)
     .map(([key, value]) => `${key} = ${JSON.stringify(value)};`)
@@ -47,7 +56,7 @@ if (check) {
     process.exitCode = 1;
   } else {
     console.log(
-      `Native permission translations are current for ${SUPPORTED_LANGUAGES.length} languages.`
+      `Native permission and launcher translations are current for ${SUPPORTED_LANGUAGES.length} languages.`
     );
   }
 } else {
@@ -80,6 +89,6 @@ if (check) {
   }
   await fs.writeFile(projectPath, project.writeSync());
   console.log(
-    `Generated native permission translations for ${SUPPORTED_LANGUAGES.length} languages.`
+    `Generated native permission and launcher translations for ${SUPPORTED_LANGUAGES.length} languages.`
   );
 }

@@ -69,6 +69,9 @@ export const es = {
       NSFaceIDUsageDescription:
         'Permite que Every Bible use Face ID para proteger tu inicio de sesión guardado.',
     },
+    nativeLauncher: {
+      discreetAppName: 'Calculadora',
+    },
     close: 'Cerrar',
     share: 'Compartir',
     minutesShort: '{{count}} min',

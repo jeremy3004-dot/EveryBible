@@ -347,6 +347,9 @@ export const ko = {
       NSFaceIDUsageDescription:
         '저장된 로그인 정보를 보호하도록 Every Bible의 Face ID 사용을 허용해 주세요.',
     },
+    nativeLauncher: {
+      discreetAppName: '계산기',
+    },
   },
   translatorQueue: {
     title: '피드백 대기 목록',

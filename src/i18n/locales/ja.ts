@@ -347,6 +347,9 @@ export const ja = {
       NSFaceIDUsageDescription:
         '保存したログイン情報を保護するため、Every BibleによるFace IDの使用を許可してください。',
     },
+    nativeLauncher: {
+      discreetAppName: '電卓',
+    },
   },
   translatorQueue: {
     title: 'フィードバック一覧',

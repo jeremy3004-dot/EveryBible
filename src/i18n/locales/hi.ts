@@ -2095,5 +2095,8 @@ export const hi = {
       NSFaceIDUsageDescription:
         'सहेजे हुए साइन-इन की सुरक्षा के लिए Every Bible को Face ID इस्तेमाल करने की अनुमति दें।',
     },
+    nativeLauncher: {
+      discreetAppName: 'कैलकुलेटर',
+    },
   },
 } as const;
