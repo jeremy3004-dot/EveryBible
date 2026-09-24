@@ -1,14 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  AppState,
-  type AppStateStatus,
-  InteractionManager,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { InteractionManager, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -43,6 +34,7 @@ import { enforceLtrLayoutPolicy } from './src/services/startup/rtlPolicy';
 import { rootNavigationRef } from './src/navigation/rootNavigation';
 import { usePushTokenRegistration } from './src/hooks/usePushTokenRegistration';
 import { useAudioDownloadRecovery } from './src/hooks/useAudioDownloadRecovery';
+import { useAppSessionAnalytics } from './src/hooks/useAppSessionAnalytics';
 
 // KEEP THIS UNGUARDED. scripts/benchmark-android-startup.py and
 // scripts/android_startup_metrics.py parse `[EB-T] App:module-start` (and
@@ -427,102 +419,8 @@ function AppContent() {
   const user = useAuthStore((state) => state.user);
   const isPrivacyInitialized = usePrivacyStore((state) => state.isInitialized);
   const isPrivacyLocked = usePrivacyStore((state) => state.isLocked);
-  const anonymousUsageAppStateRef = useRef<AppStateStatus>(AppState.currentState);
 
-  useEffect(() => {
-    if (!onboardingCompleted || isPrivacyLocked) {
-      return;
-    }
-
-    let sessionWasAuthenticated = false;
-    const startAnalyticsSessions = () => {
-      void import('./src/services/analytics').then(
-        ({
-          startAnonymousUsageSession,
-          initAnonymousSessionContext,
-          startSession,
-          primeGeoContext,
-        }) => {
-          // Resolve geo ONCE per foreground (fire-and-forget, timed out) so the
-          // flush — which fires on app-background when the network may be gone —
-          // attaches cached location instead of losing the race to server IP.
-          void primeGeoContext();
-          // Read auth live at call time so a mid-session sign-in/out is attributed
-          // correctly without tearing down the AppState listener on every auth change.
-          sessionWasAuthenticated = useAuthStore.getState().isAuthenticated;
-          if (sessionWasAuthenticated) {
-            // Authenticated path: the session lifecycle event (session_started /
-            // session_ended) is owned by analyticsService so it carries user_id.
-            // We still establish an anonymous session_id context so that
-            // audio_playback_progress and reading_ended — which always flow
-            // through trackAnonymousUsageEvent for ALL users — have a valid
-            // session_id. Without this setup those events would
-            // lazily create a new anonymous session and emit their own
-            // session_started, which is worse than just pre-creating the id.
-            const sessionId = initAnonymousSessionContext();
-            startSession(sessionId);
-          } else {
-            // Unauthenticated path: anonymous analytics owns both the session
-            // context and the session lifecycle event (session_started).
-            startAnonymousUsageSession();
-          }
-        }
-      );
-    };
-
-    const endAndFlushAnalyticsSessions = () => {
-      void import('./src/services/analytics').then(
-        ({
-          endAnonymousUsageSession,
-          clearAnonymousSessionContext,
-          flushAnonymousUsageEvents,
-          endSession,
-          flushEvents,
-        }) => {
-          if (sessionWasAuthenticated) {
-            // Authenticated path: session_ended is emitted by the authenticated
-            // analytics path. We only reset the anonymous session_id context (no
-            // duplicate session_ended event) and flush both queues so audio /
-            // reading events captured during this session are delivered.
-            clearAnonymousSessionContext();
-            endSession();
-          } else {
-            // Unauthenticated path: anonymous analytics owns the session_ended event.
-            endAnonymousUsageSession();
-          }
-          // Both facades share one durable queue; concurrent calls are coalesced.
-          void flushAnonymousUsageEvents();
-          void flushEvents();
-        }
-      );
-    };
-
-    if (AppState.currentState === 'active') {
-      startAnalyticsSessions();
-    }
-
-    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
-      const previousAppState = anonymousUsageAppStateRef.current;
-
-      if (previousAppState.match(/inactive|background/) && nextAppState === 'active') {
-        startAnalyticsSessions();
-      }
-
-      if (previousAppState === 'active' && nextAppState.match(/inactive|background/)) {
-        endAndFlushAnalyticsSessions();
-      }
-
-      anonymousUsageAppStateRef.current = nextAppState;
-    });
-
-    return () => {
-      subscription.remove();
-
-      if (anonymousUsageAppStateRef.current === 'active') {
-        endAndFlushAnalyticsSessions();
-      }
-    };
-  }, [isPrivacyLocked, onboardingCompleted]);
+  useAppSessionAnalytics(Boolean(onboardingCompleted) && !isPrivacyLocked);
 
   // Set up Android notification channels on mount (idempotent, no-op on iOS).
   useEffect(() => {
