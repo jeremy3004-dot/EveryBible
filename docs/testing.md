@@ -105,6 +105,13 @@ Rules that follow from how the loader works:
   `mock.module(id, { exports })` (the installed `@types/node` only types the
   deprecated `namedExports` form). Put a `default` key inside `exports` for
   default-import consumers such as `NetInfo`.
+- CI runs Node 22, which mocks `import()` differently from Node 26. With tsx's
+  in-thread loader hooks, an `import()` of a mocked repo file would load the real
+  file behind the mock (the symptom is `__DEV__ is not defined` or a Flow parse
+  error from a package the mock should have replaced); `mockModules.ts` answers
+  those loads with the mock's exports. Install mocks through these helpers, not
+  bare `mock.module`, and run a new test on Node 22 as well
+  (`PATH=/opt/homebrew/opt/node@22/bin:$PATH`) before relying on CI.
 - `t.mock.module(...)` inside a test is restored when that test ends; top-level
   `mock.module(...)` lasts for the file. Either is fine given the one-config rule.
 
