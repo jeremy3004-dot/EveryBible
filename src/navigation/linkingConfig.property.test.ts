@@ -185,7 +185,7 @@ test('links for any real chapter and verse open that chapter under both prefixes
 
 test('a link to a chapter the book does not have opens nothing', async () => {
   const run = await pipeline();
-  for (const chapter of ['0', '-1', '22', '9999', 'three', '']) {
+  for (const chapter of ['0', '-1', '22', '9999', '1.5', '3abc', 'three', '']) {
     assert.equal(run(`com.everybible.app://bible/john/${chapter}`).state, undefined, chapter);
   }
   // John has 21 chapters; 21 is the last real one.

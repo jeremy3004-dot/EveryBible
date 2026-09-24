@@ -28,6 +28,9 @@ const BOOK_ID_TO_SLUG = new Map<string, string>(
   bibleBooks.map((book) => [book.id, book.name.toLowerCase().replace(/\s/g, '')])
 );
 
+const CHAPTER_SEGMENT = /^\d+$/;
+const VERSE_SEGMENT = /^(\d+)(?:-(\d+))?$/;
+
 const isChapterOf = (bookId: string, chapter: number): boolean =>
   Number.isInteger(chapter) && chapter >= 1 && chapter <= (getBookById(bookId)?.chapters ?? 0);
 
@@ -37,29 +40,37 @@ const isVerseNumber = (verse: number | undefined): verse is number =>
 /**
  * Parses a path like "/bible/john/3/16" or "/bible/john/3" into a BibleDeepLinkTarget.
  * Returns null if the path doesn't match the bible pattern, the book slug is unrecognized,
- * or the chapter is not one of the book's chapters. A verse 0 is dropped.
+ * or the chapter segment is not a plain number naming one of the book's chapters. The
+ * verse segment may be a number or a range ("16-18", either way round), which focuses
+ * its first verse; anything else there opens the chapter without a focus. The query,
+ * fragment and any segment after the verse are ignored.
  *
  * Example usage:
  *   parseBibleDeepLink('/bible/john/3/16')  => { bookId: 'JHN', chapter: 3, verse: 16 }
  *   parseBibleDeepLink('/bible/1corinthians/13') => { bookId: '1CO', chapter: 13 }
  *   parseBibleDeepLink('/bible/unknown/3/16') => null
+ *   parseBibleDeepLink('/bible/john/3abc') => null
  */
 export const parseBibleDeepLink = (path: string): BibleDeepLinkTarget | null => {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  const match = normalizedPath.match(/^\/bible\/([^/]+)\/(\d+)(?:\/(\d+))?/);
-  if (!match) return null;
+  const pathname = normalizedPath.split(/[?#]/, 1)[0] ?? '';
+  const [, root, bookSlug = '', chapterStr = '', verseStr = ''] = pathname.split('/');
+  // Reading only the leading digits made '/bible/john/1.5' open John 1.
+  if (root !== 'bible' || !CHAPTER_SEGMENT.test(chapterStr)) return null;
 
-  const [, bookSlug, chapterStr, verseStr] = match;
-  const slug = (bookSlug ?? '').toLowerCase().replace(/\s/g, '');
+  const slug = bookSlug.toLowerCase().replace(/\s/g, '');
   const bookId = SLUG_TO_BOOK_ID.get(slug);
   if (!bookId) return null;
 
-  const chapter = parseInt(chapterStr ?? '0', 10);
+  const chapter = parseInt(chapterStr, 10);
   if (!isChapterOf(bookId, chapter)) return null;
 
   // A verse that is not a real position (0, or too long to be a safe integer) is dropped.
-  const parsedVerse = verseStr !== undefined ? parseInt(verseStr, 10) : undefined;
-  const verse = isVerseNumber(parsedVerse) ? parsedVerse : undefined;
+  const verseMatch = VERSE_SEGMENT.exec(verseStr);
+  const firstVerse = verseMatch
+    ? Math.min(parseInt(verseMatch[1], 10), parseInt(verseMatch[2] ?? verseMatch[1], 10))
+    : undefined;
+  const verse = isVerseNumber(firstVerse) ? firstVerse : undefined;
   return { bookId, chapter, verse };
 };
 

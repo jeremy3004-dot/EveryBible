@@ -154,3 +154,54 @@ test('the builder leaves out a verse that is not a positive whole number', () =>
     assert.equal(buildBibleDeepLink('JHN', 3, verse), `${SCHEME}bible/john/3`, String(verse));
   }
 });
+
+test('a chapter that is not a plain number opens nothing, rather than the number it starts with', () => {
+  fc.assert(
+    fc.property(
+      fc.integer({ min: 1, max: 21 }),
+      fc.stringMatching(/^[^/?#\d][^/?#]{0,8}$/),
+      (chapter, junk) => {
+        assert.equal(parseBibleDeepLink(`/bible/john/${chapter}${junk}`), null);
+        assert.equal(parseBibleDeepLink(`/bible/john/${chapter}${junk}/16`), null);
+      }
+    ),
+    FC_PARAMS
+  );
+  for (const chapter of ['1.5', '3abc', '1e3', '3%20', '3 ', '+3', '0x3']) {
+    assert.equal(parseBibleDeepLink(`/bible/john/${chapter}`), null, chapter);
+  }
+});
+
+test('a verse range focuses its first verse, whichever way round it is written', () => {
+  fc.assert(
+    fc.property(fc.integer({ min: 1, max: 176 }), fc.integer({ min: 1, max: 176 }), (a, b) => {
+      assert.deepEqual(parseBibleDeepLink(`/bible/psalms/119/${a}-${b}`), {
+        bookId: 'PSA',
+        chapter: 119,
+        verse: Math.min(a, b),
+      });
+    }),
+    FC_PARAMS
+  );
+});
+
+test('a verse that is not a number or range still opens the chapter, without a focus', () => {
+  for (const verse of ['abc', '16abc', '1.5', '-3', '0', '0-0', '16-', '-16', '1e3', '16--18']) {
+    assert.deepEqual(
+      parseBibleDeepLink(`/bible/john/3/${verse}`),
+      { bookId: 'JHN', chapter: 3, verse: undefined },
+      verse
+    );
+  }
+});
+
+test('a trailing slash, query or fragment does not change the reference', () => {
+  for (const suffix of ['/', '?utm=x', '#v16', '/?a=1', '/16?x=1', '/16#top', '/16/extra']) {
+    const verse = suffix.startsWith('/16') ? 16 : undefined;
+    assert.deepEqual(
+      parseBibleDeepLink(`/bible/john/3${suffix}`),
+      { bookId: 'JHN', chapter: 3, verse },
+      suffix
+    );
+  }
+});
