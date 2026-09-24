@@ -508,3 +508,66 @@ test('the plan offers no save-for-later, sample, public completion count or manu
     await view.unmount();
   }
 });
+
+// ---------------------------------------------------------------------------
+// Leaving, scrolling and related plans
+// ---------------------------------------------------------------------------
+
+test('plan options appear only once enrolled, and leaving asks first, then unenrolls and goes back', async () => {
+  const notEnrolled = await renderPlan(PSALMS);
+  assert.equal(notEnrolled.queryByRole('button', { name: t('readingPlans.planOptions') }), null);
+  await notEnrolled.unmount();
+
+  const store = await enroll(PSALMS, { current_day: 3 });
+  const view = await renderPlan(PSALMS);
+  await view.press(view.getByRole('button', { name: t('readingPlans.planOptions') }));
+
+  const confirm = harness.rn.__recorded.alerts.at(-1);
+  assert.ok(confirm);
+  assert.equal(confirm.title, t('readingPlans.leavePlan'));
+  assert.equal(confirm.message, t('readingPlans.leavePlanConfirmBody'));
+  assert.ok(store.getState().progressByPlanId[PSALMS], 'nothing changes before confirming');
+
+  const buttons = confirm.buttons as Array<{ style?: string; onPress?: () => Promise<void> }>;
+  const leave = buttons.find((button) => button.style === 'destructive');
+  assert.ok(leave?.onPress);
+  await leave.onPress();
+
+  assert.equal(store.getState().progressByPlanId[PSALMS], undefined);
+  assert.deepEqual(harness.navigation.calls.at(-1), { method: 'goBack', args: [] });
+});
+
+test('once the cover title scrolls away a compact header keeps the title, back and options in reach', async () => {
+  await enroll(PSALMS, { current_day: 3 });
+  const view = await renderPlan(PSALMS);
+  const title = t('readingPlans.psalms30.title');
+  assert.equal(view.getAllByRole('header', { name: title }).length, 1);
+
+  const [list] = view.queryAllByType('FlatList').filter((node) => node.props.horizontal !== true);
+  const scrollTo = (y: number) =>
+    view.fire(list, 'onScroll', { nativeEvent: { contentOffset: { x: 0, y } } });
+
+  await scrollTo(400);
+  assert.equal(view.getAllByRole('header', { name: title }).length, 2);
+  assert.equal(view.getAllByRole('button', { name: t('common.back') }).length, 2);
+  assert.equal(view.getAllByRole('button', { name: t('readingPlans.planOptions') }).length, 2);
+
+  await scrollTo(0);
+  assert.equal(view.getAllByRole('header', { name: title }).length, 1);
+});
+
+test('a related plan opens as a new plan page on top of this one', async () => {
+  const view = await renderPlan(PSALMS);
+
+  const [related] = view.queryAllByType('FlatList').filter((node) => node.props.horizontal);
+  assert.ok(related, 'related plans are listed');
+  const [first] = related.props.data as Array<{ id: string }>;
+  assert.notEqual(first.id, PSALMS, 'the plan itself is not related to itself');
+  const [card] = within(related).getAllByRole('button');
+  await view.press(card);
+
+  assert.deepEqual(harness.navigation.calls.at(-1), {
+    method: 'push',
+    args: ['PlanDetail', { planId: first.id }],
+  });
+});
