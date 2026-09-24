@@ -1,6 +1,7 @@
 import { useRef, type RefObject } from 'react';
 import type { BibleNowPlayingInput } from '../../services/audio/audioNowPlayingModel';
 import type { AudioChapterMap } from '../../services/bible/contentAvailability';
+import { loadingPlayRequest, playRequest } from './sharedPlaybackState';
 
 export type Translate = (key: string) => string;
 
@@ -26,7 +27,11 @@ export type ResolveAudioCoverage = (translationId: string) => Promise<AudioChapt
  * callbacks registered by this player read it after the reader has unmounted.
  */
 export interface AudioPlayerSession {
-  /** Bumped by every command that takes over playback; stale loads compare it. */
+  /**
+   * Bumped by every command that takes over playback; stale loads compare it. Shared
+   * by every player (see sharedPlaybackState), so a newer command from any reader
+   * supersedes a load a closed one left running.
+   */
   playRequestId: number;
   /** Bumped when the native player reports an error through its callback. */
   playbackErrorId: number;
@@ -35,6 +40,7 @@ export interface AudioPlayerSession {
   /**
    * The play request whose chapter is being loaded. That load reports its own failure,
    * after retrying a stalled stream, so a native error meanwhile is not shown yet.
+   * Shared by every player, like playRequestId.
    */
   loadingPlayRequestId: number | null;
   isMounted: boolean;
@@ -52,10 +58,20 @@ export interface AudioPlayerSession {
 
 function createAudioPlayerSession(): AudioPlayerSession {
   return {
-    playRequestId: 0,
+    get playRequestId() {
+      return playRequest.current;
+    },
+    set playRequestId(id: number) {
+      playRequest.current = id;
+    },
     playbackErrorId: 0,
     lastPlaybackError: null,
-    loadingPlayRequestId: null,
+    get loadingPlayRequestId() {
+      return loadingPlayRequest.current;
+    },
+    set loadingPlayRequestId(id: number | null) {
+      loadingPlayRequest.current = id;
+    },
     isMounted: false,
     interpolationTimer: null,
     lastPollPosition: 0,

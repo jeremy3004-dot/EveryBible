@@ -15,7 +15,7 @@ interface AuthInitializerDependencies {
   initializeAuth: () => Promise<void>;
 }
 
-const DEFAULT_CRITICAL_TASK_TIMEOUT_MS = 4000;
+export const DEFAULT_CRITICAL_TASK_TIMEOUT_MS = 4000;
 
 const defaultScheduleTask = (task: () => Promise<void> | void) => {
   const timeoutId = setTimeout(() => {
