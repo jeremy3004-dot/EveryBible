@@ -39,6 +39,8 @@ import { useNotificationTapRouting } from './src/hooks/useNotificationTapRouting
 import { useAudioDownloadRecovery } from './src/hooks/useAudioDownloadRecovery';
 import { useAppSessionAnalytics } from './src/hooks/useAppSessionAnalytics';
 import { lockAfterPrivacyLockFailure, usePrivacyLock } from './src/hooks/usePrivacyLock';
+import { readPrivacyLockHint } from './src/services/privacy/privacyLockHint';
+import { startScreenCaptureProtection } from './src/services/privacy/screenCaptureProtection';
 
 // KEEP THIS UNGUARDED. scripts/benchmark-android-startup.py and
 // scripts/android_startup_metrics.py parse `[EB-T] App:module-start` (and
@@ -64,6 +66,15 @@ installGlobalErrorHandlers();
 // Must run before render too — native RTL layout is applied at launch based
 // on device locale, before any screen has a chance to opt out.
 enforceLtrLayoutPolicy();
+
+// Before render too: a discreet install (known from the lock hint until the keychain
+// answers) keeps its content out of Android recents and the iOS app switcher from the
+// first frame. The native module is loaded only when protection is wanted.
+startScreenCaptureProtection({
+  platform: Platform.OS,
+  store: usePrivacyStore,
+  readLockHint: readPrivacyLockHint,
+});
 
 const ANDROID_BACKGROUND_STARTUP_DELAY_MS = 1500;
 const FONT_LOAD_TIMEOUT_MS = 2500;

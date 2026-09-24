@@ -229,6 +229,36 @@ test('App.tsx enforces the LTR layout stopgap at module scope before render', ()
   );
 });
 
+test('App.tsx starts discreet screen protection before render without loading expo-screen-capture for everyone', () => {
+  const appPath = fileURLToPath(new URL('../../../App.tsx', import.meta.url).href);
+  const appSource = readFileSync(appPath, 'utf8');
+
+  const startCallIndex = appSource.search(/^startScreenCaptureProtection\(/m);
+  const firstComponentIndex = appSource.indexOf('function LoadingScreen()');
+  assert.ok(
+    startCallIndex !== -1 && startCallIndex < firstComponentIndex,
+    'startScreenCaptureProtection() should run at module scope, before any component is defined, so a discreet install is covered before its first frame'
+  );
+
+  // A standard launch must not pay for the native module: it is import()ed only when
+  // discreet mode (or the fail-closed hint) asks for protection.
+  const { packages } = collectStaticImports(appPath);
+  const staticImporters = [...packages.entries()]
+    .filter(([specifier]) => specifier === 'expo-screen-capture')
+    .flatMap(([, importers]) => importers);
+  assert.deepEqual(
+    staticImporters,
+    [],
+    "App.tsx's static closure must not import 'expo-screen-capture'"
+  );
+  assert.ok(
+    readRelativeSource('../privacy/screenCaptureProtection.ts').includes(
+      "import('expo-screen-capture')"
+    ),
+    'the protection service should load expo-screen-capture lazily — check the guard if this fails'
+  );
+});
+
 test('App.tsx static import closure never reaches heavy runtime modules', () => {
   const appPath = fileURLToPath(new URL('../../../App.tsx', import.meta.url).href);
   const closure = collectStaticImportClosure(appPath);
