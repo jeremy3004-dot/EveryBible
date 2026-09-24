@@ -187,3 +187,34 @@ test('admission caps reports per day and resets on a new day', () => {
     budget: { day: '2026-09-25', count: 1 },
   });
 });
+
+// Postgres refuses a NUL byte and a lone UTF-16 surrogate, so either one used to fail the
+// whole upload batch. The client must never produce them, even when cutting mid-emoji.
+const hasLoneSurrogate = (text: string) =>
+  /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/.test(text);
+
+test('truncation never splits an emoji into a lone surrogate', () => {
+  // 48 ASCII characters then emoji: a UTF-16 cut at 49 lands between a surrogate pair.
+  // (Words, not one long run, which would be scrubbed as a token.)
+  const words48 = 'ab '.repeat(16);
+  const scrubbed = scrubErrorText(`${words48}${'😀'.repeat(10)}`, 50);
+  assert.equal(hasLoneSurrogate(scrubbed), false);
+  assert.ok(scrubbed.length <= 50, 'still within the server limit in UTF-16 units');
+  assert.equal(scrubbed, `${words48}…`);
+});
+
+test('an emoji that fits before the cut is kept whole', () => {
+  const words47 = `${'ab '.repeat(15)}ab`;
+  const scrubbed = scrubErrorText(`${words47}${'😀'.repeat(10)}`, 50);
+  assert.equal(scrubbed, `${words47}😀…`);
+});
+
+test('NUL bytes are removed from the message', () => {
+  assert.equal(scrubErrorText('bad\u0000 value\u0000'), 'bad value');
+});
+
+test('lone surrogates already present in the error text are replaced', () => {
+  const scrubbed = scrubErrorText('broken \ud83d text and \ude00 tail');
+  assert.equal(hasLoneSurrogate(scrubbed), false);
+  assert.equal(scrubbed, 'broken � text and � tail');
+});

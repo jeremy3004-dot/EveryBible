@@ -66,9 +66,45 @@ function scrubUrl(url: string): string {
   return `${url.slice(0, schemeEnd)}${kept}`;
 }
 
+const isHighSurrogate = (code: number) => code >= 0xd800 && code <= 0xdbff;
+const isLowSurrogate = (code: number) => code >= 0xdc00 && code <= 0xdfff;
+
+/**
+ * Postgres cannot store U+0000 or a lone UTF-16 surrogate; either one in a report used to
+ * fail the whole upload batch. NULs are dropped and lone surrogates become U+FFFD. A loop
+ * rather than a lookbehind regex, so it behaves the same on every Hermes version.
+ */
+function toStorableText(text: string): string {
+  let result = '';
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    if (code === 0) continue;
+    if (isHighSurrogate(code) && i + 1 < text.length && isLowSurrogate(text.charCodeAt(i + 1))) {
+      result += text[i] + text[i + 1];
+      i += 1;
+    } else if (isHighSurrogate(code) || isLowSurrogate(code)) {
+      result += '\ufffd';
+    } else {
+      result += text[i];
+    }
+  }
+  return result;
+}
+
+/**
+ * Cuts to at most `maxChars` UTF-16 units (the server's limit) on a code point boundary,
+ * so an emoji at the cut is dropped whole instead of leaving half a surrogate pair.
+ */
+function truncateText(text: string, maxChars: number): string {
+  if (text.length <= maxChars) return text;
+  let end = Math.max(0, maxChars - 1);
+  if (end > 0 && isHighSurrogate(text.charCodeAt(end - 1))) end -= 1;
+  return `${text.slice(0, end)}…`;
+}
+
 /** Removes personal data and secrets from free text, collapses whitespace and truncates. */
 export function scrubErrorText(text: string, maxChars = MAX_MESSAGE_CHARS): string {
-  const scrubbed = text
+  const scrubbed = toStorableText(text)
     .replace(URL_PATTERN, scrubUrl)
     .replace(BEARER_PATTERN, 'Bearer <token>')
     .replace(JWT_PATTERN, '<token>')
@@ -78,7 +114,7 @@ export function scrubErrorText(text: string, maxChars = MAX_MESSAGE_CHARS): stri
     .replace(LONG_DIGITS_PATTERN, '<n>')
     .replace(/\s+/g, ' ')
     .trim();
-  return scrubbed.length > maxChars ? `${scrubbed.slice(0, maxChars - 1)}…` : scrubbed;
+  return truncateText(scrubbed, maxChars);
 }
 
 const V8_FRAME = /^at\s+(?:(.+?)\s+\()?(?:address at\s+)?(.+?):(\d+):(\d+)\)?$/;
