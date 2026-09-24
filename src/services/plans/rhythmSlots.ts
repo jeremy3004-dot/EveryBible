@@ -7,7 +7,10 @@ export const RHYTHM_SLOT_META: Record<
   {
     defaultTitle: string;
     iconName: 'sunny-outline' | 'partly-sunny-outline' | 'moon-outline';
-    labelKey: 'readingPlans.morningRhythm' | 'readingPlans.afternoonRhythm' | 'readingPlans.eveningRhythm';
+    labelKey:
+      | 'readingPlans.morningRhythm'
+      | 'readingPlans.afternoonRhythm'
+      | 'readingPlans.eveningRhythm';
     shortLabelKey:
       | 'readingPlans.morningLabel'
       | 'readingPlans.afternoonLabel'
@@ -34,7 +37,8 @@ export const RHYTHM_SLOT_META: Record<
   },
 };
 
-export const getRhythmSlotDefaultTitle = (slot: RhythmSlot): string => RHYTHM_SLOT_META[slot].defaultTitle;
+export const getRhythmSlotDefaultTitle = (slot: RhythmSlot): string =>
+  RHYTHM_SLOT_META[slot].defaultTitle;
 
 export const normalizeRhythmSlot = (slot: string | null | undefined): RhythmSlot | undefined => {
   if (!slot) {
@@ -44,7 +48,9 @@ export const normalizeRhythmSlot = (slot: string | null | undefined): RhythmSlot
   return slot in RHYTHM_SLOT_META ? (slot as RhythmSlot) : undefined;
 };
 
-export const inferRhythmSlotFromTitle = (title: string | null | undefined): RhythmSlot | undefined => {
+export const inferRhythmSlotFromTitle = (
+  title: string | null | undefined
+): RhythmSlot | undefined => {
   const normalizedTitle = title?.trim().toLowerCase();
   if (!normalizedTitle) {
     return undefined;

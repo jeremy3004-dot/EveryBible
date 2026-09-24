@@ -68,7 +68,8 @@ export const RHYTHM_PRESET_LIBRARY: RhythmPreset[] = [
     title: 'Catholic Evening Prayer',
     tradition: 'Catholic',
     historicRoots: 'Liturgy of the Hours',
-    description: 'A Vespers-inspired close to the day with psalms, thanksgiving, and the Magnificat.',
+    description:
+      'A Vespers-inspired close to the day with psalms, thanksgiving, and the Magnificat.',
     slot: 'evening',
     items: [
       passage('Psalm 141', 'PSA', 141),
@@ -133,7 +134,8 @@ export const RHYTHM_PRESET_LIBRARY: RhythmPreset[] = [
     title: 'Anglican Noonday Prayer',
     tradition: 'Anglican',
     historicRoots: 'Daily Prayer',
-    description: 'A short prayer break for the middle of the day with psalms of help and bread-of-life hope.',
+    description:
+      'A short prayer break for the middle of the day with psalms of help and bread-of-life hope.',
     slot: 'afternoon',
     items: [
       passage('Psalm 121', 'PSA', 121),

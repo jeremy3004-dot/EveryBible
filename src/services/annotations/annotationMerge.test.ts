@@ -132,7 +132,10 @@ test('mergeAnnotationLists propagates soft-deleted remote records', () => {
 
   const merged = mergeAnnotationLists([local], [remoteDeleted]);
   assert.equal(merged.length, 1);
-  assert.ok(merged[0].deleted_at !== null, 'Deletion should propagate from remote to merged result');
+  assert.ok(
+    merged[0].deleted_at !== null,
+    'Deletion should propagate from remote to merged result'
+  );
 });
 
 test('mergeAnnotationLists does not propagate a stale remote deletion when local is newer', () => {
@@ -169,8 +172,20 @@ test('indexAnnotationsByKey builds a map with one entry per composite key', () =
 test('indexAnnotationsByKey is stable — last-write when duplicate keys exist in input', () => {
   // Two annotations with the same composite key (should not happen in practice,
   // but the index function should not crash)
-  const first = makeAnnotation({ id: 'first', book: 'GEN', chapter: 1, verse_start: 1, type: 'note' });
-  const second = makeAnnotation({ id: 'second', book: 'GEN', chapter: 1, verse_start: 1, type: 'note' });
+  const first = makeAnnotation({
+    id: 'first',
+    book: 'GEN',
+    chapter: 1,
+    verse_start: 1,
+    type: 'note',
+  });
+  const second = makeAnnotation({
+    id: 'second',
+    book: 'GEN',
+    chapter: 1,
+    verse_start: 1,
+    type: 'note',
+  });
 
   const index = indexAnnotationsByKey([first, second]);
   assert.equal(index.size, 1);

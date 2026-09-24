@@ -17,7 +17,11 @@ export function mergeRuntimeCatalogTranslations(
   const mergedById = new Map<string, BibleTranslation>();
 
   for (const translation of stateTranslations) {
-    if (translation.source !== 'runtime' || translation.isDownloaded || Boolean(translation.textPackLocalPath)) {
+    if (
+      translation.source !== 'runtime' ||
+      translation.isDownloaded ||
+      Boolean(translation.textPackLocalPath)
+    ) {
       mergedById.set(translation.id, translation);
     }
   }
@@ -89,9 +93,7 @@ export function reconcileMissingRuntimeTranslationPacks(
 
   return {
     translations: nextTranslations,
-    currentTranslation: selectedTranslationIsReadable
-      ? currentTranslation
-      : fallbackTranslationId,
+    currentTranslation: selectedTranslationIsReadable ? currentTranslation : fallbackTranslationId,
   };
 }
 
@@ -120,9 +122,9 @@ export function hasTranslationDownloadData(
 ): boolean {
   return Boolean(
     translation.textPackLocalPath ||
-      translation.pendingTextPackLocalPath ||
-      translation.rollbackTextPackLocalPath ||
-      translation.downloadedAudioBooks.length > 0
+    translation.pendingTextPackLocalPath ||
+    translation.rollbackTextPackLocalPath ||
+    translation.downloadedAudioBooks.length > 0
   );
 }
 
@@ -142,6 +144,11 @@ export function resetTranslationDownloadState(translation: BibleTranslation): Bi
     rollbackTextPackLocalPath: null,
     lastInstallError: null,
     activeDownloadJob: null,
-    installState: translation.source === 'runtime' ? 'remote-only' : hasBundledReadableText ? 'seeded' : translation.installState,
+    installState:
+      translation.source === 'runtime'
+        ? 'remote-only'
+        : hasBundledReadableText
+          ? 'seeded'
+          : translation.installState,
   };
 }

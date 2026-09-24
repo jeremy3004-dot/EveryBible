@@ -1,7 +1,10 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { layout, typography } from '../../design/system';
-import type { BookCompanionCardModel, BookCompanionSectionModel } from '../../screens/bible/bookCompanionModel';
+import type {
+  BookCompanionCardModel,
+  BookCompanionSectionModel,
+} from '../../screens/bible/bookCompanionModel';
 import { CompanionCard } from './CompanionCard';
 
 interface CompanionSectionProps {

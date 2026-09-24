@@ -97,8 +97,8 @@ export const FOUNDATION_DESC_KEYS: Record<string, string> = {
 export const FELLOWSHIP_QUESTIONS: string[] = [
   'Based on what has happened with you since the last time we met, what is something you are thankful for?',
   'What has stressed you out this week, and what do you need for things to be better?',
-  'What are the needs of the people in your community, and how can we help each other meet the needs we\'ve expressed?',
-  'Now, let\'s read today\'s story from God...',
+  "What are the needs of the people in your community, and how can we help each other meet the needs we've expressed?",
+  "Now, let's read today's story from God...",
 ];
 
 // Standardized application questions — same for every foundation lesson (Discovery Bible Study pattern)
@@ -106,10 +106,10 @@ export const APPLICATION_QUESTIONS: string[] = [
   'Now, let\'s have someone retell this passage in their own words, as though they were telling a friend who has never heard it. Let\'s help them if they leave anything out or add anything by mistake. If that happens we can ask, "Where do you find that in the story?"',
   'What does this story teach us about God, his character, and what he does?',
   'What do we learn about people, including ourselves, from this story?',
-  'How will you apply God\'s truth from this story in your life this week? What is a specific action or thing you will do?',
-  'Who will you share a truth from this story with before we meet again? Do you know others who would also like to discover God\'s word in this app like we are?',
-  'As our meeting comes to a close, let\'s decide when we will meet again and who will facilitate our next meeting.',
-  'We encourage you to make note of what you said you will do, and to re-read this story in the days before we meet again. The facilitator can share the story text or audio if anyone doesn\'t have it. As we go, let\'s ask the Lord to help us.',
+  "How will you apply God's truth from this story in your life this week? What is a specific action or thing you will do?",
+  "Who will you share a truth from this story with before we meet again? Do you know others who would also like to discover God's word in this app like we are?",
+  "As our meeting comes to a close, let's decide when we will meet again and who will facilitate our next meeting.",
+  "We encourage you to make note of what you said you will do, and to re-read this story in the days before we meet again. The facilitator can share the story text or audio if anyone doesn't have it. As we go, let's ask the Lord to help us.",
 ];
 
 export const gatherFoundations: GatherFoundation[] = [

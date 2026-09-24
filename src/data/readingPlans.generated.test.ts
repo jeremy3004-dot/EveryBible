@@ -36,10 +36,7 @@ test('bundled reading plans expose the bundled plans in sort order', async () =>
 
   assert.ok(mod.readingPlans.every((plan) => typeof plan.coverKey === 'string'));
   assert.equal(mod.readingPlansById.get('bible-in-1-year')?.coverKey, 'lakeLandscape');
-  assert.equal(
-    mod.readingPlansById.get('proverbs-31-days')?.scheduleMode,
-    'calendar-day-of-month'
-  );
+  assert.equal(mod.readingPlansById.get('proverbs-31-days')?.scheduleMode, 'calendar-day-of-month');
   assert.equal(mod.readingPlansById.get('kathisma-weekly')?.coverKey, 'kathisma');
   assert.equal(mod.readingPlansById.get('kathisma-weekly')?.scheduleMode, 'calendar-day-of-week');
   assert.equal(mod.readingPlansById.get('kathisma-weekly')?.format, 'multi-session');

@@ -24,7 +24,9 @@ export const DEFAULT_REMINDER_PICKER_STATE: ReminderPickerState = {
   minute: '00',
 };
 
-export const parseReminderTime = (reminderTime: string | null | undefined): ReminderSchedule | null => {
+export const parseReminderTime = (
+  reminderTime: string | null | undefined
+): ReminderSchedule | null => {
   if (!reminderTime) {
     return null;
   }

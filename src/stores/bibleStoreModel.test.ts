@@ -10,7 +10,9 @@ import {
   resetTranslationDownloadState,
 } from './bibleStoreModel';
 
-function makeTranslation(overrides: Partial<BibleTranslation> & Pick<BibleTranslation, 'id' | 'name'>): BibleTranslation {
+function makeTranslation(
+  overrides: Partial<BibleTranslation> & Pick<BibleTranslation, 'id' | 'name'>
+): BibleTranslation {
   return {
     id: overrides.id,
     name: overrides.name,
@@ -315,7 +317,10 @@ test('mergeRuntimeCatalogTranslations preserves downloaded runtime translations 
   assert.equal(merged.length, 4, `expected 4 entries, got: ${merged.length} (${ids.join(', ')})`);
 
   // npiulb should NOT be present (not installed)
-  assert.ok(!ids.includes('npiulb'), `npiulb should be dropped but was found in: ${ids.join(', ')}`);
+  assert.ok(
+    !ids.includes('npiulb'),
+    `npiulb should be dropped but was found in: ${ids.join(', ')}`
+  );
 
   // hincv retains its isDownloaded and textPackLocalPath
   const hincv = merged.find((t) => t.id === 'hincv');

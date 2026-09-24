@@ -1,10 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  advanceAudioQueue,
-  syncAudioQueueToTrack,
-  type AudioQueueEntry,
-} from './audioQueueModel';
+import { advanceAudioQueue, syncAudioQueueToTrack, type AudioQueueEntry } from './audioQueueModel';
 
 test('syncAudioQueueToTrack reuses an existing queued chapter when available', () => {
   const queue: AudioQueueEntry[] = [
@@ -22,10 +18,13 @@ test('syncAudioQueueToTrack reuses an existing queued chapter when available', (
 });
 
 test('syncAudioQueueToTrack falls back to a single-track queue for direct playback', () => {
-  assert.deepEqual(syncAudioQueueToTrack([], { translationId: 'bsb', bookId: 'GAL', chapter: 1, addedAt: 4 }), {
-    queue: [{ id: 'bsb:GAL:1', translationId: 'bsb', bookId: 'GAL', chapter: 1, addedAt: 4 }],
-    queueIndex: 0,
-  });
+  assert.deepEqual(
+    syncAudioQueueToTrack([], { translationId: 'bsb', bookId: 'GAL', chapter: 1, addedAt: 4 }),
+    {
+      queue: [{ id: 'bsb:GAL:1', translationId: 'bsb', bookId: 'GAL', chapter: 1, addedAt: 4 }],
+      queueIndex: 0,
+    }
+  );
 });
 
 test('syncAudioQueueToTrack keeps same-book chapters distinct across translations', () => {

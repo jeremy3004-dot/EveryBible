@@ -178,7 +178,9 @@ test('buildBibleSearchQuery handles mixed numeric and letter tokens', () => {
 
 // ── isBundledBibleDatabaseReady ───────────────────────────────────────────────
 
-function makeStatus(overrides: Partial<BundledBibleDatabaseStatus> = {}): BundledBibleDatabaseStatus {
+function makeStatus(
+  overrides: Partial<BundledBibleDatabaseStatus> = {}
+): BundledBibleDatabaseStatus {
   return {
     verseCount: 31102,
     schemaVersion: BUNDLED_BIBLE_SCHEMA_VERSION,
@@ -198,7 +200,10 @@ test('isBundledBibleDatabaseReady returns false when verseCount is below minimum
 
 test('isBundledBibleDatabaseReady returns false when schemaVersion is outdated', () => {
   assert.equal(
-    isBundledBibleDatabaseReady(makeStatus({ schemaVersion: BUNDLED_BIBLE_SCHEMA_VERSION - 1 }), 31000),
+    isBundledBibleDatabaseReady(
+      makeStatus({ schemaVersion: BUNDLED_BIBLE_SCHEMA_VERSION - 1 }),
+      31000
+    ),
     false
   );
 });
@@ -213,7 +218,10 @@ test('isBundledBibleDatabaseReady returns false when formatting payloads are abs
 
 test('isBundledBibleDatabaseReady accepts a future schemaVersion above minimum', () => {
   assert.equal(
-    isBundledBibleDatabaseReady(makeStatus({ schemaVersion: BUNDLED_BIBLE_SCHEMA_VERSION + 1 }), 31000),
+    isBundledBibleDatabaseReady(
+      makeStatus({ schemaVersion: BUNDLED_BIBLE_SCHEMA_VERSION + 1 }),
+      31000
+    ),
     true
   );
 });
@@ -243,10 +251,7 @@ test('parseTranslationCatalogManifest accepts a valid payload with an empty tran
 });
 
 test('parseTranslationCatalogManifest throws when the payload is not an object', () => {
-  assert.throws(
-    () => parseTranslationCatalogManifest('a string'),
-    /must be an object/i
-  );
+  assert.throws(() => parseTranslationCatalogManifest('a string'), /must be an object/i);
 });
 
 test('parseTranslationCatalogManifest throws when manifestVersion is missing', () => {
@@ -368,8 +373,10 @@ test('parseTranslationCatalogManifest preserves explicit audio book coverage whe
   };
 
   const result = parseTranslationCatalogManifest(payload);
-  assert.deepEqual(
-    Object.keys(result.translations[0]?.audio?.books ?? {}),
-    ['MAT', 'MRK', 'LUK', 'JHN']
-  );
+  assert.deepEqual(Object.keys(result.translations[0]?.audio?.books ?? {}), [
+    'MAT',
+    'MRK',
+    'LUK',
+    'JHN',
+  ]);
 });

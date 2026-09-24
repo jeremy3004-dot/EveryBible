@@ -4,12 +4,7 @@ import type {
   TranslationCatalog,
 } from '../../types';
 
-export type OpenBiblePilotStatus =
-  | 'planned'
-  | 'staged'
-  | 'published'
-  | 'verified'
-  | 'skipped';
+export type OpenBiblePilotStatus = 'planned' | 'staged' | 'published' | 'verified' | 'skipped';
 
 export type OpenBiblePilotTimingMode = 'full-only' | 'none';
 export type OpenBiblePilotTextDirection = 'ltr' | 'rtl';
@@ -107,31 +102,19 @@ export interface BuildOpenBiblePilotCatalogOptions {
   textCatalog?: OpenBiblePilotTextCatalogSeed | null;
 }
 
-export function buildOpenBiblePilotAudioBasePath(
-  translationId: string,
-  version: string
-): string {
+export function buildOpenBiblePilotAudioBasePath(translationId: string, version: string): string {
   return `audio/${translationId}/${version}`;
 }
 
-export function buildOpenBiblePilotTimingBasePath(
-  translationId: string,
-  version: string
-): string {
+export function buildOpenBiblePilotTimingBasePath(translationId: string, version: string): string {
   return `timing/${translationId}/${version}`;
 }
 
-export function buildOpenBiblePilotAudioChapterPath(
-  bookId: string,
-  chapter: number
-): string {
+export function buildOpenBiblePilotAudioChapterPath(bookId: string, chapter: number): string {
   return `chapters/${bookId}/${chapter}.mp3`;
 }
 
-export function buildOpenBiblePilotTimingChapterPath(
-  bookId: string,
-  chapter: number
-): string {
+export function buildOpenBiblePilotTimingChapterPath(bookId: string, chapter: number): string {
   return `${bookId}/${chapter}.json`;
 }
 
@@ -223,10 +206,7 @@ export function buildOpenBiblePilotAudioManifest(options: {
     updatedAt: options.updatedAt,
     deliveryMode: 'chapter',
     storageProvider: 'cloudflare-r2',
-    baseUrl: buildOpenBiblePilotAudioBasePath(
-      options.translation.translationId,
-      options.version
-    ),
+    baseUrl: buildOpenBiblePilotAudioBasePath(options.translation.translationId, options.version),
     ...(timingPublished
       ? {
           timingBaseUrl: buildOpenBiblePilotTimingBasePath(

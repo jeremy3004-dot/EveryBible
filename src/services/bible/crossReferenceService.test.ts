@@ -45,7 +45,7 @@ test('getCrossReferences returns results sorted by votes descending', () => {
   for (let i = 1; i < result.length; i++) {
     assert.ok(
       (result[i - 1] as CrossReference).votes >= (result[i] as CrossReference).votes,
-      `Expected votes at index ${i - 1} >= votes at index ${i}`,
+      `Expected votes at index ${i - 1} >= votes at index ${i}`
     );
   }
 });
@@ -55,7 +55,7 @@ test('getTopCrossReferences also returns results sorted by votes descending', ()
   for (let i = 1; i < result.length; i++) {
     assert.ok(
       (result[i - 1] as CrossReference).votes >= (result[i] as CrossReference).votes,
-      `Expected votes at index ${i - 1} >= votes at index ${i}`,
+      `Expected votes at index ${i - 1} >= votes at index ${i}`
     );
   }
 });

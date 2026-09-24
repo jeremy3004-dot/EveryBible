@@ -62,4 +62,3 @@ export const buildBibleNavState = (
   }
   return defaultParser(path, options);
 };
-

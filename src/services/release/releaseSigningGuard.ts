@@ -34,18 +34,17 @@ export const evaluateReleaseSigningState = (state: ReleaseSigningState): Release
   const errors: string[] = [];
   const profileFingerprint = normalizeSha1Fingerprint(state.profileFingerprint);
   const certFingerprint = normalizeSha1Fingerprint(state.certFingerprint);
-  const appleDistributionFingerprints = state.appleDistributionFingerprints.map(
-    normalizeSha1Fingerprint
-  );
+  const appleDistributionFingerprints =
+    state.appleDistributionFingerprints.map(normalizeSha1Fingerprint);
 
   if (profileFingerprint !== certFingerprint) {
-    errors.push(
-      'Provisioning profile and distribution certificate fingerprints do not match.'
-    );
+    errors.push('Provisioning profile and distribution certificate fingerprints do not match.');
   }
 
   if (appleDistributionFingerprints.length === 0) {
-    errors.push('No Apple Distribution identities are visible in the current keychain search list.');
+    errors.push(
+      'No Apple Distribution identities are visible in the current keychain search list.'
+    );
   } else {
     if (appleDistributionFingerprints.length > 1) {
       errors.push(

@@ -37,7 +37,10 @@ test('builds a month view that highlights the selected day and activity counts',
   assert.equal(view.monthReadDays, 2);
   assert.equal(view.selectedDateKey, '2026-03-18');
   assert.equal(view.weeks.length, 6);
-  assert.equal(view.weeks.every((week) => week.length === 7), true);
+  assert.equal(
+    view.weeks.every((week) => week.length === 7),
+    true
+  );
   assert.deepEqual(view.selectedDay, {
     dateKey: '2026-03-18',
     chapterCount: 2,

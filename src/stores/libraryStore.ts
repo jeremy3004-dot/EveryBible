@@ -66,7 +66,10 @@ export const useLibraryStore = create<LibraryState>()(
         const id = `playlist-${createdAt}`;
 
         set((state) => ({
-          playlists: [...state.playlists, createPlaylistRecord(id, title.trim() || 'Untitled', createdAt)],
+          playlists: [
+            ...state.playlists,
+            createPlaylistRecord(id, title.trim() || 'Untitled', createdAt),
+          ],
         }));
 
         return id;
@@ -90,7 +93,9 @@ export const useLibraryStore = create<LibraryState>()(
       },
 
       addChapterToDefaultPlaylist: (bookId, chapter) => {
-        const existingPlaylist = get().playlists.find((playlist) => playlist.id === DEFAULT_PLAYLIST_ID);
+        const existingPlaylist = get().playlists.find(
+          (playlist) => playlist.id === DEFAULT_PLAYLIST_ID
+        );
 
         if (!existingPlaylist) {
           set((state) => ({

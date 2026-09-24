@@ -64,7 +64,10 @@ test('keeps the repository in local-only mode when sync rollout is disabled', ()
   });
 
   assert.equal(snapshot.mode, 'local-only');
-  assert.deepEqual(snapshot.localGroups.map((group) => group.id), ['local-1']);
+  assert.deepEqual(
+    snapshot.localGroups.map((group) => group.id),
+    ['local-1']
+  );
   assert.deepEqual(snapshot.syncedGroups, []);
 });
 
@@ -79,7 +82,10 @@ test('surfaces sign-in-required status without hiding local groups', () => {
 
   assert.equal(snapshot.mode, 'signin-required');
   assert.equal(snapshot.localGroups[0]?.source, 'local');
-  assert.deepEqual(snapshot.syncedGroups.map((group) => group.id), ['synced-1']);
+  assert.deepEqual(
+    snapshot.syncedGroups.map((group) => group.id),
+    ['synced-1']
+  );
 });
 
 test('maps synced groups into a separate repository section when sync is enabled', () => {

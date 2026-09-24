@@ -43,8 +43,9 @@ test('Gather artwork zoom overrides stay restrained for centered card artwork', 
     'topic-money-advice should be scaled down slightly to avoid clipping near the top edge'
   );
 
-  assert.deepEqual(
-    Object.keys(GATHER_ARTWORK_ZOOM_OVERRIDES).sort(),
-    ['foundation-1', 'topic-money-advice', 'topic-women']
-  );
+  assert.deepEqual(Object.keys(GATHER_ARTWORK_ZOOM_OVERRIDES).sort(), [
+    'foundation-1',
+    'topic-money-advice',
+    'topic-women',
+  ]);
 });

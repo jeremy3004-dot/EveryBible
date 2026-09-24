@@ -154,8 +154,7 @@ test('reading plans store tracks completed sessions and advances the day only af
 
   const restored = mod.createReadingPlansStore(storage);
   assert.equal(
-    restored.getState().progressByPlanId[planId]?.completed_sessions?.['1:midday'] !==
-      undefined,
+    restored.getState().progressByPlanId[planId]?.completed_sessions?.['1:midday'] !== undefined,
     true
   );
 });
@@ -175,12 +174,10 @@ test('reading plan rhythms generate collision-safe fallback names on create and 
   const updateTarget = store
     .getState()
     .createRhythm({ title: 'Morning Read', items: [makePlanItem('item-c', 'plan-c')] });
-  const updatedRhythm = store
-    .getState()
-    .updateRhythm(updateTarget.rhythm?.id ?? '', {
-      title: '',
-      items: [makePlanItem('item-c', 'plan-c')],
-    });
+  const updatedRhythm = store.getState().updateRhythm(updateTarget.rhythm?.id ?? '', {
+    title: '',
+    items: [makePlanItem('item-c', 'plan-c')],
+  });
   const eveningRhythm = store.getState().createRhythm({
     title: '',
     slot: 'evening',
@@ -285,9 +282,7 @@ test('reading plan rhythms persist and restore alongside the rest of the store s
     items: [makePassageItem('item-psa', 'PSA', 23, 24)],
   });
 
-  store
-    .getState()
-    .reorderRhythms([secondRhythm.rhythm?.id ?? '', firstRhythm.rhythm?.id ?? '']);
+  store.getState().reorderRhythms([secondRhythm.rhythm?.id ?? '', firstRhythm.rhythm?.id ?? '']);
 
   const restored = mod.createReadingPlansStore(storage);
   assert.deepEqual(restored.getState().rhythmOrder, [
@@ -295,10 +290,16 @@ test('reading plan rhythms persist and restore alongside the rest of the store s
     firstRhythm.rhythm?.id ?? '',
   ]);
   assert.equal(restored.getState().getRhythm(firstRhythm.rhythm?.id ?? '')?.title, 'Morning');
-  assert.equal(restored.getState().getRhythm(secondRhythm.rhythm?.id ?? '')?.title, 'Morning Rhythm');
+  assert.equal(
+    restored.getState().getRhythm(secondRhythm.rhythm?.id ?? '')?.title,
+    'Morning Rhythm'
+  );
   assert.equal(restored.getState().getRhythm(secondRhythm.rhythm?.id ?? '')?.slot, 'morning');
   assert.equal(restored.getState().getRhythmForPlan('plan-a')?.id, firstRhythm.rhythm?.id ?? '');
-  assert.equal(restored.getState().getRhythm(secondRhythm.rhythm?.id ?? '')?.items[0]?.type, 'passage');
+  assert.equal(
+    restored.getState().getRhythm(secondRhythm.rhythm?.id ?? '')?.items[0]?.type,
+    'passage'
+  );
 });
 
 test('unenrolling a reading plan clears it from active and completed state without touching saved plans', async () => {
@@ -332,9 +333,7 @@ test('recurring calendar plans record completion by occurrence date without fini
   const store = mod.createReadingPlansStore(storage);
 
   store.getState().enrollPlan('proverbs-31-days');
-  const updated = store
-    .getState()
-    .markRecurringDayComplete('proverbs-31-days', '2026-04-05', 5);
+  const updated = store.getState().markRecurringDayComplete('proverbs-31-days', '2026-04-05', 5);
 
   assert.ok(updated);
   assert.equal(updated?.current_day, 5);

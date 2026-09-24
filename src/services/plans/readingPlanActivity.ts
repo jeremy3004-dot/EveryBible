@@ -149,9 +149,7 @@ export function buildPlanDayPlaybackSequenceEntries(
  * reading calendar see it. A verse-range passage is a slice of its chapter and
  * never counts the whole chapter as read.
  */
-export function getPlanStepReadChapters(
-  entries: ReadingPlanEntry[]
-): AudioPlaybackSequenceEntry[] {
+export function getPlanStepReadChapters(entries: ReadingPlanEntry[]): AudioPlaybackSequenceEntry[] {
   return buildPlanDayPlaybackSequenceEntries(
     entries.filter((entry) => entry.verse_start == null && entry.verse_end == null)
   );
@@ -198,7 +196,9 @@ export function resolvePlanDayPlaybackStartEntry(
   return (
     playbackEntries.find(
       (entry) => entry.bookId === resumeTarget.bookId && entry.chapter === resumeTarget.chapter
-    ) ?? playbackEntries[0] ?? null
+    ) ??
+    playbackEntries[0] ??
+    null
   );
 }
 
@@ -217,7 +217,10 @@ function getPlanTotalDayCount(entries: ReadingPlanEntry[]): number {
   return entries.reduce((maxDay, entry) => Math.max(maxDay, entry.day_number), 0);
 }
 
-function getRhythmDayNumber(entries: ReadingPlanEntry[], progress?: UserReadingPlanProgress): number {
+function getRhythmDayNumber(
+  entries: ReadingPlanEntry[],
+  progress?: UserReadingPlanProgress
+): number {
   const totalDays = getPlanTotalDayCount(entries);
   const currentDay = Math.max(progress?.current_day ?? 1, 1);
 
@@ -228,7 +231,9 @@ function getRhythmDayNumber(entries: ReadingPlanEntry[], progress?: UserReadingP
   return totalDays > 0 ? Math.min(currentDay, totalDays) : currentDay;
 }
 
-function buildPassagePlaybackSequenceEntries(item: Extract<ReadingPlanRhythmItem, { type: 'passage' }>): AudioPlaybackSequenceEntry[] {
+function buildPassagePlaybackSequenceEntries(
+  item: Extract<ReadingPlanRhythmItem, { type: 'passage' }>
+): AudioPlaybackSequenceEntry[] {
   const playbackEntries: AudioPlaybackSequenceEntry[] = [];
 
   for (let chapter = item.startChapter; chapter <= item.endChapter; chapter += 1) {
@@ -267,9 +272,10 @@ export function buildRhythmReaderSession({
       }
 
       const plan = readingPlansById.get(planId);
-      const dayNumber = plan && isRecurringPlan(plan)
-        ? getActivePlanDayNumber(plan, progress, today)
-        : getRhythmDayNumber(entries, progress ?? undefined);
+      const dayNumber =
+        plan && isRecurringPlan(plan)
+          ? getActivePlanDayNumber(plan, progress, today)
+          : getRhythmDayNumber(entries, progress ?? undefined);
       const dayEntries = getUniqueDayEntries(entries, dayNumber);
       const segmentChapterKeys = expandPlanDayChapterKeys(dayEntries);
       if (segmentChapterKeys.length === 0) {
@@ -329,7 +335,9 @@ export function buildRhythmReaderSession({
     title: rhythm.title,
     itemIds: rhythm.items.map((item) => item.id),
     planIds: rhythm.items
-      .filter((item): item is Extract<ReadingPlanRhythmItem, { type: 'plan' }> => item.type === 'plan')
+      .filter(
+        (item): item is Extract<ReadingPlanRhythmItem, { type: 'plan' }> => item.type === 'plan'
+      )
       .map((item) => item.planId),
     chapterKeys,
     segments,
@@ -347,13 +355,15 @@ export function buildRhythmReaderSession({
   const startEntry =
     startSegment && startSegment.startIndex < playbackSequenceEntries.length
       ? startResume
-        ? playbackSequenceEntries
+        ? (playbackSequenceEntries
             .slice(startSegment.startIndex, startSegment.endIndex)
             .find(
               (entry) =>
                 entry.bookId === startResume.bookId && entry.chapter === startResume.chapter
-            ) ?? playbackSequenceEntries[startSegment.startIndex] ?? null
-        : playbackSequenceEntries[startSegment.startIndex] ?? null
+            ) ??
+          playbackSequenceEntries[startSegment.startIndex] ??
+          null)
+        : (playbackSequenceEntries[startSegment.startIndex] ?? null)
       : null;
 
   return {
@@ -444,7 +454,9 @@ export function getReadingPlanRhythmSummary({
   progressByPlanId: Record<string, UserReadingPlanProgress | null | undefined>;
 }): ReadingPlanRhythmSummary {
   const planIds = rhythm.items
-    .filter((item): item is Extract<ReadingPlanRhythmItem, { type: 'plan' }> => item.type === 'plan')
+    .filter(
+      (item): item is Extract<ReadingPlanRhythmItem, { type: 'plan' }> => item.type === 'plan'
+    )
     .map((item) => item.planId);
   const completedPlanCount = planIds.filter(
     (planId) => progressByPlanId[planId]?.is_completed === true
@@ -506,7 +518,8 @@ function mergeChapterActivityRecords(
   }
 
   return Array.from(merged.values()).sort(
-    (left, right) => left.timestamp - right.timestamp || left.chapterKey.localeCompare(right.chapterKey)
+    (left, right) =>
+      left.timestamp - right.timestamp || left.chapterKey.localeCompare(right.chapterKey)
   );
 }
 
@@ -707,7 +720,11 @@ function buildPlanDaySessionSummaries({
   input: MergeTodayChapterActivityInput;
 }): PlanDaySessionSummary[] {
   return getDaySessionEntries(entries, dayNumber).map((sessionGroup) => {
-    const sessionCompletionSummary = buildPlanDayCompletionSummary(sessionGroup.entries, dayNumber, input);
+    const sessionCompletionSummary = buildPlanDayCompletionSummary(
+      sessionGroup.entries,
+      dayNumber,
+      input
+    );
     const persistedCompletionKey = plan
       ? buildPlanSessionCompletionKey(plan, dayNumber, sessionGroup.sessionKey, today)
       : `${dayNumber}:${sessionGroup.sessionKey}`;

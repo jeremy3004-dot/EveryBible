@@ -17,10 +17,7 @@ interface SectionAccentColors {
   prayer: string;
 }
 
-export function LessonSectionRenderer({
-  section,
-  onScripturePress,
-}: LessonSectionRendererProps) {
+export function LessonSectionRenderer({ section, onScripturePress }: LessonSectionRendererProps) {
   const { colors } = useTheme();
   const { t } = useTranslation();
 
@@ -105,10 +102,13 @@ function ScriptureSection({
 
   return (
     <TouchableOpacity
-      style={[styles.scriptureContainer, {
-        backgroundColor: colors.accentPrimary + '15',
-        borderLeftColor: colors.accentPrimary,
-      }]}
+      style={[
+        styles.scriptureContainer,
+        {
+          backgroundColor: colors.accentPrimary + '15',
+          borderLeftColor: colors.accentPrimary,
+        },
+      ]}
       onPress={() => reference && onPress?.(reference)}
       activeOpacity={0.7}
       disabled={!isTappable}
@@ -117,7 +117,9 @@ function ScriptureSection({
     >
       <View style={styles.scriptureHeader}>
         <Ionicons name="book-outline" size={16} color={colors.accentPrimary} />
-        {reference && <Text style={[styles.reference, { color: colors.accentPrimary }]}>{reference}</Text>}
+        {reference && (
+          <Text style={[styles.reference, { color: colors.accentPrimary }]}>{reference}</Text>
+        )}
       </View>
       <Text style={[styles.scriptureText, { color: colors.primaryText }]}>{content}</Text>
       {reference && onPress && (
@@ -141,7 +143,9 @@ interface BulletsSectionProps {
 function BulletsSection({ content, items, colors }: BulletsSectionProps) {
   return (
     <View style={styles.bulletsContainer}>
-      {content && <Text style={[styles.bulletsTitle, { color: colors.primaryText }]}>{content}</Text>}
+      {content && (
+        <Text style={[styles.bulletsTitle, { color: colors.primaryText }]}>{content}</Text>
+      )}
       {items?.map((item, index) => (
         <View key={index} style={styles.bulletItem}>
           <View style={[styles.bullet, { backgroundColor: colors.accentPrimary }]} />
@@ -164,7 +168,9 @@ function DiscussionSection({
   label: string;
 }) {
   return (
-    <View style={[styles.discussionContainer, { backgroundColor: sectionColors.discussion + '15' }]}>
+    <View
+      style={[styles.discussionContainer, { backgroundColor: sectionColors.discussion + '15' }]}
+    >
       <View style={styles.iconLabel}>
         <Ionicons name="chatbubbles-outline" size={18} color={sectionColors.discussion} />
         <Text style={[styles.iconLabelText, { color: sectionColors.discussion }]}>{label}</Text>

@@ -126,7 +126,9 @@ export const buildReadingActivityMonthView = (
     cellDate.setDate(gridStart.getDate() + index);
     const cellDateKey = formatLocalDateKey(cellDate);
     const daySummary = summary.daysByDateKey[cellDateKey] ?? null;
-    const inMonth = cellDate.getMonth() === viewDate.getMonth() && cellDate.getFullYear() === viewDate.getFullYear();
+    const inMonth =
+      cellDate.getMonth() === viewDate.getMonth() &&
+      cellDate.getFullYear() === viewDate.getFullYear();
 
     if (inMonth && daySummary) {
       monthReadDays += 1;
@@ -144,12 +146,14 @@ export const buildReadingActivityMonthView = (
     });
   }
 
-  const selectedDay = selectedDateKey ? summary.daysByDateKey[selectedDateKey] ?? null : null;
+  const selectedDay = selectedDateKey ? (summary.daysByDateKey[selectedDateKey] ?? null) : null;
 
   return {
     monthKey,
     monthLabel: getMonthLabel(viewDate),
-    weeks: Array.from({ length: 6 }, (_, weekIndex) => cells.slice(weekIndex * 7, weekIndex * 7 + 7)),
+    weeks: Array.from({ length: 6 }, (_, weekIndex) =>
+      cells.slice(weekIndex * 7, weekIndex * 7 + 7)
+    ),
     selectedDateKey,
     selectedDay,
     totalReadDays: summary.totalReadDays,

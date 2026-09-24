@@ -41,9 +41,9 @@ type ReadingPlanCoverInput = {
 };
 
 export function getReadingPlanCoverSource(plan: ReadingPlanCoverInput): ImageSourcePropType | null {
-  const key =
-    (plan.cover_image_key ??
-      plan.cover_key ??
-      plan.coverKey) as ReadingPlanCoverKey | null | undefined;
-  return key ? COVER_ASSETS[key] ?? null : null;
+  const key = (plan.cover_image_key ?? plan.cover_key ?? plan.coverKey) as
+    | ReadingPlanCoverKey
+    | null
+    | undefined;
+  return key ? (COVER_ASSETS[key] ?? null) : null;
 }

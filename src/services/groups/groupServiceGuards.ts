@@ -1,7 +1,4 @@
-export type SyncedGroupServiceAvailability =
-  | 'backend-unavailable'
-  | 'signin-required'
-  | 'ready';
+export type SyncedGroupServiceAvailability = 'backend-unavailable' | 'signin-required' | 'ready';
 
 export function getSyncedGroupServiceAvailability({
   backendConfigured,

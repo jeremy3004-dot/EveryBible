@@ -191,10 +191,7 @@ export async function loadGroupRepositorySnapshot({
   listSyncedGroups?: () => Promise<SyncedGroupSummaryRecord[]>;
 }): Promise<GroupRepositorySnapshot> {
   const syncedGroups =
-    listSyncedGroups == null ||
-    !syncFeatureEnabled ||
-    !backendConfigured ||
-    !signedIn
+    listSyncedGroups == null || !syncFeatureEnabled || !backendConfigured || !signedIn
       ? []
       : await listSyncedGroups();
 
@@ -236,12 +233,7 @@ export async function loadGroupDetailSnapshot({
     });
   }
 
-  if (
-    getSyncedGroup == null ||
-    !syncFeatureEnabled ||
-    !backendConfigured ||
-    !signedIn
-  ) {
+  if (getSyncedGroup == null || !syncFeatureEnabled || !backendConfigured || !signedIn) {
     return null;
   }
 

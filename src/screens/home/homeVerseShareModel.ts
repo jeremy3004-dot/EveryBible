@@ -11,7 +11,9 @@ export function buildHomeVerseShareMessage({
   referenceLabel,
   bodyText,
 }: HomeVerseShareMessageInput): string {
-  const lines = [cardTitle, referenceLabel].map(normalizeShareLine).filter((line) => line.length > 0);
+  const lines = [cardTitle, referenceLabel]
+    .map(normalizeShareLine)
+    .filter((line) => line.length > 0);
   const normalizedBodyText = bodyText.trim();
 
   return normalizedBodyText.length > 0

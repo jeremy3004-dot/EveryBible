@@ -23,7 +23,10 @@ test('canonical supabase schema wraps auth.uid() calls inside policies for initp
   const schema = readRootFile('supabase/schema.sql');
   const policyStatements = getPolicyStatements(schema);
 
-  assert.ok(policyStatements.length > 0, 'Expected schema.sql to declare row-level security policies');
+  assert.ok(
+    policyStatements.length > 0,
+    'Expected schema.sql to declare row-level security policies'
+  );
 
   for (const statement of policyStatements) {
     const withoutWrappedAuthUid = statement.replaceAll('(select auth.uid())', '');
@@ -49,6 +52,12 @@ test('health sweep migration exists to add the missing group_sessions creator in
     migration,
     /CREATE INDEX IF NOT EXISTS idx_group_sessions_created_by ON public\.group_sessions\(created_by\);/
   );
-  assert.match(migration, /DROP POLICY IF EXISTS "Users can view own profile" ON public\.profiles;/);
-  assert.match(migration, /CREATE POLICY "Group members can view sessions" ON public\.group_sessions/);
+  assert.match(
+    migration,
+    /DROP POLICY IF EXISTS "Users can view own profile" ON public\.profiles;/
+  );
+  assert.match(
+    migration,
+    /CREATE POLICY "Group members can view sessions" ON public\.group_sessions/
+  );
 });

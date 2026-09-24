@@ -121,9 +121,7 @@ for (const theme of ['light', 'dark'] as const) {
     );
     // The thumb alone marks the selection, so it is lit paper outlined at the
     // 3:1 control boundary rather than the quieter card border.
-    const thumb = view
-      .queryAllByType('View')
-      .find((node) => node.props.pointerEvents === 'none');
+    const thumb = view.queryAllByType('View').find((node) => node.props.pointerEvents === 'none');
     assert.ok(thumb);
     const thumbStyle = flattenStyle(thumb.props.style);
     assert.equal(thumbStyle?.backgroundColor, palette.cardBackground);

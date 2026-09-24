@@ -1,9 +1,6 @@
 const DAY_IN_MILLISECONDS = 24 * 60 * 60 * 1000;
 
-export function getHomeVerseBackgroundIndex(
-  date: Date,
-  backgroundCount: number
-): number {
+export function getHomeVerseBackgroundIndex(date: Date, backgroundCount: number): number {
   if (backgroundCount <= 0) {
     return 0;
   }

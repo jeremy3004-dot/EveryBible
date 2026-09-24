@@ -19,19 +19,28 @@ test('buildBibleBrowserRows creates one continuous list with a single new testam
   const firstRow = rows[0];
   assert.equal(firstRow?.type, 'books');
   if (firstRow?.type === 'books') {
-    assert.deepEqual(firstRow.books.map((book) => book.id), ['GEN']);
+    assert.deepEqual(
+      firstRow.books.map((book) => book.id),
+      ['GEN']
+    );
   }
 
   const rowBeforeDivider = rows[dividerIndex - 1];
   assert.equal(rowBeforeDivider?.type, 'books');
   if (rowBeforeDivider?.type === 'books') {
-    assert.deepEqual(rowBeforeDivider.books.map((book) => book.id), ['MAL']);
+    assert.deepEqual(
+      rowBeforeDivider.books.map((book) => book.id),
+      ['MAL']
+    );
   }
 
   const rowAfterDivider = rows[dividerIndex + 1];
   assert.equal(rowAfterDivider?.type, 'books');
   if (rowAfterDivider?.type === 'books') {
-    assert.deepEqual(rowAfterDivider.books.map((book) => book.id), ['MAT']);
+    assert.deepEqual(
+      rowAfterDivider.books.map((book) => book.id),
+      ['MAT']
+    );
   }
 });
 
@@ -41,6 +50,9 @@ test('buildBibleBrowserRows preserves the final single book row when a testament
 
   assert.equal(lastRow?.type, 'books');
   if (lastRow?.type === 'books') {
-    assert.deepEqual(lastRow.books.map((book) => book.id), ['REV']);
+    assert.deepEqual(
+      lastRow.books.map((book) => book.id),
+      ['REV']
+    );
   }
 });

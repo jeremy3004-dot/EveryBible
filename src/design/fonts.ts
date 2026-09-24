@@ -39,7 +39,6 @@ export function serifFamily(weight: SerifWeight = 400, italic = false): string {
   return LORA_BY_WEIGHT[weight] ?? LORA_BY_WEIGHT[400];
 }
 
-
 /**
  * Resolve the reading-surface font family for a language. Latin-script languages
  * get Lora at the requested weight/style; Devanagari and other unsupported
@@ -73,6 +72,3 @@ export function getReadingFontFamily(
 // platform UI font renders instead of a row of tofu. This mirrors EL's own
 // declared fallback chain: 'Alte Haas Grotesk', 'Noto Sans', system-ui.
 // ---------------------------------------------------------------------------
-
-
-

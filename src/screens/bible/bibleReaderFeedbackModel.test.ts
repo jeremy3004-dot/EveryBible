@@ -15,20 +15,17 @@ test('isChapterFeedbackSentiment accepts thumbs up and thumbs down only', () => 
 });
 
 test('normalizeChapterFeedbackComment trims comments and converts blank text to null', () => {
-  assert.equal(normalizeChapterFeedbackComment('  Needs a clearer intro  '), 'Needs a clearer intro');
+  assert.equal(
+    normalizeChapterFeedbackComment('  Needs a clearer intro  '),
+    'Needs a clearer intro'
+  );
   assert.equal(normalizeChapterFeedbackComment('   '), null);
 });
 
 test('shouldEnableChapterFeedbackSubmit only enables submit when a sentiment exists and submission is idle', () => {
   assert.equal(shouldEnableChapterFeedbackSubmit({ sentiment: 'up', isSubmitting: false }), true);
-  assert.equal(
-    shouldEnableChapterFeedbackSubmit({ sentiment: 'down', isSubmitting: true }),
-    false
-  );
-  assert.equal(
-    shouldEnableChapterFeedbackSubmit({ sentiment: null, isSubmitting: false }),
-    false
-  );
+  assert.equal(shouldEnableChapterFeedbackSubmit({ sentiment: 'down', isSubmitting: true }), false);
+  assert.equal(shouldEnableChapterFeedbackSubmit({ sentiment: null, isSubmitting: false }), false);
 });
 
 test('getChapterFeedbackResultVariant marks a saved submission as submitted, otherwise failed', () => {

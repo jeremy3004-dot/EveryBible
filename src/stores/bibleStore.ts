@@ -138,9 +138,8 @@ async function readRegisteredTextPackRepresentative(
 ): Promise<void> {
   textPackRecoveryReadinessBypass.add(translationId);
   try {
-    const { getChapter, invalidateInstalledBibleDatabaseAtPath } = await import(
-      '../services/bible/bibleDatabase'
-    );
+    const { getChapter, invalidateInstalledBibleDatabaseAtPath } =
+      await import('../services/bible/bibleDatabase');
     if (options.invalidate !== false) {
       await invalidateInstalledBibleDatabaseAtPath(localPath);
     }
@@ -197,214 +196,223 @@ async function recoverTextPackJournal(): Promise<void> {
   }
 
   textPackJournalRecoveryPromise = (async () => {
-  const journal = readTextPackInstallJournal();
-  const completedDeletions = new Map<
-    string,
-    { deletionOperationId: string; installOperationId?: string }
-  >();
-  const completedInstalls = new Map<string, string>();
-  const {
-    deleteCatalogTextPackArtifacts,
-    recoverInterruptedCatalogTextPack,
-    validateCatalogTextPack,
-  } = await import('../services/bible/cloudTranslationService');
-  const translationsBeingDeleted = new Set(Object.keys(journal.deletions));
+    const journal = readTextPackInstallJournal();
+    const completedDeletions = new Map<
+      string,
+      { deletionOperationId: string; installOperationId?: string }
+    >();
+    const completedInstalls = new Map<string, string>();
+    const {
+      deleteCatalogTextPackArtifacts,
+      recoverInterruptedCatalogTextPack,
+      validateCatalogTextPack,
+    } = await import('../services/bible/cloudTranslationService');
+    const translationsBeingDeleted = new Set(Object.keys(journal.deletions));
 
-  for (const [translationId, deletion] of Object.entries(journal.deletions)) {
-    const releaseTextPackMutation = await acquireTextPackMutationLock(translationId);
-    try {
-      useBibleStore.setState((state) => ({
-        translations: state.translations.map((translation) =>
-          translation.id === translationId ? resetTranslationDownloadState(translation) : translation
-        ),
-      }));
-      await Promise.all(deletion.paths.map((path) => deleteCatalogTextPackArtifacts(path)));
-      completedDeletions.set(translationId, {
-        deletionOperationId: deletion.operationId,
-        installOperationId: journal.installs[translationId]?.operationId,
-      });
-    } catch (error) {
-      console.warn('[Bible] Text pack deletion recovery is pending:', translationId, error);
-    } finally {
-      releaseTextPackMutation();
-    }
-  }
-
-  for (const [translationId, install] of Object.entries(journal.installs)) {
-    if (translationsBeingDeleted.has(translationId) || activeTextDownloadOperationIds.has(translationId)) {
-      continue;
-    }
-    const releaseTextPackMutation = await acquireTextPackMutationLock(translationId);
-    const priorTranslation = useBibleStore
-      .getState()
-      .translations.find((translation) => translation.id === translationId);
-    try {
-      const recoveryResult = await recoverInterruptedCatalogTextPack({
-        finalPath: install.finalPath,
-        stagingPath: install.stagingPath,
-        rollbackPath: install.rollbackPath,
-      });
-      // Nothing reached the final or rollback path (the transfer was cancelled, failed, or the
-      // app was killed before activation), so there is no pack to adopt and any previous install
-      // was never touched. Retire the entry; validating the missing file would fail on every
-      // launch and keep every readiness check running a full recovery pass.
-      if (recoveryResult === 'none') {
-        completedInstalls.set(translationId, install.operationId);
-        continue;
-      }
-      const representative = await validateCatalogTextPack(
-        install.finalPath,
-        install.expectedVerseCount ?? 1,
-        recoveryResult === 'current' ||
-        (recoveryResult === 'current-without-rollback' && install.phase === 'activating')
-          ? install.expectedSha256
-          : undefined,
-        translationId
-      );
-      const recoveredVersion =
-        recoveryResult === 'previous'
-          ? install.previousVersion || undefined
-          : recoveryResult === 'current-without-rollback' && install.phase !== 'activating'
-            ? install.previousVersion || undefined
-          : install.version || undefined;
-      const recoveredTranslation = useBibleStore
-        .getState()
-        .translations.find((translation) => translation.id === translationId);
-      if (recoveredTranslation) {
+    for (const [translationId, deletion] of Object.entries(journal.deletions)) {
+      const releaseTextPackMutation = await acquireTextPackMutationLock(translationId);
+      try {
         useBibleStore.setState((state) => ({
           translations: state.translations.map((translation) =>
             translation.id === translationId
-              ? {
-                  ...translation,
-                  isDownloaded: true,
-                  hasText: true,
-                  installState: 'installed' as const,
-                  textPackLocalPath: install.finalPath,
-                  activeTextPackVersion:
-                    recoveredVersion || translation.activeTextPackVersion || '1',
-                }
+              ? resetTranslationDownloadState(translation)
               : translation
           ),
         }));
-        await readRegisteredTextPackRepresentative(translationId, install.finalPath, representative);
-        if (recoveryResult === 'current') {
-          await deleteCatalogTextPackArtifacts(install.rollbackPath);
-        }
+        await Promise.all(deletion.paths.map((path) => deleteCatalogTextPackArtifacts(path)));
+        completedDeletions.set(translationId, {
+          deletionOperationId: deletion.operationId,
+          installOperationId: journal.installs[translationId]?.operationId,
+        });
+      } catch (error) {
+        console.warn('[Bible] Text pack deletion recovery is pending:', translationId, error);
+      } finally {
+        releaseTextPackMutation();
       }
-      completedInstalls.set(translationId, install.operationId);
-    } catch (error) {
-      if (priorTranslation) {
+    }
+
+    for (const [translationId, install] of Object.entries(journal.installs)) {
+      if (
+        translationsBeingDeleted.has(translationId) ||
+        activeTextDownloadOperationIds.has(translationId)
+      ) {
+        continue;
+      }
+      const releaseTextPackMutation = await acquireTextPackMutationLock(translationId);
+      const priorTranslation = useBibleStore
+        .getState()
+        .translations.find((translation) => translation.id === translationId);
+      try {
+        const recoveryResult = await recoverInterruptedCatalogTextPack({
+          finalPath: install.finalPath,
+          stagingPath: install.stagingPath,
+          rollbackPath: install.rollbackPath,
+        });
+        // Nothing reached the final or rollback path (the transfer was cancelled, failed, or the
+        // app was killed before activation), so there is no pack to adopt and any previous install
+        // was never touched. Retire the entry; validating the missing file would fail on every
+        // launch and keep every readiness check running a full recovery pass.
+        if (recoveryResult === 'none') {
+          completedInstalls.set(translationId, install.operationId);
+          continue;
+        }
+        const representative = await validateCatalogTextPack(
+          install.finalPath,
+          install.expectedVerseCount ?? 1,
+          recoveryResult === 'current' ||
+            (recoveryResult === 'current-without-rollback' && install.phase === 'activating')
+            ? install.expectedSha256
+            : undefined,
+          translationId
+        );
+        const recoveredVersion =
+          recoveryResult === 'previous'
+            ? install.previousVersion || undefined
+            : recoveryResult === 'current-without-rollback' && install.phase !== 'activating'
+              ? install.previousVersion || undefined
+              : install.version || undefined;
+        const recoveredTranslation = useBibleStore
+          .getState()
+          .translations.find((translation) => translation.id === translationId);
+        if (recoveredTranslation) {
+          useBibleStore.setState((state) => ({
+            translations: state.translations.map((translation) =>
+              translation.id === translationId
+                ? {
+                    ...translation,
+                    isDownloaded: true,
+                    hasText: true,
+                    installState: 'installed' as const,
+                    textPackLocalPath: install.finalPath,
+                    activeTextPackVersion:
+                      recoveredVersion || translation.activeTextPackVersion || '1',
+                  }
+                : translation
+            ),
+          }));
+          await readRegisteredTextPackRepresentative(
+            translationId,
+            install.finalPath,
+            representative
+          );
+          if (recoveryResult === 'current') {
+            await deleteCatalogTextPackArtifacts(install.rollbackPath);
+          }
+        }
+        completedInstalls.set(translationId, install.operationId);
+      } catch (error) {
+        if (priorTranslation) {
+          useBibleStore.setState((state) => ({
+            translations: state.translations.map((translation) =>
+              translation.id === translationId ? priorTranslation : translation
+            ),
+          }));
+        }
+        console.warn('[Bible] Text pack install recovery is pending:', translationId, error);
+      } finally {
+        releaseTextPackMutation();
+      }
+    }
+
+    // Older releases used a stable `<translationId>.db`/`.rollback` pair without a journal.
+    // Discover that known location before reconcileTranslationPacks can classify the language as
+    // missing. Only adopt a file after the same schema, identity, and representative-read checks
+    // used for journaled installs.
+    const legacyTranslations = useBibleStore
+      .getState()
+      .translations.filter((translation) => translation.source === 'runtime');
+    for (const translation of legacyTranslations) {
+      if (
+        translationsBeingDeleted.has(translation.id) ||
+        activeTextDownloadOperationIds.has(translation.id)
+      ) {
+        continue;
+      }
+      const releaseTextPackMutation = await acquireTextPackMutationLock(translation.id);
+      const priorTranslation = translation;
+      try {
+        const FileSystem = await import('expo-file-system/legacy');
+        const paths = (
+          await import('../services/bible/cloudTranslationService')
+        ).getCatalogTextPackPaths(translation.id);
+        if (!paths) continue;
+        const savedPathUsable = translation.textPackLocalPath
+          ? await fileSystemPathIsUsableDatabase(translation.textPackLocalPath)
+          : false;
+        if (savedPathUsable) continue;
+        const [finalInfo, rollbackInfo] = await Promise.all([
+          FileSystem.getInfoAsync(paths.finalPath),
+          FileSystem.getInfoAsync(paths.rollbackPath),
+        ]);
+        if (!finalInfo.exists && !rollbackInfo.exists) continue;
+        const recoveryResult = await recoverInterruptedCatalogTextPack(paths);
+        if (recoveryResult === 'none') continue;
+        const representative = await validateCatalogTextPack(
+          paths.finalPath,
+          translation.catalog?.text?.verseCount ?? 1,
+          recoveryResult === 'current' ||
+            (recoveryResult === 'current-without-rollback' && translation.catalog?.text?.sha256)
+            ? translation.catalog?.text?.sha256
+            : undefined,
+          translation.id
+        );
+        const recoveredVersion =
+          recoveryResult === 'previous'
+            ? translation.activeTextPackVersion || '1'
+            : translation.catalog?.text?.version || translation.activeTextPackVersion || '1';
         useBibleStore.setState((state) => ({
-          translations: state.translations.map((translation) =>
-            translation.id === translationId ? priorTranslation : translation
+          translations: state.translations.map((item) =>
+            item.id === translation.id
+              ? {
+                  ...item,
+                  isDownloaded: true,
+                  hasText: true,
+                  installState: 'installed' as const,
+                  textPackLocalPath: paths.finalPath,
+                  activeTextPackVersion: recoveredVersion,
+                }
+              : item
           ),
         }));
+        await readRegisteredTextPackRepresentative(translation.id, paths.finalPath, representative);
+        if (recoveryResult === 'current') {
+          await deleteCatalogTextPackArtifacts(paths.rollbackPath);
+        }
+      } catch (error) {
+        useBibleStore.setState((state) => ({
+          translations: state.translations.map((item) =>
+            item.id === translation.id ? priorTranslation : item
+          ),
+        }));
+        console.warn('[Bible] Legacy text pack recovery is pending:', translation.id, error);
+      } finally {
+        releaseTextPackMutation();
       }
-      console.warn('[Bible] Text pack install recovery is pending:', translationId, error);
-    } finally {
-      releaseTextPackMutation();
     }
-  }
 
-  // Older releases used a stable `<translationId>.db`/`.rollback` pair without a journal.
-  // Discover that known location before reconcileTranslationPacks can classify the language as
-  // missing. Only adopt a file after the same schema, identity, and representative-read checks
-  // used for journaled installs.
-  const legacyTranslations = useBibleStore
-    .getState()
-    .translations.filter((translation) => translation.source === 'runtime');
-  for (const translation of legacyTranslations) {
-    if (
-      translationsBeingDeleted.has(translation.id) ||
-      activeTextDownloadOperationIds.has(translation.id)
-    ) {
-      continue;
-    }
-    const releaseTextPackMutation = await acquireTextPackMutationLock(translation.id);
-    const priorTranslation = translation;
-    try {
-      const FileSystem = await import('expo-file-system/legacy');
-      const paths = (await import('../services/bible/cloudTranslationService')).getCatalogTextPackPaths(
-        translation.id
-      );
-      if (!paths) continue;
-      const savedPathUsable = translation.textPackLocalPath
-        ? await fileSystemPathIsUsableDatabase(translation.textPackLocalPath)
-        : false;
-      if (savedPathUsable) continue;
-      const [finalInfo, rollbackInfo] = await Promise.all([
-        FileSystem.getInfoAsync(paths.finalPath),
-        FileSystem.getInfoAsync(paths.rollbackPath),
-      ]);
-      if (!finalInfo.exists && !rollbackInfo.exists) continue;
-      const recoveryResult = await recoverInterruptedCatalogTextPack(paths);
-      if (recoveryResult === 'none') continue;
-      const representative = await validateCatalogTextPack(
-        paths.finalPath,
-        translation.catalog?.text?.verseCount ?? 1,
-        recoveryResult === 'current' ||
-        (recoveryResult === 'current-without-rollback' && translation.catalog?.text?.sha256)
-          ? translation.catalog?.text?.sha256
-          : undefined,
-        translation.id
-      );
-      const recoveredVersion =
-        recoveryResult === 'previous'
-          ? translation.activeTextPackVersion || '1'
-          : translation.catalog?.text?.version || translation.activeTextPackVersion || '1';
-      useBibleStore.setState((state) => ({
-        translations: state.translations.map((item) =>
-          item.id === translation.id
-            ? {
-                ...item,
-                isDownloaded: true,
-                hasText: true,
-                installState: 'installed' as const,
-                textPackLocalPath: paths.finalPath,
-                activeTextPackVersion: recoveredVersion,
-              }
-            : item
-        ),
-      }));
-      await readRegisteredTextPackRepresentative(translation.id, paths.finalPath, representative);
-      if (recoveryResult === 'current') {
-        await deleteCatalogTextPackArtifacts(paths.rollbackPath);
+    // Recovery can yield for filesystem and database work. Re-read before retiring entries so a
+    // concurrent download/delete cannot be lost by writing the stale snapshot captured above.
+    let latestJournal = readTextPackInstallJournal();
+    for (const [translationId, completion] of completedDeletions) {
+      if (latestJournal.deletions[translationId]?.operationId === completion.deletionOperationId) {
+        latestJournal = removeTextPackDeletion(latestJournal, translationId);
+        if (
+          latestJournal.installs[translationId]?.operationId === completion.installOperationId ||
+          (completion.installOperationId === undefined && !latestJournal.installs[translationId])
+        ) {
+          latestJournal = removeTextPackInstall(latestJournal, translationId);
+        }
       }
-    } catch (error) {
-      useBibleStore.setState((state) => ({
-        translations: state.translations.map((item) =>
-          item.id === translation.id ? priorTranslation : item
-        ),
-      }));
-      console.warn('[Bible] Legacy text pack recovery is pending:', translation.id, error);
-    } finally {
-      releaseTextPackMutation();
     }
-  }
-
-  // Recovery can yield for filesystem and database work. Re-read before retiring entries so a
-  // concurrent download/delete cannot be lost by writing the stale snapshot captured above.
-  let latestJournal = readTextPackInstallJournal();
-  for (const [translationId, completion] of completedDeletions) {
-    if (latestJournal.deletions[translationId]?.operationId === completion.deletionOperationId) {
-      latestJournal = removeTextPackDeletion(latestJournal, translationId);
-      if (
-        latestJournal.installs[translationId]?.operationId === completion.installOperationId ||
-        (completion.installOperationId === undefined && !latestJournal.installs[translationId])
-      ) {
+    for (const [translationId, operationId] of completedInstalls) {
+      if (latestJournal.installs[translationId]?.operationId === operationId) {
         latestJournal = removeTextPackInstall(latestJournal, translationId);
       }
     }
-  }
-  for (const [translationId, operationId] of completedInstalls) {
-    if (latestJournal.installs[translationId]?.operationId === operationId) {
-      latestJournal = removeTextPackInstall(latestJournal, translationId);
-    }
-  }
-  saveTextPackJournal(latestJournal);
-  textPackJournalRecovered =
-    Object.keys(latestJournal.installs).length === 0 &&
-    Object.keys(latestJournal.deletions).length === 0;
+    saveTextPackJournal(latestJournal);
+    textPackJournalRecovered =
+      Object.keys(latestJournal.installs).length === 0 &&
+      Object.keys(latestJournal.deletions).length === 0;
   })().finally(() => {
     textPackJournalRecoveryPromise = null;
   });
@@ -1021,8 +1029,7 @@ export const useBibleStore = create<BibleState>()(
             downloadCatalogTextPack,
             isTextPackDownloadCancelled: isDownloadCancelled,
             getCatalogTextPackPaths,
-          } =
-            await import('../services/bible/cloudTranslationService');
+          } = await import('../services/bible/cloudTranslationService');
           isTextPackDownloadCancelled = isDownloadCancelled;
 
           const handleProgress = (progress: {
@@ -1044,7 +1051,7 @@ export const useBibleStore = create<BibleState>()(
             }
             const pct =
               progress.bytesTotal && progress.bytesTotal > 0
-                ? Math.round((progress.bytesDownloaded ?? 0) / progress.bytesTotal * 100)
+                ? Math.round(((progress.bytesDownloaded ?? 0) / progress.bytesTotal) * 100)
                 : progress.totalVerses > 0
                   ? Math.round((progress.versesDownloaded / progress.totalVerses) * 100)
                   : 0;
@@ -1202,7 +1209,11 @@ export const useBibleStore = create<BibleState>()(
             } catch (cleanupError) {
               // The newly registered candidate remains authoritative; retain the old copy if
               // cleanup is interrupted so recovery can remove it after the active read settles.
-              console.warn('[Bible] Previous text pack cleanup is pending:', translationId, cleanupError);
+              console.warn(
+                '[Bible] Previous text pack cleanup is pending:',
+                translationId,
+                cleanupError
+              );
             }
           }
 
@@ -1565,7 +1576,7 @@ export const useBibleStore = create<BibleState>()(
           : null;
         // A text transfer has no audio job id. Never let a stale audio job on the same
         // translation hijack a text cancellation request.
-        const resolvedJobId = progress?.jobId ? activeJobId ?? progress.jobId : null;
+        const resolvedJobId = progress?.jobId ? (activeJobId ?? progress.jobId) : null;
         if (resolvedJobId) {
           const jobId = resolvedJobId;
           // Stop the in-JS scheduling loop (runWithConcurrency) immediately, ask the native
@@ -1609,7 +1620,10 @@ export const useBibleStore = create<BibleState>()(
                     : state.downloadProgress,
                 translations: state.translations.map((translation) =>
                   translation.id === cancelledTranslationId
-                    ? { ...translation, installState: translation.textPackLocalPath ? 'installed' : 'remote-only' }
+                    ? {
+                        ...translation,
+                        installState: translation.textPackLocalPath ? 'installed' : 'remote-only',
+                      }
                     : translation
                 ),
               }));
@@ -1640,147 +1654,163 @@ export const useBibleStore = create<BibleState>()(
             await cloud.waitForActiveCatalogTextPackDownload(translationId);
             await activeTextDownloadAtDeleteStart;
           } catch (error) {
-            console.warn('[Bible] Failed to settle text pack before deletion:', translationId, error);
+            console.warn(
+              '[Bible] Failed to settle text pack before deletion:',
+              translationId,
+              error
+            );
           }
         }
         await recoverTextPackJournal();
         const releaseTextPackMutation = await acquireTextPackMutationLock(translationId);
         try {
-        const state = get();
-        const translation = state.translations.find((item) => item.id === translationId);
+          const state = get();
+          const translation = state.translations.find((item) => item.id === translationId);
 
-        // A translation whose first audio download is still running has no finished books yet,
-        // but its partial files and running loop still need cleaning up.
-        if (
-          !translation ||
-          (!hasTranslationDownloadData(translation) && !translation.activeDownloadJob)
-        ) {
-          return;
-        }
+          // A translation whose first audio download is still running has no finished books yet,
+          // but its partial files and running loop still need cleaning up.
+          if (
+            !translation ||
+            (!hasTranslationDownloadData(translation) && !translation.activeDownloadJob)
+          ) {
+            return;
+          }
 
-        // Stop every writer before deleting anything: a download loop left running would put
-        // chapters back into the deleted folder and mark their books downloaded again.
-        try {
-          const audio = await loadAudioDownloadModules();
-          await audio.cancelAudioDownloadsForTranslation(translationId);
-        } catch (error) {
-          console.warn('[Bible] Failed to stop translation audio downloads:', translationId, error);
-        }
+          // Stop every writer before deleting anything: a download loop left running would put
+          // chapters back into the deleted folder and mark their books downloaded again.
+          try {
+            const audio = await loadAudioDownloadModules();
+            await audio.cancelAudioDownloadsForTranslation(translationId);
+          } catch (error) {
+            console.warn(
+              '[Bible] Failed to stop translation audio downloads:',
+              translationId,
+              error
+            );
+          }
 
-        const pendingJournalInstall = readTextPackInstallJournal().installs[translationId];
-        const filePaths = Array.from(
-          new Set(
-            [
-              translation.textPackLocalPath,
-              translation.pendingTextPackLocalPath,
-              translation.rollbackTextPackLocalPath,
-              pendingJournalInstall?.finalPath,
-              pendingJournalInstall?.stagingPath,
-              pendingJournalInstall?.rollbackPath,
-              pendingJournalInstall?.previousPath,
-            ].filter((value): value is string => typeof value === 'string' && value.length > 0)
-          )
-        );
-
-        const deletionJournalOperationId = nextTextPackJournalOperationId(translationId);
-        saveTextPackJournal(
-          upsertTextPackDeletion(readTextPackInstallJournal(), {
-            operationId: deletionJournalOperationId,
-            translationId,
-            paths: filePaths,
-            updatedAt: Date.now(),
-          })
-        );
-        let textDeleteFailed = false;
-
-        await Promise.all(
-          filePaths.map(async (localPath) => {
-            try {
-              await invalidateInstalledBibleDatabaseAtPath(localPath);
-              await deleteFileSystemPath(localPath);
-            } catch (error) {
-              textDeleteFailed = true;
-              console.warn(
-                '[Bible] Failed to remove translation text pack:',
-                translationId,
-                localPath,
-                error
-              );
-            }
-          })
-        );
-
-        try {
-          const audio = await loadAudioDownloadModules();
-          const jobStore = await audio.createAudioDownloadJobStore({
-            fileSystem: audio.expoAudioFileSystemAdapter,
-            rootUri: audio.AUDIO_DOWNLOAD_ROOT_URI,
-          });
-          const transport = await audio.createBackgroundAudioDownloadTransport();
-          const jobs = await jobStore.listJobs();
-
-          await Promise.all(
-            jobs
-              .filter((job) => job.translationId === translationId)
-              .map(async (job) => {
-                try {
-                  await transport.cancelJob?.(job.id);
-                } catch (error) {
-                  console.warn('[Bible] Failed to cancel translation download job:', job.id, error);
-                }
-
-                await jobStore.removeJob(job.id);
-              })
-          );
-        } catch (error) {
-          console.warn('[Bible] Failed to clear translation download jobs:', translationId, error);
-        }
-
-        // Removes finished chapters and any partial transfer files with them.
-        try {
-          const audio = await loadAudioDownloadModules();
-          await deleteFileSystemPath(`${audio.AUDIO_DOWNLOAD_ROOT_URI}${translationId}/`);
-        } catch (error) {
-          console.warn(
-            '[Bible] Failed to remove translation audio downloads:',
-            translationId,
-            error
-          );
-        }
-
-        let nextTranslationsSnapshot: BibleTranslation[] = [];
-
-        set((currentState) => {
-          const nextTranslations = currentState.translations.map((item) =>
-            item.id === translationId ? resetTranslationDownloadState(item) : item
-          );
-          nextTranslationsSnapshot = nextTranslations;
-          const nextCurrentTranslation =
-            currentState.currentTranslation === translationId && translationId !== 'bsb'
-              ? 'bsb'
-              : currentState.currentTranslation;
-
-          return {
-            translations: nextTranslations,
-            currentTranslation: nextCurrentTranslation,
-            downloadProgress:
-              currentState.downloadProgress?.translationId === translationId
-                ? null
-                : currentState.downloadProgress,
-          };
-        });
-
-        if (!textDeleteFailed) {
-          saveTextPackJournal(
-            removeTextPackInstall(
-              removeTextPackDeletion(readTextPackInstallJournal(), translationId),
-              translationId
+          const pendingJournalInstall = readTextPackInstallJournal().installs[translationId];
+          const filePaths = Array.from(
+            new Set(
+              [
+                translation.textPackLocalPath,
+                translation.pendingTextPackLocalPath,
+                translation.rollbackTextPackLocalPath,
+                pendingJournalInstall?.finalPath,
+                pendingJournalInstall?.stagingPath,
+                pendingJournalInstall?.rollbackPath,
+                pendingJournalInstall?.previousPath,
+              ].filter((value): value is string => typeof value === 'string' && value.length > 0)
             )
           );
-        }
 
-        syncRemoteAudioMetadataResolverWithTranslations(nextTranslationsSnapshot);
-        syncVerseTimestampMetadata(nextTranslationsSnapshot);
+          const deletionJournalOperationId = nextTextPackJournalOperationId(translationId);
+          saveTextPackJournal(
+            upsertTextPackDeletion(readTextPackInstallJournal(), {
+              operationId: deletionJournalOperationId,
+              translationId,
+              paths: filePaths,
+              updatedAt: Date.now(),
+            })
+          );
+          let textDeleteFailed = false;
+
+          await Promise.all(
+            filePaths.map(async (localPath) => {
+              try {
+                await invalidateInstalledBibleDatabaseAtPath(localPath);
+                await deleteFileSystemPath(localPath);
+              } catch (error) {
+                textDeleteFailed = true;
+                console.warn(
+                  '[Bible] Failed to remove translation text pack:',
+                  translationId,
+                  localPath,
+                  error
+                );
+              }
+            })
+          );
+
+          try {
+            const audio = await loadAudioDownloadModules();
+            const jobStore = await audio.createAudioDownloadJobStore({
+              fileSystem: audio.expoAudioFileSystemAdapter,
+              rootUri: audio.AUDIO_DOWNLOAD_ROOT_URI,
+            });
+            const transport = await audio.createBackgroundAudioDownloadTransport();
+            const jobs = await jobStore.listJobs();
+
+            await Promise.all(
+              jobs
+                .filter((job) => job.translationId === translationId)
+                .map(async (job) => {
+                  try {
+                    await transport.cancelJob?.(job.id);
+                  } catch (error) {
+                    console.warn(
+                      '[Bible] Failed to cancel translation download job:',
+                      job.id,
+                      error
+                    );
+                  }
+
+                  await jobStore.removeJob(job.id);
+                })
+            );
+          } catch (error) {
+            console.warn(
+              '[Bible] Failed to clear translation download jobs:',
+              translationId,
+              error
+            );
+          }
+
+          // Removes finished chapters and any partial transfer files with them.
+          try {
+            const audio = await loadAudioDownloadModules();
+            await deleteFileSystemPath(`${audio.AUDIO_DOWNLOAD_ROOT_URI}${translationId}/`);
+          } catch (error) {
+            console.warn(
+              '[Bible] Failed to remove translation audio downloads:',
+              translationId,
+              error
+            );
+          }
+
+          let nextTranslationsSnapshot: BibleTranslation[] = [];
+
+          set((currentState) => {
+            const nextTranslations = currentState.translations.map((item) =>
+              item.id === translationId ? resetTranslationDownloadState(item) : item
+            );
+            nextTranslationsSnapshot = nextTranslations;
+            const nextCurrentTranslation =
+              currentState.currentTranslation === translationId && translationId !== 'bsb'
+                ? 'bsb'
+                : currentState.currentTranslation;
+
+            return {
+              translations: nextTranslations,
+              currentTranslation: nextCurrentTranslation,
+              downloadProgress:
+                currentState.downloadProgress?.translationId === translationId
+                  ? null
+                  : currentState.downloadProgress,
+            };
+          });
+
+          if (!textDeleteFailed) {
+            saveTextPackJournal(
+              removeTextPackInstall(
+                removeTextPackDeletion(readTextPackInstallJournal(), translationId),
+                translationId
+              )
+            );
+          }
+
+          syncRemoteAudioMetadataResolverWithTranslations(nextTranslationsSnapshot);
+          syncVerseTimestampMetadata(nextTranslationsSnapshot);
         } finally {
           releaseTextPackMutation();
         }
@@ -1854,7 +1884,8 @@ export const useBibleStore = create<BibleState>()(
         return result;
       },
     }
-  ));
+  )
+);
 
 setBibleDatabaseSourceResolver((translationId) => {
   const translation = useBibleStore

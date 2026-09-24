@@ -34,7 +34,12 @@ export interface GatherWisdom {
   lessons: GatherLesson[];
 }
 
-export type GatherWisdomCategoryName = 'The Inner Life' | 'Challenge' | 'Money' | 'People' | 'Knowing God';
+export type GatherWisdomCategoryName =
+  | 'The Inner Life'
+  | 'Challenge'
+  | 'Money'
+  | 'People'
+  | 'Knowing God';
 
 export interface GatherWisdomCategory {
   id: string;

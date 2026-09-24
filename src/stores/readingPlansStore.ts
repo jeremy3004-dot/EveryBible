@@ -70,7 +70,8 @@ const withoutKey = (record: Record<string, string>, key: string): Record<string,
   return next;
 };
 
-const buildPlanDayResumeKey = (planId: string, dayNumber: number): string => `${planId}:${dayNumber}`;
+const buildPlanDayResumeKey = (planId: string, dayNumber: number): string =>
+  `${planId}:${dayNumber}`;
 
 const createProgressRecord = (planId: string): ReadingPlanProgress => {
   const now = new Date().toISOString();
@@ -142,11 +143,10 @@ const normalizeRhythmPlanIds = (planIds: string[] = []): string[] => {
   }, []);
 };
 
-const buildPassageTitle = (
-  bookId: string,
-  startChapter: number,
-  endChapter: number
-): string => (startChapter === endChapter ? `${bookId} ${startChapter}` : `${bookId} ${startChapter}-${endChapter}`);
+const buildPassageTitle = (bookId: string, startChapter: number, endChapter: number): string =>
+  startChapter === endChapter
+    ? `${bookId} ${startChapter}`
+    : `${bookId} ${startChapter}-${endChapter}`;
 
 const normalizeRhythmItems = (input: {
   items?: ReadingPlanRhythmItem[];
@@ -216,7 +216,9 @@ const normalizeRhythmItems = (input: {
 
 const getRhythmPlanIds = (rhythm: ReadingPlanRhythm): string[] =>
   rhythm.items
-    .filter((item): item is Extract<ReadingPlanRhythmItem, { type: 'plan' }> => item.type === 'plan')
+    .filter(
+      (item): item is Extract<ReadingPlanRhythmItem, { type: 'plan' }> => item.type === 'plan'
+    )
     .map((item) => item.planId);
 
 const findRhythmIdForPlan = (
@@ -353,10 +355,7 @@ const validateRhythmItems = (
 const applyProgressUpdate = (
   state: ReadingPlansStoreState,
   progress: ReadingPlanProgress
-): Pick<
-  ReadingPlansStoreState,
-  'enrolledPlanIds' | 'completedPlanIds' | 'progressByPlanId'
-> => {
+): Pick<ReadingPlansStoreState, 'enrolledPlanIds' | 'completedPlanIds' | 'progressByPlanId'> => {
   const normalizedProgress = normalizeProgressRecord(progress);
   const enrolledPlanIds = state.enrolledPlanIds.includes(normalizedProgress.plan_id)
     ? state.enrolledPlanIds
@@ -381,10 +380,7 @@ const applyProgressUpdate = (
 const removePlanFromCollections = (
   state: ReadingPlansStoreState,
   planId: string
-): Pick<
-  ReadingPlansStoreState,
-  'enrolledPlanIds' | 'completedPlanIds' | 'progressByPlanId'
-> => ({
+): Pick<ReadingPlansStoreState, 'enrolledPlanIds' | 'completedPlanIds' | 'progressByPlanId'> => ({
   enrolledPlanIds: state.enrolledPlanIds.filter((id) => id !== planId),
   completedPlanIds: state.completedPlanIds.filter((id) => id !== planId),
   progressByPlanId: Object.fromEntries(
@@ -403,10 +399,7 @@ const removePlanDayResumeEntries = (
 
 const replaceProgressCollections = (
   progressList: ReadingPlanProgress[]
-): Pick<
-  ReadingPlansStoreState,
-  'enrolledPlanIds' | 'completedPlanIds' | 'progressByPlanId'
-> => {
+): Pick<ReadingPlansStoreState, 'enrolledPlanIds' | 'completedPlanIds' | 'progressByPlanId'> => {
   const normalizedProgressList = progressList.map(normalizeProgressRecord);
   const progressByPlanId = Object.fromEntries(
     normalizedProgressList.map((progress) => [progress.plan_id, progress])
@@ -445,7 +438,10 @@ const removePlanFromRhythms = (
       .filter((entry): entry is [RhythmId, ReadingPlanRhythm] => entry !== null)
   );
 
-  return normalizeRhythmCollections(rhythmsById, state.rhythmOrder.filter((id) => rhythmsById[id]));
+  return normalizeRhythmCollections(
+    rhythmsById,
+    state.rhythmOrder.filter((id) => rhythmsById[id])
+  );
 };
 const normalizePersistedRhythmsById = (
   rhythmsById: Record<RhythmId, ReadingPlanRhythm> | undefined
@@ -485,7 +481,9 @@ const lazyDefaultStorage: StateStorage = {
   },
 };
 
-export function createReadingPlansStore(storage: StateStorage = lazyDefaultStorage): ReadingPlansStoreApi {
+export function createReadingPlansStore(
+  storage: StateStorage = lazyDefaultStorage
+): ReadingPlansStoreApi {
   return createStore<ReadingPlansStoreState>()(
     persist(
       (set, get) => ({
@@ -598,7 +596,10 @@ export function createReadingPlansStore(storage: StateStorage = lazyDefaultStora
             delete rhythmsById[rhythmId];
             return {
               ...state,
-              ...normalizeRhythmCollections(rhythmsById, state.rhythmOrder.filter((id) => id !== rhythmId)),
+              ...normalizeRhythmCollections(
+                rhythmsById,
+                state.rhythmOrder.filter((id) => id !== rhythmId)
+              ),
             };
           });
         },
@@ -825,8 +826,7 @@ export function createReadingPlansStore(storage: StateStorage = lazyDefaultStora
               options.isFinalSession && options.advanceDayOnCompletion
                 ? computeNextDay(existing.current_day, dayNumber)
                 : Math.max(dayNumber, 1),
-            current_session:
-              options.isFinalSession ? null : options.nextSessionKey ?? sessionKey,
+            current_session: options.isFinalSession ? null : (options.nextSessionKey ?? sessionKey),
             is_completed: isCompleted,
             completed_at: isCompleted ? now : null,
             synced_at: now,

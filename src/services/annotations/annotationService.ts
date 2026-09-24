@@ -59,7 +59,9 @@ export const fetchAnnotations = async (
 ): Promise<AnnotationResult<UserAnnotation[]>> => {
   try {
     const annotations = localAnnotationStore.annotations.filter(isActiveAnnotation);
-    const filtered = bookFilter ? annotations.filter((annotation) => annotation.book === bookFilter) : annotations;
+    const filtered = bookFilter
+      ? annotations.filter((annotation) => annotation.book === bookFilter)
+      : annotations;
 
     return { success: true, data: sortByUpdatedAt(filtered) };
   } catch (err) {
@@ -98,9 +100,7 @@ export const upsertAnnotation = async (
 /**
  * Soft-delete a local annotation by id.
  */
-export const softDeleteAnnotation = async (
-  id: string
-): Promise<AnnotationResult> => {
+export const softDeleteAnnotation = async (id: string): Promise<AnnotationResult> => {
   try {
     const success = localAnnotationStore.softDeleteAnnotation(id);
     if (!success) {

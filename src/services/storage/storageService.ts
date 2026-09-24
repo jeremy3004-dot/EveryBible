@@ -209,9 +209,7 @@ export const getGroupImageUrl = (groupId: string): string | null => {
     return null;
   }
 
-  const { data } = supabase.storage
-    .from(GROUP_IMAGE_BUCKET)
-    .getPublicUrl(`${groupId}/cover.jpg`);
+  const { data } = supabase.storage.from(GROUP_IMAGE_BUCKET).getPublicUrl(`${groupId}/cover.jpg`);
 
   return data.publicUrl;
 };

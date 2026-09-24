@@ -10,7 +10,10 @@ const __dirname = dirname(__filename);
 const source = readFileSync(resolve(__dirname, 'BibleReaderScreen.tsx'), 'utf8');
 
 test('plan completion navigation follows remaining sessions instead of their time-of-day order', () => {
-  assert.match(source, /activePlanIsMultiSession && Boolean\(completionResult.data\?\.current_session\)/);
+  assert.match(
+    source,
+    /activePlanIsMultiSession && Boolean\(completionResult.data\?\.current_session\)/
+  );
   assert.doesNotMatch(source, /activePlanSessionIndex < \(activePlanDaySummary/);
 });
 

@@ -53,9 +53,7 @@ export const getBibleSelectionShareTranslationLabel = ({
 const formatVerseRun = (startVerse: number, endVerse: number): string =>
   startVerse === endVerse ? `${startVerse}` : `${startVerse}-${endVerse}`;
 
-export const buildBibleSelectionVerseRanges = (
-  verses: number[]
-): BibleSelectionVerseRange[] => {
+export const buildBibleSelectionVerseRanges = (verses: number[]): BibleSelectionVerseRange[] => {
   const normalizedVerses = normalizeBibleSelectionVerses(verses);
 
   if (normalizedVerses.length === 0) {
@@ -100,7 +98,9 @@ export const formatBibleSelectionReference = ({
     return `${bookName} ${chapter} ${translationLabel}`.trim();
   }
 
-  const verseLabels = verseRanges.map((range) => formatVerseRun(range.verse_start, range.verse_end));
+  const verseLabels = verseRanges.map((range) =>
+    formatVerseRun(range.verse_start, range.verse_end)
+  );
 
   return `${bookName} ${chapter}:${verseLabels.join(', ')} ${translationLabel}`.trim();
 };
@@ -118,10 +118,7 @@ export const extractBibleSelectionText = (
     .join(' ');
 };
 
-export const toggleBibleSelectionVerse = (
-  selectedVerses: number[],
-  verse: number
-): number[] => {
+export const toggleBibleSelectionVerse = (selectedVerses: number[], verse: number): number[] => {
   const normalizedVerses = normalizeBibleSelectionVerses(selectedVerses);
 
   if (normalizedVerses.includes(verse)) {

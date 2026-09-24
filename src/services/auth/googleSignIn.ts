@@ -14,9 +14,7 @@ export type GoogleSignInAvailability =
   | { available: true; config: GoogleSignInConfig }
   | { available: false; reason: 'missing_client_ids' | 'android_client_id_only' };
 
-export function resolveGoogleSignInConfig(
-  env: GoogleSignInEnvironment
-): GoogleSignInConfig | null {
+export function resolveGoogleSignInConfig(env: GoogleSignInEnvironment): GoogleSignInConfig | null {
   const iosClientId = env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim() || undefined;
   const webClientId = env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim() || undefined;
 

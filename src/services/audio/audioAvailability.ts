@@ -22,9 +22,7 @@ export function getAudioAvailability({
   bookId,
 }: AudioAvailabilityOptions): AudioAvailability {
   const hasOfflineAsset =
-    bookId == null
-      ? downloadedAudioBooks.length > 0
-      : downloadedAudioBooks.includes(bookId);
+    bookId == null ? downloadedAudioBooks.length > 0 : downloadedAudioBooks.includes(bookId);
   const canUseAudio = featureEnabled && translationHasAudio;
   const canStreamAudio = canUseAudio && remoteAudioAvailable;
   const hasOfflineAudio = canUseAudio && hasOfflineAsset;

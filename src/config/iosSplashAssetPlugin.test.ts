@@ -13,9 +13,7 @@ const pluginExports = splashPlugin as unknown as {
   rewriteSplashStoryboardAssetName: (contents: string) => string;
   rewriteLaunchStoryboardFilename: (contents: string) => string;
   applyAlternateAppIconBuildSetting: (projectFile: string) => string;
-  applyAlternateAppIconInfoPlist: (
-    infoPlist: Record<string, unknown>
-  ) => Record<string, unknown>;
+  applyAlternateAppIconInfoPlist: (infoPlist: Record<string, unknown>) => Record<string, unknown>;
   ensureDiscreetAppIconAssets: (iosRoot: string, projectName: string) => Promise<void>;
   applyLaunchStoryboardName: (infoPlist: Record<string, string>) => Record<string, string>;
 };
@@ -108,10 +106,7 @@ test('adds the alternate app icon build setting to Xcode configs', () => {
   );
   assert.equal(
     rewritten.match(
-      new RegExp(
-        `ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = ${DISCREET_APP_ICON_NAME};`,
-        'g'
-      )
+      new RegExp(`ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = ${DISCREET_APP_ICON_NAME};`, 'g')
     )?.length,
     2
   );

@@ -1,8 +1,5 @@
 import { NativeEventEmitter, NativeModules, Platform } from 'react-native';
-import type {
-  BibleNowPlayingInput,
-  BibleNowPlayingPayload,
-} from './audioNowPlayingModel';
+import type { BibleNowPlayingInput, BibleNowPlayingPayload } from './audioNowPlayingModel';
 import { buildBibleNowPlayingPayload } from './audioNowPlayingModel';
 import { getAndroidMediaSession } from './androidMediaSession';
 

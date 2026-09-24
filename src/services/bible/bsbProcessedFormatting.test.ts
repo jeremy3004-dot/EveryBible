@@ -15,9 +15,9 @@ type ProcessedVerse = {
 const verses = (bsbData as { verses: ProcessedVerse[] }).verses;
 
 function getVerse(bookId: string, chapter: number, verse: number): ProcessedVerse {
-  const match = verses.find((candidate) => (
-    candidate.b === bookId && candidate.c === chapter && candidate.v === verse
-  ));
+  const match = verses.find(
+    (candidate) => candidate.b === bookId && candidate.c === chapter && candidate.v === verse
+  );
 
   assert.ok(match, `Expected ${bookId} ${chapter}:${verse} to exist in bsb_processed.json`);
   return match;

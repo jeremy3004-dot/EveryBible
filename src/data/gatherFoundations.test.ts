@@ -59,10 +59,7 @@ test('every foundation has an iconImage key for the icon registry', () => {
 
 test('FOUNDATION_TITLE_KEYS has an entry for every foundation ID', () => {
   for (const f of gatherFoundations) {
-    assert.ok(
-      f.id in FOUNDATION_TITLE_KEYS,
-      `FOUNDATION_TITLE_KEYS missing entry for ${f.id}`
-    );
+    assert.ok(f.id in FOUNDATION_TITLE_KEYS, `FOUNDATION_TITLE_KEYS missing entry for ${f.id}`);
     assert.ok(
       FOUNDATION_TITLE_KEYS[f.id].startsWith('gather.'),
       `title key for ${f.id} should be in gather.* namespace`
@@ -72,10 +69,7 @@ test('FOUNDATION_TITLE_KEYS has an entry for every foundation ID', () => {
 
 test('FOUNDATION_DESC_KEYS has an entry for every foundation ID', () => {
   for (const f of gatherFoundations) {
-    assert.ok(
-      f.id in FOUNDATION_DESC_KEYS,
-      `FOUNDATION_DESC_KEYS missing entry for ${f.id}`
-    );
+    assert.ok(f.id in FOUNDATION_DESC_KEYS, `FOUNDATION_DESC_KEYS missing entry for ${f.id}`);
     assert.ok(
       FOUNDATION_DESC_KEYS[f.id].startsWith('gather.'),
       `desc key for ${f.id} should be in gather.* namespace`
@@ -110,7 +104,10 @@ test('every lesson has a unique ID, a number, a title, references, and a referen
       assert.equal(typeof lesson.title, 'string');
       assert.ok(lesson.title.length > 0, `lesson ${lesson.id} must have a title`);
       assert.ok(Array.isArray(lesson.references), `lesson ${lesson.id} must have references array`);
-      assert.ok(lesson.references.length >= 1, `lesson ${lesson.id} must have at least 1 reference`);
+      assert.ok(
+        lesson.references.length >= 1,
+        `lesson ${lesson.id} must have at least 1 reference`
+      );
       assert.equal(typeof lesson.referenceLabel, 'string');
       assert.ok(lesson.referenceLabel.length > 0, `lesson ${lesson.id} must have a referenceLabel`);
     }
@@ -275,7 +272,7 @@ test('Foundation 1 covers Old Testament through the birth of Jesus', () => {
   assert.ok(books.includes('LUK'), 'F1 should reference Luke (birth of Jesus)');
 });
 
-test('Foundation 2 covers the gospels for Jesus\' life and ministry', () => {
+test("Foundation 2 covers the gospels for Jesus' life and ministry", () => {
   const f2 = gatherFoundations[1];
   const books = new Set(f2.lessons.map((l) => l.references[0].bookId));
   // Should reference at least 2 different gospel books
@@ -289,8 +286,10 @@ test('Foundation 2 covers the gospels for Jesus\' life and ministry', () => {
 test('Foundation 3 covers gospel response passages (John, Romans, Acts)', () => {
   const f3 = gatherFoundations[2];
   const books = new Set(f3.lessons.map((l) => l.references[0].bookId));
-  assert.ok(books.has('JHN') || books.has('ROM') || books.has('ACT'),
-    'F3 should reference John, Romans, or Acts for gospel response');
+  assert.ok(
+    books.has('JHN') || books.has('ROM') || books.has('ACT'),
+    'F3 should reference John, Romans, or Acts for gospel response'
+  );
 });
 
 test('every lesson referenceLabel is a human-readable Bible reference', () => {

@@ -46,9 +46,7 @@ export const evaluateRemoteBuildVersionState = (
   }
 
   if (state.autoIncrement !== true) {
-    errors.push(
-      'eas.json must keep build.production.autoIncrement set to true for iOS releases.'
-    );
+    errors.push('eas.json must keep build.production.autoIncrement set to true for iOS releases.');
   }
 
   if (state.latestUploadedBuildNumber === null) {

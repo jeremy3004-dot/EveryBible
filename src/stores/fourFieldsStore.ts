@@ -142,8 +142,7 @@ function normalizePersistedState(
 
   return {
     ...persistedState,
-    currentField:
-      currentField && VALID_FIELDS.includes(currentField) ? currentField : 'entry',
+    currentField: currentField && VALID_FIELDS.includes(currentField) ? currentField : 'entry',
   };
 }
 
@@ -245,9 +244,7 @@ export const useFourFieldsStore = create<FourFieldsState>()(
           // If leader left, promote the oldest member
           let updatedMembers = remainingMembers;
           if (!remainingMembers.some((m) => m.role === 'leader')) {
-            const oldestMember = [...remainingMembers].sort(
-              (a, b) => a.joinedAt - b.joinedAt
-            )[0];
+            const oldestMember = [...remainingMembers].sort((a, b) => a.joinedAt - b.joinedAt)[0];
             updatedMembers = remainingMembers.map((m) =>
               m.id === oldestMember.id ? { ...m, role: 'leader' as const } : m
             );
@@ -269,9 +266,7 @@ export const useFourFieldsStore = create<FourFieldsState>()(
       updateGroupLesson: (groupId, courseId, lessonId) => {
         set((state) => ({
           groups: state.groups.map((g) =>
-            g.id === groupId
-              ? { ...g, currentCourseId: courseId, currentLessonId: lessonId }
-              : g
+            g.id === groupId ? { ...g, currentCourseId: courseId, currentLessonId: lessonId } : g
           ),
         }));
       },

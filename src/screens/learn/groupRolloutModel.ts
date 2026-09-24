@@ -8,10 +8,7 @@ export interface GroupRolloutModelInput {
 export interface GroupRolloutModel {
   showGroupEntry: boolean;
   hasLocalGroups: boolean;
-  syncStatusKey:
-    | 'harvest.groupSyncPending'
-    | 'harvest.groupSyncReady'
-    | 'harvest.groupSyncSignin';
+  syncStatusKey: 'harvest.groupSyncPending' | 'harvest.groupSyncReady' | 'harvest.groupSyncSignin';
 }
 
 export function getGroupRolloutModel({

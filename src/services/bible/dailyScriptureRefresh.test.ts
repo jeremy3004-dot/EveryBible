@@ -11,8 +11,5 @@ test('daily scripture refresh waits until the next local midnight', () => {
 });
 
 test('daily scripture refresh handles a time just before midnight', () => {
-  assert.equal(
-    getMillisecondsUntilNextLocalMidnight(new Date(2026, 3, 1, 23, 59, 59, 250)),
-    750
-  );
+  assert.equal(getMillisecondsUntilNextLocalMidnight(new Date(2026, 3, 1, 23, 59, 59, 250)), 750);
 });

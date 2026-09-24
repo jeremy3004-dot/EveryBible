@@ -1,16 +1,7 @@
-import {
-  getDownloadedChapterAudioUri,
-  type RemoteAudioAsset,
-} from './audioDownloadService';
-import {
-  getConfiguredAudioGranularity,
-  hasConfiguredTranslationAudio,
-} from './audioRemote';
+import { getDownloadedChapterAudioUri, type RemoteAudioAsset } from './audioDownloadService';
+import { getConfiguredAudioGranularity, hasConfiguredTranslationAudio } from './audioRemote';
 import { AUDIO_DOWNLOAD_ROOT_URI, expoAudioFileSystemAdapter } from './audioDownloadStorage';
-import {
-  fetchRemoteChapterAudio,
-  prefetchRemoteChapterAudio,
-} from './audioRemote';
+import { fetchRemoteChapterAudio, prefetchRemoteChapterAudio } from './audioRemote';
 import { resolvePreferredChapterAudio } from './audioSource';
 
 export async function getChapterAudioUrl(
