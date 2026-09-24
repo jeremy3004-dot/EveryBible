@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Check } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
@@ -21,8 +21,16 @@ interface RhythmCardProps {
   onPlanPress: (planId: string) => void;
 }
 
-/** Two-up cover card — the "Daily rhythms" shape on Find plans. */
-export function RhythmCard({ plan, progress, today, onPlanPress }: RhythmCardProps) {
+/**
+ * Two-up cover card — the "Daily rhythms" shape on Find plans. Memoized: a search
+ * keystroke that leaves this card in the results does not redraw it.
+ */
+export const RhythmCard = memo(function RhythmCard({
+  plan,
+  progress,
+  today,
+  onPlanPress,
+}: RhythmCardProps) {
   const { colors } = useTheme();
   const { t } = useTranslation();
   const displayFont = useDisplayFont();
@@ -75,7 +83,7 @@ export function RhythmCard({ plan, progress, today, onPlanPress }: RhythmCardPro
       </View>
     </AppCard>
   );
-}
+});
 
 const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({

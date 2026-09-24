@@ -4,15 +4,14 @@ import { useTranslation } from 'react-i18next';
 import { EmptyState, SectionHeader } from '../../../components/ui';
 import { layout, spacing } from '../../../design/system';
 import type { ReadingPlan, UserReadingPlanProgress } from '../../../services/plans/types';
-import type { ListeningHistoryEntry } from '../../../stores/libraryModel';
+import { useLibraryStore } from '../../../stores/libraryStore';
+import { useProgressStore } from '../../../stores/progressStore';
 import { ActivePlanCard } from './ActivePlanCard';
 import { getActivePlanRows, splitActivePlanRows, type ActivePlanRow } from './plansHomeModel';
 
 interface MyPlansSectionProps {
   allPlans: ReadingPlan[];
   userProgress: UserReadingPlanProgress[];
-  chaptersRead: Record<string, number>;
-  listeningHistory: ListeningHistoryEntry[];
   onAddPlan: () => void;
   onPlanPress: (planId: string) => void;
   onDeletePlan: (planId: string) => void;
@@ -20,18 +19,22 @@ interface MyPlansSectionProps {
   today: Date;
 }
 
-/** The reader's unfinished plans, as Daily readings and Daily rhythms. */
+/**
+ * The reader's unfinished plans, as Daily readings and Daily rhythms. Today's reading
+ * and listening are subscribed to here, where they are shown, so a chapter read or
+ * an audio chapter change does not re-render the other tabs.
+ */
 export function MyPlansSection({
   allPlans,
   userProgress,
-  chaptersRead,
-  listeningHistory,
   onAddPlan,
   onPlanPress,
   onDeletePlan,
   today,
 }: MyPlansSectionProps) {
   const { t } = useTranslation();
+  const chaptersRead = useProgressStore((state) => state.chaptersRead);
+  const listeningHistory = useLibraryStore((state) => state.history);
   const activePlans = useMemo(
     () => getActivePlanRows(allPlans, userProgress),
     [allPlans, userProgress]
@@ -67,7 +70,8 @@ export function MyPlansSection({
         {rows.map((row) => (
           <ActivePlanCard
             key={row.plan.id}
-            row={row}
+            plan={row.plan}
+            progress={row.progress}
             chaptersRead={chaptersRead}
             listeningHistory={listeningHistory}
             today={today}

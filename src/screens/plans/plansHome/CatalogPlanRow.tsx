@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { PressableScale } from '../../../components/ui';
@@ -23,8 +23,11 @@ interface CatalogPlanRowProps {
   onPlanPress: (planId: string) => void;
 }
 
-/** Compact list row — every Find plans category other than Daily rhythms. */
-export function CatalogPlanRow({
+/**
+ * Compact list row — every Find plans category other than Daily rhythms. Memoized: a
+ * search keystroke that leaves this row in the results does not redraw it.
+ */
+export const CatalogPlanRow = memo(function CatalogPlanRow({
   plan,
   progress,
   today,
@@ -91,7 +94,7 @@ export function CatalogPlanRow({
       {isLargeText ? null : trailing}
     </PressableScale>
   );
-}
+});
 
 const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({

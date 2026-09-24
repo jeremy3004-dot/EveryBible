@@ -14,8 +14,6 @@ import { layout, spacing, typography } from '../../design/system';
 import { lightHaptic, successHaptic } from '../../utils';
 import type { PlansStackParamList } from '../../navigation/types';
 import { unenrollFromPlan } from '../../services/plans/readingPlanService';
-import { useProgressStore } from '../../stores/progressStore';
-import { useLibraryStore } from '../../stores/libraryStore';
 import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../design/largeTextLayout';
 import {
   CompletedPlansSection,
@@ -37,8 +35,6 @@ export function PlansHomeScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { contentClearance } = useTabBarHeight();
   const [activeTab, setActiveTab] = useState<PlanTab>('my-plans');
-  const chaptersRead = useProgressStore((state) => state.chaptersRead);
-  const listeningHistory = useLibraryStore((state) => state.history);
   // A rhythm's day is the calendar's; this re-renders on the new day even when the
   // screen was left showing overnight.
   const today = useLocalToday();
@@ -129,8 +125,6 @@ export function PlansHomeScreen() {
               <MyPlansSection
                 allPlans={allPlans}
                 userProgress={userProgress}
-                chaptersRead={chaptersRead}
-                listeningHistory={listeningHistory}
                 onAddPlan={handleAddPlan}
                 onPlanPress={handlePlanPress}
                 onDeletePlan={handleDeletePlan}

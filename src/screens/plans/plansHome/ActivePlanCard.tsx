@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Check } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
@@ -13,19 +13,20 @@ import {
   isMultiSessionPlan,
   isRecurringPlan,
 } from '../../../services/plans/readingPlanModel';
+import type { ReadingPlan, UserReadingPlanProgress } from '../../../services/plans/types';
 import type { ListeningHistoryEntry } from '../../../stores/libraryModel';
 import {
   formatProgressPercent,
   formatSessionStatusSummary,
   getActivePlanProgressRatio,
   getLocalizedSessionLabel,
-  type ActivePlanRow,
 } from './plansHomeModel';
 import { PlanCover } from './PlanCover';
 import { SwipeablePlanRow } from './SwipeablePlanRow';
 
 interface ActivePlanCardProps {
-  row: ActivePlanRow;
+  plan: ReadingPlan;
+  progress: UserReadingPlanProgress;
   chaptersRead: Record<string, number>;
   listeningHistory: ListeningHistoryEntry[];
   /** The local "now" a recurring plan's day and today's activity are read against. */
@@ -34,9 +35,14 @@ interface ActivePlanCardProps {
   onDeletePlan: (planId: string) => void;
 }
 
-/** A started plan on My Plans: where the reader is today, and a swipe to delete. */
-export function ActivePlanCard({
-  row: { progress, plan },
+/**
+ * A started plan on My Plans: where the reader is today, and a swipe to delete.
+ * Memoized: its day summary scans today's reading, and a progress write to another
+ * plan or a pull-to-refresh leaves this card's props unchanged.
+ */
+export const ActivePlanCard = memo(function ActivePlanCard({
+  plan,
+  progress,
   chaptersRead,
   listeningHistory,
   today,
@@ -131,7 +137,7 @@ export function ActivePlanCard({
       </AppCard>
     </SwipeablePlanRow>
   );
-}
+});
 
 const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
