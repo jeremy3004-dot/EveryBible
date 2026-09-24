@@ -180,6 +180,18 @@ export async function submitChapterFeedbackOrQueue(
   return result;
 }
 
+/**
+ * Drops the feedback an account queued. For a deleted account: it can never sign in to
+ * send it, and its comments must not stay on the device.
+ */
+export function discardQueuedChapterFeedbackOf(userId: string): void {
+  const entries = readEntries();
+  const kept = entries.filter((entry) => entry.userId !== userId);
+  if (kept.length !== entries.length) {
+    writeEntries(kept);
+  }
+}
+
 export function countQueuedChapterFeedback(userId: string): number {
   return readEntries().filter((entry) => entry.userId === userId).length;
 }

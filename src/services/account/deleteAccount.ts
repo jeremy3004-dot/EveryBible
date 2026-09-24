@@ -1,11 +1,12 @@
 import { useAuthStore } from '../../stores/authStore';
 import { deletePrivateDataOf } from '../../stores/privateDataScope';
 import { anonymiseQueuedUsageEventsOf } from '../analytics/usageQueue';
+import { discardQueuedChapterFeedbackOf } from '../feedback/chapterFeedbackOutbox';
 import { deleteCurrentAccount, type AccountActionResult } from './accountService';
 
 /**
  * Deletes the signed-in account on the server, signs out, and removes that
- * account's data from this device.
+ * account's data from this device, including chapter feedback it queued offline.
  *
  * Only the deleted account's data goes. A phone can be shared: other accounts'
  * private notes and the signed-out (guest) notes live in their own buckets and
@@ -32,6 +33,7 @@ export async function deleteAccountAndLocalData(): Promise<AccountActionResult> 
     // after sign-out also covers events queued while sign-out was running.
     deletePrivateDataOf(userId);
     anonymiseQueuedUsageEventsOf(userId);
+    discardQueuedChapterFeedbackOf(userId);
   }
   return { success: true };
 }
