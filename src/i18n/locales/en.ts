@@ -27,6 +27,14 @@ export const en = {
     explanation: 'Explain the decision (required)',
     legacy: 'Historical attribution unavailable',
     noMatching: 'No responses match these filters.',
+    waiting: 'Waiting for your decision: {{count}}',
+    startReview: 'Start review',
+    progress: '{{current}} of {{total}}',
+    skip: 'Skip for now',
+    everyone: 'Everyone',
+    sourceFilter: 'Show feedback from',
+    statusFilter: 'Review status',
+    plainPositive: 'Marked accurate with no comment: {{count}}',
   },
   interface: {
     nativePermissions: {
