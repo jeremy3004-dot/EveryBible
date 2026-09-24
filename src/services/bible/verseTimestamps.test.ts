@@ -2,15 +2,23 @@
  * Behavioural tests for the verseTimestamps service: bundled chapter lookup, the
  * remote stream-template path, and the JSON sanitising both share.
  *
- * The final suite loads every bundled chapter through the public lookup, so a
- * generated `require()` entry that points at a missing or malformed file fails.
+ * The final suite loads every bundled chapter through the public lookup and compares it
+ * with the generated source file, so a stale or malformed generated table fails.
  */
 
 import assert from 'node:assert/strict';
+import { readdirSync, readFileSync } from 'node:fs';
+import path from 'node:path';
 import { afterEach, describe, it } from 'node:test';
+import { fileURLToPath } from 'node:url';
+import { isDeepStrictEqual } from 'node:util';
 import { bibleBooks } from '../../constants/books';
 
 type TimestampModule = typeof import('./verseTimestamps');
+
+const TIMESTAMP_SOURCE_DIR = fileURLToPath(
+  new URL('../../../assets/timestamps', import.meta.url).href
+);
 
 const loadModule = (): Promise<TimestampModule> => import('./verseTimestamps.js');
 
@@ -145,9 +153,45 @@ describe('verseTimestamps — remote stream templates', () => {
 });
 
 describe('verseTimestamps — every bundled chapter ships', () => {
-  // The require() table is code-generated; each entry must load a real, well-formed file.
-  // A missing or malformed asset is swallowed to null at runtime, so check every chapter.
-  it('returns timestamps for every BSB and WEB chapter of the Bible', async () => {
+  // The bundled tables are code-generated from assets/timestamps by
+  // scripts/codegen-timestamps.mjs. A missing or malformed entry is swallowed to null at
+  // runtime, so check every chapter against the source file it was generated from.
+  it('returns exactly the generated source timings for every BSB and WEB chapter', async () => {
+    const { getChapterTimestamps } = await loadModule();
+    const mismatched: string[] = [];
+    let chapters = 0;
+
+    for (const translation of ['BSB', 'WEB']) {
+      const directory = path.join(TIMESTAMP_SOURCE_DIR, translation);
+      for (const file of readdirSync(directory)) {
+        if (!file.endsWith('.json') || file === 'manifest.json') {
+          continue;
+        }
+        const [, bookId, chapter] = /^(\w+)_(\d{3})\.json$/.exec(file) ?? [];
+        const source = JSON.parse(readFileSync(path.join(directory, file), 'utf8')) as Record<
+          string,
+          number
+        >;
+        const expected = Object.fromEntries(
+          Object.entries(source).map(([verse, seconds]) => [Number(verse), seconds])
+        );
+        const actual = await getChapterTimestamps(
+          translation.toLowerCase(),
+          bookId,
+          Number(chapter)
+        );
+        chapters += 1;
+        if (!isDeepStrictEqual(actual, expected)) {
+          mismatched.push(`${translation} ${file}`);
+        }
+      }
+    }
+
+    assert.deepEqual(mismatched, []);
+    assert.equal(chapters, 2 * 1189);
+  });
+
+  it('covers every chapter of the Bible in both bundled translations', async () => {
     const { getChapterTimestamps } = await loadModule();
     const missing: string[] = [];
 
