@@ -895,7 +895,7 @@ export const tr = {
       signInToSync: 'Senkronize etmek için oturum aç',
       source: 'Kaynak: bu cihaz',
       sourceSynced: 'Kaynak: bu cihaz · {{relative}} senkronize edildi',
-      synced: 'Senkronize edildi',
+      notSyncedYet: 'Henüz senkronize edilmedi',
       syncedAgo: '{{relative}} senkronize edildi',
     },
     title: 'Diğer',

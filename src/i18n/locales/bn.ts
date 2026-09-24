@@ -577,7 +577,7 @@ export const bn = {
       signInToSync: 'সিঙ্ক করতে সাইন ইন করুন',
       source: 'উৎস: এই ডিভাইস',
       sourceSynced: 'উৎস: এই ডিভাইস · {{relative}} সিঙ্ক হয়েছে',
-      synced: 'সিঙ্ক হয়েছে',
+      notSyncedYet: 'এখনও সিঙ্ক হয়নি',
       syncedAgo: '{{relative}} সিঙ্ক হয়েছে',
     },
     title: 'আরও',

@@ -922,7 +922,7 @@ export const es = {
       signInToSync: 'Inicia sesión para sincronizar',
       source: 'Origen: este dispositivo',
       sourceSynced: 'Origen: este dispositivo · sincronizado {{relative}}',
-      synced: 'Sincronizado',
+      notSyncedYet: 'Aún no sincronizado',
       syncedAgo: 'Sincronizado {{relative}}',
     },
     title: 'Más',

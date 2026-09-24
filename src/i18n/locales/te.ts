@@ -587,7 +587,7 @@ export const te = {
       signInToSync: 'సమకాలీకరించడానికి సైన్ ఇన్ చేయండి',
       source: 'మూలం: ఈ పరికరం',
       sourceSynced: 'మూలం: ఈ పరికరం · {{relative}} సమకాలీకరించబడింది',
-      synced: 'సమకాలీకరించబడింది',
+      notSyncedYet: 'ఇంకా సమకాలీకరించబడలేదు',
       syncedAgo: '{{relative}} సమకాలీకరించబడింది',
     },
     title: 'మరిన్ని',

@@ -583,7 +583,7 @@ export const pa = {
       signInToSync: 'ਸਿੰਕ ਕਰਨ ਲਈ ਸਾਈਨ ਇਨ ਕਰੋ',
       source: 'ਸਰੋਤ: ਇਹੀ ਡਿਵਾਈਸ',
       sourceSynced: 'ਸਰੋਤ: ਇਹੀ ਡਿਵਾਈਸ · {{relative}} ਸਿੰਕ ਹੋਇਆ',
-      synced: 'ਸਿੰਕ ਕੀਤਾ ਗਿਆ',
+      notSyncedYet: 'ਅਜੇ ਸਿੰਕ ਨਹੀਂ ਹੋਇਆ',
       syncedAgo: '{{relative}} ਸਿੰਕ ਹੋਇਆ',
     },
     title: 'ਹੋਰ',

@@ -897,7 +897,7 @@ export const vi = {
       signInToSync: 'Đăng nhập để đồng bộ',
       source: 'Nguồn: thiết bị này',
       sourceSynced: 'Nguồn: thiết bị này · đã đồng bộ {{relative}}',
-      synced: 'Đã đồng bộ',
+      notSyncedYet: 'Chưa đồng bộ',
       syncedAgo: 'Đã đồng bộ {{relative}}',
     },
     title: 'Thêm',

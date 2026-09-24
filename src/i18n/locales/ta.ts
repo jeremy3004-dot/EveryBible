@@ -589,7 +589,7 @@ export const ta = {
       signInToSync: 'ஒத்திசைக்க உள்நுழையவும்',
       source: 'மூலம்: இந்தச் சாதனம்',
       sourceSynced: 'மூலம்: இந்தச் சாதனம் · {{relative}} ஒத்திசைக்கப்பட்டது',
-      synced: 'ஒத்திசைக்கப்பட்டது',
+      notSyncedYet: 'இன்னும் ஒத்திசைக்கப்படவில்லை',
       syncedAgo: '{{relative}} ஒத்திசைக்கப்பட்டது',
     },
     title: 'மேலும்',

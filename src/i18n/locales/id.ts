@@ -894,7 +894,7 @@ export const id = {
       signInToSync: 'Masuk untuk menyinkronkan',
       source: 'Sumber: perangkat ini',
       sourceSynced: 'Sumber: perangkat ini · tersinkron {{relative}}',
-      synced: 'Tersinkron',
+      notSyncedYet: 'Belum tersinkron',
       syncedAgo: 'Tersinkron {{relative}}',
     },
     title: 'Lainnya',

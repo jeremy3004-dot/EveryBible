@@ -872,7 +872,7 @@ export const ko = {
       signInToSync: '동기화하려면 로그인',
       source: '출처: 이 기기',
       sourceSynced: '출처: 이 기기 · {{relative}} 동기화됨',
-      synced: '동기화됨',
+      notSyncedYet: '아직 동기화되지 않음',
       syncedAgo: '{{relative}} 동기화됨',
     },
     title: '더보기',

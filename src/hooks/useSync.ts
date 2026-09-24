@@ -4,6 +4,7 @@ import NetInfo from '@react-native-community/netinfo';
 import { supabase } from '../services/supabase';
 import { syncAll, pullFromCloud } from '../services/sync';
 import { useAuthStore } from '../stores/authStore';
+import { useSyncStatusStore } from '../stores/syncStatusStore';
 import { createSyncCoordinator } from './syncCoordinator';
 
 export const useSync = () => {
@@ -57,7 +58,12 @@ export const useSync = () => {
         await syncCoordinator.enqueuePush(
           { userId: currentUserId, generation: currentGeneration },
           async () => {
-            await syncAll(currentUserId, currentGeneration);
+            // syncAll only reports success once every branch landed for this
+            // still-current account; that is what "Synced" on the More screen means.
+            const result = await syncAll(currentUserId, currentGeneration);
+            if (result.success) {
+              useSyncStatusStore.getState().recordSuccessfulSync(currentUserId);
+            }
           },
           () => runInitialPull(currentUserId, currentGeneration)
         );

@@ -905,7 +905,7 @@ export const de = {
       signInToSync: 'Zum Synchronisieren anmelden',
       source: 'Quelle: dieses Gerät',
       sourceSynced: 'Quelle: dieses Gerät · synchronisiert {{relative}}',
-      synced: 'Synchronisiert',
+      notSyncedYet: 'Noch nicht synchronisiert',
       syncedAgo: 'Synchronisiert {{relative}}',
     },
     title: 'Mehr',

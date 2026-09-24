@@ -585,7 +585,7 @@ export const ne = {
       signInToSync: 'सिंक गर्न साइन इन गर्नुहोस्',
       source: 'स्रोत: यही यन्त्र',
       sourceSynced: 'स्रोत: यही यन्त्र · {{relative}} सिंक गरिएको',
-      synced: 'सिंक गरिएको',
+      notSyncedYet: 'अहिलेसम्म सिंक गरिएको छैन',
       syncedAgo: '{{relative}} सिंक गरिएको',
     },
     title: 'थप',

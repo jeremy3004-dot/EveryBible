@@ -41,8 +41,12 @@ let syncCalls = 0;
 mockModule(mock, sourcePath('services/sync/index.ts'), {
   syncAll: async () => {
     syncCalls += 1;
+    return { success: true };
   },
   pullFromCloud: async () => ({ success: true }),
+});
+mockModule(mock, sourcePath('stores/syncStatusStore.ts'), {
+  useSyncStatusStore: { getState: () => ({ recordSuccessfulSync: () => {} }) },
 });
 
 const auth = {

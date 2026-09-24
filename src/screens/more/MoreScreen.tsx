@@ -23,6 +23,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { useBibleStore } from '../../stores/bibleStore';
 import { selectCurrentStreakDays, useProgressStore } from '../../stores/progressStore';
 import { useAnnotationStore } from '../../stores/annotationStore';
+import { selectLastSuccessfulSyncAt, useSyncStatusStore } from '../../stores/syncStatusStore';
 import type { MoreStackParamList } from '../../navigation/types';
 import { openAuthFlow } from '../../navigation/rootNavigation';
 import { layout, spacing, typography } from '../../design/system';
@@ -101,7 +102,9 @@ export function MoreScreen() {
   const user = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const preferences = useAuthStore((state) => state.preferences);
-  const preferencesUpdatedAt = useAuthStore((state) => state.preferencesUpdatedAt);
+  const lastSyncedAt = useSyncStatusStore(
+    selectLastSuccessfulSyncAt(isAuthenticated ? (user?.uid ?? null) : null)
+  );
   const signOut = useAuthStore((state) => state.signOut);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const streakDays = useProgressStore(selectCurrentStreakDays);
@@ -124,7 +127,7 @@ export function MoreScreen() {
 
   const syncStatus = describeSyncStatus({
     isAuthenticated,
-    lastSyncedAt: preferencesUpdatedAt,
+    lastSyncedAt,
     t,
   });
 

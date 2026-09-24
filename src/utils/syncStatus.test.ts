@@ -58,23 +58,23 @@ test('a signed-out reader is invited to sign in even when nothing has ever synce
   assert.equal(status.isSynced, false);
 });
 
-test('a signed-in reader who has never synced reads as synced without a relative time', () => {
+test('a signed-in reader who has never synced is told so, with no success dot', () => {
   const { t, calls } = createRecordingT();
 
   const status = describeSyncStatus({ isAuthenticated: true, lastSyncedAt: null, t, now: NOW });
 
   assert.deepEqual(status, {
-    label: 'more.sync.synced',
+    label: 'more.sync.notSyncedYet',
     sourceLabel: 'more.sync.source',
-    isSynced: true,
+    isSynced: false,
   });
   assert.deepEqual(
     calls.map((call) => call.key),
-    ['more.sync.synced', 'more.sync.source']
+    ['more.sync.notSyncedYet', 'more.sync.source']
   );
 });
 
-test('an unparseable last-sync timestamp falls back to the timeless synced wording', () => {
+test('an unparseable last-sync timestamp is not claimed as a sync', () => {
   const { t } = createRecordingT();
 
   const status = describeSyncStatus({
@@ -85,9 +85,9 @@ test('an unparseable last-sync timestamp falls back to the timeless synced wordi
   });
 
   assert.deepEqual(status, {
-    label: 'more.sync.synced',
+    label: 'more.sync.notSyncedYet',
     sourceLabel: 'more.sync.source',
-    isSynced: true,
+    isSynced: false,
   });
 });
 

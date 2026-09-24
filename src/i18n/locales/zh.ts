@@ -844,7 +844,7 @@ export const zh = {
       signInToSync: '登录以同步',
       source: '来源：本设备',
       sourceSynced: '来源：本设备 · {{relative}}同步',
-      synced: '已同步',
+      notSyncedYet: '尚未同步',
       syncedAgo: '{{relative}}同步',
     },
     title: '更多',

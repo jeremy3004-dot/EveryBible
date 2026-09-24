@@ -43,10 +43,13 @@ mockModule(mock, sourcePath('services/supabase/index.ts'), {
 const syncAllCalls: Array<{ userId?: string; generation?: number }> = [];
 const pullCalls: Array<string | undefined> = [];
 let pullResult: () => Promise<{ success: boolean }> = async () => ({ success: true });
+let syncAllResult: () => Promise<{ success: boolean; error?: string }> = async () => ({
+  success: true,
+});
 mockModule(mock, sourcePath('services/sync/index.ts'), {
   syncAll: async (userId?: string, generation?: number) => {
     syncAllCalls.push({ userId, generation });
-    return { success: true };
+    return syncAllResult();
   },
   pullFromCloud: async (userId?: string) => {
     pullCalls.push(userId);
@@ -59,6 +62,17 @@ mockModule(mock, sourcePath('services/feedback/chapterFeedbackOutbox.ts'), {
   flushChapterFeedbackOutbox: async (userId: string) => {
     feedbackFlushCalls.push(userId);
     return { sent: 0, remaining: 0 };
+  },
+});
+
+const recordedSyncs: string[] = [];
+mockModule(mock, sourcePath('stores/syncStatusStore.ts'), {
+  useSyncStatusStore: {
+    getState: () => ({
+      recordSuccessfulSync: (userId: string) => {
+        recordedSyncs.push(userId);
+      },
+    }),
   },
 });
 
@@ -122,6 +136,8 @@ beforeEach(() => {
   pullCalls.length = 0;
   reconcileCalls.length = 0;
   pullResult = async () => ({ success: true });
+  syncAllResult = async () => ({ success: true });
+  recordedSyncs.length = 0;
   authState.user = { uid: 'user-a' };
   authState.authGeneration = 1;
   authState.isAuthenticated = true;
@@ -583,4 +599,61 @@ test('unmounting while the initial pull is in flight abandons the push', async (
   await flush();
 
   assert.deepEqual(syncAllCalls, []);
+});
+
+// ---------------------------------------------------------------------------
+// Last successful sync (the More screen's "Synced …" line)
+// ---------------------------------------------------------------------------
+
+test('a sync the server accepted is recorded for the account that ran it', async () => {
+  mountWithoutInitialSync();
+
+  rn.AppState.emit('background');
+  rn.AppState.emit('active');
+  await flush();
+
+  assert.deepEqual(syncAllCalls, [{ userId: 'user-a', generation: 1 }]);
+  assert.deepEqual(recordedSyncs, ['user-a']);
+});
+
+test('a sync that fails (offline, server error, account switched mid-sync) is not recorded', async () => {
+  syncAllResult = async () => ({ success: false, error: 'Network request failed' });
+  mountWithoutInitialSync();
+
+  rn.AppState.emit('background');
+  rn.AppState.emit('active');
+  await flush();
+
+  assert.equal(syncAllCalls.length, 1);
+  assert.deepEqual(recordedSyncs, []);
+});
+
+test('a sync that throws is not recorded', async () => {
+  syncAllResult = async () => {
+    throw new Error('boom');
+  };
+  mountWithoutInitialSync();
+
+  rn.AppState.emit('background');
+  rn.AppState.emit('active');
+  await flush();
+
+  assert.equal(syncAllCalls.length, 1);
+  assert.deepEqual(recordedSyncs, []);
+});
+
+test('the sign-in sync records the account once its push lands', async () => {
+  mountSync();
+  await flush();
+
+  assert.deepEqual(pullCalls, ['user-a']);
+  assert.deepEqual(recordedSyncs, ['user-a']);
+});
+
+test('a sign-in whose cloud pull fails records no sync', async () => {
+  pullResult = async () => ({ success: false });
+  mountSync();
+  await flush();
+
+  assert.deepEqual(recordedSyncs, []);
 });
