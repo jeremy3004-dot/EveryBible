@@ -22,6 +22,7 @@ interface AppConfig {
     ios?: {
       infoPlist?: {
         NSCameraUsageDescription?: string;
+        NSMicrophoneUsageDescription?: string;
         NSPhotoLibraryUsageDescription?: string;
         UIBackgroundModes?: string[];
       };
@@ -100,6 +101,24 @@ test('ios Info.plist keeps image permission purpose strings aligned with app con
       `<key>NSPhotoLibraryUsageDescription</key>\\s*<string>${escapeForRegex(expectedPhotoLibraryUsage)}</string>`
     ),
     'Expected ios/EveryBible/Info.plist to mirror NSPhotoLibraryUsageDescription from app.json'
+  );
+});
+
+test('ios Info.plist base microphone purpose string matches app config', () => {
+  // The localized InfoPlist.strings override it on device, but the base value is what App
+  // Review and any non-bundled locale fall back to. It had drifted to expo-image-picker's
+  // generic "access your microphone" default, which does not say why the app records audio.
+  const appConfig = readRootJson<AppConfig>('app.json');
+  const infoPlist = readRootFile('ios/EveryBible/Info.plist');
+  const expectedMicrophoneUsage = appConfig.expo.ios?.infoPlist?.NSMicrophoneUsageDescription;
+
+  assert.ok(expectedMicrophoneUsage, 'Expected app.json to declare NSMicrophoneUsageDescription');
+  assert.match(
+    infoPlist,
+    new RegExp(
+      `<key>NSMicrophoneUsageDescription</key>\\s*<string>${escapeForRegex(expectedMicrophoneUsage)}</string>`
+    ),
+    'Expected ios/EveryBible/Info.plist to mirror NSMicrophoneUsageDescription from app.json'
   );
 });
 
