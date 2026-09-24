@@ -18,8 +18,6 @@
     "src/stores/audio*",
     "src/hooks/useAudioPlayer*",
     "src/services/sync/**",
-    "src/services/plans/**",
-    "src/stores/readingPlansStore*",
     "src/services/notifications/**",
     "src/services/privacy/**",
     "src/services/diagnostics/**"

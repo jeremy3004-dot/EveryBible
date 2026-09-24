@@ -367,12 +367,13 @@ test('the Proverbs ledger excludes dates that do not exist in the current month'
     chapter_start: index + 1,
     chapter_end: null,
   }));
-  for (const [year, month, days] of [
+  const monthLengths: [number, number, number][] = [
     [2024, 1, 29],
     [2025, 1, 28],
     [2026, 8, 30],
     [2026, 9, 31],
-  ]) {
+  ];
+  for (const [year, month, days] of monthLengths) {
     assert.equal(getPlanLedgerDayNumbers(plan, entries, new Date(year, month, 1)).length, days);
   }
   assert.equal(getPlanLedgerDayNumbers(makePlan(), entries, new Date(2025, 1, 1)).length, 31);
@@ -927,9 +928,10 @@ test('reconcileFetchedPlanProgress merges matching local and remote plan rows', 
   const { progress } = reconcileFetchedPlanProgress([local], [remote], '2026-04-09T10:00:00.000Z');
 
   assert.equal(progress.length, 1);
-  assert.deepEqual(Object.keys(progress[0].completed_entries), ['1', '2']);
-  assert.equal(progress[0].current_day, 3);
-  assert.equal(progress[0].user_id, 'user-1');
+  const [merged] = progress;
+  assert.deepEqual(Object.keys(merged?.completed_entries ?? {}), ['1', '2']);
+  assert.equal(merged?.current_day, 3);
+  assert.equal(merged?.user_id, 'user-1');
 });
 
 // ---------------------------------------------------------------------------

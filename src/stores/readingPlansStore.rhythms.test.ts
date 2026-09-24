@@ -107,7 +107,7 @@ test('rhythm items drop duplicates, blank books and repeated item ids, and clamp
     items.slice(0, 3).map((item) => item.id),
     ['item-a', 'item-psa', 'item-gen']
   );
-  assert.match(items[3].id, /^reading-plan-rhythm-item-/);
+  assert.match(items[3]?.id ?? '', /^reading-plan-rhythm-item-/);
 });
 
 test('updating a missing rhythm, or emptying one, is refused without changes', async () => {
@@ -141,6 +141,36 @@ test('updating only the title keeps the items and slot', async () => {
   assert.equal(updated.rhythm?.title, 'After');
   assert.equal(updated.rhythm?.slot, 'evening');
   assert.deepEqual(updated.rhythm?.items, created.rhythm?.items);
+});
+
+test('updating only the items or slot keeps the custom title', async () => {
+  const { store } = await loadStore();
+  const created = store.getState().createRhythm({
+    title: 'Dawn',
+    slot: 'morning',
+    planIds: ['plan-a'],
+  });
+  const rhythmId = created.rhythm?.id ?? '';
+
+  const withItems = store.getState().updateRhythm(rhythmId, { planIds: ['plan-b'] });
+  const withSlot = store.getState().updateRhythm(rhythmId, { slot: 'evening' });
+
+  assert.equal(withItems.rhythm?.title, 'Dawn');
+  assert.equal(withSlot.rhythm?.title, 'Dawn');
+  assert.equal(store.getState().getRhythm(rhythmId)?.title, 'Dawn');
+});
+
+test('an explicitly blank title still falls back to the slot title', async () => {
+  const { store } = await loadStore();
+  const created = store.getState().createRhythm({
+    title: 'Dawn',
+    slot: 'morning',
+    planIds: ['plan-a'],
+  });
+
+  const updated = store.getState().updateRhythm(created.rhythm?.id ?? '', { title: '  ' });
+
+  assert.equal(updated.rhythm?.title, 'Morning Rhythm');
 });
 
 test('an untitled rhythm is numbered once every slot title is taken', async () => {
@@ -238,7 +268,7 @@ test('invalid resume positions are ignored and clearing one day keeps the others
   store.getState().clearPlanDayResume('plan-a', 1);
 
   assert.deepEqual(store.getState().planDayResumeByKey, {
-    [Object.keys(store.getState().planDayResumeByKey)[0]]: { bookId: 'EXO', chapter: 4 },
+    'plan-a:2': { bookId: 'EXO', chapter: 4 },
   });
   assert.equal(store.getState().getPlanDayResume('plan-a', 1), null);
   assert.deepEqual(store.getState().getPlanDayResume('plan-a', 2), { bookId: 'EXO', chapter: 4 });
@@ -262,7 +292,7 @@ test('completion actions on a plan the reader is not enrolled in are ignored', a
     }),
     null
   );
-  assert.deepEqual(store.getState().progressByPlanId['plan-a'].completed_entries, {});
+  assert.deepEqual(store.getState().progressByPlanId['plan-a']?.completed_entries, {});
   assert.deepEqual(Object.keys(store.getState().progressByPlanId), ['plan-a']);
 });
 
