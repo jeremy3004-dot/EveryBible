@@ -215,6 +215,30 @@ function handleAVStatus(status: AVPlaybackStatus): void {
   }
 }
 
+/**
+ * Forgets a sound the native side has released. expo-av releases a sound whose
+ * stream fails mid-chapter: iOS reports an unloaded status carrying the error, and
+ * Android only rejects the next command ("Player does not exist"). Driving it again
+ * can only fail, so the caller has to load the chapter again.
+ */
+function dropReleasedSound(ref: Audio.Sound): void {
+  if (sound !== ref) return;
+  ref.setOnPlaybackStatusUpdate(null);
+  sound = null;
+  activeTrack = null;
+  setState(State.Error);
+}
+
+/** Whether a sound whose command just failed has been released by the native side. */
+async function isSoundReleased(ref: Audio.Sound): Promise<boolean> {
+  try {
+    const status = await ref.getStatusAsync();
+    return !status.isLoaded;
+  } catch {
+    return true;
+  }
+}
+
 async function unloadSound(): Promise<void> {
   if (!sound) return;
 
@@ -293,6 +317,10 @@ async function add(track: Track | Track[]): Promise<number | undefined> {
         // Ignore pending sounds superseded by another load or transport command.
         // A loaded sound keeps reporting after pause/resume while it remains active.
         if (requestId === loadRequestId || (loadedSound !== null && sound === loadedSound)) {
+          if (!status.isLoaded && status.error && loadedSound !== null) {
+            // A loaded sound that reports an error has been released natively.
+            dropReleasedSound(loadedSound);
+          }
           handleAVStatus(status);
         }
       }
@@ -333,6 +361,8 @@ async function play(): Promise<void> {
     setState(State.Playing);
   } catch (error) {
     if (ref !== sound || requestId !== loadRequestId) return;
+    if (await isSoundReleased(ref)) dropReleasedSound(ref);
+    if (requestId !== loadRequestId) return;
     const message = error instanceof Error ? error.message : 'Failed to play';
     emit(Event.PlaybackError, { code: 'PLAY_ERROR', message });
   }
@@ -352,6 +382,8 @@ async function pause(): Promise<void> {
     setState(State.Paused);
   } catch (error) {
     if (ref !== sound || requestId !== loadRequestId) return;
+    if (await isSoundReleased(ref)) dropReleasedSound(ref);
+    if (requestId !== loadRequestId) return;
     const message = error instanceof Error ? error.message : 'Failed to pause';
     emit(Event.PlaybackError, { code: 'PAUSE_ERROR', message });
   }
@@ -367,11 +399,14 @@ async function stop(): Promise<void> {
 }
 
 async function seekTo(positionSeconds: number): Promise<void> {
-  if (!sound) return;
+  const ref = sound;
+  if (!ref) return;
 
   try {
-    await sound.setPositionAsync(positionSeconds * 1000);
+    await ref.setPositionAsync(positionSeconds * 1000);
   } catch (error) {
+    if (ref !== sound) return;
+    if (await isSoundReleased(ref)) dropReleasedSound(ref);
     const message = error instanceof Error ? error.message : 'Failed to seek';
     emit(Event.PlaybackError, { code: 'SEEK_ERROR', message });
   }

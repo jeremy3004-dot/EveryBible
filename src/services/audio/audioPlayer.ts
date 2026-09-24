@@ -126,6 +126,9 @@ class AudioPlayer {
 
     this.subscriptions.push(
       TrackPlayer.addEventListener(Event.PlaybackState, (data: PlaybackStateEvent) => {
+        // The wrapper has dropped a failed or released sound: nothing is left to
+        // resume, so Play has to load the chapter again.
+        if (data.state === State.Error) this.loaded = false;
         this.lastIsPlaying = data.state === State.Playing;
         this.lastIsBuffering = data.state === State.Buffering || data.state === State.Loading;
         this.emitSnapshot(data.state === State.Ended);

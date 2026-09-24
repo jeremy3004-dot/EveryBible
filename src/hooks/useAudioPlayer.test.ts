@@ -991,6 +991,49 @@ test('togglePlayPause reloads the current chapter from its resume anchor when un
   assert.deepEqual(playerCalls('seekTo'), [{ method: 'seekTo', args: [60_000] }]);
 });
 
+// A stream that fails mid-chapter makes expo-av release the sound. iOS says so at
+// once; Android only rejects the next command. Either way Play has to load the
+// chapter again where it stopped, not fail on the dead sound again and again.
+test('Play after the stream failed mid-chapter reloads the chapter where it stopped', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  emitStatus({ isPlaying: true, positionMillis: 120_000, durationMillis: DEFAULT_DURATION_MS });
+  audioPlayerDouble.loaded = false;
+  audioPlayerDouble.callbacks.onError?.('The network connection was lost.');
+  assert.equal(store().status, 'error');
+  recorded.player.length = 0;
+
+  await player.rerender().togglePlayPause();
+
+  assert.equal(playerCalls('loadAndPlay').length, 1);
+  assert.deepEqual(playerCalls('seekTo'), [{ method: 'seekTo', args: [120_000] }]);
+  assert.equal(store().status, 'playing');
+});
+
+test('Play on a sound the native side released reloads the chapter in one tap', async (t) => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  emitStatus({ isPlaying: true, positionMillis: 120_000, durationMillis: DEFAULT_DURATION_MS });
+  await player.rerender().pause();
+  // Android: the pause went through, then the stream failed and the sound was
+  // released without a word. The next command finds out.
+  const seekTo = audioPlayerDouble.seekTo;
+  t.mock.method(audioPlayerDouble, 'seekTo', async (positionMs: number) => {
+    if (!audioPlayerDouble.loaded) return seekTo(positionMs);
+    recorded.player.push({ method: 'seekTo', args: [positionMs] });
+    audioPlayerDouble.loaded = false;
+    audioPlayerDouble.callbacks.onError?.('Player does not exist.');
+  });
+  recorded.player.length = 0;
+
+  await player.rerender().togglePlayPause();
+
+  assert.equal(playerCalls('loadAndPlay').length, 1);
+  assert.deepEqual(playerCalls('seekTo').at(-1), { method: 'seekTo', args: [120_000] });
+  assert.equal(store().status, 'playing');
+  assert.equal(store().error, null);
+});
+
 test('togglePlayPause starts the last played chapter when nothing is loaded', async () => {
   const player = mountPlayer();
   store().setCurrentTrack('web', 'JHN', 3);

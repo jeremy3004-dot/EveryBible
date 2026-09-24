@@ -1048,17 +1048,41 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       ? store.currentPosition
       : Math.max(store.currentPosition, store.lastPosition);
 
+    // A stream that failed mid-chapter leaves a sound the native side has released.
+    // Android only says so when the next command fails, so load the chapter again at
+    // the same spot rather than reporting an error for a sound that no longer exists.
+    const reloadIfSoundWasReleased = async () => {
+      if (requestId !== playRequestIdRef.current || !isLoaded || audioPlayer.isLoaded()) return;
+      const { currentTranslationId, currentBookId, currentChapter } = useAudioStore.getState();
+      if (!currentBookId || !currentChapter) return;
+      await playChapterForTranslation(
+        currentTranslationId ?? translationId,
+        currentBookId,
+        currentChapter,
+        undefined,
+        { startPositionMs: resumePosition }
+      );
+    };
+
     // Reset poll anchor so interpolation starts fresh from the resumed position.
     // If the native player lost its offset during an interruption, re-seek first.
     if (isLoaded && resumePosition > 0) {
       await audioPlayer.seekTo(resumePosition);
     }
-    if (requestId !== playRequestIdRef.current || errorId !== playbackErrorIdRef.current) return;
+    if (requestId !== playRequestIdRef.current) return;
+    if (errorId !== playbackErrorIdRef.current) {
+      await reloadIfSoundWasReleased();
+      return;
+    }
 
     lastPollPositionRef.current = resumePosition;
     lastPollTimeRef.current = Date.now();
     await audioPlayer.resume();
-    if (requestId !== playRequestIdRef.current || errorId !== playbackErrorIdRef.current) return;
+    if (requestId !== playRequestIdRef.current) return;
+    if (errorId !== playbackErrorIdRef.current) {
+      await reloadIfSoundWasReleased();
+      return;
+    }
     setStatus('playing');
     syncCurrentNowPlaying(
       {
@@ -1068,7 +1092,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       },
       true
     );
-  }, [setStatus, syncCurrentNowPlaying]);
+  }, [playChapterForTranslation, setStatus, syncCurrentNowPlaying, translationId]);
 
   // Stop playback completely
   const stop = useCallback(async () => {

@@ -280,6 +280,21 @@ test('the Ended state reaches onStatusUpdate as a just-finished stop, once', asy
   ]);
 });
 
+// The wrapper reports Error once it has dropped a sound the native side released
+// (a stream that failed mid-chapter). The facade must stop claiming a loaded track,
+// or Play keeps resuming a sound that no longer exists instead of reloading it.
+test('an Error state leaves the facade unloaded so the chapter is loaded again', async () => {
+  await mod.audioPlayer.loadAndPlay('https://audio.test/gen1.mp3');
+  assert.equal(mod.audioPlayer.isLoaded(), true);
+
+  emit(Event.PlaybackState, { state: State.Error });
+
+  assert.equal(mod.audioPlayer.isLoaded(), false);
+  trackPlayerCalls.length = 0;
+  await mod.audioPlayer.play();
+  assert.deepEqual(trackPlayerCalls, []);
+});
+
 test('a queue-ended event invokes onPlaybackFinished', async () => {
   let finished = 0;
   mod.audioPlayer.setCallbacks({ onPlaybackFinished: () => (finished += 1) });

@@ -565,6 +565,72 @@ test('an unloaded status carrying an error surfaces a PlaybackError', async () =
   ]);
 });
 
+// A stream that fails mid-chapter (network lost, CDN error) makes expo-av release the
+// sound: iOS reports an unloaded status with the error, Android only rejects the next
+// command with "Player does not exist". Driving the dead sound again can only fail, so
+// every Play turned into another error until the listener picked another chapter.
+test('a sound that failed mid-stream is dropped instead of being driven again', async () => {
+  await mod.default.add(track('gen1'));
+  await mod.default.play();
+  soundInstances[0].emitStatus({ isLoaded: false, error: 'The network connection was lost.' });
+  soundInstances[0].calls.length = 0;
+
+  await mod.default.play();
+  await mod.default.seekTo(30);
+
+  assert.deepEqual(soundInstances[0].calls, []);
+  assert.equal(await mod.default.getActiveTrack(), null);
+  assert.deepEqual(await mod.default.getPlaybackState(), { state: mod.State.Error });
+});
+
+test('a command the native side rejects because it released the sound drops that sound', async () => {
+  await mod.default.add(track('gen1'));
+  const released = new Error('Player does not exist.');
+  soundInstances[0].rejections.set('playAsync', released);
+  soundInstances[0].rejections.set('getStatusAsync', released);
+  const events = recordEvents();
+
+  await assert.doesNotReject(() => mod.default.play());
+
+  assert.deepEqual(events, [
+    { event: mod.Event.PlaybackState, data: { state: mod.State.Error } },
+    {
+      event: mod.Event.PlaybackError,
+      data: { code: 'PLAY_ERROR', message: 'Player does not exist.' },
+    },
+  ]);
+  soundInstances[0].calls.length = 0;
+  await mod.default.pause();
+  assert.deepEqual(soundInstances[0].methods(), []);
+});
+
+test('a failed seek on a sound reported as unloaded drops that sound', async () => {
+  await mod.default.add(track('gen1'));
+  soundInstances[0].rejections.set('setPositionAsync', new Error('sound is not loaded'));
+  soundInstances[0].status = { isLoaded: false };
+  const events = recordEvents();
+
+  await mod.default.seekTo(5);
+
+  assert.deepEqual(
+    events.map((entry) => entry.event),
+    [mod.Event.PlaybackState, mod.Event.PlaybackError]
+  );
+  assert.equal(await mod.default.getActiveTrack(), null);
+});
+
+test('a failed command on a sound that is still loaded keeps it', async () => {
+  await mod.default.add(track('gen1'));
+  soundInstances[0].rejections.set('pauseAsync', new Error('interrupted'));
+
+  await mod.default.pause();
+  soundInstances[0].rejections.clear();
+  soundInstances[0].calls.length = 0;
+  await mod.default.play();
+
+  assert.deepEqual(soundInstances[0].methods(), ['playAsync']);
+});
+
 test('an unloaded status without an error is ignored', async () => {
   await mod.default.add(track('gen1'));
   const events = recordEvents();
