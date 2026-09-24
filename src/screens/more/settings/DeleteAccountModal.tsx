@@ -36,7 +36,11 @@ export function DeleteAccountModal({
       animationType="fade"
       onRequestClose={() => !isDeleting && onClose()}
     >
-      <View style={[modalStyles.modalOverlay, { backgroundColor: colors.overlay }]}>
+      <View
+        style={[modalStyles.modalOverlay, { backgroundColor: colors.overlay }]}
+        // VoiceOver's escape gesture closes it, as Android back does.
+        onAccessibilityEscape={() => !isDeleting && onClose()}
+      >
         <View
           style={[
             modalStyles.modalContent,

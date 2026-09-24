@@ -54,6 +54,8 @@ export const FollowAlongTextSheet = memo(function FollowAlongTextSheet({
       onRequestClose={() => setShowFollowAlongText(false)}
     >
       <Animated.View
+        // VoiceOver's escape gesture closes it, as Android back does.
+        onAccessibilityEscape={() => setShowFollowAlongText(false)}
         entering={SlideInDown.springify().damping(20).stiffness(200)}
         exiting={SlideOutDown.duration(250)}
         style={[styles.followAlongContainer, { backgroundColor: colors.bibleBackground }]}

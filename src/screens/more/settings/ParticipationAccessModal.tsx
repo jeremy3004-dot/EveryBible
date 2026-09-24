@@ -56,7 +56,11 @@ export function ParticipationAccessModal({
       animationType="fade"
       onRequestClose={onClose}
     >
-      <View style={[modalStyles.modalOverlay, { backgroundColor: colors.overlay }]}>
+      <View
+        style={[modalStyles.modalOverlay, { backgroundColor: colors.overlay }]}
+        // VoiceOver's escape gesture closes it, as Android back does.
+        onAccessibilityEscape={onClose}
+      >
         <TouchableOpacity
           style={modalStyles.modalBackdrop}
           activeOpacity={1}

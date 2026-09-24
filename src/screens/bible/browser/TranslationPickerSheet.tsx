@@ -85,7 +85,11 @@ export function TranslationPickerSheet({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <View style={[styles.overlay, { backgroundColor: colors.overlay }]}>
+      <View
+        style={[styles.overlay, { backgroundColor: colors.overlay }]}
+        // VoiceOver's escape gesture closes it, as Android back does.
+        onAccessibilityEscape={onClose}
+      >
         <View
           style={[
             styles.content,

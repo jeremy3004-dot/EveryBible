@@ -848,6 +848,19 @@ test('the language row opens the interface language list and a choice switches a
   assert.equal(view.queryByRole('header', { name: t('settings.selectLanguage') }), null);
 });
 
+test("VoiceOver's escape gesture closes the interface language list without choosing", async () => {
+  const view = await renderSettings();
+
+  await view.press(view.getByRole('button', { name: `${t('settings.language')}, English` }));
+  await view.fire(
+    view.getByRole('header', { name: t('settings.selectLanguage') }),
+    'onAccessibilityEscape'
+  );
+
+  assert.equal(view.queryByRole('header', { name: t('settings.selectLanguage') }), null);
+  assert.deepEqual(languageCalls, []);
+});
+
 // --- Data --------------------------------------------------------------------
 
 test('clearing the cache asks first, then clears only device caches', async () => {
@@ -888,6 +901,15 @@ test('Delete Account is offered only when signed in and confirms before deleting
   assert.equal(account.calls, 2);
   assert.equal(harness.rn.__recorded.alerts.at(-1)?.title, t('settings.accountDeleted'));
   assert.equal(view.queryByText(t('settings.deleteAccountWarning')), null);
+});
+
+test("the delete-account dialog closes on VoiceOver's escape gesture without deleting", async () => {
+  harness.authStore.setState({ user: { uid: 'u1', displayName: 'Lydia' } });
+  const view = await renderSettings();
+  await view.press(view.getByRole('button', { name: t('settings.deleteAccount') }));
+  await view.fire(view.getByText(t('settings.deleteAccountWarning')), 'onAccessibilityEscape');
+  assert.equal(view.queryByText(t('settings.deleteAccountWarning')), null);
+  assert.equal(account.calls, 0);
 });
 
 // --- Legacy content language ---------------------------------------------------

@@ -63,6 +63,8 @@ export function ChapterFeedbackIdentityModal({
       onRequestClose={onClose}
     >
       <KeyboardAvoidingView
+        // VoiceOver's escape gesture closes it, as Android back does.
+        onAccessibilityEscape={onClose}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={[modalStyles.modalOverlay, { backgroundColor: colors.overlay }]}
       >

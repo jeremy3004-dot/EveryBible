@@ -64,3 +64,19 @@ test('a picker that fails to load shows an error with a retry and reports it', a
   assert.equal(view.queryAllByType('TranslationPickerList').length, 1);
   assert.equal(reports.length, 1);
 });
+
+test("VoiceOver's escape gesture closes the picker sheet", async () => {
+  const { TranslationPickerSheet } = await import('./TranslationPickerSheet');
+  let closed = 0;
+  const view = await harness.render(
+    <TranslationPickerSheet
+      visible
+      onClose={() => (closed += 1)}
+      loadPickerList={() => Promise.resolve(PickerList as never)}
+    />
+  );
+  await view.flush();
+
+  await view.fire(view.queryAllByType('TranslationPickerList')[0], 'onAccessibilityEscape');
+  assert.equal(closed, 1);
+});

@@ -50,7 +50,11 @@ export function ReaderFontSheet({
       animationType="fade"
       onRequestClose={handleCloseFontSizeSheet}
     >
-      <View style={[styles.fontSheetOverlay, { backgroundColor: colors.overlay }]}>
+      <View
+        style={[styles.fontSheetOverlay, { backgroundColor: colors.overlay }]}
+        // VoiceOver's escape gesture closes it, as Android back does.
+        onAccessibilityEscape={handleCloseFontSizeSheet}
+      >
         <TouchableOpacity
           style={styles.fontSheetBackdrop}
           activeOpacity={1}

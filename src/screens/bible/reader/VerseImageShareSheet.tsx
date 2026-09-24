@@ -65,7 +65,11 @@ export function VerseImageShareSheet({
       onRequestClose={() => setShowVerseImageSheet(false)}
       onDismiss={handleVerseImageSheetDismissed}
     >
-      <View style={[styles.verseImageSheetOverlay, { backgroundColor: colors.overlay }]}>
+      <View
+        style={[styles.verseImageSheetOverlay, { backgroundColor: colors.overlay }]}
+        // VoiceOver's escape gesture closes it, as Android back does.
+        onAccessibilityEscape={() => setShowVerseImageSheet(false)}
+      >
         <TouchableOpacity
           style={styles.verseImageSheetBackdrop}
           activeOpacity={1}
