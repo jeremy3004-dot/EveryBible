@@ -6,6 +6,7 @@ import {
   applyLocalSnapshotRow,
   endPlansTheServerSkipped,
   mergeServerRowIntoLive,
+  withRebasedLiveStart,
 } from './planLiveStore';
 import { mergeServerRowsBeforePush, upsertLivePlanProgress } from './planServerWrite';
 import { stalePlanResult, type PlanServiceResult } from './planServiceResult';
@@ -103,11 +104,16 @@ export async function syncPlanProgress(
 
   const tombstoned = new Set(readingPlansStore.getState().pendingUnenrollPlanIds);
   // A leave confirmed just now: the snapshot may predate it, and its row for that
-  // enrolment must not be applied or pushed back.
+  // enrolment must not be applied or pushed back. A re-join after it keeps the start the
+  // confirmed leave moved it to.
   const confirmedLeaves = new Set(pendingBefore.filter((planId) => !tombstoned.has(planId)));
-  localProgress = localProgress.filter(
-    (progress) => !isSnapshotRowEndedByConfirmedLeave(progress, confirmedLeaves, leftAtBefore)
-  );
+  localProgress = localProgress
+    .filter(
+      (progress) => !isSnapshotRowEndedByConfirmedLeave(progress, confirmedLeaves, leftAtBefore)
+    )
+    .map((progress) =>
+      confirmedLeaves.has(progress.plan_id) ? withRebasedLiveStart(progress) : progress
+    );
 
   const localApplied = await identity.runIfCurrent(() => {
     localProgress

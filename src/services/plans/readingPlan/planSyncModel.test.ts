@@ -10,6 +10,7 @@ import {
   getPlansTheServerSkipped,
   getProgressEndedElsewhere,
   isSnapshotRowEndedByConfirmedLeave,
+  rebaseRejoinPastStoredLeave,
   normalizeRemoteProgressRows,
   PLAN_PROGRESS_MERGE_BATCH_SIZE,
   shouldSyncPlanProgressRemotely,
@@ -210,4 +211,56 @@ test('a tombstone row carries the leave time and phone clock only when the leave
     user_id: 'u',
     plan_slug: 'p',
   });
+});
+
+test("a re-join after this phone's leave moves just past the leave the server stored", () => {
+  const leftAt = '2026-09-01T12:00:00.000Z';
+  // A phone 10 minutes slow: the server stored the leave at 12:10 on its clock.
+  const stored = '2026-09-01T12:10:00.000Z';
+  const rejoin = row('plan', '2026-09-01T12:01:00.000Z', { completed_entries: { '1': 'x' } });
+
+  const moved = rebaseRejoinPastStoredLeave(rejoin, leftAt, stored);
+
+  assert.equal(moved?.started_at, '2026-09-01T12:10:00.001Z');
+  assert.deepEqual(moved?.completed_entries, { '1': 'x' });
+  assert.equal(getProgressEndedElsewhere([moved!], new Map([['plan', stored]])).size, 0);
+  // Pushed as it is: the start is already on the server's clock.
+  assert.deepEqual(
+    [...getPlansNeedingClientClock(['plan'], new Map([['plan', stored]]), new Set(), [moved!])],
+    []
+  );
+  // A later leave elsewhere still ends it, and it then goes with the phone clock again.
+  const later = new Map([['plan', '2026-09-01T12:20:00.000Z']]);
+  assert.deepEqual([...getProgressEndedElsewhere([moved!], later)], ['plan']);
+});
+
+test('a start the stored leave does not end, or one from before the leave, is not moved', () => {
+  const leftAt = '2026-09-01T12:00:00.000Z';
+  // Fast or accurate phone: the re-join is already after the stored leave.
+  assert.equal(
+    rebaseRejoinPastStoredLeave(
+      row('plan', '2026-09-01T12:01:00.000Z'),
+      leftAt,
+      '2026-09-01T11:50:00.000Z'
+    ),
+    null
+  );
+  // The enrolment the leave ended.
+  assert.equal(
+    rebaseRejoinPastStoredLeave(
+      row('plan', '2026-09-01T11:00:00.000Z'),
+      leftAt,
+      '2026-09-01T12:10:00.000Z'
+    ),
+    null
+  );
+  // No recorded leave time (a leave queued by an older build).
+  assert.equal(
+    rebaseRejoinPastStoredLeave(
+      row('plan', '2026-09-01T12:01:00.000Z'),
+      undefined,
+      '2026-09-01T12:10:00.000Z'
+    ),
+    null
+  );
 });
