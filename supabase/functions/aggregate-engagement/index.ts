@@ -12,6 +12,8 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -20,6 +22,15 @@ const corsHeaders = {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
+  }
+
+  // The cron job and the admin action POST; GET is kept for manual runs. Any other method used
+  // to run a full refresh too.
+  if (req.method !== 'POST' && req.method !== 'GET') {
+    return new Response(JSON.stringify({ success: false, error: 'Method not allowed' }), {
+      status: 405,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 
   // Gateway JWT verification also admits ordinary user JWTs. PostgREST verifies
@@ -62,8 +73,22 @@ Deno.serve(async (req) => {
     // Check if specific user requested
     let targetUserId: string | null = null;
     if (req.method === 'POST') {
-      const body = await req.json().catch(() => ({}));
-      targetUserId = body.user_id || null;
+      // An unreadable or non-object body refreshes every user, as before; JSON `null` used to
+      // throw here. A user_id that is not a UUID failed the uuid cast in the RPC (a 500).
+      const body: unknown = await req.json().catch(() => null);
+      const requested =
+        body && typeof body === 'object' && !Array.isArray(body)
+          ? (body as { user_id?: unknown }).user_id
+          : undefined;
+      if (requested !== undefined && requested !== null && requested !== '') {
+        if (typeof requested !== 'string' || !UUID_PATTERN.test(requested)) {
+          return new Response(JSON.stringify({ success: false, error: 'user_id must be a UUID' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        targetUserId = requested;
+      }
     }
 
     const { data, error } = await supabase.rpc('refresh_engagement_summaries', {
