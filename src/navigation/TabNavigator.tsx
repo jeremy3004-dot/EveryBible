@@ -428,7 +428,11 @@ export function TabNavigator() {
         // users keep "Home, tab, 1 of 5".
         tabBarAccessibilityLabel:
           Platform.OS === 'ios' && tabIndex >= 0
-            ? `${tabLabel}, tab, ${tabIndex + 1} of ${rootTabManifest.length}`
+            ? t('tabs.accessibilityPosition', {
+                label: tabLabel,
+                position: tabIndex + 1,
+                total: rootTabManifest.length,
+              })
             : tabLabel,
         // The glass capsule. In the reader it tints off the reading surface so
         // the bar sits on the same material as the page behind it.

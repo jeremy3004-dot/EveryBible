@@ -327,6 +327,215 @@ await as(C, OLD_CLIENT_PREFS_UPSERT, [C, 'small', 'light', iso(0)]);
 assert.equal((await prefsOf(C)).theme, 'light');
 
 // ---------------------------------------------------------------------------
+// Atomic user_progress merge (20260924041000)
+// ---------------------------------------------------------------------------
+
+// Production user_progress (information_schema, 2026-09-24): no triggers, own-row RLS.
+await db.exec(`
+create table public.user_progress (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null unique references public.profiles(id) on delete cascade,
+  chapters_read jsonb default '{}'::jsonb,
+  streak_days integer default 0,
+  last_read_date date,
+  current_book text default 'GEN',
+  current_chapter integer default 1,
+  synced_at timestamptz default now()
+);
+alter table public.user_progress enable row level security;
+create policy "Users can view own progress" on public.user_progress for select
+  using ((select auth.uid()) = user_id);
+create policy "Users can update own progress" on public.user_progress for update
+  using ((select auth.uid()) = user_id);
+create policy "Users can insert own progress" on public.user_progress for insert
+  with check ((select auth.uid()) = user_id);
+`);
+await db.exec(
+  await fs.readFile(
+    new URL('../supabase/migrations/20260924041000_merge_user_progress_rpc.sql', import.meta.url),
+    'utf8'
+  )
+);
+
+// The installed builds' progress upsert (syncService.ts @ a608f1d7): the whole row, on
+// conflict (user_id), replacing chapters_read.
+const OLD_CLIENT_PROGRESS_UPSERT = `
+  insert into public.user_progress (user_id, chapters_read, streak_days, last_read_date,
+    current_book, current_chapter, synced_at)
+  values ($1, $2::jsonb, $3, $4::date, $5, $6, now())
+  on conflict (user_id) do update set chapters_read = excluded.chapters_read,
+    streak_days = excluded.streak_days, last_read_date = excluded.last_read_date,
+    current_book = excluded.current_book, current_chapter = excluded.current_chapter,
+    synced_at = excluded.synced_at
+  returning *`;
+const MERGE_PROGRESS = `select * from public.merge_user_progress($1::jsonb)`;
+const mergeProgress = (uid, payload) => as(uid, MERGE_PROGRESS, [JSON.stringify(payload)]);
+const progressOf = (uid) => one(`select * from public.user_progress where user_id = $1`, [uid]);
+const dateOf = (row) => row.last_read_date.toISOString().slice(0, 10);
+const positionOf = (row) => [row.current_book, row.current_chapter];
+const READER = '11111111-1111-4111-8111-111111111111';
+const OTHER_READER = '22222222-2222-4222-8222-222222222222';
+for (const uid of [READER, OTHER_READER]) {
+  await signUp(uid);
+  // handle_new_user's default progress row.
+  await db.query(`insert into public.user_progress (user_id) values ($1)`, [uid]);
+}
+// What the new client sends (syncProgressForIdentityImpl): the merged row.
+const upload = (overrides = {}) => ({
+  user_id: READER,
+  chapters_read: {},
+  streak_days: 1,
+  last_read_date: '2026-09-20',
+  current_book: 'GEN',
+  current_chapter: 1,
+  synced_at: iso(0),
+  ...overrides,
+});
+const oldUpsert = (uid, payload) =>
+  as(uid, OLD_CLIENT_PROGRESS_UPSERT, [
+    uid,
+    JSON.stringify(payload.chapters_read),
+    payload.streak_days,
+    payload.last_read_date,
+    payload.current_book,
+    payload.current_chapter,
+  ]);
+
+// The race with the plain upsert: both phones read {GEN_1}; phone 1 writes {GEN_1, GEN_2},
+// then phone 2 writes {GEN_1, MAT_1} and GEN_2 is gone. This is the bug being fixed.
+await oldUpsert(READER, upload({ chapters_read: { GEN_1: 1000 } }));
+await oldUpsert(READER, upload({ chapters_read: { GEN_1: 1000, GEN_2: 2000 } }));
+await oldUpsert(READER, upload({ chapters_read: { GEN_1: 1000, MAT_1: 3000 } }));
+assert.deepEqual(Object.keys((await progressOf(READER)).chapters_read).sort(), ['GEN_1', 'MAT_1']);
+
+// The same two stale writes through the RPC keep both phones' chapters.
+await oldUpsert(READER, upload({ chapters_read: { GEN_1: 1000 } }));
+let progress = await mergeProgress(READER, upload({ chapters_read: { GEN_1: 1000, GEN_2: 2000 } }));
+assert.equal(progress.rows.length, 1, 'the RPC returns the stored row');
+progress = await mergeProgress(READER, upload({ chapters_read: { GEN_1: 1000, MAT_1: 3000 } }));
+assert.deepEqual(progress.rows[0].chapters_read, { GEN_1: 1000, GEN_2: 2000, MAT_1: 3000 });
+assert.deepEqual(await progressOf(READER), progress.rows[0]);
+
+// A chapter in both keeps the later read, whichever side has it (mergeChapterProgress).
+progress = await mergeProgress(READER, upload({ chapters_read: { GEN_1: 500, GEN_2: 2500 } }));
+assert.equal(progress.rows[0].chapters_read.GEN_1, 1000, 'an older upload never rolls a read back');
+assert.equal(progress.rows[0].chapters_read.GEN_2, 2500, 'a newer read is taken');
+// Epoch milliseconds survive the round trip exactly.
+progress = await mergeProgress(READER, upload({ chapters_read: { JHN_3: 1758700000123 } }));
+assert.equal(progress.rows[0].chapters_read.JHN_3, 1758700000123);
+
+// Streak: the side with the later last_read_date owns it; a tie keeps the upload's.
+await db.query(
+  `update public.user_progress set last_read_date = '2026-09-20', streak_days = 5
+     where user_id = $1`,
+  [READER]
+);
+progress = await mergeProgress(READER, upload({ last_read_date: '2026-09-19', streak_days: 9 }));
+assert.equal(progress.rows[0].streak_days, 5, 'a phone behind on dates has no say on the streak');
+assert.equal(dateOf(progress.rows[0]), '2026-09-20');
+progress = await mergeProgress(READER, upload({ last_read_date: '2026-09-21', streak_days: 6 }));
+assert.equal(progress.rows[0].streak_days, 6);
+assert.equal(dateOf(progress.rows[0]), '2026-09-21');
+progress = await mergeProgress(READER, upload({ last_read_date: '2026-09-21', streak_days: 0 }));
+assert.equal(progress.rows[0].streak_days, 0, 'same date: the upload (a reset) wins');
+progress = await mergeProgress(READER, upload({ last_read_date: null, streak_days: 3 }));
+assert.equal(progress.rows[0].streak_days, 0, 'an upload with no date keeps the stored streak');
+
+// Position: whichever position was read more recently (resolveReadingPosition).
+progress = await mergeProgress(
+  READER,
+  upload({ chapters_read: { ROM_8: 9000 }, current_book: 'ROM', current_chapter: 8 })
+);
+assert.deepEqual(positionOf(progress.rows[0]), ['ROM', 8], 'a later-read position moves it');
+progress = await mergeProgress(
+  READER,
+  upload({ chapters_read: { GEN_2: 2500 }, current_book: 'GEN', current_chapter: 2 })
+);
+assert.deepEqual(
+  positionOf(progress.rows[0]),
+  ['ROM', 8],
+  'a phone on an older chapter does not pull the position back'
+);
+progress = await mergeProgress(READER, upload({ chapters_read: {} }));
+assert.deepEqual(positionOf(progress.rows[0]), ['ROM', 8], 'a blank GEN 1 device keeps it');
+progress = await mergeProgress(
+  READER,
+  upload({ chapters_read: {}, current_book: null, current_chapter: null })
+);
+assert.deepEqual(positionOf(progress.rows[0]), ['ROM', 8], 'an upload without a position too');
+// An unread stored position falls back to its sync time, as on the client.
+await db.query(
+  `update public.user_progress set current_book = 'PSA', current_chapter = 23,
+     synced_at = '2026-09-01T00:00:00Z' where user_id = $1`,
+  [READER]
+);
+progress = await mergeProgress(
+  READER,
+  upload({ chapters_read: { MRK_1: Date.parse('2026-09-02T00:00:00Z') }, current_book: 'MRK' })
+);
+assert.equal(progress.rows[0].current_book, 'MRK');
+assert.ok(new Date(progress.rows[0].synced_at).getTime() >= Date.now() - 60_000, 'server time');
+
+// A legacy null chapters_read merges; non-numeric stored values are dropped.
+await db.query(`update public.user_progress set chapters_read = null where user_id = $1`, [
+  OTHER_READER,
+]);
+progress = await mergeProgress(OTHER_READER, upload({ chapters_read: { GEN_1: 10 } }));
+assert.deepEqual(progress.rows[0].chapters_read, { GEN_1: 10 });
+await db.query(
+  `update public.user_progress set chapters_read = '{"GEN_1": "x", "GEN_3": 30}'
+     where user_id = $1`,
+  [OTHER_READER]
+);
+progress = await mergeProgress(OTHER_READER, upload({ chapters_read: {} }));
+assert.deepEqual(progress.rows[0].chapters_read, { GEN_3: 30 });
+
+// The owner is always the caller: a user_id in the payload is ignored, and another
+// account's row is never touched.
+const otherBefore = await progressOf(OTHER_READER);
+progress = await mergeProgress(
+  READER,
+  upload({ user_id: OTHER_READER, chapters_read: { X_1: 1 } })
+);
+assert.equal(progress.rows[0].user_id, READER);
+assert.deepEqual(await progressOf(OTHER_READER), otherBefore);
+
+// An account with no row yet (the signup insert missed) gets one from the upload.
+const NO_ROW = '33333333-3333-4333-8333-333333333333';
+await signUp(NO_ROW);
+progress = await mergeProgress(NO_ROW, upload({ chapters_read: { GEN_1: 7 }, streak_days: 2 }));
+assert.equal(progress.rows[0].user_id, NO_ROW);
+assert.deepEqual(progress.rows[0].chapters_read, { GEN_1: 7 });
+assert.equal(progress.rows[0].streak_days, 2);
+
+// Installed builds keep writing with the plain upsert after the RPC exists.
+assert.equal((await oldUpsert(READER, upload({ chapters_read: { GEN_1: 1 } }))).rows.length, 1);
+
+// Validation and access.
+const tooManyChapters = Object.fromEntries(Array.from({ length: 5001 }, (_, i) => [`K_${i}`, 1]));
+for (const [payload, reason] of [
+  [[upload()], 'not an object'],
+  [upload({ chapters_read: ['GEN_1'] }), 'array chapters_read'],
+  [upload({ chapters_read: { GEN_1: '2026-09-01' } }), 'string timestamp'],
+  [upload({ chapters_read: { ['x'.repeat(65)]: 1 } }), 'overlong key'],
+  [upload({ chapters_read: tooManyChapters }), 'too many chapters'],
+  [upload({ streak_days: -1 }), 'negative streak'],
+  [upload({ streak_days: 1.5 }), 'fractional streak'],
+  [upload({ streak_days: '3' }), 'string streak'],
+  [upload({ last_read_date: '20/09/2026' }), 'bad date shape'],
+  [upload({ current_book: '' }), 'blank book'],
+  [upload({ current_chapter: '8' }), 'string chapter'],
+]) {
+  await assert.rejects(mergeProgress(READER, payload), { code: '22023' }, reason);
+}
+await assert.rejects(mergeProgress(null, upload()), /permission denied/, 'anon cannot call it');
+const progressFn = await one(
+  `select prosecdef, proconfig from pg_proc where proname = 'merge_user_progress'`
+);
+assert.equal(progressFn.prosecdef, false, 'runs as the caller, under RLS');
+assert.deepEqual(progressFn.proconfig, ['search_path=""']);
+
+// ---------------------------------------------------------------------------
 // Reading-plan unenrol tombstones (20260924023340)
 // ---------------------------------------------------------------------------
 

@@ -1,3 +1,4 @@
+import type { TFunction } from 'i18next';
 import { ExtendedLesson, FourFieldsCourse, FieldInfo, FieldType } from '../types/course';
 
 // Maps field type to i18n key for title
@@ -58,6 +59,15 @@ export const FOUR_FIELDS_LESSON_TITLE_KEYS: Record<string, string> = {
 };
 
 // Field Information - Updated with Tibetan color palette
+// Lesson titles in the interface language; the course data itself is English.
+export const getFourFieldsLessonTitle = (
+  lesson: { id: string; title: string },
+  t: TFunction
+): string => {
+  const key = FOUR_FIELDS_LESSON_TITLE_KEYS[lesson.id];
+  return key ? t(key, { defaultValue: lesson.title }) : lesson.title;
+};
+
 export const fieldInfo: Record<FieldType, FieldInfo> = {
   entry: {
     id: 'entry',

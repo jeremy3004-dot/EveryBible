@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { zustandStorage } from './mmkvStorage';
+import { asStringArray, mergeSanitizedState } from './persistedShapeGuards';
 
 interface TranslationPreferences {
   pinnedIds: string[];
@@ -33,6 +34,12 @@ export const useTranslationPreferenceStore = create<TranslationPreferences>()(
       name: 'translation-preferences',
       storage: createJSONStorage(() => zustandStorage),
       partialize: ({ pinnedIds, hiddenIds }) => ({ pinnedIds, hiddenIds }),
+      // The translation picker reads both lists in a render selector.
+      merge: (persistedState, currentState) =>
+        mergeSanitizedState(persistedState, currentState, {
+          pinnedIds: asStringArray,
+          hiddenIds: asStringArray,
+        }),
     }
   )
 );

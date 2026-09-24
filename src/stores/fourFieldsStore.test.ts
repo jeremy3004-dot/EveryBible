@@ -595,23 +595,19 @@ test('an empty storage slot leaves the store on its initial state', async () => 
   assert.equal(state().activeGroupId, null);
 });
 
-// Documents current behaviour. `normalizePersistedState` only runs through
-// `migrate`, which zustand calls when the stored version differs from 1. A
-// snapshot already stamped version 1 (i.e. anything this build wrote) bypasses
-// the field sanitizer entirely. QUESTION for review: is the sanitizer meant to
-// be a one-time migration, or should it also guard same-version hydration?
-test('a same-version snapshot bypasses the field sanitizer and keeps an invalid field', async () => {
+// The field sanitizer runs through `merge`, so it guards every hydrate, not only
+// the version-0 migration: a snapshot already stamped version 1 is coerced too.
+test('a same-version snapshot with an invalid field is coerced back to a valid one', async () => {
   seedStorage({ currentField: 'not-a-field', groups: [] }, 1);
 
   await useFourFieldsStore.persist.rehydrate();
 
-  assert.equal(state().currentField as string, 'not-a-field');
+  assert.equal(state().currentField, 'entry');
 });
 
-// Same story for group shapes: there is no group sanitizer at all, so a
-// half-written group survives hydration and only fails when something reads its
-// members. QUESTION for review — other stores run persistedStateSanitizers here.
-test('a malformed persisted group hydrates unchecked and only fails when read', async () => {
+// A half-written group (no members list) used to survive hydration and throw a
+// TypeError from the join tap, a fatal crash in a release build.
+test('a malformed persisted group hydrates with an empty member list and can be joined', async () => {
   seedStorage(
     { groups: [{ id: 'broken', name: 'Broken', joinCode: 'ABC234' }], activeGroupId: 'broken' },
     1
@@ -619,8 +615,8 @@ test('a malformed persisted group hydrates unchecked and only fails when read', 
 
   await useFourFieldsStore.persist.rehydrate();
 
-  assert.equal(state().groups.length, 1);
-  assert.throws(() => state().joinGroup('ABC234', 'user-2', 'Bo'), { name: 'TypeError' });
+  assert.deepEqual(state().groups[0]?.members, []);
+  assert.equal(state().joinGroup('ABC234', 'user-2', 'Bo'), true);
 });
 
 // ---------------------------------------------------------------------------

@@ -158,6 +158,10 @@ const resolveReadingPosition = (
   };
 };
 
+/**
+ * The server applies the same rules atomically in merge_user_progress
+ * (migration 20260924041000); keep the two in step.
+ */
 export const mergeReadingSnapshot = (
   localState: LocalReadingSnapshot,
   remoteData: RemoteUserProgress | null
