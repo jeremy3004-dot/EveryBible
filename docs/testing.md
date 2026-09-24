@@ -341,6 +341,11 @@ Things that trip people up:
   `scrollTo`, `focus`, ... made through a host element's ref land in
   `harness.refCalls` as `{ type, method, args, props }` (cleared after each test), so
   assert what a component asked the native view to do.
+- **Render counts are recorded.** Every fake primitive logs each render, so
+  `const mark = harness.renders.mark()` followed by
+  `harness.renders.count(mark, 'Text', (props) => renderedText(props.children) === '0:36')`
+  says how far an update reached. A memoised subtree that bailed out adds
+  nothing. `TranslationPickerList.render.test.tsx` ("Re-render reach during downloads") is the reference use.
 - **A large screen gets a shared fixture.** `BibleReaderScreen` reaches most of
   the app; `screens/bible/BibleReaderScreen.renderFixture.tsx` installs its fakes
   once and is shared by the `BibleReaderScreen.*.render.test.tsx` files. Its

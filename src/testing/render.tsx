@@ -42,7 +42,9 @@ import { mockBarrel, mockModule, mockPackage, sourcePath } from './mockModules';
 import {
   createHostNodeMock,
   createReactNativeRenderStub,
+  hostRenderLog,
   type HostRefCall,
+  type HostRender,
   type ReactNativeRenderStub,
 } from './reactNativeHost';
 import {
@@ -70,7 +72,7 @@ import {
   type Queries,
 } from './renderQueries';
 
-export { flattenStyle, type HostRefCall } from './reactNativeHost';
+export { flattenStyle, type HostRefCall, type HostRender } from './reactNativeHost';
 export {
   accessibilityLabelOf,
   debugTree,
@@ -253,6 +255,50 @@ function createTestI18n(): I18nInstance {
   return instance;
 }
 
+/** The text an element renders, read from its `children` before React mounts them. */
+export function renderedText(children: unknown): string {
+  if (children == null || typeof children === 'boolean') return '';
+  if (typeof children === 'string' || typeof children === 'number') return String(children);
+  if (Array.isArray(children)) return children.map(renderedText).join('');
+  if (typeof children === 'object' && 'props' in children) {
+    return renderedText((children as { props: { children?: unknown } }).props.children);
+  }
+  return '';
+}
+
+/**
+ * Counts renders of the fake primitives (`View`, `Text`, `Pressable`, `FlatList`, ...).
+ * A primitive renders again only when the component that owns it re-renders,
+ * so the count shows which parts of a screen an update reached.
+ *
+ *   const since = harness.renders.mark();
+ *   await setAudio({ currentPosition: 36_000 });
+ *   assert.equal(harness.renders.count(since, 'Text', (p) => renderedText(p.children) === '0:36'), 1);
+ */
+export interface RenderCounter {
+  /** A position in the log to count from. */
+  mark: () => number;
+  /** Renders since `mark`, optionally of one host type and matching `predicate`. */
+  count: (
+    mark: number,
+    type?: string,
+    predicate?: (props: HostRender['props']) => boolean
+  ) => number;
+  /** The renders since `mark`, for a failure message or a custom tally. */
+  since: (mark: number) => HostRender[];
+}
+
+const renderCounter: RenderCounter = {
+  mark: () => hostRenderLog.length,
+  since: (mark) => hostRenderLog.slice(mark),
+  count: (mark, type, predicate) =>
+    hostRenderLog
+      .slice(mark)
+      .filter(
+        (entry) => (type === undefined || entry.type === type) && (predicate?.(entry.props) ?? true)
+      ).length,
+};
+
 export interface RenderHarness {
   rn: ReactNativeRenderStub;
   i18n: I18nInstance;
@@ -273,6 +319,8 @@ export interface RenderHarness {
    * to 1 after each test.
    */
   setFontScale: (value: number) => void;
+  /** Render counts of the fake primitives. Cleared after each test. */
+  renders: RenderCounter;
   render: (element: ReactElement, options?: RenderOptions) => Promise<RenderResult>;
 }
 
@@ -342,6 +390,7 @@ export function installRenderHarness(
     rn.__recorded.alerts.length = 0;
     rn.__recorded.announcements.length = 0;
     rn.__recorded.shares.length = 0;
+    hostRenderLog.length = 0;
     authStore.setState(authStore.getInitialState(), true);
   });
 
@@ -424,6 +473,7 @@ export function installRenderHarness(
     setFontScale: (value) => {
       text.fontScale = value;
     },
+    renders: renderCounter,
     render,
   };
 }
