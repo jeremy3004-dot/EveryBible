@@ -1,7 +1,7 @@
-// Hermes (Android and iOS) implements only Intl.Collator, Intl.DateTimeFormat and
-// Intl.NumberFormat. Without Intl.PluralRules, i18next quietly falls back to an
-// English-style rule (1 → "one", everything else → "other"), so Russian and Arabic
-// show the wrong plural form on device ("5 дня" instead of "5 дней") while every
+// Hermes 0.81.5 (checked on Android; iOS unverified) implements only Intl.Collator,
+// Intl.DateTimeFormat and Intl.NumberFormat. Without Intl.PluralRules, i18next quietly
+// falls back to an English-style rule (1 → "one", everything else → "other"), so Russian
+// and Arabic show the wrong plural form on device ("5 дня" instead of "5 дней") while every
 // Node test, which has full ICU, passes.
 //
 // This covers CLDR cardinal rules for the interface languages the app ships
