@@ -3,20 +3,16 @@ import { BookIcon } from '../../components/bible/BookIcon';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   AppState,
   BackHandler,
   FlatList,
   LayoutAnimation,
-  ImageBackground,
   InteractionManager,
-  Modal,
   Platform,
   Pressable,
   ScrollView,
   Share,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
@@ -35,7 +31,6 @@ import Animated, {
   SlideOutDown,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -51,7 +46,6 @@ import { config } from '../../constants/config';
 import { useTheme, type ThemeMode } from '../../contexts/ThemeContext';
 import { layout, spacing, typography } from '../../design/system';
 import { getReadingFontFamily } from '../../design/fonts';
-import { readerThemePreviews } from '../../design/readerThemePreviews';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { buildTabBarCapsuleStyle } from '../../navigation/tabBarCapsuleStyle';
 import { useReaderChromeOwner, useReaderChromeProgress } from '../../stores/readerChromeStore';
@@ -109,7 +103,6 @@ import { useFontSize } from '../../hooks/useFontSize';
 import { useLargeText } from '../../hooks/useLargeText';
 import { useShallow } from 'zustand/react/shallow';
 import { lightHaptic, selectionHaptic } from '../../utils/haptics';
-import { hexWithAlpha } from '../../utils/color';
 import { announceForAccessibility } from '../../utils/a11y';
 import { ReaderPlaybackDock } from '../../components/audio/ReaderPlaybackDock';
 import {
@@ -183,16 +176,20 @@ import {
   planReaderNoteSave,
   type ReaderAnnotationEdits,
 } from './readerAnnotationEdits';
-import { TranslationPickerList } from './TranslationPickerList';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
 import {
+  AudioOptionsSheet,
   AudioPortionShareSheet,
+  ChapterActionsSheet,
   ChapterAudioShareLoadingOverlay,
   ChapterAudioShareSheet,
   ChapterFeedbackModal,
+  FollowAlongTextSheet,
   ListenFeedbackComposer,
+  ReaderFontSheet,
   ReaderParagraphBlock,
-  VerseImageSharePreview,
+  ReaderTranslationSheet,
+  VerseImageShareSheet,
   TOP_ACTION_HIT_SLOP,
   TOP_ACTION_ICON_SIZE,
   READER_REFERENCE_PILL_MAX_FONT_SCALE,
@@ -3619,84 +3616,28 @@ export function BibleReaderScreen() {
       {showPremiumReadMode ? renderPremiumReadLayout() : renderLegacyReaderLayout()}
       {renderPlanSessionBottomBar()}
 
-      <Modal
-        visible={showAudioOptionsSheet}
-        transparent
-        statusBarTranslucent
-        navigationBarTranslucent
-        animationType="fade"
-        onRequestClose={() => setShowAudioOptionsSheet(false)}
-      >
-        <TouchableOpacity
-          style={[
-            styles.audioShareBackdrop,
-            {
-              backgroundColor: colors.overlay,
-              paddingBottom: Math.max(safeInsets.bottom, 12) + spacing.md,
-            },
-          ]}
-          activeOpacity={1}
-          onPress={() => setShowAudioOptionsSheet(false)}
-          // Left accessible, this wrapping backdrop folds the whole sheet into one
-          // VoiceOver element whose only action is dismiss.
-          accessible={false}
-        >
-          <View
-            accessibilityViewIsModal
-            onAccessibilityEscape={() => setShowAudioOptionsSheet(false)}
-            style={[
-              styles.audioOptionsSheet,
-              {
-                backgroundColor: colors.bibleSurface,
-                borderColor: colors.bibleDivider,
-              },
-            ]}
-          >
-            <View style={styles.audioOptionsHeader}>
-              <View style={styles.audioOptionsTitleRow}>
-                <Ionicons name="volume-medium-outline" size={18} color={colors.biblePrimaryText} />
-                <Text
-                  accessibilityRole="header"
-                  style={[styles.audioOptionsTitle, { color: colors.biblePrimaryText }]}
-                >
-                  {t('audio.nowPlaying')}
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={styles.sheetCloseButton}
-                hitSlop={6}
-                onPress={() => setShowAudioOptionsSheet(false)}
-                accessibilityRole="button"
-                accessibilityLabel={t('interface.close')}
-              >
-                <Ionicons name="close" size={18} color={colors.bibleSecondaryText} />
-              </TouchableOpacity>
-            </View>
-
-            <PlaybackControls
-              variant="utilities-only"
-              status={isCurrentAudioChapter ? status : 'idle'}
-              playbackRate={playbackRate}
-              repeatMode={repeatMode}
-              sleepTimerRemaining={sleepTimerRemaining}
-              backgroundMusicChoice={backgroundMusicChoice}
-              hasPreviousChapter={hasPrevChapter}
-              hasNextChapter={hasNextChapter}
-              onPlayPause={handlePlayDisplayedChapter}
-              showChapterNavigation={false}
-              onPreviousChapter={() => void handlePreviousListenChapter()}
-              onNextChapter={() => void handleNextListenChapter()}
-              onSkipBackward={() => void skipBackward()}
-              onSkipForward={() => void skipForward()}
-              onChangePlaybackRate={changePlaybackRate}
-              onCycleRepeatMode={cycleRepeatMode}
-              onSetSleepTimer={startSleepTimer}
-              onChangeBackgroundMusicChoice={changeBackgroundMusicChoice}
-              onShareAudio={handleOpenChapterAudioShareSheet}
-            />
-          </View>
-        </TouchableOpacity>
-      </Modal>
+      <AudioOptionsSheet
+        backgroundMusicChoice={backgroundMusicChoice}
+        changeBackgroundMusicChoice={changeBackgroundMusicChoice}
+        changePlaybackRate={changePlaybackRate}
+        cycleRepeatMode={cycleRepeatMode}
+        handleNextListenChapter={handleNextListenChapter}
+        handleOpenChapterAudioShareSheet={handleOpenChapterAudioShareSheet}
+        handlePlayDisplayedChapter={handlePlayDisplayedChapter}
+        handlePreviousListenChapter={handlePreviousListenChapter}
+        hasNextChapter={hasNextChapter}
+        hasPrevChapter={hasPrevChapter}
+        isCurrentAudioChapter={isCurrentAudioChapter}
+        playbackRate={playbackRate}
+        repeatMode={repeatMode}
+        setShowAudioOptionsSheet={setShowAudioOptionsSheet}
+        showAudioOptionsSheet={showAudioOptionsSheet}
+        skipBackward={skipBackward}
+        skipForward={skipForward}
+        sleepTimerRemaining={sleepTimerRemaining}
+        startSleepTimer={startSleepTimer}
+        status={status}
+      />
 
       {chapterSessionMode === 'read' ? (
         <View
@@ -3711,347 +3652,41 @@ export function BibleReaderScreen() {
         />
       ) : null}
 
-      {showFontSizeSheet && canAdjustFontSize ? (
-        <Modal
-          visible={showFontSizeSheet && canAdjustFontSize}
-          transparent
-          statusBarTranslucent
-          navigationBarTranslucent
-          animationType="fade"
-          onRequestClose={handleCloseFontSizeSheet}
-        >
-          <View style={[styles.fontSheetOverlay, { backgroundColor: colors.overlay }]}>
-            <TouchableOpacity
-              style={styles.fontSheetBackdrop}
-              activeOpacity={1}
-              accessibilityRole="button"
-              accessibilityLabel={t('interface.close')}
-              onPress={handleCloseFontSizeSheet}
-            />
-            <View
-              style={[
-                styles.fontSheet,
-                {
-                  backgroundColor: colors.bibleSurface,
-                  borderColor: colors.bibleDivider,
-                  paddingBottom: safeInsets.bottom + spacing.lg,
-                },
-              ]}
-            >
-              <View
-                style={[
-                  styles.fontSheetHandle,
-                  { backgroundColor: colors.bibleSecondaryText + '55' },
-                ]}
-              />
-              <Text
-                accessibilityRole="header"
-                style={[styles.fontSheetTitle, { color: colors.biblePrimaryText }]}
-              >
-                {t('bible.fontsAndSettings')}
-              </Text>
-              <View
-                style={[styles.readerFontPreview, { backgroundColor: colors.bibleElevatedSurface }]}
-                accessibilityElementsHidden
-                importantForAccessibility="no-hide-descendants"
-              >
-                <Text
-                  maxFontSizeMultiplier={1.4}
-                  style={[
-                    styles.readerFontPreviewSpecimen,
-                    {
-                      color: colors.biblePrimaryText,
-                      fontFamily: readingFontFamily,
-                      fontSize: scaleValue(typography.readingBody.fontSize) * 1.7,
-                      lineHeight: scaleValue(typography.readingBody.lineHeight) * 1.7,
-                    },
-                  ]}
-                >
-                  Aa
-                </Text>
-              </View>
-              <View style={styles.readerFontStepperRow}>
-                <TouchableOpacity
-                  style={[
-                    styles.readerFontStepperButton,
-                    { backgroundColor: colors.bibleElevatedSurface },
-                    !canDecrease && styles.readerFontStepperDisabled,
-                  ]}
-                  onPress={decrease}
-                  disabled={!canDecrease}
-                  activeOpacity={0.82}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('learn.decreaseTextSize')}
-                >
-                  <Text
-                    style={[
-                      styles.readerFontStepperText,
-                      styles.readerFontStepperSmallText,
-                      {
-                        color: canDecrease
-                          ? colors.biblePrimaryText
-                          : colors.bibleSecondaryText + '88',
-                      },
-                    ]}
-                  >
-                    A
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.readerFontStepperButton,
-                    styles.readerFontStepperButtonLarge,
-                    { backgroundColor: colors.bibleElevatedSurface },
-                    !canIncrease && styles.readerFontStepperDisabled,
-                  ]}
-                  onPress={increase}
-                  disabled={!canIncrease}
-                  activeOpacity={0.82}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('learn.increaseTextSize')}
-                >
-                  <Text
-                    style={[
-                      styles.readerFontStepperText,
-                      styles.readerFontStepperLargeText,
-                      {
-                        color: canIncrease
-                          ? colors.biblePrimaryText
-                          : colors.bibleSecondaryText + '88',
-                      },
-                    ]}
-                  >
-                    A
-                  </Text>
-                </TouchableOpacity>
-              </View>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.readerThemeModeRail}
-              >
-                {readerThemePreviews.map((option) => {
-                  const isActive = themeMode === option.mode;
-                  return (
-                    <View key={option.mode} style={styles.readerThemeTileColumn}>
-                      <TouchableOpacity
-                        style={[
-                          styles.readerThemeTile,
-                          {
-                            borderColor: isActive ? colors.accentPrimary : colors.bibleDivider,
-                          },
-                        ]}
-                        accessibilityRole="button"
-                        accessibilityLabel={t(option.labelKey)}
-                        accessibilityState={{ selected: isActive }}
-                        onPress={() => handleReaderThemeChange(option.mode)}
-                        activeOpacity={0.85}
-                      >
-                        <LinearGradient
-                          colors={option.background}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 1 }}
-                          style={StyleSheet.absoluteFill}
-                        />
-                        <View
-                          style={[
-                            styles.readerThemePaper,
-                            {
-                              backgroundColor: option.paper,
-                              borderColor: hexWithAlpha(option.line, 0.14),
-                            },
-                          ]}
-                        >
-                          <View style={styles.readerThemeLineStack}>
-                            <View
-                              style={[styles.readerThemeLine, { backgroundColor: option.line }]}
-                            />
-                            <View
-                              style={[
-                                styles.readerThemeLine,
-                                styles.readerThemeLineMedium,
-                                { backgroundColor: option.line },
-                              ]}
-                            />
-                            <View
-                              style={[
-                                styles.readerThemeLine,
-                                styles.readerThemeLineShort,
-                                { backgroundColor: option.line },
-                              ]}
-                            />
-                          </View>
-                        </View>
-                        <View
-                          style={[
-                            styles.readerThemeCheckCircle,
-                            {
-                              borderColor: isActive ? colors.accentPrimary : colors.bibleDivider,
-                              backgroundColor: isActive ? colors.accentPrimary : 'transparent',
-                            },
-                          ]}
-                        >
-                          {isActive ? (
-                            <Ionicons name="checkmark" size={18} color={colors.onAccent} />
-                          ) : null}
-                        </View>
-                      </TouchableOpacity>
-                      <Text
-                        // Duplicates the tile's own label for sighted users only.
-                        accessibilityElementsHidden
-                        importantForAccessibility="no"
-                        style={[
-                          styles.readerThemeTileLabel,
-                          { color: isActive ? colors.accentPrimary : colors.bibleSecondaryText },
-                        ]}
-                        // Two lines: longer languages cut the theme name under a 128pt tile.
-                        numberOfLines={2}
-                      >
-                        {t(option.labelKey)}
-                      </Text>
-                    </View>
-                  );
-                })}
-              </ScrollView>
-              <TouchableOpacity
-                style={styles.readerAllSettingsButton}
-                onPress={handleOpenAllSettings}
-                activeOpacity={0.82}
-                accessibilityRole="button"
-              >
-                <Text style={[styles.readerAllSettingsLabel, { color: colors.biblePrimaryText }]}>
-                  {t('bible.allSettings')}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-      ) : null}
+      <ReaderFontSheet
+        canAdjustFontSize={canAdjustFontSize}
+        canDecrease={canDecrease}
+        canIncrease={canIncrease}
+        decrease={decrease}
+        handleCloseFontSizeSheet={handleCloseFontSizeSheet}
+        handleOpenAllSettings={handleOpenAllSettings}
+        handleReaderThemeChange={handleReaderThemeChange}
+        increase={increase}
+        readingFontFamily={readingFontFamily}
+        scaleValue={scaleValue}
+        showFontSizeSheet={showFontSizeSheet}
+        themeMode={themeMode}
+      />
 
-      <Modal
-        visible={showChapterActionsSheet}
-        transparent
-        statusBarTranslucent
-        navigationBarTranslucent
-        animationType="fade"
-        onRequestClose={() => setShowChapterActionsSheet(false)}
-      >
-        <TouchableOpacity
-          style={[
-            styles.modalBackdropFill,
-            { backgroundColor: colors.overlay, paddingTop: safeInsets.top + spacing.xxl },
-          ]}
-          activeOpacity={1}
-          onPress={() => setShowChapterActionsSheet(false)}
-          // Left accessible, this wrapping backdrop folds the whole sheet into one
-          // VoiceOver element whose only action is dismiss.
-          accessible={false}
-        >
-          <View
-            accessibilityViewIsModal
-            onAccessibilityEscape={() => setShowChapterActionsSheet(false)}
-            style={[
-              styles.actionSheet,
-              {
-                backgroundColor: colors.bibleSurface,
-                borderColor: colors.bibleDivider,
-              },
-            ]}
-          >
-            <Text
-              accessibilityRole="header"
-              style={[styles.actionSheetTitle, { color: colors.biblePrimaryText }]}
-            >
-              {getTranslatedBookName(bookId, t)} {chapter}
-            </Text>
-
-            {[
-              ...(chapterFeedbackEnabled && !showInlineChapterFeedbackComposer
-                ? [
-                    {
-                      key: 'chapter-feedback',
-                      icon: 'checkmark-circle-outline',
-                      label: t('bible.chapterFeedback'),
-                      onPress: handleOpenChapterFeedback,
-                    },
-                  ]
-                : []),
-              ...(canAdjustFontSize
-                ? [
-                    {
-                      key: 'font-size',
-                      icon: 'text-outline',
-                      label: t('bible.readerFontsAndSettings'),
-                      onPress: handleOpenFontSizeOptions,
-                    },
-                  ]
-                : []),
-              ...(canShowTranslationSheet
-                ? [
-                    {
-                      key: 'translation',
-                      icon: 'book-outline',
-                      label: t('bible.selectTranslation'),
-                      onPress: handleOpenTranslationOptions,
-                    },
-                  ]
-                : []),
-              {
-                key: 'favorite',
-                icon: isFavorite ? 'heart' : 'heart-outline',
-                label: isFavorite ? t('bible.removeFromFavorites') : t('bible.addToFavorites'),
-                onPress: handleToggleFavorite,
-              },
-              {
-                key: 'playlist',
-                icon: 'list-outline',
-                label: t('bible.addToSavedPlaylist'),
-                onPress: handleAddToPlaylist,
-              },
-              {
-                key: 'queue',
-                icon: 'play-forward-outline',
-                label: t('bible.addToQueue'),
-                onPress: handleAddToQueue,
-              },
-              {
-                key: 'download',
-                icon: 'download-outline',
-                label: t('bible.downloadBookAudio'),
-                onPress: handleDownloadCurrentBookAudio,
-              },
-              {
-                key: 'share-audio',
-                icon: 'musical-notes-outline',
-                label: t('bible.shareChapterAudio'),
-                onPress: handleOpenChapterAudioShareSheet,
-              },
-              {
-                key: 'share',
-                icon: 'share-social-outline',
-                label: t('bible.shareChapterReference'),
-                onPress: () => {
-                  void handleShareChapter();
-                },
-              },
-            ].map((action) => (
-              <TouchableOpacity
-                key={action.key}
-                style={[styles.actionRow, { borderColor: colors.bibleDivider }]}
-                onPress={action.onPress}
-                activeOpacity={0.85}
-                accessibilityRole="button"
-                accessibilityLabel={action.label}
-              >
-                <Ionicons name={action.icon as never} size={20} color={colors.biblePrimaryText} />
-                <Text style={[styles.actionLabel, { color: colors.biblePrimaryText }]}>
-                  {action.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </TouchableOpacity>
-      </Modal>
+      <ChapterActionsSheet
+        bookId={bookId}
+        canAdjustFontSize={canAdjustFontSize}
+        canShowTranslationSheet={canShowTranslationSheet}
+        chapter={chapter}
+        chapterFeedbackEnabled={chapterFeedbackEnabled}
+        handleAddToPlaylist={handleAddToPlaylist}
+        handleAddToQueue={handleAddToQueue}
+        handleDownloadCurrentBookAudio={handleDownloadCurrentBookAudio}
+        handleOpenChapterAudioShareSheet={handleOpenChapterAudioShareSheet}
+        handleOpenChapterFeedback={handleOpenChapterFeedback}
+        handleOpenFontSizeOptions={handleOpenFontSizeOptions}
+        handleOpenTranslationOptions={handleOpenTranslationOptions}
+        handleShareChapter={handleShareChapter}
+        handleToggleFavorite={handleToggleFavorite}
+        isFavorite={isFavorite}
+        setShowChapterActionsSheet={setShowChapterActionsSheet}
+        showChapterActionsSheet={showChapterActionsSheet}
+        showInlineChapterFeedbackComposer={showInlineChapterFeedbackComposer}
+      />
 
       <ChapterFeedbackModal feedback={feedback} bookId={bookId} chapter={chapter} />
 
@@ -4085,152 +3720,25 @@ export function BibleReaderScreen() {
         pendingChapterAudioShareAction={pendingChapterAudioShareAction}
       />
 
-      {canShowTranslationSheet ? (
-        <Modal
-          visible={showTranslationSheet}
-          transparent
-          statusBarTranslucent
-          navigationBarTranslucent
-          animationType="slide"
-          onRequestClose={handleCloseTranslationSheet}
-        >
-          <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
-            <TouchableOpacity
-              style={styles.modalBackdrop}
-              activeOpacity={1}
-              accessible={false}
-              importantForAccessibility="no-hide-descendants"
-              onPress={handleCloseTranslationSheet}
-            />
-            <View
-              style={[
-                styles.modalContent,
-                { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
-              ]}
-            >
-              <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: colors.biblePrimaryText }]}>
-                  {t('bible.selectTranslation')}
-                </Text>
-                <TouchableOpacity
-                  onPress={handleCloseTranslationSheet}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('interface.close')}
-                >
-                  <Ionicons name="close" size={22} color={colors.bibleSecondaryText} />
-                </TouchableOpacity>
-              </View>
-              <TranslationPickerList
-                onRequestClose={handleCloseTranslationSheet}
-                onTranslationActivated={handleTranslationActivated}
-              />
-            </View>
-          </View>
-        </Modal>
-      ) : null}
+      <ReaderTranslationSheet
+        canShowTranslationSheet={canShowTranslationSheet}
+        handleCloseTranslationSheet={handleCloseTranslationSheet}
+        handleTranslationActivated={handleTranslationActivated}
+        showTranslationSheet={showTranslationSheet}
+      />
 
-      <Modal
-        visible={showFollowAlongText}
-        transparent
-        statusBarTranslucent
-        navigationBarTranslucent
-        animationType="none"
-        onRequestClose={() => setShowFollowAlongText(false)}
-      >
-        <Animated.View
-          entering={SlideInDown.springify().damping(20).stiffness(200)}
-          exiting={SlideOutDown.duration(250)}
-          style={[styles.followAlongContainer, { backgroundColor: colors.bibleBackground }]}
-        >
-          <View
-            style={[
-              styles.followAlongHeader,
-              {
-                borderBottomColor: colors.bibleDivider,
-                backgroundColor: colors.bibleBackground,
-                paddingTop: safeInsets.top + spacing.md,
-              },
-            ]}
-          >
-            {/* Back to player — left */}
-            <TouchableOpacity
-              style={[
-                styles.followAlongCloseButton,
-                { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
-              ]}
-              onPress={() => setShowFollowAlongText(false)}
-              accessibilityRole="button"
-            >
-              <Ionicons name="chevron-back" size={20} color={colors.biblePrimaryText} />
-              <Text style={[styles.followAlongCloseLabel, { color: colors.biblePrimaryText }]}>
-                {t('bible.backToPlayer')}
-              </Text>
-            </TouchableOpacity>
-
-            {/* Centered title */}
-            <View style={styles.followAlongTitleCenter} pointerEvents="none">
-              <Text style={[styles.followAlongEyebrow, { color: colors.bibleAccent }]}>
-                {translationLabel}
-              </Text>
-              <Text style={[styles.followAlongTitle, { color: colors.biblePrimaryText }]}>
-                {getTranslatedBookName(bookId, t)} {chapter}
-              </Text>
-            </View>
-          </View>
-
-          <ScrollView
-            ref={followAlongScrollViewRef}
-            style={styles.followAlongScrollView}
-            contentContainerStyle={styles.followAlongContent}
-            showsVerticalScrollIndicator={false}
-          >
-            {verses.map((verse) => {
-              const isActive = isShowingRouteChapter && verse.verse === activeFollowAlongVerse;
-
-              return (
-                <View
-                  key={verse.id}
-                  style={[styles.followAlongVerseRow]}
-                  onLayout={(event) => {
-                    followAlongOffsetsRef.current[verse.verse] = event.nativeEvent.layout.y;
-                  }}
-                >
-                  <View
-                    style={[
-                      styles.followAlongVerseIndicator,
-                      {
-                        backgroundColor: isActive ? colors.bibleAccent : 'transparent',
-                      },
-                    ]}
-                  />
-                  <View style={styles.followAlongVerseContent}>
-                    {verse.heading ? (
-                      <Text
-                        style={[styles.followAlongHeading, { color: colors.bibleSecondaryText }]}
-                      >
-                        {verse.heading}
-                      </Text>
-                    ) : null}
-                    <Text
-                      style={[
-                        styles.followAlongVerseText,
-                        {
-                          color: isActive ? colors.biblePrimaryText : colors.bibleSecondaryText,
-                        },
-                      ]}
-                    >
-                      <Text style={[styles.followAlongVerseNumber, { color: colors.bibleAccent }]}>
-                        {verse.verse}{' '}
-                      </Text>
-                      {verse.text}
-                    </Text>
-                  </View>
-                </View>
-              );
-            })}
-          </ScrollView>
-        </Animated.View>
-      </Modal>
+      <FollowAlongTextSheet
+        activeFollowAlongVerse={activeFollowAlongVerse}
+        bookId={bookId}
+        chapter={chapter}
+        followAlongOffsetsRef={followAlongOffsetsRef}
+        followAlongScrollViewRef={followAlongScrollViewRef}
+        isShowingRouteChapter={isShowingRouteChapter}
+        setShowFollowAlongText={setShowFollowAlongText}
+        showFollowAlongText={showFollowAlongText}
+        translationLabel={translationLabel}
+        verses={verses}
+      />
 
       <AnnotationActionSheet
         visible={selectedVerses.length > 0}
@@ -4257,180 +3765,19 @@ export function BibleReaderScreen() {
         existingNote={selectedNoteAnnotation?.content ?? undefined}
       />
 
-      <Modal
-        visible={showVerseImageSheet}
-        transparent
-        statusBarTranslucent
-        navigationBarTranslucent
-        animationType="fade"
-        onRequestClose={() => setShowVerseImageSheet(false)}
-      >
-        <View style={[styles.verseImageSheetOverlay, { backgroundColor: colors.overlay }]}>
-          <TouchableOpacity
-            style={styles.verseImageSheetBackdrop}
-            activeOpacity={1}
-            accessible={false}
-            importantForAccessibility="no-hide-descendants"
-            onPress={() => setShowVerseImageSheet(false)}
-          />
-          <View
-            style={[
-              styles.verseImageSheetCard,
-              {
-                backgroundColor: colors.bibleSurface,
-                borderColor: colors.bibleDivider,
-              },
-            ]}
-          >
-            <View style={styles.verseImageSheetHeader}>
-              <View style={styles.verseImageSheetHeaderCopy}>
-                <Text
-                  accessibilityRole="header"
-                  style={[styles.verseImageSheetTitle, { color: colors.biblePrimaryText }]}
-                >
-                  {t('bible.chooseVerseImageBackground')}
-                </Text>
-                <Text
-                  style={[styles.verseImageSheetReference, { color: colors.bibleSecondaryText }]}
-                  numberOfLines={2}
-                >
-                  {selectedVerseReferenceLabel}
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={[
-                  styles.verseImageSheetCloseButton,
-                  {
-                    backgroundColor: colors.bibleElevatedSurface,
-                    borderColor: colors.bibleDivider,
-                  },
-                ]}
-                activeOpacity={0.88}
-                accessibilityRole="button"
-                accessibilityLabel={t('interface.close')}
-                onPress={() => setShowVerseImageSheet(false)}
-              >
-                <Ionicons name="close" size={18} color={colors.bibleSecondaryText} />
-              </TouchableOpacity>
-            </View>
-
-            <VerseImageSharePreview
-              previewRef={verseImageSharePreviewRef}
-              backgroundSource={selectedVerseImageBackground}
-              referenceLabel={selectedVerseReferenceLabel}
-              selectedText={selectedVerseText}
-            />
-
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.verseImageBackgroundRail}
-            >
-              {SHARE_VERSE_BACKGROUND_SOURCES.map((backgroundSource, index) => {
-                const isSelected =
-                  verseImageBackgroundCount > 0 &&
-                  index === selectedVerseImageBackgroundIndex % verseImageBackgroundCount;
-
-                return (
-                  <Pressable
-                    key={`${index}`}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: isSelected }}
-                    accessibilityLabel={`${t('bible.chooseVerseImageBackground')} ${index + 1}`}
-                    hitSlop={8}
-                    style={({ pressed }) => [
-                      styles.verseImageBackgroundButton,
-                      {
-                        opacity: pressed ? 0.92 : 1,
-                        borderColor: isSelected ? colors.accentGreen : colors.bibleDivider,
-                      },
-                    ]}
-                    onPress={() => {
-                      handleSelectVerseImageBackground(index);
-                    }}
-                  >
-                    <ImageBackground
-                      source={backgroundSource}
-                      style={styles.verseImageBackgroundTile}
-                      imageStyle={styles.verseImageBackgroundTileImage}
-                      resizeMode="cover"
-                    >
-                      <LinearGradient
-                        pointerEvents="none"
-                        colors={['rgba(12, 11, 9, 0.04)', 'rgba(12, 11, 9, 0.48)']}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 0, y: 1 }}
-                        style={StyleSheet.absoluteFillObject}
-                      />
-                      {isSelected ? (
-                        <View
-                          style={[
-                            styles.verseImageBackgroundSelectedBadge,
-                            { backgroundColor: colors.accentGreen },
-                          ]}
-                        >
-                          <Ionicons name="checkmark" size={13} color={colors.bibleBackground} />
-                        </View>
-                      ) : null}
-                    </ImageBackground>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-
-            <View style={styles.verseImageSheetActions}>
-              <TouchableOpacity
-                style={[
-                  styles.verseImageSheetActionButton,
-                  {
-                    backgroundColor: colors.bibleElevatedSurface,
-                    borderColor: colors.bibleDivider,
-                  },
-                ]}
-                activeOpacity={0.88}
-                onPress={() => setShowVerseImageSheet(false)}
-                accessibilityRole="button"
-              >
-                <Text
-                  style={[styles.verseImageSheetActionText, { color: colors.biblePrimaryText }]}
-                >
-                  {t('common.cancel')}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.verseImageSheetActionButton,
-                  styles.verseImageSheetShareButton,
-                  {
-                    backgroundColor: colors.accentPrimary,
-                    borderColor: colors.accentPrimary,
-                  },
-                ]}
-                activeOpacity={0.88}
-                onPress={() => {
-                  void handleShareSelectedVerseImage();
-                }}
-                disabled={isSharingVerseImage}
-                accessibilityRole="button"
-                // The label text is swapped for a spinner while sharing.
-                accessibilityLabel={t('groups.share')}
-                accessibilityState={{ disabled: isSharingVerseImage, busy: isSharingVerseImage }}
-              >
-                {isSharingVerseImage ? (
-                  <ActivityIndicator size="small" color={colors.bibleBackground} />
-                ) : (
-                  <Text
-                    style={[styles.verseImageSheetActionText, { color: colors.bibleBackground }]}
-                  >
-                    {t('groups.share')}
-                  </Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <VerseImageShareSheet
+        handleSelectVerseImageBackground={handleSelectVerseImageBackground}
+        handleShareSelectedVerseImage={handleShareSelectedVerseImage}
+        isSharingVerseImage={isSharingVerseImage}
+        selectedVerseImageBackground={selectedVerseImageBackground}
+        selectedVerseImageBackgroundIndex={selectedVerseImageBackgroundIndex}
+        selectedVerseReferenceLabel={selectedVerseReferenceLabel}
+        selectedVerseText={selectedVerseText}
+        setShowVerseImageSheet={setShowVerseImageSheet}
+        showVerseImageSheet={showVerseImageSheet}
+        verseImageBackgroundCount={verseImageBackgroundCount}
+        verseImageSharePreviewRef={verseImageSharePreviewRef}
+      />
     </View>
   );
 }
