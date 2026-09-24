@@ -124,6 +124,8 @@ export interface SupabaseAuthHandlers {
   ) => AuthResult<UserSessionData & { redirectType?: string | null }>;
   startAutoRefresh: () => Promise<void>;
   stopAutoRefresh: () => Promise<void>;
+  /** auth-js's local-only session removal (not public API): storage cleared, SIGNED_OUT emitted. */
+  _removeSession: () => Promise<void>;
 }
 
 const FILTER_METHODS = [
@@ -313,6 +315,10 @@ export function createSupabaseFake() {
     },
     startAutoRefresh: async () => undefined,
     stopAutoRefresh: async () => undefined,
+    _removeSession: async () => {
+      fake.auth.setSession(null);
+      emitAuth('SIGNED_OUT', null);
+    },
   };
 
   const defaultAuthHandlers = { ...authHandlers };

@@ -834,6 +834,32 @@ test('signOut surfaces a thrown transport error', async () => {
   assert.deepEqual(await authService.signOut(), { success: false, error: 'offline' });
 });
 
+// auth-js keeps the session on disk when it cannot reach the server to end it
+// (offline, or an expired token it cannot refresh first). Its next token
+// refresh would then sign the reader back in after they had signed out.
+test('signOut ends the session on this device when the server cannot be reached', async () => {
+  supabaseFake.auth.setSession(makeFakeSession({ user: signedInUser() }));
+  authHandlers.signOut = async () => ({
+    error: { name: 'AuthRetryableFetchError', message: 'Failed to fetch', status: 0 },
+  });
+
+  const result = await authService.signOut();
+
+  assert.equal(result.success, false);
+  assert.equal(supabaseFake.auth.session, null);
+});
+
+test('signOut ends the session on this device when the sign-out request throws', async () => {
+  supabaseFake.auth.setSession(makeFakeSession({ user: signedInUser() }));
+  authHandlers.signOut = async () => {
+    throw new Error('offline');
+  };
+
+  await authService.signOut();
+
+  assert.equal(supabaseFake.auth.session, null);
+});
+
 test('signOut reports a generic message when something non-Error is thrown', async () => {
   authHandlers.signOut = async () => {
     throw 'boom';
