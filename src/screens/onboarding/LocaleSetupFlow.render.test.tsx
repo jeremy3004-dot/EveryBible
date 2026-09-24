@@ -176,6 +176,69 @@ test('when the Bible library cannot be reached, a retry card shows above the Bib
   }
 });
 
+// The catalog service catches transport failures and RESOLVES, so "unreachable" usually arrives
+// as a value, not a throw. It must reach the same retry card.
+for (const [label, errorResult] of [
+  ['resolves as not loaded', false],
+  ['resolves with { success: false, error }', { success: false, error: 'offline' }],
+] as const) {
+  test(`a catalog request that ${label} retries once, then shows the retry card over selectable bundled Bibles`, async (context) => {
+    context.mock.timers.enable({ apis: ['setTimeout'] });
+    fakes.catalog.impl = async () => errorResult;
+    const warn = mock.method(console, 'warn', () => {});
+    try {
+      let completed = 0;
+      const view = await fakes.renderFlow({ onComplete: () => completed++ });
+      await view.flush();
+
+      assert.equal(fakes.catalog.loads, 1);
+      assert.equal(view.queryByTestId('onboarding-runtime-catalog-retry'), null);
+      await pause(context.mock.timers, getRuntimeCatalogHydrationPolicy(0).retryDelayMs);
+      await view.flush();
+
+      assert.equal(fakes.catalog.loads, 2, 'one automatic retry after the backoff');
+      assert.ok(view.getByText(t('onboarding.catalogUnavailableTitle')));
+      const retry = view.getByTestId('onboarding-runtime-catalog-retry');
+
+      // Retry makes one attempt; another error result brings the card straight back.
+      await view.press(within(retry).getByRole('button', { name: t('common.retry') }));
+      await view.flush();
+      assert.equal(fakes.catalog.loads, 3, 'Retry loads the catalog again');
+      assert.ok(view.getByTestId('onboarding-runtime-catalog-retry'), 'still unreachable');
+
+      // The Bibles that ship with the app stay selectable under the card.
+      await view.press(view.getByRole('button', { name: /^English, Berean Standard Bible/ }));
+      await fakes.waitForSync();
+      assert.deepEqual(fakes.bibleCalls.at(-1), { method: 'setCurrentTranslation', args: ['bsb'] });
+      assert.equal(completed, 1);
+    } finally {
+      warn.mock.restore();
+    }
+  });
+}
+
+test('Retry after an error result clears the card once the catalog loads', async (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout'] });
+  fakes.catalog.impl = async () => ({ success: false, error: 'offline' });
+  const warn = mock.method(console, 'warn', () => {});
+  try {
+    const view = await fakes.renderFlow();
+    await view.flush();
+    await pause(context.mock.timers, getRuntimeCatalogHydrationPolicy(0).retryDelayMs);
+    await view.flush();
+    const retry = view.getByTestId('onboarding-runtime-catalog-retry');
+
+    fakes.catalog.impl = async () => true;
+    await view.press(within(retry).getByRole('button', { name: t('common.retry') }));
+    await view.flush();
+
+    assert.equal(view.queryByTestId('onboarding-runtime-catalog-retry'), null);
+    assert.equal(view.queryByText(t('onboarding.catalogUnavailableTitle')), null);
+  } finally {
+    warn.mock.restore();
+  }
+});
+
 test('choosing an app language closes the picker and stays on the Bible step even when loading it fails', async () => {
   fakes.changeLanguage.impl = async () => {
     throw new Error('locale bundle missing');

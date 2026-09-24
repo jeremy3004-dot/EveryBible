@@ -4,7 +4,7 @@ import { getUserTranslationPreferences } from './translationService';
 import { resolveRegionalFallbackTranslation } from './regionalTranslationFallback';
 import { refreshRuntimeCatalog, shouldMarkRuntimeCatalogHydrated } from './runtimeCatalogRefresh';
 
-let runtimeCatalogHydrationPromise: Promise<void> | null = null;
+let runtimeCatalogHydrationPromise: Promise<boolean> | null = null;
 let hasHydratedRuntimeCatalogThisLaunch = false;
 
 export function hasRuntimeCatalogTranslations(translations: BibleTranslation[]): boolean {
@@ -30,7 +30,8 @@ function isReadableLocally(translation: {
   return translation.source !== 'runtime' || Boolean(translation.textPackLocalPath);
 }
 
-export async function bootstrapRuntimeTranslations(): Promise<void> {
+/** Resolves true when this launch's catalog refresh produced the rows this build needs. */
+export async function bootstrapRuntimeTranslations(): Promise<boolean> {
   // Shared refresh path (also used by TranslationBrowserScreen): it applies the Supabase
   // catalog and then re-applies the combined [Supabase, EL] list, so neither set prunes the
   // other. When the refresh did not actually produce the rows this build needs, the launch
@@ -40,15 +41,21 @@ export async function bootstrapRuntimeTranslations(): Promise<void> {
   const result = await refreshRuntimeCatalog();
 
   if (!shouldMarkRuntimeCatalogHydrated(result)) {
-    return;
+    return false;
   }
 
   hasHydratedRuntimeCatalogThisLaunch = true;
+  return true;
 }
 
-export async function ensureRuntimeCatalogLoaded(): Promise<void> {
+/**
+ * Resolves false when the catalog could not be loaded (unreachable, an error result or an empty
+ * catalog) rather than throwing: refreshRuntimeCatalog swallows transport errors, so a caller
+ * that must tell the person (onboarding's "can't reach" card) has to check the result.
+ */
+export async function ensureRuntimeCatalogLoaded(): Promise<boolean> {
   if (hasHydratedRuntimeCatalogThisLaunch) {
-    return;
+    return true;
   }
 
   if (!runtimeCatalogHydrationPromise) {
@@ -57,7 +64,7 @@ export async function ensureRuntimeCatalogLoaded(): Promise<void> {
     });
   }
 
-  await runtimeCatalogHydrationPromise;
+  return runtimeCatalogHydrationPromise;
 }
 
 export async function reconcilePrimaryTranslationPreference(): Promise<void> {

@@ -103,7 +103,8 @@ export interface LocaleSetupFlowFakes {
   bibleCalls: Array<{ method: string; args: unknown[] }>;
   /** Replace to make a download fail or hang. */
   download: { impl: (id: string) => Promise<'installed' | 'cancelled'> };
-  catalog: { loads: number; impl: () => Promise<void> };
+  /** Resolve `false` or `{ success: false }` to report a catalog that did not load. */
+  catalog: { loads: number; impl: () => Promise<unknown> };
   changeLanguage: { calls: string[]; impl: (code: string) => Promise<void> };
   sync: { calls: number; next: Promise<void> };
   /**

@@ -248,6 +248,59 @@ test('the automatic retry is skipped once the caller has gone away during the ba
   assert.equal(loads, 1, 'no request after the onboarding screen unmounted');
 });
 
+// ─── A catalog request that resolves with an error ───────────────────────────
+// The catalog service catches transport errors and resolves; a failure that arrives as a value
+// must take the same path as one that throws: one automatic retry, then the retry card.
+
+for (const [label, errorResult] of [
+  ['resolves false (nothing loaded)', false],
+  ['resolves { success: false, error }', { success: false, error: 'offline' }],
+  ['resolves { error }', { error: new Error('offline') }],
+] as const) {
+  test(`a catalog load that ${label} is retried once, then reported as failed`, async () => {
+    const { waits, wait } = recordWaits();
+    let loads = 0;
+
+    const result = await hydrateRuntimeCatalogWithRetry(
+      async () => {
+        loads += 1;
+        return errorResult;
+      },
+      quickPolicy(1),
+      { wait }
+    );
+
+    assert.equal(result, 'failed');
+    assert.equal(loads, 2, 'one automatic retry, exactly like a thrown error');
+    assert.deepEqual(waits, [1_500]);
+  });
+}
+
+test('a catalog error result followed by a real load on the automatic retry counts as loaded', async () => {
+  let loads = 0;
+
+  const result = await hydrateRuntimeCatalogWithRetry(
+    async () => {
+      loads += 1;
+      return loads === 1 ? { success: false, error: 'offline' } : true;
+    },
+    quickPolicy(1),
+    { wait: async () => {} }
+  );
+
+  assert.equal(result, 'loaded');
+  assert.equal(loads, 2);
+});
+
+test('only an explicit failure value fails the wait; true, void and success results load', async () => {
+  for (const value of [true, undefined, { success: true, data: [] }]) {
+    assert.equal(await waitForRuntimeCatalogHydration(async () => value, 20), 'loaded');
+  }
+  for (const value of [false, { success: false }, { success: false, error: 'offline' }]) {
+    assert.equal(await waitForRuntimeCatalogHydration(async () => value, 20), 'failed');
+  }
+});
+
 test('when the Bible catalog cannot be reached, the Bibles shipped in the app stay listed and selectable', () => {
   // Offline first run: hydration fails (or times out), so onboarding lists what the binary
   // ships. Each of these must still finish onboarding without a download.

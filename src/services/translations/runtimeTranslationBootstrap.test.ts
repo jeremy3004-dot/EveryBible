@@ -255,6 +255,24 @@ test('ensureRuntimeCatalogLoaded retries after a refresh that produced no rows',
   );
 });
 
+test('ensureRuntimeCatalogLoaded reports an error or empty catalog result as not loaded', async () => {
+  reset();
+  const { ensureRuntimeCatalogLoaded } = await loadModule();
+
+  // The Supabase fetch RESOLVES with a failure instead of throwing; onboarding must learn the
+  // catalog did not load so it can retry and show the "can't reach the library" card.
+  listResult = async () => ({ success: false, error: 'offline' });
+  assert.equal(await ensureRuntimeCatalogLoaded(), false);
+
+  listResult = async () => ({ success: true, data: [] });
+  assert.equal(await ensureRuntimeCatalogLoaded(), false, 'an empty catalog is not a load');
+
+  listResult = async () => {
+    throw new Error('transport exploded');
+  };
+  assert.equal(await ensureRuntimeCatalogLoaded(), false);
+});
+
 test('a launch with persisted runtime rows still refreshes the catalog once', async () => {
   reset();
   const { ensureRuntimeCatalogLoaded } = await loadModule();
@@ -308,8 +326,8 @@ test('ensureRuntimeCatalogLoaded stops refetching once a launch has hydrated', a
   const { ensureRuntimeCatalogLoaded } = await loadModule();
   listResult = async () => ({ success: true, data: [makeCatalogEntry('web')] });
 
-  await ensureRuntimeCatalogLoaded();
-  await ensureRuntimeCatalogLoaded();
+  assert.equal(await ensureRuntimeCatalogLoaded(), true);
+  assert.equal(await ensureRuntimeCatalogLoaded(), true, 'a latched launch still reports loaded');
   await ensureRuntimeCatalogLoaded();
 
   assert.equal(listCallCount, 1, 'a hydrated launch must not refetch the catalog on every screen');

@@ -36,6 +36,9 @@ export const RUNTIME_CATALOG_AUTOMATIC_RETRY_DELAY_MS = 2_000;
 
 export type RuntimeCatalogHydrationResult = 'loaded' | 'timeout' | 'failed';
 
+/** Resolves `false` or an error result (see isRuntimeCatalogLoadFailure) when nothing loaded. */
+export type RuntimeCatalogLoader = () => Promise<unknown>;
+
 export interface RuntimeCatalogHydrationPolicy {
   timeoutMs: number;
   /** Extra attempts made on their own before onboarding shows the "can't reach" card. */
@@ -64,7 +67,7 @@ const waitMs = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve
  * one, so a slow response keeps counting instead of being thrown away.
  */
 export async function hydrateRuntimeCatalogWithRetry(
-  loadRuntimeCatalog: () => Promise<void>,
+  loadRuntimeCatalog: RuntimeCatalogLoader,
   policy: RuntimeCatalogHydrationPolicy,
   {
     wait = waitMs,
@@ -129,8 +132,25 @@ export function getInitialBibleLanguageListState(mode: SetupMode): InitialBibleL
   };
 }
 
+/**
+ * The catalog service catches transport errors and resolves, so an unreachable library usually
+ * arrives as a value: `false` (ensureRuntimeCatalogLoaded found no usable catalog) or an error
+ * result such as `{ success: false, error }`. Those fail exactly like a throw; anything else
+ * (true, void, a success result) counts as loaded.
+ */
+export function isRuntimeCatalogLoadFailure(value: unknown): boolean {
+  if (value === false) {
+    return true;
+  }
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const result = value as { success?: unknown; error?: unknown };
+  return result.success === false || (result.success === undefined && Boolean(result.error));
+}
+
 export async function waitForRuntimeCatalogHydration(
-  loadRuntimeCatalog: () => Promise<void>,
+  loadRuntimeCatalog: RuntimeCatalogLoader,
   timeoutMs = RUNTIME_CATALOG_HYDRATION_TIMEOUT_MS
 ): Promise<RuntimeCatalogHydrationResult> {
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -138,7 +158,10 @@ export async function waitForRuntimeCatalogHydration(
   try {
     return await Promise.race([
       loadRuntimeCatalog()
-        .then((): RuntimeCatalogHydrationResult => 'loaded')
+        .then(
+          (value): RuntimeCatalogHydrationResult =>
+            isRuntimeCatalogLoadFailure(value) ? 'failed' : 'loaded'
+        )
         .catch((): RuntimeCatalogHydrationResult => 'failed'),
       new Promise<RuntimeCatalogHydrationResult>((resolve) => {
         timeoutId = setTimeout(() => resolve('timeout'), timeoutMs);

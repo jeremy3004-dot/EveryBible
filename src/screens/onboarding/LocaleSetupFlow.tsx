@@ -989,7 +989,8 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     setRuntimeCatalogLoadFailed(false);
 
     // The automatic first load retries once before the "can't reach" card appears; the Bibles
-    // that ship with the app stay selectable the whole time.
+    // that ship with the app stay selectable the whole time. ensureRuntimeCatalogLoaded resolves
+    // false (it does not throw) when the library is unreachable or returns no usable catalog.
     void hydrateRuntimeCatalogWithRetry(
       () => ensureRuntimeCatalogLoaded(),
       getRuntimeCatalogHydrationPolicy(runtimeCatalogHydrationAttempt),

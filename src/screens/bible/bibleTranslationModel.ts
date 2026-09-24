@@ -229,7 +229,7 @@ export const buildTranslationLanguageOptions = (
  * settling load no longer touches picker state.
  */
 export function startRuntimeCatalogHydration(
-  ensureRuntimeCatalogLoaded: () => Promise<void>,
+  ensureRuntimeCatalogLoaded: () => Promise<unknown>,
   setIsHydratingRuntimeCatalog: (isHydrating: boolean) => void
 ): () => void {
   let isMounted = true;
