@@ -4290,7 +4290,7 @@ export function BibleReaderScreen() {
                     styles.listenFeedbackInput,
                     {
                       color: colors.biblePrimaryText,
-                      borderColor: colors.bibleDivider,
+                      borderColor: colors.controlBorder,
                       backgroundColor: colors.bibleElevatedSurface,
                     },
                   ]}
@@ -5697,7 +5697,7 @@ export function BibleReaderScreen() {
                   styles.feedbackCommentInput,
                   {
                     color: colors.biblePrimaryText,
-                    borderColor: colors.bibleDivider,
+                    borderColor: colors.controlBorder,
                     backgroundColor: colors.bibleElevatedSurface,
                   },
                 ]}

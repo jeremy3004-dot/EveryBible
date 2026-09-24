@@ -789,7 +789,7 @@ export function BibleBrowserScreen() {
         <View
           style={[
             styles.searchInputShell,
-            { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
+            { backgroundColor: colors.bibleSurface, borderColor: colors.controlBorder },
           ]}
         >
           <Ionicons name="search" size={18} color={colors.bibleSecondaryText} />

@@ -730,7 +730,7 @@ const createStyles = (colors: ThemeColors) =>
     input: {
       height: FIELD_HEIGHT,
       backgroundColor: colors.cardBackground,
-      borderColor: colors.cardBorder,
+      borderColor: colors.controlBorder,
       borderRadius: radius.md,
       borderWidth: 1,
       color: colors.primaryText,

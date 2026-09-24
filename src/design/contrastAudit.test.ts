@@ -5,6 +5,7 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { APPEARANCE_PALETTES } from '../constants/appearancePalettes';
 import { mockModule, sourcePath } from '../testing/mockModules';
+import { WCAG_AA_TEXT, contrastRatio } from './contrast';
 
 // The base palette hexes come from the real ThemeContext module. It only needs the auth
 // store at render time, so a stub keeps the native store graph out of the runner; it is
@@ -20,7 +21,7 @@ const theme = createRequire(import.meta.url)(
 // version of the Phase 5 contrast pass — asserts the >= 4.5:1 text floor.
 // ---------------------------------------------------------------------------
 
-const AA_TEXT = 4.5;
+const AA_TEXT = WCAG_AA_TEXT;
 const ON_ACCENT_DARK = '#1A140F';
 const ON_ACCENT_LIGHT = '#FFFFFF';
 
@@ -37,21 +38,6 @@ function colorToken(objectName: string, tokenName: string): string {
     `${objectName}.${tokenName} should be a hex colour`
   );
   return value!;
-}
-
-function relativeLuminance(hex: string): number {
-  const channels = hex.replace('#', '').match(/.{2}/g)!;
-  const [r, g, b] = channels.map((pair) => {
-    const channel = parseInt(pair, 16) / 255;
-    return channel <= 0.03928 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4);
-  });
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-
-function contrastRatio(foreground: string, background: string): number {
-  const fg = relativeLuminance(foreground);
-  const bg = relativeLuminance(background);
-  return (Math.max(fg, bg) + 0.05) / (Math.min(fg, bg) + 0.05);
 }
 
 // The EL design system ships two scopes; low-light, parchment and midnight were
@@ -260,19 +246,16 @@ test('the disabled treatment is opacity plus announced state, not colour alone',
   );
 });
 
-// `error` is used as text on cards in a handful of places. Dark cards put it at
-// 4.39:1 — just under AA, and the closest thing to a real regression this audit
-// found outside the tokens above. Locked at its current value so it cannot
-// drift further while a deliberate fix is scheduled.
-test('error text on a dark card is held at its current near-AA value', () => {
+// `error` is used as text on cards in a handful of places. The EL kit's dark
+// --danger was 4.39:1 on a dark card; it is lifted to clear AA, and the solid
+// destructive fill carries `onError` (near-black in dark) rather than white.
+// themeTokenContrast.test.ts asserts every surface; this is the headline pair.
+test('error text on a dark card clears AA', () => {
   const ratio = contrastRatio(
     colorToken('baseDarkColors', 'error'),
     colorToken('baseDarkColors', 'cardBackground')
   );
-  assert.ok(
-    ratio >= 4.35,
-    `dark — error on cardBackground: ${ratio.toFixed(2)}:1 must not drop further`
-  );
+  assert.ok(ratio >= AA_TEXT, `dark — error on cardBackground: ${ratio.toFixed(2)}:1`);
 });
 
 // A selected "Accurate" chip and the rhythm "done" pill used to set `onAccent`

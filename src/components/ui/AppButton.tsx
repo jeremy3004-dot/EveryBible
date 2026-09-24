@@ -121,7 +121,7 @@ export function AppButton({
         : variant === 'secondary' || variant === 'outline'
           ? colors.primaryText
           : variant === 'destructive'
-            ? '#FFFFFF'
+            ? colors.onError
             : colors.accentPrimary;
 
   const borderStyle: ViewStyle =

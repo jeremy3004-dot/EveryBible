@@ -17,8 +17,18 @@ export type { ThemeMode } from '../design/themeMode';
 export interface ThemeColors {
   background: string;
   cardBackground: string;
+  /** Decorative card edge. ~1.5:1 by design — never the only cue for a control. */
   cardBorder: string;
+  /** Hairline separators between rows and sections. Decorative, like `cardBorder`. */
   borderStrong: string;
+  /**
+   * The boundary of anything a reader has to find to operate: text-input and
+   * checkbox outlines, a switch's off track, the selected segment of a
+   * TabSwitch, and ring marks that carry state (future plan-day dots). WCAG
+   * 1.4.11 asks 3:1 against the surface beside it, so this clears 3:1 on
+   * `background`, `cardBackground`, `muted` and every reader surface.
+   */
+  controlBorder: string;
   primaryText: string;
   secondaryText: string;
   textTertiary: string;
@@ -35,6 +45,8 @@ export interface ThemeColors {
   /** EL `--muted`: an inert, un-tinted well — empty ledger cells, segment tracks. */
   muted: string;
   error: string;
+  /** Label colour on a solid `error` fill (destructive buttons, swipe-to-delete). */
+  onError: string;
   success: string;
   /** EL `--success-soft` pair: a status chip fill and its own foreground. */
   successSoft: string;
@@ -119,12 +131,16 @@ const baseDarkColors: ThemeColors = {
   cardBackground: '#201E18', // --card 48 13% 11%
   cardBorder: '#464035', // --card-border 40 14% 24%
   borderStrong: '#3D382E', // --border 40 14% 21%
+  controlBorder: '#7A7363', // 42 10% 43% — 3.11:1 on --popover, 3.54:1 on --card
   primaryText: '#EFEBE1', // --foreground 44 30% 91%
   secondaryText: '#B0A99B', // --muted-foreground 40 12% 65%
   textTertiary: '#9A9384', // --text-faint 40 10% 56%
   ...defaultPaletteColors,
   muted: '#221F19', // --muted 45 10% 10%
-  error: '#E34F5B', // --danger 355 73% 60%
+  // --danger 355 73% 60% (#E34F5B) lifted to 63% lightness: the kit value is
+  // 4.39:1 on --card, just under AA for the error copy set on cards.
+  error: '#E65A66', // 355 74% 63% — 4.78:1 on --card
+  onError: '#1A140F', // 5.23:1 on error; white would be 3.5:1 on the lifted red
   success: '#62C082', // --success 140 43% 57%
   successSoft: '#12321E', // --success-soft 147 47% 13%
   onSuccessSoft: '#8FD8A6', // --success-soft-foreground 140 47% 71%
@@ -160,12 +176,16 @@ const baseLightColors: ThemeColors = {
   cardBackground: '#FAF9F4', // --vellum-lit 44 40% 97%
   cardBorder: '#CAC5B9', // --card-border 42 14% 76%
   borderStrong: '#D2CEC6', // --border 42 12% 80%
+  controlBorder: '#837C6A', // 43 11% 47% — 3.10:1 on the reader's control well, 3.94:1 on --vellum-lit
   primaryText: '#1A1914', // --ink 48 13% 9%
   secondaryText: '#69624F', // --graphite 45 14% 36%
-  textTertiary: '#6F6958', // --text-faint 45 12% 39%
+  // --text-faint 45 12% 39% (#6F6958) darkened a step: the kit value is 4.39:1
+  // on --muted, where the reading-activity calendar sets its day numbers.
+  textTertiary: '#6C6655', // 44 12% 38% — 4.60:1 on --muted
   ...defaultPaletteColors,
   muted: '#EAE6DD', // --muted 42 22% 89%
   error: '#C62A3A', // --danger 354 65% 47%
+  onError: '#FFFFFF', // 5.54:1 on error
   success: '#2E8E5A', // --success 147 51% 37%
   successSoft: '#C9EBD3', // --success-soft 140 47% 85%
   onSuccessSoft: '#1F6A3F', // --success-soft-foreground 147 55% 27%
