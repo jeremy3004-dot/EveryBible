@@ -12,6 +12,12 @@ import {
   signsListAudio,
   toReviewFeedbackItem,
 } from './reviewPayload.ts';
+import {
+  accessCoversTranslation,
+  parseSharedPasscodeScope,
+  resolveTranslatorAccess,
+  type TranslatorAccess,
+} from './translatorAccess.ts';
 import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
@@ -89,25 +95,20 @@ const trimRequiredText = (value: unknown): string | null => {
 const isResolution = (value: unknown): value is ReviewResolution =>
   value === 'fixed' || value === 'no_change_needed';
 
-// Brute-force protection for the shared translator passcode (S2) lives in
+// Brute-force protection for translator passcodes (S2) lives in
 // _shared/passcodeAttempts.ts, keyed on the edge-stamped client address (never on the
-// caller's own x-forwarded-for). The lockout check runs before the passcode comparison so it
-// also covers `validateOnly` probes.
+// caller's own x-forwarded-for). The lockout check runs before any passcode comparison so it
+// also covers `validateOnly` probes. Team and shared passcodes share one counter.
 
-// Constant-time string comparison so a wrong passcode cannot be recovered via
-// early-exit timing. Folds a length mismatch into the accumulator and always
-// walks the full max length rather than short-circuiting on first difference.
-const constantTimeEquals = (a: string, b: string): boolean => {
-  const encoder = new TextEncoder();
-  const aBytes = encoder.encode(a);
-  const bBytes = encoder.encode(b);
-  const length = Math.max(aBytes.length, bBytes.length);
-  let mismatch = aBytes.length ^ bBytes.length;
-  for (let i = 0; i < length; i += 1) {
-    mismatch |= (aBytes[i] ?? 0) ^ (bBytes[i] ?? 0);
-  }
-  return mismatch === 0;
-};
+// A passcode opens only the translations its team row (or the shared code's scope) lists.
+// Every read and mutation below names a translationId and filters by it, so checking that id
+// here scopes the whole request.
+const translationNotCovered = () =>
+  jsonResponse(403, {
+    success: false,
+    error: 'This access code does not cover this translation',
+    code: 'translation_not_covered',
+  });
 
 // Resolve the acting translator's user id from an optional bearer token so we can
 // attribute fixes when a signed-in translator marks feedback off. Passcode-only
@@ -174,9 +175,19 @@ Deno.serve(async (request) => {
     if (lockout === 'unavailable') return accessUnavailable();
     if (lockout === 'locked') return tooManyAttempts();
 
-    const expectedPasscode = getRequiredSecret('TRANSLATOR_REVIEW_PASSCODE');
+    const resolved = await resolveTranslatorAccess(
+      service,
+      typeof body.passcode === 'string' ? body.passcode : '',
+      {
+        passcode: Deno.env.get('TRANSLATOR_REVIEW_PASSCODE')?.trim() || undefined,
+        translationIds: parseSharedPasscodeScope(
+          Deno.env.get('TRANSLATOR_REVIEW_PASSCODE_TRANSLATIONS')
+        ),
+      }
+    );
+    if (resolved.status === 'unavailable') return accessUnavailable();
 
-    if (!constantTimeEquals(body.passcode ?? '', expectedPasscode)) {
+    if (resolved.status === 'denied') {
       // Record the failed attempt FIRST, then evaluate the lockout from a count
       // that includes it. Recording-then-counting closes the check-then-insert
       // race where parallel wrong-passcode requests all read count < threshold
@@ -190,8 +201,19 @@ Deno.serve(async (request) => {
       return jsonResponse(403, { success: false, error: 'Translator access denied' });
     }
 
+    const access: TranslatorAccess = resolved.access;
+
     if (body.validateOnly === true) {
-      return jsonResponse(200, { success: true });
+      // The unlock screen learns the code's scope here. Unlocking always succeeds for a valid
+      // code, even while the reader shows a translation it does not cover, because the
+      // translator may switch to their own translation next. Older app builds ignore both
+      // extra fields.
+      const requested = trimRequiredText(body.translationId);
+      return jsonResponse(200, {
+        success: true,
+        translationIds: access.translationIds,
+        ...(requested ? { coversTranslation: accessCoversTranslation(access, requested) } : {}),
+      });
     }
 
     // --- Resolution mutation mode (translator marks feedback fixed / reopened) ---
@@ -203,15 +225,14 @@ Deno.serve(async (request) => {
         return jsonResponse(400, { success: false, error: 'feedbackId is required' });
       }
 
-      // translationId is REQUIRED for mutations (S4). The passcode is a single shared secret
-      // across all translations, so without this scope any passcode holder could resolve or
-      // reopen another translation's feedback by guessing/replaying a feedback UUID. Making it
-      // mandatory (rather than an optional extra filter) means a mutation always has to name
-      // the translation it is acting on. The app already sends it on both actions
+      // translationId is REQUIRED for mutations (S4) and must be inside the passcode's scope.
+      // Without it a passcode holder could resolve or reopen another translation's feedback by
+      // guessing/replaying a feedback UUID. The app already sends it on both actions
       // (src/services/feedback/chapterFeedbackReviewService.ts resolve/reopen bodies).
       if (!translationId) {
         return jsonResponse(400, { success: false, error: 'translationId is required' });
       }
+      if (!accessCoversTranslation(access, translationId)) return translationNotCovered();
 
       // Confirm the row exists and belongs to the requested translation before mutating.
       const { data: existing, error: existingError } = await service
@@ -298,6 +319,7 @@ Deno.serve(async (request) => {
         error: 'translationId is required',
       });
     }
+    if (!accessCoversTranslation(access, translationId)) return translationNotCovered();
 
     const hasChapter = body.chapter != null;
     if (hasChapter && (!bookId || !Number.isInteger(body.chapter) || (body.chapter ?? 0) < 1)) {

@@ -24,12 +24,14 @@ test('review-chapter-feedback disables the public edge JWT gate', () => {
   );
 });
 
-test('review-chapter-feedback requires the Supabase translator passcode secret', () => {
+// Since per-team passcodes (2026-09-24) the shared secret is optional: unset, only team
+// passcodes work. Scoping behaviour is in supabase/functions/review-chapter-feedback/teamAccess.test.ts.
+test('review-chapter-feedback reads the shared translator passcode only from a Supabase secret', () => {
   const source = readFileSync(REVIEW_FUNCTION_PATH, 'utf8');
 
   assert.match(
     source,
-    /getRequiredSecret\('TRANSLATOR_REVIEW_PASSCODE'\)/,
+    /Deno\.env\.get\('TRANSLATOR_REVIEW_PASSCODE'\)/,
     'Expected translator review passcode validation to read from a Supabase secret'
   );
   assert.doesNotMatch(

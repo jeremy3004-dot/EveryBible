@@ -20,6 +20,12 @@ translation team receives the passcode.
 
 ## Decisions for the owner
 
+**Decided 2026-09-24:** option A, one passcode per translation team, stored hashed in
+`public.translator_team_passcodes` and managed in the admin dashboard (not in a server
+secret as sketched below). Contributor full names stay visible to translators. See
+"Translator passcodes: one per team" in `docs/chapter-feedback-ops.md` for how it
+works and how to retire the shared passcode.
+
 ### 1. How translators are identified
 
 **A. One passcode per translation or team (recommended next step).** Add a server secret that
