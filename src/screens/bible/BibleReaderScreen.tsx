@@ -17,12 +17,7 @@ import { GestureDetector } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
-import {
-  getAdjacentBibleChapter,
-  getBookById,
-  getCompactTranslatedBookName,
-  getTranslatedBookName,
-} from '../../constants';
+import { getBookById, getCompactTranslatedBookName, getTranslatedBookName } from '../../constants';
 import { config } from '../../constants/config';
 import { useTheme, type ThemeMode } from '../../contexts/ThemeContext';
 import { layout, spacing, typography } from '../../design/system';
@@ -32,10 +27,7 @@ import { getAnnotationsForChapter } from '../../services/annotations/annotationS
 import { getChapter, prefetchNextChapter } from '../../services/bible/bibleService';
 import { buildBibleDeepLink } from '../../services/bible/deepLinkParser';
 import { getChapterPresentationMode } from '../../services/bible/presentation';
-import {
-  findAdjacentAvailableChapter,
-  getChapterContentAvailability,
-} from '../../services/bible/contentAvailability';
+import { getChapterContentAvailability } from '../../services/bible/contentAvailability';
 import { useTranslationContentSummary } from '../../hooks/useTranslationContentSummary';
 import { isRemoteAudioAvailable } from '../../services/audio/audioRemote';
 import { getAudioAvailability } from '../../services/audio/audioAvailability';
@@ -48,12 +40,10 @@ import { useBibleStore } from '../../stores/bibleStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { useProgressStore } from '../../stores/progressStore';
 import { useReadingPlansStore } from '../../stores/readingPlansStore';
-import { getAdjacentAudioPlaybackSequenceEntry } from '../../stores/audioPlaybackSequenceModel';
 import { useAudioPlayer } from '../../hooks/useAudioPlayer';
 import { useFontSize } from '../../hooks/useFontSize';
 import { useLargeText } from '../../hooks/useLargeText';
 import { useShallow } from 'zustand/react/shallow';
-import { announceForAccessibility } from '../../utils/a11y';
 import { ReaderPlaybackDock } from '../../components/audio/ReaderPlaybackDock';
 import {
   ReaderAudioPortionPreviewGuard,
@@ -77,8 +67,6 @@ import { SHARE_VERSE_BACKGROUND_SOURCES } from '../../data/shareVerseBackgrounds
 import { getHomeVerseBackgroundIndex } from '../../data/homeVerseBackgroundSelection';
 import {
   buildReaderParagraphs,
-  buildReaderChapterRouteParams,
-  getPlanSessionTrailingActionState,
   getReaderInlineActiveVerse,
   getReaderVerseLineHeight,
   isActiveAudioTrackMatch,
@@ -88,7 +76,6 @@ import {
 } from './bibleReaderModel';
 import type { ReaderParagraph } from './bibleReaderModel';
 import { loadReaderChapter, readerChapterKey, type CancellableTask } from './readerChapterLoader';
-import { navigateListenChapter } from './readerListenNavigation';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
 import {
   AudioOptionsSheet,
@@ -114,12 +101,12 @@ import {
   usePlanDayCompletion,
   useReaderAudioSync,
   useReaderChapterLifecycle,
+  useReaderChapterNavigation,
   useReaderFollowAlongScroll,
   useReaderPlanSession,
   useReaderReadingTimer,
   useReaderScrollChrome,
   useReaderScrollTargets,
-  useReaderSwipeNavigation,
   useReaderTabBarMotion,
   useStableChapterPresentation,
   useVerseSelection,
@@ -758,47 +745,58 @@ export function BibleReaderScreen() {
     stop,
   });
 
-  const previousSequenceEntry = getAdjacentAudioPlaybackSequenceEntry(
+  const {
+    handleExitPlanSession,
+    handleListenModeSeek,
+    handleNextListenChapter,
+    handleNextReadChapter,
+    handlePlayDisplayedChapter,
+    handlePreviousListenChapter,
+    handlePreviousReadChapter,
+    hasNextChapter,
+    hasPrevChapter,
+    hasReaderPlaybackDockNextChapter,
+    readerPlaybackDockNextAccessibilityHint,
+    readerPlaybackDockNextAccessibilityLabel,
+    readerPlaybackDockNextButtonColor,
+    readerPlaybackDockNextIconColor,
+    readerPlaybackDockNextIconName,
+    shouldFillReaderCanvas,
+    swipeGesture,
+    swipeStyle,
+  } = useReaderChapterNavigation({
+    activeAudioBookId,
+    activePlanId,
     activePlanPlaybackSequenceEntries,
+    activeRhythmSession,
+    audioChapterMap,
+    audioPositionRef,
     bookId,
+    canShowTranslationSheet,
     chapter,
-    -1
-  );
-  const nextSequenceEntry = getAdjacentAudioPlaybackSequenceEntry(
-    activePlanPlaybackSequenceEntries,
-    bookId,
-    chapter,
-    1
-  );
-  const shouldConstrainChapterNavigationToSession =
-    activeRhythmSession != null || showPlanSessionChrome;
-  // With an exact chapter map the chevrons skip past everything the translation does not
-  // cover — Bhujel runs Joshua 2 past Judges and Ruth to 1 Samuel 1 — and go dead at the ends
-  // instead of walking the reader into a chapter with nothing to show.
-  const resolveChapterNavigationTarget = (direction: -1 | 1) => {
-    if (shouldConstrainChapterNavigationToSession) {
-      return null;
-    }
-
-    return audioChapterMap
-      ? findAdjacentAvailableChapter(bookId, chapter, direction, audioChapterMap)
-      : getAdjacentBibleChapter(bookId, chapter, direction);
-  };
-  const previousNavigationTarget = previousSequenceEntry ?? resolveChapterNavigationTarget(-1);
-  const nextNavigationTarget = nextSequenceEntry ?? resolveChapterNavigationTarget(1);
-  const hasPrevChapter = previousNavigationTarget != null;
-  const hasNextChapter = nextNavigationTarget != null;
-  const shouldFillReaderCanvas = chapterPresentationMode === 'audio-first';
-  const syncReaderReference = (nextBookId: string, nextChapter: number) => {
-    navigation.setParams(
-      buildReaderChapterRouteParams({
-        bookId: nextBookId,
-        chapter: nextChapter,
-        preferredMode: chapterSessionMode,
-        ...resolvePlanSessionRouteParams(nextBookId, nextChapter),
-      })
-    );
-  };
+    chapterPresentationMode,
+    chapterSessionMode,
+    currentTranslation,
+    handleCompletePlanDay,
+    hasOtherIncompletePlanSessions,
+    isCurrentAudioChapter,
+    isLastPlanChapter,
+    lastPlayedBookId,
+    lastPlayedChapter,
+    lastPlayedTranslationId,
+    navigation,
+    nextChapter,
+    playChapter,
+    previousChapter,
+    resetFollowAlongClamp,
+    resolvePlanSessionRouteParams,
+    seekTo,
+    setShowChapterActionsSheet,
+    setShowFontSizeSheet,
+    setShowTranslationSheet,
+    showPlanSessionChrome,
+    togglePlayPause,
+  });
   const handleCloseFontSizeSheet = () => {
     setShowFontSizeSheet(false);
   };
@@ -987,181 +985,6 @@ export function BibleReaderScreen() {
 
     setShowTranslationSheet(true);
   };
-
-  const handlePlayDisplayedChapter = () => {
-    // After a relaunch nothing is loaded and only the persisted last track remains.
-    // togglePlayPause resumes it from its saved offset; playChapter would restart it.
-    const resumesLastPlayedChapter =
-      activeAudioBookId == null &&
-      isActiveAudioTrackMatch({
-        translationId: currentTranslation,
-        bookId,
-        chapter,
-        activeAudioTranslationId: lastPlayedTranslationId,
-        activeAudioBookId: lastPlayedBookId,
-        activeAudioChapter: lastPlayedChapter,
-      });
-    if (!isCurrentAudioChapter && !resumesLastPlayedChapter) {
-      void playChapter(bookId, chapter);
-      return;
-    }
-
-    void togglePlayPause();
-  };
-
-  const handleListenModeSeek = useCallback(
-    (positionMs: number) => {
-      const { duration: liveDurationMs } = audioPositionRef.current;
-      if (liveDurationMs <= 0 || !isCurrentAudioChapter) {
-        return;
-      }
-
-      // Allow the verse highlight to jump backward after a user seek
-      resetFollowAlongClamp();
-      void seekTo(Math.max(0, Math.min(liveDurationMs, positionMs)));
-    },
-    [isCurrentAudioChapter, resetFollowAlongClamp, seekTo]
-  );
-
-  const listenNavigation = {
-    isCurrentAudioChapter,
-    getAudioStatus: () => useAudioStore.getState().status,
-    playChapter,
-    syncReaderReference,
-    // The arrows keep focus while the chapter swaps under them; say where they went,
-    // as the read-mode swipe does.
-    announceTarget: (target: { bookId: string; chapter: number }) => {
-      announceForAccessibility(`${getTranslatedBookName(target.bookId, t)} ${target.chapter}`);
-    },
-  };
-
-  const handlePreviousListenChapter = () => {
-    return navigateListenChapter({
-      ...listenNavigation,
-      stepPlayer: previousChapter,
-      fallbackTarget: previousNavigationTarget,
-    });
-  };
-
-  const handleNextListenChapter = () => {
-    return navigateListenChapter({
-      ...listenNavigation,
-      stepPlayer: nextChapter,
-      fallbackTarget: nextNavigationTarget,
-    });
-  };
-
-  const handleReadChapterNavigation = async (
-    target: { bookId: string; chapter: number } | null
-  ) => {
-    if (!target) {
-      return;
-    }
-
-    // chapter_completed was a write-only event (no RPC/admin consumer) gated on
-    // this fragile read-mode navigation path; chapter completion is derived from
-    // reading_ended instead (see P1 S7). Emission removed.
-
-    setShowFontSizeSheet((current) => getNextFontSizeSheetVisibility(current, 'chapterChange'));
-    setShowTranslationSheet((current) =>
-      getNextTranslationSheetVisibility(current, canShowTranslationSheet, 'dismiss')
-    );
-    setShowChapterActionsSheet(false);
-
-    syncReaderReference(target.bookId, target.chapter);
-  };
-
-  const handlePreviousReadChapter = async () => {
-    if (isCurrentAudioChapter) {
-      const target = await previousChapter();
-      if (target) {
-        syncReaderReference(target.bookId, target.chapter);
-      }
-      return;
-    }
-
-    await handleReadChapterNavigation(previousNavigationTarget);
-  };
-
-  const handleNextReadChapter = async () => {
-    if (
-      showPlanSessionChrome &&
-      chapterSessionMode === 'read' &&
-      planReadDockTrailingActionState?.showCompletionAction &&
-      hasPlanReadDockNextAction
-    ) {
-      await handleCompletePlanDay();
-      return;
-    }
-
-    if (isCurrentAudioChapter) {
-      const target = await nextChapter();
-      if (target) {
-        syncReaderReference(target.bookId, target.chapter);
-      }
-      return;
-    }
-
-    await handleReadChapterNavigation(nextNavigationTarget);
-  };
-  const { handleExitPlanSession, swipeGesture, swipeStyle } = useReaderSwipeNavigation({
-    activePlanId,
-    activeRhythmSession,
-    handleNextReadChapter,
-    handlePreviousReadChapter,
-    hasNextChapter,
-    hasPrevChapter,
-    nextNavigationTarget,
-    previousNavigationTarget,
-    showPlanSessionChrome,
-  });
-
-  const planReadDockTrailingActionState =
-    showPlanSessionChrome && chapterSessionMode === 'read'
-      ? getPlanSessionTrailingActionState({
-          isLastPlanChapter,
-          hasNextChapter,
-        })
-      : null;
-  const hasPlanReadDockNextAction = Boolean(
-    planReadDockTrailingActionState?.showCompletionAction &&
-    planReadDockTrailingActionState.isEnabled
-  );
-  const showPlanReadDockSessionCompletionCopy = hasOtherIncompletePlanSessions;
-  const readerPlaybackDockNextIconName =
-    planReadDockTrailingActionState?.iconName ?? 'chevron-forward';
-  const readerPlaybackDockNextButtonColor =
-    showPlanSessionChrome && chapterSessionMode === 'read' && hasPlanReadDockNextAction
-      ? colors.accentPrimary
-      : undefined;
-  const readerPlaybackDockNextIconColor =
-    showPlanSessionChrome && chapterSessionMode === 'read' && hasPlanReadDockNextAction
-      ? colors.onAccent
-      : undefined;
-  const readerPlaybackDockNextAccessibilityLabel =
-    showPlanSessionChrome &&
-    chapterSessionMode === 'read' &&
-    planReadDockTrailingActionState?.showCompletionAction
-      ? showPlanReadDockSessionCompletionCopy
-        ? t('readingPlans.completeSessionCta', {
-            defaultValue: 'Complete session',
-          })
-        : t('readingPlans.completeDayCta', {
-            defaultValue: 'Complete day',
-          })
-      : t('bible.nextChapterHint');
-  const readerPlaybackDockNextAccessibilityHint =
-    showPlanSessionChrome &&
-    chapterSessionMode === 'read' &&
-    planReadDockTrailingActionState?.showCompletionAction
-      ? showPlanReadDockSessionCompletionCopy
-        ? t('readingPlans.completeSessionHint')
-        : t('readingPlans.completeDayHint')
-      : undefined;
-  const hasReaderPlaybackDockNextChapter =
-    showPlanSessionChrome && chapterSessionMode === 'read'
-      ? hasNextChapter || hasPlanReadDockNextAction
-      : hasNextChapter;
 
   const renderTranslatorFeedbackReviewTools = () => (
     <ChapterFeedbackSummary translationId={currentTranslation} bookId={bookId} chapter={chapter} />

@@ -29,6 +29,7 @@ export * from './useChapterFeedbackAudio';
 export * from './usePlanDayCompletion';
 export * from './useReaderAudioSync';
 export * from './useReaderChapterLifecycle';
+export * from './useReaderChapterNavigation';
 export * from './useReaderFollowAlongScroll';
 export * from './useReaderPlanSession';
 export * from './useReaderReadingTimer';
