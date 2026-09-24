@@ -1,8 +1,6 @@
 import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { fileURLToPath } from 'node:url';
 import { APPEARANCE_PALETTES } from '../constants/appearancePalettes';
 import { mockModule, sourcePath } from '../testing/mockModules';
 import { WCAG_AA_TEXT, contrastRatio } from './contrast';
@@ -220,31 +218,8 @@ test('the follow band carries both scripture and its verse numbers', () => {
 // Documented exception: disabled controls (IconButton, ListRow) render at 0.45
 // opacity, which drops any foreground below AA. WCAG 1.4.3 exempts inactive
 // controls, and both primitives also set accessibilityState.disabled so the
-// state is announced rather than relying on the dimming alone. Asserted here so
-// the exemption stays a decision with a stated basis.
-// UI-only source check: IconButton and ListRow render code; the suite has no renderer.
-test('the disabled treatment is opacity plus announced state, not colour alone', () => {
-  const iconButton = readFileSync(
-    fileURLToPath(new URL('../components/ui/IconButton.tsx', import.meta.url).href),
-    'utf8'
-  );
-  const listRow = readFileSync(
-    fileURLToPath(new URL('../components/ui/ListRow.tsx', import.meta.url).href),
-    'utf8'
-  );
-
-  assert.match(iconButton, /opacity: 0\.45/, 'IconButton keeps the 0.45 disabled dimming');
-  assert.match(
-    iconButton,
-    /accessibilityState=\{\{ disabled \}\}/,
-    'IconButton must announce disabled, since the dimming alone is below AA'
-  );
-  assert.match(
-    listRow,
-    /accessibilityState=\{\{ disabled \}\}/,
-    'ListRow must announce disabled, since the dimming alone is below AA'
-  );
-});
+// state is announced rather than relying on the dimming alone. That pairing is
+// rendered and asserted in components/ui/primitives.render.test.tsx.
 
 // `error` is used as text on cards in a handful of places. The EL kit's dark
 // --danger was 4.39:1 on a dark card; it is lifted to clear AA, and the solid
