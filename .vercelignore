@@ -9,7 +9,7 @@ assets
 credentials
 store-assets
 store-metadata
-legal
+/legal
 logs
 state
 patches

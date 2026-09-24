@@ -1,10 +1,4 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "crons": [
-    {
-      "path": "/api/cron/upstream-sync",
-      "schedule": "0 6 * * *"
-    }
-  ],
   "ignoreCommand": "sh ../../scripts/vercel/should-build.sh"
 }
