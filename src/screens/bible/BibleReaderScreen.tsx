@@ -848,8 +848,18 @@ export function BibleReaderScreen() {
     toggleFavorite,
   });
 
-  const renderTranslatorFeedbackReviewTools = () => (
-    <ChapterFeedbackSummary translationId={currentTranslation} bookId={bookId} chapter={chapter} />
+  // The read list takes this as its header component, so it must keep its identity across
+  // renders: a new function each render is a new component type, which remounted the
+  // summary (and refetched it for council reviewers) on every reader re-render.
+  const renderTranslatorFeedbackReviewTools = useCallback(
+    () => (
+      <ChapterFeedbackSummary
+        translationId={currentTranslation}
+        bookId={bookId}
+        chapter={chapter}
+      />
+    ),
+    [bookId, chapter, currentTranslation]
   );
 
   // The virtualized reader always uses premium typography, so its render signature

@@ -142,6 +142,20 @@ test('the listen page shows the chapter feedback summary for the chapter on scre
   );
 });
 
+test('the feedback summary above the read list survives unrelated reader re-renders', async () => {
+  // It is the list header: a header component re-created on every render would be a new
+  // component type each time, remounting the summary (and its load) on every tick.
+  const view = await renderReader();
+  const [before] = view.queryAllByType('ChapterFeedbackSummary');
+  assert.ok(before);
+
+  await reader.setAudio({ status: 'paused' });
+  await reader.setAudio({ status: 'idle' });
+
+  const [after] = view.queryAllByType('ChapterFeedbackSummary');
+  assert.equal(after, before, 'the same mounted summary, not a fresh one');
+});
+
 // ---- Plan days -------------------------------------------------------------------
 
 test('on the last chapter of a plan day the dock completes the day and ends playback', async () => {
