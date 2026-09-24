@@ -11,7 +11,8 @@
     "src/utils/**/*",
     "src/hooks/**/*",
     "src/constants/**/*",
-    "src/i18n/**/*"
+    "src/i18n/**/*",
+    "src/design/**/*"
   ],
   "exclude": [
     "src/services/audio/**",

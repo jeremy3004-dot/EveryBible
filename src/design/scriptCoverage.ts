@@ -120,7 +120,7 @@ export function getDisplayFontFamily(
   }
 
   const normalized = language.trim().toLowerCase();
-  const base = normalized.split(/[-_]/)[0];
+  const base = normalized.split(/[-_]/)[0] ?? normalized;
 
   if (NON_LATIN_DISPLAY_SCRIPTS.has(normalized) || NON_LATIN_DISPLAY_SCRIPTS.has(base)) {
     return undefined;

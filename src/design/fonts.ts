@@ -50,7 +50,7 @@ export function getReadingFontFamily(
   weight: SerifWeight = 400,
   italic = false
 ): string | undefined {
-  const base = (languageCode ?? '').split('-')[0].toLowerCase();
+  const base = ((languageCode ?? '').split('-')[0] ?? '').toLowerCase();
   if (base && NON_LATIN_READING_SCRIPTS.has(base)) {
     return undefined;
   }
