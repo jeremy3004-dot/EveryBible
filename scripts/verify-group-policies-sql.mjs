@@ -24,7 +24,7 @@ const MIGRATIONS = [
   '20260923233220_pin_group_scope_and_harden_group_helpers.sql',
   '20260924035926_groups_leader_read_and_leave_guard.sql',
   '20260924035932_move_group_helpers_to_private_schema.sql',
-  '20260924170000_group_create_rpc_join_throttle_and_push_claims.sql',
+  '20260924042319_group_create_rpc_join_throttle_and_push_claims.sql',
 ];
 
 const db = new PGlite();

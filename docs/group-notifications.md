@@ -46,6 +46,6 @@ PGLITE_MODULE=<pglite>/dist/index.js node scripts/verify-group-policies-sql.mjs
 
 ## Deploy order
 
-1. Apply `supabase/migrations/20260924170000_group_create_rpc_join_throttle_and_push_claims.sql`.
+1. Apply `supabase/migrations/20260924042319_group_create_rpc_join_throttle_and_push_claims.sql`.
 2. Deploy `send-group-notification`. Until the migration is applied, every claim fails and the function returns 500 without sending.
 3. Ship the app change. An older app sends `title`/`body` without `session_id` and gets a 400, which it ignores. On 2026-09-24 the function was not deployed, and no screen in the app records synced sessions, so no installed app depends on the old contract.

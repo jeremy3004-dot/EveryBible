@@ -64,7 +64,7 @@ branch.
    run `PGLITE_MODULE=<pglite>/dist/index.js node scripts/verify-group-policies-sql.mjs`,
    which passes on this branch.
 2. G5, G6 and G9: apply
-   `supabase/migrations/20260924170000_group_create_rpc_join_throttle_and_push_claims.sql`,
+   `supabase/migrations/20260924042319_group_create_rpc_join_throttle_and_push_claims.sql`,
    then deploy `send-group-notification`, then ship the app. Do this before turning on
    `studyGroupsSync`. PostgREST exposing `cf-connecting-ip` / `x-real-ip` in
    `request.headers` is unconfirmed; without them the per-address limit is skipped and the
