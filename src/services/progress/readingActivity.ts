@@ -6,7 +6,7 @@ export interface ReadingActivityDaySummary {
   chapterKeys: string[];
 }
 
-export interface ReadingActivityCalendarCell {
+interface ReadingActivityCalendarCell {
   dateKey: string;
   day: number;
   inMonth: boolean;

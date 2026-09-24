@@ -21,11 +21,11 @@ export const AndroidMediaPlaybackState = {
   Paused: 3,
 } as const;
 
-export type AndroidMediaPlaybackStateValue =
+type AndroidMediaPlaybackStateValue =
   (typeof AndroidMediaPlaybackState)[keyof typeof AndroidMediaPlaybackState];
 
 /** Seconds a skip-forward / skip-back press moves; matches iOS and the in-app buttons. */
-export const ANDROID_SKIP_INTERVAL_SECONDS = 10;
+const ANDROID_SKIP_INTERVAL_SECONDS = 10;
 
 /**
  * How far the reported position may drift from where the session already

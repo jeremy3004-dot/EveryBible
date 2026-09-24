@@ -8,7 +8,7 @@
 // replaces it, so onboarding finishes exactly once with the reader's latest choice. A Bible
 // that is already on the device needs no download and finishes onboarding straight away.
 
-export type OnboardingDownloadResult = 'installed' | 'cancelled';
+type OnboardingDownloadResult = 'installed' | 'cancelled';
 
 export interface OnboardingBibleSelectionState {
   /** The Bible whose download is running. */

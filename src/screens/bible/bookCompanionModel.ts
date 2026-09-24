@@ -6,7 +6,7 @@ import {
   type BibleCompanionModuleKind,
 } from '../../data/bibleBookExperience';
 
-export interface BookCompanionTarget {
+interface BookCompanionTarget {
   bookId: string;
   chapter: number;
   focusVerse?: number;

@@ -1,6 +1,6 @@
 import type { PrivacySettingsRecord } from './privacyService';
 
-export const DEFAULT_PRIVACY_INITIALIZATION_TIMEOUT_MS = 3_500;
+const DEFAULT_PRIVACY_INITIALIZATION_TIMEOUT_MS = 3_500;
 
 export type PrivacySettingsLoader = () => Promise<PrivacySettingsRecord>;
 

@@ -22,9 +22,9 @@ import {
   isMultiSessionPlan,
 } from './readingPlanModel';
 
-export type PlanChapterActivitySource = 'read' | 'listen';
+type PlanChapterActivitySource = 'read' | 'listen';
 
-export interface PlanChapterActivityRecord {
+interface PlanChapterActivityRecord {
   chapterKey: string;
   timestamp: number;
   source: PlanChapterActivitySource;
@@ -62,7 +62,7 @@ export interface CurrentPlanDaySummary {
   nextIncompleteSessionKey: PlanSessionKey | null;
 }
 
-export interface PlanDaySessionSummary {
+interface PlanDaySessionSummary {
   sessionKey: PlanSessionKey;
   title: string;
   targetChapterKeys: string[];
@@ -108,7 +108,7 @@ const buildChapterKey = (bookId: string, chapter: number): string => `${bookId}_
 const isSameLocalDay = (timestamp: number, dayKey: string): boolean =>
   formatLocalDateKey(new Date(timestamp)) === dayKey;
 
-export function expandPlanDayChapterKeys(entries: ReadingPlanEntry[]): string[] {
+function expandPlanDayChapterKeys(entries: ReadingPlanEntry[]): string[] {
   const chapterKeys: string[] = [];
 
   for (const entry of entries) {
@@ -575,7 +575,7 @@ export function buildPlanDayCompletionSummary(
   };
 }
 
-export function getScheduledPlanDayDate(startedAt: string, dayNumber: number): Date {
+function getScheduledPlanDayDate(startedAt: string, dayNumber: number): Date {
   const localStartDate = new Date(startedAt);
   const scheduledDate = new Date(
     localStartDate.getFullYear(),

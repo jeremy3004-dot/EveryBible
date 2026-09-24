@@ -4,10 +4,10 @@ import type {
   TranslationCatalog,
 } from '../../types';
 
-export type OpenBiblePilotStatus = 'planned' | 'staged' | 'published' | 'verified' | 'skipped';
+type OpenBiblePilotStatus = 'planned' | 'staged' | 'published' | 'verified' | 'skipped';
 
-export type OpenBiblePilotTimingMode = 'full-only' | 'none';
-export type OpenBiblePilotTextDirection = 'ltr' | 'rtl';
+type OpenBiblePilotTimingMode = 'full-only' | 'none';
+type OpenBiblePilotTextDirection = 'ltr' | 'rtl';
 
 export interface OpenBiblePilotRegistryTranslation {
   translationId: string;
@@ -45,7 +45,7 @@ export interface OpenBiblePilotTextCatalogSeed {
   version: string;
 }
 
-export interface OpenBiblePilotManifestChapter {
+interface OpenBiblePilotManifestChapter {
   chapter: number;
   bytes: number;
   path: string;
@@ -106,7 +106,7 @@ export function buildOpenBiblePilotAudioBasePath(translationId: string, version:
   return `audio/${translationId}/${version}`;
 }
 
-export function buildOpenBiblePilotTimingBasePath(translationId: string, version: string): string {
+function buildOpenBiblePilotTimingBasePath(translationId: string, version: string): string {
   return `timing/${translationId}/${version}`;
 }
 

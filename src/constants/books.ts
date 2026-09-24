@@ -239,8 +239,7 @@ export const getAdjacentBibleChapter = (
   return nextBook ? { bookId: nextBook.id, chapter: 1 } : null;
 };
 
-export const getBooksByTestament = (testament: Testament): BibleBook[] =>
+const getBooksByTestament = (testament: Testament): BibleBook[] =>
   bibleBooks.filter((book) => book.testament === testament);
 
-export const oldTestamentBooks = getBooksByTestament('OT');
 export const newTestamentBooks = getBooksByTestament('NT');
