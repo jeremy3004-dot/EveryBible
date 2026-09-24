@@ -545,6 +545,30 @@ test('nothing evaluated before Home imports the large bundled data tables', () =
   );
 });
 
+// bookIcons is re-exported by the `constants` barrel, so a static import of the
+// ~290 KB vector table reached every closure that touches the barrel: the Bible
+// data warmup App.tsx runs after every launch, the first-launch onboarding flow,
+// and most screens. BookIcon loads it when it first draws.
+test('the constants barrel, the launch warmup and onboarding never import the book icon vectors', () => {
+  const entries = [
+    '../../constants/index.ts',
+    '../bible/bibleService.ts',
+    '../../screens/onboarding/LocaleSetupFlow.tsx',
+  ];
+
+  entries.forEach((entry) => {
+    const closurePaths = [
+      ...collectStaticImportClosure(fileURLToPath(new URL(entry, import.meta.url).href)),
+    ].map((file) => file.replace(/\\/g, '/'));
+    const hit = closurePaths.find((file) => file.endsWith('/bookIconVectors.generated.json'));
+    assert.equal(hit, undefined, `${entry}'s static closure must not reach ${hit}`);
+    assert.ok(
+      closurePaths.some((file) => file.endsWith('src/constants/bookIcons.ts')),
+      `${entry} should still reach bookIcons through the barrel — check the walker if this fails`
+    );
+  });
+});
+
 test('restoring the session at launch does not load the native sign-in SDKs', () => {
   const { files, packages } = collectStaticImports(
     fileURLToPath(new URL('../auth/authSession.ts', import.meta.url).href)
