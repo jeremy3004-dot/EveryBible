@@ -11,7 +11,13 @@ import type { User } from '../../types';
 import { publicRuntimeConfig } from '../startup/publicRuntimeConfig';
 import { withPrivacyLockGrace } from '../privacy/privacyLockGrace';
 import { createGoogleSignInInitializer } from './googleSignIn';
-import { isDeviceOffline, mapSupabaseUser } from './authSession';
+import { fenceRefreshToken } from '../supabase/authRequestFence';
+import {
+  isAccessTokenExpired,
+  isDeviceOffline,
+  mapSupabaseUser,
+  readStoredSession,
+} from './authSession';
 import type { AuthErrorCode } from './authErrors';
 import {
   configurationAuthError,
@@ -297,37 +303,76 @@ export const signInWithGoogle = async (): Promise<AuthResult> => {
 };
 
 // Sign out
+/** Sign-out waits at most this long for the server to revoke the session. */
+export const AUTH_SIGN_OUT_TIMEOUT_MS = 3_000;
+
+/**
+ * Ends the session on this device at once, then revokes it on the server for at most
+ * AUTH_SIGN_OUT_TIMEOUT_MS.
+ *
+ * It does not call supabase.auth.signOut(): that runs inside auth-js's session lock
+ * and first refreshes an expired token, which offline or on a dead connection retries
+ * for about 25 s (and waits behind any refresh already holding the lock). Abandoning it
+ * after a timeout would not help: it would still run later against whatever session is
+ * stored by then, possibly the next account's, revoking and removing it. Instead:
+ * - the refresh token is fenced (authRequestFence.ts), so a refresh already under way
+ *   cannot save this session again or sign the reader back in;
+ * - the stored session is removed without the lock or the network;
+ * - the server is asked to revoke all of the account's sessions with the stored access
+ *   token (auth.admin.signOut: a bare logout request that never reads or writes the
+ *   stored session, so abandoning it is harmless). An expired token cannot be revoked
+ *   without the refresh that hangs, and nothing can be sent offline; the server
+ *   session is then left to expire, as before for an offline sign-out.
+ */
 export const signOut = async (): Promise<{ success: boolean; error?: string }> => {
   if (!isSupabaseConfigured()) {
     return { success: true }; // No session to sign out from
   }
 
-  // Offline, auth-js first refreshes an expired token and retries that refresh
-  // for about 25 s before its sign-out request fails anyway. End the session on
-  // this device at once; the server session is left to expire.
-  if (await isDeviceOffline()) {
-    await endSessionOnThisDevice();
+  const stored = await readStoredSession();
+  if (stored) {
+    fenceRefreshToken(stored.refresh_token);
+  }
+  await endSessionOnThisDevice();
+
+  if (!stored || isAccessTokenExpired(stored) || (await isDeviceOffline())) {
     return { success: true };
   }
 
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeLimit = new Promise<{ success: boolean; error?: string }>((resolve) => {
+    timer = setTimeout(
+      () => resolve({ success: false, error: 'Sign-out request timed out' }),
+      AUTH_SIGN_OUT_TIMEOUT_MS
+    );
+  });
+  const result = await Promise.race([revokeSessionOnServer(stored.access_token), timeLimit]);
+  clearTimeout(timer);
+  return result;
+};
+
+// Like auth-js's own signOut: a token the server no longer accepts (401/403) or a
+// user or session that no longer exists (404, session_not_found) means signed out.
+const revokeSessionOnServer = async (
+  accessToken: string
+): Promise<{ success: boolean; error?: string }> => {
   try {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      await endSessionOnThisDevice();
+    const { error } = await supabase.auth.admin.signOut(accessToken, 'global');
+    if (
+      error &&
+      error.name !== 'AuthSessionMissingError' &&
+      !(error.status !== undefined && [401, 403, 404].includes(error.status))
+    ) {
       return { success: false, error: error.message };
     }
     return { success: true };
   } catch (e) {
-    await endSessionOnThisDevice();
     return { success: false, error: e instanceof Error ? e.message : 'Unknown error' };
   }
 };
 
-// When auth-js cannot reach the server to end the session (offline, or an
-// expired token it cannot refresh first) it leaves the session on disk. The next
-// token refresh would then sign the reader back in after they signed out, and
-// adopt what they did as a guest into that account. The server session is left
-// to expire. `_removeSession` is not public API; authSession.realClient.behavior
+// Removes the stored session without auth-js's lock or the network, and emits
+// SIGNED_OUT. `_removeSession` is not public API; authSession.realClient.behavior
 // .test.ts pins it against the installed supabase-js.
 const endSessionOnThisDevice = async (): Promise<void> => {
   try {
