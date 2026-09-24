@@ -363,6 +363,98 @@ Things that trip people up:
 - **Mutation-check new render tests**: break the behaviour in the component once
   (drop the label, flip the condition), watch the test fail, restore it.
 
+## Testing techniques
+
+### Render-count tests
+
+Prove an update reaches only the leaves it should, not the whole tree. Two
+variants exist: a whole-screen counter wired into a shared fixture
+(`renders.count` in `BibleReaderScreen.renderFixture.tsx`, read by
+`BibleReaderScreen.rerender.render.test.tsx` to assert some state changes
+redraw the reader and others don't), and the render harness's own per-primitive
+log (`harness.renders.mark()` / `harness.renders.since(mark)`), used in
+`TranslationPickerList.render.test.tsx` ("Re-render reach during downloads")
+and `PlaybackControls.render.test.tsx`:
+
+```ts
+const mark = harness.renders.mark();
+await view.rerender(<PlaybackControls {...make({ sleepTimerRemaining: 5 })} />);
+assert.deepEqual(
+  harness.renders
+    .since(mark)
+    .filter((entry) => entry.type === 'TouchableOpacity')
+    .map((entry) => String(entry.props.accessibilityLabel)),
+  [t('audio.sleepTimer')]
+);
+```
+
+### Persistence-identity tests
+
+Pin the exact bytes a store writes to and reads from MMKV, so a refactor (such
+as splitting a store into slice modules) can't silently change the persisted
+keys, their order, the `partialize` selection, or the `version` without a
+deliberate update and a `migrate`. `bibleStore.persistence.test.ts` and
+`readingPlansStore.persistence.test.ts` hold literal JSON blobs captured before
+each store's slice split; `persistedStateSanitizers.identity.test.ts` does the
+same for the sanitizer functions themselves, against a captured-output corpus.
+
+### Property tests with fast-check
+
+`fast-check` generates randomized inputs for functions with a contract that
+hand-picked cases would miss — deep-link parsing, sync merges, sanitizer round
+trips. CI runs a fixed seed at a small `numRuns`; override `FC_SEED` /
+`FC_RUNS` locally to search harder. See
+`src/services/sync/syncMerge.preferences.property.test.ts`,
+`src/services/sync/syncMerge.progress.property.test.ts`, and
+`deepLinkParser.property.test.ts`:
+
+```ts
+const FC_PARAMS = {
+  seed: Number(process.env.FC_SEED ?? 20260924),
+  numRuns: Number(process.env.FC_RUNS ?? 500),
+};
+// FC_SEED=$RANDOM FC_RUNS=20000 node --test --import tsx <this file>
+fc.assert(
+  fc.property(urlArb, (url) => {
+    /* parse/build round-trips */
+  }),
+  FC_PARAMS
+);
+```
+
+### Deterministic debounce/timer tests
+
+Enable `mock.timers` for only the API the code under test uses
+(`{ apis: ['setTimeout'] }`), so unrelated timers (leak guards, intervals in
+other hooks) keep running for real, and advance the clock inside `act()` so
+React flushes before the next assertion. `BibleBrowserScreen.render.test.tsx`'s
+search-debounce tests are the reference:
+
+```ts
+context.mock.timers.enable({ apis: ['setTimeout'] });
+// ...type into the search field...
+await act(async () => context.mock.timers.tick(300));
+```
+
+### Failure-injection tests
+
+Inject a failure at a layer's boundary — a copy that fails partway, a
+persisted blob that won't parse, a text pack truncated after install — and
+assert the system recovers or fails safely instead of throwing out of an
+import or leaving unusable state. `bibleDatabase.test.ts` covers asset-copy,
+integrity-check, and journal failures; `persistedStoreCorruption.behavior.test.ts`
+covers every persisted store's MMKV blob (unreadable, not a persist envelope,
+or an unknown version).
+
+### Multi-timezone runs
+
+A test whose logic depends on the calendar day pins `process.env.TZ` at the
+top of its own file (each test file is its own process) —
+`progressStore.kathmandu.test.ts` (Asia/Kathmandu, UTC+5:45) is the sharpest
+example, since its local day starts before the UTC one. To catch a test that
+assumes the host machine's own zone instead of pinning one, occasionally run
+the whole suite under a non-UTC zone: `TZ=Asia/Kathmandu npm test`.
+
 ## Bug fixes
 
 Bugs found while writing tests are fixed test-first: write the failing test that
