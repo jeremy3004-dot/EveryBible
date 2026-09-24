@@ -19,6 +19,7 @@ import {
   type ReactElement,
   type ReactNode,
 } from 'react';
+import type * as ReactNative from 'react-native';
 import { createReactNativeStub, type ReactNativeStubOptions } from './reactNativeStub';
 
 type AnyProps = Record<string, unknown> & { children?: ReactNode };
@@ -322,6 +323,14 @@ export function flattenStyle(style: unknown): Record<string, unknown> | undefine
   return typeof style === 'object' ? { ...(style as Record<string, unknown>) } : undefined;
 }
 
+/**
+ * The fakes render host elements, but tests write JSX with them
+ * (`const { Text } = harness.rn`), so they carry the real components' prop types.
+ */
+function typed<Name extends keyof typeof ReactNative>(component: unknown) {
+  return component as (typeof ReactNative)[Name];
+}
+
 export interface ReactNativeRenderStubOptions extends ReactNativeStubOptions {
   /** What `AccessibilityInfo.isReduceMotionEnabled()` resolves. */
   reduceMotion?: () => boolean;
@@ -342,29 +351,31 @@ export function createReactNativeRenderStub(options: ReactNativeRenderStubOption
       flatten: flattenStyle,
       compose: (a: unknown, b: unknown) => (a && b ? [a, b] : (a ?? b)),
     },
-    View: hostComponent('View'),
-    Text: hostComponent('Text'),
-    TextInput: hostComponent('TextInput'),
-    Image: Object.assign(hostComponent('Image'), {
+    View: typed<'View'>(hostComponent('View')),
+    Text: typed<'Text'>(hostComponent('Text')),
+    TextInput: typed<'TextInput'>(hostComponent('TextInput')),
+    Image: Object.assign(typed<'Image'>(hostComponent('Image')), {
       getSize: () => {},
       prefetch: async () => true,
       resolveAssetSource: (source: unknown) => source,
     }),
-    ImageBackground: hostComponent('ImageBackground'),
-    ScrollView: hostComponent('ScrollView'),
-    FlatList,
-    SectionList,
+    ImageBackground: typed<'ImageBackground'>(hostComponent('ImageBackground')),
+    ScrollView: typed<'ScrollView'>(hostComponent('ScrollView')),
+    FlatList: typed<'FlatList'>(FlatList),
+    SectionList: typed<'SectionList'>(SectionList),
     VirtualizedList: FlatList,
-    Pressable,
-    TouchableOpacity: hostComponent('TouchableOpacity'),
-    TouchableHighlight: hostComponent('TouchableHighlight'),
-    TouchableWithoutFeedback: hostComponent('TouchableWithoutFeedback'),
-    Switch: hostComponent('Switch'),
-    Modal,
-    ActivityIndicator: hostComponent('ActivityIndicator'),
-    KeyboardAvoidingView: hostComponent('KeyboardAvoidingView'),
-    SafeAreaView: hostComponent('SafeAreaView'),
-    RefreshControl: hostComponent('RefreshControl'),
+    Pressable: typed<'Pressable'>(Pressable),
+    TouchableOpacity: typed<'TouchableOpacity'>(hostComponent('TouchableOpacity')),
+    TouchableHighlight: typed<'TouchableHighlight'>(hostComponent('TouchableHighlight')),
+    TouchableWithoutFeedback: typed<'TouchableWithoutFeedback'>(
+      hostComponent('TouchableWithoutFeedback')
+    ),
+    Switch: typed<'Switch'>(hostComponent('Switch')),
+    Modal: typed<'Modal'>(Modal),
+    ActivityIndicator: typed<'ActivityIndicator'>(hostComponent('ActivityIndicator')),
+    KeyboardAvoidingView: typed<'KeyboardAvoidingView'>(hostComponent('KeyboardAvoidingView')),
+    SafeAreaView: typed<'SafeAreaView'>(hostComponent('SafeAreaView')),
+    RefreshControl: typed<'RefreshControl'>(hostComponent('RefreshControl')),
     StatusBar,
     Animated,
     Easing,

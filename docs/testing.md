@@ -19,7 +19,7 @@ node --test --experimental-test-module-mocks --import tsx \
   src/stores/bibleStore.downloads.test.ts
 ```
 
-Any `*.test.ts` under `src/`, `scripts/`, `apps/`, `packages/`, or
+Any `*.test.ts` or `*.test.tsx` under `src/`, `scripts/`, `apps/`, `packages/`, or
 `supabase/functions` is picked up automatically. No registration needed.
 
 ## What a good test here looks like
@@ -46,8 +46,9 @@ component calls (see `readerChapterLoader.ts`, `useAppSessionAnalytics.ts`), and
 the test loads that. The source-text checks that remain say what they are in
 their first line: startup import-graph guards, codebase-wide static lints,
 dependency-contract guards (a read of `node_modules`), checks of non-TypeScript
-artefacts (config, SQL, native projects, docs), and UI-only checks of component
-render code, which stay until the suite has a component renderer.
+artefacts (config, SQL, native projects, docs), and older UI-only checks of
+component render code. Those last ones are being replaced by render tests (see
+"Rendering components" below); do not add new ones — render the component.
 
 Edge functions load through `supabase/functions/_testing/edgeFunctionHarness.ts`
 (real module loader; `esm.sh` supabase-js and `Deno` are provided per harness).
@@ -127,6 +128,9 @@ default to the production implementation.
 | `mockSupabaseModule(mock, fake, { configured })`                                    | Points `../supabase` and `../supabase/client` at the fake.                                                                                                                                                                                                                                      |
 | `mockMmkvStorage(mock, seed?)`                                                      | In-memory MMKV so persisted Zustand stores hydrate. Returns the backing `Map` for seeding/inspection.                                                                                                                                                                                           |
 | `mockReactNative(mock, { os, version, width, height })` / `createReactNativeStub()` | `Platform`, `AppState.emit()`, `Keyboard.emit()`, `Linking`, `Alert`, `I18nManager`, `NativeEventEmitter`, `NativeModules`; recorded side effects under `__recorded`. Add fields to the stub before mocking if a module needs more.                                                             |
+| `installRenderHarness(mock, options)` (`render.tsx`)                                | Component rendering: renderable RN and native-UI fakes, real ThemeProvider and `en` i18n, Testing-Library-style queries, `press`. See "Rendering components".                                                                                                                                   |
+| `mockBarrel(mock, 'stores/index.ts', { provide, real })`                            | Replaces a barrel without loading what it re-exports; unprovided exports throw a descriptive error when used.                                                                                                                                                                                   |
+| `mockPackage(mock, specifier, exports)`                                             | `mockModule` under both the import and the require resolution of a dual package.                                                                                                                                                                                                                |
 | `createReactHookRuntime()`                                                          | A `react` replacement (`runtime.react`) plus `mount(hook, ...args)` → `{ result, renderCount, cleanupCount, rerender, flushEffects, commit, unmount }`, `mountedInstances` / `unmountAll()` for `afterEach`, `setContextValue()`, and `installIntervalLeakGuard()`.                             |
 
 ### Gotchas the first wave hit
@@ -166,10 +170,11 @@ SQLite: `bibleDatabase.ts` talks to `expo-sqlite`. Node 26 ships `node:sqlite`;
 an adapter that maps `execAsync` / `getAllAsync` / `getFirstAsync` / `runAsync`
 onto a `DatabaseSync` gives real SQL execution in tests.
 
-React hooks: there is no renderer installed. Prefer testing the logic hooks
-delegate to (models, coordinators, stores). Where a hook itself must be
-exercised, use `createReactHookRuntime()` from `src/testing/reactHookRuntime.ts`
-instead of writing another harness:
+React hooks: prefer testing the logic hooks delegate to (models, coordinators,
+stores). A hook that drives a component is best exercised by rendering that
+component (next section). Where a hook itself must be exercised in isolation,
+use `createReactHookRuntime()` from `src/testing/reactHookRuntime.ts` instead of
+writing another harness:
 
 ```ts
 const runtime = createReactHookRuntime();
@@ -200,6 +205,111 @@ Two things it is easy to get wrong on your own:
 not schedule a render; rendering is explicit. That is the one deliberate
 divergence from React. See `useSync.behavior.test.ts` for the re-render and
 subscription lifecycle, and `reactHookRuntime.test.ts` for the exact contract.
+
+## Rendering components
+
+`src/testing/render.tsx` renders real components with `react-test-renderer`
+(React's own non-DOM renderer, pinned to the installed React version; React 19
+deprecates it but it is the only renderer that runs without a DOM or Jest). Test
+files that render use the `.test.tsx` extension. Assert what a user or a screen
+reader gets: text shown, roles, labels and states, what a press does, what
+renders under which state. `components/ui/primitives.render.test.tsx` and
+`TabSwitch.render.test.tsx` are the reference files.
+
+```tsx
+import test, { mock } from 'node:test';
+import assert from 'node:assert/strict';
+import { installRenderHarness, within } from '../../testing/render';
+
+// Module scope, before the component is imported.
+const harness = installRenderHarness(mock, {
+  os: 'ios',
+  hooks: { useFontSize: () => fakeFontSize },
+});
+
+test('a disabled row is announced as disabled and ignores presses', async () => {
+  const { ListRow } = await import('./ListRow'); // dynamic, after the mocks
+  let pressed = 0;
+  const view = await harness.render(
+    <ListRow title="Download" disabled onPress={() => pressed++} />
+  );
+
+  const row = view.getByRole('button', { name: 'Download', disabled: true });
+  await view.press(row);
+  assert.equal(pressed, 0);
+});
+```
+
+What `installRenderHarness(mock, options)` installs:
+
+- **`react-native`** as `createReactNativeStub()` plus renderable primitives.
+  `View`, `Text`, `Pressable`, `TouchableOpacity`, `TextInput`, `Switch`,
+  `Image`, `ScrollView`, `Modal`, `KeyboardAvoidingView`, ... each render a host
+  element of the same name carrying the component's props. `FlatList` and
+  `SectionList` render every item plus their header/empty/footer slots. `Modal`
+  renders nothing while `visible={false}`. `Share`, `AccessibilityInfo`
+  announcements and `ActionSheetIOS` are recorded under `harness.rn.__recorded`;
+  `harness.rn.BackHandler.press()` delivers a hardware back press.
+- **Native UI packages**: reanimated (shared values are refs, `withTiming` /
+  `withSpring` land at once and are recorded in `harness.animations`,
+  `useReducedMotion` follows `harness.setReduceMotion()`), safe-area-context
+  (`harness.insets`), react-native-svg (`Svg`, `Svg.Path`, ...), `@expo/vector-icons`
+  (host `Icon` with `family` and `name`), lucide (host `LucideIcon` with `name`),
+  `expo-linear-gradient`, `expo-blur`, `expo-haptics` (`harness.haptics`),
+  gesture-handler, and `@react-navigation/native` (`useNavigation()` records into
+  `harness.navigation.calls`; set `harness.navigation.route.params`;
+  `useFocusEffect` runs like an effect).
+- **`stores/authStore`** as a real Zustand store (`harness.authStore`) holding
+  `preferences` and whatever the test sets. The real `ThemeProvider` reads it, so
+  `harness.authStore.getState().setPreferences({ theme: 'dark' })` before a render
+  renders the dark scope.
+- **The `hooks` barrel** through `mockBarrel`: `useDisplayFont`,
+  `useTabBarHeight` and `useKeyboardBottomInset` stay real; anything else a
+  component takes from `../../hooks` is passed in `options.hooks`.
+
+Every render is wrapped in `I18nextProvider` (a private i18next instance with the
+real `en` locale, `harness.i18n`) and the real `ThemeProvider`. Pass
+`{ wrapper }` to `render` for more providers. Everything rendered is unmounted,
+and the recorders are cleared, after each test.
+
+`render()` resolves to queries plus actions:
+
+| Query / action                                                           | Behaviour                                                                                                                                                                                                        |
+| ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `getByText` / `queryByText` / `getAllByText`                             | Host `Text` whose full text content matches (string = exact, or RegExp). Nested `Text` returns the innermost match.                                                                                              |
+| `getByRole(role, { name, selected, checked, disabled, expanded, busy })` | `accessibilityRole` (or `role`); `name` matches the accessibility label, else the text content. States read `accessibilityState`, and `disabled` also reads the `disabled` prop, as RN's touchables announce it. |
+| `getByLabelText`, `getByTestId`, `queryAllByType('Switch')`              | By `accessibilityLabel`, `testID`, or host type.                                                                                                                                                                 |
+| `press(node)` / `longPress(node)`                                        | Finds the nearest `onPress` at or above `node`, fires `onPressIn`, `onPress`, `onPressOut` inside `act`. A touchable with `disabled` (or, lacking it, `accessibilityState.disabled`) gets nothing, as on device. |
+| `changeText(node, text)`, `fire(node, 'onValueChange', true)`            | Call the nearest handler prop inside `act`.                                                                                                                                                                      |
+| `rerender(el)`, `unmount()`, `flush()`, `debug()`                        | `flush` settles effects and microtasks; `debug` prints the host tree (also printed when a `getBy*` fails).                                                                                                       |
+
+Role and label queries skip elements a screen reader cannot reach
+(`importantForAccessibility="no-hide-descendants"`, `accessibilityElementsHidden`,
+`aria-hidden` on the element or an ancestor); pass `{ includeHidden: true }` to
+see them, and use `isHiddenFromAccessibility(node)` to assert decorative content.
+`within(node)` scopes the queries to one subtree. `flattenStyle(node.props.style)`
+merges a style array for layout and colour assertions.
+
+Things that trip people up:
+
+- **Get RN primitives for test-side JSX from `harness.rn`** (`const { Text } = harness.rn`).
+  A test file's own `import('react-native')` is not routed to the fake.
+- **Barrels are heavy.** A component importing `../../stores` or
+  `../../services/audio` pulls in most of the app. Replace the barrel with
+  `mockBarrel(mock, 'stores/index.ts', { provide: { useBibleStore }, real: [...] })`
+  from `src/testing/mockModules`: every export still exists, provided ones are
+  your fakes, `real` ones load from their defining file, and anything else throws
+  a message naming what to provide as soon as it is used. Fake Zustand stores are
+  real `create()` stores holding just the fields the component selects.
+- **Dual packages** (an `exports` map with separate `import` and `require` files)
+  must be mocked under both resolutions: `mockPackage(mock, 'pkg', exports)`. The
+  harness does this for its own fakes.
+- **Layout is not computed.** A component that waits for `onLayout` needs
+  `view.fire(node, 'onLayout', { nativeEvent: { layout: { width, height } } })`.
+- **Reanimated worklets run at render time**, so an animated style reflects the
+  shared value as of the last render, not a later `.value =` write.
+- **Mutation-check new render tests**: break the behaviour in the component once
+  (drop the label, flip the condition), watch the test fail, restore it.
 
 ## Bug fixes
 
