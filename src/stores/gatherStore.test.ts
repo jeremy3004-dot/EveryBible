@@ -138,19 +138,35 @@ test('an empty storage slot leaves the store at its initial state', async () => 
   assert.equal(useGatherStore.getState().infoBannerDismissed, false);
 });
 
-// Documents current behaviour: gatherStore has no persisted-state sanitizer, so a
-// corrupted `completedLessons` (null instead of an object) survives hydration and
-// the first read throws. QUESTION for review — every other persisted store in
-// src/stores runs its payload through persistedStateSanitizers first.
-test('a corrupted completedLessons payload hydrates unsanitized and throws on first read', async () => {
+// A corrupted slot must not take the Gather tab (and the Home card that reads the
+// same store) down with a TypeError on first read.
+test('a corrupted completedLessons payload hydrates to an empty map instead of throwing', async () => {
   seedStorage({ completedLessons: null, infoBannerDismissed: false });
 
   await useGatherStore.persist.rehydrate();
 
-  assert.equal(useGatherStore.getState().completedLessons, null);
-  assert.throws(() => useGatherStore.getState().isLessonComplete('foundation-1', 'lesson-a'), {
-    name: 'TypeError',
+  assert.deepEqual(useGatherStore.getState().completedLessons, {});
+  assert.equal(useGatherStore.getState().isLessonComplete('foundation-1', 'lesson-a'), false);
+  assert.equal(useGatherStore.getState().getCompletedCount('foundation-1'), 0);
+});
+
+test('malformed entries are dropped while valid completions survive hydration', async () => {
+  seedStorage({
+    completedLessons: {
+      'foundation-1': ['f1-01', 7, null, 'f1-02', 'f1-01'],
+      'foundation-2': 'f2-01',
+      'topic-courage': ['t-courage-01'],
+    },
+    infoBannerDismissed: 'yes',
   });
+
+  await useGatherStore.persist.rehydrate();
+
+  assert.deepEqual(useGatherStore.getState().completedLessons, {
+    'foundation-1': ['f1-01', 'f1-02'],
+    'topic-courage': ['t-courage-01'],
+  });
+  assert.equal(useGatherStore.getState().infoBannerDismissed, false);
 });
 
 test('a lesson can be completed again after it was unmarked', () => {

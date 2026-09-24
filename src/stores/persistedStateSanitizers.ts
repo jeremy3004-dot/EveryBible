@@ -1249,3 +1249,32 @@ export const sanitizePersistedLibraryState = (value: unknown) => {
     history,
   };
 };
+
+/**
+ * Gather lesson marks: `{ parentId: lessonId[] }` plus the banner flag. A slot
+ * that is not that shape (hand-edited, truncated, or written by an older build)
+ * keeps what is valid rather than failing the first `includes` call on render.
+ */
+export const sanitizePersistedGatherState = (value: unknown) => {
+  const persisted = isRecord(value) ? value : {};
+  const completedLessons: Record<string, string[]> = {};
+  if (isRecord(persisted.completedLessons)) {
+    for (const [parentId, lessonIds] of Object.entries(persisted.completedLessons)) {
+      if (!Array.isArray(lessonIds)) {
+        continue;
+      }
+      completedLessons[parentId] = [
+        ...new Set(
+          lessonIds.filter(
+            (lessonId): lessonId is string => typeof lessonId === 'string' && lessonId.length > 0
+          )
+        ),
+      ];
+    }
+  }
+
+  return {
+    completedLessons,
+    infoBannerDismissed: persisted.infoBannerDismissed === true,
+  };
+};
