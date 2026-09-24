@@ -701,8 +701,40 @@ test('mergePlanProgress unions completed_entries from both sides', () => {
   assert.ok('1' in merged.completed_entries);
   assert.ok('2' in merged.completed_entries);
   assert.ok('3' in merged.completed_entries);
-  // Local wins on key "1"
-  assert.equal(merged.completed_entries['1'], '2026-03-01T08:00:00.000Z');
+  // A day done on both sides keeps the earlier time, whichever side is local.
+  assert.equal(merged.completed_entries['1'], '2026-03-01T07:00:00.000Z');
+});
+
+// Regressions found by readingPlanModel.property.test.ts (shrunk counterexamples).
+
+test('two devices that completed the same day agree on one completion time', () => {
+  // Counterexample: device B completed day 1 at 06:00, device A at 06:01. Local
+  // won a shared key, so each device pushed its own time on every sync and the
+  // server row flipped between them.
+  const a = makeProgress({ completed_entries: { '1': '2026-09-20T06:01:00.000Z' } });
+  const b = makeProgress({ completed_entries: { '1': '2026-09-20T06:00:00.000Z' } });
+
+  const onA = mergePlanProgress(a, b, '2026-09-20T07:00:00.000Z');
+  const onB = mergePlanProgress(b, a, '2026-09-20T07:00:00.000Z');
+
+  assert.deepEqual(onA.completed_entries, { '1': '2026-09-20T06:00:00.000Z' });
+  assert.deepEqual(onB.completed_entries, onA.completed_entries);
+});
+
+test('two completion times for the plan resolve to the earlier on both devices', () => {
+  const a = makeProgress({ is_completed: true, completed_at: '2026-09-20T06:00:00.000Z' });
+  const b = makeProgress({ is_completed: true, completed_at: '2026-09-20T06:01:00.000Z' });
+
+  assert.equal(mergePlanProgress(a, b, 'x').completed_at, '2026-09-20T06:00:00.000Z');
+  assert.equal(mergePlanProgress(b, a, 'x').completed_at, '2026-09-20T06:00:00.000Z');
+});
+
+test('on the same day, the next session is the one further along on either device', () => {
+  const a = makeProgress({ current_day: 2, current_session: 'midday' });
+  const b = makeProgress({ current_day: 2, current_session: 'evening' });
+
+  assert.equal(mergePlanProgress(a, b, 'x').current_session, 'evening');
+  assert.equal(mergePlanProgress(b, a, 'x').current_session, 'evening');
 });
 
 test('mergePlanProgress takes the higher current_day', () => {
