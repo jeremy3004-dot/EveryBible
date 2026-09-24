@@ -570,11 +570,13 @@ test('the order incoming duplicates arrive in does not decide which one survives
   );
 });
 
-// Documents current behaviour: the merge is keyed on book|chapter|verse|type, so
-// a stored list that somehow holds two rows for one key keeps only the last one
-// seeded. The store's own upsert cannot create that state; a hand-written or
-// migrated snapshot could. QUESTION for review — is silent collapse right here?
-test('two stored rows for the same verse and type collapse to the last one seeded', async () => {
+// The merge is keyed on book|chapter|verse|type, so two stored rows for one key
+// collapse to one. The store does create that state: its upsert skips deleted
+// rows, so a highlight deleted and re-created on the same verse leaves both, the
+// newer first. Keeping the last one seeded therefore replaced the live highlight
+// with its deleted predecessor (found by annotationMerge.property.test.ts); the
+// most recently edited row is the one kept.
+test('two stored rows for the same verse and type collapse to the most recently edited', async () => {
   seedStore([
     makeAnnotation({ id: 'first', updated_at: '2026-03-01T00:00:00.000Z' }),
     makeAnnotation({ id: 'second', updated_at: '2026-01-01T00:00:00.000Z' }),
@@ -584,7 +586,7 @@ test('two stored rows for the same verse and type collapse to the last one seede
 
   assert.deepEqual(
     result.merged?.map((annotation) => annotation.id),
-    ['second']
+    ['first']
   );
 });
 
