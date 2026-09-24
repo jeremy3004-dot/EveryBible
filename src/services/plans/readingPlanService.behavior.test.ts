@@ -2878,3 +2878,88 @@ test('a leave on another phone after the slow phone re-joined still ends the re-
   // the re-join it ended is gone.
   assert.equal(planStore().getProgress('psalms-30-days'), null);
 });
+
+// ---------------------------------------------------------------------------
+// Leave online, then re-join, judged across clocks
+// ---------------------------------------------------------------------------
+
+/**
+ * Enrols (through the store, so no push races the leave), leaves online and re-joins through
+ * the service, finishing day 1 of the re-join; returns the pushes the re-join made.
+ */
+const leaveOnlineThenRejoin = async (planId: string) => {
+  planStore().enrollPlan(planId);
+  assert.deepEqual(await service.unenrollFromPlan(planId), { success: true });
+  assert.deepEqual(planStore().pendingUnenrollPlanIds, [], 'the leave is confirmed');
+  // A reader cannot re-join within the same millisecond the server stored the leave.
+  await new Promise<void>((resolve) => setTimeout(resolve, 2));
+
+  await service.enrollInPlan(planId);
+  await service.markDayComplete(planId, 1);
+  await flushBackgroundWork();
+  await flushBackgroundWork();
+  return mergeRpcCalls().flatMap((call) => (call.payload as MergeRpcArgs).p_rows);
+};
+
+test('a re-join right after an online leave survives its push on a phone whose clock runs slow', async () => {
+  signIn('user-a', 2);
+  const server = serveSkewedServer(10 * MINUTE_MS);
+
+  const pushed = await leaveOnlineThenRejoin('psalms-30-days');
+
+  const progress = planStore().getProgress('psalms-30-days');
+  assert.ok(progress, 'the re-join is kept');
+  assert.ok(progress.completed_entries['1'], 'with the day finished after re-joining');
+  assert.equal(progress.id, 'server-psalms-30-days', 'and the server stored it');
+  assert.equal(planStore().enrolledPlanIds.includes('psalms-30-days'), true);
+  // The re-join started just past the leave as the server stored it, on the server's clock,
+  // so it goes without the phone's clock and the server does not move it again.
+  const storedLeftAt = server.tombstones.get('psalms-30-days')!;
+  assert.equal(Date.parse(progress.started_at), storedLeftAt + 1);
+  assert.ok(pushed.length > 0);
+  assert.ok(pushed.every((row) => !('client_clock_at' in row)));
+  // The remembered leave has done its job and is not kept.
+  assert.deepEqual(planStore().serverLeftAtByPlanId, {});
+});
+
+test('a re-join after an online leave starts and syncs as before on a phone whose clock runs fast', async () => {
+  signIn('user-a', 2);
+  serveSkewedServer(-10 * MINUTE_MS);
+
+  const before = Date.now();
+  const pushed = await leaveOnlineThenRejoin('psalms-30-days');
+
+  const progress = planStore().getProgress('psalms-30-days');
+  assert.ok(progress?.completed_entries['1']);
+  assert.equal(progress?.id, 'server-psalms-30-days');
+  // Started on the phone's clock and sent with it, for the server to move.
+  assert.ok(pushed.length > 0);
+  assert.ok(pushed.every((row) => typeof row.client_clock_at === 'string'));
+  assert.ok(Date.parse(pushed[0]?.started_at as string) >= before);
+});
+
+test('a re-join after an online leave starts and syncs as before on a phone with the right time', async () => {
+  signIn('user-a', 2);
+  serveSkewedServer(0);
+
+  const pushed = await leaveOnlineThenRejoin('psalms-30-days');
+
+  const progress = planStore().getProgress('psalms-30-days');
+  assert.ok(progress?.completed_entries['1']);
+  assert.equal(progress?.id, 'server-psalms-30-days');
+  assert.ok(pushed.length > 0);
+  assert.ok(pushed.every((row) => typeof row.client_clock_at === 'string'));
+});
+
+test('a leave on another phone after the slow phone re-joined online still ends the re-join', async () => {
+  signIn('user-a', 2);
+  const server = serveSkewedServer(10 * MINUTE_MS);
+  await leaveOnlineThenRejoin('psalms-30-days');
+  assert.ok(planStore().getProgress('psalms-30-days'), 'the re-join was kept');
+  await new Promise<void>((resolve) => setTimeout(resolve, 2));
+  server.leaveElsewhere('psalms-30-days');
+
+  await service.syncPlanProgress(Object.values(planStore().progressByPlanId));
+
+  assert.equal(planStore().getProgress('psalms-30-days'), null);
+});

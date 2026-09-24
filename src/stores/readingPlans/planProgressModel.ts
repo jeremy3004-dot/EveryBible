@@ -24,6 +24,7 @@ export const createEmptyState = (): ReadingPlansPersistedState => ({
   rhythmOrder: [],
   pendingUnenrollPlanIds: [],
   pendingUnenrollAtByPlanId: {},
+  serverLeftAtByPlanId: {},
 });
 
 /** The record without `key`, or the same record when it has no such key. */
@@ -38,6 +39,17 @@ export const withoutKey = (record: Record<string, string>, key: string): Record<
 
 export const buildPlanDayResumeKey = (planId: string, dayNumber: number): string =>
   `${planId}:${dayNumber}`;
+
+/**
+ * The earliest a re-join may start: 1 ms past the latest of the leaves it follows (the queued
+ * one on this phone's clock, the confirmed one on the server's), or undefined with neither.
+ */
+export const getRejoinNotBeforeMs = (...leftAts: Array<string | undefined>): number | undefined => {
+  const leftMs = leftAts
+    .map((leftAt) => Date.parse(leftAt ?? ''))
+    .filter((ms) => Number.isFinite(ms));
+  return leftMs.length > 0 ? Math.max(...leftMs) + 1 : undefined;
+};
 
 /**
  * A fresh enrolment row, started now or, when given, no earlier than `notBeforeMs` (a re-join
