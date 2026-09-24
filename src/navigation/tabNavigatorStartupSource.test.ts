@@ -6,12 +6,21 @@
 // by TabNavigator.render.test.tsx and TabBarSelection.render.test.tsx.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { readBibleReaderSource } from '../screens/bible/bibleReaderSourceFiles';
 
 function readRelativeSource(relativePath: string): string {
   return readFileSync(fileURLToPath(new URL(relativePath, import.meta.url).href), 'utf8');
+}
+
+// TabNavigator's tab bar and screen options live in ./tabNavigatorParts, which it
+// imports statically, so those files are on the same boot path.
+function readTabNavigatorPartSources(): Array<[string, string]> {
+  return readdirSync(fileURLToPath(new URL('./tabNavigatorParts/', import.meta.url).href))
+    .filter((name) => /\.tsx?$/.test(name) && !name.includes('.test.'))
+    .sort()
+    .map((name) => [name, readRelativeSource(`./tabNavigatorParts/${name}`)]);
 }
 
 test('TabNavigator keeps the Bible store off the root tab render path', () => {
@@ -28,6 +37,16 @@ test('TabNavigator keeps the Bible store off the root tab render path', () => {
     /function getBibleTabResumeState\(\)[\s\S]*require\('\.\.\/stores\/bibleStore'\)/,
     'TabNavigator should load the Bible store only when Bible-tab resume state is needed'
   );
+
+  const parts = readTabNavigatorPartSources();
+  assert.ok(parts.length > 0);
+  for (const [name, partSource] of parts) {
+    assert.doesNotMatch(
+      partSource,
+      /stores\/bibleStore'/,
+      `tabNavigatorParts/${name} must not load the Bible store on the boot path`
+    );
+  }
 });
 
 test('TabNavigator imports useTabBarHeight directly, not through the hooks barrel', () => {
@@ -35,9 +54,23 @@ test('TabNavigator imports useTabBarHeight directly, not through the hooks barre
 
   assert.match(
     source,
-    /import \{ useTabBarHeight, TAB_BAR_CAPSULE_RADIUS \} from '\.\.\/hooks\/useTabBarHeight';/,
+    /import \{ useTabBarHeight \} from '\.\.\/hooks\/useTabBarHeight';/,
     'importing the hooks barrel would evaluate every hook module at boot'
   );
+  assert.match(
+    readRelativeSource('./tabNavigatorParts/TabBarChrome.tsx'),
+    /import \{ TAB_BAR_CAPSULE_RADIUS \} from '\.\.\/\.\.\/hooks\/useTabBarHeight';/
+  );
+  for (const [name, partSource] of [
+    ['TabNavigator.tsx', source],
+    ...readTabNavigatorPartSources(),
+  ] as const) {
+    assert.doesNotMatch(
+      partSource,
+      /from '(\.\.\/)+hooks';/,
+      `${name} must import each hook from its own module`
+    );
+  }
 });
 
 test('the tab bar capsule geometry is defined in exactly one place', () => {
