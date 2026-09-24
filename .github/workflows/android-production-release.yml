@@ -54,6 +54,10 @@ jobs:
         # repointed by the action owner (or anyone who compromises that repo) at any time,
         # and this job holds the Play service account key and the Expo token.
         uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+        with:
+          # The action's default ('tools platform-tools') fails on cmdline-tools 16+, which no
+          # longer ships the legacy 'tools' package. The next step installs what the build needs.
+          packages: 'platform-tools'
 
       - name: Install Android SDK packages
         run: |
