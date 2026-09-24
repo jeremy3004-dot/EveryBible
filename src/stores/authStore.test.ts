@@ -233,15 +233,110 @@ test('the last synced account id survives a restart so an account switch can be 
   assert.equal(hydratedState.lastSyncedUserId, 'seeded-user');
 });
 
-test('only preferences, their sync base and the account marker are written to disk', () => {
+test('only preferences, their sync base, their edit stamps and the account marker are written to disk', () => {
   useAuthStore.getState().setPreferences({ fontSize: 'small' });
 
   assert.deepEqual(Object.keys(readPersistedAuthStorage().state).sort(), [
     'lastSyncedUserId',
+    'preferenceFieldStamps',
     'preferences',
     'preferencesSyncBase',
     'preferencesUpdatedAt',
   ]);
+});
+
+test('a preference edit stamps only the settings whose value changed', () => {
+  useAuthStore
+    .getState()
+    .applySyncedPreferences(
+      { ...defaultAuthPreferences },
+      '2026-06-01T00:00:00.000Z',
+      undefined,
+      {}
+    );
+  const current = useAuthStore.getState().preferences;
+
+  useAuthStore.getState().setPreferences({
+    fontSize: current.fontSize === 'large' ? 'small' : 'large',
+    language: current.language,
+  });
+
+  const stamps = useAuthStore.getState().preferenceFieldStamps;
+  assert.deepEqual(Object.keys(stamps), ['fontSize']);
+  assert.equal(stamps.fontSize, useAuthStore.getState().preferencesUpdatedAt);
+});
+
+test('synced preferences carry the server stamps when they are given', () => {
+  const stamps = { theme: '2026-06-01T00:00:00.000Z' };
+
+  useAuthStore
+    .getState()
+    .applySyncedPreferences(
+      { ...defaultAuthPreferences, theme: 'dark' },
+      '2026-06-02T00:00:00.000Z',
+      undefined,
+      stamps
+    );
+
+  assert.deepEqual(useAuthStore.getState().preferenceFieldStamps, stamps);
+});
+
+// Before the server has stamps, a sync can replace a value without one. The old
+// stamp described the replaced value; kept, it would later make the adopted
+// value look like this device's newer choice.
+test('a value replaced by a sync without stamps loses its local stamp', () => {
+  useAuthStore
+    .getState()
+    .applySyncedPreferences({ ...defaultAuthPreferences }, '2026-06-01T00:00:00.000Z', undefined, {
+      fontSize: '2026-06-01T00:00:00.000Z',
+      theme: '2026-06-01T00:00:00.000Z',
+    });
+
+  useAuthStore.getState().applySyncedPreferences(
+    {
+      ...defaultAuthPreferences,
+      fontSize: defaultAuthPreferences.fontSize === 'large' ? 'small' : 'large',
+    },
+    '2026-06-02T00:00:00.000Z'
+  );
+
+  assert.deepEqual(useAuthStore.getState().preferenceFieldStamps, {
+    theme: '2026-06-01T00:00:00.000Z',
+  });
+});
+
+test('new stamps alone are adopted even when the values and sync time are unchanged', () => {
+  const stamp = '2026-06-01T00:00:00.000Z';
+  useAuthStore
+    .getState()
+    .applySyncedPreferences({ ...defaultAuthPreferences }, stamp, undefined, {});
+
+  useAuthStore
+    .getState()
+    .applySyncedPreferences({ ...defaultAuthPreferences }, stamp, undefined, { fontSize: stamp });
+
+  assert.deepEqual(useAuthStore.getState().preferenceFieldStamps, { fontSize: stamp });
+});
+
+test('preference edit stamps survive a restart, drop corrupt entries, and clear on sign-out', async () => {
+  await rehydrateFrom({
+    state: {
+      preferenceFieldStamps: {
+        theme: '2026-06-01T00:00:00.000Z',
+        fontSize: 'not a time',
+        notAPreference: '2026-06-01T00:00:00.000Z',
+      },
+    },
+    version: 4,
+  });
+  assert.deepEqual(useAuthStore.getState().preferenceFieldStamps, {
+    theme: '2026-06-01T00:00:00.000Z',
+  });
+
+  useAuthStore.getState().setUser(appUser('user-a'));
+  await useAuthStore.getState().signOut();
+
+  assert.deepEqual(useAuthStore.getState().preferenceFieldStamps, {});
 });
 
 test('an unsupported language and font size fall back to the defaults', async () => {
@@ -305,11 +400,73 @@ test('state written by a newer build is accepted rather than discarded', async (
       preferences: { fontSize: 'small' },
       preferencesUpdatedAt: '2026-01-01T00:00:00.000Z',
     },
-    version: 4,
+    version: 5,
   });
 
   assert.equal(useAuthStore.getState().preferences.fontSize, 'small');
   assert.equal(useAuthStore.getState().preferencesUpdatedAt, '2026-01-01T00:00:00.000Z');
+});
+
+// Installs from before per-field stamps (version 3) carry real choices with no
+// stamps. Without seeding them, every one would lose to any stamped account
+// value on the next sync; seeding all of them would let a guest's untouched
+// defaults overwrite the account on first sign-in (finding 8).
+test('a signed-in install from before edit stamps keeps its whole-row edit time per field', async () => {
+  const edited = '2026-09-01T00:00:00.000Z';
+  await rehydrateFrom({
+    state: {
+      preferences: { ...defaultAuthPreferences, fontSize: 'large' },
+      preferencesUpdatedAt: edited,
+      lastSyncedUserId: 'user-a',
+    },
+    version: 3,
+  });
+
+  const stamps = useAuthStore.getState().preferenceFieldStamps;
+  assert.deepEqual(Object.keys(stamps).sort(), Object.keys(defaultAuthPreferences).sort());
+  assert.ok(Object.values(stamps).every((stamp) => stamp === edited));
+});
+
+test('a guest install from before edit stamps stamps only what it moved off the defaults', async () => {
+  await rehydrateFrom({
+    state: {
+      preferences: { ...defaultAuthPreferences, language: 'es', onboardingCompleted: true },
+      preferencesUpdatedAt: '2026-09-01T00:00:00.000Z',
+      lastSyncedUserId: null,
+    },
+    version: 3,
+  });
+
+  assert.deepEqual(useAuthStore.getState().preferenceFieldStamps, {
+    language: '2026-09-01T00:00:00.000Z',
+    onboardingCompleted: '2026-09-01T00:00:00.000Z',
+  });
+});
+
+test('an install with a sync base stamps only what changed since the last sync', async () => {
+  const base = { ...defaultAuthPreferences, fontSize: 'large' as const, theme: 'dark' as const };
+  await rehydrateFrom({
+    state: {
+      preferences: { ...base, theme: 'light' },
+      preferencesSyncBase: base,
+      preferencesUpdatedAt: '2026-09-02T00:00:00.000Z',
+      lastSyncedUserId: 'user-a',
+    },
+    version: 3,
+  });
+
+  assert.deepEqual(useAuthStore.getState().preferenceFieldStamps, {
+    theme: '2026-09-02T00:00:00.000Z',
+  });
+});
+
+test('an install from before edit stamps with no edit time gains no stamps', async () => {
+  await rehydrateFrom({
+    state: { preferences: { ...defaultAuthPreferences, fontSize: 'large' }, lastSyncedUserId: 'u' },
+    version: 3,
+  });
+
+  assert.deepEqual(useAuthStore.getState().preferenceFieldStamps, {});
 });
 
 // ---------------------------------------------------------------------------

@@ -193,6 +193,12 @@ export interface ReadingPlansPersistedState {
    * and to retry the remote delete during sync (see M12).
    */
   pendingUnenrollPlanIds: string[];
+  /**
+   * When the reader left each pending plan, sent with the server tombstone so a
+   * retried leave cannot end a re-join made elsewhere in the meantime. Missing
+   * for tombstones recorded before this existed; the server then uses its clock.
+   */
+  pendingUnenrollAtByPlanId: Record<string, string>;
 }
 
 export interface ReadingPlansStoreState extends ReadingPlansPersistedState {
@@ -249,6 +255,11 @@ export interface ReadingPlansStoreState extends ReadingPlansPersistedState {
   clearPendingUnenroll: (planId: string) => void;
   /** Consumes guest-only tombstones before the first authenticated sync. */
   clearPendingUnenrolls: () => void;
+  /**
+   * Removes a plan the reader left on another device. Unlike unenrollPlan it
+   * records no pending tombstone: the server already holds the leave.
+   */
+  endPlanLeftElsewhere: (planId: string) => void;
   resetAll: () => void;
   /**
    * Clears all per-user plan progress, rhythms, and tombstones back to the initial

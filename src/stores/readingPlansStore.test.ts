@@ -418,3 +418,70 @@ test('plan-day resume positions persist and can be restored across store reloads
     chapter: 38,
   });
 });
+
+test('a pending unenroll remembers when the reader left, across a reload, until it is cleared', async () => {
+  const mod = await import('./readingPlansStore');
+  const storage = createMemoryStorage();
+  const store = mod.createReadingPlansStore(storage);
+  store.getState().enrollPlan('psalms-30-days');
+
+  store.getState().unenrollPlan('psalms-30-days');
+  const leftAt = store.getState().pendingUnenrollAtByPlanId['psalms-30-days'];
+  assert.ok(leftAt && Number.isFinite(Date.parse(leftAt)));
+  // Re-recording the same pending leave keeps the original time.
+  store.getState().addPendingUnenroll('psalms-30-days');
+  assert.equal(store.getState().pendingUnenrollAtByPlanId['psalms-30-days'], leftAt);
+
+  const restored = mod.createReadingPlansStore(storage);
+  assert.deepEqual(restored.getState().pendingUnenrollAtByPlanId, { 'psalms-30-days': leftAt });
+
+  restored.getState().clearPendingUnenroll('psalms-30-days');
+  assert.deepEqual(restored.getState().pendingUnenrollAtByPlanId, {});
+});
+
+test('re-enrolling drops the pending leave time along with the tombstone', async () => {
+  const mod = await import('./readingPlansStore');
+  const store = mod.createReadingPlansStore(createMemoryStorage());
+  store.getState().enrollPlan('psalms-30-days');
+  store.getState().unenrollPlan('psalms-30-days');
+
+  store.getState().enrollPlan('psalms-30-days');
+
+  assert.deepEqual(store.getState().pendingUnenrollPlanIds, []);
+  assert.deepEqual(store.getState().pendingUnenrollAtByPlanId, {});
+});
+
+test('a plan left on another device is removed without queuing a leave of its own', async () => {
+  const mod = await import('./readingPlansStore');
+  const store = mod.createReadingPlansStore(createMemoryStorage());
+  store.getState().savePlan('psalms-30-days');
+  store.getState().enrollPlan('psalms-30-days');
+  store.getState().setPlanDayResume('psalms-30-days', 2, 'PSA', 6);
+
+  store.getState().endPlanLeftElsewhere('psalms-30-days');
+
+  assert.equal(store.getState().getProgress('psalms-30-days'), null);
+  assert.deepEqual(store.getState().enrolledPlanIds, []);
+  assert.equal(store.getState().getPlanDayResume('psalms-30-days', 2), null);
+  assert.deepEqual(store.getState().savedPlanIds, ['psalms-30-days']);
+  assert.deepEqual(store.getState().pendingUnenrollPlanIds, []);
+});
+
+test('corrupt persisted leave times are dropped on load', async () => {
+  const mod = await import('./readingPlansStore');
+  const storage = createMemoryStorage();
+  storage.setItem(
+    'reading-plans-storage',
+    JSON.stringify({
+      state: {
+        pendingUnenrollPlanIds: ['a', 'b'],
+        pendingUnenrollAtByPlanId: { a: '2026-09-01T00:00:00.000Z', b: 'soon', c: 7 },
+      },
+      version: 0,
+    })
+  );
+
+  const store = mod.createReadingPlansStore(storage);
+
+  assert.deepEqual(store.getState().pendingUnenrollAtByPlanId, { a: '2026-09-01T00:00:00.000Z' });
+});

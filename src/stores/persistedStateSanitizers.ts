@@ -24,6 +24,7 @@ import type {
   TranslationInstallState,
   TranslationTimingCatalog,
   TranslationTextCatalog,
+  PreferenceFieldStamps,
   User,
   UserPreferences,
 } from '../types';
@@ -941,6 +942,7 @@ export const sanitizePersistedAuthState = (
   preferences: UserPreferences;
   preferencesUpdatedAt: string | null;
   preferencesSyncBase: UserPreferences | null;
+  preferenceFieldStamps: PreferenceFieldStamps;
 } => {
   const persisted = isRecord(value) ? value : {};
 
@@ -959,7 +961,23 @@ export const sanitizePersistedAuthState = (
     preferencesSyncBase: isRecord(persisted.preferencesSyncBase)
       ? sanitizeUserPreferences(persisted.preferencesSyncBase)
       : null,
+    preferenceFieldStamps: sanitizePreferenceFieldStamps(persisted.preferenceFieldStamps),
   };
+};
+
+/** Keeps only stamps for known preferences that parse as a time. */
+export const sanitizePreferenceFieldStamps = (value: unknown): PreferenceFieldStamps => {
+  if (!isRecord(value)) {
+    return {};
+  }
+  const stamps: PreferenceFieldStamps = {};
+  for (const field of Object.keys(defaultAuthPreferences) as (keyof UserPreferences)[]) {
+    const stamp = value[field];
+    if (typeof stamp === 'string' && Number.isFinite(Date.parse(stamp))) {
+      stamps[field] = stamp;
+    }
+  }
+  return stamps;
 };
 
 export const sanitizePersistedBibleState = (
