@@ -13,8 +13,10 @@ export interface BibleDeepLinkTarget {
  *
  * Total: 66 books + 1 alias = 67 entries.
  */
-const SLUG_TO_BOOK_ID: Record<string, string> = Object.fromEntries([
-  ...bibleBooks.map((book) => [book.name.toLowerCase().replace(/\s/g, ''), book.id]),
+// Maps, not object literals: a link is arbitrary text, and a `{}` table would answer
+// inherited keys such as 'constructor' or '__proto__' with a function or object.
+const SLUG_TO_BOOK_ID = new Map<string, string>([
+  ...bibleBooks.map((book) => [book.name.toLowerCase().replace(/\s/g, ''), book.id] as const),
   ['psalm', 'PSA'],
 ]);
 
@@ -22,9 +24,15 @@ const SLUG_TO_BOOK_ID: Record<string, string> = Object.fromEntries([
  * Reverse map: internal book ID -> URL slug.
  * Used by buildBibleDeepLink only.
  */
-const BOOK_ID_TO_SLUG: Record<string, string> = Object.fromEntries(
+const BOOK_ID_TO_SLUG = new Map<string, string>(
   bibleBooks.map((book) => [book.id, book.name.toLowerCase().replace(/\s/g, '')])
 );
+
+const isChapterOf = (bookId: string, chapter: number): boolean =>
+  Number.isInteger(chapter) && chapter >= 1 && chapter <= (getBookById(bookId)?.chapters ?? 0);
+
+const isVerseNumber = (verse: number | undefined): verse is number =>
+  verse !== undefined && Number.isSafeInteger(verse) && verse >= 1;
 
 /**
  * Parses a path like "/bible/john/3/16" or "/bible/john/3" into a BibleDeepLinkTarget.
@@ -43,21 +51,23 @@ export const parseBibleDeepLink = (path: string): BibleDeepLinkTarget | null => 
 
   const [, bookSlug, chapterStr, verseStr] = match;
   const slug = (bookSlug ?? '').toLowerCase().replace(/\s/g, '');
-  const bookId = SLUG_TO_BOOK_ID[slug];
+  const bookId = SLUG_TO_BOOK_ID.get(slug);
   if (!bookId) return null;
 
   const chapter = parseInt(chapterStr ?? '0', 10);
-  const chapterCount = getBookById(bookId)?.chapters ?? 0;
-  if (!Number.isInteger(chapter) || chapter < 1 || chapter > chapterCount) return null;
+  if (!isChapterOf(bookId, chapter)) return null;
 
+  // A verse that is not a real position (0, or too long to be a safe integer) is dropped.
   const parsedVerse = verseStr !== undefined ? parseInt(verseStr, 10) : undefined;
-  const verse = parsedVerse !== undefined && parsedVerse >= 1 ? parsedVerse : undefined;
+  const verse = isVerseNumber(parsedVerse) ? parsedVerse : undefined;
   return { bookId, chapter, verse };
 };
 
 /**
  * Builds a shareable deep link URL for a Bible chapter or verse.
- * Returns '' if the bookId is not recognized.
+ * Returns '' if the bookId is not recognized or the book has no such chapter, so
+ * every link it makes opens again; a verse that is not a positive whole number is
+ * left out.
  *
  * Example usage:
  *   buildBibleDeepLink('JHN', 3, 16)  => 'com.everybible.app://bible/john/3/16'
@@ -66,8 +76,8 @@ export const parseBibleDeepLink = (path: string): BibleDeepLinkTarget | null => 
  *   buildBibleDeepLink('INVALID', 1)  => ''
  */
 export const buildBibleDeepLink = (bookId: string, chapter: number, verse?: number): string => {
-  const slug = BOOK_ID_TO_SLUG[bookId];
-  if (!slug) return '';
+  const slug = BOOK_ID_TO_SLUG.get(bookId);
+  if (!slug || !isChapterOf(bookId, chapter)) return '';
   const base = `com.everybible.app://bible/${slug}/${chapter}`;
-  return verse !== undefined ? `${base}/${verse}` : base;
+  return isVerseNumber(verse) ? `${base}/${verse}` : base;
 };
