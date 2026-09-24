@@ -623,10 +623,7 @@ test('screens and components import concrete hooks instead of the hooks barrel',
       )
   );
 
-  assert.deepEqual(barrelImporters.sort(), [
-    'src/screens/learn/GroupListScreen.tsx',
-    'src/screens/learn/LessonDetailScreen.tsx',
-  ]);
+  assert.deepEqual(barrelImporters.sort(), []);
 
   [
     '../../screens/bible/BibleBrowserScreen.tsx',
