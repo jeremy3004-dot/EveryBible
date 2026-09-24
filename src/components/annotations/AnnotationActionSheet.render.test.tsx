@@ -77,6 +77,22 @@ test('once the sheet is hidden, the back button falls through to the reader agai
   assert.equal(closed, 0);
 });
 
+test('opening and closing the sheet repeatedly leaves no back handlers behind', async () => {
+  const { AnnotationActionSheet } = await import('./AnnotationActionSheet');
+  const onClose = () => {};
+  const baseline = harness.rn.BackHandler.listenerCount();
+  const view = await harness.render(<AnnotationActionSheet {...sheetProps(onClose)} />);
+
+  for (let cycle = 0; cycle < 5; cycle += 1) {
+    await view.rerender(<AnnotationActionSheet {...sheetProps(onClose, { visible: false })} />);
+    await view.rerender(<AnnotationActionSheet {...sheetProps(onClose)} />);
+    assert.equal(harness.rn.BackHandler.listenerCount(), baseline + 1);
+  }
+  await view.unmount();
+
+  assert.equal(harness.rn.BackHandler.listenerCount(), baseline);
+});
+
 test('the sheet is drawn inline, not in a modal, so the Bible stays tappable around it', async () => {
   const { AnnotationActionSheet } = await import('./AnnotationActionSheet');
   const view = await harness.render(<AnnotationActionSheet {...sheetProps(() => {})} />);

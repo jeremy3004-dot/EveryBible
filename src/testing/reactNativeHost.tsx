@@ -419,6 +419,8 @@ export function createReactNativeRenderStub(options: ReactNativeRenderStubOption
       exitApp: () => {},
       /** Test helper: deliver a hardware back press, newest handler first. */
       press: () => [...backHandlers].reverse().some((handler) => handler() === true),
+      /** Test helper: handlers still registered, to assert an unmount removed its own. */
+      listenerCount: () => backHandlers.size,
     },
     LayoutAnimation: {
       configureNext: () => {},
