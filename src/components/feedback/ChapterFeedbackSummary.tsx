@@ -91,14 +91,14 @@ export function ChapterFeedbackSummary({
         </TouchableOpacity>
       ) : (
         <>
+          {/* Worded like the feedback screen it opens: open items, not pending decisions. */}
           <Text style={{ color: colors.bibleSecondaryText }}>
-            {summary?.total
-              ? t('bible.translatorReviewSummary', { count: summary.total, pending })
-              : t('bible.translatorReviewEmpty')}
+            {!summary?.total
+              ? t('bible.translatorReviewEmpty')
+              : pending > 0
+                ? t('feedback.openCount', { count: pending })
+                : t('feedback.complete')}
           </Text>
-          {!!summary?.total && pending === 0 && (
-            <Text style={{ color: colors.bibleSecondaryText }}>{t('feedback.complete')}</Text>
-          )}
           {!!summary?.total && (
             <Text style={{ color: colors.bibleSecondaryText }}>
               {t('feedback.community')}: {summary.community ?? 0} · {t('feedback.council')}:{' '}

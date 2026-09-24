@@ -316,11 +316,11 @@ export function ChapterFeedbackReviewScreen({ route, navigation }: Props) {
               {t('feedback.complete')}
             </Text>
           </View>
-        ) : (
+        ) : headline.kind === 'empty' ? (
           <Text style={[styles.body, { color: colors.secondaryText }]}>
-            {t(headline.kind === 'loading' ? 'common.loading' : 'bible.translatorReviewEmpty')}
+            {t('bible.translatorReviewEmpty')}
           </Text>
-        )}
+        ) : null}
       </View>
 
       <TabSwitch
@@ -489,7 +489,8 @@ export function ChapterFeedbackReviewScreen({ route, navigation }: Props) {
             ) : null
           }
           ListFooterComponent={
-            loading ? (
+            // The first load already shows the pull-to-refresh spinner; this one is for later pages.
+            loading && items.length > 0 ? (
               <ActivityIndicator color={colors.accentPrimary} />
             ) : cursor ? (
               <AppButton

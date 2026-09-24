@@ -79,7 +79,24 @@ test('when enabled it shows the server summary for this chapter of the translati
 
   assert.deepEqual(summaryCalls, [{ translationId: 'bsb', bookId: 'JHN', passcode: '123456' }]);
   assert.ok(view.getByRole('header', { name: t('feedback.title') }));
-  assert.ok(view.getByText(t('bible.translatorReviewSummary', { count: 5, pending: 3 })));
+  // Open items read the same here as on the feedback screen, not as pending decisions.
+  assert.ok(view.getByText(t('feedback.openCount', { count: 3 })));
+  assert.equal(
+    view.queryByText(t('bible.translatorReviewSummary', { count: 5, pending: 3 })),
+    null
+  );
+});
+
+test('a chapter with nothing open says its feedback is all reviewed', async () => {
+  reviewStore.setState({ enabled: true, accessPasscode: '123456' });
+  summaryResult = {
+    success: true,
+    chapters: [{ chapter: 3, total: 2, unresolvedDown: 0, unresolvedUp: 0, community: 2 }],
+  };
+  const view = await renderSummary();
+
+  assert.ok(view.getByText(t('feedback.complete')));
+  assert.equal(view.queryByText(t('feedback.openCount', { count: 0 })), null);
 });
 
 test('its entry opens the dedicated review for the same translation and chapter', async () => {
