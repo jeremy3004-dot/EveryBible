@@ -107,19 +107,10 @@ test('BibleReaderScreen brings the shared top chrome back in sync with the colla
   );
 });
 
-test('BibleReaderScreen ignores stale chapter and annotation loads during rapid navigation', () => {
+// Stale chapter loads are covered behaviourally in readerChapterLoader.test.ts.
+test('BibleReaderScreen ignores stale annotation loads during rapid navigation', () => {
   const source = readRelativeSource('./BibleReaderScreen.tsx');
 
-  assert.match(
-    source,
-    /const chapterLoadRequestIdRef = useRef\(0\);/,
-    'BibleReaderScreen should track the latest chapter load request'
-  );
-  assert.match(
-    source,
-    /const requestId = \+\+chapterLoadRequestIdRef\.current;[\s\S]*await getChapter\(currentTranslation, bookId, chapter\);[\s\S]*if \(requestId !== chapterLoadRequestIdRef\.current\) \{[\s\S]*return;[\s\S]*\}/,
-    'BibleReaderScreen should ignore stale SQLite chapter results instead of replacing the current chapter'
-  );
   assert.match(
     source,
     /const annotationLoadRequestIdRef = useRef\(0\);[\s\S]*const requestId = \+\+annotationLoadRequestIdRef\.current;[\s\S]*await getAnnotationsForChapter\(bookId, chapter\);[\s\S]*if \(requestId !== annotationLoadRequestIdRef\.current\) \{[\s\S]*return;[\s\S]*\}/,
@@ -1601,10 +1592,17 @@ test('BibleReaderScreen keeps the audio position tick out of its own render body
     'BibleReaderScreen must not subscribe to the audio position tick; extracted leaves own it'
   );
 
-  assert.match(
-    bridgeSource,
-    /useAudioPosition\(track\)/,
+  assert.ok(
+    (bridgeSource.match(/useAudioPosition\(track\)/g) ?? []).length >= 4,
     'The extracted reader audio leaves should be the ones subscribing to the position tick'
+  );
+
+  // The leaves are scoped to the chapter on screen, so ticks from another chapter's
+  // audio are shallow-equal and re-render nothing (see useAudioPosition.test.ts).
+  assert.match(
+    source,
+    /const readerAudioTrack = useMemo\(\s*\(\) => \(\{ translationId: currentTranslation, bookId, chapter \}\)/,
+    'The reader should build its scoped audio track once and hand it to the leaves'
   );
 
   for (const leaf of [

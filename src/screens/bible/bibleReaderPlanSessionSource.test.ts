@@ -91,11 +91,8 @@ test('BibleReaderScreen derives the current plan-day chapter list and chapter in
     /setPlanDayResume\(activePlanId,\s*planDayNumber,\s*bookId,\s*chapter\)/,
     'BibleReaderScreen should persist the current plan-day chapter so a reopened day can resume in place'
   );
-  assert.match(
-    source,
-    /if \(!returnToPlanOnComplete\) \{[\s\S]*markChapterRead\(bookId,\s*chapter\);[\s\S]*\}/s,
-    'BibleReaderScreen should avoid auto-marking plan sessions as read as soon as the reader loads'
-  );
+  // Skipping the on-load markChapterRead in a plan session is covered behaviourally in
+  // readerChapterLoader.test.ts.
 });
 
 test('BibleReaderScreen derives rhythm session ownership from the route session context when present', () => {
@@ -291,11 +288,8 @@ test('BibleReaderScreen avoids auto-completing plan chapters on open and returns
   );
   const handleCompletePlanDaySource = handleCompletePlanDayMatch?.[0] ?? '';
 
-  assert.match(
-    source,
-    /if \(!returnToPlanOnComplete\) \{[\s\S]*markChapterRead\(bookId, chapter\);[\s\S]*\}/s,
-    'BibleReaderScreen should skip automatic markChapterRead when the reader was opened as a plan session'
-  );
+  // Skipping the on-load markChapterRead in a plan session is covered behaviourally in
+  // readerChapterLoader.test.ts.
   assert.match(
     source,
     /if \(shouldRecordReadCompletion && !\(activeChapterKey in chaptersRead\)\) \{[\s\S]*markChapterRead\(bookId, chapter\);[\s\S]*\}/s,
