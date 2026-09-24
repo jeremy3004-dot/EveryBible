@@ -3,9 +3,10 @@
 // The small icon on the Android "Now playing" notification (status bar, lock screen,
 // notification shade) comes from expo-media-control's MediaPlaybackService. It reads
 // one icon name from the manifest meta-data below; without it the service falls
-// through its list of standard names to `notification_icon`, the book-and-cross
-// glyph expo-notifications generates from assets/notification-icon.png. That glyph
-// then sat in the status bar for every chapter, discreet mode included.
+// through its list of standard names to `notification_icon`, the reminder icon
+// expo-notifications generates (then the book-and-cross glyph, now a bell; see
+// src/config/notificationIconConfig.test.ts). That glyph sat in the status bar for
+// every chapter, discreet mode included.
 //
 // The service resolves the icon once per notification from static resources, and
 // JS has no option to change it, so it cannot switch with discreet mode without a
@@ -14,7 +15,8 @@
 // shows the app label ("Every Bible"); Android draws that from the application
 // label and offers no per-notification override to ordinary apps.
 //
-// Reminder and push notifications keep the branded icon (expo-notifications).
+// Reminder and push notifications use expo-notifications' single icon, which is a
+// neutral bell for everyone for the same reason (app.json).
 
 const fs = require('fs/promises');
 const path = require('path');
