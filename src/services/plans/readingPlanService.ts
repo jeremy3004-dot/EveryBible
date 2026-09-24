@@ -490,6 +490,15 @@ type PreWriteMerge =
        * rows (select('*') returns every column); null when no row came back.
        */
       sessionColumns: boolean | null;
+      /** The account's tombstones for these plans, or null when they could not be read. */
+      unenrollments: Map<string, string> | null;
+      /**
+       * Plans to push with this phone's clock (client_clock_at): left at some point,
+       * with no stored row, so the enrolment is new to the server and its start was
+       * stamped by this phone. A start adopted from a stored row is already on the
+       * server's clock and must not be corrected again.
+       */
+      clockPlanIds: Set<string>;
     }
   | { outcome: 'unreadable' | 'stale' };
 
@@ -529,10 +538,15 @@ async function mergeServerRowsBeforePush(
       endPlansLeftElsewhere(unenrollments);
       serverRows.forEach(mergeServerRowIntoLive);
     });
+    const storedPlanIds = new Set(serverRows.map((row) => row.plan_id));
     return merged.applied
       ? {
           outcome: 'merged',
           sessionColumns: rawRows.length > 0 ? 'completed_sessions' in rawRows[0] : null,
+          unenrollments,
+          clockPlanIds: new Set(
+            planIds.filter((planId) => unenrollments?.has(planId) && !storedPlanIds.has(planId))
+          ),
         }
       : { outcome: 'stale' };
   } catch {
@@ -582,7 +596,8 @@ async function mergeLivePlanProgressOnServer(
   supabase: SupabaseModule['supabase'],
   identity: SyncIdentityBoundary,
   planIds: string[],
-  single: boolean
+  single: boolean,
+  clockPlanIds: ReadonlySet<string>
 ): Promise<LivePlanUpsert | null> {
   // The function refuses a call naming more than 100 plans (22023), which left a
   // large sync silently local-only; send the rows in batches it accepts.
@@ -591,9 +606,19 @@ async function mergeLivePlanProgressOnServer(
   for (let start = 0; start < planIds.length; start += PLAN_PROGRESS_MERGE_BATCH_SIZE) {
     const batch = planIds.slice(start, start + PLAN_PROGRESS_MERGE_BATCH_SIZE);
     const write = await identity.runIfCurrent(() => {
-      const rows = getLivePushableProgress(batch).map((progress) =>
-        buildRemoteReadingPlanProgressPayload(progress, identity.expectedUserId, true)
-      );
+      // Stamped as the request is built: the server reads the gap to its own clock
+      // as this phone's clock error (migration 20260924140000; older servers ignore it).
+      const sentAt = new Date().toISOString();
+      const rows = getLivePushableProgress(batch).map((progress) => {
+        const payload = buildRemoteReadingPlanProgressPayload(
+          progress,
+          identity.expectedUserId,
+          true
+        );
+        return clockPlanIds.has(progress.plan_id)
+          ? { ...payload, client_clock_at: sentAt }
+          : payload;
+      });
       if (rows.length === 0) {
         return null;
       }
@@ -633,13 +658,20 @@ async function upsertLivePlanProgress(
   supabase: SupabaseModule['supabase'],
   identity: SyncIdentityBoundary,
   planIds: string[],
-  sessionColumns: boolean | null,
+  preWrite: Extract<PreWriteMerge, { outcome: 'merged' }>,
   single: boolean
 ): Promise<LivePlanUpsert> {
+  const { sessionColumns } = preWrite;
   // The merge function needs the session columns (it ships after them), so a
   // server known to lack them cannot have it either.
   if (sessionColumns !== false) {
-    const merged = await mergeLivePlanProgressOnServer(supabase, identity, planIds, single);
+    const merged = await mergeLivePlanProgressOnServer(
+      supabase,
+      identity,
+      planIds,
+      single,
+      preWrite.clockPlanIds
+    );
     if (merged) {
       return merged;
     }
@@ -675,6 +707,38 @@ async function upsertLivePlanProgress(
     ? attempt(false)
     : first;
 }
+
+/**
+ * Drops the plans the server skipped as ended. skip_ended_reading_plan_progress
+ * returns no row for an enrolment a leave has ended, judging a start sent with the
+ * phone's clock on the server's clock, which this phone cannot do itself (a fast
+ * clock puts an enrolment made before the leave after it). A pushed plan that did
+ * not come back and has a tombstone was ended. Call inside the identity boundary.
+ */
+function endPlansTheServerSkipped(
+  sentPlanIds: string[],
+  storedRows: UserReadingPlanProgress[],
+  unenrollments: Map<string, string> | null
+): void {
+  if (!unenrollments) {
+    return;
+  }
+  const stored = new Set(storedRows.map((row) => row.plan_id));
+  const store = readingPlansStore.getState();
+  sentPlanIds
+    .filter(
+      (planId) =>
+        unenrollments.has(planId) &&
+        !stored.has(planId) &&
+        !store.pendingUnenrollPlanIds.includes(planId) &&
+        store.getProgress(planId) !== null
+    )
+    .forEach((planId) => store.endPlanLeftElsewhere(planId));
+}
+
+/** PostgREST's answer to .single() when the statement returned no row. */
+const isNoRowForSingleError = (error: { code?: string } | null | undefined): boolean =>
+  error?.code === 'PGRST116';
 
 /** The live, still-enrolled rows for these plans, read at the moment of the push. */
 function getLivePushableProgress(planIds: string[]): UserReadingPlanProgress[] {
@@ -730,10 +794,19 @@ async function pushProgressToRemote(
       supabase,
       identity,
       [progress.plan_id],
-      preWrite.sessionColumns,
+      preWrite,
       true
     );
-    if (write.status !== 'done' || write.error) {
+    if (write.status !== 'done') {
+      return;
+    }
+    if (write.error) {
+      // .single() finding no row: the server skipped the push.
+      if (isNoRowForSingleError(write.error)) {
+        await identity.runIfCurrent(() => {
+          endPlansTheServerSkipped([progress.plan_id], [], preWrite.unenrollments);
+        });
+      }
       return;
     }
     const { data } = write;
@@ -1367,7 +1440,7 @@ export async function syncPlanProgress(
       supabase,
       identity,
       remoteSyncablePlanIds,
-      preWrite.sessionColumns,
+      preWrite,
       false
     );
     if (write.status === 'stale') {
@@ -1388,6 +1461,7 @@ export async function syncPlanProgress(
     const syncedRows = normalizeRemoteProgressRows((data ?? []) as RemoteReadingPlanProgressRow[]);
     const syncedApplied = await identity.runIfCurrent(() => {
       syncedRows.forEach(mergeServerRowIntoLive);
+      endPlansTheServerSkipped(remoteSyncablePlanIds, syncedRows, preWrite.unenrollments);
     });
     if (!syncedApplied.applied) {
       return stalePlanResult<UserReadingPlanProgress[]>();

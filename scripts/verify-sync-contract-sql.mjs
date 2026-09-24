@@ -944,4 +944,108 @@ const fnSecurity = await one(
 assert.equal(fnSecurity.prosecdef, false, 'runs as the caller, under RLS');
 assert.deepEqual(fnSecurity.proconfig, ['search_path=""']);
 
+// ---------------------------------------------------------------------------
+// A phone's start judged by the server's clock (20260924140000)
+// ---------------------------------------------------------------------------
+
+await db.exec(
+  await fs.readFile(
+    new URL(
+      '../supabase/migrations/20260924140000_merge_reading_plan_progress_client_clock.sql',
+      import.meta.url
+    ),
+    'utf8'
+  )
+);
+const HOUR = 3_600_000;
+// A phone whose clock reads `skewMs` off: what it stamps for a moment `realOffsetMs` from now.
+const phoneClock = (skewMs, realOffsetMs = 0) => iso(realOffsetMs + skewMs);
+const startedOf = async (slug) => new Date((await planRow(D, slug)).started_at).getTime();
+
+// The defect: a phone three hours fast joined two hours ago, offline; the reader left the
+// plan an hour ago on another phone. Without its clock the push looks like a re-join.
+for (const slug of ['fast-clock-old', 'fast-clock-fixed']) {
+  await as(D, NEW_CLIENT_UNENROL, [D, slug, hoursAgo(1)]);
+}
+merged = await merge(D, [
+  clientRow({ plan_slug: 'fast-clock-old', started_at: phoneClock(3 * HOUR, -2 * HOUR) }),
+]);
+assert.equal(merged.rows.length, 1, 'without client_clock_at the left enrolment comes back');
+merged = await merge(D, [
+  clientRow({
+    plan_slug: 'fast-clock-fixed',
+    started_at: phoneClock(3 * HOUR, -2 * HOUR),
+    client_clock_at: phoneClock(3 * HOUR),
+  }),
+  clientRow({ plan_slug: 'still-live', completed_entries: entries(2) }),
+]);
+assert.deepEqual(
+  merged.rows.map((row) => row.plan_slug),
+  ['still-live'],
+  'with the phone clock the left enrolment is skipped; the rest of the batch lands'
+);
+assert.equal(await planRow(D, 'fast-clock-fixed'), undefined);
+
+// A real re-join from the same fast phone, half an hour after the leave, is accepted and
+// stored on the server's clock.
+merged = await merge(D, [
+  clientRow({
+    plan_slug: 'fast-clock-fixed',
+    started_at: phoneClock(3 * HOUR, -0.5 * HOUR),
+    client_clock_at: phoneClock(3 * HOUR),
+  }),
+]);
+assert.equal(merged.rows.length, 1, 'a re-join after the leave is kept');
+assert.ok(Math.abs((await startedOf('fast-clock-fixed')) - (Date.now() - 0.5 * HOUR)) < 60_000);
+
+// A phone two hours slow re-joining half an hour after the leave: its stamp is before the
+// leave, but on the server's clock it is after it, so the re-join is no longer lost.
+await as(D, NEW_CLIENT_UNENROL, [D, 'slow-clock', hoursAgo(1)]);
+merged = await merge(D, [
+  clientRow({
+    plan_slug: 'slow-clock',
+    started_at: phoneClock(-2 * HOUR, -0.5 * HOUR),
+    client_clock_at: phoneClock(-2 * HOUR),
+  }),
+]);
+assert.equal(merged.rows.length, 1, 'a slow phone’s re-join is accepted');
+assert.ok(Math.abs((await startedOf('slow-clock')) - (Date.now() - 0.5 * HOUR)) < 60_000);
+
+// Rows without client_clock_at are merged exactly as before, and a stored enrolment's start
+// is never moved by a later push that carries one.
+const storedStart = await startedOf(REJOIN_PLAN);
+merged = await merge(D, [
+  clientRow({
+    plan_slug: REJOIN_PLAN,
+    started_at: secondEnrolment,
+    client_clock_at: phoneClock(-HOUR),
+    completed_entries: entries(9),
+  }),
+]);
+assert.deepEqual(Object.keys(merged.rows[0].completed_entries).sort(), ['7', '8', '9']);
+assert.equal(await startedOf(REJOIN_PLAN), storedStart);
+merged = await merge(D, [clientRow({ plan_slug: 'no-clock', started_at: hoursAgo(3) })]);
+assert.equal(new Date(merged.rows[0].started_at).toISOString(), hoursAgo(3));
+
+// client_clock_at is a timestamp string or null.
+merged = await merge(D, [clientRow({ plan_slug: 'null-clock', client_clock_at: null })]);
+assert.equal(merged.rows.length, 1);
+await assert.rejects(
+  merge(D, [clientRow({ plan_slug: 'bad-clock', client_clock_at: 42 })]),
+  { code: '22023' },
+  'a non-string client_clock_at is refused'
+);
+await assert.rejects(
+  merge(D, [clientRow({ plan_slug: 'bad-clock', client_clock_at: 'soon' })]),
+  { code: '22007' },
+  'an unreadable client_clock_at fails the cast'
+);
+assert.equal(await planRow(D, 'bad-clock'), undefined);
+await assert.rejects(merge(null, [clientRow()]), /permission denied/, 'anon still cannot call it');
+assert.equal(
+  (await one(`select prosecdef from pg_proc where proname = 'merge_reading_plan_progress'`))
+    .prosecdef,
+  false
+);
+
 console.log('verify-sync-contract-sql: all checks passed');

@@ -1813,6 +1813,7 @@ test('an unenrol made while the enrolment push is in flight is not undone by the
 
 type PlanPayload = {
   plan_slug: string;
+  started_at?: string;
   completed_entries: Record<string, string>;
   current_day: number;
 };
@@ -2448,6 +2449,112 @@ test('a single-plan push refused as another account (42501) is not retried as an
     Object.keys(planStore().getProgress('psalms-30-days')?.completed_entries ?? {}),
     ['1']
   );
+});
+
+// A phone whose clock runs ahead stamps an enrolment made before a leave elsewhere
+// with a start after it. Migration 20260924140000 moves the start onto the server's
+// clock using the phone's clock at send time (client_clock_at) and skips the row.
+test('an enrolment pushed after a leave elsewhere carries the phone clock and ends when the server skips it', async () => {
+  signIn('user-a', 2);
+  // Stamped by a fast clock: after the leave, though it was made before it.
+  planStore().upsertProgress(
+    localProgress('psalms-30-days', { started_at: '2026-03-02T00:00:00.000Z' })
+  );
+  planStore().upsertProgress(localProgress('acts-28-days'));
+  serveTombstones([{ plan_slug: 'psalms-30-days', unenrolled_at: '2026-03-01T00:00:00.000Z' }]);
+  serveRows([remoteRow({ plan_slug: 'acts-28-days', completed_sessions: {} })]);
+  // The server skips the ended enrolment and returns only the other plan.
+  supabaseFake.respondToRpc(MERGE_RPC, (call) => ({
+    data: (call.payload as MergeRpcArgs).p_rows
+      .filter((row) => row.plan_slug !== 'psalms-30-days')
+      .map((row) => remoteRow({ ...row, id: `server-${row.plan_slug}` })),
+  }));
+  const before = Date.now();
+
+  const result = await service.syncPlanProgress(Object.values(planStore().progressByPlanId));
+
+  assert.equal(result.success, true);
+  const rows = (mergeRpcCalls()[0]?.payload as MergeRpcArgs).p_rows;
+  const sentClock = rows.find((row) => row.plan_slug === 'psalms-30-days')?.client_clock_at;
+  assert.equal(typeof sentClock, 'string');
+  assert.ok(
+    Date.parse(sentClock as string) >= before && Date.parse(sentClock as string) <= Date.now()
+  );
+  // A plan whose start the phone adopted from the server is already on its clock.
+  assert.equal(
+    'client_clock_at' in (rows.find((row) => row.plan_slug === 'acts-28-days') ?? {}),
+    false
+  );
+  assert.equal(planStore().getProgress('psalms-30-days'), null);
+  assert.equal(planStore().enrolledPlanIds.includes('psalms-30-days'), false);
+  assert.deepEqual(planStore().pendingUnenrollPlanIds, [], 'the leave is not queued again');
+  assert.equal(planStore().getProgress('acts-28-days')?.id, 'server-acts-28-days');
+});
+
+test('an enrolment the server accepts after a leave elsewhere is kept as a re-join', async () => {
+  signIn('user-a', 2);
+  planStore().upsertProgress(
+    localProgress('psalms-30-days', { started_at: '2026-03-02T00:00:00.000Z' })
+  );
+  serveTombstones([{ plan_slug: 'psalms-30-days', unenrolled_at: '2026-03-01T00:00:00.000Z' }]);
+  serveRows([]);
+  supabaseFake.respondToRpc(MERGE_RPC, (call) => ({
+    data: (call.payload as MergeRpcArgs).p_rows.map((row) =>
+      remoteRow({ ...row, id: `server-${row.plan_slug}` })
+    ),
+  }));
+
+  await service.syncPlanProgress(Object.values(planStore().progressByPlanId));
+
+  assert.equal(planStore().getProgress('psalms-30-days')?.id, 'server-psalms-30-days');
+});
+
+test('a plan with no leave recorded is pushed without the phone clock', async () => {
+  signIn('user-a', 2);
+  planStore().upsertProgress(localProgress('psalms-30-days'));
+  serveTombstones([]);
+  serveRows([]);
+  supabaseFake.respondToRpc(MERGE_RPC, () => ({ data: [] }));
+
+  await service.syncPlanProgress(Object.values(planStore().progressByPlanId));
+
+  const [row] = (mergeRpcCalls()[0]?.payload as MergeRpcArgs).p_rows;
+  assert.equal(row?.plan_slug, 'psalms-30-days');
+  assert.equal('client_clock_at' in (row ?? {}), false);
+  assert.ok(planStore().getProgress('psalms-30-days'), 'a skipped row with no leave is kept');
+});
+
+test('a single-plan push the server skips after a leave elsewhere ends the plan here', async () => {
+  signIn('user-a', 4);
+  planStore().upsertProgress(
+    localProgress('psalms-30-days', { started_at: '2026-03-02T00:00:00.000Z' })
+  );
+  serveTombstones([{ plan_slug: 'psalms-30-days', unenrolled_at: '2026-03-01T00:00:00.000Z' }]);
+  serveRows([]);
+  const skipped = new Promise<void>((resolve) => {
+    supabaseFake.respondToRpc(MERGE_RPC, () => {
+      resolve();
+      // .single() on no rows.
+      return {
+        data: null,
+        error: {
+          code: 'PGRST116',
+          message: 'JSON object requested, multiple (or no) rows returned',
+        },
+        status: 406,
+      };
+    });
+  });
+
+  await service.markDayComplete('psalms-30-days', 1);
+  await skipped;
+  await flushBackgroundWork();
+
+  assert.equal(
+    typeof (mergeRpcCalls()[0]?.payload as MergeRpcArgs).p_rows[0]?.client_clock_at,
+    'string'
+  );
+  assert.equal(planStore().getProgress('psalms-30-days'), null);
 });
 
 test('a sync of more than 100 plans is sent to the merge RPC in batches it accepts', async () => {
