@@ -69,12 +69,12 @@ synchronous code: render, effects, tap handlers, and native callbacks.
 
 ## Deferred
 
-- **Remote crash reporting.** Boundary catches and global errors are only recorded on
-  the device, in `crashLogStore`. Sending them to analytics needs a new `event_name`.
-  The `analytics_events_event_name_check` constraint and the
-  `track-anonymous-usage-events` contract would both have to accept it, which means
-  a live migration plus an edge-function deploy. A real crash SDK (Sentry or
-  Crashlytics) still needs external account setup.
+- **Remote crash reporting.** Done in a follow-up without touching analytics: a
+  dedicated anonymous path (`src/services/diagnostics/crashReportQueue.ts` →
+  `supabase/functions/report-app-errors` → `app_error_reports`, migration
+  `20260924120000_app_error_reports.sql`) and the admin "App errors" page. Native
+  crashes (outside JS) still need a crash SDK (Sentry or Crashlytics) and external
+  account setup.
 - **Findings 8 and 9** (listed above).
 - **Device QA:** force a render error on a pushed screen (Back plus the tab bar
   should still work) and on Home (the other tabs should still work). Confirm that
