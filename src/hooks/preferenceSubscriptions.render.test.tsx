@@ -65,3 +65,56 @@ test('useI18n re-renders with the new language when the language preference chan
   assert.equal((renders.latest as { currentLanguage: string }).currentLanguage, 'es');
   assert.deepEqual(appliedLanguages, ['es']);
 });
+
+// The reader calls useFontSize, so a theme or reminder write re-rendered the chapter.
+test('useFontSize does not re-render when an unrelated preference changes', async () => {
+  const { useFontSize } = await import('./useFontSize');
+  const renders = await renderCounting(useFontSize);
+  const before = renders.count;
+
+  await setPreferences({ theme: 'dark' });
+  await setPreferences({ language: 'fr' });
+  await setPreferences({ notificationsEnabled: true, reminderTime: '07:30' });
+
+  assert.equal(renders.count, before);
+});
+
+test('useFontSize re-renders with the new size when the font size preference changes', async () => {
+  const { useFontSize } = await import('./useFontSize');
+  const renders = await renderCounting(useFontSize);
+  const before = renders.count;
+
+  await setPreferences({ fontSize: 'large' });
+
+  assert.ok(renders.count > before);
+  assert.equal((renders.latest as { fontSize: string }).fontSize, 'large');
+});
+
+// ThemeProvider sits at the app root; it recomputes only when the theme or palette changes.
+test('the theme provider value does not recompute when an unrelated preference changes', async () => {
+  const { useThemeContextValue } = await import('../contexts/ThemeContext');
+  const renders = await renderCounting(useThemeContextValue);
+  const before = renders.count;
+
+  await setPreferences({ fontSize: 'large' });
+  await setPreferences({ language: 'fr' });
+  await setPreferences({ onboardingCompleted: false });
+
+  assert.equal(renders.count, before);
+});
+
+test('the theme provider value follows theme and palette changes', async () => {
+  const { useThemeContextValue } = await import('../contexts/ThemeContext');
+  const renders = await renderCounting(useThemeContextValue);
+
+  await setPreferences({ theme: 'dark' });
+  assert.equal((renders.latest as { isDark: boolean }).isDark, true);
+
+  const before = renders.count;
+  await setPreferences({ appearancePalette: 'el-blue-brand' });
+  assert.ok(renders.count > before);
+  assert.equal(
+    (renders.latest as { appearancePalette: string }).appearancePalette,
+    'el-blue-brand'
+  );
+});

@@ -10,23 +10,25 @@ const fontSizeOrder: FontSizeKey[] = ['small', 'medium', 'large'];
 
 export function useFontSize() {
   const { t } = useTranslation();
-  const preferences = useAuthStore((state) => state.preferences);
+  // Only the size: the reader calls this hook, and subscribing to the whole
+  // preferences object re-rendered it on every theme, language or reminder write.
+  const fontSize = useAuthStore((state) => state.preferences.fontSize);
   const setPreferences = useAuthStore((state) => state.setPreferences);
 
-  const scale = useMemo(() => FONT_SIZE_SCALES[preferences.fontSize], [preferences.fontSize]);
+  const scale = useMemo(() => FONT_SIZE_SCALES[fontSize], [fontSize]);
 
   const label = useMemo(() => {
-    if (preferences.fontSize === 'small') return t('settings.fontSizeSmall');
-    if (preferences.fontSize === 'large') return t('settings.fontSizeLarge');
+    if (fontSize === 'small') return t('settings.fontSizeSmall');
+    if (fontSize === 'large') return t('settings.fontSizeLarge');
     return t('settings.fontSizeMedium');
-  }, [preferences.fontSize, t]);
+  }, [fontSize, t]);
 
   const scaleValue = (baseSize: number): number => {
     return Math.round(baseSize * scale);
   };
 
   const increase = () => {
-    const currentIndex = fontSizeOrder.indexOf(preferences.fontSize);
+    const currentIndex = fontSizeOrder.indexOf(fontSize);
     if (currentIndex < fontSizeOrder.length - 1) {
       setPreferences({ fontSize: fontSizeOrder[currentIndex + 1] });
       syncPreferences().catch(() => {});
@@ -34,7 +36,7 @@ export function useFontSize() {
   };
 
   const decrease = () => {
-    const currentIndex = fontSizeOrder.indexOf(preferences.fontSize);
+    const currentIndex = fontSizeOrder.indexOf(fontSize);
     if (currentIndex > 0) {
       setPreferences({ fontSize: fontSizeOrder[currentIndex - 1] });
       syncPreferences().catch(() => {});
@@ -47,17 +49,14 @@ export function useFontSize() {
   };
 
   const canIncrease = useMemo(
-    () => fontSizeOrder.indexOf(preferences.fontSize) < fontSizeOrder.length - 1,
-    [preferences.fontSize]
+    () => fontSizeOrder.indexOf(fontSize) < fontSizeOrder.length - 1,
+    [fontSize]
   );
 
-  const canDecrease = useMemo(
-    () => fontSizeOrder.indexOf(preferences.fontSize) > 0,
-    [preferences.fontSize]
-  );
+  const canDecrease = useMemo(() => fontSizeOrder.indexOf(fontSize) > 0, [fontSize]);
 
   return {
-    fontSize: preferences.fontSize,
+    fontSize,
     scale,
     label,
     scaleValue,
