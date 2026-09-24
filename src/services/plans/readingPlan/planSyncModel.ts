@@ -64,15 +64,28 @@ export function batchPlanIds(
 /**
  * Plans to push with this phone's clock (client_clock_at): left at some point, with no stored
  * row, so the enrolment is new to the server and its start was stamped by this phone. A start
- * adopted from a stored row is already on the server's clock and must not be corrected again.
+ * adopted from a stored row is already on the server's clock and must not be corrected again,
+ * nor is a re-join start placed just past the stored leave (see rebaseRejoinPastStoredLeave).
  */
 export function getPlansNeedingClientClock(
   planIds: string[],
   unenrollments: Map<string, string> | null,
-  storedPlanIds: ReadonlySet<string>
+  storedPlanIds: ReadonlySet<string>,
+  liveProgress: readonly UserReadingPlanProgress[] = []
 ): Set<string> {
+  const placedPastLeave = new Set(
+    liveProgress
+      .filter((progress) => {
+        const storedLeftAt = unenrollments?.get(progress.plan_id);
+        return storedLeftAt !== undefined && isStartPlacedPastStoredLeave(progress, storedLeftAt);
+      })
+      .map((progress) => progress.plan_id)
+  );
   return new Set(
-    planIds.filter((planId) => unenrollments?.has(planId) && !storedPlanIds.has(planId))
+    planIds.filter(
+      (planId) =>
+        unenrollments?.has(planId) && !storedPlanIds.has(planId) && !placedPastLeave.has(planId)
+    )
   );
 }
 
@@ -126,6 +139,48 @@ export function isSnapshotRowEndedByConfirmedLeave(
   }
   const leftAt = leftAtByPlanId[progress.plan_id];
   return leftAt === undefined || isEnrolmentEndedBy(progress, leftAt);
+}
+
+/** Whether this start is the one rebaseRejoinPastStoredLeave gives: 1 ms past the stored leave. */
+export function isStartPlacedPastStoredLeave(
+  progress: Pick<UserReadingPlanProgress, 'started_at'>,
+  storedLeftAt: string
+): boolean {
+  const storedLeftMs = Date.parse(storedLeftAt);
+  return Number.isFinite(storedLeftMs) && Date.parse(progress.started_at) === storedLeftMs + 1;
+}
+
+/**
+ * A re-join this phone made after its own leave, moved to 1 ms past that leave as the server
+ * stored it; null when it needs no move. The server moves the leave onto its clock (migration
+ * 20260924112025) but the re-join's start is still on this phone's: on a phone running slow by
+ * more than the time between leaving and re-joining, the re-join would compare as at or before
+ * the leave and be dropped as ended, with its never-pushed progress. A start at or before the
+ * phone's own leave time is the ended enrolment and is left for the leave to end.
+ *
+ * The moved start is on the server's clock, so it is pushed without this phone's clock
+ * (getPlansNeedingClientClock) and the server judges it against any later leave as it stands.
+ * When the stored leave is a later one another phone had already made, the re-join is placed
+ * after that too: this phone cannot tell the two apart.
+ */
+export function rebaseRejoinPastStoredLeave(
+  progress: UserReadingPlanProgress,
+  leftAt: string | undefined,
+  storedLeftAt: string
+): UserReadingPlanProgress | null {
+  const startedMs = Date.parse(progress.started_at);
+  const leftMs = Date.parse(leftAt ?? '');
+  const storedLeftMs = Date.parse(storedLeftAt);
+  if (
+    !Number.isFinite(startedMs) ||
+    !Number.isFinite(leftMs) ||
+    !Number.isFinite(storedLeftMs) ||
+    startedMs <= leftMs ||
+    startedMs > storedLeftMs
+  ) {
+    return null;
+  }
+  return { ...progress, started_at: new Date(storedLeftMs + 1).toISOString() };
 }
 
 /**

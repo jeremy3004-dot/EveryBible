@@ -2675,3 +2675,206 @@ test('a server without the session columns is not asked for the merge RPC', asyn
   assert.equal(mergeRpcCalls().length, 0);
   assert.equal(upsertPayloads().length, 1);
 });
+
+// ---------------------------------------------------------------------------
+// Leave and re-join offline, judged across clocks
+// ---------------------------------------------------------------------------
+
+const MINUTE_MS = 60_000;
+
+/**
+ * A server whose clock reads the phone's clock plus `skewMs`, modelling the tombstone trigger
+ * (normalize_reading_plan_unenrollment, 20260924112025) and merge_reading_plan_progress with
+ * skip_ended_reading_plan_progress (20260924023340).
+ */
+const serveSkewedServer = (skewMs: number) => {
+  const serverNow = () => Date.now() + skewMs;
+  const tombstones = new Map<string, number>();
+  const stored = new Map<string, Record<string, unknown>>();
+  const server = {
+    tombstones,
+    /** Drops the connection for plan pushes. */
+    pushFails: false,
+    /** Runs as a plan read arrives. */
+    onProgressRead: () => {},
+    /** Another phone leaves the plan now. */
+    leaveElsewhere: (planSlug: string) => tombstones.set(planSlug, serverNow()),
+  };
+  const toServerClock = (at: unknown, clock: unknown) =>
+    typeof clock === 'string'
+      ? Date.parse(at as string) + (serverNow() - Date.parse(clock))
+      : Date.parse(at as string);
+
+  supabaseFake.respondTo(UNENROLLMENTS, (call) => {
+    if (call.operation === 'select') {
+      return {
+        data: [...tombstones].map(([planSlug, at]) => ({
+          plan_slug: planSlug,
+          unenrolled_at: new Date(at).toISOString(),
+        })),
+      };
+    }
+    const row = call.payload as {
+      plan_slug: string;
+      unenrolled_at?: string;
+      client_clock_at?: string;
+    };
+    const proposed = Math.min(
+      row.unenrolled_at ? toServerClock(row.unenrolled_at, row.client_clock_at) : serverNow(),
+      serverNow()
+    );
+    const leftAt = Math.max(proposed, tombstones.get(row.plan_slug) ?? proposed);
+    tombstones.set(row.plan_slug, leftAt);
+    const startedAt = Date.parse((stored.get(row.plan_slug)?.started_at as string) ?? '');
+    if (startedAt <= leftAt) {
+      stored.delete(row.plan_slug);
+    }
+    return {
+      data: call.columns
+        ? [{ plan_slug: row.plan_slug, unenrolled_at: new Date(leftAt).toISOString() }]
+        : null,
+    };
+  });
+  supabaseFake.respondTo('user_reading_plan_progress', () => {
+    server.onProgressRead();
+    return { data: [...stored.values()] };
+  });
+  supabaseFake.respondToRpc(MERGE_RPC, (call) => {
+    if (server.pushFails) {
+      return { data: null, error: { message: 'network request failed' } };
+    }
+    const written = (call.payload as MergeRpcArgs).p_rows.flatMap((row) => {
+      const startedAt = Math.min(toServerClock(row.started_at, row.client_clock_at), serverNow());
+      const leftAt = tombstones.get(row.plan_slug);
+      if (leftAt !== undefined && leftAt >= startedAt) {
+        return [];
+      }
+      // client_clock_at is write-only: the stored row never carries it.
+      const columns: Record<string, unknown> = { ...row };
+      delete columns.client_clock_at;
+      const kept = remoteRow({
+        ...columns,
+        id: `server-${row.plan_slug}`,
+        started_at: new Date(startedAt).toISOString(),
+      });
+      stored.set(row.plan_slug, kept);
+      return [kept];
+    });
+    return { data: call.single ? (written[0] ?? null) : written };
+  });
+
+  return server;
+};
+
+/** Leaves the plan and re-joins it with no connection, finishing day 1 of the re-join. */
+const leaveAndRejoinOffline = (planId: string) => {
+  planStore().enrollPlan(planId);
+  planStore().unenrollPlan(planId);
+  planStore().enrollPlan(planId);
+  planStore().markDayComplete(planId, 1, 30);
+};
+
+test('a re-join made offline after an offline leave survives the sync on a phone whose clock runs slow', async () => {
+  signIn('user-a', 2);
+  serveSkewedServer(10 * MINUTE_MS);
+  leaveAndRejoinOffline('psalms-30-days');
+
+  const result = await service.syncPlanProgress(Object.values(planStore().progressByPlanId));
+
+  assert.equal(result.success, true);
+  assert.deepEqual(planStore().pendingUnenrollPlanIds, []);
+  const progress = planStore().getProgress('psalms-30-days');
+  assert.ok(progress, 'the re-join is kept');
+  assert.ok(progress.completed_entries['1'], 'with the day finished after re-joining');
+  assert.equal(progress.id, 'server-psalms-30-days', 'and the server stored it');
+  assert.equal(planStore().enrolledPlanIds.includes('psalms-30-days'), true);
+  // Its start was placed on the server's clock just past the leave, so it goes without the
+  // phone's clock and the server does not move it again (into the future).
+  const [pushed] = (mergeRpcCalls()[0]?.payload as MergeRpcArgs).p_rows;
+  assert.equal('client_clock_at' in (pushed ?? {}), false);
+  assert.ok(Date.parse(progress.started_at) <= Date.now() + 10 * MINUTE_MS);
+});
+
+test('a slow phone keeps its offline re-join when a completion pushes it before any sync', async () => {
+  signIn('user-a', 4);
+  serveSkewedServer(10 * MINUTE_MS);
+  planStore().enrollPlan('psalms-30-days');
+  planStore().unenrollPlan('psalms-30-days');
+  planStore().enrollPlan('psalms-30-days');
+
+  await service.markDayComplete('psalms-30-days', 1);
+  await flushBackgroundWork();
+  await flushBackgroundWork();
+
+  const progress = planStore().getProgress('psalms-30-days');
+  assert.ok(progress, 'the re-join is kept');
+  assert.ok(progress.completed_entries['1']);
+  assert.equal(progress.id, 'server-psalms-30-days');
+});
+
+test('a slow phone keeps its offline re-join through a later sync when the first push failed', async () => {
+  signIn('user-a', 2);
+  const server = serveSkewedServer(10 * MINUTE_MS);
+  leaveAndRejoinOffline('psalms-30-days');
+  // The leave reaches the server, then the connection drops before the push.
+  server.pushFails = true;
+  await service.syncPlanProgress(Object.values(planStore().progressByPlanId));
+  assert.deepEqual(planStore().pendingUnenrollPlanIds, []);
+  assert.ok(planStore().getProgress('psalms-30-days'), 'kept while the push is retried');
+  server.pushFails = false;
+
+  await service.syncPlanProgress(Object.values(planStore().progressByPlanId));
+
+  const progress = planStore().getProgress('psalms-30-days');
+  assert.ok(progress, 'the re-join is kept');
+  assert.ok(progress.completed_entries['1']);
+  assert.equal(progress.id, 'server-psalms-30-days');
+});
+
+test('an offline leave and re-join still syncs as before on a phone whose clock runs fast', async () => {
+  signIn('user-a', 2);
+  serveSkewedServer(-10 * MINUTE_MS);
+  leaveAndRejoinOffline('psalms-30-days');
+  const rejoinedAt = planStore().getProgress('psalms-30-days')!.started_at;
+
+  await service.syncPlanProgress(Object.values(planStore().progressByPlanId));
+
+  const progress = planStore().getProgress('psalms-30-days');
+  assert.ok(progress?.completed_entries['1']);
+  assert.equal(progress?.id, 'server-psalms-30-days');
+  const [pushed] = (mergeRpcCalls()[0]?.payload as MergeRpcArgs).p_rows;
+  assert.equal(pushed?.started_at, rejoinedAt, 'the re-join start is sent unchanged');
+});
+
+test('an offline leave and re-join still syncs as before on a phone with the right time', async () => {
+  signIn('user-a', 2);
+  serveSkewedServer(0);
+  leaveAndRejoinOffline('psalms-30-days');
+  const rejoinedAt = planStore().getProgress('psalms-30-days')!.started_at;
+
+  await service.syncPlanProgress(Object.values(planStore().progressByPlanId));
+
+  const progress = planStore().getProgress('psalms-30-days');
+  assert.ok(progress?.completed_entries['1']);
+  assert.equal(progress?.id, 'server-psalms-30-days');
+  const [pushed] = (mergeRpcCalls()[0]?.payload as MergeRpcArgs).p_rows;
+  // The start moves only if the re-join fell within the request's travel time of the leave.
+  assert.ok(Date.parse(pushed?.started_at as string) >= Date.parse(rejoinedAt));
+});
+
+test('a leave on another phone after the slow phone re-joined still ends the re-join', async () => {
+  signIn('user-a', 2);
+  const server = serveSkewedServer(10 * MINUTE_MS);
+  leaveAndRejoinOffline('psalms-30-days');
+  // The other phone leaves once this phone's leave has reached the server.
+  server.onProgressRead = () => {
+    server.leaveElsewhere('psalms-30-days');
+  };
+  await new Promise<void>((resolve) => setTimeout(resolve, 2));
+
+  await service.syncPlanProgress(Object.values(planStore().progressByPlanId));
+
+  // Whether this phone reads the later leave before pushing or the server skips the push,
+  // the re-join it ended is gone.
+  assert.equal(planStore().getProgress('psalms-30-days'), null);
+});

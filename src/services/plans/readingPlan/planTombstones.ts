@@ -1,5 +1,6 @@
 import { readingPlansStore } from '../../../stores/readingPlansStore';
 import type { SyncIdentityBoundary } from '../../sync/syncIdentity';
+import { keepRejoinPastStoredLeave } from './planLiveStore';
 import { isMissingClockColumnError, isMissingTableError } from './planRemoteErrorModel';
 import {
   capturePlanSyncIdentity,
@@ -17,6 +18,16 @@ interface RemotePlanUnenrollmentRow {
   plan_slug: string;
   unenrolled_at: string;
 }
+
+/** The leave time the server stored, from a tombstone upsert's returned row. */
+const readStoredLeftAt = (data: unknown): string | undefined => {
+  const row: unknown = Array.isArray(data) ? data[0] : undefined;
+  const storedLeftAt =
+    row && typeof row === 'object'
+      ? (row as Partial<RemotePlanUnenrollmentRow>).unenrolled_at
+      : undefined;
+  return typeof storedLeftAt === 'string' ? storedLeftAt : undefined;
+};
 
 /**
  * The account's plan tombstones (plan id -> when it was left), or null when they
@@ -131,7 +142,8 @@ export async function deleteRemotePlanProgress(
     }
 
     // Record the leave as a server tombstone; the server then deletes the ended
-    // enrolment and refuses any device that pushes it back (finding 9).
+    // enrolment and refuses any device that pushes it back (finding 9). It returns the
+    // leave as stored, on the server's clock, to place a re-join after it.
     const unenrolledAt = readingPlansStore.getState().pendingUnenrollAtByPlanId[planId];
     const upsertTombstone = (withClock: boolean) =>
       identity.runIfCurrent(() =>
@@ -146,13 +158,14 @@ export async function deleteRemotePlanProgress(
             ),
             { onConflict: 'user_id,plan_slug' }
           )
+          .select('unenrolled_at')
       );
     let tombstone = await upsertTombstone(true);
     if (!tombstone.applied) {
       return false;
     }
 
-    let { error } = await tombstone.value!;
+    let { data, error } = await tombstone.value!;
 
     if (isMissingClockColumnError(error)) {
       // A server without that migration: the leave as before, clamped to its clock.
@@ -160,8 +173,9 @@ export async function deleteRemotePlanProgress(
       if (!tombstone.applied) {
         return false;
       }
-      ({ error } = await tombstone.value!);
+      ({ data, error } = await tombstone.value!);
     }
+    const storedLeftAt = error ? undefined : readStoredLeftAt(data);
 
     if (isMissingTableError(error)) {
       // No tombstone table yet (migration not applied): the pre-tombstone delete.
@@ -184,6 +198,9 @@ export async function deleteRemotePlanProgress(
 
     const cleared = await identity.runIfCurrent(() => {
       readingPlansStore.getState().clearPendingUnenroll(planId);
+      if (storedLeftAt) {
+        keepRejoinPastStoredLeave(planId, unenrolledAt, storedLeftAt);
+      }
     });
     return cleared.applied;
   } catch {

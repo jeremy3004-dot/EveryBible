@@ -75,6 +75,12 @@ export async function mergeServerRowsBeforePush(
       // A plan left elsewhere is dropped first, so it is neither merged nor pushed.
       endPlansLeftElsewhere(unenrollments);
       serverRows.forEach(mergeServerRowIntoLive);
+      return getPlansNeedingClientClock(
+        planIds,
+        unenrollments,
+        new Set(serverRows.map((row) => row.plan_id)),
+        getLivePushableProgress(planIds)
+      );
     });
     const firstRow = rawRows[0];
     return merged.applied
@@ -82,11 +88,7 @@ export async function mergeServerRowsBeforePush(
           outcome: 'merged',
           sessionColumns: firstRow ? 'completed_sessions' in firstRow : null,
           unenrollments,
-          clockPlanIds: getPlansNeedingClientClock(
-            planIds,
-            unenrollments,
-            new Set(serverRows.map((row) => row.plan_id))
-          ),
+          clockPlanIds: merged.value ?? new Set<string>(),
         }
       : { outcome: 'stale' };
   } catch {

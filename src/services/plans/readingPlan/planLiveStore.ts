@@ -4,6 +4,7 @@ import type { UserReadingPlanProgress } from '../types';
 import {
   getPlansTheServerSkipped,
   getProgressEndedElsewhere,
+  rebaseRejoinPastStoredLeave,
   sortProgressNewestFirst,
 } from './planSyncModel';
 
@@ -73,6 +74,38 @@ export function endPlansLeftElsewhere(unenrollments: Map<string, string> | null)
   getProgressEndedElsewhere(Object.values(store.progressByPlanId), unenrollments).forEach(
     (planId) => store.endPlanLeftElsewhere(planId)
   );
+}
+
+/**
+ * Keeps a re-join made after this phone's own leave from comparing as ended against that leave
+ * as the server stored it (see rebaseRejoinPastStoredLeave). Call inside the identity boundary,
+ * as the leave is confirmed.
+ */
+export function keepRejoinPastStoredLeave(
+  planId: string,
+  leftAt: string | undefined,
+  storedLeftAt: string
+): void {
+  const store = readingPlansStore.getState();
+  const live = store.getProgress(planId);
+  const moved = live ? rebaseRejoinPastStoredLeave(live, leftAt, storedLeftAt) : null;
+  if (moved) {
+    store.upsertProgress(moved);
+  }
+}
+
+/**
+ * A sync snapshot's row for a plan whose leave was confirmed during the sync, with the start
+ * keepRejoinPastStoredLeave moved the live re-join to: the snapshot predates that move, and
+ * applying its start would undo it.
+ */
+export function withRebasedLiveStart(
+  snapshotRow: UserReadingPlanProgress
+): UserReadingPlanProgress {
+  const live = readingPlansStore.getState().getProgress(snapshotRow.plan_id);
+  return live && Date.parse(live.started_at) > Date.parse(snapshotRow.started_at)
+    ? { ...snapshotRow, started_at: live.started_at }
+    : snapshotRow;
 }
 
 /**
