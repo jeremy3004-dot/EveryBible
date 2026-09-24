@@ -1,7 +1,6 @@
 import type {
   CurrentPlanDaySummary,
   PlanChapterListenStatus,
-  PlanDaySessionSummary,
 } from '../../../services/plans/readingPlanActivity';
 import type { ReadingPlanEntry } from '../../../services/plans/types';
 import type { Dispatch, SetStateAction } from 'react';
@@ -25,7 +24,7 @@ export interface UsePlanDayCompletionInput {
   activePlanProgress: ReadingPlanProgress | null;
   activePlanSessionEntries: ReadingPlanEntry[];
   activePlanSessionKey: PlanSessionKey | null;
-  activePlanSessionSummary: PlanDaySessionSummary | null;
+  activePlanSessionSummary: CurrentPlanDaySummary['sessionSummaries'][number] | null;
   bookId: string;
   chapter: number;
   chapterSessionMode: 'listen' | 'read';
