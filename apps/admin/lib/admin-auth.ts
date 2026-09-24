@@ -1,5 +1,6 @@
 import type { User } from '@supabase/supabase-js';
 import { redirect } from 'next/navigation';
+import { cache } from 'react';
 
 import type { AdminRole } from './shared-contracts';
 
@@ -44,13 +45,7 @@ async function getAdminProfile(userId: string): Promise<AdminProfileRow | null> 
   return data;
 }
 
-export async function getAdminIdentity(): Promise<AdminIdentity | null> {
-  const user = await getAuthenticatedUser();
-
-  if (!user) {
-    return null;
-  }
-
+async function resolveAdminIdentity(user: User): Promise<AdminIdentity | null> {
   const profile = await getAdminProfile(user.id);
   if (!profile || profile.admin_role !== 'super_admin') {
     return null;
@@ -64,18 +59,30 @@ export async function getAdminIdentity(): Promise<AdminIdentity | null> {
   };
 }
 
-export async function requireAdminIdentity(): Promise<AdminIdentity> {
+export async function getAdminIdentity(): Promise<AdminIdentity | null> {
   const user = await getAuthenticatedUser();
-
-  if (!user) {
-    redirect('/login?reason=auth');
-  }
-
-  const adminIdentity = await getAdminIdentity();
-
-  if (!adminIdentity) {
-    redirect('/login?reason=forbidden');
-  }
-
-  return adminIdentity;
+  return user ? resolveAdminIdentity(user) : null;
 }
+
+// A dashboard render checks the admin in the layout, often in the page, and again
+// at the data boundary. React shares this promise only inside one server render
+// request, so those checks cost one getUser() and one profile read; server
+// actions, route handlers and code outside a render still verify on every call.
+export const requireAdminIdentity = cache(
+  async function requireAdminIdentity(): Promise<AdminIdentity> {
+    const user = await getAuthenticatedUser();
+
+    if (!user) {
+      redirect('/login?reason=auth');
+    }
+
+    // Reuse the verified user: getUser() is a network round trip to Supabase Auth.
+    const adminIdentity = await resolveAdminIdentity(user);
+
+    if (!adminIdentity) {
+      redirect('/login?reason=forbidden');
+    }
+
+    return adminIdentity;
+  }
+);

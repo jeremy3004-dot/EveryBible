@@ -13,6 +13,22 @@ async function readSnapshot<T>(filename: string): Promise<T> {
 }
 
 let indexPromise: Promise<AtlasIndex> | undefined;
+let indexGzipPromise: Promise<Buffer> | undefined;
+
+/**
+ * The index exactly as stored: gzip-compressed JSON (about 4.4 MB, 48 MB
+ * inflated). The index route sends it as-is to clients that accept gzip, so a
+ * request neither re-serializes the index nor ships the inflated JSON.
+ */
+export function getAtlasIndexGzip(): Promise<Buffer> {
+  indexGzipPromise ??= readFile(
+    path.join(process.cwd(), 'data/language-atlas', 'index.json.gz')
+  ).catch((error: unknown) => {
+    indexGzipPromise = undefined;
+    throw error;
+  });
+  return indexGzipPromise;
+}
 // The full evidence collection is over 200 MB uncompressed. Keep only two of
 // sixteen shards resident so opening a profile does not load every biography.
 const detailShards = new Map<string, Promise<Map<string, AtlasDetail>>>();
