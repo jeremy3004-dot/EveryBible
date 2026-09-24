@@ -2,7 +2,7 @@ import { bibleBooks, type AdjacentBibleChapter, type BibleBook } from '../../con
 import type { TranslationAudioCoverage } from '../../types';
 import type { ElAudioManifest } from '../elMedia/elManifestModel';
 
-export interface AudioBookCoverage {
+interface AudioBookCoverage {
   totalChapters?: number;
 }
 

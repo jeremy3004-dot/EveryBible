@@ -4,7 +4,7 @@
  * the screen component itself.
  */
 
-export type PrivacyMode = 'discreet' | 'standard';
+type PrivacyMode = 'discreet' | 'standard';
 
 export interface PrivacyDisplayInput {
   mode: PrivacyMode;

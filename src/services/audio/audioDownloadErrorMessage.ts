@@ -3,7 +3,7 @@ import type { TFunction } from 'i18next';
 // Download failures carry English diagnostic messages (HTTP status, URLs, integrity
 // details) meant for logs. Screens show readers only what this module translates.
 
-export function formatBytes(bytes: number): string {
+function formatBytes(bytes: number): string {
   if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
   if (bytes >= 1024 ** 2) return `${Math.round(bytes / 1024 ** 2)} MB`;
   return `${Math.max(1, Math.round(bytes / 1024))} KB`;

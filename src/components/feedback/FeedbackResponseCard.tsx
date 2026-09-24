@@ -45,13 +45,13 @@ export function FeedbackVerdict({ item }: FeedbackVerdictProps) {
   );
 }
 
-export interface FeedbackAudioButtonProps {
+interface FeedbackAudioButtonProps {
   item: ChapterFeedbackReviewItem;
   isPlaying: boolean;
   onPlay: () => void;
 }
 
-export function FeedbackAudioButton({ item, isPlaying, onPlay }: FeedbackAudioButtonProps) {
+function FeedbackAudioButton({ item, isPlaying, onPlay }: FeedbackAudioButtonProps) {
   const { t } = useTranslation();
   if (!item.audioResponse) return null;
   const label = t(isPlaying ? 'bible.translatorReviewPause' : 'bible.translatorReviewListen');

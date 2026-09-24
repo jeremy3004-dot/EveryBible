@@ -42,7 +42,7 @@ export function isLastInLocaleSetupGroup(position: LocaleSetupGroupPosition): bo
   return position === 'last' || position === 'only';
 }
 
-export interface LocaleSetupEyebrowItem {
+interface LocaleSetupEyebrowItem {
   type: 'eyebrow';
   id: string;
   label: string;
@@ -54,7 +54,7 @@ export interface LocaleSetupEyebrowItem {
   hasSectionSpacing: boolean;
 }
 
-export interface LocaleSetupEmptyItem {
+interface LocaleSetupEmptyItem {
   type: 'empty';
   id: string;
 }
@@ -63,7 +63,7 @@ export interface LocaleSetupEmptyItem {
 /* Bible language step                                                        */
 /* -------------------------------------------------------------------------- */
 
-export interface BibleLanguageOptionSection<TOption> {
+interface BibleLanguageOptionSection<TOption> {
   groupLabel: string;
   options: TOption[];
 }

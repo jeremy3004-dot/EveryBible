@@ -1,4 +1,4 @@
-export interface MiniPlayerNavigationRoute {
+interface MiniPlayerNavigationRoute {
   name?: string;
   state?: MiniPlayerNavigationState | unknown;
 }

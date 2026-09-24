@@ -1,4 +1,4 @@
-export interface OpenBibleArtifact {
+interface OpenBibleArtifact {
   id: string;
   bookCode: string | null;
   fileName: string;

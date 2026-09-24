@@ -8,7 +8,7 @@
 // the onboarding queue (onboardingBibleSelectionQueue.ts), except the picker never finishes: it
 // keeps working after a Bible opens.
 
-export type TranslationPickerDownloadResult = 'installed' | 'cancelled';
+type TranslationPickerDownloadResult = 'installed' | 'cancelled';
 
 export interface TranslationPickerDownloadState {
   /** The Bible whose download is running. */

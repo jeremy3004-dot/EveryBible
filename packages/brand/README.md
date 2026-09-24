@@ -22,7 +22,7 @@ overlay keeps the paper feeling like paper.
 
 The previous per-app palettes — the site's ember "Illuminated" terracotta and
 the admin's Sacred-Editorial maroon — are **retired on the web**. The mobile app
-keeps its own palette in `src/constants/colors.ts` and is deliberately outside
+keeps its own palette in `src/contexts/ThemeContext.tsx` and is deliberately outside
 this package's scope.
 
 ## Rules that are easy to get wrong

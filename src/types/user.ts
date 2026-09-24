@@ -34,11 +34,3 @@ export interface UserPreferences {
  * with no stamp has never been chosen and still holds a default.
  */
 export type PreferenceFieldStamps = Partial<Record<keyof UserPreferences, string>>;
-
-export interface UserProgress {
-  chaptersRead: { [key: string]: number };
-  currentBook: string;
-  currentChapter: number;
-  streakDays: number;
-  lastReadDate: string;
-}

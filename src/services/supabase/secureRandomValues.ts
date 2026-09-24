@@ -10,7 +10,7 @@
 // auth-js getClaims() and other WebCrypto users take paths that call methods a
 // digest-only shim does not have.
 
-export type IntegerTypedArray =
+type IntegerTypedArray =
   | Int8Array
   | Int16Array
   | Int32Array

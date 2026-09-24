@@ -26,12 +26,12 @@ export class FakeAudioCancellation extends Error {
   }
 }
 
-export interface FileInfo {
+interface FileInfo {
   exists: boolean;
   size: number;
 }
 
-export interface AudioDownloadHooks {
+interface AudioDownloadHooks {
   onStart?: (job: AudioDownloadJobRecord) => void;
   onReattach?: (job: AudioDownloadJobRecord) => void;
   onFailure?: (job: AudioDownloadJobRecord) => void;
@@ -40,7 +40,7 @@ export interface AudioDownloadHooks {
   onBookComplete?: (progress: AudioDownloadCollectionProgress) => void;
 }
 
-export interface RecordedBookDownload {
+interface RecordedBookDownload {
   rootUri: string;
   translationId: string;
   book: { id: string; chapters: number };
@@ -50,7 +50,7 @@ export interface RecordedBookDownload {
   transport: unknown;
 }
 
-export interface RecordedTranslationDownload {
+interface RecordedTranslationDownload {
   rootUri: string;
   translationId: string;
   books: Array<{ id: string; chapters: number }>;
@@ -66,9 +66,9 @@ export interface TextPackPaths {
   rollbackPath: string;
 }
 
-export type TextPackRecoveryResult = 'current' | 'current-without-rollback' | 'previous' | 'none';
+type TextPackRecoveryResult = 'current' | 'current-without-rollback' | 'previous' | 'none';
 
-export interface RecordedTextPackDownload {
+interface RecordedTextPackDownload {
   translationId: string;
   downloadUrl: string;
   expectedSha256?: string;

@@ -1,4 +1,3 @@
-export * from './colors';
 export * from './appearancePalettes';
 export * from './config';
 export * from './fontSizeScales';

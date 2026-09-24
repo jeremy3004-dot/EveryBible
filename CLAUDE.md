@@ -434,7 +434,7 @@ const styles = StyleSheet.create({
 
 ### Available Colors
 
-See `/src/constants/colors.ts` for full palette:
+See `ThemeColors` and `createThemeColors()` in `/src/contexts/ThemeContext.tsx` (palettes in `/src/constants/appearancePalettes.ts`) for the full token set:
 
 - `background` - Main background
 - `cardBackground` - Card/section backgrounds

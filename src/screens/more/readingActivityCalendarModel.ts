@@ -19,7 +19,7 @@ export const MONDAY_FIRST_WEEKDAY_INDEXES = [1, 2, 3, 4, 5, 6, 0] as const;
 /** How far into the Monday-first row a given `Date#getDay()` value sits. */
 export const mondayFirstColumn = (weekday: number): number => (weekday + 6) % 7;
 
-export type ReadingActivityCellState = 'read' | 'today' | 'idle';
+type ReadingActivityCellState = 'read' | 'today' | 'idle';
 
 export interface ReadingActivityGridCell {
   dateKey: string;

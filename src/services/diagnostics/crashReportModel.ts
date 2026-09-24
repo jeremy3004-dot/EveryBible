@@ -12,7 +12,7 @@
 
 export type CrashReportKind = 'fatal' | 'error' | 'boundary' | 'rejection';
 
-export interface CrashReportDevice {
+interface CrashReportDevice {
   appVersion: string;
   buildNumber: string | null;
   platform: string;
@@ -39,9 +39,9 @@ export interface AppErrorReport {
   install_id: string | null;
 }
 
-export const MAX_MESSAGE_CHARS = 500;
-export const MAX_STACK_FRAMES = 8;
-export const MAX_COMPONENT_NAMES = 12;
+const MAX_MESSAGE_CHARS = 500;
+const MAX_STACK_FRAMES = 8;
+const MAX_COMPONENT_NAMES = 12;
 export const MAX_CRASH_REPORTS_PER_DAY = 10;
 
 const URL_PATTERN = /\b[a-z][a-z0-9+.-]*:\/\/[^\s'"<>()]+/gi;
