@@ -80,6 +80,7 @@ export interface FakeRecording {
 export interface FakeSound {
   id: number;
   onStatus: ((status: { isLoaded: boolean; didJustFinish?: boolean }) => void) | null;
+  playAsync: () => Promise<void>;
   unloadAsync: () => Promise<void>;
   setOnPlaybackStatusUpdate: (
     listener: (status: { isLoaded: boolean; didJustFinish?: boolean }) => void
@@ -360,6 +361,7 @@ export function installReaderRenderFixture(
           const sound: FakeSound = {
             id,
             onStatus: null,
+            playAsync: async () => void av.log.push(`sound${id}.play`),
             unloadAsync: async () => void av.log.push(`sound${id}.unload`),
             setOnPlaybackStatusUpdate: (listener) => {
               sound.onStatus = listener;

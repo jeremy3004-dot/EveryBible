@@ -1,3 +1,4 @@
+import { createLessonSoundOwner } from '../../learn/lessonSoundOwner';
 import { useEffect, useRef, useState } from 'react';
 import { InteractionManager } from 'react-native';
 import { Audio } from 'expo-av';
@@ -39,10 +40,10 @@ export function useChapterFeedbackAudio({
   const feedbackAudioRecordingRef = useRef<Audio.Recording | null>(null);
   const feedbackAudioStartedAtRef = useRef<number | null>(null);
   const feedbackAudioTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const feedbackAudioPreviewSoundRef = useRef<Audio.Sound | null>(null);
-  // Bumped whenever a preview is stopped or the reader unmounts, so a preview that
-  // finishes loading afterwards knows nobody wants it any more.
-  const feedbackAudioPreviewRequestRef = useRef(0);
+  // The preview sound has one owner, as the lesson audio does: each tap releases the
+  // previous preview, and a preview that finishes loading after it was released or the
+  // reader closed is unloaded instead of playing on untracked.
+  const [feedbackAudioPreview] = useState(() => createLessonSoundOwner<Audio.Sound>());
   // Starting a recording awaits the permission prompt, the app becoming active and the
   // recorder itself. The in-flight flag turns a double tap into one start; the request
   // counter, bumped on unmount, tells a start that resumes afterwards to back out.
@@ -54,8 +55,7 @@ export function useChapterFeedbackAudio({
         clearInterval(feedbackAudioTimerRef.current);
       }
       feedbackAudioRecordingRequestRef.current += 1;
-      feedbackAudioPreviewRequestRef.current += 1;
-      void feedbackAudioPreviewSoundRef.current?.unloadAsync();
+      feedbackAudioPreview.release();
       const recording = feedbackAudioRecordingRef.current;
       void (async () => {
         try {
@@ -67,7 +67,7 @@ export function useChapterFeedbackAudio({
         }
       })();
     };
-  }, []);
+  }, [feedbackAudioPreview]);
 
   const clearFeedbackAudioTimer = () => {
     if (feedbackAudioTimerRef.current) {
@@ -77,14 +77,7 @@ export function useChapterFeedbackAudio({
   };
 
   const stopFeedbackAudioPreview = async () => {
-    feedbackAudioPreviewRequestRef.current += 1;
-    const sound = feedbackAudioPreviewSoundRef.current;
-    if (!sound) {
-      return;
-    }
-
-    feedbackAudioPreviewSoundRef.current = null;
-    await sound.unloadAsync().catch(() => undefined);
+    feedbackAudioPreview.release();
   };
 
   const stopFeedbackAudioRecording = async () => {
@@ -223,31 +216,27 @@ export function useChapterFeedbackAudio({
       return;
     }
 
-    await stopFeedbackAudioPreview();
-    const request = feedbackAudioPreviewRequestRef.current;
-    await restoreFeedbackAudioPlaybackMode();
-    if (request !== feedbackAudioPreviewRequestRef.current) {
+    // Every tap replays from the start: release the previous preview, then load anew.
+    feedbackAudioPreview.release();
+    const { uri } = feedbackAudioDraft;
+    const played = await feedbackAudioPreview.play(async () => {
+      await restoreFeedbackAudioPlaybackMode();
+      const { sound } = await Audio.Sound.createAsync({ uri }, { shouldPlay: false });
+      return sound;
+    });
+    const sound = feedbackAudioPreview.getSound();
+    if (!played || !sound) {
       return;
     }
-    const { sound } = await Audio.Sound.createAsync(
-      { uri: feedbackAudioDraft.uri },
-      { shouldPlay: true }
-    );
-    // A second tap or leaving the reader superseded this load: it must not play on untracked.
-    if (request !== feedbackAudioPreviewRequestRef.current) {
-      await sound.unloadAsync().catch(() => undefined);
-      return;
-    }
-    feedbackAudioPreviewSoundRef.current = sound;
     sound.setOnPlaybackStatusUpdate((status) => {
       if (!status.isLoaded || !status.didJustFinish) {
         return;
       }
-      // Only the current preview owns the ref; an older one finishing leaves it alone.
-      if (feedbackAudioPreviewSoundRef.current === sound) {
-        feedbackAudioPreviewSoundRef.current = null;
+      // Only the current preview is released here; an older one was released when a
+      // newer tap replaced it, and must not take the playing one down with it.
+      if (feedbackAudioPreview.getSound() === sound) {
+        feedbackAudioPreview.release();
       }
-      void sound.unloadAsync().catch(() => undefined);
     });
   };
 

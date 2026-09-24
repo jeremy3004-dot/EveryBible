@@ -107,6 +107,8 @@ test('a double tap on preview releases the first sound instead of letting it pla
 
   assert.equal(feedbackAv.sounds.length, 2);
   assert.ok(feedbackAv.log.includes('sound1.unload'), 'the superseded sound is unloaded');
+  assert.equal(feedbackAv.log.includes('sound1.play'), false, 'and never starts playing');
+  assert.ok(feedbackAv.log.includes('sound2.play'));
   assert.equal(feedbackAv.log.includes('sound2.unload'), false, 'the newest one keeps playing');
   await view.unmount();
   await act(async () => {});
@@ -124,6 +126,7 @@ test('a preview that finishes loading after the reader closed is unloaded, not p
   await act(async () => {});
 
   assert.ok(feedbackAv.log.includes('sound1.unload'));
+  assert.equal(feedbackAv.log.includes('sound1.play'), false);
 });
 
 test('an older preview finishing does not forget the one that is playing now', async () => {
@@ -138,6 +141,7 @@ test('an older preview finishing does not forget the one that is playing now', a
   await act(async () => {
     feedbackAv.sounds[0].onStatus?.({ isLoaded: true, didJustFinish: true });
   });
+  assert.equal(feedbackAv.log.includes('sound2.unload'), false, 'the playing preview plays on');
   await view.unmount();
   await act(async () => {});
 
