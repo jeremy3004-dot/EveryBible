@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Text, View } from 'react-native';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
@@ -13,6 +13,7 @@ import {
 } from '../readingActivityCalendarModel';
 import { CalendarCell } from './CalendarCell';
 import { createCalendarStyles } from './calendarStyles';
+import { announceForAccessibility } from '../../../utils/a11y';
 import { describeCellState, formatMonthTitle } from './readingActivityScreenModel';
 
 /** The month title and arrows, Monday-first weekday headers, the week rows and the legend. */
@@ -45,10 +46,23 @@ export function CalendarCard({
     [viewDate, i18n.language]
   );
 
+  // The month buttons keep focus while the grid changes beneath them, so the new
+  // month is spoken; the first render only sets the baseline.
+  const shownMonthRef = useRef(monthTitle);
+  useEffect(() => {
+    if (shownMonthRef.current === monthTitle) return;
+    shownMonthRef.current = monthTitle;
+    announceForAccessibility(monthTitle);
+  }, [monthTitle]);
+
   return (
     <AppCard padding={0} style={styles.calendarCard}>
       <View style={styles.calendarHeader}>
-        <Text style={[styles.monthTitle, displayFont.bold]} numberOfLines={2}>
+        <Text
+          accessibilityRole="header"
+          style={[styles.monthTitle, displayFont.bold]}
+          numberOfLines={2}
+        >
           {monthTitle}
         </Text>
         <View style={styles.monthNav}>

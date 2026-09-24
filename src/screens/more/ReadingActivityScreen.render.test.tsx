@@ -252,8 +252,12 @@ test('month buttons are named and step the grid, legend and selection a month at
   assert.ok(view.getByText(t('readingActivity.legendProgress', { read: 2, count: 24 })));
   assert.ok(view.getByText(t('readingActivity.legendRead')));
 
+  assert.ok(view.getByRole('header', { name: 'September 2026' }));
+  assert.deepEqual(harness.rn.__recorded.announcements, [], 'opening the screen is not a change');
   await view.press(view.getByRole('button', { name: t('readingActivity.previousMonth') }));
   assert.ok(view.getByText('August 2026'));
+  // Focus stays on the month button, so the new month is spoken.
+  assert.deepEqual(harness.rn.__recorded.announcements, ['August 2026']);
   assert.equal(view.queryByText('September 2026'), null);
   assert.equal(accessibilityLabelOf(dayCells(view)[0]), 'Monday, July 27');
   assert.ok(view.getByText(t('readingActivity.legendProgress', { read: 1, count: 31 })));
