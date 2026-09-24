@@ -241,6 +241,27 @@ export function isTransientNetworkError(error: unknown): boolean {
   }
 }
 
+const TIMEOUT_NAMES = new Set(['TimeoutError']);
+// -1001 is NSURLErrorTimedOut. AVFoundation often reports it only as a failure reason
+// ("An unknown error occurred (-1001)") under its own -11800 error.
+const TIMEOUT_MESSAGE = /timed out|timeout|\(-1001\)|\s-1001\b|NSURLErrorTimedOut/i;
+
+/** Whether an error is a request or load that ran out of time (a subset of transient errors). */
+export function isTimeoutError(error: unknown): boolean {
+  try {
+    if (typeof error !== 'object' || error === null) {
+      return typeof error === 'string' && TIMEOUT_MESSAGE.test(error);
+    }
+    const { name, message } = error as { name?: unknown; message?: unknown };
+    return (
+      (typeof name === 'string' && TIMEOUT_NAMES.has(name)) ||
+      (typeof message === 'string' && TIMEOUT_MESSAGE.test(message))
+    );
+  } catch {
+    return false;
+  }
+}
+
 const ERROR_NAME = /^[A-Za-z_$][\w$.]{0,63}$/;
 const SCREEN_NAME = /^[\w:.[\]-]{1,64}$/;
 

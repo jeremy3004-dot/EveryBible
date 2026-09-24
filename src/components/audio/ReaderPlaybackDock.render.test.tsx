@@ -93,6 +93,31 @@ test('the play disc announces play or pause, fires a haptic and toggles playback
   assert.deepEqual(loading.calls, []);
 });
 
+test('a failed load is shown above the dock and announced, and Play tries again', async () => {
+  const failed = t('interface.audioPlayFailed');
+  const { view, calls } = await renderDock({ errorMessage: failed });
+
+  const notice = view.getByText(failed);
+  assert.ok(hostAncestors(notice).some((node) => node.props.accessibilityRole === 'alert'));
+  // Drawn above the transport without taking taps or shifting the discs.
+  const overlay = hostAncestors(notice).find(
+    (node) => flattenStyle(node.props.style)?.position === 'absolute'
+  );
+  assert.ok(overlay, 'the notice floats above the dock');
+  assert.equal(overlay.props.pointerEvents, 'none');
+  assert.deepEqual(harness.rn.__recorded.announcements, [failed]);
+
+  await view.press(view.getByRole('button', { name: t('interface.playChapterAudio') }));
+  assert.deepEqual(calls, ['playPause']);
+});
+
+test('without a failure the dock draws no notice', async () => {
+  const { view } = await renderDock({ errorMessage: null });
+
+  assert.equal(view.queryByText(t('interface.audioPlayFailed')), null);
+  assert.deepEqual(harness.rn.__recorded.announcements, []);
+});
+
 test('the chapter arrows travel the rest of the collapse distance with the tab capsule', async () => {
   const { READER_TAB_BAR_COLLAPSE_DISTANCE } = await import('../../navigation/readerTabBarMotion');
   const { READER_PLAY_COLLAPSE_TRAVEL } = await import('../../screens/bible/readerChromeMotion');

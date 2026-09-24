@@ -61,9 +61,19 @@ const recorded = {
   remoteLookups: [] as { translationId: string; bookId: string; chapter: number }[],
   remoteUnsubscribes: 0,
   coverageLookups: [] as (string | undefined)[],
+  reports: [] as { source: string; message: string; reportTimeouts: boolean }[],
 };
 
 const DEFAULT_DURATION_MS = 600_000;
+
+/**
+ * One scripted outcome of a chapter load: the native player reporting an error (through
+ * onError, then the rejected load, as the wrapper does), a load that never settles, or
+ * a load that succeeds.
+ */
+type LoadStep = { nativeError: string } | 'stall' | 'ok';
+const IOS_TIMED_OUT =
+  'The request timed out. - The AVPlayerItem instance has failed with the error code -1001 and domain "NSURLErrorDomain".';
 const playerGates = new Map<string, Promise<void>>();
 
 const defaultChapterAudio = async (
@@ -98,6 +108,8 @@ const scenario = {
   coverageGate: null as Promise<void> | null,
   /** The native side released the loaded sound without telling JS (Android). */
   nativeSoundReleased: false,
+  /** Per URL, the outcome of each successive load; unscripted loads succeed. */
+  loadScript: new Map<string, LoadStep[]>(),
 };
 
 interface AudioPlayerCallbacks {
@@ -135,6 +147,14 @@ const audioPlayerDouble: AudioPlayerDouble = {
     });
     if (scenario.failLoadUrls.has(url)) {
       throw new Error(`decode failed: ${url}`);
+    }
+    const step = scenario.loadScript.get(url)?.shift() ?? 'ok';
+    if (step === 'stall') {
+      await new Promise<never>(() => {});
+    }
+    if (typeof step === 'object') {
+      audioPlayerDouble.callbacks.onError?.(step.nativeError);
+      throw new Error(step.nativeError);
     }
     const gate = playerGates.get(`load:${url}`);
     if (gate) await gate;
@@ -313,6 +333,19 @@ mockModule(mock, sourcePath('services/audio/audioRemote.ts'), {
     return scenario.remoteFallback(translationId, bookId, chapter);
   },
 });
+mockModule(mock, sourcePath('services/diagnostics/crashReportQueue.ts'), {
+  reportHandledError: (
+    source: string,
+    error: unknown,
+    options: { reportTimeouts?: boolean } = {}
+  ) => {
+    recorded.reports.push({
+      source,
+      message: error instanceof Error ? error.message : String(error),
+      reportTimeouts: options.reportTimeouts === true,
+    });
+  },
+});
 mockModule(mock, sourcePath('services/analytics/index.ts'), {
   trackAnonymousUsageEvent: (name: string, properties: Record<string, unknown>) => {
     recorded.analytics.push({ name, properties });
@@ -427,6 +460,7 @@ beforeEach(() => {
   recorded.remoteLookups.length = 0;
   recorded.remoteUnsubscribes = 0;
   recorded.coverageLookups.length = 0;
+  recorded.reports.length = 0;
 
   playerGates.clear();
   scenario.availableTranslations = new Set(['bsb', 'web']);
@@ -437,6 +471,7 @@ beforeEach(() => {
   scenario.liveCoverage = new Map();
   scenario.coverageGate = null;
   scenario.nativeSoundReleased = false;
+  scenario.loadScript = new Map();
   activeTranslate = (key) => key;
 
   audioPlayerDouble.loaded = false;
@@ -926,6 +961,186 @@ test('a superseded play request never overwrites the chapter that replaced it', 
     playerCalls('loadAndPlay').map((call) => call.args[0]),
     ['https://cdn.example/bsb/GEN/2.mp3']
   );
+});
+
+// ---------------------------------------------------------------------------
+// First play of a cold chapter
+//
+// A chapter nobody has streamed lately can take 4-11 s to first byte on the media
+// CDN, long enough for the first request to time out while the edge fetches it; the
+// second is served warm. One automatic retry covers that; a second failure is shown.
+// ---------------------------------------------------------------------------
+
+const GEN_1 = 'https://cdn.example/bsb/GEN/1.mp3';
+
+/** Lets pending promise chains run until `ready` holds (real macrotask turns). */
+const settleUntil = async (ready: () => boolean) => {
+  for (let turn = 0; turn < 50 && !ready(); turn += 1) {
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+  assert.ok(ready(), 'the awaited load never started');
+};
+
+/** Every status and error the store takes on from now on. */
+const recordStoreChanges = () => {
+  const changes: { status: string; error: string | null }[] = [];
+  const unsubscribe = useAudioStore.subscribe((state, previous) => {
+    if (state.status !== previous.status || state.error !== previous.error) {
+      changes.push({ status: state.status, error: state.error });
+    }
+  });
+  return { changes, unsubscribe };
+};
+
+test('a first load that times out is retried once and then plays', async () => {
+  scenario.loadScript.set(GEN_1, [{ nativeError: IOS_TIMED_OUT }, 'ok']);
+  const player = mountPlayer();
+  const { changes, unsubscribe } = recordStoreChanges();
+
+  await player.api.playChapter('GEN', 1);
+  unsubscribe();
+
+  assert.deepEqual(
+    playerCalls('loadAndPlay').map((call) => call.args),
+    [
+      [GEN_1, 1],
+      [GEN_1, 1],
+    ]
+  );
+  assert.equal(store().status, 'playing');
+  assert.equal(store().error, null);
+  // The listener sees one continuous load, not a failure and a restart.
+  assert.deepEqual(
+    changes.map((change) => change.status),
+    ['loading', 'playing']
+  );
+  assert.deepEqual(recorded.reports, []);
+});
+
+test('the retry of a resumed chapter starts at the same resume point', async () => {
+  scenario.loadScript.set(GEN_1, [{ nativeError: IOS_TIMED_OUT }, 'ok']);
+  const player = mountPlayer();
+
+  await player.api.playChapterForTranslation('bsb', 'GEN', 1, undefined, {
+    startPositionMs: 42_000,
+  });
+
+  assert.deepEqual(
+    playerCalls('loadAndPlay').map((call) => call.args[2]),
+    [42_000, 42_000]
+  );
+  assert.equal(store().status, 'playing');
+  assert.equal(store().currentPosition, 42_000);
+});
+
+test('a load that never settles is abandoned at its deadline and retried', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  scenario.loadScript.set(GEN_1, ['stall', 'ok']);
+  const player = mountPlayer();
+
+  const pending = player.api.playChapter('GEN', 1);
+  await settleUntil(() => playerCalls('loadAndPlay').length === 1);
+  t.mock.timers.tick(29_999);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(playerCalls('loadAndPlay').length, 1, 'retried before the deadline');
+  assert.equal(store().status, 'loading');
+  t.mock.timers.tick(1);
+  await pending;
+
+  assert.equal(playerCalls('loadAndPlay').length, 2);
+  assert.equal(store().status, 'playing');
+  assert.deepEqual(recorded.reports, []);
+});
+
+test('two timeouts show the playback failure and report it once', async () => {
+  scenario.loadScript.set(GEN_1, [{ nativeError: IOS_TIMED_OUT }, { nativeError: IOS_TIMED_OUT }]);
+  const player = mountPlayer();
+  const { changes, unsubscribe } = recordStoreChanges();
+  recorded.nowPlayingCleared = 0;
+
+  await player.api.playChapter('GEN', 1);
+  unsubscribe();
+
+  assert.equal(playerCalls('loadAndPlay').length, 2);
+  assert.equal(store().status, 'error');
+  assert.equal(store().error, 'interface.audioPlayFailed');
+  // The first attempt's native error did not flash the failure before the retry.
+  assert.deepEqual(changes, [
+    { status: 'loading', error: null },
+    { status: 'error', error: 'interface.audioPlayFailed' },
+  ]);
+  assert.deepEqual(recorded.reports, [
+    { source: 'audio.load', message: IOS_TIMED_OUT, reportTimeouts: true },
+  ]);
+  assert.equal(recorded.nowPlayingCleared, 1);
+});
+
+test('two stalled loads stop the abandoned one so it cannot start playing later', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  scenario.loadScript.set(GEN_1, ['stall', 'stall']);
+  const player = mountPlayer();
+
+  const pending = player.api.playChapter('GEN', 1);
+  await settleUntil(() => playerCalls('loadAndPlay').length === 1);
+  t.mock.timers.tick(30_000);
+  await settleUntil(() => playerCalls('loadAndPlay').length === 2);
+  const stopsBeforeDeadline = playerCalls('stop').length;
+  t.mock.timers.tick(30_000);
+  await pending;
+
+  assert.equal(playerCalls('loadAndPlay').length, 2);
+  assert.equal(playerCalls('stop').length, stopsBeforeDeadline + 1);
+  assert.equal(recorded.player.at(-1)?.method, 'stop');
+  assert.equal(store().status, 'error');
+  assert.equal(store().error, 'interface.audioPlayFailed');
+  assert.equal(recorded.reports.length, 1);
+  assert.match(recorded.reports[0]?.message ?? '', /did not load within 30 s/);
+});
+
+test('a newer tap during the retry cancels it', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  scenario.loadScript.set(GEN_1, [{ nativeError: IOS_TIMED_OUT }, 'stall']);
+  const player = mountPlayer();
+
+  const first = player.api.playChapter('GEN', 1);
+  await settleUntil(() => playerCalls('loadAndPlay').length === 2);
+  await player.api.playChapter('GEN', 2);
+  recorded.player.length = 0;
+  // The superseded retry reaches its deadline after the new chapter took over.
+  t.mock.timers.tick(30_000);
+  await first;
+
+  assert.equal(store().currentChapter, 2);
+  assert.equal(store().status, 'playing');
+  assert.equal(store().error, null);
+  assert.deepEqual(recorded.player, [], 'the old retry touched the new chapter');
+  assert.deepEqual(recorded.reports, []);
+});
+
+test('a chapter the server does not have is not retried', async () => {
+  const notFound = 'Source error: Response code: 404';
+  scenario.loadScript.set(GEN_1, [{ nativeError: notFound }, 'ok']);
+  const player = mountPlayer();
+
+  await player.api.playChapter('GEN', 1);
+
+  assert.equal(playerCalls('loadAndPlay').length, 1);
+  assert.equal(store().status, 'error');
+  assert.equal(store().error, 'interface.audioPlayFailed');
+  assert.deepEqual(recorded.reports, [
+    { source: 'audio.load', message: notFound, reportTimeouts: true },
+  ]);
+});
+
+test('a native error after the chapter started playing is shown at once', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+
+  audioPlayerDouble.callbacks.onError?.(IOS_TIMED_OUT);
+
+  assert.equal(store().status, 'error');
+  assert.equal(store().error, 'interface.audioPlayFailed');
+  assert.equal(playerCalls('loadAndPlay').length, 1);
 });
 
 // ---------------------------------------------------------------------------

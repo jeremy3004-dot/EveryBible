@@ -159,6 +159,63 @@ test('the dock play button plays the displayed chapter, or toggles it once it is
   assert.deepEqual(reader.audioCalls.at(-1), ['togglePlayPause']);
 });
 
+// A chapter that would not load dropped back to Play with no message: the hook held
+// the error, but neither the read-mode dock nor the listen player drew it.
+test('a chapter that failed to load says so above the dock, and Play tries it again', async () => {
+  const failed = t('interface.audioPlayFailed');
+  const view = await renderReader();
+  await reader.setAudio({
+    status: 'error',
+    error: failed,
+    currentTranslationId: 'bsb',
+    currentBookId: 'JHN',
+    currentChapter: 3,
+  });
+
+  view.getByText(failed);
+  assert.deepEqual(
+    harness.rn.__recorded.announcements.filter((message) => message === failed),
+    [failed]
+  );
+  await view.press(playButton(view));
+  assert.deepEqual(reader.audioCalls.at(-1), ['togglePlayPause']);
+});
+
+test('the listen player shows the failure too', async () => {
+  const failed = t('interface.audioPlayFailed');
+  chapters.set('JHN:3', []); // audio-only: the listen player
+  await reader.setAudio({
+    status: 'error',
+    error: failed,
+    currentTranslationId: 'bsb',
+    currentBookId: 'JHN',
+    currentChapter: 3,
+  });
+  const view = await renderReader();
+
+  view.getByText(failed);
+  assert.deepEqual(
+    harness.rn.__recorded.announcements.filter((message) => message === failed),
+    [failed]
+  );
+  await view.press(playButton(view));
+  assert.deepEqual(reader.audioCalls.at(-1), ['togglePlayPause']);
+});
+
+test("another chapter's failure is not shown on this one", async () => {
+  const failed = t('interface.audioPlayFailed');
+  await reader.setAudio({
+    status: 'error',
+    error: failed,
+    currentTranslationId: 'bsb',
+    currentBookId: 'JHN',
+    currentChapter: 4,
+  });
+  const view = await renderReader();
+
+  assert.equal(view.queryByText(failed), null);
+});
+
 // After a relaunch nothing is loaded, only the persisted last track and its
 // resume offset. Playing that chapter from the dock must resume it (the hook's
 // togglePlayPause restores lastPosition); playChapter restarted it from 0:00
