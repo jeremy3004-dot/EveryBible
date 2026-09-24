@@ -26,6 +26,8 @@ export interface StackedVerseContext {
   followHighlightColor: string;
   getVersePresentation: (verse: Verse) => VersePresentation;
   onToggleVerseSelection: (verse: Verse) => void;
+  /** VoiceOver/TalkBack is on: each verse announces itself as one selectable button. */
+  screenReaderEnabled?: boolean;
 }
 
 /**
@@ -47,12 +49,20 @@ export function renderStackedVerse(
     followHighlightColor,
     getVersePresentation,
     onToggleVerseSelection,
+    screenReaderEnabled = false,
   }: StackedVerseContext
 ): ReactElement {
   const { highlightAnnotation, isFocused, isSelected, verseBackgroundColor } =
     getVersePresentation(verse);
   const formattingLines = verse.formatting?.lines.length ? verse.formatting.lines : null;
   const focusRenderKey = isFocused ? 'focused' : 'idle';
+  // Read as the highlighted verse row reads (HighlightedVerseText), number then text.
+  const screenReaderProps = screenReaderEnabled
+    ? ({
+        accessibilityRole: 'button',
+        accessibilityLabel: `${verse.verse}\u00A0${verse.text}`,
+      } as const)
+    : null;
 
   if (formattingLines) {
     return (
@@ -60,6 +70,7 @@ export function renderStackedVerse(
         key={`${verse.id}-formatted-${focusRenderKey}`}
         onPress={() => onToggleVerseSelection(verse)}
         accessibilityState={{ selected: isSelected }}
+        {...screenReaderProps}
         style={[
           styles.readerVerse,
           styles.structuredVerse,
@@ -118,6 +129,7 @@ export function renderStackedVerse(
       key={`${verse.id}-${focusRenderKey}`}
       onPress={() => onToggleVerseSelection(verse)}
       accessibilityState={{ selected: isSelected }}
+      {...screenReaderProps}
       style={styles.readerVerse}
     >
       <Text

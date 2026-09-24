@@ -897,8 +897,16 @@ export function BibleReaderScreen() {
         readingFontFamilyBold,
         colors,
         annotations: displayedAnnotations,
+        screenReaderEnabled,
       }),
-    [displayedAnnotations, colors, readingFontFamily, readingFontFamilyBold, scaleValue]
+    [
+      displayedAnnotations,
+      colors,
+      readingFontFamily,
+      readingFontFamilyBold,
+      scaleValue,
+      screenReaderEnabled,
+    ]
   );
   const renderParagraphBlock = useCallback(
     ({ item, index }: { item: ReaderParagraph; index: number }): ReactElement => (
@@ -1016,6 +1024,7 @@ export function BibleReaderScreen() {
         paragraphHeightsRef={paragraphHeightsRef}
         pendingReaderAutoScrollVerseRef={pendingReaderAutoScrollVerseRef}
         premiumParagraphRenderSignature={premiumParagraphRenderSignature}
+        screenReaderEnabled={screenReaderEnabled}
         premiumReaderBottomPadding={premiumReaderBottomPadding}
         premiumReaderListRef={premiumReaderListRef}
         premiumReaderParagraphs={premiumReaderParagraphs}
@@ -1087,6 +1096,7 @@ export function BibleReaderScreen() {
             paragraphHeightsRef={paragraphHeightsRef}
             pendingReaderAutoScrollVerseRef={pendingReaderAutoScrollVerseRef}
             premiumParagraphRenderSignature={premiumParagraphRenderSignature}
+            screenReaderEnabled={screenReaderEnabled}
             premiumReaderBottomPadding={premiumReaderBottomPadding}
             premiumReaderListRef={premiumReaderListRef}
             premiumReaderParagraphs={premiumReaderParagraphs}
