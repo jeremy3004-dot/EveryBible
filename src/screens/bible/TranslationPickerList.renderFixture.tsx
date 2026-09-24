@@ -349,24 +349,6 @@ export function installPickerRenderFixture(mock: MockTracker) {
   const alertButton = (text: string) =>
     (lastAlert()?.buttons as AlertButton[] | undefined)?.find((button) => button.text === text);
 
-  /**
-   * Counts renders of each translation row. A row's "more" button gets a fresh `onPress`
-   * every time the row renders, so its host props change identity exactly when the row did.
-   */
-  function trackRowRenders(view: View, translations: Pick<BibleTranslation, 'id'>[]) {
-    const moreButton = (id: string) => view.getByTestId(`translation-picker-more-${id}`);
-    const seen = new Map(translations.map(({ id }) => [id, moreButton(id).props]));
-    return () =>
-      translations
-        .map(({ id }) => id)
-        .filter((id) => {
-          const current = moreButton(id).props;
-          const changed = current !== seen.get(id);
-          seen.set(id, current);
-          return changed;
-        });
-  }
-
   return {
     harness,
     t,
@@ -389,7 +371,6 @@ export function installPickerRenderFixture(mock: MockTracker) {
     inAct,
     lastAlert,
     alertButton,
-    trackRowRenders,
   };
 }
 

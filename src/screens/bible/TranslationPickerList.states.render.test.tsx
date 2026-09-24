@@ -37,7 +37,6 @@ const {
   inAct,
   lastAlert,
   alertButton,
-  trackRowRenders,
 } = installPickerRenderFixture(mock);
 
 type View = Awaited<ReturnType<typeof renderPicker>>;
@@ -343,67 +342,52 @@ test('before the catalog has loaded, choosing a missing Bible retries the catalo
 });
 
 // ---------------------------------------------------------------------------
-// Render reach
+// Render reach (download progress ticks: TranslationPickerList.render.test.tsx)
 // ---------------------------------------------------------------------------
 
-test('a text download progress tick redraws only the row that is downloading', async () => {
-  const view = await renderPicker();
-  await startDownload(view, NET);
-  await textProgress('engnet', 10);
-  const changedRows = trackRowRenders(view, [BSB, KJV, UNKNOWN_COVERAGE_AUDIO, NET, GOSPEL_AUDIO]);
-
-  await textProgress('engnet', 20);
-  assert.deepEqual(changedRows(), ['engnet']);
-  await textProgress('engnet', 30);
-  assert.deepEqual(changedRows(), ['engnet']);
-  assert.ok(within(rowOf(view, NET)).getByText('30%'));
-});
-
-test('an audio progress tick for one Bible redraws only that row', async () => {
-  const withJob = (progress: number) =>
-    ALL.map((translation) =>
-      translation.id === 'bsb'
-        ? {
-            ...translation,
-            activeDownloadJob: {
-              id: 'job-1',
-              kind: 'translation-audio' as const,
-              state: 'running' as const,
-              progress,
-              startedAt: 0,
-              updatedAt: progress,
-            },
-          }
-        : translation
-    );
-  useBibleStore.setState({ translations: withJob(10) });
-  const view = await renderPicker();
-  const changedRows = trackRowRenders(view, [BSB, KJV, UNKNOWN_COVERAGE_AUDIO, NET, GOSPEL_AUDIO]);
-
-  await inAct(() =>
-    useBibleStore.setState({
-      translations: withJob(20),
-      downloadProgress: {
-        translationId: 'bsb',
-        bookId: 'GEN',
-        progress: 40,
-        status: 'downloading',
-      },
-    })
+/** Translation rows (their touchables) drawn since `mark`, by abbreviation; rows at 0 omitted. */
+const rowRenders = (mark: number) =>
+  Object.fromEntries(
+    useBibleStore
+      .getState()
+      .translations.map((translation) => [
+        translation.abbreviation,
+        harness.renders.count(mark, 'TouchableOpacity', (props) =>
+          String(props.accessibilityLabel ?? '').startsWith(`${translation.name},`)
+        ),
+      ])
+      .filter(([, count]) => count !== 0)
   );
 
-  assert.deepEqual(changedRows(), ['bsb']);
-  assert.ok(within(rowOf(view, BSB)).getByText('20%'));
-});
-
-test('typing a query that keeps a row leaves that row alone', async () => {
+test('typing a query that keeps the same results leaves the rows alone', async () => {
   const view = await renderPicker();
-  const changedRows = trackRowRenders(view, [BSB]);
-
   const search = () => view.getByTestId('translation-picker-search');
   await view.changeText(search(), 'Berea');
-  assert.deepEqual(changedRows(), ['bsb'], 'the row moved into a one-row group');
 
+  const mark = harness.renders.mark();
   await view.changeText(search(), 'Berean');
-  assert.deepEqual(changedRows(), [], 'the same result set keeps the row as it was');
+  assert.deepEqual(rowRenders(mark), {});
+  assert.equal(search().props.value, 'Berean');
+});
+
+test('opening and closing the manage sheet leaves the rows alone', async () => {
+  const view = await renderPicker();
+  const mark = harness.renders.mark();
+
+  const sheet = await openManageSheet(view, KJV);
+  await closeManageSheet(view, sheet);
+
+  assert.deepEqual(rowRenders(mark), {});
+});
+
+test('starting and queueing downloads redraws only the rows whose state changed', async () => {
+  const view = await renderPicker();
+  let mark = harness.renders.mark();
+  await startDownload(view, NET);
+  assert.deepEqual(rowRenders(mark), { NET: 1 }, 'the downloading row is disabled');
+
+  await view.changeText(view.getByTestId('translation-picker-search'), 'Reina');
+  mark = harness.renders.mark();
+  await startDownload(view, SPANISH_RV);
+  assert.deepEqual(rowRenders(mark), { RV: 1 }, 'only the queued row changes');
 });
