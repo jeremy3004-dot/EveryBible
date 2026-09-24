@@ -40,7 +40,7 @@ export function PlansHomeScreen() {
   const today = useLocalToday();
 
   const { allPlans, loading, refreshing, refresh } = usePlansCatalog();
-  const { userProgress, completedPlans, headerEyebrow } = usePlansProgress(allPlans);
+  const { userProgress, activePlans, completedPlans, headerEyebrow } = usePlansProgress(allPlans);
 
   const handlePlanPress = useCallback(
     (planId: string) => {
@@ -123,8 +123,7 @@ export function PlansHomeScreen() {
           <>
             {activeTab === 'my-plans' && (
               <MyPlansSection
-                allPlans={allPlans}
-                userProgress={userProgress}
+                activePlans={activePlans}
                 onAddPlan={handleAddPlan}
                 onPlanPress={handlePlanPress}
                 onDeletePlan={handleDeletePlan}

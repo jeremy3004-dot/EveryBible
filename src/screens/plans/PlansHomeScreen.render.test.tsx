@@ -288,6 +288,30 @@ test('the eyebrow counts the reader’s own active and completed plans, dropping
   assert.equal(onlyCompleted.queryByText(/active/), null);
 });
 
+// Progress can outlive its plan: a plan retired from the bundled catalog keeps its
+// persisted row. Neither list shows it, so the header must not count it either.
+test('the eyebrow counts only plans the catalog still has', async () => {
+  await seed(
+    progressRow(PSALMS),
+    progressRow('retired-plan'),
+    progressRow('retired-finished', {
+      is_completed: true,
+      completed_at: '2026-09-21T10:00:00.000Z',
+    })
+  );
+  const view = await renderHome();
+
+  assert.ok(view.getByText(t('readingPlans.activeCount', { count: 1 })));
+  assert.equal(view.queryByText(/ · /), null, 'no completed half');
+  await view.unmount();
+
+  await seed(progressRow('retired-plan'));
+  const onlyRetired = await renderHome();
+  assert.ok(onlyRetired.getByText(t('readingPlans.noActivePlans')));
+  assert.ok(onlyRetired.getByText(t('readingPlans.plansCount', { count: CATALOG.length })));
+  assert.equal(onlyRetired.queryByText(/active/), null);
+});
+
 test('the three plan tabs are one full-width switch, pinned in the sticky header, with no Saved tab', async () => {
   const view = await renderHome();
 

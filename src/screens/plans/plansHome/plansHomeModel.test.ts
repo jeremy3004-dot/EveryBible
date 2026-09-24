@@ -134,19 +134,28 @@ test('a reading counts the days before today as done; a rhythm counts today too'
 });
 
 test('the header eyebrow counts active and completed plans and drops a zero half', () => {
-  const active = makeProgress('a');
-  const done = makeProgress('b', { is_completed: true });
+  const counts = (activeCount: number, completedCount: number, catalogSize = 12) => ({
+    activeCount,
+    completedCount,
+    catalogSize,
+  });
   assert.equal(
-    formatPlansHeaderEyebrow([active, active, done], 12, t),
+    formatPlansHeaderEyebrow(counts(2, 1), t),
     'readingPlans.activeCount(2) · readingPlans.completedCount(1)'
   );
-  assert.equal(formatPlansHeaderEyebrow([done], 12, t), 'readingPlans.completedCount(1)');
-  assert.equal(formatPlansHeaderEyebrow([active], 12, t), 'readingPlans.activeCount(1)');
+  assert.equal(formatPlansHeaderEyebrow(counts(0, 1), t), 'readingPlans.completedCount(1)');
+  assert.equal(formatPlansHeaderEyebrow(counts(1, 0), t), 'readingPlans.activeCount(1)');
 });
 
 test('with nothing enrolled the eyebrow is the catalog size, or nothing before it loads', () => {
-  assert.equal(formatPlansHeaderEyebrow([], 12, t), 'readingPlans.plansCount(12)');
-  assert.equal(formatPlansHeaderEyebrow([], 0, t), '');
+  assert.equal(
+    formatPlansHeaderEyebrow({ activeCount: 0, completedCount: 0, catalogSize: 12 }, t),
+    'readingPlans.plansCount(12)'
+  );
+  assert.equal(
+    formatPlansHeaderEyebrow({ activeCount: 0, completedCount: 0, catalogSize: 0 }, t),
+    ''
+  );
 });
 
 test('session labels are translated, with a capitalised key as the fallback', () => {

@@ -87,15 +87,15 @@ export function getActivePlanProgressRatio(plan: ReadingPlan, currentDay: number
 
 /**
  * "2 ACTIVE · 1 COMPLETED" — drops whichever half is zero, and falls back to the
- * catalog size before anything is enrolled.
+ * catalog size before anything is enrolled. The counts are of the rows the lists
+ * show: progress for a plan the catalog no longer has is in neither list, so it is
+ * not counted either.
  */
 export function formatPlansHeaderEyebrow(
-  userProgress: UserReadingPlanProgress[],
-  catalogSize: number,
+  counts: { activeCount: number; completedCount: number; catalogSize: number },
   t: TFunction
 ): string {
-  const activeCount = userProgress.filter((progress) => !progress.is_completed).length;
-  const completedCount = userProgress.filter((progress) => progress.is_completed).length;
+  const { activeCount, completedCount, catalogSize } = counts;
   const parts: string[] = [];
   if (activeCount > 0) {
     parts.push(t('readingPlans.activeCount', { count: activeCount }));

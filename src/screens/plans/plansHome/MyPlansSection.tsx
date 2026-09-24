@@ -3,15 +3,14 @@ import { StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { EmptyState, SectionHeader } from '../../../components/ui';
 import { layout, spacing } from '../../../design/system';
-import type { ReadingPlan, UserReadingPlanProgress } from '../../../services/plans/types';
 import { useLibraryStore } from '../../../stores/libraryStore';
 import { useProgressStore } from '../../../stores/progressStore';
 import { ActivePlanCard } from './ActivePlanCard';
-import { getActivePlanRows, splitActivePlanRows, type ActivePlanRow } from './plansHomeModel';
+import { splitActivePlanRows, type ActivePlanRow } from './plansHomeModel';
 
 interface MyPlansSectionProps {
-  allPlans: ReadingPlan[];
-  userProgress: UserReadingPlanProgress[];
+  /** The reader's unfinished plans, joined to the catalog, newest first. */
+  activePlans: ActivePlanRow[];
   onAddPlan: () => void;
   onPlanPress: (planId: string) => void;
   onDeletePlan: (planId: string) => void;
@@ -25,8 +24,7 @@ interface MyPlansSectionProps {
  * an audio chapter change does not re-render the other tabs.
  */
 export function MyPlansSection({
-  allPlans,
-  userProgress,
+  activePlans,
   onAddPlan,
   onPlanPress,
   onDeletePlan,
@@ -35,10 +33,6 @@ export function MyPlansSection({
   const { t } = useTranslation();
   const chaptersRead = useProgressStore((state) => state.chaptersRead);
   const listeningHistory = useLibraryStore((state) => state.history);
-  const activePlans = useMemo(
-    () => getActivePlanRows(allPlans, userProgress),
-    [allPlans, userProgress]
-  );
   const { dailyReadings, dailyRhythms } = useMemo(
     () => splitActivePlanRows(activePlans),
     [activePlans]
