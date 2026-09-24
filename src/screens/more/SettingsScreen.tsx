@@ -10,6 +10,7 @@ import {
   Switch,
   Modal,
   Alert,
+  Linking,
   TextInput,
 } from 'react-native';
 import { layout, radius, spacing, typography } from '../../design/system';
@@ -73,7 +74,7 @@ import { getChapterFeedbackPreferenceSummary } from './settingsPreferenceModel';
 import {
   scheduleDailyReminder,
   cancelDailyReminder,
-  requestNotificationPermissions,
+  requestNotificationPermissionOutcome,
 } from '../../services/notifications';
 import type { MoreStackParamList } from '../../navigation/types';
 import { hexWithAlpha, lightHaptic } from '../../utils';
@@ -214,12 +215,20 @@ export function SettingsScreen() {
     lightHaptic();
     if (!preferences.notificationsEnabled) {
       // Request permission when enabling
-      const granted = await requestNotificationPermissions();
+      const outcome = await requestNotificationPermissionOutcome();
 
-      if (!granted) {
-        Alert.alert(t('settings.permissionRequired'), t('settings.enableNotificationsMessage'), [
-          { text: t('common.ok') },
-        ]);
+      if (outcome !== 'granted') {
+        // Once Android stops showing the prompt, the only way back is system settings.
+        Alert.alert(
+          t('settings.permissionRequired'),
+          t('settings.enableNotificationsMessage'),
+          outcome === 'blocked'
+            ? [
+                { text: t('common.cancel'), style: 'cancel' },
+                { text: t('common.settings'), onPress: () => void Linking.openSettings() },
+              ]
+            : [{ text: t('common.ok') }]
+        );
         return;
       }
 

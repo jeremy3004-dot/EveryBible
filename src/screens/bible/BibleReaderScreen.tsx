@@ -11,6 +11,7 @@ import {
   FlatList,
   LayoutAnimation,
   ImageBackground,
+  Linking,
   InteractionManager,
   KeyboardAvoidingView,
   Modal,
@@ -3466,9 +3467,29 @@ export function BibleReaderScreen() {
         </View>
 
         {feedbackAudioPermissionDenied ? (
-          <Text style={[styles.feedbackAudioHelpText, { color: colors.bibleSecondaryText }]}>
-            {t('bible.chapterFeedbackAudioPermissionHelp')}
-          </Text>
+          <View style={styles.feedbackAudioHelpRow}>
+            <Text
+              style={[
+                styles.feedbackAudioHelpText,
+                styles.feedbackAudioHelpMessage,
+                { color: colors.bibleSecondaryText },
+              ]}
+            >
+              {t('bible.chapterFeedbackAudioPermissionHelp')}
+            </Text>
+            {/* Once the system stops re-prompting (Android "don't ask again"), settings is
+                the only way to turn the microphone back on. */}
+            <TouchableOpacity
+              onPress={() => void Linking.openSettings()}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.settings')}
+              hitSlop={8}
+            >
+              <Text style={[styles.feedbackAudioHelpLink, { color: colors.bibleAccent }]}>
+                {t('common.settings')}
+              </Text>
+            </TouchableOpacity>
+          </View>
         ) : null}
 
         <View style={styles.feedbackAudioActionRow}>
@@ -7314,6 +7335,19 @@ const styles = StyleSheet.create({
   feedbackAudioHelpText: {
     fontSize: 12,
     lineHeight: 16,
+  },
+  feedbackAudioHelpRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  feedbackAudioHelpMessage: {
+    flex: 1,
+  },
+  feedbackAudioHelpLink: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '600',
   },
   feedbackAudioActionRow: {
     flexDirection: 'row',

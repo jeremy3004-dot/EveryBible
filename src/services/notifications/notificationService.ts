@@ -105,15 +105,30 @@ export async function setupAndroidChannels(): Promise<void> {
  * Returns true if permissions are already granted or the user grants them.
  * Returns false if the user denies or has previously denied permissions.
  */
-export async function requestNotificationPermissions(): Promise<boolean> {
+export type NotificationPermissionOutcome = 'granted' | 'denied' | 'blocked';
+
+/**
+ * Asks for notification permission and says whether asking again could help.
+ *
+ * 'blocked' means the system will not show the prompt again (Android 13+ after repeated
+ * denials, or an iOS denial), so only the device's settings can turn notifications on.
+ */
+export async function requestNotificationPermissionOutcome(): Promise<NotificationPermissionOutcome> {
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
 
   if (existingStatus === 'granted') {
-    return true;
+    return 'granted';
   }
 
-  const { status } = await Notifications.requestPermissionsAsync();
-  return status === 'granted';
+  const { status, canAskAgain } = await Notifications.requestPermissionsAsync();
+  if (status === 'granted') {
+    return 'granted';
+  }
+  return canAskAgain === false ? 'blocked' : 'denied';
+}
+
+export async function requestNotificationPermissions(): Promise<boolean> {
+  return (await requestNotificationPermissionOutcome()) === 'granted';
 }
 
 /**
