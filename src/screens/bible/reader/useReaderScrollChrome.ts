@@ -23,6 +23,7 @@ export interface UseReaderScrollChromeInput {
   readerBottomChromeCollapsedRef: RefObject<boolean>;
   readerBottomChromeProgressShared: SharedValue<number>;
   readerChromeCollapsedShared: SharedValue<boolean>;
+  readerChromeFingerScrollShared: SharedValue<boolean>;
   readerChromeOffsetShared: SharedValue<number>;
   readerChromeOwner: SharedValue<string>;
   readerLastScrollOffsetYRef: RefObject<number>;
@@ -45,6 +46,7 @@ export function useReaderScrollChrome({
   readerBottomChromeCollapsedRef,
   readerBottomChromeProgressShared,
   readerChromeCollapsedShared,
+  readerChromeFingerScrollShared,
   readerChromeOffsetShared,
   readerChromeOwner,
   readerLastScrollOffsetYRef,
@@ -117,7 +119,30 @@ export function useReaderScrollChrome({
     setIsReadBottomChromeCollapsed,
   ]);
 
+  // Only the reader's finger collapses the chrome. The list also moves on its own —
+  // back to the top on a chapter change, onto a plan's focus verse, after the verse the
+  // audio is on — and counting those moves as scrolling left a new chapter opening
+  // with the chrome stuck part-way collapsed (translucent header, half-faded arrows, tab
+  // bar or plan strip half off screen) until the reader scrolled. A move without the
+  // finger may still reveal the chrome near either end, never hide more of it.
+  // Android always ends a drag with momentum events; iOS skips them when the finger
+  // lifts without velocity.
   const scrollHandler = useAnimatedScrollHandler({
+    onBeginDrag: () => {
+      'worklet';
+      readerChromeFingerScrollShared.value = true;
+    },
+    onEndDrag: (event) => {
+      'worklet';
+      const velocityY = event.velocity?.y ?? 0;
+      if (velocityY === 0) {
+        readerChromeFingerScrollShared.value = false;
+      }
+    },
+    onMomentumEnd: () => {
+      'worklet';
+      readerChromeFingerScrollShared.value = false;
+    },
     onScroll: (event) => {
       'worklet';
       const nextOffsetY = event.contentOffset.y;
@@ -131,7 +156,9 @@ export function useReaderScrollChrome({
 
       const nextProgress = getNextReaderChromeProgress({
         progress: readerBottomChromeProgressShared.value,
-        previousOffset: readerChromeOffsetShared.value,
+        previousOffset: readerChromeFingerScrollShared.value
+          ? readerChromeOffsetShared.value
+          : nextOffsetY,
         offset: nextOffsetY,
         viewportHeight,
         contentHeight,
