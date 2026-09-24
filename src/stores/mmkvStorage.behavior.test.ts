@@ -6,11 +6,15 @@ import { mockModule } from '../testing/mockModules';
 // in-memory one that records its writes.
 const backing = new Map<string, string>();
 const writes: Array<[string, string]> = [];
+/** Native failures to inject: a JSI call that throws, as a broken or full MMKV file does. */
+const faults = { read: false, write: false };
 class FakeMMKV {
   getString(key: string) {
+    if (faults.read) throw new Error('MMKV: failed to read');
     return backing.get(key);
   }
   set(key: string, value: string) {
+    if (faults.write) throw new Error('MMKV: no space left on device');
     writes.push([key, value]);
     backing.set(key, value);
   }
@@ -25,6 +29,8 @@ const load = () => import('./mmkvStorage');
 beforeEach(() => {
   backing.clear();
   writes.length = 0;
+  faults.read = false;
+  faults.write = false;
 });
 
 test('the Zustand adapter round-trips values and reports a missing key as null', async () => {
@@ -100,4 +106,99 @@ test('every persisted store shares the one MMKV instance the adapter writes thro
 
   assert.ok(mmkvInstance instanceof FakeMMKV);
   assert.equal(mmkvInstance.getString('bible-storage'), '{"state":{}}');
+});
+
+// ─── Native failures ──────────────────────────────────────────────────────────
+
+interface CounterState {
+  count: number;
+  bookmarks: string[];
+  increment: () => void;
+}
+
+/** A persisted store wired exactly like the app's: persist + createJSONStorage(zustandStorage). */
+async function createPersistedCounter(name: string) {
+  const { zustandStorage } = await load();
+  const { create } = await import('zustand');
+  const { persist, createJSONStorage } = await import('zustand/middleware');
+  return create<CounterState>()(
+    persist(
+      (set) => ({
+        count: 0,
+        bookmarks: [],
+        increment: () => set((state) => ({ count: state.count + 1 })),
+      }),
+      { name, storage: createJSONStorage(() => zustandStorage) }
+    )
+  );
+}
+
+const savedCounter = (count: number) =>
+  JSON.stringify({ state: { count, bookmarks: ['JHN.3.16'] }, version: 0 });
+
+test('a store whose MMKV read throws at launch starts from its defaults and stays usable', async (t) => {
+  t.mock.method(console, 'warn', () => {});
+  backing.set('counter-read-fault', savedCounter(7));
+  faults.read = true;
+
+  const store = await createPersistedCounter('counter-read-fault');
+
+  assert.equal(store.getState().count, 0);
+  assert.deepEqual(store.getState().bookmarks, []);
+  faults.read = false;
+  assert.doesNotThrow(() => store.getState().increment());
+  assert.equal(store.getState().count, 1);
+});
+
+test('a blob that could not be read is not overwritten by the defaults for the rest of the session', async (t) => {
+  t.mock.method(console, 'warn', () => {});
+  backing.set('counter-kept', savedCounter(7));
+  faults.read = true;
+  const store = await createPersistedCounter('counter-kept');
+  faults.read = false;
+
+  // A tap after a transient read failure used to write the default state (count 1, no
+  // bookmarks) over everything the reader had saved.
+  store.getState().increment();
+
+  assert.equal(backing.get('counter-kept'), savedCounter(7));
+  await store.persist.rehydrate();
+  assert.equal(store.getState().count, 7, 'the next successful read restores the saved state');
+  store.getState().increment();
+  assert.equal(
+    JSON.parse(backing.get('counter-kept') ?? '{}').state.count,
+    8,
+    'once the blob has been read, writes resume'
+  );
+});
+
+test('a store action still succeeds when MMKV cannot write, keeping the change in memory', async (t) => {
+  const warn = t.mock.method(console, 'warn', () => {});
+  const store = await createPersistedCounter('counter-write-fault');
+  faults.write = true;
+
+  // An action that throws out of a press handler is a fatal error in a release build.
+  assert.doesNotThrow(() => store.getState().increment());
+  assert.equal(store.getState().count, 1);
+  assert.equal(backing.has('counter-write-fault'), false);
+  assert.ok(warn.mock.callCount() > 0, 'the failed write is reported, not silently dropped');
+
+  faults.write = false;
+  store.getState().increment();
+  assert.equal(JSON.parse(backing.get('counter-write-fault') ?? '{}').state.count, 2);
+});
+
+test('a store action still succeeds when the unchanged-payload check cannot read MMKV', async (t) => {
+  t.mock.method(console, 'warn', () => {});
+  const store = await createPersistedCounter('counter-dedupe-fault');
+  store.getState().increment();
+  faults.read = true;
+
+  assert.doesNotThrow(() => store.getState().increment());
+  faults.read = false;
+  assert.equal(
+    JSON.parse(backing.get('counter-dedupe-fault') ?? '{}').state.count,
+    2,
+    'a failed comparison read falls through to the write'
+  );
 });
