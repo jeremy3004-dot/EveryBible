@@ -3929,3 +3929,165 @@ test('background playback keeps next chapters, lock screen commands and sleep ex
   assert.equal(playerCalls('pause').length, 1);
   assert.equal(store().sleepTimerEndTime, null);
 });
+
+// ---------------------------------------------------------------------------
+// A chapter that fails mid-play
+//
+// When a stream dies after the chapter started, the wrapper drops the released sound:
+// its Error state reaches the hook as a stopped snapshot, then the error itself. The
+// chapter has to say it failed (not just turn back into Play), and Play reloads it
+// where it stopped.
+// ---------------------------------------------------------------------------
+
+/** What the wrapper reports when the native side released the playing sound. */
+const releasePlayingSound = (message: string) => {
+  audioPlayerDouble.loaded = false;
+  emitStatus({ isPlaying: false, isBuffering: false, positionMillis: 120_000 });
+  audioPlayerDouble.callbacks.onError?.(message);
+};
+
+const startChapterAt = async (player: MountedPlayer, positionMillis: number) => {
+  await player.api.playChapter('GEN', 1);
+  emitStatus({ isPlaying: true, positionMillis, durationMillis: DEFAULT_DURATION_MS });
+  player.rerender();
+};
+
+test('a stream that fails mid-play shows the failure for that chapter and reports it once', async () => {
+  const player = mountPlayer();
+  await startChapterAt(player, 120_000);
+
+  releasePlayingSound('AVFoundation decode failure');
+
+  assert.equal(store().status, 'error');
+  assert.equal(store().error, 'interface.audioPlayFailed');
+  assert.equal(store().currentChapter, 1);
+  assert.deepEqual(recorded.reports, [
+    { source: 'audio.load', message: 'AVFoundation decode failure', reportTimeouts: false },
+  ]);
+});
+
+test('Play after a mid-play failure reloads the chapter where it stopped and clears the failure', async () => {
+  const player = mountPlayer();
+  await startChapterAt(player, 120_000);
+  releasePlayingSound('AVFoundation decode failure');
+  recorded.player.length = 0;
+
+  await player.rerender().togglePlayPause();
+
+  assert.equal(playerCalls('loadAndPlay').length, 1);
+  assert.equal(loadedStartOffset(), 120_000);
+  assert.equal(store().status, 'playing');
+  assert.equal(store().error, null);
+  assert.equal(recorded.reports.length, 1);
+});
+
+test('a failure the native side reports more than once is reported once', async () => {
+  const player = mountPlayer();
+  await startChapterAt(player, 120_000);
+
+  releasePlayingSound('Player error: Source error');
+  audioPlayerDouble.callbacks.onError?.('Player does not exist.');
+
+  assert.equal(store().status, 'error');
+  assert.deepEqual(
+    recorded.reports.map((report) => report.message),
+    ['Player error: Source error']
+  );
+});
+
+// A dropped connection is network weather: the queue's transient-network rules decide,
+// and a mid-play timeout is not singled out for reporting the way a failed load is.
+test('a mid-play network failure goes through the transient-network rules', async () => {
+  const player = mountPlayer();
+  await startChapterAt(player, 120_000);
+
+  releasePlayingSound(IOS_TIMED_OUT);
+
+  assert.equal(store().error, 'interface.audioPlayFailed');
+  assert.deepEqual(recorded.reports, [
+    { source: 'audio.load', message: IOS_TIMED_OUT, reportTimeouts: false },
+  ]);
+});
+
+test('a stream released while buffering mid-play shows the failure and reports it once', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: BASE_TIME });
+  const player = mountPlayer();
+  await startChapterAt(player, 90_000);
+  emitStatus({ isBuffering: true, positionMillis: 90_000, durationMillis: DEFAULT_DURATION_MS });
+  player.rerender();
+  scenario.nativeSoundReleased = true;
+
+  t.mock.timers.tick(5_000);
+  player.rerender();
+  t.mock.timers.tick(10_000);
+
+  assert.equal(store().status, 'error');
+  assert.equal(store().error, 'interface.audioPlayFailed');
+  assert.deepEqual(
+    recorded.reports.map((report) => report.source),
+    ['audio.load']
+  );
+
+  recorded.player.length = 0;
+  await player.rerender().togglePlayPause();
+  assert.equal(loadedStartOffset(), 90_000);
+  assert.equal(store().status, 'playing');
+  assert.equal(store().error, null);
+});
+
+test('moving to another chapter after a mid-play failure clears it', async () => {
+  const player = mountPlayer();
+  await startChapterAt(player, 120_000);
+  releasePlayingSound('AVFoundation decode failure');
+
+  await player.rerender().nextChapter();
+
+  assert.equal(store().currentChapter, 2);
+  assert.equal(store().error, null);
+  assert.notEqual(store().status, 'error');
+});
+
+test('a failure while the chapter is still loading is left to the load to report', async () => {
+  scenario.loadScript.set('https://cdn.example/bsb/GEN/1.mp3', [
+    { nativeError: 'AVFoundation decode failure' },
+  ]);
+  const player = mountPlayer();
+
+  await player.api.playChapter('GEN', 1);
+
+  assert.equal(store().error, 'interface.audioPlayFailed');
+  assert.deepEqual(recorded.reports, [
+    { source: 'audio.load', message: 'AVFoundation decode failure', reportTimeouts: true },
+  ]);
+});
+
+test('pausing, stopping, finishing and the sleep timer show no failure', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: BASE_TIME });
+  const player = mountPlayer();
+  await startChapterAt(player, 120_000);
+
+  await player.api.pause();
+  emitStatus({ isPlaying: false, positionMillis: 120_000, durationMillis: DEFAULT_DURATION_MS });
+  assert.equal(store().status, 'paused');
+  assert.equal(store().error, null);
+
+  await player.rerender().togglePlayPause();
+  store().setAutoAdvanceChapter(false);
+  player.rerender();
+  await reachChapterEnd(DEFAULT_DURATION_MS);
+  assert.equal(store().status, 'idle');
+  assert.equal(store().error, null);
+
+  await startChapterAt(player, 60_000);
+  store().setSleepTimer(5);
+  player.rerender();
+  tickSeconds(t.mock.timers, 5 * 60);
+  emitStatus({ isPlaying: false, positionMillis: 360_000, durationMillis: DEFAULT_DURATION_MS });
+  assert.equal(store().status, 'paused');
+  assert.equal(store().error, null);
+
+  await player.rerender().stop();
+  assert.equal(store().status, 'idle');
+  assert.equal(store().error, null);
+  assert.deepEqual(recorded.reports, []);
+});

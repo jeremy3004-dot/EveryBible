@@ -7,6 +7,7 @@ import { audioPlayer, isAudioAvailable } from '../services/audio';
 import type { BibleNowPlayingInput } from '../services/audio/audioNowPlayingModel';
 import type { TrackPlayerProgressSnapshot } from '../services/audio/audioPlayer';
 import { resolvePlaybackStart } from '../services/audio/audioPlaybackStartModel';
+import { reportHandledError } from '../services/diagnostics/crashReportQueue';
 import type { PlaybackRate, SleepTimerOption } from '../types';
 import {
   chapterTransition,
@@ -363,6 +364,12 @@ export function useAudioPlayer(translationId: string = 'bsb') {
         session.lastPlaybackError = message;
         // A chapter still loading reports its own failure once it has retried.
         if (session.loadingPlayRequestId === session.playRequestId) return;
+        // Otherwise the chapter failed after it started: its stream died, or the sound
+        // was found released. Report it once, however many callbacks the failure makes;
+        // a dropped connection is left to the queue's transient-network rules.
+        if (useAudioStore.getState().status !== 'error') {
+          reportHandledError('audio.load', new Error(message));
+        }
         chapterTransition.current = false;
         setError(t('interface.audioPlayFailed'));
       },
