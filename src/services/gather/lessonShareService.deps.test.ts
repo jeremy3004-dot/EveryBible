@@ -1,6 +1,7 @@
 import test, { beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { mockModule, mockPackage, sourcePath } from '../../testing/mockModules';
+import { assertDefined } from '../../utils/assertDefined';
 
 // loadLessonAudioShareDeps wires the lesson sheet's "Share audio" to the same
 // native modules the reader's chapter-audio share uses, loaded on demand.
@@ -80,7 +81,7 @@ test('the recording is prepared in the cache share folder from the downloaded or
     uri: 'file:///cache/everybible-audio-share/GEN-1.mp3',
     mimeType: 'audio/mpeg',
   });
-  const [input] = prepared;
+  const input = assertDefined(prepared[0], 'the prepared share input');
   assert.deepEqual(
     {
       translationId: input.translationId,

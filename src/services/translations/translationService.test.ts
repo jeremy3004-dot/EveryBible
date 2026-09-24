@@ -519,7 +519,10 @@ test('a translation choice is saved with the time it was made, not the upload ti
   });
 
   assert.deepEqual(result, { success: true });
-  const upsert = supabaseFake.callsFor('user_translation_preferences')[1];
+  const upsert = assertDefined(
+    supabaseFake.callsFor('user_translation_preferences')[1],
+    'the preference upsert'
+  );
   assert.equal((upsert.payload as { synced_at: string }).synced_at, '2026-03-01T00:00:00.000Z');
   assert.equal((upsert.payload as { primary_translation: string }).primary_translation, 'ylt');
 });

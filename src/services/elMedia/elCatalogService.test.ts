@@ -8,11 +8,13 @@ import { refreshElCatalog, getLastVerifiedElCatalog } from './elCatalogService';
 import type { ElJwk } from './elEnvelope';
 import { __resetElJwksRuntimeForTests } from './elJwks';
 import { sha256Bytes } from './elEs256';
+import { assertDefined } from '../../utils/assertDefined';
 
 const fixturesDir = new URL('./fixtures/', import.meta.url);
 const readJson = (name: string) =>
   JSON.parse(readFileSync(fileURLToPath(new URL(name, fixturesDir).href), 'utf8'));
 const jwks = readJson('dev.jwks.json').keys as ElJwk[];
+const devJwk = assertDefined(jwks[0], 'the dev fixture key');
 const catalogEnvelope = readJson('catalog.dev.json');
 
 const CATALOG_URL = 'https://example.test/catalog.dev.json';
@@ -120,7 +122,7 @@ const throwingFetch = (async () => {
 }) as unknown as typeof fetch;
 
 // What a release build trusts: the production key only, never the dev fixture key.
-const releaseKeys = async (): Promise<ElJwk[]> => [{ ...jwks[0], kid: 'lqd-prod-2026-a' }];
+const releaseKeys = async (): Promise<ElJwk[]> => [{ ...devJwk, kid: 'lqd-prod-2026-a' }];
 
 test('happy path fetches, verifies, parses, persists and returns the catalog', async () => {
   const storage = createMemoryStorage();
@@ -510,7 +512,7 @@ test('a trust-store lookup that throws keeps the last-good catalog', async () =>
     storage,
     // Only the incoming envelope's key lookup fails; the stored record's key is still trusted.
     getKeys: async (keyId) => {
-      if (keyId === 'lqd-cached-2026-a') return [{ ...jwks[0], kid: keyId }];
+      if (keyId === 'lqd-cached-2026-a') return [{ ...devJwk, kid: keyId }];
       throw new Error('keystore unavailable');
     },
     isVerificationSupported: supported,

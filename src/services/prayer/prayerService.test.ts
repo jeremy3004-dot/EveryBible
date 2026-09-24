@@ -7,6 +7,7 @@ import {
   makeFakeUser,
   type SupabaseQueryCall,
 } from '../../testing/supabaseFake';
+import { assertDefined } from '../../utils/assertDefined';
 import type { PrayerRequest } from '../supabase/types';
 
 /**
@@ -223,7 +224,10 @@ for (const [label, error, status] of [
       data: [{ request_id: 'req-1', type: 'prayed', user_id: 'user-1' }],
     }));
 
-    const [only] = (await prayer.listPrayerRequests('group-1')).data ?? [];
+    const only = assertDefined(
+      (await prayer.listPrayerRequests('group-1')).data?.[0],
+      'the listed request'
+    );
 
     assert.deepEqual(
       [only.prayed_count, only.viewer_prayed],
@@ -270,7 +274,10 @@ test("the fallback reads interactions past PostgREST's 1000-row cap", async () =
     return { data: from === 0 ? pageRows(1000) : pageRows(7) };
   });
 
-  const [only] = (await prayer.listPrayerRequests('group-1')).data ?? [];
+  const only = assertDefined(
+    (await prayer.listPrayerRequests('group-1')).data?.[0],
+    'the listed request'
+  );
 
   assert.equal(only.prayed_count, 1007);
   assert.deepEqual(
