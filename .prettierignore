@@ -1,0 +1,12 @@
+# Build output and dependencies
+node_modules/
+.next/
+dist/
+build/
+
+# Generated data (written by scripts/language-atlas and the R2 manifest tooling;
+# their --check modes compare bytes, so Prettier must not rewrite them)
+apps/*/data/
+apps/*/public/
+apps/site/lib/*.json
+apps/*/next-env.d.ts
