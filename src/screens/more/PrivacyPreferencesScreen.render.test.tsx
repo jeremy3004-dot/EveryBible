@@ -105,8 +105,11 @@ test('on Android the code form pads by what the keyboard covers and scrolls Conf
   const view = await renderPrivacy();
   await view.press(view.getByRole('radio', { name: t('onboarding.discreetIconTitle') }));
 
-  const [avoider] = view.queryAllByType('KeyboardAvoidingView');
-  assert.equal(avoider?.props.behavior, undefined, 'no height guess on top of the measured pad');
+  assert.deepEqual(
+    view.queryAllByType('KeyboardAvoidingView'),
+    [],
+    'no avoider height guess on top of the measured pad'
+  );
 
   const confirm = view.getByLabelText(t('onboarding.pinConfirmPlaceholder'));
   await view.fire(confirm, 'onFocus');

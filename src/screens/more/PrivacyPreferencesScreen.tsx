@@ -137,6 +137,128 @@ export function PrivacyPreferencesScreen() {
     }
   }, [androidKeyboardInset]);
 
+  // Android pads the form itself (above); an avoider there only adds a wrong height guess.
+  const form = (
+    <View ref={scrollSurfaceRef} collapsable={false} style={styles.keyboardView}>
+      <ScrollView
+        ref={scrollRef}
+        style={styles.scrollView}
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingBottom: Math.max(contentClearance, androidKeyboardInset + spacing.lg),
+          },
+        ]}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.infoCard}>
+          <View style={styles.infoIconShell}>
+            <Ionicons name="shield-checkmark-outline" size={24} color={colors.accentPrimary} />
+          </View>
+          <Text style={styles.infoTitle}>{t('onboarding.privacyTitle')}</Text>
+          <Text style={styles.infoBody}>{t('onboarding.privacyBody')}</Text>
+        </View>
+
+        <View style={styles.optionGroup}>
+          <PrivacyModeOption
+            body={t('onboarding.standardIconBody')}
+            colors={colors}
+            iconSource={standardIconImage}
+            isSelected={selectedMode === 'standard'}
+            onPress={() => selectMode('standard')}
+            styles={styles}
+            title={t('onboarding.standardIconTitle')}
+          />
+          <PrivacyModeOption
+            body={t('onboarding.discreetIconBody')}
+            colors={colors}
+            iconSource={discreetIconImage}
+            isSelected={selectedMode === 'discreet'}
+            onPress={() => selectMode('discreet')}
+            styles={styles}
+            title={t('onboarding.discreetIconTitle')}
+          />
+        </View>
+
+        {discreetSelected ? (
+          <View style={styles.pinCard}>
+            <Text style={styles.pinTitle}>{t('onboarding.pinTitle')}</Text>
+            <Text style={styles.pinBody}>{t('onboarding.pinBody')}</Text>
+
+            <TextInput
+              value={pinInput}
+              onChangeText={(value) => {
+                setPinInput(value);
+                setErrorKey(null);
+              }}
+              placeholder={t('onboarding.pinPlaceholder')}
+              placeholderTextColor={colors.secondaryText}
+              style={styles.input}
+              keyboardType="number-pad"
+              secureTextEntry
+              maxLength={6}
+              returnKeyType="next"
+              onSubmitEditing={() => pinConfirmationInputRef.current?.focus()}
+              blurOnSubmit={false}
+              accessibilityLabel={
+                errorKey
+                  ? `${t('onboarding.pinPlaceholder')}, ${t(errorKey)}`
+                  : t('onboarding.pinPlaceholder')
+              }
+              autoComplete="off"
+              textContentType="oneTimeCode"
+            />
+
+            <TextInput
+              ref={pinConfirmationInputRef}
+              value={pinConfirmation}
+              onChangeText={(value) => {
+                setPinConfirmation(value);
+                setErrorKey(null);
+              }}
+              placeholder={t('onboarding.pinConfirmPlaceholder')}
+              placeholderTextColor={colors.secondaryText}
+              style={styles.input}
+              keyboardType="number-pad"
+              secureTextEntry
+              maxLength={6}
+              returnKeyType="done"
+              onSubmitEditing={() => void handleSave()}
+              onFocus={() => {
+                // Next from the first field: the keyboard is already up.
+                if (androidKeyboardInset > 0) {
+                  scrollRef.current?.scrollToEnd({ animated: true });
+                }
+              }}
+              accessibilityLabel={
+                errorKey
+                  ? `${t('onboarding.pinConfirmPlaceholder')}, ${t(errorKey)}`
+                  : t('onboarding.pinConfirmPlaceholder')
+              }
+              autoComplete="off"
+              textContentType="oneTimeCode"
+            />
+
+            <Text style={styles.pinLegend}>{t('onboarding.pinLegend')}</Text>
+
+            {errorKey ? (
+              <Text style={styles.errorText} accessibilityLiveRegion="polite">
+                {t(errorKey)}
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
+
+        {/* Without the code card (standard icon), a failed save still needs a message. */}
+        {!discreetSelected && errorKey ? (
+          <Text style={styles.errorText} accessibilityLiveRegion="polite">
+            {t(errorKey)}
+          </Text>
+        ) : null}
+      </ScrollView>
+    </View>
+  );
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
@@ -167,130 +289,17 @@ export function PrivacyPreferencesScreen() {
         </TouchableOpacity>
       </View>
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={insets.top + 72}
-        style={styles.keyboardView}
-      >
-        <View ref={scrollSurfaceRef} collapsable={false} style={styles.keyboardView}>
-          <ScrollView
-            ref={scrollRef}
-            style={styles.scrollView}
-            contentContainerStyle={[
-              styles.content,
-              {
-                paddingBottom: Math.max(contentClearance, androidKeyboardInset + spacing.lg),
-              },
-            ]}
-            keyboardShouldPersistTaps="handled"
-          >
-            <View style={styles.infoCard}>
-              <View style={styles.infoIconShell}>
-                <Ionicons name="shield-checkmark-outline" size={24} color={colors.accentPrimary} />
-              </View>
-              <Text style={styles.infoTitle}>{t('onboarding.privacyTitle')}</Text>
-              <Text style={styles.infoBody}>{t('onboarding.privacyBody')}</Text>
-            </View>
-
-            <View style={styles.optionGroup}>
-              <PrivacyModeOption
-                body={t('onboarding.standardIconBody')}
-                colors={colors}
-                iconSource={standardIconImage}
-                isSelected={selectedMode === 'standard'}
-                onPress={() => selectMode('standard')}
-                styles={styles}
-                title={t('onboarding.standardIconTitle')}
-              />
-              <PrivacyModeOption
-                body={t('onboarding.discreetIconBody')}
-                colors={colors}
-                iconSource={discreetIconImage}
-                isSelected={selectedMode === 'discreet'}
-                onPress={() => selectMode('discreet')}
-                styles={styles}
-                title={t('onboarding.discreetIconTitle')}
-              />
-            </View>
-
-            {discreetSelected ? (
-              <View style={styles.pinCard}>
-                <Text style={styles.pinTitle}>{t('onboarding.pinTitle')}</Text>
-                <Text style={styles.pinBody}>{t('onboarding.pinBody')}</Text>
-
-                <TextInput
-                  value={pinInput}
-                  onChangeText={(value) => {
-                    setPinInput(value);
-                    setErrorKey(null);
-                  }}
-                  placeholder={t('onboarding.pinPlaceholder')}
-                  placeholderTextColor={colors.secondaryText}
-                  style={styles.input}
-                  keyboardType="number-pad"
-                  secureTextEntry
-                  maxLength={6}
-                  returnKeyType="next"
-                  onSubmitEditing={() => pinConfirmationInputRef.current?.focus()}
-                  blurOnSubmit={false}
-                  accessibilityLabel={
-                    errorKey
-                      ? `${t('onboarding.pinPlaceholder')}, ${t(errorKey)}`
-                      : t('onboarding.pinPlaceholder')
-                  }
-                  autoComplete="off"
-                  textContentType="oneTimeCode"
-                />
-
-                <TextInput
-                  ref={pinConfirmationInputRef}
-                  value={pinConfirmation}
-                  onChangeText={(value) => {
-                    setPinConfirmation(value);
-                    setErrorKey(null);
-                  }}
-                  placeholder={t('onboarding.pinConfirmPlaceholder')}
-                  placeholderTextColor={colors.secondaryText}
-                  style={styles.input}
-                  keyboardType="number-pad"
-                  secureTextEntry
-                  maxLength={6}
-                  returnKeyType="done"
-                  onSubmitEditing={() => void handleSave()}
-                  onFocus={() => {
-                    // Next from the first field: the keyboard is already up.
-                    if (androidKeyboardInset > 0) {
-                      scrollRef.current?.scrollToEnd({ animated: true });
-                    }
-                  }}
-                  accessibilityLabel={
-                    errorKey
-                      ? `${t('onboarding.pinConfirmPlaceholder')}, ${t(errorKey)}`
-                      : t('onboarding.pinConfirmPlaceholder')
-                  }
-                  autoComplete="off"
-                  textContentType="oneTimeCode"
-                />
-
-                <Text style={styles.pinLegend}>{t('onboarding.pinLegend')}</Text>
-
-                {errorKey ? (
-                  <Text style={styles.errorText} accessibilityLiveRegion="polite">
-                    {t(errorKey)}
-                  </Text>
-                ) : null}
-              </View>
-            ) : null}
-
-            {/* Without the code card (standard icon), a failed save still needs a message. */}
-            {!discreetSelected && errorKey ? (
-              <Text style={styles.errorText} accessibilityLiveRegion="polite">
-                {t(errorKey)}
-              </Text>
-            ) : null}
-          </ScrollView>
-        </View>
-      </KeyboardAvoidingView>
+      {Platform.OS === 'ios' ? (
+        <KeyboardAvoidingView
+          behavior="padding"
+          keyboardVerticalOffset={insets.top + 72}
+          style={styles.keyboardView}
+        >
+          {form}
+        </KeyboardAvoidingView>
+      ) : (
+        form
+      )}
     </SafeAreaView>
   );
 }
