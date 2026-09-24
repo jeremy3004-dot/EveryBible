@@ -16,7 +16,11 @@ const useBibleStore = create(() => ({
   translations: [{ id: 'bsb', abbreviation: 'BSB', isDownloaded: true }],
   currentTranslation: 'bsb',
 }));
-const useProgressStore = create(() => ({ streakDays: 0, chaptersRead: {} }));
+const useProgressStore = create(() => ({
+  streakDays: 0,
+  chaptersRead: {},
+  listeningMsByDate: {} as Record<string, number>,
+}));
 const useAnnotationStore = create(() => ({ annotations: [] as unknown[] }));
 mockModule(mock, sourcePath('stores/bibleStore.ts'), { useBibleStore });
 mockModule(mock, sourcePath('stores/progressStore.ts'), {

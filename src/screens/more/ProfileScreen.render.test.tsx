@@ -5,6 +5,7 @@ import { create } from 'zustand';
 import { mockModule, mockPackage, sourcePath } from '../../testing/mockModules';
 import { installRenderHarness } from '../../testing/render';
 import type { UserEngagementSummary } from '../../services/supabase/types';
+import { isPrivacyLockGraceActive } from '../../services/privacy/privacyLockGrace';
 
 const harness = installRenderHarness(mock);
 const t = (key: string) => harness.i18n.t(key);
@@ -12,6 +13,7 @@ const t = (key: string) => harness.i18n.t(key);
 const useProgressStore = create(() => ({
   chaptersRead: { 'JHN:1': 1, 'JHN:2': 1, 'JHN:3': 1 } as Record<string, number>,
   streakDays: 4,
+  listeningMsByDate: {} as Record<string, number>,
 }));
 mockModule(mock, sourcePath('stores/progressStore.ts'), {
   useProgressStore,
@@ -30,10 +32,12 @@ type PickerResult = { canceled: boolean; assets: { uri: string }[] };
 const picker = {
   result: { canceled: true, assets: [] } as PickerResult,
   launches: 0,
+  launchesUnderLockGrace: [] as boolean[],
 };
 mockPackage(mock, 'expo-image-picker', {
   launchImageLibraryAsync: async () => {
     picker.launches += 1;
+    picker.launchesUnderLockGrace.push(isPrivacyLockGraceActive());
     return picker.result;
   },
 });
@@ -90,9 +94,11 @@ const signedInUser = {
 };
 
 beforeEach(() => {
+  useProgressStore.setState({ listeningMsByDate: {} });
   authFlows.length = 0;
   picker.result = { canceled: true, assets: [] };
   picker.launches = 0;
+  picker.launchesUnderLockGrace = [];
   backend.upload = null;
   backend.uploadResult = { success: true, data: 'https://cdn.test/avatar-new.jpg' };
   backend.uploadThrows = false;
@@ -167,6 +173,46 @@ test('a signed-in reader sees their name, email and engagement summary', async (
   assert.equal(view.queryByRole('button', { name: t('more.signInOrCreate') }), null);
 });
 
+const engagementSummary = (listeningMinutes: number): UserEngagementSummary => ({
+  user_id: 'u1',
+  total_chapters_read: 10,
+  total_listening_minutes: listeningMinutes,
+  total_reading_minutes: 0,
+  total_sessions: 1,
+  avg_session_minutes: 1,
+  current_streak_days: 2,
+  longest_streak_days: 17,
+  last_active_date: null,
+  engagement_score: 88,
+  plans_completed: 5,
+  prayers_submitted: 0,
+  annotations_created: 23,
+  updated_at: '2026-09-01T00:00:00.000Z',
+});
+
+test('listening this device has not uploaded yet still shows while the cloud summary lags', async () => {
+  signIn();
+  useProgressStore.setState({
+    listeningMsByDate: { '2026-09-23': 5 * 60_000, '2026-09-24': 7 * 60_000 + 30_000 },
+  });
+  backend.engagement = { success: true, data: engagementSummary(0) };
+
+  const view = await renderScreen();
+
+  assert.ok(view.getByText(harness.i18n.t('interface.minutesShort', { count: 12 })));
+});
+
+test('a cloud listening total that counts other devices wins over this device', async () => {
+  signIn();
+  useProgressStore.setState({ listeningMsByDate: { '2026-09-24': 12 * 60_000 } });
+  backend.engagement = { success: true, data: engagementSummary(95) };
+
+  const view = await renderScreen();
+
+  assert.ok(view.getByText(harness.i18n.t('interface.hoursMinutes', { hours: 1, minutes: 35 })));
+  assert.equal(view.queryByText(harness.i18n.t('interface.minutesShort', { count: 12 })), null);
+});
+
 test('a failed engagement summary leaves the card out', async () => {
   signIn();
 
@@ -185,6 +231,18 @@ test('cancelling the photo picker changes nothing', async () => {
   assert.equal(picker.launches, 1);
   assert.deepEqual(backend.uploadedUris, []);
   assert.equal(avatarImageUri(view), signedInUser.photoURL);
+});
+
+test('the photo picker opens under the privacy lock grace', async () => {
+  // iOS can turn the app inactive under the system photo picker; discreet mode must
+  // not take that for the reader leaving and lock mid-pick (see privacyLockGrace).
+  signIn();
+  const view = await renderScreen();
+
+  await view.press(view.getByRole('button', { name: t('profile.changeAvatar') }));
+  await view.flush();
+
+  assert.deepEqual(picker.launchesUnderLockGrace, [true]);
 });
 
 test('picking a photo shows it while uploading, then saves the uploaded URL on the account', async () => {
