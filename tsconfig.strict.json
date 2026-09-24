@@ -21,7 +21,6 @@
     "src/stores/audio*",
     "src/hooks/useAudioPlayer*",
     "src/services/sync/**",
-    "src/stores/readingPlansStore*",
-    "src/services/privacy/**"
+    "src/stores/readingPlansStore*"
   ]
 }

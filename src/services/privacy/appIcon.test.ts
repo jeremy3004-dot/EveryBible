@@ -68,7 +68,7 @@ test('a native icon failure is logged and reported as false so callers can recov
   }
 
   assert.equal(consoleError.mock.callCount(), 1);
-  assert.match(String(consoleError.mock.calls[0].arguments[0]), /Failed to update app icon/);
+  assert.match(String(consoleError.mock.calls[0]?.arguments[0]), /Failed to update app icon/);
 });
 
 test('the current icon is read back from the native module', async () => {
@@ -89,5 +89,5 @@ test('a failed icon read is logged and reported as unknown', async () => {
     consoleError.mock.restore();
   }
 
-  assert.match(String(consoleError.mock.calls[0].arguments[0]), /Failed to read app icon state/);
+  assert.match(String(consoleError.mock.calls[0]?.arguments[0]), /Failed to read app icon state/);
 });

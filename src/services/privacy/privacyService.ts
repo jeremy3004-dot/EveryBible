@@ -163,8 +163,8 @@ export const clearPrivacySettings = async (): Promise<void> => {
 
 const toHex = (bytes: Uint8Array): string => {
   let hex = '';
-  for (let index = 0; index < bytes.length; index += 1) {
-    hex += bytes[index].toString(16).padStart(2, '0');
+  for (const byte of bytes) {
+    hex += byte.toString(16).padStart(2, '0');
   }
   return hex;
 };

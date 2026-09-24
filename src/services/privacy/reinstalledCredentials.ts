@@ -13,12 +13,12 @@ import { publicRuntimeConfig } from '../startup/publicRuntimeConfig';
  * installed supabase-js.
  */
 export function getSupabaseAuthStorageKeys(supabaseUrl: string | undefined): string[] {
-  const match = /^[a-z][a-z0-9+.-]*:\/\/([^/?#]*)/i.exec(supabaseUrl?.trim() ?? '');
-  if (!match) {
+  const authority = /^[a-z][a-z0-9+.-]*:\/\/([^/?#]*)/i.exec(supabaseUrl?.trim() ?? '')?.[1];
+  if (authority === undefined) {
     return [];
   }
-  const host = match[1].slice(match[1].lastIndexOf('@') + 1).replace(/:\d*$/, '');
-  const label = host.split('.')[0].toLowerCase();
+  const host = authority.slice(authority.lastIndexOf('@') + 1).replace(/:\d*$/, '');
+  const label = (host.split('.')[0] ?? '').toLowerCase();
   if (!label) {
     return [];
   }
