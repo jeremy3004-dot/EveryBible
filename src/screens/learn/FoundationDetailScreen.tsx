@@ -17,7 +17,7 @@ import { gatherWisdomCategories, WISDOM_TITLE_KEYS } from '../../data/gatherWisd
 import { GatherIconBadge } from '../../components/gather/GatherIconBadge';
 import { useGatherStore } from '../../stores/gatherStore';
 import { LessonBottomSheet } from '../../components/gather/LessonBottomSheet';
-import { getTranslatedBookName } from '../../constants';
+import { getTranslatedBookName } from '../../constants/books';
 import { formatBibleReferenceLabel } from '../../services/gather/gatherReferenceLabel';
 import { countCompletedLessons } from './gatherPathModel';
 import type { GatherLesson } from '../../types/gather';
