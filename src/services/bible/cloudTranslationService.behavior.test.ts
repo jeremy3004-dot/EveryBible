@@ -136,6 +136,11 @@ const download = {
   status: 200,
   bytes: buildPackBytes(),
   error: null as Error | null,
+  /**
+   * With `error`, how many bytes land in the destination before the transfer throws: a
+   * connection dropped mid-body, or a disk that filled up while writing.
+   */
+  bytesWrittenBeforeError: 0,
 };
 const resumable = {
   enabled: false,
@@ -149,6 +154,7 @@ const resumable = {
 const fileSystemFaults = {
   failMove: null as ((from: string, to: string) => boolean) | null,
   failDelete: null as ((path: string) => boolean) | null,
+  failMakeDirectory: null as Error | null,
   unreadableBytes: false,
 };
 const fileSystemCalls: string[] = [];
@@ -156,7 +162,13 @@ const base64Reads: { path: string; position?: number; length?: number }[] = [];
 
 const fakeDownload = async (url: string, path: string) => {
   fileSystemCalls.push(`download:${url}`);
-  if (download.error) throw download.error;
+  if (download.error) {
+    if (download.bytesWrittenBeforeError > 0) {
+      mkdirSync(path.slice(0, path.lastIndexOf('/')), { recursive: true });
+      writeFileSync(path, download.bytes.subarray(0, download.bytesWrittenBeforeError));
+    }
+    throw download.error;
+  }
   mkdirSync(path.slice(0, path.lastIndexOf('/')), { recursive: true });
   writeFileSync(path, download.bytes);
   return { uri: path, status: download.status };
@@ -174,6 +186,7 @@ mockModule(mock, 'expo-file-system/legacy', {
   },
   makeDirectoryAsync: async (path: string) => {
     fileSystemCalls.push(`makeDirectory:${path}`);
+    if (fileSystemFaults.failMakeDirectory) throw fileSystemFaults.failMakeDirectory;
     mkdirSync(path, { recursive: true });
   },
   deleteAsync: async (path: string) => {
@@ -260,6 +273,8 @@ function collectProgress(): {
 afterEach(() => {
   download.status = 200;
   download.error = null;
+  download.bytesWrittenBeforeError = 0;
+  fileSystemFaults.failMakeDirectory = null;
   download.bytes = buildPackBytes();
   resumable.enabled = false;
   resumable.cancelled = false;
@@ -1109,6 +1124,206 @@ test('downloadCatalogTextPack rejects a pack whose first verse is blank', async 
       downloadUrl: 'https://media.example.test/blank.db',
     }),
     /has no readable verse/
+  );
+});
+
+// ─── Injected transfer failures ───────────────────────────────────────────────
+
+/** A pack of `verses` verses already installed for `translationId`, as a working install. */
+function installWorkingPack(translationId: string, verses = 2): void {
+  mkdirSync(translationsDirectory, { recursive: true });
+  writeFileSync(packPath(translationId), buildPackBytes({ translationId, verses }));
+}
+
+const assertWorkingPackKept = (translationId: string, verses = 2): void => {
+  assert.equal(readVerseCount(packPath(translationId)), verses, 'the installed pack still reads');
+  assert.equal(existsSync(stagingPath(translationId)), false, 'no partial staging file remains');
+  assert.equal(existsSync(`${packPath(translationId)}.rollback`), false);
+};
+
+test('every error answer, and a redirect the transport did not follow, keeps the installed pack', async () => {
+  const { downloadCatalogTextPack } = await loadModule();
+
+  for (const status of [301, 302, 404, 410, 500, 502]) {
+    installWorkingPack('statuses');
+    download.status = status;
+
+    await assert.rejects(
+      () =>
+        downloadCatalogTextPack({
+          translationId: 'statuses',
+          downloadUrl: 'https://media.example.test/statuses.db',
+          expectedVerseCount: 3,
+        }),
+      new RegExp(`Translation download failed with HTTP ${status}\\.`),
+      `HTTP ${status}`
+    );
+    assertWorkingPackKept('statuses');
+  }
+});
+
+test('a connection that drops mid-transfer discards the partial file and keeps the installed pack', async () => {
+  const { downloadCatalogTextPack } = await loadModule();
+  installWorkingPack('dropped');
+  download.bytesWrittenBeforeError = Math.floor(download.bytes.length / 2);
+  download.error = new Error('The network connection was lost.');
+  const progress = collectProgress();
+
+  await assert.rejects(
+    () =>
+      downloadCatalogTextPack({
+        translationId: 'dropped',
+        downloadUrl: 'https://media.example.test/dropped.db',
+        expectedVerseCount: 3,
+        onProgress: progress.onProgress,
+      }),
+    /network connection was lost/
+  );
+
+  assertWorkingPackKept('dropped');
+  assert.equal(progress.entries.at(-1)?.phase, 'error');
+  assert.equal(progress.entries.at(-1)?.error, 'The network connection was lost.');
+});
+
+test('a disk that fills up mid-transfer surfaces the error and discards the partial file', async () => {
+  const { downloadCatalogTextPack } = await loadModule();
+  installWorkingPack('diskfull');
+  download.bytesWrittenBeforeError = 1024;
+  download.error = Object.assign(new Error('ENOSPC: no space left on device, write'), {
+    code: 'ENOSPC',
+  });
+
+  await assert.rejects(
+    () =>
+      downloadCatalogTextPack({
+        translationId: 'diskfull',
+        downloadUrl: 'https://media.example.test/diskfull.db',
+        expectedVerseCount: 3,
+      }),
+    /ENOSPC/
+  );
+
+  assertWorkingPackKept('diskfull');
+});
+
+test('a translations folder that cannot be created fails the download and releases it for a retry', async () => {
+  const { downloadCatalogTextPack } = await loadModule();
+  rmSync(translationsDirectory, { recursive: true, force: true });
+  fileSystemFaults.failMakeDirectory = new Error('ENOSPC: no space left on device, mkdir');
+
+  await assert.rejects(
+    () =>
+      downloadCatalogTextPack({
+        translationId: 'nofolder',
+        downloadUrl: 'https://media.example.test/nofolder.db',
+        expectedVerseCount: 3,
+      }),
+    /ENOSPC/
+  );
+
+  fileSystemFaults.failMakeDirectory = null;
+  const installedPath = await downloadCatalogTextPack({
+    translationId: 'nofolder',
+    downloadUrl: 'https://media.example.test/nofolder.db',
+    expectedVerseCount: 3,
+  });
+  assert.equal(readVerseCount(installedPath), 3);
+});
+
+test('a truncated pack with no declared checksum is rejected by the database check', async () => {
+  const { downloadCatalogTextPack } = await loadModule();
+  installWorkingPack('truncated');
+  // A 200 whose body ended early (a proxy that cut the stream) and a catalog row without a hash.
+  const whole = buildPackBytes({ translationId: 'truncated', verses: 400 });
+  download.bytes = whole.subarray(0, Math.floor(whole.length / 2));
+
+  await assert.rejects(
+    () =>
+      downloadCatalogTextPack({
+        translationId: 'truncated',
+        downloadUrl: 'https://media.example.test/truncated.db',
+        expectedVerseCount: 400,
+      }),
+    /malformed/
+  );
+
+  assertWorkingPackKept('truncated');
+  assert.ok(
+    openHandles.every((handle) => handle.closed),
+    'the handle that read the bad pack is closed'
+  );
+});
+
+test('a truncated pack with a declared checksum fails the checksum before it is opened', async () => {
+  const { downloadCatalogTextPack } = await loadModule();
+  installWorkingPack('truncsum');
+  const whole = buildPackBytes({ translationId: 'truncsum', verses: 400 });
+  download.bytes = whole.subarray(0, Math.floor(whole.length / 2));
+
+  await assert.rejects(
+    () =>
+      downloadCatalogTextPack({
+        translationId: 'truncsum',
+        downloadUrl: 'https://media.example.test/truncsum.db',
+        expectedVerseCount: 400,
+        expectedSha256: createHash('sha256').update(whole).digest('hex'),
+      }),
+    /checksum mismatch/
+  );
+
+  assertWorkingPackKept('truncsum');
+  assert.deepEqual(opens, [], 'a pack that fails its checksum is never opened as a database');
+});
+
+test('a download retried after a failure installs, with nothing left over from the failed attempt', async () => {
+  const { downloadCatalogTextPack } = await loadModule();
+  download.bytesWrittenBeforeError = 512;
+  download.error = new Error('The request timed out.');
+
+  await assert.rejects(
+    () =>
+      downloadCatalogTextPack({
+        translationId: 'retry',
+        downloadUrl: 'https://media.example.test/retry.db',
+        expectedVerseCount: 3,
+      }),
+    /timed out/
+  );
+  download.error = null;
+  download.bytesWrittenBeforeError = 0;
+
+  const installedPath = await downloadCatalogTextPack({
+    translationId: 'retry',
+    downloadUrl: 'https://media.example.test/retry.db',
+    expectedVerseCount: 3,
+  });
+
+  assert.equal(readVerseCount(installedPath), 3);
+  assert.deepEqual(
+    readdirSync(translationsDirectory).filter((name) => name.startsWith('retry')),
+    ['retry.db']
+  );
+});
+
+test('a partial staging file left by a download killed with the app is replaced by the next one', async () => {
+  const { downloadCatalogTextPack } = await loadModule();
+  mkdirSync(translationsDirectory, { recursive: true });
+  const whole = buildPackBytes({ translationId: 'killed' });
+  writeFileSync(stagingPath('killed'), whole.subarray(0, 100));
+  writeFileSync(`${stagingPath('killed')}-journal`, 'hot journal from the killed process');
+
+  const installedPath = await downloadCatalogTextPack({
+    translationId: 'killed',
+    downloadUrl: 'https://media.example.test/killed.db',
+    expectedVerseCount: 3,
+  });
+
+  assert.equal(readVerseCount(installedPath), 3);
+  assert.equal(existsSync(stagingPath('killed')), false);
+  assert.equal(
+    existsSync(`${stagingPath('killed')}-journal`),
+    false,
+    'a hot journal left beside the partial file would be replayed onto the fresh download'
   );
 });
 
