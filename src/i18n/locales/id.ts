@@ -409,6 +409,7 @@ export const id = {
     notSet: 'Belum diatur',
     unexpectedError: 'Maaf, terjadi kesalahan yang tidak terduga. Silakan coba lagi.',
     somethingWentWrong: 'Ada yang tidak beres',
+    offlineTryAgain: 'Anda sedang offline. Sambungkan ke internet, lalu coba lagi.',
     tryAgain: 'Coba lagi',
     shareMessage: 'Coba Every Bible!',
     all: 'Semua',
@@ -682,6 +683,11 @@ export const id = {
     chapterFeedbackSuccess:
       'Terima kasih atas masukan Anda. Kiriman Anda telah kami terima dan akan ditinjau oleh tim penerjemah kami sesegera mungkin.',
     chapterFeedbackSignInRequired: 'Silakan masuk sebelum mengirim masukan pasal.',
+    chapterFeedbackQueuedTitle: 'Disimpan untuk nanti',
+    chapterFeedbackQueued:
+      'Anda sedang offline, jadi masukan Anda disimpan di perangkat ini. Masukan akan dikirim otomatis saat Anda kembali online.',
+    chapterFeedbackOffline:
+      'Anda sedang offline. Masukan Anda masih ada di sini; kirimkan setelah terhubung.',
     translatorReviewTitle: 'Tinjauan keakuratan',
     translatorReviewSummary: 'Keputusan tertunda: {{pending}} dari {{count}}',
     translatorReviewSummaryComplete: 'Semua tinjauan keakuratan telah diproses',

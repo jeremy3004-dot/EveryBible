@@ -425,6 +425,7 @@ export const ar = {
     notSet: 'غير محدد',
     unexpectedError: 'نأسف، فقد حدث خطأ غير متوقع. حاول مرة أخرى.',
     somethingWentWrong: 'حدث خطأ ما',
+    offlineTryAgain: 'أنت غير متصل بالإنترنت. اتصل بالإنترنت ثم حاول مرة أخرى.',
     tryAgain: 'حاول مرة أخرى',
     shareMessage: 'جرّب Every Bible!',
     all: 'الكل',
@@ -708,6 +709,10 @@ export const ar = {
     chapterFeedbackSuccess:
       'شكرًا لملاحظاتك. وصلَنا ما أرسلته، وستراجعه فرق الترجمة لدينا في أقرب وقت ممكن.',
     chapterFeedbackSignInRequired: 'سجّل الدخول قبل إرسال ملاحظاتك على الإصحاح.',
+    chapterFeedbackQueuedTitle: 'حُفظت لإرسالها لاحقًا',
+    chapterFeedbackQueued:
+      'أنت غير متصل بالإنترنت، لذا حُفظت ملاحظاتك على هذا الجهاز. ستُرسل تلقائيًا عند عودة الاتصال.',
+    chapterFeedbackOffline: 'أنت غير متصل بالإنترنت. ملاحظاتك ما زالت هنا؛ أرسلها عندما تتصل.',
     translatorReviewTitle: 'مراجعة الدقة',
     translatorReviewSummary: 'قرارات معلّقة: {{pending}} من {{count}}',
     translatorReviewSummaryComplete: 'تمت معالجة جميع مراجعات الدقة',

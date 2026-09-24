@@ -32,6 +32,11 @@ mockModule(mock, sourcePath('services/supabase/index.ts'), {
   getCurrentUserId: async () => auth.user?.uid ?? null,
 });
 
+// A reconnect sync also flushes queued chapter feedback (lazy import).
+mockModule(mock, sourcePath('services/feedback/chapterFeedbackOutbox.ts'), {
+  flushChapterFeedbackOutbox: async () => ({ sent: 0, remaining: 0 }),
+});
+
 let syncCalls = 0;
 mockModule(mock, sourcePath('services/sync/index.ts'), {
   syncAll: async () => {

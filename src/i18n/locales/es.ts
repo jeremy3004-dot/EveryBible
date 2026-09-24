@@ -422,6 +422,7 @@ export const es = {
     notSet: 'Sin definir',
     unexpectedError: 'Lo sentimos, ocurrió algo inesperado. Inténtalo de nuevo.',
     somethingWentWrong: 'Algo salió mal',
+    offlineTryAgain: 'No tienes conexión. Conéctate a internet e inténtalo de nuevo.',
     tryAgain: 'Intentar de nuevo',
     shareMessage: '¡Descubre Every Bible!',
     all: 'Todos',
@@ -630,6 +631,11 @@ export const es = {
     chapterFeedbackSuccess:
       'Gracias por tus comentarios. Recibimos tu envío y nuestros equipos de traducción lo revisarán lo antes posible.',
     chapterFeedbackSignInRequired: 'Inicia sesión antes de enviar comentarios sobre el capítulo.',
+    chapterFeedbackQueuedTitle: 'Guardado para más tarde',
+    chapterFeedbackQueued:
+      'No tienes conexión, así que tus comentarios se guardaron en este dispositivo. Se enviarán automáticamente cuando vuelvas a estar en línea.',
+    chapterFeedbackOffline:
+      'No tienes conexión. Tus comentarios siguen aquí; envíalos cuando te conectes.',
     translatorReviewTitle: 'Revisión de precisión',
     translatorReviewSummary: 'Decisiones pendientes: {{pending}} de {{count}}',
     translatorReviewSummaryComplete: 'Se procesaron todas las revisiones de precisión',

@@ -397,6 +397,7 @@ export const ja = {
     notSet: '未設定',
     unexpectedError: '申し訳ありません。予期しない問題が発生しました。もう一度お試しください。',
     somethingWentWrong: '問題が発生しました',
+    offlineTryAgain: 'オフラインです。インターネットに接続して、もう一度お試しください。',
     tryAgain: 'もう一度試す',
     shareMessage: 'Every Bibleを使ってみませんか！',
     all: 'すべて',
@@ -666,6 +667,11 @@ export const ja = {
     chapterFeedbackSuccess:
       'フィードバックをありがとうございます。内容を受け付けました。翻訳チームができるだけ早く確認します。',
     chapterFeedbackSignInRequired: '章へのフィードバックを送る前にログインしてください。',
+    chapterFeedbackQueuedTitle: '後で送信するため保存しました',
+    chapterFeedbackQueued:
+      'オフラインのため、フィードバックはこの端末に保存されました。オンラインに戻ると自動的に送信されます。',
+    chapterFeedbackOffline:
+      'オフラインです。フィードバックはここに残っています。接続したら送信してください。',
     translatorReviewTitle: '正確さの確認',
     translatorReviewSummary: '判断待ち：{{count}}件中{{pending}}件',
     translatorReviewSummaryComplete: '正確さの確認はすべて完了しました',

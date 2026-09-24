@@ -64,6 +64,17 @@ export const useSync = () => {
       } catch {
         // Sync failure is non-fatal
       }
+
+      // Chapter feedback written offline waits in a device outbox; each sync
+      // (foreground, reconnect) tries to send it. Imported lazily to keep the
+      // feedback service off the startup import graph.
+      try {
+        const { flushChapterFeedbackOutbox } =
+          await import('../services/feedback/chapterFeedbackOutbox');
+        await flushChapterFeedbackOutbox(currentUserId);
+      } catch {
+        // Delivery is retried on the next sync.
+      }
     },
     [runInitialPull, syncCoordinator]
   );
