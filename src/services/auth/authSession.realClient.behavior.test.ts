@@ -92,3 +92,17 @@ test('an offline launch with an expired token restores the stored session from s
   assert.equal(restored.user?.displayName, 'Ruth');
   assert.deepEqual(requests, []);
 });
+
+test('supabase-js can drop the stored session without the network, as an offline sign-out needs', async () => {
+  // authService.signOut calls this when the server cannot be reached; if an
+  // upgrade renames it, the session would outlive the sign-out again.
+  keychain.store.set(STORAGE_KEY, storedSession(nowInSeconds() - 3600));
+  const auth = client.supabase.auth as unknown as { _removeSession?: () => Promise<void> };
+  const requestsBefore = requests.length;
+
+  assert.equal(typeof auth._removeSession, 'function');
+  await auth._removeSession!();
+
+  assert.equal(keychain.store.has(STORAGE_KEY), false);
+  assert.equal(requests.length, requestsBefore);
+});
