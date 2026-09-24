@@ -1433,7 +1433,9 @@ export const vi = {
     "groupMember": "Thành viên nhóm",
     "signInTitle": "Đăng nhập để cầu nguyện với nhóm này",
     "signInBody": "Đăng nhập để chia sẻ điều cần cầu nguyện, cùng cầu nguyện với người khác và giữ nhóm này đồng bộ.",
-    "ownerLongPressHint": "Nhấn và giữ để chỉnh sửa hoặc xóa"
+    "ownerLongPressHint": "Nhấn và giữ để chỉnh sửa hoặc xóa",
+    "leaderLongPressHint": "Nhấn và giữ để gỡ điều cần cầu nguyện này",
+    "rateLimited": "Gần đây bạn đã chia sẻ nhiều điều cần cầu nguyện. Vui lòng thử lại sau."
   },
   "engagement": {
     "title": "Hành trình của bạn",

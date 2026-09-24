@@ -64,6 +64,8 @@ export type LearnStackParamList = {
   PrayerWall: {
     groupId: string;
     groupName: string;
+    /** The viewer leads this group, so they may remove any request on its wall. */
+    isLeader?: boolean;
   };
 };
 

@@ -1,17 +1,29 @@
 import { supabase, isSupabaseConfigured } from '../supabase';
 import type { PrayerInteraction, PrayerRequest } from '../supabase/types';
-import { aggregateInteractionCounts, attachCountsToPrayerRequests } from './prayerModel';
+import {
+  aggregateInteractionCounts,
+  attachCountsToPrayerRequests,
+  viewerInteractionsByRequest,
+} from './prayerModel';
 
 export interface PrayerServiceResult<T = void> {
   success: boolean;
   data?: T;
   error?: string;
+  /** Set when the server refused a new request because the author posted too many recently. */
+  code?: 'rate_limited';
 }
 
 export interface PrayerRequestWithCounts extends PrayerRequest {
   prayed_count: number;
   encouraged_count: number;
+  /** Whether the signed-in viewer has already prayed for / encouraged this request. */
+  viewer_prayed: boolean;
+  viewer_encouraged: boolean;
 }
+
+// Raised by the limit_prayer_request_rate trigger (20260924160000_harden_prayer_wall.sql).
+const RATE_LIMIT_MESSAGE = 'prayer_request_rate_limited';
 
 export interface InteractionCounts {
   prayed: number;
@@ -59,7 +71,7 @@ export async function listPrayerRequests(
 
     const { data: interactions, error: interactionsError } = await supabase
       .from('prayer_interactions')
-      .select('request_id, type')
+      .select('request_id, type, user_id')
       .in('request_id', requestIds);
 
     if (interactionsError) {
@@ -67,7 +79,8 @@ export async function listPrayerRequests(
     }
 
     const countMap = aggregateInteractionCounts(requestIds, interactions ?? []);
-    const data = attachCountsToPrayerRequests(requests as PrayerRequest[], countMap);
+    const viewerMap = viewerInteractionsByRequest(user.id, interactions ?? []);
+    const data = attachCountsToPrayerRequests(requests as PrayerRequest[], countMap, viewerMap);
 
     return { success: true, data };
   } catch (error) {
@@ -113,7 +126,9 @@ export async function createPrayerRequest(
       .single();
 
     if (error) {
-      return { success: false, error: error.message };
+      return error.message === RATE_LIMIT_MESSAGE
+        ? { success: false, error: error.message, code: 'rate_limited' }
+        : { success: false, error: error.message };
     }
 
     return { success: true, data: data as PrayerRequest };
@@ -215,7 +230,9 @@ export async function markPrayerAnswered(
   }
 }
 
-// Deletes a prayer request. RLS ensures only the original author can delete.
+// Deletes a prayer request. RLS lets the author delete their own request and the group
+// leader delete any request in their group, so the query filters by id alone. RLS hides a
+// refused delete as "0 rows", so that case is reported as a failure.
 export async function deletePrayerRequest(requestId: string): Promise<PrayerServiceResult> {
   if (!isSupabaseConfigured()) {
     return { success: false, error: 'EveryBible backend is not configured for this build yet.' };
@@ -235,14 +252,18 @@ export async function deletePrayerRequest(requestId: string): Promise<PrayerServ
   }
 
   try {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('prayer_requests')
       .delete()
       .eq('id', requestId)
-      .eq('user_id', user.id);
+      .select('id');
 
     if (error) {
       return { success: false, error: error.message };
+    }
+
+    if (!data || data.length === 0) {
+      return { success: false, error: 'Prayer request was not deleted' };
     }
 
     return { success: true };
@@ -343,4 +364,3 @@ export async function removeInteraction(
     };
   }
 }
-

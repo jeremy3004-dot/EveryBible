@@ -1433,7 +1433,9 @@ export const tr = {
     "groupMember": "Grup üyesi",
     "signInTitle": "Bu grupla dua etmek için oturum açın",
     "signInBody": "İstekleri paylaşmak, başkalarıyla dua etmek ve bu grubu senkronize tutmak için oturum açın.",
-    "ownerLongPressHint": "Düzenlemek veya silmek için uzun basın"
+    "ownerLongPressHint": "Düzenlemek veya silmek için uzun basın",
+    "leaderLongPressHint": "Bu isteği kaldırmak için uzun basın",
+    "rateLimited": "Son zamanlarda birkaç dua isteği paylaştınız. Lütfen daha sonra tekrar deneyin."
   },
   "engagement": {
     "title": "Yolculuğunuz",

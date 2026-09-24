@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   aggregateInteractionCounts,
   attachCountsToPrayerRequests,
+  prayerRequestActions,
 } from './prayerModel';
 import type { PrayerRequest } from '../supabase/types';
 
@@ -41,10 +42,7 @@ test('aggregateInteractionCounts ignores interactions for unknown request ids', 
 });
 
 test('aggregateInteractionCounts ignores unknown interaction types', () => {
-  const countMap = aggregateInteractionCounts(
-    ['req-1'],
-    [{ request_id: 'req-1', type: 'liked' }]
-  );
+  const countMap = aggregateInteractionCounts(['req-1'], [{ request_id: 'req-1', type: 'liked' }]);
 
   assert.deepEqual(countMap['req-1'], { prayed: 0, encouraged: 0 });
 });
@@ -118,4 +116,43 @@ test('attachCountsToPrayerRequests preserves all original request fields', () =>
   assert.equal(result[0]?.content, 'Healing prayer');
   assert.equal(result[0]?.is_answered, true);
   assert.equal(result[0]?.answered_at, '2026-03-22T09:00:00.000Z');
+});
+
+// ---------------------------------------------------------------------------
+// prayerRequestActions
+// ---------------------------------------------------------------------------
+
+test('the author can edit, mark answered and delete an open request', () => {
+  assert.deepEqual(
+    prayerRequestActions({ isOwner: true, isLeader: false, isAnswered: false, canEdit: true }),
+    ['edit', 'markAnswered', 'delete']
+  );
+});
+
+test('an answered request no longer offers mark answered', () => {
+  assert.deepEqual(
+    prayerRequestActions({ isOwner: true, isLeader: false, isAnswered: true, canEdit: true }),
+    ['edit', 'delete']
+  );
+});
+
+test('edit is left out where the platform has no text prompt', () => {
+  assert.deepEqual(
+    prayerRequestActions({ isOwner: true, isLeader: true, isAnswered: false, canEdit: false }),
+    ['markAnswered', 'delete']
+  );
+});
+
+test("the group leader can only remove someone else's request", () => {
+  assert.deepEqual(
+    prayerRequestActions({ isOwner: false, isLeader: true, isAnswered: false, canEdit: true }),
+    ['delete']
+  );
+});
+
+test("other members get no actions on someone else's request", () => {
+  assert.deepEqual(
+    prayerRequestActions({ isOwner: false, isLeader: false, isAnswered: false, canEdit: true }),
+    []
+  );
 });

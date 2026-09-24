@@ -431,7 +431,13 @@ export function GroupDetailScreen() {
         {!isLocalGroup && prayerPreview !== null && (
           <TouchableOpacity
             style={[styles.prayerCard, { backgroundColor: colors.cardBackground }]}
-            onPress={() => navigation.navigate('PrayerWall', { groupId, groupName: group.name })}
+            onPress={() =>
+              navigation.navigate('PrayerWall', {
+                groupId,
+                groupName: group.name,
+                isLeader: group.isLeader,
+              })
+            }
             activeOpacity={0.75}
             accessibilityRole="button"
           >

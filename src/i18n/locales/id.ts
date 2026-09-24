@@ -1433,7 +1433,9 @@ export const id = {
     "groupMember": "Anggota kelompok",
     "signInTitle": "Masuk untuk berdoa bersama kelompok ini",
     "signInBody": "Masuk untuk membagikan permohonan, berdoa bersama yang lain, dan menjaga kelompok ini tetap tersinkron.",
-    "ownerLongPressHint": "Tekan lama untuk mengubah atau menghapus"
+    "ownerLongPressHint": "Tekan lama untuk mengubah atau menghapus",
+    "leaderLongPressHint": "Tekan lama untuk menghapus permohonan ini",
+    "rateLimited": "Anda baru saja membagikan beberapa permohonan doa. Silakan coba lagi nanti."
   },
   "engagement": {
     "title": "Perjalanan Anda",

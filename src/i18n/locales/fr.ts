@@ -1453,7 +1453,9 @@ export const fr = {
     "groupMember": "Membre du groupe",
     "signInTitle": "Connectez-vous pour prier avec ce groupe",
     "signInBody": "Connectez-vous pour partager des demandes, prier avec les autres et garder ce groupe synchronisé.",
-    "ownerLongPressHint": "Appuyez longuement pour modifier ou supprimer"
+    "ownerLongPressHint": "Appuyez longuement pour modifier ou supprimer",
+    "leaderLongPressHint": "Appuyez longuement pour retirer cette demande",
+    "rateLimited": "Vous avez partagé plusieurs demandes de prière récemment. Veuillez réessayer plus tard."
   },
   "engagement": {
     "title": "Votre parcours",

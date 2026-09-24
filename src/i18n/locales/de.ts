@@ -1433,7 +1433,9 @@ export const de = {
     "groupMember": "Gruppenmitglied",
     "signInTitle": "Melde dich an, um mit dieser Gruppe zu beten",
     "signInBody": "Melde dich an, um Anliegen zu teilen, mit anderen zu beten und diese Gruppe auf dem Laufenden zu halten.",
-    "ownerLongPressHint": "Zum Bearbeiten oder Löschen lange drücken"
+    "ownerLongPressHint": "Zum Bearbeiten oder Löschen lange drücken",
+    "leaderLongPressHint": "Zum Entfernen dieses Anliegens lange drücken",
+    "rateLimited": "Du hast in letzter Zeit mehrere Gebetsanliegen geteilt. Bitte versuche es später noch einmal."
   },
   "engagement": {
     "title": "Deine Reise",

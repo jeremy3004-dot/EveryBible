@@ -1433,7 +1433,9 @@ export const zh = {
     "groupMember": "小组成员",
     "signInTitle": "登录后与这个小组一同祷告",
     "signInBody": "登录后即可分享代祷事项、与他人一同祷告，并让小组保持同步。",
-    "ownerLongPressHint": "长按可编辑或删除"
+    "ownerLongPressHint": "长按可编辑或删除",
+    "leaderLongPressHint": "长按可移除这条代祷事项",
+    "rateLimited": "你最近分享了多条代祷事项，请稍后再试。"
   },
   "engagement": {
     "title": "你的旅程",
