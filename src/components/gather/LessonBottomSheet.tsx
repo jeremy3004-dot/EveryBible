@@ -180,7 +180,7 @@ export function LessonBottomSheet({
           </Text>
           <Text
             style={[typography.eyebrowPlain, displayFont.regular, { color: colors.secondaryText }]}
-            numberOfLines={1}
+            numberOfLines={2}
           >
             {referenceLabel}
           </Text>

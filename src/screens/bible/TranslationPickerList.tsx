@@ -864,14 +864,16 @@ const TranslationRow = memo(function TranslationRow({
         }}
       >
         <View style={styles.rowText}>
+          {/* Two lines each: at large text sizes one line cut the name to
+              "Bible in O…", which is the only thing that tells rows apart. */}
           <Text
             style={[styles.rowTitle, { color: colors.biblePrimaryText }]}
-            numberOfLines={1}
+            numberOfLines={2}
             ellipsizeMode="tail"
           >
             {translation.name}
           </Text>
-          <Text style={[styles.rowMeta, { color: colors.bibleSecondaryText }]} numberOfLines={1}>
+          <Text style={[styles.rowMeta, { color: colors.bibleSecondaryText }]} numberOfLines={2}>
             {meta}
           </Text>
           {description ? (
@@ -1119,7 +1121,7 @@ function TranslationManageSheet({
           <Text
             accessibilityRole="header"
             style={[styles.modalTitle, { color: colors.biblePrimaryText }]}
-            numberOfLines={1}
+            numberOfLines={2}
           >
             {translation.name}
           </Text>

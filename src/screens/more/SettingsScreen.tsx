@@ -54,7 +54,7 @@ import {
   useTranslatorReviewStore,
 } from '../../stores/translatorReviewStore';
 import { clearDeviceCaches } from '../../stores/deviceCaches';
-import { useDisplayFont, useFontSize, useI18n, useTabBarHeight } from '../../hooks';
+import { useDisplayFont, useFontSize, useI18n, useLargeText, useTabBarHeight } from '../../hooks';
 import { syncPreferences } from '../../services/sync';
 import {
   appendAccessPasscodeDigit,
@@ -110,6 +110,10 @@ export function SettingsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { colors, themeMode, setTheme } = useTheme();
   const displayFont = useDisplayFont();
+  // Cancel/Save pairs split a ~300pt modal in half; at large text sizes each
+  // label wrapped inside its half, so the pair stacks (primary on top).
+  const { isLargeText } = useLargeText();
+  const modalButtonsStyle = [styles.modalButtons, isLargeText && styles.modalButtonsStacked];
   // The off track is the only outline an off switch has, so it takes the 3:1
   // control boundary rather than a translucent tint of body text (1.6:1 light, 1.95:1 dark).
   const settingSwitchOffColor = colors.controlBorder;
@@ -836,7 +840,7 @@ export function SettingsScreen() {
                 </Text>
               ) : null}
 
-              <View style={styles.modalButtons}>
+              <View style={modalButtonsStyle}>
                 <AppButton
                   label={t('common.cancel')}
                   variant="secondary"
@@ -900,7 +904,7 @@ export function SettingsScreen() {
                     coveredTranslationIds={translatorAccessCoverage}
                     onSwitched={closeTranslatorAccessModal}
                   />
-                  <View style={styles.modalButtons}>
+                  <View style={modalButtonsStyle}>
                     <AppButton
                       label={t('common.done')}
                       variant="primary"
@@ -991,7 +995,7 @@ export function SettingsScreen() {
                       </View>
                     ))}
                   </View>
-                  <View style={styles.modalButtons}>
+                  <View style={modalButtonsStyle}>
                     <AppButton
                       label={t('common.cancel')}
                       variant="secondary"
@@ -1218,7 +1222,7 @@ export function SettingsScreen() {
               </ScrollView>
             </View>
 
-            <View style={styles.modalButtons}>
+            <View style={modalButtonsStyle}>
               <AppButton
                 label={t('common.cancel')}
                 variant="secondary"
@@ -1350,7 +1354,7 @@ export function SettingsScreen() {
               {t('settings.deleteAccountWarning')}
             </Text>
 
-            <View style={styles.modalButtons}>
+            <View style={modalButtonsStyle}>
               <AppButton
                 label={t('common.cancel')}
                 variant="secondary"
@@ -1569,6 +1573,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: spacing.md,
+  },
+  // column-reverse keeps Cancel (the first child) at the bottom, as stacked
+  // system alerts do.
+  modalButtonsStacked: {
+    flexDirection: 'column-reverse',
   },
   modalButtonFlex: {
     flex: 1,

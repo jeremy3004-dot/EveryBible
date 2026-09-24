@@ -619,7 +619,9 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
                 styles.sectionEyebrow,
                 { color: colors.secondaryText },
               ]}
-              numberOfLines={1}
+              // Two lines: the passage reference is the only place the story's
+              // source is shown, and one line cut it off at large text sizes.
+              numberOfLines={2}
               accessibilityRole="header"
             >
               {`${t('gather.story')} · ${referenceLabel}`}
@@ -922,7 +924,10 @@ function CompleteToggle({ isComplete, onPress, colors }: CompleteToggleProps) {
       ]}
     >
       <Check size={16} color={contentColor} strokeWidth={2} />
-      <Text style={[typography.captionStrong, { color: contentColor }]} numberOfLines={1}>
+      <Text
+        style={[typography.captionStrong, styles.completeToggleLabel, { color: contentColor }]}
+        numberOfLines={2}
+      >
         {isComplete ? t('gather.completed') : t('gather.complete')}
       </Text>
     </PressableScale>
@@ -1252,10 +1257,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
-    height: layout.iconButton,
+    // minHeight, not height: a fixed 40pt pill clipped "Completed" in longer
+    // translations at accessibility text sizes; it now grows like AppButton.
+    minHeight: layout.iconButton,
     borderRadius: layout.iconButton / 2,
     borderWidth: 1,
     paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xs,
+  },
+  completeToggleLabel: {
+    flexShrink: 1,
   },
 
   // Playback + text sheet

@@ -354,8 +354,8 @@ test('PlansHomeScreen adds a compact fuzzy-search field to Find Plans', () => {
   assert.ok(searchStripBlockMatch, 'PlansHomeScreen should define the 44pt search strip');
   assert.match(
     searchStripBlockMatch?.[0] ?? '',
-    /height:\s*44/,
-    'The Find Plans search strip is a 44pt paper strip, not a 48pt input well'
+    /minHeight:\s*44/,
+    'The Find Plans search strip is a 44pt paper strip (a floor, so large text is not clipped), not a 48pt input well'
   );
   assert.match(searchStripBlockMatch?.[0] ?? '', /borderRadius:\s*radius\.lg/);
   assert.match(

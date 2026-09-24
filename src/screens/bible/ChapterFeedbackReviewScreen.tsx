@@ -475,7 +475,7 @@ export function ChapterFeedbackReviewScreen({ route, navigation }: Props) {
           <Text
             accessibilityRole="header"
             style={[styles.title, { color: colors.primaryText }]}
-            numberOfLines={1}
+            numberOfLines={2}
           >
             {chapterLabel}
           </Text>

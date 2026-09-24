@@ -445,9 +445,11 @@ const styles = StyleSheet.create({
     gap: 14,
     paddingVertical: 14,
   },
+  // A floor, not a width: "10" in the numeral face at accessibility sizes is
+  // wider than 34pt and broke onto two lines.
   pathNumeral: {
     ...typography.numeralRow,
-    width: 34,
+    minWidth: 34,
   },
   pathBody: {
     flex: 1,

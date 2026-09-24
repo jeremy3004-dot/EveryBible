@@ -16,3 +16,4 @@ export {
   TAB_BAR_CONTENT_GAP,
   type TabBarHeightMetrics,
 } from './useTabBarHeight';
+export { useLargeText, type LargeTextLayout } from './useLargeText';

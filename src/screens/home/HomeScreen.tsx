@@ -32,6 +32,7 @@ import { config } from '../../constants/config';
 import { FONT_SIZE_SCALES } from '../../constants/fontSizeScales';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useDisplayFont } from '../../hooks/useDisplayFont';
+import { useLargeText } from '../../hooks/useLargeText';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { useTranslationContentSummary } from '../../hooks/useTranslationContentSummary';
 import { GatherIconBadge } from '../../components/gather/GatherIconBadge';
@@ -188,6 +189,9 @@ export function HomeScreen() {
     (reduceMotion ? FadeIn : FadeInDown).duration(motion.duration.base).delay(step * 60);
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const tabBar = useTabBarHeight();
+  // Continue and Plan sit side by side at normal sizes; at large text each half
+  // held a word per line under a clipped numeral, so they stack.
+  const { rowDirection: sheetCardDirection } = useLargeText();
   const bottomTabBarHeight = tabBar.height;
   const [dailyScripture, setDailyScripture] = useState<DailyScripture | null>(null);
   const [isLoadingVerse, setIsLoadingVerse] = useState(true);
@@ -770,12 +774,15 @@ export function HomeScreen() {
         {renderVerseOfTheDayCard('screen')}
 
         <View style={styles.sheet}>
-          <Animated.View entering={sectionEntering(0)} style={styles.sheetCardRow}>
+          <Animated.View
+            entering={sectionEntering(0)}
+            style={[styles.sheetCardRow, { flexDirection: sheetCardDirection }]}
+          >
             <AppCard
               pressable
               onPress={handleContinueReading}
               padding={spacing.lg}
-              style={styles.sheetCard}
+              style={[styles.sheetCard, sheetCardDirection === 'column' && styles.sheetCardStacked]}
               accessibilityLabel={`${t('common.continue')} ${currentPassageLabel}`}
             >
               <Text
@@ -792,7 +799,7 @@ export function HomeScreen() {
                     </Text>
                     <Text
                       style={[styles.numeralCaption, { color: colors.primaryText }]}
-                      numberOfLines={1}
+                      numberOfLines={2}
                     >
                       {currentBookName}
                     </Text>
@@ -804,7 +811,7 @@ export function HomeScreen() {
                 )}
                 <Text
                   style={[styles.cardFooter, { color: colors.secondaryText }]}
-                  numberOfLines={1}
+                  numberOfLines={2}
                 >
                   {currentTranslationInfo?.name ?? currentTranslation.toUpperCase()}
                 </Text>
@@ -819,7 +826,7 @@ export function HomeScreen() {
                   : navigation.navigate('Plans', { screen: 'PlansHome' })
               }
               padding={spacing.lg}
-              style={styles.sheetCard}
+              style={[styles.sheetCard, sheetCardDirection === 'column' && styles.sheetCardStacked]}
               accessibilityLabel={
                 featuredPlanDuration > 0
                   ? `${featuredPlanTitle} · ${t('readingPlans.dayOf', {
@@ -930,13 +937,13 @@ export function HomeScreen() {
                 <View style={styles.gatherCopy}>
                   <Text
                     style={[styles.gatherTitle, { color: colors.primaryText }]}
-                    numberOfLines={1}
+                    numberOfLines={2}
                   >
                     {foundationTitle}
                   </Text>
                   <Text
                     style={[styles.gatherSubtitle, { color: colors.secondaryText }]}
-                    numberOfLines={1}
+                    numberOfLines={2}
                   >
                     {t('home.nextLesson', { title: nextLessonTitle })}
                   </Text>
@@ -1035,7 +1042,7 @@ export function HomeScreen() {
                       displayFont.regular,
                       { color: colors.secondaryText },
                     ]}
-                    numberOfLines={1}
+                    numberOfLines={2}
                   >
                     {ledgerNextUpLabel}
                   </Text>
@@ -1187,6 +1194,11 @@ const styles = StyleSheet.create({
     minWidth: 0,
     minHeight: SHEET_CARD_MIN_HEIGHT,
   },
+  // Stacked, each card sizes to its content instead of splitting a column
+  // whose height is itself content-sized.
+  sheetCardStacked: {
+    flex: 0,
+  },
   cardEyebrow: {
     ...typography.eyebrow,
   },
@@ -1229,8 +1241,11 @@ const styles = StyleSheet.create({
   gatherCard: {
     gap: 14,
   },
+  // Wraps so the lesson count drops under the eyebrow at large text sizes
+  // instead of squeezing it to "Gather · F…".
   gatherHeader: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.sm,
@@ -1258,8 +1273,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: layout.cardPaddingWide,
     gap: spacing.md,
   },
+  // Wraps so the period switch drops under the streak at large text sizes.
   ledgerHeader: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.md,
