@@ -305,10 +305,12 @@ export function createReadingPlanService(store: ReadingPlansStoreApi): ReadingPl
       }
 
       const completedSessions = store.getState().getProgress(planId)?.completed_sessions ?? {};
-      const nextSessionKey = sessionGroups.find(
-        (group) => group.sessionKey !== sessionKey &&
-          !completedSessions[buildPlanSessionCompletionKey(plan, dayNumber, group.sessionKey)]
-      )?.sessionKey ?? null;
+      const nextSessionKey =
+        sessionGroups.find(
+          (group) =>
+            group.sessionKey !== sessionKey &&
+            !completedSessions[buildPlanSessionCompletionKey(plan, dayNumber, group.sessionKey)]
+        )?.sessionKey ?? null;
       const updated = store.getState().markSessionComplete(planId, dayNumber, sessionKey, {
         completionKey: buildPlanSessionCompletionKey(plan, dayNumber, sessionKey),
         dayCompletionKey: getPlanCompletionEntryKey(plan, dayNumber),
@@ -365,6 +367,27 @@ export async function getPlanEntries(
   return { success: true, data: readingPlanEntriesByPlanId[planId] ?? [] };
 }
 
+/**
+ * Folds a row the server echoed back into the live store. The echo reflects the
+ * moment the row was written and the server has no columns for session ticks, so
+ * replacing the live row would drop completed sessions and any completion made
+ * while the request was in flight. A plan that is no longer enrolled (or is
+ * waiting on its remote delete) is not revived by a late echo.
+ */
+function mergeServerEchoIntoLive(serverRow: UserReadingPlanProgress): void {
+  const store = readingPlansStore.getState();
+  if (store.pendingUnenrollPlanIds.includes(serverRow.plan_id)) {
+    return;
+  }
+
+  const live = store.getProgress(serverRow.plan_id);
+  if (!live) {
+    return;
+  }
+
+  store.upsertProgress(mergePlanProgress(live, serverRow, serverRow.synced_at));
+}
+
 async function pushProgressToRemote(
   progress: UserReadingPlanProgress,
   expectedUserId?: string,
@@ -408,7 +431,7 @@ async function pushProgressToRemote(
     const syncedProgress = normalizeRemoteReadingPlanProgress(data as RemoteReadingPlanProgressRow);
     if (syncedProgress) {
       await identity.runIfCurrent(() => {
-        readingPlansStore.getState().upsertProgress(syncedProgress);
+        mergeServerEchoIntoLive(syncedProgress);
       });
     }
   } catch {
@@ -476,10 +499,12 @@ export async function markPlanSessionComplete(
 
   const completedSessions =
     readingPlansStore.getState().getProgress(planId)?.completed_sessions ?? {};
-  const nextSessionKey = sessionGroups.find(
-    (group) => group.sessionKey !== sessionKey &&
-      !completedSessions[buildPlanSessionCompletionKey(plan, dayNumber, group.sessionKey)]
-  )?.sessionKey ?? null;
+  const nextSessionKey =
+    sessionGroups.find(
+      (group) =>
+        group.sessionKey !== sessionKey &&
+        !completedSessions[buildPlanSessionCompletionKey(plan, dayNumber, group.sessionKey)]
+    )?.sessionKey ?? null;
   const localUpdated = readingPlansStore
     .getState()
     .markSessionComplete(planId, dayNumber, sessionKey, {
@@ -987,9 +1012,7 @@ export async function syncPlanProgress(
 
     const syncedRows = normalizeRemoteProgressRows((data ?? []) as RemoteReadingPlanProgressRow[]);
     const syncedApplied = await identity.runIfCurrent(() => {
-      syncedRows.forEach((progress) => {
-        readingPlansStore.getState().upsertProgress(progress);
-      });
+      syncedRows.forEach(mergeServerEchoIntoLive);
     });
     if (!syncedApplied.applied) {
       return stalePlanResult<UserReadingPlanProgress[]>();

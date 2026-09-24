@@ -1600,3 +1600,91 @@ test('markPlanSessionComplete stays local for a signed-in reader instead of writ
   assert.equal(result.data?.current_session, 'evening');
   assert.deepEqual(supabaseFake.callsFor('user_reading_plan_progress'), []);
 });
+
+// ---------------------------------------------------------------------------
+// Server echoes merge into the live row; they never replace it
+// (docs/research/sync-offline-review-2026-09-24.md, findings 2, 4, 5)
+// ---------------------------------------------------------------------------
+
+const planStore = () => storeModule.readingPlansStore.getState();
+
+test('a plan sync keeps the session ticks the server row cannot carry', async () => {
+  signIn('user-a', 2);
+  // Enrol through the store so no background push races the sync under test.
+  planStore().enrollPlan('kathisma-weekly');
+  await service.markPlanSessionComplete('kathisma-weekly', 2, 'morning');
+  const beforeSync = planStore().getProgress('kathisma-weekly')!;
+  assert.equal(Object.keys(beforeSync.completed_sessions ?? {}).length, 1);
+  // user_reading_plan_progress has no completed_sessions/current_session columns.
+  supabaseFake.respondTo('user_reading_plan_progress', (call) =>
+    call.operation === 'upsert'
+      ? {
+          data: [
+            remoteRow({
+              id: 'server-k',
+              plan_slug: 'kathisma-weekly',
+              completed_entries: {},
+              current_day: 2,
+            }),
+          ],
+        }
+      : { data: [] }
+  );
+
+  const result = await service.syncPlanProgress([beforeSync]);
+
+  assert.equal(result.success, true);
+  const afterSync = planStore().getProgress('kathisma-weekly');
+  assert.deepEqual(afterSync?.completed_sessions, beforeSync.completed_sessions);
+  assert.equal(afterSync?.current_session, 'evening');
+});
+
+test('a day completed while its enrolment push is in flight survives the server echo', async () => {
+  signIn('user-a', 4);
+  let echoSent!: () => void;
+  const echo = new Promise<void>((resolve) => {
+    echoSent = resolve;
+  });
+  supabaseFake.respondTo('user_reading_plan_progress', (call) => {
+    if (call.operation !== 'upsert') {
+      return { data: [] };
+    }
+    // The reader finishes day 1 while the enrolment row is still on the wire.
+    planStore().markDayComplete('psalms-30-days', 1, 30);
+    echoSent();
+    return {
+      data: remoteRow({ plan_slug: 'psalms-30-days', current_day: 1, completed_entries: {} }),
+    };
+  });
+
+  await service.enrollInPlan('psalms-30-days');
+  await echo;
+  await flushBackgroundWork();
+
+  const live = planStore().getProgress('psalms-30-days');
+  assert.ok(live?.completed_entries['1'], 'day 1 must not be rolled back by the echo');
+  assert.equal(live?.current_day, 2);
+});
+
+test('an unenrol made while the enrolment push is in flight is not undone by the echo', async () => {
+  signIn('user-a', 4);
+  let echoSent!: () => void;
+  const echo = new Promise<void>((resolve) => {
+    echoSent = resolve;
+  });
+  supabaseFake.respondTo('user_reading_plan_progress', (call) => {
+    if (call.operation !== 'upsert') {
+      return { data: [] };
+    }
+    planStore().unenrollPlan('psalms-30-days');
+    echoSent();
+    return { data: remoteRow({ plan_slug: 'psalms-30-days', current_day: 1 }) };
+  });
+
+  await service.enrollInPlan('psalms-30-days');
+  await echo;
+  await flushBackgroundWork();
+
+  assert.equal(planStore().getProgress('psalms-30-days'), null);
+  assert.equal(planStore().enrolledPlanIds.includes('psalms-30-days'), false);
+});
