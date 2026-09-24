@@ -1,7 +1,9 @@
+import { useEffect } from 'react';
 import { StyleSheet, ActivityIndicator, Text, View } from 'react-native';
 import { radius, spacing } from '../../../design/system';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../contexts/ThemeContext';
+import { announceLiveRegionText } from '../../../utils/a11y';
 
 export interface ChapterAudioShareLoadingOverlayProps {
   chapterAudioShareActionLabel: string;
@@ -15,9 +17,26 @@ export function ChapterAudioShareLoadingOverlay({
 }: ChapterAudioShareLoadingOverlayProps) {
   const { colors } = useTheme();
   const { t } = useTranslation();
-  return pendingChapterAudioShareAction !== null ? (
-    <View style={[styles.chapterAudioShareLoadingOverlay, { backgroundColor: colors.overlay }]}>
+  const isPending = pendingChapterAudioShareAction !== null;
+  const status = `${chapterAudioShareActionLabel}, ${t('common.loading')}`;
+
+  // The share sheet closes as this appears, and focus falls back onto the
+  // reader behind it; without this the wait was silent.
+  useEffect(() => {
+    if (isPending) announceLiveRegionText(status);
+  }, [isPending, status]);
+
+  return isPending ? (
+    <View
+      // It blocks the reader for sighted users; VoiceOver is kept on it too.
+      accessibilityViewIsModal
+      style={[styles.chapterAudioShareLoadingOverlay, { backgroundColor: colors.overlay }]}
+    >
       <View
+        accessible
+        accessibilityLabel={status}
+        accessibilityState={{ busy: true }}
+        accessibilityLiveRegion="polite"
         style={[
           styles.chapterAudioShareLoadingCard,
           {
