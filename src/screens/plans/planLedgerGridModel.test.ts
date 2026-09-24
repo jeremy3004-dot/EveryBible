@@ -6,6 +6,7 @@ import {
   PLAN_LEDGER_DENSE_GAP,
   PLAN_LEDGER_ROOMY_GAP,
   getPlanLedgerDotPaint,
+  getPlanLedgerGridDayCount,
   getPlanLedgerGridMetrics,
   getPlanLedgerGridRows,
 } from './planLedgerGridModel';
@@ -140,4 +141,24 @@ test('done and future dots differ in shape, not only colour', () => {
   assert.equal(paint.done.borderWidth, 0, 'a finished day is a solid dot');
   assert.ok(paint.future.borderWidth > 0, 'a day still to come is a ring');
   assert.ok(paint.today.borderWidth > paint.future.borderWidth, "today's ring is the heavier one");
+});
+
+test('a day-of-month plan draws one dot per day of the current month', () => {
+  const monthly = { duration_days: 31, scheduleMode: 'calendar-day-of-month' as const };
+
+  assert.equal(getPlanLedgerGridDayCount(monthly, new Date(2026, 8, 24)), 30);
+  assert.equal(getPlanLedgerGridDayCount(monthly, new Date(2026, 9, 1)), 31);
+  assert.equal(getPlanLedgerGridDayCount(monthly, new Date(2026, 1, 10)), 28);
+  assert.equal(getPlanLedgerGridDayCount(monthly, new Date(2028, 1, 29)), 29);
+});
+
+test('sequential and weekly plans draw every plan day whatever the month', () => {
+  const september = new Date(2026, 8, 24);
+
+  assert.equal(getPlanLedgerGridDayCount({ duration_days: 365 }, september), 365);
+  assert.equal(
+    getPlanLedgerGridDayCount({ duration_days: 7, scheduleMode: 'calendar-day-of-week' }, september),
+    7
+  );
+  assert.equal(getPlanLedgerGridDayCount({ duration_days: 31 }, new Date(2026, 1, 10)), 31);
 });
