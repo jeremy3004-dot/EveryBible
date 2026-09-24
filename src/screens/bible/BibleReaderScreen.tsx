@@ -1105,6 +1105,9 @@ export function BibleReaderScreen() {
     currentTranslationId: activeAudioTranslationId,
     currentBookId: activeAudioBookId,
     currentChapter: activeAudioChapter,
+    lastPlayedTranslationId,
+    lastPlayedBookId,
+    lastPlayedChapter,
     playbackRate,
     repeatMode,
     sleepTimerRemaining,
@@ -3626,7 +3629,19 @@ export function BibleReaderScreen() {
   };
 
   const handlePlayDisplayedChapter = () => {
-    if (!isCurrentAudioChapter) {
+    // After a relaunch nothing is loaded and only the persisted last track remains.
+    // togglePlayPause resumes it from its saved offset; playChapter would restart it.
+    const resumesLastPlayedChapter =
+      activeAudioBookId == null &&
+      isActiveAudioTrackMatch({
+        translationId: currentTranslation,
+        bookId,
+        chapter,
+        activeAudioTranslationId: lastPlayedTranslationId,
+        activeAudioBookId: lastPlayedBookId,
+        activeAudioChapter: lastPlayedChapter,
+      });
+    if (!isCurrentAudioChapter && !resumesLastPlayedChapter) {
       void playChapter(bookId, chapter);
       return;
     }

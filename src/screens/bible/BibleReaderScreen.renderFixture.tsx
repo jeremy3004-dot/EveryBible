@@ -97,6 +97,10 @@ export function installReaderRenderFixture(
     currentTranslationId: null as string | null,
     currentBookId: null as string | null,
     currentChapter: null as number | null,
+    // The persisted last track, which survives a relaunch when nothing is loaded.
+    lastPlayedTranslationId: null as string | null,
+    lastPlayedBookId: null as string | null,
+    lastPlayedChapter: null as number | null,
     currentPosition: 0,
     duration: 0,
     sleepTimerMinutes: null as number | null,
@@ -168,6 +172,9 @@ export function installReaderRenderFixture(
           currentTranslationId: state.currentTranslationId,
           currentBookId: state.currentBookId,
           currentChapter: state.currentChapter,
+          lastPlayedTranslationId: state.lastPlayedTranslationId,
+          lastPlayedBookId: state.lastPlayedBookId,
+          lastPlayedChapter: state.lastPlayedChapter,
         }))
       );
       return {
