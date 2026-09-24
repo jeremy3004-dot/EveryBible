@@ -20,8 +20,8 @@ const GROUP_IMAGE_BUCKET = 'group-images';
  * that carry no recognisable extension (e.g. content:// on Android).
  */
 const getExtension = (uri: string): string => {
-  const match = uri.match(/\.([a-zA-Z0-9]+)(?:\?.*)?$/);
-  return match ? match[1].toLowerCase() : 'jpg';
+  const extension = uri.match(/\.([a-zA-Z0-9]+)(?:\?.*)?$/)?.[1];
+  return extension ? extension.toLowerCase() : 'jpg';
 };
 
 /**

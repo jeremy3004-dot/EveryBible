@@ -1428,9 +1428,9 @@ test('getChapter returns only the requested translation, ordered by verse', asyn
     verses.map((verse) => verse.verse),
     [1, 2, 3]
   );
-  assert.equal(verses[0].bookId, 'GEN');
-  assert.equal(verses[0].heading, 'The Creation');
-  assert.equal(verses[1].heading, undefined, 'a NULL heading is reported as absent, not as null');
+  assert.equal(verses[0]?.bookId, 'GEN');
+  assert.equal(verses[0]?.heading, 'The Creation');
+  assert.equal(verses[1]?.heading, undefined, 'a NULL heading is reported as absent, not as null');
 
   const asv = await getChapter('asv', 'GEN', 1);
   assert.deepEqual(
@@ -1444,7 +1444,7 @@ test('getChapter reinstates prose that stored poetry lines do not cover', async 
 
   const [verse] = await getChapter('bsb', 'JHN', 1);
 
-  assert.deepEqual(verse.formatting, {
+  assert.deepEqual(verse?.formatting, {
     mode: 'poetry',
     lines: [
       { text: 'In the beginning was the Word,', indentLevel: 1 },
@@ -1487,8 +1487,8 @@ test('search results reinstate prose that stored poetry lines do not cover, like
 
   const [verse] = await searchVerses('bsb', 'Word');
 
-  assert.equal(`${verse.bookId} ${verse.chapter}:${verse.verse}`, 'JHN 1:1');
-  assert.deepEqual(verse.formatting, {
+  assert.equal(`${verse?.bookId} ${verse?.chapter}:${verse?.verse}`, 'JHN 1:1');
+  assert.deepEqual(verse?.formatting, {
     mode: 'poetry',
     lines: [
       { text: 'In the beginning was the Word,', indentLevel: 1 },
@@ -2040,9 +2040,9 @@ test('insertVerse adds a verse that getChapter reads back', async () => {
   });
 
   const [verse] = await getChapter('writable', 'GEN', 1);
-  assert.equal(verse.text, 'In the beginning God created the heavens and the earth.');
-  assert.equal(verse.heading, 'The Creation');
-  assert.deepEqual(verse.formatting, {
+  assert.equal(verse?.text, 'In the beginning God created the heavens and the earth.');
+  assert.equal(verse?.heading, 'The Creation');
+  assert.deepEqual(verse?.formatting, {
     mode: 'lines',
     lines: [{ text: 'In the beginning God created the heavens and the earth.' }],
   });

@@ -14,6 +14,7 @@ import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import type { BibleTranslation } from '../../types';
 import { mockModule, sourcePath } from '../../testing/mockModules';
+import { assertDefined } from '../../utils/assertDefined';
 
 delete process.env.EXPO_PUBLIC_EL_MEDIA_SOURCE;
 delete process.env.EXPO_PUBLIC_EL_MEDIA_BASE_URL;
@@ -198,7 +199,7 @@ test('with no apply injected the merge is written straight to the bible store', 
   assert.equal(merged, true);
   assert.equal(storeApplies.length, 1, 'the store is resolved lazily, only once rows exist');
   assert.deepEqual(
-    storeApplies[0].map((entry) => entry.id),
+    assertDefined(storeApplies[0], 'first store apply call').map((entry) => entry.id),
     ['bsb', 'el-lqdtest']
   );
 });
@@ -229,5 +230,5 @@ test('a merge failure is logged in a development build', async () => {
   }
 
   assert.equal(warnings.length, 1);
-  assert.match(String(warnings[0][0]), /EL runtime catalog merge failed/);
+  assert.match(String(warnings[0]?.[0]), /EL runtime catalog merge failed/);
 });

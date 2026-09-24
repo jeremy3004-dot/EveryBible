@@ -283,7 +283,7 @@ test('a keychain failure is reported as unavailable and leaves the app locked', 
   assert.equal(store().initializationError, 'unavailable');
   assert.equal(store().isInitialized, false);
   assert.equal(store().isLocked, true);
-  assert.match(String(consoleError.mock.calls[0].arguments[0]), /Failed to initialize privacy/);
+  assert.match(String(consoleError.mock.calls[0]?.arguments[0]), /Failed to initialize privacy/);
 });
 
 test('the visible error survives while a retry is still pending', async () => {

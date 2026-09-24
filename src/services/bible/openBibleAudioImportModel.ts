@@ -52,12 +52,11 @@ function parseTimingClockToSeconds(value: string): number {
     throw new Error(`Unsupported Open.Bible timing value: ${value}`);
   }
 
-  const hours = Number(match[1]);
-  const minutes = Number(match[2]);
-  const seconds = Number(match[3]);
-  const fractional = Number(`0.${match[4].padEnd(8, '0')}`);
+  // Every group is mandatory, so a match always fills them.
+  const [, hours = '', minutes = '', seconds = '', fraction = ''] = match;
+  const fractional = Number(`0.${fraction.padEnd(8, '0')}`);
 
-  return hours * 3600 + minutes * 60 + seconds + fractional;
+  return Number(hours) * 3600 + Number(minutes) * 60 + Number(seconds) + fractional;
 }
 
 export function parseOpenBibleTimingText(raw: string): Record<number, number> {
@@ -69,8 +68,9 @@ export function parseOpenBibleTimingText(raw: string): Record<number, number> {
       continue;
     }
 
-    const verseNumber = Number(match[1]);
-    const seconds = parseTimingClockToSeconds(match[2]);
+    const [, verse = '', clock = ''] = match;
+    const verseNumber = Number(verse);
+    const seconds = parseTimingClockToSeconds(clock);
     timestamps[verseNumber] = Number(seconds.toFixed(6));
   }
 
@@ -85,10 +85,8 @@ export function normalizeOpenBibleAudioEntryName(
     return null;
   }
 
-  return {
-    bookId: match[1].toUpperCase(),
-    chapter: Number(match[2]),
-  };
+  const [, bookId = '', chapter = ''] = match;
+  return { bookId: bookId.toUpperCase(), chapter: Number(chapter) };
 }
 
 export function normalizeOpenBibleTimingEntryName(
@@ -99,8 +97,6 @@ export function normalizeOpenBibleTimingEntryName(
     return null;
   }
 
-  return {
-    bookId: match[1].toUpperCase(),
-    chapter: Number(match[2]),
-  };
+  const [, bookId = '', chapter = ''] = match;
+  return { bookId: bookId.toUpperCase(), chapter: Number(chapter) };
 }

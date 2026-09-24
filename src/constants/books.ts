@@ -216,11 +216,10 @@ export const getAdjacentBibleChapter = (
   direction: -1 | 1
 ): AdjacentBibleChapter | null => {
   const currentBookIndex = bibleBooks.findIndex((book) => book.id === bookId);
-  if (currentBookIndex === -1) {
+  const currentBook = bibleBooks[currentBookIndex];
+  if (!currentBook) {
     return null;
   }
-
-  const currentBook = bibleBooks[currentBookIndex];
 
   if (direction === -1) {
     if (chapter > 1) {

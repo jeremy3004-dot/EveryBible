@@ -37,6 +37,7 @@ import { useReadingPlansStore } from '../../stores/readingPlansStore';
 import { useAudioPlayer } from '../../hooks/useAudioPlayer';
 import { useFontSize } from '../../hooks/useFontSize';
 import { useLargeText } from '../../hooks/useLargeText';
+import { useLocalToday } from '../../hooks/useLocalToday';
 import { useShallow } from 'zustand/react/shallow';
 import { ReaderPlaybackDock } from '../../components/audio/ReaderPlaybackDock';
 import {
@@ -229,7 +230,7 @@ export function BibleReaderScreen() {
     ] ?? SHARE_VERSE_BACKGROUND_SOURCES[0];
   const dismissSelectedVerseSelection = useCallback(() => {
     setShowVerseImageSheet(false);
-    setSelectedVerses([]);
+    setSelectedVerses((current) => (current.length === 0 ? current : []));
   }, []);
 
   const hidePlayButtonFromReadingTab = useAuthStore(
@@ -353,7 +354,10 @@ export function BibleReaderScreen() {
   const readingFontFamilyBold = getReadingFontFamily(currentTranslationInfo?.language, 700);
   const compactBookName = getCompactTranslatedBookName(bookId, t);
   const activeChapterKey = `${bookId}_${chapter}`;
-  const todayDateKey = formatLocalDateKey(new Date());
+  // A reader left open past midnight (or resumed the next morning) must count today's
+  // reads and listens toward today's plan day, not yesterday's.
+  const today = useLocalToday();
+  const todayDateKey = useMemo(() => formatLocalDateKey(today), [today]);
   const {
     activePlanChapterIndex,
     activePlanDayChapterItems,
@@ -390,6 +394,7 @@ export function BibleReaderScreen() {
     returnToPlanOnComplete,
     sessionContext,
     setPlanDayResume,
+    today,
     todayDateKey,
   });
   useAudioReturnTarget({
@@ -578,7 +583,7 @@ export function BibleReaderScreen() {
     dismissSelectedVerseSelection,
     focusVerse,
     followAlongOffsetsRef,
-    isLoading,
+    hasLoadedRouteChapter: isShowingRouteChapter && !isLoading && error == null,
     loadChapter,
     paragraphHeightsRef,
     pendingReaderAutoScrollVerseRef,
@@ -1197,7 +1202,34 @@ export function BibleReaderScreen() {
   );
 
   if (!book) {
-    return null;
+    // BibleStack's route guard returns an unknown book to the browser before the reader
+    // mounts; this covers anything that still renders it, so the page is never a dead end.
+    return (
+      <View
+        style={[
+          styles.container,
+          styles.missingBook,
+          { backgroundColor: colors.bibleBackground, paddingTop: safeInsets.top },
+        ]}
+      >
+        <Text
+          accessibilityRole="header"
+          style={[styles.feedbackTitle, { color: colors.biblePrimaryText }]}
+        >
+          {t('common.error')}
+        </Text>
+        <TouchableOpacity
+          style={[styles.feedbackButton, { backgroundColor: colors.bibleControlBackground }]}
+          onPress={() => navigation.popTo('BibleBrowser')}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+        >
+          <Text style={[styles.feedbackButtonText, { color: colors.bibleBackground }]}>
+            {t('common.back')}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
   }
 
   return (
@@ -1416,6 +1448,12 @@ export function BibleReaderScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  missingBook: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.lg,
+    paddingHorizontal: spacing.xl,
   },
   premiumReaderLayout: {
     flex: 1,

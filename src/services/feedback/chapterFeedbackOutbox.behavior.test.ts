@@ -5,6 +5,7 @@ import type {
   ChapterFeedbackFunctionResponse,
   ChapterFeedbackSubmissionInput,
 } from './chapterFeedbackService';
+import { assertDefined } from '../../utils/assertDefined';
 import type { ChapterFeedbackOutboxDeps } from './chapterFeedbackOutbox';
 
 const mmkv = mockMmkvStorage(mock).store;
@@ -204,7 +205,7 @@ test('a flush sends queued feedback for the signed-in account and clears it', as
     h.submissions.map((input) => input.chapter),
     [3, 4]
   );
-  assert.equal(h.submissions[0].comment, baseInput.comment);
+  assert.equal(h.submissions[0]?.comment, baseInput.comment);
   assert.equal(outbox.countQueuedChapterFeedback('user-a'), 0);
 });
 
@@ -218,8 +219,8 @@ test('a council submission is sent with the passcode held at send time', async (
 
   await outbox.flushChapterFeedbackOutbox('user-a', h.deps);
 
-  assert.equal(h.submissions[0].councilPasscode, 'secret-9');
-  assert.equal(h.submissions[0].contributorCategory, 'scripture_council');
+  assert.equal(h.submissions[0]?.councilPasscode, 'secret-9');
+  assert.equal(h.submissions[0]?.contributorCategory, 'scripture_council');
 });
 
 // The passcode is gone from the device after a sign-out and back in, a switch to community
@@ -361,7 +362,8 @@ test('a submission that timed out is retried with the same client submission id'
 
   await outbox.flushChapterFeedbackOutbox('user-a', h.deps);
 
-  const [first, retry] = h.submissions;
+  const first = assertDefined(h.submissions[0], 'the first attempt');
+  const retry = assertDefined(h.submissions[1], 'the retry');
   assert.match(first.clientSubmissionId ?? '', UUID);
   assert.equal(retry.clientSubmissionId, first.clientSubmissionId);
 });
@@ -370,7 +372,8 @@ test('each new submission gets its own client submission id', async () => {
   await outbox.submitChapterFeedbackOrQueue(baseInput, h.deps);
   await outbox.submitChapterFeedbackOrQueue(baseInput, h.deps);
 
-  const [first, second] = h.submissions;
+  const first = assertDefined(h.submissions[0], 'the first submission');
+  const second = assertDefined(h.submissions[1], 'the second submission');
   assert.match(first.clientSubmissionId ?? '', UUID);
   assert.match(second.clientSubmissionId ?? '', UUID);
   assert.notEqual(first.clientSubmissionId, second.clientSubmissionId);
@@ -387,8 +390,10 @@ test('feedback queued offline keeps one id across flushes that fail and then suc
   await outbox.flushChapterFeedbackOutbox('user-a', h.deps);
 
   assert.equal(h.submissions.length, 2);
-  assert.match(h.submissions[0].clientSubmissionId ?? '', UUID);
-  assert.equal(h.submissions[1].clientSubmissionId, h.submissions[0].clientSubmissionId);
+  const first = assertDefined(h.submissions[0], 'the failed attempt');
+  const retry = assertDefined(h.submissions[1], 'the retry');
+  assert.match(first.clientSubmissionId ?? '', UUID);
+  assert.equal(retry.clientSubmissionId, first.clientSubmissionId);
 });
 
 test('feedback queued by an older build gets one id that it keeps across retries', async () => {
@@ -404,6 +409,8 @@ test('feedback queued by an older build gets one id that it keeps across retries
 
   await outbox.flushChapterFeedbackOutbox('user-a', h.deps);
 
-  assert.match(h.submissions[0].clientSubmissionId ?? '', UUID);
-  assert.equal(h.submissions[1].clientSubmissionId, h.submissions[0].clientSubmissionId);
+  const first = assertDefined(h.submissions[0], 'the failed attempt');
+  const retry = assertDefined(h.submissions[1], 'the retry');
+  assert.match(first.clientSubmissionId ?? '', UUID);
+  assert.equal(retry.clientSubmissionId, first.clientSubmissionId);
 });

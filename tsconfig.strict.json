@@ -1,0 +1,27 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noUncheckedIndexedAccess": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true
+  },
+  "include": [
+    "src/services/**/*",
+    "src/stores/**/*",
+    "src/utils/**/*",
+    "src/hooks/**/*",
+    "src/constants/**/*",
+    "src/i18n/**/*"
+  ],
+  "exclude": [
+    "src/services/audio/**",
+    "src/stores/audio*",
+    "src/hooks/useAudioPlayer*",
+    "src/services/sync/**",
+    "src/services/plans/**",
+    "src/stores/readingPlansStore*",
+    "src/services/notifications/**",
+    "src/services/privacy/**",
+    "src/services/diagnostics/**"
+  ]
+}

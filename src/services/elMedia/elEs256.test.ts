@@ -10,6 +10,7 @@ import {
   sha256HexSync,
   verifyEs256CompactJws,
 } from './elEs256';
+import { assertDefined } from '../../utils/assertDefined';
 
 const toB64Url = (bytes: Uint8Array) => Buffer.from(bytes).toString('base64url');
 
@@ -110,7 +111,9 @@ test('verifyEs256CompactJws forces noble to parse the fixed-width compact format
   };
   const compactJws =
     'eyJhbGciOiJFUzI1NiIsImtpZCI6ImsifQ.eyJmaXh0dXJlIjo4ODAyN30.MD4rxQ2f3DDvP4VguR1KIWap4CBz9rsIeYiMx0Q0x7-P2bKp1xwArS-lkyHnZCJRNuxMWBuwSlP3S_dUpP_0GQ';
-  const signature = base64UrlToBytes(compactJws.split('.')[2]);
+  const signature = base64UrlToBytes(
+    assertDefined(compactJws.split('.')[2], 'compact JWS signature segment')
+  );
   assert.ok(signature);
   assert.deepEqual(Array.from(signature.slice(0, 2)), [0x30, 0x3e]);
 
@@ -218,5 +221,5 @@ test('the default chunk size is a whole number of base64 groups', async () => {
   });
   assert.equal(digest, createHash('sha256').update(bytes).digest('hex'));
   assert.ok(reads.length > 1, 'a 1MB file is not read in one piece');
-  assert.equal(reads[0].length % 3, 0);
+  assert.equal(assertDefined(reads[0], 'first read').length % 3, 0);
 });

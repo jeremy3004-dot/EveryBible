@@ -17,6 +17,7 @@ import type {
   TranslationVersion,
   UserTranslationPreferences,
 } from '../supabase/types';
+import { assertDefined } from '../../utils/assertDefined';
 
 const supabaseFake = createSupabaseFake();
 const supabaseState = { configured: true };
@@ -173,7 +174,9 @@ test('listAvailableTranslations asks only for available translations in catalog 
 
   await listAvailableTranslations();
 
-  const [catalogCall, versionCall] = supabaseFake.calls;
+  const [rawCatalogCall, rawVersionCall] = supabaseFake.calls;
+  const catalogCall = assertDefined(rawCatalogCall, 'catalog call');
+  const versionCall = assertDefined(rawVersionCall, 'version call');
   assert.deepEqual(stepArgs(catalogCall, 'eq'), ['is_available', true]);
   assert.deepEqual(stepArgs(catalogCall, 'order'), ['sort_order', { ascending: true }]);
   assert.equal(versionCall.columns, 'translation_id,total_verses');
@@ -246,7 +249,7 @@ test('getTranslationVersions asks for one translation newest first', async () =>
   const result = await getTranslationVersions('hincv');
 
   assert.deepEqual(result, { success: true, data: versions });
-  const [call] = supabaseFake.calls;
+  const call = assertDefined(supabaseFake.calls[0], 'first call');
   assert.deepEqual(stepArgs(call, 'eq'), ['translation_id', 'hincv']);
   assert.deepEqual(stepArgs(call, 'order'), ['version_number', { ascending: false }]);
 });
@@ -300,7 +303,7 @@ test('getCurrentVersion returns the row flagged as current', async () => {
   const result = await getCurrentVersion('hincv');
 
   assert.deepEqual(result, { success: true, data: current });
-  const [call] = supabaseFake.calls;
+  const call = assertDefined(supabaseFake.calls[0], 'first call');
   assert.equal(call.single, true);
   assert.deepEqual(
     call.steps.filter((step) => step.method === 'eq').map((step) => step.args),
@@ -372,7 +375,10 @@ test('getUserTranslationPreferences returns the signed-in user own row', async (
   const result = await getUserTranslationPreferences();
 
   assert.deepEqual(result, { success: true, data: stored });
-  assert.deepEqual(stepArgs(supabaseFake.calls[0], 'eq'), ['user_id', 'user-7']);
+  assert.deepEqual(stepArgs(assertDefined(supabaseFake.calls[0], 'first call'), 'eq'), [
+    'user_id',
+    'user-7',
+  ]);
 });
 
 test('getUserTranslationPreferences treats "no rows" as no saved preferences', async () => {
@@ -443,7 +449,10 @@ test('setUserTranslationPreferences merges the change into the saved row', async
   const result = await setUserTranslationPreferences({ primary: 'ylt', secondary: null });
 
   assert.deepEqual(result, { success: true });
-  const upsert = supabaseFake.callsFor('user_translation_preferences')[1];
+  const upsert = assertDefined(
+    supabaseFake.callsFor('user_translation_preferences')[1],
+    'upsert call'
+  );
   assert.deepEqual(upsert.payload, {
     user_id: 'user-7',
     primary_translation: 'ylt',
@@ -465,7 +474,10 @@ test('setUserTranslationPreferences creates a first row that defaults the primar
 
   assert.deepEqual(await setUserTranslationPreferences({ audio: 'web' }), { success: true });
 
-  const upsert = supabaseFake.callsFor('user_translation_preferences')[1];
+  const upsert = assertDefined(
+    supabaseFake.callsFor('user_translation_preferences')[1],
+    'upsert call'
+  );
   assert.equal((upsert.payload as { primary_translation: string }).primary_translation, 'BSB');
   assert.equal(
     (upsert.payload as { secondary_translation: string | null }).secondary_translation,
@@ -507,7 +519,10 @@ test('a translation choice is saved with the time it was made, not the upload ti
   });
 
   assert.deepEqual(result, { success: true });
-  const upsert = supabaseFake.callsFor('user_translation_preferences')[1];
+  const upsert = assertDefined(
+    supabaseFake.callsFor('user_translation_preferences')[1],
+    'the preference upsert'
+  );
   assert.equal((upsert.payload as { synced_at: string }).synced_at, '2026-03-01T00:00:00.000Z');
   assert.equal((upsert.payload as { primary_translation: string }).primary_translation, 'ylt');
 });
@@ -631,7 +646,10 @@ test('syncTranslationPreferences pushes a local snapshot that is newer than the 
   });
 
   assert.deepEqual(result, { success: true, data: upserted });
-  const upsert = supabaseFake.callsFor('user_translation_preferences')[1];
+  const upsert = assertDefined(
+    supabaseFake.callsFor('user_translation_preferences')[1],
+    'upsert call'
+  );
   assert.deepEqual(upsert.payload, {
     user_id: 'user-7',
     primary_translation: 'ylt',
@@ -653,7 +671,10 @@ test('syncTranslationPreferences creates the remote row when the user has none',
   const result = await syncTranslationPreferences({ primary: 'asv' });
 
   assert.equal(result.success, true);
-  const upsert = supabaseFake.callsFor('user_translation_preferences')[1];
+  const upsert = assertDefined(
+    supabaseFake.callsFor('user_translation_preferences')[1],
+    'upsert call'
+  );
   assert.deepEqual(
     {
       primary: (upsert.payload as { primary_translation: string }).primary_translation,

@@ -496,6 +496,9 @@ export const mr = {
     notificationsBlockedNotice:
       'तुमच्या उपकरणाच्या सेटिंग्जमध्ये Every Bible च्या सूचना बंद आहेत, त्यामुळे हे स्मरणपत्र दिसू शकत नाही.',
     openDeviceSettings: 'सेटिंग्ज उघडा',
+    notificationsNotAllowedNotice:
+      'हे स्मरणपत्र दिसण्यासाठी Every Bible ला या उपकरणावर सूचना पाठवण्याची परवानगी हवी आहे.',
+    allowNotifications: 'सूचनांना परवानगी द्या',
     selectLanguage: 'इंटरफेस भाषा निवडा',
     deleteAccount: 'खाते हटवा',
     deleteAccountWarning:

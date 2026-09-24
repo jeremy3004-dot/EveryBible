@@ -1,7 +1,12 @@
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import i18n from '../../i18n';
 import { useAuthStore } from '../../stores/authStore';
 import { isDiscreetModeActive, usePrivacyStore } from '../../stores/privacyStore';
+import { mayDailyReminderBeScheduled } from './dailyReminderScheduleMarker';
+
+type NotificationServiceLoader = () => Promise<
+  Pick<typeof import('./notificationService'), 'reconcileDailyReminder'>
+>;
 
 export interface DailyReminderReconciler {
   /** Resolves once every reconcile queued so far has finished. */
@@ -18,19 +23,29 @@ export interface DailyReminderReconciler {
  * OS did not restore).
  *
  * notificationService is imported lazily: it pulls in the expo-notifications
- * root, which must stay off the startup path. Reconciles run one at a time so a
- * cancel can never land after the schedule that followed it.
+ * root, which must stay off the startup path. With the reminder off it is not
+ * loaded at all unless a reminder may still be scheduled (see
+ * dailyReminderScheduleMarker.ts) — except on Android, where the reminder channel's
+ * name must follow the language and discreet mode even while the reminder is off,
+ * and App.tsx has loaded the service for channel setup anyway. Reconciles run one at
+ * a time so a cancel can never land after the schedule that followed it; the skip is
+ * decided in turn too, after any schedule queued before it has set the flag.
  */
-export function installDailyReminderReconciler(): DailyReminderReconciler {
+export function installDailyReminderReconciler(
+  loadNotificationService: NotificationServiceLoader = () => import('./notificationService')
+): DailyReminderReconciler {
   let queue: Promise<void> = Promise.resolve();
 
   const reconcile = () => {
     const { notificationsEnabled, reminderTime } = useAuthStore.getState().preferences;
     queue = queue
-      .then(() => import('./notificationService'))
-      .then(({ reconcileDailyReminder }) =>
-        reconcileDailyReminder({ notificationsEnabled, reminderTime })
-      )
+      .then(async () => {
+        if (!notificationsEnabled && Platform.OS !== 'android' && !mayDailyReminderBeScheduled()) {
+          return;
+        }
+        const { reconcileDailyReminder } = await loadNotificationService();
+        await reconcileDailyReminder({ notificationsEnabled, reminderTime });
+      })
       .catch(() => {
         // Best-effort: the next launch, foreground or preference change retries.
       });

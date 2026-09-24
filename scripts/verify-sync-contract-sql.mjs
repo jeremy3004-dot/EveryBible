@@ -1103,4 +1103,133 @@ assert.equal(
   false
 );
 
+// ---------------------------------------------------------------------------
+// merge_user_progress clock bound (20260924122045, on top of 20260924111958)
+// ---------------------------------------------------------------------------
+
+for (const file of [
+  '20260924111958_merge_user_progress_same_day_ties.sql',
+  '20260924122045_merge_user_progress_clock_bound.sql',
+]) {
+  await db.exec(
+    await fs.readFile(new URL(`../supabase/migrations/${file}`, import.meta.url), 'utf8')
+  );
+}
+const DAY = 24 * 60 * 60 * 1000;
+/** The UTC calendar day `offset` days from the server's today. */
+const utcDayFromToday = async (offset) =>
+  (
+    await one(`select to_char((now() at time zone 'UTC')::date + $1::int, 'YYYY-MM-DD') as d`, [
+      offset,
+    ])
+  ).d;
+const [today, tomorrow, yesterday] = [
+  await utcDayFromToday(0),
+  await utcDayFromToday(1),
+  await utcDayFromToday(-1),
+];
+const setProgress = (uid, fields) =>
+  db.query(
+    `update public.user_progress set chapters_read = $2::jsonb, streak_days = $3,
+       last_read_date = $4::date where user_id = $1`,
+    [uid, JSON.stringify(fields.chapters_read ?? {}), fields.streak_days, fields.last_read_date]
+  );
+/** Asserts a stored chapter time is the bound: now() + 1 day, give or take the test's run time. */
+const assertAtBound = (readAt, label) => {
+  const bound = Date.now() + DAY;
+  assert.equal(typeof readAt, 'number', label);
+  assert.ok(Number.isInteger(readAt), `${label}: whole milliseconds`);
+  assert.ok(readAt <= bound && readAt > bound - 60_000, `${label}: ${readAt} vs ${bound}`);
+};
+const CLOCK = '44444444-4444-4444-8444-444444444444';
+await signUp(CLOCK);
+await db.query(`insert into public.user_progress (user_id) values ($1)`, [CLOCK]);
+const clockUpload = (overrides = {}) => upload({ user_id: CLOCK, ...overrides });
+
+// The same-day tie rules of 20260924111958 still hold.
+await setProgress(CLOCK, { streak_days: 5, last_read_date: today });
+progress = await mergeProgress(CLOCK, clockUpload({ last_read_date: today, streak_days: 3 }));
+assert.equal(progress.rows[0].streak_days, 5, 'same day: the longer run');
+
+// Honest values pass through untouched: today, tomorrow (UTC+14), an exact chapter time.
+const honestReadAt = Date.now() - 60_000;
+progress = await mergeProgress(
+  CLOCK,
+  clockUpload({ chapters_read: { JHN_1: honestReadAt }, last_read_date: tomorrow, streak_days: 6 })
+);
+assert.equal(dateOf(progress.rows[0]), tomorrow, 'a date one day ahead is kept');
+assert.equal(progress.rows[0].streak_days, 6);
+assert.equal(progress.rows[0].chapters_read.JHN_1, honestReadAt, 'an honest time is exact');
+
+// An upload from a clock a month ahead: its date counts as UTC tomorrow, not next month.
+await setProgress(CLOCK, { streak_days: 9, last_read_date: yesterday });
+const monthAhead = await utcDayFromToday(30);
+progress = await mergeProgress(
+  CLOCK,
+  clockUpload({
+    chapters_read: { GEN_1: Date.now() + 30 * DAY, GEN_2: 1e22 },
+    last_read_date: monthAhead,
+    streak_days: 1,
+  })
+);
+assert.equal(dateOf(progress.rows[0]), tomorrow, 'a future upload date is bounded');
+assert.equal(progress.rows[0].streak_days, 1, 'the later (bounded) date still owns the streak');
+assertAtBound(progress.rows[0].chapters_read.GEN_1, 'a future upload time');
+assertAtBound(progress.rows[0].chapters_read.GEN_2, 'an absurd upload time');
+
+// A row written before the bound existed, holding a date two months ahead: an honest
+// upload is compared with the bound, and the row is stored back repaired.
+await setProgress(CLOCK, {
+  chapters_read: { MAT_1: 9e15, MAT_2: honestReadAt },
+  streak_days: 2,
+  last_read_date: await utcDayFromToday(60),
+});
+progress = await mergeProgress(CLOCK, clockUpload({ last_read_date: today, streak_days: 7 }));
+assert.equal(dateOf(progress.rows[0]), tomorrow, 'a stored future date is repaired to the bound');
+assert.equal(progress.rows[0].streak_days, 2, 'the stored (bounded, later) date keeps its streak');
+assertAtBound(progress.rows[0].chapters_read.MAT_1, 'a stored future time');
+assert.equal(progress.rows[0].chapters_read.MAT_2, honestReadAt);
+assert.deepEqual(await progressOf(CLOCK), progress.rows[0]);
+// Once the row is at the bound, a reader on the same (UTC+14) day ties with it.
+progress = await mergeProgress(CLOCK, clockUpload({ last_read_date: tomorrow, streak_days: 7 }));
+assert.deepEqual([dateOf(progress.rows[0]), progress.rows[0].streak_days], [tomorrow, 7]);
+// An upload with no date still repairs a stored future date.
+await setProgress(CLOCK, { streak_days: 4, last_read_date: await utcDayFromToday(90) });
+progress = await mergeProgress(CLOCK, clockUpload({ last_read_date: null, streak_days: null }));
+assert.deepEqual([dateOf(progress.rows[0]), progress.rows[0].streak_days], [tomorrow, 4]);
+
+// The first write for an account (no row yet) is bounded the same way.
+const CLOCK_NO_ROW = '55555555-5555-4555-8555-555555555555';
+await signUp(CLOCK_NO_ROW);
+progress = await mergeProgress(
+  CLOCK_NO_ROW,
+  clockUpload({
+    user_id: CLOCK_NO_ROW,
+    chapters_read: { REV_22: Date.now() + 400 * DAY },
+    last_read_date: await utcDayFromToday(400),
+  })
+);
+assert.equal(dateOf(progress.rows[0]), tomorrow);
+assertAtBound(progress.rows[0].chapters_read.REV_22, 'a first-write future time');
+
+// Validation and access are unchanged.
+for (const [payload, reason] of [
+  [clockUpload({ chapters_read: { GEN_1: '2026-09-01' } }), 'string timestamp'],
+  [clockUpload({ last_read_date: '2026-02-30' }), 'not a calendar date'],
+  [clockUpload({ streak_days: -1 }), 'negative streak'],
+]) {
+  await assert.rejects(mergeProgress(CLOCK, payload), { code: '22023' }, reason);
+}
+await assert.rejects(
+  mergeProgress(CLOCK, clockUpload({ user_id: READER })),
+  { code: '42501' },
+  'a payload for another account is still refused'
+);
+await assert.rejects(mergeProgress(null, clockUpload()), /permission denied/, 'anon still cannot');
+const boundedFn = await one(
+  `select prosecdef, proconfig from pg_proc where proname = 'merge_user_progress'`
+);
+assert.equal(boundedFn.prosecdef, false);
+assert.deepEqual(boundedFn.proconfig, ['search_path=""']);
+
 console.log('verify-sync-contract-sql: all checks passed');

@@ -15,6 +15,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { assertDefined } from '../../utils/assertDefined';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const migrationsDir = path.join(repoRoot, 'supabase/migrations');
@@ -57,13 +58,17 @@ function replayCatalogPolicies(): Map<string, Policy> {
     for (const statement of statementsIn(file)) {
       const dropped = dropPattern.exec(statement);
       if (dropped) {
-        policies.delete(dropped[1]);
+        policies.delete(assertDefined(dropped[1], 'dropped policy name'));
         continue;
       }
       if (/^create policy .* on (?:public\.)?"?translation_catalog"? /.test(statement)) {
         const created = createPattern.exec(statement);
         assert.ok(created, `Unparsed translation_catalog policy in ${file}: ${statement}`);
-        const [, name, command, roles, using] = created;
+        const [, rawName, rawCommand, rawRoles, rawUsing] = created;
+        const name = assertDefined(rawName, 'policy name');
+        const command = assertDefined(rawCommand, 'policy command');
+        const roles = assertDefined(rawRoles, 'policy roles');
+        const using = assertDefined(rawUsing, 'policy using clause');
         policies.set(name, {
           name,
           command,
@@ -162,7 +167,9 @@ function replayAdminOnlyCatalogColumns(): Set<string> {
       if (!altered) {
         continue;
       }
-      for (const [, action, column] of altered[1].matchAll(columnChange)) {
+      const alteredClause = assertDefined(altered[1], 'alter table clause');
+      for (const [, action, rawColumn] of alteredClause.matchAll(columnChange)) {
+        const column = assertDefined(rawColumn, 'altered column name');
         if (!(ADMIN_ONLY_COLUMNS as readonly string[]).includes(column)) {
           continue;
         }

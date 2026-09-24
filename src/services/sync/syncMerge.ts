@@ -171,16 +171,103 @@ const resolveReadingPosition = (
   };
 };
 
+const isCalendarDate = (value: unknown): value is string => {
+  const match = typeof value === 'string' ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(value) : null;
+  if (!match) {
+    return false;
+  }
+  const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return (
+    year >= 1 &&
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  );
+};
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** The device's local calendar day, as progressStore writes lastReadDate. */
+const localDateKey = (date: Date): string =>
+  [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-');
+
+interface ClockBound {
+  today: string;
+  latestReadDate: string;
+  nowMs: number;
+  latestReadAt: number;
+}
+
+/**
+ * The latest read date and chapter time that can be real at `now`. A device
+ * whose clock runs ahead writes both from its future: the server keeps the
+ * later date, so one such device zeroed every other device's streak until that
+ * date came round, and its chapter times won every position tie. One day of
+ * slack covers time zones (a reader further east, or one who flew west over the
+ * date line, is legitimately a day ahead). Past that the value cannot have
+ * happened yet, so it is taken as happening now: a read date becomes this
+ * device's today and a chapter time this instant. merge_user_progress applies
+ * the same bound (UTC current_date + 1, now() + 1 day) from migration
+ * 20260924122045; keep the two in step.
+ */
+const clockBound = (now: Date): ClockBound | null => {
+  const nowMs = now.getTime();
+  if (!Number.isFinite(nowMs)) {
+    return null;
+  }
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return {
+    today: localDateKey(now),
+    latestReadDate: localDateKey(tomorrow),
+    nowMs,
+    latestReadAt: nowMs + DAY_MS,
+  };
+};
+
+const boundReadDate = <T>(date: T, bound: ClockBound | null): T | string =>
+  bound && isCalendarDate(date) && date > bound.latestReadDate ? bound.today : date;
+
+const boundChapterTimes = (
+  chapters: Record<string, number>,
+  bound: ClockBound | null
+): Record<string, number> => {
+  // Only real numbers: anything else is left for the merge and upload to drop.
+  const isAhead = (readAt: unknown) =>
+    bound !== null && Number.isFinite(readAt) && (readAt as number) > bound.latestReadAt;
+  if (!bound || !Object.values(chapters).some(isAhead)) {
+    return chapters;
+  }
+  return Object.fromEntries(
+    Object.entries(chapters).map(([key, readAt]) => [key, isAhead(readAt) ? bound.nowMs : readAt])
+  );
+};
+
 /**
  * The server applies the same rules atomically in merge_user_progress
  * (migration 20260924041000); keep the two in step.
  */
 export const mergeReadingSnapshot = (
   localState: LocalReadingSnapshot,
-  remoteData: RemoteUserProgress | null
+  remoteData: RemoteUserProgress | null,
+  now: Date = new Date()
 ): ReadingMergeResult => {
-  const remoteChapters = (remoteData?.chapters_read as Record<string, number>) || {};
-  const chaptersRead = mergeChapterProgress(localState.chaptersRead, remoteChapters);
+  // Both sides go through the clock bound first (clockBound), so a date or time
+  // from a clock running ahead, on either device, is merged as now.
+  const bound = clockBound(now);
+  const remoteChapters = boundChapterTimes(
+    (remoteData?.chapters_read as Record<string, number>) || {},
+    bound
+  );
+  const chaptersRead = mergeChapterProgress(
+    boundChapterTimes(localState.chaptersRead, bound),
+    remoteChapters
+  );
   const { readingPosition, positionSource } = resolveReadingPosition(
     localState,
     remoteData,
@@ -188,8 +275,9 @@ export const mergeReadingSnapshot = (
   );
 
   const remoteStreak = remoteData?.streak_days ?? 0;
-  const remoteLastReadDate = remoteData?.last_read_date ?? null;
-  const lastReadDate = getLatestDateString(localState.lastReadDate, remoteLastReadDate);
+  const localLastReadDate = boundReadDate(localState.lastReadDate, bound);
+  const remoteLastReadDate = boundReadDate(remoteData?.last_read_date ?? null, bound);
+  const lastReadDate = getLatestDateString(localLastReadDate, remoteLastReadDate);
   // Keep the streak consistent with whichever side owns the most recent
   // lastReadDate rather than ratcheting with Math.max. A Math.max ratchet would
   // resurrect a stale higher streak from an old remote row even after a
@@ -199,9 +287,9 @@ export const mergeReadingSnapshot = (
   // agree (keeping the local value made each device re-upload its own streak on
   // every sync, flipping the server between them).
   const streakDays =
-    localState.lastReadDate !== null && localState.lastReadDate === remoteLastReadDate
+    localLastReadDate !== null && localLastReadDate === remoteLastReadDate
       ? Math.max(localState.streakDays, remoteStreak)
-      : lastReadDate === remoteLastReadDate && lastReadDate !== localState.lastReadDate
+      : lastReadDate === remoteLastReadDate && lastReadDate !== localLastReadDate
         ? remoteStreak
         : localState.streakDays;
 
@@ -261,21 +349,6 @@ const MAX_UPLOADED_CHAPTERS = 5000;
 const isWholeNumberUpTo = (value: unknown, max: number): value is number =>
   typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= max;
 
-const isCalendarDate = (value: unknown): value is string => {
-  const match = typeof value === 'string' ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(value) : null;
-  if (!match) {
-    return false;
-  }
-  const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])];
-  const date = new Date(Date.UTC(year, month - 1, day));
-  return (
-    year >= 1 &&
-    date.getUTCFullYear() === year &&
-    date.getUTCMonth() === month - 1 &&
-    date.getUTCDate() === day
-  );
-};
-
 const codePointLength = (text: string): number => Array.from(text).length;
 
 /**
@@ -290,6 +363,11 @@ export const buildRemoteProgressPayload = (
   reading: ReadingMergeResult,
   syncedAt: string
 ): RemoteProgressPayload => {
+  // Never upload a date or chapter time past the clock bound (the merge has
+  // already applied it; this holds for any reading handed in).
+  const syncedAtMs = Date.parse(syncedAt);
+  const bound = clockBound(Number.isFinite(syncedAtMs) ? new Date(syncedAtMs) : new Date());
+  const lastReadDate = boundReadDate(reading.progress.lastReadDate, bound);
   const chapters = Object.entries(reading.progress.chaptersRead).filter(
     ([key, readAt]) =>
       typeof readAt === 'number' &&
@@ -306,13 +384,14 @@ export const buildRemoteProgressPayload = (
 
   return {
     user_id: userId,
-    chapters_read: Object.fromEntries(chapters.slice(0, MAX_UPLOADED_CHAPTERS)),
+    chapters_read: boundChapterTimes(
+      Object.fromEntries(chapters.slice(0, MAX_UPLOADED_CHAPTERS)),
+      bound
+    ),
     streak_days: isWholeNumberUpTo(reading.progress.streakDays, 999_999_999)
       ? reading.progress.streakDays
       : null,
-    last_read_date: isCalendarDate(reading.progress.lastReadDate)
-      ? reading.progress.lastReadDate
-      : null,
+    last_read_date: isCalendarDate(lastReadDate) ? lastReadDate : null,
     current_book: hasPosition ? bookId : null,
     current_chapter: hasPosition ? chapter : null,
     synced_at: syncedAt,

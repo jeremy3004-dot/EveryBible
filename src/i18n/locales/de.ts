@@ -814,6 +814,9 @@ export const de = {
     notificationsBlockedNotice:
       'Mitteilungen für Every Bible sind in deinen Geräteeinstellungen ausgeschaltet, daher kann diese Erinnerung nicht erscheinen.',
     openDeviceSettings: 'Einstellungen öffnen',
+    notificationsNotAllowedNotice:
+      'Every Bible braucht deine Erlaubnis, auf diesem Gerät Mitteilungen zu senden, damit diese Erinnerung erscheinen kann.',
+    allowNotifications: 'Mitteilungen erlauben',
     selectLanguage: 'Anzeigesprache wählen',
     deleteAccount: 'Konto löschen',
     deleteAccountWarning:

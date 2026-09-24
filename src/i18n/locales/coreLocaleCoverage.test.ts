@@ -53,7 +53,7 @@ for (const languageCode of coreLocaleCodes) {
     const untranslated = criticalLocalizedKeys.filter((key) => {
       const localeValue = localeEntries[key];
       const englishValue = englishEntries[key];
-      return localeValue === englishValue && /[A-Za-z]/.test(localeValue);
+      return localeValue === englishValue && /[A-Za-z]/.test(localeValue ?? '');
     });
 
     assert.deepEqual(untranslated, []);

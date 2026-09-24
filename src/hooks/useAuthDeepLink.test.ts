@@ -2,6 +2,7 @@ import test, { afterEach, before, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { mockModule, sourcePath } from '../testing/mockModules';
 import { createReactHookRuntime } from '../testing/reactHookRuntime';
+import { assertDefined } from '../utils/assertDefined';
 
 // There is no React renderer in this workspace, so `react` is the shared hook
 // runtime: the hook is mounted by hand and its effects run at commit time.
@@ -105,8 +106,9 @@ test('a normal cold start with no launch URL handles nothing', async () => {
 test('every warm deep link that arrives is handed to the auth handler', async () => {
   mountHook();
 
-  linking.listeners[0]({ url: 'com.everybible.app://reset-password#one' });
-  linking.listeners[0]({ url: 'com.everybible.app://reset-password#two' });
+  const onUrl = assertDefined(linking.listeners[0], 'first url listener');
+  onUrl({ url: 'com.everybible.app://reset-password#one' });
+  onUrl({ url: 'com.everybible.app://reset-password#two' });
   await flushMicrotasks();
 
   assert.deepEqual(handledUrls, [

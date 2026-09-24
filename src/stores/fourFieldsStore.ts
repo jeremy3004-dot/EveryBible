@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { privateDataStorage, registerPrivateDataStore } from './privateDataScope';
 import { mergeGuestFourFields } from './privateDataAdoption';
 import { FieldType, Group, GroupMember, GroupProgress } from '../types/course';
+import { assertDefined } from '../utils/assertDefined';
 import {
   asBooleanRecord,
   asNullableString,
@@ -244,7 +245,11 @@ export const useFourFieldsStore = create<FourFieldsState>()(
           // If leader left, promote the oldest member
           let updatedMembers = remainingMembers;
           if (!remainingMembers.some((m) => m.role === 'leader')) {
-            const oldestMember = [...remainingMembers].sort((a, b) => a.joinedAt - b.joinedAt)[0];
+            // remainingMembers is non-empty here (the empty case returned above).
+            const oldestMember = assertDefined(
+              [...remainingMembers].sort((a, b) => a.joinedAt - b.joinedAt)[0],
+              'the oldest remaining group member'
+            );
             updatedMembers = remainingMembers.map((m) =>
               m.id === oldestMember.id ? { ...m, role: 'leader' as const } : m
             );

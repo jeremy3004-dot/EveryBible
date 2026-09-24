@@ -832,6 +832,9 @@ export const ar = {
     notificationsBlockedNotice:
       'إشعارات Every Bible متوقفة في إعدادات جهازك، لذلك لا يمكن أن يظهر هذا التذكير.',
     openDeviceSettings: 'فتح الإعدادات',
+    notificationsNotAllowedNotice:
+      'يحتاج Every Bible إلى إذن لإرسال الإشعارات على هذا الجهاز حتى يظهر هذا التذكير.',
+    allowNotifications: 'السماح بالإشعارات',
     selectLanguage: 'اختر لغة الواجهة',
     deleteAccount: 'حذف الحساب',
     deleteAccountWarning:

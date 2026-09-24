@@ -15,8 +15,9 @@ import {
   textContent as textOf,
   within,
 } from '../../testing/render';
-import { readingPlans } from '../../data/readingPlans.generated';
+import { readingPlanEntriesByPlanId, readingPlans } from '../../data/readingPlans.generated';
 import type { ReadingPlan, UserReadingPlanProgress } from '../../services/plans/types';
+import type { ListeningHistoryEntry } from '../../stores/libraryModel';
 import type { ReadingPlansStoreApi } from '../../stores/readingPlansStore';
 
 // Recurring plans read their day from the calendar, so the zone and clock are pinned.
@@ -75,19 +76,27 @@ function SwipeableFake({
   );
 }
 
-mockModule(mock, sourcePath('stores/libraryStore.ts'), {
-  useLibraryStore: create(() => ({ history: [] })),
-});
-mockModule(mock, sourcePath('stores/progressStore.ts'), {
-  useProgressStore: create(() => ({ chaptersRead: {} })),
-});
-// Cover art is bundled PNGs, which Node cannot require.
+const libraryStore = create(() => ({ history: [] as ListeningHistoryEntry[] }));
+const progressStore = create(() => ({ chaptersRead: {} as Record<string, number> }));
+mockModule(mock, sourcePath('stores/libraryStore.ts'), { useLibraryStore: libraryStore });
+mockModule(mock, sourcePath('stores/progressStore.ts'), { useProgressStore: progressStore });
+// Cover art is bundled PNGs, which Node cannot require. Every plan row draws its
+// cover each time it renders, so the lookups count row renders.
 const plansWithoutArt = new Set<string>();
+const coverLookups: string[] = [];
 mockModule(mock, sourcePath('services/plans/readingPlanAssets.ts'), {
   READING_PLAN_COVER_SOURCES: [],
-  getReadingPlanCoverSource: (plan: ReadingPlan) =>
-    plansWithoutArt.has(plan.id) ? null : { uri: `cover:${plan.cover_key}` },
+  getReadingPlanCoverSource: (plan: ReadingPlan) => {
+    coverLookups.push(plan.id);
+    return plansWithoutArt.has(plan.id) ? null : { uri: `cover:${plan.cover_key}` };
+  },
 });
+/** Which plan rows render while `action` runs. */
+async function rowRendersDuring(action: () => Promise<unknown>): Promise<string[]> {
+  coverLookups.length = 0;
+  await action();
+  return [...coverLookups];
+}
 
 // The service boundary: the bundled catalog, the background progress hydration
 // and the unenroll call, each controllable. Unenrolling edits the real store.
@@ -111,7 +120,8 @@ mockModule(mock, sourcePath('services/plans/readingPlanService.ts'), {
   listReadingPlans: async () => {
     service.listCalls += 1;
     await service.catalogGate?.promise;
-    return { success: true, data: CATALOG };
+    // A fresh array of the same plans each call, as the real service sorts a copy.
+    return { success: true, data: [...CATALOG] };
   },
   getUserPlanProgress: async () => {
     service.hydrateCalls += 1;
@@ -191,6 +201,8 @@ afterEach(async () => {
   });
   plansWithoutArt.clear();
   swipeCloses.length = 0;
+  progressStore.setState({ chaptersRead: {} });
+  libraryStore.setState({ history: [] });
 });
 
 async function renderHome() {
@@ -274,6 +286,30 @@ test('the eyebrow counts the reader’s own active and completed plans, dropping
   const onlyCompleted = await renderHome();
   assert.ok(onlyCompleted.getByText(t('readingPlans.completedCount', { count: 1 })));
   assert.equal(onlyCompleted.queryByText(/active/), null);
+});
+
+// Progress can outlive its plan: a plan retired from the bundled catalog keeps its
+// persisted row. Neither list shows it, so the header must not count it either.
+test('the eyebrow counts only plans the catalog still has', async () => {
+  await seed(
+    progressRow(PSALMS),
+    progressRow('retired-plan'),
+    progressRow('retired-finished', {
+      is_completed: true,
+      completed_at: '2026-09-21T10:00:00.000Z',
+    })
+  );
+  const view = await renderHome();
+
+  assert.ok(view.getByText(t('readingPlans.activeCount', { count: 1 })));
+  assert.equal(view.queryByText(/ · /), null, 'no completed half');
+  await view.unmount();
+
+  await seed(progressRow('retired-plan'));
+  const onlyRetired = await renderHome();
+  assert.ok(onlyRetired.getByText(t('readingPlans.noActivePlans')));
+  assert.ok(onlyRetired.getByText(t('readingPlans.plansCount', { count: CATALOG.length })));
+  assert.equal(onlyRetired.queryByText(/active/), null);
 });
 
 test('the three plan tabs are one full-width switch, pinned in the sticky header, with no Saved tab', async () => {
@@ -474,6 +510,36 @@ test('active plans split into Daily readings and Daily rhythms, each card announ
   });
   assert.ok(within(kathisma).getByText(sessions));
   assert.ok(within(kathisma).getByText(t('readingPlans.morningLabel')));
+});
+
+test('within a section, the most recently started plan comes first', async () => {
+  await seed(
+    progressRow(GOSPELS, { started_at: '2026-09-19T09:00:00.000Z' }),
+    progressRow(PSALMS, { started_at: '2026-09-22T09:00:00.000Z' }),
+    progressRow('epistles-30-days', { started_at: '2026-09-21T09:00:00.000Z' })
+  );
+  const view = await renderHome();
+
+  const readings = sectionOf(view, t('readingPlans.dailyReadings'));
+  assert.deepEqual(
+    within(readings)
+      .getAllByRole('button')
+      .map((node) => accessibilityLabelOf(node))
+      .filter((label) => label !== t('common.delete')),
+    [titleOf(PSALMS), titleOf('epistles-30-days'), titleOf(GOSPELS)]
+  );
+});
+
+test('an active single-session rhythm offers Continue and shows its percentage', async () => {
+  await seed(progressRow(PROVERBS, { started_at: '2026-09-21T09:00:00.000Z' }));
+  const view = await renderHome();
+
+  const proverbs = view.getByRole('button', { name: titleOf(PROVERBS) });
+  assert.ok(within(proverbs).getByText(t('common.continue')));
+  assert.ok(within(proverbs).getByText('77%'));
+  assert.ok(within(proverbs).getByText(t('readingPlans.dayOf', { current: 24, total: 31 })));
+  const bar = within(proverbs).getByLabelText(t('readingPlans.progress'));
+  assert.ok(bar);
 });
 
 test('a rhythm left on screen overnight moves to the new day when the app comes back', async () => {
@@ -771,6 +837,37 @@ test('search narrows the catalog by title, forgives typos, and has its own empty
   assert.ok(view.getByText(titleOf(PSALMS)), 'a blank query shows everything');
 });
 
+test('tapping a Daily rhythms card or the body of a browse row opens that plan', async () => {
+  const view = await renderHome();
+  await openTab(view, 'readingPlans.findPlans');
+
+  await view.press(view.getByRole('button', { name: titleOf(KATHISMA) }));
+  await view.press(
+    view.getByRole('button', {
+      name: `${titleOf(GOSPELS)}, ${t('readingPlans.daysCount', { count: 60 })}`,
+    })
+  );
+
+  assert.deepEqual(navigateCalls(), [
+    ['PlanDetail', { planId: KATHISMA }],
+    ['PlanDetail', { planId: GOSPELS }],
+  ]);
+});
+
+test('leaving Find plans and coming back starts a fresh search', async () => {
+  const view = await renderHome();
+  await openTab(view, 'readingPlans.findPlans');
+  const label = t('readingPlans.searchPlansCount', { count: CATALOG.length });
+  await view.changeText(view.getByLabelText(label), 'proverbs');
+  assert.equal(view.queryByText(titleOf(PSALMS)), null);
+
+  await openTab(view, 'readingPlans.myPlans');
+  await openTab(view, 'readingPlans.findPlans');
+
+  assert.equal(view.getByLabelText(label).props.value, '');
+  assert.ok(view.getByText(titleOf(PSALMS)));
+});
+
 test('the plans surface has no featured hero, challenges, saved or rhythm-builder entry points', async () => {
   const view = await renderHome();
   for (const tab of ['readingPlans.myPlans', 'readingPlans.findPlans', 'readingPlans.completed']) {
@@ -833,6 +930,34 @@ test('a finished plan is listed under Completed with its date and chip, opens it
   assert.ok(view.getByRole('header', { name: t('readingPlans.noCompletedPlans') }));
 });
 
+test('completed plans list the most recently started first, and a row without a finish date shows none', async () => {
+  await seed(
+    progressRow(GOSPELS, {
+      is_completed: true,
+      completed_at: '2026-09-20T10:00:00.000Z',
+      started_at: '2026-07-01T09:00:00.000Z',
+    }),
+    progressRow(PSALMS, {
+      is_completed: true,
+      completed_at: null,
+      started_at: '2026-08-01T09:00:00.000Z',
+    })
+  );
+  const view = await renderHome();
+  await openTab(view, 'readingPlans.completed');
+
+  const section = sectionOf(view, t('readingPlans.completed'));
+  const rows = within(section)
+    .getAllByRole('button')
+    .filter((node) => accessibilityLabelOf(node) !== t('common.delete'));
+  assert.deepEqual(
+    rows.map((node) => accessibilityLabelOf(node)),
+    [titleOf(PSALMS), titleOf(GOSPELS)]
+  );
+  assert.equal(within(rows[0]).queryByText(/\d{4}/), null);
+  assert.ok(within(rows[1]).getByText('Sep 20, 2026'));
+});
+
 // ---- Large text ------------------------------------------------------------------
 
 /** The column that holds a row's title. */
@@ -882,4 +1007,139 @@ test('plan metadata that appears nowhere else may take two lines', async () => {
   assert.equal(view.getByText(sessions).props.numberOfLines, 2);
   const eyebrow = view.getByText(`${t('readingPlans.activeCount', { count: 2 })}`);
   assert.equal(eyebrow.props.numberOfLines, 2);
+});
+
+// ---------------------------------------------------------------------------
+// Render cost
+// ---------------------------------------------------------------------------
+
+const kathismaMorningChapters = () =>
+  readingPlanEntriesByPlanId[KATHISMA].filter(
+    (entry) => entry.day_number === 5 && entry.session_key === 'morning'
+  ).flatMap((entry) =>
+    Array.from(
+      { length: (entry.chapter_end ?? entry.chapter_start) - entry.chapter_start + 1 },
+      (_, index) => `${entry.book}_${entry.chapter_start + index}`
+    )
+  );
+
+test('reading a chapter moves an active rhythm on to its next session', async () => {
+  await seed(progressRow(KATHISMA));
+  const view = await renderHome();
+  const kathisma = () => view.getByRole('button', { name: titleOf(KATHISMA) });
+  assert.ok(within(kathisma()).getByText(t('readingPlans.morningLabel')));
+
+  const now = Date.now();
+  await act(async () => {
+    progressStore.setState({
+      chaptersRead: Object.fromEntries(kathismaMorningChapters().map((key) => [key, now])),
+    });
+  });
+
+  const sessions = `${t('readingPlans.morningLabel')} ${t('readingPlans.sessionDone')} • ${t('readingPlans.eveningLabel')} ${t('readingPlans.sessionNext')}`;
+  assert.ok(within(kathisma()).getByText(sessions));
+  assert.ok(within(kathisma()).getByText(t('readingPlans.eveningLabel')));
+});
+
+test('reading or listening elsewhere does not re-render the catalog or completed rows', async () => {
+  await seed(
+    progressRow(PSALMS),
+    progressRow(GOSPELS, { is_completed: true, completed_at: '2026-09-20T10:00:00.000Z' })
+  );
+  const view = await renderHome();
+  const record = () =>
+    rowRendersDuring(() =>
+      act(async () => {
+        progressStore.setState({ chaptersRead: { PSA_1: Date.now() } });
+        libraryStore.setState({
+          history: [
+            { id: 'PSA_1', bookId: 'PSA', chapter: 1, listenedAt: Date.now(), progress: 1 },
+          ],
+        });
+      })
+    );
+
+  await openTab(view, 'readingPlans.findPlans');
+  assert.deepEqual(await record(), []);
+  await openTab(view, 'readingPlans.completed');
+  assert.deepEqual(await record(), []);
+});
+
+test('refining a search re-renders only the rows it changes', async () => {
+  const view = await renderHome();
+  await openTab(view, 'readingPlans.findPlans');
+  const input = view.getByLabelText(t('readingPlans.searchPlansCount', { count: CATALOG.length }));
+  /** Each catalog row on screen, and whether it leads its card (no divider above it). */
+  const catalogRows = () =>
+    new Map(
+      CATALOG.flatMap((plan) => {
+        const row = view.queryByRole('button', { name: new RegExp(`^${titleOf(plan.id)}, `) });
+        return row ? [[plan.id, flattenStyle(row.props.style)?.borderTopWidth === undefined]] : [];
+      })
+    );
+  // A rhythm card left in the results is not redrawn.
+  await view.changeText(input, 'proverbs');
+  assert.ok(view.getByRole('button', { name: titleOf(PROVERBS) }));
+  assert.deepEqual(await rowRendersDuring(() => view.changeText(input, 'proverbs ')), []);
+
+  await view.changeText(input, 'gospels');
+  const shown = CATALOG.filter((plan) => view.queryByText(t(plan.title_key))).map(
+    (plan) => plan.id
+  );
+  const rowsBefore = catalogRows();
+  assert.ok(shown.includes(GOSPELS) && !shown.includes(PSALMS), shown.join());
+
+  // The same results: nothing to redraw.
+  assert.deepEqual(await rowRendersDuring(() => view.changeText(input, 'gospels ')), []);
+
+  // Back to the whole catalog: the rows that were hidden are drawn, and of those already
+  // shown only a row that stops leading its card, since it gains a divider.
+  const drawn = await rowRendersDuring(() => view.changeText(input, ''));
+  const rowsAfter = catalogRows();
+  const hidden = CATALOG.map((plan) => plan.id).filter((id) => !shown.includes(id));
+  const lostTheLead = [...rowsBefore].filter(([id, leads]) => leads !== rowsAfter.get(id));
+  assert.ok(lostTheLead.length < rowsBefore.size, 'some shown rows keep their place');
+  assert.deepEqual(
+    drawn.filter((id) => !hidden.includes(id)).sort(),
+    lostTheLead.map(([id]) => id).sort()
+  );
+  assert.deepEqual(drawn.filter((id) => hidden.includes(id)).sort(), [...hidden].sort());
+});
+
+test('progress on one active plan re-renders only that plan’s card', async () => {
+  const store = await seed(progressRow(PSALMS), progressRow(GOSPELS));
+  await renderHome();
+
+  const drawn = await rowRendersDuring(() =>
+    act(async () => {
+      store.getState().upsertProgress(progressRow(PSALMS, { current_day: 2 }));
+    })
+  );
+
+  assert.deepEqual(drawn, [PSALMS]);
+});
+
+test('pull to refresh does not redraw plan rows that did not change', async () => {
+  await seed(progressRow(PSALMS), progressRow(PROVERBS));
+  const view = await renderHome();
+  const [page] = view.queryAllByType('ScrollView');
+  const refreshing = () =>
+    view.queryAllByType('ScrollView')[0].props.refreshControl.props.refreshing;
+  service.catalogGate = gate();
+
+  const drawn = await rowRendersDuring(async () => {
+    let refreshed!: Promise<void>;
+    await act(async () => {
+      refreshed = (page.props.refreshControl.props.onRefresh as () => Promise<void>)();
+    });
+    assert.equal(refreshing(), true);
+    service.catalogGate?.open();
+    await act(async () => {
+      await refreshed;
+    });
+    await view.flush();
+  });
+
+  assert.deepEqual(drawn, []);
+  assert.equal(refreshing(), false);
 });

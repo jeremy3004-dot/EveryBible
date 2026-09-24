@@ -50,7 +50,8 @@ export function base64UrlToBytes(value: string): Uint8Array | null {
 
   for (let i = 0; i < input.length; i += 1) {
     const code = input.charCodeAt(i);
-    const sextet = code < 128 ? BASE64URL_REVERSE[code] : -1;
+    // Codes past the 128-entry table are outside the alphabet too.
+    const sextet = BASE64URL_REVERSE[code] ?? -1;
     if (sextet < 0) return null;
     buffer = (buffer << 6) | sextet;
     bits += 6;
@@ -154,7 +155,7 @@ export function verifyEs256CompactJws(
 ): { payload: Uint8Array; protectedHeader: Record<string, unknown> } | null {
   const segments = compactJws.split('.');
   if (segments.length !== 3) return null;
-  const [encodedHeader, encodedPayload, encodedSignature] = segments;
+  const [encodedHeader = '', encodedPayload = '', encodedSignature = ''] = segments;
 
   const publicKey = jwkToUncompressedPoint(jwk);
   if (!publicKey) return null;

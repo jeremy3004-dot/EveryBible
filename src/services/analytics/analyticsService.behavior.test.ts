@@ -129,7 +129,7 @@ test('starting a session queues a session_started event', () => {
 test('the session_started event carries the new session id', () => {
   analytics.startSession('session-1');
 
-  assert.equal(persisted()[0].session_id, 'session-1');
+  assert.equal(persisted()[0]?.session_id, 'session-1');
 });
 
 test('starting a second session replaces the current id', () => {
@@ -155,7 +155,7 @@ test('the session_ended event is still tagged with the session that ended', () =
 
   analytics.endSession();
 
-  assert.equal(persisted()[1].session_id, 'session-1');
+  assert.equal(persisted()[1]?.session_id, 'session-1');
 });
 
 test('ending a session that was never started queues nothing', () => {
@@ -179,8 +179,8 @@ test('a tracked event reaches the shared queue with its name and properties', ()
   analytics.trackEvent('chapter_opened', { book: 'GEN', chapter: 1 });
 
   const [event] = persisted();
-  assert.equal(event.event_name, 'chapter_opened');
-  assert.deepEqual(event.event_properties, {
+  assert.equal(event?.event_name, 'chapter_opened');
+  assert.deepEqual(event?.event_properties, {
     book: 'GEN',
     chapter: 1,
     analytics_schema_version: 2,
@@ -190,13 +190,13 @@ test('a tracked event reaches the shared queue with its name and properties', ()
 test('a tracked event with no properties still queues', () => {
   analytics.trackEvent('chapter_opened');
 
-  assert.deepEqual(persisted()[0].event_properties, { analytics_schema_version: 2 });
+  assert.deepEqual(persisted()[0]?.event_properties, { analytics_schema_version: 2 });
 });
 
 test('an event tracked outside a session carries a null session id', () => {
   analytics.trackEvent('chapter_opened');
 
-  assert.equal(persisted()[0].session_id, null);
+  assert.equal(persisted()[0]?.session_id, null);
 });
 
 test('an event tracked during a session is tagged with the current session id', () => {
@@ -204,7 +204,7 @@ test('an event tracked during a session is tagged with the current session id', 
 
   analytics.trackEvent('chapter_opened');
 
-  assert.equal(persisted()[1].session_id, 'session-1');
+  assert.equal(persisted()[1]?.session_id, 'session-1');
 });
 
 test('an event tracked after the session ended is untagged again', () => {
@@ -213,7 +213,7 @@ test('an event tracked after the session ended is untagged again', () => {
 
   analytics.trackEvent('chapter_opened');
 
-  assert.equal(persisted()[2].session_id, null);
+  assert.equal(persisted()[2]?.session_id, null);
 });
 
 test('the pending count reports the shared queue depth', () => {
@@ -293,10 +293,10 @@ test('the engagement summary is read for the signed-in user only', async () => {
   await analytics.getEngagementSummary();
 
   const [call] = supabase.callsFor('user_engagement_summary');
-  assert.equal(call.operation, 'select');
-  assert.equal(call.columns, '*');
-  assert.equal(call.maybeSingle, true);
-  assert.deepEqual(call.steps.find((step) => step.method === 'eq')?.args, ['user_id', 'user-77']);
+  assert.equal(call?.operation, 'select');
+  assert.equal(call?.columns, '*');
+  assert.equal(call?.maybeSingle, true);
+  assert.deepEqual(call?.steps.find((step) => step.method === 'eq')?.args, ['user_id', 'user-77']);
 });
 
 test('the engagement summary row is returned to the caller', async () => {

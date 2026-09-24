@@ -77,9 +77,9 @@ test('a start-and-end verse range keeps only the verses inside it', async () => 
 
   const [block] = await getPassageText([{ bookId: 'GEN', chapter: 1, startVerse: 3, endVerse: 5 }]);
 
-  assert.equal(block.label, 'Genesis 1:3-5');
+  assert.equal(block?.label, 'Genesis 1:3-5');
   assert.deepEqual(
-    block.verses.map((verse) => verse.verse),
+    block?.verses.map((verse) => verse.verse),
     [3, 4, 5]
   );
 });
@@ -92,7 +92,7 @@ test('a range is inclusive at both ends', async () => {
     { bookId: 'GEN', chapter: 1, startVerse: 1, endVerse: 31 },
   ]);
 
-  assert.equal(block.verses.length, 31);
+  assert.equal(block?.verses.length, 31);
 });
 
 test('a start verse with no end runs to the end of the chapter and gets a "+" label', async () => {
@@ -101,9 +101,9 @@ test('a start verse with no end runs to the end of the chapter and gets a "+" la
 
   const [block] = await getPassageText([{ bookId: 'GEN', chapter: 1, startVerse: 29 }]);
 
-  assert.equal(block.label, 'Genesis 1:29+');
+  assert.equal(block?.label, 'Genesis 1:29+');
   assert.deepEqual(
-    block.verses.map((verse) => verse.verse),
+    block?.verses.map((verse) => verse.verse),
     [29, 30, 31]
   );
 });
@@ -114,8 +114,8 @@ test('an end verse with no start is treated as a whole chapter', async () => {
 
   const [block] = await getPassageText([{ bookId: 'GEN', chapter: 1, endVerse: 5 }]);
 
-  assert.equal(block.label, 'Genesis 1');
-  assert.deepEqual(block.verses, verses);
+  assert.equal(block?.label, 'Genesis 1');
+  assert.deepEqual(block?.verses, verses);
 });
 
 test('verse 0 is honoured as a real start verse rather than treated as absent', async () => {
@@ -125,8 +125,8 @@ test('verse 0 is honoured as a real start verse rather than treated as absent', 
   const [block] = await getPassageText([{ bookId: 'GEN', chapter: 1, startVerse: 0 }]);
 
   // The filter uses `!= null`, not truthiness, so a 0 start still filters.
-  assert.equal(block.label, 'Genesis 1:0+');
-  assert.equal(block.verses.length, 3);
+  assert.equal(block?.label, 'Genesis 1:0+');
+  assert.equal(block?.verses.length, 3);
 });
 
 test('a range that matches no verse yields an empty block rather than dropping it', async () => {
@@ -193,7 +193,7 @@ test('BSB is the default translation when none is given', async () => {
 
   await getPassageText([{ bookId: 'GEN', chapter: 1 }]);
 
-  assert.equal(chapterRequests[0].translationId, 'bsb');
+  assert.equal(chapterRequests[0]?.translationId, 'bsb');
 });
 
 test('an explicit translation is passed through to the chapter reader', async () => {
@@ -202,8 +202,8 @@ test('an explicit translation is passed through to the chapter reader', async ()
 
   const blocks = await getPassageText([{ bookId: 'GEN', chapter: 1 }], 'web');
 
-  assert.equal(chapterRequests[0].translationId, 'web');
-  assert.equal(blocks[0].verses.length, 31);
+  assert.equal(chapterRequests[0]?.translationId, 'web');
+  assert.equal(blocks[0]?.verses.length, 31);
 });
 
 test('a chapter the translation does not carry yields an empty block, not a throw', async () => {
@@ -221,7 +221,7 @@ test('an unknown book id falls back to the raw id in the label', async () => {
     { bookId: 'NOPE', chapter: 2, startVerse: 1, endVerse: 3 },
   ]);
 
-  assert.equal(block.label, 'NOPE 2:1-3');
+  assert.equal(block?.label, 'NOPE 2:1-3');
 });
 
 test('a caller-supplied resolver localises the book name in the label', async () => {
@@ -232,7 +232,7 @@ test('a caller-supplied resolver localises the book name in the label', async ()
     bookNameResolver: (bookId) => (bookId === 'GEN' ? 'Génesis' : bookId),
   });
 
-  assert.equal(block.label, 'Génesis 1');
+  assert.equal(block?.label, 'Génesis 1');
 });
 
 test('a failing chapter read propagates so the caller can show an error', async () => {

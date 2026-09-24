@@ -6,6 +6,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createPrivacyInstallationBootstrap } from '../privacy/privacyInstallationAdapter';
+import { assertDefined } from '../../utils/assertDefined';
 
 function readRelativeSource(relativePath: string): string {
   return readFileSync(fileURLToPath(new URL(relativePath, import.meta.url).href), 'utf8');
@@ -66,7 +67,7 @@ function collectStaticImports(entryFile: string): {
       if (isTypeOnly) {
         continue;
       }
-      const specifier = match[2];
+      const specifier = assertDefined(match[2], 'import specifier');
       if (!specifier.startsWith('.')) {
         packages.set(specifier, [...(packages.get(specifier) ?? []), currentFile]);
         continue;
@@ -487,13 +488,15 @@ test('nothing evaluated before Home loads the expo-notifications root or SQLite'
   });
 
   // Sanity-check that the walker records bare specifiers and follows the store.
-  const app = collectStaticImports(fileURLToPath(new URL(PATH_TO_HOME[0], import.meta.url).href));
+  const app = collectStaticImports(
+    fileURLToPath(new URL(assertDefined(PATH_TO_HOME[0], 'PATH_TO_HOME[0]'), import.meta.url).href)
+  );
   assert.ok(
     app.packages.has('expo-notifications/build/NotificationsHandler'),
     'the boot closure should still register the foreground handler — check the walker if this fails'
   );
   const home = collectStaticImportClosure(
-    fileURLToPath(new URL(PATH_TO_HOME[2], import.meta.url).href)
+    fileURLToPath(new URL(assertDefined(PATH_TO_HOME[2], 'PATH_TO_HOME[2]'), import.meta.url).href)
   );
   assert.ok(
     [...home].some((file) => file.endsWith('src/services/bible/bibleDatabaseSources.ts')),
@@ -540,7 +543,7 @@ test('nothing evaluated before Home imports the large bundled data tables', () =
 
   // The walker must still see the registry itself, which HomeScreen imports through the badge.
   const home = collectStaticImportClosure(
-    fileURLToPath(new URL(PATH_TO_HOME[2], import.meta.url).href)
+    fileURLToPath(new URL(assertDefined(PATH_TO_HOME[2], 'PATH_TO_HOME[2]'), import.meta.url).href)
   );
   assert.ok(
     [...home].some((file) => file.endsWith('src/data/gatherArtwork.ts')),

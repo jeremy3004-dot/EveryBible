@@ -9,7 +9,7 @@ by `scripts/run-workspace-tests.ts`.
 ```bash
 npm test                                   # whole workspace (~10s)
 node --test --experimental-test-module-mocks --import tsx src/path/to/file.test.ts
-npm run typecheck                          # tests are type-checked too
+npm run typecheck                          # tests are type-checked too (plus typecheck:strict)
 npx eslint src/path/to/file.test.ts && npx prettier --check src/path/to/file.test.ts
 
 # Offline text-pack lifecycle checks
@@ -28,6 +28,12 @@ at exit, prefix it with `TSX_DISABLE_CACHE=1`.
 
 Any `*.test.ts` or `*.test.tsx` under `src/`, `scripts/`, `apps/`, `packages/`, or
 `supabase/functions` is picked up automatically. No registration needed.
+
+Tests under `src/services`, `src/stores`, `src/utils`, `src/hooks`, `src/constants` and
+`src/i18n` are also checked with `noUncheckedIndexedAccess` (`tsconfig.strict.json`).
+Read recorded calls by index through `assertDefined` from `src/utils/assertDefined.ts`
+when the test calls, mutates or compares the element with `undefined`; optional chaining
+is enough only when the assertion itself fails on a missing element.
 
 ## What a good test here looks like
 

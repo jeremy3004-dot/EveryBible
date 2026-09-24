@@ -150,9 +150,9 @@ test('a tracked event is queued with its properties and the current session id',
   anonymous.trackAnonymousUsageEvent('audio_completed', { chapter: 3 });
 
   const event = persisted()[1];
-  assert.equal(event.event_name, 'audio_completed');
-  assert.equal(event.session_id, sessionId);
-  assert.deepEqual(event.event_properties, { chapter: 3, analytics_schema_version: 2 });
+  assert.equal(event?.event_name, 'audio_completed');
+  assert.equal(event?.session_id, sessionId);
+  assert.deepEqual(event?.event_properties, { chapter: 3, analytics_schema_version: 2 });
 });
 
 test('a tracked event with no properties still queues', () => {
@@ -160,7 +160,7 @@ test('a tracked event with no properties still queues', () => {
 
   anonymous.trackAnonymousUsageEvent('reading_ended');
 
-  assert.equal(persisted()[1].event_name, 'reading_ended');
+  assert.equal(persisted()[1]?.event_name, 'reading_ended');
 });
 
 // A background audio tick fires after App.tsx already ended the session. It must

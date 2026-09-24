@@ -152,7 +152,7 @@ const parseWithParser = (query: string, parser: bcv_parser): PassageReferenceTar
     return null;
   }
 
-  const [, osisBookId, chapterValue, verseValue] = parsedToken;
+  const [, osisBookId = '', chapterValue, verseValue] = parsedToken;
   const bookId = OSIS_TO_BOOK_ID[osisBookId];
   const book = bookId ? getBookById(bookId) : undefined;
   // The grammar reports "Jude 1" as the whole book (OSIS "Jude"). A bare book name stays a
@@ -166,7 +166,7 @@ const parseWithParser = (query: string, parser: bcv_parser): PassageReferenceTar
   const chapter = chapterValue ? Number(chapterValue) : 1;
   const focusVerse = verseValue ? Number(verseValue) : undefined;
 
-  if (!book || !Number.isInteger(chapter) || chapter < 1 || chapter > book.chapters) {
+  if (!bookId || !book || !Number.isInteger(chapter) || chapter < 1 || chapter > book.chapters) {
     return null;
   }
 

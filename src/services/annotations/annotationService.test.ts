@@ -1,6 +1,7 @@
 import test, { before, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { mockMmkvStorage } from '../../testing/mockModules';
+import { assertDefined } from '../../utils/assertDefined';
 import type { UserAnnotation } from '../supabase/types';
 
 // annotationService is deliberately backend-free: it reads and writes the local
@@ -279,7 +280,10 @@ test('soft deleting an existing annotation succeeds and tombstones the row', asy
   seedStore([makeAnnotation({ id: 'a1' })]);
 
   assert.deepEqual(await service.softDeleteAnnotation('a1'), { success: true });
-  assert.notEqual(useAnnotationStore.getState().annotations[0].deleted_at, null);
+  assert.notEqual(
+    assertDefined(useAnnotationStore.getState().annotations[0], 'the stored annotation').deleted_at,
+    null
+  );
 });
 
 test('soft deleting an unknown id reports "Annotation not found"', async () => {
@@ -407,7 +411,7 @@ test('a newer incoming tombstone replaces the stored active row so deletions pro
     null
   );
 
-  assert.equal(result.merged?.[0].deleted_at, '2026-06-01T00:00:00.000Z');
+  assert.equal(result.merged?.[0]?.deleted_at, '2026-06-01T00:00:00.000Z');
   assert.deepEqual((await service.fetchAnnotations()).data, []);
 });
 

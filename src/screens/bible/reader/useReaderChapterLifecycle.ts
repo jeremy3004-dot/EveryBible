@@ -22,7 +22,12 @@ export interface UseReaderChapterLifecycleInput {
   dismissSelectedVerseSelection: () => void;
   focusVerse: number | undefined;
   followAlongOffsetsRef: RefObject<Record<number, number>>;
-  isLoading: boolean;
+  /**
+   * The route's chapter has finished loading and `verses` hold it. A chapter change
+   * keeps the previous chapter's verses on screen (and `isLoading` false) until the
+   * new ones arrive, so loading alone cannot tell the two chapters apart.
+   */
+  hasLoadedRouteChapter: boolean;
   loadChapter: () => Promise<void>;
   paragraphHeightsRef: RefObject<Record<string, number>>;
   pendingReaderAutoScrollVerseRef: RefObject<number | null>;
@@ -67,7 +72,7 @@ export function useReaderChapterLifecycle({
   dismissSelectedVerseSelection,
   focusVerse,
   followAlongOffsetsRef,
-  isLoading,
+  hasLoadedRouteChapter,
   loadChapter,
   paragraphHeightsRef,
   pendingReaderAutoScrollVerseRef,
@@ -135,7 +140,8 @@ export function useReaderChapterLifecycle({
     }
     readerFocusScrollRef.current.request(focusVerse ?? null);
     pendingReaderAutoScrollVerseRef.current = null;
-    setSelectedVerses([]);
+    // Keep an already-empty selection: a fresh [] re-rendered the screen and verse list.
+    setSelectedVerses((current) => (current.length === 0 ? current : []));
     // Reset monotonic follow-along state on chapter change
     resetFollowAlongClamp();
     if (focusVerse == null) {
@@ -157,8 +163,12 @@ export function useReaderChapterLifecycle({
     verseOffsetsRef,
   ]);
 
+  // Read or listen is chosen once per chapter, from the chapter's own verses: deciding
+  // while the previous chapter was still on screen put an audio-only chapter in read
+  // mode (and a text chapter after an audio-only one in listen mode). Once chosen, a
+  // later mode change by the reader stands.
   useEffect(() => {
-    if (isLoading) {
+    if (!hasLoadedRouteChapter) {
       return;
     }
 
@@ -201,7 +211,7 @@ export function useReaderChapterLifecycle({
     bookId,
     chapter,
     currentTranslation,
-    isLoading,
+    hasLoadedRouteChapter,
     preferredMode,
     verses.length,
     setChapterSessionMode,

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test, { afterEach, before, beforeEach, mock } from 'node:test';
 import { mockModule, mockReactNative, sourcePath } from '../testing/mockModules';
 import { createReactHookRuntime } from '../testing/reactHookRuntime';
+import { assertDefined } from '../utils/assertDefined';
 
 const runtime = createReactHookRuntime();
 mockModule(mock, 'react', runtime.react);
@@ -68,7 +69,7 @@ test('once the app is ready, downloads are reattached through the scheduler', as
   assert.equal(scheduled.length, 1);
   assert.equal(reattachCalls, 0, 'nothing runs until the scheduled slot');
 
-  scheduled[0].run();
+  assertDefined(scheduled[0], 'first scheduled run').run();
   await settle();
   assert.equal(reattachCalls, 1);
 });
@@ -89,9 +90,9 @@ test('returning to the foreground reattaches again and supersedes a pending run'
   rn.AppState.emit('background');
   rn.AppState.emit('active');
   assert.equal(scheduled.length, 2);
-  assert.equal(scheduled[0].cancelled, true);
+  assert.equal(scheduled[0]?.cancelled, true);
 
-  scheduled[1].run();
+  assertDefined(scheduled[1], 'second scheduled run').run();
   await settle();
   assert.equal(reattachCalls, 1);
 });
@@ -100,7 +101,7 @@ test('unmounting cancels a pending run and stops listening for the foreground', 
   const view = mountApp();
   view.unmount();
 
-  assert.equal(scheduled[0].cancelled, true);
+  assert.equal(scheduled[0]?.cancelled, true);
   rn.AppState.emit('background');
   rn.AppState.emit('active');
   assert.equal(scheduled.length, 1);
@@ -110,7 +111,7 @@ test('a failed reattach is logged rather than thrown', async () => {
   reattachFailure = new Error('downloader unavailable');
   mountApp();
 
-  scheduled[0].run();
+  assertDefined(scheduled[0], 'first scheduled run').run();
   await settle();
 
   assert.equal(reattachCalls, 1);

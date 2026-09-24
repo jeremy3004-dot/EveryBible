@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createInstance } from 'i18next';
+import { createInstance, type TFunctionDetailedResult } from 'i18next';
 import { SUPPORTED_LANGUAGES } from '../constants/languages';
 import { en } from './locales/en';
 import { localeLoaders } from './localeLoaders';
@@ -33,6 +33,23 @@ function flatten(tree: object, prefix = ''): Record<string, string> {
   );
 }
 
+/**
+ * i18next only types `t(key, { returnDetails: true })` as a `TFunctionDetailedResult`
+ * when `key` is a literal drawn from the resource keys. Here `key` is a runtime
+ * string built from `flatten()`, so the static return type widens to a union that
+ * can include a plain string. `returnDetails: true` still guarantees an object with
+ * these fields at runtime, so confirm that instead of trusting the wider static type.
+ */
+function expectDetails(result: unknown, description: string): TFunctionDetailedResult<string> {
+  assert.equal(typeof result, 'object', `${description} did not return details`);
+  assert.ok(result !== null, `${description} did not return details`);
+  assert.ok(
+    typeof result === 'object' && result !== null && 'usedLng' in result,
+    `${description} did not return details`
+  );
+  return result as TFunctionDetailedResult<string>;
+}
+
 for (const { code } of SUPPORTED_LANGUAGES) {
   test(`${code} renders every bundled interface string without fallback or unresolved tokens`, async () => {
     const locale = code === 'en' ? en : await localeLoaders[code]();
@@ -50,7 +67,7 @@ for (const { code } of SUPPORTED_LANGUAGES) {
       const variables = Object.fromEntries(
         tokens.map((token) => [token, token === 'count' ? 2 : '7'])
       );
-      const result = t(key, { ...variables, returnDetails: true });
+      const result = expectDetails(t(key, { ...variables, returnDetails: true }), `${code}.${key}`);
       assert.equal(result.usedLng, code, `${code}.${key} fell back`);
       assert.equal(typeof result.res, 'string', `${code}.${key} did not render text`);
       assert.notEqual(result.res, key, `${code}.${key} returned its key`);

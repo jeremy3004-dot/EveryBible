@@ -17,7 +17,7 @@ const directory = new URL('../../assets/book-icons-vector/', import.meta.url);
 // Codebase-wide static lint (not a behaviour test): every book-art placement in the screens
 // renders the shared BookIcon; the renderer itself is checked below on real data.
 test('every existing book-art placement uses the shared vector renderer and its own book ID', () => {
-  const placements = [
+  const placements: [file: string, bookId: string][] = [
     ['../screens/bible/browser/BibleBookRow.tsx', 'book.id'],
     ['../screens/bible/ChapterSelectorScreen.tsx', 'book.id'],
     ['../screens/bible/reader/ReaderListenMode.tsx', 'bookId'],
