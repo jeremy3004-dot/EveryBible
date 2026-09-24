@@ -442,10 +442,6 @@ const mergeWithFieldStamps = (
   const remoteSnapshot = mapRemotePreferences(remotePreferences);
   const local = localSnapshot.preferences;
   const localStamps = localSnapshot.fieldStamps ?? {};
-  // A setting nobody has stamped on either side was never chosen after the
-  // stamps existed; until first-sign-in handling lands it keeps the old
-  // whole-row decision.
-  const unstampedDecision = mergeWithoutFieldStamps(localSnapshot, remotePreferences).preferences;
 
   const preferences: UserPreferences = { ...local };
   const writable = preferences as unknown as Record<keyof UserPreferences, unknown>;
@@ -473,10 +469,12 @@ const mergeWithFieldStamps = (
       takeRemote = remoteValue === true;
     } else if (localTime !== null && remoteTime !== null) {
       takeRemote = remoteTime >= localTime;
-    } else if (remoteTime !== null || localTime !== null) {
-      takeRemote = remoteTime !== null;
     } else {
-      takeRemote = unstampedDecision[field] === remoteValue;
+      // A value without a stamp was never chosen: on the server it is the
+      // signup row's DB default (theme 'dark'), on the device the app default.
+      // A real choice beats it; between two defaults the device's is current,
+      // which is what keeps a first sign-in from importing the DB defaults.
+      takeRemote = remoteTime !== null;
     }
 
     if (takeRemote) {

@@ -411,6 +411,64 @@ test('a server row without the stamp column is merged the legacy way and reports
   assert.equal(merged.fieldStamps, null);
 });
 
+// ---------------------------------------------------------------------------
+// First sign-in (finding 8). Every new account's row is created by the signup
+// trigger with DB defaults (theme 'dark'); those values carry no stamps.
+// ---------------------------------------------------------------------------
+
+const signupRow = (): RemoteUserPreferences =>
+  stampedRow(
+    {
+      theme: 'dark',
+      onboarding_completed: false,
+      appearance_palette: 'el-blue',
+      synced_at: '2026-09-21T09:00:00.000Z',
+    },
+    {}
+  );
+
+test('a first sign-in never lets the signup row defaults replace the device settings', () => {
+  // Signed in from inside onboarding: nothing has been chosen on the device yet.
+  const local: LocalPreferenceSnapshot = {
+    preferences: { ...defaultAuthPreferences, theme: 'light' },
+    updatedAt: null,
+    fieldStamps: {},
+  };
+
+  const merged = mergePreferences(local, signupRow());
+
+  assert.equal(merged.preferences.theme, 'light');
+  assert.notEqual(merged.source, 'remote', 'the device values must be uploaded over the defaults');
+});
+
+test('a first sign-in keeps what the device chose and takes what the account chose', () => {
+  // A fresh phone finished onboarding (language picked there) and never touched
+  // the font; the account chose a large font on another phone last week.
+  const local: LocalPreferenceSnapshot = {
+    preferences: { ...defaultAuthPreferences, language: 'es', onboardingCompleted: true },
+    updatedAt: '2026-09-21T08:00:00.000Z',
+    fieldStamps: {
+      language: '2026-09-21T08:00:00.000Z',
+      onboardingCompleted: '2026-09-21T08:00:00.000Z',
+    },
+  };
+  const account = stampedRow(
+    { font_size: 'large', theme: 'dark', language: 'en', synced_at: '2026-09-14T00:00:00.000Z' },
+    {
+      font_size: '2026-09-14T00:00:00.000Z',
+      theme: '2026-09-14T00:00:00.000Z',
+      language: '2026-09-14T00:00:00.000Z',
+    }
+  );
+
+  const merged = mergePreferences(local, account);
+
+  assert.equal(merged.preferences.fontSize, 'large');
+  assert.equal(merged.preferences.theme, 'dark');
+  assert.equal(merged.preferences.language, 'es');
+  assert.equal(merged.preferences.onboardingCompleted, true);
+});
+
 // Schema contract, not behaviour: the trigger's column list and the client's
 // column map are two copies of one list, and a drift silently stops stamping.
 test('the stamp columns the client knows match the ones the server trigger tracks', () => {

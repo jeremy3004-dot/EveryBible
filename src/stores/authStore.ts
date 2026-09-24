@@ -132,6 +132,69 @@ const fieldStampsEqual = (left: PreferenceFieldStamps, right: PreferenceFieldSta
   );
 };
 
+// The persisted-state upgrades from versions 0-2, unchanged since they shipped.
+const migrateLegacyPreferences = (typedState: AuthState, version: number): AuthState => {
+  if (version < 2) {
+    return {
+      ...typedState,
+      preferences: {
+        ...defaultAuthPreferences,
+        ...typedState.preferences,
+        // Existing installs should not be blocked by the new onboarding gate.
+        onboardingCompleted: typedState.preferences?.onboardingCompleted ?? true,
+      },
+      preferencesUpdatedAt: null,
+    };
+  }
+
+  if (version < 3) {
+    return {
+      ...typedState,
+      preferences: {
+        ...defaultAuthPreferences,
+        ...typedState.preferences,
+      },
+      preferencesUpdatedAt: null,
+    };
+  }
+
+  return {
+    ...typedState,
+    preferences: {
+      ...defaultAuthPreferences,
+      ...typedState.preferences,
+    },
+  };
+};
+
+/**
+ * Per-field stamps for an install from before they existed (persist version 4).
+ * Its only clock is the whole-row preferencesUpdatedAt, so each field that
+ * clock plausibly covers gets it:
+ * - with a sync base, only the fields changed since the last sync;
+ * - a device that has synced an account keeps whole-row semantics (every field),
+ *   exactly how it merged before;
+ * - a guest device only the fields it moved off the app defaults, so its
+ *   untouched defaults never overwrite an account's choices on first sign-in.
+ */
+const seedLegacyPreferenceStamps = (state: AuthState): PreferenceFieldStamps => {
+  const updatedAt = state.preferencesUpdatedAt;
+  if (typeof updatedAt !== 'string' || !Number.isFinite(Date.parse(updatedAt))) {
+    return {};
+  }
+  const preferences = state.preferences;
+  const base = state.preferencesSyncBase;
+  const fields = (Object.keys(defaultAuthPreferences) as (keyof UserPreferences)[]).filter(
+    (field) =>
+      base
+        ? preferences[field] !== base[field]
+        : state.lastSyncedUserId
+          ? true
+          : preferences[field] !== defaultAuthPreferences[field]
+  );
+  return Object.fromEntries(fields.map((field) => [field, updatedAt]));
+};
+
 // Convert Supabase user to app User type
 const mapSupabaseUser = (supabaseUser: {
   id: string;
@@ -422,7 +485,7 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'auth-storage',
-      version: 3,
+      version: 4,
       storage: createJSONStorage(() => zustandStorage),
       migrate: (persistedState: unknown, version) => {
         if (!persistedState || typeof persistedState !== 'object') {
@@ -430,37 +493,10 @@ export const useAuthStore = create<AuthState>()(
         }
 
         const typedState = persistedState as AuthState;
-        if (version < 2) {
-          return {
-            ...typedState,
-            preferences: {
-              ...defaultAuthPreferences,
-              ...typedState.preferences,
-              // Existing installs should not be blocked by the new onboarding gate.
-              onboardingCompleted: typedState.preferences?.onboardingCompleted ?? true,
-            },
-            preferencesUpdatedAt: null,
-          };
-        }
-
-        if (version < 3) {
-          return {
-            ...typedState,
-            preferences: {
-              ...defaultAuthPreferences,
-              ...typedState.preferences,
-            },
-            preferencesUpdatedAt: null,
-          };
-        }
-
-        return {
-          ...typedState,
-          preferences: {
-            ...defaultAuthPreferences,
-            ...typedState.preferences,
-          },
-        };
+        const migrated = migrateLegacyPreferences(typedState, version);
+        return version < 4
+          ? { ...migrated, preferenceFieldStamps: seedLegacyPreferenceStamps(migrated) }
+          : migrated;
       },
       partialize: (state) => ({
         preferences: state.preferences,
