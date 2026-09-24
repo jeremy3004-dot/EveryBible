@@ -70,10 +70,8 @@ Each fix landed with its failing test in the same commit. After all fixes:
 
 ## Deferred server work (not applied)
 
-- `user_reading_plan_progress.completed_sessions jsonb`, `current_session text`
-  so session ticks follow the account across devices (today they stay local,
-  now preserved rather than wiped). The client must not send them until the
-  migration is live, or every plan upsert fails with 42703.
+- ~~`user_reading_plan_progress.completed_sessions jsonb`, `current_session text`~~
+  Written as `20260924120300_reading_plan_session_columns.sql` (see below).
 - ~~`deleted_at` tombstone on `user_reading_plan_progress` (finding 9).~~ Written as `20260924120200_reading_plan_unenroll_tombstones.sql` (a separate table; see below).
 - ~~`edited_at` on `user_preferences` (finding 7).~~ Written as `20260924120000_user_preferences_field_edit_stamps.sql` (see "Server-backed follow-ups" below).
 - Atomic merge RPCs for `user_progress.chapters_read` and plan
@@ -157,3 +155,29 @@ four triggers. The rule, enforced for every client: an enrolment whose
   and a re-join elsewhere can still misjudge that re-join.
 - Missing table (PGRST205/42P01): the unenrol falls back to the old DELETE and
   tombstone reads are treated as empty.
+
+### Plan session ticks follow the account
+
+`20260924120300_reading_plan_session_columns.sql` adds
+`completed_sessions jsonb NOT NULL DEFAULT '{}'` and `current_session text`
+(CHECK morning/midday/evening, NULL allowed) to `user_reading_plan_progress`.
+
+- Installed builds never name the columns, so their upserts leave them alone
+  (a tick is not wiped) and their inserts get the defaults.
+- A session tick now pushes in the background like a day completion. Pushes
+  include the columns when the rows read just before the push have them, omit
+  them when those rows lack them, and retry without them if the upsert is
+  refused with PGRST204/42703, so a release that beats the migration still
+  syncs days.
+- Ticks merge as a union; `current_session` is taken from the side further
+  through the plan (higher `current_day`).
+- Still open (finding 12): two devices writing the same plan row at the same
+  instant can each overwrite the other's newest ticks until the next sync;
+  an atomic merge RPC would close it.
+
+### Order of operations
+
+1. Apply `20260924120000`, `20260924120100`, `20260924120200`,
+   `20260924120300` (in that order; each is additive and safe for the
+   installed builds, verified by `scripts/verify-sync-contract-sql.mjs`).
+2. Then ship the app build that contains these client changes.

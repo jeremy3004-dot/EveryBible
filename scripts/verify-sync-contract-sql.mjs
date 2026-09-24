@@ -20,6 +20,7 @@ const MIGRATIONS = [
   '20260924120000_user_preferences_field_edit_stamps.sql',
   '20260924120100_backfill_user_preferences_field_stamps.sql',
   '20260924120200_reading_plan_unenroll_tombstones.sql',
+  '20260924120300_reading_plan_session_columns.sql',
 ];
 
 const db = new PGlite();
@@ -443,6 +444,52 @@ assert.equal(
   ).n,
   0,
   'an account deletion is not recorded as leaving its plans'
+);
+
+// ---------------------------------------------------------------------------
+// Plan session-tick columns (20260924120300)
+// ---------------------------------------------------------------------------
+
+const SESSION_PLAN = 'kathisma-weekly';
+// The new client's plan upsert: the installed shape plus the two session columns.
+const NEW_CLIENT_PLAN_UPSERT = `
+  insert into public.user_reading_plan_progress (user_id, plan_id, plan_slug, started_at,
+    completed_entries, current_day, is_completed, completed_at, synced_at,
+    completed_sessions, current_session)
+  values ($1, null, $2, $3::timestamptz, '{}'::jsonb, 2, false, null, now(), $4::jsonb, $5)
+  on conflict (user_id, plan_slug) do update set plan_id = excluded.plan_id,
+    started_at = excluded.started_at, completed_entries = excluded.completed_entries,
+    current_day = excluded.current_day, is_completed = excluded.is_completed,
+    completed_at = excluded.completed_at, synced_at = excluded.synced_at,
+    completed_sessions = excluded.completed_sessions, current_session = excluded.current_session
+  returning *`;
+
+// An installed build's insert gets the defaults.
+upserted = await as(A, OLD_CLIENT_PLAN_UPSERT, [A, SESSION_PLAN, enrolledAt, '{}', 1]);
+assert.deepEqual(upserted.rows[0].completed_sessions, {});
+assert.equal(upserted.rows[0].current_session, null);
+
+// The new client records a tick and the next-session pointer.
+const ticks = { '2026-09-22:morning': '2026-09-22T06:00:00.000Z' };
+upserted = await as(A, NEW_CLIENT_PLAN_UPSERT, [
+  A,
+  SESSION_PLAN,
+  enrolledAt,
+  JSON.stringify(ticks),
+  'evening',
+]);
+assert.deepEqual(upserted.rows[0].completed_sessions, ticks);
+
+// An installed build then pushes the same plan: the ticks survive its write.
+upserted = await as(A, OLD_CLIENT_PLAN_UPSERT, [A, SESSION_PLAN, enrolledAt, '{"1": "x"}', 3]);
+assert.deepEqual(upserted.rows[0].completed_sessions, ticks, 'an old build never wipes ticks');
+assert.equal(upserted.rows[0].current_session, 'evening');
+assert.equal(upserted.rows[0].current_day, 3);
+
+// Only real session keys are admitted as the pointer.
+await assert.rejects(
+  as(A, NEW_CLIENT_PLAN_UPSERT, [A, SESSION_PLAN, enrolledAt, '{}', 'midnight']),
+  /current_session_check/
 );
 
 console.log('verify-sync-contract-sql: all checks passed');

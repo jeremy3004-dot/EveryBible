@@ -109,10 +109,18 @@ export function normalizeRemoteReadingPlanProgress(
   };
 }
 
+export type RemoteReadingPlanProgressPayload = Omit<RemoteReadingPlanProgressRow, 'id'>;
+
+/**
+ * The upsert row for one plan. Session ticks are included only when the server
+ * has the columns (migration 20260924120300); naming a missing column makes
+ * PostgREST reject the whole write, so the caller decides.
+ */
 export function buildRemoteReadingPlanProgressPayload(
   progress: UserReadingPlanProgress,
-  userId: string
-): Omit<RemoteReadingPlanProgressRow, 'id' | 'completed_sessions' | 'current_session'> {
+  userId: string,
+  includeSessionColumns = false
+): RemoteReadingPlanProgressPayload {
   const normalizedPlanId = progress.plan_id.trim();
   const remoteUuid = UUID_PLAN_ID_PATTERN.test(normalizedPlanId) ? normalizedPlanId : null;
 
@@ -126,6 +134,12 @@ export function buildRemoteReadingPlanProgressPayload(
     is_completed: progress.is_completed,
     completed_at: progress.completed_at,
     synced_at: progress.synced_at,
+    ...(includeSessionColumns
+      ? {
+          completed_sessions: progress.completed_sessions ?? {},
+          current_session: progress.current_session ?? null,
+        }
+      : {}),
   };
 }
 
@@ -472,7 +486,8 @@ export function isPlanCompleted(durationDays: number, completedCount: number): b
  *
  * Merge rules (mirrors syncPlanProgress in readingPlanService.ts):
  * - completed_entries: union of both (local wins on same key)
- * - current_day: highest of the two
+ * - completed_sessions: union of both (local wins on same key)
+ * - current_day: highest of the two; current_session from the side further along
  * - is_completed: true if either side is completed
  * - completed_at: local value when present, otherwise remote
  * - synced_at: caller-supplied timestamp
@@ -498,7 +513,14 @@ export function mergePlanProgress(
     completed_entries: mergedEntries,
     completed_sessions: mergedCompletedSessions,
     current_day: Math.max(local.current_day, remote.current_day),
-    current_session: local.current_session ?? remote.current_session ?? null,
+    // The next-session pointer belongs to its day: take it from the side that is
+    // further through the plan, and only fall back across sides on the same day.
+    current_session:
+      remote.current_day > local.current_day
+        ? (remote.current_session ?? null)
+        : local.current_day > remote.current_day
+          ? (local.current_session ?? null)
+          : (local.current_session ?? remote.current_session ?? null),
     is_completed: local.is_completed || remote.is_completed,
     completed_at: local.completed_at ?? remote.completed_at,
     synced_at: syncedAt,

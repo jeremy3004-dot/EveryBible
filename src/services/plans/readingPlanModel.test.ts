@@ -17,6 +17,7 @@ import {
   isMultiSessionPlan,
   isPlanCompleted,
   mergePlanProgress,
+  buildRemoteReadingPlanProgressPayload,
   planCompletionPercent,
   reconcileFetchedPlanProgress,
   resolvePlanLedgerDayState,
@@ -698,6 +699,41 @@ test('mergePlanProgress falls back to remote completed_at when local is null', (
 
   const merged = mergePlanProgress(local, remote, '2026-03-25T00:00:00.000Z');
   assert.equal(merged.completed_at, '2026-03-18T00:00:00.000Z');
+});
+
+test('mergePlanProgress takes the next-session pointer from the side that is further along', () => {
+  // Another phone is on day 5 evening; this one still points at day 3 midday.
+  const local = makeProgress({ current_day: 3, current_session: 'midday' });
+  const remote = makeProgress({ current_day: 5, current_session: 'evening' });
+
+  assert.equal(mergePlanProgress(local, remote, 'x').current_session, 'evening');
+  assert.equal(mergePlanProgress(remote, local, 'x').current_session, 'evening');
+});
+
+test('mergePlanProgress unions the session ticks of both sides', () => {
+  const local = makeProgress({ completed_sessions: { '2:morning': '2026-03-02T06:00:00.000Z' } });
+  const remote = makeProgress({ completed_sessions: { '2:midday': '2026-03-02T12:00:00.000Z' } });
+
+  assert.deepEqual(mergePlanProgress(local, remote, 'x').completed_sessions, {
+    '2:morning': '2026-03-02T06:00:00.000Z',
+    '2:midday': '2026-03-02T12:00:00.000Z',
+  });
+});
+
+test('the progress payload carries session ticks only when asked to', () => {
+  const progress = makeProgress({
+    plan_id: 'kathisma-weekly',
+    completed_sessions: { '2:morning': '2026-03-02T06:00:00.000Z' },
+    current_session: 'evening',
+  });
+
+  const withSessions = buildRemoteReadingPlanProgressPayload(progress, 'user-1', true);
+  const legacy = buildRemoteReadingPlanProgressPayload(progress, 'user-1', false);
+
+  assert.deepEqual(withSessions.completed_sessions, { '2:morning': '2026-03-02T06:00:00.000Z' });
+  assert.equal(withSessions.current_session, 'evening');
+  assert.equal('completed_sessions' in legacy, false);
+  assert.equal('current_session' in legacy, false);
 });
 
 test('mergePlanProgress stamps synced_at with the supplied timestamp', () => {

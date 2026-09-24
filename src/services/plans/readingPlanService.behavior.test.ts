@@ -3,6 +3,11 @@ import assert from 'node:assert/strict';
 import type { StateStorage } from 'zustand/middleware';
 import { mockMmkvStorage, mockModule, sourcePath } from '../../testing/mockModules';
 import { createSupabaseFake, makeFakeSession, makeFakeUser } from '../../testing/supabaseFake';
+import {
+  checkAdmits,
+  readRepoMigrations,
+  replayTableMigrations,
+} from '../../testing/migrationSchema';
 import { createSyncIdentityBoundary } from '../sync/syncIdentity';
 import type { UserReadingPlanProgress } from './types';
 
@@ -1652,18 +1657,32 @@ test('the bundled catalog and its day entries are served without querying Supaba
   assert.deepEqual(supabaseFake.calls, []);
 });
 
-test('markPlanSessionComplete stays local for a signed-in reader instead of writing to the cloud', async () => {
+test('markPlanSessionComplete pushes the session tick to the account in the background', async () => {
   signIn('user-a', 4);
   await service.enrollInPlan('kathisma-weekly');
   await flushBackgroundWork();
   supabaseFake.reset();
+  let pushed!: (payload: Record<string, unknown>) => void;
+  const push = new Promise<Record<string, unknown>>((resolve) => {
+    pushed = resolve;
+  });
+  supabaseFake.respondTo('user_reading_plan_progress', (call) => {
+    if (call.operation !== 'upsert') {
+      return { data: [] };
+    }
+    pushed(call.payload as Record<string, unknown>);
+    return { data: remoteRow({ ...(call.payload as object), id: 'remote-k' }) };
+  });
 
   const result = await service.markPlanSessionComplete('kathisma-weekly', 2, 'morning');
+  const payload = await push;
   await flushBackgroundWork();
 
   assert.equal(result.success, true);
   assert.equal(result.data?.current_session, 'evening');
-  assert.deepEqual(supabaseFake.callsFor('user_reading_plan_progress'), []);
+  assert.equal(payload.plan_slug, 'kathisma-weekly');
+  assert.deepEqual(Object.keys(payload.completed_sessions as object).length, 1);
+  assert.equal(payload.current_session, 'evening');
 });
 
 // ---------------------------------------------------------------------------
@@ -1984,4 +2003,135 @@ test('a pull with no tombstones visible keeps every local plan as before', async
     'acts-28-days',
     'psalms-30-days',
   ]);
+});
+
+// ---------------------------------------------------------------------------
+// Session ticks follow the account (migration 20260924120300)
+// ---------------------------------------------------------------------------
+
+type SessionPayload = PlanPayload & {
+  completed_sessions?: Record<string, string>;
+  current_session?: string | null;
+};
+
+test('a plan sync uploads session ticks when the server rows have the columns', async () => {
+  signIn('user-a', 2);
+  planStore().enrollPlan('kathisma-weekly');
+  planStore().markSessionComplete('kathisma-weekly', 2, 'morning', {
+    completionKey: '2026-09-22:morning',
+    dayCompletionKey: '2026-09-22',
+    totalDays: 7,
+    isFinalSession: false,
+    advanceDayOnCompletion: false,
+    nextSessionKey: 'evening',
+  });
+  serveRows([
+    remoteRow({
+      plan_slug: 'kathisma-weekly',
+      completed_sessions: { '2026-09-21:evening': '2026-09-21T19:00:00.000Z' },
+      current_session: null,
+    }),
+  ]);
+
+  const result = await service.syncPlanProgress(Object.values(planStore().progressByPlanId));
+
+  assert.equal(result.success, true);
+  const [pushed] = upsertPayloads() as SessionPayload[];
+  assert.deepEqual(Object.keys(pushed?.completed_sessions ?? {}).sort(), [
+    '2026-09-21:evening',
+    '2026-09-22:morning',
+  ]);
+  assert.equal(pushed?.current_session, 'evening');
+});
+
+test('session ticks from another phone arrive with a pull', async () => {
+  signIn('user-a', 2);
+  planStore().upsertProgress(
+    localProgress('kathisma-weekly', {
+      completed_sessions: { '2026-09-22:morning': '2026-09-22T06:00:00.000Z' },
+    })
+  );
+  serveRows([
+    remoteRow({
+      plan_slug: 'kathisma-weekly',
+      started_at: '2026-02-02T00:00:00.000Z',
+      completed_sessions: { '2026-09-22:evening': '2026-09-22T19:00:00.000Z' },
+    }),
+  ]);
+
+  await service.getUserPlanProgress();
+
+  assert.deepEqual(
+    Object.keys(planStore().getProgress('kathisma-weekly')?.completed_sessions ?? {}).sort(),
+    ['2026-09-22:evening', '2026-09-22:morning']
+  );
+});
+
+test('a server without the session columns is never sent them', async () => {
+  signIn('user-a', 2);
+  planStore().upsertProgress(
+    localProgress('kathisma-weekly', {
+      completed_sessions: { '2026-09-22:morning': '2026-09-22T06:00:00.000Z' },
+    })
+  );
+  // select('*') rows from a database without the columns simply lack the keys.
+  serveRows([remoteRow({ plan_slug: 'kathisma-weekly' })]);
+
+  const result = await service.syncPlanProgress(Object.values(planStore().progressByPlanId));
+
+  assert.equal(result.success, true);
+  const [pushed] = upsertPayloads() as SessionPayload[];
+  assert.ok(pushed);
+  assert.equal('completed_sessions' in pushed, false);
+  assert.equal('current_session' in pushed, false);
+  // The ticks stay on this phone.
+  assert.ok(planStore().getProgress('kathisma-weekly')?.completed_sessions?.['2026-09-22:morning']);
+});
+
+test('a push refused for a missing session column is retried without the columns', async () => {
+  signIn('user-a', 2);
+  planStore().upsertProgress(localProgress('kathisma-weekly'));
+  const upserts: SessionPayload[][] = [];
+  supabaseFake.respondTo('user_reading_plan_progress', (call) => {
+    if (call.operation === 'select') {
+      return { data: [] }; // no row to detect the columns from
+    }
+    const rows = (Array.isArray(call.payload) ? call.payload : [call.payload]) as SessionPayload[];
+    upserts.push(rows);
+    return upserts.length === 1
+      ? {
+          data: null,
+          error: {
+            code: 'PGRST204',
+            message:
+              "Could not find the 'completed_sessions' column of 'user_reading_plan_progress'",
+          },
+        }
+      : { data: rows.map((row) => remoteRow({ ...row, id: 'server-k' })) };
+  });
+
+  const result = await service.syncPlanProgress(Object.values(planStore().progressByPlanId));
+
+  assert.equal(result.success, true);
+  assert.equal(upserts.length, 2);
+  assert.ok('completed_sessions' in (upserts[0]?.[0] ?? {}));
+  assert.equal('completed_sessions' in (upserts[1]?.[0] ?? {}), false);
+  assert.equal(planStore().getProgress('kathisma-weekly')?.id, 'server-k');
+});
+
+test('every column a plan push writes exists in the migrated table', async () => {
+  const schema = replayTableMigrations('user_reading_plan_progress', readRepoMigrations());
+  signIn('user-a', 2);
+  planStore().upsertProgress(localProgress('kathisma-weekly', { current_session: 'evening' }));
+  serveRows([]);
+
+  await service.syncPlanProgress(Object.values(planStore().progressByPlanId));
+
+  const [pushed] = upsertPayloads() as SessionPayload[];
+  assert.ok(pushed);
+  assert.deepEqual(
+    Object.keys(pushed).filter((column) => !schema.columns.has(column)),
+    []
+  );
+  assert.equal(checkAdmits(schema, 'current_session', 'evening'), true);
 });
