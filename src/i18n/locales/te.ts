@@ -260,6 +260,7 @@ export const te = {
     translationDownloadFailed:
       'ఈ బైబిల్ డౌన్‌లోడ్ పూర్తి కాలేదు. మీ ఇంటర్నెట్ కనెక్షన్‌ను, ఖాళీ నిల్వ స్థలాన్ని తనిఖీ చేసి మళ్లీ ప్రయత్నించండి.',
     searchNoResults: 'మీ శోధనకు సరిపోలే వచనాలు కనిపించలేదు.',
+    chapterOptions: 'అధ్యాయ ఎంపికలు',
     translationSearchNoResults: 'మీ శోధనకు సరిపోలే బైబిళ్లు కనిపించలేదు.',
     translationSearchResultCount_one: '{{count}} బైబిల్',
     translationSearchResultCount_other: '{{count}} బైబిళ్లు',

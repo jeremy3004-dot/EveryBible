@@ -590,6 +590,7 @@ export const fr = {
     translationDownloadFailed:
       'Le téléchargement de cette Bible n’a pas abouti. Vérifiez votre connexion Internet et l’espace de stockage disponible, puis réessayez.',
     searchNoResults: 'Aucun verset ne correspond à votre recherche.',
+    chapterOptions: 'Options du chapitre',
     translationSearchNoResults: 'Aucune Bible ne correspond à votre recherche.',
     translationSearchResultCount_one: '{{count}} Bible',
     translationSearchResultCount_other: '{{count}} Bibles',

@@ -582,6 +582,7 @@ export const es = {
     translationDownloadFailed:
       'Esta Biblia no terminó de descargarse. Revisa tu conexión a internet y el espacio de almacenamiento libre, y vuelve a intentarlo.',
     searchNoResults: 'Ningún versículo coincide con tu búsqueda.',
+    chapterOptions: 'Opciones del capítulo',
     translationSearchNoResults: 'Ninguna Biblia coincide con tu búsqueda.',
     translationSearchResultCount_one: '{{count}} Biblia',
     translationSearchResultCount_other: '{{count}} Biblias',

@@ -258,6 +258,7 @@ export const ne = {
     translationDownloadFailed:
       'यो बाइबल पूरा डाउनलोड हुन सकेन। आफ्नो इन्टरनेट जडान र खाली भण्डारण ठाउँ जाँच गरेर फेरि प्रयास गर्नुहोस्।',
     searchNoResults: 'तपाईंको खोजसँग मिल्ने कुनै पद फेला परेन।',
+    chapterOptions: 'अध्यायका विकल्प',
     translationSearchNoResults: 'तपाईंको खोजसँग मिल्ने कुनै बाइबल फेला परेन।',
     translationSearchResultCount_one: '{{count}} बाइबल',
     translationSearchResultCount_other: '{{count}} बाइबल',

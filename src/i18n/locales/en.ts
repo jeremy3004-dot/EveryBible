@@ -543,6 +543,7 @@ export const en = {
     translationDownloadFailed:
       "This Bible didn't finish downloading. Check your internet connection and free storage space, then try again.",
     searchNoResults: 'No verses match your search.',
+    chapterOptions: 'Chapter options',
     translationSearchNoResults: 'No Bibles match your search.',
     translationSearchResultCount_one: '{{count}} Bible',
     translationSearchResultCount_other: '{{count}} Bibles',

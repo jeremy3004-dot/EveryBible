@@ -595,6 +595,7 @@ export const ar = {
     translationDownloadFailed:
       'لم يكتمل تنزيل هذه النسخة من الكتاب المقدس. تحقّق من اتصالك بالإنترنت ومن مساحة التخزين المتاحة، ثم حاول مرة أخرى.',
     searchNoResults: 'لا توجد آيات مطابقة لبحثك.',
+    chapterOptions: 'خيارات الإصحاح',
     translationSearchNoResults: 'لا توجد نسخ من الكتاب المقدس تطابق بحثك.',
     translationSearchResultCount_one: '{{count}} نسخة من الكتاب المقدس',
     translationSearchResultCount_other: '{{count}} نسخة من الكتاب المقدس',

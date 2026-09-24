@@ -534,6 +534,7 @@ export const zh = {
     translationDownloadFailedTitle: '下载失败',
     translationDownloadFailed: '这本圣经未能完成下载。请检查网络连接和可用存储空间，然后重试。',
     searchNoResults: '未找到匹配的经文。',
+    chapterOptions: '章节选项',
     translationSearchNoResults: '没有与搜索匹配的圣经。',
     translationSearchResultCount_one: '{{count}} 本圣经',
     translationSearchResultCount_other: '{{count}} 本圣经',

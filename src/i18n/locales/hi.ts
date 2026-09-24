@@ -259,6 +259,7 @@ export const hi = {
     translationDownloadFailed:
       'यह बाइबल पूरी तरह डाउनलोड नहीं हो सकी। अपना इंटरनेट कनेक्शन और खाली स्टोरेज जाँचें, फिर दोबारा प्रयास करें।',
     searchNoResults: 'आपकी खोज से मेल खाता कोई पद नहीं मिला।',
+    chapterOptions: 'अध्याय विकल्प',
     translationSearchNoResults: 'आपकी खोज से मेल खाती कोई बाइबल नहीं मिली।',
     translationSearchResultCount_one: '{{count}} बाइबल',
     translationSearchResultCount_other: '{{count}} बाइबलें',

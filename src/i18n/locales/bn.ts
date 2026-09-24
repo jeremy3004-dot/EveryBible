@@ -259,6 +259,7 @@ export const bn = {
     translationDownloadFailed:
       'এই বাইবেলটির ডাউনলোড শেষ হয়নি। আপনার ইন্টারনেট সংযোগ ও খালি জায়গা পরীক্ষা করে আবার চেষ্টা করুন।',
     searchNoResults: 'আপনার অনুসন্ধানের সাথে মেলে এমন কোনো পদ পাওয়া যায়নি।',
+    chapterOptions: 'অধ্যায়ের বিকল্প',
     translationSearchNoResults: 'আপনার অনুসন্ধানের সাথে মেলে এমন কোনো বাইবেল পাওয়া যায়নি।',
     translationSearchResultCount_one: '{{count}}টি বাইবেল',
     translationSearchResultCount_other: '{{count}}টি বাইবেল',

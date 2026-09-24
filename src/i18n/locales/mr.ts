@@ -259,6 +259,7 @@ export const mr = {
     translationDownloadFailed:
       'हे बायबल पूर्ण डाउनलोड झाले नाही. तुमचे इंटरनेट कनेक्शन आणि मोकळी जागा तपासा, मग पुन्हा प्रयत्न करा.',
     searchNoResults: 'तुमच्या शोधाशी जुळणारे कोणतेही वचन सापडले नाही.',
+    chapterOptions: 'अध्यायाचे पर्याय',
     translationSearchNoResults: 'तुमच्या शोधाशी जुळणारे कोणतेही बायबल सापडले नाही.',
     translationSearchResultCount_one: '{{count}} बायबल',
     translationSearchResultCount_other: '{{count}} बायबल',

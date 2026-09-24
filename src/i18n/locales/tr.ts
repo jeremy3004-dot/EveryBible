@@ -565,6 +565,7 @@ export const tr = {
     translationDownloadFailed:
       'Bu Kutsal Kitap tamamen indirilemedi. İnternet bağlantınızı ve boş depolama alanınızı kontrol edip tekrar deneyin.',
     searchNoResults: 'Aramanızla eşleşen ayet bulunamadı.',
+    chapterOptions: 'Bölüm seçenekleri',
     translationSearchNoResults: 'Aramanızla eşleşen Kutsal Kitap bulunamadı.',
     translationSearchResultCount_one: '{{count}} Kutsal Kitap',
     translationSearchResultCount_other: '{{count}} Kutsal Kitap',

@@ -48,8 +48,14 @@ test('the top chrome carries the reference pill, then audio, search and the over
     'BSB',
     t('audio.nowPlaying'),
     t('common.search'),
-    t('tabs.more'),
+    t('bible.chapterOptions'),
   ]);
+  assert.notEqual(
+    t('bible.chapterOptions'),
+    t('tabs.more'),
+    'the overflow menu is not named like the More tab a screen reader also reaches'
+  );
+  assert.equal(view.queryAllByRole('button', { name: t('tabs.more') }).length, 0);
   assert.deepEqual(iconNames(reader.topChrome(view)), [
     'volume-medium-outline',
     'search',
@@ -200,7 +206,7 @@ test('stepping from an audio-only chapter to a text chapter returns to read mode
 test('the overflow menu names the chapter and offers fonts, translation and chapter actions', async () => {
   const view = await renderReader();
 
-  await view.press(view.getByRole('button', { name: t('tabs.more') }));
+  await view.press(view.getByRole('button', { name: t('bible.chapterOptions') }));
 
   const sheet = modalOf(view.getByRole('header', { name: 'John 3' }));
   assert.equal(sheet.props.statusBarTranslucent, true);
@@ -216,7 +222,7 @@ test('the overflow menu names the chapter and offers fonts, translation and chap
 
 test('fonts and settings opens a sheet with the size steppers, themes and all settings', async () => {
   const view = await renderReader();
-  await view.press(view.getByRole('button', { name: t('tabs.more') }));
+  await view.press(view.getByRole('button', { name: t('bible.chapterOptions') }));
   await view.press(view.getByRole('button', { name: t('bible.readerFontsAndSettings') }));
 
   const title = view.getByRole('header', { name: t('bible.fontsAndSettings') });
@@ -232,7 +238,7 @@ test('fonts and settings opens a sheet with the size steppers, themes and all se
 test('the reader text size steppers are one adjustable control that speaks the new size', async () => {
   harness.authStore.getState().setPreferences({ fontSize: 'medium' });
   const view = await renderReader();
-  await view.press(view.getByRole('button', { name: t('tabs.more') }));
+  await view.press(view.getByRole('button', { name: t('bible.chapterOptions') }));
   await view.press(view.getByRole('button', { name: t('bible.readerFontsAndSettings') }));
 
   const stepper = () => view.getByRole('adjustable', { name: t('settings.fontSize') });
@@ -245,7 +251,7 @@ test('the reader text size steppers are one adjustable control that speaks the n
 
 test('the font sheet closes from its labelled backdrop and from the system back gesture', async () => {
   const openSheet = async (view: View) => {
-    await view.press(view.getByRole('button', { name: t('tabs.more') }));
+    await view.press(view.getByRole('button', { name: t('bible.chapterOptions') }));
     await view.press(view.getByRole('button', { name: t('bible.readerFontsAndSettings') }));
     return view.getByRole('header', { name: t('bible.fontsAndSettings') });
   };
@@ -264,7 +270,7 @@ test('the font sheet closes from its labelled backdrop and from the system back 
 
 test('translation selection from the overflow menu shows the shared picker in a fixed-height sheet', async () => {
   const view = await renderReader();
-  await view.press(view.getByRole('button', { name: t('tabs.more') }));
+  await view.press(view.getByRole('button', { name: t('bible.chapterOptions') }));
   await view.press(view.getByRole('button', { name: t('bible.selectTranslation') }));
 
   const [picker] = view.queryAllByType('TranslationPickerList');

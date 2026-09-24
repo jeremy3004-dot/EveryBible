@@ -584,6 +584,7 @@ export const ru = {
     translationDownloadFailed:
       'Эта Библия не скачалась до конца. Проверьте подключение к интернету и свободное место на устройстве, затем попробуйте ещё раз.',
     searchNoResults: 'Подходящие стихи не найдены.',
+    chapterOptions: 'Параметры главы',
     translationSearchNoResults: 'Подходящие Библии не найдены.',
     translationSearchResultCount_one: '{{count}} Библия',
     translationSearchResultCount_other: '{{count}} Библии',

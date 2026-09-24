@@ -565,6 +565,7 @@ export const id = {
     translationDownloadFailed:
       'Alkitab ini belum selesai diunduh. Periksa koneksi internet dan ruang penyimpanan kosong Anda, lalu coba lagi.',
     searchNoResults: 'Tidak ada ayat yang cocok dengan pencarian Anda.',
+    chapterOptions: 'Opsi pasal',
     translationSearchNoResults: 'Tidak ada Alkitab yang cocok dengan pencarian Anda.',
     translationSearchResultCount_one: '{{count}} Alkitab',
     translationSearchResultCount_other: '{{count}} Alkitab',

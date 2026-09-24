@@ -553,6 +553,7 @@ export const ja = {
     translationDownloadFailed:
       'この聖書のダウンロードが完了しませんでした。インターネット接続と空き容量を確認してから、もう一度お試しください。',
     searchNoResults: '該当する節が見つかりません。',
+    chapterOptions: '章の操作',
     translationSearchNoResults: '該当する聖書が見つかりません。',
     translationSearchResultCount_one: '{{count}}件の聖書',
     translationSearchResultCount_other: '{{count}}件の聖書',

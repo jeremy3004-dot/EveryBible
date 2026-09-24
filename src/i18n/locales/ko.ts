@@ -552,6 +552,7 @@ export const ko = {
     translationDownloadFailed:
       '이 성경을 끝까지 다운로드하지 못했습니다. 인터넷 연결과 여유 저장 공간을 확인한 뒤 다시 시도해 주세요.',
     searchNoResults: '검색과 일치하는 절이 없습니다.',
+    chapterOptions: '장 옵션',
     translationSearchNoResults: '검색과 일치하는 성경이 없습니다.',
     translationSearchResultCount_one: '성경 {{count}}권',
     translationSearchResultCount_other: '성경 {{count}}권',

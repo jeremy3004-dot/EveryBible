@@ -568,6 +568,7 @@ export const vi = {
     translationDownloadFailed:
       'Bản Kinh Thánh này chưa tải xuống xong. Hãy kiểm tra kết nối internet và dung lượng trống, rồi thử lại.',
     searchNoResults: 'Không tìm thấy câu nào phù hợp.',
+    chapterOptions: 'Tùy chọn chương',
     translationSearchNoResults: 'Không tìm thấy bản Kinh Thánh nào phù hợp.',
     translationSearchResultCount_one: '{{count}} bản Kinh Thánh',
     translationSearchResultCount_other: '{{count}} bản Kinh Thánh',
