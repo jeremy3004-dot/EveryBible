@@ -6,6 +6,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  type AccessibilityActionEvent,
   type LayoutChangeEvent,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -72,15 +73,23 @@ export function ReminderTimePickerModal({
 
           <View style={styles.timePickerContainer}>
             <TimeColumn
+              label={t('settings.reminderHourLabel')}
               values={REMINDER_HOURS}
               selected={selectedHour}
               onSelect={onSelectHour}
               format={(hour) => hour.toString().padStart(2, '0')}
             />
 
-            <Text style={[styles.timeSeparator, { color: colors.primaryText }]}>:</Text>
+            <Text
+              style={[styles.timeSeparator, { color: colors.primaryText }]}
+              accessible={false}
+              importantForAccessibility="no"
+            >
+              :
+            </Text>
 
             <TimeColumn
+              label={t('settings.reminderMinuteLabel')}
               values={REMINDER_MINUTES}
               selected={selectedMinute}
               onSelect={onSelectMinute}
@@ -113,6 +122,8 @@ export function ReminderTimePickerModal({
 }
 
 interface TimeColumnProps<T extends number | string> {
+  /** What the column sets ("Hour", "Minute"); a screen reader speaks it with the selected value. */
+  label: string;
   values: readonly T[];
   selected: T;
   onSelect: (value: T) => void;
@@ -125,8 +136,13 @@ interface TimeColumnProps<T extends number | string> {
  * highlighted out of sight below it. The modal unmounts its content while hidden, so
  * each opening remounts the column and centres the value selected at that moment; a
  * later tap only moves the highlight, never the column under the finger.
+ *
+ * To a screen reader the column is one adjustable control named for what it sets and
+ * announcing its value ("Hour, 09"); swiping up or down steps through the values, and the
+ * column scrolls to keep the new value in view for anyone following along on screen.
  */
 function TimeColumn<T extends number | string>({
+  label,
   values,
   selected,
   onSelect,
@@ -135,51 +151,84 @@ function TimeColumn<T extends number | string>({
   const { colors } = useTheme();
   const scrollRef = useRef<ScrollView>(null);
   const [openedOn] = useState(selected);
+  const optionLayouts = useRef(new Map<T, { y: number; height: number }>());
 
-  const centreOpenedValue = (value: T, event: LayoutChangeEvent) => {
-    if (value !== openedOn) return;
-    const { y, height } = event.nativeEvent.layout;
+  const centreValue = (value: T, animated: boolean) => {
+    const optionLayout = optionLayouts.current.get(value);
+    if (!optionLayout) return;
     scrollRef.current?.scrollTo({
-      y: Math.max(0, y + height / 2 - TIME_COLUMN_HEIGHT / 2),
-      animated: false,
+      y: Math.max(0, optionLayout.y + optionLayout.height / 2 - TIME_COLUMN_HEIGHT / 2),
+      animated,
     });
   };
 
+  const handleOptionLayout = (value: T, event: LayoutChangeEvent) => {
+    const { y, height } = event.nativeEvent.layout;
+    optionLayouts.current.set(value, { y, height });
+    if (value === openedOn) centreValue(value, false);
+  };
+
+  const handleAccessibilityAction = (event: AccessibilityActionEvent) => {
+    const step =
+      event.nativeEvent.actionName === 'increment'
+        ? 1
+        : event.nativeEvent.actionName === 'decrement'
+          ? -1
+          : 0;
+    const next = values[values.indexOf(selected) + step];
+    if (step === 0 || next === undefined) return;
+    onSelect(next);
+    centreValue(next, true);
+  };
+
   return (
-    <ScrollView
-      ref={scrollRef}
+    <View
       style={styles.timeColumn}
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={styles.timeColumnContent}
+      accessible
+      accessibilityRole="adjustable"
+      accessibilityLabel={label}
+      accessibilityValue={{ text: format(selected) }}
+      accessibilityActions={ADJUSTABLE_ACTIONS}
+      onAccessibilityAction={handleAccessibilityAction}
     >
-      {values.map((value) => (
-        <TouchableOpacity
-          key={value}
-          style={[
-            styles.timeOption,
-            selected === value && { backgroundColor: colors.accentPrimary },
-          ]}
-          accessibilityRole="button"
-          accessibilityState={{ selected: selected === value }}
-          onPress={() => onSelect(value)}
-          onLayout={(event) => centreOpenedValue(value, event)}
-        >
-          <Text
+      {/* iOS folds the options into the adjustable column above; Android needs them hidden. */}
+      <ScrollView
+        ref={scrollRef}
+        style={styles.timeColumnScroll}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.timeColumnContent}
+        importantForAccessibility="no-hide-descendants"
+      >
+        {values.map((value) => (
+          <TouchableOpacity
+            key={value}
             style={[
-              styles.timeOptionText,
-              { color: colors.secondaryText },
-              selected === value && { color: colors.onAccent },
+              styles.timeOption,
+              selected === value && { backgroundColor: colors.accentPrimary },
             ]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: selected === value }}
+            onPress={() => onSelect(value)}
+            onLayout={(event) => handleOptionLayout(value, event)}
           >
-            {format(value)}
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </ScrollView>
+            <Text
+              style={[
+                styles.timeOptionText,
+                { color: colors.secondaryText },
+                selected === value && { color: colors.onAccent },
+              ]}
+            >
+              {format(value)}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
   );
 }
 
 const TIME_COLUMN_HEIGHT = 200;
+const ADJUSTABLE_ACTIONS = [{ name: 'increment' }, { name: 'decrement' }];
 
 const styles = StyleSheet.create({
   timePickerContainer: {
@@ -192,6 +241,10 @@ const styles = StyleSheet.create({
   timeColumn: {
     flex: 1,
     maxWidth: 80,
+    height: TIME_COLUMN_HEIGHT,
+  },
+  timeColumnScroll: {
+    flex: 1,
   },
   timeColumnContent: {
     alignItems: 'center',

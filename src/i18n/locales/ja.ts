@@ -553,6 +553,10 @@ export const ja = {
     translationDownloadFailed:
       'この聖書のダウンロードが完了しませんでした。インターネット接続と空き容量を確認してから、もう一度お試しください。',
     searchNoResults: '該当する節が見つかりません。',
+    chapterOptions: '章の操作',
+    translationSearchNoResults: '該当する聖書が見つかりません。',
+    translationSearchResultCount_one: '{{count}}件の聖書',
+    translationSearchResultCount_other: '{{count}}件の聖書',
     searchUnavailable: 'この翻訳では全文検索はまだ利用できません。',
     noVersesAvailable: '{{book}}{{chapter}}章にはまだ本文がありません。',
     fullBibleComingSoon: 'この章は、この翻訳ではまだ本文でも音声でもご利用いただけません。',
@@ -778,6 +782,8 @@ export const ja = {
     cacheClearError: 'キャッシュを削除できませんでした',
     setReminderTime: 'リマインダーの時刻を設定',
     setTime: '時刻を設定',
+    reminderHourLabel: '時',
+    reminderMinuteLabel: '分',
     permissionRequired: '許可が必要です',
     enableNotifications: '毎日のリマインダーを受け取るには、端末の設定で通知を許可してください。',
     enableNotificationsMessage:

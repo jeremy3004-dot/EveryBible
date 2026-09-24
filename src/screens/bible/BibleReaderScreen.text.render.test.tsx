@@ -196,7 +196,7 @@ test('an unrelated reader re-render keeps the list’s renderItem, so rows are n
   assert.equal(typeof renderItem, 'function');
   const renders = reader.renders.count;
 
-  await view.press(view.getByRole('button', { name: t('tabs.more') }));
+  await view.press(view.getByRole('button', { name: t('bible.chapterOptions') }));
 
   assert.ok(reader.renders.count > renders, 'the screen did re-render');
   assert.equal(renderItemOf(), renderItem);
@@ -229,7 +229,7 @@ test('the verse list skips reader re-renders it takes nothing from, but not size
 
   // Opening and closing the chapter actions sheet re-renders the screen only.
   let renders = reader.renders.count;
-  await view.press(view.getByRole('button', { name: t('tabs.more') }));
+  await view.press(view.getByRole('button', { name: t('bible.chapterOptions') }));
   assert.ok(reader.renders.count > renders, 'the screen did re-render');
   assert.equal(listRenders(), 0, 'opening a sheet does not redraw the verse list');
   renders = reader.renders.count;
@@ -405,7 +405,7 @@ test('feedback contributors get a feedback button in the chrome that opens a key
 test('in read mode the overflow menu also offers chapter feedback', async () => {
   enableFeedback();
   const view = await renderReader();
-  await view.press(view.getByRole('button', { name: t('tabs.more') }));
+  await view.press(view.getByRole('button', { name: t('bible.chapterOptions') }));
 
   const sheet = hostAncestors(view.getByRole('header', { name: 'John 3' })).find(
     (node) => (node.type as string) === 'Modal'
@@ -419,7 +419,7 @@ test('the listen page carries the feedback composer inline and submits it as lis
   chapters.set('JHN:3', []);
   const view = await renderReader();
 
-  await view.press(view.getByRole('button', { name: t('tabs.more') }));
+  await view.press(view.getByRole('button', { name: t('bible.chapterOptions') }));
   const sheet = hostAncestors(view.getByRole('header', { name: 'John 3' })).find(
     (node) => (node.type as string) === 'Modal'
   );

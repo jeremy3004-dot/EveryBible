@@ -18,6 +18,7 @@ import {
   TranslationManageModal,
   TranslationPickerSearchField,
   TranslationRow,
+  TranslationSearchEmptyState,
   pickerStyles as styles,
   translationPickerRowKey,
   translationPickerRowType,
@@ -25,6 +26,7 @@ import {
   useTranslationPickerCatalog,
   useTranslationPickerDownloads,
   useTranslationPickerRows,
+  useTranslationSearchAnnouncement,
   useTranslationSelection,
   type TranslationPickerCallbacks,
   type TranslationPickerRow,
@@ -133,6 +135,7 @@ export function TranslationPickerList({
 
   const { downloadingId, queuedId } = downloadQueueState;
   useDownloadStatusAnnouncements(rows, queuedId);
+  useTranslationSearchAnnouncement(rows, searchQuery);
   const renderTranslationRow = useCallback<ListRenderItem<TranslationPickerRow>>(
     ({ item }) => {
       if (item.type === 'language-search-result') {
@@ -230,6 +233,9 @@ export function TranslationPickerList({
           renderItem={renderTranslationRow}
           ListHeaderComponent={
             <TranslationPickerSearchField value={searchQuery} onChangeText={setSearchQuery} />
+          }
+          ListEmptyComponent={
+            searchQuery.trim().length > 0 ? <TranslationSearchEmptyState /> : null
           }
           keyExtractor={translationPickerRowKey}
           contentContainerStyle={translationListContentStyle}

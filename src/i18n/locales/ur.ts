@@ -555,6 +555,10 @@ export const ur = {
     translationDownloadFailed:
       'یہ بائبل مکمل ڈاؤن لوڈ نہیں ہو سکی۔ اپنا انٹرنیٹ کنکشن اور خالی جگہ چیک کریں، پھر دوبارہ کوشش کریں۔',
     searchNoResults: 'آپ کی تلاش سے کوئی آیت نہیں ملی۔',
+    chapterOptions: 'باب کے اختیارات',
+    translationSearchNoResults: 'آپ کی تلاش سے کوئی بائبل نہیں ملی۔',
+    translationSearchResultCount_one: '{{count}} بائبل',
+    translationSearchResultCount_other: '{{count}} بائبلیں',
     searchUnavailable: 'اس ترجمے میں مکمل متن کی تلاش ابھی دستیاب نہیں ہے۔',
     noVersesAvailable: '{{book}} {{chapter}} کا تحریری متن ابھی دستیاب نہیں ہے۔',
     fullBibleComingSoon: 'یہ باب اس ترجمے میں ابھی متن یا آڈیو کے طور پر دستیاب نہیں ہے۔',
@@ -784,6 +788,8 @@ export const ur = {
     cacheClearError: 'کیشے صاف کرنے میں خرابی',
     setReminderTime: 'یاد دہانی کا وقت مقرر کریں',
     setTime: 'وقت مقرر کریں',
+    reminderHourLabel: 'گھنٹہ',
+    reminderMinuteLabel: 'منٹ',
     permissionRequired: 'اجازت درکار',
     enableNotifications:
       'روزانہ یاد دہانیاں پانے کے لیے براہِ کرم اپنی ڈیوائس کی ترتیبات میں اطلاعات آن کریں۔',

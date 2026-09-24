@@ -565,6 +565,10 @@ export const id = {
     translationDownloadFailed:
       'Alkitab ini belum selesai diunduh. Periksa koneksi internet dan ruang penyimpanan kosong Anda, lalu coba lagi.',
     searchNoResults: 'Tidak ada ayat yang cocok dengan pencarian Anda.',
+    chapterOptions: 'Opsi pasal',
+    translationSearchNoResults: 'Tidak ada Alkitab yang cocok dengan pencarian Anda.',
+    translationSearchResultCount_one: '{{count}} Alkitab',
+    translationSearchResultCount_other: '{{count}} Alkitab',
     searchUnavailable: 'Pencarian teks lengkap belum tersedia untuk terjemahan ini.',
     noVersesAvailable: '{{book}} {{chapter}} belum memiliki teks tertulis.',
     fullBibleComingSoon:
@@ -795,6 +799,8 @@ export const id = {
     cacheClearError: 'Terjadi kesalahan saat menghapus cache',
     setReminderTime: 'Atur waktu pengingat',
     setTime: 'Atur waktu',
+    reminderHourLabel: 'Jam',
+    reminderMinuteLabel: 'Menit',
     permissionRequired: 'Izin diperlukan',
     enableNotifications:
       'Harap aktifkan notifikasi di pengaturan perangkat Anda untuk menerima pengingat harian.',

@@ -259,6 +259,10 @@ export const pa = {
     translationDownloadFailed:
       'ਇਹ ਬਾਈਬਲ ਪੂਰੀ ਡਾਊਨਲੋਡ ਨਹੀਂ ਹੋ ਸਕੀ। ਆਪਣਾ ਇੰਟਰਨੈੱਟ ਕਨੈਕਸ਼ਨ ਅਤੇ ਖਾਲੀ ਥਾਂ ਜਾਂਚੋ, ਫਿਰ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
     searchNoResults: 'ਤੁਹਾਡੀ ਖੋਜ ਨਾਲ ਮੇਲ ਖਾਂਦੀ ਕੋਈ ਆਇਤ ਨਹੀਂ ਮਿਲੀ।',
+    chapterOptions: 'ਅਧਿਆਇ ਦੇ ਵਿਕਲਪ',
+    translationSearchNoResults: 'ਤੁਹਾਡੀ ਖੋਜ ਨਾਲ ਮੇਲ ਖਾਂਦੀ ਕੋਈ ਬਾਈਬਲ ਨਹੀਂ ਮਿਲੀ।',
+    translationSearchResultCount_one: '{{count}} ਬਾਈਬਲ',
+    translationSearchResultCount_other: '{{count}} ਬਾਈਬਲਾਂ',
     searchUnavailable: 'ਇਸ ਅਨੁਵਾਦ ਲਈ ਪੂਰੀ-ਪਾਠ ਖੋਜ ਅਜੇ ਉਪਲਬਧ ਨਹੀਂ ਹੈ।',
     noVersesAvailable: '{{book}} {{chapter}} ਦਾ ਲਿਖਤੀ ਪਾਠ ਅਜੇ ਉਪਲਬਧ ਨਹੀਂ ਹੈ।',
     fullBibleComingSoon: 'ਇਹ ਅਧਿਆਇ ਇਸ ਅਨੁਵਾਦ ਵਿੱਚ ਅਜੇ ਲਿਖਤ ਜਾਂ ਆਡੀਓ ਵਜੋਂ ਉਪਲਬਧ ਨਹੀਂ ਹੈ।',
@@ -487,6 +491,8 @@ export const pa = {
     cacheClearError: 'ਕੈਸ਼ ਸਾਫ਼ ਕਰਨ ਵਿੱਚ ਗਲਤੀ',
     setReminderTime: 'ਰੀਮਾਈਂਡਰ ਸਮਾਂ ਸੈੱਟ ਕਰੋ',
     setTime: 'ਸਮਾਂ ਸੈੱਟ ਕਰੋ',
+    reminderHourLabel: 'ਘੰਟਾ',
+    reminderMinuteLabel: 'ਮਿੰਟ',
     permissionRequired: 'ਇਜਾਜ਼ਤ ਦੀ ਲੋੜ ਹੈ',
     enableNotifications:
       'ਰੋਜ਼ਾਨਾ ਰੀਮਾਈਂਡਰ ਮਿਲਣ ਲਈ ਆਪਣੀ ਡਿਵਾਈਸ ਦੀਆਂ ਸੈਟਿੰਗਾਂ ਵਿੱਚ ਸੂਚਨਾਵਾਂ ਚਾਲੂ ਕਰੋ।',

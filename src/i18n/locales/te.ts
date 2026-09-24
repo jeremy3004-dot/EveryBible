@@ -260,6 +260,10 @@ export const te = {
     translationDownloadFailed:
       'ఈ బైబిల్ డౌన్‌లోడ్ పూర్తి కాలేదు. మీ ఇంటర్నెట్ కనెక్షన్‌ను, ఖాళీ నిల్వ స్థలాన్ని తనిఖీ చేసి మళ్లీ ప్రయత్నించండి.',
     searchNoResults: 'మీ శోధనకు సరిపోలే వచనాలు కనిపించలేదు.',
+    chapterOptions: 'అధ్యాయ ఎంపికలు',
+    translationSearchNoResults: 'మీ శోధనకు సరిపోలే బైబిళ్లు కనిపించలేదు.',
+    translationSearchResultCount_one: '{{count}} బైబిల్',
+    translationSearchResultCount_other: '{{count}} బైబిళ్లు',
     searchUnavailable: 'ఈ అనువాదంలో పూర్తి పాఠ్య శోధన ఇంకా అందుబాటులో లేదు.',
     noVersesAvailable: '{{book}} {{chapter}}కి ఇంకా వ్రాత రూపం అందుబాటులో లేదు.',
     fullBibleComingSoon:
@@ -491,6 +495,8 @@ export const te = {
     cacheClearError: 'కాష్‌ని క్లియర్ చేయడంలో లోపం',
     setReminderTime: 'రిమైండర్ సమయాన్ని సెట్ చేయండి',
     setTime: 'సమయాన్ని సెట్ చేయండి',
+    reminderHourLabel: 'గంట',
+    reminderMinuteLabel: 'నిమిషం',
     permissionRequired: 'అనుమతి అవసరం',
     enableNotifications:
       'దయచేసి రోజువారీ రిమైండర్‌లను స్వీకరించడానికి మీ పరికర సెట్టింగ్‌లలో నోటిఫికేషన్‌లను ప్రారంభించండి.',

@@ -568,6 +568,10 @@ export const vi = {
     translationDownloadFailed:
       'Bản Kinh Thánh này chưa tải xuống xong. Hãy kiểm tra kết nối internet và dung lượng trống, rồi thử lại.',
     searchNoResults: 'Không tìm thấy câu nào phù hợp.',
+    chapterOptions: 'Tùy chọn chương',
+    translationSearchNoResults: 'Không tìm thấy bản Kinh Thánh nào phù hợp.',
+    translationSearchResultCount_one: '{{count}} bản Kinh Thánh',
+    translationSearchResultCount_other: '{{count}} bản Kinh Thánh',
     searchUnavailable: 'Bản dịch này chưa hỗ trợ tìm kiếm toàn văn.',
     noVersesAvailable: '{{book}} {{chapter}} chưa có phần chữ.',
     fullBibleComingSoon: 'Chương này chưa có phần chữ hoặc âm thanh trong bản dịch này.',
@@ -796,6 +800,8 @@ export const vi = {
     cacheClearError: 'Lỗi xóa bộ nhớ đệm',
     setReminderTime: 'Đặt thời gian nhắc nhở',
     setTime: 'Đặt thời gian',
+    reminderHourLabel: 'Giờ',
+    reminderMinuteLabel: 'Phút',
     permissionRequired: 'Cần cấp quyền',
     enableNotifications:
       'Vui lòng bật thông báo trong cài đặt thiết bị để nhận nhắc nhở hằng ngày.',

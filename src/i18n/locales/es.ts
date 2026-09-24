@@ -582,6 +582,11 @@ export const es = {
     translationDownloadFailed:
       'Esta Biblia no terminó de descargarse. Revisa tu conexión a internet y el espacio de almacenamiento libre, y vuelve a intentarlo.',
     searchNoResults: 'Ningún versículo coincide con tu búsqueda.',
+    chapterOptions: 'Opciones del capítulo',
+    translationSearchNoResults: 'Ninguna Biblia coincide con tu búsqueda.',
+    translationSearchResultCount_one: '{{count}} Biblia',
+    translationSearchResultCount_other: '{{count}} Biblias',
+    translationSearchResultCount_many: '{{count}} Biblias',
     searchUnavailable: 'La búsqueda de texto completo aún no está disponible para esta traducción.',
     noVersesAvailable: '{{book}} {{chapter}} aún no tiene texto escrito.',
     fullBibleComingSoon:
@@ -830,6 +835,8 @@ export const es = {
     cacheClearError: 'Error al borrar la caché',
     setReminderTime: 'Establecer hora del recordatorio',
     setTime: 'Establecer hora',
+    reminderHourLabel: 'Hora',
+    reminderMinuteLabel: 'Minuto',
     permissionRequired: 'Permiso requerido',
     enableNotifications:
       'Activa las notificaciones en los ajustes de tu dispositivo para recibir recordatorios diarios.',

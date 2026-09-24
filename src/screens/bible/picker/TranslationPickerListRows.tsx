@@ -64,6 +64,21 @@ export function TranslationPickerSearchField({
   );
 }
 
+/** Shown in place of the rows when a search matches no Bible and no language. */
+export function TranslationSearchEmptyState() {
+  const { colors } = useTheme();
+  const { t } = useI18n();
+
+  return (
+    <Text
+      testID="translation-picker-search-empty"
+      style={[styles.searchEmptyText, { color: colors.bibleSecondaryText }]}
+    >
+      {t('bible.translationSearchNoResults')}
+    </Text>
+  );
+}
+
 export const LanguageSearchResultRow = memo(function LanguageSearchResultRow({
   language,
   isSelected,

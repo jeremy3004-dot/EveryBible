@@ -167,6 +167,45 @@ test('typing re-filters the list without remounting the search field', async () 
   assert.equal(view.getByTestId('translation-picker-search'), input);
 });
 
+test('a query that matches nothing says so under the search field; clearing it brings the list back', async () => {
+  const view = await renderPicker();
+  const input = view.getByTestId('translation-picker-search');
+  assert.equal(view.queryByText(t('bible.translationSearchNoResults')), null);
+
+  await view.changeText(input, 'zzzz');
+  assert.ok(view.getByText(t('bible.translationSearchNoResults')));
+  assert.deepEqual(rowNames(view), []);
+
+  await view.press(view.getByRole('button', { name: t('settings.clear') }));
+  assert.equal(view.queryByText(t('bible.translationSearchNoResults')), null);
+  assert.ok(rowNames(view).includes(BSB.name));
+});
+
+test('once typing pauses, a screen reader hears how many Bibles match, or that none do', async (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout'] });
+  const view = await renderPicker();
+  const input = view.getByTestId('translation-picker-search');
+  const announced = () => harness.rn.__recorded.announcements;
+
+  await view.changeText(input, 'L');
+  await view.changeText(input, 'Luther');
+  await inAct(() => context.mock.timers.tick(699));
+  assert.deepEqual(announced(), [], 'nothing is said while the reader is still typing');
+
+  await inAct(() => context.mock.timers.tick(1));
+  const matches = rowNames(view).length;
+  assert.ok(matches > 0);
+  assert.deepEqual(announced(), [t('bible.translationSearchResultCount', { count: matches })]);
+
+  await view.changeText(input, 'zzzz');
+  await inAct(() => context.mock.timers.tick(700));
+  assert.equal(announced().at(-1), t('bible.translationSearchNoResults'));
+
+  await view.changeText(input, '');
+  await inAct(() => context.mock.timers.tick(700));
+  assert.equal(announced().length, 2, 'clearing the query says nothing');
+});
+
 test('a language search result with several Bibles switches the language and clears the query', async () => {
   const view = await renderPicker();
   await view.changeText(view.getByTestId('translation-picker-search'), 'spanish');

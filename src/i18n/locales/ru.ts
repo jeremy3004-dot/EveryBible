@@ -584,6 +584,12 @@ export const ru = {
     translationDownloadFailed:
       'Эта Библия не скачалась до конца. Проверьте подключение к интернету и свободное место на устройстве, затем попробуйте ещё раз.',
     searchNoResults: 'Подходящие стихи не найдены.',
+    chapterOptions: 'Параметры главы',
+    translationSearchNoResults: 'Подходящие Библии не найдены.',
+    translationSearchResultCount_one: '{{count}} Библия',
+    translationSearchResultCount_other: '{{count}} Библии',
+    translationSearchResultCount_few: '{{count}} Библии',
+    translationSearchResultCount_many: '{{count}} Библий',
     searchUnavailable: 'Полнотекстовый поиск пока недоступен для этого перевода.',
     noVersesAvailable: '{{book}} {{chapter}}: письменного текста пока нет.',
     fullBibleComingSoon: 'Эта глава пока недоступна в этом переводе — ни текстом, ни аудио.',
@@ -835,6 +841,8 @@ export const ru = {
     cacheClearError: 'Ошибка очистки кэша',
     setReminderTime: 'Установить время напоминания',
     setTime: 'Установить время',
+    reminderHourLabel: 'Часы',
+    reminderMinuteLabel: 'Минуты',
     permissionRequired: 'Требуется разрешение',
     enableNotifications:
       'Пожалуйста, включите уведомления в настройках устройства, чтобы получать ежедневные напоминания.',

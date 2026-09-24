@@ -231,7 +231,7 @@ export function ReaderTopChrome({
             setShowChapterActionsSheet(true);
           }}
           accessibilityRole="button"
-          accessibilityLabel={t('tabs.more')}
+          accessibilityLabel={t('bible.chapterOptions')}
         >
           <View style={styles.floatingReaderMenuButtonContent}>
             <Ionicons

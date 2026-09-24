@@ -258,6 +258,10 @@ export const ne = {
     translationDownloadFailed:
       'यो बाइबल पूरा डाउनलोड हुन सकेन। आफ्नो इन्टरनेट जडान र खाली भण्डारण ठाउँ जाँच गरेर फेरि प्रयास गर्नुहोस्।',
     searchNoResults: 'तपाईंको खोजसँग मिल्ने कुनै पद फेला परेन।',
+    chapterOptions: 'अध्यायका विकल्प',
+    translationSearchNoResults: 'तपाईंको खोजसँग मिल्ने कुनै बाइबल फेला परेन।',
+    translationSearchResultCount_one: '{{count}} बाइबल',
+    translationSearchResultCount_other: '{{count}} बाइबल',
     searchUnavailable: 'यस अनुवादका लागि पूर्ण पाठ खोज अझै उपलब्ध छैन।',
     noVersesAvailable: '{{book}} {{chapter}} मा अझै लिखित पाठ छैन।',
     fullBibleComingSoon: 'यो अध्याय यस अनुवादमा अझै पाठ वा अडियोका रूपमा उपलब्ध छैन।',
@@ -509,6 +513,8 @@ export const ne = {
     cacheClearError: 'क्यास खाली गर्दा त्रुटि',
     setReminderTime: 'रिमाइन्डर समय सेट गर्नुहोस्',
     setTime: 'समय सेट गर्नुहोस्',
+    reminderHourLabel: 'घण्टा',
+    reminderMinuteLabel: 'मिनेट',
     permissionRequired: 'अनुमति आवश्यक छ',
     enableNotifications:
       'दैनिक रिमाइन्डर पाउन कृपया आफ्नो यन्त्रको सेटिङमा सूचना सक्रिय गर्नुहोस्।',

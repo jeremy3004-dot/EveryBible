@@ -569,6 +569,10 @@ export const de = {
     translationDownloadFailed:
       'Diese Bibel wurde nicht vollständig heruntergeladen. Prüfe deine Internetverbindung und den freien Speicherplatz und versuche es dann noch einmal.',
     searchNoResults: 'Keine passenden Verse gefunden.',
+    chapterOptions: 'Kapiteloptionen',
+    translationSearchNoResults: 'Keine passenden Bibeln gefunden.',
+    translationSearchResultCount_one: '{{count}} Bibel',
+    translationSearchResultCount_other: '{{count}} Bibeln',
     searchUnavailable: 'Für diese Übersetzung ist noch keine Volltextsuche verfügbar.',
     noVersesAvailable: 'Für {{book}} {{chapter}} gibt es noch keinen geschriebenen Text.',
     fullBibleComingSoon:
@@ -804,6 +808,8 @@ export const de = {
     cacheClearError: 'Fehler beim Löschen des Caches',
     setReminderTime: 'Erinnerungszeit festlegen',
     setTime: 'Zeit einstellen',
+    reminderHourLabel: 'Stunde',
+    reminderMinuteLabel: 'Minute',
     permissionRequired: 'Berechtigung erforderlich',
     enableNotifications:
       'Bitte aktiviere Benachrichtigungen in deinen Geräteeinstellungen, um tägliche Erinnerungen zu erhalten.',

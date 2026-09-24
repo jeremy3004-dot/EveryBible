@@ -565,6 +565,10 @@ export const tr = {
     translationDownloadFailed:
       'Bu Kutsal Kitap tamamen indirilemedi. İnternet bağlantınızı ve boş depolama alanınızı kontrol edip tekrar deneyin.',
     searchNoResults: 'Aramanızla eşleşen ayet bulunamadı.',
+    chapterOptions: 'Bölüm seçenekleri',
+    translationSearchNoResults: 'Aramanızla eşleşen Kutsal Kitap bulunamadı.',
+    translationSearchResultCount_one: '{{count}} Kutsal Kitap',
+    translationSearchResultCount_other: '{{count}} Kutsal Kitap',
     searchUnavailable: 'Bu çeviri için henüz tam metin araması mevcut değil.',
     noVersesAvailable: '{{book}} {{chapter}}. bölümün henüz yazılı metni yok.',
     fullBibleComingSoon: 'Bu bölüm bu çeviride henüz metin ya da ses olarak mevcut değil.',
@@ -795,6 +799,8 @@ export const tr = {
     cacheClearError: 'Önbellek temizlenirken hata oluştu',
     setReminderTime: 'Hatırlatma saatini ayarla',
     setTime: 'Saati ayarla',
+    reminderHourLabel: 'Saat',
+    reminderMinuteLabel: 'Dakika',
     permissionRequired: 'İzin gerekli',
     enableNotifications:
       'Günlük hatırlatıcılar almak için lütfen cihaz ayarlarınızda bildirimleri etkinleştirin.',

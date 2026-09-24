@@ -88,7 +88,7 @@ test('share as image opens the verse image sheet for the selection', async () =>
 // ---- Chapter actions -------------------------------------------------------------
 
 async function openChapterActions(view: View) {
-  await view.press(view.getByRole('button', { name: t('tabs.more') }));
+  await view.press(view.getByRole('button', { name: t('bible.chapterOptions') }));
   const sheet = hostAncestors(view.getByRole('header', { name: 'John 3' })).find(
     (node) => (node.type as string) === 'Modal'
   );
