@@ -67,15 +67,15 @@ test('the current translation leads My Translations ahead of pinned favourites',
   const result = buildTranslationPickerSections(
     [
       { id: 'asv', language: 'English', isDownloaded: true, hasText: true },
-      { id: 'kjv', language: 'English', isDownloaded: true, hasText: true },
+      { id: 'ylt', language: 'English', isDownloaded: true, hasText: true },
       { id: 'bsb', language: 'English', isDownloaded: true, hasText: true },
     ],
     'English',
-    { pinnedIds: ['kjv'], currentTranslationId: 'bsb' }
+    { pinnedIds: ['ylt'], currentTranslationId: 'bsb' }
   );
 
   assert.deepEqual(
     result.myTranslations.map((x) => x.id),
-    ['bsb', 'kjv', 'asv']
+    ['bsb', 'ylt', 'asv']
   );
 });

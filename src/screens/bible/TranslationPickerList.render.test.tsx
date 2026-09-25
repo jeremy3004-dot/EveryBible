@@ -22,7 +22,7 @@ import { flattenStyle, hostAncestors, within } from '../../testing/render';
 import {
   BSB,
   GOSPEL_AUDIO,
-  KJV,
+  EMTV,
   LONG_SPANISH_NAME,
   LUTHER,
   NET,
@@ -81,7 +81,7 @@ test('the picker opens on a search field, the language pill, My Translations, th
   assert.deepEqual(rowNames(view), [
     // The Bible being read leads My Translations; installed ones follow.
     BSB.name,
-    KJV.name,
+    EMTV.name,
     UNKNOWN_COVERAGE_AUDIO.name,
     NET.name,
     GOSPEL_AUDIO.name,
@@ -124,12 +124,12 @@ test('the catalog is announced as loading while it hydrates and rows cannot be o
     language: 'English',
     source: 'runtime',
   });
-  useBibleStore.setState({ translations: [BSB, KJV, placeholder] });
+  useBibleStore.setState({ translations: [BSB, EMTV, placeholder] });
   const view = await renderPicker();
 
   assert.ok(view.getByText(t('common.loading')));
   assert.equal(view.queryByText(placeholder.name), null, 'unreadable placeholders stay hidden');
-  await view.press(rowOf(view, KJV));
+  await view.press(rowOf(view, EMTV));
   assert.deepEqual(log, [], 'rows are disabled until the catalog settles');
 
   await inAct(() => catalog.finish());
@@ -155,7 +155,10 @@ test('typing re-filters the list without remounting the search field', async () 
   assert.equal(input.props.value, 'Luther');
   const names = rowNames(view);
   assert.ok(names.includes(LUTHER.name), 'search spans every language');
-  assert.ok(!names.includes(KJV.name) && !names.includes(NET.name), 'non-matches are filtered out');
+  assert.ok(
+    !names.includes(EMTV.name) && !names.includes(NET.name),
+    'non-matches are filtered out'
+  );
   assert.deepEqual(
     view.getAllByRole('header').map((node) => node.props.children),
     [t('translations.available')],
@@ -240,13 +243,13 @@ test('a language search result with one Bible opens that Bible straight away', a
 
 test('a readable translation activates and closes the sheet', async () => {
   const view = await renderPicker();
-  await view.press(rowOf(view, KJV));
+  await view.press(rowOf(view, EMTV));
 
   assert.deepEqual(log, [
     ['setPreferredTranslationLanguage', 'English'],
-    ['setCurrentTranslation', 'kjv'],
+    ['setCurrentTranslation', 'emtv'],
     ['close'],
-    ['activated', 'kjv'],
+    ['activated', 'emtv'],
   ]);
 });
 
@@ -351,7 +354,7 @@ test('the manage sheet for the current Bible offers pin, the installed text, and
 
 test('BSB with downloaded audio can be hidden or deleted, and its downloaded books show a check', async () => {
   useBibleStore.setState({
-    currentTranslation: 'kjv',
+    currentTranslation: 'emtv',
     translations: ALL.map((translation) =>
       translation.id === 'bsb' ? { ...translation, downloadedAudioBooks: ['GEN'] } : translation
     ),
@@ -383,7 +386,7 @@ test('BSB with downloaded audio can be hidden or deleted, and its downloaded boo
 test('audio rows appear only when the translation has known book coverage it can manage', async () => {
   const view = await renderPicker();
 
-  for (const translation of [KJV, UNKNOWN_COVERAGE_AUDIO]) {
+  for (const translation of [EMTV, UNKNOWN_COVERAGE_AUDIO]) {
     const sheet = await openManageSheet(view, translation);
     assert.equal(within(sheet).queryByRole('header', { name: t('bible.audioDownloads') }), null);
     assert.equal(within(sheet).queryByText(t('bible.byBook')), null, translation.name);

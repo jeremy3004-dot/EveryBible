@@ -283,16 +283,16 @@ test('filterInstallableCatalogEntries keeps alias-backed translations with a cur
   const entries: TranslationCatalogEntry[] = [
     {
       ...baseEntry,
-      translation_id: 'BBE',
-      name: 'Bible in Basic English',
-      abbreviation: 'BBE',
+      translation_id: 'YLT',
+      name: "Young's Literal Translation",
+      abbreviation: 'YLT',
       language_name: 'English',
       sort_order: 6,
       catalog: {
         text: {
-          downloadUrl: 'https://cdn.example.com/text/bbe.db',
+          downloadUrl: 'https://cdn.example.com/text/ylt.db',
           format: 'sqlite',
-          sha256: 'bbe-sha',
+          sha256: 'ylt-sha',
           version: '2026.04.04-v1',
         },
         updatedAt: '2026-04-04T00:00:00.000Z',
@@ -301,16 +301,16 @@ test('filterInstallableCatalogEntries keeps alias-backed translations with a cur
     },
     {
       ...baseEntry,
-      translation_id: 'engBBE',
-      name: 'Bible in Basic English',
-      abbreviation: 'BBE',
+      translation_id: 'engylt',
+      name: "Young's Literal Translation",
+      abbreviation: 'YLT',
       language_name: 'English',
       sort_order: 100,
       catalog: {
         text: {
-          downloadUrl: 'https://cdn.example.com/text/engBBE.db',
+          downloadUrl: 'https://cdn.example.com/text/engylt.db',
           format: 'sqlite',
-          sha256: 'engbbe-sha',
+          sha256: 'engylt-sha',
           version: '2026.04.04-v1',
         },
         updatedAt: '2026-04-04T00:00:00.000Z',
@@ -395,13 +395,13 @@ test('filterInstallableCatalogEntries keeps alias-backed translations with a cur
 
   const filtered = filterInstallableCatalogEntries(
     entries,
-    new Set(['engBBE', 'spaRV1909', 'npiulb'])
+    new Set(['engylt', 'spaRV1909', 'npiulb'])
   );
 
   assert.deepEqual(filtered.map((entry) => entry.translation_id).sort(), [
-    'bbe',
     'npiulb',
     'sparv1909',
+    'ylt',
   ]);
 });
 

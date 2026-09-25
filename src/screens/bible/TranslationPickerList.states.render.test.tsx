@@ -8,7 +8,7 @@ import {
   ALL,
   BSB,
   GOSPEL_AUDIO,
-  KJV,
+  EMTV,
   NET,
   SPANISH_RV,
   UNKNOWN_COVERAGE_AUDIO,
@@ -60,7 +60,7 @@ const textProgress = (translationId: string, progress: number, isIndeterminate =
 // ---------------------------------------------------------------------------
 
 test('a pinned Bible joins My Translations after the current one; a hidden one drops to Available', async () => {
-  usePreferenceStore.setState({ pinnedIds: ['engnet'], hiddenIds: ['kjv'] });
+  usePreferenceStore.setState({ pinnedIds: ['engnet'], hiddenIds: ['emtv'] });
   const view = await renderPicker();
 
   assert.deepEqual(headers(view), [
@@ -71,7 +71,7 @@ test('a pinned Bible joins My Translations after the current one; a hidden one d
     BSB.name,
     NET.name,
     UNKNOWN_COVERAGE_AUDIO.name,
-    KJV.name,
+    EMTV.name,
     GOSPEL_AUDIO.name,
   ]);
 });
@@ -98,11 +98,11 @@ test('a query that matches nothing leaves only the search field', async () => {
 });
 
 test('with a single language there is no language pill', async () => {
-  useBibleStore.setState({ translations: [BSB, KJV, NET] });
+  useBibleStore.setState({ translations: [BSB, EMTV, NET] });
   const view = await renderPicker();
 
   assert.equal(view.queryByTestId('translation-picker-language-pill'), null);
-  assert.deepEqual(rowNames(view), [BSB.name, KJV.name, NET.name]);
+  assert.deepEqual(rowNames(view), [BSB.name, EMTV.name, NET.name]);
 });
 
 // ---------------------------------------------------------------------------
@@ -211,7 +211,7 @@ test('a finished download announces the Bible installed once, as it moves to My 
 
   assert.deepEqual(rowNames(view), [
     BSB.name,
-    KJV.name,
+    EMTV.name,
     NET.name,
     UNKNOWN_COVERAGE_AUDIO.name,
     GOSPEL_AUDIO.name,
@@ -249,8 +249,8 @@ test('a failed text download is reported and offers to try again', async () => {
 test('choosing an installed Bible mid-download opens it, and the download then opens nothing', async () => {
   const view = await renderPicker();
   await startDownload(view, NET);
-  await view.press(rowOf(view, KJV));
-  assert.deepEqual(log.at(-1), ['activated', 'kjv']);
+  await view.press(rowOf(view, EMTV));
+  assert.deepEqual(log.at(-1), ['activated', 'emtv']);
 
   log.length = 0;
   await inAct(() => pending.download?.resolve('installed'));
@@ -371,7 +371,7 @@ test('before the catalog has loaded, choosing a missing Bible retries the catalo
     language: 'English',
     hasText: false,
   });
-  useBibleStore.setState({ translations: [BSB, KJV, bundledOnly] });
+  useBibleStore.setState({ translations: [BSB, EMTV, bundledOnly] });
   catalog.failure = new Error('offline');
   const view = await renderPicker();
   assert.equal(catalog.loads, 1);
@@ -417,7 +417,7 @@ test('opening and closing the manage sheet leaves the rows alone', async () => {
   const view = await renderPicker();
   const mark = harness.renders.mark();
 
-  const sheet = await openManageSheet(view, KJV);
+  const sheet = await openManageSheet(view, EMTV);
   await closeManageSheet(view, sheet);
 
   assert.deepEqual(rowRenders(mark), {});
@@ -474,7 +474,7 @@ test('the language list closes itself when the catalog drops to one language', a
   await view.press(view.getByTestId('translation-picker-language-pill'));
   assert.equal(view.queryByTestId('translation-picker-search'), null);
 
-  await inAct(() => useBibleStore.setState({ translations: [BSB, KJV, NET] }));
+  await inAct(() => useBibleStore.setState({ translations: [BSB, EMTV, NET] }));
 
   assert.ok(view.getByTestId('translation-picker-search'), 'back on the translation list');
   assert.equal(view.queryByTestId('translation-picker-language-pill'), null);
@@ -497,9 +497,9 @@ test('a host re-rendering with fresh callbacks leaves the rows alone, and the ne
   await view.rerender(picker(2));
   assert.deepEqual(rowRenders(mark), {});
 
-  await view.press(rowOf(view, KJV));
+  await view.press(rowOf(view, EMTV));
   assert.deepEqual(log.slice(-2), [
     ['close', 2],
-    ['activated', 'kjv', 2],
+    ['activated', 'emtv', 2],
   ]);
 });

@@ -64,10 +64,10 @@ export const BSB = bible({
   hasAudio: true,
   audioGranularity: 'chapter',
 });
-export const KJV = bible({
-  id: 'kjv',
-  name: 'King James Version',
-  abbreviation: 'KJV',
+export const EMTV = bible({
+  id: 'emtv',
+  name: 'English Majority Text Version',
+  abbreviation: 'EMTV',
   language: 'English',
   isDownloaded: true,
 });
@@ -130,7 +130,7 @@ export const UNKNOWN_COVERAGE_AUDIO = bible({
 
 export const ALL = [
   BSB,
-  KJV,
+  EMTV,
   NET,
   SPANISH_LONG,
   SPANISH_RV,

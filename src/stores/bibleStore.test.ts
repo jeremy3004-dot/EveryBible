@@ -102,9 +102,7 @@ test('the bundled translation list is published to the audio resolver when the s
   assert.deepEqual(importTimeAudioSyncs[0], [
     'bsb',
     'web',
-    'kjv',
     'asv',
-    'bbe',
     'sparv1909',
     'hincv',
     'npiulb',
@@ -426,7 +424,7 @@ test('applyRuntimeCatalog drops cloud translations that left the catalog and wer
   useBibleStore.getState().applyRuntimeCatalog([]);
 
   const ids = useBibleStore.getState().translations.map((translation) => translation.id);
-  assert.deepEqual(ids, ['bsb', 'web', 'kjv', 'asv', 'bbe', 'npiulb']);
+  assert.deepEqual(ids, ['bsb', 'web', 'asv', 'npiulb']);
 });
 
 test('applyRuntimeCatalog falls back to the Berean text when the selected translation disappears', () => {

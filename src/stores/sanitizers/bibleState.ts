@@ -1,5 +1,6 @@
 /** Sanitizer for the persisted `bible-storage` blob: reader position and translations. */
 import { bibleTranslations } from '../../constants/translations';
+import { isWithdrawnTranslationId } from '../../services/translations/translationCatalogVisibility';
 import { getBookById } from '../../constants/books';
 import type { BibleTranslation, TranslationInstallState } from '../../types';
 import { sanitizeBookId, sanitizeBookIds } from './bibleIds';
@@ -174,7 +175,8 @@ const sanitizeBibleTranslations = (
   const runtimeTranslationsById = new Map<string, BibleTranslation>();
   value.forEach((entry) => {
     const runtimeTranslation = sanitizePersistedRuntimeTranslation(entry, runtimeCatalogById);
-    if (runtimeTranslation) {
+    // A withdrawn translation a phone saved earlier is dropped, and a reader on it moves to BSB.
+    if (runtimeTranslation && !isWithdrawnTranslationId(runtimeTranslation.id)) {
       runtimeTranslationsById.set(runtimeTranslation.id, runtimeTranslation);
     }
   });

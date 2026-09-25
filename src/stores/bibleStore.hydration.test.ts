@@ -149,18 +149,45 @@ test('an unusable persisted runtime row is dropped on launch', () => {
 test('every bundled translation is present after hydrating a partial payload', () => {
   assert.deepEqual(
     useBibleStore.getState().translations.map((translation) => translation.id),
-    ['bsb', 'web', 'kjv', 'asv', 'bbe', 'sparv1909', 'hincv', 'npiulb', 'esv1']
+    ['bsb', 'web', 'asv', 'sparv1909', 'hincv', 'npiulb', 'esv1']
   );
 });
 
 test('the hydrated list, including restored cloud translations, reaches the audio resolver', () => {
   assert.deepEqual(importTimeAudioSyncs, [
-    ['bsb', 'web', 'kjv', 'asv', 'bbe', 'sparv1909', 'hincv', 'npiulb', 'esv1'],
+    ['bsb', 'web', 'asv', 'sparv1909', 'hincv', 'npiulb', 'esv1'],
   ]);
 });
 
+test('King James and Basic English are withdrawn: saved rows are dropped and their readers move to BSB', async () => {
+  await rehydrateWith({
+    currentTranslation: 'kjv',
+    translations: [
+      { id: 'kjv', source: 'bundled', isDownloaded: false, installState: 'remote-only' },
+      {
+        id: 'bbe',
+        source: 'runtime',
+        name: 'Bible in Basic English',
+        abbreviation: 'BBE',
+        language: 'English',
+        isDownloaded: true,
+        hasText: true,
+        installState: 'installed',
+        textPackLocalPath: 'file:///packs/bbe.db',
+      },
+    ],
+  });
+
+  assert.equal(findTranslation('kjv'), undefined);
+  assert.equal(findTranslation('bbe'), undefined);
+  assert.equal(useBibleStore.getState().currentTranslation, 'bsb');
+
+  await rehydrateWith({ currentTranslation: 'bbe', translations: [] });
+  assert.equal(useBibleStore.getState().currentTranslation, 'bsb');
+});
+
 test('a persisted selection of an unreadable translation falls back to the Berean text', async () => {
-  await rehydrateWith({ currentTranslation: 'kjv', currentBook: 'GEN', currentChapter: 1 });
+  await rehydrateWith({ currentTranslation: 'sparv1909', currentBook: 'GEN', currentChapter: 1 });
 
   assert.equal(useBibleStore.getState().currentTranslation, 'bsb');
 });
@@ -268,7 +295,6 @@ test('an install the app was killed during is not restored as still in progress'
   await rehydrateWith({
     translations: [
       { id: 'bsb', isDownloaded: true, installState: 'verifying' },
-      { id: 'kjv', isDownloaded: false, installState: 'downloading' },
       makeRuntimeTranslation({
         id: 'esv1',
         isDownloaded: true,
@@ -281,10 +307,9 @@ test('an install the app was killed during is not restored as still in progress'
   });
 
   assert.deepEqual(
-    ['bsb', 'kjv', 'esv1', 'nlt9'].map((id) => [id, findTranslation(id)?.installState]),
+    ['bsb', 'esv1', 'nlt9'].map((id) => [id, findTranslation(id)?.installState]),
     [
       ['bsb', 'seeded'],
-      ['kjv', 'remote-only'],
       ['esv1', 'installed'],
       ['nlt9', 'remote-only'],
     ]
@@ -377,7 +402,7 @@ test('a corrupt persisted payload hydrates to the default translation list', asy
 
   assert.deepEqual(
     useBibleStore.getState().translations.map((translation) => translation.id),
-    ['bsb', 'web', 'kjv', 'asv', 'bbe', 'sparv1909', 'hincv', 'npiulb']
+    ['bsb', 'web', 'asv', 'sparv1909', 'hincv', 'npiulb']
   );
   assert.equal(useBibleStore.getState().currentTranslation, 'bsb');
 });
