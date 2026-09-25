@@ -522,14 +522,17 @@ test("the progress card announces the day and tally in one stop, today's target 
   assert.deepEqual(dotPaint(dots[29]), expected('future'));
 });
 
-test('the plan title is a heading set on the cover in the fixed on-photo colour, over a full-width cover', async () => {
+test('the plan title is a heading set in page ink beneath a full-width 4:3 cover plate', async () => {
+  const { createThemeColors } = await import('../../contexts/ThemeContext');
+  const { DEFAULT_APPEARANCE_PALETTE } = await import('../../constants/appearancePalettes');
+  const palette = createThemeColors('light', DEFAULT_APPEARANCE_PALETTE);
   const view = await renderPlan(PSALMS);
 
   const title = view.getByRole('header', { name: t('readingPlans.psalms30.title') });
-  assert.equal(flattenStyle(title.props.style)?.color, '#FDFAF5');
-  // The cadence/length/book eyebrow is set over the photo too, in its fixed on-photo tint.
+  assert.equal(flattenStyle(title.props.style)?.color, palette.primaryText);
+  // The cadence/length/book eyebrow sits with the title, off the cover art.
   const eyebrow = view.getByText('Book study · 30 days · Psalms');
-  assert.equal(flattenStyle(eyebrow.props.style)?.color, 'rgba(253, 250, 245, 0.82)');
+  assert.equal(flattenStyle(eyebrow.props.style)?.color, palette.secondaryText);
   // The length reads once, in the eyebrow: no duration badge row (related-plan cards aside).
   const insideRelatedPlans = (node: ReactTestInstance) => {
     for (let at: ReactTestInstance | null = node; at; at = at.parent) {
@@ -549,7 +552,8 @@ test('the plan title is a heading set on the cover in the fixed on-photo colour,
   assert.deepEqual(cover.props.source, { uri: 'cover:river' });
   const frame = flattenStyle(cover.props.style)!;
   assert.equal(frame.width, '100%');
-  assert.equal(frame.height, 360);
+  // The 390pt-wide test window shows the whole 4:3 plate: 390 × 3/4.
+  assert.equal(frame.height, 293);
   assert.equal(isHiddenFromAccessibility(cover), true);
 });
 

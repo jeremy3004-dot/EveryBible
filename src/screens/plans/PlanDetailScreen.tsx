@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
@@ -42,14 +43,13 @@ import type { PlanDetailScreenProps } from '../../navigation/types';
 import { getTranslatedBookName } from '../../constants';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
 import {
+  getPlanCoverHeight,
   getPlanDetailCompactHeaderHeight,
   isPlanDetailCompactHeaderVisible,
 } from './planDetailHeaderModel';
 import {
-  COVER_CONTENT_OVERLAP,
-  COVER_HEIGHT,
   DayRow,
-  HERO_TEXT_BOTTOM,
+  HERO_TITLE_GAP,
   PlanDetailCompactHeader,
   PlanDetailHero,
   PlanDetailStatusView,
@@ -74,6 +74,8 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
   const displayFont = useDisplayFont();
   const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
+  const coverHeight = getPlanCoverHeight(windowWidth);
   const tabBar = useTabBarHeight();
   const progress = useReadingPlansStore((state) => state.progressByPlanId[planId] ?? null);
   const getPlanDayResume = useReadingPlansStore((state) => state.getPlanDayResume);
@@ -353,13 +355,12 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
       const nextVisible = isPlanDetailCompactHeaderVisible({
         scrollOffsetY: event.nativeEvent.contentOffset.y,
-        coverHeight: COVER_HEIGHT,
-        heroTextBottom: HERO_TEXT_BOTTOM,
+        titleTop: coverHeight + HERO_TITLE_GAP,
         headerHeight: compactHeaderHeight,
       });
       setIsCompactHeaderVisible((current) => (current === nextVisible ? current : nextVisible));
     },
-    [compactHeaderHeight]
+    [compactHeaderHeight, coverHeight]
   );
   const listContentStyle = useMemo(
     () => ({ paddingBottom: tabBar.contentClearance }),
@@ -370,6 +371,7 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
     <View>
       <PlanDetailHero
         coverSource={heroCoverSource}
+        coverHeight={coverHeight}
         eyebrow={heroEyebrow}
         title={planTitle}
         showOptions={isEnrolled}
@@ -487,18 +489,14 @@ const styles = StyleSheet.create({
 
   // Content column
   headerBody: {
-    marginTop: -COVER_CONTENT_OVERLAP,
+    marginTop: spacing.lg,
     paddingHorizontal: layout.screenPadding,
   },
   todayWrap: {
     marginTop: spacing.lg,
   },
-  // The content column rises COVER_CONTENT_OVERLAP into the hero's fade, which is
-  // right for the progress and today cards (they carry their own surface) but not
-  // for bare text: in the vellum scope the description's first line landed on the
-  // still-dark end of the scrim. Plain copy starts where the fade has finished.
   introBlock: {
-    marginTop: COVER_CONTENT_OVERLAP,
+    marginTop: spacing.lg,
     gap: spacing.lg,
   },
   description: {
