@@ -30,6 +30,10 @@ adds):
 | `expo-notifications`                                                                | `POST_NOTIFICATIONS`, `RECEIVE_BOOT_COMPLETED`                                                                                                            |                                                                                                                                                                                                             |
 | `expo-image-picker`                                                                 | `CAMERA`, `READ_EXTERNAL_STORAGE`, `WRITE_EXTERNAL_STORAGE`                                                                                               |                                                                                                                                                                                                             |
 
+The next Android release also blocks `READ_MEDIA_IMAGES` in `app.json`. Profile pictures use
+Android's system photo picker, which does not need broad photo-library access. This avoids a
+separate Google Play Photo and video permissions declaration for that occasional action.
+
 Behaviour worth knowing before you fill in the form (from
 `patches/expo-media-control+1.0.12.patch` and `src/services/audio/androidMediaSession.ts`):
 

@@ -54,15 +54,15 @@ test('android production builds give the Gradle daemon enough heap for R8', () =
 });
 
 test('android release manifest drops permissions the app never uses', () => {
-  // expo-image-picker's library manifest merges CAMERA in, and the prebuild template adds
-  // SYSTEM_ALERT_WINDOW. The app only opens the photo library (ProfileScreen) and never
-  // draws over other apps, so both would appear on the Play listing and in review for no
-  // reason. blockedPermissions writes tools:node="remove" into the generated manifest.
+  // The profile avatar uses Android's system photo picker, so broad image access and CAMERA
+  // are unnecessary. The prebuild template also adds SYSTEM_ALERT_WINDOW. Keep all three
+  // out of the release manifest with tools:node="remove".
   const appConfig = readRootJson<AppConfig>('app.json');
   const blocked = appConfig.expo.android?.blockedPermissions ?? [];
 
   for (const permission of [
     'android.permission.CAMERA',
+    'android.permission.READ_MEDIA_IMAGES',
     'android.permission.SYSTEM_ALERT_WINDOW',
   ]) {
     assert.ok(blocked.includes(permission), `Expected app.json to block ${permission}`);
