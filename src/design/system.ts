@@ -214,34 +214,36 @@ export const typography = {
     letterSpacing: -2.56,
   } satisfies TextStyle,
   // Big-numeral scale. EL sets numerals in the display face at a tight optical
-  // line-height so the digit block reads as a mark, not a line of text. Every
+  // line-height so the digit block reads as a mark, not a line of text — but no
+  // tighter than ~0.94em: iOS clips glyphs above the line box, and Alte Haas
+  // Bold's round digits plus its descent need 0.932em. Every
   // one carries tabular figures: these numbers tick in place (streaks, day
   // counts, chapter totals) and must not reflow as digits change.
   numeralRow: {
     fontFamily: displayBold,
     fontSize: 26,
-    lineHeight: 25,
+    lineHeight: 26,
     letterSpacing: -1.04, // -0.04em
     fontVariant: ['tabular-nums'],
   } satisfies TextStyle,
   numeralXL: {
     fontFamily: displayBold,
     fontSize: 44,
-    lineHeight: 40, // 0.9
+    lineHeight: 43, // 0.98
     letterSpacing: -1.76, // -0.04em
     fontVariant: ['tabular-nums'],
   } satisfies TextStyle,
   numeralHero: {
     fontFamily: displayBold,
     fontSize: 72,
-    lineHeight: 61, // 0.85
+    lineHeight: 69, // 0.96
     letterSpacing: -3.6, // -0.05em
     fontVariant: ['tabular-nums'],
   } satisfies TextStyle,
   numeralStreak: {
     fontFamily: displayBold,
     fontSize: 84,
-    lineHeight: 71, // 0.85
+    lineHeight: 80, // 0.95
     letterSpacing: -4.2, // -0.05em
     fontVariant: ['tabular-nums'],
   } satisfies TextStyle,

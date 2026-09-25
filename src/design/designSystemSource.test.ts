@@ -100,10 +100,10 @@ test('the display scale runs at the EL 0.95 leading and -0.04em tracking', () =>
 
 test('every numeral token carries tabular figures so digits do not jitter', () => {
   const expected: Record<string, [number, number]> = {
-    numeralRow: [26, 25],
-    numeralXL: [44, 40],
-    numeralHero: [72, 61],
-    numeralStreak: [84, 71],
+    numeralRow: [26, 26],
+    numeralXL: [44, 43],
+    numeralHero: [72, 69],
+    numeralStreak: [84, 80],
   };
 
   for (const [name, [fontSize, lineHeight]] of Object.entries(expected)) {
@@ -118,6 +118,27 @@ test('every numeral token carries tabular figures so digits do not jitter', () =
       style.fontVariant,
       ['tabular-nums'],
       `${name} must use tabular figures — these numbers tick in place`
+    );
+  }
+});
+
+// iOS clips any glyph that rises above a Text's line box, and the tight numeral
+// line-heights sat below what Alte Haas Bold's digits need: its round digits
+// (0 2 3 6 8 9) overshoot to 0.715em above the baseline and its descent is
+// 0.217em, so a line of digits needs 0.932em. At 0.9em the Home card's "23"
+// lost the tops of both digits while a flat-topped "16" looked fine.
+const ALTE_HAAS_ROUND_DIGIT_EXTENT = 0.715 + 0.217;
+
+test('every numeral line box is tall enough that round digits are not clipped', () => {
+  for (const name of ['numeralRow', 'numeralXL', 'numeralHero', 'numeralStreak']) {
+    const { fontSize, lineHeight } = token(name);
+    assert.ok(
+      typeof fontSize === 'number' && typeof lineHeight === 'number',
+      `${name} sets both sizes`
+    );
+    assert.ok(
+      lineHeight >= Math.ceil(fontSize * ALTE_HAAS_ROUND_DIGIT_EXTENT) + 1,
+      `${name}: lineHeight ${lineHeight} clips digits drawn at ${fontSize}pt`
     );
   }
 });
