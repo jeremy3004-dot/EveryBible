@@ -514,6 +514,111 @@ test('the story highlights the verse the audio is on, following it through the c
   assert.equal(followed(/formless and void/), false);
 });
 
+/** The section block (fellowship, story, application) holding `node`. */
+function sectionOf(node: ReactTestInstance): ReactTestInstance {
+  const ancestors = hostAncestors(node);
+  const scrollIndex = ancestors.findIndex((entry) => entry.type === harness.rn.ScrollView);
+  const section = ancestors
+    .slice(0, scrollIndex)
+    .filter((entry) => (entry.type as unknown) === 'View' && entry.props.onLayout)
+    .at(-1);
+  assert.ok(section, 'the node sits in a laid-out section');
+  return section;
+}
+
+async function layoutStoryForFollowing(view: View) {
+  const scrollViewComponent = view.root.find((node) => node.type === harness.rn.ScrollView);
+  // Events are delivered to the host element; the ref lives on the component.
+  const scrollView = scrollViewComponent.find((node) => (node.type as unknown) === 'ScrollView');
+  const scrolls: { y: number }[] = [];
+  (
+    scrollViewComponent.props.ref as { current: { scrollTo: (args: { y: number }) => void } }
+  ).current.scrollTo = (args) => scrolls.push(args);
+  const layout = (node: ReactTestInstance, y: number, height = 0) =>
+    view.fire(node, 'onLayout', { nativeEvent: { layout: { x: 0, y, width: 390, height } } });
+
+  const paragraph = passageParagraph(view);
+  const [block, storyRoot] = hostAncestors(paragraph).filter(
+    (entry) => (entry.type as unknown) === 'View' && entry.props.onLayout
+  );
+  assert.ok(block && storyRoot);
+  await layout(sectionOf(paragraph), 1000);
+  await layout(sectionOf(view.getByText(t('gather.applicationQ1'))), 5000);
+  await layout(storyRoot, 60);
+  await layout(block, 0);
+  await layout(paragraph, 20);
+  // Verse 1 on the first line, verse 2 on a line 400pt further down.
+  const [first, second] = PASSAGE[0].verses;
+  await view.fire(paragraph, 'onTextLayout', {
+    nativeEvent: {
+      lines: [
+        { y: 0, text: `${first.verse}\u2009${first.text} ` },
+        { y: 400, text: `${second.verse}\u2009${second.text}` },
+      ],
+    },
+  });
+  await layout(scrollView, 0, 800);
+  await view.fire(scrollView, 'onScroll', { nativeEvent: { contentOffset: { x: 0, y: 900 } } });
+  return { scrollView, scrolls };
+}
+
+test('the page scrolls to keep the followed verse in view while the story is on screen', async () => {
+  chapterTimestamps.value = { 1: 0, 2: 4 };
+  const view = await renderLesson();
+  await view.press(view.getByRole('button', { name: PLAY() }));
+  await view.flush();
+  const { scrolls } = await layoutStoryForFollowing(view);
+  const tick = async (positionMillis: number) => {
+    await act(async () => {
+      sounds[0].sound.listener({
+        isLoaded: true,
+        positionMillis,
+        durationMillis: 60_000,
+        isPlaying: true,
+      });
+    });
+    await view.flush();
+  };
+
+  await tick(1_000);
+  assert.deepEqual(scrolls, [], 'verse 1 is already comfortably in view');
+
+  await tick(5_000);
+  // Verse 2 sits at 1000 + 60 + 20 + 400 = 1480, below the band; it is brought up to a third of
+  // the 800pt viewport.
+  assert.deepEqual(scrolls, [{ y: 1480 - 240, animated: true }]);
+});
+
+test('the page stays put while the reader holds it or reads the questions', async () => {
+  chapterTimestamps.value = { 1: 0, 2: 4, 3: 8 };
+  const view = await renderLesson();
+  await view.press(view.getByRole('button', { name: PLAY() }));
+  await view.flush();
+  const { scrollView, scrolls } = await layoutStoryForFollowing(view);
+  const tick = async (positionMillis: number) => {
+    await act(async () => {
+      sounds[0].sound.listener({
+        isLoaded: true,
+        positionMillis,
+        durationMillis: 60_000,
+        isPlaying: true,
+      });
+    });
+    await view.flush();
+  };
+
+  await view.fire(scrollView, 'onScrollBeginDrag');
+  await tick(5_000);
+  assert.deepEqual(scrolls, [], 'no tug-of-war with a finger on the page');
+  await view.fire(scrollView, 'onScrollEndDrag');
+
+  // Scrolled down to the application questions: the story no longer fills the screen.
+  await tick(1_000);
+  await view.fire(scrollView, 'onScroll', { nativeEvent: { contentOffset: { x: 0, y: 4800 } } });
+  await tick(5_000);
+  assert.deepEqual(scrolls, []);
+});
+
 test('without verse timings the highlight is estimated from the length of each verse', async () => {
   const palette = await lightPalette();
   const view = await renderLesson();

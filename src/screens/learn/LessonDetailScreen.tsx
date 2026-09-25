@@ -66,6 +66,13 @@ import {
 } from './lessonPassageModel';
 import { readLessonPlaybackStatus } from './lessonAudioModel';
 import { useLessonFollowAlongVerse, type LessonFollowAlongVerse } from './lessonFollowAlong';
+import {
+  STORY_VERSE_NUMBER_GAP,
+  lessonFollowScrollTarget,
+  storyVerseKey,
+  storyVerseLineTops,
+  type StoryTextLine,
+} from './lessonFollowAlongModel';
 import { createLessonSoundOwner } from './lessonSoundOwner';
 import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../design/largeTextLayout';
 
@@ -195,6 +202,12 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
   // unmount can never leave a sound playing that nothing controls.
   const [soundOwner] = useState(() => createLessonSoundOwner<Audio.Sound>());
   const scrollViewRef = useRef<ScrollView>(null);
+  // Following the story audio: each verse's top within the story section, and the
+  // scroll position and viewport it is kept in view against.
+  const storyVerseTopsRef = useRef<Record<string, number>>({});
+  const scrollYRef = useRef(0);
+  const viewportHeightRef = useRef(0);
+  const isDraggingRef = useRef(false);
   const progressWidthRef = useRef(0);
   const sectionYRef = useRef<{ fellowship: number; story: number; application: number }>({
     fellowship: 0,
@@ -404,6 +417,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
   const handleScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       const y = e.nativeEvent.contentOffset.y;
+      scrollYRef.current = y;
       const { story, application } = sectionYRef.current;
 
       let newSection: MeetingSectionType;
@@ -469,6 +483,26 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
     durationMillis: audioDuration,
     started: isAudioPlaying || audioPosition > 0,
   });
+
+  // Keep the followed verse in view while the story is on screen, as the reader does.
+  // Someone reading the questions, or holding the page, is left where they are.
+  const followVerseKey = followAlongVerse ? storyVerseKey(followAlongVerse) : null;
+  useEffect(() => {
+    if (!followVerseKey || !isAudioPlaying || isDraggingRef.current) return;
+    const top = storyVerseTopsRef.current[followVerseKey];
+    if (top == null) return;
+    const { story, application } = sectionYRef.current;
+    const target = lessonFollowScrollTarget({
+      verseY: story + top,
+      scrollY: scrollYRef.current,
+      viewportHeight: viewportHeightRef.current,
+      storyTop: story,
+      storyBottom: application,
+    });
+    if (target != null) {
+      scrollViewRef.current?.scrollTo({ y: target, animated: true });
+    }
+  }, [followVerseKey, isAudioPlaying]);
 
   const storyView = useMemo(
     () =>
@@ -579,6 +613,15 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
         onScroll={handleScroll}
+        onLayout={(e) => {
+          viewportHeightRef.current = e.nativeEvent.layout.height;
+        }}
+        onScrollBeginDrag={() => {
+          isDraggingRef.current = true;
+        }}
+        onScrollEndDrag={() => {
+          isDraggingRef.current = false;
+        }}
       >
         {/* Hero */}
         <View style={styles.hero}>
@@ -681,6 +724,9 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
             onRetry={() => setPassageLoadAttempt((attempt) => attempt + 1)}
             view={storyView}
             followAlongVerse={followAlongVerse}
+            onVerseTops={(tops) => {
+              storyVerseTopsRef.current = tops;
+            }}
             colors={colors}
             fontSizeMultiplier={fontSizeMultiplier}
             readingFontFamily={readingFontFamily}
@@ -980,6 +1026,8 @@ interface StorySectionProps {
   onRetry: () => void;
   view: StoryPassageView | null;
   followAlongVerse: LessonFollowAlongVerse | null;
+  /** Each verse's top within the section, by storyVerseKey, whenever the layout changes. */
+  onVerseTops: (tops: Record<string, number>) => void;
   colors: ThemeColors;
   fontSizeMultiplier: number;
   readingFontFamily: string | undefined;
@@ -992,6 +1040,7 @@ function StorySection({
   onRetry,
   view,
   followAlongVerse,
+  onVerseTops,
   colors,
   fontSizeMultiplier,
   readingFontFamily,
@@ -999,6 +1048,34 @@ function StorySection({
   displayFont,
 }: StorySectionProps) {
   const { t } = useTranslation();
+  // Nested Text spans report no layout, so a verse is placed from its paragraph's lines.
+  const layoutRef = useRef<{
+    rootY: number | null;
+    blocks: Record<string, { y?: number; textY?: number; lines?: StoryTextLine[] }>;
+  }>({ rootY: null, blocks: {} });
+  const recordLayout = (update: (layout: typeof layoutRef.current) => void) => {
+    update(layoutRef.current);
+    const { rootY, blocks } = layoutRef.current;
+    if (!view || rootY == null) return;
+    const tops: Record<string, number> = {};
+    for (const block of view.blocks) {
+      const layout = blocks[block.key];
+      if (layout?.y == null || layout.textY == null || !layout.lines) continue;
+      const base = rootY + layout.y + layout.textY;
+      storyVerseLineTops(block.verses, layout.lines).forEach((top, index) => {
+        const verse = block.verses[index];
+        if (top != null && verse) tops[storyVerseKey(verse)] = base + top;
+      });
+    }
+    onVerseTops(tops);
+  };
+  const recordBlock = (
+    key: string,
+    patch: { y?: number; textY?: number; lines?: StoryTextLine[] }
+  ) =>
+    recordLayout((layout) => {
+      layout.blocks[key] = { ...layout.blocks[key], ...patch };
+    });
   if (status === 'loading') {
     return (
       <View
@@ -1041,9 +1118,20 @@ function StorySection({
   const scaledFontSize = PASSAGE_FONT_SIZE * fontSizeMultiplier;
   const scaledLineHeight = PASSAGE_LINE_HEIGHT * fontSizeMultiplier;
   return (
-    <View>
+    <View
+      onLayout={(e) => {
+        const { y } = e.nativeEvent.layout;
+        recordLayout((layout) => {
+          layout.rootY = y;
+        });
+      }}
+    >
       {view.blocks.map((block, blockIdx) => (
-        <View key={block.key} style={blockIdx > 0 ? styles.passageBlockGap : undefined}>
+        <View
+          key={block.key}
+          style={blockIdx > 0 ? styles.passageBlockGap : undefined}
+          onLayout={(e) => recordBlock(block.key, { y: e.nativeEvent.layout.y })}
+        >
           {block.heading ? (
             // A heading per passage, and the only place a borrowed translation is named.
             <Text
@@ -1059,6 +1147,12 @@ function StorySection({
             </Text>
           ) : null}
           <Text
+            onLayout={(e) => recordBlock(block.key, { textY: e.nativeEvent.layout.y })}
+            onTextLayout={(e) =>
+              recordBlock(block.key, {
+                lines: e.nativeEvent.lines.map((line) => ({ y: line.y, text: line.text })),
+              })
+            }
             style={[
               styles.versesParagraph,
               {
@@ -1112,7 +1206,7 @@ function StorySection({
                       {/* RN has no baseline shift, so the marker is approximated
                           with a small mono figure and a thin space. */}
                       {verse.verse}
-                      {' '}
+                      {STORY_VERSE_NUMBER_GAP}
                     </Text>
                     <Text style={{ color: colors.primaryText, lineHeight: scaledLineHeight }}>
                       {verse.text}
