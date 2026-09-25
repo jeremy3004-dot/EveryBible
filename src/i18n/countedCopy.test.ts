@@ -26,14 +26,8 @@ test('English copy that sits beside a count of one uses the singular noun', asyn
   // The 1st of every month has one elapsed day.
   assert.equal(t('readingActivity.legendProgress', { read: 0, count: 1 }), '0 of 1 day');
   assert.equal(t('readingActivity.legendProgress', { read: 3, count: 12 }), '3 of 12 days');
-  assert.equal(
-    t('home.ledgerThisMonth', { month: 'September', active: 0, count: 1 }),
-    'September · 0 of 1 day'
-  );
-  assert.equal(
-    t('home.ledgerThisMonth', { month: 'September', active: 4, count: 9 }),
-    'September · 4 of 9 days'
-  );
+  assert.equal(t('home.heatmapDays', { active: 0, count: 1 }), '0 of 1 day');
+  assert.equal(t('home.heatmapDays', { active: 4, count: 9 }), '4 of 9 days');
   // A translator queue with one chapter left, and a one-psalm rhythm passage.
   assert.equal(t('translatorQueue.pendingCount', { count: 1 }), '1 chapter to review');
   assert.equal(t('translatorQueue.pendingCount', { count: 4 }), '4 chapters to review');
