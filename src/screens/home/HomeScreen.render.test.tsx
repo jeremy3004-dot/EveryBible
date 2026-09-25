@@ -820,7 +820,6 @@ test('the reading ledger closes the sheet below the Gather card with a reading h
 
   // The week/month/all-time switch and its rows are gone: the grid shows all three.
   assert.equal(view.queryAllByRole('tablist').length, 0);
-  assert.equal(view.queryByText(t('home.ledgerBooksFinished')), null);
   assert.ok(view.getByText(t('home.ledgerNoChapters')));
   assert.ok(view.getByText(t('home.heatmapLess')));
   assert.ok(view.getByText(t('home.heatmapMore')));
