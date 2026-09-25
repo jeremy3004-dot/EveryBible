@@ -46,7 +46,11 @@ export function ProfileScreen() {
   const setUser = useAuthStore((state) => state.setUser);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
-  const chaptersRead = useProgressStore((state) => Object.keys(state.chaptersRead).length);
+  // Chapters read or heard: listening counts the same as reading.
+  const chaptersRead = useProgressStore(
+    (state) =>
+      new Set([...Object.keys(state.chaptersRead), ...Object.keys(state.chaptersListened)]).size
+  );
   const streakDays = useProgressStore(selectCurrentStreakDays);
   const listeningMsByDate = useProgressStore((state) => state.listeningMsByDate);
   // Notes and highlights stay on this device and are never uploaded, so the cloud

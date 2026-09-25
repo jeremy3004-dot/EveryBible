@@ -12,6 +12,7 @@ const t = (key: string) => harness.i18n.t(key);
 
 const useProgressStore = create(() => ({
   chaptersRead: { 'JHN:1': 1, 'JHN:2': 1, 'JHN:3': 1 } as Record<string, number>,
+  chaptersListened: {} as Record<string, number>,
   streakDays: 4,
   listeningMsByDate: {} as Record<string, number>,
 }));
@@ -105,7 +106,7 @@ const signedInUser = {
 };
 
 beforeEach(() => {
-  useProgressStore.setState({ listeningMsByDate: {} });
+  useProgressStore.setState({ listeningMsByDate: {}, chaptersListened: {} });
   useAnnotationStore.setState({ annotations: [] });
   authFlows.length = 0;
   picker.result = { canceled: true, assets: [] };
@@ -151,6 +152,13 @@ test('a guest sees their local stats, cannot change an avatar, and can start sig
 
   await view.press(view.getByRole('button', { name: t('more.signInOrCreate') }));
   assert.deepEqual(authFlows, ['signIn']);
+});
+
+test('chapters heard count alongside chapters read, each chapter once', async () => {
+  useProgressStore.setState({ chaptersListened: { 'JHN:3': 2, 'ROM:8': 2, 'ROM:9': 2 } });
+  const view = await renderScreen();
+
+  assert.ok(view.getByText('5'), 'three read plus two heard; John 3 counts once');
 });
 
 // Email sign-up stores no display name, so every email account has none.

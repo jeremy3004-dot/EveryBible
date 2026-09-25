@@ -462,6 +462,10 @@ export const en = {
     ledgerThisMonth_other: '{{month}} · {{active}} of {{count}} days',
     ledgerNoChapters: 'No chapters yet',
     ledgerNextUp: 'Next up · {{reference}} of {{total}}',
+    heatmapDays_one: '{{active}} of {{count}} day',
+    heatmapDays_other: '{{active}} of {{count}} days',
+    heatmapLess: 'Less',
+    heatmapMore: 'More',
   },
   onboarding: {
     stepPrivacy: 'Step 3 of 3',

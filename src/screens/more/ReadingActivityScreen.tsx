@@ -39,6 +39,8 @@ export function ReadingActivityScreen() {
   // The More tab's capsule floats over this screen, so the scroll has to clear it.
   const { contentClearance } = useTabBarHeight();
   const chaptersRead = useProgressStore((state) => state.chaptersRead);
+  const chaptersListened = useProgressStore((state) => state.chaptersListened);
+  const chaptersByDate = useProgressStore((state) => state.chaptersByDate);
   const listeningMsByDate = useProgressStore((state) => state.listeningMsByDate);
   const streakDays = useProgressStore(selectCurrentStreakDays);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -48,7 +50,17 @@ export function ReadingActivityScreen() {
   const lastSyncedAt = useSyncStatusStore(selectLastSuccessfulSyncAt(userId));
   const engagement = useEngagementSummary(isAuthenticated);
 
-  const activitySummary = useMemo(() => summarizeReadingActivity(chaptersRead), [chaptersRead]);
+  // Reading and listening are one activity: a day heard fills the calendar too.
+  const activitySummary = useMemo(
+    () =>
+      summarizeReadingActivity({
+        chaptersRead,
+        chaptersListened,
+        chaptersByDate,
+        listeningMsByDate,
+      }),
+    [chaptersByDate, chaptersListened, chaptersRead, listeningMsByDate]
+  );
   // One formatter per language names every cell and the day card's eyebrow.
   const dayLabelFormatter = useMemo(() => createDayLabelFormatter(i18n.language), [i18n.language]);
   const calendar = useReadingActivityCalendar(activitySummary.daysByDateKey, dayLabelFormatter);
@@ -71,10 +83,14 @@ export function ReadingActivityScreen() {
     t,
   });
 
-  // Cloud engagement is the authority for chapters when it has loaded; local
-  // progress keeps the row honest offline. Listening is banked on this device as
-  // it plays, so it never waits on the cloud (see totalListeningMinutes).
-  const chapterTotal = engagement?.total_chapters_read ?? activitySummary.totalChapterReads;
+  // Cloud engagement carries other devices' reading once it has loaded, but only
+  // reading: chapters heard on this device are local, so the larger of the two
+  // keeps the row honest. Listening is banked on this device as it plays, so it
+  // never waits on the cloud (see totalListeningMinutes).
+  const chapterTotal = Math.max(
+    engagement?.total_chapters_read ?? 0,
+    activitySummary.totalChapterReads
+  );
   const listeningMinutes = useMemo(
     () => totalListeningMinutes(listeningMsByDate, engagement?.total_listening_minutes),
     [engagement?.total_listening_minutes, listeningMsByDate]

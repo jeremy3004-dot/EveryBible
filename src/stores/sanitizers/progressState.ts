@@ -37,6 +37,14 @@ const sanitizeDailyDurationMap = (value: unknown): Record<string, number> => {
   ) as Record<string, number>;
 };
 
+// "YYYY-MM-DD" -> chapters that day. Same key rule; counts are whole numbers.
+const sanitizeDailyCountMap = (value: unknown): Record<string, number> =>
+  Object.fromEntries(
+    Object.entries(sanitizeDailyDurationMap(value))
+      .map(([key, count]) => [key, Math.floor(count)] as const)
+      .filter(([, count]) => count > 0)
+  );
+
 export const sanitizePersistedProgressState = (value: unknown) => {
   const persisted = isRecord(value) ? value : {};
   const chaptersRead = sanitizeChapterTimestampMap(persisted.chaptersRead);
@@ -44,11 +52,13 @@ export const sanitizePersistedProgressState = (value: unknown) => {
   // before the Home ledger shipped hydrate cleanly instead of crashing on undefined.
   const chaptersListened = sanitizeChapterTimestampMap(persisted.chaptersListened);
   const listeningMsByDate = sanitizeDailyDurationMap(persisted.listeningMsByDate);
+  const chaptersByDate = sanitizeDailyCountMap(persisted.chaptersByDate);
 
   return {
     chaptersRead,
     chaptersListened,
     listeningMsByDate,
+    chaptersByDate,
     streakDays:
       typeof persisted.streakDays === 'number' &&
       Number.isFinite(persisted.streakDays) &&

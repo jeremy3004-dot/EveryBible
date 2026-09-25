@@ -105,12 +105,16 @@ export function buildSelectedDayCopy({
   const eyebrow = dateKey
     ? formatter.format(parseLocalDateKey(dateKey))
     : t('readingActivity.legendToday');
-  const summary = day
-    ? t('readingActivity.dayChapters', {
-        count: day.chapterCount,
-        books: summarizeDayChapters(day.chapterKeys, resolveBook),
-      })
-    : t('readingActivity.noReading');
+  // A day known only from its tally or listening time (the chapter was reread
+  // later, or the audio stopped early) has a count but no chapters to name.
+  const summary = !day
+    ? t('readingActivity.noReading')
+    : day.chapterKeys.length > 0
+      ? t('readingActivity.dayChapters', {
+          count: day.chapterCount,
+          books: summarizeDayChapters(day.chapterKeys, resolveBook),
+        })
+      : t('readingPlans.dayChapterCount', { count: day.chapterCount });
   const sessionMinutes = day ? Math.round((day.lastReadAt - day.firstReadAt) / MINUTE_MS) : 0;
   const window =
     day && sessionMinutes > 0

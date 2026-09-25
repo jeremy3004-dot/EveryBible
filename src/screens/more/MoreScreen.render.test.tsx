@@ -20,6 +20,8 @@ const useBibleStore = create(() => ({
 const useProgressStore = create(() => ({
   streakDays: 0,
   chaptersRead: {},
+  chaptersListened: {},
+  chaptersByDate: {},
   listeningMsByDate: {} as Record<string, number>,
 }));
 const useAnnotationStore = create(() => ({ annotations: [] as unknown[] }));

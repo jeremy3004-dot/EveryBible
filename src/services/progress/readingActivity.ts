@@ -66,39 +66,129 @@ const getMonthLabel = (date: Date): string => {
   });
 };
 
-export const summarizeReadingActivity = (
-  chaptersRead: Record<string, number>
-): ReadingActivitySummary => {
+/**
+ * Everything the progress store records about time in the Word. Reading and
+ * listening are one activity: a chapter heard counts the same as a chapter read,
+ * on the calendar, the Home heatmap and the streak alike.
+ */
+export interface DailyActivityLedgers {
+  /** `{ "GEN_1": timestamp }` — each chapter's latest read. */
+  chaptersRead: Record<string, number>;
+  /** `{ "GEN_1": timestamp }` — each chapter's latest completed listen. */
+  chaptersListened?: Record<string, number>;
+  /** `{ "2026-09-08": 3 }` — distinct chapters read or heard per local day. */
+  chaptersByDate?: Record<string, number>;
+  /** `{ "2026-09-08": milliseconds }` — listening time per local day. */
+  listeningMsByDate?: Record<string, number>;
+}
+
+/**
+ * A chapter's audio runs about four minutes, so listening time converts to
+ * chapters at that rate; a stray tap under a minute is not a day in the Word.
+ */
+export const LISTENING_MS_PER_CHAPTER = 4 * 60_000;
+export const MIN_LISTENING_MS = 60_000;
+
+export const listeningChapterEquivalent = (ms: number | undefined): number =>
+  ms !== undefined && Number.isFinite(ms) && ms >= MIN_LISTENING_MS
+    ? Math.max(1, Math.round(ms / LISTENING_MS_PER_CHAPTER))
+    : 0;
+
+/**
+ * Chapters per local day, reading and listening together. The day tally is exact
+ * from the build that added it; chapter timestamps fill in earlier days (a lower
+ * bound, since a reread moves a chapter's timestamp forward) and anything synced
+ * from another device; listening time covers audio stopped before a chapter's
+ * end. Each source undercounts in its own way, so a day takes the largest of the
+ * three rather than their sum, which would count one chapter twice.
+ */
+export const getDailyChapterCounts = (ledgers: DailyActivityLedgers): Map<string, number> => {
+  const counts = new Map<string, number>();
+  const raise = (dateKey: string, count: number) => {
+    if (count > (counts.get(dateKey) ?? 0)) counts.set(dateKey, count);
+  };
+  for (const day of Object.values(groupChaptersByDay(ledgers))) {
+    raise(day.dateKey, day.chapterKeys.length);
+  }
+  for (const [dateKey, count] of Object.entries(ledgers.chaptersByDate ?? {})) {
+    raise(dateKey, count);
+  }
+  for (const [dateKey, ms] of Object.entries(ledgers.listeningMsByDate ?? {})) {
+    raise(dateKey, listeningChapterEquivalent(ms));
+  }
+  return counts;
+};
+
+/** Distinct chapters read or heard on each local day, with the first and last touch. */
+const groupChaptersByDay = (
+  ledgers: DailyActivityLedgers
+): Record<string, ReadingActivityDaySummary> => {
   const daysByDateKey: Record<string, ReadingActivityDaySummary> = {};
+  const add = (ledger: Record<string, number>) => {
+    for (const [chapterKey, timestamp] of Object.entries(ledger)) {
+      if (!Number.isFinite(timestamp)) {
+        continue;
+      }
+
+      const dateKey = formatLocalDateKey(new Date(timestamp));
+      const existing = daysByDateKey[dateKey];
+
+      if (existing) {
+        if (!existing.chapterKeys.includes(chapterKey)) {
+          existing.chapterKeys.push(chapterKey);
+        }
+        existing.firstReadAt = Math.min(existing.firstReadAt, timestamp);
+        existing.lastReadAt = Math.max(existing.lastReadAt, timestamp);
+      } else {
+        daysByDateKey[dateKey] = {
+          dateKey,
+          chapterCount: 0,
+          firstReadAt: timestamp,
+          lastReadAt: timestamp,
+          chapterKeys: [chapterKey],
+        };
+      }
+    }
+  };
+  add(ledgers.chaptersRead);
+  add(ledgers.chaptersListened ?? {});
+  return daysByDateKey;
+};
+
+/**
+ * Read-or-heard activity by local day. A plain `chaptersRead` map is accepted
+ * for callers that only have reading.
+ */
+export const summarizeReadingActivity = (
+  input: DailyActivityLedgers | Record<string, number>
+): ReadingActivitySummary => {
+  const ledgers: DailyActivityLedgers = isLedgers(input) ? input : { chaptersRead: input };
+  const daysByDateKey = groupChaptersByDay(ledgers);
+
+  // A day known only from the tally or listening time (a chapter reread since,
+  // or audio stopped early) has no chapter keys; it still counts, pinned to
+  // local noon so "most recent day" ordering has a time to sort by.
+  getDailyChapterCounts(ledgers).forEach((count, dateKey) => {
+    const day = daysByDateKey[dateKey];
+    if (day) {
+      day.chapterCount = Math.max(count, day.chapterKeys.length);
+      return;
+    }
+    const noon = parseLocalDateKey(dateKey);
+    noon.setHours(12, 0, 0, 0);
+    if (Number.isNaN(noon.getTime())) return;
+    daysByDateKey[dateKey] = {
+      dateKey,
+      chapterCount: count,
+      firstReadAt: noon.getTime(),
+      lastReadAt: noon.getTime(),
+      chapterKeys: [],
+    };
+  });
+
   let mostRecentDateKey: string | null = null;
-  let mostRecentTimestamp = -Infinity;
-
-  for (const [chapterKey, timestamp] of Object.entries(chaptersRead)) {
-    if (!Number.isFinite(timestamp)) {
-      continue;
-    }
-
-    const date = new Date(timestamp);
-    const dateKey = formatLocalDateKey(date);
-    const existing = daysByDateKey[dateKey];
-
-    if (existing) {
-      existing.chapterCount += 1;
-      existing.chapterKeys.push(chapterKey);
-      existing.firstReadAt = Math.min(existing.firstReadAt, timestamp);
-      existing.lastReadAt = Math.max(existing.lastReadAt, timestamp);
-    } else {
-      daysByDateKey[dateKey] = {
-        dateKey,
-        chapterCount: 1,
-        firstReadAt: timestamp,
-        lastReadAt: timestamp,
-        chapterKeys: [chapterKey],
-      };
-    }
-
-    if (timestamp > mostRecentTimestamp) {
-      mostRecentTimestamp = timestamp;
+  for (const dateKey of Object.keys(daysByDateKey)) {
+    if (mostRecentDateKey === null || dateKey > mostRecentDateKey) {
       mostRecentDateKey = dateKey;
     }
   }
@@ -106,10 +196,19 @@ export const summarizeReadingActivity = (
   return {
     daysByDateKey,
     totalReadDays: Object.keys(daysByDateKey).length,
-    totalChapterReads: Object.keys(chaptersRead).length,
+    totalChapterReads: new Set([
+      ...Object.keys(ledgers.chaptersRead),
+      ...Object.keys(ledgers.chaptersListened ?? {}),
+    ]).size,
     mostRecentDateKey,
   };
 };
+
+function isLedgers(
+  input: DailyActivityLedgers | Record<string, number>
+): input is DailyActivityLedgers {
+  return typeof (input as DailyActivityLedgers).chaptersRead === 'object';
+}
 
 export const buildReadingActivityMonthView = (
   chaptersRead: Record<string, number>,

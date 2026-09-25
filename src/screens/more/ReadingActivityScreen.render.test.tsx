@@ -30,6 +30,8 @@ const CHAPTERS_READ: Record<string, number> = {
 
 const useProgressStore = create(() => ({
   chaptersRead: CHAPTERS_READ,
+  chaptersListened: {} as Record<string, number>,
+  chaptersByDate: {} as Record<string, number>,
   // Listening banked on this device, per local day, in milliseconds.
   listeningMsByDate: {} as Record<string, number>,
   streakDays: 2,
@@ -212,6 +214,26 @@ test('pressing a read day selects it and summarises that day in canonical order'
   await view.press(cellNamed(view, 'Friday, September 25'));
   assert.ok(view.getByText(t('readingActivity.noReading')));
   assert.equal(view.queryByText(/Psalms/), null);
+});
+
+// Reading and listening are one activity: a day heard fills the calendar too.
+test('a day heard but not read fills the calendar and names what was heard', async () => {
+  useProgressStore.setState({ chaptersListened: { ROM_8: at('2026-09-18T07:00:00.000Z') } });
+  const view = await renderScreen();
+
+  await view.press(cellNamed(view, 'Friday, September 18'));
+
+  assert.ok(view.getByText(t('readingActivity.dayChapters', { count: 1, books: 'Romans 8' })));
+});
+
+test('a day known only by its listening time still counts, without naming chapters', async () => {
+  useProgressStore.setState({ listeningMsByDate: { '2026-09-17': 9 * 60_000 } });
+  const view = await renderScreen();
+
+  await view.press(cellNamed(view, 'Thursday, September 17'));
+
+  assert.ok(view.getByText(t('readingPlans.dayChapterCount', { count: 2 })));
+  assert.equal(view.queryByText(t('readingActivity.noReading')), null);
 });
 
 test('pressing the selected-day card opens the reader at the day’s first chapter', async () => {
