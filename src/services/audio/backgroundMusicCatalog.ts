@@ -12,10 +12,11 @@ export interface BackgroundMusicOption {
   defaultVolume: number;
 }
 
-// Volumes are matched to each file's measured loudness so every preset sits about
-// -33 LUFS under the narration (piano, harp, soft guitar and ocean waves are levelled to
-// -20 LUFS by scripts/audio/build_background_music.py; ambient -15.5, flute -19.9,
-// sitar -14.5 as shipped).
+// Volumes are matched to each file's measured loudness (piano, harp, soft guitar and ocean
+// waves are levelled to -20 LUFS by scripts/audio/build_background_music.py; ambient -15.5,
+// flute -19.9, sitar -14.5 as shipped), then adjusted by ear on device: the music sits about
+// -31 LUFS under the narration, and ocean waves ~4 dB below that, since steady broadband noise
+// sounds louder than music of the same measured loudness.
 export const BACKGROUND_MUSIC_OPTIONS: BackgroundMusicOption[] = [
   {
     id: 'off',
@@ -35,7 +36,7 @@ export const BACKGROUND_MUSIC_OPTIONS: BackgroundMusicOption[] = [
     license: 'CC0',
     credit: 'Cleyton Kauffman',
     sourceUrl: 'https://opengameart.org/content/underwater-theme',
-    defaultVolume: 0.13,
+    defaultVolume: 0.16,
   },
   {
     id: 'piano',
@@ -45,7 +46,7 @@ export const BACKGROUND_MUSIC_OPTIONS: BackgroundMusicOption[] = [
     license: 'CC0',
     credit: 'cynicmusic / The Cynic Project',
     sourceUrl: 'https://opengameart.org/content/calm-piano-1-vaporware',
-    defaultVolume: 0.22,
+    defaultVolume: 0.28,
   },
   {
     id: 'soft-guitar',
@@ -55,7 +56,7 @@ export const BACKGROUND_MUSIC_OPTIONS: BackgroundMusicOption[] = [
     license: 'CC0',
     credit: 'Kistol',
     sourceUrl: 'https://opengameart.org/content/etirwer',
-    defaultVolume: 0.22,
+    defaultVolume: 0.28,
   },
   {
     id: 'harp',
@@ -65,7 +66,7 @@ export const BACKGROUND_MUSIC_OPTIONS: BackgroundMusicOption[] = [
     license: 'CC0',
     credit: 'cynicmusic / The Cynic Project',
     sourceUrl: 'https://opengameart.org/content/a-new-town-rpg-theme',
-    defaultVolume: 0.22,
+    defaultVolume: 0.28,
   },
   {
     id: 'flute',
@@ -75,7 +76,7 @@ export const BACKGROUND_MUSIC_OPTIONS: BackgroundMusicOption[] = [
     license: 'CC0',
     credit: 'KiluaBoy',
     sourceUrl: 'https://opengameart.org/content/through-fire-through-sea-violin-flute-loop',
-    defaultVolume: 0.22,
+    defaultVolume: 0.28,
   },
   {
     id: 'sitar',
@@ -85,7 +86,7 @@ export const BACKGROUND_MUSIC_OPTIONS: BackgroundMusicOption[] = [
     license: 'CC-BY 3.0',
     credit: 'Spring Spring',
     sourceUrl: 'https://opengameart.org/content/simple-desert',
-    defaultVolume: 0.12,
+    defaultVolume: 0.15,
   },
   {
     id: 'ocean-waves',
@@ -95,7 +96,7 @@ export const BACKGROUND_MUSIC_OPTIONS: BackgroundMusicOption[] = [
     license: 'CC0',
     credit: 'jasinski, transitking',
     sourceUrl: 'https://opengameart.org/content/beach-ocean-waves',
-    defaultVolume: 0.22,
+    defaultVolume: 0.14,
   },
 ];
 
