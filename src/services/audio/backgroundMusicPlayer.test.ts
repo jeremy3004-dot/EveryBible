@@ -135,6 +135,7 @@ type BackgroundMusicPlayerModule = typeof import('./backgroundMusicPlayer');
 
 const FADE_DURATION_MS = 2500;
 const AMBIENT_VOLUME = 0.16;
+const PIANO_VOLUME = 0.16;
 const OCEAN_WAVES_VOLUME = 0.24;
 
 let mod: BackgroundMusicPlayerModule;
@@ -157,9 +158,9 @@ const runFade = (): void => {
   mock.timers.tick(FADE_DURATION_MS);
 };
 
-const nearEndOfLoop = (): FakeStatus => ({
+const nearEndOfLoop = (remainingMillis = FADE_DURATION_MS): FakeStatus => ({
   isLoaded: true,
-  positionMillis: 60_000 - FADE_DURATION_MS,
+  positionMillis: 60_000 - remainingMillis,
   durationMillis: 60_000,
 });
 
@@ -198,7 +199,7 @@ test('starting a preset loads its bundled asset muted and fades it up to the cat
         shouldPlay: false,
         isLooping: false,
         volume: 0,
-        progressUpdateIntervalMillis: 1000,
+        progressUpdateIntervalMillis: 250,
       },
     },
   ]);
@@ -239,8 +240,11 @@ test('re-syncing the preset that is already playing leaves the loop untouched', 
   assert.equal(sounds[0].calls.length, callsBefore);
 });
 
-test('switching preset unloads the previous loop before loading the new one', async () => {
+test('switching preset while playing crossfades the old loop out as the new one fades in', async () => {
   await mod.backgroundMusicPlayer.sync('ambient', true);
+  runFade();
+  const outgoing = sounds[0];
+  const outgoingCallsBefore = outgoing.calls.length;
 
   await mod.backgroundMusicPlayer.sync('piano', true);
 
@@ -248,12 +252,34 @@ test('switching preset unloads the previous loop before loading the new one', as
     createCalls.map((call) => call.source),
     [ASSET_HANDLES.ambient, ASSET_HANDLES.piano]
   );
+  // No hard cut: the old loop is still sounding while the new one starts.
+  assert.equal(outgoing.methods().slice(outgoingCallsBefore).includes('stopAsync'), false);
+  assert.equal(outgoing.statusListener, null, 'the old loop can no longer start a crossfade');
+  assert.deepEqual(sounds[1].methods(), ['setOnPlaybackStatusUpdate', 'playAsync']);
+
+  mock.timers.tick(FADE_DURATION_MS / 2);
+  const halfway = outgoing.volumes(outgoingCallsBefore).at(-1) ?? -1;
+  assert.equal(halfway > 0 && halfway < AMBIENT_VOLUME, true, 'the old loop fades from its level');
+  assert.equal((sounds[1].volumes().at(-1) ?? 0) > 0, true);
+
+  mock.timers.tick(FADE_DURATION_MS);
+  await flush();
+  assert.equal(outgoing.volumes(outgoingCallsBefore).at(-1), 0);
+  assert.deepEqual(outgoing.methods().slice(-2), ['stopAsync', 'unloadAsync']);
+  assert.equal(sounds[1].volumes().at(-1), PIANO_VOLUME);
+});
+
+test('switching preset while paused loads the new one without a crossfade', async () => {
+  await mod.backgroundMusicPlayer.sync('ambient', true);
+  await mod.backgroundMusicPlayer.sync('ambient', false);
+
+  await mod.backgroundMusicPlayer.sync('piano', true);
+
   assert.deepEqual(sounds[0].methods().slice(-3), [
     'setOnPlaybackStatusUpdate',
     'stopAsync',
     'unloadAsync',
   ]);
-  assert.deepEqual(sounds[1].methods(), ['setOnPlaybackStatusUpdate', 'playAsync']);
 });
 
 test('an unload failure while switching preset does not stop the new loop from starting', async () => {
@@ -410,7 +436,7 @@ test('approaching the end of the loop crossfades into a fresh instance', async (
     shouldPlay: true,
     isLooping: false,
     volume: 0,
-    progressUpdateIntervalMillis: 1000,
+    progressUpdateIntervalMillis: 250,
   });
   // The outgoing loop's handler is detached so the crossfade cannot re-enter.
   assert.equal(outgoing.statusListener, null);
@@ -421,6 +447,31 @@ test('approaching the end of the loop crossfades into a fresh instance', async (
   assert.equal(outgoing.volumes(outgoingCallsBefore).at(-1), 0);
   assert.deepEqual(outgoing.methods().slice(-2), ['stopAsync', 'unloadAsync']);
   assert.equal(sounds[1].volumes().at(-1), AMBIENT_VOLUME);
+});
+
+test('the crossfade starts early enough to finish before the loop file runs out', async () => {
+  await mod.backgroundMusicPlayer.sync('ambient', true);
+  runFade();
+  const outgoing = sounds[0];
+
+  // 3.2 s left: past the fade length, but a load and a full fade still fit.
+  outgoing.emitStatus(nearEndOfLoop(3_200));
+  await flush();
+  assert.equal(createCalls.length, 2, 'the replacement is already loading');
+});
+
+test('a late position update shortens the fade-out so the old loop is silent before it ends', async () => {
+  await mod.backgroundMusicPlayer.sync('ambient', true);
+  runFade();
+  const outgoing = sounds[0];
+  const outgoingCallsBefore = outgoing.calls.length;
+
+  // Only 2 s left when the update arrives: a full 2.5 s fade would be cut off mid-way.
+  outgoing.emitStatus(nearEndOfLoop(2_000));
+  await flush();
+  mock.timers.tick(1_950);
+
+  assert.equal(outgoing.volumes(outgoingCallsBefore).at(-1), 0);
 });
 
 test('the crossfade keeps the outgoing loop audible while the replacement fades in', async () => {

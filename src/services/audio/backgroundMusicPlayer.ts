@@ -5,6 +5,15 @@ import { getBackgroundMusicOption, getBackgroundMusicSource } from './background
 
 const FADE_DURATION_MS = 2500;
 const FADE_STEP_MS = 50;
+/** How often expo-av reports the position, so the loop's end is seen in time. */
+const PROGRESS_UPDATE_INTERVAL_MS = 250;
+/**
+ * Time allowed to load the replacement before its fade starts. The crossfade begins this
+ * much before the fade itself would need to, so the outgoing copy reaches silence before
+ * its file runs out instead of stopping mid-fade.
+ */
+const CROSSFADE_LOAD_MARGIN_MS = 750;
+const MIN_FADE_OUT_MS = 250;
 
 class BackgroundMusicPlayer {
   private sound: Audio.Sound | null = null;
@@ -13,6 +22,8 @@ class BackgroundMusicPlayer {
   private loadRequestId = 0;
   private targetVolume = 0.2;
   private fadeTimers = new Map<Audio.Sound, ReturnType<typeof setInterval>>();
+  /** The last volume set on each sound, so a fade-out can start from where it is. */
+  private volumes = new Map<Audio.Sound, number>();
   private retiringSounds = new Set<Audio.Sound>();
   private shouldBePlaying = false;
 
@@ -54,6 +65,7 @@ class BackgroundMusicPlayer {
 
     this.sound = null;
     this.retiringSounds.clear();
+    this.volumes.clear();
 
     for (const sound of sounds) {
       try {
@@ -82,10 +94,21 @@ class BackgroundMusicPlayer {
     }
   }
 
-  private fadeVolume(sound: Audio.Sound, from: number, to: number, onComplete?: () => void): void {
+  private setVolume(sound: Audio.Sound, volume: number): void {
+    this.volumes.set(sound, volume);
+    sound.setVolumeAsync(volume).catch(() => {});
+  }
+
+  private fadeVolume(
+    sound: Audio.Sound,
+    from: number,
+    to: number,
+    onComplete?: () => void,
+    durationMs: number = FADE_DURATION_MS
+  ): void {
     this.clearFadeTimer(sound);
 
-    const steps = Math.max(1, Math.round(FADE_DURATION_MS / FADE_STEP_MS));
+    const steps = Math.max(1, Math.round(durationMs / FADE_STEP_MS));
     const delta = (to - from) / steps;
     let currentStep = 0;
     let currentVolume = from;
@@ -97,15 +120,33 @@ class BackgroundMusicPlayer {
       if (currentStep >= steps) {
         this.clearFadeTimer(sound);
         currentVolume = to;
-        sound.setVolumeAsync(currentVolume).catch(() => {});
+        this.setVolume(sound, currentVolume);
         onComplete?.();
         return;
       }
 
-      sound.setVolumeAsync(currentVolume).catch(() => {});
+      this.setVolume(sound, currentVolume);
     }, FADE_STEP_MS);
 
     this.fadeTimers.set(sound, timer);
+  }
+
+  /** Fades a sound that is no longer the active loop to silence, then releases it. */
+  private retireSound(sound: Audio.Sound, durationMs: number): void {
+    sound.setOnPlaybackStatusUpdate(null);
+    this.retiringSounds.add(sound);
+    this.fadeVolume(
+      sound,
+      this.volumes.get(sound) ?? this.targetVolume,
+      0,
+      () => {
+        this.retiringSounds.delete(sound);
+        this.volumes.delete(sound);
+        sound.stopAsync().catch(() => {});
+        sound.unloadAsync().catch(() => {});
+      },
+      durationMs
+    );
   }
 
   private handlePlaybackStatus = (status: AVPlaybackStatus): void => {
@@ -113,20 +154,20 @@ class BackgroundMusicPlayer {
       return;
     }
 
-    // Detect when the track is approaching the end — begin crossfade
+    // Approaching the end of the file: crossfade into a fresh copy from the top.
     const { durationMillis, positionMillis } = status;
     if (
       durationMillis != null &&
       durationMillis > 0 &&
-      positionMillis >= durationMillis - FADE_DURATION_MS &&
+      durationMillis - positionMillis <= FADE_DURATION_MS + CROSSFADE_LOAD_MARGIN_MS &&
       this.sound &&
       this.shouldBePlaying
     ) {
-      this.crossfadeRestart();
+      void this.crossfadeRestart(durationMillis - positionMillis);
     }
   };
 
-  private async crossfadeRestart(): Promise<void> {
+  private async crossfadeRestart(remainingMillis: number): Promise<void> {
     const oldSound = this.sound;
     if (!oldSound || !this.currentChoice) {
       return;
@@ -150,7 +191,7 @@ class BackgroundMusicPlayer {
         shouldPlay: true,
         isLooping: false,
         volume: 0,
-        progressUpdateIntervalMillis: 1000,
+        progressUpdateIntervalMillis: PROGRESS_UPDATE_INTERVAL_MS,
       });
 
       // If stop() or sync('off') fired while we were loading, discard the new
@@ -165,13 +206,14 @@ class BackgroundMusicPlayer {
         return;
       }
 
-      // Fade out old, fade in new simultaneously so the loop boundary is masked.
-      this.retiringSounds.add(oldSound);
-      this.fadeVolume(oldSound, this.targetVolume, 0, () => {
-        this.retiringSounds.delete(oldSound);
-        oldSound.stopAsync().catch(() => {});
-        oldSound.unloadAsync().catch(() => {});
-      });
+      // Fade out old, fade in new simultaneously so the loop boundary is masked. The
+      // fade-out must reach silence before the old file ends (a late position update
+      // leaves less time), or the loop would stop abruptly mid-fade.
+      const fadeOutMs = Math.max(
+        MIN_FADE_OUT_MS,
+        Math.min(FADE_DURATION_MS, remainingMillis - CROSSFADE_LOAD_MARGIN_MS / 3)
+      );
+      this.retireSound(oldSound, fadeOutMs);
 
       this.sound = newSound;
       newSound.setOnPlaybackStatusUpdate(this.handlePlaybackStatus);
@@ -197,7 +239,8 @@ class BackgroundMusicPlayer {
 
   private async ensureLoaded(
     choice: Exclude<BackgroundMusicChoice, 'off'>,
-    requestId: number
+    requestId: number,
+    crossfadeFromCurrent = false
   ): Promise<void> {
     if (this.currentChoice === choice && this.sound) {
       return;
@@ -216,7 +259,14 @@ class BackgroundMusicPlayer {
 
     this.targetVolume = option.defaultVolume;
 
-    await this.unloadCurrentSound();
+    if (crossfadeFromCurrent && this.sound) {
+      // Switching presets mid-listen: the old loop fades out under the new one's fade-in.
+      const previous = this.sound;
+      this.sound = null;
+      this.retireSound(previous, FADE_DURATION_MS);
+    } else {
+      await this.unloadCurrentSound();
+    }
     if (requestId !== this.loadRequestId) {
       return;
     }
@@ -225,7 +275,7 @@ class BackgroundMusicPlayer {
       shouldPlay: false,
       isLooping: false,
       volume: 0,
-      progressUpdateIntervalMillis: 1000,
+      progressUpdateIntervalMillis: PROGRESS_UPDATE_INTERVAL_MS,
     });
 
     if (requestId !== this.loadRequestId) {
@@ -294,8 +344,9 @@ class BackgroundMusicPlayer {
       return;
     }
 
+    const wasAudible = this.shouldBePlaying && this.sound != null;
     this.shouldBePlaying = false;
-    await this.ensureLoaded(choice, requestId);
+    await this.ensureLoaded(choice, requestId, wasAudible);
 
     if (requestId !== this.loadRequestId || !this.sound) {
       return;
