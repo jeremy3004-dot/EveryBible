@@ -1175,6 +1175,7 @@ export const ar = {
     termsOfService: 'شروط الخدمة',
     resources: 'المصادر',
     madeWithLove: 'صُنع بمحبة',
+    musicCredit: '«{{title}}» بواسطة {{author}} · {{license}}',
   },
   loading: {
     initializing: 'جارٍ التهيئة...',

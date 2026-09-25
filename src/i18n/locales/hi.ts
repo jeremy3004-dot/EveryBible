@@ -824,6 +824,7 @@ export const hi = {
     termsOfService: 'सेवा की शर्तें',
     resources: 'संसाधन',
     madeWithLove: 'प्रेम से बनाया गया',
+    musicCredit: '“{{title}}” — {{author}} द्वारा · {{license}}',
   },
   loading: {
     initializing: 'प्रारंभ किया जा रहा है...',

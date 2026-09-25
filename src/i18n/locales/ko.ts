@@ -1111,6 +1111,7 @@ export const ko = {
     termsOfService: '서비스 이용약관',
     resources: '자료',
     madeWithLove: '사랑으로 만들었습니다',
+    musicCredit: '‘{{title}}’ · {{author}} 제작 · {{license}}',
   },
   loading: {
     initializing: '준비하는 중…',

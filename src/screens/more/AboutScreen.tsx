@@ -25,9 +25,13 @@ import {
 } from '../../constants';
 import { radius, layout, spacing, typography } from '../../design/system';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
+import { BACKGROUND_MUSIC_OPTIONS } from '../../services/audio/backgroundMusicCatalog';
 
 const ABOUT_WEBSITE_LABEL = 'everybible.app';
 const ABOUT_APP_ICON = require('../../../assets/icon.png');
+// The bundled listen-mode tracks. Sitar's CC-BY 3.0 license requires this credit in the app;
+// the CC0 works are credited as a courtesy.
+const MUSIC_CREDITS = BACKGROUND_MUSIC_OPTIONS.filter((option) => option.id !== 'off');
 
 type NavigationProp = NativeStackNavigationProp<MoreStackParamList, 'About'>;
 
@@ -131,6 +135,35 @@ export function AboutScreen() {
             <Text style={styles.linkText}>{t('about.termsOfService')}</Text>
             <Ionicons name="open-outline" size={20} color={colors.secondaryText} />
           </TouchableOpacity>
+        </View>
+
+        {/* Background music credits */}
+        <Text style={styles.sectionTitle}>{t('audio.musicAndSounds')}</Text>
+        <View style={styles.linksCard}>
+          {MUSIC_CREDITS.map((track, index) => {
+            const label = t(`interface.music.${track.id}.label`);
+            const credit = t('about.musicCredit', {
+              title: track.workTitle,
+              author: track.credit,
+              license: track.license,
+            });
+            return (
+              <TouchableOpacity
+                key={track.id}
+                style={[styles.linkItem, index === MUSIC_CREDITS.length - 1 && styles.linkItemLast]}
+                onPress={() => handleLink(track.sourceUrl)}
+                accessibilityRole="link"
+                accessibilityLabel={`${label}, ${credit}`}
+              >
+                <Ionicons name="musical-notes-outline" size={24} color={colors.secondaryText} />
+                <View style={styles.creditText}>
+                  <Text style={styles.creditLabel}>{label}</Text>
+                  <Text style={styles.creditDetail}>{credit}</Text>
+                </View>
+                <Ionicons name="open-outline" size={20} color={colors.secondaryText} />
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         <Text style={styles.copyright}>{t('about.madeWithLove')}</Text>
@@ -237,6 +270,19 @@ const createStyles = (colors: ThemeColors) =>
       ...typography.body,
       color: colors.primaryText,
       marginLeft: spacing.md,
+    },
+    creditText: {
+      flex: 1,
+      marginLeft: spacing.md,
+    },
+    creditLabel: {
+      ...typography.body,
+      color: colors.primaryText,
+    },
+    creditDetail: {
+      ...typography.micro,
+      color: colors.secondaryText,
+      marginTop: spacing.xs,
     },
     copyright: {
       ...typography.micro,

@@ -1127,6 +1127,7 @@ export const ur = {
     termsOfService: 'سروس کی شرائط',
     resources: 'وسائل',
     madeWithLove: 'محبت سے بنایا گیا',
+    musicCredit: '“{{title}}” — از {{author}} · {{license}}',
   },
   loading: {
     initializing: 'شروع ہو رہا ہے...',

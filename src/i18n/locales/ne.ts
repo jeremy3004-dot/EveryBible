@@ -827,6 +827,7 @@ export const ne = {
     termsOfService: 'सेवाका सर्तहरू',
     resources: 'स्रोतहरू',
     madeWithLove: 'मायाले बनाइएको',
+    musicCredit: '“{{title}}” — {{author}} द्वारा · {{license}}',
   },
   loading: {
     initializing: 'प्रारम्भ गर्दै...',

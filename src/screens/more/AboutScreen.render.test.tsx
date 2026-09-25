@@ -13,6 +13,9 @@ afterEach(() => {
   harness.rn.__recorded.openedUrls.length = 0;
 });
 
+/** The Resources card's links; the music credits below it are links too. */
+const RESOURCE_LINK_COUNT = 4;
+
 async function renderAbout() {
   const { AboutScreen } = await import('./AboutScreen');
   return harness.render(<AboutScreen />);
@@ -22,8 +25,6 @@ test('the resources section links to the EveryBible website, support inbox, priv
   const view = await renderAbout();
 
   assert.ok(view.getByText(t('about.resources')));
-  const links = view.getAllByRole('link');
-  assert.equal(links.length, 4);
 
   // The website and support rows show readable labels, never a raw translation key.
   await view.press(view.getByRole('link', { name: 'everybible.app' }));
@@ -43,7 +44,7 @@ test('the links go through the canonical EveryBible link constants', async () =>
   const links = await import('../../constants/links');
   const view = await renderAbout();
 
-  for (const link of view.getAllByRole('link')) {
+  for (const link of view.getAllByRole('link').slice(0, RESOURCE_LINK_COUNT)) {
     await view.press(link);
   }
   assert.deepEqual(harness.rn.__recorded.openedUrls, [
@@ -130,4 +131,29 @@ test('when no app can open a link, the reader is shown where it points instead o
       { title: t('common.somethingWentWrong'), message: 'https://everybible.app/privacy' },
     ]
   );
+});
+
+test('the background music is credited by title, author and license, each linking to its source', async () => {
+  const { BACKGROUND_MUSIC_OPTIONS } = await import('../../services/audio/backgroundMusicCatalog');
+  const tracks = BACKGROUND_MUSIC_OPTIONS.filter((option) => option.id !== 'off');
+  const view = await renderAbout();
+
+  assert.ok(view.getByText(t('audio.musicAndSounds')));
+  assert.equal(view.getAllByRole('link').length, RESOURCE_LINK_COUNT + tracks.length);
+  for (const track of tracks) {
+    const credit = t('about.musicCredit', {
+      title: track.workTitle,
+      author: track.credit,
+      license: track.license,
+    });
+    await view.press(
+      view.getByRole('link', { name: `${t(`interface.music.${track.id}.label`)}, ${credit}` })
+    );
+  }
+  assert.deepEqual(
+    harness.rn.__recorded.openedUrls,
+    tracks.map((track) => track.sourceUrl)
+  );
+  // CC-BY 3.0 requires the credit to be shown in the app.
+  assert.ok(view.getByText(/Simple Desert.*Spring Spring.*CC-BY 3\.0/));
 });

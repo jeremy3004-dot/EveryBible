@@ -1079,6 +1079,7 @@ export const zh = {
     termsOfService: '服务条款',
     resources: '资源',
     madeWithLove: '用心打造',
+    musicCredit: '“{{title}}”，作者：{{author}} · {{license}}',
   },
   loading: {
     initializing: '正在初始化…',

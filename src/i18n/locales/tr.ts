@@ -1142,6 +1142,7 @@ export const tr = {
     termsOfService: 'Hizmet Şartları',
     resources: 'Kaynaklar',
     madeWithLove: 'Sevgiyle yapıldı',
+    musicCredit: '{{author}} tarafından “{{title}}” · {{license}}',
   },
   loading: {
     initializing: 'Başlatılıyor...',

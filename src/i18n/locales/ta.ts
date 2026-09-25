@@ -844,6 +844,7 @@ export const ta = {
     termsOfService: 'சேவை விதிமுறைகள்',
     resources: 'வளங்கள்',
     madeWithLove: 'அன்பினால் உருவாக்கப்பட்டது',
+    musicCredit: '“{{title}}” — உருவாக்கியவர்: {{author}} · {{license}}',
   },
   loading: {
     initializing: 'துவக்குகிறது...',

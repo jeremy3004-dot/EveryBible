@@ -827,6 +827,7 @@ export const mr = {
     termsOfService: 'सेवा अटी',
     resources: 'संसाधने',
     madeWithLove: 'प्रेमाने बनवले',
+    musicCredit: '“{{title}}” — {{author}} द्वारे · {{license}}',
   },
   loading: {
     initializing: 'आरंभ करत आहे...',

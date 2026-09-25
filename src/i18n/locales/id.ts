@@ -1139,6 +1139,7 @@ export const id = {
     termsOfService: 'Ketentuan layanan',
     resources: 'Sumber daya',
     madeWithLove: 'Dibuat dengan kasih',
+    musicCredit: '“{{title}}” oleh {{author}} · {{license}}',
   },
   loading: {
     initializing: 'Menginisialisasi...',

@@ -1155,6 +1155,7 @@ export const de = {
     termsOfService: 'Nutzungsbedingungen',
     resources: 'Ressourcen',
     madeWithLove: 'Mit Liebe gemacht',
+    musicCredit: '„{{title}}“ von {{author}} · {{license}}',
   },
   loading: {
     initializing: 'Wird initialisiert …',

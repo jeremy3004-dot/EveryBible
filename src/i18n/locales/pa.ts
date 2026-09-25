@@ -828,6 +828,7 @@ export const pa = {
     termsOfService: 'ਸੇਵਾ ਦੀਆਂ ਸ਼ਰਤਾਂ',
     resources: 'ਸਰੋਤ',
     madeWithLove: 'ਪਿਆਰ ਨਾਲ ਬਣਾਇਆ ਗਿਆ',
+    musicCredit: '“{{title}}” — {{author}} ਵੱਲੋਂ · {{license}}',
   },
   loading: {
     initializing: 'ਸ਼ੁਰੂ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ...',

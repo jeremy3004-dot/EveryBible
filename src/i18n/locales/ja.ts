@@ -1119,6 +1119,7 @@ export const ja = {
     termsOfService: '利用規約',
     resources: 'リソース',
     madeWithLove: '愛を込めて作りました',
+    musicCredit: '「{{title}}」 作：{{author}} · {{license}}',
   },
   loading: {
     initializing: '初期化中...',

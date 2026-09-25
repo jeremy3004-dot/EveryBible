@@ -835,6 +835,7 @@ export const te = {
     termsOfService: 'సేవా నిబంధనలు',
     resources: 'వనరులు',
     madeWithLove: 'ప్రేమతో రూపొందించినది',
+    musicCredit: '“{{title}}” — రూపొందించినవారు: {{author}} · {{license}}',
   },
   loading: {
     initializing: 'ప్రారంభిస్తోంది...',

@@ -1140,6 +1140,7 @@ export const vi = {
     termsOfService: 'Điều khoản dịch vụ',
     resources: 'Tài nguyên',
     madeWithLove: 'Được thực hiện bằng tình yêu thương',
+    musicCredit: '“{{title}}” của {{author}} · {{license}}',
   },
   loading: {
     initializing: 'Đang khởi tạo...',

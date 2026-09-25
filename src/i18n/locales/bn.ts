@@ -820,6 +820,7 @@ export const bn = {
     termsOfService: 'পরিষেবার শর্তাবলী',
     resources: 'সহায়ক উপকরণ',
     madeWithLove: 'ভালোবাসা দিয়ে তৈরি',
+    musicCredit: '“{{title}}” — নির্মাতা: {{author}} · {{license}}',
   },
   loading: {
     initializing: 'শুরু করা হচ্ছে...',

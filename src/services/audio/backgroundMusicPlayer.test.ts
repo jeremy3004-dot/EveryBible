@@ -134,9 +134,9 @@ mockModule(mock, sourcePath('services/audio/audioPlayer.ts'), {
 type BackgroundMusicPlayerModule = typeof import('./backgroundMusicPlayer');
 
 const FADE_DURATION_MS = 2500;
-const AMBIENT_VOLUME = 0.16;
-const PIANO_VOLUME = 0.16;
-const OCEAN_WAVES_VOLUME = 0.24;
+const AMBIENT_VOLUME = 0.13;
+const PIANO_VOLUME = 0.22;
+const OCEAN_WAVES_VOLUME = 0.22;
 
 let mod: BackgroundMusicPlayerModule;
 

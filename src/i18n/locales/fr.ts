@@ -1186,6 +1186,7 @@ export const fr = {
     termsOfService: 'Conditions d’utilisation',
     resources: 'Ressources',
     madeWithLove: 'Fait avec amour',
+    musicCredit: '« {{title}} » par {{author}} · {{license}}',
   },
   loading: {
     initializing: 'Initialisation...',

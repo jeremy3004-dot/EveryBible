@@ -1165,6 +1165,7 @@ export const pt = {
     termsOfService: 'Termos de serviço',
     resources: 'Recursos',
     madeWithLove: 'Feito com amor',
+    musicCredit: '“{{title}}” de {{author}} · {{license}}',
   },
   loading: {
     initializing: 'Inicializando...',

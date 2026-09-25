@@ -1138,6 +1138,7 @@ export const en = {
     resources: 'Resources',
     termsOfService: 'Terms of Service',
     madeWithLove: 'Made with love',
+    musicCredit: '“{{title}}” by {{author}} · {{license}}',
   },
   loading: {
     initializing: 'Initializing...',

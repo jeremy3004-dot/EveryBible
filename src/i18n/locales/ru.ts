@@ -1170,6 +1170,7 @@ export const ru = {
     termsOfService: 'Условия использования',
     resources: 'Ресурсы',
     madeWithLove: 'Сделано с любовью',
+    musicCredit: '«{{title}}», автор: {{author}} · {{license}}',
   },
   loading: {
     initializing: 'Инициализация…',
