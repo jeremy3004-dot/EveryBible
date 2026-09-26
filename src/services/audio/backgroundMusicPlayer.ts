@@ -1,7 +1,15 @@
-import { Audio, type AVPlaybackStatus } from 'expo-av';
+import { Audio, type AVPlaybackSource, type AVPlaybackStatus } from 'expo-av';
 import type { BackgroundMusicChoice } from '../../types';
 import { configureAudioMode } from './audioPlayer';
-import { getBackgroundMusicOption, getBackgroundMusicSource } from './backgroundMusicCatalog';
+import {
+  BACKGROUND_MUSIC_OPTIONS,
+  getBackgroundMusicOption,
+  getBackgroundMusicSource,
+  getBackgroundMusicVolume,
+  type BackgroundMusicOption,
+} from './backgroundMusicCatalog';
+import { backgroundSoundCache } from './backgroundSoundCache';
+import { listShuffleCandidates } from './backgroundSoundShuffleModel';
 
 const FADE_DURATION_MS = 2500;
 const FADE_STEP_MS = 50;
@@ -14,18 +22,38 @@ const PROGRESS_UPDATE_INTERVAL_MS = 250;
  */
 const CROSSFADE_LOAD_MARGIN_MS = 750;
 const MIN_FADE_OUT_MS = 250;
+/**
+ * How long a Sound level change takes to reach the live bed. Long enough that dragging
+ * the slider never steps audibly, short enough that the bed follows the thumb.
+ */
+const LEVEL_RAMP_MS = 400;
+/** The Sound level that plays each sound at its catalog volume. */
+const DEFAULT_LEVEL = 0.5;
+
+type SoundChoice = Exclude<BackgroundMusicChoice, 'off'>;
 
 class BackgroundMusicPlayer {
   private sound: Audio.Sound | null = null;
-  private currentChoice: Exclude<BackgroundMusicChoice, 'off'> | null = null;
+  private currentChoice: SoundChoice | null = null;
+  /** What the current loop was loaded from, so each loop restart reloads the same file. */
+  private currentSource: AVPlaybackSource | null = null;
   private isConfigured = false;
   private loadRequestId = 0;
-  private targetVolume = 0.2;
+  /** The catalog volume of the current sound, before the listener's Sound level. */
+  private baseVolume = 0.2;
+  private level = DEFAULT_LEVEL;
+  /** The latest sync, so a sound that finishes downloading can start if it is still wanted. */
+  private requested: { choice: BackgroundMusicChoice; shouldPlay: boolean } | null = null;
   private fadeTimers = new Map<Audio.Sound, ReturnType<typeof setInterval>>();
   /** The last volume set on each sound, so a fade-out can start from where it is. */
   private volumes = new Map<Audio.Sound, number>();
   private retiringSounds = new Set<Audio.Sound>();
   private shouldBePlaying = false;
+
+  /** The volume the bed plays at: the current sound's catalog level scaled by the Sound level. */
+  private get targetVolume(): number {
+    return getBackgroundMusicVolume(this.baseVolume, this.level);
+  }
 
   async configure(): Promise<void> {
     if (this.isConfigured) {
@@ -34,6 +62,36 @@ class BackgroundMusicPlayer {
 
     await configureAudioMode();
     this.isConfigured = true;
+    // Sounds downloaded in an earlier session count for Shuffle once the disk says so.
+    void backgroundSoundCache.refresh(BACKGROUND_MUSIC_OPTIONS);
+  }
+
+  /**
+   * Sets the Sound level (0–1). A playing bed ramps to it from wherever it is, including
+   * part way through a fade-in or a loop crossfade, so dragging the slider never restarts
+   * the loop or clicks. At 0 the loop keeps running silently, ready to come back.
+   */
+  setLevel(level: number): void {
+    const next = Number.isFinite(level) ? Math.min(1, Math.max(0, level)) : DEFAULT_LEVEL;
+    if (next === this.level) return;
+    this.level = next;
+
+    const sound = this.sound;
+    if (!sound || !this.shouldBePlaying) return;
+    this.fadeVolume(
+      sound,
+      this.volumes.get(sound) ?? 0,
+      this.targetVolume,
+      undefined,
+      LEVEL_RAMP_MS
+    );
+  }
+
+  /** The sounds Shuffle may pick now: bundled, or remote and already downloaded. */
+  getShuffleCandidates(): BackgroundMusicChoice[] {
+    return listShuffleCandidates(BACKGROUND_MUSIC_OPTIONS, (option) =>
+      backgroundSoundCache.getAvailability(option)
+    );
   }
 
   private clearFadeTimer(sound: Audio.Sound): void {
@@ -64,6 +122,7 @@ class BackgroundMusicPlayer {
     }
 
     this.sound = null;
+    this.currentSource = null;
     this.retiringSounds.clear();
     this.volumes.clear();
 
@@ -176,7 +235,7 @@ class BackgroundMusicPlayer {
     // Prevent re-entrant crossfade
     oldSound.setOnPlaybackStatusUpdate(null);
 
-    const source = getBackgroundMusicSource(this.currentChoice);
+    const source = this.currentSource;
     if (!source) {
       return;
     }
@@ -237,8 +296,34 @@ class BackgroundMusicPlayer {
     }
   }
 
+  /**
+   * The file a remote sound plays from, once it is on disk. A sound not downloaded yet
+   * starts downloading and resolves null: the bed stays silent (the narration carries on)
+   * and the sound starts once the download lands, if it is still the one wanted.
+   *
+   * The file is never streamed while it downloads. Every loop restart loads the file
+   * afresh, so a stream would fetch it again each time round, and a partial m4a whose
+   * index sits at the end cannot start until it has all arrived anyway.
+   */
+  private async resolveRemoteSource(
+    option: BackgroundMusicOption
+  ): Promise<AVPlaybackSource | null> {
+    const uri = await backgroundSoundCache.getCachedUri(option);
+    if (uri) {
+      return { uri };
+    }
+
+    void backgroundSoundCache.ensureCached(option).then((downloaded) => {
+      const requested = this.requested;
+      if (downloaded && requested?.choice === option.id && requested.shouldPlay) {
+        void this.sync(option.id, true);
+      }
+    });
+    return null;
+  }
+
   private async ensureLoaded(
-    choice: Exclude<BackgroundMusicChoice, 'off'>,
+    choice: SoundChoice,
     requestId: number,
     crossfadeFromCurrent = false
   ): Promise<void> {
@@ -251,18 +336,25 @@ class BackgroundMusicPlayer {
       return;
     }
 
-    const source = getBackgroundMusicSource(choice);
     const option = getBackgroundMusicOption(choice);
-    if (!source || !option) {
+    if (!option) {
+      return;
+    }
+    const source =
+      option.source.kind === 'bundled'
+        ? getBackgroundMusicSource(choice)
+        : await this.resolveRemoteSource(option);
+    if (requestId !== this.loadRequestId || (source === null && option.source.kind === 'bundled')) {
       return;
     }
 
-    this.targetVolume = option.defaultVolume;
+    this.baseVolume = option.defaultVolume;
 
     if (crossfadeFromCurrent && this.sound) {
       // Switching presets mid-listen: the old loop fades out under the new one's fade-in.
       const previous = this.sound;
       this.sound = null;
+      this.currentSource = null;
       this.retireSound(previous, FADE_DURATION_MS);
     } else {
       await this.unloadCurrentSound();
@@ -271,12 +363,28 @@ class BackgroundMusicPlayer {
       return;
     }
 
-    const { sound } = await Audio.Sound.createAsync(source, {
-      shouldPlay: false,
-      isLooping: false,
-      volume: 0,
-      progressUpdateIntervalMillis: PROGRESS_UPDATE_INTERVAL_MS,
-    });
+    if (source === null) {
+      // Waiting on its download: the previous sound has given way, and nothing plays yet.
+      this.currentChoice = choice;
+      return;
+    }
+
+    let sound: Audio.Sound;
+    try {
+      ({ sound } = await Audio.Sound.createAsync(source, {
+        shouldPlay: false,
+        isLooping: false,
+        volume: 0,
+        progressUpdateIntervalMillis: PROGRESS_UPDATE_INTERVAL_MS,
+      }));
+    } catch {
+      // A downloaded file that will not decode is dropped, so the next play fetches it
+      // again instead of failing on the same file for good.
+      if (option.source.kind === 'remote' && requestId === this.loadRequestId) {
+        await backgroundSoundCache.discard(option);
+      }
+      return;
+    }
 
     if (requestId !== this.loadRequestId) {
       await sound.unloadAsync();
@@ -285,10 +393,12 @@ class BackgroundMusicPlayer {
 
     sound.setOnPlaybackStatusUpdate(this.handlePlaybackStatus);
     this.sound = sound;
+    this.currentSource = source;
     this.currentChoice = choice;
   }
 
   async sync(choice: BackgroundMusicChoice, shouldPlay: boolean): Promise<void> {
+    this.requested = { choice, shouldPlay };
     if (
       choice !== 'off' &&
       shouldPlay &&
@@ -311,7 +421,7 @@ class BackgroundMusicPlayer {
 
     const option = getBackgroundMusicOption(choice);
     if (option) {
-      this.targetVolume = option.defaultVolume;
+      this.baseVolume = option.defaultVolume;
     }
 
     if (!shouldPlay) {
@@ -371,6 +481,7 @@ class BackgroundMusicPlayer {
   async stop(): Promise<void> {
     this.shouldBePlaying = false;
     this.currentChoice = null;
+    this.requested = null;
     this.loadRequestId += 1;
     await this.unloadCurrentSound();
   }
