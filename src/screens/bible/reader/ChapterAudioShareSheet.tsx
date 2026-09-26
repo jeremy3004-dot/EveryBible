@@ -10,6 +10,7 @@ import { readerSharedStyles } from './readerSharedStyles';
 
 export interface ChapterAudioShareSheetProps {
   chapterShareTitle: string;
+  handleChapterAudioShareSheetDismissed: () => void;
   handleShareAudioPortion: () => Promise<void>;
   handleShareFullChapterAudio: () => Promise<void>;
   setShowChapterAudioShareSheet: Dispatch<SetStateAction<boolean>>;
@@ -19,6 +20,7 @@ export interface ChapterAudioShareSheetProps {
 /** Share the whole chapter audio or a clip of it. */
 export function ChapterAudioShareSheet({
   chapterShareTitle,
+  handleChapterAudioShareSheetDismissed,
   handleShareAudioPortion,
   handleShareFullChapterAudio,
   setShowChapterAudioShareSheet,
@@ -36,6 +38,7 @@ export function ChapterAudioShareSheet({
       statusBarTranslucent
       navigationBarTranslucent
       animationType="fade"
+      onDismiss={handleChapterAudioShareSheetDismissed}
       onRequestClose={() => setShowChapterAudioShareSheet(false)}
     >
       <TouchableOpacity

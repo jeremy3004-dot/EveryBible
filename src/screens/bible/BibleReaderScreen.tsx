@@ -702,6 +702,7 @@ export function BibleReaderScreen() {
     audioPortionShareDraft,
     audioPortionStartMs,
     handleAudioPortionEndSeek,
+    handleAudioPortionShareSheetDismissed,
     handleAudioPortionPreviewEnd,
     handleAudioPortionStartSeek,
     handleCloseAudioPortionSheet,
@@ -714,6 +715,7 @@ export function BibleReaderScreen() {
     setAudioPortionShareDraft,
     setAudioPortionStartMs,
   } = useAudioPortionShare({
+    currentTranslation,
     audioPositionRef,
     bookId,
     chapter,
@@ -837,6 +839,7 @@ export function BibleReaderScreen() {
   const handleReadAlongPlayPause = useLatestCallback(handlePlayDisplayedChapter);
   const {
     chapterAudioShareActionLabel,
+    handleChapterAudioShareSheetDismissed,
     handleAddToPlaylist,
     handleAddToQueue,
     handleCloseFontSizeSheet,
@@ -1427,6 +1430,7 @@ export function BibleReaderScreen() {
 
       <ChapterAudioShareSheet
         chapterShareTitle={chapterShareTitle}
+        handleChapterAudioShareSheetDismissed={handleChapterAudioShareSheetDismissed}
         handleShareAudioPortion={handleShareAudioPortion}
         handleShareFullChapterAudio={handleShareFullChapterAudio}
         setShowChapterAudioShareSheet={setShowChapterAudioShareSheet}
@@ -1434,6 +1438,7 @@ export function BibleReaderScreen() {
       />
 
       <AudioPortionShareSheet
+        handleAudioPortionShareSheetDismissed={handleAudioPortionShareSheetDismissed}
         audioPortionEndMs={audioPortionEndMs}
         audioPortionRangeDurationMs={audioPortionRangeDurationMs}
         audioPortionShareDraft={audioPortionShareDraft}

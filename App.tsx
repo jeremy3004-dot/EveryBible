@@ -34,6 +34,7 @@ import {
 } from './src/services/diagnostics/crashReportQueue';
 import { enforceLtrLayoutPolicy } from './src/services/startup/rtlPolicy';
 import { rootNavigationRef } from './src/navigation/rootNavigation';
+import { subscribeToIncomingLinks } from './src/navigation/linkLifecycle';
 import { usePushTokenRegistration } from './src/hooks/usePushTokenRegistration';
 import { useNotificationTapRouting } from './src/hooks/useNotificationTapRouting';
 import { useAudioDownloadRecovery } from './src/hooks/useAudioDownloadRecovery';
@@ -525,13 +526,11 @@ function AppContent() {
       })
       .catch(() => {});
 
-    const subscription = Linking.addEventListener('url', ({ url }) => {
-      handleUrl(url);
-    });
+    const unsubscribeLinks = subscribeToIncomingLinks(handleUrl);
 
     return () => {
       isMounted = false;
-      subscription.remove();
+      unsubscribeLinks();
       if (readinessInterval) {
         clearInterval(readinessInterval);
       }

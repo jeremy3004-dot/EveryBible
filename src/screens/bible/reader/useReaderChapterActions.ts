@@ -217,6 +217,7 @@ export function useReaderChapterActions({
 
   const {
     chapterAudioShareActionLabel,
+    handleChapterAudioShareSheetDismissed,
     handleOpenChapterAudioShareSheet,
     handleShareAudioPortion,
     handleShareFullChapterAudio,
@@ -289,6 +290,7 @@ export function useReaderChapterActions({
 
   return {
     chapterAudioShareActionLabel,
+    handleChapterAudioShareSheetDismissed,
     handleAddToPlaylist,
     handleAddToQueue,
     handleCloseFontSizeSheet,

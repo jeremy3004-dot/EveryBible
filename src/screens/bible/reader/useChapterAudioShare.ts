@@ -1,5 +1,5 @@
 import type { Dispatch, RefObject, SetStateAction } from 'react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, InteractionManager, Platform, Share } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { trackBibleExperienceEvent } from '../../../services/analytics/bibleExperienceAnalytics';
@@ -49,6 +49,16 @@ export function useChapterAudioShare({
   const [pendingChapterAudioShareAction, setPendingChapterAudioShareAction] = useState<
     'full' | 'portion' | null
   >(null);
+  const requestRef = useRef<object | null>(null);
+  const sheetDismissedRef = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    requestRef.current = null;
+    setPendingChapterAudioShareAction(null);
+    return () => {
+      requestRef.current = null;
+      sheetDismissedRef.current?.();
+    };
+  }, [bookId, chapter, currentTranslation]);
 
   const chapterAudioShareActionLabel =
     pendingChapterAudioShareAction === 'portion'
@@ -62,6 +72,7 @@ export function useChapterAudioShare({
   };
 
   const waitForChapterAudioShareSheetDismissal = async () => {
+    if (!showChapterAudioShareSheet) return;
     await new Promise<void>((resolve) => {
       let settled = false;
       const complete = () => {
@@ -69,25 +80,35 @@ export function useChapterAudioShare({
           return;
         }
         settled = true;
-        clearTimeout(timeoutId);
+        if (timeoutId) clearTimeout(timeoutId);
+        if (sheetDismissedRef.current === complete) sheetDismissedRef.current = null;
         resolve();
       };
-      // Guard against long-running interaction handles that can block runAfterInteractions forever.
-      const timeoutId = setTimeout(complete, 300);
-      InteractionManager.runAfterInteractions(complete);
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
+      // iOS can present the next native sheet only after the Modal's fade ends.
+      if (Platform.OS === 'ios') {
+        sheetDismissedRef.current = complete;
+      } else {
+        timeoutId = setTimeout(complete, 300);
+        InteractionManager.runAfterInteractions(complete);
+      }
     });
   };
 
   const handleShareFullChapterAudio = async () => {
-    if (pendingChapterAudioShareAction) {
+    if (requestRef.current) {
       return;
     }
+    const request = {};
+    requestRef.current = request;
+    const isCurrent = () => requestRef.current === request;
 
     setShowChapterAudioShareSheet(false);
     setPendingChapterAudioShareAction('full');
 
     try {
       await waitForChapterAudioShareSheetDismissal();
+      if (!isCurrent()) return;
       const {
         AUDIO_DOWNLOAD_ROOT_URI,
         chapterAudioShareRootUri,
@@ -96,6 +117,7 @@ export function useChapterAudioShare({
         getDownloadedChapterAudioUri,
         prepareChapterAudioShareAsset,
       } = await loadAudioShareDependencies();
+      if (!isCurrent()) return;
 
       const audioShareAsset = await prepareChapterAudioShareAsset({
         translationId: currentTranslation,
@@ -113,6 +135,7 @@ export function useChapterAudioShare({
           ),
         resolveRemoteAudio: fetchRemoteChapterAudio,
       });
+      if (!isCurrent()) return;
 
       if (!audioShareAsset) {
         Alert.alert(t('common.error'), t('bible.audioDownloadFailed'));
@@ -130,7 +153,10 @@ export function useChapterAudioShare({
       });
 
       const Sharing = await tryLoadSharing();
-      if (Sharing && (await Sharing.isAvailableAsync())) {
+      if (!isCurrent()) return;
+      const available = Sharing && (await Sharing.isAvailableAsync());
+      if (!isCurrent()) return;
+      if (Sharing && available) {
         setPendingChapterAudioShareAction(null);
         await Sharing.shareAsync(audioShareAsset.uri, {
           dialogTitle: t('groups.share'),
@@ -148,23 +174,31 @@ export function useChapterAudioShare({
           : { message: chapterShareTitle, url }
       );
     } catch {
+      if (!isCurrent()) return;
       const message = t('bible.audioDownloadFailed');
       Alert.alert(t('common.error'), message);
     } finally {
-      setPendingChapterAudioShareAction(null);
+      if (isCurrent()) {
+        requestRef.current = null;
+        setPendingChapterAudioShareAction(null);
+      }
     }
   };
 
   const handleShareAudioPortion = async () => {
-    if (pendingChapterAudioShareAction) {
+    if (requestRef.current) {
       return;
     }
+    const request = {};
+    requestRef.current = request;
+    const isCurrent = () => requestRef.current === request;
 
     setShowChapterAudioShareSheet(false);
     setPendingChapterAudioShareAction('portion');
 
     try {
       await waitForChapterAudioShareSheetDismissal();
+      if (!isCurrent()) return;
       const {
         AUDIO_DOWNLOAD_ROOT_URI,
         chapterAudioShareRootUri,
@@ -173,6 +207,7 @@ export function useChapterAudioShare({
         getDownloadedChapterAudioUri,
         prepareChapterAudioShareAsset,
       } = await loadAudioShareDependencies();
+      if (!isCurrent()) return;
 
       const audioShareAsset = await prepareChapterAudioShareAsset({
         translationId: currentTranslation,
@@ -190,6 +225,7 @@ export function useChapterAudioShare({
           ),
         resolveRemoteAudio: fetchRemoteChapterAudio,
       });
+      if (!isCurrent()) return;
 
       if (!audioShareAsset) {
         setPendingChapterAudioShareAction(null);
@@ -208,6 +244,7 @@ export function useChapterAudioShare({
       });
 
       const { VideoTrimModule, isValidTrimMediaFile } = await loadVideoTrimDependencies();
+      if (!isCurrent()) return;
       const validateTrimMediaFile =
         typeof isValidTrimMediaFile === 'function'
           ? isValidTrimMediaFile
@@ -219,6 +256,7 @@ export function useChapterAudioShare({
       const validationResult = validateTrimMediaFile
         ? await validateTrimMediaFile(audioShareAsset.uri)
         : null;
+      if (!isCurrent()) return;
       const isValidAudioFile =
         validationResult == null || typeof validationResult === 'boolean'
           ? validationResult !== false
@@ -266,15 +304,22 @@ export function useChapterAudioShare({
       setAudioPortionEndMs(initialEndMs);
       setPendingChapterAudioShareAction(null);
     } catch {
+      if (!isCurrent()) return;
       setPendingChapterAudioShareAction(null);
       const message = t('bible.audioDownloadFailed');
       Alert.alert(t('common.error'), message);
+    } finally {
+      if (isCurrent()) {
+        requestRef.current = null;
+        setPendingChapterAudioShareAction(null);
+      }
     }
   };
 
   return {
     chapterAudioShareActionLabel,
     handleOpenChapterAudioShareSheet,
+    handleChapterAudioShareSheetDismissed: () => sheetDismissedRef.current?.(),
     handleShareAudioPortion,
     handleShareFullChapterAudio,
     pendingChapterAudioShareAction,

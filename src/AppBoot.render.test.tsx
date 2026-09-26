@@ -75,7 +75,15 @@ const privacyStore = create<PrivacyFakeState>()((set) => ({
   lock: () => set({ isLocked: true }),
 }));
 mockModule(mock, sourcePath('stores/privacyStore.ts'), { usePrivacyStore: privacyStore });
-mockBarrel(mock, 'services/privacy/index.ts', { real: ['shouldLockForAppStateChange'] });
+mockBarrel(mock, 'services/privacy/index.ts', {
+  real: [
+    'shouldLockForAppStateChange',
+    'subscribeToPrivacyLockGraceChanges',
+    'getPrivacyLockGraceDeadline',
+    'notePrivacyLockAppState',
+    'getPendingPrivacyLockGraceDeadline',
+  ],
+});
 
 // Native packages App.tsx imports directly.
 mockPackage(mock, 'expo-status-bar', { StatusBar: hostComponent('StatusBar') });
@@ -83,9 +91,14 @@ mockPackage(mock, 'expo-splash-screen', {
   preventAutoHideAsync: async () => true,
   hideAsync: async () => {},
 });
+const urlListeners = new Set<(event: { url: string }) => void>();
 mockPackage(mock, 'expo-linking', {
+  createURL: () => 'exp://127.0.0.1:8081/--/',
   getInitialURL: async () => null,
-  addEventListener: () => ({ remove: () => {} }),
+  addEventListener: (_type: string, listener: (event: { url: string }) => void) => {
+    urlListeners.add(listener);
+    return { remove: () => urlListeners.delete(listener) };
+  },
 });
 mockPackage(mock, 'expo-font', { useFonts: () => [true, null] });
 mockPackage(mock, '@expo-google-fonts/lora', {
@@ -126,8 +139,16 @@ mockModule(mock, sourcePath('services/diagnostics/crashReportQueue.ts'), {
     return { success: true, sent: 0 };
   },
 });
+let navigationReady = false;
 mockModule(mock, sourcePath('navigation/rootNavigation.ts'), {
-  rootNavigationRef: { isReady: () => false },
+  rootNavigationRef: { isReady: () => navigationReady },
+});
+const authUrls: string[] = [];
+mockModule(mock, sourcePath('services/auth/authDeepLink.ts'), {
+  handleAuthDeepLinkUrl: async (url: string) => {
+    authUrls.push(url);
+  },
+  flushPendingResetPasswordNavigation: () => {},
 });
 mockModule(mock, sourcePath('components/privacy/PrivacyLockScreen.tsx'), {
   PrivacyLockScreen: hostComponent('PrivacyLockScreen'),
@@ -207,6 +228,8 @@ beforeEach(() => {
   bibleInitError = null;
   navigatorRenders = 0;
   androidChannelSetups = 0;
+  navigationReady = false;
+  authUrls.length = 0;
   harness.rn.Platform.OS = 'ios';
   privacyStore.setState(privacyStore.getInitialState(), true);
   authStore.setState(authStore.getInitialState(), true);
@@ -295,6 +318,112 @@ test('auth rehydrates its persisted state after privacy and before it initialize
 
   assert.deepEqual(startupCalls, ['privacy.initialize', 'auth.rehydrate', 'auth.initialize']);
   assert.equal(surface(view), 'navigator');
+});
+
+test('a Bible link received during a locked cold start survives until the first navigator mounts', async () => {
+  privacyInitResult = { isInitialized: true, mode: 'discreet', hasPin: true, isLocked: true };
+  const view = await renderApp();
+  assert.equal(surface(view), 'lock screen');
+  assert.equal(urlListeners.size, 1, 'capture is installed before any navigator mounts');
+  const url = 'com.everybible.app://bible/john/3/16';
+  await act(async () => {
+    for (const listener of urlListeners) listener({ url });
+  });
+  await settle();
+
+  // The real app imports the navigator (and its link config) only after unlock.
+  const { linkingConfig, flushParkedLink } = await import('./navigation/linkingConfig');
+  const delivered: string[] = [];
+  assert.ok(linkingConfig.subscribe);
+  const unsubscribe = linkingConfig.subscribe((link) => delivered.push(link));
+  try {
+    assert.deepEqual(delivered, [], 'the lock has not been bypassed');
+    navigationReady = true;
+    flushParkedLink();
+    assert.deepEqual(delivered, [url]);
+  } finally {
+    unsubscribe?.();
+  }
+});
+
+test('a Bible link received before first onboarding finishes waits for navigation readiness', async () => {
+  authStore.getState().setPreferences({ onboardingCompleted: false });
+  privacyInitResult = { isInitialized: true, isLocked: false };
+  const view = await renderApp();
+  assert.equal(surface(view), 'onboarding');
+  assert.equal(navigatorRenders, 0);
+  const url = 'com.everybible.app://bible/romans/8';
+  await act(async () => {
+    for (const listener of urlListeners) listener({ url });
+  });
+
+  const { linkingConfig, flushParkedLink } = await import('./navigation/linkingConfig');
+  const delivered: string[] = [];
+  assert.ok(linkingConfig.subscribe);
+  const unsubscribe = linkingConfig.subscribe((link) => delivered.push(link));
+  try {
+    flushParkedLink();
+    assert.deepEqual(delivered, []);
+    await act(async () => authStore.getState().setPreferences({ onboardingCompleted: true }));
+    await settle();
+    assert.equal(surface(view), 'navigator');
+    navigationReady = true;
+    flushParkedLink();
+    flushParkedLink();
+    assert.deepEqual(delivered, [url]);
+  } finally {
+    unsubscribe?.();
+  }
+});
+
+test('multiple Bible links received before first unlock keep only the latest', async () => {
+  privacyInitResult = { isInitialized: true, mode: 'discreet', hasPin: true, isLocked: true };
+  const view = await renderApp();
+  assert.equal(surface(view), 'lock screen');
+  const urls = ['com.everybible.app://bible/john/3/16', 'com.everybible.app://bible/psalms/23'];
+  await act(async () => {
+    for (const url of urls) {
+      for (const listener of urlListeners) listener({ url });
+    }
+  });
+
+  const { linkingConfig, flushParkedLink } = await import('./navigation/linkingConfig');
+  const delivered: string[] = [];
+  assert.ok(linkingConfig.subscribe);
+  const unsubscribe = linkingConfig.subscribe((link) => delivered.push(link));
+  try {
+    assert.deepEqual(delivered, []);
+    await setPrivacy({ isLocked: false });
+    navigationReady = true;
+    flushParkedLink();
+    assert.deepEqual(delivered, [urls[1]]);
+  } finally {
+    unsubscribe?.();
+  }
+});
+
+test('App and a mounted navigator share one native listener and deliver a warm link once', async () => {
+  privacyInitResult = { isInitialized: true, isLocked: false };
+  const view = await renderApp();
+  assert.equal(surface(view), 'navigator');
+  const { linkingConfig, flushParkedLink } = await import('./navigation/linkingConfig');
+  const delivered: string[] = [];
+  assert.ok(linkingConfig.subscribe);
+  navigationReady = true;
+  const unsubscribe = linkingConfig.subscribe((link) => delivered.push(link));
+  const url = 'com.everybible.app://bible/john/3/16';
+  try {
+    assert.equal(urlListeners.size, 1);
+    await act(async () => {
+      for (const listener of urlListeners) listener({ url });
+    });
+    await settle();
+    flushParkedLink();
+    assert.deepEqual(delivered, [url]);
+    assert.deepEqual(authUrls, [url], 'the existing auth handler still sees the event once');
+  } finally {
+    unsubscribe?.();
+  }
 });
 
 test('a locked install shows the lock screen before onboarding', async () => {

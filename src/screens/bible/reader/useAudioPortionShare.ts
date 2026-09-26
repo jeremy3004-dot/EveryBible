@@ -1,7 +1,7 @@
 import type { AudioStatus } from '../../../types/audio';
-import type { RefObject } from 'react';
-import { useCallback, useEffect, useState } from 'react';
-import { Alert, Platform, Share } from 'react-native';
+import type { Dispatch, RefObject, SetStateAction } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert, InteractionManager, Platform, Share } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { buildBibleDeepLink } from '../../../services/bible/deepLinkParser';
 import type { ReaderAudioPositionSnapshot } from '../ReaderAudioPositionParts';
@@ -14,6 +14,7 @@ export interface UseAudioPortionShareInput {
   bookId: string;
   chapter: number;
   chapterShareTitle: string;
+  currentTranslation: string;
   isCurrentAudioChapter: boolean;
   resetFollowAlongClamp: () => void;
   seekTo: (requestedPositionMs: number) => Promise<void>;
@@ -27,6 +28,7 @@ export function useAudioPortionShare({
   bookId,
   chapter,
   chapterShareTitle,
+  currentTranslation,
   isCurrentAudioChapter,
   resetFollowAlongClamp,
   seekTo,
@@ -34,12 +36,52 @@ export function useAudioPortionShare({
   togglePlayPause,
 }: UseAudioPortionShareInput) {
   const { t } = useTranslation();
-  const [audioPortionShareDraft, setAudioPortionShareDraft] =
+  const [audioPortionShareDraft, updateAudioPortionShareDraft] =
     useState<AudioPortionShareDraft | null>(null);
   const [audioPortionStartMs, setAudioPortionStartMs] = useState(0);
   const [audioPortionEndMs, setAudioPortionEndMs] = useState(0);
   const [isSharingAudioPortion, setIsSharingAudioPortion] = useState(false);
   const [isPreviewingAudioPortion, setIsPreviewingAudioPortion] = useState(false);
+  const requestRef = useRef<object | null>(null);
+  const sheetDismissedRef = useRef<(() => void) | null>(null);
+  const setAudioPortionShareDraft: Dispatch<SetStateAction<AudioPortionShareDraft | null>> =
+    useCallback((next) => {
+      requestRef.current = null;
+      sheetDismissedRef.current?.();
+      setIsSharingAudioPortion(false);
+      updateAudioPortionShareDraft(next);
+    }, []);
+  useEffect(() => {
+    requestRef.current = null;
+    setIsSharingAudioPortion(false);
+    setIsPreviewingAudioPortion(false);
+    setAudioPortionStartMs(0);
+    setAudioPortionEndMs(0);
+    updateAudioPortionShareDraft(null);
+    return () => {
+      requestRef.current = null;
+      sheetDismissedRef.current?.();
+    };
+  }, [bookId, chapter, currentTranslation]);
+
+  const closeAudioPortionSheetAndWait = () =>
+    new Promise<void>((resolve) => {
+      let settled = false;
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
+      const complete = () => {
+        if (settled) return;
+        settled = true;
+        if (timeoutId) clearTimeout(timeoutId);
+        if (sheetDismissedRef.current === complete) sheetDismissedRef.current = null;
+        resolve();
+      };
+      if (Platform.OS === 'ios') sheetDismissedRef.current = complete;
+      else {
+        timeoutId = setTimeout(complete, 300);
+        InteractionManager.runAfterInteractions(complete);
+      }
+      updateAudioPortionShareDraft(null);
+    });
 
   const audioPortionRangeDurationMs = Math.max(audioPortionEndMs - audioPortionStartMs, 0);
 
@@ -68,7 +110,7 @@ export function useAudioPortionShare({
   }, [audioPortionStartMs, seekTo, togglePlayPause]);
 
   const handleCloseAudioPortionSheet = () => {
-    if (isSharingAudioPortion) {
+    if (requestRef.current) {
       return;
     }
 
@@ -129,7 +171,7 @@ export function useAudioPortionShare({
   };
 
   const handleConfirmAudioPortionShare = async () => {
-    if (!audioPortionShareDraft || isSharingAudioPortion) {
+    if (!audioPortionShareDraft || requestRef.current) {
       return;
     }
 
@@ -148,28 +190,32 @@ export function useAudioPortionShare({
       return;
     }
 
-    const { VideoTrimModule, trimAudioMedia } = await loadVideoTrimDependencies();
-    const trimMediaFile =
-      typeof trimAudioMedia === 'function'
-        ? trimAudioMedia
-        : typeof (
-              VideoTrimModule as {
-                trim?: (url: string, options: unknown) => Promise<unknown>;
-              }
-            ).trim === 'function'
-          ? (
-              VideoTrimModule as {
-                trim: (url: string, options: unknown) => Promise<unknown>;
-              }
-            ).trim
-          : null;
-    if (!trimMediaFile) {
-      Alert.alert(t('common.error'), t('bible.audioDownloadFailed'));
-      return;
-    }
-
+    const request = {};
+    requestRef.current = request;
+    const isCurrent = () => requestRef.current === request;
     setIsSharingAudioPortion(true);
     try {
+      const { VideoTrimModule, trimAudioMedia } = await loadVideoTrimDependencies();
+      if (!isCurrent()) return;
+      const trimMediaFile =
+        typeof trimAudioMedia === 'function'
+          ? trimAudioMedia
+          : typeof (
+                VideoTrimModule as {
+                  trim?: (url: string, options: unknown) => Promise<unknown>;
+                }
+              ).trim === 'function'
+            ? (
+                VideoTrimModule as {
+                  trim: (url: string, options: unknown) => Promise<unknown>;
+                }
+              ).trim
+            : null;
+      if (!trimMediaFile) {
+        Alert.alert(t('common.error'), t('bible.audioDownloadFailed'));
+        return;
+      }
+
       const trimResult = await trimMediaFile(audioPortionShareDraft.sourceUri, {
         type: 'audio',
         outputExt: audioPortionShareDraft.fileExtension,
@@ -181,6 +227,7 @@ export function useAudioPortionShare({
         enableRotation: false,
         rotationAngle: 0,
       });
+      if (!isCurrent()) return;
 
       const trimOutputPath =
         typeof trimResult === 'string'
@@ -200,10 +247,13 @@ export function useAudioPortionShare({
       const trimOutputUri = trimOutputPath.startsWith('file://')
         ? trimOutputPath
         : `file://${trimOutputPath}`;
-      handleCloseAudioPortionSheet();
-
       const Sharing = await tryLoadSharing();
-      if (Sharing && (await Sharing.isAvailableAsync())) {
+      if (!isCurrent()) return;
+      const available = Sharing && (await Sharing.isAvailableAsync());
+      if (!isCurrent()) return;
+      await closeAudioPortionSheetAndWait();
+      if (!isCurrent()) return;
+      if (Sharing && available) {
         await Sharing.shareAsync(trimOutputUri, {
           dialogTitle: t('groups.share'),
           mimeType: audioPortionShareDraft.mimeType,
@@ -217,11 +267,20 @@ export function useAudioPortionShare({
             : { message: chapterShareTitle, url }
         );
       }
+      if (isCurrent()) {
+        updateAudioPortionShareDraft(null);
+        setAudioPortionStartMs(0);
+        setAudioPortionEndMs(0);
+      }
     } catch {
+      if (!isCurrent()) return;
       const message = t('bible.audioDownloadFailed');
       Alert.alert(t('common.error'), message);
     } finally {
-      setIsSharingAudioPortion(false);
+      if (isCurrent()) {
+        requestRef.current = null;
+        setIsSharingAudioPortion(false);
+      }
     }
   };
 
@@ -231,6 +290,7 @@ export function useAudioPortionShare({
     audioPortionShareDraft,
     audioPortionStartMs,
     handleAudioPortionEndSeek,
+    handleAudioPortionShareSheetDismissed: () => sheetDismissedRef.current?.(),
     handleAudioPortionPreviewEnd,
     handleAudioPortionStartSeek,
     handleCloseAudioPortionSheet,

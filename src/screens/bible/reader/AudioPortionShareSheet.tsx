@@ -15,6 +15,7 @@ export interface AudioPortionShareSheetProps {
   audioPortionShareDraft: AudioPortionShareDraft | null;
   audioPortionStartMs: number;
   chapterShareTitle: string;
+  handleAudioPortionShareSheetDismissed: () => void;
   handleAudioPortionEndSeek: (nextEndMs: number) => void;
   handleAudioPortionStartSeek: (nextStartMs: number) => void;
   handleCloseAudioPortionSheet: () => void;
@@ -33,6 +34,7 @@ export function AudioPortionShareSheet({
   audioPortionShareDraft,
   audioPortionStartMs,
   chapterShareTitle,
+  handleAudioPortionShareSheetDismissed,
   handleAudioPortionEndSeek,
   handleAudioPortionStartSeek,
   handleCloseAudioPortionSheet,
@@ -52,6 +54,7 @@ export function AudioPortionShareSheet({
       statusBarTranslucent
       navigationBarTranslucent
       animationType="fade"
+      onDismiss={handleAudioPortionShareSheetDismissed}
       onRequestClose={handleCloseAudioPortionSheet}
     >
       <View

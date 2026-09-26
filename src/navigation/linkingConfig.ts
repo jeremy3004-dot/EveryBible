@@ -4,8 +4,10 @@ import { getStateFromPath as defaultGetStateFromPath } from '@react-navigation/n
 import type { RootTabParamList } from './types';
 import { buildBibleNavState } from './buildBibleNavState';
 import { rootNavigationRef } from './rootNavigation';
+import { subscribeToNavigatorLinks } from './linkLifecycle';
 
 export { buildBibleNavState } from './buildBibleNavState';
+export { flushParkedLink } from './linkLifecycle';
 
 const prefix = Linking.createURL('/');
 
@@ -33,49 +35,12 @@ const getInitialURLOnce = (): Promise<string | null> | null => {
   ]);
 };
 
-type LinkListener = (url: string) => void;
-
-let deliverLink: LinkListener | null = null;
-let parkedLink: string | null = null;
-let isWatchingLinks = false;
-
 /**
- * Hands the parked link to React Navigation once its container is listening and ready.
- * RootNavigator calls this from onReady; subscribeToLinks calls it on subscribe, since a
- * remounted container can be ready before React Navigation subscribes.
+ * Uses the lightweight capture App starts before its first navigator can mount.
+ * The latest link waits until a mounted, ready container can take it.
  */
-export function flushParkedLink(): void {
-  if (parkedLink === null || !deliverLink || !rootNavigationRef.isReady()) {
-    return;
-  }
-  const url = parkedLink;
-  parkedLink = null;
-  deliverLink(url);
-}
-
-/**
- * React Navigation only listens for links while its container is mounted, and drops a
- * link that arrives before the container is ready. The navigator unmounts behind the
- * discreet-mode lock screen, so a link tapped while the app sat locked was lost. The
- * app listens once for its whole life instead; the latest link waits here until a
- * mounted, ready navigator can take it (after unlock, so the lock is never bypassed).
- */
-const subscribeToLinks = (listener: LinkListener): (() => void) => {
-  if (!isWatchingLinks) {
-    isWatchingLinks = true;
-    Linking.addEventListener('url', ({ url }) => {
-      parkedLink = url;
-      flushParkedLink();
-    });
-  }
-  deliverLink = listener;
-  flushParkedLink();
-  return () => {
-    if (deliverLink === listener) {
-      deliverLink = null;
-    }
-  };
-};
+const subscribeToLinks = (listener: (url: string) => void): (() => void) =>
+  subscribeToNavigatorLinks(listener, () => rootNavigationRef.isReady());
 
 /**
  * React Navigation linking config for deep links using the com.everybible.app:// scheme.

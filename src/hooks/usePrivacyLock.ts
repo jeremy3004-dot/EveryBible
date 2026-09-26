@@ -2,9 +2,10 @@ import { useEffect } from 'react';
 import { AppState, Platform, type AppStateStatus } from 'react-native';
 import {
   getPendingPrivacyLockGraceDeadline,
-  isPrivacyLockGraceActive,
+  getPrivacyLockGraceDeadline,
   notePrivacyLockAppState,
   shouldLockForAppStateChange,
+  subscribeToPrivacyLockGraceChanges,
 } from '../services/privacy';
 import { usePrivacyStore } from '../stores/privacyStore';
 
@@ -49,10 +50,10 @@ const reconcileAppIcon = (): void => {
  * settings change.
  *
  * Going inactive under system UI the app raised itself (an icon-change alert, a
- * permission prompt; see privacyLockGrace) does not lock, but backgrounding from there
- * still does. On Android, where that prompt backgrounds the app instead, the lock waits
- * while the prompt is open, up to the grace cap, and is dropped if the app comes back
- * in time.
+ * permission prompt; see privacyLockGrace) defers locking only until its grace deadline;
+ * backgrounding from there still locks. On Android, where that prompt backgrounds the
+ * app instead, the lock waits while the prompt is open, up to the grace cap, and is
+ * dropped if the app comes back in time.
  *
  * It also retries an app icon change that did not take (iOS refuses one while the app is
  * not in the foreground): once privacy settings have loaded, and on every return to the
@@ -64,23 +65,21 @@ export const usePrivacyLock = () => {
     // An inactive spell left unlocked for the app's own system UI. Backgrounding from it
     // must still lock, though inactive -> background is not otherwise a lock trigger.
     let inactiveLockDeferred = false;
-    // Android: a background spell left unlocked for the app's own open prompt, and the
-    // time it stops being excused.
-    let backgroundLockDeadline: number | null = null;
-    let backgroundLockTimer: ReturnType<typeof setTimeout> | null = null;
+    // A spell away excused by our own system UI, bounded even if JS timers pause.
+    let awayLockDeadline: number | null = null;
+    let awayLockTimer: ReturnType<typeof setTimeout> | null = null;
 
-    const clearBackgroundLock = (): void => {
-      if (backgroundLockTimer !== null) {
-        clearTimeout(backgroundLockTimer);
+    const clearAwayLock = (): void => {
+      if (awayLockTimer !== null) {
+        clearTimeout(awayLockTimer);
       }
-      backgroundLockTimer = null;
-      backgroundLockDeadline = null;
+      awayLockTimer = null;
+      awayLockDeadline = null;
     };
 
-    // Android pauses JS timers in the background, so this may only run on return, where
-    // the check on 'active' below has already locked.
+    // Mobile platforms may pause JS while away; the active handler also checks the clock.
     const lockIfStillAway = (): void => {
-      backgroundLockTimer = null;
+      awayLockTimer = null;
       try {
         if (previousState !== 'active' && shouldStayLocked()) {
           usePrivacyStore.getState().lock();
@@ -90,22 +89,40 @@ export const usePrivacyLock = () => {
       }
     };
 
+    const deferAwayLock = (deadline: number): void => {
+      // Repeated lifecycle events or another prompt must not extend the same absence.
+      const boundedDeadline = Math.min(awayLockDeadline ?? deadline, deadline);
+      clearAwayLock();
+      awayLockDeadline = boundedDeadline;
+      awayLockTimer = setTimeout(lockIfStillAway, Math.max(0, boundedDeadline - Date.now()));
+    };
+
+    const unsubscribeFromGrace = subscribeToPrivacyLockGraceChanges(() => {
+      try {
+        if (inactiveLockDeferred && previousState === 'inactive' && awayLockDeadline !== null) {
+          deferAwayLock(getPrivacyLockGraceDeadline() ?? Date.now());
+        }
+      } catch (error) {
+        lockAfterPrivacyLockFailure(error);
+      }
+    });
+
     const subscription = AppState.addEventListener('change', (nextState) => {
       const leaving = previousState;
       previousState = nextState;
       const lockDeferred = inactiveLockDeferred;
-      inactiveLockDeferred = false;
-      const backgroundDeadline = backgroundLockDeadline;
+      inactiveLockDeferred = lockDeferred && nextState === 'inactive';
+      const awayDeadline = awayLockDeadline;
       if (nextState === 'active') {
-        clearBackgroundLock();
+        clearAwayLock();
       }
 
       try {
         notePrivacyLockAppState(nextState);
         if (
           nextState === 'active' &&
-          backgroundDeadline !== null &&
-          Date.now() >= backgroundDeadline &&
+          awayDeadline !== null &&
+          Date.now() >= awayDeadline &&
           shouldStayLocked()
         ) {
           // The prompt outlasted its grace while the app was away.
@@ -113,19 +130,20 @@ export const usePrivacyLock = () => {
         }
         const leavesForeground =
           shouldLockForAppStateChange(leaving, nextState) ||
-          (lockDeferred && nextState === 'background');
+          (lockDeferred && nextState !== 'active');
         if (leavesForeground && shouldStayLocked()) {
+          const inactiveDeadline = nextState === 'inactive' ? getPrivacyLockGraceDeadline() : null;
           const pendingDeadline =
             nextState === 'background' && Platform.OS === 'android'
               ? getPendingPrivacyLockGraceDeadline()
               : null;
-          if (nextState === 'inactive' && isPrivacyLockGraceActive()) {
+          if (inactiveDeadline !== null) {
             inactiveLockDeferred = true;
+            deferAwayLock(inactiveDeadline);
           } else if (pendingDeadline !== null) {
-            clearBackgroundLock();
-            backgroundLockDeadline = pendingDeadline;
-            backgroundLockTimer = setTimeout(lockIfStillAway, pendingDeadline - Date.now());
+            deferAwayLock(pendingDeadline);
           } else {
+            clearAwayLock();
             usePrivacyStore.getState().lock();
           }
         }
@@ -149,7 +167,8 @@ export const usePrivacyLock = () => {
 
     return () => {
       subscription.remove();
-      clearBackgroundLock();
+      clearAwayLock();
+      unsubscribeFromGrace();
       unsubscribeFromInitialization();
     };
   }, []);

@@ -6,7 +6,8 @@
  * (turning discreet mode on locked the app at once) and remounted the navigator.
  *
  * So system UI the app raises runs through `withPrivacyLockGrace`, and while it is open,
- * and briefly after it settles, going 'inactive' does not lock. Going to the background
+ * and briefly after it settles, going 'inactive' defers locking until that grace expires,
+ * or until the next foreground return checks its deadline. Going to the background
  * always locks on iOS, and so does backgrounding after an ignored inactive (see
  * usePrivacyLock), so the grace never keeps content visible outside the app. Android's
  * exception, for its own prompts only, is below.
@@ -50,6 +51,15 @@ type PendingGrace = { startedAt: number; sawInactive: boolean };
 const pendingSince = new Set<PendingGrace>();
 let graceUntil = 0;
 let heldUntilActiveSince: number | null = null;
+const graceListeners = new Set<() => void>();
+
+/** Allows an inactive lock timer to shorten when a prompt settles. */
+export function subscribeToPrivacyLockGraceChanges(listener: () => void): () => void {
+  graceListeners.add(listener);
+  return () => {
+    graceListeners.delete(listener);
+  };
+}
 
 /** Runs a task that shows system UI (an icon alert, a permission prompt) under the grace. */
 export async function withPrivacyLockGrace<T>(
@@ -67,6 +77,7 @@ export async function withPrivacyLockGrace<T>(
     if (options.untilNextActive && !entry.sawInactive) {
       heldUntilActiveSince = settledAt;
     }
+    graceListeners.forEach((listener) => listener());
   }
 }
 
@@ -86,22 +97,16 @@ export function notePrivacyLockAppState(nextState: string): void {
 
 /** Whether system UI the app raised itself explains the app going 'inactive' right now. */
 export function isPrivacyLockGraceActive(): boolean {
+  return getPrivacyLockGraceDeadline() !== null;
+}
+
+/** The deadline for inactive system UI, including pending, settled and held icon alerts. */
+export function getPrivacyLockGraceDeadline(): number | null {
   const now = Date.now();
-  if (now < graceUntil) {
-    return true;
-  }
-  if (
-    heldUntilActiveSince !== null &&
-    now - heldUntilActiveSince < PRIVACY_LOCK_GRACE_MAX_PENDING_MS
-  ) {
-    return true;
-  }
-  for (const entry of pendingSince) {
-    if (now - entry.startedAt < PRIVACY_LOCK_GRACE_MAX_PENDING_MS) {
-      return true;
-    }
-  }
-  return false;
+  const heldDeadline =
+    heldUntilActiveSince === null ? 0 : heldUntilActiveSince + PRIVACY_LOCK_GRACE_MAX_PENDING_MS;
+  const deadline = Math.max(graceUntil, heldDeadline, getPendingPrivacyLockGraceDeadline() ?? 0);
+  return deadline > now ? deadline : null;
 }
 
 /**

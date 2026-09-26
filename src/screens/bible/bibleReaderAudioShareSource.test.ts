@@ -20,12 +20,6 @@ test('BibleReaderScreen wires full-chapter sharing and an in-app audio-portion r
 
   assert.match(
     source,
-    /const \[audioPortionShareDraft, setAudioPortionShareDraft\] =\s*useState<AudioPortionShareDraft \| null>\(\s*null\s*\);/s,
-    'BibleReaderScreen should keep draft state for in-app audio portion selection'
-  );
-
-  assert.match(
-    source,
     /import\('react-native-video-trim'\)/,
     'BibleReaderScreen should load the trim module only when the user starts audio-portion sharing'
   );

@@ -272,3 +272,148 @@ test('an icon change that raises no alert stops excusing an inactive app after t
 
   assert.equal(usePrivacyStore.getState().isLocked, true);
 });
+
+for (const suspendedTimers of [false, true]) {
+  test(`an iOS prompt already inactive at the grace cap locks${suspendedTimers ? ' on return when timers were suspended' : ' without another lifecycle event'}`, async () => {
+    configureDiscreet();
+    homeScreenIcon = 'discreet';
+    mock.timers.enable({
+      apis: ['setTimeout', 'Date'],
+      now: Date.now() + 1_000_000 + (suspendedTimers ? 20_000 : 0),
+    });
+    mountPrivacyLock();
+    const { PRIVACY_LOCK_GRACE_MAX_PENDING_MS } =
+      await import('../services/privacy/privacyLockGrace');
+    let finish!: () => void;
+    const prompt = withPrivacyLockGrace(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        })
+    );
+    try {
+      rn.AppState.emit('inactive');
+      assert.equal(
+        usePrivacyStore.getState().isLocked,
+        false,
+        'the prompt starts inside its grace'
+      );
+      if (suspendedTimers) {
+        mock.timers.setTime(Date.now() + PRIVACY_LOCK_GRACE_MAX_PENDING_MS + 1);
+        rn.AppState.emit('active');
+      } else {
+        mock.timers.tick(PRIVACY_LOCK_GRACE_MAX_PENDING_MS + 1);
+      }
+      assert.equal(usePrivacyStore.getState().isLocked, true);
+    } finally {
+      finish();
+      await prompt;
+    }
+  });
+}
+
+let inactiveTestClock = Date.now() + 2_000_000;
+const prepareInactiveGraceTest = () => {
+  configureDiscreet();
+  homeScreenIcon = 'discreet';
+  inactiveTestClock += 100_000;
+  mock.timers.enable({ apis: ['setTimeout', 'Date'], now: inactiveTestClock });
+  return mountPrivacyLock();
+};
+
+test('returning before the inactive grace expires clears its timer', async () => {
+  prepareInactiveGraceTest();
+  await whileSystemPromptOpen(() => {
+    rn.AppState.emit('inactive');
+    mock.timers.tick(500);
+    rn.AppState.emit('active');
+  });
+  mock.timers.tick(20_000);
+  assert.equal(usePrivacyStore.getState().isLocked, false);
+});
+
+test('a prompt settling while inactive locks when the short settlement grace expires', async () => {
+  prepareInactiveGraceTest();
+  await whileSystemPromptOpen(() => {
+    rn.AppState.emit('inactive');
+    mock.timers.tick(500);
+  });
+  mock.timers.tick(GRACE_MS - 1);
+  assert.equal(usePrivacyStore.getState().isLocked, false);
+  mock.timers.tick(1);
+  assert.equal(usePrivacyStore.getState().isLocked, true);
+});
+
+test('going inactive in the settlement tail locks at its existing deadline', async () => {
+  prepareInactiveGraceTest();
+  await whileSystemPromptOpen(() => undefined);
+  mock.timers.tick(GRACE_MS - 100);
+  rn.AppState.emit('inactive');
+  mock.timers.tick(100);
+  assert.equal(usePrivacyStore.getState().isLocked, true);
+});
+
+test('an icon alert held until the next active state still expires while inactive', async () => {
+  prepareInactiveGraceTest();
+  const { PRIVACY_LOCK_GRACE_MAX_PENDING_MS } =
+    await import('../services/privacy/privacyLockGrace');
+  await withPrivacyLockGrace(async () => undefined, { untilNextActive: true });
+  mock.timers.tick(2_000);
+  rn.AppState.emit('inactive');
+  mock.timers.tick(PRIVACY_LOCK_GRACE_MAX_PENDING_MS - 2_001);
+  assert.equal(usePrivacyStore.getState().isLocked, false);
+  rn.AppState.emit('inactive');
+  mock.timers.tick(1);
+  assert.equal(usePrivacyStore.getState().isLocked, true);
+});
+
+test('unmounting cancels an inactive grace timer and settlement subscription', async () => {
+  prepareInactiveGraceTest();
+  await whileSystemPromptOpen(() => {
+    rn.AppState.emit('inactive');
+    runtime.unmountAll();
+  });
+  mock.timers.tick(20_000);
+  assert.equal(usePrivacyStore.getState().isLocked, false);
+});
+
+test('changing to standard mode while inactive prevents the grace timer from locking', async () => {
+  prepareInactiveGraceTest();
+  await whileSystemPromptOpen(() => {
+    rn.AppState.emit('inactive');
+    usePrivacyStore.setState({ mode: 'standard', hasPin: false });
+  });
+  mock.timers.tick(20_000);
+  assert.equal(usePrivacyStore.getState().isLocked, false);
+});
+
+test('another prompt and repeated inactive events cannot extend the same absence', async () => {
+  prepareInactiveGraceTest();
+  const { PRIVACY_LOCK_GRACE_MAX_PENDING_MS } =
+    await import('../services/privacy/privacyLockGrace');
+  let finishFirst!: () => void;
+  let finishSecond!: () => void;
+  const first = withPrivacyLockGrace(
+    () =>
+      new Promise<void>((resolve) => {
+        finishFirst = resolve;
+      })
+  );
+  rn.AppState.emit('inactive');
+  mock.timers.tick(8_000);
+  const second = withPrivacyLockGrace(
+    () =>
+      new Promise<void>((resolve) => {
+        finishSecond = resolve;
+      })
+  );
+  try {
+    rn.AppState.emit('inactive');
+    mock.timers.tick(PRIVACY_LOCK_GRACE_MAX_PENDING_MS - 8_000);
+    assert.equal(usePrivacyStore.getState().isLocked, true);
+  } finally {
+    finishFirst();
+    finishSecond();
+    await Promise.all([first, second]);
+  }
+});
