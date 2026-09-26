@@ -1,11 +1,36 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BACKGROUND_MUSIC_OPTIONS, getBackgroundMusicVolume } from './backgroundMusicCatalog';
+import { BACKGROUND_MUSIC_CHOICES } from '../../types/audio';
 
-test('background music catalog exposes the bundled listen options with source metadata', () => {
+test('background music catalog exposes the listen options with source metadata', () => {
   assert.deepEqual(
     BACKGROUND_MUSIC_OPTIONS.map((option) => option.id),
-    ['off', 'ambient', 'piano', 'soft-guitar', 'harp', 'flute', 'sitar', 'ocean-waves']
+    [
+      'off',
+      'ambient',
+      'piano',
+      'piano-cello',
+      'soft-guitar',
+      'harp',
+      'flute',
+      'sitar',
+      'hymns',
+      'gregorian-chant',
+      'organ',
+      'ocean-waves',
+      'rain',
+      'gentle-breeze',
+      'summer-night',
+      'waterfall',
+      'birdsong',
+      'shore',
+      'fireplace',
+      'church-bells',
+      'village',
+      'garden',
+      'wilderness',
+    ]
   );
 
   assert.equal(BACKGROUND_MUSIC_OPTIONS[0]?.label, 'Off');
@@ -31,9 +56,48 @@ test('background music catalog exposes the bundled listen options with source me
   assert.match(flute?.sourceUrl ?? '', /through-fire-through-sea/);
 });
 
-test('every sound in the shipped catalog is bundled with the app', () => {
+test('the first eight sounds ship in the app and the rest stream from a versioned path', () => {
+  const bundled = [
+    'off',
+    'ambient',
+    'piano',
+    'soft-guitar',
+    'harp',
+    'flute',
+    'sitar',
+    'ocean-waves',
+  ];
+  for (const option of BACKGROUND_MUSIC_OPTIONS) {
+    if (bundled.includes(option.id)) {
+      assert.deepEqual(option.source, { kind: 'bundled' }, option.id);
+    } else {
+      // The path is what was uploaded to R2; a changed file must move to a new version.
+      assert.deepEqual(
+        option.source,
+        { kind: 'remote', path: `background-sounds/v1/${option.id}.m4a` },
+        option.id
+      );
+    }
+  }
+});
+
+test('every streamed sound carries an open licence and a credit for the About screen', () => {
+  for (const option of BACKGROUND_MUSIC_OPTIONS.filter((entry) => entry.source.kind === 'remote')) {
+    assert.match(option.license, /^(CC0|CC-BY 3\.0|CC-BY-SA 4\.0|Public domain)$/, option.id);
+    assert.ok(option.credit.length > 0, `${option.id} needs a credit`);
+    assert.match(
+      option.sourceUrl,
+      /^https:\/\/(freesound\.org|commons\.wikimedia\.org)\//,
+      option.id
+    );
+    assert.ok(option.defaultVolume > 0 && option.defaultVolume <= 0.5, option.id);
+  }
+});
+
+test('every choice except Shuffle has a catalog entry', () => {
+  const listed = new Set(BACKGROUND_MUSIC_OPTIONS.map((option) => option.id));
   assert.deepEqual(
-    BACKGROUND_MUSIC_OPTIONS.filter((option) => option.source.kind !== 'bundled'),
+    BACKGROUND_MUSIC_CHOICES.filter((choice) => choice !== 'shuffle' && !listed.has(choice)),
     []
   );
 });

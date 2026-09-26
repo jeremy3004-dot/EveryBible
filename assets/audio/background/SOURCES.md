@@ -77,3 +77,39 @@ file's loudness. Every track is credited on the About screen.
   - Source page: <https://opengameart.org/content/water-waves>
   - Original author: `transitking` (extracted from freesound.org sound 11505)
   - License: `CC0`
+
+# Streamed Background Sounds
+
+These are not bundled. They live in R2 (bucket `everybibleapp`, served at
+`https://media.everybible.app/background-sounds/v1/<id>.m4a`), are downloaded the first time a
+listener plays one, and then play offline from disk. They are built by
+`scripts/audio/build_background_sounds.py` (field recordings: the steadiest 3-minute stretch,
+peaks softened; music: leading silence and ring-out cut; all levelled to -20 LUFS / -1.5 dBTP
+where the recording allows, AAC 80 kbps). Uploaded 2026-09-26. Every sound is open-licensed;
+the three attribution sounds and the share-alike hymn medley are credited on the About screen.
+
+Freesound items were taken from Freesound's public full-length previews (Ogg, about 180 kbps),
+since the original files need an account. Each licence below was read on the item's own page.
+
+| Sound | Source | Author / performer | Licence |
+|---|---|---|---|
+| `rain` | "Rain Slowly Passing TREATED LOOP", <https://freesound.org/people/speakwithanimals/sounds/525046/> (2:14–5:14 used) | speakwithanimals | CC0 |
+| `gentle-breeze` | "forest ambience constant breeze", <https://freesound.org/people/kyles/sounds/637559/> | kyles | CC0 |
+| `summer-night` | "Quiet Night Atmosphere – Soft Crickets", <https://freesound.org/people/Goldenboy76/sounds/857163/> (1:36–4:36 used) | Goldenboy76 | CC0 |
+| `waterfall` | "Hidden waterfall", <https://freesound.org/people/BassmanJourney/sounds/632107/> | BassmanJourney | CC0 |
+| `birdsong` | "Birdsong in the bush", <https://freesound.org/people/dr19/sounds/457652/> (0:05–3:05 used) | dr19 | CC0 |
+| `shore` | "Gentle waves on a lake", <https://freesound.org/people/TheFlyFishingFilmmaker/sounds/614299/> | TheFlyFishingFilmmaker | CC0 |
+| `fireplace` | "Aachen_Burning Fireplace Crackling Fire Sounds", <https://freesound.org/people/visionear/sounds/501417/> (0:05–3:05 used) | visionear | CC0 |
+| `church-bells` | "Bells french distant", <https://freesound.org/people/lazymonk/sounds/413157/> (2:53–5:53 used) | lazymonk | CC0 |
+| `village` | "Perves Ambient Mountains Distant Small Village", <https://freesound.org/people/jordir/sounds/587370/> (6:58–9:58 used) | jordir | CC0 |
+| `garden` | "Ambience, garden, afternoon, summer, Foggy, Ordrup", <https://freesound.org/people/Matmorfus/sounds/204711/> (0:43–3:43 used) | Matmorfus | CC0 |
+| `wilderness` | "Forest Ambience 1", <https://freesound.org/people/Fester993/sounds/564436/> (0:00–2:23 used; a vehicle passes near the end of the original) | Fester993 | CC0 |
+| `gregorian-chant` | Sequence "Victimae Paschali Laudes", <https://commons.wikimedia.org/wiki/File:The_Tudor_Consort_-_09_-_Sequence_-_Victimae_Paschali_Laudes.ogg> (also on the Free Music Archive under the same licence) | The Tudor Consort | CC-BY 3.0 |
+| `organ` | J. S. Bach, Adagio from BWV 564, Steinmeyer organ of St. Michaelis, Hamburg, <https://commons.wikimedia.org/wiki/File:J.S.Bach_-_Adagio_(BWV_564).ogg> (source file is ~50 kbps) | Kerstin Wolf | CC-BY 3.0 |
+| `piano-cello` | Chopin, Cello Sonata Op. 65, III. Largo, Musopen "Set Chopin Free", <https://commons.wikimedia.org/wiki/File:Chopin_-_Cello_Sonata_in_G_minor,_Op._65_-_III._Largo_(Christopher_Harding,_Yeonjin_Kim).flac> | Christopher Harding (piano), Yeonjin Kim (cello) | Public domain (also CC0 on archive.org) |
+| `hymns` | Medley of four public-domain hymn tunes on pipe organ, each levelled and joined with a 1.5 s crossfade: EVENTIDE <https://commons.wikimedia.org/wiki/File:Eventide.ogg> and TOPLADY <https://commons.wikimedia.org/wiki/File:Toplady.ogg> (The Uninvited Co., Inc., CC-BY-SA 2.5); "When I Survey" <https://commons.wikimedia.org/wiki/File:When_I_Survey_Organ.oga> and "There is a green hill" <https://commons.wikimedia.org/wiki/File:There_is_a_green_hill_Organ.oga> (RandomCanadian, CC-BY-SA 4.0) | The Uninvited Co., Inc.; RandomCanadian | CC-BY-SA 4.0 (the medley, as the later compatible version of both share-alike licences) |
+
+Not used after review: a Moretti organ "Elevation" on Commons (the page releases only the
+composition, not the recording), a Silos monks Mass recording (may contain spoken parts), and a
+35-minute Bavarian village dawn recording (rooster and traffic risk; the Catalan village above
+is steadier).

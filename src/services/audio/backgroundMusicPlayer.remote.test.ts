@@ -1,7 +1,7 @@
 /**
- * Remote background sounds through the real player and the real download cache. The
- * shipped catalog has no remote sounds yet, so fixture options are added to it; the
- * file system, NetInfo and expo-av are in-memory fakes.
+ * Remote background sounds through the real player and the real download cache. Fixture
+ * options stand in for two shipped remote entries; the file system, NetInfo and expo-av
+ * are in-memory fakes.
  */
 import assert from 'node:assert/strict';
 import test, { before, beforeEach, mock } from 'node:test';
@@ -157,7 +157,13 @@ mock.timers.enable({ apis: ['setInterval'] });
 
 before(async () => {
   const catalog = await import('./backgroundMusicCatalog');
-  catalog.BACKGROUND_MUSIC_OPTIONS.push(RAIN, SHORE);
+  // Stand in for the shipped rain and shore entries, so tuning their volumes never moves
+  // these tests.
+  for (const fixture of [RAIN, SHORE]) {
+    const index = catalog.BACKGROUND_MUSIC_OPTIONS.findIndex((option) => option.id === fixture.id);
+    if (index >= 0) catalog.BACKGROUND_MUSIC_OPTIONS.splice(index, 1, fixture);
+    else catalog.BACKGROUND_MUSIC_OPTIONS.push(fixture);
+  }
   ({ backgroundMusicPlayer: player } = await import('./backgroundMusicPlayer'));
   ({ backgroundSoundCache: cache } = await import('./backgroundSoundCache'));
 });
