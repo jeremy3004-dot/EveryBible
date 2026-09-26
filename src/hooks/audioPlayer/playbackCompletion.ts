@@ -160,9 +160,6 @@ export async function finishChapterAndAdvance({
   };
   const finishedCoverageTranslationId = finishedTranslationId ?? fallbackTranslationId;
 
-  // Seam for the end-of-chapter sleep timer: it ends playback here, ahead of every
-  // repeat mode and the queue (a plan or rhythm above still owns its chapters).
-
   // Passage repeat sits where the other repeat modes do: its next chapter, or back to
   // its start (at the start verse where there are timings). A passage with no audio
   // in this translation falls through to the queue and auto-advance, as book repeat does.

@@ -101,9 +101,13 @@ export const sanitizePersistedAudioState = (value: unknown) => {
     repeatPassage,
     narrationVolume: sanitizeUnitVolume(persisted.narrationVolume, 1),
     backgroundMusicLevel: sanitizeUnitVolume(persisted.backgroundMusicLevel, 0.5),
-    sleepTimerMinutes: validSleepTimers.has(persisted.sleepTimerMinutes as SleepTimerOption)
-      ? ((persisted.sleepTimerMinutes as SleepTimerOption) ?? null)
-      : null,
+    // An End of chapter timer is for the session it was set in; restored, it would stop
+    // a later session's first chapter unasked (a minute timer's countdown isn't saved).
+    sleepTimerMinutes:
+      validSleepTimers.has(persisted.sleepTimerMinutes as SleepTimerOption) &&
+      persisted.sleepTimerMinutes !== 'end-of-chapter'
+        ? ((persisted.sleepTimerMinutes as SleepTimerOption) ?? null)
+        : null,
     backgroundMusicChoice: validBackgroundMusicChoices.has(
       persisted.backgroundMusicChoice as BackgroundMusicChoice
     )

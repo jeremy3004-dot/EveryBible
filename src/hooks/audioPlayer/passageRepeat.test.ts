@@ -234,6 +234,28 @@ test('playing past the end verse of a one-chapter passage seeks back to its star
   assert.deepEqual(plays, [], 'a seek, not a reload');
 });
 
+test('an End of chapter sleep timer stops at the end verse instead of looping', async () => {
+  let pauses = 0;
+  session.pause = async () => {
+    pauses += 1;
+    useAudioStore.getState().setStatus('paused');
+  };
+  try {
+    repeating(passage('JHN', [3, 3], [3, 4]));
+    loaded('JHN', 3, 30_000);
+    useAudioStore.getState().setSleepTimer('end-of-chapter');
+
+    await progress(36_000);
+    await progress(38_000); // crosses the end of verse 4
+
+    assert.equal(pauses, 1);
+    assert.deepEqual(player.seeks, [], 'no loop back to the start verse');
+    assert.equal(useAudioStore.getState().sleepTimerMinutes, null, 'the timer is used up');
+  } finally {
+    session.pause = null;
+  }
+});
+
 test('just before the end verse a timer loops exactly on time', async (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   repeating(passage('JHN', [3, 3], [3, 4]));

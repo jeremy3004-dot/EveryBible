@@ -255,9 +255,16 @@ async function loopFromEndVerse(ctx: PassageRepeatContext): Promise<void> {
   const at = captureTrack(ctx, raw);
   loopInFlight = true;
   try {
-    // Seam for the end-of-chapter sleep timer: the end verse is where a passage's
-    // "chapter" ends, so a timer set to stop there should end playback here instead of
-    // looping (as it does in finishChapterAndAdvance for a whole chapter).
+    // The end verse is where a passage's "chapter" ends, so an End of chapter sleep timer
+    // stops here instead of looping, as finishChapterAndAdvance does for a whole chapter.
+    // A pause rather than an end: the listener is mid-chapter and may pick it up again.
+    const store = useAudioStore.getState();
+    if (store.sleepTimerMinutes === 'end-of-chapter') {
+      store.clearSleepTimer();
+      resetBoundaryWatch();
+      await ctx.session.pause?.();
+      return;
+    }
     const target = await resolveLoopStart(ctx.resolveAudioCoverage, at.translationId, passage);
     if (!target || tookOver(ctx, at)) return;
     resetBoundaryWatch();

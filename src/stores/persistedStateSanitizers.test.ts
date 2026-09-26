@@ -941,12 +941,13 @@ test('sanitizePersistedAudioState clamps the voice and sound levels', () => {
   assert.equal(sanitizePersistedAudioState({ narrationVolume: 0.4 }).narrationVolume, 0.4);
 });
 
-test('sanitizePersistedAudioState keeps the end-of-chapter sleep timer and new sounds', () => {
+test('sanitizePersistedAudioState drops an End of chapter timer and keeps new sounds', () => {
   const sanitized = sanitizePersistedAudioState({
     sleepTimerMinutes: 'end-of-chapter',
     backgroundMusicChoice: 'gregorian-chant',
   });
-  assert.equal(sanitized.sleepTimerMinutes, 'end-of-chapter');
+  // Like a minute timer (whose countdown is not saved), it must not stop a later session.
+  assert.equal(sanitized.sleepTimerMinutes, null);
   assert.equal(sanitized.backgroundMusicChoice, 'gregorian-chant');
   assert.equal(sanitizePersistedAudioState({ sleepTimerMinutes: 'later' }).sleepTimerMinutes, null);
 });
