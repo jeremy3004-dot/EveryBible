@@ -107,6 +107,10 @@ import {
   useVerseSelection,
 } from './reader';
 import type { NavigationProp } from './reader';
+import { useLatestCallback } from '../../components/audio/playbackControlsParts/useLatestCallback';
+
+// Read Along's text while the reader shows none for the chapter (it loads its own).
+const NO_READ_ALONG_VERSES: Verse[] = [];
 
 type VerseTimestamps = import('../../services/bible/verseTimestamps').VerseTimestamps;
 
@@ -132,7 +136,6 @@ export function BibleReaderScreen() {
   const safeInsets = useSafeAreaInsets();
   const scrollViewRef = useRef<Animated.ScrollView | null>(null);
   const premiumReaderListRef = useRef<FlatList<ReaderParagraph> | null>(null);
-  const followAlongScrollViewRef = useRef<ScrollView | null>(null);
   const verseImageSharePreviewRef = useRef<View | null>(null);
   const verseOffsetsRef = useRef<Record<number, number>>({});
   const readerFocusScrollRef = useRef(createReaderFocusScroll());
@@ -144,7 +147,6 @@ export function BibleReaderScreen() {
   // Translator review tools render above the paragraphs, pushing every verse
   // down by their measured height.
   const readerListHeaderHeightRef = useRef(0);
-  const followAlongOffsetsRef = useRef<Record<number, number>>({});
   // The live audio position is consumed exclusively by the leaf components in
   // ReaderAudioPositionParts so the ~250ms tick never re-renders this screen.
   // The bridge mirrors it here for the async handlers that need a one-shot read,
@@ -599,7 +601,6 @@ export function BibleReaderScreen() {
     currentTranslation,
     dismissSelectedVerseSelection,
     focusVerse,
-    followAlongOffsetsRef,
     hasLoadedRouteChapter: isShowingRouteChapter && !isLoading && error == null,
     loadChapter,
     paragraphHeightsRef,
@@ -618,22 +619,18 @@ export function BibleReaderScreen() {
     setPlanDayResume,
     setPlaybackSequence,
     setSelectedVerses,
-    setShowFollowAlongText,
     setShowFontSizeSheet,
     verseOffsetsRef,
     verses,
   });
 
   useReaderFollowAlongScroll({
-    activeFollowAlongVerse,
     bookId,
     chapter,
     currentTranslation,
     didRestartFollowAlongPlayback,
     flushPendingReaderFocus,
     focusVerse,
-    followAlongOffsetsRef,
-    followAlongScrollViewRef,
     isCurrentAudioChapter,
     isLoading,
     pendingReaderAutoScrollVerseRef,
@@ -643,7 +640,6 @@ export function BibleReaderScreen() {
     scrollReaderToOffset,
     scrollReaderToVerseParagraph,
     setChapterTimestamps,
-    showFollowAlongText,
     showPremiumReadMode,
     verses,
   });
@@ -820,6 +816,16 @@ export function BibleReaderScreen() {
     showPlanSessionChrome,
     togglePlayPause,
   });
+  // Read Along is memoized; the reader's transport handlers are rebuilt every render.
+  const handleOpenReadAlong = useCallback(() => setShowFollowAlongText(true), []);
+  const handleCloseReadAlong = useCallback(() => setShowFollowAlongText(false), []);
+  const handleReadAlongPreviousChapter = useLatestCallback(() => {
+    void handlePreviousListenChapter();
+  });
+  const handleReadAlongNextChapter = useLatestCallback(() => {
+    void handleNextListenChapter();
+  });
+  const handleReadAlongPlayPause = useLatestCallback(handlePlayDisplayedChapter);
   const {
     chapterAudioShareActionLabel,
     handleAddToPlaylist,
@@ -982,6 +988,7 @@ export function BibleReaderScreen() {
             isCurrentAudioChapter={isCurrentAudioChapter}
             isLargeText={isLargeText}
             listenCountedNotice={listenCountedNotice}
+            onOpenReadAlong={handleOpenReadAlong}
             playbackRate={playbackRate}
             readerAudioTrack={readerAudioTrack}
             repeatMode={repeatMode}
@@ -1316,6 +1323,7 @@ export function BibleReaderScreen() {
         handleDownloadCurrentBookAudio={handleDownloadCurrentBookAudio}
         handleOpenChapterAudioShareSheet={handleOpenChapterAudioShareSheet}
         isCurrentAudioChapter={isCurrentAudioChapter}
+        onOpenReadAlong={handleOpenReadAlong}
         playbackRate={playbackRate}
         readerAudioTrack={readerAudioTrack}
         repeatMode={repeatMode}
@@ -1415,16 +1423,18 @@ export function BibleReaderScreen() {
       />
 
       <FollowAlongTextSheet
-        activeFollowAlongVerse={activeFollowAlongVerse}
-        bookId={bookId}
-        chapter={chapter}
-        followAlongOffsetsRef={followAlongOffsetsRef}
-        followAlongScrollViewRef={followAlongScrollViewRef}
-        isShowingRouteChapter={isShowingRouteChapter}
-        setShowFollowAlongText={setShowFollowAlongText}
-        showFollowAlongText={showFollowAlongText}
-        translationLabel={translationLabel}
-        verses={verses}
+        visible={showFollowAlongText}
+        onClose={handleCloseReadAlong}
+        track={readerAudioTrack}
+        isCurrentAudioChapter={isCurrentAudioChapter}
+        readerVerses={isShowingRouteChapter ? verses : NO_READ_ALONG_VERSES}
+        translation={currentTranslationInfo}
+        isPlaying={isCurrentAudioChapter && (status === 'playing' || status === 'loading')}
+        hasPreviousChapter={!showPlanSessionChrome && hasPrevChapter}
+        hasNextChapter={!showPlanSessionChrome && hasNextChapter}
+        onPreviousChapter={handleReadAlongPreviousChapter}
+        onNextChapter={handleReadAlongNextChapter}
+        onPlayPause={handleReadAlongPlayPause}
       />
 
       <AnnotationActionSheet

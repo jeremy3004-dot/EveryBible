@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { radius, spacing, typography } from '../../../design/system';
 import {
   getListenCountedNoticeViewModel,
@@ -40,6 +41,8 @@ export interface ReaderListenModeProps {
   isCurrentAudioChapter: boolean;
   isLargeText: boolean;
   listenCountedNotice: string | null;
+  /** Tapping the book artwork opens Read Along for the chapter. */
+  onOpenReadAlong: () => void;
   playbackRate: PlaybackRate;
   readerAudioTrack: { translationId: string; bookId: string; chapter: number };
   repeatMode: RepeatMode;
@@ -70,6 +73,7 @@ export function ReaderListenMode({
   isCurrentAudioChapter,
   isLargeText,
   listenCountedNotice,
+  onOpenReadAlong,
   playbackRate,
   readerAudioTrack,
   repeatMode,
@@ -82,6 +86,7 @@ export function ReaderListenMode({
   status,
 }: ReaderListenModeProps) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
 
   const listenStatus = isCurrentAudioChapter ? status : 'idle';
   const listenCountedNoticeViewModel = getListenCountedNoticeViewModel(listenCountedNotice);
@@ -95,7 +100,7 @@ export function ReaderListenMode({
 
   return (
     <View style={styles.listenColumn}>
-      <View
+      <TouchableOpacity
         style={[
           styles.listenArtworkFrame,
           {
@@ -103,9 +108,14 @@ export function ReaderListenMode({
             borderColor: colors.bibleDivider,
           },
         ]}
+        onPress={onOpenReadAlong}
+        activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel={t('audio.readAlong')}
+        accessibilityHint={t('audio.readAlongHint')}
       >
         <BookIcon bookId={bookId} style={styles.listenArtwork} />
-      </View>
+      </TouchableOpacity>
 
       <View
         style={[

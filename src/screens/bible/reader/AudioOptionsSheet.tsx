@@ -35,6 +35,8 @@ export interface AudioOptionsSheetProps {
   handleDownloadCurrentBookAudio: () => Promise<void>;
   handleOpenChapterAudioShareSheet: () => void;
   isCurrentAudioChapter: boolean;
+  /** Opens Read Along for the chapter; the sheet closes first. */
+  onOpenReadAlong: () => void;
   playbackRate: PlaybackRate;
   /** The chapter on screen, which the sheet describes and whose book a passage repeats in. */
   readerAudioTrack: ReaderAudioTrack;
@@ -59,6 +61,7 @@ export function AudioOptionsSheet({
   handleDownloadCurrentBookAudio,
   handleOpenChapterAudioShareSheet,
   isCurrentAudioChapter,
+  onOpenReadAlong,
   playbackRate,
   readerAudioTrack,
   repeatMode,
@@ -94,6 +97,11 @@ export function AudioOptionsSheet({
   const handleDownload = () => {
     closeSheet();
     void handleDownloadCurrentBookAudio();
+  };
+
+  const handleOpenReadAlong = () => {
+    closeSheet();
+    onOpenReadAlong();
   };
 
   const title =
@@ -193,6 +201,7 @@ export function AudioOptionsSheet({
                 onDownload={handleDownload}
                 onOpenLibrary={() => setPage('library')}
                 onOpenPassagePicker={() => setPage('passage')}
+                onOpenReadAlong={handleOpenReadAlong}
                 onShareClip={handleOpenChapterAudioShareSheet}
                 playbackRate={playbackRate}
                 repeatMode={repeatMode}

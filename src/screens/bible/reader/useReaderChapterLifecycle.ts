@@ -21,7 +21,6 @@ export interface UseReaderChapterLifecycleInput {
   currentTranslation: string;
   dismissSelectedVerseSelection: () => void;
   focusVerse: number | undefined;
-  followAlongOffsetsRef: RefObject<Record<number, number>>;
   /**
    * The route's chapter has finished loading and `verses` hold it. A chapter change
    * keeps the previous chapter's verses on screen (and `isLoading` false) until the
@@ -49,7 +48,6 @@ export interface UseReaderChapterLifecycleInput {
   setPlanDayResume: (planId: string, dayNumber: number, bookId: string, chapter: number) => void;
   setPlaybackSequence: (entries: AudioPlaybackSequenceEntry[]) => void;
   setSelectedVerses: Dispatch<SetStateAction<number[]>>;
-  setShowFollowAlongText: Dispatch<SetStateAction<boolean>>;
   setShowFontSizeSheet: Dispatch<SetStateAction<boolean>>;
   verseOffsetsRef: RefObject<Record<number, number>>;
   verses: Verse[];
@@ -71,7 +69,6 @@ export function useReaderChapterLifecycle({
   currentTranslation,
   dismissSelectedVerseSelection,
   focusVerse,
-  followAlongOffsetsRef,
   hasLoadedRouteChapter,
   loadChapter,
   paragraphHeightsRef,
@@ -90,7 +87,6 @@ export function useReaderChapterLifecycle({
   setPlanDayResume,
   setPlaybackSequence,
   setSelectedVerses,
-  setShowFollowAlongText,
   setShowFontSizeSheet,
   verseOffsetsRef,
   verses,
@@ -136,7 +132,6 @@ export function useReaderChapterLifecycle({
       verseOffsetsRef.current = {};
       paragraphHeightsRef.current = {};
       readerListHeaderHeightRef.current = 0;
-      followAlongOffsetsRef.current = {};
     }
     readerFocusScrollRef.current.request(focusVerse ?? null);
     pendingReaderAutoScrollVerseRef.current = null;
@@ -154,7 +149,6 @@ export function useReaderChapterLifecycle({
     focusVerse,
     resetFollowAlongClamp,
     scrollReaderToOffset,
-    followAlongOffsetsRef,
     paragraphHeightsRef,
     pendingReaderAutoScrollVerseRef,
     readerFocusScrollRef,
@@ -194,13 +188,6 @@ export function useReaderChapterLifecycle({
           activeAudioChapter,
         });
 
-    setShowFollowAlongText((current) => {
-      if (hasText || nextSessionMode === 'read') {
-        return false;
-      }
-
-      return current;
-    });
     setChapterSessionMode(nextSessionMode);
   }, [
     activeAudioTranslationId,
@@ -215,7 +202,6 @@ export function useReaderChapterLifecycle({
     preferredMode,
     verses.length,
     setChapterSessionMode,
-    setShowFollowAlongText,
   ]);
 
   useEffect(() => {

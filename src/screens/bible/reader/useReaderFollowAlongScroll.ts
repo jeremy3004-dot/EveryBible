@@ -1,21 +1,17 @@
 import type { Dispatch, RefObject, SetStateAction } from 'react';
 import { useEffect } from 'react';
-import { ScrollView } from 'react-native';
 import type { Verse } from '../../../types';
 
 // Type-only, spelled as an import type so the large timestamp map stays off the reader's open path.
 type VerseTimestamps = import('../../../services/bible/verseTimestamps').VerseTimestamps;
 
 export interface UseReaderFollowAlongScrollInput {
-  activeFollowAlongVerse: number | null;
   bookId: string;
   chapter: number;
   currentTranslation: string;
   didRestartFollowAlongPlayback: boolean;
   flushPendingReaderFocus: () => boolean;
   focusVerse: number | undefined;
-  followAlongOffsetsRef: RefObject<Record<number, number>>;
-  followAlongScrollViewRef: RefObject<ScrollView | null>;
   isCurrentAudioChapter: boolean;
   isLoading: boolean;
   pendingReaderAutoScrollVerseRef: RefObject<number | null>;
@@ -29,22 +25,18 @@ export interface UseReaderFollowAlongScrollInput {
   scrollReaderToOffset: (offsetY: number, animated: boolean) => void;
   scrollReaderToVerseParagraph: (verseNumber: number, animated: boolean) => boolean;
   setChapterTimestamps: Dispatch<SetStateAction<VerseTimestamps | null>>;
-  showFollowAlongText: boolean;
   showPremiumReadMode: boolean;
   verses: Verse[];
 }
 
-/** Keeps the verse being read or listened to in view: the plan focus verse, the follow-along sheet and the read-mode band, plus the verse timestamps they need. */
+/** Keeps the verse being read or listened to in view: the plan focus verse and the read-mode band, plus the verse timestamps the band needs. (Read Along follows the verse on its own.) */
 export function useReaderFollowAlongScroll({
-  activeFollowAlongVerse,
   bookId,
   chapter,
   currentTranslation,
   didRestartFollowAlongPlayback,
   flushPendingReaderFocus,
   focusVerse,
-  followAlongOffsetsRef,
-  followAlongScrollViewRef,
   isCurrentAudioChapter,
   isLoading,
   pendingReaderAutoScrollVerseRef,
@@ -54,7 +46,6 @@ export function useReaderFollowAlongScroll({
   scrollReaderToOffset,
   scrollReaderToVerseParagraph,
   setChapterTimestamps,
-  showFollowAlongText,
   showPremiumReadMode,
   verses,
 }: UseReaderFollowAlongScrollInput) {
@@ -73,27 +64,6 @@ export function useReaderFollowAlongScroll({
     scrollReaderToVerseParagraph,
     verses,
     readerFocusScrollRef,
-  ]);
-
-  useEffect(() => {
-    if (!showFollowAlongText || activeFollowAlongVerse == null) {
-      return;
-    }
-
-    const verseOffset = followAlongOffsetsRef.current[activeFollowAlongVerse];
-    if (verseOffset == null) {
-      return;
-    }
-
-    followAlongScrollViewRef.current?.scrollTo({
-      y: Math.max(verseOffset - 140, 0),
-      animated: true,
-    });
-  }, [
-    activeFollowAlongVerse,
-    showFollowAlongText,
-    followAlongOffsetsRef,
-    followAlongScrollViewRef,
   ]);
 
   useEffect(() => {
@@ -128,7 +98,7 @@ export function useReaderFollowAlongScroll({
 
   // Fetch verse timestamps for the active text-backed audio chapter; clear when chapter changes.
   useEffect(() => {
-    if (!showFollowAlongText && (!isCurrentAudioChapter || verses.length === 0)) return;
+    if (!isCurrentAudioChapter || verses.length === 0) return;
 
     let isCancelled = false;
     setChapterTimestamps(null);
@@ -151,7 +121,6 @@ export function useReaderFollowAlongScroll({
       isCancelled = true;
     };
   }, [
-    showFollowAlongText,
     isCurrentAudioChapter,
     verses.length,
     currentTranslation,

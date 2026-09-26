@@ -1,231 +1,220 @@
-import { memo } from 'react';
-import { StyleSheet, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { radius, spacing, typography } from '../../../design/system';
-import { FOLLOW_ALONG_VERSE_LINE_HEIGHT } from '../bibleReaderModel';
-import type { Dispatch, RefObject, SetStateAction } from 'react';
-import Animated, { SlideInDown, SlideOutDown } from 'react-native-reanimated';
+import { memo, useMemo } from 'react';
+import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { X } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
-import { getTranslatedBookName } from '../../../constants';
+import { getTranslatedBookName } from '../../../constants/books';
 import { useTheme } from '../../../contexts/ThemeContext';
-import type { Verse } from '../../../types';
+import { getReadingFontFamily } from '../../../design/fonts';
+import { layout, spacing, typography } from '../../../design/system';
+import { useFontSize } from '../../../hooks/useFontSize';
+import type { BibleTranslation, Verse } from '../../../types';
+import { ReadAlongControls } from './readAlong/ReadAlongControls';
+import { ReadAlongVerseList, buildReadAlongTextStyle } from './readAlong/ReadAlongVerseList';
+import {
+  useChapterVerseTimestamps,
+  type ChapterTrack,
+} from './readAlong/useChapterVerseTimestamps';
+import { useReadAlongText } from './readAlong/useReadAlongText';
 
 export interface FollowAlongTextSheetProps {
-  activeFollowAlongVerse: number | null;
-  bookId: string;
-  chapter: number;
-  followAlongOffsetsRef: RefObject<Record<number, number>>;
-  followAlongScrollViewRef: RefObject<ScrollView | null>;
-  isShowingRouteChapter: boolean;
-  setShowFollowAlongText: Dispatch<SetStateAction<boolean>>;
-  showFollowAlongText: boolean;
-  translationLabel: string;
-  verses: Verse[];
+  visible: boolean;
+  onClose: () => void;
+  /** The chapter on screen, which Read Along shows and whose recording it follows. */
+  track: ChapterTrack;
+  isCurrentAudioChapter: boolean;
+  /** The reader's verses for that chapter, or none while it shows no text for it. */
+  readerVerses: Verse[];
+  translation: BibleTranslation | undefined;
+  isPlaying: boolean;
+  hasPreviousChapter: boolean;
+  hasNextChapter: boolean;
+  onPreviousChapter: () => void;
+  onNextChapter: () => void;
+  onPlayPause: () => void;
 }
 
 /**
- * The chapter text over the listen page, following the audio verse by verse.
- * Memoized: it maps the whole chapter even while closed, and every prop is stable
- * across the reader's unrelated re-renders (audio status, sheets, selection).
+ * Read Along: the chapter in large text, full screen, following the recording verse by
+ * verse where it has verse timings (the verse being spoken bright and a little bolder,
+ * the rest dimmed), with the chapter transport and a progress line at the bottom.
+ *
+ * It grew out of the reader's follow-along text sheet, which it replaces: the same
+ * modal, mounted once by the reader. It takes the reader's own verses when they are on
+ * screen and loads text itself otherwise (an audio-only recording reads along in BSB).
+ * Memoized, and every prop is stable across the reader's unrelated re-renders; the
+ * position tick reaches only the verse list (once per verse) and the progress line.
  */
 export const FollowAlongTextSheet = memo(function FollowAlongTextSheet({
-  activeFollowAlongVerse,
-  bookId,
-  chapter,
-  followAlongOffsetsRef,
-  followAlongScrollViewRef,
-  isShowingRouteChapter,
-  setShowFollowAlongText,
-  showFollowAlongText,
-  translationLabel,
-  verses,
+  visible,
+  onClose,
+  track,
+  isCurrentAudioChapter,
+  readerVerses,
+  translation,
+  isPlaying,
+  hasPreviousChapter,
+  hasNextChapter,
+  onPreviousChapter,
+  onNextChapter,
+  onPlayPause,
 }: FollowAlongTextSheetProps) {
   const { colors } = useTheme();
-  const safeInsets = useSafeAreaInsets();
   const { t } = useTranslation();
+  const safeInsets = useSafeAreaInsets();
+  const reduceMotion = useReducedMotion();
+  const { scaleValue } = useFontSize();
+  const text = useReadAlongText({ track, readerVerses, translation, enabled: visible });
+  const { timestamps, loaded: timingsLoaded } = useChapterVerseTimestamps(track, visible);
+
+  // The text's own script decides the serif: BSB read along with an audio-only
+  // recording is Latin whatever the recording's language.
+  const textLanguage = text.isFallback ? undefined : translation?.language;
+  const textStyle = useMemo(
+    () =>
+      buildReadAlongTextStyle(
+        scaleValue,
+        getReadingFontFamily(textLanguage),
+        getReadingFontFamily(textLanguage, 600)
+      ),
+    [scaleValue, textLanguage]
+  );
+
+  const title = `${getTranslatedBookName(track.bookId, t)} ${track.chapter}`;
+  const eyebrow = text.isFallback
+    ? (text.textTranslationId ?? '').toUpperCase()
+    : translation?.abbreviation || track.translationId.toUpperCase();
+  const notes = [
+    text.isFallback ? t('audio.readAlongOtherTranslation', { translation: eyebrow }) : null,
+    !text.isStale && text.verses.length > 0 && timingsLoaded && timestamps == null
+      ? t('audio.readAlongNoTimings')
+      : null,
+  ].filter((note): note is string => note != null);
+
   return (
     <Modal
-      visible={showFollowAlongText}
-      transparent
+      visible={visible}
+      animationType={reduceMotion ? 'fade' : 'slide'}
       statusBarTranslucent
       navigationBarTranslucent
-      animationType="none"
-      onRequestClose={() => setShowFollowAlongText(false)}
+      onRequestClose={onClose}
     >
-      <Animated.View
+      <View
+        accessibilityViewIsModal
         // VoiceOver's escape gesture closes it, as Android back does.
-        onAccessibilityEscape={() => setShowFollowAlongText(false)}
-        entering={SlideInDown.springify().damping(20).stiffness(200)}
-        exiting={SlideOutDown.duration(250)}
-        style={[styles.followAlongContainer, { backgroundColor: colors.bibleBackground }]}
+        onAccessibilityEscape={onClose}
+        testID="read-along"
+        style={[styles.container, { backgroundColor: colors.bibleBackground }]}
       >
         <View
           style={[
-            styles.followAlongHeader,
-            {
-              borderBottomColor: colors.bibleDivider,
-              backgroundColor: colors.bibleBackground,
-              paddingTop: safeInsets.top + spacing.md,
-            },
+            styles.header,
+            { paddingTop: safeInsets.top + spacing.sm, borderBottomColor: colors.bibleDivider },
           ]}
         >
-          {/* Back to player — left */}
           <TouchableOpacity
-            style={[
-              styles.followAlongCloseButton,
-              { backgroundColor: colors.bibleSurface, borderColor: colors.bibleDivider },
-            ]}
-            onPress={() => setShowFollowAlongText(false)}
+            style={styles.closeButton}
+            onPress={onClose}
             accessibilityRole="button"
+            accessibilityLabel={t('interface.close')}
           >
-            <Ionicons name="chevron-back" size={20} color={colors.biblePrimaryText} />
-            <Text style={[styles.followAlongCloseLabel, { color: colors.biblePrimaryText }]}>
-              {t('bible.backToPlayer')}
-            </Text>
+            <X size={22} color={colors.biblePrimaryText} />
           </TouchableOpacity>
-
-          {/* Centered title */}
-          <View style={styles.followAlongTitleCenter} pointerEvents="none">
-            <Text style={[styles.followAlongEyebrow, { color: colors.bibleAccent }]}>
-              {translationLabel}
+          <View style={styles.titleBlock}>
+            <Text style={[styles.eyebrow, { color: colors.bibleAccent }]} numberOfLines={1}>
+              {eyebrow}
             </Text>
-            <Text style={[styles.followAlongTitle, { color: colors.biblePrimaryText }]}>
-              {getTranslatedBookName(bookId, t)} {chapter}
+            <Text
+              accessibilityRole="header"
+              style={[styles.title, { color: colors.biblePrimaryText }]}
+              numberOfLines={1}
+            >
+              {title}
             </Text>
           </View>
+          {/* Balances the close button, so the title stays centred. */}
+          <View style={styles.closeButton} />
         </View>
 
-        <ScrollView
-          ref={followAlongScrollViewRef}
-          style={styles.followAlongScrollView}
-          contentContainerStyle={styles.followAlongContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {verses.map((verse) => {
-            const isActive = isShowingRouteChapter && verse.verse === activeFollowAlongVerse;
+        {notes.map((note) => (
+          <Text key={note} style={[styles.note, { color: colors.bibleSecondaryText }]}>
+            {note}
+          </Text>
+        ))}
 
-            return (
-              <View
-                key={verse.id}
-                style={[styles.followAlongVerseRow]}
-                onLayout={(event) => {
-                  followAlongOffsetsRef.current[verse.verse] = event.nativeEvent.layout.y;
-                }}
-              >
-                <View
-                  style={[
-                    styles.followAlongVerseIndicator,
-                    {
-                      backgroundColor: isActive ? colors.bibleAccent : 'transparent',
-                    },
-                  ]}
-                />
-                <View style={styles.followAlongVerseContent}>
-                  {verse.heading ? (
-                    <Text style={[styles.followAlongHeading, { color: colors.bibleSecondaryText }]}>
-                      {verse.heading}
-                    </Text>
-                  ) : null}
-                  <Text
-                    style={[
-                      styles.followAlongVerseText,
-                      {
-                        color: isActive ? colors.biblePrimaryText : colors.bibleSecondaryText,
-                      },
-                    ]}
-                  >
-                    <Text style={[styles.followAlongVerseNumber, { color: colors.bibleAccent }]}>
-                      {verse.verse}{' '}
-                    </Text>
-                    {verse.text}
-                  </Text>
-                </View>
-              </View>
-            );
-          })}
-        </ScrollView>
-      </Animated.View>
+        {text.loaded && text.verses.length === 0 ? (
+          <Text style={[styles.empty, { color: colors.bibleSecondaryText }]}>
+            {t('audio.readAlongNoText')}
+          </Text>
+        ) : (
+          <ReadAlongVerseList
+            track={track}
+            verses={text.verses}
+            timestamps={timestamps}
+            canFollow={visible && isCurrentAudioChapter && !text.isStale}
+            textStyle={textStyle}
+            bottomInset={spacing.xl}
+          />
+        )}
+
+        <ReadAlongControls
+          track={track}
+          isCurrentAudioChapter={isCurrentAudioChapter}
+          isPlaying={isPlaying}
+          hasPreviousChapter={hasPreviousChapter}
+          hasNextChapter={hasNextChapter}
+          onPreviousChapter={onPreviousChapter}
+          onNextChapter={onNextChapter}
+          onPlayPause={onPlayPause}
+          bottomInset={Math.max(safeInsets.bottom, spacing.md)}
+        />
+      </View>
     </Modal>
   );
 });
 
 const styles = StyleSheet.create({
-  followAlongContainer: {
+  container: {
     flex: 1,
   },
-  followAlongHeader: {
-    paddingHorizontal: 18,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  followAlongTitleCenter: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
+  closeButton: {
+    width: layout.minTouchTarget,
+    height: layout.minTouchTarget,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  titleBlock: {
+    flex: 1,
     alignItems: 'center',
   },
-  followAlongEyebrow: {
-    fontSize: 12,
+  eyebrow: {
+    ...typography.micro,
     fontWeight: '700',
     letterSpacing: 1.2,
     textTransform: 'uppercase',
-    marginBottom: 2,
   },
-  followAlongTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+  title: {
+    ...typography.cardTitle,
   },
-  followAlongCloseButton: {
-    borderWidth: 1,
-    borderRadius: radius.pill,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    zIndex: 1,
+  note: {
+    ...typography.caption,
+    textAlign: 'center',
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.sm,
   },
-  followAlongCloseLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  followAlongScrollView: {
+  empty: {
+    ...typography.body,
     flex: 1,
-  },
-  followAlongContent: {
-    paddingHorizontal: 18,
-    paddingTop: 18,
-    paddingBottom: 28,
-    gap: 12,
-  },
-  followAlongVerseRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-  },
-  followAlongVerseIndicator: {
-    width: 3,
-    alignSelf: 'stretch',
-    borderRadius: radius.pill,
-    minHeight: FOLLOW_ALONG_VERSE_LINE_HEIGHT,
-  },
-  followAlongVerseContent: {
-    flex: 1,
-    gap: 8,
-  },
-  followAlongHeading: {
-    ...typography.readingHeading,
-  },
-  followAlongVerseText: {
-    ...typography.readingBody,
-    fontSize: 18,
-    lineHeight: FOLLOW_ALONG_VERSE_LINE_HEIGHT,
-  },
-  followAlongVerseNumber: {
-    ...typography.readingVerseNumber,
-    fontSize: 12,
+    textAlign: 'center',
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xxl,
   },
 });
