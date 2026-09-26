@@ -2231,3 +2231,41 @@ test('every column a stamped preference upsert writes exists in the migrated tab
     []
   );
 });
+
+test('a cloud preference commit cannot cross the local account-check microtask boundary', async (t) => {
+  const nextPreferences: UserPreferences = {
+    ...LOCAL_PREFERENCES,
+    chapterFeedbackName: 'Account B',
+  };
+  let armAccountSwitch = false;
+  const getState = authStore.getState;
+  t.mock.method(authStore, 'getState', () => {
+    const snapshot = getState();
+    if (armAccountSwitch) {
+      armAccountSwitch = false;
+      queueMicrotask(() =>
+        authStore.setState({
+          user: { uid: USER_B },
+          authGeneration: 2,
+          preferences: nextPreferences,
+          preferencesUpdatedAt: null,
+          preferencesSyncBase: null,
+          preferenceFieldStamps: {},
+        })
+      );
+    }
+    return snapshot;
+  });
+  script.user_preferences = {
+    select: () => {
+      // The response has arrived. Schedule a switch immediately after the next
+      // synchronous identity validation, before any yielded local merge can run.
+      armAccountSwitch = true;
+      return { data: remotePreferenceRow() };
+    },
+  };
+  await syncPreferences(USER_A, 1);
+  assert.equal(authStore.getState().user?.uid, USER_B);
+  assert.deepEqual(authStore.getState().preferences, nextPreferences);
+  assert.equal(callsFor('user_preferences', 'upsert').length, 0);
+});

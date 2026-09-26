@@ -2,6 +2,35 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSyncIdentityBoundary, createSyncCycleCache } from './syncIdentity';
 
+test('local validation and commit cannot be separated by an account switch microtask', async () => {
+  let owner = 'A';
+  const writes: string[] = [];
+  const boundary = createSyncIdentityBoundary('A', () => owner);
+  const applying = boundary.runIfCurrent(() => {
+    writes.push(owner);
+  });
+  owner = 'B';
+  await applying;
+  assert.equal(writes.includes('B'), false, 'an A commit must never run against B');
+});
+
+test('local validation and commit cannot be separated by a new session generation', async () => {
+  let generation = 1;
+  const writes: number[] = [];
+  const boundary = createSyncIdentityBoundary(
+    'A',
+    () => 'A',
+    1,
+    () => generation
+  );
+  const applying = boundary.runIfCurrent(() => {
+    writes.push(generation);
+  });
+  generation = 2;
+  await applying;
+  assert.equal(writes.includes(2), false, 'an old session commit must not run in the new session');
+});
+
 function deferred<T>() {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((nextResolve) => {
@@ -217,4 +246,32 @@ test('a failed cycle that was already replaced does not evict its replacement', 
     replacement
   );
   assert.equal(await replacement, 'fresh');
+});
+
+test('a current operation preserves its synchronous and asynchronous results', async () => {
+  const boundary = createSyncIdentityBoundary('A', () => 'A');
+  const immediate = boundary.runIfCurrent(() => 42);
+  assert.ok(immediate instanceof Promise);
+  assert.deepEqual(await immediate, { applied: true, value: 42 });
+  assert.deepEqual(await boundary.runIfCurrent(async () => 'synced'), {
+    applied: true,
+    value: 'synced',
+  });
+});
+
+test('operation exceptions reject the Promise API without throwing at invocation', async () => {
+  const boundary = createSyncIdentityBoundary('A', () => 'A');
+  let result!: Promise<unknown>;
+  assert.doesNotThrow(() => {
+    result = boundary.runIfCurrent(() => {
+      throw new Error('commit failed');
+    });
+  });
+  await assert.rejects(result, /commit failed/);
+  await assert.rejects(
+    boundary.runIfCurrent(async () => {
+      throw new Error('write failed');
+    }),
+    /write failed/
+  );
 });

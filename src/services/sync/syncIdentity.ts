@@ -35,7 +35,7 @@ export function createSyncIdentityBoundary(
   expectedGeneration?: number,
   getCurrentGeneration?: () => number
 ): SyncIdentityBoundary {
-  const isCurrent = async (): Promise<boolean> => {
+  const isCurrent = (): boolean => {
     if (getCurrentUserId() !== expectedUserId) {
       return false;
     }
@@ -48,9 +48,11 @@ export function createSyncIdentityBoundary(
   return {
     expectedUserId,
     expectedGeneration,
-    isCurrent,
+    isCurrent: async () => isCurrent(),
     runIfCurrent: async <T>(operation: () => T | Promise<T>) => {
-      if (!(await isCurrent())) {
+      // Validation and callback entry share the same synchronous turn. Awaiting
+      // even a resolved check would let an account change slip in before the write.
+      if (!isCurrent()) {
         return { applied: false };
       }
 
