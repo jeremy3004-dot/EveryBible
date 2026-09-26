@@ -1,6 +1,13 @@
 import { memo } from 'react';
 import { I18nManager, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { ChevronLeft, ChevronRight, Download, Share2, type LucideIcon } from 'lucide-react-native';
+import {
+  BookOpenText,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Share2,
+  type LucideIcon,
+} from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { getTranslatedBookName } from '../../../../constants/books';
 import { useTheme } from '../../../../contexts/ThemeContext';
@@ -24,6 +31,8 @@ import {
 } from '../../../../components/audio/playbackControlsParts/playbackControlsModel';
 import { AudioSheetSection, Chip, ChipRow } from './AudioSheetParts';
 import { formatRepeatPassage, repeatChipLabelKey, soundLabelKey } from './audioSheetModel';
+import { useChapterVerseTimestamps } from '../readAlong/useChapterVerseTimestamps';
+import { useTimedFollowAlongVerse } from '../readAlong/useTimedFollowAlongVerse';
 
 export interface ReaderAudioTrack {
   translationId: string;
@@ -38,6 +47,7 @@ export interface AudioSheetMainPageProps {
   onDownload: () => void;
   onOpenLibrary: () => void;
   onOpenPassagePicker: () => void;
+  onOpenReadAlong: () => void;
   onShareClip: () => void;
   playbackRate: PlaybackRate;
   repeatMode: RepeatMode;
@@ -49,8 +59,9 @@ export interface AudioSheetMainPageProps {
 const ForwardChevron: LucideIcon = I18nManager.isRTL ? ChevronLeft : ChevronRight;
 
 /**
- * Book artwork, "Genesis 1" and elapsed / total. The only part of the sheet that reads
- * the position tick, so the rest does not redraw four times a second.
+ * Book artwork, "Genesis 1" (or the verse being spoken, "Genesis 1:10", where the
+ * recording has verse timings) and elapsed / total. The only part of the sheet that
+ * reads the position tick, so the rest does not redraw four times a second.
  */
 const NowPlayingRow = memo(function NowPlayingRow({
   track,
@@ -62,7 +73,14 @@ const NowPlayingRow = memo(function NowPlayingRow({
   const { colors } = useTheme();
   const { t } = useTranslation();
   const { currentPosition, duration } = useAudioPosition(track);
+  const { timestamps } = useChapterVerseTimestamps(track, isCurrentAudioChapter);
+  const verse = useTimedFollowAlongVerse({ track, timestamps, enabled: isCurrentAudioChapter });
   const hasTime = isCurrentAudioChapter && duration > 0;
+  const bookName = getTranslatedBookName(track.bookId, t);
+  const reference =
+    verse == null
+      ? `${bookName} ${track.chapter}`
+      : t('audio.currentVerseReference', { book: bookName, chapter: track.chapter, verse });
   const elapsed = formatPlaybackTime(currentPosition);
   const total = formatPlaybackTime(duration);
 
@@ -78,7 +96,7 @@ const NowPlayingRow = memo(function NowPlayingRow({
       </View>
       <View style={styles.nowPlayingCopy}>
         <Text style={[styles.nowPlayingTitle, { color: colors.biblePrimaryText }]}>
-          {getTranslatedBookName(track.bookId, t)} {track.chapter}
+          {reference}
         </Text>
         {hasTime ? (
           <Text
@@ -129,6 +147,7 @@ export function AudioSheetMainPage({
   onDownload,
   onOpenLibrary,
   onOpenPassagePicker,
+  onOpenReadAlong,
   onShareClip,
   playbackRate,
   repeatMode,
@@ -156,6 +175,22 @@ export function AudioSheetMainPage({
   return (
     <View style={styles.page}>
       <NowPlayingRow track={track} isCurrentAudioChapter={isCurrentAudioChapter} />
+
+      <TouchableOpacity
+        style={[
+          styles.readAlongButton,
+          { backgroundColor: colors.bibleElevatedSurface, borderColor: colors.bibleDivider },
+        ]}
+        onPress={onOpenReadAlong}
+        accessibilityRole="button"
+        accessibilityLabel={t('audio.readAlong')}
+        accessibilityHint={t('audio.readAlongHint')}
+      >
+        <BookOpenText size={18} color={colors.bibleAccent} />
+        <Text style={[styles.footerLabel, { color: colors.biblePrimaryText }]}>
+          {t('audio.readAlong')}
+        </Text>
+      </TouchableOpacity>
 
       <AudioSheetSection title={t('audio.soundSection')}>
         <TouchableOpacity
@@ -367,6 +402,16 @@ const styles = StyleSheet.create({
   },
   slider: {
     flex: 1,
+  },
+  readAlongButton: {
+    minHeight: layout.minTouchTarget,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
   },
   footer: {
     flexDirection: 'row',

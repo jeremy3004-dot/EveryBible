@@ -1,10 +1,15 @@
 import test, { beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import type { ComponentProps } from 'react';
-import type { ReactTestInstance } from 'react-test-renderer';
+import { act, type ReactTestInstance } from 'react-test-renderer';
 import { create } from 'zustand';
 import { mockModule, sourcePath } from '../../../testing/mockModules';
-import { installRenderHarness, isHiddenFromAccessibility, within } from '../../../testing/render';
+import {
+  hostAncestors,
+  installRenderHarness,
+  isHiddenFromAccessibility,
+  within,
+} from '../../../testing/render';
 import type {
   BackgroundMusicChoice,
   PlaybackRate,
@@ -61,6 +66,17 @@ mockModule(mock, sourcePath('services/bible/bibleService.ts'), {
   },
 });
 
+// Verse timings for the now-playing verse: none unless a test gives the chapter some.
+const chapterTimings: Record<string, Record<number, number>> = {};
+const timingRequests: string[] = [];
+mockModule(mock, sourcePath('services/bible/verseTimestamps.ts'), {
+  getChapterTimestamps: async (translationId: string, bookId: string, chapter: number) => {
+    const key = `${translationId}:${bookId}:${chapter}`;
+    timingRequests.push(key);
+    return chapterTimings[key] ?? null;
+  },
+});
+
 const availability: Partial<Record<BackgroundMusicChoice, string>> = {};
 mockModule(mock, sourcePath('hooks/useBackgroundSoundAvailability.ts'), {
   useBackgroundSoundAvailability: () => availability,
@@ -72,6 +88,8 @@ beforeEach(() => {
   audioStore.setState(audioStore.getInitialState(), true);
   storeCalls.length = 0;
   chapterRequests.length = 0;
+  timingRequests.length = 0;
+  for (const key of Object.keys(chapterTimings)) delete chapterTimings[key];
   for (const key of Object.keys(availability)) delete availability[key as BackgroundMusicChoice];
 });
 
@@ -93,6 +111,9 @@ async function renderSheet(overrides: Partial<Props> = {}) {
       calls.push(['share']);
     },
     isCurrentAudioChapter: true,
+    onOpenReadAlong: () => {
+      calls.push(['readAlong']);
+    },
     playbackRate: 1 as PlaybackRate,
     readerAudioTrack: { translationId: 'bsb', bookId: 'GEN', chapter: 1 },
     repeatMode: 'off',
@@ -202,6 +223,94 @@ test('a chapter that is not the one playing shows no clock', async () => {
 
   assert.ok(view.getByText('Genesis 1'));
   assert.equal(view.queryByText(/\d:\d\d \/ /), null);
+});
+
+test('where the recording has verse timings, now playing names the verse being spoken', async () => {
+  // Genesis 1: verse 9 starts at 40s, verse 10 at 44s.
+  chapterTimings['bsb:GEN:1'] = { 1: 0, 9: 40, 10: 44, 11: 50 };
+  audioStore.setState({
+    currentTranslationId: 'bsb',
+    currentBookId: 'GEN',
+    currentChapter: 1,
+    currentPosition: 45_000,
+    duration: 190_000,
+  });
+  const { view } = await renderSheet();
+  await view.flush();
+
+  const reference = view.getByText('Genesis 1:10');
+  const clock = view.getByLabelText(t('audio.elapsedOfTotal', { elapsed: '0:45', total: '3:10' }));
+  // Above the clock, in the same column.
+  const [column] = hostAncestors(reference);
+  assert.ok(column);
+  assert.deepEqual(within(column).queryAllByType('Text'), [reference, clock]);
+  assert.deepEqual(timingRequests, ['bsb:GEN:1']);
+
+  // The verse follows the position.
+  await act(async () => {
+    audioStore.setState({ currentPosition: 51_000 });
+  });
+  assert.ok(view.getByText('Genesis 1:11'));
+});
+
+test('a recording without verse timings names only the chapter', async () => {
+  audioStore.setState({
+    currentTranslationId: 'bsb',
+    currentBookId: 'GEN',
+    currentChapter: 1,
+    currentPosition: 45_000,
+    duration: 190_000,
+  });
+  const { view } = await renderSheet();
+  await view.flush();
+
+  assert.ok(view.getByText('Genesis 1'));
+  assert.equal(view.queryByText(/^Genesis 1:/), null);
+});
+
+test('a chapter that is not playing names no verse and looks up no timings', async () => {
+  chapterTimings['bsb:GEN:1'] = { 1: 0, 2: 5 };
+  const { view } = await renderSheet({ isCurrentAudioChapter: false });
+  await view.flush();
+
+  assert.ok(view.getByText('Genesis 1'));
+  assert.deepEqual(timingRequests, []);
+});
+
+test('position ticks redraw only the now-playing row', async () => {
+  chapterTimings['bsb:GEN:1'] = { 1: 0, 9: 40, 10: 44 };
+  audioStore.setState({
+    currentTranslationId: 'bsb',
+    currentBookId: 'GEN',
+    currentChapter: 1,
+    currentPosition: 45_000,
+    duration: 190_000,
+  });
+  const { view } = await renderSheet();
+  await view.flush();
+
+  const mark = harness.renders.mark();
+  await act(async () => {
+    audioStore.setState({ currentPosition: 46_000 });
+  });
+  const redrawn = harness.renders.since(mark);
+  assert.ok(redrawn.length > 0, 'the clock moved');
+  assert.equal(
+    redrawn.some((entry) => entry.type === 'TouchableOpacity'),
+    false,
+    'no control outside the row redrew'
+  );
+  assert.ok(view.getByText('Genesis 1:10'));
+});
+
+test('Read along closes the sheet and opens Read Along', async () => {
+  const { view, calls } = await renderSheet();
+
+  const button = view.getByRole('button', { name: t('audio.readAlong') });
+  assert.equal(button.props.accessibilityHint, t('audio.readAlongHint'));
+  await view.press(button);
+
+  assert.deepEqual(calls, [['setShowAudioOptionsSheet', false], ['readAlong']]);
 });
 
 // ---- Chips -----------------------------------------------------------------------
