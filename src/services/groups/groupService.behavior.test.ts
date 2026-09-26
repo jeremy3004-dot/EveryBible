@@ -875,6 +875,82 @@ const scriptSessionCompletion = (
 const groupUpdates = () =>
   supabase.callsFor('groups').filter((call) => call.operation === 'update');
 
+test('a completion owner invalidated while getUser resolves never inserts a session', async () => {
+  let current = true;
+  supabase.auth.handlers.getUser = async () => {
+    current = false;
+    return { data: { user: supabase.auth.user }, error: null };
+  };
+  await assert.rejects(
+    service.completeSyncedGroupSession(
+      {
+        groupId: 'g1',
+        courseId: 'c1',
+        lessonId: 'l1',
+        isLeader: true,
+        nextLesson: { courseId: 'c1', lessonId: 'l2' },
+      },
+      { expectedUserId: 'user-1', isCurrent: () => current }
+    )
+  );
+  assert.deepEqual(supabase.callsFor('group_sessions'), []);
+  assert.deepEqual(groupUpdates(), []);
+});
+
+test('a completion owner invalidated after recording cannot notify or update the group', async () => {
+  let current = true;
+  supabase.respondTo('group_sessions', (call) => {
+    current = false;
+    return { data: { id: 's1', ...(call.payload as object) } };
+  });
+  await assert.rejects(
+    service.completeSyncedGroupSession(
+      {
+        groupId: 'g1',
+        courseId: 'c1',
+        lessonId: 'l1',
+        isLeader: true,
+        nextLesson: { courseId: 'c1', lessonId: 'l2' },
+      },
+      { expectedUserId: 'user-1', isCurrent: () => current }
+    )
+  );
+  assert.deepEqual(groupUpdates(), []);
+  assert.deepEqual(supabase.functionCalls, []);
+});
+
+test('a different signed-in user cannot start a completion bound to the original UID', async () => {
+  await assert.rejects(
+    service.completeSyncedGroupSession(
+      { groupId: 'g1', courseId: 'c1', lessonId: 'l1', isLeader: false, nextLesson: null },
+      { expectedUserId: 'someone-else', isCurrent: () => true }
+    )
+  );
+  assert.deepEqual(supabase.callsFor('group_sessions'), []);
+});
+
+test('a user change during the lesson auth lookup cannot update the group as that user', async () => {
+  scriptSessionCompletion((payload) => ({ data: { id: 'g1', ...(payload as object) } }));
+  let lookups = 0;
+  supabase.auth.handlers.getUser = async () => ({
+    data: { user: makeFakeUser({ id: ++lookups === 1 ? 'user-1' : 'user-2' }) },
+    error: null,
+  });
+  const result = await service.completeSyncedGroupSession(
+    {
+      groupId: 'g1',
+      courseId: 'c1',
+      lessonId: 'l1',
+      isLeader: true,
+      nextLesson: { courseId: 'c1', lessonId: 'l2' },
+    },
+    { expectedUserId: 'user-1', isCurrent: () => true }
+  );
+  assert.deepEqual(result, { status: 'saved-lesson-unchanged' });
+  assert.equal(supabase.callsFor('group_sessions').length, 1);
+  assert.deepEqual(groupUpdates(), []);
+});
+
 test("a member's completed session is recorded without trying to move the group's lesson", async () => {
   // groups UPDATE is leader-only under RLS, so a member's attempt always fails.
   scriptSessionCompletion(() => ({ error: { message: 'JSON object requested, 0 rows' } }));

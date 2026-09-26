@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -26,8 +26,7 @@ import {
   getSyncedGroup,
   getSyncedGroupServiceAvailability,
   loadGroupDetailSnapshot,
-  recordSyncedGroupSession,
-  updateSyncedGroupLesson,
+  completeSyncedGroupSession,
 } from '../../services/groups';
 import { isSupabaseConfigured } from '../../services/supabase';
 import type { GroupDetailSnapshot } from '../../services/groups/groupRepository';
@@ -76,9 +75,27 @@ export function GroupSessionScreen() {
   const markGroupLessonComplete = useFourFieldsStore((state) => state.markGroupLessonComplete);
   const updateLocalGroupLesson = useFourFieldsStore((state) => state.updateGroupLesson);
   const user = useAuthStore((state) => state.user);
+  const authGeneration = useAuthStore((state) => state.authGeneration);
   const [currentPhase, setCurrentPhase] = useState<SessionPhase>('look-back');
-  const [isSavingSynced, setIsSavingSynced] = useState(false);
+  const [savingScope, setSavingScope] = useState<string | null>(null);
   const userId = user?.uid ?? null;
+  const scopeKey = `${groupId}:${userId ?? 'guest'}:${authGeneration}`;
+  const isSavingSynced = savingScope === scopeKey;
+  const mountedRef = useRef(false);
+  const activeScopeRef = useRef<string | null>(null);
+  const lifetimeRef = useRef(0);
+  const operationRef = useRef<{ scopeKey: string; saved: boolean } | null>(null);
+  useLayoutEffect(() => {
+    mountedRef.current = true;
+    activeScopeRef.current = scopeKey;
+    const lifetime = ++lifetimeRef.current;
+    return () => {
+      mountedRef.current = false;
+      activeScopeRef.current = null;
+      if (lifetimeRef.current === lifetime) lifetimeRef.current += 1;
+      operationRef.current = null;
+    };
+  }, [scopeKey]);
   const isSignedIn = Boolean(user);
   const syncFeatureEnabled = config.features.studyGroupsSync;
   const backendConfigured = isSupabaseConfigured();
@@ -91,7 +108,7 @@ export function GroupSessionScreen() {
   });
   const remoteRequestKey =
     localSnapshot == null && syncFeatureEnabled && backendConfigured && isSignedIn
-      ? `${groupId}:${user?.uid ?? 'signed-in'}`
+      ? scopeKey
       : null;
   const [remoteGroupState, setRemoteGroupState] = useState<{
     key: string | null;
@@ -234,11 +251,35 @@ export function GroupSessionScreen() {
   };
 
   const handleComplete = async () => {
-    if (!currentLesson) {
+    const currentAuth = useAuthStore.getState();
+    if (
+      !mountedRef.current ||
+      activeScopeRef.current !== scopeKey ||
+      !currentLesson ||
+      (currentAuth.user?.uid ?? null) !== userId ||
+      currentAuth.authGeneration !== authGeneration ||
+      operationRef.current?.scopeKey === scopeKey
+    ) {
       return;
     }
 
+    const operation = { scopeKey, saved: false };
+    operationRef.current = operation;
+    const lifetime = lifetimeRef.current;
+    const isCurrent = () => {
+      const current = useAuthStore.getState();
+      return (
+        mountedRef.current &&
+        activeScopeRef.current === scopeKey &&
+        lifetimeRef.current === lifetime &&
+        operationRef.current === operation &&
+        (current.user?.uid ?? null) === userId &&
+        current.authGeneration === authGeneration
+      );
+    };
+
     if (!isSyncedGroup) {
+      operation.saved = true;
       markGroupLessonComplete(groupId, currentLesson.id);
       if (nextLesson && currentCourse) {
         updateLocalGroupLesson(groupId, currentCourse.id, nextLesson.id);
@@ -249,6 +290,7 @@ export function GroupSessionScreen() {
     }
 
     if (syncedServiceAvailability !== 'ready') {
+      operationRef.current = null;
       Alert.alert(
         t('groups.syncSession.unavailableTitle'),
         syncedServiceAvailability === 'backend-unavailable'
@@ -258,26 +300,41 @@ export function GroupSessionScreen() {
       return;
     }
 
+    if (!userId) {
+      operationRef.current = null;
+      return;
+    }
     try {
-      setIsSavingSynced(true);
-      await recordSyncedGroupSession({
-        groupId,
-        courseId: group.currentCourseId,
-        lessonId: currentLesson.id,
-      });
-      if (nextLesson && currentCourse) {
-        await updateSyncedGroupLesson(groupId, {
-          current_course_id: currentCourse.id,
-          current_lesson_id: nextLesson.id,
-        });
+      setSavingScope(scopeKey);
+      const result = await completeSyncedGroupSession(
+        {
+          groupId,
+          courseId: group.currentCourseId,
+          lessonId: currentLesson.id,
+          isLeader: group.isLeader,
+          nextLesson:
+            nextLesson && currentCourse
+              ? { courseId: currentCourse.id, lessonId: nextLesson.id }
+              : null,
+        },
+        { expectedUserId: userId, isCurrent }
+      );
+      if (!isCurrent()) return;
+      operation.saved = true;
+      if (result.status === 'saved-lesson-unchanged') {
+        Alert.alert(t('groups.session.title'), t('groups.syncSession.savedLessonUnchanged'));
       }
       successHaptic();
       navigation.goBack();
     } catch {
+      if (!isCurrent()) return;
       const message = t('groups.syncSession.saveFailedDefault');
       Alert.alert(t('groups.syncSession.saveFailedTitle'), message);
     } finally {
-      setIsSavingSynced(false);
+      if (isCurrent()) {
+        setSavingScope(null);
+        if (!operation.saved) operationRef.current = null;
+      }
     }
   };
 

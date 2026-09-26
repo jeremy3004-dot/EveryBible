@@ -10,12 +10,28 @@ const JOIN_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 /** PostgREST's code for an RPC missing from its schema cache (migration not applied yet). */
 const CREATE_GROUP_RPC_MISSING = 'PGRST202';
 
-async function requireSignedInUserForSyncedGroupAction(action: string) {
+export interface SyncedGroupActionOwner {
+  expectedUserId: string;
+  isCurrent: () => boolean;
+}
+
+function assertCurrentOwner(owner?: SyncedGroupActionOwner, userId?: string): void {
+  if (owner && (!owner.isCurrent() || (userId !== undefined && owner.expectedUserId !== userId))) {
+    throw new Error('The group session is no longer current');
+  }
+}
+
+async function requireSignedInUserForSyncedGroupAction(
+  action: string,
+  owner?: SyncedGroupActionOwner
+) {
+  assertCurrentOwner(owner);
   const backendConfigured = isSupabaseConfigured();
   const {
     data: { user },
     error: authError,
   } = backendConfigured ? await supabase.auth.getUser() : { data: { user: null }, error: null };
+  assertCurrentOwner(owner, user?.id);
 
   if (authError) {
     throw new Error(authError.message);
@@ -216,9 +232,11 @@ export async function leaveSyncedGroup(groupId: string): Promise<void> {
 
 export async function updateSyncedGroupLesson(
   groupId: string,
-  values: Pick<GroupRecord, 'current_course_id' | 'current_lesson_id'>
+  values: Pick<GroupRecord, 'current_course_id' | 'current_lesson_id'>,
+  owner?: SyncedGroupActionOwner
 ): Promise<GroupRecord> {
-  await requireSignedInUserForSyncedGroupAction('update a group lesson');
+  await requireSignedInUserForSyncedGroupAction('update a group lesson', owner);
+  assertCurrentOwner(owner);
 
   const { data, error } = await supabase
     .from('groups')
@@ -226,6 +244,7 @@ export async function updateSyncedGroupLesson(
     .eq('id', groupId)
     .select('*')
     .single();
+  assertCurrentOwner(owner);
 
   if (error) {
     throw new Error(error.message);
@@ -234,13 +253,17 @@ export async function updateSyncedGroupLesson(
   return data as GroupRecord;
 }
 
-export async function recordSyncedGroupSession(values: {
-  groupId: string;
-  courseId: string;
-  lessonId: string;
-  notes?: Record<string, string>;
-}): Promise<GroupSessionRecord> {
-  const user = await requireSignedInUserForSyncedGroupAction('record a session');
+export async function recordSyncedGroupSession(
+  values: {
+    groupId: string;
+    courseId: string;
+    lessonId: string;
+    notes?: Record<string, string>;
+  },
+  owner?: SyncedGroupActionOwner
+): Promise<GroupSessionRecord> {
+  const user = await requireSignedInUserForSyncedGroupAction('record a session', owner);
+  assertCurrentOwner(owner, user.id);
 
   const insert: InsertTables<'group_sessions'> = {
     group_id: values.groupId,
@@ -251,6 +274,7 @@ export async function recordSyncedGroupSession(values: {
   };
 
   const { data, error } = await supabase.from('group_sessions').insert(insert).select('*').single();
+  assertCurrentOwner(owner);
 
   if (error) {
     throw new Error(error.message);
@@ -284,30 +308,44 @@ export type SyncedGroupSessionCompletion = {
  * Records a finished group session and, for the leader only, moves the group to
  * the next lesson. Any member may record a session, but only the leader may
  * update the group row (RLS "Leaders can update groups"), so a member never
- * attempts the move. Throws only when the session itself was not recorded.
+ * attempts the move. With an owner, stops between requests if that operation is
+ * no longer current. Without one, throws only when the session was not recorded.
  */
-export async function completeSyncedGroupSession(values: {
-  groupId: string;
-  courseId: string;
-  lessonId: string;
-  isLeader: boolean;
-  nextLesson: { courseId: string; lessonId: string } | null;
-}): Promise<SyncedGroupSessionCompletion> {
-  await recordSyncedGroupSession({
-    groupId: values.groupId,
-    courseId: values.courseId,
-    lessonId: values.lessonId,
-  });
+export async function completeSyncedGroupSession(
+  values: {
+    groupId: string;
+    courseId: string;
+    lessonId: string;
+    isLeader: boolean;
+    nextLesson: { courseId: string; lessonId: string } | null;
+  },
+  owner?: SyncedGroupActionOwner
+): Promise<SyncedGroupSessionCompletion> {
+  assertCurrentOwner(owner);
+  await recordSyncedGroupSession(
+    {
+      groupId: values.groupId,
+      courseId: values.courseId,
+      lessonId: values.lessonId,
+    },
+    owner
+  );
+  assertCurrentOwner(owner);
 
   if (!values.isLeader || values.nextLesson === null) {
     return { status: 'saved' };
   }
 
   try {
-    await updateSyncedGroupLesson(values.groupId, {
-      current_course_id: values.nextLesson.courseId,
-      current_lesson_id: values.nextLesson.lessonId,
-    });
+    await updateSyncedGroupLesson(
+      values.groupId,
+      {
+        current_course_id: values.nextLesson.courseId,
+        current_lesson_id: values.nextLesson.lessonId,
+      },
+      owner
+    );
+    assertCurrentOwner(owner);
     return { status: 'saved' };
   } catch {
     return { status: 'saved-lesson-unchanged' };

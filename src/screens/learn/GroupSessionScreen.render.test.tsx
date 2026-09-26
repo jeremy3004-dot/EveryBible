@@ -1,5 +1,6 @@
 import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
+import { act } from 'react-test-renderer';
 import { create } from 'zustand';
 import { mockBarrel, mockModule, sourcePath } from '../../testing/mockModules';
 import { flattenStyle, hostAncestors, installRenderHarness } from '../../testing/render';
@@ -24,6 +25,16 @@ const useFourFieldsStore = create(() => ({
   markGroupLessonComplete: () => {},
   updateGroupLesson: () => {},
 }));
+let completedLessons = 0;
+let advancedLessons = 0;
+useFourFieldsStore.setState({
+  markGroupLessonComplete: () => {
+    completedLessons += 1;
+  },
+  updateGroupLesson: () => {
+    advancedLessons += 1;
+  },
+});
 mockModule(mock, sourcePath('stores/fourFieldsStore.ts'), { useFourFieldsStore });
 mockModule(mock, sourcePath('services/supabase/index.ts'), { isSupabaseConfigured: () => false });
 mockBarrel(mock, 'services/groups/index.ts', {
@@ -31,8 +42,7 @@ mockBarrel(mock, 'services/groups/index.ts', {
   provide: {
     getSyncedGroup: async () => null,
     getSyncedGroupServiceAvailability: () => 'unavailable',
-    recordSyncedGroupSession: async () => ({ success: true }),
-    updateSyncedGroupLesson: async () => ({ success: true }),
+    completeSyncedGroupSession: async () => ({ status: 'saved' }),
   },
 });
 mockBarrel(mock, 'utils/index.ts', { provide: { successHaptic: () => {} } });
@@ -80,4 +90,54 @@ test('the scroll content clears the footer at whatever height it lays out to', a
   const [scroll] = view.queryAllByType('ScrollView');
   const padding = flattenStyle(scroll.props.contentContainerStyle)?.paddingBottom as number;
   assert.ok(padding > 240, `content padding ${padding} clears a 240pt footer`);
+});
+
+test('same-tick local completion taps mark once and go back once', async () => {
+  completedLessons = 0;
+  advancedLessons = 0;
+  const view = await renderSession();
+  await view.press(view.getByRole('button', { name: t('common.next') }));
+  await view.press(view.getByRole('button', { name: t('common.next') }));
+  const button = view.getByRole('button', { name: t('groups.session.completeSession') });
+  await act(async () => {
+    (button.props.onPress as () => void)();
+    (button.props.onPress as () => void)();
+  });
+  assert.equal(completedLessons, 1);
+  assert.equal(advancedLessons, 1);
+  assert.equal(harness.navigation.calls.filter((call) => call.method === 'goBack').length, 1);
+});
+
+test('a local completion handler held past unmount cannot modify progress or navigate', async () => {
+  completedLessons = 0;
+  const view = await renderSession();
+  await view.press(view.getByRole('button', { name: t('common.next') }));
+  await view.press(view.getByRole('button', { name: t('common.next') }));
+  const button = view.getByRole('button', { name: t('groups.session.completeSession') });
+  const complete = button.props.onPress as () => void;
+  await view.unmount();
+  await act(async () => {
+    complete();
+  });
+  assert.equal(completedLessons, 0);
+  assert.deepEqual(harness.navigation.calls, []);
+});
+
+test('a local completion handler from the previous group route cannot modify progress or navigate', async () => {
+  completedLessons = 0;
+  const view = await renderSession();
+  await view.press(view.getByRole('button', { name: t('common.next') }));
+  await view.press(view.getByRole('button', { name: t('common.next') }));
+  const complete = view.getByRole('button', { name: t('groups.session.completeSession') }).props
+    .onPress as () => void;
+  useFourFieldsStore.setState({ groups: [group, { ...group, id: 'group-2' }] });
+  harness.navigation.route.params = { groupId: 'group-2' };
+  const { GroupSessionScreen } = await import('./GroupSessionScreen');
+  await view.rerender(<GroupSessionScreen />);
+  await act(async () => {
+    complete();
+  });
+  assert.equal(completedLessons, 0);
+  assert.deepEqual(harness.navigation.calls, []);
+  useFourFieldsStore.setState({ groups: [group] });
 });
