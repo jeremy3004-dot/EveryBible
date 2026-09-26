@@ -153,6 +153,54 @@ export const pt = {
         label: 'Ondas do mar',
         description: 'Som das ondas na praia em repetição para um fundo mais tranquilo.',
       },
+      shuffle: {
+        label: 'Aleatório',
+      },
+      hymns: {
+        label: 'Hinos',
+      },
+      'gregorian-chant': {
+        label: 'Canto gregoriano',
+      },
+      organ: {
+        label: 'Órgão',
+      },
+      'piano-cello': {
+        label: 'Piano e violoncelo',
+      },
+      rain: {
+        label: 'Chuva',
+      },
+      'gentle-breeze': {
+        label: 'Brisa suave',
+      },
+      'summer-night': {
+        label: 'Noite de verão',
+      },
+      waterfall: {
+        label: 'Cachoeira',
+      },
+      birdsong: {
+        label: 'Canto dos pássaros',
+      },
+      shore: {
+        label: 'Beira-mar',
+      },
+      fireplace: {
+        label: 'Lareira',
+      },
+      'church-bells': {
+        label: 'Sinos da igreja',
+      },
+      village: {
+        label: 'Vilarejo',
+      },
+      garden: {
+        label: 'Jardim',
+      },
+      wilderness: {
+        label: 'Natureza',
+      },
     },
     rhythmPresets: {
       'catholic-morning-prayer': {
@@ -751,6 +799,37 @@ export const pt = {
     nextChapter: 'Próximo capítulo',
     skipBackward: 'Voltar 10 segundos',
     skipForward: 'Avançar 10 segundos',
+    sheetTitle: 'Áudio',
+    elapsedOfTotal: '{{elapsed}} de {{total}}',
+    soundSection: 'Som',
+    backgroundSound: 'Som de fundo',
+    backgroundSoundHint: 'Abre a biblioteca de sons',
+    voiceVolume: 'Voz',
+    soundVolume: 'Som',
+    speed: 'Velocidade',
+    repeat: 'Repetir',
+    repeatOptionOff: 'Desativada',
+    repeatOptionChapter: 'Capítulo',
+    repeatOptionBook: 'Livro',
+    repeatOptionPassage: 'Passagem',
+    repeatPassageHint: 'Abre a seleção de passagem',
+    passageRangeInChapter: '{{book}} {{chapter}}:{{startVerse}}–{{endVerse}}',
+    passageRange: '{{book}} {{startChapter}}:{{startVerse}}–{{endChapter}}:{{endVerse}}',
+    passagePickerTitle: 'Repetir uma passagem',
+    passageFrom: 'De',
+    passageTo: 'Até',
+    passageFromChapter: 'Capítulo inicial',
+    passageFromVerse: 'Versículo inicial',
+    passageToChapter: 'Capítulo final',
+    passageToVerse: 'Versículo final',
+    passageDecrease: 'Diminuir {{name}}',
+    passageIncrease: 'Aumentar {{name}}',
+    passageConfirm: 'Repetir esta passagem',
+    soundLibraryFootnote: 'Baixa na primeira vez que você toca e depois funciona offline',
+    soundNotDownloaded: 'Ainda não baixado',
+    soundDownloading: 'Baixando',
+    shareClip: 'Compartilhar trecho',
+    download: 'Baixar',
   },
   privacy: {
     lockTitle: 'Digite seu código seguro',

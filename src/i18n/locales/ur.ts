@@ -132,6 +132,54 @@ export const ur = {
         label: 'سمندر کی لہریں',
         description: 'زیادہ پُرسکون پس منظر کے لیے ساحل کی لہروں کی مسلسل آواز۔',
       },
+      shuffle: {
+        label: 'بے ترتیب',
+      },
+      hymns: {
+        label: 'مسیحی گیت',
+      },
+      'gregorian-chant': {
+        label: 'گریگورین گیت',
+      },
+      organ: {
+        label: 'آرگن',
+      },
+      'piano-cello': {
+        label: 'پیانو اور چیلو',
+      },
+      rain: {
+        label: 'بارش',
+      },
+      'gentle-breeze': {
+        label: 'ہلکی ہوا',
+      },
+      'summer-night': {
+        label: 'گرمیوں کی رات',
+      },
+      waterfall: {
+        label: 'آبشار',
+      },
+      birdsong: {
+        label: 'پرندوں کی چہچہاہٹ',
+      },
+      shore: {
+        label: 'ساحل',
+      },
+      fireplace: {
+        label: 'آتش دان',
+      },
+      'church-bells': {
+        label: 'گرجا گھر کی گھنٹیاں',
+      },
+      village: {
+        label: 'گاؤں',
+      },
+      garden: {
+        label: 'باغ',
+      },
+      wilderness: {
+        label: 'بیابان',
+      },
     },
     rhythmPresets: {
       'catholic-morning-prayer': {
@@ -723,6 +771,37 @@ export const ur = {
     nextChapter: 'اگلا باب',
     skipBackward: '10 سیکنڈ پیچھے جائیں',
     skipForward: '10 سیکنڈ آگے جائیں',
+    sheetTitle: 'آڈیو',
+    elapsedOfTotal: '{{total}} میں سے {{elapsed}}',
+    soundSection: 'آواز',
+    backgroundSound: 'پس منظر کی آواز',
+    backgroundSoundHint: 'آوازوں کا مجموعہ کھولتا ہے',
+    voiceVolume: 'قاری',
+    soundVolume: 'پس منظر',
+    speed: 'رفتار',
+    repeat: 'تکرار',
+    repeatOptionOff: 'بند',
+    repeatOptionChapter: 'باب',
+    repeatOptionBook: 'کتاب',
+    repeatOptionPassage: 'حصہ',
+    repeatPassageHint: 'حصہ منتخب کرنے کی فہرست کھولتا ہے',
+    passageRangeInChapter: '{{book}} {{chapter}}:{{startVerse}}–{{endVerse}}',
+    passageRange: '{{book}} {{startChapter}}:{{startVerse}}–{{endChapter}}:{{endVerse}}',
+    passagePickerTitle: 'کوئی حصہ دہرائیں',
+    passageFrom: 'سے',
+    passageTo: 'تک',
+    passageFromChapter: 'ابتدائی باب',
+    passageFromVerse: 'ابتدائی آیت',
+    passageToChapter: 'آخری باب',
+    passageToVerse: 'آخری آیت',
+    passageDecrease: '{{name}} کم کریں',
+    passageIncrease: '{{name}} بڑھائیں',
+    passageConfirm: 'یہ حصہ دہرائیں',
+    soundLibraryFootnote: 'پہلی بار چلانے پر ڈاؤن لوڈ ہوتی ہے، پھر آف لائن چلتی ہے',
+    soundNotDownloaded: 'ابھی ڈاؤن لوڈ نہیں ہوئی',
+    soundDownloading: 'ڈاؤن لوڈ ہو رہی ہے',
+    shareClip: 'کلپ شیئر کریں',
+    download: 'ڈاؤن لوڈ کریں',
   },
   privacy: {
     lockTitle: 'اپنا محفوظ کوڈ درج کریں',

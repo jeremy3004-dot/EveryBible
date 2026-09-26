@@ -153,6 +153,54 @@ export const fr = {
         label: 'Vagues de l’océan',
         description: 'Ressac du rivage en boucle pour un fond sonore apaisant.',
       },
+      shuffle: {
+        label: 'Aléatoire',
+      },
+      hymns: {
+        label: 'Cantiques',
+      },
+      'gregorian-chant': {
+        label: 'Chant grégorien',
+      },
+      organ: {
+        label: 'Orgue',
+      },
+      'piano-cello': {
+        label: 'Piano et violoncelle',
+      },
+      rain: {
+        label: 'Pluie',
+      },
+      'gentle-breeze': {
+        label: 'Brise légère',
+      },
+      'summer-night': {
+        label: 'Nuit d’été',
+      },
+      waterfall: {
+        label: 'Cascade',
+      },
+      birdsong: {
+        label: 'Chant d’oiseaux',
+      },
+      shore: {
+        label: 'Rivage',
+      },
+      fireplace: {
+        label: 'Feu de cheminée',
+      },
+      'church-bells': {
+        label: 'Cloches d’église',
+      },
+      village: {
+        label: 'Village',
+      },
+      garden: {
+        label: 'Jardin',
+      },
+      wilderness: {
+        label: 'Nature sauvage',
+      },
     },
     rhythmPresets: {
       'catholic-morning-prayer': {
@@ -766,6 +814,37 @@ export const fr = {
     nextChapter: 'Chapitre suivant',
     skipBackward: 'Reculer de 10 secondes',
     skipForward: 'Avancer de 10 secondes',
+    sheetTitle: 'Audio',
+    elapsedOfTotal: '{{elapsed}} sur {{total}}',
+    soundSection: 'Son',
+    backgroundSound: 'Son d’ambiance',
+    backgroundSoundHint: 'Ouvre la bibliothèque de sons',
+    voiceVolume: 'Voix',
+    soundVolume: 'Ambiance',
+    speed: 'Vitesse',
+    repeat: 'Répétition',
+    repeatOptionOff: 'Désactivée',
+    repeatOptionChapter: 'Chapitre',
+    repeatOptionBook: 'Livre',
+    repeatOptionPassage: 'Passage',
+    repeatPassageHint: 'Ouvre le choix du passage',
+    passageRangeInChapter: '{{book}} {{chapter}}:{{startVerse}}–{{endVerse}}',
+    passageRange: '{{book}} {{startChapter}}:{{startVerse}}–{{endChapter}}:{{endVerse}}',
+    passagePickerTitle: 'Répéter un passage',
+    passageFrom: 'Début',
+    passageTo: 'Fin',
+    passageFromChapter: 'Chapitre de début',
+    passageFromVerse: 'Verset de début',
+    passageToChapter: 'Chapitre de fin',
+    passageToVerse: 'Verset de fin',
+    passageDecrease: 'Diminuer : {{name}}',
+    passageIncrease: 'Augmenter : {{name}}',
+    passageConfirm: 'Répéter ce passage',
+    soundLibraryFootnote: 'Se télécharge à la première écoute, puis fonctionne hors ligne',
+    soundNotDownloaded: 'Pas encore téléchargé',
+    soundDownloading: 'Téléchargement',
+    shareClip: 'Partager un extrait',
+    download: 'Télécharger',
   },
   privacy: {
     lockTitle: 'Entrez votre code sécurisé',

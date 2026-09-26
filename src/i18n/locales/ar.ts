@@ -156,6 +156,54 @@ export const ar = {
         label: 'أمواج البحر',
         description: 'صوت أمواج الشاطئ المتكرر لخلفية أكثر هدوءًا.',
       },
+      shuffle: {
+        label: 'عشوائي',
+      },
+      hymns: {
+        label: 'ترانيم',
+      },
+      'gregorian-chant': {
+        label: 'الترتيل الغريغوري',
+      },
+      organ: {
+        label: 'أرغن',
+      },
+      'piano-cello': {
+        label: 'بيانو وتشيلو',
+      },
+      rain: {
+        label: 'مطر',
+      },
+      'gentle-breeze': {
+        label: 'نسيم عليل',
+      },
+      'summer-night': {
+        label: 'ليلة صيفية',
+      },
+      waterfall: {
+        label: 'شلال',
+      },
+      birdsong: {
+        label: 'تغريد الطيور',
+      },
+      shore: {
+        label: 'الشاطئ',
+      },
+      fireplace: {
+        label: 'موقد',
+      },
+      'church-bells': {
+        label: 'أجراس الكنيسة',
+      },
+      village: {
+        label: 'قرية',
+      },
+      garden: {
+        label: 'حديقة',
+      },
+      wilderness: {
+        label: 'البرية',
+      },
     },
     rhythmPresets: {
       'catholic-morning-prayer': {
@@ -767,6 +815,37 @@ export const ar = {
     nextChapter: 'الإصحاح التالي',
     skipBackward: 'الرجوع 10 ثوانٍ',
     skipForward: 'التقدّم 10 ثوانٍ',
+    sheetTitle: 'الصوت',
+    elapsedOfTotal: '{{elapsed}} من {{total}}',
+    soundSection: 'الخلفية الصوتية',
+    backgroundSound: 'صوت الخلفية',
+    backgroundSoundHint: 'يفتح مكتبة الأصوات',
+    voiceVolume: 'القارئ',
+    soundVolume: 'الخلفية',
+    speed: 'السرعة',
+    repeat: 'التكرار',
+    repeatOptionOff: 'إيقاف',
+    repeatOptionChapter: 'الإصحاح',
+    repeatOptionBook: 'السفر',
+    repeatOptionPassage: 'مقطع',
+    repeatPassageHint: 'يفتح اختيار المقطع',
+    passageRangeInChapter: '{{book}} {{chapter}}:{{startVerse}}–{{endVerse}}',
+    passageRange: '{{book}} {{startChapter}}:{{startVerse}}–{{endChapter}}:{{endVerse}}',
+    passagePickerTitle: 'تكرار مقطع',
+    passageFrom: 'من',
+    passageTo: 'إلى',
+    passageFromChapter: 'من الإصحاح',
+    passageFromVerse: 'من الآية',
+    passageToChapter: 'إلى الإصحاح',
+    passageToVerse: 'إلى الآية',
+    passageDecrease: 'إنقاص {{name}}',
+    passageIncrease: 'زيادة {{name}}',
+    passageConfirm: 'تكرار هذا المقطع',
+    soundLibraryFootnote: 'يُنزَّل عند تشغيله أول مرة، ثم يعمل دون اتصال',
+    soundNotDownloaded: 'لم يُنزَّل بعد',
+    soundDownloading: 'جارٍ التنزيل',
+    shareClip: 'مشاركة مقتطف صوتي',
+    download: 'تنزيل',
   },
   privacy: {
     lockTitle: 'أدخل رمزك الآمن',

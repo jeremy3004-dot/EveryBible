@@ -131,6 +131,54 @@ export const ja = {
         label: '波の音',
         description: '岸に寄せる波のループが、落ち着いた背景を作ります。',
       },
+      shuffle: {
+        label: 'シャッフル',
+      },
+      hymns: {
+        label: '賛美歌',
+      },
+      'gregorian-chant': {
+        label: 'グレゴリオ聖歌',
+      },
+      organ: {
+        label: 'パイプオルガン',
+      },
+      'piano-cello': {
+        label: 'ピアノとチェロ',
+      },
+      rain: {
+        label: '雨',
+      },
+      'gentle-breeze': {
+        label: 'そよ風',
+      },
+      'summer-night': {
+        label: '夏の夜',
+      },
+      waterfall: {
+        label: '滝',
+      },
+      birdsong: {
+        label: '鳥のさえずり',
+      },
+      shore: {
+        label: '浜辺',
+      },
+      fireplace: {
+        label: '暖炉',
+      },
+      'church-bells': {
+        label: '教会の鐘',
+      },
+      village: {
+        label: '村',
+      },
+      garden: {
+        label: '庭',
+      },
+      wilderness: {
+        label: '荒野',
+      },
     },
     rhythmPresets: {
       'catholic-morning-prayer': {
@@ -718,6 +766,37 @@ export const ja = {
     nextChapter: '次の章',
     skipBackward: '10秒戻る',
     skipForward: '10秒進む',
+    sheetTitle: 'オーディオ',
+    elapsedOfTotal: '{{total}}のうち{{elapsed}}',
+    soundSection: 'サウンド',
+    backgroundSound: '背景サウンド',
+    backgroundSoundHint: 'サウンドライブラリを開きます',
+    voiceVolume: '朗読',
+    soundVolume: 'サウンド',
+    speed: '速度',
+    repeat: 'リピート',
+    repeatOptionOff: 'オフ',
+    repeatOptionChapter: '章',
+    repeatOptionBook: '書',
+    repeatOptionPassage: '箇所',
+    repeatPassageHint: '箇所の選択画面を開きます',
+    passageRangeInChapter: '{{book}} {{chapter}}:{{startVerse}}–{{endVerse}}',
+    passageRange: '{{book}} {{startChapter}}:{{startVerse}}–{{endChapter}}:{{endVerse}}',
+    passagePickerTitle: '箇所をリピート',
+    passageFrom: '開始',
+    passageTo: '終了',
+    passageFromChapter: '開始の章',
+    passageFromVerse: '開始の節',
+    passageToChapter: '終了の章',
+    passageToVerse: '終了の節',
+    passageDecrease: '{{name}}を減らす',
+    passageIncrease: '{{name}}を増やす',
+    passageConfirm: 'この箇所をリピート',
+    soundLibraryFootnote: '初回再生時にダウンロードされ、その後はオフラインで使えます',
+    soundNotDownloaded: '未ダウンロード',
+    soundDownloading: 'ダウンロード中',
+    shareClip: 'クリップを共有',
+    download: 'ダウンロード',
   },
   privacy: {
     lockTitle: 'セキュリティコードを入力してください',

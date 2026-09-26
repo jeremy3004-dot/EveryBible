@@ -423,6 +423,37 @@ export const mr = {
     nextChapter: 'पुढील अध्याय',
     skipBackward: '10 सेकंद मागे जा',
     skipForward: '10 सेकंद पुढे जा',
+    sheetTitle: 'ऑडिओ',
+    elapsedOfTotal: '{{total}} पैकी {{elapsed}}',
+    soundSection: 'आवाज',
+    backgroundSound: 'पार्श्वध्वनी',
+    backgroundSoundHint: 'ध्वनींचा संग्रह उघडते',
+    voiceVolume: 'वाचक',
+    soundVolume: 'पार्श्वध्वनी',
+    speed: 'वेग',
+    repeat: 'पुनरावृत्ती',
+    repeatOptionOff: 'बंद',
+    repeatOptionChapter: 'अध्याय',
+    repeatOptionBook: 'पुस्तक',
+    repeatOptionPassage: 'उतारा',
+    repeatPassageHint: 'उतारा निवडण्याची यादी उघडते',
+    passageRangeInChapter: '{{book}} {{chapter}}:{{startVerse}}–{{endVerse}}',
+    passageRange: '{{book}} {{startChapter}}:{{startVerse}}–{{endChapter}}:{{endVerse}}',
+    passagePickerTitle: 'एखाद्या उताऱ्याची पुनरावृत्ती',
+    passageFrom: 'सुरुवात',
+    passageTo: 'शेवट',
+    passageFromChapter: 'सुरुवातीचा अध्याय',
+    passageFromVerse: 'सुरुवातीचे वचन',
+    passageToChapter: 'शेवटचा अध्याय',
+    passageToVerse: 'शेवटचे वचन',
+    passageDecrease: '{{name}} कमी करा',
+    passageIncrease: '{{name}} वाढवा',
+    passageConfirm: 'या उताऱ्याची पुनरावृत्ती करा',
+    soundLibraryFootnote: 'पहिल्यांदा वाजवल्यावर डाउनलोड होते, नंतर ऑफलाइन चालते',
+    soundNotDownloaded: 'अजून डाउनलोड झाले नाही',
+    soundDownloading: 'डाउनलोड होत आहे',
+    shareClip: 'क्लिप शेअर करा',
+    download: 'डाउनलोड करा',
   },
   privacy: {
     lockTitle: 'तुमचा सुरक्षित कोड टाका',
@@ -1872,6 +1903,54 @@ export const mr = {
       'ocean-waves': {
         label: 'समुद्राच्या लाटा',
         description: 'शांत पार्श्वभूमीसाठी किनाऱ्यावरील लाटांच्या आवाजाची पुनरावृत्ती.',
+      },
+      shuffle: {
+        label: 'शफल',
+      },
+      hymns: {
+        label: 'ख्रिस्ती गीते',
+      },
+      'gregorian-chant': {
+        label: 'ग्रेगोरियन गायन',
+      },
+      organ: {
+        label: 'ऑर्गन',
+      },
+      'piano-cello': {
+        label: 'पियानो आणि चेलो',
+      },
+      rain: {
+        label: 'पाऊस',
+      },
+      'gentle-breeze': {
+        label: 'मंद वारा',
+      },
+      'summer-night': {
+        label: 'उन्हाळ्याची रात्र',
+      },
+      waterfall: {
+        label: 'धबधबा',
+      },
+      birdsong: {
+        label: 'पक्ष्यांचा किलबिलाट',
+      },
+      shore: {
+        label: 'समुद्रकिनारा',
+      },
+      fireplace: {
+        label: 'शेकोटी',
+      },
+      'church-bells': {
+        label: 'चर्चच्या घंटा',
+      },
+      village: {
+        label: 'गाव',
+      },
+      garden: {
+        label: 'बाग',
+      },
+      wilderness: {
+        label: 'रान',
       },
     },
     rhythmPresets: {

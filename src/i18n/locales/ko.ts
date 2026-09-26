@@ -131,6 +131,54 @@ export const ko = {
         label: '파도',
         description: '반복되는 해변 파도 소리가 차분한 배경을 만듭니다.',
       },
+      shuffle: {
+        label: '셔플',
+      },
+      hymns: {
+        label: '찬송가',
+      },
+      'gregorian-chant': {
+        label: '그레고리오 성가',
+      },
+      organ: {
+        label: '오르간',
+      },
+      'piano-cello': {
+        label: '피아노와 첼로',
+      },
+      rain: {
+        label: '빗소리',
+      },
+      'gentle-breeze': {
+        label: '산들바람',
+      },
+      'summer-night': {
+        label: '여름밤',
+      },
+      waterfall: {
+        label: '폭포',
+      },
+      birdsong: {
+        label: '새소리',
+      },
+      shore: {
+        label: '바닷가',
+      },
+      fireplace: {
+        label: '벽난로',
+      },
+      'church-bells': {
+        label: '교회 종소리',
+      },
+      village: {
+        label: '시골 마을',
+      },
+      garden: {
+        label: '정원',
+      },
+      wilderness: {
+        label: '광야',
+      },
     },
     rhythmPresets: {
       'catholic-morning-prayer': {
@@ -718,6 +766,37 @@ export const ko = {
     nextChapter: '다음 장',
     skipBackward: '10초 뒤로 이동',
     skipForward: '10초 앞으로 이동',
+    sheetTitle: '오디오',
+    elapsedOfTotal: '{{total}} 중 {{elapsed}}',
+    soundSection: '사운드',
+    backgroundSound: '배경 사운드',
+    backgroundSoundHint: '사운드 라이브러리 열기',
+    voiceVolume: '낭독',
+    soundVolume: '사운드',
+    speed: '속도',
+    repeat: '반복',
+    repeatOptionOff: '끄기',
+    repeatOptionChapter: '장',
+    repeatOptionBook: '책',
+    repeatOptionPassage: '구간',
+    repeatPassageHint: '구간 선택 화면 열기',
+    passageRangeInChapter: '{{book}} {{chapter}}:{{startVerse}}–{{endVerse}}',
+    passageRange: '{{book}} {{startChapter}}:{{startVerse}}–{{endChapter}}:{{endVerse}}',
+    passagePickerTitle: '구간 반복',
+    passageFrom: '시작',
+    passageTo: '끝',
+    passageFromChapter: '시작 장',
+    passageFromVerse: '시작 절',
+    passageToChapter: '마지막 장',
+    passageToVerse: '마지막 절',
+    passageDecrease: '{{name}} 줄이기',
+    passageIncrease: '{{name}} 늘리기',
+    passageConfirm: '이 구간 반복',
+    soundLibraryFootnote: '처음 재생할 때 다운로드되며 이후에는 오프라인에서도 재생됩니다',
+    soundNotDownloaded: '아직 다운로드하지 않음',
+    soundDownloading: '다운로드 중',
+    shareClip: '클립 공유',
+    download: '다운로드',
   },
   privacy: {
     lockTitle: '보안 코드를 입력하세요',

@@ -130,6 +130,54 @@ export const zh = {
         label: '海浪',
         description: '循环播放海岸浪声，营造更宁静的背景。',
       },
+      shuffle: {
+        label: '随机',
+      },
+      hymns: {
+        label: '赞美诗',
+      },
+      'gregorian-chant': {
+        label: '格里高利圣咏',
+      },
+      organ: {
+        label: '管风琴',
+      },
+      'piano-cello': {
+        label: '钢琴与大提琴',
+      },
+      rain: {
+        label: '雨声',
+      },
+      'gentle-breeze': {
+        label: '微风',
+      },
+      'summer-night': {
+        label: '夏夜',
+      },
+      waterfall: {
+        label: '瀑布',
+      },
+      birdsong: {
+        label: '鸟鸣',
+      },
+      shore: {
+        label: '海岸',
+      },
+      fireplace: {
+        label: '壁炉',
+      },
+      'church-bells': {
+        label: '教堂钟声',
+      },
+      village: {
+        label: '乡村',
+      },
+      garden: {
+        label: '花园',
+      },
+      wilderness: {
+        label: '旷野',
+      },
     },
     rhythmPresets: {
       'catholic-morning-prayer': {
@@ -693,6 +741,37 @@ export const zh = {
     nextChapter: '下一章',
     skipBackward: '后退 10 秒',
     skipForward: '前进 10 秒',
+    sheetTitle: '音频',
+    elapsedOfTotal: '已播放 {{elapsed}}，共 {{total}}',
+    soundSection: '声音',
+    backgroundSound: '背景声音',
+    backgroundSoundHint: '打开声音库',
+    voiceVolume: '朗读',
+    soundVolume: '背景音',
+    speed: '速度',
+    repeat: '重复',
+    repeatOptionOff: '关闭',
+    repeatOptionChapter: '本章',
+    repeatOptionBook: '本卷',
+    repeatOptionPassage: '段落',
+    repeatPassageHint: '打开经文段落选择器',
+    passageRangeInChapter: '{{book}} {{chapter}}:{{startVerse}}–{{endVerse}}',
+    passageRange: '{{book}} {{startChapter}}:{{startVerse}}–{{endChapter}}:{{endVerse}}',
+    passagePickerTitle: '重复一段经文',
+    passageFrom: '起始',
+    passageTo: '结束',
+    passageFromChapter: '起始章',
+    passageFromVerse: '起始节',
+    passageToChapter: '结束章',
+    passageToVerse: '结束节',
+    passageDecrease: '减少{{name}}',
+    passageIncrease: '增加{{name}}',
+    passageConfirm: '重复这段经文',
+    soundLibraryFootnote: '首次播放时下载，之后可离线使用',
+    soundNotDownloaded: '尚未下载',
+    soundDownloading: '正在下载',
+    shareClip: '分享片段',
+    download: '下载',
   },
   privacy: {
     lockTitle: '输入你的安全密码',

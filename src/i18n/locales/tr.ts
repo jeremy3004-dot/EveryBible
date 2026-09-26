@@ -146,6 +146,54 @@ export const tr = {
         label: 'Okyanus dalgaları',
         description: 'Daha sakin bir ses ortamı için döngüye giren kıyı dalgaları.',
       },
+      shuffle: {
+        label: 'Karışık',
+      },
+      hymns: {
+        label: 'İlahiler',
+      },
+      'gregorian-chant': {
+        label: 'Gregoryen ilahisi',
+      },
+      organ: {
+        label: 'Org',
+      },
+      'piano-cello': {
+        label: 'Piyano ve çello',
+      },
+      rain: {
+        label: 'Yağmur',
+      },
+      'gentle-breeze': {
+        label: 'Hafif esinti',
+      },
+      'summer-night': {
+        label: 'Yaz gecesi',
+      },
+      waterfall: {
+        label: 'Şelale',
+      },
+      birdsong: {
+        label: 'Kuş sesleri',
+      },
+      shore: {
+        label: 'Kıyı',
+      },
+      fireplace: {
+        label: 'Şömine',
+      },
+      'church-bells': {
+        label: 'Kilise çanları',
+      },
+      village: {
+        label: 'Köy',
+      },
+      garden: {
+        label: 'Bahçe',
+      },
+      wilderness: {
+        label: 'Vahşi doğa',
+      },
     },
     rhythmPresets: {
       'catholic-morning-prayer': {
@@ -734,6 +782,37 @@ export const tr = {
     nextChapter: 'Sonraki bölüm',
     skipBackward: '10 saniye geri sar',
     skipForward: '10 saniye ileri sar',
+    sheetTitle: 'Ses',
+    elapsedOfTotal: '{{elapsed}}, toplam {{total}}',
+    soundSection: 'Sesler',
+    backgroundSound: 'Arka plan sesi',
+    backgroundSoundHint: 'Ses kitaplığını açar',
+    voiceVolume: 'Okuyucu',
+    soundVolume: 'Arka plan',
+    speed: 'Hız',
+    repeat: 'Tekrar',
+    repeatOptionOff: 'Kapalı',
+    repeatOptionChapter: 'Bölüm',
+    repeatOptionBook: 'Kitap',
+    repeatOptionPassage: 'Pasaj',
+    repeatPassageHint: 'Pasaj seçimini açar',
+    passageRangeInChapter: '{{book}} {{chapter}}:{{startVerse}}–{{endVerse}}',
+    passageRange: '{{book}} {{startChapter}}:{{startVerse}}–{{endChapter}}:{{endVerse}}',
+    passagePickerTitle: 'Bir pasajı tekrarla',
+    passageFrom: 'Başlangıç',
+    passageTo: 'Bitiş',
+    passageFromChapter: 'Başlangıç bölümü',
+    passageFromVerse: 'Başlangıç ayeti',
+    passageToChapter: 'Bitiş bölümü',
+    passageToVerse: 'Bitiş ayeti',
+    passageDecrease: 'Azalt: {{name}}',
+    passageIncrease: 'Artır: {{name}}',
+    passageConfirm: 'Bu pasajı tekrarla',
+    soundLibraryFootnote: 'İlk çaldığınızda indirilir, sonra çevrimdışı çalışır',
+    soundNotDownloaded: 'Henüz indirilmedi',
+    soundDownloading: 'İndiriliyor',
+    shareClip: 'Klibi paylaş',
+    download: 'İndir',
   },
   privacy: {
     lockTitle: 'Güvenli kodunuzu girin',

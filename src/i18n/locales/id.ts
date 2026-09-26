@@ -132,6 +132,54 @@ export const id = {
         label: 'Ombak laut',
         description: 'Deburan ombak pantai berulang untuk latar yang lebih tenang.',
       },
+      shuffle: {
+        label: 'Acak',
+      },
+      hymns: {
+        label: 'Kidung pujian',
+      },
+      'gregorian-chant': {
+        label: 'Nyanyian Gregorian',
+      },
+      organ: {
+        label: 'Orgel',
+      },
+      'piano-cello': {
+        label: 'Piano dan selo',
+      },
+      rain: {
+        label: 'Hujan',
+      },
+      'gentle-breeze': {
+        label: 'Angin sepoi',
+      },
+      'summer-night': {
+        label: 'Malam musim panas',
+      },
+      waterfall: {
+        label: 'Air terjun',
+      },
+      birdsong: {
+        label: 'Kicau burung',
+      },
+      shore: {
+        label: 'Tepi pantai',
+      },
+      fireplace: {
+        label: 'Perapian',
+      },
+      'church-bells': {
+        label: 'Lonceng gereja',
+      },
+      village: {
+        label: 'Desa',
+      },
+      garden: {
+        label: 'Taman',
+      },
+      wilderness: {
+        label: 'Alam liar',
+      },
     },
     rhythmPresets: {
       'catholic-morning-prayer': {
@@ -734,6 +782,37 @@ export const id = {
     nextChapter: 'Pasal berikutnya',
     skipBackward: 'Mundur 10 detik',
     skipForward: 'Maju 10 detik',
+    sheetTitle: 'Audio',
+    elapsedOfTotal: '{{elapsed}} dari {{total}}',
+    soundSection: 'Suara',
+    backgroundSound: 'Suara latar',
+    backgroundSoundHint: 'Membuka pustaka suara',
+    voiceVolume: 'Pembaca',
+    soundVolume: 'Suara latar',
+    speed: 'Kecepatan',
+    repeat: 'Ulangi',
+    repeatOptionOff: 'Nonaktif',
+    repeatOptionChapter: 'Pasal',
+    repeatOptionBook: 'Kitab',
+    repeatOptionPassage: 'Bagian',
+    repeatPassageHint: 'Membuka pilihan bagian Alkitab',
+    passageRangeInChapter: '{{book}} {{chapter}}:{{startVerse}}–{{endVerse}}',
+    passageRange: '{{book}} {{startChapter}}:{{startVerse}}–{{endChapter}}:{{endVerse}}',
+    passagePickerTitle: 'Ulangi satu bagian',
+    passageFrom: 'Dari',
+    passageTo: 'Sampai',
+    passageFromChapter: 'Dari pasal',
+    passageFromVerse: 'Dari ayat',
+    passageToChapter: 'Sampai pasal',
+    passageToVerse: 'Sampai ayat',
+    passageDecrease: 'Kurangi {{name}}',
+    passageIncrease: 'Tambah {{name}}',
+    passageConfirm: 'Ulangi bagian ini',
+    soundLibraryFootnote: 'Diunduh saat pertama kali diputar, lalu bisa dipakai offline',
+    soundNotDownloaded: 'Belum diunduh',
+    soundDownloading: 'Mengunduh',
+    shareClip: 'Bagikan klip',
+    download: 'Unduh',
   },
   privacy: {
     lockTitle: 'Masukkan kode aman Anda',

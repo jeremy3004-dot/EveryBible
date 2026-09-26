@@ -157,6 +157,54 @@ export const ru = {
         label: 'Морские волны',
         description: 'Повторяющийся шум прибоя для спокойного звукового фона.',
       },
+      shuffle: {
+        label: 'Вперемешку',
+      },
+      hymns: {
+        label: 'Духовные гимны',
+      },
+      'gregorian-chant': {
+        label: 'Григорианский хорал',
+      },
+      organ: {
+        label: 'Орган',
+      },
+      'piano-cello': {
+        label: 'Фортепиано и виолончель',
+      },
+      rain: {
+        label: 'Дождь',
+      },
+      'gentle-breeze': {
+        label: 'Лёгкий ветер',
+      },
+      'summer-night': {
+        label: 'Летняя ночь',
+      },
+      waterfall: {
+        label: 'Водопад',
+      },
+      birdsong: {
+        label: 'Пение птиц',
+      },
+      shore: {
+        label: 'Берег',
+      },
+      fireplace: {
+        label: 'Камин',
+      },
+      'church-bells': {
+        label: 'Церковные колокола',
+      },
+      village: {
+        label: 'Деревня',
+      },
+      garden: {
+        label: 'Сад',
+      },
+      wilderness: {
+        label: 'Дикая природа',
+      },
     },
     rhythmPresets: {
       'catholic-morning-prayer': {
@@ -755,6 +803,37 @@ export const ru = {
     nextChapter: 'Следующая глава',
     skipBackward: 'Назад на 10 секунд',
     skipForward: 'Вперёд на 10 секунд',
+    sheetTitle: 'Аудио',
+    elapsedOfTotal: '{{elapsed}} из {{total}}',
+    soundSection: 'Звук',
+    backgroundSound: 'Фоновый звук',
+    backgroundSoundHint: 'Открывает библиотеку звуков',
+    voiceVolume: 'Голос',
+    soundVolume: 'Фон',
+    speed: 'Скорость',
+    repeat: 'Повтор',
+    repeatOptionOff: 'Выкл.',
+    repeatOptionChapter: 'Глава',
+    repeatOptionBook: 'Книга',
+    repeatOptionPassage: 'Отрывок',
+    repeatPassageHint: 'Открывает выбор отрывка',
+    passageRangeInChapter: '{{book}} {{chapter}}:{{startVerse}}–{{endVerse}}',
+    passageRange: '{{book}} {{startChapter}}:{{startVerse}}–{{endChapter}}:{{endVerse}}',
+    passagePickerTitle: 'Повтор отрывка',
+    passageFrom: 'Начало',
+    passageTo: 'Конец',
+    passageFromChapter: 'Начальная глава',
+    passageFromVerse: 'Начальный стих',
+    passageToChapter: 'Конечная глава',
+    passageToVerse: 'Конечный стих',
+    passageDecrease: 'Уменьшить: {{name}}',
+    passageIncrease: 'Увеличить: {{name}}',
+    passageConfirm: 'Повторять этот отрывок',
+    soundLibraryFootnote: 'Загружается при первом воспроизведении, затем работает офлайн',
+    soundNotDownloaded: 'Ещё не скачано',
+    soundDownloading: 'Скачивание',
+    shareClip: 'Поделиться фрагментом',
+    download: 'Скачать',
   },
   privacy: {
     lockTitle: 'Введите секретный код',
