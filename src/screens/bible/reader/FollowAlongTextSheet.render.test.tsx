@@ -385,6 +385,21 @@ test('the text follows the reader font size', async () => {
   assert.ok(largeSize > mediumSize);
 });
 
+test('the verse number keeps the verse line height, so the lines never overlap', async () => {
+  const { view } = await renderReadAlong();
+  const words = verseText(view, 1);
+  const number = within(view.getByTestId('read-along-verse-1')).getByText('1 ');
+  const { fontSize, lineHeight } = flattenStyle(words.props.style) as {
+    fontSize: number;
+    lineHeight: number;
+  };
+
+  // iOS takes a paragraph's line spacing from its first character, which is the number:
+  // with the small number's own line height the whole verse was squeezed together.
+  assert.equal(flattenStyle(number.props.style)?.lineHeight, lineHeight);
+  assert.ok(lineHeight > fontSize, 'the verse lines are spaced wider than the text');
+});
+
 // ---- Chrome and controls -------------------------------------------------------------
 
 test('it is a full-screen modal with the chapter title, and Close closes it', async () => {

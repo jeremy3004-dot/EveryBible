@@ -84,7 +84,13 @@ const ReadAlongVerseRow = memo(function ReadAlongVerseRow({
         <Text
           style={[
             styles.verseNumber,
-            { color: colors.bibleAccent, fontSize: textStyle.verseNumberSize },
+            // The number opens the paragraph, and iOS spaces a paragraph by its first
+            // character: without the verse's line height it squeezes every line together.
+            {
+              color: colors.bibleAccent,
+              fontSize: textStyle.verseNumberSize,
+              lineHeight: textStyle.lineHeight,
+            },
           ]}
         >
           {verse.verse}{' '}
