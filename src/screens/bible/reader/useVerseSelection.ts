@@ -344,16 +344,16 @@ export function useVerseSelection({
 
   const handleNoteSelectedVerses = async (text: string) => {
     if (selectedVerseRanges.length === 0) {
-      return;
+      return false;
     }
 
-    if (
-      await commitAnnotationEdits(
-        planReaderNoteSave({ ...readerAnnotationEditInput(), content: text })
-      )
-    ) {
+    const succeeded = await commitAnnotationEdits(
+      planReaderNoteSave({ ...readerAnnotationEditInput(), content: text })
+    );
+    if (succeeded) {
       announceForAccessibility(t('annotations.saved'));
     }
+    return succeeded;
   };
 
   return {

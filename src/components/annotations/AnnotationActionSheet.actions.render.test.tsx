@@ -268,3 +268,15 @@ test('a note arriving while one is being written does not overwrite the draft', 
 
   assert.equal(view.getByLabelText(t('annotations.noteHint')).props.value, 'Draft');
 });
+
+test('cancelling after selecting different verses does not carry the old draft into their Note', async () => {
+  const { view, rerender } = await renderSheet();
+  await view.press(view.getByRole('button', { name: t('annotations.note') }));
+  await view.changeText(view.getByLabelText(t('annotations.noteHint')), 'Draft for verse 16');
+  await rerender({ referenceLabel: 'John 3:17', selectedText: 'For God did not send His Son' });
+
+  await view.press(view.getByRole('button', { name: t('common.cancel') }));
+  await view.press(view.getByRole('button', { name: t('annotations.note') }));
+
+  assert.equal(view.getByLabelText(t('annotations.noteHint')).props.value, '');
+});

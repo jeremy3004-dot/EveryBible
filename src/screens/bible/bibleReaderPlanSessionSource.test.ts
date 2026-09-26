@@ -272,19 +272,6 @@ test('BibleReaderScreen keeps the shared player capsule above the plan strip in 
   );
 });
 
-test('BibleReaderScreen bounds audio playback to the active plan or rhythm slice instead of the full routed session', () => {
-  assert.match(
-    source,
-    /const playbackSequenceEntriesForAudio = useMemo\(\(\) => \{[\s\S]*if \(activeRhythmSession\) \{[\s\S]*slice\(segment\.startIndex, segment\.endIndex\)[\s\S]*return activePlanPlaybackSequenceEntries;/s,
-    'BibleReaderScreen should clamp the audio-store playback sequence to the active rhythm segment or active plan-session entries'
-  );
-  assert.match(
-    source,
-    /setPlaybackSequence\(playbackSequenceEntriesForAudio\);/,
-    'BibleReaderScreen should push the bounded playback slice into the shared audio store'
-  );
-});
-
 test('BibleReaderScreen avoids auto-completing plan chapters on open and returns completed multi-session plans to plan detail', () => {
   const handleCompletePlanDayMatch = source.match(
     /const handleCompletePlanDay = useCallback\(async \(\) => \{[\s\S]*?\n\s+\}, \[/

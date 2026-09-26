@@ -300,6 +300,7 @@ export function installReaderRenderFixture(
   const annotationRows: UserAnnotation[] = [];
   /** Readers of the annotation store's changes (subscribeToAnnotationChanges). */
   const annotationChangeListeners = new Set<() => void>();
+  const annotationWriteOutcome = { succeeds: true };
   mockModule(mocker, sourcePath('services/annotations/annotationService.ts'), {
     subscribeToAnnotationChanges: (listener: () => void) => {
       annotationChangeListeners.add(listener);
@@ -328,6 +329,7 @@ export function installReaderRenderFixture(
       annotation: Omit<UserAnnotation, 'user_id' | 'created_at' | 'updated_at' | 'synced_at'>
     ) => {
       serviceCalls.push(['upsertAnnotation', annotation]);
+      if (!annotationWriteOutcome.succeeds) return { success: false, error: 'storage unavailable' };
       const saved: UserAnnotation = {
         ...annotation,
         user_id: 'local',
@@ -519,6 +521,7 @@ export function installReaderRenderFixture(
     feedbackOutcome.result = { success: true };
     annotationLoads.length = 0;
     annotationRows.length = 0;
+    annotationWriteOutcome.succeeds = true;
     annotationChangeListeners.clear();
     serviceCalls.length = 0;
     av.log.length = 0;
@@ -688,6 +691,7 @@ export function installReaderRenderFixture(
     chapterRequests,
     annotationLoads,
     annotationRows,
+    annotationWriteOutcome,
     /**
      * Replace the saved annotations from outside the reader (a sign-in or sign-out swaps
      * the account's private data in the store) and tell the store's subscribers.

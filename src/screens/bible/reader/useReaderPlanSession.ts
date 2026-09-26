@@ -179,10 +179,16 @@ export function useReaderPlanSession({
   const playbackSequenceEntriesForAudio = useMemo(() => {
     if (activeRhythmSession) {
       const activeSegment =
-        activeRhythmSession.segments.find((segment) =>
-          playbackSequenceEntries
-            .slice(segment.startIndex, segment.endIndex)
-            .some((entry) => entry.bookId === bookId && entry.chapter === chapter)
+        getRhythmSessionSegmentAtIndex(
+          activeRhythmSession,
+          resolvePlaybackSequenceIndex({
+            playbackSequenceEntries,
+            bookId,
+            chapter,
+            session: activeRhythmSession,
+            preferredPlanId: activePlanId,
+            preferredDayNumber: planDayNumber,
+          })
         ) ??
         (activePlanId && typeof planDayNumber === 'number'
           ? (activeRhythmSession.segments.find(

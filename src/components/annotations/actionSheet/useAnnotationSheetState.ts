@@ -5,10 +5,12 @@ import { getNoteToSave } from './annotationActionSheetModel';
 
 interface AnnotationSheetStateOptions {
   canAnnotate: boolean;
+  referenceLabel: string;
+  selectedText: string;
   existingNote?: string;
   onHighlight: (color: string) => void;
   onRemoveHighlight: (color: string) => void;
-  onNote: (text: string) => void;
+  onNote: (text: string) => boolean | void | Promise<boolean | void>;
   onClose: () => void;
 }
 
@@ -19,6 +21,8 @@ interface AnnotationSheetStateOptions {
  */
 export function useAnnotationSheetState({
   canAnnotate,
+  referenceLabel,
+  selectedText,
   existingNote,
   onHighlight,
   onRemoveHighlight,
@@ -28,11 +32,24 @@ export function useAnnotationSheetState({
   const [noteText, setNoteText] = useState(existingNote ?? '');
   const [mode, setMode] = useState<'actions' | 'note'>('actions');
   const [isSaving, setIsSaving] = useState(false);
+  // Keep a draft attached to the verses it was opened for. The Bible stays
+  // tappable while composing, so newer selection props must not retarget its save.
+  const [noteTarget, setNoteTarget] = useState({
+    referenceLabel,
+    selectedText,
+    existingNote,
+    onNote,
+  });
   // The selection can change under an open sheet (the Bible stays tappable around
   // it), bringing a different existing note. Follow it unless a note is being written.
   const [seededNote, setSeededNote] = useState(existingNote);
-  if (mode === 'actions' && existingNote !== seededNote) {
+  const [seededReferenceLabel, setSeededReferenceLabel] = useState(referenceLabel);
+  if (
+    mode === 'actions' &&
+    (existingNote !== seededNote || referenceLabel !== seededReferenceLabel)
+  ) {
     setSeededNote(existingNote);
+    setSeededReferenceLabel(referenceLabel);
     setNoteText(existingNote ?? '');
   }
 
@@ -78,12 +95,12 @@ export function useAnnotationSheetState({
 
     // A cleared field over a saved note removes it (an empty save); a blank new note is
     // dropped, and an unchanged one is not saved again (that would mark it edited now).
-    const savedNote = getNoteToSave(existingNote ?? '');
+    const savedNote = getNoteToSave(noteTarget.existingNote ?? '');
     const note = getNoteToSave(noteText) ?? (savedNote ? '' : null);
     if (note !== null && note !== savedNote) {
       setIsSaving(true);
       try {
-        await onNote(note);
+        if ((await noteTarget.onNote(note)) === false) return;
       } finally {
         setIsSaving(false);
       }
@@ -97,11 +114,14 @@ export function useAnnotationSheetState({
     noteText,
     setNoteText,
     isSaving,
+    referenceLabel: mode === 'note' ? noteTarget.referenceLabel : referenceLabel,
+    selectedText: mode === 'note' ? noteTarget.selectedText : selectedText,
     close,
     toggleHighlight,
     saveNote,
     openNote: () => {
       if (canAnnotate && !isSaving) {
+        setNoteTarget({ referenceLabel, selectedText, existingNote, onNote });
         setMode('note');
       }
     },

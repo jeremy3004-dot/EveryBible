@@ -35,7 +35,7 @@ interface AnnotationActionSheetProps {
   onShareImage: () => void;
   onShareAudio: () => void;
   onHighlight: (color: string) => void;
-  onNote: (text: string) => void;
+  onNote: (text: string) => boolean | void | Promise<boolean | void>;
   onRemoveHighlight: (color: string) => void;
   onClose: () => void;
   existingNote?: string;
@@ -70,6 +70,8 @@ function AnnotationActionSheetContent({
   const maxHeight = getSheetMaxHeight(windowHeight, insets.top);
   const sheet = useAnnotationSheetState({
     canAnnotate,
+    referenceLabel,
+    selectedText,
     existingNote,
     onHighlight,
     onRemoveHighlight,
@@ -113,7 +115,7 @@ function AnnotationActionSheetContent({
             accessibilityRole="header"
             style={[styles.title, { color: colors.biblePrimaryText }]}
           >
-            {t('annotations.selected')}: {referenceLabel}
+            {t('annotations.selected')}: {sheet.referenceLabel}
           </Text>
           <Pressable
             style={({ pressed }) => [
@@ -149,8 +151,8 @@ function AnnotationActionSheetContent({
           />
         ) : (
           <NoteComposer
-            referenceLabel={referenceLabel}
-            selectedText={selectedText}
+            referenceLabel={sheet.referenceLabel}
+            selectedText={sheet.selectedText}
             noteText={sheet.noteText}
             onChangeNoteText={sheet.setNoteText}
             noteInputMaxHeight={getNoteInputMaxHeight(windowHeight)}
