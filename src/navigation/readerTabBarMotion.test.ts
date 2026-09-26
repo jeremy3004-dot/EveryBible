@@ -9,7 +9,7 @@ import {
   getPlayerBarPhase,
   getPlayerBarProgress,
   getPlayerBarProgressLineTop,
-  getPlayerBarRowOpacities,
+  getPlayerBarTabRowOpacity,
   getReaderTabBarTranslation,
   isReaderTabBarScrollHidden,
   PLAYER_BAR_ROW_HEIGHT,
@@ -127,9 +127,9 @@ test('with audio loaded the bar shrinks into the strip; otherwise it slides away
 
   assert.equal(getPlayerBarCapsuleHeight(expanded, 'strip', 0), expanded);
   assert.equal(getPlayerBarCapsuleHeight(expanded, 'strip', 1), PLAYER_BAR_STRIP_HEIGHT);
-  assert.equal(getPlayerBarCapsuleHeight(expanded, 'strip', 0.5), (expanded + 38) / 2);
+  assert.equal(getPlayerBarCapsuleHeight(expanded, 'strip', 0.5), (expanded + 44) / 2);
   assert.equal(getPlayerBarCapsuleHeight(expanded, 'hide', 1), expanded, 'hiding never squashes');
-  assert.equal(PLAYER_BAR_STRIP_HEIGHT, 38);
+  assert.equal(PLAYER_BAR_STRIP_HEIGHT, 44, 'the owner found 38pt too thin');
 
   assert.equal(getPlayerBarHideTranslation('strip', 1, expanded, 22), 0);
   assert.equal(getPlayerBarHideTranslation('hide', 0, expanded, 22), 0);
@@ -145,13 +145,14 @@ test('only the phase boundary is JS-visible: strip past half way, hidden at the 
   assert.equal(getPlayerBarPhase('hide', 0.98), 'hidden');
 });
 
-test('the rows cross-fade through the strip threshold and the progress line becomes its edge', () => {
-  assert.deepEqual(getPlayerBarRowOpacities('strip', 0), { expanded: 1, strip: 0 });
-  assert.deepEqual(getPlayerBarRowOpacities('strip', 0.5), { expanded: 0, strip: 0 });
-  assert.deepEqual(getPlayerBarRowOpacities('strip', 1), { expanded: 0, strip: 1 });
-  assert.deepEqual(getPlayerBarRowOpacities('hide', 1), { expanded: 1, strip: 0 });
+test('the tabs fade out by the strip threshold and the progress line becomes its edge', () => {
+  assert.equal(getPlayerBarTabRowOpacity('strip', 0), 1);
+  assert.equal(getPlayerBarTabRowOpacity('strip', 0.25), 0.5);
+  assert.equal(getPlayerBarTabRowOpacity('strip', 0.5), 0);
+  assert.equal(getPlayerBarTabRowOpacity('strip', 1), 0);
+  assert.equal(getPlayerBarTabRowOpacity('hide', 1), 1, 'hiding slides the bar whole');
 
   assert.equal(getPlayerBarProgressLineTop('strip', 0), PLAYER_BAR_ROW_HEIGHT);
-  assert.equal(getPlayerBarProgressLineTop('strip', 1), 36, 'the 38pt strip’s bottom 2pt');
+  assert.equal(getPlayerBarProgressLineTop('strip', 1), 42, 'the 44pt strip’s bottom 2pt');
   assert.equal(getPlayerBarProgressLineTop('hide', 1), PLAYER_BAR_ROW_HEIGHT);
 });

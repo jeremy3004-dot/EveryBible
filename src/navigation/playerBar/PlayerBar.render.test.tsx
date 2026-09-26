@@ -229,9 +229,10 @@ test('the play glyph is an outlined triangle or pair of bars on a soft tile, one
       .map((node) => node.props.strokeWidth);
   assert.deepEqual(strokes(playGlyph), [OUTLINED_GLYPH_STROKE_WIDTH]);
   assert.equal(playGlyph.props.fill, 'none', 'hollow, not a filled disc');
-  const tile = hostAncestors(playGlyph)[0];
+  // The tile is a backing behind the glyph, so it can fade as the bar collapses.
+  const tile = within(play).getByTestId('player-bar-play-tile');
   assert.equal(flattenStyle(tile.props.style)?.borderRadius, 12);
-  assert.equal(flattenStyle(tile.props.style)?.width, 42);
+  assert.equal(flattenStyle(hostAncestors(playGlyph)[0].props.style)?.width, 42);
   assert.equal(isHiddenFromAccessibility(playGlyph), true, 'the button carries the name');
 
   await publishReader({ isPlaying: true });
@@ -465,23 +466,23 @@ test('another chapter’s progress is not drawn on the reader’s bar', async ()
 
 // ---- Collapse ----------------------------------------------------------------------
 
-test('with audio loaded, scrolling down shrinks the bar into a 38pt strip that keeps the transport', async () => {
+test('with audio loaded, scrolling down shrinks the one player row into a 44pt strip', async () => {
   await publishReader({ isPlaying: true });
   await setAudio(playingJohn3);
   progress.value = 1;
   const { view } = await renderBar();
   await view.flush();
 
-  assert.equal(heightOf(capsuleOf(view)), 38);
-  assert.equal(flattenStyle(capsuleOf(view).props.style)?.borderRadius, 19);
-  // The expanded row and the tabs give up touch and focus; the strip takes them.
-  for (const id of ['player-bar-row', 'player-bar-tabs']) {
-    const node = view.getByTestId(id);
-    assert.equal(isHiddenFromAccessibility(node), true, `${id} hidden`);
-    assert.equal(node.props.pointerEvents, 'none');
-  }
+  assert.equal(heightOf(capsuleOf(view)), 44);
+  assert.equal(flattenStyle(capsuleOf(view).props.style)?.borderRadius, 22);
+  // The tabs give up touch and focus; the same player row stays live, shrunk.
+  const tabs = view.getByTestId('player-bar-tabs');
+  assert.equal(isHiddenFromAccessibility(tabs), true, 'tabs hidden');
+  assert.equal(tabs.props.pointerEvents, 'none');
   assert.equal(view.queryAllByRole('tab').length, 0);
-  const strip = view.getByTestId('player-bar-strip');
+  // Only one player row exists, so there is never a moment with no controls (the blink).
+  assert.equal(view.queryByTestId('player-bar-strip'), null);
+  const strip = view.getByTestId('player-bar-row');
   assert.equal(isHiddenFromAccessibility(strip), false);
   const buttons = within(strip).queryAllByRole('button');
   assert.deepEqual(
@@ -495,16 +496,19 @@ test('with audio loaded, scrolling down shrinks the bar into a 38pt strip that k
   );
   for (const button of buttons) {
     const style = flattenStyle(button.props.style) ?? {};
-    const slop = button.props.hitSlop as { top: number; bottom: number };
-    assert.ok(Number(style.width) >= 44, 'at least 44pt wide');
-    assert.ok(Number(style.height) + slop.top + slop.bottom >= 44, 'at least 44pt tall with slop');
+    const slop = (button.props.hitSlop as number | undefined) ?? 0;
+    assert.ok(Number(style.width) + slop * 2 >= 44, 'at least 44pt wide');
+    assert.ok(Number(style.height) + slop * 2 >= 44, 'at least 44pt tall');
   }
-  // The glyph sits bare in the strip, without its tile.
-  const glyph = within(strip).getByTestId('outlined-glyph-pause');
-  assert.equal(hostAncestors(glyph)[0].props.accessibilityRole, 'button');
+  // Collapsed, the row is the strip's height, scaled down, and its tile has faded.
+  const row = flattenStyle(hostAncestors(buttons[0] as ReactTestInstance)[0].props.style) ?? {};
+  assert.equal(row.height, 44);
+  assert.deepEqual(row.transform, [{ scale: 0.88 }]);
+  const tile = within(strip).getByTestId('player-bar-play-tile');
+  assert.equal(flattenStyle(tile.props.style)?.opacity, 0);
   // The progress line is the strip's bottom edge.
   const line = hostAncestors(view.getByTestId('player-bar-progress'))[0];
-  assert.equal(flattenStyle(line.props.style)?.top, 36);
+  assert.equal(flattenStyle(line.props.style)?.top, 42);
 
   await view.press(within(strip).getByRole('button', { name: pauseName() }));
   assert.deepEqual(readerCalls, ['playPause']);
@@ -560,6 +564,7 @@ test('a bar that does not follow the reader ignores its scroll', async () => {
 
   assert.equal(heightOf(capsuleOf(view)), 58 + 64);
   assert.equal(isHiddenFromAccessibility(view.getByTestId('player-bar-row')), false);
-  assert.equal(view.queryByTestId('player-bar-strip') != null, true);
-  assert.equal(isHiddenFromAccessibility(view.getByTestId('player-bar-strip')), true);
+  // Not following the reader, the row keeps its full size and its tile.
+  const tile = view.getByTestId('player-bar-play-tile');
+  assert.equal(flattenStyle(tile.props.style)?.opacity, 1);
 });

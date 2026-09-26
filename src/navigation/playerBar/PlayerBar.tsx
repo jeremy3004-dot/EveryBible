@@ -5,6 +5,7 @@ import Animated, {
   runOnJS,
   useAnimatedReaction,
   useAnimatedStyle,
+  useDerivedValue,
   useReducedMotion,
   withTiming,
   type SharedValue,
@@ -19,11 +20,9 @@ import {
   getPlayerBarPhase,
   getPlayerBarProgress,
   getPlayerBarProgressLineTop,
-  getPlayerBarRowOpacities,
+  getPlayerBarTabRowOpacity,
   PLAYER_BAR_PROGRESS_INSET,
-  PLAYER_BAR_ROW_HEIGHT,
   PLAYER_BAR_SECTION_HEIGHT,
-  PLAYER_BAR_STRIP_HEIGHT,
   type PlayerBarPhase,
 } from '../readerTabBarMotion';
 import { getPlayerBarPalette, type PlayerBarScope } from './playerBarModel';
@@ -120,20 +119,13 @@ export const PlayerBar = memo(function PlayerBar({
     const height = getPlayerBarCapsuleHeight(expandedHeight, mode, p);
     return { height, borderRadius: Math.min(TAB_BAR_CAPSULE_RADIUS, height / 2) };
   });
-  const expandedRowStyle = useAnimatedStyle(() => ({
-    opacity: getPlayerBarRowOpacities(mode, getPlayerBarProgress(followsScroll, progress.value))
-      .expanded,
-  }));
-  const stripRowStyle = useAnimatedStyle(() => ({
-    opacity: getPlayerBarRowOpacities(mode, getPlayerBarProgress(followsScroll, progress.value))
-      .strip,
-  }));
+  // One row serves both states: it shrinks into the strip rather than cross-fading
+  // into a second row, so the controls never leave the screen.
+  const collapse = useDerivedValue(() =>
+    mode === 'strip' ? getPlayerBarProgress(followsScroll, progress.value) : 0
+  );
   const tabRowStyle = useAnimatedStyle(() => ({
-    opacity:
-      mode === 'strip'
-        ? getPlayerBarRowOpacities(mode, getPlayerBarProgress(followsScroll, progress.value))
-            .expanded
-        : 1,
+    opacity: getPlayerBarTabRowOpacity(mode, getPlayerBarProgress(followsScroll, progress.value)),
   }));
   const progressLineStyle = useAnimatedStyle(() => ({
     top: getPlayerBarProgressLineTop(mode, getPlayerBarProgress(followsScroll, progress.value)),
@@ -167,22 +159,13 @@ export const PlayerBar = memo(function PlayerBar({
           </View>
           {controller ? (
             <>
-              <Animated.View
-                style={[styles.expandedRow, expandedRowStyle]}
-                {...liveWhen(expandedLive)}
+              <View
+                style={styles.playerRow}
+                {...liveWhen(expandedLive || stripLive)}
                 testID="player-bar-row"
               >
-                <PlayerBarTransport controller={controller} palette={palette} variant="expanded" />
-              </Animated.View>
-              {mode === 'strip' ? (
-                <Animated.View
-                  style={[styles.stripRow, stripRowStyle]}
-                  {...liveWhen(stripLive)}
-                  testID="player-bar-strip"
-                >
-                  <PlayerBarTransport controller={controller} palette={palette} variant="strip" />
-                </Animated.View>
-              ) : null}
+                <PlayerBarTransport controller={controller} palette={palette} collapse={collapse} />
+              </View>
               <Animated.View style={[styles.progressLine, progressLineStyle]} pointerEvents="none">
                 <PlayerBarProgressFill active={controller.showsProgress} palette={palette} />
               </Animated.View>
@@ -232,19 +215,11 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderRadius: TAB_BAR_CAPSULE_RADIUS,
   },
-  expandedRow: {
+  playerRow: {
     position: 'absolute',
     top: 0,
     start: 0,
     end: 0,
-    height: PLAYER_BAR_ROW_HEIGHT,
-  },
-  stripRow: {
-    position: 'absolute',
-    top: 0,
-    start: 0,
-    end: 0,
-    height: PLAYER_BAR_STRIP_HEIGHT,
   },
   progressLine: {
     position: 'absolute',

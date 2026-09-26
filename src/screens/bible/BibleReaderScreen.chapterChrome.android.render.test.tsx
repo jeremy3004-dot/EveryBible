@@ -207,7 +207,8 @@ test('a collapsed strip stays collapsed after its Next, and its chevrons stay li
   await scrollReader(view, 400);
   await navigateReader(view, {});
 
-  const strip = () => view.getByTestId('player-bar-strip');
+  // One player row serves both states: collapsed, it is the strip.
+  const strip = () => view.getByTestId('player-bar-row');
   await view.press(within(strip()).getByRole('button', { name: t('bible.nextChapterHint') }));
   assert.deepEqual(reader.audioCalls.at(-1), ['nextChapter']);
   await followNavigation(view);
@@ -220,7 +221,6 @@ test('a collapsed strip stays collapsed after its Next, and its chevrons stay li
   assert.equal(chrome.barDrop, 0, 'a loaded chapter keeps the strip on screen');
   assert.equal(chrome.chevronsLive, true);
   assert.equal(isHiddenFromAccessibility(strip()), false);
-  assert.equal(isHiddenFromAccessibility(view.getByTestId('player-bar-row')), true);
   assert.equal(view.queryAllByRole('button', { name: t('bible.chapterOptions') }).length, 0);
   // Sized for the expanded bar, the tallest it can be; the strip covers less.
   assert.equal(bottomPaddingOf(view), restingPadding);
@@ -249,7 +249,7 @@ test('audio moving on to the next chapter keeps a collapsed chrome collapsed', a
   const chrome = await chromeOf(view);
   assert.equal(progress.value, 1);
   assert.equal(chrome.topChrome, 0);
-  assert.equal(isHiddenFromAccessibility(view.getByTestId('player-bar-strip')), false);
+  assert.equal(isHiddenFromAccessibility(view.getByTestId('player-bar-row')), false);
 });
 
 test('audio moving on to the next chapter keeps an expanded chrome expanded', async () => {

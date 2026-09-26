@@ -14,8 +14,8 @@ export const PLAYER_BAR_ROW_HEIGHT = 56;
 export const PLAYER_BAR_PROGRESS_HEIGHT = 2;
 /** Player row plus its progress line: what the player adds on top of the tab row. */
 export const PLAYER_BAR_SECTION_HEIGHT = PLAYER_BAR_ROW_HEIGHT + PLAYER_BAR_PROGRESS_HEIGHT;
-/** The icon-only strip the bar shrinks into while audio is loaded. */
-export const PLAYER_BAR_STRIP_HEIGHT = 38;
+/** The strip the bar shrinks into while audio is loaded (44pt: the owner found 38 too thin). */
+export const PLAYER_BAR_STRIP_HEIGHT = 44;
 /** Side inset of the progress line inside the capsule. */
 export const PLAYER_BAR_PROGRESS_INSET = 16;
 /** Scroll progress past which the expanded row hands over to the strip. */
@@ -112,15 +112,12 @@ export function getPlayerBarProgressLineTop(mode: PlayerBarCollapseMode, progres
   return expandedTop + (stripTop - expandedTop) * progress;
 }
 
-/** Cross-fade between the expanded row (1 → 0) and the strip (0 → 1). */
-export function getPlayerBarRowOpacities(
-  mode: PlayerBarCollapseMode,
-  progress: number
-): { expanded: number; strip: number } {
+/**
+ * The tab row's fade as the bar shrinks into the strip: gone by the strip threshold, as
+ * it drops out of the shrinking capsule. The player row never fades; it shrinks.
+ */
+export function getPlayerBarTabRowOpacity(mode: PlayerBarCollapseMode, progress: number): number {
   'worklet';
-  if (mode !== 'strip') return { expanded: 1, strip: 0 };
-  return {
-    expanded: Math.max(0, 1 - progress / PLAYER_BAR_STRIP_THRESHOLD),
-    strip: Math.max(0, (progress - PLAYER_BAR_STRIP_THRESHOLD) / (1 - PLAYER_BAR_STRIP_THRESHOLD)),
-  };
+  if (mode !== 'strip') return 1;
+  return Math.max(0, 1 - progress / PLAYER_BAR_STRIP_THRESHOLD);
 }

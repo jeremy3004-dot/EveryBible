@@ -124,9 +124,9 @@ test('with the chapter playing, scrolling shrinks the bar into the strip and Pla
   await scrollReader(view, 400);
   await reader.navigateReader(view, {});
 
-  const strip = view.getByTestId('player-bar-strip');
+  // One player row serves both states: collapsed, it is the strip.
+  const strip = view.getByTestId('player-bar-row');
   assert.equal(isHiddenFromAccessibility(strip), false);
-  assert.equal(isHiddenFromAccessibility(view.getByTestId('player-bar-row')), true);
   await view.press(playButton(view, t('interface.pauseChapterAudio')));
   assert.deepEqual(reader.audioCalls.at(-1), ['togglePlayPause']);
 });
@@ -142,7 +142,7 @@ test('the collapsed strip’s Next keeps the strip and the tucked-away top chrom
   await scrollReader(view, 400);
   await navigateReader(view, {});
 
-  const strip = () => view.getByTestId('player-bar-strip');
+  const strip = () => view.getByTestId('player-bar-row');
   await view.press(within(strip()).getByRole('button', { name: t('bible.nextChapterHint') }));
   await navigateReader(view, reader.setParamsCalls().at(-1) ?? {});
   await reader.setAudio({ currentChapter: 4 });

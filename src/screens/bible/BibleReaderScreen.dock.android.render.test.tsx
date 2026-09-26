@@ -50,8 +50,8 @@ test('with a chapter loaded, the collapsed strip stays above the navigation bar 
   await navigateReader(view, {});
 
   assert.equal(translateYOf(view.getByTestId('player-bar')), 0, 'the strip does not slide');
-  assert.equal(flattenStyle(capsuleOf(view).props.style)?.height, 38);
-  const strip = view.getByTestId('player-bar-strip');
+  assert.equal(flattenStyle(capsuleOf(view).props.style)?.height, 44);
+  const strip = view.getByTestId('player-bar-row');
   assert.equal(isHiddenFromAccessibility(strip), false);
   assert.ok(view.getByRole('button', { name: t('interface.pauseChapterAudio') }));
   assert.ok(view.getByRole('button', { name: t('audio.previousChapter') }));
