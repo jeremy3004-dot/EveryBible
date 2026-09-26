@@ -25,9 +25,6 @@ mockModule(mock, sourcePath('navigation/linkingConfig.ts'), {
 mockModule(mock, sourcePath('navigation/TabNavigator.tsx'), {
   TabNavigator: hostComponent('TabNavigator'),
 });
-mockModule(mock, sourcePath('components/audio/AudioReturnTab.tsx'), {
-  AudioReturnTab: hostComponent('AudioReturnTab'),
-});
 
 const readerState = {
   index: 1,
@@ -45,36 +42,33 @@ async function renderRoot() {
   const { RootNavigator } = await import('./RootNavigator');
   const view = await harness.render(<RootNavigator />);
   const container = view.queryAllByType('NavigationContainer')[0];
-  const returnTab = () => view.queryAllByType('AudioReturnTab')[0];
-  return { view, container, returnTab };
+  return { view, container };
 }
 
-test('the audio return tab learns the nested route name once navigation is ready', async () => {
-  rootState = readerState;
-  const { view, container, returnTab } = await renderRoot();
-  assert.equal(returnTab().props.currentRouteName, null, 'no route before the container is ready');
-
-  await view.fire(container, 'onReady');
-  assert.equal(returnTab().props.currentRouteName, 'BibleReader');
-});
-
-test('the audio return tab follows later navigation changes', async () => {
-  rootState = readerState;
-  const { view, container, returnTab } = await renderRoot();
-  await view.fire(container, 'onReady');
-
-  rootState = homeState;
-  await view.fire(container, 'onStateChange');
-  assert.equal(returnTab().props.currentRouteName, 'Home');
-});
-
-test('the tab navigator and the audio return tab both mount inside the navigation container', async () => {
+// The player (and its way back to the playing chapter) lives in the tab bar now; the
+// container holds the tab navigator alone, with no floating return tab beside it.
+test('the tab navigator is the only thing mounted inside the navigation container', async () => {
   const { container } = await renderRoot();
 
-  const children = container.findAll((node) => typeof node.type === 'string');
-  const types = children.map((node) => String(node.type));
-  assert.ok(types.includes('TabNavigator'));
-  assert.ok(types.includes('AudioReturnTab'));
+  const types = container
+    .findAll((node) => typeof node.type === 'string' && node !== container)
+    .map((node) => String(node.type));
+  assert.deepEqual(types, ['TabNavigator']);
+});
+
+test('the lock remembers the latest state the container reports, not only the first', async () => {
+  rootState = readerState;
+  const first = await renderRoot();
+  await first.view.fire(first.container, 'onReady');
+  rootState = homeState;
+  await first.view.fire(first.container, 'onStateChange');
+
+  privacyStore.setState({ isLocked: true });
+  await first.view.unmount();
+  privacyStore.setState({ isLocked: false });
+
+  const unlocked = await renderRoot();
+  assert.deepEqual(unlocked.container.props.initialState, homeState);
 });
 
 // A link that arrived while the navigator was unmounted (discreet-mode lock) or not yet

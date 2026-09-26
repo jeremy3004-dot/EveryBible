@@ -1,15 +1,15 @@
 import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import type { ReactTestInstance } from 'react-test-renderer';
-import { flattenStyle, hostAncestors, within } from '../../testing/render';
+import { flattenStyle, hostAncestors, isHiddenFromAccessibility } from '../../testing/render';
 import { installReaderRenderFixture, verseOf } from './BibleReaderScreen.renderFixture';
 
 // The reader's chrome after a chapter change on Android. The chrome follows the finger:
 // only scrolling the reader does collapses it. The list also moves on its own when a
 // chapter changes (back to the top, then onto a plan's focus verse or the verse the
 // audio is on), and those moves used to count as scrolling: the new chapter opened with
-// the header translucent, the arrows half faded and half out of reach, and the tab bar
-// or plan strip half off screen until the reader scrolled.
+// the header translucent, the chapter controls half faded and half out of reach, and the
+// tab bar or plan strip half off screen until the reader scrolled.
 const reader = installReaderRenderFixture(mock, { os: 'android', insets: { bottom: 48 } });
 const { t, chapters, renderReader, navigateReader, scrollReader, settleReaderScroll } = reader;
 
@@ -21,18 +21,13 @@ const chapterOf = (chapter: number) => [
   verseOf(3, `Chapter ${chapter} closes here.`, {}, 'JHN', chapter),
 ];
 
-/** The dock's chapter arrows, reachable by the screen reader or not. */
-const arrowsOf = (view: View): ReactTestInstance[] => {
-  const overlay = hostAncestors(view.getByTestId('reader-play-pause')).find(
-    (node) => node.props.pointerEvents === 'box-none' && flattenStyle(node.props.style)?.bottom
-  );
-  assert.ok(overlay, 'dock overlay');
-  const arrows = within(overlay)
-    .getAllByRole('button', { includeHidden: true })
-    .filter((button) => button.props.testID !== 'reader-play-pause');
-  assert.equal(arrows.length, 2);
-  return arrows;
-};
+/** The player bar (and its chapter chevrons), drawn by the tab bar over the reader. */
+const barOf = (view: View): ReactTestInstance => view.getByTestId('player-bar');
+
+const translateYOf = (node: ReactTestInstance) =>
+  ((flattenStyle(node.props.style)?.transform ?? []) as Array<Record<string, number>>).find(
+    (entry) => 'translateY' in entry
+  )?.translateY ?? 0;
 
 /** How opaque a node is drawn: the product of its own and its ancestors' opacity. */
 const drawnOpacity = (node: ReactTestInstance) =>
@@ -59,22 +54,25 @@ function topChromeOf(view: View): ReactTestInstance {
 }
 
 /**
- * The chrome as drawn: the top bar's and both arrows' opacity, and whether the arrows
- * take touches. The fake evaluates animated styles only when a component renders, where
- * the real ones follow the shared values every frame, so draw the screen again first.
+ * The chrome as drawn: the top bar's opacity, how far the player bar has slid down, and
+ * whether its chevrons take touches and screen-reader focus. The fake evaluates animated
+ * styles only when a component renders, where the real ones follow the shared values
+ * every frame, so draw the screen again first.
  */
 async function chromeOf(view: View) {
-  const { BibleReaderScreen } = await import('./BibleReaderScreen');
-  await view.rerender(<BibleReaderScreen />);
-  await view.flush();
+  await navigateReader(view, {});
+  const previous = view.getByRole('button', {
+    name: t('audio.previousChapter'),
+    includeHidden: true,
+  });
   return {
     topChrome: drawnOpacity(topChromeOf(view)),
-    arrows: arrowsOf(view).map(drawnOpacity),
-    arrowsTouchable: arrowsOf(view).map(touchable),
+    barDrop: translateYOf(barOf(view)),
+    chevronsLive: touchable(previous) && !isHiddenFromAccessibility(previous),
   };
 }
 
-const EXPANDED = { topChrome: 1, arrows: [1, 1], arrowsTouchable: [true, true] };
+const EXPANDED = { topChrome: 1, barDrop: 0, chevronsLive: true };
 
 /** Scroll down far enough to collapse the chrome, then back up part of the way. */
 async function halfCollapse(view: View) {
@@ -149,25 +147,29 @@ test('after the chapter change the finger collapses the chrome again', async () 
   await settleReaderScroll(view, 0);
 
   await scrollReader(view, 400);
-  assert.deepEqual(await chromeOf(view), {
-    topChrome: 0,
-    arrows: [0, 0],
-    arrowsTouchable: [false, false],
-  });
+  const collapsed = await chromeOf(view);
+  assert.equal(collapsed.topChrome, 0);
+  assert.ok(collapsed.barDrop > 0, 'the bar slid away');
+  assert.equal(collapsed.chevronsLive, false);
   await scrollReader(view, 0);
   assert.deepEqual(await chromeOf(view), EXPANDED);
 });
 
-test('arrows faded past half way take no touches, and take them again once shown', async () => {
+// Nothing is loaded, so the bar slides away whole. It keeps its controls until it is
+// all but gone, then hands over to the hairline, and takes them back once revealed.
+test('a bar sliding away keeps its controls until it is hidden, and takes them back once shown', async () => {
   const view = await renderReader();
   await scrollReader(view, 400);
-  await scrollReader(view, 360); // 30% revealed: the arrows are drawn at 30%
-  const faded = await chromeOf(view);
-  assert.ok(faded.arrows.every((opacity) => opacity > 0 && opacity < 0.5));
-  assert.deepEqual(faded.arrowsTouchable, [false, false]);
+  await scrollReader(view, 360); // 30% revealed
+  const partly = await chromeOf(view);
+  assert.ok(partly.barDrop > 0);
+  assert.equal(partly.chevronsLive, true, 'a bar still on screen still works');
+
+  await scrollReader(view, 400);
+  assert.equal((await chromeOf(view)).chevronsLive, false);
+  assert.ok(view.getByRole('button', { name: t('audio.playerBar.showControls') }));
 
   await scrollReader(view, 280); // 90% revealed
-  const shown = await chromeOf(view);
-  assert.ok(shown.arrows.every((opacity) => opacity > 0.5));
-  assert.deepEqual(shown.arrowsTouchable, [true, true]);
+  assert.equal((await chromeOf(view)).chevronsLive, true);
+  assert.equal(view.queryByRole('button', { name: t('audio.playerBar.showControls') }), null);
 });

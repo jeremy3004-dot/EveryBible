@@ -233,9 +233,56 @@ test('the chapter-only transport enlarges the chapter buttons and makes play dom
     assert.deepEqual(size(view.getByRole('button', { name })), { width: 52, height: 52 });
   }
   assert.deepEqual(size(view.getByRole('button', { name: t('interface.playChapterAudio') })), {
-    width: 72,
-    height: 72,
+    width: 76,
+    height: 76,
   });
+});
+
+// The listen screen's big control matches the player bar's: an outlined glyph in the
+// accent on a soft rounded tile, not a filled disc.
+test('the chapter-only play control is the outlined glyph on a tile, switching to pause', async () => {
+  const paused = await renderControls({ variant: 'chapter-only' });
+  const play = paused.view.getByRole('button', { name: t('interface.playChapterAudio') });
+  const style = flattenStyle(play.props.style) ?? {};
+  assert.equal(style.borderRadius, 20, 'a rounded tile, not a 38pt-radius disc');
+  assert.ok(within(play).getByTestId('outlined-glyph-play'));
+  assert.equal(within(play).queryAllByType('Icon').length, 0);
+  await paused.view.unmount();
+
+  const playing = await renderControls({ variant: 'chapter-only', status: 'playing' });
+  const pause = playing.view.getByRole('button', { name: t('interface.pauseChapterAudio') });
+  assert.ok(within(pause).getByTestId('outlined-glyph-pause'));
+});
+
+test('a control beside the chapter-only transport gets a mirrored slot, so play stays centred', async () => {
+  const { Text } = harness.rn;
+  const { view } = await renderControls({
+    variant: 'chapter-only',
+    transportAccessory: <Text>Selah</Text>,
+  });
+  const play = view.getByRole('button', { name: t('interface.playChapterAudio') });
+  const row = hostAncestors(play)[0];
+  const slots = row.children.filter(
+    (child): child is ReactTestInstance =>
+      typeof child !== 'string' && flattenStyle(child.props.style)?.width === 44
+  );
+  assert.equal(slots.length, 2);
+  assert.equal(row.children[0], slots[0], 'an empty slot leads');
+  assert.equal(row.children.at(-1), slots[1], 'the accessory trails');
+  assert.ok(within(slots[1]).getByText('Selah'));
+
+  // A slot is kept even when the accessory draws nothing (Selah unavailable).
+  await view.unmount();
+  const empty = await renderControls({ variant: 'chapter-only', transportAccessory: null });
+  const emptyRow = hostAncestors(
+    empty.view.getByRole('button', { name: t('interface.playChapterAudio') })
+  )[0];
+  assert.equal(
+    emptyRow.children.filter(
+      (child) => typeof child !== 'string' && flattenStyle(child.props.style)?.width === 44
+    ).length,
+    2
+  );
 });
 
 test('the transport buttons are named for the screen reader and do what they say', async () => {

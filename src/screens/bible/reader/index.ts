@@ -34,6 +34,7 @@ export * from './useReaderChapterLifecycle';
 export * from './useReaderChapterNavigation';
 export * from './useReaderFollowAlongScroll';
 export * from './useReaderPlanSession';
+export * from './useReaderPlayerBar';
 export * from './useReaderReadingTimer';
 export * from './useReaderScrollChrome';
 export * from './useReaderScrollTargets';

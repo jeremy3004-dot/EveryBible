@@ -6,7 +6,6 @@ import type { PlanSessionKey, RhythmSessionContext } from '../../../services/pla
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getAdjacentBibleChapter, getTranslatedBookName } from '../../../constants';
-import { useTheme } from '../../../contexts/ThemeContext';
 import { findAdjacentAvailableChapter } from '../../../services/bible/contentAvailability';
 import { useAudioStore } from '../../../stores/audioStore';
 import { getAdjacentAudioPlaybackSequenceEntry } from '../../../stores/audioPlaybackSequenceModel';
@@ -79,7 +78,7 @@ export interface UseReaderChapterNavigationInput {
   togglePlayPause: () => Promise<void>;
 }
 
-/** Moving between chapters: the previous and next targets (within a plan or rhythm session, or over the chapters the translation covers), the read-mode arrows, swipes and listen transport, and the playback dock's next action. */
+/** Moving between chapters: the previous and next targets (within a plan or rhythm session, or over the chapters the translation covers), the read-mode arrows, swipes and listen transport, and the player bar's next action. */
 export function useReaderChapterNavigation({
   activeAudioBookId,
   activePlanId,
@@ -113,7 +112,6 @@ export function useReaderChapterNavigation({
   showPlanSessionChrome,
   togglePlayPause,
 }: UseReaderChapterNavigationInput) {
-  const { colors } = useTheme();
   const { t } = useTranslation();
   const previousSequenceEntry = getAdjacentAudioPlaybackSequenceEntry(
     activePlanPlaybackSequenceEntries,
@@ -285,6 +283,8 @@ export function useReaderChapterNavigation({
     showPlanSessionChrome,
   });
 
+  // In a read-mode plan session the player bar's next control becomes the day's
+  // (or session's) completion step on its last chapter.
   const planReadDockTrailingActionState =
     showPlanSessionChrome && chapterSessionMode === 'read'
       ? getPlanSessionTrailingActionState({
@@ -297,17 +297,8 @@ export function useReaderChapterNavigation({
     planReadDockTrailingActionState.isEnabled
   );
   const showPlanReadDockSessionCompletionCopy = hasOtherIncompletePlanSessions;
-  const readerPlaybackDockNextIconName =
-    planReadDockTrailingActionState?.iconName ?? 'chevron-forward';
-  const readerPlaybackDockNextButtonColor =
-    showPlanSessionChrome && chapterSessionMode === 'read' && hasPlanReadDockNextAction
-      ? colors.accentPrimary
-      : undefined;
-  const readerPlaybackDockNextIconColor =
-    showPlanSessionChrome && chapterSessionMode === 'read' && hasPlanReadDockNextAction
-      ? colors.onAccent
-      : undefined;
-  const readerPlaybackDockNextAccessibilityLabel =
+  const readerBarNextIsCompletion = planReadDockTrailingActionState?.iconName === 'checkmark';
+  const readerBarNextAccessibilityLabel =
     showPlanSessionChrome &&
     chapterSessionMode === 'read' &&
     planReadDockTrailingActionState?.showCompletionAction
@@ -319,15 +310,15 @@ export function useReaderChapterNavigation({
             defaultValue: 'Complete day',
           })
       : t('bible.nextChapterHint');
-  const readerPlaybackDockNextAccessibilityHint =
+  const readerBarNextAccessibilityHint =
     showPlanSessionChrome &&
     chapterSessionMode === 'read' &&
     planReadDockTrailingActionState?.showCompletionAction
       ? showPlanReadDockSessionCompletionCopy
         ? t('readingPlans.completeSessionHint')
         : t('readingPlans.completeDayHint')
-      : undefined;
-  const hasReaderPlaybackDockNextChapter =
+      : null;
+  const hasReaderBarNextChapter =
     showPlanSessionChrome && chapterSessionMode === 'read'
       ? hasNextChapter || hasPlanReadDockNextAction
       : hasNextChapter;
@@ -342,12 +333,10 @@ export function useReaderChapterNavigation({
     handlePreviousReadChapter,
     hasNextChapter,
     hasPrevChapter,
-    hasReaderPlaybackDockNextChapter,
-    readerPlaybackDockNextAccessibilityHint,
-    readerPlaybackDockNextAccessibilityLabel,
-    readerPlaybackDockNextButtonColor,
-    readerPlaybackDockNextIconColor,
-    readerPlaybackDockNextIconName,
+    hasReaderBarNextChapter,
+    readerBarNextAccessibilityHint,
+    readerBarNextAccessibilityLabel,
+    readerBarNextIsCompletion,
     shouldFillReaderCanvas,
     swipeGesture,
     swipeStyle,

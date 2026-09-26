@@ -3,8 +3,18 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
+  getPlayerBarCapsuleHeight,
+  getPlayerBarCollapseMode,
+  getPlayerBarHideTranslation,
+  getPlayerBarPhase,
+  getPlayerBarProgress,
+  getPlayerBarProgressLineTop,
+  getPlayerBarRowOpacities,
   getReaderTabBarTranslation,
   isReaderTabBarScrollHidden,
+  PLAYER_BAR_ROW_HEIGHT,
+  PLAYER_BAR_SECTION_HEIGHT,
+  PLAYER_BAR_STRIP_HEIGHT,
   shouldFollowReaderScroll,
 } from './readerTabBarMotion';
 import { buildTabBarCapsuleStyle, TAB_BAR_CAPSULE_ROW_INSET } from './tabBarCapsuleStyle';
@@ -98,4 +108,50 @@ test('hidden accessibility state only applies at the active reader collapse endp
   assert.equal(isReaderTabBarScrollHidden(true, 1), true);
   assert.equal(isReaderTabBarScrollHidden(true, 0.9), false);
   assert.equal(isReaderTabBarScrollHidden(false, 1), false);
+});
+
+// ---- The fused player bar ---------------------------------------------------
+
+test('the bar collapses with the reader only while it follows it, clamped to 0..1', () => {
+  assert.equal(getPlayerBarProgress(true, 0.4), 0.4);
+  assert.equal(getPlayerBarProgress(true, 3), 1);
+  assert.equal(getPlayerBarProgress(true, -1), 0);
+  assert.equal(getPlayerBarProgress(false, 1), 0, 'another tab never collapses');
+});
+
+test('with audio loaded the bar shrinks into the strip; otherwise it slides away whole', () => {
+  const expanded = PLAYER_BAR_SECTION_HEIGHT + 64;
+  assert.equal(getPlayerBarCollapseMode(true, true), 'strip');
+  assert.equal(getPlayerBarCollapseMode(true, false), 'hide');
+  assert.equal(getPlayerBarCollapseMode(false, true), 'hide', 'no player row, nothing to keep');
+
+  assert.equal(getPlayerBarCapsuleHeight(expanded, 'strip', 0), expanded);
+  assert.equal(getPlayerBarCapsuleHeight(expanded, 'strip', 1), PLAYER_BAR_STRIP_HEIGHT);
+  assert.equal(getPlayerBarCapsuleHeight(expanded, 'strip', 0.5), (expanded + 38) / 2);
+  assert.equal(getPlayerBarCapsuleHeight(expanded, 'hide', 1), expanded, 'hiding never squashes');
+  assert.equal(PLAYER_BAR_STRIP_HEIGHT, 38);
+
+  assert.equal(getPlayerBarHideTranslation('strip', 1, expanded, 22), 0);
+  assert.equal(getPlayerBarHideTranslation('hide', 0, expanded, 22), 0);
+  // Its own height and the gap beneath it, so nothing of the capsule stays on screen.
+  assert.ok(getPlayerBarHideTranslation('hide', 1, expanded, 22) > expanded + 22);
+});
+
+test('only the phase boundary is JS-visible: strip past half way, hidden at the end', () => {
+  assert.equal(getPlayerBarPhase('strip', 0.49), 'expanded');
+  assert.equal(getPlayerBarPhase('strip', 0.5), 'strip');
+  assert.equal(getPlayerBarPhase('strip', 1), 'strip');
+  assert.equal(getPlayerBarPhase('hide', 0.97), 'expanded');
+  assert.equal(getPlayerBarPhase('hide', 0.98), 'hidden');
+});
+
+test('the rows cross-fade through the strip threshold and the progress line becomes its edge', () => {
+  assert.deepEqual(getPlayerBarRowOpacities('strip', 0), { expanded: 1, strip: 0 });
+  assert.deepEqual(getPlayerBarRowOpacities('strip', 0.5), { expanded: 0, strip: 0 });
+  assert.deepEqual(getPlayerBarRowOpacities('strip', 1), { expanded: 0, strip: 1 });
+  assert.deepEqual(getPlayerBarRowOpacities('hide', 1), { expanded: 1, strip: 0 });
+
+  assert.equal(getPlayerBarProgressLineTop('strip', 0), PLAYER_BAR_ROW_HEIGHT);
+  assert.equal(getPlayerBarProgressLineTop('strip', 1), 36, 'the 38pt strip’s bottom 2pt');
+  assert.equal(getPlayerBarProgressLineTop('hide', 1), PLAYER_BAR_ROW_HEIGHT);
 });

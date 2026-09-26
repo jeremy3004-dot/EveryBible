@@ -41,7 +41,11 @@ import { useAudioPlayer } from '../../hooks/useAudioPlayer';
 import { useFontSize } from '../../hooks/useFontSize';
 import { useLargeText } from '../../hooks/useLargeText';
 import { useLocalToday } from '../../hooks/useLocalToday';
-import { ReaderPlaybackDock } from '../../components/audio/ReaderPlaybackDock';
+import { useSelah } from '../../hooks/audioPlayer/useSelah';
+import { TAB_BAR_CAPSULE_SIDE_INSET } from '../../hooks/useTabBarHeight';
+import { PlayerBar } from '../../navigation/playerBar/PlayerBar';
+import { getTabBarCapsuleFill } from '../../navigation/tabBarCapsuleStyle';
+import { TabBarBackground } from '../../navigation/tabNavigatorParts/TabBarBackground';
 import {
   ReaderAudioPortionPreviewGuard,
   ReaderAudioPositionBridge,
@@ -99,6 +103,7 @@ import {
   useReaderChapterNavigation,
   useReaderFollowAlongScroll,
   useReaderPlanSession,
+  useReaderPlayerBar,
   useReaderReadingTimer,
   useReaderScrollChrome,
   useReaderScrollTargets,
@@ -127,7 +132,7 @@ export function BibleReaderScreen() {
     returnToPlanOnComplete = false,
     sessionContext,
   } = route.params;
-  const { colors, themeMode, setTheme } = useTheme();
+  const { colors, isDark, themeMode, setTheme } = useTheme();
   const { t } = useTranslation();
   const safeInsets = useSafeAreaInsets();
   const scrollViewRef = useRef<Animated.ScrollView | null>(null);
@@ -186,6 +191,11 @@ export function BibleReaderScreen() {
     getHomeVerseBackgroundIndex(new Date(), HOME_VERSE_BACKGROUND_SOURCES.length)
   );
   const [isReadBottomChromeCollapsed, setIsReadBottomChromeCollapsed] = useState(false);
+  const { isSelahActive } = useSelah();
+  const hasDisplayedChapterAudioError = useAudioStore(
+    (state) =>
+      state.status === 'error' && state.currentBookId === bookId && state.currentChapter === chapter
+  );
   const chapterLoadRequestIdRef = useRef(0);
   const chapterPrefetchTaskRef = useRef<CancellableTask | null>(null);
   const annotationLoadRequestIdRef = useRef(0);
@@ -217,6 +227,7 @@ export function BibleReaderScreen() {
     bookId,
     chapter,
     chapterSessionMode,
+    hasPlayerBarNotice: isSelahActive || hasDisplayedChapterAudioError,
     navigation,
     planDayNumber,
     returnToPlanOnComplete,
@@ -556,34 +567,29 @@ export function BibleReaderScreen() {
     showPremiumReadMode,
     verseOffsetsRef,
   });
-  const {
-    bottomDockAnimatedStyle,
-    planSessionBottomBarAnimatedStyle,
-    readerDockBaseBottom,
-    scrollHandler,
-    topChromeAnimatedStyle,
-  } = useReaderScrollChrome({
-    getRootTabBarStyle,
-    getRootTabNavigation,
-    navigation,
-    readerBottomChromeCollapsedRef,
-    readerBottomChromeProgressShared,
-    readerChromeCollapsedShared,
-    readerChromeFingerScrollShared,
-    readerChromeOffsetShared,
-    readerChromeOwner,
-    readerLastScrollOffsetYRef,
-    readerRouteKey,
-    readerScrollViewportHeightRef,
-    reduceMotion,
-    rootTabBarCollapseProgressRef,
-    rootTabBarHeight,
-    rootTabBarScrollProgress,
-    screenReaderEnabled,
-    setIsReadBottomChromeCollapsed,
-    shouldForceHideRootTabBar,
-    showPremiumReadMode,
-  });
+  const { planSessionBottomBarAnimatedStyle, scrollHandler, topChromeAnimatedStyle } =
+    useReaderScrollChrome({
+      getRootTabBarStyle,
+      getRootTabNavigation,
+      navigation,
+      readerBottomChromeCollapsedRef,
+      readerBottomChromeProgressShared,
+      readerChromeCollapsedShared,
+      readerChromeFingerScrollShared,
+      readerChromeOffsetShared,
+      readerChromeOwner,
+      readerLastScrollOffsetYRef,
+      readerRouteKey,
+      readerScrollViewportHeightRef,
+      reduceMotion,
+      rootTabBarCollapseProgressRef,
+      rootTabBarHeight,
+      rootTabBarScrollProgress,
+      screenReaderEnabled,
+      setIsReadBottomChromeCollapsed,
+      shouldForceHideRootTabBar,
+      showPremiumReadMode,
+    });
   useReaderChapterLifecycle({
     activeAudioBookId,
     activeAudioChapter,
@@ -778,12 +784,10 @@ export function BibleReaderScreen() {
     handlePreviousReadChapter,
     hasNextChapter,
     hasPrevChapter,
-    hasReaderPlaybackDockNextChapter,
-    readerPlaybackDockNextAccessibilityHint,
-    readerPlaybackDockNextAccessibilityLabel,
-    readerPlaybackDockNextButtonColor,
-    readerPlaybackDockNextIconColor,
-    readerPlaybackDockNextIconName,
+    hasReaderBarNextChapter,
+    readerBarNextAccessibilityHint,
+    readerBarNextAccessibilityLabel,
+    readerBarNextIsCompletion,
     shouldFillReaderCanvas,
     swipeGesture,
     swipeStyle,
@@ -875,6 +879,48 @@ export function BibleReaderScreen() {
     setShowTranslationSheet,
     setTheme,
     toggleFavorite,
+  });
+
+  const readerShowsPlayerRow = !showMinimalListenChrome && (verses.length > 0 || !isLoading);
+  // The capsule's glass for the plan-session bar, kept stable so a reader render
+  // does not redraw the bar.
+  const planPlayerBarBackground = useMemo(
+    () => (
+      <TabBarBackground
+        isDark={isDark}
+        fill={getTabBarCapsuleFill(colors.bibleSurface)}
+        stroke={colors.bibleDivider}
+      />
+    ),
+    [colors.bibleDivider, colors.bibleSurface, isDark]
+  );
+  // The player bar (in the tab bar, or above the plan strip) carries this reader's
+  // transport: Play starts the displayed chapter, the chevrons follow the plan or
+  // rhythm session, and the sound button opens the Audio sheet.
+  useReaderPlayerBar({
+    routeKey: route.key,
+    controls: {
+      // Not on the listen page (it has its own transport), and not before a first
+      // chapter has loaded, so an audio-only chapter never flashes the row on its way in.
+      showsPlayer: readerShowsPlayerRow,
+      showPlayButton: showPlanSessionChrome || !hidePlayButtonFromReadingTab,
+      isPlaying: isCurrentAudioChapter && status === 'playing',
+      isLoading: isCurrentAudioChapter && status === 'loading',
+      errorMessage:
+        readerShowsPlayerRow && isCurrentAudioChapter && status === 'error' ? audioError : null,
+      hasPrevious: hasPrevChapter,
+      hasNext: hasReaderBarNextChapter,
+      nextIsCompletion: readerBarNextIsCompletion,
+      nextAccessibilityLabel: readerBarNextAccessibilityLabel,
+      nextAccessibilityHint: readerBarNextAccessibilityHint,
+      showsProgress: isCurrentAudioChapter,
+    },
+    actions: {
+      playPause: handlePlayDisplayedChapter,
+      previous: () => void handlePreviousReadChapter(),
+      next: () => void handleNextReadChapter(),
+      openAudioSheet: () => setShowAudioOptionsSheet(true),
+    },
   });
 
   // The read list takes this as its header component, so it must keep its identity across
@@ -1131,35 +1177,6 @@ export function BibleReaderScreen() {
             verseOffsetsRef={verseOffsetsRef}
             verses={verses}
           />
-
-          <Animated.View
-            pointerEvents="box-none"
-            style={[
-              styles.floatingReaderChapterNavOverlay,
-              { bottom: readerDockBaseBottom },
-              bottomDockAnimatedStyle,
-            ]}
-          >
-            {/* Locked-in plan reader behavior: read-mode plans reuse the exact shared floating dock above the red plan strip. Do not move the play button into the strip or swap this for a custom plan-only transport without explicit user approval. */}
-            <ReaderPlaybackDock
-              collapseProgress={readerBottomChromeProgressShared}
-              isCollapsed={isReadBottomChromeCollapsed}
-              isPlaying={isCurrentAudioChapter && status === 'playing'}
-              isLoading={isCurrentAudioChapter && status === 'loading'}
-              errorMessage={isCurrentAudioChapter && status === 'error' ? audioError : null}
-              hidePlayButton={showPlanSessionChrome ? false : hidePlayButtonFromReadingTab}
-              hasPreviousChapter={hasPrevChapter}
-              hasNextChapter={hasReaderPlaybackDockNextChapter}
-              nextAccessibilityHint={readerPlaybackDockNextAccessibilityHint}
-              nextAccessibilityLabel={readerPlaybackDockNextAccessibilityLabel}
-              nextButtonColor={readerPlaybackDockNextButtonColor}
-              nextIconColor={readerPlaybackDockNextIconColor}
-              nextIconName={readerPlaybackDockNextIconName}
-              onPreviousChapter={() => void handlePreviousReadChapter()}
-              onNextChapter={() => void handleNextReadChapter()}
-              onPlayPause={handlePlayDisplayedChapter}
-            />
-          </Animated.View>
         </Animated.View>
       </GestureDetector>
     </View>
@@ -1308,6 +1325,25 @@ export function BibleReaderScreen() {
         rootTabBarHeight={rootTabBarHeight}
         showPlanSessionChrome={showPlanSessionChrome}
       />
+
+      {typeof activePlanId === 'string' && readerShowsPlayerRow ? (
+        // Locked-in plan reader behavior: a plan route hides the root tabs, and the same
+        // player capsule the tab bar carries floats above the red plan strip instead. Do
+        // not move the play button into the strip or swap this for a custom plan-only
+        // transport without explicit user approval.
+        <PlayerBar
+          scope="reader"
+          progress={rootTabBarScrollProgress}
+          followsScroll={true}
+          bottomOffset={
+            showPlanSessionChrome ? rootTabBarHeight + spacing.sm : rootTabBarBottomPadding
+          }
+          collapsedBottomOffset={rootTabBarBottomPadding}
+          sideInset={TAB_BAR_CAPSULE_SIDE_INSET}
+          background={planPlayerBarBackground}
+          frameStyle={styles.planSessionPlayerBar}
+        />
+      ) : null}
 
       <AudioOptionsSheet
         backgroundMusicChoice={backgroundMusicChoice}
@@ -1491,14 +1527,9 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 29,
   },
-  floatingReaderChapterNavOverlay: {
-    position: 'absolute',
-    left: spacing.lg,
-    right: spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    zIndex: 26,
+  // Above the plan strip (zIndex 40), which it floats over as both collapse.
+  planSessionPlayerBar: {
+    zIndex: 41,
   },
   content: {
     paddingHorizontal: 12,

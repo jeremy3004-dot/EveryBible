@@ -6,13 +6,14 @@ import { useCallback, useEffect } from 'react';
 import {
   useSharedValue,
   useAnimatedScrollHandler,
+  useAnimatedReaction,
   useAnimatedStyle,
   interpolate,
   Extrapolation,
   runOnJS,
 } from 'react-native-reanimated';
 import { spacing } from '../../../design/system';
-import { getNextReaderChromeProgress, READER_PLAY_COLLAPSE_TRAVEL } from '../readerChromeMotion';
+import { getNextReaderChromeProgress } from '../readerChromeMotion';
 import type { RootTabNavigationHandle, NavigationProp } from './readerConstants';
 import { READER_SCROLL_JS_UPDATE_INTERVAL_PX } from './readerConstants';
 
@@ -40,7 +41,7 @@ export interface UseReaderScrollChromeInput {
   showPremiumReadMode: boolean;
 }
 
-/** Scroll-linked chrome: the animated scroll handler that slides the top chrome, playback dock and plan strip away as the reader scrolls, and brings them back. */
+/** Scroll-linked chrome: the animated scroll handler that slides the top chrome, player bar and plan strip away as the reader scrolls, and brings them back. */
 export function useReaderScrollChrome({
   getRootTabBarStyle,
   getRootTabNavigation,
@@ -216,6 +217,38 @@ export function useReaderScrollChrome({
     },
   });
 
+  const updateReaderChromeCollapsed = useCallback(
+    (nextCollapsed: boolean) => {
+      if (nextCollapsed !== readerBottomChromeCollapsedRef.current) {
+        readerBottomChromeCollapsedRef.current = nextCollapsed;
+        setIsReadBottomChromeCollapsed(nextCollapsed);
+      }
+    },
+    [readerBottomChromeCollapsedRef, setIsReadBottomChromeCollapsed]
+  );
+
+  // The scroll handler writes the shared progress and this reader's own together. The
+  // player bar writes only the shared one — its hairline brings the whole chrome back —
+  // so a change there that this reader did not make is followed here.
+  useAnimatedReaction(
+    () => rootTabBarScrollProgress.value,
+    (sharedProgress) => {
+      if (
+        readerChromeOwner.value !== readerRouteKey ||
+        sharedProgress === readerBottomChromeProgressShared.value
+      ) {
+        return;
+      }
+      readerBottomChromeProgressShared.value = sharedProgress;
+      const nextCollapsed = sharedProgress >= 0.98;
+      if (nextCollapsed !== readerChromeCollapsedShared.value) {
+        readerChromeCollapsedShared.value = nextCollapsed;
+        runOnJS(updateReaderChromeCollapsed)(nextCollapsed);
+      }
+    },
+    [readerRouteKey]
+  );
+
   const topChromeAnimatedStyle = useAnimatedStyle(() => ({
     opacity: interpolate(
       readerBottomChromeProgressShared.value,
@@ -229,24 +262,6 @@ export function useReaderScrollChrome({
           readerBottomChromeProgressShared.value,
           [0, 1],
           [0, -12],
-          Extrapolation.CLAMP
-        ),
-      },
-    ],
-  }));
-
-  // Resting play center is 50pt above the capsule top; it lowers 65pt
-  // while the tabs and arrows travel 132pt. These paths never intersect.
-  const readerDockBaseBottom = rootTabBarHeight + 18;
-  const readerDockCollapsedTranslateY = READER_PLAY_COLLAPSE_TRAVEL;
-
-  const bottomDockAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      {
-        translateY: interpolate(
-          readerBottomChromeProgressShared.value,
-          [0, 1],
-          [0, readerDockCollapsedTranslateY],
           Extrapolation.CLAMP
         ),
       },
@@ -268,9 +283,7 @@ export function useReaderScrollChrome({
   }));
 
   return {
-    bottomDockAnimatedStyle,
     planSessionBottomBarAnimatedStyle,
-    readerDockBaseBottom,
     scrollHandler,
     topChromeAnimatedStyle,
   };

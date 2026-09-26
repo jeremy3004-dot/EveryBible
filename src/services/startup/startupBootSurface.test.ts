@@ -333,9 +333,10 @@ test('RootNavigator static import closure leaves the translations service for la
       );
     }
   );
+  // The tab bar's player reads the audio store; the Bible store it loads only on a press.
   assert.ok(
-    closurePaths.some((file) => file.endsWith('src/stores/bibleStore.ts')),
-    'the navigator closure should still include bibleStore — check the walker if this fails'
+    closurePaths.some((file) => file.endsWith('src/stores/audioStore.ts')),
+    'the navigator closure should still include audioStore — check the walker if this fails'
   );
 });
 
@@ -431,25 +432,40 @@ test('src/stores/index.ts is not a store barrel', () => {
   );
 });
 
-test('Root navigator mounts AudioReturnTab directly instead of a barrel-imported player host', () => {
+test('Root navigator does not pull the whole components barrel into the boot path', () => {
   const rootNavigatorSource = readRelativeSource('../../navigation/RootNavigator.tsx');
-
-  assert.match(
-    rootNavigatorSource,
-    /import \{ AudioReturnTab \} from '\.\.\/components\/audio\/AudioReturnTab';/,
-    'RootNavigator should import AudioReturnTab from its concrete module, not the components barrel'
-  );
-
-  assert.match(
-    rootNavigatorSource,
-    /<AudioReturnTab currentRouteName=\{currentRouteName\} \/>/,
-    'RootNavigator should render the audio return tab as the app-shell playback affordance'
-  );
 
   assert.equal(
     rootNavigatorSource.includes("from '../components';"),
     false,
     'RootNavigator should not pull the whole components barrel into the boot path'
+  );
+});
+
+// The player bar is drawn by the tab bar, which boots with the app. It drives playback
+// through the transport registry the player hands its controls to, so the native audio
+// stack (expo-av, the player service, downloads) still loads with the reader, not at boot.
+test('the tab bar’s player reaches playback without loading the native audio stack', () => {
+  const tabBarPath = fileURLToPath(
+    new URL('../../navigation/tabNavigatorParts/ReaderAwareTabBar.tsx', import.meta.url).href
+  );
+  const { files, packages } = collectStaticImports(tabBarPath);
+  const closurePaths = [...files].map((file) => file.replace(/\\/g, '/'));
+
+  [
+    'src/services/audio/index.ts',
+    'src/services/audio/audioPlayer.ts',
+    'src/hooks/audioPlayer/remoteCommands.ts',
+    'src/hooks/useAudioPlayer.ts',
+    'src/stores/bibleStore.ts',
+  ].forEach((suffix) => {
+    const hit = closurePaths.find((file) => file.endsWith(suffix));
+    assert.equal(hit, undefined, `the tab bar's static closure must not reach ${suffix}`);
+  });
+  assert.equal(packages.has('expo-av'), false, 'the tab bar must not import expo-av');
+  assert.ok(
+    closurePaths.some((file) => file.endsWith('src/hooks/audioPlayer/transportRegistry.ts')),
+    'the tab bar should still reach the transport registry — check the walker if this fails'
   );
 });
 

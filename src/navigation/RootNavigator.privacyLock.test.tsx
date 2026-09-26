@@ -65,9 +65,6 @@ mockModule(mock, sourcePath('design/system.ts'), {
     heavy: { fontFamily: 'System', fontWeight: '700' },
   },
 });
-mockModule(mock, sourcePath('components/audio/AudioReturnTab.tsx'), {
-  AudioReturnTab: () => null,
-});
 // Linking stays on, as in the app, with no launch URL and no incoming links.
 mockModule(mock, sourcePath('navigation/linkingConfig.ts'), {
   linkingConfig: {

@@ -5,9 +5,13 @@ import { useCallback, useEffect, useRef } from 'react';
 import { LayoutAnimation } from 'react-native';
 import { useSharedValue, useReducedMotion } from 'react-native-reanimated';
 import { useFocusEffect } from '@react-navigation/native';
-import { layout, spacing } from '../../../design/system';
+import { spacing } from '../../../design/system';
 import { useScreenReaderEnabled } from '../../../hooks/useScreenReaderEnabled';
 import { useTabBarHeight } from '../../../hooks/useTabBarHeight';
+import {
+  getPlayerBarClearance,
+  PLAYER_BAR_NOTICE_HEIGHT,
+} from '../../../navigation/playerBar/playerBarModel';
 import { buildTabBarCapsuleStyle } from '../../../navigation/tabBarCapsuleStyle';
 import { useReaderChromeOwner, useReaderChromeProgress } from '../../../stores/readerChromeStore';
 import { getNextBibleTabBarVisibility } from '../bibleReaderModel';
@@ -18,6 +22,8 @@ export interface UseReaderTabBarMotionInput {
   bookId: string;
   chapter: number;
   chapterSessionMode: 'listen' | 'read';
+  /** The player bar shows a notice above its capsule (the Selah chip, a playback failure). */
+  hasPlayerBarNotice: boolean;
   navigation: NavigationProp;
   planDayNumber: number | undefined;
   returnToPlanOnComplete: boolean;
@@ -32,6 +38,7 @@ export function useReaderTabBarMotion({
   bookId,
   chapter,
   chapterSessionMode,
+  hasPlayerBarNotice,
   navigation,
   planDayNumber,
   returnToPlanOnComplete,
@@ -102,8 +109,17 @@ export function useReaderTabBarMotion({
   } = useTabBarHeight();
   const shouldForceHideRootTabBar =
     Boolean(activePlanId) && typeof planDayNumber === 'number' && returnToPlanOnComplete;
-  const premiumReaderBaseBottomPadding =
-    rootTabBarHeight + layout.minTouchTarget + spacing.xxxl + spacing.lg;
+  // The last line must clear the expanded player bar: the tab capsule (or, in a plan
+  // session, the plan strip of the same height), the player row on top of it, and any
+  // notice floating above that. Near the end of a chapter the bar is always expanded,
+  // since the scroll motion reveals it as either end approaches.
+  const premiumReaderBaseBottomPadding = getPlayerBarClearance({
+    bottomPadding: rootTabBarBottomPadding,
+    tabRowHeight: rootTabBarBarHeight,
+    showsPlayerRow: true,
+    noticeHeight: hasPlayerBarNotice ? PLAYER_BAR_NOTICE_HEIGHT : 0,
+    gap: spacing.lg,
+  });
   const getRootTabNavigation = useCallback((): RootTabNavigationHandle => {
     // Runtime contract: navigation.getParent('RootTab') ?? navigation.getParent()?.getParent()
     const getParentById = navigation.getParent as unknown as (
@@ -132,8 +148,8 @@ export function useReaderTabBarMotion({
   );
   const rootTabBarStyleBuilderRef = useRef(getRootTabBarStyle);
   rootTabBarStyleBuilderRef.current = getRootTabBarStyle;
-  // Keep the chapter content padding stable so dock taps do not reflow the
-  // ScrollView when the user is already pinned at the bottom of the chapter.
+  // Stable while the bar's shape is: play/pause taps and scroll collapse never reflow
+  // the list under a reader pinned at the bottom of the chapter.
   const premiumReaderBottomPadding = premiumReaderBaseBottomPadding;
 
   const syncRootTabBarVisibility = useCallback(

@@ -19,6 +19,8 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import { announceLiveRegionText } from '../../../utils/a11y';
 import { ReaderListenProgress } from '../ReaderAudioPositionParts';
 import { PlaybackControls } from '../../../components/audio/PlaybackControls';
+import { SelahButton } from '../../../components/audio/SelahButton';
+import { useSelah } from '../../../hooks/audioPlayer/useSelah';
 import type { ChapterFeedback } from './useChapterFeedback';
 import { ListenFeedbackComposer } from './ListenFeedbackComposer';
 
@@ -82,8 +84,11 @@ export function ReaderListenMode({
   status,
 }: ReaderListenModeProps) {
   const { colors } = useTheme();
+  const { isSelahActive, toggleSelah } = useSelah();
 
-  const listenStatus = isCurrentAudioChapter ? status : 'idle';
+  // While Selah holds the narration, the transport shows Play, and Play brings the
+  // reading back in (Selah's own fade) rather than toggling the player.
+  const listenStatus = isSelahActive ? 'paused' : isCurrentAudioChapter ? status : 'idle';
   const listenCountedNoticeViewModel = getListenCountedNoticeViewModel(listenCountedNotice);
   const countedNoticeLabel = listenCountedNoticeViewModel?.accessibilityLabel ?? null;
 
@@ -168,7 +173,8 @@ export function ReaderListenMode({
           backgroundMusicChoice={backgroundMusicChoice}
           hasPreviousChapter={hasPrevChapter}
           hasNextChapter={hasNextChapter}
-          onPlayPause={handlePlayDisplayedChapter}
+          onPlayPause={isSelahActive ? toggleSelah : handlePlayDisplayedChapter}
+          transportAccessory={<SelahButton />}
           showChapterNavigation={!showPlanSessionChrome}
           onPreviousChapter={() => void handlePreviousListenChapter()}
           onNextChapter={() => void handleNextListenChapter()}

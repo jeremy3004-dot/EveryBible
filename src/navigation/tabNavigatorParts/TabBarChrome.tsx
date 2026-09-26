@@ -1,15 +1,14 @@
-import { Platform, StyleSheet, Text, View } from 'react-native';
-import { BlurView } from 'expo-blur';
-import { GlassView, isGlassEffectAPIAvailable, isLiquidGlassAvailable } from 'expo-glass-effect';
+import { StyleSheet, Text, View } from 'react-native';
 import type { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
 import { BookOpen, Calendar, Ellipsis, House, Users } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { PlatformPressable } from '@react-navigation/elements';
 import type { RootTabIconName } from '../tabManifest';
-import { TAB_BAR_GLASS_EFFECT_STYLE } from '../tabBarCapsuleStyle';
 import { typography } from '../../design/system';
 import { CONTROL_LABEL_MAX_FONT_SCALE } from '../../design/largeTextLayout';
-import { TAB_BAR_CAPSULE_RADIUS } from '../../hooks/useTabBarHeight';
+
+// The capsule material lives in its own module so the reader can draw it too.
+export { TabBarBackground } from './TabBarBackground';
 
 // Lucide ships one stroke weight per glyph, so the selected state is carried by
 // the sliding accent pill behind the icon rather than a filled variant.
@@ -54,45 +53,6 @@ export function TabBarLabel({ label, color }: { label: string; color: string }) 
   );
 }
 
-// Liquid glass capsule. On iOS 26+ the paper backing sits BEHIND frosted
-// regular glass, so the glass samples mostly paper and verse text under the bar
-// cannot lens through the labels; older platforms get a blur under the same
-// paper tint. Both keep a little translucency so the bar floats over the page.
-export function TabBarBackground({
-  isDark,
-  fill,
-  stroke,
-}: {
-  isDark: boolean;
-  fill: string;
-  stroke: string;
-}) {
-  if (Platform.OS === 'ios' && isLiquidGlassAvailable() && isGlassEffectAPIAvailable()) {
-    return (
-      <View style={styles.capsule} pointerEvents="none">
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: fill }]} />
-        <GlassView
-          pointerEvents="none"
-          glassEffectStyle={TAB_BAR_GLASS_EFFECT_STYLE}
-          colorScheme={isDark ? 'dark' : 'light'}
-          style={styles.capsule}
-        />
-      </View>
-    );
-  }
-  return (
-    <View style={styles.capsule} pointerEvents="none">
-      <BlurView
-        intensity={Platform.OS === 'ios' ? 40 : 24}
-        tint={isDark ? 'dark' : 'light'}
-        style={StyleSheet.absoluteFill}
-      />
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: fill }]} />
-      <View style={[StyleSheet.absoluteFill, styles.capsuleStroke, { borderColor: stroke }]} />
-    </View>
-  );
-}
-
 // Keep React Navigation semantics, test IDs, links, and all press callbacks intact.
 export function TabBarButton(props: BottomTabBarButtonProps) {
   return (
@@ -103,15 +63,6 @@ export function TabBarButton(props: BottomTabBarButtonProps) {
 }
 
 const styles = StyleSheet.create({
-  capsule: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: TAB_BAR_CAPSULE_RADIUS,
-    overflow: 'hidden',
-  },
-  capsuleStroke: {
-    borderRadius: TAB_BAR_CAPSULE_RADIUS,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
   tabButton: {
     flex: 1,
     alignItems: 'center',

@@ -3,11 +3,12 @@ import assert from 'node:assert/strict';
 import { useEffect } from 'react';
 import type { ReactTestInstance } from 'react-test-renderer';
 import type { SharedValue } from 'react-native-reanimated';
-import { flattenStyle, hostAncestors, isHiddenFromAccessibility } from '../../testing/render';
+import { flattenStyle, isHiddenFromAccessibility } from '../../testing/render';
 import { installReaderRenderFixture, JOHN_3, verseOf } from './BibleReaderScreen.renderFixture';
 
-// Scroll-linked chrome, the floating playback dock, chapter navigation and the
-// root tab bar the reader drives.
+// Scroll-linked chrome, the reader's transport on the player bar (which the tab bar
+// draws; the fixture renders it beside the reader), chapter navigation and the root
+// tab bar the reader drives.
 const reader = installReaderRenderFixture(mock);
 const { harness, t, renderReader, navigateReader, scrollReader, chapters } = reader;
 
@@ -15,15 +16,6 @@ type View = Awaited<ReturnType<typeof renderReader>>;
 
 const playButton = (view: View, name = t('interface.playChapterAudio')) =>
   view.getByRole('button', { name });
-
-/** The absolutely positioned overlay the dock floats in. */
-function dockOverlay(view: View): ReactTestInstance {
-  const overlay = hostAncestors(view.getByTestId('reader-play-pause')).find(
-    (node) => node.props.pointerEvents === 'box-none' && flattenStyle(node.props.style)?.bottom
-  );
-  assert.ok(overlay, 'dock overlay');
-  return overlay;
-}
 
 const translateYOf = (node: ReactTestInstance) =>
   ((flattenStyle(node.props.style)?.transform ?? []) as Array<Record<string, number>>).find(
@@ -59,8 +51,7 @@ const playingJohn3 = () =>
 
 // ---- Scroll-linked collapse -----------------------------------------------------
 
-test('scrolling down hides the top chrome, lowers the dock and publishes the root tab motion', async () => {
-  const { READER_PLAY_COLLAPSE_TRAVEL } = await import('./readerChromeMotion');
+test('scrolling down hides the top chrome and the idle player bar, and publishes the root tab motion', async () => {
   const shared = await chromeStore();
   const view = await renderReader();
   const callsBefore = harness.navigation.calls.length;
@@ -79,12 +70,15 @@ test('scrolling down hides the top chrome, lowers the dock and publishes the roo
   assert.equal(chrome.props.pointerEvents, 'none');
   assert.equal(isHiddenFromAccessibility(chrome), true);
 
-  // The play disc lowers without fading or shrinking.
-  const overlay = dockOverlay(view);
-  assert.equal(translateYOf(overlay), READER_PLAY_COLLAPSE_TRAVEL);
-  assert.equal(flattenStyle(overlay.props.style)?.opacity, undefined);
-  assert.ok(playButton(view), 'play stays reachable');
-  assert.equal(view.queryByRole('button', { name: t('audio.previousChapter') }), null);
+  // Nothing is loaded, so the whole bar slides away, leaving a hairline to call it back.
+  // (The fake draws animated styles when a component renders; the real ones follow the
+  // shared progress every frame.)
+  await reader.navigateReader(view, {});
+  const bar = view.getByTestId('player-bar');
+  assert.equal(isHiddenFromAccessibility(bar), true);
+  assert.equal(bar.props.pointerEvents, 'none');
+  assert.equal(view.queryByRole('button', { name: t('interface.playChapterAudio') }), null);
+  assert.ok(view.getByRole('button', { name: t('audio.playerBar.showControls') }));
 
   assert.equal(shared.progress.value, 1, 'the root tab bar follows on the UI thread');
   assert.deepEqual(
@@ -93,13 +87,48 @@ test('scrolling down hides the top chrome, lowers the dock and publishes the roo
     'no navigation params or options are rewritten per scroll frame'
   );
   assert.equal(reader.rootTabCalls.length, rootTabCallsBefore);
-  assert.equal(bottomPadding(), restingPadding, 'the dock never reflows the text under it');
+  assert.equal(bottomPadding(), restingPadding, 'the bar never reflows the text under it');
 
   await scrollReader(view, 0);
+  await reader.navigateReader(view, {});
   assert.equal(flattenStyle(reader.topChrome(view).props.style)?.opacity, 1);
-  assert.equal(translateYOf(dockOverlay(view)), 0);
+  assert.ok(playButton(view));
   assert.ok(view.getByRole('button', { name: t('audio.previousChapter') }));
   assert.equal(shared.progress.value, 0);
+});
+
+test('the hairline brings back the bar and the reader’s own chrome with it', async () => {
+  const shared = await chromeStore();
+  const view = await renderReader();
+  await scrollReader(view, 400);
+  await reader.navigateReader(view, {});
+
+  await view.press(view.getByRole('button', { name: t('audio.playerBar.showControls') }));
+  await reader.navigateReader(view, {}); // draw the animated styles again
+
+  assert.equal(shared.progress.value, 0);
+  const chrome = reader.topChrome(view);
+  assert.equal(flattenStyle(chrome.props.style)?.opacity, 1, 'the top chrome is back too');
+  assert.equal(isHiddenFromAccessibility(chrome), false);
+  assert.ok(playButton(view));
+
+  // Scrolling on continues from the revealed state, not from where it was hidden.
+  await scrollReader(view, 460);
+  assert.ok(shared.progress.value > 0 && shared.progress.value < 1);
+});
+
+test('with the chapter playing, scrolling shrinks the bar into the strip and Play stays in reach', async () => {
+  await playingJohn3();
+  const view = await renderReader();
+
+  await scrollReader(view, 400);
+  await reader.navigateReader(view, {});
+
+  const strip = view.getByTestId('player-bar-strip');
+  assert.equal(isHiddenFromAccessibility(strip), false);
+  assert.equal(isHiddenFromAccessibility(view.getByTestId('player-bar-row')), true);
+  await view.press(playButton(view, t('interface.pauseChapterAudio')));
+  assert.deepEqual(reader.audioCalls.at(-1), ['togglePlayPause']);
 });
 
 test('small scroll steps move the chrome on the UI thread without re-rendering the screen', async () => {
@@ -141,14 +170,41 @@ test('only the focused reader publishes or clears the shared tab motion', async 
 
 // ---- The dock -------------------------------------------------------------
 
-test('the dock floats 18pt above the tab capsule footprint', async () => {
+test('the text’s last line clears the expanded player bar, and a notice floating above it', async () => {
+  const { PLAYER_BAR_SECTION_HEIGHT } = await import('../../navigation/readerTabBarMotion');
+  const { PLAYER_BAR_NOTICE_HEIGHT } = await import('../../navigation/playerBar/playerBarModel');
   const view = await renderReader();
+  const bottomPadding = () =>
+    flattenStyle(reader.readerList(view).props.contentContainerStyle)?.paddingBottom;
 
-  // iOS with a home indicator: capsule 64pt + 22pt gap = 86pt footprint.
-  assert.equal(flattenStyle(dockOverlay(view).props.style)?.bottom, 86 + 18);
+  // iOS with a home indicator: 22pt gap, the 64pt tab row, the player row, then 16pt of air.
+  assert.equal(bottomPadding(), 22 + 64 + PLAYER_BAR_SECTION_HEIGHT + 16);
+
+  await reader.setAudio({
+    status: 'error',
+    error: t('interface.audioPlayFailed'),
+    currentTranslationId: 'bsb',
+    currentBookId: 'JHN',
+    currentChapter: 3,
+  });
+  assert.equal(
+    bottomPadding(),
+    22 + 64 + PLAYER_BAR_SECTION_HEIGHT + 16 + PLAYER_BAR_NOTICE_HEIGHT + 16
+  );
 });
 
-test('the dock play button plays the displayed chapter, or toggles it once it is playing', async () => {
+test('the bar’s sound button opens the reader’s Audio sheet', async () => {
+  const view = await renderReader();
+
+  await view.press(
+    view.getByRole('button', {
+      name: t('audio.playerBar.sound', { name: t('interface.music.off.label') }),
+    })
+  );
+  assert.ok(view.getByText(t('audio.sheetTitle')));
+});
+
+test('the bar’s play button plays the displayed chapter, or toggles it once it is playing', async () => {
   const view = await renderReader();
 
   await view.press(playButton(view));
@@ -161,7 +217,7 @@ test('the dock play button plays the displayed chapter, or toggles it once it is
 
 // A chapter that would not load dropped back to Play with no message: the hook held
 // the error, but neither the read-mode dock nor the listen player drew it.
-test('a chapter that failed to load says so above the dock, and Play tries it again', async () => {
+test('a chapter that failed to load says so above the bar, and Play tries it again', async () => {
   const failed = t('interface.audioPlayFailed');
   const view = await renderReader();
   await reader.setAudio({
@@ -219,7 +275,7 @@ test("another chapter's failure is not shown on this one", async () => {
 // A stream that died after the chapter started used to drop back to Play without a
 // word. The failure is shown (and heard once) for that chapter; Play reloads it, and
 // the notice goes once the chapter is loading and playing again.
-test('a chapter that fails mid-play says so above the dock until Play gets it going again', async () => {
+test('a chapter that fails mid-play says so above the bar until Play gets it going again', async () => {
   const failed = t('interface.audioPlayFailed');
   const view = await renderReader();
   await playingJohn3();
@@ -257,10 +313,10 @@ test('pausing, stopping or finishing a chapter shows no failure', async () => {
 });
 
 // After a relaunch nothing is loaded, only the persisted last track and its
-// resume offset. Playing that chapter from the dock must resume it (the hook's
+// resume offset. Playing that chapter from the bar must resume it (the hook's
 // togglePlayPause restores lastPosition); playChapter restarted it from 0:00
 // (seen on the Android release build after a sleep-timer pause and a relaunch).
-test('after a relaunch the dock play button resumes the last-played chapter instead of restarting it', async () => {
+test('after a relaunch the bar’s play button resumes the last-played chapter instead of restarting it', async () => {
   await reader.setAudio({
     lastPlayedTranslationId: 'bsb',
     lastPlayedBookId: 'JHN',
@@ -272,7 +328,7 @@ test('after a relaunch the dock play button resumes the last-played chapter inst
   assert.deepEqual(reader.audioCalls, [['togglePlayPause']]);
 });
 
-test('a different last-played chapter does not hijack the dock play button', async () => {
+test('a different last-played chapter does not hijack the bar’s play button', async () => {
   await reader.setAudio({
     lastPlayedTranslationId: 'bsb',
     lastPlayedBookId: 'GEN',
@@ -284,7 +340,7 @@ test('a different last-played chapter does not hijack the dock play button', asy
   assert.deepEqual(reader.audioCalls, [['playChapter', 'JHN', 3]]);
 });
 
-test('the hide-play-button preference leaves the dock with its chapter arrows', async () => {
+test('the hide-play-button preference leaves the bar with its chapter arrows', async () => {
   harness.authStore.getState().setPreferences({ hidePlayButtonFromReadingTab: true });
   const view = await renderReader();
 
@@ -306,7 +362,7 @@ test('read-mode arrows move the text only, keeping read mode, and never start au
     autoplayAudio: false,
   });
 
-  // One pair of arrows: the dock's (no second chapter rail under the player).
+  // One pair of arrows: the bar's (no second chapter rail under the player).
   const [previous] = view.getAllByRole('button', { name: t('audio.previousChapter') });
   await view.press(previous);
   assert.equal(reader.setParamsCalls().at(-1)?.chapter, 2);
@@ -429,7 +485,7 @@ test('a plan session hard-hides the root tabs and restores the capsule when it e
   });
 });
 
-test('a plan session keeps the shared dock play button even when the preference hides it', async () => {
+test('a plan session keeps the player bar’s play button even when the preference hides it', async () => {
   harness.authStore.getState().setPreferences({ hidePlayButtonFromReadingTab: true });
   chapters.set('MAT:1', [verseOf(1, 'This is the record of the genealogy.', {}, 'MAT', 1)]);
   const view = await renderReader(PLAN_PARAMS);

@@ -123,11 +123,11 @@ test('BibleReaderScreen renders the simplified listen-mode plan chrome without t
   assert.match(
     source,
     /showPlanChapterArrows = chapterSessionMode === 'listen';/,
-    'BibleReaderScreen should keep plan strip chapter arrows only while listening so read mode can use the shared floating dock'
+    'BibleReaderScreen should keep plan strip chapter arrows only while listening so read mode can use the player bar'
   );
 });
 
-test('BibleReaderScreen uses a plan-aware read-mode dock next action and keeps chapter navigation bounded to the active session', () => {
+test('BibleReaderScreen uses a plan-aware read-mode player bar next action and keeps chapter navigation bounded to the active session', () => {
   assert.match(
     source,
     /const shouldConstrainChapterNavigationToSession =\s*activeRhythmSession != null \|\| showPlanSessionChrome;/,
@@ -135,18 +135,18 @@ test('BibleReaderScreen uses a plan-aware read-mode dock next action and keeps c
   );
   assert.match(
     source,
-    /const hasReaderPlaybackDockNextChapter =[\s\S]*hasNextChapter \|\| hasPlanReadDockNextAction/s,
-    'BibleReaderScreen should keep the shared dock enabled for either the next chapter or the explicit plan completion step'
+    /const hasReaderBarNextChapter =[\s\S]*hasNextChapter \|\| hasPlanReadDockNextAction/s,
+    'BibleReaderScreen should keep the player bar next control enabled for either the next chapter or the explicit plan completion step'
   );
   assert.match(
     source,
     /const handleNextReadChapter = async \(\) => \{/,
-    'BibleReaderScreen should route the shared read-mode dock through the read chapter navigation handler'
+    'BibleReaderScreen should route the player bar through the read chapter navigation handler'
   );
   assert.match(
     source,
     /showPlanSessionChrome &&[\s\S]*chapterSessionMode === 'read' &&[\s\S]*planReadDockTrailingActionState\?\.showCompletionAction &&[\s\S]*hasPlanReadDockNextAction[\s\S]*await handleCompletePlanDay\(\);/s,
-    'BibleReaderScreen should complete the active plan day from the shared dock when the final read-mode chapter is reached'
+    'BibleReaderScreen should complete the active plan day from the player bar when the final read-mode chapter is reached'
   );
   assert.equal(
     source.includes("chapterSessionMode === 'read' &&\n      !hasNextChapter &&"),
@@ -155,18 +155,14 @@ test('BibleReaderScreen uses a plan-aware read-mode dock next action and keeps c
   );
   assert.match(
     source,
-    /const readerPlaybackDockNextIconName =\s*planReadDockTrailingActionState\?\.iconName \?\? 'chevron-forward';/,
-    'BibleReaderScreen should derive the shared dock icon directly from the shared trailing-action model'
+    /const readerBarNextIsCompletion = planReadDockTrailingActionState\?\.iconName === 'checkmark';/,
+    'BibleReaderScreen should derive the bar completion state directly from the shared trailing-action model'
   );
+  // The bar draws it as an accent checkmark (PlayerBar.render.test.tsx).
   assert.match(
     source,
-    /nextButtonColor=\{readerPlaybackDockNextButtonColor\}/,
-    'BibleReaderScreen should tint the shared dock action button with the accent color for final plan completion'
-  );
-  assert.match(
-    source,
-    /nextIconName=\{readerPlaybackDockNextIconName\}/,
-    'BibleReaderScreen should pass the shared completion icon state into the floating dock'
+    /nextIsCompletion: readerBarNextIsCompletion,/,
+    'BibleReaderScreen should pass the shared completion state into the player bar'
   );
 });
 
