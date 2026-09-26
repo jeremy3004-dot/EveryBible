@@ -54,6 +54,7 @@ export function GroupDetailScreen() {
   const groupProgress = useFourFieldsStore((state) => state.groupProgress);
   const leaveGroup = useFourFieldsStore((state) => state.leaveGroup);
   const user = useAuthStore((state) => state.user);
+  const authGeneration = useAuthStore((state) => state.authGeneration);
   const userId = user?.uid ?? null;
   const isSignedIn = Boolean(user);
   const syncFeatureEnabled = config.features.studyGroupsSync;
@@ -140,13 +141,21 @@ export function GroupDetailScreen() {
   const isLoading =
     localSnapshot == null && remoteRequestKey !== null && remoteGroupState.key !== remoteRequestKey;
 
-  const [prayerPreview, setPrayerPreview] = useState<{
-    count: number;
-    latestContent: string | null;
+  const prayerRequestKey =
+    syncFeatureEnabled && backendConfigured && userId
+      ? `${groupId}:${userId}:${authGeneration}`
+      : null;
+  const [prayerPreviewState, setPrayerPreviewState] = useState<{
+    key: string;
+    preview: { count: number; latestContent: string | null } | null;
   } | null>(null);
+  const prayerPreview =
+    prayerRequestKey !== null && prayerPreviewState?.key === prayerRequestKey
+      ? prayerPreviewState.preview
+      : null;
 
   useEffect(() => {
-    if (!syncFeatureEnabled || !backendConfigured || !isSignedIn) {
+    if (!prayerRequestKey) {
       return undefined;
     }
 
@@ -161,18 +170,22 @@ export function GroupDetailScreen() {
         if (cancelled) return;
         if (result.success && result.data) {
           const active = result.data.filter((r) => !r.is_answered);
-          setPrayerPreview({
-            count: active.length,
-            latestContent: active[0]?.content ?? null,
+          setPrayerPreviewState({
+            key: prayerRequestKey,
+            preview: { count: active.length, latestContent: active[0]?.content ?? null },
           });
+        } else {
+          setPrayerPreviewState({ key: prayerRequestKey, preview: null });
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!cancelled) setPrayerPreviewState({ key: prayerRequestKey, preview: null });
+      });
 
     return () => {
       cancelled = true;
     };
-  }, [backendConfigured, groupId, isSignedIn, syncFeatureEnabled]);
+  }, [groupId, prayerRequestKey]);
 
   if (isLoading) {
     return (

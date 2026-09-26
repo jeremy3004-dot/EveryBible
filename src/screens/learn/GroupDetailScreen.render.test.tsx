@@ -1,5 +1,6 @@
 import test, { beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
+import { act } from 'react-test-renderer';
 import {
   deferred,
   enableSync,
@@ -13,7 +14,11 @@ import {
   VIEWER,
 } from './groupScreens.renderFixture';
 
-beforeEach(resetGroupFixture);
+beforeEach(() => {
+  resetGroupFixture();
+  const authState = { user: null, authGeneration: 0 };
+  harness.authStore.setState(authState);
+});
 
 type Alert = {
   title: string;
@@ -31,6 +36,102 @@ async function renderDetail(groupId: string) {
 }
 
 const lastAlert = () => harness.rn.__recorded.alerts.at(-1) as Alert;
+
+test('prayer preview is reloaded for a new account and hides the prior account content', async () => {
+  enableSync();
+  env.getSyncedGroup = async () => syncedGroup('member');
+  env.listPrayerRequests = async () => ({
+    success: true,
+    data: [{ is_answered: false, content: 'Prayer hidden from the next viewer' }],
+  });
+  const view = await renderDetail('synced-1');
+  await view.flush();
+  assert.ok(view.getByText('Prayer hidden from the next viewer'));
+  env.listPrayerRequests = async () => ({ success: true, data: [] });
+  await act(async () => {
+    harness.authStore.setState({ user: { uid: 'other-viewer', displayName: 'Priscilla' } });
+  });
+  await view.flush();
+  await view.flush();
+  assert.equal(view.queryByText('Prayer hidden from the next viewer'), null);
+});
+
+test('a delayed prayer preview from the previous account cannot replace the current preview', async () => {
+  enableSync();
+  env.getSyncedGroup = async () => syncedGroup('member');
+  const oldPreview = deferred<Awaited<ReturnType<typeof env.listPrayerRequests>>>();
+  env.listPrayerRequests = () => oldPreview.promise;
+  const view = await renderDetail('synced-1');
+
+  env.listPrayerRequests = async () => ({
+    success: true,
+    data: [{ is_answered: false, content: 'Current account preview' }],
+  });
+  await act(async () => {
+    harness.authStore.setState({ user: { uid: 'other-viewer', displayName: 'Priscilla' } });
+  });
+  await view.flush();
+  await view.flush();
+  assert.ok(view.getByText('Current account preview'));
+  oldPreview.resolve({
+    success: true,
+    data: [{ is_answered: false, content: 'Previous account preview' }],
+  });
+  await view.flush();
+  assert.equal(view.queryByText('Previous account preview'), null);
+  assert.ok(view.getByText('Current account preview'));
+});
+
+for (const failure of ['response', 'throw'] as const) {
+  test(`a new session for the same user hides its old prayer preview when the current load fails by ${failure}`, async () => {
+    enableSync();
+    env.getSyncedGroup = async () => syncedGroup('member');
+    env.listPrayerRequests = async () => ({
+      success: true,
+      data: [{ is_answered: false, content: 'Previous session preview' }],
+    });
+    const view = await renderDetail('synced-1');
+    assert.ok(view.getByText('Previous session preview'));
+    const currentPreview = deferred<Awaited<ReturnType<typeof env.listPrayerRequests>>>();
+    env.listPrayerRequests = () => currentPreview.promise;
+    const nextAuthState = { user: VIEWER, authGeneration: 1 };
+    await act(async () => harness.authStore.setState(nextAuthState));
+    assert.equal(view.queryByText('Previous session preview'), null);
+    await view.flush();
+    if (failure === 'response') currentPreview.resolve({ success: false });
+    else currentPreview.reject(new Error('Network unavailable'));
+    await view.flush();
+    assert.equal(view.queryByText(t('prayer.title')), null);
+    assert.equal(view.queryByText('Previous session preview'), null);
+  });
+}
+
+test('replacing the group route hides its preview while the new group preview is loading', async () => {
+  enableSync();
+  env.getSyncedGroup = async (id) => syncedGroup('member', { id });
+  env.listPrayerRequests = async () => ({
+    success: true,
+    data: [{ is_answered: false, content: 'First group preview' }],
+  });
+  const view = await renderDetail('synced-1');
+  assert.ok(view.getByText('First group preview'));
+  const newPreview = deferred<Awaited<ReturnType<typeof env.listPrayerRequests>>>();
+  env.listPrayerRequests = () => newPreview.promise;
+  harness.navigation.route.params = { groupId: 'synced-2' };
+  const { GroupDetailScreen } = await import('./GroupDetailScreen');
+  await view.rerender(<GroupDetailScreen />);
+  await view.flush();
+  await view.flush();
+  assert.equal(view.queryByText('First group preview'), null);
+  assert.equal(view.queryByText(t('prayer.title')), null);
+  newPreview.resolve({
+    success: true,
+    data: [{ is_answered: false, content: 'Second group preview' }],
+  });
+  await view.flush();
+  assert.equal(view.queryByText('First group preview'), null);
+  assert.ok(view.getByText('Second group preview'));
+});
 
 // ─── Local groups ────────────────────────────────────────────────────────────
 

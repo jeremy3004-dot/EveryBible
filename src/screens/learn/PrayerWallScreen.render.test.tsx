@@ -1,12 +1,17 @@
 import test, { beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import type { ReactElement } from 'react';
+import { act } from 'react-test-renderer';
 import type { ReactTestInstance } from 'react-test-renderer';
 import { mockModule, sourcePath } from '../../testing/mockModules';
 import { installRenderHarness } from '../../testing/render';
 
 const harness = installRenderHarness(mock);
 const t = (key: string, options?: Record<string, unknown>) => harness.i18n.t(key, options);
+const prompts: Array<(text: string) => Promise<void>> = [];
+(harness.rn.Alert as unknown as { prompt: (...args: unknown[]) => void }).prompt = (...args) => {
+  prompts.push(args[2] as (text: string) => Promise<void>);
+};
 
 type WriteResult = { success: boolean; error?: string };
 type ListResult = {
@@ -18,10 +23,12 @@ type ListResult = {
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((settle) => {
+  let reject!: (error: Error) => void;
+  const promise = new Promise<T>((settle, fail) => {
     resolve = settle;
+    reject = fail;
   });
-  return { promise, resolve };
+  return { promise, resolve, reject };
 }
 
 // The wall lives only on the server; posts wait for its moderation, so nothing is cached.
@@ -29,12 +36,24 @@ const backend = {
   offline: false,
   result: { success: false, error: 'Failed to fetch' } as ListResult,
   /** Answers for the next listPrayerRequests calls, in order; `result` once they run out. */
-  pages: [] as ListResult[],
+  pages: [] as Array<ListResult | Promise<ListResult>>,
   listCalls: [] as unknown[][],
   writes: [] as Array<{ op: 'add' | 'remove'; requestId: string; type: string }>,
   /** Each write waits for the test to settle it. */
   pendingWrites: [] as Array<ReturnType<typeof deferred<WriteResult>>>,
+  mutations: [] as Array<{ op: string; args: unknown[] }>,
+  mutationResult: { success: false } as WriteResult & { data?: unknown },
+  pendingMutation: null as ReturnType<typeof deferred<WriteResult & { data?: unknown }>> | null,
+  mutationThrows: false,
+  pendingOffline: null as ReturnType<typeof deferred<boolean>> | null,
 };
+const mutation =
+  (op: string) =>
+  async (...args: unknown[]) => {
+    backend.mutations.push({ op, args });
+    if (backend.mutationThrows) throw new Error('network failure');
+    return backend.pendingMutation?.promise ?? backend.mutationResult;
+  };
 const write = (op: 'add' | 'remove') => (requestId: string, type: string) => {
   backend.writes.push({ op, requestId, type });
   const pending = deferred<WriteResult>();
@@ -48,9 +67,15 @@ mockModule(mock, sourcePath('services/prayer/prayerService.ts'), {
   },
   addInteraction: write('add'),
   removeInteraction: write('remove'),
+  createPrayerRequest: mutation('create'),
+  updatePrayerRequest: mutation('edit'),
+  deletePrayerRequest: mutation('delete'),
+  markPrayerAnswered: mutation('answer'),
+  reportPrayerRequest: mutation('report'),
+  blockUser: mutation('block'),
 });
 mockModule(mock, sourcePath('utils/connectivity.ts'), {
-  isDeviceOffline: async () => backend.offline,
+  isDeviceOffline: async () => backend.pendingOffline?.promise ?? backend.offline,
 });
 
 const request = (overrides: Record<string, unknown> = {}) => ({
@@ -78,7 +103,16 @@ beforeEach(() => {
   backend.listCalls = [];
   backend.writes = [];
   backend.pendingWrites = [];
-  harness.authStore.setState({ user: { uid: 'viewer-1', displayName: 'Lydia' } });
+  backend.mutations = [];
+  backend.mutationResult = { success: false };
+  backend.pendingMutation = null;
+  backend.mutationThrows = false;
+  backend.pendingOffline = null;
+  prompts.length = 0;
+  harness.authStore.setState({
+    user: { uid: 'viewer-1', displayName: 'Lydia' },
+    authGeneration: 1,
+  });
 });
 
 async function renderWall() {
@@ -90,6 +124,15 @@ async function renderWall() {
   return view;
 }
 type WallView = Awaited<ReturnType<typeof renderWall>>;
+async function showAction(view: WallView, label: string) {
+  let node = view.getByText('Pray for my neighbour');
+  while (typeof node.props.onLongPress !== 'function' && node.parent) node = node.parent;
+  await view.fire(node, 'onLongPress');
+  const sheet = harness.rn.__recorded.actionSheets.at(-1)!;
+  const options = (sheet.options as { options: string[] }).options;
+  await act(async () => (sheet.callback as (index: number) => void)(options.indexOf(label)));
+  await view.flush();
+}
 
 const prayedPill = (view: WallView, count: number) =>
   view.getByRole('button', { name: t('prayer.prayedCount', { count }) });
@@ -138,6 +181,35 @@ test('retrying after reconnecting shows the wall instead of the offline message'
 
   assert.equal(view.queryByText(t('common.offlineTryAgain')), null);
   assert.equal(view.queryByText(t('common.somethingWentWrong')), null);
+});
+
+test('signing out clears the prior account prayer wall immediately', async () => {
+  backend.result = { success: true, data: [request({ content: 'A private group prayer' })] };
+  const view = await renderWall();
+  assert.ok(view.getByText('A private group prayer'));
+  backend.result = { success: true, data: [] };
+  await act(async () => {
+    harness.authStore.setState({ user: null });
+  });
+  await view.flush();
+  assert.equal(view.queryByText('A private group prayer'), null);
+});
+
+test('switching accounts reloads prayer interaction flags for the new viewer', async () => {
+  backend.result = { success: true, data: [request({ prayed_count: 3, viewer_prayed: true })] };
+  const view = await renderWall();
+  assert.ok(
+    view.getByRole('button', { name: t('prayer.prayedCount', { count: 3 }), selected: true })
+  );
+  backend.result = { success: true, data: [request({ prayed_count: 3, viewer_prayed: false })] };
+  await act(async () => {
+    harness.authStore.setState({ user: { uid: 'viewer-2', displayName: 'Priscilla' } });
+  });
+  await view.flush();
+  assert.ok(
+    view.getByRole('button', { name: t('prayer.prayedCount', { count: 3 }), selected: false })
+  );
+  assert.equal(backend.listCalls.length, 2);
 });
 
 test('a fast double tap on Prayed sends one request and counts one prayer', async () => {
@@ -252,4 +324,254 @@ test('reaching the end of the wall loads the next page after the last request', 
   await view.fire(view.queryAllByType('FlatList')[0], 'onEndReached');
   await view.flush();
   assert.equal(backend.listCalls.length, 2);
+});
+
+test('a prior viewer interaction completion cannot clear the new viewer pending interaction', async () => {
+  backend.result = { success: true, data: [request()] };
+  const view = await renderWall();
+  await view.press(prayedPill(view, 0));
+  await act(async () =>
+    harness.authStore.setState({ user: { uid: 'viewer-2' }, authGeneration: 2 })
+  );
+  await view.flush();
+  await view.press(prayedPill(view, 0));
+  assert.equal(backend.writes.length, 2);
+  await settleWrite(view, 0, { success: false });
+  assert.ok(
+    view.getByRole('button', { name: t('prayer.prayedCount', { count: 1 }), selected: true })
+  );
+  assert.deepEqual(harness.rn.__recorded.announcements, []);
+  await settleWrite(view, 1, { success: true });
+  assert.ok(
+    view.getByRole('button', { name: t('prayer.prayedCount', { count: 1 }), selected: true })
+  );
+});
+
+test('a first page completed after account replacement cannot show the old viewer prayers', async () => {
+  const old = deferred<ListResult>();
+  backend.pages = [old.promise];
+  const view = await renderWall();
+  backend.result = { success: true, data: [request({ content: 'New account prayer' })] };
+  await act(async () =>
+    harness.authStore.setState({ user: { uid: 'viewer-2' }, authGeneration: 2 })
+  );
+  await view.flush();
+  await act(async () =>
+    old.resolve({ success: true, data: [request({ content: 'Old private prayer' })] })
+  );
+  await view.flush();
+  assert.ok(view.getByText('New account prayer'));
+  assert.equal(view.queryByText('Old private prayer'), null);
+});
+
+test('submitting in the same tick sends one prayer and a thrown service error allows retry', async () => {
+  backend.result = { success: true, data: [] };
+  backend.mutationThrows = true;
+  const view = await renderWall();
+  await view.fire(
+    view.getByLabelText(t('prayer.requestPlaceholder')),
+    'onChangeText',
+    'Pray for peace'
+  );
+  const onPress = view.getByRole('button', { name: t('prayer.submitRequest') }).props
+    .onPress as () => Promise<void>;
+  await act(async () => {
+    await Promise.all([onPress(), onPress()]);
+  });
+  assert.equal(backend.mutations.length, 1);
+  assert.equal(harness.rn.__recorded.alerts.length, 1);
+  backend.mutationThrows = false;
+  backend.mutationResult = {
+    success: true,
+    data: request({ content: 'Pray for peace', user_id: 'viewer-1' }),
+  };
+  await view.press(view.getByRole('button', { name: t('prayer.submitRequest') }));
+  assert.ok(view.getByText('Pray for peace'));
+});
+
+test('a submitted prayer finishing after sign-out cannot resurrect the list or draft', async () => {
+  backend.result = { success: true, data: [] };
+  backend.pendingMutation = deferred();
+  const view = await renderWall();
+  await view.fire(
+    view.getByLabelText(t('prayer.requestPlaceholder')),
+    'onChangeText',
+    'Old private draft'
+  );
+  let submitting: Promise<void> = Promise.resolve();
+  await act(async () => {
+    submitting = (
+      view.getByRole('button', { name: t('prayer.submitRequest') }).props
+        .onPress as () => Promise<void>
+    )();
+  });
+  await act(async () => harness.authStore.setState({ user: null, authGeneration: 2 }));
+  await view.flush();
+  await act(async () => {
+    backend.pendingMutation?.resolve({
+      success: true,
+      data: request({ content: 'Old private draft' }),
+    });
+    await submitting;
+  });
+  assert.equal(view.queryByText('Old private draft'), null);
+  assert.equal(view.getByLabelText(t('prayer.requestPlaceholder')).props.value, '');
+});
+
+test('an old native action sheet callback cannot edit or delete after account change', async () => {
+  backend.result = { success: true, data: [request({ user_id: 'viewer-1' })] };
+  const view = await renderWall();
+  const card = view.getByText('Pray for my neighbour').parent!;
+  let actionNode = card;
+  while (typeof actionNode.props.onLongPress !== 'function' && actionNode.parent)
+    actionNode = actionNode.parent;
+  await view.fire(actionNode, 'onLongPress');
+  const sheet = harness.rn.__recorded.actionSheets.at(-1)!;
+  await act(async () =>
+    harness.authStore.setState({ user: { uid: 'viewer-2' }, authGeneration: 2 })
+  );
+  await act(async () =>
+    (sheet.callback as (index: number) => void)(
+      (sheet.options as { options: string[] }).options.indexOf(t('common.delete'))
+    )
+  );
+  assert.deepEqual(backend.mutations, []);
+  assert.deepEqual(harness.rn.__recorded.alerts, []);
+});
+
+test('an older page resolving after account replacement cannot append private prayers', async () => {
+  const cursor = { created_at: '2026-09-20T10:00:00Z', id: 'req-1' };
+  const page = deferred<ListResult>();
+  backend.pages = [{ success: true, data: [request()], nextCursor: cursor }, page.promise];
+  const view = await renderWall();
+  const list = view.queryAllByType('FlatList')[0];
+  let loading: Promise<void> = Promise.resolve();
+  await act(async () => {
+    loading = (list.props.onEndReached as () => Promise<void>)();
+  });
+  backend.result = { success: true, data: [request({ content: 'New viewer prayer' })] };
+  await act(async () =>
+    harness.authStore.setState({ user: { uid: 'viewer-2' }, authGeneration: 2 })
+  );
+  await view.flush();
+  await act(async () => {
+    page.resolve({
+      success: true,
+      data: [request({ id: 'old', content: 'Older private prayer' })],
+    });
+    await loading;
+  });
+  assert.ok(view.getByText('New viewer prayer'));
+  assert.equal(view.queryByText('Older private prayer'), null);
+});
+
+test('an old connectivity result cannot replace a new account successful wall', async () => {
+  backend.pendingOffline = deferred();
+  const view = await renderWall();
+  backend.result = { success: true, data: [request()] };
+  await act(async () =>
+    harness.authStore.setState({ user: { uid: 'viewer-2' }, authGeneration: 2 })
+  );
+  await view.flush();
+  await act(async () => backend.pendingOffline?.resolve(true));
+  await view.flush();
+  assert.ok(view.getByText('Pray for my neighbour'));
+  assert.equal(view.queryByText(t('common.offlineTryAgain')), null);
+});
+
+test('a new auth generation for the same user reloads flags and clears the old draft', async () => {
+  backend.result = { success: true, data: [request({ viewer_prayed: true, prayed_count: 1 })] };
+  const view = await renderWall();
+  await view.fire(
+    view.getByLabelText(t('prayer.requestPlaceholder')),
+    'onChangeText',
+    'Old session draft'
+  );
+  backend.result = { success: true, data: [request()] };
+  await act(async () => harness.authStore.setState({ authGeneration: 3 }));
+  await view.flush();
+  assert.equal(view.getByLabelText(t('prayer.requestPlaceholder')).props.value, '');
+  assert.ok(
+    view.getByRole('button', { name: t('prayer.prayedCount', { count: 0 }), selected: false })
+  );
+  assert.equal(backend.listCalls.length, 2);
+});
+
+for (const action of ['edit', 'delete', 'block'] as const) {
+  test(`a stale native ${action} confirmation cannot write after account replacement`, async () => {
+    backend.result = {
+      success: true,
+      data: [request({ user_id: action === 'block' ? 'someone-else' : 'viewer-1' })],
+    };
+    const view = await renderWall();
+    await showAction(
+      view,
+      t(
+        action === 'edit'
+          ? 'common.edit'
+          : action === 'delete'
+            ? 'common.delete'
+            : 'prayer.blockAuthor'
+      )
+    );
+    const confirm =
+      action === 'edit'
+        ? () => prompts[0]('Changed text')
+        : (
+            harness.rn.__recorded.alerts.at(-1)!.buttons as Array<{ onPress?: () => Promise<void> }>
+          )[1].onPress!;
+    const shownAlerts = harness.rn.__recorded.alerts.length;
+    await act(async () =>
+      harness.authStore.setState({ user: { uid: 'viewer-2' }, authGeneration: 2 })
+    );
+    await act(async () => {
+      await confirm();
+    });
+    assert.deepEqual(backend.mutations, []);
+    assert.equal(harness.rn.__recorded.alerts.length, shownAlerts);
+  });
+}
+
+test('same-tick report submissions send once and a thrown error permits retry', async () => {
+  backend.result = { success: true, data: [request()] };
+  backend.pendingMutation = deferred();
+  const view = await renderWall();
+  await showAction(view, t('prayer.report'));
+  await view.press(view.getByRole('radio', { name: t('prayer.reportReasonSpam') }));
+  const submit = view.getByRole('button', { name: t('prayer.reportSend') }).props
+    .onPress as () => void;
+  await act(async () => {
+    submit();
+    submit();
+  });
+  assert.equal(backend.mutations.length, 1);
+  await act(async () => backend.pendingMutation?.reject(new Error('network failure')));
+  await view.flush();
+  assert.equal(harness.rn.__recorded.alerts.length, 1);
+  backend.pendingMutation = null;
+  backend.mutationResult = { success: true };
+  await view.press(view.getByRole('button', { name: t('prayer.reportSend') }));
+  await view.flush();
+  assert.equal(backend.mutations.length, 2);
+  assert.equal(view.queryByText('Pray for my neighbour'), null);
+});
+
+test('a submitted prayer rejection after unmount cannot show an alert', async () => {
+  backend.result = { success: true, data: [] };
+  backend.pendingMutation = deferred();
+  const view = await renderWall();
+  await view.fire(view.getByLabelText(t('prayer.requestPlaceholder')), 'onChangeText', 'Prayer');
+  let submitting: Promise<void> = Promise.resolve();
+  await act(async () => {
+    submitting = (
+      view.getByRole('button', { name: t('prayer.submitRequest') }).props
+        .onPress as () => Promise<void>
+    )();
+  });
+  await view.unmount();
+  await act(async () => {
+    backend.pendingMutation?.reject(new Error('network failure'));
+    await submitting;
+  });
+  assert.deepEqual(harness.rn.__recorded.alerts, []);
 });

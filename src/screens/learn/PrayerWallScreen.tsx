@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import {
   ActionSheetIOS,
   ActivityIndicator,
@@ -67,6 +67,23 @@ export function PrayerWallScreen() {
   const { contentClearance } = useTabBarHeight();
   const user = useAuthStore((state) => state.user);
   const currentUserId = user?.uid ?? null;
+  const authGeneration = useAuthStore((state) => state.authGeneration);
+  const scopeRef = useRef<object | null>(null);
+  const captureOwner = useCallback(() => {
+    const scope = scopeRef.current;
+    return {
+      userId: currentUserId ?? '',
+      isCurrent: () => {
+        const auth = useAuthStore.getState();
+        return (
+          scope != null &&
+          scopeRef.current === scope &&
+          (auth.user?.uid ?? null) === currentUserId &&
+          auth.authGeneration === authGeneration
+        );
+      },
+    };
+  }, [currentUserId, authGeneration]);
 
   const [requests, setRequests] = useState<PrayerRequestWithCounts[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -81,13 +98,15 @@ export function PrayerWallScreen() {
   // its entry to show the latest confirmed state again.
   const [pendingInteractions, setPendingInteractions] = useState<Record<string, boolean>>({});
   // Pills with a write in flight. A ref, so a second tap in the same frame is already ignored.
-  const inFlightRef = useRef(new Set<string>());
+  const inFlightRef = useRef(new Map<string, object>());
+  const submittingRef = useRef<object | null>(null);
+  const reportingRef = useRef<object | null>(null);
   // The viewer's confirmed flag per pill, read synchronously to decide what a tap does.
   const confirmedRef = useRef(new Map<string, boolean>());
   // Older requests load a page at a time as the reader reaches the end of the wall.
   const [nextCursor, setNextCursor] = useState<PrayerRequestCursor | null>(null);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const loadingMoreRef = useRef(false);
+  const loadingMoreRef = useRef<object | null>(null);
   // Bumped by every first-page load, so a next page requested before a refresh is dropped.
   const loadGenerationRef = useRef(0);
   // The request whose report form is open, if any.
@@ -105,54 +124,105 @@ export function PrayerWallScreen() {
   }, []);
 
   const loadRequests = useCallback(async () => {
+    const owner = captureOwner();
+    if (!owner.isCurrent() || !owner.userId) return;
     const generation = ++loadGenerationRef.current;
-    const result = await prayerService.listPrayerRequests(groupId);
-    if (generation !== loadGenerationRef.current) return;
-    if (result.success && result.data) {
-      const loaded = result.data;
-      setRequests(loaded);
-      setNextCursor(result.nextCursor ?? null);
-      confirmedRef.current = new Map();
-      rememberConfirmed(loaded);
-      setLoadError(false);
-    } else {
-      // Distinguish a genuine load failure (offline / server error) from an
-      // empty group so we never render "no prayers yet" over a fetch failure.
-      setOffline(await isDeviceOffline());
+    loadingMoreRef.current = null;
+    setIsLoadingMore(false);
+    const isCurrent = () => owner.isCurrent() && generation === loadGenerationRef.current;
+    try {
+      const result = await prayerService.listPrayerRequests(groupId);
+      if (!isCurrent()) return;
+      if (result.success && result.data) {
+        setRequests(result.data);
+        setNextCursor(result.nextCursor ?? null);
+        confirmedRef.current = new Map();
+        rememberConfirmed(result.data);
+        setLoadError(false);
+      } else {
+        const isOffline = await isDeviceOffline();
+        if (!isCurrent()) return;
+        setOffline(isOffline);
+        setLoadError(true);
+      }
+    } catch {
+      if (!isCurrent()) return;
+      const isOffline = await isDeviceOffline().catch(() => false);
+      if (!isCurrent()) return;
+      setOffline(isOffline);
       setLoadError(true);
+    } finally {
+      if (isCurrent()) {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
     }
-  }, [groupId, rememberConfirmed]);
+  }, [captureOwner, groupId, rememberConfirmed]);
 
   const handleLoadMore = useCallback(async () => {
-    if (!nextCursor || loadingMoreRef.current) return;
-    loadingMoreRef.current = true;
+    const owner = captureOwner();
+    if (!owner.isCurrent() || !nextCursor || loadingMoreRef.current) return;
+    const request = {};
+    loadingMoreRef.current = request;
     setIsLoadingMore(true);
     const generation = loadGenerationRef.current;
-    const result = await prayerService.listPrayerRequests(groupId, { before: nextCursor });
-    loadingMoreRef.current = false;
-    setIsLoadingMore(false);
-    // A failed page keeps the cursor, so reaching the end again retries it.
-    if (generation !== loadGenerationRef.current || !result.success || !result.data) return;
-    const page = result.data;
-    rememberConfirmed(page);
-    setRequests((prev) => {
-      const shown = new Set(prev.map((r) => r.id));
-      return [...prev, ...page.filter((r) => !shown.has(r.id))];
-    });
-    setNextCursor(result.nextCursor ?? null);
-  }, [groupId, nextCursor, rememberConfirmed]);
+    const isCurrent = () =>
+      owner.isCurrent() &&
+      generation === loadGenerationRef.current &&
+      loadingMoreRef.current === request;
+    try {
+      const result = await prayerService.listPrayerRequests(groupId, { before: nextCursor });
+      if (!isCurrent() || !result.success || !result.data) return;
+      rememberConfirmed(result.data);
+      const page = result.data;
+      setRequests((prev) => {
+        const shown = new Set(prev.map((r) => r.id));
+        return [...prev, ...page.filter((r) => !shown.has(r.id))];
+      });
+      setNextCursor(result.nextCursor ?? null);
+    } catch {
+      // Keep the cursor so scrolling to the end can retry a failed page.
+    } finally {
+      if (isCurrent()) {
+        loadingMoreRef.current = null;
+        setIsLoadingMore(false);
+      }
+    }
+  }, [captureOwner, groupId, nextCursor, rememberConfirmed]);
 
-  // isLoading starts true, so the first load needs no synchronous setState here. loadRequests
-  // only sets state after its network call resolves.
-  useEffect(() => {
-    loadRequests().finally(() => setIsLoading(false));
-  }, [loadRequests]);
+  // Reset before paint so the new viewer never sees the prior group's private text.
+  useLayoutEffect(() => {
+    scopeRef.current = {};
+    loadGenerationRef.current += 1;
+    inFlightRef.current = new Map();
+    confirmedRef.current = new Map();
+    loadingMoreRef.current = null;
+    submittingRef.current = null;
+    reportingRef.current = null;
+    setRequests([]);
+    setNextCursor(null);
+    setSubmitText('');
+    setReportTarget(null);
+    setPendingInteractions({});
+    setIsSubmitting(false);
+    setIsReporting(false);
+    setIsRefreshing(false);
+    setIsLoadingMore(false);
+    setLoadError(false);
+    setOffline(false);
+    setIsLoading(Boolean(currentUserId));
+    if (currentUserId) void loadRequests();
+    return () => {
+      scopeRef.current = null;
+      loadGenerationRef.current += 1;
+    };
+  }, [currentUserId, authGeneration, groupId, loadRequests]);
 
   const handleRefresh = useCallback(async () => {
+    if (!captureOwner().isCurrent()) return;
     setIsRefreshing(true);
     await loadRequests();
-    setIsRefreshing(false);
-  }, [loadRequests]);
+  }, [captureOwner, loadRequests]);
 
   // A refusal the member can act on gets its own message; anything else is generic.
   const writeErrorMessage = useCallback(
@@ -170,66 +240,73 @@ export function PrayerWallScreen() {
       openAuthFlow('signIn');
       return;
     }
-
+    const owner = captureOwner();
     const trimmed = submitText.trim();
-    if (!trimmed || isSubmitting) return;
-
+    if (!owner.isCurrent() || !trimmed || submittingRef.current) return;
+    const request = {};
+    submittingRef.current = request;
     setIsSubmitting(true);
-    const result = await prayerService.createPrayerRequest(groupId, trimmed);
-
-    if (result.success && result.data) {
-      const newRequest: PrayerRequestWithCounts = {
-        ...result.data,
-        prayed_count: 0,
-        encouraged_count: 0,
-        viewer_prayed: false,
-        viewer_encouraged: false,
-      };
-      setRequests((prev) => [newRequest, ...prev]);
-      setSubmitText('');
-      inputRef.current?.blur();
-      successHaptic();
-    } else {
-      Alert.alert(t('common.error'), writeErrorMessage(result.code));
+    try {
+      const result = await prayerService.createPrayerRequest(groupId, trimmed, owner);
+      if (!owner.isCurrent()) return;
+      if (result.success && result.data) {
+        setRequests((prev) => [
+          {
+            ...result.data!,
+            prayed_count: 0,
+            encouraged_count: 0,
+            viewer_prayed: false,
+            viewer_encouraged: false,
+          },
+          ...prev,
+        ]);
+        setSubmitText('');
+        inputRef.current?.blur();
+        successHaptic();
+      } else Alert.alert(t('common.error'), writeErrorMessage(result.code));
+    } catch {
+      if (owner.isCurrent()) Alert.alert(t('common.error'), t('common.somethingWentWrong'));
+    } finally {
+      if (owner.isCurrent() && submittingRef.current === request) {
+        submittingRef.current = null;
+        setIsSubmitting(false);
+      }
     }
+  }, [captureOwner, currentUserId, groupId, submitText, t, writeErrorMessage]);
 
-    setIsSubmitting(false);
-  }, [currentUserId, groupId, isSubmitting, submitText, t, writeErrorMessage]);
-
-  // One write per pill at a time: a tap while that pill's write is in flight is ignored, so a
-  // fast double tap cannot send two writes that fight each other. The tap sets the opposite of
-  // the confirmed state; on failure the pending entry is dropped, which shows the latest
-  // confirmed state (including a refresh that landed meanwhile) rather than a stale snapshot.
   const handleInteraction = useCallback(
     async (requestId: string, type: PrayerInteractionType) => {
       if (!currentUserId) {
         openAuthFlow('signIn');
         return;
       }
-
+      const owner = captureOwner();
       const key = interactionKey(type, requestId);
-      if (inFlightRef.current.has(key)) return;
-      inFlightRef.current.add(key);
-
+      if (!owner.isCurrent() || inFlightRef.current.has(key)) return;
+      const request = {};
+      inFlightRef.current.set(key, request);
       const active = !(confirmedRef.current.get(key) ?? false);
       setPendingInteractions((prev) => ({ ...prev, [key]: active }));
       lightHaptic();
-
       let succeeded = false;
       try {
         const result = active
-          ? await prayerService.addInteraction(requestId, type)
-          : await prayerService.removeInteraction(requestId, type);
+          ? await prayerService.addInteraction(requestId, type, owner)
+          : await prayerService.removeInteraction(requestId, type, owner);
+        if (!owner.isCurrent()) return;
         succeeded = Boolean(result?.success);
+      } catch {
+        if (!owner.isCurrent()) return;
       } finally {
-        inFlightRef.current.delete(key);
-        setPendingInteractions((prev) => {
-          const next = { ...prev };
-          delete next[key];
-          return next;
-        });
+        if (owner.isCurrent() && inFlightRef.current.get(key) === request) {
+          inFlightRef.current.delete(key);
+          setPendingInteractions((prev) => {
+            const next = { ...prev };
+            delete next[key];
+            return next;
+          });
+        }
       }
-
       if (!succeeded) {
         announceForAccessibility(t('common.somethingWentWrong'));
         return;
@@ -238,119 +315,158 @@ export function PrayerWallScreen() {
       setRequests((prev) =>
         prev.map((r) => (r.id === requestId ? applyConfirmedInteraction(r, type, active) : r))
       );
-      // The pill changes only by fill and icon; say which way the toggle went.
       announceForAccessibility(prayerInteractionAnnouncement(t, type, active));
     },
-    [currentUserId, t]
+    [captureOwner, currentUserId, t]
   );
 
   const handleEdit = useCallback(
     (request: PrayerRequestWithCounts) => {
+      const owner = captureOwner();
+      if (!owner.isCurrent()) return;
       Alert.prompt(
         t('common.edit'),
         undefined,
         async (newText) => {
-          if (!newText?.trim()) return;
-          const result = await prayerService.updatePrayerRequest(request.id, newText.trim());
-          if (result.success && result.data) {
-            setRequests((prev) =>
-              prev.map((r) => (r.id === request.id ? { ...r, content: result.data!.content } : r))
+          if (!owner.isCurrent() || !newText?.trim()) return;
+          try {
+            const result = await prayerService.updatePrayerRequest(
+              request.id,
+              newText.trim(),
+              owner
             );
-          } else {
-            Alert.alert(t('common.error'), writeErrorMessage(result.code));
+            if (!owner.isCurrent()) return;
+            if (result.success && result.data)
+              setRequests((prev) =>
+                prev.map((r) => (r.id === request.id ? { ...r, content: result.data!.content } : r))
+              );
+            else Alert.alert(t('common.error'), writeErrorMessage(result.code));
+          } catch {
+            if (owner.isCurrent()) Alert.alert(t('common.error'), t('common.somethingWentWrong'));
           }
         },
         'plain-text',
         request.content
       );
     },
-    [t, writeErrorMessage]
+    [captureOwner, t, writeErrorMessage]
   );
 
   const handleMarkAnswered = useCallback(
     async (requestId: string) => {
-      const result = await prayerService.markPrayerAnswered(requestId);
-      if (result.success && result.data) {
-        setRequests((prev) =>
-          prev.map((r) =>
-            r.id === requestId
-              ? { ...r, is_answered: true, answered_at: result.data!.answered_at }
-              : r
-          )
-        );
-        announceForAccessibility(prayerRequestActionAnnouncement(t, 'markAnswered'));
-      } else {
-        Alert.alert(t('common.error'), t('common.somethingWentWrong'));
+      const owner = captureOwner();
+      if (!owner.isCurrent()) return;
+      try {
+        const result = await prayerService.markPrayerAnswered(requestId, owner);
+        if (!owner.isCurrent()) return;
+        if (result.success && result.data) {
+          setRequests((prev) =>
+            prev.map((r) =>
+              r.id === requestId
+                ? { ...r, is_answered: true, answered_at: result.data!.answered_at }
+                : r
+            )
+          );
+          announceForAccessibility(prayerRequestActionAnnouncement(t, 'markAnswered'));
+        } else Alert.alert(t('common.error'), t('common.somethingWentWrong'));
+      } catch {
+        if (owner.isCurrent()) Alert.alert(t('common.error'), t('common.somethingWentWrong'));
       }
     },
-    [t]
+    [captureOwner, t]
   );
 
   const handleDelete = useCallback(
     (requestId: string) => {
+      const owner = captureOwner();
+      if (!owner.isCurrent()) return;
       Alert.alert(t('common.delete'), undefined, [
         { text: t('common.cancel'), style: 'cancel' },
         {
           text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
-            const result = await prayerService.deletePrayerRequest(requestId);
-            if (result.success) {
-              setRequests((prev) => prev.filter((r) => r.id !== requestId));
-              announceForAccessibility(prayerRequestActionAnnouncement(t, 'delete'));
-            } else {
-              Alert.alert(t('common.error'), t('common.somethingWentWrong'));
+            if (!owner.isCurrent()) return;
+            try {
+              const result = await prayerService.deletePrayerRequest(requestId, owner);
+              if (!owner.isCurrent()) return;
+              if (result.success) {
+                setRequests((prev) => prev.filter((r) => r.id !== requestId));
+                announceForAccessibility(prayerRequestActionAnnouncement(t, 'delete'));
+              } else Alert.alert(t('common.error'), t('common.somethingWentWrong'));
+            } catch {
+              if (owner.isCurrent()) Alert.alert(t('common.error'), t('common.somethingWentWrong'));
             }
           },
         },
       ]);
     },
-    [t]
+    [captureOwner, t]
   );
 
   const handleSubmitReport = useCallback(
     async (reason: PrayerReportReason, note: string) => {
-      if (!reportTarget || isReporting) return;
+      const owner = captureOwner();
+      if (!owner.isCurrent() || !reportTarget || reportingRef.current) return;
+      const request = {};
+      reportingRef.current = request;
       setIsReporting(true);
-      const result = await prayerService.reportPrayerRequest(reportTarget.id, reason, note);
-      setIsReporting(false);
-
-      if (result.success) {
-        // The server hides a reported request from the reporter; mirror that right away.
-        setRequests((prev) => prev.filter((r) => r.id !== reportTarget.id));
-        setReportTarget(null);
-        Alert.alert(t('prayer.report'), t('prayer.reportSent'));
-      } else {
-        Alert.alert(
-          t('common.error'),
-          result.code === 'rate_limited'
-            ? t('prayer.reportRateLimited')
-            : t('common.somethingWentWrong')
+      try {
+        const result = await prayerService.reportPrayerRequest(
+          reportTarget.id,
+          reason,
+          note,
+          owner
         );
+        if (!owner.isCurrent()) return;
+        if (result.success) {
+          setRequests((prev) => prev.filter((r) => r.id !== reportTarget.id));
+          setReportTarget(null);
+          Alert.alert(t('prayer.report'), t('prayer.reportSent'));
+        } else
+          Alert.alert(
+            t('common.error'),
+            result.code === 'rate_limited'
+              ? t('prayer.reportRateLimited')
+              : t('common.somethingWentWrong')
+          );
+      } catch {
+        if (owner.isCurrent()) Alert.alert(t('common.error'), t('common.somethingWentWrong'));
+      } finally {
+        if (owner.isCurrent() && reportingRef.current === request) {
+          reportingRef.current = null;
+          setIsReporting(false);
+        }
       }
     },
-    [isReporting, reportTarget, t]
+    [captureOwner, reportTarget, t]
   );
 
   const handleBlock = useCallback(
     (request: PrayerRequestWithCounts) => {
+      const owner = captureOwner();
+      if (!owner.isCurrent()) return;
       Alert.alert(t('prayer.blockTitle'), t('prayer.blockBody'), [
         { text: t('common.cancel'), style: 'cancel' },
         {
           text: t('prayer.blockAuthor'),
           style: 'destructive',
           onPress: async () => {
-            const result = await prayerService.blockUser(request.user_id);
-            if (result.success) {
-              setRequests((prev) => prev.filter((r) => r.user_id !== request.user_id));
-            } else {
-              Alert.alert(t('common.error'), t('common.somethingWentWrong'));
+            if (!owner.isCurrent()) return;
+            try {
+              const result = await prayerService.blockUser(request.user_id, owner);
+              if (!owner.isCurrent()) return;
+              if (result.success)
+                setRequests((prev) => prev.filter((r) => r.user_id !== request.user_id));
+              else Alert.alert(t('common.error'), t('common.somethingWentWrong'));
+            } catch {
+              if (owner.isCurrent()) Alert.alert(t('common.error'), t('common.somethingWentWrong'));
             }
           },
         },
       ]);
     },
-    [t]
+    [captureOwner, t]
   );
 
   const actionsFor = useCallback(
@@ -368,6 +484,8 @@ export function PrayerWallScreen() {
 
   const handleShowActions = useCallback(
     (request: PrayerRequestWithCounts) => {
+      const owner = captureOwner();
+      if (!owner.isCurrent()) return;
       const actions = actionsFor(request);
       if (actions.length === 0) return;
 
@@ -379,6 +497,7 @@ export function PrayerWallScreen() {
         delete: t('common.delete'),
       };
       const run = (action: (typeof actions)[number]) => {
+        if (!owner.isCurrent()) return;
         if (action === 'edit') handleEdit(request);
         else if (action === 'markAnswered') handleMarkAnswered(request.id);
         else if (action === 'report') setReportTarget(request);
@@ -421,7 +540,7 @@ export function PrayerWallScreen() {
         );
       }
     },
-    [actionsFor, handleBlock, handleDelete, handleEdit, handleMarkAnswered, t]
+    [actionsFor, captureOwner, handleBlock, handleDelete, handleEdit, handleMarkAnswered, t]
   );
 
   const renderItem = useCallback(
@@ -787,7 +906,7 @@ export function PrayerWallScreen() {
             style={[styles.errorRetryButton, { backgroundColor: colors.accentPrimary }]}
             onPress={() => {
               setIsLoading(true);
-              loadRequests().finally(() => setIsLoading(false));
+              void loadRequests();
             }}
             accessibilityRole="button"
             accessibilityLabel={t('common.retry')}

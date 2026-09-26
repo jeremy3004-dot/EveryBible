@@ -91,6 +91,79 @@ beforeEach(() => {
   });
 });
 
+const guardedWrites = [
+  [
+    'create',
+    (owner: { userId: string; isCurrent: () => boolean }) =>
+      prayer.createPrayerRequest('group-1', 'Prayer', owner),
+  ],
+  [
+    'edit',
+    (owner: { userId: string; isCurrent: () => boolean }) =>
+      prayer.updatePrayerRequest('req-1', 'Prayer', owner),
+  ],
+  [
+    'answer',
+    (owner: { userId: string; isCurrent: () => boolean }) =>
+      prayer.markPrayerAnswered('req-1', owner),
+  ],
+  [
+    'delete',
+    (owner: { userId: string; isCurrent: () => boolean }) =>
+      prayer.deletePrayerRequest('req-1', owner),
+  ],
+  [
+    'add interaction',
+    (owner: { userId: string; isCurrent: () => boolean }) =>
+      prayer.addInteraction('req-1', 'prayed', owner),
+  ],
+  [
+    'remove interaction',
+    (owner: { userId: string; isCurrent: () => boolean }) =>
+      prayer.removeInteraction('req-1', 'prayed', owner),
+  ],
+  [
+    'report',
+    (owner: { userId: string; isCurrent: () => boolean }) =>
+      prayer.reportPrayerRequest('req-1', 'spam', undefined, owner),
+  ],
+  [
+    'block',
+    (owner: { userId: string; isCurrent: () => boolean }) => prayer.blockUser('other', owner),
+  ],
+] as const;
+for (const [action, write] of guardedWrites) {
+  test(`a ${action} write cannot dispatch after its caller loses ownership during auth lookup`, async () => {
+    let finishAuth!: (value: {
+      data: { user: ReturnType<typeof makeFakeUser> };
+      error: null;
+    }) => void;
+    fake.auth.handlers.getUser = () =>
+      new Promise((resolve) => {
+        finishAuth = resolve;
+      });
+    let current = true;
+    const writing = write({ userId: 'user-1', isCurrent: () => current });
+    current = false;
+    finishAuth({ data: { user: makeFakeUser({ id: 'user-1' }) }, error: null });
+    assert.equal((await writing).success, false);
+    assert.deepEqual(fake.calls, []);
+  });
+}
+
+test('a prayer write cannot adopt a different user returned by auth lookup', async () => {
+  fake.auth.handlers.getUser = async () => ({
+    data: { user: makeFakeUser({ id: 'user-2' }) },
+    error: null,
+  });
+  const result = await prayer.createPrayerRequest('group-1', 'Old account prayer', {
+    userId: 'user-1',
+    isCurrent: () => true,
+  });
+  assert.equal(result.success, false);
+  assert.deepEqual(fake.calls, []);
+});
+
 // ─── Listing (server-side counts) ───────────────────────────────────────────
 
 test('the wall is read in one call that counts on the server, a page at a time', async () => {

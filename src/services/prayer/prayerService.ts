@@ -31,6 +31,12 @@ function writeFailure(message: string): PrayerServiceResult<never> {
   return code ? { success: false, error: message, code } : { success: false, error: message };
 }
 
+/** The screen that initiated a write, checked again after the async auth lookup. */
+export interface PrayerMutationOwner {
+  userId: string;
+  isCurrent: () => boolean;
+}
+
 export interface InteractionCounts {
   prayed: number;
   encouraged: number;
@@ -210,7 +216,8 @@ async function listPrayerRequestsWithoutRpc(
 // Submits a new prayer request scoped to a group.
 export async function createPrayerRequest(
   groupId: string,
-  content: string
+  content: string,
+  owner?: PrayerMutationOwner
 ): Promise<PrayerServiceResult<PrayerRequest>> {
   if (!isSupabaseConfigured()) {
     return { success: false, error: 'EveryBible backend is not configured for this build yet.' };
@@ -227,6 +234,10 @@ export async function createPrayerRequest(
 
   if (!user) {
     return { success: false, error: 'You must be signed in to submit a prayer request' };
+  }
+
+  if (owner && (user.id !== owner.userId || !owner.isCurrent())) {
+    return { success: false, error: 'Prayer request caller changed' };
   }
 
   try {
@@ -258,7 +269,8 @@ export async function createPrayerRequest(
 // RLS on the server ensures only the original author can edit.
 export async function updatePrayerRequest(
   requestId: string,
-  content: string
+  content: string,
+  owner?: PrayerMutationOwner
 ): Promise<PrayerServiceResult<PrayerRequest>> {
   if (!isSupabaseConfigured()) {
     return { success: false, error: 'EveryBible backend is not configured for this build yet.' };
@@ -275,6 +287,10 @@ export async function updatePrayerRequest(
 
   if (!user) {
     return { success: false, error: 'You must be signed in to edit a prayer request' };
+  }
+
+  if (owner && (user.id !== owner.userId || !owner.isCurrent())) {
+    return { success: false, error: 'Prayer request caller changed' };
   }
 
   try {
@@ -301,7 +317,8 @@ export async function updatePrayerRequest(
 
 // Marks a prayer request as answered, recording the timestamp.
 export async function markPrayerAnswered(
-  requestId: string
+  requestId: string,
+  owner?: PrayerMutationOwner
 ): Promise<PrayerServiceResult<PrayerRequest>> {
   if (!isSupabaseConfigured()) {
     return { success: false, error: 'EveryBible backend is not configured for this build yet.' };
@@ -318,6 +335,10 @@ export async function markPrayerAnswered(
 
   if (!user) {
     return { success: false, error: 'You must be signed in to mark a prayer as answered' };
+  }
+
+  if (owner && (user.id !== owner.userId || !owner.isCurrent())) {
+    return { success: false, error: 'Prayer request caller changed' };
   }
 
   try {
@@ -347,7 +368,10 @@ export async function markPrayerAnswered(
 // Deletes a prayer request. RLS lets the author delete their own request and the group
 // leader delete any request in their group, so the query filters by id alone. RLS hides a
 // refused delete as "0 rows", so that case is reported as a failure.
-export async function deletePrayerRequest(requestId: string): Promise<PrayerServiceResult> {
+export async function deletePrayerRequest(
+  requestId: string,
+  owner?: PrayerMutationOwner
+): Promise<PrayerServiceResult> {
   if (!isSupabaseConfigured()) {
     return { success: false, error: 'EveryBible backend is not configured for this build yet.' };
   }
@@ -363,6 +387,10 @@ export async function deletePrayerRequest(requestId: string): Promise<PrayerServ
 
   if (!user) {
     return { success: false, error: 'You must be signed in to delete a prayer request' };
+  }
+
+  if (owner && (user.id !== owner.userId || !owner.isCurrent())) {
+    return { success: false, error: 'Prayer request caller changed' };
   }
 
   try {
@@ -394,7 +422,8 @@ export async function deletePrayerRequest(requestId: string): Promise<PrayerServ
 // so duplicate interactions are silently ignored.
 export async function addInteraction(
   requestId: string,
-  type: 'prayed' | 'encouraged'
+  type: 'prayed' | 'encouraged',
+  owner?: PrayerMutationOwner
 ): Promise<PrayerServiceResult<PrayerInteraction>> {
   if (!isSupabaseConfigured()) {
     return { success: false, error: 'EveryBible backend is not configured for this build yet.' };
@@ -411,6 +440,10 @@ export async function addInteraction(
 
   if (!user) {
     return { success: false, error: 'You must be signed in to interact with a prayer request' };
+  }
+
+  if (owner && (user.id !== owner.userId || !owner.isCurrent())) {
+    return { success: false, error: 'Prayer request caller changed' };
   }
 
   try {
@@ -439,7 +472,8 @@ export async function addInteraction(
 // Removes the current user's own 'prayed' or 'encouraged' interaction.
 export async function removeInteraction(
   requestId: string,
-  type: 'prayed' | 'encouraged'
+  type: 'prayed' | 'encouraged',
+  owner?: PrayerMutationOwner
 ): Promise<PrayerServiceResult> {
   if (!isSupabaseConfigured()) {
     return { success: false, error: 'EveryBible backend is not configured for this build yet.' };
@@ -456,6 +490,10 @@ export async function removeInteraction(
 
   if (!user) {
     return { success: false, error: 'You must be signed in to remove an interaction' };
+  }
+
+  if (owner && (user.id !== owner.userId || !owner.isCurrent())) {
+    return { success: false, error: 'Prayer request caller changed' };
   }
 
   try {
@@ -484,7 +522,8 @@ export async function removeInteraction(
 export async function reportPrayerRequest(
   requestId: string,
   reason: PrayerReportReason,
-  note?: string
+  note?: string,
+  owner?: PrayerMutationOwner
 ): Promise<PrayerServiceResult> {
   if (!isSupabaseConfigured()) {
     return { success: false, error: 'EveryBible backend is not configured for this build yet.' };
@@ -501,6 +540,10 @@ export async function reportPrayerRequest(
 
   if (!user) {
     return { success: false, error: 'You must be signed in to report a prayer request' };
+  }
+
+  if (owner && (user.id !== owner.userId || !owner.isCurrent())) {
+    return { success: false, error: 'Prayer request caller changed' };
   }
 
   try {
@@ -525,7 +568,11 @@ export async function reportPrayerRequest(
 
 // Blocks (or unblocks) another member for the signed-in user only. RLS on prayer_requests
 // then hides the blocked member's requests from the blocker; the blocked member is not told.
-async function setBlocked(userId: string, blocked: boolean): Promise<PrayerServiceResult> {
+async function setBlocked(
+  userId: string,
+  blocked: boolean,
+  owner?: PrayerMutationOwner
+): Promise<PrayerServiceResult> {
   if (!isSupabaseConfigured()) {
     return { success: false, error: 'EveryBible backend is not configured for this build yet.' };
   }
@@ -545,6 +592,10 @@ async function setBlocked(userId: string, blocked: boolean): Promise<PrayerServi
 
   if (user.id === userId) {
     return { success: false, error: 'You cannot block yourself' };
+  }
+
+  if (owner && (user.id !== owner.userId || !owner.isCurrent())) {
+    return { success: false, error: 'Prayer request caller changed' };
   }
 
   try {
@@ -574,10 +625,16 @@ async function setBlocked(userId: string, blocked: boolean): Promise<PrayerServi
   }
 }
 
-export function blockUser(userId: string): Promise<PrayerServiceResult> {
-  return setBlocked(userId, true);
+export function blockUser(
+  userId: string,
+  owner?: PrayerMutationOwner
+): Promise<PrayerServiceResult> {
+  return setBlocked(userId, true, owner);
 }
 
-export function unblockUser(userId: string): Promise<PrayerServiceResult> {
-  return setBlocked(userId, false);
+export function unblockUser(
+  userId: string,
+  owner?: PrayerMutationOwner
+): Promise<PrayerServiceResult> {
+  return setBlocked(userId, false, owner);
 }
