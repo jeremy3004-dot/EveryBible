@@ -1313,23 +1313,16 @@ export function BibleReaderScreen() {
         backgroundMusicChoice={backgroundMusicChoice}
         changeBackgroundMusicChoice={changeBackgroundMusicChoice}
         changePlaybackRate={changePlaybackRate}
-        cycleRepeatMode={cycleRepeatMode}
-        handleNextListenChapter={handleNextListenChapter}
+        handleDownloadCurrentBookAudio={handleDownloadCurrentBookAudio}
         handleOpenChapterAudioShareSheet={handleOpenChapterAudioShareSheet}
-        handlePlayDisplayedChapter={handlePlayDisplayedChapter}
-        handlePreviousListenChapter={handlePreviousListenChapter}
-        hasNextChapter={hasNextChapter}
-        hasPrevChapter={hasPrevChapter}
         isCurrentAudioChapter={isCurrentAudioChapter}
         playbackRate={playbackRate}
+        readerAudioTrack={readerAudioTrack}
         repeatMode={repeatMode}
         setShowAudioOptionsSheet={setShowAudioOptionsSheet}
         showAudioOptionsSheet={showAudioOptionsSheet}
-        skipBackward={skipBackward}
-        skipForward={skipForward}
         sleepTimerRemaining={sleepTimerRemaining}
         startSleepTimer={startSleepTimer}
-        status={status}
       />
 
       {chapterSessionMode === 'read' ? (

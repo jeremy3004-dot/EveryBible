@@ -20,3 +20,5 @@ export { Avatar } from './Avatar';
 export type { AvatarProps } from './Avatar';
 export { ProgressBar } from './ProgressBar';
 export type { ProgressBarProps } from './ProgressBar';
+export { Slider } from './Slider';
+export type { SliderProps } from './Slider';

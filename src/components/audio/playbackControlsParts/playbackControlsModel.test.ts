@@ -10,22 +10,14 @@ import {
 
 test('each variant shows its own rows and buttons', () => {
   assert.deepEqual(playbackControlsLayout('default', true), {
-    showTransport: true,
     showChapterButtons: true,
     showSkipControls: true,
     isChapterOnly: false,
   });
   assert.deepEqual(playbackControlsLayout('chapter-only', true), {
-    showTransport: true,
     showChapterButtons: true,
     showSkipControls: false,
     isChapterOnly: true,
-  });
-  assert.deepEqual(playbackControlsLayout('utilities-only', false), {
-    showTransport: false,
-    showChapterButtons: true,
-    showSkipControls: false,
-    isChapterOnly: false,
   });
 });
 

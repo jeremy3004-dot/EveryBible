@@ -170,6 +170,14 @@ export function installReaderRenderFixture(
     currentPosition: 0,
     duration: 0,
     sleepTimerMinutes: null as number | null,
+    // Read by the Audio sheet.
+    narrationVolume: 1,
+    backgroundMusicLevel: 0.5,
+    repeatPassage: null,
+    setNarrationVolume: () => {},
+    setBackgroundMusicLevel: () => {},
+    setRepeatMode: () => {},
+    setRepeatPassage: () => {},
     setPlaybackSequence: () => {},
     setAudioReturnTarget: () => {},
     setCurrentTrack: () => {},
@@ -257,6 +265,10 @@ export function installReaderRenderFixture(
   // useFontSize runs for real on the harness auth store: its scaleValue keeps its
   // identity until the size preference changes, which the memoized verse list relies on.
   const contentSummary: { audioChapters?: Record<string, readonly number[]> } = {};
+  // The Audio sheet's sound library: everything plays from the app bundle.
+  mockModule(mocker, sourcePath('hooks/useBackgroundSoundAvailability.ts'), {
+    useBackgroundSoundAvailability: () => ({}),
+  });
   mockModule(mocker, sourcePath('hooks/useTranslationContentSummary.ts'), {
     useTranslationContentSummary: () =>
       contentSummary.audioChapters ? { audioChapters: contentSummary.audioChapters } : undefined,

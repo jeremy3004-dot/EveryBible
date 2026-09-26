@@ -5,11 +5,9 @@ import type {
   SleepTimerOption,
 } from '../../../types/audio';
 
-export type PlaybackControlsVariant = 'default' | 'chapter-only' | 'utilities-only';
+export type PlaybackControlsVariant = 'default' | 'chapter-only';
 
 export interface PlaybackControlsLayout {
-  /** The play/pause row; the utilities-only variant (the reader's audio sheet) drops it. */
-  showTransport: boolean;
   /** Previous/next chapter; only the chapter-only transport may hide them. */
   showChapterButtons: boolean;
   /** The 10-second skips belong to the default player only. */
@@ -24,7 +22,6 @@ export function playbackControlsLayout(
 ): PlaybackControlsLayout {
   const isChapterOnly = variant === 'chapter-only';
   return {
-    showTransport: variant !== 'utilities-only',
     showChapterButtons: !isChapterOnly || showChapterNavigation,
     showSkipControls: variant === 'default',
     isChapterOnly,

@@ -130,6 +130,54 @@ export const en = {
         label: 'Ocean waves',
         description: 'Looped shoreline wash for a calmer sound bed.',
       },
+      shuffle: {
+        label: 'Shuffle',
+      },
+      hymns: {
+        label: 'Hymns',
+      },
+      'gregorian-chant': {
+        label: 'Gregorian chant',
+      },
+      organ: {
+        label: 'Organ',
+      },
+      'piano-cello': {
+        label: 'Piano and cello',
+      },
+      rain: {
+        label: 'Rain',
+      },
+      'gentle-breeze': {
+        label: 'Gentle breeze',
+      },
+      'summer-night': {
+        label: 'Summer night',
+      },
+      waterfall: {
+        label: 'Waterfall',
+      },
+      birdsong: {
+        label: 'Birdsong',
+      },
+      shore: {
+        label: 'Shore',
+      },
+      fireplace: {
+        label: 'Fireplace',
+      },
+      'church-bells': {
+        label: 'Church bells',
+      },
+      village: {
+        label: 'Village',
+      },
+      garden: {
+        label: 'Garden',
+      },
+      wilderness: {
+        label: 'Wilderness',
+      },
     },
     rhythmPresets: {
       'catholic-morning-prayer': {
@@ -713,6 +761,37 @@ export const en = {
     nextChapter: 'Next chapter',
     skipBackward: 'Skip back 10 seconds',
     skipForward: 'Skip forward 10 seconds',
+    sheetTitle: 'Audio',
+    elapsedOfTotal: '{{elapsed}} of {{total}}',
+    soundSection: 'Sound',
+    backgroundSound: 'Background sound',
+    backgroundSoundHint: 'Opens the sound library',
+    voiceVolume: 'Voice',
+    soundVolume: 'Sound',
+    speed: 'Speed',
+    repeat: 'Repeat',
+    repeatOptionOff: 'Off',
+    repeatOptionChapter: 'Chapter',
+    repeatOptionBook: 'Book',
+    repeatOptionPassage: 'Passage',
+    repeatPassageHint: 'Opens the passage picker',
+    passageRangeInChapter: '{{book}} {{chapter}}:{{startVerse}}–{{endVerse}}',
+    passageRange: '{{book}} {{startChapter}}:{{startVerse}}–{{endChapter}}:{{endVerse}}',
+    passagePickerTitle: 'Repeat a passage',
+    passageFrom: 'From',
+    passageTo: 'To',
+    passageFromChapter: 'From chapter',
+    passageFromVerse: 'From verse',
+    passageToChapter: 'To chapter',
+    passageToVerse: 'To verse',
+    passageDecrease: 'Decrease {{name}}',
+    passageIncrease: 'Increase {{name}}',
+    passageConfirm: 'Repeat this passage',
+    soundLibraryFootnote: 'Downloads the first time you play it, then works offline',
+    soundNotDownloaded: 'Not downloaded yet',
+    soundDownloading: 'Downloading',
+    shareClip: 'Share clip',
+    download: 'Download',
   },
   privacy: {
     lockTitle: 'Enter your secure code',
