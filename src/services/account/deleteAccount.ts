@@ -15,19 +15,31 @@ import { deleteCurrentAccount, type AccountActionResult } from './accountService
  * Device-wide data (downloaded translations and audio, the app lock) belongs to
  * whoever uses the phone and is kept too.
  */
-export async function deleteAccountAndLocalData(): Promise<AccountActionResult> {
-  const userId = useAuthStore.getState().user?.uid ?? null;
+export async function deleteAccountAndLocalData(
+  expectedUserId?: string,
+  expectedGeneration?: number
+): Promise<AccountActionResult> {
+  const start = useAuthStore.getState();
+  const userId = expectedUserId ?? start.user?.uid ?? null;
+  const authGeneration = expectedGeneration ?? start.authGeneration;
   if (!userId) {
     return { success: false, error: 'Not signed in' };
   }
 
-  const result = await deleteCurrentAccount();
+  const isCurrent = () => {
+    const current = useAuthStore.getState();
+    return current.user?.uid === userId && current.authGeneration === authGeneration;
+  };
+  if (!isCurrent()) return { success: false, error: 'Account changed' };
+  const result = await deleteCurrentAccount(userId, isCurrent);
   if (!result.success) {
     return result;
   }
 
   try {
-    await useAuthStore.getState().signOut();
+    if (isCurrent()) {
+      await useAuthStore.getState().signOut({ expectedOwner: { uid: userId, authGeneration } });
+    }
   } finally {
     // The account is gone on the server whatever sign-out did. Anonymising
     // after sign-out also covers events queued while sign-out was running.

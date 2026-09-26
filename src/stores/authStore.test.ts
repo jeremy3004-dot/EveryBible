@@ -112,6 +112,7 @@ mockModule(mock, sourcePath('stores/bibleStore.ts'), {
 
 const deactivatedTokensFor: string[] = [];
 let deactivatePushTokenError: Error | null = null;
+let duringPushTokenCleanup: (() => void) | null = null;
 mockModule(mock, sourcePath('services/notifications/index.ts'), {
   deactivatePushToken: async (userId: string) => {
     if (deactivatePushTokenError) {
@@ -119,6 +120,7 @@ mockModule(mock, sourcePath('services/notifications/index.ts'), {
     }
     deactivatedTokensFor.push(userId);
     events.push('deactivatePushToken');
+    duringPushTokenCleanup?.();
   },
 });
 
@@ -157,6 +159,7 @@ beforeEach(() => {
   bibleResetCount = 0;
   deactivatedTokensFor.length = 0;
   deactivatePushTokenError = null;
+  duringPushTokenCleanup = null;
 
   useAuthStore.setState({
     user: null,
@@ -788,7 +791,7 @@ for (const key of Object.keys(OTHER_PREFERENCE_VALUES) as (keyof UserPreferences
 
 test('signing out deactivates the push token before the session is torn down', async () => {
   useAuthStore.getState().setUser(appUser('user-a'));
-  authHandlers._removeSession = async () => {
+  authHandlers._notifyAllSubscribers = async () => {
     events.push('supabase.endSession');
   };
 
@@ -796,6 +799,77 @@ test('signing out deactivates the push token before the session is torn down', a
 
   assert.deepEqual(deactivatedTokensFor, ['user-a']);
   assert.deepEqual(events.slice(0, 2), ['deactivatePushToken', 'supabase.endSession']);
+});
+
+test('sign-out for A cannot end B session after account changes during push cleanup', async () => {
+  useAuthStore.getState().setUser(appUser('user-a'));
+  authHandlers._notifyAllSubscribers = async () => {
+    events.push('supabase.endSession');
+  };
+  duringPushTokenCleanup = () => {
+    useAuthStore.getState().setUser(appUser('user-b'));
+    useAuthStore.getState().setPreferences({ fontSize: 'large' });
+  };
+  await useAuthStore.getState().signOut();
+  assert.equal(events.includes('supabase.endSession'), false);
+  assert.equal(useAuthStore.getState().user?.uid, 'user-b');
+  assert.equal(useAuthStore.getState().preferences.fontSize, 'large');
+});
+
+test('sign-out for an older generation cannot end the same uid signed in again during push cleanup', async () => {
+  useAuthStore.getState().setUser(appUser('user-a'));
+  authHandlers._notifyAllSubscribers = async () => {
+    events.push('supabase.endSession');
+  };
+  duringPushTokenCleanup = () => {
+    useAuthStore.getState().setUser(null);
+    useAuthStore.getState().setUser(appUser('user-a'));
+    useAuthStore.getState().setPreferences({ fontSize: 'large' });
+  };
+  await useAuthStore.getState().signOut();
+  assert.equal(events.includes('supabase.endSession'), false);
+  assert.equal(useAuthStore.getState().user?.uid, 'user-a');
+  assert.equal(useAuthStore.getState().preferences.fontSize, 'large');
+});
+
+for (const sameUid of [false, true]) {
+  test(`a late sign-out completion cannot reset ${sameUid ? 'a new session of the same uid' : 'the next account'}`, async () => {
+    useAuthStore.getState().setUser(appUser('user-a'));
+    supabaseFake.auth.setSession(makeFakeSession({ user: makeFakeUser({ id: 'user-a' }) }));
+    let finish!: () => void;
+    let requested!: () => void;
+    const requestStarted = new Promise<void>((resolve) => {
+      requested = resolve;
+    });
+    authHandlers._notifyAllSubscribers = async () => {
+      supabaseFake.auth.setSession(null);
+      useAuthStore.getState().setSession(null);
+    };
+    authHandlers.adminSignOut = () =>
+      new Promise((resolve) => {
+        finish = () => resolve({ data: null, error: null });
+        requested();
+      });
+    const signingOut = useAuthStore.getState().signOut();
+    await requestStarted;
+    useAuthStore.getState().setUser(appUser(sameUid ? 'user-a' : 'user-b'));
+    useAuthStore.getState().setPreferences({ fontSize: 'large' });
+    finish();
+    await signingOut;
+    assert.equal(useAuthStore.getState().user?.uid, sameUid ? 'user-a' : 'user-b');
+    assert.equal(useAuthStore.getState().preferences.fontSize, 'large');
+  });
+}
+
+test('sign-out completes the original null transition without advancing its generation twice', async () => {
+  useAuthStore.getState().setUser(appUser('user-a'));
+  authHandlers._notifyAllSubscribers = async () => {
+    useAuthStore.getState().setSession(null);
+  };
+  await useAuthStore.getState().signOut();
+  assert.equal(useAuthStore.getState().user, null);
+  assert.equal(useAuthStore.getState().authGeneration, 2);
+  assert.deepEqual(useAuthStore.getState().preferences, defaultAuthPreferences);
 });
 
 test('signing out clears every per-user store and the local preferences', async () => {
@@ -1228,7 +1302,7 @@ test('recovery sign-out preserves only completed onboarding across the auth call
   });
   seedPerUserData();
   let completedDuringCallback = false;
-  authHandlers._removeSession = async () => {
+  authHandlers._notifyAllSubscribers = async () => {
     supabaseFake.auth.emit('SIGNED_OUT', null);
     completedDuringCallback = useAuthStore.getState().preferences.onboardingCompleted;
   };
@@ -1258,4 +1332,44 @@ test('recovery sign-out does not complete onboarding that was never completed', 
   useAuthStore.getState().setUser(appUser('user-a'));
   await useAuthStore.getState().signOut({ reason: 'password-recovery' });
   assert.equal(useAuthStore.getState().preferences.onboardingCompleted, false);
+});
+
+test('an already-started local removal cannot emit a late SIGNED_OUT over a newer account', async (t) => {
+  const original = makeFakeSession({ user: makeFakeUser({ id: 'user-a' }) });
+  supabaseFake.auth.setSession(original);
+  supabaseFake.auth.emit('SIGNED_IN', original);
+  let finish!: () => void;
+  let removing!: () => void;
+  const removalStarted = new Promise<void>((resolve) => {
+    removing = resolve;
+  });
+  const auth = supabaseFake.client.auth as unknown as {
+    storageKey: string;
+    storage: { removeItem: (key: string) => Promise<void> };
+  };
+  const removeItem = auth.storage.removeItem;
+  t.mock.method(auth.storage, 'removeItem', async (key: string) => {
+    await removeItem(key);
+    if (key === auth.storageKey) {
+      removing();
+      await new Promise<void>((resolve) => {
+        finish = resolve;
+      });
+    }
+  });
+  const signingOut = useAuthStore.getState().signOut();
+  await removalStarted;
+  const next = makeFakeSession({ user: makeFakeUser({ id: 'user-b' }) });
+  supabaseFake.auth.setSession(next);
+  supabaseFake.auth.emit('SIGNED_IN', next);
+  useAuthStore.getState().setPreferences({ fontSize: 'large' });
+  finish();
+  await signingOut;
+  assert.equal(supabaseFake.auth.user?.id, 'user-b');
+  assert.equal(useAuthStore.getState().user?.uid, 'user-b');
+  assert.equal(useAuthStore.getState().preferences.fontSize, 'large');
+  assert.equal(
+    supabaseFake.authCalls.some((call) => call.method === '_notifyAllSubscribers'),
+    false
+  );
 });

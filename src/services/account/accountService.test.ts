@@ -1,7 +1,7 @@
 import test, { before, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { mockModule, sourcePath } from '../../testing/mockModules';
-import { createSupabaseFake, makeFakeUser } from '../../testing/supabaseFake';
+import { createSupabaseFake, makeFakeSession, makeFakeUser } from '../../testing/supabaseFake';
 
 const supabaseFake = createSupabaseFake();
 const USER_ID = '6f1c2a4e-0000-4000-8000-00000000abcd';
@@ -26,7 +26,7 @@ before(async () => {
 beforeEach(() => {
   supabaseConfigured = true;
   supabaseFake.reset();
-  supabaseFake.auth.setUser(makeFakeUser({ id: USER_ID }));
+  supabaseFake.auth.setSession(makeFakeSession({ user: makeFakeUser({ id: USER_ID }) }));
 });
 
 type ListEntry = { name: string; id: string | null };
@@ -62,6 +62,20 @@ test('deleteCurrentAccount asks Postgres to delete the caller and reports succes
   assert.deepEqual(
     supabaseFake.calls.map((call) => ({ table: call.table, operation: call.operation })),
     [{ table: 'rpc:delete_my_account', operation: 'rpc' }]
+  );
+});
+
+test('account deletion stops if the authenticated account changes during storage cleanup', async () => {
+  supabaseFake.storage.respond('avatars', 'list', () => {
+    supabaseFake.auth.setUser(makeFakeUser({ id: 'different-account' }));
+    return { data: [], error: null };
+  });
+  const result = await accountService.deleteCurrentAccount();
+  assert.equal(result.success, false);
+  assert.equal(
+    supabaseFake.callsFor('rpc:delete_my_account').length,
+    0,
+    'the new account must never be deleted'
   );
 });
 
@@ -218,3 +232,41 @@ test('deleteCurrentAccount refuses to run for a signed-out caller', async () => 
   assert.deepEqual(supabaseFake.calls, []);
   assert.deepEqual(supabaseFake.storageCalls, []);
 });
+
+test('account deletion pins the RPC to the verified session token', async () => {
+  await accountService.deleteCurrentAccount();
+  const [call] = supabaseFake.callsFor('rpc:delete_my_account');
+  assert.deepEqual(call.steps, [
+    { method: 'setHeader', args: ['Authorization', 'Bearer access-token'] },
+  ]);
+});
+
+test('account deletion refuses a session that belongs to a different user', async () => {
+  supabaseFake.auth.setUser(makeFakeUser({ id: 'different-account' }));
+  const result = await accountService.deleteCurrentAccount();
+  assert.equal(result.success, false);
+  assert.equal(supabaseFake.storageCalls.length, 0);
+  assert.equal(supabaseFake.calls.length, 0);
+});
+
+for (const method of ['list', 'remove']) {
+  test(`account deletion stops after identity changes in nested storage ${method}`, async () => {
+    scriptBucket('avatars', { [USER_ID]: [{ name: 'avatar.png', id: 'obj-avatar' }] });
+    if (method === 'list') {
+      scriptBucket('chapter-feedback-audio', { [USER_ID]: [{ name: 'nested', id: null }] });
+      supabaseFake.storage.respond('chapter-feedback-audio', 'list', (folder) => {
+        if (folder === USER_ID) return { data: [{ name: 'nested', id: null }], error: null };
+        supabaseFake.auth.setUser(makeFakeUser({ id: 'different-account' }));
+        return { data: [{ name: 'recording.m4a', id: 'obj' }], error: null };
+      });
+    } else {
+      supabaseFake.storage.respond('avatars', 'remove', () => {
+        supabaseFake.auth.setUser(makeFakeUser({ id: 'different-account' }));
+        return { data: [], error: null };
+      });
+    }
+    assert.equal((await accountService.deleteCurrentAccount()).success, false);
+    assert.equal(supabaseFake.callsFor('rpc:delete_my_account').length, 0);
+    assert.equal(storageCallsFor('chapter-feedback-audio', 'remove').length, 0);
+  });
+}

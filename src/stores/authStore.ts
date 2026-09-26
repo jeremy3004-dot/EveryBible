@@ -56,7 +56,10 @@ interface AuthState {
     fieldStamps?: PreferenceFieldStamps
   ) => void;
   markPreferencesSynced: (base: UserPreferences) => void;
-  signOut: (options?: { reason: 'password-recovery' }) => Promise<void>;
+  signOut: (options?: {
+    reason?: 'password-recovery';
+    expectedOwner?: { uid: string; authGeneration: number };
+  }) => Promise<void>;
   initialize: () => Promise<void>;
   // Reconcile the auth boundary before the first post-sign-in sync: if the newly
   // authenticated uid differs from the last-synced uid, reset all per-user
@@ -72,6 +75,7 @@ let authChangesApplied = 0;
 // A confirmed recovery transition keeps its fresh navigation tree alive while
 // SIGNED_OUT clears the old account. No other account preference is retained.
 let preserveOnboardingDuringRecoverySignOut = false;
+let recoverySignOutRequest: object | null = null;
 const signOutPreferences = (): UserPreferences =>
   preserveOnboardingDuringRecoverySignOut
     ? { ...defaultAuthPreferences, onboardingCompleted: true }
@@ -435,6 +439,17 @@ export const useAuthStore = create<AuthState>()(
 
       signOut: async (options) => {
         const previousUserId = get().user?.uid ?? null;
+        const generation = get().authGeneration;
+        const isCurrent = () =>
+          (get().user?.uid ?? null) === previousUserId && get().authGeneration === generation;
+        if (
+          options?.expectedOwner &&
+          (options.expectedOwner.uid !== previousUserId ||
+            options.expectedOwner.authGeneration !== generation)
+        )
+          return;
+        const request = {};
+        recoverySignOutRequest = request;
         preserveOnboardingDuringRecoverySignOut =
           options?.reason === 'password-recovery' && get().preferences.onboardingCompleted;
 
@@ -446,13 +461,21 @@ export const useAuthStore = create<AuthState>()(
           if (previousUserId) {
             try {
               const { deactivatePushToken } = await import('../services/notifications');
+              if (!isCurrent()) return;
               await deactivatePushToken(previousUserId);
             } catch {
               // Best-effort: never block sign-out on token cleanup.
             }
           }
 
-          await getAuthModule().signOut();
+          if (!isCurrent()) return;
+          await getAuthModule().signOut(isCurrent);
+          // auth-js may already have emitted SIGNED_OUT for this account. That single
+          // original transition is ours to complete; a newer login is never ours to reset.
+          const originalSignedOut =
+            get().user === null && get().authGeneration === generation + (previousUserId ? 1 : 0);
+          if (!isCurrent() && !originalSignedOut) return;
+          const endingUserId = get().user?.uid ?? null;
 
           // Clear all per-user local stores so the next account on this device
           // never inherits or merges this account's reading data (H2).
@@ -469,10 +492,13 @@ export const useAuthStore = create<AuthState>()(
             preferencesSyncBase: null,
             preferenceFieldStamps: {},
             lastSyncedUserId: null,
-            authGeneration: get().authGeneration + (previousUserId ? 1 : 0),
+            authGeneration: get().authGeneration + (endingUserId ? 1 : 0),
           });
         } finally {
-          preserveOnboardingDuringRecoverySignOut = false;
+          if (recoverySignOutRequest === request) {
+            recoverySignOutRequest = null;
+            preserveOnboardingDuringRecoverySignOut = false;
+          }
         }
       },
 

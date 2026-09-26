@@ -103,3 +103,69 @@ test('a removal held in memory reaches the keychain once it answers again', asyn
   assert.equal(await storage.getItem('session'), null);
   assert.equal(keychain.store.has('session'), false);
 });
+
+test('a delayed session removal completes before a newer session write', async () => {
+  const values = new Map<string, string>();
+  let delayDelete = false;
+  let finish!: () => void;
+  let started!: () => void;
+  const deletionStarted = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  const adapter = createAuthSessionStorage(
+    {
+      getItemAsync: async (key) => values.get(key) ?? null,
+      setItemAsync: async (key, value) => {
+        values.set(key, value);
+      },
+      deleteItemAsync: async (key) => {
+        if (delayDelete) {
+          started();
+          await new Promise<void>((resolve) => {
+            finish = resolve;
+          });
+        }
+        values.delete(key);
+      },
+    },
+    () => {}
+  );
+  await adapter.setItem('session', 'account-a');
+  delayDelete = true;
+  const removing = adapter.removeItem('session');
+  await deletionStarted;
+  let wroteNext = false;
+  const writing = adapter.setItem('session', 'account-b').then(() => {
+    wroteNext = true;
+  });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(wroteNext, false, 'the newer write must wait for the old deletion');
+  finish();
+  await Promise.all([removing, writing]);
+  assert.equal(await adapter.getItem('session'), 'account-b');
+});
+
+test('a failed removal does not poison a later session write or read', async () => {
+  const values = new Map<string, string>([['session', 'account-a']]);
+  let failDelete = true;
+  const adapter = createAuthSessionStorage(
+    {
+      getItemAsync: async (key) => values.get(key) ?? null,
+      setItemAsync: async (key, value) => {
+        values.set(key, value);
+      },
+      deleteItemAsync: async (key) => {
+        if (failDelete) throw new Error('delete failed');
+        values.delete(key);
+      },
+    },
+    () => {}
+  );
+  await adapter.removeItem('session');
+  failDelete = false;
+  const writing = adapter.setItem('session', 'account-b');
+  const reading = adapter.getItem('session');
+  await writing;
+  assert.equal(await reading, 'account-b');
+  assert.equal(await adapter.getItem('session'), 'account-b');
+});

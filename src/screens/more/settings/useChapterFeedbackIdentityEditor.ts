@@ -1,10 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../../stores/authStore';
 import { useTranslatorReviewStore } from '../../../stores/translatorReviewStore';
 import { syncPreferences } from '../../../services/sync';
 import { normalizeChapterFeedbackIdentity } from '../../../services/feedback/chapterFeedbackIdentity';
 import { announceLiveRegionText } from '../../../utils/a11y';
+
+interface IdentityDraftOwner {
+  uid: string | null;
+  authGeneration: number;
+  enableAfterSave: boolean;
+}
 
 /**
  * The name-and-role editor behind the feedback identity row. Saving writes both
@@ -14,14 +20,59 @@ export function useChapterFeedbackIdentityEditor(chapterFeedbackEnabled: boolean
   const { t } = useTranslation();
   const savedName = useAuthStore((state) => state.preferences.chapterFeedbackName);
   const savedRole = useAuthStore((state) => state.preferences.chapterFeedbackRole);
-  const displayName = useAuthStore((state) => state.user?.displayName);
+  const uid = useAuthStore((state) => state.user?.uid ?? null);
+  const authGeneration = useAuthStore((state) => state.authGeneration);
   const setPreferences = useAuthStore((state) => state.setPreferences);
   const [isVisible, setIsVisible] = useState(false);
-  const [pendingEnable, setPendingEnable] = useState(false);
+  const [draft, setDraft] = useState<IdentityDraftOwner | null>(null);
+  const draftRef = useRef<IdentityDraftOwner | null>(null);
+  const requestRef = useRef<object | null>(null);
+  const mountedRef = useRef(false);
   const [name, setName] = useState('');
   const [role, setRole] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  const clearDraft = () => {
+    draftRef.current = null;
+    requestRef.current = null;
+    setDraft(null);
+    setIsVisible(false);
+    setName('');
+    setRole('');
+    setError(null);
+    setIsSaving(false);
+  };
+
+  useEffect(() => {
+    mountedRef.current = true;
+    // Invalidate synchronously: an old callback may run before React commits the next render.
+    const unsubscribe = useAuthStore.subscribe((state, previous) => {
+      if (
+        state.user?.uid !== previous.user?.uid ||
+        state.authGeneration !== previous.authGeneration
+      ) {
+        clearDraft();
+      }
+    });
+    return () => {
+      mountedRef.current = false;
+      draftRef.current = null;
+      requestRef.current = null;
+      unsubscribe();
+    };
+  }, []);
+
+  const isCurrentOwner = (owner: Pick<IdentityDraftOwner, 'uid' | 'authGeneration'>) => {
+    const current = useAuthStore.getState();
+    return (
+      mountedRef.current &&
+      (current.user?.uid ?? null) === owner.uid &&
+      current.authGeneration === owner.authGeneration
+    );
+  };
+  const isCurrentDraft = (candidate: IdentityDraftOwner | null): candidate is IdentityDraftOwner =>
+    candidate !== null && draftRef.current === candidate && isCurrentOwner(candidate);
 
   // The inline error carries accessibilityLiveRegion, which only Android honours;
   // VoiceOver hears it through this announcement.
@@ -35,45 +86,45 @@ export function useChapterFeedbackIdentityEditor(chapterFeedbackEnabled: boolean
   });
 
   const open = (enableAfterSave: boolean) => {
-    setPendingEnable(enableAfterSave);
-    setName(savedName ?? displayName ?? '');
-    setRole(savedRole ?? '');
+    if (!isCurrentOwner({ uid, authGeneration }) || requestRef.current) return;
+    const current = useAuthStore.getState();
+    const owner = { uid, authGeneration, enableAfterSave };
+    draftRef.current = owner;
+    setDraft(owner);
+    setName(current.preferences.chapterFeedbackName ?? current.user?.displayName ?? '');
+    setRole(current.preferences.chapterFeedbackRole ?? '');
     setError(null);
     setIsVisible(true);
   };
 
   const close = () => {
-    if (isSaving) {
-      return;
-    }
-
-    setIsVisible(false);
-    setPendingEnable(false);
-    setError(null);
+    if (!isCurrentDraft(draft) || requestRef.current) return;
+    clearDraft();
   };
 
   const changeName = (value: string) => {
+    if (!isCurrentDraft(draft) || requestRef.current) return;
     setName(value);
-    if (error) {
-      setError(null);
-    }
+    setError(null);
   };
 
   const changeRole = (value: string) => {
+    if (!isCurrentDraft(draft) || requestRef.current) return;
     setRole(value);
-    if (error) {
-      setError(null);
-    }
+    setError(null);
   };
 
   const save = async () => {
+    if (!isCurrentDraft(draft) || requestRef.current) return;
     const identity = normalizeChapterFeedbackIdentity({ name, role });
-
     if (!identity) {
       setError(t('settings.chapterFeedbackIdentityRequired'));
       return;
     }
 
+    const request = {};
+    requestRef.current = request;
+    const isCurrentRequest = () => requestRef.current === request && isCurrentDraft(draft);
     setIsSaving(true);
     setError(null);
 
@@ -81,20 +132,25 @@ export function useChapterFeedbackIdentityEditor(chapterFeedbackEnabled: boolean
       setPreferences({
         chapterFeedbackName: identity.name,
         chapterFeedbackRole: identity.role,
-        chapterFeedbackEnabled: pendingEnable ? true : chapterFeedbackEnabled,
+        chapterFeedbackEnabled: draft.enableAfterSave ? true : chapterFeedbackEnabled,
       });
-
-      const result = await syncPreferences();
+      if (!isCurrentRequest()) return;
+      const result = await syncPreferences(draft.uid ?? undefined, draft.authGeneration);
+      if (!isCurrentRequest()) return;
       if (!result.success) {
         setError(t('common.unexpectedError'));
         return;
       }
 
-      if (pendingEnable) useTranslatorReviewStore.getState().enableCommunityFeedback();
-      setIsVisible(false);
-      setPendingEnable(false);
+      if (draft.enableAfterSave) useTranslatorReviewStore.getState().enableCommunityFeedback();
+      if (isCurrentRequest()) clearDraft();
+    } catch {
+      if (isCurrentRequest()) setError(t('common.unexpectedError'));
     } finally {
-      setIsSaving(false);
+      if (isCurrentRequest()) {
+        requestRef.current = null;
+        setIsSaving(false);
+      }
     }
   };
 

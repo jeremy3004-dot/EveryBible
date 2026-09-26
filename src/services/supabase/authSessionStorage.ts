@@ -72,6 +72,19 @@ export function createAuthSessionStorage(
   const pending = new Map<string, string | null>();
   // Keys saved this launch with the current accessibility; see the note at the top.
   const resaved = new Set<string>();
+  // Sign-out runs outside auth-js's lock. A new session write must follow any
+  // native deletion already in flight for that key, even if it completes late.
+  const operations = new Map<string, Promise<unknown>>();
+  const serialize = <T>(key: string, operation: () => Promise<T>): Promise<T> => {
+    const previous = operations.get(key) ?? Promise.resolve();
+    const next = previous.then(operation, operation);
+    operations.set(key, next);
+    const release = () => {
+      if (operations.get(key) === next) operations.delete(key);
+    };
+    void next.then(release, release);
+    return next;
+  };
 
   const noteFailure = (error: unknown): void => {
     if (failureReported) return;
@@ -104,36 +117,39 @@ export function createAuthSessionStorage(
   };
 
   return {
-    getItem: async (key) => {
-      if (pending.has(key)) {
-        const value = pending.get(key) ?? null;
-        await flushPending(key, value);
-        lastReadFailed = false;
-        return value;
-      }
-      try {
-        const value = await secureStore.getItemAsync(key, options);
-        lastReadFailed = false;
-        return value;
-      } catch (error) {
-        lastReadFailed = true;
-        noteFailure(error);
-        return null;
-      }
-    },
-    setItem: async (key, value) => {
-      if (await persist(key, value)) {
-        pending.delete(key);
-      } else {
-        pending.set(key, value);
-      }
-    },
-    removeItem: async (key) => {
-      if (await persist(key, null)) {
-        pending.delete(key);
-      } else {
-        pending.set(key, null);
-      }
-    },
+    getItem: (key) =>
+      serialize(key, async () => {
+        if (pending.has(key)) {
+          const value = pending.get(key) ?? null;
+          await flushPending(key, value);
+          lastReadFailed = false;
+          return value;
+        }
+        try {
+          const value = await secureStore.getItemAsync(key, options);
+          lastReadFailed = false;
+          return value;
+        } catch (error) {
+          lastReadFailed = true;
+          noteFailure(error);
+          return null;
+        }
+      }),
+    setItem: (key, value) =>
+      serialize(key, async () => {
+        if (await persist(key, value)) {
+          pending.delete(key);
+        } else {
+          pending.set(key, value);
+        }
+      }),
+    removeItem: (key) =>
+      serialize(key, async () => {
+        if (await persist(key, null)) {
+          pending.delete(key);
+        } else {
+          pending.set(key, null);
+        }
+      }),
   };
 }

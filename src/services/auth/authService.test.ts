@@ -890,6 +890,29 @@ test('signOut succeeds without a backend because there is no session to end', as
 // access token, a request that cannot touch the stored session.
 const authMethods = () => supabaseFake.authCalls.map((call) => call.method);
 
+test('signOut does not remove a newer session after the stored-session read yields', async () => {
+  const storage = (
+    supabaseFake.client.auth as unknown as {
+      storage: { getItem: (key: string) => Promise<string | null> };
+    }
+  ).storage;
+  const getItem = storage.getItem;
+  let isCurrent = true;
+  storage.getItem = async () => {
+    supabaseFake.auth.setSession(makeFakeSession({ user: makeFakeUser({ id: 'new-account' }) }));
+    isCurrent = false;
+    return JSON.stringify(makeFakeSession({ user: signedInUser() }));
+  };
+  try {
+    assert.equal((await authService.signOut(() => isCurrent)).success, false);
+    assert.equal(authMethods().includes('_removeSession'), false);
+    assert.equal(supabaseFake.auth.user?.id, 'new-account');
+    assert.equal(authMethods().includes('admin.signOut'), false);
+  } finally {
+    storage.getItem = getItem;
+  }
+});
+
 test('signOut ends the session on this device and revokes it on the server with its access token', async () => {
   supabaseFake.auth.setSession(makeFakeSession({ user: signedInUser() }));
 

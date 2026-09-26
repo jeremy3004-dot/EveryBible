@@ -13,13 +13,18 @@ const LIST_PAGE_SIZE = 100;
 const REMOVE_BATCH_SIZE = 100;
 
 /** Every object path under `folder`, walking sub-folders (storage lists one level at a time). */
-const listObjectPaths = async (bucket: string, folder: string): Promise<string[]> => {
+const listObjectPaths = async (
+  bucket: string,
+  folder: string,
+  assertCurrent: () => Promise<void>
+): Promise<string[]> => {
   const paths: string[] = [];
 
   for (let offset = 0; ; offset += LIST_PAGE_SIZE) {
     const { data, error } = await supabase.storage
       .from(bucket)
       .list(folder, { limit: LIST_PAGE_SIZE, offset });
+    await assertCurrent();
 
     if (error) {
       throw new Error(error.message);
@@ -30,7 +35,7 @@ const listObjectPaths = async (bucket: string, folder: string): Promise<string[]
       const path = `${folder}/${entry.name}`;
       // Folder placeholders come back without an object id.
       if (entry.id == null) {
-        paths.push(...(await listObjectPaths(bucket, path)));
+        paths.push(...(await listObjectPaths(bucket, path, assertCurrent)));
       } else {
         paths.push(path);
       }
@@ -42,14 +47,18 @@ const listObjectPaths = async (bucket: string, folder: string): Promise<string[]
   }
 };
 
-const removeUserFiles = async (userId: string): Promise<void> => {
+const removeUserFiles = async (
+  userId: string,
+  assertCurrent: () => Promise<void>
+): Promise<void> => {
   for (const bucket of USER_OWNED_BUCKETS) {
-    const paths = await listObjectPaths(bucket, userId);
+    const paths = await listObjectPaths(bucket, userId, assertCurrent);
 
     for (let index = 0; index < paths.length; index += REMOVE_BATCH_SIZE) {
       const { error } = await supabase.storage
         .from(bucket)
         .remove(paths.slice(index, index + REMOVE_BATCH_SIZE));
+      await assertCurrent();
 
       if (error) {
         throw new Error(error.message);
@@ -58,21 +67,45 @@ const removeUserFiles = async (userId: string): Promise<void> => {
   }
 };
 
-export const deleteCurrentAccount = async (): Promise<AccountActionResult> => {
+/** `isCurrent` lets a caller also fence the local auth generation, without a store dependency. */
+export const deleteCurrentAccount = async (
+  expectedUserId?: string,
+  isCurrent: () => boolean = () => true
+): Promise<AccountActionResult> => {
   if (!isSupabaseConfigured()) {
     return { success: false, error: 'EveryBible backend is not configured for this build yet.' };
   }
 
   try {
+    if (!isCurrent()) return { success: false, error: 'Account changed' };
     const userId = await getCurrentUserId();
     if (!userId) {
       return { success: false, error: 'Not signed in' };
     }
 
-    // Files first: once the account is gone the user can no longer reach them to retry.
-    await removeUserFiles(userId);
+    const assertCurrent = async () => {
+      if (!isCurrent()) throw new Error('Account changed');
+      const currentUserId = await getCurrentUserId();
+      if (currentUserId !== userId || !isCurrent()) throw new Error('Account changed');
+    };
+    if ((expectedUserId !== undefined && userId !== expectedUserId) || !isCurrent()) {
+      return { success: false, error: 'Account changed' };
+    }
+    const { data, error: sessionError } = await supabase.auth.getSession();
+    await assertCurrent();
+    const session = data.session;
+    if (sessionError || session?.user.id !== userId || !session.access_token) {
+      return { success: false, error: sessionError?.message ?? 'Account changed' };
+    }
 
-    const { error } = await supabase.rpc('delete_my_account');
+    // Files first: once the account is gone the user can no longer reach them to retry.
+    await removeUserFiles(userId, assertCurrent);
+    await assertCurrent();
+
+    // Pin the verified account: Supabase's asynchronous token lookup may see a later session.
+    const { error } = await supabase
+      .rpc('delete_my_account')
+      .setHeader('Authorization', `Bearer ${session.access_token}`);
 
     if (error) {
       return { success: false, error: error.message };

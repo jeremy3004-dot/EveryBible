@@ -52,10 +52,13 @@ mockMmkvStorage(mock);
 mockSecureStore(mock);
 
 const syncCalls: number[] = [];
+const syncOwners: [string | undefined, number | undefined][] = [];
+let syncOutcome: () => Promise<{ success: boolean }> = async () => ({ success: true });
 mockModule(mock, sourcePath('services/sync/index.ts'), {
-  syncPreferences: async () => {
+  syncPreferences: async (uid?: string, generation?: number) => {
     syncCalls.push(1);
-    return { success: true };
+    syncOwners.push([uid, generation]);
+    return syncOutcome();
   },
 });
 
@@ -88,11 +91,14 @@ const account: { result: { success: boolean }; calls: number } = {
   result: { success: true },
   calls: 0,
 };
+let accountOutcome: (() => Promise<{ success: boolean }>) | null = null;
+const deleteOwners: [string | undefined, number | undefined][] = [];
 mockModule(mock, sourcePath('services/account/index.ts'), {
   deleteCurrentAccount: async () => ({ success: true }),
-  deleteAccountAndLocalData: async () => {
+  deleteAccountAndLocalData: async (uid?: string, generation?: number) => {
     account.calls += 1;
-    return account.result;
+    deleteOwners.push([uid, generation]);
+    return accountOutcome ? accountOutcome() : account.result;
   },
 });
 const cacheClears: number[] = [];
@@ -154,6 +160,8 @@ afterEach(async () => {
   languageCalls.length = 0;
   account.result = { success: true };
   account.calls = 0;
+  accountOutcome = null;
+  deleteOwners.length = 0;
   cacheClears.length = 0;
   reminders.permission = 'granted';
   reminders.calls.length = 0;
@@ -165,6 +173,8 @@ afterEach(async () => {
   harness.rn.__recorded.alerts.length = 0;
   harness.rn.__recorded.openedUrls.length = 0;
   syncCalls.length = 0;
+  syncOwners.length = 0;
+  syncOutcome = async () => ({ success: true });
   access.translator = { success: true, coversTranslation: true };
   access.council = { success: true };
   access.checked.length = 0;
@@ -549,6 +559,210 @@ test('the feedback identity row edits a name and role only, saves them and syncs
     null
   );
   assert.ok(view.getByRole('button', { name: /Lydia of Thyatira • Reviewer/ }));
+});
+
+test('an open feedback identity draft cannot overwrite the next account preferences', async () => {
+  harness.authStore.setState({ user: { uid: 'account-a', displayName: 'Lydia' } });
+  const view = await renderSettings();
+  await view.press(
+    view.getByRole('button', { name: rowNamed(t('settings.chapterFeedbackIdentity')) })
+  );
+  await view.changeText(view.getByLabelText(t('auth.name')), 'Lydia private draft');
+  await view.changeText(view.getByLabelText(t('settings.chapterFeedbackIdentityRole')), 'Reviewer');
+  const oldSave = view.getByRole('button', { name: t('common.save') }).props
+    .onPress as () => Promise<void>;
+  await act(async () => {
+    harness.authStore.setState({
+      user: { uid: 'account-b', displayName: 'Priscilla' },
+      preferences: {
+        ...harness.authStore.getState().preferences,
+        chapterFeedbackName: 'Priscilla',
+        chapterFeedbackRole: 'Teacher',
+      },
+    });
+  });
+  await act(async () => {
+    await oldSave();
+  });
+  assert.equal(harness.authStore.getState().preferences.chapterFeedbackName, 'Priscilla');
+  assert.equal(harness.authStore.getState().preferences.chapterFeedbackRole, 'Teacher');
+  assert.equal(
+    view.queryByRole('header', { name: t('settings.chapterFeedbackIdentityTitle') }),
+    null
+  );
+});
+
+const identityHeader = () => ({ name: t('settings.chapterFeedbackIdentityTitle') });
+const identityRow = () => ({ name: rowNamed(t('settings.chapterFeedbackIdentity')) });
+const identitySave = (view: View) =>
+  view.getByRole('button', { name: t('common.save') }).props.onPress as () => void;
+
+function deferredIdentitySync() {
+  let resolve!: (result: { success: boolean }) => void;
+  let reject!: (error: Error) => void;
+  const promise = new Promise<{ success: boolean }>((yes, no) => {
+    resolve = yes;
+    reject = no;
+  });
+  return { promise, resolve, reject };
+}
+
+for (const sameUid of [false, true]) {
+  test(`an identity draft closes on ${sameUid ? 'a new generation of the same account' : 'sign-out'}`, async () => {
+    harness.authStore.setState({
+      user: { uid: 'account-a', displayName: 'Lydia' },
+      authGeneration: 1,
+    });
+    const view = await renderSettings();
+    await view.press(view.getByRole('button', identityRow()));
+    await view.changeText(view.getByLabelText(t('auth.name')), 'Old draft');
+    const save = identitySave(view);
+    await act(async () => {
+      harness.authStore.setState({
+        user: sameUid ? { uid: 'account-a', displayName: 'Lydia' } : null,
+        authGeneration: 2,
+      });
+      save();
+    });
+    assert.equal(view.queryByRole('header', identityHeader()), null);
+    assert.equal(syncCalls.length, 0);
+    assert.equal(harness.authStore.getState().preferences.chapterFeedbackName, null);
+  });
+}
+
+for (const { rejectOldSync, sameUid } of [
+  { rejectOldSync: false, sameUid: false },
+  { rejectOldSync: true, sameUid: false },
+  { rejectOldSync: false, sameUid: true },
+]) {
+  test(`an old identity sync ${rejectOldSync ? 'rejection' : 'completion'} cannot touch ${sameUid ? 'a new session of the same account' : 'the next account'} draft or save`, async () => {
+    harness.authStore.setState({
+      user: { uid: 'account-a', displayName: 'Lydia' },
+      authGeneration: 1,
+    });
+    const view = await renderSettings();
+    await view.press(view.getByRole('button', identityRow()));
+    await view.changeText(
+      view.getByLabelText(t('settings.chapterFeedbackIdentityRole')),
+      'Reviewer'
+    );
+    const oldChangeName = view.getByLabelText(t('auth.name')).props.onChangeText as (
+      value: string
+    ) => void;
+    const oldClose = view.getByRole('button', { name: t('common.cancel') }).props
+      .onPress as () => void;
+    const oldSave = identitySave(view);
+    const oldSync = deferredIdentitySync();
+    syncOutcome = () => oldSync.promise;
+    await act(async () => {
+      oldSave();
+    });
+    assert.equal(syncCalls.length, 1);
+    await act(async () => {
+      harness.authStore.setState({
+        user: { uid: sameUid ? 'account-a' : 'account-b', displayName: 'Priscilla' },
+        authGeneration: 2,
+        preferences: {
+          ...harness.authStore.getState().preferences,
+          chapterFeedbackName: 'Priscilla',
+          chapterFeedbackRole: 'Teacher',
+        },
+      });
+    });
+    assert.equal(view.queryByRole('header', identityHeader()), null);
+    await view.press(view.getByRole('button', identityRow()));
+    await view.changeText(view.getByLabelText(t('auth.name')), 'Priscilla new draft');
+    const nextSync = deferredIdentitySync();
+    syncOutcome = () => nextSync.promise;
+    await act(async () => {
+      identitySave(view)();
+      oldSave();
+      oldClose();
+      oldChangeName('Old private draft');
+    });
+    assert.equal(syncCalls.length, 2, 'only one request belongs to each session');
+    assert.deepEqual(syncOwners, [
+      ['account-a', 1],
+      [sameUid ? 'account-a' : 'account-b', 2],
+    ]);
+    await act(async () => {
+      if (rejectOldSync) oldSync.reject(new Error('old sync failed'));
+      else oldSync.resolve({ success: true });
+    });
+    assert.ok(view.getByRole('header', identityHeader()));
+    assert.equal(view.getByLabelText(t('auth.name')).props.value, 'Priscilla new draft');
+    assert.equal(
+      view.getByLabelText(t('auth.name')).props.editable,
+      false,
+      'the current save remains busy'
+    );
+    assert.equal(view.queryByText(t('common.unexpectedError')), null);
+    assert.equal(
+      harness.authStore.getState().preferences.chapterFeedbackName,
+      'Priscilla new draft'
+    );
+    await act(async () => {
+      nextSync.resolve({ success: true });
+    });
+    assert.equal(view.queryByRole('header', identityHeader()), null);
+  });
+}
+
+test('same-tick identity saves start only one sync request', async () => {
+  harness.authStore.setState({ user: { uid: 'account-a', displayName: 'Lydia' } });
+  const view = await renderSettings();
+  await view.press(view.getByRole('button', identityRow()));
+  await view.changeText(view.getByLabelText(t('settings.chapterFeedbackIdentityRole')), 'Reviewer');
+  const pending = deferredIdentitySync();
+  syncOutcome = () => pending.promise;
+  const save = identitySave(view);
+  await act(async () => {
+    save();
+    save();
+  });
+  assert.equal(syncCalls.length, 1);
+  await act(async () => {
+    pending.resolve({ success: true });
+  });
+  assert.equal(view.queryByRole('header', identityHeader()), null);
+});
+
+for (const throws of [false, true]) {
+  test(`a current identity sync ${throws ? 'rejection' : 'failure'} shows an error and can retry`, async () => {
+    harness.authStore.setState({ user: { uid: 'account-a', displayName: 'Lydia' } });
+    const view = await renderSettings();
+    await view.press(view.getByRole('button', identityRow()));
+    await view.changeText(
+      view.getByLabelText(t('settings.chapterFeedbackIdentityRole')),
+      'Reviewer'
+    );
+    syncOutcome = async () => {
+      if (throws) throw new Error('sync failed');
+      return { success: false };
+    };
+    await view.press(view.getByRole('button', { name: t('common.save') }));
+    assert.ok(view.getByRole('header', identityHeader()));
+    assert.ok(view.getByText(t('common.unexpectedError')));
+    assert.equal(view.getByLabelText(t('auth.name')).props.editable, true);
+    syncOutcome = async () => ({ success: true });
+    await view.press(view.getByRole('button', { name: t('common.save') }));
+    assert.equal(syncCalls.length, 2);
+    assert.equal(view.queryByRole('header', identityHeader()), null);
+  });
+}
+
+test('an identity save callback retained after unmount cannot write preferences', async () => {
+  harness.authStore.setState({ user: { uid: 'account-a', displayName: 'Lydia' } });
+  const view = await renderSettings();
+  await view.press(view.getByRole('button', identityRow()));
+  await view.changeText(view.getByLabelText(t('settings.chapterFeedbackIdentityRole')), 'Reviewer');
+  const save = identitySave(view);
+  await view.unmount();
+  await act(async () => {
+    save();
+  });
+  assert.equal(syncCalls.length, 0);
+  assert.equal(harness.authStore.getState().preferences.chapterFeedbackName, null);
 });
 
 // --- Locale row ------------------------------------------------------------
@@ -972,6 +1186,85 @@ test('Delete Account is offered only when signed in and confirms before deleting
   assert.equal(account.calls, 2);
   assert.equal(harness.rn.__recorded.alerts.at(-1)?.title, t('settings.accountDeleted'));
   assert.equal(view.queryByText(t('settings.deleteAccountWarning')), null);
+});
+
+test('a delete confirmation opened for one account cannot delete the next account', async () => {
+  harness.authStore.setState({ user: { uid: 'delete-a', displayName: 'Lydia' } });
+  const view = await renderSettings();
+  await view.press(view.getByRole('button', { name: t('settings.deleteAccount') }));
+  const oldConfirm = view.getByRole('button', { name: t('settings.delete') }).props
+    .onPress as () => Promise<void>;
+  await act(async () => {
+    harness.authStore.setState({ user: { uid: 'delete-b', displayName: 'Priscilla' } });
+  });
+  await act(async () => {
+    await oldConfirm();
+  });
+  assert.equal(account.calls, 0, 'account B never confirmed deletion');
+  assert.equal(view.queryByText(t('settings.deleteAccountWarning')), null);
+});
+
+test('a delete confirmation closes on a new generation of the same uid', async () => {
+  harness.authStore.setState({ user: { uid: 'delete-a' }, authGeneration: 1 });
+  const view = await renderSettings();
+  await view.press(view.getByRole('button', { name: t('settings.deleteAccount') }));
+  const confirm = view.getByRole('button', { name: t('settings.delete') }).props
+    .onPress as () => void;
+  await act(async () => {
+    harness.authStore.setState({ authGeneration: 2 });
+    confirm();
+  });
+  assert.equal(account.calls, 0);
+  assert.equal(view.queryByText(t('settings.deleteAccountWarning')), null);
+});
+
+for (const rejects of [false, true]) {
+  test(`an old delete ${rejects ? 'rejection' : 'completion'} cannot close or alert over the next confirmation`, async () => {
+    harness.authStore.setState({ user: { uid: 'delete-a' }, authGeneration: 1 });
+    const view = await renderSettings();
+    await view.press(view.getByRole('button', { name: t('settings.deleteAccount') }));
+    const confirm = view.getByRole('button', { name: t('settings.delete') }).props
+      .onPress as () => void;
+    const pending = deferredIdentitySync();
+    accountOutcome = () => pending.promise;
+    await act(async () => {
+      confirm();
+      confirm();
+    });
+    assert.equal(account.calls, 1);
+    assert.deepEqual(deleteOwners, [['delete-a', 1]]);
+    await act(async () => {
+      harness.authStore.setState({ user: { uid: 'delete-b' }, authGeneration: 2 });
+    });
+    await view.press(view.getByRole('button', { name: t('settings.deleteAccount') }));
+    await act(async () => {
+      if (rejects) pending.reject(new Error('old deletion failed'));
+      else pending.resolve({ success: true });
+    });
+    assert.ok(view.getByText(t('settings.deleteAccountWarning')));
+    assert.equal(harness.rn.__recorded.alerts.length, 0);
+    accountOutcome = null;
+    await view.press(view.getByRole('button', { name: t('settings.delete') }));
+    assert.equal(account.calls, 2);
+    assert.deepEqual(deleteOwners, [
+      ['delete-a', 1],
+      ['delete-b', 2],
+    ]);
+  });
+}
+
+test('an old delete confirmation callback after unmount cannot start deletion', async () => {
+  harness.authStore.setState({ user: { uid: 'delete-a' } });
+  const view = await renderSettings();
+  await view.press(view.getByRole('button', { name: t('settings.deleteAccount') }));
+  const confirm = view.getByRole('button', { name: t('settings.delete') }).props
+    .onPress as () => void;
+  await view.unmount();
+  await act(async () => {
+    confirm();
+  });
+  assert.equal(account.calls, 0);
+  assert.equal(harness.rn.__recorded.alerts.length, 0);
 });
 
 test("the delete-account dialog closes on VoiceOver's escape gesture without deleting", async () => {

@@ -324,17 +324,22 @@ export const AUTH_SIGN_OUT_TIMEOUT_MS = 3_000;
  *   without the refresh that hangs, and nothing can be sent offline; the server
  *   session is then left to expire, as before for an offline sign-out.
  */
-export const signOut = async (): Promise<{ success: boolean; error?: string }> => {
+export const signOut = async (
+  isCurrent?: () => boolean
+): Promise<{ success: boolean; error?: string }> => {
   if (!isSupabaseConfigured()) {
     return { success: true }; // No session to sign out from
   }
 
+  if (isCurrent && !isCurrent()) return { success: false, error: 'Account changed' };
   const stored = await readStoredSession();
+  if (isCurrent && !isCurrent()) return { success: false, error: 'Account changed' };
   if (stored) {
     fenceRefreshToken(stored.refresh_token);
   }
-  await endSessionOnThisDevice();
+  await endSessionOnThisDevice(isCurrent);
 
+  // No later stage can touch a newly stored session: revocation uses only this token.
   if (!stored || isAccessTokenExpired(stored) || (await isDeviceOffline())) {
     return { success: true };
   }
@@ -371,13 +376,39 @@ const revokeSessionOnServer = async (
   }
 };
 
-// Removes the stored session without auth-js's lock or the network, and emits
-// SIGNED_OUT. `_removeSession` is not public API; authSession.realClient.behavior
-// .test.ts pins it against the installed supabase-js.
-const endSessionOnThisDevice = async (): Promise<void> => {
+// Like installed GoTrueClient._removeSession: storage keys first, then SIGNED_OUT.
+// A guarded removal checks ownership after every keychain await so its late event
+// cannot reset a session saved meanwhile. The installed-client test pins this private API.
+const endSessionOnThisDevice = async (isCurrent?: () => boolean): Promise<void> => {
   try {
-    const auth = supabase.auth as unknown as { _removeSession?: () => Promise<void> };
-    await auth._removeSession?.();
+    const auth = supabase.auth as unknown as {
+      _removeSession?: () => Promise<void>;
+      storage: { removeItem: (key: string) => Promise<void> };
+      storageKey: string;
+      suppressGetSessionWarning: boolean;
+      userStorage?: { removeItem: (key: string) => Promise<void> };
+      _notifyAllSubscribers: (event: 'SIGNED_OUT', session: null) => Promise<void>;
+    };
+    if (!isCurrent) {
+      await auth._removeSession?.();
+      return;
+    }
+    if (!isCurrent()) return;
+    auth.suppressGetSessionWarning = false;
+    for (const key of [
+      auth.storageKey,
+      auth.storageKey + '-code-verifier',
+      auth.storageKey + '-user',
+    ]) {
+      if (!isCurrent()) return;
+      await auth.storage.removeItem(key);
+      if (!isCurrent()) return;
+    }
+    if (auth.userStorage) {
+      await auth.userStorage.removeItem(auth.storageKey + '-user');
+      if (!isCurrent()) return;
+    }
+    if (isCurrent()) await auth._notifyAllSubscribers('SIGNED_OUT', null);
   } catch {
     // Best effort: the caller already reports the sign-out failure.
   }

@@ -345,3 +345,50 @@ test('a rejected account deletion keeps the chapter feedback it queued', async (
 
   assert.deepEqual(queuedFeedbackOwners(), ['user-a']);
 });
+
+for (const sameUid of [false, true]) {
+  test(`a successful deletion only cleans its original owner after ${sameUid ? 'that uid signs in again' : 'another account signs in'} during the RPC`, async () => {
+    await shareThePhone();
+    signIn('user-a');
+    const originalGeneration = useAuthStore.getState().authGeneration;
+    const accountB = bucketsOf('user-b');
+    let finish!: () => void;
+    let requested!: () => void;
+    const requestStarted = new Promise<void>((resolve) => {
+      requested = resolve;
+    });
+    supabaseFake.respondToRpc(
+      'delete_my_account',
+      () =>
+        new Promise((resolve) => {
+          finish = () => resolve({ data: null, error: null });
+          requested();
+        })
+    );
+    const deletion = deleteAccountAndLocalData('user-a', originalGeneration);
+    await requestStarted;
+    if (sameUid) {
+      await signOut();
+      signIn('user-a');
+    } else signIn('user-b');
+    useAuthStore.getState().setPreferences({ fontSize: 'large' });
+    finish();
+    assert.deepEqual(await deletion, { success: true });
+    assert.equal(useAuthStore.getState().user?.uid, sameUid ? 'user-a' : 'user-b');
+    assert.equal(useAuthStore.getState().preferences.fontSize, 'large');
+    assert.deepEqual(bucketsOf('user-a'), {});
+    assert.deepEqual(bucketsOf('user-b'), accountB);
+  });
+}
+
+test('deleting with a stale expected owner touches neither server nor local buckets', async () => {
+  await shareThePhone();
+  signIn('user-b');
+  const before = new Map(mmkv.store);
+  assert.equal(
+    (await deleteAccountAndLocalData('user-a', useAuthStore.getState().authGeneration)).success,
+    false
+  );
+  assert.equal(supabaseFake.callsFor('rpc:delete_my_account').length, 0);
+  assert.deepEqual(new Map(mmkv.store), before);
+});

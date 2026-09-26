@@ -126,6 +126,7 @@ export interface SupabaseAuthHandlers {
   stopAutoRefresh: () => Promise<void>;
   /** auth-js's local-only session removal (not public API): storage cleared, SIGNED_OUT emitted. */
   _removeSession: () => Promise<void>;
+  _notifyAllSubscribers: (event: AuthChangeEvent, session: Session | null) => Promise<void>;
   /** `auth.admin.signOut(jwt, scope)`: the logout request alone; no session state changes. */
   adminSignOut: (
     jwt: string,
@@ -245,6 +246,7 @@ export function createSupabaseFake() {
       call.options = options;
       return record('delete', [options]);
     };
+    builder.setHeader = (name: string, value: string) => record('setHeader', [name, value]);
     builder.single = () => {
       call.single = true;
       return record('single', []);
@@ -324,6 +326,9 @@ export function createSupabaseFake() {
       fake.auth.setSession(null);
       emitAuth('SIGNED_OUT', null);
     },
+    _notifyAllSubscribers: async (event, session) => {
+      emitAuth(event, session);
+    },
     adminSignOut: async () => ({ data: null, error: null }),
   };
 
@@ -335,8 +340,13 @@ export function createSupabaseFake() {
   const authStorage = {
     getItem: async (key: string) =>
       key === AUTH_STORAGE_KEY && authState.session ? JSON.stringify(authState.session) : null,
-    setItem: async () => undefined,
-    removeItem: async () => undefined,
+    setItem: async (key: string, value: string) => {
+      if (key === AUTH_STORAGE_KEY) fake.auth.setSession(JSON.parse(value) as Session);
+    },
+    removeItem: async (key: string) => {
+      recordAuth('storage.removeItem', [key]);
+      if (key === AUTH_STORAGE_KEY) fake.auth.setSession(null);
+    },
   };
 
   const auth = new Proxy({} as Record<string, unknown>, {
