@@ -8,11 +8,7 @@ import {
   getActiveReadingPlanIds,
   type NotificationTapRouter,
 } from '../services/notifications/notificationTapRouting';
-import { rootNavigationRef } from '../navigation/rootNavigation';
-
-const FLUSH_INTERVAL_MS = 250;
-/** Stop waiting after a minute: navigation may never mount (e.g. during onboarding). */
-const MAX_FLUSH_ATTEMPTS = 240;
+import { rootNavigationRef, subscribeToNavigationReady } from '../navigation/rootNavigation';
 
 let routerPromise: Promise<NotificationTapRouter> | null = null;
 
@@ -62,36 +58,33 @@ function getNotificationTapRouter(): Promise<NotificationTapRouter> {
  *
  * Covers a tap while the app is running (the response listener) and a tap that
  * launched it (the last response, read once on mount). A cold-start tap lands
- * before the navigator exists, so it is parked and retried until navigation is
- * ready. Taps on other notifications only open the app.
+ * before the navigator exists, so it stays parked until navigation reports ready,
+ * including after a privacy unlock or onboarding. Taps on other notifications only
+ * open the app.
  */
 export function useNotificationTapRouting(): void {
   useEffect(() => {
     let isMounted = true;
-    let interval: ReturnType<typeof setInterval> | null = null;
+    let unsubscribeFromReady: (() => void) | null = null;
     let activeRouter: NotificationTapRouter | null = null;
 
     const stopWaiting = () => {
-      if (interval) {
-        clearInterval(interval);
-        interval = null;
-      }
+      unsubscribeFromReady?.();
+      unsubscribeFromReady = null;
     };
 
     const waitForNavigation = (router: NotificationTapRouter) => {
-      if (interval) {
+      if (unsubscribeFromReady) {
         return;
       }
-      let attempts = 0;
-      interval = setInterval(() => {
-        attempts += 1;
+      const flush = () => {
         if (router.flush() || !router.hasPending()) {
           stopWaiting();
-        } else if (attempts >= MAX_FLUSH_ATTEMPTS) {
-          router.clearPending();
-          stopWaiting();
         }
-      }, FLUSH_INTERVAL_MS);
+      };
+      unsubscribeFromReady = subscribeToNavigationReady(flush);
+      // Readiness may have changed while the lazy store/catalog imports resolved.
+      flush();
     };
 
     const route = (response: unknown) => {
@@ -103,6 +96,8 @@ export function useNotificationTapRouting(): void {
           activeRouter = router;
           if (router.handleResponse(response) === 'pending') {
             waitForNavigation(router);
+          } else if (!router.hasPending()) {
+            stopWaiting();
           }
         })
         .catch(() => {

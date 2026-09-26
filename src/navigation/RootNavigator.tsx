@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { TabNavigator } from './TabNavigator';
 import { useTheme } from '../contexts/ThemeContext';
-import { rootNavigationRef } from './rootNavigation';
+import { notifyNavigationReady, rootNavigationRef } from './rootNavigation';
 import { navigationTypography } from '../design/system';
 import { flushParkedLink, linkingConfig } from './linkingConfig';
 import { usePrivacyLockNavigationState } from '../hooks/usePrivacyLockNavigationState';
@@ -20,6 +20,7 @@ export function RootNavigator() {
   const handleReady = useCallback(() => {
     rememberRootState();
     flushParkedLink();
+    notifyNavigationReady();
   }, [rememberRootState]);
 
   return (

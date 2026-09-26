@@ -26,13 +26,13 @@ mockModule(mock, sourcePath('services/notifications/notificationBootstrap.ts'), 
 });
 
 const navigation = { ready: true, calls: [] as unknown[][] };
-mockModule(mock, sourcePath('navigation/rootNavigation.ts'), {
-  rootNavigationRef: {
+mockModule(mock, '@react-navigation/native', {
+  createNavigationContainerRef: () => ({
     isReady: () => navigation.ready,
     navigate: (...args: unknown[]) => {
       navigation.calls.push(args);
     },
-  },
+  }),
 });
 
 const plans = {
@@ -44,9 +44,11 @@ mockModule(mock, sourcePath('stores/readingPlansStore.ts'), {
 
 type Hook = typeof import('./useNotificationTapRouting').useNotificationTapRouting;
 let useNotificationTapRouting: Hook;
+let notifyNavigationReady: typeof import('../navigation/rootNavigation').notifyNavigationReady;
 
 before(async () => {
   ({ useNotificationTapRouting } = await import('./useNotificationTapRouting'));
+  ({ notifyNavigationReady } = await import('../navigation/rootNavigation'));
   // Load the lazily imported modules once so every lazy import resolves from the cache.
   await import('../stores/readingPlansStore');
   await import('../data/readingPlans.generated');
@@ -162,27 +164,38 @@ test('a tap that launched the app is routed once navigation is ready', async () 
   await settle();
 
   navigation.ready = true;
-  mock.timers.tick(250);
-  mock.timers.tick(250);
+  notifyNavigationReady();
+  notifyNavigationReady();
 
   assert.deepEqual(navigation.calls, [['Plans', { screen: 'PlansHome' }]]);
 });
 
-test('waiting for navigation gives up instead of polling forever', async () => {
-  mock.timers.enable({ apis: ['setInterval'] });
+test('waiting for navigation keeps the tap without polling', async () => {
   navigation.ready = false;
   mountApp();
   responseListener?.(reminderTap());
   await settle();
 
-  for (let tick = 0; tick < 400; tick += 1) {
-    mock.timers.tick(250);
-  }
-  navigation.ready = true;
-  mock.timers.tick(250);
-
+  assert.equal(leakGuard.liveCount, 0, 'a parked tap holds no polling interval');
   assert.deepEqual(navigation.calls, []);
-  // afterEach's leak guard proves the interval was cleared, not just ignored.
+  navigation.ready = true;
+  notifyNavigationReady();
+
+  assert.deepEqual(navigation.calls, [['Plans', { screen: 'PlansHome' }]]);
+});
+
+test('a reminder tap survives a privacy unlock taking longer than one minute', async () => {
+  mock.timers.enable({ apis: ['setInterval'] });
+  navigation.ready = false;
+  mountApp();
+  responseListener?.(reminderTap());
+  await settle();
+  for (let tick = 0; tick < 400; tick += 1) mock.timers.tick(250);
+  assert.deepEqual(navigation.calls, [], 'nothing routes through a locked navigator');
+  navigation.ready = true;
+  notifyNavigationReady();
+  mock.timers.tick(250);
+  assert.deepEqual(navigation.calls, [['Plans', { screen: 'PlansHome' }]]);
 });
 
 test('taps from other notifications, or with unreadable data, only open the app', async () => {
@@ -205,8 +218,33 @@ test('unmounting removes the listener and stops waiting for navigation', async (
 
   view.unmount();
   navigation.ready = true;
-  mock.timers.tick(250);
+  notifyNavigationReady();
 
   assert.equal(listenerRemovals, 1);
+  assert.deepEqual(navigation.calls, []);
+});
+
+test('navigation becoming ready before the lazy router resolves still routes the tap once', async () => {
+  navigation.ready = false;
+  mountApp();
+  const tap = reminderTap();
+  responseListener?.(tap);
+  navigation.ready = true;
+  notifyNavigationReady();
+  await settle();
+  responseListener?.(tap);
+  await settle();
+  notifyNavigationReady();
+  assert.deepEqual(navigation.calls, [['Plans', { screen: 'PlansHome' }]]);
+});
+
+test('unmounting before the lazy router resolves does not register a pending tap', async () => {
+  navigation.ready = false;
+  const view = mountApp();
+  responseListener?.(reminderTap());
+  view.unmount();
+  await settle();
+  navigation.ready = true;
+  notifyNavigationReady();
   assert.deepEqual(navigation.calls, []);
 });

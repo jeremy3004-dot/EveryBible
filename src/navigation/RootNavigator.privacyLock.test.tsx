@@ -230,3 +230,37 @@ test('a navigator remounted for any other reason starts on Home', async () => {
   assert.deepEqual(again.visibleScreens(), ['Home']);
   again.unmount();
 });
+
+test('a ready subscription registered on the old navigator survives a privacy lock remount', async () => {
+  const app = renderApp();
+  await settle();
+  const { subscribeToNavigationReady } = await import('./rootNavigation');
+  let readyCalls = 0;
+  // Registered while ref.current points at the old container, as a pending tap
+  // can be. React Navigation's own ref listener would attach to that container.
+  const unsubscribe = subscribeToNavigationReady(() => {
+    readyCalls += 1;
+    rootNavigationRef.navigate('More', { screen: 'Settings' } as never);
+  });
+  try {
+    privacyStore.setState({ isLocked: true });
+    await settle();
+    assert.equal(rootNavigationRef.isReady(), false);
+    assert.equal(readyCalls, 0);
+    assert.deepEqual(app.visibleScreens(), ['LockOrBoot']);
+
+    privacyStore.setState({ isLocked: false });
+    await settle();
+    assert.equal(readyCalls, 1);
+    assert.deepEqual(app.visibleScreens(), ['Settings']);
+
+    unsubscribe();
+    privacyStore.setState({ isLocked: true });
+    privacyStore.setState({ isLocked: false });
+    await settle();
+    assert.equal(readyCalls, 1, 'removed listeners do not survive into a later ready event');
+  } finally {
+    unsubscribe();
+    app.unmount();
+  }
+});

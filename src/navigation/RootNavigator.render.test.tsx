@@ -9,8 +9,12 @@ const harness = installRenderHarness(mock);
 
 // The navigation tree as the container would report it after each change.
 let rootState: unknown;
+let readyNotifications = 0;
 mockModule(mock, sourcePath('navigation/rootNavigation.ts'), {
   rootNavigationRef: { current: null, isReady: () => true, getRootState: () => rootState },
+  notifyNavigationReady: () => {
+    readyNotifications += 1;
+  },
 });
 // Only the lock flag: the navigator unmounts behind the discreet-mode lock screen.
 const privacyStore = create(() => ({ isLocked: false }));
@@ -75,10 +79,12 @@ test('the lock remembers the latest state the container reports, not only the fi
 // ready waits in linkingConfig until the container reports ready.
 test('the container hands over a parked link as soon as it is ready', async () => {
   parkedLinkFlushes = 0;
+  readyNotifications = 0;
   const { view, container } = await renderRoot();
   assert.equal(parkedLinkFlushes, 0);
   await view.fire(container, 'onReady');
   assert.equal(parkedLinkFlushes, 1);
+  assert.equal(readyNotifications, 1);
 });
 
 // --- Discreet-mode lock -------------------------------------------------------
