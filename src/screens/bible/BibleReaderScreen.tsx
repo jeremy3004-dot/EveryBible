@@ -882,18 +882,7 @@ export function BibleReaderScreen() {
   });
 
   const readerShowsPlayerRow = !showMinimalListenChrome && (verses.length > 0 || !isLoading);
-  // The capsule's glass for the plan-session bar, kept stable so a reader render
-  // does not redraw the bar.
-  const planPlayerBarBackground = useMemo(
-    () => (
-      <TabBarBackground
-        isDark={isDark}
-        fill={getTabBarCapsuleFill(colors.bibleSurface)}
-        stroke={colors.bibleDivider}
-      />
-    ),
-    [colors.bibleDivider, colors.bibleSurface, isDark]
-  );
+
   // The player bar (in the tab bar, or above the plan strip) carries this reader's
   // transport: Play starts the displayed chapter, the chevrons follow the plan or
   // rhythm session, and the sound button opens the Audio sheet.
@@ -1340,7 +1329,17 @@ export function BibleReaderScreen() {
           }
           collapsedBottomOffset={rootTabBarBottomPadding}
           sideInset={TAB_BAR_CAPSULE_SIDE_INSET}
-          background={planPlayerBarBackground}
+          // A fresh element per render on purpose: the plan capsule redraws with the
+          // reader, as the dock did, so its collapse styles are re-read whenever the
+          // reader resets its chrome (a chapter change) rather than kept from the render
+          // before the reset.
+          background={
+            <TabBarBackground
+              isDark={isDark}
+              fill={getTabBarCapsuleFill(colors.bibleSurface)}
+              stroke={colors.bibleDivider}
+            />
+          }
           frameStyle={styles.planSessionPlayerBar}
         />
       ) : null}
