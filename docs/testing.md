@@ -35,6 +35,31 @@ Read recorded calls by index through `assertDefined` from `src/utils/assertDefin
 when the test calls, mutates or compares the element with `undefined`; optional chaining
 is enough only when the assertion itself fails on a missing element.
 
+## Local database permission checks
+
+The `scripts/verify-*-sql.mjs` harnesses execute PostgreSQL migrations and role-based
+queries in an isolated, in-memory PGlite database. They do not connect to Supabase
+and run separately from `npm test`. Each harness documents its schema fixtures and
+migration scope; a passing result does not verify the deployed database.
+
+Install PGlite outside the repository, or reuse an existing installation:
+
+```bash
+npm install --prefix /tmp/everybible-sql-qa @electric-sql/pglite
+export PGLITE_MODULE=/tmp/everybible-sql-qa/node_modules/@electric-sql/pglite/dist/index.js
+node scripts/verify-sync-contract-sql.mjs
+node scripts/verify-group-policies-sql.mjs
+node scripts/verify-profile-policies-sql.mjs
+node scripts/verify-prayer-wall-sql.mjs
+node scripts/verify-analytics-sql.mjs
+node scripts/verify-analytics-ingest-sql.mjs
+node scripts/verify-app-error-reports-sql.mjs
+```
+
+The profile harness also runs the canonical `supabase/tests/profile_admin_role.sql`
+and `supabase/tests/profile_email_integrity.sql` fixtures, then checks account and
+anonymous isolation for profiles, preferences, and reading progress.
+
 ## What a good test here looks like
 
 - Imports the real module and exercises real behaviour. Assert on outputs,

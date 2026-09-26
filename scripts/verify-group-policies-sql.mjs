@@ -628,7 +628,7 @@ console.log('PASS: pushes are claimed once per fresh session, by a current membe
 await db.exec(
   await fs.readFile(
     new URL(
-      '../supabase/migrations/20260924200200_retire_direct_group_inserts.sql',
+      '../supabase/migrations/20260924113024_retire_direct_group_inserts.sql',
       import.meta.url
     ),
     'utf8'
