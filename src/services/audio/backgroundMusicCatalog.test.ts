@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { BACKGROUND_MUSIC_OPTIONS } from './backgroundMusicCatalog';
+import { BACKGROUND_MUSIC_OPTIONS, getBackgroundMusicVolume } from './backgroundMusicCatalog';
 
 test('background music catalog exposes the bundled listen options with source metadata', () => {
   assert.deepEqual(
@@ -29,4 +29,23 @@ test('background music catalog exposes the bundled listen options with source me
   assert.equal(flute?.license, 'CC0');
   assert.match(flute?.credit ?? '', /KiluaBoy/);
   assert.match(flute?.sourceUrl ?? '', /through-fire-through-sea/);
+});
+
+test('every sound in the shipped catalog is bundled with the app', () => {
+  assert.deepEqual(
+    BACKGROUND_MUSIC_OPTIONS.filter((option) => option.source.kind !== 'bundled'),
+    []
+  );
+});
+
+test('the middle of the Sound level plays each sound at its catalog volume', () => {
+  assert.equal(getBackgroundMusicVolume(0.16, 0.5), 0.16);
+  assert.equal(getBackgroundMusicVolume(0.28, 0.5), 0.28);
+});
+
+test('the Sound level scales the catalog volume, doubling it at the top, capped at full', () => {
+  assert.equal(getBackgroundMusicVolume(0.2, 0), 0);
+  assert.equal(getBackgroundMusicVolume(0.2, 0.25), 0.1);
+  assert.equal(getBackgroundMusicVolume(0.2, 1), 0.4);
+  assert.equal(getBackgroundMusicVolume(0.7, 1), 1);
 });
