@@ -1,7 +1,6 @@
 import { useShallow } from 'zustand/react/shallow';
 import { useAudioStore } from '../../stores/audioStore';
 import { canSelah, type SelahAvailabilityInput } from '../../stores/audioSelahModel';
-import { toggleSelah } from './selah';
 
 export interface SelahControls {
   /** Selah is on: the narration is held (or fading out to be) while the music plays on. */
@@ -25,7 +24,10 @@ export const selectSelahView = (
   canSelah: state.selahActive || canSelah(state),
 });
 
+// The engine is required on the first tap, not imported: the tab bar's player row uses this
+// hook at boot, and ./selah reaches the native audio stack, which startup must not load.
 const toggleSelahFromUi = (): void => {
+  const { toggleSelah } = require('./selah') as typeof import('./selah');
   toggleSelah().catch((error: unknown) => console.warn('[Audio] Selah failed:', error));
 };
 
