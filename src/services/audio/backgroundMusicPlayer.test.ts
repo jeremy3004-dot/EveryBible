@@ -127,6 +127,22 @@ mockModule(mock, sourcePath('services/audio/audioPlayer.ts'), {
   },
 });
 
+// The shipped catalog is all bundled, so the download cache only has to answer for
+// bundled sounds here; backgroundMusicPlayer.remote.test.ts covers remote ones.
+const cacheRefreshes: unknown[] = [];
+mockModule(mock, sourcePath('services/audio/backgroundSoundCache.ts'), {
+  backgroundSoundCache: {
+    refresh: async (options: unknown) => {
+      cacheRefreshes.push(options);
+    },
+    getAvailability: (option: { source: { kind: string } }) =>
+      option.source.kind === 'bundled' ? 'bundled' : 'remote',
+    getCachedUri: async () => null,
+    ensureCached: async () => null,
+    discard: async () => {},
+  },
+});
+
 // ---------------------------------------------------------------------------
 // Test scaffolding
 // ---------------------------------------------------------------------------
@@ -175,6 +191,7 @@ before(async () => {
 beforeEach(async () => {
   if (mod) {
     await mod.backgroundMusicPlayer.stop();
+    mod.backgroundMusicPlayer.setLevel(0.5);
   }
   // Drain any fade the previous test left mid-ramp before recordings are reset.
   mock.timers.tick(FADE_DURATION_MS * 2);
@@ -341,6 +358,159 @@ test('stopping when nothing was ever loaded is a no-op', async () => {
   await assert.doesNotReject(() => mod.backgroundMusicPlayer.stop());
 
   assert.deepEqual(sounds, []);
+});
+
+test('the first sync also rereads which downloaded sounds are on disk', async () => {
+  const { BACKGROUND_MUSIC_OPTIONS } = await import('./backgroundMusicCatalog');
+  await mod.backgroundMusicPlayer.sync('ambient', true);
+
+  assert.deepEqual(cacheRefreshes, [BACKGROUND_MUSIC_OPTIONS]);
+});
+
+test('Shuffle may pick any bundled sound, and never off', () => {
+  assert.deepEqual(mod.backgroundMusicPlayer.getShuffleCandidates(), [
+    'ambient',
+    'piano',
+    'soft-guitar',
+    'harp',
+    'flute',
+    'sitar',
+    'ocean-waves',
+  ]);
+});
+
+// ---------------------------------------------------------------------------
+// The listener's Sound level
+// ---------------------------------------------------------------------------
+
+/** Every volume step is within `maxStep` of the one before it, starting from `from`. */
+const isSmoothRamp = (volumes: number[], from: number, maxStep: number): boolean =>
+  volumes.every((volume, index) => Math.abs(volume - (volumes[index - 1] ?? from)) <= maxStep);
+
+test('the Sound level scales the volume a sound fades up to', async () => {
+  mod.backgroundMusicPlayer.setLevel(1);
+
+  await mod.backgroundMusicPlayer.sync('ambient', true);
+  runFade();
+
+  assert.equal(sounds[0].volumes().at(-1), AMBIENT_VOLUME * 2);
+});
+
+test('the Sound level is capped at full volume', async () => {
+  mod.backgroundMusicPlayer.setLevel(5);
+
+  await mod.backgroundMusicPlayer.sync('ambient', true);
+  runFade();
+
+  assert.equal(sounds[0].volumes().at(-1), AMBIENT_VOLUME * 2);
+});
+
+test('changing the level while playing ramps the live loop without reloading it', async () => {
+  await mod.backgroundMusicPlayer.sync('ambient', true);
+  runFade();
+  const callsBefore = sounds[0].calls.length;
+
+  mod.backgroundMusicPlayer.setLevel(1);
+  mock.timers.tick(1_000);
+
+  const ramp = sounds[0].volumes(callsBefore);
+  assert.equal(createCalls.length, 1);
+  assert.deepEqual(
+    sounds[0]
+      .methods()
+      .slice(callsBefore)
+      .filter((method) => method !== 'setVolumeAsync'),
+    [],
+    'no restart, pause or reload'
+  );
+  assert.equal(ramp.length > 4, true, 'a ramp, not a jump');
+  assert.equal(isSmoothRamp(ramp, AMBIENT_VOLUME, 0.03), true);
+  assert.equal(ramp.at(-1), AMBIENT_VOLUME * 2);
+});
+
+test('a level change part way through the fade-in retargets it from where it is', async () => {
+  await mod.backgroundMusicPlayer.sync('piano', true);
+  mock.timers.tick(FADE_DURATION_MS / 2);
+  const callsBefore = sounds[0].calls.length;
+  const reached = sounds[0].volumes().at(-1) ?? -1;
+
+  mod.backgroundMusicPlayer.setLevel(0.25);
+  mock.timers.tick(FADE_DURATION_MS);
+
+  const ramp = sounds[0].volumes(callsBefore);
+  assert.equal(isSmoothRamp(ramp, reached, 0.03), true);
+  assert.equal(ramp.at(-1), PIANO_VOLUME / 2);
+});
+
+test('a level change during a loop crossfade reaches the incoming loop', async () => {
+  await mod.backgroundMusicPlayer.sync('ambient', true);
+  runFade();
+  const outgoing = sounds[0];
+  outgoing.emitStatus(nearEndOfLoop());
+  await flush();
+  mock.timers.tick(FADE_DURATION_MS / 2);
+
+  mod.backgroundMusicPlayer.setLevel(1);
+  mock.timers.tick(FADE_DURATION_MS);
+  await flush();
+
+  assert.equal(sounds[1].volumes().at(-1), AMBIENT_VOLUME * 2);
+  assert.equal(outgoing.volumes().at(-1), 0);
+  assert.deepEqual(outgoing.methods().slice(-2), ['stopAsync', 'unloadAsync']);
+});
+
+test('a level chosen while a loop replacement loads applies to the replacement', async () => {
+  await mod.backgroundMusicPlayer.sync('ambient', true);
+  runFade();
+  const gate = createDeferred();
+  nextCreateGate = gate.promise;
+  sounds[0].emitStatus(nearEndOfLoop());
+  await flush();
+
+  mod.backgroundMusicPlayer.setLevel(1);
+  nextCreateGate = null;
+  gate.resolve();
+  await flush();
+  runFade();
+
+  assert.equal(sounds[1].volumes().at(-1), AMBIENT_VOLUME * 2);
+});
+
+test('level 0 silences the bed but keeps it playing and looping', async () => {
+  await mod.backgroundMusicPlayer.sync('ambient', true);
+  runFade();
+  const callsBefore = sounds[0].calls.length;
+
+  mod.backgroundMusicPlayer.setLevel(0);
+  mock.timers.tick(1_000);
+  assert.equal(sounds[0].volumes(callsBefore).at(-1), 0);
+  assert.equal(sounds[0].methods().includes('pauseAsync'), false);
+  assert.equal(sounds[0].methods().includes('unloadAsync'), false);
+
+  sounds[0].emitStatus(nearEndOfLoop());
+  await flush();
+  runFade();
+  assert.equal(createCalls.length, 2, 'the loop still restarts');
+  assert.equal(sounds[1].volumes().at(-1), 0);
+
+  mod.backgroundMusicPlayer.setLevel(0.5);
+  mock.timers.tick(1_000);
+  assert.equal(sounds[1].volumes().at(-1), AMBIENT_VOLUME);
+});
+
+test('a level change while paused leaves the paused loop alone and applies on resume', async () => {
+  await mod.backgroundMusicPlayer.sync('ambient', true);
+  runFade();
+  await mod.backgroundMusicPlayer.sync('ambient', false);
+  const callsBefore = sounds[0].calls.length;
+
+  mod.backgroundMusicPlayer.setLevel(1);
+  mock.timers.tick(1_000);
+  assert.equal(sounds[0].calls.length, callsBefore);
+
+  await mod.backgroundMusicPlayer.sync('ambient', true);
+  runFade();
+  assert.equal(sounds[0].volumes().at(-1), AMBIENT_VOLUME * 2);
 });
 
 // ---------------------------------------------------------------------------

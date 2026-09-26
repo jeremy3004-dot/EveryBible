@@ -8,7 +8,7 @@
  *
  * The public surface is intentionally narrow:
  *   configure / setCallbacks / loadAndPlay / play / pause / resume /
- *   stop / seekTo / setRate / getStatus / isLoaded
+ *   stop / seekTo / setRate / setVolume / getStatus / isLoaded
  *
  * configureAudioMode is re-exported so backgroundMusicPlayer can call it.
  */
@@ -256,6 +256,14 @@ class AudioPlayer {
       const message = error instanceof Error ? error.message : 'Failed to set playback rate';
       this.callbacks.onError?.(message);
     }
+  }
+
+  /**
+   * Sets the narration volume (0–1). Applies to the chapter playing, one still loading,
+   * and every chapter after, so it needs no loaded sound.
+   */
+  async setVolume(volume: number): Promise<void> {
+    await TrackPlayer.setVolume(volume);
   }
 
   /**

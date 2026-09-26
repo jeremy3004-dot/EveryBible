@@ -78,6 +78,7 @@ const trackPlayerDouble = {
   stop: () => record('stop'),
   seekTo: (positionSeconds: number) => record('seekTo', [positionSeconds]),
   setRate: (rate: number) => record('setRate', [rate]),
+  setVolume: (volume: number) => record('setVolume', [volume]),
   verifyActiveTrack: async () => {
     await record('verifyActiveTrack');
     return true;
@@ -555,6 +556,15 @@ test('setRate forwards the requested playback rate', async () => {
   await mod.audioPlayer.setRate(2);
 
   assert.deepEqual(trackPlayerCalls, [{ method: 'setRate', args: [2] }]);
+});
+
+test('setVolume reaches the wrapper even with no chapter loaded, so the next one starts at it', async () => {
+  await mod.audioPlayer.stop();
+  trackPlayerCalls.length = 0;
+
+  await mod.audioPlayer.setVolume(0.4);
+
+  assert.deepEqual(trackPlayerCalls, [{ method: 'setVolume', args: [0.4] }]);
 });
 
 test('a failed play is reported through onError instead of throwing', async () => {

@@ -153,6 +153,8 @@ let isSetup = false;
 let activeTrack: Track | null = null;
 let currentState: State = State.None;
 let currentRate: number = 1.0;
+/** The narration volume (0–1). Sticky like the rate: every chapter loaded plays at it. */
+let currentVolume = 1;
 let loadRequestId = 0;
 
 const listeners = new Map<Event, Set<EventListener<Event>>>();
@@ -307,6 +309,7 @@ async function loadTrack(target: Track, startPositionMillis = 0): Promise<number
 
   try {
     let loadedSound: Audio.Sound | null = null;
+    const loadVolume = currentVolume;
     const { sound: newSound } = await Audio.Sound.createAsync(
       { uri: target.url },
       {
@@ -317,6 +320,8 @@ async function loadTrack(target: Track, startPositionMillis = 0): Promise<number
         // A resumed chapter starts where it left off rather than playing its
         // opening before a seek, and a stream is not fetched from the top.
         ...(startPositionMillis > 0 ? { positionMillis: startPositionMillis } : {}),
+        // Created at the listener's Voice level, so a chapter never starts loud and dips.
+        ...(loadVolume !== 1 ? { volume: loadVolume } : {}),
       },
       (status) => {
         // Ignore pending sounds superseded by another load or transport command.
@@ -343,6 +348,10 @@ async function loadTrack(target: Track, startPositionMillis = 0): Promise<number
 
     sound = newSound;
     activeTrack = target;
+    // The Voice level moved while this chapter loaded.
+    if (currentVolume !== loadVolume) {
+      newSound.setVolumeAsync(currentVolume).catch(() => {});
+    }
     setState(State.Ready);
     emit(Event.PlaybackActiveTrackChanged, { track: target });
     return requestId;
@@ -426,6 +435,22 @@ async function setRate(rate: number): Promise<void> {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to set rate';
     emit(Event.PlaybackError, { code: 'RATE_ERROR', message });
+  }
+}
+
+/**
+ * Sets the narration volume (0–1) now and for every chapter loaded after it. Not part of
+ * react-native-track-player's API, which leaves volume to the system.
+ */
+async function setVolume(volume: number): Promise<void> {
+  currentVolume = Number.isFinite(volume) ? Math.min(1, Math.max(0, volume)) : 1;
+  const ref = sound;
+  if (!ref) return;
+
+  try {
+    await ref.setVolumeAsync(currentVolume);
+  } catch {
+    // A sound the native side released takes the volume with the chapter loaded next.
   }
 }
 
@@ -539,6 +564,7 @@ const TrackPlayer = {
   stop,
   seekTo,
   setRate,
+  setVolume,
   getPlaybackState,
   getProgress,
   getActiveTrack,
