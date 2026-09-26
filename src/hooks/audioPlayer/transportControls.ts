@@ -214,16 +214,21 @@ export async function seekPlayback(
   session: AudioPlayerSession,
   requestedPositionMs: number
 ): Promise<void> {
+  const requestId = session.playRequestId;
   const positionMs = clampSeekPosition(requestedPositionMs, useAudioStore.getState().duration);
   // The listener's own move: a repeated passage does not take it for playback reaching its end.
   notePassageManualSeek();
   // Reset interpolation anchor to the seek target so we don't overshoot
   anchorPositionInterpolation(session, positionMs);
   await audioPlayer.seekTo(positionMs);
+  // A new playback command can replace the sound while its native seek settles.
+  // Its chapter owns the store position and durable resume point now.
+  if (requestId !== session.playRequestId) return;
   useAudioStore.getState().setPosition(positionMs);
 }
 
 export async function skipPlayback(session: AudioPlayerSession, deltaMs: number): Promise<void> {
+  const requestId = session.playRequestId;
   const { currentBookId, currentChapter, currentPosition, duration } = useAudioStore.getState();
   if (!currentBookId || !currentChapter || duration <= 0) {
     return;
@@ -237,5 +242,6 @@ export async function skipPlayback(session: AudioPlayerSession, deltaMs: number)
   // player reports a fresh position.
   anchorPositionInterpolation(session, nextPosition);
   await audioPlayer.seekTo(nextPosition);
+  if (requestId !== session.playRequestId) return;
   useAudioStore.getState().setPosition(nextPosition);
 }

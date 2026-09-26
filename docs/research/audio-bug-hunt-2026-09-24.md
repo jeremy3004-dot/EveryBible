@@ -47,8 +47,9 @@ component renderer. Verify them on device.
 
 - **Prefetch** resolves URLs only. It does not cross into the next book and does not consult the
   sparse chapter map. This is harmless: it builds a URL for, or does a manifest lookup on, a missing chapter.
-- **Repeat tap on Home's daily audio after Stop** does not replay the same chapter (existing autoplay
-  key dedupe). This did not change here.
+- **Repeat tap on Home's daily audio after Stop** was fixed in the
+  [2026-09-26 follow-up](app-bug-hunt-2026-09-26.md), together with explicit Play on a
+  paused or finished chapter and stale autoplay requests after playing/loading chapters.
 - **Chapters downloaded by the background downloader, or before the fallback fix, from a source that
   publishes no size** (everything except Every Language) cannot be re-checked later: only the 1 KB
   floor applies to a file already on disk.

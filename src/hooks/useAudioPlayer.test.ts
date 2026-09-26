@@ -3518,6 +3518,62 @@ function deferPlayerOperation() {
 }
 const flushPlayerOperations = () => new Promise((resolve) => setImmediate(resolve));
 
+test('a delayed seek cannot overwrite the position of a newly selected chapter', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  const gate = deferPlayerOperation();
+  playerGates.set('seek', gate.promise);
+  const seeking = player.api.seekTo(120_000);
+  await flushPlayerOperations();
+
+  playerGates.delete('seek');
+  await player.api.playChapter('JHN', 3);
+  gate.resolve();
+  await seeking;
+
+  assert.equal(store().currentBookId, 'JHN');
+  assert.equal(store().currentChapter, 3);
+  assert.equal(store().currentPosition, 0);
+  assert.equal(store().lastPosition, 0, 'the new chapter must retain its own resume point');
+});
+
+test('a delayed skip cannot overwrite the position of a newly selected chapter', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  emitStatus({ isPlaying: true, positionMillis: 60_000, durationMillis: DEFAULT_DURATION_MS });
+  const gate = deferPlayerOperation();
+  playerGates.set('seek', gate.promise);
+  const skipping = player.api.skipForward();
+  await flushPlayerOperations();
+
+  playerGates.delete('seek');
+  await player.api.playChapter('JHN', 3);
+  gate.resolve();
+  await skipping;
+
+  assert.equal(store().currentBookId, 'JHN');
+  assert.equal(store().currentChapter, 3);
+  assert.equal(store().currentPosition, 0);
+  assert.equal(store().lastPosition, 0, 'the new chapter must retain its own resume point');
+});
+
+test('a delayed seek cannot overwrite a fresh playback of the same chapter', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  const gate = deferPlayerOperation();
+  playerGates.set('seek', gate.promise);
+  const seeking = player.api.seekTo(120_000);
+  await flushPlayerOperations();
+
+  playerGates.delete('seek');
+  await player.api.playChapter('GEN', 1);
+  gate.resolve();
+  await seeking;
+
+  assert.equal(store().currentPosition, 0);
+  assert.equal(store().lastPosition, 0);
+});
+
 test('pausing during the initial stop prevents the pending chapter from starting', async () => {
   const player = mountPlayer();
   const gate = deferPlayerOperation();

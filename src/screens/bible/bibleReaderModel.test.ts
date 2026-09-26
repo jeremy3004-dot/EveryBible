@@ -826,6 +826,7 @@ test('does not autoplay a chapter again when that chapter is already the active 
       activeAudioTranslationId: 'bsb',
       activeAudioBookId: 'ROM',
       activeAudioChapter: 8,
+      activeAudioStatus: 'playing',
     }),
     false
   );
@@ -841,6 +842,7 @@ test('does not autoplay a chapter again when that chapter is already the active 
       activeAudioTranslationId: 'web',
       activeAudioBookId: 'ROM',
       activeAudioChapter: 8,
+      activeAudioStatus: 'playing',
     }),
     true
   );

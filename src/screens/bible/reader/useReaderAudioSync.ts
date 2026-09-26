@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState } from 'react';
 import type { PlanSessionKey, RhythmSessionContext } from '../../../services/plans/types';
 import { type ChapterPresentationMode } from '../../../services/bible/presentation';
-import type { BibleTranslation } from '../../../types';
+import type { AudioStatus, BibleTranslation } from '../../../types';
 import {
   buildReaderChapterRouteParams,
   shouldAutoplayChapterAudio,
@@ -14,6 +14,7 @@ export interface UseReaderAudioSyncInput {
   activeAudioBookId: string | null;
   activeAudioChapter: number | null;
   activeAudioTranslationId: string | null;
+  activeAudioStatus: AudioStatus;
   audioEnabled: boolean;
   autoplayAudio: boolean | undefined;
   bookId: string;
@@ -97,6 +98,7 @@ export function useReaderAudioSync({
   activeAudioBookId,
   activeAudioChapter,
   activeAudioTranslationId,
+  activeAudioStatus,
   audioEnabled,
   autoplayAudio,
   bookId,
@@ -117,14 +119,28 @@ export function useReaderAudioSync({
   const [seenBeforeMount] = useState(() => seenActiveAudioByRouteKey.get(routeKey) ?? null);
   const previousActiveAudioChapterRef = useRef<number | null>(seenBeforeMount?.chapter ?? null);
   const previousActiveAudioBookIdRef = useRef<string | null>(seenBeforeMount?.bookId ?? null);
-  const autoplayKeyRef = useRef<string | null>(null);
+  const autoplayConsumedRef = useRef(false);
   /** The chapter the reader stayed on while a follow was held back (holdChapterFollow). */
   const heldFollowFromRef = useRef<string | null>(null);
   useEffect(() => {
+    if (!autoplayAudio) {
+      autoplayConsumedRef.current = false;
+      return;
+    }
+    if (!audioEnabled || isLoading || autoplayConsumedRef.current) {
+      return;
+    }
+
+    autoplayConsumedRef.current = true;
+    // The autoplay param is a one-shot request from the screen that opened the reader.
+    // Left set, a later translation switch produced a new key and started audio again,
+    // even after the listener had paused or stopped it.
+    navigation.setParams({ autoplayAudio: false });
+
     if (
       !shouldAutoplayChapterAudio({
         translationId: currentTranslation,
-        autoplayAudio: Boolean(autoplayAudio),
+        autoplayAudio: true,
         audioEnabled,
         isLoading,
         bookId,
@@ -132,21 +148,11 @@ export function useReaderAudioSync({
         activeAudioTranslationId,
         activeAudioBookId,
         activeAudioChapter,
+        activeAudioStatus,
       })
     ) {
       return;
     }
-
-    const autoplayKey = `${currentTranslation}:${bookId}:${chapter}:${focusVerse ?? 'chapter'}:${chapterPresentationMode}`;
-    if (autoplayKeyRef.current === autoplayKey) {
-      return;
-    }
-
-    autoplayKeyRef.current = autoplayKey;
-    // The autoplay param is a one-shot request from the screen that opened the reader.
-    // Left set, a later translation switch produced a new key and started audio again,
-    // even after the listener had paused or stopped it.
-    navigation.setParams({ autoplayAudio: false });
 
     void playChapter(
       bookId,
@@ -157,6 +163,7 @@ export function useReaderAudioSync({
     activeAudioTranslationId,
     activeAudioBookId,
     activeAudioChapter,
+    activeAudioStatus,
     autoplayAudio,
     audioEnabled,
     bookId,

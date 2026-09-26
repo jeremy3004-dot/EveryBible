@@ -1,4 +1,4 @@
-import type { Verse } from '../../types';
+import type { AudioStatus, Verse } from '../../types';
 import type { PlanSessionKey, RhythmSessionContext } from '../../services/plans/types';
 
 export interface ReaderParagraph {
@@ -187,6 +187,7 @@ interface ShouldAutoplayChapterAudioInput {
   activeAudioTranslationId?: string | null;
   activeAudioBookId: string | null;
   activeAudioChapter: number | null;
+  activeAudioStatus: AudioStatus;
 }
 
 interface ActiveAudioTrackMatchInput {
@@ -706,19 +707,23 @@ export const shouldAutoplayChapterAudio = ({
   activeAudioTranslationId,
   activeAudioBookId,
   activeAudioChapter,
+  activeAudioStatus,
 }: ShouldAutoplayChapterAudioInput): boolean => {
   if (!autoplayAudio || !audioEnabled || isLoading) {
     return false;
   }
 
-  return !isActiveAudioTrackMatch({
-    translationId,
-    bookId,
-    chapter,
-    activeAudioTranslationId,
-    activeAudioBookId,
-    activeAudioChapter,
-  });
+  return !(
+    (activeAudioStatus === 'playing' || activeAudioStatus === 'loading') &&
+    isActiveAudioTrackMatch({
+      translationId,
+      bookId,
+      chapter,
+      activeAudioTranslationId,
+      activeAudioBookId,
+      activeAudioChapter,
+    })
+  );
 };
 
 export const shouldReplayActiveAudioForTranslationChange = ({

@@ -656,6 +656,7 @@ export function BibleReaderScreen() {
     activeAudioBookId,
     activeAudioChapter,
     activeAudioTranslationId,
+    activeAudioStatus: status,
     audioEnabled,
     autoplayAudio,
     bookId,
