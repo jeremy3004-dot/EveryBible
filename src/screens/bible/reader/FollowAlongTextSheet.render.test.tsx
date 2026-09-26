@@ -19,6 +19,10 @@ const audioStore = create(() => ({
   duration: 0,
 }));
 mockModule(mock, sourcePath('stores/audioStore.ts'), { useAudioStore: audioStore });
+// Selah's engine drives native audio; this view only needs its button to render.
+mockModule(mock, sourcePath('hooks/audioPlayer/useSelah.ts'), {
+  useSelah: () => ({ isSelahActive: false, canSelah: false, toggleSelah: () => {} }),
+});
 
 // John 3's recording: verse 1 at 0s, 2 at 5s, 3 at 12s.
 const JOHN_3_TIMINGS = { 1: 0, 2: 5, 3: 12 };
