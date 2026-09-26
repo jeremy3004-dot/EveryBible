@@ -25,63 +25,106 @@ import { openAuthFlow } from '../../navigation/rootNavigation';
 
 type NavigationProp = NativeStackNavigationProp<MoreStackParamList, 'MyFeedback'>;
 
+const feedbackOwnerKey = (state: ReturnType<typeof useAuthStore.getState>): string | null =>
+  state.isAuthenticated && state.user ? `${state.user.uid}:${state.authGeneration}` : null;
+
 export function MyFeedbackScreen() {
   const { colors } = useTheme();
   const { t, i18n } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-
-  const [items, setItems] = useState<MyChapterFeedbackItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [loadError, setLoadError] = useState(false);
-  // This list lives only on the server, so offline it cannot load; say why.
-  const [offline, setOffline] = useState(false);
+  const ownerKey = useAuthStore(feedbackOwnerKey);
+  const isAuthenticated = ownerKey !== null;
+  const [snapshot, setSnapshot] = useState({
+    ownerKey: null as string | null,
+    items: [] as MyChapterFeedbackItem[],
+    loading: true,
+    refreshing: false,
+    loadError: false,
+    offline: false,
+  });
+  const ownsSnapshot = snapshot.ownerKey === ownerKey;
+  const items = ownsSnapshot && isAuthenticated ? snapshot.items : [];
+  const loading = isAuthenticated && (!ownsSnapshot || snapshot.loading);
+  const refreshing = ownsSnapshot && snapshot.refreshing;
+  const loadError = ownsSnapshot && snapshot.loadError;
+  const offline = ownsSnapshot && snapshot.offline;
 
   // Only the latest load may write: one still out when the session ends (or a retry
   // overtakes it) would otherwise list an earlier account's feedback.
   const latestLoadRef = useRef(0);
+  const mountedRef = useRef(false);
 
-  const loadFeedback = useCallback(async () => {
-    const load = ++latestLoadRef.current;
-    if (!isAuthenticated) {
-      setItems([]);
-      setLoadError(false);
-      setLoading(false);
-      return;
-    }
+  const loadFeedback = useCallback(
+    async (refresh = false) => {
+      if (!mountedRef.current || feedbackOwnerKey(useAuthStore.getState()) !== ownerKey) return;
+      const load = ++latestLoadRef.current;
+      const isCurrent = () =>
+        mountedRef.current &&
+        load === latestLoadRef.current &&
+        feedbackOwnerKey(useAuthStore.getState()) === ownerKey;
+      setSnapshot((previous) => ({
+        ownerKey,
+        items: previous.ownerKey === ownerKey && ownerKey !== null ? previous.items : [],
+        loading: ownerKey !== null && !refresh,
+        refreshing: ownerKey !== null && refresh,
+        loadError: false,
+        offline: false,
+      }));
+      if (ownerKey === null) return;
 
-    const result = await fetchMyChapterFeedback();
-    if (load !== latestLoadRef.current) return;
-    if (result.success) {
-      setItems(result.feedback);
-      setLoadError(false);
-    } else {
-      const isOffline = await isDeviceOffline();
-      if (load !== latestLoadRef.current) return;
-      setOffline(isOffline);
-      setLoadError(true);
-    }
-    setLoading(false);
-  }, [isAuthenticated]);
+      try {
+        const result = await fetchMyChapterFeedback();
+        if (!isCurrent()) return;
+        if (result.success) {
+          setSnapshot({
+            ownerKey,
+            items: result.feedback,
+            loading: false,
+            refreshing: false,
+            loadError: false,
+            offline: false,
+          });
+          return;
+        }
+      } catch {
+        if (!isCurrent()) return;
+      }
+      // This list lives only on the server, so offline it cannot load; say why.
+      let isOffline = false;
+      try {
+        isOffline = await isDeviceOffline();
+      } catch {
+        // A failed connectivity probe retains the generic load error.
+      }
+      if (!isCurrent()) return;
+      setSnapshot((previous) => ({
+        ...previous,
+        loading: false,
+        refreshing: false,
+        loadError: true,
+        offline: isOffline,
+      }));
+    },
+    [ownerKey]
+  );
 
   useEffect(() => {
-    loadFeedback(); // eslint-disable-line react-hooks/set-state-in-effect
+    mountedRef.current = true;
+    void loadFeedback(); // eslint-disable-line react-hooks/set-state-in-effect
+    return () => {
+      mountedRef.current = false;
+      latestLoadRef.current += 1;
+    };
   }, [loadFeedback]);
 
   // Back to the loading state, so the retry shows progress and cannot be tapped again
   // while its request is out.
   const onRetry = () => {
-    setLoading(true);
     void loadFeedback();
   };
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await loadFeedback();
-    setRefreshing(false);
-  };
+  const onRefresh = () => loadFeedback(true);
 
   const getStatusCopy = (status: MyChapterFeedbackItem['status']): string => {
     switch (status) {

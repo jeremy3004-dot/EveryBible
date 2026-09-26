@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -17,7 +17,8 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
 import { layout, radius, spacing, typography } from '../../design/system';
 import { getTranslatedBookName } from '../../constants';
-import { fetchAnnotations } from '../../services/annotations';
+import { fetchAnnotations, subscribeToAnnotationChanges } from '../../services/annotations';
+import { useAuthStore } from '../../stores/authStore';
 import { hexWithAlpha } from '../../utils';
 import type { UserAnnotation } from '../../services/supabase/types';
 import type { MoreStackParamList } from '../../navigation/types';
@@ -29,31 +30,87 @@ type NavigationProp = NativeStackNavigationProp<MoreStackParamList>;
 // they are simply not listed here.
 type FilterType = Extract<UserAnnotation['type'], 'highlight' | 'note'>;
 
+const annotationOwnerKey = (state: ReturnType<typeof useAuthStore.getState>): string =>
+  `${state.user?.uid ?? 'guest'}:${state.authGeneration}`;
+
 export function AnnotationsScreen() {
   const { colors } = useTheme();
   const { t, i18n } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
 
-  const [annotations, setAnnotations] = useState<UserAnnotation[]>([]);
+  const ownerKey = useAuthStore(annotationOwnerKey);
+  const [snapshot, setSnapshot] = useState({
+    ownerKey: null as string | null,
+    annotations: [] as UserAnnotation[],
+    refreshing: false,
+    loading: true,
+    loadError: false,
+  });
   const [filter, setFilter] = useState<FilterType>('note');
-  const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
+  const ownsSnapshot = snapshot.ownerKey === ownerKey;
+  const annotations = ownsSnapshot ? snapshot.annotations : [];
+  const refreshing = ownsSnapshot && snapshot.refreshing;
+  const loading = !ownsSnapshot || snapshot.loading;
+  const loadError = ownsSnapshot && snapshot.loadError;
+  const latestLoadRef = useRef(0);
+  const mountedRef = useRef(false);
 
-  const loadAnnotations = useCallback(async () => {
-    const result = await fetchAnnotations();
-    if (result.success && result.data) {
-      setAnnotations(result.data.filter((a) => !a.deleted_at));
-      setLoadError(false);
-    } else {
-      setLoadError(true);
-    }
-    setLoading(false);
-  }, []);
+  const loadAnnotations = useCallback(
+    async (refresh = false) => {
+      if (!mountedRef.current || annotationOwnerKey(useAuthStore.getState()) !== ownerKey) return;
+      const load = ++latestLoadRef.current;
+      const isCurrent = () =>
+        mountedRef.current &&
+        load === latestLoadRef.current &&
+        annotationOwnerKey(useAuthStore.getState()) === ownerKey;
+      setSnapshot((previous) => ({
+        ownerKey,
+        annotations: previous.ownerKey === ownerKey ? previous.annotations : [],
+        refreshing: refresh,
+        loading: !refresh,
+        loadError: false,
+      }));
+      try {
+        const result = await fetchAnnotations();
+        if (!isCurrent()) return;
+        if (result.success && result.data) {
+          setSnapshot({
+            ownerKey,
+            annotations: result.data.filter((a) => !a.deleted_at),
+            loading: false,
+            refreshing: false,
+            loadError: false,
+          });
+          return;
+        }
+      } catch {
+        if (!isCurrent()) return;
+      }
+      if (isCurrent())
+        setSnapshot((previous) => ({
+          ...previous,
+          loading: false,
+          refreshing: false,
+          loadError: true,
+        }));
+    },
+    [ownerKey]
+  );
 
   useEffect(() => {
-    loadAnnotations(); // eslint-disable-line react-hooks/set-state-in-effect
+    mountedRef.current = true;
+    // Auth announces its UID before swapping the account's local annotation bucket.
+    // Subscribe as well as loading here so that later store swap replaces this load.
+    const unsubscribe = subscribeToAnnotationChanges(() => {
+      void loadAnnotations();
+    });
+    void loadAnnotations(); // eslint-disable-line react-hooks/set-state-in-effect
+    return () => {
+      mountedRef.current = false;
+      latestLoadRef.current += 1;
+      unsubscribe();
+    };
   }, [loadAnnotations]);
 
   // The More stack stays mounted while the user edits notes and highlights in the
@@ -66,11 +123,7 @@ export function AnnotationsScreen() {
     [navigation, loadAnnotations]
   );
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await loadAnnotations();
-    setRefreshing(false);
-  };
+  const onRefresh = () => loadAnnotations(true);
 
   const filtered = annotations.filter(
     (a): a is UserAnnotation & { type: FilterType } => a.type === filter
@@ -226,7 +279,7 @@ export function AnnotationsScreen() {
               </Text>
               <TouchableOpacity
                 style={[styles.retryButton, { borderColor: colors.cardBorder }]}
-                onPress={loadAnnotations}
+                onPress={() => void loadAnnotations()}
                 activeOpacity={0.85}
                 accessibilityRole="button"
               >

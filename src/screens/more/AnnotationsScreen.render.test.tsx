@@ -1,15 +1,20 @@
-import test, { beforeEach, mock } from 'node:test';
+import test, { before, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { mockBarrel, mockModule, sourcePath } from '../../testing/mockModules';
+import { act } from 'react-test-renderer';
+import { mockBarrel, mockMmkvStorage, mockModule, sourcePath } from '../../testing/mockModules';
 import { installRenderHarness } from '../../testing/render';
 import type { UserAnnotation } from '../../services/supabase/types';
 
 const harness = installRenderHarness(mock);
+mockMmkvStorage(mock);
 const t = (key: string) => harness.i18n.t(key);
 
 // The screen lists the on-device annotations the annotation service returns.
 const service = {
   calls: 0,
+  fetch: null as
+    | (() => Promise<{ success: boolean; data?: UserAnnotation[]; error?: string }>)
+    | null,
   result: { success: true, data: [] as UserAnnotation[] } as {
     success: boolean;
     data?: UserAnnotation[];
@@ -17,9 +22,11 @@ const service = {
   },
 };
 mockBarrel(mock, 'services/annotations/index.ts', {
+  real: ['subscribeToAnnotationChanges'],
   provide: {
     fetchAnnotations: async () => {
       service.calls += 1;
+      if (service.fetch) return service.fetch();
       return service.result;
     },
   },
@@ -58,11 +65,123 @@ function annotation(overrides: Partial<UserAnnotation>): UserAnnotation {
   };
 }
 
+let useAnnotationStore: typeof import('../../stores/annotationStore').useAnnotationStore;
+before(async () => {
+  ({ useAnnotationStore } = await import('../../stores/annotationStore'));
+});
+
 beforeEach(() => {
   service.calls = 0;
+  service.fetch = null;
   service.result = { success: true, data: [] };
   rootNavigation.ready = true;
   rootNavigation.calls = [];
+  harness.authStore.setState({ user: null, authGeneration: 0 });
+  useAnnotationStore.setState({ annotations: [] });
+});
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
+for (const transition of ['account', 'generation'] as const) {
+  test(`a ${transition} change hides annotations before the new list finishes loading`, async () => {
+    harness.authStore.setState({ user: { uid: 'reader-a' } });
+    service.result = { success: true, data: [annotation({ content: 'Previous private note' })] };
+    const view = await renderScreen();
+    const next = deferred<typeof service.result>();
+    service.fetch = () => next.promise;
+    await act(async () =>
+      harness.authStore.setState({
+        user: { uid: transition === 'account' ? 'reader-b' : 'reader-a' },
+        authGeneration: 1,
+      })
+    );
+    assert.equal(view.queryByText('Previous private note'), null);
+    next.resolve({ success: true, data: [annotation({ content: 'Current note' })] });
+    await view.flush();
+    assert.ok(view.getByText('Current note'));
+  });
+}
+
+test('the actual annotation change subscription reloads after the account bucket changes', async () => {
+  harness.authStore.setState({ user: { uid: 'reader-a' } });
+  service.result = { success: true, data: [annotation({ content: 'A note' })] };
+  const view = await renderScreen();
+  const beforeBucketSwap = deferred<typeof service.result>();
+  service.fetch = () => beforeBucketSwap.promise;
+  await act(async () =>
+    harness.authStore.setState({ user: { uid: 'reader-b' }, authGeneration: 1 })
+  );
+  // Auth notifies its subscribers before replacing the annotation owner bucket.
+  service.fetch = null;
+  service.result = { success: true, data: [annotation({ content: 'B note' })] };
+  await act(async () => {
+    useAnnotationStore.setState({ annotations: service.result.data ?? [] });
+  });
+  await view.flush();
+  beforeBucketSwap.resolve({ success: true, data: [annotation({ content: 'A note' })] });
+  await view.flush();
+  assert.ok(view.getByText('B note'));
+  assert.equal(view.queryByText('A note'), null);
+});
+
+test('signing out replaces account notes with the guest annotations', async () => {
+  harness.authStore.setState({ user: { uid: 'reader-a' } });
+  service.result = { success: true, data: [annotation({ content: 'Account note' })] };
+  const view = await renderScreen();
+  service.result = { success: true, data: [annotation({ content: 'Guest note' })] };
+  await act(async () => harness.authStore.setState({ user: null, authGeneration: 1 }));
+  await view.flush();
+  assert.equal(view.queryByText('Account note'), null);
+  assert.ok(view.getByText('Guest note'));
+});
+
+test('only the latest annotation refresh may replace the list and clear its busy state', async () => {
+  service.result = { success: true, data: [annotation({ content: 'Initial note' })] };
+  const view = await renderScreen();
+  const older = deferred<typeof service.result>();
+  const newer = deferred<typeof service.result>();
+  const refresh = () => {
+    const [list] = view.queryAllByType('FlatList');
+    return (
+      list.props.refreshControl as { props: { onRefresh: () => Promise<void> } }
+    ).props.onRefresh();
+  };
+  service.fetch = () => older.promise;
+  await act(async () => {
+    void refresh();
+  });
+  service.fetch = () => newer.promise;
+  await act(async () => {
+    void refresh();
+  });
+  older.resolve({ success: true, data: [annotation({ content: 'Old refresh' })] });
+  await view.flush();
+  const [list] = view.queryAllByType('FlatList');
+  assert.equal(
+    (list.props.refreshControl as { props: { refreshing: boolean } }).props.refreshing,
+    true
+  );
+  newer.resolve({ success: true, data: [annotation({ content: 'New refresh' })] });
+  await view.flush();
+  assert.ok(view.getByText('New refresh'));
+  assert.equal(view.queryByText('Old refresh'), null);
+});
+
+test('unmounting removes the annotation change subscription and ignores pending results', async () => {
+  const pending = deferred<typeof service.result>();
+  service.fetch = () => pending.promise;
+  const view = await renderScreen();
+  await view.unmount();
+  pending.resolve({ success: true, data: [annotation({ content: 'Unmounted note' })] });
+  useAnnotationStore.setState({ annotations: [annotation({ content: 'Later store edit' })] });
+  await view.flush();
+  assert.equal(service.calls, 1, 'the store no longer reloads an unmounted screen');
 });
 
 async function renderScreen() {
@@ -71,6 +190,19 @@ async function renderScreen() {
   await view.flush();
   return view;
 }
+
+test('a visible annotations list clears the prior account notes on sign-out', async () => {
+  harness.authStore.setState({ user: { uid: 'reader-a' } });
+  service.result = { success: true, data: [annotation({ content: 'Private note from A' })] };
+  const view = await renderScreen();
+  assert.ok(view.getByText('Private note from A'));
+  service.result = { success: true, data: [] };
+  await act(async () => {
+    harness.authStore.setState({ user: null });
+  });
+  await view.flush();
+  assert.equal(view.queryByText('Private note from A'), null);
+});
 
 test('opens on the Notes filter and lists only notes, with their text', async () => {
   service.result = {

@@ -15,11 +15,14 @@ const backend = {
   pending: null as ((result: FeedbackResult) => void) | null,
   offline: false,
   result: { success: false, feedback: [], error: 'Failed to fetch' } as FeedbackResult,
+  fetch: null as (() => Promise<FeedbackResult>) | null,
+  probe: null as (() => Promise<boolean>) | null,
 };
 mockBarrel(mock, 'services/feedback/index.ts', {
   provide: {
     fetchMyChapterFeedback: async () => {
       backend.fetches += 1;
+      if (backend.fetch) return backend.fetch();
       if (backend.pending) {
         return new Promise((resolve) => {
           backend.pending = resolve;
@@ -30,7 +33,7 @@ mockBarrel(mock, 'services/feedback/index.ts', {
   },
 });
 mockModule(mock, sourcePath('utils/connectivity.ts'), {
-  isDeviceOffline: async () => backend.offline,
+  isDeviceOffline: async () => (backend.probe ? backend.probe() : backend.offline),
 });
 mockBarrel(mock, 'constants/index.ts', { real: ['getTranslatedBookName'] });
 const authFlows: string[] = [];
@@ -45,9 +48,139 @@ beforeEach(() => {
   authFlows.length = 0;
   backend.fetches = 0;
   backend.pending = null;
+  backend.fetch = null;
+  backend.probe = null;
   backend.offline = false;
   backend.result = { success: false, feedback: [], error: 'Failed to fetch' };
-  harness.authStore.setState({ isAuthenticated: true });
+  harness.authStore.setState({
+    user: { uid: 'reader-a' },
+    authGeneration: 0,
+    isAuthenticated: true,
+  });
+});
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
+function feedback(comment: string): FeedbackResult {
+  return {
+    success: true,
+    feedback: [
+      {
+        id: comment,
+        bookId: 'JHN',
+        chapter: 3,
+        sentiment: 'up',
+        status: 'received',
+        comment,
+        resolutionNote: null,
+        hasAudio: false,
+        createdAt: '2026-09-20T10:00:00.000Z',
+      },
+    ],
+  };
+}
+
+function refresh(view: Awaited<ReturnType<typeof renderScreen>>) {
+  const [list] = view.queryAllByType('FlatList');
+  return (
+    list.props.refreshControl as { props: { onRefresh: () => Promise<void> } }
+  ).props.onRefresh();
+}
+
+for (const transition of ['account', 'generation'] as const) {
+  test(`a ${transition} change hides feedback while the replacement load is pending`, async () => {
+    backend.result = feedback('Previous private comment');
+    const view = await renderScreen();
+    const next = deferred<FeedbackResult>();
+    backend.fetch = () => next.promise;
+    await act(async () =>
+      harness.authStore.setState({
+        user: { uid: transition === 'account' ? 'reader-b' : 'reader-a' },
+        authGeneration: 1,
+      })
+    );
+    assert.equal(view.queryByText('Previous private comment'), null);
+    assert.ok(view.getByLabelText(t('common.loading')));
+    next.resolve(feedback('Current private comment'));
+    await view.flush();
+    assert.ok(view.getByText('Current private comment'));
+  });
+}
+
+test('a previous account response cannot replace the new account list', async () => {
+  const old = deferred<FeedbackResult>();
+  backend.fetch = () => old.promise;
+  const view = await renderScreen();
+  backend.fetch = null;
+  backend.result = feedback('B comment');
+  await act(async () =>
+    harness.authStore.setState({ user: { uid: 'reader-b' }, authGeneration: 1 })
+  );
+  await view.flush();
+  old.resolve(feedback('A comment'));
+  await view.flush();
+  assert.equal(view.queryByText('A comment'), null);
+  assert.ok(view.getByText('B comment'));
+});
+
+test('an old connectivity check cannot replace the new account loading state', async () => {
+  const oldProbe = deferred<boolean>();
+  backend.probe = () => oldProbe.promise;
+  const view = await renderScreen();
+  const current = deferred<FeedbackResult>();
+  backend.fetch = () => current.promise;
+  await act(async () =>
+    harness.authStore.setState({ user: { uid: 'reader-b' }, authGeneration: 1 })
+  );
+  oldProbe.resolve(true);
+  await view.flush();
+  assert.ok(view.getByLabelText(t('common.loading')));
+  assert.equal(view.queryByText(t('common.offlineTryAgain')), null);
+  current.resolve(feedback('B comment'));
+  await view.flush();
+  assert.ok(view.getByText('B comment'));
+});
+
+test('only the latest refresh may replace feedback or stop its refreshing indicator', async () => {
+  backend.result = feedback('Initial comment');
+  const view = await renderScreen();
+  const older = deferred<FeedbackResult>();
+  const newer = deferred<FeedbackResult>();
+  backend.fetch = () => older.promise;
+  await act(async () => {
+    void refresh(view);
+  });
+  backend.fetch = () => newer.promise;
+  await act(async () => {
+    void refresh(view);
+  });
+  older.resolve(feedback('Older refresh'));
+  await view.flush();
+  const [list] = view.queryAllByType('FlatList');
+  assert.equal(
+    (list.props.refreshControl as { props: { refreshing: boolean } }).props.refreshing,
+    true
+  );
+  newer.resolve(feedback('Newest refresh'));
+  await view.flush();
+  assert.ok(view.getByText('Newest refresh'));
+  assert.equal(view.queryByText('Older refresh'), null);
+});
+
+test('a pending feedback request is discarded on unmount', async () => {
+  const pending = deferred<FeedbackResult>();
+  backend.fetch = () => pending.promise;
+  const view = await renderScreen();
+  await view.unmount();
+  pending.resolve(feedback('Unmounted comment'));
+  await view.flush();
+  assert.equal(backend.fetches, 1);
 });
 
 async function renderScreen() {
@@ -56,6 +189,35 @@ async function renderScreen() {
   await view.flush();
   return view;
 }
+
+test('a direct account switch reloads feedback instead of showing the previous reader comments', async () => {
+  harness.authStore.setState({ user: { uid: 'reader-a' }, isAuthenticated: true });
+  backend.result = {
+    success: true,
+    feedback: [
+      {
+        id: 'f1',
+        bookId: 'JHN',
+        chapter: 3,
+        sentiment: 'up',
+        status: 'received',
+        comment: 'Private comment from A',
+        resolutionNote: null,
+        hasAudio: false,
+        createdAt: '2026-09-20T10:00:00.000Z',
+      },
+    ],
+  };
+  const view = await renderScreen();
+  assert.ok(view.getByText('Private comment from A'));
+  backend.result = { success: true, feedback: [] };
+  await act(async () => {
+    harness.authStore.setState({ user: { uid: 'reader-b' }, isAuthenticated: true });
+  });
+  await view.flush();
+  assert.equal(view.queryByText('Private comment from A'), null);
+  assert.equal(backend.fetches, 2);
+});
 
 test('offline, a failed load says the reader is offline instead of "something went wrong"', async () => {
   backend.offline = true;
