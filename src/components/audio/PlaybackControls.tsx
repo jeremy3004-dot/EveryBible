@@ -54,6 +54,11 @@ interface PlaybackControlsProps {
   onShareAudio?: () => void;
   showUtilityRow?: boolean;
   footer?: ReactNode;
+  /**
+   * A control beside the transport (the listen screen's Selah button). Its slot is
+   * mirrored on the other side, so the transport stays centred when it renders nothing.
+   */
+  transportAccessory?: ReactNode;
 }
 
 const noop = () => {};
@@ -90,6 +95,7 @@ export function PlaybackControls({
   onShareAudio,
   showUtilityRow = true,
   footer,
+  transportAccessory,
 }: PlaybackControlsProps) {
   const [showSpeedModal, setShowSpeedModal] = useState(false);
   const [showTimerModal, setShowTimerModal] = useState(false);
@@ -125,6 +131,7 @@ export function PlaybackControls({
       <View
         style={[styles.transportRow, layout.isChapterOnly ? styles.chapterOnlyTransportRow : null]}
       >
+        {transportAccessory !== undefined ? <View style={styles.transportAccessorySlot} /> : null}
         {layout.showChapterButtons ? (
           <ChapterButton
             direction="previous"
@@ -154,6 +161,9 @@ export function PlaybackControls({
             isChapterOnly={layout.isChapterOnly}
             onPress={nextChapter}
           />
+        ) : null}
+        {transportAccessory !== undefined ? (
+          <View style={styles.transportAccessorySlot}>{transportAccessory}</View>
         ) : null}
       </View>
 

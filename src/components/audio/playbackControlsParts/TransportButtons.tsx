@@ -3,6 +3,7 @@ import { ActivityIndicator, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../contexts/ThemeContext';
+import { OutlinedPlayPauseGlyph } from '../OutlinedPlayPauseGlyph';
 import { playbackControlsStyles as styles } from './playbackControlsStyles';
 
 // Each transport button is memoised on plain values and stable handlers, so a
@@ -110,13 +111,36 @@ export const PlayButton = memo(function PlayButton({
   const { colors } = useTheme();
   const { t } = useTranslation();
 
+  if (isChapterOnly) {
+    // The listen screen's big control matches the player bar: an outlined glyph in
+    // the accent on a soft tile, rather than a filled disc.
+    return (
+      <TouchableOpacity
+        style={[
+          styles.playButton,
+          styles.chapterOnlyPlayButton,
+          { backgroundColor: colors.bibleElevatedSurface, borderColor: colors.bibleDivider },
+        ]}
+        onPress={onPress}
+        disabled={isLoading}
+        accessibilityRole="button"
+        accessibilityLabel={t(
+          isPlaying ? 'interface.pauseChapterAudio' : 'interface.playChapterAudio'
+        )}
+        accessibilityState={{ busy: isLoading, disabled: isLoading }}
+      >
+        {isLoading ? (
+          <ActivityIndicator size="small" color={colors.bibleAccent} />
+        ) : (
+          <OutlinedPlayPauseGlyph playing={isPlaying} size={38} color={colors.bibleAccent} />
+        )}
+      </TouchableOpacity>
+    );
+  }
+
   return (
     <TouchableOpacity
-      style={[
-        styles.playButton,
-        isChapterOnly ? styles.chapterOnlyPlayButton : null,
-        { backgroundColor: colors.bibleControlBackground },
-      ]}
+      style={[styles.playButton, { backgroundColor: colors.bibleControlBackground }]}
       onPress={onPress}
       disabled={isLoading}
       accessibilityRole="button"
@@ -130,7 +154,7 @@ export const PlayButton = memo(function PlayButton({
       ) : (
         <Ionicons
           name={isPlaying ? 'pause' : 'play'}
-          size={isChapterOnly ? 34 : 26}
+          size={26}
           color={colors.bibleBackground}
           style={!isPlaying ? styles.playIconOffset : undefined}
         />

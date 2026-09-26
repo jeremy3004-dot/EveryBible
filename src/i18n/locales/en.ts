@@ -745,6 +745,18 @@ export const en = {
     },
   },
   audio: {
+    // The fused player + tab bar and its Selah control.
+    playerBar: {
+      sound: 'Background sound: {{name}}',
+      soundHint: 'Opens the audio options',
+      nowPlaying: 'Now playing, {{reference}}',
+      returnHint: 'Opens the chapter that is playing',
+      showControls: 'Show controls',
+      showControlsHint: 'Brings back the player and the tabs',
+      selah: 'Selah',
+      selahHint: 'Pauses the reading and keeps the background sound playing',
+      selahChip: 'Selah · {{sound}} keeps playing',
+    },
     playbackSpeed: 'Playback Speed',
     sleepTimer: 'Sleep Timer',
     sleepTimerEndOfChapter: 'End of chapter',

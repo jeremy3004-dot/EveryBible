@@ -170,11 +170,21 @@ export const playbackControlsStyles = StyleSheet.create({
   playIconOffset: {
     marginLeft: 2,
   },
+  // The listen screen's play control: the player bar's outlined glyph on a soft
+  // tile, drawn larger.
   chapterOnlyPlayButton: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 76,
+    height: 76,
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
     marginHorizontal: 10,
+  },
+  // Balances a trailing control (Selah) so the transport stays centred.
+  transportAccessorySlot: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   modalSubtitle: {
     fontSize: 13,

@@ -249,21 +249,26 @@ test('BibleReaderScreen reuses the bottom strip in read and listen modes without
   );
 });
 
-test('BibleReaderScreen keeps the shared floating playback dock above the plan strip in read mode', () => {
+test('BibleReaderScreen keeps the shared player capsule above the plan strip in read mode', () => {
   assert.match(
     source,
-    /Locked-in plan reader behavior: read-mode plans reuse the exact shared floating dock above the red plan strip\./,
-    'BibleReaderScreen should document the locked-in read-mode plan dock invariant inline'
+    /Locked-in plan reader behavior: a plan route hides the root tabs, and the same\s*\/\/ player capsule the tab bar carries floats above the red plan strip instead\./,
+    'BibleReaderScreen should document the locked-in read-mode plan transport invariant inline'
   );
   assert.match(
     source,
-    /<ReaderPlaybackDock[\s\S]*hasNextChapter=\{hasReaderPlaybackDockNextChapter\}/s,
-    'BibleReaderScreen should keep using the shared ReaderPlaybackDock while a plan read session is active'
+    /<PlayerBar\s+scope="reader"/,
+    'BibleReaderScreen should draw the same PlayerBar the tab bar uses while a plan read session hides the tabs'
   );
   assert.match(
     source,
-    /onNextChapter=\{\(\) => void handleNextReadChapter\(\)\}/,
-    'BibleReaderScreen should route the dock forward action through the shared read-mode next handler'
+    /hasNext: hasReaderBarNextChapter,/,
+    'BibleReaderScreen should hand the plan-aware next action to the player bar'
+  );
+  assert.match(
+    source,
+    /next: \(\) => void handleNextReadChapter\(\),/,
+    'BibleReaderScreen should route the bar forward action through the shared read-mode next handler'
   );
 });
 

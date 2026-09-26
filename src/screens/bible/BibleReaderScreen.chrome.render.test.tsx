@@ -147,11 +147,20 @@ test('the top chrome and the text start at the same offsets in read and listen',
   assert.equal(flattenStyle(scroll.props.contentContainerStyle)?.paddingTop, contentTop);
 });
 
+/** Not part of the root tab bar's player, which the fixture draws beside the reader. */
+const outsidePlayerBar = (node: ReactTestInstance) =>
+  !hostAncestors(node).some((ancestor) => ancestor.props.testID === 'player-bar');
+
 test('read mode masks the status-bar strip above the floating chrome; listen mode does not', async () => {
   const { spacing } = await design();
   const isMask = (node: ReactTestInstance) => {
     const style = flattenStyle(node.props.style) ?? {};
-    return node.props.pointerEvents === 'none' && style.position === 'absolute' && style.top === 0;
+    return (
+      node.props.pointerEvents === 'none' &&
+      style.position === 'absolute' &&
+      style.top === 0 &&
+      outsidePlayerBar(node)
+    );
   };
 
   const read = await renderReader();
@@ -175,7 +184,12 @@ test('read mode masks the status-bar strip above the floating chrome; listen mod
 const readModeMasks = (view: View) =>
   view.queryAllByType('View').filter((node) => {
     const style = flattenStyle(node.props.style) ?? {};
-    return node.props.pointerEvents === 'none' && style.position === 'absolute' && style.top === 0;
+    return (
+      node.props.pointerEvents === 'none' &&
+      style.position === 'absolute' &&
+      style.top === 0 &&
+      outsidePlayerBar(node)
+    );
   });
 
 test('stepping from a text chapter to an audio-only one in the same translation settles in listen mode', async () => {

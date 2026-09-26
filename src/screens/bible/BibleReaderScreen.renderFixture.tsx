@@ -182,6 +182,9 @@ export function installReaderRenderFixture(
     setAudioReturnTarget: () => {},
     setCurrentTrack: () => {},
     clearPlaybackSequence: () => {},
+    // Read by the player bar.
+    backgroundMusicChoice: 'off',
+    audioReturnTarget: null,
   }));
   mockModule(mocker, sourcePath('stores/audioStore.ts'), { useAudioStore: audioStore });
 
@@ -403,6 +406,12 @@ export function installReaderRenderFixture(
   mockModule(mocker, sourcePath('screens/bible/TranslationPickerList.tsx'), {
     TranslationPickerList: hostComponent('TranslationPickerList'),
   });
+  // The player capsule's glass (the reader draws it above a plan strip).
+  mockPackage(mocker, 'expo-glass-effect', {
+    GlassView: hostComponent('GlassView'),
+    isLiquidGlassAvailable: () => true,
+    isGlassEffectAPIAvailable: () => true,
+  });
   mockPackage(mocker, 'expo-clipboard', {
     setStringAsync: async (text: string) => {
       serviceCalls.push(['Clipboard.setStringAsync', text]);
@@ -533,6 +542,42 @@ export function installReaderRenderFixture(
   const t = (key: string, values?: Record<string, unknown>) => harness.i18n.t(key, values);
 
   /**
+   * The root tab bar's player, as the tab navigator draws it over a free reader: it
+   * renders the transport the reader publishes. A plan session hides the root tabs
+   * (the reader draws its own player above the plan strip), so it is left out then.
+   */
+  async function readerWithBar() {
+    const { BibleReaderScreen } = await import('./BibleReaderScreen');
+    const { PlayerBar } = await import('../../navigation/playerBar/PlayerBar');
+    const { useReaderChromeProgress } = await import('../../stores/readerChromeStore');
+    const { useTabBarHeight } = await import('../../hooks/useTabBarHeight');
+    const { View } = harness.rn;
+    function RootTabPlayerBar() {
+      const progress = useReaderChromeProgress();
+      const { bottomPadding, sideInset, barHeight } = useTabBarHeight();
+      if (typeof harness.navigation.route.params?.planId === 'string') return null;
+      return (
+        <PlayerBar
+          scope="reader"
+          progress={progress}
+          followsScroll={true}
+          bottomOffset={bottomPadding}
+          sideInset={sideInset}
+          background={null}
+          tabRow={<View testID="root-tab-row" />}
+          tabRowHeight={barHeight}
+        />
+      );
+    }
+    return (
+      <>
+        <BibleReaderScreen />
+        <RootTabPlayerBar />
+      </>
+    );
+  }
+
+  /**
    * Mount the reader. The route key stays 'reader-route' unless given: a remount with
    * the same key is the same route coming back (as after the discreet-mode lock).
    */
@@ -543,8 +588,7 @@ export function installReaderRenderFixture(
     harness.navigation.route.name = 'BibleReader';
     harness.navigation.route.key = routeKey;
     harness.navigation.route.params = { bookId: 'JHN', chapter: 3, ...params };
-    const { BibleReaderScreen } = await import('./BibleReaderScreen');
-    const view = await harness.render(<BibleReaderScreen />);
+    const view = await harness.render(await readerWithBar());
     await view.flush();
     return view;
   }
@@ -552,8 +596,7 @@ export function installReaderRenderFixture(
   /** Re-render the mounted reader after the route params changed. */
   async function navigateReader(view: RenderResult, params: Record<string, unknown>) {
     harness.navigation.route.params = { ...harness.navigation.route.params, ...params };
-    const { BibleReaderScreen } = await import('./BibleReaderScreen');
-    await view.rerender(<BibleReaderScreen />);
+    await view.rerender(await readerWithBar());
     await view.flush();
   }
 

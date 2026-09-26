@@ -5,6 +5,7 @@ import {
 import { canResumeLoadedChapter } from '../../services/audio/audioPlaybackStartModel';
 import { useAudioStore } from '../../stores/audioStore';
 import { isAudioLoaded, pausedByListener } from './sharedPlaybackState';
+import { registerPlayerTransport } from './transportRegistry';
 
 /** The player actions lock-screen, notification and headset commands drive. */
 export interface RemoteCommandControls {
@@ -90,6 +91,8 @@ let activeRemoteCommandUnsubscribe: (() => void) | null = null;
  * There is never more than one subscription, and unmounting does not end it.
  */
 export function takeOverRemoteCommands(controls: RemoteCommandControls): void {
+  // The in-app player bar follows the same player the lock screen does.
+  registerPlayerTransport(controls);
   activeRemoteCommandUnsubscribe?.();
   activeRemoteCommandUnsubscribe = subscribeBibleNowPlayingRemoteCommands((command) =>
     routeRemoteCommand(command, controls)

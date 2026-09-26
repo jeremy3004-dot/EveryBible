@@ -23,6 +23,14 @@ function readTabNavigatorPartSources(): Array<[string, string]> {
     .map((name) => [name, readRelativeSource(`./tabNavigatorParts/${name}`)]);
 }
 
+// The player bar is drawn inside the tab bar, so its modules boot with it too.
+function readPlayerBarSources(): Array<[string, string]> {
+  return readdirSync(fileURLToPath(new URL('./playerBar/', import.meta.url).href))
+    .filter((name) => /\.tsx?$/.test(name) && !name.includes('.test.'))
+    .sort()
+    .map((name) => [`playerBar/${name}`, readRelativeSource(`./playerBar/${name}`)]);
+}
+
 test('TabNavigator keeps the Bible store off the root tab render path', () => {
   const source = readRelativeSource('./TabNavigator.tsx');
 
@@ -38,13 +46,13 @@ test('TabNavigator keeps the Bible store off the root tab render path', () => {
     'TabNavigator should load the Bible store only when Bible-tab resume state is needed'
   );
 
-  const parts = readTabNavigatorPartSources();
+  const parts = [...readTabNavigatorPartSources(), ...readPlayerBarSources()];
   assert.ok(parts.length > 0);
   for (const [name, partSource] of parts) {
     assert.doesNotMatch(
       partSource,
-      /stores\/bibleStore'/,
-      `tabNavigatorParts/${name} must not load the Bible store on the boot path`
+      /^import[^;]*stores\/bibleStore'/m,
+      `${name} must not load the Bible store on the boot path`
     );
   }
 });
@@ -58,12 +66,13 @@ test('TabNavigator imports useTabBarHeight directly, not through the hooks barre
     'importing the hooks barrel would evaluate every hook module at boot'
   );
   assert.match(
-    readRelativeSource('./tabNavigatorParts/TabBarChrome.tsx'),
+    readRelativeSource('./tabNavigatorParts/TabBarBackground.tsx'),
     /import \{ TAB_BAR_CAPSULE_RADIUS \} from '\.\.\/\.\.\/hooks\/useTabBarHeight';/
   );
   for (const [name, partSource] of [
     ['TabNavigator.tsx', source],
     ...readTabNavigatorPartSources(),
+    ...readPlayerBarSources(),
   ] as const) {
     assert.doesNotMatch(
       partSource,

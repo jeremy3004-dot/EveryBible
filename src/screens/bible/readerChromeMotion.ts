@@ -30,9 +30,3 @@ export function getNextReaderChromeProgress({
   // Reveal continuously as either end approaches; content padding stays fixed.
   return Math.max(0, Math.min(1, next, current / distance, (maxOffset - current) / distance));
 }
-
-// Measured from the September reference: play center y824 -> y889 on a
-// 440x956pt iPhone. Its diameter stays fixed throughout the transition.
-export const READER_PLAY_BUTTON_SIZE = 64;
-export const READER_PLAY_COLLAPSE_TRAVEL = 65;
-export const READER_CHAPTER_BUTTON_SIZE = 40;

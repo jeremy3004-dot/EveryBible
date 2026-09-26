@@ -1,13 +1,13 @@
 import test, { beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { createElement, Fragment, type ReactNode } from 'react';
-import type { ReactTestInstance } from 'react-test-renderer';
+import { act, type ReactTestInstance } from 'react-test-renderer';
 import { create } from 'zustand';
 import { hostComponent } from '../testing/reactNativeHost';
 import { mockModule, mockPackage, sourcePath } from '../testing/mockModules';
 import { flattenStyle, hostAncestors, installRenderHarness, within } from '../testing/render';
-import { buildTabBarCapsuleStyle, getTabBarCapsuleFill } from './tabBarCapsuleStyle';
-import { getReaderTabBarTranslation } from './readerTabBarMotion';
+import { getTabBarCapsuleFill } from './tabBarCapsuleStyle';
+import { getReaderTabBarTranslation, PLAYER_BAR_SECTION_HEIGHT } from './readerTabBarMotion';
 import { hexWithAlpha } from '../utils/color';
 
 const harness = installRenderHarness(mock, { os: 'ios' });
@@ -152,6 +152,19 @@ const initialBibleState = {
 const useBibleStore = create(() => ({ ...initialBibleState }));
 mockModule(mock, sourcePath('stores/bibleStore.ts'), { useBibleStore });
 
+// The player row above the tabs reads the playing session (PlayerBar.render.test.tsx
+// covers the row itself; here only when the bar carries it).
+const audioStore = create(() => ({
+  status: 'idle' as 'idle' | 'loading' | 'playing' | 'paused' | 'error',
+  currentTranslationId: null as string | null,
+  currentBookId: null as string | null,
+  currentChapter: null as number | null,
+  currentPosition: 0,
+  duration: 0,
+  backgroundMusicChoice: 'off',
+}));
+mockModule(mock, sourcePath('stores/audioStore.ts'), { useAudioStore: audioStore });
+
 const STACKS: Record<string, string> = {
   Home: 'HomeStack',
   Bible: 'BibleStack',
@@ -173,6 +186,12 @@ const colors = {
   cardBorder: '#C0C0C0',
   bibleDivider: '#B0B0B0',
   accentPrimary: '#AA3300',
+  bibleAccent: '#993300',
+  secondaryText: '#505050',
+  bibleSecondaryText: '#606060',
+  background: '#FAFAFA',
+  bibleElevatedSurface: '#EAEAEA',
+  onAccent: '#FFFFFF',
 };
 const theme = { colors, isDark: false };
 mockModule(mock, sourcePath('contexts/ThemeContext.tsx'), {
@@ -180,7 +199,10 @@ mockModule(mock, sourcePath('contexts/ThemeContext.tsx'), {
   ThemeProvider: ({ children }: { children: ReactNode }) => children,
 });
 
-beforeEach(() => {
+beforeEach(async () => {
+  const { useReaderPlayerBarStore } = await import('../stores/readerPlayerBarStore');
+  useReaderPlayerBarStore.setState(useReaderPlayerBarStore.getInitialState(), true);
+  audioStore.setState(audioStore.getInitialState(), true);
   theme.isDark = false;
   focusTab('Home');
   tabBarPresses.length = 0;
@@ -193,16 +215,33 @@ async function renderTabs() {
   const { TabNavigator } = await import('./TabNavigator');
   const view = await harness.render(<TabNavigator />);
   const bar = view.queryAllByType('BottomTabBar')[0];
-  const wrapper = hostAncestors(bar)[0];
+  const playerBar = view.getByTestId('player-bar');
+  // Outermost first: the tab bar's full-screen wrapper, then the capsule's placement.
+  const [frame, wrapper] = hostAncestors(playerBar);
+  const capsule = hostAncestors(view.getByTestId('player-bar-material'))[0];
   const descriptors = bar.props.descriptors as Record<string, Descriptor>;
   const optionsFor = (name: string) => descriptors[`${name}-key`].options;
   const screen = (name: string) =>
     view.queryAllByType('TabScreen').find((node) => node.props.name === name) as ReactTestInstance;
-  const background = () => view.queryAllByType('TabBarBackgroundSlot')[0];
-  return { view, bar, wrapper, optionsFor, screen, background };
+  // The capsule's glass, which the player bar draws behind both of its rows.
+  const material = () => view.getByTestId('player-bar-material');
+  // What the library bar draws behind the tabs themselves: the selection pill.
+  const selectionSlot = () => view.queryAllByType('TabBarBackgroundSlot')[0];
+  return {
+    view,
+    bar,
+    playerBar,
+    frame,
+    wrapper,
+    capsule,
+    optionsFor,
+    screen,
+    material,
+    selectionSlot,
+  };
 }
 
-const EXPECTED_CAPSULE = { sideInset: 16, bottomPadding: 22, barHeight: 64 };
+const CAPSULE_FRAME = { start: 16, end: 16, bottom: 22 };
 
 function expectInteractive(wrapper: ReactTestInstance) {
   assert.equal(wrapper.props.pointerEvents, 'box-none');
@@ -466,7 +505,7 @@ test('the tab button keeps the navigator press, test ID and item style while fil
 
 test('outside the reader the tabs use primary ink on the card-surface glass', async () => {
   focusTab('Bible', { state: { index: 0, routes: [{ name: 'BibleBrowser' }] } });
-  const { view, optionsFor, background } = await renderTabs();
+  const { view, optionsFor, material } = await renderTabs();
 
   assert.equal(optionsFor('Bible').tabBarActiveTintColor, colors.primaryText);
   assert.equal(optionsFor('Bible').tabBarInactiveTintColor, colors.primaryText);
@@ -474,7 +513,7 @@ test('outside the reader the tabs use primary ink on the card-surface glass', as
     assert.equal(icon.props.color, colors.primaryText, 'the pill alone carries selection');
   }
 
-  const [paper] = within(background())
+  const [paper] = within(material())
     .queryAllByType('View')
     .filter((node) => styleOf(node.props.style).backgroundColor !== undefined);
   assert.equal(
@@ -488,7 +527,7 @@ test('while the reader is focused the tabs take the reader ink, surface and divi
   focusTab('Bible', {
     state: { index: 1, routes: [{ name: 'BibleBrowser' }, { name: 'BibleReader' }] },
   });
-  const { view, optionsFor, background } = await renderTabs();
+  const { view, optionsFor, material } = await renderTabs();
 
   assert.equal(optionsFor('Bible').tabBarActiveTintColor, colors.biblePrimaryText);
   assert.equal(optionsFor('Bible').tabBarInactiveTintColor, colors.biblePrimaryText);
@@ -496,7 +535,7 @@ test('while the reader is focused the tabs take the reader ink, surface and divi
     assert.equal(icon.props.color, colors.biblePrimaryText);
   }
 
-  const styles = within(background())
+  const styles = within(material())
     .queryAllByType('View')
     .map((node) => styleOf(node.props.style));
   assert.ok(
@@ -510,8 +549,8 @@ test('while the reader is focused the tabs take the reader ink, surface and divi
 });
 
 test('native glass sits in front of the paper backing, clipped to the rounded capsule', async () => {
-  const { background } = await renderTabs();
-  const slot = within(background());
+  const { material } = await renderTabs();
+  const slot = within(material());
 
   const glassView = slot.queryAllByType('GlassView')[0];
   assert.ok(glassView, 'iOS 26 draws native liquid glass');
@@ -538,8 +577,8 @@ test('native glass sits in front of the paper backing, clipped to the rounded ca
 test('without native glass the capsule is a tinted blur under the same paper and a hairline edge', async () => {
   glass.available = false;
   theme.isDark = true;
-  const { background } = await renderTabs();
-  const slot = within(background());
+  const { material } = await renderTabs();
+  const slot = within(material());
 
   assert.equal(slot.queryAllByType('GlassView').length, 0);
   const blur = slot.queryAllByType('BlurView')[0];
@@ -554,7 +593,7 @@ test('the selection pill is a neutral wash of the scope ink, never the accent', 
   focusTab('Plans');
   const first = await renderTabs();
   const selection = first
-    .background()
+    .selectionSlot()
     .findAll((node) => (node.type as { name?: string }).name === 'TabBarSelection')[0];
   assert.deepEqual(selection.props, {
     selectedIndex: 3,
@@ -567,7 +606,7 @@ test('the selection pill is a neutral wash of the scope ink, never the accent', 
   focusTab('Bible', { state: { index: 0, routes: [{ name: 'BibleReader' }] } });
   const reader = await renderTabs();
   const pill = reader
-    .background()
+    .selectionSlot()
     .findAll((node) => (node.type as { name?: string }).name === 'TabBarSelection');
   assert.equal(pill[0].props.color, hexWithAlpha(colors.biblePrimaryText, 0.1));
   assert.equal(pill[0].props.selectedIndex, 1);
@@ -575,25 +614,39 @@ test('the selection pill is a neutral wash of the scope ink, never the accent', 
 
 // --- Shape, collapse and hiding ----------------------------------------------------
 
-test('the bar is the shared flat-edged floating capsule, not a full-width strip padded by the inset', async () => {
-  const { bar, wrapper } = await renderTabs();
-  const style = styleOf(bar.props.style);
+const translateYOf = (node: ReactTestInstance) => styleOf(node.props.style).transform;
 
-  assert.deepEqual(style, styleOf(buildTabBarCapsuleStyle(EXPECTED_CAPSULE)));
-  assert.equal(style.bottom, 22, 'lifted off the home indicator, not padded by it');
-  assert.equal(style.paddingBottom, 0);
-  assert.equal(style.paddingTop, 0);
-  for (const key of ['borderRadius', 'borderTopLeftRadius', 'borderTopRightRadius']) {
-    assert.equal(key in style, false, `the bar itself carries no ${key}`);
-  }
+test('the bar is the shared floating capsule, the library tab row inside it', async () => {
+  const { bar, frame, wrapper, capsule } = await renderTabs();
+
+  const frameStyle = styleOf(frame.props.style);
+  assert.deepEqual(
+    { start: frameStyle.start, end: frameStyle.end, bottom: frameStyle.bottom },
+    CAPSULE_FRAME,
+    'lifted off the home indicator, not padded by it'
+  );
+  assert.equal(frameStyle.position, 'absolute');
+  assert.equal(styleOf(capsule.props.style).height, 64, 'the tab row alone with nothing playing');
+  assert.equal(styleOf(capsule.props.style).borderRadius, 32);
+  assert.equal(styleOf(capsule.props.style).overflow, 'hidden');
+
+  // The library bar is just the row: transparent, borderless, filling the capsule's width.
+  const row = styleOf(bar.props.style);
+  assert.equal(row.backgroundColor, 'transparent');
+  assert.equal(row.borderTopWidth, 0);
+  assert.equal(row.height, 64);
+  assert.equal(row.start, 0);
+  assert.equal(row.end, 0);
+  assert.equal(row.paddingBottom, 0);
+  assert.equal(row.paddingHorizontal, 6);
   expectInteractive(wrapper);
 });
 
 test('Home keeps the standard capsule even if its params ask for a collapse', async () => {
   focusTab('Home', { params: { screen: 'Home', params: { tabBarCollapseProgress: 1 } } });
-  const { bar, wrapper, view } = await renderTabs();
+  const { frame, wrapper, view } = await renderTabs();
 
-  assert.deepEqual(styleOf(bar.props.style), styleOf(buildTabBarCapsuleStyle(EXPECTED_CAPSULE)));
+  assert.deepEqual(translateYOf(frame), [{ translateY: 0 }]);
   expectInteractive(wrapper);
   assert.equal(view.getAllByRole('tab').length, 5);
 });
@@ -606,9 +659,7 @@ test('a route collapse progress slides the capsule partway, clamped to fully off
     },
   });
   let tabs = await renderTabs();
-  assert.deepEqual(styleOf(tabs.bar.props.style).transform, [
-    { translateY: getReaderTabBarTranslation(0.5) },
-  ]);
+  assert.deepEqual(translateYOf(tabs.frame), [{ translateY: getReaderTabBarTranslation(0.5) }]);
   expectInteractive(tabs.wrapper);
   await tabs.view.unmount();
 
@@ -616,9 +667,7 @@ test('a route collapse progress slides the capsule partway, clamped to fully off
     state: { index: 0, routes: [{ name: 'BibleBrowser', params: { tabBarCollapseProgress: 4 } }] },
   });
   tabs = await renderTabs();
-  assert.deepEqual(styleOf(tabs.bar.props.style).transform, [
-    { translateY: getReaderTabBarTranslation(1) },
-  ]);
+  assert.deepEqual(translateYOf(tabs.frame), [{ translateY: getReaderTabBarTranslation(1) }]);
   expectCollapsed(tabs.wrapper);
 });
 
@@ -644,11 +693,9 @@ const HIDDEN_NESTED_ROUTES: Array<[string, FakeRoute['state'], string]> = [
 for (const [tab, state, what] of HIDDEN_NESTED_ROUTES) {
   test(`the tab bar slides away and leaves touch and VoiceOver on ${what} (${tab} tab)`, async () => {
     focusTab(tab, { state });
-    const { bar, wrapper, view } = await renderTabs();
+    const { frame, wrapper, view } = await renderTabs();
 
-    assert.deepEqual(styleOf(bar.props.style).transform, [
-      { translateY: getReaderTabBarTranslation(1) },
-    ]);
+    assert.deepEqual(translateYOf(frame), [{ translateY: getReaderTabBarTranslation(1) }]);
     expectCollapsed(wrapper);
     assert.equal(view.queryAllByRole('tab').length, 0, 'no tab reachable by a screen reader');
     assert.equal(view.queryAllByRole('tab', { includeHidden: true }).length, 5);
@@ -659,11 +706,9 @@ test('the tab bar also hides for a plan-session reader opened before the Bible s
   focusTab('Bible', {
     params: { screen: 'BibleReader', params: { planId: 'plan-1', planDayNumber: 2 } },
   });
-  const { bar, wrapper } = await renderTabs();
+  const { frame, wrapper } = await renderTabs();
 
-  assert.deepEqual(styleOf(bar.props.style).transform, [
-    { translateY: getReaderTabBarTranslation(1) },
-  ]);
+  assert.deepEqual(translateYOf(frame), [{ translateY: getReaderTabBarTranslation(1) }]);
   expectCollapsed(wrapper);
 });
 
@@ -672,30 +717,34 @@ test('a free reader keeps the tab bar, which slides with reader scroll without f
   readerProgress.value = 0.5;
   let tabs = await renderTabs();
 
-  assert.deepEqual(styleOf(tabs.bar.props.style).transform, [{ translateY: 0 }]);
-  assert.deepEqual(styleOf(tabs.wrapper.props.style).transform, [
-    { translateY: getReaderTabBarTranslation(0.5) },
-  ]);
+  // Nothing is loaded, so the bar slides down whole: its height plus the gap below it.
+  assert.deepEqual(translateYOf(tabs.frame), [{ translateY: 0 }], 'no route collapse on top');
+  assert.deepEqual(translateYOf(tabs.playerBar), [{ translateY: 0.5 * (64 + 22 + 4) }]);
   expectInteractive(tabs.wrapper);
-  assert.equal('opacity' in styleOf(tabs.wrapper.props.style), false);
+  assert.equal('opacity' in styleOf(tabs.playerBar.props.style), false);
+  assert.equal(tabs.view.getAllByRole('tab').length, 5);
   await tabs.view.unmount();
 
-  // Scrolled all the way: the bar is off-screen, so it gives up touch and VoiceOver.
+  // Scrolled all the way: the bar is off-screen, so it gives up touch and VoiceOver,
+  // and only the hairline that calls it back is left.
   readerProgress.value = 1;
   tabs = await renderTabs();
-  assert.deepEqual(styleOf(tabs.wrapper.props.style).transform, [
-    { translateY: getReaderTabBarTranslation(1) },
-  ]);
-  expectCollapsed(tabs.wrapper);
+  await tabs.view.flush();
+  expectCollapsed(tabs.playerBar);
+  assert.equal(tabs.view.queryAllByRole('tab').length, 0);
+  assert.ok(
+    tabs.view.getByRole('button', { name: harness.i18n.t('audio.playerBar.showControls') })
+  );
 });
 
 test('reader scroll never moves the bar on another tab', async () => {
   readerProgress.value = 1;
   focusTab('Home');
-  const { wrapper } = await renderTabs();
+  const { wrapper, playerBar } = await renderTabs();
 
-  assert.deepEqual(styleOf(wrapper.props.style).transform, [{ translateY: 0 }]);
+  assert.deepEqual(translateYOf(playerBar), [{ translateY: 0 }]);
   expectInteractive(wrapper);
+  expectInteractive(playerBar);
 });
 
 test('a reader that collapses the bar itself is not also slid by reader scroll', async () => {
@@ -705,10 +754,8 @@ test('a reader that collapses the bar itself is not also slid by reader scroll',
   });
   let tabs = await renderTabs();
 
-  assert.deepEqual(styleOf(tabs.bar.props.style).transform, [
-    { translateY: getReaderTabBarTranslation(0.5) },
-  ]);
-  assert.deepEqual(styleOf(tabs.wrapper.props.style).transform, [{ translateY: 0 }]);
+  assert.deepEqual(translateYOf(tabs.frame), [{ translateY: getReaderTabBarTranslation(0.5) }]);
+  assert.deepEqual(translateYOf(tabs.playerBar), [{ translateY: 0 }]);
   expectInteractive(tabs.wrapper);
   await tabs.view.unmount();
 
@@ -718,7 +765,7 @@ test('a reader that collapses the bar itself is not also slid by reader scroll',
     state: { index: 0, routes: [{ name: 'BibleReader', params: { tabBarCollapseProgress: 1 } }] },
   });
   tabs = await renderTabs();
-  assert.deepEqual(styleOf(tabs.wrapper.props.style).transform, [{ translateY: 0 }]);
+  assert.deepEqual(translateYOf(tabs.playerBar), [{ translateY: 0 }]);
   expectCollapsed(tabs.wrapper);
 });
 
@@ -732,4 +779,70 @@ test('a tab bar hidden by a screen with tabBarVisible false leaves touch and Voi
   const { wrapper } = await renderTabs();
 
   expectCollapsed(wrapper);
+});
+
+// --- The player row -----------------------------------------------------------------
+
+const playName = () => harness.i18n.t('interface.playChapterAudio');
+
+test('on another tab the player row sits on the tabs only while a chapter is playing or paused', async () => {
+  focusTab('Plans');
+  const { view, capsule, bar } = await renderTabs();
+  assert.equal(view.queryByTestId('player-bar-row'), null);
+
+  await act(async () => {
+    audioStore.setState({
+      status: 'paused',
+      currentTranslationId: 'bsb',
+      currentBookId: 'JHN',
+      currentChapter: 3,
+    });
+  });
+  assert.ok(view.getByRole('button', { name: playName() }));
+  assert.equal(styleOf(capsule.props.style).height, PLAYER_BAR_SECTION_HEIGHT + 64);
+  // The tabs keep their place under the player, in the same capsule.
+  const tabRow = hostAncestors(bar)[0];
+  assert.equal(styleOf(tabRow.props.style).top, PLAYER_BAR_SECTION_HEIGHT);
+  assert.equal(view.getAllByRole('tab').length, 5);
+
+  await act(async () => {
+    audioStore.setState({ status: 'idle' });
+  });
+  assert.equal(view.queryByTestId('player-bar-row'), null);
+});
+
+test('on the reader the row is the reader’s transport, and on its listen screen only the tabs show', async () => {
+  const { publishReaderPlayerBar } = await import('../stores/readerPlayerBarStore');
+  const presses: string[] = [];
+  const actions = {
+    playPause: () => void presses.push('play'),
+    previous: () => void presses.push('previous'),
+    next: () => void presses.push('next'),
+    openAudioSheet: () => void presses.push('sound'),
+  };
+  const controls = {
+    showsPlayer: true,
+    showPlayButton: true,
+    isPlaying: false,
+    isLoading: false,
+    errorMessage: null,
+    hasPrevious: true,
+    hasNext: true,
+    nextIsCompletion: false,
+    nextAccessibilityLabel: 'Next',
+    nextAccessibilityHint: null,
+    showsProgress: false,
+  };
+  publishReaderPlayerBar('reader-route', controls, actions);
+  focusTab('Bible', { state: { index: 0, routes: [{ name: 'BibleReader' }] } });
+  const { view } = await renderTabs();
+
+  await view.press(view.getByRole('button', { name: playName() }));
+  assert.deepEqual(presses, ['play']);
+
+  await act(async () => {
+    publishReaderPlayerBar('reader-route', { ...controls, showsPlayer: false }, actions);
+  });
+  assert.equal(view.queryByTestId('player-bar-row'), null);
+  assert.equal(view.getAllByRole('tab').length, 5);
 });
