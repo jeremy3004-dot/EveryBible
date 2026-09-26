@@ -3,6 +3,7 @@
 // src/expoFileSystemImports.test.ts so this cannot silently regress again.
 import * as FileSystem from 'expo-file-system/legacy';
 import { supabase, isSupabaseConfigured, getCurrentUserId } from '../supabase';
+import { useAuthStore } from '../../stores/authStore';
 
 export interface StorageResult<T = void> {
   success: boolean;
@@ -74,9 +75,26 @@ export const uploadAvatar = async (imageUri: string): Promise<StorageResult<stri
     return { success: false, error: 'Supabase not configured' };
   }
 
+  const initialAuth = useAuthStore.getState();
+  const ownerId = initialAuth.user?.uid;
+  const authGeneration = initialAuth.authGeneration;
+  if (!initialAuth.isAuthenticated || !ownerId) {
+    return { success: false, error: 'Not signed in' };
+  }
+  const isCurrent = () => {
+    const currentAuth = useAuthStore.getState();
+    return (
+      currentAuth.isAuthenticated &&
+      currentAuth.user?.uid === ownerId &&
+      currentAuth.authGeneration === authGeneration
+    );
+  };
   const userId = await getCurrentUserId();
   if (!userId) {
     return { success: false, error: 'Not signed in' };
+  }
+  if (userId !== ownerId || !isCurrent()) {
+    return { success: false, error: 'Account changed' };
   }
 
   try {
@@ -84,6 +102,7 @@ export const uploadAvatar = async (imageUri: string): Promise<StorageResult<stri
     const contentType = mimeTypeFor(ext);
     const storagePath = `${userId}/avatar.${ext}`;
     const imageBytes = await readImageAsUint8Array(imageUri);
+    if (!isCurrent()) return { success: false, error: 'Account changed' };
 
     const { error: uploadError } = await supabase.storage
       .from(AVATAR_BUCKET)
@@ -91,6 +110,7 @@ export const uploadAvatar = async (imageUri: string): Promise<StorageResult<stri
         contentType,
         upsert: true, // overwrite any existing avatar
       });
+    if (!isCurrent()) return { success: false, error: 'Account changed' };
 
     if (uploadError) {
       return { success: false, error: uploadError.message };

@@ -36,13 +36,19 @@ mockModule(mock, sourcePath('navigation/rootNavigation.ts'), {
 });
 
 type PickerResult = { canceled: boolean; assets: { uri: string }[] };
-type Deferred<T> = { promise: Promise<T>; resolve: (value: T) => void };
+type Deferred<T> = {
+  promise: Promise<T>;
+  resolve: (value: T) => void;
+  reject: (error: Error) => void;
+};
 function deferred<T>(): Deferred<T> {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((r) => {
+  let reject!: (error: Error) => void;
+  const promise = new Promise<T>((r, fail) => {
     resolve = r;
+    reject = fail;
   });
-  return { promise, resolve };
+  return { promise, resolve, reject };
 }
 
 const picker = {
@@ -73,6 +79,7 @@ const backend = {
   uploadThrows: false,
   uploadedUris: [] as string[],
   updateResult: { success: true, user: undefined } as { success: boolean; user?: unknown },
+  update: null as Deferred<{ success: boolean; user?: unknown }> | null,
   profileUpdates: [] as unknown[],
   engagement: { success: false } as { success: boolean; data?: UserEngagementSummary },
   refreshes: 0,
@@ -80,6 +87,7 @@ const backend = {
 mockModule(mock, sourcePath('services/auth/index.ts'), {
   updateUserProfile: async (attributes: unknown) => {
     backend.profileUpdates.push(attributes);
+    if (backend.update) return backend.update.promise;
     return backend.updateResult;
   },
 });
@@ -119,14 +127,19 @@ beforeEach(() => {
   backend.uploadThrows = false;
   backend.uploadedUris = [];
   backend.updateResult = { success: true, user: undefined };
+  backend.update = null;
   backend.profileUpdates = [];
   backend.engagement = { success: false };
   backend.refreshes = 0;
-  harness.authStore.setState({ user: null, isAuthenticated: false });
+  harness.authStore.setState({ user: null, isAuthenticated: false, authGeneration: 0 });
 });
 
 function signIn() {
-  harness.authStore.setState({ user: { ...signedInUser }, isAuthenticated: true });
+  harness.authStore.setState({
+    user: { ...signedInUser },
+    isAuthenticated: true,
+    authGeneration: 1,
+  });
 }
 
 async function renderScreen() {
@@ -140,6 +153,144 @@ const avatarImageUri = (view: Awaited<ReturnType<typeof renderScreen>>) => {
   const [image] = view.queryAllByType('Image');
   return image ? (image.props.source as { uri: string }).uri : null;
 };
+
+test('an avatar upload finishing after account change cannot update the next profile', async () => {
+  signIn();
+  picker.result = { canceled: false, assets: [{ uri: 'file:///account-a-avatar.jpg' }] };
+  backend.upload = deferred();
+  const view = await renderScreen();
+  let pressing: Promise<void> = Promise.resolve();
+  await act(async () => {
+    pressing = (
+      view.getByRole('button', { name: t('profile.changeAvatar') }).props
+        .onPress as () => Promise<void>
+    )();
+  });
+  assert.equal(backend.uploadedUris.length, 1);
+
+  // The auth boundary unmounts the old navigator while native/network work is pending.
+  await view.unmount();
+  const nextUser = { ...signedInUser, uid: 'u2', photoURL: 'https://cdn.test/user-b.jpg' };
+  harness.authStore.setState({ user: nextUser, isAuthenticated: true, authGeneration: 2 });
+  await act(async () => {
+    backend.upload?.resolve({ success: true, data: 'https://cdn.test/user-a.jpg' });
+    await pressing;
+  });
+
+  assert.deepEqual(backend.profileUpdates, []);
+  assert.deepEqual(harness.authStore.getState().user, nextUser);
+});
+
+test('an old account photo picker cannot start an upload after the account changes', async () => {
+  signIn();
+  picker.open = deferred();
+  const view = await renderScreen();
+  let pressing: Promise<void> = Promise.resolve();
+  await act(async () => {
+    pressing = (
+      view.getByRole('button', { name: t('profile.changeAvatar') }).props
+        .onPress as () => Promise<void>
+    )();
+  });
+  await view.unmount();
+  const nextUser = { ...signedInUser, uid: 'u2' };
+  harness.authStore.setState({ user: nextUser, isAuthenticated: true, authGeneration: 2 });
+  await act(async () => {
+    picker.open?.resolve({ canceled: false, assets: [{ uri: 'file:///old.jpg' }] });
+    await pressing;
+  });
+
+  assert.deepEqual(backend.uploadedUris, []);
+  assert.deepEqual(harness.authStore.getState().user, nextUser);
+});
+
+for (const boundary of ['different account', 'sign out', 'sign out and return'] as const) {
+  test(`an avatar profile response after ${boundary} cannot replace the current account`, async () => {
+    signIn();
+    picker.result = { canceled: false, assets: [{ uri: 'file:///old.jpg' }] };
+    backend.update = deferred();
+    const view = await renderScreen();
+    let pressing: Promise<void> = Promise.resolve();
+    await act(async () => {
+      pressing = (
+        view.getByRole('button', { name: t('profile.changeAvatar') }).props
+          .onPress as () => Promise<void>
+      )();
+    });
+    assert.equal(backend.profileUpdates.length, 1);
+    const nextUser =
+      boundary === 'sign out'
+        ? null
+        : {
+            ...signedInUser,
+            uid: boundary === 'different account' ? 'u2' : signedInUser.uid,
+            photoURL: 'https://cdn.test/current.jpg',
+          };
+    await act(async () => {
+      harness.authStore.setState({ user: null, isAuthenticated: false, authGeneration: 2 });
+      if (nextUser)
+        harness.authStore.setState({ user: nextUser, isAuthenticated: true, authGeneration: 3 });
+    });
+    await act(async () => {
+      backend.update?.resolve({ success: true });
+      await pressing;
+    });
+    assert.deepEqual(harness.authStore.getState().user, nextUser);
+    assert.equal(avatarImageUri(view), nextUser?.photoURL ?? null);
+    assert.deepEqual(harness.rn.__recorded.alerts, []);
+  });
+}
+
+test('a picker result after unmount cannot upload even when the account is unchanged', async () => {
+  signIn();
+  picker.open = deferred();
+  const view = await renderScreen();
+  let pressing: Promise<void> = Promise.resolve();
+  await act(async () => {
+    pressing = (
+      view.getByRole('button', { name: t('profile.changeAvatar') }).props
+        .onPress as () => Promise<void>
+    )();
+  });
+  await view.unmount();
+  await act(async () => {
+    picker.open?.resolve({ canceled: false, assets: [{ uri: 'file:///old.jpg' }] });
+    await pressing;
+  });
+  assert.deepEqual(backend.uploadedUris, []);
+});
+
+for (const stage of ['picker', 'upload', 'profile'] as const) {
+  test(`a stale ${stage} failure cannot alert or restore the old account avatar`, async () => {
+    signIn();
+    picker.result = { canceled: false, assets: [{ uri: 'file:///old.jpg' }] };
+    if (stage === 'picker') picker.open = deferred();
+    if (stage === 'upload') backend.upload = deferred();
+    if (stage === 'profile') backend.update = deferred();
+    const view = await renderScreen();
+    let pressing: Promise<void> = Promise.resolve();
+    await act(async () => {
+      pressing = (
+        view.getByRole('button', { name: t('profile.changeAvatar') }).props
+          .onPress as () => Promise<void>
+      )();
+    });
+    const nextUser = { ...signedInUser, uid: 'u2', photoURL: 'https://cdn.test/current.jpg' };
+    await act(async () => {
+      harness.authStore.setState({ user: nextUser, isAuthenticated: true, authGeneration: 2 });
+    });
+    await act(async () => {
+      const error = new Error('late failure');
+      if (stage === 'picker') picker.open?.reject(error);
+      if (stage === 'upload') backend.upload?.reject(error);
+      if (stage === 'profile') backend.update?.reject(error);
+      await pressing;
+    });
+    assert.deepEqual(harness.rn.__recorded.alerts, []);
+    assert.equal(avatarImageUri(view), nextUser.photoURL);
+    assert.deepEqual(harness.authStore.getState().user, nextUser);
+  });
+}
 
 test('a guest sees their local stats, cannot change an avatar, and can start sign in', async () => {
   const view = await renderScreen();

@@ -64,6 +64,13 @@ export function ProfileScreen() {
   // The button only disables once an upload starts; a second tap while the system
   // picker is still opening must not launch another one.
   const isPickingAvatarRef = useRef(false);
+  const isMountedRef = useRef(false);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
   const [engagement, setEngagement] = useState<UserEngagementSummary | null>(null);
   // Listening is banked on this device as it plays, and the cloud summary lags it
   // until queued events upload: show the larger, as Reading activity does.
@@ -100,7 +107,20 @@ export function ProfileScreen() {
   }, [user?.photoURL]);
 
   const handlePickAvatar = useCallback(async () => {
-    if (!isAuthenticated || isPickingAvatarRef.current) return;
+    if (!isAuthenticated || !user || isPickingAvatarRef.current) return;
+    const initialAuth = useAuthStore.getState();
+    const userId = user.uid;
+    const authGeneration = initialAuth.authGeneration;
+    const isCurrent = () => {
+      const currentAuth = useAuthStore.getState();
+      return (
+        isMountedRef.current &&
+        currentAuth.isAuthenticated &&
+        currentAuth.user?.uid === userId &&
+        currentAuth.authGeneration === authGeneration
+      );
+    };
+    if (!isCurrent()) return;
 
     let result: ImagePicker.ImagePickerResult;
     isPickingAvatarRef.current = true;
@@ -115,13 +135,13 @@ export function ProfileScreen() {
         })
       );
     } catch {
-      Alert.alert(t('common.error'), t('profile.avatarUpdateFailed'));
+      if (isCurrent()) Alert.alert(t('common.error'), t('profile.avatarUpdateFailed'));
       return;
     } finally {
       isPickingAvatarRef.current = false;
     }
 
-    if (result.canceled || !result.assets[0]) return;
+    if (!isCurrent() || result.canceled || !result.assets[0]) return;
 
     const localUri = result.assets[0].uri;
     // Optimistically show the local image while uploading
@@ -130,6 +150,7 @@ export function ProfileScreen() {
 
     try {
       const uploadResult = await uploadAvatar(localUri);
+      if (!isCurrent()) return;
 
       if (!uploadResult.success || !uploadResult.data) {
         // Revert to previous avatar on failure
@@ -143,6 +164,7 @@ export function ProfileScreen() {
       // Persist the new URL through the auth service so the update goes through
       // the shared error-mapping layer instead of a raw Supabase call (L17).
       const updateResult = await updateUserProfile({ data: { avatar_url: publicUrl } });
+      if (!isCurrent()) return;
 
       if (!updateResult.success) {
         setAvatarUri(user?.photoURL ?? null);
@@ -159,10 +181,11 @@ export function ProfileScreen() {
 
       setAvatarUri(publicUrl);
     } catch {
+      if (!isCurrent()) return;
       setAvatarUri(user?.photoURL ?? null);
       Alert.alert(t('common.error'), t('profile.avatarUpdateFailed'));
     } finally {
-      setIsUploadingAvatar(false);
+      if (isCurrent()) setIsUploadingAvatar(false);
     }
   }, [isAuthenticated, user, setUser, t]);
 

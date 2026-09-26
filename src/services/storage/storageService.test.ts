@@ -9,11 +9,23 @@ import { createSupabaseFake } from '../../testing/supabaseFake';
  * mocked directly with mutable getters instead.
  */
 const fake = createSupabaseFake();
-const backend = { configured: true, userId: 'user-1' as string | null };
+const backend = {
+  configured: true,
+  userId: 'user-1' as string | null,
+  lookup: null as Promise<string | null> | null,
+};
+const authState = {
+  user: { uid: 'user-1' } as { uid: string } | null,
+  authGeneration: 1,
+  isAuthenticated: true,
+};
+mockModule(mock, sourcePath('stores/authStore.ts'), {
+  useAuthStore: { getState: () => authState },
+});
 const supabaseExports = {
   supabase: fake.client,
   isSupabaseConfigured: () => backend.configured,
-  getCurrentUserId: async () => (backend.configured ? backend.userId : null),
+  getCurrentUserId: async () => backend.lookup ?? (backend.configured ? backend.userId : null),
 };
 mockModule(mock, sourcePath('services/supabase/index.ts'), supabaseExports);
 mockModule(mock, sourcePath('services/supabase/client.ts'), supabaseExports);
@@ -22,6 +34,7 @@ mockModule(mock, sourcePath('services/supabase/client.ts'), supabaseExports);
 const files = new Map<string, string>();
 const reads: Array<{ uri: string; options: unknown }> = [];
 let readFailure: Error | null = null;
+let pendingRead: Promise<string> | null = null;
 // storageService imports the SDK 54 legacy entry point (the root export dropped
 // readAsStringAsync/getInfoAsync), so that is the specifier to intercept.
 mockModule(mock, 'expo-file-system/legacy', {
@@ -30,6 +43,7 @@ mockModule(mock, 'expo-file-system/legacy', {
     if (readFailure) {
       throw readFailure;
     }
+    if (pendingRead) return pendingRead;
     const contents = files.get(uri);
     if (contents === undefined) {
       throw new Error(`File does not exist: ${uri}`);
@@ -55,11 +69,94 @@ beforeEach(() => {
   files.clear();
   reads.length = 0;
   readFailure = null;
+  pendingRead = null;
   backend.configured = true;
   backend.userId = 'user-1';
+  backend.lookup = null;
+  authState.user = { uid: 'user-1' };
+  authState.authGeneration = 1;
+  authState.isAuthenticated = true;
 });
 
 // ─── Avatar upload ───────────────────────────────────────────────────────────
+
+test('an avatar upload cannot adopt a new account returned by a delayed auth lookup', async () => {
+  files.set('file:///tmp/old.png', base64('old-account-photo'));
+  let resolveLookup!: (value: string | null) => void;
+  backend.lookup = new Promise((resolve) => {
+    resolveLookup = resolve;
+  });
+  const uploading = storage.uploadAvatar('file:///tmp/old.png');
+  authState.user = { uid: 'user-2' };
+  authState.authGeneration += 1;
+  backend.userId = 'user-2';
+  resolveLookup('user-2');
+
+  const result = await uploading;
+
+  assert.deepEqual(uploadsTo('avatars'), []);
+  assert.equal(result.success, false);
+});
+
+test('an avatar upload stops if the session changes while its local file is read', async () => {
+  let resolveRead!: (value: string) => void;
+  pendingRead = new Promise((resolve) => {
+    resolveRead = resolve;
+  });
+  const uploading = storage.uploadAvatar('file:///tmp/old.png');
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(reads.length, 1);
+  // The same account signs back in, but its earlier upload has lost ownership.
+  authState.authGeneration += 2;
+  resolveRead(base64('old-account-photo'));
+
+  const result = await uploading;
+
+  assert.deepEqual(uploadsTo('avatars'), []);
+  assert.equal(result.success, false);
+});
+
+test('an avatar upload refuses a backend identity that disagrees with its initiating account', async () => {
+  backend.userId = 'user-2';
+  files.set('file:///tmp/old.png', base64('old-account-photo'));
+
+  const result = await storage.uploadAvatar('file:///tmp/old.png');
+
+  assert.equal(result.success, false);
+  assert.deepEqual(reads, []);
+  assert.deepEqual(uploadsTo('avatars'), []);
+});
+
+test('an avatar upload completed after sign-out cannot return a successful public URL', async () => {
+  files.set('file:///tmp/old.png', base64('old-account-photo'));
+  let finishUpload!: (value: { data: null; error: null }) => void;
+  const pendingUpload = new Promise<{ data: null; error: null }>((resolve) => {
+    finishUpload = resolve;
+  });
+  let uploadStarted!: () => void;
+  const started = new Promise<void>((resolve) => {
+    uploadStarted = resolve;
+  });
+  fake.storage.respond('avatars', 'upload', () => {
+    uploadStarted();
+    return pendingUpload;
+  });
+  const uploading = storage.uploadAvatar('file:///tmp/old.png');
+  await started;
+  authState.user = null;
+  authState.isAuthenticated = false;
+  authState.authGeneration += 1;
+  finishUpload({ data: null, error: null });
+
+  const result = await uploading;
+
+  assert.equal(result.success, false);
+  assert.equal(result.data, undefined);
+  assert.equal(
+    fake.storageCalls.some((call) => call.method === 'getPublicUrl'),
+    false
+  );
+});
 
 test('uploading an avatar stores it under the user folder and returns its public URL', async () => {
   files.set('file:///tmp/pick.png', base64('png-bytes'));
@@ -160,6 +257,8 @@ test('uploading an avatar without a backend reports that Supabase is unconfigure
 
 test('uploading an avatar while signed out is refused before any file is read', async () => {
   backend.userId = null;
+  authState.user = null;
+  authState.isAuthenticated = false;
 
   assert.deepEqual(await storage.uploadAvatar('file:///tmp/pick.png'), {
     success: false,
