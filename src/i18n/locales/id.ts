@@ -775,7 +775,6 @@ export const id = {
       showControlsHint: 'Menampilkan kembali pemutar dan tab',
       selah: 'Sela',
       selahHint: 'Menjeda pembacaan dan tetap memutar suara latar',
-      selahChip: 'Sela · {{sound}} tetap diputar',
     },
     playbackSpeed: 'Kecepatan pemutaran',
     sleepTimer: 'Pengatur waktu tidur',

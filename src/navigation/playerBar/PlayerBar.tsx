@@ -86,7 +86,7 @@ export const PlayerBar = memo(function PlayerBar({
   const { t } = useTranslation();
   const reduceMotion = useReducedMotion();
   const palette = getPlayerBarPalette(colors, scope);
-  const { controller, audioLoaded, isSelahActive } = usePlayerBarController(scope);
+  const { controller, audioLoaded } = usePlayerBarController(scope);
   const hasPlayerRow = controller != null;
   const hasTabRow = tabRow != null;
   const mode = getPlayerBarCollapseMode(hasPlayerRow, audioLoaded);
@@ -157,10 +157,6 @@ export const PlayerBar = memo(function PlayerBar({
       <Animated.View style={motionStyle} {...liveWhen(barLive)} testID="player-bar">
         <PlayerBarNotices
           errorMessage={scope === 'reader' ? (controller?.errorMessage ?? null) : null}
-          selahSound={
-            scope === 'reader' && isSelahActive && controller ? controller.soundChoice : null
-          }
-          palette={palette}
         />
         <Animated.View style={[styles.capsule, capsuleStyle]} pointerEvents="box-none">
           <View style={StyleSheet.absoluteFill} pointerEvents="none" testID="player-bar-material">

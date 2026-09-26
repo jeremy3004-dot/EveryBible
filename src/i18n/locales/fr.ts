@@ -806,7 +806,6 @@ export const fr = {
       showControlsHint: 'Réaffiche le lecteur et les onglets',
       selah: 'Sélah',
       selahHint: 'Met la lecture en pause et laisse le son d’ambiance continuer',
-      selahChip: 'Sélah · {{sound}} continue',
     },
     playbackSpeed: 'Vitesse de lecture',
     sleepTimer: 'Minuterie de veille',

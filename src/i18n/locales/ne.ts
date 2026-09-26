@@ -417,7 +417,6 @@ export const ne = {
       showControlsHint: 'प्लेयर र ट्याबहरू फेरि देखाउँछ',
       selah: 'सेला',
       selahHint: 'पढाइ रोक्छ र पृष्ठभूमि ध्वनि बजिरहन दिन्छ',
-      selahChip: 'सेला · {{sound}} बजिरहेको छ',
     },
     playbackSpeed: 'बजाउने गति',
     sleepTimer: 'निद्रा टाइमर',

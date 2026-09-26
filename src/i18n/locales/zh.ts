@@ -734,7 +734,6 @@ export const zh = {
       showControlsHint: '重新显示播放器和标签栏',
       selah: '细拉',
       selahHint: '暂停朗读，背景声音继续播放',
-      selahChip: '细拉 · {{sound}} 继续播放',
     },
     playbackSpeed: '播放速度',
     sleepTimer: '睡眠定时器',

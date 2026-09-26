@@ -764,7 +764,6 @@ export const ur = {
       showControlsHint: 'پلیئر اور ٹیبز دوبارہ دکھاتا ہے',
       selah: 'سلاہ',
       selahHint: 'پڑھائی روکتا ہے اور پس منظر کی آواز چلتی رہتی ہے',
-      selahChip: 'سلاہ · {{sound}} جاری ہے',
     },
     playbackSpeed: 'پلے بیک کی رفتار',
     sleepTimer: 'نیند کا ٹائمر',

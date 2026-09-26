@@ -796,7 +796,6 @@ export const ru = {
       showControlsHint: 'Снова показывает плеер и вкладки',
       selah: 'Села',
       selahHint: 'Приостанавливает чтение, фоновый звук продолжает играть',
-      selahChip: 'Села · фон «{{sound}}» звучит дальше',
     },
     playbackSpeed: 'Скорость воспроизведения',
     sleepTimer: 'Таймер сна',

@@ -420,9 +420,8 @@ test('while Selah is on its button is selected, Play leaves Selah and the chip n
   const { view } = await renderBar();
 
   assert.ok(view.getByRole('button', { name: t('audio.playerBar.selah'), selected: true }));
-  assert.ok(
-    view.getByText(t('audio.playerBar.selahChip', { sound: t('interface.music.piano.label') }))
-  );
+  // Selah shows as its filled button alone: no caption floats over the text.
+  assert.equal(view.queryByTestId('selah-chip'), null);
   await view.press(view.getByRole('button', { name: playName() }));
   assert.equal(selahToggles, 1, 'Play fades the reading back in through Selah');
   assert.deepEqual(readerCalls, []);

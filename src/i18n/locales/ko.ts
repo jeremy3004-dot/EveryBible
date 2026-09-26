@@ -759,7 +759,6 @@ export const ko = {
       showControlsHint: '플레이어와 탭을 다시 표시합니다',
       selah: '셀라',
       selahHint: '낭독을 멈추고 배경 사운드는 계속 재생합니다',
-      selahChip: '셀라 · {{sound}} 계속 재생 중',
     },
     playbackSpeed: '재생 속도',
     sleepTimer: '수면 타이머',

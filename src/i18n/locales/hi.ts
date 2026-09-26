@@ -417,7 +417,6 @@ export const hi = {
       showControlsHint: 'प्लेयर और टैब फिर से दिखाता है',
       selah: 'सेला',
       selahHint: 'वाचन रोकता है और पृष्ठभूमि ध्वनि चालू रखता है',
-      selahChip: 'सेला · {{sound}} जारी है',
     },
     playbackSpeed: 'प्लेबैक गति',
     sleepTimer: 'सोने का टाइमर',

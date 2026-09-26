@@ -792,7 +792,6 @@ export const pt = {
       showControlsHint: 'Volta a mostrar o reprodutor e as abas',
       selah: 'Selá',
       selahHint: 'Pausa a leitura e mantém o som de fundo tocando',
-      selahChip: 'Selá · {{sound}} continua tocando',
     },
     playbackSpeed: 'Velocidade de reprodução',
     sleepTimer: 'Temporizador',

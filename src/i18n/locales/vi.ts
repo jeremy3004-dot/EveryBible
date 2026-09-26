@@ -776,7 +776,6 @@ export const vi = {
       showControlsHint: 'Hiện lại trình phát và các thẻ',
       selah: 'Sê-la',
       selahHint: 'Tạm dừng phần đọc và vẫn phát âm thanh nền',
-      selahChip: 'Sê-la · {{sound}} vẫn đang phát',
     },
     playbackSpeed: 'Tốc độ phát lại',
     sleepTimer: 'Hẹn giờ ngủ',

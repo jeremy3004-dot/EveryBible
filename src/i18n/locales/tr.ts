@@ -774,7 +774,6 @@ export const tr = {
       showControlsHint: 'Oynatıcıyı ve sekmeleri yeniden gösterir',
       selah: 'Sela',
       selahHint: 'Okumayı duraklatır, arka plan sesi çalmaya devam eder',
-      selahChip: 'Sela · {{sound}} çalmaya devam ediyor',
     },
     playbackSpeed: 'Oynatma hızı',
     sleepTimer: 'Uyku zamanlayıcısı',

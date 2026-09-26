@@ -416,7 +416,6 @@ export const mr = {
       showControlsHint: 'प्लेअर आणि टॅब पुन्हा दाखवते',
       selah: 'सेला',
       selahHint: 'वाचन थांबवते आणि पार्श्वध्वनी चालू ठेवते',
-      selahChip: 'सेला · {{sound}} चालू आहे',
     },
     playbackSpeed: 'प्लेबॅकचा वेग',
     sleepTimer: 'स्लीप टाइमर',

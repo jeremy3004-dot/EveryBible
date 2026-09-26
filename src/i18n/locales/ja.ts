@@ -759,7 +759,6 @@ export const ja = {
       showControlsHint: 'プレーヤーとタブを再び表示します',
       selah: 'セラ',
       selahHint: '朗読を一時停止し、背景サウンドは流し続けます',
-      selahChip: 'セラ · {{sound}}は再生中',
     },
     playbackSpeed: '再生速度',
     sleepTimer: 'スリープタイマー',

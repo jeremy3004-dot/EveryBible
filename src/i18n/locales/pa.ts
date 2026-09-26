@@ -417,7 +417,6 @@ export const pa = {
       showControlsHint: 'ਪਲੇਅਰ ਅਤੇ ਟੈਬਾਂ ਮੁੜ ਦਿਖਾਉਂਦਾ ਹੈ',
       selah: 'ਸੇਲਾ',
       selahHint: 'ਪੜ੍ਹਨਾ ਰੋਕਦਾ ਹੈ ਅਤੇ ਪਿਛੋਕੜ ਆਵਾਜ਼ ਚੱਲਦੀ ਰੱਖਦਾ ਹੈ',
-      selahChip: 'ਸੇਲਾ · {{sound}} ਜਾਰੀ ਹੈ',
     },
     playbackSpeed: 'ਪਲੇਬੈਕ ਸਪੀਡ',
     sleepTimer: 'ਸਲੀਪ ਟਾਈਮਰ',

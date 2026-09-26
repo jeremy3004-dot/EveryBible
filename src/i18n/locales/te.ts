@@ -421,7 +421,6 @@ export const te = {
       showControlsHint: 'ప్లేయర్‌ను, ట్యాబ్‌లను మళ్లీ చూపిస్తుంది',
       selah: 'సెలా',
       selahHint: 'పఠనాన్ని ఆపి, నేపథ్య ధ్వనిని కొనసాగిస్తుంది',
-      selahChip: 'సెలా · {{sound}} కొనసాగుతోంది',
     },
     playbackSpeed: 'ప్లేబ్యాక్ వేగం',
     sleepTimer: 'స్లీప్ టైమర్',

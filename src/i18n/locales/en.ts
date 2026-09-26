@@ -755,7 +755,6 @@ export const en = {
       showControlsHint: 'Brings back the player and the tabs',
       selah: 'Selah',
       selahHint: 'Pauses the reading and keeps the background sound playing',
-      selahChip: 'Selah · {{sound}} keeps playing',
     },
     playbackSpeed: 'Playback Speed',
     sleepTimer: 'Sleep Timer',

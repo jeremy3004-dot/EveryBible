@@ -41,7 +41,6 @@ import { useAudioPlayer } from '../../hooks/useAudioPlayer';
 import { useFontSize } from '../../hooks/useFontSize';
 import { useLargeText } from '../../hooks/useLargeText';
 import { useLocalToday } from '../../hooks/useLocalToday';
-import { useSelah } from '../../hooks/audioPlayer/useSelah';
 import { TAB_BAR_CAPSULE_SIDE_INSET } from '../../hooks/useTabBarHeight';
 import { PlayerBar } from '../../navigation/playerBar/PlayerBar';
 import { getTabBarCapsuleFill } from '../../navigation/tabBarCapsuleStyle';
@@ -193,7 +192,6 @@ export function BibleReaderScreen() {
     getHomeVerseBackgroundIndex(new Date(), HOME_VERSE_BACKGROUND_SOURCES.length)
   );
   const [isReadBottomChromeCollapsed, setIsReadBottomChromeCollapsed] = useState(false);
-  const { isSelahActive } = useSelah();
   const hasDisplayedChapterAudioError = useAudioStore(
     (state) =>
       state.status === 'error' && state.currentBookId === bookId && state.currentChapter === chapter
@@ -229,7 +227,7 @@ export function BibleReaderScreen() {
     bookId,
     chapter,
     chapterSessionMode,
-    hasPlayerBarNotice: isSelahActive || hasDisplayedChapterAudioError,
+    hasPlayerBarNotice: hasDisplayedChapterAudioError,
     navigation,
     planDayNumber,
     returnToPlanOnComplete,

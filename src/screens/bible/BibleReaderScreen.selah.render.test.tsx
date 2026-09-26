@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { act } from 'react-test-renderer';
 import { create } from 'zustand';
 import { mockModule, sourcePath } from '../../testing/mockModules';
-import { flattenStyle, hostAncestors, within } from '../../testing/render';
+import { flattenStyle, hostAncestors } from '../../testing/render';
 import { installReaderRenderFixture } from './BibleReaderScreen.renderFixture';
 
 // Selah on the reader: the button beside the listen screen's transport, and the chip
@@ -72,9 +72,8 @@ test('during Selah the listen screen shows Play, and Play brings the reading bac
   );
 });
 
-test('on the text screen the Selah chip sits above the bar and the text clears it', async () => {
+test('on the text screen Selah shows no caption over the text', async () => {
   const { PLAYER_BAR_SECTION_HEIGHT } = await import('../../navigation/readerTabBarMotion');
-  const { PLAYER_BAR_NOTICE_HEIGHT } = await import('../../navigation/playerBar/playerBarModel');
   const view = await renderReader();
   const bottomPadding = () =>
     flattenStyle(reader.readerList(view).props.contentContainerStyle)?.paddingBottom;
@@ -84,13 +83,9 @@ test('on the text screen the Selah chip sits above the bar and the text clears i
 
   await pausedInSelah();
 
-  const chip = view.getByTestId('selah-chip');
-  assert.ok(
-    within(chip).getByText(
-      t('audio.playerBar.selahChip', { sound: t('interface.music.rain.label') })
-    )
-  );
-  assert.equal(bottomPadding(), Number(resting) + PLAYER_BAR_NOTICE_HEIGHT + 16);
+  // No caption appears over the text while Selah is on, so the text keeps its padding.
+  assert.equal(view.queryByTestId('selah-chip'), null);
+  assert.equal(bottomPadding(), resting);
   // On the bar, Play also leaves Selah rather than toggling the player.
   await view.press(view.getByRole('button', { name: t('interface.playChapterAudio') }));
   assert.equal(selahToggles, 1);

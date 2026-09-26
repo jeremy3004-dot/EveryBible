@@ -808,7 +808,6 @@ export const ar = {
       showControlsHint: 'يعيد إظهار المشغل وعلامات التبويب',
       selah: 'سلاه',
       selahHint: 'يوقف القراءة مؤقتًا ويُبقي صوت الخلفية مستمرًا',
-      selahChip: 'سلاه · يستمر تشغيل {{sound}}',
     },
     playbackSpeed: 'سرعة التشغيل',
     sleepTimer: 'مؤقت النوم',

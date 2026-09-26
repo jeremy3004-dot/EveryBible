@@ -796,7 +796,6 @@ export const es = {
       showControlsHint: 'Vuelve a mostrar el reproductor y las pestañas',
       selah: 'Selah',
       selahHint: 'Pausa la lectura y mantiene el sonido de fondo',
-      selahChip: 'Selah · {{sound}} sigue sonando',
     },
     playbackSpeed: 'Velocidad de reproducción',
     sleepTimer: 'Temporizador de apagado',

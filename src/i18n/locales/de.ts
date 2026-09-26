@@ -784,7 +784,6 @@ export const de = {
       showControlsHint: 'Blendet den Player und die Tabs wieder ein',
       selah: 'Sela',
       selahHint: 'Pausiert die Lesung, der Hintergrundklang läuft weiter',
-      selahChip: 'Sela · {{sound}} läuft weiter',
     },
     playbackSpeed: 'Wiedergabegeschwindigkeit',
     sleepTimer: 'Einschlaftimer',

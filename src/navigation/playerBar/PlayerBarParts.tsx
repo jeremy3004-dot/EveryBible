@@ -1,11 +1,8 @@
 import { memo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { Feather } from 'lucide-react-native';
-import { useTranslation } from 'react-i18next';
+import { StyleSheet, View } from 'react-native';
 import { AudioPlaybackErrorNotice } from '../../components/audio/AudioPlaybackErrorNotice';
-import { radius, spacing, typography } from '../../design/system';
+import { spacing } from '../../design/system';
 import { useAudioStore } from '../../stores/audioStore';
-import type { BackgroundMusicChoice } from '../../types/audio';
 import { PLAYER_BAR_PROGRESS_HEIGHT } from '../readerTabBarMotion';
 import type { PlayerBarPalette } from './playerBarModel';
 
@@ -41,46 +38,15 @@ export const PlayerBarProgressFill = memo(function PlayerBarProgressFill({
   );
 });
 
-/** "Selah · Piano keeps playing": the narration is held while the sound plays on. */
-export const SelahChip = memo(function SelahChip({
-  soundChoice,
-  palette,
-}: {
-  soundChoice: BackgroundMusicChoice;
-  palette: PlayerBarPalette;
-}) {
-  const { t } = useTranslation();
-  const sound = t(`interface.music.${soundChoice}.label`);
-
-  return (
-    <View
-      style={[styles.chip, { backgroundColor: palette.tile, borderColor: palette.hairline }]}
-      accessibilityLiveRegion="polite"
-      testID="selah-chip"
-    >
-      <Feather size={12} strokeWidth={1.8} color={palette.accent} />
-      <Text style={[styles.chipText, { color: palette.ink }]} numberOfLines={2}>
-        {t('audio.playerBar.selahChip', { sound })}
-      </Text>
-    </View>
-  );
-});
-
-/** What floats just above the capsule: a playback failure, the Selah chip. */
-export function PlayerBarNotices({
-  errorMessage,
-  selahSound,
-  palette,
-}: {
-  errorMessage: string | null;
-  selahSound: BackgroundMusicChoice | null;
-  palette: PlayerBarPalette;
-}) {
-  if (!errorMessage && !selahSound) return null;
+/**
+ * What floats just above the capsule: a playback failure. (Selah shows as its filled
+ * button alone; the owner asked for no caption over the text.)
+ */
+export function PlayerBarNotices({ errorMessage }: { errorMessage: string | null }) {
+  if (!errorMessage) return null;
   return (
     <View style={styles.notices} pointerEvents="none">
-      {errorMessage ? <AudioPlaybackErrorNotice message={errorMessage} /> : null}
-      {selahSound ? <SelahChip soundChoice={selahSound} palette={palette} /> : null}
+      <AudioPlaybackErrorNotice message={errorMessage} />
     </View>
   );
 }
@@ -102,20 +68,5 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     alignItems: 'center',
     gap: spacing.xs,
-  },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 2,
-    maxWidth: '100%',
-  },
-  chipText: {
-    ...typography.micro,
-    fontWeight: '600',
-    flexShrink: 1,
   },
 });

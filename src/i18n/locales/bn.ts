@@ -414,7 +414,6 @@ export const bn = {
       showControlsHint: 'প্লেয়ার ও ট্যাবগুলো আবার দেখায়',
       selah: 'সেলা',
       selahHint: 'পাঠ থামিয়ে রাখে এবং পটভূমির শব্দ চালু রাখে',
-      selahChip: 'সেলা · {{sound}} বাজছে',
     },
     playbackSpeed: 'চালানোর গতি',
     sleepTimer: 'স্লিপ টাইমার',
