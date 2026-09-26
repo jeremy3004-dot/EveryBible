@@ -1,4 +1,5 @@
 export { followPlaybackWithBackgroundMusic } from './backgroundMusicFollow';
+export { followNarrationVolume } from './narrationVolumeFollow';
 export { loadChapterForTranslation, type ChapterLoadContext } from './chapterLoading';
 export {
   navigateToChapter,

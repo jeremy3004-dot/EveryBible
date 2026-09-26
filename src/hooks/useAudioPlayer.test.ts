@@ -51,6 +51,8 @@ const recorded = {
   nowPlaying: [] as Record<string, unknown>[],
   nowPlayingCleared: 0,
   backgroundMusic: [] as { method: 'sync' | 'stop'; choice?: string; shouldPlay?: boolean }[],
+  backgroundMusicLevels: [] as number[],
+  narrationVolumes: [] as number[],
   analytics: [] as { name: string; properties: Record<string, unknown> }[],
   history: [] as { bookId: string; chapter: number; progress: number }[],
   listened: [] as { bookId: string; chapter: number }[],
@@ -128,6 +130,7 @@ interface AudioPlayerDouble {
   stop(): Promise<void>;
   seekTo(positionMs: number): Promise<void>;
   setRate(rate: number): Promise<void>;
+  setVolume(volume: number): Promise<void>;
   verifyLoaded(): Promise<void>;
   isLoaded(): boolean;
 }
@@ -184,6 +187,9 @@ const audioPlayerDouble: AudioPlayerDouble = {
   async setRate(rate: number) {
     recorded.player.push({ method: 'setRate', args: [rate] });
   },
+  async setVolume(volume: number) {
+    recorded.narrationVolumes.push(volume);
+  },
   async verifyLoaded() {
     recorded.player.push({ method: 'verifyLoaded', args: [] });
     if (scenario.nativeSoundReleased && audioPlayerDouble.loaded) {
@@ -200,6 +206,10 @@ const backgroundMusicDouble = {
   async sync(choice: string, shouldPlay: boolean) {
     recorded.backgroundMusic.push({ method: 'sync', choice, shouldPlay });
   },
+  setLevel(level: number) {
+    recorded.backgroundMusicLevels.push(level);
+  },
+  getShuffleCandidates: () => ['piano', 'harp', 'ocean-waves'],
   async stop() {
     recorded.backgroundMusic.push({ method: 'stop' });
   },

@@ -14,6 +14,7 @@ import {
   clearPlayerNowPlaying,
   emitAudioPlaybackProgress,
   finishChapterAndAdvance,
+  followNarrationVolume,
   followPlaybackWithBackgroundMusic,
   handlePlaybackStatusUpdate,
   isAudioLoaded,
@@ -403,6 +404,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
 
   useEffect(() => {
     followPlaybackWithBackgroundMusic();
+    followNarrationVolume();
   }, []);
 
   // A loaded chapter that is buffering mid-stream may be waiting on a sound the

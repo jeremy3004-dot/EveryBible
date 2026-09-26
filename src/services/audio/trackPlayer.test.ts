@@ -56,6 +56,7 @@ class FakeSound {
   unloadAsync = (): Promise<void> => this.record('unloadAsync', []);
   setRateAsync = (rate: number, correctPitch: boolean): Promise<void> =>
     this.record('setRateAsync', [rate, correctPitch]);
+  setVolumeAsync = (volume: number): Promise<void> => this.record('setVolumeAsync', [volume]);
   setPositionAsync = (positionMillis: number): Promise<void> =>
     this.record('setPositionAsync', [positionMillis]);
   setOnPlaybackStatusUpdate = (listener: ((status: FakeStatus) => void) | null): void => {
@@ -184,9 +185,10 @@ before(async () => {
 });
 
 beforeEach(async () => {
-  // destroy() drops listeners and unloads; setRate resets the sticky rate.
+  // destroy() drops listeners and unloads; setRate and setVolume reset the sticky settings.
   await mod.default.destroy();
   await mod.default.setRate(1.0);
+  await mod.default.setVolume(1);
   soundInstances.length = 0;
   createCalls.length = 0;
   audioModeCalls.length = 0;
@@ -751,6 +753,81 @@ test('a failed rate change surfaces RATE_ERROR without throwing', async () => {
   assert.deepEqual(events, [
     { event: mod.Event.PlaybackError, data: { code: 'RATE_ERROR', message: 'rate unsupported' } },
   ]);
+});
+
+// ---------------------------------------------------------------------------
+// Narration volume
+// ---------------------------------------------------------------------------
+
+test('setVolume changes the volume of the chapter playing', async () => {
+  await mod.default.add(track('gen1'));
+
+  await mod.default.setVolume(0.4);
+
+  assert.deepEqual(soundInstances[0].calls, [{ method: 'setVolumeAsync', args: [0.4] }]);
+});
+
+test('a chapter loaded after a volume change is created at that volume', async () => {
+  await mod.default.setVolume(0.4);
+
+  await mod.default.loadAndPlay('https://audio.test/john3.mp3');
+
+  assert.equal((createCalls[0].initialStatus as { volume?: number }).volume, 0.4);
+  assert.deepEqual(soundInstances[0].methods(), ['playAsync']);
+});
+
+test('the volume sticks across chapters', async () => {
+  await mod.default.add(track('gen1'));
+  await mod.default.setVolume(0.6);
+
+  await mod.default.add(track('gen2'));
+
+  assert.equal((createCalls[1].initialStatus as { volume?: number }).volume, 0.6);
+});
+
+test('a volume change while the chapter loads is applied as soon as it has loaded', async () => {
+  const gate = createDeferred();
+  nextCreateGate = gate.promise;
+  const loading = mod.default.loadAndPlay('https://audio.test/john3.mp3', 1);
+  await flush();
+
+  await mod.default.setVolume(0.3);
+  gate.resolve();
+  await loading;
+
+  assert.equal((createCalls[0].initialStatus as { volume?: number }).volume, undefined);
+  assert.deepEqual(soundInstances[0].calls.slice(0, 2), [
+    { method: 'setVolumeAsync', args: [0.3] },
+    { method: 'playAsync', args: [] },
+  ]);
+});
+
+test('setVolume clamps to the 0–1 range', async () => {
+  await mod.default.add(track('gen1'));
+
+  await mod.default.setVolume(3);
+  await mod.default.setVolume(-1);
+  await mod.default.setVolume(Number.NaN);
+
+  assert.deepEqual(
+    soundInstances[0].calls.map((call) => call.args[0]),
+    [1, 0, 1]
+  );
+});
+
+test('a volume change the native side rejects is swallowed and kept for the next chapter', async () => {
+  await mod.default.add(track('gen1'));
+  soundInstances[0].rejections.set('setVolumeAsync', new Error('sound released'));
+  const events = recordEvents();
+
+  await assert.doesNotReject(() => mod.default.setVolume(0.5));
+  await mod.default.add(track('gen2'));
+
+  assert.equal(
+    events.some((entry) => entry.event === mod.Event.PlaybackError),
+    false
+  );
+  assert.equal((createCalls[1].initialStatus as { volume?: number }).volume, 0.5);
 });
 
 // ---------------------------------------------------------------------------
