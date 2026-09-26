@@ -118,3 +118,15 @@ test('resolveRepeatPlaybackTarget still replays the current chapter with a map i
     { bookId: 'PSA', chapter: 117 }
   );
 });
+
+test('resolveRepeatPlaybackTarget leaves passage repeat to the passage model', () => {
+  assert.equal(
+    resolveRepeatPlaybackTarget({
+      repeatMode: 'passage',
+      bookId: 'JHN',
+      chapter: 3,
+      totalChapters: 21,
+    }),
+    null
+  );
+});

@@ -16,6 +16,7 @@ import { useLibraryStore } from '../../stores/libraryStore';
 import { useProgressStore } from '../../stores/progressStore';
 import { emitAudioPlaybackProgress, stopAudioProgressTelemetry } from './listeningTelemetry';
 import type { AudioPlayerSession, ResolveAudioCoverage } from './playerSession';
+import { resolvePassageFinishTarget } from './passageRepeat';
 import { followAutoAdvancedChapter } from './readingPositionFollow';
 import { chapterTransition, pausedByListener } from './sharedPlaybackState';
 import { getAdjacentAudioChapter } from './useAudioCoverage';
@@ -158,6 +159,33 @@ export async function finishChapterAndAdvance({
     );
   };
   const finishedCoverageTranslationId = finishedTranslationId ?? fallbackTranslationId;
+
+  // Seam for the end-of-chapter sleep timer: it ends playback here, ahead of every
+  // repeat mode and the queue (a plan or rhythm above still owns its chapters).
+
+  // Passage repeat sits where the other repeat modes do: its next chapter, or back to
+  // its start (at the start verse where there are timings). A passage with no audio
+  // in this translation falls through to the queue and auto-advance, as book repeat does.
+  if (activeRepeatMode === 'passage' && bookId && chapterNum) {
+    const passageTarget = await resolvePassageFinishTarget(resolveAudioCoverage, {
+      translationId: finishedCoverageTranslationId,
+      bookId,
+      chapter: chapterNum,
+    });
+    if (listenerTookOver()) return;
+    if (passageTarget && session.playChapterForTranslation) {
+      chapterTransition.current = true;
+      followTo(passageTarget.bookId, passageTarget.chapter);
+      await session.playChapterForTranslation(
+        finishedCoverageTranslationId,
+        passageTarget.bookId,
+        passageTarget.chapter,
+        undefined,
+        { startPositionMs: passageTarget.startPositionMs }
+      );
+      return;
+    }
+  }
 
   const currentBook = bookId ? getBookById(bookId) : null;
   const repeatCoverage =

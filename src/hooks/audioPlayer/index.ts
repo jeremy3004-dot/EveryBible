@@ -17,6 +17,13 @@ export {
   syncPlayerNowPlaying,
   type NowPlayingSyncContext,
 } from './nowPlayingSync';
+export {
+  followRepeatPassage,
+  isPassagePlayRedirectPending,
+  redirectPlayToPassage,
+  watchPassageProgress,
+  type PassageRepeatContext,
+} from './passageRepeat';
 export { finishChapterAndAdvance, type PlaybackCompletionContext } from './playbackCompletion';
 export {
   anchorPositionInterpolation,
