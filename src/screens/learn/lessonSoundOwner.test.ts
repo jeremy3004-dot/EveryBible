@@ -110,3 +110,55 @@ test('a failed load leaves nothing owned and lets Play try again', async () => {
   assert.equal(await owner.play(create), true);
   assert.equal(owner.getSound()?.plays, 1);
 });
+
+test('playback callbacks belong to their load until release or a newer retry', async () => {
+  const owner = createLessonSoundOwner<FakeSound>();
+  let oldIsCurrent!: () => boolean;
+  await assert.rejects(
+    owner.play(async (isCurrent: () => boolean) => {
+      oldIsCurrent = isCurrent;
+      assert.equal(isCurrent(), true, 'initial load callbacks are current');
+      throw new Error('network');
+    }),
+    /network/
+  );
+
+  let currentIsCurrent!: () => boolean;
+  await owner.play(async (isCurrent: () => boolean) => {
+    currentIsCurrent = isCurrent;
+    return new FakeSound('https://audio.test/retry.mp3');
+  });
+  assert.equal(oldIsCurrent(), false);
+  assert.equal(currentIsCurrent(), true);
+  owner.release();
+  assert.equal(currentIsCurrent(), false);
+});
+
+test('release during the initial play operation cannot report playback started', async () => {
+  const owner = createLessonSoundOwner<FakeSound>();
+  const sound = new FakeSound('https://audio.test/a.mp3');
+  const playing = deferred<void>();
+  sound.playAsync = () => playing.promise;
+  const result = owner.play(async () => sound);
+  await Promise.resolve();
+  assert.equal(owner.getSound(), sound);
+  owner.release();
+  playing.resolve();
+  assert.equal(await result, false);
+  assert.equal(owner.getSound(), null);
+});
+
+test('release during resume cannot report playback started for the replacement sound', async () => {
+  const owner = createLessonSoundOwner<FakeSound>();
+  const old = new FakeSound('https://audio.test/a.mp3');
+  await owner.play(async () => old);
+  const playing = deferred<void>();
+  old.playAsync = () => playing.promise;
+  const result = owner.play(async () => old);
+  owner.release();
+  const current = new FakeSound('https://audio.test/b.mp3');
+  await owner.play(async () => current);
+  playing.resolve();
+  assert.equal(await result, false);
+  assert.equal(owner.getSound(), current);
+});

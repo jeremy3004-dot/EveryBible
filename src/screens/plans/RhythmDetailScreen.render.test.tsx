@@ -1,5 +1,6 @@
 import test, { afterEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
+import { act } from 'react-test-renderer';
 import type { Mutate } from 'zustand/vanilla';
 import { create } from 'zustand';
 import { mockMmkvStorage, mockModule, sourcePath } from '../../testing/mockModules';
@@ -167,6 +168,36 @@ test('a listener who paused audio is not restarted when continuing the rhythm', 
   const reader = rootCalls[0].params.params as Record<string, unknown>;
   assert.equal(reader.preferredMode, 'listen');
   assert.equal('autoplayAudio' in reader, false);
+});
+
+test('Continue Rhythm uses a plan resume updated while its detail screen stays mounted', async () => {
+  const rhythmId = await seedRhythm([psalmsPlan]);
+  const view = await renderDetail(rhythmId);
+  const store = await loadStore();
+
+  // The reader records a chapter within this plan day without completing the day.
+  await act(async () => store.getState().setPlanDayResume(PLAN_ID, 1, 'PSA', 3));
+  await view.flush();
+  await view.press(view.getByRole('button', { name: t('readingPlans.continueRhythm') }));
+
+  const reader = rootCalls[0]?.params.params as Record<string, unknown>;
+  assert.equal(reader.bookId, 'PSA');
+  assert.equal(reader.chapter, 3);
+});
+
+test('Continue Rhythm returns to the day start when its resume is cleared while mounted', async () => {
+  const rhythmId = await seedRhythm([psalmsPlan]);
+  const store = await loadStore();
+  store.getState().setPlanDayResume(PLAN_ID, 1, 'PSA', 3);
+  const view = await renderDetail(rhythmId);
+  await view.press(view.getByRole('button', { name: t('readingPlans.continueRhythm') }));
+  assert.equal((rootCalls[0]?.params.params as Record<string, unknown>).chapter, 3);
+
+  await act(async () => store.getState().clearPlanDayResume(PLAN_ID, 1));
+  await view.press(view.getByRole('button', { name: t('readingPlans.continueRhythm') }));
+  const reader = rootCalls[1]?.params.params as Record<string, unknown>;
+  assert.equal(reader.bookId, 'PSA');
+  assert.equal(reader.chapter, 1);
 });
 
 test('a reader who prefers reading continues the rhythm in read mode without autoplay', async () => {

@@ -1,6 +1,6 @@
 import test, { beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { mockMmkvStorage } from '../../testing/mockModules';
+import { mockMmkvStorage, mockModule, sourcePath } from '../../testing/mockModules';
 import type {
   ChapterFeedbackFunctionResponse,
   ChapterFeedbackSubmissionInput,
@@ -60,18 +60,28 @@ interface Harness {
   submissions: ChapterFeedbackSubmissionInput[];
   offline: boolean;
   userId: string | null;
+  authGeneration: number;
   passcode: string | null;
   now: number;
   respond: () => ChapterFeedbackFunctionResponse;
 }
 
 let h: Harness;
+mockModule(mock, sourcePath('stores/authStore.ts'), {
+  useAuthStore: {
+    getState: () => ({
+      user: h.userId ? { uid: h.userId } : null,
+      authGeneration: h.authGeneration,
+    }),
+  },
+});
 
 const createHarness = (): Harness => {
   const harness = {
     submissions: [] as ChapterFeedbackSubmissionInput[],
     offline: false,
     userId: 'user-a' as string | null,
+    authGeneration: 0,
     passcode: null as string | null,
     now: NOW,
     respond: sent,
@@ -118,6 +128,87 @@ test('feedback online is sent straight away and nothing is queued', async () => 
 
   assert.deepEqual(result, sent());
   assert.equal(h.submissions.length, 1);
+  assert.equal(outbox.countQueuedChapterFeedback('user-a'), 0);
+});
+
+test('feedback is not submitted as another account after the connectivity check', async () => {
+  h.deps.isOffline = async () => {
+    h.userId = 'user-b';
+    return false;
+  };
+
+  const result = await outbox.submitChapterFeedbackOrQueue(baseInput, h.deps);
+
+  assert.deepEqual(h.submissions, []);
+  assert.equal(result.success, false);
+  assert.equal(result.requiresSignIn, true);
+  assert.equal(outbox.countQueuedChapterFeedback('user-a'), 0);
+  assert.equal(outbox.countQueuedChapterFeedback('user-b'), 0);
+});
+
+test('an offline probe finishing after sign-out cannot restore discarded feedback', async () => {
+  h.offline = true;
+  await outbox.submitChapterFeedbackOrQueue(baseInput, h.deps);
+  h.deps.isOffline = async () => {
+    h.userId = null;
+    outbox.discardQueuedChapterFeedbackOf('user-a');
+    return true;
+  };
+
+  const result = await outbox.submitChapterFeedbackOrQueue(baseInput, h.deps);
+
+  assert.equal(result.requiresSignIn, true);
+  assert.equal(result.queued, undefined);
+  assert.deepEqual(h.submissions, []);
+  assert.equal(outbox.countQueuedChapterFeedback('user-a'), 0);
+});
+
+test('a retryable submission finishing after an account switch cannot restore discarded feedback', async () => {
+  h.respond = () => {
+    h.userId = 'user-b';
+    outbox.discardQueuedChapterFeedbackOf('user-a');
+    return unreachable();
+  };
+
+  const result = await outbox.submitChapterFeedbackOrQueue(baseInput, h.deps);
+
+  assert.equal(h.submissions.length, 1, 'the request started before the switch');
+  assert.equal(result.requiresSignIn, true);
+  assert.equal(result.queued, undefined);
+  assert.equal(outbox.countQueuedChapterFeedback('user-a'), 0);
+  assert.equal(outbox.countQueuedChapterFeedback('user-b'), 0);
+});
+
+test('the production identity guard rejects a new session for the same account after the probe', async () => {
+  h.deps.isOffline = async () => {
+    h.authGeneration += 2; // sign-out and sign-in as the same uid
+    return false;
+  };
+
+  const result = await outbox.submitChapterFeedbackOrQueue(baseInput, {
+    ...h.deps,
+    getUserId: undefined,
+  });
+
+  assert.equal(result.requiresSignIn, true);
+  assert.deepEqual(h.submissions, []);
+  assert.equal(outbox.countQueuedChapterFeedback('user-a'), 0);
+});
+
+test('a retryable response from a prior session cannot queue feedback after the same account signs back in', async () => {
+  h.respond = () => {
+    h.authGeneration += 2;
+    outbox.discardQueuedChapterFeedbackOf('user-a');
+    return unreachable();
+  };
+
+  const result = await outbox.submitChapterFeedbackOrQueue(baseInput, {
+    ...h.deps,
+    getUserId: undefined,
+  });
+
+  assert.equal(h.submissions.length, 1);
+  assert.equal(result.requiresSignIn, true);
   assert.equal(outbox.countQueuedChapterFeedback('user-a'), 0);
 });
 

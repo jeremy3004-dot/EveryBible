@@ -339,13 +339,15 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
     if (!audioUrl) return;
 
     try {
-      const isPlaying = await soundOwner.play(async () => {
+      const isPlaying = await soundOwner.play(async (isCurrent) => {
         await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
         // Loaded paused: the owner starts it only if it is still wanted once loaded.
         const { sound } = await Audio.Sound.createAsync(
           { uri: audioUrl },
           { shouldPlay: false, progressUpdateIntervalMillis: 500, rate: playbackSpeed },
-          handlePlaybackStatusUpdate
+          (status) => {
+            if (isCurrent()) handlePlaybackStatusUpdate(status);
+          }
         );
         return sound;
       });
@@ -362,12 +364,13 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
   }, [audioUrl, handlePlaybackStatusUpdate, playbackSpeed, soundOwner, t]);
 
   const pauseAudio = useCallback(async () => {
+    const paused = soundOwner.getSound();
     try {
-      await soundOwner.getSound()?.pauseAsync();
+      await paused?.pauseAsync();
     } catch {
       // Ignore
     }
-    setIsAudioPlaying(false);
+    if (soundOwner.getSound() === paused) setIsAudioPlaying(false);
   }, [soundOwner]);
 
   const togglePlayPause = useCallback(async () => {

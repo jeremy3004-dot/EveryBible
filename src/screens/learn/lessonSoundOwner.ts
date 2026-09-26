@@ -12,8 +12,10 @@ export interface LessonSoundOwner<S extends OwnedLessonSound> {
    * still be wanted. Resolves false when the sound was released while it loaded; that
    * sound is unloaded and never plays. Rejects when the load fails, leaving nothing owned
    * so Play can try again.
+   * `isCurrent` also guards native callbacks during loading and playback; release or a
+   * newer load invalidates it.
    */
-  play: (create: () => Promise<S>) => Promise<boolean>;
+  play: (create: (isCurrent: () => boolean) => Promise<S>) => Promise<boolean>;
   /** Unloads the owned sound and disowns one still loading (source change, unmount). */
   release: () => void;
 }
@@ -30,16 +32,17 @@ export function createLessonSoundOwner<S extends OwnedLessonSound>(): LessonSoun
   let loading: Promise<S | null> | null = null;
   let generation = 0;
 
-  const load = (create: () => Promise<S>): Promise<S | null> => {
-    const loadGeneration = generation;
-    const attempt = create().then(async (created) => {
+  const load = (create: (isCurrent: () => boolean) => Promise<S>): Promise<S | null> => {
+    const loadGeneration = ++generation;
+    // Native callbacks can arrive before creation returns, or after release.
+    const attempt = create(() => loadGeneration === generation).then(async (created) => {
       if (loadGeneration !== generation) {
         await created.unloadAsync().catch(() => undefined);
         return null;
       }
       sound = created;
       await created.playAsync();
-      return created;
+      return loadGeneration === generation && sound === created ? created : null;
     });
     loading = attempt;
     const clear = () => {
@@ -56,8 +59,10 @@ export function createLessonSoundOwner<S extends OwnedLessonSound>(): LessonSoun
 
     play: async (create) => {
       if (sound) {
-        await sound.playAsync();
-        return true;
+        const playing = sound;
+        const playGeneration = generation;
+        await playing.playAsync();
+        return playGeneration === generation && sound === playing;
       }
       return (await (loading ?? load(create))) !== null;
     },

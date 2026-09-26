@@ -5,6 +5,7 @@ import { buildRhythmReaderSession } from '../../../services/plans/readingPlanAct
 import { useLibraryStore } from '../../../stores/libraryStore';
 import { useProgressStore } from '../../../stores/progressStore';
 import { useReadingPlansStore } from '../../../stores/readingPlansStore';
+import { buildPlanDayResumeKey } from '../../../stores/readingPlans/planProgressModel';
 import {
   buildPlanTitleById,
   buildRhythmSegmentViewModels,
@@ -27,7 +28,7 @@ export function useRhythmSession(rhythmId: string) {
   const chaptersRead = useProgressStore((state) => state.chaptersRead);
   const listeningHistory = useLibraryStore((state) => state.history);
   const progressByPlanId = useReadingPlansStore((state) => state.progressByPlanId);
-  const getPlanDayResume = useReadingPlansStore((state) => state.getPlanDayResume);
+  const planDayResumeByKey = useReadingPlansStore((state) => state.planDayResumeByKey);
   // Subscribed, not read through getRhythm(): an edit made in the composer has to
   // reach this screen, which stays mounted underneath the detail the composer opens.
   const rhythm = useReadingPlansStore((state) => state.rhythmsById[rhythmId] ?? null);
@@ -45,11 +46,12 @@ export function useRhythmSession(rhythmId: string) {
             planEntriesById,
             progressByPlanId,
             planTitlesById: planTitleById,
-            getPlanDayResume,
+            getPlanDayResume: (planId, dayNumber) =>
+              planDayResumeByKey[buildPlanDayResumeKey(planId, dayNumber)] ?? null,
             today,
           })
         : null,
-    [getPlanDayResume, planEntriesById, planTitleById, progressByPlanId, rhythm, today]
+    [planDayResumeByKey, planEntriesById, planTitleById, progressByPlanId, rhythm, today]
   );
 
   const segments = useMemo<RhythmSegmentViewModel[]>(

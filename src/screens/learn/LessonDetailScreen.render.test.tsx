@@ -121,6 +121,7 @@ interface FakeSound {
 const sounds: { source: unknown; initial: Record<string, unknown>; sound: FakeSound }[] = [];
 // Streaming a chapter the device has not downloaded fails when it is offline.
 const network = { offline: false };
+const initialStatus = { value: null as Record<string, unknown> | null };
 mockModule(mock, sourcePath('utils/connectivity.ts'), {
   isDeviceOffline: async () => network.offline,
 });
@@ -159,6 +160,7 @@ mockPackage(mock, 'expo-av', {
           setPositionAsync: record('setPositionAsync'),
         };
         sounds.push({ source, initial, sound });
+        if (initialStatus.value) listener(initialStatus.value);
         return { sound };
       },
     },
@@ -170,6 +172,7 @@ beforeEach(() => {
   audioUrlCalls.length = 0;
   sounds.length = 0;
   network.offline = false;
+  initialStatus.value = null;
   audioUrl.value = 'https://audio.test/web/GEN/1.mp3';
   chapterTimestamps.value = null;
   fontScale.value = 1;
@@ -428,6 +431,105 @@ test('choosing a playback speed in the sheet reaches the loaded sound', async ()
   assert.ok(view.getByRole('tab', { name: '1.5×', selected: true }));
 });
 
+test('a released translation recording cannot rewind or pause the new lesson recording', async () => {
+  chapterTimestamps.value = { 1: 0, 2: 4 };
+  const palette = await lightPalette();
+  const view = await renderLesson();
+  await view.press(view.getByRole('button', { name: PLAY() }));
+  const previous = sounds[0].sound;
+
+  await act(async () => bibleStore.setState({ currentTranslation: 'bsb' }));
+  await view.flush();
+  await view.press(view.getByRole('button', { name: PLAY() }));
+  const current = sounds[1].sound;
+  assert.ok(view.getByRole('button', { name: PAUSE() }));
+
+  await act(async () =>
+    current.listener({
+      isLoaded: true,
+      isPlaying: true,
+      positionMillis: 5_000,
+      durationMillis: 60_000,
+    })
+  );
+  const currentTime = view.getByRole('progressbar', { name: LISTEN() }).props.accessibilityValue;
+  await act(async () =>
+    previous.listener({
+      isLoaded: true,
+      isPlaying: true,
+      positionMillis: 1_000,
+      durationMillis: 120_000,
+    })
+  );
+  assert.deepEqual(
+    view.getByRole('progressbar', { name: LISTEN() }).props.accessibilityValue,
+    currentTime
+  );
+  assert.equal(
+    flattenStyle(verseSpan(view, /formless and void/).props.style)?.backgroundColor,
+    palette.bibleFollowHighlight
+  );
+
+  // A native status callback from the old sound can arrive after it is released.
+  await act(async () =>
+    previous.listener({
+      isLoaded: true,
+      isPlaying: false,
+      didJustFinish: true,
+      positionMillis: 60000,
+      durationMillis: 60000,
+    })
+  );
+
+  assert.deepEqual(
+    current.calls.filter((call) => call.method === 'setPositionAsync'),
+    []
+  );
+  assert.ok(view.getByRole('button', { name: PAUSE() }));
+  assert.deepEqual(
+    view.getByRole('progressbar', { name: LISTEN() }).props.accessibilityValue,
+    currentTime
+  );
+  assert.equal(
+    flattenStyle(verseSpan(view, /formless and void/).props.style)?.backgroundColor,
+    palette.bibleFollowHighlight
+  );
+});
+
+test('status emitted during initial load establishes the recording duration', async () => {
+  initialStatus.value = {
+    isLoaded: true,
+    isPlaying: false,
+    positionMillis: 0,
+    durationMillis: 60_000,
+  };
+  const view = await renderLesson();
+  await view.press(view.getByRole('button', { name: PLAY() }));
+  const rule = view.getByRole('adjustable', { name: LISTEN() });
+  await view.fire(rule, 'onLayout', { nativeEvent: { layout: { width: 200 } } });
+  await view.fire(rule, 'onPress', { nativeEvent: { locationX: 100 } });
+  assert.deepEqual(sounds[0].sound.calls.at(-1), { method: 'setPositionAsync', args: [30_000] });
+});
+
+test('a pause finishing for a released recording cannot clear the new recording play state', async () => {
+  const view = await renderLesson();
+  await view.press(view.getByRole('button', { name: PLAY() }));
+  let finishPause!: () => void;
+  const paused = new Promise<void>((resolve) => {
+    finishPause = resolve;
+  });
+  Object.assign(sounds[0].sound, { pauseAsync: () => paused });
+  await view.press(view.getByRole('button', { name: PAUSE() }));
+
+  await act(async () => bibleStore.setState({ currentTranslation: 'bsb' }));
+  await view.flush();
+  await view.press(view.getByRole('button', { name: PLAY() }));
+  assert.ok(view.getByRole('button', { name: PAUSE() }));
+
+  await act(async () => finishPause());
+  assert.ok(view.getByRole('button', { name: PAUSE() }));
+});
+
 test('at large text the playback sheet scrolls inside its height cap', async () => {
   harness.setFontScale(2);
   const view = await renderLesson();
@@ -512,6 +614,8 @@ test('the story highlights the verse the audio is on, following it through the c
   });
   await view.flush();
   assert.equal(followed(/formless and void/), false);
+  assert.deepEqual(sounds[0].sound.calls.at(-1), { method: 'setPositionAsync', args: [0] });
+  assert.ok(view.getByRole('button', { name: PLAY() }));
 });
 
 /** The section block (fellowship, story, application) holding `node`. */

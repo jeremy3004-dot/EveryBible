@@ -44,11 +44,12 @@ export interface ChapterFeedbackOutboxDeps {
   now?: () => number;
 }
 
-const defaultGetUserId = (): string | null => {
+const defaultGetAuthState = () => {
   const { useAuthStore } =
     require('../../stores/authStore') as typeof import('../../stores/authStore');
-  return useAuthStore.getState().user?.uid ?? null;
+  return useAuthStore.getState();
 };
+const defaultGetUserId = (): string | null => defaultGetAuthState().user?.uid ?? null;
 
 const defaultGetCouncilPasscode = (): string | null => {
   const { useTranslatorReviewStore } =
@@ -146,6 +147,14 @@ const queuedResult = (): ChapterFeedbackSubmitResult => ({
   queued: true,
 });
 
+const accountChangedResult = (): ChapterFeedbackSubmitResult => ({
+  success: false,
+  saved: false,
+  exported: false,
+  error: 'Please sign in again before sending chapter feedback.',
+  requiresSignIn: true,
+});
+
 /**
  * Sends chapter feedback, or keeps a written response on the device when the
  * network is unavailable so the next sync can send it.
@@ -156,6 +165,13 @@ export async function submitChapterFeedbackOrQueue(
 ): Promise<ChapterFeedbackSubmitResult> {
   const { submit, isOffline, getUserId, now } = resolveDeps(deps);
   const userId = getUserId();
+  // Keep the entire attempt with the account that wrote it. Production also
+  // rejects sign-out/sign-in as the same uid, matching the submit service guard.
+  const authGeneration =
+    getUserId === defaultGetUserId ? defaultGetAuthState().authGeneration : null;
+  const isCurrent = () =>
+    getUserId() === userId &&
+    (authGeneration === null || defaultGetAuthState().authGeneration === authGeneration);
   const canQueue = Boolean(userId) && !input.audioResponse;
   // Made before the first attempt, so a queued retry of a request that timed out after the
   // server saved it is recognised as the same submission.
@@ -164,7 +180,9 @@ export async function submitChapterFeedbackOrQueue(
     clientSubmissionId: input.clientSubmissionId ?? createClientSubmissionId(),
   };
 
-  if (await isOffline()) {
+  const offline = await isOffline();
+  if (!isCurrent()) return accountChangedResult();
+  if (offline) {
     if (!canQueue || !userId) {
       return offlineResult();
     }
@@ -174,6 +192,7 @@ export async function submitChapterFeedbackOrQueue(
 
   const result = await submit(submission);
   if (!result.success && result.retryable && canQueue && userId) {
+    if (!isCurrent()) return accountChangedResult();
     enqueue(userId, submission, now());
     return queuedResult();
   }
