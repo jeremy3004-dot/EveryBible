@@ -26,21 +26,31 @@ const sharing = {
   error: new Error('Failed to share the file'),
   captures: 0,
 };
+let pendingShare: Promise<void> | null = null;
+let pendingCapture: Promise<string> | null = null;
+let pendingAvailability: Promise<boolean> | null = null;
+let availabilityStarted = () => {};
 mockPackage(mock, 'expo-sharing', {
-  isAvailableAsync: async () => true,
+  isAvailableAsync: async () => {
+    availabilityStarted();
+    return pendingAvailability ?? true;
+  },
   shareAsync: (uri: string, options: unknown) => {
     if (!sharing.pickerDismissed) {
       sharing.dropped.push(uri);
       return new Promise<void>(() => {});
     }
     sharing.sheets.push({ uri, options });
-    return sharing.outcome === 'rejected' ? Promise.reject(sharing.error) : Promise.resolve();
+    return (
+      pendingShare ??
+      (sharing.outcome === 'rejected' ? Promise.reject(sharing.error) : Promise.resolve())
+    );
   },
 });
 mockPackage(mock, 'react-native-view-shot', {
   captureRef: async () => {
     sharing.captures += 1;
-    return `file:///tmp/verse-${sharing.captures}.png`;
+    return pendingCapture ?? `file:///tmp/verse-${sharing.captures}.png`;
   },
 });
 const reported: Array<[string, unknown]> = [];
@@ -56,6 +66,10 @@ afterEach(() => {
   sharing.sheets.length = 0;
   sharing.outcome = 'shared';
   sharing.captures = 0;
+  pendingShare = null;
+  pendingCapture = null;
+  pendingAvailability = null;
+  availabilityStarted = () => {};
   reported.length = 0;
 });
 
@@ -171,4 +185,137 @@ test('an image share that fails is reported, falls back to text, and does not we
   await finishDismissal(view, onDismiss);
 
   assert.equal(sharing.sheets.length, 2, 'the second tap presents the share sheet');
+});
+
+test('a failed native image share cannot open fallback text sharing after privacy-lock unmount', async () => {
+  let rejectShare!: (error: Error) => void;
+  pendingShare = new Promise<void>((_resolve, reject) => {
+    rejectShare = reject;
+  });
+  const view = await renderReader();
+  await shareFromPicker(view);
+  assert.equal(sharing.sheets.length, 1, 'the native image sheet has started');
+  await view.unmount();
+  await act(async () => {
+    rejectShare(sharing.error);
+  });
+  assert.deepEqual(harness.rn.__recorded.shares, [], 'no new native sheet may open over the lock');
+});
+
+test('a reader unmounted while its image picker closes cannot present a native share sheet', async () => {
+  const view = await renderReader();
+  const sheet = await openPicker(view);
+  const onDismiss = sheet.props.onDismiss;
+  await view.press(shareButton(sheet));
+  await view.flush();
+  assert.equal(sharing.captures, 1);
+  assert.equal(sharing.sheets.length, 0);
+  await view.unmount();
+  await finishDismissal(view, onDismiss);
+  assert.deepEqual(sharing.sheets, [], 'late dismissal cannot share after reader unmount');
+});
+
+test('a same-tick second Share press cannot capture and share the image twice', async () => {
+  const view = await renderReader();
+  const sheet = await openPicker(view);
+  const onDismiss = sheet.props.onDismiss;
+  const onPress = shareButton(sheet).props.onPress as () => void;
+  await act(async () => {
+    onPress();
+    onPress();
+  });
+  await view.flush();
+  await finishDismissal(view, onDismiss);
+  assert.equal(sharing.captures, 1);
+  assert.equal(sharing.sheets.length, 1);
+});
+
+test('a capture completed after translation replacement cannot share or fall back', async () => {
+  let finishCapture!: (uri: string) => void;
+  pendingCapture = new Promise<string>((resolve) => {
+    finishCapture = resolve;
+  });
+  const view = await renderReader();
+  const sheet = await openPicker(view);
+  const onDismiss = sheet.props.onDismiss;
+  await view.press(shareButton(sheet));
+  await view.flush();
+  assert.equal(sharing.captures, 1);
+  await act(async () => reader.bibleStore.setState({ currentTranslation: 'web' }));
+  await view.flush();
+  await act(async () => finishCapture('file:///old-translation.png'));
+  await finishDismissal(view, onDismiss);
+  assert.deepEqual(sharing.sheets, []);
+  assert.deepEqual(harness.rn.__recorded.shares, []);
+  assert.deepEqual(reported, []);
+});
+
+test('availability resolving after unmount cannot begin capturing the verse image', async () => {
+  let finishAvailability!: (available: boolean) => void;
+  pendingAvailability = new Promise<boolean>((resolve) => {
+    finishAvailability = resolve;
+  });
+  const started = new Promise<void>((resolve) => {
+    availabilityStarted = resolve;
+  });
+  const view = await renderReader();
+  const sheet = await openPicker(view);
+  await view.press(shareButton(sheet));
+  await started;
+  await view.unmount();
+  await act(async () => finishAvailability(true));
+  await view.flush();
+  assert.equal(sharing.captures, 0);
+  assert.deepEqual(sharing.sheets, []);
+  assert.deepEqual(harness.rn.__recorded.shares, []);
+});
+
+test('an iOS picker dismissal timeout cannot present the native image sheet', async () => {
+  const view = await renderReader();
+  const sheet = await openPicker(view);
+  const onDismiss = sheet.props.onDismiss;
+  mock.timers.enable({ apis: ['setTimeout'] });
+  try {
+    await view.press(shareButton(sheet));
+    await view.flush();
+    assert.equal(sharing.captures, 1);
+    await act(async () => mock.timers.tick(2_000));
+    await view.flush();
+    assert.deepEqual(sharing.dropped, [], 'elapsed time cannot replace native dismissal');
+    assert.deepEqual(sharing.sheets, []);
+    await finishDismissal(view, onDismiss);
+    assert.equal(sharing.sheets.length, 1);
+  } finally {
+    mock.timers.reset();
+  }
+});
+
+test('an old image failure cannot clear a replacement selection share or launch its fallback', async () => {
+  let rejectOldShare!: (error: Error) => void;
+  pendingShare = new Promise<void>((_resolve, reject) => {
+    rejectOldShare = reject;
+  });
+  const view = await renderReader();
+  await shareFromPicker(view);
+  await view.press(view.getByText(new RegExp(JOHN_3[0].text.slice(0, 20))));
+  let finishCapture!: (uri: string) => void;
+  pendingCapture = new Promise<string>((resolve) => {
+    finishCapture = resolve;
+  });
+  const sheet = await openPicker(view);
+  const onDismiss = sheet.props.onDismiss;
+  await view.press(shareButton(sheet));
+  await view.flush();
+  assert.equal(sharing.captures, 2);
+  await act(async () => rejectOldShare(sharing.error));
+  await view.flush();
+  const currentButton = shareButton(picker(view));
+  assert.equal(currentButton.props.accessibilityState?.busy, true);
+  assert.equal(currentButton.props.disabled, true);
+  assert.deepEqual(harness.rn.__recorded.shares, []);
+  assert.deepEqual(reported, []);
+  pendingShare = null;
+  await act(async () => finishCapture('file:///new-selection.png'));
+  await finishDismissal(view, onDismiss);
+  assert.equal(sharing.sheets.at(-1)?.uri, 'file:///new-selection.png');
 });

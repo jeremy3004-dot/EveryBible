@@ -1,5 +1,5 @@
 import type { Dispatch, RefObject, SetStateAction } from 'react';
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Alert, InteractionManager, Platform, Share, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useTranslation } from 'react-i18next';
@@ -30,12 +30,6 @@ import {
   type ReaderAnnotationEdits,
 } from '../readerAnnotationEdits';
 
-/**
- * Longest wait for the image picker to report that it has closed. It covers a picker that was
- * already gone (so never reports) and is well past the Modal's fade-out.
- */
-const VERSE_IMAGE_SHEET_DISMISS_TIMEOUT_MS = Platform.OS === 'ios' ? 1000 : 300;
-
 /** Records a failed verse-image share. The crash queue is loaded only when something failed. */
 function reportVerseImageShareFailure(error: unknown) {
   void import('../../../services/diagnostics/crashReportQueue')
@@ -47,6 +41,7 @@ export interface UseVerseSelectionInput {
   annotations: UserAnnotation[];
   bookId: string;
   chapter: number;
+  currentTranslation: string;
   dismissSelectedVerseSelection: () => void;
   isSharingVerseImage: boolean;
   isShowingRouteChapter: boolean;
@@ -66,6 +61,7 @@ export function useVerseSelection({
   annotations,
   bookId,
   chapter,
+  currentTranslation,
   dismissSelectedVerseSelection,
   isSharingVerseImage,
   isShowingRouteChapter,
@@ -206,6 +202,23 @@ export function useVerseSelection({
   };
 
   const verseImageSheetDismissedRef = useRef<(() => void) | null>(null);
+  const verseImageShareRequestRef = useRef<object | null>(null);
+  useEffect(() => {
+    verseImageShareRequestRef.current = null;
+    setIsSharingVerseImage(false);
+    setShowVerseImageSheet(false);
+    return () => {
+      verseImageShareRequestRef.current = null;
+      verseImageSheetDismissedRef.current?.();
+    };
+  }, [
+    bookId,
+    chapter,
+    currentTranslation,
+    selectedVerseShareText,
+    setIsSharingVerseImage,
+    setShowVerseImageSheet,
+  ]);
 
   /** The image picker Modal's onDismiss (iOS reports the end of its close animation). */
   const handleVerseImageSheetDismissed = () => {
@@ -219,30 +232,35 @@ export function useVerseSelection({
   const closeVerseImageSheetAndWait = () =>
     new Promise<void>((resolve) => {
       let settled = false;
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
+      let interaction: ReturnType<typeof InteractionManager.runAfterInteractions> | undefined;
       const complete = () => {
         if (settled) {
           return;
         }
         settled = true;
-        clearTimeout(timeoutId);
+        if (timeoutId) clearTimeout(timeoutId);
+        interaction?.cancel();
         if (verseImageSheetDismissedRef.current === complete) {
           verseImageSheetDismissedRef.current = null;
         }
         resolve();
       };
-      const timeoutId = setTimeout(complete, VERSE_IMAGE_SHEET_DISMISS_TIMEOUT_MS);
-      if (Platform.OS === 'ios') {
-        verseImageSheetDismissedRef.current = complete;
-      } else {
-        InteractionManager.runAfterInteractions(complete);
+      verseImageSheetDismissedRef.current = complete;
+      if (Platform.OS !== 'ios') {
+        timeoutId = setTimeout(complete, 300);
+        interaction = InteractionManager.runAfterInteractions(complete);
       }
       setShowVerseImageSheet(false);
     });
 
   const handleShareSelectedVerseImage = async () => {
-    if (!selectedVerseShareText || isSharingVerseImage) {
+    if (!selectedVerseShareText || isSharingVerseImage || verseImageShareRequestRef.current) {
       return;
     }
+    const request = {};
+    verseImageShareRequestRef.current = request;
+    const isCurrent = () => verseImageShareRequestRef.current === request;
 
     setIsSharingVerseImage(true);
 
@@ -251,14 +269,19 @@ export function useVerseSelection({
       let shareImage: (() => Promise<void>) | null = null;
       try {
         const Sharing = await import('expo-sharing');
+        if (!isCurrent()) return;
 
-        if ((await Sharing.isAvailableAsync()) && verseImageSharePreviewRef.current) {
+        const available = await Sharing.isAvailableAsync();
+        if (!isCurrent()) return;
+        if (available && verseImageSharePreviewRef.current) {
           const { captureRef } = await import('react-native-view-shot');
+          if (!isCurrent()) return;
           const imageUri = await captureRef(verseImageSharePreviewRef, {
             format: 'png',
             quality: 1,
             result: 'tmpfile',
           });
+          if (!isCurrent()) return;
           shareImage = () =>
             Sharing.shareAsync(imageUri, {
               dialogTitle: t('groups.share'),
@@ -266,10 +289,12 @@ export function useVerseSelection({
             });
         }
       } catch (error) {
+        if (!isCurrent()) return;
         reportVerseImageShareFailure(error);
       }
 
       await closeVerseImageSheetAndWait();
+      if (!isCurrent()) return;
       // The spinner lives in the closed picker. A native sheet that never reports back must not
       // leave it busy when the picker is opened again.
       setIsSharingVerseImage(false);
@@ -280,15 +305,20 @@ export function useVerseSelection({
           await shareImage();
           return;
         } catch (error) {
+          if (!isCurrent()) return;
           reportVerseImageShareFailure(error);
         }
       }
 
       await Share.share({ message: selectedVerseShareText });
     } catch (error) {
+      if (!isCurrent()) return;
       reportVerseImageShareFailure(error);
     } finally {
-      setIsSharingVerseImage(false);
+      if (isCurrent()) {
+        verseImageShareRequestRef.current = null;
+        setIsSharingVerseImage(false);
+      }
     }
   };
 

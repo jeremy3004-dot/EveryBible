@@ -497,6 +497,7 @@ export function BibleReaderScreen() {
     selectedVerseSet,
     selectedVerseText,
   } = useVerseSelection({
+    currentTranslation,
     annotations,
     bookId,
     chapter,
