@@ -25,6 +25,8 @@ export const sharedTranslationValues: Record<string, Record<string, string>> = {
     'common.error': 'Error',
     // Reviewed 2026-09-26: the Audio sheet's title; Spanish writes "audio" as English does.
     'audio.sheetTitle': 'Audio',
+    // Reviewed 2026-09-26: the Psalms' "Selah"; Reina-Valera transliterates it exactly as English.
+    'audio.playerBar.selah': 'Selah',
   },
   fr: {
     // Reviewed 2026-09-24: the translation picker's Bible count; French writes it as English does.
