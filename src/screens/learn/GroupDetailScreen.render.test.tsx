@@ -37,6 +37,76 @@ async function renderDetail(groupId: string) {
 
 const lastAlert = () => harness.rn.__recorded.alerts.at(-1) as Alert;
 
+test('a local leave-group alert cannot act or navigate after its account changes', async () => {
+  harness.authStore.setState({ user: VIEWER });
+  useFourFieldsStore.setState({ groups: [localGroup()] });
+  const view = await renderDetail('local-1');
+  await view.press(view.getByRole('button', { name: t('groups.leaveGroup') }));
+  const confirm = lastAlert().buttons?.find((button) => button.text === t('groups.leave'));
+  assert.ok(confirm?.onPress);
+  await act(async () => {
+    harness.authStore.setState({ user: { uid: 'next-account' }, authGeneration: 1 });
+  });
+  await act(async () => {
+    confirm.onPress?.();
+  });
+  assert.deepEqual(env.leftGroups, []);
+  assert.equal(
+    harness.navigation.calls.some((call) => call.method === 'goBack'),
+    false
+  );
+});
+
+for (const transition of ['generation', 'unmount', 'route'] as const) {
+  test(`a retained leave-group confirmation cannot act after ${transition} changes`, async () => {
+    harness.authStore.setState({ user: VIEWER });
+    useFourFieldsStore.setState({ groups: [localGroup(), localGroup({ id: 'local-2' })] });
+    const view = await renderDetail('local-1');
+    await view.press(view.getByRole('button', { name: t('groups.leaveGroup') }));
+    const confirm = lastAlert().buttons?.find((button) => button.text === t('groups.leave'));
+    assert.ok(confirm?.onPress);
+    if (transition === 'unmount') await view.unmount();
+    else if (transition === 'generation') {
+      await act(async () => {
+        harness.authStore.setState({ authGeneration: 1 });
+      });
+    } else {
+      harness.navigation.route.params = { groupId: 'local-2' };
+      const { GroupDetailScreen } = await import('./GroupDetailScreen');
+      await view.rerender(<GroupDetailScreen />);
+    }
+    await act(async () => {
+      confirm.onPress?.();
+    });
+    assert.deepEqual(env.leftGroups, []);
+    assert.equal(
+      harness.navigation.calls.some((call) => call.method === 'goBack'),
+      false
+    );
+  });
+}
+
+test('only the latest leave confirmation can act, and it is consumed once', async () => {
+  harness.authStore.setState({ user: VIEWER });
+  useFourFieldsStore.setState({ groups: [localGroup()] });
+  const view = await renderDetail('local-1');
+  const open = () => view.press(view.getByRole('button', { name: t('groups.leaveGroup') }));
+  await open();
+  const oldConfirm = lastAlert().buttons?.find((button) => button.text === t('groups.leave'));
+  await open();
+  const confirm = lastAlert().buttons?.find((button) => button.text === t('groups.leave'));
+  await act(async () => {
+    oldConfirm?.onPress?.();
+  });
+  assert.deepEqual(env.leftGroups, []);
+  await act(async () => {
+    confirm?.onPress?.();
+    confirm?.onPress?.();
+  });
+  assert.deepEqual(env.leftGroups, [['local-1', VIEWER.uid]]);
+  assert.equal(harness.navigation.calls.filter((call) => call.method === 'goBack').length, 1);
+});
+
 test('prayer preview is reloaded for a new account and hides the prior account content', async () => {
   enableSync();
   env.getSyncedGroup = async () => syncedGroup('member');

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -56,6 +56,16 @@ export function GroupDetailScreen() {
   const user = useAuthStore((state) => state.user);
   const authGeneration = useAuthStore((state) => state.authGeneration);
   const userId = user?.uid ?? null;
+  const mountedRef = useRef(false);
+  const leaveConfirmationRef = useRef(0);
+  useLayoutEffect(() => {
+    mountedRef.current = true;
+    leaveConfirmationRef.current += 1;
+    return () => {
+      mountedRef.current = false;
+      leaveConfirmationRef.current += 1;
+    };
+  }, [authGeneration, groupId, userId]);
   const isSignedIn = Boolean(user);
   const syncFeatureEnabled = config.features.studyGroupsSync;
   const backendConfigured = isSupabaseConfigured();
@@ -259,16 +269,34 @@ export function GroupDetailScreen() {
       return;
     }
 
+    const confirmation = ++leaveConfirmationRef.current;
+    const isCurrent = () => {
+      const auth = useAuthStore.getState();
+      return (
+        mountedRef.current &&
+        confirmation === leaveConfirmationRef.current &&
+        auth.user?.uid === userId &&
+        auth.authGeneration === authGeneration
+      );
+    };
     warningHaptic();
     Alert.alert(
       t('groups.leaveGroup'),
       group.isLeader ? t('groups.leaveGroupLeaderMessage') : t('groups.leaveGroupMemberMessage'),
       [
-        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.cancel'),
+          style: 'cancel',
+          onPress: () => {
+            if (isCurrent()) leaveConfirmationRef.current += 1;
+          },
+        },
         {
           text: t('groups.leave'),
           style: 'destructive',
           onPress: () => {
+            if (!isCurrent()) return;
+            leaveConfirmationRef.current += 1;
             leaveGroup(groupId, userId);
             navigation.goBack();
           },
