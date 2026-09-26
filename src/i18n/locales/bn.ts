@@ -407,6 +407,7 @@ export const bn = {
   audio: {
     playbackSpeed: 'চালানোর গতি',
     sleepTimer: 'স্লিপ টাইমার',
+    sleepTimerEndOfChapter: 'অধ্যায়ের শেষে',
     nowPlaying: 'এখন বাজছে',
     readyToResume: 'পুনরায় শুরু করার জন্য প্রস্তুত',
     repeatChapter: 'অধ্যায় পুনরাবৃত্তি করুন',

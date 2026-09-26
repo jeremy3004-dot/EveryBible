@@ -409,6 +409,7 @@ export const mr = {
   audio: {
     playbackSpeed: 'प्लेबॅकचा वेग',
     sleepTimer: 'स्लीप टाइमर',
+    sleepTimerEndOfChapter: 'अध्यायाच्या शेवटी',
     nowPlaying: 'सध्या वाजत आहे',
     readyToResume: 'पुन्हा सुरू करण्यासाठी सज्ज',
     repeatChapter: 'अध्यायाची पुनरावृत्ती',

@@ -709,6 +709,7 @@ export const ur = {
   audio: {
     playbackSpeed: 'پلے بیک کی رفتار',
     sleepTimer: 'نیند کا ٹائمر',
+    sleepTimerEndOfChapter: 'باب کے آخر میں',
     nowPlaying: 'اب چل رہا ہے',
     readyToResume: 'دوبارہ شروع کرنے کے لیے تیار',
     repeatChapter: 'باب دہرائیں',

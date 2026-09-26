@@ -704,6 +704,7 @@ export const ko = {
   audio: {
     playbackSpeed: '재생 속도',
     sleepTimer: '수면 타이머',
+    sleepTimerEndOfChapter: '장 끝까지',
     nowPlaying: '지금 재생 중',
     readyToResume: '재개 준비 완료',
     repeatChapter: '장 반복',

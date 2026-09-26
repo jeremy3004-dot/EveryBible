@@ -304,14 +304,17 @@ test('the persisted snapshot carries only the settings and resume fields', () =>
   assert.deepEqual(Object.keys(readPersisted().state).sort(), [
     'autoAdvanceChapter',
     'backgroundMusicChoice',
+    'backgroundMusicLevel',
     'lastPlayedBookId',
     'lastPlayedChapter',
     'lastPlayedTranslationId',
     'lastPosition',
+    'narrationVolume',
     'playbackRate',
     'queue',
     'queueIndex',
     'repeatMode',
+    'repeatPassage',
     'sleepTimerMinutes',
   ]);
 });
@@ -976,4 +979,48 @@ test('setBackgroundMusicChoice persists the chosen bed', () => {
 
   assert.equal(useAudioStore.getState().backgroundMusicChoice, 'ocean-waves');
   assert.equal(readPersisted().state.backgroundMusicChoice, 'ocean-waves');
+});
+
+test('setRepeatPassage stores the passage and switches repeat to it', () => {
+  resetStore();
+  const passage = { bookId: 'GEN', start: { chapter: 1, verse: 1 }, end: { chapter: 2, verse: 3 } };
+
+  actions().setRepeatPassage(passage);
+
+  assert.equal(useAudioStore.getState().repeatMode, 'passage');
+  assert.deepEqual(useAudioStore.getState().repeatPassage, passage);
+  assert.deepEqual(readPersisted().state.repeatPassage, passage);
+
+  // Turning repeat off keeps the passage, so choosing Passage again restores it.
+  actions().setRepeatMode('off');
+  assert.deepEqual(useAudioStore.getState().repeatPassage, passage);
+});
+
+test('the voice and sound levels clamp to 0–1 and persist', () => {
+  resetStore();
+  assert.equal(useAudioStore.getState().narrationVolume, 1);
+  assert.equal(useAudioStore.getState().backgroundMusicLevel, 0.5);
+
+  actions().setNarrationVolume(0.6);
+  actions().setBackgroundMusicLevel(3);
+  assert.equal(useAudioStore.getState().narrationVolume, 0.6);
+  assert.equal(useAudioStore.getState().backgroundMusicLevel, 1);
+  assert.equal(readPersisted().state.narrationVolume, 0.6);
+
+  actions().setNarrationVolume(-2);
+  actions().setBackgroundMusicLevel(Number.NaN);
+  assert.equal(useAudioStore.getState().narrationVolume, 0);
+  assert.equal(useAudioStore.getState().backgroundMusicLevel, 1);
+});
+
+test('an end-of-chapter sleep timer has no countdown', () => {
+  resetStore();
+  actions().setStatus('playing');
+
+  actions().setSleepTimer('end-of-chapter');
+
+  const state = useAudioStore.getState();
+  assert.equal(state.sleepTimerMinutes, 'end-of-chapter');
+  assert.equal(state.sleepTimerEndTime, null);
+  assert.equal(state.sleepTimerRemainingMs, null);
 });

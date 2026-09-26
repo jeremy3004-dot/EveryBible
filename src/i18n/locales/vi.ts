@@ -721,6 +721,7 @@ export const vi = {
   audio: {
     playbackSpeed: 'Tốc độ phát lại',
     sleepTimer: 'Hẹn giờ ngủ',
+    sleepTimerEndOfChapter: 'Hết chương',
     nowPlaying: 'Đang phát',
     readyToResume: 'Sẵn sàng tiếp tục',
     repeatChapter: 'Lặp lại chương',

@@ -751,6 +751,7 @@ export const fr = {
   audio: {
     playbackSpeed: 'Vitesse de lecture',
     sleepTimer: 'Minuterie de veille',
+    sleepTimerEndOfChapter: 'Fin du chapitre',
     nowPlaying: 'Lecture en cours',
     readyToResume: 'Prêt à reprendre',
     repeatChapter: 'Répéter le chapitre',

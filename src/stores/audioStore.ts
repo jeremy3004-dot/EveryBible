@@ -13,6 +13,7 @@ import type {
   BackgroundMusicChoice,
   PlaybackRate,
   RepeatMode,
+  RepeatPassage,
   SleepTimerOption,
 } from '../types';
 import { getAudioTrackId, syncAudioQueueToTrack, type AudioQueueEntry } from './audioQueueModel';
@@ -55,6 +56,12 @@ interface AudioState {
   repeatMode: RepeatMode;
   sleepTimerMinutes: SleepTimerOption;
   backgroundMusicChoice: BackgroundMusicChoice;
+  /** The passage `repeatMode: 'passage'` loops; kept when repeat is switched off. */
+  repeatPassage: RepeatPassage | null;
+  /** Narration loudness, 0–1. */
+  narrationVolume: number;
+  /** Background sound loudness, 0–1; 0.5 plays each sound at its catalog level. */
+  backgroundMusicLevel: number;
 
   // Playback actions
   setStatus: (status: AudioStatus) => void;
@@ -95,6 +102,10 @@ interface AudioState {
   setSleepTimer: (minutes: SleepTimerOption) => void;
   clearSleepTimer: () => void;
   setBackgroundMusicChoice: (choice: BackgroundMusicChoice) => void;
+  /** Stores the passage to loop and switches repeat to it. */
+  setRepeatPassage: (passage: RepeatPassage) => void;
+  setNarrationVolume: (volume: number) => void;
+  setBackgroundMusicLevel: (level: number) => void;
 
   // Reset
   resetPlayback: () => void;
@@ -103,6 +114,8 @@ interface AudioState {
 /** Statuses during which a sleep timer counts down; buffering counts as playing. */
 const isSleepTimerRunningStatus = (status: AudioStatus) =>
   status === 'playing' || status === 'loading';
+
+const clampUnit = (value: number) => (Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 1);
 
 type SleepTimerFields = Pick<AudioState, 'sleepTimerEndTime' | 'sleepTimerRemainingMs'>;
 
@@ -132,6 +145,9 @@ const selectPersistedAudioState = (state: AudioState) => ({
   repeatMode: state.repeatMode,
   sleepTimerMinutes: state.sleepTimerMinutes,
   backgroundMusicChoice: state.backgroundMusicChoice,
+  repeatPassage: state.repeatPassage,
+  narrationVolume: state.narrationVolume,
+  backgroundMusicLevel: state.backgroundMusicLevel,
   queue: state.queue,
   queueIndex: state.queueIndex,
   lastPlayedTranslationId: state.lastPlayedTranslationId,
@@ -211,6 +227,9 @@ export const useAudioStore = create<AudioState>()(
       repeatMode: 'off',
       sleepTimerMinutes: null,
       backgroundMusicChoice: 'off',
+      repeatPassage: null,
+      narrationVolume: 1,
+      backgroundMusicLevel: 0.5,
 
       // Playback actions
       setStatus: (status) => {
@@ -320,7 +339,8 @@ export const useAudioStore = create<AudioState>()(
         })),
 
       setSleepTimer: (minutes) => {
-        const lengthMs = minutes ? minutes * 60 * 1000 : null;
+        // 'end-of-chapter' has no countdown: the chapter's finish ends playback.
+        const lengthMs = typeof minutes === 'number' ? minutes * 60 * 1000 : null;
         const isRunning = lengthMs !== null && isSleepTimerRunningStatus(get().status);
         set({
           sleepTimerMinutes: minutes,
@@ -337,6 +357,12 @@ export const useAudioStore = create<AudioState>()(
         }),
 
       setBackgroundMusicChoice: (choice) => set({ backgroundMusicChoice: choice }),
+
+      setRepeatPassage: (passage) => set({ repeatPassage: passage, repeatMode: 'passage' }),
+
+      setNarrationVolume: (volume) => set({ narrationVolume: clampUnit(volume) }),
+
+      setBackgroundMusicLevel: (level) => set({ backgroundMusicLevel: clampUnit(level) }),
 
       // Reset playback state
       resetPlayback: () =>

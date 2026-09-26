@@ -410,6 +410,7 @@ export const hi = {
   audio: {
     playbackSpeed: 'प्लेबैक गति',
     sleepTimer: 'सोने का टाइमर',
+    sleepTimerEndOfChapter: 'अध्याय के अंत में',
     nowPlaying: 'अभी चल रहा है',
     readyToResume: 'फिर से शुरू करने के लिए तैयार',
     repeatChapter: 'अध्याय दोहराएँ',

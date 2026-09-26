@@ -414,6 +414,7 @@ export const te = {
   audio: {
     playbackSpeed: 'ప్లేబ్యాక్ వేగం',
     sleepTimer: 'స్లీప్ టైమర్',
+    sleepTimerEndOfChapter: 'అధ్యాయం చివరికి',
     nowPlaying: 'ఇప్పుడు వినిపిస్తోంది',
     readyToResume: 'కొనసాగించడానికి సిద్ధం',
     repeatChapter: 'అధ్యాయాన్ని పునరావృతం చేయండి',

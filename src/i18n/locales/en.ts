@@ -699,6 +699,7 @@ export const en = {
   audio: {
     playbackSpeed: 'Playback Speed',
     sleepTimer: 'Sleep Timer',
+    sleepTimerEndOfChapter: 'End of chapter',
     nowPlaying: 'Now playing',
     readyToResume: 'Ready to resume',
     repeatChapter: 'Repeat chapter',

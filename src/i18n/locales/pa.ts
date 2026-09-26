@@ -410,6 +410,7 @@ export const pa = {
   audio: {
     playbackSpeed: 'ਪਲੇਬੈਕ ਸਪੀਡ',
     sleepTimer: 'ਸਲੀਪ ਟਾਈਮਰ',
+    sleepTimerEndOfChapter: 'ਅਧਿਆਇ ਦੇ ਅੰਤ ਤੇ',
     nowPlaying: 'ਹੁਣ ਚੱਲ ਰਿਹਾ ਹੈ',
     readyToResume: 'ਮੁੜ ਸ਼ੁਰੂ ਕਰਨ ਲਈ ਤਿਆਰ ਹੈ',
     repeatChapter: 'ਅਧਿਆਇ ਦੁਹਰਾਓ',

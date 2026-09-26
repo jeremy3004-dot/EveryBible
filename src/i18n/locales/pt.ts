@@ -737,6 +737,7 @@ export const pt = {
   audio: {
     playbackSpeed: 'Velocidade de reprodução',
     sleepTimer: 'Temporizador',
+    sleepTimerEndOfChapter: 'Fim do capítulo',
     nowPlaying: 'Reproduzindo',
     readyToResume: 'Pronto para retomar',
     repeatChapter: 'Repetir capítulo',

@@ -753,6 +753,7 @@ export const ar = {
   audio: {
     playbackSpeed: 'سرعة التشغيل',
     sleepTimer: 'مؤقت النوم',
+    sleepTimerEndOfChapter: 'نهاية الإصحاح',
     nowPlaying: 'قيد التشغيل',
     readyToResume: 'جاهز للاستئناف',
     repeatChapter: 'تكرار الإصحاح',

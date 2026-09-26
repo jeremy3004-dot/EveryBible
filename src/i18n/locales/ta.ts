@@ -414,6 +414,7 @@ export const ta = {
   audio: {
     playbackSpeed: 'இயக்க வேகம்',
     sleepTimer: 'உறக்க நேரம்',
+    sleepTimerEndOfChapter: 'அத்தியாயத்தின் முடிவில்',
     nowPlaying: 'இப்போது ஒலிப்பது',
     readyToResume: 'மீண்டும் தொடங்கத் தயார்',
     repeatChapter: 'அத்தியாயத்தை மீண்டும் இயக்கு',

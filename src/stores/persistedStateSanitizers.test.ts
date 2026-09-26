@@ -900,6 +900,57 @@ test('sanitizePersistedAudioState preserves supported repeat modes', () => {
   assert.equal(sanitized.repeatMode, 'book');
 });
 
+test('sanitizePersistedAudioState keeps a whole passage and drops a broken one', () => {
+  const passage = {
+    bookId: 'GEN',
+    start: { chapter: 1, verse: 1 },
+    end: { chapter: 1, verse: 13 },
+  };
+  const kept = sanitizePersistedAudioState({ repeatMode: 'passage', repeatPassage: passage });
+  assert.equal(kept.repeatMode, 'passage');
+  assert.deepEqual(kept.repeatPassage, passage);
+
+  for (const broken of [
+    { ...passage, bookId: 'NOPE' },
+    { ...passage, start: { chapter: 2, verse: 1 } },
+    { ...passage, end: { chapter: 1, verse: 0 } },
+    { ...passage, start: { chapter: 1.5, verse: 1 } },
+    'GEN 1:1-13',
+  ]) {
+    const dropped = sanitizePersistedAudioState({ repeatMode: 'passage', repeatPassage: broken });
+    assert.equal(dropped.repeatPassage, null);
+    // Passage repeat with nothing to loop falls back to off.
+    assert.equal(dropped.repeatMode, 'off');
+  }
+});
+
+test('sanitizePersistedAudioState clamps the voice and sound levels', () => {
+  assert.deepEqual(
+    [
+      sanitizePersistedAudioState({}).narrationVolume,
+      sanitizePersistedAudioState({}).backgroundMusicLevel,
+    ],
+    [1, 0.5]
+  );
+  const clamped = sanitizePersistedAudioState({ narrationVolume: 4, backgroundMusicLevel: -1 });
+  assert.equal(clamped.narrationVolume, 1);
+  assert.equal(clamped.backgroundMusicLevel, 0);
+  const junk = sanitizePersistedAudioState({ narrationVolume: 'loud', backgroundMusicLevel: NaN });
+  assert.equal(junk.narrationVolume, 1);
+  assert.equal(junk.backgroundMusicLevel, 0.5);
+  assert.equal(sanitizePersistedAudioState({ narrationVolume: 0.4 }).narrationVolume, 0.4);
+});
+
+test('sanitizePersistedAudioState keeps the end-of-chapter sleep timer and new sounds', () => {
+  const sanitized = sanitizePersistedAudioState({
+    sleepTimerMinutes: 'end-of-chapter',
+    backgroundMusicChoice: 'gregorian-chant',
+  });
+  assert.equal(sanitized.sleepTimerMinutes, 'end-of-chapter');
+  assert.equal(sanitized.backgroundMusicChoice, 'gregorian-chant');
+  assert.equal(sanitizePersistedAudioState({ sleepTimerMinutes: 'later' }).sleepTimerMinutes, null);
+});
+
 test('sanitizePersistedAudioState preserves the extended supported playback rates', () => {
   const onePointSeventyFive = sanitizePersistedAudioState({
     playbackRate: 1.75,

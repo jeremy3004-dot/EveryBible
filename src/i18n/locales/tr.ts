@@ -719,6 +719,7 @@ export const tr = {
   audio: {
     playbackSpeed: 'Oynatma hızı',
     sleepTimer: 'Uyku zamanlayıcısı',
+    sleepTimerEndOfChapter: 'Bölüm sonunda',
     nowPlaying: 'Şimdi çalıyor',
     readyToResume: 'Devam etmeye hazır',
     repeatChapter: 'Bölümü tekrarla',

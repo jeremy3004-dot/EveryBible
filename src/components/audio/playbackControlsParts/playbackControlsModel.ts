@@ -57,7 +57,7 @@ export interface SleepTimerOptionLabel {
 
 /** "Off" for no timer, else the short minutes label. */
 export function sleepTimerOptionLabel(value: SleepTimerOption): SleepTimerOptionLabel {
-  return value == null
-    ? { key: 'interface.music.off.label' }
-    : { key: 'interface.minutesShort', count: value };
+  if (value == null) return { key: 'interface.music.off.label' };
+  if (value === 'end-of-chapter') return { key: 'audio.sleepTimerEndOfChapter' };
+  return { key: 'interface.minutesShort', count: value };
 }

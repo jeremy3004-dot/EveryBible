@@ -729,6 +729,7 @@ export const de = {
   audio: {
     playbackSpeed: 'Wiedergabegeschwindigkeit',
     sleepTimer: 'Einschlaftimer',
+    sleepTimerEndOfChapter: 'Ende des Kapitels',
     nowPlaying: 'Aktuelle Wiedergabe',
     readyToResume: 'Bereit zur Fortsetzung',
     repeatChapter: 'Kapitel wiederholen',

@@ -704,6 +704,7 @@ export const ja = {
   audio: {
     playbackSpeed: '再生速度',
     sleepTimer: 'スリープタイマー',
+    sleepTimerEndOfChapter: '章の終わりまで',
     nowPlaying: '再生中',
     readyToResume: '再開できます',
     repeatChapter: '章をリピート',

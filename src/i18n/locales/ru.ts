@@ -741,6 +741,7 @@ export const ru = {
   audio: {
     playbackSpeed: 'Скорость воспроизведения',
     sleepTimer: 'Таймер сна',
+    sleepTimerEndOfChapter: 'До конца главы',
     nowPlaying: 'Сейчас воспроизводится',
     readyToResume: 'Готово к продолжению',
     repeatChapter: 'Повтор главы',

@@ -410,6 +410,7 @@ export const ne = {
   audio: {
     playbackSpeed: 'बजाउने गति',
     sleepTimer: 'निद्रा टाइमर',
+    sleepTimerEndOfChapter: 'अध्यायको अन्त्यमा',
     nowPlaying: 'अहिले बजिरहेको',
     readyToResume: 'फेरि सुरु गर्न तयार',
     repeatChapter: 'अध्याय दोहोर्‍याउनुहोस्',

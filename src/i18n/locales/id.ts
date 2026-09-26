@@ -720,6 +720,7 @@ export const id = {
   audio: {
     playbackSpeed: 'Kecepatan pemutaran',
     sleepTimer: 'Pengatur waktu tidur',
+    sleepTimerEndOfChapter: 'Akhir pasal',
     nowPlaying: 'Sedang diputar',
     readyToResume: 'Siap dilanjutkan',
     repeatChapter: 'Ulangi pasal',

@@ -679,6 +679,7 @@ export const zh = {
   audio: {
     playbackSpeed: '播放速度',
     sleepTimer: '睡眠定时器',
+    sleepTimerEndOfChapter: '本章结束时',
     nowPlaying: '正在播放',
     readyToResume: '可继续播放',
     repeatChapter: '重复本章',
