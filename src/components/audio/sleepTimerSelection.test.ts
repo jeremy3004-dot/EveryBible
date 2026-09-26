@@ -28,3 +28,7 @@ test('a length remembered from an earlier session does not select anything but O
   // timer, so the remembered length must not read as the active option.
   assert.deepEqual(selectedValues(60, null), [null]);
 });
+
+test('an end-of-chapter timer selects its option although it has no countdown', () => {
+  assert.deepEqual(selectedValues('end-of-chapter', null), ['end-of-chapter']);
+});

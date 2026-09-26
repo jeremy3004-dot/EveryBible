@@ -122,49 +122,42 @@ export function PlaybackControls({
 
   return (
     <View style={styles.container}>
-      {layout.showTransport ? (
-        <View
-          style={[
-            styles.transportRow,
-            layout.isChapterOnly ? styles.chapterOnlyTransportRow : null,
-          ]}
-        >
-          {layout.showChapterButtons ? (
-            <ChapterButton
-              direction="previous"
-              hasChapter={hasPreviousChapter}
-              isLoading={isLoading}
-              isChapterOnly={layout.isChapterOnly}
-              onPress={previousChapter}
-            />
-          ) : null}
-          {layout.showSkipControls ? (
-            <SkipButton direction="backward" isLoading={isLoading} onPress={skipBackward} />
-          ) : null}
-          <PlayButton
+      <View
+        style={[styles.transportRow, layout.isChapterOnly ? styles.chapterOnlyTransportRow : null]}
+      >
+        {layout.showChapterButtons ? (
+          <ChapterButton
+            direction="previous"
+            hasChapter={hasPreviousChapter}
             isLoading={isLoading}
-            isPlaying={status === 'playing'}
             isChapterOnly={layout.isChapterOnly}
-            onPress={playPause}
+            onPress={previousChapter}
           />
-          {layout.showSkipControls ? (
-            <SkipButton direction="forward" isLoading={isLoading} onPress={skipForward} />
-          ) : null}
-          {layout.showChapterButtons ? (
-            <ChapterButton
-              direction="next"
-              hasChapter={hasNextChapter}
-              isLoading={isLoading}
-              isChapterOnly={layout.isChapterOnly}
-              onPress={nextChapter}
-            />
-          ) : null}
-        </View>
-      ) : null}
+        ) : null}
+        {layout.showSkipControls ? (
+          <SkipButton direction="backward" isLoading={isLoading} onPress={skipBackward} />
+        ) : null}
+        <PlayButton
+          isLoading={isLoading}
+          isPlaying={status === 'playing'}
+          isChapterOnly={layout.isChapterOnly}
+          onPress={playPause}
+        />
+        {layout.showSkipControls ? (
+          <SkipButton direction="forward" isLoading={isLoading} onPress={skipForward} />
+        ) : null}
+        {layout.showChapterButtons ? (
+          <ChapterButton
+            direction="next"
+            hasChapter={hasNextChapter}
+            isLoading={isLoading}
+            isChapterOnly={layout.isChapterOnly}
+            onPress={nextChapter}
+          />
+        ) : null}
+      </View>
 
-      {layout.showTransport && errorMessage ? (
-        <AudioPlaybackErrorNotice message={errorMessage} />
-      ) : null}
+      {errorMessage ? <AudioPlaybackErrorNotice message={errorMessage} /> : null}
 
       {showUtilityRow ? (
         <View

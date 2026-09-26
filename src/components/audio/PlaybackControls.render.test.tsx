@@ -90,14 +90,6 @@ test('the default player offers 10-second skips; the chapter-only player drops t
   assert.ok(chapterOnly.view.getByRole('button', { name: t('audio.nextChapter') }));
 });
 
-test('the utilities-only player shows the utility row and no transport', async () => {
-  const { view } = await renderControls({ variant: 'utilities-only' });
-
-  assert.equal(view.queryByRole('button', { name: t('interface.playChapterAudio') }), null);
-  assert.equal(view.queryByRole('button', { name: t('audio.previousChapter') }), null);
-  assert.ok(view.getByRole('button', { name: t('audio.sleepTimer') }));
-});
-
 test('the chapter-only transport can hide its utility row and keep play, previous and next', async () => {
   const { view } = await renderControls({ variant: 'chapter-only', showUtilityRow: false });
 
@@ -482,18 +474,10 @@ test('a failed load shows why under the transport, announces it once, and Play t
   assert.deepEqual(harness.rn.__recorded.announcements, [failed]);
 });
 
-test('no failure notice is drawn without a message, or by the utilities-only player', async () => {
+test('no failure notice is drawn without a message', async () => {
   const failed = t('interface.audioPlayFailed');
   const plain = await renderControls({ status: 'error', errorMessage: null });
   assert.equal(plain.view.queryByText(failed), null);
-  await plain.view.unmount();
-
-  const utilities = await renderControls({
-    variant: 'utilities-only',
-    status: 'error',
-    errorMessage: failed,
-  });
-  assert.equal(utilities.view.queryByText(failed), null);
   assert.deepEqual(harness.rn.__recorded.announcements, []);
 });
 

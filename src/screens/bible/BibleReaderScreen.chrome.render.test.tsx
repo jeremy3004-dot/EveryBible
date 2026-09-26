@@ -315,31 +315,30 @@ test('the translation sheet title caps its scaling so a word never breaks at AX 
 
 // ---- Audio sheet ------------------------------------------------------------
 
-test('the top audio button opens the playback utilities, including chapter audio sharing', async () => {
+test('the top audio button opens the Audio sheet, including chapter audio sharing', async () => {
   const view = await renderReader();
 
   await view.press(view.getByRole('button', { name: t('audio.nowPlaying') }));
 
-  const sheet = modalOf(view.getByRole('header', { name: t('audio.nowPlaying') }));
+  const sheet = modalOf(view.getByRole('header', { name: t('audio.sheetTitle') }));
   const controls = within(sheet);
   assert.deepEqual(
-    controls
-      .getAllByRole('button')
-      .map((button) => button.props.accessibilityLabel)
-      .slice(1),
+    controls.getAllByRole('header').map((header) => header.props.children),
     [
+      t('audio.sheetTitle'),
+      t('audio.soundSection'),
+      t('audio.speed'),
       t('audio.sleepTimer'),
-      t('interface.backgroundMusicLabel', { name: 'Off' }),
-      t('audio.repeatOff'),
-      t('audio.playbackSpeed'),
-      t('bible.shareChapterAudio'),
-    ],
-    'utilities only: no transport in this sheet'
+      t('audio.repeat'),
+    ]
   );
+  // It describes the chapter on screen, and carries no transport of its own.
+  assert.ok(controls.getByText('John 3'));
+  assert.equal(controls.queryByRole('button', { name: t('interface.playChapterAudio') }), null);
 
   // Sharing moves on to the chapter audio share sheet.
   await view.press(controls.getByRole('button', { name: t('bible.shareChapterAudio') }));
-  assert.equal(view.queryByRole('header', { name: t('audio.nowPlaying') }), null);
+  assert.equal(view.queryByRole('header', { name: t('audio.sheetTitle') }), null);
   assert.ok(view.getByRole('button', { name: t('common.cancel') }));
 });
 
