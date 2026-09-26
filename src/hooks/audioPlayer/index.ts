@@ -45,10 +45,12 @@ export {
   takeOverRemoteCommands,
   type RemoteCommandControls,
 } from './remoteCommands';
+export { provideSelahTransport, toggleSelah, type SelahTransport } from './selah';
 export { chapterTransition, isAudioLoaded, pausedByListener } from './sharedPlaybackState';
 export {
   pausePlayback,
   resumePlayback,
+  type PauseOptions,
   seekPlayback,
   skipPlayback,
   startPlayback,

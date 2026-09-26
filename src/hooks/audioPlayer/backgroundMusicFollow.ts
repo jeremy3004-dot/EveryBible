@@ -12,6 +12,7 @@ import { chapterTransition } from './sharedPlaybackState';
 // The music bed follows the narration from a store subscription rather than a render
 // effect. Lock-screen pause, the sleep timer and the end of playback all change the
 // status after the reader has closed, and the bed has to stop with the narration.
+// The one exception is Selah: a narration it holds paused keeps the bed playing.
 let backgroundMusicSubscription: (() => void) | null = null;
 let backgroundMusicOffHandled = false;
 // Shuffle's pick lives here, not in the store: the persisted choice stays 'shuffle', and
@@ -20,6 +21,7 @@ let shuffleSession: ShuffleSession = IDLE_SHUFFLE_SESSION;
 
 interface BedInputs {
   status: AudioStatus;
+  selahActive: boolean;
   backgroundMusicChoice: BackgroundMusicChoice;
   currentTranslationId: string | null;
   currentBookId: string | null;
@@ -31,8 +33,12 @@ let shuffleSyncQueued = false;
 const chapterKeyOf = (state: BedInputs): string =>
   `${state.currentTranslationId ?? ''}:${state.currentBookId ?? ''}:${state.currentChapter ?? ''}`;
 
-const shouldBedPlay = (status: AudioStatus): boolean =>
-  status === 'playing' || status === 'loading' || chapterTransition.current;
+const shouldBedPlay = ({ status, selahActive }: BedInputs): boolean =>
+  status === 'playing' ||
+  status === 'loading' ||
+  chapterTransition.current ||
+  // Selah holds only a paused chapter: stopped or failed playback ends the bed with it.
+  (selahActive && status === 'paused');
 
 /**
  * Starting a chapter sets the status and then the chapter, back to back. Resolving
@@ -47,7 +53,7 @@ function queueShuffledBedSync(): void {
     shuffleSyncQueued = false;
     const state = useAudioStore.getState();
     if (state.backgroundMusicChoice !== 'shuffle') return;
-    syncShuffledBed(state, shouldBedPlay(state.status));
+    syncShuffledBed(state, shouldBedPlay(state));
   });
 }
 
@@ -106,7 +112,7 @@ function syncBackgroundMusicWithPlayback(state: BedInputs): void {
     queueShuffledBedSync();
     return;
   }
-  void backgroundMusicPlayer.sync(choice, shouldBedPlay(status));
+  void backgroundMusicPlayer.sync(choice, shouldBedPlay(state));
 }
 
 /**
@@ -130,6 +136,7 @@ export function followPlaybackWithBackgroundMusic(): void {
       next.backgroundMusicChoice === 'shuffle' && chapterKeyOf(next) !== chapterKeyOf(previous);
     if (
       next.status !== previous.status ||
+      next.selahActive !== previous.selahActive ||
       next.backgroundMusicChoice !== previous.backgroundMusicChoice ||
       chapterChanged
     ) {

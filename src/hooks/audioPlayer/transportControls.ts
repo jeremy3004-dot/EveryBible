@@ -9,6 +9,14 @@ import { useLibraryStore } from '../../stores/libraryStore';
 import { emitAudioPlaybackProgress, stopAudioProgressTelemetry } from './listeningTelemetry';
 import { notePassageManualSeek } from './passageRepeat';
 import { anchorPositionInterpolation, stopPositionInterpolation } from './playbackProgress';
+import {
+  abandonSelahResume,
+  completeSelahResume,
+  endSelahForPause,
+  restoreNarrationVolume,
+  silenceNarrationForSelahResume,
+  takeSelahResume,
+} from './selah';
 import type {
   AudioPlayerSession,
   PlayChapterForTranslation,
@@ -31,12 +39,24 @@ function recordCurrentChapterHistory(): void {
   }
 }
 
-export async function pausePlayback({
-  session,
-  fallbackTranslationId,
-  syncNowPlaying,
-}: TransportContext & { syncNowPlaying: SyncNowPlaying }): Promise<void> {
-  session.playRequestId += 1;
+export interface PauseOptions {
+  /**
+   * Selah's own pause: the narration pauses and Selah stays on, so the bed plays on.
+   * Any other pause ends Selah and pauses the bed with the narration.
+   */
+  holdForSelah?: boolean;
+}
+
+export async function pausePlayback(
+  {
+    session,
+    fallbackTranslationId,
+    syncNowPlaying,
+  }: TransportContext & { syncNowPlaying: SyncNowPlaying },
+  { holdForSelah = false }: PauseOptions = {}
+): Promise<void> {
+  const requestId = ++session.playRequestId;
+  if (!holdForSelah) endSelahForPause();
   pausedByListener.current = true;
   chapterTransition.current = false;
   // Stop interpolation immediately so position freezes at pause point
@@ -59,6 +79,9 @@ export async function pausePlayback({
     true
   );
   await audioPlayer.pause();
+  // A Selah fade (out into it, or back in from it) ends here: paused, the narration goes
+  // back to the Voice level, where the next chapter or resume expects it.
+  if (requestId === session.playRequestId) restoreNarrationVolume();
   if (bookAtPause && chapterAtPause && durationAtPause > 0) {
     useLibraryStore
       .getState()
@@ -78,6 +101,9 @@ export async function resumePlayback({
   const requestId = ++session.playRequestId;
   pausedByListener.current = false;
   const errorId = session.playbackErrorId;
+  // Out of Selah the narration picks up a little earlier, so no words are lost, and
+  // fades back in. Selah ends here, whichever Play (reader, bar, lock screen) resumed it.
+  const selahResume = takeSelahResume();
   const store = useAudioStore.getState();
   // Live resume: the loaded player already holds the true offset, and
   // currentPosition reflects any scrubs made while paused. Using
@@ -86,9 +112,17 @@ export async function resumePlayback({
   // back to the max-with-lastPosition logic on cold restore, where the
   // player is unloaded and lastPosition is the last durable anchor.
   const isLoaded = audioPlayer.isLoaded();
-  const resumePosition = isLoaded
-    ? store.currentPosition
-    : Math.max(store.currentPosition, store.lastPosition);
+  const resumePosition = selahResume
+    ? selahResume.positionMs
+    : isLoaded
+      ? store.currentPosition
+      : Math.max(store.currentPosition, store.lastPosition);
+  const fadesIn = selahResume !== null && isLoaded;
+  // Overtaken by a newer command, or the sound has gone: Selah ends here, and the
+  // narration must not stay silenced for whatever plays next.
+  const standDown = () => {
+    if (selahResume) abandonSelahResume(selahResume);
+  };
 
   // A stream that failed mid-chapter leaves a sound the native side has released.
   // Android only says so when the next command fails, so load the chapter again at
@@ -106,25 +140,30 @@ export async function resumePlayback({
     );
   };
 
+  if (fadesIn) await silenceNarrationForSelahResume();
   // Reset poll anchor so interpolation starts fresh from the resumed position.
   // If the native player lost its offset during an interruption, re-seek first.
-  if (isLoaded && resumePosition > 0) {
+  if (isLoaded && (resumePosition > 0 || selahResume)) {
     await audioPlayer.seekTo(resumePosition);
+    if (selahResume) useAudioStore.getState().setPosition(resumePosition);
   }
-  if (requestId !== session.playRequestId) return;
+  if (requestId !== session.playRequestId) return standDown();
   if (errorId !== session.playbackErrorId) {
+    standDown();
     await reloadIfSoundWasReleased();
     return;
   }
 
   anchorPositionInterpolation(session, resumePosition);
   await audioPlayer.resume();
-  if (requestId !== session.playRequestId) return;
+  if (requestId !== session.playRequestId) return standDown();
   if (errorId !== session.playbackErrorId) {
+    standDown();
     await reloadIfSoundWasReleased();
     return;
   }
   useAudioStore.getState().setStatus('playing');
+  if (selahResume) completeSelahResume(selahResume, fadesIn);
   syncNowPlaying(
     {
       isPlaying: true,

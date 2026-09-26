@@ -4237,3 +4237,130 @@ test('a seek past the end verse plays on, and the chapter end returns to the sta
   assert.equal(store().currentChapter, 3);
   assert.equal(loadedStartOffset(), JOHN_3_16_MS);
 });
+
+// ---------------------------------------------------------------------------
+// Selah: the narration held paused while the music bed plays on
+// ---------------------------------------------------------------------------
+
+/**
+ * GEN 1 playing at 42 s with a background sound on, then Selah turned on and its fade
+ * run out. Returns where the narration should pick up (BSB has verse timings).
+ */
+async function holdGenesisInSelah(t: { mock: { timers: MockTimers } }): Promise<number> {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout', 'Date'], now: BASE_TIME });
+  const player = mountPlayer();
+  store().setBackgroundMusicChoice('piano');
+  await player.api.playChapter('GEN', 1);
+  emitStatus({ isPlaying: true, positionMillis: 42_000, durationMillis: DEFAULT_DURATION_MS });
+  const { toggleSelah } = await import('./audioPlayer/selah');
+  const entering = toggleSelah();
+  t.mock.timers.tick(750);
+  await entering;
+  const { loadChapterVerseTimings } = await import('./audioPlayer/passageRepeat');
+  const { resolveSelahResumePositionMs } = await import('../stores/audioSelahModel');
+  const timings = await loadChapterVerseTimings('bsb', 'GEN', 1);
+  recorded.player.length = 0;
+  recorded.backgroundMusic.length = 0;
+  return resolveSelahResumePositionMs(42_000, timings);
+}
+
+test('Selah pauses the narration, keeps the bed playing and shows paused on the lock screen', async (t) => {
+  await holdGenesisInSelah(t);
+
+  assert.equal(store().selahActive, true);
+  assert.equal(store().status, 'paused');
+  assert.equal(recorded.nowPlaying.at(-1)?.isPlaying, false);
+  assert.equal(
+    recorded.backgroundMusic.some((call) => call.method === 'stop' || call.shouldPlay === false),
+    false
+  );
+  assert.equal(recorded.narrationVolumes.at(-1), 1, 'paused at the Voice level again');
+});
+
+test('lock-screen Play with the reader closed resumes out of Selah a little earlier', async (t) => {
+  const pickUpAt = await holdGenesisInSelah(t);
+  runtime.unmountAll();
+
+  await remoteCommandListener?.({ command: 'play' });
+  t.mock.timers.tick(750);
+
+  assert.deepEqual(playerCalls('seekTo'), [{ method: 'seekTo', args: [pickUpAt] }]);
+  assert.equal(pickUpAt < 42_000 && pickUpAt >= 42_000 - 6_000, true);
+  assert.equal(playerCalls('resume').length, 1);
+  assert.equal(store().status, 'playing');
+  assert.equal(store().selahActive, false);
+  assert.equal(recorded.narrationVolumes.at(-1), 1, 'faded back in to the Voice level');
+  assert.equal(recorded.nowPlaying.at(-1)?.isPlaying, true);
+});
+
+test('Play in the reader resumes out of Selah the same way', async (t) => {
+  const pickUpAt = await holdGenesisInSelah(t);
+
+  await mountPlayer().api.togglePlayPause();
+  t.mock.timers.tick(750);
+
+  assert.deepEqual(playerCalls('seekTo'), [{ method: 'seekTo', args: [pickUpAt] }]);
+  assert.equal(store().selahActive, false);
+});
+
+test('a lock-screen Pause during Selah ends it and pauses the bed', async (t) => {
+  await holdGenesisInSelah(t);
+
+  await remoteCommandListener?.({ command: 'pause' });
+
+  assert.equal(store().selahActive, false);
+  assert.equal(store().status, 'paused');
+  assert.deepEqual(recorded.backgroundMusic.at(-1), {
+    method: 'sync',
+    choice: 'piano',
+    shouldPlay: false,
+  });
+});
+
+test('a sleep timer running out during Selah, reader closed, ends everything', async (t) => {
+  await holdGenesisInSelah(t);
+  store().setSleepTimer(5);
+  runtime.unmountAll();
+
+  t.mock.timers.tick(5 * 60_000);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+
+  assert.equal(store().selahActive, false);
+  assert.equal(store().sleepTimerMinutes, null);
+  assert.deepEqual(recorded.backgroundMusic.at(-1), {
+    method: 'sync',
+    choice: 'piano',
+    shouldPlay: false,
+  });
+});
+
+test('stopping during Selah ends it', async (t) => {
+  await holdGenesisInSelah(t);
+
+  await remoteCommandListener?.({ command: 'stop' });
+
+  assert.equal(store().selahActive, false);
+  assert.equal(store().status, 'idle');
+});
+
+test('the sleep timer countdown keeps moving on screen during Selah', async (t) => {
+  await holdGenesisInSelah(t);
+  const player = mountPlayer();
+  player.api.startSleepTimer(5);
+  player.rerender();
+
+  t.mock.timers.tick(2 * 60_000);
+
+  assert.equal(player.rerender().sleepTimerRemaining, 3);
+  await remoteCommandListener?.({ command: 'pause' });
+});
+
+test('the lock-screen play/pause button resumes out of Selah', async (t) => {
+  const pickUpAt = await holdGenesisInSelah(t);
+
+  await remoteCommandListener?.({ command: 'toggle' });
+
+  assert.deepEqual(playerCalls('seekTo'), [{ method: 'seekTo', args: [pickUpAt] }]);
+  assert.equal(store().selahActive, false);
+  assert.equal(store().status, 'playing');
+});
