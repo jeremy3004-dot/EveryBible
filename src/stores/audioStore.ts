@@ -350,7 +350,13 @@ export const useAudioStore = create<AudioState>()(
       removeFromQueue: (entryId) =>
         set((state) => {
           const nextQueue = state.queue.filter((entry) => entry.id !== entryId);
-          const nextIndex = Math.min(state.queueIndex, Math.max(nextQueue.length - 1, 0));
+          const removedBeforeCurrent = state.queue
+            .slice(0, state.queueIndex)
+            .filter((entry) => entry.id === entryId).length;
+          const nextIndex = Math.min(
+            state.queueIndex - removedBeforeCurrent,
+            Math.max(nextQueue.length - 1, 0)
+          );
 
           return {
             queue: nextQueue,

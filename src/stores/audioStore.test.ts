@@ -664,6 +664,34 @@ test('removeFromQueue keeps the queue index inside the shortened queue', () => {
   assert.equal(useAudioStore.getState().queueIndex, 1);
 });
 
+test('removing an earlier queued chapter preserves the current track and its next chapter', () => {
+  resetStore();
+  for (const chapter of [1, 2, 3, 4]) actions().addToQueue('bsb', 'GEN', chapter);
+  actions().setQueueIndex(1);
+  actions().removeFromQueue('bsb:GEN:1');
+  const { queue, queueIndex } = useAudioStore.getState();
+  assert.equal(queue[queueIndex]?.chapter, 2);
+  assert.equal(queue[queueIndex + 1]?.chapter, 3);
+});
+
+test('removing a later queue item keeps the middle cursor on its current chapter', () => {
+  resetStore();
+  for (const chapter of [1, 2, 3, 4]) actions().addToQueue('bsb', 'GEN', chapter);
+  actions().setQueueIndex(1);
+  actions().removeFromQueue('bsb:GEN:4');
+  assert.equal(useAudioStore.getState().queueIndex, 1);
+  assert.equal(useAudioStore.getState().queue[1]?.chapter, 2);
+});
+
+test('removing the active queued chapter selects the following chapter at the same offset', () => {
+  resetStore();
+  for (const chapter of [1, 2, 3, 4]) actions().addToQueue('bsb', 'GEN', chapter);
+  actions().setQueueIndex(1);
+  actions().removeFromQueue('bsb:GEN:2');
+  assert.equal(useAudioStore.getState().queueIndex, 1);
+  assert.equal(useAudioStore.getState().queue[1]?.chapter, 3);
+});
+
 test('removeFromQueue resets the index when the last entry goes', () => {
   resetStore();
   actions().addToQueue('bsb', 'GEN', 1);
