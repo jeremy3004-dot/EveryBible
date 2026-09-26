@@ -165,3 +165,15 @@ test('a player taking over remote commands replaces the previous subscription', 
   assert.deepEqual(calls, []);
   assert.deepEqual(otherCalls, ['pause']);
 });
+
+// The in-app player bar drives the same player the lock screen does, not a second one.
+test('the player taking over remote commands also drives the player bar', async () => {
+  const { takeOverRemoteCommands, useAudioStore } = await load();
+  const { toggleActivePlayback, stepActivePlayback } = await import('./transportRegistry');
+  takeOverRemoteCommands(controls);
+
+  useAudioStore.setState({ ...pausedMidChapter, status: 'playing' });
+  await toggleActivePlayback();
+  await stepActivePlayback(1);
+  assert.deepEqual(calls, ['pause', 'nextChapter']);
+});
