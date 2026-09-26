@@ -425,6 +425,37 @@ export const ne = {
     nextChapter: 'अर्को अध्याय',
     skipBackward: '10 सेकेन्ड पछाडि जानुहोस्',
     skipForward: '10 सेकेन्ड अगाडि जानुहोस्',
+    sheetTitle: 'अडियो',
+    elapsedOfTotal: '{{total}} मध्ये {{elapsed}}',
+    soundSection: 'ध्वनि',
+    backgroundSound: 'पृष्ठभूमि ध्वनि',
+    backgroundSoundHint: 'ध्वनि सङ्ग्रह खोल्छ',
+    voiceVolume: 'स्वर',
+    soundVolume: 'ध्वनि',
+    speed: 'गति',
+    repeat: 'दोहोर्‍याउने',
+    repeatOptionOff: 'बन्द',
+    repeatOptionChapter: 'अध्याय',
+    repeatOptionBook: 'पुस्तक',
+    repeatOptionPassage: 'खण्ड',
+    repeatPassageHint: 'खण्ड छान्ने सूची खोल्छ',
+    passageRangeInChapter: '{{book}} {{chapter}}:{{startVerse}}–{{endVerse}}',
+    passageRange: '{{book}} {{startChapter}}:{{startVerse}}–{{endChapter}}:{{endVerse}}',
+    passagePickerTitle: 'एउटा खण्ड दोहोर्‍याउनुहोस्',
+    passageFrom: 'देखि',
+    passageTo: 'सम्म',
+    passageFromChapter: 'सुरुको अध्याय',
+    passageFromVerse: 'सुरुको पद',
+    passageToChapter: 'अन्तिम अध्याय',
+    passageToVerse: 'अन्तिम पद',
+    passageDecrease: '{{name}} घटाउनुहोस्',
+    passageIncrease: '{{name}} बढाउनुहोस्',
+    passageConfirm: 'यो खण्ड दोहोर्‍याउनुहोस्',
+    soundLibraryFootnote: 'पहिलो पटक बजाउँदा डाउनलोड हुन्छ, त्यसपछि अफलाइन चल्छ',
+    soundNotDownloaded: 'अझै डाउनलोड भएको छैन',
+    soundDownloading: 'डाउनलोड हुँदै',
+    shareClip: 'क्लिप साझा गर्नुहोस्',
+    download: 'डाउनलोड',
   },
   privacy: {
     lockTitle: 'आफ्नो सुरक्षित कोड प्रविष्ट गर्नुहोस्',
@@ -1868,6 +1899,54 @@ export const ne = {
       'ocean-waves': {
         label: 'समुद्री छाल',
         description: 'शान्त पृष्ठभूमिका लागि दोहोरिने किनाराका छालको आवाज।',
+      },
+      shuffle: {
+        label: 'मिश्रित',
+      },
+      hymns: {
+        label: 'ख्रीष्टीय भजन',
+      },
+      'gregorian-chant': {
+        label: 'ग्रेगोरियन गायन',
+      },
+      organ: {
+        label: 'अर्गन',
+      },
+      'piano-cello': {
+        label: 'पियानो र चेलो',
+      },
+      rain: {
+        label: 'वर्षा',
+      },
+      'gentle-breeze': {
+        label: 'मन्द हावा',
+      },
+      'summer-night': {
+        label: 'गर्मीको रात',
+      },
+      waterfall: {
+        label: 'झरना',
+      },
+      birdsong: {
+        label: 'चराको चिरबिर',
+      },
+      shore: {
+        label: 'समुद्र किनार',
+      },
+      fireplace: {
+        label: 'अँगेनो',
+      },
+      'church-bells': {
+        label: 'चर्चका घण्टी',
+      },
+      village: {
+        label: 'गाउँ',
+      },
+      garden: {
+        label: 'बगैँचा',
+      },
+      wilderness: {
+        label: 'जङ्गल',
       },
     },
     rhythmPresets: {

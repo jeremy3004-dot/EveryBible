@@ -424,6 +424,37 @@ export const pa = {
     nextChapter: 'ਅਗਲਾ ਅਧਿਆਇ',
     skipBackward: '10 ਸਕਿੰਟ ਪਿੱਛੇ ਜਾਓ',
     skipForward: '10 ਸਕਿੰਟ ਅੱਗੇ ਜਾਓ',
+    sheetTitle: 'ਆਡੀਓ',
+    elapsedOfTotal: '{{total}} ਵਿੱਚੋਂ {{elapsed}}',
+    soundSection: 'ਆਵਾਜ਼',
+    backgroundSound: 'ਪਿਛੋਕੜ ਆਵਾਜ਼',
+    backgroundSoundHint: 'ਆਵਾਜ਼ਾਂ ਦਾ ਸੰਗ੍ਰਹਿ ਖੋਲ੍ਹਦਾ ਹੈ',
+    voiceVolume: 'ਪਾਠਕ',
+    soundVolume: 'ਪਿਛੋਕੜ',
+    speed: 'ਗਤੀ',
+    repeat: 'ਦੁਹਰਾਓ',
+    repeatOptionOff: 'ਬੰਦ',
+    repeatOptionChapter: 'ਅਧਿਆਇ',
+    repeatOptionBook: 'ਪੁਸਤਕ',
+    repeatOptionPassage: 'ਹਿੱਸਾ',
+    repeatPassageHint: 'ਹਿੱਸਾ ਚੁਣਨ ਵਾਲੀ ਸੂਚੀ ਖੋਲ੍ਹਦਾ ਹੈ',
+    passageRangeInChapter: '{{book}} {{chapter}}:{{startVerse}}–{{endVerse}}',
+    passageRange: '{{book}} {{startChapter}}:{{startVerse}}–{{endChapter}}:{{endVerse}}',
+    passagePickerTitle: 'ਕੋਈ ਹਿੱਸਾ ਦੁਹਰਾਓ',
+    passageFrom: 'ਤੋਂ',
+    passageTo: 'ਤੱਕ',
+    passageFromChapter: 'ਸ਼ੁਰੂਆਤੀ ਅਧਿਆਇ',
+    passageFromVerse: 'ਸ਼ੁਰੂਆਤੀ ਆਇਤ',
+    passageToChapter: 'ਆਖ਼ਰੀ ਅਧਿਆਇ',
+    passageToVerse: 'ਆਖ਼ਰੀ ਆਇਤ',
+    passageDecrease: '{{name}} ਘਟਾਓ',
+    passageIncrease: '{{name}} ਵਧਾਓ',
+    passageConfirm: 'ਇਹ ਹਿੱਸਾ ਦੁਹਰਾਓ',
+    soundLibraryFootnote: 'ਪਹਿਲੀ ਵਾਰ ਚਲਾਉਣ ਤੇ ਡਾਊਨਲੋਡ ਹੁੰਦੀ ਹੈ, ਫਿਰ ਆਫ਼ਲਾਈਨ ਚੱਲਦੀ ਹੈ',
+    soundNotDownloaded: 'ਅਜੇ ਡਾਊਨਲੋਡ ਨਹੀਂ ਹੋਈ',
+    soundDownloading: 'ਡਾਊਨਲੋਡ ਹੋ ਰਹੀ ਹੈ',
+    shareClip: 'ਕਲਿੱਪ ਸਾਂਝੀ ਕਰੋ',
+    download: 'ਡਾਊਨਲੋਡ ਕਰੋ',
   },
   privacy: {
     lockTitle: 'ਆਪਣਾ ਸੁਰੱਖਿਅਤ ਕੋਡ ਦਾਖਲ ਕਰੋ',
@@ -1873,6 +1904,54 @@ export const pa = {
       'ocean-waves': {
         label: 'ਸਮੁੰਦਰ ਦੀਆਂ ਲਹਿਰਾਂ',
         description: 'ਸ਼ਾਂਤ ਪਿਛੋਕੜ ਲਈ ਦੁਹਰਾਉਂਦੀ ਕੰਢੇ ਦੀਆਂ ਲਹਿਰਾਂ ਦੀ ਆਵਾਜ਼।',
+      },
+      shuffle: {
+        label: 'ਬੇਤਰਤੀਬ',
+      },
+      hymns: {
+        label: 'ਮਸੀਹੀ ਗੀਤ',
+      },
+      'gregorian-chant': {
+        label: 'ਗ੍ਰੈਗੋਰੀਅਨ ਗਾਇਨ',
+      },
+      organ: {
+        label: 'ਆਰਗਨ',
+      },
+      'piano-cello': {
+        label: 'ਪਿਆਨੋ ਅਤੇ ਚੈਲੋ',
+      },
+      rain: {
+        label: 'ਮੀਂਹ',
+      },
+      'gentle-breeze': {
+        label: 'ਮੱਠੀ ਹਵਾ',
+      },
+      'summer-night': {
+        label: 'ਗਰਮੀਆਂ ਦੀ ਰਾਤ',
+      },
+      waterfall: {
+        label: 'ਝਰਨਾ',
+      },
+      birdsong: {
+        label: 'ਪੰਛੀਆਂ ਦੀ ਚਹਿਚਹਾਟ',
+      },
+      shore: {
+        label: 'ਸਮੁੰਦਰ ਕੰਢਾ',
+      },
+      fireplace: {
+        label: 'ਅੰਗੀਠੀ',
+      },
+      'church-bells': {
+        label: 'ਗਿਰਜਾਘਰ ਦੀਆਂ ਘੰਟੀਆਂ',
+      },
+      village: {
+        label: 'ਪਿੰਡ',
+      },
+      garden: {
+        label: 'ਬਾਗ਼',
+      },
+      wilderness: {
+        label: 'ਜੰਗਲ',
       },
     },
     rhythmPresets: {

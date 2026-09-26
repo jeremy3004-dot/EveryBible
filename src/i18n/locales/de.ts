@@ -145,6 +145,54 @@ export const de = {
         label: 'Meereswellen',
         description: 'Wiederkehrendes Wellenrauschen für einen ruhigeren Klanghintergrund.',
       },
+      shuffle: {
+        label: 'Zufällig',
+      },
+      hymns: {
+        label: 'Kirchenlieder',
+      },
+      'gregorian-chant': {
+        label: 'Gregorianischer Choral',
+      },
+      organ: {
+        label: 'Orgel',
+      },
+      'piano-cello': {
+        label: 'Klavier und Cello',
+      },
+      rain: {
+        label: 'Regen',
+      },
+      'gentle-breeze': {
+        label: 'Sanfte Brise',
+      },
+      'summer-night': {
+        label: 'Sommernacht',
+      },
+      waterfall: {
+        label: 'Wasserfall',
+      },
+      birdsong: {
+        label: 'Vogelgesang',
+      },
+      shore: {
+        label: 'Ufer',
+      },
+      fireplace: {
+        label: 'Kaminfeuer',
+      },
+      'church-bells': {
+        label: 'Kirchenglocken',
+      },
+      village: {
+        label: 'Dorf',
+      },
+      garden: {
+        label: 'Garten',
+      },
+      wilderness: {
+        label: 'Wildnis',
+      },
     },
     rhythmPresets: {
       'catholic-morning-prayer': {
@@ -744,6 +792,38 @@ export const de = {
     nextChapter: 'Nächstes Kapitel',
     skipBackward: '10 Sekunden zurückspulen',
     skipForward: '10 Sekunden vorspulen',
+    sheetTitle: 'Audio',
+    elapsedOfTotal: '{{elapsed}} von {{total}}',
+    soundSection: 'Klang',
+    backgroundSound: 'Hintergrundklang',
+    backgroundSoundHint: 'Öffnet die Klangbibliothek',
+    voiceVolume: 'Stimme',
+    soundVolume: 'Klang',
+    speed: 'Tempo',
+    repeat: 'Wiederholen',
+    repeatOptionOff: 'Aus',
+    repeatOptionChapter: 'Kapitel',
+    repeatOptionBook: 'Buch',
+    repeatOptionPassage: 'Abschnitt',
+    repeatPassageHint: 'Öffnet die Auswahl des Abschnitts',
+    passageRangeInChapter: '{{book}} {{chapter}}:{{startVerse}}–{{endVerse}}',
+    passageRange: '{{book}} {{startChapter}}:{{startVerse}}–{{endChapter}}:{{endVerse}}',
+    passagePickerTitle: 'Abschnitt wiederholen',
+    passageFrom: 'Von',
+    passageTo: 'Bis',
+    passageFromChapter: 'Von Kapitel',
+    passageFromVerse: 'Von Vers',
+    passageToChapter: 'Bis Kapitel',
+    passageToVerse: 'Bis Vers',
+    passageDecrease: '{{name}} verringern',
+    passageIncrease: '{{name}} erhöhen',
+    passageConfirm: 'Diesen Abschnitt wiederholen',
+    soundLibraryFootnote:
+      'Wird beim ersten Abspielen heruntergeladen und funktioniert danach offline',
+    soundNotDownloaded: 'Nicht heruntergeladen',
+    soundDownloading: 'Wird heruntergeladen',
+    shareClip: 'Ausschnitt teilen',
+    download: 'Herunterladen',
   },
   privacy: {
     lockTitle: 'Gib deinen Sicherheitscode ein',

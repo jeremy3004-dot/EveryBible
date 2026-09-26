@@ -23,6 +23,8 @@ export const sharedTranslationValues: Record<string, Record<string, string>> = {
     'readingPlans.kathisma.title': 'Kathisma',
     // Reviewed 2026-09-11: the natural target-language value is byte-identical to English.
     'common.error': 'Error',
+    // Reviewed 2026-09-26: the Audio sheet's title; Spanish writes "audio" as English does.
+    'audio.sheetTitle': 'Audio',
   },
   fr: {
     // Reviewed 2026-09-24: the translation picker's Bible count; French writes it as English does.
@@ -68,6 +70,11 @@ export const sharedTranslationValues: Record<string, Record<string, string>> = {
     'bible.books.LAM': 'Lamentations',
     'gather.topicCourage': 'Courage',
     'gather.topicJustice': 'Justice',
+    // Reviewed 2026-09-26: Audio sheet labels whose French word is spelled as in English
+    // (the sheet title, the repeat chip for a Bible passage, and the village sound tile).
+    'audio.sheetTitle': 'Audio',
+    'audio.repeatOptionPassage': 'Passage',
+    'interface.music.village.label': 'Village',
   },
   pt: {
     // Brand names only: the app name and the Every Language organization name.
@@ -116,6 +123,7 @@ export const sharedTranslationValues: Record<string, Record<string, string>> = {
     // Reviewed 2026-09-11: the natural target-language value is byte-identical to English.
     'annotations.colors.orange': 'Orange',
     'bible.audioDownloads': 'Audio',
+    'audio.sheetTitle': 'Audio',
     'audio.showText': 'Text',
     'auth.name': 'Name',
     'about.version': 'Version {{version}}',
@@ -199,6 +207,8 @@ export const sharedTranslationValues: Record<string, Record<string, string>> = {
     'bible.books.AMO': 'Amos',
     'bible.books.NAM': 'Nahum',
     'bible.books.TIT': 'Titus',
+    // Reviewed 2026-09-26: the Audio sheet's title; Indonesian writes "audio" as English does.
+    'audio.sheetTitle': 'Audio',
   },
   ja: {
     // Brand names only: the app name and the Every Language organization name.

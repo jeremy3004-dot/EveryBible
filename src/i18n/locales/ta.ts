@@ -429,6 +429,37 @@ export const ta = {
     nextChapter: 'அடுத்த அத்தியாயம்',
     skipBackward: '10 வினாடிகள் பின்னோக்கிச் செல்',
     skipForward: '10 வினாடிகள் முன்னோக்கிச் செல்',
+    sheetTitle: 'ஆடியோ',
+    elapsedOfTotal: '{{total}} இல் {{elapsed}}',
+    soundSection: 'ஒலி',
+    backgroundSound: 'பின்னணி ஒலி',
+    backgroundSoundHint: 'ஒலித் தொகுப்பைத் திறக்கிறது',
+    voiceVolume: 'குரல்',
+    soundVolume: 'ஒலி',
+    speed: 'வேகம்',
+    repeat: 'மீண்டும் இயக்கு',
+    repeatOptionOff: 'ஏதுமில்லை',
+    repeatOptionChapter: 'அத்தியாயம்',
+    repeatOptionBook: 'புத்தகம்',
+    repeatOptionPassage: 'பகுதி',
+    repeatPassageHint: 'வேதப் பகுதித் தேர்வைத் திறக்கிறது',
+    passageRangeInChapter: '{{book}} {{chapter}}:{{startVerse}}–{{endVerse}}',
+    passageRange: '{{book}} {{startChapter}}:{{startVerse}}–{{endChapter}}:{{endVerse}}',
+    passagePickerTitle: 'ஒரு பகுதியை மீண்டும் இயக்கு',
+    passageFrom: 'தொடக்கம்',
+    passageTo: 'முடிவு',
+    passageFromChapter: 'தொடக்க அத்தியாயம்',
+    passageFromVerse: 'தொடக்க வசனம்',
+    passageToChapter: 'இறுதி அத்தியாயம்',
+    passageToVerse: 'இறுதி வசனம்',
+    passageDecrease: 'குறை: {{name}}',
+    passageIncrease: 'கூட்டு: {{name}}',
+    passageConfirm: 'இந்தப் பகுதியை மீண்டும் இயக்கு',
+    soundLibraryFootnote: 'முதல் முறை இயக்கும்போது பதிவிறங்கும், பிறகு ஆஃப்லைனில் இயங்கும்',
+    soundNotDownloaded: 'இன்னும் பதிவிறக்கவில்லை',
+    soundDownloading: 'பதிவிறங்குகிறது',
+    shareClip: 'கிளிப்பைப் பகிர்',
+    download: 'பதிவிறக்கு',
   },
   privacy: {
     lockTitle: 'உங்கள் பாதுகாப்பான குறியீட்டை உள்ளிடவும்',
@@ -1923,6 +1954,54 @@ export const ta = {
       'ocean-waves': {
         label: 'கடல் அலைகள்',
         description: 'அமைதியான பின்னணிக்காக மீண்டும் ஒலிக்கும் கரையோர அலைகள்.',
+      },
+      shuffle: {
+        label: 'கலவை',
+      },
+      hymns: {
+        label: 'துதிப்பாடல்கள்',
+      },
+      'gregorian-chant': {
+        label: 'கிரிகோரியன் பாடல்',
+      },
+      organ: {
+        label: 'ஆர்கன்',
+      },
+      'piano-cello': {
+        label: 'பியானோவும் செல்லோவும்',
+      },
+      rain: {
+        label: 'மழை',
+      },
+      'gentle-breeze': {
+        label: 'மென்காற்று',
+      },
+      'summer-night': {
+        label: 'கோடை இரவு',
+      },
+      waterfall: {
+        label: 'நீர்வீழ்ச்சி',
+      },
+      birdsong: {
+        label: 'பறவைகளின் ஒலி',
+      },
+      shore: {
+        label: 'கடற்கரை',
+      },
+      fireplace: {
+        label: 'கணப்பு',
+      },
+      'church-bells': {
+        label: 'ஆலய மணிகள்',
+      },
+      village: {
+        label: 'கிராமம்',
+      },
+      garden: {
+        label: 'தோட்டம்',
+      },
+      wilderness: {
+        label: 'வனாந்தரம்',
       },
     },
     rhythmPresets: {

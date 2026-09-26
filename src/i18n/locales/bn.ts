@@ -421,6 +421,37 @@ export const bn = {
     nextChapter: 'পরবর্তী অধ্যায়',
     skipBackward: '10 সেকেন্ড পিছিয়ে যান',
     skipForward: '10 সেকেন্ড এগিয়ে যান',
+    sheetTitle: 'অডিও',
+    elapsedOfTotal: '{{total}}-এর মধ্যে {{elapsed}}',
+    soundSection: 'শব্দ',
+    backgroundSound: 'পটভূমির শব্দ',
+    backgroundSoundHint: 'শব্দের সংগ্রহ খোলে',
+    voiceVolume: 'কণ্ঠ',
+    soundVolume: 'শব্দ',
+    speed: 'গতি',
+    repeat: 'পুনরাবৃত্তি',
+    repeatOptionOff: 'বন্ধ',
+    repeatOptionChapter: 'অধ্যায়',
+    repeatOptionBook: 'বই',
+    repeatOptionPassage: 'পাঠ্যাংশ',
+    repeatPassageHint: 'পাঠ্যাংশ বাছাইয়ের তালিকা খোলে',
+    passageRangeInChapter: '{{book}} {{chapter}}:{{startVerse}}–{{endVerse}}',
+    passageRange: '{{book}} {{startChapter}}:{{startVerse}}–{{endChapter}}:{{endVerse}}',
+    passagePickerTitle: 'একটি পাঠ্যাংশ পুনরাবৃত্তি করুন',
+    passageFrom: 'শুরু',
+    passageTo: 'শেষ',
+    passageFromChapter: 'শুরুর অধ্যায়',
+    passageFromVerse: 'শুরুর পদ',
+    passageToChapter: 'শেষ অধ্যায়',
+    passageToVerse: 'শেষ পদ',
+    passageDecrease: '{{name}} কমান',
+    passageIncrease: '{{name}} বাড়ান',
+    passageConfirm: 'এই পাঠ্যাংশ পুনরাবৃত্তি করুন',
+    soundLibraryFootnote: 'প্রথমবার চালালে ডাউনলোড হয়, তারপর অফলাইনে চলে',
+    soundNotDownloaded: 'এখনও ডাউনলোড হয়নি',
+    soundDownloading: 'ডাউনলোড হচ্ছে',
+    shareClip: 'ক্লিপ শেয়ার করুন',
+    download: 'ডাউনলোড করুন',
   },
   privacy: {
     lockTitle: 'আপনার সুরক্ষিত কোড লিখুন',
@@ -1862,6 +1893,54 @@ export const bn = {
       'ocean-waves': {
         label: 'সমুদ্রের ঢেউ',
         description: 'শান্ত পটভূমির জন্য তটের ঢেউয়ের শব্দের পুনরাবৃত্তি।',
+      },
+      shuffle: {
+        label: 'এলোমেলো',
+      },
+      hymns: {
+        label: 'স্তবগান',
+      },
+      'gregorian-chant': {
+        label: 'গ্রেগরীয় স্তবগান',
+      },
+      organ: {
+        label: 'অর্গান',
+      },
+      'piano-cello': {
+        label: 'পিয়ানো ও চেলো',
+      },
+      rain: {
+        label: 'বৃষ্টি',
+      },
+      'gentle-breeze': {
+        label: 'মৃদু বাতাস',
+      },
+      'summer-night': {
+        label: 'গ্রীষ্মের রাত',
+      },
+      waterfall: {
+        label: 'জলপ্রপাত',
+      },
+      birdsong: {
+        label: 'পাখির ডাক',
+      },
+      shore: {
+        label: 'সমুদ্রতীর',
+      },
+      fireplace: {
+        label: 'অগ্নিকুণ্ড',
+      },
+      'church-bells': {
+        label: 'গির্জার ঘণ্টা',
+      },
+      village: {
+        label: 'গ্রাম',
+      },
+      garden: {
+        label: 'বাগান',
+      },
+      wilderness: {
+        label: 'প্রান্তর',
       },
     },
     rhythmPresets: {

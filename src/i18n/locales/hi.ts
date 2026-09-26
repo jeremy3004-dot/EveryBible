@@ -424,6 +424,37 @@ export const hi = {
     nextChapter: 'अगला अध्याय',
     skipBackward: '10 सेकंड पीछे जाएँ',
     skipForward: '10 सेकंड आगे जाएँ',
+    sheetTitle: 'ऑडियो',
+    elapsedOfTotal: '{{total}} में से {{elapsed}}',
+    soundSection: 'ध्वनि',
+    backgroundSound: 'पृष्ठभूमि ध्वनि',
+    backgroundSoundHint: 'ध्वनि संग्रह खोलता है',
+    voiceVolume: 'आवाज़',
+    soundVolume: 'ध्वनि',
+    speed: 'गति',
+    repeat: 'दोहराना',
+    repeatOptionOff: 'बंद',
+    repeatOptionChapter: 'अध्याय',
+    repeatOptionBook: 'पुस्तक',
+    repeatOptionPassage: 'अंश',
+    repeatPassageHint: 'अंश चुनने की सूची खोलता है',
+    passageRangeInChapter: '{{book}} {{chapter}}:{{startVerse}}–{{endVerse}}',
+    passageRange: '{{book}} {{startChapter}}:{{startVerse}}–{{endChapter}}:{{endVerse}}',
+    passagePickerTitle: 'कोई अंश दोहराएँ',
+    passageFrom: 'आरंभ',
+    passageTo: 'अंत',
+    passageFromChapter: 'आरंभिक अध्याय',
+    passageFromVerse: 'आरंभिक पद',
+    passageToChapter: 'अंतिम अध्याय',
+    passageToVerse: 'अंतिम पद',
+    passageDecrease: '{{name}} घटाएँ',
+    passageIncrease: '{{name}} बढ़ाएँ',
+    passageConfirm: 'यह अंश दोहराएँ',
+    soundLibraryFootnote: 'पहली बार चलाने पर डाउनलोड होता है, फिर ऑफ़लाइन चलता है',
+    soundNotDownloaded: 'अभी डाउनलोड नहीं हुआ',
+    soundDownloading: 'डाउनलोड हो रहा है',
+    shareClip: 'क्लिप साझा करें',
+    download: 'डाउनलोड करें',
   },
   privacy: {
     lockTitle: 'अपना सुरक्षित कोड दर्ज करें',
@@ -1868,6 +1899,54 @@ export const hi = {
       'ocean-waves': {
         label: 'समुद्री लहरें',
         description: 'शांत पृष्ठभूमि के लिए बार-बार सुनाई देती तट की लहरें।',
+      },
+      shuffle: {
+        label: 'शफ़ल',
+      },
+      hymns: {
+        label: 'मसीही भजन',
+      },
+      'gregorian-chant': {
+        label: 'ग्रेगोरियन गान',
+      },
+      organ: {
+        label: 'ऑर्गन',
+      },
+      'piano-cello': {
+        label: 'पियानो और चेलो',
+      },
+      rain: {
+        label: 'बारिश',
+      },
+      'gentle-breeze': {
+        label: 'मंद हवा',
+      },
+      'summer-night': {
+        label: 'गर्मी की रात',
+      },
+      waterfall: {
+        label: 'झरना',
+      },
+      birdsong: {
+        label: 'पक्षियों का कलरव',
+      },
+      shore: {
+        label: 'समुद्र तट',
+      },
+      fireplace: {
+        label: 'अंगीठी',
+      },
+      'church-bells': {
+        label: 'गिरजाघर की घंटियाँ',
+      },
+      village: {
+        label: 'गाँव',
+      },
+      garden: {
+        label: 'बगीचा',
+      },
+      wilderness: {
+        label: 'जंगल',
       },
     },
     rhythmPresets: {

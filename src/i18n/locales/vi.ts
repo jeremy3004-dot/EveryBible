@@ -132,6 +132,54 @@ export const vi = {
         label: 'Sóng biển',
         description: 'Tiếng sóng vỗ bờ lặp lại tạo âm nền yên bình hơn.',
       },
+      shuffle: {
+        label: 'Ngẫu nhiên',
+      },
+      hymns: {
+        label: 'Thánh ca',
+      },
+      'gregorian-chant': {
+        label: 'Bình ca Grêgôriô',
+      },
+      organ: {
+        label: 'Phong cầm',
+      },
+      'piano-cello': {
+        label: 'Piano và cello',
+      },
+      rain: {
+        label: 'Mưa',
+      },
+      'gentle-breeze': {
+        label: 'Gió nhẹ',
+      },
+      'summer-night': {
+        label: 'Đêm hè',
+      },
+      waterfall: {
+        label: 'Thác nước',
+      },
+      birdsong: {
+        label: 'Chim hót',
+      },
+      shore: {
+        label: 'Bờ biển',
+      },
+      fireplace: {
+        label: 'Lò sưởi',
+      },
+      'church-bells': {
+        label: 'Chuông nhà thờ',
+      },
+      village: {
+        label: 'Làng quê',
+      },
+      garden: {
+        label: 'Khu vườn',
+      },
+      wilderness: {
+        label: 'Đồng vắng',
+      },
     },
     rhythmPresets: {
       'catholic-morning-prayer': {
@@ -735,6 +783,37 @@ export const vi = {
     nextChapter: 'Chương sau',
     skipBackward: 'Tua lại 10 giây',
     skipForward: 'Tua tới 10 giây',
+    sheetTitle: 'Âm thanh',
+    elapsedOfTotal: '{{elapsed}} trên {{total}}',
+    soundSection: 'Âm nền',
+    backgroundSound: 'Âm thanh nền',
+    backgroundSoundHint: 'Mở thư viện âm thanh',
+    voiceVolume: 'Giọng đọc',
+    soundVolume: 'Âm nền',
+    speed: 'Tốc độ',
+    repeat: 'Lặp lại',
+    repeatOptionOff: 'Tắt',
+    repeatOptionChapter: 'Chương',
+    repeatOptionBook: 'Sách',
+    repeatOptionPassage: 'Phân đoạn',
+    repeatPassageHint: 'Mở trình chọn phân đoạn',
+    passageRangeInChapter: '{{book}} {{chapter}}:{{startVerse}}–{{endVerse}}',
+    passageRange: '{{book}} {{startChapter}}:{{startVerse}}–{{endChapter}}:{{endVerse}}',
+    passagePickerTitle: 'Lặp lại một phân đoạn',
+    passageFrom: 'Từ',
+    passageTo: 'Đến',
+    passageFromChapter: 'Từ chương',
+    passageFromVerse: 'Từ câu',
+    passageToChapter: 'Đến chương',
+    passageToVerse: 'Đến câu',
+    passageDecrease: 'Giảm {{name}}',
+    passageIncrease: 'Tăng {{name}}',
+    passageConfirm: 'Lặp lại phân đoạn này',
+    soundLibraryFootnote: 'Tải xuống khi phát lần đầu, sau đó dùng được ngoại tuyến',
+    soundNotDownloaded: 'Chưa tải xuống',
+    soundDownloading: 'Đang tải xuống',
+    shareClip: 'Chia sẻ đoạn trích',
+    download: 'Tải xuống',
   },
   privacy: {
     lockTitle: 'Nhập mã bảo mật của bạn',

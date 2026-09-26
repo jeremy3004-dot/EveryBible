@@ -428,6 +428,38 @@ export const te = {
     nextChapter: 'తదుపరి అధ్యాయం',
     skipBackward: '10 సెకన్లు వెనక్కి వెళ్లండి',
     skipForward: '10 సెకన్లు ముందుకు వెళ్లండి',
+    sheetTitle: 'ఆడియో',
+    elapsedOfTotal: '{{total}}లో {{elapsed}}',
+    soundSection: 'ధ్వని',
+    backgroundSound: 'నేపథ్య ధ్వని',
+    backgroundSoundHint: 'ధ్వనుల సేకరణను తెరుస్తుంది',
+    voiceVolume: 'స్వరం',
+    soundVolume: 'ధ్వని',
+    speed: 'వేగం',
+    repeat: 'పునరావృతం',
+    repeatOptionOff: 'ఆఫ్',
+    repeatOptionChapter: 'అధ్యాయం',
+    repeatOptionBook: 'గ్రంథం',
+    repeatOptionPassage: 'భాగం',
+    repeatPassageHint: 'భాగం ఎంపికను తెరుస్తుంది',
+    passageRangeInChapter: '{{book}} {{chapter}}:{{startVerse}}–{{endVerse}}',
+    passageRange: '{{book}} {{startChapter}}:{{startVerse}}–{{endChapter}}:{{endVerse}}',
+    passagePickerTitle: 'ఒక భాగాన్ని పునరావృతం చేయండి',
+    passageFrom: 'నుండి',
+    passageTo: 'వరకు',
+    passageFromChapter: 'ప్రారంభ అధ్యాయం',
+    passageFromVerse: 'ప్రారంభ వచనం',
+    passageToChapter: 'ముగింపు అధ్యాయం',
+    passageToVerse: 'ముగింపు వచనం',
+    passageDecrease: '{{name}} తగ్గించండి',
+    passageIncrease: '{{name}} పెంచండి',
+    passageConfirm: 'ఈ భాగాన్ని పునరావృతం చేయండి',
+    soundLibraryFootnote:
+      'మొదటిసారి ప్లే చేసినప్పుడు డౌన్‌లోడ్ అవుతుంది, తర్వాత ఆఫ్‌లైన్‌లో పనిచేస్తుంది',
+    soundNotDownloaded: 'ఇంకా డౌన్‌లోడ్ కాలేదు',
+    soundDownloading: 'డౌన్‌లోడ్ అవుతోంది',
+    shareClip: 'క్లిప్‌ను పంచుకోండి',
+    download: 'డౌన్‌లోడ్',
   },
   privacy: {
     lockTitle: 'మీ సురక్షిత కోడ్‌ని నమోదు చేయండి',
@@ -1888,6 +1920,54 @@ export const te = {
       'ocean-waves': {
         label: 'సముద్ర అలలు',
         description: 'ప్రశాంత నేపథ్యానికి పునరావృతమయ్యే తీరపు అలల శబ్దం.',
+      },
+      shuffle: {
+        label: 'షఫుల్',
+      },
+      hymns: {
+        label: 'క్రైస్తవ కీర్తనలు',
+      },
+      'gregorian-chant': {
+        label: 'గ్రెగోరియన్ గీతాలు',
+      },
+      organ: {
+        label: 'ఆర్గాన్',
+      },
+      'piano-cello': {
+        label: 'పియానో, చెల్లో',
+      },
+      rain: {
+        label: 'వర్షం',
+      },
+      'gentle-breeze': {
+        label: 'మెల్లని గాలి',
+      },
+      'summer-night': {
+        label: 'వేసవి రాత్రి',
+      },
+      waterfall: {
+        label: 'జలపాతం',
+      },
+      birdsong: {
+        label: 'పక్షుల కిలకిలలు',
+      },
+      shore: {
+        label: 'సముద్రతీరం',
+      },
+      fireplace: {
+        label: 'చలిమంట',
+      },
+      'church-bells': {
+        label: 'చర్చి గంటలు',
+      },
+      village: {
+        label: 'గ్రామం',
+      },
+      garden: {
+        label: 'తోట',
+      },
+      wilderness: {
+        label: 'అరణ్యం',
       },
     },
     rhythmPresets: {
