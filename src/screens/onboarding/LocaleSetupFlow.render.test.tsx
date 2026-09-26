@@ -272,6 +272,50 @@ test('choosing an app language closes the picker and stays on the Bible step eve
   }
 });
 
+test('a slow first app-language selection cannot replace the later selection', async () => {
+  let finishSpanish!: () => void;
+  const spanish = new Promise<void>((resolve) => {
+    finishSpanish = resolve;
+  });
+  fakes.changeLanguage.impl = (code) => (code === 'es' ? spanish : Promise.resolve());
+  const view = await fakes.renderFlow();
+  await view.press(view.getByRole('button', { name: 'App language, English' }));
+  const picker = view.getByTestId('onboarding-interface-language-inline-picker');
+  await view.press(within(picker).getByRole('button', { name: 'Español, Spanish' }));
+  await view.press(within(picker).getByRole('button', { name: 'English' }));
+  await view.flush();
+  await act(async () => {
+    finishSpanish();
+  });
+  assert.equal(harness.authStore.getState().preferences.language, 'en');
+});
+
+for (const boundary of ['unmount', 'account change', 'same-user new session'] as const) {
+  test(`an app-language choice completed after ${boundary} cannot save the old preference`, async () => {
+    harness.authStore.setState({ user: { uid: 'a' }, authGeneration: 1 });
+    let finish!: () => void;
+    fakes.changeLanguage.impl = () =>
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      });
+    const view = await fakes.renderFlow();
+    await view.press(view.getByRole('button', { name: 'App language, English' }));
+    const picker = view.getByTestId('onboarding-interface-language-inline-picker');
+    await view.press(within(picker).getByRole('button', { name: 'Español, Spanish' }));
+    if (boundary === 'unmount') await view.unmount();
+    else
+      await act(async () =>
+        harness.authStore.setState({
+          user: { uid: boundary === 'account change' ? 'b' : 'a' },
+          authGeneration: 2,
+        })
+      );
+    await act(async () => finish());
+    assert.equal(harness.authStore.getState().preferences.language, 'en');
+    assert.equal(fakes.sync.calls, 0);
+  });
+}
+
 for (const { region, failedLanguage, fallbackId } of [
   { region: 'IN', failedLanguage: 'Awadhi', fallbackId: 'hincv' },
   { region: 'NP', failedLanguage: 'Maithili', fallbackId: 'npiulb' },

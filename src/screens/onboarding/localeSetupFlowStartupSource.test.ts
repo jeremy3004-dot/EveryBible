@@ -38,7 +38,7 @@ test('LocaleSetupFlow reaches preference sync (and so Supabase) only through a d
   // with the onboarding screen at first mount.
   assert.match(
     flowSource,
-    /const syncPreferencesAfterOnboarding = \(\): void => \{[\s\S]*?import\('\.\.\/\.\.\/services\/sync'\)[\s\S]*?\.then\(\(\{ syncPreferences \}\) => syncPreferences\(\)\)/
+    /const syncPreferencesAfterOnboarding = \(\): void => \{[\s\S]*?import\('\.\.\/\.\.\/services\/sync'\)[\s\S]*?\.then\(\(\{ syncPreferences \}\) =>/
   );
   assert.doesNotMatch(flowSource, /^import[^;]*from '\.\.\/\.\.\/services\/sync';/m);
 });

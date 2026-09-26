@@ -18,6 +18,7 @@ const resources = {
 
 const supportedLanguages = SUPPORTED_LANGUAGES.map((language) => language.code);
 const languageResourceLoads = new Map<LanguageCode, Promise<void>>();
+let languageRequest = 0;
 
 // The language the app should boot in: whatever the user last chose, and only
 // otherwise the device locale.
@@ -80,13 +81,27 @@ i18n.use(initReactI18next).init({
 });
 
 if (initialLanguage !== DEFAULT_LANGUAGE) {
-  void ensureLanguageResources(initialLanguage).then(() => i18n.changeLanguage(initialLanguage));
+  void changeLanguage(initialLanguage).catch(() => undefined);
 }
 
-export const changeLanguage = async (lang: LanguageCode) => {
-  await ensureLanguageResources(lang);
-  return i18n.changeLanguage(lang);
-};
+/** Loads may finish out of order; false means a newer choice or disposed caller won. */
+export async function changeLanguage(
+  lang: LanguageCode,
+  isCurrent: () => boolean = () => true
+): Promise<boolean> {
+  if (!isCurrent()) return false;
+  const request = ++languageRequest;
+  const ownsRequest = () => request === languageRequest && isCurrent();
+  try {
+    await ensureLanguageResources(lang);
+    if (!ownsRequest()) return false;
+    await i18n.changeLanguage(lang);
+    return ownsRequest();
+  } catch (error) {
+    if (!ownsRequest()) return false;
+    throw error;
+  }
+}
 
 export const getCurrentLanguage = (): LanguageCode => {
   const currentLanguage = i18n.language as LanguageCode;

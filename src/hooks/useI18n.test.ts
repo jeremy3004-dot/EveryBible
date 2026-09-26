@@ -26,11 +26,15 @@ mockModule(mock, requireFrom.resolve('react-i18next'), {
 let currentLanguage: LanguageCode = 'en';
 const changeLanguageCalls: string[] = [];
 let changeLanguageResult: () => Promise<void> = async () => {};
+let languageRequest = 0;
 mockModule(mock, sourcePath('i18n/index.ts'), {
-  changeLanguage: async (language: LanguageCode) => {
+  changeLanguage: async (language: LanguageCode, isCurrent: () => boolean = () => true) => {
+    const request = ++languageRequest;
     changeLanguageCalls.push(language);
     await changeLanguageResult();
+    if (request !== languageRequest || !isCurrent()) return false;
     currentLanguage = language;
+    return true;
   },
   getCurrentLanguage: () => currentLanguage,
 });
@@ -39,8 +43,12 @@ const preferenceWrites: Array<Partial<UserPreferences>> = [];
 const authState: {
   preferences: { language: LanguageCode | '' };
   setPreferences: (prefs: Partial<UserPreferences>) => void;
+  user: { uid: string } | null;
+  authGeneration: number;
 } = {
   preferences: { language: 'en' },
+  user: null,
+  authGeneration: 0,
   setPreferences: (prefs) => {
     preferenceWrites.push(prefs);
   },
@@ -81,6 +89,9 @@ afterEach(() => {
 
 beforeEach(() => {
   currentLanguage = 'en';
+  languageRequest = 0;
+  authState.user = null;
+  authState.authGeneration = 0;
   authState.preferences = { language: 'en' };
   changeLanguageCalls.length = 0;
   preferenceWrites.length = 0;
@@ -149,6 +160,22 @@ test('choosing a language applies it, stores it and pushes it to the cloud', asy
   assert.equal(syncPreferenceCalls, 1);
 });
 
+test('an older slow language choice cannot overwrite the latest choice', async () => {
+  let finishFirst!: () => void;
+  const firstLoad = new Promise<void>((resolve) => {
+    finishFirst = resolve;
+  });
+  let calls = 0;
+  changeLanguageResult = () => (++calls === 1 ? firstLoad : Promise.resolve());
+  const hook = mountI18n();
+  const first = hook.setLanguage('fr');
+  await hook.setLanguage('de');
+  finishFirst();
+  await first;
+  assert.equal(preferenceWrites.at(-1)?.language, 'de');
+  assert.equal(currentLanguage, 'de');
+});
+
 test('choosing a language applies it to i18n before the preference is stored', async () => {
   const order: string[] = [];
   changeLanguageResult = async () => {
@@ -200,4 +227,63 @@ test('a remount after the language has been applied does not apply it a second t
   mountI18n();
 
   assert.deepEqual(changeLanguageCalls, ['es']);
+});
+
+for (const boundary of ['unmount', 'account change', 'same-user new session'] as const) {
+  test(`a language load completed after ${boundary} cannot save preferences`, async () => {
+    authState.user = { uid: 'a' };
+    authState.authGeneration = 1;
+    let finish!: () => void;
+    changeLanguageResult = () =>
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      });
+    const hook = mountI18n();
+    const switching = hook.setLanguage('fr');
+    if (boundary === 'unmount') runtime.unmountAll();
+    else {
+      authState.user = { uid: boundary === 'account change' ? 'b' : 'a' };
+      authState.authGeneration += 1;
+    }
+    finish();
+    await switching;
+    assert.deepEqual(preferenceWrites, []);
+    assert.equal(syncPreferenceCalls, 0);
+  });
+}
+
+test('stored locale sync restarts when an account changes with the same language', async () => {
+  authState.user = { uid: 'a' };
+  authState.preferences = { language: 'fr' };
+  let finish!: () => void;
+  const loading = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  changeLanguageResult = () => loading;
+  const view = runtime.mount(useI18n);
+  view.flushEffects();
+  authState.user = { uid: 'b' };
+  authState.authGeneration += 1;
+  view.rerender();
+  view.flushEffects();
+  finish();
+  await flush();
+  assert.equal(currentLanguage, 'fr');
+});
+
+test('stored locale still applies when the newest of several consumers unmounts', async () => {
+  authState.preferences = { language: 'fr' };
+  let finish!: () => void;
+  const loading = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  changeLanguageResult = () => loading;
+  const first = runtime.mount(useI18n);
+  first.flushEffects();
+  const second = runtime.mount(useI18n);
+  second.flushEffects();
+  second.unmount();
+  finish();
+  await flush();
+  assert.equal(currentLanguage, 'fr');
 });

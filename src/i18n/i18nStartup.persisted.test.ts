@@ -18,7 +18,14 @@ const loader = (code: string) => () => {
   return new Promise<Record<string, unknown>>((resolve) => pending.set(code, resolve));
 };
 mockModule(mock, sourcePath('i18n/localeLoaders.ts'), {
-  localeLoaders: { ne: loader('ne'), fr: loader('fr'), es: loader('es') },
+  localeLoaders: {
+    ne: loader('ne'),
+    fr: loader('fr'),
+    es: loader('es'),
+    de: loader('de'),
+    ja: loader('ja'),
+    ko: loader('ko'),
+  },
 });
 
 const load = () => import('./index');
@@ -29,15 +36,18 @@ const settle = async () => {
 };
 
 test('boot uses the persisted language and preloads only that one locale', async () => {
-  const { default: i18n } = await load();
+  const { default: i18n, changeLanguage } = await load();
 
   assert.equal(i18n.language, 'ne');
   assert.deepEqual(requested, ['ne'], 'the French device locale is never loaded');
   assert.deepEqual(Object.keys(i18n.options.resources ?? {}), ['en'], 'only English is bundled');
 
+  await changeLanguage('en');
   pending.get('ne')?.({ tabs: { home: 'गृह' } });
   await settle();
   assert.equal(i18n.hasResourceBundle('ne', 'translation'), true);
+  assert.equal(i18n.language, 'en', 'late boot preload cannot override a manual choice');
+  await changeLanguage('ne');
   assert.equal(i18n.t('tabs.home'), 'गृह');
 });
 
@@ -70,4 +80,28 @@ test('concurrent switches share one load, and a loaded locale is not fetched aga
   await changeLanguage('fr');
   await changeLanguage('en');
   assert.deepEqual(requested, ['es']);
+});
+
+test('the latest requested interface language wins when locale loads finish out of order', async () => {
+  const { default: i18n, changeLanguage } = await load();
+  const first = changeLanguage('de');
+  const second = changeLanguage('ja');
+  await settle();
+  pending.get('ja')?.({ tabs: { home: 'ホーム' } });
+  await second;
+  pending.get('de')?.({ tabs: { home: 'Startseite' } });
+  await first;
+  assert.equal(i18n.language, 'ja');
+});
+
+test('a canceled caller can load resources without applying its interface language', async () => {
+  const { default: i18n, changeLanguage } = await load();
+  let current = true;
+  const switching = changeLanguage('ko', () => current);
+  await settle();
+  current = false;
+  pending.get('ko')?.({ tabs: { home: '홈' } });
+  assert.equal(await switching, false);
+  assert.equal(i18n.language, 'ja');
+  assert.equal(i18n.hasResourceBundle('ko', 'translation'), true);
 });

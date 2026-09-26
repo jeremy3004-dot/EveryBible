@@ -179,6 +179,7 @@ export function installLocaleSetupFlowFakes(
     calls: [],
     impl: async () => {},
   };
+  let languageRequest = 0;
   const flashList: LocaleSetupFlowFakes['flashList'] = { props: null };
   const colors: LocaleSetupFlowFakes['colors'] = { current: null };
   let resolveSync = () => {};
@@ -286,9 +287,11 @@ export function installLocaleSetupFlowFakes(
 
   mockBarrel(mocker, 'i18n/index.ts', {
     provide: {
-      changeLanguage: (code: string) => {
+      changeLanguage: async (code: string, isCurrent: () => boolean = () => true) => {
+        const request = ++languageRequest;
         changeLanguage.calls.push(code);
-        return changeLanguage.impl(code);
+        await changeLanguage.impl(code);
+        return request === languageRequest && isCurrent();
       },
       getCurrentLanguage: () => 'en',
     },
@@ -324,6 +327,7 @@ export function installLocaleSetupFlowFakes(
     catalog.loads = 0;
     catalog.impl = async () => {};
     changeLanguage.calls.length = 0;
+    languageRequest = 0;
     changeLanguage.impl = async () => {};
     flashList.props = null;
     colors.current = null;

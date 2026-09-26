@@ -65,8 +65,14 @@ interface LocaleSetupFlowProps {
 // first-run critical path. Fire-and-forget: sync failures must never block
 // finishing onboarding.
 const syncPreferencesAfterOnboarding = (): void => {
+  const owner = useAuthStore.getState();
+  const userId = owner.user?.uid;
+  const generation = owner.authGeneration;
   void import('../../services/sync')
-    .then(({ syncPreferences }) => syncPreferences())
+    .then(({ syncPreferences }) => {
+      const auth = useAuthStore.getState();
+      if (auth.user?.uid === userId && auth.authGeneration === generation) return syncPreferences();
+    })
     .catch(() => {});
 };
 
@@ -88,6 +94,30 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
   });
   const preferences = useAuthStore((state) => state.preferences);
   const setPreferences = useAuthStore((state) => state.setPreferences);
+  const mountedRef = useRef(false);
+  const languageRequestRef = useRef(0);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      languageRequestRef.current += 1;
+    };
+  }, []);
+  const beginLanguageRequest = () => {
+    const request = ++languageRequestRef.current;
+    const owner = useAuthStore.getState();
+    const userId = owner.user?.uid;
+    const generation = owner.authGeneration;
+    return () => {
+      const auth = useAuthStore.getState();
+      return (
+        mountedRef.current &&
+        request === languageRequestRef.current &&
+        auth.user?.uid === userId &&
+        auth.authGeneration === generation
+      );
+    };
+  };
   const translations = useBibleStore((state) => state.translations);
   const downloadProgress = useBibleStore((state) => state.downloadProgress);
   const steps = useMemo(() => getLocaleSetupSteps(mode), [mode]);
@@ -220,7 +250,9 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
       return;
     }
 
-    await changeLanguage(selectedInterfaceLanguageCode);
+    const isCurrent = beginLanguageRequest();
+    const applied = await changeLanguage(selectedInterfaceLanguageCode, isCurrent);
+    if (applied === false || !isCurrent()) return;
 
     setPreferences({
       language: selectedInterfaceLanguageCode,
@@ -290,17 +322,19 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
   }, [step, steps]);
 
   const handleInterfaceLanguageSelectImpl = async (language: Language) => {
+    const isCurrent = beginLanguageRequest();
+    let applied = true;
     setSelectedInterfaceLanguageCode(language.code);
-    try {
-      const result = await getInterfaceLanguageSelectionResult(language.code, changeLanguage);
-      if (!result.changeLanguageSucceeded) {
-        console.warn('[Onboarding] Failed to load interface language:', result.changeLanguageError);
-      }
-    } finally {
-      setPreferences({ language: language.code });
-      setShowInterfaceLanguagePicker(false);
-      goToStep('translation');
+    const result = await getInterfaceLanguageSelectionResult(language.code, async (code) => {
+      applied = (await changeLanguage(code, isCurrent)) !== false;
+    });
+    if (!isCurrent() || !applied) return;
+    if (!result.changeLanguageSucceeded) {
+      console.warn('[Onboarding] Failed to load interface language:', result.changeLanguageError);
     }
+    setPreferences({ language: language.code });
+    setShowInterfaceLanguagePicker(false);
+    goToStep('translation');
   };
 
   const handleInterfaceLanguageSelectRef = useRef(handleInterfaceLanguageSelectImpl);
