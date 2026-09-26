@@ -34,6 +34,9 @@ export interface SliderProps {
 }
 
 const THUMB_SIZE = 22;
+// The track is inset by half a thumb on each side, so the thumb stays inside the slider's
+// own box at 0% and 100% instead of hanging over the edge (a sheet or card clips it there).
+const THUMB_INSET = THUMB_SIZE / 2;
 const TRACK_HEIGHT = 4;
 
 const clampUnit = (value: number) => {
@@ -111,14 +114,14 @@ export function Slider({
     .onUpdate((event) => {
       'worklet';
       if (width.value <= 0) return;
-      const next = clampUnit(event.x / width.value);
+      const next = clampUnit((event.x - THUMB_INSET) / width.value);
       position.value = next;
       runOnJS(report)(next);
     })
     .onEnd((event) => {
       'worklet';
       if (width.value > 0) {
-        position.value = clampUnit(event.x / width.value);
+        position.value = clampUnit((event.x - THUMB_INSET) / width.value);
       }
       runOnJS(complete)(position.value);
     })
@@ -132,14 +135,14 @@ export function Slider({
     .onEnd((event) => {
       'worklet';
       if (width.value <= 0) return;
-      const next = clampUnit(event.x / width.value);
+      const next = clampUnit((event.x - THUMB_INSET) / width.value);
       position.value = next;
       runOnJS(complete)(next);
     });
 
   const fillStyle = useAnimatedStyle(() => ({ width: position.value * width.value }));
   const thumbStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: position.value * width.value - THUMB_SIZE / 2 }],
+    transform: [{ translateX: position.value * width.value }],
   }));
 
   const stepBy = (delta: number) => {
@@ -205,6 +208,7 @@ const styles = StyleSheet.create({
   container: {
     height: layout.minTouchTarget,
     justifyContent: 'center',
+    paddingHorizontal: THUMB_INSET,
   },
   disabled: {
     opacity: 0.5,
