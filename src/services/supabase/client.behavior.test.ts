@@ -61,22 +61,33 @@ mockModule(
   supabaseJsExports
 );
 
-const secureStore: { store: Map<string, string>; calls: Array<[string, string]> } = {
+const secureStore: {
+  store: Map<string, string>;
+  calls: Array<[string, string]>;
+  accessibility: unknown[];
+} = {
   store: new Map(),
   calls: [],
+  accessibility: [],
 };
+// Stands in for the native module's constant.
+const AFTER_FIRST_UNLOCK = 3;
 
 mockModule(mock, 'expo-secure-store', {
-  getItemAsync: async (key: string) => {
+  AFTER_FIRST_UNLOCK,
+  getItemAsync: async (key: string, options?: { keychainAccessible?: number }) => {
     secureStore.calls.push(['getItemAsync', key]);
+    secureStore.accessibility.push(options?.keychainAccessible);
     return secureStore.store.get(key) ?? null;
   },
-  setItemAsync: async (key: string, value: string) => {
+  setItemAsync: async (key: string, value: string, options?: { keychainAccessible?: number }) => {
     secureStore.calls.push(['setItemAsync', key]);
+    secureStore.accessibility.push(options?.keychainAccessible);
     secureStore.store.set(key, value);
   },
-  deleteItemAsync: async (key: string) => {
+  deleteItemAsync: async (key: string, options?: { keychainAccessible?: number }) => {
     secureStore.calls.push(['deleteItemAsync', key]);
+    secureStore.accessibility.push(options?.keychainAccessible);
     secureStore.store.delete(key);
   },
 });
@@ -100,6 +111,7 @@ before(async () => {
 beforeEach(() => {
   currentUser = null;
   secureStore.calls = [];
+  secureStore.accessibility = [];
   secureStore.store.clear();
 });
 
@@ -186,10 +198,21 @@ test('the auth storage adapter keeps session tokens in the iOS keychain', async 
   await storageAdapter().setItem('sb-access-token', 'token-1');
 
   assert.equal(await storageAdapter().getItem('sb-access-token'), 'token-1');
+  // The first save of a launch re-adds the item so it takes the current accessibility.
   assert.deepEqual(secureStore.calls, [
+    ['deleteItemAsync', 'sb-access-token'],
     ['setItemAsync', 'sb-access-token'],
     ['getItemAsync', 'sb-access-token'],
   ]);
+});
+
+test('the session stays readable with the phone locked: every keychain call asks for after first unlock', async () => {
+  await storageAdapter().setItem('sb-access-token', 'token-1');
+  await storageAdapter().getItem('sb-access-token');
+  await storageAdapter().removeItem('sb-access-token');
+
+  assert.ok(secureStore.accessibility.length >= 3);
+  assert.ok(secureStore.accessibility.every((value) => value === AFTER_FIRST_UNLOCK));
 });
 
 test('the auth storage adapter reports a missing key as null', async () => {

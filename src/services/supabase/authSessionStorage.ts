@@ -19,12 +19,25 @@
  *   is not read back from the keychain.
  *
  * The first failure is reported; later ones in the same launch are not.
+ *
+ * The session is kept readable after the device's first unlock, not only while it is
+ * unlocked: background audio keeps the app running with the phone locked, and a token
+ * refresh or request then read the keychain and got "User interaction is not allowed"
+ * (seen in the diagnostics report of build 460). An item keeps the accessibility it was
+ * added with, since expo-secure-store's update only replaces the value, so the first
+ * save of each key in a launch deletes and re-adds it; a session saved by an older build
+ * moves over at its next token refresh.
  */
 
+/** The subset of expo-secure-store's options this storage passes. */
+export interface SecureStoreOptions {
+  keychainAccessible?: number;
+}
+
 export interface SecureKeyValueStore {
-  getItemAsync: (key: string) => Promise<string | null>;
-  setItemAsync: (key: string, value: string) => Promise<void>;
-  deleteItemAsync: (key: string) => Promise<void>;
+  getItemAsync: (key: string, options?: SecureStoreOptions) => Promise<string | null>;
+  setItemAsync: (key: string, value: string, options?: SecureStoreOptions) => Promise<void>;
+  deleteItemAsync: (key: string, options?: SecureStoreOptions) => Promise<void>;
 }
 
 export interface AuthSessionStorage {
@@ -45,13 +58,20 @@ export function isAuthSessionStorageUnreadable(): boolean {
   return lastReadFailed;
 }
 
-/** `reportFailure` must not throw. */
+/**
+ * `reportFailure` must not throw. `options` go with every keychain call; the client
+ * passes expo-secure-store's AFTER_FIRST_UNLOCK (its value comes from the native
+ * module, so this import-free module cannot name it).
+ */
 export function createAuthSessionStorage(
   secureStore: SecureKeyValueStore,
-  reportFailure: (error: unknown) => void
+  reportFailure: (error: unknown) => void,
+  options: SecureStoreOptions = {}
 ): AuthSessionStorage {
   // A string is a value the keychain refused to store; null is a removal it refused.
   const pending = new Map<string, string | null>();
+  // Keys saved this launch with the current accessibility; see the note at the top.
+  const resaved = new Set<string>();
 
   const noteFailure = (error: unknown): void => {
     if (failureReported) return;
@@ -62,9 +82,13 @@ export function createAuthSessionStorage(
   const persist = async (key: string, value: string | null): Promise<boolean> => {
     try {
       if (value === null) {
-        await secureStore.deleteItemAsync(key);
+        await secureStore.deleteItemAsync(key, options);
       } else {
-        await secureStore.setItemAsync(key, value);
+        if (!resaved.has(key)) {
+          await secureStore.deleteItemAsync(key, options);
+        }
+        await secureStore.setItemAsync(key, value, options);
+        resaved.add(key);
       }
       return true;
     } catch (error) {
@@ -88,7 +112,7 @@ export function createAuthSessionStorage(
         return value;
       }
       try {
-        const value = await secureStore.getItemAsync(key);
+        const value = await secureStore.getItemAsync(key, options);
         lastReadFailed = false;
         return value;
       } catch (error) {

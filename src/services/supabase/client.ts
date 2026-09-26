@@ -48,7 +48,11 @@ const reportKeychainFailure = (error: unknown): void => {
     .catch(() => undefined);
 };
 
-const keychainAuthStorage = createAuthSessionStorage(SecureStore, reportKeychainFailure);
+// Readable after the first unlock, so a token refresh while background audio plays on a
+// locked phone can still read the session (see authSessionStorage.ts).
+const keychainAuthStorage = createAuthSessionStorage(SecureStore, reportKeychainFailure, {
+  keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK,
+});
 
 const ExpoSecureStoreAdapter: AuthSessionStorage =
   Platform.OS === 'web'
