@@ -6,7 +6,10 @@ import { useAudioStore } from '../stores/audioStore';
 import { audioPlayer, isAudioAvailable } from '../services/audio';
 import type { BibleNowPlayingInput } from '../services/audio/audioNowPlayingModel';
 import type { TrackPlayerProgressSnapshot } from '../services/audio/audioPlayer';
-import { resolvePlaybackStart } from '../services/audio/audioPlaybackStartModel';
+import {
+  resolvePlaybackStart,
+  type PlaybackStartAction,
+} from '../services/audio/audioPlaybackStartModel';
 import { reportHandledError } from '../services/diagnostics/crashReportQueue';
 import type { PlaybackRate, SleepTimerOption } from '../types';
 import {
@@ -15,11 +18,14 @@ import {
   emitAudioPlaybackProgress,
   finishChapterAndAdvance,
   followPlaybackWithBackgroundMusic,
+  followRepeatPassage,
   handlePlaybackStatusUpdate,
   isAudioLoaded,
   loadChapterForTranslation,
   navigateToChapter,
   pausePlayback,
+  isPassagePlayRedirectPending,
+  redirectPlayToPassage,
   resumePlayback,
   seekPlayback,
   skipPlayback,
@@ -33,6 +39,8 @@ import {
   useAudioCoverage,
   useAudioPlayerSession,
   useSleepTimerCountdown,
+  watchPassageProgress,
+  type PassageRepeatContext,
   type PlayChapterOptions,
 } from './audioPlayer';
 
@@ -131,6 +139,31 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     currentTranslationId ?? translationId
   );
 
+  // Read at call time: passage decisions run from native callbacks and a store
+  // subscription that outlive this render.
+  const passageContext = useCallback(
+    (): PassageRepeatContext => ({
+      session: sessionRef.current,
+      fallbackTranslationId: translationId,
+      resolveAudioCoverage,
+    }),
+    [resolveAudioCoverage, sessionRef, translationId]
+  );
+
+  /**
+   * What Play does, once a passage just set with nothing loaded has had its say.
+   * Without one pending, Play goes ahead in the same tick as before.
+   */
+  const resolvePassagePlaybackStart = useCallback(
+    async (start: PlaybackStartAction | null): Promise<PlaybackStartAction | null> => {
+      const context = passageContext();
+      if (start?.kind !== 'play' || !isPassagePlayRedirectPending(context)) return start;
+      const request = await redirectPlayToPassage(context, start);
+      return { kind: 'play', ...request };
+    },
+    [passageContext]
+  );
+
   const syncCurrentNowPlaying = useCallback(
     (overrides: Partial<BibleNowPlayingInput> = {}, force = false) =>
       syncPlayerNowPlaying(
@@ -168,14 +201,29 @@ export function useAudioPlayer(translationId: string = 'bsb') {
 
   const playChapter = useCallback(
     async (bookId: string, chapter: number, verse?: number) => {
-      await playChapterForTranslation(translationId, bookId, chapter, verse);
+      const context = passageContext();
+      const request = { translationId, bookId, chapter, startPositionMs: 0 };
+      const target = isPassagePlayRedirectPending(context)
+        ? await redirectPlayToPassage(context, request)
+        : request;
+      if (target === request) {
+        await playChapterForTranslation(translationId, bookId, chapter, verse);
+        return;
+      }
+      await playChapterForTranslation(
+        target.translationId,
+        target.bookId,
+        target.chapter,
+        undefined,
+        { startPositionMs: target.startPositionMs }
+      );
     },
-    [playChapterForTranslation, translationId]
+    [passageContext, playChapterForTranslation, translationId]
   );
 
   // Handle playback status updates from track-player wrapper
   const handleStatusUpdate = useCallback(
-    (snapshot: TrackPlayerProgressSnapshot) =>
+    (snapshot: TrackPlayerProgressSnapshot) => {
       handlePlaybackStatusUpdate(
         {
           session: sessionRef.current,
@@ -183,8 +231,10 @@ export function useAudioPlayer(translationId: string = 'bsb') {
           syncNowPlaying: syncCurrentNowPlaying,
         },
         snapshot
-      ),
-    [sessionRef, syncCurrentNowPlaying, translationId]
+      );
+      watchPassageProgress(passageContext(), snapshot);
+    },
+    [passageContext, sessionRef, syncCurrentNowPlaying, translationId]
   );
 
   // Handle playback finished - auto-advance to next chapter
@@ -254,7 +304,13 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       translationId,
       isAudioLoaded
     );
-    await startPlayback(start, resume, playChapterForTranslation);
+    await startPlayback(
+      isPassagePlayRedirectPending(passageContext())
+        ? await resolvePassagePlaybackStart(start)
+        : start,
+      resume,
+      playChapterForTranslation
+    );
   }, [
     status,
     currentTranslationId,
@@ -265,7 +321,9 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     lastPlayedChapter,
     pause,
     resume,
+    passageContext,
     playChapterForTranslation,
+    resolvePassagePlaybackStart,
     translationId,
   ]);
 
@@ -405,6 +463,10 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     followPlaybackWithBackgroundMusic();
   }, []);
 
+  useEffect(() => {
+    followRepeatPassage(passageContext());
+  }, [passageContext]);
+
   // A loaded chapter that is buffering mid-stream may be waiting on a sound the
   // native side has already released (Android does so silently when the stream
   // fails), which would leave an endless spinner with the controls disabled. Check
@@ -436,8 +498,11 @@ export function useAudioPlayer(translationId: string = 'bsb') {
         if (store.status === 'playing') {
           return;
         }
+        const start = resolvePlaybackStart(store, translationId, isAudioLoaded);
         await startPlayback(
-          resolvePlaybackStart(store, translationId, isAudioLoaded),
+          isPassagePlayRedirectPending(passageContext())
+            ? await resolvePassagePlaybackStart(start)
+            : start,
           resume,
           playChapterForTranslation
         );
@@ -455,7 +520,9 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     nextChapter,
     pause,
     playChapterForTranslation,
+    passageContext,
     previousChapter,
+    resolvePassagePlaybackStart,
     resume,
     seekTo,
     skipBackward,

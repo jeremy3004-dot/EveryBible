@@ -4113,3 +4113,117 @@ test('pausing, stopping, finishing and the sleep timer show no failure', async (
   assert.equal(store().error, null);
   assert.deepEqual(recorded.reports, []);
 });
+
+// ---------------------------------------------------------------------------
+// Passage repeat, through the player
+//
+// The passage engine (audioPlayer/passageRepeat.ts, tested on its own beside it)
+// is reached from Play, native progress and the chapter end. These run it with the
+// real bundled BSB timings: John 3:16 starts at 106.78 s and 3:19 at 134.2 s, each
+// read 150 ms early.
+// ---------------------------------------------------------------------------
+
+const JOHN_3_16_MS = 106_780 - 150;
+const JOHN_3_19_MS = 134_200 - 150;
+const JOHN_3_16_TO_18 = {
+  bookId: 'JHN',
+  start: { chapter: 3, verse: 16 },
+  end: { chapter: 3, verse: 18 },
+};
+
+async function passageSettled(): Promise<void> {
+  const { passageRepeatSettled } = await import('./audioPlayer/passageRepeat');
+  await passageRepeatSettled();
+}
+
+test('the first Play after setting a passage with nothing loaded starts at its start verse', async () => {
+  const player = mountPlayer();
+  store().setCurrentTrack('bsb', 'GEN', 1);
+  store().resetPlayback();
+  store().setRepeatPassage(JOHN_3_16_TO_18);
+  await passageSettled();
+
+  await player.rerender().togglePlayPause();
+
+  assert.deepEqual(playerCalls('loadAndPlay').at(-1)?.args, [
+    'https://cdn.example/bsb/JHN/3.mp3',
+    1,
+    JOHN_3_16_MS,
+  ]);
+});
+
+test("the reader's Play on a chapter outside a passage just set starts the passage", async () => {
+  const player = mountPlayer();
+  store().setRepeatPassage(JOHN_3_16_TO_18);
+  await passageSettled();
+
+  await player.rerender().playChapter('GEN', 1);
+
+  assert.equal(store().currentBookId, 'JHN');
+  assert.equal(loadedStartOffset(), JOHN_3_16_MS);
+
+  // Only the first Play: the listener's next pick plays as asked.
+  await player.rerender().playChapter('GEN', 1);
+  assert.equal(store().currentBookId, 'GEN');
+  assert.equal(loadedStartOffset(), 0);
+});
+
+test('a passage repeating since an earlier session does not redirect Play', async () => {
+  const player = mountPlayer();
+  useAudioStore.setState({ repeatMode: 'passage', repeatPassage: JOHN_3_16_TO_18 });
+  // As after a relaunch: the passage was persisted, nothing was set in this session.
+  const { resetPassageRepeatState } = await import('./audioPlayer/passageRepeat');
+  resetPassageRepeatState();
+
+  await player.rerender().playChapter('GEN', 1);
+
+  assert.equal(store().currentBookId, 'GEN');
+  assert.equal(loadedStartOffset(), 0);
+});
+
+test('native progress past the end verse seeks back to the start verse', async () => {
+  const player = mountPlayer();
+  useAudioStore.setState({ repeatMode: 'passage', repeatPassage: JOHN_3_16_TO_18 });
+  await player.rerender().playChapterForTranslation('bsb', 'JHN', 3, undefined, {
+    startPositionMs: JOHN_3_16_MS,
+  });
+  recorded.player.length = 0;
+
+  const playing = { isPlaying: true, durationMillis: DEFAULT_DURATION_MS };
+  emitStatus({ ...playing, positionMillis: JOHN_3_19_MS - 4_000 }); // loads the timings
+  await passageSettled();
+  emitStatus({ ...playing, positionMillis: JOHN_3_19_MS - 3_000 });
+  emitStatus({ ...playing, positionMillis: JOHN_3_19_MS - 2_000 });
+  assert.deepEqual(playerCalls('seekTo'), []);
+  emitStatus({ ...playing, positionMillis: JOHN_3_19_MS + 500 });
+  await passageSettled();
+
+  assert.deepEqual(playerCalls('seekTo'), [{ method: 'seekTo', args: [JOHN_3_16_MS] }]);
+  assert.equal(store().currentPosition, JOHN_3_16_MS);
+  assert.equal(playerCalls('loadAndPlay').length, 0);
+});
+
+test('a seek past the end verse plays on, and the chapter end returns to the start verse', async () => {
+  const player = mountPlayer();
+  useAudioStore.setState({ repeatMode: 'passage', repeatPassage: JOHN_3_16_TO_18 });
+  await player.rerender().playChapterForTranslation('bsb', 'JHN', 3, undefined, {
+    startPositionMs: JOHN_3_16_MS,
+  });
+  const playing = { isPlaying: true, durationMillis: DEFAULT_DURATION_MS };
+  emitStatus({ ...playing, positionMillis: JOHN_3_19_MS - 5_000 });
+  await passageSettled();
+
+  await player.rerender().seekTo(JOHN_3_19_MS + 1_000);
+  emitStatus({ ...playing, positionMillis: JOHN_3_19_MS + 1_000 });
+  emitStatus({ ...playing, positionMillis: JOHN_3_19_MS + 2_000 });
+  await passageSettled();
+  assert.deepEqual(
+    playerCalls('seekTo').map((call) => call.args[0]),
+    [JOHN_3_19_MS + 1_000]
+  );
+
+  recorded.player.length = 0;
+  await finishPlayback();
+  assert.equal(store().currentChapter, 3);
+  assert.equal(loadedStartOffset(), JOHN_3_16_MS);
+});

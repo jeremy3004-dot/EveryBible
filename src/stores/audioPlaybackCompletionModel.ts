@@ -25,7 +25,16 @@ export function resolveRepeatPlaybackTarget({
    */
   availableChapters?: readonly number[] | undefined;
 }): { bookId: string; chapter: number } | null {
-  if (repeatMode === 'off' || !bookId || !chapter || !totalChapters || totalChapters <= 0) {
+  // A passage has its own ends and verse bounds (audioRepeatPassageModel); treating it
+  // as book repeat here would walk out of it.
+  if (
+    repeatMode === 'off' ||
+    repeatMode === 'passage' ||
+    !bookId ||
+    !chapter ||
+    !totalChapters ||
+    totalChapters <= 0
+  ) {
     return null;
   }
 

@@ -7,6 +7,7 @@ import {
 import { useAudioStore } from '../../stores/audioStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { emitAudioPlaybackProgress, stopAudioProgressTelemetry } from './listeningTelemetry';
+import { notePassageManualSeek } from './passageRepeat';
 import { anchorPositionInterpolation, stopPositionInterpolation } from './playbackProgress';
 import type {
   AudioPlayerSession,
@@ -175,6 +176,8 @@ export async function seekPlayback(
   requestedPositionMs: number
 ): Promise<void> {
   const positionMs = clampSeekPosition(requestedPositionMs, useAudioStore.getState().duration);
+  // The listener's own move: a repeated passage does not take it for playback reaching its end.
+  notePassageManualSeek();
   // Reset interpolation anchor to the seek target so we don't overshoot
   anchorPositionInterpolation(session, positionMs);
   await audioPlayer.seekTo(positionMs);
@@ -188,6 +191,7 @@ export async function skipPlayback(session: AudioPlayerSession, deltaMs: number)
   }
 
   const nextPosition = skipTargetPosition(currentPosition, deltaMs, duration);
+  notePassageManualSeek();
   // Re-anchor interpolation on the skip target, exactly as a seek does. Without
   // this the next interpolation tick extrapolates from the stale pre-skip poll and
   // the monotonic clamp snaps a backward skip forward again until the native
