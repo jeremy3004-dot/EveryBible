@@ -12,6 +12,7 @@ import {
   TabBarButton,
   TabBarIcon,
   TabBarLabel,
+  tabIconStyle,
   tabItemStyle,
 } from './TabBarChrome';
 import { getTabBarCollapseProgress, type TabRoute } from './tabNavigatorModel';
@@ -70,6 +71,7 @@ export function useTabScreenOptions({
         tabBarInactiveTintColor: ink,
         tabBarStyle,
         tabBarItemStyle: tabItemStyle,
+        tabBarIconStyle: tabIconStyle,
         tabBarLabel: ({ color }: { color: string }) => (
           <TabBarLabel label={tabLabel} color={color} />
         ),

@@ -72,7 +72,7 @@ const styles = StyleSheet.create({
   tabContent: {
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
+    gap: 2,
   },
   // EL tab labels are a notch smaller than the shared tabLabel token so the
   // glyph and label both sit inside the 52pt selection pill.
@@ -83,6 +83,17 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+
+/**
+ * The library boxes each glyph in 28pt; ours is 22, so that box added 3pt of air under
+ * the icon before the gap. Sized to the glyph, the icon and its label sit closer (the
+ * owner asked for this) while the capsule keeps its height.
+ */
+export const tabIconStyle = StyleSheet.create({
+  tabIcon: {
+    height: TAB_BAR_ICON_SIZE,
+  },
+}).tabIcon;
 
 /** Fills the capsule height; the item adds no padding of its own. */
 export const tabItemStyle = StyleSheet.create({
