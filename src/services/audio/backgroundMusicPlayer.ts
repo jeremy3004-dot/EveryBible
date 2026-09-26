@@ -87,6 +87,18 @@ class BackgroundMusicPlayer {
     );
   }
 
+  /**
+   * Fades the playing bed to silence over `durationMs` without pausing it: the caller
+   * pauses (or stops) it once the fade is over, and the next play fades it back in as
+   * usual. Does nothing when no bed is playing. A pause, stop or level change meanwhile
+   * takes the sound over from the fade.
+   */
+  fadeOut(durationMs: number): void {
+    const sound = this.sound;
+    if (!sound || !this.shouldBePlaying) return;
+    this.fadeVolume(sound, this.volumes.get(sound) ?? this.targetVolume, 0, undefined, durationMs);
+  }
+
   /** The sounds Shuffle may pick now: bundled, or remote and already downloaded. */
   getShuffleCandidates(): BackgroundMusicChoice[] {
     return listShuffleCandidates(BACKGROUND_MUSIC_OPTIONS, (option) =>

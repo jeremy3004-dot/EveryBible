@@ -121,6 +121,27 @@ function loadTimings(
   return load;
 }
 
+/**
+ * A chapter's verse timings if they have loaded: undefined while unknown or loading,
+ * null when the translation has none. Shared with Selah, which rewinds to a verse start.
+ */
+export function peekChapterVerseTimings(
+  translationId: string,
+  bookId: string,
+  chapter: number
+): PassageVerseTimings | null | undefined {
+  return peekTimings(chapterKey(translationId, bookId, chapter));
+}
+
+/** Loads (once) a chapter's verse timings, for peekChapterVerseTimings to find. */
+export function loadChapterVerseTimings(
+  translationId: string,
+  bookId: string,
+  chapter: number
+): Promise<PassageVerseTimings | null> {
+  return loadTimings(translationId, bookId, chapter);
+}
+
 // --- shared resolution ---------------------------------------------------------
 
 /** The passage being repeated, fitted to its book; null when repeat is not 'passage'. */

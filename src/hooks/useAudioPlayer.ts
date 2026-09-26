@@ -26,6 +26,7 @@ import {
   navigateToChapter,
   pausePlayback,
   isPassagePlayRedirectPending,
+  provideSelahTransport,
   redirectPlayToPassage,
   resumePlayback,
   seekPlayback,
@@ -77,6 +78,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     sleepTimerEndTime,
     sleepTimerRemainingMs,
     backgroundMusicChoice,
+    selahActive,
     setError,
     addToQueue: addToQueueInStore,
     removeFromQueue,
@@ -111,6 +113,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       sleepTimerEndTime: state.sleepTimerEndTime,
       sleepTimerRemainingMs: state.sleepTimerRemainingMs,
       backgroundMusicChoice: state.backgroundMusicChoice,
+      selahActive: state.selahActive,
       setStatus: state.setStatus,
       setCurrentTrack: state.setCurrentTrack,
       setPosition: state.setPosition,
@@ -273,6 +276,20 @@ export function useAudioPlayer(translationId: string = 'bsb') {
         playChapterForTranslation,
       }),
     [playChapterForTranslation, sessionRef, syncCurrentNowPlaying, translationId]
+  );
+
+  // Selah's pause: the narration pauses and the music bed plays on.
+  const holdNarrationForSelah = useCallback(
+    () =>
+      pausePlayback(
+        {
+          session: sessionRef.current,
+          fallbackTranslationId: translationId,
+          syncNowPlaying: syncCurrentNowPlaying,
+        },
+        { holdForSelah: true }
+      ),
+    [sessionRef, syncCurrentNowPlaying, translationId]
   );
 
   // Stop playback completely
@@ -487,9 +504,15 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     sleepTimerEndTime,
     sleepTimerRemainingMs,
     status,
+    selahActive,
     clearSleepTimer,
     pause,
   });
+
+  useEffect(() => {
+    // Like the remote commands: the latest player drives Selah, also once it unmounts.
+    provideSelahTransport({ holdNarration: holdNarrationForSelah, resume, pause });
+  }, [holdNarrationForSelah, pause, resume]);
 
   useEffect(() => {
     // No cleanup: the subscription stays live after unmount and the next run or

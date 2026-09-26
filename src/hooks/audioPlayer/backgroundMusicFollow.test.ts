@@ -219,3 +219,65 @@ test('a chapter change with a fixed sound does not resync the bed', async () => 
 
   assert.equal(recorded.bed.length, syncs);
 });
+
+// ---------------------------------------------------------------------------
+// Selah
+// ---------------------------------------------------------------------------
+
+/** Selah as the engine carries it out: the flag, then the narration's pause. */
+async function holdInSelah(): Promise<void> {
+  store().setSelahActive(true);
+  store().setStatus('paused');
+  await settle();
+}
+
+test('Selah holding the narration paused keeps the bed playing', async () => {
+  store().setBackgroundMusicChoice('piano');
+  await startChapter('GEN', 1);
+  const syncsBefore = recorded.bed.length;
+
+  await holdInSelah();
+
+  assert.deepEqual(recorded.bed.at(-1), { choice: 'piano', shouldPlay: true });
+  assert.equal(
+    recorded.bed.slice(syncsBefore).some((call) => !call.shouldPlay),
+    false,
+    'the bed never dips as the narration pauses'
+  );
+});
+
+test('Selah ending with the narration still paused pauses the bed with it', async () => {
+  store().setBackgroundMusicChoice('piano');
+  await startChapter('GEN', 1);
+  await holdInSelah();
+
+  store().setSelahActive(false);
+  await settle();
+
+  assert.deepEqual(recorded.bed.at(-1), { choice: 'piano', shouldPlay: false });
+});
+
+test('Selah over a paused chapter starts the bed, and Shuffle keeps its sound', async (t) => {
+  t.mock.method(Math, 'random', () => 0.5);
+  store().setBackgroundMusicChoice('shuffle');
+  await startChapter('GEN', 1);
+  const [sound] = picks();
+  store().setStatus('paused');
+  await settle();
+
+  store().setSelahActive(true);
+  await settle();
+
+  assert.deepEqual(recorded.bed.at(-1), { choice: sound, shouldPlay: true });
+});
+
+test('stopping playback during Selah stops the bed', async () => {
+  store().setBackgroundMusicChoice('piano');
+  await startChapter('GEN', 1);
+  await holdInSelah();
+
+  store().resetPlayback();
+  await settle();
+
+  assert.deepEqual(recorded.bed.at(-1), { choice: 'piano', shouldPlay: false });
+});

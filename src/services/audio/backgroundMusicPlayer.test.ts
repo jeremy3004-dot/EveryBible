@@ -542,6 +542,44 @@ test('a paused loop resumes by fading back in rather than reloading', async () =
   assert.equal(sounds[0].volumes(callsBefore).at(-1), AMBIENT_VOLUME);
 });
 
+test('fading out ramps the playing loop to silence and leaves pausing it to the caller', async () => {
+  await mod.backgroundMusicPlayer.sync('ambient', true);
+  runFade();
+  const callsBefore = sounds[0].calls.length;
+
+  mod.backgroundMusicPlayer.fadeOut(3000);
+  mock.timers.tick(3000);
+
+  const volumes = sounds[0].volumes(callsBefore);
+  assert.equal(volumes.length, 3000 / 50);
+  assert.equal(volumes[0] < AMBIENT_VOLUME, true);
+  assert.equal(volumes.at(-1), 0);
+  assert.equal(sounds[0].methods().slice(callsBefore).includes('pauseAsync'), false);
+});
+
+test('a loop faded out and paused fades back in on the next play', async () => {
+  await mod.backgroundMusicPlayer.sync('ambient', true);
+  runFade();
+  mod.backgroundMusicPlayer.fadeOut(3000);
+  mock.timers.tick(3000);
+  await mod.backgroundMusicPlayer.sync('ambient', false);
+
+  await mod.backgroundMusicPlayer.sync('ambient', true);
+  runFade();
+
+  assert.equal(createCalls.length, 1);
+  assert.equal(sounds[0].volumes().at(-1), AMBIENT_VOLUME);
+});
+
+test('fading out with nothing playing does nothing', async () => {
+  mod.backgroundMusicPlayer.fadeOut(3000);
+  await mod.backgroundMusicPlayer.sync('ambient', false);
+  mod.backgroundMusicPlayer.fadeOut(3000);
+  mock.timers.tick(3000);
+
+  assert.deepEqual(sounds, []);
+});
+
 test('pausing while switching to a different preset unloads instead of pausing', async () => {
   await mod.backgroundMusicPlayer.sync('ambient', true);
 

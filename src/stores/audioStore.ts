@@ -29,6 +29,12 @@ interface AudioState {
   currentPosition: number; // milliseconds
   duration: number; // milliseconds
   error: string | null;
+  /**
+   * Selah: the narration is held paused (or fading out to be) while the music bed plays
+   * on. Not persisted. Anything that selects a chapter, stops or fails playback ends it;
+   * src/hooks/audioPlayer/selah.ts carries it out.
+   */
+  selahActive: boolean;
 
   // Player visibility
   showPlayer: boolean;
@@ -80,6 +86,7 @@ interface AudioState {
   clearResumePosition: () => void;
   setDuration: (duration: number) => void;
   setError: (error: string | null) => void;
+  setSelahActive: (active: boolean) => void;
   syncQueueToTrack: (translationId: string, bookId: string, chapter: number) => void;
   addToQueue: (translationId: string, bookId: string, chapter: number) => void;
   removeFromQueue: (entryId: string) => void;
@@ -115,20 +122,32 @@ interface AudioState {
 const isSleepTimerRunningStatus = (status: AudioStatus) =>
   status === 'playing' || status === 'loading';
 
+/**
+ * Whether a sleep timer counts down: while audio plays, and while Selah holds the
+ * narration paused with the music bed still playing (the listener still hears something).
+ */
+const isSleepTimerRunning = (status: AudioStatus, selahActive: boolean) =>
+  isSleepTimerRunningStatus(status) || (selahActive && status === 'paused');
+
+/** Selah only outlasts a status change that leaves a chapter paused or playing. */
+const keepsSelah = (status: AudioStatus) => status !== 'idle' && status !== 'error';
+
 const clampUnit = (value: number) => (Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 1);
 
 type SleepTimerFields = Pick<AudioState, 'sleepTimerEndTime' | 'sleepTimerRemainingMs'>;
 
 /**
  * Moves the sleep timer between its running (end time) and frozen (remaining
- * time) forms to follow a playback status change. Returns null when nothing changes.
+ * time) forms to follow a playback status (or Selah) change. Returns null when
+ * nothing changes.
  */
 function getSleepTimerForStatus(
   state: SleepTimerFields,
   status: AudioStatus,
-  now: number
+  now: number,
+  selahActive = false
 ): SleepTimerFields | null {
-  if (isSleepTimerRunningStatus(status)) {
+  if (isSleepTimerRunning(status, selahActive)) {
     if (state.sleepTimerRemainingMs === null) return null;
     return { sleepTimerEndTime: now + state.sleepTimerRemainingMs, sleepTimerRemainingMs: null };
   }
@@ -209,6 +228,7 @@ export const useAudioStore = create<AudioState>()(
       currentPosition: 0,
       duration: 0,
       error: null,
+      selahActive: false,
       showPlayer: false,
       queue: [],
       queueIndex: 0,
@@ -236,12 +256,21 @@ export const useAudioStore = create<AudioState>()(
         const state = get();
         const error = status === 'error' ? 'Playback error' : null;
         if (state.status !== status || state.error !== error) {
-          set({ status, error, ...getSleepTimerForStatus(state, status, Date.now()) });
+          const selahActive = state.selahActive && keepsSelah(status);
+          set({
+            status,
+            error,
+            selahActive,
+            ...getSleepTimerForStatus(state, status, Date.now(), selahActive),
+          });
         }
       },
 
       setCurrentTrack: (translationId, bookId, chapter, startPosition = 0) =>
-        set({
+        set((state) => ({
+          // Selecting a chapter (another one, or this one again) ends Selah.
+          ...getSleepTimerForStatus(state, state.status, Date.now()),
+          selahActive: false,
           currentTranslationId: translationId,
           currentBookId: bookId,
           currentChapter: chapter,
@@ -251,7 +280,7 @@ export const useAudioStore = create<AudioState>()(
           lastPlayedBookId: bookId,
           lastPlayedChapter: chapter,
           lastPosition: startPosition,
-        }),
+        })),
 
       setPosition: (position) => {
         const state = get();
@@ -274,7 +303,21 @@ export const useAudioStore = create<AudioState>()(
 
       setError: (error) => {
         const status: AudioStatus = error ? 'error' : 'idle';
-        set({ error, status, ...getSleepTimerForStatus(get(), status, Date.now()) });
+        set({
+          error,
+          status,
+          selahActive: false,
+          ...getSleepTimerForStatus(get(), status, Date.now()),
+        });
+      },
+
+      setSelahActive: (active) => {
+        const state = get();
+        if (state.selahActive === active) return;
+        set({
+          selahActive: active,
+          ...getSleepTimerForStatus(state, state.status, Date.now(), active),
+        });
       },
 
       syncQueueToTrack: (translationId, bookId, chapter) =>
@@ -341,7 +384,8 @@ export const useAudioStore = create<AudioState>()(
       setSleepTimer: (minutes) => {
         // 'end-of-chapter' has no countdown: the chapter's finish ends playback.
         const lengthMs = typeof minutes === 'number' ? minutes * 60 * 1000 : null;
-        const isRunning = lengthMs !== null && isSleepTimerRunningStatus(get().status);
+        const { status, selahActive } = get();
+        const isRunning = lengthMs !== null && isSleepTimerRunning(status, selahActive);
         set({
           sleepTimerMinutes: minutes,
           sleepTimerEndTime: isRunning ? Date.now() + lengthMs : null,
@@ -375,6 +419,7 @@ export const useAudioStore = create<AudioState>()(
           currentPosition: 0,
           duration: 0,
           error: null,
+          selahActive: false,
           audioReturnTarget: null,
         })),
     }),

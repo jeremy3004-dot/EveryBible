@@ -10,6 +10,8 @@ export interface SleepTimerCountdownInput {
   sleepTimerEndTime: number | null;
   sleepTimerRemainingMs: number | null;
   status: AudioStatus;
+  /** Selah holds the narration paused with the music playing; the timer counts on. */
+  selahActive?: boolean;
   clearSleepTimer: () => void;
   pause: () => Promise<void>;
 }
@@ -23,6 +25,7 @@ export function useSleepTimerCountdown({
   sleepTimerEndTime,
   sleepTimerRemainingMs,
   status,
+  selahActive = false,
   clearSleepTimer,
   pause,
 }: SleepTimerCountdownInput): number | null {
@@ -42,7 +45,9 @@ export function useSleepTimerCountdown({
       sleepTimerRef.current = null;
     }
 
-    if (sleepTimerEndTime && (status === 'playing' || status === 'loading')) {
+    const isRunning =
+      status === 'playing' || status === 'loading' || (selahActive && status === 'paused');
+    if (sleepTimerEndTime && isRunning) {
       // The end time moves on every resume; re-anchor the countdown now rather
       // than showing the stale pre-pause clock for up to a second.
       // eslint-disable-next-line react-hooks/set-state-in-effect -- re-anchors the countdown clock
@@ -68,7 +73,7 @@ export function useSleepTimerCountdown({
         sleepTimerRef.current = null;
       }
     };
-  }, [sleepTimerEndTime, status, clearSleepTimer, pause]);
+  }, [sleepTimerEndTime, status, selahActive, clearSleepTimer, pause]);
 
   return sleepTimerRemaining;
 }
