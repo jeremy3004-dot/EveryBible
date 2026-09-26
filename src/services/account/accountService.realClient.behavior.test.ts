@@ -47,7 +47,9 @@ test('delete RPC keeps the original Authorization when the client token lookup s
   const { deleteCurrentAccount } = await import('./accountService');
   assert.deepEqual(await deleteCurrentAccount('original-account'), { success: true });
   assert.equal(requests.length, 1);
-  assert.ok(requests[0].url.endsWith('/rest/v1/rpc/delete_my_account'));
-  assert.equal(requests[0].authorization, 'Bearer original-delete-token');
+  const [request] = requests;
+  assert.ok(request);
+  assert.ok(request.url.endsWith('/rest/v1/rpc/delete_my_account'));
+  assert.equal(request.authorization, 'Bearer original-delete-token');
   assert.equal(fake.auth.user?.id, 'next-account');
 });

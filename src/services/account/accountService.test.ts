@@ -236,6 +236,7 @@ test('deleteCurrentAccount refuses to run for a signed-out caller', async () => 
 test('account deletion pins the RPC to the verified session token', async () => {
   await accountService.deleteCurrentAccount();
   const [call] = supabaseFake.callsFor('rpc:delete_my_account');
+  assert.ok(call);
   assert.deepEqual(call.steps, [
     { method: 'setHeader', args: ['Authorization', 'Bearer access-token'] },
   ]);
