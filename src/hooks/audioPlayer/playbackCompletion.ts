@@ -100,6 +100,19 @@ export async function finishChapterAndAdvance({
     useProgressStore.getState().markChapterListened(bookId, chapterNum);
   }
 
+  // "End of chapter" means the listener is falling asleep: nothing follows this chapter,
+  // not a plan's next chapter, a repeat, the queue or auto-advance. The timer is used up,
+  // and Play afterwards is the listener's own choice (an interruption ending must not
+  // start it). A chapter skipped to by hand before this one finished kept the timer armed,
+  // so it is whichever chapter was playing that ends.
+  if (store.sleepTimerMinutes === 'end-of-chapter') {
+    store.clearSleepTimer();
+    pausedByListener.current = true;
+    chapterTransition.current = false;
+    endPlayback();
+    return;
+  }
+
   // A plan or rhythm owns playback until its last chapter finishes.
   // Global repeat and queue preferences must not escape that session.
   const nextSequenceEntry =
