@@ -90,32 +90,34 @@ export function useResetPasswordFlow(): ResetPasswordFlow {
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
-      clearPendingPasswordRecovery();
+      clearPendingPasswordRecovery(pendingRecovery);
       if (didActivateRef.current && !didUpdatePasswordRef.current) {
         void signOut();
       }
     };
-  }, []);
+  }, [pendingRecovery]);
 
   const dismiss = () => {
     navigation.getParent()?.goBack();
   };
 
   const cancel = useCallback(() => {
-    clearPendingPasswordRecovery();
+    clearPendingPasswordRecovery(pendingRecovery);
     dismiss();
     // dismiss is a stable navigation call; re-creating it would not change behavior.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [navigation]);
+  }, [navigation, pendingRecovery]);
 
   const confirmAccount = useCallback(async () => {
     setIsActivating(true);
     try {
       // Read now, not at render: the exchange replaces this device's session, so a
-      // signed-in account goes through the normal sign-out first.
+      // signed-in account goes through sign-out first. Its completed onboarding
+      // keeps the isolated recovery route mounted, while account data is cleared.
       const result = await activatePendingPasswordRecovery({
         signedInUserId: useAuthStore.getState().user?.uid ?? null,
-        signOutCurrentAccount: () => useAuthStore.getState().signOut(),
+        signOutCurrentAccount: () =>
+          useAuthStore.getState().signOut({ reason: 'password-recovery' }),
       });
 
       const nextProblem = activationProblem(result);

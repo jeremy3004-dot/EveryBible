@@ -1217,3 +1217,45 @@ test('an event that carries a session without a user is treated as a sign-out', 
   assert.equal(useAuthStore.getState().isAuthenticated, false);
   assert.equal(useAuthStore.getState().session, null);
 });
+
+test('recovery sign-out preserves only completed onboarding across the auth callback', async () => {
+  supabaseFake.auth.setSession(makeFakeSession({ user: makeFakeUser({ id: 'user-a' }) }));
+  await useAuthStore.getState().initialize();
+  useAuthStore.getState().setPreferences({
+    fontSize: 'large',
+    language: 'es',
+    onboardingCompleted: true,
+  });
+  seedPerUserData();
+  let completedDuringCallback = false;
+  authHandlers._removeSession = async () => {
+    supabaseFake.auth.emit('SIGNED_OUT', null);
+    completedDuringCallback = useAuthStore.getState().preferences.onboardingCompleted;
+  };
+
+  await useAuthStore.getState().signOut({ reason: 'password-recovery' });
+
+  assert.equal(completedDuringCallback, true);
+  assert.equal(perUserDataIsCleared(), true);
+  assert.deepEqual(useAuthStore.getState().preferences, {
+    ...defaultAuthPreferences,
+    onboardingCompleted: true,
+  });
+  assert.equal(useAuthStore.getState().preferencesSyncBase, null);
+  assert.deepEqual(useAuthStore.getState().preferenceFieldStamps, {});
+  assert.equal(useAuthStore.getState().lastSyncedUserId, null);
+  assert.equal(useAuthStore.getState().user, null);
+  assert.deepEqual(deactivatedTokensFor, ['user-a']);
+
+  // Preservation ends with that transition; a later ordinary sign-out has its
+  // usual onboarding reset, even after another account has signed in.
+  useAuthStore.getState().setSession(makeFakeSession({ user: makeFakeUser({ id: 'user-b' }) }));
+  await useAuthStore.getState().signOut();
+  assert.deepEqual(useAuthStore.getState().preferences, defaultAuthPreferences);
+});
+
+test('recovery sign-out does not complete onboarding that was never completed', async () => {
+  useAuthStore.getState().setUser(appUser('user-a'));
+  await useAuthStore.getState().signOut({ reason: 'password-recovery' });
+  assert.equal(useAuthStore.getState().preferences.onboardingCompleted, false);
+});

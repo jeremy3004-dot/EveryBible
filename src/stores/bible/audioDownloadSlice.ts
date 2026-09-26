@@ -28,6 +28,23 @@ type AudioDownloadSlice = Pick<
 
 /** Offline audio downloads: one book, a collection of books, and resuming after a restart. */
 export const createAudioDownloadSlice: BibleSliceCreator<AudioDownloadSlice> = (set, get) => {
+  const runningRequests = new Map<string, Promise<void>>();
+  const shareDownload =
+    <Args extends unknown[]>(
+      keyFor: (...args: Args) => string,
+      download: (...args: Args) => Promise<void>
+    ) =>
+    (...args: Args): Promise<void> => {
+      const key = keyFor(...args);
+      const existing = runningRequests.get(key);
+      if (existing) return existing;
+      const pending = Promise.resolve()
+        .then(() => download(...args))
+        .finally(() => runningRequests.delete(key));
+      runningRequests.set(key, pending);
+      return pending;
+    };
+
   const handleAudioJobUpdate = (job: AudioDownloadJobRecord) => {
     set((state) => ({
       translations: state.translations.map((item) => updateTranslationAudioJobState(item, job)),
@@ -98,7 +115,10 @@ export const createAudioDownloadSlice: BibleSliceCreator<AudioDownloadSlice> = (
       activeJobs.forEach((job) => {
         if (job.scope === 'translation') {
           void get()
-            .downloadAudioForTranslation(job.translationId)
+            .downloadAudioForBooks(
+              job.translationId,
+              job.requestedBookIds ?? bibleBooks.map((book) => book.id)
+            )
             .catch((error) => {
               console.warn('[Bible] Failed to resume audio translation download:', job.id, error);
             });
@@ -112,222 +132,229 @@ export const createAudioDownloadSlice: BibleSliceCreator<AudioDownloadSlice> = (
       });
     },
 
-    downloadAudioForBook: async (translationId: string, bookId: string) => {
-      const translation = get().translations.find((item) => item.id === translationId);
-      const book = getBookById(bookId);
+    downloadAudioForBook: shareDownload(
+      (translationId: string, bookId: string) => `${translationId}:book:${bookId}`,
+      async (translationId: string, bookId: string) => {
+        const translation = get().translations.find((item) => item.id === translationId);
+        const book = getBookById(bookId);
 
-      if (!translation?.hasAudio || !book) {
-        throw new Error('Audio downloads are not available for this book.');
-      }
-
-      const audio = await loadAudioDownloadModules();
-      const jobStore = await audio.createAudioDownloadJobStore({
-        fileSystem: audio.expoAudioFileSystemAdapter,
-        rootUri: audio.AUDIO_DOWNLOAD_ROOT_URI,
-      });
-      const transport = await audio.createBackgroundAudioDownloadTransport();
-      const handleAudioBookProgress = ({
-        bookId: activeBookId,
-        progress,
-        translationId: activeTranslationId,
-        jobId,
-      }: AudioDownloadBookProgress) => {
-        set((state) => ({
-          translations: state.translations.map((item) =>
-            item.id === activeTranslationId
-              ? updateTranslationAudioJobProgress(item, progress)
-              : item
-          ),
-          downloadProgress: {
-            translationId: activeTranslationId,
-            bookId: activeBookId,
-            progress: clampPercent(progress),
-            status: 'downloading',
-            jobId,
-          },
-        }));
-      };
-
-      try {
-        await audio.downloadAudioBook({
-          rootUri: audio.AUDIO_DOWNLOAD_ROOT_URI,
-          translationId,
-          book,
-          fileSystem: audio.expoAudioFileSystemAdapter,
-          resolveRemoteAudio: audio.fetchRemoteChapterAudio,
-          jobStore,
-          transport,
-          hooks: {
-            onStart: handleAudioJobUpdate,
-            onReattach: handleAudioJobUpdate,
-            onFailure: (job) => handleAudioJobUpdate(job),
-            onComplete: handleAudioJobUpdate,
-            onProgress: handleAudioBookProgress,
-          },
-        });
-      } catch (error) {
-        if (audio.isAudioDownloadCancellation(error)) {
-          clearCancelledAudioDownload(translationId);
-          return;
+        if (!translation?.hasAudio || !book) {
+          throw new Error('Audio downloads are not available for this book.');
         }
-        throw error;
-      }
 
-      set((state) => ({
-        translations: state.translations.map((item) =>
-          item.id === translationId
-            ? mergeDownloadedAudioBook(
-                {
-                  ...item,
-                  activeDownloadJob: null,
-                },
-                bookId
-              )
-            : item
-        ),
-        downloadProgress: null,
-      }));
-
-      trackBibleStoreEvent('audio_download_completed', {
-        book_count: 1,
-        book_id: bookId,
-        chapter_count: book.chapters,
-        content_kind: 'audio',
-        download_scope: 'book',
-        download_units: 1,
-        translation_id: translationId,
-      });
-    },
-
-    downloadAudioForBooks: async (translationId: string, bookIds: string[]) => {
-      const translation = get().translations.find((item) => item.id === translationId);
-      if (!translation?.hasAudio) {
-        throw new Error('Audio downloads are not available for this translation.');
-      }
-
-      const selectedBooks = bibleBooks.filter((book) => bookIds.includes(book.id));
-      if (selectedBooks.length === 0) {
-        throw new Error('Audio downloads are not available for the selected books.');
-      }
-
-      const audio = await loadAudioDownloadModules();
-      const jobStore = await audio.createAudioDownloadJobStore({
-        fileSystem: audio.expoAudioFileSystemAdapter,
-        rootUri: audio.AUDIO_DOWNLOAD_ROOT_URI,
-      });
-      const transport = await audio.createBackgroundAudioDownloadTransport();
-      // Chapter-level aggregate across every book in the collection, so a whole-Bible download
-      // moves instead of sitting at 0% until a book finishes. The service already coalesces
-      // these events. (N25)
-      const handleAudioCollectionProgress = ({
-        jobId,
-        progress,
-        translationId: progressTranslationId,
-      }: AudioDownloadBookProgress) => {
-        set((state) => ({
-          translations: state.translations.map((item) =>
-            item.id === progressTranslationId
-              ? updateTranslationAudioJobProgress(item, progress)
-              : item
-          ),
-          downloadProgress: {
-            translationId: progressTranslationId,
-            jobId,
-            progress: clampPercent(progress),
-            status: 'downloading',
-          },
-        }));
-      };
-      const handleAudioBookComplete = ({
-        bookId: completedBookId,
-        completedBooks,
-        totalBooks,
-        translationId: completedTranslationId,
-        jobId,
-      }: AudioDownloadCollectionProgress) => {
-        const collectionProgress = clampPercent((completedBooks / totalBooks) * 100);
-        set((state) => {
-          // Never walk backwards: the chapter aggregate above is always >= this book fraction.
-          const nextProgress = Math.max(
-            state.downloadProgress?.translationId === completedTranslationId
-              ? (state.downloadProgress.progress ?? 0)
-              : 0,
-            collectionProgress
-          );
-          return {
+        const audio = await loadAudioDownloadModules();
+        const jobStore = await audio.createAudioDownloadJobStore({
+          fileSystem: audio.expoAudioFileSystemAdapter,
+          rootUri: audio.AUDIO_DOWNLOAD_ROOT_URI,
+        });
+        const transport = await audio.createBackgroundAudioDownloadTransport();
+        const handleAudioBookProgress = ({
+          bookId: activeBookId,
+          progress,
+          translationId: activeTranslationId,
+          jobId,
+        }: AudioDownloadBookProgress) => {
+          set((state) => ({
             translations: state.translations.map((item) =>
-              item.id === completedTranslationId
-                ? updateTranslationAudioJobProgress(
-                    mergeDownloadedAudioBook(item, completedBookId),
-                    nextProgress
-                  )
+              item.id === activeTranslationId
+                ? updateTranslationAudioJobProgress(item, progress)
                 : item
             ),
             downloadProgress: {
-              translationId: completedTranslationId,
+              translationId: activeTranslationId,
+              bookId: activeBookId,
+              progress: clampPercent(progress),
+              status: 'downloading',
               jobId,
-              progress: nextProgress,
+            },
+          }));
+        };
+
+        try {
+          await audio.downloadAudioBook({
+            rootUri: audio.AUDIO_DOWNLOAD_ROOT_URI,
+            translationId,
+            book,
+            fileSystem: audio.expoAudioFileSystemAdapter,
+            resolveRemoteAudio: audio.fetchRemoteChapterAudio,
+            jobStore,
+            transport,
+            hooks: {
+              onStart: handleAudioJobUpdate,
+              onReattach: handleAudioJobUpdate,
+              onFailure: (job) => handleAudioJobUpdate(job),
+              onComplete: handleAudioJobUpdate,
+              onProgress: handleAudioBookProgress,
+            },
+          });
+        } catch (error) {
+          if (audio.isAudioDownloadCancellation(error)) {
+            clearCancelledAudioDownload(translationId);
+            return;
+          }
+          throw error;
+        }
+
+        set((state) => ({
+          translations: state.translations.map((item) =>
+            item.id === translationId
+              ? mergeDownloadedAudioBook(
+                  {
+                    ...item,
+                    activeDownloadJob: null,
+                  },
+                  bookId
+                )
+              : item
+          ),
+          downloadProgress: null,
+        }));
+
+        trackBibleStoreEvent('audio_download_completed', {
+          book_count: 1,
+          book_id: bookId,
+          chapter_count: book.chapters,
+          content_kind: 'audio',
+          download_scope: 'book',
+          download_units: 1,
+          translation_id: translationId,
+        });
+      }
+    ),
+
+    downloadAudioForBooks: shareDownload(
+      (translationId: string, bookIds: string[]) =>
+        `${translationId}:collection:${[...new Set(bookIds)].sort().join(',')}`,
+      async (translationId: string, bookIds: string[]) => {
+        const translation = get().translations.find((item) => item.id === translationId);
+        if (!translation?.hasAudio) {
+          throw new Error('Audio downloads are not available for this translation.');
+        }
+
+        const selectedBooks = bibleBooks.filter((book) => bookIds.includes(book.id));
+        if (selectedBooks.length === 0) {
+          throw new Error('Audio downloads are not available for the selected books.');
+        }
+
+        const audio = await loadAudioDownloadModules();
+        const jobStore = await audio.createAudioDownloadJobStore({
+          fileSystem: audio.expoAudioFileSystemAdapter,
+          rootUri: audio.AUDIO_DOWNLOAD_ROOT_URI,
+        });
+        const transport = await audio.createBackgroundAudioDownloadTransport();
+        // Chapter-level aggregate across every book in the collection, so a whole-Bible download
+        // moves instead of sitting at 0% until a book finishes. The service already coalesces
+        // these events. (N25)
+        const handleAudioCollectionProgress = ({
+          jobId,
+          progress,
+          translationId: progressTranslationId,
+        }: AudioDownloadBookProgress) => {
+          set((state) => ({
+            translations: state.translations.map((item) =>
+              item.id === progressTranslationId
+                ? updateTranslationAudioJobProgress(item, progress)
+                : item
+            ),
+            downloadProgress: {
+              translationId: progressTranslationId,
+              jobId,
+              progress: clampPercent(progress),
               status: 'downloading',
             },
-          };
-        });
-      };
+          }));
+        };
+        const handleAudioBookComplete = ({
+          bookId: completedBookId,
+          completedBooks,
+          totalBooks,
+          translationId: completedTranslationId,
+          jobId,
+        }: AudioDownloadCollectionProgress) => {
+          const collectionProgress = clampPercent((completedBooks / totalBooks) * 100);
+          set((state) => {
+            // Never walk backwards: the chapter aggregate above is always >= this book fraction.
+            const nextProgress = Math.max(
+              state.downloadProgress?.translationId === completedTranslationId
+                ? (state.downloadProgress.progress ?? 0)
+                : 0,
+              collectionProgress
+            );
+            return {
+              translations: state.translations.map((item) =>
+                item.id === completedTranslationId
+                  ? updateTranslationAudioJobProgress(
+                      mergeDownloadedAudioBook(item, completedBookId),
+                      nextProgress
+                    )
+                  : item
+              ),
+              downloadProgress: {
+                translationId: completedTranslationId,
+                jobId,
+                progress: nextProgress,
+                status: 'downloading',
+              },
+            };
+          });
+        };
 
-      let result: { downloadedBookIds: string[] };
-      try {
-        result = await audio.downloadAudioTranslation({
-          rootUri: audio.AUDIO_DOWNLOAD_ROOT_URI,
-          translationId,
-          books: selectedBooks,
-          fileSystem: audio.expoAudioFileSystemAdapter,
-          resolveRemoteAudio: audio.fetchRemoteChapterAudio,
-          jobStore,
-          transport,
-          hooks: {
-            onStart: handleAudioJobUpdate,
-            onReattach: handleAudioJobUpdate,
-            onFailure: (job) => handleAudioJobUpdate(job),
-            onComplete: handleAudioJobUpdate,
-            onProgress: handleAudioCollectionProgress,
-            onBookComplete: handleAudioBookComplete,
-          },
-        });
-      } catch (error) {
-        // User cancellation is terminal-but-not-a-failure: return without throwing so the
-        // picker shows no error alert. (M2)
-        if (audio.isAudioDownloadCancellation(error)) {
-          clearCancelledAudioDownload(translationId);
-          return;
+        let result: { downloadedBookIds: string[] };
+        try {
+          result = await audio.downloadAudioTranslation({
+            rootUri: audio.AUDIO_DOWNLOAD_ROOT_URI,
+            translationId,
+            books: selectedBooks,
+            fileSystem: audio.expoAudioFileSystemAdapter,
+            resolveRemoteAudio: audio.fetchRemoteChapterAudio,
+            jobStore,
+            transport,
+            hooks: {
+              onStart: handleAudioJobUpdate,
+              onReattach: handleAudioJobUpdate,
+              onFailure: (job) => handleAudioJobUpdate(job),
+              onComplete: handleAudioJobUpdate,
+              onProgress: handleAudioCollectionProgress,
+              onBookComplete: handleAudioBookComplete,
+            },
+          });
+        } catch (error) {
+          // User cancellation is terminal-but-not-a-failure: return without throwing so the
+          // picker shows no error alert. (M2)
+          if (audio.isAudioDownloadCancellation(error)) {
+            clearCancelledAudioDownload(translationId);
+            return;
+          }
+          throw error;
         }
-        throw error;
+
+        set((state) => ({
+          translations: state.translations.map((item) =>
+            item.id === translationId
+              ? {
+                  ...item,
+                  activeDownloadJob: null,
+                  downloadedAudioBooks: appendDownloadedAudioBooks(
+                    item.downloadedAudioBooks,
+                    result.downloadedBookIds
+                  ),
+                }
+              : item
+          ),
+          downloadProgress: null,
+        }));
+
+        trackBibleStoreEvent('audio_download_completed', {
+          book_count: result.downloadedBookIds.length,
+          chapter_count: selectedBooks.reduce((total, book) => total + book.chapters, 0),
+          content_kind: 'audio',
+          download_scope:
+            result.downloadedBookIds.length === bibleBooks.length ? 'translation' : 'collection',
+          download_units: result.downloadedBookIds.length,
+          translation_id: translationId,
+        });
       }
-
-      set((state) => ({
-        translations: state.translations.map((item) =>
-          item.id === translationId
-            ? {
-                ...item,
-                activeDownloadJob: null,
-                downloadedAudioBooks: appendDownloadedAudioBooks(
-                  item.downloadedAudioBooks,
-                  result.downloadedBookIds
-                ),
-              }
-            : item
-        ),
-        downloadProgress: null,
-      }));
-
-      trackBibleStoreEvent('audio_download_completed', {
-        book_count: result.downloadedBookIds.length,
-        chapter_count: selectedBooks.reduce((total, book) => total + book.chapters, 0),
-        content_kind: 'audio',
-        download_scope:
-          result.downloadedBookIds.length === bibleBooks.length ? 'translation' : 'collection',
-        download_units: result.downloadedBookIds.length,
-        translation_id: translationId,
-      });
-    },
+    ),
 
     downloadAudioForTranslation: async (translationId: string) => {
       await get().downloadAudioForBooks(

@@ -8,6 +8,8 @@ export interface AudioDownloadJobRecord {
   translationId: string;
   scope: AudioDownloadJobScope;
   bookId?: string;
+  /** Collection targets; absent on legacy translation jobs, which mean the whole Bible. */
+  requestedBookIds?: string[];
   status: AudioDownloadJobStatus;
   createdAt: number;
   updatedAt: number;

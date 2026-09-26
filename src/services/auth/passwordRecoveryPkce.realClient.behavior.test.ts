@@ -1,4 +1,4 @@
-import test, { after, before, mock } from 'node:test';
+import test, { after, afterEach, before, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomFillSync } from 'node:crypto';
 import {
@@ -55,7 +55,7 @@ mockModule(mock, sourcePath('services/startup/publicRuntimeConfig.ts'), {
   },
 });
 mockModule(mock, sourcePath('navigation/rootNavigation.ts'), {
-  rootNavigationRef: { isReady: () => true, navigate: () => {} },
+  rootNavigationRef: { isReady: () => true, resetRoot: () => {} },
   openAuthFlow: () => {},
 });
 
@@ -112,6 +112,9 @@ before(async () => {
   authService = await import('./authService');
   authDeepLink = await import('./authDeepLink');
 });
+
+// Each activation test represents a separate reset screen that has closed.
+afterEach(() => authDeepLink.clearPendingPasswordRecovery());
 
 after(async () => {
   await client.supabase.auth.stopAutoRefresh();

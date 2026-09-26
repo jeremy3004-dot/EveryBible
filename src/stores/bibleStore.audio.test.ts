@@ -53,6 +53,118 @@ const findTranslation = (id: string): BibleTranslation | undefined =>
 const activeJobOf = (id: string): TranslationDownloadJob | null | undefined =>
   findTranslation(id)?.activeDownloadJob;
 
+test('returning to the foreground does not start another writer for a running book download', async () => {
+  let finish!: () => void;
+  let notifyStarted!: () => void;
+  const started = new Promise<void>((resolve) => {
+    notifyStarted = resolve;
+  });
+  const pending = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  doubles.audio.jobs.push(
+    makeAudioJob({ translationId: 'bsb', bookId: 'GEN', status: 'downloading' })
+  );
+  doubles.audio.runBookDownload = async () => {
+    notifyStarted();
+    await pending;
+  };
+
+  const original = useBibleStore.getState().downloadAudioForBook('bsb', 'GEN');
+  await started;
+  await useBibleStore.getState().reattachAudioDownloads();
+  await flushAsyncWork();
+  const writerCount = doubles.audio.bookDownloads.length;
+  finish();
+  await original;
+  await flushAsyncWork();
+
+  assert.equal(
+    writerCount,
+    1,
+    'recovery must reuse the running download instead of duplicating it'
+  );
+});
+
+test('duplicate collection requests share one transfer and may run again after completion', async () => {
+  let finish!: () => void;
+  let notifyStarted!: () => void;
+  const started = new Promise<void>((resolve) => {
+    notifyStarted = resolve;
+  });
+  const pending = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  doubles.audio.runTranslationDownload = async () => {
+    notifyStarted();
+    await pending;
+    return { downloadedBookIds: ['MAT', 'MRK'] };
+  };
+
+  const first = useBibleStore.getState().downloadAudioForBooks('bsb', ['MAT', 'MRK']);
+  const second = useBibleStore.getState().downloadAudioForBooks('bsb', ['MRK', 'MAT']);
+  await started;
+  await flushAsyncWork();
+  const transferCount = doubles.audio.translationDownloads.length;
+  finish();
+  await Promise.all([first, second]);
+
+  assert.equal(transferCount, 1);
+  await useBibleStore.getState().downloadAudioForBooks('bsb', ['MAT', 'MRK']);
+  assert.equal(doubles.audio.translationDownloads.length, 2, 'a completed request is released');
+});
+
+test('failed shared book downloads release their request so a later retry can run', async () => {
+  doubles.audio.runBookDownload = async () => {
+    throw new Error('network failed');
+  };
+  const outcomes = await Promise.allSettled([
+    useBibleStore.getState().downloadAudioForBook('bsb', 'GEN'),
+    useBibleStore.getState().downloadAudioForBook('bsb', 'GEN'),
+  ]);
+  assert.deepEqual(
+    outcomes.map((result) => result.status),
+    ['rejected', 'rejected']
+  );
+  assert.equal(doubles.audio.bookDownloads.length, 1);
+
+  doubles.audio.runBookDownload = async () => {};
+  await useBibleStore.getState().downloadAudioForBook('bsb', 'GEN');
+  assert.equal(doubles.audio.bookDownloads.length, 2);
+});
+
+test('foreground recovery joins a running selected-book collection without expanding it', async () => {
+  let finish!: () => void;
+  let notifyStarted!: () => void;
+  const started = new Promise<void>((resolve) => {
+    notifyStarted = resolve;
+  });
+  const pending = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  doubles.audio.jobs.push({
+    ...makeAudioJob({ translationId: 'bsb', scope: 'translation', status: 'downloading' }),
+    requestedBookIds: ['MAT', 'MRK'],
+  });
+  doubles.audio.runTranslationDownload = async () => {
+    notifyStarted();
+    await pending;
+    return { downloadedBookIds: ['MAT', 'MRK'] };
+  };
+  const original = useBibleStore.getState().downloadAudioForBooks('bsb', ['MAT', 'MRK']);
+  await started;
+  await useBibleStore.getState().reattachAudioDownloads();
+  await flushAsyncWork();
+  const transfers = doubles.audio.translationDownloads.map((call) =>
+    call.books.map((book) => book.id)
+  );
+  finish();
+  await original;
+  await flushAsyncWork();
+
+  assert.deepEqual(transfers, [['MAT', 'MRK']]);
+});
+
 test('downloading audio for a book refuses a translation with no audio', async () => {
   await assert.rejects(() => useBibleStore.getState().downloadAudioForBook('asv', 'GEN'), {
     message: 'Audio downloads are not available for this book.',
@@ -695,6 +807,21 @@ test('reattaching audio downloads resumes a translation-wide job', async () => {
 
   assert.equal(doubles.audio.translationDownloads.length, 1);
   assert.equal(doubles.audio.translationDownloads[0]?.books.length, 66);
+});
+
+test('reattaching a selected-book collection keeps its requested subset', async () => {
+  doubles.audio.jobs.push({
+    ...makeAudioJob({ translationId: 'bsb', scope: 'translation', status: 'downloading' }),
+    requestedBookIds: ['MAT', 'MRK'],
+  });
+
+  await useBibleStore.getState().reattachAudioDownloads();
+  await flushAsyncWork();
+
+  assert.deepEqual(
+    doubles.audio.translationDownloads[0]?.books.map((book) => book.id),
+    ['MAT', 'MRK']
+  );
 });
 
 test('reattaching audio downloads ignores completed and failed jobs so no phantom progress appears', async () => {

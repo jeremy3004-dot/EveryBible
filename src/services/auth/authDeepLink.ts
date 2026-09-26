@@ -20,13 +20,20 @@ export type PendingPasswordRecovery = RecoveryLinkParseResult;
 // exchange attempt, so exchanging on arrival could race itself into a failure.
 // ResetPasswordScreen exchanges the code once the user taps Continue.
 let pendingPasswordRecovery: PendingPasswordRecovery | null = null;
+// Keep ownership after the code is consumed, so duplicate deliveries cannot
+// remount an active form and interrupt its recovery session.
+let activePasswordRecovery: PendingPasswordRecovery | null = null;
+let recoveryActivationStarted = false;
 
 export function getPendingPasswordRecovery(): PendingPasswordRecovery | null {
   return pendingPasswordRecovery;
 }
 
-export function clearPendingPasswordRecovery(): void {
+export function clearPendingPasswordRecovery(owner?: PendingPasswordRecovery | null): void {
+  if (owner !== undefined && owner !== activePasswordRecovery) return;
   pendingPasswordRecovery = null;
+  activePasswordRecovery = null;
+  recoveryActivationStarted = false;
 }
 
 export type ActivateRecoverySessionResult =
@@ -37,7 +44,7 @@ export type ActivateRecoverySessionResult =
 export interface ActivatePasswordRecoveryOptions {
   /** The account signed in on this device when the user confirmed, if any. */
   signedInUserId?: string | null;
-  /** The app's normal sign-out (authStore.signOut). */
+  /** Clears the current account while keeping the isolated recovery route mounted. */
   signOutCurrentAccount?: () => Promise<void>;
 }
 
@@ -91,6 +98,7 @@ export async function activatePendingPasswordRecovery(
   if (!pending || pending.kind !== 'code') {
     return { status: 'missing' };
   }
+  recoveryActivationStarted = true;
 
   if (!isSupabaseConfigured()) {
     return { status: 'failed', problem: 'configuration' };
@@ -139,14 +147,25 @@ export async function activatePendingPasswordRecovery(
 }
 
 function performResetPasswordNavigation(): void {
-  // `initial: false` keeps MoreScreen under the modal when the More tab never rendered
-  // (always so on a cold-start link); see openAuthFlow in navigation/rootNavigation.ts.
-  rootNavigationRef.navigate('More', {
-    screen: 'Auth',
-    params: {
-      screen: 'ResetPassword',
-    },
-    initial: false,
+  // Recovery may replace the account. Discard all prior route keys and screen-local
+  // data before confirmation, with a fresh More screen underneath for dismissal.
+  rootNavigationRef.resetRoot({
+    index: 0,
+    routes: [
+      {
+        name: 'More',
+        state: {
+          index: 1,
+          routes: [
+            { name: 'MoreScreen' },
+            {
+              name: 'Auth',
+              state: { index: 0, routes: [{ name: 'ResetPassword' }] },
+            },
+          ],
+        },
+      },
+    ],
   });
 }
 
@@ -179,7 +198,26 @@ export async function handleAuthDeepLinkUrl(url: string): Promise<boolean> {
     return false;
   }
 
+  if (
+    activePasswordRecovery &&
+    (recoveryActivationStarted ||
+      (activePasswordRecovery.kind === 'code' &&
+        parsed.kind === 'code' &&
+        activePasswordRecovery.code === parsed.code) ||
+      (activePasswordRecovery.kind === 'unusable' &&
+        parsed.kind === 'unusable' &&
+        activePasswordRecovery.reason === parsed.reason))
+  ) {
+    // A different link may replace an unconfirmed one, but once activation has
+    // started the user finishes or closes that flow before opening another.
+    // A duplicate delivered as navigation becomes ready consumes its queued reset.
+    flushPendingResetPasswordNavigation();
+    return true;
+  }
+
   pendingPasswordRecovery = parsed;
+  activePasswordRecovery = parsed;
+  recoveryActivationStarted = false;
   navigateToResetPassword();
   return true;
 }

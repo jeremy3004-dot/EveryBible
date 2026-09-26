@@ -49,6 +49,7 @@ interface StartJobParams extends DownloadContext {
   translationId: string;
   scope: AudioDownloadJobScope;
   bookId?: string;
+  requestedBookIds?: string[];
 }
 
 interface FailJobParams extends DownloadContext {
@@ -133,12 +134,14 @@ const createJobRecord = (
   scope: AudioDownloadJobScope,
   bookId?: string,
   status: AudioDownloadJobStatus = 'downloading',
-  existing?: AudioDownloadJobRecord
+  existing?: AudioDownloadJobRecord,
+  requestedBookIds?: string[]
 ): AudioDownloadJobRecord => {
   const now = Date.now();
   return existing
     ? {
         ...existing,
+        ...(requestedBookIds ? { requestedBookIds: [...requestedBookIds] } : {}),
         translationId,
         scope,
         bookId,
@@ -156,6 +159,7 @@ const createJobRecord = (
         createdAt: now,
         updatedAt: now,
         attemptCount: 1,
+        ...(requestedBookIds ? { requestedBookIds: [...requestedBookIds] } : {}),
       };
 };
 
@@ -171,6 +175,7 @@ export async function startAudioDownloadJob({
   translationId,
   scope,
   bookId,
+  requestedBookIds,
   jobStore,
   hooks,
 }: StartJobParams): Promise<AudioDownloadJobRecord> {
@@ -181,7 +186,7 @@ export async function startAudioDownloadJob({
   if (existing && (existing.status === 'downloading' || existing.status === 'queued')) {
     const reattached = await upsertJob(
       activeJobStore,
-      createJobRecord(translationId, scope, bookId, 'downloading', existing)
+      createJobRecord(translationId, scope, bookId, 'downloading', existing, requestedBookIds)
     );
     hooks?.onReattach?.(reattached);
     return reattached;
@@ -189,7 +194,14 @@ export async function startAudioDownloadJob({
 
   const started = await upsertJob(
     activeJobStore,
-    createJobRecord(translationId, scope, bookId, 'downloading', existing ?? undefined)
+    createJobRecord(
+      translationId,
+      scope,
+      bookId,
+      'downloading',
+      existing ?? undefined,
+      requestedBookIds
+    )
   );
   hooks?.onStart?.(started);
   return started;

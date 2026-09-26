@@ -301,6 +301,80 @@ test('a trailing space does not search again or re-announce the same results', a
   );
 });
 
+test('changing translations hides prior results until the selected translation answers', async (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout'] });
+  const view = await renderBrowser();
+  await view.changeText(view.getByLabelText(t('common.search')), 'love');
+  await tickTimers(context, BIBLE_SEARCH_DEBOUNCE_MS);
+  await waitUntil(() => searches.length === 1);
+  await act(async () => searches[0].resolve([verse('1JN', 4, 8, 'BSB search text.')]));
+  assert.ok(view.getByRole('button', { name: /BSB search text\./ }));
+
+  await act(async () => bibleStore.setState({ currentTranslation: 'web' }));
+  assert.equal(translationEntry(view)?.props.accessibilityValue.text, 'World English Bible');
+  assert.equal(view.queryByText(/BSB search text\./), null);
+  assert.equal(view.queryByRole('button', { name: /1 John 4:8/ }), null);
+  assert.equal(view.queryByText(t('bible.searchNoResults')), null);
+  assert.equal(view.queryAllByType('VersesSkeleton').length, 1);
+
+  await tickTimers(context, BIBLE_SEARCH_DEBOUNCE_MS);
+  await waitUntil(() => searches.length === 2);
+  assert.deepEqual(
+    searches.map(({ translationId, query }) => ({ translationId, query })),
+    [
+      { translationId: 'bsb', query: 'love' },
+      { translationId: 'web', query: 'love' },
+    ]
+  );
+  await act(async () => searches[1].resolve([verse('1JN', 4, 8, 'WEB search text.')]));
+  assert.ok(view.getByRole('button', { name: /WEB search text\./ }));
+  assert.equal(view.queryByText(/BSB search text\./), null);
+});
+
+test('a late prior-translation response cannot replace current search results', async (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout'] });
+  const view = await renderBrowser();
+  await view.changeText(view.getByLabelText(t('common.search')), 'love');
+  await tickTimers(context, BIBLE_SEARCH_DEBOUNCE_MS);
+  await waitUntil(() => searches.length === 1);
+  await act(async () => bibleStore.setState({ currentTranslation: 'web' }));
+  await tickTimers(context, BIBLE_SEARCH_DEBOUNCE_MS);
+  await waitUntil(() => searches.length === 2);
+
+  await act(async () => searches[1].resolve([verse('1JN', 4, 8, 'WEB search text.')]));
+  await act(async () => searches[0].resolve([verse('1JN', 4, 8, 'Late BSB search text.')]));
+  assert.ok(view.getByText(/WEB search text\./));
+  assert.equal(view.queryByText(/Late BSB search text\./), null);
+});
+
+test('switching back hides the other translation results and rejects its late response', async (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout'] });
+  const view = await renderBrowser();
+  const input = view.getByLabelText(t('common.search'));
+  await view.changeText(input, 'love');
+  await tickTimers(context, BIBLE_SEARCH_DEBOUNCE_MS);
+  await waitUntil(() => searches.length === 1);
+  await act(async () => searches[0].resolve([verse('1JN', 4, 8, 'BSB search text.')]));
+  await act(async () => bibleStore.setState({ currentTranslation: 'web' }));
+  await tickTimers(context, BIBLE_SEARCH_DEBOUNCE_MS);
+  await waitUntil(() => searches.length === 2);
+  await act(async () => searches[1].resolve([verse('1JN', 4, 8, 'WEB search text.')]));
+  await view.changeText(input, 'grace');
+  await tickTimers(context, BIBLE_SEARCH_DEBOUNCE_MS);
+  await waitUntil(() => searches.length === 3);
+  assert.ok(view.getByText(/WEB search text\./), 'same-translation edits retain results');
+
+  await act(async () => bibleStore.setState({ currentTranslation: 'bsb' }));
+  assert.equal(view.queryByText(/WEB search text\./), null);
+  await act(async () => searches[2].resolve([verse('EPH', 2, 8, 'Late WEB search text.')]));
+  assert.equal(view.queryByText(/Late WEB search text\./), null);
+  await tickTimers(context, BIBLE_SEARCH_DEBOUNCE_MS);
+  await waitUntil(() => searches.length === 4);
+  await act(async () => searches[3].resolve([]));
+  assert.ok(view.getByText(t('bible.searchNoResults')));
+  assert.equal(view.queryAllByType('VersesSkeleton').length, 0);
+});
+
 test('a slower earlier search never overwrites the results of a newer one', async (context) => {
   context.mock.timers.enable({ apis: ['setTimeout'] });
   const view = await renderBrowser();

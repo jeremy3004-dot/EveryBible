@@ -30,6 +30,7 @@ import { assertEnoughFreeSpaceForAudioDownload, toInsufficientSpaceError } from 
 import {
   registerAudioDownloadAbortController,
   releaseAudioDownloadAbortController,
+  runAudioBookExclusively,
 } from './activeDownloads';
 import {
   completeAudioDownloadJob,
@@ -152,95 +153,97 @@ export async function downloadAudioBook({
   };
 
   try {
-    await fileSystem.ensureDirectory(directoryUri);
-    verifiedSizes = await openVerifiedChapterSizes(fileSystem, directoryUri);
-    await runWithConcurrency(
-      chapterTargets,
-      DEFAULT_CHAPTER_DOWNLOAD_CONCURRENCY,
-      async (target) => {
-        chapterProgressByNumber.set(target.chapter, 0);
-        const fileUri = getChapterAudioFileUri(
-          translationId,
-          target.bookId,
-          target.chapter,
-          resolvedRootUri
-        );
-        let remoteAudio: RemoteAudioAsset | null;
-        if (await isValidDownloadedAudioFile(fileSystem, fileUri, true)) {
-          if (signal.aborted) throw new AudioDownloadCancelledError();
-          if (await verifiedSizes.isVerified(target.chapter, fileUri)) {
-            if (signal.aborted) throw new AudioDownloadCancelledError();
-            chapterProgressByNumber.set(target.chapter, 100);
-            emitBookProgress(target.chapter);
-            return;
-          }
-          // A file over the 1KB floor can still be a truncated transfer (an interrupted download
-          // from an older build wrote straight to this path). When the source publishes the
-          // chapter's size, a mismatch means incomplete: delete it and download again. A lookup
-          // failure keeps the file, as before, rather than failing a download that is done, but
-          // leaves it unverified so the next resume checks it again.
-          let lookupFailed = false;
-          remoteAudio = await resolveRemoteAudio(
+    await runAudioBookExclusively(directoryUri, signal, async () => {
+      await fileSystem.ensureDirectory(directoryUri);
+      verifiedSizes = await openVerifiedChapterSizes(fileSystem, directoryUri);
+      await runWithConcurrency(
+        chapterTargets,
+        DEFAULT_CHAPTER_DOWNLOAD_CONCURRENCY,
+        async (target) => {
+          chapterProgressByNumber.set(target.chapter, 0);
+          const fileUri = getChapterAudioFileUri(
             translationId,
             target.bookId,
-            target.chapter
-          ).catch(() => {
-            lookupFailed = true;
-            return null;
-          });
-          if (signal.aborted) throw new AudioDownloadCancelledError();
-          if (!(await isCachedChapterSizeWrong(fileSystem, fileUri, remoteAudio?.bytes))) {
-            if (!lookupFailed) await verifiedSizes.record(target.chapter, fileUri);
-            chapterProgressByNumber.set(target.chapter, 100);
-            emitBookProgress(target.chapter);
-            return;
-          }
-          await fileSystem.deleteFile?.(fileUri);
-        } else {
-          remoteAudio = await resolveRemoteAudio(translationId, target.bookId, target.chapter);
-        }
-
-        if (!remoteAudio?.url) {
-          throw new Error(`Audio is not available for ${target.bookId} ${target.chapter}`);
-        }
-
-        await downloadChapterWithInactivityTimeoutAndRetry(async (onActivity, attemptSignal) => {
-          await activeTransport.downloadFile(remoteAudio.url, fileUri, {
-            jobId: job.id,
-            taskId: createAudioDownloadTaskId(job.id, target.bookId, target.chapter),
-            translationId,
-            bookId: target.bookId,
-            chapter: target.chapter,
-            signal: attemptSignal,
-            onProgress: ({ bytesDownloaded, bytesTotal }) => {
-              if (!onActivity()) return;
-              const chapterProgress =
-                bytesTotal > 0
-                  ? Math.min(99, clampProgress((bytesDownloaded / bytesTotal) * 100))
-                  : 0;
-              chapterProgressByNumber.set(target.chapter, chapterProgress);
+            target.chapter,
+            resolvedRootUri
+          );
+          let remoteAudio: RemoteAudioAsset | null;
+          if (await isValidDownloadedAudioFile(fileSystem, fileUri, true)) {
+            if (signal.aborted) throw new AudioDownloadCancelledError();
+            if (await verifiedSizes.isVerified(target.chapter, fileUri)) {
+              if (signal.aborted) throw new AudioDownloadCancelledError();
+              chapterProgressByNumber.set(target.chapter, 100);
               emitBookProgress(target.chapter);
-            },
-          });
-          if (attemptSignal.aborted) throw new AudioDownloadCancelledError();
-          await verifyDownloadedChapterAudio({
-            fileSystem,
-            fileUri,
-            expected: { bytes: remoteAudio.bytes, sha256: remoteAudio.sha256 },
-          });
-        }, signal);
+              return;
+            }
+            // A file over the 1KB floor can still be a truncated transfer (an interrupted download
+            // from an older build wrote straight to this path). When the source publishes the
+            // chapter's size, a mismatch means incomplete: delete it and download again. A lookup
+            // failure keeps the file, as before, rather than failing a download that is done, but
+            // leaves it unverified so the next resume checks it again.
+            let lookupFailed = false;
+            remoteAudio = await resolveRemoteAudio(
+              translationId,
+              target.bookId,
+              target.chapter
+            ).catch(() => {
+              lookupFailed = true;
+              return null;
+            });
+            if (signal.aborted) throw new AudioDownloadCancelledError();
+            if (!(await isCachedChapterSizeWrong(fileSystem, fileUri, remoteAudio?.bytes))) {
+              if (!lookupFailed) await verifiedSizes.record(target.chapter, fileUri);
+              chapterProgressByNumber.set(target.chapter, 100);
+              emitBookProgress(target.chapter);
+              return;
+            }
+            await fileSystem.deleteFile?.(fileUri);
+          } else {
+            remoteAudio = await resolveRemoteAudio(translationId, target.bookId, target.chapter);
+          }
 
-        if (signal.aborted) throw new AudioDownloadCancelledError();
-        await verifiedSizes.record(target.chapter, fileUri);
-        chapterProgressByNumber.set(target.chapter, 100);
-        emitBookProgress(target.chapter);
-      },
-      signal
-    );
+          if (!remoteAudio?.url) {
+            throw new Error(`Audio is not available for ${target.bookId} ${target.chapter}`);
+          }
 
-    if (signal.aborted) {
-      throw new AudioDownloadCancelledError();
-    }
+          await downloadChapterWithInactivityTimeoutAndRetry(async (onActivity, attemptSignal) => {
+            await activeTransport.downloadFile(remoteAudio.url, fileUri, {
+              jobId: job.id,
+              taskId: createAudioDownloadTaskId(job.id, target.bookId, target.chapter),
+              translationId,
+              bookId: target.bookId,
+              chapter: target.chapter,
+              signal: attemptSignal,
+              onProgress: ({ bytesDownloaded, bytesTotal }) => {
+                if (!onActivity()) return;
+                const chapterProgress =
+                  bytesTotal > 0
+                    ? Math.min(99, clampProgress((bytesDownloaded / bytesTotal) * 100))
+                    : 0;
+                chapterProgressByNumber.set(target.chapter, chapterProgress);
+                emitBookProgress(target.chapter);
+              },
+            });
+            if (attemptSignal.aborted) throw new AudioDownloadCancelledError();
+            await verifyDownloadedChapterAudio({
+              fileSystem,
+              fileUri,
+              expected: { bytes: remoteAudio.bytes, sha256: remoteAudio.sha256 },
+            });
+          }, signal);
+
+          if (signal.aborted) throw new AudioDownloadCancelledError();
+          await verifiedSizes.record(target.chapter, fileUri);
+          chapterProgressByNumber.set(target.chapter, 100);
+          emitBookProgress(target.chapter);
+        },
+        signal
+      );
+
+      if (signal.aborted) {
+        throw new AudioDownloadCancelledError();
+      }
+    });
   } catch (error) {
     let failure = error instanceof Error ? error : new Error(String(error));
 
@@ -305,6 +308,7 @@ export async function downloadAudioTranslation({
   const translationJob = await startAudioDownloadJob({
     translationId,
     scope: 'translation',
+    requestedBookIds: books.map((book) => book.id),
     jobStore: activeJobStore,
     hooks,
   });

@@ -1,5 +1,6 @@
 import test, { before, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
+import { StackRouter, TabRouter } from '@react-navigation/routers';
 import { mockModule, sourcePath } from '../../testing/mockModules';
 import { createSupabaseFake } from '../../testing/supabaseFake';
 
@@ -37,7 +38,7 @@ const navigator: {
 mockModule(mock, sourcePath('navigation/rootNavigation.ts'), {
   rootNavigationRef: {
     isReady: () => navigator.ready,
-    navigate: (...args: unknown[]) => {
+    resetRoot: (...args: unknown[]) => {
       navigator.navigations.push(args);
     },
     getCurrentRoute: () =>
@@ -46,12 +47,24 @@ mockModule(mock, sourcePath('navigation/rootNavigation.ts'), {
   openAuthFlow: () => {},
 });
 
-// `initial: false` keeps the More page under the modal when the More tab has never
-// rendered; without it the More stack was only [Auth], and closing the reset screen
-// left the More tab stuck on the modal with nothing beneath it.
+// Fresh route state discards previous-account screen-local data. MoreScreen
+// stays underneath the recovery modal so dismissal always has somewhere to go.
 const RESET_PASSWORD_ROUTE = [
-  'More',
-  { screen: 'Auth', params: { screen: 'ResetPassword' }, initial: false },
+  {
+    index: 0,
+    routes: [
+      {
+        name: 'More',
+        state: {
+          index: 1,
+          routes: [
+            { name: 'MoreScreen' },
+            { name: 'Auth', state: { index: 0, routes: [{ name: 'ResetPassword' }] } },
+          ],
+        },
+      },
+    ],
+  },
 ] as const;
 
 // auth-js keeps the PKCE verifier beside the session in auth storage and deletes it on every
@@ -338,6 +351,71 @@ test('a recovery link navigates into ResetPassword inside the Auth stack of the 
   assert.deepEqual(navigator.navigations, [[...RESET_PASSWORD_ROUTE]]);
 });
 
+test('recovery resets previous tab routes and dismisses onto a fresh More screen', async () => {
+  const tabs = TabRouter({});
+  const tabOptions = {
+    routeNames: ['Home', 'Bible', 'Learn', 'Plans', 'More'],
+    routeParamList: {},
+    routeGetIdList: {},
+  };
+  const previous = tabs.getInitialState(tabOptions);
+  const previousKeys = new Set(previous.routes.map((route) => route.key));
+  await authDeepLink.handleAuthDeepLinkUrl(RECOVERY_URL);
+  const request = navigator.navigations.at(-1)?.[0];
+  assert.ok(request);
+  const reset = tabs.getStateForAction(
+    previous,
+    { type: 'RESET', payload: request as Parameters<typeof tabs.getRehydratedState>[0] },
+    tabOptions
+  );
+  assert.ok(reset);
+  const current = tabs.getRehydratedState(reset, tabOptions);
+  assert.equal(current.routes[current.index]?.name, 'More');
+  assert.ok(current.routes.every((route) => !previousKeys.has(route.key)));
+
+  const moreRoute = current.routes.find((route) => route.name === 'More');
+  assert.ok(moreRoute?.state);
+  const more = StackRouter({ initialRouteName: 'MoreScreen' });
+  const moreOptions = {
+    routeNames: ['MoreScreen', 'Profile', 'ReadingActivity', 'Auth'],
+    routeParamList: {},
+    routeGetIdList: {},
+  };
+  const moreState = more.getRehydratedState(
+    moreRoute.state as Parameters<typeof more.getRehydratedState>[0],
+    moreOptions
+  );
+  assert.deepEqual(
+    moreState.routes.map((route) => route.name),
+    ['MoreScreen', 'Auth']
+  );
+  const authState = moreState.routes[1]?.state;
+  assert.ok(authState);
+  const auth = StackRouter({});
+  const recoveredAuthState = auth.getRehydratedState(
+    authState as Parameters<typeof auth.getRehydratedState>[0],
+    {
+      routeNames: ['AuthScreen', 'ResetPassword'],
+      routeParamList: {},
+      routeGetIdList: {},
+    }
+  );
+  assert.deepEqual(
+    recoveredAuthState.routes.map((route) => route.name),
+    ['ResetPassword']
+  );
+
+  // ResetPasswordFlow's cancel and success both close its parent modal. A swipe
+  // closes that same route; each path lands on a newly keyed MoreScreen.
+  const dismissed = more.getStateForAction(moreState, { type: 'GO_BACK' }, moreOptions);
+  assert.ok(dismissed);
+  assert.deepEqual(
+    dismissed.routes.map((route) => route.name),
+    ['MoreScreen']
+  );
+  assert.equal(dismissed.index, 0);
+});
+
 test('a link that arrives before the navigator is ready defers navigation', async () => {
   navigator.ready = false;
 
@@ -380,10 +458,7 @@ test('flushing with nothing pending navigates nowhere', () => {
   assert.deepEqual(navigator.navigations, []);
 });
 
-// Documents current behaviour rather than endorsing it: the pending flag is a
-// single boolean, so a link handled directly while another is still deferred
-// does not consume it. See the QUESTION in the domain A report.
-test('a link handled while the navigator is ready leaves an earlier deferred link pending', async () => {
+test('a duplicate delivered when navigation becomes ready consumes its earlier deferred reset', async () => {
   navigator.ready = false;
   await authDeepLink.handleAuthDeepLinkUrl(RECOVERY_URL);
 
@@ -393,5 +468,5 @@ test('a link handled while the navigator is ready leaves an earlier deferred lin
 
   authDeepLink.flushPendingResetPasswordNavigation();
 
-  assert.deepEqual(navigator.navigations, [[...RESET_PASSWORD_ROUTE], [...RESET_PASSWORD_ROUTE]]);
+  assert.deepEqual(navigator.navigations, [[...RESET_PASSWORD_ROUTE]]);
 });

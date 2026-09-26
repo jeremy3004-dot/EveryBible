@@ -66,6 +66,79 @@ const createPersistentFileSystemDouble = () => {
   return { fileSystem, files };
 };
 
+test('a book and an overlapping collection never download the same chapter concurrently', async () => {
+  const book = getBookById('PHM');
+  assert.ok(book);
+  const files = new Set<string>();
+  const sizes = new Map<string, number>();
+  const textFiles = new Map<string, string>();
+  let finish!: () => void;
+  let notifyStarted!: () => void;
+  const started = new Promise<void>((resolve) => {
+    notifyStarted = resolve;
+  });
+  const pending = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  let transferCount = 0;
+  let lookupCount = 0;
+  const fileSystem: AudioFileSystemAdapter = {
+    ensureDirectory: async () => {},
+    fileExists: async (uri) => files.has(uri),
+    downloadFile: async (_source, destination) => {
+      transferCount += 1;
+      notifyStarted();
+      await pending;
+      files.add(destination);
+      sizes.set(destination, 5000);
+    },
+    getFileSize: async (uri) => sizes.get(uri) ?? null,
+    readTextFile: async (uri) => textFiles.get(uri) ?? null,
+    writeTextFile: async (uri, contents) => {
+      textFiles.set(uri, contents);
+    },
+  };
+  const options = {
+    translationId: 'overlap',
+    rootUri: 'file:///overlap-test/',
+    fileSystem,
+    resolveRemoteAudio: async () => {
+      lookupCount += 1;
+      return { url: 'https://audio.example/chapter.mp3', duration: 1000, bytes: 5000 };
+    },
+  };
+  const standalone = downloadAudioBook({ ...options, book });
+  const collection = downloadAudioTranslation({ ...options, books: [book] });
+  await started;
+  await new Promise((resolve) => setImmediate(resolve));
+  finish();
+  await Promise.all([standalone, collection]);
+
+  assert.equal(transferCount, 1, 'the later request should reuse the first verified chapter');
+  assert.equal(lookupCount, 1, 'the later request should reuse the persisted verification receipt');
+});
+
+test('a selected-book audio collection persists the requested books for recovery', async () => {
+  const disk = createPersistentFileSystemDouble();
+  const rootUri = 'file:///selected-collection/';
+  const book = getBookById('PHM');
+  assert.ok(book);
+  await downloadAudioTranslation({
+    translationId: 'bsb',
+    books: [book],
+    rootUri,
+    fileSystem: disk.fileSystem,
+    resolveRemoteAudio: async () => ({ url: 'https://audio.example/chapter.mp3', duration: 1000 }),
+  });
+
+  const registry = JSON.parse(disk.files.get(`${rootUri}download-jobs.json`) ?? '{}') as {
+    jobs: Array<AudioDownloadJobRecord & { requestedBookIds?: string[] }>;
+  };
+  assert.deepEqual(registry.jobs.find((job) => job.scope === 'translation')?.requestedBookIds, [
+    'PHM',
+  ]);
+});
+
 test.afterEach(() => {
   setRemoteAudioMetadataResolver(null);
   setElManifestChapterResolverForTests(null);

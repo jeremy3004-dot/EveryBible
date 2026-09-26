@@ -44,7 +44,10 @@ export function useBibleSearch(
   t: TFunction
 ): BibleSearchState {
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<Verse[]>([]);
+  const [searchResult, setSearchResult] = useState<{
+    translationId: string;
+    verses: Verse[];
+  } | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   // Which translation + query the current results answer, so "no results" is shown only
@@ -52,6 +55,9 @@ export function useBibleSearch(
   const [completedSearchKey, setCompletedSearchKey] = useState<string | null>(null);
   const searchRequestIdRef = useRef(0);
   const deferredSearchQuery = useDeferredValue(searchQuery);
+  // Keep results during query edits, but never show verses from another translation.
+  // Gate at render time so a translation change hides them before its effect runs.
+  const searchResults = searchResult?.translationId === translationId ? searchResult.verses : [];
 
   // The book names the interface shows, so a reference typed with them opens the passage in
   // languages the reference grammar does not cover. `t` changes with the interface language.
@@ -79,7 +85,7 @@ export function useBibleSearch(
 
     if (searchIntent.kind !== 'full-text') {
       searchRequestIdRef.current += 1;
-      setSearchResults([]);
+      setSearchResult(null);
       setCompletedSearchKey(null);
       setSearchError(null);
       setIsSearching(false);
@@ -101,7 +107,7 @@ export function useBibleSearch(
           const results = await searchBible(translationId, searchIntent.query);
 
           if (!isCancelled && requestId === searchRequestIdRef.current) {
-            setSearchResults(results);
+            setSearchResult({ translationId, verses: results });
             setCompletedSearchKey(toSearchKey(translationId, searchIntent.query));
             // Results land under the search field while focus stays in it; without
             // this a screen-reader user cannot tell a finished search (or an empty
@@ -111,7 +117,7 @@ export function useBibleSearch(
         } catch (error) {
           if (!isCancelled && requestId === searchRequestIdRef.current) {
             console.error('Error searching Bible:', error);
-            setSearchResults([]);
+            setSearchResult(null);
             const message = isBibleSearchUnavailableError(error)
               ? searchUnavailableMessage
               : failedToLoadMessage;

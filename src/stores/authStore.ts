@@ -56,7 +56,7 @@ interface AuthState {
     fieldStamps?: PreferenceFieldStamps
   ) => void;
   markPreferencesSynced: (base: UserPreferences) => void;
-  signOut: () => Promise<void>;
+  signOut: (options?: { reason: 'password-recovery' }) => Promise<void>;
   initialize: () => Promise<void>;
   // Reconcile the auth boundary before the first post-sign-in sync: if the newly
   // authenticated uid differs from the last-synced uid, reset all per-user
@@ -68,6 +68,14 @@ let authSubscription: Subscription | null = null;
 // Counts the auth changes the subscription has applied. initialize() compares it
 // across its session restore: a change heard meanwhile is newer than the restore.
 let authChangesApplied = 0;
+
+// A confirmed recovery transition keeps its fresh navigation tree alive while
+// SIGNED_OUT clears the old account. No other account preference is retained.
+let preserveOnboardingDuringRecoverySignOut = false;
+const signOutPreferences = (): UserPreferences =>
+  preserveOnboardingDuringRecoverySignOut
+    ? { ...defaultAuthPreferences, onboardingCompleted: true }
+    : defaultAuthPreferences;
 
 // @supabase/supabase-js (~520KB) and the native sign-in SDKs (google-signin,
 // expo-apple-authentication) are only ever touched inside async actions, but a
@@ -344,7 +352,7 @@ export const useAuthStore = create<AuthState>()(
               resetPerUserState: resetPerUserStores,
               resetPreferences: () =>
                 set({
-                  preferences: defaultAuthPreferences,
+                  preferences: signOutPreferences(),
                   preferencesUpdatedAt: null,
                   preferencesSyncBase: null,
                   preferenceFieldStamps: {},
@@ -425,41 +433,47 @@ export const useAuthStore = create<AuthState>()(
 
       markPreferencesSynced: (base) => set({ preferencesSyncBase: base }),
 
-      signOut: async () => {
+      signOut: async (options) => {
         const previousUserId = get().user?.uid ?? null;
+        preserveOnboardingDuringRecoverySignOut =
+          options?.reason === 'password-recovery' && get().preferences.onboardingCompleted;
 
-        // Deactivate the push token BEFORE tearing down the session, while it
-        // still exists so the RLS-protected user_devices update is allowed (M9).
-        // It waits at most PUSH_TOKEN_SIGN_OUT_TIMEOUT_MS and records what it could
-        // not confirm, so an offline sign-out is never held up by it.
-        if (previousUserId) {
-          try {
-            const { deactivatePushToken } = await import('../services/notifications');
-            await deactivatePushToken(previousUserId);
-          } catch {
-            // Best-effort: never block sign-out on token cleanup.
+        try {
+          // Deactivate the push token BEFORE tearing down the session, while it
+          // still exists so the RLS-protected user_devices update is allowed (M9).
+          // It waits at most PUSH_TOKEN_SIGN_OUT_TIMEOUT_MS and records what it could
+          // not confirm, so an offline sign-out is never held up by it.
+          if (previousUserId) {
+            try {
+              const { deactivatePushToken } = await import('../services/notifications');
+              await deactivatePushToken(previousUserId);
+            } catch {
+              // Best-effort: never block sign-out on token cleanup.
+            }
           }
+
+          await getAuthModule().signOut();
+
+          // Clear all per-user local stores so the next account on this device
+          // never inherits or merges this account's reading data (H2).
+          resetPerUserStores();
+          showPrivateDataOf(null);
+
+          set({
+            user: null,
+            session: null,
+            isAuthenticated: false,
+            awaitingTokenRefresh: false,
+            preferences: signOutPreferences(),
+            preferencesUpdatedAt: null,
+            preferencesSyncBase: null,
+            preferenceFieldStamps: {},
+            lastSyncedUserId: null,
+            authGeneration: get().authGeneration + (previousUserId ? 1 : 0),
+          });
+        } finally {
+          preserveOnboardingDuringRecoverySignOut = false;
         }
-
-        await getAuthModule().signOut();
-
-        // Clear all per-user local stores so the next account on this device
-        // never inherits or merges this account's reading data (H2).
-        resetPerUserStores();
-        showPrivateDataOf(null);
-
-        set({
-          user: null,
-          session: null,
-          isAuthenticated: false,
-          awaitingTokenRefresh: false,
-          preferences: defaultAuthPreferences,
-          preferencesUpdatedAt: null,
-          preferencesSyncBase: null,
-          preferenceFieldStamps: {},
-          lastSyncedUserId: null,
-          authGeneration: get().authGeneration + (previousUserId ? 1 : 0),
-        });
       },
 
       reconcileUserBoundary: (userId, previousUserId = get().user?.uid ?? null) => {
