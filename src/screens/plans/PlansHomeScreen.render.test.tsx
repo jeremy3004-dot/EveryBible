@@ -116,6 +116,7 @@ const service = {
   // failure — both distinct from unenrollError, which always carries a message.
   unenrollFailsSilently: false,
   unenrollThrows: null as unknown,
+  unenrollGate: null as Gate | null,
   listCalls: 0,
   hydrateCalls: 0,
   unenrolled: [] as string[],
@@ -135,6 +136,7 @@ mockModule(mock, sourcePath('services/plans/readingPlanService.ts'), {
   },
   unenrollFromPlan: async (planId: string) => {
     service.unenrolled.push(planId);
+    await service.unenrollGate?.promise;
     if (service.unenrollThrows) throw service.unenrollThrows;
     if (service.unenrollError) return { success: false, error: service.unenrollError };
     if (service.unenrollFailsSilently) return { success: false };
@@ -210,6 +212,7 @@ afterEach(async () => {
     unenrollError: null,
     unenrollFailsSilently: false,
     unenrollThrows: null,
+    unenrollGate: null,
     listCalls: 0,
     hydrateCalls: 0,
     unenrolled: [],
@@ -674,6 +677,71 @@ test('deleting an active plan asks first; cancelling keeps it, confirming remove
   assert.deepEqual(service.unenrolled, [PSALMS]);
   assert.equal(view.queryByRole('button', { name: titleOf(PSALMS) }), null);
 });
+
+test('a leave-plan confirmation from account A cannot unenroll the current account B', async () => {
+  harness.authStore.setState({ user: { uid: 'account-a' } });
+  await seed(progressRow(PSALMS));
+  const view = await renderHome();
+  const row = view.queryAllByType('Swipeable')[0];
+  await view.press(within(row).getByRole('button', { name: t('common.delete') }));
+  const { leave } = deleteConfirmation();
+  await act(async () => {
+    harness.authStore.setState({ user: { uid: 'account-b' } });
+  });
+  await act(async () => {
+    await leave?.onPress?.();
+  });
+  assert.deepEqual(service.unenrolled, []);
+});
+
+for (const transition of ['generation', 'unmount'] as const) {
+  test(`a leave-plan confirmation is discarded after ${transition}`, async () => {
+    harness.authStore.setState({ user: { uid: 'account-a' }, authGeneration: 0 });
+    await seed(progressRow(PSALMS));
+    const view = await renderHome();
+    const row = view.queryAllByType('Swipeable')[0];
+    await view.press(within(row).getByRole('button', { name: t('common.delete') }));
+    const { leave } = deleteConfirmation();
+    if (transition === 'generation') {
+      await act(async () => harness.authStore.setState({ authGeneration: 1 }));
+    } else {
+      await view.unmount();
+    }
+    await act(async () => {
+      await leave?.onPress?.();
+    });
+    assert.deepEqual(service.unenrolled, []);
+  });
+}
+
+for (const transition of ['account', 'unmount'] as const) {
+  test(`a pending leave-plan failure does not alert after ${transition}`, async () => {
+    harness.authStore.setState({ user: { uid: 'account-a' }, authGeneration: 0 });
+    await seed(progressRow(PSALMS));
+    const view = await renderHome();
+    const row = view.queryAllByType('Swipeable')[0];
+    await view.press(within(row).getByRole('button', { name: t('common.delete') }));
+    const { leave } = deleteConfirmation();
+    service.unenrollGate = gate();
+    service.unenrollFailsSilently = true;
+    let pending: unknown;
+    await act(async () => {
+      pending = leave?.onPress?.();
+    });
+    if (transition === 'account') {
+      await act(async () =>
+        harness.authStore.setState({ user: { uid: 'account-b' }, authGeneration: 1 })
+      );
+    } else {
+      await view.unmount();
+    }
+    service.unenrollGate.open();
+    await act(async () => {
+      await pending;
+    });
+    assert.equal(harness.rn.__recorded.alerts.length, 1, 'only the original confirmation');
+  });
+}
 
 test('swiping an active plan reveals Delete, which unenrolls it through the plan service', async () => {
   await seed(progressRow(PSALMS), progressRow(PROVERBS));

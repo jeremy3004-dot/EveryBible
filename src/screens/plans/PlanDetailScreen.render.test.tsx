@@ -1,10 +1,11 @@
 import test, { afterEach, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import type { Mutate } from 'zustand/vanilla';
-import type { ReactTestInstance } from 'react-test-renderer';
+import { act, type ReactTestInstance } from 'react-test-renderer';
 import { create } from 'zustand';
 import {
   mockMmkvStorage,
+  mockBarrel,
   mockModule,
   mockSupabaseModule,
   sourcePath,
@@ -65,6 +66,18 @@ mockModule(mock, sourcePath('i18n/index.ts'), { default: harness.i18n });
 mockModule(mock, 'expo-constants', { default: { expoConfig: { extra: {} } } });
 // Plans are local-first; with no backend configured, enrolling stays on the device.
 mockSupabaseModule(mock, createSupabaseFake(), { configured: false });
+const leaveService = { run: null as (() => Promise<{ success: boolean }>) | null };
+mockBarrel(mock, 'services/plans/readingPlanService.ts', {
+  real: ['listReadingPlans', 'getPlanEntries', 'getPlansByCategory', 'enrollInPlan'],
+  provide: {
+    unenrollFromPlan: async (planId: string) =>
+      leaveService.run
+        ? leaveService.run()
+        : (await import('../../services/plans/readingPlan/planProgressActions')).unenrollFromPlan(
+            planId
+          ),
+  },
+});
 // Cover art is bundled PNGs, which Node cannot require.
 mockModule(mock, sourcePath('services/plans/readingPlanAssets.ts'), {
   READING_PLAN_COVER_SOURCES: [],
@@ -88,6 +101,7 @@ async function loadStore() {
 }
 
 beforeEach(() => {
+  leaveService.run = null;
   mock.timers.enable({ apis: ['Date'], now: new Date(TODAY) });
 });
 
@@ -602,6 +616,96 @@ test('plan options appear only once enrolled, and leaving asks first, then unenr
   assert.equal(store.getState().progressByPlanId[PSALMS], undefined);
   assert.deepEqual(harness.navigation.calls.at(-1), { method: 'goBack', args: [] });
 });
+
+test('a leave-plan alert cannot remove the next account plan from its detail screen', async () => {
+  harness.authStore.setState({ user: { uid: 'account-a' } });
+  const store = await enroll(PSALMS, { current_day: 3 });
+  const view = await renderPlan(PSALMS);
+  await view.press(view.getByRole('button', { name: t('readingPlans.planOptions') }));
+  const buttons = harness.rn.__recorded.alerts.at(-1)?.buttons as Array<{
+    style?: string;
+    onPress?: () => Promise<void>;
+  }>;
+  const leave = buttons.find((button) => button.style === 'destructive');
+  assert.ok(leave?.onPress);
+  await act(async () => {
+    harness.authStore.setState({ user: { uid: 'account-b' } });
+  });
+  await act(async () => {
+    await leave.onPress?.();
+  });
+  assert.ok(store.getState().progressByPlanId[PSALMS], 'account B did not confirm leaving');
+  assert.deepEqual(harness.navigation.calls, []);
+});
+
+for (const transition of ['generation', 'unmount', 'route'] as const) {
+  test(`a detail leave-plan confirmation is discarded after ${transition}`, async () => {
+    harness.authStore.setState({ user: { uid: 'account-a' }, authGeneration: 0 });
+    const store = await enroll(PSALMS);
+    const view = await renderPlan(PSALMS);
+    await view.press(view.getByRole('button', { name: t('readingPlans.planOptions') }));
+    const buttons = harness.rn.__recorded.alerts.at(-1)?.buttons as Array<{
+      style?: string;
+      onPress?: () => Promise<void>;
+    }>;
+    const leave = buttons.find((button) => button.style === 'destructive');
+    if (transition === 'generation') {
+      await act(async () => harness.authStore.setState({ authGeneration: 1 }));
+    } else if (transition === 'unmount') {
+      await view.unmount();
+    } else {
+      const { PlanDetailScreen } = await import('./PlanDetailScreen');
+      const props = {
+        navigation: harness.navigation.navigation,
+        route: { key: 'plan', name: 'PlanDetail', params: { planId: PROVERBS } },
+      } as unknown as PlanDetailScreenProps;
+      await view.rerender(<PlanDetailScreen {...props} />);
+    }
+    await act(async () => {
+      await leave?.onPress?.();
+    });
+    assert.ok(store.getState().progressByPlanId[PSALMS]);
+    assert.deepEqual(harness.navigation.calls, []);
+  });
+}
+
+for (const transition of ['account', 'unmount'] as const) {
+  for (const success of [true, false]) {
+    test(`a pending detail leave-plan ${success ? 'success' : 'failure'} has no screen effects after ${transition}`, async () => {
+      harness.authStore.setState({ user: { uid: 'account-a' }, authGeneration: 0 });
+      await enroll(PSALMS);
+      const view = await renderPlan(PSALMS);
+      await view.press(view.getByRole('button', { name: t('readingPlans.planOptions') }));
+      const buttons = harness.rn.__recorded.alerts.at(-1)?.buttons as Array<{
+        style?: string;
+        onPress?: () => Promise<void>;
+      }>;
+      const leave = buttons.find((button) => button.style === 'destructive');
+      let finish!: (value: { success: boolean }) => void;
+      leaveService.run = () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        });
+      let pending: Promise<void> | undefined;
+      await act(async () => {
+        pending = leave?.onPress?.();
+      });
+      if (transition === 'account') {
+        await act(async () =>
+          harness.authStore.setState({ user: { uid: 'account-b' }, authGeneration: 1 })
+        );
+      } else {
+        await view.unmount();
+      }
+      finish({ success });
+      await act(async () => {
+        await pending;
+      });
+      assert.deepEqual(harness.navigation.calls, []);
+      assert.equal(harness.rn.__recorded.alerts.length, 1, 'only the original confirmation');
+    });
+  }
+}
 
 test('once the cover title scrolls away a compact header keeps the title, back and options in reach', async () => {
   await enroll(PSALMS, { current_day: 3 });

@@ -1,5 +1,5 @@
 /* eslint-disable react/prop-types -- screen is fully typed via PlanDetailScreenProps; rule false-positives on navigation/route after the FlashList refactor (matches BibleReaderScreen P1 pattern) */
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   type NativeScrollEvent,
@@ -24,6 +24,7 @@ import { useBibleStore } from '../../stores/bibleStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { useProgressStore } from '../../stores/progressStore';
 import { useReadingPlansStore } from '../../stores/readingPlansStore';
+import { useAuthStore } from '../../stores/authStore';
 import { enrollInPlan, unenrollFromPlan } from '../../services/plans/readingPlanService';
 import {
   getCurrentPlanDaySummary,
@@ -70,6 +71,15 @@ export { CURRENT_PLAN_DAY_ROW_TEST_ID } from './planDetail';
 
 export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
   const { planId } = route.params;
+  const mountedRef = useRef(false);
+  const leaveRequestRef = useRef(0);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      leaveRequestRef.current += 1;
+    };
+  }, [planId]);
   const { colors } = useTheme();
   const displayFont = useDisplayFont();
   const { t, i18n } = useTranslation();
@@ -221,6 +231,19 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
   }, [planId, progress]);
 
   const handleLeavePlan = useCallback(() => {
+    if (!mountedRef.current) return;
+    const request = ++leaveRequestRef.current;
+    const { user, authGeneration } = useAuthStore.getState();
+    const ownerId = user?.uid ?? null;
+    const isCurrent = () => {
+      const current = useAuthStore.getState();
+      return (
+        mountedRef.current &&
+        request === leaveRequestRef.current &&
+        (current.user?.uid ?? null) === ownerId &&
+        current.authGeneration === authGeneration
+      );
+    };
     lightHaptic();
     Alert.alert(t('readingPlans.leavePlan'), t('readingPlans.leavePlanConfirmBody'), [
       { text: t('common.cancel'), style: 'cancel' },
@@ -228,13 +251,20 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
         text: t('readingPlans.leavePlan'),
         style: 'destructive',
         onPress: async () => {
-          const result = await unenrollFromPlan(planId);
-          if (!result.success) {
+          if (!isCurrent()) return;
+          try {
+            const result = await unenrollFromPlan(planId);
+            if (!isCurrent()) return;
+            if (!result.success) {
+              Alert.alert(t('common.error'), t('common.unexpectedError'));
+              return;
+            }
+            successHaptic();
+            navigation.goBack();
+          } catch {
+            if (!isCurrent()) return;
             Alert.alert(t('common.error'), t('common.unexpectedError'));
-            return;
           }
-          successHaptic();
-          navigation.goBack();
         },
       },
     ]);

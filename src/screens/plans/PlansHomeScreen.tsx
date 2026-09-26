@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -15,6 +15,7 @@ import { lightHaptic, successHaptic } from '../../utils';
 import type { PlansStackParamList } from '../../navigation/types';
 import { unenrollFromPlan } from '../../services/plans/readingPlanService';
 import { reportHandledError } from '../../services/diagnostics/crashReportQueue';
+import { useAuthStore } from '../../stores/authStore';
 import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../design/largeTextLayout';
 import {
   CompletedPlansSection,
@@ -36,6 +37,15 @@ export function PlansHomeScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { contentClearance } = useTabBarHeight();
   const [activeTab, setActiveTab] = useState<PlanTab>('my-plans');
+  const mountedRef = useRef(false);
+  const leaveRequestRef = useRef(0);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      leaveRequestRef.current += 1;
+    };
+  }, []);
   // A rhythm's day is the calendar's; this re-renders on the new day even when the
   // screen was left showing overnight.
   const today = useLocalToday();
@@ -52,15 +62,18 @@ export function PlansHomeScreen() {
   );
 
   const unenroll = useCallback(
-    async (planId: string) => {
+    async (planId: string, isCurrent: () => boolean) => {
+      if (!isCurrent()) return;
       try {
         const result = await unenrollFromPlan(planId);
+        if (!isCurrent()) return;
         if (!result.success) {
           Alert.alert(t('common.error'), t('common.unexpectedError'));
           return;
         }
         successHaptic();
       } catch (error) {
+        if (!isCurrent()) return;
         reportHandledError('plans.delete', error);
         Alert.alert(t('common.error'), t('common.unexpectedError'));
       }
@@ -72,12 +85,25 @@ export function PlansHomeScreen() {
   // progress, so it asks first, with the same prompt as leaving from plan detail.
   const handleDeletePlan = useCallback(
     (planId: string) => {
+      if (!mountedRef.current) return;
+      const request = ++leaveRequestRef.current;
+      const { user, authGeneration } = useAuthStore.getState();
+      const ownerId = user?.uid ?? null;
+      const isCurrent = () => {
+        const current = useAuthStore.getState();
+        return (
+          mountedRef.current &&
+          request === leaveRequestRef.current &&
+          (current.user?.uid ?? null) === ownerId &&
+          current.authGeneration === authGeneration
+        );
+      };
       Alert.alert(t('readingPlans.leavePlan'), t('readingPlans.leavePlanConfirmBody'), [
         { text: t('common.cancel'), style: 'cancel' },
         {
           text: t('readingPlans.leavePlan'),
           style: 'destructive',
-          onPress: () => unenroll(planId),
+          onPress: () => unenroll(planId, isCurrent),
         },
       ]);
     },
