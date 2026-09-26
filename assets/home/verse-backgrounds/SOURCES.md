@@ -1,26 +1,36 @@
 # Verse of the Day Backgrounds
 
-These local photos were optimized for the home-screen Verse of the Day card.
+Twenty warm, film-style landscape pictures for the home-screen Verse of the Day card
+(and the share-a-verse image backgrounds). They replace the earlier Unsplash photos,
+which faded into the same pale sky under the card's dark gradient.
 
-Processing:
+Made 2026-09-26 for EveryBible with Google's Gemini image model (gemini-3-pro-image),
+in the style of the warm-film reading-plan samples: 35mm film look, golden-hour or dusk
+light, earthy palette, square framing with the scenery in the upper and middle of the
+frame (the card shows the top of the picture and darkens toward the bottom), no people,
+animals, faces or text. White or black frames the model sometimes added were trimmed.
 
-- resized to 1200px wide
-- JPEG quality 75 with progressive encoding
-- auto-rotated from source metadata
+Processing: longest side 1200px, JPEG quality 75, progressive.
 
-Files:
+Files (in rotation order):
 
-- `daniel-leone-g30P1zcOzXo-unsplash.jpg`
-- `daniel-leone-v7daTKlZzaw-unsplash.jpg`
-- `jay-castor-7AcMUSYRZpU-unsplash.jpg`
-- `jeremy-bishop-dvACrXUExLs-unsplash.jpg`
-- `marita-kavelashvili-ugnrXk1129g-unsplash.jpg`
-- `sorasak-8ZAxI5FwjFo-unsplash.jpg`
-- `willian-justen-de-vasconcellos-T_Qe4QlMIvQ-unsplash.jpg`
-- `casey-horner-O0R5XZfKUGQ-unsplash.jpg`
-- `masaaki-komori-6EfKUoRTe8I-unsplash.jpg`
-- `mohammad-alizade-4wzRuAb-KWs-unsplash.jpg`
-- `v2osk-1Z2niiBPg5A-unsplash.jpg`
-- `marco-xu-i5Epy0nkAEs-unsplash.jpg`
-- `sebastian-boring-8zD7rs8UpxU-unsplash.jpg`
-- `bruce-timana-hWOwYb4Lz3U-unsplash.jpg`
+- `olive-grove.jpg`
+- `mountain-lake.jpg`
+- `forest-path.jpg`
+- `desert-dunes.jpg`
+- `night-stars.jpg`
+- `mountains-dawn.jpg`
+- `river-valley.jpg`
+- `wheat-field.jpg`
+- `night-moon.jpg`
+- `forest-light.jpg`
+- `stone-path.jpg`
+- `still-water.jpg`
+- `wilderness-canyon.jpg`
+- `rolling-hills.jpg`
+- `lamp-window.jpg`
+- `desert-road.jpg`
+- `waterfall.jpg`
+- `snowy-field.jpg`
+- `rocky-shore.jpg`
+- `cloud-sky.jpg`
