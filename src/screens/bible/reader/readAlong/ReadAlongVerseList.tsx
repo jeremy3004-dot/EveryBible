@@ -246,8 +246,9 @@ export function buildReadAlongTextStyle(
   };
 }
 
-// Large text: a third bigger than the reader's body size, then the reader's own scale.
-const READ_ALONG_BODY_SIZE = Math.round(typography.readingBody.fontSize * 1.33);
+// A little larger than the reader's body size (the owner's pick: 15%, not a third), then
+// the reader's own scale.
+const READ_ALONG_BODY_SIZE = Math.round(typography.readingBody.fontSize * 1.15);
 
 const styles = StyleSheet.create({
   scroll: {

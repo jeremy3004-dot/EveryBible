@@ -61,6 +61,8 @@ export interface PlayerBarProps {
   tabRowHeight?: number;
   /** Placement a route's own collapse or hide applies on top (transform, display). */
   frameStyle?: ViewStyle;
+  /** Off the reader, show the playing session's row (true only on the Bible tab). */
+  showsSessionRow?: boolean;
 }
 
 /**
@@ -81,12 +83,13 @@ export const PlayerBar = memo(function PlayerBar({
   tabRow,
   tabRowHeight = 0,
   frameStyle,
+  showsSessionRow = true,
 }: PlayerBarProps) {
   const { colors } = useTheme();
   const { t } = useTranslation();
   const reduceMotion = useReducedMotion();
   const palette = getPlayerBarPalette(colors, scope);
-  const { controller, audioLoaded } = usePlayerBarController(scope);
+  const { controller, audioLoaded } = usePlayerBarController(scope, showsSessionRow);
   const hasPlayerRow = controller != null;
   const hasTabRow = tabRow != null;
   const mode = getPlayerBarCollapseMode(hasPlayerRow, audioLoaded);

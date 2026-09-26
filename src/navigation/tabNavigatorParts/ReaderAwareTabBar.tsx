@@ -110,6 +110,7 @@ export function ReaderAwareTabBar(props: BottomTabBarProps) {
     >
       <PlayerBar
         scope={isReader ? 'reader' : 'app'}
+        showsSessionRow={activeRoute.name === 'Bible'}
         progress={progress}
         followsScroll={followsScroll}
         bottomOffset={typeof tabBarStyle?.bottom === 'number' ? tabBarStyle.bottom : 0}

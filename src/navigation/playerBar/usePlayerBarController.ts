@@ -80,7 +80,11 @@ export function returnToPlayingChapter(): void {
  * playing session, shown only while there is one. Selects transport state only:
  * the playback position reaches the progress line alone.
  */
-export function usePlayerBarController(scope: PlayerBarScope): PlayerBarState {
+export function usePlayerBarController(
+  scope: PlayerBarScope,
+  /** Off the reader, whether this tab carries the playing session's row (the Bible tab only). */
+  showsSessionRow = true
+): PlayerBarState {
   const { t } = useTranslation();
   const { isSelahActive, toggleSelah } = useSelah();
   const reader = useReaderPlayerBarStore(
@@ -134,7 +138,10 @@ export function usePlayerBarController(scope: PlayerBarScope): PlayerBarState {
     }
 
     const { status, currentBookId, currentChapter } = audio;
-    if (!audioLoaded || !currentBookId || currentChapter == null) return null;
+    // The owner's rule: the audio and chapter controls belong to the Bible tab. On
+    // Home, Gather, Plans and More the bar is the tabs alone (the lock screen still
+    // controls what is playing).
+    if (!showsSessionRow || !audioLoaded || !currentBookId || currentChapter == null) return null;
     const reference = `${getTranslatedBookName(currentBookId, t)} ${currentChapter}`;
     return {
       scope,
@@ -157,7 +164,17 @@ export function usePlayerBarController(scope: PlayerBarScope): PlayerBarState {
       onSound: returnToPlayingChapter,
       onRowPress: returnToPlayingChapter,
     };
-  }, [audio, audioLoaded, isSelahActive, reader, scope, soundName, t, toggleSelah]);
+  }, [
+    audio,
+    audioLoaded,
+    isSelahActive,
+    reader,
+    scope,
+    showsSessionRow,
+    soundName,
+    t,
+    toggleSelah,
+  ]);
 
   return { controller, audioLoaded, isSelahActive };
 }

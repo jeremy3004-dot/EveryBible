@@ -785,8 +785,31 @@ test('a tab bar hidden by a screen with tabBarVisible false leaves touch and Voi
 
 const playName = () => harness.i18n.t('interface.playChapterAudio');
 
-test('on another tab the player row sits on the tabs only while a chapter is playing or paused', async () => {
-  focusTab('Plans');
+test('the playing session’s row stays on the Bible tab: other tabs show the tabs alone', async () => {
+  // The owner's rule: the audio and chapter controls belong to the Bible tab.
+  const pausedJohn3 = {
+    status: 'paused' as const,
+    currentTranslationId: 'bsb',
+    currentBookId: 'JHN',
+    currentChapter: 3,
+  };
+  for (const tab of ['Home', 'Learn', 'Plans', 'More']) {
+    focusTab(tab);
+    const { view, capsule } = await renderTabs();
+    await act(async () => {
+      audioStore.setState(pausedJohn3);
+    });
+    assert.equal(view.queryByTestId('player-bar-row'), null, `${tab} has no player row`);
+    assert.equal(styleOf(capsule.props.style).height, 64, `${tab} is the tab row alone`);
+    await view.unmount();
+    await act(async () => {
+      audioStore.setState({ status: 'idle' });
+    });
+  }
+});
+
+test('on the Bible tab’s other screens the player row sits on the tabs while a chapter is loaded', async () => {
+  focusTab('Bible', { state: { index: 0, routes: [{ name: 'BibleBrowser' }] } });
   const { view, capsule, bar } = await renderTabs();
   assert.equal(view.queryByTestId('player-bar-row'), null);
 
