@@ -15,6 +15,8 @@ import {
 import { buildTabBarCapsuleStyle } from '../../../navigation/tabBarCapsuleStyle';
 import { useReaderChromeOwner, useReaderChromeProgress } from '../../../stores/readerChromeStore';
 import { getNextBibleTabBarVisibility } from '../bibleReaderModel';
+import { getCarriedReaderChromeProgress } from '../readerChromeMotion';
+import { takeReaderChromeCarry, type ReaderChromeCarryRef } from './readerChromeCarry';
 import type { RootTabNavigationHandle, NavigationProp } from './readerConstants';
 
 export interface UseReaderTabBarMotionInput {
@@ -22,6 +24,8 @@ export interface UseReaderTabBarMotionInput {
   bookId: string;
   chapter: number;
   chapterSessionMode: 'listen' | 'read';
+  /** The chapter the reader is stepping to itself, which keeps the chrome's state. */
+  chromeCarryRef: ReaderChromeCarryRef;
   /** The player bar shows a notice above its capsule (the Selah chip, a playback failure). */
   hasPlayerBarNotice: boolean;
   navigation: NavigationProp;
@@ -38,6 +42,7 @@ export function useReaderTabBarMotion({
   bookId,
   chapter,
   chapterSessionMode,
+  chromeCarryRef,
   hasPlayerBarNotice,
   navigation,
   planDayNumber,
@@ -67,20 +72,29 @@ export function useReaderTabBarMotion({
 
   // Retained readers keep local motion. Only the focused route may publish to
   // the root bar; late scroll events and old cleanup cannot overwrite a new one.
+  // Focusing the reader, or arriving on a chapter from anywhere else, opens the chrome
+  // expanded. A chapter the reader stepped to itself (arrows, swipe, audio moving on)
+  // keeps it as it was, a half-way state settling on the nearer end.
   useFocusEffect(
     useCallback(() => {
-      readerBottomChromeProgressShared.value = 0;
       const chapterKey = `${bookId}:${chapter}`;
-      if (readerChromeChapterKeyRef.current !== chapterKey) {
+      const chapterChanged = readerChromeChapterKeyRef.current !== chapterKey;
+      const carried = takeReaderChromeCarry(chromeCarryRef, bookId, chapter) && chapterChanged;
+      const nextProgress = carried
+        ? getCarriedReaderChromeProgress(readerBottomChromeProgressShared.value)
+        : 0;
+      const nextCollapsed = nextProgress >= 0.98;
+      readerBottomChromeProgressShared.value = nextProgress;
+      if (chapterChanged) {
         readerChromeChapterKeyRef.current = chapterKey;
         readerChromeOffsetShared.value = 0;
       }
-      readerChromeCollapsedShared.value = false;
+      readerChromeCollapsedShared.value = nextCollapsed;
       readerChromeFingerScrollShared.value = false;
-      readerBottomChromeCollapsedRef.current = false;
-      setIsReadBottomChromeCollapsed(false);
+      readerBottomChromeCollapsedRef.current = nextCollapsed;
+      setIsReadBottomChromeCollapsed(nextCollapsed);
       readerChromeOwner.value = readerRouteKey;
-      rootTabBarScrollProgress.value = 0;
+      rootTabBarScrollProgress.value = nextProgress;
       return () => {
         if (readerChromeOwner.value === readerRouteKey) {
           readerChromeOwner.value = '';
@@ -90,6 +104,7 @@ export function useReaderTabBarMotion({
     }, [
       bookId,
       chapter,
+      chromeCarryRef,
       readerRouteKey,
       readerBottomChromeProgressShared,
       readerChromeOffsetShared,

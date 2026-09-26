@@ -19,6 +19,7 @@ import {
   getNextTranslationSheetVisibility,
 } from '../bibleReaderModel';
 import { navigateListenChapter } from '../readerListenNavigation';
+import { markReaderChromeCarry, type ReaderChromeCarryRef } from './readerChromeCarry';
 import { useReaderSwipeNavigation } from './useReaderSwipeNavigation';
 import type { NavigationProp } from './readerConstants';
 
@@ -34,6 +35,8 @@ export interface UseReaderChapterNavigationInput {
   chapter: number;
   chapterPresentationMode: ChapterPresentationMode;
   chapterSessionMode: 'listen' | 'read';
+  /** Marks the chapter an arrow or swipe steps to, so it keeps the chrome's state. */
+  chromeCarryRef: ReaderChromeCarryRef;
   currentTranslation: string;
   handleCompletePlanDay: () => Promise<void>;
   hasOtherIncompletePlanSessions: boolean;
@@ -91,6 +94,7 @@ export function useReaderChapterNavigation({
   chapter,
   chapterPresentationMode,
   chapterSessionMode,
+  chromeCarryRef,
   currentTranslation,
   handleCompletePlanDay,
   hasOtherIncompletePlanSessions,
@@ -144,7 +148,10 @@ export function useReaderChapterNavigation({
   const hasPrevChapter = previousNavigationTarget != null;
   const hasNextChapter = nextNavigationTarget != null;
   const shouldFillReaderCanvas = chapterPresentationMode === 'audio-first';
+  // Every chapter step the reader makes itself goes through here (read arrows, swipes,
+  // the listen transport), so the chapter it lands on keeps the chrome as it was.
   const syncReaderReference = (nextBookId: string, nextChapter: number) => {
+    markReaderChromeCarry(chromeCarryRef, nextBookId, nextChapter);
     navigation.setParams(
       buildReaderChapterRouteParams({
         bookId: nextBookId,

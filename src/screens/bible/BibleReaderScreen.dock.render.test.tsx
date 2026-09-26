@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { useEffect } from 'react';
 import type { ReactTestInstance } from 'react-test-renderer';
 import type { SharedValue } from 'react-native-reanimated';
-import { flattenStyle, isHiddenFromAccessibility } from '../../testing/render';
+import { flattenStyle, isHiddenFromAccessibility, within } from '../../testing/render';
 import { installReaderRenderFixture, JOHN_3, verseOf } from './BibleReaderScreen.renderFixture';
 
 // Scroll-linked chrome, the reader's transport on the player bar (which the tab bar
@@ -129,6 +129,40 @@ test('with the chapter playing, scrolling shrinks the bar into the strip and Pla
   assert.equal(isHiddenFromAccessibility(view.getByTestId('player-bar-row')), true);
   await view.press(playButton(view, t('interface.pauseChapterAudio')));
   assert.deepEqual(reader.audioCalls.at(-1), ['togglePlayPause']);
+});
+
+// The owner rule on iOS: stepping chapters from the collapsed strip keeps it collapsed,
+// and the list's own move to the top of the new chapter does not bring the chrome back.
+test('the collapsed strip’s Next keeps the strip and the tucked-away top chrome', async () => {
+  const shared = await chromeStore();
+  await playingJohn3();
+  reader.playerSteps.next = { bookId: 'JHN', chapter: 4 };
+  chapters.set('JHN:4', [verseOf(1, 'Jesus learned that the Pharisees had heard.', {}, 'JHN', 4)]);
+  const view = await renderReader();
+  await scrollReader(view, 400);
+  await navigateReader(view, {});
+
+  const strip = () => view.getByTestId('player-bar-strip');
+  await view.press(within(strip()).getByRole('button', { name: t('bible.nextChapterHint') }));
+  await navigateReader(view, reader.setParamsCalls().at(-1) ?? {});
+  await reader.setAudio({ currentChapter: 4 });
+  await reader.settleReaderScroll(view, 0);
+  await navigateReader(view, {});
+
+  assert.ok(view.getByText(/Jesus learned that the Pharisees/));
+  assert.equal(shared.progress.value, 1);
+  assert.equal(isHiddenFromAccessibility(strip()), false);
+  // The top bar now names John 4: find it through its reference pill.
+  let topChrome: ReactTestInstance | null = view.getByRole('button', {
+    name: 'John 4',
+    includeHidden: true,
+  });
+  while (topChrome && flattenStyle(topChrome.props.style)?.top === undefined) {
+    topChrome = topChrome.parent;
+  }
+  assert.ok(topChrome);
+  assert.equal(flattenStyle(topChrome.props.style)?.opacity, 0);
+  assert.equal(isHiddenFromAccessibility(topChrome), true);
 });
 
 test('small scroll steps move the chrome on the UI thread without re-rendering the screen', async () => {

@@ -7,6 +7,7 @@ import {
   shouldAutoplayChapterAudio,
   shouldSyncReaderToActiveAudioChapter,
 } from '../bibleReaderModel';
+import { markReaderChromeCarry, type ReaderChromeCarryRef } from './readerChromeCarry';
 import type { NavigationProp } from './readerConstants';
 
 export interface UseReaderAudioSyncInput {
@@ -19,6 +20,8 @@ export interface UseReaderAudioSyncInput {
   chapter: number;
   chapterPresentationMode: ChapterPresentationMode;
   chapterSessionMode: 'listen' | 'read';
+  /** Marks the chapter playback moves the reader to, so it keeps the chrome's state. */
+  chromeCarryRef: ReaderChromeCarryRef;
   currentTranslation: string;
   currentTranslationInfo: BibleTranslation | undefined;
   focusVerse: number | undefined;
@@ -100,6 +103,7 @@ export function useReaderAudioSync({
   chapter,
   chapterPresentationMode,
   chapterSessionMode,
+  chromeCarryRef,
   currentTranslation,
   currentTranslationInfo,
   focusVerse,
@@ -193,6 +197,7 @@ export function useReaderAudioSync({
     }
 
     heldFollowFromRef.current = null;
+    markReaderChromeCarry(chromeCarryRef, activeAudioBookId ?? bookId, activeAudioChapter);
     navigation.setParams(
       buildReaderChapterRouteParams({
         bookId: activeAudioBookId ?? bookId,
@@ -208,6 +213,7 @@ export function useReaderAudioSync({
     bookId,
     chapter,
     chapterSessionMode,
+    chromeCarryRef,
     holdChapterFollow,
     navigation,
     resolvePlanSessionRouteParams,
@@ -232,6 +238,7 @@ export function useReaderAudioSync({
       return;
     }
 
+    markReaderChromeCarry(chromeCarryRef, activeAudioBookId, activeAudioChapter);
     navigation.setParams(
       buildReaderChapterRouteParams({
         bookId: activeAudioBookId,
@@ -247,6 +254,7 @@ export function useReaderAudioSync({
     bookId,
     chapter,
     chapterSessionMode,
+    chromeCarryRef,
     holdChapterFollow,
     navigation,
     resolvePlanSessionRouteParams,

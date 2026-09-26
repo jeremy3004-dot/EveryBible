@@ -196,6 +196,9 @@ export function BibleReaderScreen() {
     (state) =>
       state.status === 'error' && state.currentBookId === bookId && state.currentChapter === chapter
   );
+  // The chapter the reader is stepping to itself (arrows, swipe, audio moving on), which
+  // opens with the chrome as it was; see useReaderTabBarMotion.
+  const chromeCarryRef = useRef<string | null>(null);
   const chapterLoadRequestIdRef = useRef(0);
   const chapterPrefetchTaskRef = useRef<CancellableTask | null>(null);
   const annotationLoadRequestIdRef = useRef(0);
@@ -227,6 +230,7 @@ export function BibleReaderScreen() {
     bookId,
     chapter,
     chapterSessionMode,
+    chromeCarryRef,
     hasPlayerBarNotice: hasDisplayedChapterAudioError,
     navigation,
     planDayNumber,
@@ -658,6 +662,7 @@ export function BibleReaderScreen() {
     chapter,
     chapterPresentationMode,
     chapterSessionMode,
+    chromeCarryRef,
     currentTranslation,
     currentTranslationInfo,
     focusVerse,
@@ -797,6 +802,7 @@ export function BibleReaderScreen() {
     chapter,
     chapterPresentationMode,
     chapterSessionMode,
+    chromeCarryRef,
     currentTranslation,
     handleCompletePlanDay,
     hasOtherIncompletePlanSessions,

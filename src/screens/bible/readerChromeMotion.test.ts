@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getNextReaderChromeProgress } from './readerChromeMotion';
+import {
+  getCarriedReaderChromeProgress,
+  getNextReaderChromeProgress,
+  getSettledReaderChromeProgress,
+} from './readerChromeMotion';
 
 const scroll = (progress: number, previousOffset: number, offset: number) =>
   getNextReaderChromeProgress({
@@ -67,4 +71,31 @@ test('short chapters and reduced motion keep the complete controls available', (
     }),
     0
   );
+});
+
+test('a list moving without the finger leaves the chrome where it was, hidden or shown', () => {
+  const settle = (progress: number, contentHeight = 3000) =>
+    getSettledReaderChromeProgress({ progress, viewportHeight: 900, contentHeight });
+  assert.equal(settle(1), 1, 'the top of a new chapter does not reveal collapsed chrome');
+  assert.equal(settle(0), 0, 'a jump to a focus verse does not collapse shown chrome');
+  assert.equal(settle(0.4), 0.4);
+  // A chapter that no longer scrolls could never be scrolled back to the chrome.
+  assert.equal(settle(1, 900), 0);
+  assert.equal(
+    getSettledReaderChromeProgress({
+      progress: 1,
+      viewportHeight: 900,
+      contentHeight: 3000,
+      reduceMotion: true,
+    }),
+    0
+  );
+});
+
+test('a chapter the reader steps to keeps the chrome, settling half-way states on the nearer end', () => {
+  assert.equal(getCarriedReaderChromeProgress(0), 0);
+  assert.equal(getCarriedReaderChromeProgress(0.3), 0);
+  assert.equal(getCarriedReaderChromeProgress(0.5), 1);
+  assert.equal(getCarriedReaderChromeProgress(0.85), 1);
+  assert.equal(getCarriedReaderChromeProgress(1), 1);
 });

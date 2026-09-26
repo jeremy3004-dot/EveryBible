@@ -13,7 +13,7 @@ import {
   runOnJS,
 } from 'react-native-reanimated';
 import { spacing } from '../../../design/system';
-import { getNextReaderChromeProgress } from '../readerChromeMotion';
+import { getNextReaderChromeProgress, getSettledReaderChromeProgress } from '../readerChromeMotion';
 import type { RootTabNavigationHandle, NavigationProp } from './readerConstants';
 import { READER_SCROLL_JS_UPDATE_INTERVAL_PX } from './readerConstants';
 
@@ -154,7 +154,8 @@ export function useReaderScrollChrome({
   // audio is on — and counting those moves as scrolling left a new chapter opening
   // with the chrome stuck part-way collapsed (translucent header, half-faded arrows, tab
   // bar or plan strip half off screen) until the reader scrolled. A move without the
-  // finger may still reveal the chrome near either end, never hide more of it.
+  // finger leaves the chrome as it is, hidden or shown — a chapter the reader stepped to
+  // keeps the chrome it had — unless the chapter stops scrolling, when it is shown.
   // Android always ends a drag with momentum events; iOS skips them when the finger
   // lifts without velocity.
   const scrollHandler = useAnimatedScrollHandler({
@@ -186,16 +187,21 @@ export function useReaderScrollChrome({
 
       const nextProgress = screenReaderEnabled
         ? 0
-        : getNextReaderChromeProgress({
-            progress: readerBottomChromeProgressShared.value,
-            previousOffset: readerChromeFingerScrollShared.value
-              ? readerChromeOffsetShared.value
-              : nextOffsetY,
-            offset: nextOffsetY,
-            viewportHeight,
-            contentHeight,
-            reduceMotion,
-          });
+        : readerChromeFingerScrollShared.value
+          ? getNextReaderChromeProgress({
+              progress: readerBottomChromeProgressShared.value,
+              previousOffset: readerChromeOffsetShared.value,
+              offset: nextOffsetY,
+              viewportHeight,
+              contentHeight,
+              reduceMotion,
+            })
+          : getSettledReaderChromeProgress({
+              progress: readerBottomChromeProgressShared.value,
+              viewportHeight,
+              contentHeight,
+              reduceMotion,
+            });
       readerChromeOffsetShared.value = nextOffsetY;
       readerBottomChromeProgressShared.value = nextProgress;
       rootTabBarScrollProgress.value = nextProgress;
