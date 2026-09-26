@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   getEngagementSummary,
   refreshEngagement,
@@ -13,26 +14,28 @@ import type { UserEngagementSummary } from '../../../services/supabase/types';
 export function useEngagementSummary(isAuthenticated: boolean): UserEngagementSummary | null {
   const [engagement, setEngagement] = useState<UserEngagementSummary | null>(null);
 
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    let cancelled = false;
-    // Fire-and-forget refresh so the summary row is up-to-date before we read it
-    refreshEngagement()
-      .catch(() => {})
-      .then(() => {
-        if (cancelled) return;
-        return getEngagementSummary();
-      })
-      .then((result) => {
-        if (!cancelled && result?.success && result.data) {
-          setEngagement(result.data);
-        }
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [isAuthenticated]);
+  useFocusEffect(
+    useCallback(() => {
+      if (!isAuthenticated) return;
+      let cancelled = false;
+      // Fire-and-forget refresh so the summary row is up-to-date before we read it
+      refreshEngagement()
+        .catch(() => {})
+        .then(() => {
+          if (cancelled) return;
+          return getEngagementSummary();
+        })
+        .then((result) => {
+          if (!cancelled && result?.success && result.data) {
+            setEngagement(result.data);
+          }
+        })
+        .catch(() => {});
+      return () => {
+        cancelled = true;
+      };
+    }, [isAuthenticated])
+  );
 
   return engagement;
 }

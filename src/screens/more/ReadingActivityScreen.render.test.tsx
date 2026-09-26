@@ -1,6 +1,8 @@
 import test, { afterEach, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import type { ReactTestInstance } from 'react-test-renderer';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
+import { act, type ReactTestInstance } from 'react-test-renderer';
 import { create } from 'zustand';
 import { mockModule, sourcePath } from '../../testing/mockModules';
 import {
@@ -11,12 +13,27 @@ import {
   textContent,
   within,
 } from '../../testing/render';
+import { createReactNavigationFake } from '../../testing/nativePackageFakes';
 
 // The grid is built from the local calendar, so the zone and the clock are pinned.
 process.env.TZ = 'UTC';
 const TODAY = '2026-09-24T12:00:00.000Z'; // a Thursday; 1 September 2026 is a Tuesday
 
-const harness = installRenderHarness(mock);
+const harness = installRenderHarness(mock, { skip: ['@react-navigation/native'] });
+// Use the installed focus lifecycle; the shared navigation fake only mounts its
+// focus effects and cannot exercise re-entry or cleanup on blur.
+const requireFromHere = createRequire(import.meta.url);
+const navigationCore = dirname(requireFromHere.resolve('@react-navigation/core'));
+mockModule(mock, join(navigationCore, 'useNavigation.js'), {
+  useNavigation: () => harness.navigation.navigation,
+});
+const { useFocusEffect } = requireFromHere(join(navigationCore, 'useFocusEffect.js')) as {
+  useFocusEffect: (effect: () => void | (() => void)) => void;
+};
+mockModule(mock, '@react-navigation/native', {
+  ...createReactNavigationFake(harness.navigation),
+  useFocusEffect,
+});
 const t = harness.i18n.t.bind(harness.i18n);
 
 // Progress keys are `<book>_<chapter>` → the moment the chapter was read.
@@ -57,6 +74,9 @@ mockModule(mock, sourcePath('stores/syncStatusStore.ts'), {
 const analytics = {
   calls: [] as string[],
   summary: { success: false } as { success: boolean; data?: Record<string, unknown> },
+  reads: null as Array<
+    (result: { success: boolean; data?: Record<string, unknown> }) => void
+  > | null,
 };
 mockModule(mock, sourcePath('services/analytics/analyticsService.ts'), {
   refreshEngagement: async () => {
@@ -65,6 +85,11 @@ mockModule(mock, sourcePath('services/analytics/analyticsService.ts'), {
   },
   getEngagementSummary: async () => {
     analytics.calls.push('getEngagementSummary');
+    if (analytics.reads) {
+      return new Promise<{ success: boolean; data?: Record<string, unknown> }>((resolve) => {
+        analytics.reads?.push(resolve);
+      });
+    }
     return analytics.summary;
   },
 });
@@ -87,6 +112,7 @@ afterEach(() => {
   harness.authStore.setState({ isAuthenticated: false });
   analytics.calls.length = 0;
   analytics.summary = { success: false };
+  analytics.reads = null;
 });
 
 async function renderScreen() {
@@ -388,6 +414,52 @@ test('signed in, the cloud totals replace the local chapter count and fill in li
   assert.ok(view.getByText(t('interface.hoursMinutes', { hours: 1, minutes: 35 })));
 });
 
+test('returning to Reading activity retries cloud totals after an offline first visit', async () => {
+  harness.authStore.setState({ isAuthenticated: true });
+  analytics.summary = { success: false };
+  const view = await renderScreen();
+  await view.flush();
+  await act(async () => harness.navigation.emit('blur', undefined));
+
+  analytics.summary = {
+    success: true,
+    data: { total_chapters_read: 412, total_listening_minutes: 95 },
+  };
+  await act(async () => harness.navigation.emit('focus', undefined));
+  await view.flush();
+
+  assert.ok(view.getByText('412'));
+  assert.ok(view.getByText(t('interface.hoursMinutes', { hours: 1, minutes: 35 })));
+  assert.deepEqual(analytics.calls, [
+    'refreshEngagement',
+    'getEngagementSummary',
+    'refreshEngagement',
+    'getEngagementSummary',
+  ]);
+});
+
+test('an older Reading activity response cannot overwrite refreshed totals after re-entry', async () => {
+  harness.authStore.setState({ isAuthenticated: true });
+  analytics.reads = [];
+  const view = await renderScreen();
+  await view.flush();
+  assert.equal(analytics.reads.length, 1);
+  await act(async () => harness.navigation.emit('focus', undefined));
+  assert.equal(analytics.reads.length, 1, 'initial focus does not duplicate the mounted load');
+  await act(async () => harness.navigation.emit('blur', undefined));
+  await act(async () => harness.navigation.emit('focus', undefined));
+  await view.flush();
+  assert.equal(analytics.reads.length, 2);
+
+  await act(async () =>
+    analytics.reads?.[1]({ success: true, data: { total_chapters_read: 412 } })
+  );
+  await act(async () => analytics.reads?.[0]({ success: true, data: { total_chapters_read: 12 } }));
+  assert.ok(view.getByText('412'));
+  const totals = within(hostAncestors(view.getByText(t('readingActivity.chapters')))[0]);
+  assert.equal(totals.queryByText('12'), null);
+});
+
 test('signed in, listening this device has not uploaded yet still shows while the cloud lags', async () => {
   harness.authStore.setState({ isAuthenticated: true });
   useProgressStore.setState({ listeningMsByDate: { '2026-09-24': 12 * 60_000 } });
@@ -408,6 +480,9 @@ test('signed out, the totals come from this device and the cloud is not asked', 
     listeningMsByDate: { '2026-09-23': 3 * 60_000, '2026-09-24': 7 * 60_000 + 30_000 },
   });
   const view = await renderScreen();
+  await view.flush();
+  await act(async () => harness.navigation.emit('blur', undefined));
+  await act(async () => harness.navigation.emit('focus', undefined));
   await view.flush();
 
   assert.deepEqual(analytics.calls, []);

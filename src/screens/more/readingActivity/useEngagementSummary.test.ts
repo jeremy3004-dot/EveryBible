@@ -5,6 +5,17 @@ import { createReactHookRuntime } from '../../../testing/reactHookRuntime';
 
 const runtime = createReactHookRuntime();
 mockModule(mock, 'react', runtime.react);
+mockModule(mock, '@react-navigation/native', {
+  useFocusEffect: (effect: () => void | (() => void)) => {
+    // Unit tests exercise the initial focused mount; real focus/blur lifecycle
+    // coverage lives in ReadingActivityScreen.render.test.tsx.
+    const useEffect = runtime.react.useEffect as (
+      callback: () => void | (() => void),
+      deps: unknown[]
+    ) => void;
+    useEffect(effect, [effect]);
+  },
+});
 
 const service = {
   calls: [] as string[],
