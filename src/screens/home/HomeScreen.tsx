@@ -69,6 +69,7 @@ import {
   getVisibleCompletedEntryCount,
 } from '../../services/plans/readingPlanModel';
 import type { ReadingPlan } from '../../services/plans/types';
+import { getPlanLedgerGridDayCount } from '../plans/planLedgerGridModel';
 import { AppCard } from '../../components/ui/AppCard';
 import { IconButton } from '../../components/ui/IconButton';
 import { PressableScale } from '../../components/ui/PressableScale';
@@ -355,11 +356,14 @@ export function HomeScreen() {
   const featuredPlanDay = featuredPlan
     ? getActivePlanDayNumber(featuredPlan, featuredPlanProgress?.progress, new Date(clockMs))
     : 0;
-  const featuredPlanDuration = featuredPlan?.duration_days ?? 0;
+  const featuredPlanDuration = featuredPlan
+    ? getPlanLedgerGridDayCount(featuredPlan, new Date(clockMs))
+    : 0;
   const featuredPlanCompletedCount = featuredPlanProgress
     ? getVisibleCompletedEntryCount(
         featuredPlanProgress.plan,
-        featuredPlanProgress.progress.completed_entries
+        featuredPlanProgress.progress.completed_entries,
+        new Date(clockMs)
       )
     : 0;
   const featuredPlanFraction =

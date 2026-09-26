@@ -6,6 +6,7 @@ import { act } from 'react-test-renderer';
 import { gatherFoundations } from '../../data/gatherFoundations';
 import { readingPlans as bundledReadingPlans } from '../../data/readingPlans.generated';
 import type { ReadingPlan, UserReadingPlanProgress } from '../../services/plans/types';
+import { getPlanCompletionEntryKey } from '../../services/plans/readingPlanModel';
 import type { BibleTranslation, DailyScripture } from '../../types';
 import { hostComponent } from '../../testing/reactNativeHost';
 import { mockModule, mockPackage, sourcePath } from '../../testing/mockModules';
@@ -735,19 +736,71 @@ test('the greeting follows the layout model for the screen size, with no welcome
 
 test('the plan card resolves the featured recurring plan against today', async () => {
   const onTheSeventeenth = await renderHome();
-  const plan = onTheSeventeenth.getByRole('button', { name: /· Day 17 of 31$/ });
+  const plan = onTheSeventeenth.getByRole('button', { name: /· Day 17 of 30$/ });
   assert.ok(within(plan).getByText('17'));
   assert.ok(within(plan).getByRole('progressbar', { name: t('readingPlans.progress') }));
   await onTheSeventeenth.unmount();
 
   setToday(new Date(2026, 8, 5, 9, 0, 0));
   const onTheFifth = await renderHome();
-  assert.ok(onTheFifth.getByRole('button', { name: /· Day 5 of 31$/ }));
+  assert.ok(onTheFifth.getByRole('button', { name: /· Day 5 of 30$/ }));
 });
+
+for (const [year, month, total] of [
+  [2026, 1, 28],
+  [2028, 1, 29],
+  [2026, 9, 31],
+] as const) {
+  test(`the featured monthly plan uses ${total} days for its label and progress`, async () => {
+    const today = new Date(year, month, 17, 9);
+    setToday(today);
+    const plan = bundledReadingPlans.find((candidate) => candidate.id === 'proverbs-31-days')!;
+    catalog = [plan];
+    const completed_entries = Object.fromEntries(
+      Array.from({ length: 14 }, (_, index) => [
+        getPlanCompletionEntryKey(plan, index + 1, today),
+        today.toISOString(),
+      ])
+    );
+    const started_at = new Date(year, month, 1, 9).toISOString();
+    readingPlansStore.setState({
+      progressByPlanId: {
+        [plan.id]: {
+          id: 'monthly-progress',
+          plan_id: plan.id,
+          started_at,
+          completed_entries,
+          current_day: 15,
+          is_completed: false,
+          completed_at: null,
+          synced_at: started_at,
+        },
+      },
+    });
+    const view = await renderHome();
+    const card = view.getByRole('button', { name: new RegExp(`· Day 17 of ${total}$`) });
+    assert.ok(within(card).getByText(`/${total}`));
+    const bar = within(card).getByRole('progressbar', { name: t('readingPlans.progress') });
+    assert.equal(bar.props.accessibilityValue.now, Math.round((14 / total) * 100));
+  });
+}
+
+for (const [scheduleMode, total, day] of [
+  ['relative', 60, 1],
+  ['calendar-day-of-week', 7, 3],
+] as const) {
+  test(`the featured ${scheduleMode} plan keeps its full duration in February`, async () => {
+    setToday(new Date(2026, 1, 17, 9));
+    catalog = [{ ...bundledReadingPlans[0], scheduleMode, duration_days: total }];
+    const view = await renderHome();
+    const card = view.getByRole('button', { name: new RegExp(`· Day ${day} of ${total}$`) });
+    assert.ok(within(card).getByText(`/${total}`));
+  });
+}
 
 test('tapping the plan card opens that plan', async () => {
   const view = await renderHome();
-  await view.press(view.getByRole('button', { name: /· Day 17 of 31$/ }));
+  await view.press(view.getByRole('button', { name: /· Day 17 of 30$/ }));
 
   const [call] = harness.navigation.calls;
   assert.equal(call.method, 'navigate');
