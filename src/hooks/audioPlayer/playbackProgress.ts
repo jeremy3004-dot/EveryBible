@@ -12,6 +12,7 @@ import {
   stopAudioProgressTelemetry,
 } from './listeningTelemetry';
 import type { AudioPlayerSession, SyncNowPlaying } from './playerSession';
+import { pausedByListener } from './sharedPlaybackState';
 
 const AUDIO_POSITION_INTERPOLATION_INTERVAL_MS = 250;
 
@@ -83,6 +84,14 @@ export function handlePlaybackStatusUpdate(
 
   // Record the real poll anchor for interpolation
   anchorPositionInterpolation(session, nextPosition);
+
+  // A listener pause (Pause, Selah's hold, the sleep timer) sets the paused status before
+  // the native player has stopped, and a report already on its way can still say playing.
+  // Taking it at its word flipped the player back to playing, and so ended Selah as if the
+  // reading had been restarted. Every way of playing again clears pausedByListener first.
+  if (snapshot.isPlaying && pausedByListener.current) {
+    return;
+  }
 
   if (snapshot.isPlaying) {
     // The reader's sleep-timer interval only runs while it is mounted. Native

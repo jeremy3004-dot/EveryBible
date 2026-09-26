@@ -4277,6 +4277,30 @@ test('Selah pauses the narration, keeps the bed playing and shows paused on the 
   assert.equal(recorded.narrationVolumes.at(-1), 1, 'paused at the Voice level again');
 });
 
+test('a progress report still on its way from before the pause does not end Selah', async (t) => {
+  await holdGenesisInSelah(t);
+
+  // The native player reports "playing" once more before its pause takes effect (seen on
+  // the iOS simulator): the reading is being held, so that report must not revive it.
+  emitStatus({ isPlaying: true, positionMillis: 42_100, durationMillis: DEFAULT_DURATION_MS });
+
+  assert.equal(store().selahActive, true);
+  assert.equal(store().status, 'paused');
+});
+
+test('a late "playing" report after a normal pause does not flip the player back', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout', 'Date'], now: BASE_TIME });
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  emitStatus({ isPlaying: true, positionMillis: 42_000, durationMillis: DEFAULT_DURATION_MS });
+
+  await player.rerender().togglePlayPause();
+  assert.equal(store().status, 'paused');
+  emitStatus({ isPlaying: true, positionMillis: 42_100, durationMillis: DEFAULT_DURATION_MS });
+
+  assert.equal(store().status, 'paused');
+});
+
 test('lock-screen Play with the reader closed resumes out of Selah a little earlier', async (t) => {
   const pickUpAt = await holdGenesisInSelah(t);
   runtime.unmountAll();
