@@ -653,6 +653,53 @@ test('a reminder that is already off is not cancelled again on every reconcile',
   assert.deepEqual(cancellations, []);
 });
 
+test('a failed reminder cancellation retries on the next reconcile without restarting the app', async () => {
+  await startWithNoReminder();
+  await notifications.scheduleDailyReminder(7, 30);
+  cancellations.length = 0;
+  const off = { notificationsEnabled: false, reminderTime: '07:30' };
+  cancelFailure = new Error('notification service temporarily unavailable');
+
+  await notifications.reconcileDailyReminder(off);
+  assert.equal(mmkv.store.get(MAY_BE_SCHEDULED_KEY), '1');
+
+  cancelFailure = null;
+  await notifications.reconcileDailyReminder(off);
+
+  assert.deepEqual(cancellations, ['daily-reading-reminder', 'daily-reading-reminder']);
+  assert.equal(mmkv.store.get(MAY_BE_SCHEDULED_KEY), '0');
+  await notifications.reconcileDailyReminder(off);
+  assert.equal(
+    cancellations.length,
+    2,
+    'a successful cancellation still avoids repeated native work'
+  );
+});
+
+for (const os of ['ios', 'android'] as const) {
+  test(`a failed Settings reminder cancellation is retried by reconciliation on ${os}`, async () => {
+    rn.Platform.OS = os;
+    await startWithNoReminder();
+    await notifications.scheduleDailyReminder(7, 30);
+    cancellations.length = 0;
+    cancelFailure = new Error('notification service temporarily unavailable');
+
+    // Settings calls cancel directly; the next foreground reconcile must not
+    // mistake that failed native call for a reminder confirmed to be off.
+    await assert.doesNotReject(() => notifications.cancelDailyReminder());
+    assert.equal(mmkv.store.get(MAY_BE_SCHEDULED_KEY), '1');
+
+    cancelFailure = null;
+    const off = { notificationsEnabled: false, reminderTime: '07:30' };
+    await notifications.reconcileDailyReminder(off);
+    assert.deepEqual(cancellations, ['daily-reading-reminder', 'daily-reading-reminder']);
+    assert.equal(mmkv.store.get(MAY_BE_SCHEDULED_KEY), '0');
+
+    await notifications.reconcileDailyReminder(off);
+    assert.equal(cancellations.length, 2, 'confirmed off does not repeat native cancellation');
+  });
+}
+
 test('a reminder that failed to schedule is tried again on the next reconcile', async () => {
   await startWithNoReminder();
   const preference = { notificationsEnabled: true, reminderTime: '07:30' };

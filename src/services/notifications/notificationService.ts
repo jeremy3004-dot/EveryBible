@@ -349,10 +349,12 @@ export async function cancelDailyReminder(): Promise<void> {
     await Notifications.cancelScheduledNotificationAsync(DAILY_REMINDER_ID);
     // Only a cancel that worked lets a later launch skip this (see dailyReminderScheduleMarker).
     markDailyReminderCancelled();
+    scheduledReminderSignature = 'off';
   } catch {
-    // Not an error for the caller; the flag stays set, so the next launch cancels again.
+    // Not an error for the caller. The flag stays set and the native state is
+    // unknown, so the next reconcile retries without requiring an app restart.
+    scheduledReminderSignature = null;
   }
-  scheduledReminderSignature = 'off';
 }
 
 export interface DailyReminderPreference {
