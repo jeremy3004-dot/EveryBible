@@ -38,6 +38,13 @@ export async function stepActivePlayback(direction: -1 | 1): Promise<void> {
   await (direction < 0 ? controls.previousChapter() : controls.nextChapter());
 }
 
+/** Move the playing session to a position, as the lock-screen scrubber does. */
+export async function seekActivePlayback(positionMs: number): Promise<void> {
+  const controls = activeControls;
+  if (!controls) return;
+  await controls.seekTo(positionMs);
+}
+
 /** Forget the registered player (tests). */
 export function resetPlayerTransport(): void {
   activeControls = null;

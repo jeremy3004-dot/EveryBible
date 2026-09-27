@@ -54,3 +54,14 @@ test('stepping moves the session a chapter either way, like the lock screen', as
   await stepActivePlayback(-1);
   assert.deepEqual(calls, ['nextChapter', 'previousChapter']);
 });
+
+test('seeking moves the playing session to a position, like the lock screen scrubber', async () => {
+  const { registerPlayerTransport, seekActivePlayback } = await import('./transportRegistry');
+  await seekActivePlayback(45_000);
+  assert.deepEqual(calls, [], 'nothing to seek before a player mounts');
+
+  const seeks: number[] = [];
+  registerPlayerTransport({ ...controls, seekTo: async (ms: number) => void seeks.push(ms) });
+  await seekActivePlayback(45_000);
+  assert.deepEqual(seeks, [45_000]);
+});

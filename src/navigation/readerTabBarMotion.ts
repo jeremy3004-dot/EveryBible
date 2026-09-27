@@ -112,6 +112,40 @@ export function getPlayerBarProgressLineTop(mode: PlayerBarCollapseMode, progres
   return expandedTop + (stripTop - expandedTop) * progress;
 }
 
+/** How far above or below the progress line a drag may start and still scrub: a 44pt band. */
+export const PLAYER_BAR_SCRUB_REACH = 22;
+/** Sideways travel that turns a touch near the line into a scrub. */
+const PLAYER_BAR_SCRUB_ACTIVATE = 8;
+/** Vertical travel that hands the touch back (a scroll, or a tab or button press). */
+const PLAYER_BAR_SCRUB_FAIL = 12;
+
+/** Whether a touch at `y` in the capsule started close enough to the progress line to drag it. */
+export function isNearPlayerBarProgressLine(y: number, lineTop: number): boolean {
+  'worklet';
+  return Math.abs(y - (lineTop + PLAYER_BAR_PROGRESS_HEIGHT / 2)) <= PLAYER_BAR_SCRUB_REACH;
+}
+
+/**
+ * Whether a touch near the line has become a scrub. Taps never do, so the buttons
+ * and tabs the band overlaps still take them.
+ */
+export function getPlayerBarScrubIntent(dx: number, dy: number): 'activate' | 'fail' | 'wait' {
+  'worklet';
+  const ax = Math.abs(dx);
+  const ay = Math.abs(dy);
+  if (ay >= PLAYER_BAR_SCRUB_FAIL && ay > ax) return 'fail';
+  if (ax >= PLAYER_BAR_SCRUB_ACTIVATE && ax > ay) return 'activate';
+  return 'wait';
+}
+
+/** The share of the chapter under a finger at `x` in a capsule `capsuleWidth` wide. */
+export function getPlayerBarScrubFraction(x: number, capsuleWidth: number): number {
+  'worklet';
+  const lineWidth = capsuleWidth - PLAYER_BAR_PROGRESS_INSET * 2;
+  if (lineWidth <= 0) return 0;
+  return Math.max(0, Math.min(1, (x - PLAYER_BAR_PROGRESS_INSET) / lineWidth));
+}
+
 /**
  * The tab row's fade as the bar shrinks into the strip: gone by the strip threshold, as
  * it drops out of the shrinking capsule. The player row never fades; it shrinks.

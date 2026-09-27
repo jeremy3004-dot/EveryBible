@@ -1,18 +1,21 @@
 import { memo, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   runOnJS,
   useAnimatedReaction,
   useAnimatedStyle,
   useDerivedValue,
   useReducedMotion,
+  useSharedValue,
   withTiming,
   type SharedValue,
 } from 'react-native-reanimated';
 import { useTheme } from '../../contexts/ThemeContext';
 import { motion } from '../../design/system';
 import { TAB_BAR_CAPSULE_RADIUS } from '../../hooks/useTabBarHeight';
+import { useAudioStore } from '../../stores/audioStore';
 import {
   getPlayerBarCapsuleHeight,
   getPlayerBarCollapseMode,
@@ -20,13 +23,22 @@ import {
   getPlayerBarPhase,
   getPlayerBarProgress,
   getPlayerBarProgressLineTop,
+  getPlayerBarScrubFraction,
+  getPlayerBarScrubIntent,
   getPlayerBarTabRowOpacity,
+  isNearPlayerBarProgressLine,
   PLAYER_BAR_PROGRESS_INSET,
   PLAYER_BAR_SECTION_HEIGHT,
   type PlayerBarPhase,
 } from '../readerTabBarMotion';
 import { getPlayerBarPalette, type PlayerBarScope } from './playerBarModel';
 import { PlayerBarNotices, PlayerBarProgressFill } from './PlayerBarParts';
+import {
+  beginPlayerBarScrub,
+  cancelPlayerBarScrub,
+  commitPlayerBarScrub,
+  movePlayerBarScrub,
+} from './playerBarScrub';
 import { PlayerBarTransport } from './PlayerBarTransport';
 import { usePlayerBarController } from './usePlayerBarController';
 
@@ -134,8 +146,65 @@ export const PlayerBar = memo(function PlayerBar({
     opacity: mode === 'hide' ? getPlayerBarProgress(followsScroll, progress.value) : 0,
   }));
 
+  // Dragging the progress line. The gesture sits on the whole capsule so a finger
+  // can start anywhere in a 44pt band around the 2pt line, but it only takes over on
+  // a sideways drag: a tap still reaches the play button or tab under it.
+  const hasDuration = useAudioStore((state) => state.duration > 0);
+  const canScrub = controller?.showsProgress === true && hasDuration;
+  const capsuleWidth = useSharedValue(0);
+  const scrubStartX = useSharedValue(0);
+  const scrubStartY = useSharedValue(0);
+  const scrubGesture = Gesture.Pan()
+    .enabled(canScrub)
+    .manualActivation(true)
+    .onTouchesDown((event, manager) => {
+      'worklet';
+      const touch = event.allTouches[0];
+      if (!touch || event.allTouches.length > 1) {
+        manager.fail();
+        return;
+      }
+      scrubStartX.value = touch.x;
+      scrubStartY.value = touch.y;
+      const lineTop = getPlayerBarProgressLineTop(
+        mode,
+        getPlayerBarProgress(followsScroll, progress.value)
+      );
+      if (!isNearPlayerBarProgressLine(touch.y, lineTop)) {
+        manager.fail();
+      }
+    })
+    .onTouchesMove((event, manager) => {
+      'worklet';
+      const touch = event.allTouches[0];
+      if (!touch) return;
+      const intent = getPlayerBarScrubIntent(
+        touch.x - scrubStartX.value,
+        touch.y - scrubStartY.value
+      );
+      if (intent === 'activate') manager.activate();
+      else if (intent === 'fail') manager.fail();
+    })
+    .onStart((event) => {
+      'worklet';
+      runOnJS(beginPlayerBarScrub)(getPlayerBarScrubFraction(event.x, capsuleWidth.value));
+    })
+    .onUpdate((event) => {
+      'worklet';
+      runOnJS(movePlayerBarScrub)(getPlayerBarScrubFraction(event.x, capsuleWidth.value));
+    })
+    .onEnd((event, success) => {
+      'worklet';
+      if (success) {
+        runOnJS(commitPlayerBarScrub)(getPlayerBarScrubFraction(event.x, capsuleWidth.value));
+      }
+    })
+    .onFinalize((_event, success) => {
+      'worklet';
+      if (!success) runOnJS(cancelPlayerBarScrub)();
+    });
+
   const revealBar = () => {
-    // eslint-disable-next-line react-hooks/immutability -- Reanimated shared values are written through `.value`.
     progress.value = reduceMotion ? 0 : withTiming(0, { duration: motion.duration.base });
   };
 
@@ -153,38 +222,55 @@ export const PlayerBar = memo(function PlayerBar({
         <PlayerBarNotices
           errorMessage={scope === 'reader' ? (controller?.errorMessage ?? null) : null}
         />
-        <Animated.View style={[styles.capsule, capsuleStyle]} pointerEvents="box-none">
-          <View style={StyleSheet.absoluteFill} pointerEvents="none" testID="player-bar-material">
-            {background}
-          </View>
-          {controller ? (
-            <>
-              <View
-                style={styles.playerRow}
-                {...liveWhen(expandedLive || stripLive)}
-                testID="player-bar-row"
+        <GestureDetector gesture={scrubGesture}>
+          <Animated.View
+            style={[styles.capsule, capsuleStyle]}
+            // The capsule itself takes touches (it is opaque), so a finger on the line
+            // or the space around it reaches the drag gesture.
+            pointerEvents="auto"
+            onLayout={(event) => {
+              capsuleWidth.value = event.nativeEvent.layout.width;
+            }}
+          >
+            <View style={StyleSheet.absoluteFill} pointerEvents="none" testID="player-bar-material">
+              {background}
+            </View>
+            {controller ? (
+              <>
+                <View
+                  style={styles.playerRow}
+                  {...liveWhen(expandedLive || stripLive)}
+                  testID="player-bar-row"
+                >
+                  <PlayerBarTransport
+                    controller={controller}
+                    palette={palette}
+                    collapse={collapse}
+                  />
+                </View>
+                <Animated.View
+                  style={[styles.progressLine, progressLineStyle]}
+                  pointerEvents="none"
+                >
+                  <PlayerBarProgressFill active={controller.showsProgress} palette={palette} />
+                </Animated.View>
+              </>
+            ) : null}
+            {hasTabRow ? (
+              <Animated.View
+                style={[
+                  styles.tabRow,
+                  { top: hasPlayerRow ? PLAYER_BAR_SECTION_HEIGHT : 0, height: tabRowHeight },
+                  tabRowStyle,
+                ]}
+                {...liveWhen(expandedLive)}
+                testID="player-bar-tabs"
               >
-                <PlayerBarTransport controller={controller} palette={palette} collapse={collapse} />
-              </View>
-              <Animated.View style={[styles.progressLine, progressLineStyle]} pointerEvents="none">
-                <PlayerBarProgressFill active={controller.showsProgress} palette={palette} />
+                {tabRow}
               </Animated.View>
-            </>
-          ) : null}
-          {hasTabRow ? (
-            <Animated.View
-              style={[
-                styles.tabRow,
-                { top: hasPlayerRow ? PLAYER_BAR_SECTION_HEIGHT : 0, height: tabRowHeight },
-                tabRowStyle,
-              ]}
-              {...liveWhen(expandedLive)}
-              testID="player-bar-tabs"
-            >
-              {tabRow}
-            </Animated.View>
-          ) : null}
-        </Animated.View>
+            ) : null}
+          </Animated.View>
+        </GestureDetector>
       </Animated.View>
 
       {/* Nothing loaded and scrolled away: a hairline at the bottom calls the bar back. */}

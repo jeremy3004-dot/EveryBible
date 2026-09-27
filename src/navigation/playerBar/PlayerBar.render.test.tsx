@@ -108,6 +108,8 @@ afterEach(async () => {
   translationChanges.length = 0;
   transportCalls.length = 0;
   readerCalls.length = 0;
+  const { usePlayerBarScrubStore } = await import('./playerBarScrub');
+  usePlayerBarScrubStore.setState({ fraction: null });
 });
 
 // ---- Helpers -------------------------------------------------------------------
@@ -462,6 +464,51 @@ test('another chapter’s progress is not drawn on the reader’s bar', async ()
   const { view } = await renderBar();
 
   assert.equal(flattenStyle(view.getByTestId('player-bar-progress-fill').props.style)?.width, '0%');
+});
+
+test('the progress line is a slider screen readers can step ten seconds either way', async () => {
+  const { registerPlayerTransport } = await import('../../hooks/audioPlayer/transportRegistry');
+  const seeks: number[] = [];
+  registerPlayerTransport({ ...fakeTransport, seekTo: async (ms: number) => void seeks.push(ms) });
+  await publishReader({ isPlaying: true });
+  await setAudio({ ...playingJohn3, currentPosition: 30_000, duration: 120_000 });
+  const { view } = await renderBar();
+
+  const line = view.getByRole('adjustable', { name: t('readingPlans.progress') });
+  assert.equal(line.props.testID, 'player-bar-progress');
+  assert.equal(line.props.accessibilityValue.text, '0:30 / 2:00');
+  await view.fire(line, 'onAccessibilityAction', { nativeEvent: { actionName: 'increment' } });
+  await view.fire(line, 'onAccessibilityAction', { nativeEvent: { actionName: 'decrement' } });
+  assert.deepEqual(seeks, [40_000, 20_000]);
+});
+
+test('a line with nothing to seek is not offered to screen readers', async () => {
+  await publishReader({ showsProgress: false });
+  await setAudio({ ...playingJohn3, currentPosition: 30_000, duration: 120_000 });
+  const { view } = await renderBar();
+
+  assert.equal(view.queryByRole('adjustable'), null);
+});
+
+test('while the line is dragged it thickens, follows the finger and shows where it will land', async () => {
+  await publishReader({ isPlaying: true });
+  await setAudio({ ...playingJohn3, currentPosition: 30_000, duration: 120_000 });
+  const { view } = await renderBar();
+  const { usePlayerBarScrubStore } = await import('./playerBarScrub');
+  const line = () => flattenStyle(view.getByTestId('player-bar-progress').props.style) ?? {};
+  const restingHeight = Number(line().height);
+
+  await act(async () => usePlayerBarScrubStore.setState({ fraction: 0.75 }));
+  assert.ok(Number(line().height) > restingHeight, 'thicker under the finger');
+  assert.equal(
+    flattenStyle(view.getByTestId('player-bar-progress-fill').props.style)?.width,
+    '75%'
+  );
+  assert.ok(view.getByText('1:30'), 'the time it will land on');
+
+  await act(async () => usePlayerBarScrubStore.setState({ fraction: null }));
+  assert.equal(Number(line().height), restingHeight);
+  assert.equal(view.queryByText('1:30'), null);
 });
 
 // ---- Collapse ----------------------------------------------------------------------

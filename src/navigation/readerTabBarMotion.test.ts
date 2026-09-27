@@ -9,7 +9,10 @@ import {
   getPlayerBarPhase,
   getPlayerBarProgress,
   getPlayerBarProgressLineTop,
+  getPlayerBarScrubFraction,
+  getPlayerBarScrubIntent,
   getPlayerBarTabRowOpacity,
+  isNearPlayerBarProgressLine,
   getReaderTabBarTranslation,
   isReaderTabBarScrollHidden,
   PLAYER_BAR_ROW_HEIGHT,
@@ -155,4 +158,32 @@ test('the tabs fade out by the strip threshold and the progress line becomes its
   assert.equal(getPlayerBarProgressLineTop('strip', 0), PLAYER_BAR_ROW_HEIGHT);
   assert.equal(getPlayerBarProgressLineTop('strip', 1), 42, 'the 44pt strip’s bottom 2pt');
   assert.equal(getPlayerBarProgressLineTop('hide', 1), PLAYER_BAR_ROW_HEIGHT);
+});
+
+// ---- Dragging the player bar's progress line ----------------------------------------
+
+test('a drag may start on the progress line or within 22pt of it, a 44pt band', () => {
+  // The expanded line sits at 56pt, 2pt tall: its centre is 57.
+  assert.equal(isNearPlayerBarProgressLine(57, 56), true);
+  assert.equal(isNearPlayerBarProgressLine(35, 56), true);
+  assert.equal(isNearPlayerBarProgressLine(79, 56), true);
+  assert.equal(isNearPlayerBarProgressLine(34, 56), false, 'the transport row above');
+  assert.equal(isNearPlayerBarProgressLine(80, 56), false, 'the tab row below');
+});
+
+test('only a sideways drag scrubs; a tap waits and a vertical move lets go', () => {
+  assert.equal(getPlayerBarScrubIntent(3, 1), 'wait', 'a tap stays with the button under it');
+  assert.equal(getPlayerBarScrubIntent(10, 2), 'activate');
+  assert.equal(getPlayerBarScrubIntent(-10, 3), 'activate');
+  assert.equal(getPlayerBarScrubIntent(2, 14), 'fail');
+  assert.equal(getPlayerBarScrubIntent(9, 9), 'wait', 'diagonal is not yet sideways');
+});
+
+test('a scrub lands on the share of the inset line under the finger, clamped to the chapter', () => {
+  // A 300pt capsule insets its line 16pt a side: 268pt of line from x=16.
+  assert.equal(getPlayerBarScrubFraction(16, 300), 0);
+  assert.equal(getPlayerBarScrubFraction(150, 300), 0.5);
+  assert.equal(getPlayerBarScrubFraction(0, 300), 0);
+  assert.equal(getPlayerBarScrubFraction(400, 300), 1);
+  assert.equal(getPlayerBarScrubFraction(150, 0), 0, 'unmeasured');
 });
