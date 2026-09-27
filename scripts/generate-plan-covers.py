@@ -225,25 +225,27 @@ def week_of_christ():  # the week as a ring: the Cross on Friday, Sunday's light
       s += f'<circle cx="{x:.0f}" cy="{y:.0f}" r="34" fill="{SAND}" fill-opacity="0.6"/>'
   return s
 
-def lords_prayer():  # open hands, daily bread, seven petitions
-  s = ''
-  for i in range(7):
-    a = math.radians(-150 + i * 20)
-    x, y = 1200 + 470 * math.cos(a), 960 + 470 * math.sin(a)
-    s += f'<circle cx="{x:.0f}" cy="{y:.0f}" r="{30 if i == 3 else 20}" fill="{EMBER if i == 3 else OCHRE}"/>'
-  left = 'M1180 1330 C980 1320 820 1180 780 930 C880 1010 1050 1090 1180 1110 Z'
-  right = 'M1220 1330 C1420 1320 1580 1180 1620 930 C1520 1010 1350 1090 1220 1110 Z'
-  return (s + f'<ellipse cx="1200" cy="930" rx="200" ry="135" fill="{OCHRE}"/>'
-          f'<path d="M1080 900 C1150 870 1250 870 1320 900" fill="none" stroke="{SAND}" stroke-width="12" stroke-linecap="round"/>'
-          f'<path d="{left}" fill="{EMBER}"/><path d="{right}" fill="{DEEP}"/>')
+def lords_prayer():  # our Father in heaven, give us today our daily bread
+  s = ''.join(f'<path d="M{1200-r} 1200 A{r} {r} 0 0 1 {1200+r} 1200" fill="none" stroke="{c}" stroke-width="{w}" stroke-opacity="{o}" stroke-linecap="round"/>'
+              for r, c, w, o in [(620, STONE, 5, .5), (500, OCHRE, 6, .6), (380, EMBER, 7, .7)])
+  return (s + f'<ellipse cx="1200" cy="1110" rx="210" ry="110" fill="{OCHRE}"/>'
+          f'<path d="M1060 1080 C1130 1050 1270 1050 1340 1080" fill="none" stroke="{SAND}" stroke-width="12" stroke-linecap="round"/>'
+          f'<line x1="480" y1="1225" x2="1920" y2="1225" stroke="{DEEP}" stroke-width="6" stroke-linecap="round"/>')
 
-def gospels_month():  # the four Gospels, round again every month
-  s, r = '', 400
-  for q, c in enumerate([EMBER, OCHRE, SAND, STONE]):
-    a0, a1 = math.radians(-90 + q * 90 + 6), math.radians(-90 + (q + 1) * 90 - 6)
-    x0, y0, x1, y1 = 1200 + r*math.cos(a0), 900 + r*math.sin(a0), 1200 + r*math.cos(a1), 900 + r*math.sin(a1)
-    s += f'<path d="M{x0:.0f} {y0:.0f} A{r} {r} 0 0 1 {x1:.0f} {y1:.0f}" fill="none" stroke="{c}" stroke-width="70" stroke-linecap="round"/>'
-  return s + f'<circle cx="1200" cy="900" r="130" fill="{SAND}"/><circle cx="1200" cy="{900 - r - 110}" r="22" fill="{SAND}"/>'
+def gospels_month():  # four lamps kept burning through the month, one for each Gospel
+  def lamp(c):  # drawn around its own centre; the flame sits on the spout's tip
+    fx, fy = 150, -40
+    return (f'<circle cx="{fx}" cy="{fy - 40}" r="120" fill="{OCHRE}" fill-opacity="0.14"/>'
+            f'<path d="M-180 0 H30 L{fx + 10} {fy + 12} C{fx - 20} {fy + 50} 70 30 40 50 '
+            f'C-10 110 -150 110 -180 0 Z" fill="{c}"/>'
+            f'<rect x="-90" y="-28" width="60" height="28" rx="10" fill="{c}"/>'
+            f'<path d="M{fx} {fy} C{fx - 44} {fy - 40} {fx - 30} {fy - 100} {fx + 4} {fy - 150} '
+            f'C{fx + 30} {fy - 100} {fx + 44} {fy - 40} {fx} {fy} Z" fill="{OCHRE}"/>'
+            f'<path d="M{fx} {fy - 10} C{fx - 18} {fy - 30} {fx - 12} {fy - 60} {fx + 2} {fy - 84} '
+            f'C{fx + 14} {fy - 60} {fx + 18} {fy - 30} {fx} {fy - 10} Z" fill="{SAND}"/>'
+            f'<line x1="-230" y1="130" x2="230" y2="130" stroke="{SAND}" stroke-width="5" stroke-linecap="round" stroke-opacity="0.45"/>')
+  return ''.join(f'<g transform="translate({x} {y}) scale(1.2)">{lamp(c)}</g>'
+                 for x, y, c in [(880, 700, EMBER), (1520, 700, OCHRE), (880, 1180, SAND), (1520, 1180, STONE)])
 
 # file name (existing cover key file) -> (ground, mark, plan)
 COVERS = {
