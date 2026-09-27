@@ -129,15 +129,11 @@ async function settleNewChapter(view: View) {
   await settleReaderScroll(view, 62);
 }
 
-/** Scroll down far enough to collapse the chrome, then back up part of the way. */
-async function halfCollapse(view: View) {
+/** Scroll down to drop the chrome, then a little way back up, which brings it back. */
+async function dropThenReveal(view: View) {
   await scrollReader(view, 400);
   await scrollReader(view, 300);
-  const { topChrome } = await chromeOf(view);
-  assert.ok(
-    topChrome > 0 && topChrome < 1,
-    `half collapsed before the chapter change (${topChrome})`
-  );
+  assert.deepEqual(await chromeOf(view), EXPANDED, 'back before the chapter change');
 }
 
 /** Apply the reader's own setParams, as the stack does, and let the new chapter load. */
@@ -161,10 +157,10 @@ test('an expanded chrome stays expanded after the Previous arrow', async () => {
   assert.equal(progress.value, 0);
 });
 
-test('a chrome part-way collapsed but nearer shown settles shown after the Next arrow', async () => {
+test('a chrome brought back by scrolling up stays shown after the Next arrow', async () => {
   chapters.set('JHN:4', chapterOf(4));
   const view = await renderReader();
-  await halfCollapse(view); // about a quarter collapsed
+  await dropThenReveal(view);
 
   await view.press(view.getByRole('button', { name: t('bible.nextChapterHint') }));
   await followNavigation(view);
@@ -172,27 +168,6 @@ test('a chrome part-way collapsed but nearer shown settles shown after the Next 
   await settleNewChapter(view);
 
   assert.deepEqual(await chromeOf(view), EXPANDED);
-});
-
-test('a chrome part-way collapsed and nearer hidden settles hidden after the Next arrow', async () => {
-  chapters.set('JHN:4', chapterOf(4));
-  const progress = await sharedProgress();
-  const view = await renderReader();
-  await scrollReader(view, 400);
-  await scrollReader(view, 380); // about 85% collapsed: the bar is still in reach
-  assert.ok(progress.value > 0.5 && progress.value < 0.98);
-
-  await navigateReader(view, {});
-  await view.press(view.getByRole('button', { name: t('bible.nextChapterHint') }));
-  await followNavigation(view);
-  await settleNewChapter(view);
-
-  const chrome = await chromeOf(view);
-  assert.equal(progress.value, 1, 'settled on the nearer end, fully collapsed');
-  assert.equal(chrome.topChrome, 0);
-  assert.ok(chrome.barDrop > 0, 'nothing is loaded, so the bar has slid away');
-  assert.equal(chrome.chevronsLive, false, 'the hidden bar gives up touch and focus');
-  assert.ok(view.getByRole('button', { name: t('audio.playerBar.showControls') }));
 });
 
 test('a collapsed strip stays collapsed after its Next, and its chevrons stay live', async () => {
@@ -318,19 +293,17 @@ test('after the chapter change the finger collapses the chrome again', async () 
 
 // Nothing is loaded, so the bar slides away whole. It keeps its controls until it is
 // all but gone, then hands over to the hairline, and takes them back once revealed.
-test('a bar sliding away keeps its controls until it is hidden, and takes them back once shown', async () => {
+// The owner asked for the bar to drop on the slightest scroll, not slide out over 132pt.
+test('a slight scroll drops the bar and its controls, and a slight scroll back returns them', async () => {
   const view = await renderReader();
-  await scrollReader(view, 400);
-  await scrollReader(view, 360); // 30% revealed
-  const partly = await chromeOf(view);
-  assert.ok(partly.barDrop > 0);
-  assert.equal(partly.chevronsLive, true, 'a bar still on screen still works');
-
-  await scrollReader(view, 400);
-  assert.equal((await chromeOf(view)).chevronsLive, false);
+  await scrollReader(view, 70);
+  await scrollReader(view, 80); // ten points down
+  const dropped = await chromeOf(view);
+  assert.ok(dropped.barDrop > 0, 'the bar has dropped');
+  assert.equal(dropped.chevronsLive, false);
   assert.ok(view.getByRole('button', { name: t('audio.playerBar.showControls') }));
 
-  await scrollReader(view, 280); // 90% revealed
+  await scrollReader(view, 70); // ten points back up
   assert.equal((await chromeOf(view)).chevronsLive, true);
   assert.equal(view.queryByRole('button', { name: t('audio.playerBar.showControls') }), null);
 });

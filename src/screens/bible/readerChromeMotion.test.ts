@@ -2,73 +2,87 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   getCarriedReaderChromeProgress,
-  getNextReaderChromeProgress,
+  getNextReaderChromeTarget,
   getSettledReaderChromeProgress,
+  READER_CHROME_SNAP_TRAVEL,
 } from './readerChromeMotion';
 
-const scroll = (progress: number, previousOffset: number, offset: number) =>
-  getNextReaderChromeProgress({
-    progress,
+// A 3000pt chapter in a 900pt viewport scrolls 2100pt.
+const scroll = (target: 0 | 1, travel: number, previousOffset: number, offset: number) =>
+  getNextReaderChromeTarget({
+    target,
+    travel,
     previousOffset,
     offset,
     viewportHeight: 900,
     contentHeight: 3000,
   });
 
-test('reader chrome follows each small scroll update without waiting for the JS threshold', () => {
-  let progress = 0;
-  for (let offset = 4; offset <= 132; offset += 4) {
-    progress = scroll(progress, offset - 4, offset);
-    assert.ok(Math.abs(progress - offset / 132) < 0.00001);
+/** Drag from `from` to `to` in 2pt frames, as a slow finger reports it. */
+function drag(target: 0 | 1, from: number, to: number) {
+  let state = { target, travel: 0 };
+  const step = to > from ? 2 : -2;
+  for (let offset = from; offset !== to; offset += step) {
+    state = scroll(state.target, state.travel, offset, offset + step);
   }
-  assert.ok(Math.abs(progress - 1) < 0.00001);
+  return state;
+}
+
+// The owner wants the bar gone on the slightest scroll down, not dragged out over 132pt.
+test('a slight scroll down drops the chrome all the way, even a slow one', () => {
+  assert.equal(READER_CHROME_SNAP_TRAVEL, 8);
+  assert.equal(drag(0, 1000, 1006).target, 0, 'under the threshold nothing moves yet');
+  assert.equal(drag(0, 1000, 1008).target, 1, 'eight points down and it is gone');
+  assert.equal(scroll(0, 0, 1000, 1040).target, 1, 'a fast frame does it at once');
 });
 
-test('reversing deep in a chapter reveals chrome continuously, then reverses again', () => {
-  assert.equal(scroll(1, 1000, 967), 0.75);
-  assert.equal(scroll(0.75, 967, 934), 0.5);
-  assert.equal(scroll(0.5, 934, 967), 0.75);
-  assert.equal(scroll(1, 1000, 800), 0);
+test('a slight scroll up brings it back, and each reversal starts the count again', () => {
+  assert.equal(drag(1, 1000, 994).target, 1);
+  assert.equal(drag(1, 1000, 992).target, 0);
+  // Down 6 then up 6: neither direction travelled far enough to change it.
+  const down = drag(0, 1000, 1006);
+  let state = down;
+  for (let offset = 1006; offset !== 1000; offset -= 2) {
+    state = scroll(state.target, state.travel, offset, offset - 2);
+  }
+  assert.equal(state.target, 0);
+  assert.equal(state.travel, -6);
 });
 
-test('returning to a retained chapter uses its last offset for the first small drag', () => {
-  assert.equal(scroll(0, 1000, 1001), 1 / 132);
+test('at the top and near the end of a chapter the controls stay up', () => {
+  assert.equal(scroll(0, 0, 0, 14).target, 0, 'the first 16pt keep the bar');
+  assert.equal(scroll(1, 20, 40, 10).target, 0, 'back at the top it returns');
+  assert.equal(scroll(1, 20, 1990, 2010).target, 0, 'the last 96pt show the next-chapter controls');
+  assert.equal(scroll(0, 0, 1900, 1990).target, 1, 'before that it still drops');
 });
 
 test('overscroll rebound cannot hide the controls at either end of a chapter', () => {
-  assert.equal(scroll(0, -40, 0), 0);
-  assert.equal(scroll(0, 2140, 2100), 0);
-  assert.equal(scroll(1, 2067, 2100), 0);
-  assert.equal(scroll(1, 33, 0), 0);
-});
-
-test('chrome rises progressively before the final verse instead of snapping at the bottom', () => {
-  assert.equal(scroll(1, 1968, 2001), 0.75);
-  assert.equal(scroll(0.75, 2001, 2034), 0.5);
-  assert.equal(scroll(0.5, 2034, 2067), 0.25);
-  assert.equal(scroll(0.25, 2067, 2100), 0);
+  assert.equal(scroll(0, 0, -40, 0).target, 0);
+  assert.equal(scroll(0, 0, 2140, 2100).target, 0);
 });
 
 test('short chapters and reduced motion keep the complete controls available', () => {
   assert.equal(
-    getNextReaderChromeProgress({
-      progress: 1,
+    getNextReaderChromeTarget({
+      target: 1,
+      travel: 0,
       previousOffset: 0,
       offset: 20,
       viewportHeight: 900,
       contentHeight: 800,
-    }),
+    }).target,
     0
   );
   assert.equal(
-    getNextReaderChromeProgress({
-      progress: 1,
+    getNextReaderChromeTarget({
+      target: 1,
+      travel: 0,
       previousOffset: 1000,
       offset: 1100,
       viewportHeight: 900,
       contentHeight: 3000,
       reduceMotion: true,
-    }),
+    }).target,
     0
   );
 });

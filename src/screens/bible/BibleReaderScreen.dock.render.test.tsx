@@ -112,9 +112,11 @@ test('the hairline brings back the bar and the reader’s own chrome with it', a
   assert.equal(isHiddenFromAccessibility(chrome), false);
   assert.ok(playButton(view));
 
-  // Scrolling on continues from the revealed state, not from where it was hidden.
+  // Scrolling on starts from the revealed state: a slight scroll drops it again.
+  await scrollReader(view, 404);
+  assert.equal(shared.progress.value, 0, 'four points is not yet a scroll');
   await scrollReader(view, 460);
-  assert.ok(shared.progress.value > 0 && shared.progress.value < 1);
+  assert.equal(shared.progress.value, 1);
 });
 
 test('with the chapter playing, scrolling shrinks the bar into the strip and Play stays in reach', async () => {
@@ -165,15 +167,16 @@ test('the collapsed strip’s Next keeps the strip and the tucked-away top chrom
   assert.equal(isHiddenFromAccessibility(topChrome), true);
 });
 
-test('small scroll steps move the chrome on the UI thread without re-rendering the screen', async () => {
+test('a slight scroll snaps the chrome away on the UI thread, and later steps redraw nothing', async () => {
   const shared = await chromeStore();
   const view = await renderReader();
   await scrollReader(view, 60);
+  assert.equal(shared.progress.value, 1, 'dropped all the way');
   const renders = reader.renders.count;
 
   await scrollReader(view, 80);
 
-  assert.ok(shared.progress.value > 0 && shared.progress.value < 1, 'motion still advanced');
+  assert.equal(shared.progress.value, 1);
   assert.equal(reader.renders.count, renders, 'a sub-48pt step stays on the UI thread');
 });
 

@@ -11,9 +11,14 @@ import {
   interpolate,
   Extrapolation,
   runOnJS,
+  withTiming,
 } from 'react-native-reanimated';
 import { spacing } from '../../../design/system';
-import { getNextReaderChromeProgress, getSettledReaderChromeProgress } from '../readerChromeMotion';
+import {
+  getNextReaderChromeTarget,
+  getSettledReaderChromeProgress,
+  READER_CHROME_SNAP_MS,
+} from '../readerChromeMotion';
 import type { RootTabNavigationHandle, NavigationProp } from './readerConstants';
 import { READER_SCROLL_JS_UPDATE_INTERVAL_PX } from './readerConstants';
 
@@ -65,6 +70,11 @@ export function useReaderScrollChrome({
   showPremiumReadMode,
 }: UseReaderScrollChromeInput) {
   const lastReaderScrollJsOffset = useSharedValue(0);
+  // Where the finger last sent the chrome (0 shown, 1 dropped), and how far the finger
+  // has travelled in its current direction. The chrome snaps to the target rather than
+  // following the finger.
+  const readerChromeTargetShared = useSharedValue<0 | 1>(0);
+  const readerChromeTravelShared = useSharedValue(0);
   const lastReaderScrollJsAtBottom = useSharedValue(false);
 
   const updateReaderBottomChromeState = useCallback(
@@ -162,6 +172,7 @@ export function useReaderScrollChrome({
     onBeginDrag: () => {
       'worklet';
       readerChromeFingerScrollShared.value = true;
+      readerChromeTravelShared.value = 0;
     },
     onEndDrag: (event) => {
       'worklet';
@@ -185,27 +196,60 @@ export function useReaderScrollChrome({
           : false;
       if (readerChromeOwner.value !== readerRouteKey) return;
 
-      const nextProgress = screenReaderEnabled
-        ? 0
-        : readerChromeFingerScrollShared.value
-          ? getNextReaderChromeProgress({
-              progress: readerBottomChromeProgressShared.value,
-              previousOffset: readerChromeOffsetShared.value,
-              offset: nextOffsetY,
-              viewportHeight,
-              contentHeight,
-              reduceMotion,
-            })
-          : getSettledReaderChromeProgress({
-              progress: readerBottomChromeProgressShared.value,
-              viewportHeight,
-              contentHeight,
-              reduceMotion,
-            });
+      const currentProgress = readerBottomChromeProgressShared.value;
+      let nextTarget: 0 | 1;
+      // Set when the chrome must move: a snap to a new target, or back to one that
+      // something else (a reset, the hairline) moved it away from.
+      let animate = false;
+      if (screenReaderEnabled) {
+        nextTarget = 0;
+        animate = currentProgress !== 0;
+      } else if (readerChromeFingerScrollShared.value) {
+        const next = getNextReaderChromeTarget({
+          target: readerChromeTargetShared.value,
+          travel: readerChromeTravelShared.value,
+          previousOffset: readerChromeOffsetShared.value,
+          offset: nextOffsetY,
+          viewportHeight,
+          contentHeight,
+          reduceMotion,
+        });
+        nextTarget = next.target;
+        readerChromeTravelShared.value = next.travel;
+        animate =
+          nextTarget !== readerChromeTargetShared.value ||
+          Math.abs(currentProgress - nextTarget) >= 0.999;
+      } else {
+        // A move without the finger leaves the chrome where it is, and never writes it:
+        // writing would freeze a snap still under way from the finger.
+        const settled = getSettledReaderChromeProgress({
+          progress: currentProgress,
+          viewportHeight,
+          contentHeight,
+          reduceMotion,
+        });
+        const target = readerChromeTargetShared.value;
+        if (settled !== currentProgress) {
+          // The chapter stopped scrolling: nothing could bring hidden chrome back.
+          nextTarget = 0;
+          animate = true;
+        } else {
+          // Re-sync only when something else put the chrome at the other end.
+          nextTarget =
+            Math.abs(currentProgress - target) >= 0.999 ? (currentProgress >= 0.5 ? 1 : 0) : target;
+        }
+      }
       readerChromeOffsetShared.value = nextOffsetY;
-      readerBottomChromeProgressShared.value = nextProgress;
-      rootTabBarScrollProgress.value = nextProgress;
-      const nextCollapsed = nextProgress >= 0.98;
+      readerChromeTargetShared.value = nextTarget;
+      if (animate) {
+        readerBottomChromeProgressShared.value = reduceMotion
+          ? nextTarget
+          : withTiming(nextTarget, { duration: READER_CHROME_SNAP_MS });
+        rootTabBarScrollProgress.value = reduceMotion
+          ? nextTarget
+          : withTiming(nextTarget, { duration: READER_CHROME_SNAP_MS });
+      }
+      const nextCollapsed = nextTarget === 1;
       // Only bookkeeping crosses to JS. All visible motion above runs for
       // every native scroll frame, including the small deltas of a slow drag.
       const shouldNotifyJs =
@@ -246,7 +290,11 @@ export function useReaderScrollChrome({
         return;
       }
       readerBottomChromeProgressShared.value = sharedProgress;
+      // Only a settled end counts: mid-snap the scroll handler already set the target,
+      // and following every frame here would flip the collapsed state back and forth.
+      if (sharedProgress > 0 && sharedProgress < 0.98) return;
       const nextCollapsed = sharedProgress >= 0.98;
+      readerChromeTargetShared.value = nextCollapsed ? 1 : 0;
       if (nextCollapsed !== readerChromeCollapsedShared.value) {
         readerChromeCollapsedShared.value = nextCollapsed;
         runOnJS(updateReaderChromeCollapsed)(nextCollapsed);
