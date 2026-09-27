@@ -15,7 +15,11 @@ import { useTranslation } from 'react-i18next';
 
 import { AudioProgressScrubber } from '../../components/audio/AudioProgressScrubber';
 import type { Verse } from '../../types';
-import { getEstimatedFollowAlongVerse, hasAudioPositionRestarted } from './bibleReaderModel';
+import {
+  getEstimatedFollowAlongVerse,
+  hasAudioPositionJumpedBack,
+  hasAudioPositionRestarted,
+} from './bibleReaderModel';
 import { useAudioPosition } from '../../hooks/useAudioPosition';
 
 interface ReaderAudioTrack {
@@ -112,7 +116,15 @@ export const ReaderAudioPositionBridge = memo(function ReaderAudioPositionBridge
         previousPosition: previousPositionRef.current,
         duration,
       });
-    if (didRestart) {
+    // A restart, or a seek back from outside the reader, releases the clamp below.
+    if (
+      didRestart ||
+      (activeTrackKey != null &&
+        hasAudioPositionJumpedBack({
+          currentPosition,
+          previousPosition: previousPositionRef.current,
+        }))
+    ) {
       lastVerseRef.current = null;
     }
     previousPositionRef.current = activeTrackKey != null ? currentPosition : null;

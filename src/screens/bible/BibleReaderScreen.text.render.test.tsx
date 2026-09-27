@@ -180,6 +180,34 @@ test('the follow-along highlight moves verse to verse and invalidates the list r
   assert.match(String(reader.readerList(view).props.extraData), /^3\|/);
 });
 
+// Dragging the player bar's line, the lock screen or Control Center seeks without
+// telling the reader, and the highlight stayed on the later verse while the audio
+// played on from an earlier one (owner report on build 462).
+test('a seek back from outside the reader moves the highlight back with the audio', async () => {
+  reader.setTimestamps({ 1: 0, 2: 30, 3: 60 });
+  const view = await renderReader();
+  await playJohn3(65_000);
+  const highlight = backgroundOf(verseSpan(view, 3));
+  assert.ok(highlight, 'verse 3 is highlighted');
+
+  await playJohn3(5_000);
+
+  assert.equal(backgroundOf(verseSpan(view, 1)), highlight, 'verse 1, where the audio is now');
+  assert.equal(backgroundOf(verseSpan(view, 3)), undefined);
+});
+
+test('a small backward wobble in the position does not pull the highlight back', async () => {
+  reader.setTimestamps({ 1: 0, 2: 30, 3: 60 });
+  const view = await renderReader();
+  await playJohn3(60_300);
+  const highlight = backgroundOf(verseSpan(view, 3));
+  assert.ok(highlight);
+
+  await playJohn3(59_800);
+
+  assert.equal(backgroundOf(verseSpan(view, 3)), highlight, 'held on verse 3');
+});
+
 test('position ticks inside a verse do not re-render the reader', async () => {
   reader.setTimestamps({ 1: 0, 2: 30, 3: 60 });
   await renderReader();

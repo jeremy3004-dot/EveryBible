@@ -584,6 +584,24 @@ export const hasAudioPositionRestarted = ({
   return duration <= 0 || previousPosition >= Math.min(duration * 0.7, duration - restartWindowMs);
 };
 
+/** A backward move in the position this large is a seek, not interpolation jitter. */
+export const AUDIO_SEEK_BACK_THRESHOLD_MS = 2000;
+
+/**
+ * Whether playback jumped backward: a seek from anywhere (the player bar's line, the
+ * lock screen, Control Center, headphone skip-back), which the reader is not told
+ * about. The follow-along clamp holds the highlight against small backward jitter, so
+ * it must let go on a jump like this or the highlight stays on the later verse.
+ */
+export const hasAudioPositionJumpedBack = ({
+  currentPosition,
+  previousPosition,
+}: {
+  currentPosition: number;
+  previousPosition: number | null;
+}): boolean =>
+  previousPosition != null && previousPosition - currentPosition >= AUDIO_SEEK_BACK_THRESHOLD_MS;
+
 export const getReaderAutoScrollTarget = ({
   currentScrollOffsetY,
   viewportHeight,

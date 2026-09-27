@@ -10,6 +10,7 @@ import {
   getPlanSessionTrailingActionState,
   getReaderChromeAnimationProgress,
   getReaderVerseLineHeight,
+  hasAudioPositionJumpedBack,
   hasAudioPositionRestarted,
   isReaderChromeCollapsed,
   LISTEN_COUNTED_NOTICE_TEST_ID,
@@ -1148,4 +1149,24 @@ test('follow-along timestamps still select the latest verse at or before the pla
     getEstimatedFollowAlongVerse({ verses, currentPosition: 25000, duration: 30000, timestamps }),
     3
   );
+});
+
+test('a backward jump of two seconds or more is a seek; smaller wobble is not', () => {
+  assert.equal(
+    hasAudioPositionJumpedBack({ previousPosition: 65_000, currentPosition: 5_000 }),
+    true
+  );
+  assert.equal(
+    hasAudioPositionJumpedBack({ previousPosition: 65_000, currentPosition: 63_000 }),
+    true
+  );
+  assert.equal(
+    hasAudioPositionJumpedBack({ previousPosition: 60_300, currentPosition: 59_800 }),
+    false
+  );
+  assert.equal(
+    hasAudioPositionJumpedBack({ previousPosition: 30_000, currentPosition: 40_000 }),
+    false
+  );
+  assert.equal(hasAudioPositionJumpedBack({ previousPosition: null, currentPosition: 0 }), false);
 });
