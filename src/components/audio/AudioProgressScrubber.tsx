@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type {
   AccessibilityActionEvent,
   GestureResponderEvent,
@@ -8,6 +8,7 @@ import type {
 } from 'react-native';
 import { PanResponder, StyleSheet, View } from 'react-native';
 import { formatPlaybackTime } from '../../utils';
+import { useLatestCallback } from './playbackControlsParts/useLatestCallback';
 
 const SEEK_STEP_MS = 10000;
 
@@ -58,18 +59,20 @@ export function AudioProgressScrubber({
     return clampProgressPosition((locationX / trackWidth) * duration, duration);
   };
 
-  const previewPosition = (event: GestureResponderEvent) => {
+  const canScrub = useLatestCallback(() => duration > 0 && trackWidth > 0);
+  const previewPosition = useLatestCallback((event: GestureResponderEvent) => {
+    if (!canScrub()) return;
     const nextPosition = resolvePosition(event.nativeEvent.locationX);
     setIsScrubbing(true);
     setDraftPosition(nextPosition);
     return nextPosition;
-  };
+  });
 
-  const commitPosition = (event: GestureResponderEvent) => {
-    const nextPosition = previewPosition(event);
+  const commitPosition = useLatestCallback((event: GestureResponderEvent) => {
     setIsScrubbing(false);
-    onSeek(nextPosition);
-  };
+    if (!canScrub()) return;
+    onSeek(resolvePosition(event.nativeEvent.locationX));
+  });
 
   const handleLayout = (event: LayoutChangeEvent) => {
     setTrackWidth(event.nativeEvent.layout.width);
@@ -91,15 +94,20 @@ export function AudioProgressScrubber({
     }
   };
 
-  const panResponder = PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder: () => true,
-    onPanResponderGrant: previewPosition,
-    onPanResponderMove: previewPosition,
-    onPanResponderRelease: commitPosition,
-    onPanResponderTerminate: commitPosition,
-    onPanResponderTerminationRequest: () => false,
-  });
+  // Keep RN's gesture state alive while previews and playback ticks re-render us.
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: canScrub,
+        onMoveShouldSetPanResponder: canScrub,
+        onPanResponderGrant: previewPosition,
+        onPanResponderMove: previewPosition,
+        onPanResponderRelease: commitPosition,
+        onPanResponderTerminate: () => setIsScrubbing(false),
+        onPanResponderTerminationRequest: () => false,
+      }),
+    [canScrub, previewPosition, commitPosition]
+  );
 
   return (
     <View
@@ -107,6 +115,7 @@ export function AudioProgressScrubber({
       onLayout={handleLayout}
       hitSlop={{ top: 12, bottom: 12 }}
       accessibilityRole="adjustable"
+      accessibilityState={{ disabled: duration <= 0 }}
       accessibilityLabel={accessibilityLabel}
       accessibilityValue={{
         min: 0,
@@ -118,7 +127,10 @@ export function AudioProgressScrubber({
       onAccessibilityAction={handleAccessibilityAction}
       {...panResponder.panHandlers}
     >
-      <View style={[styles.track, { backgroundColor: trackColor }, trackStyle]}>
+      <View
+        pointerEvents="none"
+        style={[styles.track, { backgroundColor: trackColor }, trackStyle]}
+      >
         <View
           style={[
             styles.fill,

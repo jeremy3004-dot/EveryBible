@@ -8,6 +8,19 @@ import { mockBarrel, mockModule, sourcePath } from '../../../testing/mockModules
 import { flattenStyle, installRenderHarness, within } from '../../../testing/render';
 
 const harness = installRenderHarness(mock, { os: 'ios' });
+type PanConfig = Record<string, ((...args: unknown[]) => unknown) | undefined>;
+const panResponder = harness.rn.PanResponder as unknown as {
+  create: (config: PanConfig) => { panHandlers: PanConfig };
+};
+panResponder.create = (config) => ({
+  panHandlers: {
+    onStartShouldSetResponder: config.onStartShouldSetPanResponder,
+    onResponderGrant: config.onPanResponderGrant,
+    onResponderMove: config.onPanResponderMove,
+    onResponderRelease: config.onPanResponderRelease,
+  },
+});
+mockBarrel(mock, 'utils/index.ts', { real: ['formatPlaybackTime'] });
 const t = (key: string, options?: Record<string, unknown>) => harness.i18n.t(key, options);
 
 // The position Read Along follows, as the player writes it.
@@ -116,6 +129,7 @@ async function renderReadAlong(overrides: Partial<Props> = {}) {
     onPreviousChapter: () => calls.push('previous'),
     onNextChapter: () => calls.push('next'),
     onPlayPause: () => calls.push('playPause'),
+    onSeek: () => calls.push('seek'),
     ...overrides,
   };
   const view = await harness.render(<FollowAlongTextSheet {...props} />);
@@ -452,13 +466,36 @@ test('the controls step chapters and play or pause', async () => {
   assert.deepEqual(calls, ['previous', 'playPause', 'next']);
 });
 
-test('the progress line fills with the played share of the chapter', async () => {
+test('the progress slider shows the played share of the chapter', async () => {
   await playJohn3At(15_000);
   const { view } = await renderReadAlong();
 
-  const line = view.getByTestId('read-along-progress');
-  const fill = within(line)
-    .queryAllByType('View')
-    .find((node) => node !== line);
-  assert.equal(flattenStyle(fill?.props.style)?.width, '25%');
+  const slider = view.getByRole('adjustable', { name: t('readingPlans.progress') });
+  assert.equal(slider.props.accessibilityValue.now, 15);
+  assert.equal(slider.props.accessibilityValue.max, 60);
+});
+
+test('Read Along previews a drag and seeks forward or backward on release', async () => {
+  await playJohn3At(15_000);
+  const seeks: number[] = [];
+  const { view, calls } = await renderReadAlong({ onSeek: (ms) => seeks.push(ms) });
+  const slider = () => view.getByRole('adjustable', { name: t('readingPlans.progress') });
+  const touch = (locationX: number) => ({ nativeEvent: { locationX } });
+  await view.fire(slider(), 'onLayout', { nativeEvent: { layout: { width: 200 } } });
+  await view.fire(slider(), 'onResponderGrant', touch(50));
+  await view.fire(slider(), 'onResponderMove', touch(150));
+  assert.equal(slider().props.accessibilityValue.now, 45);
+  assert.deepEqual(seeks, []);
+  await view.fire(slider(), 'onResponderRelease', touch(150));
+  await view.fire(slider(), 'onResponderGrant', touch(20));
+  await view.fire(slider(), 'onResponderRelease', touch(20));
+  assert.deepEqual(seeks, [45_000, 6_000]);
+  assert.deepEqual(calls, [], 'seeking does not toggle playback or navigate chapters');
+});
+
+test('Read Along cannot seek the recording of another chapter', async () => {
+  await playJohn3At(15_000);
+  const { view } = await renderReadAlong({ isCurrentAudioChapter: false });
+  const slider = view.getByRole('adjustable', { name: t('readingPlans.progress') });
+  assert.equal(slider.props.onStartShouldSetResponder(), false);
 });

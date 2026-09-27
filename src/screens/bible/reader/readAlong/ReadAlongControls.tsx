@@ -3,43 +3,40 @@ import { I18nManager, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../../contexts/ThemeContext';
-import { layout, radius, spacing } from '../../../../design/system';
+import { layout, spacing } from '../../../../design/system';
 import { useAudioPosition } from '../../../../hooks/useAudioPosition';
 import { OutlinedPlayPauseGlyph } from '../../../../components/audio/OutlinedPlayPauseGlyph';
 import { SelahButton } from '../../../../components/audio/SelahButton';
 import type { ChapterTrack } from './useChapterVerseTimestamps';
-import { getReadAlongProgress } from './readAlongModel';
+import { AudioProgressScrubber } from '../../../../components/audio/AudioProgressScrubber';
 
 /**
- * The hairline under the text: how much of the chapter has played. The only part of
+ * The seek bar under the text. The only part of
  * the controls that reads the position tick.
  */
 const ReadAlongProgressLine = memo(function ReadAlongProgressLine({
   track,
   isCurrentAudioChapter,
+  onSeek,
 }: {
   track: ChapterTrack;
   isCurrentAudioChapter: boolean;
+  onSeek: (positionMs: number) => void;
 }) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const { currentPosition, duration } = useAudioPosition(track);
-  const progress = isCurrentAudioChapter ? getReadAlongProgress(currentPosition, duration) : 0;
 
   return (
-    // Decorative: the play button and the Audio sheet carry the time.
-    <View
-      style={[styles.progressTrack, { backgroundColor: colors.bibleDivider }]}
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
-      testID="read-along-progress"
-    >
-      <View
-        style={[
-          styles.progressFill,
-          { backgroundColor: colors.bibleAccent, width: `${progress * 100}%` },
-        ]}
-      />
-    </View>
+    <AudioProgressScrubber
+      position={isCurrentAudioChapter ? currentPosition : 0}
+      duration={isCurrentAudioChapter ? duration : 0}
+      onSeek={onSeek}
+      trackColor={colors.bibleDivider}
+      fillColor={colors.bibleAccent}
+      containerStyle={styles.progressTouch}
+      accessibilityLabel={t('readingPlans.progress')}
+    />
   );
 });
 
@@ -52,6 +49,7 @@ export interface ReadAlongControlsProps {
   onPreviousChapter: () => void;
   onNextChapter: () => void;
   onPlayPause: () => void;
+  onSeek: (positionMs: number) => void;
   bottomInset: number;
 }
 
@@ -69,6 +67,7 @@ export const ReadAlongControls = memo(function ReadAlongControls({
   onPreviousChapter,
   onNextChapter,
   onPlayPause,
+  onSeek,
   bottomInset,
 }: ReadAlongControlsProps) {
   const { colors } = useTheme();
@@ -85,7 +84,11 @@ export const ReadAlongControls = memo(function ReadAlongControls({
         },
       ]}
     >
-      <ReadAlongProgressLine track={track} isCurrentAudioChapter={isCurrentAudioChapter} />
+      <ReadAlongProgressLine
+        track={track}
+        isCurrentAudioChapter={isCurrentAudioChapter}
+        onSeek={onSeek}
+      />
       <View style={styles.row}>
         {/* Balances the Selah slot, so the transport stays centred. */}
         <View style={styles.sideSlot} />
@@ -144,14 +147,9 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     paddingTop: spacing.sm,
   },
-  progressTrack: {
-    height: 2,
+  progressTouch: {
+    minHeight: layout.minTouchTarget,
     marginHorizontal: spacing.lg,
-    borderRadius: radius.pill,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
   },
   row: {
     flexDirection: 'row',

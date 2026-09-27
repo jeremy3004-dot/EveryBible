@@ -33,6 +33,7 @@ export interface FollowAlongTextSheetProps {
   onPreviousChapter: () => void;
   onNextChapter: () => void;
   onPlayPause: () => void;
+  onSeek: (positionMs: number) => void;
 }
 
 /**
@@ -59,6 +60,7 @@ export const FollowAlongTextSheet = memo(function FollowAlongTextSheet({
   onPreviousChapter,
   onNextChapter,
   onPlayPause,
+  onSeek,
 }: FollowAlongTextSheetProps) {
   const { colors } = useTheme();
   const { t } = useTranslation();
@@ -167,6 +169,7 @@ export const FollowAlongTextSheet = memo(function FollowAlongTextSheet({
           onPreviousChapter={onPreviousChapter}
           onNextChapter={onNextChapter}
           onPlayPause={onPlayPause}
+          onSeek={onSeek}
           bottomInset={Math.max(safeInsets.bottom, spacing.md)}
         />
       </View>

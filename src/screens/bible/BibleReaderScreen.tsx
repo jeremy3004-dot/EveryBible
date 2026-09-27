@@ -1481,6 +1481,7 @@ export function BibleReaderScreen() {
         onPreviousChapter={handleReadAlongPreviousChapter}
         onNextChapter={handleReadAlongNextChapter}
         onPlayPause={handleReadAlongPlayPause}
+        onSeek={handleListenModeSeek}
       />
 
       <AnnotationActionSheet

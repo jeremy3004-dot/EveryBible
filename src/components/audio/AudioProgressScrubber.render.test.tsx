@@ -94,8 +94,16 @@ test('a drag past either end clamps to the chapter', async () => {
   await view.fire(slider(), 'onResponderGrant', touch(-40));
   await view.fire(slider(), 'onResponderRelease', touch(-40));
   await view.fire(slider(), 'onResponderGrant', touch(500));
-  await view.fire(slider(), 'onResponderTerminate', touch(500));
+  await view.fire(slider(), 'onResponderRelease', touch(500));
   assert.deepEqual(seeks, [0, 120_000]);
+});
+
+test('an interrupted drag discards the preview without seeking', async () => {
+  const { view, seeks, slider } = await renderScrubber();
+  await view.fire(slider(), 'onResponderGrant', touch(100));
+  await view.fire(slider(), 'onResponderTerminate', touch(100));
+  assert.deepEqual(seeks, []);
+  assert.equal(slider().props.accessibilityValue.now, 30);
 });
 
 test('screen-reader increment and decrement step ten seconds', async () => {
@@ -104,6 +112,38 @@ test('screen-reader increment and decrement step ten seconds', async () => {
   await view.fire(slider(), 'onAccessibilityAction', { nativeEvent: { actionName: 'increment' } });
   await view.fire(slider(), 'onAccessibilityAction', { nativeEvent: { actionName: 'decrement' } });
   assert.deepEqual(seeks, [40_000, 20_000]);
+});
+
+test('drag handlers stay stable through preview and playback updates', async () => {
+  const { AudioProgressScrubber } = await import('./AudioProgressScrubber');
+  const { view, seeks, slider } = await renderScrubber();
+  const latestSeeks: number[] = [];
+  const move = slider().props.onResponderMove;
+  await view.fire(slider(), 'onResponderGrant', touch(50));
+  assert.equal(slider().props.onResponderMove, move);
+  await view.rerender(
+    <AudioProgressScrubber
+      position={35_000}
+      duration={120_000}
+      onSeek={(ms) => latestSeeks.push(ms)}
+      trackColor="#111111"
+      fillColor="#222222"
+      accessibilityLabel="Chapter progress"
+    />
+  );
+  assert.equal(slider().props.accessibilityValue.now, 30, 'playback cannot overwrite the preview');
+  await view.fire(slider(), 'onResponderMove', touch(100));
+  assert.equal(slider().props.onResponderMove, move);
+  await view.fire(slider(), 'onResponderRelease', touch(100));
+  assert.deepEqual(latestSeeks, [60_000], 'release uses the current seek callback');
+  assert.deepEqual(seeks, []);
+});
+
+test('an unloaded chapter does not capture touches or seek to zero', async () => {
+  const { view, seeks, slider } = await renderScrubber(0, 0);
+  assert.equal(slider().props.onStartShouldSetResponder(), false);
+  await view.fire(slider(), 'onResponderRelease', touch(100));
+  assert.deepEqual(seeks, []);
 });
 
 test('the Bible reader listen progress drags through the same scrubber to seek', async () => {
