@@ -6,7 +6,7 @@ import { create } from 'zustand';
 import { hostComponent } from '../testing/reactNativeHost';
 import { mockModule, mockPackage, sourcePath } from '../testing/mockModules';
 import { flattenStyle, hostAncestors, installRenderHarness, within } from '../testing/render';
-import { getTabBarCapsuleFill } from './tabBarCapsuleStyle';
+import { getTabBarCapsuleFill, getTabBarGlassTint } from './tabBarCapsuleStyle';
 import { getReaderTabBarTranslation, PLAYER_BAR_SECTION_HEIGHT } from './readerTabBarMotion';
 import { hexWithAlpha } from '../utils/color';
 
@@ -247,6 +247,15 @@ function expectInteractive(wrapper: ReactTestInstance) {
   assert.equal(wrapper.props.pointerEvents, 'box-none');
   assert.equal(wrapper.props.accessibilityElementsHidden, false);
   assert.equal(wrapper.props.importantForAccessibility, 'auto');
+}
+
+/**
+ * A bar a route hides outright is not drawn at all. Its fixed slide is shorter
+ * than the capsule once the player row sits on it, so a slid-away bar left its top
+ * edge (and the strip or the call-back hairline) peeking out at the bottom.
+ */
+function expectNotDrawn(frame: ReactTestInstance) {
+  assert.equal(styleOf(frame.props.style).display, 'none');
 }
 
 function expectCollapsed(wrapper: ReactTestInstance) {
@@ -513,13 +522,8 @@ test('outside the reader the tabs use primary ink on the card-surface glass', as
     assert.equal(icon.props.color, colors.primaryText, 'the pill alone carries selection');
   }
 
-  const [paper] = within(material())
-    .queryAllByType('View')
-    .filter((node) => styleOf(node.props.style).backgroundColor !== undefined);
-  assert.equal(
-    styleOf(paper.props.style).backgroundColor,
-    getTabBarCapsuleFill(colors.cardBackground)
-  );
+  const [glassView] = within(material()).queryAllByType('GlassView');
+  assert.equal(glassView.props.tintColor, getTabBarGlassTint(colors.cardBackground));
 });
 
 test('while the reader is focused the tabs take the reader ink, surface and divider', async () => {
@@ -548,7 +552,7 @@ test('while the reader is focused the tabs take the reader ink, surface and divi
   );
 });
 
-test('native glass sits in front of the paper backing, clipped to the rounded capsule', async () => {
+test('native glass carries the page tint itself, clipped to the rounded capsule', async () => {
   const { material } = await renderTabs();
   const slot = within(material());
 
@@ -564,14 +568,14 @@ test('native glass sits in front of the paper backing, clipped to the rounded ca
   assert.equal(capsuleStyle.overflow, 'hidden');
   assert.equal(capsule.props.pointerEvents, 'none');
 
-  // Host elements in paint order: earlier siblings draw behind later ones.
+  assert.equal(glassView.props.tintColor, getTabBarGlassTint(colors.cardBackground));
+  // Nothing opaque behind it: an 84% paper backing made the glass read as flat paper.
   const painted = capsule.findAll((node) => typeof node.type === 'string' && node !== capsule);
-  const paperIndex = painted.findIndex(
-    (node) =>
-      styleOf(node.props.style).backgroundColor === getTabBarCapsuleFill(colors.cardBackground)
+  assert.equal(
+    painted.some((node) => styleOf(node.props.style).backgroundColor !== undefined),
+    false,
+    'no paper backing under the glass'
   );
-  assert.ok(paperIndex >= 0, 'a paper backing is drawn');
-  assert.ok(paperIndex < painted.indexOf(glassView), 'the paper backing sits behind the glass');
 });
 
 test('without native glass the capsule is a tinted blur under the same paper and a hairline edge', async () => {
@@ -669,6 +673,7 @@ test('a route collapse progress slides the capsule partway, clamped to fully off
   tabs = await renderTabs();
   assert.deepEqual(translateYOf(tabs.frame), [{ translateY: getReaderTabBarTranslation(1) }]);
   expectCollapsed(tabs.wrapper);
+  expectNotDrawn(tabs.frame);
 });
 
 const HIDDEN_NESTED_ROUTES: Array<[string, FakeRoute['state'], string]> = [
@@ -697,6 +702,7 @@ for (const [tab, state, what] of HIDDEN_NESTED_ROUTES) {
 
     assert.deepEqual(translateYOf(frame), [{ translateY: getReaderTabBarTranslation(1) }]);
     expectCollapsed(wrapper);
+    expectNotDrawn(frame);
     assert.equal(view.queryAllByRole('tab').length, 0, 'no tab reachable by a screen reader');
     assert.equal(view.queryAllByRole('tab', { includeHidden: true }).length, 5);
   });
@@ -767,6 +773,20 @@ test('a reader that collapses the bar itself is not also slid by reader scroll',
   tabs = await renderTabs();
   assert.deepEqual(translateYOf(tabs.playerBar), [{ translateY: 0 }]);
   expectCollapsed(tabs.wrapper);
+  expectNotDrawn(tabs.frame);
+});
+
+// The verse actions collapse the bar fully. With a chapter loaded, the bar's own
+// scroll mode is the 44pt strip, and that strip peeked out under the actions.
+test('with audio loaded, a reader that collapses the bar fully shows no strip under its sheet', async () => {
+  audioStore.setState({ status: 'paused', currentBookId: 'JHN', currentChapter: 3 });
+  focusTab('Bible', {
+    state: { index: 0, routes: [{ name: 'BibleReader', params: { tabBarCollapseProgress: 1 } }] },
+  });
+  const { frame, wrapper } = await renderTabs();
+
+  expectCollapsed(wrapper);
+  expectNotDrawn(frame);
 });
 
 test('a tab bar hidden by a screen with tabBarVisible false leaves touch and VoiceOver', async () => {
@@ -776,9 +796,10 @@ test('a tab bar hidden by a screen with tabBarVisible false leaves touch and Voi
       routes: [{ name: 'MoreHome' }, { name: 'About', params: { tabBarVisible: false } }],
     },
   });
-  const { wrapper } = await renderTabs();
+  const { frame, wrapper } = await renderTabs();
 
   expectCollapsed(wrapper);
+  expectNotDrawn(frame);
 });
 
 // --- The player row -----------------------------------------------------------------

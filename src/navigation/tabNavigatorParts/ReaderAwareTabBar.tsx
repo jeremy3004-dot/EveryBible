@@ -93,12 +93,16 @@ export function ReaderAwareTabBar(props: BottomTabBarProps) {
   );
   const background = useMemo(() => originalBackground?.(), [originalBackground]);
   // A route's own collapse (a transform) or hide (display: none) moves the whole capsule.
+  // A bar the route hides outright is not drawn at all: the route's slide is a fixed
+  // distance, shorter than the capsule once the player row sits on it, so its top edge
+  // (or the strip, or the call-back hairline) peeked out under sheets like the verse
+  // actions.
   const frameStyle = useMemo(
     (): ViewStyle => ({
       transform: tabBarStyle?.transform,
-      display: tabBarStyle?.display,
+      display: forcedHidden ? 'none' : tabBarStyle?.display,
     }),
-    [tabBarStyle?.display, tabBarStyle?.transform]
+    [forcedHidden, tabBarStyle?.display, tabBarStyle?.transform]
   );
 
   return (

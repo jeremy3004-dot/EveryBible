@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import {
   TAB_BAR_CAPSULE_FILL_ALPHA,
   TAB_BAR_GLASS_EFFECT_STYLE,
+  TAB_BAR_GLASS_TINT_ALPHA,
   getTabBarCapsuleFill,
+  getTabBarGlassTint,
 } from './tabBarCapsuleStyle';
 
 const alphaOf = (hex8: string) => parseInt(hex8.slice(7, 9), 16) / 255;
@@ -25,4 +27,16 @@ test('the capsule is backed by the scope surface opaque enough to mute busy cont
 
 test('dark surfaces get the same backing strength as light ones', () => {
   assert.equal(alphaOf(getTabBarCapsuleFill('#1B1A17')), alphaOf(getTabBarCapsuleFill('#F4EFE4')));
+});
+
+// The owner found the bar did not read as liquid glass: an 84% paper backing under
+// the glass left it looking like a flat paper pill. On native glass the page colour
+// now tints the glass itself, lightly, and the frosting keeps the labels legible.
+test('native glass is tinted with the page colour, lightly enough to stay glass', () => {
+  const tint = getTabBarGlassTint(getTabBarCapsuleFill('#F4EFE4'));
+
+  assert.equal(tint.slice(0, 7), '#F4EFE4', 'tinted with the surface colour itself');
+  assert.equal(Math.round(alphaOf(tint) * 100) / 100, TAB_BAR_GLASS_TINT_ALPHA);
+  assert.ok(TAB_BAR_GLASS_TINT_ALPHA <= 0.5, 'more glass than paper');
+  assert.ok(TAB_BAR_GLASS_TINT_ALPHA < TAB_BAR_CAPSULE_FILL_ALPHA);
 });

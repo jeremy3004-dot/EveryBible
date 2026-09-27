@@ -67,3 +67,15 @@ export const TAB_BAR_CAPSULE_FILL_ALPHA = 0.84;
 export function getTabBarCapsuleFill(surfaceColor: string): string {
   return hexWithAlpha(surfaceColor, TAB_BAR_CAPSULE_FILL_ALPHA);
 }
+
+/**
+ * On native liquid glass the page colour tints the glass itself, lightly, instead of
+ * an opaque paper backing underneath: the backing left the bar reading as a flat
+ * paper pill (owner feedback, 2026-09-27). The frosted material still blurs text
+ * behind it enough to keep the labels legible. Accepts a surface colour or a fill.
+ */
+export const TAB_BAR_GLASS_TINT_ALPHA = 0.35;
+
+export function getTabBarGlassTint(color: string): string {
+  return hexWithAlpha(color.slice(0, 7), TAB_BAR_GLASS_TINT_ALPHA);
+}

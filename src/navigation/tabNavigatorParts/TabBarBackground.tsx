@@ -2,12 +2,12 @@ import { Platform, StyleSheet, View } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { GlassView, isGlassEffectAPIAvailable, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { TAB_BAR_CAPSULE_RADIUS } from '../../hooks/useTabBarHeight';
-import { TAB_BAR_GLASS_EFFECT_STYLE } from '../tabBarCapsuleStyle';
+import { getTabBarGlassTint, TAB_BAR_GLASS_EFFECT_STYLE } from '../tabBarCapsuleStyle';
 
-// Liquid glass capsule. On iOS 26+ the paper backing sits BEHIND frosted
-// regular glass, so the glass samples mostly paper and verse text under the bar
-// cannot lens through the labels; older platforms get a blur under the same
-// paper tint. Both keep a little translucency so the bar floats over the page.
+// Liquid glass capsule. On iOS 26+ it is frosted regular glass tinted lightly with
+// the page colour, with nothing opaque behind it, so it reads as glass; the frosting
+// (not clear, lensing glass) keeps verse text behind it from smearing through the
+// labels. Older platforms get a blur under the paper fill and a hairline edge.
 export function TabBarBackground({
   isDark,
   fill,
@@ -20,10 +20,10 @@ export function TabBarBackground({
   if (Platform.OS === 'ios' && isLiquidGlassAvailable() && isGlassEffectAPIAvailable()) {
     return (
       <View style={styles.capsule} pointerEvents="none">
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: fill }]} />
         <GlassView
           pointerEvents="none"
           glassEffectStyle={TAB_BAR_GLASS_EFFECT_STYLE}
+          tintColor={getTabBarGlassTint(fill)}
           colorScheme={isDark ? 'dark' : 'light'}
           style={styles.capsule}
         />
