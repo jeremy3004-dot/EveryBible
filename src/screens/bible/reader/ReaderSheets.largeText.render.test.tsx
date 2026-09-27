@@ -4,9 +4,16 @@
 import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { type ReactTestInstance } from 'react-test-renderer';
+import { mockModule, sourcePath } from '../../../testing/mockModules';
 import { flattenStyle, hostAncestors, installRenderHarness, within } from '../../../testing/render';
 
 const harness = installRenderHarness(mock, { os: 'ios' });
+// The picture editor's extra faces load through expo-font's native module, which Node
+// cannot run; here they are ready at once.
+mockModule(mock, sourcePath('screens/bible/reader/verseImage/verseImageFonts.ts'), {
+  useVerseImageFonts: () => true,
+  VERSE_IMAGE_FONT_SOURCES: {},
+});
 const t = (key: string, options?: Record<string, unknown>) => harness.i18n.t(key, options);
 
 // iOS's largest accessibility size (AX5) scales body text by about 3.1.

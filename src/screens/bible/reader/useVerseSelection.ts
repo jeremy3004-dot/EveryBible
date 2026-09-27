@@ -86,6 +86,16 @@ export function useVerseSelection({
           translationLabel: translationShareLabel,
         })
       : '';
+  // The shared picture names the passage alone; the translation stays in the caption.
+  const selectedVerseImageReferenceLabel =
+    selectedVerses.length > 0
+      ? formatBibleSelectionReference({
+          bookName: getTranslatedBookName(bookId, t),
+          chapter,
+          verses: selectedVerses,
+          translationLabel: '',
+        })
+      : '';
   const selectedVerseText =
     selectedVerses.length > 0 ? extractBibleSelectionText(verses, selectedVerses) : '';
   const selectedVerseShareText =
@@ -403,6 +413,7 @@ export function useVerseSelection({
     selectedNoteAnnotation,
     selectedVerseDecorationStyle,
     selectedVerseReferenceLabel,
+    selectedVerseImageReferenceLabel,
     selectedVerseSet,
     selectedVerseText,
   };

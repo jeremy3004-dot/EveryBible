@@ -494,6 +494,7 @@ export function BibleReaderScreen() {
     selectedNoteAnnotation,
     selectedVerseDecorationStyle,
     selectedVerseReferenceLabel,
+    selectedVerseImageReferenceLabel,
     selectedVerseSet,
     selectedVerseText,
   } = useVerseSelection({
@@ -1515,11 +1516,10 @@ export function BibleReaderScreen() {
         isSharingVerseImage={isSharingVerseImage}
         selectedVerseImageBackground={selectedVerseImageBackground}
         selectedVerseImageBackgroundIndex={selectedVerseImageBackgroundIndex}
-        selectedVerseReferenceLabel={selectedVerseReferenceLabel}
+        selectedVerseReferenceLabel={selectedVerseImageReferenceLabel}
         selectedVerseText={selectedVerseText}
         setShowVerseImageSheet={setShowVerseImageSheet}
         showVerseImageSheet={showVerseImageSheet}
-        translationLanguage={currentTranslationInfo?.language}
         verseImageBackgroundCount={verseImageBackgroundCount}
         verseImageSharePreviewRef={verseImageSharePreviewRef}
       />

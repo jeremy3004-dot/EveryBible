@@ -72,7 +72,13 @@
     "verify:workspace": "npm run lint && npm run lint --workspaces --if-present && npm run typecheck && npm run typecheck --workspaces --if-present && npm test"
   },
   "dependencies": {
+    "@expo-google-fonts/alfa-slab-one": "^0.4.1",
+    "@expo-google-fonts/anton": "^0.4.2",
+    "@expo-google-fonts/caveat": "^0.4.2",
+    "@expo-google-fonts/dancing-script": "^0.4.2",
     "@expo-google-fonts/lora": "^0.4.2",
+    "@expo-google-fonts/playfair-display": "^0.4.2",
+    "@expo-google-fonts/special-elite": "^0.4.1",
     "@expo/vector-icons": "^15.0.3",
     "@kesha-antonov/react-native-background-downloader": "^4.5.4",
     "@noble/curves": "^1.9.7",

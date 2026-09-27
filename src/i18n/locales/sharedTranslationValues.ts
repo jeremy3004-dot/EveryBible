@@ -2,6 +2,8 @@
 // A key or feature area alone never exempts new English text from translation.
 export const sharedTranslationValues: Record<string, Record<string, string>> = {
   es: {
+    'bible.verseImage.tabs.color': 'Color',
+    'bible.verseImage.fonts.slab': 'Slab',
     // Brand names only: the app name and the Every Language organization name.
     'more.footerVersion': 'Every Bible {{version}} · Every Language',
     'readingPlans.plansCount_one': '{{count}} plan',
@@ -30,6 +32,7 @@ export const sharedTranslationValues: Record<string, Record<string, string>> = {
     'audio.playerBar.selah': 'Selah',
   },
   fr: {
+    'bible.verseImage.fonts.slab': 'Slab',
     // Reviewed 2026-09-24: the translation picker's Bible count; French writes it as English does.
     'bible.translationSearchResultCount_one': '{{count}} Bible',
     'bible.translationSearchResultCount_other': '{{count}} Bibles',
@@ -81,6 +84,7 @@ export const sharedTranslationValues: Record<string, Record<string, string>> = {
     'interface.music.village.label': 'Village',
   },
   pt: {
+    'bible.verseImage.fonts.slab': 'Slab',
     // Brand names only: the app name and the Every Language organization name.
     'more.footerVersion': 'Every Bible {{version}} · Every Language',
     'interface.minutesShort': '{{count}} min',
@@ -98,6 +102,9 @@ export const sharedTranslationValues: Record<string, Record<string, string>> = {
     'engagement.minutes': 'min',
   },
   de: {
+    'bible.verseImage.fonts.elegant': 'Elegant',
+    'bible.verseImage.fonts.modern': 'Modern',
+    'bible.verseImage.colors.gold': 'Gold',
     // Reviewed 2026-09-24: the reminder picker's minute column; the word is the same in English.
     'settings.reminderMinuteLabel': 'Minute',
     // Brand names only: the app name and the Every Language organization name.
@@ -146,6 +153,8 @@ export const sharedTranslationValues: Record<string, Record<string, string>> = {
     'interface.rhythmPresets.catholic-lectio-divina.historicRoots': 'Lectio Divina',
   },
   tr: {
+    'bible.verseImage.fonts.slab': 'Slab',
+    'bible.verseImage.fonts.modern': 'Modern',
     // Brand names only: the app name and the Every Language organization name.
     'more.footerVersion': 'Every Bible {{version}} · Every Language',
     'readingPlans.plansCount_one': '{{count}} plan',
@@ -193,6 +202,9 @@ export const sharedTranslationValues: Record<string, Record<string, string>> = {
     'readingPlans.kathisma.title': 'Kathisma',
   },
   id: {
+    'bible.verseImage.tabs.font': 'Font',
+    'bible.verseImage.fonts.slab': 'Slab',
+    'bible.verseImage.fonts.modern': 'Modern',
     // Brand names only: the app name and the Every Language organization name.
     'more.footerVersion': 'Every Bible {{version}} · Every Language',
     'auth.emailPlaceholder': 'you@example.com',

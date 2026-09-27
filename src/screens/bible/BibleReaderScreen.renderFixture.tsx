@@ -153,6 +153,12 @@ export function installReaderRenderFixture(
     downloadAudioForBook: async () => {},
     recoverMissingInstalledPack: async () => {},
   }));
+  // The picture editor's extra faces load through expo-font's native module, which
+  // Node cannot run; here they are ready at once.
+  mockModule(mocker, sourcePath('screens/bible/reader/verseImage/verseImageFonts.ts'), {
+    useVerseImageFonts: () => true,
+    VERSE_IMAGE_FONT_SOURCES: {},
+  });
   mockModule(mocker, sourcePath('stores/bibleStore.ts'), { useBibleStore: bibleStore });
 
   // Playback: the reader reads it through useAudioPlayer, the position leaves
