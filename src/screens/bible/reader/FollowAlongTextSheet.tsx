@@ -1,5 +1,13 @@
 import { memo, useMemo } from 'react';
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  Modal,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X } from 'lucide-react-native';
@@ -65,6 +73,7 @@ export const FollowAlongTextSheet = memo(function FollowAlongTextSheet({
   const { colors } = useTheme();
   const { t } = useTranslation();
   const safeInsets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const reduceMotion = useReducedMotion();
   const { scaleValue } = useFontSize();
   const text = useReadAlongText({ track, readerVerses, translation, enabled: visible });
@@ -107,7 +116,13 @@ export const FollowAlongTextSheet = memo(function FollowAlongTextSheet({
         // VoiceOver's escape gesture closes it, as Android back does.
         onAccessibilityEscape={onClose}
         testID="read-along"
-        style={[styles.container, { backgroundColor: colors.bibleBackground }]}
+        style={[
+          styles.container,
+          { backgroundColor: colors.bibleBackground },
+          // Bound Android's text and transport to the modal viewport so the
+          // scroll view cannot leave the controls below the visible screen.
+          Platform.OS === 'android' ? { flex: 0, height: windowHeight } : null,
+        ]}
       >
         <View
           style={[

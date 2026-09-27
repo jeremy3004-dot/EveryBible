@@ -7,7 +7,11 @@ import type { BibleTranslation, Verse } from '../../../types';
 import { mockBarrel, mockModule, sourcePath } from '../../../testing/mockModules';
 import { flattenStyle, installRenderHarness, within } from '../../../testing/render';
 
-const harness = installRenderHarness(mock, { os: 'ios' });
+let windowHeight = 844;
+const harness = installRenderHarness(mock, {
+  os: 'ios',
+  windowDimensions: () => ({ width: 390, height: windowHeight, scale: 3, fontScale: 1 }),
+});
 type PanConfig = Record<string, ((...args: unknown[]) => unknown) | undefined>;
 const panResponder = harness.rn.PanResponder as unknown as {
   create: (config: PanConfig) => { panHandlers: PanConfig };
@@ -423,11 +427,40 @@ test('it is a full-screen modal with the chapter title, and Close closes it', as
   assert.ok(modal);
   assert.equal(modal.props.transparent, undefined, 'full screen, not a sheet over the reader');
   assert.equal(modal.props.animationType, 'slide');
+  const containerStyle = flattenStyle(view.getByTestId('read-along').props.style);
+  assert.equal(containerStyle?.flex, 1, 'iOS retains its full-screen flex layout');
+  assert.equal(containerStyle?.height, undefined);
   assert.ok(view.getByRole('header', { name: 'John 3' }));
   assert.ok(view.getByText('BSB'));
 
   await view.press(view.getByRole('button', { name: t('interface.close') }));
   assert.deepEqual(calls, ['close']);
+});
+
+test('Android bounds the idle modal to the window and keeps Play available after resizing', async (ctx) => {
+  harness.rn.Platform.OS = 'android';
+  windowHeight = 800;
+  ctx.after(() => {
+    harness.rn.Platform.OS = 'ios';
+    windowHeight = 844;
+  });
+  const { view, calls, props } = await renderReadAlong({
+    isCurrentAudioChapter: false,
+    isPlaying: false,
+  });
+  const containerStyle = () => flattenStyle(view.getByTestId('read-along').props.style);
+  assert.equal(containerStyle()?.height, 800, 'the text and transport share a bounded viewport');
+  assert.equal(containerStyle()?.flex, 0, 'the explicit Android height governs the modal body');
+  assert.deepEqual(calls, [], 'opening stays silent');
+
+  windowHeight = 600;
+  const { FollowAlongTextSheet } = await import('./FollowAlongTextSheet');
+  // The real dimensions hook updates its own state; change a prop to re-render
+  // the memoized sheet while the harness supplies the resized window.
+  await view.rerender(<FollowAlongTextSheet {...props} hasPreviousChapter={false} />);
+  assert.equal(containerStyle()?.height, 600);
+  await view.press(view.getByRole('button', { name: t('interface.playChapterAudio') }));
+  assert.deepEqual(calls, ['playPause']);
 });
 
 test('Android back and the VoiceOver escape gesture close it too', async () => {

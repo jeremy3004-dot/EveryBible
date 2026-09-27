@@ -30,6 +30,7 @@ Pull requests run the reusable **Verify Workspace** workflow. Main pushes and ma
 - Delete a text translation while a download is active, relaunch offline, and confirm the deleted translation does not reappear from a rollback file. Download text while audio is active and confirm the text Cancel control does not stop audio.
 - Stream audio, pause/seek, and confirm offline download playback still works after reconnects and app backgrounding.
 - In Listen and Read Along, grab the progress bar and drag forward and backward. Confirm the thumb previews the position, releasing seeks within the chapter, paused audio stays paused, and playing audio continues. With no loaded chapter, the bar must not seek. Check both themes and VoiceOver/TalkBack adjustment.
+- On Android, open Read Along before starting audio. Confirm Previous, Play, and Next remain visible below the scrolling text, opening stays silent, and Play starts the displayed chapter. Repeat after playback has started and paused.
 - Start a chapter on a slow connection, then Pause or Stop before it loads. Switch chapters rapidly and confirm an older load cannot restart audio, stop the current chapter, or replace its error/status.
 - Enable background music, then pause during a loop transition or change its preset while a load is pending. Confirm paused playback stays silent and resumes with the selected preset.
 - Let a sleep timer expire while playing and while buffering. Confirm playback and background music pause once and the timer clears.
