@@ -151,8 +151,11 @@ interface FakeBibleState {
   [action: string]: unknown;
 }
 
-export function installPickerRenderFixture(mock: MockTracker) {
-  const harness = installRenderHarness(mock);
+export function installPickerRenderFixture(
+  mock: MockTracker,
+  renderOptions?: Parameters<typeof installRenderHarness>[1]
+) {
+  const harness = installRenderHarness(mock, renderOptions);
   // The picker imports useI18n from its own module, not the hooks barrel.
   mockModule(mock, sourcePath('hooks/useI18n.ts'), {
     useI18n: () => {

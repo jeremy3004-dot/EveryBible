@@ -96,6 +96,30 @@ function picker(view: View): ReactTestInstance {
 const shareButton = (sheet: ReactTestInstance) =>
   within(sheet).getByRole('button', { name: t('groups.share') });
 
+test('image-share thumbnails request resized Android decodes without reducing preview quality', async () => {
+  const view = await renderReader();
+  const sheet = await openPicker(view);
+  const rail = within(sheet)
+    .queryAllByType('ScrollView')
+    .find((node) => node.props.horizontal === true);
+  assert.ok(rail, 'the background thumbnail rail is present');
+  const thumbnails = within(rail).queryAllByType('ImageBackground');
+  assert.ok(thumbnails.length > 1, 'the rail offers multiple backgrounds');
+  for (const thumbnail of thumbnails) {
+    assert.equal(thumbnail.props.resizeMethod, 'resize', 'thumbnails decode to their view size');
+  }
+
+  const preview = within(sheet)
+    .queryAllByType('ImageBackground')
+    .find((node) => !thumbnails.includes(node));
+  assert.ok(preview, 'the full-size share preview is present');
+  assert.equal(
+    preview.props.resizeMethod,
+    undefined,
+    'the captured preview keeps its original decode'
+  );
+});
+
 /** What the native Modal does once its close animation ends (iOS only). */
 async function finishDismissal(view: View, onDismiss: unknown) {
   sharing.pickerDismissed = true;

@@ -11,6 +11,7 @@ import type {
   AudioPlayerSession,
   PlayChapterForTranslation,
   ResolveAudioCoverage,
+  SyncNowPlaying,
 } from './playerSession';
 import { chapterTransition } from './sharedPlaybackState';
 import { getAdjacentAudioChapter } from './useAudioCoverage';
@@ -30,6 +31,7 @@ export type NavigateChapterForTranslation = (
 export async function navigateToChapter(
   session: AudioPlayerSession,
   playChapterForTranslation: PlayChapterForTranslation,
+  syncNowPlaying: SyncNowPlaying,
   targetTranslationId: string,
   bookId: string,
   chapter: number,
@@ -60,7 +62,13 @@ export async function navigateToChapter(
     store.clearPlaybackSequence();
   }
   store.setStatus(statusAtNavigation === 'paused' ? 'paused' : 'idle');
-  void clearBibleNowPlaying();
+  if (statusAtNavigation === 'paused') {
+    // Remote navigation can outlive the reader: publish the paused target now,
+    // keeping its native controls available without waiting for a React effect.
+    syncNowPlaying({ isPlaying: false, positionMs: 0, durationMs: 0 }, true);
+  } else {
+    void clearBibleNowPlaying();
+  }
 }
 
 export interface StepChapterContext {

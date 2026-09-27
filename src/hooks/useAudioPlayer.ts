@@ -366,12 +366,13 @@ export function useAudioPlayer(translationId: string = 'bsb') {
       navigateToChapter(
         sessionRef.current,
         playChapterForTranslation,
+        syncCurrentNowPlaying,
         targetTranslationId,
         bookId,
         chapter,
         verse
       ),
-    [playChapterForTranslation, sessionRef]
+    [playChapterForTranslation, sessionRef, syncCurrentNowPlaying]
   );
 
   const stepChapterBy = useCallback(

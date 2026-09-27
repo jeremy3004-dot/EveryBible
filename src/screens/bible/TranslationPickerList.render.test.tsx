@@ -33,6 +33,7 @@ import {
   installPickerRenderFixture,
 } from './TranslationPickerList.renderFixture';
 
+let windowDimensions = { width: 390, height: 844, scale: 3, fontScale: 1 };
 const {
   harness,
   t,
@@ -52,7 +53,7 @@ const {
   inAct,
   lastAlert,
   alertButton,
-} = installPickerRenderFixture(mock);
+} = installPickerRenderFixture(mock, { windowDimensions: () => windowDimensions });
 
 // ---------------------------------------------------------------------------
 // Layout
@@ -307,18 +308,32 @@ test('a runtime translation that needs its text downloads in place, then opens o
 // Manage sheet
 // ---------------------------------------------------------------------------
 
-test('the manage sheet reserves the safe area and keeps a stable 82% height', async () => {
+test('the manage sheet reserves the safe area and sizes to the window after rotation', async (ctx) => {
+  const initialDimensions = windowDimensions;
+  ctx.after(() => {
+    windowDimensions = initialDimensions;
+  });
   const view = await renderPicker();
   const sheet = await openManageSheet(view, BSB);
 
   const title = within(sheet).getByRole('header', { name: BSB.name });
   const content = hostAncestors(title).find(
-    (node) => flattenStyle(node.props.style)?.height === '82%'
+    (node) => flattenStyle(node.props.style)?.paddingBottom === harness.insets.bottom
   );
-  assert.ok(content, 'the sheet body is 82% tall');
+  assert.ok(content, 'the sheet body reserves the bottom safe area');
+  assert.equal(flattenStyle(content.props.style)?.height, windowDimensions.height * 0.82);
   assert.equal(flattenStyle(content.props.style)?.paddingBottom, harness.insets.bottom);
 
-  await view.press(within(sheet).getAllByRole('button', { name: t('interface.close') })[1]);
+  windowDimensions = { ...windowDimensions, width: 844, height: 390 };
+  // Pinning re-renders the open sheet, as a changed window dimension does natively.
+  await view.press(within(sheet).getByRole('button', { name: t('translations.pin') }));
+  assert.equal(flattenStyle(content.props.style)?.height, 390 * 0.82);
+  assert.equal(flattenStyle(within(sheet).queryAllByType('ScrollView')[0].props.style)?.flex, 1);
+  await view.fire(sheet, 'onRequestClose');
+  assert.equal(view.queryAllByType('Modal').length, 0, 'Android back closes the manage sheet');
+
+  const reopened = await openManageSheet(view, BSB);
+  await view.press(within(reopened).getAllByRole('button', { name: t('interface.close') })[1]);
   assert.equal(view.queryAllByType('Modal').length, 0);
 });
 

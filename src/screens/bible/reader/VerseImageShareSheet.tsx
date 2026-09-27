@@ -166,6 +166,9 @@ export function VerseImageShareSheet({
                       style={styles.verseImageBackgroundTile}
                       imageStyle={styles.verseImageBackgroundTileImage}
                       resizeMode="cover"
+                      // Android's automatic resize skips bundled resources, so
+                      // tiny rail thumbnails otherwise decode the full photograph.
+                      resizeMethod="resize"
                     >
                       <LinearGradient
                         pointerEvents="none"

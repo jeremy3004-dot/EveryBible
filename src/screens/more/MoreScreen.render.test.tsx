@@ -50,7 +50,12 @@ mockModule(mock, sourcePath('navigation/rootNavigation.ts'), {
     authFlowModes.push(mode);
   },
 });
-mockModule(mock, 'expo-constants', { default: { expoConfig: { extra: {} } } });
+const expoConfig = { extra: {}, ios: { buildNumber: '417' }, android: { versionCode: 499 } };
+mockPackage(mock, 'expo-constants', {
+  default: { expoConfig, default: { expoConfig } },
+});
+const application = { nativeBuildVersion: null as string | null };
+mockPackage(mock, 'expo-application', { default: application });
 
 // ProfileScreen's collaborators: only the guest branch is exercised here.
 mockModule(mock, 'expo-image-picker', {
@@ -89,6 +94,7 @@ mockModule(mock, sourcePath('navigation/screenErrorLayout.ts'), {
 });
 
 afterEach(() => {
+  application.nativeBuildVersion = null;
   useSyncStatusStore.setState({ lastSuccessfulSyncAtByUser: {} });
   authFlowModes.length = 0;
   registeredRoutes.length = 0;
@@ -98,6 +104,21 @@ async function renderMore() {
   const { MoreScreen } = await import('./MoreScreen');
   return harness.render(<MoreScreen />);
 }
+
+test('the More footer shows the installed Android build instead of an iOS config build', async () => {
+  application.nativeBuildVersion = '546';
+  const { config } = await import('../../constants/config');
+  const view = await renderMore();
+  assert.ok(view.getByText(t('more.footerVersion', { version: `${config.version} (546)` })));
+  assert.equal(view.queryByText(/\(417\)|\(499\)/), null);
+});
+
+test('the More footer omits the build when no native application build is available', async () => {
+  const { config } = await import('../../constants/config');
+  const view = await renderMore();
+  assert.ok(view.getByText(t('more.footerVersion', { version: config.version })));
+  assert.equal(view.queryByText(/\(417\)|\(499\)/), null);
+});
 
 function signIn() {
   const signOutCalls: number[] = [];

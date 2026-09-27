@@ -25,7 +25,6 @@ export const pickerStyles = StyleSheet.create({
     borderTopRightRadius: radius.sheet,
     borderWidth: 1,
     paddingTop: layout.cardPadding,
-    height: '82%',
     overflow: 'hidden',
   },
   modalHeader: {

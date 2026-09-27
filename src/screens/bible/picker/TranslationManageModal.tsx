@@ -1,4 +1,4 @@
-import { Modal, TouchableOpacity, View } from 'react-native';
+import { Modal, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useI18n } from '../../../hooks/useI18n';
@@ -23,6 +23,7 @@ export function TranslationManageModal({
   const { colors } = useTheme();
   const { t } = useI18n();
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
 
   return (
     <Modal
@@ -51,6 +52,9 @@ export function TranslationManageModal({
             {
               backgroundColor: colors.bibleSurface,
               borderColor: colors.bibleDivider,
+              // Give Android's modal an explicit window-based size so its
+              // scrollable body does not depend on percentage height resolution.
+              height: windowHeight * 0.82,
               // The sheet is a bare Modal, so nothing else keeps its last
               // rows clear of the Android navigation bar.
               paddingBottom: insets.bottom,

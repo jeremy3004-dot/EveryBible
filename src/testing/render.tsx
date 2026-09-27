@@ -105,6 +105,7 @@ export interface RenderHarnessOptions {
   os?: 'ios' | 'android';
   width?: number;
   height?: number;
+  windowDimensions?: () => ReturnType<ReactNativeRenderStub['useWindowDimensions']>;
   /** Theme the ThemeProvider resolves (from the fake auth store's preferences). */
   theme?: 'light' | 'dark';
   insets?: Partial<Insets>;
@@ -344,6 +345,7 @@ export function installRenderHarness(
     reduceMotion: () => motion.reduceMotion,
     fontScale: () => text.fontScale,
   });
+  if (options.windowDimensions) rn.useWindowDimensions = options.windowDimensions;
   const insets: Insets = { top: 47, right: 0, bottom: 34, left: 0, ...options.insets };
   const haptics: HapticsCall[] = [];
   const refCalls: HostRefCall[] = [];

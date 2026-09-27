@@ -62,7 +62,8 @@ export function Chip({
       hitSlop={CHIP_HIT_SLOP}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
-      accessibilityValue={accessibilityValue ? { text: accessibilityValue } : undefined}
+      // RN's Android touchable leaves the old description when text is omitted.
+      accessibilityValue={{ text: accessibilityValue ?? '' }}
       accessibilityHint={accessibilityHint}
       accessibilityState={{ selected: isSelected }}
     >

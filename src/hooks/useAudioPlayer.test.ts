@@ -1305,6 +1305,7 @@ test('stop tears playback down and silences the background bed', async () => {
     preferredMode: 'listen',
   });
   recorded.backgroundMusic.length = 0;
+  recorded.nowPlayingCleared = 0;
 
   await player.rerender().stop();
 
@@ -1312,6 +1313,7 @@ test('stop tears playback down and silences the background bed', async () => {
   assert.equal(store().currentBookId, null);
   assert.equal(store().audioReturnTarget, null);
   assert.deepEqual(recorded.backgroundMusic.at(-1), { method: 'stop' });
+  assert.equal(recorded.nowPlayingCleared, 1);
 });
 
 test('togglePlayPause pauses a chapter that is playing', async () => {
@@ -1838,6 +1840,8 @@ test('switching the translation of a paused chapter re-targets it without soundi
   store().setPosition(30_000);
   await player.rerender().pause();
   recorded.player.length = 0;
+  recorded.nowPlayingCleared = 0;
+  recorded.nowPlaying.length = 0;
 
   await player.rerender().navigateChapterForTranslation('web', 'GEN', 1);
 
@@ -1846,6 +1850,9 @@ test('switching the translation of a paused chapter re-targets it without soundi
   assert.equal(store().status, 'paused');
   assert.equal(store().currentTranslationId, 'web');
   assert.equal(store().currentChapter, 1);
+  assert.equal(recorded.nowPlayingCleared, 0);
+  assert.equal(recorded.nowPlaying.at(-1)?.translationId, 'web');
+  assert.equal(recorded.nowPlaying.at(-1)?.isPlaying, false);
 
   // The next Play is the new translation, not the old one.
   await player.rerender().togglePlayPause();
@@ -1871,11 +1878,72 @@ test('switching the translation of a playing chapter plays the new translation',
 test('navigating away from an idle chapter leaves the player idle', async () => {
   const player = mountPlayer();
   store().setCurrentTrack('bsb', 'GEN', 1);
+  const controls = player.rerender();
+  recorded.nowPlayingCleared = 0;
+  recorded.nowPlaying.length = 0;
 
-  await player.rerender().nextChapter();
+  await controls.nextChapter();
 
   assert.equal(store().status, 'idle');
   assert.equal(store().currentChapter, 2);
+  assert.equal(recorded.nowPlayingCleared, 1);
+  assert.deepEqual(recorded.nowPlaying, []);
+});
+
+for (const command of ['next', 'previous'] as const) {
+  test(`Android paused remote ${command} preserves controls and publishes the new chapter after reader unmount`, async (t) => {
+    rn.Platform.OS = 'android';
+    t.after(() => {
+      rn.Platform.OS = 'ios';
+    });
+    const player = mountPlayer();
+    await player.api.playChapter('JHN', 3);
+    await player.rerender().pause();
+    player.unmount();
+    rn.AppState.emit('background');
+    recorded.nowPlayingCleared = 0;
+    recorded.nowPlaying.length = 0;
+    const loadsBefore = playerCalls('loadAndPlay').length;
+
+    await remoteCommandListener?.({ command });
+
+    const chapter = command === 'next' ? 4 : 2;
+    assert.equal(store().status, 'paused');
+    assert.equal(store().currentChapter, chapter);
+    assert.equal(playerCalls('loadAndPlay').length, loadsBefore, 'navigation stays silent');
+    assert.equal(recorded.nowPlayingCleared, 0, 'the paused native transport stays active');
+    assert.equal(recorded.nowPlaying.at(-1)?.bookId, 'JHN');
+    assert.equal(recorded.nowPlaying.at(-1)?.chapter, chapter);
+    assert.equal(recorded.nowPlaying.at(-1)?.isPlaying, false);
+    assert.equal(recorded.nowPlaying.at(-1)?.positionMs, 0);
+    assert.equal(recorded.nowPlaying.at(-1)?.durationMs, 0);
+  });
+}
+
+test('a superseded paused chapter navigation cannot replace newer playing metadata', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('JHN', 3);
+  await player.rerender().pause();
+  let release!: () => void;
+  playerGates.set(
+    'stop',
+    new Promise((resolve) => {
+      release = resolve;
+    })
+  );
+  const navigation = player.api.navigateChapterForTranslation('bsb', 'JHN', 4);
+  playerGates.delete('stop');
+  await player.api.playChapter('JHN', 5);
+  const publishedBeforeRelease = recorded.nowPlaying.length;
+
+  release();
+  await navigation;
+
+  assert.equal(store().currentChapter, 5);
+  assert.equal(store().status, 'playing');
+  assert.equal(recorded.nowPlaying.length, publishedBeforeRelease);
+  assert.equal(recorded.nowPlaying.at(-1)?.chapter, 5);
+  assert.equal(recorded.nowPlaying.at(-1)?.isPlaying, true);
 });
 
 test('navigating away from a playing chapter starts the new one immediately', async () => {

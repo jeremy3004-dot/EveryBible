@@ -128,7 +128,11 @@ async function renderSheet(overrides: Partial<Props> = {}) {
     ...overrides,
   };
   const view = await harness.render(<AudioOptionsSheet {...props} />);
-  return { view, calls };
+  const rerender = async (next: Partial<Props>) => {
+    Object.assign(props, next);
+    await view.rerender(<AudioOptionsSheet {...props} />);
+  };
+  return { view, calls, rerender };
 }
 
 type View = Awaited<ReturnType<typeof renderSheet>>['view'];
@@ -349,6 +353,35 @@ test('a running countdown shows the minutes left on its chip', async () => {
     text: t('interface.minutesShort', { count: 12 }),
   });
 });
+
+for (const transition of ['Off', 'expiry'] as const) {
+  test(`a countdown chip explicitly clears its spoken value after ${transition}`, async () => {
+    audioStore.setState({ sleepTimerMinutes: 5 });
+    const { view, calls, rerender } = await renderSheet({ sleepTimerRemaining: 1 });
+    const timer = within(sectionOf(view, t('audio.sleepTimer')));
+    const label = t('interface.minutesShort', { count: 5 });
+    const chip = timer.getByRole('button', { name: label });
+    assert.deepEqual(chip.props.accessibilityValue, {
+      text: t('interface.minutesShort', { count: 1 }),
+    });
+
+    if (transition === 'Off') {
+      await view.press(timer.getByRole('button', { name: t('interface.music.off.label') }));
+      assert.deepEqual(calls, [['startSleepTimer', null]]);
+      await act(async () => audioStore.setState({ sleepTimerMinutes: null }));
+    }
+    await rerender({ sleepTimerRemaining: null });
+
+    assert.deepEqual(chip.props.accessibilityValue, { text: '' });
+    assert.equal(chip.props.accessibilityState.selected, false);
+    assert.ok(within(chip).getByText(label));
+    assert.equal(
+      timer.getByRole('button', { name: t('interface.music.off.label') }).props.accessibilityState
+        .selected,
+      true
+    );
+  });
+}
 
 test('end of chapter reads as the active timer while it is set', async () => {
   audioStore.setState({ sleepTimerMinutes: 'end-of-chapter' });

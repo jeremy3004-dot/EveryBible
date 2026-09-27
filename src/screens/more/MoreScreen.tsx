@@ -58,11 +58,10 @@ type MenuGroup = {
 // importing this screen stays side-effect-free in tests.
 function getBuildNumber(): string | null {
   try {
-    const Constants = require('expo-constants').default as {
+    const Application = require('expo-application') as {
       nativeBuildVersion?: string | null;
-      expoConfig?: { ios?: { buildNumber?: string | null } } | null;
     };
-    return Constants?.nativeBuildVersion ?? Constants?.expoConfig?.ios?.buildNumber ?? null;
+    return Application.nativeBuildVersion ?? null;
   } catch {
     return null;
   }
