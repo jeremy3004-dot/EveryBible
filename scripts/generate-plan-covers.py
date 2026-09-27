@@ -196,6 +196,55 @@ def acts():  # the church sets sail
     s += f'<line x1="{1200 - w/2}" y1="{1340 + i*55}" x2="{1200 + w/2}" y2="{1340 + i*55}" stroke="{SAND}" stroke-width="7" stroke-linecap="round" stroke-opacity="{o}"/>'
   return s
 
+def common_prayer():  # morning and evening, through the month
+  s = ''
+  for i in range(4, 26):  # the days arching over from the sunrise to the moonrise
+    a = math.radians(180 + i * 180 / 29)
+    x, y = 1200 + 440 * math.cos(a), 1020 + 440 * math.sin(a)
+    s += f'<circle cx="{x:.0f}" cy="{y:.0f}" r="{14 if i % 5 else 20}" fill="{STONE}" fill-opacity="{0.55 if i % 5 else 0.9}"/>'
+  s += (f'<circle cx="760" cy="1020" r="150" fill="{EMBER}"/>'
+        f'<circle cx="760" cy="1020" r="215" fill="none" stroke="{EMBER}" stroke-width="5" stroke-opacity="0.35"/>'
+        f'<defs><mask id="moon"><rect width="2400" height="1800" fill="white"/><circle cx="1700" cy="970" r="130" fill="black"/></mask></defs>'
+        f'<circle cx="1640" cy="1020" r="150" fill="{SAND}" mask="url(#moon)"/>')
+  return s + f'<line x1="480" y1="1260" x2="1920" y2="1260" stroke="{SAND}" stroke-width="6" stroke-linecap="round" stroke-opacity="0.5"/>'
+
+def week_of_christ():  # the week as a ring: the Cross on Friday, Sunday's light at the top
+  s, r = '', 400
+  s += f'<circle cx="1200" cy="900" r="{r}" fill="none" stroke="{SAND}" stroke-width="5" stroke-opacity="0.3"/>'
+  for i in range(7):
+    a = math.radians(-90 + i * 360 / 7)
+    x, y = 1200 + r * math.cos(a), 900 + r * math.sin(a)
+    if i == 0:
+      s += (f'<circle cx="{x:.0f}" cy="{y:.0f}" r="190" fill="{SAND}" fill-opacity="0.16"/>'
+            f'<circle cx="{x:.0f}" cy="{y:.0f}" r="135" fill="{SAND}" fill-opacity="0.26"/>'
+            f'<circle cx="{x:.0f}" cy="{y:.0f}" r="85" fill="{SAND}"/>')
+    elif i == 5:
+      s += (f'<rect x="{x - 15:.0f}" y="{y - 110:.0f}" width="30" height="220" rx="6" fill="{SAND}"/>'
+            f'<rect x="{x - 65:.0f}" y="{y - 60:.0f}" width="130" height="30" rx="6" fill="{SAND}"/>')
+    else:
+      s += f'<circle cx="{x:.0f}" cy="{y:.0f}" r="34" fill="{SAND}" fill-opacity="0.6"/>'
+  return s
+
+def lords_prayer():  # open hands, daily bread, seven petitions
+  s = ''
+  for i in range(7):
+    a = math.radians(-150 + i * 20)
+    x, y = 1200 + 470 * math.cos(a), 960 + 470 * math.sin(a)
+    s += f'<circle cx="{x:.0f}" cy="{y:.0f}" r="{30 if i == 3 else 20}" fill="{EMBER if i == 3 else OCHRE}"/>'
+  left = 'M1180 1330 C980 1320 820 1180 780 930 C880 1010 1050 1090 1180 1110 Z'
+  right = 'M1220 1330 C1420 1320 1580 1180 1620 930 C1520 1010 1350 1090 1220 1110 Z'
+  return (s + f'<ellipse cx="1200" cy="930" rx="200" ry="135" fill="{OCHRE}"/>'
+          f'<path d="M1080 900 C1150 870 1250 870 1320 900" fill="none" stroke="{SAND}" stroke-width="12" stroke-linecap="round"/>'
+          f'<path d="{left}" fill="{EMBER}"/><path d="{right}" fill="{DEEP}"/>')
+
+def gospels_month():  # the four Gospels, round again every month
+  s, r = '', 400
+  for q, c in enumerate([EMBER, OCHRE, SAND, STONE]):
+    a0, a1 = math.radians(-90 + q * 90 + 6), math.radians(-90 + (q + 1) * 90 - 6)
+    x0, y0, x1, y1 = 1200 + r*math.cos(a0), 900 + r*math.sin(a0), 1200 + r*math.cos(a1), 900 + r*math.sin(a1)
+    s += f'<path d="M{x0:.0f} {y0:.0f} A{r} {r} 0 0 1 {x1:.0f} {y1:.0f}" fill="none" stroke="{c}" stroke-width="70" stroke-linecap="round"/>'
+  return s + f'<circle cx="1200" cy="900" r="130" fill="{SAND}"/><circle cx="1200" cy="{900 - r - 110}" r="22" fill="{SAND}"/>'
+
 # file name (existing cover key file) -> (ground, mark, plan)
 COVERS = {
   'lakeLandscape': ('V', year, 'Bible in 1 Year'),
@@ -221,6 +270,10 @@ COVERS = {
   'sandDune': ('D', doorway, 'NT in 30 Days'),
   'pineSky': ('V', four_circles, 'Gospels in 30 Days'),
   'riverForest': ('T', acts, 'Acts in 28 Days'),
+  'commonPrayerPsalter': ('D', common_prayer, 'Common Prayer Psalter'),
+  'weekOfChrist': ('T', week_of_christ, 'Week of Christ'),
+  'lordsPrayer': ('V', lords_prayer, "Lord's Prayer Week"),
+  'gospelsMonthly': ('D', gospels_month, 'Gospels Monthly'),
 }
 
 GRAIN = ('<filter id="g" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch"/>'

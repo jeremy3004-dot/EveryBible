@@ -1295,6 +1295,23 @@ export const ko = {
       title: 'Kathisma',
       description: '요일마다 정해진 아침·저녁 카티스마(시편 구분)를 읽고 매주 반복합니다.',
     },
+    commonPrayerPsalter: {
+      title: '공동기도서 시편',
+      description: '공동기도서의 순서를 따라 매달 아침과 저녁으로 시편 150편 전체로 기도합니다.',
+    },
+    weekOfChrist: {
+      title: '그리스도의 한 주',
+      description:
+        '한 주의 각 날마다 예수님 이야기의 한 부분을 기억합니다. 주일에는 부활, 수요일에는 배신, 금요일에는 십자가입니다.',
+    },
+    lordsPrayerWeek: {
+      title: '주기도문의 한 주',
+      description: '매일 주기도문으로 기도한 뒤, 그 한 구절을 풀어 주는 본문을 읽습니다.',
+    },
+    gospelsMonthly: {
+      title: '매달 읽는 복음서',
+      description: '그달의 날짜에 맞춰 마태, 마가, 누가, 요한복음을 읽고 매달 다시 시작합니다.',
+    },
     chronological: {
       title: '성경 전체: 한 권씩 읽기',
       description: '창세기, 욥기, 출애굽기부터 시작하여 66권 전체를 365일 동안 읽습니다.',

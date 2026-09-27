@@ -1263,6 +1263,22 @@ export const zh = {
       title: 'Kathisma',
       description: '按一周中的每一天，读完早晚指定的诗篇组（即 Kathisma），每周循环。',
     },
+    commonPrayerPsalter: {
+      title: '公祷书诗篇',
+      description: '按照《公祷书》，每月早晚祷读全部150篇诗篇。',
+    },
+    weekOfChrist: {
+      title: '基督之周',
+      description: '一周的每一天纪念耶稣故事的一部分：主日纪念复活，周三纪念被卖，周五纪念十字架。',
+    },
+    lordsPrayerWeek: {
+      title: '主祷文之周',
+      description: '每天诵读主祷文，然后阅读一段展开其中一句祈求的经文。',
+    },
+    gospelsMonthly: {
+      title: '每月读福音书',
+      description: '按每月的日期阅读马太、马可、路加和约翰福音，每月重新开始。',
+    },
     chronological: {
       title: '整本圣经：逐卷阅读',
       description: '用365天读完全部66卷书，从创世记、约伯记和出埃及记开始。',

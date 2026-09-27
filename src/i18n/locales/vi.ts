@@ -1326,6 +1326,26 @@ export const vi = {
       description:
         'Đọc các phần Thi Thiên được chỉ định vào sáng và tối mỗi ngày trong tuần, lặp lại hằng tuần.',
     },
+    commonPrayerPsalter: {
+      title: 'Thi Thiên theo Sách Cầu Nguyện Chung',
+      description:
+        'Cầu nguyện với trọn 150 Thi Thiên mỗi tháng, sáng và tối, theo Sách Cầu Nguyện Chung.',
+    },
+    weekOfChrist: {
+      title: 'Tuần của Đấng Christ',
+      description:
+        'Mỗi ngày trong tuần ghi nhớ một phần câu chuyện của Chúa Giê-xu: Chủ nhật là sự Phục sinh, thứ Tư là sự phản bội, thứ Sáu là thập tự giá.',
+    },
+    lordsPrayerWeek: {
+      title: 'Tuần Lời Cầu Nguyện Chúa Dạy',
+      description:
+        'Mỗi ngày cầu nguyện bằng Lời Cầu Nguyện Chúa Dạy, rồi đọc một đoạn giúp mở rộng một câu trong đó.',
+    },
+    gospelsMonthly: {
+      title: 'Các sách Phúc Âm mỗi tháng',
+      description:
+        'Đọc Ma-thi-ơ, Mác, Lu-ca và Giăng theo ngày trong tháng, và bắt đầu lại mỗi tháng.',
+    },
     chronological: {
       title: 'Toàn bộ Kinh Thánh: từng sách một',
       description:

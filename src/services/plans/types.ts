@@ -33,7 +33,11 @@ export type ReadingPlanCoverKey =
   | 'kathisma'
   | 'sunrise'
   | 'valley'
-  | 'desert';
+  | 'desert'
+  | 'commonPrayerPsalter'
+  | 'weekOfChrist'
+  | 'lordsPrayer'
+  | 'gospelsMonthly';
 
 export interface ReadingPlan {
   id: string;

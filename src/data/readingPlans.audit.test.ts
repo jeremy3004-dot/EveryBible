@@ -85,6 +85,7 @@ const expectedBooks: Record<string, string[]> = {
   'nt-in-30-days': newTestament,
   'gospels-60-days': ['MAT', 'MRK', 'LUK', 'JHN'],
   'gospels-30-days': ['MAT', 'MRK', 'LUK', 'JHN'],
+  'gospels-monthly': ['MAT', 'MRK', 'LUK', 'JHN'],
   'epistles-30-days': newTestament.filter(
     (id) => !['MAT', 'MRK', 'LUK', 'JHN', 'ACT', 'REV'].includes(id)
   ),

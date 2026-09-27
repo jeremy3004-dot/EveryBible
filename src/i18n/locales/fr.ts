@@ -1376,6 +1376,26 @@ export const fr = {
       description:
         'Lisez les kathismata du matin et du soir prévus pour chaque jour de la semaine, en répétant chaque semaine.',
     },
+    commonPrayerPsalter: {
+      title: 'Psautier de la prière commune',
+      description:
+        'Priez les 150 psaumes chaque mois, matin et soir, selon le Livre de la prière commune.',
+    },
+    weekOfChrist: {
+      title: 'La semaine du Christ',
+      description:
+        'Chaque jour de la semaine rappelle une part de l’histoire de Jésus : la Résurrection le dimanche, la trahison le mercredi, la croix le vendredi.',
+    },
+    lordsPrayerWeek: {
+      title: 'La semaine du Notre Père',
+      description:
+        'Priez le Notre Père chaque jour, puis lisez un passage qui éclaire l’une de ses demandes.',
+    },
+    gospelsMonthly: {
+      title: 'Les Évangiles chaque mois',
+      description:
+        'Lisez Matthieu, Marc, Luc et Jean selon le jour du mois, en recommençant chaque mois.',
+    },
     chronological: {
       title: 'Toute la Bible : livre par livre',
       description: 'Lisez les 66 livres en 365 jours, en commençant par la Genèse, Job et l’Exode.',

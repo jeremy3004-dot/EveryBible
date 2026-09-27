@@ -11,12 +11,14 @@ import type { ReadingPlanCoverKey } from './types';
 // asserted against the exact file it points at.
 const COVER_FILES = [
   'canyon',
+  'commonPrayerPsalter',
   'desert',
   'dunes',
   'faithObedience',
   'field',
   'forest',
   'gospelFoundations',
+  'gospelsMonthly',
   'greatCommission',
   'hearingGodVoice',
   'holinessSanctification',
@@ -24,6 +26,7 @@ const COVER_FILES = [
   'kathisma',
   'kingdomOfGod',
   'lakeLandscape',
+  'lordsPrayer',
   'mountains',
   'pineSky',
   'prayerIntimacy',
@@ -35,6 +38,7 @@ const COVER_FILES = [
   'stars',
   'sunrise',
   'valley',
+  'weekOfChrist',
 ] as const;
 
 const assetIdByFile = new Map<string, number>();
@@ -77,6 +81,10 @@ const EXPECTED_FILE_BY_KEY: Record<ReadingPlanCoverKey, (typeof COVER_FILES)[num
   stars: 'stars',
   sunrise: 'sunrise',
   valley: 'valley',
+  commonPrayerPsalter: 'commonPrayerPsalter',
+  weekOfChrist: 'weekOfChrist',
+  lordsPrayer: 'lordsPrayer',
+  gospelsMonthly: 'gospelsMonthly',
 };
 
 const loadAssets = () => import('./readingPlanAssets');

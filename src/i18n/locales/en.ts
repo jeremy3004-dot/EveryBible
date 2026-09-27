@@ -1383,6 +1383,26 @@ export const en = {
       description:
         'Read the appointed morning and evening kathismata for each weekday, repeating every week.',
     },
+    commonPrayerPsalter: {
+      title: 'Common Prayer Psalter',
+      description:
+        'Pray all 150 Psalms each month, morning and evening, as appointed in the Book of Common Prayer.',
+    },
+    weekOfChrist: {
+      title: 'The Week of Christ',
+      description:
+        'Each day of the week remembers part of Jesus’ story: the Resurrection on Sunday, the betrayal on Wednesday, the Cross on Friday.',
+    },
+    lordsPrayerWeek: {
+      title: 'The Lord’s Prayer Week',
+      description:
+        'Pray the Lord’s Prayer every day, then read a passage that opens up one of its lines.',
+    },
+    gospelsMonthly: {
+      title: 'The Gospels Every Month',
+      description:
+        'Read Matthew, Mark, Luke, and John by the day of the month, starting again each month.',
+    },
     chronological: {
       title: 'Whole Bible: Book by Book',
       description: 'Read all 66 books in 365 days, beginning with Genesis, Job, and Exodus.',

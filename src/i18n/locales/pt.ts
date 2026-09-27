@@ -1355,6 +1355,26 @@ export const pt = {
       description:
         'Leia os kathismata matinais e vespertinos designados para cada dia da semana, repetindo a cada semana.',
     },
+    commonPrayerPsalter: {
+      title: 'Saltério da Oração Comum',
+      description:
+        'Ore os 150 Salmos a cada mês, de manhã e à noite, conforme o Livro de Oração Comum.',
+    },
+    weekOfChrist: {
+      title: 'A semana de Cristo',
+      description:
+        'Cada dia da semana lembra uma parte da história de Jesus: a Ressurreição no domingo, a traição na quarta-feira e a cruz na sexta-feira.',
+    },
+    lordsPrayerWeek: {
+      title: 'A semana do Pai-Nosso',
+      description:
+        'Ore o Pai-Nosso todos os dias e depois leia uma passagem que aprofunda uma de suas frases.',
+    },
+    gospelsMonthly: {
+      title: 'Os Evangelhos todo mês',
+      description:
+        'Leia Mateus, Marcos, Lucas e João de acordo com o dia do mês, recomeçando a cada mês.',
+    },
     chronological: {
       title: 'Toda a Bíblia: livro por livro',
       description: 'Leia os 66 livros em 365 dias, começando por Gênesis, Jó e Êxodo.',

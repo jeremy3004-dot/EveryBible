@@ -1303,6 +1303,24 @@ export const ja = {
       title: 'カフィズマ',
       description: '平日ごとに定められた朝と晩のカフィズマを読み、毎週繰り返します。',
     },
+    commonPrayerPsalter: {
+      title: '祈祷書の詩篇',
+      description: '祈祷書の定めに従い、毎月、朝と夕に150篇の詩篇すべてを祈ります。',
+    },
+    weekOfChrist: {
+      title: 'キリストの一週間',
+      description:
+        '一週間の各日にイエスの物語の一部を覚えます。日曜日は復活、水曜日は裏切り、金曜日は十字架です。',
+    },
+    lordsPrayerWeek: {
+      title: '主の祈りの一週間',
+      description: '毎日主の祈りを祈り、その一句を深める箇所を読みます。',
+    },
+    gospelsMonthly: {
+      title: '毎月の福音書',
+      description:
+        '月の日付に合わせてマタイ、マルコ、ルカ、ヨハネを読み、毎月また初めから読みます。',
+    },
     chronological: {
       title: '聖書全体：一書ずつ読む',
       description: '創世記、ヨブ記、出エジプト記から始めて、全66書を365日で読みます。',

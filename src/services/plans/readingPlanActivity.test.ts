@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readingPlanEntriesByPlanId } from '../../data/readingPlans.generated';
+import { readingPlanEntriesByPlanId, readingPlansById } from '../../data/readingPlans.generated';
 
 import type { ListeningHistoryEntry } from '../../stores/libraryModel';
 import { assertDefined } from '../../utils/assertDefined';
@@ -51,8 +51,9 @@ test('every plan day preserves the catalog passage order in targets and rhythm p
         },
         planEntriesById: { [planId]: entries },
         progressByPlanId: { [planId]: makeProgress(planId, { current_day: dayNumber }) },
+        // 4 January 2026 is a Sunday, day 1 of every calendar-day-of-week plan.
         today:
-          planId === 'kathisma-weekly'
+          readingPlansById.get(planId)?.scheduleMode === 'calendar-day-of-week'
             ? new Date(2026, 0, dayNumber + 3, 12)
             : new Date(2026, 0, dayNumber, 12),
       });

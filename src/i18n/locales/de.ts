@@ -1343,6 +1343,26 @@ export const de = {
       description:
         'Lies die vorgesehenen Kathismata für Morgen und Abend an jedem Wochentag, Woche für Woche.',
     },
+    commonPrayerPsalter: {
+      title: 'Psalter des Common Prayer',
+      description:
+        'Bete jeden Monat alle 150 Psalmen, morgens und abends, nach der Ordnung des Book of Common Prayer.',
+    },
+    weekOfChrist: {
+      title: 'Die Woche Christi',
+      description:
+        'Jeder Wochentag erinnert an einen Teil der Geschichte Jesu: sonntags die Auferstehung, mittwochs der Verrat, freitags das Kreuz.',
+    },
+    lordsPrayerWeek: {
+      title: 'Die Vaterunser-Woche',
+      description:
+        'Bete jeden Tag das Vaterunser und lies dann einen Abschnitt, der eine seiner Bitten entfaltet.',
+    },
+    gospelsMonthly: {
+      title: 'Die Evangelien jeden Monat',
+      description:
+        'Lies Matthäus, Markus, Lukas und Johannes nach dem Tag des Monats und beginne jeden Monat neu.',
+    },
     chronological: {
       title: 'Die ganze Bibel: Buch für Buch',
       description: 'Lies alle 66 Bücher in 365 Tagen, beginnend mit 1. Mose, Hiob und 2. Mose.',

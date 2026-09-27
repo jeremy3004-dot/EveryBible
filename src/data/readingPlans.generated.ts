@@ -917,6 +917,173 @@ const weeklySessionRecipes: WeeklySessionPlanRecipe[] = [
   },
 ];
 
+type PsalterPortion = [chapterStart: number, chapterEnd: number | null] | [119, number, number];
+
+// The 1662 Book of Common Prayer psalter: a morning and an evening portion for each of
+// thirty days. Coverdale's psalter follows the Hebrew numbering the BSB uses, so these
+// need no Septuagint remapping (unlike the kathismata). Psalm 119 is split by verse.
+const commonPrayerPsalterDays: Array<{
+  morning: PsalterPortion;
+  evening: PsalterPortion;
+}> = [
+  { morning: [1, 5], evening: [6, 8] },
+  { morning: [9, 11], evening: [12, 14] },
+  { morning: [15, 17], evening: [18, null] },
+  { morning: [19, 21], evening: [22, 23] },
+  { morning: [24, 26], evening: [27, 29] },
+  { morning: [30, 31], evening: [32, 34] },
+  { morning: [35, 36], evening: [37, null] },
+  { morning: [38, 40], evening: [41, 43] },
+  { morning: [44, 46], evening: [47, 49] },
+  { morning: [50, 52], evening: [53, 55] },
+  { morning: [56, 58], evening: [59, 61] },
+  { morning: [62, 64], evening: [65, 67] },
+  { morning: [68, null], evening: [69, 70] },
+  { morning: [71, 72], evening: [73, 74] },
+  { morning: [75, 77], evening: [78, null] },
+  { morning: [79, 81], evening: [82, 85] },
+  { morning: [86, 88], evening: [89, null] },
+  { morning: [90, 92], evening: [93, 94] },
+  { morning: [95, 97], evening: [98, 101] },
+  { morning: [102, 103], evening: [104, null] },
+  { morning: [105, null], evening: [106, null] },
+  { morning: [107, null], evening: [108, 109] },
+  { morning: [110, 113], evening: [114, 115] },
+  { morning: [116, 118], evening: [119, 1, 32] },
+  { morning: [119, 33, 72], evening: [119, 73, 104] },
+  { morning: [119, 105, 144], evening: [119, 145, 176] },
+  { morning: [120, 125], evening: [126, 131] },
+  { morning: [132, 135], evening: [136, 138] },
+  { morning: [139, 141], evening: [142, 143] },
+  { morning: [144, 146], evening: [147, 150] },
+];
+
+function toPsalterEntry(
+  dayNumber: number,
+  sessionKey: PlanSessionKey,
+  portion: PsalterPortion
+): VersePlanRecipe['entries'][number] {
+  const verseRange = portion.length === 3;
+  return {
+    day_number: dayNumber,
+    session_key: sessionKey,
+    session_order: sessionKey === 'morning' ? 1 : 2,
+    book: 'PSA',
+    chapter_start: portion[0],
+    chapter_end: verseRange ? null : portion[1],
+    verse_start: verseRange ? portion[1] : null,
+    verse_end: verseRange ? portion[2] : null,
+  };
+}
+
+// The rubric appoints the 30th day's psalms again on the 31st.
+const commonPrayerPsalterEntries = [
+  ...commonPrayerPsalterDays,
+  commonPrayerPsalterDays[29]!,
+].flatMap((day, index) => [
+  toPsalterEntry(index + 1, 'morning', day.morning),
+  toPsalterEntry(index + 1, 'evening', day.evening),
+]);
+
+const lordsPrayer = {
+  book: 'MAT',
+  chapter_start: 6,
+  chapter_end: 6,
+  verse_start: 9,
+  verse_end: 13,
+} as const;
+
+// Day 1 is Sunday for every calendar-day-of-week plan.
+const calendarRhythmRecipes: VersePlanRecipe[] = [
+  {
+    id: 'common-prayer-psalter',
+    slug: 'common-prayer-psalter',
+    title_key: 'readingPlans.commonPrayerPsalter.title',
+    description_key: 'readingPlans.commonPrayerPsalter.description',
+    duration_days: 31,
+    category: 'devotional',
+    sort_order: 5.6,
+    cover_key: 'commonPrayerPsalter',
+    schedule_mode: 'calendar-day-of-month',
+    format: 'multi-session',
+    session_order: ['morning', 'evening'],
+    entries: commonPrayerPsalterEntries,
+  },
+  {
+    // The weekly remembrance kept since the early church: Sunday the Resurrection,
+    // Wednesday the betrayal and Friday the Cross (the Didache's fast days), with the
+    // Orthodox weekday commemorations between.
+    id: 'week-of-christ',
+    slug: 'week-of-christ',
+    title_key: 'readingPlans.weekOfChrist.title',
+    description_key: 'readingPlans.weekOfChrist.description',
+    duration_days: 7,
+    category: 'devotional',
+    sort_order: 5.7,
+    cover_key: 'weekOfChrist',
+    schedule_mode: 'calendar-day-of-week',
+    entries: [
+      { day_number: 1, book: 'JHN', chapter_start: 20, chapter_end: null },
+      { day_number: 2, book: 'HEB', chapter_start: 1, chapter_end: null },
+      { day_number: 3, book: 'MAT', chapter_start: 3, chapter_end: null },
+      { day_number: 4, book: 'MAT', chapter_start: 26, chapter_end: null },
+      { day_number: 5, book: 'ACT', chapter_start: 2, chapter_end: null },
+      { day_number: 6, book: 'JHN', chapter_start: 19, chapter_end: null },
+      { day_number: 7, book: '1TH', chapter_start: 4, chapter_end: null },
+    ],
+  },
+  {
+    // Pray the whole prayer each day, then read one petition opened out.
+    id: 'lords-prayer-week',
+    slug: 'lords-prayer-week',
+    title_key: 'readingPlans.lordsPrayerWeek.title',
+    description_key: 'readingPlans.lordsPrayerWeek.description',
+    duration_days: 7,
+    category: 'devotional',
+    sort_order: 5.8,
+    cover_key: 'lordsPrayer',
+    schedule_mode: 'calendar-day-of-week',
+    entries: [
+      { day_number: 1, ...lordsPrayer },
+      { day_number: 1, book: 'ROM', chapter_start: 8, chapter_end: null },
+      { day_number: 2, ...lordsPrayer },
+      { day_number: 2, book: 'ISA', chapter_start: 6, chapter_end: null },
+      { day_number: 3, ...lordsPrayer },
+      { day_number: 3, book: 'MAT', chapter_start: 13, chapter_end: null },
+      { day_number: 4, ...lordsPrayer },
+      {
+        day_number: 4,
+        book: 'MAT',
+        chapter_start: 26,
+        chapter_end: 26,
+        verse_start: 36,
+        verse_end: 46,
+      },
+      { day_number: 5, ...lordsPrayer },
+      { day_number: 5, book: 'JHN', chapter_start: 6, chapter_end: null },
+      { day_number: 6, ...lordsPrayer },
+      { day_number: 6, book: 'MAT', chapter_start: 18, chapter_end: null },
+      { day_number: 7, ...lordsPrayer },
+      {
+        day_number: 7,
+        book: 'MAT',
+        chapter_start: 4,
+        chapter_end: 4,
+        verse_start: 1,
+        verse_end: 11,
+      },
+      {
+        day_number: 7,
+        book: 'EPH',
+        chapter_start: 6,
+        chapter_end: 6,
+        verse_start: 10,
+        verse_end: 20,
+      },
+    ],
+  },
+];
+
 const timedChallengeRecipes: TimedChallengeRecipe[] = [
   {
     id: 'bible-in-30-days',
@@ -973,6 +1140,18 @@ const timedChallengeRecipes: TimedChallengeRecipe[] = [
     cover_key: 'riverForest',
     books: ['ACT'],
   },
+  {
+    id: 'gospels-monthly',
+    slug: 'gospels-monthly',
+    title_key: 'readingPlans.gospelsMonthly.title',
+    description_key: 'readingPlans.gospelsMonthly.description',
+    duration_days: 31,
+    category: 'devotional',
+    sort_order: 5.9,
+    cover_key: 'gospelsMonthly',
+    schedule_mode: 'calendar-day-of-month',
+    books: ['MAT', 'MRK', 'LUK', 'JHN'],
+  },
 ];
 
 const sequentialPlans = sequentialRecipes.map(buildSequentialPlan);
@@ -981,6 +1160,7 @@ const topicalPlans = topicalRecipes.map(buildVersePlan);
 const devotionalPlans = devotionalRecipes.map(buildVersePlan);
 const timedChallengePlans = timedChallengeRecipes.map(buildTimedChallengePlan);
 const weeklySessionPlans = weeklySessionRecipes.map(buildWeeklySessionPlan);
+const calendarRhythmPlans = calendarRhythmRecipes.map(buildVersePlan);
 
 export const readingPlans = [
   ...sequentialPlans,
@@ -989,6 +1169,7 @@ export const readingPlans = [
   ...devotionalPlans,
   ...timedChallengePlans,
   ...weeklySessionPlans,
+  ...calendarRhythmPlans,
 ]
   .map((item) => item.plan)
   .sort((left, right) => left.sort_order - right.sort_order);
@@ -1000,6 +1181,7 @@ export const readingPlanEntries = [
   ...devotionalPlans,
   ...timedChallengePlans,
   ...weeklySessionPlans,
+  ...calendarRhythmPlans,
 ]
   .flatMap((item) => item.entries)
   .sort((left, right) => {

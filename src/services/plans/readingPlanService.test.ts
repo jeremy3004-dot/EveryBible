@@ -62,7 +62,7 @@ test('reading plan service serves bundled plans and local plan entries', async (
 
   const plansResult = await service.listReadingPlans();
   assert.equal(plansResult.success, true);
-  assert.equal(bundledMod.readingPlans.length, 23);
+  assert.equal(bundledMod.readingPlans.length, 27);
   assert.equal(plansResult.data?.length, bundledMod.readingPlans.length);
   assert.equal(plansResult.data?.[0]?.slug, 'bible-in-1-year');
   assert.equal(
@@ -98,6 +98,10 @@ test('reading plan service serves bundled plans and local plan entries', async (
     [
       'proverbs-31-days',
       'kathisma-weekly',
+      'common-prayer-psalter',
+      'week-of-christ',
+      'lords-prayer-week',
+      'gospels-monthly',
       'prayer-intimacy-with-god',
       'identity-in-christ',
       'holiness-and-sanctification',

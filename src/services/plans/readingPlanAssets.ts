@@ -3,11 +3,13 @@ import type { ReadingPlan, ReadingPlanCoverKey } from './types';
 
 const COVER_ASSETS: Record<string, ImageSourcePropType> = {
   canyon: require('../../../assets/plans/covers/canyon.png'),
+  commonPrayerPsalter: require('../../../assets/plans/covers/commonPrayerPsalter.png'),
   desert: require('../../../assets/plans/covers/desert.png'),
   dunes: require('../../../assets/plans/covers/dunes.png'),
   faithObedience: require('../../../assets/plans/covers/faithObedience.png'),
   field: require('../../../assets/plans/covers/field.png'),
   forest: require('../../../assets/plans/covers/forest.png'),
+  gospelsMonthly: require('../../../assets/plans/covers/gospelsMonthly.png'),
   gospelFoundations: require('../../../assets/plans/covers/gospelFoundations.png'),
   greatCommission: require('../../../assets/plans/covers/greatCommission.png'),
   hearingGodVoice: require('../../../assets/plans/covers/hearingGodVoice.png'),
@@ -15,6 +17,7 @@ const COVER_ASSETS: Record<string, ImageSourcePropType> = {
   identityInChrist: require('../../../assets/plans/covers/identityInChrist.png'),
   kathisma: require('../../../assets/plans/covers/kathisma.png'),
   kingdomOfGod: require('../../../assets/plans/covers/kingdomOfGod.png'),
+  lordsPrayer: require('../../../assets/plans/covers/lordsPrayer.png'),
   prayerIntimacy: require('../../../assets/plans/covers/prayerIntimacy.png'),
   mountains: require('../../../assets/plans/covers/mountains.png'),
   pineSky: require('../../../assets/plans/covers/pineSky.png'),
@@ -28,6 +31,7 @@ const COVER_ASSETS: Record<string, ImageSourcePropType> = {
   stars: require('../../../assets/plans/covers/stars.png'),
   sunrise: require('../../../assets/plans/covers/sunrise.png'),
   valley: require('../../../assets/plans/covers/valley.png'),
+  weekOfChrist: require('../../../assets/plans/covers/weekOfChrist.png'),
 } as const;
 
 export const READING_PLAN_COVER_SOURCES: ReadonlyArray<ImageSourcePropType> = Array.from(

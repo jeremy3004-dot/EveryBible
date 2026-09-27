@@ -870,8 +870,11 @@ test('recurring plans are the two-up Daily rhythms grid; every other plan is a r
   await openTab(view, 'readingPlans.findPlans');
 
   const rhythms = sectionOf(view, t('readingPlans.dailyRhythms'));
-  const recurring = [PROVERBS, KATHISMA];
-  assert.ok(within(rhythms).getByText(t('readingPlans.plansCount', { count: 2 })));
+  const recurring = CATALOG.filter((plan) => plan.scheduleMode?.startsWith('calendar-')).map(
+    (plan) => plan.id
+  );
+  assert.ok(recurring.includes(PROVERBS) && recurring.includes(KATHISMA));
+  assert.ok(within(rhythms).getByText(t('readingPlans.plansCount', { count: recurring.length })));
   for (const id of recurring) {
     assert.ok(within(rhythms).getByRole('button', { name: titleOf(id) }));
   }

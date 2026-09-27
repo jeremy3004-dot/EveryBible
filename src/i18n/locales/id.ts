@@ -1324,6 +1324,26 @@ export const id = {
       description:
         'Baca bagian Mazmur yang ditetapkan setiap pagi dan sore pada hari kerja, diulang setiap minggu.',
     },
+    commonPrayerPsalter: {
+      title: 'Mazmur Doa Umum',
+      description:
+        'Berdoalah dengan seluruh 150 Mazmur setiap bulan, pagi dan malam, menurut Buku Doa Umum.',
+    },
+    weekOfChrist: {
+      title: 'Pekan Kristus',
+      description:
+        'Setiap hari dalam sepekan mengingat satu bagian kisah Yesus: Kebangkitan pada hari Minggu, pengkhianatan pada hari Rabu, salib pada hari Jumat.',
+    },
+    lordsPrayerWeek: {
+      title: 'Pekan Doa Bapa Kami',
+      description:
+        'Doakan Doa Bapa Kami setiap hari, lalu baca satu perikop yang menguraikan salah satu kalimatnya.',
+    },
+    gospelsMonthly: {
+      title: 'Injil Setiap Bulan',
+      description:
+        'Baca Matius, Markus, Lukas, dan Yohanes menurut tanggal, lalu mulai lagi setiap bulan.',
+    },
     chronological: {
       title: 'Seluruh Alkitab: Kitab demi Kitab',
       description:

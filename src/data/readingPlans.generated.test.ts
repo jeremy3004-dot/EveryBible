@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import type { ReadingPlanCoverKey, ReadingPlanEntry } from '../services/plans/types';
 
 test('bundled reading plans expose the bundled plans in sort order', async () => {
   const mod = await import('./readingPlans.generated');
 
-  assert.equal(mod.readingPlans.length, 23);
+  assert.equal(mod.readingPlans.length, 27);
   assert.deepEqual(
     mod.readingPlans.map((plan) => plan.slug),
     [
@@ -14,6 +15,10 @@ test('bundled reading plans expose the bundled plans in sort order', async () =>
       'gospels-60-days',
       'proverbs-31-days',
       'kathisma-weekly',
+      'common-prayer-psalter',
+      'week-of-christ',
+      'lords-prayer-week',
+      'gospels-monthly',
       'genesis-to-revelation-chronological',
       'epistles-30-days',
       'sermon-on-the-mount-7-days',
@@ -127,4 +132,149 @@ test('plan entries are grouped by plan id in collation order, then by day', asyn
       );
     }
   });
+});
+
+const summarize = (entries: ReadingPlanEntry[]) =>
+  entries.map((entry) => {
+    const verses = entry.verse_start != null ? `:${entry.verse_start}-${entry.verse_end}` : '';
+    const end =
+      entry.chapter_end != null && entry.chapter_end !== entry.chapter_start
+        ? `-${entry.chapter_end}`
+        : '';
+    return `${entry.session_key ? `${entry.session_key} ` : ''}${entry.book} ${entry.chapter_start}${end}${verses}`;
+  });
+
+const entriesForDay = (entries: ReadingPlanEntry[], dayNumber: number) =>
+  summarize(entries.filter((entry) => entry.day_number === dayNumber));
+
+test('the new daily rhythms repeat on the calendar and carry their own covers', async () => {
+  const mod = await import('./readingPlans.generated');
+  const expected: Array<[string, string, number, string | undefined]> = [
+    ['common-prayer-psalter', 'calendar-day-of-month', 31, 'multi-session'],
+    ['week-of-christ', 'calendar-day-of-week', 7, undefined],
+    ['lords-prayer-week', 'calendar-day-of-week', 7, undefined],
+    ['gospels-monthly', 'calendar-day-of-month', 31, undefined],
+  ];
+  const coverKeys = new Set<ReadingPlanCoverKey>();
+
+  for (const [id, scheduleMode, durationDays, format] of expected) {
+    const plan = mod.readingPlansById.get(id);
+    assert.ok(plan, id);
+    assert.equal(plan.scheduleMode, scheduleMode, id);
+    assert.equal(plan.duration_days, durationDays, id);
+    assert.equal(plan.format, format, id);
+    assert.equal(plan.category, 'devotional', id);
+    coverKeys.add(plan.coverKey);
+  }
+
+  // Each rhythm gets a mark of its own, not a cover borrowed from another plan.
+  const otherCovers = new Set(
+    mod.readingPlans
+      .filter((plan) => !expected.some(([id]) => id === plan.id))
+      .map((plan) => plan.coverKey)
+  );
+  assert.equal(coverKeys.size, expected.length);
+  coverKeys.forEach((key) => assert.ok(!otherCovers.has(key), key));
+});
+
+test('Week of Christ keeps the weekly remembrance of the early church, Sunday first', async () => {
+  const mod = await import('./readingPlans.generated');
+  const entries = mod.readingPlanEntriesByPlanId['week-of-christ'];
+
+  assert.deepEqual(
+    [1, 2, 3, 4, 5, 6, 7].map((day) => entriesForDay(entries, day)),
+    [
+      ['JHN 20'], // Sunday: the Resurrection
+      ['HEB 1'], // Monday: the angels
+      ['MAT 3'], // Tuesday: John the Baptist
+      ['MAT 26'], // Wednesday: the betrayal
+      ['ACT 2'], // Thursday: the apostles
+      ['JHN 19'], // Friday: the Cross
+      ['1TH 4'], // Saturday: rest, and those who have fallen asleep
+    ]
+  );
+});
+
+test("Lord's Prayer Week prays the prayer daily, then dwells on one petition", async () => {
+  const mod = await import('./readingPlans.generated');
+  const entries = mod.readingPlanEntriesByPlanId['lords-prayer-week'];
+  const prayer = 'MAT 6:9-13';
+
+  assert.deepEqual(
+    [1, 2, 3, 4, 5, 6, 7].map((day) => entriesForDay(entries, day)),
+    [
+      [prayer, 'ROM 8'], // Our Father in heaven
+      [prayer, 'ISA 6'], // hallowed be your name
+      [prayer, 'MAT 13'], // your kingdom come
+      [prayer, 'MAT 26:36-46'], // your will be done
+      [prayer, 'JHN 6'], // our daily bread
+      [prayer, 'MAT 18'], // forgive us our debts
+      [prayer, 'MAT 4:1-11', 'EPH 6:10-20'], // lead us not into temptation, deliver us
+    ]
+  );
+});
+
+test('Gospels monthly reads all four Gospels in order, about three chapters a day', async () => {
+  const mod = await import('./readingPlans.generated');
+  const entries = mod.readingPlanEntriesByPlanId['gospels-monthly'];
+  const chaptersOnDay = (day: number) =>
+    entries
+      .filter((entry) => entry.day_number === day)
+      .reduce(
+        (sum, entry) => sum + (entry.chapter_end ?? entry.chapter_start) - entry.chapter_start + 1,
+        0
+      );
+
+  assert.deepEqual(entriesForDay(entries, 1), ['MAT 1-3']);
+  assert.deepEqual(entriesForDay(entries, 31), ['JHN 20-21']);
+  for (let day = 1; day <= 31; day++) {
+    assert.ok([2, 3].includes(chaptersOnDay(day)), `day ${day}`);
+  }
+});
+
+test('the Common Prayer Psalter follows the 1662 monthly table, repeating day 30 on the 31st', async () => {
+  const mod = await import('./readingPlans.generated');
+  const entries = mod.readingPlanEntriesByPlanId['common-prayer-psalter'];
+
+  assert.deepEqual(entriesForDay(entries, 1), ['morning PSA 1-5', 'evening PSA 6-8']);
+  assert.deepEqual(entriesForDay(entries, 3), ['morning PSA 15-17', 'evening PSA 18']);
+  assert.deepEqual(entriesForDay(entries, 13), ['morning PSA 68', 'evening PSA 69-70']);
+  assert.deepEqual(entriesForDay(entries, 24), ['morning PSA 116-118', 'evening PSA 119:1-32']);
+  assert.deepEqual(entriesForDay(entries, 25), ['morning PSA 119:33-72', 'evening PSA 119:73-104']);
+  assert.deepEqual(entriesForDay(entries, 26), [
+    'morning PSA 119:105-144',
+    'evening PSA 119:145-176',
+  ]);
+  assert.deepEqual(entriesForDay(entries, 30), ['morning PSA 144-146', 'evening PSA 147-150']);
+  assert.deepEqual(entriesForDay(entries, 31), entriesForDay(entries, 30));
+
+  // Days 1-30 read every psalm once, and Psalm 119 verse by verse without gaps.
+  const monthEntries = entries.filter((entry) => entry.day_number <= 30);
+  const psalms = monthEntries.flatMap((entry) =>
+    entry.verse_start != null
+      ? []
+      : Array.from(
+          { length: (entry.chapter_end ?? entry.chapter_start) - entry.chapter_start + 1 },
+          (_, index) => entry.chapter_start + index
+        )
+  );
+  const psalm119Verses = monthEntries
+    .filter((entry) => entry.verse_start != null)
+    .flatMap((entry) =>
+      Array.from(
+        { length: entry.verse_end! - entry.verse_start! + 1 },
+        (_, index) => entry.verse_start! + index
+      )
+    );
+  assert.deepEqual(
+    [...psalms, 119].sort((a, b) => a - b),
+    Array.from({ length: 150 }, (_, index) => index + 1)
+  );
+  assert.deepEqual(
+    psalm119Verses,
+    Array.from({ length: 176 }, (_, index) => index + 1)
+  );
+  assert.ok(
+    entries.every((entry, index) => entries.findIndex((other) => other.id === entry.id) === index)
+  );
 });

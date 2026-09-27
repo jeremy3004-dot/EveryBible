@@ -1328,6 +1328,25 @@ export const tr = {
       description:
         'Her hafta içi gün için belirlenen sabah ve akşam kathismalarını okuyun; her hafta tekrarlanır.',
     },
+    commonPrayerPsalter: {
+      title: 'Ortak Dua Mezmurları',
+      description:
+        'Ortak Dua Kitabı’ndaki düzene göre her ay sabah ve akşam 150 Mezmur’un tümüyle dua edin.',
+    },
+    weekOfChrist: {
+      title: 'Mesih’in Haftası',
+      description:
+        'Haftanın her günü İsa’nın öyküsünün bir bölümünü anar: Pazar günü diriliş, çarşamba ihanet, cuma çarmıh.',
+    },
+    lordsPrayerWeek: {
+      title: 'Rab’bin Duası Haftası',
+      description: 'Her gün Rab’bin Duası’nı edin, sonra onun bir satırını açan bir bölüm okuyun.',
+    },
+    gospelsMonthly: {
+      title: 'Her Ay İnciller',
+      description:
+        'Ayın gününe göre Matta, Markos, Luka ve Yuhanna’yı okuyun ve her ay yeniden başlayın.',
+    },
     chronological: {
       title: 'Kutsal Kitap’ın Tamamı: Kitap Kitap',
       description:
