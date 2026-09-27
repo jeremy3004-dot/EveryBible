@@ -515,6 +515,7 @@ export const vi = {
     continueReading: 'Tiếp tục đọc',
     sharePrompt: 'Chia sẻ ánh sáng. Khích lệ ai đó hôm nay.',
     plan: 'Kế hoạch',
+    lessonChip: 'Bài học {{number}}',
     minutesLeft: '{{count}} phút còn lại',
     percentComplete: '{{percent}}%',
     fieldLabel: 'Cánh đồng {{number}}',

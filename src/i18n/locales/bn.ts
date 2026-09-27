@@ -155,6 +155,7 @@ export const bn = {
     continueReading: 'পড়া চালিয়ে যান',
     sharePrompt: 'আলো ছড়িয়ে দিন। আজ কাউকে উৎসাহিত করুন।',
     plan: 'পরিকল্পনা',
+    lessonChip: 'পাঠ {{number}}',
     minutesLeft: '{{count}} মিনিট বাকি',
     percentComplete: '{{percent}}%',
     fieldLabel: 'ক্ষেত্র {{number}}',

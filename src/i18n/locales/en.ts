@@ -483,6 +483,7 @@ export const en = {
     continueReading: 'Continue Reading',
     sharePrompt: 'Share light. Encourage someone today.',
     plan: 'Plan',
+    lessonChip: 'Lesson {{number}}',
     minutesLeft: '{{count}} min left',
     percentComplete: '{{percent}}%',
     fieldLabel: 'Field {{number}}',

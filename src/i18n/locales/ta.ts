@@ -156,6 +156,7 @@ export const ta = {
     continueReading: 'தொடர்ந்து வாசி',
     sharePrompt: 'ஒளியைப் பகிருங்கள். இன்று ஒருவரை ஊக்குவியுங்கள்.',
     plan: 'திட்டம்',
+    lessonChip: 'பாடம் {{number}}',
     minutesLeft: '{{count}} நிமிடம் மீதமுள்ளது',
     percentComplete: '{{percent}}%',
     fieldLabel: 'வயல் {{number}}',

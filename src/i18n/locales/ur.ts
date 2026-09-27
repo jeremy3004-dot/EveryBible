@@ -502,6 +502,7 @@ export const ur = {
     continueReading: 'پڑھنا جاری رکھیں',
     sharePrompt: 'روشنی بانٹیں۔ آج کسی کی حوصلہ افزائی کریں۔',
     plan: 'منصوبہ',
+    lessonChip: 'سبق {{number}}',
     minutesLeft: '{{count}} منٹ باقی',
     percentComplete: '{{percent}}%',
     fieldLabel: 'کھیت {{number}}',

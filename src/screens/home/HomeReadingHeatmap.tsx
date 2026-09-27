@@ -1,7 +1,7 @@
 import { memo, useCallback, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, type LayoutChangeEvent } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
 import { hexWithAlpha } from '../../utils/color';
 import { spacing, typography } from '../../design/system';
 import {
@@ -23,6 +23,13 @@ interface HomeReadingHeatmapProps {
   /** Local "now"; Home advances it at midnight and on return to the foreground. */
   nowMs: number;
   onPress: () => void;
+  /**
+   * Draw in another scope than the app's: Home sets the grid on an always-dark
+   * card, so it passes the dark scope's colours in either theme.
+   */
+  scope?: { colors: ThemeColors; isDark: boolean };
+  /** Leave out the day count and the less/more key under the grid. */
+  hideFooter?: boolean;
 }
 
 /**
@@ -30,9 +37,16 @@ interface HomeReadingHeatmapProps {
  * read or heard. A day without reading is a rest, not a failure: empty squares
  * stay in the soft paper tone rather than a warning colour.
  */
-function HomeReadingHeatmapComponent({ activity, nowMs, onPress }: HomeReadingHeatmapProps) {
+function HomeReadingHeatmapComponent({
+  activity,
+  nowMs,
+  onPress,
+  scope,
+  hideFooter = false,
+}: HomeReadingHeatmapProps) {
   const { t } = useTranslation();
-  const { colors, isDark } = useTheme();
+  const theme = useTheme();
+  const { colors, isDark } = scope ?? theme;
   const [weekCount, setWeekCount] = useState(INITIAL_WEEK_COUNT);
 
   const handleLayout = useCallback((event: LayoutChangeEvent) => {
@@ -92,25 +106,27 @@ function HomeReadingHeatmapComponent({ activity, nowMs, onPress }: HomeReadingHe
         ))}
       </View>
 
-      <View style={styles.footer} importantForAccessibility="no-hide-descendants">
-        <Text style={[styles.daysLabel, { color: colors.secondaryText }]} numberOfLines={2}>
-          {daysLabel}
-        </Text>
-        <View style={styles.legend}>
-          <Text style={[styles.legendLabel, { color: colors.secondaryText }]}>
-            {t('home.heatmapLess')}
+      {hideFooter ? null : (
+        <View style={styles.footer} importantForAccessibility="no-hide-descendants">
+          <Text style={[styles.daysLabel, { color: colors.secondaryText }]} numberOfLines={2}>
+            {daysLabel}
           </Text>
-          {LEVELS.map((level) => (
-            <View
-              key={level}
-              style={[styles.legendSquare, { backgroundColor: levelColors[level] }]}
-            />
-          ))}
-          <Text style={[styles.legendLabel, { color: colors.secondaryText }]}>
-            {t('home.heatmapMore')}
-          </Text>
+          <View style={styles.legend}>
+            <Text style={[styles.legendLabel, { color: colors.secondaryText }]}>
+              {t('home.heatmapLess')}
+            </Text>
+            {LEVELS.map((level) => (
+              <View
+                key={level}
+                style={[styles.legendSquare, { backgroundColor: levelColors[level] }]}
+              />
+            ))}
+            <Text style={[styles.legendLabel, { color: colors.secondaryText }]}>
+              {t('home.heatmapMore')}
+            </Text>
+          </View>
         </View>
-      </View>
+      )}
     </Pressable>
   );
 }

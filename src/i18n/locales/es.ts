@@ -529,6 +529,7 @@ export const es = {
     continueReading: 'Continuar leyendo',
     sharePrompt: 'Comparte luz. Anima a alguien hoy.',
     plan: 'Plan',
+    lessonChip: 'Lección {{number}}',
     minutesLeft: '{{count}} min restantes',
     percentComplete: '{{percent}}%',
     fieldLabel: 'Campo {{number}}',

@@ -155,6 +155,7 @@ export const te = {
     continueReading: 'చదవడం కొనసాగించండి',
     sharePrompt: 'వెలుగును పంచుకోండి. ఈరోజు ఎవరినైనా ప్రోత్సహించండి.',
     plan: 'ప్రణాళిక',
+    lessonChip: 'పాఠం {{number}}',
     minutesLeft: 'ఇంకా {{count}} నిమి.',
     percentComplete: '{{percent}}%',
     fieldLabel: 'పొలం {{number}}',

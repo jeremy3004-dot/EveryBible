@@ -525,6 +525,7 @@ export const pt = {
     continueReading: 'Continuar lendo',
     sharePrompt: 'Compartilhe luz. Encoraje alguém hoje.',
     plan: 'Plano',
+    lessonChip: 'Lição {{number}}',
     minutesLeft: '{{count}} min restantes',
     percentComplete: '{{percent}}%',
     fieldLabel: 'Campo {{number}}',

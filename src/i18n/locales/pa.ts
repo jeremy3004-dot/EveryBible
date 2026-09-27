@@ -156,6 +156,7 @@ export const pa = {
     continueReading: 'ਪੜ੍ਹਨਾ ਜਾਰੀ ਰੱਖੋ',
     sharePrompt: 'ਰੋਸ਼ਨੀ ਸਾਂਝੀ ਕਰੋ। ਅੱਜ ਕਿਸੇ ਨੂੰ ਉਤਸ਼ਾਹਿਤ ਕਰੋ।',
     plan: 'ਯੋਜਨਾ',
+    lessonChip: 'ਪਾਠ {{number}}',
     minutesLeft: '{{count}} ਮਿੰਟ ਬਾਕੀ',
     percentComplete: '{{percent}}%',
     fieldLabel: 'ਖੇਤ {{number}}',

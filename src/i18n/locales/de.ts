@@ -515,6 +515,7 @@ export const de = {
     continueReading: 'Weiterlesen',
     sharePrompt: 'Teile Licht. Ermutige heute jemanden.',
     plan: 'Plan',
+    lessonChip: 'Lektion {{number}}',
     minutesLeft: '{{count}} Min. übrig',
     percentComplete: '{{percent}} %',
     fieldLabel: 'Feld {{number}}',

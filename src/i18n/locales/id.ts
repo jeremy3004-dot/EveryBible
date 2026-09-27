@@ -512,6 +512,7 @@ export const id = {
     continueReading: 'Lanjutkan membaca',
     sharePrompt: 'Bagikan terang. Semangati seseorang hari ini.',
     plan: 'Rencana',
+    lessonChip: 'Pelajaran {{number}}',
     minutesLeft: 'Sisa {{count}} menit',
     percentComplete: '{{percent}}%',
     fieldLabel: 'Ladang {{number}}',

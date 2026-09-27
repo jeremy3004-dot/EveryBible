@@ -528,6 +528,7 @@ export const ru = {
     continueReading: 'Продолжить чтение',
     sharePrompt: 'Делитесь светом. Поддержите кого-нибудь сегодня.',
     plan: 'План',
+    lessonChip: 'Урок {{number}}',
     minutesLeft: 'Осталось {{count}} мин',
     percentComplete: '{{percent}}%',
     fieldLabel: 'Поле {{number}}',

@@ -21,19 +21,18 @@ import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ChevronRight, Flame, Play, Share as ShareGlyph } from 'lucide-react-native';
+import { BookOpen, Flame, Play, Share as ShareGlyph } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { bibleTranslations } from '../../constants/translations';
 import { getBookById, getTranslatedBookName } from '../../constants/books';
 import { config } from '../../constants/config';
 import { FONT_SIZE_SCALES } from '../../constants/fontSizeScales';
-import { useTheme } from '../../contexts/ThemeContext';
+import { createThemeColors, useTheme } from '../../contexts/ThemeContext';
 import { useDisplayFont } from '../../hooks/useDisplayFont';
 import { useLargeText } from '../../hooks/useLargeText';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { useDeviceOffline } from '../../hooks/useDeviceOffline';
 import { useTranslationContentSummary } from '../../hooks/useTranslationContentSummary';
-import { GatherIconBadge } from '../../components/gather/GatherIconBadge';
 import { useAuthStore } from '../../stores/authStore';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useGatherStore } from '../../stores/gatherStore';
@@ -47,13 +46,11 @@ import {
 import { getHomeVerseBackground } from '../../data/homeVerseBackgrounds';
 import { getHomeScreenLayout } from './homeLayoutModel';
 import { selectHomeContinuePlans } from './homeReadingPlansModel';
-import { getHomeNextUpChapter, getHomeReadingStats } from './homeReadingStatsModel';
+import { getHomeReadingStats } from './homeReadingStatsModel';
 import { HomeReadingHeatmap } from './HomeReadingHeatmap';
 import { buildHomeVerseShareMessage } from './homeVerseShareModel';
 import { getMillisecondsUntilNextLocalMidnight } from '../../services/bible/dailyScriptureRefresh';
 import {
-  formatHomeDateLabel,
-  getHomeGreetingKey,
   getMillisecondsUntilNextGreetingChange,
   loadVerseOfDay as loadVerseOfDayFromBible,
   startVerseOfDayRefresh,
@@ -70,16 +67,15 @@ import {
 } from '../../services/plans/readingPlanModel';
 import type { ReadingPlan } from '../../services/plans/types';
 import { getPlanLedgerGridDayCount } from '../plans/planLedgerGridModel';
-import { AppCard } from '../../components/ui/AppCard';
 import { IconButton } from '../../components/ui/IconButton';
 import { PressableScale } from '../../components/ui/PressableScale';
-import { ProgressBar } from '../../components/ui/ProgressBar';
 import { getReadingFontFamily } from '../../design/fonts';
 import type { DailyScripture } from '../../types';
 import type { RootTabParamList } from '../../navigation/types';
 import { gatherFoundationRoute } from '../../navigation/learnRoutes';
 import { countCompletedLessons } from '../learn/gatherPathModel';
-import { layout, motion, radius, spacing, typography } from '../../design/system';
+import { motion, radius, spacing, typography } from '../../design/system';
+import { hexWithAlpha } from '../../utils/color';
 import { lightHaptic } from '../../utils/haptics';
 import { createHomeReadyReporter } from '../../services/startup/homeStartupTiming';
 import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../design/largeTextLayout';
@@ -124,16 +120,7 @@ const HERO_PILL_HEIGHT = 36;
 const SHEET_PADDING_TOP = 20;
 const SHEET_GUTTER = spacing.xl;
 const SHEET_GAP = spacing.md;
-const SHEET_CARD_MIN_HEIGHT = 120;
-
-function getFirstName(displayName: string | null | undefined): string | null {
-  const trimmed = displayName?.trim();
-  if (!trimmed) {
-    return null;
-  }
-
-  return trimmed.split(/\s+/)[0] ?? null;
-}
+const CHIP_TRACK_HEIGHT = 3;
 
 export function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -155,7 +142,14 @@ export function HomeScreen() {
     []
   );
   useEffect(() => () => homeReadyReporter.cancel(), [homeReadyReporter]);
-  const { colors, isDark } = useTheme();
+  const { colors, isDark, appearancePalette } = useTheme();
+  // The reading card is always the dark scope, in either theme: on vellum it is
+  // the one ink object under the photograph, and in dark it is an ordinary card.
+  const readingCardScope = useMemo(
+    () => ({ colors: createThemeColors('dark', appearancePalette), isDark: true }),
+    [appearancePalette]
+  );
+  const cardColors = readingCardScope.colors;
   const displayFont = useDisplayFont();
   const { t, i18n } = useTranslation();
   const reduceMotion = useReducedMotion();
@@ -167,9 +161,9 @@ export function HomeScreen() {
     (reduceMotion ? FadeIn : FadeInDown).duration(motion.duration.base).delay(step * 60);
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const tabBar = useTabBarHeight();
-  // Continue and Plan sit side by side at normal sizes; at large text each half
-  // held a word per line under a clipped numeral, so they stack.
-  const { rowDirection: sheetCardDirection, isLargeText } = useLargeText();
+  // The three chips sit side by side at normal sizes; at large text a third of
+  // the card held a word per line, so they stack.
+  const { rowDirection: chipDirection, isLargeText } = useLargeText();
   const bottomTabBarHeight = tabBar.height;
   const [dailyScripture, setDailyScripture] = useState<DailyScripture | null>(null);
   const [isLoadingVerse, setIsLoadingVerse] = useState(true);
@@ -218,7 +212,6 @@ export function HomeScreen() {
     bottomTabBarHeight,
     FONT_SIZE_SCALES[readingFontSize]
   );
-  const user = useAuthStore((state) => state.user);
 
   const currentTranslation = useBibleStore((state) => state.currentTranslation);
   const currentBook = useBibleStore((state) => state.currentBook);
@@ -327,9 +320,11 @@ export function HomeScreen() {
     foundationCompletedLessons,
     foundation.lessons
   );
-  const nextLesson =
-    foundation.lessons.find((lesson) => !foundationCompletedLessons.includes(lesson.id)) ??
-    foundation.lessons[0];
+  const nextLessonIndex = Math.max(
+    0,
+    foundation.lessons.findIndex((lesson) => !foundationCompletedLessons.includes(lesson.id))
+  );
+  const nextLesson = foundation.lessons[nextLessonIndex];
   const foundationTitleKey = FOUNDATION_TITLE_KEYS[foundation.id];
   const foundationTitle = foundationTitleKey
     ? t(foundationTitleKey as Parameters<typeof t>[0])
@@ -374,13 +369,14 @@ export function HomeScreen() {
   const currentPassageLabel = hasContinuePassage
     ? `${currentBookName} ${currentChapter}`
     : t('home.defaultReference');
-  const greetingName = getFirstName(user?.displayName) ?? t('home.guestName');
-  const greetingLabel = t('home.greetingWithName', {
-    greeting: t(getHomeGreetingKey(new Date(clockMs))),
-    name: greetingName,
-  });
-  const todayLabel = useMemo(
-    () => formatHomeDateLabel(i18n.language, new Date(clockMs)),
+  const continueFraction =
+    hasContinuePassage && currentBookInfo.chapters > 0
+      ? currentChapter / currentBookInfo.chapters
+      : 0;
+  // The weekday alone: the verse's reference shares its line, and the date, the
+  // greeting and a "Today's scripture" label all said what the page already shows.
+  const weekdayLabel = useMemo(
+    () => new Intl.DateTimeFormat(i18n.language, { weekday: 'long' }).format(new Date(clockMs)),
     [clockMs, i18n.language]
   );
 
@@ -409,49 +405,16 @@ export function HomeScreen() {
     [chaptersRead, chaptersListened, clockMs, listeningMsByDate]
   );
 
-  // Intl formatters are built here rather than at module scope so the JS thread
-  // never pays for them at import time, and so they follow a language change.
-  const ledgerTotalLabel = useMemo(() => {
-    if (allTimeStats.firstActivityAt === null) {
-      return t('home.ledgerNoChapters');
-    }
-
-    return t('home.ledgerSince', {
-      date: new Intl.DateTimeFormat(i18n.language, {
-        day: 'numeric',
-        month: 'long',
-      }).format(new Date(allTimeStats.firstActivityAt)),
-      count: allTimeStats.chaptersCovered,
-    });
-  }, [allTimeStats, i18n.language, t]);
+  const ledgerTotalLabel =
+    allTimeStats.firstActivityAt === null
+      ? t('home.ledgerNoChapters')
+      : t('readingPlans.chapterCount', { count: allTimeStats.chaptersCovered });
 
   // initial: false keeps More's own list under the calendar, so back returns there.
   const openReadingActivity = useCallback(() => {
     lightHaptic();
     navigation.navigate('More', { screen: 'ReadingActivity', initial: false });
   }, [navigation]);
-
-  // The resume point stays on the chapter last opened; once that chapter is
-  // finished, "Next up" names the one after it rather than the one just read.
-  const ledgerNextUpLabel = useMemo(() => {
-    if (!hasContinuePassage) {
-      return null;
-    }
-
-    const nextUp = getHomeNextUpChapter(
-      { bookId: currentBook, chapter: currentChapter },
-      { chaptersRead, chaptersListened }
-    );
-    const nextUpBook = nextUp ? getBookById(nextUp.bookId) : undefined;
-    if (!nextUp || !nextUpBook) {
-      return null;
-    }
-
-    return t('home.ledgerNextUp', {
-      reference: `${getTranslatedBookName(nextUp.bookId, t)} ${nextUp.chapter}`,
-      total: nextUpBook.chapters,
-    });
-  }, [chaptersListened, chaptersRead, currentBook, currentChapter, hasContinuePassage, t]);
 
   const loadVerseOfDay = useCallback(
     (options?: VerseOfDayLoadOptions) =>
@@ -525,16 +488,24 @@ export function HomeScreen() {
     });
   };
 
-  const handleContinuePlan = useCallback(
-    (planId: string) => {
-      navigation.navigate('Plans', {
-        screen: 'PlanDetail',
-        params: { planId },
-        initial: false,
-      });
-    },
-    [navigation]
-  );
+  const handleOpenPlan = () => {
+    lightHaptic();
+    if (!featuredPlan) {
+      navigation.navigate('Plans', { screen: 'PlansHome' });
+      return;
+    }
+
+    navigation.navigate('Plans', {
+      screen: 'PlanDetail',
+      params: { planId: featuredPlan.id },
+      initial: false,
+    });
+  };
+
+  const handleOpenGather = () => {
+    lightHaptic();
+    navigation.navigate('Learn', gatherFoundationRoute(foundation.id));
+  };
 
   const dailyReferenceLabel = dailyScripture
     ? formatDailyScriptureReferenceLabel(
@@ -601,7 +572,9 @@ export function HomeScreen() {
     referenceLabel: verseShareReferenceLabel,
     bodyText: verseShareBodyText,
   });
+  // The shared picture keeps the "Today's scripture" label; on screen the weekday stands in.
   const verseScriptureEyebrow = `${t('home.todaysScripture')} · ${verseShareReferenceLabel}`;
+  const verseScreenEyebrow = `${weekdayLabel} · ${verseShareReferenceLabel}`;
   // Scripture is content, not interface: it renders in the translation's own
   // language, so Lora is swapped for the platform serif on scripts it lacks.
   const verseFontFamily = getReadingFontFamily(dailyTextTranslation?.language);
@@ -758,33 +731,6 @@ export function HomeScreen() {
         </ImageBackground>
 
         <View style={[styles.heroContent, { paddingTop: insets.top + HERO_TOP_PADDING }]}>
-          {isScreenVariant ? (
-            <View style={styles.heroHeaderRow}>
-              <View style={styles.heroHeaderCopy}>
-                <Text
-                  style={[styles.heroDate, displayFont.regular]}
-                  numberOfLines={isLargeText ? 2 : 1}
-                >
-                  {todayLabel}
-                </Text>
-                <Text
-                  maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
-                  style={[
-                    styles.heroGreeting,
-                    displayFont.bold,
-                    {
-                      fontSize: homeLayout.greetingFontSize,
-                      lineHeight: homeLayout.greetingLineHeight,
-                    },
-                  ]}
-                  numberOfLines={isLargeText ? 3 : 2}
-                >
-                  {greetingLabel}
-                </Text>
-              </View>
-            </View>
-          ) : null}
-
           <View style={[styles.heroFooter, isScreenVariant ? null : styles.heroFooterCapture]}>
             {isLoadingVerse && !dailyScripture ? (
               <View style={styles.heroPlaceholder}>
@@ -795,7 +741,7 @@ export function HomeScreen() {
             ) : (
               <>
                 <Text style={[styles.heroEyebrow, displayFont.regular]}>
-                  {verseScriptureEyebrow}
+                  {isScreenVariant ? verseScreenEyebrow : verseScriptureEyebrow}
                 </Text>
                 <Text
                   style={[
@@ -845,10 +791,9 @@ export function HomeScreen() {
                   }
                   style={styles.heroPill}
                 >
+                  <BookOpen size={15} color={ON_PHOTO_PILL_INK} strokeWidth={2} />
                   <Text style={styles.heroPillLabel} numberOfLines={2}>
-                    {dailyPassageLabel
-                      ? t('home.readPassage', { passage: dailyPassageLabel })
-                      : t('bible.read')}
+                    {t('bible.read')}
                   </Text>
                 </PressableScale>
                 {renderVerseShareButton()}
@@ -859,6 +804,59 @@ export function HomeScreen() {
       </View>
     );
   };
+
+  const renderReadingChip = ({
+    label,
+    value,
+    fraction,
+    onPress,
+    accessibilityLabel,
+  }: {
+    label: string;
+    value: string;
+    fraction: number;
+    onPress: () => void;
+    accessibilityLabel: string;
+  }) => (
+    <PressableScale
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      style={[
+        styles.chip,
+        chipDirection === 'column' && styles.chipStacked,
+        { backgroundColor: hexWithAlpha(cardColors.primaryText, 0.08) },
+      ]}
+    >
+      <Text
+        style={[styles.chipLabel, displayFont.regular, { color: cardColors.secondaryText }]}
+        numberOfLines={1}
+      >
+        {label}
+      </Text>
+      <Text
+        maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
+        style={[styles.chipValue, displayFont.bold, { color: cardColors.primaryText }]}
+        numberOfLines={isLargeText ? 2 : 1}
+      >
+        {value}
+      </Text>
+      <View
+        style={[styles.chipTrack, { backgroundColor: hexWithAlpha(cardColors.primaryText, 0.14) }]}
+      >
+        <View
+          testID="reading-chip-progress"
+          style={[
+            styles.chipTrackFill,
+            {
+              width: `${Math.round(Math.min(1, Math.max(0, fraction)) * 100)}%`,
+              backgroundColor: cardColors.accentPrimary,
+            },
+          ]}
+        />
+      </View>
+    </PressableScale>
+  );
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -887,255 +885,81 @@ export function HomeScreen() {
         {renderVerseOfTheDayCard('screen')}
 
         <View style={styles.sheet}>
+          {/* One dark card under the photograph: the streak, a day-by-day heatmap
+              of recent reading, then where to pick up. */}
           <Animated.View
             entering={sectionEntering(0)}
-            style={[styles.sheetCardRow, { flexDirection: sheetCardDirection }]}
+            style={[styles.readingCard, { backgroundColor: cardColors.cardBackground }]}
           >
-            <AppCard
-              pressable
-              onPress={handleContinueReading}
-              padding={spacing.lg}
-              style={[styles.sheetCard, sheetCardDirection === 'column' && styles.sheetCardStacked]}
-              accessibilityLabel={`${t('common.continue')} ${currentPassageLabel}`}
-            >
-              <Text
-                style={[styles.cardEyebrow, displayFont.regular, { color: colors.secondaryText }]}
-                numberOfLines={1}
-              >
-                {t('common.continue')}
-              </Text>
-              <View style={styles.cardBody}>
-                {hasContinuePassage ? (
-                  <View style={styles.numeralRow}>
-                    <Text
-                      maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
-                      style={[styles.numeral, { color: colors.primaryText }]}
-                    >
-                      {currentChapter}
-                    </Text>
-                    <Text
-                      style={[styles.numeralCaption, { color: colors.primaryText }]}
-                      numberOfLines={2}
-                    >
-                      {currentBookName}
-                    </Text>
-                  </View>
-                ) : (
-                  <Text style={[styles.cardBodyText, { color: colors.primaryText }]}>
-                    {t('home.defaultReference')}
-                  </Text>
-                )}
-                <Text
-                  style={[styles.cardFooter, { color: colors.secondaryText }]}
-                  numberOfLines={2}
-                >
-                  {currentTranslationInfo?.name ?? currentTranslation.toUpperCase()}
+            <View style={styles.ledgerHeader}>
+              {/* One element: "12, day streak" rather than a bare number. */}
+              <View style={styles.ledgerStreak} accessible>
+                <Flame size={18} color={cardColors.accentPrimary} strokeWidth={2} />
+                <Text style={[styles.ledgerStreakCount, { color: cardColors.primaryText }]}>
+                  {streakDays}
+                </Text>
+                <Text style={[styles.ledgerStreakUnit, { color: cardColors.primaryText }]}>
+                  {t('home.streakUnitLabel', { count: streakDays })}
                 </Text>
               </View>
-            </AppCard>
+              <Text
+                style={[styles.ledgerTotal, { color: cardColors.secondaryText }]}
+                numberOfLines={2}
+              >
+                {ledgerTotalLabel}
+              </Text>
+            </View>
 
-            <AppCard
-              pressable
-              onPress={() =>
-                featuredPlan
-                  ? handleContinuePlan(featuredPlan.id)
-                  : navigation.navigate('Plans', { screen: 'PlansHome' })
-              }
-              padding={spacing.lg}
-              style={[styles.sheetCard, sheetCardDirection === 'column' && styles.sheetCardStacked]}
-              accessibilityLabel={
-                featuredPlanDuration > 0
-                  ? `${featuredPlanTitle} · ${t('readingPlans.dayOf', {
-                      current: featuredPlanDay,
-                      total: featuredPlanDuration,
-                    })}`
-                  : t('readingPlans.browsePlans')
-              }
-            >
-              {featuredPlanDuration > 0 ? (
-                <>
-                  {/* The title stands alone so a line only ever breaks between
-                      its own words: "Bible in One Year · Day" used to push
-                      "· Day" onto a line of its own on a 402pt phone. */}
-                  <Text
-                    style={[
-                      styles.cardEyebrow,
-                      displayFont.regular,
-                      { color: colors.secondaryText },
-                    ]}
-                    numberOfLines={2}
-                  >
-                    {featuredPlanTitle}
-                  </Text>
-                  <View style={styles.cardBody}>
-                    {/* "Day" labels the numeral directly, as on the plan's own
-                        progress card. */}
-                    <Text
-                      style={[
-                        styles.cardEyebrow,
-                        displayFont.regular,
-                        { color: colors.secondaryText },
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {t('home.dayEyebrow')}
-                    </Text>
-                    <View style={styles.numeralRow}>
-                      <Text
-                        maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
-                        style={[styles.numeral, { color: colors.primaryText }]}
-                      >
-                        {featuredPlanDay}
-                      </Text>
-                      <Text style={[styles.numeralDenominator, { color: colors.secondaryText }]}>
-                        {`/${featuredPlanDuration}`}
-                      </Text>
-                    </View>
-                    <ProgressBar
-                      progress={featuredPlanFraction}
-                      style={styles.planProgressBar}
-                      accessibilityLabel={t('readingPlans.progress')}
-                    />
-                  </View>
-                </>
-              ) : (
-                <>
-                  <Text
-                    style={[
-                      styles.cardEyebrow,
-                      displayFont.regular,
-                      { color: colors.secondaryText },
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {t('home.plan')}
-                  </Text>
-                  <View style={styles.cardBody}>
-                    <Text style={[styles.cardBodyText, { color: colors.primaryText }]}>
-                      {t('readingPlans.browsePlans')}
-                    </Text>
-                  </View>
-                </>
-              )}
-            </AppCard>
-          </Animated.View>
+            <HomeReadingHeatmap
+              activity={heatmapActivity}
+              nowMs={clockMs}
+              onPress={openReadingActivity}
+              scope={readingCardScope}
+              hideFooter
+            />
 
-          <Animated.View entering={sectionEntering(1)}>
-            <AppCard
-              pressable
-              padding={spacing.lg}
-              style={styles.gatherCard}
-              accessibilityLabel={[
-                `${t('tabs.gather')} · ${foundationTitle}`,
-                t('home.lessonsProgress', {
-                  completed: foundationCompletedCount,
-                  total: foundation.lessons.length,
-                }),
-                t('home.nextLesson', { title: nextLessonTitle }),
-              ].join(', ')}
-              onPress={() => navigation.navigate('Learn', gatherFoundationRoute(foundation.id))}
-            >
-              <View style={styles.gatherHeader}>
-                <Text
-                  style={[
-                    styles.cardEyebrow,
-                    styles.cardEyebrowName,
-                    displayFont.regular,
-                    { color: colors.secondaryText },
-                  ]}
-                  numberOfLines={isLargeText ? 2 : 1}
-                >
-                  {`${t('tabs.gather')} · ${t('gather.foundationLabel', {
-                    number: foundation.number,
-                  })}`}
-                </Text>
-                <Text
-                  style={[styles.gatherCount, displayFont.regular, { color: colors.secondaryText }]}
-                  numberOfLines={isLargeText ? 2 : 1}
-                >
-                  {t('home.lessonsProgress', {
+            <View style={[styles.chipRow, { flexDirection: chipDirection }]}>
+              {renderReadingChip({
+                label: t('common.continue'),
+                value: currentPassageLabel,
+                fraction: continueFraction,
+                onPress: handleContinueReading,
+                accessibilityLabel: `${t('common.continue')} ${currentPassageLabel}`,
+              })}
+              {renderReadingChip({
+                label: t('home.plan'),
+                value:
+                  featuredPlanDuration > 0
+                    ? t('readingPlans.dayLabel', { day: featuredPlanDay })
+                    : t('readingPlans.browsePlans'),
+                fraction: featuredPlanFraction,
+                onPress: handleOpenPlan,
+                accessibilityLabel:
+                  featuredPlanDuration > 0
+                    ? `${featuredPlanTitle} · ${t('readingPlans.dayOf', {
+                        current: featuredPlanDay,
+                        total: featuredPlanDuration,
+                      })}`
+                    : t('readingPlans.browsePlans'),
+              })}
+              {renderReadingChip({
+                label: t('tabs.gather'),
+                value: t('home.lessonChip', { number: nextLessonIndex + 1 }),
+                fraction:
+                  foundation.lessons.length > 0
+                    ? foundationCompletedCount / foundation.lessons.length
+                    : 0,
+                onPress: handleOpenGather,
+                accessibilityLabel: [
+                  `${t('tabs.gather')} · ${foundationTitle}`,
+                  t('home.lessonsProgress', {
                     completed: foundationCompletedCount,
                     total: foundation.lessons.length,
-                  })}
-                </Text>
-              </View>
-              <View style={styles.gatherRow}>
-                <GatherIconBadge
-                  artworkKey={foundation.iconImage}
-                  size={28}
-                  iconSize={20}
-                  iconColor={colors.accentPrimary}
-                />
-                <View style={styles.gatherCopy}>
-                  <Text
-                    style={[styles.gatherTitle, { color: colors.primaryText }]}
-                    numberOfLines={2}
-                  >
-                    {foundationTitle}
-                  </Text>
-                  <Text
-                    style={[styles.gatherSubtitle, { color: colors.secondaryText }]}
-                    numberOfLines={2}
-                  >
-                    {t('home.nextLesson', { title: nextLessonTitle })}
-                  </Text>
-                </View>
-                <ChevronRight size={18} color={colors.textTertiary} strokeWidth={2} />
-              </View>
-            </AppCard>
-          </Animated.View>
-
-          {/* Reading ledger: the streak and all-time total, then a day-by-day
-              heatmap of recent reading, then where to pick up. */}
-          <Animated.View entering={sectionEntering(2)}>
-            <AppCard padding={layout.cardPadding} style={styles.ledgerCard}>
-              <View style={styles.ledgerHeader}>
-                {/* One element: "12, day streak" rather than a bare number. */}
-                <View style={styles.ledgerStreak} accessible>
-                  <Flame size={18} color={colors.accentPrimary} strokeWidth={2} />
-                  <Text style={[styles.ledgerStreakCount, { color: colors.primaryText }]}>
-                    {streakDays}
-                  </Text>
-                  {/* Two short lines beside the numeral; at large text the fixed
-                      column held a word per line and cut longer languages. */}
-                  <Text
-                    style={[
-                      styles.ledgerStreakUnit,
-                      !isLargeText && styles.ledgerStreakUnitCompact,
-                      { color: colors.primaryText },
-                    ]}
-                    numberOfLines={isLargeText ? undefined : 2}
-                  >
-                    {t('home.streakUnitLabel', { count: streakDays })}
-                  </Text>
-                </View>
-                <Text
-                  style={[styles.ledgerTotal, { color: colors.secondaryText }]}
-                  numberOfLines={2}
-                >
-                  {ledgerTotalLabel}
-                </Text>
-              </View>
-
-              <HomeReadingHeatmap
-                activity={heatmapActivity}
-                nowMs={clockMs}
-                onPress={openReadingActivity}
-              />
-
-              {ledgerNextUpLabel ? (
-                <Text
-                  style={[
-                    styles.ledgerNextUp,
-                    displayFont.regular,
-                    { color: colors.secondaryText },
-                  ]}
-                  numberOfLines={2}
-                >
-                  {ledgerNextUpLabel}
-                </Text>
-              ) : null}
-            </AppCard>
+                  }),
+                  t('home.nextLesson', { title: nextLessonTitle }),
+                ].join(', '),
+              })}
+            </View>
           </Animated.View>
         </View>
       </ScrollView>
@@ -1202,25 +1026,6 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: SHEET_GUTTER,
   },
-  heroHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.md,
-  },
-  heroHeaderCopy: {
-    flex: 1,
-    minWidth: 0,
-    gap: spacing.xs,
-  },
-  heroDate: {
-    ...typography.eyebrow,
-    color: ON_PHOTO_EYEBROW,
-  },
-  // fontSize/lineHeight come from getHomeScreenLayout so narrow phones drop to 18pt.
-  heroGreeting: {
-    letterSpacing: -0.66,
-    color: ON_PHOTO_INK,
-  },
   heroFooter: {
     marginTop: 'auto',
     gap: spacing.md,
@@ -1285,95 +1090,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: SHEET_GUTTER,
     gap: SHEET_GAP,
   },
-  sheetCardRow: {
-    flexDirection: 'row',
-    gap: SHEET_GAP,
-  },
-  sheetCard: {
-    flex: 1,
-    minWidth: 0,
-    minHeight: SHEET_CARD_MIN_HEIGHT,
-  },
-  // Stacked, each card sizes to its content instead of splitting a column
-  // whose height is itself content-sized.
-  sheetCardStacked: {
-    flex: 0,
-  },
-  cardEyebrow: {
-    ...typography.eyebrow,
-  },
-  cardEyebrowName: {
-    flexShrink: 1,
-    minWidth: 0,
-  },
-  cardBody: {
-    marginTop: 'auto',
-    gap: spacing.xs,
-  },
-  cardBodyText: {
-    ...typography.bodyStrong,
-  },
-  numeralRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: spacing.xs,
-  },
-  numeral: {
-    ...typography.numeralXL,
-  },
-  numeralCaption: {
-    ...typography.bodyStrong,
-    flexShrink: 1,
-    minWidth: 0,
-  },
-  numeralDenominator: {
-    ...typography.numeralRow,
-    fontSize: 18,
-    lineHeight: 22,
-    letterSpacing: -0.36,
-  },
-  cardFooter: {
-    ...typography.caption,
-  },
-  planProgressBar: {
-    marginTop: spacing.xs,
-  },
-  gatherCard: {
-    gap: 14,
-  },
-  // Wraps so the lesson count drops under the eyebrow at large text sizes
-  // instead of squeezing it to "Gather · F…".
-  gatherHeader: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-  },
-  gatherCount: {
-    ...typography.mono,
-  },
-  gatherRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  readingCard: {
+    borderRadius: radius.xl,
+    padding: spacing.lg,
     gap: spacing.md,
   },
-  gatherCopy: {
-    flex: 1,
-    minWidth: 0,
-    gap: 2,
-  },
-  gatherTitle: {
-    ...typography.rowTitle,
-  },
-  gatherSubtitle: {
-    ...typography.caption,
-  },
-  ledgerCard: {
-    paddingHorizontal: layout.cardPaddingWide,
-    gap: spacing.md,
-  },
-  // Wraps so the period switch drops under the streak at large text sizes.
+  // Wraps so the chapter total drops under the streak at large text sizes.
   ledgerHeader: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1395,18 +1117,44 @@ const styles = StyleSheet.create({
     ...typography.captionStrong,
     flexShrink: 1,
   },
-  ledgerStreakUnitCompact: {
-    // Two short lines beside the numeral, as in the reference.
-    maxWidth: 54,
-  },
   ledgerTotal: {
     ...typography.caption,
     flexShrink: 1,
     textAlign: 'right',
   },
-  ledgerNextUp: {
-    ...typography.mono,
-    flexShrink: 0,
+  chipRow: {
+    gap: spacing.sm,
+  },
+  chip: {
+    flex: 1,
+    minWidth: 0,
+    borderRadius: radius.md,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    gap: 2,
+  },
+  // Stacked at large text, each chip sizes to its content.
+  chipStacked: {
+    flex: 0,
+  },
+  chipLabel: {
+    ...typography.eyebrow,
+    fontSize: 9.5,
+    letterSpacing: 1.2,
+  },
+  chipValue: {
+    fontSize: 15,
+    lineHeight: 19,
+    letterSpacing: -0.2,
+  },
+  chipTrack: {
+    height: CHIP_TRACK_HEIGHT,
+    borderRadius: CHIP_TRACK_HEIGHT / 2,
+    marginTop: 6,
+    overflow: 'hidden',
+  },
+  chipTrackFill: {
+    height: '100%',
   },
   sharePreviewMount: {
     position: 'absolute',

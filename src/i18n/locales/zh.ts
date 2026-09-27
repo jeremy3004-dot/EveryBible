@@ -491,6 +491,7 @@ export const zh = {
     continueReading: '继续阅读',
     sharePrompt: '把光传出去。今天去鼓励一个人吧。',
     plan: '计划',
+    lessonChip: '第 {{number}} 课',
     minutesLeft: '还剩 {{count}} 分钟',
     percentComplete: '{{percent}}%',
     fieldLabel: '第 {{number}} 块田',

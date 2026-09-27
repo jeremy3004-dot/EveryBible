@@ -587,13 +587,13 @@ test('nothing evaluated before Home imports the large bundled data tables', () =
     );
   });
 
-  // The walker must still see the registry itself, which HomeScreen imports through the badge.
-  const home = collectStaticImportClosure(
-    fileURLToPath(new URL(assertDefined(PATH_TO_HOME[2], 'PATH_TO_HOME[2]'), import.meta.url).href)
+  // The walker must still see the registry itself, which the Gather badge imports.
+  const badge = collectStaticImportClosure(
+    fileURLToPath(new URL('../../components/gather/GatherIconBadge.tsx', import.meta.url).href)
   );
   assert.ok(
-    [...home].some((file) => file.endsWith('src/data/gatherArtwork.ts')),
-    'HomeScreen should reach the Gather artwork registry — check the walker if this fails'
+    [...badge].some((file) => file.endsWith('src/data/gatherArtwork.ts')),
+    'the Gather badge should reach the Gather artwork registry — check the walker if this fails'
   );
 });
 

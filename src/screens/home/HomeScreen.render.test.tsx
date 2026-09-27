@@ -19,7 +19,6 @@ import {
   within,
 } from '../../testing/render';
 import { bibleTranslations } from '../../constants/translations';
-import { getHomeScreenLayout } from './homeLayoutModel';
 
 const harness = installRenderHarness(mock, { skip: ['@react-navigation/native'] });
 const t = (key: string, options?: Record<string, unknown>) => harness.i18n.t(key, options);
@@ -197,7 +196,10 @@ function heroes(view: HomeView) {
   return { screen: within(scroll), share: within(capture), capture };
 }
 
+/** The shared picture's label over the verse. */
 const verseEyebrow = (reference: string) => `${t('home.todaysScripture')} · ${reference}`;
+/** On screen the weekday stands in for "Today's scripture" (TODAY is a Thursday). */
+const screenEyebrow = (reference: string, weekday = 'Thursday') => `${weekday} · ${reference}`;
 
 // ---- Verse of the day --------------------------------------------------------
 
@@ -265,22 +267,19 @@ test('installing the current translation’s text pack reloads its verse', async
 test('the hero shows the rotating daily verse and its reference, not a fixed passage', async () => {
   const first = await renderHome();
   assert.ok(heroes(first).screen.getByText(JOHN_3_16));
-  assert.ok(heroes(first).screen.getByText(verseEyebrow('John 3:16')));
+  assert.ok(heroes(first).screen.getByText(screenEyebrow('John 3:16')));
   await first.unmount();
 
   dailyScripture = verseOf({ bookId: 'PSA', chapter: 46, verse: 10, text: 'Be still, and know.' });
   const next = await renderHome();
   assert.ok(heroes(next).screen.getByText('Be still, and know.'));
-  assert.ok(
-    heroes(next).screen.getByText(new RegExp(`^${t('home.todaysScripture')} · Psalms? 46:10$`))
-  );
+  assert.ok(heroes(next).screen.getByText(/^Thursday · Psalms? 46:10$/));
   assert.equal(next.queryByText(JOHN_3_16), null);
 });
 
-test('returning to Home the next evening shows the new date and an evening greeting', async () => {
+test('returning to Home the next day shows the new weekday beside the reference', async () => {
   const view = await renderHome();
-  assert.ok(heroes(view).screen.getByText('Thursday · September 17'));
-  assert.ok(heroes(view).screen.getByText(/^Good morning/));
+  assert.ok(heroes(view).screen.getByText(screenEyebrow('John 3:16')));
 
   harness.rn.AppState.emit('background');
   setToday(new Date(2026, 8, 18, 20, 30));
@@ -289,24 +288,24 @@ test('returning to Home the next evening shows the new date and an evening greet
   await view.flush();
 
   const { screen } = heroes(view);
-  assert.ok(screen.getByText('Friday · September 18'));
-  assert.ok(screen.getByText(/^Good evening/));
-  assert.equal(screen.queryByText(/^Good morning/), null);
+  assert.ok(screen.getByText(screenEyebrow('John 3:16', 'Friday')));
+  assert.equal(screen.queryByText(screenEyebrow('John 3:16')), null);
 });
 
-test('the greeting turns to afternoon at noon while Home stays open', async () => {
+test('the weekday turns over at midnight while Home stays open', async () => {
   mock.timers.reset();
   mock.timers.enable({
     apis: ['Date', 'setTimeout'],
-    now: new Date(2026, 8, 17, 11, 59).getTime(),
+    now: new Date(2026, 8, 17, 23, 59).getTime(),
   });
   const view = await renderHome();
-  assert.ok(heroes(view).screen.getByText(/^Good morning/));
+  assert.ok(heroes(view).screen.getByText(screenEyebrow('John 3:16')));
 
   mock.timers.tick(60_000);
   await view.flush();
+  await view.flush();
 
-  assert.ok(heroes(view).screen.getByText(/^Good afternoon/));
+  assert.ok(heroes(view).screen.getByText(screenEyebrow('John 3:16', 'Friday')));
   await view.unmount();
 });
 
@@ -316,7 +315,7 @@ test('Scripture borrowed from the bundled BSB is attributed to it on the hero an
   const view = await renderHome();
   const { screen, share } = heroes(view);
 
-  assert.ok(screen.getByText(verseEyebrow('John 3:16 · BSB')));
+  assert.ok(screen.getByText(screenEyebrow('John 3:16 · BSB')));
   assert.ok(share.getByText(verseEyebrow('John 3:16 · BSB')));
   // Latin text keeps the Latin reading face even under a Devanagari translation.
   const { getReadingFontFamily } = await import('../../design/fonts');
@@ -459,7 +458,7 @@ test('the whole daily passage is drawn, never clipped mid-sentence, at default a
 test("the reader's own text carries no attribution", async () => {
   const view = await renderHome();
 
-  assert.ok(heroes(view).screen.getByText(verseEyebrow('John 3:16')));
+  assert.ok(heroes(view).screen.getByText(screenEyebrow('John 3:16')));
   assert.equal(view.queryByText(/· BSB$/), null);
 });
 
@@ -467,12 +466,10 @@ test('the shared verse image carries only the photograph and the Scripture', asy
   const view = await renderHome();
   const { screen, share } = heroes(view);
 
-  assert.ok(screen.getByText('Thursday · September 17'));
-  assert.ok(screen.getByText(/^Good morning/));
+  assert.ok(screen.getByText(screenEyebrow('John 3:16')));
   assert.ok(share.getByText(JOHN_3_16));
   assert.ok(share.getByText(verseEyebrow('John 3:16')));
-  assert.equal(share.queryByText('Thursday · September 17'), null, 'no date');
-  assert.equal(share.queryByText(/^Good morning/), null, 'no personal greeting');
+  assert.equal(share.queryByText(/^Thursday/), null, 'no day of the week');
   assert.equal(share.queryAllByRole('button').length, 0, 'no controls');
 });
 
@@ -648,14 +645,16 @@ test('Home is a bouncing scroll shell that clears the floating tab bar, with no 
   );
 });
 
-test('the photograph bleeds under the status bar while the greeting clears it', async () => {
+test('the photograph bleeds under the status bar while the verse clears it', async () => {
   const view = await renderHome();
   const { screen } = heroes(view);
 
   assert.equal(view.queryAllByType('SafeAreaView').length, 0, 'no top inset on the photograph');
-  const greeting = screen.getByText(/^Good morning/);
-  const heroContent = hostAncestors(greeting)[2];
-  assert.equal(flattenStyle(heroContent.props.style)?.paddingTop, harness.insets.top + 14);
+  const eyebrow = screen.getByText(screenEyebrow('John 3:16'));
+  const heroContent = hostAncestors(eyebrow).find(
+    (node) => flattenStyle(node.props.style)?.paddingTop !== undefined
+  );
+  assert.equal(flattenStyle(heroContent?.props.style)?.paddingTop, harness.insets.top + 14);
 
   const [statusBar] = view.queryAllByType('ExpoStatusBar');
   assert.equal(statusBar.props.style, 'light');
@@ -679,8 +678,8 @@ test('once the photograph scrolls out from under the status bar, the strip gets 
     view.fire(scroll, 'onScroll', { nativeEvent: { contentOffset: { x: 0, y } } });
 
   // The hero grows with the text size, so its measured height sets the threshold.
-  const greeting = heroes(view).screen.getByText(/^Good morning/);
-  const hero = hostAncestors(greeting).find((node) => node.props.onLayout) as ReactTestInstance;
+  const eyebrow = heroes(view).screen.getByText(screenEyebrow('John 3:16'));
+  const hero = hostAncestors(eyebrow).find((node) => node.props.onLayout) as ReactTestInstance;
   assert.ok(hero, 'the on-screen hero reports its height');
   await view.fire(hero, 'onLayout', {
     nativeEvent: { layout: { x: 0, y: 0, width: 390, height: 900 } },
@@ -718,18 +717,14 @@ test('the light status bar is only drawn while Home is the focused tab', async (
   assert.equal(view.queryAllByType('ExpoStatusBar').length, 0);
 });
 
-test('the greeting follows the layout model for the screen size, with no welcome subtitle', async () => {
-  const { resolveFloatingBottomOffset, TAB_BAR_CAPSULE_HEIGHT } =
-    await import('../../hooks/useTabBarHeight');
+test('the hero has no greeting, date or welcome line, only the weekday beside the reference', async () => {
   const view = await renderHome();
-  const tabBarHeight =
-    resolveFloatingBottomOffset('ios', harness.insets.bottom, 22) + TAB_BAR_CAPSULE_HEIGHT;
-  const layout = getHomeScreenLayout(390, 844, tabBarHeight, 1);
+  const { screen } = heroes(view);
 
-  const greeting = flattenStyle(heroes(view).screen.getByText(/^Good morning/).props.style);
-  assert.equal(greeting?.fontSize, layout.greetingFontSize);
-  assert.equal(greeting?.lineHeight, layout.greetingLineHeight);
+  assert.equal(screen.queryByText(/^Good (morning|afternoon|evening)/), null);
+  assert.equal(screen.queryByText('Thursday · September 17'), null);
   assert.equal(view.queryByText(t('home.welcome')), null);
+  assert.ok(screen.getByText(screenEyebrow('John 3:16')));
 });
 
 // ---- Reading plans ------------------------------------------------------------
@@ -737,8 +732,8 @@ test('the greeting follows the layout model for the screen size, with no welcome
 test('the plan card resolves the featured recurring plan against today', async () => {
   const onTheSeventeenth = await renderHome();
   const plan = onTheSeventeenth.getByRole('button', { name: /· Day 17 of 30$/ });
-  assert.ok(within(plan).getByText('17'));
-  assert.ok(within(plan).getByRole('progressbar', { name: t('readingPlans.progress') }));
+  assert.ok(within(plan).getByText(t('readingPlans.dayLabel', { day: 17 })));
+  assert.ok(within(plan).getByTestId('reading-chip-progress'));
   await onTheSeventeenth.unmount();
 
   setToday(new Date(2026, 8, 5, 9, 0, 0));
@@ -779,9 +774,8 @@ for (const [year, month, total] of [
     });
     const view = await renderHome();
     const card = view.getByRole('button', { name: new RegExp(`· Day 17 of ${total}$`) });
-    assert.ok(within(card).getByText(`/${total}`));
-    const bar = within(card).getByRole('progressbar', { name: t('readingPlans.progress') });
-    assert.equal(bar.props.accessibilityValue.now, Math.round((14 / total) * 100));
+    const bar = within(card).getByTestId('reading-chip-progress');
+    assert.equal(flattenStyle(bar.props.style)?.width, `${Math.round((14 / total) * 100)}%`);
   });
 }
 
@@ -794,11 +788,11 @@ for (const [scheduleMode, total, day] of [
     catalog = [{ ...bundledReadingPlans[0], scheduleMode, duration_days: total }];
     const view = await renderHome();
     const card = view.getByRole('button', { name: new RegExp(`· Day ${day} of ${total}$`) });
-    assert.ok(within(card).getByText(`/${total}`));
+    assert.ok(within(card).getByText(t('readingPlans.dayLabel', { day })));
   });
 }
 
-test('tapping the plan card opens that plan', async () => {
+test('tapping the plan chip opens that plan', async () => {
   const view = await renderHome();
   await view.press(view.getByRole('button', { name: /· Day 17 of 30$/ }));
 
@@ -811,7 +805,7 @@ test('tapping the plan card opens that plan', async () => {
   assert.ok(catalog.some((plan) => plan.id === target.params.planId));
 });
 
-test('with no plan to feature, the card offers to browse plans', async () => {
+test('with no plan to feature, the chip offers to browse plans', async () => {
   catalog = [];
   const view = await renderHome();
 
@@ -823,27 +817,26 @@ test('with no plan to feature, the card offers to browse plans', async () => {
 
 // ---- Gather and the reading ledger ----------------------------------------------
 
-test('one Gather card names the active foundation, its lesson count and the next lesson', async () => {
+test('the Gather chip names the active foundation, its lesson count and the next lesson', async () => {
   const [first, second] = gatherFoundations;
   gatherStore.setState({ completedLessons: { [second.id]: [second.lessons[0].id] } });
   const view = await renderHome();
 
-  const card = view.getByRole('button', { name: new RegExp(`^${t('tabs.gather')} · `) });
-  const label = String(card.props.accessibilityLabel);
+  const chip = view.getByRole('button', { name: new RegExp(`^${t('tabs.gather')} · `) });
+  const label = String(chip.props.accessibilityLabel);
   assert.ok(
     label.includes(t('home.lessonsProgress', { completed: 1, total: second.lessons.length }))
   );
   assert.ok(label.includes(t('home.nextLesson', { title: second.lessons[1].title })));
   assert.ok(!label.includes(first.title), 'the in-progress foundation wins over the first');
-
-  const badges = view.queryAllByType('GatherIconBadge');
-  assert.equal(badges.length, 1, 'a single Gather card, not a foundations path');
-  assert.deepEqual(
-    { artworkKey: badges[0].props.artworkKey, size: badges[0].props.size },
-    { artworkKey: second.iconImage, size: 28 }
+  assert.ok(within(chip).getByText(t('home.lessonChip', { number: 2 })));
+  const bar = within(chip).getByTestId('reading-chip-progress');
+  assert.equal(
+    flattenStyle(bar.props.style)?.width,
+    `${Math.round((1 / second.lessons.length) * 100)}%`
   );
 
-  await view.press(card);
+  await view.press(chip);
   assert.deepEqual(harness.navigation.calls, [
     {
       method: 'navigate',
@@ -859,23 +852,31 @@ test('one Gather card names the active foundation, its lesson count and the next
 const heatmapButton = (view: HomeView) =>
   view.getByRole('button', { name: new RegExp(`^${t('more.readingActivity')} · `) });
 
-test('the reading ledger closes the sheet below the Gather card with a reading heatmap', async () => {
+test('one dark card holds the streak, the heatmap, then Continue, the plan and Gather', async () => {
   const view = await renderHome();
   const [scroll] = view.queryAllByType('ScrollView');
   const order = within(scroll)
     .queryAllByType('Pressable')
-    .map((node) => String(node.props.accessibilityLabel ?? ''));
-  const gatherIndex = order.findIndex((label) => label.startsWith(`${t('tabs.gather')} · `));
-  const ledgerIndex = order.findIndex((label) =>
-    label.startsWith(`${t('more.readingActivity')} · `)
-  );
-  assert.ok(gatherIndex >= 0 && ledgerIndex > gatherIndex);
+    .map((node) => String(node.props.accessibilityLabel ?? ''))
+    .filter(Boolean);
+  const indexOf = (prefix: string) => order.findIndex((label) => label.startsWith(prefix));
+  const heatmap = indexOf(`${t('more.readingActivity')} · `);
+  const resume = indexOf(`${t('common.continue')} John 3`);
+  const plan = order.findIndex((label) => / · Day 17 of 30$/.test(label));
+  const gather = indexOf(`${t('tabs.gather')} · `);
+  assert.ok(heatmap >= 0 && heatmap < resume && resume < plan && plan < gather, order.join(' | '));
 
-  // The week/month/all-time switch and its rows are gone: the grid shows all three.
-  assert.equal(view.queryAllByRole('tablist').length, 0);
+  // The card is the dark scope even on vellum.
+  const { darkColors } = await import('../../contexts/ThemeContext');
+  const card = hostAncestors(heatmapButton(view)).find(
+    (node) => flattenStyle(node.props.style)?.backgroundColor === darkColors.cardBackground
+  );
+  assert.ok(card, 'the reading card draws on the dark card colour');
+
+  // The grid's key and day count are gone; the header keeps the chapter total.
+  assert.equal(view.queryByText(t('home.heatmapLess')), null);
+  assert.equal(view.queryByText(t('home.heatmapMore')), null);
   assert.ok(view.getByText(t('home.ledgerNoChapters')));
-  assert.ok(view.getByText(t('home.heatmapLess')));
-  assert.ok(view.getByText(t('home.heatmapMore')));
 });
 
 test('the heatmap shades each day by chapters read or heard, and outlines today', async () => {
@@ -910,7 +911,7 @@ test('the ledger totals chapters read and listened since the first one', async (
   });
   const view = await renderHome();
 
-  assert.ok(view.getByText(t('home.ledgerSince', { date: 'September 17', count: 3 })));
+  assert.ok(view.getByText(t('readingPlans.chapterCount', { count: 3 })));
 });
 
 test('tapping the heatmap opens the reading calendar in More', async () => {
@@ -925,55 +926,41 @@ test('tapping the heatmap opens the reading calendar in More', async () => {
   ]);
 });
 
-test('the streak unit keeps its two-line width at default size and loses the cap at large text', async () => {
-  const unitStyle = async () => {
-    const view = await renderHome();
-    const unit = view.getByText(t('home.streakUnitLabel', { count: 0 }));
-    return { style: flattenStyle(unit.props.style) ?? {}, lines: unit.props.numberOfLines };
-  };
+test('Continue shows how far through the book the reader is', async () => {
+  const view = await renderHome();
+  const chip = view.getByRole('button', { name: `${t('common.continue')} John 3` });
 
-  const regular = await unitStyle();
-  assert.equal(regular.style.maxWidth, 54);
-  assert.equal(regular.lines, 2);
-
-  harness.setFontScale(2);
-  const large = await unitStyle();
-  assert.equal(large.style.maxWidth, undefined, 'a fixed 54pt column fits only a word per line');
-  assert.equal(large.lines, undefined, 'longer languages need a third line at 2.0');
+  assert.ok(within(chip).getByText('John 3'));
+  const bar = within(chip).getByTestId('reading-chip-progress');
+  assert.equal(flattenStyle(bar.props.style)?.width, `${Math.round((3 / 21) * 100)}%`);
 });
 
-// Release QA at iOS AX5 truncated the greeting to "Good afterno…"; Android at 2.0
-// cut the date line ("THURSDAY · SEPTEMBER..") and the Gather card eyebrow.
-test('at accessibility sizes the greeting is capped and the one-line eyebrows may wrap', async () => {
+// At large text a third of the card held a word per line, so the chips stack
+// and their values may take a second line.
+test('at accessibility sizes the chips stack and their values may wrap', async () => {
   const { DISPLAY_TEXT_MAX_FONT_SCALE } = await import('../../design/largeTextLayout');
-  const lines = async () => {
+  const layout = async () => {
     const view = await renderHome();
-    const { screen } = heroes(view);
-    const greeting = screen.getByText(/^Good morning/);
-    const date = screen.getByText('Thursday · September 17');
-    const gatherEyebrow = view.getByText(new RegExp(`^${t('tabs.gather')} · `));
-    const [foundation] = gatherFoundations;
-    const gatherCount = view.getByText(
-      t('home.lessonsProgress', { completed: 0, total: foundation.lessons.length })
+    const value = view.getByText(t('readingPlans.dayLabel', { day: 17 }));
+    const chip = view.getByRole('button', { name: /· Day 17 of 30$/ });
+    const row = hostAncestors(chip).find(
+      (node) => flattenStyle(node.props.style)?.flexDirection !== undefined
     );
     return {
-      greeting: [greeting.props.maxFontSizeMultiplier, greeting.props.numberOfLines],
-      date: date.props.numberOfLines,
-      gather: [gatherEyebrow.props.numberOfLines, gatherCount.props.numberOfLines],
+      value: [value.props.maxFontSizeMultiplier, value.props.numberOfLines],
+      direction: flattenStyle(row?.props.style)?.flexDirection,
     };
   };
 
-  assert.deepEqual(await lines(), {
-    greeting: [DISPLAY_TEXT_MAX_FONT_SCALE, 2],
-    date: 1,
-    gather: [1, 1],
+  assert.deepEqual(await layout(), {
+    value: [DISPLAY_TEXT_MAX_FONT_SCALE, 1],
+    direction: 'row',
   });
 
   harness.setFontScale(2);
-  assert.deepEqual(await lines(), {
-    greeting: [DISPLAY_TEXT_MAX_FONT_SCALE, 3],
-    date: 2,
-    gather: [2, 2],
+  assert.deepEqual(await layout(), {
+    value: [DISPLAY_TEXT_MAX_FONT_SCALE, 2],
+    direction: 'column',
   });
 });
 

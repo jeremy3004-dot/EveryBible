@@ -512,6 +512,7 @@ export const tr = {
     continueReading: 'Okumaya devam et',
     sharePrompt: 'Işığı paylaşın. Bugün birini yüreklendirin.',
     plan: 'Plan',
+    lessonChip: 'Ders {{number}}',
     minutesLeft: '{{count}} dk kaldı',
     percentComplete: '%{{percent}}',
     fieldLabel: '{{number}}. Tarla',
