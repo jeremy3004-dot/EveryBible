@@ -2,6 +2,7 @@
 // A key or feature area alone never exempts new English text from translation.
 export const sharedTranslationValues: Record<string, Record<string, string>> = {
   es: {
+    'bible.verseImage.colors.coral': 'Coral',
     'bible.verseImage.tabs.color': 'Color',
     'bible.verseImage.fonts.slab': 'Slab',
     // Brand names only: the app name and the Every Language organization name.
@@ -84,6 +85,7 @@ export const sharedTranslationValues: Record<string, Record<string, string>> = {
     'interface.music.village.label': 'Village',
   },
   pt: {
+    'bible.verseImage.colors.coral': 'Coral',
     'bible.verseImage.fonts.slab': 'Slab',
     // Brand names only: the app name and the Every Language organization name.
     'more.footerVersion': 'Every Bible {{version}} · Every Language',
@@ -102,6 +104,8 @@ export const sharedTranslationValues: Record<string, Record<string, string>> = {
     'engagement.minutes': 'min',
   },
   de: {
+    'bible.verseImage.colors.sand': 'Sand',
+    'bible.verseImage.colors.mint': 'Mint',
     'bible.verseImage.fonts.elegant': 'Elegant',
     'bible.verseImage.fonts.modern': 'Modern',
     'bible.verseImage.colors.gold': 'Gold',
@@ -153,6 +157,7 @@ export const sharedTranslationValues: Record<string, Record<string, string>> = {
     'interface.rhythmPresets.catholic-lectio-divina.historicRoots': 'Lectio Divina',
   },
   tr: {
+    'bible.verseImage.colors.mint': 'Mint',
     'bible.verseImage.fonts.slab': 'Slab',
     'bible.verseImage.fonts.modern': 'Modern',
     // Brand names only: the app name and the Every Language organization name.
@@ -202,6 +207,9 @@ export const sharedTranslationValues: Record<string, Record<string, string>> = {
     'readingPlans.kathisma.title': 'Kathisma',
   },
   id: {
+    'bible.verseImage.colors.amber': 'Amber',
+    'bible.verseImage.colors.lavender': 'Lavender',
+    'bible.verseImage.colors.mint': 'Mint',
     'bible.verseImage.tabs.font': 'Font',
     'bible.verseImage.fonts.slab': 'Slab',
     'bible.verseImage.fonts.modern': 'Modern',

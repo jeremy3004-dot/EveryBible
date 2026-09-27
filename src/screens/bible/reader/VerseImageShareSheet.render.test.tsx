@@ -97,6 +97,40 @@ test('a colour recolours the words', async () => {
   assert.equal(flattenStyle(verse().props.style)?.color, '#E5B95F');
 });
 
+test('sixteen colours to choose from, and a deep one sets the words on a lighter wash', async () => {
+  const { view, tab, verse } = await renderSheet();
+  await view.press(tab('color'));
+
+  const ids = [
+    'white',
+    'cream',
+    'sand',
+    'gold',
+    'amber',
+    'coral',
+    'blush',
+    'lavender',
+    'sky',
+    'mint',
+    'sage',
+    'rose',
+    'crimson',
+    'forest',
+    'navy',
+    'ink',
+  ];
+  for (const id of ids) {
+    assert.ok(view.getByRole('button', { name: t(`bible.verseImage.colors.${id}`) }), id);
+  }
+  const washOf = () =>
+    (view.queryAllByType('LinearGradient')[0]?.props.colors as string[] | undefined)?.[1] ?? '';
+  assert.match(washOf(), /^rgba\(10, 9, 7/, 'white words: a dark wash');
+
+  await view.press(view.getByRole('button', { name: t('bible.verseImage.colors.navy') }));
+  assert.equal(flattenStyle(verse().props.style)?.color, '#1F2F4D');
+  assert.match(washOf(), /^rgba\(248, 244, 236/, 'navy words: a light wash');
+});
+
 test('pushing the size past what fits says the words already fill the picture', async () => {
   const { view, tab, verse } = await renderSheet();
   await view.press(tab('size'));

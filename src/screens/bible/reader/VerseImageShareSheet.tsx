@@ -227,17 +227,20 @@ export function VerseImageShareSheet({
             accessibilityRole="button"
             accessibilityState={{ selected: isSelected }}
             accessibilityLabel={t(`bible.verseImage.colors.${color.id}`)}
-            hitSlop={6}
-            style={[
-              styles.verseImageSwatch,
-              {
-                backgroundColor: color.hex,
-                borderColor: isSelected ? colors.biblePrimaryText : colors.bibleDivider,
-                borderWidth: isSelected ? 3 : 1,
-              },
-            ]}
+            style={styles.verseImageSwatchCell}
             onPress={() => setStyle((current) => ({ ...current, colorId: color.id }))}
-          />
+          >
+            <View
+              style={[
+                styles.verseImageSwatch,
+                {
+                  backgroundColor: color.hex,
+                  borderColor: isSelected ? colors.biblePrimaryText : colors.bibleDivider,
+                  borderWidth: isSelected ? 3 : 1,
+                },
+              ]}
+            />
+          </Pressable>
         );
       })}
     </View>
@@ -527,15 +530,23 @@ const styles = StyleSheet.create({
     ...typography.label,
     fontSize: 11,
   },
+  // Sixteen swatches in two rows of eight; each cell is an eighth of the row, and taller
+  // than the swatch, so every one keeps a 44pt-high touch target.
   verseImageSwatches: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.xl,
+    flexWrap: 'wrap',
+    paddingHorizontal: spacing.md,
+  },
+  verseImageSwatchCell: {
+    width: '12.5%',
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   verseImageSwatch: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
   },
   verseImageSizePanel: {
     paddingHorizontal: spacing.lg,

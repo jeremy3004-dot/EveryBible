@@ -1,3 +1,4 @@
+import { contrastRatio, WCAG_AA_TEXT } from '../../../../design/contrast';
 import { serifFamily } from '../../../../design/fonts';
 import { VERSE_IMAGE_FONT_COVERAGE } from './verseImageFontCoverage.generated';
 
@@ -46,7 +47,23 @@ export const VERSE_IMAGE_FONTS: readonly VerseImageFont[] = [
   { id: 'modern', fontFamily: 'AlteHaasGrotesk-Bold', scale: 1, lineHeight: 1.26 },
 ];
 
-export type VerseImageColorId = 'white' | 'cream' | 'gold' | 'ember' | 'ink';
+export type VerseImageColorId =
+  | 'white'
+  | 'cream'
+  | 'sand'
+  | 'gold'
+  | 'amber'
+  | 'coral'
+  | 'blush'
+  | 'lavender'
+  | 'sky'
+  | 'mint'
+  | 'sage'
+  | 'rose'
+  | 'crimson'
+  | 'forest'
+  | 'navy'
+  | 'ink';
 
 export interface VerseImageColor {
   id: VerseImageColorId;
@@ -59,15 +76,38 @@ export interface VerseImageColor {
   light: boolean;
 }
 
-export const VERSE_IMAGE_COLORS: readonly VerseImageColor[] = [
-  { id: 'white', hex: '#FFFFFF', light: true },
-  { id: 'cream', hex: '#F3E6CC', light: true },
-  { id: 'gold', hex: '#E5B95F', light: true },
-  { id: 'ember', hex: '#E39A80', light: true },
-  { id: 'ink', hex: '#1A1914', light: false },
-];
+const BLACK = '#000000';
+const WHITE = '#FFFFFF';
 
-/** The reference chip under light words, and under dark (Ink) words. */
+/** Light when black reads better on it than white does. */
+const isLightColor = (hex: string) => contrastRatio(BLACK, hex) > contrastRatio(WHITE, hex);
+
+// Sixteen hand-picked colours: light ones that read on most photos, then deeper tones
+// for bright pictures (owner chose the sixteen over a free colour picker).
+const COLOR_HEXES: Record<VerseImageColorId, string> = {
+  white: '#FFFFFF',
+  cream: '#F3E6CC',
+  sand: '#E6CFA6',
+  gold: '#E5B95F',
+  amber: '#F0A04B',
+  coral: '#EE9A80',
+  blush: '#F4BCC9',
+  lavender: '#CDBDF2',
+  sky: '#A3D3F6',
+  mint: '#A9E2C6',
+  sage: '#BACB9C',
+  rose: '#C4506A',
+  crimson: '#9C2A24',
+  forest: '#2E4A36',
+  navy: '#1F2F4D',
+  ink: '#1A1914',
+};
+
+export const VERSE_IMAGE_COLORS: readonly VerseImageColor[] = (
+  Object.keys(COLOR_HEXES) as VerseImageColorId[]
+).map((id) => ({ id, hex: COLOR_HEXES[id], light: isLightColor(COLOR_HEXES[id]) }));
+
+/** The reference chip under light words, and under dark words. */
 const DARK_CHIP = '#1A1914';
 const LIGHT_CHIP = '#F6F1E7';
 
@@ -150,14 +190,20 @@ export function getVerseImageScrim(color: VerseImageColor): [string, string] {
 /**
  * The reference sits on an opaque chip: a translucent wash over a photo has no
  * knowable contrast (an accent reference once vanished on a blue-grey photo). The
- * chip takes the words' colour, on a dark chip for light words and a light one for
- * Ink, so it follows the chosen look and still clears 4.5:1.
+ * chip follows the chosen colour and always clears 4.5:1: the words' colour on a dark
+ * chip for light colours or a light chip for dark ones; a mid-tone that reaches 4.5:1
+ * on neither (Rose) fills the chip itself, under black or white words.
  */
 export function getVerseImageReferenceChip(color: VerseImageColor): {
   background: string;
   text: string;
 } {
-  return { background: color.light ? DARK_CHIP : LIGHT_CHIP, text: color.hex };
+  const tinted = { background: color.light ? DARK_CHIP : LIGHT_CHIP, text: color.hex };
+  if (contrastRatio(tinted.text, tinted.background) >= WCAG_AA_TEXT) return tinted;
+  return {
+    background: color.hex,
+    text: contrastRatio(BLACK, color.hex) >= contrastRatio(WHITE, color.hex) ? BLACK : WHITE,
+  };
 }
 
 /**

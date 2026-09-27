@@ -21,6 +21,48 @@ test('eight faces, each its own family, not one face in different weights', () =
   );
 });
 
+test('sixteen text colours, light ones first, each its own', () => {
+  assert.deepEqual(
+    VERSE_IMAGE_COLORS.map((color) => color.id),
+    [
+      'white',
+      'cream',
+      'sand',
+      'gold',
+      'amber',
+      'coral',
+      'blush',
+      'lavender',
+      'sky',
+      'mint',
+      'sage',
+      'rose',
+      'crimson',
+      'forest',
+      'navy',
+      'ink',
+    ]
+  );
+  assert.equal(new Set(VERSE_IMAGE_COLORS.map((color) => color.hex)).size, 16);
+});
+
+test('light words get a dark wash and dark words a light one', () => {
+  const light = (id: string) => VERSE_IMAGE_COLORS.find((color) => color.id === id)!.light;
+  assert.equal(light('white'), true);
+  assert.equal(light('sky'), true);
+  assert.equal(light('navy'), false);
+  assert.equal(light('crimson'), false);
+});
+
+// Mid-tones such as Rose reach 4.5:1 on neither a dark nor a light chip, so there the
+// chip takes the colour itself and the reference is set in black or white on it.
+test('a mid-tone colour fills the chip itself, with black or white words on it', () => {
+  const rose = VERSE_IMAGE_COLORS.find((color) => color.id === 'rose')!;
+  const chip = getVerseImageReferenceChip(rose);
+  assert.equal(chip.background, rose.hex);
+  assert.ok(['#000000', '#FFFFFF'].includes(chip.text));
+});
+
 test('the reference chip clears 4.5:1 in every text colour', () => {
   for (const color of VERSE_IMAGE_COLORS) {
     const chip = getVerseImageReferenceChip(color);
