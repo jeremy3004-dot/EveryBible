@@ -167,3 +167,44 @@ test('the Bible reader listen progress drags through the same scrubber to seek',
   await view.fire(slider(), 'onResponderRelease', touch(100));
   assert.deepEqual(seeks, [60_000]);
 });
+
+/** The round dot that rides the line, if one is drawn. */
+const thumbOf = (view: RenderResult) =>
+  view.root.findAll(
+    (node: ReactTestInstance) =>
+      typeof node.type === 'string' &&
+      flattenStyle(node.props.style)?.position === 'absolute' &&
+      flattenStyle(node.props.style)?.borderRadius === 999
+  )[0];
+
+test('by default the dot rides the line at rest and grows while dragging', async () => {
+  const { view, slider } = await renderScrubber(30_000, 120_000);
+
+  assert.equal(flattenStyle(thumbOf(view)?.props.style)?.width, 12);
+  await view.fire(slider(), 'onResponderGrant', touch(50));
+  assert.equal(flattenStyle(thumbOf(view)?.props.style)?.width, 16);
+});
+
+// Read Along asked for a quieter line: no dot until a finger is on it.
+test('a scrubber that shows its dot only while dragging has none at rest', async () => {
+  const { AudioProgressScrubber } = await import('./AudioProgressScrubber');
+  const view = await harness.render(
+    <AudioProgressScrubber
+      position={30_000}
+      duration={120_000}
+      onSeek={() => {}}
+      trackColor="#111111"
+      fillColor="#222222"
+      accessibilityLabel="Chapter progress"
+      thumb="whileScrubbing"
+    />
+  );
+  const slider = () => view.getByRole('adjustable', { name: 'Chapter progress' });
+  await view.fire(slider(), 'onLayout', { nativeEvent: { layout: { width: 200, height: 32 } } });
+
+  assert.equal(thumbOf(view), undefined, 'no dot at rest');
+  await view.fire(slider(), 'onResponderGrant', touch(50));
+  assert.equal(flattenStyle(thumbOf(view)?.props.style)?.width, 16, 'a dot under the finger');
+  await view.fire(slider(), 'onResponderRelease', touch(50));
+  assert.equal(thumbOf(view), undefined, 'gone again once released');
+});

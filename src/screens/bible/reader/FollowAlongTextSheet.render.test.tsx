@@ -526,6 +526,26 @@ test('Read Along previews a drag and seeks forward or backward on release', asyn
   assert.deepEqual(calls, [], 'seeking does not toggle playback or navigate chapters');
 });
 
+test('the Read Along line is a thin rule with no dot until it is dragged', async () => {
+  await playJohn3At(15_000);
+  const { view } = await renderReadAlong();
+  const slider = () => view.getByRole('adjustable', { name: t('readingPlans.progress') });
+  const drawn = () =>
+    slider().findAll(
+      (node) => typeof node.type === 'string' && node !== slider() && node.props.style != null
+    );
+  const track = drawn().find((node) => flattenStyle(node.props.style)?.overflow === 'hidden');
+  assert.ok(track);
+  assert.equal(flattenStyle(track.props.style)?.height, 3);
+  const dots = () =>
+    drawn().filter((node) => flattenStyle(node.props.style)?.position === 'absolute');
+  assert.deepEqual(dots(), []);
+
+  await view.fire(slider(), 'onLayout', { nativeEvent: { layout: { width: 200 } } });
+  await view.fire(slider(), 'onResponderGrant', { nativeEvent: { locationX: 50 } });
+  assert.equal(dots().length, 1, 'a dot appears under the finger');
+});
+
 test('Read Along cannot seek the recording of another chapter', async () => {
   await playJohn3At(15_000);
   const { view } = await renderReadAlong({ isCurrentAudioChapter: false });

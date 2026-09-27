@@ -23,6 +23,11 @@ interface AudioProgressScrubberProps {
   fillStyle?: StyleProp<ViewStyle>;
   /** Names the slider; without it VoiceOver announces only the bare time value. */
   accessibilityLabel?: string;
+  /**
+   * The round dot on the line: always there (the default), or only under a finger
+   * while dragging, for a quieter line.
+   */
+  thumb?: 'always' | 'whileScrubbing';
 }
 
 function clampProgressPosition(value: number, duration: number): number {
@@ -43,6 +48,7 @@ export function AudioProgressScrubber({
   trackStyle,
   fillStyle,
   accessibilityLabel,
+  thumb = 'always',
 }: AudioProgressScrubberProps) {
   const [trackWidth, setTrackWidth] = useState(0);
   const [isScrubbing, setIsScrubbing] = useState(false);
@@ -142,20 +148,22 @@ export function AudioProgressScrubber({
           ]}
         />
       </View>
-      <View
-        pointerEvents="none"
-        style={[
-          styles.thumb,
-          {
-            left: `${progress}%`,
-            width: isScrubbing ? 16 : 12,
-            height: isScrubbing ? 16 : 12,
-            marginLeft: isScrubbing ? -8 : -6,
-            marginTop: isScrubbing ? -8 : -6,
-            backgroundColor: fillColor,
-          },
-        ]}
-      />
+      {thumb === 'always' || isScrubbing ? (
+        <View
+          pointerEvents="none"
+          style={[
+            styles.thumb,
+            {
+              left: `${progress}%`,
+              width: isScrubbing ? 16 : 12,
+              height: isScrubbing ? 16 : 12,
+              marginLeft: isScrubbing ? -8 : -6,
+              marginTop: isScrubbing ? -8 : -6,
+              backgroundColor: fillColor,
+            },
+          ]}
+        />
+      ) : null}
     </View>
   );
 }

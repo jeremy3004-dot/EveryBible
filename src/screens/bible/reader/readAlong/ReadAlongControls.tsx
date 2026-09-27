@@ -35,6 +35,8 @@ const ReadAlongProgressLine = memo(function ReadAlongProgressLine({
       trackColor={colors.bibleDivider}
       fillColor={colors.bibleAccent}
       containerStyle={styles.progressTouch}
+      trackStyle={styles.progressTrack}
+      thumb="whileScrubbing"
       accessibilityLabel={t('readingPlans.progress')}
     />
   );
@@ -150,6 +152,10 @@ const styles = StyleSheet.create({
   progressTouch: {
     minHeight: layout.minTouchTarget,
     marginHorizontal: spacing.lg,
+  },
+  // A thin rule under the text; the touch target above keeps it easy to grab.
+  progressTrack: {
+    height: 3,
   },
   row: {
     flexDirection: 'row',
