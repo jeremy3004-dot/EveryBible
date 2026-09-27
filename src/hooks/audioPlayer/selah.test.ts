@@ -172,16 +172,17 @@ test('Selah fades the narration out, pauses it, and keeps the music playing', as
 
   const entering = selah.toggleSelah();
   assert.equal(store().selahActive, true, 'on at once, while the fade runs');
-  t.mock.timers.tick(750);
+  // A quick dip, not a slow fade: the narration is paused 150 ms after the tap.
+  t.mock.timers.tick(150);
   await entering;
   await settle();
 
-  const fade = volumes().slice(0, 15);
-  assert.equal(fade.length, 15);
+  const fade = volumes().slice(0, 3);
+  assert.equal(fade.length, 3);
   const first = assertDefined(fade[0], 'first fade step');
-  assert.equal(first < 0.8 && first > 0.7, true);
+  assert.equal(first < 0.8 && first > 0.4, true);
   assert.equal(fade.at(-1), 0);
-  assert.deepEqual(calls.slice(15), ['pause', 'volume 0.8']);
+  assert.deepEqual(calls.slice(3), ['pause', 'volume 0.8']);
   assert.equal(store().status, 'paused');
   assert.equal(store().selahActive, true);
   assert.deepEqual(
@@ -280,7 +281,7 @@ test('a Voice change while the narration fades back in is where the fade ends', 
 test('Selah again while it is still fading out brings the narration back without a pause', async (t) => {
   await playing(t, 42_000);
   const entering = selah.toggleSelah();
-  t.mock.timers.tick(300);
+  t.mock.timers.tick(50);
 
   const leaving = selah.toggleSelah();
   t.mock.timers.tick(750);
@@ -330,7 +331,7 @@ test('a normal Pause during Selah ends it and pauses the music too', async (t) =
 test('Pause while Selah is fading out pauses first, then puts the Voice level back', async (t) => {
   await playing(t, 42_000);
   void selah.toggleSelah();
-  t.mock.timers.tick(300);
+  t.mock.timers.tick(50);
   const { pausePlayback } = await import('./transportControls');
   calls.length = 0;
 
@@ -346,7 +347,7 @@ test('Pause while Selah is fading out pauses first, then puts the Voice level ba
 test('selecting another chapter ends Selah and leaves the narration at the Voice level', async (t) => {
   await playing(t, 42_000);
   void selah.toggleSelah();
-  t.mock.timers.tick(300);
+  t.mock.timers.tick(50);
 
   store().setStatus('loading');
   store().setCurrentTrack('bsb', 'JHN', 5);

@@ -3,7 +3,8 @@ import { hasSleepTimerExpired } from '../../services/audio/audioSleepTimerModel'
 import { useAudioStore } from '../../stores/audioStore';
 import {
   SELAH_BED_FADE_OUT_MS,
-  SELAH_FADE_MS,
+  SELAH_FADE_IN_MS,
+  SELAH_FADE_OUT_MS,
   canSelah,
   resolveSelahDeadline,
   resolveSelahResumePositionMs,
@@ -77,13 +78,15 @@ function stopNarrationFade(): void {
 }
 
 /**
- * Fades the narration to `target` (a share of the Voice level) over the part of
- * SELAH_FADE_MS it has left to go. Resolves true once there, false if stopped first.
+ * Fades the narration to `target` (a share of the Voice level) over the part of its fade
+ * (SELAH_FADE_OUT_MS down, SELAH_FADE_IN_MS up) it has left to go. Resolves true once
+ * there, false if stopped first.
  */
 function fadeNarration(target: 0 | 1): Promise<boolean> {
   stopNarrationFade();
   const from = fadeLevel;
-  const steps = Math.max(1, Math.round((SELAH_FADE_MS * Math.abs(target - from)) / FADE_STEP_MS));
+  const durationMs = target === 0 ? SELAH_FADE_OUT_MS : SELAH_FADE_IN_MS;
+  const steps = Math.max(1, Math.round((durationMs * Math.abs(target - from)) / FADE_STEP_MS));
   return new Promise<boolean>((resolve) => {
     let step = 0;
     const timer = setInterval(() => {

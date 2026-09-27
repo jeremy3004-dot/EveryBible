@@ -4,8 +4,14 @@ import { resolvePassageVerseStartMs, type PassageVerseTimings } from './audioRep
 // Selah: "pause the reading, keep the music". The decisions it makes, kept free of
 // players and timers (src/hooks/audioPlayer/selah.ts carries them out).
 
-/** How long the narration takes to fade out into Selah, and back in out of it. */
-export const SELAH_FADE_MS = 750;
+/**
+ * How long the narration takes to dip out into Selah. Short, so the tap feels immediate;
+ * just long enough that the pause never lands as an audible click.
+ */
+export const SELAH_FADE_OUT_MS = 150;
+
+/** How long the narration takes to fade back in out of Selah. */
+export const SELAH_FADE_IN_MS = 750;
 
 /** How far back the narration picks up after Selah, so no words are lost. */
 export const SELAH_REWIND_MS = 1500;
